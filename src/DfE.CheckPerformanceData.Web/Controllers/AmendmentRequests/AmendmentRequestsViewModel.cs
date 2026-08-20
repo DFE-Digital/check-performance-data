@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Domain.Enums;
+using DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 using DfE.CheckPerformanceData.Web.Extensions;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.AmendmentRequests;
@@ -7,9 +8,36 @@ public sealed class AmendmentRequestsViewModel
 {
     public required Guid WindowId { get; init; }
     public required string WindowTitle { get; init; }
-    public required string DeadlineText { get; init; }
+
+    /// <summary>
+    /// One sentence per checking exercise the window runs (#320). The grid is deliberately left
+    /// unsplit — both populations share one table and one bulk submit — but they do not share a
+    /// deadline, so each is stated.
+    /// </summary>
+    public required IReadOnlyList<ExerciseDeadlineViewModel> Deadlines { get; init; }
+
     public required IReadOnlyList<AmendmentRequestRowViewModel> Rows { get; init; }
     public required IReadOnlyList<SubmittedRequestRowViewModel> SubmittedRows { get; init; }
+}
+
+/// <summary>One exercise's deadline sentence on the amendment requests page.</summary>
+public sealed class ExerciseDeadlineViewModel
+{
+    public required CheckingExerciseType Exercise { get; init; }
+    public required DateTime EndDate { get; init; }
+    public required bool IsOpen { get; init; }
+
+    public string ExerciseLabel => ExerciseLabels.For(Exercise);
+
+    // Checking-window dates are UK wall-clock values rather than UTC instants, so they are
+    // formatted as they stand and never routed through LondonTime.
+    public string DeadlineText =>
+        $"{EndDate.ToString("htt").ToLowerInvariant()} on {EndDate:dddd d MMMM yyyy}";
+
+    /// <summary>Past tense once the exercise has closed, matching the check-your-pupil-data page.</summary>
+    public string Sentence => IsOpen
+        ? $"Submit your {ExerciseLabel.ToLowerInvariant()} requests by {DeadlineText}"
+        : $"The deadline for {ExerciseLabel.ToLowerInvariant()} requests passed at {DeadlineText}";
 }
 
 public sealed class SubmittedRequestRowViewModel

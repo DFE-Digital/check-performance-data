@@ -28,14 +28,18 @@ public sealed class AmendmentRequestsController(
     private async Task<AmendmentRequestsViewModel> BuildIndexViewModelAsync(Guid windowId)
     {
         var result = await service.GetAmendmentRequestsAsync(windowId);
-        var deadline = result.WindowEndDate;
         // Re-check the boxes that were selected before going into the bulk review (kept in session).
         var selected = HttpContext.Session.GetBulkSelection(windowId).ToHashSet(StringComparer.Ordinal);
         return new AmendmentRequestsViewModel
         {
             WindowId = windowId,
             WindowTitle = result.WindowTitle,
-            DeadlineText = $"{deadline.ToString("htt").ToLower()} on {deadline:dddd d MMMM yyyy}",
+            Deadlines = result.Deadlines.Select(d => new ExerciseDeadlineViewModel
+            {
+                Exercise = d.Exercise,
+                EndDate = d.EndDate,
+                IsOpen = d.IsOpen
+            }).ToList(),
             Rows = result.Rows.Select(r => new AmendmentRequestRowViewModel
             {
                 PupilName = r.PupilName,
@@ -152,13 +156,18 @@ public sealed class AmendmentRequestsController(
             return RedirectToAction(nameof(Index), new { windowId });
 
         var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
-        var deadline = window.EndDate;
+        // #320: the pupil-data exercise's end, never the outer window's. The banner below invites
+        // the school to request another amendment, and that journey shuts when pupil data shuts —
+        // on a 16-19 window the outer end is the results-enquiry close, months later.
+        var deadline = checkingExercises.EndDateFor(window.Exercises, CheckingExerciseType.PupilData);
 
         return View("BulkConfirmation", new BulkConfirmationViewModel
         {
             WindowId = windowId,
             ReferenceNumbers = references,
-            WindowCloseLabel = $"{deadline.ToString("htt").ToLower()} on {deadline:dddd d MMMM yyyy}"
+            WindowCloseLabel = deadline is null
+                ? null
+                : $"{deadline.Value.ToString("htt").ToLower()} on {deadline.Value:dddd d MMMM yyyy}"
         });
     }
 

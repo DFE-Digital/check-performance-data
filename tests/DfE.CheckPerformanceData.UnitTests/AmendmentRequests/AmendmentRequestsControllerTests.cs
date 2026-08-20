@@ -19,6 +19,7 @@ using DfE.CheckPerformanceData.Application.UnitTests.WindowManagement;
 // Alias, not a namespace import: WindowManagement also declares a CheckingWindowDto and this
 // file already uses the LandingPage one.
 using ICheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.ICheckingExerciseService;
+using CheckingExerciseDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseDto;
 using DfE.CheckPerformanceData.Web.Common;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.AmendmentRequests;
@@ -79,7 +80,7 @@ public class AmendmentRequestsControllerTests
     {
         _service.GetAmendmentRequestsAsync(WindowId).Returns(new AmendmentRequestsResult
         {
-            WindowEndDate = new DateTime(2026, 6, 26, 17, 0, 0),
+            Deadlines = [Deadline(new DateTime(2026, 6, 26, 17, 0, 0))],
             WindowTitle = "Key stage 4",
             Rows =
             [
@@ -103,7 +104,7 @@ public class AmendmentRequestsControllerTests
         var endDate = new DateTime(2026, 6, 26, 17, 0, 0);
         _service.GetAmendmentRequestsAsync(WindowId).Returns(new AmendmentRequestsResult
         {
-            WindowEndDate = endDate,
+            Deadlines = [Deadline(endDate)],
             WindowTitle = "Key stage 4",
             Rows = [],
             SubmittedRows = []
@@ -112,7 +113,59 @@ public class AmendmentRequestsControllerTests
         var result = await _sut.Index(WindowId);
 
         var vm = Assert.IsType<AmendmentRequestsViewModel>(((ViewResult)result).Model);
-        Assert.Equal("5pm on Friday 26 June 2026", vm.DeadlineText);
+        Assert.Equal("5pm on Friday 26 June 2026", Assert.Single(vm.Deadlines).DeadlineText);
+    }
+
+    // #320: one deadline line per checking exercise, each on its own dates. Before this the page
+    // printed the outer window's end once, which on a 16-19 window is the results-enquiry close —
+    // months after pupil data shuts, so it told a school it still had time it did not have.
+    [Fact]
+    public async Task Index_GivesEachCheckingExercise_ItsOwnDeadlineLine()
+    {
+        _service.GetAmendmentRequestsAsync(WindowId).Returns(new AmendmentRequestsResult
+        {
+            Deadlines =
+            [
+                Deadline(new DateTime(2026, 10, 18, 17, 0, 0)),
+                Deadline(new DateTime(2027, 3, 31, 17, 0, 0),
+                    CheckingExerciseType.ResultsEnquiry, isOpen: false)
+            ],
+            WindowTitle = "16 to 19",
+            Rows = [],
+            SubmittedRows = []
+        });
+
+        var result = await _sut.Index(WindowId);
+
+        var vm = Assert.IsType<AmendmentRequestsViewModel>(((ViewResult)result).Model);
+        Assert.Equal(
+            [CheckingExerciseType.PupilData, CheckingExerciseType.ResultsEnquiry],
+            vm.Deadlines.Select(d => d.Exercise));
+        Assert.Equal("5pm on Sunday 18 October 2026", vm.Deadlines[0].DeadlineText);
+        Assert.Equal("5pm on Wednesday 31 March 2027", vm.Deadlines[1].DeadlineText);
+    }
+
+    [Fact]
+    public async Task Index_AnOpenExercise_SaysSubmitBy_AndAClosedOne_SaysThePassed()
+    {
+        _service.GetAmendmentRequestsAsync(WindowId).Returns(new AmendmentRequestsResult
+        {
+            Deadlines =
+            [
+                Deadline(new DateTime(2026, 10, 18, 17, 0, 0)),
+                Deadline(new DateTime(2026, 6, 26, 17, 0, 0),
+                    CheckingExerciseType.ResultsEnquiry, isOpen: false)
+            ],
+            WindowTitle = "16 to 19",
+            Rows = [],
+            SubmittedRows = []
+        });
+
+        var result = await _sut.Index(WindowId);
+
+        var vm = Assert.IsType<AmendmentRequestsViewModel>(((ViewResult)result).Model);
+        Assert.StartsWith("Submit your", vm.Deadlines[0].Sentence);
+        Assert.StartsWith("The deadline for", vm.Deadlines[1].Sentence);
     }
 
     [Fact]
@@ -120,7 +173,7 @@ public class AmendmentRequestsControllerTests
     {
         _service.GetAmendmentRequestsAsync(WindowId).Returns(new AmendmentRequestsResult
         {
-            WindowEndDate = DateTime.UtcNow,
+            Deadlines = [Deadline(DateTime.UtcNow)],
             WindowTitle = "Key stage 4",
             Rows =
             [
@@ -153,7 +206,7 @@ public class AmendmentRequestsControllerTests
         var submitted = new DateTime(2026, 6, 16, 9, 30, 0);
         _service.GetAmendmentRequestsAsync(WindowId).Returns(new AmendmentRequestsResult
         {
-            WindowEndDate = DateTime.UtcNow,
+            Deadlines = [Deadline(DateTime.UtcNow)],
             WindowTitle = "Key stage 4",
             Rows = [],
             SubmittedRows =
@@ -187,7 +240,7 @@ public class AmendmentRequestsControllerTests
     {
         _service.GetAmendmentRequestsAsync(WindowId).Returns(new AmendmentRequestsResult
         {
-            WindowEndDate = DateTime.UtcNow,
+            Deadlines = [Deadline(DateTime.UtcNow)],
             WindowTitle = "Key stage 4",
             Rows = [],
             SubmittedRows =
@@ -542,16 +595,7 @@ public class AmendmentRequestsControllerTests
     public async Task BulkConfirmation_WithRefs_RendersConfirmationWithLowercaseDeadline()
     {
         _sut.TempData["BulkSubmittedRefs"] = "R1,R2";
-        var endDate = new DateTime(2026, 6, 26, 17, 0, 0);
-        _checkYourPupilData.GetCheckingWindowAsync(WindowId).Returns(new CheckingWindowDto
-        {
-            Id = WindowId,
-            Title = "KS4 2026",
-            EndDate = endDate,
-            StartDate = endDate.AddMonths(-3),
-            KeyStage = KeyStages.KS4,
-            CheckingWindowType = CheckingWindowType.KS4June
-        });
+        _checkYourPupilData.GetCheckingWindowAsync(WindowId).Returns(SampleWindow());
 
         var result = await _sut.BulkConfirmation(WindowId);
 
@@ -561,17 +605,38 @@ public class AmendmentRequestsControllerTests
         Assert.Contains("5pm", vm.WindowCloseLabel); // lowercase am/pm
     }
 
+    // #320: the banner offers another amendment, so it must quote the pupil-data close. A window
+    // that runs no pupil data checking has no such date, and the banner is dropped rather than
+    // falling back to the outer window's end — which on a 16-19 window is months later.
+    [Fact]
+    public async Task BulkConfirmation_WhenTheWindowHasNoPupilDataExercise_HasNoDeadlineLabel()
+    {
+        _sut.TempData["BulkSubmittedRefs"] = "R1";
+        _checkYourPupilData.GetCheckingWindowAsync(WindowId).Returns(SampleWindow(withExercises: false));
+
+        var result = await _sut.BulkConfirmation(WindowId);
+
+        var vm = Assert.IsType<BulkConfirmationViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.Null(vm.WindowCloseLabel);
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
+
+    private static ExerciseDeadlineDto Deadline(
+        DateTime endDate,
+        CheckingExerciseType exercise = CheckingExerciseType.PupilData,
+        bool isOpen = true) =>
+        new() { Exercise = exercise, EndDate = endDate, IsOpen = isOpen };
 
     private static AmendmentRequestsResult EmptyResult() => new()
     {
-        WindowEndDate = new DateTime(2026, 6, 26, 17, 0, 0),
+        Deadlines = [Deadline(new DateTime(2026, 6, 26, 17, 0, 0))],
         WindowTitle = "Key stage 4",
         Rows = [],
         SubmittedRows = []
     };
 
-    private static CheckingWindowDto SampleWindow()
+    private static CheckingWindowDto SampleWindow(bool withExercises = true)
     {
         var endDate = new DateTime(2026, 6, 26, 17, 0, 0);
         return new CheckingWindowDto
@@ -581,7 +646,20 @@ public class AmendmentRequestsControllerTests
             EndDate = endDate,
             StartDate = endDate.AddMonths(-3),
             KeyStage = KeyStages.KS4,
-            CheckingWindowType = CheckingWindowType.KS4June
+            CheckingWindowType = CheckingWindowType.KS4June,
+            // The bulk confirmation banner reads the pupil-data exercise's end, not the window's.
+            Exercises = withExercises
+                ?
+                [
+                    new CheckingExerciseDto
+                    {
+                        ExerciseType = CheckingExerciseType.PupilData,
+                        StartDate = endDate.AddMonths(-3),
+                        EndDate = endDate,
+                        SortOrder = 0
+                    }
+                ]
+                : []
         };
     }
 

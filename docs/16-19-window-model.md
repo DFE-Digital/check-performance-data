@@ -319,14 +319,34 @@ A journey is identified by `WhatToChange` plus `CheckingWindowType`, and
 new axis in the config key; `IncorrectGrade` is a `WhatToChange` member like any other, and its flow
 is `IncorrectGrade_Post16.json`.
 
-Keep that. The map's `const string` values should become `CheckingExerciseType` once the enum
-exists, so there is one spelling of an exercise name in the solution, but the naming rule itself
-needs no change.
+Keep that. #318 made the map's values `CheckingExerciseType` instead of `const string`, so there is
+one spelling of an exercise name in the solution, and #320 moved the map out of
+`Application/ResultsEnquiry/` into `Application/WindowManagement/` — it answers a question about
+every exercise, so filing it under one of them read as if results enquiry were a special case. The
+naming rule for the config key itself needs no change.
 
-The trigger to revisit is a **name collision**: two exercises both wanting, say, a `Remove` journey
-for the same window type. At that point the exercise joins the config key
-(`{Exercise}_{WhatToChange}_{CheckingWindowType}.json`, existing files reading as `PupilData_*`).
-Until then that change buys nothing.
+### The trigger to put the exercise in the config key (#320)
+
+The config key stays `{WhatToChange}_{CheckingWindowType}.json`. The one thing that forces a third
+axis is a **name collision**: two exercises both wanting the same `WhatToChange` for the same
+`CheckingWindowType` — say a pupil-data `Remove` and a results-enquiry `Remove` on `Post16`. The
+key cannot name both files, and `WhatToChangeCheckingExerciseMap` cannot answer which exercise a
+`Remove` belongs to, because the answer would depend on the window type.
+
+When that happens:
+
+1. The exercise joins the key: `{Exercise}_{WhatToChange}_{CheckingWindowType}.json`. Every existing
+   file is renamed to read `PupilData_*` except the results-enquiry ones, which read
+   `ResultsEnquiry_*`. Blobs are renamed in the `question-flows` container, and
+   `Web/Data/QuestionFlows/` renamed to match, in the same change — the seeder uploads by filename.
+2. `WhatToChangeCheckingExerciseMap` is retired. The exercise is no longer derived from the change
+   type; it comes from whichever page started the journey and is carried into the key.
+3. `IsSessionReady`'s gate then needs the exercise from somewhere else. Storing it on `RequestState`
+   is the obvious move but reintroduces the disagreement the map exists to prevent, so pass it from
+   the entry-point controller rather than persisting it.
+
+Until a collision exists, none of that buys anything: the key is shorter, the map is three lines,
+and the blobs need no rename.
 
 `ChangeRequest` needs no exercise column either — `AmendmentType` (`:33`) plus the map derives it.
 
@@ -338,17 +358,33 @@ These do not block the model.
 
 1. **Drafts across the boundary.** A user saves a pupil-data draft on 17 Oct and returns on 19 Oct.
    `AmendmentRequestsController.ResumeDraft` (`:117`, `:172`) would rebuild a journey for a closed
-   exercise. Block the resume with a clear message, or allow the resume and block the submit?
-   Product decision, and it must hold for every exercise type. The gate sits in `IsSessionReady`
-   either way.
-2. **The Amendment Requests grid.** It now holds two populations. One list, or filtered/grouped by
-   exercise? It works unsplit, so this is a UX call rather than a blocker.
-3. **Results-enquiry ingress.** Nothing writes `results-enquiry/data/` outside
+   exercise. ~~Block the resume with a clear message, or allow the resume and block the submit?~~
+   **Decided in #318: block the resume.** `AmendmentRequestsController.Edit` refuses to rebuild a
+   journey whose exercise has closed, so nobody edits a request that could never be sent. The gate
+   also sits in `IsSessionReady`, and it holds for every exercise type.
+2. **The Amendment Requests grid.** ~~It now holds two populations. One list, or filtered/grouped by
+   exercise?~~ **Decided in #320: one list, unsplit.** Both populations keep one table, one set of
+   checkboxes and one bulk submit. Splitting the grid would double the bulk-submit control and the
+   empty states for a school that in practice holds a handful of requests, and it would make the
+   common case — a window with one exercise — carry a grouping header that says nothing.
+
+   What was wrong was never the grid; it was the deadline. The page printed the **window's** end
+   date once, and the window's end is the union of its exercises (#319), so on a 16-19 window it is
+   the results-enquiry close — months after pupil data shuts. It told a school it still had time to
+   amend pupil data when that had closed. `AmendmentRequestsResult.Deadlines` now carries one
+   `ExerciseDeadlineDto` per exercise, in `SortOrder`, each with its own `EndDate` and its own
+   `IsOpen` from `ICheckingExerciseService`, and the page prints one sentence per exercise — "Submit
+   your … by …" while open, "The deadline for … passed at …" once closed. The confirmation page
+   after a bulk submit reads the **pupil-data** exercise's end, because the banner it sits in offers
+   another amendment and that journey shuts when pupil data shuts; a window with no pupil-data
+   exercise drops the banner rather than quoting a date from elsewhere.
+3. **Results-enquiry ingress.** Split out of #319 into **#324**. Nothing writes `results-enquiry/data/` outside
    `Web/Seeding/SeedStudentResults.cs`, which is development-only. On a deployed environment that
    blob does not exist and the enquiry journey's result picker has nothing to show. Per-exercise
    ingress is what closes this, so scope it deliberately rather than treating it as a tidy-up.
-4. **Window admin wizard.** The exercise dates need a step. For a window type with more than one
-   exercise, ask for each exercise's dates and derive the outer pair as their union, so the two can
-   never disagree.
+4. **Window admin wizard.** ~~The exercise dates need a step.~~ **Done in #319.** The wizard asks
+   which exercises the window runs, then one date page per ticked exercise, and derives the outer
+   pair as their union (`CheckingWindowDto.DeriveDatesFromExercises`) so the two can never disagree.
+   There is no window-level date step left.
 5. **KS4 Autumn dates.** Confirm its inner and outer dates. The model assumes they nest the same way
    as 16-19.

@@ -16,7 +16,7 @@ public static class OpenCheckingExercises
     {
         var service = Substitute.For<ICheckingExerciseService>();
         service.IsOpen(default!, default).ReturnsForAnyArgs(true);
-        return service;
+        return service.WithRealEndDates();
     }
 
     /// <summary>Re-stubs an existing service so every checking exercise now reports closed.</summary>
@@ -31,7 +31,7 @@ public static class OpenCheckingExercises
     {
         var service = Substitute.For<ICheckingExerciseService>();
         service.IsOpen(default!, default).ReturnsForAnyArgs(false);
-        return service;
+        return service.WithRealEndDates();
     }
 
     /// <summary>A service that reports only <paramref name="open"/> open.</summary>
@@ -40,6 +40,19 @@ public static class OpenCheckingExercises
         var service = Substitute.For<ICheckingExerciseService>();
         service.IsOpen(default!, default)
             .ReturnsForAnyArgs(ci => ci.ArgAt<CheckingExerciseType>(1) == open);
+        return service.WithRealEndDates();
+    }
+
+    /// <summary>
+    /// Answers EndDateFor from the rows it is given, exactly as the real service does. Only IsOpen
+    /// is faked here — a substitute left to return null would make every deadline sentence vanish
+    /// and hide the bug #320 fixed, which is that the wrong date was being read.
+    /// </summary>
+    private static ICheckingExerciseService WithRealEndDates(this ICheckingExerciseService service)
+    {
+        service.EndDateFor(default!, default).ReturnsForAnyArgs(ci =>
+            ci.ArgAt<IReadOnlyList<CheckingExerciseDto>>(0)
+                .FirstOrDefault(e => e.ExerciseType == ci.ArgAt<CheckingExerciseType>(1))?.EndDate);
         return service;
     }
 }

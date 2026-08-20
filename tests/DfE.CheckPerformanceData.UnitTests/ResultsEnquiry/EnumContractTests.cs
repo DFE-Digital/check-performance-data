@@ -1,6 +1,5 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Journey;
-using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.ResultsEnquiry;
@@ -36,16 +35,4 @@ public sealed class EnumContractTests
         Assert.Equal(6, (int)QuestionType.GradeSelect);
         Assert.Equal(2, (int)NextSteps.ResultsEnquiry); // appended after Confirm
     }
-
-    // #318: the map returns CheckingExerciseType now that the enum exists, so the gate can hand a
-    // journey's exercise straight to ICheckingExerciseService without a name lookup.
-    [Theory]
-    [InlineData(WhatToChange.IncorrectGrade, CheckingExerciseType.ResultsEnquiry)]
-    [InlineData(WhatToChange.Merge, CheckingExerciseType.PupilData)]
-    [InlineData(WhatToChange.Remove, CheckingExerciseType.PupilData)]
-    [InlineData(WhatToChange.Include, CheckingExerciseType.PupilData)]
-    [InlineData(WhatToChange.Add, CheckingExerciseType.PupilData)]
-    public void WhatToChange_maps_to_its_checking_exercise(
-        WhatToChange change, CheckingExerciseType exercise)
-        => Assert.Equal(exercise, WhatToChangeCheckingExerciseMap.CheckingExerciseFor(change));
 }

@@ -6,9 +6,9 @@ namespace DfE.CheckPerformanceData.Application.Notify;
 
 public interface IRequestNotificationService
 {
-    Task NotifySubmissionConfirmedAsync(Guid windowId, DateTime deadlineDate, string referenceNumber);
-    Task NotifyBulkSubmissionConfirmedAsync(Guid windowId, DateTime deadlineDate, IReadOnlyList<string> referenceNumbers);
-    Task NotifyDataCheckConfirmedAsync(DateTime deadlineDate, string referenceNumber);
+    Task NotifySubmissionConfirmedAsync(Guid windowId, DateTime deadlineDate, string referenceNumber, EmailSubstitutions substitutions);
+    Task NotifyBulkSubmissionConfirmedAsync(Guid windowId, DateTime deadlineDate, IReadOnlyList<string> referenceNumbers, EmailSubstitutions substitutions);
+    Task NotifyDataCheckConfirmedAsync(DateTime deadlineDate, string referenceNumber, EmailSubstitutions substitutions);
 
     /// <summary>
     /// Confirms a submitted 16-19 results enquiry to the person who submitted it (AB#296648).
@@ -19,7 +19,7 @@ public interface IRequestNotificationService
     /// </summary>
     Task NotifyResultsEnquirySubmittedAsync(string referenceNumber);
 
-    Task NotifyAmendmentWithdrawnAsync(string referenceNumber, DateTime deadlineDate);
+    Task NotifyAmendmentWithdrawnAsync(string referenceNumber, DateTime deadlineDate, EmailSubstitutions substitutions);
 
-    Task NotifyDataCheckWithdrawnAsync(string referenceNumber, DateTime deadlineDate);
+    Task NotifyDataCheckWithdrawnAsync(string referenceNumber, DateTime deadlineDate, EmailSubstitutions substitutions);
 }

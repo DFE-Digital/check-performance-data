@@ -16,6 +16,10 @@ public sealed class NotifyServiceResultsEnquiryTests
 {
     private const string EnquiryTemplateId = "aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb";
 
+    // An enquiry carries no checking-exercise substitutions: ce name, learner noun and turnaround
+    // commitment are never sent for this notification type.
+    private static readonly EmailSubstitutions NoSubstitutions = new(string.Empty, string.Empty, string.Empty);
+
     private readonly INotifyEmailClient _client = Substitute.For<INotifyEmailClient>();
     private readonly ILogger<NotifyService> _logger = Substitute.For<ILogger<NotifyService>>();
 
@@ -42,7 +46,7 @@ public sealed class NotifyServiceResultsEnquiryTests
         // Without the switch case this throws ArgumentOutOfRangeException instead.
         await Build().SendNotificationsAsync(
             "CYPMD_16to19_RE_4F9C2A1", string.Empty, ["ada@school.test"],
-            NotificationType.ResultsEnquirySubmitted);
+            NotificationType.ResultsEnquirySubmitted, NoSubstitutions);
 
         await _client.Received(1).SendEmailAsync(
             "ada@school.test", EnquiryTemplateId, Arg.Any<Dictionary<string, object>>());
@@ -54,7 +58,7 @@ public sealed class NotifyServiceResultsEnquiryTests
         // The whole point of the email: the school needs the reference to quote back.
         await Build().SendNotificationsAsync(
             "CYPMD_16to19_RE_4F9C2A1", string.Empty, ["ada@school.test"],
-            NotificationType.ResultsEnquirySubmitted);
+            NotificationType.ResultsEnquirySubmitted, NoSubstitutions);
 
         await _client.Received(1).SendEmailAsync(
             Arg.Any<string>(), Arg.Any<string>(),
@@ -68,7 +72,7 @@ public sealed class NotifyServiceResultsEnquiryTests
     {
         await Build().SendNotificationsAsync(
             "CYPMD_16to19_RE_4F9C2A1", string.Empty, ["one@school.test", "two@school.test"],
-            NotificationType.ResultsEnquirySubmitted);
+            NotificationType.ResultsEnquirySubmitted, NoSubstitutions);
 
         await _client.Received(2).SendEmailAsync(
             Arg.Any<string>(), EnquiryTemplateId, Arg.Any<Dictionary<string, object>>());
@@ -85,7 +89,7 @@ public sealed class NotifyServiceResultsEnquiryTests
         // would fail once per recipient.
         await Build(templateId).SendNotificationsAsync(
             "CYPMD_16to19_RE_4F9C2A1", string.Empty, ["ada@school.test"],
-            NotificationType.ResultsEnquirySubmitted);
+            NotificationType.ResultsEnquirySubmitted, NoSubstitutions);
 
         await _client.DidNotReceiveWithAnyArgs()
             .SendEmailAsync(default!, default!, default!);
@@ -106,7 +110,7 @@ public sealed class NotifyServiceResultsEnquiryTests
 
         await service.SendNotificationsAsync(
             "CYPMD_16to19_RE_4F9C2A1", string.Empty, ["ada@school.test"],
-            NotificationType.ResultsEnquirySubmitted);
+            NotificationType.ResultsEnquirySubmitted, NoSubstitutions);
     }
 
     [Fact]
@@ -119,7 +123,7 @@ public sealed class NotifyServiceResultsEnquiryTests
 
         await service.SendNotificationsAsync(
             "CYPMD_16to19_RE_4F9C2A1", string.Empty, ["bad@school.test", "good@school.test"],
-            NotificationType.ResultsEnquirySubmitted);
+            NotificationType.ResultsEnquirySubmitted, NoSubstitutions);
 
         await _client.Received(1).SendEmailAsync(
             "good@school.test", EnquiryTemplateId, Arg.Any<Dictionary<string, object>>());
@@ -142,7 +146,7 @@ public sealed class NotifyServiceResultsEnquiryTests
         {
             _client.ClearReceivedCalls();
 
-            await service.SendNotificationsAsync("REF-1", "a deadline", ["ada@school.test"], type);
+            await service.SendNotificationsAsync("REF-1", "a deadline", ["ada@school.test"], type, NoSubstitutions);
 
             await _client.Received(1).SendEmailAsync(
                 "ada@school.test", expected, Arg.Any<Dictionary<string, object>>());

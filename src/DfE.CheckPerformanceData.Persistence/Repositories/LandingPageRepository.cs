@@ -27,6 +27,7 @@ public sealed class LandingPageRepository(
                 w.KeyStage,
                 w.CheckingWindowType,
                 w.Title,
+                w.TurnaroundCommitment,
                 w.Id
             })
             .ToListAsync(cancellationToken);
@@ -54,6 +55,7 @@ public sealed class LandingPageRepository(
                 KeyStage = w.KeyStage,
                 CheckingWindowType = w.CheckingWindowType,
                 Title = w.Title,
+                TurnaroundCommitment = w.TurnaroundCommitment,
                 Id = w.Id,
                 HasPupilData = await pupilDataBlobClient.HasPupilDataAsync(w.Id, laestab)
             });

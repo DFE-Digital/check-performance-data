@@ -12,6 +12,7 @@ public sealed class CheckingWindow
     public KeyStages KeyStage { get; init; }
     public CheckingWindowType CheckingWindowType { get; init; }
     public string Title { get; init; } = string.Empty;
+    public string TurnaroundCommitment { get; init; } = string.Empty;
     public bool Published { get; init; } = false;
     public string IngressFile { get; init; } = string.Empty;
     public string SchemaFile { get; init; } = string.Empty;
@@ -61,6 +62,9 @@ public sealed class CheckingWindowConfiguration : IEntityTypeConfiguration<Check
 
         builder.Property(x => x.Title)
             .IsRequired()
+            .HasMaxLength(200);
+
+        builder.Property(x => x.TurnaroundCommitment)
             .HasMaxLength(200);
         
         builder.Property(x => x.IngressFile)

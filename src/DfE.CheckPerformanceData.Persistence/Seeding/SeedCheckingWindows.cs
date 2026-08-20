@@ -31,6 +31,7 @@ public static class SeedCheckingWindows
             KeyStage = KeyStages.KS4,
             CheckingWindowType = CheckingWindowType.KS4June,
             Title = "Key Stage 4 June",
+            TurnaroundCommitment = "updated in the Autumn",
             Datasets = DatasetsFor(CheckingWindowType.KS4June)
         };
 
@@ -42,6 +43,7 @@ public static class SeedCheckingWindows
             KeyStage = KeyStages.KS4,
             CheckingWindowType = CheckingWindowType.KS4June,
             Title = "KS4 June",
+            TurnaroundCommitment = "updated in the Autumn",
             Datasets = DatasetsFor(CheckingWindowType.KS4June)
         };
 
@@ -53,6 +55,7 @@ public static class SeedCheckingWindows
             KeyStage = KeyStages.Post16,
             CheckingWindowType = CheckingWindowType.Post16,
             Title = "16 to 19",
+            TurnaroundCommitment = "updated in the Spring",
             Datasets = DatasetsFor(CheckingWindowType.Post16)
         };
 

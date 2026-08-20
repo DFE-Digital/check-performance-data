@@ -1,6 +1,7 @@
 using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Journey;
+using DfE.CheckPerformanceData.Application.Notify;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using Microsoft.AspNetCore.Mvc;
@@ -27,7 +28,7 @@ public sealed class ConfirmCorrectController(
     {
         var window = await service.GetCheckingWindowAsync(windowId);
         var reference = journeyService.GenerateReference(window.CheckingWindowType);
-        await requestService.ConfirmDataCorrectAsync(windowId, reference, window.EndDate);
+        await requestService.ConfirmDataCorrectAsync(windowId, reference, window.EndDate, EmailSubstitutions.From(window));
 
         await analytics.TrackSafeAsync(new CorrectDataConfirmedEvent
         {

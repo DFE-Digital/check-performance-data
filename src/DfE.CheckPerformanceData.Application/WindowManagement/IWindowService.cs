@@ -31,6 +31,7 @@ public sealed class CheckingWindowDto
     public bool Validated { get; set; }
     public DateTime? ValidatedAt { get; set; }
     public bool IsOpen { get; set; }
+    public string TurnaroundCommitment { get; set; } = string.Empty;
 
     /// <summary>
     /// The CSV + schema pairs ingested for this window, in sort order. A Post16 window has two

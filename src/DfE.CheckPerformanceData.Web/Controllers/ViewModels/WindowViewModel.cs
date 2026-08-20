@@ -24,6 +24,11 @@ public class WindowEditItem : AdminPage
     {
         get => $"{BaseEditUrl}/title";
     }
+    public string TurnaroundCommitment { get; set; } = string.Empty;
+    public string TurnaroundCommitmentLink
+    {
+        get => $"{BaseEditUrl}/turnaround-commitment";
+    }
     public bool IsOpen { get; set; } = false;
     public required DateTime StartDate { get; set; }
     public string StartDateLink {

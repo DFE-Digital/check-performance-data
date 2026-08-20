@@ -38,4 +38,16 @@ public sealed record EmailNotification
     /// single-reference notifications (which use <see cref="ReferenceNumber"/>).
     /// </summary>
     public IReadOnlyList<string>? ReferenceNumbers { get; init; }
+
+    /// <summary>Checking-exercise name shown in the email body (template <c>((ce name))</c>).</summary>
+    public string CeName { get; init; } = string.Empty;
+
+    /// <summary>"Student" for Post 16 windows, otherwise "Pupil" (template <c>((learner noun))</c>).</summary>
+    public string LearnerNoun { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Per-window turnaround commitment phrase (template <c>((turnaround commitment))</c>).
+    /// Empty = not configured; the personalisation key is omitted (FR-006).
+    /// </summary>
+    public string TurnaroundCommitment { get; init; } = string.Empty;
 }

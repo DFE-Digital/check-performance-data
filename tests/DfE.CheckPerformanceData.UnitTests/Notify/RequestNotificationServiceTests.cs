@@ -22,6 +22,8 @@ public sealed class RequestNotificationServiceTests
         ApiKey = "x",
         BulkConsolidationThreshold = 5
     };
+    private static readonly EmailSubstitutions Substitutions =
+        new("KS4 June", "Student", "updated in the Autumn");
     private readonly RequestNotificationService _sut;
 
     private static bool MatchWindowId(object o, Guid windowId)
@@ -55,7 +57,7 @@ public sealed class RequestNotificationServiceTests
     [Fact]
     public async Task NotifySubmissionConfirmedAsync_EnqueuesSubmissionMessageWithOrgUsersAndOriginator()
     {
-        await _sut.NotifySubmissionConfirmedAsync(WindowId, EndDate, ReferenceNumber);
+        await _sut.NotifySubmissionConfirmedAsync(WindowId, EndDate, ReferenceNumber, Substitutions);
 
         var msg = Captured();
         Assert.NotNull(msg);
@@ -67,9 +69,19 @@ public sealed class RequestNotificationServiceTests
     }
 
     [Fact]
+    public async Task NotifySubmissionConfirmedAsync_PopulatesSubstitutionFields()
+    {
+        await _sut.NotifySubmissionConfirmedAsync(WindowId, EndDate, ReferenceNumber, Substitutions);
+
+        Assert.Equal("KS4 June", Captured()!.CeName);
+        Assert.Equal("Student", Captured()!.LearnerNoun);
+        Assert.Equal("updated in the Autumn", Captured()!.TurnaroundCommitment);
+    }
+
+    [Fact]
     public async Task NotifySubmissionConfirmedAsync_FormatsDeadlineCorrectly()
     {
-        await _sut.NotifySubmissionConfirmedAsync(WindowId, EndDate, ReferenceNumber);
+        await _sut.NotifySubmissionConfirmedAsync(WindowId, EndDate, ReferenceNumber, Substitutions);
 
         Assert.Equal("5pm on Friday 26 June 2026", Captured()!.Deadline);
     }
@@ -82,7 +94,7 @@ public sealed class RequestNotificationServiceTests
             "WhatToChange", "Index", Arg.Is<object>(o => MatchWindowId(o, WindowId)), "SubmissionNotification")
             .Returns(linkUrl);
 
-        await _sut.NotifySubmissionConfirmedAsync(WindowId, EndDate, ReferenceNumber);
+        await _sut.NotifySubmissionConfirmedAsync(WindowId, EndDate, ReferenceNumber, Substitutions);
 
         Assert.Equal(linkUrl, Captured()!.LinkUrl);
     }
@@ -93,7 +105,7 @@ public sealed class RequestNotificationServiceTests
     public async Task NotifySubmissionConfirmedAsync_HandlesDeadlineEdgeCases(int hour, int minute, string expected)
     {
         await _sut.NotifySubmissionConfirmedAsync(
-            WindowId, new DateTime(2026, 6, 26, hour, minute, 0), ReferenceNumber);
+            WindowId, new DateTime(2026, 6, 26, hour, minute, 0), ReferenceNumber, Substitutions);
 
         Assert.Equal(expected, Captured()!.Deadline);
     }
@@ -103,7 +115,7 @@ public sealed class RequestNotificationServiceTests
     [Fact]
     public async Task NotifyDataCheckConfirmedAsync_EnqueuesDataCheckMessageWithOrgUsersAndNoLink()
     {
-        await _sut.NotifyDataCheckConfirmedAsync(EndDate, ReferenceNumber);
+        await _sut.NotifyDataCheckConfirmedAsync(EndDate, ReferenceNumber, Substitutions);
 
         var msg = Captured();
         Assert.NotNull(msg);
@@ -114,12 +126,22 @@ public sealed class RequestNotificationServiceTests
         Assert.True(msg.IncludeOrganisationUsers);
     }
 
+    [Fact]
+    public async Task NotifyDataCheckConfirmedAsync_PopulatesSubstitutionFields()
+    {
+        await _sut.NotifyDataCheckConfirmedAsync(EndDate, ReferenceNumber, Substitutions);
+
+        Assert.Equal("KS4 June", Captured()!.CeName);
+        Assert.Equal("Student", Captured()!.LearnerNoun);
+        Assert.Equal("updated in the Autumn", Captured()!.TurnaroundCommitment);
+    }
+
     // ── NotifyAmendmentWithdrawnAsync ─────────────────────────────────────────
 
     [Fact]
     public async Task NotifyAmendmentWithdrawnAsync_EnqueuesOriginatorOnlyMessage()
     {
-        await _sut.NotifyAmendmentWithdrawnAsync(ReferenceNumber, EndDate);
+        await _sut.NotifyAmendmentWithdrawnAsync(ReferenceNumber, EndDate, Substitutions);
 
         var msg = Captured();
         Assert.NotNull(msg);
@@ -130,12 +152,22 @@ public sealed class RequestNotificationServiceTests
         Assert.False(msg.IncludeOrganisationUsers);
     }
 
+    [Fact]
+    public async Task NotifyAmendmentWithdrawnAsync_PopulatesSubstitutionFields()
+    {
+        await _sut.NotifyAmendmentWithdrawnAsync(ReferenceNumber, EndDate, Substitutions);
+
+        Assert.Equal("KS4 June", Captured()!.CeName);
+        Assert.Equal("Student", Captured()!.LearnerNoun);
+        Assert.Equal("updated in the Autumn", Captured()!.TurnaroundCommitment);
+    }
+
     // ── NotifyDataCheckWithdrawnAsync ─────────────────────────────────────────
 
     [Fact]
     public async Task NotifyDataCheckWithdrawnAsync_EnqueuesMessageWithOrgUsers()
     {
-        await _sut.NotifyDataCheckWithdrawnAsync(ReferenceNumber, EndDate);
+        await _sut.NotifyDataCheckWithdrawnAsync(ReferenceNumber, EndDate, Substitutions);
 
         var msg = Captured();
         Assert.NotNull(msg);
@@ -145,14 +177,24 @@ public sealed class RequestNotificationServiceTests
         Assert.True(msg.IncludeOrganisationUsers);
     }
 
+    [Fact]
+    public async Task NotifyDataCheckWithdrawnAsync_PopulatesSubstitutionFields()
+    {
+        await _sut.NotifyDataCheckWithdrawnAsync(ReferenceNumber, EndDate, Substitutions);
+
+        Assert.Equal("KS4 June", Captured()!.CeName);
+        Assert.Equal("Student", Captured()!.LearnerNoun);
+        Assert.Equal("updated in the Autumn", Captured()!.TurnaroundCommitment);
+    }
+
     // ── No external calls on the request thread ──────────────────────────────
 
     [Fact]
     public async Task Notify_DoesNotResolveLinkForNonSubmissionNotifications()
     {
-        await _sut.NotifyDataCheckConfirmedAsync(EndDate, ReferenceNumber);
-        await _sut.NotifyAmendmentWithdrawnAsync(ReferenceNumber, EndDate);
-        await _sut.NotifyDataCheckWithdrawnAsync(ReferenceNumber, EndDate);
+        await _sut.NotifyDataCheckConfirmedAsync(EndDate, ReferenceNumber, Substitutions);
+        await _sut.NotifyAmendmentWithdrawnAsync(ReferenceNumber, EndDate, Substitutions);
+        await _sut.NotifyDataCheckWithdrawnAsync(ReferenceNumber, EndDate, Substitutions);
 
         _emailLinkGenerator.DidNotReceive().GenerateLink(
             Arg.Any<string>(), Arg.Any<string>(), Arg.Any<object>(), Arg.Any<string>());
@@ -165,12 +207,18 @@ public sealed class RequestNotificationServiceTests
     {
         var refs = new[] { "R1", "R2", "R3", "R4" };
 
-        await _sut.NotifyBulkSubmissionConfirmedAsync(WindowId, EndDate, refs);
+        await _sut.NotifyBulkSubmissionConfirmedAsync(WindowId, EndDate, refs, Substitutions);
 
         var all = AllCaptured();
         Assert.Equal(4, all.Count);
         Assert.All(all, m => Assert.Equal(NotificationType.SubmissionConfirmed, m.Type));
         Assert.Equal(new[] { "R1", "R2", "R3", "R4" }, all.Select(m => m.ReferenceNumber));
+        Assert.All(all, m =>
+        {
+            Assert.Equal("KS4 June", m.CeName);
+            Assert.Equal("Student", m.LearnerNoun);
+            Assert.Equal("updated in the Autumn", m.TurnaroundCommitment);
+        });
     }
 
     [Fact]
@@ -178,12 +226,15 @@ public sealed class RequestNotificationServiceTests
     {
         var refs = new[] { "R1", "R2", "R3", "R4", "R5" };
 
-        await _sut.NotifyBulkSubmissionConfirmedAsync(WindowId, EndDate, refs);
+        await _sut.NotifyBulkSubmissionConfirmedAsync(WindowId, EndDate, refs, Substitutions);
 
         var all = AllCaptured();
         Assert.Single(all);
         Assert.Equal(NotificationType.BulkSubmissionConfirmed, all[0].Type);
         Assert.Equal(refs, all[0].ReferenceNumbers);
         Assert.True(all[0].IncludeOrganisationUsers);
+        Assert.Equal("KS4 June", all[0].CeName);
+        Assert.Equal("Student", all[0].LearnerNoun);
+        Assert.Equal("updated in the Autumn", all[0].TurnaroundCommitment);
     }
 }

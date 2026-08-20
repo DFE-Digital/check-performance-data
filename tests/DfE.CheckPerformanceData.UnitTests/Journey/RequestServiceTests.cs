@@ -15,6 +15,7 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 public class RequestServiceTests
 {
     private static readonly Guid WindowId = Guid.Parse("22222222-2222-2222-2222-222222222222");
+    private static readonly EmailSubstitutions Substitutions = new("KS4 June", "Pupil", "");
 
     private readonly IQuestionFlowService _flowService = Substitute.For<IQuestionFlowService>();
     private readonly IRequestStateBlobClient _requestStateBlobClient = Substitute.For<IRequestStateBlobClient>();
@@ -517,7 +518,7 @@ public class RequestServiceTests
         ChangeRequestData? captured = null;
         _requestRepository.UpsertAsync(Arg.Do<ChangeRequestData>(d => captured = d));
 
-        await _sut.ConfirmDataCorrectAsync(WindowId, "CYPMD_KS4June_ABC1234", DateTime.UtcNow.AddDays(20));
+        await _sut.ConfirmDataCorrectAsync(WindowId, "CYPMD_KS4June_ABC1234", DateTime.UtcNow.AddDays(20), Substitutions);
 
         Assert.Equal(RequestType.ConfirmCorrect, captured!.RequestType);
         Assert.Null(captured.AmendmentType);
@@ -564,7 +565,7 @@ public class RequestServiceTests
         ChangeRequestData? captured = null;
         _requestRepository.UpsertAsync(Arg.Do<ChangeRequestData>(d => captured = d));
 
-        await _sut.ConfirmDataCorrectAsync(WindowId, "REF999", new DateTime(2026, 6, 26, 17, 0, 0));
+        await _sut.ConfirmDataCorrectAsync(WindowId, "REF999", new DateTime(2026, 6, 26, 17, 0, 0), Substitutions);
 
         Assert.Equal(RequestType.ConfirmCorrect, captured!.RequestType);
         Assert.Equal("Confirm Pupil Data Declaration", captured.RequestTypeDescription);
@@ -635,7 +636,7 @@ public class RequestServiceTests
         await _sut.ConfirmRequestAsync(WindowId, journey);
 
         await _requestNotificationService.Received(1).NotifySubmissionConfirmedAsync(
-            WindowId, journey.CheckingWindow.EndDate, journey.ReferenceNumber);
+            WindowId, journey.CheckingWindow.EndDate, journey.ReferenceNumber, Substitutions);
     }
 
     [Fact]
@@ -647,7 +648,7 @@ public class RequestServiceTests
         await _sut.SubmitRequestAsync(WindowId, journey);
 
         await _requestNotificationService.DidNotReceive()
-            .NotifySubmissionConfirmedAsync(Arg.Any<Guid>(), Arg.Any<DateTime>(), Arg.Any<string>());
+            .NotifySubmissionConfirmedAsync(Arg.Any<Guid>(), Arg.Any<DateTime>(), Arg.Any<string>(), Arg.Any<EmailSubstitutions>());
     }
 
     [Fact]
@@ -662,7 +663,7 @@ public class RequestServiceTests
         {
             _requestStateBlobClient.SaveAsync(WindowId, Arg.Any<string>(), Arg.Any<RequestState>());
             _requestNotificationService.NotifySubmissionConfirmedAsync(
-                WindowId, Arg.Any<DateTime>(), Arg.Any<string>());
+                WindowId, Arg.Any<DateTime>(), Arg.Any<string>(), Arg.Any<EmailSubstitutions>());
         });
     }
 
@@ -674,9 +675,9 @@ public class RequestServiceTests
         var refNum = "CYPMD_KS4June_ABC1234";
         var endDate = new DateTime(2026, 6, 26, 17, 0, 0);
 
-        await _sut.ConfirmDataCorrectAsync(WindowId, refNum, endDate);
+        await _sut.ConfirmDataCorrectAsync(WindowId, refNum, endDate, Substitutions);
 
-        await _requestNotificationService.Received(1).NotifyDataCheckConfirmedAsync(endDate, refNum);
+        await _requestNotificationService.Received(1).NotifyDataCheckConfirmedAsync(endDate, refNum, Substitutions);
     }
 
     [Fact]
@@ -780,7 +781,7 @@ public class RequestServiceTests
 
         await _sut.DeleteAsync(WindowId, "REF001");
 
-        await _requestNotificationService.Received(1).NotifyAmendmentWithdrawnAsync("REF001", new(2026, 6, 26, 17, 0, 0));
+        await _requestNotificationService.Received(1).NotifyAmendmentWithdrawnAsync("REF001", new(2026, 6, 26, 17, 0, 0), Substitutions);
     }
 
     [Fact]
@@ -802,7 +803,7 @@ public class RequestServiceTests
 
         await _sut.DeleteAsync(WindowId, "REF001");
 
-        await _requestNotificationService.Received(1).NotifyDataCheckWithdrawnAsync("REF001", new(2026, 6, 26, 17, 0, 0));
+        await _requestNotificationService.Received(1).NotifyDataCheckWithdrawnAsync("REF001", new(2026, 6, 26, 17, 0, 0), Substitutions);
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────

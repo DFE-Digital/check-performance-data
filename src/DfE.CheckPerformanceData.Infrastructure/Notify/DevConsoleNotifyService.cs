@@ -19,6 +19,7 @@ public sealed class DevConsoleNotifyService : INotifyService
         string deadline,
         IReadOnlyCollection<string> recipientEmails,
         NotificationType notificationType,
+        EmailSubstitutions substitutions,
         string? url = null,
         IReadOnlyCollection<string>? referenceNumbers = null)
     {
@@ -27,9 +28,10 @@ public sealed class DevConsoleNotifyService : INotifyService
         var refs = referenceNumbers is { Count: > 0 } ? string.Join(", ", referenceNumbers) : referenceNumber;
 
         _logger.LogInformation(
-            "[Notify:Fake] Sending {NotificationType} notification\n  Reference(s): {References}\n  Deadline: {Deadline}\n  Recipients: {RecipientCount} — [{RecipientEmails}]{Url}",
+            "[Notify:Fake] Sending {NotificationType} notification\n  Reference(s): {References}\n  Deadline: {Deadline}\n  Recipients: {RecipientCount} — [{RecipientEmails}]{Url}\n  CeName: {CeName}\n  LearnerNoun: {LearnerNoun}\n  TurnaroundCommitment: {TurnaroundCommitment}",
             notificationType, refs, deadline, recipientCount, recipientList,
-            string.IsNullOrEmpty(url) ? "" : $"\n  URL: {url}");
+            string.IsNullOrEmpty(url) ? "" : $"\n  URL: {url}",
+            substitutions.CeName, substitutions.LearnerNoun, substitutions.TurnaroundCommitment);
 
         return Task.CompletedTask;
     }

@@ -94,6 +94,53 @@ public sealed class RequestService(
         await requestStateBlobClient.SaveAsync(windowId, journey.ReferenceNumber ?? string.Empty, journey);
     }
 
+    public async Task<string> SubmitResultsEnquiryAsync(
+        Guid windowId, RequestState journey, CancellationToken ct = default)
+    {
+        if (journey.SelectedWhatToChange != WhatToChange.IncorrectGrade)
+            throw new InvalidOperationException(
+                $"SubmitResultsEnquiryAsync is the results-enquiry path; got {journey.SelectedWhatToChange}. " +
+                "Routing an amendment through here would store the wrong RequestType and skip the rules engine.");
+
+        if (journey.CheckingWindow is null || journey.SelectedPupil is null || journey.SelectedResult is null
+            || string.IsNullOrWhiteSpace(journey.ReferenceNumber))
+            throw new InvalidOperationException("Session state is incomplete for results-enquiry submission.");
+
+        // The row first: it is the record of truth, and a journey blob with no row would be invisible
+        // to every admin view.
+        await requestRepository.UpsertAsync(new ChangeRequestData
+        {
+            WindowId = windowId,
+            ReferenceNumber = journey.ReferenceNumber,
+            OrganisationUrn = OrganisationUrnLong,
+            PupilId = journey.SelectedPupil.Id,
+            PupilUpn = journey.SelectedPupil.Identifier,
+            PupilFirstname = journey.SelectedPupil.Firstname,
+            PupilSurname = journey.SelectedPupil.Surname,
+            // Stored as UTC and converted to London time at display. The column is
+            // `timestamp without time zone`, so the value carries an Unspecified kind
+            // (Npgsql rejects a Utc kind here); the instant it holds is UTC.
+            Timestamp = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
+            SubmittedById = Guid.Parse(currentUserService.UserId),
+            SubmittedByName = currentUserService.DisplayName,
+            SubmittedByEmail = currentUserService.Email,
+            Status = RequestStatus.SubmittedUnCommitted,
+            RequestType = RequestType.ResultsEnquiry,
+            RequestTypeDescription = "Results enquiry - Incorrect grade",
+            AmendmentType = WhatToChange.IncorrectGrade
+        });
+
+        // The journey JSON is the enquiry's full record — it carries the selected result and every
+        // answer — so the separate Zendesk story can build its ticket from this without a new schema.
+        await requestStateBlobClient.SaveAsync(windowId, journey.ReferenceNumber, journey);
+
+        // PARKED AB#296648: no enqueue. Enquiries are destined for Zendesk, but the dispatch is a
+        // separate ticket. When it lands, the enqueue goes HERE and nowhere else — and the exclusion
+        // in AdminRequestsService.ProcessCloseWindowEvent comes out at the same time.
+
+        return journey.ReferenceNumber;
+    }
+
     public async Task ConfirmRequestAsync(Guid windowId, RequestState journey)
     {
         await SubmitRequestAsync(windowId, journey);

@@ -95,7 +95,15 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
     [Route("CheckYourPupilData/{windowId}/nextstep")]
     public async Task<IActionResult> NextStep(Guid windowId, CheckYourPupilDataViewModel viewModel)
     {
-        if (viewModel.SelectedNextStep is null)
+        // AB#296648: the results-enquiry option is 16-19 only, and the rule is re-derived from the
+        // window here rather than trusted from the post. Not rendering the radio is a UI courtesy; a
+        // hand-crafted post must not start a journey for a key stage with no results data and no flow
+        // config behind it, so it is rejected exactly as an unanswered question would be.
+        var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
+        var optionAllowed = viewModel.SelectedNextStep != NextSteps.ResultsEnquiry
+                            || OffersResultsEnquiry(window.CheckingWindowType);
+
+        if (viewModel.SelectedNextStep is null || !optionAllowed)
         {
             ModelState.AddModelError(nameof(CheckYourPupilDataViewModel.SelectedNextStep), "Select what you would like to do");
             await analytics.TrackSafeAsync(new ValidationErrorEvent { ErrorCount = 1, ErrorCodes = [ValidationErrorCoding.NoSelection], ErrorFields = [nameof(CheckYourPupilDataViewModel.SelectedNextStep)] });
@@ -109,6 +117,7 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         {
             NextSteps.RequestChange => RedirectToAction("Index", "WhatToChange", new { windowId }),
             NextSteps.Confirm => RedirectToAction("Index", "ConfirmCorrect", new { windowId }),
+            NextSteps.ResultsEnquiry => RedirectToAction("Index", "ResultIssue", new { windowId }),
             _ => RedirectToAction("Index", "CheckYourPupilData", new { windowId })
         };
     }
@@ -177,9 +186,21 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
             // dataset (the other 16-19 import files become sibling tabs later), not inclusion.
             SectionsAsTabs = window.CheckingWindowType != CheckingWindowType.Post16,
             IsWindowOpen = window.StartDate <= now && now <= window.EndDate,
+            ShowResultsEnquiryOption = OffersResultsEnquiry(window.CheckingWindowType),
             OrganisationName = currentUserService.OrganisationName
         };
     }
+
+    /// <summary>
+    /// Whether a window type has a results-enquiry journey. AB#296648: 16-19 only — the other key
+    /// stages have neither results data nor an <c>IncorrectGrade_*</c> flow config.
+    ///
+    /// PARKED: becomes an <c>ICheckingExerciseService.OpenCheckingExercises</c> check when the
+    /// checking-exercise model lands (docs/16-19-window-model.md) and results enquiry gets its own
+    /// dates.
+    /// </summary>
+    private static bool OffersResultsEnquiry(CheckingWindowType windowType) =>
+        windowType == CheckingWindowType.Post16;
 
     private static int TotalPages(int count) => (int)Math.Ceiling(count / (double)PageSize);
 }

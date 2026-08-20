@@ -1,0 +1,203 @@
+{
+  "60370683": {
+    "qan": "60370683",
+    "qualificationTitle": "Pearson BTEC L1/L2 Tech Award in Sport",
+    "awardingOrganisation": "Pearson",
+    "passGrades": [
+      "*2",
+      "P1",
+      "P2",
+      "M1",
+      "M2",
+      "D1",
+      "D2"
+    ],
+    "failGrades": [
+      "F",
+      "Q",
+      "R",
+      "U",
+      "X"
+    ]
+  },
+  "10025480": {
+    "qan": "10025480",
+    "qualificationTitle": "OCR Level 3 FSMQ: Additional Maths",
+    "awardingOrganisation": "OCR",
+    "passGrades": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E"
+    ],
+    "failGrades": [
+      "Q",
+      "R",
+      "U",
+      "X"
+    ]
+  },
+  "50034157": {
+    "qan": "50034157",
+    "qualificationTitle": "IBO Level 3 International Baccalaureate Diploma",
+    "awardingOrganisation": "IBO",
+    "passGrades": [
+      "24B",
+      "24D",
+      "25B",
+      "25D",
+      "26B",
+      "26D",
+      "27B",
+      "27D",
+      "28B",
+      "28D",
+      "29B",
+      "29D",
+      "30B",
+      "30D",
+      "31B",
+      "31D",
+      "32B",
+      "32D",
+      "33B",
+      "33D",
+      "34B",
+      "34D",
+      "35B",
+      "35D",
+      "36B",
+      "36D",
+      "37B",
+      "37D",
+      "38B",
+      "38D",
+      "39B",
+      "39D",
+      "40B",
+      "40D",
+      "41B",
+      "41D",
+      "42B",
+      "42D",
+      "43B",
+      "43D",
+      "44B",
+      "44D",
+      "45B",
+      "45D"
+    ],
+    "failGrades": [
+      "00F",
+      "01F",
+      "02F",
+      "03F",
+      "04F",
+      "05F",
+      "06F",
+      "07F",
+      "08F",
+      "09F",
+      "10F",
+      "11F",
+      "12F",
+      "13F",
+      "14F",
+      "15F",
+      "16F",
+      "17F",
+      "18F",
+      "19F",
+      "20F",
+      "21F",
+      "22F",
+      "23F",
+      "24F",
+      "25F",
+      "26F",
+      "27F",
+      "28F",
+      "29F",
+      "30F",
+      "31F",
+      "32F",
+      "33F",
+      "34F",
+      "35F",
+      "36F",
+      "37F",
+      "38F",
+      "39F",
+      "40F",
+      "41F",
+      "42F",
+      "43F",
+      "44F",
+      "45F",
+      "R",
+      "U",
+      "X"
+    ]
+  },
+  "6037116X": {
+    "qan": "6037116X",
+    "qualificationTitle": "GCSE (9-1) Bus. Studs:Single",
+    "awardingOrganisation": "Pearson",
+    "passGrades": [
+      "9",
+      "8",
+      "7",
+      "6",
+      "5",
+      "4",
+      "3",
+      "2",
+      "1"
+    ],
+    "failGrades": [
+      "U",
+      "X"
+    ]
+  },
+  "60181576": {
+    "qan": "60181576",
+    "qualificationTitle": "GCSE (9-1) French",
+    "awardingOrganisation": "Pearson",
+    "passGrades": [
+      "9",
+      "8",
+      "7",
+      "6",
+      "5",
+      "4",
+      "3",
+      "2",
+      "1"
+    ],
+    "failGrades": [
+      "U",
+      "X"
+    ]
+  },
+  "60180882": {
+    "qan": "60180882",
+    "qualificationTitle": "GCSE (9-1) Art&Des : Fine Art",
+    "awardingOrganisation": "Pearson",
+    "passGrades": [
+      "9",
+      "8",
+      "7",
+      "6",
+      "5",
+      "4",
+      "3",
+      "2",
+      "1"
+    ],
+    "failGrades": [
+      "U",
+      "X"
+    ]
+  }
+}

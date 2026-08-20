@@ -33,7 +33,12 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
                 && r.PupilId == pupilId
                 && r.OrganisationUrn == organisationUrn
                 && r.ReferenceNumber != currentReferenceNumber
-                && r.Status == RequestStatus.SubmittedUnCommitted)
+                && r.Status == RequestStatus.SubmittedUnCommitted
+                // AB#296648: a results enquiry is not a competing amendment, so it must not raise the
+                // pupil-search duplicate warning. Kept in step with ConflictQuery below — the warning
+                // and the hard block have to agree, or the user is warned about something that then
+                // submits fine (or worse, the reverse).
+                && r.RequestType != RequestType.ResultsEnquiry)
             .OrderByDescending(r => r.Submitted)
             .Select(r => new { r.SubmittedById, r.ReferenceNumber, r.RequestTypeDescription, r.SubmittedByName })
             .FirstOrDefaultAsync();
@@ -70,6 +75,28 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
             .Distinct()
             .ToListAsync();
 
+    /// <summary>
+    /// Rows that would conflict with <paramref name="data"/>: another submitted-uncommitted amendment
+    /// for the same pupil, at the same school, in the same window.
+    ///
+    /// Results enquiries are excluded (AB#296648) — they change no pupil data, so they neither
+    /// compete with an amendment nor with each other.
+    /// </summary>
+    private static IQueryable<ChangeRequest> ConflictQuery(
+        IPortalDbContext db, ChangeRequestData data, Guid existingId)
+    {
+        var query = db.ChangeRequests
+            .Where(r => r.WindowId == data.WindowId
+                && r.PupilId == data.PupilId
+                && r.OrganisationUrn == data.OrganisationUrn
+                && r.Status == RequestStatus.SubmittedUnCommitted
+                && r.RequestType != RequestType.ResultsEnquiry);
+
+        // When updating an existing row, exclude the current row from conflict
+        // detection so a user can re-submit or update their own draft.
+        return existingId != Guid.Empty ? query.Where(r => r.Id != existingId) : query;
+    }
+
     public async Task<Guid> UpsertAsync(ChangeRequestData data)
     {
         var timestamp = DateTime.SpecifyKind(data.Timestamp, DateTimeKind.Local);
@@ -94,18 +121,16 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
                     .Select(r => r.Id)
                     .FirstOrDefaultAsync();
 
-                var conflictQuery = db.ChangeRequests
-                    .Where(r => r.WindowId == data.WindowId
-                        && r.PupilId == data.PupilId
-                        && r.OrganisationUrn == data.OrganisationUrn
-                        && r.Status == RequestStatus.SubmittedUnCommitted);
-
-                // When updating an existing row, exclude the current row from conflict
-                // detection so a user can re-submit or update their own draft.
-                if (existingId != Guid.Empty)
-                    conflictQuery = conflictQuery.Where(r => r.Id != existingId);
-
-                var conflict = await conflictQuery.FirstOrDefaultAsync();
+                // AB#296648: the duplicate rule guards against two competing AMENDMENTS to the same
+                // pupil's record — only one can be right, so the second is a conflict to resolve. A
+                // results enquiry is not an amendment: it changes no pupil data, and the spec
+                // explicitly allows several for the same pupil and result. So an enquiry neither
+                // raises a conflict nor counts as one. Without both exclusions, reporting a wrong
+                // grade for a pupil would block every later amendment for them (and vice versa), with
+                // an error message naming an unrelated request.
+                var conflict = data.RequestType == RequestType.ResultsEnquiry
+                    ? null
+                    : await ConflictQuery(db, data, existingId).FirstOrDefaultAsync();
 
                 if (conflict is not null)
                 {
@@ -248,7 +273,11 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
             .Where(r => r.WindowId == windowId
                 && r.OrganisationUrn == organisationUrn
                 && (r.Status == RequestStatus.SubmittedUnCommitted
-                    || r.Status == RequestStatus.Withdrawn))
+                    || r.Status == RequestStatus.Withdrawn)
+                // AB#296648 — how the Amendment Requests screen should present a results enquiry
+                // is not yet designed, so enquiry rows are hidden here for now; they remain in
+                // ChangeRequests and reach support via the separate Zendesk story.
+                && r.RequestType != RequestType.ResultsEnquiry)
             .OrderByDescending(r => r.Submitted)
             .Select(r => new SubmittedRequestData
             {

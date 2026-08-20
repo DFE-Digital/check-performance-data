@@ -27,6 +27,15 @@ public sealed class AdminRequestsService(
             if (journey?.SelectedWhatToChange is null || journey.CheckingWindow is null || journey.SelectedPupil is null)
                 continue;
 
+            // PARKED AB#296648: a 16-19 results enquiry is excluded from this replay. It IS bound for
+            // Zendesk, but this path builds a pupil-amendment ticket — BuildDocument maps journey
+            // answers onto the amendment ticket fields, and an enquiry's QAN, session, current and
+            // revised grade have no place in that shape. Replaying one would create a malformed
+            // ticket AND flip the row to SubmittedCommitted, so the real dispatch could never pick it
+            // up. Remove this once the enquiry-to-Zendesk story defines its own ticket shape.
+            if (journey.SelectedWhatToChange == CheckYourPupilData.WhatToChange.IncorrectGrade)
+                continue;
+
             var config = await flowService.GetConfigAsync(
                 journey.SelectedWhatToChange.Value, journey.CheckingWindow.CheckingWindowType);
             if (config is null)

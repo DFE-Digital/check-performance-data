@@ -81,6 +81,14 @@
 
                 <govuk-radios-item value="@NextSteps.RequestChange">Request an amendment to pupil data
                 </govuk-radios-item>
+                @if (Model.ShowResultsEnquiryOption)
+                {
+                    @* AB#296648: the 16-19 way in to a results enquiry, per the agreed decision in
+                       docs/16-19-window-model.md. The full "Review exam results" tabbed page belongs
+                       to the entry-point ticket; this radio is the model-aligned route until then. *@
+                    <govuk-radios-item value="@NextSteps.ResultsEnquiry">Report an issue with an exam result
+                    </govuk-radios-item>
+                }
                 <govuk-radios-divider>or</govuk-radios-divider>
                 <govuk-radios-item value="@NextSteps.Confirm">Confirm pupil data is correct</govuk-radios-item>
             </govuk-radios-fieldset>

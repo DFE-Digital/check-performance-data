@@ -93,8 +93,7 @@ public sealed class WindowRepositoryTurnaroundCommitmentTests(PostgresFixture fi
                 CheckingWindowType = Domain.Enums.CheckingWindowType.Post16,
                 StartDate = DateTime.Today,
                 EndDate = DateTime.Today.AddDays(14),
-                TurnaroundCommitment = "updated in the Spring",
-                Datasets = []
+                TurnaroundCommitment = "updated in the Spring"
             }, CancellationToken.None);
 
         Assert.Equal("updated in the Spring", created.TurnaroundCommitment);

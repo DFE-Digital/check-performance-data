@@ -1,3 +1,4 @@
+@using DfE.CheckPerformanceData.Web.Controllers.WindowAdmin
 @model DfE.CheckPerformanceData.Web.Controllers.WindowAdmin.CheckingWindowDraft
 
 <form method="post" action="@Model.PostUrl" novalidate> 
@@ -5,9 +6,10 @@
 
 <govuk-back-link asp-controller="WindowAdmin" asp-action="Index" />
 
-<h1 class="govuk-heading-xl">@Model.Title</h1>
-<h1 class="govuk-heading-l">New Checking Window</h1>
-<h2 class="govuk-heading-m">Confirm you want to delete this window</h2>
+@* One h1 only, and it says what the page is for. Two headings and a "confirm you want to delete
+   this window" line on the create check-answers page were both wrong. *@
+<h1 class="govuk-heading-l">@(ViewBag.Cancelation ? "Do you want to delete this window?" : "Check your answers")</h1>
+<h2 class="govuk-heading-m">@Model.Title</h2>
 
 <govuk-summary-list>
     <row>
@@ -15,20 +17,6 @@
         <value>@Model.Title</value>
         <row-actions>
             <action href="@Model.TitleLink(Url)" visually-hidden-text="Title">Change</action>
-        </row-actions>
-    </row>
-    <row>
-        <key>Start Date</key>
-        <value>@Model.StartDate?.ToShortDateString()</value>
-        <row-actions>
-            <action href="@Model.StartDateLink(Url)" visually-hidden-text="Start Date">Change</action>
-        </row-actions>
-    </row>
-    <row>
-        <key>End Date</key>
-        <value>@Model.EndDate?.ToShortDateString()</value>
-        <row-actions>
-            <action href="@Model.EndDateLink(Url)" visually-hidden-text="End date">Change</action>
         </row-actions>
     </row>
     <row>
@@ -45,6 +33,32 @@
             <action href="@Model.KeyStageLink(Url)" visually-hidden-text="Key Stage">Change</action>
         </row-actions>
     </row>
+    <row>
+        <key>Checking exercises</key>
+        <value>
+            @(Model.Exercises.Count == 0
+                ? "None"
+                : string.Join(", ", Model.Exercises.Select(e => ExerciseLabels.For(e.ExerciseType))))
+        </value>
+        <row-actions>
+            <action href="@Model.ExercisesLink(Url)" visually-hidden-text="Checking exercises">Change</action>
+        </row-actions>
+    </row>
+    @* #319: the window's own dates are the union of these and are never typed, so they get no row
+       of their own here — only the exercises that produce them. *@
+    @foreach (var exercise in Model.Exercises.OrderBy(e => e.SortOrder))
+    {
+        <row>
+            <key>@ExerciseLabels.For(exercise.ExerciseType) dates</key>
+            <value>
+                @exercise.StartDate?.ToString("dd/MM/yyyy HH:mm") to @exercise.EndDate?.ToString("dd/MM/yyyy HH:mm")
+            </value>
+            <row-actions>
+                <action href="@Url.Action("New", "ExerciseDates", new { exercise = exercise.ExerciseType })"
+                        visually-hidden-text="@ExerciseLabels.For(exercise.ExerciseType) dates">Change</action>
+            </row-actions>
+        </row>
+    }
 </govuk-summary-list>
 
 @if (ViewBag.Cancelation)

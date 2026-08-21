@@ -4,14 +4,24 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 namespace DfE.CheckPerformanceData.Persistence.Entities;
 
 /// <summary>
-/// One ingress CSV + JSON schema pair for a checking window. A Post16 window has two rows
-/// (included + non-included) because LDS supplies 16-19 pupils as two files; every other window
-/// type has one. Both files are ingested in a single run and merged into one blob per school.
+/// One ingress CSV + JSON schema pair for a checking exercise. The pupil-data exercise of a Post16
+/// window has two rows (included + non-included) because LDS supplies 16-19 pupils as two files;
+/// every other type has one. Both files are ingested in a single run and merged into one blob per
+/// school. An exercise may hold any number of these rows, including none.
 /// </summary>
 public sealed class CheckingWindowDataset
 {
     public Guid Id { get; init; }
+
+    /// <summary>The exercise that consumes this file pair.</summary>
+    public Guid CheckingExerciseId { get; set; }
+
+    /// <summary>
+    /// Legacy. Kept for one release so the release can be rolled back, and dropped by a follow-up
+    /// migration once every environment has moved. No reader may use it.
+    /// </summary>
     public Guid CheckingWindowId { get; set; }
+
     public string Name { get; init; } = string.Empty;
     public string IngressFile { get; set; } = string.Empty;
     public string IngressFileChecksum { get; set; } = string.Empty;
@@ -20,6 +30,18 @@ public sealed class CheckingWindowDataset
 
     /// <summary>Null = inclusion comes from the record's own P_INCL (KS4).</summary>
     public bool? Included { get; init; }
+
+    /// <summary>
+    /// The SOURCE tag stamped on every record from this file (#324), e.g. "16to19_LR1". Null =
+    /// nothing is stamped, which is every pupil-data dataset.
+    /// </summary>
+    public string? SourceFile { get; init; }
+
+    /// <summary>
+    /// The exercise cannot be validated until this slot holds both files. False for a slot the
+    /// supplier may not deliver at all — every results file after the main one (#324).
+    /// </summary>
+    public bool Required { get; init; } = true;
 
     public int SortOrder { get; init; }
 }
@@ -37,16 +59,20 @@ public sealed class CheckingWindowDatasetConfiguration : IEntityTypeConfiguratio
             .IsRequired()
             .HasMaxLength(50);
 
+        builder.Property(x => x.SourceFile).HasMaxLength(50);
+        builder.Property(x => x.Required).HasDefaultValue(true);
         builder.Property(x => x.IngressFile).HasMaxLength(255);
         builder.Property(x => x.SchemaFile).HasMaxLength(255);
         builder.Property(x => x.IngressFileChecksum).HasMaxLength(256);
         builder.Property(x => x.SchemaFileChecksum).HasMaxLength(256);
 
-        builder.HasIndex(x => new { x.CheckingWindowId, x.Name }).IsUnique();
+        // Names are unique within an exercise, not within a window: two exercises of the same
+        // window may each hold a dataset called "pupils".
+        builder.HasIndex(x => new { x.CheckingExerciseId, x.Name }).IsUnique();
 
-        builder.HasOne<CheckingWindow>()
-            .WithMany(w => w.Datasets)
-            .HasForeignKey(x => x.CheckingWindowId)
+        builder.HasOne<CheckingExercise>()
+            .WithMany(e => e.Datasets)
+            .HasForeignKey(x => x.CheckingExerciseId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

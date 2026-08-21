@@ -18,21 +18,19 @@ public sealed class CheckingWindow
     public string SchemaFile { get; init; } = string.Empty;
     public string IngressFileChecksum { get; init; } = string.Empty;
     public string SchemaFileChecksum { get; init; } = string.Empty;
-    public WindowValidated? Validated { get; set; }
+
+    // #319: the validation stamp moved down to CheckingExercise. A window is no longer validated as
+    // a whole — each exercise validates its own ingress + schema pair, on its own dates, and a
+    // window is usable while another exercise is still unvalidated. Anything asking "is this window
+    // validated" must now say which exercise it means, or fold the answer across all of them.
 
     /// <summary>
-    /// The window's ingress datasets. A Post16 window has two (included + non-included); every
-    /// other type has one. The scalar IngressFile/SchemaFile properties above are legacy and
-    /// mirror the first dataset — kept for one release so a rollback is safe.
+    /// The window's checking exercises, in sort order, and the only route to its ingress files —
+    /// a dataset belongs to the exercise that consumes it. A configured window is meant to have at
+    /// least one, and the window's own StartDate/EndDate equals the union of these rows — the admin
+    /// wizard derives the outer pair rather than asking for it (#319), so the two cannot disagree.
     /// </summary>
-    public List<CheckingWindowDataset> Datasets { get; init; } = [];
-}
-
-public sealed class WindowValidated
-{
-    public DateTime ValidatedAt { get; init; }
-    public string IngressValidationChecksum { get; init; } = string.Empty;
-    public string SchemaValidationChecksum { get; init; } = string.Empty;
+    public List<CheckingExercise> CheckingExercises { get; init; } = [];
 }
 
 public sealed class CheckingWindowConfiguration : IEntityTypeConfiguration<CheckingWindow>
@@ -78,14 +76,5 @@ public sealed class CheckingWindowConfiguration : IEntityTypeConfiguration<Check
         
         builder.Property(x => x.SchemaFileChecksum)
             .HasMaxLength(256);
-        
-        builder.OwnsOne(x => x.Validated, validated =>
-        {
-            validated.Property(v => v.ValidatedAt);
-            validated.Property(v => v.IngressValidationChecksum)
-                .HasMaxLength(256);
-            validated.Property(v => v.SchemaValidationChecksum)
-                .HasMaxLength(256);
-        });
     }
 }

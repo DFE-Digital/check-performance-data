@@ -37,7 +37,7 @@ public class DashboardServiceTests
         var windowId = Guid.NewGuid();
         // 4 eligible schools; 2 log in (plus an LA login that is not eligible and must not count);
         // school 1111111 (urn 111) submitted, school 2222222 (urn 222) logged in but did not.
-        _blobClient.ListSchoolLaestabsAsync(windowId, Arg.Any<CancellationToken>())
+        _blobClient.ListSchoolLaestabsAsync(windowId, CheckingExerciseType.PupilData, Arg.Any<CancellationToken>())
             .Returns(["1111111", "2222222", "3333333", "4444444"]);
         _logins.GetDistinctLoginsBetweenAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
             .Returns([
@@ -72,7 +72,7 @@ public class DashboardServiceTests
     public async Task GetMetricsAsync_QueriesLoginsOverTheWindowDates_AsUtc()
     {
         var windowId = Guid.NewGuid();
-        _blobClient.ListSchoolLaestabsAsync(windowId, Arg.Any<CancellationToken>()).Returns([]);
+        _blobClient.ListSchoolLaestabsAsync(windowId, CheckingExerciseType.PupilData, Arg.Any<CancellationToken>()).Returns([]);
         _logins.GetDistinctLoginsBetweenAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
             .Returns([]);
         _requests.GetRequestAggregatesAsync(windowId, Arg.Any<CancellationToken>())
@@ -90,7 +90,7 @@ public class DashboardServiceTests
     public async Task GetMetricsAsync_SecondCallWithinTtl_ServesFromCache()
     {
         var windowId = Guid.NewGuid();
-        _blobClient.ListSchoolLaestabsAsync(windowId, Arg.Any<CancellationToken>()).Returns([]);
+        _blobClient.ListSchoolLaestabsAsync(windowId, CheckingExerciseType.PupilData, Arg.Any<CancellationToken>()).Returns([]);
         _logins.GetDistinctLoginsBetweenAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
             .Returns([]);
         _requests.GetRequestAggregatesAsync(windowId, Arg.Any<CancellationToken>())
@@ -109,7 +109,7 @@ public class DashboardServiceTests
     {
         var windowA = Guid.NewGuid();
         var windowB = Guid.NewGuid();
-        _blobClient.ListSchoolLaestabsAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns([]);
+        _blobClient.ListSchoolLaestabsAsync(Arg.Any<Guid>(), CheckingExerciseType.PupilData, Arg.Any<CancellationToken>()).Returns([]);
         _logins.GetDistinctLoginsBetweenAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
             .Returns([]);
         _requests.GetRequestAggregatesAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
@@ -131,7 +131,7 @@ public class DashboardServiceTests
     public async Task GetMetricsAsync_WithNonPositiveRefreshMinutes_StillReturnsMetrics(int refreshMinutes)
     {
         var windowId = Guid.NewGuid();
-        _blobClient.ListSchoolLaestabsAsync(windowId, Arg.Any<CancellationToken>()).Returns([]);
+        _blobClient.ListSchoolLaestabsAsync(windowId, CheckingExerciseType.PupilData, Arg.Any<CancellationToken>()).Returns([]);
         _logins.GetDistinctLoginsBetweenAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
             .Returns([]);
         _requests.GetRequestAggregatesAsync(windowId, Arg.Any<CancellationToken>())
@@ -162,7 +162,7 @@ public class DashboardServiceTests
     public async Task GetMetricsAsync_SubmittingUrnWithoutEligibleLogin_NotCountedAsSchoolSubmitted()
     {
         var windowId = Guid.NewGuid();
-        _blobClient.ListSchoolLaestabsAsync(windowId, Arg.Any<CancellationToken>())
+        _blobClient.ListSchoolLaestabsAsync(windowId, CheckingExerciseType.PupilData, Arg.Any<CancellationToken>())
             .Returns(["1111111", "2222222"]);
         _logins.GetDistinctLoginsBetweenAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
             .Returns([new SchoolLogin(111, "1111111")]);

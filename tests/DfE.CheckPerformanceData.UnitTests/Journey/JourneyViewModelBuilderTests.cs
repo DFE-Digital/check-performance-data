@@ -357,6 +357,39 @@ public class JourneyViewModelBuilderTests
     }
 
     [Fact]
+    public void BuildPupilSearchVm_CarriesRequireResultsFromTheConfig()
+    {
+        // The page asks for it, the view puts it on the suggestions request. Nothing in between
+        // decides it, so a KS4 flow can never accidentally acquire the restriction.
+        var page = new JourneyPage
+        {
+            Id = "select-student", Type = PageType.PupilSearch,
+            PupilKey = JourneyPage.PrimaryKey, PupilFilter = PupilFilter.All,
+            RequireResults = true
+        };
+        _flowService.GetPage(Config, "select-student").Returns(page);
+
+        var vm = _sut.BuildPupilSearchVm(WindowId, "select-student", page, JourneyWithHistory(["select-pupil"]), Config);
+
+        Assert.True(vm.RequireResults);
+    }
+
+    [Fact]
+    public void BuildPupilSearchVm_WithoutRequireResults_SearchesEveryPupil()
+    {
+        var page = new JourneyPage
+        {
+            Id = "select-pupil", Type = PageType.PupilSearch,
+            PupilKey = JourneyPage.PrimaryKey, PupilFilter = PupilFilter.Included
+        };
+        _flowService.GetPage(Config, "select-pupil").Returns(page);
+
+        var vm = _sut.BuildPupilSearchVm(WindowId, "select-pupil", page, JourneyWithHistory(["select-pupil"]), Config);
+
+        Assert.False(vm.RequireResults);
+    }
+
+    [Fact]
     public void BuildPupilSearchVm_ForMatchKey_SetsExcludePupilIdFromSelectedPupil()
     {
         var primaryId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");

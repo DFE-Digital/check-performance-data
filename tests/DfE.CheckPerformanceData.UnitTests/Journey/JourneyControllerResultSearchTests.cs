@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
+using DfE.CheckPerformanceData.Application.UnitTests.WindowManagement;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 
@@ -101,7 +102,8 @@ public sealed class JourneyControllerResultSearchTests
         _sut = new JourneyController(
             _flowService, _journeyService, _fileStorage, _requestService, _pupilData, _vmBuilder,
             _analytics, _currentUser, _optionVisibility, _optionality, _originCapture, _results,
-            _gradeReference, _notifications, NullLogger<JourneyController>.Instance)
+            _gradeReference, _notifications, OpenCheckingExercises.AlwaysOpen(),
+            NullLogger<JourneyController>.Instance)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext }
         };

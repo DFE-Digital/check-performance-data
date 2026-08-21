@@ -230,6 +230,7 @@ public sealed class JourneyViewModelBuilder(
             PageId = pageId,
             Title = title,
             Filter = page.PupilFilter ?? PupilFilter.Included,
+            RequireResults = page.RequireResults,
             ExcludePupilId = excludeId,
             SelectedPupilId = existingId,
             SelectedPupilLabel = existingLabel,

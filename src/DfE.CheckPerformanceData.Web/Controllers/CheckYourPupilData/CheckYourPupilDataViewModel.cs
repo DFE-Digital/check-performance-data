@@ -15,21 +15,36 @@ public sealed class CheckYourPupilDataViewModel
     /// </summary>
     public required bool SectionsAsTabs { get; init; }
 
-    public required string WindowEndDate { get; init; }
-    public required string WindowEndTime { get; init; }
     public required string WindowTitle { get; init; }
     public NextSteps? SelectedNextStep { get; init; }
-    public required bool IsWindowOpen { get; init; }
 
     /// <summary>
-    /// AB#296648: whether to offer "Report an issue with an exam result" alongside the amend/confirm
-    /// options. 16-19 only for now — no other key stage has results data or a flow config behind it.
+    /// Next-step options for the exercises open right now (#317), from
+    /// <see cref="INextStepsService"/>. Empty means render no form at all — the tables, the search
+    /// and the downloads stay, because a closed exercise removes actions, never content.
     ///
-    /// PARKED: visibility moves to <c>ICheckingExerciseService.OpenCheckingExercises</c> when the
-    /// checking-exercise model lands (docs/16-19-window-model.md), at which point results enquiry
-    /// gets its own dates and this stops being a straight window-type test. Not defaulted from the
-    /// request — the POST re-derives it so a hand-crafted post cannot bypass the rule.
+    /// Never defaulted from the request: the POST re-derives this so a hand-crafted post cannot
+    /// start a journey for an exercise that is shut.
     /// </summary>
-    public bool ShowResultsEnquiryOption { get; init; }
+    public required IReadOnlyList<NextSteps> AvailableNextSteps { get; init; }
+
+    /// <summary>
+    /// The pupil-data exercise's own end date, from <c>EndDateFor(PupilData)</c> — never the outer
+    /// window's, which on a multi-exercise window is months later and would promise a deadline the
+    /// school does not have. Null when the window has no pupil-data exercise, in which case there
+    /// is no deadline sentence to show.
+    ///
+    /// Like every checking-window date this is a UK wall-clock value, not a UTC instant, so it is
+    /// formatted as-is and never routed through <c>LondonTime</c>.
+    /// </summary>
+    public DateTime? PupilDataEndDate { get; init; }
+
+    /// <summary>
+    /// Whether the pupil-data exercise is open, from <c>ICheckingExerciseService.IsOpen</c>. Drives
+    /// the tense of the deadline sentence. The comparison against the clock belongs to that service
+    /// alone, so the view must not re-derive this from <see cref="PupilDataEndDate"/>.
+    /// </summary>
+    public bool IsPupilDataOpen { get; init; }
+
     public required string OrganisationName { get; init; }
 }

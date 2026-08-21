@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
+using DfE.CheckPerformanceData.Application.UnitTests.WindowManagement;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 
@@ -100,6 +101,7 @@ public sealed class JourneyControllerResultDetailsTests
             _analytics, _currentUser, _optionVisibility, _optionality,
             Substitute.For<IOriginCountryLanguageCapture>(),
             Substitute.For<IStudentResultsClient>(), _gradeReference, _notifications,
+            OpenCheckingExercises.AlwaysOpen(),
             NullLogger<JourneyController>.Instance)
         {
             ControllerContext = new ControllerContext { HttpContext = _httpContext },

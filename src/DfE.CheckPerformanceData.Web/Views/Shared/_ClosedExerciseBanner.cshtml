@@ -1,0 +1,19 @@
+@using DfE.CheckPerformanceData.Web.Common
+@{
+    // #318: set by ClosedExerciseGuard when a journey entry point rejected the request because its
+    // checking exercise has closed. Reading TempData marks the key consumed, so the banner shows
+    // once — on the page the user is bounced to, and not again on the next visit.
+    var closedMessage = TempData[ClosedExerciseGuard.TempDataKey] as string;
+}
+@if (!string.IsNullOrEmpty(closedMessage))
+{
+    <div class="govuk-notification-banner" role="region"
+         aria-labelledby="closed-exercise-banner-title" data-module="govuk-notification-banner">
+        <div class="govuk-notification-banner__header">
+            <h2 class="govuk-notification-banner__title" id="closed-exercise-banner-title">Important</h2>
+        </div>
+        <div class="govuk-notification-banner__content">
+            <p class="govuk-notification-banner__heading">@closedMessage</p>
+        </div>
+    </div>
+}

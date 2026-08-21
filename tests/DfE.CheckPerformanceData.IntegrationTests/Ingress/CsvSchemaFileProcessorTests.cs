@@ -5,6 +5,7 @@ using DfE.CheckPerformanceData.Infrastructure.Ingress;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using Microsoft.Extensions.Logging.Abstractions;
 using Newtonsoft.Json.Linq;
+using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.Ingress;
 
@@ -107,7 +108,7 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
             new("nonincluded", "nonincluded.csv", Checksum(NonIncludedCsv), "nonincluded.json", Checksum(NonIncludedSchema), Included: false)
         ];
 
-        var progress = await DrainAsync(Processor().ProcessAsync(windowId, datasets));
+        var progress = await DrainAsync(Processor().ProcessAsync(windowId, CheckingExerciseType.PupilData, datasets));
 
         var last = progress[^1];
         Assert.False(last.IsError);
@@ -160,7 +161,7 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
             new("nonincluded", "nonincluded.csv", Checksum(NonIncludedCsv), "strict.json", Checksum(strictSchema), Included: false)
         ];
 
-        var progress = await DrainAsync(Processor().ProcessAsync(windowId, datasets));
+        var progress = await DrainAsync(Processor().ProcessAsync(windowId, CheckingExerciseType.PupilData, datasets));
 
         var last = progress[^1];
         Assert.True(last.IsError);
@@ -197,7 +198,7 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
             new("pupils", "pupils.csv", Checksum(IncludedCsv), "ks4.json", Checksum(Ks4Schema), Included: null)
         ];
 
-        var progress = await DrainAsync(Processor().ProcessAsync(windowId, datasets));
+        var progress = await DrainAsync(Processor().ProcessAsync(windowId, CheckingExerciseType.PupilData, datasets));
 
         Assert.False(progress[^1].IsError);
 
@@ -225,7 +226,7 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
             new("pupils", "included.csv", Checksum(IncludedCsv), "included.json", Checksum(IncludedSchema), Included: null)
         ];
 
-        var progress = await DrainAsync(Processor().ProcessAsync(windowId, datasets));
+        var progress = await DrainAsync(Processor().ProcessAsync(windowId, CheckingExerciseType.PupilData, datasets));
 
         Assert.True(progress[^1].IsError);
         Assert.Null(await ReadPupilsAsync(container, "8604070"));

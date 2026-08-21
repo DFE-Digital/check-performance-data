@@ -17,6 +17,10 @@ using Microsoft.Extensions.Primitives;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using NSubstitute;
+using DfE.CheckPerformanceData.Application.UnitTests.WindowManagement;
+// Alias, not a namespace import: WindowManagement also declares a CheckingWindowDto and this
+// file already uses the LandingPage one.
+using ICheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.ICheckingExerciseService;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 
@@ -36,6 +40,7 @@ public class JourneyControllerTests
         Substitute.For<DfE.CheckPerformanceData.Application.Notify.IRequestNotificationService>();
     private readonly FakeSession _session = new();
     private readonly DefaultHttpContext _httpContext = new();
+    private readonly ICheckingExerciseService _checkingExercises = OpenCheckingExercises.AlwaysOpen();
     private readonly JourneyController _sut;
 
     private static readonly Guid WindowId = Guid.Parse("11111111-1111-1111-1111-111111111111");
@@ -111,6 +116,7 @@ public class JourneyControllerTests
             Substitute.For<DfE.CheckPerformanceData.Application.ResultsEnquiry.IStudentResultsClient>(),
             Substitute.For<DfE.CheckPerformanceData.Application.ResultsEnquiry.IGradeReferenceClient>(),
             _requestNotificationService,
+            _checkingExercises,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<JourneyController>.Instance)
         {
             ControllerContext = new ControllerContext { HttpContext = _httpContext },
@@ -1976,4 +1982,101 @@ public class JourneyControllerTests
     {
         public ISession Session { get; set; } = session;
     }
+
+    // ── #318: the closed-exercise gate ───────────────────────────────────────
+
+    [Fact]
+    public async Task Page_WhenTheJourneysExerciseHasClosed_RedirectsToCheckYourPupilDataWithAMessage()
+    {
+        SetupSession(ValidSession(history: ["page-1"]));
+        _checkingExercises.Close();
+
+        var result = await _sut.Page(WindowId, "page-1");
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Index", redirect.ActionName);
+        Assert.Equal("CheckYourPupilData", redirect.ControllerName);
+        Assert.Equal(
+            ClosedExerciseGuard.MessageFor(CheckingExerciseType.PupilData),
+            _sut.TempData[ClosedExerciseGuard.TempDataKey]);
+    }
+
+    [Fact]
+    public async Task PagePost_WhenTheJourneysExerciseHasClosed_SavesNothing()
+    {
+        // The whole point of the gate: a tab left open across the closing date still posts.
+        SetupSession(ValidSession(history: ["page-1"]));
+        _checkingExercises.Close();
+
+        var result = await _sut.PagePost(WindowId, "page-1", fromSummary: false, null);
+
+        Assert.IsType<RedirectToActionResult>(result);
+        Assert.Empty(_session.GetRequestState(WindowId).QuestionAnswers);
+    }
+
+    [Fact]
+    public async Task SummaryConfirm_WhenTheJourneysExerciseHasClosed_SubmitsNothing()
+    {
+        SetupSession(ValidSession(history: ["page-1", "page-2"]));
+        _checkingExercises.Close();
+
+        var result = await _sut.SummaryConfirm(WindowId);
+
+        Assert.IsType<RedirectToActionResult>(result);
+        await _requestService.DidNotReceiveWithAnyArgs().ConfirmRequestAsync(default, default!);
+    }
+
+    [Fact]
+    public async Task SaveDraft_WhenTheJourneysExerciseHasClosed_SavesNothing()
+    {
+        SetupSession(ValidSession(history: ["page-1"]));
+        _checkingExercises.Close();
+
+        var result = await _sut.SaveDraft(WindowId, "page-1");
+
+        Assert.IsType<RedirectToActionResult>(result);
+        await _requestService.DidNotReceiveWithAnyArgs().SaveDraftAsync(default, default!, default);
+    }
+
+    [Fact]
+    public async Task DownloadEvidence_WhenTheJourneysExerciseHasClosed_RedirectsRatherThan404s()
+    {
+        // AC: no gated path returns 404. This action used to answer NotFound for any unready
+        // session, which would have made a closed exercise look like a broken link.
+        SetupSession(ValidSession(history: ["page-1"]));
+        _checkingExercises.Close();
+
+        var result = await _sut.DownloadEvidence(WindowId, Guid.NewGuid().ToString());
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("CheckYourPupilData", redirect.ControllerName);
+    }
+
+    [Fact]
+    public async Task Page_WhenOnlyTheOtherExerciseIsOpen_IsStillRejected()
+    {
+        // A pupil-data journey on a window whose results-enquiry exercise is still running. The
+        // gate follows the journey's own exercise, derived from SelectedWhatToChange.
+        SetupSession(ValidSession(history: ["page-1"]));
+        _checkingExercises.IsOpen(default!, default)
+            .ReturnsForAnyArgs(ci => ci.ArgAt<CheckingExerciseType>(1) == CheckingExerciseType.ResultsEnquiry);
+
+        var result = await _sut.Page(WindowId, "page-1");
+
+        Assert.IsType<RedirectToActionResult>(result);
+    }
+
+    [Fact]
+    public async Task Page_WhenTheSessionIsNotStarted_RedirectsWithoutAClosedExerciseMessage()
+    {
+        // No journey means nothing to explain — the banner must not claim a deadline has passed
+        // to someone who never started.
+        SetupSession(new RequestState());
+
+        var result = await _sut.Page(WindowId, "page-1");
+
+        Assert.IsType<RedirectToActionResult>(result);
+        Assert.False(_sut.TempData.ContainsKey(ClosedExerciseGuard.TempDataKey));
+    }
+
 }

@@ -152,7 +152,7 @@ public sealed class BulkSubmissionServiceTests
         await _requestService.Received(1).SubmitRequestAsync(WindowId, Arg.Is<RequestState>(s => s.ReferenceNumber == "R1"));
         await _requestService.Received(1).SubmitRequestAsync(WindowId, Arg.Is<RequestState>(s => s.ReferenceNumber == "R2"));
         await _notify.Received(1).NotifyBulkSubmissionConfirmedAsync(
-            WindowId, Arg.Any<DateTime>(), Arg.Is<IReadOnlyList<string>>(l => l.SequenceEqual(new[] { "R1", "R2" })));
+            WindowId, Arg.Any<DateTime>(), Arg.Is<IReadOnlyList<string>>(l => l.SequenceEqual(new[] { "R1", "R2" })), Arg.Any<EmailSubstitutions>());
     }
 
     [Fact]
@@ -175,7 +175,7 @@ public sealed class BulkSubmissionServiceTests
         Assert.Equal(new[] { "R2" }, result.Submitted);
         Assert.Equal(new[] { "R1" }, result.Skipped);
         await _notify.Received(1).NotifyBulkSubmissionConfirmedAsync(
-            WindowId, Arg.Any<DateTime>(), Arg.Is<IReadOnlyList<string>>(l => l.SequenceEqual(new[] { "R2" })));
+            WindowId, Arg.Any<DateTime>(), Arg.Is<IReadOnlyList<string>>(l => l.SequenceEqual(new[] { "R2" })), Arg.Any<EmailSubstitutions>());
     }
 
     [Fact]
@@ -208,7 +208,7 @@ public sealed class BulkSubmissionServiceTests
 
         Assert.Empty(result.Submitted);
         await _notify.DidNotReceive().NotifyBulkSubmissionConfirmedAsync(
-            Arg.Any<Guid>(), Arg.Any<DateTime>(), Arg.Any<IReadOnlyList<string>>());
+            Arg.Any<Guid>(), Arg.Any<DateTime>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<EmailSubstitutions>());
     }
 
     [Fact]
@@ -252,6 +252,6 @@ public sealed class BulkSubmissionServiceTests
         Assert.Empty(result.Submitted);
         await _requestService.DidNotReceive().SubmitRequestAsync(Arg.Any<Guid>(), Arg.Any<RequestState>());
         await _notify.DidNotReceive().NotifyBulkSubmissionConfirmedAsync(
-            Arg.Any<Guid>(), Arg.Any<DateTime>(), Arg.Any<IReadOnlyList<string>>());
+            Arg.Any<Guid>(), Arg.Any<DateTime>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<EmailSubstitutions>());
     }
 }

@@ -24,6 +24,13 @@ public sealed class JourneyPage
     public string? NextPageId { get; init; }
     public PupilFilter? PupilFilter { get; init; }
     public string? PupilKey { get; init; }
+
+    /// <summary>
+    /// PupilSearch pages only: limit the search to students the school holds a result for. Set on
+    /// a results enquiry, where a student with no result has no grade to correct. Independent of
+    /// <see cref="PupilFilter"/>, which selects the population by inclusion status.
+    /// </summary>
+    public bool RequireResults { get; init; }
     public string? ValidationFailure { get; init; }
 
     /// <summary>

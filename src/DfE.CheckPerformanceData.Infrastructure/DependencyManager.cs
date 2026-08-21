@@ -291,28 +291,72 @@ public static class DependencyManager
     private const string UnconfiguredZendeskHost = "https://zendesk.invalid";
 
     // Named in the error rather than referenced from Application, which Infrastructure does not
-    // depend on. Kept in step with SettingKeys.ZendeskUseFake.
+    // depend on. Kept in step with SettingKeys.ZendeskUseFake. Both spellings are quoted because
+    // the failure realistically happens in a container or a deployment slot, where configuration
+    // arrives as environment variables and the colon form does nothing.
     private const string ZendeskUseFakeKey = "Zendesk:UseFake";
+    private const string ZendeskUseFakeEnvironmentKey = "Zendesk__UseFake";
 
-    // Only the two that form the hostname are structural — a blank Email or ApiToken produces a
-    // client that authenticates badly rather than one that cannot be constructed — but all four
-    // are required for the real client to work, so all four are reported together.
-    internal static List<string> MissingZendeskSettings(ZendeskSettings settings)
+    // Named placeholders that carry no bracket to give themselves away. The bracketed forms are
+    // matched by shape instead — see IsUnset.
+    private static readonly string[] NamedZendeskPlaceholders = ["the subdomain", "the domain"];
+
+    // A value still wearing its own instructions is not configuration: "<zendesk-api-token>" from
+    // .env.example, "[PLACE THESE IN YOUR USER SECRETS]" from a user-secrets file nobody filled
+    // in. None of them is blank, so a blank check waves them through and an environment with the
+    // real client selected starts against whatever they happen to name. They mean "unset".
+    private static bool IsUnset(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return true;
+
+        var trimmed = value.Trim();
+        return (trimmed.StartsWith('[') && trimmed.EndsWith(']'))
+            || (trimmed.StartsWith('<') && trimmed.EndsWith('>'))
+            || NamedZendeskPlaceholders.Contains(trimmed, StringComparer.OrdinalIgnoreCase);
+    }
+
+    // Subdomain and Domain are structural: they are interpolated into the base address, so
+    // without them there is no URI and therefore no client to construct.
+    internal static List<string> MissingZendeskHostSettings(ZendeskSettings settings)
     {
         var missing = new List<string>();
-        if (string.IsNullOrWhiteSpace(settings.Subdomain)) missing.Add(nameof(settings.Subdomain));
-        if (string.IsNullOrWhiteSpace(settings.Domain)) missing.Add(nameof(settings.Domain));
-        if (string.IsNullOrWhiteSpace(settings.Email)) missing.Add(nameof(settings.Email));
-        if (string.IsNullOrWhiteSpace(settings.ApiToken)) missing.Add(nameof(settings.ApiToken));
+        if (IsUnset(settings.Subdomain)) missing.Add(nameof(settings.Subdomain));
+        if (IsUnset(settings.Domain)) missing.Add(nameof(settings.Domain));
         return missing;
     }
+
+    // Email and ApiToken are credentials: they produce a Basic header Zendesk rejects, which
+    // fails the Zendesk call and nothing else. Refusing to start over them would take the queue
+    // consumers and every retention job in this process down with them — one unset variable
+    // disabling all of them, over an integration none of them uses.
+    internal static List<string> MissingZendeskCredentials(ZendeskSettings settings)
+    {
+        var missing = new List<string>();
+        if (IsUnset(settings.Email)) missing.Add(nameof(settings.Email));
+        if (IsUnset(settings.ApiToken)) missing.Add(nameof(settings.ApiToken));
+        return missing;
+    }
+
+    // Both halves decide this, for different reasons: without Subdomain and Domain there is no
+    // address to build, and without credentials there is nothing the address could usefully be
+    // asked for. Either way the client is pointed somewhere that cannot resolve. That matters
+    // beyond tidiness, because selecting the fake replaces IZendeskService and nothing else —
+    // IZendeskAttachmentService stays the real Refit client, and an unresolvable address is what
+    // keeps a half-configured environment from reaching a real Zendesk through it.
+    internal static Uri ZendeskBaseAddress(ZendeskSettings settings) =>
+        MissingZendeskHostSettings(settings).Count == 0
+        && MissingZendeskCredentials(settings).Count == 0
+            ? new Uri($"https://{settings.Subdomain.Trim()}.{settings.Domain.Trim()}.com")
+            : new Uri(UnconfiguredZendeskHost);
 
     /// <param name="requireRealClient">
     /// Whether the real Zendesk client is the one that will actually be used. When false — the
     /// fake service is selected, which is the default for a fresh dev or test environment —
-    /// incomplete settings are tolerated and the client is pointed at an unresolvable host,
-    /// because nothing will call it. When true, incomplete settings are a misconfiguration and
-    /// are reported as one.
+    /// incomplete settings are tolerated in silence and the client is pointed at an unresolvable
+    /// host, because nothing will call it. When true they are a misconfiguration, and how loudly
+    /// depends on which: a missing hostname setting leaves no client to build and stops
+    /// registration; a missing credential costs only the Zendesk call and is warned about at
+    /// start.
     /// </param>
     public static IServiceCollection AddZendeskApiClient(
         this IServiceCollection services, IConfiguration config, bool requireRealClient = true)
@@ -326,23 +370,35 @@ public static class DependencyManager
             throw new InvalidOperationException("ZendeskSettings section is missing in the configuration.");
         }
 
-        // The base address is built by interpolating Subdomain and Domain, so blank values
+        // The base address is built by interpolating Subdomain and Domain, so unset values
         // produce "https://..com" — not a parseable hostname. Left unchecked that surfaces as a
         // UriFormatException thrown while the host resolves its hosted services, which kills the
         // process before anything starts and says nothing about which setting is missing. An
         // unset variable in a compose file or a deployment slot is the likeliest way to get
         // here, so it is worth naming the culprits.
-        var missing = MissingZendeskSettings(settings);
-        if (missing.Count > 0 && requireRealClient)
+        var missingHostSettings = MissingZendeskHostSettings(settings);
+        if (missingHostSettings.Count > 0 && requireRealClient)
         {
             throw new InvalidOperationException(
-                $"ZendeskSettings is incomplete: {string.Join(", ", missing)} " +
-                $"{(missing.Count == 1 ? "is" : "are")} blank. Set the corresponding " +
-                $"ZendeskSettings__* configuration values, or set {ZendeskUseFakeKey}=true to run " +
-                "against the fake Zendesk service instead.");
+                $"ZendeskSettings is incomplete: {string.Join(", ", missingHostSettings)} " +
+                $"{(missingHostSettings.Count == 1 ? "is" : "are")} not set. Set the corresponding " +
+                $"ZendeskSettings__* configuration values, or set {ZendeskUseFakeKey}=true " +
+                $"({ZendeskUseFakeEnvironmentKey} as an environment variable) to run against the " +
+                "fake Zendesk service instead.");
         }
 
-        services.Configure<ZendeskSettings>(s => s = settings);
+        // A missing credential is worth saying out loud and not worth stopping for, so it is
+        // reported at start instead. Registration runs before the host exists and so before
+        // there is any logger to write to, which is why this has to wait for a hosted service.
+        var missingCredentials = MissingZendeskCredentials(settings);
+        if (missingCredentials.Count > 0 && requireRealClient)
+        {
+            services.AddHostedService(sp => new ZendeskCredentialWarning(
+                missingCredentials,
+                sp.GetRequiredService<ILogger<ZendeskCredentialWarning>>()));
+        }
+
+        services.Configure<ZendeskSettings>(config.GetSection(ZendeskSettings.SectionName));
 
         services.AddRefitClient<IZendeskApi>(new RefitSettings
         {
@@ -350,9 +406,7 @@ public static class DependencyManager
         })
            .ConfigureHttpClient(c =>
            {
-               c.BaseAddress = missing.Count == 0
-                   ? new Uri($"https://{settings.Subdomain}.{settings.Domain}.com")
-                   : new Uri(UnconfiguredZendeskHost);
+               c.BaseAddress = ZendeskBaseAddress(settings);
                var auth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{settings.Email}/token:{settings.ApiToken}"));
                c.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", auth);
                c.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));

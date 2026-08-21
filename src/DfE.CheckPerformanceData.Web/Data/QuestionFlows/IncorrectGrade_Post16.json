@@ -54,9 +54,10 @@
       "id": "select-student-cohort",
       "type": "PupilSearch",
       "pupilFilter": "All",
+      "requireResults": true,
       "pupilKey": "primary",
       "title": "What is the name of one of the students from the affected cohort?",
-      "subheading": "Start typing to search by name, ULN, CYPMD ID or date of birth",
+      "subheading": "Start typing to search by name, ULN, CYPMD ID or date of birth. You can only search for students who have results.",
       "validationFailure": "Enter the name of the student with an incorrect grade",
       "nextPageId": "select-result"
     },
@@ -64,9 +65,10 @@
       "id": "select-student-single",
       "type": "PupilSearch",
       "pupilFilter": "All",
+      "requireResults": true,
       "pupilKey": "primary",
       "title": "What is the name of the student with an incorrect grade?",
-      "subheading": "Start typing to search by name, ULN, CYPMD ID or date of birth",
+      "subheading": "Start typing to search by name, ULN, CYPMD ID or date of birth. You can only search for students who have results.",
       "validationFailure": "Enter the name of the student with an incorrect grade",
       "nextPageId": "select-result"
     },

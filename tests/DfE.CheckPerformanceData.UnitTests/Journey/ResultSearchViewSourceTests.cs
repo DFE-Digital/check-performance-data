@@ -151,6 +151,44 @@ public sealed class ResultSearchViewSourceTests
         Assert.Contains("asp-action=\"@Model.BackPageAction\"", ViewSource());
     }
 
+    // ── Empty state: a student the school holds no results for ───────────────
+
+    [Fact]
+    public void A_student_with_no_results_gets_an_explanation_rather_than_an_empty_control()
+    {
+        // Rendering an empty autocomplete leaves the user typing into a box that can never answer.
+        // Mirrors _GradeSelect.cshtml, which states a missing-reference-data gap plainly.
+        var view = ViewSource();
+
+        Assert.Contains("if (!Model.AvailableResults.Any())", view);
+        Assert.Contains("govuk-inset-text", view);
+        Assert.Contains("We hold no results for this student", view);
+    }
+
+    [Fact]
+    public void The_empty_state_offers_a_way_back_to_the_student_search()
+    {
+        // The only move left is to pick a different student, so the page has to offer it — the
+        // Continue button would only ever fail validation.
+        var view = ViewSource();
+
+        Assert.Contains("Search for a different student", view);
+        Assert.DoesNotContain("href=\"#\"", view);
+    }
+
+    [Fact]
+    public void The_control_and_the_continue_button_are_hidden_when_there_is_nothing_to_choose()
+    {
+        // A submit that can only ever produce "Enter which result is incorrect" is a dead end.
+        var view = ViewSource();
+
+        // The submit and the select live in the else branch of the empty check, so neither is
+        // rendered when there is nothing to pick.
+        Assert.Matches(
+            """if \(!Model\.AvailableResults\.Any\(\)\)[\s\S]*else[\s\S]*<govuk-button type="submit">""",
+            view);
+    }
+
     private static string RepoRoot
     {
         get

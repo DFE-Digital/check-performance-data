@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using DfE.CheckPerformanceData.Application.WindowManagement;
+using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Common;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
 using Microsoft.AspNetCore.Mvc;
@@ -17,8 +18,11 @@ public class SchemaController(
 
     private const string PageView = "~/Views/WindowAdmin/Schema.cshtml";
 
-    [HttpGet("admin/windows/{id:guid}/schema-file/{dataset}")]
-    public async Task<IActionResult> Index(Guid id, string dataset, CancellationToken cancellationToken)
+    // #319: the route names the exercise. A dataset belongs to the exercise that consumes it,
+    // and dataset names are only unique within one — "pupils" could belong to either once a
+    // second exercise gains slots.
+    [HttpGet("admin/windows/{id:guid}/{exercise}/schema-file/{dataset}")]
+    public async Task<IActionResult> Index(Guid id, CheckingExerciseType exercise, string dataset, CancellationToken cancellationToken)
     {
         CheckingWindowDto? window = await windowService.GetByIdAsync(id, cancellationToken);
 
@@ -27,7 +31,7 @@ public class SchemaController(
             return NotFound();
         }
 
-        CheckingWindowDatasetDto? target = window.Datasets.SingleOrDefault(d => d.Name == dataset);
+        CheckingWindowDatasetDto? target = FindDataset(window, exercise, dataset);
 
         if (target is null)
         {
@@ -40,14 +44,14 @@ public class SchemaController(
             SchemaFile = target.SchemaFile,
             Dataset = target.Name,
             DatasetLabel = DatasetLabels.For(target.Name),
-            PostUrl = Url.Action("Submit", "Schema", new { id = window.Id, dataset = target.Name }),
+            PostUrl = Url.Action("Submit", "Schema", new { id = window.Id, exercise, dataset = target.Name }),
         };
         return View(PageView, model);
     }
 
-    [HttpPost("admin/windows/{id:guid}/schema-file/{dataset}")]
+    [HttpPost("admin/windows/{id:guid}/{exercise}/schema-file/{dataset}")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Submit(Guid id, string dataset, SchemaItem model, CancellationToken cancellationToken)
+    public async Task<IActionResult> Submit(Guid id, CheckingExerciseType exercise, string dataset, SchemaItem model, CancellationToken cancellationToken)
     {
         if (id != model.WindowId)
         {
@@ -105,7 +109,7 @@ public class SchemaController(
             },
             cancellationToken);
 
-        CheckingWindowDatasetDto? target = window.Datasets.SingleOrDefault(d => d.Name == dataset);
+        CheckingWindowDatasetDto? target = FindDataset(window, exercise, dataset);
 
         if (target is null)
         {
@@ -127,4 +131,7 @@ public class SchemaController(
         return RedirectToAction("Index", "Summary", new { id });
     }
 
+    private static CheckingWindowDatasetDto? FindDataset(
+        CheckingWindowDto window, CheckingExerciseType exercise, string dataset) =>
+        window.FindExercise(exercise)?.Datasets.SingleOrDefault(d => d.Name == dataset);
 }

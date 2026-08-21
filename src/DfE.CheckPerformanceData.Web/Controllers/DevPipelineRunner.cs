@@ -79,7 +79,8 @@ public sealed class DevPipelineRunner
         IPupilRecord? matchedPupil = null;
         if (windowId is not null && laestab is not null)
         {
-            var pupils = await _pupilBlob.GetPupilsAsync(resolvedWindowId, laestab, CheckingWindowType.KS4June);
+            var pupils = await _pupilBlob.GetPupilsAsync(
+                resolvedWindowId, CheckingExerciseType.PupilData, laestab, CheckingWindowType.KS4June);
             if (pupils is not null)
             {
                 if (pupilUpn is not null)

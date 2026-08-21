@@ -35,14 +35,23 @@ public sealed class TurnaroundCommitmentTests(PlaywrightFixture fixture) : Seedi
     [Fact]
     public async Task EditPage_PrefillsCurrentValue()
     {
-        // Read the value currently shown on the Summary first, so the assertion holds
-        // regardless of what earlier tests left in the database.
-        await Page.GotoAsync(SummaryUrl);
-        var value = await CurrentSummaryValueAsync();
+        // Seed the value this test asserts on instead of reading back whatever the Summary
+        // happens to show. All four tests here share one database row, and
+        // EmptySubmission_IsAllowed_AndShowsNotSet leaves it empty — at which point the Summary
+        // renders "Not set", which is Summary.cshtml's placeholder for an empty column and never
+        // a stored value, while the edit input correctly renders "". Comparing the two failed
+        // whenever xUnit ordered the empty-submission test first. Reading the value back could
+        // not have earned its keep anyway: when the row is empty the assertion is "" == "",
+        // which a page that does no prefilling at all would also satisfy.
+        const string expected = "within 10 working days of the window closing";
 
         await Page.GotoAsync(EditUrl);
-        var input = Page.Locator("#TurnaroundCommitment");
-        await Expect(input).ToHaveValueAsync(value);
+        await Page.Locator("#TurnaroundCommitment").FillAsync(expected);
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Save and continue" }).ClickAsync();
+        await Page.WaitForURLAsync("**/admin/windows/summary/**");
+
+        await Page.GotoAsync(EditUrl);
+        await Expect(Page.Locator("#TurnaroundCommitment")).ToHaveValueAsync(expected);
     }
 
     [Fact]

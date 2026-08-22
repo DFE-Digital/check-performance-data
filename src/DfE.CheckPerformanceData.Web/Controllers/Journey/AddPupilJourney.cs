@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Journey;
+using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.Journey;
 
@@ -20,6 +21,19 @@ public static class AddPupilJourney
     public const string DateOfBirthQuestionId = "date-of-birth";
     public const string SexQuestionId = "sex";
     public const string UpnQuestionId = "upn";
+
+    /// <summary>
+    /// The window types an Add_*.json exists for. Single source of truth for the Add radio on
+    /// What to change and for the guard on the post it produces — a window missing from here
+    /// must not open the journey even if a flow file is later uploaded for it.
+    /// </summary>
+    public static readonly IReadOnlySet<CheckingWindowType> SupportedWindowTypes =
+        new HashSet<CheckingWindowType>
+        {
+            CheckingWindowType.KS4June,
+            CheckingWindowType.KS4Autumn,
+            CheckingWindowType.KS2
+        };
 
     public static PupilDto BuildPupil(RequestState journey, Guid? existingId)
     {

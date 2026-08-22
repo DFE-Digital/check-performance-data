@@ -119,18 +119,13 @@ public sealed class WhatToChangeControllerTests
         Assert.Equal(CheckingWindowType.KS4June, vm.CheckingWindowType);
     }
 
+    // The unknown-flow case: no Add_Post16.json in blob, so the flow service has nothing to
+    // return. Pins the redirect only — the window-type rule is pinned by the test below, which
+    // stubs a config so this path cannot be what sends the user back.
     [Fact]
     public async Task Confirm_AddOnPost16_WithNoAddFlow_RedirectsToCheckYourPupilData()
     {
-        _service.GetCheckingWindowAsync(WindowId).Returns(new CheckingWindowDto
-        {
-            Id = Guid.NewGuid(),
-            Title = "W",
-            KeyStage = KeyStages.KS4,
-            CheckingWindowType = CheckingWindowType.Post16,
-            StartDate = DateTime.UtcNow.AddDays(-1),
-            EndDate = DateTime.UtcNow.AddDays(10)
-        });
+        _service.GetCheckingWindowAsync(WindowId).Returns(Post16Window());
         _flowService.GetConfigAsync(WhatToChange.Add, CheckingWindowType.Post16)
             .Returns((QuestionFlowConfig?)null);
 
@@ -140,6 +135,63 @@ public sealed class WhatToChangeControllerTests
         var redirect = Assert.IsType<RedirectToActionResult>(result);
         Assert.Equal("CheckYourPupilData", redirect.ControllerName);
         Assert.Equal("Index", redirect.ActionName);
+    }
+
+    // The window-type rule itself: an Add_Post16.json uploaded to blob must not open the journey
+    // on a window type the Add radio was never offered for.
+    [Fact]
+    public async Task Confirm_AddOnPost16_WithAnAddFlowPresent_StillRedirectsAndLeavesStateAlone()
+    {
+        _service.GetCheckingWindowAsync(WindowId).Returns(Post16Window());
+        _flowService.GetConfigAsync(WhatToChange.Add, CheckingWindowType.Post16)
+            .Returns(FlowWithoutPupilSearch);
+        _session.SaveRequestState(WindowId, SeedStaleIdentity);
+
+        var result = await _sut.Confirm(WindowId,
+            new WhatToChangeViewModel { WindowId = WindowId, SelectedWhatToChange = WhatToChange.Add });
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("CheckYourPupilData", redirect.ControllerName);
+        Assert.Equal("Index", redirect.ActionName);
+        AssertStaleIdentityIntact(_session.GetRequestState(WindowId));
+    }
+
+    // An unmapped flow is not an empty flow. Every window type renders Merge/Include/Remove, but
+    // only four flow files exist per window type at most — on a KS2 window three of those radios
+    // resolve to a null config, and a forged enum value binds just as cleanly. Before AB#297310
+    // that post was a harmless redirect; it must stay one, rather than destroying a journey the
+    // user has already part-completed in another tab.
+    [Fact]
+    public async Task Confirm_WhenTheFlowIsUnknown_LeavesAnInProgressJourneyIntact()
+    {
+        _service.GetCheckingWindowAsync(WindowId).Returns(Ks4JuneWindow());
+        _flowService.GetConfigAsync(WhatToChange.Include, CheckingWindowType.KS4June)
+            .Returns((QuestionFlowConfig?)null);
+        _session.SaveRequestState(WindowId, SeedStaleIdentity);
+
+        var result = await _sut.Confirm(WindowId,
+            new WhatToChangeViewModel { WindowId = WindowId, SelectedWhatToChange = WhatToChange.Include });
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("CheckYourPupilData", redirect.ControllerName);
+        AssertStaleIdentityIntact(_session.GetRequestState(WindowId));
+    }
+
+    [Fact]
+    public async Task Confirm_WithAnUnmappedWhatToChangeValue_LeavesAnInProgressJourneyIntact()
+    {
+        _service.GetCheckingWindowAsync(WindowId).Returns(Ks4JuneWindow());
+        _flowService.GetConfigAsync(Arg.Any<WhatToChange>(), Arg.Any<CheckingWindowType>())
+            .Returns((QuestionFlowConfig?)null);
+        _session.SaveRequestState(WindowId, SeedStaleIdentity);
+
+        var result = await _sut.Confirm(WindowId,
+            new WhatToChangeViewModel { WindowId = WindowId, SelectedWhatToChange = (WhatToChange)99 });
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("CheckYourPupilData", redirect.ControllerName);
+        Assert.Equal("Index", redirect.ActionName);
+        AssertStaleIdentityIntact(_session.GetRequestState(WindowId));
     }
 
     // AB#297310: starting a fresh journey must not inherit a previous one's identity.
@@ -171,6 +223,11 @@ public sealed class WhatToChangeControllerTests
         Assert.Null(journey.MatchedPupilId);
         Assert.Null(journey.MatchedPupilLabel);
         Assert.Null(journey.SelectedResult);
+        // Only the EAL pages write these, and OriginCountryLanguageCapture no-ops on a page that
+        // has no country question — so an abandoned EAL journey's country data would otherwise
+        // ride into the added pupil's request blob.
+        Assert.Null(journey.OriginCountryCode);
+        Assert.Null(journey.OriginCountryLanguages);
         Assert.Empty(journey.QuestionAnswers);
         Assert.Empty(journey.QuestionHistory);
     }
@@ -189,12 +246,7 @@ public sealed class WhatToChangeControllerTests
         await _sut.Confirm(WindowId,
             new WhatToChangeViewModel { WindowId = WindowId, SelectedWhatToChange = WhatToChange.Merge });
 
-        var journey = _session.GetRequestState(WindowId);
-        Assert.Equal("CYPMD_KS4June_STALE01", journey.ReferenceNumber);
-        Assert.NotNull(journey.SelectedPupil);
-        Assert.NotNull(journey.MatchedPupil);
-        Assert.NotEmpty(journey.QuestionAnswers);
-        Assert.NotEmpty(journey.QuestionHistory);
+        AssertStaleIdentityIntact(_session.GetRequestState(WindowId));
     }
 
     private static readonly QuestionFlowConfig FlowWithoutPupilSearch = new()
@@ -232,7 +284,35 @@ public sealed class WhatToChangeControllerTests
         s.SelectedResult = new StudentResultRecord();
         s.QuestionAnswers = new() { ["first-name"] = new QuestionAnswer { TextValue = "Alice" } };
         s.QuestionHistory = ["learner-details", "admission-details", "evidence"];
+        // Left behind by an EAL journey: nothing outside the EAL pages ever writes these.
+        s.OriginCountryCode = "FR";
+        s.OriginCountryLanguages = ["French"];
     }
+
+    private static void AssertStaleIdentityIntact(RequestState journey)
+    {
+        Assert.Equal("CYPMD_KS4June_STALE01", journey.ReferenceNumber);
+        Assert.NotNull(journey.SelectedPupil);
+        Assert.Equal("some-stale-id", journey.SelectedPupilId);
+        Assert.Equal("Newpupil, Alice", journey.SelectedPupilLabel);
+        Assert.NotNull(journey.MatchedPupil);
+        Assert.Equal("some-stale-match-id", journey.MatchedPupilId);
+        Assert.Equal("Smith, Ian", journey.MatchedPupilLabel);
+        Assert.NotNull(journey.SelectedResult);
+        Assert.Equal("FR", journey.OriginCountryCode);
+        Assert.NotEmpty(journey.QuestionAnswers);
+        Assert.NotEmpty(journey.QuestionHistory);
+    }
+
+    private static CheckingWindowDto Post16Window() => new()
+    {
+        Id = Guid.NewGuid(),
+        Title = "W",
+        KeyStage = KeyStages.KS4,
+        CheckingWindowType = CheckingWindowType.Post16,
+        StartDate = DateTime.UtcNow.AddDays(-1),
+        EndDate = DateTime.UtcNow.AddDays(10)
+    };
 
     private static CheckingWindowDto Ks4JuneWindow() => new()
     {

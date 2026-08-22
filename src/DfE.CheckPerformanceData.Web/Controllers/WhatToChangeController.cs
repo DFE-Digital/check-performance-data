@@ -5,6 +5,7 @@ using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Analytics;
 using DfE.CheckPerformanceData.Web.Common;
+using DfE.CheckPerformanceData.Web.Controllers.Journey;
 using DfE.CheckPerformanceData.Web.Session;
 using Microsoft.AspNetCore.Mvc;
 
@@ -53,6 +54,14 @@ public sealed class WhatToChangeController(
             return View("Index", new WhatToChangeViewModel { WindowId = windowId, SelectedWhatToChange = null, CheckingWindowType = window.CheckingWindowType });
         }
 
+        // AB#297310: the Add journey exists only for the window types that have an Add_*.json.
+        // The radio is hidden elsewhere, but a posted form still arrives here, and a flow file
+        // uploaded to blob for an unsupported window would otherwise open the journey with
+        // nothing failing. Checked before the flow service or the session is touched.
+        if (vm.SelectedWhatToChange == WhatToChange.Add
+            && !AddPupilJourney.SupportedWindowTypes.Contains(window.CheckingWindowType))
+            return RedirectToAction("Index", "CheckYourPupilData", new { windowId });
+
         var config = await flowService.GetConfigAsync(vm.SelectedWhatToChange.Value, window.CheckingWindowType);
 
         // AB#297310: a flow that opens with a pupil search refreshes the whole per-request identity
@@ -64,15 +73,20 @@ public sealed class WhatToChangeController(
         // journey's matched pupil would surface on the Add summary as "Second record to merge".
         // Keyed on the flow's shape rather than on WhatToChange.Add so the next pupil-search-less
         // journey inherits the guarantee instead of the bug.
-        var refreshedByPupilSearch = config is not null
-            && config.Pages.Any(p => p.Type == PageType.PupilSearch);
+        //
+        // A missing flow means "we don't know this journey", not "this journey has no pupil
+        // search" — resetting on it would let any radio without a flow file, or a forged enum
+        // value, destroy an in-progress journey that pre-dated the click. Unknown flow leaves
+        // state alone; the redirect below already sends the user back.
+        var preservesExistingState = config is null
+            || config.Pages.Any(p => p.Type == PageType.PupilSearch);
 
         HttpContext.Session.SaveRequestState(windowId, s =>
         {
             s.SelectedWhatToChange = vm.SelectedWhatToChange;
             s.CheckingWindow = window;
 
-            if (refreshedByPupilSearch) return;
+            if (preservesExistingState) return;
 
             s.ReferenceNumber = null;
             s.SelectedPupil = null;
@@ -82,6 +96,11 @@ public sealed class WhatToChangeController(
             s.MatchedPupilId = null;
             s.MatchedPupilLabel = null;
             s.SelectedResult = null;
+            // Captured by the EAL pages only, and OriginCountryLanguageCapture early-returns on a
+            // page without country-originally-from — so nothing on a pupil-search-less flow would
+            // ever clear an abandoned journey's country data before it reaches the new request.
+            s.OriginCountryCode = null;
+            s.OriginCountryLanguages = null;
             s.QuestionAnswers = new();
             s.QuestionHistory = new();
         });

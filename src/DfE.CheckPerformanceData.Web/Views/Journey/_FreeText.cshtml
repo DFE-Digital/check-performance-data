@@ -7,6 +7,13 @@
     var describedBy = string.Join(" ",
         new[] { Model.Question.Hint is not null ? hintId : null, Model.HasError ? errorId : null }
         .Where(s => s is not null));
+
+    // The GOV.UK character count component supports textareas only, so a single-line input gets
+    // the plain maxlength attribute instead. GDS caution about maxlength — it truncates with no
+    // feedback — does not bite for the questions that declare a limit today: a UPN, whose hint
+    // already states the 13 characters, and a name capped at 150, which no real name reaches.
+    // The server-side rule stays the enforcement; this only stops the overlong value being typed.
+    var maxLength = Model.Question.CharacterLimit;
 }
 
 <div class="govuk-form-group @(Model.HasError ? "govuk-form-group--error" : "")">
@@ -33,5 +40,6 @@
     <input class="govuk-input govuk-input--width-20 @(Model.HasError ? "govuk-input--error" : "")"
            id="@Model.FieldName" name="@Model.FieldName" type="text"
            value="@Model.ExistingAnswer?.TextValue"
+           @(maxLength.HasValue ? Html.Raw($"maxlength=\"{maxLength}\"") : Html.Raw(""))
            @(describedBy.Length > 0 ? $"aria-describedby=\"{describedBy}\"" : "")>
 </div>

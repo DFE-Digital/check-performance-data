@@ -46,7 +46,12 @@ public sealed class AddPupilJourneyTests(PlaywrightFixture fixture) : SeedingPag
         await Expect(Page.GetByRole(AriaRole.Heading, new() { Level = 1 }))
             .ToContainTextAsync("Summary of amendment request");
         var summary = await Page.Locator(".govuk-summary-list").InnerTextAsync();
-        Assert.Contains("Alice Newpupil", summary);
+        // No combined "Pupil name" row: that row's Change link goes to a pupil-search page, which
+        // this journey has none of. The first and last name rows below carry the same name with
+        // Change links that work.
+        Assert.DoesNotContain("Pupil name", summary);
+        Assert.Contains("Alice", summary);
+        Assert.Contains("Newpupil", summary);
         Assert.Contains("First name", summary);
         Assert.Contains("Year group", summary);
         Assert.Contains("SEN status", summary);

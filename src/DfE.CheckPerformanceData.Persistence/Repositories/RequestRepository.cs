@@ -9,24 +9,7 @@ namespace DfE.CheckPerformanceData.Persistence.Repositories;
 
 public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
 {
-    private static string ExtractConflictingReasonType(string requestTypeDescription)
-    {
-        var separatorIndex = requestTypeDescription.IndexOf(" - ", StringComparison.Ordinal);
-        return separatorIndex >= 0
-            ? requestTypeDescription[(separatorIndex + 3)..]
-            : requestTypeDescription;
-    }
-
-    private static string ExtractRequestCategory(string requestTypeDescription)
-    {
-        var separatorIndex = requestTypeDescription.IndexOf(" - ", StringComparison.Ordinal);
-        return separatorIndex >= 0
-            ? requestTypeDescription[..separatorIndex]
-            : requestTypeDescription;
-    }
-
-    public async Task<DuplicateCheckResult> CheckForConflictAsync(
-        Guid windowId, Guid pupilId, long organisationUrn, string currentReferenceNumber, Guid currentUserId)
+    public async Task<DuplicateCheckResult> CheckForConflictAsync(Guid windowId, Guid pupilId, long organisationUrn, string currentReferenceNumber, Guid currentUserId)
     {
         var conflict = await db.ChangeRequests
             .Where(r => r.WindowId == windowId
@@ -54,9 +37,8 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
             : new DuplicateCheckResult.OtherSubmitted(conflict.ReferenceNumber, conflictingReasonType, conflictingCategory, conflict.SubmittedByName ?? string.Empty);
     }
 
-    public async Task<string?> HasSubmittedRequestAsync(
-        Guid windowId, Guid pupilId, long organisationUrn) =>
-        await db.ChangeRequests
+    public async Task<string?> HasSubmittedRequestAsync(Guid windowId, Guid pupilId, long organisationUrn)
+        => await db.ChangeRequests
             .Where(r => r.WindowId == windowId
                 && r.PupilId == pupilId
                 && r.OrganisationUrn == organisationUrn
@@ -64,9 +46,8 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
             .Select(r => r.ReferenceNumber)
             .FirstOrDefaultAsync();
 
-    public async Task<IReadOnlyList<Guid>> GetSubmittedPupilIdsAsync(
-        Guid windowId, long organisationUrn) =>
-        await db.ChangeRequests
+    public async Task<IReadOnlyList<Guid>> GetSubmittedPupilIdsAsync(Guid windowId, long organisationUrn) 
+        => await db.ChangeRequests
             .Where(r => r.WindowId == windowId
                 && r.OrganisationUrn == organisationUrn
                 && r.Status == RequestStatus.SubmittedUnCommitted
@@ -74,29 +55,7 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
             .Select(r => r.PupilId!.Value)
             .Distinct()
             .ToListAsync();
-
-    /// <summary>
-    /// Rows that would conflict with <paramref name="data"/>: another submitted-uncommitted amendment
-    /// for the same pupil, at the same school, in the same window.
-    ///
-    /// Results enquiries are excluded (AB#296648) — they change no pupil data, so they neither
-    /// compete with an amendment nor with each other.
-    /// </summary>
-    private static IQueryable<ChangeRequest> ConflictQuery(
-        IPortalDbContext db, ChangeRequestData data, Guid existingId)
-    {
-        var query = db.ChangeRequests
-            .Where(r => r.WindowId == data.WindowId
-                && r.PupilId == data.PupilId
-                && r.OrganisationUrn == data.OrganisationUrn
-                && r.Status == RequestStatus.SubmittedUnCommitted
-                && r.RequestType != RequestType.ResultsEnquiry);
-
-        // When updating an existing row, exclude the current row from conflict
-        // detection so a user can re-submit or update their own draft.
-        return existingId != Guid.Empty ? query.Where(r => r.Id != existingId) : query;
-    }
-
+    
     public async Task<Guid> UpsertAsync(ChangeRequestData data)
     {
         var timestamp = DateTime.SpecifyKind(data.Timestamp, DateTimeKind.Local);
@@ -247,8 +206,7 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
         return newId;
     }
 
-    public async Task<IReadOnlyList<AmendmentRequestData>> GetAmendmentRequestsAsync(
-        Guid windowId, long organisationUrn) =>
+    public async Task<IReadOnlyList<AmendmentRequestData>> GetAmendmentRequestsAsync(Guid windowId, long organisationUrn) =>
         await db.ChangeRequests
             .Where(r => r.WindowId == windowId
                 && r.OrganisationUrn == organisationUrn
@@ -267,8 +225,7 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
             })
             .ToListAsync();
 
-    public async Task<IReadOnlyList<SubmittedRequestData>> GetSubmittedRequestsAsync(
-        Guid windowId, long organisationUrn) =>
+    public async Task<IReadOnlyList<SubmittedRequestData>> GetSubmittedRequestsAsync(Guid windowId, long organisationUrn) =>
         await db.ChangeRequests
             .Where(r => r.WindowId == windowId
                 && r.OrganisationUrn == organisationUrn
@@ -291,8 +248,7 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
             })
             .ToListAsync();
 
-    public async Task<AmendmentRequestData?> GetAmendmentRequestAsync(
-        Guid windowId, long organisationUrn, string referenceNumber) =>
+    public async Task<AmendmentRequestData?> GetAmendmentRequestAsync(Guid windowId, long organisationUrn, string referenceNumber) =>
         await db.ChangeRequests
             .Where(r => r.WindowId == windowId
                 && r.OrganisationUrn == organisationUrn
@@ -330,8 +286,7 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
                 && r.ReferenceNumber == referenceNumber)
             .ExecuteDeleteAsync();
 
-    public async Task<ConfirmDataCorrectData?> GetConfirmDataCorrectAsync(
-        Guid windowId, long organisationUrn, string referenceNumber) =>
+    public async Task<ConfirmDataCorrectData?> GetConfirmDataCorrectAsync(Guid windowId, long organisationUrn, string referenceNumber) =>
         await db.ChangeRequests
             .Where(r => r.WindowId == windowId
                 && r.OrganisationUrn == organisationUrn
@@ -347,4 +302,41 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
                 ReferenceNumber = r.ReferenceNumber
             })
             .FirstOrDefaultAsync();
+
+    /// <summary>
+    /// Rows that would conflict with <paramref name="data"/>: another submitted-uncommitted amendment
+    /// for the same pupil, at the same school, in the same window.
+    ///
+    /// Results enquiries are excluded (AB#296648) — they change no pupil data, so they neither
+    /// compete with an amendment nor with each other.
+    /// </summary>
+    private static IQueryable<ChangeRequest> ConflictQuery(IPortalDbContext db, ChangeRequestData data, Guid existingId)
+    {
+        var query = db.ChangeRequests
+            .Where(r => r.WindowId == data.WindowId
+                        && r.PupilId == data.PupilId
+                        && r.OrganisationUrn == data.OrganisationUrn
+                        && r.Status == RequestStatus.SubmittedUnCommitted
+                        && r.RequestType != RequestType.ResultsEnquiry);
+
+        // When updating an existing row, exclude the current row from conflict
+        // detection so a user can re-submit or update their own draft.
+        return existingId != Guid.Empty ? query.Where(r => r.Id != existingId) : query;
+    }
+
+    private static string ExtractConflictingReasonType(string requestTypeDescription)
+    {
+        var separatorIndex = requestTypeDescription.IndexOf(" - ", StringComparison.Ordinal);
+        return separatorIndex >= 0
+            ? requestTypeDescription[(separatorIndex + 3)..]
+            : requestTypeDescription;
+    }
+
+    private static string ExtractRequestCategory(string requestTypeDescription)
+    {
+        var separatorIndex = requestTypeDescription.IndexOf(" - ", StringComparison.Ordinal);
+        return separatorIndex >= 0
+            ? requestTypeDescription[..separatorIndex]
+            : requestTypeDescription;
+    }
 }

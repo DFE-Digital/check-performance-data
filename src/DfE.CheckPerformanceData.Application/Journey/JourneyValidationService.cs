@@ -57,6 +57,10 @@ public sealed class JourneyValidationService(
         // (PageDateRules), and the six removal pages share the future-date rule
         // (RemovalJourneyDateRules). A page can belong to only one, and neither runs on a page
         // the other owns — the wording (and the whole rule) differ.
+        //
+        // The Add rules are the only ones that compare across pages, so callers must pass every
+        // answer the journey holds, with the page's own posted answers overlaid — see the caller
+        // in JourneyController.Page(POST).
         if (string.Equals(page.Id, PageDateRules.EalDetailsPageId, StringComparison.Ordinal))
         {
             DateOnly? Answered(string questionId) =>
@@ -74,7 +78,7 @@ public sealed class JourneyValidationService(
             return RemovalJourneyDateRules.EvaluateFutureDates(page, answers, UkToday(), pupilName);
 
         if (AddJourneyDateRules.AppliesToPage(page.Id))
-            return AddJourneyDateRules.EvaluateFutureDates(page, answers, UkToday(), pupilName);
+            return AddJourneyDateRules.Evaluate(page, answers, UkToday(), pupilName);
 
         return [];
     }

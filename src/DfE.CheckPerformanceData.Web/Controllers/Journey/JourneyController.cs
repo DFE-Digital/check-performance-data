@@ -554,8 +554,16 @@ public sealed class JourneyController(
         // on the page, and skips any question that already failed its own format check — the
         // view model renders only the first error per question, so adding a second here would
         // replace "must be a real date" with a comparison against a date the user never entered.
+        //
+        // The Add rules (AB#297310) compare date of birth against admission date, which sit on
+        // different pages, so the stored answers go in underneath the posted ones — the page's
+        // own questions are all present in newAnswers, so this page always wins for its fields.
+        var answersInScope = journey.QuestionAnswers
+            .Concat(newAnswers)
+            .GroupBy(kv => kv.Key, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.Last().Value, StringComparer.Ordinal);
         var dateRuleQuestionIds = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var violation in journeyService.ValidatePageDates(page, newAnswers, pupilName))
+        foreach (var violation in journeyService.ValidatePageDates(page, answersInScope, pupilName))
         {
             if (ModelState.TryGetValue(violation.QuestionId, out var existing) && existing.Errors.Count > 0)
                 continue;

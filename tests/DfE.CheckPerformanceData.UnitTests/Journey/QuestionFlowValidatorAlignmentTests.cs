@@ -163,8 +163,8 @@ public sealed class QuestionFlowValidatorAlignmentTests
     /// The same guard for the Add-a-pupil journey's date rules (AB#297310) in
     /// <see cref="AddJourneyDateRules"/>. Its two page ids and their date question ids are
     /// addressed by code, and nothing at runtime notices if one is renamed in the flow JSON —
-    /// the future-date check would simply stop matching and the validation would silently stop
-    /// happening.
+    /// the future-date and admission-not-before-birth checks would simply stop matching and the
+    /// validation would silently stop happening.
     /// </summary>
     [Fact]
     public void AddJourneyDateRules_PageAndQuestionIds_MatchTheShippedFlowConfig()
@@ -194,6 +194,24 @@ public sealed class QuestionFlowValidatorAlignmentTests
             }
         }
     }
+
+    /// <summary>
+    /// The admission-not-before-birth rule compares two dates the user enters on different pages,
+    /// so it only ever fires if both live in the same flow — a flow carrying one page without the
+    /// other would leave the comparison permanently one-sided and silently unenforced.
+    /// </summary>
+    [Fact]
+    public void AddJourneyDateRules_BothDatePages_LiveInTheSameFlow()
+    {
+        var flowsWithLearnerDetails = FlowFilesContaining(AddJourneyDateRules.LearnerDetailsPageId);
+        var flowsWithAdmissionDetails = FlowFilesContaining(AddJourneyDateRules.AdmissionDetailsPageId);
+
+        Assert.NotEmpty(flowsWithLearnerDetails);
+        Assert.Equal(flowsWithLearnerDetails, flowsWithAdmissionDetails);
+    }
+
+    private static SortedSet<string> FlowFilesContaining(string pageId) =>
+        new(AllFlowPages().Where(p => p.Page.Id == pageId).Select(p => p.File), StringComparer.Ordinal);
 
     /// <summary>
     /// Pins the scenario-006 invalid-date wording. The removal journeys substitute the

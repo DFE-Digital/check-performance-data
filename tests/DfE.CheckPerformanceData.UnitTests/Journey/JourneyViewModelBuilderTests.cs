@@ -168,6 +168,38 @@ public class JourneyViewModelBuilderTests
         Assert.Equal("CYPMD456, John Doe", vm.SecondRecordDisplay);
     }
 
+    // AB#297310: the merge rows were keyed on a matched pupil being in session, not on the flow
+    // declaring a match pupil search. A matched pupil left behind by an abandoned merge journey
+    // would surface on an Add summary as "Second record to merge" — the read-only submitted view
+    // included, since it is built from this same method.
+    [Fact]
+    public void BuildSummaryVm_WhenTheFlowHasNoMatchPupilPage_LeavesTheRecordDisplaysNull()
+    {
+        var strayMatch = new PupilDto
+        {
+            Id = Guid.NewGuid(), Firstname = "John", Surname = "Doe",
+            DateOfBirth = "02/02/2010", Sex = "M", Age = 16, Cypmd_Id = "CYPMD456", Identifier = "UPN002"
+        };
+        var addPage = new JourneyPage
+        {
+            Id = "learner-details", PupilFromAnswers = true,
+            Questions = [new Question { Id = "first-name", Type = QuestionType.FreeText, Title = "First name" }]
+        };
+        var addConfig = new QuestionFlowConfig { FirstPageId = "learner-details", Pages = [addPage] };
+        _flowService.GetPage(addConfig, "learner-details").Returns(addPage);
+
+        var journey = JourneyWithHistory(["learner-details"]);
+        journey.SelectedWhatToChange = WhatToChange.Add;
+        journey.SelectedPupil = Pupil;
+        journey.MatchedPupil = strayMatch;
+
+        var vm = _sut.BuildSummaryVm(WindowId, journey, addConfig);
+
+        Assert.Null(vm.FirstRecordDisplay);
+        Assert.Null(vm.SecondRecordDisplay);
+        Assert.DoesNotContain(vm.Lines, l => l.Key == "Second record to merge");
+    }
+
     [Fact]
     public void BuildSummaryVm_FromBulkFalseByDefault()
     {

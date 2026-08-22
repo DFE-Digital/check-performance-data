@@ -2,6 +2,8 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.Journey.DateRules;
+using DfE.CheckPerformanceData.Domain.Enums;
+using DfE.CheckPerformanceData.Web.Controllers.Journey;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 
@@ -258,6 +260,72 @@ public sealed class AddFlowTests
     public void The_config_key_is_the_journey_and_window_type_this_flow_serves(string flow)
     {
         Assert.Equal(flow, Path.GetFileNameWithoutExtension(LocateFlowFile(flow)));
+    }
+
+    // ── Constants pinned to the shipped ids ──────────────────────────────────
+    //
+    // String literals on one side. Everything above compares a constant against the JSON, which a
+    // rename of both together still satisfies — while the session blobs and ChangeRequests rows
+    // written before it silently stop matching, and the pupil's name blanks in the row, the
+    // request document and the egress. These are the ids as shipped.
+
+    [Fact]
+    public void AddPupilJourney_ConstantsAreTheShippedIds()
+    {
+        Assert.Equal("learner-details", AddPupilJourney.LearnerDetailsPageId);
+        Assert.Equal("admission-details", AddPupilJourney.AdmissionDetailsPageId);
+        Assert.Equal("first-name", AddPupilJourney.FirstNameQuestionId);
+        Assert.Equal("last-name", AddPupilJourney.LastNameQuestionId);
+        Assert.Equal("date-of-birth", AddPupilJourney.DateOfBirthQuestionId);
+        Assert.Equal("sex", AddPupilJourney.SexQuestionId);
+        Assert.Equal("upn", AddPupilJourney.UpnQuestionId);
+    }
+
+    // The Application layer cannot reference Web, so AddJourneyDateRules keeps its own copies of
+    // the two page ids and its date question ids. Both copies are pinned to the same literals.
+    [Fact]
+    public void AddJourneyDateRules_ConstantsAreTheShippedIds()
+    {
+        Assert.Equal("learner-details", AddJourneyDateRules.LearnerDetailsPageId);
+        Assert.Equal("admission-details", AddJourneyDateRules.AdmissionDetailsPageId);
+        Assert.Equal("date-of-birth", AddJourneyDateRules.DateOfBirth);
+        Assert.Equal("admission-date", AddJourneyDateRules.AdmissionDate);
+    }
+
+    // BuildPupil reads these five by id off the learner-details answers. One missing from the
+    // shipped page means that field of the synthetic pupil is silently always empty.
+    [Theory]
+    [MemberData(nameof(AllFlows))]
+    public void Every_question_BuildPupil_reads_is_on_the_learner_details_page(string flow)
+    {
+        string[] questionIds =
+        [
+            AddPupilJourney.FirstNameQuestionId,
+            AddPupilJourney.LastNameQuestionId,
+            AddPupilJourney.DateOfBirthQuestionId,
+            AddPupilJourney.SexQuestionId,
+            AddPupilJourney.UpnQuestionId
+        ];
+
+        var onPage = Page(flow, AddPupilJourney.LearnerDetailsPageId).Questions.Select(q => q.Id).ToHashSet(StringComparer.Ordinal);
+
+        foreach (var questionId in questionIds)
+            Assert.True(onPage.Contains(questionId),
+                $"{flow}: learner-details has no question '{questionId}', which AddPupilJourney.BuildPupil " +
+                $"reads — that field of the synthetic pupil would always be empty.");
+    }
+
+    // The Add radio and the guard on the post it produces both read SupportedWindowTypes, so it has
+    // to name exactly the window types a flow file exists for: a type left out hides a journey that
+    // would work, and one left in opens a journey with no flow to serve it.
+    [Fact]
+    public void SupportedWindowTypes_AreExactlyTheWindowTypesAFlowFileExistsFor()
+    {
+        var shipped = AllFlowNames
+            .Select(f => Enum.Parse<CheckingWindowType>(f["Add_".Length..]))
+            .ToHashSet();
+
+        Assert.Equal(shipped, AddPupilJourney.SupportedWindowTypes.ToHashSet());
     }
 
     public static IEnumerable<object[]> AllFlows() => AllFlowNames.Select(f => new object[] { f });

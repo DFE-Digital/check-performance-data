@@ -84,6 +84,17 @@ public class EditAdviceServiceTests
         Assert.IsType<ContinueToSummary>(advice!.ContinueTarget);
     }
 
+    // Add has no reason or evidence page to resume at, so the summary is the only sensible target.
+    [Fact]
+    public async Task Build_AddInProgress_RoutesToSummary()
+    {
+        StubStatus(RequestStatus.InProgress);
+
+        var advice = await _sut.BuildAsync(WindowId, "REF001", Journey(WhatToChange.Add));
+
+        Assert.IsType<ContinueToSummary>(advice!.ContinueTarget);
+    }
+
     [Fact]
     public async Task Build_ReadyToSubmit_AlwaysRoutesToSummary()
     {
@@ -98,6 +109,8 @@ public class EditAdviceServiceTests
     [InlineData(WhatToChange.Remove, "This request is to remove a pupil. If this is not correct, go back and delete the request.")]
     [InlineData(WhatToChange.Merge, "This request is to merge pupil records. If this is not correct, go back and delete the request.")]
     [InlineData(WhatToChange.Include, "This request is to include a pupil. If this is not correct, go back and delete the request.")]
+    // AB#297310: Add fell through to the generic wording, which names no request type at all.
+    [InlineData(WhatToChange.Add, "This request is to add a pupil. If this is not correct, go back and delete the request.")]
     public async Task Build_SetsAdviceTextForType(WhatToChange type, string expected)
     {
         StubStatus(RequestStatus.InProgress);

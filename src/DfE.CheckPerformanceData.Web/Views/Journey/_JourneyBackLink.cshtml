@@ -12,11 +12,13 @@ else if (Model.BackPageId is not null)
        asp-route-windowId="@Model.WindowId" asp-route-pageId="@Model.BackPageId"
        class="govuk-back-link">Back</a>
 }
-else if (Model.WhatToChange == DfE.CheckPerformanceData.Application.CheckYourPupilData.WhatToChange.IncorrectGrade)
+else if (Model.IsResultsEnquiry)
 {
     @* A results enquiry started at the ResultIssue page, not the pupil-data amendment chooser.
        AB#296648: the guidance page is the journey's first page when the second late results file has
-       not landed, so this is the branch it takes. *@
+       not landed, so this is the branch it takes. AB#297848: every enquiry kind takes it — the
+       missing-qualification journey has no guidance page, so its first page is cohort-scope with an
+       empty history, which lands here too. *@
     <a asp-action="Index" asp-controller="ResultIssue" asp-route-windowId="@Model.WindowId" class="govuk-back-link">Back</a>
 }
 else

@@ -80,6 +80,9 @@ public sealed class JourneyValidationService(
         if (AddJourneyDateRules.AppliesToPage(page.Id))
             return AddJourneyDateRules.Evaluate(page, answers, UkToday(), pupilName);
 
+        if (MissingQualificationDateRules.AppliesToPage(page.Id))
+            return MissingQualificationDateRules.Evaluate(page, answers, UkToday());
+
         return [];
     }
 

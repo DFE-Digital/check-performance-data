@@ -329,13 +329,15 @@ public sealed class JourneyViewModelBuilder(
 
     public QualificationSearchViewModel BuildQualificationSearchVm(
         Guid windowId, string pageId, JourneyPage page, RequestState journey, QuestionFlowConfig config,
-        QualificationReferenceLookup lookup, string? selectedAo = null, string? selectedQan = null)
+        QualificationReferenceLookup lookup, string? selectedAo = null, string? selectedQan = null,
+        bool fromSummary = false)
     {
         var pupilName = GetPupilName(journey);
         var (backPageId, backPage) = ResolveBackPage(pageId, journey, config);
 
         return new QualificationSearchViewModel
         {
+            FromSummary = fromSummary,
             WindowId = windowId,
             PageId = pageId,
             Page = page,

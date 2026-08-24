@@ -70,7 +70,14 @@ public sealed class JourneyControllerQualificationSearchTests
     {
         Id = "qualification-details",
         Type = PageType.QualificationDetails,
-        Title = "Provide the missing qualification details for {pupilName}"
+        Title = "Provide the missing qualification details for {pupilName}",
+        // The two answers a qualification change clears. Present so the completeness guard can find
+        // the page that owes them, exactly as the shipped flow config does.
+        Questions =
+        [
+            new Question { Id = "q-syllabus-code", Type = QuestionType.SyllabusSelect, Title = "Select syllabus code" },
+            new Question { Id = "q-missing-grade", Type = QuestionType.GradeSelect, Title = "Select the missing grade {pupilName} achieved" }
+        ]
     };
 
     private static readonly QuestionFlowConfig Flow = new()
@@ -269,6 +276,176 @@ public sealed class JourneyControllerQualificationSearchTests
         var state = _session.GetRequestState(WindowId);
         Assert.Equal("8300H", state.QuestionAnswers["q-syllabus-code"].TextValue);
         Assert.Equal("2", state.QuestionAnswers["q-missing-grade"].TextValue);
+    }
+
+    // ── Arrived from the check-answers Change link (AB#297848) ───────────────
+
+    [Fact]
+    public async Task Reconfirming_the_same_qualification_from_the_summary_returns_to_the_summary()
+    {
+        // The summary's Change link on the AO/QAN rows routes through the generic Page action, which
+        // dropped fromSummary — so "Change" then "Continue" marched the user forward through the rest
+        // of the journey instead of back to check answers.
+        var qualification = QualificationReferenceLookup.Parse(Sample).Find("60146084");
+        ReadyJourney(s =>
+        {
+            s.SelectedQualification = qualification;
+            // Reached the summary, so the later pages are in history — the state a Change link
+            // actually arrives in.
+            s.QuestionHistory = ["select-student-single", "select-qualification", "qualification-details"];
+        });
+
+        var redirect = Assert.IsType<RedirectToActionResult>(await _sut.QualificationSearchPost(
+            WindowId, "select-qualification", "AQA", "60146084", fromSummary: true));
+
+        Assert.Equal(nameof(JourneyController.Summary), redirect.ActionName);
+
+        // Asserting the redirect target alone is NOT enough, and a browser walk proved it: the POST
+        // returned Summary while the summary GET immediately 302'd the user back to
+        // qualification-details, because trimming the history left QuestionHistory ending at this
+        // page and the summary recomputed the "next unanswered page" from it. The history the
+        // summary depends on must survive a no-op re-confirmation.
+        var history = _session.GetRequestState(WindowId).QuestionHistory;
+        Assert.Equal(["select-student-single", "select-qualification", "qualification-details"], history);
+    }
+
+    [Fact]
+    public async Task Changing_the_qualification_from_the_summary_still_goes_to_the_details_page()
+    {
+        // Changing it cleared the syllabus code and grade, so those answers are owed again — going
+        // straight back to the summary would show a half-empty enquiry the user never revisited.
+        var qualification = QualificationReferenceLookup.Parse(Sample).Find("6016041X");
+        ReadyJourney(s => s.SelectedQualification = qualification);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(await _sut.QualificationSearchPost(
+            WindowId, "select-qualification", "AQA", "60146084", fromSummary: true));
+
+        Assert.Equal(nameof(JourneyController.Page), redirect.ActionName);
+        Assert.Equal("qualification-details", redirect.RouteValues!["pageId"]);
+    }
+
+    [Fact]
+    public async Task The_generic_page_action_hands_fromSummary_to_the_qualification_search()
+    {
+        // The Change link points at Page; Page redirects to this page's own action. The flag has to
+        // survive that hop or the two tests above can never be reached from the summary at all.
+        ReadyJourney();
+
+        var redirect = Assert.IsType<RedirectToActionResult>(
+            await _sut.Page(WindowId, "select-qualification", fromSummary: true));
+
+        Assert.Equal(nameof(JourneyController.QualificationSearchPage), redirect.ActionName);
+        Assert.Equal(true, redirect.RouteValues!["fromSummary"]);
+    }
+
+    [Fact]
+    public async Task A_validation_failure_keeps_the_from_summary_context()
+    {
+        // Losing it on redisplay would strand the user mid-journey after a mistyped post.
+        ReadyJourney();
+
+        var view = Assert.IsType<ViewResult>(await _sut.QualificationSearchPost(
+            WindowId, "select-qualification", "AQA", "00000000", fromSummary: true));
+
+        Assert.True(Assert.IsType<QualificationSearchViewModel>(view.Model).FromSummary);
+    }
+
+    [Fact]
+    public async Task The_QAN_rejection_message_comes_from_the_flow_config()
+    {
+        // The controller hardcoded this string, which made the page's validationFailure dead config —
+        // a content edit to MissingQualification_Post16.json changed nothing on screen while the flow
+        // test that pins it stayed green.
+        _flowService.GetPage(Flow, "select-qualification").Returns(new JourneyPage
+        {
+            Id = "select-qualification",
+            Type = PageType.QualificationSearch,
+            Title = "Provide the missing qualification details for {pupilName}",
+            ValidationFailure = "Edited in the flow config",
+            NextPageId = "qualification-details"
+        });
+        ReadyJourney();
+
+        await _sut.QualificationSearchPost(WindowId, "select-qualification", "AQA", "00000000");
+
+        Assert.Equal("Edited in the flow config",
+            _sut.ModelState["selectedQan"]!.Errors[0].ErrorMessage);
+    }
+
+    // ── Submitting a stale summary (AB#297848) ───────────────────────────────
+
+    [Fact]
+    public async Task Submitting_after_the_qualification_changed_underneath_is_sent_back_not_persisted()
+    {
+        // The summary GET's completeness check can be stale by the time Submit is pressed: changing
+        // the qualification in another tab (or via the back button) clears the syllabus code and
+        // grade. Without a re-check on POST this persisted and emailed an enquiry missing both —
+        // SubmitResultsEnquiryAsync only asserts the qualification itself is present.
+        var qualification = QualificationReferenceLookup.Parse(Sample).Find("60146084");
+        ReadyJourney(s =>
+        {
+            s.SelectedQualification = qualification;
+            s.ReferenceNumber = "CYPMD_16to19_RE_1A2B3C4";
+            s.QuestionHistory = ["select-qualification", "qualification-details"];
+            // q-syllabus-code and q-missing-grade deliberately absent: the other tab cleared them.
+        });
+
+        var redirect = Assert.IsType<RedirectToActionResult>(await _sut.SummaryConfirm(WindowId));
+
+        Assert.Equal(nameof(JourneyController.Page), redirect.ActionName);
+        Assert.Equal("qualification-details", redirect.RouteValues!["pageId"]);
+        await _requestService.DidNotReceiveWithAnyArgs()
+            .SubmitResultsEnquiryAsync(default, default!, default);
+    }
+
+    [Fact]
+    public async Task A_complete_enquiry_still_submits()
+    {
+        // The guard must reject only the incomplete case — a guard that blocks everything would
+        // pass the test above while breaking the journey.
+        var qualification = QualificationReferenceLookup.Parse(Sample).Find("60146084");
+        ReadyJourney(s =>
+        {
+            s.SelectedQualification = qualification;
+            s.ReferenceNumber = "CYPMD_16to19_RE_1A2B3C4";
+            s.QuestionHistory = ["select-qualification", "qualification-details"];
+            s.QuestionAnswers["q-syllabus-code"] = new QuestionAnswer { TextValue = "8300H" };
+            s.QuestionAnswers["q-missing-grade"] = new QuestionAnswer { TextValue = "2" };
+        });
+        _requestService.SubmitResultsEnquiryAsync(WindowId, Arg.Any<RequestState>(), Arg.Any<CancellationToken>())
+            .Returns("CYPMD_16to19_RE_1A2B3C4");
+
+        var redirect = Assert.IsType<RedirectToActionResult>(await _sut.SummaryConfirm(WindowId));
+
+        Assert.Equal(nameof(JourneyController.EnquiryConfirmation), redirect.ActionName);
+        await _requestService.Received(1)
+            .SubmitResultsEnquiryAsync(WindowId, Arg.Any<RequestState>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task An_unloadable_flow_config_still_lets_a_started_enquiry_submit()
+    {
+        // The completeness re-check is an ADDITION to a shipped journey, and submission never needed
+        // the flow config before it. If the config cannot be loaded the check is skipped rather than
+        // refusing the submission — turning a blob blip into a lost enquiry at the final click would
+        // be a worse regression than the stale state this guards, which also needs a second tab.
+        _flowService.GetConfigAsync(WhatToChange.MissingQualification, CheckingWindowType.Post16)
+            .Returns((QuestionFlowConfig?)null);
+        var qualification = QualificationReferenceLookup.Parse(Sample).Find("60146084");
+        ReadyJourney(s =>
+        {
+            s.SelectedQualification = qualification;
+            s.ReferenceNumber = "CYPMD_16to19_RE_1A2B3C4";
+            s.QuestionHistory = ["select-qualification", "qualification-details"];
+        });
+        _requestService.SubmitResultsEnquiryAsync(WindowId, Arg.Any<RequestState>(), Arg.Any<CancellationToken>())
+            .Returns("CYPMD_16to19_RE_1A2B3C4");
+
+        var redirect = Assert.IsType<RedirectToActionResult>(await _sut.SummaryConfirm(WindowId));
+
+        Assert.Equal(nameof(JourneyController.EnquiryConfirmation), redirect.ActionName);
+        await _requestService.Received(1)
+            .SubmitResultsEnquiryAsync(WindowId, Arg.Any<RequestState>(), Arg.Any<CancellationToken>());
     }
 
     // ── Reference number generation (AB#297848) ──────────────────────────────

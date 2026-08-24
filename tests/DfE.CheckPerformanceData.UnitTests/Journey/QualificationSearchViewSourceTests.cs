@@ -41,6 +41,46 @@ public sealed class QualificationSearchViewSourceTests
         Assert.Contains("value=\"\"", afterSelect[firstOptionIndex..(firstOptionIndex + 40)]);
     }
 
+    [Fact]
+    public void An_empty_reference_document_is_explained_rather_than_blamed_on_the_user()
+    {
+        // QualificationReferenceBlobClient degrades a missing blob to an empty lookup. Without this
+        // branch the user got two empty dropdowns and an endless "Select the Awarding Organisation
+        // (AO) name" error for a problem they cannot fix. Mirrors ResultSearch's no-results state.
+        var view = ViewSource();
+
+        Assert.Contains("Model.AwardingOrganisations.Any()", view);
+        Assert.Contains("We cannot list qualifications at the moment", view);
+        Assert.Contains("asp-controller=\"ResultIssue\"", view);
+    }
+
+    [Fact]
+    public void The_change_link_context_survives_the_form_round_trip()
+    {
+        // Arriving from the summary's Change link and posting the same qualification must return to
+        // the summary; the flag has to be carried by the form to get there.
+        var view = ViewSource();
+
+        Assert.Contains("name=\"fromSummary\"", view);
+        Assert.Contains("Model.FromSummary", view);
+        Assert.Contains("asp-action=\"Summary\"", view);
+    }
+
+    [Fact]
+    public void The_headings_come_from_the_flow_config_not_hardcoded_copy()
+    {
+        // The title, pageTitle and validationFailure on the select-qualification page were dead
+        // config: MissingQualificationFlowTests pinned them while the view and controller ignored
+        // them, so a content edit changed nothing on screen and no test noticed.
+        var view = ViewSource();
+
+        Assert.Contains("Model.Page.PageTitle", view);
+        Assert.Contains("Model.ResolvedTitle", view);
+        Assert.DoesNotContain(
+            "<h1 class=\"govuk-heading-xl\">Provide the missing qualification details for @Model.PupilName</h1>",
+            view);
+    }
+
     private static string RepoRoot
     {
         get

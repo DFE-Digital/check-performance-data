@@ -49,5 +49,5 @@ public interface IJourneyViewModelBuilder
     QualificationSearchViewModel BuildQualificationSearchVm(
         Guid windowId, string pageId, JourneyPage page, RequestState journey, QuestionFlowConfig config,
         Application.ResultsEnquiry.QualificationReferenceLookup lookup,
-        string? selectedAo = null, string? selectedQan = null);
+        string? selectedAo = null, string? selectedQan = null, bool fromSummary = false);
 }

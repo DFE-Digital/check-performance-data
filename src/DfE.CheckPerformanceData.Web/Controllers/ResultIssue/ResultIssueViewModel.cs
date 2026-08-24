@@ -2,12 +2,14 @@ namespace DfE.CheckPerformanceData.Web.Controllers;
 
 public sealed class ResultIssueViewModel
 {
-    /// <summary>
-    /// The only issue type this ticket implements. Sibling tickets add "Missing qualification" and
-    /// "Result does not belong to pupil" — both appear on the Figma screen but neither has a journey
-    /// yet, so posting them is rejected as unanswered rather than starting a flow that does not exist.
-    /// </summary>
+    /// <summary>AB#296648: the "report an incorrect grade" enquiry. "Result does not belong to
+    /// pupil" remains a sibling ticket with no journey, so posting it is still rejected as
+    /// unanswered.</summary>
     public const string IncorrectGrade = "incorrect-grade";
+
+    /// <summary>AB#297848: the missing-qualification enquiry. "Result does not belong to pupil"
+    /// remains a sibling ticket with no journey, so posting it is still rejected as unanswered.</summary>
+    public const string MissingQualification = "missing-qualification";
 
     public Guid WindowId { get; set; }
 

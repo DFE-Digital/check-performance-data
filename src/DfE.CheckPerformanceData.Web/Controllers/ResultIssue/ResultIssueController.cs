@@ -59,9 +59,15 @@ public sealed class ResultIssueController(
         if (!checkingExercises.IsOpen(window.Exercises, Exercise))
             return this.RedirectExerciseClosed(windowId, Exercise);
 
-        // Fail closed on anything that is not the one option this ticket renders, so a forged or
-        // sibling-ticket value cannot start a journey with no flow behind it.
-        if (vm.IssueType != ResultIssueViewModel.IncorrectGrade)
+        // Fail closed on anything that is not one of the two options this ticket renders, so a
+        // forged or sibling-ticket value cannot start a journey with no flow behind it.
+        var whatToChange = vm.IssueType switch
+        {
+            ResultIssueViewModel.IncorrectGrade => Application.CheckYourPupilData.WhatToChange.IncorrectGrade,
+            ResultIssueViewModel.MissingQualification => Application.CheckYourPupilData.WhatToChange.MissingQualification,
+            _ => (Application.CheckYourPupilData.WhatToChange?)null
+        };
+        if (whatToChange is null)
         {
             ModelState.AddModelError(nameof(ResultIssueViewModel.IssueType), SelectionRequired);
             await analytics.TrackSafeAsync(new ValidationErrorEvent
@@ -73,44 +79,55 @@ public sealed class ResultIssueController(
             return View("Index", new ResultIssueViewModel { WindowId = windowId });
         }
 
-        var config = await flowService.GetConfigAsync(
-            Application.CheckYourPupilData.WhatToChange.IncorrectGrade, window.CheckingWindowType);
+        var config = await flowService.GetConfigAsync(whatToChange.Value, window.CheckingWindowType);
         if (config is null)
             return RedirectToAction("Index", "CheckYourPupilData", new { windowId });
 
-        // The one gating branch. BA decision 2026-08-17: the guidance INFORMS, it never blocks — the
-        // option above is always selectable, and both paths continue into the same journey. The Figma
-        // frame that greys the option out ("Incorrect grade option will be available after releasing
-        // second late results") was considered and not chosen.
-        var available = await lateResults.IsSecondLateResultsAvailableAsync(
-            windowId, currentUser.OrganisationLaestab, ct);
+        // The late-results interstitial is incorrect-grade-specific: it is about the second late
+        // results file, which cannot contain a qualification the data does not hold at all.
+        var pageId = config.FirstPageId;
+        var history = new List<string>();
+        var guidanceShown = false;
+        if (whatToChange == Application.CheckYourPupilData.WhatToChange.IncorrectGrade)
+        {
+            // The one gating branch. BA decision 2026-08-17: the guidance INFORMS, it never blocks —
+            // the option above is always selectable, and both paths continue into the same journey.
+            // The Figma frame that greys the option out ("Incorrect grade option will be available
+            // after releasing second late results") was considered and not chosen.
+            var available = await lateResults.IsSecondLateResultsAvailableAsync(
+                windowId, currentUser.OrganisationLaestab, ct);
 
-        var pageId = available ? config.FirstPageId : LateResultsGuidancePageId;
+            // When the guidance page is the entry point it is seeded into the history. The flow
+            // config's firstPageId is cohort-scope, so without this the journey engine's
+            // out-of-sequence guard would bounce the user straight past the guidance to cohort-scope
+            // and the "tell me to check that file first" acceptance criterion would never be met.
+            // Seeding is also the truthful record: this controller has decided the journey starts there.
+            if (!available)
+            {
+                pageId = LateResultsGuidancePageId;
+                history = [LateResultsGuidancePageId];
+            }
+            guidanceShown = !available;
+        }
 
         // Paired with results_enquiry_submitted to give the start-to-submit funnel. The guidance flag
         // is the measure that answers the question behind the whole interstitial: are we stopping
         // enquiries that did not need raising?
         await analytics.TrackSafeAsync(new ResultsEnquiryStartedEvent
         {
-            EnquiryType = ResultIssueViewModel.IncorrectGrade,
+            EnquiryType = vm.IssueType!,
             CheckingWindowType = window.CheckingWindowType.ToString(),
-            LateResultsGuidanceShown = !available
+            LateResultsGuidanceShown = guidanceShown
         });
 
         // A brand-new RequestState rather than an edit of the old one: the AC requires that starting
         // an enquiry carries nothing over, and listing the fields to clear would silently miss any
         // field added later.
-        //
-        // When the guidance page is the entry point it is seeded into the history. The flow config's
-        // firstPageId is cohort-scope, so without this the journey engine's out-of-sequence guard
-        // would bounce the user straight past the guidance to cohort-scope and the "tell me to check
-        // that file first" acceptance criterion would never be met. Seeding is also the truthful
-        // record: this controller has decided the journey starts there.
         HttpContext.Session.SetRequestState(windowId, new RequestState
         {
-            SelectedWhatToChange = Application.CheckYourPupilData.WhatToChange.IncorrectGrade,
+            SelectedWhatToChange = whatToChange,
             CheckingWindow = window,
-            QuestionHistory = available ? [] : [LateResultsGuidancePageId]
+            QuestionHistory = history
         });
         HttpContext.Session.ClearBulkEditMode(windowId);
         HttpContext.Session.ClearSingleEditMode(windowId);

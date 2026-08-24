@@ -35,4 +35,13 @@ public sealed class EnumContractTests
         Assert.Equal(6, (int)QuestionType.GradeSelect);
         Assert.Equal(2, (int)NextSteps.ResultsEnquiry); // appended after Confirm
     }
+
+    [Fact]
+    public void MissingQualification_fits_the_20_char_AmendmentType_column()
+    {
+        // ChangeRequestConfiguration stores AmendmentType as a string with HasMaxLength(20).
+        // "MissingQualification" is exactly 20 characters — this pin turns a rename that grows it
+        // into a test failure instead of a runtime Npgsql truncation error on first submission.
+        Assert.True(nameof(WhatToChange.MissingQualification).Length <= 20);
+    }
 }

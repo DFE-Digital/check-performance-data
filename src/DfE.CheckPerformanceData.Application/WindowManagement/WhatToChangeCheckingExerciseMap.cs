@@ -27,6 +27,7 @@ public static class WhatToChangeCheckingExerciseMap
     public static CheckingExerciseType CheckingExerciseFor(WhatToChange change) => change switch
     {
         WhatToChange.IncorrectGrade => CheckingExerciseType.ResultsEnquiry,
+        WhatToChange.MissingQualification => CheckingExerciseType.ResultsEnquiry,
         _ => CheckingExerciseType.PupilData
     };
 }

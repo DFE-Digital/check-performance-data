@@ -491,11 +491,16 @@ public sealed class JourneyController(
     /// complete. Returns the earliest gap so the user is sent to the first thing they still owe.
     /// Always null for an amendment journey.
     /// </summary>
-    private static string? FirstIncompleteEnquiryPage(RequestState journey, QuestionFlowConfig config)
-    {
-        if (journey.SelectedWhatToChange != Application.CheckYourPupilData.WhatToChange.IncorrectGrade)
-            return null;
+    private static string? FirstIncompleteEnquiryPage(RequestState journey, QuestionFlowConfig config) =>
+        journey.SelectedWhatToChange switch
+        {
+            Application.CheckYourPupilData.WhatToChange.IncorrectGrade => IncorrectGradeGap(journey, config),
+            Application.CheckYourPupilData.WhatToChange.MissingQualification => MissingQualificationGap(journey, config),
+            _ => null
+        };
 
+    private static string? IncorrectGradeGap(RequestState journey, QuestionFlowConfig config)
+    {
         var resultPage = config.Pages.FirstOrDefault(p => p.Type == PageType.ResultSearch);
         if (journey.SelectedResult is null)
             return resultPage?.Id;
@@ -506,6 +511,22 @@ public sealed class JourneyController(
                        && !string.IsNullOrWhiteSpace(grade.TextValue);
 
         return hasGrade ? null : gradePage?.Id;
+    }
+
+    /// <summary>
+    /// Changing the qualification clears the syllabus and grade answers but the details page stays
+    /// in history — so the summary must also check those two answers, not just the qualification.
+    /// </summary>
+    private static string? MissingQualificationGap(RequestState journey, QuestionFlowConfig config)
+    {
+        if (journey.SelectedQualification is null)
+            return config.Pages.FirstOrDefault(p => p.Type == PageType.QualificationSearch)?.Id;
+
+        bool Has(string id) => journey.QuestionAnswers.TryGetValue(id, out var a)
+            && !string.IsNullOrWhiteSpace(a.TextValue);
+        return Has(SyllabusQuestionId) && Has(MissingGradeQuestionId)
+            ? null
+            : config.Pages.FirstOrDefault(p => p.Questions.Any(q => q.Id == MissingGradeQuestionId))?.Id;
     }
 
     /// <summary>

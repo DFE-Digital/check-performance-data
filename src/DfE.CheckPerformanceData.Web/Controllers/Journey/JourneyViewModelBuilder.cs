@@ -77,7 +77,8 @@ public sealed class JourneyViewModelBuilder(
             MatchedPupilPageId = matchPupilPage?.Id,
             BackPageIsPupilSearch = backPage?.Type == PageType.PupilSearch,
             BackPageAction = JourneyRouting.ActionFor(backPage?.Type),
-            Enquiry = BuildEnquirySummary(journey, config, pupilName)
+            Enquiry = BuildEnquirySummary(journey, config, pupilName),
+            MissingQualification = BuildMissingQualificationSummary(journey, config, pupilName)
         };
     }
 
@@ -114,10 +115,62 @@ public sealed class JourneyViewModelBuilder(
         };
     }
 
+    /// <summary>
+    /// The missing-qualification-shaped summary, or null unless that journey is selected. AB#297848.
+    /// </summary>
+    private MissingQualificationSummary? BuildMissingQualificationSummary(
+        RequestState journey, QuestionFlowConfig config, string pupilName)
+    {
+        if (journey.SelectedWhatToChange != Application.CheckYourPupilData.WhatToChange.MissingQualification)
+            return null;
+
+        string? Answer(string questionId) =>
+            journey.QuestionAnswers.TryGetValue(questionId, out var a) ? a.TextValue : null;
+
+        string? PageAsking(string questionId) => config.Pages
+            .FirstOrDefault(p => p.Questions.Any(q => q.Id == questionId))?.Id;
+
+        var qualificationPageId = config.Pages.FirstOrDefault(p => p.Type == PageType.QualificationSearch)?.Id
+            ?? "select-qualification";
+        var detailsPageId = PageAsking(SyllabusQuestionId) ?? "qualification-details";
+        var additionalInfoPageId = PageAsking(AdditionalInfoQuestionId) ?? "additional-info";
+
+        var awardDate = journey.QuestionAnswers.TryGetValue(AwardDateQuestionId, out var dateAnswer)
+            ? dateAnswer.DateValue?.ToDisplayString()
+            : null;
+
+        return new MissingQualificationSummary
+        {
+            DfeNumber = currentUserService.OrganisationLaestab,
+            KeyStageLabel = KeyStageLabelFor(journey.CheckingWindow?.CheckingWindowType),
+            StudentName = pupilName,
+            IsCohortWide = string.Equals(Answer(CohortScopeQuestionId), "yes", StringComparison.OrdinalIgnoreCase),
+            CohortCount = Answer(CohortCountQuestionId),
+            CypmdId = journey.SelectedPupil?.Cypmd_Id,
+            AwardingOrganisation = journey.SelectedQualification?.AwardingOrganisation,
+            Qan = journey.SelectedQualification?.Qan,
+            QualificationTitle = journey.SelectedQualification?.QualificationTitle,
+            SyllabusCode = Answer(SyllabusQuestionId),
+            AwardDate = awardDate,
+            Ncn = Answer(NcnQuestionId),
+            GradeAchieved = Answer(MissingGradeQuestionId),
+            AdditionalInformation = Answer(AdditionalInfoQuestionId),
+            QualificationPageId = qualificationPageId,
+            DetailsPageId = detailsPageId,
+            AdditionalInformationPageId = additionalInfoPageId
+        };
+    }
+
     // Question ids from IncorrectGrade_Post16.json. A serialization contract — see the flow tests.
     private const string CohortScopeQuestionId = "q-cohort-scope";
     private const string CohortCountQuestionId = "q-cohort-count";
     private const string AdditionalInfoQuestionId = "q-additional-info";
+
+    // Question ids from MissingQualification_Post16.json. AB#297848.
+    private const string SyllabusQuestionId = "q-syllabus-code";
+    private const string AwardDateQuestionId = "q-award-date";
+    private const string NcnQuestionId = "q-ncn";
+    private const string MissingGradeQuestionId = "q-missing-grade";
 
     /// <summary>How a window type is named to a school on the summary.</summary>
     private static string KeyStageLabelFor(Domain.Enums.CheckingWindowType? windowType) => windowType switch

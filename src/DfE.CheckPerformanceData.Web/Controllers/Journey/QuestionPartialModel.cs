@@ -37,6 +37,13 @@ public sealed class QuestionPartialModel
     public bool GradeOptionsUnavailable =>
         Question.Type == QuestionType.GradeSelect && VisibleOptions.Count == 0;
 
+    /// <summary>
+    /// True when this is a syllabus-code picker with nothing to pick — the QAN is one of the 961
+    /// (of 974) QualList entries with no 16-19 syllabus rows in the SyllabusCodes export. AB#297848.
+    /// </summary>
+    public bool SyllabusOptionsUnavailable =>
+        Question.Type == QuestionType.SyllabusSelect && VisibleOptions.Count == 0;
+
     public int MaxEvidencePages { get; init; }
 
     /// <summary>

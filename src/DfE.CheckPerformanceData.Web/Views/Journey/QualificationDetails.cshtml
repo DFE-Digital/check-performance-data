@@ -1,0 +1,57 @@
+@model DfE.CheckPerformanceData.Web.Controllers.Journey.PageViewModel
+
+@*
+    "Provide the missing qualification details" (AB#297848). A question page that first shows the
+    chosen qualification, so the user can see what they are providing details for. Rendered by the
+    generic Page action — only the view differs, exactly as ResultDetails does. Clone of
+    ResultDetails.cshtml with the summary card swapped to the resolved qualification; the
+    late-results-file reminder inset is deliberately omitted — it is incorrect-grade-specific.
+*@
+
+@{
+    ViewBag.Title = Model.PageTitle;
+    Layout = "_Layout";
+}
+
+@await Html.PartialAsync("_JourneyBackLink", Model)
+
+@if (Model.HasErrors)
+{
+    @await Html.PartialAsync("_JourneyErrorSummary", Model)
+}
+
+<h1 class="govuk-heading-xl">@Model.ResolvedTitle</h1>
+
+@if (Model.SelectedQualification is not null)
+{
+    <govuk-summary-list>
+        <govuk-summary-list-row>
+            <govuk-summary-list-row-key>Student name</govuk-summary-list-row-key>
+            <govuk-summary-list-row-value>@Model.PupilName</govuk-summary-list-row-value>
+        </govuk-summary-list-row>
+        <govuk-summary-list-row>
+            <govuk-summary-list-row-key>CYPMD ID</govuk-summary-list-row-key>
+            <govuk-summary-list-row-value>@Model.CypmdId</govuk-summary-list-row-value>
+        </govuk-summary-list-row>
+        <govuk-summary-list-row>
+            <govuk-summary-list-row-key>Awarding Organisation name</govuk-summary-list-row-key>
+            <govuk-summary-list-row-value>@Model.SelectedQualification.AwardingOrganisation</govuk-summary-list-row-value>
+        </govuk-summary-list-row>
+        <govuk-summary-list-row>
+            <govuk-summary-list-row-key>Qualification number</govuk-summary-list-row-key>
+            <govuk-summary-list-row-value>@Model.SelectedQualification.Qan — @Model.SelectedQualification.QualificationTitle</govuk-summary-list-row-value>
+        </govuk-summary-list-row>
+    </govuk-summary-list>
+}
+
+<form method="post" action="@Url.Action("PagePost", "Journey", new { windowId = Model.WindowId, pageId = Model.Page.Id })">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="fromSummary" value="@Model.FromSummary.ToString().ToLower()" />
+
+    @foreach (var qm in Model.NonFileUploadModels)
+    {
+        await Html.RenderPartialAsync("_Question", qm);
+    }
+
+    <govuk-button type="submit">Continue</govuk-button>
+</form>

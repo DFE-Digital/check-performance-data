@@ -45,6 +45,9 @@ public class BlobStorageExtensionsTests
     [InlineData(typeof(IStudentResultsClient))]
     [InlineData(typeof(IGradeReferenceClient))]
     [InlineData(typeof(GradeReferenceBlobClient))]
+    // AB#297848: the qualification reference, resolved the same way for the same reason.
+    [InlineData(typeof(IQualificationReferenceClient))]
+    [InlineData(typeof(QualificationReferenceBlobClient))]
     [InlineData(typeof(IRequestBlobClient))]
     [InlineData(typeof(IRequestStateBlobClient))]
     [InlineData(typeof(IQuestionFlowBlobClient))]

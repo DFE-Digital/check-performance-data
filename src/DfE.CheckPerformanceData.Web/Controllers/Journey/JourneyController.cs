@@ -1058,9 +1058,11 @@ public sealed class JourneyController(
         var journey = HttpContext.Session.GetRequestState(windowId);
         if (!IsSessionReady(journey)) return RedirectToCheckYourData(windowId);
 
-        // AB#296648: a results enquiry submits by a different route — no duplicate check (several
-        // enquiries about the same result are allowed) and no rules-engine enqueue.
-        if (journey.SelectedWhatToChange == Application.CheckYourPupilData.WhatToChange.IncorrectGrade)
+        // AB#296648/AB#297848: a results enquiry submits by a different route — no duplicate check
+        // (several enquiries about the same result are allowed) and no rules-engine enqueue.
+        if (journey.SelectedWhatToChange
+            is Application.CheckYourPupilData.WhatToChange.IncorrectGrade
+            or Application.CheckYourPupilData.WhatToChange.MissingQualification)
             return await ConfirmResultsEnquiryAsync(windowId, journey);
 
         try
@@ -1141,7 +1143,10 @@ public sealed class JourneyController(
 
         await analytics.TrackSafeAsync(new ResultsEnquirySubmittedEvent
         {
-            EnquiryType = ResultIssueViewModel.IncorrectGrade,
+            EnquiryType = journey.SelectedWhatToChange
+                == Application.CheckYourPupilData.WhatToChange.MissingQualification
+                ? ResultIssueViewModel.MissingQualification
+                : ResultIssueViewModel.IncorrectGrade,
             CohortWide = IsCohortWide(journey),
             CheckingWindowType = journey.CheckingWindow?.CheckingWindowType.ToString() ?? "",
             ReferenceNumber = reference,

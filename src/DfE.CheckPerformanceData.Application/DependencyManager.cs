@@ -63,6 +63,9 @@ public static class DependencyManager
         // fails OPEN on an unregistered validator name, so a missing line here silently skips the
         // format check rather than throwing anywhere.
         services.AddScoped<IFormatValidator, WholeNumberFormatValidator>();
+        // AB#298201: the missing-qualification enquiry's optional NCN field. Same load-bearing
+        // registration reason as WholeNumberFormatValidator above.
+        services.AddScoped<IFormatValidator, NcnValidator>();
         services.AddScoped<IAmendmentRequestsService, AmendmentRequestsService>();
         services.AddScoped<IBulkSubmissionService, BulkSubmissionService>();
         services.AddScoped<ISubmittedRequestService, SubmittedRequestService>();

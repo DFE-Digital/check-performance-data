@@ -54,13 +54,8 @@ public sealed class JourneyViewModelBuilder(
         // read-only submitted view too, which is built from this same method.
         if (matchPupilPage is not null && journey.MatchedPupil is { } mp && journey.SelectedPupil is { } sp)
         {
-            var dob = DateTime.TryParseExact(sp.DateOfBirth, "dd/MM/yyyy",
-                System.Globalization.CultureInfo.InvariantCulture,
-                System.Globalization.DateTimeStyles.None, out var d)
-                ? d.ToString("d MMMM yyyy")
-                : sp.DateOfBirth;
-            firstRecordDisplay = $"{sp.Firstname} {sp.Surname}, {dob}".Trim();
-            secondRecordDisplay = $"{mp.Cypmd_Id}, {mp.Firstname} {mp.Surname}".Trim();
+            firstRecordDisplay = MergeRecordDisplays.First(sp);
+            secondRecordDisplay = MergeRecordDisplays.Second(mp);
         }
 
         return new SummaryViewModel

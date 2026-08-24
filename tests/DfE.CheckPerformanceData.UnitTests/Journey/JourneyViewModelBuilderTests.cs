@@ -165,7 +165,7 @@ public class JourneyViewModelBuilderTests
         var vm = _sut.BuildSummaryVm(WindowId, journey, mergeConfig);
 
         Assert.Equal("Jane Smith, 27 July 2010", vm.FirstRecordDisplay);
-        Assert.Equal("CYPMD456, John Doe", vm.SecondRecordDisplay);
+        Assert.Equal("John Doe 2 February 2010 (CYPMD456)", vm.SecondRecordDisplay);
     }
 
     // AB#297310: the merge rows were keyed on a matched pupil being in session, not on the flow

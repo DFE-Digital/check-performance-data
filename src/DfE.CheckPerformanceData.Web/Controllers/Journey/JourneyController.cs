@@ -88,6 +88,9 @@ public sealed class JourneyController(
             // A question page that also displays the selected result — served by this action so it
             // inherits PagePost's answer handling, but rendered by its own view.
             PageType.ResultDetails => "ResultDetails",
+            // AB#297848: same arrangement as ResultDetails — a question page with its own
+            // summary card, served here so it inherits PagePost's answer handling.
+            PageType.QualificationDetails => "QualificationDetails",
             _ => "Page"
         };
         // Surface an upload error stashed by UploadFile before its PRG redirect here — otherwise
@@ -515,6 +518,11 @@ public sealed class JourneyController(
     {
         if (page.Questions.All(q => q.Type != QuestionType.GradeSelect)) return null;
 
+        // AB#297848: on a missing-qualification enquiry the scale comes from the QualList entry
+        // resolved at qualification selection — there is no exam result and no AODC lookup.
+        if (journey.SelectedResult is null && journey.SelectedQualification is { } qualification)
+            return qualification.ToGradeReference();
+
         var qan = journey.SelectedResult?.Qan;
         if (string.IsNullOrWhiteSpace(qan)) return null;
 
@@ -631,11 +639,20 @@ public sealed class JourneyController(
                     // A grade picker has its own rules and its own inputs (the qualification's scale
                     // and the grade the result already holds), so it does not go through the generic
                     // answer validator. AB#296648.
-                    var error = question.Type == QuestionType.GradeSelect
-                        ? journeyService.ValidateGradeSelect(
-                            question, answer, gradeReference, journey.SelectedResult?.Grade, resolvedValidationFailure)
-                        : journeyService.ValidateAnswer(
-                            question, answer, JourneyTemplate.Resolve(question.Title, pupilName), resolvedValidationFailure);
+                    var error = question.Type switch
+                    {
+                        QuestionType.GradeSelect => journeyService.ValidateGradeSelect(
+                            question, answer, gradeReference, journey.SelectedResult?.Grade, resolvedValidationFailure),
+                        // AB#297848: syllabus options live on the resolved qualification; a QAN
+                        // with none (961 of 974 today) rejects everything and the page explains
+                        // the gap. Membership is on the code alone — the title is display-only.
+                        QuestionType.SyllabusSelect => journeyService.ValidateOptionSelect(
+                            question, answer,
+                            journey.SelectedQualification?.SyllabusCodes.Select(c => c.Code).ToList() ?? [],
+                            resolvedValidationFailure),
+                        _ => journeyService.ValidateAnswer(
+                            question, answer, JourneyTemplate.Resolve(question.Title, pupilName), resolvedValidationFailure)
+                    };
 
                     if (error is not null)
                     {
@@ -712,6 +729,9 @@ public sealed class JourneyController(
             {
                 PageType.EvidenceUpload => "EvidenceUpload",
                 PageType.ResultDetails => "ResultDetails",
+            // AB#297848: same arrangement as ResultDetails — a question page with its own
+            // summary card, served here so it inherits PagePost's answer handling.
+            PageType.QualificationDetails => "QualificationDetails",
                 _ => "Page"
             };
             return View(invalidViewName, viewModelBuilder.BuildPageVm(windowId, page, displayAnswers,

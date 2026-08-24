@@ -32,6 +32,14 @@ public sealed class PageViewModel
     /// other page type.
     /// </summary>
     public Application.ResultsEnquiry.StudentResultRecord? SelectedResult { get; init; }
+
+    /// <summary>AB#297848: the qualification a QualificationDetails page is about, shown as a
+    /// summary card above the questions. Null on every other page type.</summary>
+    public Application.ResultsEnquiry.QualificationReference? SelectedQualification { get; init; }
+
+    /// <summary>AB#297848: the pupil's CYPMD id, shown on the QualificationDetails summary card
+    /// (ResultDetails gets it from SelectedResult.CypmdId instead — there is no result here).</summary>
+    public string? CypmdId { get; init; }
     public string PupilName { get; init; } = string.Empty;
     public string? ContentKey { get; init; }
     public string? UploadError { get; init; }

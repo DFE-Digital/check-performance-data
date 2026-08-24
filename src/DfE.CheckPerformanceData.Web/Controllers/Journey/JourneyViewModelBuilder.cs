@@ -185,6 +185,12 @@ public sealed class JourneyViewModelBuilder(
                     // QAN, not from the flow config — the config cannot know which qualification the
                     // user picked. Pass grades before fail grades, source order preserved within each.
                     QuestionType.GradeSelect => GradeOptions(gradeReference),
+                    // AB#297848: syllabus codes come from the selected qualification's QualList
+                    // entry. The posted/validated value is the bare code; the title is display-only
+                    // because sibling codes often differ only by specialism.
+                    QuestionType.SyllabusSelect => journey.SelectedQualification?.SyllabusCodes
+                        .Select(c => new QuestionOption { Value = c.Code, Label = $"{c.Code} — {c.Title}" })
+                        .ToList() ?? [],
                     _ => q.Options ?? []
                 },
                 // AB#296081: request-wide file names for the selection-time duplicate warning.
@@ -204,6 +210,8 @@ public sealed class JourneyViewModelBuilder(
             BackPageAction = JourneyRouting.ActionFor(backPage?.Type),
             WhatToChange = journey.SelectedWhatToChange,
             SelectedResult = journey.SelectedResult,
+            SelectedQualification = journey.SelectedQualification,
+            CypmdId = journey.SelectedPupil?.Cypmd_Id,
             FromSummary = fromSummary,
             PupilName = pupilName,
             ContentKey = contentKey,

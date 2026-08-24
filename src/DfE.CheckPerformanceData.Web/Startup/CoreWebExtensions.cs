@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.DependencyInjection;
 
+using Microsoft.AspNetCore.Http;
+
 namespace DfE.CheckPerformanceData.Web.Startup;
 
 public static class CoreWebExtensions
@@ -20,10 +22,22 @@ public static class CoreWebExtensions
         builder.Services.AddAntiforgery(options =>
         {
             options.HeaderName = "X-XSRF-TOKEN";
+            // The session cookie already follows this policy; the antiforgery cookie was left on
+            // the default. SameAsRequest in development keeps local HTTP working — Always there
+            // would have the browser drop the cookie and every form POST fail antiforgery.
+            options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+                ? CookieSecurePolicy.SameAsRequest
+                : CookieSecurePolicy.Always;
         });
 
-        // Setting to null to allow controller-level request size limits
-        builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = null);
+        // Setting to null to allow controller-level request size limits.
+        // AddServerHeader off: the banner carries no version, but naming the stack tells a
+        // scanner which exploits are worth trying and buys nothing back.
+        builder.WebHost.ConfigureKestrel(o =>
+        {
+            o.Limits.MaxRequestBodySize = null;
+            o.AddServerHeader = false;
+        });
 
         builder.Services.AddControllersWithViews();
 

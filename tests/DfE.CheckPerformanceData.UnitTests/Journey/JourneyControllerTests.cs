@@ -702,6 +702,178 @@ public class JourneyControllerTests
             Arg.Any<CancellationToken>());
     }
 
+    // ── PagePost — synthetic pupil from answers (AB#297310) ─────────────────
+
+    private static readonly JourneyPage LearnerDetailsPage = new()
+    {
+        Id = "learner-details",
+        PupilFromAnswers = true,
+        Questions =
+        [
+            new Question { Id = "first-name", Type = QuestionType.FreeText, Title = "First name" },
+            new Question { Id = "last-name", Type = QuestionType.FreeText, Title = "Last name" },
+            new Question { Id = "date-of-birth", Type = QuestionType.Date, Title = "Date of birth" },
+            new Question
+            {
+                Id = "sex", Type = QuestionType.Radio, Title = "Sex",
+                Options = [new QuestionOption { Value = "F", Label = "Female" }, new QuestionOption { Value = "M", Label = "Male" }]
+            },
+            new Question { Id = "upn", Type = QuestionType.FreeText, Title = "UPN", Optional = true }
+        ],
+        NextPageId = "page-2"
+    };
+
+    private void SetupLearnerDetailsPage()
+    {
+        _flowService.GetPage(Config, "learner-details").Returns(LearnerDetailsPage);
+        _journeyService.ValidateAnswer(Arg.Any<Question>(), Arg.Any<QuestionAnswer>(), Arg.Any<string>(), Arg.Any<string?>())
+            .Returns((string?)null);
+        _flowService.GetNextPageId(Config, "learner-details", Arg.Any<Dictionary<string, QuestionAnswer>>())
+            .Returns("page-2");
+        _journeyService.GenerateReference(Arg.Any<CheckingWindowType?>()).Returns("CYPMD_KS4June_TEST123");
+    }
+
+    private void PostLearnerDetails(string firstName = "Alice", string sex = "F", string upn = "A123456789012") =>
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>
+        {
+            ["q_first_name"] = firstName,
+            ["q_last_name"] = "Smith",
+            ["q_date_of_birth_day"] = "1",
+            ["q_date_of_birth_month"] = "9",
+            ["q_date_of_birth_year"] = "2010",
+            ["q_sex"] = sex,
+            ["q_upn"] = upn
+        });
+
+    private static RequestState AddSession() => new()
+    {
+        SelectedWhatToChange = WhatToChange.Add,
+        CheckingWindow = new CheckingWindowDto
+        {
+            Id = Guid.NewGuid(),
+            Title = "Test Window",
+            KeyStage = KeyStages.KS4,
+            CheckingWindowType = CheckingWindowType.KS4June,
+            StartDate = DateTime.UtcNow.AddDays(-1),
+            EndDate = DateTime.UtcNow.AddDays(13)
+        },
+        QuestionHistory = [],
+        QuestionAnswers = new()
+    };
+
+    [Fact]
+    public async Task PagePost_OnPupilFromAnswersPage_MintsSyntheticPupilAndReference()
+    {
+        SetupLearnerDetailsPage();
+        SetupSession(AddSession());
+        PostLearnerDetails();
+
+        await _sut.PagePost(WindowId, "learner-details", fromSummary: false);
+
+        var saved = _session.GetRequestState(WindowId);
+        Assert.NotNull(saved.SelectedPupil);
+        Assert.Equal("Alice", saved.SelectedPupil!.Firstname);
+        Assert.Equal("Smith", saved.SelectedPupil.Surname);
+        Assert.Equal("01/09/2010", saved.SelectedPupil.DateOfBirth);
+        Assert.Equal("A123456789012", saved.SelectedPupil.Identifier);
+        Assert.Equal("Smith, Alice", saved.SelectedPupilLabel);
+        Assert.False(string.IsNullOrEmpty(saved.ReferenceNumber));
+
+        var firstPupilId = saved.SelectedPupil.Id;
+        var firstReference = saved.ReferenceNumber;
+
+        // A second post (e.g. editing from the summary) with a changed first name must keep
+        // the same synthetic pupil Id and reference — not mint a fresh one each time.
+        PostLearnerDetails(firstName: "Alicia");
+
+        await _sut.PagePost(WindowId, "learner-details", fromSummary: false);
+
+        var resaved = _session.GetRequestState(WindowId);
+        Assert.Equal(firstPupilId, resaved.SelectedPupil!.Id);
+        Assert.Equal(firstReference, resaved.ReferenceNumber);
+        Assert.Equal("Alicia", resaved.SelectedPupil.Firstname);
+    }
+
+    // The edit-from-summary branch has its own save point and its own MintSyntheticPupilIfNeeded
+    // call. It must mint on exactly the same terms as the normal branch — same pupil id, same
+    // reference, updated answers — or a name corrected from the summary would leave the row and
+    // the blob showing the old one.
+    [Fact]
+    public async Task PagePost_OnPupilFromAnswersPage_FromSummary_UpdatesThePupilAndKeepsItsIdentity()
+    {
+        SetupLearnerDetailsPage();
+        SetupSession(AddSession());
+        PostLearnerDetails();
+
+        await _sut.PagePost(WindowId, "learner-details", fromSummary: false);
+
+        var minted = _session.GetRequestState(WindowId);
+        var pupilId = minted.SelectedPupil!.Id;
+        var reference = minted.ReferenceNumber;
+
+        PostLearnerDetails(firstName: "Corrected");
+
+        await _sut.PagePost(WindowId, "learner-details", fromSummary: true);
+
+        var edited = _session.GetRequestState(WindowId);
+        Assert.Equal("Corrected", edited.SelectedPupil!.Firstname);
+        Assert.Equal("Smith, Corrected", edited.SelectedPupilLabel);
+        Assert.Equal(pupilId, edited.SelectedPupil.Id);
+        Assert.Equal(reference, edited.ReferenceNumber);
+    }
+
+    // The mint runs after the validation gate, not before it. If it ever moved above the
+    // early return, a rejected page would still stamp a pupil and a reference onto the session —
+    // giving the journey an identity (and a draft row, once one is saved) built from answers the
+    // user was just told were invalid.
+    [Fact]
+    public async Task PagePost_OnPupilFromAnswersPage_WhenValidationFails_MintsNothing()
+    {
+        SetupLearnerDetailsPage();
+        _journeyService.ValidateAnswer(
+                Arg.Is<Question>(q => q.Id == "first-name"), Arg.Any<QuestionAnswer>(), Arg.Any<string>(), Arg.Any<string?>())
+            .Returns("Enter the pupil's first name");
+        SetupSession(AddSession());
+        PostLearnerDetails(firstName: "");
+
+        var result = await _sut.PagePost(WindowId, "learner-details", fromSummary: false);
+
+        Assert.IsType<ViewResult>(result);
+        var saved = _session.GetRequestState(WindowId);
+        Assert.Null(saved.SelectedPupil);
+        Assert.Null(saved.SelectedPupilId);
+        Assert.Null(saved.SelectedPupilLabel);
+        Assert.Null(saved.ReferenceNumber);
+    }
+
+    // The same gate once a pupil already exists: a rejected edit must leave the stored pupil as it
+    // was, not overwrite it with the invalid answers the user is being sent back to fix.
+    [Fact]
+    public async Task PagePost_OnPupilFromAnswersPage_WhenValidationFails_LeavesAnAlreadyMintedPupilUntouched()
+    {
+        SetupLearnerDetailsPage();
+        SetupSession(AddSession());
+        PostLearnerDetails();
+
+        await _sut.PagePost(WindowId, "learner-details", fromSummary: false);
+
+        var minted = _session.GetRequestState(WindowId);
+        var pupilId = minted.SelectedPupil!.Id;
+        var reference = minted.ReferenceNumber;
+
+        _journeyService.ValidateAnswer(
+                Arg.Is<Question>(q => q.Id == "first-name"), Arg.Any<QuestionAnswer>(), Arg.Any<string>(), Arg.Any<string?>())
+            .Returns("Enter the pupil's first name");
+        PostLearnerDetails(firstName: "");
+
+        await _sut.PagePost(WindowId, "learner-details", fromSummary: true);
+
+        var after = _session.GetRequestState(WindowId);
+        Assert.Equal("Alice", after.SelectedPupil!.Firstname);
+        Assert.Equal(pupilId, after.SelectedPupil.Id);
+        Assert.Equal(reference, after.ReferenceNumber);
+    }
+
     // ── PagePost — cross-field date rules (AB#295246) ────────────────────────
 
     [Fact]

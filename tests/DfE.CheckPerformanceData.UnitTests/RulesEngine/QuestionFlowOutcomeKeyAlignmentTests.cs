@@ -48,8 +48,11 @@ public sealed class QuestionFlowOutcomeKeyAlignmentTests
     /// enqueueing is added, remove the prefix from here and add its real outcome key(s) to
     /// <see cref="AnswerFieldMap.WhatToChangeToOutcomeKey"/> — this list going empty is the signal
     /// that every flow routes.
+    ///
+    /// <c>Add</c> (AB#297310) is the add-a-pupil simple path: persisted as an Amendment row
+    /// plus a journey blob and NOT enqueued — downstream is the LDS egress, a separate story.
     /// </summary>
-    private static readonly string[] FlowPrefixesThatDoNotRouteToTheRulesEngine = ["IncorrectGrade"];
+    private static readonly string[] FlowPrefixesThatDoNotRouteToTheRulesEngine = ["IncorrectGrade", "Add"];
 
     [Theory]
     [MemberData(nameof(FlowFiles))]

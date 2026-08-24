@@ -11,8 +11,10 @@ public interface IJourneyValidationService
 
     /// <summary>
     /// Cross-field date rules for the page, if it has any. Returns at most one message per
-    /// question. Empty for every page without rules, which is all of them bar the EAL details
-    /// page today.
+    /// question. Empty for every page without rules.
+    ///
+    /// <paramref name="answers"/> must span the whole journey with the page's posted answers
+    /// overlaid: the Add rules compare a date on this page against one entered on another.
     /// </summary>
     IReadOnlyList<DateFieldViolation> ValidatePageDates(JourneyPage page, IReadOnlyDictionary<string, QuestionAnswer> answers, string pupilName);
 

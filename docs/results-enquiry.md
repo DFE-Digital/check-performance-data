@@ -221,10 +221,16 @@ Two consequences, both deliberate and both commented in code:
 
 - `SubmitResultsEnquiryAsync` does not enqueue. When the dispatch story lands, the enqueue belongs
   **there and nowhere else**.
-- `AdminRequestsService.ProcessCloseWindowEvent` skips `IncorrectGrade` journeys. That replay builds a
-  *pupil-amendment* ticket, and an enquiry's QAN, session, current and revised grade have no place in
-  that shape. Replaying one would create a malformed ticket **and** flip the row to
-  `SubmittedCommitted`, so the real dispatch could never find it again.
+- `AdminRequestsService.ProcessCloseWindowEvent` skips **every** results-enquiry journey. That replay
+  builds a *pupil-amendment* ticket, and an enquiry's QAN, syllabus code, session, current and revised
+  grade have no place in that shape. Replaying one would create a malformed ticket **and** flip the row
+  to `SubmittedCommitted`, so the real dispatch could never find it again.
+
+  The guard asks `WhatToChangeCheckingExerciseMap` whether the journey belongs to the ResultsEnquiry
+  exercise rather than naming enum members. It originally tested `IncorrectGrade` alone, and the
+  missing-qualification journey (AB#297848) walked straight through it — the map keeps the next
+  sibling right by construction. `AdminRequestsServiceEnquiryGuardTests` drives its cases from the
+  same map, so a new enquiry kind is covered the moment it is mapped.
 - `QuestionFlowOutcomeKeyAlignmentTests` lists `IncorrectGrade` in
   `FlowPrefixesThatDoNotRouteToTheRulesEngine` and asserts it has **no** outcome key, so nobody can
   quietly bind it to rules-engine routing. That list going empty is the signal every flow routes.

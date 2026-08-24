@@ -15,6 +15,9 @@
     var hintId = $"{Model.FieldName}-hint";
     var errorId = $"{Model.FieldName}-error";
     var unavailableId = $"{Model.FieldName}-unavailable";
+    @* One literal, rendered once and announced once: the inset and the autocomplete's assistive hint
+       must say the same thing, and holding the string twice let them drift. *@
+    var unavailableMessage = "We cannot list syllabus codes for this qualification yet";
     var describedBy = string.Join(" ", new[]
         {
             Model.Question.Hint is not null ? hintId : null,
@@ -45,9 +48,7 @@
         @* A reference-data gap, not a user error — so it is stated plainly rather than as a
            validation failure. Validation still holds the enquiry back, because a syllabus code
            nobody can confirm is valid is worse than no enquiry. FLAGGED: copy needs content sign-off. *@
-        <div class="govuk-inset-text" id="@unavailableId">
-            We cannot list syllabus codes for this qualification yet
-        </div>
+        <div class="govuk-inset-text" id="@unavailableId">@unavailableMessage</div>
     }
 
     @if (Model.HasError)
@@ -77,7 +78,7 @@
 
         var hasError = @(Model.HasError ? "true" : "false");
         var errorText = @Json.Serialize(Model.Error ?? "");
-        var unavailableText = @Json.Serialize(Model.SyllabusOptionsUnavailable ? "We cannot list syllabus codes for this qualification yet" : "");
+        var unavailableText = @Json.Serialize(Model.SyllabusOptionsUnavailable ? unavailableMessage : "");
         var hintText = @Json.Serialize(Model.Question.Hint ?? "");
 
         // accessible-autocomplete owns the input's aria-describedby, rewriting it on every

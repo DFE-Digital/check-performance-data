@@ -37,11 +37,27 @@ public sealed class EnumContractTests
     }
 
     [Fact]
-    public void MissingQualification_fits_the_20_char_AmendmentType_column()
+    public void MissingQualification_what_to_change_exists_and_fits_column()
     {
-        // ChangeRequestConfiguration stores AmendmentType as a string with HasMaxLength(20).
-        // "MissingQualification" is exactly 20 characters — this pin turns a rename that grows it
-        // into a test failure instead of a runtime Npgsql truncation error on first submission.
-        Assert.True(nameof(WhatToChange.MissingQualification).Length <= 20);
+        // ChangeRequestConfiguration stores AmendmentType as a string with HasMaxLength(20), and
+        // "MissingQualification" is exactly 20 characters — a rename that grows it fails here rather
+        // than truncating in Npgsql on first submission. The name is asserted exactly, not just
+        // measured: it IS the persisted value, so a shorter rename would orphan every stored row.
+        var name = WhatToChange.MissingQualification.ToString();
+        Assert.Equal("MissingQualification", name);
+        Assert.Equal(20, name.Length);
+        Assert.Equal(5, (int)WhatToChange.MissingQualification); // appended after IncorrectGrade
+    }
+
+    [Fact]
+    public void Journey_engine_enums_gain_missing_qualification_members()
+    {
+        // The ordinals are the contract: PageType and QuestionType are serialized into the flow JSON
+        // by NAME, but RequestState blobs and any numeric round-trip depend on position. Inserting a
+        // member above these silently repoints every stored value — which is what the append-only
+        // rule exists to prevent, and what the previous length-only pin left unguarded.
+        Assert.Equal(6, (int)PageType.QualificationSearch);
+        Assert.Equal(7, (int)PageType.QualificationDetails);
+        Assert.Equal(7, (int)QuestionType.SyllabusSelect);
     }
 }

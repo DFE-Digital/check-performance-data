@@ -51,7 +51,15 @@ public sealed class QualificationReferenceLookup
         if (parsed is null or { Count: 0 })
             return Empty;
 
-        return new QualificationReferenceLookup(
-            new Dictionary<string, QualificationReference>(parsed, StringComparer.OrdinalIgnoreCase));
+        // Built key-by-key rather than with the copy constructor: that overload throws
+        // ArgumentException if the supplier document ever holds two QANs differing only in case,
+        // which would 500 every qualification search instead of degrading. 98 of the 974 QANs end in
+        // a letter and the export's casing is not guaranteed, so last-one-wins (with the document's
+        // own order deciding) is the safer read of a document we do not control.
+        var byQan = new Dictionary<string, QualificationReference>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (qan, qualification) in parsed)
+            byQan[qan] = qualification;
+
+        return new QualificationReferenceLookup(byQan);
     }
 }

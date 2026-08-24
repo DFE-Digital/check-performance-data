@@ -38,6 +38,10 @@ public static class ValidationErrorCoding
             // distinction this taxonomy exists to make — a rejected grade is a bad selection (the
             // qualification does not offer it, or it matches the current grade), not a bad format.
             QuestionType.GradeSelect => "selection_invalid",
+            // AB#297848: the syllabus picker is the same kind of control for the same reason — a
+            // rejected code means the qualification does not offer it (or offers none at all), which
+            // is a bad selection, not a bad format.
+            QuestionType.SyllabusSelect => "selection_invalid",
             _ => "invalid",
         };
     }

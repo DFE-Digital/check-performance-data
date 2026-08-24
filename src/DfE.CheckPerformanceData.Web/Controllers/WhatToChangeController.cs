@@ -96,6 +96,10 @@ public sealed class WhatToChangeController(
             s.MatchedPupilId = null;
             s.MatchedPupilLabel = null;
             s.SelectedResult = null;
+            // AB#297848: the missing-qualification enquiry's equivalent of SelectedResult. Inert on
+            // today's amendment journeys, which never read it — cleared anyway because this block's
+            // whole argument is that it must not leave anything of the previous journey behind.
+            s.SelectedQualification = null;
             // Captured by the EAL pages only, and OriginCountryLanguageCapture early-returns on a
             // page without country-originally-from — so nothing on a pupil-search-less flow would
             // ever clear an abandoned journey's country data before it reaches the new request.

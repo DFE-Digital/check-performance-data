@@ -59,7 +59,7 @@
     <select class="govuk-select @(Model.HasError ? "govuk-select--error" : "")"
             id="@Model.FieldName" name="@Model.FieldName"
             aria-describedby="@(describedBy.Length > 0 ? describedBy : null)">
-        <option value="">Select revised grade</option>
+        <option value="">@(Model.Question.SelectPlaceholder ?? "Select revised grade")</option>
         @foreach (var option in Model.VisibleOptions)
         {
             <option value="@option.Value" selected="@(option.Value == Model.ExistingAnswer?.TextValue)">@option.Label</option>

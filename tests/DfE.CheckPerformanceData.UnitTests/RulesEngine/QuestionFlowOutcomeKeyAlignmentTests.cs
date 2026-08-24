@@ -51,8 +51,12 @@ public sealed class QuestionFlowOutcomeKeyAlignmentTests
     ///
     /// <c>Add</c> (AB#297310) is the add-a-pupil simple path: persisted as an Amendment row
     /// plus a journey blob and NOT enqueued — downstream is the LDS egress, a separate story.
+    ///
+    /// <c>MissingQualification</c> (AB#297848) is the sibling 16-19 results enquiry to
+    /// <c>IncorrectGrade</c>: same persistence shape, same PARKED enqueue decision.
     /// </summary>
-    private static readonly string[] FlowPrefixesThatDoNotRouteToTheRulesEngine = ["IncorrectGrade", "Add"];
+    private static readonly string[] FlowPrefixesThatDoNotRouteToTheRulesEngine =
+        ["IncorrectGrade", "Add", "MissingQualification"];
 
     [Theory]
     [MemberData(nameof(FlowFiles))]

@@ -1,0 +1,132 @@
+{
+  "firstPageId": "cohort-scope",
+  "pages": [
+    {
+      "id": "cohort-scope",
+      "questions": [
+        {
+          "id": "q-cohort-scope",
+          "type": "Radio",
+          "title": "Does the missing qualification affect the whole cohort?",
+          "hint": "Select one option",
+          "validationFailure": "Select if the missing qualification affects the whole cohort",
+          "summaryTitle": "Affects the whole cohort",
+          "options": [
+            {
+              "value": "yes",
+              "label": "Yes",
+              "subLabel": "Provide an example of one student",
+              "nextPageId": "cohort-count"
+            },
+            {
+              "value": "no",
+              "label": "No",
+              "subLabel": "Complete a separate enquiry for each student affected",
+              "nextPageId": "select-student-single"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cohort-count",
+      "nextPageId": "select-student-cohort",
+      "questions": [
+        {
+          "id": "q-cohort-count",
+          "type": "FreeText",
+          "title": "Enter the number of students with missing qualification",
+          "hint": "Enter the number of students who are missing this qualification",
+          "validator": "WholeNumber",
+          "validationFailure": "Enter how many students are missing this qualification",
+          "summaryTitle": "Number of students in affected cohort"
+        }
+      ]
+    },
+    {
+      "id": "select-student-cohort",
+      "type": "PupilSearch",
+      "pupilFilter": "All",
+      "pupilKey": "primary",
+      "title": "What is the name of one of the students from the affected cohort?",
+      "subheading": "Start typing to search by name, ULN, CYPMD ID or date of birth",
+      "validationFailure": "Enter the name of the student missing this qualification",
+      "nextPageId": "select-qualification"
+    },
+    {
+      "id": "select-student-single",
+      "type": "PupilSearch",
+      "pupilFilter": "All",
+      "pupilKey": "primary",
+      "title": "What is the name of the student missing this qualification?",
+      "subheading": "Start typing to search by name, ULN, CYPMD ID or date of birth",
+      "validationFailure": "Enter the name of the student missing this qualification",
+      "nextPageId": "select-qualification"
+    },
+    {
+      "id": "select-qualification",
+      "type": "QualificationSearch",
+      "title": "Provide the missing qualification details for {pupilName}",
+      "pageTitle": "Provide the missing qualification details",
+      "validationFailure": "Select the Qualification Number (QAN)",
+      "nextPageId": "qualification-details"
+    },
+    {
+      "id": "qualification-details",
+      "type": "QualificationDetails",
+      "title": "Provide the missing qualification details for {pupilName}",
+      "pageTitle": "Provide the missing qualification details",
+      "nextPageId": "additional-info",
+      "questions": [
+        {
+          "id": "q-syllabus-code",
+          "type": "SyllabusSelect",
+          "title": "Select syllabus code",
+          "hint": "Also known as specification code, entry code or cash-in code",
+          "selectPlaceholder": "Select",
+          "validationFailure": "Select the syllabus code",
+          "summaryTitle": "Syllabus code"
+        },
+        {
+          "id": "q-award-date",
+          "type": "Date",
+          "title": "Provide award date",
+          "hint": "For example, 20 8 2026. If you don't know the exact day enter 01.",
+          "validationFailure": "Provide the award date",
+          "summaryTitle": "Award date"
+        },
+        {
+          "id": "q-missing-grade",
+          "type": "GradeSelect",
+          "title": "Select the missing grade {pupilName} achieved",
+          "selectPlaceholder": "Select",
+          "validationFailure": "Select the missing grade this student achieved",
+          "summaryTitle": "Grade achieved"
+        },
+        {
+          "id": "q-ncn",
+          "type": "FreeText",
+          "title": "Provide National Centre Number (NCN) where exam was taken",
+          "optional": true,
+          "validator": "Ncn",
+          "summaryTitle": "National Centre Number (NCN)"
+        }
+      ]
+    },
+    {
+      "id": "additional-info",
+      "pageTitle": "Additional information",
+      "questions": [
+        {
+          "id": "q-additional-info",
+          "type": "TextArea",
+          "title": "Additional information",
+          "hint": "You can provide us with any additional information to support your query if you need to.",
+          "optional": true,
+          "characterLimit": 250,
+          "summaryTitle": "Additional information"
+        }
+      ]
+    }
+  ]
+}

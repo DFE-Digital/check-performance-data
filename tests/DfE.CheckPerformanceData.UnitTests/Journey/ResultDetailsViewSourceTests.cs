@@ -84,7 +84,11 @@ public sealed class ResultDetailsViewSourceTests
     [Fact]
     public void The_placeholder_option_has_an_empty_value_and_the_designs_text()
     {
-        Assert.Contains("<option value=\"\">Select revised grade</option>", Partial());
+        // AB#297848: SelectPlaceholder lets the missing-qualification journey use "Select" instead
+        // without touching the incorrect-grade markup — null still falls back to this exact text.
+        Assert.Contains(
+            "<option value=\"\">@(Model.Question.SelectPlaceholder ?? \"Select revised grade\")</option>",
+            Partial());
     }
 
     [Fact]

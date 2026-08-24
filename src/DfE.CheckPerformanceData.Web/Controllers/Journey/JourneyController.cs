@@ -30,6 +30,7 @@ public sealed class JourneyController(
     IOriginCountryLanguageCapture originCountryLanguageCapture,
     IStudentResultsClient studentResultsClient,
     IGradeReferenceClient gradeReferenceClient,
+    IQualificationReferenceClient qualificationReferenceClient,
     IRequestNotificationService requestNotificationService,
     ICheckingExerciseService checkingExerciseService,
     ILogger<JourneyController> logger) : Controller
@@ -41,6 +42,11 @@ public sealed class JourneyController(
     /// because changing the selected result has to clear this one answer specifically.
     /// </summary>
     internal const string RevisedGradeQuestionId = "q-revised-grade";
+
+    /// <summary>AB#297848: the missing-qualification flow's syllabus and grade question ids. Named
+    /// here because choosing a different qualification has to clear these two answers specifically.</summary>
+    internal const string SyllabusQuestionId = "q-syllabus-code";
+    internal const string MissingGradeQuestionId = "q-missing-grade";
 
     private const long MaxUploadBytes = 10 * 1024 * 1024; // 10 MB
 
@@ -65,6 +71,11 @@ public sealed class JourneyController(
         // its own action — the same reason PupilSearch does.
         if (page.Type == PageType.ResultSearch)
             return RedirectToAction(nameof(ResultSearchPage), new { windowId, pageId });
+
+        // AB#297848: the qualification search resolves an AO+QAN pair server-side, the same reason
+        // ResultSearch has its own action.
+        if (page.Type == PageType.QualificationSearch)
+            return RedirectToAction(nameof(QualificationSearchPage), new { windowId, pageId });
 
         var nav = flowService.GetNavigationGuard(config, journey, pageId);
         if (nav is RedirectToJourneySummary) return RedirectToAction(nameof(Summary), new { windowId });
@@ -363,6 +374,92 @@ public sealed class JourneyController(
         if (page.NextPageId is null)
             return RedirectToAction(nameof(Summary), new { windowId });
 
+        return RedirectToJourneyAction(config, windowId, page.NextPageId);
+    }
+
+    // ── QualificationSearchPage (GET) — AB#297848 ───────────────────────────
+
+    [Route("/Journey/{windowId}/qualification-search/{pageId}")]
+    public async Task<IActionResult> QualificationSearchPage(Guid windowId, string pageId)
+    {
+        var journey = HttpContext.Session.GetRequestState(windowId);
+        if (!IsSessionReady(journey)) return RedirectToCheckYourData(windowId);
+
+        var config = await GetConfigAsync(journey);
+        if (config is null) return RedirectToCheckYourData(windowId);
+
+        var page = flowService.GetPage(config, pageId);
+        if (page is null || page.Type != PageType.QualificationSearch) return NotFound();
+
+        var nav = flowService.GetNavigationGuard(config, journey, pageId);
+        if (nav is RedirectToJourneySummary) return RedirectToAction(nameof(Summary), new { windowId });
+        if (nav is RedirectToJourneyPage { PageId: var navPageId })
+            return RedirectToJourneyAction(config, windowId, navPageId);
+
+        var lookup = await qualificationReferenceClient.GetLookupAsync(HttpContext.RequestAborted);
+        return View("QualificationSearch",
+            viewModelBuilder.BuildQualificationSearchVm(windowId, pageId, page, journey, config, lookup));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Route("/Journey/{windowId}/qualification-search/{pageId}")]
+    public async Task<IActionResult> QualificationSearchPost(
+        Guid windowId, string pageId, string? selectedAo, string? selectedQan)
+    {
+        var journey = HttpContext.Session.GetRequestState(windowId);
+        if (!IsSessionReady(journey)) return RedirectToCheckYourData(windowId);
+
+        var config = await GetConfigAsync(journey);
+        if (config is null) return RedirectToCheckYourData(windowId);
+
+        var page = flowService.GetPage(config, pageId);
+        if (page is null || page.Type != PageType.QualificationSearch) return NotFound();
+
+        var lookup = await qualificationReferenceClient.GetLookupAsync(HttpContext.RequestAborted);
+
+        // Resolve server-side and fail closed: the QAN must exist AND belong to the posted AO —
+        // the client-side cascade is presentation only, and a tampered pair would otherwise record
+        // an AO the qualification does not belong to.
+        var resolved = string.IsNullOrWhiteSpace(selectedQan) ? null : lookup.Find(selectedQan);
+        if (resolved is not null && !string.Equals(resolved.AwardingOrganisation, selectedAo, StringComparison.Ordinal))
+            resolved = null;
+
+        if (string.IsNullOrWhiteSpace(selectedAo))
+            ModelState.AddModelError("selectedAo", "Select the Awarding Organisation (AO) name");
+        if (resolved is null)
+            ModelState.AddModelError("selectedQan", "Select the Qualification Number (QAN)");
+
+        if (!ModelState.IsValid)
+        {
+            await analytics.TrackSafeAsync(new ValidationErrorEvent
+            {
+                ErrorCount = ModelState.ErrorCount,
+                ErrorCodes = [.. Enumerable.Repeat(ValidationErrorCoding.NoSelection, ModelState.ErrorCount)],
+                ErrorFields = [.. ModelState.Keys],
+                WhatToChange = journey.SelectedWhatToChange?.ToString(),
+            });
+            return View("QualificationSearch", viewModelBuilder.BuildQualificationSearchVm(
+                windowId, pageId, page, journey, config, lookup, selectedAo, selectedQan));
+        }
+
+        // Syllabus code and grade belong to one qualification: changing it must not carry them to
+        // a qualification that never offered them. Re-confirming the same QAN is not a change.
+        var qualificationChanged = journey.SelectedQualification?.Qan != resolved!.Qan;
+        HttpContext.Session.SaveRequestState(windowId, s =>
+        {
+            s.SelectedQualification = resolved;
+            if (qualificationChanged)
+            {
+                s.QuestionAnswers.Remove(SyllabusQuestionId);
+                s.QuestionAnswers.Remove(MissingGradeQuestionId);
+            }
+        });
+
+        journey = HttpContext.Session.GetRequestState(windowId);
+        TrimHistoryTo(journey, windowId, pageId);
+
+        if (page.NextPageId is null) return RedirectToAction(nameof(Summary), new { windowId });
         return RedirectToJourneyAction(config, windowId, page.NextPageId);
     }
 

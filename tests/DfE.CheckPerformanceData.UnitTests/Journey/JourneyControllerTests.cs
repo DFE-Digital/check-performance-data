@@ -115,6 +115,7 @@ public class JourneyControllerTests
             _optionVisibilityService, _optionalityService, _languageCapture,
             Substitute.For<DfE.CheckPerformanceData.Application.ResultsEnquiry.IStudentResultsClient>(),
             Substitute.For<DfE.CheckPerformanceData.Application.ResultsEnquiry.IGradeReferenceClient>(),
+            Substitute.For<DfE.CheckPerformanceData.Application.ResultsEnquiry.IQualificationReferenceClient>(),
             _requestNotificationService,
             _checkingExercises,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<JourneyController>.Instance)

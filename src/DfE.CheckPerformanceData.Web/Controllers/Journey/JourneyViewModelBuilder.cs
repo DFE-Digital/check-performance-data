@@ -266,6 +266,29 @@ public sealed class JourneyViewModelBuilder(
         };
     }
 
+    public QualificationSearchViewModel BuildQualificationSearchVm(
+        Guid windowId, string pageId, JourneyPage page, RequestState journey, QuestionFlowConfig config,
+        QualificationReferenceLookup lookup, string? selectedAo = null, string? selectedQan = null)
+    {
+        var pupilName = GetPupilName(journey);
+        var (backPageId, backPage) = ResolveBackPage(pageId, journey, config);
+
+        return new QualificationSearchViewModel
+        {
+            WindowId = windowId,
+            PageId = pageId,
+            Page = page,
+            PupilName = pupilName,
+            CypmdId = journey.SelectedPupil?.Cypmd_Id,
+            AwardingOrganisations = lookup.AwardingOrganisations,
+            Qualifications = [.. lookup.AwardingOrganisations.SelectMany(lookup.ForAwardingOrganisation)],
+            SelectedAo = selectedAo ?? journey.SelectedQualification?.AwardingOrganisation,
+            SelectedQan = selectedQan ?? journey.SelectedQualification?.Qan,
+            BackPageId = backPageId,
+            BackPageAction = JourneyRouting.ActionFor(backPage?.Type)
+        };
+    }
+
     /// <summary>
     /// The page the Back link returns to: the entry before this one in the answered history, or the
     /// last entry when this page is not in the history yet (a forward navigation).

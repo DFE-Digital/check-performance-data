@@ -102,7 +102,7 @@ public sealed class JourneyControllerResultSearchTests
         _sut = new JourneyController(
             _flowService, _journeyService, _fileStorage, _requestService, _pupilData, _vmBuilder,
             _analytics, _currentUser, _optionVisibility, _optionality, _originCapture, _results,
-            _gradeReference, _notifications, OpenCheckingExercises.AlwaysOpen(),
+            _gradeReference, Substitute.For<IQualificationReferenceClient>(), _notifications, OpenCheckingExercises.AlwaysOpen(),
             NullLogger<JourneyController>.Instance)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext }

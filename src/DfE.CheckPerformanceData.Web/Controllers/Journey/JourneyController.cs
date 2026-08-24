@@ -251,9 +251,11 @@ public sealed class JourneyController(
         }
         else
         {
-            // AB#296648: an enquiry's reference carries an RE segment so support staff can tell it
-            // from an amendment when a school reads it out.
-            var reference = journey.SelectedWhatToChange == Application.CheckYourPupilData.WhatToChange.IncorrectGrade
+            // AB#296648/AB#297848: an enquiry's reference carries an RE segment so support staff can
+            // tell it from an amendment when a school reads it out. Both results-enquiry kinds share it.
+            var reference = journey.SelectedWhatToChange
+                is Application.CheckYourPupilData.WhatToChange.IncorrectGrade
+                or Application.CheckYourPupilData.WhatToChange.MissingQualification
                 ? journeyService.GenerateEnquiryReference()
                 : journeyService.GenerateReference(journey.CheckingWindow?.CheckingWindowType);
 

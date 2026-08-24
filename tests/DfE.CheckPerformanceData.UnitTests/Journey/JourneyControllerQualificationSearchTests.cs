@@ -271,6 +271,55 @@ public sealed class JourneyControllerQualificationSearchTests
         Assert.Equal("2", state.QuestionAnswers["q-missing-grade"].TextValue);
     }
 
+    // ── Reference number generation (AB#297848) ──────────────────────────────
+
+    [Fact]
+    public async Task Choosing_the_student_generates_the_enquiry_shaped_reference_not_the_amendment_one()
+    {
+        // AB#296648's dispatch in PupilSearchPost only checked WhatToChange.IncorrectGrade — a real
+        // gap this sibling enquiry exposed. The "RE" segment is how support staff tell an enquiry
+        // from an amendment when a school reads a reference aloud.
+        var studentPage = new JourneyPage
+        {
+            Id = "select-student-single",
+            Type = PageType.PupilSearch,
+            PupilKey = JourneyPage.PrimaryKey,
+            PupilFilter = PupilFilter.All,
+            NextPageId = "select-qualification"
+        };
+        var flow = new QuestionFlowConfig
+        {
+            FirstPageId = "select-student-single",
+            Pages = [studentPage, SelectQualificationPage, DetailsPage]
+        };
+        _flowService.GetConfigAsync(WhatToChange.MissingQualification, CheckingWindowType.Post16).Returns(flow);
+        foreach (var page in flow.Pages)
+            _flowService.GetPage(flow, page.Id).Returns(page);
+        _journeyService.GenerateEnquiryReference().Returns("CYPMD_16to19_RE_ABCDEF1");
+
+        var pupil = Pupil();
+        _pupilData.GetPupilAsync(WindowId, pupil.Id).Returns(pupil);
+        _requestService.HasSubmittedRequestAsync(WindowId, pupil.Id, Arg.Any<long>())
+            .Returns(new DuplicateCheckResult.NoConflict());
+
+        _session.SetRequestState(WindowId, new RequestState
+        {
+            SelectedWhatToChange = WhatToChange.MissingQualification,
+            CheckingWindow = new CheckingWindowDto
+            {
+                Title = "16 to 19", KeyStage = KeyStages.Post16,
+                CheckingWindowType = CheckingWindowType.Post16,
+                StartDate = new DateTime(2026, 10, 1), EndDate = new DateTime(2027, 3, 31)
+            },
+            QuestionHistory = []
+        });
+
+        await _sut.PupilSearchPost(WindowId, "select-student-single", pupil.Id.ToString(), "Alice, Smith");
+
+        Assert.Equal("CYPMD_16to19_RE_ABCDEF1", _session.GetRequestState(WindowId).ReferenceNumber);
+        _journeyService.DidNotReceive().GenerateReference(Arg.Any<CheckingWindowType?>());
+    }
+
     private sealed class FakeSession : ISession
     {
         private readonly Dictionary<string, byte[]> _store = new();

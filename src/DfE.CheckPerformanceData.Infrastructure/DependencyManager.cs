@@ -266,6 +266,7 @@ public static class DependencyManager
     public static IServiceCollection AddZendeskApiClient(this IServiceCollection services, IConfiguration config)
     {
         services.AddTransient<RefitLoggingHandler>();
+        
 
         var settings = config.GetSection(ZendeskSettings.SectionName).Get<ZendeskSettings>();
 
@@ -273,11 +274,13 @@ public static class DependencyManager
         {
             throw new InvalidOperationException("ZendeskSettings section is missing in the configuration.");
         }
-        services.Configure<ZendeskSettings>(s => s = settings);
+        services = services.Configure<ZendeskSettings>(s => s = settings);
+        services.Configure<ZendeskSettings>(
+            config.GetSection(ZendeskSettings.SectionName));
 
         // Register the OAuth token provider (singleton - caches token and refreshes automatically)
         services.AddSingleton<IOAuthTokenProvider, OAuthTokenProvider>();
-
+        services.AddSingleton<DfE.CheckPerformanceData.Infrastructure.ZendeskClient.ZendeskOAuthHandler>();
         services.AddRefitClient<IZendeskApi>(new RefitSettings
         {
             ContentSerializer = new NewtonsoftJsonContentSerializer()

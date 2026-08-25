@@ -38,12 +38,13 @@ public sealed class OAuthTokenProvider : IOAuthTokenProvider
     public OAuthTokenProvider(
         IOptions<ZendeskSettings> settings,
         ILogger<OAuthTokenProvider> logger)
+        //ZendeskSettings zendeskSettings)
     {
         _settings = settings.Value;
         _logger = logger;
         _httpClient = new HttpClient
         {
-            BaseAddress = new Uri($"https://{_settings.Subdomain}.{_settings.Domain}")
+            BaseAddress = new Uri($"https://{_settings.Subdomain}.{_settings.Domain}.com")
         };
     }
 
@@ -51,10 +52,12 @@ public sealed class OAuthTokenProvider : IOAuthTokenProvider
     {
         // If we have a valid token that hasn't expired (with a 30-second safety margin),
         // return it without making a network call
-        if (DateTimeOffset.UtcNow < _tokenExpiryUtc.AddSeconds(-30) && !string.IsNullOrEmpty(_currentToken))
+        // Compare now+30s to expiry to avoid subtracting from a potentially default MinValue expiry
+        if (!string.IsNullOrEmpty(_currentToken) && DateTimeOffset.UtcNow.AddSeconds(30) < _tokenExpiryUtc)
         {
             return _currentToken;
         }
+
 
         // Token is expired or we don't have one yet - fetch a fresh token
         var tokenResponse = await FetchTokenAsync().ConfigureAwait(false);

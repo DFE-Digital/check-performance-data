@@ -5,7 +5,6 @@ using DfE.CheckPerformanceData.Infrastructure.Queue;
 namespace DfE.CheckPerformanceData.IntegrationTests.Queue;
 
 [Collection(nameof(PostgresCollection))]
-[Trait("Category", "W0")]
 public sealed class QueueServiceTests
 {
     private readonly PostgresFixture _fixture;

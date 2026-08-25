@@ -10,7 +10,7 @@
 
 @if (Model.BackPageId is not null)
 {
-    <a asp-action="@(Model.BackPageIsPupilSearch ? "PupilSearchPage" : "Page")" asp-controller="Journey"
+    <a asp-action="@Model.BackPageAction" asp-controller="Journey"
        asp-route-windowId="@Model.WindowId"
        asp-route-pageId="@Model.BackPageId"
        class="govuk-back-link">Back</a>
@@ -55,14 +55,18 @@ else
     }
 }
 
-<h1 class="govuk-heading-xl">@Model.Title</h1>
-
+@* The page title is the autocomplete's <label>, not a free-standing <h1>. accessible-autocomplete
+   builds the input in JS, so nothing in the server markup can carry the accessible name unless a
+   label points at the id the script assigns ("pupil-search" below). This mirrors _Autocomplete.cshtml. *@
 <form method="post" action="@Url.Action("PupilSearchPost", "Journey", new { windowId = Model.WindowId, pageId = Model.PageId })">
     @Html.AntiForgeryToken()
     <input type="hidden" name="selectedPupilId" id="selectedPupilId" value="@Model.SelectedPupilId" />
 
     <div class="govuk-form-group @(hasError ? "govuk-form-group--error" : "")">
-        <div class="govuk-hint">@(Model.Hint ?? "Start typing to see a list of names")</div>
+        <h1 class="govuk-label-wrapper">
+            <label class="govuk-label govuk-label--l" for="pupil-search">@Model.Title</label>
+        </h1>
+        <div class="govuk-hint" id="pupil-search-hint">@(Model.Hint ?? "Start typing to see a list of names")</div>
         @if (hasError)
         {
             <p id="pupil-search-error" class="govuk-error-message">
@@ -81,10 +85,25 @@ else
         (function () {
             var windowId = '@Model.WindowId';
             var filter = '@Model.Filter.ToString().ToLower()';
+            var requireResults = @(Model.RequireResults ? "true" : "false");
             var excludePupilId = '@(Model.ExcludePupilId?.ToString() ?? "")';
             var hasError = @(hasError ? "true" : "false");
             var initialLabel = @Json.Serialize(Model.SelectedPupilLabel ?? "");
+            var hintText = @Json.Serialize(Model.Hint ?? "Start typing to see a list of names");
+            var errorText = @Json.Serialize(fieldErrorMessage);
             var currentSuggestions = [];
+
+            // accessible-autocomplete owns the input's aria-describedby: it points at its own
+            // generated "#{id}__assistiveHint" element and is rewritten on every re-render, so
+            // setting aria-describedby ourselves (whether via an option or post-init) is silently
+            // discarded. tAssistiveHint is the supported way in — it sets the text of the element
+            // describedby already references. Prepending the error and hint means both are
+            // announced on load and on focus, which is when they matter; the component drops the
+            // description once the user starts typing, by design.
+            var assistiveHint = (hasError ? 'Error: ' + errorText + '. ' : '')
+                + hintText + '. '
+                + 'When autocomplete results are available use up and down arrows to review and '
+                + 'enter to select. Touch device users, explore by touch or with swipe gestures.';
 
             accessibleAutocomplete({
                 element: document.querySelector('#pupil-search-container'),
@@ -93,11 +112,23 @@ else
                 displayMenu: 'overlay',
                 minLength: 2,
                 inputClasses: 'govuk-input' + (hasError ? ' govuk-input--error' : ''),
+                // Restore a previously selected pupil through the component, not the DOM
+                // (AB#295434) — see _Autocomplete.cshtml for the full rationale.
+                defaultValue: initialLabel,
+                tAssistiveHint: function () { return assistiveHint; },
+                // On a restricted search the component's default "No results found" reads as "you
+                // typed it wrong", when the student may simply hold no results. Saying which it is
+                // here is the only place the user sees it — the hint above is gone once they type.
+                // FLAGGED: copy needs content sign-off.
+                tNoResults: function () {
+                    return requireResults ? 'No students found with results' : 'No results found';
+                },
                 source: function (query, populateResults) {
                     var url = '/pupils/suggestions?windowId=' + windowId
                         + '&query=' + encodeURIComponent(query)
                         + '&filter=' + filter;
                     if (excludePupilId) url += '&excludePupilId=' + excludePupilId;
+                    if (requireResults) url += '&requireResults=true';
 
                     fetch(url)
                         .then(function (r) { return r.json(); })
@@ -116,8 +147,13 @@ else
                 confirmOnBlur: false
             });
 
+            // AB#295434 follow-up: seeds validChoiceMade via a synthetic Escape keydown
+            // so the restored field's first focus doesn't reopen the suggestion menu —
+            // see _Autocomplete.cshtml for the full rationale. Safe only because
+            // confirmOnBlur is false above.
             if (initialLabel) {
-                document.getElementById('pupil-search').value = initialLabel;
+                document.getElementById('pupil-search').dispatchEvent(
+                    new KeyboardEvent('keydown', { keyCode: 27, which: 27, key: 'Escape', bubbles: true }));
             }
         })();
     </script>

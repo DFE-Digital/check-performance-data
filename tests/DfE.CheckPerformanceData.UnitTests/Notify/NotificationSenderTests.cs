@@ -24,7 +24,10 @@ public sealed class NotificationSenderTests
         NotificationType type = NotificationType.SubmissionConfirmed,
         bool includeOrganisationUsers = true,
         string deadline = "5pm on Friday 26 June 2026",
-        string? linkUrl = null) =>
+        string? linkUrl = null,
+        string ceName = "KS4 June",
+        string learnerNoun = "Pupil",
+        string turnaroundCommitment = "updated in the Autumn") =>
         new()
         {
             Type = type,
@@ -33,7 +36,10 @@ public sealed class NotificationSenderTests
             LinkUrl = linkUrl,
             Ukprn = Ukprn,
             OriginatorEmail = OriginatorEmail,
-            IncludeOrganisationUsers = includeOrganisationUsers
+            IncludeOrganisationUsers = includeOrganisationUsers,
+            CeName = ceName,
+            LearnerNoun = learnerNoun,
+            TurnaroundCommitment = turnaroundCommitment
         };
 
     [Fact]
@@ -54,6 +60,7 @@ public sealed class NotificationSenderTests
             Arg.Is<IReadOnlyCollection<string>>(r =>
                 r.Contains(OriginatorEmail) && r.Contains(orgUserEmail) && r.Count == 2),
             Arg.Any<NotificationType>(),
+            Arg.Any<EmailSubstitutions>(),
             Arg.Any<string?>());
     }
 
@@ -69,6 +76,7 @@ public sealed class NotificationSenderTests
             string.Empty,
             Arg.Is<IReadOnlyCollection<string>>(r => r.Count == 1 && r.Contains(OriginatorEmail)),
             NotificationType.AmendmentWithdrawn,
+            Arg.Any<EmailSubstitutions>(),
             Arg.Any<string?>());
     }
 
@@ -89,6 +97,7 @@ public sealed class NotificationSenderTests
             Arg.Any<string>(),
             Arg.Is<IReadOnlyCollection<string>>(r => r.Count == 1 && r.Contains(OriginatorEmail)),
             Arg.Any<NotificationType>(),
+            Arg.Any<EmailSubstitutions>(),
             Arg.Any<string?>());
     }
 
@@ -106,6 +115,30 @@ public sealed class NotificationSenderTests
             "5pm on Friday 26 June 2026",
             Arg.Any<IReadOnlyCollection<string>>(),
             NotificationType.SubmissionConfirmed,
+            Arg.Is<EmailSubstitutions>(s =>
+                s.CeName == "KS4 June" && s.LearnerNoun == "Pupil" &&
+                s.TurnaroundCommitment == "updated in the Autumn"),
             linkUrl);
+    }
+
+    [Fact]
+    public async Task SendAsync_PassesSubstitutionFieldsThroughToNotifyService()
+    {
+        _dfESignInApiClient.GetOrganisationUsersAsync(Ukprn)
+            .Returns(new OrganisationUsersResponseDto { Users = [] });
+
+        await _sut.SendAsync(Message(
+            ceName: "16 to 19", learnerNoun: "Student", turnaroundCommitment: "updated in the Spring"));
+
+        await _notifyService.Received(1).SendNotificationsAsync(
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<IReadOnlyCollection<string>>(),
+            Arg.Any<NotificationType>(),
+            Arg.Is<EmailSubstitutions>(s =>
+                s.CeName == "16 to 19" && s.LearnerNoun == "Student" &&
+                s.TurnaroundCommitment == "updated in the Spring"),
+            Arg.Any<string?>(),
+            Arg.Any<IReadOnlyCollection<string>?>());
     }
 }

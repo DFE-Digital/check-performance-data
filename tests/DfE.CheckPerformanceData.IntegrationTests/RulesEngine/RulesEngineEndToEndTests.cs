@@ -27,7 +27,6 @@ namespace DfE.CheckPerformanceData.IntegrationTests.RulesEngine;
 /// proves the consumer writes back both the decision status and the outcome key.
 /// </summary>
 [Collection(nameof(PostgresCollection))]
-[Trait("Category", "W0")]
 public sealed class RulesEngineEndToEndTests
 {
     private static readonly RulesSnapshot Snapshot = LoadSeedSnapshot();

@@ -1,0 +1,447 @@
+@using System.Globalization
+@using DfE.CheckPerformanceData.Web.Controllers
+@using DfE.CheckPerformanceData.Web.Controllers.ViewModels
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.SearchAnalyticsIndexViewModel
+@{
+    ViewData["Title"] = "Search analytics";
+
+    static string FormatPercent(double value) =>
+        value.ToString("0.0", CultureInfo.InvariantCulture) + "%";
+
+    // Query cells link to /search?q=<query> in a new tab so admins can click into the
+    // site's own search results for the term they're investigating.
+    static string QuerySearchHref(string query) =>
+        "/search?q=" + Uri.EscapeDataString(query);
+
+    // Top-pages resolver: pages that look like URLs get a real anchor; bare block keys
+    // render as <code>. Same rule as the drill-in Pages.cshtml view.
+    static bool LooksLikeUrl(string key) =>
+        key.StartsWith('/') || key.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || key.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
+
+    // Cap the inline data-tables under each chart at 20 rows on the landing page so a
+    // 90-day-by-15-minute window (~8600 buckets) does not paint the DOM. Anything longer
+    // renders a "View all X data →" link to the per-series drill-in.
+    ViewContext.ViewData["sa-inline-row-cap"] = 20;
+    var rangeQs = SearchAnalyticsRangeQuery.Build(Model.RangeKey, Model.FromUtc, Model.ToUtc);
+    var chartQuery = $"{rangeQs}&bucket={Uri.EscapeDataString(Model.BucketKey)}";
+    ViewContext.ViewData["sa-drillin-volume-url"]  = $"/admin/Search/Volume?{chartQuery}";
+    ViewContext.ViewData["sa-drillin-latency-url"] = $"/admin/Search/LatencyOverTime?{chartQuery}";
+
+    // Anomaly-chip helper: renders a small tag beneath each stat tile summarising the
+    // percentage change from the previous same-length window. Deltas within ±10% render
+    // NOTHING (avoid clutter). Direction is coloured by whether the movement is
+    // favourable for the metric — searches↑ / users↑ = green, zero-result-rate↓ / p95↓ = green.
+    // "favourable" is passed in per tile because the semantics differ. Prior window may not
+    // be available (custom range whose prior falls beyond the sink's 90-day retention) — in
+    // that case a plain-text hint replaces the chip.
+    var priorWindowDays = (int)Math.Round((Model.ToUtc - Model.FromUtc).TotalDays, MidpointRounding.AwayFromZero);
+    if (priorWindowDays < 1) priorWindowDays = 1;
+
+    (string Sign, double DeltaPercent) ComputeDelta(double current, double prior)
+    {
+        if (prior <= 0)
+        {
+            if (current <= 0) return ("=", 0d);
+            return (">>", 999d);
+        }
+        var pct = ((current - prior) / prior) * 100d;
+        var sign = pct > 0 ? "↑" : (pct < 0 ? "↓" : "=");
+        return (sign, Math.Abs(pct));
+    }
+}
+
+<link rel="stylesheet" href="~/css/search-analytics.css" asp-append-version="true" />
+
+<h1 class="govuk-heading-xl">Search analytics</h1>
+
+<p class="govuk-body-l">
+    See what people are searching for, whether they find results, and where the content gaps are.
+    Figures cover the selected time window.
+</p>
+
+@await Html.PartialAsync("~/Views/Admin/Search/_TimeWindowFilterForm.cshtml", new TimeWindowFilterModel
+{
+    FormAction = "/admin/Search/",
+    RangeKey = Model.RangeKey,
+    FromUtc = Model.FromUtc,
+    ToUtc = Model.ToUtc,
+    BucketKey = Model.BucketKey,
+    ShowAggregateToggle = true,
+    AggregateOn = Model.AggregateMode,
+})
+
+@* Interactive tiles. Each tile is a real <button> so keyboard users can Tab-Enter to
+   switch chart. aria-pressed conveys the active state; the JS toggler + a CSS treatment
+   render the state visually. Tile 1 is aria-pressed=true on page load (the default view).
+   With JS disabled the click handler doesn't wire up — every chart stays visible so the
+   page still tells the truth. *@
+@{
+    // Pre-compute the four anomaly chips so the tile markup below stays legible. Only
+    // render a chip when |delta| >= 10%; otherwise the tile shows nothing beneath the
+    // value (noise-suppression, per acceptance).
+    var deltaSearches   = ComputeDelta(Model.Summary.TotalCount,             Model.SummaryDeltas.PriorTotalCount);
+    var deltaUsers      = ComputeDelta(Model.Summary.UniqueSessions,         Model.SummaryDeltas.PriorUniqueSessions);
+    var deltaZeroRate   = ComputeDelta(Model.Summary.ZeroResultRatePercent,  Model.SummaryDeltas.PriorZeroResultRatePercent);
+    var deltaP95        = ComputeDelta(Model.Summary.P95LatencyMs,           Model.SummaryDeltas.PriorP95LatencyMs);
+
+    string ChipClass(string sign, bool favourableUp)
+    {
+        if (sign == "=") return "sa-anomaly-chip--neutral";
+        var isUp = sign == "↑" || sign == ">>";
+        var isFavourable = (isUp && favourableUp) || (!isUp && !favourableUp);
+        return isFavourable ? "sa-anomaly-chip--favourable" : "sa-anomaly-chip--unfavourable";
+    }
+
+    string ChipText((string Sign, double DeltaPercent) d, int priorDays)
+    {
+        var suffix = priorDays == 1 ? "1 day" : $"{priorDays} days";
+        if (d.Sign == "=") return $"= no change vs previous {suffix}";
+        if (d.Sign == ">>") return $"↑ new vs previous {suffix}";
+        return $"{d.Sign} {d.DeltaPercent.ToString("0", CultureInfo.CurrentCulture)}% vs previous {suffix}";
+    }
+}
+
+<div class="govuk-grid-row sa-tiles">
+    <div class="govuk-grid-column-one-quarter">
+        <button type="button" class="sa-tile sa-tile--active" data-sa-tile="volume"
+                title="Total search requests captured in this time window."
+                aria-describedby="sa-tile-searches-hint" aria-pressed="true">
+            <p class="govuk-heading-xl sa-tile__value">@Model.Summary.TotalCount.ToString("N0", CultureInfo.CurrentCulture)</p>
+            <p class="govuk-body-s sa-tile__label">Searches</p>
+            @if (Model.SummaryDeltas.Available && deltaSearches.DeltaPercent >= 10)
+            {
+                <span class="sa-anomaly-chip @ChipClass(deltaSearches.Sign, favourableUp: true)"
+                      data-sa-chip="searches">@ChipText(deltaSearches, priorWindowDays)</span>
+            }
+            else if (!Model.SummaryDeltas.Available)
+            {
+                <span class="sa-anomaly-hint govuk-body-s"
+                      data-sa-chip="searches">compared to previous @priorWindowDays days — insufficient prior data</span>
+            }
+            <span id="sa-tile-searches-hint" class="govuk-visually-hidden">Total search requests captured in this time window. Click to show the searches-over-time chart.</span>
+        </button>
+    </div>
+    <div class="govuk-grid-column-one-quarter">
+        <button type="button" class="sa-tile" data-sa-tile="unique-users"
+                title="Distinct anonymous session IDs that ran at least one search in this window."
+                aria-describedby="sa-tile-users-hint" aria-pressed="false">
+            <p class="govuk-heading-xl sa-tile__value">@Model.Summary.UniqueSessions.ToString("N0", CultureInfo.CurrentCulture)</p>
+            <p class="govuk-body-s sa-tile__label">Unique users</p>
+            @if (Model.SummaryDeltas.Available && deltaUsers.DeltaPercent >= 10)
+            {
+                <span class="sa-anomaly-chip @ChipClass(deltaUsers.Sign, favourableUp: true)"
+                      data-sa-chip="users">@ChipText(deltaUsers, priorWindowDays)</span>
+            }
+            else if (!Model.SummaryDeltas.Available)
+            {
+                <span class="sa-anomaly-hint govuk-body-s"
+                      data-sa-chip="users">compared to previous @priorWindowDays days — insufficient prior data</span>
+            }
+            <span id="sa-tile-users-hint" class="govuk-visually-hidden">Distinct anonymous session IDs that ran at least one search in this window. Click to show the unique-sessions-over-time chart.</span>
+        </button>
+    </div>
+    <div class="govuk-grid-column-one-quarter">
+        <button type="button" class="sa-tile" data-sa-tile="zero-results"
+                title="Percentage of searches that returned no page or content-block hits."
+                aria-describedby="sa-tile-zero-hint" aria-pressed="false">
+            <p class="govuk-heading-xl sa-tile__value">@FormatPercent(Model.Summary.ZeroResultRatePercent)</p>
+            <p class="govuk-body-s sa-tile__label">Zero-result rate</p>
+            @if (Model.SummaryDeltas.Available && deltaZeroRate.DeltaPercent >= 10)
+            {
+                <span class="sa-anomaly-chip @ChipClass(deltaZeroRate.Sign, favourableUp: false)"
+                      data-sa-chip="zero-rate">@ChipText(deltaZeroRate, priorWindowDays)</span>
+            }
+            else if (!Model.SummaryDeltas.Available)
+            {
+                <span class="sa-anomaly-hint govuk-body-s"
+                      data-sa-chip="zero-rate">compared to previous @priorWindowDays days — insufficient prior data</span>
+            }
+            <span id="sa-tile-zero-hint" class="govuk-visually-hidden">Percentage of searches that returned no page or content-block hits. Click to show the zero-result-count-over-time chart.</span>
+        </button>
+    </div>
+    <div class="govuk-grid-column-one-quarter">
+        <button type="button" class="sa-tile" data-sa-tile="latency"
+                title="The 95th-percentile search response time (in milliseconds) over this window — 5% of searches were slower than this."
+                aria-describedby="sa-tile-p95-hint" aria-pressed="false">
+            <p class="govuk-heading-xl sa-tile__value">@Model.Summary.P95LatencyMs.ToString("N0", CultureInfo.CurrentCulture)&nbsp;ms</p>
+            <p class="govuk-body-s sa-tile__label">P95 latency</p>
+            @if (Model.SummaryDeltas.Available && deltaP95.DeltaPercent >= 10)
+            {
+                <span class="sa-anomaly-chip @ChipClass(deltaP95.Sign, favourableUp: false)"
+                      data-sa-chip="p95">@ChipText(deltaP95, priorWindowDays)</span>
+            }
+            else if (!Model.SummaryDeltas.Available)
+            {
+                <span class="sa-anomaly-hint govuk-body-s"
+                      data-sa-chip="p95">compared to previous @priorWindowDays days — insufficient prior data</span>
+            }
+            <span id="sa-tile-p95-hint" class="govuk-visually-hidden">The 95th-percentile search response time in milliseconds over this window; 5% of searches were slower than this. Click to show the latency-percentiles-over-time chart.</span>
+        </button>
+    </div>
+</div>
+
+@* Four chart panels. All render server-side; the JS toggler hides the three non-default
+   panels on load (via the .sa-chart--hidden class + hidden attribute). Data-sa-panel
+   maps to the tile's data-sa-tile so a click on tile X reveals panel X. Progressive
+   enhancement: with JS disabled all four charts remain visible stacked.
+
+   In aggregate mode each chart's X-axis reads Mon 00:00 .. Sun 23:00 (168 cyclic buckets);
+   otherwise it's the raw time-series over the selected window. Titles unified per tile —
+   the outer section header carries the label; the inner _VolumeChart partial's own
+   "Volume over time" header has been removed to avoid a duplicated title. *@
+<div class="sa-chart-panel" data-sa-panel="volume">
+    <h2 class="govuk-heading-m">Search volume over time@(Model.AggregateMode ? " — typical week" : "")</h2>
+    @await Html.PartialAsync("~/Views/Admin/Search/_VolumeChart.cshtml", Model.VolumeSeries)
+</div>
+
+<div class="sa-chart-panel" data-sa-panel="unique-users">
+    <h2 class="govuk-heading-m">Unique sessions over time@(Model.AggregateMode ? " — typical week" : "")</h2>
+    @await Html.PartialAsync("~/Views/Admin/Search/_SingleSeriesChart.cshtml", new SingleSeriesChartModel
+    {
+        Series = Model.UniqueSessionsSeries,
+        Title = "Unique sessions over time",
+        YAxisLabel = "Unique sessions",
+        SeriesColour = "#00703c",
+        DrillInUrl = $"/admin/Search/UniqueUsers?{chartQuery}",
+        DrillInLinkText = "View all unique-sessions data",
+    })
+</div>
+
+<div class="sa-chart-panel" data-sa-panel="zero-results">
+    <h2 class="govuk-heading-m">Zero-result count over time@(Model.AggregateMode ? " — typical week" : "")</h2>
+    @await Html.PartialAsync("~/Views/Admin/Search/_SingleSeriesChart.cshtml", new SingleSeriesChartModel
+    {
+        Series = Model.ZeroResultCountSeries,
+        Title = "Zero-result count over time",
+        YAxisLabel = "Zero-result searches",
+        SeriesColour = "#d4351c",
+        DrillInUrl = $"/admin/Search/ZeroResultsOverTime?{chartQuery}",
+        DrillInLinkText = "View all zero-result data",
+    })
+</div>
+
+@* The latency tile drives TWO stacked panels — the top one is the percentile chart
+   (same partial as before) and the bottom one is the request-timings scatter. Both
+   panels carry data-sa-panel="latency" so the interactive tile switcher's key match
+   toggles both at once — a single map key, two visible panels. Progressive
+   enhancement: with JS disabled both panels remain visible along with every other
+   chart panel, so the page still tells the truth. *@
+<div class="sa-chart-panel" data-sa-panel="latency">
+    <h2 class="govuk-heading-m">Latency percentiles over time@(Model.AggregateMode ? " — typical week" : "")</h2>
+    @await Html.PartialAsync("~/Views/Admin/Search/_LatencyChart.cshtml", Model.LatencyPercentileSeries)
+</div>
+
+<div class="sa-chart-panel" data-sa-panel="latency">
+    <h2 class="govuk-heading-m">Request timings</h2>
+    @await Html.PartialAsync("~/Views/Admin/Search/_ScatterChart.cshtml", new DfE.CheckPerformanceData.Web.Controllers.ViewModels.ScatterChartModel
+    {
+        Points = Model.RequestTimings,
+        SampledCount = Model.RequestTimings.Count,
+        TotalCount = Model.RequestTimingsTotalCount,
+        DrillInUrl = $"/admin/Search/RequestTimings?{chartQuery}",
+    })
+</div>
+
+@* Heatmap card (weekday × hour-of-day). Server-rendered SVG grid — no client-side
+   chart library. Positioned between the interactive charts and the top-N tables. *@
+@{
+    var heatmapViewData = new ViewDataDictionary(ViewData)
+    {
+        ["RangeKey"] = Model.RangeKey,
+        ["RangeQuery"] = rangeQs,
+    };
+}
+@await Html.PartialAsync("~/Views/Admin/Search/_WeekdayHourHeatmap.cshtml", Model.WeekdayHourGrid, heatmapViewData)
+
+@* Zero-result outcomes funnel card. Session-level rollup — the acceptance calls it
+   "wonderful for a client demo" so the empty-state copy and tile alignment matter. *@
+@{
+    var funnelViewData = new ViewDataDictionary(ViewData)
+    {
+        ["ZeroResultRecoveryStats"] = Model.RecoveryStats,
+        ["RangeKey"] = Model.RangeKey,
+        ["RangeQuery"] = rangeQs,
+    };
+}
+@await Html.PartialAsync("~/Views/Admin/Search/_ZeroResultFunnel.cshtml", Model.ZeroResultOutcomes, funnelViewData)
+
+@* Top queries + top zero-result queries + top pages. Each in its own summary card so the
+   three tables share layout conventions. Top pages replaces the old bottom link. *@
+<div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
+        <div class="govuk-summary-card govuk-!-margin-bottom-6 sa-summary-card">
+            <div class="govuk-summary-card__title-wrapper">
+                <h2 class="govuk-summary-card__title">Top queries</h2>
+            </div>
+            <div class="govuk-summary-card__content">
+                @if (Model.TopQueries.Count == 0)
+                {
+                    <p class="govuk-body">No queries recorded in this window.</p>
+                }
+                else
+                {
+                    <table class="govuk-table">
+                        <caption class="govuk-table__caption govuk-table__caption--s govuk-visually-hidden">Top @Model.TopQueries.Count queries in the selected window</caption>
+                        <thead class="govuk-table__head">
+                            <tr class="govuk-table__row">
+                                <th class="govuk-table__header" scope="col" title="The normalised search term users typed. Grouped so 'Widget' and 'widget' count together.">Query</th>
+                                <th class="govuk-table__header govuk-table__header--numeric" scope="col" title="How many times this query was fired in the selected window.">Searches</th>
+                            </tr>
+                        </thead>
+                        <tbody class="govuk-table__body">
+                            @foreach (var row in Model.TopQueries)
+                            {
+                                <tr class="govuk-table__row">
+                                    <td class="govuk-table__cell">
+                                        <a class="govuk-link" href="@QuerySearchHref(row.QueryNormalised)"
+                                           target="_blank" rel="noopener noreferrer">@row.QueryNormalised</a>
+                                    </td>
+                                    <td class="govuk-table__cell govuk-table__cell--numeric">@row.Count.ToString("N0", CultureInfo.CurrentCulture)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                    <p class="govuk-body"><a class="govuk-link" href="/admin/Search/Queries?@rangeQs">View all top queries &rarr;</a></p>
+                }
+            </div>
+        </div>
+
+        <div class="govuk-summary-card govuk-!-margin-bottom-6 sa-summary-card">
+            <div class="govuk-summary-card__title-wrapper">
+                <h2 class="govuk-summary-card__title">Top zero-result queries</h2>
+            </div>
+            <div class="govuk-summary-card__content">
+                @if (Model.TopZeroResultQueries.Count == 0)
+                {
+                    <p class="govuk-body">No zero-result queries recorded in this window.</p>
+                }
+                else
+                {
+                    <table class="govuk-table">
+                        <caption class="govuk-table__caption govuk-table__caption--s govuk-visually-hidden">Top @Model.TopZeroResultQueries.Count zero-result queries in the selected window</caption>
+                        <thead class="govuk-table__head">
+                            <tr class="govuk-table__row">
+                                <th class="govuk-table__header" scope="col" title="The normalised search term users typed. Grouped so 'Widget' and 'widget' count together.">Query</th>
+                                <th class="govuk-table__header govuk-table__header--numeric" scope="col" title="How many times this query was fired in the selected window (all of which returned no results).">Searches</th>
+                            </tr>
+                        </thead>
+                        <tbody class="govuk-table__body">
+                            @foreach (var row in Model.TopZeroResultQueries)
+                            {
+                                <tr class="govuk-table__row">
+                                    <td class="govuk-table__cell">
+                                        <a class="govuk-link" href="@QuerySearchHref(row.QueryNormalised)"
+                                           target="_blank" rel="noopener noreferrer">@row.QueryNormalised</a>
+                                    </td>
+                                    <td class="govuk-table__cell govuk-table__cell--numeric">@row.Count.ToString("N0", CultureInfo.CurrentCulture)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                    <p class="govuk-body"><a class="govuk-link" href="/admin/Search/ZeroResults?@rangeQs">View all zero-result queries &rarr;</a></p>
+                }
+            </div>
+        </div>
+
+        <div class="govuk-summary-card govuk-!-margin-bottom-6 sa-summary-card">
+            <div class="govuk-summary-card__title-wrapper">
+                <h2 class="govuk-summary-card__title">Top pages</h2>
+            </div>
+            <div class="govuk-summary-card__content">
+                @if (Model.TopPages.Count == 0)
+                {
+                    <p class="govuk-body">No pages surfaced in this window.</p>
+                }
+                else
+                {
+                    <table class="govuk-table">
+                        <caption class="govuk-table__caption govuk-table__caption--s govuk-visually-hidden">Top @Model.TopPages.Count pages by search impressions in the selected window</caption>
+                        <thead class="govuk-table__head">
+                            <tr class="govuk-table__row">
+                                <th class="govuk-table__header" scope="col" title="URL of the page that appeared in results.">Page</th>
+                                <th class="govuk-table__header govuk-table__header--numeric" scope="col" title="How many times this page appeared in any user's result set in the window.">Impressions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="govuk-table__body">
+                            @foreach (var row in Model.TopPages)
+                            {
+                                <tr class="govuk-table__row">
+                                    <td class="govuk-table__cell">
+                                        @if (LooksLikeUrl(row.ResultKey))
+                                        {
+                                            <a class="govuk-link" href="@row.ResultKey"
+                                               target="_blank" rel="noopener noreferrer">@row.ResultKey</a>
+                                        }
+                                        else
+                                        {
+                                            <code>@row.ResultKey</code>
+                                        }
+                                    </td>
+                                    <td class="govuk-table__cell govuk-table__cell--numeric">@row.ImpressionCount.ToString("N0", CultureInfo.CurrentCulture)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                    @if (Model.TopPagesTotalCount > Model.TopPages.Count)
+                    {
+                        <p class="govuk-body"><a class="govuk-link" href="/admin/Search/Pages?@rangeQs">View all top pages by search impressions &rarr;</a></p>
+                    }
+                }
+            </div>
+        </div>
+
+        @* Top content blocks — sibling of Top pages, split so block keys (which are not
+           navigable URLs) don't sit mid-list in a card the reader expects to be pages. *@
+        <div class="govuk-summary-card govuk-!-margin-bottom-6 sa-summary-card">
+            <div class="govuk-summary-card__title-wrapper">
+                <h2 class="govuk-summary-card__title">Top content blocks</h2>
+            </div>
+            <div class="govuk-summary-card__content">
+                @if (Model.TopBlocks.Count == 0)
+                {
+                    <p class="govuk-body">No content blocks surfaced in this window.</p>
+                }
+                else
+                {
+                    <table class="govuk-table">
+                        <caption class="govuk-table__caption govuk-table__caption--s govuk-visually-hidden">Top @Model.TopBlocks.Count content blocks by search impressions in the selected window</caption>
+                        <thead class="govuk-table__head">
+                            <tr class="govuk-table__row">
+                                <th class="govuk-table__header" scope="col" title="Key of the content block that appeared in results. Blocks render inside pages and do not have their own URL.">Content block</th>
+                                <th class="govuk-table__header govuk-table__header--numeric" scope="col" title="How many times this block appeared in any user's result set in the window.">Impressions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="govuk-table__body">
+                            @foreach (var row in Model.TopBlocks)
+                            {
+                                <tr class="govuk-table__row">
+                                    <td class="govuk-table__cell"><code>@row.ResultKey</code></td>
+                                    <td class="govuk-table__cell govuk-table__cell--numeric">@row.ImpressionCount.ToString("N0", CultureInfo.CurrentCulture)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                    @if (Model.TopBlocksTotalCount > Model.TopBlocks.Count)
+                    {
+                        <p class="govuk-body"><a class="govuk-link" href="/admin/Search/Blocks?@rangeQs">View all top content blocks by search impressions &rarr;</a></p>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (Model.TotalRowCount == 0)
+{
+    <div class="govuk-inset-text govuk-!-margin-top-6">
+        No searches recorded in this window. Widen the time range or check back later &mdash; the tiles above will populate as soon as any searches land.
+    </div>
+}
+else if (Model.TotalRowCount < SearchAnalyticsController.SmallSampleThreshold)
+{
+    <div class="govuk-inset-text govuk-!-margin-top-6">
+        Small sample: @Model.TotalRowCount.ToString("N0", CultureInfo.CurrentCulture) searches in this window. Percentiles and rates above are noisy at this scale &mdash; widen the range to firm up the numbers.
+    </div>
+}
+
+<script src="~/js/search-analytics.js" asp-append-version="true"></script>

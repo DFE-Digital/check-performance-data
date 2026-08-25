@@ -1,8 +1,10 @@
-@using DfE.CheckPerformanceData.Application.CheckYourPupilData
 @model DfE.CheckPerformanceData.Web.Controllers.WhatToChangeViewModel;
+@using DfE.CheckPerformanceData.Domain.Enums
+@using DfE.CheckPerformanceData.Web.Controllers.Journey
 
 @{
-    ViewBag.Title = "What to change";
+    // Matches the <h1> the radios legend renders (is-page-heading="true").
+    ViewBag.Title = "What pupil data would you like to amend?";
     Layout = "_Layout";
 }
 
@@ -23,6 +25,11 @@
             <govuk-radios-item value="@WhatToChange.Merge">Merge duplicate pupil records</govuk-radios-item>
             <govuk-radios-item value="@WhatToChange.Include">Include a pupil in data</govuk-radios-item>
             <govuk-radios-item value="@WhatToChange.Remove">Remove a pupil from data</govuk-radios-item>
+            @if (Model.CheckingWindowType is { } windowType
+                && AddPupilJourney.SupportedWindowTypes.Contains(windowType))
+            {
+                <govuk-radios-item value="@WhatToChange.Add">Add a pupil to data</govuk-radios-item>
+            }
         </govuk-radios-fieldset>
     </govuk-radios>
 

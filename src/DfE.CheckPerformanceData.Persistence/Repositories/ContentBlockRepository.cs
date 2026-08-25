@@ -37,17 +37,46 @@ public sealed class ContentBlockRepository(IPortalDbContext context) : IContentB
         //
         // Manual Select (not ProjectToDto) because ContentBlockDto.Rank needs the row's
         // ts_rank result and Mapperly can't compose that with the entity mapping.
+        //
+        // The widened projection surfaces every tsquery-matching row — kept rows carry
+        // ExcludedBy = null, dropped rows carry a slug identifying which silent filter
+        // discarded them ("e2e-key", "guidance-ks4-2026-nav-key",
+        // "contentblock-appearinsearch-false"). Two per-field ts_rank columns (Keywords
+        // and Value) ride alongside the combined Rank so downstream telemetry can answer
+        // "why did this rank above that". The three .Where filters that used to drop rows
+        // become CASE branches; the FTS predicate stays as WHERE. Two subqueries with
+        // independent Take values (take for kept, take*3 for excluded) UNION-ALL together
+        // so a high-exclusion corpus can't starve exclusion visibility.
         var normalisedQuery = Application.Search.SearchTermNormalizer.OrJoinWhitespace(query);
-        return await context.ContentBlocks
+
+        var widened = context.ContentBlocks
             .AsNoTracking()
-            .Where(b => !b.Key.StartsWith("e2e-") && b.Key != "guidance-ks4-2026-nav")
-            .Where(b => b.AppearInSearch)
             .Where(b => b.SearchVector.Matches(EF.Functions.WebSearchToTsQuery("english", normalisedQuery)))
             .Select(b => new
             {
                 Block = b,
-                Rank = b.SearchVector.Rank(EF.Functions.WebSearchToTsQuery("english", normalisedQuery))
-            })
+                // Combined Rank on the tsvector column.
+                Rank = b.SearchVector.Rank(EF.Functions.WebSearchToTsQuery("english", normalisedQuery)),
+                // Per-field ranks — additive projections; every WebSearchToTsQuery call
+                // site inlined (its config arg is [NotParameterized]; hoisting throws).
+                RankKeywords = (float?)EF.Functions.ToTsVector("english", b.Keywords ?? string.Empty)
+                    .Rank(EF.Functions.WebSearchToTsQuery("english", normalisedQuery)),
+                RankValue = (float?)EF.Functions.ToTsVector("english", b.ValuePlainText)
+                    .Rank(EF.Functions.WebSearchToTsQuery("english", normalisedQuery)),
+                // Chained ternary translates to CASE WHEN. Precedence: key-prefix filter
+                // runs before the AppearInSearch check.
+                ExcludedBy = b.Key.StartsWith("e2e-")
+                    ? "e2e-key"
+                    : b.Key == "guidance-ks4-2026-nav"
+                        ? "guidance-ks4-2026-nav-key"
+                        : !b.AppearInSearch
+                            ? "contentblock-appearinsearch-false"
+                            : (string?)null,
+            });
+
+        // Kept rows LIMITed at the user-facing count with the shipped ORDER BY.
+        var keptQuery = widened
+            .Where(x => x.ExcludedBy == null)
             .OrderByDescending(x => x.Rank)
             .ThenBy(x => x.Block.Key)  // stable tie-break
             .Take(take)
@@ -63,10 +92,46 @@ public sealed class ContentBlockRepository(IPortalDbContext context) : IContentB
                 AppearInSearch = x.Block.AppearInSearch,
                 Keywords = x.Block.Keywords,
                 Rank = x.Rank,
+                RankKeywords = x.RankKeywords,
+                RankValue = x.RankValue,
+                ExcludedBy = x.ExcludedBy,
                 CreatedAt = x.Block.CreatedAt,
                 UpdatedAt = x.Block.UpdatedAt,
-            })
-            .ToListAsync();
+            });
+
+        // Excluded rows soft-capped at take * 3 — visibility for telemetry without a
+        // runaway scan when a corpus has thousands of hidden-from-search rows. Same ORDER
+        // BY as the kept subquery so the top-ranked exclusions surface first (most
+        // diagnostically interesting: rows that came close to being a hit) and the subset
+        // is deterministic between runs.
+        var excludedQuery = widened
+            .Where(x => x.ExcludedBy != null)
+            .OrderByDescending(x => x.Rank)
+            .ThenBy(x => x.Block.Key)
+            .Take(take * 3)
+            .Select(x => new ContentBlockDto
+            {
+                Id = x.Block.Id,
+                ContentId = x.Block.ContentId,
+                Key = x.Block.Key,
+                BlockType = x.Block.BlockType,
+                Value = x.Block.Value,
+                LastSeenPath = x.Block.LastSeenPath,
+                LastSeenAt = x.Block.LastSeenAt,
+                AppearInSearch = x.Block.AppearInSearch,
+                Keywords = x.Block.Keywords,
+                Rank = x.Rank,
+                RankKeywords = x.RankKeywords,
+                RankValue = x.RankValue,
+                ExcludedBy = x.ExcludedBy,
+                CreatedAt = x.Block.CreatedAt,
+                UpdatedAt = x.Block.UpdatedAt,
+            });
+
+        // LINQ Concat translates to SQL UNION ALL — kept rows first (up to take), then the
+        // excluded rows (up to take * 3). Downstream consumers filter ExcludedBy != null
+        // out of user-facing surfaces and into telemetry.
+        return await keptQuery.Concat(excludedQuery).ToListAsync();
     }
 
     public async Task<ContentBlockDto?> GetByContentIdAsync(Guid contentId) =>

@@ -15,4 +15,14 @@ public sealed record ContentBlockSearchResultDto
 
     /// <summary>ts_rank score of the block's search vector. Surfaced in an HTML comment on the search view for debugging.</summary>
     public float Rank { get; init; }
+
+    /// <summary>Per-field ts_rank for the Keywords column (weight A on the ContentBlock vector).
+    /// Populated on rows built from the widened search projection; null on rows built by
+    /// non-search code paths.</summary>
+    public float? RankKeywords { get; init; }
+
+    /// <summary>Per-field ts_rank for the ValuePlainText column (weight B on the ContentBlock
+    /// vector). Populated on rows built from the widened search projection; null on rows built
+    /// by non-search code paths.</summary>
+    public float? RankValue { get; init; }
 }

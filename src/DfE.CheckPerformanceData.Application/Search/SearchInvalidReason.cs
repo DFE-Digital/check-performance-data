@@ -7,4 +7,9 @@ public enum SearchInvalidReason
 {
     EmptyQuery,
     BelowMinimumLength,
+
+    // The search backend was unreachable (typically a DbException from the Postgres driver).
+    // The Application tier surfaces this as a data value; callers pick their own UX (503 page
+    // or inline warning).
+    DataStoreUnavailable,
 }

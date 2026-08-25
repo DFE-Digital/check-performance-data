@@ -1,0 +1,473 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.SeedSampleSearchDataViewModel
+@inject Microsoft.Extensions.Hosting.IHostEnvironment HostEnv
+@{
+    ViewData["Title"] = "Seed sample search data";
+    // Delete-all wipes EVERY row in the sink, including live user traffic. Whitelist
+    // the environments it may render / submit in — Development, Review (per-PR review
+    // app) and QA (shared Azure test environment). Preproduction and Production must
+    // never render this button. The endpoint mirrors the same check server-side; the
+    // view gate is UX belt-and-braces.
+    var deleteAllAllowed = HostEnv.IsSampleDataAdminEnvironment();
+    var progressUrl = "/admin/test-data/sample-search-data/progress";
+    var cancelUrlBase = "/admin/test-data/sample-search-data/";
+    var dashboardUrl = "/admin/Search/";
+    var activeJobId = Model.ActiveJobId?.ToString();
+    // Persisted per-event seconds rate: rendered in InvariantCulture so a Windows host
+    // with a comma-decimal locale never emits "0,1" here (would break Number(...) on
+    // the client side).
+    var secondsPerEventText = Model.SecondsPerEvent
+        .ToString("0.######", System.Globalization.CultureInfo.InvariantCulture);
+}
+
+<a class="govuk-back-link" href="/admin">Back to administration</a>
+
+<h1 class="govuk-heading-xl">Seed sample search data</h1>
+
+@if (!string.IsNullOrEmpty(Model.SuccessBanner))
+{
+    <div class="govuk-notification-banner govuk-notification-banner--success" role="alert"
+         aria-labelledby="seed-search-banner-title" data-module="govuk-notification-banner"
+         data-testid="seed-sample-search-data-banner">
+        <div class="govuk-notification-banner__header">
+            <h2 class="govuk-notification-banner__title" id="seed-search-banner-title">Success</h2>
+        </div>
+        <div class="govuk-notification-banner__content">
+            <p class="govuk-notification-banner__heading">
+                @Model.SuccessBanner
+                <a class="govuk-notification-banner__link" href="@dashboardUrl">View the analytics dashboard</a>.
+            </p>
+        </div>
+    </div>
+}
+
+<div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+        <p class="govuk-body-l">
+            Generate a plausible mix of search events and feedback messages spanning a chosen
+            time window so the search-analytics dashboard has demo content.
+        </p>
+        <p class="govuk-body">
+            Rows written by this tool are indistinguishable from real search activity — they
+            appear on the analytics dashboard, in the admin messages inbox, and in the
+            top-queries tables. The retention job eventually purges seeded rows alongside real
+            events (per the 90-day search-events window and 365-day search-messages window).
+        </p>
+        <p class="govuk-body">
+            This page is available only in the local development environment; the endpoint
+            returns 404 in Test and Production.
+        </p>
+
+        <form method="post" action="/admin/test-data/sample-search-data"
+              id="seed-sample-search-data-form"
+              data-testid="seed-sample-search-data-form"
+              data-progress-url="@progressUrl"
+              data-cancel-url-base="@cancelUrlBase"
+              data-dashboard-url="@dashboardUrl"
+              data-resume-job-id="@activeJobId"
+              data-seconds-per-event="@secondsPerEventText">
+            @Html.AntiForgeryToken()
+
+            <fieldset class="govuk-fieldset">
+                <legend class="govuk-fieldset__legend govuk-fieldset__legend--m">
+                    <h2 class="govuk-fieldset__heading">Time span preset</h2>
+                </legend>
+                <div class="govuk-hint">
+                    Presets set both the window width and a plausible default row count. Pick
+                    the shortest window that gives the dashboard enough data for what you are
+                    demoing.
+                </div>
+                <div class="govuk-radios" data-module="govuk-radios">
+                    <div class="govuk-radios__item">
+                        <input class="govuk-radios__input" id="preset-24h" name="preset"
+                               type="radio" value="24h" checked
+                               aria-describedby="preset-24h-hint" />
+                        <label class="govuk-label govuk-radios__label" for="preset-24h">
+                            Last 24 hours
+                        </label>
+                        <div id="preset-24h-hint" class="govuk-hint govuk-radios__hint">
+                            About 500 events, spread with a working-hours weighting.
+                        </div>
+                    </div>
+                    <div class="govuk-radios__item">
+                        <input class="govuk-radios__input" id="preset-week" name="preset"
+                               type="radio" value="week"
+                               aria-describedby="preset-week-hint" />
+                        <label class="govuk-label govuk-radios__label" for="preset-week">
+                            Last week
+                        </label>
+                        <div id="preset-week-hint" class="govuk-hint govuk-radios__hint">
+                            About 2,000 events over the last 7 days.
+                        </div>
+                    </div>
+                    <div class="govuk-radios__item">
+                        <input class="govuk-radios__input" id="preset-month" name="preset"
+                               type="radio" value="month"
+                               aria-describedby="preset-month-hint" />
+                        <label class="govuk-label govuk-radios__label" for="preset-month">
+                            Last month
+                        </label>
+                        <div id="preset-month-hint" class="govuk-hint govuk-radios__hint">
+                            About 8,000 events over the last 30 days.
+                        </div>
+                    </div>
+                    <div class="govuk-radios__item">
+                        <input class="govuk-radios__input" id="preset-quarter" name="preset"
+                               type="radio" value="quarter"
+                               aria-describedby="preset-quarter-hint" />
+                        <label class="govuk-label govuk-radios__label" for="preset-quarter">
+                            Last quarter
+                        </label>
+                        <div id="preset-quarter-hint" class="govuk-hint govuk-radios__hint">
+                            About 25,000 events over the last 90 days.
+                        </div>
+                    </div>
+                    <div class="govuk-radios__item">
+                        <input class="govuk-radios__input" id="preset-year" name="preset"
+                               type="radio" value="year"
+                               aria-describedby="preset-year-hint" />
+                        <label class="govuk-label govuk-radios__label" for="preset-year">
+                            Last year
+                        </label>
+                        <div id="preset-year-hint" class="govuk-hint govuk-radios__hint">
+                            About 80,000 events over the last 365 days. Takes a few seconds.
+                        </div>
+                    </div>
+                </div>
+            </fieldset>
+
+            <details class="govuk-details" data-module="govuk-details">
+                <summary class="govuk-details__summary">
+                    <span class="govuk-details__summary-text">Advanced — override the row counts</span>
+                </summary>
+                <div class="govuk-details__text">
+                    <div class="govuk-form-group">
+                        <label class="govuk-label" for="eventCount">Events to seed</label>
+                        <div class="govuk-hint">Leave blank to use the preset default.</div>
+                        <input class="govuk-input govuk-input--width-5" id="eventCount"
+                               name="eventCount" type="number" min="1" max="200000"
+                               inputmode="numeric" />
+                    </div>
+                    <div class="govuk-form-group">
+                        <label class="govuk-label" for="messageCount">Feedback messages to seed</label>
+                        <div class="govuk-hint">Leave blank to use ~8% of the events count.</div>
+                        <input class="govuk-input govuk-input--width-5" id="messageCount"
+                               name="messageCount" type="number" min="0" max="20000"
+                               inputmode="numeric" />
+                    </div>
+                </div>
+            </details>
+
+            <button type="submit" class="govuk-button" data-module="govuk-button"
+                    id="seed-sample-search-data-submit"
+                    data-testid="seed-sample-search-data-submit"
+                    data-idle-label="Seed data" data-busy-label="Seeding…">
+                Seed data
+            </button>
+        </form>
+
+        <p class="govuk-body-s govuk-hint">
+            Existing search data is not deleted — click multiple times to accumulate more.
+            To clear the sink, use the Danger zone tools. Cancel on the progress modal
+            interrupts the current seed and rolls back every row it wrote in this run.
+        </p>
+
+        <hr class="govuk-section-break govuk-section-break--l govuk-section-break--visible" />
+
+        <h2 class="govuk-heading-m" id="danger-zone-heading">Danger zone</h2>
+
+        <div class="govuk-warning-text">
+            <span class="govuk-warning-text__icon" aria-hidden="true">!</span>
+            <strong class="govuk-warning-text__text">
+                <span class="govuk-visually-hidden">Warning</span>
+                These actions are destructive and cannot be undone. Both are limited to the
+                local development environment.
+            </strong>
+        </div>
+
+        @* Delete seeded — filters WHERE is_seeded = true across the three sink tables.
+           Progressive-enhancement: with JS disabled, the button submits synchronously and
+           the modal degrades to a plain warning-text-plus-button pair. *@
+        <form method="post" action="/admin/test-data/sample-search-data/delete-seeded"
+              id="delete-seeded-form"
+              data-testid="delete-seeded-form">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="govuk-button govuk-button--warning"
+                    data-module="govuk-button"
+                    data-testid="delete-seeded-open"
+                    data-open-modal="delete-seeded-modal">
+                Delete seeded data
+            </button>
+        </form>
+
+        @* Delete all — same shape but adds a typed-confirmation gate. The confirm=DELETE
+           form field is populated by JS from the input; JS-less fallback submits the
+           button with a hidden confirm=DELETE input pre-populated so the endpoint still
+           accepts the request.
+
+           Env-gated: rendered only in Development + Review + QA. The controller endpoint enforces
+           the same allowlist server-side, so hiding the button is the UX layer of a
+           defence-in-depth pair — nobody accidentally clicks a button that isn't there. *@
+        @if (deleteAllAllowed)
+        {
+            <form method="post" action="/admin/test-data/sample-search-data/delete-all"
+                  id="delete-all-form"
+                  data-testid="delete-all-form">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="confirm" value="DELETE" data-role="delete-all-confirm-hidden" />
+                <button type="submit" class="govuk-button govuk-button--warning"
+                        data-module="govuk-button"
+                        data-testid="delete-all-open"
+                        data-open-modal="delete-all-modal">
+                    Delete all data
+                </button>
+            </form>
+        }
+    </div>
+</div>
+
+@* Confirm modal — delete seeded. Mirrors the seed-progress-modal <dialog> shape so
+   the same JS open/close primitives can drive it. *@
+<dialog id="delete-seeded-modal"
+        class="govuk-modal-dialogue__box seed-progress-modal"
+        aria-labelledby="delete-seeded-modal-title"
+        aria-describedby="delete-seeded-modal-body"
+        aria-modal="true"
+        tabindex="-1"
+        data-testid="delete-seeded-modal">
+    <div class="govuk-modal-dialogue__header">
+        <button type="button" class="govuk-modal-dialogue__close" aria-label="close"
+                data-element="govuk-modal-dialogue-close" data-modal-close>&times;</button>
+    </div>
+    <div class="govuk-modal-dialogue__content">
+        <h2 class="govuk-modal-dialogue__heading govuk-heading-l"
+            id="delete-seeded-modal-title">Delete seeded search data?</h2>
+        <div id="delete-seeded-modal-body" class="govuk-body">
+            <p class="govuk-body">
+                This deletes every search event, result row and feedback message the sample-data
+                seeder created. Real events captured from live searches are not affected. This
+                cannot be undone.
+            </p>
+        </div>
+        <div class="govuk-button-group">
+            <button type="button" class="govuk-button govuk-button--warning"
+                    data-role="delete-seeded-confirm"
+                    data-testid="delete-seeded-confirm">
+                Delete seeded data
+            </button>
+            <button type="button" class="govuk-button govuk-button--secondary"
+                    data-role="delete-seeded-cancel"
+                    data-testid="delete-seeded-cancel"
+                    data-modal-close>
+                Cancel
+            </button>
+        </div>
+    </div>
+</dialog>
+
+@* Confirm modal — delete all, with typed-confirmation gate. Env-gated the same way
+   the form above is: no dangling modal markup on Preproduction / Production. *@
+@if (deleteAllAllowed)
+{
+<dialog id="delete-all-modal"
+        class="govuk-modal-dialogue__box seed-progress-modal"
+        aria-labelledby="delete-all-modal-title"
+        aria-describedby="delete-all-modal-body"
+        aria-modal="true"
+        tabindex="-1"
+        data-testid="delete-all-modal">
+    <div class="govuk-modal-dialogue__header">
+        <button type="button" class="govuk-modal-dialogue__close" aria-label="close"
+                data-element="govuk-modal-dialogue-close" data-modal-close>&times;</button>
+    </div>
+    <div class="govuk-modal-dialogue__content">
+        <h2 class="govuk-modal-dialogue__heading govuk-heading-l"
+            id="delete-all-modal-title">Delete ALL search data?</h2>
+        <div id="delete-all-modal-body" class="govuk-body">
+            <p class="govuk-body">
+                This deletes EVERY search event, result row and feedback message in the sink —
+                including real events captured from live searches. This cannot be undone. To
+                confirm, type <strong>DELETE</strong> below.
+            </p>
+            <div class="govuk-form-group">
+                <label class="govuk-label" for="delete-all-confirm-input">
+                    Type DELETE to confirm
+                </label>
+                <input class="govuk-input govuk-input--width-10"
+                       id="delete-all-confirm-input"
+                       data-role="delete-all-confirm-input"
+                       data-testid="delete-all-confirm-input"
+                       autocomplete="off"
+                       spellcheck="false" />
+            </div>
+        </div>
+        <div class="govuk-button-group">
+            <button type="button" class="govuk-button govuk-button--warning"
+                    data-role="delete-all-confirm"
+                    data-testid="delete-all-confirm"
+                    disabled>
+                Delete all data
+            </button>
+            <button type="button" class="govuk-button govuk-button--secondary"
+                    data-role="delete-all-cancel"
+                    data-testid="delete-all-cancel"
+                    data-modal-close>
+                Cancel
+            </button>
+        </div>
+    </div>
+</dialog>
+}
+
+@* Progress modal for the seed run. Opens as soon as the form is submitted; polls the
+   in-memory job store every 500 ms; transitions to a Completed / Failed / Cancelled
+   state once the background task finishes. The dialog is a native <dialog> element
+   opened via .showModal() — same pattern as the govuk-confirm-modal tag helper, with
+   its own semantic id + testid so E2E tests can target it precisely. *@
+<dialog id="seed-progress-modal"
+        class="govuk-modal-dialogue__box seed-progress-modal"
+        aria-labelledby="seed-progress-modal-title"
+        aria-describedby="seed-progress-modal-body"
+        aria-modal="true"
+        tabindex="-1"
+        data-testid="seed-progress-modal">
+    <div class="govuk-modal-dialogue__header">
+        <button type="button" class="govuk-modal-dialogue__close" aria-label="close"
+                data-element="govuk-modal-dialogue-close" data-modal-close>&times;</button>
+    </div>
+    <div class="govuk-modal-dialogue__content">
+        <h2 class="govuk-modal-dialogue__heading govuk-heading-l"
+            id="seed-progress-modal-title">Seeding sample search data</h2>
+
+        <div id="seed-progress-modal-body" class="govuk-body">
+            <p class="govuk-body">
+                <strong>Preset:</strong>
+                <span data-role="preset-label" data-testid="seed-progress-preset">…</span>
+            </p>
+
+            <p class="govuk-body" data-role="status-line">
+                Seeded <strong data-role="events-written" data-testid="seed-progress-events">0</strong>
+                of ~<span data-role="events-total">0</span> search events.
+            </p>
+
+            <p class="govuk-body" data-role="cursor-line" hidden>
+                Currently at:
+                <span data-role="current-cursor" data-testid="seed-progress-cursor">—</span> UTC.
+            </p>
+
+            <p class="govuk-body" data-role="eta-line" hidden>
+                About <span data-role="eta-seconds">…</span> remaining.
+            </p>
+
+            @* Progress bar. Fill width is set via inline style from JS; percentage text is
+               painted below for screen-reader / non-JS-degraded users. *@
+            <div class="seed-progress-bar" role="progressbar"
+                 aria-valuemin="0" aria-valuemax="100"
+                 aria-valuenow="0" data-role="progress-bar">
+                <div class="seed-progress-bar__fill" data-role="progress-fill"
+                     style="width: 0%;"></div>
+            </div>
+            <p class="govuk-hint" data-role="progress-percent-line">
+                <span data-role="progress-percent">0</span>% complete
+            </p>
+
+            @* Rolling log of the last few progress ticks. Kept short (5 entries) so the
+               modal does not scroll on a long seed. *@
+            <details class="govuk-details" data-module="govuk-details">
+                <summary class="govuk-details__summary">
+                    <span class="govuk-details__summary-text">Recent progress log</span>
+                </summary>
+                <div class="govuk-details__text">
+                    <ul class="seed-progress-log" data-role="progress-log">
+                        <li class="seed-progress-log__empty">Waiting for the first tick…</li>
+                    </ul>
+                </div>
+            </details>
+
+            @* Success block — hidden until the state transitions to Completed.
+               Rendered as a GDS success notification banner so completion reads
+               unmistakably positive. Counts are populated from the final tick. *@
+            <div class="seed-progress-modal__result" data-role="result-completed" hidden>
+                <div class="govuk-notification-banner govuk-notification-banner--success" role="alert"
+                     aria-labelledby="seed-completed-banner-title"
+                     data-module="govuk-notification-banner"
+                     data-testid="seed-progress-completed-banner">
+                    <div class="govuk-notification-banner__header">
+                        <h2 class="govuk-notification-banner__title" id="seed-completed-banner-title">
+                            Seeding complete
+                        </h2>
+                    </div>
+                    <div class="govuk-notification-banner__content">
+                        <p class="govuk-notification-banner__heading" data-testid="seed-progress-completed">
+                            Seeded <span data-role="final-events">0</span> events and
+                            <span data-role="final-messages">0</span> feedback messages
+                            over <span data-role="final-preset">…</span>.
+                            <a class="govuk-notification-banner__link" href="@dashboardUrl">View dashboard</a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            @* Failure block — hidden until Failed. Rendered as a GDS notification
+               banner (non-success variant) with an inline error paragraph. *@
+            <div class="seed-progress-modal__result" data-role="result-failed" hidden>
+                <div class="govuk-notification-banner" role="alert"
+                     aria-labelledby="seed-failed-banner-title"
+                     data-module="govuk-notification-banner"
+                     data-testid="seed-progress-failed-banner">
+                    <div class="govuk-notification-banner__header">
+                        <h2 class="govuk-notification-banner__title" id="seed-failed-banner-title">
+                            Seeding failed
+                        </h2>
+                    </div>
+                    <div class="govuk-notification-banner__content">
+                        <p class="govuk-notification-banner__heading" data-testid="seed-progress-failed">
+                            <span data-role="error-message">Seeding failed.</span>
+                        </p>
+                    </div>
+                </div>
+                <p class="govuk-body">
+                    <button type="button" class="govuk-button govuk-button--secondary"
+                            data-role="retry-button">Retry</button>
+                </p>
+            </div>
+
+            @* Cancelled block — hidden until Completed with a Cancelled note. *@
+            <div class="seed-progress-modal__result" data-role="result-cancelled" hidden>
+                <div class="govuk-notification-banner" role="alert"
+                     aria-labelledby="seed-cancelled-banner-title"
+                     data-module="govuk-notification-banner"
+                     data-testid="seed-progress-cancelled-banner">
+                    <div class="govuk-notification-banner__header">
+                        <h2 class="govuk-notification-banner__title" id="seed-cancelled-banner-title">
+                            Seeding cancelled
+                        </h2>
+                    </div>
+                    <div class="govuk-notification-banner__content">
+                        <p class="govuk-notification-banner__heading" data-testid="seed-progress-cancelled">
+                            <span data-role="cancelled-note">Seed cancelled.</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="govuk-button-group">
+            <button type="button" class="govuk-button govuk-button--warning"
+                    data-role="cancel-button"
+                    data-testid="seed-progress-cancel"
+                    data-idle-label="Cancel seeding">Cancel seeding</button>
+            <button type="button" class="govuk-button govuk-button--secondary"
+                    data-role="close-button"
+                    data-testid="seed-progress-close"
+                    data-running-label="Close (keep seeding in background)"
+                    data-terminal-label="Close">
+                Close (keep seeding in background)
+            </button>
+        </div>
+    </div>
+</dialog>
+
+@section Scripts {
+    <script src="~/js/test-data-seed.js" asp-append-version="true" defer></script>
+    <script src="~/js/test-data-delete.js" asp-append-version="true" defer></script>
+}

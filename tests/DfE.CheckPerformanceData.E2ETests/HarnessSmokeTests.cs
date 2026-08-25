@@ -5,7 +5,6 @@ using Microsoft.Playwright.Xunit;
 namespace DfE.CheckPerformanceData.E2ETests;
 
 [Collection("E2E")]
-[Trait("Category", "W0")]
 public sealed class HarnessSmokeTests(PlaywrightFixture fixture) : PageTest
 {
     private readonly PlaywrightFixture _fixture = fixture;

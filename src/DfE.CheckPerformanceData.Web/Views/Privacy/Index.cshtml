@@ -1,0 +1,183 @@
+@{
+    ViewData["Title"] = "School Checking Exercise privacy notice";
+}
+
+@* Content taken from the DfE School Checking Exercise privacy notice at
+   https://onlinecollections.des.fasst.org.uk/fastform/privacy/SCEPrivacy.jsp
+
+   Two deliberate departures from the source:
+
+   1. The source marks every section with <h1> (ten of them on one page). That is a
+      1.3.1 / 2.4.6 defect and would be picked up by the audit, so the section headings
+      are <h2> here under a single <h1>.
+   2. The source's "secure online contact form" references are bare text in places; they
+      are links throughout here so the same destination is reachable from every mention.
+*@
+
+@await Component.InvokeAsync("EditableContent", new {
+    key = "privacy",
+    defaultHtml = @"<div class=""govuk-grid-row"">
+    <div class=""govuk-grid-column-two-thirds"">
+        <h1 class=""govuk-heading-xl"">School Checking Exercise privacy notice</h1>
+
+        <p class=""govuk-body"">
+            This privacy notice relates to the School Checking Exercise run by the Department for
+            Education (DfE). It explains how we use (process) any personal data you give to us, or any
+            that we may collect about you. This privacy notice should be read alongside the
+            <a class=""govuk-link"" href=""https://www.gov.uk/government/publications/esfa-privacy-notice"">Department
+            for Education: privacy notice for post-16 education</a>.
+        </p>
+        <p class=""govuk-body"">
+            For the purposes of relevant data protection legislation,
+            <a class=""govuk-link"" href=""https://www.gov.uk/government/organisations/department-for-education/about/personal-information-charter"">DfE
+            is the data controller for personal data</a>.
+        </p>
+
+        @* REVIEW BEFORE GO-LIVE: the source notice covers a form-based collection and lists only
+           name and work email. Confirm with the DPO that this matches what Check Performance Data
+           actually processes — the service also handles pupil-level data. *@
+        <h2 class=""govuk-heading-m"">The types of personal data we process</h2>
+        <p class=""govuk-body"">We may process the following types of personal data about you:</p>
+        <ul class=""govuk-list govuk-list--bullet"">
+            <li>full name</li>
+            <li>work email address</li>
+        </ul>
+        <p class=""govuk-body"">When we ask you for personal data, we will:</p>
+        <ul class=""govuk-list govuk-list--bullet"">
+            <li>tell you the reasons we're asking for it</li>
+            <li>only ask for the information we need</li>
+            <li>make sure we don't keep it for longer than necessary</li>
+            <li>protect it and make sure only the appropriate people have access to it</li>
+            <li>let you know if we'll share it with other organisations</li>
+            <li>keep it up to date where necessary</li>
+            <li>consider privacy risks when we're planning to change the way we use or hold it</li>
+            <li>train our staff to ensure we use and protect it properly</li>
+        </ul>
+        <p class=""govuk-body"">In return, we ask you to:</p>
+        <ul class=""govuk-list govuk-list--bullet"">
+            <li>give us accurate information</li>
+            <li>tell us as soon as possible if there are any changes</li>
+        </ul>
+
+        <h2 class=""govuk-heading-m"">How and why we use your personal data</h2>
+        <p class=""govuk-body"">We use your personal data to:</p>
+        <ul class=""govuk-list govuk-list--bullet"">
+            <li>allow you to access the form</li>
+            <li>to send confirmation after you submit the form</li>
+        </ul>
+        <p class=""govuk-body"">The data collected is not shared with any other organisations.</p>
+        <p class=""govuk-body"">
+            The lawful basis we are relying on for processing your personal data is to perform our
+            public task as per article 6(1)(e) UK GDPR - to perform a public task as part of our
+            function as a department.
+        </p>
+
+        <h2 class=""govuk-heading-m"">Sharing your personal data</h2>
+        <p class=""govuk-body"">
+            We collect your name and work email address so an email can be sent to confirm your
+            submission. We share your personal data with other parts of DfE where the law allows it or
+            where we have a legal duty to do this.
+        </p>
+
+        <h2 class=""govuk-heading-m"">How long we will keep your personal data</h2>
+        <p class=""govuk-body"">
+            We will only keep your personal data for as long as we need it. DfE has a disposal schedule
+            for personal data based on the needs of the department and the law.
+        </p>
+        <p class=""govuk-body"">
+            We will take necessary steps to keep your information safe. It will then be securely
+            destroyed when it is no longer needed.
+        </p>
+        <p class=""govuk-body"">
+            If you want to know how long we keep your information, please write to DfE Departmental
+            Records Officer using our
+            <a class=""govuk-link"" href=""https://form.education.gov.uk/service/Contact_the_Department_for_Education"">secure
+            online contact form</a>.
+        </p>
+
+        <h2 class=""govuk-heading-m"">Storing personal data outside the UK</h2>
+        <p class=""govuk-body"">
+            When DfE stores personal data outside the UK, we will make sure we comply with the data
+            protection law and take additional steps to keep your personal data safe, which can include
+            additional technical and security arrangements, contractual agreements, and data sharing
+            agreements.
+        </p>
+
+        <h2 class=""govuk-heading-m"">Your data protection rights</h2>
+        <p class=""govuk-body"">Under data protection law, you have rights including:</p>
+        <ul class=""govuk-list govuk-list--bullet"">
+            <li>your right of access - you have the right to ask us for copies of your personal information</li>
+            <li>your right to rectification - you have the right to ask us to rectify personal information you think is inaccurate and have the right to ask us to complete information you think is incomplete</li>
+            <li>your right to erasure - you have the right to ask us to erase your personal information in certain circumstances</li>
+            <li>your right to restriction of processing - you have the right to ask us to restrict the processing of your personal information in certain circumstances</li>
+            <li>your right to object to processing - you have the right to object to the processing of your personal information in certain circumstances</li>
+            <li>your right to data portability - you have the right to ask that we transfer the personal information you gave us to another organisation, or to you, in certain circumstances</li>
+        </ul>
+        <p class=""govuk-body"">
+            You are not required to pay any charge for exercising your rights. If you make a request, we
+            have one month to respond to you.
+        </p>
+
+        <h2 class=""govuk-heading-m"">Contacting us</h2>
+        <p class=""govuk-body"">You can contact us:</p>
+        <ul class=""govuk-list govuk-list--bullet"">
+            <li>to get more information about how we process your personal data or your data protection rights</li>
+            <li>to make a request about your information – for example, to request a copy of your information or to ask for your information to be changed</li>
+            <li>to contact our Data Protection Officer</li>
+        </ul>
+        <p class=""govuk-body"">
+            You can contact us using our
+            <a class=""govuk-link"" href=""https://form.education.gov.uk/service/Contact_the_Department_for_Education"">secure
+            online contact form</a>.
+        </p>
+        <p class=""govuk-body"">You can also write to us at the following address:</p>
+        @* REVIEW BEFORE GO-LIVE: confirm the named DPO is current before publishing. *@
+        <p class=""govuk-body"">
+            Emma Wharram<br>
+            Data Protection Officer<br>
+            Department for Education (B2.28)<br>
+            7 &amp; 8 Wellington Place<br>
+            Wellington Street<br>
+            Leeds<br>
+            LS1 4AW
+        </p>
+
+        <h2 class=""govuk-heading-m"">How to complain</h2>
+        <p class=""govuk-body"">
+            If you have any concerns about our use of your personal information, you can make a
+            complaint to the Data Protection Officer at:
+        </p>
+        <p class=""govuk-body"">
+            Ministerial and Public Communications Division<br>
+            Department for Education<br>
+            Piccadilly Gate<br>
+            Store Street<br>
+            Manchester<br>
+            M1 2WD
+        </p>
+        <p class=""govuk-body"">
+            You can also complain to the
+            <a class=""govuk-link"" href=""https://ico.org.uk/"">Information Commissioner's Office (ICO)</a>
+            if you are unhappy with how we have used your data by writing to:
+        </p>
+        <p class=""govuk-body"">
+            Information Commissioner's Office<br>
+            Wycliffe House<br>
+            Water Lane<br>
+            Wilmslow<br>
+            Cheshire<br>
+            SK9 5AF
+        </p>
+        <p class=""govuk-body"">Helpline number: 0303 123 1113</p>
+
+        <h2 class=""govuk-heading-m"">Changes to this privacy notice</h2>
+        <p class=""govuk-body"">
+            We may change this privacy notice and we encourage you to check this privacy notice from
+            time to time.
+        </p>
+
+        <p class=""govuk-body"">Date last updated: April 2022</p>
+    </div>
+</div>"
+})
+

@@ -144,23 +144,23 @@ dotnet test tests/DfE.CheckPerformanceData.E2ETests/ `
 Useful filter variants:
 
 ```powershell
-# Single category
-dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --filter "Category=W2"
+# A single area, by namespace
+dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --filter "FullyQualifiedName~Admin"
 
 # Single test by name
 dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --filter "FullyQualifiedName~SoftDeleteWikiPageTests"
 
-# Including visual regression (only meaningful on Linux or via make test-e2e)
-dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --configuration Release
+# Including visual regression — only meaningful inside the pinned container
+CPD_E2E_VISUAL_REGRESSION=1 dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --configuration Release
 ```
 
-To run the full visual regression sweep from PowerShell — same as `make test-e2e`:
+To run the full visual regression sweep from PowerShell — same as `make test-e2e-visual`:
 
 ```powershell
-docker compose --profile e2e run --rm e2e-tests
+$env:CPD_E2E_VISUAL_REGRESSION=1; docker compose --profile e2e run --rm e2e-tests
 ```
 
-That builds the runner image (first time only), brings up dependencies, executes the full suite *including* visual regression (using the container's own baselines, regenerated on first run), and tears down.
+That builds the runner image (first time only), brings up dependencies, executes the full suite *including* visual regression against the committed baselines, and tears down. Without the variable the same command runs the functional suite and skips the comparisons.
 
 If you alternated between native and container runs and hit `NETSDK1047 'project.assets.json' doesn't have a target for 'net10.0/win-x64'`:
 
@@ -210,6 +210,23 @@ VS speaks `.slnx` natively in 17.12+ (LTSC) / 2026.
    ```
    (Or `bin\Debug\net10.0\` if you've only built Debug.)
 
+> **A solution build tears the stack down.** `docker-compose.dcproj` is part of the solution and
+> builds with it, and it sets `DockerComposeProjectName` to `check_performance_data` — the same
+> project name as `name:` in `docker-compose.yaml`. VS therefore manages the *same* containers the
+> CLI started, and its build-time compose lifecycle removes them. Test Explorer builds before it
+> runs, so the containers can disappear underneath the very run you just started.
+>
+> The symptom is the whole suite failing at once with
+> `Microsoft.Playwright.PlaywrightException : net::ERR_CONNECTION_REFUSED at http://localhost:8080/…`.
+> That is a missing app, not a broken test — and not `CPD_E2E_BASE_URL` either, which already
+> defaults to `http://localhost:8080`. Confirm with `docker compose ps`: an empty list means the
+> stack went away.
+>
+> Recover with `docker compose up -d`, then re-run the tests *without* an intervening solution
+> build. To avoid it entirely, either unload the `docker-compose` project in VS (right-click →
+> Unload Project) and drive the stack from the CLI, or run the suite in its own container with
+> `make test-e2e`, which manages its `web` dependency itself.
+
 **Debug a single test:** right-click in Test Explorer → "Debug". VS attaches to the test process. As with VS Code, this debugs the *test code*, not the web app — the web app under test is still the container. To step through Razor + controller code while a test drives it, set the `Web` project as startup, F5 to launch it locally on `:8080` (Postgres + Azurite still need to be running), then run the test against that local instance instead of the container.
 
 ### Choosing which flow
@@ -217,7 +234,7 @@ VS speaks `.slnx` natively in 17.12+ (LTSC) / 2026.
 | You want to… | Use |
 |--------------|-----|
 | Tight inner loop, functional tests only | PowerShell or VS/VSC Test Explorer with `Category!=VisualRegression` |
-| Validate visual regression before push / PR | `make test-e2e` (or `docker compose --profile e2e run --rm e2e-tests` from PowerShell) |
+| Validate visual regression before push / PR | `make test-e2e-visual` (or `CPD_E2E_VISUAL_REGRESSION=1 docker compose --profile e2e run --rm e2e-tests`) |
 | Step through a single failing test in a debugger | VS Code or VS, "Debug Test" |
 | Reproduce a CI failure exactly | `make test-e2e` — same image, same Linux-Chromium; rebuild the baseline inside the container before comparing |
 
@@ -241,17 +258,16 @@ The suite drives the *deployed* app over HTTP — `docker compose up` brings up 
 
 The trade-off is speed: cold start (compose up + readiness probe + first Playwright launch) is ~30-40s. We accept that. Tight inner-loop runs use `make test-e2e-fast` natively on the host, skipping visual regression.
 
-## Test categories (`W0`-`W4`)
+## Test categories
 
-Every test is tagged with a `[Trait("Category", "W{N}")]`. The labels come from the original work-package breakdown but the practical use is `dotnet test --filter`:
+Tests are grouped by folder — `Wiki/`, `Web/`, `Admin/`, `Visual/` — and scoped
+with `--filter "FullyQualifiedName~..."`. Only two category traits remain, both
+for behaviour rather than grouping:
 
 | Trait | Scope |
 |-------|-------|
-| `W0` | Harness smoke (deployment ready, antiforgery scrape) |
-| `W1` | Read-path browse |
-| `W2` | Soft-delete, warning text, search sidebar |
-| `W4` | REST CRUD + visual regression |
-| `VisualRegression` | Cross-cutting trait on snapshot tests, Linux-only |
+| `VisualRegression` | Snapshot tests. Linux-only, and off unless `CPD_E2E_VISUAL_REGRESSION` is set. |
+| `Slow` | Tests that wait on real timeouts or polling. |
 
 `Category!=VisualRegression` is the most-used filter — it gives you the full functional sweep on any host without needing the Linux container for pixel-stable rendering.
 

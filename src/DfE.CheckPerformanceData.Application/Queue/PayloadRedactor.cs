@@ -21,6 +21,9 @@ public sealed class PayloadRedactor
         "CypmdId",
         "Sex",
         "Age",
+        "MatchRef",
+        "Laestab",
+        "EntryDate",
     };
 
     public string Redact(string? payload)

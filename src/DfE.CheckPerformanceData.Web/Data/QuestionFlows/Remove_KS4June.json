@@ -180,7 +180,7 @@
           "hint" : "For example, 123/4567 or 1234567",
           "validator": "DfeNumber",
           "questionHelpTitle" : "How can I find a DfE number?",
-          "questionHelpText" : "<p>To find the DfE number, search the school or college name on <a href=\"https://get-information-schools.service.gov.uk/\" target=\"_blank\">Get Information About Schools (opens in new window)</a></p>"
+          "questionHelpText" : "<p>To find the DfE number, search the school or college name on <a href=\"https://get-information-schools.service.gov.uk/?utm_source=cypmd&amp;utm_medium=referral&amp;utm_campaign=help_guidance\" target=\"_blank\">Get Information About Schools (opens in new window)</a></p>"
         }
       ]
     },
@@ -212,7 +212,7 @@
           "validator": "DfeNumber",
           "validationFailure": "Enter the DfE number of the school {pupilName}'s exam results should be transferred to",
           "questionHelpTitle" : "How can I find a DfE number?",
-          "questionHelpText" : "<p>To find the DfE number, search the school or college name on <a href=\"https://get-information-schools.service.gov.uk/\" target=\"_blank\">Get Information About Schools (opens in new window)</a></p>"
+          "questionHelpText" : "<p>To find the DfE number, search the school or college name on <a href=\"https://get-information-schools.service.gov.uk/?utm_source=cypmd&amp;utm_medium=referral&amp;utm_campaign=help_guidance\" target=\"_blank\">Get Information About Schools (opens in new window)</a></p>"
         }
       ]
     },
@@ -230,7 +230,7 @@
           "validator": "DfeNumber",
           "validationFailure": "Enter the DfE number of the school or college where {pupilName} completed KS4",
           "questionHelpTitle" : "How can I find a DfE number?",
-          "questionHelpText" : "<p>To find the DfE number, search the school or college name on <a href=\"https://get-information-schools.service.gov.uk/\" target=\"_blank\">Get Information About Schools (opens in new window)</a></p>"
+          "questionHelpText" : "<p>To find the DfE number, search the school or college name on <a href=\"https://get-information-schools.service.gov.uk/?utm_source=cypmd&amp;utm_medium=referral&amp;utm_campaign=help_guidance\" target=\"_blank\">Get Information About Schools (opens in new window)</a></p>"
         }
       ]
     },
@@ -377,7 +377,7 @@
           "validator": "DfeNumber",
           "validationFailure": "Enter the DfE number of the school which excluded {pupilName}",
           "questionHelpTitle" : "How can I find a DfE number?",
-          "questionHelpText" : "<p>To find the DfE number, search the school or college name on <a href=\"https://get-information-schools.service.gov.uk/\" target=\"_blank\">Get Information About Schools (opens in new window)</a></p>"
+          "questionHelpText" : "<p>To find the DfE number, search the school or college name on <a href=\"https://get-information-schools.service.gov.uk/?utm_source=cypmd&amp;utm_medium=referral&amp;utm_campaign=help_guidance\" target=\"_blank\">Get Information About Schools (opens in new window)</a></p>"
         },
         {
           "id": "date-pupil-excluded",
@@ -409,7 +409,7 @@
           "title": "When was {pupilName} removed from your roll?",
           "hint": "For example, 27 3 2026",
           "summaryTitle": "Date removed from roll",
-          "validationFailure": "Enter the date {pupilName} was removed from your roll"
+          "validationFailure": "Enter the date {pupilName} was removed from your school roll"
         }
       ]
     },

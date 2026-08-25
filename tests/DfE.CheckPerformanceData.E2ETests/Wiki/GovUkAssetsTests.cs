@@ -7,7 +7,6 @@ using xRetry;
 namespace DfE.CheckPerformanceData.E2ETests.Wiki;
 
 [Collection("E2E")]
-[Trait("Category", "W1")]
 public sealed class GovUkAssetsTests(PlaywrightFixture fixture) : PageTest
 {
     private readonly PlaywrightFixture _fixture = fixture;

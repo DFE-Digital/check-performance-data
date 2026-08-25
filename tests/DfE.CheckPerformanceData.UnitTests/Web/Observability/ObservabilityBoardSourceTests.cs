@@ -4,8 +4,8 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Observability;
 // observability-board.js animation engine and observability.css. Mirrors
 // ObservabilityViewRenderTests' hostless disk-read style — no JS test runner is wired, so the
 // board engine's contracts are pinned by asserting on its source, the same way the Razor and CSS
-// contracts are. Covers the round-2 board feedback: the "Zendesk ticket" rename, per-stage dwell
-// variance, and the red failure envelope.
+// contracts are. Covers the "Zendesk ticket" rename, per-stage dwell variance, and the red
+// failure envelope.
 public sealed class ObservabilityBoardSourceTests
 {
     private static string RepoRoot

@@ -1,0 +1,82 @@
+@using System.Globalization
+@using DfE.CheckPerformanceData.Application.Analytics
+@model DfE.CheckPerformanceData.Application.Analytics.ZeroResultOutcomeSummary
+@{
+    var summary = Model ?? new ZeroResultOutcomeSummary(0, 0, 0, 0, 0);
+    // The parent view passes recovery stats + range key via ViewData so this partial
+    // can render the contextualising "of those N sessions, Y% eventually got results"
+    // line + link to the drill-in without changing its own model contract.
+    var recovery = ViewData["ZeroResultRecoveryStats"] as ZeroResultRecoveryStats;
+    var rangeKey = (ViewData["RangeKey"] as string) ?? "7d";
+    // RangeQuery is the pre-built range querystring from Index.cshtml (either
+    // "range=<key>" for a preset or "range=custom&from=<iso>&to=<iso>" for a custom
+    // window). Falls back to a bare "range=<key>" if the parent view didn't thread it.
+    var rangeQs = (ViewData["RangeQuery"] as string) ?? ("range=" + Uri.EscapeDataString(rangeKey));
+
+    string FormatPercent(int part, int whole)
+    {
+        if (whole <= 0) return "—";
+        var pct = 100d * part / whole;
+        return pct.ToString("0", CultureInfo.CurrentCulture) + "%";
+    }
+
+    var totalZ = summary.TotalZeroResultSessions;
+    var totalS = summary.TotalSessionsInWindow;
+}
+
+<section class="govuk-summary-card govuk-!-margin-bottom-6 sa-summary-card sa-funnel-card" aria-labelledby="sa-funnel-title">
+    <div class="govuk-summary-card__title-wrapper">
+        <h2 class="govuk-summary-card__title" id="sa-funnel-title">Zero-result outcomes</h2>
+    </div>
+    <div class="govuk-summary-card__content">
+        @if (totalZ == 0)
+        {
+            <p class="govuk-body">
+                No zero-result searches in this window — every search returned at least one page or content-block hit.
+            </p>
+        }
+        else
+        {
+            <p class="govuk-body-s sa-funnel__subtitle">
+                Of sessions that hit a zero-result search in this window, what happened next?
+                (@totalZ.ToString("N0", CultureInfo.CurrentCulture) of @totalS.ToString("N0", CultureInfo.CurrentCulture) sessions had at least one zero-result search.)
+            </p>
+
+            <div class="govuk-grid-row sa-funnel">
+                <div class="govuk-grid-column-one-third">
+                    <div class="sa-funnel__tile sa-funnel__tile--refined" data-sa-funnel="refined">
+                        <p class="govuk-heading-xl sa-funnel__value">@summary.RefinedCount.ToString("N0", CultureInfo.CurrentCulture)</p>
+                        <p class="govuk-body-s sa-funnel__label">Refined the query</p>
+                        <p class="govuk-body-s sa-funnel__pct">@FormatPercent(summary.RefinedCount, totalZ) of @totalZ.ToString("N0", CultureInfo.CurrentCulture) sessions with zero-result searches</p>
+                    </div>
+                </div>
+                <div class="govuk-grid-column-one-third">
+                    <div class="sa-funnel__tile sa-funnel__tile--feedback" data-sa-funnel="feedback">
+                        <p class="govuk-heading-xl sa-funnel__value">@summary.FeedbackCount.ToString("N0", CultureInfo.CurrentCulture)</p>
+                        <p class="govuk-body-s sa-funnel__label">Sent us feedback</p>
+                        <p class="govuk-body-s sa-funnel__pct">@FormatPercent(summary.FeedbackCount, totalZ) of @totalZ.ToString("N0", CultureInfo.CurrentCulture) sessions with zero-result searches</p>
+                    </div>
+                </div>
+                <div class="govuk-grid-column-one-third">
+                    <div class="sa-funnel__tile sa-funnel__tile--silent" data-sa-funnel="silent">
+                        <p class="govuk-heading-xl sa-funnel__value">@summary.SilentCount.ToString("N0", CultureInfo.CurrentCulture)</p>
+                        <p class="govuk-body-s sa-funnel__label">Went silent</p>
+                        <p class="govuk-body-s sa-funnel__pct">@FormatPercent(summary.SilentCount, totalZ) of @totalZ.ToString("N0", CultureInfo.CurrentCulture) sessions with zero-result searches</p>
+                    </div>
+                </div>
+            </div>
+
+            @if (recovery is not null && recovery.SessionsWithAnyZeroResult > 0)
+            {
+                <p class="govuk-body-s sa-funnel__recovery">
+                    <strong>Recovery:</strong>
+                    @FormatPercent(recovery.RecoveredCount, recovery.SessionsWithAnyZeroResult)
+                    of these sessions eventually got at least one result;
+                    @FormatPercent(recovery.AbandonedCount, recovery.SessionsWithAnyZeroResult)
+                    left empty-handed without telling us.
+                    <a class="govuk-link" href="/admin/Search/ZeroResultJourneys?@rangeQs">See every refinement chain &rarr;</a>
+                </p>
+            }
+        }
+    </div>
+</section>

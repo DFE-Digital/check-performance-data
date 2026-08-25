@@ -41,7 +41,8 @@ public static class SeedChangeRequests
         var windowId = DevDataSeeder.KeyStage4JuneCheckingWindowId;
 
         // Seeded change requests are KS4-only; the window above is the KS4 June dev window.
-        var pupils = await pupilClient.GetPupilsAsync(windowId, Laestab, CheckingWindowType.KS4June);
+        var pupils = await pupilClient.GetPupilsAsync(
+            windowId, CheckingExerciseType.PupilData, Laestab, CheckingWindowType.KS4June);
         if (pupils is null || pupils.Count == 0) return;
 
         var included = pupils
@@ -88,7 +89,8 @@ public static class SeedChangeRequests
                 SubmittedByEmail = SubmittedByEmail,
                 Status = scenario.Status,
                 RequestType = RequestType.Amendment,
-                RequestTypeDescription = RequestTypeDescription
+                RequestTypeDescription = RequestTypeDescription,
+                AmendmentType = WhatToChange.Remove
             });
 
             var state = new RequestState
@@ -122,6 +124,9 @@ public static class SeedChangeRequests
         Age = p.Age,
         Cypmd_Id = p.Cypmd_Id,
         Identifier = p.Identifier,
-        Pincl = p.Pincl ?? 0
+        Pincl = p.Pincl ?? 0,
+        MatchRef = p.MatchRef,
+        Laestab = p.Laestab,
+        EntryDate = p.EntryDate
     };
 }

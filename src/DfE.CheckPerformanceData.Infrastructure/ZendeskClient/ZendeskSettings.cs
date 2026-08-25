@@ -67,16 +67,18 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient
         /// <summary>
         /// The Zendesk group ID that new tickets should be assigned to.
         /// This is environment-specific (different IDs per instance).
+        /// Null when the environment has no Zendesk group configured — docker-compose forwards
+        /// the key with an empty value on a fresh clone, and binding "" to a non-nullable long
+        /// threw at host start. Consumers fall back to 0 (Zendesk's "unassigned").
         /// </summary>
-        [System.ComponentModel.DataAnnotations.Required(AllowEmptyStrings = false)]
-        public long GroupId { get; set; }
+        public long? GroupId { get; set; }
 
         /// <summary>
         /// The Zendesk brand ID for the ticket brand.
         /// This is environment-specific (different IDs per instance).
+        /// Null when unconfigured, for the same reason as <see cref="GroupId"/>.
         /// </summary>
-        [System.ComponentModel.DataAnnotations.Required(AllowEmptyStrings = false)]
-        public long BrandId { get; set; }
+        public long? BrandId { get; set; }
 
 
     }

@@ -74,7 +74,7 @@ public sealed class TitleController(IWindowService windowService): Controller
             return BadRequest();
         }
 
-        CheckingWindowDto window = await windowService.GetByIdAsync(id, cancellationToken);
+        CheckingWindowDto? window = await windowService.GetByIdAsync(id, cancellationToken);
         if (window is null)
         {
             return NotFound();

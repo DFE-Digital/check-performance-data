@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Application.Journey;
+using DfE.CheckPerformanceData.Application.Notify;
 using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Application.RequestSubmission;
@@ -16,10 +17,23 @@ public interface IRequestService
     /// </summary>
     Task SubmitRequestAsync(Guid windowId, RequestState journey);
 
+    /// <summary>
+    /// Submits a 16-19 results enquiry (AB#296648) and returns its reference number.
+    ///
+    /// Persists a <see cref="Domain.Enums.RequestType.ResultsEnquiry"/> row and the journey JSON —
+    /// the same two writes a pupil change request makes — and deliberately does NOT enqueue.
+    /// Enquiries are bound for Zendesk, but how they get there is a separate story; when it lands,
+    /// the enqueue belongs here and nowhere else.
+    ///
+    /// No duplicate check: the spec allows several enquiries about the same pupil and result. The
+    /// confirmation email is the caller's responsibility, matching <see cref="SubmitRequestAsync"/>.
+    /// </summary>
+    Task<string> SubmitResultsEnquiryAsync(Guid windowId, RequestState journey, CancellationToken ct = default);
+
     Task ConfirmRequestAsync(Guid windowId, RequestState journey);
     Task SaveDraftAsync(Guid windowId, RequestState journey, RequestStatus status);
     Task<RequestState?> ResumeDraftAsync(Guid windowId, string referenceNumber);
-    Task ConfirmDataCorrectAsync(Guid windowId, string referenceNumber, DateTime endDate);
+    Task ConfirmDataCorrectAsync(Guid windowId, string referenceNumber, DateTime endDate, EmailSubstitutions substitutions);
 
     /// <summary>
     /// Deletes a request, scoped to the current user's organisation. Drafts

@@ -11,10 +11,16 @@ namespace DfE.CheckPerformanceData.Infrastructure.Ingress;
 /// inclusion is decided by file of origin. <c>null</c> means the record carries its own
 /// inclusion signal (KS4's <c>P_INCL</c>) and nothing is stamped.
 /// </param>
+/// <param name="SourceFile">
+/// Stamps a <c>SOURCE</c> marker on every record from this file, so provenance is decided by file
+/// of origin — the exact analogue of <paramref name="Included"/>. A results file tag on a
+/// results-enquiry dataset; <c>null</c> on pupil data, where nothing is stamped.
+/// </param>
 public sealed record IngressDataset(
     string Name,
     string InputCsvFile,
     string InputCsvChecksum,
     string SchemaFile,
     string SchemaChecksum,
-    bool? Included);
+    bool? Included,
+    string? SourceFile = null);

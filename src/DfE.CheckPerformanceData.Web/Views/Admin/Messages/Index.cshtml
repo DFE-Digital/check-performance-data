@@ -1,0 +1,27 @@
+@using DfE.CheckPerformanceData.Web.Controllers.ViewModels
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.AdminLandingViewModel
+@{
+    ViewData["Title"] = "Messages";
+}
+
+<a class="govuk-back-link" href="/admin">Back to administration</a>
+
+<h1 class="govuk-heading-xl">Messages</h1>
+<p class="govuk-body-l">
+    User-submitted search feedback and the dead-letter queue.
+</p>
+
+@foreach (var group in Model.Roots)
+{
+    <section class="admin-nav-group govuk-!-margin-bottom-8"
+             aria-labelledby="@($"group-{group.Entry.Key}")">
+        <h2 id="@($"group-{group.Entry.Key}")" class="govuk-visually-hidden">@group.Entry.Title</h2>
+
+        <ul class="govuk-list admin-nav-list">
+            @foreach (var child in group.Children)
+            {
+                @await Html.PartialAsync("_AdminLandingTile", new AdminLandingNodePartialModel(child, 3))
+            }
+        </ul>
+    </section>
+}

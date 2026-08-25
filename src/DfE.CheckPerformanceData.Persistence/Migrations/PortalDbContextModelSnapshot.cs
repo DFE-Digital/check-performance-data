@@ -133,6 +133,225 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     b.ToTable("queue_metrics_events", (string)null);
                 });
 
+            modelBuilder.Entity("DfE.CheckPerformance.Persistence.Entities.SearchEvent", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<bool>("IsSeeded")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_seeded");
+
+                    b.Property<string>("JobId")
+                        .HasColumnType("text")
+                        .HasColumnName("job_id");
+
+                    b.Property<int>("LatencyMs")
+                        .HasColumnType("integer")
+                        .HasColumnName("latency_ms");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("occurred_at_utc");
+
+                    b.Property<string>("QueryNormalised")
+                        .HasColumnType("text")
+                        .HasColumnName("query_normalised");
+
+                    b.Property<string>("QueryRaw")
+                        .HasColumnType("text")
+                        .HasColumnName("query_raw");
+
+                    b.Property<int>("ResultsBlocks")
+                        .HasColumnType("integer")
+                        .HasColumnName("results_blocks");
+
+                    b.Property<int>("ResultsPages")
+                        .HasColumnType("integer")
+                        .HasColumnName("results_pages");
+
+                    b.Property<int>("ResultsTotal")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("integer")
+                        .HasColumnName("results_total")
+                        .HasComputedColumnSql("results_pages + results_blocks", true);
+
+                    b.Property<string>("Scope")
+                        .HasColumnType("text")
+                        .HasColumnName("scope");
+
+                    b.Property<string>("SessionId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("session_id");
+
+                    b.Property<bool>("ZeroResults")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("boolean")
+                        .HasColumnName("zero_results")
+                        .HasComputedColumnSql("(results_pages + results_blocks) = 0", true);
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JobId")
+                        .HasDatabaseName("ix_search_events_job_id")
+                        .HasFilter("job_id IS NOT NULL");
+
+                    b.HasIndex("OccurredAtUtc")
+                        .HasDatabaseName("ix_search_events_occurred_at");
+
+                    b.HasIndex("QueryNormalised")
+                        .HasDatabaseName("ix_search_events_query_normalised");
+
+                    b.HasIndex("SessionId")
+                        .HasDatabaseName("ix_search_events_session_id");
+
+                    b.HasIndex("OccurredAtUtc", "QueryNormalised")
+                        .HasDatabaseName("ix_search_events_occurred_at_query_normalised")
+                        .HasFilter("query_normalised IS NOT NULL");
+
+                    b.HasIndex("OccurredAtUtc", "SessionId")
+                        .HasDatabaseName("ix_search_events_occurred_at_session_id");
+
+                    b.HasIndex("ZeroResults", "OccurredAtUtc")
+                        .HasDatabaseName("ix_search_events_zero_results_occurred_at")
+                        .HasFilter("zero_results = true");
+
+                    b.ToTable("search_events", (string)null);
+                });
+
+            modelBuilder.Entity("DfE.CheckPerformance.Persistence.Entities.SearchEventResult", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<bool>("IsSeeded")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_seeded");
+
+                    b.Property<string>("JobId")
+                        .HasColumnType("text")
+                        .HasColumnName("job_id");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("integer")
+                        .HasColumnName("position");
+
+                    b.Property<float>("Rank")
+                        .HasColumnType("real")
+                        .HasColumnName("rank");
+
+                    b.Property<string>("ResultKey")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("result_key");
+
+                    b.Property<string>("ResultKind")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("result_kind");
+
+                    b.Property<long>("SearchEventId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("search_event_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JobId")
+                        .HasDatabaseName("ix_search_event_results_job_id")
+                        .HasFilter("job_id IS NOT NULL");
+
+                    b.HasIndex("SearchEventId")
+                        .HasDatabaseName("ix_search_event_results_search_event_id");
+
+                    b.ToTable("search_event_results", (string)null);
+                });
+
+            modelBuilder.Entity("DfE.CheckPerformance.Persistence.Entities.SearchMessage", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Email")
+                        .HasColumnType("text")
+                        .HasColumnName("email");
+
+                    b.Property<bool>("IsRead")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_read");
+
+                    b.Property<bool>("IsSeeded")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_seeded");
+
+                    b.Property<string>("JobId")
+                        .HasColumnType("text")
+                        .HasColumnName("job_id");
+
+                    b.Property<DateTime?>("ReadAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("read_at_utc");
+
+                    b.Property<string>("ReadByAdminSub")
+                        .HasColumnType("text")
+                        .HasColumnName("read_by_admin_sub");
+
+                    b.Property<string>("SessionId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("session_id");
+
+                    b.Property<DateTime>("SubmittedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("submitted_at_utc");
+
+                    b.Property<string>("WhatGot")
+                        .HasColumnType("text")
+                        .HasColumnName("what_got");
+
+                    b.Property<string>("WhatLookingFor")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("what_looking_for");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IsRead")
+                        .HasDatabaseName("ix_search_messages_is_read");
+
+                    b.HasIndex("JobId")
+                        .HasDatabaseName("ix_search_messages_job_id")
+                        .HasFilter("job_id IS NOT NULL");
+
+                    b.HasIndex("SessionId")
+                        .HasDatabaseName("ix_search_messages_session_id");
+
+                    b.HasIndex("SubmittedAtUtc")
+                        .HasDatabaseName("ix_search_messages_submitted_at");
+
+                    b.ToTable("search_messages", (string)null);
+                });
+
             modelBuilder.Entity("DfE.CheckPerformance.Persistence.Entities.ShareToken", b =>
                 {
                     b.Property<Guid>("Id")
@@ -276,6 +495,10 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("AmendmentType")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<string>("CrmId")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
@@ -379,6 +602,38 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     b.ToTable("ChangeRequests");
                 });
 
+            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingExercise", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<Guid>("CheckingWindowId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("EndDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("ExerciseType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CheckingWindowId", "ExerciseType")
+                        .IsUnique();
+
+                    b.ToTable("CheckingExercises", (string)null);
+                });
+
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingWindow", b =>
                 {
                     b.Property<Guid>("Id")
@@ -428,6 +683,11 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<string>("TurnaroundCommitment")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
                     b.HasKey("Id");
 
                     b.ToTable("CheckingWindows");
@@ -439,6 +699,9 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<Guid>("CheckingExerciseId")
+                        .HasColumnType("uuid");
 
                     b.Property<Guid>("CheckingWindowId")
                         .HasColumnType("uuid");
@@ -461,6 +724,11 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<bool>("Required")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
                     b.Property<string>("SchemaFile")
                         .IsRequired()
                         .HasMaxLength(255)
@@ -474,9 +742,13 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     b.Property<int>("SortOrder")
                         .HasColumnType("integer");
 
+                    b.Property<string>("SourceFile")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("CheckingWindowId", "Name")
+                    b.HasIndex("CheckingExerciseId", "Name")
                         .IsUnique();
 
                     b.ToTable("CheckingWindowDatasets");
@@ -726,6 +998,38 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .HasDatabaseName("ix_dev_zendesk_outbox_created_at");
 
                     b.ToTable("dev_zendesk_outbox", (string)null);
+                });
+
+            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.OrganisationLogin", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<string>("Laestab")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("LoggedInAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("OrganisationName")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<long>("OrganisationUrn")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LoggedInAtUtc");
+
+                    b.HasIndex("OrganisationUrn", "LoggedInAtUtc");
+
+                    b.ToTable("OrganisationLogins");
                 });
 
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.PageNode", b =>
@@ -978,6 +1282,15 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     b.ToTable("Settings");
                 });
 
+            modelBuilder.Entity("DfE.CheckPerformance.Persistence.Entities.SearchEventResult", b =>
+                {
+                    b.HasOne("DfE.CheckPerformance.Persistence.Entities.SearchEvent", null)
+                        .WithMany()
+                        .HasForeignKey("SearchEventId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.ChangeRequest", b =>
                 {
                     b.HasOne("DfE.CheckPerformanceData.Persistence.Entities.CheckingWindow", null)
@@ -987,11 +1300,17 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingWindow", b =>
+            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingExercise", b =>
                 {
-                    b.OwnsOne("DfE.CheckPerformanceData.Persistence.Entities.WindowValidated", "Validated", b1 =>
+                    b.HasOne("DfE.CheckPerformanceData.Persistence.Entities.CheckingWindow", null)
+                        .WithMany("CheckingExercises")
+                        .HasForeignKey("CheckingWindowId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.OwnsOne("DfE.CheckPerformanceData.Persistence.Entities.ExerciseValidated", "Validated", b1 =>
                         {
-                            b1.Property<Guid>("CheckingWindowId")
+                            b1.Property<Guid>("CheckingExerciseId")
                                 .ValueGeneratedOnAdd()
                                 .HasColumnType("uuid");
 
@@ -1008,12 +1327,12 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                             b1.Property<DateTime>("ValidatedAt")
                                 .HasColumnType("timestamp with time zone");
 
-                            b1.HasKey("CheckingWindowId");
+                            b1.HasKey("CheckingExerciseId");
 
-                            b1.ToTable("CheckingWindows");
+                            b1.ToTable("CheckingExercises");
 
                             b1.WithOwner()
-                                .HasForeignKey("CheckingWindowId");
+                                .HasForeignKey("CheckingExerciseId");
                         });
 
                     b.Navigation("Validated");
@@ -1021,9 +1340,9 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
 
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingWindowDataset", b =>
                 {
-                    b.HasOne("DfE.CheckPerformanceData.Persistence.Entities.CheckingWindow", null)
+                    b.HasOne("DfE.CheckPerformanceData.Persistence.Entities.CheckingExercise", null)
                         .WithMany("Datasets")
-                        .HasForeignKey("CheckingWindowId")
+                        .HasForeignKey("CheckingExerciseId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
@@ -1059,9 +1378,14 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     b.Navigation("PageNode");
                 });
 
-            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingWindow", b =>
+            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingExercise", b =>
                 {
                     b.Navigation("Datasets");
+                });
+
+            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingWindow", b =>
+                {
+                    b.Navigation("CheckingExercises");
                 });
 
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.ContentBlock", b =>

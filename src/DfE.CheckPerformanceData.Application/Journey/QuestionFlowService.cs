@@ -109,6 +109,14 @@ public sealed class QuestionFlowService(IQuestionFlowBlobClient blobClient, IMem
             }
         }
 
+        // AB#297310: a page whose answers ARE the pupil (e.g. the Add journey's learner-details)
+        // has no "reason" or "category" to surface — its first question is a typed name, and
+        // guessing a request-type description from it (or from an unrelated later page) would be
+        // arbitrary and misleading (observed: "Add - Alice"). A flow built around a synthetic
+        // pupil never has a meaningful sub-category, so stop here rather than falling through.
+        if (journey.QuestionHistory.Any(pageId => GetPage(config, pageId)?.PupilFromAnswers == true))
+            return string.Empty;
+
         // Fallback: answer to the first question in history
         foreach (var pageId in journey.QuestionHistory)
         {

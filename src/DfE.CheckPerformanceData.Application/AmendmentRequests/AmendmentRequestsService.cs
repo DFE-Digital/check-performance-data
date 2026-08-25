@@ -1,12 +1,14 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
+using DfE.CheckPerformanceData.Application.WindowManagement;
 
 namespace DfE.CheckPerformanceData.Application.AmendmentRequests;
 
 public sealed class AmendmentRequestsService(
     ICheckYourPupilDataService checkYourPupilDataService,
     IRequestRepository requestRepository,
+    ICheckingExerciseService checkingExercises,
     ICurrentUserService currentUserService) : IAmendmentRequestsService
 {
     public async Task<AmendmentRequestsResult> GetAmendmentRequestsAsync(Guid windowId)
@@ -18,8 +20,20 @@ public sealed class AmendmentRequestsService(
 
         return new AmendmentRequestsResult
         {
-            WindowEndDate = window.EndDate,
             WindowTitle = window.Title,
+            // #320: a deadline per exercise the window runs, not the outer window's end date. The
+            // grid lists both populations, and on a 16-19 window pupil data checking shuts months
+            // before results enquiry does — one date could only ever be right for one of them.
+            Deadlines = window.Exercises
+                .OrderBy(e => e.SortOrder)
+                .Select(e => new ExerciseDeadlineDto
+                {
+                    Exercise = e.ExerciseType,
+                    EndDate = e.EndDate,
+                    // The clock lives in one place, so "has this closed" is asked, never computed.
+                    IsOpen = checkingExercises.IsOpen(window.Exercises, e.ExerciseType)
+                })
+                .ToList(),
             Rows = requests.Select(r => new AmendmentRequestDto
             {
                 PupilName = PupilNameFormatter.Format(r.PupilFirstname, r.PupilSurname),

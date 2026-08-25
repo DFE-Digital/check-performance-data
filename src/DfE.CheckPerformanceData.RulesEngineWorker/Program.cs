@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Observability;
 using DfE.CheckPerformanceData.Application.Queue;
@@ -5,6 +6,7 @@ using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Infrastructure;
 using DfE.CheckPerformanceData.Infrastructure.Queue;
+using DfE.CheckPerformanceData.Persistence.Analytics;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Observability;
 using DfE.CheckPerformanceData.Persistence.Repositories;
@@ -27,6 +29,13 @@ builder.Services.AddScoped<ISettingRepository, SettingRepository>();
 builder.Services.AddScoped<ISettingService, SettingService>();
 
 builder.Services.AddScoped<IMetricsSink, DbMetricsSink>();
+// Search analytics retention: the events sink + the messages service are the two purge
+// dependencies of SearchAnalyticsRetentionJob below. Registered sibling to IMetricsSink
+// rather than through AddPersistenceDependencies — the worker deliberately opts out of
+// the shared registration bundle so its manual DbContext registration (lines below) is
+// the single source of truth.
+builder.Services.AddScoped<ISearchAnalyticsSink, DbSearchAnalyticsSink>();
+builder.Services.AddScoped<ISearchMessageService, DbSearchMessageService>();
 
 builder.Services.AddSingleton<ICurrentUserService, WorkerCurrentUserService>();
 builder.Services.AddDbContext<PortalDbContext>(options =>
@@ -34,7 +43,15 @@ builder.Services.AddDbContext<PortalDbContext>(options =>
         sql => sql.EnableRetryOnFailure()));
 builder.Services.AddScoped<IPortalDbContext>(sp => sp.GetRequiredService<PortalDbContext>());
 
-builder.Services.AddZendeskApiClient(builder.Configuration);
+// Whether the real Zendesk client is the one that will actually serve requests decides how
+// strict its configuration has to be. With the fake selected — the default, so that a fresh dev
+// or test environment never pushes to real Zendesk — blank settings are expected rather than an
+// error, and demanding them would stop the worker starting in exactly the environment the fake
+// exists to serve. The consumers and the retention jobs share this process, so that is all of
+// them, over an integration none of them is using.
+builder.Services.AddZendeskApiClient(
+    builder.Configuration,
+    requireRealClient: !ZendeskServiceRegistration.ShouldUseFake(builder.Configuration));
 builder.Services.AddInfrastructureDependencies(builder.Configuration);
 builder.Services.AddNotifyService(builder.Configuration);
 
@@ -64,6 +81,10 @@ builder.Services.AddHostedService(sp =>
     new MetricsRetentionJob(
         sp.GetRequiredService<IServiceScopeFactory>(),
         sp.GetRequiredService<ILogger<MetricsRetentionJob>>()));
+builder.Services.AddHostedService(sp =>
+    new SearchAnalyticsRetentionJob(
+        sp.GetRequiredService<IServiceScopeFactory>(),
+        sp.GetRequiredService<ILogger<SearchAnalyticsRetentionJob>>()));
 
 builder.Services.AddWorkerHealthChecks();
 

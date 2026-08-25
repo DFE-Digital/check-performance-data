@@ -82,11 +82,20 @@ public sealed class RequestService(
         // rules engine worker can write its decision back to that row.
         var changeRequestId = await requestRepository.UpsertAsync(
             BuildChangeRequestData(windowId, journey, RequestStatus.SubmittedUnCommitted, config));
-        var document = BuildRequestDocument(context, config, changeRequestId);
 
-        // Enqueue onto the Postgres rules-engine queue; the worker's RulesConsumer
-        // picks it up, evaluates it and writes the decision back to the row.
-        await queueService.EnqueueAsync(QueueOptions.RulesEngineQueue, document);
+        // PARKED AB#297310: an Add-pupil request has no rules-engine outcomes (ticket B2) — its
+        // downstream is the LDS egress (LDS_CYPMD_Data specification v2.4), a separate story. So
+        // no enqueue: the ChangeRequests row + the journey blob saved below are the record that
+        // egress will read. When the egress story lands, its dispatch goes THERE, not here — and
+        // the matching exclusion in AdminRequestsService.ProcessCloseWindowEvent comes out with it.
+        if (journey.SelectedWhatToChange != WhatToChange.Add)
+        {
+            var document = BuildRequestDocument(context, config, changeRequestId);
+
+            // Enqueue onto the Postgres rules-engine queue; the worker's RulesConsumer
+            // picks it up, evaluates it and writes the decision back to the row.
+            await queueService.EnqueueAsync(QueueOptions.RulesEngineQueue, document);
+        }
 
         // Persist the stamped journey so the read-only submitted-request view can
         // rebuild its summary (and "Submitted by" section) from the journey alone —
@@ -94,14 +103,63 @@ public sealed class RequestService(
         await requestStateBlobClient.SaveAsync(windowId, journey.ReferenceNumber ?? string.Empty, journey);
     }
 
+    public async Task<string> SubmitResultsEnquiryAsync(
+        Guid windowId, RequestState journey, CancellationToken ct = default)
+    {
+        if (journey.SelectedWhatToChange != WhatToChange.IncorrectGrade)
+            throw new InvalidOperationException(
+                $"SubmitResultsEnquiryAsync is the results-enquiry path; got {journey.SelectedWhatToChange}. " +
+                "Routing an amendment through here would store the wrong RequestType and skip the rules engine.");
+
+        if (journey.CheckingWindow is null || journey.SelectedPupil is null || journey.SelectedResult is null
+            || string.IsNullOrWhiteSpace(journey.ReferenceNumber))
+            throw new InvalidOperationException("Session state is incomplete for results-enquiry submission.");
+
+        // The row first: it is the record of truth, and a journey blob with no row would be invisible
+        // to every admin view.
+        await requestRepository.UpsertAsync(new ChangeRequestData
+        {
+            WindowId = windowId,
+            ReferenceNumber = journey.ReferenceNumber,
+            OrganisationUrn = OrganisationUrnLong,
+            PupilId = journey.SelectedPupil.Id,
+            PupilUpn = journey.SelectedPupil.Identifier,
+            PupilFirstname = journey.SelectedPupil.Firstname,
+            PupilSurname = journey.SelectedPupil.Surname,
+            // Stored as UTC and converted to London time at display. The column is
+            // `timestamp without time zone`, so the value carries an Unspecified kind
+            // (Npgsql rejects a Utc kind here); the instant it holds is UTC.
+            Timestamp = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
+            SubmittedById = Guid.Parse(currentUserService.UserId),
+            SubmittedByName = currentUserService.DisplayName,
+            SubmittedByEmail = currentUserService.Email,
+            Status = RequestStatus.SubmittedUnCommitted,
+            RequestType = RequestType.ResultsEnquiry,
+            RequestTypeDescription = "Results enquiry - Incorrect grade",
+            AmendmentType = WhatToChange.IncorrectGrade
+        });
+
+        // The journey JSON is the enquiry's full record — it carries the selected result and every
+        // answer — so the separate Zendesk story can build its ticket from this without a new schema.
+        await requestStateBlobClient.SaveAsync(windowId, journey.ReferenceNumber, journey);
+
+        // PARKED AB#296648: no enqueue. Enquiries are destined for Zendesk, but the dispatch is a
+        // separate ticket. When it lands, the enqueue goes HERE and nowhere else — and the exclusion
+        // in AdminRequestsService.ProcessCloseWindowEvent comes out at the same time.
+
+        return journey.ReferenceNumber;
+    }
+
     public async Task ConfirmRequestAsync(Guid windowId, RequestState journey)
     {
         await SubmitRequestAsync(windowId, journey);
         await requestNotificationService.NotifySubmissionConfirmedAsync(
-            windowId, journey.CheckingWindow!.EndDate, journey.ReferenceNumber ?? string.Empty);
+            windowId, journey.CheckingWindow!.EndDate, journey.ReferenceNumber ?? string.Empty,
+            EmailSubstitutions.From(journey.CheckingWindow));
     }
 
-    public async Task ConfirmDataCorrectAsync(Guid windowId, string referenceNumber, DateTime endDate)
+    public async Task ConfirmDataCorrectAsync(
+        Guid windowId, string referenceNumber, DateTime endDate, EmailSubstitutions substitutions)
     {
         await requestRepository.UpsertAsync(new ChangeRequestData
         {
@@ -120,7 +178,8 @@ public sealed class RequestService(
             RequestTypeDescription = "Confirm Pupil Data Declaration"
         });
 
-        await requestNotificationService.NotifyDataCheckConfirmedAsync(endDate, referenceNumber);
+        await requestNotificationService.NotifyDataCheckConfirmedAsync(
+            endDate, referenceNumber, substitutions);
     }
 
     public async Task SaveDraftAsync(Guid windowId, RequestState journey, RequestStatus status)
@@ -169,11 +228,13 @@ public sealed class RequestService(
 
         if (row?.RequestType == RequestType.Amendment)
         {
-            await requestNotificationService.NotifyAmendmentWithdrawnAsync(referenceNumber, deadline);
+            await requestNotificationService.NotifyAmendmentWithdrawnAsync(
+                referenceNumber, deadline, EmailSubstitutions.From(window));
         }
         else if (row?.RequestType == RequestType.ConfirmCorrect)
         {
-            await requestNotificationService.NotifyDataCheckWithdrawnAsync(referenceNumber, deadline);
+            await requestNotificationService.NotifyDataCheckWithdrawnAsync(
+                referenceNumber, deadline, EmailSubstitutions.From(window));
         }
         else
         {
@@ -221,7 +282,8 @@ public sealed class RequestService(
             SubmittedByEmail = currentUserService.Email,
             Status = status,
             RequestType = RequestType.Amendment,
-            RequestTypeDescription = BuildRequestTypeDescription(journey, config)
+            RequestTypeDescription = BuildRequestTypeDescription(journey, config),
+            AmendmentType = journey.SelectedWhatToChange
         };
 
     private RequestDocument BuildRequestDocument(JourneySubmissionContext context, QuestionFlowConfig config, Guid changeRequestId)
@@ -258,7 +320,10 @@ public sealed class RequestService(
             School = new SchoolDetails
             {
                 Urn = currentUserService.OrganisationUrn,
-                Name = currentUserService.OrganisationName
+                Name = currentUserService.OrganisationName,
+                Laestab = string.IsNullOrEmpty(pupil.Laestab)
+                    ? currentUserService.OrganisationLaestab
+                    : pupil.Laestab
             },
             Pupil = new PupilDetails
             {
@@ -270,7 +335,9 @@ public sealed class RequestService(
                 Sex = pupil.Sex,
                 Age = pupil.Age,
                 Upn = pupil.Identifier,
-                Pincl = pupil.Pincl
+                Pincl = pupil.Pincl,
+                MatchRef = pupil.MatchRef,
+                EntryDate = pupil.EntryDate
             },
             MatchedPupil = context.MatchedPupil is { } mp ? new PupilDetails
             {
@@ -282,7 +349,9 @@ public sealed class RequestService(
                 Sex = mp.Sex,
                 Age = mp.Age,
                 Upn = mp.Identifier,
-                Pincl = mp.Pincl
+                Pincl = mp.Pincl,
+                MatchRef = mp.MatchRef,
+                EntryDate = mp.EntryDate
             } : null,
             Answers = answers
         };

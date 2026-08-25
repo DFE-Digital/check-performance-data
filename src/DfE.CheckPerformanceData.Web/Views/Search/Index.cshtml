@@ -1,11 +1,29 @@
 @using DfE.CheckPerformanceData.Application.Search
 @model DfE.CheckPerformanceData.Web.Controllers.ViewModels.SiteSearchViewModel
+@inject DfE.CheckPerformanceData.Application.Search.ISearchDebugOptions SearchDebugOptions
 @{
     ViewData["Title"] = string.IsNullOrEmpty(Model.Query)
         ? "Search"
         : $"Search results for “{Model.Query}”";
     var scopeSuffix = string.IsNullOrEmpty(Model.Scope) ? string.Empty : $" in /{Model.Scope}";
     var formAction = "/search";
+
+    // Preserves q + scope + pageSize on every pager link so the paginator survives a query
+    // refinement or a per-page-size change without dropping the user's context. Url.Action
+    // is used so a future route rename does not strand pagination URLs.
+    //
+    // pageSize is only echoed back into the pager URL when the current request supplied one
+    // explicitly via ?pageSize=. Without this guard the admin CmsPageLength setting would
+    // round-trip as a URL override on page 2+ and hit the [10, 50] anti-abuse clamp,
+    // silently overriding a below-floor admin setting like 5.
+    var hasExplicitPageSize = ViewContext.HttpContext.Request.Query.ContainsKey("pageSize");
+    string PageUrl(int oneIndexed) => Url.Action("Index", "Search", new
+    {
+        q = Model.Query,
+        scope = Model.Scope,
+        pageSize = hasExplicitPageSize ? (int?)Model.PageSize : null,
+        page = oneIndexed > 1 ? (int?)oneIndexed : null,
+    }) ?? "/search";
 }
 
 <div class="govuk-grid-row">
@@ -36,57 +54,82 @@
         {
             <p class="govuk-body">Enter at least 2 characters.</p>
         }
-        else if (Model.TotalHits == 0)
+        else if (Model.TotalCount == 0)
         {
             <p class="govuk-body">No results found for <strong>@Model.Query</strong>@(scopeSuffix).</p>
         }
         else
         {
             <p class="govuk-body">
-                @Model.TotalHits result@(Model.TotalHits == 1 ? "" : "s") for
+                @Model.TotalCount result@(Model.TotalCount == 1 ? "" : "s") for
                 <strong>@Model.Query</strong>@(scopeSuffix).
             </p>
 
-            @if (Model.PageHits.Count > 0)
-            {
-                <h2 class="govuk-heading-l">Pages (@Model.PageHits.Count)</h2>
-                <ul class="govuk-list govuk-list--spaced cypmd-search-results">
-                    @foreach (var hit in Model.PageHits)
+            @* Debug: ts_rank score. Each row's AggregateRank is MAX(page_ts_rank,
+               max block_ts_rank) across all contributors resolving to that URL. Per-field
+               weight semantics (Keywords A + Title B + Subtitle C + BodyPlainText D on
+               pages; Keywords A + ValuePlainText B on blocks) live in
+               Application/Search/SearchWeights.cs.                                        *@
+            <ul class="govuk-list govuk-list--spaced cypmd-search-results">
+                @foreach (var hit in Model.Hits)
+                {
+                    @if (SearchDebugOptions.ShowSearchDebug)
                     {
-                        @* Debug: ts_rank score (Keywords A + Title B + Subtitle C on PageNode.SearchVector,
-                           plus BodyPlainText D on PageNodeVersion.SearchVector — summed).                  *@
-                        @:<!-- rank: @hit.Rank.ToString("F6", System.Globalization.CultureInfo.InvariantCulture) -->
-                        <li>
-                            <h3 class="govuk-heading-s govuk-!-margin-bottom-1">
-                                <a class="govuk-link" href="/@hit.Path">@hit.Title</a>
-                            </h3>
-                            @if (!string.IsNullOrEmpty(hit.Subtitle))
-                            {
-                                <p class="govuk-body-s govuk-!-margin-bottom-1"><em>@hit.Subtitle</em></p>
-                            }
-                            <p class="govuk-body-s govuk-!-margin-bottom-0">@Html.Raw(hit.SnippetHtml)</p>
-                        </li>
+                        @:<!-- rank: @hit.AggregateRank.ToString("F6", System.Globalization.CultureInfo.InvariantCulture) -->
                     }
-                </ul>
-            }
+                    <li>
+                        <h3 class="govuk-heading-s govuk-!-margin-bottom-1">
+                            <a class="govuk-link" href="@hit.Url">@hit.Title</a>
+                        </h3>
+                        @if (SearchDebugOptions.ShowSearchDebug && hit.BlockContributorCount > 0)
+                        {
+                            <p class="govuk-body-s govuk-!-margin-bottom-1">
+                                @if (hit.PageContributorCount == 0)
+                                {
+                                    <span class="govuk-tag govuk-tag--grey">Content block</span>
+                                }
+                                else
+                                {
+                                    <span class="govuk-tag govuk-tag--grey">Blocks: @hit.BlockContributorCount</span>
+                                }
+                            </p>
+                        }
+                        <p class="govuk-body-s govuk-!-margin-bottom-0">@Html.Raw(hit.SnippetHtml)</p>
+                    </li>
+                }
+            </ul>
 
-            @if (Model.ContentBlockHits.Count > 0)
+            @if (Model.TotalPages > 1)
             {
-                <h2 class="govuk-heading-l">Content blocks (@Model.ContentBlockHits.Count)</h2>
-                <ul class="govuk-list govuk-list--spaced cypmd-search-results">
-                    @foreach (var hit in Model.ContentBlockHits)
+                <govuk-pagination>
+                    @if (Model.Page > 1)
                     {
-                        @* Debug: ts_rank score on ContentBlock.SearchVector (Keywords A + ValuePlainText B). *@
-                        @:<!-- rank: @hit.Rank.ToString("F6", System.Globalization.CultureInfo.InvariantCulture) -->
-                        <li>
-                            <h3 class="govuk-heading-s govuk-!-margin-bottom-1">
-                                <a class="govuk-link" href="@hit.Url">@hit.PageTitle</a>
-                            </h3>
-                            <p class="govuk-body-s govuk-!-margin-bottom-0">@Html.Raw(hit.SnippetHtml)</p>
-                        </li>
+                        <govuk-pagination-previous href="@PageUrl(Model.Page - 1)" />
                     }
-                </ul>
+                    @for (var i = 1; i <= Model.TotalPages; i++)
+                    {
+                        <govuk-pagination-item href="@PageUrl(i)" current="@(i == Model.Page)">@i</govuk-pagination-item>
+                    }
+                    @if (Model.Page < Model.TotalPages)
+                    {
+                        <govuk-pagination-next href="@PageUrl(Model.Page + 1)" />
+                    }
+                </govuk-pagination>
             }
+        }
+
+        @* Feedback callout. Renders under both the zero-result and results-present
+           branches so a user who could not find what they wanted has a self-serve path
+           to tell us — but only when they actually ran a query. Suppressed on the empty
+           landing (Model.Query empty) and on the below-minimum-length invalid branch. *@
+        @if (!string.IsNullOrEmpty(Model.Query)
+             && Model.InvalidReason != SearchInvalidReason.DataStoreUnavailable
+             && Model.InvalidReason != SearchInvalidReason.BelowMinimumLength)
+        {
+            <div class="govuk-inset-text">
+                Not the results you were expecting?
+                <a class="govuk-link" href="/Search/Feedback">Send us a note →</a>
+            </div>
         }
     </div>
 </div>

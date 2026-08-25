@@ -5,7 +5,6 @@ using DfE.CheckPerformanceData.E2ETests.Helpers;
 namespace DfE.CheckPerformanceData.E2ETests.Admin;
 
 [Collection("E2E")]
-[Trait("Category", "W4")]
 public sealed class AdminAuthTests(PlaywrightFixture fixture)
 {
     private readonly PlaywrightFixture _fixture = fixture;
@@ -112,7 +111,9 @@ public sealed class AdminAuthTests(PlaywrightFixture fixture)
             Assert.Contains("CMS administration", body);
             Assert.Contains("System administration", body);
             Assert.Contains("Deleted pages", body);
-            Assert.Contains("Seed sample pages", body);
+            Assert.Contains("Seed sample CMS pages", body);
+            Assert.Contains("Seed sample search data", body);
+            Assert.Contains("Test data", body);
             Assert.Contains("Queues", body);
             Assert.Contains("Dead Letter Queue", body);
             Assert.Contains("Rules Engine configuration", body);

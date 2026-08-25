@@ -1,4 +1,5 @@
 @using DfE.CheckPerformanceData.Web.Controllers.Journey
+@using System.Text.Json
 @model QuestionPartialModel
 
 @if (Model.IsPageHeading)
@@ -10,9 +11,11 @@ else
     <h2 class="govuk-heading-m">@Model.ResolvedTitle</h2>
 }
 
+@* id is referenced by QuestionPartialModel.DescribedBy — the file input's aria-describedby
+   names it, so the two must stay in step. *@
 @if (Model.Question.Hint is not null)
 {
-    <p class="govuk-body">@Model.Question.Hint</p>
+    <p class="govuk-body" id="fileUpload-hint">@Model.Question.Hint</p>
 }
 
 @* ── Uploaded files table ────────────────────────────────────────────── *@
@@ -64,6 +67,11 @@ else
        are submitted alongside the file. *@
     var fileError = Model.UploadError ?? Model.Error;
     <div class="govuk-form-group @(fileError is not null ? "govuk-form-group--error" : "")">
+        @* The question title is the page heading, and the uploaded-files table sits between it
+           and this input, so the input gets its own label rather than the heading doubling as
+           one — a `for` reaching back over the table would name the field oddly and read out of
+           order. Without this the input had no accessible name at all. *@
+        <label class="govuk-label" for="fileUpload">Upload a file</label>
         @if (fileError is not null)
         {
             <p class="govuk-error-message" id="fileUpload-error">
@@ -73,7 +81,8 @@ else
         <input class="govuk-file-upload @(fileError is not null ? "govuk-file-upload--error" : "")"
                id="fileUpload" name="fileUpload" type="file"
                accept=".pdf,application/pdf"
-               aria-describedby="@Model.DescribedBy">
+               aria-describedby="@Model.DescribedBy"
+               data-existing-file-names="@JsonSerializer.Serialize(Model.ExistingFileNames)">
     </div>
 
     <govuk-button type="submit" class="govuk-button--secondary"

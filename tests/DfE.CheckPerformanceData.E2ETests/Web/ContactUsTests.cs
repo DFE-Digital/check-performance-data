@@ -6,7 +6,6 @@ using Microsoft.Playwright.Xunit;
 namespace DfE.CheckPerformanceData.E2ETests.Web;
 
 [Collection("E2E")]
-[Trait("Category", "W0")]
 public sealed class ContactUsTests(PlaywrightFixture fixture) : PageTest
 {
     private readonly PlaywrightFixture _fixture = fixture;

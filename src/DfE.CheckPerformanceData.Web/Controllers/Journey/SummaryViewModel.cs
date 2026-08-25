@@ -24,6 +24,17 @@ public sealed class SummaryViewModel
     public string? MatchedPupilPageId { get; init; }
     public bool BackPageIsPupilSearch { get; init; }
 
+    /// <summary>The JourneyController action that serves <see cref="BackPageId"/>.</summary>
+    public string BackPageAction { get; init; } = nameof(JourneyController.Page);
+
+    /// <summary>
+    /// AB#296648: the enquiry-shaped summary data, set only for a results enquiry. Its presence is
+    /// what switches <see cref="Lines"/> onto the enquiry row set.
+    /// </summary>
+    public ResultsEnquirySummary? Enquiry { get; init; }
+
+    public bool IsResultsEnquiry => Enquiry is not null;
+
     public int TotalPagesUsed => FileRows.Sum(r => r.PageCount);
 
     public string WhatToChangeLabel => WhatToChange switch
@@ -31,6 +42,7 @@ public sealed class SummaryViewModel
         WhatToChange.Remove => "Remove a pupil from data",
         WhatToChange.Include => "Include a pupil in data",
         WhatToChange.Merge => "Merge duplicate pupil records",
+        WhatToChange.Add => "Add a pupil to data",
         _ => WhatToChange.ToString()
     };
 
@@ -39,6 +51,7 @@ public sealed class SummaryViewModel
         WhatToChange.Remove => "removal",
         WhatToChange.Include => "inclusion",
         WhatToChange.Merge => "merge",
+        WhatToChange.Add => "addition",
         _ => WhatToChange.ToString().ToLower()
     };
 
@@ -54,6 +67,8 @@ public sealed class SummaryViewModel
     {
         get
         {
+            if (Enquiry is { } enquiry) return enquiry.Lines;
+
             var lines = new List<SummaryLine>
             {
                 new("What pupil data would you like to change?", WhatToChangeLabel, null, false, null)
@@ -64,8 +79,12 @@ public sealed class SummaryViewModel
                 lines.Add(new("First record to merge", FirstRecordDisplay ?? "", PrimaryPupilPageId, false, "first record to merge"));
                 lines.Add(new("Second record to merge", SecondRecordDisplay, MatchedPupilPageId, false, "second record to merge"));
             }
-            else
+            else if (PrimaryPupilPageId is not null)
             {
+                // Only a journey with a pupil-search page has somewhere for this row's Change link
+                // to go. The Add journey (AB#297310) has none — the pupil is typed in — and its
+                // first and last name rows below already carry their own Change links, so an
+                // actionless duplicate of them adds nothing.
                 lines.Add(new("Pupil name", PupilName, PrimaryPupilPageId, false, "pupil name"));
             }
 

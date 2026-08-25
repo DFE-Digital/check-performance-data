@@ -14,8 +14,15 @@ public interface ICheckYourPupilDataService
     Task<PupilTable> GetPupilCsvAsync(Guid windowId, bool included);
 
     Task<CheckingWindowDto> GetCheckingWindowAsync(Guid windowId);
+    /// <summary>
+    /// Autocomplete suggestions for the pupil search.
+    ///
+    /// <paramref name="requireResults"/> limits the search to students the school holds a result
+    /// for — a results enquiry has nothing to correct otherwise. It costs a read of the school's
+    /// (cached) results file, so it is opt-in rather than the default.
+    /// </summary>
     Task<IReadOnlyList<PupilSuggestionDto>> GetPupilSuggestionsAsync(Guid windowId, string query,
-        PupilFilter filter, Guid? excludeId = null);
+        PupilFilter filter, Guid? excludeId = null, bool requireResults = false);
 
     Task<PupilDto> GetPupilAsync(Guid windowId, Guid pupilId);
 }
@@ -46,6 +53,19 @@ public sealed class PupilDto
     /// <summary>Inclusion status code from the pupil record (e.g. 401). Not required so
     /// sessions serialised before this field existed still deserialise; 0 = not supplied.</summary>
     public int Pincl { get; set; }
+
+    /// <summary>LDS match reference (MATCHREF) from the pupil record. Not required so sessions
+    /// serialised before this field existed still deserialise; 0 = not supplied.</summary>
+    public int MatchRef { get; set; }
+
+    /// <summary>DfE establishment number (LAESTAB) from the pupil record. Not required so
+    /// sessions serialised before this field existed still deserialise; empty = not supplied.</summary>
+    public string Laestab { get; set; } = string.Empty;
+
+    /// <summary>School admission date (ENTRYDAT) from the pupil record, the source of the
+    /// Admission date ticket field (FR-012). Raw string whose format is supplier-defined;
+    /// empty = not supplied.</summary>
+    public string EntryDate { get; set; } = string.Empty;
 }
 
 public record PupilSuggestionDto(Guid Id, string Label);

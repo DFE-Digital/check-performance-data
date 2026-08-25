@@ -51,6 +51,74 @@ public sealed class SettingServiceTests
     }
 
     [Fact]
+    public async Task GetBoolAsync_ReturnsTrue_WhenStoredValueTrue()
+    {
+        _repository.GetValueAsync(SettingKeys.DlqFullPayloadEnabled).Returns("true");
+
+        Assert.True(await _sut.GetBoolAsync(SettingKeys.DlqFullPayloadEnabled));
+    }
+
+    [Theory]
+    [InlineData("True")]
+    [InlineData("TRUE")]
+    [InlineData("tRuE")]
+    public async Task GetBoolAsync_IsCaseInsensitive_ForTrue(string stored)
+    {
+        _repository.GetValueAsync(SettingKeys.DlqFullPayloadEnabled).Returns(stored);
+
+        Assert.True(await _sut.GetBoolAsync(SettingKeys.DlqFullPayloadEnabled));
+    }
+
+    [Fact]
+    public async Task GetBoolAsync_ReturnsFalse_WhenStoredValueFalse()
+    {
+        _repository.GetValueAsync(SettingKeys.DlqFullPayloadEnabled).Returns("false");
+
+        Assert.False(await _sut.GetBoolAsync(SettingKeys.DlqFullPayloadEnabled));
+    }
+
+    [Fact]
+    public async Task GetBoolAsync_FallsBackToDefault_WhenStoredValueNull()
+    {
+        _repository.GetValueAsync(SettingKeys.DlqFullPayloadEnabled).Returns((string?)null);
+
+        // Default for DlqFullPayloadEnabled is "false".
+        Assert.False(await _sut.GetBoolAsync(SettingKeys.DlqFullPayloadEnabled));
+    }
+
+    [Fact]
+    public async Task GetBoolAsync_FallsBackToDefault_WhenStoredValueBlank()
+    {
+        _repository.GetValueAsync(SettingKeys.DlqFullPayloadEnabled).Returns("   ");
+
+        Assert.False(await _sut.GetBoolAsync(SettingKeys.DlqFullPayloadEnabled));
+    }
+
+    [Fact]
+    public async Task GetBoolAsync_FallsBackToDefault_WhenStoredValueUnparseable()
+    {
+        _repository.GetValueAsync(SettingKeys.DlqFullPayloadEnabled).Returns("banana");
+
+        Assert.False(await _sut.GetBoolAsync(SettingKeys.DlqFullPayloadEnabled));
+    }
+
+    [Fact]
+    public async Task GetBoolAsync_UsesTrueDefault_WhenDefinitionDefaultIsTrue()
+    {
+        // NotifyUseFake defaults to "true".
+        _repository.GetValueAsync(SettingKeys.NotifyUseFake).Returns((string?)null);
+
+        Assert.True(await _sut.GetBoolAsync(SettingKeys.NotifyUseFake));
+    }
+
+    [Fact]
+    public async Task GetBoolAsync_Throws_ForUnknownKey()
+    {
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _sut.GetBoolAsync("Bogus:Key"));
+    }
+
+    [Fact]
     public async Task SaveAsync_UpsertsTrimmedValue_WhenProvided()
     {
         await _sut.SaveAsync(SettingKeys.CmsPageLength, "  50 ");

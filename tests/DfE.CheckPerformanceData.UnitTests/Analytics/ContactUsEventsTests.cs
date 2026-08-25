@@ -16,4 +16,14 @@ public sealed class ContactUsEventsTests
         Assert.False(byName["enquiry_type"].Hidden);
         Assert.False(byName["is_authenticated"].Hidden);
     }
+
+    [Fact]
+    public void FeedbackClickedEvent_projects_page_path()
+    {
+        var e = new FeedbackClickedEvent { PagePath = "/CheckYourPupilData/abc" };
+        Assert.Equal("feedback_clicked", e.EventType);
+        var byName = e.Fields.ToDictionary(f => f.Name);
+        Assert.Equal("/CheckYourPupilData/abc", byName["page_path"].Value);
+        Assert.False(byName["page_path"].Hidden);
+    }
 }

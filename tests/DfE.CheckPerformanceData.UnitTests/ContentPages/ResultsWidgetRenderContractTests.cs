@@ -21,9 +21,29 @@ public sealed class ResultsWidgetRenderContractTests
     [Fact]
     public void RendersMergedItems_ViaSiteSearchPagedResult()
     {
-        // Uses the merged/paged service surface (not the split result).
-        Assert.Contains("SearchMergedPagedAsync", View);
-        Assert.Contains("result.Items", View);
+        // Uses the unified paged service surface (not the split result). Post-convergence
+        // the paged result carries `Hits: IReadOnlyList<CanonicalSearchHit>`.
+        Assert.Contains("SearchAsync", View);
+        Assert.Contains("result.Hits", View);
+    }
+
+    [Fact]
+    public void RendersWarningPanel_OnDataStoreUnavailable()
+    {
+        // Host page stays HTTP 200 while the widget renders a govuk-warning-text panel;
+        // pins both the token (so the invalid-reason chain still branches on the enum)
+        // and the copy (so a future rewrite does not silently drift the user-facing text).
+        Assert.Contains("SearchInvalidReason.DataStoreUnavailable", View);
+        Assert.Contains("govuk-warning-text", View);
+        Assert.Contains("Search is temporarily unavailable", View);
+    }
+
+    [Fact]
+    public void RendersPageSizeOverride_FromQueryString()
+    {
+        // ?pageSize=N overrides the shared admin knob per-request; the widget must read
+        // the query-string first, before falling back to the setting.
+        Assert.Contains("pageSizeOverride", View);
     }
 
     [Fact]
@@ -104,7 +124,7 @@ public sealed class ResultsWidgetRenderContractTests
     public void PageSize_HasSafeFallbackWhenSettingIsInvalid()
     {
         // Widget must not divide by zero if the setting is 0/negative.
-        Assert.Matches("pageSize\\s*<\\s*1", View);
+        Assert.Matches("adminPageSize\\s*>\\s*0\\s*\\?\\s*adminPageSize\\s*:\\s*20", View);
     }
 
     // ----- Scope precedence -----

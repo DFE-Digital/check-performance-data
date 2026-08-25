@@ -24,6 +24,24 @@ public sealed class PostgresFixture : IAsyncLifetime
         await _postgres.DisposeAsync();
     }
 
+    /// <summary>
+    /// Stops the underlying Postgres container mid-fixture-scope. Corresponds to
+    /// <c>docker stop</c> (SIGTERM then SIGKILL after grace). Migrations persist across a
+    /// stop/start cycle on the same container instance — the <c>postgres:17-alpine</c>
+    /// data volume survives, so callers do not need to re-run migrations after restart.
+    /// Callers MUST call <see cref="StartAsync"/> in their test's DisposeAsync to
+    /// unpoison subsequent tests in the same PostgresCollection scope.
+    /// </summary>
+    public Task StopAsync() => _postgres.StopAsync();
+
+    /// <summary>
+    /// Restarts a previously-stopped container. Idempotent: calling on an already-running
+    /// container is a no-op per the Testcontainers-dotnet contract, so this is safe to
+    /// call unconditionally in a test's disposal path even if the test aborted before its
+    /// own <see cref="StopAsync"/>.
+    /// </summary>
+    public Task StartAsync() => _postgres.StartAsync();
+
     public PortalDbContext CreateContext()
     {
         var options = new DbContextOptionsBuilder<PortalDbContext>()

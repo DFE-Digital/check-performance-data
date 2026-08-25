@@ -14,6 +14,7 @@ public interface IPortalDbContext
     DbSet<AuditEntry> AuditEntries { get; }
     DbSet<CheckingWindow> CheckingWindows { get; }
     DbSet<CheckingWindowDataset> CheckingWindowDatasets { get; }
+    DbSet<CheckingExercise> CheckingExercises { get; }
     DbSet<ContentBlock> ContentBlocks { get; }
     DbSet<ContentBlockVersion> ContentBlockVersions { get; }
     DbSet<RulesConfigVersion> RulesConfigVersions { get; }
@@ -28,6 +29,10 @@ public interface IPortalDbContext
     DbSet<PageNodeVersion> PageNodeVersions { get; }
     DbSet<AdminSectionAccess> AdminSectionAccesses { get; }
     DbSet<AppLog> AppLogs { get; }
+    DbSet<OrganisationLogin> OrganisationLogins { get; }
+    DbSet<SearchEvent> SearchEvents { get; }
+    DbSet<SearchEventResult> SearchEventResults { get; }
+    DbSet<SearchMessage> SearchMessages { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     Task ExecuteInTransactionAsync(Func<Task> work, CancellationToken cancellationToken = default);

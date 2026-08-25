@@ -100,10 +100,20 @@ public class TitleControllerTests
     {
         var windowService = Substitute.For<IWindowService>();
 
+        // #319: the draft has no window-level dates any more — they are derived from its exercises,
+        // so the "other answers survive a title edit" assertion below reads an exercise instead.
         var existing = new CheckingWindowDraft
         {
             Title = "Old title",
-            StartDate = new DateTime(2027, 1, 1)
+            Exercises =
+            [
+                new ExerciseDraft
+                {
+                    ExerciseType = CheckingExerciseType.PupilData,
+                    StartDate = new DateTime(2027, 1, 1),
+                    EndDate = new DateTime(2027, 1, 14)
+                }
+            ]
         };
 
         byte[]? stored = null;
@@ -127,7 +137,7 @@ public class TitleControllerTests
         var savedDraft = JsonSerializer.Deserialize<CheckingWindowDraft>(Encoding.UTF8.GetString(stored!));
         Assert.NotNull(savedDraft);
         Assert.Equal("Updated title", savedDraft!.Title);
-        Assert.Equal(new DateTime(2027, 1, 1), savedDraft.StartDate);
+        Assert.Equal(new DateTime(2027, 1, 1), Assert.Single(savedDraft.Exercises).StartDate);
 
         Assert.IsType<RedirectResult>(result);
     }

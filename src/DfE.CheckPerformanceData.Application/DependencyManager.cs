@@ -23,6 +23,8 @@ public static class DependencyManager
     public static IServiceCollection AddApplicationDependencies(this IServiceCollection services)
     {
         services.AddScoped<IClaimsEnrichmentService, ClaimsEnrichmentService>();
+        services.AddScoped<Dashboard.IOrganisationLoginRecorder, Dashboard.OrganisationLoginRecorder>();
+        services.AddScoped<Dashboard.IDashboardService, Dashboard.DashboardService>();
         services.AddScoped<IContentBlockService, ContentBlockService>();
         services.AddScoped<IContentBlockSearchService, ContentBlockSearchService>();
         services.AddScoped<ISiteSearchService, SiteSearchService>();
@@ -32,12 +34,19 @@ public static class DependencyManager
         services.AddScoped<IPageNodeContentEditor, PageNodeContentEditor>();
         services.AddScoped<DefaultPageNodeSeeder>();
         services.AddScoped<SamplePageNodeSeeder>();
+        services.AddScoped<Analytics.SampleSearchDataSeeder>();
         services.AddScoped<ContentStaging.IContentStagingService, ContentStaging.ContentStagingService>();
         services.AddScoped<IHtmlRenderingService, HtmlRenderingService>();
         services.AddScoped<Settings.ISettingService, Settings.SettingService>();
         services.AddScoped<ILandingPageService, LandingPageService>();
         services.AddScoped<IWindowService, WindowService>();
+        // #315: the single place that compares an exercise's dates against the clock. Nothing else
+        // in the solution may do that comparison for itself.
+        services.AddScoped<ICheckingExerciseService, CheckingExerciseService>();
         services.AddScoped<ICheckYourPupilDataService, CheckYourPupilDataService>();
+        // #317: which next-step options the check-your-pupil-data page may offer, from the open
+        // exercises. The exercise-to-options map is domain knowledge, so it is not in the controller.
+        services.AddScoped<INextStepsService, NextStepsService>();
         services.AddScoped<IJourneyValidationService, JourneyValidationService>();
         services.AddScoped<IRequestService, RequestService>();
         services.AddSingleton<IQuestionFlowService, QuestionFlowService>();
@@ -50,14 +59,21 @@ public static class DependencyManager
         services.AddScoped<IJourneyCondition, EalWouldBeAutoRejectedCondition>();
         services.AddScoped<IOriginCountryLanguageCapture, OriginCountryLanguageCapture>();
         services.AddScoped<IFormatValidator, DfeNumberFormatValidator>();
+        // AB#296648: the cohort-count question. Registration is load-bearing — the journey engine
+        // fails OPEN on an unregistered validator name, so a missing line here silently skips the
+        // format check rather than throwing anywhere.
+        services.AddScoped<IFormatValidator, WholeNumberFormatValidator>();
         services.AddScoped<IAmendmentRequestsService, AmendmentRequestsService>();
         services.AddScoped<IBulkSubmissionService, BulkSubmissionService>();
         services.AddScoped<ISubmittedRequestService, SubmittedRequestService>();
         services.AddScoped<IEditAdviceService, EditAdviceService>();
         services.AddScoped<UncommittedRequests.IAdminRequestsService, UncommittedRequests.AdminRequestsService>();
+        // AB#296648: the single derivation of "the second late results file has landed".
+        services.AddScoped<ResultsEnquiry.ILateResultsAvailability, ResultsEnquiry.LateResultsAvailability>();
 
         services.AddSingleton<Observability.IHealthEvaluator, Observability.HealthEvaluator>();
         services.AddSingleton<Observability.StatusSentenceBuilder>();
+        services.AddSingleton<ISearchResultCanonicaliser, SearchResultCanonicaliser>();
 
         services.AddRulesEngineDependencies();
 

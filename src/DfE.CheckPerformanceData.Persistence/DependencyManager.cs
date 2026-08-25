@@ -54,6 +54,8 @@ public static class DependencyManager
         services.AddScoped<Application.UncommittedRequests.IUncommittedRequestsRepository,
             Repositories.UncommittedRequestsRepository>();
         services.AddScoped<ICountryRepository, CountryRepository>();
+        services.AddScoped<Application.Dashboard.IOrganisationLoginRepository, Repositories.OrganisationLoginRepository>();
+        services.AddScoped<Application.Dashboard.IDashboardRequestRepository, Repositories.DashboardRequestRepository>();
         services.AddScoped<Application.RulesConfig.IRulesConfigVersionRepository,
             Repositories.RulesConfigVersionRepository>();
         services.AddScoped<Application.PageTree.IPageNodeRepository, Repositories.PageNodeRepository>();
@@ -65,6 +67,14 @@ public static class DependencyManager
             Observability.DbMetricsSink>();
         services.AddScoped<Application.Observability.IShareTokenService,
             Observability.ShareTokenService>();
+        services.AddScoped<Application.Analytics.ISearchAnalyticsSink,
+            Analytics.DbSearchAnalyticsSink>();
+        services.AddScoped<Application.Analytics.ISearchMessageService,
+            Analytics.DbSearchMessageService>();
+        services.AddScoped<Application.Analytics.ISearchAnalyticsQueryService,
+            Analytics.SearchAnalyticsQueryService>();
+        services.AddScoped<Application.Analytics.ISampleSearchDataGateway,
+            Analytics.DbSampleSearchDataGateway>();
 
         return services;
     }

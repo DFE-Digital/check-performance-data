@@ -7,10 +7,12 @@ using Dfe.Analytics;
 using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.ClaimsEnrichment;
+using DfE.CheckPerformanceData.Application.Dashboard;
 using DfE.CheckPerformanceData.Infrastructure.Analytics;
 using DfE.CheckPerformanceData.Application.DfESignInApiClient;
 using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
 using DfE.CheckPerformanceData.Application.Notify;
+using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Application.RulesConfig;
 using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Application.ZendeskClient;
@@ -57,6 +59,14 @@ public static class DependencyManager
         // the Web host) because the Persistence repositories that consume it are pulled in
         // by every host that calls AddPersistenceDependencies — including the worker.
         services.AddScoped<IPupilDataBlobClient, PupilDataBlobClient>();
+
+        // IStudentResultsClient is deliberately NOT registered here. Its implementation takes an
+        // IMemoryCache, which this bundle's only caller — the worker — does not have: AddMemoryCache
+        // comes from AddPersistenceDependencies, and the worker opts out of that so its manual
+        // DbContext registration stays the single source of truth. Registering it here therefore
+        // failed validate-on-build and took the whole worker process down, consumers and retention
+        // jobs included, over a service the worker never resolves. Every consumer is in the web
+        // host, which assembles its own blob clients in AddCpdBlobStorage and registers it there.
 
         // Analytics sink: the real dfe-analytics adapter when DfeAnalytics:DatasetId is
         // configured (deployed envs wire it via Terraform), else a no-op so dev/review/
@@ -210,6 +220,22 @@ public static class DependencyManager
 
                     ctx.Principal!.AddIdentity(rolesIdentity);
 
+                    // Engagement metrics: record the successful sign-in. Metrics must never block sign-in,
+                    // so any failure here is logged and swallowed.
+                    try
+                    {
+                        var loginRecorder = ctx.HttpContext.RequestServices
+                            .GetRequiredService<IOrganisationLoginRecorder>();
+                        var loginUserId = ctx.Principal!.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+                        await loginRecorder.RecordLoginAsync(loginUserId, rolesIdentity);
+                    }
+                    catch (Exception ex)
+                    {
+                        ctx.HttpContext.RequestServices.GetRequiredService<ILoggerFactory>()
+                            .CreateLogger("DfeSignInEvents")
+                            .LogWarning(ex, "Failed to record organisation login for dashboard metrics.");
+                    }
+
                     // Clear any prior dev-impersonation marker on a fresh real sign-in so
                     // the user's effective role reflects their true DfE claims, not a
                     // stale overlay from before. The impersonation header link can be
@@ -263,7 +289,81 @@ public static class DependencyManager
         return services;
     }
 
-    public static IServiceCollection AddZendeskApiClient(this IServiceCollection services, IConfiguration config)
+    // Host used when the settings are incomplete and the real client is not the one that will
+    // be used. .invalid is reserved by RFC 2606 and can never resolve, so a call that somehow
+    // reached it fails immediately and obviously rather than reaching a real host.
+    private const string UnconfiguredZendeskHost = "https://zendesk.invalid";
+
+    // Named in the error rather than referenced from Application, which Infrastructure does not
+    // depend on. Kept in step with SettingKeys.ZendeskUseFake. Both spellings are quoted because
+    // the failure realistically happens in a container or a deployment slot, where configuration
+    // arrives as environment variables and the colon form does nothing.
+    private const string ZendeskUseFakeKey = "Zendesk:UseFake";
+    private const string ZendeskUseFakeEnvironmentKey = "Zendesk__UseFake";
+
+    // Named placeholders that carry no bracket to give themselves away. The bracketed forms are
+    // matched by shape instead — see IsUnset.
+    private static readonly string[] NamedZendeskPlaceholders = ["the subdomain", "the domain"];
+
+    // A value still wearing its own instructions is not configuration: "<zendesk-api-token>" from
+    // .env.example, "[PLACE THESE IN YOUR USER SECRETS]" from a user-secrets file nobody filled
+    // in. None of them is blank, so a blank check waves them through and an environment with the
+    // real client selected starts against whatever they happen to name. They mean "unset".
+    private static bool IsUnset(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return true;
+
+        var trimmed = value.Trim();
+        return (trimmed.StartsWith('[') && trimmed.EndsWith(']'))
+            || (trimmed.StartsWith('<') && trimmed.EndsWith('>'))
+            || NamedZendeskPlaceholders.Contains(trimmed, StringComparer.OrdinalIgnoreCase);
+    }
+
+    // Subdomain and Domain are structural: they are interpolated into the base address, so
+    // without them there is no URI and therefore no client to construct.
+    internal static List<string> MissingZendeskHostSettings(ZendeskSettings settings)
+    {
+        var missing = new List<string>();
+        if (IsUnset(settings.Subdomain)) missing.Add(nameof(settings.Subdomain));
+        if (IsUnset(settings.Domain)) missing.Add(nameof(settings.Domain));
+        return missing;
+    }
+
+    // Email and ApiToken are credentials: they produce a Basic header Zendesk rejects, which
+    // fails the Zendesk call and nothing else. Refusing to start over them would take the queue
+    // consumers and every retention job in this process down with them — one unset variable
+    // disabling all of them, over an integration none of them uses.
+    internal static List<string> MissingZendeskCredentials(ZendeskSettings settings)
+    {
+        var missing = new List<string>();
+        if (IsUnset(settings.ClientSecret)) missing.Add(nameof(settings.Email));
+        if (IsUnset(settings.ApiToken)) missing.Add(nameof(settings.ApiToken));
+        return missing;
+    }
+
+    // Both halves decide this, for different reasons: without Subdomain and Domain there is no
+    // address to build, and without credentials there is nothing the address could usefully be
+    // asked for. Either way the client is pointed somewhere that cannot resolve. That matters
+    // beyond tidiness, because selecting the fake replaces IZendeskService and nothing else —
+    // IZendeskAttachmentService stays the real Refit client, and an unresolvable address is what
+    // keeps a half-configured environment from reaching a real Zendesk through it.
+    internal static Uri ZendeskBaseAddress(ZendeskSettings settings) =>
+        MissingZendeskHostSettings(settings).Count == 0
+        && MissingZendeskCredentials(settings).Count == 0
+            ? new Uri($"https://{settings.Subdomain.Trim()}.{settings.Domain.Trim()}.com")
+            : new Uri(UnconfiguredZendeskHost);
+
+    /// <param name="requireRealClient">
+    /// Whether the real Zendesk client is the one that will actually be used. When false — the
+    /// fake service is selected, which is the default for a fresh dev or test environment —
+    /// incomplete settings are tolerated in silence and the client is pointed at an unresolvable
+    /// host, because nothing will call it. When true they are a misconfiguration, and how loudly
+    /// depends on which: a missing hostname setting leaves no client to build and stops
+    /// registration; a missing credential costs only the Zendesk call and is warned about at
+    /// start.
+    /// </param>
+    public static IServiceCollection AddZendeskApiClient(
+        this IServiceCollection services, IConfiguration config, bool requireRealClient = true)
     {
         services.AddTransient<RefitLoggingHandler>();
         
@@ -274,13 +374,42 @@ public static class DependencyManager
         {
             throw new InvalidOperationException("ZendeskSettings section is missing in the configuration.");
         }
-        services = services.Configure<ZendeskSettings>(s => s = settings);
-        services.Configure<ZendeskSettings>(
-            config.GetSection(ZendeskSettings.SectionName));
+
+        // The base address is built by interpolating Subdomain and Domain, so unset values
+        // produce "https://..com" — not a parseable hostname. Left unchecked that surfaces as a
+        // UriFormatException thrown while the host resolves its hosted services, which kills the
+        // process before anything starts and says nothing about which setting is missing. An
+        // unset variable in a compose file or a deployment slot is the likeliest way to get
+        // here, so it is worth naming the culprits.
+        var missingHostSettings = MissingZendeskHostSettings(settings);
+        if (missingHostSettings.Count > 0 && requireRealClient)
+        {
+            throw new InvalidOperationException(
+                $"ZendeskSettings is incomplete: {string.Join(", ", missingHostSettings)} " +
+                $"{(missingHostSettings.Count == 1 ? "is" : "are")} not set. Set the corresponding " +
+                $"ZendeskSettings__* configuration values, or set {ZendeskUseFakeKey}=true " +
+                $"({ZendeskUseFakeEnvironmentKey} as an environment variable) to run against the " +
+                "fake Zendesk service instead.");
+        }
+
+        // A missing credential is worth saying out loud and not worth stopping for, so it is
+        // reported at start instead. Registration runs before the host exists and so before
+        // there is any logger to write to, which is why this has to wait for a hosted service.
+        var missingCredentials = MissingZendeskCredentials(settings);
+        if (missingCredentials.Count > 0 && requireRealClient)
+        {
+            services.AddHostedService(sp => new ZendeskCredentialWarning(
+                missingCredentials,
+                sp.GetRequiredService<ILogger<ZendeskCredentialWarning>>()));
+        }
+
+        services.Configure<ZendeskSettings>(config.GetSection(ZendeskSettings.SectionName));
 
         // Register the OAuth token provider (singleton - caches token and refreshes automatically)
         services.AddSingleton<IOAuthTokenProvider, OAuthTokenProvider>();
         services.AddSingleton<DfE.CheckPerformanceData.Infrastructure.ZendeskClient.ZendeskOAuthHandler>();
+
+
         services.AddRefitClient<IZendeskApi>(new RefitSettings
         {
             ContentSerializer = new NewtonsoftJsonContentSerializer()
@@ -307,10 +436,19 @@ public static class DependencyManager
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
-        services.AddOptions<SchoolCheckingExerciseSettings>()
-            .Bind(config.GetSection(SchoolCheckingExerciseSettings.SectionName))
-            .Validate(s => !string.IsNullOrEmpty(s.TargetViewTitle), "TargetViewTitle is required")
-            .ValidateOnStart();
+        // Same reasoning as the client settings above: this names a view that exists in a real
+        // Zendesk instance, so it is only required when a real Zendesk is the one being talked
+        // to. Validated on start, so demanding it regardless is another way for one unset
+        // variable to stop the worker — and with it the queue consumers and every retention job
+        // — over an integration none of them is using.
+        var checkingExercise = services.AddOptions<SchoolCheckingExerciseSettings>()
+            .Bind(config.GetSection(SchoolCheckingExerciseSettings.SectionName));
+        if (requireRealClient)
+        {
+            checkingExercise
+                .Validate(s => !string.IsNullOrEmpty(s.TargetViewTitle), "TargetViewTitle is required")
+                .ValidateOnStart();
+        }
 
         return services;
     }

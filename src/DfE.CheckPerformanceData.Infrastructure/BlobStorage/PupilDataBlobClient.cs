@@ -2,7 +2,10 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Application.Dashboard;
+using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Infrastructure.BlobStorage;
@@ -28,9 +31,10 @@ public sealed class PupilDataBlobClient(BlobServiceClient blobServiceClient) : I
             ? JsonSerializer.Deserialize<List<Post16PupilRecord>>(utf8Json, JsonOptions) ?? []
             : JsonSerializer.Deserialize<List<PupilRecord>>(utf8Json, JsonOptions) ?? [];
 
-    public async Task<IReadOnlyList<IPupilRecord>?> GetPupilsAsync(Guid windowId, string laestab, CheckingWindowType windowType)
+    public async Task<IReadOnlyList<IPupilRecord>?> GetPupilsAsync(
+        Guid windowId, CheckingExerciseType exercise, string laestab, CheckingWindowType windowType)
     {
-        var blob = GetBlobClient(windowId, laestab);
+        var blob = GetBlobClient(windowId, exercise, laestab);
 
         if (!await blob.ExistsAsync())
             return null;
@@ -40,26 +44,50 @@ public sealed class PupilDataBlobClient(BlobServiceClient blobServiceClient) : I
         return Deserialize(response.Value.Content.ToMemory().Span, windowType);
     }
 
-    public async Task<bool> HasPupilDataAsync(Guid windowId, string laestab)
-        => await GetBlobClient(windowId, laestab).ExistsAsync();
+    public async Task<bool> HasPupilDataAsync(Guid windowId, CheckingExerciseType exercise, string laestab)
+        => await GetBlobClient(windowId, exercise, laestab).ExistsAsync();
 
-    public async Task UploadPupilsAsync<T>(Guid windowId, string laestab, List<T> pupils) where T : IPupilRecord
+    public async Task<IReadOnlyList<string>> ListSchoolLaestabsAsync(
+        Guid windowId, CheckingExerciseType exercise, CancellationToken cancellationToken = default)
+    {
+        var container = blobServiceClient.GetBlobContainerClient(windowId.ToString());
+        if (!await container.ExistsAsync(cancellationToken))
+            return [];
+
+        string prefix = CheckingExerciseBlobPaths.DataPrefix(exercise);
+        const string suffix = CheckingExerciseBlobPaths.PupilsSuffix;
+        var laestabs = new HashSet<string>(StringComparer.Ordinal);
+        await foreach (var blob in container.GetBlobsAsync(BlobTraits.None, BlobStates.None, prefix, cancellationToken))
+        {
+            if (!blob.Name.EndsWith(suffix, StringComparison.Ordinal))
+                continue;
+
+            // Normalise rather than trusting the blob name: the ingress writes the supplier's
+            // LAESTAB column through verbatim, so anything other than a clean digit string
+            // would silently fail to join against the digits-only laestab on a login row.
+            var laestab = LaestabNormaliser.Normalise(blob.Name[prefix.Length..^suffix.Length]);
+            if (laestab.Length > 0)
+                laestabs.Add(laestab);
+        }
+        return laestabs.ToList();
+    }
+
+    public async Task UploadPupilsAsync<T>(
+        Guid windowId, CheckingExerciseType exercise, string laestab, List<T> pupils) where T : IPupilRecord
     {
         var container = blobServiceClient.GetBlobContainerClient(windowId.ToString());
         await container.CreateIfNotExistsAsync();
 
-        var blob = container.GetBlobClient(BlobName(laestab));
+        var blob = container.GetBlobClient(CheckingExerciseBlobPaths.PupilsBlobName(exercise, laestab));
         // Serialise against the runtime type so each record's own [JsonPropertyName] map is used.
         var json = JsonSerializer.Serialize<List<T>>(pupils, JsonOptions);
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
         await blob.UploadAsync(stream, overwrite: true);
     }
 
-    private BlobClient GetBlobClient(Guid windowId, string laestab)
-        => blobServiceClient.GetBlobContainerClient(windowId.ToString()).GetBlobClient(BlobName(laestab));
-
-    // laestab e.g. "933/4290" -> "data/9334290_pupils.json"; the slash is stripped so the
-    // blob name has a single virtual "data/" folder rather than nesting on the laestab.
-    private static string BlobName(string laestab)
-        => $"data/{laestab.Replace("/", string.Empty)}_pupils.json";
+    // The layout lives in CheckingExerciseBlobPaths and nowhere else, so a prefix change cannot
+    // leave the reader and the ingress writer disagreeing about where a school's file is.
+    private BlobClient GetBlobClient(Guid windowId, CheckingExerciseType exercise, string laestab)
+        => blobServiceClient.GetBlobContainerClient(windowId.ToString())
+            .GetBlobClient(CheckingExerciseBlobPaths.PupilsBlobName(exercise, laestab));
 }

@@ -6,6 +6,7 @@ namespace DfE.CheckPerformanceData.Web.Admin.Nav;
 // string-typing the relationship.
 public static class AdminNavKeys
 {
+    public const string Dashboard = "dashboard";
     public const string CmsAdmin = "cms-admin";
     public const string SystemAdmin = "system-admin";
     public const string AmendmentRequestsAdmin = "amendment-requests-admin";
@@ -42,4 +43,28 @@ public static class AdminNavKeys
     public const string WindowAdmin = "window-admin";
     public const string NewWindow = "new-window";
     public const string ManageWindow = "manage-window";
+
+    // Search-analytics admin surface. Downstream plans hang [RequireAdminSection] off
+    // this const, so the seeder MUST have a matching entry in AllSections or the gate
+    // returns 404 on a fresh DB.
+    public const string SearchAnalytics = "search-analytics";
+    public const string MessagesInbox = "messages-inbox";
+
+    // Top-level container that groups every incoming-message surface: the search-feedback
+    // inbox and the dead-letter queue. Group entries carry no [RequireAdminSection] gate
+    // themselves — access to the group is implied by access to at least one child, so this
+    // key is intentionally absent from DefaultAdminAccessSeeder.AllSections.
+    public const string MessagesGroup = "messages-group";
+
+    // Sub-group nested under System administration. Holds the two "populate the local
+    // database with plausible content" tiles — Seed sample CMS pages and Seed sample
+    // search data. Unlike the CMS / System containers, this key IS in
+    // DefaultAdminAccessSeeder.AllSections so the TestDataController class-level
+    // [RequireAdminSection] gate has a matching grant on a fresh DB.
+    public const string TestDataGroup = "test-data-group";
+
+    // Live admin nav tile under the Test data group. Renders the seed-sample-search-data
+    // form + POST action for pumping plausible search events + feedback messages into the
+    // sink so the search-analytics dashboard has something to show during demos.
+    public const string SeedSampleSearchData = "seed-sample-search-data";
 }

@@ -1,6 +1,8 @@
 using DfE.CheckPerformanceData.Application.Journey;
+using DfE.CheckPerformanceData.Application.Journey.DateRules;
 using DfE.CheckPerformanceData.Application.Journey.Validators;
 using DfE.CheckPerformanceData.Domain.Enums;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 
@@ -84,6 +86,56 @@ public class JourneyValidationServiceTests
     }
 
     [Fact]
+    public void ValidateAnswer_FreeText_WhenExceedsCharacterLimit_ReturnsError()
+    {
+        var question = MakeQuestion(QuestionType.FreeText, characterLimit: 150);
+        var answer = new QuestionAnswer { TextValue = new string('a', 151) };
+
+        Assert.Equal("My question must be 150 characters or less", _sut.ValidateAnswer(question, answer, "My question"));
+    }
+
+    [Fact]
+    public void ValidateAnswer_FreeText_WhenAtCharacterLimit_ReturnsNull()
+    {
+        var question = MakeQuestion(QuestionType.FreeText, characterLimit: 150);
+        var answer = new QuestionAnswer { TextValue = new string('a', 150) };
+
+        Assert.Null(_sut.ValidateAnswer(question, answer, "My question"));
+    }
+
+    // A FreeText field whose form key never arrived (a hand-crafted POST, or a page whose input
+    // was removed) reads back as a null TextValue. The character-limit arm runs before the
+    // generic "is required" arm, so it must not measure the length of a value that isn't there —
+    // the answer is missing, not too long.
+    [Fact]
+    public void ValidateAnswer_FreeText_WhenValueIsNullAndACharacterLimitIsSet_ReportsItAsRequired()
+    {
+        var question = MakeQuestion(QuestionType.FreeText, characterLimit: 150);
+        var answer = new QuestionAnswer { TextValue = null };
+
+        Assert.Equal("My question is required", _sut.ValidateAnswer(question, answer, "My question"));
+    }
+
+    [Fact]
+    public void ValidateAnswer_FreeText_WhenValueIsNull_UsesTheQuestionsOwnValidationFailure()
+    {
+        var question = MakeQuestion(QuestionType.FreeText, characterLimit: 150);
+        var answer = new QuestionAnswer { TextValue = null };
+
+        Assert.Equal("Enter the pupil's first name",
+            _sut.ValidateAnswer(question, answer, "First name", "Enter the pupil's first name"));
+    }
+
+    [Fact]
+    public void ValidateAnswer_TextArea_WhenValueIsNullAndACharacterLimitIsSet_ReportsItAsRequired()
+    {
+        var question = MakeQuestion(QuestionType.TextArea, characterLimit: 1000);
+        var answer = new QuestionAnswer { TextValue = null };
+
+        Assert.Equal("My question is required", _sut.ValidateAnswer(question, answer, "My question"));
+    }
+
+    [Fact]
     public void ValidateAnswer_Date_WhenAllFieldsProvided_ReturnsNull()
     {
         var question = MakeQuestion(QuestionType.Date);
@@ -134,6 +186,78 @@ public class JourneyValidationServiceTests
         var answer = new QuestionAnswer { DateValue = new DateAnswer { Day = 15, Month = 6, Year = year } };
 
         Assert.Null(_sut.ValidateAnswer(question, answer, "Date of birth"));
+    }
+
+    // ── ValidateAnswer — scoped invalid-date fallback (removal journeys) ─────
+    //
+    // The six removal journeys want the question's own "Enter the date …" wording for EVERY
+    // invalid-date failure, not the generic "is required"/"4-digit year"/"real date" messages.
+    // The fallback is scoped to the three removal date question ids so the excluded EAL page
+    // and any generic date question keep their existing messages.
+
+    private const string ConfiguredInvalidDateMessage =
+        "Enter the date Alice Smith was removed from your school roll";
+
+    [Theory]
+    [InlineData(RemovalJourneyDateRules.DatePupilExcluded)]
+    [InlineData(RemovalJourneyDateRules.DatePermanentlyExcluded)]
+    [InlineData(RemovalJourneyDateRules.DateRemovedFromRoll)]
+    public void ValidateAnswer_RemovalDateQuestion_BlankOrPartFilled_ReturnsConfiguredMessage(string questionId)
+    {
+        var question = MakeDateQuestion(questionId);
+
+        Assert.Equal(ConfiguredInvalidDateMessage,
+            _sut.ValidateAnswer(question, new QuestionAnswer { DateValue = null }, "Date of birth", ConfiguredInvalidDateMessage));
+        Assert.Equal(ConfiguredInvalidDateMessage,
+            _sut.ValidateAnswer(question, new QuestionAnswer { DateValue = new DateAnswer { Day = 0, Month = 6, Year = 2026 } }, "Date of birth", ConfiguredInvalidDateMessage));
+    }
+
+    [Theory]
+    [InlineData(RemovalJourneyDateRules.DatePupilExcluded)]
+    [InlineData(RemovalJourneyDateRules.DatePermanentlyExcluded)]
+    [InlineData(RemovalJourneyDateRules.DateRemovedFromRoll)]
+    public void ValidateAnswer_RemovalDateQuestion_NonFourDigitYear_ReturnsConfiguredMessage(string questionId)
+    {
+        var question = MakeDateQuestion(questionId);
+
+        Assert.Equal(ConfiguredInvalidDateMessage,
+            _sut.ValidateAnswer(question,
+                new QuestionAnswer { DateValue = new DateAnswer { Day = 15, Month = 6, Year = 26 } },
+                "Date of birth", ConfiguredInvalidDateMessage));
+    }
+
+    [Theory]
+    [InlineData(RemovalJourneyDateRules.DatePupilExcluded)]
+    [InlineData(RemovalJourneyDateRules.DatePermanentlyExcluded)]
+    [InlineData(RemovalJourneyDateRules.DateRemovedFromRoll)]
+    public void ValidateAnswer_RemovalDateQuestion_ImpossibleCalendarDate_ReturnsConfiguredMessage(string questionId)
+    {
+        var question = MakeDateQuestion(questionId);
+
+        Assert.Equal(ConfiguredInvalidDateMessage,
+            _sut.ValidateAnswer(question,
+                new QuestionAnswer { DateValue = new DateAnswer { Day = 31, Month = 2, Year = 2026 } },
+                "Date of birth", ConfiguredInvalidDateMessage));
+    }
+
+    [Fact]
+    public void ValidateAnswer_NonRemovalDateQuestion_KeepsGenericMessages()
+    {
+        // The excluded EAL page and any generic date question (e.g. date of birth) are NOT in
+        // RemovalDateQuestionIds, so only the blank case honours the configured message (as it
+        // always has); the 4-digit-year and real-date failures stay generic.
+        var question = MakeDateQuestion("date-of-birth");
+
+        Assert.Equal(ConfiguredInvalidDateMessage,
+            _sut.ValidateAnswer(question, new QuestionAnswer { DateValue = null }, "Date of birth", ConfiguredInvalidDateMessage));
+        Assert.Equal("Date of birth must include a 4-digit year",
+            _sut.ValidateAnswer(question,
+                new QuestionAnswer { DateValue = new DateAnswer { Day = 15, Month = 6, Year = 26 } },
+                "Date of birth", ConfiguredInvalidDateMessage));
+        Assert.Equal("Date of birth must be a real date",
+            _sut.ValidateAnswer(question,
+                new QuestionAnswer { DateValue = new DateAnswer { Day = 31, Month = 2, Year = 2026 } },
+                "Date of birth", ConfiguredInvalidDateMessage));
     }
 
     // ── ValidateAnswer with a named format validator ────────────────────────
@@ -363,6 +487,46 @@ public class JourneyValidationServiceTests
         Assert.DoesNotContain("1 pages", result);
     }
 
+    // ── ValidateDuplicateFileName (AB#296081) ───────────────────────────────
+    // A request must never hold two evidence files with the same name — storage cost
+    // and user confusion. Comparison is on OriginalFileName (what the user sees in the
+    // uploaded-files table), case-insensitive because file systems the user comes from
+    // treat "Evidence.PDF" and "evidence.pdf" as the same file.
+
+    [Fact]
+    public void ValidateDuplicateFileName_WhenNameAlreadyUsed_ReturnsTicketWording()
+    {
+        var existing = new[] { MakeFileAnswer(originalFileName: "evidence.pdf") };
+
+        var result = _sut.ValidateDuplicateFileName("evidence.pdf", existing);
+
+        Assert.Equal(
+            "The file name has already been used. Upload a file with a different name.",
+            result);
+    }
+
+    [Fact]
+    public void ValidateDuplicateFileName_IsCaseInsensitive()
+    {
+        var existing = new[] { MakeFileAnswer(originalFileName: "Evidence.PDF") };
+
+        Assert.NotNull(_sut.ValidateDuplicateFileName("evidence.pdf", existing));
+    }
+
+    [Fact]
+    public void ValidateDuplicateFileName_WhenNameIsNew_ReturnsNull()
+    {
+        var existing = new[] { MakeFileAnswer(originalFileName: "evidence.pdf") };
+
+        Assert.Null(_sut.ValidateDuplicateFileName("other.pdf", existing));
+    }
+
+    [Fact]
+    public void ValidateDuplicateFileName_WhenNoFilesYet_ReturnsNull()
+    {
+        Assert.Null(_sut.ValidateDuplicateFileName("evidence.pdf", []));
+    }
+
     // ── GenerateReference ───────────────────────────────────────────────────
 
     [Fact]
@@ -523,11 +687,248 @@ public class JourneyValidationServiceTests
         Assert.Contains("You must answer at least one of these questions", result!.Messages);
     }
 
+    // ── ValidatePageDates ───────────────────────────────────────────────────
+    //
+    // The rules themselves are covered by PageDateRulesTests. These cover the wiring: which
+    // pages the rules apply to, how answers are turned into comparable dates, and which
+    // calendar "today" comes from.
+
+    [Fact]
+    public void ValidatePageDates_PageWithoutDateRules_ReturnsEmpty()
+    {
+        var page = MakeEvidencePage(requireAtLeastOne: false);
+
+        Assert.Empty(_sut.ValidatePageDates(page, new Dictionary<string, QuestionAnswer>(), "Jane Smith"));
+    }
+
+    [Fact]
+    public void ValidatePageDates_EalDetailsPage_AppliesTheRules()
+    {
+        var sut = DateRuleSut("2026-06-15T12:00:00Z");
+        var answers = EalAnswers(
+            started: new DateAnswer { Day = 4, Month = 9, Year = 2023 },
+            firstEnglishSchool: new DateAnswer { Day = 8, Month = 1, Year = 2024 });
+
+        var violations = sut.ValidatePageDates(MakeEalDetailsPage(), answers, "Jane Smith");
+
+        Assert.Equal(2, violations.Count);
+        Assert.Contains(violations, v => v.QuestionId == PageDateRules.StartedAtSchool);
+        Assert.Contains(violations, v => v.QuestionId == PageDateRules.FirstEnglishSchool);
+    }
+
+    [Fact]
+    public void ValidatePageDates_ConsistentAnswers_ReturnsEmpty()
+    {
+        var sut = DateRuleSut("2026-06-15T12:00:00Z");
+        var answers = EalAnswers(
+            started: new DateAnswer { Day = 2, Month = 9, Year = 2024 },
+            firstEnglishSchool: new DateAnswer { Day = 4, Month = 9, Year = 2023 },
+            arrived: new DateAnswer { Day = 20, Month = 8, Year = 2023 });
+
+        Assert.Empty(sut.ValidatePageDates(MakeEalDetailsPage(), answers, "Jane Smith"));
+    }
+
+    [Fact]
+    public void ValidatePageDates_IncompleteDate_IsExcludedFromComparisons()
+    {
+        // A part-filled optional date is stored with the missing part as 0. It is not a date the
+        // user can be told to reconcile with anything, so no rule involving it may fire.
+        var sut = DateRuleSut("2026-06-15T12:00:00Z");
+        var answers = EalAnswers(
+            started: new DateAnswer { Day = 2, Month = 9, Year = 2024 },
+            firstEnglishSchool: new DateAnswer { Day = 4, Month = 9, Year = 2023 },
+            arrived: new DateAnswer { Day = 20, Month = 0, Year = 2025 });
+
+        Assert.Empty(sut.ValidatePageDates(MakeEalDetailsPage(), answers, "Jane Smith"));
+    }
+
+    [Fact]
+    public void ValidatePageDates_UnansweredQuestion_IsExcludedFromComparisons()
+    {
+        var sut = DateRuleSut("2026-06-15T12:00:00Z");
+        var answers = EalAnswers(started: new DateAnswer { Day = 2, Month = 9, Year = 2024 });
+
+        Assert.Empty(sut.ValidatePageDates(MakeEalDetailsPage(), answers, "Jane Smith"));
+    }
+
+    [Fact]
+    public void ValidatePageDates_UsesTheUkCalendarDate_NotUtc()
+    {
+        // 23:30 UTC on 15 June is 00:30 BST on the 16th. A school completing the form just after
+        // midnight must be able to enter today's UK date without it being called a future date.
+        var sut = DateRuleSut("2026-06-15T23:30:00Z");
+        var answers = EalAnswers(
+            started: new DateAnswer { Day = 16, Month = 6, Year = 2026 },
+            firstEnglishSchool: new DateAnswer { Day = 16, Month = 6, Year = 2026 });
+
+        Assert.Empty(sut.ValidatePageDates(MakeEalDetailsPage(), answers, "Jane Smith"));
+    }
+
+    [Fact]
+    public void ValidatePageDates_ResolvesThePupilNameInMessages()
+    {
+        var sut = DateRuleSut("2026-06-15T12:00:00Z");
+        var answers = EalAnswers(
+            started: new DateAnswer { Day = 16, Month = 6, Year = 2027 },
+            firstEnglishSchool: new DateAnswer { Day = 4, Month = 9, Year = 2023 });
+
+        var violation = Assert.Single(sut.ValidatePageDates(MakeEalDetailsPage(), answers, "Jane Smith"));
+
+        Assert.Equal("The date Jane Smith started at your school must be in the past", violation.Message);
+        Assert.DoesNotContain("{pupilName}", violation.Message, StringComparison.Ordinal);
+    }
+
+    // Each of the six removal journeys has a single removal/exclusion date that must not be in
+    // the future. These cover the dispatch (which pages route to RemovalJourneyDateRules, and
+    // which wording each carries); the rule itself is covered by RemovalJourneyDateRulesTests.
+
+    [Theory]
+    [InlineData(RemovalJourneyDateRules.PermanentExclusionPageId, RemovalJourneyDateRules.DatePupilExcluded,
+        "Date Jane Smith was excluded must be in the past")]
+    [InlineData(RemovalJourneyDateRules.ChildMissingEducationPageId, RemovalJourneyDateRules.DateRemovedFromRoll,
+        "Date Jane Smith was removed from your school roll must be in the past")]
+    [InlineData(RemovalJourneyDateRules.PupilDiedPageId, RemovalJourneyDateRules.DateRemovedFromRoll,
+        "Date Jane Smith was removed from your school roll must be in the past")]
+    [InlineData(RemovalJourneyDateRules.ElectiveHomeEducationPageId, RemovalJourneyDateRules.DateRemovedFromRoll,
+        "Date Jane Smith was removed from your school roll must be in the past")]
+    [InlineData(RemovalJourneyDateRules.PermanentlyExcludedPageId, RemovalJourneyDateRules.DatePermanentlyExcluded,
+        "Date Jane Smith was permanently excluded from your school must be in the past")]
+    [InlineData(RemovalJourneyDateRules.PermanentlyLeftEnglandPageId, RemovalJourneyDateRules.DateRemovedFromRoll,
+        "Date Jane Smith was removed from your school roll must be in the past")]
+    public void ValidatePageDates_RemovalPages_ApplyTheFutureDateRule(
+        string pageId, string questionId, string expectedMessage)
+    {
+        var sut = DateRuleSut("2026-06-15T12:00:00Z");
+        var answers = RemovalAnswers(questionId, new DateAnswer { Day = 16, Month = 6, Year = 2026 });
+
+        var violation = Assert.Single(sut.ValidatePageDates(MakeRemovalPage(pageId, questionId), answers, "Jane Smith"));
+
+        Assert.Equal(questionId, violation.QuestionId);
+        Assert.Equal(expectedMessage, violation.Message);
+    }
+
+    [Theory]
+    [InlineData(RemovalJourneyDateRules.PermanentExclusionPageId, RemovalJourneyDateRules.DatePupilExcluded)]
+    [InlineData(RemovalJourneyDateRules.ChildMissingEducationPageId, RemovalJourneyDateRules.DateRemovedFromRoll)]
+    [InlineData(RemovalJourneyDateRules.PupilDiedPageId, RemovalJourneyDateRules.DateRemovedFromRoll)]
+    [InlineData(RemovalJourneyDateRules.ElectiveHomeEducationPageId, RemovalJourneyDateRules.DateRemovedFromRoll)]
+    [InlineData(RemovalJourneyDateRules.PermanentlyExcludedPageId, RemovalJourneyDateRules.DatePermanentlyExcluded)]
+    [InlineData(RemovalJourneyDateRules.PermanentlyLeftEnglandPageId, RemovalJourneyDateRules.DateRemovedFromRoll)]
+    public void ValidatePageDates_RemovalPages_TodayIsAcceptable(string pageId, string questionId)
+    {
+        // "Later than today", not "before today" — a pupil removed from the roll today is valid.
+        var sut = DateRuleSut("2026-06-15T12:00:00Z");
+        var answers = RemovalAnswers(questionId, new DateAnswer { Day = 15, Month = 6, Year = 2026 });
+
+        Assert.Empty(sut.ValidatePageDates(MakeRemovalPage(pageId, questionId), answers, "Jane Smith"));
+    }
+
+    [Fact]
+    public void ValidatePageDates_RemovalPages_DoNotRunTheEalCrossFieldRules()
+    {
+        // A removal page must not be mistaken for the EAL page: no cross-field sequence rules
+        // exist there, and the future-date wording differs (no leading "The").
+        var sut = DateRuleSut("2026-06-15T12:00:00Z");
+        var answers = RemovalAnswers(
+            RemovalJourneyDateRules.DateRemovedFromRoll, new DateAnswer { Day = 16, Month = 6, Year = 2026 });
+
+        var violations = sut.ValidatePageDates(
+            MakeRemovalPage(RemovalJourneyDateRules.PupilDiedPageId, RemovalJourneyDateRules.DateRemovedFromRoll),
+            answers, "Jane Smith");
+
+        var violation = Assert.Single(violations);
+        Assert.Equal(
+            "Date Jane Smith was removed from your school roll must be in the past",
+            violation.Message);
+    }
+
+    // ── DI activation ───────────────────────────────────────────────────────
+    //
+    // Every constructor parameter is optional and one of them (maxEvidencePages) can never be
+    // resolved from the container, so the service is only constructible because the DI
+    // container falls back to declared defaults. Adding a parameter is therefore riskier than
+    // it looks, and nothing else covers it: no integration test boots the journey graph.
+
+    [Fact]
+    public void IsResolvable_FromTheContainer_AsRegistered()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton(TimeProvider.System);
+        services.AddScoped<IJourneyValidationService, JourneyValidationService>();
+
+        using var provider = services.BuildServiceProvider(
+            new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
+        using var scope = provider.CreateScope();
+
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<IJourneyValidationService>());
+    }
+
+    [Fact]
+    public void IsResolvable_WhenNoTimeProviderIsRegistered()
+    {
+        // The worker composes a narrower service graph than the web host. Falling back to the
+        // system clock keeps the date rules working rather than failing activation.
+        var services = new ServiceCollection();
+        services.AddScoped<IJourneyValidationService, JourneyValidationService>();
+
+        using var provider = services.BuildServiceProvider(
+            new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
+        using var scope = provider.CreateScope();
+
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<IJourneyValidationService>());
+    }
+
     // ── Helpers ─────────────────────────────────────────────────────────────
+
+    private static JourneyValidationService DateRuleSut(string utcNow) =>
+        new(timeProvider: new FakeTimeProvider(DateTimeOffset.Parse(utcNow)));
+
+    private static Dictionary<string, QuestionAnswer> EalAnswers(
+        DateAnswer? started = null, DateAnswer? firstEnglishSchool = null, DateAnswer? arrived = null)
+    {
+        var answers = new Dictionary<string, QuestionAnswer>();
+        if (started is not null)
+            answers[PageDateRules.StartedAtSchool] = new QuestionAnswer { DateValue = started };
+        if (firstEnglishSchool is not null)
+            answers[PageDateRules.FirstEnglishSchool] = new QuestionAnswer { DateValue = firstEnglishSchool };
+        if (arrived is not null)
+            answers[PageDateRules.ArrivedInEngland] = new QuestionAnswer { DateValue = arrived };
+        return answers;
+    }
+
+    private static JourneyPage MakeEalDetailsPage() =>
+        new()
+        {
+            Id = PageDateRules.EalDetailsPageId,
+            Questions =
+            [
+                new Question { Id = PageDateRules.StartedAtSchool, Type = QuestionType.Date, Title = "Started" },
+                new Question { Id = PageDateRules.FirstEnglishSchool, Type = QuestionType.Date, Title = "First English school" },
+                new Question { Id = PageDateRules.ArrivedInEngland, Type = QuestionType.Date, Title = "Arrived", Optional = true }
+            ]
+        };
+
+    private static Dictionary<string, QuestionAnswer> RemovalAnswers(string questionId, DateAnswer date) =>
+        new() { [questionId] = new QuestionAnswer { DateValue = date } };
+
+    private static JourneyPage MakeRemovalPage(string pageId, string questionId) =>
+        new()
+        {
+            Id = pageId,
+            Questions = [new Question { Id = questionId, Type = QuestionType.Date, Title = "Date" }]
+        };
+
+    private sealed class FakeTimeProvider(DateTimeOffset now) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => now;
+    }
 
     private static Question MakeQuestion(QuestionType type, string id = "q1", int? characterLimit = null,
         string? validator = null, bool optional = false) =>
         new() { Id = id, Type = type, Title = "My question", CharacterLimit = characterLimit, Validator = validator, Optional = optional };
+
+    private static Question MakeDateQuestion(string id) =>
+        new() { Id = id, Type = QuestionType.Date, Title = "Date" };
 
     private static JourneyPage MakeEvidencePage(bool requireAtLeastOne) =>
         new()
@@ -548,6 +949,6 @@ public class JourneyValidationServiceTests
             ]
         };
 
-    private static FileAnswer MakeFileAnswer(int pageCount) =>
-        new() { StoredFileName = Guid.NewGuid().ToString(), OriginalFileName = "file.pdf", PageCount = pageCount };
+    private static FileAnswer MakeFileAnswer(int pageCount = 1, string originalFileName = "file.pdf") =>
+        new() { StoredFileName = Guid.NewGuid().ToString(), OriginalFileName = originalFileName, PageCount = pageCount };
 }

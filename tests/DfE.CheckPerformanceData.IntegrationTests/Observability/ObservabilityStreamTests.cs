@@ -29,7 +29,6 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Observability;
 // pushing a snapshot on every tick. The heartbeat is driven shorter here so the test span
 // crosses several ticks quickly.
 [Collection(nameof(PostgresCollection))]
-[Trait("Category", "W0")]
 public sealed class ObservabilityStreamTests
 {
     private readonly PostgresFixture _fixture;

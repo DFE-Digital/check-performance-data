@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using NSubstitute;
+using DfE.CheckPerformanceData.Application.UnitTests.WindowManagement;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 
@@ -123,7 +124,12 @@ public class PupilSearchJourneyTests
 
         _sut = new JourneyController(_flowService, _journeyService, _fileStorageService,
             _requestService, _pupilDataService, viewModelBuilder, _analytics, _currentUserService,
-            _optionVisibilityService, _optionalityService, _languageCapture)
+            _optionVisibilityService, _optionalityService, _languageCapture,
+            Substitute.For<DfE.CheckPerformanceData.Application.ResultsEnquiry.IStudentResultsClient>(),
+            Substitute.For<DfE.CheckPerformanceData.Application.ResultsEnquiry.IGradeReferenceClient>(),
+            Substitute.For<DfE.CheckPerformanceData.Application.Notify.IRequestNotificationService>(),
+            OpenCheckingExercises.AlwaysOpen(),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<JourneyController>.Instance)
         {
             ControllerContext = new ControllerContext { HttpContext = _httpContext },
             TempData = new TempDataDictionary(_httpContext, Substitute.For<ITempDataProvider>())
@@ -500,6 +506,43 @@ public class PupilSearchJourneyTests
         Assert.Equal("Summary", redirect.ActionName);
     }
 
+    // ── PupilSearchPost — results-enquiry duplicate-check exemption (AB#296648) ─
+
+    [Fact]
+    public async Task PupilSearchPost_WhenEnquiryJourney_SkipsDuplicateCheckAndSucceeds()
+    {
+        var state = SessionWithoutPupil();
+        state.SelectedWhatToChange = WhatToChange.IncorrectGrade;
+        SetupSession(state);
+        _pupilDataService.GetPupilAsync(WindowId, PrimaryPupilId).Returns(PrimaryPupil);
+        _requestService.HasSubmittedRequestAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<long>())
+            .Returns(new DuplicateCheckResult.OtherSubmitted("REF001", "IncorrectGrade", "Pupil data", "A Teacher"));
+
+        var result = await _sut.PupilSearchPost(WindowId, "select-pupil", PrimaryPupilId.ToString(), "Smith, Jane");
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("reason", redirect.RouteValues!["pageId"]);
+        var saved = _session.GetRequestState(WindowId);
+        Assert.Equal(PrimaryPupilId, saved.SelectedPupil?.Id);
+        await _requestService.DidNotReceive().HasSubmittedRequestAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<long>());
+    }
+
+    [Fact]
+    public async Task PupilSearchPost_WhenAmendmentJourneyAndConflict_StillBlocksSelection()
+    {
+        SetupSession(SessionWithoutPupil());
+        _pupilDataService.GetPupilAsync(WindowId, PrimaryPupilId).Returns(PrimaryPupil);
+        _requestService.HasSubmittedRequestAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<long>())
+            .Returns(new DuplicateCheckResult.OtherSubmitted("REF001", "Remove", "Pupil data", "A Teacher"));
+
+        var result = await _sut.PupilSearchPost(WindowId, "select-pupil", PrimaryPupilId.ToString(), "Smith, Jane");
+
+        var view = Assert.IsType<ViewResult>(result);
+        Assert.Equal("PupilSearch", view.ViewName);
+        Assert.True(_sut.ModelState.ContainsKey("selectedPupilId"));
+        await _requestService.Received(1).HasSubmittedRequestAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<long>());
+    }
+
     // ── Summary — merge pupil display ───────────────────────────────────────
 
     [Fact]
@@ -535,7 +578,7 @@ public class PupilSearchJourneyTests
 
         var view = Assert.IsType<ViewResult>(result);
         var vm = Assert.IsType<SummaryViewModel>(view.Model);
-        Assert.Equal("CYPMD456, John Doe", vm.SecondRecordDisplay);
+        Assert.Equal("John Doe 2 February 2010 (CYPMD456)", vm.SecondRecordDisplay);
     }
 
     [Fact]

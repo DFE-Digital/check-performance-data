@@ -65,6 +65,13 @@ public sealed class Post16PupilRecord : IPupilRecord
     [JsonPropertyName("LAESTAB")]
     public string Laestab { get; init; } = string.Empty;
 
+    /// <summary>The non-included 16-19 file has no MATCHREF concept; always 0 = not supplied.</summary>
+    public int MatchRef => 0;
+
+    /// <summary>The 16-19 supplier files have no ENTRYDAT column; always empty = not supplied.</summary>
+    [JsonIgnore]
+    public string EntryDate => string.Empty;
+
     [JsonPropertyName("URN")]
     public string Urn { get; init; } = string.Empty;
 

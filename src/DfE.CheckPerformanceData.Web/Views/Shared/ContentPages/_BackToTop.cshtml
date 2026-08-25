@@ -1,7 +1,8 @@
 @* Back-to-top link for wiki/content pages. Sticky positioning keeps it 50px above the
    viewport bottom and releases at the natural end of the content flow so it doesn't
    overlap the footer. A tiny JS module (back-to-top.js) hides the link until the reader
-   has scrolled past the initial fold — matching the GDS design-guidance behaviour:
+   has scrolled nearly a whole viewport, and keeps it hidden entirely on pages short
+   enough to fit the viewport — matching the GDS design-guidance behaviour:
    https://design-system.service.gov.uk/community/resources-and-tools/
    The module only toggles a class; it never rewrites the DOM. Without JS the link stays
    visible as a graceful fallback (users can still reach it by scrolling normally).

@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using NSubstitute;
@@ -151,6 +152,81 @@ public class WindowServiceTests
 
         Assert.False(result!.Windows.Single().IsOpen);
     }
+
+    // #324: dataset slots are reconciled for every exercise, not just pupil data. Without this an
+    // admin has nowhere to upload the results files, and the enquiry journey has nothing to read on
+    // any environment SeedStudentResults does not run on.
+    [Fact]
+    public async Task UpdateAsync_gives_a_results_enquiry_exercise_a_slot_per_source_file()
+    {
+        IWindowRepository repository = Substitute.For<IWindowRepository>();
+        CheckingWindowDto? persisted = null;
+        _ = repository.UpdateAsync(Arg.Do<CheckingWindowDto>(w => persisted = w), Arg.Any<CancellationToken>());
+
+        WindowService service = new(repository, TimeProvider.System);
+
+        CheckingWindowDto window = Window(new DateTime(2027, 1, 1), new DateTime(2027, 2, 1));
+        window.CheckingWindowType = CheckingWindowType.Post16;
+        window.Exercises =
+        [
+            Exercise(CheckingExerciseType.PupilData),
+            Exercise(CheckingExerciseType.ResultsEnquiry)
+        ];
+
+        await service.UpdateAsync(window, CancellationToken.None);
+
+        CheckingExerciseDto enquiry = persisted!.FindExercise(CheckingExerciseType.ResultsEnquiry)!;
+        Assert.Equal(5, enquiry.Datasets.Count);
+        Assert.All(enquiry.Datasets, d => Assert.Equal(d.Name, d.SourceFile));
+
+        // The pupil-data exercise keeps its own slots, unaffected.
+        Assert.Equal(
+            ["included", "nonincluded"],
+            persisted.FindExercise(CheckingExerciseType.PupilData)!.Datasets.Select(d => d.Name));
+    }
+
+    [Fact]
+    public async Task UpdateAsync_keeps_a_results_file_that_has_already_been_uploaded()
+    {
+        IWindowRepository repository = Substitute.For<IWindowRepository>();
+        CheckingWindowDto? persisted = null;
+        _ = repository.UpdateAsync(Arg.Do<CheckingWindowDto>(w => persisted = w), Arg.Any<CancellationToken>());
+
+        WindowService service = new(repository, TimeProvider.System);
+
+        CheckingWindowDto window = Window(new DateTime(2027, 1, 1), new DateTime(2027, 2, 1));
+        window.CheckingWindowType = CheckingWindowType.Post16;
+        CheckingExerciseDto enquiry = Exercise(CheckingExerciseType.ResultsEnquiry);
+        enquiry.Datasets =
+        [
+            new CheckingWindowDatasetDto
+            {
+                Name = ResultsFileTags.Post16Main,
+                SourceFile = ResultsFileTags.Post16Main,
+                IngressFile = "main.csv",
+                IngressFileChecksum = "ABC",
+                SortOrder = 0
+            }
+        ];
+        window.Exercises = [enquiry];
+
+        await service.UpdateAsync(window, CancellationToken.None);
+
+        CheckingWindowDatasetDto main = persisted!
+            .FindExercise(CheckingExerciseType.ResultsEnquiry)!
+            .Datasets.Single(d => d.Name == ResultsFileTags.Post16Main);
+        Assert.Equal("main.csv", main.IngressFile);
+        Assert.Equal("ABC", main.IngressFileChecksum);
+    }
+
+    private static CheckingExerciseDto Exercise(CheckingExerciseType type) =>
+        new()
+        {
+            ExerciseType = type,
+            StartDate = new DateTime(2027, 1, 1),
+            EndDate = new DateTime(2027, 2, 1),
+            SortOrder = WindowExercises.SortOrderFor(type)
+        };
 
     private static CheckingWindowDto Window(DateTime startDate, DateTime endDate) =>
         new()

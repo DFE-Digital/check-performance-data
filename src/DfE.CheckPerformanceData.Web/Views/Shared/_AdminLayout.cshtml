@@ -3,6 +3,7 @@
 @using DfE.CheckPerformanceData.Application.Settings
 @using DfE.CheckPerformanceData.Web.Admin.Nav
 @using DfE.CheckPerformanceData.Web.Authentication
+@using DfE.CheckPerformanceData.Web.Common
 @using DfE.CheckPerformanceData.Web.Controllers
 @using DfE.CheckPerformanceData.Web.Controllers.ViewModels
 @using DfE.CheckPerformanceData.Application.ContentBlocks
@@ -118,6 +119,11 @@
     // the admin grid runs edge-to-edge, and surface a collapse toggle between the rail and
     // the content. Other admin pages keep the standard centred, fixed-width layout.
     var adminWide = ViewData["AdminWide"] is true;
+
+    // See the matching note in _Layout.cshtml — "Error: " title prefix on a failed submission.
+    ViewData["Title"] = PageTitle.WithErrorPrefix(
+        ViewData["Title"] as string,
+        !ViewData.ModelState.IsValid || ViewData["HasError"] is true);
 }
 <head>
     @await Html.PartialAsync("_GtmHead")
@@ -146,7 +152,7 @@
                         <ul class="govuk-service-navigation__list" id="govuk-service-navigation-list">
                             @if (User.IsInRole(WikiConstants.AdminRole))
                             {
-                                @await Component.InvokeAsync("DlqBadge")
+                                @await Component.InvokeAsync("MessagesBadge")
                             }
                             <li class="govuk-service-navigation__item sign-in-nav-item">
                                 @if (showSignOut)

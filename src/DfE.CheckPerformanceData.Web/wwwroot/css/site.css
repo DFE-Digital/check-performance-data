@@ -28,6 +28,29 @@
   margin-bottom: 0;
 }
 
+/* On narrow viewports the Search (and optional Clear) buttons' intrinsic widths leave the
+   flex-shrunk input only a few characters wide, so it reads as a broken field — the same
+   failure the landing-page search box had (see .cypmd-search__row further down). Stack the
+   row instead: input full width on its own line, buttons on the lines below. The existing
+   10px flex gap keeps the stacked controls spaced. */
+@media (max-width: 40.0625em) {
+  .pupil-search__row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .pupil-search__row .govuk-button {
+    align-self: flex-start;
+  }
+}
+
+/* The MOJ pane ships overflow-x: scroll, which on classic-scrollbar platforms (Windows
+   Chrome/Firefox) paints a permanent disabled scrollbar track under every pupil table even
+   when nothing overflows. auto keeps the pane's scroll, shadows and focus behaviour
+   identical when content does overflow, and removes the empty gutter when it doesn't. */
+.moj-scrollable-pane {
+  overflow-x: auto;
+}
+
 .dfe-card-container{
   .govuk-heading-m {
     color: #347CA9;
@@ -1830,8 +1853,9 @@ main.govuk-main-wrapper:has(.cpb-breadcrumbs) { padding-top: 0 !important; }
 
    Reveal-on-scroll is done by a tiny JS enhancement (back-to-top.js): once the module
    has run, it flips data-back-to-top-init on <html>, which activates the hidden-by-
-   default state below. Until the reader scrolls past ~100 px, the link is opacity: 0 +
-   visibility: hidden. Past that threshold the module adds .is-visible on the container
+   default state below. Until the reader has scrolled nearly a full viewport the link is
+   opacity: 0 + visibility: hidden, and on a page short enough to fit the viewport it
+   never reveals at all. Past the threshold the module adds .is-visible on the container
    and CSS transitions it in. Without JS neither the marker nor the .is-visible class
    is ever set, so the link stays visible as a graceful accessibility fallback. */
 .app-back-to-top {
@@ -1921,4 +1945,97 @@ main.govuk-main-wrapper:has(.cpb-breadcrumbs) { padding-top: 0 !important; }
   .app-back-to-top {
     display: none;
   }
+}
+
+/* PBI 288143: admin dashboard metric tiles (mirrors the observability tile idiom) */
+.dash-tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 30px;
+}
+
+.dash-tile {
+    border: 1px solid #b1b4b6;
+    border-left: 5px solid #505a5f;
+    padding: 15px;
+    background: #ffffff;
+}
+
+.dash-tile--success { border-left-color: #00703c; }
+.dash-tile--warning { border-left-color: #f47738; }
+.dash-tile--error { border-left-color: #d4351c; }
+.dash-tile--info { border-left-color: #1d70b8; }
+
+.dash-tile__value {
+    margin-bottom: 5px;
+}
+
+.dash-tile__label {
+    margin-bottom: 0;
+    color: #505a5f;
+}
+
+/* The stop-auto-refresh control is hidden until the script schedules a reload. .govuk-button
+   sets display:inline-block, which beats the browser's own [hidden] rule, so the hidden state
+   needs an author rule of its own — otherwise the control shows for users without JS. */
+[data-stop-auto-refresh][hidden] {
+    display: none;
+}
+
+/* ==============================================================================
+   Seed sample search data — progress modal + progress bar
+   ------------------------------------------------------------------------------
+   Live progress modal opened from the seed-sample-search-data admin page. Layered
+   on top of the govuk-modal-dialogue base (site.css above) with a wider max-width
+   so the rolling progress log has room to render without word-wrap.
+   ============================================================================== */
+
+dialog.seed-progress-modal {
+  max-width: 720px;
+}
+
+.seed-progress-bar {
+  height: 20px;
+  margin: 15px 0 5px;
+  background-color: #f3f2f1;
+  border: 1px solid #b1b4b6;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.seed-progress-bar__fill {
+  height: 100%;
+  background-color: #1d70b8; /* govuk-brand-colour */
+  transition: width 300ms ease-out;
+}
+
+.seed-progress-log {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: "GDS Transport", monospace;
+  font-size: 0.875rem;
+}
+
+.seed-progress-log__entry {
+  padding: 4px 0;
+  border-bottom: 1px solid #f3f2f1;
+  color: #0b0c0c;
+}
+
+.seed-progress-log__entry:last-child {
+  border-bottom: 0;
+}
+
+.seed-progress-log__empty {
+  padding: 4px 0;
+  color: #505a5f;
+  font-style: italic;
+}
+
+.seed-progress-modal__result {
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 2px solid #b1b4b6;
 }

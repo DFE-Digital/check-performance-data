@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Application.RequestSubmission;
@@ -18,4 +19,5 @@ public sealed class ChangeRequestData
     public required RequestStatus Status { get; init; }
     public required RequestType RequestType { get; init; }
     public required string RequestTypeDescription { get; init; }
+    public WhatToChange? AmendmentType { get; init; }
 }

@@ -3,6 +3,9 @@ using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
+using DfE.CheckPerformanceData.Application.ResultsEnquiry;
+using DfE.CheckPerformanceData.Application.WindowManagement;
+using DfE.CheckPerformanceData.Web.Common;
 using DfE.CheckPerformanceData.Web.Controllers.Journey;
 using DfE.CheckPerformanceData.Web.Session;
 using Microsoft.AspNetCore.Mvc;
@@ -17,6 +20,7 @@ public sealed class AmendmentRequestsController(
     IBulkSubmissionService bulkService,
     ICheckYourPupilDataService checkYourPupilDataService,
     IQuestionFlowService flowService,
+    ICheckingExerciseService checkingExercises,
     IJourneyViewModelBuilder viewModelBuilder) : Controller
 {
     private const string BulkSubmittedRefsKey = "BulkSubmittedRefs";
@@ -24,14 +28,18 @@ public sealed class AmendmentRequestsController(
     private async Task<AmendmentRequestsViewModel> BuildIndexViewModelAsync(Guid windowId)
     {
         var result = await service.GetAmendmentRequestsAsync(windowId);
-        var deadline = result.WindowEndDate;
         // Re-check the boxes that were selected before going into the bulk review (kept in session).
         var selected = HttpContext.Session.GetBulkSelection(windowId).ToHashSet(StringComparer.Ordinal);
         return new AmendmentRequestsViewModel
         {
             WindowId = windowId,
             WindowTitle = result.WindowTitle,
-            DeadlineText = $"{deadline.ToString("htt").ToLower()} on {deadline:dddd d MMMM yyyy}",
+            Deadlines = result.Deadlines.Select(d => new ExerciseDeadlineViewModel
+            {
+                Exercise = d.Exercise,
+                EndDate = d.EndDate,
+                IsOpen = d.IsOpen
+            }).ToList(),
             Rows = result.Rows.Select(r => new AmendmentRequestRowViewModel
             {
                 PupilName = r.PupilName,
@@ -148,13 +156,18 @@ public sealed class AmendmentRequestsController(
             return RedirectToAction(nameof(Index), new { windowId });
 
         var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
-        var deadline = window.EndDate;
+        // #320: the pupil-data exercise's end, never the outer window's. The banner below invites
+        // the school to request another amendment, and that journey shuts when pupil data shuts —
+        // on a 16-19 window the outer end is the results-enquiry close, months later.
+        var deadline = checkingExercises.EndDateFor(window.Exercises, CheckingExerciseType.PupilData);
 
         return View("BulkConfirmation", new BulkConfirmationViewModel
         {
             WindowId = windowId,
             ReferenceNumbers = references,
-            WindowCloseLabel = $"{deadline.ToString("htt").ToLower()} on {deadline:dddd d MMMM yyyy}"
+            WindowCloseLabel = deadline is null
+                ? null
+                : $"{deadline.Value.ToString("htt").ToLower()} on {deadline.Value:dddd d MMMM yyyy}"
         });
     }
 
@@ -172,6 +185,17 @@ public sealed class AmendmentRequestsController(
         var journey = await requestService.ResumeDraftAsync(windowId, referenceNumber);
         if (journey is null)
             return RedirectToAction(nameof(Index), "AmendmentRequests", new { windowId });
+
+        // #318, product decision 2026-08-20: a draft saved while the exercise was open cannot be
+        // reopened once it has closed. Blocking the resume rather than the submit keeps the gate in
+        // one place and stops a user editing a request that could never be sent. The draft itself
+        // stays listed and readable on Amendment Requests — closed removes actions, never content.
+        if (journey.SelectedWhatToChange is { } draftChange && journey.CheckingWindow is not null)
+        {
+            var draftExercise = WhatToChangeCheckingExerciseMap.CheckingExerciseFor(draftChange);
+            if (!checkingExercises.IsOpen(journey.CheckingWindow.Exercises, draftExercise))
+                return this.RedirectExerciseClosed(windowId, draftExercise);
+        }
 
         HttpContext.Session.SetRequestState(windowId, journey);
 

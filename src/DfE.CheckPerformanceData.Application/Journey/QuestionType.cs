@@ -7,5 +7,8 @@ public enum QuestionType
     Date,
     FileUpload,
     TextArea,
-    Autocomplete
+    Autocomplete,
+    // AB#296648: a grade picker whose options come from the AODC reference data for the
+    // selected result's QAN. Appended last so existing flow JSON values are unmoved.
+    GradeSelect
 }

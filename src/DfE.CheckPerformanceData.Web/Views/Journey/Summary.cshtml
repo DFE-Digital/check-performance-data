@@ -2,8 +2,13 @@
 @model SummaryViewModel
 
 @{
-    ViewBag.Title = "Check your answers";
+    // A results enquiry is a different thing from a pupil-data amendment, so it is named as one.
+    // The student's name stays out of the browser title (and therefore analytics) — AB#296648.
+    ViewBag.Title = Model.IsResultsEnquiry ? "Summary of result enquiry" : "Summary of amendment request";
     Layout = "_Layout";
+    // The duplicate-request conflict is carried on the view model, not ModelState, so the
+    // layout's "Error: " title rule needs telling about it explicitly.
+    ViewData["HasError"] = Model.ConflictError is not null;
 }
 
 @if (Model.FromBulk)
@@ -16,7 +21,7 @@ else if (Model.FromEdit)
 }
 else
 {
-    <a asp-action="@(Model.BackPageIsPupilSearch ? "PupilSearchPage" : "Page")" asp-controller="Journey"
+    <a asp-action="@Model.BackPageAction" asp-controller="Journey"
        asp-route-windowId="@Model.WindowId"
        asp-route-pageId="@Model.BackPageId"
        class="govuk-back-link">Back</a>
@@ -36,12 +41,23 @@ else
     </govuk-error-summary>
 }
 
-<h1 class="govuk-heading-xl">Summary of amendment request</h1>
-<h2 class="govuk-heading-m">Check details for the @Model.WhatToChangeNoun of @Model.PupilName</h2>
+@if (Model.IsResultsEnquiry)
+{
+    <span class="govuk-caption-xl">Check details</span>
+    <h1 class="govuk-heading-xl">Summary of result enquiry for @Model.PupilName</h1>
+}
+else
+{
+    <h1 class="govuk-heading-xl">Summary of amendment request</h1>
+    <h2 class="govuk-heading-m">Check details for the @Model.WhatToChangeNoun of @Model.PupilName</h2>
+}
 
 <partial name="_SummaryDetails" model="Model" />
 
-<partial name="_SummaryEvidenceFiles" model="Model" />
+@if (!Model.IsResultsEnquiry)
+{
+    <partial name="_SummaryEvidenceFiles" model="Model" />
+}
 
 <form method="post" action="@Url.Action("SummaryConfirm", "Journey", new { windowId = Model.WindowId })">
     @Html.AntiForgeryToken()
@@ -51,7 +67,20 @@ else
     {
         <govuk-button type="submit">Submit request</govuk-button>
     }
-    <govuk-button type="submit"
-        formaction="@Url.Action("SaveDraft", "Journey", new { windowId = Model.WindowId })"
-        class="govuk-button--secondary">Save and continue later</govuk-button>
+    @if (!Model.IsResultsEnquiry)
+    {
+        <govuk-button type="submit"
+            formaction="@Url.Action("SaveDraft", "Journey", new { windowId = Model.WindowId })"
+            class="govuk-button--secondary">Save and continue later</govuk-button>
+    }
 </form>
+
+@if (Model.IsResultsEnquiry)
+{
+    @* Drafts were decided against for enquiries, so there is no "save and continue later" above —
+       the way out is to abandon this enquiry and start a new one, which resets the journey. *@
+    <p class="govuk-body">
+        <a asp-action="Index" asp-controller="ResultIssue" asp-route-windowId="@Model.WindowId"
+           class="govuk-link">Cancel and go back to create a new enquiry</a>
+    </p>
+}

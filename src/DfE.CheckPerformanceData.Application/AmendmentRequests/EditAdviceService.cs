@@ -78,7 +78,9 @@ public sealed class EditAdviceService(
         {
             WhatToChange.Remove => new ContinueToPage("reason"),
             WhatToChange.Include => new ContinueToPage("evidence"),
-            _ => new ContinueToSummary() // Merge (and any other InProgress) goes to the summary
+            // Merge and Add (AB#297310) both go to the summary — neither has a reason or evidence
+            // page to resume the user at.
+            _ => new ContinueToSummary()
         };
     }
 
@@ -87,6 +89,7 @@ public sealed class EditAdviceService(
         WhatToChange.Remove => "This request is to remove a pupil. If this is not correct, go back and delete the request.",
         WhatToChange.Merge => "This request is to merge pupil records. If this is not correct, go back and delete the request.",
         WhatToChange.Include => "This request is to include a pupil. If this is not correct, go back and delete the request.",
+        WhatToChange.Add => "This request is to add a pupil. If this is not correct, go back and delete the request.",
         _ => "If this is not correct, go back and delete the request."
     };
 }

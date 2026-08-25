@@ -5,6 +5,8 @@ namespace DfE.CheckPerformanceData.Application.Settings;
 public static class SettingKeys
 {
     public const string CmsPageLength = "CMS:PageLength";
+    public const string SearchDebugOn = "CMS:SearchDebugOn";
+    public const string ShowDeleteAllButton = "CMS:ShowDeleteAllButton";
 
     public const string DlqFullPayloadEnabled = "Dlq:FullPayloadEnabled";
     public const string DlqAlertThreshold = "Dlq:AlertThreshold";
@@ -13,6 +15,14 @@ public static class SettingKeys
 
     public const string MetricsRetentionDays = "Metrics:RetentionDays";
     public const string MetricsRetentionIntervalMinutes = "Metrics:RetentionIntervalMinutes";
+
+    public const string SearchAnalyticsSessionIdleMinutes = "SearchAnalytics:SessionIdleMinutes";
+    public const string SearchAnalyticsSessionAbsoluteHours = "SearchAnalytics:SessionAbsoluteHours";
+    public const string SearchAnalyticsShowSessionComment = "SearchAnalytics:ShowSessionComment";
+    public const string SearchAnalyticsRetentionDays = "SearchAnalytics:RetentionDays";
+    public const string SearchAnalyticsRetentionIntervalMinutes = "SearchAnalytics:RetentionIntervalMinutes";
+    public const string SearchAnalyticsMessageRetentionDays = "SearchAnalytics:MessageRetentionDays";
+    public const string SearchAnalyticsSeedSecondsPerEvent = "SearchAnalytics:SeedSecondsPerEvent";
 
     public const string HealthDepthAmber = "Health:DepthAmber";
     public const string HealthDepthRed = "Health:DepthRed";
@@ -53,6 +63,12 @@ public static class SettingDefinitions
             "Number of rows shown per page on paged lists.",
             "20",
             SettingKind.Int),
+        new(SettingKeys.ShowDeleteAllButton,
+            "Whether the content-staging page offers the Clear all CMS content button, which deletes " +
+            "every page and content block in this environment. Off by default, and unavailable in " +
+            "production and on QA and preproduction whatever this is set to.",
+            "false",
+            SettingKind.Bool),
         new(SettingKeys.DlqFullPayloadEnabled,
             "Whether operators may view the full original payload of a dead-lettered message. Off by default.",
             "false",
@@ -100,7 +116,40 @@ public static class SettingDefinitions
         new(SettingKeys.NotifyUseFake,
             "When true, the Notify email service is replaced with a dev-only fake that logs email details to the console instead of sending real emails. Defaults to true when not configured.",
             "true",
-            SettingKind.Bool)
+            SettingKind.Bool),
+        new(SettingKeys.SearchDebugOn,
+            "When true, per-hit rank breakdowns and per-exclusion filter breadcrumbs are logged at Info level and the /search page renders the internal rank as an HTML comment. Editors and ops use it to debug why a page didn't appear. Off by default.",
+            "false",
+            SettingKind.Bool),
+        // SearchAnalytics:SessionIdleMinutes is deliberately NOT declared here. It is
+        // applied to SessionOptions when the request pipeline is built and the framework
+        // reads it once, so nothing can honour a stored value per request. Listing it as
+        // editable produced a control that saved and redisplayed but changed nothing —
+        // configure it in appsettings instead.
+        new(SettingKeys.SearchAnalyticsSessionAbsoluteHours,
+            "The maximum lifetime of a session even under continuous activity. A replayed cookie past this limit gets a fresh session id. Hard max 168 h (1 week) enforced in code.",
+            "24",
+            SettingKind.Int),
+        new(SettingKeys.SearchAnalyticsShowSessionComment,
+            "Emit an HTML comment with the ASP.NET session id at the tail of every text/html response for support diagnosis. Turn off only in hostile environments where visible session ids are unacceptable.",
+            "true",
+            SettingKind.Bool),
+        new(SettingKeys.SearchAnalyticsRetentionDays,
+            "Number of days a search-events row is retained before it is purged by the nightly job. Hard-max 365 days is enforced in code.",
+            "90",
+            SettingKind.Int),
+        new(SettingKeys.SearchAnalyticsRetentionIntervalMinutes,
+            "How often, in minutes, the search-analytics retention job runs to purge expired rows.",
+            "60",
+            SettingKind.Int),
+        new(SettingKeys.SearchAnalyticsMessageRetentionDays,
+            "Number of days a search-messages row (user feedback message) is retained before it is purged. Longer than the events window because support cases often reference weeks-old sessions. Hard-max 730 days is enforced in code.",
+            "365",
+            SettingKind.Int),
+        new(SettingKeys.SearchAnalyticsSeedSecondsPerEvent,
+            "Per-event throughput estimate (seconds) used to render the initial ETA on the dev-only Seed sample search data modal. Updated with an EMA blend after each non-cancelled seed so it converges on the actual host's throughput. Default is deliberately high so first-run estimates look conservative rather than optimistic.",
+            "0.1",
+            SettingKind.String)
     ];
 
     public static SettingDefinition? Find(string key) =>

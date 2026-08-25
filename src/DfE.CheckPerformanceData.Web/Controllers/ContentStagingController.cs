@@ -1,12 +1,14 @@
 using System.Text;
 using System.Text.Json;
 using DfE.CheckPerformanceData.Application.ContentStaging;
+using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Hosting;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
@@ -18,10 +20,46 @@ public sealed class ContentStagingController(
     IContentStagingService staging,
     ICurrentUserService currentUser,
     IPageNodeRepository pageNodeRepository,
-    ILogger<ContentStagingController> logger) : Controller
+    ILogger<ContentStagingController> logger,
+    IConfiguration configuration,
+    IHostEnvironment hostEnvironment,
+    ISettingService settingService) : Controller
 {
+    // Clear-all wipes every page and content block in the environment: fine on a development or
+    // throwaway environment, and it has no business being reachable on one holding content anyone
+    // depends on.
+    //
+    // Available where the environment IS Development (local, and the deployed DEV app, which runs
+    // under that environment name) or where dev tools are switched on (the ephemeral review apps
+    // set Dev:ToolsEnabled) — and never in Production, whatever the configuration says.
+    //
+    // Deliberately NOT the plain Dev:ToolsEnabled test the /dev/* surfaces use. That flag is not
+    // set on deployed DEV, so reusing it alone would take clear-all away from the very environment
+    // it is wanted on; and setting the flag there to compensate would switch on dev impersonation
+    // as a side effect, which DevImpersonationController states must never reach deployed DEV.
+    private bool EnvironmentAllowsClearAll =>
+        (hostEnvironment.IsDevelopment() || configuration.GetValue<bool>(SettingKeys.DevToolsEnabled))
+        && !hostEnvironment.IsProduction();
+
+    // Two gates, and both have to say yes.
+    //
+    // The environment one above is the boundary and is not editable: whatever an operator does on
+    // the settings page, clear-all cannot appear on QA, preproduction or production. The setting
+    // is the switch within the environments that may have it, defaulted off, so an environment
+    // only offers it once somebody deliberately asks for it — and so the hidden state can be
+    // exercised without redeploying with different configuration.
+    private async Task<bool> ClearAllAvailableAsync() =>
+        EnvironmentAllowsClearAll
+        && await settingService.GetBoolAsync(SettingKeys.ShowDeleteAllButton);
+
     [HttpGet("")]
-    public IActionResult Index() => View();
+    public async Task<IActionResult> Index()
+    {
+        // The view hides the whole reset section on this, so the button never appears where
+        // the route would refuse it anyway.
+        ViewData["ClearAllAvailable"] = await ClearAllAvailableAsync();
+        return View();
+    }
 
     // Whole-environment export (the "export everything" convenience button).
     [HttpGet("export")]
@@ -136,6 +174,16 @@ public sealed class ContentStagingController(
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ClearAll()
     {
+        // Refuse on the route, not just in the view. Hiding the button would still leave a
+        // destructive POST reachable by anyone with the content-staging grant who knows the URL.
+        if (!await ClearAllAvailableAsync())
+        {
+            logger.LogWarning(
+                "ContentStaging: clear-all refused (environment={Environment}, environmentAllows={EnvironmentAllows})",
+                hostEnvironment.EnvironmentName, EnvironmentAllowsClearAll);
+            return NotFound();
+        }
+
         await pageNodeRepository.TruncateAllContentAsync();
         TempData["ContentStagingResult"] =
             "All CMS pages and content blocks were cleared. Default root nodes will regenerate on the next request.";

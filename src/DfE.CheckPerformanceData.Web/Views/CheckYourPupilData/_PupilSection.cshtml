@@ -1,7 +1,11 @@
 @using DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData
 @model PupilSectionViewModel
 
-@if (!Model.Section.HasData)
+@{
+    var isSearching = !string.IsNullOrWhiteSpace(Model.Section.Search);
+}
+
+@if (!Model.Section.HasData && !isSearching)
 {
     <div role="region" class="moj-alert moj-alert--warning moj-alert--with-heading" aria-label="warning: No data to check" data-module="moj-alert">
         <div>
@@ -27,12 +31,28 @@ else
         AllSections = Model.AllSections,
         ActiveTab = Model.TabAnchor
     })
-    @await Html.PartialAsync("_PupilTable", Model.Section.Table)
-    @await Html.PartialAsync("_Pagination", new PaginationViewModel
+    @if (Model.Section.HasData)
     {
-        WindowId = Model.WindowId,
-        Section = Model.Section,
-        AllSections = Model.AllSections,
-        TabAnchor = Model.TabAnchor
-    })
+        @* MOJ scrollable pane (CSS already shipped via moj-frontend-9.0.0.min.css): the KS4
+           column set is wider than small screens, so the table scrolls inside this region
+           instead of pushing the page off-screen (issue #271). tabindex="0" makes the region
+           keyboard-scrollable and role + aria-label give it an accessible name — the pane's
+           own :focus style comes from the MOJ stylesheet. *@
+        <div class="moj-scrollable-pane" role="region" tabindex="0" aria-label="@Model.Section.Heading">
+            @await Html.PartialAsync("_PupilTable", Model.Section.Table)
+        </div>
+        @await Html.PartialAsync("_Pagination", new PaginationViewModel
+        {
+            WindowId = Model.WindowId,
+            Section = Model.Section,
+            AllSections = Model.AllSections,
+            TabAnchor = Model.TabAnchor
+        })
+    }
+    else
+    {
+        @* A search that matched nothing still shows the search box (so the term can be refined or
+           cleared) plus a GDS-style no-results message, rather than the MOJ "no data" alert. *@
+        <p class="govuk-body">No pupils found for <strong>@Model.Section.Search</strong>. Check the spelling or clear the search to see all pupils.</p>
+    }
 }

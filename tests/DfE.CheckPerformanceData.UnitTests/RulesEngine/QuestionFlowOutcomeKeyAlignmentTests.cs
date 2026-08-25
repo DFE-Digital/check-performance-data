@@ -36,6 +36,24 @@ public sealed class QuestionFlowOutcomeKeyAlignmentTests
         Assert.NotEmpty(Directory.GetFiles(LocateFlowsDirectory(), "*.json"));
     }
 
+    /// <summary>
+    /// Flow prefixes whose requests never reach the rules engine, so they have no outcome key and
+    /// must not be given a fake one — an entry here would make
+    /// <c>OutcomeDeletionPolicy.IsFormBound</c> protect a nonexistent outcome and would tell
+    /// <c>SeedRulesValidationTests</c> to expect rules that were deliberately not written.
+    ///
+    /// <c>IncorrectGrade</c> (AB#296648) is a 16-19 results enquiry: it is persisted as a
+    /// <c>RequestType.ResultsEnquiry</c> row plus a document blob, and is NOT enqueued. Whether it
+    /// ever gets rules-engine or Zendesk processing is a PARKED decision. When that is answered and
+    /// enqueueing is added, remove the prefix from here and add its real outcome key(s) to
+    /// <see cref="AnswerFieldMap.WhatToChangeToOutcomeKey"/> — this list going empty is the signal
+    /// that every flow routes.
+    ///
+    /// <c>Add</c> (AB#297310) is the add-a-pupil simple path: persisted as an Amendment row
+    /// plus a journey blob and NOT enqueued — downstream is the LDS egress, a separate story.
+    /// </summary>
+    private static readonly string[] FlowPrefixesThatDoNotRouteToTheRulesEngine = ["IncorrectGrade", "Add"];
+
     [Theory]
     [MemberData(nameof(FlowFiles))]
     public void EveryContractString_RoutesToAnOutcomeKey(string fileName)
@@ -45,6 +63,14 @@ public sealed class QuestionFlowOutcomeKeyAlignmentTests
         Assert.NotNull(config);
 
         var prefix = fileName.Split('_')[0];
+
+        if (FlowPrefixesThatDoNotRouteToTheRulesEngine.Contains(prefix, StringComparer.Ordinal))
+        {
+            // Assert the *absence* too, so adding a speculative map entry fails here rather than
+            // quietly binding an enquiry journey to rules-engine routing nobody signed off.
+            AssertNotRoutable(prefix);
+            return;
+        }
 
         var flagged = config.Pages
             .SelectMany(p => p.Questions)
@@ -71,6 +97,12 @@ public sealed class QuestionFlowOutcomeKeyAlignmentTests
         Assert.True(AnswerFieldMap.WhatToChangeToOutcomeKey.ContainsKey(contract),
             $"WhatToChange '{contract}' has no entry in AnswerFieldMap.WhatToChangeToOutcomeKey — " +
             "every request for it would resolve to _unknown and fall to Scrutiny.");
+
+    private static void AssertNotRoutable(string contract) =>
+        Assert.False(AnswerFieldMap.WhatToChangeToOutcomeKey.ContainsKey(contract),
+            $"WhatToChange '{contract}' is listed as not routing to the rules engine, but it now has " +
+            "an entry in AnswerFieldMap.WhatToChangeToOutcomeKey. If downstream processing has been " +
+            "decided, remove it from FlowPrefixesThatDoNotRouteToTheRulesEngine.");
 
     // ── Question id / option value alignment ────────────────────────────────
 

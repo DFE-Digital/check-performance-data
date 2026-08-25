@@ -22,15 +22,42 @@ public sealed class QuestionPartialModel
     };
     public bool HasError => Error is not null;
     public string ResolvedTitle { get; init; } = string.Empty;
+    /// <summary>
+    /// The options to render. For a Radio these are the config's options after visibility filtering;
+    /// for a <see cref="QuestionType.GradeSelect"/> they are the qualification's grades, pass before
+    /// fail, built from the AODC reference data.
+    /// </summary>
     public IReadOnlyList<QuestionOption> VisibleOptions { get; init; } = [];
 
+    /// <summary>
+    /// True when this is a grade picker with nothing to pick — which can only mean the result's QAN
+    /// is absent from the AODC reference data, since every qualification in that data has at least one
+    /// grade. Drives the "we cannot list grades for this qualification yet" message. AB#297130.
+    /// </summary>
+    public bool GradeOptionsUnavailable =>
+        Question.Type == QuestionType.GradeSelect && VisibleOptions.Count == 0;
+
     public int MaxEvidencePages { get; init; }
+
+    /// <summary>
+    /// Every evidence file name already uploaded anywhere in this request (AB#296081) —
+    /// rendered as data-existing-file-names on the file input for the selection-time
+    /// duplicate warning. Request-wide, not per-question, to match the server rule.
+    /// </summary>
+    public IReadOnlyList<string> ExistingFileNames { get; init; } = [];
 
     // File upload computed properties
     public IReadOnlyList<FileAnswer> UploadedFiles => ExistingAnswer?.FileValues ?? [];
     public int TotalPages => UploadedFiles.Sum(f => f.PageCount);
     public bool AtLimit => MaxEvidencePages > 0 && TotalPages >= MaxEvidencePages;
-    public string DescribedBy => UploadError is not null || Error is not null ? "fileUpload-hint fileUpload-error" : "fileUpload-hint";
+    // Only reference ids that _FileUpload.cshtml actually renders. Naming a missing element
+    // in aria-describedby leaves a dangling reference that resolves to nothing, so a question
+    // with no hint would silently announce no description at all.
+    public string DescribedBy => string.Join(" ", new[]
+    {
+        Question.Hint is not null ? "fileUpload-hint" : null,
+        UploadError is not null || Error is not null ? "fileUpload-error" : null
+    }.Where(id => id is not null));
     public IReadOnlyList<FileUploadRow> UploadedFileRows => UploadedFiles.Select(f => new FileUploadRow(f)).ToList();
 }
 

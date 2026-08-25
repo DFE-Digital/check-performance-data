@@ -1,0 +1,91 @@
+@using System.Globalization
+@using DfE.CheckPerformanceData.Web.Controllers.ViewModels
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.SearchAnalyticsHeatmapCellViewModel
+@{
+    // Paged drill-in reached from clicking a cell on the "When people search" heatmap.
+    // One row per search event that landed in this (weekday, hour) bucket during the
+    // window, newest first, paged by CMS:PageLength.
+    string PageLink(int p) =>
+        $"/admin/Search/HeatmapCell?{SearchAnalyticsRangeQuery.Build(Model.RangeKey, Model.FromUtc, Model.ToUtc)}&weekday={Model.Weekday}&hour={Model.Hour}&page={p}";
+
+    var firstRow = Model.TotalCount == 0 ? 0 : ((Model.Page - 1) * Model.PageSize) + 1;
+    var lastRow = Math.Min(Model.Page * Model.PageSize, Model.TotalCount);
+    var rangeQs = SearchAnalyticsRangeQuery.Build(Model.RangeKey, Model.FromUtc, Model.ToUtc);
+}
+
+<link rel="stylesheet" href="~/css/search-analytics.css" asp-append-version="true" />
+
+<a class="govuk-back-link" href="/admin/Search/?@rangeQs">Back to search analytics</a>
+
+<h1 class="govuk-heading-xl">Searches on @Model.WeekdayLabel at @Model.HourLabel</h1>
+
+<p class="govuk-body">
+    Every search that landed in this hour of this weekday during the selected window.
+    Click a session identifier to see every search the same visitor ran.
+</p>
+
+@* Deliberately no time-window filter here — the admin picked a specific cell in a
+   specific window on the previous page; changing the window mid-drill-in would land
+   them on rows for a different (weekday, hour) sample. The back link is enough. *@
+<p class="govuk-body-s govuk-hint">
+    Window: @Model.FromUtc.ToString("u", CultureInfo.InvariantCulture)
+    to @Model.ToUtc.ToString("u", CultureInfo.InvariantCulture)
+    (@Model.RangeKey).
+</p>
+
+@if (Model.TotalCount == 0)
+{
+    <p class="govuk-body">No searches in this hour and weekday during the selected window.</p>
+}
+else
+{
+    <p class="govuk-body-s govuk-hint">
+        Showing @firstRow to @lastRow of @Model.TotalCount.ToString("N0", CultureInfo.CurrentCulture) searches.
+    </p>
+
+    <table class="govuk-table">
+        <caption class="govuk-table__caption govuk-table__caption--s govuk-visually-hidden">Individual searches on @Model.WeekdayLabel at @Model.HourLabel</caption>
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header" title="When the search ran, in UTC.">Occurred at (UTC)</th>
+                <th scope="col" class="govuk-table__header" title="Session identifier for the visitor. Masked to the first 8 characters for readability; full value on hover. Click to see every search this visitor ran.">Session</th>
+                <th scope="col" class="govuk-table__header" title="The raw text the user searched for. Click to re-run the same search.">Query</th>
+                <th scope="col" class="govuk-table__header govuk-table__header--numeric" title="How many hits the search returned. Zero indicates a zero-result search.">Results</th>
+                <th scope="col" class="govuk-table__header govuk-table__header--numeric" title="How long the request took, in milliseconds.">Latency (ms)</th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            @foreach (var row in Model.Rows)
+            {
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">@row.OccurredAtUtc.ToString("u", CultureInfo.InvariantCulture)</td>
+                    <td class="govuk-table__cell">
+                        <a class="govuk-link" href="/admin/Search/Session/@row.SessionId" title="@row.SessionId">
+                            <code>@row.SessionId.MaskSessionId()</code>
+                        </a>
+                    </td>
+                    <td class="govuk-table__cell">
+                        @if (!string.IsNullOrEmpty(row.Query))
+                        {
+                            <a class="govuk-link" href="/search?q=@Uri.EscapeDataString(row.Query)"
+                               target="_blank" rel="noopener noreferrer">@row.Query</a>
+                        }
+                        else
+                        {
+                            <span class="govuk-hint">(empty query)</span>
+                        }
+                    </td>
+                    <td class="govuk-table__cell govuk-table__cell--numeric">@row.ResultsTotal.ToString("N0", CultureInfo.CurrentCulture)</td>
+                    <td class="govuk-table__cell govuk-table__cell--numeric">@row.LatencyMs.ToString("N0", CultureInfo.CurrentCulture)</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    @await Component.InvokeAsync("Pager", new
+    {
+        currentPage = Model.Page,
+        totalPages = Model.TotalPages,
+        urlBuilder = (Func<int, string>)PageLink,
+    })
+}

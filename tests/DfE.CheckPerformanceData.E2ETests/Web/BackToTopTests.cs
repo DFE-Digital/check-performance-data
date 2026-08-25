@@ -19,17 +19,24 @@ namespace DfE.CheckPerformanceData.E2ETests.Web;
 //   * At the page bottom the link releases at the natural end of the content area
 //     so it sits above the footer instead of overlapping it.
 //   * Anchor href="#top" scrolls the window back to the top.
+//   * Reveal timing follows the GDS guidance rather than firing on the first
+//     nudge of the wheel: the reader has to travel nearly a whole viewport
+//     before the link appears, and pages that fit (or nearly fit) the viewport
+//     never show it at all.
 //
 // Uses /wiki/wiki-sandbox because it's the sample seeded specifically for this kind
 // of layout check (long body, Wiki.cshtml render path). The behaviour is layout-
 // agnostic though — every Content/Wiki page picks the same partial + CSS up.
+// /guidance/short-page is its counterpart: a one-paragraph sample that fits the
+// viewport, used to pin the "never show on a short page" half of the contract.
 [Collection("E2E")]
-[Trait("Category", "W1")]
 public sealed class BackToTopTests(PlaywrightFixture fixture) : PageTest
 {
     private readonly PlaywrightFixture _fixture = fixture;
 
     private const string TargetPath = "/wiki/wiki-sandbox";
+
+    private const string ShortPagePath = "/guidance/short-page";
 
     [Theory]
     [InlineData(1280, 900, "desktop")]
@@ -139,9 +146,12 @@ public sealed class BackToTopTests(PlaywrightFixture fixture) : PageTest
             return cs.opacity === '0' && cs.visibility === 'hidden';
         }");
 
-        // 1) After ~400px of scroll the link should be fully faded in, pinned ~50px above
-        // the viewport bottom, in the left half of the viewport.
-        await Page.EvaluateAsync("window.scrollTo(0, 400)");
+        // 1) Just past the reveal threshold the link should be fully faded in, pinned
+        // ~50px above the viewport bottom, in the left half of the viewport. 0.95 of a
+        // viewport is deliberately a shade past the 0.9 reveal point and still well
+        // short of the bottom of the article, where the sticky container releases into
+        // the flow and this geometry stops applying.
+        await Page.EvaluateAsync("window.scrollTo(0, Math.round(window.innerHeight * 0.95))");
         // Wait for the class flip + the 300ms opacity transition to complete, deterministic
         // rather than a fixed sleep — WaitForFunctionAsync polls until the predicate returns
         // truthy, so a slow CI runner and a fast local dev machine both see the same barrier.
@@ -203,8 +213,167 @@ public sealed class BackToTopTests(PlaywrightFixture fixture) : PageTest
         Assert.Equal(0, scrollY);
     }
 
+    // GDS guidance for this component: "Avoid using this component on short pages or on
+    // pages designed to fit the entire viewport." A page the reader can take in without
+    // scrolling has nothing to go back to the top of, so the link must stay away for the
+    // whole life of the page — including at the very bottom of what little scroll exists.
+    [Fact]
+    public async Task OnAShortPage_LinkNeverReveals_NotEvenAtTheBottomOfTheDocument()
+    {
+        await Page.SetViewportSizeAsync(1280, 900);
+        var response = await Page.GotoAsync($"{_fixture.BaseUrl}{ShortPagePath}");
+        Assert.NotNull(response);
+        Assert.Equal(200, response!.Status);
+
+        await Page.Locator(".app-back-to-top__link").WaitForAsync(new() { State = WaitForSelectorState.Attached });
+        await WaitForEnhancementAsync();
+
+        // Guard the fixture itself. If someone lengthens the seeded short page this test
+        // would quietly stop testing anything, so fail loudly on that instead: the page
+        // must have less than a viewport of scroll beyond the fold to be a valid subject.
+        var scrollable = await Page.EvaluateAsync<int>(
+            "() => Math.round(document.documentElement.scrollHeight - window.innerHeight)");
+        Assert.True(scrollable < 900,
+            $"/guidance/short-page is meant to fit the viewport but has {scrollable}px of scroll beyond it — " +
+            "shorten the seeded body or this test proves nothing");
+
+        // Bottom of the document is the most favourable position for a reveal — if the
+        // link stays hidden here it stays hidden everywhere on this page.
+        await ScrollToAsync("document.documentElement.scrollHeight");
+
+        var state = await Page.EvaluateAsync<RevealSnap>(RevealSnapScript);
+        Assert.False(state.HasVisibleClass,
+            "back-to-top must not reveal on a page that fits the viewport");
+        Assert.Equal("0", state.Opacity);
+        Assert.Equal("hidden", state.Visibility);
+    }
+
+    // The reveal threshold is proportional to the viewport, not a fixed pixel nudge:
+    // the reader has to travel nearly a full screen before the link appears. Pinning
+    // both sides of the boundary keeps a future tweak from sliding it back down to a
+    // scroll-and-it-pops-up value.
+    [Fact]
+    public async Task OnALongPage_StaysHidden_UntilNearlyAViewportHasBeenScrolled()
+    {
+        await Page.SetViewportSizeAsync(1280, 900);
+        var response = await Page.GotoAsync($"{_fixture.BaseUrl}{TargetPath}");
+        Assert.NotNull(response);
+        Assert.Equal(200, response!.Status);
+
+        await Page.Locator(".app-back-to-top__link").WaitForAsync(new() { State = WaitForSelectorState.Attached });
+        await WaitForEnhancementAsync();
+
+        // Half a viewport in — the reader is still reading the first screenful of the
+        // article, so the link has no business being on screen yet.
+        await ScrollToAsync("Math.round(window.innerHeight / 2)");
+
+        var halfway = await Page.EvaluateAsync<RevealSnap>(RevealSnapScript);
+        Assert.False(halfway.HasVisibleClass,
+            "back-to-top revealed after half a viewport of scroll — the threshold is too eager");
+
+        // A whole viewport in — the first screenful is behind the reader, so the link
+        // is now earning its place.
+        await ScrollToAsync("window.innerHeight");
+
+        var fullViewport = await Page.EvaluateAsync<RevealSnap>(RevealSnapScript);
+        Assert.True(fullViewport.HasVisibleClass,
+            "back-to-top should be revealed once a full viewport has been scrolled");
+    }
+
+    // A tall browser window used to lose the link entirely. The reveal threshold was a
+    // fraction of the viewport, so a big monitor was penalised twice over: the bar went up
+    // while the same document's scrollable distance went down, and pages that comfortably
+    // showed the link on a laptop became unreachable. Drive a window taller than the
+    // article's scrollable distance and confirm the link is still reachable.
+    [Fact]
+    public async Task OnATallWindow_LinkIsStillReachable_WhenThePageOutrunsTheViewportOnlyModestly()
+    {
+        await Page.SetViewportSizeAsync(1440, 1300);
+        var response = await Page.GotoAsync($"{_fixture.BaseUrl}{TargetPath}");
+        Assert.NotNull(response);
+        Assert.Equal(200, response!.Status);
+
+        await Page.Locator(".app-back-to-top__link").WaitForAsync(new() { State = WaitForSelectorState.Attached });
+        await WaitForEnhancementAsync();
+
+        // Guard the premise: on this window the page must have LESS than a viewport of
+        // scroll, which is the shape that used to be unreachable. If seeded content grows
+        // past that the test stops covering the regression, so fail loudly instead.
+        var scrollable = await Page.EvaluateAsync<int>(
+            "() => Math.round(document.documentElement.scrollHeight - window.innerHeight)");
+        Assert.InRange(scrollable, 1, 1299);
+
+        await ScrollToAsync("document.documentElement.scrollHeight");
+
+        var state = await Page.EvaluateAsync<RevealSnap>(RevealSnapScript);
+        Assert.True(state.HasVisibleClass,
+            $"back-to-top must stay reachable on a tall window (scrollable={scrollable}px, viewport=1300px)");
+    }
+
+    // Wait for the progressive enhancement to claim the page AND for the resulting fade
+    // to finish. The module sets the marker on <html>, which switches the CSS from the
+    // no-JS always-visible fallback to the hidden-until-revealed state — but that switch
+    // is a 0.3s opacity transition, so a read taken the moment the marker appears catches
+    // the link partway through fading out. Settling on the resting hidden state first is
+    // what makes a later "still hidden" assertion mean something.
+    private Task WaitForEnhancementAsync() =>
+        Page.WaitForFunctionAsync(@"() => {
+            if (document.documentElement.getAttribute('data-back-to-top-init') !== 'true') return false;
+            const c = document.querySelector('.app-back-to-top');
+            if (!c) return false;
+            const cs = getComputedStyle(c);
+            return cs.opacity === '0' && cs.visibility === 'hidden';
+        }");
+
+    // Scroll, then hold until "the offset has landed AND the module has had its say
+    // about it". Two things make this harder than awaiting a single window.scrollTo:
+    //
+    //   * The module reacts inside requestAnimationFrame, so a read taken straight after
+    //     the scroll can still be showing the previous frame's answer.
+    //   * Revealing the link changes the document height (the hidden container collapses
+    //     to height 0 and its margin with it), which moves the maximum scroll offset
+    //     underneath a scroll-to-the-bottom request.
+    //
+    // So re-issue the scroll every frame and wait for the offset to hold still for three
+    // consecutive frames. Settling on a stable offset is what both halves need, and it
+    // works for the negative assertions too — "still hidden" has no state change to await,
+    // and a fixed sleep would otherwise be the only option there.
+    private Task ScrollToAsync(string yExpression) =>
+        Page.EvaluateAsync($@"() => new Promise((resolve, reject) => {{
+            let last = -1, stable = 0, frames = 0;
+            const step = () => {{
+                window.scrollTo(0, {yExpression});
+                if (window.scrollY === last) {{
+                    if (++stable === 3) return resolve();
+                }} else {{
+                    stable = 0;
+                    last = window.scrollY;
+                }}
+                if (++frames > 300) return reject(new Error('scroll offset never settled'));
+                requestAnimationFrame(step);
+            }};
+            requestAnimationFrame(step);
+        }})");
+
+    private const string RevealSnapScript = @"() => {
+        const c = document.querySelector('.app-back-to-top');
+        const cs = getComputedStyle(c);
+        return {
+            hasVisibleClass: c.classList.contains('is-visible'),
+            opacity: cs.opacity,
+            visibility: cs.visibility
+        };
+    }";
+
     // Playwright's EvaluateAsync<T> instantiates T via reflection with a parameterless
     // constructor, so these snapshot DTOs are plain settable classes (not positional records).
+    public sealed class RevealSnap
+    {
+        public bool HasVisibleClass { get; set; }
+        public string Opacity { get; set; } = "";
+        public string Visibility { get; set; } = "";
+    }
+
     public sealed class AtTopSnap
     {
         public string Opacity { get; set; } = "";

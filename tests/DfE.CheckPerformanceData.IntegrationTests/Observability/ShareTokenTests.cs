@@ -10,7 +10,6 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Observability;
 // can never reveal a live token. Validation hashes the incoming token and compares the hash to a
 // non-revoked row with a constant-time compare; revocation makes the same token validate false.
 [Collection(nameof(PostgresCollection))]
-[Trait("Category", "W0")]
 public sealed class ShareTokenTests
 {
     private readonly PostgresFixture _fixture;

@@ -37,6 +37,11 @@ public sealed class SchoolDetails
 {
     public required string Urn { get; init; }
     public required string Name { get; init; }
+
+    /// <summary>DfE establishment number (LAESTAB) of the requesting school. Empty when not
+    /// supplied, so older messages deserialise — the DfE Establishment Number ticket field is
+    /// then omitted (FR-008/FR-014).</summary>
+    public string Laestab { get; init; } = string.Empty;
 }
 
 public sealed class PupilDetails
@@ -53,6 +58,15 @@ public sealed class PupilDetails
     /// <summary>Inclusion status code from the pupil record. The rules engine reads
     /// <c>inclusionFlag</c> from here — it is never asked as a journey question. 0 = not supplied.</summary>
     public int Pincl { get; init; }
+
+    /// <summary>LDS match reference (MATCHREF) for the LDS matched pupil ID ticket field.
+    /// 0 = not supplied, so older messages deserialise and the field is omitted (FR-007/FR-014).</summary>
+    public int MatchRef { get; init; }
+
+    /// <summary>School admission date (ENTRYDAT) from the pupil record, the source of the
+    /// Admission date ticket field (FR-012). Raw string whose format is supplier-defined;
+    /// empty = not supplied, so older messages deserialise and the field is omitted (FR-014).</summary>
+    public string EntryDate { get; init; } = string.Empty;
 }
 
 public sealed class AnswerRecord

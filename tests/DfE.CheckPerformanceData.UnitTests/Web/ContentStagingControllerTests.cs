@@ -26,10 +26,127 @@ public sealed class ContentStagingControllerTests
     public ContentStagingControllerTests()
     {
         _currentUser.Email.Returns("editor@education.gov.uk");
-        _sut = new ContentStagingController(_staging, _currentUser, _pageNodeRepository, _logger)
+        _sut = Build(devToolsEnabled: true, environment: "Development");
+    }
+
+
+    // Clear-all is gated the way the other destructive dev surfaces are: the Dev:ToolsEnabled
+    // flag AND not-production. Build a controller for a given environment so each case is explicit.
+    private ContentStagingController Build(bool devToolsEnabled, string environment, bool showButton = true)
+    {
+        var configuration = new Microsoft.Extensions.Configuration.ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Dev:ToolsEnabled"] = devToolsEnabled ? "true" : "false"
+            })
+            .Build();
+
+        var host = Substitute.For<Microsoft.Extensions.Hosting.IHostEnvironment>();
+        host.EnvironmentName.Returns(environment);
+
+        var settings = Substitute.For<DfE.CheckPerformanceData.Application.Settings.ISettingService>();
+        settings.GetBoolAsync(DfE.CheckPerformanceData.Application.Settings.SettingKeys.ShowDeleteAllButton)
+            .Returns(showButton);
+
+        return new ContentStagingController(_staging, _currentUser, _pageNodeRepository, _logger, configuration, host, settings)
         {
             TempData = new TempDataDictionary(new DefaultHttpContext(), Substitute.For<ITempDataProvider>())
         };
+    }
+
+    // --- Clear-all environment gate (issue: hide/remove Clear All from non-dev environments) ---
+
+    // The destructive endpoint must not merely be hidden in the UI. A hidden button still leaves a
+    // POST route reachable by anyone holding the content-staging grant who knows the URL, and the
+    // action truncates every page and content block in the environment.
+    [Theory]
+    [InlineData(false, "QA")]            // deployed QA: neither Development nor the flag
+    [InlineData(false, "Preproduction")]
+    [InlineData(true,  "Production")]    // even if a prod deploy leaves the flag on
+    [InlineData(false, "Production")]
+    public async Task ClearAll_WhenNotADevSurface_Returns404_AndTouchesNothing(bool devTools, string environment)
+    {
+        var sut = Build(devTools, environment);
+
+        var result = await sut.ClearAll();
+
+        Assert.IsType<NotFoundResult>(result);
+        await _pageNodeRepository.DidNotReceiveWithAnyArgs().TruncateAllContentAsync();
+    }
+
+    [Theory]
+    [InlineData(true,  "Development")]   // local dev
+    [InlineData(false, "Development")]   // deployed DEV: environment name only, no flag
+    [InlineData(true,  "Review")]        // ephemeral review app: flag only
+    public async Task ClearAll_OnADevSurface_StillClearsTheEnvironment(bool devTools, string environment)
+    {
+        var sut = Build(devToolsEnabled: devTools, environment: environment);
+
+        var result = await sut.ClearAll();
+
+        Assert.IsType<RedirectResult>(result);
+        await _pageNodeRepository.Received(1).TruncateAllContentAsync();
+    }
+
+    // The view renders the reset section from this flag, so the button disappears with the route.
+    [Theory]
+    [InlineData(true,  "Development", true)]    // local dev
+    [InlineData(false, "Development", true)]    // deployed DEV: no flag, still a dev environment
+    [InlineData(true,  "Review",      true)]    // review app: flag set
+    [InlineData(false, "QA",          false)]
+    [InlineData(false, "Preproduction", false)]
+    [InlineData(true,  "Production",  false)]
+    public async Task Index_TellsTheView_WhetherClearAllIsAvailable(bool devTools, string environment, bool expected)
+    {
+        var sut = Build(devTools, environment);
+
+        var result = Assert.IsType<ViewResult>(await sut.Index());
+
+        Assert.Equal(expected, result.ViewData["ClearAllAvailable"]);
+    }
+
+
+    // The setting is the operator-facing switch, defaulted off, so an environment that MAY offer
+    // clear-all still does not until somebody asks for it — and the hidden state can be exercised
+    // without redeploying under different configuration.
+    [Fact]
+    public async Task ClearAll_WhenTheSettingIsOff_Returns404_EvenOnADevSurface()
+    {
+        var sut = Build(devToolsEnabled: true, environment: "Development", showButton: false);
+
+        var result = await sut.ClearAll();
+
+        Assert.IsType<NotFoundResult>(result);
+        await _pageNodeRepository.DidNotReceiveWithAnyArgs().TruncateAllContentAsync();
+    }
+
+    [Fact]
+    public async Task Index_WhenTheSettingIsOff_HidesTheButton_EvenOnADevSurface()
+    {
+        var sut = Build(devToolsEnabled: true, environment: "Development", showButton: false);
+
+        var result = Assert.IsType<ViewResult>(await sut.Index());
+
+        Assert.Equal(false, result.ViewData["ClearAllAvailable"]);
+    }
+
+    // The environment boundary is not editable: turning the setting on where the environment does
+    // not allow it changes nothing. QA and preproduction are listed with dev tools off because
+    // that is how they are configured — Dev:ToolsEnabled is the marker that declares an
+    // environment a dev surface, so setting it on QA would be a statement that QA is one (and
+    // would switch on dev impersonation besides). Production is refused with the flag ON, because
+    // there the environment name alone has to be enough.
+    [Theory]
+    [InlineData("QA", false)]
+    [InlineData("Preproduction", false)]
+    [InlineData("Production", true)]
+    public async Task ClearAll_SettingOn_StillRefusedWhereTheEnvironmentForbidsIt(string environment, bool devTools)
+    {
+        var sut = Build(devToolsEnabled: devTools, environment: environment, showButton: true);
+
+        Assert.IsType<NotFoundResult>(await sut.ClearAll());
+        Assert.Equal(false, Assert.IsType<ViewResult>(await sut.Index()).ViewData["ClearAllAvailable"]);
+        await _pageNodeRepository.DidNotReceiveWithAnyArgs().TruncateAllContentAsync();
     }
 
     private static IFormFile FileFrom(string content)

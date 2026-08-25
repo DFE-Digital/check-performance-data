@@ -76,10 +76,10 @@
     Download pages and content blocks from this environment as a
     <code>@ContentBundle.CurrentSchema</code> bundle.
 </p>
-<a class="govuk-button" data-module="govuk-button" href="/admin/content-staging/export" role="button">
+<a draggable="false" class="govuk-button" data-module="govuk-button" href="/admin/content-staging/export" role="button">
     Export everything
 </a>
-<a class="govuk-button govuk-button--secondary" data-module="govuk-button" href="/admin/content-staging/select" role="button">
+<a draggable="false" class="govuk-button govuk-button--secondary" data-module="govuk-button" href="/admin/content-staging/select" role="button">
     Choose what to export
 </a>
 
@@ -103,23 +103,29 @@
     </button>
 </form>
 
-<h2 class="govuk-heading-l">Reset content</h2>
-<p class="govuk-body">
-    Deletes every CMS page and content block in this environment. Use it to get a clean slate
-    before replaying a bundle from another environment.
-</p>
-<button type="button" class="govuk-button govuk-button--warning"
-        data-module="govuk-button" data-confirm-trigger="clear-all-modal">
-    Clear all CMS content
-</button>
+@* Reset content is a throwaway-environment tool: it deletes every page and content block.
+   Rendered only where the controller says the route will accept it (Dev:ToolsEnabled and not
+   production), so the button is never shown somewhere the POST would 404. *@
+@if (ViewData["ClearAllAvailable"] is true)
+{
+    <h2 class="govuk-heading-l">Reset content</h2>
+    <p class="govuk-body">
+        Deletes every CMS page and content block in this environment. Use it to get a clean slate
+        before replaying a bundle from another environment.
+    </p>
+    <button type="button" class="govuk-button govuk-button--warning"
+            data-module="govuk-button" data-confirm-trigger="clear-all-modal">
+        Clear all CMS content
+    </button>
 
-<govuk-confirm-modal id="clear-all-modal"
-                     title="Clear all CMS content?"
-                     warning-text="This deletes every page and content block from this environment. It cannot be undone."
-                     body="Default root nodes (support, help, guidance, wiki) and the /help/not-found page regenerate automatically on the next request. Any custom pages, saved versions, or content-block edits are gone."
-                     confirm-label="Yes, clear everything"
-                     destructive="true"
-                     form-action="/admin/content-staging/clear-all"
-                     form-method="post">
-    @Html.AntiForgeryToken()
-</govuk-confirm-modal>
+    <govuk-confirm-modal id="clear-all-modal"
+                         title="Clear all CMS content?"
+                         warning-text="This deletes every page and content block from this environment. It cannot be undone."
+                         body="Default root nodes (support, help, guidance, wiki) and the /help/not-found page regenerate automatically on the next request. Any custom pages, saved versions, or content-block edits are gone."
+                         confirm-label="Yes, clear everything"
+                         destructive="true"
+                         form-action="/admin/content-staging/clear-all"
+                         form-method="post">
+        @Html.AntiForgeryToken()
+    </govuk-confirm-modal>
+}

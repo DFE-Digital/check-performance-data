@@ -4,7 +4,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 
-public sealed class SummaryController(IWindowService windowService): Controller
+public sealed class SummaryController(
+    IWindowService windowService,
+    IWindowStatusService windowStatusService): Controller
 {
    
     [HttpGet("admin/windows/summary/{id:guid}")]
@@ -21,6 +23,10 @@ public sealed class SummaryController(IWindowService windowService): Controller
             WindowId = w.Id,
             Title = w.Title,
             TurnaroundCommitment = w.TurnaroundCommitment,
+            // #295435: assigned rather than left to default. GetByIdAsync never populated the old
+            // window-level IsOpen flag, so this page printed "Is Open: False" for every window,
+            // open or not.
+            IsOpen = windowStatusService.IsOpen(w),
             StartDate = w.StartDate,
             EndDate = w.EndDate,
             KeyStage = w.KeyStage,

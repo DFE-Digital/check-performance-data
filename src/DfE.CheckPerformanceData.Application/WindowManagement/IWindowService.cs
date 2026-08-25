@@ -1,6 +1,5 @@
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Domain.Enums;
-using DfE.CheckPerformanceData.Domain.Time;
 
 namespace DfE.CheckPerformanceData.Application.WindowManagement;
 
@@ -33,8 +32,11 @@ public sealed class CheckingWindowDto
     public string SchemaFileChecksum { get; set; } = string.Empty;
     public bool Validated { get; set; }
     public DateTime? ValidatedAt { get; set; }
-    public bool IsOpen { get; set; }
     public string TurnaroundCommitment { get; set; } = string.Empty;
+
+    // #295435: there is no IsOpen here. Open/closed is a question about the clock, and a DTO cannot
+    // read one without either a static call (untestable) or a caller-supplied now (which lets two
+    // callers disagree). Ask IWindowStatusService.
 
     // #319: Validated / ValidatedAt are gone from here. A window is not validated as a whole — ask
     // a CheckingExerciseDto, or fold the answer across Exercises.

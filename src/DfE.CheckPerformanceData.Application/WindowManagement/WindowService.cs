@@ -1,19 +1,15 @@
-using DfE.CheckPerformanceData.Domain.Time;
 using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Application.WindowManagement;
 
-public class WindowService(IWindowRepository windowRepository, TimeProvider timeProvider): IWindowService
+// No clock here: this service reads and writes windows, and IWindowStatusService is the one place
+// that compares their dates against now. Callers that need open/closed ask that service with the
+// windows this one returns.
+public class WindowService(IWindowRepository windowRepository): IWindowService
 {
     public async Task<PageResult?> GetAllDataAsync(CancellationToken cancellationToken)
     {
-        DateTime now = UkTime.Now(timeProvider);
         List<CheckingWindowDto> windows = await windowRepository.GetAllWindowsAsync(cancellationToken);
-
-        foreach (CheckingWindowDto window in windows)
-        {
-            window.IsOpen = window.IsOpenAt(now);
-        }
 
         return new PageResult
         {

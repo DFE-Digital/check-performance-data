@@ -248,7 +248,6 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
             })
             .ToListAsync();
 
-    public async Task<AmendmentRequestData?> GetAmendmentRequestAsync(Guid windowId, long organisationUrn, string referenceNumber) =>
     public async Task<IReadOnlyList<SubmittedRequestData>> GetAllSubmittedRequestsAsync(
         long organisationUrn) =>
         await db.ChangeRequests

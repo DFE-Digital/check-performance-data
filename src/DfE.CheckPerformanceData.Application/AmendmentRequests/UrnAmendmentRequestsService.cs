@@ -1,7 +1,6 @@
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.WindowManagement;
-using DfE.CheckPerformanceData.Domain.Time;
 
 namespace DfE.CheckPerformanceData.Application.AmendmentRequests;
 
@@ -9,7 +8,7 @@ public sealed class UrnAmendmentRequestsService(
     IRequestRepository requestRepository,
     IWindowRepository windowRepository,
     ICurrentUserService currentUserService,
-    TimeProvider timeProvider) : IUrnAmendmentRequestsService
+    IWindowStatusService windowStatusService) : IUrnAmendmentRequestsService
 {
     public async Task<UrnAmendmentRequestsResult> GetAllSubmittedAmendmentRequestsAsync(CancellationToken cancellationToken)
     {
@@ -18,10 +17,9 @@ public sealed class UrnAmendmentRequestsService(
         IReadOnlyList<SubmittedRequestData> submitted = await requestRepository.GetAllSubmittedRequestsAsync(urn);
         List<CheckingWindowDto> allWindows = await windowRepository.GetAllWindowsAsync(cancellationToken);
 
-        // The repository returns raw rows, so IsOpen is unset here — evaluate against the clock.
-        DateTime now = UkTime.Now(timeProvider);
-        List<OpenWindow> currentOpenWindows = allWindows
-            .Where(w => w.IsOpenAt(now))
+        // This reads the repository directly rather than going through IWindowService, so asking the
+        // status service is the only way to get the same answer the admin pages get.
+        List<OpenWindow> currentOpenWindows = windowStatusService.OpenWindows(allWindows)
             .Select(w => new OpenWindow
             {
                 WindowId = w.Id,

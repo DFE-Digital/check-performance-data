@@ -15,6 +15,7 @@ namespace DfE.CheckPerformanceData.Web.Controllers;
 [RequireAdminSection(AdminNavKeys.Dashboard)]
 public sealed class AdminDashboardController(
     IWindowService windowService,
+    IWindowStatusService windowStatusService,
     IDashboardService dashboardService,
     IOptions<DashboardSettings> settings) : Controller
 {
@@ -24,8 +25,7 @@ public sealed class AdminDashboardController(
     public async Task<IActionResult> Index(Guid? windowId, CancellationToken cancellationToken)
     {
         var all = await windowService.GetAllDataAsync(cancellationToken);
-        var openWindows = (all?.Windows ?? [])
-            .Where(w => w.IsOpen)
+        var openWindows = windowStatusService.OpenWindows(all?.Windows ?? [])
             .OrderBy(w => w.Title, StringComparer.OrdinalIgnoreCase)
             .ToList();
 

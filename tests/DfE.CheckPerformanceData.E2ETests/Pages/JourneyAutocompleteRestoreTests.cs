@@ -94,7 +94,7 @@ public sealed class JourneyAutocompleteRestoreTests(PlaywrightFixture fixture) :
             await input.ClickAsync();
             await input.FillAsync("Trinidad");
             await Expect(Page.Locator("li[role='option']").First).ToBeVisibleAsync();
-            await Page.Locator("body").ClickAsync(new() { Force = true });
+            await input.BlurAsync();
             Assert.Equal(0, await Page.Locator(".autocomplete__menu--visible").CountAsync());
         }
         catch (Exception ex)
@@ -137,7 +137,7 @@ public sealed class JourneyAutocompleteRestoreTests(PlaywrightFixture fixture) :
         // also exercises the same handleComponentBlur path as a manual sanity check that
         // it doesn't disturb an already-settled, unedited restored field.
         await Page.Keyboard.PressAsync("Escape");
-        await Page.Locator("body").ClickAsync(new() { Force = true });
+        await input.BlurAsync();
     }
 
     // Same manual cookie mirroring RequestSubmissionPage uses: PageTest (unlike

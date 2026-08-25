@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.DependencyInjection;
 
-using Microsoft.AspNetCore.Http;
 
 namespace DfE.CheckPerformanceData.Web.Startup;
 
@@ -22,12 +21,16 @@ public static class CoreWebExtensions
         builder.Services.AddAntiforgery(options =>
         {
             options.HeaderName = "X-XSRF-TOKEN";
-            // The session cookie already follows this policy; the antiforgery cookie was left on
-            // the default. SameAsRequest in development keeps local HTTP working — Always there
-            // would have the browser drop the cookie and every form POST fail antiforgery.
-            options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
-                ? CookieSecurePolicy.SameAsRequest
-                : CookieSecurePolicy.Always;
+            // Cookie.SecurePolicy is deliberately left at its default. Setting it to Always
+            // outside development looks like the obvious counterpart to the session cookie, but
+            // the antiforgery system does not merely mark the cookie: DefaultAntiforgery
+            // .CheckSSLConfig throws when the policy is Always and the request is not HTTPS, and
+            // _Layout mints a token on every page render. Deployed pods sit behind a
+            // TLS-terminating ingress and receive plain HTTP, and UseForwardedHeaders does not
+            // correct Request.IsHttps here because KnownProxies.Clear() above leaves
+            // KnownNetworks at its loopback default, so the ingress's X-Forwarded-Proto is
+            // dropped. The result is a 500 on every page. Securing this cookie has to wait for
+            // the forwarded-headers trust boundary to be decided.
         });
 
         // Setting to null to allow controller-level request size limits.

@@ -336,8 +336,8 @@ public static class DependencyManager
     internal static List<string> MissingZendeskCredentials(ZendeskSettings settings)
     {
         var missing = new List<string>();
-        if (IsUnset(settings.ClientSecret)) missing.Add(nameof(settings.Email));
-        if (IsUnset(settings.ApiToken)) missing.Add(nameof(settings.ApiToken));
+        if (IsUnset(settings.ClientSecret)) missing.Add(nameof(settings.ClientSecret));
+        if (IsUnset(settings.ClientId)) missing.Add(nameof(settings.ClientId));
         return missing;
     }
 

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Azure.Storage.Blobs;
+using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
 using DfE.CheckPerformanceData.Infrastructure.Ingress;
@@ -16,6 +17,12 @@ public static class BlobStorageExtensions
     {
         services.AddSingleton(_ =>
             new BlobServiceClient(configuration.GetConnectionString("AzureStorage")));
+
+        // The storage browser's deny-list. Bound rather than hard-coded so an environment can add
+        // a secret container without a release; the built-in default already covers the keyring,
+        // so an environment that binds nothing is still protected.
+        services.Configure<StorageBrowserOptions>(
+            configuration.GetSection(StorageBrowserOptions.SectionName));
 
         services.AddSingleton<IReadOnlyDictionary<string, BlobServiceClient>>(_ =>
         {

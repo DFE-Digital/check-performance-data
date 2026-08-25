@@ -210,6 +210,23 @@ VS speaks `.slnx` natively in 17.12+ (LTSC) / 2026.
    ```
    (Or `bin\Debug\net10.0\` if you've only built Debug.)
 
+> **A solution build tears the stack down.** `docker-compose.dcproj` is part of the solution and
+> builds with it, and it sets `DockerComposeProjectName` to `check_performance_data` — the same
+> project name as `name:` in `docker-compose.yaml`. VS therefore manages the *same* containers the
+> CLI started, and its build-time compose lifecycle removes them. Test Explorer builds before it
+> runs, so the containers can disappear underneath the very run you just started.
+>
+> The symptom is the whole suite failing at once with
+> `Microsoft.Playwright.PlaywrightException : net::ERR_CONNECTION_REFUSED at http://localhost:8080/…`.
+> That is a missing app, not a broken test — and not `CPD_E2E_BASE_URL` either, which already
+> defaults to `http://localhost:8080`. Confirm with `docker compose ps`: an empty list means the
+> stack went away.
+>
+> Recover with `docker compose up -d`, then re-run the tests *without* an intervening solution
+> build. To avoid it entirely, either unload the `docker-compose` project in VS (right-click →
+> Unload Project) and drive the stack from the CLI, or run the suite in its own container with
+> `make test-e2e`, which manages its `web` dependency itself.
+
 **Debug a single test:** right-click in Test Explorer → "Debug". VS attaches to the test process. As with VS Code, this debugs the *test code*, not the web app — the web app under test is still the container. To step through Razor + controller code while a test drives it, set the `Web` project as startup, F5 to launch it locally on `:8080` (Postgres + Azurite still need to be running), then run the test against that local instance instead of the container.
 
 ### Choosing which flow

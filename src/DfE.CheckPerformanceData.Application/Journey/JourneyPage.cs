@@ -32,4 +32,12 @@ public sealed class JourneyPage
     /// </summary>
     public bool RequireResults { get; init; }
     public string? ValidationFailure { get; init; }
+
+    /// <summary>
+    /// AB#297310: this page's answers ARE the pupil. On a successful POST the journey engine
+    /// mints a synthetic <c>PupilRecord</c> from them (see <c>AddPupilJourney.BuildPupil</c>)
+    /// and stores it as <c>SelectedPupil</c>, standing in for the pupil-search step the Add
+    /// journey does not have.
+    /// </summary>
+    public bool PupilFromAnswers { get; init; }
 }

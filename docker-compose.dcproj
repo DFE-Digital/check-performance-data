@@ -5,7 +5,13 @@
     <DockerTargetOS>Linux</DockerTargetOS>
     <ProjectGuid>{27230172-3FEF-45ED-ABFF-6C0E3F276D34}</ProjectGuid>
     <!-- Name the compose stack so VS and the CLI group containers under the same
-         project name (matches `name:` in docker-compose.yaml). -->
+         project name (matches `name:` in docker-compose.yaml).
+
+         Consequence: VS manages the same containers the CLI started, and this project
+         builds with the solution — so a solution build (which Test Explorer triggers)
+         can remove a stack you brought up from the terminal, and the E2E suite then
+         fails wholesale with ERR_CONNECTION_REFUSED on :8080. Recover with
+         `docker compose up -d`. See docs/E2E-Playwright.md, "Visual Studio". -->
     <DockerComposeProjectName>check_performance_data</DockerComposeProjectName>
     <DockerLaunchBrowser>True</DockerLaunchBrowser>
     <DockerServiceUrl>{Scheme}://localhost:{ServicePort}</DockerServiceUrl>

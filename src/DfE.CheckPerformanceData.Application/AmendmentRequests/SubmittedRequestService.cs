@@ -1,4 +1,3 @@
-using System.Globalization;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
@@ -120,12 +119,6 @@ public sealed class SubmittedRequestService(
         if (journey.MatchedPupil is not { } mp || journey.SelectedPupil is not { } sp)
             return (null, null);
 
-        var dob = DateTime.TryParseExact(sp.DateOfBirth, "dd/MM/yyyy",
-            CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed)
-            ? parsed.ToString("d MMMM yyyy")
-            : sp.DateOfBirth;
-        var first = $"{sp.Firstname} {sp.Surname}, {dob}".Trim();
-        var second = $"{mp.Cypmd_Id}, {mp.Firstname} {mp.Surname}".Trim();
-        return (first, second);
+        return (MergeRecordDisplays.First(sp), MergeRecordDisplays.Second(mp));
     }
 }

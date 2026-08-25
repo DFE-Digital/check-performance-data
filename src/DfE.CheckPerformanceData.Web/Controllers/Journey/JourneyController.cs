@@ -554,8 +554,16 @@ public sealed class JourneyController(
         // on the page, and skips any question that already failed its own format check — the
         // view model renders only the first error per question, so adding a second here would
         // replace "must be a real date" with a comparison against a date the user never entered.
+        //
+        // The Add rules (AB#297310) compare date of birth against admission date, which sit on
+        // different pages, so the stored answers go in underneath the posted ones — the page's
+        // own questions are all present in newAnswers, so this page always wins for its fields.
+        var answersInScope = journey.QuestionAnswers
+            .Concat(newAnswers)
+            .GroupBy(kv => kv.Key, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.Last().Value, StringComparer.Ordinal);
         var dateRuleQuestionIds = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var violation in journeyService.ValidatePageDates(page, newAnswers, pupilName))
+        foreach (var violation in journeyService.ValidatePageDates(page, answersInScope, pupilName))
         {
             if (ModelState.TryGetValue(violation.QuestionId, out var existing) && existing.Errors.Count > 0)
                 continue;
@@ -651,6 +659,7 @@ public sealed class JourneyController(
                 s.OriginCountryCode = journey.OriginCountryCode;
                 s.OriginCountryLanguages = journey.OriginCountryLanguages;
             });
+            MintSyntheticPupilIfNeeded(windowId, page);
 
             var newNextId = flowService.GetNextPageId(config, pageId, journey.QuestionAnswers);
 
@@ -694,6 +703,7 @@ public sealed class JourneyController(
             s.OriginCountryCode = journey.OriginCountryCode;
             s.OriginCountryLanguages = journey.OriginCountryLanguages;
         });
+        MintSyntheticPupilIfNeeded(windowId, page);
 
         return nextId is null
             ? RedirectToAction(nameof(Summary), new { windowId })
@@ -1212,6 +1222,31 @@ public sealed class JourneyController(
         {
             foreach (var (qId, answer) in answers)
                 s.QuestionAnswers[qId] = answer;
+        });
+    }
+
+    // AB#297310: the Add journey has no roll pupil — the learner-details page IS the pupil.
+    // Minting SelectedPupil here keeps every downstream consumer (summary {pupilName}
+    // templating, drafts, BuildChangeRequestData, the amendment grid) working unchanged.
+    //
+    // AB#297780 SEAM: this POST's successful completion is the "learner details continued"
+    // event the soft-match story will intercept — hook there, before the redirect that
+    // follows this call, to branch into the match/query journeys.
+    private void MintSyntheticPupilIfNeeded(Guid windowId, JourneyPage page)
+    {
+        if (!page.PupilFromAnswers) return;
+
+        var refreshed = HttpContext.Session.GetRequestState(windowId);
+        var pupil = AddPupilJourney.BuildPupil(refreshed, refreshed.SelectedPupil?.Id);
+        var reference = refreshed.ReferenceNumber
+            ?? journeyService.GenerateReference(refreshed.CheckingWindow?.CheckingWindowType);
+
+        HttpContext.Session.SaveRequestState(windowId, s =>
+        {
+            s.SelectedPupil = pupil;
+            s.SelectedPupilId = pupil.Id.ToString();
+            s.SelectedPupilLabel = $"{pupil.Surname}, {pupil.Firstname}";
+            s.ReferenceNumber = reference;
         });
     }
 

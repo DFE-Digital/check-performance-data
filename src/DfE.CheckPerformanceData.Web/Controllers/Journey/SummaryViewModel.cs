@@ -42,6 +42,7 @@ public sealed class SummaryViewModel
         WhatToChange.Remove => "Remove a pupil from data",
         WhatToChange.Include => "Include a pupil in data",
         WhatToChange.Merge => "Merge duplicate pupil records",
+        WhatToChange.Add => "Add a pupil to data",
         _ => WhatToChange.ToString()
     };
 
@@ -50,6 +51,7 @@ public sealed class SummaryViewModel
         WhatToChange.Remove => "removal",
         WhatToChange.Include => "inclusion",
         WhatToChange.Merge => "merge",
+        WhatToChange.Add => "addition",
         _ => WhatToChange.ToString().ToLower()
     };
 
@@ -77,8 +79,12 @@ public sealed class SummaryViewModel
                 lines.Add(new("First record to merge", FirstRecordDisplay ?? "", PrimaryPupilPageId, false, "first record to merge"));
                 lines.Add(new("Second record to merge", SecondRecordDisplay, MatchedPupilPageId, false, "second record to merge"));
             }
-            else
+            else if (PrimaryPupilPageId is not null)
             {
+                // Only a journey with a pupil-search page has somewhere for this row's Change link
+                // to go. The Add journey (AB#297310) has none — the pupil is typed in — and its
+                // first and last name rows below already carry their own Change links, so an
+                // actionless duplicate of them adds nothing.
                 lines.Add(new("Pupil name", PupilName, PrimaryPupilPageId, false, "pupil name"));
             }
 

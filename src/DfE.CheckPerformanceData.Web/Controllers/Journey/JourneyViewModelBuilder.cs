@@ -48,15 +48,14 @@ public sealed class JourneyViewModelBuilder(
 
         string? firstRecordDisplay = null;
         string? secondRecordDisplay = null;
-        if (journey.MatchedPupil is { } mp && journey.SelectedPupil is { } sp)
+        // Keyed on the flow declaring a match pupil search, not on a matched pupil merely being in
+        // session: only a merge journey has a second record, and a matched pupil left behind by an
+        // abandoned one would otherwise surface here as "Second record to merge". Covers the
+        // read-only submitted view too, which is built from this same method.
+        if (matchPupilPage is not null && journey.MatchedPupil is { } mp && journey.SelectedPupil is { } sp)
         {
-            var dob = DateTime.TryParseExact(sp.DateOfBirth, "dd/MM/yyyy",
-                System.Globalization.CultureInfo.InvariantCulture,
-                System.Globalization.DateTimeStyles.None, out var d)
-                ? d.ToString("d MMMM yyyy")
-                : sp.DateOfBirth;
-            firstRecordDisplay = $"{sp.Firstname} {sp.Surname}, {dob}".Trim();
-            secondRecordDisplay = $"{mp.Cypmd_Id}, {mp.Firstname} {mp.Surname}".Trim();
+            firstRecordDisplay = MergeRecordDisplays.First(sp);
+            secondRecordDisplay = MergeRecordDisplays.Second(mp);
         }
 
         return new SummaryViewModel

@@ -513,3 +513,6 @@ CLAUDE.md
 opencode.json
 specs/
 tests/DfE.CheckPerformanceData.E2ETests/Snapshots/failures/
+/.ai-codex
+/.spec-context.json
+/AGENTS.md

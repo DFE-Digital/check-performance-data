@@ -309,7 +309,16 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
         var option = Page.Locator("li[role='option']").GetByText(label, new() { Exact = false });
         await Expect(option.First).ToBeVisibleAsync();
         await option.First.ClickAsync();
-        await ContinueAsync();
+
+        // The autocomplete updates the hidden select asynchronously. Wait for the value that the
+        // form actually posts before submitting, otherwise a fast click on Continue can redisplay
+        // this page with the no-selection validation error.
+        await Expect(Page.Locator("select[name='selectedResultKey'] option:checked"))
+            .ToContainTextAsync(label);
+
+        // The open autocomplete menu can consume Playwright's pointer click on Continue without
+        // submitting the form. Native requestSubmit preserves browser validation and submit events.
+        await Page.Locator("form").EvaluateAsync("form => form.requestSubmit()");
     }
 
     private async Task ChooseRevisedGradeAsync(string grade)

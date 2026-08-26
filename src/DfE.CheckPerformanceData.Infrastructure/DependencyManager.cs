@@ -407,7 +407,7 @@ public static class DependencyManager
 
         // Register the OAuth token provider (singleton - caches token and refreshes automatically)
         services.AddSingleton<IOAuthTokenProvider, OAuthTokenProvider>();
-        services.AddSingleton<DfE.CheckPerformanceData.Infrastructure.ZendeskClient.ZendeskOAuthHandler>();
+        services.AddTransient<DfE.CheckPerformanceData.Infrastructure.ZendeskClient.ZendeskOAuthHandler>();
 
 
         services.AddRefitClient<IZendeskApi>(new RefitSettings

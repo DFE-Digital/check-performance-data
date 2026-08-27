@@ -44,7 +44,7 @@ public sealed class OAuthTokenProvider : IOAuthTokenProvider
         _logger = logger;
         _httpClient = new HttpClient
         {
-            BaseAddress = new Uri($"https://{_settings.Subdomain}.{_settings.Domain}.com")
+            BaseAddress = DependencyManager.ZendeskBaseAddress(_settings)
         };
     }
 

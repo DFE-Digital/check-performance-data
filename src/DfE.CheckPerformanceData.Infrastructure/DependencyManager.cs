@@ -416,7 +416,7 @@ public static class DependencyManager
         })
            .ConfigureHttpClient(c =>
            {
-               c.BaseAddress = new Uri($"https://{settings.Subdomain}.{settings.Domain}.com");
+               c.BaseAddress = ZendeskBaseAddress(settings);
                c.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
            })
            .AddHttpMessageHandler<RefitLoggingHandler>()

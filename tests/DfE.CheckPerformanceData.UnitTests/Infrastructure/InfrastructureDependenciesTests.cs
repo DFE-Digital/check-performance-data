@@ -38,8 +38,8 @@ public class InfrastructureDependenciesTests
             ["ConnectionStrings:AzureStorage"] = AzuriteConnection,
             ["ZendeskSettings:Subdomain"] = "dfe",
             ["ZendeskSettings:Domain"] = "zendesk",
-            ["ZendeskSettings:Email"] = "cypmd@education.gov.uk",
-            ["ZendeskSettings:ApiToken"] = "token",
+            ["ZendeskSettings:ClientId"] = "test-client-id",
+            ["ZendeskSettings:ClientSecret"] = "test-client-secret",
         }).Build();
 
         var services = new ServiceCollection();

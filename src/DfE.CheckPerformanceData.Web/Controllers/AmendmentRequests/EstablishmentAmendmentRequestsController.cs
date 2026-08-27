@@ -46,7 +46,7 @@ public class EstablishmentAmendmentRequestsController(
             return NotFound();
         }
 
-        return View("~/Views/AmendmentRequests/UrnAmendmentView.cshtml", new SubmittedRequestViewModel
+        return View("~/Views/AmendmentRequests/EstablishmentAmendmentRequests/UrnAmendmentView.cshtml", new SubmittedRequestViewModel
         {
             WindowId = windowId,
             WhatToChange = request.WhatToChange,

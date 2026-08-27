@@ -24,8 +24,6 @@ module "application_configuration" {
     AZURE_STORAGE_ACCOUNT_NAME        = local.azure_storage_account_name
     AZURE_STORAGE_ACCESS_KEY          = local.azure_storage_access_key
     AZURE_STORAGE_CONTAINER           = local.azure_storage_container
-    ZendeskSettings__ClientId         = module.infrastructure_secrets.map["ZENDESK-CLIENT-ID"]
-    ZendeskSettings__ClientSecret     = module.infrastructure_secrets.map["ZENDESK-CLIENT-SECRET"]
   }, local.federated_auth_secrets)
 }
 

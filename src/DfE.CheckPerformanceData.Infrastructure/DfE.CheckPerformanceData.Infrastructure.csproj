@@ -7,6 +7,10 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <InternalsVisibleTo Include="DfE.CheckPerformanceData.Application.UnitTests" />
+    </ItemGroup>
+
+    <ItemGroup>
       <ProjectReference Include="..\DfE.CheckPerformanceData.Application\DfE.CheckPerformanceData.Application.csproj" />
       <ProjectReference Include="..\DfE.CheckPerformanceData.Domain\DfE.CheckPerformanceData.Domain.csproj" />
       <ProjectReference Include="..\DfE.CheckPerformanceData.Persistence\DfE.CheckPerformanceData.Persistence.csproj" />

@@ -1,0 +1,328 @@
+using DfE.CheckPerformanceData.Application.Analytics;
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Application.CheckYourPupilData.Columns;
+using DfE.CheckPerformanceData.Application.CurrentUser;
+using DfE.CheckPerformanceData.Application.LandingPage;
+// Aliased, not imported: WindowManagement also declares a CheckingWindowDto, which would make the
+// LandingPage one ambiguous here.
+using CheckingExerciseDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseDto;
+using CheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseService;
+using DfE.CheckPerformanceData.Domain.Enums;
+using DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData;
+using DfE.CheckPerformanceData.Web.Session;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.Mvc;
+using NSubstitute;
+
+namespace DfE.CheckPerformanceData.Application.UnitTests.Web;
+
+// #317 (was AB#296648): the check-your-pupil-data page's "what would you like to do?" options are
+// built from the exercises open right now, not from the window type. RequestChange and Confirm
+// belong to PupilData and go together when it closes; ResultsEnquiry appears only while its own
+// exercise is open — which is what lets a KS4 Autumn window offer an enquiry, where the old
+// Post16-only test denied it.
+public sealed class CheckYourPupilDataResultsEnquiryOptionTests
+{
+    private static readonly Guid WindowId = Guid.Parse("6C2E1F4A-9B7D-4E38-8A15-3D9C2B4E7F01");
+    private static readonly DateTimeOffset Now = new(2026, 8, 20, 12, 0, 0, TimeSpan.Zero);
+
+    private static readonly DateTime Yesterday = new(2026, 8, 19);
+    private static readonly DateTime Tomorrow = new(2026, 8, 21);
+    private static readonly DateTime LastMonth = new(2026, 7, 1);
+    private static readonly DateTime NextMonth = new(2026, 9, 30);
+
+    private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => now.ToUniversalTime();
+        public override TimeZoneInfo LocalTimeZone => TimeZoneInfo.Utc;
+    }
+
+    private readonly ICheckYourPupilDataService _service = Substitute.For<ICheckYourPupilDataService>();
+    private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
+    private readonly IAnalyticsService _analytics = Substitute.For<IAnalyticsService>();
+    private readonly FakeSession _session = new();
+    private readonly CheckYourPupilDataController _sut;
+
+    public CheckYourPupilDataResultsEnquiryOptionTests()
+    {
+        var httpContext = new DefaultHttpContext();
+        httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(_session));
+
+        _service.GetPupilTableAsync(WindowId, Arg.Any<bool>(), Arg.Any<string?>(), Arg.Any<int>(), Arg.Any<int>())
+            .Returns((PupilTable.Empty, 0));
+
+        // The real exercise and next-step services, on a fixed clock: the point of these tests is
+        // which options the date rules produce, so substituting them would test nothing.
+        var clock = new FixedTimeProvider(Now);
+        var checkingExercises = new CheckingExerciseService(clock);
+
+        _sut = new CheckYourPupilDataController(
+            _service, _currentUser, _analytics,
+            new NextStepsService(checkingExercises), checkingExercises)
+        {
+            ControllerContext = new ControllerContext { HttpContext = httpContext }
+        };
+    }
+
+    private static CheckingExerciseDto Exercise(
+        CheckingExerciseType type, DateTime start, DateTime end, int sortOrder) =>
+        new() { ExerciseType = type, StartDate = start, EndDate = end, SortOrder = sortOrder };
+
+    private static CheckingExerciseDto Open(CheckingExerciseType type, int sortOrder = 0) =>
+        Exercise(type, Yesterday, Tomorrow, sortOrder);
+
+    private static CheckingExerciseDto Closed(CheckingExerciseType type, int sortOrder = 0) =>
+        Exercise(type, LastMonth, Yesterday, sortOrder);
+
+    private void Window(CheckingWindowType type, params CheckingExerciseDto[] exercises)
+    {
+        _service.GetCheckingWindowAsync(WindowId).Returns(new CheckingWindowDto
+        {
+            Title = type == CheckingWindowType.Post16 ? "16 to 19 2026" : "KS4 2026",
+            KeyStage = type == CheckingWindowType.Post16 ? KeyStages.Post16 : KeyStages.KS4,
+            CheckingWindowType = type,
+            // The outer window is the union of its exercises, and is deliberately still open in
+            // every case below — the options must follow the exercises, never the outer dates.
+            StartDate = LastMonth,
+            EndDate = NextMonth,
+            Exercises = [.. exercises]
+        });
+    }
+
+    private async Task<CheckYourPupilDataViewModel> IndexModel()
+    {
+        var view = Assert.IsType<ViewResult>(await _sut.Index(WindowId));
+        return Assert.IsType<CheckYourPupilDataViewModel>(view.Model);
+    }
+
+    private static CheckYourPupilDataViewModel Posted(NextSteps? step) => new()
+    {
+        WindowId = WindowId.ToString(),
+        SelectedNextStep = step,
+        WindowTitle = "", Sections = [], SectionsAsTabs = false,
+        AvailableNextSteps = [], OrganisationName = ""
+    };
+
+    // ── The options come from the open exercises ─────────────────────────────
+
+    [Fact]
+    public async Task Both_exercises_open_offers_all_three_options()
+    {
+        Window(CheckingWindowType.Post16,
+            Open(CheckingExerciseType.PupilData, 0),
+            Open(CheckingExerciseType.ResultsEnquiry, 1));
+
+        Assert.Equal(
+            [NextSteps.RequestChange, NextSteps.Confirm, NextSteps.ResultsEnquiry],
+            (await IndexModel()).AvailableNextSteps);
+    }
+
+    [Fact]
+    public async Task A_KS4_autumn_window_with_a_results_enquiry_exercise_offers_the_option()
+    {
+        // The old rule was a straight Post16 test, so KS4 Autumn could never offer an enquiry no
+        // matter how it was configured.
+        Window(CheckingWindowType.KS4Autumn,
+            Open(CheckingExerciseType.PupilData, 0),
+            Open(CheckingExerciseType.ResultsEnquiry, 1));
+
+        Assert.Contains(NextSteps.ResultsEnquiry, (await IndexModel()).AvailableNextSteps);
+    }
+
+    [Fact]
+    public async Task A_window_whose_only_exercise_is_pupil_data_is_unchanged()
+    {
+        Window(CheckingWindowType.KS4June, Open(CheckingExerciseType.PupilData, 0));
+
+        Assert.Equal(
+            [NextSteps.RequestChange, NextSteps.Confirm],
+            (await IndexModel()).AvailableNextSteps);
+    }
+
+    [Fact]
+    public async Task When_pupil_data_closes_amend_and_confirm_both_go()
+    {
+        Window(CheckingWindowType.Post16,
+            Closed(CheckingExerciseType.PupilData, 0),
+            Open(CheckingExerciseType.ResultsEnquiry, 1));
+
+        Assert.Equal([NextSteps.ResultsEnquiry], (await IndexModel()).AvailableNextSteps);
+    }
+
+    [Fact]
+    public async Task With_no_open_exercise_no_option_is_offered()
+    {
+        Window(CheckingWindowType.Post16,
+            Closed(CheckingExerciseType.PupilData, 0),
+            Closed(CheckingExerciseType.ResultsEnquiry, 1));
+
+        Assert.Empty((await IndexModel()).AvailableNextSteps);
+    }
+
+    [Fact]
+    public async Task A_window_with_no_exercises_offers_nothing_even_though_it_is_open()
+    {
+        // Fails closed. The outer window brackets now, but a half-configured window must not open a
+        // journey by accident.
+        Window(CheckingWindowType.Post16);
+
+        Assert.Empty((await IndexModel()).AvailableNextSteps);
+    }
+
+    // ── The deadline sentence follows the pupil-data exercise ────────────────
+
+    [Fact]
+    public async Task The_deadline_is_the_pupil_data_exercises_end_date_not_the_windows()
+    {
+        // The outer window runs to NextMonth. Promising that date would give schools months of
+        // slack they do not have.
+        Window(CheckingWindowType.Post16,
+            Open(CheckingExerciseType.PupilData, 0),
+            Exercise(CheckingExerciseType.ResultsEnquiry, Yesterday, NextMonth, 1));
+
+        var model = await IndexModel();
+
+        Assert.Equal(Tomorrow, model.PupilDataEndDate);
+        Assert.True(model.IsPupilDataOpen);
+    }
+
+    [Fact]
+    public async Task After_pupil_data_closes_the_deadline_sentence_turns_past_tense()
+    {
+        Window(CheckingWindowType.Post16,
+            Closed(CheckingExerciseType.PupilData, 0),
+            Open(CheckingExerciseType.ResultsEnquiry, 1));
+
+        var model = await IndexModel();
+
+        Assert.Equal(Yesterday, model.PupilDataEndDate);
+        Assert.False(model.IsPupilDataOpen);
+    }
+
+    [Fact]
+    public async Task A_window_with_no_pupil_data_exercise_has_no_deadline_to_show()
+    {
+        Window(CheckingWindowType.Post16, Open(CheckingExerciseType.ResultsEnquiry, 0));
+
+        var model = await IndexModel();
+
+        Assert.Null(model.PupilDataEndDate);
+        Assert.False(model.IsPupilDataOpen);
+    }
+
+    // ── Routing ──────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Each_offered_option_routes_where_it_did()
+    {
+        Window(CheckingWindowType.Post16,
+            Open(CheckingExerciseType.PupilData, 0),
+            Open(CheckingExerciseType.ResultsEnquiry, 1));
+
+        var change = Assert.IsType<RedirectToActionResult>(await _sut.NextStep(WindowId, Posted(NextSteps.RequestChange)));
+        Assert.Equal("WhatToChange", change.ControllerName);
+
+        var confirm = Assert.IsType<RedirectToActionResult>(await _sut.NextStep(WindowId, Posted(NextSteps.Confirm)));
+        Assert.Equal("ConfirmCorrect", confirm.ControllerName);
+
+        var enquiry = Assert.IsType<RedirectToActionResult>(await _sut.NextStep(WindowId, Posted(NextSteps.ResultsEnquiry)));
+        Assert.Equal("ResultIssue", enquiry.ControllerName);
+        Assert.Equal(WindowId, enquiry.RouteValues!["windowId"]);
+    }
+
+    // ── The rule is enforced server-side, not just by not rendering a radio ──
+
+    [Theory]
+    [InlineData(NextSteps.ResultsEnquiry)]
+    [InlineData(NextSteps.RequestChange)]
+    [InlineData(NextSteps.Confirm)]
+    public async Task Posting_an_option_whose_exercise_is_closed_is_rejected_as_unanswered(NextSteps step)
+    {
+        // Not rendering the option is a UI courtesy. A hand-crafted post must not start a journey
+        // for an exercise that is shut.
+        Window(CheckingWindowType.Post16,
+            Closed(CheckingExerciseType.PupilData, 0),
+            Closed(CheckingExerciseType.ResultsEnquiry, 1));
+
+        var view = Assert.IsType<ViewResult>(await _sut.NextStep(WindowId, Posted(step)));
+
+        Assert.Equal("Index", view.ViewName);
+        Assert.Equal(
+            "Select what you would like to do",
+            _sut.ModelState[nameof(CheckYourPupilDataViewModel.SelectedNextStep)]!.Errors[0].ErrorMessage);
+    }
+
+    [Fact]
+    public async Task Posting_an_enquiry_on_a_window_with_no_enquiry_exercise_is_rejected()
+    {
+        Window(CheckingWindowType.KS4June, Open(CheckingExerciseType.PupilData, 0));
+
+        var view = Assert.IsType<ViewResult>(await _sut.NextStep(WindowId, Posted(NextSteps.ResultsEnquiry)));
+
+        Assert.Equal("Index", view.ViewName);
+    }
+
+    [Fact]
+    public async Task A_rejected_post_does_not_record_the_choice_in_session()
+    {
+        Window(CheckingWindowType.KS4June, Open(CheckingExerciseType.PupilData, 0));
+
+        await _sut.NextStep(WindowId, Posted(NextSteps.ResultsEnquiry));
+
+        Assert.Null(_session.GetRequestState(WindowId).SelectedNextStep);
+    }
+
+    [Fact]
+    public async Task A_rejected_post_reports_a_coded_validation_error()
+    {
+        Window(CheckingWindowType.KS4June, Open(CheckingExerciseType.PupilData, 0));
+
+        await _sut.NextStep(WindowId, Posted(NextSteps.ResultsEnquiry));
+
+        await _analytics.Received(1).TrackSafeAsync(Arg.Is<ValidationErrorEvent>(e =>
+            e.ErrorCodes.Contains("no_selection")));
+    }
+
+    [Fact]
+    public async Task Posting_nothing_is_still_rejected()
+    {
+        Window(CheckingWindowType.Post16, Open(CheckingExerciseType.PupilData, 0));
+
+        var view = Assert.IsType<ViewResult>(await _sut.NextStep(WindowId, Posted(null)));
+
+        Assert.Equal("Index", view.ViewName);
+    }
+
+    [Fact]
+    public async Task An_accepted_post_records_the_choice_in_session()
+    {
+        Window(CheckingWindowType.Post16,
+            Open(CheckingExerciseType.PupilData, 0),
+            Open(CheckingExerciseType.ResultsEnquiry, 1));
+
+        await _sut.NextStep(WindowId, Posted(NextSteps.ResultsEnquiry));
+
+        Assert.Equal(NextSteps.ResultsEnquiry, _session.GetRequestState(WindowId).SelectedNextStep);
+    }
+
+    private sealed class FakeSession : ISession
+    {
+        private readonly Dictionary<string, byte[]> _store = new();
+
+        public bool TryGetValue(string key, out byte[] value) => _store.TryGetValue(key, out value!);
+        public void Set(string key, byte[] value) => _store[key] = value;
+        public void Remove(string key) => _store.Remove(key);
+        public void Clear() => _store.Clear();
+        public Task LoadAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task CommitAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public bool IsAvailable => true;
+        public string Id => "test-session";
+        public IEnumerable<string> Keys => _store.Keys;
+    }
+
+    private sealed class TestSessionFeature(ISession session) : ISessionFeature
+    {
+        public ISession Session { get; set; } = session;
+    }
+}

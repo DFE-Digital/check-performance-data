@@ -1,0 +1,69 @@
+@model DfE.CheckPerformanceData.Web.Controllers.Journey.PageViewModel
+
+@*
+    "Incorrect grade details" (AB#296648). A question page that first shows which result is being
+    corrected, so the user can see the grade they are about to change before they change it.
+    Rendered by the generic Page action — only the view differs, exactly as EvidenceUpload does.
+*@
+
+@{
+    ViewBag.Title = Model.PageTitle;
+    Layout = "_Layout";
+}
+
+@await Html.PartialAsync("_JourneyBackLink", Model)
+
+@if (Model.HasErrors)
+{
+    @await Html.PartialAsync("_JourneyErrorSummary", Model)
+}
+
+<h1 class="govuk-heading-xl">@Model.ResolvedTitle</h1>
+
+@if (Model.SelectedResult is not null)
+{
+    <govuk-summary-list>
+        <govuk-summary-list-row>
+            <govuk-summary-list-row-key>Student name</govuk-summary-list-row-key>
+            <govuk-summary-list-row-value>@Model.PupilName</govuk-summary-list-row-value>
+        </govuk-summary-list-row>
+        <govuk-summary-list-row>
+            <govuk-summary-list-row-key>CYPMD ID</govuk-summary-list-row-key>
+            <govuk-summary-list-row-value>@Model.SelectedResult.CypmdId</govuk-summary-list-row-value>
+        </govuk-summary-list-row>
+        <govuk-summary-list-row>
+            <govuk-summary-list-row-key>Qualification number (QAN)</govuk-summary-list-row-key>
+            <govuk-summary-list-row-value>@Model.SelectedResult.Qan</govuk-summary-list-row-value>
+        </govuk-summary-list-row>
+        <govuk-summary-list-row>
+            <govuk-summary-list-row-key>Qualification name and subject</govuk-summary-list-row-key>
+            <govuk-summary-list-row-value>@Model.SelectedResult.QualificationName</govuk-summary-list-row-value>
+        </govuk-summary-list-row>
+        <govuk-summary-list-row>
+            <govuk-summary-list-row-key>Session</govuk-summary-list-row-key>
+            <govuk-summary-list-row-value>@Model.SelectedResult.Session</govuk-summary-list-row-value>
+        </govuk-summary-list-row>
+        <govuk-summary-list-row>
+            <govuk-summary-list-row-key>Current grade</govuk-summary-list-row-key>
+            <govuk-summary-list-row-value>@Model.SelectedResult.Grade</govuk-summary-list-row-value>
+        </govuk-summary-list-row>
+    </govuk-summary-list>
+}
+
+<form method="post" action="@Url.Action("PagePost", "Journey", new { windowId = Model.WindowId, pageId = Model.Page.Id })">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="fromSummary" value="@Model.FromSummary.ToString().ToLower()" />
+
+    @foreach (var qm in Model.NonFileUploadModels)
+    {
+        await Html.RenderPartialAsync("_Question", qm);
+    }
+
+    @* Sits after the picker, as the Figma screen has it: a reminder, not a precondition. *@
+    <div class="govuk-inset-text">
+        Before you report an incorrect grade, check the second late results (issued in November) to
+        make sure the grade is not included there.
+    </div>
+
+    <govuk-button type="submit">Continue</govuk-button>
+</form>

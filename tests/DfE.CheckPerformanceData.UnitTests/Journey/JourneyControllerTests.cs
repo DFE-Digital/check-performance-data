@@ -17,6 +17,10 @@ using Microsoft.Extensions.Primitives;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using NSubstitute;
+using DfE.CheckPerformanceData.Application.UnitTests.WindowManagement;
+// Alias, not a namespace import: WindowManagement also declares a CheckingWindowDto and this
+// file already uses the LandingPage one.
+using ICheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.ICheckingExerciseService;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 
@@ -32,8 +36,11 @@ public class JourneyControllerTests
     private readonly ICurrentUserService _currentUserService = Substitute.For<ICurrentUserService>();
     private readonly ICheckYourPupilDataService _pupilDataService = Substitute.For<ICheckYourPupilDataService>();
     private readonly IAnalyticsService _analytics = Substitute.For<IAnalyticsService>();
+    private readonly DfE.CheckPerformanceData.Application.Notify.IRequestNotificationService _requestNotificationService =
+        Substitute.For<DfE.CheckPerformanceData.Application.Notify.IRequestNotificationService>();
     private readonly FakeSession _session = new();
     private readonly DefaultHttpContext _httpContext = new();
+    private readonly ICheckingExerciseService _checkingExercises = OpenCheckingExercises.AlwaysOpen();
     private readonly JourneyController _sut;
 
     private static readonly Guid WindowId = Guid.Parse("11111111-1111-1111-1111-111111111111");
@@ -105,7 +112,13 @@ public class JourneyControllerTests
 
         _sut = new JourneyController(_flowService, _journeyService, _fileStorageService,
             _requestService, _pupilDataService, viewModelBuilder, _analytics, _currentUserService,
-            _optionVisibilityService, _optionalityService, _languageCapture)
+            _optionVisibilityService, _optionalityService, _languageCapture,
+            Substitute.For<DfE.CheckPerformanceData.Application.ResultsEnquiry.IStudentResultsClient>(),
+            Substitute.For<DfE.CheckPerformanceData.Application.ResultsEnquiry.IGradeReferenceClient>(),
+            Substitute.For<DfE.CheckPerformanceData.Application.ResultsEnquiry.IQualificationReferenceClient>(),
+            _requestNotificationService,
+            _checkingExercises,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<JourneyController>.Instance)
         {
             ControllerContext = new ControllerContext { HttpContext = _httpContext },
             TempData = new TempDataDictionary(_httpContext, Substitute.For<ITempDataProvider>())
@@ -468,6 +481,96 @@ public class JourneyControllerTests
             Arg.Any<CancellationToken>());
     }
 
+    // ── SummaryConfirm — results enquiry notification failure (AB#296648) ────
+
+    [Fact]
+    public async Task SummaryConfirm_WhenEnquiryNotificationFails_StillRedirectsToEnquiryConfirmation()
+    {
+        var state = ValidSession(history: ["page-1"]);
+        state.SelectedWhatToChange = WhatToChange.IncorrectGrade;
+        SetupSession(state);
+        _requestService.SubmitResultsEnquiryAsync(WindowId, Arg.Any<RequestState>())
+            .Returns("CYPMD_KS4June_ABC1234");
+        _requestNotificationService.NotifyResultsEnquirySubmittedAsync(Arg.Any<string>())
+            .Returns(_ => throw new InvalidOperationException("notify queue unavailable"));
+
+        var result = await _sut.SummaryConfirm(WindowId);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(JourneyController.EnquiryConfirmation), redirect.ActionName);
+    }
+
+    [Fact]
+    public async Task SummaryConfirm_WhenEnquiryNotificationFails_ResetsSessionToWindowAndReference()
+    {
+        var state = ValidSession(history: ["page-1"]);
+        state.SelectedWhatToChange = WhatToChange.IncorrectGrade;
+        SetupSession(state);
+        _requestService.SubmitResultsEnquiryAsync(WindowId, Arg.Any<RequestState>())
+            .Returns("CYPMD_KS4June_ABC1234");
+        _requestNotificationService.NotifyResultsEnquirySubmittedAsync(Arg.Any<string>())
+            .Returns(_ => throw new InvalidOperationException("notify queue unavailable"));
+
+        await _sut.SummaryConfirm(WindowId);
+
+        var remaining = _session.GetRequestState(WindowId);
+        Assert.Equal("CYPMD_KS4June_ABC1234", remaining.ReferenceNumber);
+        Assert.NotNull(remaining.CheckingWindow);
+        Assert.Null(remaining.SelectedWhatToChange);
+        Assert.Null(remaining.SelectedPupil);
+        Assert.Empty(remaining.QuestionAnswers);
+        Assert.Empty(remaining.QuestionHistory);
+    }
+
+    // ── SummaryConfirm — missing-qualification enquiry (AB#297848) ───────────
+
+    [Fact]
+    public async Task SummaryConfirm_ForAMissingQualificationEnquiry_RedirectsToEnquiryConfirmation()
+    {
+        var state = ValidSession(history: ["page-1"]);
+        state.SelectedWhatToChange = WhatToChange.MissingQualification;
+        SetupSession(state);
+        _requestService.SubmitResultsEnquiryAsync(WindowId, Arg.Any<RequestState>())
+            .Returns("CYPMD_16to19_RE_1A2B3C4");
+
+        var result = await _sut.SummaryConfirm(WindowId);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(JourneyController.EnquiryConfirmation), redirect.ActionName);
+    }
+
+    [Fact]
+    public async Task SummaryConfirm_ForAMissingQualificationEnquiry_ResetsSessionToWindowAndReference()
+    {
+        var state = ValidSession(history: ["page-1"]);
+        state.SelectedWhatToChange = WhatToChange.MissingQualification;
+        SetupSession(state);
+        _requestService.SubmitResultsEnquiryAsync(WindowId, Arg.Any<RequestState>())
+            .Returns("CYPMD_16to19_RE_1A2B3C4");
+
+        await _sut.SummaryConfirm(WindowId);
+
+        var remaining = _session.GetRequestState(WindowId);
+        Assert.Equal("CYPMD_16to19_RE_1A2B3C4", remaining.ReferenceNumber);
+        Assert.NotNull(remaining.CheckingWindow);
+        Assert.Null(remaining.SelectedWhatToChange);
+    }
+
+    [Fact]
+    public async Task SummaryConfirm_ForAMissingQualificationEnquiry_EmitsTheMissingQualificationEnquiryType()
+    {
+        var state = ValidSession(history: ["page-1"]);
+        state.SelectedWhatToChange = WhatToChange.MissingQualification;
+        SetupSession(state);
+        _requestService.SubmitResultsEnquiryAsync(WindowId, Arg.Any<RequestState>())
+            .Returns("CYPMD_16to19_RE_1A2B3C4");
+
+        await _sut.SummaryConfirm(WindowId);
+
+        await _analytics.Received(1).TrackSafeAsync(Arg.Is<ResultsEnquirySubmittedEvent>(
+            e => e.EnquiryType == "missing-qualification"));
+    }
+
     // ── PagePost — Autocomplete code capture ─────────────────────────────────
 
     [Fact]
@@ -647,6 +750,178 @@ public class JourneyControllerTests
             Arg.Is<ValidationErrorEvent>(e =>
                 e.ErrorCodes.Contains("required") && e.WhatToChange == "Remove" && e.FromSummary == false),
             Arg.Any<CancellationToken>());
+    }
+
+    // ── PagePost — synthetic pupil from answers (AB#297310) ─────────────────
+
+    private static readonly JourneyPage LearnerDetailsPage = new()
+    {
+        Id = "learner-details",
+        PupilFromAnswers = true,
+        Questions =
+        [
+            new Question { Id = "first-name", Type = QuestionType.FreeText, Title = "First name" },
+            new Question { Id = "last-name", Type = QuestionType.FreeText, Title = "Last name" },
+            new Question { Id = "date-of-birth", Type = QuestionType.Date, Title = "Date of birth" },
+            new Question
+            {
+                Id = "sex", Type = QuestionType.Radio, Title = "Sex",
+                Options = [new QuestionOption { Value = "F", Label = "Female" }, new QuestionOption { Value = "M", Label = "Male" }]
+            },
+            new Question { Id = "upn", Type = QuestionType.FreeText, Title = "UPN", Optional = true }
+        ],
+        NextPageId = "page-2"
+    };
+
+    private void SetupLearnerDetailsPage()
+    {
+        _flowService.GetPage(Config, "learner-details").Returns(LearnerDetailsPage);
+        _journeyService.ValidateAnswer(Arg.Any<Question>(), Arg.Any<QuestionAnswer>(), Arg.Any<string>(), Arg.Any<string?>())
+            .Returns((string?)null);
+        _flowService.GetNextPageId(Config, "learner-details", Arg.Any<Dictionary<string, QuestionAnswer>>())
+            .Returns("page-2");
+        _journeyService.GenerateReference(Arg.Any<CheckingWindowType?>()).Returns("CYPMD_KS4June_TEST123");
+    }
+
+    private void PostLearnerDetails(string firstName = "Alice", string sex = "F", string upn = "A123456789012") =>
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>
+        {
+            ["q_first_name"] = firstName,
+            ["q_last_name"] = "Smith",
+            ["q_date_of_birth_day"] = "1",
+            ["q_date_of_birth_month"] = "9",
+            ["q_date_of_birth_year"] = "2010",
+            ["q_sex"] = sex,
+            ["q_upn"] = upn
+        });
+
+    private static RequestState AddSession() => new()
+    {
+        SelectedWhatToChange = WhatToChange.Add,
+        CheckingWindow = new CheckingWindowDto
+        {
+            Id = Guid.NewGuid(),
+            Title = "Test Window",
+            KeyStage = KeyStages.KS4,
+            CheckingWindowType = CheckingWindowType.KS4June,
+            StartDate = DateTime.UtcNow.AddDays(-1),
+            EndDate = DateTime.UtcNow.AddDays(13)
+        },
+        QuestionHistory = [],
+        QuestionAnswers = new()
+    };
+
+    [Fact]
+    public async Task PagePost_OnPupilFromAnswersPage_MintsSyntheticPupilAndReference()
+    {
+        SetupLearnerDetailsPage();
+        SetupSession(AddSession());
+        PostLearnerDetails();
+
+        await _sut.PagePost(WindowId, "learner-details", fromSummary: false);
+
+        var saved = _session.GetRequestState(WindowId);
+        Assert.NotNull(saved.SelectedPupil);
+        Assert.Equal("Alice", saved.SelectedPupil!.Firstname);
+        Assert.Equal("Smith", saved.SelectedPupil.Surname);
+        Assert.Equal("01/09/2010", saved.SelectedPupil.DateOfBirth);
+        Assert.Equal("A123456789012", saved.SelectedPupil.Identifier);
+        Assert.Equal("Smith, Alice", saved.SelectedPupilLabel);
+        Assert.False(string.IsNullOrEmpty(saved.ReferenceNumber));
+
+        var firstPupilId = saved.SelectedPupil.Id;
+        var firstReference = saved.ReferenceNumber;
+
+        // A second post (e.g. editing from the summary) with a changed first name must keep
+        // the same synthetic pupil Id and reference — not mint a fresh one each time.
+        PostLearnerDetails(firstName: "Alicia");
+
+        await _sut.PagePost(WindowId, "learner-details", fromSummary: false);
+
+        var resaved = _session.GetRequestState(WindowId);
+        Assert.Equal(firstPupilId, resaved.SelectedPupil!.Id);
+        Assert.Equal(firstReference, resaved.ReferenceNumber);
+        Assert.Equal("Alicia", resaved.SelectedPupil.Firstname);
+    }
+
+    // The edit-from-summary branch has its own save point and its own MintSyntheticPupilIfNeeded
+    // call. It must mint on exactly the same terms as the normal branch — same pupil id, same
+    // reference, updated answers — or a name corrected from the summary would leave the row and
+    // the blob showing the old one.
+    [Fact]
+    public async Task PagePost_OnPupilFromAnswersPage_FromSummary_UpdatesThePupilAndKeepsItsIdentity()
+    {
+        SetupLearnerDetailsPage();
+        SetupSession(AddSession());
+        PostLearnerDetails();
+
+        await _sut.PagePost(WindowId, "learner-details", fromSummary: false);
+
+        var minted = _session.GetRequestState(WindowId);
+        var pupilId = minted.SelectedPupil!.Id;
+        var reference = minted.ReferenceNumber;
+
+        PostLearnerDetails(firstName: "Corrected");
+
+        await _sut.PagePost(WindowId, "learner-details", fromSummary: true);
+
+        var edited = _session.GetRequestState(WindowId);
+        Assert.Equal("Corrected", edited.SelectedPupil!.Firstname);
+        Assert.Equal("Smith, Corrected", edited.SelectedPupilLabel);
+        Assert.Equal(pupilId, edited.SelectedPupil.Id);
+        Assert.Equal(reference, edited.ReferenceNumber);
+    }
+
+    // The mint runs after the validation gate, not before it. If it ever moved above the
+    // early return, a rejected page would still stamp a pupil and a reference onto the session —
+    // giving the journey an identity (and a draft row, once one is saved) built from answers the
+    // user was just told were invalid.
+    [Fact]
+    public async Task PagePost_OnPupilFromAnswersPage_WhenValidationFails_MintsNothing()
+    {
+        SetupLearnerDetailsPage();
+        _journeyService.ValidateAnswer(
+                Arg.Is<Question>(q => q.Id == "first-name"), Arg.Any<QuestionAnswer>(), Arg.Any<string>(), Arg.Any<string?>())
+            .Returns("Enter the pupil's first name");
+        SetupSession(AddSession());
+        PostLearnerDetails(firstName: "");
+
+        var result = await _sut.PagePost(WindowId, "learner-details", fromSummary: false);
+
+        Assert.IsType<ViewResult>(result);
+        var saved = _session.GetRequestState(WindowId);
+        Assert.Null(saved.SelectedPupil);
+        Assert.Null(saved.SelectedPupilId);
+        Assert.Null(saved.SelectedPupilLabel);
+        Assert.Null(saved.ReferenceNumber);
+    }
+
+    // The same gate once a pupil already exists: a rejected edit must leave the stored pupil as it
+    // was, not overwrite it with the invalid answers the user is being sent back to fix.
+    [Fact]
+    public async Task PagePost_OnPupilFromAnswersPage_WhenValidationFails_LeavesAnAlreadyMintedPupilUntouched()
+    {
+        SetupLearnerDetailsPage();
+        SetupSession(AddSession());
+        PostLearnerDetails();
+
+        await _sut.PagePost(WindowId, "learner-details", fromSummary: false);
+
+        var minted = _session.GetRequestState(WindowId);
+        var pupilId = minted.SelectedPupil!.Id;
+        var reference = minted.ReferenceNumber;
+
+        _journeyService.ValidateAnswer(
+                Arg.Is<Question>(q => q.Id == "first-name"), Arg.Any<QuestionAnswer>(), Arg.Any<string>(), Arg.Any<string?>())
+            .Returns("Enter the pupil's first name");
+        PostLearnerDetails(firstName: "");
+
+        await _sut.PagePost(WindowId, "learner-details", fromSummary: true);
+
+        var after = _session.GetRequestState(WindowId);
+        Assert.Equal("Alice", after.SelectedPupil!.Firstname);
+        Assert.Equal(pupilId, after.SelectedPupil.Id);
+        Assert.Equal(reference, after.ReferenceNumber);
     }
 
     // ── PagePost — cross-field date rules (AB#295246) ────────────────────────
@@ -1757,4 +2032,101 @@ public class JourneyControllerTests
     {
         public ISession Session { get; set; } = session;
     }
+
+    // ── #318: the closed-exercise gate ───────────────────────────────────────
+
+    [Fact]
+    public async Task Page_WhenTheJourneysExerciseHasClosed_RedirectsToCheckYourPupilDataWithAMessage()
+    {
+        SetupSession(ValidSession(history: ["page-1"]));
+        _checkingExercises.Close();
+
+        var result = await _sut.Page(WindowId, "page-1");
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Index", redirect.ActionName);
+        Assert.Equal("CheckYourPupilData", redirect.ControllerName);
+        Assert.Equal(
+            ClosedExerciseGuard.MessageFor(CheckingExerciseType.PupilData),
+            _sut.TempData[ClosedExerciseGuard.TempDataKey]);
+    }
+
+    [Fact]
+    public async Task PagePost_WhenTheJourneysExerciseHasClosed_SavesNothing()
+    {
+        // The whole point of the gate: a tab left open across the closing date still posts.
+        SetupSession(ValidSession(history: ["page-1"]));
+        _checkingExercises.Close();
+
+        var result = await _sut.PagePost(WindowId, "page-1", fromSummary: false, null);
+
+        Assert.IsType<RedirectToActionResult>(result);
+        Assert.Empty(_session.GetRequestState(WindowId).QuestionAnswers);
+    }
+
+    [Fact]
+    public async Task SummaryConfirm_WhenTheJourneysExerciseHasClosed_SubmitsNothing()
+    {
+        SetupSession(ValidSession(history: ["page-1", "page-2"]));
+        _checkingExercises.Close();
+
+        var result = await _sut.SummaryConfirm(WindowId);
+
+        Assert.IsType<RedirectToActionResult>(result);
+        await _requestService.DidNotReceiveWithAnyArgs().ConfirmRequestAsync(default, default!);
+    }
+
+    [Fact]
+    public async Task SaveDraft_WhenTheJourneysExerciseHasClosed_SavesNothing()
+    {
+        SetupSession(ValidSession(history: ["page-1"]));
+        _checkingExercises.Close();
+
+        var result = await _sut.SaveDraft(WindowId, "page-1");
+
+        Assert.IsType<RedirectToActionResult>(result);
+        await _requestService.DidNotReceiveWithAnyArgs().SaveDraftAsync(default, default!, default);
+    }
+
+    [Fact]
+    public async Task DownloadEvidence_WhenTheJourneysExerciseHasClosed_RedirectsRatherThan404s()
+    {
+        // AC: no gated path returns 404. This action used to answer NotFound for any unready
+        // session, which would have made a closed exercise look like a broken link.
+        SetupSession(ValidSession(history: ["page-1"]));
+        _checkingExercises.Close();
+
+        var result = await _sut.DownloadEvidence(WindowId, Guid.NewGuid().ToString());
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("CheckYourPupilData", redirect.ControllerName);
+    }
+
+    [Fact]
+    public async Task Page_WhenOnlyTheOtherExerciseIsOpen_IsStillRejected()
+    {
+        // A pupil-data journey on a window whose results-enquiry exercise is still running. The
+        // gate follows the journey's own exercise, derived from SelectedWhatToChange.
+        SetupSession(ValidSession(history: ["page-1"]));
+        _checkingExercises.IsOpen(default!, default)
+            .ReturnsForAnyArgs(ci => ci.ArgAt<CheckingExerciseType>(1) == CheckingExerciseType.ResultsEnquiry);
+
+        var result = await _sut.Page(WindowId, "page-1");
+
+        Assert.IsType<RedirectToActionResult>(result);
+    }
+
+    [Fact]
+    public async Task Page_WhenTheSessionIsNotStarted_RedirectsWithoutAClosedExerciseMessage()
+    {
+        // No journey means nothing to explain — the banner must not claim a deadline has passed
+        // to someone who never started.
+        SetupSession(new RequestState());
+
+        var result = await _sut.Page(WindowId, "page-1");
+
+        Assert.IsType<RedirectToActionResult>(result);
+        Assert.False(_sut.TempData.ContainsKey(ClosedExerciseGuard.TempDataKey));
+    }
+
 }

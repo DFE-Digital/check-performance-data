@@ -254,6 +254,35 @@ public class SubmittedRequestServiceTests
         Assert.Equal(Reference, result.ReferenceNumber);
     }
 
+    [Fact]
+    public async Task GetAsync_MergeJourney_PopulatesRecordDisplays()
+    {
+        var journey = Journey();
+        journey.MatchedPupil = new PupilDto
+        {
+            Id = Guid.NewGuid(),
+            Firstname = "John",
+            Surname = "Doe",
+            Sex = "M",
+            DateOfBirth = "02/02/2010",
+            Age = 16,
+            Cypmd_Id = "CYPMD456",
+            Identifier = "456456"
+        };
+        var page = new JourneyPage
+        {
+            Id = "reason",
+            Questions = [new Question { Id = "q1", Type = QuestionType.Radio, Title = "Why?" }]
+        };
+        Setup(journey, page);
+
+        var result = await _sut.GetAsync(WindowId, Reference);
+
+        Assert.NotNull(result);
+        Assert.Equal("Jane Smith, 1 January 2010", result!.FirstRecordDisplay);
+        Assert.Equal("John Doe 2 February 2010 (CYPMD456)", result.SecondRecordDisplay);
+    }
+
     private void Setup(RequestState journey, JourneyPage page)
     {
         _blob.GetAsync(WindowId, Reference).Returns(journey);

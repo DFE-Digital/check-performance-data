@@ -1,0 +1,41 @@
+@using DfE.CheckPerformanceData.Web.Controllers.WindowAdmin
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin.ExercisesItem
+
+@{
+    // Matches the fieldset legend below, which is this page's <h1>.
+    ViewBag.Title = "Which checking exercises does this window run?";
+}
+
+<form method="post" action="@Model.PostUrl" novalidate>
+    @Html.AntiForgeryToken()
+
+    <govuk-checkboxes name="Selected">
+        <govuk-checkboxes-fieldset>
+            <govuk-checkboxes-fieldset-legend is-page-heading="true" class="govuk-fieldset__legend--l">
+                Which checking exercises does this window run?
+            </govuk-checkboxes-fieldset-legend>
+            <govuk-checkboxes-hint>
+                A window can run more than one, each on its own dates. You will be asked for those dates next.
+            </govuk-checkboxes-hint>
+            <govuk-checkboxes-error-message asp-validation-for="Selected" />
+
+            @foreach (var exercise in Model.All)
+            {
+                <govuk-checkboxes-item value="@exercise" checked="@Model.Selected.Contains(exercise)">
+                    @ExerciseLabels.For(exercise)
+                    @if (Model.WithFiles.Contains(exercise))
+                    {
+                        @* Unticking throws the exercise's ingress and schema files away, so say so
+                           before the admin does it rather than after. *@
+                        <govuk-checkboxes-item-hint>
+                            This exercise has files loaded. Removing it will discard them.
+                        </govuk-checkboxes-item-hint>
+                    }
+                </govuk-checkboxes-item>
+            }
+        </govuk-checkboxes-fieldset>
+    </govuk-checkboxes>
+
+    <govuk-button type="submit">Save and continue</govuk-button>
+    <a class="govuk-link" href="@Model.CancelUrl">Cancel</a>
+</form>

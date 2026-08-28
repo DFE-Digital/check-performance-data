@@ -27,6 +27,29 @@ public sealed class AdminRequestsService(
             if (journey?.SelectedWhatToChange is null || journey.CheckingWindow is null || journey.SelectedPupil is null)
                 continue;
 
+            // PARKED AB#296648/AB#297848: a 16-19 results enquiry is excluded from this replay. It IS
+            // bound for Zendesk, but this path builds a pupil-amendment ticket — BuildDocument maps
+            // journey answers onto the amendment ticket fields, and an enquiry's QAN, syllabus code,
+            // session, current and revised grade have no place in that shape. Replaying one would
+            // create a malformed ticket AND flip the row to SubmittedCommitted, so the real dispatch
+            // could never pick it up. Remove this once the enquiry-to-Zendesk story defines its own
+            // ticket shape.
+            //
+            // Keyed on the checking-exercise map, not on the individual enum members: this guard was
+            // written for IncorrectGrade alone and the missing-qualification journey then walked
+            // straight through it. Any future results-enquiry journey is excluded the moment it is
+            // mapped to the exercise, with nothing to remember here.
+            if (WindowManagement.WhatToChangeCheckingExerciseMap.CheckingExerciseFor(
+                    journey.SelectedWhatToChange.Value) == CheckingExerciseType.ResultsEnquiry)
+                continue;
+
+            // PARKED AB#297310: an Add-pupil request never goes to the rules engine or Zendesk
+            // (ticket B2 — no rules-engine outcomes); its downstream is the LDS egress, a separate
+            // story. This replay builds pupil-amendment Zendesk tickets, which an Add does not fit,
+            // and flipping the row to SubmittedCommitted would hide it from that egress.
+            if (journey.SelectedWhatToChange == CheckYourPupilData.WhatToChange.Add)
+                continue;
+
             var config = await flowService.GetConfigAsync(
                 journey.SelectedWhatToChange.Value, journey.CheckingWindow.CheckingWindowType);
             if (config is null)

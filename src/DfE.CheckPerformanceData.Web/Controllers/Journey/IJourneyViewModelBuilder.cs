@@ -23,8 +23,31 @@ public interface IJourneyViewModelBuilder
         ModelStateDictionary modelState,
         QuestionFlowConfig? config = null,
         string? uploadError = null,
-        string? atLeastOneError = null);
+        string? atLeastOneError = null,
+        /// <summary>AB#296648: the selected result's grade scale, for a GradeSelect question. Resolved
+        /// by the caller because the lookup is async. Null when the page has no grade picker, or when
+        /// the QAN is absent from the reference data.</summary>
+        Application.ResultsEnquiry.GradeReference? gradeReference = null);
 
     PupilSearchViewModel BuildPupilSearchVm(
         Guid windowId, string pageId, JourneyPage page, RequestState journey, QuestionFlowConfig config);
+
+    /// <summary>
+    /// AB#296648: the "which of {pupil}'s results is incorrect?" page. The pupil's results are passed
+    /// in rather than fetched here because reading them is async and the builder is not.
+    /// </summary>
+    ResultSearchViewModel BuildResultSearchVm(
+        Guid windowId, string pageId, JourneyPage page, RequestState journey, QuestionFlowConfig config,
+        IReadOnlyList<Application.ResultsEnquiry.StudentResultRecord> availableResults);
+
+    /// <summary>
+    /// AB#297848: the "provide the missing qualification details" AO + QAN page. The reference
+    /// lookup is passed in rather than fetched here because reading it is async and the builder is
+    /// not. <paramref name="selectedAo"/>/<paramref name="selectedQan"/> override the session's
+    /// current selection on an invalid POST redisplay, so the user's picks survive the round trip.
+    /// </summary>
+    QualificationSearchViewModel BuildQualificationSearchVm(
+        Guid windowId, string pageId, JourneyPage page, RequestState journey, QuestionFlowConfig config,
+        Application.ResultsEnquiry.QualificationReferenceLookup lookup,
+        string? selectedAo = null, string? selectedQan = null, bool fromSummary = false);
 }

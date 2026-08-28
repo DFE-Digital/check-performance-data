@@ -96,6 +96,8 @@ All custom events carry **no PII as plain fields**; a hidden field is noted belo
 | `draft_resumed` | `reference_number`, `what_to_change`, `checking_window_type` | `AmendmentRequestsController.Edit` | `reference_number` |
 | `request_submitted` | `what_to_change`, `checking_window_type`, `reference_number` | `JourneyController.SummaryConfirm` (success) | `reference_number` |
 | `request_submission_failed` | `failure_reason`, `what_to_change`, `checking_window_type` | `JourneyController.SummaryConfirm` (duplicate) | — |
+| `results_enquiry_started` | `enquiry_type`, `checking_window_type`, `late_results_guidance_shown` | `ResultIssueController.Confirm` (valid POST) | — |
+| `results_enquiry_submitted` | `enquiry_type`, `cohort_wide`, `checking_window_type`, `reference_number` | `JourneyController.SummaryConfirm` (results-enquiry branch) | `reference_number` |
 | `validation_error` | `error_count`, `error_codes`, `error_fields`, `what_to_change`, `from_summary` | `JourneyController` (pupil search, page POST), `WhatToChangeController`, `CheckYourPupilDataController` | — |
 | `evidence_upload_attempted` | `outcome`, `failure_reason`, `page_count`, `file_size_bytes` | `JourneyController.UploadFile` | — |
 | `evidence_continue` | `file_count`, `page_count`, `evidence_text_length` | `JourneyController.PagePost` (evidence page) | — |
@@ -127,6 +129,21 @@ flowchart LR
     C --> D
     A --> E[request_submission_failed]
 ```
+
+### The results-enquiry funnel
+
+The 16-19 "report an incorrect grade" journey (AB#296648) has its own two-step funnel, linked by the
+hidden, hashed `reference_number`. `late_results_guidance_shown` on the start event is the measure that
+answers the question behind the guidance interstitial: is it stopping enquiries that the November late
+results file would have corrected anyway?
+
+```mermaid
+flowchart LR
+    A[results_enquiry_started] --> B[results_enquiry_submitted]
+    A -.abandoned.-> C[no submitted event]
+```
+
+See `docs/results-enquiry.md` for the journey these events describe.
 
 ---
 

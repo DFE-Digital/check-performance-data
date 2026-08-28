@@ -1,6 +1,8 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
+using DfE.CheckPerformanceData.Application.ResultsEnquiry;
+using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
 using DfE.CheckPerformanceData.Infrastructure.RulesEngine;
 using DfE.CheckPerformanceData.Persistence.Seeding;
 using DfE.CheckPerformanceData.Web.QuestionFlow;
@@ -17,11 +19,14 @@ namespace DfE.CheckPerformanceData.Web.Seeding;
 public sealed class DevDataSeedingOrchestrator(
     DevDataSeeder devDataSeeder,
     IPupilDataBlobClient pupilDataBlobClient,
+    IStudentResultsClient studentResultsClient,
     IQuestionFlowBlobClient questionFlowBlobClient,
     IRequestRepository requestRepository,
     IRequestStateBlobClient requestStateBlobClient,
     ICheckYourPupilDataService checkYourPupilDataService,
     RulesConfigSeeder rulesConfigSeeder,
+    GradeReferenceBlobClient gradeReferenceBlobClient,
+    QualificationReferenceBlobClient qualificationReferenceBlobClient,
     IHostEnvironment environment,
     ILogger<DevDataSeedingOrchestrator> logger) : IDevDataSeedingOrchestrator
 {
@@ -31,6 +36,18 @@ public sealed class DevDataSeedingOrchestrator(
 
         await SeedPupilData.ExecuteSeedAsync(pupilDataBlobClient);
         await SeedPupilData.ExecutePost16SeedAsync(pupilDataBlobClient);
+
+        // AB#296648: the 16-19 exam results the incorrect-grade enquiry journey reads. Tolerates the
+        // same Azurite API-version mismatch as the other blob seeds so a version skew degrades the
+        // enquiry journey rather than aborting the whole seed.
+        try
+        {
+            await SeedStudentResults.ExecuteSeedAsync(studentResultsClient);
+        }
+        catch (Azure.RequestFailedException ex) when (environment.IsDevelopment())
+        {
+            logger.LogWarning(ex, "Student results seeding skipped: Azurite returned {Status} {ErrorCode}.", ex.Status, ex.ErrorCode);
+        }
 
         try
         {
@@ -55,5 +72,15 @@ public sealed class DevDataSeedingOrchestrator(
         // local/E2E web stack doesn't run that worker, so the web app self-seeds to keep the admin
         // rules editor usable. Idempotent and version-gated — never clobbers a newer valid blob.
         await rulesConfigSeeder.SeedAsync();
+
+        // AB#297130: the AODC grade reference, seeded into the same rules-config container. Also
+        // seeded by GradeReferenceSeedingService on every startup; repeating it here means the admin
+        // "Reset seed data" action restores it if the blob was deleted. Seed-if-missing, so this is
+        // a no-op whenever it is already there.
+        await SeedGradeReference.ExecuteSeedAsync(gradeReferenceBlobClient, environment.ContentRootPath);
+
+        // AB#297848: the QualList qualification reference, seeded into the same rules-config
+        // container for the same "reset seed data" reason as the grade reference above.
+        await SeedQualificationReference.ExecuteSeedAsync(qualificationReferenceBlobClient, environment.ContentRootPath);
     }
 }

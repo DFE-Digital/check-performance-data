@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
+using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.Journey;
@@ -47,15 +48,14 @@ public sealed class JourneyViewModelBuilder(
 
         string? firstRecordDisplay = null;
         string? secondRecordDisplay = null;
-        if (journey.MatchedPupil is { } mp && journey.SelectedPupil is { } sp)
+        // Keyed on the flow declaring a match pupil search, not on a matched pupil merely being in
+        // session: only a merge journey has a second record, and a matched pupil left behind by an
+        // abandoned one would otherwise surface here as "Second record to merge". Covers the
+        // read-only submitted view too, which is built from this same method.
+        if (matchPupilPage is not null && journey.MatchedPupil is { } mp && journey.SelectedPupil is { } sp)
         {
-            var dob = DateTime.TryParseExact(sp.DateOfBirth, "dd/MM/yyyy",
-                System.Globalization.CultureInfo.InvariantCulture,
-                System.Globalization.DateTimeStyles.None, out var d)
-                ? d.ToString("d MMMM yyyy")
-                : sp.DateOfBirth;
-            firstRecordDisplay = $"{sp.Firstname} {sp.Surname}, {dob}".Trim();
-            secondRecordDisplay = $"{mp.Cypmd_Id}, {mp.Firstname} {mp.Surname}".Trim();
+            firstRecordDisplay = MergeRecordDisplays.First(sp);
+            secondRecordDisplay = MergeRecordDisplays.Second(mp);
         }
 
         return new SummaryViewModel
@@ -75,9 +75,111 @@ public sealed class JourneyViewModelBuilder(
             FirstRecordDisplay = firstRecordDisplay,
             SecondRecordDisplay = secondRecordDisplay,
             MatchedPupilPageId = matchPupilPage?.Id,
-            BackPageIsPupilSearch = backPage?.Type == PageType.PupilSearch
+            BackPageIsPupilSearch = backPage?.Type == PageType.PupilSearch,
+            BackPageAction = JourneyRouting.ActionFor(backPage?.Type),
+            Enquiry = BuildEnquirySummary(journey, config, pupilName),
+            MissingQualification = BuildMissingQualificationSummary(journey, config, pupilName)
         };
     }
+
+    /// <summary>
+    /// The enquiry-shaped summary, or null for an amendment journey. AB#296648.
+    /// </summary>
+    private ResultsEnquirySummary? BuildEnquirySummary(
+        RequestState journey, QuestionFlowConfig config, string pupilName)
+    {
+        if (journey.SelectedWhatToChange != Application.CheckYourPupilData.WhatToChange.IncorrectGrade)
+            return null;
+
+        string? Answer(string questionId) =>
+            journey.QuestionAnswers.TryGetValue(questionId, out var a) ? a.TextValue : null;
+
+        // The page each answer lives on, so a Change link follows a flow-config page rename rather
+        // than pointing at a hardcoded id that no longer exists.
+        string? PageAsking(string questionId) => config.Pages
+            .FirstOrDefault(p => p.Questions.Any(q => q.Id == questionId))?.Id;
+
+        return new ResultsEnquirySummary
+        {
+            DfeNumber = currentUserService.OrganisationLaestab,
+            KeyStageLabel = KeyStageLabelFor(journey.CheckingWindow?.CheckingWindowType),
+            EnquiryTypeLabel = "Incorrect grade",
+            StudentName = pupilName,
+            IsCohortWide = string.Equals(Answer(CohortScopeQuestionId), "yes", StringComparison.OrdinalIgnoreCase),
+            CohortCount = Answer(CohortCountQuestionId),
+            Result = journey.SelectedResult,
+            RevisedGrade = Answer(JourneyController.RevisedGradeQuestionId),
+            RevisedGradePageId = PageAsking(JourneyController.RevisedGradeQuestionId),
+            AdditionalInformation = Answer(AdditionalInfoQuestionId),
+            AdditionalInformationPageId = PageAsking(AdditionalInfoQuestionId)
+        };
+    }
+
+    /// <summary>
+    /// The missing-qualification-shaped summary, or null unless that journey is selected. AB#297848.
+    /// </summary>
+    private MissingQualificationSummary? BuildMissingQualificationSummary(
+        RequestState journey, QuestionFlowConfig config, string pupilName)
+    {
+        if (journey.SelectedWhatToChange != Application.CheckYourPupilData.WhatToChange.MissingQualification)
+            return null;
+
+        string? Answer(string questionId) =>
+            journey.QuestionAnswers.TryGetValue(questionId, out var a) ? a.TextValue : null;
+
+        string? PageAsking(string questionId) => config.Pages
+            .FirstOrDefault(p => p.Questions.Any(q => q.Id == questionId))?.Id;
+
+        var qualificationPageId = config.Pages.FirstOrDefault(p => p.Type == PageType.QualificationSearch)?.Id
+            ?? "select-qualification";
+        var detailsPageId = PageAsking(SyllabusQuestionId) ?? "qualification-details";
+        var additionalInfoPageId = PageAsking(AdditionalInfoQuestionId) ?? "additional-info";
+
+        var awardDate = journey.QuestionAnswers.TryGetValue(AwardDateQuestionId, out var dateAnswer)
+            ? dateAnswer.DateValue?.ToDisplayString()
+            : null;
+
+        return new MissingQualificationSummary
+        {
+            DfeNumber = currentUserService.OrganisationLaestab,
+            KeyStageLabel = KeyStageLabelFor(journey.CheckingWindow?.CheckingWindowType),
+            StudentName = pupilName,
+            IsCohortWide = string.Equals(Answer(CohortScopeQuestionId), "yes", StringComparison.OrdinalIgnoreCase),
+            CohortCount = Answer(CohortCountQuestionId),
+            CypmdId = journey.SelectedPupil?.Cypmd_Id,
+            AwardingOrganisation = journey.SelectedQualification?.AwardingOrganisation,
+            Qan = journey.SelectedQualification?.Qan,
+            QualificationTitle = journey.SelectedQualification?.QualificationTitle,
+            SyllabusCode = Answer(SyllabusQuestionId),
+            AwardDate = awardDate,
+            Ncn = Answer(NcnQuestionId),
+            GradeAchieved = Answer(MissingGradeQuestionId),
+            AdditionalInformation = Answer(AdditionalInfoQuestionId),
+            QualificationPageId = qualificationPageId,
+            DetailsPageId = detailsPageId,
+            AdditionalInformationPageId = additionalInfoPageId
+        };
+    }
+
+    // Question ids from IncorrectGrade_Post16.json. A serialization contract — see the flow tests.
+    private const string CohortScopeQuestionId = "q-cohort-scope";
+    private const string CohortCountQuestionId = "q-cohort-count";
+    private const string AdditionalInfoQuestionId = "q-additional-info";
+
+    // Question ids from MissingQualification_Post16.json. AB#297848.
+    private const string SyllabusQuestionId = "q-syllabus-code";
+    private const string AwardDateQuestionId = "q-award-date";
+    private const string NcnQuestionId = "q-ncn";
+    private const string MissingGradeQuestionId = "q-missing-grade";
+
+    /// <summary>How a window type is named to a school on the summary.</summary>
+    private static string KeyStageLabelFor(Domain.Enums.CheckingWindowType? windowType) => windowType switch
+    {
+        Domain.Enums.CheckingWindowType.Post16 => "16 to 19",
+        Domain.Enums.CheckingWindowType.KS4June or Domain.Enums.CheckingWindowType.KS4Autumn => "Key stage 4",
+        Domain.Enums.CheckingWindowType.KS2 => "Key stage 2",
+        _ => string.Empty
+    };
 
     public PageViewModel BuildPageVm(
         Guid windowId,
@@ -88,7 +190,8 @@ public sealed class JourneyViewModelBuilder(
         ModelStateDictionary modelState,
         QuestionFlowConfig? config = null,
         string? uploadError = null,
-        string? atLeastOneError = null)
+        string? atLeastOneError = null,
+        GradeReference? gradeReference = null)
     {
         var historyIndex = journey.QuestionHistory.IndexOf(page.Id);
         var backPageId = historyIndex switch
@@ -97,8 +200,10 @@ public sealed class JourneyViewModelBuilder(
             0  => null,
             _  => journey.QuestionHistory[historyIndex - 1]
         };
-        var backPageIsPupilSearch = backPageId is not null && config is not null
-            && flowService.GetPage(config, backPageId)?.Type == PageType.PupilSearch;
+        var backPage = backPageId is not null && config is not null
+            ? flowService.GetPage(config, backPageId)
+            : null;
+        var backPageIsPupilSearch = backPage?.Type == PageType.PupilSearch;
 
         var pupilName = GetPupilName(journey);
         var isSingleQuestion = page.Questions.Count == 1;
@@ -126,9 +231,21 @@ public sealed class JourneyViewModelBuilder(
                 Error = error,
                 UploadError = uploadError,
                 ResolvedTitle = JourneyTemplate.Resolve(q.Title, pupilName) + (q.Optional ? " (Optional)" : ""),
-                VisibleOptions = q.Type == QuestionType.Radio
-                    ? optionVisibilityService.GetVisibleOptions(q, conditionContext)
-                    : q.Options ?? [],
+                VisibleOptions = q.Type switch
+                {
+                    QuestionType.Radio => optionVisibilityService.GetVisibleOptions(q, conditionContext),
+                    // AB#297130: grades come from the AODC reference data for the selected result's
+                    // QAN, not from the flow config — the config cannot know which qualification the
+                    // user picked. Pass grades before fail grades, source order preserved within each.
+                    QuestionType.GradeSelect => GradeOptions(gradeReference),
+                    // AB#297848: syllabus codes come from the selected qualification's QualList
+                    // entry. The posted/validated value is the bare code; the title is display-only
+                    // because sibling codes often differ only by specialism.
+                    QuestionType.SyllabusSelect => journey.SelectedQualification?.SyllabusCodes
+                        .Select(c => new QuestionOption { Value = c.Code, Label = $"{c.Code} — {c.Title}" })
+                        .ToList() ?? [],
+                    _ => q.Options ?? []
+                },
                 // AB#296081: request-wide file names for the selection-time duplicate warning.
                 ExistingFileNames = q.Type == QuestionType.FileUpload
                     ? answers.Values.SelectMany(qa => qa.FileValues ?? []).Select(f => f.OriginalFileName).ToList()
@@ -143,6 +260,11 @@ public sealed class JourneyViewModelBuilder(
             Answers = answers,
             BackPageId = backPageId,
             BackPageIsPupilSearch = backPageIsPupilSearch,
+            BackPageAction = JourneyRouting.ActionFor(backPage?.Type),
+            WhatToChange = journey.SelectedWhatToChange,
+            SelectedResult = journey.SelectedResult,
+            SelectedQualification = journey.SelectedQualification,
+            CypmdId = journey.SelectedPupil?.Cypmd_Id,
             FromSummary = fromSummary,
             PupilName = pupilName,
             ContentKey = contentKey,
@@ -165,19 +287,7 @@ public sealed class JourneyViewModelBuilder(
             ? (journey.MatchedPupilId, journey.MatchedPupilLabel)
             : (journey.SelectedPupilId, journey.SelectedPupilLabel);
 
-        string? backPageId = null;
-        bool backPageIsPupilSearch = false;
-        var historyIndex = journey.QuestionHistory.IndexOf(pageId);
-        var backEntry = historyIndex > 0
-            ? journey.QuestionHistory[historyIndex - 1]
-            : historyIndex < 0 && journey.QuestionHistory.Count > 0
-                ? journey.QuestionHistory[^1]
-                : null;
-        if (backEntry is not null)
-        {
-            backPageId = backEntry;
-            backPageIsPupilSearch = flowService.GetPage(config, backEntry)?.Type == PageType.PupilSearch;
-        }
+        var (backPageId, backPage) = ResolveBackPage(pageId, journey, config);
 
         return new PupilSearchViewModel
         {
@@ -185,14 +295,89 @@ public sealed class JourneyViewModelBuilder(
             PageId = pageId,
             Title = title,
             Filter = page.PupilFilter ?? PupilFilter.Included,
+            RequireResults = page.RequireResults,
             ExcludePupilId = excludeId,
             SelectedPupilId = existingId,
             SelectedPupilLabel = existingLabel,
             Hint = page.Subheading,
             BackPageId = backPageId,
-            BackPageIsPupilSearch = backPageIsPupilSearch
+            BackPageIsPupilSearch = backPage?.Type == PageType.PupilSearch,
+            BackPageAction = JourneyRouting.ActionFor(backPage?.Type)
         };
     }
+
+    public ResultSearchViewModel BuildResultSearchVm(
+        Guid windowId, string pageId, JourneyPage page, RequestState journey, QuestionFlowConfig config,
+        IReadOnlyList<StudentResultRecord> availableResults)
+    {
+        var pupilName = GetPupilName(journey);
+        var (backPageId, backPage) = ResolveBackPage(pageId, journey, config);
+
+        return new ResultSearchViewModel
+        {
+            WindowId = windowId,
+            PageId = pageId,
+            Title = page.Title is not null ? JourneyTemplate.Resolve(page.Title, pupilName) : string.Empty,
+            Hint = page.Subheading,
+            SelectedResultKey = journey.SelectedResult?.CompositeKey,
+            SelectedResult = journey.SelectedResult,
+            AvailableResults = availableResults,
+            BackPageId = backPageId,
+            BackPageAction = JourneyRouting.ActionFor(backPage?.Type)
+        };
+    }
+
+    public QualificationSearchViewModel BuildQualificationSearchVm(
+        Guid windowId, string pageId, JourneyPage page, RequestState journey, QuestionFlowConfig config,
+        QualificationReferenceLookup lookup, string? selectedAo = null, string? selectedQan = null,
+        bool fromSummary = false)
+    {
+        var pupilName = GetPupilName(journey);
+        var (backPageId, backPage) = ResolveBackPage(pageId, journey, config);
+
+        return new QualificationSearchViewModel
+        {
+            FromSummary = fromSummary,
+            WindowId = windowId,
+            PageId = pageId,
+            Page = page,
+            PupilName = pupilName,
+            CypmdId = journey.SelectedPupil?.Cypmd_Id,
+            AwardingOrganisations = lookup.AwardingOrganisations,
+            Qualifications = [.. lookup.AwardingOrganisations.SelectMany(lookup.ForAwardingOrganisation)],
+            SelectedAo = selectedAo ?? journey.SelectedQualification?.AwardingOrganisation,
+            SelectedQan = selectedQan ?? journey.SelectedQualification?.Qan,
+            BackPageId = backPageId,
+            BackPageAction = JourneyRouting.ActionFor(backPage?.Type)
+        };
+    }
+
+    /// <summary>
+    /// The page the Back link returns to: the entry before this one in the answered history, or the
+    /// last entry when this page is not in the history yet (a forward navigation).
+    /// </summary>
+    private (string? PageId, JourneyPage? Page) ResolveBackPage(
+        string pageId, RequestState journey, QuestionFlowConfig config)
+    {
+        var historyIndex = journey.QuestionHistory.IndexOf(pageId);
+        var backEntry = historyIndex > 0
+            ? journey.QuestionHistory[historyIndex - 1]
+            : historyIndex < 0 && journey.QuestionHistory.Count > 0
+                ? journey.QuestionHistory[^1]
+                : null;
+
+        return backEntry is null ? (null, null) : (backEntry, flowService.GetPage(config, backEntry));
+    }
+
+    /// <summary>
+    /// The qualification's grades as picker options, pass grades before fail grades. Empty when the
+    /// QAN is missing from the reference data, which the view reports rather than rendering an empty
+    /// control with no explanation.
+    /// </summary>
+    private static IReadOnlyList<QuestionOption> GradeOptions(GradeReference? reference) =>
+        reference is null
+            ? []
+            : [.. reference.AllGrades.Select(g => new QuestionOption { Value = g, Label = g })];
 
     private JourneyConditionContext BuildConditionContext(RequestState journey) =>
         JourneyConditionContextFactory.Create(journey, currentUserService);

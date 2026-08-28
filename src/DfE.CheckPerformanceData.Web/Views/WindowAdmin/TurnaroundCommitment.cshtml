@@ -1,0 +1,15 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin.WindowTurnaroundCommitmentEditItem
+
+<form method="post" action="@Model.PostUrl" novalidate>
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="WindowId" value="@Model.WindowId" />
+
+    <govuk-input for="@Model.TurnaroundCommitment">
+        <govuk-input-label is-page-heading="true" class="govuk-label--l">Edit turnaround commitment</govuk-input-label>
+        <govuk-input-hint>Enter the turnaround commitment for the window.</govuk-input-hint>
+        <govuk-input-error-message asp-validation-for="TurnaroundCommitment" />
+    </govuk-input>
+
+    <govuk-button type="submit">Save and continue</govuk-button>
+    <a class="govuk-link" href="@Model.CancelUrl">Cancel</a>
+</form>

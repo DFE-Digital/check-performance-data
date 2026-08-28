@@ -1,0 +1,71 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ResultIssueViewModel
+
+@{
+    // Matches the page heading the radios legend renders (is-page-heading="true"), so the
+    // browser title and the visible heading cannot drift apart.
+    ViewBag.Title = "What issue with the results do you need to report?";
+    Layout = "_Layout";
+    var hasError = !ViewData.ModelState.IsValid;
+    var fieldErrorMessage = ViewData.ModelState[nameof(Model.IssueType)]?.Errors.FirstOrDefault()?.ErrorMessage;
+}
+
+<a asp-action="Index" asp-controller="CheckYourPupilData" asp-route-windowId="@Model.WindowId" class="govuk-back-link">Back</a>
+
+@if (hasError && fieldErrorMessage is not null)
+{
+    <govuk-error-summary>
+        <govuk-error-summary-title>There is a problem</govuk-error-summary-title>
+        @* Anchors the id set explicitly on the first radio below, so the summary link always
+           lands on the group rather than depending on generated id numbering. *@
+        <govuk-error-summary-item href="#issueType">@fieldErrorMessage</govuk-error-summary-item>
+    </govuk-error-summary>
+}
+
+<form method="post" action="@Url.Action("Confirm", "ResultIssue", new { windowId = Model.WindowId })">
+    @Html.AntiForgeryToken()
+
+    <govuk-radios for="IssueType">
+        <govuk-radios-fieldset>
+            <govuk-radios-fieldset-legend is-page-heading="true" class="govuk-fieldset__legend--l">
+                What issue with the results do you need to report?
+            </govuk-radios-fieldset-legend>
+
+            <govuk-radios-hint>
+                Select one option
+            </govuk-radios-hint>
+
+            @if (hasError && fieldErrorMessage is not null)
+            {
+                <govuk-radios-error-message>@fieldErrorMessage</govuk-radios-error-message>
+            }
+
+            @* The third Figma option (a pupil/result mismatch) is a sibling ticket with no journey —
+               rendering it here without one behind it would dead-end the user, so the controller
+               rejects it as unanswered until that flow exists. *@
+            <govuk-radios-item value="@DfE.CheckPerformanceData.Web.Controllers.ResultIssueViewModel.IncorrectGrade" id="issueType">
+                Incorrect grade (once you have checked your second late results file in late November)
+            </govuk-radios-item>
+            <govuk-radios-item value="@DfE.CheckPerformanceData.Web.Controllers.ResultIssueViewModel.MissingQualification">
+                Missing qualification
+            </govuk-radios-item>
+        </govuk-radios-fieldset>
+    </govuk-radios>
+
+    <govuk-button type="submit">Continue</govuk-button>
+</form>
+
+@* Guidance, not a gate. The BA confirmed on 2026-08-17 that the late-results message informs the
+   user and never blocks them, so this expander sits below Continue exactly as the Figma screen has
+   it. FLAGGED: the Figma frame shows this expander collapsed, so its body copy was never captured —
+   the wording below reuses the interstitial copy the plan already pins, and needs content sign-off. *@
+<details class="govuk-details" data-module="govuk-details">
+    <summary class="govuk-details__summary">
+        <span class="govuk-details__summary-text">Have you checked your second late results file?</span>
+    </summary>
+    <div class="govuk-details__text">
+        <p class="govuk-body">
+            Nearly all incorrect grades are updated in the second late results file. We will email you
+            in late November to let you know it's available.
+        </p>
+    </div>
+</details>

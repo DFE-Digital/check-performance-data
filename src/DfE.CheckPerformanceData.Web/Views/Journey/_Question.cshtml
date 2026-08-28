@@ -17,6 +17,12 @@
     case QuestionType.Autocomplete:
         await Html.RenderPartialAsync("_Autocomplete", Model);
         break;
+    case QuestionType.GradeSelect:
+        await Html.RenderPartialAsync("_GradeSelect", Model);
+        break;
+    case QuestionType.SyllabusSelect:
+        await Html.RenderPartialAsync("_SyllabusSelect", Model);
+        break;
 }
 
 @if (Model.Question.QuestionHelpTitle is not null)

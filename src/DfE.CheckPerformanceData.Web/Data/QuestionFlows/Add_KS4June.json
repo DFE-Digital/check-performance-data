@@ -1,0 +1,124 @@
+{
+  "firstPageId": "learner-details",
+  "pages": [
+    {
+      "id": "learner-details",
+      "title": "Enter the details of the pupil you want to add",
+      "pageTitle": "Pupil details",
+      "pupilFromAnswers": true,
+      "nextPageId": "admission-details",
+      "questions": [
+        {
+          "id": "first-name",
+          "type": "FreeText",
+          "title": "First name",
+          "summaryTitle": "First name",
+          "characterLimit": 150,
+          "validationFailure": "Enter the pupil's first name"
+        },
+        {
+          "id": "last-name",
+          "type": "FreeText",
+          "title": "Last name",
+          "summaryTitle": "Last name",
+          "characterLimit": 150,
+          "validationFailure": "Enter the pupil's last name"
+        },
+        {
+          "id": "date-of-birth",
+          "type": "Date",
+          "title": "Date of birth",
+          "summaryTitle": "Date of birth",
+          "hint": "For example, 27 3 2011",
+          "validationFailure": "Enter the pupil's date of birth"
+        },
+        {
+          "id": "sex",
+          "type": "Radio",
+          "title": "Sex",
+          "summaryTitle": "Sex",
+          "hint": "Select one option",
+          "validationFailure": "Select the pupil's sex",
+          "options": [
+            { "value": "F", "label": "Female" },
+            { "value": "M", "label": "Male" },
+            { "value": "U", "label": "Not known" }
+          ]
+        },
+        {
+          "id": "upn",
+          "type": "FreeText",
+          "title": "Unique pupil number (UPN)",
+          "summaryTitle": "Unique pupil number",
+          "hint": "If known. A UPN is 13 characters, for example A123456789012",
+          "optional": true,
+          "characterLimit": 13
+        }
+      ]
+    },
+    {
+      "id": "admission-details",
+      "title": "Enter {pupilName}'s details at your school",
+      "pageTitle": "Details at your school",
+      "nextPageId": "evidence",
+      "questions": [
+        {
+          "id": "admission-date",
+          "type": "Date",
+          "title": "Admission date",
+          "summaryTitle": "Admission date",
+          "hint": "The date the pupil was admitted to your school",
+          "validationFailure": "Enter the date {pupilName} was admitted to your school"
+        },
+        {
+          "id": "year-group",
+          "type": "Radio",
+          "title": "Year group",
+          "summaryTitle": "Year group",
+          "hint": "Select one option",
+          "validationFailure": "Select {pupilName}'s year group",
+          "options": [
+            { "value": "10", "label": "Year 10" },
+            { "value": "11", "label": "Year 11" }
+          ]
+        },
+        {
+          "id": "sen-status",
+          "type": "Radio",
+          "title": "Special educational needs (SEN) status",
+          "summaryTitle": "SEN status",
+          "hint": "Select one option",
+          "validationFailure": "Select {pupilName}'s SEN status",
+          "options": [
+            { "value": "E", "label": "Education, health and care (EHC) plan" },
+            { "value": "K", "label": "SEN support" },
+            { "value": "N", "label": "No recorded SEN" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "evidence",
+      "pageTitle": "Provide evidence for the addition",
+      "type": "EvidenceUpload",
+      "title": "Provide evidence for the addition of {pupilName}",
+      "questions": [
+        {
+          "id": "evidence",
+          "type": "FileUpload",
+          "title": "Upload files",
+          "hint": "Evidence must be in a PDF format",
+          "optional": true
+        },
+        {
+          "id": "how-evidence-supports",
+          "type": "TextArea",
+          "title": "Explain how the evidence supports adding this pupil",
+          "summaryTitle": "How evidence supports pupil addition",
+          "characterLimit": 1000,
+          "optional": true
+        }
+      ]
+    }
+  ]
+}

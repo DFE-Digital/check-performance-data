@@ -9,11 +9,18 @@ public sealed class PupilSearchViewModel
     public string Title { get; set; } = string.Empty;
     public PupilFilter Filter { get; set; }
     public Guid? ExcludePupilId { get; set; }
+
+    /// <summary>Ask the suggestions endpoint for students who hold results only. See
+    /// <see cref="Application.Journey.JourneyPage.RequireResults"/>.</summary>
+    public bool RequireResults { get; set; }
     public string? SelectedPupilId { get; set; }
     public string? SelectedPupilLabel { get; set; }
     public string? Hint { get; set; }
     public string? BackPageId { get; set; }
     public bool BackPageIsPupilSearch { get; set; }
+
+    /// <summary>The JourneyController action that serves <see cref="BackPageId"/>.</summary>
+    public string BackPageAction { get; set; } = nameof(JourneyController.Page);
     public string? ConflictErrorReference { get; set; }
     public string? ConflictErrorLink { get; set; }
     public string? ConflictPupilName { get; set; }

@@ -165,7 +165,39 @@ public class JourneyViewModelBuilderTests
         var vm = _sut.BuildSummaryVm(WindowId, journey, mergeConfig);
 
         Assert.Equal("Jane Smith, 27 July 2010", vm.FirstRecordDisplay);
-        Assert.Equal("CYPMD456, John Doe", vm.SecondRecordDisplay);
+        Assert.Equal("John Doe 2 February 2010 (CYPMD456)", vm.SecondRecordDisplay);
+    }
+
+    // AB#297310: the merge rows were keyed on a matched pupil being in session, not on the flow
+    // declaring a match pupil search. A matched pupil left behind by an abandoned merge journey
+    // would surface on an Add summary as "Second record to merge" — the read-only submitted view
+    // included, since it is built from this same method.
+    [Fact]
+    public void BuildSummaryVm_WhenTheFlowHasNoMatchPupilPage_LeavesTheRecordDisplaysNull()
+    {
+        var strayMatch = new PupilDto
+        {
+            Id = Guid.NewGuid(), Firstname = "John", Surname = "Doe",
+            DateOfBirth = "02/02/2010", Sex = "M", Age = 16, Cypmd_Id = "CYPMD456", Identifier = "UPN002"
+        };
+        var addPage = new JourneyPage
+        {
+            Id = "learner-details", PupilFromAnswers = true,
+            Questions = [new Question { Id = "first-name", Type = QuestionType.FreeText, Title = "First name" }]
+        };
+        var addConfig = new QuestionFlowConfig { FirstPageId = "learner-details", Pages = [addPage] };
+        _flowService.GetPage(addConfig, "learner-details").Returns(addPage);
+
+        var journey = JourneyWithHistory(["learner-details"]);
+        journey.SelectedWhatToChange = WhatToChange.Add;
+        journey.SelectedPupil = Pupil;
+        journey.MatchedPupil = strayMatch;
+
+        var vm = _sut.BuildSummaryVm(WindowId, journey, addConfig);
+
+        Assert.Null(vm.FirstRecordDisplay);
+        Assert.Null(vm.SecondRecordDisplay);
+        Assert.DoesNotContain(vm.Lines, l => l.Key == "Second record to merge");
     }
 
     [Fact]
@@ -354,6 +386,39 @@ public class JourneyViewModelBuilderTests
         var vm = _sut.BuildPupilSearchVm(WindowId, "select-match", matchPage, journey, Config);
 
         Assert.Equal("Who should Jane Smith be merged with?", vm.Title);
+    }
+
+    [Fact]
+    public void BuildPupilSearchVm_CarriesRequireResultsFromTheConfig()
+    {
+        // The page asks for it, the view puts it on the suggestions request. Nothing in between
+        // decides it, so a KS4 flow can never accidentally acquire the restriction.
+        var page = new JourneyPage
+        {
+            Id = "select-student", Type = PageType.PupilSearch,
+            PupilKey = JourneyPage.PrimaryKey, PupilFilter = PupilFilter.All,
+            RequireResults = true
+        };
+        _flowService.GetPage(Config, "select-student").Returns(page);
+
+        var vm = _sut.BuildPupilSearchVm(WindowId, "select-student", page, JourneyWithHistory(["select-pupil"]), Config);
+
+        Assert.True(vm.RequireResults);
+    }
+
+    [Fact]
+    public void BuildPupilSearchVm_WithoutRequireResults_SearchesEveryPupil()
+    {
+        var page = new JourneyPage
+        {
+            Id = "select-pupil", Type = PageType.PupilSearch,
+            PupilKey = JourneyPage.PrimaryKey, PupilFilter = PupilFilter.Included
+        };
+        _flowService.GetPage(Config, "select-pupil").Returns(page);
+
+        var vm = _sut.BuildPupilSearchVm(WindowId, "select-pupil", page, JourneyWithHistory(["select-pupil"]), Config);
+
+        Assert.False(vm.RequireResults);
     }
 
     [Fact]

@@ -4,14 +4,27 @@ using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
 // Blob-storage browser and per-blob preview / download / delete. Gated by the storage-admin
 // section grant.
 [RequireAdminSection(AdminNavKeys.StorageAdmin)]
-public sealed class StorageAdminController(IReadOnlyDictionary<string, BlobServiceClient> storageAccounts) : Controller
+public sealed class StorageAdminController(
+    IReadOnlyDictionary<string, BlobServiceClient> storageAccounts,
+    IOptions<StorageBrowserOptions> browserOptions) : Controller
 {
+    // The keyring and anything else configured as secret. Every route consults this before it
+    // resolves a container, so a protected blob is never opened, written or removed — not opened
+    // and then withheld. Kept in one place because six separate guards drift apart.
+    private readonly HashSet<string> _protectedContainers =
+        new(browserOptions.Value.ProtectedContainers ?? [], StringComparer.OrdinalIgnoreCase);
+
+    // 404 rather than 403, matching what a non-granted admin section returns: a refusal that
+    // confirms the container exists is a smaller leak than the contents, but it is still a leak.
+    private bool IsProtected(string containerName) => _protectedContainers.Contains(containerName);
+
     private static readonly IReadOnlyDictionary<string, string> DisplayNames = new Dictionary<string, string>
     {
         ["app"] = "App Storage",
@@ -35,7 +48,10 @@ public sealed class StorageAdminController(IReadOnlyDictionary<string, BlobServi
 
         var containers = new List<string>();
         await foreach (var item in client.GetBlobContainersAsync())
+        {
+            if (IsProtected(item.Name)) continue;
             containers.Add(item.Name);
+        }
 
         return View(new StorageContainerListViewModel
         {
@@ -48,7 +64,9 @@ public sealed class StorageAdminController(IReadOnlyDictionary<string, BlobServi
     [HttpGet("admin/storage/{account}/{containerName}")]
     public async Task<IActionResult> Container(string account, string containerName, [FromQuery] string? prefix, CancellationToken cancellationToken = default)
     {
-        var client = GetClient(account);
+        if (IsProtected(containerName)) return NotFound();
+
+                var client = GetClient(account);
         if (client is null) return NotFound();
 
         var container = client.GetBlobContainerClient(containerName);
@@ -95,7 +113,9 @@ public sealed class StorageAdminController(IReadOnlyDictionary<string, BlobServi
     [HttpGet("admin/storage/{account}/{containerName}/preview")]
     public async Task<IActionResult> Preview(string account, string containerName, [FromQuery] string blob)
     {
-        var client = GetClient(account);
+        if (IsProtected(containerName)) return NotFound();
+
+                var client = GetClient(account);
         if (client is null) return NotFound();
 
         var container = client.GetBlobContainerClient(containerName);
@@ -137,7 +157,9 @@ public sealed class StorageAdminController(IReadOnlyDictionary<string, BlobServi
     [HttpGet("admin/storage/{account}/{containerName}/download")]
     public async Task<IActionResult> Download(string account, string containerName, [FromQuery] string blob)
     {
-        var client = GetClient(account);
+        if (IsProtected(containerName)) return NotFound();
+
+                var client = GetClient(account);
         if (client is null) return NotFound();
 
         var container = client.GetBlobContainerClient(containerName);
@@ -155,7 +177,9 @@ public sealed class StorageAdminController(IReadOnlyDictionary<string, BlobServi
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(string account, string containerName, string blobName, [FromForm] string? prefix = null)
     {
-        var client = GetClient(account);
+        if (IsProtected(containerName)) return NotFound();
+
+                var client = GetClient(account);
         if (client is null) return NotFound();
 
         var container = client.GetBlobContainerClient(containerName);
@@ -168,7 +192,9 @@ public sealed class StorageAdminController(IReadOnlyDictionary<string, BlobServi
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Upload(string account, string containerName, List<IFormFile> files, [FromForm] string? prefix, [FromForm] string? folder)
     {
-        var client = GetClient(account);
+        if (IsProtected(containerName)) return NotFound();
+
+                var client = GetClient(account);
         if (client is null) return NotFound();
 
         var container = client.GetBlobContainerClient(containerName);

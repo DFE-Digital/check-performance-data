@@ -160,6 +160,60 @@ public sealed class QuestionFlowValidatorAlignmentTests
     }
 
     /// <summary>
+    /// The same guard for the Add-a-pupil journey's date rules (AB#297310) in
+    /// <see cref="AddJourneyDateRules"/>. Its two page ids and their date question ids are
+    /// addressed by code, and nothing at runtime notices if one is renamed in the flow JSON —
+    /// the future-date and admission-not-before-birth checks would simply stop matching and the
+    /// validation would silently stop happening.
+    /// </summary>
+    [Fact]
+    public void AddJourneyDateRules_PageAndQuestionIds_MatchTheShippedFlowConfig()
+    {
+        (string PageId, string QuestionId)[] pairs =
+        [
+            (AddJourneyDateRules.LearnerDetailsPageId, AddJourneyDateRules.DateOfBirth),
+            (AddJourneyDateRules.AdmissionDetailsPageId, AddJourneyDateRules.AdmissionDate)
+        ];
+
+        foreach (var (pageId, questionId) in pairs)
+        {
+            var pages = AllFlowPages().Where(p => p.Page.Id == pageId).ToList();
+            Assert.True(pages.Count > 0,
+                $"No flow config contains a page '{pageId}', which AddJourneyDateRules " +
+                $"addresses by id — its future-date rule would never run.");
+
+            foreach (var page in pages)
+            {
+                var question = page.Page.Questions.SingleOrDefault(q => q.Id == questionId);
+                Assert.True(question is not null,
+                    $"{page.File}: page '{pageId}' has no question '{questionId}', which " +
+                    $"AddJourneyDateRules compares — that rule would silently never fire.");
+                Assert.True(question!.Type == QuestionType.Date,
+                    $"{page.File}: question '{questionId}' is {question.Type}, not Date — " +
+                    $"AddJourneyDateRules reads it as a date answer and would always see it as unanswered.");
+            }
+        }
+    }
+
+    /// <summary>
+    /// The admission-not-before-birth rule compares two dates the user enters on different pages,
+    /// so it only ever fires if both live in the same flow — a flow carrying one page without the
+    /// other would leave the comparison permanently one-sided and silently unenforced.
+    /// </summary>
+    [Fact]
+    public void AddJourneyDateRules_BothDatePages_LiveInTheSameFlow()
+    {
+        var flowsWithLearnerDetails = FlowFilesContaining(AddJourneyDateRules.LearnerDetailsPageId);
+        var flowsWithAdmissionDetails = FlowFilesContaining(AddJourneyDateRules.AdmissionDetailsPageId);
+
+        Assert.NotEmpty(flowsWithLearnerDetails);
+        Assert.Equal(flowsWithLearnerDetails, flowsWithAdmissionDetails);
+    }
+
+    private static SortedSet<string> FlowFilesContaining(string pageId) =>
+        new(AllFlowPages().Where(p => p.Page.Id == pageId).Select(p => p.File), StringComparer.Ordinal);
+
+    /// <summary>
     /// Pins the scenario-006 invalid-date wording. The removal journeys substitute the
     /// question's own <c>validationFailure</c> for every invalid-date failure, so this string
     /// is the message users see — a copy edit here changes what gets shown. The generic EAL
@@ -209,6 +263,50 @@ public sealed class QuestionFlowValidatorAlignmentTests
         return validatorTypes
             .Select(t => ((IFormatValidator)Activator.CreateInstance(t)!).Name)
             .ToHashSet(StringComparer.Ordinal);
+    }
+
+    /// <summary>
+    /// A single-question page must NOT set a page-level <c>title</c>.
+    ///
+    /// <c>JourneyViewModelBuilder</c> sets <c>IsPageHeading = isSingleQuestion &amp;&amp;
+    /// string.IsNullOrEmpty(page.Title)</c>, and <c>Page.cshtml</c> renders its own <c>h1</c> only
+    /// when the page has MORE than one question. So a single-question page that also sets a page
+    /// title renders no <c>h1</c> at all — that title feeds only the browser title, and the
+    /// question's legend/label drops from <c>--l</c> to <c>--m</c>.
+    ///
+    /// A page with no heading is a WCAG 2.2 AA failure that nothing else notices: the page still
+    /// renders, still validates and still submits. Use <c>pageTitle</c> when the browser title needs
+    /// to differ from the question (e.g. to keep a pupil name out of it).
+    /// </summary>
+    [Fact]
+    public void SingleQuestionPages_LeaveThePageTitleEmpty_SoTheQuestionBecomesTheHeading()
+    {
+        foreach (var (file, page) in AllFlowPages())
+        {
+            if (page.Type != PageType.Question || page.Questions.Count != 1) continue;
+
+            Assert.True(string.IsNullOrEmpty(page.Title),
+                $"{file}: page '{page.Id}' has a single question but also sets a page-level title " +
+                $"('{page.Title}'), which suppresses IsPageHeading and leaves the page with no <h1>. " +
+                "Remove the page title; use 'pageTitle' if the browser title must differ.");
+        }
+    }
+
+    /// <summary>
+    /// An optional question's title must not spell out "(Optional)" — <c>JourneyViewModelBuilder</c>
+    /// appends it, so a title containing it renders "… (Optional) (Optional)".
+    /// </summary>
+    [Fact]
+    public void OptionalQuestions_DoNotRepeatTheOptionalSuffixInTheirTitle()
+    {
+        foreach (var (file, question) in AllFlowQuestions())
+        {
+            if (!question.Optional) continue;
+
+            Assert.False(question.Title.Contains("(Optional)", StringComparison.OrdinalIgnoreCase),
+                $"{file}: optional question '{question.Id}' spells out \"(Optional)\" in its title " +
+                $"('{question.Title}'). The view model appends it, so this renders it twice.");
+        }
     }
 
     private static IEnumerable<(string File, Question Question)> AllFlowQuestions() =>

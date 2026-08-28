@@ -1,13 +1,20 @@
 @model DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin.ValidationViewModel
 
-<h1 class="govuk-heading-l">Validate window</h1>
+@{
+    // Matches the <h1> below. #319: a run belongs to one checking exercise, so the page says which.
+    ViewBag.Title = $"Validate {Model.ExerciseLabel}";
+}
+
+<h1 class="govuk-heading-l">Validate @Model.ExerciseLabel</h1>
 
 @* No-JS fallback: the POST renders this summary once processing has run to completion. *@
 @if (Model.ProcessingResult is not null)
 {
     var failed = Model.ProcessingResult.ErrorCount > 0;
     <div class="govuk-panel govuk-panel--confirmation">
-        <h1 class="govuk-panel__title">@(failed ? "Validation failed" : "Validation complete")</h1>
+        @* h2, not h1: the page already has one above. Two would break the single-h1 rule the
+           moment the no-JS fallback rendered its result. *@
+        <h2 class="govuk-panel__title">@(failed ? "Validation failed" : "Validation complete")</h2>
         <div class="govuk-panel__body">@Model.ProcessingResult.ErrorLogs</div>
     </div>
 

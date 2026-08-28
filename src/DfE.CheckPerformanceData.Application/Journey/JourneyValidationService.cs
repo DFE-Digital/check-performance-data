@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.Journey.DateRules;
 using DfE.CheckPerformanceData.Application.Journey.Validators;
+using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Application.Journey;
@@ -56,6 +57,10 @@ public sealed class JourneyValidationService(
         // (PageDateRules), and the six removal pages share the future-date rule
         // (RemovalJourneyDateRules). A page can belong to only one, and neither runs on a page
         // the other owns — the wording (and the whole rule) differ.
+        //
+        // The Add rules are the only ones that compare across pages, so callers must pass every
+        // answer the journey holds, with the page's own posted answers overlaid — see the caller
+        // in JourneyController.Page(POST).
         if (string.Equals(page.Id, PageDateRules.EalDetailsPageId, StringComparison.Ordinal))
         {
             DateOnly? Answered(string questionId) =>
@@ -72,11 +77,70 @@ public sealed class JourneyValidationService(
         if (RemovalJourneyDateRules.AppliesToPage(page.Id))
             return RemovalJourneyDateRules.EvaluateFutureDates(page, answers, UkToday(), pupilName);
 
+        if (AddJourneyDateRules.AppliesToPage(page.Id))
+            return AddJourneyDateRules.Evaluate(page, answers, UkToday(), pupilName);
+
+        if (MissingQualificationDateRules.AppliesToPage(page.Id))
+            return MissingQualificationDateRules.Evaluate(page, answers, UkToday());
+
         return [];
     }
 
     private DateOnly UkToday() => DateOnly.FromDateTime(
         TimeZoneInfo.ConvertTimeFromUtc(_timeProvider.GetUtcNow().UtcDateTime, UkZone));
+
+    /// <summary>
+    /// AB#296648: copy flagged for content review. Pinned by tests, so a change here is deliberate.
+    /// </summary>
+    public const string RevisedGradeMustDifferMessage =
+        "The revised grade must be different from the current grade";
+
+    public string? ValidateGradeSelect(
+        Question question,
+        QuestionAnswer? answer,
+        GradeReference? reference,
+        string? currentGrade,
+        string? resolvedValidationFailure = null)
+    {
+        var required = resolvedValidationFailure ?? "Select the revised grade";
+        var chosen = answer?.TextValue?.Trim();
+
+        if (string.IsNullOrEmpty(chosen))
+            return required;
+
+        // Ordinal and case-sensitive throughout. Grades are opaque codes, and the IB Diploma proves
+        // why precision matters: 24F is a fail and 24D a pass, so 24F -> 24D is a real change. Any
+        // normalising comparison risks either rejecting a genuine enquiry or accepting a no-op one.
+        if (currentGrade is { Length: > 0 } current
+            && !string.IsNullOrWhiteSpace(current)
+            && string.Equals(chosen, current.Trim(), StringComparison.Ordinal))
+            return RevisedGradeMustDifferMessage;
+
+        // Fail closed. A null reference (the QAN is missing from the AODC data) or an empty scale
+        // both land here, so a reference-data gap holds the enquiry back without a special case —
+        // the page explains the gap to the user.
+        if (reference is null || !reference.Offers(chosen))
+            return required;
+
+        return null;
+    }
+
+    /// <summary>
+    /// AB#297848: membership validation for a select whose options come from server-side state
+    /// (SyllabusSelect). Fails closed — blank, unknown, and nothing-to-offer all return the same
+    /// message, so a forged value is indistinguishable from no selection. Ordinal comparison,
+    /// matching the grade rules: codes are opaque and normalisation could accept a value the
+    /// picker never rendered.
+    /// </summary>
+    public string? ValidateOptionSelect(
+        Question question, QuestionAnswer? answer,
+        IReadOnlyList<string> allowedValues, string? resolvedValidationFailure = null)
+    {
+        var required = resolvedValidationFailure ?? $"{question.Title} is required";
+        var chosen = answer?.TextValue?.Trim();
+        if (string.IsNullOrEmpty(chosen)) return required;
+        return allowedValues.Contains(chosen, StringComparer.Ordinal) ? null : required;
+    }
 
     public string? ValidateAnswer(Question question, QuestionAnswer answer, string resolvedTitle, string? resolvedValidationFailure = null)
     {
@@ -102,7 +166,13 @@ public sealed class JourneyValidationService(
                 => scopedDateFailure ?? $"{resolvedTitle} must be a real date",
             QuestionType.TextArea when string.IsNullOrWhiteSpace(answer.TextValue)
                 => resolvedValidationFailure ?? $"{resolvedTitle} is required",
-            QuestionType.TextArea when question.CharacterLimit.HasValue && answer.TextValue!.Length > question.CharacterLimit.Value
+            // Null-conditional, not null-forgiving: TextArea reaches here only after the arm above
+            // has ruled out a blank value, but FreeText has no such arm — its emptiness is handled
+            // by the generic "is required" arm further down. A FreeText field whose form key never
+            // arrived reads back as null, and measuring its length would throw instead of reporting
+            // the missing answer. A null length compares false against the limit, so it falls through.
+            QuestionType.TextArea or QuestionType.FreeText
+                when question.CharacterLimit.HasValue && answer.TextValue?.Length > question.CharacterLimit.Value
                 => $"{resolvedTitle} must be {question.CharacterLimit} characters or less",
             QuestionType.Date => null,
             _ when string.IsNullOrWhiteSpace(answer.TextValue)
@@ -157,6 +227,19 @@ public sealed class JourneyValidationService(
         var uniqueId = Guid.NewGuid().ToString("N")[..7].ToUpper();
         return $"CYPMD_{type}_{uniqueId}";
     }
+
+    /// <summary>
+    /// The reference for a 16-19 results enquiry: <c>CYPMD_16to19_RE_{7 hex}</c>. AB#296648.
+    ///
+    /// A separate format from <see cref="GenerateReference"/> because support staff read these aloud
+    /// and need to tell an enquiry from an amendment at a glance — hence the <c>RE</c> segment, and
+    /// <c>16to19</c> rather than the enum's <c>Post16</c>, which is what the service calls the key
+    /// stage everywhere a school can see it.
+    ///
+    /// Decided: the confirmation mockup's <c>3014023_RE10005</c> was confirmed illustrative.
+    /// </summary>
+    public string GenerateEnquiryReference()
+        => $"CYPMD_16to19_RE_{Guid.NewGuid().ToString("N")[..7].ToUpper()}";
 
     public EvidenceValidationResult? ValidateEvidencePage(JourneyPage page, RequestState journey, string pupilName,
         IReadOnlySet<string>? conditionallyOptionalQuestionIds = null)

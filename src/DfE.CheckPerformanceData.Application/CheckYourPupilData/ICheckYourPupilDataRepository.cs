@@ -13,6 +13,16 @@ public interface ICheckYourPupilDataRepository
     Task<IReadOnlyList<IPupilRecord>> GetAllPupilsAsync(Guid windowId, string laestab, bool included);
 
     Task<CheckingWindowDto> GetCheckingWindowAsync(Guid windowId);
-    Task<IReadOnlyList<PupilSuggestionDto>> SearchPupilsAsync(Guid windowId, string laestab, string urn, string query, PupilFilter filter, Guid? excludeId = null);
+
+    /// <summary>
+    /// Autocomplete suggestions for the pupil search, capped at ten.
+    ///
+    /// <paramref name="cypmdIdAllowList"/> restricts the search to a set of students, and is how a
+    /// results enquiry keeps a school from naming a student who holds no result. Null means no
+    /// restriction (every other journey); an empty set correctly matches nobody. It is applied
+    /// before the cap, so a student who does hold results is never crowded out by ten who do not.
+    /// </summary>
+    Task<IReadOnlyList<PupilSuggestionDto>> SearchPupilsAsync(Guid windowId, string laestab, string urn, string query, PupilFilter filter, Guid? excludeId = null, IReadOnlySet<string>? cypmdIdAllowList = null);
+
     Task<PupilDto> GetPupilAsync(Guid windowId, string laestab, Guid pupilId);
 }

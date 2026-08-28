@@ -42,28 +42,40 @@ public sealed class CreateCheckingWindowController(ILogger<CreateCheckingWindowC
             return BadRequest("Invalid data");
         }
 
-        CheckingWindowDto checkingWindowDto = new CheckingWindowDto() 
+        CheckingWindowDto checkingWindowDto = new CheckingWindowDto()
         {
              Title = draft.Title!,
+             // Derived from the exercises, never typed by the admin (#319). CreateAsync re-derives
+             // them anyway; they are set here because the DTO requires them.
              StartDate = draft.StartDate!.Value,
              EndDate = draft.EndDate!.Value,
              CheckingWindowType = draft.CheckingWindowType!.Value,
              KeyStage = draft.KeyStage!.Value,
+             Exercises = draft.ToExerciseDtos()
          };
         CheckingWindowDto window = await windowService.CreateAsync(checkingWindowDto, cancellationToken);
-        
-        CreateWindowContainer(window.Id.ToString());
+
+        if (!CreateWindowContainer(window.Id.ToString()))
+        {
+            return Problem("App storage is not configured.");
+        }
+
         return RedirectToAction("Index", "Summary", new { id = window.Id });
     }
 
-    private void CreateWindowContainer(string id)
+    // False when there is no app storage client to create the window's blob container with. The
+    // caller surfaces that rather than carrying on: every later step of the wizard writes into
+    // that container, so a window without one is not usable.
+    private bool CreateWindowContainer(string id)
     {
-        if (!blobClients.TryGetValue("app", out var appBlobClient))
+        if (!blobClients.TryGetValue("app", out BlobServiceClient? appBlobClient))
         {
             logger.LogWarning("App storage client is not configured");
-            Problem("App storage is not configured.");
+            return false;
         }
+
         appBlobClient.CreateBlobContainer(id);
+        return true;
     }
     
 }

@@ -2,6 +2,9 @@ using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.LandingPage;
+// Aliased, not imported: WindowManagement also declares a CheckingWindowDto, which would make the
+// LandingPage one ambiguous here.
+using ICheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.ICheckingExerciseService;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Analytics;
 using DfE.CheckPerformanceData.Web.Session;
@@ -9,8 +12,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData;
 
-public sealed class CheckYourPupilDataController(ICheckYourPupilDataService checkYourPupilDataService, TimeProvider timeProvider,
-    ICurrentUserService currentUserService, IAnalyticsService analytics) : Controller
+// #317: this controller no longer holds a TimeProvider. Every "is it open" question on this page
+// goes through ICheckingExerciseService, which owns the only clock in that path.
+public sealed class CheckYourPupilDataController(ICheckYourPupilDataService checkYourPupilDataService,
+    ICurrentUserService currentUserService, IAnalyticsService analytics,
+    INextStepsService nextSteps, ICheckingExerciseService checkingExercises) : Controller
 {
     private const int PageSize = 10;
     private const int MaxSearchLength = 100;
@@ -95,7 +101,14 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
     [Route("CheckYourPupilData/{windowId}/nextstep")]
     public async Task<IActionResult> NextStep(Guid windowId, CheckYourPupilDataViewModel viewModel)
     {
-        if (viewModel.SelectedNextStep is null)
+        // #317: the allowed options are re-derived from the window's open exercises here rather
+        // than trusted from the post. Not rendering an option is a UI courtesy; a hand-crafted post
+        // must not start a journey for an exercise that is shut, or that this window does not run
+        // at all, so it is rejected exactly as an unanswered question would be.
+        var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
+        var allowed = nextSteps.GetAvailableSteps(window.Exercises);
+
+        if (viewModel.SelectedNextStep is null || !allowed.Contains(viewModel.SelectedNextStep.Value))
         {
             ModelState.AddModelError(nameof(CheckYourPupilDataViewModel.SelectedNextStep), "Select what you would like to do");
             await analytics.TrackSafeAsync(new ValidationErrorEvent { ErrorCount = 1, ErrorCodes = [ValidationErrorCoding.NoSelection], ErrorFields = [nameof(CheckYourPupilDataViewModel.SelectedNextStep)] });
@@ -109,6 +122,7 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         {
             NextSteps.RequestChange => RedirectToAction("Index", "WhatToChange", new { windowId }),
             NextSteps.Confirm => RedirectToAction("Index", "ConfirmCorrect", new { windowId }),
+            NextSteps.ResultsEnquiry => RedirectToAction("Index", "ResultIssue", new { windowId }),
             _ => RedirectToAction("Index", "CheckYourPupilData", new { windowId })
         };
     }
@@ -130,7 +144,6 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         if (!string.IsNullOrEmpty(nonIncludedSearch))
             await analytics.TrackSafeAsync(new PupilDataSearchResultsEvent { ResultCount = nonIncludedTotal, ActiveTab = "nonIncluded" });
 
-        var now = timeProvider.GetLocalNow().DateTime;
         var journey = HttpContext.Session.GetRequestState(windowId);
 
         List<PupilTableSection> sections =
@@ -169,14 +182,17 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         {
             SelectedNextStep = journey.SelectedNextStep,
             WindowId = windowId.ToString(),
-            WindowEndDate = window.EndDate.ToString("dddd d MMMM yyyy"),
-            WindowEndTime = window.EndDate.ToString("htt").ToLower(),
             WindowTitle = window.Title,
             Sections = sections,
             // 16-19 stacks both populations in one "Pupils" tab, because there the tab axis is
             // dataset (the other 16-19 import files become sibling tabs later), not inclusion.
             SectionsAsTabs = window.CheckingWindowType != CheckingWindowType.Post16,
-            IsWindowOpen = window.StartDate <= now && now <= window.EndDate,
+            // #317: the options are whatever the open exercises offer, for any number of exercises.
+            AvailableNextSteps = nextSteps.GetAvailableSteps(window.Exercises),
+            // The deadline sentence is about pupil data specifically, so it takes that exercise's
+            // own dates. On a multi-exercise window the outer EndDate is months later.
+            PupilDataEndDate = checkingExercises.EndDateFor(window.Exercises, CheckingExerciseType.PupilData),
+            IsPupilDataOpen = checkingExercises.IsOpen(window.Exercises, CheckingExerciseType.PupilData),
             OrganisationName = currentUserService.OrganisationName
         };
     }

@@ -122,11 +122,14 @@ All flow configs begin with one or more `PupilSearch` pages. These are full-page
 |---|---|---|---|
 | `pupilFilter` | yes | `"Included"` / `"All"` | `Included` limits results to Pincl codes `[401,403,414,421,431]`; `All` returns every pupil for the school |
 | `pupilKey` | yes | `"primary"` / `"match"` | Controls which session field is populated (see below) |
+| `requireResults` | no | `true` / `false` (default) | Limits the search to students the school holds a 16-19 result for. Independent of `pupilFilter`, which selects by inclusion status. Used by the results enquiry — there is no grade to correct for a student with no result. A page that sets it must say so in its `subheading`, because the restriction hides students silently |
 | `nextPageId` | no | page id string | Absent → redirect to Summary after selection |
 | `validationFailure` | no | string | Error shown when no pupil is submitted. Supports `{pupilName}`. Falls back to `"Enter the name of the pupil"` |
 
-**Suggestions endpoint:** `GET /pupils/suggestions?windowId={id}&query={q}&filter=Included|All&excludePupilId={guid}`  
+**Suggestions endpoint:** `GET /pupils/suggestions?windowId={id}&query={q}&filter=Included|All&excludePupilId={guid}&requireResults=true`  
 Served by `PupilSuggestionsController`. Queries PostgreSQL via `ICheckYourPupilDataService.GetPupilSuggestionsAsync`. The `match` pupil page automatically passes the primary pupil's ID as `excludePupilId` so the same pupil cannot be selected twice.
+
+`requireResults` is sent only when the page config sets it. The service resolves the school's set of CYPMD ids with results (`IStudentResultsClient.GetStudentIdsWithResultsAsync`, served from the same cached results file the enquiry itself reads) and passes it to `SearchPupilsAsync` as an allow-list, which applies it **before** the ten-suggestion cap — filtering afterwards would drop the one student who holds results whenever ten who do not sort ahead of them. It is a search restriction, never a permission: it can reach no pupil outside the signed-in school's own file. With it on, the autocomplete's no-match text becomes "No students found with results", so a school can tell a typo from a student who holds nothing.
 
 **On successful pupil selection (`PupilSearchPost`):**
 
@@ -290,7 +293,7 @@ The summary page renders a GOV.UK summary list of all answers. It can only be re
 - **Remove / Include** — a single "Pupil name" row shows `SelectedPupil` with a Change link to the primary `PupilSearch` page.
 - **Merge** — two rows replace the single "Pupil name" row:
   - **"First record to merge"** — `"{Firstname} {Surname}, {d MMMM yyyy}"` (e.g. `"Jane Smith, 27 July 2010"`) with a Change link to the primary `PupilSearch` page.
-  - **"Second record to merge"** — `"{Cypmd_Id}, {Firstname} {Surname}"` (e.g. `"CYPMD456, John Doe"`) with a Change link to the match `PupilSearch` page.
+  - **"Second record to merge"** — `"{Firstname} {Surname} {d MMMM yyyy} ({Cypmd_Id})"` (e.g. `"John Doe 2 February 2010 (CYPMD456)"`) with a Change link to the match `PupilSearch` page. If the DOB cannot be parsed the raw stored value is shown; if it is missing entirely the DOB segment is omitted (`"{name} ({id})"`).
   
   Change links for `PupilSearch` pages use the `PupilSearchPage` action rather than the `Page` action. The back link on the summary page also uses `PupilSearchPage` when the last page in `QuestionHistory` is a `PupilSearch` page.
 

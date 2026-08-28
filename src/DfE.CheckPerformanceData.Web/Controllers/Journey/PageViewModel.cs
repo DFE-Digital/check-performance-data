@@ -9,8 +9,51 @@ public sealed class PageViewModel
     public required Dictionary<string, QuestionAnswer> Answers { get; init; }
     public required IReadOnlyList<QuestionPartialModel> QuestionModels { get; init; }
     public string? BackPageId { get; init; }
+
+    /// <summary>Superseded by <see cref="BackPageAction"/> for building the link; kept because it
+    /// states a distinct fact (the previous page was a pupil search) that callers still assert.</summary>
     public bool BackPageIsPupilSearch { get; init; }
+
+    /// <summary>The JourneyController action that serves <see cref="BackPageId"/>. A bool cannot
+    /// express this now there are three page routes.</summary>
+    public string BackPageAction { get; init; } = nameof(JourneyController.Page);
     public bool FromSummary { get; init; }
+
+    /// <summary>
+    /// Which journey this page belongs to. Used by the Back link on a first page, where there is no
+    /// history to go back through: an amendment journey started at WhatToChange, a results enquiry at
+    /// ResultIssue, and sending the user to the wrong one drops them into a different task.
+    /// </summary>
+    public Application.CheckYourPupilData.WhatToChange? WhatToChange { get; init; }
+
+    /// <summary>
+    /// True when this journey is a 16-19 results enquiry rather than a pupil-data amendment, so the
+    /// first-page Back link goes to ResultIssue.
+    ///
+    /// Resolved through the checking-exercise map rather than naming enum members: the Back link
+    /// tested only for IncorrectGrade, so the missing-qualification journey's first page sent the
+    /// user to the amendment chooser — a different task entirely (AB#297848). A future enquiry
+    /// journey is right by construction the moment it is mapped to the exercise.
+    /// </summary>
+    public bool IsResultsEnquiry =>
+        WhatToChange is { } change &&
+        Application.WindowManagement.WhatToChangeCheckingExerciseMap.CheckingExerciseFor(change)
+            == Domain.Enums.CheckingExerciseType.ResultsEnquiry;
+
+    /// <summary>
+    /// AB#296648: the exam result a ResultDetails page is about, shown as a summary above the
+    /// revised-grade picker so the user can see they are correcting the right one. Null on every
+    /// other page type.
+    /// </summary>
+    public Application.ResultsEnquiry.StudentResultRecord? SelectedResult { get; init; }
+
+    /// <summary>AB#297848: the qualification a QualificationDetails page is about, shown as a
+    /// summary card above the questions. Null on every other page type.</summary>
+    public Application.ResultsEnquiry.QualificationReference? SelectedQualification { get; init; }
+
+    /// <summary>AB#297848: the pupil's CYPMD id, shown on the QualificationDetails summary card
+    /// (ResultDetails gets it from SelectedResult.CypmdId instead — there is no result here).</summary>
+    public string? CypmdId { get; init; }
     public string PupilName { get; init; } = string.Empty;
     public string? ContentKey { get; init; }
     public string? UploadError { get; init; }

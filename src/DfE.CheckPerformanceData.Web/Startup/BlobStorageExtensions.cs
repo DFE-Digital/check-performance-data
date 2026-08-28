@@ -66,6 +66,12 @@ public static class BlobStorageExtensions
         services.AddScoped<Application.ResultsEnquiry.IGradeReferenceClient>(
             sp => sp.GetRequiredService<GradeReferenceBlobClient>());
         services.AddHostedService<Seeding.GradeReferenceSeedingService>();
+        // AB#297848: the QualList qualification reference, beside the grade reference. The concrete
+        // type is registered too, for the same SeedIfMissingAsync reason as GradeReferenceBlobClient.
+        services.AddScoped<QualificationReferenceBlobClient>();
+        services.AddScoped<Application.ResultsEnquiry.IQualificationReferenceClient>(
+            sp => sp.GetRequiredService<QualificationReferenceBlobClient>());
+        services.AddHostedService<Seeding.QualificationReferenceSeedingService>();
         services.AddScoped<ICsvSchemaFileProcessor, CsvSchemaFileProcessor>();
 
         return services;

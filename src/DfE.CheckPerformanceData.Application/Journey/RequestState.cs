@@ -19,6 +19,11 @@ public sealed class RequestState
     /// Null until one is chosen.</summary>
     public StudentResultRecord? SelectedResult { get; set; }
 
+    /// <summary>AB#297848: the qualification a missing-qualification enquiry is about, re-resolved
+    /// server-side from the QualList reference so a forged posted QAN cannot enter the journey.
+    /// Null until one is chosen.</summary>
+    public QualificationReference? SelectedQualification { get; set; }
+
     public CheckingWindowDto? CheckingWindow { get; set; }
     public string? ReferenceNumber { get; set; }
     public Dictionary<string, QuestionAnswer> QuestionAnswers { get; set; } = new();

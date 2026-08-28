@@ -39,12 +39,14 @@
                 <govuk-radios-error-message>@fieldErrorMessage</govuk-radios-error-message>
             }
 
-            @* Only the incorrect-grade option ships in AB#296648. The two other options on the same
-               Figma screen belong to sibling tickets — rendering them here without a journey behind
-               them would dead-end the user, so the controller rejects their values as unanswered
-               until those flows exist. *@
+            @* The third Figma option (a pupil/result mismatch) is a sibling ticket with no journey —
+               rendering it here without one behind it would dead-end the user, so the controller
+               rejects it as unanswered until that flow exists. *@
             <govuk-radios-item value="@DfE.CheckPerformanceData.Web.Controllers.ResultIssueViewModel.IncorrectGrade" id="issueType">
                 Incorrect grade (once you have checked your second late results file in late November)
+            </govuk-radios-item>
+            <govuk-radios-item value="@DfE.CheckPerformanceData.Web.Controllers.ResultIssueViewModel.MissingQualification">
+                Missing qualification
             </govuk-radios-item>
         </govuk-radios-fieldset>
     </govuk-radios>

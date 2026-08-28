@@ -12,6 +12,7 @@ public sealed class WhatToChangeCheckingExerciseMapTests
 {
     [Theory]
     [InlineData(WhatToChange.IncorrectGrade, CheckingExerciseType.ResultsEnquiry)]
+    [InlineData(WhatToChange.MissingQualification, CheckingExerciseType.ResultsEnquiry)]
     [InlineData(WhatToChange.Merge, CheckingExerciseType.PupilData)]
     [InlineData(WhatToChange.Remove, CheckingExerciseType.PupilData)]
     [InlineData(WhatToChange.Include, CheckingExerciseType.PupilData)]
@@ -19,6 +20,15 @@ public sealed class WhatToChangeCheckingExerciseMapTests
     public void Each_change_type_maps_to_its_checking_exercise(
         WhatToChange change, CheckingExerciseType exercise)
         => Assert.Equal(exercise, WhatToChangeCheckingExerciseMap.CheckingExerciseFor(change));
+
+    [Fact]
+    public void MissingQualification_belongs_to_the_results_enquiry_exercise()
+    {
+        // The gate on every journey action derives the exercise from this map; a fall-through to
+        // PupilData would let the enquiry run after results enquiry closes (and vice versa).
+        Assert.Equal(CheckingExerciseType.ResultsEnquiry,
+            WhatToChangeCheckingExerciseMap.CheckingExerciseFor(WhatToChange.MissingQualification));
+    }
 
     [Fact]
     public void Every_change_type_maps_to_an_exercise_that_exists()

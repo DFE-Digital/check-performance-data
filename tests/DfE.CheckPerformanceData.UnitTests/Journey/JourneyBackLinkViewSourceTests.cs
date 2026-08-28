@@ -18,8 +18,13 @@ public sealed class JourneyBackLinkViewSourceTests
     {
         var view = ViewSource();
 
-        Assert.Contains("WhatToChange.IncorrectGrade", view);
+        // Model.IsResultsEnquiry, not a named enum member: the branch used to test IncorrectGrade
+        // alone, so the missing-qualification journey fell through to the amendment chooser
+        // (AB#297848). PageViewModelResultsEnquiryTests covers which journeys that property is true
+        // for; this only pins that the view asks the question that way.
+        Assert.Contains("Model.IsResultsEnquiry", view);
         Assert.Contains("asp-controller=\"ResultIssue\"", view);
+        Assert.DoesNotContain("WhatToChange.IncorrectGrade", view);
     }
 
     [Fact]

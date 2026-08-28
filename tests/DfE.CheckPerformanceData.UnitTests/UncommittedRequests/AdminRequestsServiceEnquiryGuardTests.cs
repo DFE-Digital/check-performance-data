@@ -10,12 +10,16 @@ using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.UncommittedRequests;
 
-// AB#296648: the window-close Zendesk replay must skip results enquiries.
+// AB#296648/AB#297848: the window-close Zendesk replay must skip results enquiries — BOTH kinds.
 //
 // This path rebuilds a PUPIL AMENDMENT ticket from a journey blob. An enquiry's QAN, session, current
 // and revised grade have no place in that shape, so replaying one would create a malformed ticket —
 // and worse, would flip the row from SubmittedUnCommitted to SubmittedCommitted, so the real
 // enquiry-to-Zendesk dispatch (a separate story) could never find it again.
+//
+// The enquiry cases are Theories over every enquiry kind rather than one hardcoded member: a new
+// results-enquiry journey that forgets this guard is exactly the regression AB#297848 shipped with,
+// and EnquiryKinds below is the one place a future sibling has to be added.
 public sealed class AdminRequestsServiceEnquiryGuardTests
 {
     private static readonly DateTimeOffset Now = new(2026, 11, 19, 9, 0, 0, TimeSpan.Zero);
@@ -73,6 +77,18 @@ public sealed class AdminRequestsServiceEnquiryGuardTests
         StartDate = new DateTime(2026, 10, 1), EndDate = new DateTime(2027, 3, 31)
     };
 
+    /// <summary>
+    /// Every WhatToChange that maps to the ResultsEnquiry checking exercise. Sourced from the map
+    /// rather than listed by hand, so a new enquiry journey is covered by these tests the moment it
+    /// is added to WhatToChangeCheckingExerciseMap — it cannot be forgotten here the way the guard
+    /// itself was. Fully qualified: the test assembly has its own WindowManagement namespace.
+    /// </summary>
+    public static TheoryData<WhatToChange> EnquiryKinds =>
+        new(Enum.GetValues<WhatToChange>()
+            .Where(c => global::DfE.CheckPerformanceData.Application.WindowManagement
+                .WhatToChangeCheckingExerciseMap.CheckingExerciseFor(c)
+                == CheckingExerciseType.ResultsEnquiry));
+
     private static RequestState Journey(WhatToChange change) => new()
     {
         SelectedWhatToChange = change,
@@ -80,6 +96,15 @@ public sealed class AdminRequestsServiceEnquiryGuardTests
         SelectedPupil = Pupil(),
         SelectedResult = change == WhatToChange.IncorrectGrade
             ? new StudentResultRecord { Qan = "60180882", Grade = "9", Session = "S2024" }
+            : null,
+        // A missing-qualification enquiry's subject is a QualList entry, not a held result.
+        SelectedQualification = change == WhatToChange.MissingQualification
+            ? new QualificationReference
+            {
+                Qan = "60146084",
+                QualificationTitle = "AQA Level 1/Level 2 GCSE (9-1) in Mathematics",
+                AwardingOrganisation = "AQA"
+            }
             : null,
         QuestionAnswers = [],
         QuestionHistory = ["page-1"]
@@ -105,10 +130,11 @@ public sealed class AdminRequestsServiceEnquiryGuardTests
             QueueOptions.ZendeskQueue, Arg.Any<object>(), Arg.Any<CancellationToken>());
     }
 
-    [Fact]
-    public async Task A_results_enquiry_is_not_replayed()
+    [Theory]
+    [MemberData(nameof(EnquiryKinds))]
+    public async Task A_results_enquiry_is_not_replayed(WhatToChange enquiry)
     {
-        Seed((Row(EnquiryRowId, "CYPMD_16to19_RE_BBBBBB2"), WhatToChange.IncorrectGrade));
+        Seed((Row(EnquiryRowId, "CYPMD_16to19_RE_BBBBBB2"), enquiry));
 
         var count = await _sut.ProcessCloseWindowEvent(CancellationToken.None);
 
@@ -117,12 +143,13 @@ public sealed class AdminRequestsServiceEnquiryGuardTests
             .EnqueueAsync(default!, default(object)!, default);
     }
 
-    [Fact]
-    public async Task A_results_enquiry_row_keeps_its_uncommitted_status()
+    [Theory]
+    [MemberData(nameof(EnquiryKinds))]
+    public async Task A_results_enquiry_row_keeps_its_uncommitted_status(WhatToChange enquiry)
     {
         // The important half: committing it would hide the enquiry from the dispatch that is
         // supposed to send it.
-        Seed((Row(EnquiryRowId, "CYPMD_16to19_RE_BBBBBB2"), WhatToChange.IncorrectGrade));
+        Seed((Row(EnquiryRowId, "CYPMD_16to19_RE_BBBBBB2"), enquiry));
 
         await _sut.ProcessCloseWindowEvent(CancellationToken.None);
 
@@ -130,12 +157,13 @@ public sealed class AdminRequestsServiceEnquiryGuardTests
             EnquiryRowId, Arg.Any<RequestStatus>(), Arg.Any<CancellationToken>());
     }
 
-    [Fact]
-    public async Task A_mixed_batch_replays_only_the_amendment()
+    [Theory]
+    [MemberData(nameof(EnquiryKinds))]
+    public async Task A_mixed_batch_replays_only_the_amendment(WhatToChange enquiry)
     {
         Seed(
             (Row(AmendmentRowId, "CYPMD_Post16_AAAAAA1"), WhatToChange.Remove),
-            (Row(EnquiryRowId, "CYPMD_16to19_RE_BBBBBB2"), WhatToChange.IncorrectGrade));
+            (Row(EnquiryRowId, "CYPMD_16to19_RE_BBBBBB2"), enquiry));
 
         var count = await _sut.ProcessCloseWindowEvent(CancellationToken.None);
 

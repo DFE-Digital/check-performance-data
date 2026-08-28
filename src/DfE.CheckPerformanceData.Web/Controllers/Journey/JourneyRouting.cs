@@ -16,6 +16,8 @@ public static class JourneyRouting
     {
         PageType.PupilSearch => nameof(JourneyController.PupilSearchPage),
         PageType.ResultSearch => nameof(JourneyController.ResultSearchPage),
+        // AB#297848: resolves an AO+QAN pair server-side, the same reason ResultSearch has its own action.
+        PageType.QualificationSearch => nameof(JourneyController.QualificationSearchPage),
         // ResultDetails renders its own view but is otherwise a question page, so it is served by
         // the generic Page action — the same arrangement EvidenceUpload uses.
         _ => nameof(JourneyController.Page)

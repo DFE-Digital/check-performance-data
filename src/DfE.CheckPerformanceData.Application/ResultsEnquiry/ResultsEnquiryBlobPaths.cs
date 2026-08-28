@@ -26,6 +26,9 @@ public static class ResultsEnquiryBlobPaths
     /// <summary>The grade-reference blob, seeded alongside <c>rules.json</c> in the rules-config container.</summary>
     public const string GradeReferenceBlobName = "grade-reference.json";
 
+    /// <summary>The QualList qualification reference blob (AB#297848), beside the grade reference.</summary>
+    public const string QualificationReferenceBlobName = "qualification-reference.json";
+
     /// <summary>e.g. "933/4070" -> "results-enquiry/data/9334070_results.json".</summary>
     public static string ResultsBlobName(string laestab)
         => CheckingExerciseBlobPaths.ResultsBlobName(laestab);

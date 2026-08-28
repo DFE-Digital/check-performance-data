@@ -33,7 +33,14 @@ public sealed class SummaryViewModel
     /// </summary>
     public ResultsEnquirySummary? Enquiry { get; init; }
 
-    public bool IsResultsEnquiry => Enquiry is not null;
+    /// <summary>
+    /// AB#297848: the missing-qualification enquiry summary, set only for that journey. Its
+    /// presence switches <see cref="Lines"/> onto the missing-qualification row set, alongside
+    /// <see cref="Enquiry"/> for incorrect-grade.
+    /// </summary>
+    public MissingQualificationSummary? MissingQualification { get; init; }
+
+    public bool IsResultsEnquiry => Enquiry is not null || MissingQualification is not null;
 
     public int TotalPagesUsed => FileRows.Sum(r => r.PageCount);
 
@@ -67,6 +74,7 @@ public sealed class SummaryViewModel
     {
         get
         {
+            if (MissingQualification is { } missingQualification) return missingQualification.Lines;
             if (Enquiry is { } enquiry) return enquiry.Lines;
 
             var lines = new List<SummaryLine>

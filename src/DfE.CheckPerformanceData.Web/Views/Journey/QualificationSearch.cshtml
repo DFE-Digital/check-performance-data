@@ -1,0 +1,141 @@
+@model DfE.CheckPerformanceData.Web.Controllers.Journey.QualificationSearchViewModel
+
+@{
+    @* The student's name is in Model.Page.Title, so the browser title (which also reaches analytics)
+       uses the name-free pageTitle from the flow config — the same split ResultSearch uses. Read from
+       the config rather than hardcoded so a content edit to MissingQualification_Post16.json actually
+       reaches the screen. *@
+    ViewBag.Title = Model.Page.PageTitle ?? "Provide the missing qualification details";
+    Layout = "_Layout";
+    var hasErrors = !ViewData.ModelState.IsValid;
+    var aoError = ViewData.ModelState["selectedAo"]?.Errors.FirstOrDefault()?.ErrorMessage;
+    var qanError = ViewData.ModelState["selectedQan"]?.Errors.FirstOrDefault()?.ErrorMessage;
+    var heading = Model.ResolvedTitle ?? "Provide the missing qualification details";
+    var referenceDataMissing = !Model.AwardingOrganisations.Any();
+}
+
+@if (Model.FromSummary)
+{
+    <a asp-action="Summary" asp-controller="Journey" asp-route-windowId="@Model.WindowId"
+       class="govuk-back-link">Back</a>
+}
+else
+{
+    <a asp-action="@Model.BackPageAction" asp-controller="Journey" asp-route-windowId="@Model.WindowId"
+       asp-route-pageId="@Model.BackPageId" class="govuk-back-link">Back</a>
+}
+
+@if (hasErrors)
+{
+    <govuk-error-summary>
+        <govuk-error-summary-title>There is a problem</govuk-error-summary-title>
+        @if (aoError is not null) { <govuk-error-summary-item href="#selectedAo">@aoError</govuk-error-summary-item> }
+        @if (qanError is not null) { <govuk-error-summary-item href="#selectedQan">@qanError</govuk-error-summary-item> }
+    </govuk-error-summary>
+}
+
+<h1 class="govuk-heading-xl">@heading</h1>
+
+@if (referenceDataMissing)
+{
+    @* The reference document is absent from the rules-config container: QualificationReferenceBlobClient
+       degrades a missing blob to an empty lookup rather than throwing, which would otherwise leave the
+       user staring at two empty dropdowns and looping on a validation error that blames them for a
+       problem they cannot fix. Mirrors ResultSearch.cshtml's no-results state and _GradeSelect's
+       reference-data gap. FLAGGED: copy needs content sign-off. *@
+    <div class="govuk-inset-text">
+        We cannot list qualifications at the moment, so this enquiry cannot be completed yet.
+    </div>
+
+    <p class="govuk-body">
+        Try again later. If the problem continues, contact the helpdesk.
+    </p>
+
+    <a asp-action="Index" asp-controller="ResultIssue" asp-route-windowId="@Model.WindowId"
+       class="govuk-link">Report a different issue</a>
+
+    return;
+}
+
+<govuk-summary-list>
+    <govuk-summary-list-row>
+        <govuk-summary-list-row-key>Student name</govuk-summary-list-row-key>
+        <govuk-summary-list-row-value>@Model.PupilName</govuk-summary-list-row-value>
+    </govuk-summary-list-row>
+    <govuk-summary-list-row>
+        <govuk-summary-list-row-key>CYPMD ID</govuk-summary-list-row-key>
+        <govuk-summary-list-row-value>@Model.CypmdId</govuk-summary-list-row-value>
+    </govuk-summary-list-row>
+</govuk-summary-list>
+
+<form method="post" action="@Url.Action("QualificationSearchPost", "Journey", new { windowId = Model.WindowId, pageId = Model.PageId })">
+    @Html.AntiForgeryToken()
+    @* Survives the round trip so re-confirming the same qualification returns to the summary,
+       and so a validation redisplay does not silently lose the Change-link context. *@
+    <input type="hidden" name="fromSummary" value="@Model.FromSummary.ToString().ToLower()" />
+
+    <div class="govuk-form-group @(aoError is not null ? "govuk-form-group--error" : "")">
+        <label class="govuk-label govuk-label--m" for="selectedAo">Select Awarding Organisation (AO) name</label>
+        @if (aoError is not null)
+        {
+            <p class="govuk-error-message" id="selectedAo-error"><span class="govuk-visually-hidden">Error:</span> @aoError</p>
+        }
+        <select class="govuk-select @(aoError is not null ? "govuk-select--error" : "")" id="selectedAo" name="selectedAo"
+                aria-describedby="@(aoError is not null ? "selectedAo-error" : null)">
+            <option value="">Select</option>
+            @foreach (var ao in Model.AwardingOrganisations)
+            {
+                <option value="@ao" selected="@(ao == Model.SelectedAo)">@ao</option>
+            }
+        </select>
+    </div>
+
+    <div class="govuk-form-group @(qanError is not null ? "govuk-form-group--error" : "")">
+        <label class="govuk-label govuk-label--m" for="selectedQan">Select the Qualification Number (QAN)</label>
+        @if (qanError is not null)
+        {
+            <p class="govuk-error-message" id="selectedQan-error"><span class="govuk-visually-hidden">Error:</span> @qanError</p>
+        }
+        @* Every QAN renders, grouped by AO, so the page works without JavaScript; the script below
+           narrows the list to the chosen AO. FLAGGED: option label format needs content sign-off. *@
+        <select class="govuk-select @(qanError is not null ? "govuk-select--error" : "")" id="selectedQan" name="selectedQan"
+                aria-describedby="@(qanError is not null ? "selectedQan-error" : null)">
+            <option value="">Select</option>
+            @foreach (var group in Model.Qualifications.GroupBy(q => q.AwardingOrganisation))
+            {
+                <optgroup label="@group.Key">
+                    @foreach (var q in group)
+                    {
+                        <option value="@q.Qan" data-ao="@q.AwardingOrganisation"
+                                selected="@(q.Qan == Model.SelectedQan)">@q.Qan — @q.QualificationTitle</option>
+                    }
+                </optgroup>
+            }
+        </select>
+    </div>
+
+    <govuk-button type="submit">Continue</govuk-button>
+</form>
+
+<script>
+    // Enhancement only: with JS off the QAN list stays complete, grouped by AO.
+    document.addEventListener('DOMContentLoaded', function () {
+        var ao = document.getElementById('selectedAo');
+        var qan = document.getElementById('selectedQan');
+        if (!ao || !qan) return;
+        var groups = Array.prototype.slice.call(qan.querySelectorAll('optgroup'));
+        function narrow() {
+            var chosen = ao.value;
+            groups.forEach(function (g) {
+                var match = !chosen || g.label === chosen;
+                g.hidden = !match;
+                Array.prototype.forEach.call(g.children, function (o) { o.disabled = !match; });
+            });
+            // A QAN from a now-hidden AO would post a mismatched pair the server rejects; clear it.
+            var selected = qan.selectedOptions[0];
+            if (selected && selected.value && selected.getAttribute('data-ao') !== chosen && chosen) qan.value = '';
+        }
+        ao.addEventListener('change', narrow);
+        narrow();
+    });
+</script>

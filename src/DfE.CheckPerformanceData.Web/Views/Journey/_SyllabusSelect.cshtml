@@ -1,0 +1,103 @@
+@using DfE.CheckPerformanceData.Web.Controllers.Journey
+@model QuestionPartialModel
+
+@*
+    The missing-qualification syllabus-code picker (AB#297848). A plain GOV.UK <select> so the page
+    works with JavaScript off, enhanced into a searchable type-ahead when script is available —
+    clone of _GradeSelect.cshtml with grade -> syllabus code substitutions.
+
+    Options come from the resolved qualification's QualList reference entry, each paired with its
+    title (sibling codes often differ only by specialism). Nothing is preselected — the user must
+    choose.
+*@
+
+@{
+    var hintId = $"{Model.FieldName}-hint";
+    var errorId = $"{Model.FieldName}-error";
+    var unavailableId = $"{Model.FieldName}-unavailable";
+    @* One literal, rendered once and announced once: the inset and the autocomplete's assistive hint
+       must say the same thing, and holding the string twice let them drift. *@
+    var unavailableMessage = "We cannot list syllabus codes for this qualification yet";
+    var describedBy = string.Join(" ", new[]
+        {
+            Model.Question.Hint is not null ? hintId : null,
+            Model.SyllabusOptionsUnavailable ? unavailableId : null,
+            Model.HasError ? errorId : null
+        }.Where(s => s is not null));
+}
+
+<div class="govuk-form-group @(Model.HasError ? "govuk-form-group--error" : "")">
+    @if (Model.IsPageHeading)
+    {
+        <h1 class="govuk-label-wrapper">
+            <label class="govuk-label govuk-label--l" for="@Model.FieldName">@Model.ResolvedTitle</label>
+        </h1>
+    }
+    else
+    {
+        <label class="govuk-label govuk-label--m" for="@Model.FieldName">@Model.ResolvedTitle</label>
+    }
+
+    @if (Model.Question.Hint is not null)
+    {
+        <div class="govuk-hint" id="@hintId">@Model.Question.Hint</div>
+    }
+
+    @if (Model.SyllabusOptionsUnavailable)
+    {
+        @* A reference-data gap, not a user error — so it is stated plainly rather than as a
+           validation failure. Validation still holds the enquiry back, because a syllabus code
+           nobody can confirm is valid is worse than no enquiry. FLAGGED: copy needs content sign-off. *@
+        <div class="govuk-inset-text" id="@unavailableId">@unavailableMessage</div>
+    }
+
+    @if (Model.HasError)
+    {
+        <p class="govuk-error-message" id="@errorId">
+            <span class="govuk-visually-hidden">Error:</span> @Model.Error
+        </p>
+    }
+
+    <select class="govuk-select @(Model.HasError ? "govuk-select--error" : "")"
+            id="@Model.FieldName" name="@Model.FieldName"
+            aria-describedby="@(describedBy.Length > 0 ? describedBy : null)">
+        <option value="">@(Model.Question.SelectPlaceholder ?? "Select")</option>
+        @foreach (var option in Model.VisibleOptions)
+        {
+            <option value="@option.Value" selected="@(option.Value == Model.ExistingAnswer?.TextValue)">@option.Label</option>
+        }
+    </select>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var select = document.getElementById('@Model.FieldName');
+        if (!select || typeof accessibleAutocomplete === 'undefined') return;
+        // Nothing to enhance when the reference data has no syllabus codes for this qualification.
+        if (select.options.length <= 1) return;
+
+        var hasError = @(Model.HasError ? "true" : "false");
+        var errorText = @Json.Serialize(Model.Error ?? "");
+        var unavailableText = @Json.Serialize(Model.SyllabusOptionsUnavailable ? unavailableMessage : "");
+        var hintText = @Json.Serialize(Model.Question.Hint ?? "");
+
+        // accessible-autocomplete owns the input's aria-describedby, rewriting it on every
+        // re-render, so tAssistiveHint is the supported way to get the hint, the reference-data
+        // inset and the error announced. See PupilSearch.cshtml for the full rationale.
+        var assistiveHint = (hasError ? 'Error: ' + errorText + '. ' : '')
+            + (unavailableText ? unavailableText + '. ' : '')
+            + (hintText ? hintText + '. ' : '')
+            + 'When autocomplete results are available use up and down arrows to review and '
+            + 'enter to select. Touch device users, explore by touch or with swipe gestures.';
+
+        accessibleAutocomplete.enhanceSelectElement({
+            selectElement: select,
+            preserveNullOptions: false,
+            showAllValues: true,
+            autoselect: false,
+            confirmOnBlur: false,
+            inputClasses: 'govuk-input@(Model.HasError ? " govuk-input--error" : "")',
+            tAssistiveHint: function () { return assistiveHint; }
+        });
+    });
+</script>

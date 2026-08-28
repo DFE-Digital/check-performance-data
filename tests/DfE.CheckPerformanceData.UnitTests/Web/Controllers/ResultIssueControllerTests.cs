@@ -160,12 +160,35 @@ public sealed class ResultIssueControllerTests
     [Fact]
     public async Task Post_with_an_unrecognised_option_is_rejected_as_unanswered()
     {
-        // This ticket renders only the incorrect-grade option. A posted value for a sibling ticket's
-        // option (or a forged one) must not start a journey there is no flow for.
-        var result = await _sut.Confirm(WindowId, new ResultIssueViewModel { WindowId = WindowId, IssueType = "missing-qualification" });
+        // "Result does not belong to pupil" is a sibling ticket with no journey. A posted value for
+        // it (or a forged one) must not start a journey there is no flow for.
+        var result = await _sut.Confirm(WindowId, new ResultIssueViewModel { WindowId = WindowId, IssueType = "result-does-not-belong" });
 
         Assert.IsType<ViewResult>(result);
         await _flowService.DidNotReceiveWithAnyArgs().GetConfigAsync(default, default);
+    }
+
+    [Fact]
+    public async Task Post_missing_qualification_starts_that_journey_at_its_first_page()
+    {
+        // Mirrors the incorrect-grade happy path, minus the late-results branch: the interstitial
+        // is about the second late results file, which cannot contain a qualification the data
+        // does not hold at all.
+        _flowService.GetConfigAsync(WhatToChange.MissingQualification, CheckingWindowType.Post16)
+            .Returns(new QuestionFlowConfig { FirstPageId = "cohort-scope", Pages = [] });
+
+        var result = await _sut.Confirm(WindowId, new ResultIssueViewModel
+            { WindowId = WindowId, IssueType = ResultIssueViewModel.MissingQualification });
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Journey", redirect.ControllerName);
+        Assert.Equal("Page", redirect.ActionName);
+        Assert.Equal("cohort-scope", redirect.RouteValues!["pageId"]);
+
+        var state = _session.GetRequestState(WindowId);
+        Assert.Equal(WhatToChange.MissingQualification, state.SelectedWhatToChange);
+        Assert.Empty(state.QuestionHistory);
+        await _lateResults.DidNotReceiveWithAnyArgs().IsSecondLateResultsAvailableAsync(default, default!, default);
     }
 
     // ── POST: the late-results branch ────────────────────────────────────────

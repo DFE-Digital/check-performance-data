@@ -115,6 +115,7 @@ public class JourneyControllerTests
             _optionVisibilityService, _optionalityService, _languageCapture,
             Substitute.For<DfE.CheckPerformanceData.Application.ResultsEnquiry.IStudentResultsClient>(),
             Substitute.For<DfE.CheckPerformanceData.Application.ResultsEnquiry.IGradeReferenceClient>(),
+            Substitute.For<DfE.CheckPerformanceData.Application.ResultsEnquiry.IQualificationReferenceClient>(),
             _requestNotificationService,
             _checkingExercises,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<JourneyController>.Instance)
@@ -519,6 +520,55 @@ public class JourneyControllerTests
         Assert.Null(remaining.SelectedPupil);
         Assert.Empty(remaining.QuestionAnswers);
         Assert.Empty(remaining.QuestionHistory);
+    }
+
+    // ── SummaryConfirm — missing-qualification enquiry (AB#297848) ───────────
+
+    [Fact]
+    public async Task SummaryConfirm_ForAMissingQualificationEnquiry_RedirectsToEnquiryConfirmation()
+    {
+        var state = ValidSession(history: ["page-1"]);
+        state.SelectedWhatToChange = WhatToChange.MissingQualification;
+        SetupSession(state);
+        _requestService.SubmitResultsEnquiryAsync(WindowId, Arg.Any<RequestState>())
+            .Returns("CYPMD_16to19_RE_1A2B3C4");
+
+        var result = await _sut.SummaryConfirm(WindowId);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(JourneyController.EnquiryConfirmation), redirect.ActionName);
+    }
+
+    [Fact]
+    public async Task SummaryConfirm_ForAMissingQualificationEnquiry_ResetsSessionToWindowAndReference()
+    {
+        var state = ValidSession(history: ["page-1"]);
+        state.SelectedWhatToChange = WhatToChange.MissingQualification;
+        SetupSession(state);
+        _requestService.SubmitResultsEnquiryAsync(WindowId, Arg.Any<RequestState>())
+            .Returns("CYPMD_16to19_RE_1A2B3C4");
+
+        await _sut.SummaryConfirm(WindowId);
+
+        var remaining = _session.GetRequestState(WindowId);
+        Assert.Equal("CYPMD_16to19_RE_1A2B3C4", remaining.ReferenceNumber);
+        Assert.NotNull(remaining.CheckingWindow);
+        Assert.Null(remaining.SelectedWhatToChange);
+    }
+
+    [Fact]
+    public async Task SummaryConfirm_ForAMissingQualificationEnquiry_EmitsTheMissingQualificationEnquiryType()
+    {
+        var state = ValidSession(history: ["page-1"]);
+        state.SelectedWhatToChange = WhatToChange.MissingQualification;
+        SetupSession(state);
+        _requestService.SubmitResultsEnquiryAsync(WindowId, Arg.Any<RequestState>())
+            .Returns("CYPMD_16to19_RE_1A2B3C4");
+
+        await _sut.SummaryConfirm(WindowId);
+
+        await _analytics.Received(1).TrackSafeAsync(Arg.Is<ResultsEnquirySubmittedEvent>(
+            e => e.EnquiryType == "missing-qualification"));
     }
 
     // ── PagePost — Autocomplete code capture ─────────────────────────────────

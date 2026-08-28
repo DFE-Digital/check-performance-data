@@ -30,6 +30,7 @@ public sealed class JourneyController(
     IOriginCountryLanguageCapture originCountryLanguageCapture,
     IStudentResultsClient studentResultsClient,
     IGradeReferenceClient gradeReferenceClient,
+    IQualificationReferenceClient qualificationReferenceClient,
     IRequestNotificationService requestNotificationService,
     ICheckingExerciseService checkingExerciseService,
     ILogger<JourneyController> logger) : Controller
@@ -41,6 +42,11 @@ public sealed class JourneyController(
     /// because changing the selected result has to clear this one answer specifically.
     /// </summary>
     internal const string RevisedGradeQuestionId = "q-revised-grade";
+
+    /// <summary>AB#297848: the missing-qualification flow's syllabus and grade question ids. Named
+    /// here because choosing a different qualification has to clear these two answers specifically.</summary>
+    internal const string SyllabusQuestionId = "q-syllabus-code";
+    internal const string MissingGradeQuestionId = "q-missing-grade";
 
     private const long MaxUploadBytes = 10 * 1024 * 1024; // 10 MB
 
@@ -66,6 +72,13 @@ public sealed class JourneyController(
         if (page.Type == PageType.ResultSearch)
             return RedirectToAction(nameof(ResultSearchPage), new { windowId, pageId });
 
+        // AB#297848: the qualification search resolves an AO+QAN pair server-side, the same reason
+        // ResultSearch has its own action. fromSummary rides along: the check-answers page's Change
+        // link on the AO/QAN rows arrives here, and dropping the flag stranded the user mid-journey
+        // instead of returning them to the summary.
+        if (page.Type == PageType.QualificationSearch)
+            return RedirectToAction(nameof(QualificationSearchPage), new { windowId, pageId, fromSummary });
+
         var nav = flowService.GetNavigationGuard(config, journey, pageId);
         if (nav is RedirectToJourneySummary) return RedirectToAction(nameof(Summary), new { windowId });
         if (nav is RedirectToJourneyPage { PageId: var navPageId })
@@ -77,6 +90,9 @@ public sealed class JourneyController(
             // A question page that also displays the selected result — served by this action so it
             // inherits PagePost's answer handling, but rendered by its own view.
             PageType.ResultDetails => "ResultDetails",
+            // AB#297848: same arrangement as ResultDetails — a question page with its own
+            // summary card, served here so it inherits PagePost's answer handling.
+            PageType.QualificationDetails => "QualificationDetails",
             _ => "Page"
         };
         // Surface an upload error stashed by UploadFile before its PRG redirect here — otherwise
@@ -237,9 +253,11 @@ public sealed class JourneyController(
         }
         else
         {
-            // AB#296648: an enquiry's reference carries an RE segment so support staff can tell it
-            // from an amendment when a school reads it out.
-            var reference = journey.SelectedWhatToChange == Application.CheckYourPupilData.WhatToChange.IncorrectGrade
+            // AB#296648/AB#297848: an enquiry's reference carries an RE segment so support staff can
+            // tell it from an amendment when a school reads it out. Both results-enquiry kinds share it.
+            var reference = journey.SelectedWhatToChange
+                is Application.CheckYourPupilData.WhatToChange.IncorrectGrade
+                or Application.CheckYourPupilData.WhatToChange.MissingQualification
                 ? journeyService.GenerateEnquiryReference()
                 : journeyService.GenerateReference(journey.CheckingWindow?.CheckingWindowType);
 
@@ -366,6 +384,114 @@ public sealed class JourneyController(
         return RedirectToJourneyAction(config, windowId, page.NextPageId);
     }
 
+    // ── QualificationSearchPage (GET) — AB#297848 ───────────────────────────
+
+    [Route("/Journey/{windowId}/qualification-search/{pageId}")]
+    public async Task<IActionResult> QualificationSearchPage(
+        Guid windowId, string pageId, bool fromSummary = false)
+    {
+        var journey = HttpContext.Session.GetRequestState(windowId);
+        if (!IsSessionReady(journey)) return RedirectToCheckYourData(windowId);
+
+        var config = await GetConfigAsync(journey);
+        if (config is null) return RedirectToCheckYourData(windowId);
+
+        var page = flowService.GetPage(config, pageId);
+        if (page is null || page.Type != PageType.QualificationSearch) return NotFound();
+
+        var nav = flowService.GetNavigationGuard(config, journey, pageId);
+        if (nav is RedirectToJourneySummary) return RedirectToAction(nameof(Summary), new { windowId });
+        if (nav is RedirectToJourneyPage { PageId: var navPageId })
+            return RedirectToJourneyAction(config, windowId, navPageId);
+
+        var lookup = await qualificationReferenceClient.GetLookupAsync(HttpContext.RequestAborted);
+        return View("QualificationSearch", viewModelBuilder.BuildQualificationSearchVm(
+            windowId, pageId, page, journey, config, lookup, fromSummary: fromSummary));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Route("/Journey/{windowId}/qualification-search/{pageId}")]
+    public async Task<IActionResult> QualificationSearchPost(
+        Guid windowId, string pageId, string? selectedAo, string? selectedQan, bool fromSummary = false)
+    {
+        var journey = HttpContext.Session.GetRequestState(windowId);
+        if (!IsSessionReady(journey)) return RedirectToCheckYourData(windowId);
+
+        var config = await GetConfigAsync(journey);
+        if (config is null) return RedirectToCheckYourData(windowId);
+
+        var page = flowService.GetPage(config, pageId);
+        if (page is null || page.Type != PageType.QualificationSearch) return NotFound();
+
+        var lookup = await qualificationReferenceClient.GetLookupAsync(HttpContext.RequestAborted);
+
+        // Resolve server-side and fail closed: the QAN must exist AND belong to the posted AO —
+        // the client-side cascade is presentation only, and a tampered pair would otherwise record
+        // an AO the qualification does not belong to.
+        var resolved = string.IsNullOrWhiteSpace(selectedQan) ? null : lookup.Find(selectedQan);
+        if (resolved is not null && !string.Equals(resolved.AwardingOrganisation, selectedAo, StringComparison.Ordinal))
+            resolved = null;
+
+        // The QAN message comes from the page's own validationFailure so the flow config is the copy's
+        // single source, exactly as ResultSearchPost does — hardcoding it here left title, pageTitle
+        // and validationFailure on this page as dead config that a content edit could not reach.
+        // The AO has no config field of its own (it is not a flow question), so it keeps its literal.
+        var qanFailure = page.ValidationFailure is not null
+            ? JourneyTemplate.Resolve(page.ValidationFailure, JourneyViewModelBuilder.GetPupilName(journey))
+            : "Select the Qualification Number (QAN)";
+
+        if (string.IsNullOrWhiteSpace(selectedAo))
+            ModelState.AddModelError("selectedAo", "Select the Awarding Organisation (AO) name");
+        if (resolved is null)
+            ModelState.AddModelError("selectedQan", qanFailure);
+
+        if (!ModelState.IsValid)
+        {
+            await analytics.TrackSafeAsync(new ValidationErrorEvent
+            {
+                ErrorCount = ModelState.ErrorCount,
+                ErrorCodes = [.. Enumerable.Repeat(ValidationErrorCoding.NoSelection, ModelState.ErrorCount)],
+                ErrorFields = [.. ModelState.Keys],
+                WhatToChange = journey.SelectedWhatToChange?.ToString(),
+            });
+            return View("QualificationSearch", viewModelBuilder.BuildQualificationSearchVm(
+                windowId, pageId, page, journey, config, lookup, selectedAo, selectedQan, fromSummary));
+        }
+
+        // Syllabus code and grade belong to one qualification: changing it must not carry them to
+        // a qualification that never offered them. Re-confirming the same QAN is not a change.
+        var qualificationChanged = journey.SelectedQualification?.Qan != resolved!.Qan;
+        HttpContext.Session.SaveRequestState(windowId, s =>
+        {
+            s.SelectedQualification = resolved;
+            if (qualificationChanged)
+            {
+                s.QuestionAnswers.Remove(SyllabusQuestionId);
+                s.QuestionAnswers.Remove(MissingGradeQuestionId);
+            }
+        });
+
+        journey = HttpContext.Session.GetRequestState(windowId);
+
+        // Arrived from the summary's Change link and re-confirmed the SAME qualification: nothing
+        // changed, so go straight back rather than walking the user through the rest of the journey
+        // again — and crucially WITHOUT trimming the history first. The pages after this one are
+        // still answered and still valid; dropping them leaves QuestionHistory ending at this page,
+        // and the summary's own "next unanswered page" check then computes qualification-details
+        // from it and bounces the user straight back out. PagePost skips its trim for the same
+        // reason when a re-answer leaves the branch target unmoved.
+        if (fromSummary && !qualificationChanged)
+            return RedirectToAction(nameof(Summary), new { windowId });
+
+        // A different qualification cleared the syllabus code and grade above, so everything after
+        // this page is stale: trim it and send the user to collect the answers they now owe.
+        TrimHistoryTo(journey, windowId, pageId);
+
+        if (page.NextPageId is null) return RedirectToAction(nameof(Summary), new { windowId });
+        return RedirectToJourneyAction(config, windowId, page.NextPageId);
+    }
+
     /// <summary>
     /// The answers belonging to pages the user visited BEFORE <paramref name="pageId"/>. Used when a
     /// pupil selection invalidates everything asked about that pupil, without discarding answers that
@@ -391,11 +517,16 @@ public sealed class JourneyController(
     /// complete. Returns the earliest gap so the user is sent to the first thing they still owe.
     /// Always null for an amendment journey.
     /// </summary>
-    private static string? FirstIncompleteEnquiryPage(RequestState journey, QuestionFlowConfig config)
-    {
-        if (journey.SelectedWhatToChange != Application.CheckYourPupilData.WhatToChange.IncorrectGrade)
-            return null;
+    private static string? FirstIncompleteEnquiryPage(RequestState journey, QuestionFlowConfig config) =>
+        journey.SelectedWhatToChange switch
+        {
+            Application.CheckYourPupilData.WhatToChange.IncorrectGrade => IncorrectGradeGap(journey, config),
+            Application.CheckYourPupilData.WhatToChange.MissingQualification => MissingQualificationGap(journey, config),
+            _ => null
+        };
 
+    private static string? IncorrectGradeGap(RequestState journey, QuestionFlowConfig config)
+    {
         var resultPage = config.Pages.FirstOrDefault(p => p.Type == PageType.ResultSearch);
         if (journey.SelectedResult is null)
             return resultPage?.Id;
@@ -409,6 +540,22 @@ public sealed class JourneyController(
     }
 
     /// <summary>
+    /// Changing the qualification clears the syllabus and grade answers but the details page stays
+    /// in history — so the summary must also check those two answers, not just the qualification.
+    /// </summary>
+    private static string? MissingQualificationGap(RequestState journey, QuestionFlowConfig config)
+    {
+        if (journey.SelectedQualification is null)
+            return config.Pages.FirstOrDefault(p => p.Type == PageType.QualificationSearch)?.Id;
+
+        bool Has(string id) => journey.QuestionAnswers.TryGetValue(id, out var a)
+            && !string.IsNullOrWhiteSpace(a.TextValue);
+        return Has(SyllabusQuestionId) && Has(MissingGradeQuestionId)
+            ? null
+            : config.Pages.FirstOrDefault(p => p.Questions.Any(q => q.Id == MissingGradeQuestionId))?.Id;
+    }
+
+    /// <summary>
     /// The grade scale for the selected result's qualification, or null when the page has no grade
     /// picker or the QAN is absent from the AODC reference data. A gap is logged rather than thrown:
     /// the page tells the user grades cannot be listed yet, and validation holds the enquiry back.
@@ -417,6 +564,11 @@ public sealed class JourneyController(
         JourneyPage page, RequestState journey, CancellationToken ct = default)
     {
         if (page.Questions.All(q => q.Type != QuestionType.GradeSelect)) return null;
+
+        // AB#297848: on a missing-qualification enquiry the scale comes from the QualList entry
+        // resolved at qualification selection — there is no exam result and no AODC lookup.
+        if (journey.SelectedResult is null && journey.SelectedQualification is { } qualification)
+            return qualification.ToGradeReference();
 
         var qan = journey.SelectedResult?.Qan;
         if (string.IsNullOrWhiteSpace(qan)) return null;
@@ -534,11 +686,20 @@ public sealed class JourneyController(
                     // A grade picker has its own rules and its own inputs (the qualification's scale
                     // and the grade the result already holds), so it does not go through the generic
                     // answer validator. AB#296648.
-                    var error = question.Type == QuestionType.GradeSelect
-                        ? journeyService.ValidateGradeSelect(
-                            question, answer, gradeReference, journey.SelectedResult?.Grade, resolvedValidationFailure)
-                        : journeyService.ValidateAnswer(
-                            question, answer, JourneyTemplate.Resolve(question.Title, pupilName), resolvedValidationFailure);
+                    var error = question.Type switch
+                    {
+                        QuestionType.GradeSelect => journeyService.ValidateGradeSelect(
+                            question, answer, gradeReference, journey.SelectedResult?.Grade, resolvedValidationFailure),
+                        // AB#297848: syllabus options live on the resolved qualification; a QAN
+                        // with none (961 of 974 today) rejects everything and the page explains
+                        // the gap. Membership is on the code alone — the title is display-only.
+                        QuestionType.SyllabusSelect => journeyService.ValidateOptionSelect(
+                            question, answer,
+                            journey.SelectedQualification?.SyllabusCodes.Select(c => c.Code).ToList() ?? [],
+                            resolvedValidationFailure),
+                        _ => journeyService.ValidateAnswer(
+                            question, answer, JourneyTemplate.Resolve(question.Title, pupilName), resolvedValidationFailure)
+                    };
 
                     if (error is not null)
                     {
@@ -615,6 +776,9 @@ public sealed class JourneyController(
             {
                 PageType.EvidenceUpload => "EvidenceUpload",
                 PageType.ResultDetails => "ResultDetails",
+            // AB#297848: same arrangement as ResultDetails — a question page with its own
+            // summary card, served here so it inherits PagePost's answer handling.
+            PageType.QualificationDetails => "QualificationDetails",
                 _ => "Page"
             };
             return View(invalidViewName, viewModelBuilder.BuildPageVm(windowId, page, displayAnswers,
@@ -920,10 +1084,41 @@ public sealed class JourneyController(
         var journey = HttpContext.Session.GetRequestState(windowId);
         if (!IsSessionReady(journey)) return RedirectToCheckYourData(windowId);
 
-        // AB#296648: a results enquiry submits by a different route — no duplicate check (several
-        // enquiries about the same result are allowed) and no rules-engine enqueue.
-        if (journey.SelectedWhatToChange == Application.CheckYourPupilData.WhatToChange.IncorrectGrade)
+        // AB#296648/AB#297848: a results enquiry submits by a different route — no duplicate check
+        // (several enquiries about the same result are allowed) and no rules-engine enqueue.
+        if (journey.SelectedWhatToChange
+            is Application.CheckYourPupilData.WhatToChange.IncorrectGrade
+            or Application.CheckYourPupilData.WhatToChange.MissingQualification)
+        {
+            // The same completeness check the summary GET runs, repeated on POST. The GET's verdict
+            // can be stale by the time Submit is pressed: changing the qualification (or the result)
+            // in another tab or via the back button clears the answers that depend on it, and this
+            // POST would otherwise persist and email an enquiry with no grade — and, for a missing
+            // qualification, no syllabus code either. SubmitResultsEnquiryAsync only asserts the
+            // subject is present, so this is the only place that can catch it.
+            //
+            // Fails OPEN when the flow config cannot be loaded, rather than bouncing the user: this
+            // check is an addition to a shipped journey (AB#296648), and submission never needed the
+            // config before — SubmitResultsEnquiryAsync does not read it. Turning an infrastructure
+            // blip into a refused submission would be a worse regression than the rare stale state
+            // this guards, which also requires the user to have edited in a second tab. The
+            // amendment path likewise tolerates a null config here.
+            var enquiryConfig = await GetConfigAsync(journey);
+            if (enquiryConfig is null)
+                logger.LogWarning(
+                    "No flow config for {WhatToChange}/{WindowType} at enquiry submission; the " +
+                    "completeness re-check was skipped for reference {ReferenceNumber}.",
+                    journey.SelectedWhatToChange, journey.CheckingWindow?.CheckingWindowType,
+                    journey.ReferenceNumber);
+
+            var incompletePage = enquiryConfig is null
+                ? null
+                : FirstIncompleteEnquiryPage(journey, enquiryConfig);
+            if (incompletePage is not null)
+                return RedirectToJourneyAction(enquiryConfig!, windowId, incompletePage);
+
             return await ConfirmResultsEnquiryAsync(windowId, journey);
+        }
 
         try
         {
@@ -1003,7 +1198,10 @@ public sealed class JourneyController(
 
         await analytics.TrackSafeAsync(new ResultsEnquirySubmittedEvent
         {
-            EnquiryType = ResultIssueViewModel.IncorrectGrade,
+            EnquiryType = journey.SelectedWhatToChange
+                == Application.CheckYourPupilData.WhatToChange.MissingQualification
+                ? ResultIssueViewModel.MissingQualification
+                : ResultIssueViewModel.IncorrectGrade,
             CohortWide = IsCohortWide(journey),
             CheckingWindowType = journey.CheckingWindow?.CheckingWindowType.ToString() ?? "",
             ReferenceNumber = reference,

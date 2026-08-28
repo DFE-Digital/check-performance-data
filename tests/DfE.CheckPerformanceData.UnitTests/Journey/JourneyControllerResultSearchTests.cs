@@ -63,7 +63,10 @@ public sealed class JourneyControllerResultSearchTests
     {
         Id = "grade-details",
         Type = PageType.ResultDetails,
-        Title = "Incorrect grade details"
+        Title = "Incorrect grade details",
+        // The answer a result change clears, so the submit-time completeness guard can find the page
+        // that owes it — as the shipped IncorrectGrade_Post16.json does.
+        Questions = [new Question { Id = "q-revised-grade", Type = QuestionType.GradeSelect, Title = "Revised grade" }]
     };
 
     private static readonly QuestionFlowConfig Flow = new()
@@ -102,7 +105,7 @@ public sealed class JourneyControllerResultSearchTests
         _sut = new JourneyController(
             _flowService, _journeyService, _fileStorage, _requestService, _pupilData, _vmBuilder,
             _analytics, _currentUser, _optionVisibility, _optionality, _originCapture, _results,
-            _gradeReference, _notifications, OpenCheckingExercises.AlwaysOpen(),
+            _gradeReference, Substitute.For<IQualificationReferenceClient>(), _notifications, OpenCheckingExercises.AlwaysOpen(),
             NullLogger<JourneyController>.Instance)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext }
@@ -513,6 +516,69 @@ public sealed class JourneyControllerResultSearchTests
         Assert.Empty(state.QuestionAnswers);
         Assert.Null(state.SelectedResult);
         Assert.Equal(["select-student-single"], state.QuestionHistory);
+    }
+
+    // ── Submitting a stale summary (AB#297848 fix, applied to this shipped journey) ──────────
+    //
+    // SummaryConfirm re-runs the summary GET's completeness check before persisting. The hole was
+    // always here too: ResultSearchPost clears q-revised-grade when the result changes, exactly as
+    // the qualification search clears the syllabus code and grade. These pin that the guard catches
+    // the incorrect-grade case AND — the regression risk of adding it — that a complete enquiry is
+    // still submitted untouched.
+
+    [Fact]
+    public async Task Submitting_after_the_result_changed_underneath_is_sent_back_not_persisted()
+    {
+        ReadyJourney(s =>
+        {
+            s.SelectedResult = BusStuds;
+            s.ReferenceNumber = "CYPMD_16to19_RE_1A2B3C4";
+            s.QuestionHistory = ["select-result", "grade-details"];
+            // q-revised-grade absent: choosing a different result in another tab cleared it.
+        });
+
+        var redirect = Assert.IsType<RedirectToActionResult>(await _sut.SummaryConfirm(WindowId));
+
+        Assert.Equal("grade-details", redirect.RouteValues!["pageId"]);
+        await _requestService.DidNotReceiveWithAnyArgs()
+            .SubmitResultsEnquiryAsync(default, default!, default);
+    }
+
+    [Fact]
+    public async Task A_complete_incorrect_grade_enquiry_still_submits_unchanged()
+    {
+        ReadyJourney(s =>
+        {
+            s.SelectedResult = BusStuds;
+            s.ReferenceNumber = "CYPMD_16to19_RE_1A2B3C4";
+            s.QuestionHistory = ["select-result", "grade-details"];
+            s.QuestionAnswers["q-revised-grade"] = new QuestionAnswer { TextValue = "6" };
+        });
+        _requestService.SubmitResultsEnquiryAsync(WindowId, Arg.Any<RequestState>(), Arg.Any<CancellationToken>())
+            .Returns("CYPMD_16to19_RE_1A2B3C4");
+
+        var redirect = Assert.IsType<RedirectToActionResult>(await _sut.SummaryConfirm(WindowId));
+
+        Assert.Equal(nameof(JourneyController.EnquiryConfirmation), redirect.ActionName);
+        await _requestService.Received(1)
+            .SubmitResultsEnquiryAsync(WindowId, Arg.Any<RequestState>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task An_enquiry_with_no_chosen_result_is_sent_to_the_result_search_not_the_page_action()
+    {
+        // The gap page here is a ResultSearch, which has its own action — a redirect to the generic
+        // Page action would 404. RedirectToJourneyAction resolves it, the same helper the GET uses.
+        ReadyJourney(s =>
+        {
+            s.ReferenceNumber = "CYPMD_16to19_RE_1A2B3C4";
+            s.QuestionHistory = ["select-result"];
+        });
+
+        var redirect = Assert.IsType<RedirectToActionResult>(await _sut.SummaryConfirm(WindowId));
+
+        Assert.Equal(nameof(JourneyController.ResultSearchPage), redirect.ActionName);
+        Assert.Equal("select-result", redirect.RouteValues!["pageId"]);
     }
 
     private sealed class FakeSession : ISession

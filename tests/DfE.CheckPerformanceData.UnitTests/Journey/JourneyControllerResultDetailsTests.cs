@@ -100,7 +100,8 @@ public sealed class JourneyControllerResultDetailsTests
             Substitute.For<IRequestService>(), Substitute.For<ICheckYourPupilDataService>(), builder,
             _analytics, _currentUser, _optionVisibility, _optionality,
             Substitute.For<IOriginCountryLanguageCapture>(),
-            Substitute.For<IStudentResultsClient>(), _gradeReference, _notifications,
+            Substitute.For<IStudentResultsClient>(), _gradeReference,
+            Substitute.For<IQualificationReferenceClient>(), _notifications,
             OpenCheckingExercises.AlwaysOpen(),
             NullLogger<JourneyController>.Instance)
         {

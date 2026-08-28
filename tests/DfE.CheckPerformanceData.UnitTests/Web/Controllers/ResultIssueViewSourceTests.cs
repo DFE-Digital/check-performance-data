@@ -47,14 +47,14 @@ public sealed class ResultIssueViewSourceTests
     }
 
     [Fact]
-    public void Only_the_incorrect_grade_option_is_rendered()
+    public void The_view_renders_the_incorrect_grade_and_missing_qualification_options_only()
     {
-        // Sibling tickets own the other two options on the Figma screen. Rendering them here without
-        // a journey behind them would dead-end the user.
+        // "Result does not belong to pupil" still has no journey (sibling ticket) — rendering it
+        // would dead-end the user, so it stays off the page.
         var view = ViewSource();
 
-        Assert.Equal(1, view.Split("<govuk-radios-item").Length - 1);
-        Assert.DoesNotContain("Missing qualification", view);
+        Assert.Equal(2, view.Split("<govuk-radios-item").Length - 1);
+        Assert.Contains("Missing qualification", view);
         Assert.DoesNotContain("Result does not belong to pupil", view);
     }
 

@@ -245,6 +245,92 @@ public sealed class RequestServiceResultsEnquiryTests
         await _repository.Received(2).UpsertAsync(Arg.Any<ChangeRequestData>());
     }
 
+    // ── AB#297848: the missing-qualification sibling enquiry ─────────────────
+
+    private static RequestState MissingQualificationJourney() => new()
+    {
+        SelectedWhatToChange = WhatToChange.MissingQualification,
+        CheckingWindow = new CheckingWindowDto
+        {
+            Title = "16 to 19 2026", KeyStage = KeyStages.Post16,
+            CheckingWindowType = CheckingWindowType.Post16,
+            StartDate = new DateTime(2026, 10, 1), EndDate = new DateTime(2027, 3, 31)
+        },
+        ReferenceNumber = "CYPMD_16to19_RE_1A2B3C4",
+        SelectedPupilId = Guid.NewGuid().ToString(),
+        SelectedPupil = new PupilDto
+        {
+            Id = Guid.Parse("33333333-3333-3333-3333-333333333333"),
+            Firstname = "Billy", Surname = "B", Sex = "M", DateOfBirth = "12/03/2007",
+            Age = 19, Cypmd_Id = "500001", Identifier = "9900000001"
+        },
+        SelectedQualification = new QualificationReference
+        {
+            Qan = "60146084", QualificationTitle = "AQA Level 1/Level 2 GCSE (9-1) in Mathematics",
+            AwardingOrganisation = "AQA", Grades = ["1", "2", "3"],
+            SyllabusCodes = [new SyllabusCode { Code = "8300H", Title = "Mathematics Higher Tier" }]
+        },
+        QuestionAnswers = new Dictionary<string, QuestionAnswer>
+        {
+            ["q-syllabus-code"] = new() { TextValue = "8300H" },
+            ["q-missing-grade"] = new() { TextValue = "2" }
+        },
+        QuestionHistory = ["select-qualification", "qualification-details", "additional-info"]
+    };
+
+    [Fact]
+    public async Task A_missing_qualification_enquiry_persists_with_its_own_amendment_type_and_description()
+    {
+        await _sut.SubmitResultsEnquiryAsync(WindowId, MissingQualificationJourney());
+
+        await _repository.Received(1).UpsertAsync(Arg.Is<ChangeRequestData>(d =>
+            d.AmendmentType == WhatToChange.MissingQualification &&
+            d.RequestTypeDescription == "Results enquiry - Missing qualification" &&
+            d.Status == RequestStatus.SubmittedUnCommitted &&
+            d.RequestType == RequestType.ResultsEnquiry));
+    }
+
+    [Fact]
+    public async Task A_missing_qualification_enquiry_never_enqueues()
+    {
+        await _sut.SubmitResultsEnquiryAsync(WindowId, MissingQualificationJourney());
+
+        await _queue.DidNotReceiveWithAnyArgs().EnqueueAsync<object>(default!, default!);
+    }
+
+    [Fact]
+    public async Task Submission_requires_a_selected_qualification()
+    {
+        var journey = MissingQualificationJourney();
+        journey.SelectedQualification = null;
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _sut.SubmitResultsEnquiryAsync(WindowId, journey));
+        await _repository.DidNotReceiveWithAnyArgs().UpsertAsync(default!);
+    }
+
+    [Fact]
+    public async Task A_missing_qualification_enquiry_does_not_require_a_selected_result()
+    {
+        // SelectedResult is the incorrect-grade path's subject; a missing qualification has none.
+        var journey = MissingQualificationJourney();
+        Assert.Null(journey.SelectedResult);
+
+        var reference = await _sut.SubmitResultsEnquiryAsync(WindowId, journey);
+
+        Assert.Equal("CYPMD_16to19_RE_1A2B3C4", reference);
+    }
+
+    [Fact]
+    public async Task An_amendment_still_cannot_route_through_the_enquiry_path()
+    {
+        var journey = MissingQualificationJourney();
+        journey.SelectedWhatToChange = WhatToChange.Remove;
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _sut.SubmitResultsEnquiryAsync(WindowId, journey));
+    }
+
     // ── Guard rails ──────────────────────────────────────────────────────────
 
     [Theory]

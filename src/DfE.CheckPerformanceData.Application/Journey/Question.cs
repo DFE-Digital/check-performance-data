@@ -20,6 +20,13 @@ public sealed class Question
     public string? ValidationFailure { get; init; }
 
     /// <summary>
+    /// The placeholder option text for a select-based question (GradeSelect / SyllabusSelect).
+    /// Null keeps each partial's historical default ("Select revised grade" for the grade picker),
+    /// so the shipped incorrect-grade markup is unchanged. AB#297848 sets "Select" to match Figma.
+    /// </summary>
+    public string? SelectPlaceholder { get; init; }
+
+    /// <summary>
     /// Optional name of an <c>IFormatValidator</c> applied to this question's
     /// answer once it is non-empty (e.g. <c>"DfeNumber"</c>). An unregistered
     /// name is ignored.

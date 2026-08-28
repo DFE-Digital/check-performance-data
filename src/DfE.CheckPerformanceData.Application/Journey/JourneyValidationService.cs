@@ -80,6 +80,9 @@ public sealed class JourneyValidationService(
         if (AddJourneyDateRules.AppliesToPage(page.Id))
             return AddJourneyDateRules.Evaluate(page, answers, UkToday(), pupilName);
 
+        if (MissingQualificationDateRules.AppliesToPage(page.Id))
+            return MissingQualificationDateRules.Evaluate(page, answers, UkToday());
+
         return [];
     }
 
@@ -120,6 +123,23 @@ public sealed class JourneyValidationService(
             return required;
 
         return null;
+    }
+
+    /// <summary>
+    /// AB#297848: membership validation for a select whose options come from server-side state
+    /// (SyllabusSelect). Fails closed — blank, unknown, and nothing-to-offer all return the same
+    /// message, so a forged value is indistinguishable from no selection. Ordinal comparison,
+    /// matching the grade rules: codes are opaque and normalisation could accept a value the
+    /// picker never rendered.
+    /// </summary>
+    public string? ValidateOptionSelect(
+        Question question, QuestionAnswer? answer,
+        IReadOnlyList<string> allowedValues, string? resolvedValidationFailure = null)
+    {
+        var required = resolvedValidationFailure ?? $"{question.Title} is required";
+        var chosen = answer?.TextValue?.Trim();
+        if (string.IsNullOrEmpty(chosen)) return required;
+        return allowedValues.Contains(chosen, StringComparer.Ordinal) ? null : required;
     }
 
     public string? ValidateAnswer(Question question, QuestionAnswer answer, string resolvedTitle, string? resolvedValidationFailure = null)

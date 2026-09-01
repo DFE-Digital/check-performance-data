@@ -10,8 +10,10 @@ public sealed record PageNodeBundleItem
 {
     public Guid Id { get; init; }
     public Guid? ParentId { get; init; }
-    public string Segment { get; init; } = string.Empty;
-    public string Title { get; init; } = string.Empty;
+    private readonly string _segment = string.Empty;
+    public string Segment { get => _segment; init => _segment = BundleMemberDefaults.OrEmpty(value); }
+    private readonly string _title = string.Empty;
+    public string Title { get => _title; init => _title = BundleMemberDefaults.OrEmpty(value); }
 
     /// <summary>Optional lede rendered above the page H1. Null when unset.</summary>
     public string? Subtitle { get; init; }
@@ -19,7 +21,8 @@ public sealed record PageNodeBundleItem
     /// <summary>Optional short label used in nav/tree/list surfaces. Null when unset.</summary>
     public string? PageName { get; init; }
 
-    public string PageType { get; init; } = "folder";
+    private readonly string _pageType = "folder";
+    public string PageType { get => _pageType; init => _pageType = BundleMemberDefaults.OrEmpty(value); }
     public int SortOrder { get; init; }
 
     /// <summary>
@@ -34,5 +37,10 @@ public sealed record PageNodeBundleItem
     /// </summary>
     public string? Keywords { get; init; }
 
-    public List<PageNodeVersionBundleItem> Versions { get; init; } = [];
+    private readonly List<PageNodeVersionBundleItem> _versions = [];
+    public List<PageNodeVersionBundleItem> Versions
+    {
+        get => _versions;
+        init => _versions = BundleMemberDefaults.NonNullItems(value);
+    }
 }

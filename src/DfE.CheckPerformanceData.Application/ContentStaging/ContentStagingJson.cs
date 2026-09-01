@@ -13,7 +13,12 @@ public static class ContentStagingJson
         PropertyNameCaseInsensitive = true,
         WriteIndented = true,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-        Converters = { new JsonStringEnumConverter() }
+        Converters = { new JsonStringEnumConverter() },
+        // Explicit MaxDepth — bundle → pages → versions is 3 levels of nesting; 32 is
+        // ample headroom. Setting it here (rather than relying on the System.Text.Json
+        // default of 64) makes the DoS-tolerance intent obvious to a future reader and
+        // stops a maliciously-nested payload from allocating deep parser state.
+        MaxDepth = 32,
     };
 
     public static string Serialize(ContentBundle bundle) =>

@@ -26,23 +26,23 @@ public class ZendeskApiClientConfigurationTests
 {
     // What an unfilled user-secrets file carries. .env.example uses the angle-bracket form.
     private const string Placeholder = "[PLACE THESE IN YOUR USER SECRETS]";
-    private const string EnvExamplePlaceholder = "<zendesk-api-token>";
+    private const string EnvExamplePlaceholder = "<zendesk-client-secret>";
 
     private static IConfiguration ConfigWith(
         string? subdomain = "dfe", string? domain = "zendesk",
-        string? email = "cypmd@education.gov.uk", string? apiToken = "token")
+        string? clientId = "test-client-id", string? clientSecret = "test-client-secret")
         => new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["ZendeskSettings:Subdomain"] = subdomain,
             ["ZendeskSettings:Domain"] = domain,
-            ["ZendeskSettings:Email"] = email,
-            ["ZendeskSettings:ApiToken"] = apiToken,
+            ["ZendeskSettings:ClientId"] = clientId,
+            ["ZendeskSettings:ClientSecret"] = clientSecret,
         }).Build();
 
     private static ZendeskSettings SettingsWith(
         string subdomain = "dfe", string domain = "zendesk",
-        string email = "cypmd@education.gov.uk", string apiToken = "token")
-        => new() { Subdomain = subdomain, Domain = domain, Email = email, ApiToken = apiToken };
+        string clientId = "test-client-id", string clientSecret = "test-client-secret")
+        => new() { Subdomain = subdomain, Domain = domain, ClientId = clientId, ClientSecret = clientSecret };
 
     private static IServiceProvider Build(IConfiguration config, bool requireRealClient)
     {
@@ -77,7 +77,7 @@ public class ZendeskApiClientConfigurationTests
     [Fact]
     public void BlankSettings_WithTheFakeInUse_StillBuildAResolvableClient()
     {
-        var provider = Build(ConfigWith(subdomain: "", domain: "", email: "", apiToken: ""),
+        var provider = Build(ConfigWith(subdomain: "", domain: "", clientId: "", clientSecret: ""),
             requireRealClient: false);
 
         var client = provider.GetRequiredService<IZendeskApi>();
@@ -96,13 +96,13 @@ public class ZendeskApiClientConfigurationTests
 
         var ex = Assert.Throws<InvalidOperationException>(() =>
             services.AddZendeskApiClient(
-                ConfigWith(subdomain: "", domain: "", email: "", apiToken: ""),
+                ConfigWith(subdomain: "", domain: "", clientId: "", clientSecret: ""),
                 requireRealClient: true));
 
         Assert.Contains("Subdomain", ex.Message);
         Assert.Contains("Domain", ex.Message);
-        Assert.DoesNotContain("Email", ex.Message);
-        Assert.DoesNotContain("ApiToken", ex.Message);
+        Assert.DoesNotContain("ClientId", ex.Message);
+        Assert.DoesNotContain("ClientSecret", ex.Message);
     }
 
     // A partially-configured environment is the likelier real-world case, and the message is
@@ -210,17 +210,17 @@ public class ZendeskApiClientConfigurationTests
         Assert.NotNull(provider.GetRequiredService<IZendeskApi>());
     }
 
-    // The point of the split. A rotated-out or not-yet-populated ZendeskSettings__ApiToken is a
+    // The point of the split. A rotated-out or not-yet-populated ZendeskSettings__ClientSecret is a
     // credential problem: the Zendesk call fails, and nothing else in the process should care.
     // Before the split it took the whole worker down, consumers and retention jobs included.
     [Theory]
     [InlineData("", "")]
     [InlineData(Placeholder, Placeholder)]
-    [InlineData("cypmd@education.gov.uk", EnvExamplePlaceholder)]
-    [InlineData("cypmd@education.gov.uk", "")]
-    public async Task MissingCredentials_DoNotStopTheHostStarting(string email, string apiToken)
+    [InlineData("test-client-id", EnvExamplePlaceholder)]
+    [InlineData("test-client-id", "")]
+    public async Task MissingCredentials_DoNotStopTheHostStarting(string clientId, string clientSecret)
     {
-        var provider = Build(ConfigWith(email: email, apiToken: apiToken), requireRealClient: true);
+        var provider = Build(ConfigWith(clientId: clientId, clientSecret: clientSecret), requireRealClient: true);
 
         // Resolving the client and starting the hosted services is what the host does at start,
         // and is where the original crash-loop happened. Both have to survive.
@@ -237,21 +237,21 @@ public class ZendeskApiClientConfigurationTests
     public async Task MissingCredentials_AreWarnedAboutAtStartup()
     {
         var warnings = await WarningsAtStartup(
-            ConfigWith(email: "", apiToken: Placeholder), requireRealClient: true);
+            ConfigWith(clientId: "", clientSecret: Placeholder), requireRealClient: true);
 
         var warning = Assert.Single(warnings);
-        Assert.Contains("Email", warning);
-        Assert.Contains("ApiToken", warning);
+        Assert.Contains("ClientId", warning);
+        Assert.Contains("ClientSecret", warning);
     }
 
     [Fact]
     public async Task OneMissingCredential_IsWarnedAboutOnItsOwn()
     {
-        var warnings = await WarningsAtStartup(ConfigWith(apiToken: ""), requireRealClient: true);
+        var warnings = await WarningsAtStartup(ConfigWith(clientSecret: ""), requireRealClient: true);
 
         var warning = Assert.Single(warnings);
-        Assert.Contains("ApiToken", warning);
-        Assert.DoesNotContain("Email", warning);
+        Assert.Contains("ClientSecret", warning);
+        Assert.DoesNotContain("ClientId", warning);
     }
 
     // The warning must carry the name of the setting and never what is in it. The placeholder is
@@ -261,13 +261,13 @@ public class ZendeskApiClientConfigurationTests
     public async Task TheWarning_NamesTheSettingsWithoutQuotingTheirValues()
     {
         var warnings = await WarningsAtStartup(
-            ConfigWith(email: "cypmd@education.gov.uk", apiToken: Placeholder),
+            ConfigWith(clientId: "test-client-id", clientSecret: Placeholder),
             requireRealClient: true);
 
         var warning = Assert.Single(warnings);
-        Assert.Contains("ApiToken", warning);
+        Assert.Contains("ClientSecret", warning);
         Assert.DoesNotContain(Placeholder, warning);
-        Assert.DoesNotContain("cypmd@education.gov.uk", warning);
+        Assert.DoesNotContain("test-client-id", warning);
     }
 
     [Fact]
@@ -284,7 +284,7 @@ public class ZendeskApiClientConfigurationTests
     public async Task MissingCredentials_WithTheFakeInUse_WarnAboutNothing()
     {
         var warnings = await WarningsAtStartup(
-            ConfigWith(subdomain: "", domain: "", email: "", apiToken: ""),
+            ConfigWith(subdomain: "", domain: "", clientId: "", clientSecret: ""),
             requireRealClient: false);
 
         Assert.Empty(warnings);
@@ -315,18 +315,18 @@ public class ZendeskApiClientConfigurationTests
     // IZendeskService and nothing else: IZendeskAttachmentService stays the real Refit client,
     // and this address is what stops a half-configured environment reaching Zendesk through it.
     [Theory]
-    [InlineData("", "zendesk", "a@b.gov.uk", "token")]
-    [InlineData("the subdomain", "zendesk", "a@b.gov.uk", "token")]
-    [InlineData(Placeholder, "zendesk", "a@b.gov.uk", "token")]
-    [InlineData("dfe", "", "a@b.gov.uk", "token")]
-    [InlineData("dfe", "zendesk", "", "token")]
-    [InlineData("dfe", "zendesk", "a@b.gov.uk", "")]
-    [InlineData("dfe", "zendesk", "a@b.gov.uk", EnvExamplePlaceholder)]
+    [InlineData("", "zendesk", "test-client-id", "test-client-secret")]
+    [InlineData("the subdomain", "zendesk", "test-client-id", "test-client-secret")]
+    [InlineData(Placeholder, "zendesk", "test-client-id", "test-client-secret")]
+    [InlineData("dfe", "", "test-client-id", "test-client-secret")]
+    [InlineData("dfe", "zendesk", "", "test-client-secret")]
+    [InlineData("dfe", "zendesk", "test-client-id", "")]
+    [InlineData("dfe", "zendesk", "test-client-id", EnvExamplePlaceholder)]
     public void AnySettingMissing_PointsTheClientAtAnUnresolvableHost(
-        string subdomain, string domain, string email, string apiToken)
+        string subdomain, string domain, string clientId, string clientSecret)
     {
         var address = InfrastructureDependencyManager.ZendeskBaseAddress(
-            SettingsWith(subdomain, domain, email, apiToken));
+            SettingsWith(subdomain, domain, clientId, clientSecret));
 
         Assert.Equal("invalid", address.Host.Split('.')[^1]);
     }
@@ -337,9 +337,9 @@ public class ZendeskApiClientConfigurationTests
     [Fact]
     public void WithTheFakeInUse_AConfiguredHostnameAndNoCredentials_StillGoNowhere()
     {
-        var provider = Build(ConfigWith(email: "", apiToken: ""), requireRealClient: false);
+        var provider = Build(ConfigWith(clientId: "", clientSecret: ""), requireRealClient: false);
         var address = InfrastructureDependencyManager.ZendeskBaseAddress(
-            SettingsWith(email: string.Empty, apiToken: string.Empty));
+            SettingsWith(clientId: string.Empty, clientSecret: string.Empty));
 
         Assert.NotNull(provider.GetRequiredService<IZendeskApi>());
         Assert.Equal("invalid", address.Host.Split('.')[^1]);
@@ -357,8 +357,8 @@ public class ZendeskApiClientConfigurationTests
 
         Assert.Equal("dfe", settings.Subdomain);
         Assert.Equal("zendesk", settings.Domain);
-        Assert.Equal("cypmd@education.gov.uk", settings.Email);
-        Assert.Equal("token", settings.ApiToken);
+        Assert.Equal("test-client-id", settings.ClientId);
+        Assert.Equal("test-client-secret", settings.ClientSecret);
     }
 
     private sealed class CapturingLoggerProvider : ILoggerProvider

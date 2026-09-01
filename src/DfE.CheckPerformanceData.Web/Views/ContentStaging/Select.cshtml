@@ -131,6 +131,23 @@
         </table>
     }
 
+    <div class="govuk-form-group">
+        <div class="govuk-checkboxes govuk-checkboxes--small" data-module="govuk-checkboxes">
+            <div class="govuk-checkboxes__item">
+                <input class="govuk-checkboxes__input" id="full-history" name="fullHistory" type="checkbox" value="true">
+                <label class="govuk-label govuk-checkboxes__label" for="full-history">
+                    Include full version history
+                </label>
+                <div id="full-history-hint" class="govuk-hint govuk-checkboxes__hint">
+                    Without this, each page brings its most recent
+                    @ContentExportSelection.DefaultMaxVersionsPerNode versions plus whichever
+                    version is currently live. Tick it only when migrating an environment
+                    wholesale — it can make the bundle many times larger.
+                </div>
+            </div>
+        </div>
+    </div>
+
     <button class="govuk-button" data-module="govuk-button" type="submit">Export selected</button>
 </form>
 

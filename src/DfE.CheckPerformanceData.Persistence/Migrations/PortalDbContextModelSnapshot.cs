@@ -70,6 +70,39 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     b.ToTable("AuditEntries");
                 });
 
+            modelBuilder.Entity("DfE.CheckPerformance.Persistence.Entities.ContentStagingSession", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("BundleJson")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("bundle_json");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at_utc");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExpiresAtUtc")
+                        .HasDatabaseName("ix_content_staging_sessions_expires_at_utc");
+
+                    b.ToTable("content_staging_sessions", (string)null);
+                });
+
             modelBuilder.Entity("DfE.CheckPerformance.Persistence.Entities.QueueMetricEvent", b =>
                 {
                     b.Property<long>("Id")

@@ -18,6 +18,7 @@ using DfE.CheckPerformanceData.Application.UnitTests.WindowManagement;
 // Alias, not a namespace import: WindowManagement also declares a CheckingWindowDto and this
 // file already uses the LandingPage one.
 using ICheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.ICheckingExerciseService;
+using WhatToChangeCheckingExerciseMap = DfE.CheckPerformanceData.Application.WindowManagement.WhatToChangeCheckingExerciseMap;
 using DfE.CheckPerformanceData.Web.Common;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Controllers;
@@ -470,7 +471,9 @@ public sealed class ResultIssueControllerTests
     public void Cancel_clears_the_bulk_and_single_edit_modes()
     {
         // Same hygiene as Confirm: a stale edit flag would make a later summary link back to the
-        // amendment-requests page instead of the journey.
+        // amendment-requests page instead of the journey. Cleared only alongside the journey wipe —
+        // a no-op cancel (nothing in progress) must leave an amendment's edit session untouched.
+        _session.SetRequestState(WindowId, new RequestState { SelectedWhatToChange = WhatToChange.IncorrectGrade });
         _session.SetBulkEditMode(WindowId);
         _session.SetSingleEditMode(WindowId);
 
@@ -478,6 +481,65 @@ public sealed class ResultIssueControllerTests
 
         Assert.False(_session.IsBulkEditMode(WindowId));
         Assert.False(_session.IsSingleEditMode(WindowId));
+    }
+
+    [Fact]
+    public void Cancel_after_submission_keeps_the_confirmation_renderable()
+    {
+        // Review finding 1 (verified live, CYPMD_16to19_RE_98DF50C): session state is keyed
+        // request_{windowId} alone, so every tab on a window shares one journey. Submitting leaves
+        // only { CheckingWindow, ReferenceNumber } so EnquiryConfirmation can render; the cancel
+        // link in a stale second tab must not wipe that residue, or the first tab's confirmation
+        // page — the only on-screen copy of the reference — dies on refresh.
+        _session.SetRequestState(WindowId, new RequestState
+        {
+            CheckingWindow = Post16Window,
+            ReferenceNumber = "CYPMD_16to19_RE_98DF50C"
+        });
+
+        _sut.Cancel(WindowId);
+
+        var state = _session.GetRequestState(WindowId);
+        Assert.Equal("CYPMD_16to19_RE_98DF50C", state.ReferenceNumber);
+        Assert.NotNull(state.CheckingWindow);
+    }
+
+    [Fact]
+    public void Cancel_leaves_an_in_progress_amendment_journey_alone()
+    {
+        // The route is reachable by URL alone; a forged or emailed link must not destroy a
+        // half-finished pupil-data amendment that happens to share the window's session slot.
+        _session.SetRequestState(WindowId, new RequestState
+        {
+            SelectedWhatToChange = WhatToChange.Remove,
+            QuestionAnswers = { ["q-removal-date"] = new QuestionAnswer { TextValue = "2026-07-01" } }
+        });
+
+        _sut.Cancel(WindowId);
+
+        var state = _session.GetRequestState(WindowId);
+        Assert.Equal(WhatToChange.Remove, state.SelectedWhatToChange);
+        Assert.NotEmpty(state.QuestionAnswers);
+    }
+
+    [Fact]
+    public void Every_enquiry_member_cancels_and_no_amendment_member_does()
+    {
+        // Guards that name one enum member are the recurring bug class on this subsystem (the
+        // AB#297848 Back link; the close-window replay). Resolving through the exercise map means
+        // a third enquiry journey becomes cancellable the moment it is mapped — and this sweep
+        // fails loudly if the guard ever regresses to naming members.
+        foreach (var change in Enum.GetValues<WhatToChange>())
+        {
+            _session.SetRequestState(WindowId, new RequestState { SelectedWhatToChange = change });
+
+            _sut.Cancel(WindowId);
+
+            var cleared = _session.GetRequestState(WindowId).SelectedWhatToChange is null;
+            var isEnquiry = WhatToChangeCheckingExerciseMap.CheckingExerciseFor(change)
+                == CheckingExerciseType.ResultsEnquiry;
+            Assert.Equal(isEnquiry, cleared);
+        }
     }
 
     [Fact]

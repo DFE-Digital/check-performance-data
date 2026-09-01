@@ -17,9 +17,9 @@ Notify__SubmissionNotificationTemplateId: f123aa5f-be65-4a57-8e6e-66b323337095
 Notify__BulkSubmissionNotificationTemplateId: 1a0b1085-f942-49cf-82f3-0270c4339513
 Notify__WithdrawNotificationTemplateId: e8667eed-7b52-42f7-a7e6-875b470e31c7
 Notify__DlqThresholdTemplateId: 517c069b-1566-473d-b8ad-8167f05ce723
-# AB#296648: the 16-19 results-enquiry confirmation. The template has not been created yet;
-# an empty value makes NotifyService log a warning and send nothing, so the enquiry journey
-# still works without it. Replace with the template id once GOV.UK Notify has it.
+# AB#298309: the results-enquiry confirmation (all enquiry types). Template content and the
+# ops runbook: docs/results-enquiry.md, "Confirmation email". An empty value makes
+# NotifyService log a warning and send nothing, so the enquiry journey still works without it.
 Notify__ResultsEnquirySubmittedTemplateId: ""
 Notify__LinkBaseUrl: https://check-performance-data.education.gov.uk/
 Notify__UtmSource: prod-check-performance-data

@@ -349,10 +349,28 @@ page).
 `email address`. It carries **no deadline** (an enquiry is not something the school must come back and
 finish) and goes to the **submitter only** (nothing is being asked of the rest of the school).
 
-**The template does not exist yet.** `Notify:ResultsEnquirySubmittedTemplateId` is empty in every
-environment config. `NotifyService` now logs a warning and sends nothing when a template id is blank,
-rather than throwing out of its template-id switch — so the journey completes without it, but **no
-enquiry email is sent until the template is created and the id configured.**
+**Creating the template (AB#298309 — ops runbook).** The template does not exist yet; create it in
+the GOV.UK Notify admin UI with exactly this content (the copy is from ticket AB#298309; the only
+placeholder is `((ref number))` — Task/PR AB#298309 pinned the personalisation contract to
+`ref number` + `email address` and nothing else, so any other placeholder will fail every send):
+
+> **Subject:** `Your enquiry - ((ref number))`
+>
+> **Body:**
+>
+> Thank you for submitting an enquiry to the Department for Education.
+>
+> Reference number: ((ref number))
+>
+> We will investigate your enquiry and respond where appropriate.
+
+Then set the template's id as `Notify__ResultsEnquirySubmittedTemplateId` in each
+`terraform/application/config/*.yml` (one template can serve every environment, or per-environment
+copies — match whatever the existing six template ids do). Until an environment has a value,
+`NotifyService` logs one warning per submission and sends nothing; the enquiry journey is unaffected.
+The same email is sent for **every** enquiry type — incorrect grade, missing qualification, and the
+future result-does-not-belong-to-pupil all share `ConfirmResultsEnquiryAsync`, and the wording is
+type-agnostic by design (AB#298309 AC4).
 
 ## Analytics
 

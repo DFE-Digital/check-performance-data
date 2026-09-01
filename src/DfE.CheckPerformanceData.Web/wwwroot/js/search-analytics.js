@@ -416,9 +416,10 @@
     // Heatmap cells reuse the same tooltip element + positionTooltip helper — same
     // upper-left-of-cursor behaviour as the crosshair charts. The heatmap cells carry
     // data-sa-tooltip with the pre-formatted "N searches on Wed at 07:00–08:00 UTC"
-    // string (see _WeekdayHourHeatmap.cshtml). Native SVG <title> was deliberately
-    // omitted on those cells because the browser renders <title> below-right of the
-    // cursor with no way to reposition it.
+    // string (see _WeekdayHourHeatmap.cshtml). The same string is also set as the
+    // cell link's aria-label, so it doubles as the accessible name. Native SVG <title>
+    // was deliberately omitted on those cells because the browser renders <title>
+    // below-right of the cursor with no way to reposition it.
     var heatmapSvgs = document.querySelectorAll('svg.sa-chart[data-sa-heatmap="true"]');
     for (var hi = 0; hi < heatmapSvgs.length; hi++) {
         (function (heatmap) {

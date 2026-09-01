@@ -416,10 +416,16 @@
     // Heatmap cells reuse the same tooltip element + positionTooltip helper — same
     // upper-left-of-cursor behaviour as the crosshair charts. The heatmap cells carry
     // data-sa-tooltip with the pre-formatted "N searches on Wed at 07:00–08:00 UTC"
-    // string (see _WeekdayHourHeatmap.cshtml). The same string is also set as the
-    // cell link's aria-label, so it doubles as the accessible name. Native SVG <title>
-    // was deliberately omitted on those cells because the browser renders <title>
-    // below-right of the cursor with no way to reposition it.
+    // string (see _WeekdayHourHeatmap.cshtml). Native SVG <title> was deliberately
+    // omitted on those cells because the browser renders <title> below-right of the
+    // cursor with no way to reposition it.
+    //
+    // The cells are plain <rect> elements, not svg <a> anchors — an anchor around a
+    // rect is a focusable control nested inside the SVG's own role="img" element,
+    // which reads as ambiguous to assistive technology. Each rect instead carries its
+    // drill-in target as data-sa-href; the click handler below navigates there. The
+    // heatmap data table (in the collapsed <details> under the chart) is the keyboard
+    // and screen-reader route to the same drill-ins.
     var heatmapSvgs = document.querySelectorAll('svg.sa-chart[data-sa-heatmap="true"]');
     for (var hi = 0; hi < heatmapSvgs.length; hi++) {
         (function (heatmap) {
@@ -433,6 +439,10 @@
                     });
                     cell.addEventListener('mouseleave', function () {
                         tooltip.style.display = 'none';
+                    });
+                    cell.addEventListener('click', function () {
+                        var href = cell.getAttribute('data-sa-href');
+                        if (href) { window.location.assign(href); }
                     });
                 })(cells[ci]);
             }

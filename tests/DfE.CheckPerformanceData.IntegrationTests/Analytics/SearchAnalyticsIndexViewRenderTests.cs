@@ -252,38 +252,32 @@ public sealed class SearchAnalyticsIndexViewRenderTests
     }
 
     [Fact]
-    public async Task HeatmapCellLinks_AreNamedAndOutOfTabOrder()
+    public async Task HeatmapCellRects_CarryDrillInDataHref_WithNoNestedAnchor()
     {
         var model = ViewModelWithData(
             totalCount: 100, uniqueSessions: 20, zeroRate: 5.0, p95: 40);
 
         var html = await RenderIndexAsync(model);
 
-        // Every heatmap cell rect is wrapped in an anchor: <a href="..." xlink:href="...">
-        // <rect class="sa-heatmap__cell" .../></a> — one per (weekday, hour) bucket.
+        // No cell rect is wrapped in an <a> any more — an svg <a> around a rect is a
+        // focusable control nested inside the SVG's own role="img" element, which axe
+        // flags as nested-interactive regardless of tabindex. The rect instead carries
+        // its drill-in target as data, and search-analytics.js wires up the navigation.
         var cellAnchors = System.Text.RegularExpressions.Regex.Matches(
-            html,
-            "<a\\s+href=\"[^\"]*\"\\s+xlink:href=\"[^\"]*\"[^>]*>\\s*<rect class=\"sa-heatmap__cell\"[^>]*/>\\s*</a>");
-        Assert.Equal(168, cellAnchors.Count);
+            html, "<a[^>]*>\\s*<rect class=\"sa-heatmap__cell\"");
+        Assert.Empty(cellAnchors);
 
-        foreach (System.Text.RegularExpressions.Match anchor in cellAnchors)
-        {
-            Assert.Contains("aria-label=\"", anchor.Value);
-            Assert.Contains("tabindex=\"-1\"", anchor.Value);
-        }
+        var cellRectsWithHref = System.Text.RegularExpressions.Regex.Matches(
+            html, "<rect class=\"sa-heatmap__cell\"[^>]*data-sa-href=\"[^\"]*\"[^>]*/>");
+        Assert.Equal(168, cellRectsWithHref.Count);
 
-        // Spot-check one label reads as a meaningful sentence, not just coordinates.
-        Assert.Matches(
-            new System.Text.RegularExpressions.Regex("aria-label=\"[^\"]*Mon[^\"]*00:00[^\"]*\""),
+        // Spot-check one drill-in target is the right shape for the fixture's data
+        // (RangeKey "7d" resolves to "range=7d"; the grid starts at Monday, hour 0).
+        // Built via Html.Raw like the rest of the SVG markup, so the querystring
+        // ampersand is literal, matching href/xlink:href elsewhere in this partial.
+        Assert.Contains(
+            "data-sa-href=\"/admin/Search/HeatmapCell?range=7d&weekday=1&hour=0\"",
             html);
-
-        // The SVG root's own <title> stays — it names the whole graphic, not a cell — but
-        // no <title> is nested inside a cell anchor (that would resurrect the native
-        // below-right browser tooltip data-sa-tooltip exists to replace).
-        foreach (System.Text.RegularExpressions.Match anchor in cellAnchors)
-        {
-            Assert.DoesNotContain("<title>", anchor.Value);
-        }
     }
 
     [Fact]

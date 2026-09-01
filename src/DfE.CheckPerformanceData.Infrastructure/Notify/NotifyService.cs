@@ -122,9 +122,16 @@ public class NotifyService : INotifyService
         var personalisation = new Dictionary<string, object>
         {
             { "email address", toEmail },
-            { "ref number", refNumber },
-            { "deadline", deadline }
+            { "ref number", refNumber }
         };
+
+        // The enquiry template (AB#298309) declares only ((ref number)): an enquiry has no
+        // deadline — it is not something the school must come back and finish — so the key is
+        // gated per type exactly as "ce name" and "learner noun" are below.
+        if (notificationType is not NotificationType.ResultsEnquirySubmitted)
+        {
+            personalisation["deadline"] = deadline;
+        }
 
         if (!string.IsNullOrEmpty(url))
         {
@@ -151,7 +158,8 @@ public class NotifyService : INotifyService
             personalisation["learner noun"] = substitutions.LearnerNoun;
         }
 
-        if (!string.IsNullOrEmpty(substitutions.TurnaroundCommitment))
+        if (notificationType is not NotificationType.ResultsEnquirySubmitted
+            && !string.IsNullOrEmpty(substitutions.TurnaroundCommitment))
         {
             personalisation["turnaround commitment"] = substitutions.TurnaroundCommitment;
         }

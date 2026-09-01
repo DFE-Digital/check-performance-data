@@ -68,6 +68,55 @@ public sealed class NotifyServiceResultsEnquiryTests
     }
 
     [Fact]
+    public async Task The_personalisation_is_exactly_what_the_template_declares()
+    {
+        // GOV.UK Notify raises on personalisation keys the template does not declare, just as it
+        // does on missing ones (see the key-gating comment in NotifyService.SendEmailAsync). The
+        // AB#298309 template declares only ((ref number)); "email address" rides along as the house
+        // convention on every send. A stray empty "deadline" key would force the template to carry
+        // a placeholder it never renders — or bounce every send.
+        await Build().SendNotificationsAsync(
+            "CYPMD_16to19_RE_4F9C2A1", string.Empty, ["ada@school.test"],
+            NotificationType.ResultsEnquirySubmitted, NoSubstitutions);
+
+        await _client.Received(1).SendEmailAsync(
+            Arg.Any<string>(), Arg.Any<string>(),
+            Arg.Is<Dictionary<string, object>>(p =>
+                p.Count == 2 && p.ContainsKey("email address") && p.ContainsKey("ref number")));
+    }
+
+    [Fact]
+    public async Task A_turnaround_commitment_never_reaches_the_enquiry_template()
+    {
+        // Unreachable via RequestNotificationService today (enquiry notifications enqueue empty
+        // substitutions), but the key gate must not depend on that: a future refactor passing real
+        // substitutions through would otherwise bounce every enquiry email against the template.
+        await Build().SendNotificationsAsync(
+            "CYPMD_16to19_RE_4F9C2A1", string.Empty, ["ada@school.test"],
+            NotificationType.ResultsEnquirySubmitted,
+            new EmailSubstitutions(string.Empty, string.Empty, "2 working days"));
+
+        await _client.Received(1).SendEmailAsync(
+            Arg.Any<string>(), Arg.Any<string>(),
+            Arg.Is<Dictionary<string, object>>(p => !p.ContainsKey("turnaround commitment")));
+    }
+
+    [Fact]
+    public async Task Amendment_notifications_still_carry_their_deadline()
+    {
+        // The deadline key moves behind a type gate in this change; the five amendment-side
+        // templates all declare ((deadline)) and must keep receiving it.
+        await Build().SendNotificationsAsync(
+            "REF-1", "4pm on Friday 3 October 2026", ["ada@school.test"],
+            NotificationType.SubmissionConfirmed, NoSubstitutions);
+
+        await _client.Received(1).SendEmailAsync(
+            Arg.Any<string>(), Arg.Any<string>(),
+            Arg.Is<Dictionary<string, object>>(p =>
+                (string)p["deadline"] == "4pm on Friday 3 October 2026"));
+    }
+
+    [Fact]
     public async Task Every_recipient_is_emailed()
     {
         await Build().SendNotificationsAsync(

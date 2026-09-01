@@ -24,4 +24,22 @@ public sealed class AmendmentItem
     public string DateSubmitted { get; init; }
     public string WindowId { get; init; }
     public bool WindowIsOpen { get; init; }
+
+    public string TagClass => Status switch
+    {
+        RequestStatus.ReadyToSubmit => "govuk-tag--blue",
+        RequestStatus.SubmittedUnCommitted or RequestStatus.SubmittedCommitted => "govuk-tag--green",
+        RequestStatus.Withdrawn or RequestStatus.NotSubmitted => "govuk-tag--grey",
+        _ => "govuk-tag--orange"
+    };
+
+    public string TagLabel => Status switch
+    {
+        RequestStatus.InProgress => "In progress",
+        RequestStatus.ReadyToSubmit => "Ready to submit",
+        RequestStatus.SubmittedUnCommitted or RequestStatus.SubmittedCommitted => "Submitted",
+        RequestStatus.Withdrawn => "Withdrawn",
+        RequestStatus.NotSubmitted => "Not submitted",
+        _ => Status.ToString()
+    };
 }

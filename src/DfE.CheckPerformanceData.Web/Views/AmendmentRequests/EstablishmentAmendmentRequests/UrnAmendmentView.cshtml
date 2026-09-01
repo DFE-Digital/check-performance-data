@@ -1,7 +1,7 @@
 @using DfE.CheckPerformanceData.Domain.Enums
 @model DfE.CheckPerformanceData.Web.Controllers.SubmittedRequest.SubmittedRequestViewModel
 
-<a class="govuk-back-link" href="@Url.Action("Index", "AmendmentRequests", new { windowId = Model.WindowId })">Back</a>
+<a class="govuk-back-link" href="@Url.Action("Index", "EstablishmentAmendmentRequests")">Back</a>
 
 @if (Model.ConfirmingDelete)
 {

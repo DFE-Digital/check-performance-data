@@ -23,6 +23,16 @@ public static class AddPupilJourney
     public const string UpnQuestionId = "upn";
 
     /// <summary>
+    /// The route/page identity of the AB#297780 duplicate-check warning page. Not part of the
+    /// Add_*.json question flows — it is intercepted after the learner-details post and mirrors
+    /// the learner-details redirect target when there are no matches.
+    /// </summary>
+    public const string DuplicateCheckPageId = "duplicate-check";
+
+    /// <summary>Query/route key carrying the selected pupil id for an Include / Switch-to-Include hand-off.</summary>
+    public const string DuplicateCheckPupilIdKey = "pupilId";
+
+    /// <summary>
     /// The window types an Add_*.json exists for. Single source of truth for the Add radio on
     /// What to change and for the guard on the post it produces — a window missing from here
     /// must not open the journey even if a flow file is later uploaded for it.

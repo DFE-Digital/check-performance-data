@@ -1,0 +1,98 @@
+@model DfE.CheckPerformanceData.Web.Controllers.Journey.DuplicateCheckViewModel
+
+@{
+    ViewBag.Title = "This pupil may already be on the roll";
+    Layout = "_Layout";
+    var multiple = Model.Scenario == DfE.CheckPerformanceData.Application.CheckYourPupilData.DuplicateScenario.Multiple;
+}
+
+<h1 class="govuk-heading-l">This pupil may already be on the roll</h1>
+
+<govuk-warning-text icon-fallback-text="Warning">
+    There @(multiple ? "may already be pupils" : "may already be a pupil") matching "@Model.LearnerNameLabel" on the roll.
+</govuk-warning-text>
+
+@if (multiple)
+{
+    <p class="govuk-body">
+        The details you entered match more than one pupil. Check the list and decide whether you need to add a new pupil.
+    </p>
+    <table class="govuk-table">
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header">Name</th>
+                <th scope="col" class="govuk-table__header">Date of birth</th>
+                <th scope="col" class="govuk-table__header">Identifier</th>
+                <th scope="col" class="govuk-table__header">Status</th>
+                <th scope="col" class="govuk-table__header">
+                    <span class="govuk-visually-hidden">Action</span>
+                </th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            @foreach (var match in Model.Matches)
+            {
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">@match.Surname, @match.Firstname</td>
+                    <td class="govuk-table__cell">@match.DateOfBirth</td>
+                    <td class="govuk-table__cell">@match.Identifier</td>
+                    <td class="govuk-table__cell">@(match.IsIncluded ? "Included" : "Not included")</td>
+                    <td class="govuk-table__cell">
+                        @if (!match.IsIncluded)
+                        {
+                            <form method="post" action="@Url.Action("SwitchToInclude", "Journey", new { windowId = Model.WindowId, pupilId = match.Id })">
+                                @Html.AntiForgeryToken()
+                                <govuk-button type="submit" class="govuk-button--secondary govuk-!-margin-bottom-0">Switch to include</govuk-button>
+                            </form>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <p class="govuk-body">
+        This pupil already appears on the roll. If you still need to add a new pupil with these details, you can continue.
+    </p>
+
+    @foreach (var match in Model.Matches)
+    {
+        <dl class="govuk-summary-list">
+            <div class="govuk-summary-list__row">
+                <dt class="govuk-summary-list__key">Name</dt>
+                <dd class="govuk-summary-list__value">@match.Surname, @match.Firstname</dd>
+            </div>
+            <div class="govuk-summary-list__row">
+                <dt class="govuk-summary-list__key">Date of birth</dt>
+                <dd class="govuk-summary-list__value">@match.DateOfBirth</dd>
+            </div>
+            <div class="govuk-summary-list__row">
+                <dt class="govuk-summary-list__key">Identifier</dt>
+                <dd class="govuk-summary-list__value">@match.Identifier</dd>
+            </div>
+        </dl>
+    }
+}
+
+@if (Model.IncludeActionAvailable)
+{
+    <p class="govuk-body">
+        This pupil is not currently included in any request. You can include this existing pupil instead of adding a new record.
+    </p>
+    <form method="post" action="@Url.Action("IncludeThisPupil", "Journey", new { windowId = Model.WindowId })">
+        @Html.AntiForgeryToken()
+        <govuk-button type="submit">Include this pupil</govuk-button>
+    </form>
+}
+
+<form method="post" action="@Url.Action("ContinueAdding", "Journey", new { windowId = Model.WindowId })">
+    @Html.AntiForgeryToken()
+    <govuk-button type="submit">Continue adding</govuk-button>
+</form>
+
+<form method="post" action="@Url.Action("AbortDuplicateCheck", "Journey", new { windowId = Model.WindowId })">
+    @Html.AntiForgeryToken()
+    <govuk-button type="submit" prevent-double-click="false" class="govuk-button--secondary">Abort adding this pupil</govuk-button>
+</form>

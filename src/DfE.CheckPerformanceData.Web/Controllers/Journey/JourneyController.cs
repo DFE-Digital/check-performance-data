@@ -869,6 +869,16 @@ public sealed class JourneyController(
         });
         MintSyntheticPupilIfNeeded(windowId, page);
 
+        // AB#297780 SEAM: the learner-details page is the Add journey's "post the learner details"
+        // event. When the details match an existing pupil the user must be warned (and offered
+        // abort/continue) before the journey moves on, so branch to the duplicate-check page in
+        // place of the normal onward redirect; Continue-adding performs this same redirect.
+        if (page.PupilFromAnswers)
+        {
+            var duplicateRedirect = await BranchToDuplicateCheckIfNeededAsync(windowId);
+            if (duplicateRedirect is not null) return duplicateRedirect;
+        }
+
         return nextId is null
             ? RedirectToAction(nameof(Summary), new { windowId })
             : RedirectToAction(nameof(Page), new { windowId, pageId = nextId });
@@ -1350,7 +1360,193 @@ public sealed class JourneyController(
         return View(model);
     }
 
-    // ── Private helpers ────────────────────────────────────────────────────
+    // ── Duplicate check (AB#297780) ─────────────────────────────────────────
+
+    /// <summary>
+    /// The Add journey's pupil-duplicate warning page. Shown only after the learner-details
+    /// interception found an existing pupil; a direct hit (or a left-over marker) forwards to the
+    /// journey's next step as if nothing had matched.
+    /// </summary>
+    [Route("/Journey/{windowId}/duplicate-check")]
+    public async Task<IActionResult> DuplicateCheck(Guid windowId)
+    {
+        var journey = HttpContext.Session.GetRequestState(windowId);
+        if (!IsSessionReady(journey)) return RedirectToCheckYourData(windowId);
+
+        var result = journey.DuplicateCheck;
+        if (result is not { } r || r.Scenario == DuplicateScenario.None)
+            return await RedirectAfterLearnerDetailsAsync(windowId);
+
+        await analytics.TrackSafeAsync(new DuplicateCheckDecisionEvent
+        {
+            Scenario = r.Scenario.ToString(),
+            Action = "shown",
+            CheckingWindowType = journey.CheckingWindow?.CheckingWindowType.ToString() ?? ""
+        });
+
+        var pupilName = $"{journey.SelectedPupil?.Surname}, {journey.SelectedPupil?.Firstname}".TrimEnd(',');
+        return View(new DuplicateCheckViewModel
+        {
+            WindowId = windowId,
+            Scenario = r.Scenario,
+            Matches = r.Matches,
+            LearnerNameLabel = pupilName
+        });
+    }
+
+    /// <summary>The school accepts the risk and adds the pupil anyway; continue the Add journey.</summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Route("/Journey/{windowId}/duplicate-check/continue")]
+    public async Task<IActionResult> ContinueAdding(Guid windowId)
+    {
+        var journey = HttpContext.Session.GetRequestState(windowId);
+        if (!IsSessionReady(journey)) return RedirectToCheckYourData(windowId);
+        if (await GetConfigAsync(journey) is null) return RedirectToCheckYourData(windowId);
+
+        await analytics.TrackSafeAsync(new DuplicateCheckDecisionEvent
+        {
+            Scenario = journey.DuplicateCheck?.Scenario.ToString() ?? DuplicateScenario.None.ToString(),
+            Action = "continue",
+            CheckingWindowType = journey.CheckingWindow?.CheckingWindowType.ToString() ?? ""
+        });
+
+        // The warning is a one-time gate: once the school says continue, don't re-show it.
+        HttpContext.Session.SaveRequestState(windowId, s => s.DuplicateCheck = null);
+
+        return await RedirectAfterLearnerDetailsAsync(windowId);
+    }
+
+    /// <summary>The school backs out of adding a pupil who already exists; return to check-your-data.</summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Route("/Journey/{windowId}/duplicate-check/abort")]
+    public async Task<IActionResult> AbortDuplicateCheck(Guid windowId)
+    {
+        var journey = HttpContext.Session.GetRequestState(windowId);
+
+        await analytics.TrackSafeAsync(new DuplicateCheckDecisionEvent
+        {
+            Scenario = journey.DuplicateCheck?.Scenario.ToString() ?? DuplicateScenario.None.ToString(),
+            Action = "abort",
+            CheckingWindowType = journey.CheckingWindow?.CheckingWindowType.ToString() ?? ""
+        });
+
+        HttpContext.Session.SaveRequestState(windowId, s => s.DuplicateCheck = null);
+        return RedirectToCheckYourData(windowId);
+    }
+
+    /// <summary>
+    /// AB#297780 (US2): the Add journey's duplicate-check page found a single non-included match
+    /// and the school chose to include that existing pupil rather than add a fresh record. Seeds
+    /// the matched pupil as the Include journey's selected pupil (the same contract PupilSearchPost
+    /// uses) and routes into the Include flow past its select-pupil search page — the duplicate
+    /// check already IS that selection. The Include flow is only reachable for window types that
+    /// have an Include_*.json; a missing config (or a non-single-non-included hand-off) bounces back
+    /// to the duplicate page.
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Route("/Journey/{windowId}/duplicate-check/include")]
+    public async Task<IActionResult> IncludeThisPupil(Guid windowId)
+    {
+        var journey = HttpContext.Session.GetRequestState(windowId);
+        if (!IsSessionReady(journey) || journey.CheckingWindow?.CheckingWindowType is not { } windowType)
+            return RedirectToCheckYourData(windowId);
+
+        var result = journey.DuplicateCheck;
+        if (result is not { Scenario: DuplicateScenario.SingleNonIncluded } r || r.Matches.Count != 1)
+            return RedirectToAction(nameof(DuplicateCheck), new { windowId });
+
+        var match = r.Matches[0];
+
+        var redirect = await HandoffToIncludeJourneyAsync(windowId, windowType, match.Id);
+        if (redirect is null) return RedirectToCheckYourData(windowId);
+
+        await analytics.TrackSafeAsync(new DuplicateCheckDecisionEvent
+        {
+            Scenario = DuplicateScenario.SingleNonIncluded.ToString(),
+            Action = "include",
+            CheckingWindowType = windowType.ToString()
+        });
+
+        return redirect;
+    }
+
+    /// <summary>
+    /// AB#297780 (US3): the Add journey's duplicate-check page found multiple matches and the school
+    /// chose to include one of the listed non-included pupils ("switch to include") rather than add a
+    /// fresh record. Routes that specific pupil into the Include flow, exactly as <see
+    /// cref="IncludeThisPupil"/> does for a single match.
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Route("/Journey/{windowId}/duplicate-check/switch-to-include")]
+    public async Task<IActionResult> SwitchToInclude(Guid windowId, Guid pupilId)
+    {
+        var journey = HttpContext.Session.GetRequestState(windowId);
+        if (!IsSessionReady(journey) || journey.CheckingWindow?.CheckingWindowType is not { } windowType)
+            return RedirectToCheckYourData(windowId);
+
+        var result = journey.DuplicateCheck;
+        // Switch-to-Include is only valid for a multiple-match list and a row that is not included.
+        if (result is not { Scenario: DuplicateScenario.Multiple } r ||
+            !r.Matches.Any(m => m.Id == pupilId && !m.IsIncluded))
+            return RedirectToAction(nameof(DuplicateCheck), new { windowId });
+
+        var redirect = await HandoffToIncludeJourneyAsync(windowId, windowType, pupilId);
+        if (redirect is null) return RedirectToCheckYourData(windowId);
+
+        await analytics.TrackSafeAsync(new DuplicateCheckDecisionEvent
+        {
+            Scenario = DuplicateScenario.Multiple.ToString(),
+            Action = "switch-to-include",
+            CheckingWindowType = windowType.ToString()
+        });
+
+        return redirect;
+    }
+
+    /// <summary>
+    /// AB#297780: seeds a matched, non-included pupil as the Include journey's selected pupil (the
+    /// same contract PupilSearchPost uses) and returns the redirect into the Include flow past its
+    /// select-pupil search page — the duplicate check already IS that selection. Returns null when
+    /// the Include flow config is missing for the window type.
+    /// </summary>
+    private async Task<IActionResult?> HandoffToIncludeJourneyAsync(
+        Guid windowId, CheckingWindowType windowType, Guid pupilId)
+    {
+        // The Include flow config (the user is on the Add flow; GetConfigAsync would resolve Add).
+        var config = await flowService.GetConfigAsync(WhatToChange.Include, windowType);
+        if (config is null) return null;
+
+        var pupil = await pupilDataService.GetPupilAsync(windowId, pupilId);
+
+        // The duplicate check stands in for the Include flow's select-pupil search page, so seed the
+        // history with that page and start the user on the page the search would have moved to next.
+        var includeAfterSearch = flowService.GetNextPageId(config, config.FirstPageId, new());
+        HttpContext.Session.SaveRequestState(windowId, s =>
+        {
+            s.SelectedWhatToChange = WhatToChange.Include;
+            s.SelectedPupil = pupil;
+            s.SelectedPupilId = pupil.Id.ToString();
+            s.SelectedPupilLabel = $"{pupil.Surname}, {pupil.Firstname}";
+            s.ReferenceNumber = journeyService.GenerateReference(windowType);
+            s.MatchedPupil = null;
+            s.MatchedPupilId = null;
+            s.MatchedPupilLabel = null;
+            s.SelectedResult = null;
+            s.QuestionAnswers = new();
+            s.QuestionHistory = [config.FirstPageId];
+            s.DuplicateCheck = null;
+        });
+
+        return includeAfterSearch is null
+            ? RedirectToAction(nameof(Summary), new { windowId })
+            : RedirectToAction(nameof(Page), new { windowId, pageId = includeAfterSearch });
+    }
+
+
 
     /// <summary>
     /// #318: the one gate every journey action already runs. It now also requires the journey's
@@ -1423,15 +1619,64 @@ public sealed class JourneyController(
         });
     }
 
+    /// <summary>
+    /// AB#297780: runs the duplicate check against the learner-details answers just committed and,
+    /// when a match is found, stores the result and redirects to the warning page. Returns null
+    /// (and clears any prior marker) when nothing matched, so the caller performs its normal
+    /// onward redirect. Match rows are PII — never logged.
+    /// </summary>
+    private async Task<IActionResult?> BranchToDuplicateCheckIfNeededAsync(Guid windowId)
+    {
+        var journey = HttpContext.Session.GetRequestState(windowId);
+        string Text(string questionId) =>
+            journey.QuestionAnswers.TryGetValue(questionId, out var a) ? a.TextValue?.Trim() ?? "" : "";
+        string Dob() =>
+            journey.QuestionAnswers.TryGetValue(AddPupilJourney.DateOfBirthQuestionId, out var a) && a.DateValue is { } d
+                ? $"{d.Day:D2}/{d.Month:D2}/{d.Year:D4}"
+                : "";
+
+        var result = await pupilDataService.DuplicateCheckAsync(
+            windowId,
+            Text(AddPupilJourney.FirstNameQuestionId),
+            Text(AddPupilJourney.LastNameQuestionId),
+            Dob());
+
+        // A null or no-match result is the normal onward path: unconfigured mocks and the service's
+        // own no-match / query-failure result both behave as "nothing to warn about".
+        if (result is null || result.Scenario == DuplicateScenario.None)
+        {
+            HttpContext.Session.SaveRequestState(windowId, s => s.DuplicateCheck = null);
+            return null;
+        }
+
+        HttpContext.Session.SaveRequestState(windowId, s => s.DuplicateCheck = result);
+        return RedirectToAction(nameof(DuplicateCheck), new { windowId });
+    }
+
+    /// <summary>Forwards the Add journey to the step after the learner-details page — the redirect
+    /// the learner-details post would have made had nothing matched. Used by the warning page's
+    /// Continue action and by a stale/direct hit on the warning URL.</summary>
+    private async Task<IActionResult> RedirectAfterLearnerDetailsAsync(Guid windowId)
+    {
+        var journey = HttpContext.Session.GetRequestState(windowId);
+        var config = await GetConfigAsync(journey);
+        if (config is null) return RedirectToCheckYourData(windowId);
+
+        var nextId = flowService.GetNextPageId(config, AddPupilJourney.LearnerDetailsPageId, journey.QuestionAnswers);
+
+        return nextId is null
+            ? RedirectToAction(nameof(Summary), new { windowId })
+            : RedirectToAction(nameof(Page), new { windowId, pageId = nextId });
+    }
+
     // AB#297310: the Add journey has no roll pupil — the learner-details page IS the pupil.
     // Minting SelectedPupil here keeps every downstream consumer (summary {pupilName}
     // templating, drafts, BuildChangeRequestData, the amendment grid) working unchanged.
     //
     // AB#297780 SEAM: this POST's successful completion is the "learner details continued"
-    // event the soft-match story will intercept — hook there, before the redirect that
-    // follows this call, to branch into the match/query journeys.
-    private void MintSyntheticPupilIfNeeded(Guid windowId, JourneyPage page)
-    {
+    // event the duplicate-check story intercepts — hooked after this call, before the redirect
+    // that follows it, to branch into the match/query journeys.
+    private void MintSyntheticPupilIfNeeded(Guid windowId, JourneyPage page)    {
         if (!page.PupilFromAnswers) return;
 
         var refreshed = HttpContext.Session.GetRequestState(windowId);
@@ -1482,3 +1727,4 @@ public sealed class JourneyController(
         HttpContext.Session.SaveRequestState(windowId, s => s.QuestionHistory = journey.QuestionHistory);
     }
 }
+

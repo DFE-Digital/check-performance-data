@@ -28,6 +28,10 @@ public static class SeedPupilData
     // the two groups never share a generated name pair, UPN, Cypmd id or match ref.
     private const int NonIncludedIndexOffset = 200;
 
+    // Kingsmead is the school the dev impersonation flow signs in as, so it is the only school
+    // whose seed carries the deliberate duplicate below.
+    private const string KingsmeadLaestab = "860/4070";
+
     private static readonly Guid[] WindowIds =
     [
         DevDataSeeder.KeyStage4JuneCheckingWindowId,
@@ -46,6 +50,11 @@ public static class SeedPupilData
 
             if (school.AddNonIncluded)
                 pupils.AddRange(GeneratePupils(PupilsPerGroup, includedPincl: false, NonIncludedIndexOffset, windowId, school));
+
+            // Kingsmead additionally carries a deliberate same-name/DOB pair — one included, one
+            // not — so the Add journey's duplicate check can be exercised in its Multiple state.
+            if (windowId == DevDataSeeder.KeyStage4JuneCheckingWindowId && school.Laestab == KingsmeadLaestab)
+                pupils.AddRange(GenerateDuplicateMatchPair(windowId, school));
 
             if (pupils.Count > 0)
                 await client.UploadPupilsAsync(windowId, CheckingExerciseType.PupilData, school.Laestab, pupils);
@@ -143,6 +152,65 @@ public static class SeedPupilData
     private static readonly string[] SenCodes = ["N", "N", "N", "K", "E"];
 
     private static readonly int[] NonIncludedPinclCodes = [402, 404, 407, 408, 410, 413, 422, 430];
+
+    // A name/DOB pair deliberately shared by two pupils for Kingsmead's live KS4June window. The
+    // generator's name pairs are unique by construction (included surnames bucket 0-5, non-included
+    // bucket 10-15), so without this the duplicate check could never reach its Multiple state. The
+    // name is drawn from outside Firstnames/Surnames so it cannot collide with a generated pupil,
+    // and one copy is Pincl-included while the other is not — giving the Multiple table one row of
+    // each status, and therefore a "Switch to include" button for the non-included pupil.
+    private static IEnumerable<PupilRecord> GenerateDuplicateMatchPair(Guid checkingWindowId, School school)
+    {
+        const string firstname = "Casey";
+        const string surname = "Carter";
+        const string dob = "15/03/2010";
+
+        yield return new PupilRecord
+        {
+            Id = Guid.NewGuid(),
+            CheckingWindowId = checkingWindowId,
+            Laestab = school.Laestab,
+            Firstname = firstname,
+            Surname = surname,
+            Sex = "F",
+            DateOfBirth = dob,
+            Age = 16,
+            FirstLanguage = "ENG",
+            Pincl = PupilInclusion.Ks4IncludedPinclCodes[0],
+            NewMobile = false,
+            ActualYearGroup = "11",
+            Ethnicity = "WOTH",
+            SenF = "N",
+            EntryDate = "01/09/2021",
+            Urn = long.Parse(school.Urn),
+            Cypmd_Id = "800001",
+            MatchRef = 80001,
+            Upn = "A8604078001B"
+        };
+
+        yield return new PupilRecord
+        {
+            Id = Guid.NewGuid(),
+            CheckingWindowId = checkingWindowId,
+            Laestab = school.Laestab,
+            Firstname = firstname,
+            Surname = surname,
+            Sex = "F",
+            DateOfBirth = dob,
+            Age = 16,
+            FirstLanguage = "ENG",
+            Pincl = NonIncludedPinclCodes[0],
+            NewMobile = false,
+            ActualYearGroup = "11",
+            Ethnicity = "WOTH",
+            SenF = "N",
+            EntryDate = "01/09/2021",
+            Urn = long.Parse(school.Urn),
+            Cypmd_Id = "800002",
+            MatchRef = 80002,
+            Upn = "A8604078002B"
+        };
+    }
 
     private static IEnumerable<PupilRecord> GeneratePupils(int count, bool includedPincl, int indexOffset,
         Guid checkingWindowId, School school) =>

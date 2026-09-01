@@ -37,4 +37,9 @@ public sealed class RequestState
     /// country-languages.json lookup the rules engine also uses. Null when the
     /// country is unresolved or absent from the lookup.</summary>
     public List<string>? OriginCountryLanguages { get; set; }
+
+    /// <summary>AB#297780: the result of the Add-journey duplicate check, held between the
+    /// learner-details interception and the duplicate-check warning page. Null when no check has
+    /// run (or it found nothing). Rows carry pupil PII and must never be logged.</summary>
+    public PupilDuplicateCheckResult? DuplicateCheck { get; set; }
 }

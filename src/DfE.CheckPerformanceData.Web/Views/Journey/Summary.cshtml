@@ -78,9 +78,10 @@ else
 @if (Model.IsResultsEnquiry)
 {
     @* Drafts were decided against for enquiries, so there is no "save and continue later" above —
-       the way out is to abandon this enquiry and start a new one, which resets the journey. *@
+       the way out is this link (AB#298229), which discards the enquiry server-side before landing
+       on a fresh issue chooser. It must point at Cancel, not Index: Index clears nothing. *@
     <p class="govuk-body">
-        <a asp-action="Index" asp-controller="ResultIssue" asp-route-windowId="@Model.WindowId"
+        <a asp-action="Cancel" asp-controller="ResultIssue" asp-route-windowId="@Model.WindowId"
            class="govuk-link">Cancel and go back to create a new enquiry</a>
     </p>
 }

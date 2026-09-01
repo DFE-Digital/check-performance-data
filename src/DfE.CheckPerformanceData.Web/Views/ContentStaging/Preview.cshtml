@@ -52,9 +52,9 @@
 
 <form method="post" action="/admin/content-staging/import">
     @Html.AntiForgeryToken()
-    @* The bundle round-trips through a hidden textarea (faithful for multi-line JSON) so the
-       confirm step needs no re-upload or server-side state. *@
-    <textarea name="BundleJson" hidden aria-hidden="true" tabindex="-1">@Model.BundleJson</textarea>
+    @* Only the session id travels back — the parsed bundle stays on the server, so a large
+       import no longer has to survive a round-trip through the form value limits. *@
+    <input type="hidden" name="SessionId" value="@Model.SessionId" />
 
     <h2 class="govuk-heading-l">Options</h2>
 

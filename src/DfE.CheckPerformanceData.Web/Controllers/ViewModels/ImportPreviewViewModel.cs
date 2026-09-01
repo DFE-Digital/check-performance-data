@@ -2,20 +2,21 @@ using DfE.CheckPerformanceData.Application.ContentStaging;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 
-// The import preview page: the analysis of the uploaded bundle, plus the bundle itself carried in
-// a hidden field so the confirm step can apply it without re-uploading or server-side state.
+// The import preview page: the analysis of the uploaded bundle, plus the id of the server-side
+// session holding the parsed bundle for the confirm step. The bundle itself stays on the server —
+// only the id travels to the browser and back.
 public sealed class ImportPreviewViewModel
 {
     public ContentImportPreview Preview { get; init; } = new([], []);
-    public string BundleJson { get; init; } = string.Empty;
+    public Guid SessionId { get; init; }
 }
 
-// Posted by the confirm step: the bundle, the two global defaults (one for existing / colliding
-// items and one for brand-new items), and per-item overrides. Per-item Skip is honoured for both
-// new and existing items — you can pick a subset of the bundle to import.
+// Posted by the confirm step: the session id, the two global defaults (one for existing /
+// colliding items and one for brand-new items), and per-item overrides. Per-item Skip is honoured
+// for both new and existing items — you can pick a subset of the bundle to import.
 public sealed class ImportConfirmFormModel
 {
-    public string? BundleJson { get; set; }
+    public Guid SessionId { get; set; }
 
     // Default action for items already present in this environment (a stable-Id or path/key
     // match). Skip preserves the target; Replace overwrites; Fail throws on collision.

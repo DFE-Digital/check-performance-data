@@ -85,6 +85,10 @@ builder.Services.AddHostedService(sp =>
     new SearchAnalyticsRetentionJob(
         sp.GetRequiredService<IServiceScopeFactory>(),
         sp.GetRequiredService<ILogger<SearchAnalyticsRetentionJob>>()));
+builder.Services.AddHostedService(sp =>
+    new ContentStagingSessionRetentionJob(
+        sp.GetRequiredService<IServiceScopeFactory>(),
+        sp.GetRequiredService<ILogger<ContentStagingSessionRetentionJob>>()));
 
 builder.Services.AddWorkerHealthChecks();
 

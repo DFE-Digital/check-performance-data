@@ -27,6 +27,10 @@ public class ContentStagingServiceTests
         _blockRepo.GetAllAsync().Returns([]);
         _blockRepo.ExecuteInTransactionAsync(Arg.Any<Func<Task>>())
             .Returns(ci => ((Func<Task>)ci[0])());
+        // Page creation runs its node + versions writes inside a transaction, so the substitute
+        // has to invoke the delegate or the work inside it silently never happens.
+        _pages.ExecuteInTransactionAsync(Arg.Any<Func<Task>>())
+            .Returns(ci => ((Func<Task>)ci[0])());
         _html.RenderHtml(Arg.Any<string?>()).Returns(ci => (string?)ci[0]);
         _html.StripTagsToPlainText(Arg.Any<string?>()).Returns(ci => (string?)ci[0] ?? string.Empty);
     }
@@ -66,6 +70,173 @@ public class ContentStagingServiceTests
 
     private static ContentBlockDto Block(int id, string key, string type, string value, Guid contentId = default) =>
         new() { Id = id, ContentId = contentId, Key = key, BlockType = type, Value = value };
+
+    // ── Export version-history controls ────────────────────────────────────
+
+    private static readonly DateTime LongAgo = new(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+    private static readonly DateTime FarFuture = new(2099, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+    // A node whose version history is longer than the cap. Versions 1..count; version
+    // `currentVersionId` carries an open-ended publish window that started long ago, so it is
+    // genuinely the one the environment serves. The rest are unpublished drafts.
+    private void NodeWithVersions(int count, int currentVersionId)
+    {
+        _pages.GetTreeAsync().Returns([Node(GuidA, null, "page", "Page")]);
+        _pages.GetVersionsAsync(GuidA).Returns(
+            Enumerable.Range(1, count)
+                .Select(i => i == currentVersionId
+                    ? Version(i, content: $"v{i}", from: LongAgo, current: true)
+                    : Version(i, content: $"v{i}"))
+                .ToList());
+    }
+
+    private void NodeWithExactVersions(params PageNodeVersionDto[] versions)
+    {
+        _pages.GetTreeAsync().Returns([Node(GuidA, null, "page", "Page")]);
+        _pages.GetVersionsAsync(GuidA).Returns(versions.ToList());
+    }
+
+    // Routine exports carry recent history, not the whole archive. A page with a hundred
+    // versions of embedded images is what turns a 5 MB bundle into a 250 MB one.
+    [Fact]
+    public async Task ExportAsync_ByDefault_KeepsOnlyTheMostRecentVersions()
+    {
+        NodeWithVersions(count: 12, currentVersionId: 12);
+
+        var bundle = await _sut.ExportAsync();
+
+        var versions = bundle.PageNodes.Single().Versions;
+        Assert.Equal(ContentExportSelection.DefaultMaxVersionsPerNode, versions.Count);
+        Assert.Equal([8, 9, 10, 11, 12], versions.Select(v => v.VersionId));
+    }
+
+    // Cross-environment migration still needs the lot; that is what the opt-out is for.
+    [Fact]
+    public async Task ExportAsync_WithFullHistoryRequested_KeepsEveryVersion()
+    {
+        NodeWithVersions(count: 12, currentVersionId: 12);
+
+        var bundle = await _sut.ExportAsync(
+            new ContentExportSelection(new HashSet<Guid> { GuidA }, new HashSet<Guid>(), MaxVersionsPerNode: null));
+
+        Assert.Equal(12, bundle.PageNodes.Single().Versions.Count);
+    }
+
+    // The live version is resolved from publish windows, so it is NOT necessarily the
+    // highest-numbered one: stack a few future-dated drafts on a page and the version the
+    // environment actually serves sits below them. Trimming by recency alone would export a
+    // bundle that renders differently from the environment it came from.
+    [Fact]
+    public async Task ExportAsync_WhenTrimming_AlwaysKeepsTheLiveVersion()
+    {
+        NodeWithVersions(count: 12, currentVersionId: 2);
+
+        var bundle = await _sut.ExportAsync();
+
+        var versions = bundle.PageNodes.Single().Versions;
+        Assert.Contains(2, versions.Select(v => v.VersionId));
+        Assert.Equal([2, 8, 9, 10, 11, 12], versions.Select(v => v.VersionId));
+    }
+
+    // IsCurrent is a cache, written only when something writes to the page — nothing recomputes
+    // it as time passes. The page a visitor gets is resolved fresh from the publish windows on
+    // every request, so the flag and reality drift apart the moment a temporary notice expires.
+    //
+    // Here v1 has been live since 2024 with an open-ended window; v2 was a notice that expired in
+    // February and still carries the stale flag; v3+ are drafts. Trusting IsCurrent would keep v2
+    // and drop v1 — and since v2's window has closed and the drafts have none, the imported page
+    // would have no live version at all and 404 in the target.
+    [Fact]
+    public async Task ExportAsync_WhenTrimming_KeepsTheVersionTheSiteServes_NotAStaleIsCurrentFlag()
+    {
+        NodeWithExactVersions(
+            [
+                Version(1, content: "live-since-2024", from: LongAgo),
+                Version(2, content: "expired-notice", from: new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                    to: new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc), current: true),
+                .. Enumerable.Range(3, 10).Select(i => Version(i, content: $"draft{i}")),
+            ]);
+
+        var bundle = await _sut.ExportAsync();
+
+        var kept = bundle.PageNodes.Single().Versions.Select(v => v.VersionId).ToList();
+        Assert.Contains(1, kept);
+    }
+
+    // A version scheduled to go live later is not current yet and is not recent, so recency plus
+    // liveness would both miss it — and the scheduled publish would simply never happen in the
+    // target environment.
+    [Fact]
+    public async Task ExportAsync_WhenTrimming_KeepsVersionsScheduledForTheFuture()
+    {
+        NodeWithExactVersions(
+            [
+                Version(1, content: "live", from: LongAgo, current: true),
+                Version(2, content: "scheduled", from: FarFuture),
+                .. Enumerable.Range(3, 10).Select(i => Version(i, content: $"draft{i}")),
+            ]);
+
+        var bundle = await _sut.ExportAsync();
+
+        var kept = bundle.PageNodes.Single().Versions.Select(v => v.VersionId).ToList();
+        Assert.Contains(1, kept);
+        Assert.Contains(2, kept);
+    }
+
+    // The live version is not always the one that stays live. A service notice published with a
+    // PublishTo shadows the evergreen page underneath it, and publishing never closes the
+    // previous version's window — so when the notice expires the page falls back.
+    //
+    // Here v1 is the evergreen page (open-ended, live since 2024), v20 is a notice that expires
+    // next week and is live right now, and v2-v19 are drafts. Keeping only "live now" plus
+    // recency keeps v16-v20 and drops v1. The import looks fine; a week later the notice expires
+    // and the target page 404s because nothing underneath it came across.
+    [Fact]
+    public async Task ExportAsync_WhenTrimming_KeepsTheVersionThatTakesOverWhenTheLiveOneExpires()
+    {
+        NodeWithExactVersions(
+            [
+                Version(1, content: "evergreen", from: LongAgo),
+                .. Enumerable.Range(2, 18).Select(i => Version(i, content: $"draft{i}")),
+                Version(20, content: "temporary-notice", from: LongAgo.AddYears(2), to: FarFuture, current: true),
+            ]);
+
+        var bundle = await _sut.ExportAsync();
+
+        var kept = bundle.PageNodes.Single().Versions.Select(v => v.VersionId).ToList();
+        Assert.Contains(20, kept);
+        Assert.Contains(1, kept);
+    }
+
+    // The cap exists to bound bundle size. Keeping every future-dated version unconditionally
+    // gives it no ceiling at all for a page that has been scheduled repeatedly.
+    [Fact]
+    public async Task ExportAsync_WithManyScheduledVersions_StillBoundsTheExport()
+    {
+        NodeWithExactVersions(
+            [
+                Version(1, content: "live", from: LongAgo, current: true),
+                .. Enumerable.Range(2, 300).Select(i => Version(i, content: $"scheduled{i}", from: FarFuture)),
+            ]);
+
+        var bundle = await _sut.ExportAsync();
+
+        var kept = bundle.PageNodes.Single().Versions;
+        Assert.True(kept.Count <= 3 * ContentExportSelection.DefaultMaxVersionsPerNode,
+            $"a page with 300 scheduled versions exported {kept.Count} of them — the cap bounds nothing");
+        Assert.Contains(1, kept.Select(v => v.VersionId));
+    }
+
+    // Under the cap, nothing is dropped and nothing is reordered.
+    [Fact]
+    public async Task ExportAsync_NodeWithFewerVersionsThanTheCap_IsUntouched()
+    {
+        NodeWithVersions(count: 3, currentVersionId: 3);
+
+        var bundle = await _sut.ExportAsync();
+
+        Assert.Equal([1, 2, 3], bundle.PageNodes.Single().Versions.Select(v => v.VersionId));
+    }
 
     // ── Export ─────────────────────────────────────────────────────────────
 
@@ -578,5 +749,106 @@ public class ContentStagingServiceTests
         await _pages.DidNotReceive().CreateNodeForStagingAsync(
             Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<string>(), Arg.Any<string>(),
             Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<bool>(), Arg.Any<string?>(), Arg.Any<string?>());
+    }
+
+    // ── Validator integration ────────────────────────────────────────────────
+
+    private ContentStagingService SutWithSanitiser() =>
+        new(_pages, _blockRepo, new HtmlRenderingService(), new ContentBundleSanitiser(new HtmlRenderingService()));
+
+    [Fact]
+    public async Task PreviewAsync_FatalValidatorIssue_Throws_ContentImportValidationException()
+    {
+        // Invalid PageType — the validator flags it as fatal, PreviewAsync must short-circuit.
+        var bundle = new ContentBundle
+        {
+            PageNodes =
+            [
+                new() { Id = GuidA, Segment = "help", Title = "Help", PageType = "attacker-injected" }
+            ]
+        };
+
+        var ex = await Assert.ThrowsAsync<ContentImportValidationException>(
+            () => _sut.PreviewAsync(bundle));
+        Assert.Contains(ex.Issues, i => i.Code == "PAGE_TYPE_UNKNOWN");
+    }
+
+    [Fact]
+    public async Task ImportAsync_FatalValidatorIssue_Throws_And_DoesNotWrite()
+    {
+        var bundle = new ContentBundle
+        {
+            PageNodes =
+            [
+                new() { Id = GuidA, Segment = "admin", Title = "Reserved", PageType = "folder" }
+            ]
+        };
+
+        await Assert.ThrowsAsync<ContentImportValidationException>(
+            () => _sut.ImportAsync(bundle, ContentImportMode.Replace));
+        await _pages.DidNotReceive().CreateNodeForStagingAsync(
+            Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<string>(), Arg.Any<string>(),
+            Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<bool>(), Arg.Any<string?>(), Arg.Any<string?>());
+    }
+
+    // ── Sanitiser integration ────────────────────────────────────────────────
+
+    [Fact]
+    public async Task ImportAsync_SanitisesInlineScript_AndSurfacesWarning()
+    {
+        _pages.GetByIdAsync(Arg.Any<Guid>()).ReturnsNull();
+        _blockRepo.GetByContentIdAsync(Arg.Any<Guid>()).ReturnsNull();
+        _blockRepo.GetByKeyAsync(Arg.Any<string>()).ReturnsNull();
+        _blockRepo.AddBlockAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<Guid?>(), Arg.Any<bool>(), Arg.Any<string?>())
+            .Returns(new ContentBlockDto { Id = 1, ContentId = GuidB, Key = "banner", BlockType = "Content", Value = "" });
+
+        var bundle = new ContentBundle
+        {
+            ContentBlocks =
+            [
+                new()
+                {
+                    Id = GuidB,
+                    Key = "banner",
+                    BlockType = "Content",
+                    Value = "<p>Buy <script>steal()</script>now</p>"
+                }
+            ]
+        };
+
+        var sut = SutWithSanitiser();
+        var result = await sut.ImportAsync(bundle, ContentImportMode.Replace);
+
+        // Warning surfaced; the bundle's value is now clean (mutated in place).
+        Assert.Contains(result.Warnings, w => w.Contains("Sanitised HTML"));
+        Assert.DoesNotContain("<script", bundle.ContentBlocks[0].Value);
+        Assert.DoesNotContain("steal()", bundle.ContentBlocks[0].Value);
+        // Repository receives the cleaned value, never the raw payload.
+        await _blockRepo.Received(1).AddBlockAsync(
+            "banner", "Content", Arg.Is<string>(v => !v.Contains("<script") && !v.Contains("steal()")),
+            Arg.Any<string>(), Arg.Any<Guid?>(), Arg.Any<bool>(), Arg.Any<string?>());
+    }
+
+    [Fact]
+    public async Task ImportAsync_CleanBundle_DoesNotSurfaceSanitiserWarning()
+    {
+        _pages.GetByIdAsync(Arg.Any<Guid>()).ReturnsNull();
+        _blockRepo.GetByContentIdAsync(Arg.Any<Guid>()).ReturnsNull();
+        _blockRepo.GetByKeyAsync(Arg.Any<string>()).ReturnsNull();
+        _blockRepo.AddBlockAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<Guid?>(), Arg.Any<bool>(), Arg.Any<string?>())
+            .Returns(new ContentBlockDto { Id = 1, ContentId = GuidB, Key = "banner", BlockType = "Content", Value = "" });
+
+        var bundle = new ContentBundle
+        {
+            ContentBlocks =
+            [
+                new() { Id = GuidB, Key = "banner", BlockType = "Content", Value = "<p>Hello</p>" }
+            ]
+        };
+
+        var sut = SutWithSanitiser();
+        var result = await sut.ImportAsync(bundle, ContentImportMode.Replace);
+
+        Assert.DoesNotContain(result.Warnings, w => w.Contains("Sanitised HTML"));
     }
 }

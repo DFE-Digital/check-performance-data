@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using System.Net;
 using DfE.CheckPerformanceData.E2ETests.Fixtures;
 using DfE.CheckPerformanceData.E2ETests.Helpers;
@@ -39,7 +40,7 @@ public sealed class ContentStagingTests(PlaywrightFixture fixture)
     }
 
     [Fact]
-    public async Task ContentStaging_ExportEverything_ReturnsSchemaVersionedJsonBundle()
+    public async Task ContentStaging_ExportEverything_ReturnsSchemaVersionedZippedBundle()
     {
         using var request = new HttpRequestMessage(
             HttpMethod.Get, $"{_fixture.BaseUrl}/admin/content-staging/export");
@@ -47,9 +48,17 @@ public sealed class ContentStagingTests(PlaywrightFixture fixture)
         var response = await TestHttpClients.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
-        var body = await response.Content.ReadAsStringAsync();
-        Assert.Contains("cpd-content-v2", body); // the bundle's schema marker
+        Assert.Equal("application/zip", response.Content.Headers.ContentType?.MediaType);
+
+        // Unzipped here with the framework rather than the application's own helper: these tests
+        // deliberately hold the service at arm's length over HTTP, so they should read the
+        // download the way any other client would.
+        await using var body = await response.Content.ReadAsStreamAsync();
+        using var archive = new ZipArchive(body, ZipArchiveMode.Read);
+        using var reader = new StreamReader(Assert.Single(archive.Entries).Open());
+        var json = await reader.ReadToEndAsync();
+
+        Assert.Contains("cpd-content-v2", json); // the bundle's schema marker
     }
 
     [Fact]

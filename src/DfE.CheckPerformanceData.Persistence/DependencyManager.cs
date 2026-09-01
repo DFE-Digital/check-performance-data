@@ -47,6 +47,10 @@ public static class DependencyManager
         services.AddScoped<IPortalDbContext>(sp => sp.GetRequiredService<PortalDbContext>());
         services.AddScoped<Application.Settings.ISettingRepository, Repositories.SettingRepository>();
         services.AddScoped<IContentBlockRepository, ContentBlockRepository>();
+        services.AddScoped<Application.ContentStaging.IContentStagingLock,
+                           ContentStaging.PostgresContentStagingLock>();
+        services.AddScoped<Application.ContentStaging.IContentStagingSessionStore,
+                           ContentStaging.ContentStagingSessionStore>();
         services.AddScoped<ILandingPageRepository, LandingPageRepository>();
         services.AddScoped<IWindowRepository, WindowRepository>();
         services.AddScoped<ICheckYourPupilDataRepository, CheckYourPupilDataRepository>();

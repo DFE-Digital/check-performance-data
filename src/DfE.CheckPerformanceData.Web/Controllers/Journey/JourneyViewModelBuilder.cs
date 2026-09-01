@@ -84,12 +84,15 @@ public sealed class JourneyViewModelBuilder(
     }
 
     /// <summary>
-    /// The enquiry-shaped summary, or null for an amendment journey. AB#296648.
+    /// The enquiry-shaped summary, or null for an amendment journey. Serves both result-holding
+    /// enquiry kinds (incorrect grade, AB#296648; result does not belong to student, AB#298704).
     /// </summary>
     private ResultsEnquirySummary? BuildEnquirySummary(
         RequestState journey, QuestionFlowConfig config, string pupilName)
     {
-        if (journey.SelectedWhatToChange != Application.CheckYourPupilData.WhatToChange.IncorrectGrade)
+        var kind = journey.SelectedWhatToChange;
+        if (kind is not (Application.CheckYourPupilData.WhatToChange.IncorrectGrade
+            or Application.CheckYourPupilData.WhatToChange.ResultDoesNotBelong))
             return null;
 
         string? Answer(string questionId) =>
@@ -104,11 +107,15 @@ public sealed class JourneyViewModelBuilder(
         {
             DfeNumber = currentUserService.OrganisationLaestab,
             KeyStageLabel = KeyStageLabelFor(journey.CheckingWindow?.CheckingWindowType),
-            EnquiryTypeLabel = "Incorrect grade",
+            EnquiryTypeLabel = kind == Application.CheckYourPupilData.WhatToChange.IncorrectGrade
+                ? "Incorrect grade"
+                : "Result does not belong to student",
             StudentName = pupilName,
-            IsCohortWide = string.Equals(Answer(CohortScopeQuestionId), "yes", StringComparison.OrdinalIgnoreCase),
+            IsCohortWide = kind == Application.CheckYourPupilData.WhatToChange.IncorrectGrade
+                && string.Equals(Answer(CohortScopeQuestionId), "yes", StringComparison.OrdinalIgnoreCase),
             CohortCount = Answer(CohortCountQuestionId),
             Result = journey.SelectedResult,
+            ShowRevisedGrade = kind == Application.CheckYourPupilData.WhatToChange.IncorrectGrade,
             RevisedGrade = Answer(JourneyController.RevisedGradeQuestionId),
             RevisedGradePageId = PageAsking(JourneyController.RevisedGradeQuestionId),
             AdditionalInformation = Answer(AdditionalInfoQuestionId),

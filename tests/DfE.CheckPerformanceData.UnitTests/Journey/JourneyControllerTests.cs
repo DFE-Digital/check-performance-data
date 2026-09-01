@@ -293,6 +293,48 @@ public class JourneyControllerTests
     }
 
     [Fact]
+    public async Task Summary_ForAResultDoesNotBelongEnquiryWithoutAResult_RedirectsToTheResultSearch()
+    {
+        // The stale-summary guard (AB#297848 lesson): changing the student in another tab clears
+        // SelectedResult; the summary must send the user back rather than render half an enquiry.
+        var rdbFlow = new QuestionFlowConfig
+        {
+            FirstPageId = "select-student",
+            Pages =
+            [
+                new JourneyPage { Id = "select-student", Type = PageType.PupilSearch, PupilKey = "primary" },
+                new JourneyPage { Id = "select-result", Type = PageType.ResultSearch },
+                new JourneyPage
+                {
+                    Id = "additional-info",
+                    Questions = [new Question
+                    {
+                        Id = "q-additional-info", Type = QuestionType.TextArea,
+                        Title = "Additional information", Optional = true
+                    }]
+                }
+            ]
+        };
+        _flowService.GetConfigAsync(Arg.Any<WhatToChange>(), Arg.Any<CheckingWindowType>()).Returns(rdbFlow);
+        _flowService.GetPage(rdbFlow, "select-result").Returns(rdbFlow.Pages[1]);
+        // NSubstitute defaults an unconfigured string-returning call to "" rather than null, which
+        // the controller reads as "there IS a next page" — so the flow-complete signal must be explicit.
+        _flowService.GetNextPageId(rdbFlow, "additional-info", Arg.Any<Dictionary<string, QuestionAnswer>>())
+            .Returns((string?)null);
+
+        var state = ValidSession(history: ["select-student", "additional-info"]);
+        state.SelectedWhatToChange = WhatToChange.ResultDoesNotBelong;
+        state.SelectedResult = null;
+        SetupSession(state);
+
+        var result = await _sut.Summary(WindowId);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(JourneyController.ResultSearchPage), redirect.ActionName);
+        Assert.Equal("select-result", redirect.RouteValues!["pageId"]);
+    }
+
+    [Fact]
     public async Task Summary_WhenJourneyComplete_RendersView()
     {
         // Both pages answered; GetNextPageId after page-2 returns null

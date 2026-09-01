@@ -524,6 +524,7 @@ public sealed class JourneyController(
         {
             Application.CheckYourPupilData.WhatToChange.IncorrectGrade => IncorrectGradeGap(journey, config),
             Application.CheckYourPupilData.WhatToChange.MissingQualification => MissingQualificationGap(journey, config),
+            Application.CheckYourPupilData.WhatToChange.ResultDoesNotBelong => ResultDoesNotBelongGap(journey, config),
             _ => null
         };
 
@@ -540,6 +541,13 @@ public sealed class JourneyController(
 
         return hasGrade ? null : gradePage?.Id;
     }
+
+    private static string? ResultDoesNotBelongGap(RequestState journey, QuestionFlowConfig config) =>
+        // The selected result is the only hard prerequisite — additional info is optional. Same
+        // page-by-type lookup as IncorrectGradeGap so a flow-config id rename cannot orphan this.
+        journey.SelectedResult is null
+            ? config.Pages.FirstOrDefault(p => p.Type == PageType.ResultSearch)?.Id
+            : null;
 
     /// <summary>
     /// Changing the qualification clears the syllabus and grade answers but the details page stays

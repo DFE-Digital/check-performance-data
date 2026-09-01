@@ -6,9 +6,12 @@ namespace DfE.CheckPerformanceData.Application.ContentStaging;
 public sealed record ContentBlockBundleItem
 {
     public Guid Id { get; init; }
-    public string Key { get; init; } = string.Empty;
-    public string BlockType { get; init; } = string.Empty;
-    public string Value { get; init; } = string.Empty;
+    private readonly string _key = string.Empty;
+    public string Key { get => _key; init => _key = BundleMemberDefaults.OrEmpty(value); }
+    private readonly string _blockType = string.Empty;
+    public string BlockType { get => _blockType; init => _blockType = BundleMemberDefaults.OrEmpty(value); }
+    private readonly string _value = string.Empty;
+    public string Value { get => _value; init => _value = BundleMemberDefaults.OrEmpty(value); }
 
     /// <summary>
     /// Whether the block appears in help-search. Defaults to true so bundles produced by earlier

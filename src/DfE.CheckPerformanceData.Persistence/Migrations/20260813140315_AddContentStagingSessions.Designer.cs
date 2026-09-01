@@ -3,6 +3,7 @@ using System;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using NpgsqlTypes;
@@ -12,9 +13,11 @@ using NpgsqlTypes;
 namespace DfE.CheckPerformanceData.Persistence.Migrations
 {
     [DbContext(typeof(PortalDbContext))]
-    partial class PortalDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260813140315_AddContentStagingSessions")]
+    partial class AddContentStagingSessions
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -635,38 +638,6 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     b.ToTable("ChangeRequests");
                 });
 
-            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingExercise", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasDefaultValueSql("gen_random_uuid()");
-
-                    b.Property<Guid>("CheckingWindowId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("EndDate")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<string>("ExerciseType")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("StartDate")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CheckingWindowId", "ExerciseType")
-                        .IsUnique();
-
-                    b.ToTable("CheckingExercises", (string)null);
-                });
-
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingWindow", b =>
                 {
                     b.Property<Guid>("Id")
@@ -716,11 +687,6 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
-                    b.Property<string>("TurnaroundCommitment")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
                     b.HasKey("Id");
 
                     b.ToTable("CheckingWindows");
@@ -732,9 +698,6 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasDefaultValueSql("gen_random_uuid()");
-
-                    b.Property<Guid>("CheckingExerciseId")
-                        .HasColumnType("uuid");
 
                     b.Property<Guid>("CheckingWindowId")
                         .HasColumnType("uuid");
@@ -757,11 +720,6 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
-                    b.Property<bool>("Required")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(true);
-
                     b.Property<string>("SchemaFile")
                         .IsRequired()
                         .HasMaxLength(255)
@@ -775,13 +733,9 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     b.Property<int>("SortOrder")
                         .HasColumnType("integer");
 
-                    b.Property<string>("SourceFile")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
                     b.HasKey("Id");
 
-                    b.HasIndex("CheckingExerciseId", "Name")
+                    b.HasIndex("CheckingWindowId", "Name")
                         .IsUnique();
 
                     b.ToTable("CheckingWindowDatasets");
@@ -1333,17 +1287,11 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingExercise", b =>
+            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingWindow", b =>
                 {
-                    b.HasOne("DfE.CheckPerformanceData.Persistence.Entities.CheckingWindow", null)
-                        .WithMany("CheckingExercises")
-                        .HasForeignKey("CheckingWindowId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.OwnsOne("DfE.CheckPerformanceData.Persistence.Entities.ExerciseValidated", "Validated", b1 =>
+                    b.OwnsOne("DfE.CheckPerformanceData.Persistence.Entities.WindowValidated", "Validated", b1 =>
                         {
-                            b1.Property<Guid>("CheckingExerciseId")
+                            b1.Property<Guid>("CheckingWindowId")
                                 .ValueGeneratedOnAdd()
                                 .HasColumnType("uuid");
 
@@ -1360,12 +1308,12 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                             b1.Property<DateTime>("ValidatedAt")
                                 .HasColumnType("timestamp with time zone");
 
-                            b1.HasKey("CheckingExerciseId");
+                            b1.HasKey("CheckingWindowId");
 
-                            b1.ToTable("CheckingExercises");
+                            b1.ToTable("CheckingWindows");
 
                             b1.WithOwner()
-                                .HasForeignKey("CheckingExerciseId");
+                                .HasForeignKey("CheckingWindowId");
                         });
 
                     b.Navigation("Validated");
@@ -1373,9 +1321,9 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
 
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingWindowDataset", b =>
                 {
-                    b.HasOne("DfE.CheckPerformanceData.Persistence.Entities.CheckingExercise", null)
+                    b.HasOne("DfE.CheckPerformanceData.Persistence.Entities.CheckingWindow", null)
                         .WithMany("Datasets")
-                        .HasForeignKey("CheckingExerciseId")
+                        .HasForeignKey("CheckingWindowId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
@@ -1411,14 +1359,9 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     b.Navigation("PageNode");
                 });
 
-            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingExercise", b =>
-                {
-                    b.Navigation("Datasets");
-                });
-
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingWindow", b =>
                 {
-                    b.Navigation("CheckingExercises");
+                    b.Navigation("Datasets");
                 });
 
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.ContentBlock", b =>

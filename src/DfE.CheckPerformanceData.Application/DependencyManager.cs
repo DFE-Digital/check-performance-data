@@ -36,6 +36,7 @@ public static class DependencyManager
         services.AddScoped<SamplePageNodeSeeder>();
         services.AddScoped<Analytics.SampleSearchDataSeeder>();
         services.AddScoped<ContentStaging.IContentStagingService, ContentStaging.ContentStagingService>();
+        services.AddScoped<ContentStaging.ContentBundleSanitiser>();
         services.AddScoped<IHtmlRenderingService, HtmlRenderingService>();
         services.AddScoped<Settings.ISettingService, Settings.SettingService>();
         services.AddScoped<ILandingPageService, LandingPageService>();

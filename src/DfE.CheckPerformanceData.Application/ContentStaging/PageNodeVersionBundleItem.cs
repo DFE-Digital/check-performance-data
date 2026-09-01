@@ -12,9 +12,11 @@ public sealed record PageNodeVersionBundleItem
     public DateTime? PublishTo { get; init; }
 
     // Type-specific payload: widget-tree JSON for content nodes, wiki body for wiki nodes.
-    public string Content { get; init; } = string.Empty;
+    private readonly string _content = string.Empty;
+    public string Content { get => _content; init => _content = BundleMemberDefaults.OrEmpty(value); }
 
     // Extracted plain text used for search; carried so the target does not need to re-derive it
     // from Content (which would require knowledge of every content type).
-    public string BodyPlainText { get; init; } = string.Empty;
+    private readonly string _bodyPlainText = string.Empty;
+    public string BodyPlainText { get => _bodyPlainText; init => _bodyPlainText = BundleMemberDefaults.OrEmpty(value); }
 }

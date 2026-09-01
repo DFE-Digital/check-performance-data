@@ -19,6 +19,7 @@ public sealed class ContentStagingService(
     IPageNodeRepository pageNodeRepository,
     IContentBlockRepository contentBlockRepository,
     IHtmlRenderingService htmlRenderer,
+    ContentBundleSanitiser? sanitiser = null,
     ILogger<ContentStagingService>? logger = null) : IContentStagingService
 {
     // Ancestor walks used to be bounded by a fixed depth ceiling. The ceiling was only ever there
@@ -46,10 +47,21 @@ public sealed class ContentStagingService(
     private readonly ILogger<ContentStagingService> _log =
         logger ?? NullLogger<ContentStagingService>.Instance;
 
+    // Nullable + optional so the existing test set (which constructs the service with two
+    // repositories) keeps compiling and the sanitiser branch is a no-op there. Real DI in
+    // Program.cs wires the actual sanitiser in.
+    private readonly ContentBundleSanitiser? _sanitiser = sanitiser;
+
     public async Task<ContentBundle> ExportAsync(ContentExportSelection? selection = null)
     {
         var tree = await pageNodeRepository.GetTreeAsync();
         var byId = tree.ToDictionary(n => n.Id);
+
+        // A null selection is "export everything", which still gets the default history cap —
+        // the whole-environment export is the one most likely to be enormous.
+        var maxVersionsPerNode = selection is null
+            ? ContentExportSelection.DefaultMaxVersionsPerNode
+            : selection.MaxVersionsPerNode;
 
         var pageItems = new List<PageNodeBundleItem>();
         foreach (var node in OrderPreOrder(tree))
@@ -70,8 +82,7 @@ public sealed class ContentStagingService(
                 SortOrder = node.SortOrder,
                 AppearInSearch = node.AppearInSearch,
                 Keywords = node.Keywords,
-                Versions = versions
-                    .OrderBy(v => v.VersionId)
+                Versions = TrimHistory(versions, maxVersionsPerNode)
                     .Select(v => new PageNodeVersionBundleItem
                     {
                         VersionId = v.VersionId,
@@ -91,11 +102,17 @@ public sealed class ContentStagingService(
             .OrderBy(b => b.Key, StringComparer.Ordinal)
             .ToList();
 
-        if (selection is not null)
+        // Null id sets mean "no filter" — an export can be whole-environment and still carry a
+        // history preference, so the two are decided independently.
+        if (selection?.PageNodeIds is { } selectedPages)
         {
-            var included = ExpandWithAncestors(selection.PageNodeIds, byId);
+            var included = ExpandWithAncestors(selectedPages, byId);
             pageItems = pageItems.Where(i => included.Contains(i.Id)).ToList();
-            blockItems = blockItems.Where(i => selection.ContentBlockIds.Contains(i.Id)).ToList();
+        }
+
+        if (selection?.ContentBlockIds is { } selectedBlocks)
+        {
+            blockItems = blockItems.Where(i => selectedBlocks.Contains(i.Id)).ToList();
         }
 
         return new ContentBundle
@@ -104,6 +121,72 @@ public sealed class ContentStagingService(
             PageNodes = pageItems,
             ContentBlocks = blockItems
         };
+    }
+
+    // Keeps the most recent `max` versions of a node, in ascending version order, plus every
+    // version the target environment would still need to behave like the source.
+    //
+    // Two kinds of version are kept regardless of recency, because losing either changes what
+    // the environment does rather than merely how much history it remembers:
+    //
+    //  * The one that is live NOW. Liveness is resolved from the publish windows on every
+    //    request, so it is not necessarily the highest-numbered version — a page carrying a
+    //    stack of unpublished drafts serves something underneath them. Resolved here with the
+    //    same LiveVersionResolver the renderer uses, deliberately NOT with the IsCurrent
+    //    column: that column is a cache written only when something writes to the page, and
+    //    nothing recomputes it as time passes, so a temporary notice that expired months ago
+    //    still carries the flag while the site has long since fallen back to an older version.
+    //    Trusting it would drop the version actually being served and, where the stale one's
+    //    window has closed, leave the imported page with no live version at all.
+    //
+    //  * Anything the page will serve LATER — a version scheduled to go live, and the version
+    //    that takes over when a temporary notice's window closes. Publishing never closes the
+    //    previous version's window, so an evergreen page sitting underneath a notice is a
+    //    supported state; dropping it means the target 404s the day the notice expires, which
+    //    is worse than an import that fails outright because nothing looks wrong until then.
+    //
+    // Both are rare, so in the ordinary case this returns exactly `max` versions.
+    private static List<PageNodeVersionDto> TrimHistory(List<PageNodeVersionDto> versions, int? max)
+    {
+        if (max is not int cap || versions.Count <= cap)
+        {
+            return versions.OrderBy(v => v.VersionId).ToList();
+        }
+
+        var nowUtc = DateTime.UtcNow;
+        var kept = versions.OrderByDescending(v => v.VersionId).Take(cap).ToList();
+        var keptIds = kept.Select(v => v.VersionId).ToHashSet();
+
+        var windows = versions
+            .Select(v => new PageVersionWindow(v.VersionId, v.PublishFrom, v.PublishTo))
+            .ToList();
+
+        // The live version can only change at a moment when some window opens or closes, so
+        // those instants are the complete set of times worth asking about. Resolving at each of
+        // them keeps every version this page is going to serve, not merely the one it serves
+        // today — which covers both directions the naive rules missed: a version scheduled to
+        // go live later is the answer at its own PublishFrom, and the evergreen version
+        // underneath an expiring notice is the answer at that notice's PublishTo.
+        //
+        // Bounded by the cap so a page scheduled over and over cannot lift the ceiling
+        // indefinitely; the earliest boundaries are the ones that matter soonest.
+        var boundaries = windows
+            .SelectMany(w => new[] { w.PublishFrom, w.PublishTo })
+            .Where(t => t is { } instant && instant > nowUtc)
+            .Select(t => t!.Value)
+            .Distinct()
+            .Order()
+            .Take(cap);
+
+        foreach (var moment in boundaries.Prepend(nowUtc))
+        {
+            if (LiveVersionResolver.Resolve(windows, moment) is int id && keptIds.Add(id))
+            {
+                kept.Add(versions.First(v => v.VersionId == id));
+            }
+        }
+
+        return kept.OrderBy(v => v.VersionId).ToList();
     }
 
     public async Task<ContentCatalog> GetCatalogAsync()
@@ -129,6 +212,20 @@ public sealed class ContentStagingService(
     public async Task<ContentImportPreview> PreviewAsync(ContentBundle bundle)
     {
         ArgumentNullException.ThrowIfNull(bundle);
+
+        // Validate up front. Fatal issues in the shape or contents of the bundle mean the
+        // preview can't be produced safely — the operator should get the error banner from
+        // the landing page instead of a broken half-preview.
+        var issues = ContentBundleValidator.Validate(bundle);
+        if (issues.Any(i => i.Severity == ValidationSeverity.Fatal))
+        {
+            throw new ContentImportValidationException(issues);
+        }
+
+        // Sanitise HTML in place before the preview so any bundle-json we round-trip through
+        // the hidden form field is already clean. Idempotent — running it again at Import
+        // time (below) is a no-op on already-scrubbed content.
+        _sanitiser?.SanitiseInPlace(bundle);
 
         var byId = BundleById(bundle.PageNodes);
         var resolvable = await ResolveableParentsAsync(bundle.PageNodes, byId);
@@ -175,6 +272,20 @@ public sealed class ContentStagingService(
     {
         ArgumentNullException.ThrowIfNull(bundle);
 
+        // Re-validate at Import time. The bundle is reloaded from its preview session between
+        // the two steps — belt-and-braces so a tampered session row can't smuggle a fatal
+        // issue past the earlier check.
+        var issues = ContentBundleValidator.Validate(bundle);
+        if (issues.Any(i => i.Severity == ValidationSeverity.Fatal))
+        {
+            throw new ContentImportValidationException(issues);
+        }
+
+        // Sanitise HTML in place. Idempotent — if PreviewAsync already sanitised, this is
+        // free. Any items that were still dirty (rare — implies the operator hand-edited
+        // the round-tripped JSON) surface as a warning on the result banner.
+        var sanitised = _sanitiser?.SanitiseInPlace(bundle) ?? 0;
+
         _log.LogInformation(
             "ContentStaging import starting: {PageCount} page(s), {BlockCount} block(s), collisionMode={Mode}, newItemMode={NewMode}, decisions={DecisionCount}",
             bundle.PageNodes.Count, bundle.ContentBlocks.Count, mode, newItemMode, decisions?.Count ?? 0);
@@ -194,6 +305,23 @@ public sealed class ContentStagingService(
         await GuardFailCollisionsAsync(pages, bundle.ContentBlocks, ModeFor);
 
         var result = new ContentImportResult();
+
+        // Surface the sanitiser's effect prominently — if the operator uploaded a bundle
+        // with unsafe HTML we want them to know that N items were scrubbed on the way in,
+        // not silently accept the cleaned payload as if it had always been clean.
+        if (sanitised > 0)
+        {
+            result.Warnings.Add(
+                $"Sanitised HTML in {sanitised} bundle item(s) on import (script tags, event handlers, or javascript: URLs were removed).");
+        }
+
+        // Non-fatal validator issues were computed and then dropped, so anything the validator
+        // could only warn about — a page that will not render, say — reached nobody. They are
+        // the cases where the import proceeds but the operator needs to know what landed.
+        foreach (var issue in issues.Where(i => i.Severity == ValidationSeverity.Warning))
+        {
+            result.Warnings.Add(issue.Message);
+        }
 
         // Bundle node GUID -> materialised path, so a child resolves its parent's path without
         // re-querying the database on every iteration.
@@ -298,12 +426,21 @@ public sealed class ContentStagingService(
                 if (page.ParentId is { } bundleParent && localIdByBundleId.TryGetValue(bundleParent, out var localParent))
                     effectiveParentId = localParent;
 
-                var created = await pageNodeRepository.CreateNodeForStagingAsync(
-                    page.Id, effectiveParentId, page.Segment, path, page.Title, page.Subtitle, page.PageName, page.PageType, page.SortOrder,
-                    page.AppearInSearch, page.Keywords, userId: null);
-                if (page.PageType != "folder")
-                    await pageNodeRepository.ReplaceAllVersionsForStagingAsync(
-                        created.Id, MapVersions(page.Versions), userId: null);
+                // A node and its versions land together or not at all. Written separately, a
+                // version write that failed — a duplicate VersionId, a byte the column will not
+                // take — left the node committed with no versions: a page in the tree that
+                // permanently 404s, while the counter below never ran so the summary reported
+                // nothing created. The per-item catch then reports an error for an item that
+                // did partly land, which is the worst of both.
+                await pageNodeRepository.ExecuteInTransactionAsync(async () =>
+                {
+                    var created = await pageNodeRepository.CreateNodeForStagingAsync(
+                        page.Id, effectiveParentId, page.Segment, path, page.Title, page.Subtitle, page.PageName, page.PageType, page.SortOrder,
+                        page.AppearInSearch, page.Keywords, userId: null);
+                    if (page.PageType != "folder")
+                        await pageNodeRepository.ReplaceAllVersionsForStagingAsync(
+                            created.Id, MapVersions(page.Versions), userId: null);
+                });
                 _log.LogDebug("ContentStaging: page {PageId} ‘{Title}’ created ({VersionCount} versions)", page.Id, page.Title, page.Versions.Count);
                 result.PageNodesCreated++;
                 pathByContentId[page.Id] = path;

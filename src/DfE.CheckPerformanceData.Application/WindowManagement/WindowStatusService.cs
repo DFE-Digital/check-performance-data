@@ -1,12 +1,12 @@
 namespace DfE.CheckPerformanceData.Application.WindowManagement;
 
-public class WindowStatusService() : IWindowStatusService
+public class WindowStatusService(TimeProvider timeProvider) : IWindowStatusService
 {
-    public bool IsOpen(CheckingWindowDto window) => Brackets(window, DateTime.Now.ToUniversalTime());
+    public bool IsOpen(CheckingWindowDto window) => Brackets(window, timeProvider.GetLocalNow().DateTime);
 
     public IReadOnlyList<CheckingWindowDto> OpenWindows(IEnumerable<CheckingWindowDto> windows)
     {
-        DateTime now = DateTime.Now.ToUniversalTime();
+        DateTime now = timeProvider.GetLocalNow().DateTime;
         return [.. windows.Where(w => Brackets(w, now))];
     }
 

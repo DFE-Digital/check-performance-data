@@ -30,4 +30,8 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Remove="Snapshots\search-ux\messages\admin-messages-group-landing.png" />
+  </ItemGroup>
+
 </Project>

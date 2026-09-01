@@ -393,6 +393,7 @@ public sealed class RequestService(
                 question.Options?.FirstOrDefault(o => o.Value == v)?.Label ?? v,
             QuestionType.Date when answer?.DateValue is { } d =>
                 $"{d.Day:D2}/{d.Month:D2}/{d.Year}",
+            QuestionType.Checkbox => CheckboxAnswerDisplay.Join(question, answer),
             _ => answer?.TextValue
         };
 
@@ -401,6 +402,8 @@ public sealed class RequestService(
             QuestionType.Date when answer?.DateValue is { } d =>
                 $"{d.Year:D4}-{d.Month:D2}-{d.Day:D2}",
             QuestionType.Autocomplete => answer?.CodeValue ?? answer?.TextValue,
+            // The machine-readable form, the exact analogue of an Autocomplete's CodeValue.
+            QuestionType.Checkbox => CheckboxAnswerDisplay.JoinValues(question, answer),
             _ => answer?.TextValue
         };
 

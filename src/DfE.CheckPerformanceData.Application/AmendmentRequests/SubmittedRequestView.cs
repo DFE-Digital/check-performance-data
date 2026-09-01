@@ -1,3 +1,4 @@
+using LearnerNoun = DfE.CheckPerformanceData.Application.WindowManagement.LearnerNoun;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Domain.Enums;
@@ -14,6 +15,13 @@ public sealed class SubmittedRequestView
     public required WhatToChange WhatToChange { get; init; }
     public required RequestStatus Status { get; init; }
     public required string PupilName { get; init; }
+
+    /// <summary>
+    /// The word the request's window uses for a learner, from the persisted journey state —
+    /// "student" on 16-19. A submitted request is read back long after it was made, so the noun
+    /// comes from the request's own window rather than from whatever the reader is looking at.
+    /// </summary>
+    public required LearnerNoun LearnerNoun { get; init; }
     public string? FirstRecordDisplay { get; init; }
     public string? SecondRecordDisplay { get; init; }
     public required IReadOnlyList<SubmittedRequestAnswerRow> Rows { get; init; }

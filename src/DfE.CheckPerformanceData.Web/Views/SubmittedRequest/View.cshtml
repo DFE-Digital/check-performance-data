@@ -28,7 +28,7 @@ else
 
 <dl class="govuk-summary-list">
     <div class="govuk-summary-list__row">
-        <dt class="govuk-summary-list__key">What pupil data would you like to change?</dt>
+        <dt class="govuk-summary-list__key">What @Model.LearnerNoun.Singular data would you like to change?</dt>
         <dd class="govuk-summary-list__value">@Model.WhatToChangeLabel</dd>
     </div>
     @if (Model.SecondRecordDisplay is not null)
@@ -45,7 +45,7 @@ else
     else
     {
         <div class="govuk-summary-list__row">
-            <dt class="govuk-summary-list__key">Pupil name</dt>
+            <dt class="govuk-summary-list__key">@Model.LearnerNoun.SingularCapitalised name</dt>
             <dd class="govuk-summary-list__value">@Model.PupilName</dd>
         </div>
     }

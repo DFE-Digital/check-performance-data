@@ -15,6 +15,7 @@ using ICheckingExerciseService = DfE.CheckPerformanceData.Application.WindowMana
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using DfE.CheckPerformanceData.Web.Common;
 using Microsoft.AspNetCore.Http;
+using LearnerNoun = DfE.CheckPerformanceData.Application.WindowManagement.LearnerNoun;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.AmendmentRequests;
 
@@ -85,7 +86,7 @@ public sealed class ConfirmCorrectControllerTests
         Assert.Equal("Index", redirect.ActionName);
         Assert.Equal("CheckYourPupilData", redirect.ControllerName);
         Assert.Equal(
-            ClosedExerciseGuard.MessageFor(CheckingExerciseType.PupilData),
+            ClosedExerciseGuard.MessageFor(CheckingExerciseType.PupilData, LearnerNoun.Pupil),
             _sut.TempData[ClosedExerciseGuard.TempDataKey]);
     }
 

@@ -43,7 +43,7 @@ public sealed class ResultIssueController(
     {
         var window = await service.GetCheckingWindowAsync(windowId);
         if (!checkingExercises.IsOpen(window.Exercises, Exercise))
-            return this.RedirectExerciseClosed(windowId, Exercise);
+            return this.RedirectExerciseClosed(windowId, Exercise, LearnerNoun.For(window.CheckingWindowType));
 
         // Never pre-selects: the confirmation page's "Report another issue" link lands here, and the
         // AC is that nothing carries over from the previous enquiry.
@@ -57,7 +57,7 @@ public sealed class ResultIssueController(
     {
         var window = await service.GetCheckingWindowAsync(windowId);
         if (!checkingExercises.IsOpen(window.Exercises, Exercise))
-            return this.RedirectExerciseClosed(windowId, Exercise);
+            return this.RedirectExerciseClosed(windowId, Exercise, LearnerNoun.For(window.CheckingWindowType));
 
         // Fail closed on anything that is not one of the two options this ticket renders, so a
         // forged or sibling-ticket value cannot start a journey with no flow behind it.

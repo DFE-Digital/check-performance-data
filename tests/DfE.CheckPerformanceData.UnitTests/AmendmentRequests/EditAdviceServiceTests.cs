@@ -127,7 +127,7 @@ public class EditAdviceServiceTests
         var evidencePage = new JourneyPage { Id = "evidence", Type = PageType.EvidenceUpload };
         _flow.GetReachableEvidencePage(Arg.Any<QuestionFlowConfig>(), Arg.Any<Dictionary<string, QuestionAnswer>>())
             .Returns(evidencePage);
-        _validation.ValidateEvidencePage(evidencePage, Arg.Any<RequestState>(), Arg.Any<string>(), Arg.Any<IReadOnlySet<string>?>())
+        _validation.ValidateEvidencePage(evidencePage, Arg.Any<RequestState>(), Arg.Any<string>(), Arg.Any<IReadOnlySet<string>?>(), Arg.Any<bool?>())
             .Returns(new EvidenceValidationResult { Messages = ["Upload at least one file before continuing"] });
 
         var advice = await _sut.BuildAsync(WindowId, "REF001", Journey(WhatToChange.Include));

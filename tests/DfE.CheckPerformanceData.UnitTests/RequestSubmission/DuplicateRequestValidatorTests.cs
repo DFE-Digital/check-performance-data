@@ -9,6 +9,7 @@ using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Common;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
+using LearnerNoun = DfE.CheckPerformanceData.Application.WindowManagement.LearnerNoun;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.RequestSubmission;
 
@@ -213,7 +214,7 @@ public sealed class DuplicateRequestValidatorTests
     [Fact]
     public void AttentionBannerHtml_WhenSelfAndReasonMatches_IncludesReferenceAndLink()
     {
-        var html = DuplicateRequestMessages.AttentionBannerHtml(true, true, "Remove", "Jane Smith", "CYPMD_001", "/link", "");
+        var html = DuplicateRequestMessages.AttentionBannerHtml(true, true, "Remove", "Jane Smith", "CYPMD_001", "/link", "", LearnerNoun.Pupil);
         Assert.Contains("pupil removal request", html);
         Assert.Contains("Jane Smith", html);
         Assert.Contains("CYPMD_001", html);
@@ -224,7 +225,7 @@ public sealed class DuplicateRequestValidatorTests
     [Fact]
     public void AttentionBannerHtml_WhenOtherAndReasonMatches_IncludesUserName()
     {
-        var html = DuplicateRequestMessages.AttentionBannerHtml(false, true, "Remove", "Jane Smith", "CYPMD_001", "/link", "Sarah Jenkins");
+        var html = DuplicateRequestMessages.AttentionBannerHtml(false, true, "Remove", "Jane Smith", "CYPMD_001", "/link", "Sarah Jenkins", LearnerNoun.Pupil);
         Assert.Contains("Sarah Jenkins", html);
         Assert.Contains("pupil removal request", html);
     }
@@ -232,7 +233,7 @@ public sealed class DuplicateRequestValidatorTests
     [Fact]
     public void AttentionBannerHtml_WhenSelfAndReasonDiffers_ShowsDifferentType()
     {
-        var html = DuplicateRequestMessages.AttentionBannerHtml(true, false, "Remove", "Jane Smith", "CYPMD_001", "/link", "");
+        var html = DuplicateRequestMessages.AttentionBannerHtml(true, false, "Remove", "Jane Smith", "CYPMD_001", "/link", "", LearnerNoun.Pupil);
         Assert.Contains("request of a different type", html);
         Assert.Contains("pupil removal request", html);
     }
@@ -240,7 +241,7 @@ public sealed class DuplicateRequestValidatorTests
     [Fact]
     public void AttentionBannerHtml_WhenOtherAndReasonDiffers_CheckWithColleague()
     {
-        var html = DuplicateRequestMessages.AttentionBannerHtml(false, false, "Include", "Jane Smith", "CYPMD_001", "/link", "Sarah Jenkins");
+        var html = DuplicateRequestMessages.AttentionBannerHtml(false, false, "Include", "Jane Smith", "CYPMD_001", "/link", "Sarah Jenkins", LearnerNoun.Pupil);
         Assert.Contains("Sarah Jenkins", html);
         Assert.Contains("request of a different type", html);
         Assert.Contains("pupil inclusion request", html);
@@ -250,27 +251,27 @@ public sealed class DuplicateRequestValidatorTests
     [Fact]
     public void SummaryMessage_WhenSelfSubmittedAndReasonMatches_IncludesRequestType()
     {
-        var message = DuplicateRequestMessages.SummaryMessage(true, true, "Remove");
+        var message = DuplicateRequestMessages.SummaryMessage(true, true, "Remove", LearnerNoun.Pupil);
         Assert.Contains("pupil removal request", message);
     }
 
     [Fact]
     public void SummaryMessage_WhenOtherSubmittedAndReasonMatches_IncludesRequestType()
     {
-        var message = DuplicateRequestMessages.SummaryMessage(false, true, "Remove");
+        var message = DuplicateRequestMessages.SummaryMessage(false, true, "Remove", LearnerNoun.Pupil);
         Assert.Contains("pupil removal request", message);
     }
 
     [Fact]
     public void ErrorSummaryMessage_IsCorrect()
     {
-        Assert.Equal("A request has already been submitted for this pupil", DuplicateRequestMessages.ErrorSummaryMessage);
+        Assert.Equal("A request has already been submitted for this pupil", DuplicateRequestMessages.ErrorSummaryMessage(LearnerNoun.Pupil));
     }
 
     [Fact]
     public void FieldErrorMessage_IsCorrect()
     {
-        Assert.Equal("Choose another pupil", DuplicateRequestMessages.FieldErrorMessage);
+        Assert.Equal("Choose another pupil", DuplicateRequestMessages.FieldErrorMessage(LearnerNoun.Pupil));
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────

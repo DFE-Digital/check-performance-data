@@ -1,10 +1,18 @@
 using DfE.CheckPerformanceData.Application.Journey;
+using DfE.CheckPerformanceData.Application.WindowManagement;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.Journey;
 
 public sealed class PupilSearchViewModel
 {
     public Guid WindowId { get; set; }
+
+    /// <summary>
+    /// The window's word for a learner, from <c>RequestState.LearnerNoun</c>. Only the fallback
+    /// wording needs it — a page that sets its own title, hint or validationFailure in the flow
+    /// config already spells the noun itself, because a config is per window type.
+    /// </summary>
+    public LearnerNoun LearnerNoun { get; set; } = LearnerNoun.Pupil;
     public string PageId { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
     public PupilFilter Filter { get; set; }

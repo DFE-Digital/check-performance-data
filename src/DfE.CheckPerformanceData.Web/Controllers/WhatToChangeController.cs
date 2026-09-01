@@ -27,14 +27,15 @@ public sealed class WhatToChangeController(
     {
         var window = await service.GetCheckingWindowAsync(windowId);
         if (!checkingExercises.IsOpen(window.Exercises, Exercise))
-            return this.RedirectExerciseClosed(windowId, Exercise);
+            return this.RedirectExerciseClosed(windowId, Exercise, LearnerNoun.For(window.CheckingWindowType));
 
         var journey = HttpContext.Session.GetRequestState(windowId);
         return View(new WhatToChangeViewModel
         {
             WindowId = windowId,
             SelectedWhatToChange = journey.SelectedWhatToChange,
-            CheckingWindowType = window.CheckingWindowType
+            CheckingWindowType = window.CheckingWindowType,
+            LearnerNoun = LearnerNoun.For(window.CheckingWindowType)
         });
     }
 
@@ -45,13 +46,14 @@ public sealed class WhatToChangeController(
     {
         var window = await service.GetCheckingWindowAsync(windowId);
         if (!checkingExercises.IsOpen(window.Exercises, Exercise))
-            return this.RedirectExerciseClosed(windowId, Exercise);
+            return this.RedirectExerciseClosed(windowId, Exercise, LearnerNoun.For(window.CheckingWindowType));
 
         if (vm.SelectedWhatToChange == null)
         {
-            ModelState.AddModelError(nameof(WhatToChangeViewModel.SelectedWhatToChange), "Select what pupil data you would like to change");
+            var noun = LearnerNoun.For(window.CheckingWindowType);
+            ModelState.AddModelError(nameof(WhatToChangeViewModel.SelectedWhatToChange), $"Select what {noun.Singular} data you would like to change");
             await analytics.TrackSafeAsync(new ValidationErrorEvent { ErrorCount = 1, ErrorCodes = [ValidationErrorCoding.NoSelection], ErrorFields = [nameof(WhatToChangeViewModel.SelectedWhatToChange)] });
-            return View("Index", new WhatToChangeViewModel { WindowId = windowId, SelectedWhatToChange = null, CheckingWindowType = window.CheckingWindowType });
+            return View("Index", new WhatToChangeViewModel { WindowId = windowId, SelectedWhatToChange = null, CheckingWindowType = window.CheckingWindowType, LearnerNoun = noun });
         }
 
         // AB#297310: the Add journey exists only for the window types that have an Add_*.json.

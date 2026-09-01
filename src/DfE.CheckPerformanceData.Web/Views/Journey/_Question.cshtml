@@ -23,6 +23,9 @@
     case QuestionType.SyllabusSelect:
         await Html.RenderPartialAsync("_SyllabusSelect", Model);
         break;
+    case QuestionType.Checkbox:
+        await Html.RenderPartialAsync("_Checkbox", Model);
+        break;
 }
 
 @if (Model.Question.QuestionHelpTitle is not null)

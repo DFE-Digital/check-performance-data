@@ -63,6 +63,7 @@ public sealed class JourneyViewModelBuilder(
             WindowId = windowId,
             WhatToChange = journey.SelectedWhatToChange!.Value,
             PupilName = pupilName,
+            LearnerNoun = journey.LearnerNoun,
             Rows = rows,
             FileRows = fileRows,
             BackPageId = backPageId,
@@ -233,7 +234,8 @@ public sealed class JourneyViewModelBuilder(
                 ResolvedTitle = JourneyTemplate.Resolve(q.Title, pupilName) + (q.Optional ? " (Optional)" : ""),
                 VisibleOptions = q.Type switch
                 {
-                    QuestionType.Radio => optionVisibilityService.GetVisibleOptions(q, conditionContext),
+                    QuestionType.Radio or QuestionType.Checkbox =>
+                        optionVisibilityService.GetVisibleOptions(q, conditionContext),
                     // AB#297130: grades come from the AODC reference data for the selected result's
                     // QAN, not from the flow config — the config cannot know which qualification the
                     // user picked. Pass grades before fail grades, source order preserved within each.
@@ -292,6 +294,7 @@ public sealed class JourneyViewModelBuilder(
         return new PupilSearchViewModel
         {
             WindowId = windowId,
+            LearnerNoun = journey.LearnerNoun,
             PageId = pageId,
             Title = title,
             Filter = page.PupilFilter ?? PupilFilter.Included,

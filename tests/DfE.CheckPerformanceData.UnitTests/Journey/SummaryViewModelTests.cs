@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Web.Controllers.Journey;
+using LearnerNoun = DfE.CheckPerformanceData.Application.WindowManagement.LearnerNoun;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 
@@ -50,7 +51,7 @@ public sealed class SummaryViewModelTests
     public void Lines_ForAMergeJourney_KeepBothRecordRowsAndNoPupilNameRow()
     {
         var vm = new SummaryViewModel
-        {
+        { LearnerNoun = LearnerNoun.Pupil,
             WhatToChange = WhatToChange.Merge,
             PupilName = "Alice Newpupil",
             Rows = [],
@@ -70,6 +71,7 @@ public sealed class SummaryViewModelTests
 
     private static SummaryViewModel MakeVm(WhatToChange whatToChange, string? primaryPupilPageId = null) => new()
     {
+        LearnerNoun = LearnerNoun.Pupil,
         WhatToChange = whatToChange,
         PupilName = "Alice Newpupil",
         Rows = [],

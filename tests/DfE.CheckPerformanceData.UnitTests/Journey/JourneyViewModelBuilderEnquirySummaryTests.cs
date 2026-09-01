@@ -278,7 +278,9 @@ public sealed class JourneyViewModelBuilderEnquirySummaryTests
 
         var lines = _sut.BuildSummaryVm(WindowId, removal, Flow).Lines;
 
-        Assert.Equal("What pupil data would you like to change?", lines[0].Key);
+        // The fixture window is Post16, so the row says "student" — the learner noun follows the
+        // window type, and this is the amendment summary's copy of it.
+        Assert.Equal("What student data would you like to change?", lines[0].Key);
         Assert.DoesNotContain("DfE number", lines.Select(l => l.Key));
     }
 

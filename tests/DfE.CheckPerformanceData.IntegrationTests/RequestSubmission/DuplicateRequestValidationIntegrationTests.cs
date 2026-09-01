@@ -14,6 +14,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 using NSubstitute;
+using LearnerNoun = DfE.CheckPerformanceData.Application.WindowManagement.LearnerNoun;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.RequestSubmission;
 
@@ -230,8 +231,8 @@ public sealed class DuplicateRequestValidationIntegrationTests
     [Fact]
     public void SelfSubmittedMessages_ContainGuidanceText()
     {
-        var attentionHtml = DfE.CheckPerformanceData.Web.Common.DuplicateRequestMessages.AttentionBannerHtml(true, true, "Remove", "Jane Smith", "CYPMD_001", "/link", "");
-        var summary = DfE.CheckPerformanceData.Web.Common.DuplicateRequestMessages.SummaryMessage(true, true, "Remove");
+        var attentionHtml = DfE.CheckPerformanceData.Web.Common.DuplicateRequestMessages.AttentionBannerHtml(true, true, "Remove", "Jane Smith", "CYPMD_001", "/link", "", LearnerNoun.Pupil);
+        var summary = DfE.CheckPerformanceData.Web.Common.DuplicateRequestMessages.SummaryMessage(true, true, "Remove", LearnerNoun.Pupil);
 
         Assert.Contains("pupil removal request", attentionHtml);
         Assert.Contains("CYPMD_001", attentionHtml);
@@ -241,8 +242,8 @@ public sealed class DuplicateRequestValidationIntegrationTests
     [Fact]
     public void OtherSubmittedMessages_ContainGuidanceText()
     {
-        var attentionHtml = DfE.CheckPerformanceData.Web.Common.DuplicateRequestMessages.AttentionBannerHtml(false, true, "Remove", "Jane Smith", "CYPMD_001", "/link", "Sarah Jenkins");
-        var summary = DfE.CheckPerformanceData.Web.Common.DuplicateRequestMessages.SummaryMessage(false, true, "Remove");
+        var attentionHtml = DfE.CheckPerformanceData.Web.Common.DuplicateRequestMessages.AttentionBannerHtml(false, true, "Remove", "Jane Smith", "CYPMD_001", "/link", "Sarah Jenkins", LearnerNoun.Pupil);
+        var summary = DfE.CheckPerformanceData.Web.Common.DuplicateRequestMessages.SummaryMessage(false, true, "Remove", LearnerNoun.Pupil);
 
         Assert.Contains("Sarah Jenkins", attentionHtml);
         Assert.Contains("pupil removal request", attentionHtml);

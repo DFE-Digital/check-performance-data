@@ -3,8 +3,9 @@
 @using DfE.CheckPerformanceData.Web.Controllers.Journey
 
 @{
-    // Matches the <h1> the radios legend renders (is-page-heading="true").
-    ViewBag.Title = "What pupil data would you like to amend?";
+    // Matches the <h1> the radios legend renders (is-page-heading="true") — same words, and the
+    // same noun, which is "student" on a 16-19 window.
+    ViewBag.Title = $"What {Model.Noun.Singular} data would you like to change?";
     Layout = "_Layout";
 }
 
@@ -15,20 +16,20 @@
     <govuk-radios for="SelectedWhatToChange">
         <govuk-radios-fieldset>
             <govuk-radios-fieldset-legend is-page-heading="true" class="govuk-fieldset__legend--l">
-                What pupil data would you like to change?
+                What @Model.Noun.Singular data would you like to change?
             </govuk-radios-fieldset-legend>
 
             <govuk-radios-hint>
                 Select one option.
             </govuk-radios-hint>
 
-            <govuk-radios-item value="@WhatToChange.Merge">Merge duplicate pupil records</govuk-radios-item>
-            <govuk-radios-item value="@WhatToChange.Include">Include a pupil in data</govuk-radios-item>
-            <govuk-radios-item value="@WhatToChange.Remove">Remove a pupil from data</govuk-radios-item>
+            <govuk-radios-item value="@WhatToChange.Merge">Merge duplicate @Model.Noun.Singular records</govuk-radios-item>
+            <govuk-radios-item value="@WhatToChange.Include">Include a @Model.Noun.Singular in data</govuk-radios-item>
+            <govuk-radios-item value="@WhatToChange.Remove">Remove a @Model.Noun.Singular from data</govuk-radios-item>
             @if (Model.CheckingWindowType is { } windowType
                 && AddPupilJourney.SupportedWindowTypes.Contains(windowType))
             {
-                <govuk-radios-item value="@WhatToChange.Add">Add a pupil to data</govuk-radios-item>
+                <govuk-radios-item value="@WhatToChange.Add">Add a @Model.Noun.Singular to data</govuk-radios-item>
             }
         </govuk-radios-fieldset>
     </govuk-radios>

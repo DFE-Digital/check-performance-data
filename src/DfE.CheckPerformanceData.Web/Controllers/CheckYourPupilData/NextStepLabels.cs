@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Application.WindowManagement;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData;
 
@@ -12,10 +13,10 @@ namespace DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData;
 /// </remarks>
 public static class NextStepLabels
 {
-    public static string For(NextSteps step) => step switch
+    public static string For(NextSteps step, LearnerNoun noun) => step switch
     {
-        NextSteps.RequestChange => "Request an amendment to pupil data",
-        NextSteps.Confirm => "Confirm pupil data is correct",
+        NextSteps.RequestChange => $"Request an amendment to {noun.Singular} data",
+        NextSteps.Confirm => $"Confirm {noun.Singular} data is correct",
         NextSteps.ResultsEnquiry => "Report an issue with an exam result",
         _ => step.ToString()
     };

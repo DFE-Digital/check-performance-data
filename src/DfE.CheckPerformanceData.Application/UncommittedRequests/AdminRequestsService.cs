@@ -160,6 +160,7 @@ public sealed class AdminRequestsService(
 
         var value = question.Type switch
         {
+            QuestionType.Checkbox => CheckboxAnswerDisplay.Join(question, answer),
             QuestionType.Radio when answer?.TextValue is { } v =>
                 question.Options?.FirstOrDefault(o => o.Value == v)?.Label ?? v,
             QuestionType.Date when answer?.DateValue is { } d =>
@@ -172,6 +173,7 @@ public sealed class AdminRequestsService(
             QuestionType.Date when answer?.DateValue is { } d =>
                 $"{d.Year:D4}-{d.Month:D2}-{d.Day:D2}",
             QuestionType.Autocomplete => answer?.CodeValue ?? answer?.TextValue,
+            QuestionType.Checkbox => CheckboxAnswerDisplay.JoinValues(question, answer),
             _ => answer?.TextValue
         };
 

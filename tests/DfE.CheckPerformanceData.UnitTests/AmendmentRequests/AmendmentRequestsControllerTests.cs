@@ -21,6 +21,7 @@ using DfE.CheckPerformanceData.Application.UnitTests.WindowManagement;
 using ICheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.ICheckingExerciseService;
 using CheckingExerciseDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseDto;
 using DfE.CheckPerformanceData.Web.Common;
+using LearnerNoun = DfE.CheckPerformanceData.Application.WindowManagement.LearnerNoun;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.AmendmentRequests;
 
@@ -79,7 +80,7 @@ public class AmendmentRequestsControllerTests
     public async Task Index_MarksRowsSelectedFromStoredBulkSelection()
     {
         _service.GetAmendmentRequestsAsync(WindowId).Returns(new AmendmentRequestsResult
-        {
+        { LearnerNoun = LearnerNoun.Pupil,
             Deadlines = [Deadline(new DateTime(2026, 6, 26, 17, 0, 0))],
             WindowTitle = "Key stage 4",
             Rows =
@@ -103,7 +104,7 @@ public class AmendmentRequestsControllerTests
     {
         var endDate = new DateTime(2026, 6, 26, 17, 0, 0);
         _service.GetAmendmentRequestsAsync(WindowId).Returns(new AmendmentRequestsResult
-        {
+        { LearnerNoun = LearnerNoun.Pupil,
             Deadlines = [Deadline(endDate)],
             WindowTitle = "Key stage 4",
             Rows = [],
@@ -123,7 +124,7 @@ public class AmendmentRequestsControllerTests
     public async Task Index_GivesEachCheckingExercise_ItsOwnDeadlineLine()
     {
         _service.GetAmendmentRequestsAsync(WindowId).Returns(new AmendmentRequestsResult
-        {
+        { LearnerNoun = LearnerNoun.Pupil,
             Deadlines =
             [
                 Deadline(new DateTime(2026, 10, 18, 17, 0, 0)),
@@ -149,7 +150,7 @@ public class AmendmentRequestsControllerTests
     public async Task Index_AnOpenExercise_SaysSubmitBy_AndAClosedOne_SaysThePassed()
     {
         _service.GetAmendmentRequestsAsync(WindowId).Returns(new AmendmentRequestsResult
-        {
+        { LearnerNoun = LearnerNoun.Pupil,
             Deadlines =
             [
                 Deadline(new DateTime(2026, 10, 18, 17, 0, 0)),
@@ -172,7 +173,7 @@ public class AmendmentRequestsControllerTests
     public async Task Index_MapsRowsToViewModel()
     {
         _service.GetAmendmentRequestsAsync(WindowId).Returns(new AmendmentRequestsResult
-        {
+        { LearnerNoun = LearnerNoun.Pupil,
             Deadlines = [Deadline(DateTime.UtcNow)],
             WindowTitle = "Key stage 4",
             Rows =
@@ -205,7 +206,7 @@ public class AmendmentRequestsControllerTests
     {
         var submitted = new DateTime(2026, 6, 16, 9, 30, 0);
         _service.GetAmendmentRequestsAsync(WindowId).Returns(new AmendmentRequestsResult
-        {
+        { LearnerNoun = LearnerNoun.Pupil,
             Deadlines = [Deadline(DateTime.UtcNow)],
             WindowTitle = "Key stage 4",
             Rows = [],
@@ -239,7 +240,7 @@ public class AmendmentRequestsControllerTests
     public async Task Index_WhenSubmittedRowWithdrawn_UsesGreyWithdrawnTag()
     {
         _service.GetAmendmentRequestsAsync(WindowId).Returns(new AmendmentRequestsResult
-        {
+        { LearnerNoun = LearnerNoun.Pupil,
             Deadlines = [Deadline(DateTime.UtcNow)],
             WindowTitle = "Key stage 4",
             Rows = [],
@@ -630,6 +631,7 @@ public class AmendmentRequestsControllerTests
 
     private static AmendmentRequestsResult EmptyResult() => new()
     {
+        LearnerNoun = LearnerNoun.Pupil,
         Deadlines = [Deadline(new DateTime(2026, 6, 26, 17, 0, 0))],
         WindowTitle = "Key stage 4",
         Rows = [],
@@ -665,6 +667,7 @@ public class AmendmentRequestsControllerTests
 
     private static SummaryViewModel SampleSummaryVm() => new()
     {
+        LearnerNoun = LearnerNoun.Pupil,
         WindowId = WindowId,
         WhatToChange = WhatToChange.Remove,
         PupilName = "Ann Alpha",
@@ -737,7 +740,7 @@ public class AmendmentRequestsControllerTests
         Assert.Equal("Index", redirect.ActionName);
         Assert.Equal("CheckYourPupilData", redirect.ControllerName);
         Assert.Equal(
-            ClosedExerciseGuard.MessageFor(CheckingExerciseType.PupilData),
+            ClosedExerciseGuard.MessageFor(CheckingExerciseType.PupilData, LearnerNoun.Pupil),
             _sut.TempData[ClosedExerciseGuard.TempDataKey]);
     }
 

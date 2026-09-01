@@ -19,6 +19,7 @@ using DfE.CheckPerformanceData.Application.UnitTests.WindowManagement;
 // file already uses the LandingPage one.
 using ICheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.ICheckingExerciseService;
 using DfE.CheckPerformanceData.Web.Common;
+using LearnerNoun = DfE.CheckPerformanceData.Application.WindowManagement.LearnerNoun;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Controllers;
 
@@ -474,7 +475,7 @@ public sealed class ResultIssueControllerTests
         Assert.Equal("Index", redirect.ActionName);
         Assert.Equal("CheckYourPupilData", redirect.ControllerName);
         Assert.Equal(
-            ClosedExerciseGuard.MessageFor(CheckingExerciseType.ResultsEnquiry),
+            ClosedExerciseGuard.MessageFor(CheckingExerciseType.ResultsEnquiry, LearnerNoun.Pupil),
             _sut.TempData[ClosedExerciseGuard.TempDataKey]);
     }
 

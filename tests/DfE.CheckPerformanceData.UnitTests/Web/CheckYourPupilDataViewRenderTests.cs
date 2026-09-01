@@ -60,12 +60,13 @@ public sealed class CheckYourPupilDataViewRenderTests
     [Fact]
     public void Confirm_reads_last_after_the_or_divider()
     {
-        // "Confirm pupil data is correct" is the alternative to doing anything, so it keeps the GDS
+        // "Confirm ... data is correct" is the alternative to doing anything, so it keeps the GDS
         // divider and the last position it has always had — the exercise sort order drives the rest.
         var view = ReadView();
 
         var divider = view.IndexOf("govuk-radios-divider", StringComparison.Ordinal);
-        var confirmItem = view.IndexOf("NextSteps.Confirm)</govuk-radios-item>", StringComparison.Ordinal);
+        var confirmItem = view.IndexOf("NextSteps.Confirm, Model.LearnerNoun)</govuk-radios-item>",
+            StringComparison.Ordinal);
 
         Assert.True(divider > 0 && confirmItem > divider,
             "the Confirm option must render after the 'or' divider");
@@ -90,7 +91,8 @@ public sealed class CheckYourPupilDataViewRenderTests
     {
         var view = ReadView();
 
-        Assert.Contains("You must request any changes to pupil data before", view);
+        // The noun is the window's, so the sentence is asserted around it rather than through it.
+        Assert.Contains("You must request any changes to @Model.LearnerNoun.Singular data before", view);
         Assert.Contains("closed at", view);
     }
 

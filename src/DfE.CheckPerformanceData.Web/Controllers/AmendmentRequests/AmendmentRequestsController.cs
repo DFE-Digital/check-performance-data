@@ -34,11 +34,13 @@ public sealed class AmendmentRequestsController(
         {
             WindowId = windowId,
             WindowTitle = result.WindowTitle,
+            LearnerNoun = result.LearnerNoun,
             Deadlines = result.Deadlines.Select(d => new ExerciseDeadlineViewModel
             {
                 Exercise = d.Exercise,
                 EndDate = d.EndDate,
-                IsOpen = d.IsOpen
+                IsOpen = d.IsOpen,
+                LearnerNoun = result.LearnerNoun
             }).ToList(),
             Rows = result.Rows.Select(r => new AmendmentRequestRowViewModel
             {
@@ -113,6 +115,7 @@ public sealed class AmendmentRequestsController(
         {
             WindowId = windowId,
             WindowTitle = window.Title,
+            LearnerNoun = LearnerNoun.For(window.CheckingWindowType),
             Duplicates = review.Duplicates.Select(ToItemVm).ToList(),
             Submittable = submittable
         });
@@ -194,7 +197,7 @@ public sealed class AmendmentRequestsController(
         {
             var draftExercise = WhatToChangeCheckingExerciseMap.CheckingExerciseFor(draftChange);
             if (!checkingExercises.IsOpen(journey.CheckingWindow.Exercises, draftExercise))
-                return this.RedirectExerciseClosed(windowId, draftExercise);
+                return this.RedirectExerciseClosed(windowId, draftExercise, journey.LearnerNoun);
         }
 
         HttpContext.Session.SetRequestState(windowId, journey);

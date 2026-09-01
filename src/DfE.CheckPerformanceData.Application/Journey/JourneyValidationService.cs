@@ -29,13 +29,17 @@ public sealed class JourneyValidationService(
         {
             QuestionType.FileUpload => answer?.FileValues is { Count: > 0 },
             QuestionType.Date => answer?.DateValue is { Day: > 0, Month: > 0, Year: > 0 },
+            QuestionType.Checkbox => answer?.SelectedValues is { Count: > 0 },
             _ => !string.IsNullOrWhiteSpace(answer?.TextValue)
         };
 
     public RequireAtLeastOneResult? ValidateRequireAtLeastOne(
-        JourneyPage page, IReadOnlyDictionary<string, QuestionAnswer> answers, string pupilName)
+        JourneyPage page, IReadOnlyDictionary<string, QuestionAnswer> answers, string pupilName,
+        bool? requireAtLeastOneActive = null)
     {
-        if (!page.RequireAtLeastOne) return null;
+        // Null means "nobody evaluated the page's conditions" — fall back to the raw flag, which
+        // is the whole rule for every page that does not set requireAtLeastOneWhen.
+        if (!(requireAtLeastOneActive ?? page.RequireAtLeastOne)) return null;
 
         var anyAnswered = page.Questions.Any(q =>
             IsAnswered(q, answers.TryGetValue(q.Id, out var a) ? a : null));
@@ -175,6 +179,12 @@ public sealed class JourneyValidationService(
                 when question.CharacterLimit.HasValue && answer.TextValue?.Length > question.CharacterLimit.Value
                 => $"{resolvedTitle} must be {question.CharacterLimit} characters or less",
             QuestionType.Date => null,
+            // "At least one must be ticked" is the ordinary required rule, so an optional
+            // checkbox list is still allowed to be left empty — the caller only reaches here
+            // for a mandatory question or one the user has already answered.
+            QuestionType.Checkbox when answer.SelectedValues is not { Count: > 0 }
+                => resolvedValidationFailure ?? $"{resolvedTitle} is required",
+            QuestionType.Checkbox => null,
             _ when string.IsNullOrWhiteSpace(answer.TextValue)
                 => resolvedValidationFailure ?? $"{resolvedTitle} is required",
             _ => null
@@ -242,7 +252,8 @@ public sealed class JourneyValidationService(
         => $"CYPMD_16to19_RE_{Guid.NewGuid().ToString("N")[..7].ToUpper()}";
 
     public EvidenceValidationResult? ValidateEvidencePage(JourneyPage page, RequestState journey, string pupilName,
-        IReadOnlySet<string>? conditionallyOptionalQuestionIds = null)
+        IReadOnlySet<string>? conditionallyOptionalQuestionIds = null,
+        bool? requireAtLeastOneActive = null)
     {
         bool IsOptional(Question q) =>
             q.Optional || (conditionallyOptionalQuestionIds?.Contains(q.Id) ?? false);
@@ -274,7 +285,7 @@ public sealed class JourneyValidationService(
             }
         }
 
-        var atLeastOne = ValidateRequireAtLeastOne(page, journey.QuestionAnswers, pupilName);
+        var atLeastOne = ValidateRequireAtLeastOne(page, journey.QuestionAnswers, pupilName, requireAtLeastOneActive);
         if (atLeastOne is not null) messages.Add(atLeastOne.SummaryMessage);
 
         return messages.Count == 0 ? null : new EvidenceValidationResult { Messages = messages };

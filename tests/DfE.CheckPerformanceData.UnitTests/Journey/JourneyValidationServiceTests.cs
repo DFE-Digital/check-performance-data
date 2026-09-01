@@ -372,6 +372,24 @@ public class JourneyValidationServiceTests
     }
 
     [Fact]
+    public void ValidateRequireAtLeastOne_WhenGateSaysInactive_ReturnsNull()
+    {
+        var page = MakeEvidencePage(requireAtLeastOne: true);
+
+        Assert.Null(_sut.ValidateRequireAtLeastOne(
+            page, new Dictionary<string, QuestionAnswer>(), "Sam Smith", requireAtLeastOneActive: false));
+    }
+
+    [Fact]
+    public void ValidateRequireAtLeastOne_WhenGateSaysActive_ReturnsResult()
+    {
+        var page = MakeEvidencePage(requireAtLeastOne: false);
+
+        Assert.NotNull(_sut.ValidateRequireAtLeastOne(
+            page, new Dictionary<string, QuestionAnswer>(), "Sam Smith", requireAtLeastOneActive: true));
+    }
+
+    [Fact]
     public void ValidateRequireAtLeastOne_WhenNeitherAnswered_ReturnsResultWithBothFieldErrors()
     {
         var page = MakeEvidencePage(requireAtLeastOne: true);

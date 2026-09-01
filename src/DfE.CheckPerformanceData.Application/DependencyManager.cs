@@ -58,6 +58,7 @@ public static class DependencyManager
         services.AddScoped<IJourneyCondition, PupilIsAddBackCondition>();
         services.AddScoped<IJourneyCondition, PupilIsNotAddBackCondition>();
         services.AddScoped<IJourneyCondition, EalWouldBeAutoRejectedCondition>();
+        services.AddScoped<IJourneyCondition, NotOnRollReasonIsOtherCondition>();
         services.AddScoped<IOriginCountryLanguageCapture, OriginCountryLanguageCapture>();
         services.AddScoped<IFormatValidator, DfeNumberFormatValidator>();
         // AB#296648: the cohort-count question. Registration is load-bearing — the journey engine

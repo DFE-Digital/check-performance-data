@@ -53,6 +53,6 @@ else
     {
         @* A search that matched nothing still shows the search box (so the term can be refined or
            cleared) plus a GDS-style no-results message, rather than the MOJ "no data" alert. *@
-        <p class="govuk-body">No pupils found for <strong>@Model.Section.Search</strong>. Check the spelling or clear the search to see all pupils.</p>
+        <p class="govuk-body">No @Model.Section.LearnerNoun.Plural found for <strong>@Model.Section.Search</strong>. Check the spelling or clear the search to see all @Model.Section.LearnerNoun.Plural.</p>
     }
 }

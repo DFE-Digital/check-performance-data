@@ -40,4 +40,25 @@ public class SummaryRowTests
 
         Assert.Equal("12 March 2025", row.DisplayAnswer);
     }
+
+    // A checkbox answer must reach the summary as its labels, not as the raw stored values
+    // and not as an empty cell — the summary is the last thing the user checks before
+    // submitting, so a blank row reads as an answer that was never saved.
+    [Fact]
+    public void DisplayAnswer_Checkbox_ShowsTheTickedLabelsInConfigOrder()
+    {
+        var question = new Question
+        {
+            Id = "years-to-remove", Type = QuestionType.Checkbox, Title = "Which years?",
+            Options =
+            [
+                new QuestionOption { Value = "2025-2026", Label = "2025 to 2026" },
+                new QuestionOption { Value = "2024-2025", Label = "2024 to 2025" }
+            ]
+        };
+        var row = new SummaryRow(Page, question,
+            new QuestionAnswer { SelectedValues = ["2024-2025", "2025-2026"] }, "Years to remove");
+
+        Assert.Equal("2025 to 2026, 2024 to 2025", row.DisplayAnswer);
+    }
 }

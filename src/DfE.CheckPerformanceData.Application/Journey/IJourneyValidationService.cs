@@ -7,7 +7,14 @@ public interface IJourneyValidationService
 {
     int MaxEvidencePages { get; }
     bool IsAnswered(Question question, QuestionAnswer? answer);
-    RequireAtLeastOneResult? ValidateRequireAtLeastOne(JourneyPage page, IReadOnlyDictionary<string, QuestionAnswer> answers, string pupilName);
+    /// <summary>
+    /// The page's "answer at least one of these" rule. <paramref name="requireAtLeastOneActive"/>
+    /// is <see cref="IQuestionOptionalityService.IsRequireAtLeastOneActive"/> for the current
+    /// journey — pass it on any page that may set <see cref="JourneyPage.RequireAtLeastOneWhen"/>.
+    /// Null falls back to the page's raw flag.
+    /// </summary>
+    RequireAtLeastOneResult? ValidateRequireAtLeastOne(JourneyPage page, IReadOnlyDictionary<string, QuestionAnswer> answers, string pupilName,
+        bool? requireAtLeastOneActive = null);
 
     /// <summary>
     /// Cross-field date rules for the page, if it has any. Returns at most one message per
@@ -62,5 +69,6 @@ public interface IJourneyValidationService
     /// <summary>AB#296648: the reference for a 16-19 results enquiry, <c>CYPMD_16to19_RE_{7 hex}</c>.</summary>
     string GenerateEnquiryReference();
     EvidenceValidationResult? ValidateEvidencePage(JourneyPage page, RequestState journey, string pupilName,
-        IReadOnlySet<string>? conditionallyOptionalQuestionIds = null);
+        IReadOnlySet<string>? conditionallyOptionalQuestionIds = null,
+        bool? requireAtLeastOneActive = null);
 }

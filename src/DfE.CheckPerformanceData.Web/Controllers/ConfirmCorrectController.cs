@@ -28,7 +28,7 @@ public sealed class ConfirmCorrectController(
     {
         var window = await service.GetCheckingWindowAsync(windowId);
         if (!checkingExercises.IsOpen(window.Exercises, Exercise))
-            return this.RedirectExerciseClosed(windowId, Exercise);
+            return this.RedirectExerciseClosed(windowId, Exercise, LearnerNoun.For(window.CheckingWindowType));
 
         var confirmVw = new ConfirmCorrectViewModel(windowId, window.EndDate.ToString("htt 'on' dddd d MMMM"));
         return View(confirmVw);
@@ -39,7 +39,7 @@ public sealed class ConfirmCorrectController(
     {
         var window = await service.GetCheckingWindowAsync(windowId);
         if (!checkingExercises.IsOpen(window.Exercises, Exercise))
-            return this.RedirectExerciseClosed(windowId, Exercise);
+            return this.RedirectExerciseClosed(windowId, Exercise, LearnerNoun.For(window.CheckingWindowType));
 
         var reference = journeyService.GenerateReference(window.CheckingWindowType);
         await requestService.ConfirmDataCorrectAsync(windowId, reference, window.EndDate, EmailSubstitutions.From(window));

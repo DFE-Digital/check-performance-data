@@ -6,20 +6,22 @@
     Layout = "_Layout";
 }
 
-@if (Model.NoDataWindowsText != null)
+@* One banner per window, not one sentence listing several: the noun below is the window's own,
+   and a school with both a KS4 and a 16-19 window would otherwise need two words in one sentence. *@
+@foreach (var window in Model.NoDataWindows)
 {
     <govuk-notification-banner>
         <govuk-notification-banner-title>Important</govuk-notification-banner-title>
-        <p class="govuk-notification-banner__heading" style="max-width: none;">Your school has no @Model.NoDataWindowsText pupil data to check in this window</p>
+        <p class="govuk-notification-banner__heading" style="max-width: none;">Your school has no @window.Title @window.LearnerNoun.Singular data to check in this window</p>
         <p>If you think this is wrong, you can <a href="/contact">send us a message</a> or call us on 0300 131 2768</p>
     </govuk-notification-banner>
 }
 
-@if (Model.NotValidWindowsText != null)
+@foreach (var window in Model.NotValidWindows)
 {
     <govuk-notification-banner>
         <govuk-notification-banner-title>Important</govuk-notification-banner-title>
-        <p class="govuk-notification-banner__heading" style="max-width: none;">Your school does not need to take part in the @Model.NotValidWindowsText checking exercise.</p>
+        <p class="govuk-notification-banner__heading" style="max-width: none;">Your school does not need to take part in the @window.Title checking exercise.</p>
         <p class="govuk-body">If you think this is wrong, you can <a href="/contact" class="govuk-notification-banner__link">send us a message</a> or call us on 0300 131 2768</p>
     </govuk-notification-banner>
 }

@@ -1,4 +1,7 @@
 using DfE.CheckPerformanceData.Application.LandingPage;
+// Aliased, not imported: WindowManagement also declares a CheckingWindowDto, which would make the
+// LandingPage one ambiguous here.
+using LearnerNoun = DfE.CheckPerformanceData.Application.WindowManagement.LearnerNoun;
 using DfE.CheckPerformanceData.Web.Authentication;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using Microsoft.AspNetCore.Authentication;
@@ -51,9 +54,13 @@ public sealed class LandingPageController(ILogger<LandingPageController> logger,
             result.OrganisationLaestab,
             string.Join(',', result.KeyStages.Select(ks => ks.Title)),
             result.OrganisationAddress,
-            result.NoDataWindowsText,
-            result.NotValidWindowsText);
+            result.NoDataWindows.Select(Banner).ToList(),
+            result.NotValidWindows.Select(Banner).ToList());
         
         return View(landingPageViewModel);
     }
+
+    // The banner names a learner, so it carries the window's own noun — "student" on 16-19.
+    private static LandingPageBannerViewModel Banner(CheckingWindowDto window) =>
+        new() { Title = window.Title, LearnerNoun = LearnerNoun.For(window.CheckingWindowType) };
 }

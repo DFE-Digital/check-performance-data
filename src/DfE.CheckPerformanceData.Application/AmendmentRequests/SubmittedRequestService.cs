@@ -74,6 +74,7 @@ public sealed class SubmittedRequestService(
             WhatToChange = journey.SelectedWhatToChange.Value,
             Status = row.Status,
             PupilName = pupilName,
+            LearnerNoun = journey.LearnerNoun,
             FirstRecordDisplay = firstRecord,
             SecondRecordDisplay = secondRecord,
             Rows = rows,
@@ -111,6 +112,7 @@ public sealed class SubmittedRequestService(
         QuestionType.Date when answer?.DateValue is { } d => d.ToDisplayString(),
         QuestionType.Radio when answer?.TextValue is { } v =>
             question.Options?.FirstOrDefault(o => o.Value == v)?.Label ?? v,
+        QuestionType.Checkbox => CheckboxAnswerDisplay.Join(question, answer),
         _ => answer?.TextValue ?? string.Empty
     };
 

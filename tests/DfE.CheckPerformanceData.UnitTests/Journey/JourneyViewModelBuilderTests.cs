@@ -476,6 +476,43 @@ public class JourneyViewModelBuilderTests
         Assert.Null(vm.BackPageId);
     }
 
+    // ── BuildResultSearchVm ──────────────────────────────────────────────────
+
+    [Fact]
+    public void BuildResultSearchVm_PassesThePagesContentThroughAsInsetText()
+    {
+        // AB#298704: the result page tells the user how to report FURTHER stray results (QAN +
+        // grade in additional info). Config-driven so the flows without content are unchanged.
+        // JourneyControllerResultSearchTests.cs always substitutes IJourneyViewModelBuilder, so it
+        // cannot exercise this mapping — this file is where BuildResultSearchVm itself is real.
+        var page = new JourneyPage
+        {
+            Id = "select-result", Type = PageType.ResultSearch,
+            Content = "If more than one result does not belong to the student, provide the QAN and grade for each result on the next page."
+        };
+        _flowService.GetPage(Config, "select-result").Returns(page);
+        var journey = JourneyWithHistory(["select-student"]);
+
+        var vm = _sut.BuildResultSearchVm(WindowId, "select-result", page, journey, Config, []);
+
+        Assert.Equal(
+            "If more than one result does not belong to the student, provide the QAN and grade for each result on the next page.",
+            vm.Content);
+    }
+
+    [Fact]
+    public void BuildResultSearchVm_ContentIsNullWhenTheFlowDeclaresNone()
+    {
+        // The two existing flows (incorrect grade, missing qualification) declare no content.
+        var page = new JourneyPage { Id = "select-result", Type = PageType.ResultSearch };
+        _flowService.GetPage(Config, "select-result").Returns(page);
+        var journey = JourneyWithHistory(["select-student"]);
+
+        var vm = _sut.BuildResultSearchVm(WindowId, "select-result", page, journey, Config, []);
+
+        Assert.Null(vm.Content);
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private static RequestState JourneyWithHistory(List<string> history) => new()

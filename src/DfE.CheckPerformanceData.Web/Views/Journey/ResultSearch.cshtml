@@ -99,6 +99,11 @@ else
         </select>
     </div>
 
+    @if (Model.Content is not null)
+    {
+        <div class="govuk-inset-text">@Model.Content</div>
+    }
+
     @if (Model.SelectedResult is not null)
     {
         <govuk-summary-list>

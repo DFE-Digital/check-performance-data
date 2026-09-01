@@ -34,6 +34,10 @@ public sealed class ResultSearchViewModel
     /// </summary>
     public IReadOnlyList<StudentResultRecord> AvailableResults { get; set; } = [];
 
+    /// <summary>Optional flow-config inset rendered between the search and Continue (AB#298704:
+    /// how to report more than one stray result). Null on the flows that declare none.</summary>
+    public string? Content { get; set; }
+
     public string? BackPageId { get; set; }
 
     /// <summary>The JourneyController action that serves <see cref="BackPageId"/>.</summary>

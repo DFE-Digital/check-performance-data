@@ -189,6 +189,15 @@ public sealed class ResultSearchViewSourceTests
             view);
     }
 
+    [Fact]
+    public void The_view_renders_content_as_inset_text_only_when_present()
+    {
+        var view = ViewSource();
+
+        Assert.Contains("Model.Content is not null", view);
+        Assert.Contains("govuk-inset-text", view);
+    }
+
     private static string RepoRoot
     {
         get

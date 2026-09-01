@@ -322,6 +322,7 @@ public sealed class JourneyViewModelBuilder(
             PageId = pageId,
             Title = page.Title is not null ? JourneyTemplate.Resolve(page.Title, pupilName) : string.Empty,
             Hint = page.Subheading,
+            Content = page.Content,
             SelectedResultKey = journey.SelectedResult?.CompositeKey,
             SelectedResult = journey.SelectedResult,
             AvailableResults = availableResults,

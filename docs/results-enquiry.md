@@ -446,7 +446,6 @@ against); duplicate-enquiry blocking (the spec allows multiples).
 | Item | Owner |
 |---|---|
 | Full AODC export (`Dynamic form QAN list 2026 v1.xlsx`, SharePoint) → replace the seeded `grade-reference.json` | AODC team |
-| GOV.UK Notify template + `Notify:ResultsEnquirySubmittedTemplateId` — **no email sends without it** | Ops / content |
 | Copy sign-off: the must-differ message; "We cannot list grades for this qualification yet"; the issue page's expander body (never captured in Figma); the result label's appended session | Content designer |
 | Whether to keep or delete `/results/suggestions` | Dev team |
 | Breadcrumb: the designs show `Check your student data - 16 to 19 and result enquiry`, but no journey view in the service renders a breadcrumb. Worth doing across the whole 16-19 journey at once rather than on one page | Design / dev |

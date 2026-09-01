@@ -48,9 +48,10 @@ public class NotifyService : INotifyService
             _ => throw new ArgumentOutOfRangeException(nameof(notificationType))
         };
 
-        // A template id that is not configured yet — the results-enquiry template is still to be
-        // created (AB#296648) — would otherwise be sent to Notify once per recipient and rejected
-        // once per recipient. One warning is the useful signal, and it keeps the caller's outcome
+        // A template id that is not configured yet — the results-enquiry template is an ops
+        // prerequisite (AB#298309; content and runbook: docs/results-enquiry.md, "Confirmation
+        // email") — would otherwise be sent to Notify once per recipient and rejected once per
+        // recipient. One warning is the useful signal, and it keeps the caller's outcome
         // independent of email delivery as this interface promises.
         if (string.IsNullOrWhiteSpace(templateId))
         {
@@ -133,19 +134,25 @@ public class NotifyService : INotifyService
             personalisation["deadline"] = deadline;
         }
 
-        if (!string.IsNullOrEmpty(url))
+        if (notificationType is not NotificationType.ResultsEnquirySubmitted
+            && !string.IsNullOrEmpty(url))
         {
             personalisation["submit others url"] = url;
         }
 
-        if (referenceNumbers is { Count: > 0 })
+        if (notificationType is not NotificationType.ResultsEnquirySubmitted
+            && referenceNumbers is { Count: > 0 })
         {
             // Notify renders newline-joined text as separate lines / bullet items.
             personalisation["references"] = string.Join("\n", referenceNumbers);
         }
 
-        // GOV.UK Notify raises on BOTH missing and extra personalisation keys, so each key is
-        // gated per notification type: the keys added here must exactly match the templates.
+        // GOV.UK Notify fails the whole send when a template placeholder is missing from the
+        // personalisation ("Missing personalisation", 400) and silently ignores extra keys. The
+        // per-type gating here keeps the documented contract exact anyway: the runbook in
+        // docs/results-enquiry.md must list every key a template may declare, and a template must
+        // not be able to depend on a key the code might stop sending. Gate any new key per
+        // notification type; never rely on a caller happening to pass null or empty.
         if (notificationType is not NotificationType.ResultsEnquirySubmitted)
         {
             personalisation["ce name"] = substitutions.CeName;

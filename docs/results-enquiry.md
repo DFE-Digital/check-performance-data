@@ -350,9 +350,13 @@ page).
 finish) and goes to the **submitter only** (nothing is being asked of the rest of the school).
 
 **Creating the template (AB#298309 — ops runbook).** The template does not exist yet; create it in
-the GOV.UK Notify admin UI with exactly this content (the copy is from ticket AB#298309; the only
-placeholder is `((ref number))` — Task/PR AB#298309 pinned the personalisation contract to
-`ref number` + `email address` and nothing else, so any other placeholder will fail every send):
+the GOV.UK Notify admin UI with exactly this content (the copy is from ticket AB#298309; declare only
+`((ref number))`. The code also sends an `email address` personalisation key by house convention —
+the recipient itself travels separately — which Notify simply ignores unless declared, so the
+template may declare `((email address))` but has no reason to. Declaring **any other** placeholder
+makes every send fail with "Missing personalisation": Notify ignores extra keys but rejects a send
+whose template wants a key the service does not supply, and `ref number` + `email address` are the
+only keys sent for this type — pinned by `The_personalisation_is_exactly_what_the_template_declares`):
 
 > **Subject:** `Your enquiry - ((ref number))`
 >

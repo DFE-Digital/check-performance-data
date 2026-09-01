@@ -70,14 +70,18 @@ public sealed class NotifyServiceResultsEnquiryTests
     [Fact]
     public async Task The_personalisation_is_exactly_what_the_template_declares()
     {
-        // GOV.UK Notify raises on personalisation keys the template does not declare, just as it
-        // does on missing ones (see the key-gating comment in NotifyService.SendEmailAsync). The
-        // AB#298309 template declares only ((ref number)); "email address" rides along as the house
-        // convention on every send. A stray empty "deadline" key would force the template to carry
-        // a placeholder it never renders — or bounce every send.
+        // GOV.UK Notify ignores extra personalisation keys but fails the whole send with
+        // "Missing personalisation" when the template declares a placeholder we don't supply.
+        // The exact two-key contract is what lets the ops runbook (docs/results-enquiry.md,
+        // "Confirmation email") be the whole truth: a template built from it can never hit a
+        // missing key, and no template can come to depend on a key the code might stop sending.
+        // The url and reference list are supplied here precisely so the optional-key branches
+        // are exercised: exclusion for this type must be structural, not "the caller happens
+        // to pass null" (the enquiry producer sets neither — RequestNotificationService).
         await Build().SendNotificationsAsync(
             "CYPMD_16to19_RE_4F9C2A1", string.Empty, ["ada@school.test"],
-            NotificationType.ResultsEnquirySubmitted, NoSubstitutions);
+            NotificationType.ResultsEnquirySubmitted, NoSubstitutions,
+            url: "https://service.test/submit-others", referenceNumbers: ["REF-A", "REF-B"]);
 
         await _client.Received(1).SendEmailAsync(
             Arg.Any<string>(), Arg.Any<string>(),

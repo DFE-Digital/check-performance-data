@@ -373,10 +373,10 @@ public sealed class QuestionFlowValidatorAlignmentTests
 
         var reason = pages.Single(p => p.Id == "reason").Questions.Single(q => q.Id == "reason");
         var other = reason.Options!.Single(o => o.Value == "other");
-        Assert.Equal("years-to-remove", other.NextPageId);
+        Assert.Equal("other", other.NextPageId);
 
-        var years = pages.Single(p => p.Id == "years-to-remove");
-        Assert.Equal("evidence", years.NextPageId);
+        var years = pages.Single(p => p.Id == "other");
+        Assert.Equal("other-evidence", years.NextPageId);
         var question = Assert.Single(years.Questions);
         Assert.Equal(QuestionType.Checkbox, question.Type);
         Assert.Equal(3, question.Options!.Count);

@@ -158,6 +158,7 @@ public static class AnswerFieldMap
             ["Remove - english-not-first-language"]    = "AdmittedFromAbroadEal",
             ["Remove - child-missing-education"]       = "PupilMissingInEducation",
             ["Remove - pupil-died"]                    = "Deceased",
+            ["Remove - student-died"]                  = "Deceased",
             ["Remove - dual-registered-moved"]         = "MovedSchoolDualRegistration",
             ["Remove - elective-home-education"]       = "ElectiveHomeEducation",
             ["Remove - not-on-roll"]                   = "NotOnRoll",
@@ -171,6 +172,7 @@ public static class AnswerFieldMap
             // seeded with a single Scrutiny otherwise-rule ("always sent for scrutiny").
             ["Remove - completed-ks4-elsewhere"]       = "CompletedKs4Elsewhere",
             ["Remove - other"]                         = "Other",
+            ["Remove - not-at-end-of-16-19-study"]     = "NotAtEndOf1619Study",
         };
 
     /// <summary>

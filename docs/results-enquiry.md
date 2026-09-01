@@ -349,8 +349,10 @@ page).
 `email address`. It carries **no deadline** (an enquiry is not something the school must come back and
 finish) and goes to the **submitter only** (nothing is being asked of the rest of the school).
 
-**Creating the template (AB#298309 — ops runbook).** The template does not exist yet; create it in
-the GOV.UK Notify admin UI with exactly this content (the copy is from ticket AB#298309; declare only
+**The template (AB#298309 — ops runbook).** Created in the GOV.UK Notify admin UI on
+2026-09-01 as "Email confirmation", id `b93eb2fd-9fd4-4651-91eb-2735df5ba475` (set in
+every terraform/application/config/*.yml). If it ever needs re-creating, this is the
+content (the copy is from ticket AB#298309; declare only
 `((ref number))`. The code also sends an `email address` personalisation key by house convention —
 the recipient itself travels separately — which Notify simply ignores unless declared, so the
 template may declare `((email address))` but has no reason to. Declaring **any other** placeholder
@@ -368,9 +370,9 @@ only keys sent for this type — pinned by `The_personalisation_is_exactly_what_
 >
 > We will investigate your enquiry and respond where appropriate.
 
-Then set the template's id as `Notify__ResultsEnquirySubmittedTemplateId` in each
-`terraform/application/config/*.yml` (one template can serve every environment, or per-environment
-copies — match whatever the existing six template ids do). Until an environment has a value,
+The template's id is set as `Notify__ResultsEnquirySubmittedTemplateId` in each
+`terraform/application/config/*.yml` (one template serves every environment, matching the existing
+six template ids). Until an environment has a value,
 `NotifyService` logs one warning per submission and sends nothing; the enquiry journey is unaffected.
 The same email is sent for **every** enquiry type — incorrect grade, missing qualification, and the
 future result-does-not-belong-to-pupil all share `ConfirmResultsEnquiryAsync`, and the wording is

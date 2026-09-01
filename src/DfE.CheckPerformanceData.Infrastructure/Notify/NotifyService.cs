@@ -48,11 +48,10 @@ public class NotifyService : INotifyService
             _ => throw new ArgumentOutOfRangeException(nameof(notificationType))
         };
 
-        // A template id that is not configured yet — the results-enquiry template is an ops
-        // prerequisite (AB#298309; content and runbook: docs/results-enquiry.md, "Confirmation
-        // email") — would otherwise be sent to Notify once per recipient and rejected once per
-        // recipient. One warning is the useful signal, and it keeps the caller's outcome
-        // independent of email delivery as this interface promises.
+        // A template id that is not configured in an environment (content and runbook:
+        // docs/results-enquiry.md, "Confirmation email") would otherwise be sent to Notify once
+        // per recipient and rejected once per recipient. One warning is the useful signal, and it
+        // keeps the caller's outcome independent of email delivery as this interface promises.
         if (string.IsNullOrWhiteSpace(templateId))
         {
             _logger.LogWarning(

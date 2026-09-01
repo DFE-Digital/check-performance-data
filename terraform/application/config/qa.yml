@@ -9,9 +9,8 @@ Notify__BulkSubmissionNotificationTemplateId: 1a0b1085-f942-49cf-82f3-0270c43395
 Notify__WithdrawNotificationTemplateId: e8667eed-7b52-42f7-a7e6-875b470e31c7
 Notify__DlqThresholdTemplateId: 517c069b-1566-473d-b8ad-8167f05ce723
 # AB#298309: the results-enquiry confirmation (all enquiry types). Template content and the
-# ops runbook: docs/results-enquiry.md, "Confirmation email". An empty value makes
-# NotifyService log a warning and send nothing, so the enquiry journey still works without it.
-Notify__ResultsEnquirySubmittedTemplateId: ""
+# ops runbook: docs/results-enquiry.md, "Confirmation email".
+Notify__ResultsEnquirySubmittedTemplateId: b93eb2fd-9fd4-4651-91eb-2735df5ba475
 Notify__LinkBaseUrl: https://check-performance-data-development.qa.teacherservices.cloud/
 Notify__UtmSource: qa-check-performance-data
 Notify__UtmMedium: email

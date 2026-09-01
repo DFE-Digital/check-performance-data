@@ -137,7 +137,7 @@ public sealed class NotifyServiceResultsEnquiryTests
     [InlineData("   ")]
     public async Task An_unconfigured_template_logs_a_warning_and_sends_nothing(string? templateId)
     {
-        // The template does not exist yet (an ops prerequisite). Until it does, the send must be a
+        // An environment may have no template id configured. When that happens, the send must be a
         // no-op with a warning — not an exception, and not a call to Notify with a blank template that
         // would fail once per recipient.
         await Build(templateId).SendNotificationsAsync(

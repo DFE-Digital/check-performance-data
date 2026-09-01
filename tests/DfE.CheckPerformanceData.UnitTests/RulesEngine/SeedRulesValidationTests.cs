@@ -80,7 +80,6 @@ public sealed class SeedRulesValidationTests
         "AssessmentsDeferred",
         "PupilAddedAfterSummerTerm",
         "PupilNotOnJuneList",
-        "NotAtEndOf16To18Study",
     ];
 
     [Fact]

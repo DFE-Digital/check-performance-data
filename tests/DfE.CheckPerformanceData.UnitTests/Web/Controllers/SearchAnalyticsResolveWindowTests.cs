@@ -31,19 +31,22 @@ public sealed class SearchAnalyticsResolveWindowTests
         return Assert.IsType<ValueTuple<DateTime, DateTime, string>>(result);
     }
 
-    private static DateTime Day(int year, int month, int day) =>
-        new(year, month, day, 0, 0, 0, DateTimeKind.Utc);
+    // A recent three-day window, safely inside ResolveWindow's [UtcNow − 90d, UtcNow] clamp.
+    // The original tests named fixed calendar days and rotted out of the clamp ~90 days later,
+    // failing for reasons that had nothing to do with the behaviour under test.
+    private static readonly DateTime RangeStart = DateTime.UtcNow.Date.AddDays(-10);
 
     [Fact]
     public void CustomRange_IncludesTheWholeOfTheChosenEndDay()
     {
-        // The admin picked 1 June -> 3 June. All three days must be in the window, so the
-        // exclusive upper bound has to land on 4 June midnight, not 3 June midnight.
-        var (fromUtc, toUtc, rangeKey) = Resolve("custom", Day(2026, 6, 1), Day(2026, 6, 3));
+        // The admin picked a three-day range. All three days must be in the window, so the
+        // exclusive upper bound has to land on the midnight after the end day, not the end
+        // day's own midnight.
+        var (fromUtc, toUtc, rangeKey) = Resolve("custom", RangeStart, RangeStart.AddDays(2));
 
         Assert.Equal("custom", rangeKey);
-        Assert.Equal(Day(2026, 6, 1), fromUtc);
-        Assert.Equal(Day(2026, 6, 4), toUtc);
+        Assert.Equal(RangeStart, fromUtc);
+        Assert.Equal(RangeStart.AddDays(3), toUtc);
     }
 
     [Fact]
@@ -51,11 +54,11 @@ public sealed class SearchAnalyticsResolveWindowTests
     {
         // Picking one day in both boxes used to make from >= to, which silently snapped the
         // whole dashboard back to the 7-day default — wrong data, and no error to explain it.
-        var (fromUtc, toUtc, rangeKey) = Resolve("custom", Day(2026, 6, 1), Day(2026, 6, 1));
+        var (fromUtc, toUtc, rangeKey) = Resolve("custom", RangeStart, RangeStart);
 
         Assert.Equal("custom", rangeKey);
-        Assert.Equal(Day(2026, 6, 1), fromUtc);
-        Assert.Equal(Day(2026, 6, 2), toUtc);
+        Assert.Equal(RangeStart, fromUtc);
+        Assert.Equal(RangeStart.AddDays(1), toUtc);
     }
 
     [Fact]
@@ -64,7 +67,7 @@ public sealed class SearchAnalyticsResolveWindowTests
         // Drill-in links rebuild the querystring from the RESOLVED window. Re-resolving that
         // querystring must land on the same window, or every click through a drill-in would
         // walk the end date forward a day at a time.
-        var first = Resolve("custom", Day(2026, 6, 1), Day(2026, 6, 3));
+        var first = Resolve("custom", RangeStart, RangeStart.AddDays(2));
 
         var qs = SearchAnalyticsRangeQuery.Build(first.RangeKey, first.FromUtc, first.ToUtc);
         var (rangeKey, from, to) = ParseRangeQuery(qs);
@@ -82,7 +85,7 @@ public sealed class SearchAnalyticsResolveWindowTests
         // The end-day widening must not defeat the existing clamp — a hand-edited future
         // date still can't push the upper bound past the present.
         var before = DateTime.UtcNow;
-        var (_, toUtc, rangeKey) = Resolve("custom", Day(2026, 6, 1), before.Date.AddDays(30));
+        var (_, toUtc, rangeKey) = Resolve("custom", RangeStart, before.Date.AddDays(30));
         var after = DateTime.UtcNow;
 
         Assert.Equal("custom", rangeKey);

@@ -55,12 +55,16 @@ public sealed class EnquirySummaryViewSourceTests
         => Assert.Contains("<govuk-button type=\"submit\">Submit request</govuk-button>", ViewSource());
 
     [Fact]
-    public void An_enquiry_offers_a_cancel_link_back_to_a_fresh_enquiry()
+    public void An_enquiry_offers_a_cancel_link_that_discards_the_journey()
     {
+        // AB#298229: the link must point at Cancel, not Index. Index clears nothing, so with the
+        // old target a "cancelled" enquiry stayed resumable — and submittable — via a deep link
+        // back to the summary URL.
         var view = ViewSource();
 
         Assert.Contains("Cancel and go back to create a new enquiry", view);
         Assert.Contains("asp-controller=\"ResultIssue\"", view);
+        Assert.Contains("asp-action=\"Cancel\"", view);
     }
 
     [Fact]

@@ -48,7 +48,17 @@ public sealed class SummaryViewModel
     /// </summary>
     public MissingQualificationSummary? MissingQualification { get; init; }
 
-    public bool IsResultsEnquiry => Enquiry is not null || MissingQualification is not null;
+    /// <summary>
+    /// True when this journey is a 16-19 results enquiry rather than a pupil-data amendment — the
+    /// switch for the enquiry heading, the no-drafts rule and the cancel link. Resolved through the
+    /// checking-exercise map rather than the presence of <see cref="Enquiry"/> /
+    /// <see cref="MissingQualification"/>: each shape's builder guards on one named enum member, so
+    /// shape-presence would silently render a future third enquiry journey as an amendment (the
+    /// AB#297848 Back-link bug class). Mirrors <see cref="PageViewModel.IsResultsEnquiry"/>.
+    /// </summary>
+    public bool IsResultsEnquiry =>
+        Application.WindowManagement.WhatToChangeCheckingExerciseMap.CheckingExerciseFor(WhatToChange)
+            == Domain.Enums.CheckingExerciseType.ResultsEnquiry;
 
     public int TotalPagesUsed => FileRows.Sum(r => r.PageCount);
 

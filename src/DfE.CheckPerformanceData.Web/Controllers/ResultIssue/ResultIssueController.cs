@@ -134,4 +134,33 @@ public sealed class ResultIssueController(
 
         return RedirectToAction("Page", "Journey", new { windowId, pageId });
     }
+
+    /// <summary>
+    /// AB#298229: "Cancel and go back to create a new enquiry" on the summary screen. Discards an
+    /// in-progress results enquiry and lands back on the issue chooser. The guard is what makes it
+    /// safe to reach by bare URL: session state is keyed per window alone, so after a submission the
+    /// state holds only what <see cref="JourneyController.EnquiryConfirmation"/> needs — a stale
+    /// tab's cancel click must not destroy that — and an in-progress pupil-data amendment sharing
+    /// the slot is not this link's to discard. Resolved through the exercise map, never a named
+    /// member (the AB#297848 Back-link bug class). Deliberately not gated on the exercise being
+    /// open — abandoning must always work — and free of window lookups: <see cref="Index"/> owns
+    /// the closed-exercise redirect for whatever the user does next.
+    /// </summary>
+    [HttpGet]
+    [Route("/{windowId:guid}/ResultIssue/Cancel")]
+    public IActionResult Cancel(Guid windowId)
+    {
+        var journey = HttpContext.Session.GetRequestState(windowId);
+        if (journey.SelectedWhatToChange is { } change
+            && WhatToChangeCheckingExerciseMap.CheckingExerciseFor(change) == Exercise)
+        {
+            // The same trio Confirm resets when starting fresh: the journey itself, plus the two
+            // edit flags whose staleness would point a later summary at the amendment-requests page.
+            HttpContext.Session.ClearRequestState(windowId);
+            HttpContext.Session.ClearBulkEditMode(windowId);
+            HttpContext.Session.ClearSingleEditMode(windowId);
+        }
+
+        return RedirectToAction(nameof(Index), new { windowId });
+    }
 }

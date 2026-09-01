@@ -1,6 +1,7 @@
 using DfE.CheckPerformanceData.E2ETests.Fixtures;
 using DfE.CheckPerformanceData.E2ETests.Helpers;
 using Microsoft.Playwright;
+using Npgsql;
 using xRetry;
 
 namespace DfE.CheckPerformanceData.E2ETests.Journey;
@@ -70,6 +71,47 @@ public sealed class MissingQualificationEnquiryTests(PlaywrightFixture fixture) 
         await AssertErrorAsync(
             "We are only able to allow results enquiries for results awarded during the "
             + "2023/24 and 2024/25 academic years");
+    }
+
+    [RetryFact(3)]
+    public async Task Cancelling_from_the_summary_discards_the_enquiry_and_starts_fresh()
+    {
+        // AB#298229. Three ACs in one walk: nothing submitted, no data carried over, and the
+        // chooser has no option pre-selected. The deep-link check at the end is the load-bearing
+        // one — before this ticket, Cancel's target cleared nothing, so the "cancelled" enquiry
+        // was still sitting in session, one summary URL away from being submitted.
+        // AC: "nothing I entered is submitted" — proven at the table, not inferred from the UI
+        // (an enquiry row would be invisible on every school-facing list by design).
+        var rowsBefore = await CountChangeRequestsAsync();
+
+        await StartEnquiryAsync();
+        await ChooseCohortScopeAsync("no");
+        await ChooseStudentAsync("select-student-single");
+        await ChooseQualificationAsync();
+        await FillDetailsAsync(syllabus: SyllabusCode, day: "1", month: "6", year: "2025", grade: "9", ncn: "12345");
+        await FillAdditionalInfoAsync(string.Empty);
+
+        await Expect(Page.GetByRole(AriaRole.Heading, new() { Level = 1 }))
+            .ToContainTextAsync($"Summary of result enquiry for {StudentName}");
+
+        await Page.GetByRole(AriaRole.Link, new() { Name = "Cancel and go back to create a new enquiry" })
+            .ClickAsync();
+
+        // Lands on the enquiry-type chooser…
+        await Page.WaitForURLAsync($"**/{WindowId}/ResultIssue");
+        await Expect(Page.GetByRole(AriaRole.Heading, new() { Level = 1 }))
+            .ToContainTextAsync("What issue with the results do you need to report?");
+
+        // …with nothing pre-selected.
+        Assert.Equal(0, await Page.Locator("input[name='IssueType']:checked").CountAsync());
+
+        // And the abandoned enquiry is unreachable: deep-linking back to the summary bounces out
+        // of the journey (IsSessionReady fails on the cleared state) instead of re-rendering the
+        // cancelled answers.
+        await Page.GotoAsync($"{Fixture.BaseUrl}/Journey/{WindowId}/summary");
+        await Page.WaitForURLAsync($"**/CheckYourPupilData/{WindowId}");
+
+        Assert.Equal(rowsBefore, await CountChangeRequestsAsync());
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────
@@ -194,5 +236,18 @@ public sealed class MissingQualificationEnquiryTests(PlaywrightFixture fixture) 
         await Expect(Page.Locator(".govuk-error-summary")).ToBeVisibleAsync();
         var text = await Page.Locator(".govuk-error-summary").InnerTextAsync();
         Assert.Contains(expected, text);
+    }
+
+    private static async Task<long> CountChangeRequestsAsync()
+    {
+        // The compose stack publishes Postgres on localhost:5432 (docker-compose.yaml `db:`).
+        // Counting the whole table is safe here because the E2E collection runs sequentially —
+        // nothing else writes ChangeRequests rows mid-test.
+        var cs = Environment.GetEnvironmentVariable("CPD_E2E_DB")
+            ?? "Host=localhost;Port=5432;Database=cypd;Username=postgres;Password=postgres";
+        await using var conn = new NpgsqlConnection(cs);
+        await conn.OpenAsync();
+        await using var cmd = new NpgsqlCommand("SELECT COUNT(*) FROM \"ChangeRequests\"", conn);
+        return (long)(await cmd.ExecuteScalarAsync())!;
     }
 }

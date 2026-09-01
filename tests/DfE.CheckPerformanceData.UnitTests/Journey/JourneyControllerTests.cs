@@ -528,6 +528,45 @@ public class JourneyControllerTests
         Assert.Empty(remaining.QuestionHistory);
     }
 
+    // ── SummaryConfirm — enquiry confirmation email (AB#298309) ──────────────
+
+    [Fact]
+    public async Task SummaryConfirm_ForAnIncorrectGradeEnquiry_SendsTheConfirmationNotification()
+    {
+        // AB#298309 AC1: submission completing IS the trigger for the confirmation email — there is
+        // no later step that can independently fail to send it. Losing this call would fail silently
+        // in production (the enquiry still persists and the confirmation page still renders).
+        var state = ValidSession(history: ["page-1"]);
+        state.SelectedWhatToChange = WhatToChange.IncorrectGrade;
+        SetupSession(state);
+        _requestService.SubmitResultsEnquiryAsync(WindowId, Arg.Any<RequestState>())
+            .Returns("CYPMD_16to19_RE_4F9C2A1");
+
+        await _sut.SummaryConfirm(WindowId);
+
+        // The reference the email carries must be the one submission returned, not session residue.
+        await _requestNotificationService.Received(1)
+            .NotifyResultsEnquirySubmittedAsync("CYPMD_16to19_RE_4F9C2A1");
+    }
+
+    [Fact]
+    public async Task SummaryConfirm_ForAMissingQualificationEnquiry_SendsTheConfirmationNotification()
+    {
+        // AB#298309 AC4: every enquiry type sends the same email. All types share
+        // ConfirmResultsEnquiryAsync, but "same path by construction" claims have been wrong on this
+        // codebase before (AB#298229 finding 3) — pin each live type explicitly.
+        var state = ValidSession(history: ["page-1"]);
+        state.SelectedWhatToChange = WhatToChange.MissingQualification;
+        SetupSession(state);
+        _requestService.SubmitResultsEnquiryAsync(WindowId, Arg.Any<RequestState>())
+            .Returns("CYPMD_16to19_RE_1A2B3C4");
+
+        await _sut.SummaryConfirm(WindowId);
+
+        await _requestNotificationService.Received(1)
+            .NotifyResultsEnquirySubmittedAsync("CYPMD_16to19_RE_1A2B3C4");
+    }
+
     // ── SummaryConfirm — missing-qualification enquiry (AB#297848) ───────────
 
     [Fact]

@@ -349,10 +349,34 @@ page).
 `email address`. It carries **no deadline** (an enquiry is not something the school must come back and
 finish) and goes to the **submitter only** (nothing is being asked of the rest of the school).
 
-**The template does not exist yet.** `Notify:ResultsEnquirySubmittedTemplateId` is empty in every
-environment config. `NotifyService` now logs a warning and sends nothing when a template id is blank,
-rather than throwing out of its template-id switch — so the journey completes without it, but **no
-enquiry email is sent until the template is created and the id configured.**
+**The template (AB#298309 — ops runbook).** Created in the GOV.UK Notify admin UI on
+2026-09-01 as "Email confirmation", id `b93eb2fd-9fd4-4651-91eb-2735df5ba475` (set in
+every terraform/application/config/*.yml). If it ever needs re-creating, this is the
+content (the copy is from ticket AB#298309; declare only
+`((ref number))`. The code also sends an `email address` personalisation key by house convention —
+the recipient itself travels separately — which Notify simply ignores unless declared, so the
+template may declare `((email address))` but has no reason to. Declaring **any other** placeholder
+makes every send fail with "Missing personalisation": Notify ignores extra keys but rejects a send
+whose template wants a key the service does not supply, and `ref number` + `email address` are the
+only keys sent for this type — pinned by `The_personalisation_is_exactly_what_the_template_declares`):
+
+> **Subject:** `Your enquiry - ((ref number))`
+>
+> **Body:**
+>
+> Thank you for submitting an enquiry to the Department for Education.
+>
+> Reference number: ((ref number))
+>
+> We will investigate your enquiry and respond where appropriate.
+
+The template's id is set as `Notify__ResultsEnquirySubmittedTemplateId` in each
+`terraform/application/config/*.yml` (one template serves every environment, matching the existing
+six template ids). Until an environment has a value,
+`NotifyService` logs one warning per submission and sends nothing; the enquiry journey is unaffected.
+The same email is sent for **every** enquiry type — incorrect grade, missing qualification, and the
+future result-does-not-belong-to-pupil all share `ConfirmResultsEnquiryAsync`, and the wording is
+type-agnostic by design (AB#298309 AC4).
 
 ## Analytics
 

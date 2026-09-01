@@ -429,6 +429,20 @@ public sealed class ResultIssueControllerTests
     }
 
     [Fact]
+    public void Cancel_is_pinned_to_get_on_its_own_route()
+    {
+        // Review finding 2: with [Route] alone, POST and DELETE both executed (verified live).
+        // [HttpGet] narrows the surface to the one verb the summary link uses. It cannot stop a
+        // top-level cross-site GET navigation (session cookie is SameSite=Lax) — that residual is
+        // bounded by Task 1's guard and recorded in the PR body — but an unconstrained verb
+        // surface on a state-changing route is simply wrong.
+        var method = typeof(ResultIssueController).GetMethod(nameof(ResultIssueController.Cancel))!;
+
+        Assert.NotNull(method.GetCustomAttribute<HttpGetAttribute>());
+        Assert.Equal("/{windowId:guid}/ResultIssue/Cancel", method.GetCustomAttribute<RouteAttribute>()?.Template);
+    }
+
+    [Fact]
     public void The_controller_does_not_opt_out_of_authorisation()
     {
         // A school's results are not public. The global fallback policy authorises; an

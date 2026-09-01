@@ -146,6 +146,7 @@ public sealed class ResultIssueController(
     /// open — abandoning must always work — and free of window lookups: <see cref="Index"/> owns
     /// the closed-exercise redirect for whatever the user does next.
     /// </summary>
+    [HttpGet]
     [Route("/{windowId:guid}/ResultIssue/Cancel")]
     public IActionResult Cancel(Guid windowId)
     {

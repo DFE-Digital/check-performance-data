@@ -53,6 +53,7 @@ public class EstablishmentAmendmentRequestsController(
             Status = request.Status,
             ConfirmingDelete = false,
             PupilName = request.PupilName,
+            LearnerNoun = request.LearnerNoun,
             FirstRecordDisplay = request.FirstRecordDisplay,
             SecondRecordDisplay = request.SecondRecordDisplay,
             Rows = request.Rows.Select(r => new SubmittedRequestRow

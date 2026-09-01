@@ -1,0 +1,69 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.EstablishmentAmendmentRequestsViewModel
+
+<span class="govuk-caption-l">Amendment requests</span>
+<h1 class="govuk-heading-xl">Summary of requests, decisions and issues</h1>
+
+@if (Model.ActiveWindows != null && Model.ActiveWindows.Any())
+{
+    <div class="govuk-inset-text">
+        @foreach (var window in Model.ActiveWindows)
+        {
+            <p class="govuk-body">
+                Submit all <strong>@window.WindowTitle</strong> requests by <strong>@window.DeadlineText</strong>.
+            </p>
+        }
+    </div>
+}
+
+<table class="govuk-table">
+    <thead class="govuk-table__head">
+        <tr class="govuk-table__row">
+            <th scope="col" class="govuk-table__header">Pupil name</th>
+            <th scope="col" class="govuk-table__header">Reference number</th>
+            <th scope="col" class="govuk-table__header">Request type</th>
+            <th scope="col" class="govuk-table__header">Status</th>
+            <th scope="col" class="govuk-table__header">Window name</th>
+            <th scope="col" class="govuk-table__header">Date submitted</th>
+            <th scope="col" class="govuk-table__header">Action</th>
+        </tr>
+    </thead>
+    <tbody class="govuk-table__body">
+        @if (Model.Rows == null || Model.Rows.Count == 0)
+        {
+            <tr class="govuk-table__row">
+                <td class="govuk-table__cell" colspan="7">
+                    There are no amendment requests for your establishment.
+                </td>
+            </tr>
+        }
+        else
+        {
+            foreach (var row in Model.Rows)
+            {
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">@row.PupilName</td>
+                    <td class="govuk-table__cell">@row.ReferenceNumber</td>
+                    <td class="govuk-table__cell">@row.RequestType</td>
+                    <td class="govuk-table__cell">
+                        <strong class="govuk-tag @row.TagClass">
+                            @row.TagLabel
+                        </strong>
+                    </td>
+                    <td class="govuk-table__cell">@row.WindowName</td>
+                    <td class="govuk-table__cell">@row.DateSubmitted</td>
+                    <td class="govuk-table__cell">
+                        <a class="govuk-link govuk-!-margin-right-2" href="@Url.Action("View", "EstablishmentAmendmentRequests", new { windowId = row.WindowId, referenceNumber = row.ReferenceNumber })">
+                            View<span class="govuk-visually-hidden"> request @row.ReferenceNumber for @row.PupilName</span>
+                        </a>
+                        @if (row.WindowIsOpen)
+                        {
+                            <a class="govuk-link govuk-link--warning" href="@Url.Action("Delete", "SubmittedRequest", new { windowId = row.WindowId, referenceNumber = row.ReferenceNumber, allEst = true })">
+                                Delete<span class="govuk-visually-hidden"> request @row.ReferenceNumber for @row.PupilName</span>
+                            </a>
+                        }
+                    </td>                
+                </tr>
+            }
+        }
+    </tbody>
+</table>

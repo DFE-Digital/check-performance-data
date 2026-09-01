@@ -20,8 +20,8 @@ public class ZendeskApiClientTests
         {
             { $"{ZendeskSettings.SectionName}:Subdomain", "test-subdomain" },
             { $"{ZendeskSettings.SectionName}:Domain", "example" },
-            { $"{ZendeskSettings.SectionName}:Email", "test@example.com" },
-            { $"{ZendeskSettings.SectionName}:ApiToken", "example" },
+            { $"{ZendeskSettings.SectionName}:ClientId", "test-client-id" },
+            { $"{ZendeskSettings.SectionName}:ClientSecret", "example-secret" },
             { $"{PollySettings.SectionName}:MaxRetryAttempts", "5" },
             { $"{PollySettings.SectionName}:BaseDelayMilliseconds", "100" },
             { $"{PollySettings.SectionName}:JitterMilliseconds", "200" }
@@ -179,8 +179,8 @@ public class ZendeskApiClientTests
         {
             { $"{ZendeskSettings.SectionName}:Subdomain", "test-subdomain" },
             { $"{ZendeskSettings.SectionName}:Domain", "example" },
-            { $"{ZendeskSettings.SectionName}:Email", "test@example.com" },
-            { $"{ZendeskSettings.SectionName}:ApiToken", "example" },
+            { $"{ZendeskSettings.SectionName}:ClientId", "test-client-id" },
+            { $"{ZendeskSettings.SectionName}:ClientSecret", "example-secret" },
             { $"{SchoolCheckingExerciseSettings.SectionName}:TargetViewTitle", "Schools checking exercise View" },
             { $"{SchoolCheckingExerciseSettings.SectionName}:GroupId", groupId },
             { $"{SchoolCheckingExerciseSettings.SectionName}:BrandId", brandId },

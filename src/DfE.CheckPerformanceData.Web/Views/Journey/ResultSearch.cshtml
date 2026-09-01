@@ -2,8 +2,10 @@
 
 @{
     @* The student's name is in Model.Title, so the browser title (which also reaches analytics)
-       uses a name-free form instead. *@
-    ViewBag.Title = "Which result is incorrect?";
+       uses the name-free pageTitle from the flow config — this page serves both the incorrect-grade
+       and result-does-not-belong journeys, so a hardcoded title mislabels one of them (AB#298704).
+       The fallback covers a flow config that declares no pageTitle. *@
+    ViewBag.Title = Model.PageTitle ?? "Which result is incorrect?";
     Layout = "_Layout";
     var hasError = !ViewData.ModelState.IsValid;
     var fieldErrorMessage = ViewData.ModelState["selectedResultKey"]?.Errors.FirstOrDefault()?.ErrorMessage

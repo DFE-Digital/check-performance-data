@@ -1,7 +1,9 @@
-# 16-19 results enquiry — report an incorrect grade
+# 16-19 results enquiries
 
-AB#296648. A school reports that one of its 16-19 students has been given the wrong exam grade, from
-choosing the enquiry type through to a reference number on screen and by email.
+A school reports an issue with a 16-19 student's exam results, from choosing the enquiry type
+through to a reference number on screen and by email. Three journeys share the entry point and the
+submission path: incorrect grade (AB#296648, documented first below), missing qualification
+(AB#297848) and result does not belong to student (AB#298704), each with its own section.
 
 Related tickets: AB#296999 (results data), AB#297004 (student selection), AB#297130 (grade reference
 data), AB#297013, AB#297848 (missing qualification), AB#298704 (result does not belong to student).
@@ -333,11 +335,11 @@ UK-today and no earlier than 1 September 2023 (the 2023/24 and 2024/25 academic 
 
 ### Submission
 
-`RequestService.SubmitResultsEnquiryAsync` now serves both enquiry kinds. A missing-qualification row
+`RequestService.SubmitResultsEnquiryAsync` serves all three enquiry kinds. A missing-qualification row
 persists with `AmendmentType = WhatToChange.MissingQualification`,
 `RequestTypeDescription = "Results enquiry - Missing qualification"`, same `RequestType.ResultsEnquiry`
-/ `Status.SubmittedUnCommitted` shape, same **no enqueue** (Zendesk dispatch is parked for both
-enquiry kinds), same `QuestionFlowOutcomeKeyAlignmentTests` exclusion from rules-engine routing.
+/ `Status.SubmittedUnCommitted` shape, same **no enqueue** (Zendesk dispatch is parked for every
+enquiry kind), same `QuestionFlowOutcomeKeyAlignmentTests` exclusion from rules-engine routing.
 `MissingQualificationSummary` supplies its own check-answers row set (AO and QAN change through the
 qualification-search page; syllabus code, award date, grade and NCN each change through the details
 page).

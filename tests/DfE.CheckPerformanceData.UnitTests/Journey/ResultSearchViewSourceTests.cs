@@ -112,10 +112,13 @@ public sealed class ResultSearchViewSourceTests
     [Fact]
     public void The_browser_title_does_not_leak_the_student_name()
     {
-        // Model.Title contains the student's name and the <title> reaches analytics.
+        // Model.Title contains the student's name and the <title> reaches analytics, so the title
+        // comes from the flow config's name-free pageTitle — not hardcoded (AB#298704: this page
+        // now serves two journeys, and a hardcoded "Which result is incorrect?" mislabelled the
+        // result-does-not-belong page; same fix QualificationSearch.cshtml already carries).
         var view = ViewSource();
 
-        Assert.Contains("ViewBag.Title = \"Which result is incorrect?\"", view);
+        Assert.Contains("ViewBag.Title = Model.PageTitle ?? \"Which result is incorrect?\"", view);
         Assert.DoesNotContain("ViewBag.Title = Model.Title", view);
     }
 

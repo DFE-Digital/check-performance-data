@@ -1215,9 +1215,13 @@ public sealed class JourneyController(
         {
             EnquiryType = journey.SelectedWhatToChange switch
             {
+                Application.CheckYourPupilData.WhatToChange.IncorrectGrade => ResultIssueViewModel.IncorrectGrade,
                 Application.CheckYourPupilData.WhatToChange.MissingQualification => ResultIssueViewModel.MissingQualification,
                 Application.CheckYourPupilData.WhatToChange.ResultDoesNotBelong => ResultIssueViewModel.ResultDoesNotBelong,
-                _ => ResultIssueViewModel.IncorrectGrade
+                // Deliberately not a throw: this runs after the enquiry is persisted and the email
+                // sent, so an unmapped kind must not error the user's confirmation page. The raw
+                // enum name keeps the telemetry honest instead of mislabelling it incorrect-grade.
+                _ => journey.SelectedWhatToChange?.ToString() ?? "unknown"
             },
             CohortWide = IsCohortWide(journey),
             CheckingWindowType = journey.CheckingWindow?.CheckingWindowType.ToString() ?? "",

@@ -134,4 +134,25 @@ public sealed class ResultIssueController(
 
         return RedirectToAction("Page", "Journey", new { windowId, pageId });
     }
+
+    /// <summary>
+    /// AB#298229: "Cancel and go back to create a new enquiry" on the summary screen. Discards
+    /// everything entered for the current enquiry and lands back on the issue chooser. Deliberately
+    /// not gated on the exercise being open — abandoning must always work, even from a tab left
+    /// open across the closing date — and deliberately free of window lookups: it touches only
+    /// this window's session state, and <see cref="Index"/> owns the closed-exercise redirect for
+    /// whatever the user does next. A GET because the mock shows a link and the only thing changed
+    /// is the user's own transient session; nothing is submitted or recorded.
+    /// </summary>
+    [Route("/{windowId:guid}/ResultIssue/Cancel")]
+    public IActionResult Cancel(Guid windowId)
+    {
+        // The same trio Confirm resets when starting fresh: the journey itself, plus the two edit
+        // flags whose staleness would point a later summary at the amendment-requests page.
+        HttpContext.Session.ClearRequestState(windowId);
+        HttpContext.Session.ClearBulkEditMode(windowId);
+        HttpContext.Session.ClearSingleEditMode(windowId);
+
+        return RedirectToAction(nameof(Index), new { windowId });
+    }
 }

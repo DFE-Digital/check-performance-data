@@ -438,6 +438,84 @@ public sealed class ResultIssueControllerTests
             m => Assert.Null(m.GetCustomAttribute<AllowAnonymousAttribute>()));
     }
 
+    // ── AB#298229: cancel from the summary ───────────────────────────────────
+
+    [Fact]
+    public void Cancel_discards_everything_entered_for_the_current_enquiry()
+    {
+        // AC: "when I select 'Cancel and go back to create a new enquiry', then nothing I entered
+        // is submitted" and "no data carried over". Before AB#298229 the summary link went to
+        // Index, which clears nothing — the abandoned enquiry stayed resumable (and submittable)
+        // via a deep link back to /Journey/{windowId}/summary.
+        _session.SetRequestState(WindowId, new RequestState
+        {
+            SelectedWhatToChange = WhatToChange.MissingQualification,
+            SelectedPupilId = Guid.NewGuid().ToString(),
+            SelectedPupilLabel = "Smith, Alice",
+            QuestionAnswers = { ["q_award_date"] = new QuestionAnswer { TextValue = "2025-06-01" } },
+            QuestionHistory = { "cohort-scope", "select-student-single" }
+        });
+
+        _sut.Cancel(WindowId);
+
+        var state = _session.GetRequestState(WindowId);
+        Assert.Null(state.SelectedWhatToChange);
+        Assert.Null(state.SelectedPupilId);
+        Assert.Null(state.SelectedPupilLabel);
+        Assert.Empty(state.QuestionAnswers);
+        Assert.Empty(state.QuestionHistory);
+    }
+
+    [Fact]
+    public void Cancel_clears_the_bulk_and_single_edit_modes()
+    {
+        // Same hygiene as Confirm: a stale edit flag would make a later summary link back to the
+        // amendment-requests page instead of the journey.
+        _session.SetBulkEditMode(WindowId);
+        _session.SetSingleEditMode(WindowId);
+
+        _sut.Cancel(WindowId);
+
+        Assert.False(_session.IsBulkEditMode(WindowId));
+        Assert.False(_session.IsSingleEditMode(WindowId));
+    }
+
+    [Fact]
+    public void Cancel_lands_on_the_issue_chooser()
+    {
+        // AC: "I am at the start of the enquiry journey" — the enquiry-type selection.
+        var result = _sut.Cancel(WindowId);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Index", redirect.ActionName);
+        Assert.Equal(WindowId, redirect.RouteValues!["windowId"]);
+    }
+
+    [Fact]
+    public void Cancel_leaves_another_windows_journey_alone()
+    {
+        // Journey state is per-window; cancelling this enquiry must not wipe a half-finished
+        // KS4 amendment in another window.
+        var otherWindow = Guid.NewGuid();
+        _session.SetRequestState(otherWindow, new RequestState { SelectedWhatToChange = WhatToChange.Merge });
+
+        _sut.Cancel(WindowId);
+
+        Assert.Equal(WhatToChange.Merge, _session.GetRequestState(otherWindow).SelectedWhatToChange);
+    }
+
+    [Fact]
+    public void Cancel_needs_no_window_lookup_so_it_works_after_the_exercise_closes()
+    {
+        // Abandoning must always work — including from a tab left open across the exercise's
+        // closing date — and must record nothing. Index owns the closed-exercise redirect for
+        // whatever the user does next; Cancel itself touches only session.
+        _sut.Cancel(WindowId);
+
+        Assert.Empty(_service.ReceivedCalls());
+        Assert.Empty(_analytics.ReceivedCalls());
+    }
+
     private static ResultIssueViewModel ValidPost() =>
         new() { WindowId = WindowId, IssueType = ResultIssueViewModel.IncorrectGrade };
 

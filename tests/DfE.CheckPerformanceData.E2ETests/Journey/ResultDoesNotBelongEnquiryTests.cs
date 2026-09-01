@@ -39,7 +39,12 @@ public sealed class ResultDoesNotBelongEnquiryTests(PlaywrightFixture fixture) :
         await ChooseResultAsync(BusStudsS2024);
 
         await Page.WaitForURLAsync($"**/Journey/{WindowId}/page/additional-info");
-        await Expect(Page.Locator("#q_q_additional_info")).ToHaveAttributeAsync("maxlength", "1000");
+        await Expect(Page.Locator(".govuk-character-count")).ToHaveAttributeAsync("data-maxlength", "1000");
+        // The govuk-character-count JS enhancement swaps the static "You can enter up to 1000
+        // characters" hint for a live count — Figma f06's exact "You have 1,000 characters
+        // remaining" — proving the enhancement actually activates, not just that markup is present.
+        await Expect(Page.Locator(".govuk-character-count__status"))
+            .ToContainTextAsync("You have 1,000 characters remaining");
         await Page.Locator("#q_q_additional_info").FillAsync("QAN 60322222 grade B also does not belong");
         await ContinueAsync();
 
@@ -74,6 +79,22 @@ public sealed class ResultDoesNotBelongEnquiryTests(PlaywrightFixture fixture) :
             .ToContainTextAsync($"Summary of result enquiry for {StudentName}");
         var row = Page.Locator(".govuk-summary-list__row", new() { HasText = "Additional information" });
         await Expect(row.Locator(".govuk-summary-list__value")).ToHaveTextAsync("");
+    }
+
+    [RetryFact(3)]
+    public async Task MoreThanOneThousandCharactersIsRejectedOnAForcedPost()
+    {
+        // The JS character-count component only warns; nothing native stops a script-driven POST
+        // from carrying more than the limit, so the server must still reject it.
+        await StartEnquiryAsync();
+        await ChooseStudentAsync();
+        await ChooseResultAsync(BusStudsS2024);
+
+        await Page.WaitForURLAsync($"**/Journey/{WindowId}/page/additional-info");
+        await Page.Locator("#q_q_additional_info").FillAsync(new string('a', 1001));
+        await Page.Locator("form").EvaluateAsync("form => form.requestSubmit()");
+
+        await AssertErrorAsync("Additional information must be 1000 characters or less");
     }
 
     [RetryFact(3)]
@@ -187,6 +208,13 @@ public sealed class ResultDoesNotBelongEnquiryTests(PlaywrightFixture fixture) :
 
     private async Task ContinueAsync() =>
         await Page.GetByRole(AriaRole.Button, new() { Name = "Continue" }).ClickAsync();
+
+    private async Task AssertErrorAsync(string expected)
+    {
+        await Expect(Page.Locator(".govuk-error-summary")).ToBeVisibleAsync();
+        var text = await Page.Locator(".govuk-error-summary").InnerTextAsync();
+        Assert.Contains(expected, text);
+    }
 
     private static async Task<long> CountChangeRequestsAsync()
     {

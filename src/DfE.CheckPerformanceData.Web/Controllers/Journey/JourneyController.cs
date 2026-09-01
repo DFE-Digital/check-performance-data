@@ -145,7 +145,7 @@ public sealed class JourneyController(
         {
             var validationMessage = page.ValidationFailure is not null
                 ? JourneyTemplate.Resolve(page.ValidationFailure, JourneyViewModelBuilder.GetPupilName(journey))
-                : "Enter the name of the pupil";
+                : $"Enter the name of the {journey.LearnerNoun.Singular}";
             ModelState.AddModelError("selectedPupilId", validationMessage);
             await analytics.TrackSafeAsync(new ValidationErrorEvent
             {
@@ -161,7 +161,7 @@ public sealed class JourneyController(
         {
             var validationMessage = page.ValidationFailure is not null
                 ? JourneyTemplate.Resolve(page.ValidationFailure, JourneyViewModelBuilder.GetPupilName(journey))
-                : "Select a different pupil to the first record";
+                : $"Select a different {journey.LearnerNoun.Singular} to the first record";
             ModelState.AddModelError("selectedPupilId", validationMessage);
             await analytics.TrackSafeAsync(new ValidationErrorEvent
             {
@@ -209,8 +209,10 @@ public sealed class JourneyController(
                 var reasonsMatch = !string.IsNullOrEmpty(currentReasonType)
                     && string.Equals(currentReasonType, conflictingReasonType, StringComparison.OrdinalIgnoreCase);
 
-                ModelState.AddModelError("selectedPupilId", DuplicateRequestMessages.FieldErrorMessage);
-                ModelState.AddModelError(string.Empty, DuplicateRequestMessages.ErrorSummaryMessage);
+                ModelState.AddModelError("selectedPupilId",
+                    DuplicateRequestMessages.FieldErrorMessage(journey.LearnerNoun));
+                ModelState.AddModelError(string.Empty,
+                    DuplicateRequestMessages.ErrorSummaryMessage(journey.LearnerNoun));
                 await analytics.TrackSafeAsync(new ValidationErrorEvent
                 {
                     ErrorCount = 1,
@@ -234,7 +236,8 @@ public sealed class JourneyController(
                 vm.ConflictReasonType = conflictingReasonType;
                 vm.ConflictUserName = conflictingUserName;
                 vm.ConflictAttentionHtml = DuplicateRequestMessages.AttentionBannerHtml(
-                    isSelf, reasonsMatch, conflictingCategory, pupilName, refNum, linkUrl, conflictingUserName);
+                    isSelf, reasonsMatch, conflictingCategory, pupilName, refNum, linkUrl, conflictingUserName,
+                    journey.LearnerNoun);
 
                 return View("PupilSearch", vm);
             }
@@ -657,15 +660,20 @@ public sealed class JourneyController(
             {
                 var answer = ReadFormAnswer(question);
 
-                // visibleWhen gates selection as well as rendering: a posted radio value
+                // visibleWhen gates selection as well as rendering: a posted option value
                 // that is not among this user's visible options (hidden by a condition,
                 // or not a defined option at all) is rejected with the question's own
                 // validation message, exactly as if nothing was selected. This backs the
-                // add-back policy restriction (PBI 292525) server-side.
-                if (question.Type == QuestionType.Radio && question.Options is { Count: > 0 }
+                // add-back policy restriction (PBI 292525) server-side. A Checkbox posts
+                // several values and ALL of them must be visible — one forged value is
+                // enough to reject the page, so ticking a hidden box cannot ride along
+                // beside a legitimate one.
+                if (question.Type is QuestionType.Radio or QuestionType.Checkbox
+                    && question.Options is { Count: > 0 }
                     && journeyService.IsAnswered(question, answer)
-                    && optionVisibilityService.GetVisibleOptions(question, conditionContext)
-                        .All(o => o.Value != answer.TextValue))
+                    && PostedOptionValues(question, answer).Except(
+                            optionVisibilityService.GetVisibleOptions(question, conditionContext)
+                                .Select(o => o.Value), StringComparer.Ordinal).Any())
                 {
                     var hiddenFailure = question.ValidationFailure is not null
                         ? JourneyTemplate.Resolve(question.ValidationFailure, pupilName)
@@ -734,7 +742,8 @@ public sealed class JourneyController(
         }
 
         // Page-level "at least one answered" rule (e.g. EvidenceUpload pages).
-        var atLeastOne = journeyService.ValidateRequireAtLeastOne(page, newAnswers, pupilName);
+        var atLeastOne = journeyService.ValidateRequireAtLeastOne(page, newAnswers, pupilName,
+            optionalityService.IsRequireAtLeastOneActive(page, conditionContext));
         if (atLeastOne is not null)
         {
             foreach (var (qId, msg) in atLeastOne.FieldErrors)
@@ -1138,7 +1147,7 @@ public sealed class JourneyController(
 
             var message = DuplicateRequestMessages.SummaryMessage(
                 ex.ConflictType == ConflictType.SelfSubmitted, ex.ReasonsMatch,
-                ex.ConflictingRequestCategory);
+                ex.ConflictingRequestCategory, journey.LearnerNoun);
 
             string? conflictErrorLink = $"/{windowId}/AmendmentRequests/{journey.ReferenceNumber}/view";
 
@@ -1327,7 +1336,8 @@ public sealed class JourneyController(
     {
         var ctx = JourneyConditionContextFactory.Create(journey, currentUserService);
         var conditionallyOptional = optionalityService.GetConditionallyOptionalQuestionIds(page, ctx);
-        return journeyService.ValidateEvidencePage(page, journey, pupilName, conditionallyOptional) is null;
+        return journeyService.ValidateEvidencePage(page, journey, pupilName, conditionallyOptional,
+            optionalityService.IsRequireAtLeastOneActive(page, ctx)) is null;
     }
 
     // ── Confirmation ───────────────────────────────────────────────────────
@@ -1385,7 +1395,8 @@ public sealed class JourneyController(
         if (IsExerciseClosed(journey))
             return this.RedirectExerciseClosed(
                 windowId,
-                WhatToChangeCheckingExerciseMap.CheckingExerciseFor(journey.SelectedWhatToChange!.Value));
+                WhatToChangeCheckingExerciseMap.CheckingExerciseFor(journey.SelectedWhatToChange!.Value),
+                journey.LearnerNoun);
 
         return RedirectToAction("Index", "CheckYourPupilData", new { windowId });
     }
@@ -1467,9 +1478,26 @@ public sealed class JourneyController(
                 TextValue = Request.Form[fieldName].FirstOrDefault()?.Trim(),
                 CodeValue = Request.Form[$"{fieldName}_code"].FirstOrDefault()?.Trim() is { Length: > 0 } code ? code : null
             },
+            // A checkbox list posts one key with one value per ticked box, so the whole
+            // StringValues is read — FirstOrDefault would keep only the first tick. TextValue
+            // stays null: SelectedValues is the answer, and every display site reads it.
+            QuestionType.Checkbox => new QuestionAnswer
+            {
+                SelectedValues = Request.Form[fieldName]
+                    .Select(v => v?.Trim())
+                    .Where(v => !string.IsNullOrEmpty(v))
+                    .Select(v => v!)
+                    .ToList()
+            },
             _ => new QuestionAnswer { TextValue = Request.Form[fieldName].FirstOrDefault()?.Trim() }
         };
     }
+
+    // The option values a question's answer carries, whichever control posted them.
+    private static IEnumerable<string> PostedOptionValues(Question question, QuestionAnswer answer) =>
+        question.Type == QuestionType.Checkbox
+            ? answer.SelectedValues ?? []
+            : answer.TextValue is { } v ? [v] : [];
 
     private void TrimHistoryTo(RequestState journey, Guid windowId, string pageId)
     {

@@ -7,6 +7,7 @@ using DfE.CheckPerformanceData.Application.LandingPage;
 // LandingPage one ambiguous here.
 using CheckingExerciseDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseDto;
 using CheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseService;
+using LearnerNoun = DfE.CheckPerformanceData.Application.WindowManagement.LearnerNoun;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData;
 using DfE.CheckPerformanceData.Web.Session;
@@ -101,7 +102,9 @@ public sealed class CheckYourPupilDataResultsEnquiryOptionTests
         WindowId = WindowId.ToString(),
         SelectedNextStep = step,
         WindowTitle = "", Sections = [], SectionsAsTabs = false,
-        AvailableNextSteps = [], OrganisationName = ""
+        AvailableNextSteps = [], OrganisationName = "",
+        LearnerNoun = LearnerNoun.Pupil,
+        TitleContentKey = "check-pupil-data-title-ks4june"
     };
 
     // ── The options come from the open exercises ─────────────────────────────
@@ -304,6 +307,51 @@ public sealed class CheckYourPupilDataResultsEnquiryOptionTests
         await _sut.NextStep(WindowId, Posted(NextSteps.ResultsEnquiry));
 
         Assert.Equal(NextSteps.ResultsEnquiry, _session.GetRequestState(WindowId).SelectedNextStep);
+    }
+
+    // ── The learner noun follows the window type ─────────────────────────────
+
+    [Fact]
+    public async Task A_16_to_19_window_calls_a_learner_a_student()
+    {
+        Window(CheckingWindowType.Post16, Open(CheckingExerciseType.PupilData));
+
+        var model = await IndexModel();
+
+        Assert.Equal("student", model.LearnerNoun.Singular);
+        Assert.Equal("Check your student data", model.Title);
+        // Both sections' wording is built from the same noun, so no table can disagree with the
+        // heading above it.
+        Assert.All(model.Sections, s => Assert.Equal("student", s.LearnerNoun.Singular));
+        Assert.Contains(model.Sections, s => s.TabLabel == "Included students");
+    }
+
+    [Fact]
+    public async Task Every_other_key_stage_calls_a_learner_a_pupil()
+    {
+        Window(CheckingWindowType.KS4June, Open(CheckingExerciseType.PupilData));
+
+        var model = await IndexModel();
+
+        Assert.Equal("pupil", model.LearnerNoun.Singular);
+        Assert.Equal("Check your pupil data", model.Title);
+        Assert.Contains(model.Sections, s => s.TabLabel == "Included pupils");
+    }
+
+    [Fact]
+    public async Task The_pages_content_keys_are_scoped_to_the_window_type()
+    {
+        // A content block seeds once per key, so 16-19 needs its own or it would inherit the KS4
+        // block's "pupil" wording — and an editor could never word the two differently.
+        Window(CheckingWindowType.Post16, Open(CheckingExerciseType.PupilData));
+        var post16 = await IndexModel();
+
+        Window(CheckingWindowType.KS4June, Open(CheckingExerciseType.PupilData));
+        var ks4 = await IndexModel();
+
+        Assert.NotEqual(ks4.TitleContentKey, post16.TitleContentKey);
+        Assert.Equal("check-pupil-data-title-post16", post16.TitleContentKey);
+        Assert.All(post16.Sections, s => Assert.EndsWith("-post16", s.EmptyContentKey));
     }
 
     private sealed class FakeSession : ISession

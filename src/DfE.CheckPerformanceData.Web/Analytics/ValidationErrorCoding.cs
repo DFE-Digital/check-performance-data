@@ -33,6 +33,9 @@ public static class ValidationErrorCoding
             QuestionType.TextArea => "too_long",
             QuestionType.Autocomplete => "selection_invalid",
             QuestionType.Radio => "selection_invalid",
+            // A rejected checkbox value can only mean the option was not among the ones this
+            // user was shown — a bad selection, the same kind of failure as the radio's.
+            QuestionType.Checkbox => "selection_invalid",
             // AB#296648: a grade picker is a selection control, so it belongs with the other two.
             // Without this it fell through to the generic "invalid", which loses exactly the
             // distinction this taxonomy exists to make — a rejected grade is a bad selection (the

@@ -3,8 +3,9 @@
 @model DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData.CheckYourPupilDataViewModel
 
 @{
-    // Matches the "check-pupil-data-title" EditableTitle <h1> default below.
-    ViewBag.Title = "Check your pupil data";
+    // Matches the EditableTitle <h1> default below — both read Model.Title, because the two must
+    // stay identical and this page's noun changes with the window type ("student" on 16-19).
+    ViewBag.Title = Model.Title;
     Layout = "_Layout";
 }
 
@@ -12,10 +13,12 @@
 
 @await Html.PartialAsync("_ClosedExerciseBanner")
 
+@* The key is scoped to the window type (WindowScopedContentKey): a content block seeds its
+   default once per key, so one shared key could only ever hold one of the two nouns. *@
 @await Component.InvokeAsync("EditableTitle", new
 {
-    key = "check-pupil-data-title",
-    defaultText = "Check your pupil data",
+    key = Model.TitleContentKey,
+    defaultText = Model.Title,
     headingLevel = "h1",
     cssClass = "govuk-heading-xl"
 })
@@ -32,14 +35,14 @@
 }
 
 <p class="govuk-body">
-    Review your pupil data by checking the tables below. You can also download the data as a CSV file.
+    Review your @Model.LearnerNoun.Singular data by checking the tables below. You can also download the data as a CSV file.
     @if (pupilDataDeadline is not null && Model.IsPupilDataOpen)
     {
-        @:You must request any changes to pupil data before @pupilDataDeadline
+        @:You must request any changes to @Model.LearnerNoun.Singular data before @pupilDataDeadline
     }
     else if (pupilDataDeadline is not null)
     {
-        @:The window for requesting changes to pupil data closed at @pupilDataDeadline
+        @:The window for requesting changes to @Model.LearnerNoun.Singular data closed at @pupilDataDeadline
     }
 </p>
 
@@ -68,7 +71,7 @@
     }
     else
     {
-        <govuk-tabs-item id="pupils" label="Pupils">
+        <govuk-tabs-item id="pupils" label="@Model.LearnerNoun.PluralCapitalised">
             @foreach (var pupilSection in Model.Sections)
             {
                 @await Html.PartialAsync("_PupilSection", new PupilSectionViewModel
@@ -89,7 +92,7 @@
 @if (Model.AvailableNextSteps.Count == 0)
 {
     <p class="govuk-body">This window is closed for changes. You can still review and download your
-        pupil data above.</p>
+        @Model.LearnerNoun.Singular data above.</p>
 }
 else if (Model.AvailableNextSteps.Count == 1)
 {
@@ -101,7 +104,7 @@ else if (Model.AvailableNextSteps.Count == 1)
     <form method="post" action="@Url.Action("NextStep", "CheckYourPupilData", new { windowId = Model.WindowId })">
         @Html.AntiForgeryToken()
         <input type="hidden" name="@nameof(Model.SelectedNextStep)" value="@only"/>
-        <govuk-button type="submit">@NextStepLabels.For(only)</govuk-button>
+        <govuk-button type="submit">@NextStepLabels.For(only, Model.LearnerNoun)</govuk-button>
     </form>
 }
 else
@@ -111,7 +114,7 @@ else
         <govuk-radios for="SelectedNextStep">
             <govuk-radios-fieldset>
                 @* Not is-page-heading: that renders the legend as an <h1>, and this page already
-                   has one (the "check-pupil-data-title" EditableTitle above). Two <h1>s leave the
+                   has one (the check-pupil-data-title EditableTitle above). Two <h1>s leave the
                    document with no single unambiguous title. The legend keeps the --l size so it
                    looks unchanged. *@
                 <govuk-radios-fieldset-legend class="govuk-fieldset__legend--l">
@@ -122,17 +125,17 @@ else
                     Select one option.
                 </govuk-radios-hint>
 
-                @* "Confirm pupil data is correct" is the alternative to doing anything, so it reads
+                @* "Confirm ... data is correct" is the alternative to doing anything, so it reads
                    last, after the "or" divider — the GDS pattern, and the order this page has always
                    rendered. Every other option keeps the service's exercise-sort order. *@
                 @foreach (var step in Model.AvailableNextSteps.Where(s => s != NextSteps.Confirm))
                 {
-                    <govuk-radios-item value="@step">@NextStepLabels.For(step)</govuk-radios-item>
+                    <govuk-radios-item value="@step">@NextStepLabels.For(step, Model.LearnerNoun)</govuk-radios-item>
                 }
                 @if (Model.AvailableNextSteps.Contains(NextSteps.Confirm))
                 {
                     <govuk-radios-divider>or</govuk-radios-divider>
-                    <govuk-radios-item value="@NextSteps.Confirm">@NextStepLabels.For(NextSteps.Confirm)</govuk-radios-item>
+                    <govuk-radios-item value="@NextSteps.Confirm">@NextStepLabels.For(NextSteps.Confirm, Model.LearnerNoun)</govuk-radios-item>
                 }
             </govuk-radios-fieldset>
         </govuk-radios>

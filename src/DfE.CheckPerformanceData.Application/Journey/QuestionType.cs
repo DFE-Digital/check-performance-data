@@ -13,5 +13,8 @@ public enum QuestionType
     GradeSelect,
     // AB#297848: a syllabus-code picker whose options come from the selected qualification's
     // QualList reference entry. Appended last so existing flow JSON values are unmoved.
-    SyllabusSelect
+    SyllabusSelect,
+    // A multi-select list of options. The answer is QuestionAnswer.SelectedValues, never
+    // TextValue. Appended last so existing flow JSON values are unmoved.
+    Checkbox
 }

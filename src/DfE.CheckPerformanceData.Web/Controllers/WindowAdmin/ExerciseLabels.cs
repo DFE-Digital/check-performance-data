@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Extensions;
 
@@ -11,4 +12,15 @@ namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 public static class ExerciseLabels
 {
     public static string For(CheckingExerciseType exercise) => exercise.GetDisplayName();
+
+    /// <summary>
+    /// The school-facing label, which names a learner on the pupil-data exercise and so takes the
+    /// window's noun — "Student data checking" on 16-19. The parameterless overload above keeps the
+    /// enum's display name for admin screens, whose vocabulary does not change per window.
+    /// </summary>
+    public static string For(CheckingExerciseType exercise, LearnerNoun noun) => exercise switch
+    {
+        CheckingExerciseType.PupilData => $"{noun.SingularCapitalised} data checking",
+        _ => For(exercise)
+    };
 }

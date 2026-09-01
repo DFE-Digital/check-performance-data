@@ -1,25 +1,27 @@
 @using DfE.CheckPerformanceData.Web.Controllers.AmendmentRequests
-@model IReadOnlyList<BulkReviewItemViewModel>
+@* Takes the whole page model rather than just the rows: the warning names a learner, and the noun
+   is the window's, not the row's. *@
+@model BulkReviewDetailedViewModel
 
-@if (Model.Count > 0)
+@if (Model.Duplicates.Count > 0)
 {
     <div class="govuk-warning-text">
         <span class="govuk-warning-text__icon" aria-hidden="true">!</span>
         <strong class="govuk-warning-text__text">
             <span class="govuk-visually-hidden">Warning</span>
-            The following requests will not be submitted because there is a duplicate for the pupil.
+            The following requests will not be submitted because there is a duplicate for the @Model.LearnerNoun.Singular.
         </strong>
     </div>
     <table class="govuk-table">
         <thead class="govuk-table__head">
             <tr class="govuk-table__row">
-                <th scope="col" class="govuk-table__header">Pupil name</th>
+                <th scope="col" class="govuk-table__header">@Model.LearnerNoun.SingularCapitalised name</th>
                 <th scope="col" class="govuk-table__header">Request type</th>
                 <th scope="col" class="govuk-table__header">Reason</th>
             </tr>
         </thead>
         <tbody class="govuk-table__body">
-            @foreach (var item in Model)
+            @foreach (var item in Model.Duplicates)
             {
                 <tr class="govuk-table__row">
                     <td class="govuk-table__cell">@item.PupilName</td>

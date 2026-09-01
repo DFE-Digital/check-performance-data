@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Web.Controllers.Journey;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.AmendmentRequests;
@@ -10,6 +11,9 @@ public sealed class BulkReviewDetailedViewModel
 {
     public required Guid WindowId { get; init; }
     public required string WindowTitle { get; init; }
+
+    /// <summary>The window's word for a learner, used by the duplicates warning and its table.</summary>
+    public required LearnerNoun LearnerNoun { get; init; }
     public required IReadOnlyList<BulkReviewItemViewModel> Duplicates { get; init; }
     public required IReadOnlyList<BulkDetailedItemViewModel> Submittable { get; init; }
 }

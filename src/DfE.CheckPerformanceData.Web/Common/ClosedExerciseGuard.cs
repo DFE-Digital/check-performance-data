@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using Microsoft.AspNetCore.Mvc;
 
@@ -23,10 +24,10 @@ public static class ClosedExerciseGuard
     /// The message for a rejected entry into <paramref name="exercise"/>. Closed removes actions,
     /// never content, so each message says what the user can still do.
     /// </summary>
-    public static string MessageFor(CheckingExerciseType exercise) => exercise switch
+    public static string MessageFor(CheckingExerciseType exercise, LearnerNoun noun) => exercise switch
     {
         CheckingExerciseType.PupilData =>
-            "The deadline for requesting changes to your pupil data has passed. "
+            $"The deadline for requesting changes to your {noun.Singular} data has passed. "
             + "You can still view and download your data.",
         CheckingExerciseType.ResultsEnquiry =>
             "The deadline for reporting an issue with your results has passed. "
@@ -42,9 +43,9 @@ public static class ClosedExerciseGuard
     /// Rejects the request: stashes the reason and sends the user back to Check your pupil data.
     /// </summary>
     public static RedirectToActionResult RedirectExerciseClosed(
-        this Controller controller, Guid windowId, CheckingExerciseType exercise)
+        this Controller controller, Guid windowId, CheckingExerciseType exercise, LearnerNoun noun)
     {
-        controller.TempData[TempDataKey] = MessageFor(exercise);
+        controller.TempData[TempDataKey] = MessageFor(exercise, noun);
         return controller.RedirectToAction("Index", "CheckYourPupilData", new { windowId });
     }
 }

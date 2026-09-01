@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Application.WindowManagement;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData;
 
@@ -47,4 +48,38 @@ public sealed class CheckYourPupilDataViewModel
     public bool IsPupilDataOpen { get; init; }
 
     public required string OrganisationName { get; init; }
+
+    /// <summary>
+    /// The word this window uses for a learner — "student" on 16-19, "pupil" everywhere else.
+    /// Assembled in the controller from the window type so the view never looks it up.
+    /// </summary>
+    /// <remarks>
+    /// Defaulted rather than <c>required</c>, and this matters: the same class is the model-binding
+    /// target for the NextStep POST. <c>required</c> is a compile-time rule only — the binder
+    /// creates the instance through its parameterless constructor and sets nothing — and MVC's
+    /// validation visitor then reads every property on the bound object, <see cref="Title"/>
+    /// included. A null here threw a NullReferenceException before the action ran.
+    ///
+    /// "pupil" is the safe default for the same reason it is elsewhere: it is the word every key
+    /// stage but 16-19 uses, and the POST does not render a noun anyway — it re-derives the window
+    /// and rebuilds the model when it has to redisplay the page.
+    /// </remarks>
+    public LearnerNoun LearnerNoun { get; init; } = LearnerNoun.Pupil;
+
+    /// <summary>
+    /// The CMS key for the page's <c>&lt;h1&gt;</c>, scoped to the window type so each key stage
+    /// seeds and edits its own heading. See <c>WindowScopedContentKey</c>.
+    /// </summary>
+    /// <remarks>
+    /// Still <c>required</c>, unlike <see cref="LearnerNoun"/> above: nothing dereferences it, so a
+    /// binder-created instance leaving it null hurts nobody, and a plausible-but-wrong default would
+    /// quietly hand one window type another's content block.
+    /// </remarks>
+    public required string TitleContentKey { get; init; }
+
+    /// <summary>
+    /// The page heading, and therefore also <c>ViewBag.Title</c> — the two must stay identical
+    /// (WCAG 2.4.2), so both read this one value rather than each spelling the noun themselves.
+    /// </summary>
+    public string Title => $"Check your {LearnerNoun.Singular} data";
 }

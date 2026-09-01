@@ -16,6 +16,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using LearnerNoun = DfE.CheckPerformanceData.Application.WindowManagement.LearnerNoun;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.AmendmentRequests;
 
@@ -42,18 +43,27 @@ public sealed class SummaryDetailsRenderTests
     [Fact]
     public async Task DuplicatesWarning_RendersReasonRows()
     {
-        IReadOnlyList<BulkReviewItemViewModel> duplicates =
-        [
-            new BulkReviewItemViewModel
-            {
-                ReferenceNumber = "DUP1",
-                PupilName = "Bob Beta",
-                RequestTypeDescription = "Remove pupil",
-                DuplicateReason = "A request for this pupil has already been submitted."
-            }
-        ];
+        // The partial takes the whole page model: its warning names a learner, and the noun is the
+        // window's rather than the row's.
+        var model = new BulkReviewDetailedViewModel
+        {
+            WindowId = Guid.NewGuid(),
+            WindowTitle = "KS4 June 2026",
+            LearnerNoun = LearnerNoun.Pupil,
+            Submittable = [],
+            Duplicates =
+            [
+                new BulkReviewItemViewModel
+                {
+                    ReferenceNumber = "DUP1",
+                    PupilName = "Bob Beta",
+                    RequestTypeDescription = "Remove pupil",
+                    DuplicateReason = "A request for this pupil has already been submitted."
+                }
+            ]
+        };
 
-        var html = await RenderAsync("_BulkDuplicatesWarning", duplicates, viewData: null);
+        var html = await RenderAsync("_BulkDuplicatesWarning", model, viewData: null);
 
         Assert.Contains("Bob Beta", html);
         Assert.Contains("will not be submitted", html);
@@ -66,7 +76,7 @@ public sealed class SummaryDetailsRenderTests
         var question = new Question { Id = "reason", Type = QuestionType.FreeText, Title = "Why?" };
         var answer = new QuestionAnswer { TextValue = "Left the school" };
         return new SummaryViewModel
-        {
+        { LearnerNoun = LearnerNoun.Pupil,
             WindowId = Guid.NewGuid(),
             WhatToChange = WhatToChange.Remove,
             PupilName = "Ann Alpha",

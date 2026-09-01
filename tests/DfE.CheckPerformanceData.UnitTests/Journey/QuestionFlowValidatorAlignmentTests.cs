@@ -67,6 +67,36 @@ public sealed class QuestionFlowValidatorAlignmentTests
     }
 
     /// <summary>
+    /// The same guard for a page's <c>requireAtLeastOneWhen</c>, which gates the "answer at least
+    /// one of these" rule on a condition (e.g. only the "Other" not-on-roll reason must be
+    /// evidenced). It fails closed — an unresolved name leaves the rule ON — so a typo silently
+    /// makes evidence mandatory for every branch that shares the page. Also pins that the gate is
+    /// never set without the flag it gates, which would be inert.
+    /// </summary>
+    [Fact]
+    public void EveryReferencedPageConditionName_HasAnImplementation()
+    {
+        var implementedNames = ImplementedConditionNames();
+
+        foreach (var (file, page) in AllFlowPages())
+        {
+            if (page.RequireAtLeastOneWhen is not { Count: > 0 } names) continue;
+
+            Assert.True(page.RequireAtLeastOne,
+                $"{file}: page '{page.Id}' sets requireAtLeastOneWhen but not requireAtLeastOne — " +
+                "the gate has no rule to gate and does nothing.");
+
+            foreach (var name in names)
+            {
+                Assert.True(implementedNames.Contains(name),
+                    $"{file}: page '{page.Id}' references journey condition '{name}', but no " +
+                    "IJourneyCondition implements it — the requireAtLeastOne rule would silently " +
+                    "stay on for every branch reaching the page.");
+            }
+        }
+    }
+
+    /// <summary>
     /// The same guard for the one rule that runs from code rather than config: the cross-field
     /// date rules in <see cref="PageDateRules"/> address questions by id, and nothing at runtime
     /// notices if the page or a question id is renamed in the flow JSON — the rules would simply
@@ -307,6 +337,49 @@ public sealed class QuestionFlowValidatorAlignmentTests
                 $"{file}: optional question '{question.Id}' spells out \"(Optional)\" in its title " +
                 $"('{question.Title}'). The view model appends it, so this renders it twice.");
         }
+    }
+
+    /// <summary>
+    /// A Checkbox option's nextPageId could only ever be ambiguous — several boxes may be
+    /// ticked — so the engine ignores it and the page's own nextPageId decides. A config that
+    /// sets one is silently not doing what it says, which is what this pins.
+    /// </summary>
+    [Fact]
+    public void NoCheckboxOption_TriesToBranchTheFlow()
+    {
+        foreach (var (file, question) in AllFlowQuestions())
+        {
+            if (question.Type != QuestionType.Checkbox) continue;
+
+            Assert.NotNull(question.Options);
+            Assert.NotEmpty(question.Options!);
+            Assert.All(question.Options!, option =>
+                Assert.True(option.NextPageId is null,
+                    $"{file}: checkbox question '{question.Id}' option '{option.Value}' sets " +
+                    "nextPageId, but a multi-select cannot branch — the page's nextPageId decides."));
+        }
+    }
+
+    /// <summary>
+    /// The removal reason "Other" on a 16-19 window asks which years to remove the student from
+    /// before it asks for evidence. Pinned because the reason option's nextPageId is the only
+    /// thing that puts the page in the flow — repointing it back at "evidence" would drop the
+    /// question with nothing else failing.
+    /// </summary>
+    [Fact]
+    public void RemovePost16_OtherReason_AsksWhichYearsBeforeEvidence()
+    {
+        var pages = AllFlowPages().Where(p => p.File == "Remove_Post16.json").Select(p => p.Page).ToList();
+
+        var reason = pages.Single(p => p.Id == "reason").Questions.Single(q => q.Id == "reason");
+        var other = reason.Options!.Single(o => o.Value == "other");
+        Assert.Equal("years-to-remove", other.NextPageId);
+
+        var years = pages.Single(p => p.Id == "years-to-remove");
+        Assert.Equal("evidence", years.NextPageId);
+        var question = Assert.Single(years.Questions);
+        Assert.Equal(QuestionType.Checkbox, question.Type);
+        Assert.Equal(3, question.Options!.Count);
     }
 
     private static IEnumerable<(string File, Question Question)> AllFlowQuestions() =>

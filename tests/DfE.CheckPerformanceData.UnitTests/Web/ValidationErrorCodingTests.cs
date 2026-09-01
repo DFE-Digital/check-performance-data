@@ -18,6 +18,9 @@ public sealed class ValidationErrorCodingTests
     [InlineData(QuestionType.TextArea, "too_long")]
     [InlineData(QuestionType.Autocomplete, "selection_invalid")]
     [InlineData(QuestionType.Radio, "selection_invalid")]
+    // A rejected checkbox value means the option was not one this user was shown — a bad
+    // selection, not a bad format.
+    [InlineData(QuestionType.Checkbox, "selection_invalid")]
     public void Answered_but_invalid_maps_by_type(QuestionType type, string expected)
     {
         Assert.Equal(expected, ValidationErrorCoding.ForQuestion(Q(type), isAnswered: true));

@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 using DfE.CheckPerformanceData.Web.Extensions;
@@ -8,6 +9,9 @@ public sealed class AmendmentRequestsViewModel
 {
     public required Guid WindowId { get; init; }
     public required string WindowTitle { get; init; }
+
+    /// <summary>The window's word for a learner, used by the two grids' column headings.</summary>
+    public required LearnerNoun LearnerNoun { get; init; }
 
     /// <summary>
     /// One sentence per checking exercise the window runs (#320). The grid is deliberately left
@@ -27,7 +31,10 @@ public sealed class ExerciseDeadlineViewModel
     public required DateTime EndDate { get; init; }
     public required bool IsOpen { get; init; }
 
-    public string ExerciseLabel => ExerciseLabels.For(Exercise);
+    /// <summary>The window's word for a learner: the pupil-data label names one.</summary>
+    public required LearnerNoun LearnerNoun { get; init; }
+
+    public string ExerciseLabel => ExerciseLabels.For(Exercise, LearnerNoun);
 
     // Checking-window dates are UK wall-clock values rather than UTC instants, so they are
     // formatted as they stand and never routed through LondonTime.

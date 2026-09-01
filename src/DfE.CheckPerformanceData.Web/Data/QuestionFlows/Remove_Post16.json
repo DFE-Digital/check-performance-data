@@ -1,0 +1,237 @@
+{
+  "firstPageId": "select-pupil",
+  "pages": [
+    {
+      "id": "select-pupil",
+      "type": "PupilSearch",
+      "title": "Enter the name of the student to be removed",
+      "pupilFilter": "Included",
+      "pupilKey": "primary",
+      "nextPageId": "reason"
+    },
+    {
+      "id": "reason",
+      "pageTitle": "Reason for removal",
+      "questions": [
+        {
+          "id": "reason",
+          "contentKey": true,
+          "type": "Radio",
+          "title": "Why are you asking to remove {pupilName} from the performance data?",
+          "summaryTitle": "Reason for removal",
+          "hint": "Select one option",
+          "useAsRequestType" : true,
+          "validationFailure": "Select a reason for removing {pupilName} from the performance data",
+          "options": [
+            {
+              "value": "student-died",
+              "label": "Student has died",
+              "nextPageId": "student-died"
+            },
+            {
+              "value": "not-at-end-of-16-19-study",
+              "label": "Not at end of 16-19 study"
+            },
+            {
+              "value": "not-on-roll",
+              "label": "Not on roll",
+              "nextPageId": "not-on-roll"
+            },
+            {
+              "value": "other",
+              "label": "Other",
+              "nextPageId": "other"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "other",
+      "pageTitle": "Years to remove",
+      "nextPageId": "other-evidence",
+      "questions": [
+        {
+          "id": "years-to-remove",
+          "type": "Checkbox",
+          "title": "Which years do you want to remove {pupilName} from?",
+          "summaryTitle": "Years to remove",
+          "hint": "Select all that apply",
+          "validationFailure": "Select which years you want to remove {pupilName} from",
+          "options": [
+            {
+              "value": "2025-2026",
+              "label": "2025 to 2026"
+            },
+            {
+              "value": "2024-2025",
+              "label": "2024 to 2025"
+            },
+            {
+              "value": "2023-2024",
+              "label": "2023 to 2024"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "other-evidence",
+      "pageTitle": "Provide evidence for the removal",
+      "type": "EvidenceUpload",
+      "requireAtLeastOne": true,
+      "title": "Provide evidence for the removal of {pupilName}",
+      "questions": [
+        {
+          "id": "evidence",
+          "type": "FileUpload",
+          "title": "Upload files",
+          "hint": "Evidence must be in a PDF format",
+          "optional": true
+        },
+        {
+          "id": "how-evidence-supports",
+          "type": "TextArea",
+          "title": "How does the evidence demonstrate why the student should be removed?",
+          "hint": "Your request will not be accepted unless you provide the correct evidence",
+          "summaryTitle": "How evidence demonstrates removal",
+          "characterLimit": 1000,
+          "optional": true
+        }
+      ]
+    },
+    {
+      "id": "student-died",
+      "pageTitle": "Date removed from school roll",
+      "questions": [
+        {
+          "id": "date-removed-from-roll",
+          "type": "Date",
+          "title": "When was {pupilName} removed from your school or college roll?",
+          "hint": "For example, 27 3 2026",
+          "summaryTitle": "Date removed from school or college roll",
+          "validationFailure": "Enter the date {pupilName} was removed from your school or college roll"
+        }
+      ]
+    },
+    {
+      "id": "not-at-end-of-16-19-study",
+      "pageTitle": "Not at end of 16-19 study",
+      "nextPageId": "evidence",
+      "questions": [
+        {
+          "id": "why-removed",
+          "type": "Radio",
+          "title": "Why has {pupilName} been removed from your school roll?",
+          "hint": "Select one option",
+          "summaryTitle": "Why has {pupilName} been removed from your school roll",
+          "validationFailure": "Select why {pupilName} has been removed from your school roll",
+          "options": [
+            {
+              "value": "not-returned-after-agreed-leave",
+              "label": "Not come back after an agreed period of leave",
+              "subLabel": "Ground H of the School Attendance Regulations 2024"
+            },
+            {
+              "value": "no-agreed-leave-or-reason",
+              "label": "Been absent for a long time with no agreed leave and no clear reason",
+              "subLabel": "Ground I of the School Attendance Regulations 2024"
+            }
+          ]
+        },
+        {
+          "id": "date-removed-from-roll",
+          "type": "Date",
+          "title": "When was {pupilName} removed from your school roll?",
+          "hint": "For example, 27 3 2026",
+          "summaryTitle": "When was {pupilName} removed from your school roll",
+          "validationFailure": "Enter the date {pupilName} was removed from your school roll"
+        }
+      ]
+    },
+    {
+      "id": "not-on-roll",
+      "pageTitle": "Not on roll",
+      "nextPageId": "not-on-roll-evidence",
+      "questions": [
+        {
+          "id": "not-on-roll-reason",
+          "type": "Radio",
+          "title": "Why are you asking to remove {pupilName} from the performance data?",
+          "hint": "Select one option",
+          "summaryTitle": "On school roll 2025 to 2026",
+          "validationFailure": "Select why you are asking to remove {pupilName} from the performance data",
+          "options": [
+            {
+              "value": "apprentice",
+              "label": "Apprentice"
+            },
+            {
+              "value": "external-candidate",
+              "label": "External candidate"
+            },
+            {
+              "value": "international-student",
+              "label": "International student"
+            },
+            {
+              "value": "other",
+              "label": "Other"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "not-on-roll-evidence",
+      "pageTitle": "Provide evidence for the removal",
+      "type": "EvidenceUpload",
+      "requireAtLeastOne": true,
+      "requireAtLeastOneWhen": ["NotOnRollReasonIsOther"],
+      "title": "Provide evidence for the removal of {pupilName}",
+      "questions": [
+        {
+          "id": "evidence",
+          "type": "FileUpload",
+          "title": "Upload files",
+          "hint": "Evidence must be in a PDF format",
+          "optional": true
+        },
+        {
+          "id": "how-evidence-supports",
+          "type": "TextArea",
+          "title": "How does the evidence demonstrate why the student should be removed?",
+          "hint": "Your request will not be accepted unless you provide the correct evidence",
+          "summaryTitle": "How evidence demonstrates removal",
+          "characterLimit": 1000,
+          "optional": true
+        }
+      ]
+    },
+    {
+      "id": "evidence",
+      "pageTitle": "Provide evidence for the removal",
+      "type": "EvidenceUpload",
+      "title": "Provide evidence for the removal of {pupilName}",
+      "questions": [
+        {
+          "id": "evidence",
+          "type": "FileUpload",
+          "title": "Upload files",
+          "hint": "Evidence must be in a PDF format",
+          "optionalWhen": "EalWouldBeAutoRejected"
+        },
+        {
+          "id": "how-evidence-supports",
+          "type": "TextArea",
+          "title": "How does the evidence demonstrate why the student should be removed?",
+          "hint": "Your request will not be accepted unless you provide the correct evidence",
+          "summaryTitle": "How evidence demonstrates removal",
+          "characterLimit": 1000,
+          "validationFailure": "Explain how the evidence supports removing {pupilName}",
+          "optionalWhen": "EalWouldBeAutoRejected"
+        }
+      ]
+    }
+  ]
+}

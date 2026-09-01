@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData.Columns;
 using DfE.CheckPerformanceData.Application.ContentBlocks;
 using DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData;
@@ -127,6 +128,7 @@ public sealed class PupilSectionViewRenderTests
             Page = 0,
             TotalPages = totalPages,
             Search = search,
+            LearnerNoun = LearnerNoun.Pupil,
         };
 
         return section;

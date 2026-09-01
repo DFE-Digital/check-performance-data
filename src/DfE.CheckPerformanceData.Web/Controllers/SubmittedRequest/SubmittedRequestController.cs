@@ -1,4 +1,6 @@
 using DfE.CheckPerformanceData.Application.AmendmentRequests;
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.FileStorage;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
@@ -12,7 +14,10 @@ public sealed class SubmittedRequestController(
     ISubmittedRequestService service,
     IRequestService requestService,
     IFileStorageService fileStorageService,
-    IAnalyticsService analytics) : Controller
+    IAnalyticsService analytics,
+    // A confirm-data-correct request carries no journey state, so its learner noun comes from the
+    // window itself. Amendment requests take theirs from the persisted journey instead.
+    ICheckYourPupilDataService checkYourPupilDataService) : Controller
 {
     [Route("/{windowId}/AmendmentRequests/{referenceNumber}/view")]
     public Task<IActionResult> View(Guid windowId, string referenceNumber) =>
@@ -45,6 +50,7 @@ public sealed class SubmittedRequestController(
             Status = request.Status,
             ConfirmingDelete = confirmingDelete,
             PupilName = request.PupilName,
+            LearnerNoun = request.LearnerNoun,
             FirstRecordDisplay = request.FirstRecordDisplay,
             SecondRecordDisplay = request.SecondRecordDisplay,
             Rows = request.Rows.Select(r => new SubmittedRequestRow
@@ -72,9 +78,12 @@ public sealed class SubmittedRequestController(
         if (request is null)
             return RedirectToAction("Index", "AmendmentRequests", new { windowId });
 
+        var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
+
         return View("ViewConfirmation", new ConfirmDataCorrectViewModel
         {
             WindowId = windowId,
+            LearnerNoun = LearnerNoun.For(window.CheckingWindowType),
             Status = request.Status,
             ConfirmingDelete = confirmingDelete,
             SubmittedByEmail = request.SubmittedByEmail,

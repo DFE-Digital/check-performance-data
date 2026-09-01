@@ -52,16 +52,10 @@ public sealed class LandingPageService(ILandingPageRepository landingPageReposit
         };
 
         var notValidWindows = windows.Where(w => organisation.KeyStages.All(ks => ks.KeyStage != w.KeyStage)).ToList();
-        if (notValidWindows.Count > 0)
-        {
-            result.NotValidWindowsText = string.Join(',', notValidWindows.Select(w => w.Title));
-        }
+        result.NotValidWindows = notValidWindows;
 
         var noDataWindows = windows.Where(w => !w.HasPupilData && !notValidWindows.Contains(w)).ToList();
-        if (noDataWindows.Count > 0)
-        {
-            result.NoDataWindowsText = string.Join(',', noDataWindows.Select(w => w.Title));
-        }
+        result.NoDataWindows = noDataWindows;
 
         // TEMP DIAGNOSTIC (no-window-cards in preprod): the bucket split. All three at 0
         // means the repository returned no open windows for this laestab. Remove once diagnosed.

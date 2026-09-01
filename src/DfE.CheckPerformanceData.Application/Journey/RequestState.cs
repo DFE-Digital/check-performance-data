@@ -1,6 +1,9 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
+// Aliased, not imported: WindowManagement also declares a CheckingWindowDto, which would make the
+// LandingPage one below ambiguous.
+using LearnerNoun = DfE.CheckPerformanceData.Application.WindowManagement.LearnerNoun;
 
 namespace DfE.CheckPerformanceData.Application.Journey;
 
@@ -25,6 +28,17 @@ public sealed class RequestState
     public QualificationReference? SelectedQualification { get; set; }
 
     public CheckingWindowDto? CheckingWindow { get; set; }
+
+    /// <summary>
+    /// The word this journey's window uses for a learner — "student" on 16-19, "pupil" everywhere
+    /// else. Derived from the window rather than stored, for the same reason the journey's checking
+    /// exercise is: a stored copy can disagree with the journey it belongs to.
+    ///
+    /// Falls back to "pupil" when no window is in session. The journey cannot start without one
+    /// (IsSessionReady), so this is a belt-and-braces default rather than a real path.
+    /// </summary>
+    public LearnerNoun LearnerNoun =>
+        CheckingWindow is { } window ? LearnerNoun.For(window.CheckingWindowType) : LearnerNoun.Pupil;
     public string? ReferenceNumber { get; set; }
     public Dictionary<string, QuestionAnswer> QuestionAnswers { get; set; } = new();
     public List<string> QuestionHistory { get; set; } = new();

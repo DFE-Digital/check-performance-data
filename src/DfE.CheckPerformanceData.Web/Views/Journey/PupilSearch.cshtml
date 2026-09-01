@@ -5,7 +5,7 @@
     Layout = "_Layout";
     var hasError = !ViewData.ModelState.IsValid;
     var fieldErrorMessage = ViewData.ModelState["selectedPupilId"]?.Errors.FirstOrDefault()?.ErrorMessage
-        ?? "Enter the name of the pupil";
+        ?? $"Enter the name of the {Model.LearnerNoun.Singular}";
 }
 
 @if (Model.BackPageId is not null)

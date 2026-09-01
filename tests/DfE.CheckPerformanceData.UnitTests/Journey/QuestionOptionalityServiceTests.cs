@@ -44,6 +44,52 @@ public sealed class QuestionOptionalityServiceTests
         Assert.Empty(sut.GetConditionallyOptionalQuestionIds(Page(Q("evidence", ["A", "B"])), Ctx()));
     }
 
+    // ── IsRequireAtLeastOneActive ──────────────────────────────────────────
+
+    private static JourneyPage EvidencePage(bool requireAtLeastOne, IReadOnlyList<string>? gate = null) =>
+        new()
+        {
+            Id = "evidence",
+            RequireAtLeastOne = requireAtLeastOne,
+            RequireAtLeastOneWhen = gate,
+            Questions = [Q("evidence")]
+        };
+
+    [Fact]
+    public void RequireAtLeastOne_Unset_IsNeverActive()
+    {
+        var sut = new QuestionOptionalityService([Condition("A", true)]);
+        Assert.False(sut.IsRequireAtLeastOneActive(EvidencePage(false, ["A"]), Ctx()));
+    }
+
+    [Fact]
+    public void RequireAtLeastOne_WithNoGate_IsAlwaysActive()
+    {
+        var sut = new QuestionOptionalityService([Condition("A", false)]);
+        Assert.True(sut.IsRequireAtLeastOneActive(EvidencePage(true), Ctx()));
+    }
+
+    [Fact]
+    public void RequireAtLeastOne_GateTrue_IsActive()
+    {
+        var sut = new QuestionOptionalityService([Condition("A", true), Condition("B", true)]);
+        Assert.True(sut.IsRequireAtLeastOneActive(EvidencePage(true, ["A", "B"]), Ctx()));
+    }
+
+    [Fact]
+    public void RequireAtLeastOne_GateFalse_IsNotActive()
+    {
+        var sut = new QuestionOptionalityService([Condition("A", true), Condition("B", false)]);
+        Assert.False(sut.IsRequireAtLeastOneActive(EvidencePage(true, ["A", "B"]), Ctx()));
+    }
+
+    [Fact]
+    public void RequireAtLeastOne_UnregisteredGateName_FailsClosedToActive()
+    {
+        var sut = new QuestionOptionalityService([Condition("A", true)]);
+        Assert.True(sut.IsRequireAtLeastOneActive(EvidencePage(true, ["Missing"]), Ctx()));
+    }
+
     [Fact]
     public void UnregisteredConditionName_FailsClosedToMandatory()
     {

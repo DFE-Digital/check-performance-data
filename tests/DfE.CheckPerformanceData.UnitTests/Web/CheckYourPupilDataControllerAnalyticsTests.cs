@@ -6,6 +6,7 @@ using DfE.CheckPerformanceData.Application.LandingPage;
 // Aliased, not imported: WindowManagement also declares a CheckingWindowDto, which would make the
 // LandingPage one ambiguous here.
 using CheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseService;
+using LearnerNoun = DfE.CheckPerformanceData.Application.WindowManagement.LearnerNoun;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData;
 using Microsoft.AspNetCore.Http;
@@ -79,6 +80,8 @@ public sealed class CheckYourPupilDataControllerAnalyticsTests
         Sections = [], SectionsAsTabs = true,
         WindowTitle = "", AvailableNextSteps = [], OrganisationName = "",
         SelectedNextStep = next,
+        LearnerNoun = LearnerNoun.Pupil,
+        TitleContentKey = "check-pupil-data-title-ks4june",
     };
 
     private static CheckingWindowDto Window() => new()

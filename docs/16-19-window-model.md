@@ -409,3 +409,24 @@ These do not block the model.
    There is no window-level date step left.
 5. **KS4 Autumn dates.** Confirm its inner and outer dates. The model assumes they nest the same way
    as 16-19.
+6. **Learner noun.** A 16-19 window calls a learner a **student**; every other key stage calls one a
+   **pupil**. The word is derived from `CheckingWindowType` by
+   `Application/WindowManagement/LearnerNoun.cs` — there is no column for it on `CheckingWindow`, no
+   step in the admin wizard and no migration, so a window's noun cannot drift from its key stage. It
+   has no default case, the same rule as `CheckingExerciseBlobPaths`: a new window type must state
+   its noun.
+
+   The noun is carried on each school-facing view model, assembled in the controller; a journey
+   takes it from `RequestState.LearnerNoun` (derived from the window in session, never stored).
+   Admin and ops screens keep "pupil" as internal vocabulary, and so do routes
+   (`/CheckYourPupilData/{id}`), blob paths (`data/{laestab}_pupils.json`), CSV headers and
+   filenames, and every C# type name. A 16-19 user therefore reads "student" on the page and "pupil"
+   in the address bar; changing that is a redirect-and-migration job for no gain to the school.
+
+   Question flow JSON needs no mechanism: the configs are already per window type, so a Post16 flow
+   simply writes "student".
+
+   The three CMS content keys on Check your pupil data are suffixed with the window type
+   (`check-pupil-data-title-post16`, and the two empty-state blocks) because a block seeds its
+   default once per key and one key cannot hold both nouns. The unsuffixed keys are left orphaned,
+   not deleted.

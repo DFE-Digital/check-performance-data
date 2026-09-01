@@ -5,6 +5,8 @@ using DfE.CheckPerformanceData.Application.LandingPage;
 // Aliased, not imported: WindowManagement also declares a CheckingWindowDto, which would make the
 // LandingPage one ambiguous here.
 using ICheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.ICheckingExerciseService;
+using LearnerNoun = DfE.CheckPerformanceData.Application.WindowManagement.LearnerNoun;
+using DfE.CheckPerformanceData.Web.Common;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Analytics;
 using DfE.CheckPerformanceData.Web.Session;
@@ -146,35 +148,44 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
 
         var journey = HttpContext.Session.GetRequestState(windowId);
 
+        // 16-19 calls a learner a student; every other key stage calls one a pupil. The word is
+        // derived from the window type and woven through this page's wording here, so no view has
+        // to look it up.
+        var noun = LearnerNoun.For(window.CheckingWindowType);
+
         List<PupilTableSection> sections =
         [
             new()
             {
                 Key = "included",
-                TabLabel = "Included pupils",
-                Heading = "Pupil included",
+                TabLabel = $"Included {noun.Plural}",
+                Heading = $"{noun.SingularCapitalised} included",
                 DownloadAction = nameof(DownloadIncluded),
-                DownloadLinkText = "pupil included",
-                EmptyContentKey = "check-pupil-data-no-included-data-content",
-                EmptyContentHtml = """<p>There's no pupil included data for your school to check in this window. If you believe this is incorrect, you can <a href="/contact">send us a message</a> or call us on 0300 131 2768</p>""",
+                DownloadLinkText = $"{noun.Singular} included",
+                // The empty-state blocks are seeded once per key, so each window type needs its own
+                // key to hold its own noun (WindowScopedContentKey).
+                EmptyContentKey = WindowScopedContentKey.For("check-pupil-data-no-included-data-content", window.CheckingWindowType),
+                EmptyContentHtml = $"""<p>There's no {noun.Singular} included data for your school to check in this window. If you believe this is incorrect, you can <a href="/contact">send us a message</a> or call us on 0300 131 2768</p>""",
                 Table = includedTable,
                 Page = includedPage,
                 TotalPages = TotalPages(includedTotal),
-                Search = includedSearch
+                Search = includedSearch,
+                LearnerNoun = noun
             },
             new()
             {
                 Key = "nonIncluded",
-                TabLabel = "Non-included pupils",
-                Heading = "Pupil non-included",
+                TabLabel = $"Non-included {noun.Plural}",
+                Heading = $"{noun.SingularCapitalised} non-included",
                 DownloadAction = nameof(DownloadNonIncluded),
-                DownloadLinkText = "pupil non-included",
-                EmptyContentKey = "check-pupil-data-no-non-included-data-content",
-                EmptyContentHtml = """<p>There's no pupil non-included data for your school to check in this window. If you believe this is incorrect, you can <a href="/contact">send us a message</a> or call us on 0300 131 2768</p>""",
+                DownloadLinkText = $"{noun.Singular} non-included",
+                EmptyContentKey = WindowScopedContentKey.For("check-pupil-data-no-non-included-data-content", window.CheckingWindowType),
+                EmptyContentHtml = $"""<p>There's no {noun.Singular} non-included data for your school to check in this window. If you believe this is incorrect, you can <a href="/contact">send us a message</a> or call us on 0300 131 2768</p>""",
                 Table = nonIncludedTable,
                 Page = nonIncludedPage,
                 TotalPages = TotalPages(nonIncludedTotal),
-                Search = nonIncludedSearch
+                Search = nonIncludedSearch,
+                LearnerNoun = noun
             }
         ];
 
@@ -193,7 +204,9 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
             // own dates. On a multi-exercise window the outer EndDate is months later.
             PupilDataEndDate = checkingExercises.EndDateFor(window.Exercises, CheckingExerciseType.PupilData),
             IsPupilDataOpen = checkingExercises.IsOpen(window.Exercises, CheckingExerciseType.PupilData),
-            OrganisationName = currentUserService.OrganisationName
+            OrganisationName = currentUserService.OrganisationName,
+            LearnerNoun = noun,
+            TitleContentKey = WindowScopedContentKey.For("check-pupil-data-title", window.CheckingWindowType)
         };
     }
 

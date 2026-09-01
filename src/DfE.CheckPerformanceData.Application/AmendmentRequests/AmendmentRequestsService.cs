@@ -21,6 +21,7 @@ public sealed class AmendmentRequestsService(
         return new AmendmentRequestsResult
         {
             WindowTitle = window.Title,
+            LearnerNoun = LearnerNoun.For(window.CheckingWindowType),
             // #320: a deadline per exercise the window runs, not the outer window's end date. The
             // grid lists both populations, and on a 16-19 window pupil data checking shuts months
             // before results enquiry does — one date could only ever be right for one of them.

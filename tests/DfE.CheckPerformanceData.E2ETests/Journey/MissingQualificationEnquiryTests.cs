@@ -72,6 +72,41 @@ public sealed class MissingQualificationEnquiryTests(PlaywrightFixture fixture) 
             + "2023/24 and 2024/25 academic years");
     }
 
+    [RetryFact(3)]
+    public async Task Cancelling_from_the_summary_discards_the_enquiry_and_starts_fresh()
+    {
+        // AB#298229. Three ACs in one walk: nothing submitted, no data carried over, and the
+        // chooser has no option pre-selected. The deep-link check at the end is the load-bearing
+        // one — before this ticket, Cancel's target cleared nothing, so the "cancelled" enquiry
+        // was still sitting in session, one summary URL away from being submitted.
+        await StartEnquiryAsync();
+        await ChooseCohortScopeAsync("no");
+        await ChooseStudentAsync("select-student-single");
+        await ChooseQualificationAsync();
+        await FillDetailsAsync(syllabus: SyllabusCode, day: "1", month: "6", year: "2025", grade: "9", ncn: "12345");
+        await FillAdditionalInfoAsync(string.Empty);
+
+        await Expect(Page.GetByRole(AriaRole.Heading, new() { Level = 1 }))
+            .ToContainTextAsync($"Summary of result enquiry for {StudentName}");
+
+        await Page.GetByRole(AriaRole.Link, new() { Name = "Cancel and go back to create a new enquiry" })
+            .ClickAsync();
+
+        // Lands on the enquiry-type chooser…
+        await Page.WaitForURLAsync($"**/{WindowId}/ResultIssue");
+        await Expect(Page.GetByRole(AriaRole.Heading, new() { Level = 1 }))
+            .ToContainTextAsync("What issue with the results do you need to report?");
+
+        // …with nothing pre-selected.
+        Assert.Equal(0, await Page.Locator("input[name='IssueType']:checked").CountAsync());
+
+        // And the abandoned enquiry is unreachable: deep-linking back to the summary bounces out
+        // of the journey (IsSessionReady fails on the cleared state) instead of re-rendering the
+        // cancelled answers.
+        await Page.GotoAsync($"{Fixture.BaseUrl}/Journey/{WindowId}/summary");
+        await Page.WaitForURLAsync($"**/CheckYourPupilData/{WindowId}");
+    }
+
     // ── helpers ─────────────────────────────────────────────────────────────
 
     private async Task StartEnquiryAsync()

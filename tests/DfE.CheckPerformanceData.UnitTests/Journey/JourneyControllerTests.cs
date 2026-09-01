@@ -567,6 +567,25 @@ public class JourneyControllerTests
             .NotifyResultsEnquirySubmittedAsync("CYPMD_16to19_RE_1A2B3C4");
     }
 
+    [Fact]
+    public async Task SummaryConfirm_ForAResultDoesNotBelongEnquiry_SendsTheConfirmationNotification()
+    {
+        // AB#298704 + AB#298309 AC4: every enquiry type sends the same email. Pinned per type —
+        // "same path by construction" claims have been wrong here before (AB#298229 finding 3).
+        var state = ValidSession(history: ["page-1"]);
+        state.SelectedWhatToChange = WhatToChange.ResultDoesNotBelong;
+        SetupSession(state);
+        _requestService.SubmitResultsEnquiryAsync(WindowId, Arg.Any<RequestState>())
+            .Returns("CYPMD_16to19_RE_9D8E7F6");
+
+        var result = await _sut.SummaryConfirm(WindowId);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(JourneyController.EnquiryConfirmation), redirect.ActionName);
+        await _requestNotificationService.Received(1)
+            .NotifyResultsEnquirySubmittedAsync("CYPMD_16to19_RE_9D8E7F6");
+    }
+
     // ── SummaryConfirm — missing-qualification enquiry (AB#297848) ───────────
 
     [Fact]

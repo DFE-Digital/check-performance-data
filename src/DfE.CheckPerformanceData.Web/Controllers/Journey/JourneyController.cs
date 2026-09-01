@@ -256,11 +256,10 @@ public sealed class JourneyController(
         }
         else
         {
-            // AB#296648/AB#297848: an enquiry's reference carries an RE segment so support staff can
-            // tell it from an amendment when a school reads it out. Both results-enquiry kinds share it.
-            var reference = journey.SelectedWhatToChange
-                is Application.CheckYourPupilData.WhatToChange.IncorrectGrade
-                or Application.CheckYourPupilData.WhatToChange.MissingQualification
+            // AB#296648/AB#297848/AB#298704: an enquiry's reference carries an RE segment so support
+            // staff can tell it from an amendment when a school reads it out. All enquiry kinds
+            // share it — resolved through the exercise map, never a member list.
+            var reference = WhatToChangeCheckingExerciseMap.IsResultsEnquiry(journey.SelectedWhatToChange)
                 ? journeyService.GenerateEnquiryReference()
                 : journeyService.GenerateReference(journey.CheckingWindow?.CheckingWindowType);
 
@@ -1093,11 +1092,10 @@ public sealed class JourneyController(
         var journey = HttpContext.Session.GetRequestState(windowId);
         if (!IsSessionReady(journey)) return RedirectToCheckYourData(windowId);
 
-        // AB#296648/AB#297848: a results enquiry submits by a different route — no duplicate check
-        // (several enquiries about the same result are allowed) and no rules-engine enqueue.
-        if (journey.SelectedWhatToChange
-            is Application.CheckYourPupilData.WhatToChange.IncorrectGrade
-            or Application.CheckYourPupilData.WhatToChange.MissingQualification)
+        // AB#296648/AB#297848/AB#298704: a results enquiry submits by a different route — no
+        // duplicate check (several enquiries about the same result are allowed) and no
+        // rules-engine enqueue.
+        if (WhatToChangeCheckingExerciseMap.IsResultsEnquiry(journey.SelectedWhatToChange))
         {
             // The same completeness check the summary GET runs, repeated on POST. The GET's verdict
             // can be stale by the time Submit is pressed: changing the qualification (or the result)
@@ -1207,10 +1205,12 @@ public sealed class JourneyController(
 
         await analytics.TrackSafeAsync(new ResultsEnquirySubmittedEvent
         {
-            EnquiryType = journey.SelectedWhatToChange
-                == Application.CheckYourPupilData.WhatToChange.MissingQualification
-                ? ResultIssueViewModel.MissingQualification
-                : ResultIssueViewModel.IncorrectGrade,
+            EnquiryType = journey.SelectedWhatToChange switch
+            {
+                Application.CheckYourPupilData.WhatToChange.MissingQualification => ResultIssueViewModel.MissingQualification,
+                Application.CheckYourPupilData.WhatToChange.ResultDoesNotBelong => ResultIssueViewModel.ResultDoesNotBelong,
+                _ => ResultIssueViewModel.IncorrectGrade
+            },
             CohortWide = IsCohortWide(journey),
             CheckingWindowType = journey.CheckingWindow?.CheckingWindowType.ToString() ?? "",
             ReferenceNumber = reference,

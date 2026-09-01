@@ -69,6 +69,8 @@ public static class DependencyManager
         // registration reason as WholeNumberFormatValidator above.
         services.AddScoped<IFormatValidator, NcnValidator>();
         services.AddScoped<IAmendmentRequestsService, AmendmentRequestsService>();
+        services.AddScoped<IUrnAmendmentRequestsService, UrnAmendmentRequestsService>();
+        services.AddScoped<IWindowStatusService, WindowStatusService>();
         services.AddScoped<IBulkSubmissionService, BulkSubmissionService>();
         services.AddScoped<ISubmittedRequestService, SubmittedRequestService>();
         services.AddScoped<IEditAdviceService, EditAdviceService>();

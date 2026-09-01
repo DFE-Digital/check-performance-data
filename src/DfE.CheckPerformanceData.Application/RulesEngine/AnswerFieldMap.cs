@@ -172,7 +172,7 @@ public static class AnswerFieldMap
             // seeded with a single Scrutiny otherwise-rule ("always sent for scrutiny").
             ["Remove - completed-ks4-elsewhere"]       = "CompletedKs4Elsewhere",
             ["Remove - other"]                         = "Other",
-            ["Remove - not-at-end-of-16-19-study"]     = "NotAtEndOf1619Study",
+            ["Remove - not-at-end-of-16-19-study"]     = "NotAtEndOf16To18Study",
         };
 
     /// <summary>

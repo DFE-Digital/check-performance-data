@@ -18,7 +18,8 @@ public sealed class SummaryViewModelResultsEnquiryTests
         Rows = [],
         FileRows = [],
         BackPageId = "any-page",
-        MaxEvidencePages = 0
+        MaxEvidencePages = 0,
+        LearnerNoun = null!
     };
 
     [Theory]

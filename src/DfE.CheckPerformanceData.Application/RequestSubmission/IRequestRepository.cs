@@ -12,6 +12,7 @@ public interface IRequestRepository
     Task<Guid> UpsertAsync(ChangeRequestData data);
     Task<IReadOnlyList<AmendmentRequestData>> GetAmendmentRequestsAsync(Guid windowId, long organisationUrn);
     Task<IReadOnlyList<SubmittedRequestData>> GetSubmittedRequestsAsync(Guid windowId, long organisationUrn);
+    Task<IReadOnlyList<SubmittedRequestData>> GetAllSubmittedRequestsAsync(long organisationUrn);
     Task<AmendmentRequestData?> GetAmendmentRequestAsync(Guid windowId, long organisationUrn, string referenceNumber);
     Task<ConfirmDataCorrectData?> GetConfirmDataCorrectAsync(Guid windowId, long organisationUrn, string referenceNumber);
 

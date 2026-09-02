@@ -25,6 +25,7 @@ public sealed class SummaryViewModelResultsEnquiryTests
     [Theory]
     [InlineData(WhatToChange.IncorrectGrade)]
     [InlineData(WhatToChange.MissingQualification)]
+    [InlineData(WhatToChange.ResultDoesNotBelong)]
     public void An_enquiry_summary_is_an_enquiry_even_without_its_summary_shape(WhatToChange change) =>
         // The load-bearing case: no Enquiry/MissingQualification shape set. Shape-presence said
         // "amendment" here; the map says what the journey actually is.
@@ -41,11 +42,12 @@ public sealed class SummaryViewModelResultsEnquiryTests
     [Fact]
     public void Every_results_enquiry_exercise_member_is_covered()
     {
-        // The pair above is the whole set today. If a third enquiry journey is added and this
-        // fails, add it to the Theory rather than deleting this — that is the point.
+        // The trio above is the whole set today (AB#298704 added the third). If a fourth enquiry
+        // journey is added and this fails, add it to the Theory rather than deleting this — that is
+        // the point.
         var enquiries = Enum.GetValues<WhatToChange>().Where(c => For(c).IsResultsEnquiry);
         Assert.Equal(
-            [WhatToChange.IncorrectGrade, WhatToChange.MissingQualification],
+            [WhatToChange.IncorrectGrade, WhatToChange.MissingQualification, WhatToChange.ResultDoesNotBelong],
             enquiries.ToArray());
     }
 }

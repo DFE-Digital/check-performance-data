@@ -13,7 +13,8 @@ namespace DfE.CheckPerformanceData.Web.Controllers.Journey;
 /// Only the revised grade and the comments carry a Change link, per the Figma screens. Changing the
 /// student or the result is deliberately not a summary action: a different result invalidates the
 /// grade chosen for it, so that route goes back through the journey where the engine clears the
-/// dependent answer.
+/// dependent answer. The result-does-not-belong variant (AB#298704) omits the revised-grade row
+/// entirely, since that journey has no grade step.
 /// </summary>
 public sealed class ResultsEnquirySummary
 {
@@ -30,6 +31,10 @@ public sealed class ResultsEnquirySummary
     public string? CohortCount { get; init; }
 
     public StudentResultRecord? Result { get; init; }
+
+    /// <summary>False for enquiry kinds with no revised-grade step (AB#298704): the row and its
+    /// Change link are omitted entirely rather than rendered empty.</summary>
+    public required bool ShowRevisedGrade { get; init; }
 
     public string? RevisedGrade { get; init; }
     public string? RevisedGradePageId { get; init; }
@@ -60,8 +65,9 @@ public sealed class ResultsEnquirySummary
             lines.Add(Fixed("Session", Result?.Session ?? string.Empty));
             lines.Add(Fixed("Current grade", Result?.Grade ?? string.Empty));
 
-            lines.Add(new SummaryLine(
-                "Revised grade", RevisedGrade ?? string.Empty, RevisedGradePageId, true, "revised grade"));
+            if (ShowRevisedGrade)
+                lines.Add(new SummaryLine(
+                    "Revised grade", RevisedGrade ?? string.Empty, RevisedGradePageId, true, "revised grade"));
             lines.Add(new SummaryLine(
                 "Additional information", AdditionalInformation ?? string.Empty,
                 AdditionalInformationPageId, true, "additional information"));

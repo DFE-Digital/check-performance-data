@@ -21,4 +21,9 @@ public sealed record UncommittedRequestRow
     public string? MatchedRule { get; init; }
     public DateTime? DecidedAtUtc { get; init; }
     public string? CrmId { get; init; }
+
+    // The winning branch's evaluation trace, newline-joined. Admin-only - this page is the
+    // only place it is shown. Null until the rules engine has run, and on rows decided
+    // before the column existed.
+    public string? DecisionTrace { get; init; }
 }

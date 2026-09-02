@@ -76,6 +76,12 @@ internal sealed class ChangeRequestConfiguration : IEntityTypeConfiguration<Chan
         builder.Property(x => x.RulesVersion)
             .HasMaxLength(100);
 
+        // Deliberately unbounded, unlike its neighbours. The engine caps the trace at
+        // MaxTraceLines lines but not at any line width - a free-text answer is rendered
+        // verbatim into a leaf line - so a length cap here would throw on write. The bound
+        // is applied at the write site instead (RulesConsumer.TruncateTrace).
+        builder.Property(x => x.DecisionTrace);
+
         builder.HasOne<CheckingWindow>()
             .WithMany()
             .HasForeignKey(x => x.WindowId)

@@ -28,7 +28,8 @@ public sealed class UncommittedRequestsRepository(IPortalDbContext db) : IUncomm
                 Outcome = r.Outcome,
                 MatchedRule = r.MatchedRuleId,
                 DecidedAtUtc = r.DecidedAtUtc,
-                CrmId = r.CrmId
+                CrmId = r.CrmId,
+                DecisionTrace = r.DecisionTrace
             })
             .ToListAsync(cancellationToken);
 

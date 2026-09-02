@@ -47,7 +47,13 @@ public sealed class RulesEngine : IRulesEngine
     {
         switch (predicate)
         {
-            case Predicate.Otherwise: return TriResult.True;
+            // Appends a line despite evaluating nothing. A terminal "otherwise" is the branch
+            // an auditor most needs explained — it is how a request becomes Scrutiny without any
+            // rule matching it — and a silent true would leave that decision with an empty trace
+            // and so no detail row at all on admin/uncommitted-requests.
+            case Predicate.Otherwise:
+                Append(trace, "otherwise → true (no conditions to evaluate)");
+                return TriResult.True;
 
             case Predicate.AllOf all:
             {

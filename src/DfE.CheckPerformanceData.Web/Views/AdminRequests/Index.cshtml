@@ -17,6 +17,9 @@
         DecisionStatus.AutoRejected => "Auto rejected",
         _ => "Scrutiny"
     };
+
+    // Must track the header count below: the trace detail row spans the whole table.
+    const int ColumnCount = 11;
 }
 
 <a href="/admin" class="govuk-back-link">Back to administration</a>
@@ -89,6 +92,23 @@ else
                     <td class="govuk-table__cell">@(row.MatchedRule ?? "—")</td>
                     <td class="govuk-table__cell">@(row.CrmId ?? "—")</td>
                 </tr>
+                @if (!string.IsNullOrWhiteSpace(row.DecisionTrace))
+                {
+                    <tr class="govuk-table__row">
+                        <td class="govuk-table__cell decision-trace__cell" colspan="@ColumnCount">
+                            <details class="govuk-details govuk-!-margin-bottom-0" data-module="govuk-details">
+                                <summary class="govuk-details__summary">
+                                    <span class="govuk-details__summary-text">
+                                        Decision trace for @row.ReferenceNumber
+                                    </span>
+                                </summary>
+                                <div class="govuk-details__text decision-trace__scroll">
+                                    <pre class="decision-trace__lines">@row.DecisionTrace</pre>
+                                </div>
+                            </details>
+                        </td>
+                    </tr>
+                }
             }
         </tbody>
     </table>

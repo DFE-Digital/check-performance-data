@@ -82,6 +82,14 @@ public sealed class RulesConsumer : ConsumerBase
 
     protected override string QueueName => QueueOptions.RulesEngineQueue;
 
+    // Upper bound on the persisted trace. The engine caps the number of trace lines
+    // (RulesEngine.MaxTraceLines) but not their width: a leaf line renders its field's actual
+    // value verbatim, and a free-text journey answer reaches the rule context intact, so one
+    // line can be arbitrarily long. Truncating here rather than with a column length keeps an
+    // outsized trace from failing the write - and therefore from re-queueing a message whose
+    // decision is already made.
+    private const int MaxPersistedTraceChars = 8000;
+
     // The decision and rules version are only known once ProcessAsync has evaluated the message,
     // but the metric is recorded by the base loop after via DescribeMetric. The base loop
     // processes one message at a time per consumer instance and records immediately after
@@ -166,6 +174,8 @@ public sealed class RulesConsumer : ConsumerBase
         // decision status and rules version for this reference.
         _lastOutcome = (parsed.ReferenceNumber, decision.Status.ToString(), rulesVersion);
 
+        var decisionTrace = TruncateTrace(decision.Trace);
+
         await dbContext.ExecuteInTransactionAsync(async () =>
         {
             await dbContext.ChangeRequests
@@ -175,6 +185,7 @@ public sealed class RulesConsumer : ConsumerBase
                     .SetProperty(r => r.OutcomeKey, decision.OutcomeKey)
                     .SetProperty(r => r.MatchedRuleId, decision.MatchedRuleId)
                     .SetProperty(r => r.RulesVersion, rulesVersion)
+                    .SetProperty(r => r.DecisionTrace, decisionTrace)
                     .SetProperty(r => r.DecidedAtUtc, DateTime.UtcNow)
                     .SetProperty(r => r.WorkerStatus, WorkerStatus.RulesProcessed),
                     cancellationToken);
@@ -207,5 +218,21 @@ public sealed class RulesConsumer : ConsumerBase
                     parsed.ReferenceNumber);
             }
         }
+    }
+
+    // Newline-joins the trace for storage, bounded by MaxPersistedTraceChars. An empty trace is
+    // stored as null rather than "" so "no trace recorded" and "decided before this column
+    // existed" read the same way to the admin page.
+    internal static string? TruncateTrace(IReadOnlyList<string> trace)
+    {
+        if (trace is null || trace.Count == 0)
+        {
+            return null;
+        }
+
+        var joined = string.Join(Environment.NewLine, trace);
+        return joined.Length <= MaxPersistedTraceChars
+            ? joined
+            : string.Concat(joined.AsSpan(0, MaxPersistedTraceChars), Environment.NewLine, "... trace truncated.");
     }
 }

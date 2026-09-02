@@ -41,4 +41,10 @@ public class ChangeRequest
     public string? RulesVersion { get; set; }
     public DateTime? DecidedAtUtc { get; set; }
     public WorkerStatus? WorkerStatus { get; set; }
+
+    // The winning rule branch's evaluation trace, newline-joined exactly as the engine
+    // rendered it. Admin-only: it is shown on admin/uncommitted-requests and must never
+    // reach a Zendesk ticket (see ZendeskConsumer.DeriveDecision). Null on every row
+    // decided before this column existed - the trace cannot be reconstructed after the fact.
+    public string? DecisionTrace { get; set; }
 }

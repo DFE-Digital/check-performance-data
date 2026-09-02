@@ -220,6 +220,9 @@ public sealed class ZendeskConsumer : ConsumerBase
         // The decision the rules consumer reached is persisted on the change request.
         // A genuinely missing status falls back to Scrutiny so a fault never silently
         // produces an auto-approval or auto-rejection ticket.
+        //
+        // The trace is left empty on purpose. ChangeRequest.DecisionTrace holds it, but it is
+        // admin-only and must not travel to Zendesk, so it is not read back here.
         var status = changeRequest?.Outcome ?? DecisionStatus.Scrutiny;
         var outcomeKey = string.IsNullOrEmpty(changeRequest?.OutcomeKey)
             ? message.RequestTypeCode
@@ -287,16 +290,11 @@ public sealed class ZendeskConsumer : ConsumerBase
         sb.AppendLine($"Decision: {decision.Status}");
         sb.AppendLine($"Matched rule: {decision.MatchedRuleId}");
         sb.AppendLine();
-        if (decision.Trace.Count > 0)
-        {
-            sb.AppendLine("Trace:");
-            foreach (var line in decision.Trace)
-            {
-                sb.AppendLine($"  - {line}");
-            }
-            sb.AppendLine();
-        }
 
+        // The evaluation trace is deliberately NOT rendered here. It is admin-only: it lives on
+        // the change request row and is shown on admin/uncommitted-requests. Do not add it back -
+        // DeriveDecision passes an empty trace on purpose, and rendering it here would put rule
+        // internals and the pupil field values they quote into a Zendesk ticket.
         var answers = message.Answers.Where(a => !string.IsNullOrWhiteSpace(a.Value)).ToList();
         if (answers.Count > 0)
         {

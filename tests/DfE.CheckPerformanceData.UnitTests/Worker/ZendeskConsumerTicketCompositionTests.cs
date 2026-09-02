@@ -95,7 +95,7 @@ public sealed class ZendeskConsumerTicketCompositionTests
     }
 
     // The evaluation trace is admin-only: it is persisted on the change request and shown on
-    // admin/uncommitted-requests. DeriveDecision passes an empty trace, but this pins the
+    // the admin requests page (admin/windows/{id}/requests). DeriveDecision passes an empty trace, but this pins the
     // stronger invariant — even handed a populated Decision, BuildTicket must not leak the
     // trace (or the pupil field values its leaf lines quote) into a Zendesk ticket.
     [Fact]

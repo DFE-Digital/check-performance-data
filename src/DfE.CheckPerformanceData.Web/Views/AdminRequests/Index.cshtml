@@ -1,8 +1,11 @@
 @using DfE.CheckPerformanceData.Application.RulesEngine
-@using DfE.CheckPerformanceData.Application.UncommittedRequests
-@model IReadOnlyList<UncommittedRequestRow>
+@using DfE.CheckPerformanceData.Application.AdminRequests
+@using DfE.CheckPerformanceData.Domain.Enums
+@using DfE.CheckPerformanceData.Web.Controllers.WindowAdmin
+@model WindowRequestsResult
 @{
-    ViewData["Title"] = "All requests";
+    // Matches the <h1> below, which names the window this page is scoped to.
+    ViewData["Title"] = $"Requests for {Model.WindowTitle}";
 
     string TagClass(DecisionStatus s) => s switch
     {
@@ -22,43 +25,64 @@
     const int ColumnCount = 11;
 }
 
-<a href="/admin" class="govuk-back-link">Back to administration</a>
+<a href="/admin/windows" class="govuk-back-link">Back to windows</a>
 
-<h1 class="govuk-heading-xl">All requests</h1>
+<h1 class="govuk-heading-xl">Requests for @Model.WindowTitle</h1>
 
-@if (TempData["ZendeskReplayMessage"] is string replayMessage)
+@if (Model.Exercises.Count > 0)
 {
-    <div class="govuk-notification-banner govuk-notification-banner--success" role="alert"
-         aria-labelledby="govuk-notification-banner-title" data-module="govuk-notification-banner">
-        <div class="govuk-notification-banner__header">
-            <h2 class="govuk-notification-banner__title" id="govuk-notification-banner-title">Success</h2>
+    <form method="get" action="/admin/windows/requests" class="govuk-!-margin-bottom-6">
+        <input type="hidden" name="windowId" value="@Model.WindowId" />
+        <div class="govuk-form-group govuk-!-margin-bottom-3">
+            <label class="govuk-label" for="exercise">Checking exercise</label>
+            <select class="govuk-select" id="exercise" name="exercise">
+                <option value="" selected="@(Model.SelectedExercise is null)">All exercises</option>
+                @foreach (CheckingExerciseType exercise in Model.Exercises)
+                {
+                    <option value="@exercise" selected="@(Model.SelectedExercise == exercise)">
+                        @ExerciseLabels.For(exercise)
+                    </option>
+                }
+            </select>
         </div>
-        <div class="govuk-notification-banner__content">
-            <p class="govuk-notification-banner__heading">@replayMessage</p>
-        </div>
-    </div>
+        <button type="submit" class="govuk-button govuk-button--secondary" data-module="govuk-button">
+            Apply filter
+        </button>
+    </form>
 }
 
-<form method="post" asp-action="SendToZendesk" class="govuk-!-margin-bottom-6">
-    <button type="submit" class="govuk-button govuk-button--secondary" data-module="govuk-button">
-        Process "Close Window" 
+@* Disabled for now: the close-window replay has no action behind it while the close-window
+   story is outstanding. Rendered rather than removed so its place on the page is kept, and
+   aria-disabled carries the state to a screen reader as well as to the pointer. *@
+<div class="govuk-!-margin-bottom-6">
+    <button type="button" class="govuk-button govuk-button--secondary" data-module="govuk-button"
+            disabled aria-disabled="true" aria-describedby="close-window-hint">
+        Process "Close Window"
     </button>
-</form>
+    <p class="govuk-hint" id="close-window-hint">This action is turned off.</p>
+</div>
 
-@if (Model.Count == 0)
+@if (Model.Rows.Count == 0)
 {
-    <p class="govuk-body">There are no requests.</p>
+    <p class="govuk-body">
+        @(Model.SelectedExercise is { } selected
+            ? $"There are no requests for {ExerciseLabels.For(selected)} in this window."
+            : "There are no requests for this window.")
+    </p>
 }
 else
 {
     <table class="govuk-table">
+        <caption class="govuk-table__caption govuk-visually-hidden">
+            Requests for @Model.WindowTitle
+        </caption>
         <thead class="govuk-table__head">
             <tr class="govuk-table__row">
                 <th scope="col" class="govuk-table__header">Reference</th>
-                <th scope="col" class="govuk-table__header">Window</th>
                 <th scope="col" class="govuk-table__header">Organisation URN</th>
                 <th scope="col" class="govuk-table__header">Pupil</th>
                 <th scope="col" class="govuk-table__header">Request type</th>
+                <th scope="col" class="govuk-table__header">Checking exercise</th>
                 <th scope="col" class="govuk-table__header">Status</th>
                 <th scope="col" class="govuk-table__header">Submitted by</th>
                 <th scope="col" class="govuk-table__header">Submitted</th>
@@ -68,14 +92,23 @@ else
             </tr>
         </thead>
         <tbody class="govuk-table__body">
-            @foreach (var row in Model)
+            @foreach (var row in Model.Rows)
             {
                 <tr class="govuk-table__row">
                     <td class="govuk-table__cell">@row.ReferenceNumber</td>
-                    <td class="govuk-table__cell">@(string.IsNullOrEmpty(row.WindowTitle) ? "—" : row.WindowTitle)</td>
                     <td class="govuk-table__cell">@row.OrganisationUrn</td>
                     <td class="govuk-table__cell">@($"{row.PupilFirstname} {row.PupilSurname}".Trim())</td>
                     <td class="govuk-table__cell">@row.RequestTypeDescription</td>
+                    <td class="govuk-table__cell">
+                        @if (row.Exercise is { } rowExercise)
+                        {
+                            @ExerciseLabels.For(rowExercise)
+                        }
+                        else
+                        {
+                            <span class="govuk-hint govuk-!-margin-0">Not recorded</span>
+                        }
+                    </td>
                     <td class="govuk-table__cell">@row.Status</td>
                     <td class="govuk-table__cell">@row.SubmittedByName</td>
                     <td class="govuk-table__cell">@row.Submitted.ToString("dd MMM yyyy HH:mm")</td>

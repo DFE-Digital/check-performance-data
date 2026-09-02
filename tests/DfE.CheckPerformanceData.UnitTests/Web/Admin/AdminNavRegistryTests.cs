@@ -17,7 +17,9 @@ public sealed class AdminNavRegistryTests
 		using var provider = services.BuildServiceProvider();
 		var entries = provider.GetServices<IAdminNavEntry>().ToList();
 
-		Assert.Equal(32, entries.Count);
+		// 30 since the Amendment requests group and its single Uncommitted requests tile were
+		// retired: the requests page is per window now and reached from the windows table.
+		Assert.Equal(30, entries.Count);
 
 		var titles = entries.Select(e => e.Title).ToList();
 		Assert.Contains("Dashboard", titles);
@@ -51,8 +53,14 @@ public sealed class AdminNavRegistryTests
 		Assert.Contains("Pipeline dashboard", titles);
 		Assert.Contains("Transactions", titles);
 		Assert.Contains("Replay", titles);
-		Assert.Contains("Amendment requests", titles);
-		Assert.Contains("Uncommitted requests", titles);
+		// Retired together: the requests page is per window and reached from the windows table.
+		Assert.DoesNotContain("Amendment requests", titles);
+		Assert.DoesNotContain("Uncommitted requests", titles);
+		// Window administration must be in the nav — its tiles were always registered, but the
+		// group only reaches a sidebar once DefaultAdminAccessSeeder grants their sections.
+		Assert.Contains("Window administration", titles);
+		Assert.Contains("Create new window", titles);
+		Assert.Contains("Manage windows", titles);
 		Assert.Contains("View logs", titles);
 		Assert.Contains("Window administration", titles);
 		Assert.Contains("Create new window", titles);

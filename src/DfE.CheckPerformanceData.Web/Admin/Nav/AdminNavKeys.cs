@@ -9,8 +9,6 @@ public static class AdminNavKeys
     public const string Dashboard = "dashboard";
     public const string CmsAdmin = "cms-admin";
     public const string SystemAdmin = "system-admin";
-    public const string AmendmentRequestsAdmin = "amendment-requests-admin";
-    public const string UncommittedRequests = "uncommitted-requests";
     public const string ContentStaging = "content-staging";
     public const string ContentPages = "content-pages";
     public const string ContentBlocks = "content-blocks";
@@ -40,6 +38,10 @@ public static class AdminNavKeys
     // the AdminSectionAccess grid alongside every other admin surface.
     public const string ShareAdmin = "share-admin";
 
+    // Window administration. All three are in DefaultAdminAccessSeeder.AllSections: FilterByAccess
+    // checks each tile's own Key, so without a grant the whole group stayed invisible in the
+    // sidebar even though the entries were registered. ManageWindow additionally gates the
+    // per-window requests page (AdminRequestsController), which is reached from that table.
     public const string WindowAdmin = "window-admin";
     public const string NewWindow = "new-window";
     public const string ManageWindow = "manage-window";

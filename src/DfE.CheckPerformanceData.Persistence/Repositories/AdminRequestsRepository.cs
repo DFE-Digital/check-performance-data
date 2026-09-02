@@ -1,27 +1,47 @@
-using DfE.CheckPerformanceData.Application.UncommittedRequests;
+using DfE.CheckPerformanceData.Application.AdminRequests;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using Microsoft.EntityFrameworkCore;
 
 namespace DfE.CheckPerformanceData.Persistence.Repositories;
 
-public sealed class UncommittedRequestsRepository(IPortalDbContext db) : IUncommittedRequestsRepository
+public sealed class AdminRequestsRepository(IPortalDbContext db) : IAdminRequestsRepository
 {
-    public async Task<IReadOnlyList<UncommittedRequestRow>> GetAllAsync(CancellationToken cancellationToken) =>
-        await db.ChangeRequests
+    public async Task<IReadOnlyList<AdminRequestRow>> GetForWindowAsync(
+        Guid windowId, CheckingExerciseType? exercise, CancellationToken cancellationToken)
+    {
+        var query = db.ChangeRequests
             .AsNoTracking()
+            .Where(r => r.WindowId == windowId);
+
+        if (exercise is { } type)
+        {
+            // Resolve the type to this window's own exercise row rather than comparing types across
+            // the join: CheckingExerciseId is a row id, and two windows running the same exercise
+            // are still two different exercises. A window with no row of that type yields no id and
+            // therefore no rows, which is the correct empty answer rather than an unfiltered list.
+            var exerciseId = await db.CheckingExercises
+                .AsNoTracking()
+                .Where(e => e.CheckingWindowId == windowId && e.ExerciseType == type)
+                .Select(e => (Guid?)e.Id)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            query = query.Where(r => r.CheckingExerciseId != null && r.CheckingExerciseId == exerciseId);
+        }
+
+        return await query
             .OrderByDescending(r => r.Submitted)
-            .Select(r => new UncommittedRequestRow
+            .Select(r => new AdminRequestRow
             {
                 ReferenceNumber = r.ReferenceNumber,
-                WindowTitle = db.CheckingWindows
-                    .Where(w => w.Id == r.WindowId)
-                    .Select(w => w.Title)
-                    .FirstOrDefault(),
                 OrganisationUrn = r.OrganisationUrn,
                 PupilFirstname = r.PupilFirstname,
                 PupilSurname = r.PupilSurname,
                 RequestTypeDescription = r.RequestTypeDescription,
+                Exercise = db.CheckingExercises
+                    .Where(e => e.Id == r.CheckingExerciseId)
+                    .Select(e => (CheckingExerciseType?)e.ExerciseType)
+                    .FirstOrDefault(),
                 Status = r.Status,
                 SubmittedByName = r.SubmittedByName,
                 Submitted = r.Submitted,
@@ -32,6 +52,7 @@ public sealed class UncommittedRequestsRepository(IPortalDbContext db) : IUncomm
                 DecisionTrace = r.DecisionTrace
             })
             .ToListAsync(cancellationToken);
+    }
 
     public async Task<IReadOnlyList<ReplayRequestRow>> GetRequestsForOpenWindowsAsync(
         DateTime now, CancellationToken cancellationToken)

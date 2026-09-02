@@ -292,8 +292,9 @@ public sealed class ZendeskConsumer : ConsumerBase
         sb.AppendLine();
 
         // The evaluation trace is deliberately NOT rendered here. It is admin-only: it lives on
-        // the change request row and is shown on admin/uncommitted-requests. Do not add it back -
-        // DeriveDecision passes an empty trace on purpose, and rendering it here would put rule
+        // the change request row and is shown on the admin requests page
+        // (admin/windows/{id}/requests). Do not add it back - DeriveDecision passes an empty
+        // trace on purpose, and rendering it here would put rule
         // internals and the pupil field values they quote into a Zendesk ticket.
         var answers = message.Answers.Where(a => !string.IsNullOrWhiteSpace(a.Value)).ToList();
         if (answers.Count > 0)

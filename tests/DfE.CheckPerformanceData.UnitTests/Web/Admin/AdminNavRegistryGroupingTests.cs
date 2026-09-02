@@ -25,13 +25,14 @@ public sealed class AdminNavRegistryGroupingTests
 
 		var groups = entries.Where(e => e.ParentKey is null).ToList();
 
-		Assert.Equal(7, groups.Count);
+		// Six since the Amendment requests group was retired: the per-window requests page it
+		// contained is reached from the windows table now, not from the nav.
+		Assert.Equal(6, groups.Count);
 		var groupKeys = groups.Select(g => g.Key).ToHashSet();
 		Assert.Contains("dashboard", groupKeys);
 		Assert.Contains("cms-admin", groupKeys);
 		Assert.Contains("system-admin", groupKeys);
 		Assert.Contains("storage-admin", groupKeys);
-		Assert.Contains("amendment-requests-admin", groupKeys);
 		Assert.Contains("window-admin", groupKeys);
 		Assert.Contains("messages-group", groupKeys);
 	}
@@ -64,7 +65,9 @@ public sealed class AdminNavRegistryGroupingTests
 
 		var keys = entries.Select(e => e.Key).ToList();
 
-		Assert.Equal(32, keys.Count);
+		// 30 since the Amendment requests group and its single Uncommitted requests tile were
+		// retired together.
+		Assert.Equal(30, keys.Count);
 		Assert.Equal(keys.Count, keys.Distinct().Count());
 	}
 

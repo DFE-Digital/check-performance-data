@@ -1,0 +1,25 @@
+@model DfE.CheckPerformanceData.Web.Controllers.Journey.IncludeNoResultsViewModel
+
+@{
+    ViewBag.Title = "Pupil not found";
+    Layout = "_Layout";
+}
+
+<h1 class="govuk-heading-l">Pupil not found</h1>
+
+<p class="govuk-body">
+    No pupil matching "@Model.TypedPupilLabel" was found on the included list.
+</p>
+<p class="govuk-body">
+    If the pupil is not currently included, you can add them as a new pupil or search again with a different name.
+</p>
+
+<form method="post" action="@Url.Action("StartAddingPupil", "Journey", new { windowId = Model.WindowId })">
+    @Html.AntiForgeryToken()
+    <govuk-button type="submit">Start adding this pupil</govuk-button>
+</form>
+
+<form method="post" action="@Url.Action("PupilSearchAgain", "Journey", new { windowId = Model.WindowId, pageId = Model.PageId })">
+    @Html.AntiForgeryToken()
+    <govuk-button type="submit" prevent-double-click="false" class="govuk-button--secondary">Search again</govuk-button>
+</form>

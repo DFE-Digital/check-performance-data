@@ -1,0 +1,21 @@
+@model DfE.CheckPerformanceData.Web.Controllers.Journey.IncludeAlreadyIncludedViewModel
+
+@{
+    ViewBag.Title = "This pupil is already included";
+    Layout = "_Layout";
+}
+
+<h1 class="govuk-heading-l">This pupil is already included</h1>
+
+<govuk-warning-text icon-fallback-text="Warning">
+    There may already be a pupil matching "@Model.TypedPupilLabel" on the included list.
+</govuk-warning-text>
+
+<p class="govuk-body">
+    The pupil may already be the subject of an active request on the included list. You do not need to include them again.
+</p>
+
+<form method="post" action="@Url.Action("AbortInclude", "Journey", new { windowId = Model.WindowId })">
+    @Html.AntiForgeryToken()
+    <govuk-button type="submit">Abort</govuk-button>
+</form>

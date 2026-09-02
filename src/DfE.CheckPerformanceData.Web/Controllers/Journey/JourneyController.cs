@@ -146,6 +146,42 @@ public sealed class JourneyController(
             var validationMessage = page.ValidationFailure is not null
                 ? JourneyTemplate.Resolve(page.ValidationFailure, JourneyViewModelBuilder.GetPupilName(journey))
                 : "Enter the name of the pupil";
+
+            // AB#027: Include journey no-results path. When the user typed a name on the Include
+            // primary search but did not select a suggestion, look the typed entry up against the
+            // included population before falling back to the generic validation: an included match
+            // warns "already included" (abort), no included match offers "Pupil not found" (start
+            // Add / search again). Blank entry keeps the existing validation; a lookup failure
+            // also falls back to it (never a dead end) — see research.md Question 6.
+            if (!string.IsNullOrWhiteSpace(selectedPupilLabel)
+                && journey.SelectedWhatToChange == WhatToChange.Include
+                && page.PupilKey == JourneyPage.PrimaryKey)
+            {
+                // Null result → lookup failed/timed out → fall through to the existing validation
+                // below (never a redirect to the decision pages, so never a dead end).
+                IReadOnlyList<PupilSuggestionDto>? includedSuggestions = null;
+                try
+                {
+                    includedSuggestions = await pupilDataService.GetPupilSuggestionsAsync(
+                        windowId, selectedPupilLabel, PupilFilter.Included);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    logger.LogError(ex, "Included-pupil lookup failed for Include no-results decision; falling back to validation. windowId={WindowId}", windowId);
+                }
+
+                if (includedSuggestions is not null)
+                {
+                    // Carry the typed label across the post/redirect/get in session (not the URL,
+                    // where a web server or proxy would log it): it is PII.
+                    HttpContext.Session.SaveRequestState(windowId, s => s.IncludeSearchLabel = selectedPupilLabel.Trim());
+
+                    return includedSuggestions.Count > 0
+                        ? RedirectToAction(nameof(AlreadyIncluded), new { windowId })
+                        : RedirectToAction(nameof(PupilNotFound), new { windowId, pageId });
+                }
+            }
+
             ModelState.AddModelError("selectedPupilId", validationMessage);
             await analytics.TrackSafeAsync(new ValidationErrorEvent
             {
@@ -1544,6 +1580,125 @@ public sealed class JourneyController(
         return includeAfterSearch is null
             ? RedirectToAction(nameof(Summary), new { windowId })
             : RedirectToAction(nameof(Page), new { windowId, pageId = includeAfterSearch });
+    }
+
+    // ── Include no-results decision flow (AB#027) ────────────────────────────
+
+    /// <summary>
+    /// AB#027 (US1): shown when the Include journey's select-pupil search found no included match
+    /// for a freely typed (not-selected) name. Offers "Start adding this pupil" (the Add journey)
+    /// or "Search again". The typed label is read from session (see
+    /// <see cref="RequestState.IncludeSearchLabel"/>) — never from the URL, because it is PII.
+    /// </summary>
+    [Route("/Journey/{windowId}/pupil-not-found")]
+    public async Task<IActionResult> PupilNotFound(Guid windowId, string pageId)
+    {
+        var journey = HttpContext.Session.GetRequestState(windowId);
+        if (!IsSessionReady(journey)) return RedirectToCheckYourData(windowId);
+
+        var label = journey.IncludeSearchLabel;
+        if (string.IsNullOrWhiteSpace(label)) return RedirectToCheckYourData(windowId);
+
+        // Consumed the label for this decision; a later return here needs a fresh trigger.
+        HttpContext.Session.SaveRequestState(windowId, s => s.IncludeSearchLabel = null);
+
+        return View(new IncludeNoResultsViewModel
+        {
+            WindowId = windowId,
+            PageId = pageId,
+            TypedPupilLabel = label
+        });
+    }
+
+    /// <summary>
+    /// AB#027 (US2): shown when the Include journey's select-pupil search found an included match
+    /// for a freely typed (not-selected) name. Warnings that the pupil is likely already included
+    /// and offers to abort the Include journey. The typed label is read from session (transient,
+    /// PII) and consumed on arrival. A direct hit with no pending label bounces back out.
+    /// </summary>
+    [Route("/Journey/{windowId}/already-included")]
+    public async Task<IActionResult> AlreadyIncluded(Guid windowId)
+    {
+        var journey = HttpContext.Session.GetRequestState(windowId);
+        if (!IsSessionReady(journey)) return RedirectToCheckYourData(windowId);
+
+        var label = journey.IncludeSearchLabel;
+        if (string.IsNullOrWhiteSpace(label)) return RedirectToCheckYourData(windowId);
+
+        HttpContext.Session.SaveRequestState(windowId, s => s.IncludeSearchLabel = null);
+
+        return View(new IncludeAlreadyIncludedViewModel
+        {
+            WindowId = windowId,
+            TypedPupilLabel = label
+        });
+    }
+
+    /// <summary>
+    /// AB#027 (US1): from the "Pupil not found" page, the school chooses to add a fresh pupil.
+    /// Resets the journey to the Add flow and redirects to its first page (e.g. <c>learner-details</c>
+    /// for KS4), mirroring the reverse of HandoffToIncludeJourneyAsync.
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Route("/Journey/{windowId}/add")]
+    public async Task<IActionResult> StartAddingPupil(Guid windowId)
+    {
+        var journey = HttpContext.Session.GetRequestState(windowId);
+        if (!IsSessionReady(journey)) return RedirectToCheckYourData(windowId);
+        if (journey.CheckingWindow?.CheckingWindowType is not { } windowType) return RedirectToCheckYourData(windowId);
+
+        var config = await flowService.GetConfigAsync(WhatToChange.Add, windowType);
+        if (config is null) return RedirectToCheckYourData(windowId);
+
+        HttpContext.Session.SaveRequestState(windowId, s =>
+        {
+            // A fresh Add journey discards everything about the Include attempt.
+            s.SelectedWhatToChange = WhatToChange.Add;
+            s.SelectedPupil = null;
+            s.SelectedPupilId = null;
+            s.SelectedPupilLabel = null;
+            s.MatchedPupil = null;
+            s.MatchedPupilId = null;
+            s.MatchedPupilLabel = null;
+            s.SelectedResult = null;
+            s.SelectedQualification = null;
+            s.QuestionAnswers = new();
+            s.QuestionHistory = [config.FirstPageId];
+            s.DuplicateCheck = null;
+            s.IncludeSearchLabel = null;
+        });
+
+        return RedirectToAction(nameof(Page), new { windowId, pageId = config.FirstPageId });
+    }
+
+    /// <summary>
+    /// AB#027 (US1): from the "Pupil not found" page, the school chooses to retry the search.
+    /// Returns to the Include journey's select-pupil search page.
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Route("/Journey/{windowId}/pupil-search-again")]
+    public IActionResult PupilSearchAgain(Guid windowId, string pageId)
+    {
+        var journey = HttpContext.Session.GetRequestState(windowId);
+        if (!IsSessionReady(journey)) return RedirectToCheckYourData(windowId);
+
+        return RedirectToAction(nameof(PupilSearchPage), new { windowId, pageId });
+    }
+
+    /// <summary>
+    /// AB#027 (US2): from the "Already included" warning, the school backs out of the Include
+    /// journey. Returns to Check Your Pupil Data (the same abort point as the Add-journey duplicate
+    /// check). No session teardown is required — abandoning the journey is intentional and any
+    /// partial progress can be left, exactly as AbortDuplicateCheck does.
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Route("/Journey/{windowId}/abort-include")]
+    public Task<IActionResult> AbortInclude(Guid windowId)
+    {
+        return Task.FromResult<IActionResult>(RedirectToCheckYourData(windowId));
     }
 
 

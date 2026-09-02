@@ -42,4 +42,13 @@ public sealed class RequestState
     /// learner-details interception and the duplicate-check warning page. Null when no check has
     /// run (or it found nothing). Rows carry pupil PII and must never be logged.</summary>
     public PupilDuplicateCheckResult? DuplicateCheck { get; set; }
+
+    /// <summary>
+    /// AB#027: the typed-but-not-selected pupil label carried from the Include journey's
+    /// select-pupil search to the "Pupil not found" / "Already included" page across a
+    /// post/redirect/get round-trip. Transient — only the typed entry that triggered the decision,
+    /// consumed by the page action and kept out of URLs because it is PII (must never be logged).
+    /// Null when no no-results decision is in flight.
+    /// </summary>
+    public string? IncludeSearchLabel { get; set; }
 }

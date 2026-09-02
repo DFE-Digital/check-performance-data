@@ -219,6 +219,11 @@ count, and the summary silently presented a cohort-wide enquiry as a single-stud
 **Decision (BA, 2026-08-17):** an enquiry drops into `ChangeRequests` and saves its journey JSON, and
 is **not enqueued**. It *is* ultimately bound for Zendesk, but how it gets there is a separate ticket.
 
+How a school sees its own enquiries in the meantime **is** designed: AB#298325 added an Issues tab
+beside Requests on the Amendment request summary page (`AmendmentRequestsService.GetAmendmentRequestsAsync`,
+`GetSubmittedResultsEnquiriesAsync`), listing submitted enquiries with pupil-name search, enriched from
+each row's journey blob for CYPMD id and qualification text.
+
 Two consequences, both deliberate and both commented in code:
 
 - `SubmitResultsEnquiryAsync` does not enqueue. When the dispatch story lands, the enqueue belongs

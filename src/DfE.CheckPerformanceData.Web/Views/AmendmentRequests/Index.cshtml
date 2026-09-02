@@ -204,4 +204,66 @@
                 </tbody>
             </table>
     </govuk-tabs-item>
+    <govuk-tabs-item id="issues" label="Issues">
+        <h2 class="govuk-heading-l">Issues</h2>
+        <p class="govuk-body">View recent issues with results reported.</p>
+
+        @if (!Model.HasAnyIssues)
+        {
+            @* Ticket AB#298325 empty state, verbatim (typo FLAGGED): told, not shown an empty table. *@
+            <p class="govuk-body">There are no submitted result enquires</p>
+        }
+        else
+        {
+            @* Mirrors the [Route] template on Index (kept as a literal to avoid IUrlHelper in unit
+               tests — same convention as backUrl in AmendmentRequestsController). The #issues
+               fragment makes the tabs component re-select this tab after the round trip. *@
+            <form id="issue-search-form" method="get" action="/@Model.WindowId/AmendmentRequests#issues">
+                <div class="govuk-form-group">
+                    <label class="govuk-label" for="issue-search">
+                        Search for a @Model.LearnerNoun.Singular by first or last name
+                    </label>
+                    <input class="govuk-input govuk-!-width-two-thirds" id="issue-search"
+                           name="issueSearch" type="search" value="@Model.IssueSearch">
+                    <button type="submit" class="govuk-button govuk-!-margin-bottom-0" data-module="govuk-button">
+                        Search
+                    </button>
+                </div>
+            </form>
+
+            @if (Model.IssueRows.Count == 0)
+            {
+                @* Issues exist but none match the search: saying "there are none" here would send
+                   the school off to raise the duplicate this page exists to prevent. Copy is ours,
+                   not the ticket's — FLAGGED. *@
+                <p class="govuk-body">There are no submitted result enquiries matching your search</p>
+            }
+            else
+            {
+                <table class="govuk-table">
+                    <thead class="govuk-table__head">
+                        <tr class="govuk-table__row">
+                            <th scope="col" class="govuk-table__header">@Model.LearnerNoun.SingularCapitalised name</th>
+                            <th scope="col" class="govuk-table__header">Date</th>
+                            <th scope="col" class="govuk-table__header">CYPMD id</th>
+                            <th scope="col" class="govuk-table__header">Type</th>
+                            <th scope="col" class="govuk-table__header">Qualification</th>
+                        </tr>
+                    </thead>
+                    <tbody class="govuk-table__body">
+                        @foreach (var issue in Model.IssueRows)
+                        {
+                            <tr class="govuk-table__row">
+                                <td class="govuk-table__cell">@issue.PupilName</td>
+                                <td class="govuk-table__cell">@issue.DateText</td>
+                                <td class="govuk-table__cell">@issue.CypmdId</td>
+                                <td class="govuk-table__cell">@issue.TypeLabel</td>
+                                <td class="govuk-table__cell">@issue.QualificationText</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        }
+    </govuk-tabs-item>
 </govuk-tabs>

@@ -290,6 +290,68 @@ public class AmendmentRequestsControllerTests
         Assert.Equal(WindowId, vm.WindowId);
     }
 
+    // The search box round-trips through a GET parameter; losing the pass-through silently turns
+    // every search into "show everything".
+    [Fact]
+    public async Task Index_PassesTheIssueSearchTermToTheService()
+    {
+        _service.GetAmendmentRequestsAsync(WindowId, "smith").Returns(EmptyResult());
+
+        await _sut.Index(WindowId, issueSearch: "smith");
+
+        await _service.Received(1).GetAmendmentRequestsAsync(WindowId, "smith");
+    }
+
+    [Fact]
+    public async Task Index_MapsIssueRowsOntoTheViewModel()
+    {
+        _service.GetAmendmentRequestsAsync(WindowId, "ali").Returns(new AmendmentRequestsResult
+        {
+            LearnerNoun = LearnerNoun.Pupil,
+            Deadlines = [Deadline(DateTime.UtcNow)],
+            WindowTitle = "Key stage 4",
+            Rows = [],
+            SubmittedRows = [],
+            IssueRows =
+            [
+                new ResultsEnquiryIssueDto
+                {
+                    PupilName = "Alice Smith",
+                    Submitted = new DateTime(2026, 10, 1, 9, 0, 0, DateTimeKind.Utc),
+                    CypmdId = "500001",
+                    TypeLabel = "Missing qualification",
+                    QualificationText = "ABRSM level 3",
+                    ReferenceNumber = "REF-1"
+                }
+            ],
+            HasAnyIssues = true
+        });
+
+        var view = Assert.IsType<ViewResult>(await _sut.Index(WindowId, issueSearch: "ali"));
+        var model = Assert.IsType<AmendmentRequestsViewModel>(view.Model);
+
+        var row = Assert.Single(model.IssueRows);
+        Assert.Equal("Alice Smith", row.PupilName);
+        Assert.Equal("500001", row.CypmdId);
+        Assert.Equal("Missing qualification", row.TypeLabel);
+        Assert.Equal("ABRSM level 3", row.QualificationText);
+        Assert.Equal("ali", model.IssueSearch);
+        Assert.True(model.HasAnyIssues);
+    }
+
+    // GDS style writes dates out; 01/10/2026 would also collide with the US reading. Matches the
+    // Requests tab's existing SubmittedDateText format.
+    [Fact]
+    public void IssueRowViewModel_FormatsTheDateGdsStyle()
+    {
+        var row = new IssueRowViewModel
+        {
+            PupilName = "A", Submitted = new DateTime(2026, 10, 1, 9, 0, 0, DateTimeKind.Utc),
+            CypmdId = "", TypeLabel = "", QualificationText = ""
+        };
+        Assert.Equal("1 October 2026", row.DateText);
+    }
+
     // ── Edit (advice screen) ───────────────────────────────────────────────────
 
     [Fact]

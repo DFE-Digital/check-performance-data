@@ -14,6 +14,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Npgsql;
 using NSubstitute;
+using CheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseService;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.ResultsEnquiry;
 
@@ -76,7 +77,8 @@ public sealed class ResultsEnquirySubmissionTests(PostgresFixture fixture)
             NullLogger<RequestService>.Instance,
             queue,
             Substitute.For<IRequestNotificationService>(),
-            Substitute.For<ICheckYourPupilDataService>());
+            Substitute.For<ICheckYourPupilDataService>(),
+            new CheckingExerciseService(TimeProvider.System));
 
         return (service, blob, queue);
     }

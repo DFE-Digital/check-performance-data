@@ -19,6 +19,7 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
 using Npgsql;
 using NSubstitute;
+using CheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseService;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.RequestSubmission;
 
@@ -136,7 +137,8 @@ public sealed class AddRequestSubmissionTests(PostgresFixture fixture)
             NullLogger<RequestService>.Instance,
             new PostgresQueueService(_fixture.CreateContext()),
             Substitute.For<IRequestNotificationService>(),
-            Substitute.For<ICheckYourPupilDataService>());
+            Substitute.For<ICheckYourPupilDataService>(),
+            new CheckingExerciseService(TimeProvider.System));
 
         return (service, blob, flowService);
     }

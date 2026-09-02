@@ -11,7 +11,8 @@ using IWindowService = DfE.CheckPerformanceData.Application.WindowManagement.IWi
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.AdminRequests;
 
-// AB#296648/AB#297848: the window-close Zendesk replay must skip results enquiries — BOTH kinds.
+// AB#296648/AB#297848/AB#298704: the window-close Zendesk replay must skip results enquiries —
+// every kind.
 //
 // This path rebuilds a PUPIL AMENDMENT ticket from a journey blob. An enquiry's QAN, session, current
 // and revised grade have no place in that shape, so replaying one would create a malformed ticket —
@@ -19,8 +20,10 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.AdminRequests;
 // enquiry-to-Zendesk dispatch (a separate story) could never find it again.
 //
 // The enquiry cases are Theories over every enquiry kind rather than one hardcoded member: a new
-// results-enquiry journey that forgets this guard is exactly the regression AB#297848 shipped with,
-// and EnquiryKinds below is the one place a future sibling has to be added.
+// results-enquiry journey that forgets this guard is exactly the regression AB#297848 shipped with.
+// EnquiryKinds below derives from WhatToChangeCheckingExerciseMap, so a new kind is covered here
+// the moment it maps to the ResultsEnquiry exercise — nothing to add by hand (AB#298704 arrived
+// this way).
 public sealed class AdminRequestsServiceEnquiryGuardTests
 {
     private static readonly DateTimeOffset Now = new(2026, 11, 19, 9, 0, 0, TimeSpan.Zero);

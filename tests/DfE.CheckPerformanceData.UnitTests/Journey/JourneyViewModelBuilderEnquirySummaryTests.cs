@@ -308,4 +308,78 @@ public sealed class JourneyViewModelBuilderEnquirySummaryTests
 
         Assert.False(_sut.BuildSummaryVm(WindowId, removal, Flow).IsResultsEnquiry);
     }
+
+    // ── AB#298704: result does not belong to student ─────────────────────────
+    //
+    // JourneyControllerResultSearchTests.cs-style page/question fixtures for the RDB flow, kept
+    // separate from Flow above so its pages (no cohort, no grade-details) cannot be mistaken for
+    // the incorrect-grade shape.
+
+    private static readonly JourneyPage RdbSelectStudentPage = new()
+        { Id = "select-student", Type = PageType.PupilSearch, PupilKey = "primary" };
+
+    private static readonly JourneyPage RdbSelectResultPage = new()
+        { Id = "select-result", Type = PageType.ResultSearch };
+
+    private static readonly Question RdbAdditionalInfo = new()
+    {
+        Id = "q-additional-info", Type = QuestionType.TextArea, Optional = true,
+        Title = "Additional information", SummaryTitle = "Additional information"
+    };
+
+    private static readonly JourneyPage RdbAdditionalInfoPage = new()
+        { Id = "additional-info", Questions = [RdbAdditionalInfo] };
+
+    private static readonly QuestionFlowConfig RdbFlow = new()
+    {
+        FirstPageId = "select-student",
+        Pages = [RdbSelectStudentPage, RdbSelectResultPage, RdbAdditionalInfoPage]
+    };
+
+    private RequestState ResultDoesNotBelongJourney() => new()
+    {
+        SelectedWhatToChange = WhatToChange.ResultDoesNotBelong,
+        CheckingWindow = Window,
+        SelectedPupilId = Guid.NewGuid().ToString(),
+        SelectedPupil = Billy(),
+        SelectedResult = ArtAndDesign,
+        QuestionAnswers = new Dictionary<string, QuestionAnswer>
+        {
+            ["q-additional-info"] = new() { TextValue = "QAN 60322222 grade B also does not belong" }
+        },
+        QuestionHistory = ["select-student", "select-result", "additional-info"]
+    };
+
+    [Fact]
+    public void A_result_does_not_belong_journey_builds_the_enquiry_summary_without_grade_or_cohort_rows()
+    {
+        // Figma f07: DfE number → Additional information, no cohort rows, no Revised grade row,
+        // and Additional information is the only row with a Change link.
+        foreach (var page in RdbFlow.Pages)
+            _flowService.GetPage(RdbFlow, page.Id).Returns(page);
+
+        var vm = _sut.BuildSummaryVm(WindowId, ResultDoesNotBelongJourney(), RdbFlow);
+
+        Assert.NotNull(vm.Enquiry);
+        var enquiry = vm.Enquiry!;
+        Assert.Equal("Result does not belong to student", enquiry.EnquiryTypeLabel);
+        Assert.False(enquiry.IsCohortWide);
+        Assert.False(enquiry.ShowRevisedGrade);
+
+        var keys = enquiry.Lines.Select(l => l.Key).ToList();
+        Assert.DoesNotContain("Revised grade", keys);
+        Assert.DoesNotContain("Number of students in affected cohort", keys);
+        Assert.Contains("Additional information", keys);
+        Assert.Single(enquiry.Lines, l => l.HasChange);
+    }
+
+    [Fact]
+    public void An_incorrect_grade_journey_still_shows_the_revised_grade_row()
+    {
+        var vm = _sut.BuildSummaryVm(WindowId, CohortJourney(), Flow);
+
+        Assert.NotNull(vm.Enquiry);
+        Assert.True(vm.Enquiry!.ShowRevisedGrade);
+        Assert.Contains("Revised grade", vm.Enquiry!.Lines.Select(l => l.Key));
+    }
 }

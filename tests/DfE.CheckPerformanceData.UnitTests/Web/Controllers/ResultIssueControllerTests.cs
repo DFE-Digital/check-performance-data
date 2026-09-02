@@ -162,9 +162,8 @@ public sealed class ResultIssueControllerTests
     [Fact]
     public async Task Post_with_an_unrecognised_option_is_rejected_as_unanswered()
     {
-        // "Result does not belong to pupil" is a sibling ticket with no journey. A posted value for
-        // it (or a forged one) must not start a journey there is no flow for.
-        var result = await _sut.Confirm(WindowId, new ResultIssueViewModel { WindowId = WindowId, IssueType = "result-does-not-belong" });
+        // A forged or unknown option value must not start a journey there is no flow for.
+        var result = await _sut.Confirm(WindowId, new ResultIssueViewModel { WindowId = WindowId, IssueType = "grade-boundary-appeal" });
 
         Assert.IsType<ViewResult>(result);
         await _flowService.DidNotReceiveWithAnyArgs().GetConfigAsync(default, default);
@@ -189,6 +188,28 @@ public sealed class ResultIssueControllerTests
 
         var state = _session.GetRequestState(WindowId);
         Assert.Equal(WhatToChange.MissingQualification, state.SelectedWhatToChange);
+        Assert.Empty(state.QuestionHistory);
+        await _lateResults.DidNotReceiveWithAnyArgs().IsSecondLateResultsAvailableAsync(default, default!, default);
+    }
+
+    [Fact]
+    public async Task Post_result_does_not_belong_starts_that_journey_at_its_first_page()
+    {
+        // AB#298704: no cohort question and no late-results interstitial — the flow opens on the
+        // student search, and a stray result has nothing to do with the second late results file.
+        _flowService.GetConfigAsync(WhatToChange.ResultDoesNotBelong, CheckingWindowType.Post16)
+            .Returns(new QuestionFlowConfig { FirstPageId = "select-student", Pages = [] });
+
+        var result = await _sut.Confirm(WindowId, new ResultIssueViewModel
+            { WindowId = WindowId, IssueType = ResultIssueViewModel.ResultDoesNotBelong });
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Journey", redirect.ControllerName);
+        Assert.Equal("Page", redirect.ActionName);
+        Assert.Equal("select-student", redirect.RouteValues!["pageId"]);
+
+        var state = _session.GetRequestState(WindowId);
+        Assert.Equal(WhatToChange.ResultDoesNotBelong, state.SelectedWhatToChange);
         Assert.Empty(state.QuestionHistory);
         await _lateResults.DidNotReceiveWithAnyArgs().IsSecondLateResultsAvailableAsync(default, default!, default);
     }

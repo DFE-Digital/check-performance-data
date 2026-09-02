@@ -30,6 +30,10 @@ services:
       # The baselines were captured in this image, so this is the only place a
       # comparison is meaningful.
       - CPD_E2E_VISUAL_REGRESSION=${CPD_E2E_VISUAL_REGRESSION:-}
+      # The DB-probe helpers (CountChangeRequestsAsync in the enquiry suites) default to
+      # localhost:5432, which inside this container is the container itself — every probe-backed
+      # test then fails on connect. Point them at the compose db service explicitly.
+      - CPD_E2E_DB=${CPD_E2E_DB:-Host=db;Port=5432;Database=cypd;Username=postgres;Password=postgres}
       - NUGET_PACKAGES=/root/.nuget/packages
       - DOTNET_NOLOGO=1
       - DOTNET_CLI_TELEMETRY_OPTOUT=1

@@ -116,17 +116,16 @@ public sealed class RequestService(
     public async Task<string> SubmitResultsEnquiryAsync(
         Guid windowId, RequestState journey, CancellationToken ct = default)
     {
-        if (journey.SelectedWhatToChange
-            is not (WhatToChange.IncorrectGrade or WhatToChange.MissingQualification))
+        if (!WhatToChangeCheckingExerciseMap.IsResultsEnquiry(journey.SelectedWhatToChange))
             throw new InvalidOperationException(
                 $"SubmitResultsEnquiryAsync is the results-enquiry path; got {journey.SelectedWhatToChange}. " +
                 "Routing an amendment through here would store the wrong RequestType and skip the rules engine.");
 
-        // Each enquiry kind has its own resolved subject: an incorrect grade is about a held
-        // result, a missing qualification about a QualList entry. The other is legitimately null.
-        var hasSubject = journey.SelectedWhatToChange == WhatToChange.IncorrectGrade
-            ? journey.SelectedResult is not null
-            : journey.SelectedQualification is not null;
+        // Each enquiry kind has its own resolved subject: an incorrect grade and a stray result are
+        // both about a held result, a missing qualification about a QualList entry.
+        var hasSubject = journey.SelectedWhatToChange == WhatToChange.MissingQualification
+            ? journey.SelectedQualification is not null
+            : journey.SelectedResult is not null;
 
         if (journey.CheckingWindow is null || journey.SelectedPupil is null || !hasSubject
             || string.IsNullOrWhiteSpace(journey.ReferenceNumber))
@@ -153,9 +152,14 @@ public sealed class RequestService(
             SubmittedByEmail = currentUserService.Email,
             Status = RequestStatus.SubmittedUnCommitted,
             RequestType = RequestType.ResultsEnquiry,
-            RequestTypeDescription = journey.SelectedWhatToChange == WhatToChange.IncorrectGrade
-                ? "Results enquiry - Incorrect grade"
-                : "Results enquiry - Missing qualification",
+            RequestTypeDescription = journey.SelectedWhatToChange switch
+            {
+                WhatToChange.IncorrectGrade => "Results enquiry - Incorrect grade",
+                WhatToChange.MissingQualification => "Results enquiry - Missing qualification",
+                WhatToChange.ResultDoesNotBelong => "Results enquiry - Result does not belong to student",
+                _ => throw new InvalidOperationException(
+                    $"No results-enquiry description for {journey.SelectedWhatToChange}.")
+            },
             AmendmentType = journey.SelectedWhatToChange.Value
         });
 

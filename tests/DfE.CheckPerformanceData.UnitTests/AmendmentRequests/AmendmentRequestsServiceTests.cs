@@ -310,10 +310,14 @@ public class AmendmentRequestsServiceTests
         Assert.Equal("Cara Davies", row.PupilName);
         Assert.Equal("", row.CypmdId);
         Assert.Equal("", row.QualificationText);
+        // The negative half is the real pin: adding {PupilName} "for debuggability" would land
+        // PII in the Serilog sinks while a contains-reference-only assertion stayed green.
         _logger.Received(1).Log(
             LogLevel.Warning,
             Arg.Any<EventId>(),
-            Arg.Is<object>(o => o.ToString()!.Contains("REF-4")),
+            Arg.Is<object>(o => o.ToString()!.Contains("REF-4")
+                && !o.ToString()!.Contains("Cara")
+                && !o.ToString()!.Contains("Davies")),
             Arg.Any<Exception>(),
             Arg.Any<Func<object, Exception?, string>>());
     }

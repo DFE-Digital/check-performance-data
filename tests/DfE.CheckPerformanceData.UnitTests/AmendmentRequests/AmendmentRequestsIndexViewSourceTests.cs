@@ -40,6 +40,13 @@ public sealed class AmendmentRequestsIndexViewSourceTests
         Assert.True(elseIndex >= 0, "Expected an else branch after the no-issues condition.");
         var noIssuesBranch = source[ifIndex..elseIndex];
         Assert.Contains("There are no submitted result enquires", noIssuesBranch);
+        // The "else" landmark above is the FIRST else after the condition, which is only the
+        // branch's own terminator while the if/else structure stands. If the pair is refactored
+        // into two sibling @if blocks, the slice silently runs on to some nested else and can
+        // swallow the has-issues markup — so a slice that contains the positive condition proves
+        // the landmark has slipped, not that the copy is in the right branch. If this fires on an
+        // intentional restructure, re-anchor the slice; do not delete the assertion.
+        Assert.DoesNotContain("@if (Model.HasAnyIssues)", noIssuesBranch);
     }
 
     // A search is a safe, repeatable read: it must be a GET so refresh/back/bookmark work and no
@@ -88,6 +95,11 @@ public sealed class AmendmentRequestsIndexViewSourceTests
         var tableEnd = issuesPanel.IndexOf("</table>", tableStart, StringComparison.Ordinal) + "</table>".Length;
         var issuesTable = issuesPanel[tableStart..tableEnd];
         Assert.DoesNotContain("<a", issuesTable);
+        // Belt and braces for the whole panel: the anchor check above cannot see a link emitted
+        // at runtime (e.g. @Html.ActionLink), but any route to the enquiry-hostile
+        // SubmittedRequest controller has to name it in source. A future "Clear search" link
+        // (parked BA question) points at AmendmentRequests, so this stays safe.
+        Assert.DoesNotContain("SubmittedRequest", issuesPanel);
     }
 
     private static string RepoRoot => Path.GetFullPath(Path.Combine(

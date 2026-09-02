@@ -248,6 +248,27 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
             })
             .ToListAsync();
 
+    public async Task<IReadOnlyList<SubmittedRequestData>> GetSubmittedResultsEnquiriesAsync(Guid windowId, long organisationUrn) =>
+        await db.ChangeRequests
+            .Where(r => r.WindowId == windowId
+                && r.OrganisationUrn == organisationUrn
+                // Enquiries never move past SubmittedUnCommitted (dispatch to Zendesk is a parked
+                // story) and have no withdraw surface, so one status is the whole population.
+                && r.Status == RequestStatus.SubmittedUnCommitted
+                && r.RequestType == RequestType.ResultsEnquiry)
+            .OrderByDescending(r => r.Submitted)
+            .Select(r => new SubmittedRequestData
+            {
+                PupilFirstname = r.PupilFirstname,
+                PupilSurname = r.PupilSurname,
+                RequestType = r.RequestType,
+                RequestTypeDescription = r.RequestTypeDescription,
+                ReferenceNumber = r.ReferenceNumber,
+                Status = r.Status,
+                Submitted = r.Submitted
+            })
+            .ToListAsync();
+
     public async Task<AmendmentRequestData?> GetAmendmentRequestAsync(Guid windowId, long organisationUrn, string referenceNumber) =>
         await db.ChangeRequests
             .Where(r => r.WindowId == windowId

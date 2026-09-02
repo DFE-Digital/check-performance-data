@@ -36,6 +36,7 @@ public static class DependencyManager
         services.AddScoped<SamplePageNodeSeeder>();
         services.AddScoped<Analytics.SampleSearchDataSeeder>();
         services.AddScoped<ContentStaging.IContentStagingService, ContentStaging.ContentStagingService>();
+        services.AddScoped<ContentStaging.ContentBundleSanitiser>();
         services.AddScoped<IHtmlRenderingService, HtmlRenderingService>();
         services.AddScoped<Settings.ISettingService, Settings.SettingService>();
         services.AddScoped<ILandingPageService, LandingPageService>();
@@ -57,6 +58,7 @@ public static class DependencyManager
         services.AddScoped<IJourneyCondition, PupilIsAddBackCondition>();
         services.AddScoped<IJourneyCondition, PupilIsNotAddBackCondition>();
         services.AddScoped<IJourneyCondition, EalWouldBeAutoRejectedCondition>();
+        services.AddScoped<IJourneyCondition, NotOnRollReasonIsOtherCondition>();
         services.AddScoped<IOriginCountryLanguageCapture, OriginCountryLanguageCapture>();
         services.AddScoped<IFormatValidator, DfeNumberFormatValidator>();
         // AB#296648: the cohort-count question. Registration is load-bearing — the journey engine
@@ -67,6 +69,8 @@ public static class DependencyManager
         // registration reason as WholeNumberFormatValidator above.
         services.AddScoped<IFormatValidator, NcnValidator>();
         services.AddScoped<IAmendmentRequestsService, AmendmentRequestsService>();
+        services.AddScoped<IUrnAmendmentRequestsService, UrnAmendmentRequestsService>();
+        services.AddScoped<IWindowStatusService, WindowStatusService>();
         services.AddScoped<IBulkSubmissionService, BulkSubmissionService>();
         services.AddScoped<ISubmittedRequestService, SubmittedRequestService>();
         services.AddScoped<IEditAdviceService, EditAdviceService>();

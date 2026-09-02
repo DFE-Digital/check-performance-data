@@ -21,6 +21,7 @@ using DfE.CheckPerformanceData.Application.UnitTests.WindowManagement;
 // Alias, not a namespace import: WindowManagement also declares a CheckingWindowDto and this
 // file already uses the LandingPage one.
 using ICheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.ICheckingExerciseService;
+using LearnerNoun = DfE.CheckPerformanceData.Application.WindowManagement.LearnerNoun;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 
@@ -101,6 +102,11 @@ public class JourneyControllerTests
 
         _optionalityService.GetConditionallyOptionalQuestionIds(Arg.Any<JourneyPage>(), Arg.Any<JourneyConditionContext>())
             .Returns(new HashSet<string>());
+
+        // Mirror the real service on a page with no requireAtLeastOneWhen gate: the flag alone
+        // decides. Without this the substitute would return false and switch the rule off.
+        _optionalityService.IsRequireAtLeastOneActive(Arg.Any<JourneyPage>(), Arg.Any<JourneyConditionContext>())
+            .Returns(ci => ci.Arg<JourneyPage>().RequireAtLeastOne);
 
         // NSubstitute returns "" for string by default; null means "no duplicate" (AB#296081).
         _journeyService.ValidateDuplicateFileName(default!, default!).ReturnsForAnyArgs((string?)null);
@@ -287,6 +293,48 @@ public class JourneyControllerTests
     }
 
     [Fact]
+    public async Task Summary_ForAResultDoesNotBelongEnquiryWithoutAResult_RedirectsToTheResultSearch()
+    {
+        // The stale-summary guard (AB#297848 lesson): changing the student in another tab clears
+        // SelectedResult; the summary must send the user back rather than render half an enquiry.
+        var rdbFlow = new QuestionFlowConfig
+        {
+            FirstPageId = "select-student",
+            Pages =
+            [
+                new JourneyPage { Id = "select-student", Type = PageType.PupilSearch, PupilKey = "primary" },
+                new JourneyPage { Id = "select-result", Type = PageType.ResultSearch },
+                new JourneyPage
+                {
+                    Id = "additional-info",
+                    Questions = [new Question
+                    {
+                        Id = "q-additional-info", Type = QuestionType.TextArea,
+                        Title = "Additional information", Optional = true
+                    }]
+                }
+            ]
+        };
+        _flowService.GetConfigAsync(Arg.Any<WhatToChange>(), Arg.Any<CheckingWindowType>()).Returns(rdbFlow);
+        _flowService.GetPage(rdbFlow, "select-result").Returns(rdbFlow.Pages[1]);
+        // NSubstitute defaults an unconfigured string-returning call to "" rather than null, which
+        // the controller reads as "there IS a next page" — so the flow-complete signal must be explicit.
+        _flowService.GetNextPageId(rdbFlow, "additional-info", Arg.Any<Dictionary<string, QuestionAnswer>>())
+            .Returns((string?)null);
+
+        var state = ValidSession(history: ["select-student", "additional-info"]);
+        state.SelectedWhatToChange = WhatToChange.ResultDoesNotBelong;
+        state.SelectedResult = null;
+        SetupSession(state);
+
+        var result = await _sut.Summary(WindowId);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(JourneyController.ResultSearchPage), redirect.ActionName);
+        Assert.Equal("select-result", redirect.RouteValues!["pageId"]);
+    }
+
+    [Fact]
     public async Task Summary_WhenJourneyComplete_RendersView()
     {
         // Both pages answered; GetNextPageId after page-2 returns null
@@ -338,7 +386,7 @@ public class JourneyControllerTests
         _flowService.GetReachableEvidencePage(Config, Arg.Any<Dictionary<string, QuestionAnswer>>())
             .Returns(EvidencePage);
         _journeyService.ValidateEvidencePage(EvidencePage, Arg.Any<RequestState>(), Arg.Any<string>(),
-                Arg.Any<IReadOnlySet<string>?>())
+                Arg.Any<IReadOnlySet<string>?>(), Arg.Any<bool?>())
             .Returns(new EvidenceValidationResult { Messages = ["Upload at least one file before continuing"] });
 
         var result = await _sut.Summary(WindowId);
@@ -359,7 +407,7 @@ public class JourneyControllerTests
         _flowService.GetReachableEvidencePage(Config, Arg.Any<Dictionary<string, QuestionAnswer>>())
             .Returns(EvidencePage);
         _journeyService.ValidateEvidencePage(EvidencePage, Arg.Any<RequestState>(), Arg.Any<string>(),
-                Arg.Any<IReadOnlySet<string>?>())
+                Arg.Any<IReadOnlySet<string>?>(), Arg.Any<bool?>())
             .Returns((EvidenceValidationResult?)null);
 
         var result = await _sut.Summary(WindowId);
@@ -377,7 +425,7 @@ public class JourneyControllerTests
         _flowService.GetReachableEvidencePage(Config, Arg.Any<Dictionary<string, QuestionAnswer>>())
             .Returns(EvidencePage);
         _journeyService.ValidateEvidencePage(EvidencePage, Arg.Any<RequestState>(), Arg.Any<string>(),
-                Arg.Any<IReadOnlySet<string>?>())
+                Arg.Any<IReadOnlySet<string>?>(), Arg.Any<bool?>())
             .Returns(new EvidenceValidationResult { Messages = ["Upload at least one file before continuing"] });
 
         var result = await _sut.Summary(WindowId);
@@ -399,7 +447,7 @@ public class JourneyControllerTests
         var view = Assert.IsType<ViewResult>(result);
         Assert.Equal("Summary", view.ViewName);
         var vm = Assert.IsType<SummaryViewModel>(view.Model);
-        Assert.Equal(DuplicateRequestMessages.SummaryMessage(true, false, ""), vm.ConflictError);
+        Assert.Equal(DuplicateRequestMessages.SummaryMessage(true, false, "", LearnerNoun.Pupil), vm.ConflictError);
     }
 
     [Fact]
@@ -520,6 +568,64 @@ public class JourneyControllerTests
         Assert.Null(remaining.SelectedPupil);
         Assert.Empty(remaining.QuestionAnswers);
         Assert.Empty(remaining.QuestionHistory);
+    }
+
+    // ── SummaryConfirm — enquiry confirmation email (AB#298309) ──────────────
+
+    [Fact]
+    public async Task SummaryConfirm_ForAnIncorrectGradeEnquiry_SendsTheConfirmationNotification()
+    {
+        // AB#298309 AC1: submission completing IS the trigger for the confirmation email — there is
+        // no later step that can independently fail to send it. Losing this call would fail silently
+        // in production (the enquiry still persists and the confirmation page still renders).
+        var state = ValidSession(history: ["page-1"]);
+        state.SelectedWhatToChange = WhatToChange.IncorrectGrade;
+        SetupSession(state);
+        _requestService.SubmitResultsEnquiryAsync(WindowId, Arg.Any<RequestState>())
+            .Returns("CYPMD_16to19_RE_4F9C2A1");
+
+        await _sut.SummaryConfirm(WindowId);
+
+        // The reference the email carries must be the one submission returned, not session residue.
+        await _requestNotificationService.Received(1)
+            .NotifyResultsEnquirySubmittedAsync("CYPMD_16to19_RE_4F9C2A1");
+    }
+
+    [Fact]
+    public async Task SummaryConfirm_ForAMissingQualificationEnquiry_SendsTheConfirmationNotification()
+    {
+        // AB#298309 AC4: every enquiry type sends the same email. All types share
+        // ConfirmResultsEnquiryAsync, but "same path by construction" claims have been wrong on this
+        // codebase before (AB#298229 finding 3) — pin each live type explicitly.
+        var state = ValidSession(history: ["page-1"]);
+        state.SelectedWhatToChange = WhatToChange.MissingQualification;
+        SetupSession(state);
+        _requestService.SubmitResultsEnquiryAsync(WindowId, Arg.Any<RequestState>())
+            .Returns("CYPMD_16to19_RE_1A2B3C4");
+
+        await _sut.SummaryConfirm(WindowId);
+
+        await _requestNotificationService.Received(1)
+            .NotifyResultsEnquirySubmittedAsync("CYPMD_16to19_RE_1A2B3C4");
+    }
+
+    [Fact]
+    public async Task SummaryConfirm_ForAResultDoesNotBelongEnquiry_SendsTheConfirmationNotification()
+    {
+        // AB#298704 + AB#298309 AC4: every enquiry type sends the same email. Pinned per type —
+        // "same path by construction" claims have been wrong here before (AB#298229 finding 3).
+        var state = ValidSession(history: ["page-1"]);
+        state.SelectedWhatToChange = WhatToChange.ResultDoesNotBelong;
+        SetupSession(state);
+        _requestService.SubmitResultsEnquiryAsync(WindowId, Arg.Any<RequestState>())
+            .Returns("CYPMD_16to19_RE_9D8E7F6");
+
+        var result = await _sut.SummaryConfirm(WindowId);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(JourneyController.EnquiryConfirmation), redirect.ActionName);
+        await _requestNotificationService.Received(1)
+            .NotifyResultsEnquirySubmittedAsync("CYPMD_16to19_RE_9D8E7F6");
     }
 
     // ── SummaryConfirm — missing-qualification enquiry (AB#297848) ───────────
@@ -689,6 +795,111 @@ public class JourneyControllerTests
                     ? "year-group-change-higher-lower"
                     : "pupil-died";
             });
+    }
+
+    // ── PagePost — Checkbox multi-select ─────────────────────────────────────
+
+    // A checkbox list posts one form key with several values. Reading only the first would
+    // silently drop every box but one, so the whole StringValues must reach the answer.
+    [Fact]
+    public async Task PagePost_CheckboxQuestion_StoresEveryTickedValue()
+    {
+        SetupCheckboxPage();
+        SetupSession(ValidSession(history: ["years-to-remove"]));
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>
+        {
+            ["q_years_to_remove"] = new StringValues(["2025-2026", "2023-2024"])
+        });
+
+        await _sut.PagePost(WindowId, "years-to-remove", fromSummary: false);
+
+        var saved = _session.GetRequestState(WindowId).QuestionAnswers["years-to-remove"];
+        Assert.Equal(["2025-2026", "2023-2024"], saved.SelectedValues);
+        // TextValue stays null for a checkbox list — every display site keys off SelectedValues.
+        Assert.Null(saved.TextValue);
+    }
+
+    [Fact]
+    public async Task PagePost_CheckboxQuestion_WithNothingTicked_StoresAnEmptySelection()
+    {
+        SetupCheckboxPage();
+        SetupSession(ValidSession(history: ["years-to-remove"]));
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>());
+
+        await _sut.PagePost(WindowId, "years-to-remove", fromSummary: false);
+
+        var saved = _session.GetRequestState(WindowId).QuestionAnswers["years-to-remove"];
+        Assert.Empty(saved.SelectedValues!);
+    }
+
+    // The same gate the Radio has: visibleWhen governs selection as well as rendering, so a
+    // posted value for an option this user was never shown is rejected.
+    [Fact]
+    public async Task PagePost_CheckboxValueForHiddenOption_IsRejectedWithTheQuestionsValidationMessage()
+    {
+        SetupCheckboxPage();
+        _optionVisibilityService.GetVisibleOptions(Arg.Any<Question>(), Arg.Any<JourneyConditionContext>())
+            .Returns(ci => (IReadOnlyList<QuestionOption>)(ci.Arg<Question>().Options?
+                .Where(o => o.Value != "2023-2024").ToList() ?? []));
+        _journeyService.IsAnswered(Arg.Any<Question>(), Arg.Any<QuestionAnswer>()).Returns(true);
+        SetupSession(ValidSession(history: ["years-to-remove"]));
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>
+        {
+            ["q_years_to_remove"] = new StringValues(["2025-2026", "2023-2024"])
+        });
+
+        var result = await _sut.PagePost(WindowId, "years-to-remove", fromSummary: false);
+
+        var view = Assert.IsType<ViewResult>(result);
+        Assert.Equal("Page", view.ViewName);
+        Assert.False(_sut.ModelState.IsValid);
+        Assert.Equal("Select which years you want to remove Jane Smith from",
+            _sut.ModelState["years-to-remove"]!.Errors[0].ErrorMessage);
+    }
+
+    [Fact]
+    public async Task PagePost_CheckboxValuesAllVisible_StillProceeds()
+    {
+        SetupCheckboxPage();
+        _journeyService.IsAnswered(Arg.Any<Question>(), Arg.Any<QuestionAnswer>()).Returns(true);
+        SetupSession(ValidSession(history: ["years-to-remove"]));
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>
+        {
+            ["q_years_to_remove"] = new StringValues(["2025-2026", "2023-2024"])
+        });
+
+        var result = await _sut.PagePost(WindowId, "years-to-remove", fromSummary: false);
+
+        Assert.IsType<RedirectToActionResult>(result);
+    }
+
+    private void SetupCheckboxPage()
+    {
+        var page = new JourneyPage
+        {
+            Id = "years-to-remove",
+            Questions =
+            [
+                new Question
+                {
+                    Id = "years-to-remove", Type = QuestionType.Checkbox,
+                    Title = "Which years do you want to remove {pupilName} from?",
+                    ValidationFailure = "Select which years you want to remove {pupilName} from",
+                    Options =
+                    [
+                        new QuestionOption { Value = "2025-2026", Label = "2025 to 2026" },
+                        new QuestionOption { Value = "2024-2025", Label = "2024 to 2025" },
+                        new QuestionOption { Value = "2023-2024", Label = "2023 to 2024" }
+                    ]
+                }
+            ],
+            NextPageId = "evidence"
+        };
+        _flowService.GetPage(Config, "years-to-remove").Returns(page);
+        _flowService.GetNextPageId(Config, "years-to-remove", Arg.Any<Dictionary<string, QuestionAnswer>>())
+            .Returns("evidence");
+        _journeyService.ValidateAnswer(Arg.Any<Question>(), Arg.Any<QuestionAnswer>(), Arg.Any<string>(), Arg.Any<string?>())
+            .Returns((string?)null);
     }
 
     // ── PagePost — hidden-option server-side gate ────────────────────────────
@@ -1397,7 +1608,7 @@ public class JourneyControllerTests
     {
         SetupSession(ValidSession());
         _flowService.GetPage(Config, "evidence-page").Returns(EvidencePage);
-        _journeyService.ValidateEvidencePage(EvidencePage, Arg.Any<RequestState>(), Arg.Any<string>(), Arg.Any<IReadOnlySet<string>?>())
+        _journeyService.ValidateEvidencePage(EvidencePage, Arg.Any<RequestState>(), Arg.Any<string>(), Arg.Any<IReadOnlySet<string>?>(), Arg.Any<bool?>())
             .Returns(new EvidenceValidationResult { Messages = ["Upload at least one file before continuing"] });
         _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>());
         RequestStatus? capturedStatus = null;
@@ -1437,7 +1648,7 @@ public class JourneyControllerTests
         // resumes on the evidence page rather than skipping past it to the Summary.
         SetupSession(ValidSession(history: ["select-pupil", "select-match-pupil"]));
         _flowService.GetPage(Config, "evidence-page").Returns(EvidencePage);
-        _journeyService.ValidateEvidencePage(EvidencePage, Arg.Any<RequestState>(), Arg.Any<string>(), Arg.Any<IReadOnlySet<string>?>())
+        _journeyService.ValidateEvidencePage(EvidencePage, Arg.Any<RequestState>(), Arg.Any<string>(), Arg.Any<IReadOnlySet<string>?>(), Arg.Any<bool?>())
             .Returns(new EvidenceValidationResult { Messages = ["Upload at least one file before continuing"] });
         _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>());
         RequestState? capturedJourney = null;
@@ -2047,7 +2258,7 @@ public class JourneyControllerTests
         Assert.Equal("Index", redirect.ActionName);
         Assert.Equal("CheckYourPupilData", redirect.ControllerName);
         Assert.Equal(
-            ClosedExerciseGuard.MessageFor(CheckingExerciseType.PupilData),
+            ClosedExerciseGuard.MessageFor(CheckingExerciseType.PupilData, LearnerNoun.Pupil),
             _sut.TempData[ClosedExerciseGuard.TempDataKey]);
     }
 

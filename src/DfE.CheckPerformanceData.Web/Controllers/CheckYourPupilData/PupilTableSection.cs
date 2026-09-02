@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData.Columns;
+using DfE.CheckPerformanceData.Application.WindowManagement;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData;
 
@@ -20,6 +21,13 @@ public sealed class PupilTableSection
     public required string EmptyContentKey { get; init; }
     public required string EmptyContentHtml { get; init; }
     public required PupilTable Table { get; init; }
+
+    /// <summary>
+    /// The window's word for a learner. The section carries it because every other piece of this
+    /// section's wording is built alongside it in the controller, and the search and no-results
+    /// partials reach it through the section they are rendering.
+    /// </summary>
+    public required LearnerNoun LearnerNoun { get; init; }
     public required int Page { get; init; }
     public required int TotalPages { get; init; }
     public string? Search { get; init; }

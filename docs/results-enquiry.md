@@ -1,10 +1,12 @@
-# 16-19 results enquiry — report an incorrect grade
+# 16-19 results enquiries
 
-AB#296648. A school reports that one of its 16-19 students has been given the wrong exam grade, from
-choosing the enquiry type through to a reference number on screen and by email.
+A school reports an issue with a 16-19 student's exam results, from choosing the enquiry type
+through to a reference number on screen and by email. Three journeys share the entry point and the
+submission path: incorrect grade (AB#296648, documented first below), missing qualification
+(AB#297848) and result does not belong to student (AB#298704), each with its own section.
 
 Related tickets: AB#296999 (results data), AB#297004 (student selection), AB#297130 (grade reference
-data), AB#297013.
+data), AB#297013, AB#297848 (missing qualification), AB#298704 (result does not belong to student).
 
 ## The journey
 
@@ -31,9 +33,9 @@ after merge orphans stored enquiries. `IncorrectGradeFlowTests` pins them.
 
 The check-your-student-data page's "What would you like to do?" radios gain a third option for 16-19
 windows: **Report an issue with an exam result**, routed to `ResultIssueController`. The issue page
-renders only the *Incorrect grade* option; the two others on the Figma screen belong to sibling
-tickets, and posting their values is rejected as unanswered rather than starting a journey with no flow
-behind it.
+now renders all three Figma options — *Incorrect grade*, *Missing qualification* and *Result does not
+belong to student* — each routed to its own flow. A posted value matching none of them (forged or
+otherwise unknown) is rejected as unanswered rather than starting a journey with no flow behind it.
 
 ## Late results guidance
 
@@ -231,9 +233,10 @@ Two consequences, both deliberate and both commented in code:
   missing-qualification journey (AB#297848) walked straight through it — the map keeps the next
   sibling right by construction. `AdminRequestsServiceEnquiryGuardTests` drives its cases from the
   same map, so a new enquiry kind is covered the moment it is mapped.
-- `QuestionFlowOutcomeKeyAlignmentTests` lists `IncorrectGrade` in
-  `FlowPrefixesThatDoNotRouteToTheRulesEngine` and asserts it has **no** outcome key, so nobody can
-  quietly bind it to rules-engine routing. That list going empty is the signal every flow routes.
+- `QuestionFlowOutcomeKeyAlignmentTests` lists `IncorrectGrade`, `MissingQualification` and
+  `ResultDoesNotBelong` in `FlowPrefixesThatDoNotRouteToTheRulesEngine` and asserts each has **no**
+  outcome key, so nobody can quietly bind one to rules-engine routing. That list going empty is the
+  signal every flow routes.
 
 ## Missing qualification (AB#297848)
 
@@ -332,14 +335,63 @@ UK-today and no earlier than 1 September 2023 (the 2023/24 and 2024/25 academic 
 
 ### Submission
 
-`RequestService.SubmitResultsEnquiryAsync` now serves both enquiry kinds. A missing-qualification row
+`RequestService.SubmitResultsEnquiryAsync` serves all three enquiry kinds. A missing-qualification row
 persists with `AmendmentType = WhatToChange.MissingQualification`,
 `RequestTypeDescription = "Results enquiry - Missing qualification"`, same `RequestType.ResultsEnquiry`
-/ `Status.SubmittedUnCommitted` shape, same **no enqueue** (Zendesk dispatch is parked for both
-enquiry kinds), same `QuestionFlowOutcomeKeyAlignmentTests` exclusion from rules-engine routing.
+/ `Status.SubmittedUnCommitted` shape, same **no enqueue** (Zendesk dispatch is parked for every
+enquiry kind), same `QuestionFlowOutcomeKeyAlignmentTests` exclusion from rules-engine routing.
 `MissingQualificationSummary` supplies its own check-answers row set (AO and QAN change through the
 qualification-search page; syllabus code, award date, grade and NCN each change through the details
 page).
+
+## Result does not belong to student (AB#298704)
+
+The third 16-19 results-enquiry journey: a result held against a student's record does not belong to
+them. No cohort question and no late-results interstitial — entry goes straight to the student search.
+
+| Page id | Type | What it asks |
+|---|---|---|
+| `select-student` | `PupilSearch` | The student the result does not belong to. `requireResults: true` — a stray result is HELD against the student's record, so a student with no results cannot be this journey's subject. |
+| `select-result` | `ResultSearch` | Which result does not belong to the student. Carries an inset (`JourneyPage.Content`, rendered by `ResultSearch.cshtml`) telling the user how to report further stray results via the QAN + grade line in additional information. |
+| `additional-info` | `Question` / TextArea | Optional comments, **1,000 characters** — deliberately above the other two journeys' 250, to fit a QAN + grade line per further stray result. |
+
+Flow config: `src/DfE.CheckPerformanceData.Web/Data/QuestionFlows/ResultDoesNotBelong_Post16.json`.
+`ResultDoesNotBelongFlowTests` pins the page/question ids and the inset copy.
+
+### Summary and completeness gap
+
+Reuses `ResultsEnquirySummary`: `EnquiryTypeLabel = "Result does not belong to student"`,
+`IsCohortWide = false` always, and `ShowRevisedGrade = false` — the row and its Change link are
+omitted entirely rather than rendered empty, since this journey has no grade step.
+`JourneyController.ResultDoesNotBelongGap` is the completeness check: the selected result is the only
+hard prerequisite (additional info is optional), found via `PageType.ResultSearch` the same way
+`IncorrectGradeGap` does, so a flow-config id rename cannot orphan it.
+
+### Submission
+
+Shares `SubmitResultsEnquiryAsync` with the other two kinds. A row persists with
+`AmendmentType = WhatToChange.ResultDoesNotBelong`,
+`RequestTypeDescription = "Results enquiry - Result does not belong to student"`, same
+`RequestType.ResultsEnquiry` / `Status.SubmittedUnCommitted` shape, same **no enqueue**, same
+`QuestionFlowOutcomeKeyAlignmentTests` exclusion from rules-engine routing. The guard that used to list
+the two live enquiry members by name (`is IncorrectGrade or MissingQualification`) is now
+`WhatToChangeCheckingExerciseMap.IsResultsEnquiry(WhatToChange?)` — the AB#298229 "guard names one enum
+member" defect class — so this third kind, and any future one, is right by construction the moment it
+is added to the map.
+
+### FLAGGED copy (pending content sign-off)
+
+- The student-search subheading reuses the sibling enquiry pages' richer copy ("Start typing to search
+  by name, ULN, CYPMD ID or date of birth...") rather than Figma f04's bare "Start typing to see a list
+  of names".
+- Validation-failure messages (`Enter the name of the student the result does not belong to`, `Enter
+  which result does not belong to {pupilName}`) are not in the captured Figma frames; they follow the
+  GDS "Enter…" pattern.
+- The summary's student row keeps the existing "Name of student" label; Figma f07 says "Student name".
+  One label serves all three enquiry kinds until content decides otherwise.
+- `ResultSearch.cshtml`'s empty-state copy ("We hold no results for this student, so there is no grade
+  to correct") is still worded for incorrect grade — a stray result has no "grade to correct" either,
+  but the empty state is shared and untouched by this ticket.
 
 ## Confirmation email
 
@@ -349,10 +401,34 @@ page).
 `email address`. It carries **no deadline** (an enquiry is not something the school must come back and
 finish) and goes to the **submitter only** (nothing is being asked of the rest of the school).
 
-**The template does not exist yet.** `Notify:ResultsEnquirySubmittedTemplateId` is empty in every
-environment config. `NotifyService` now logs a warning and sends nothing when a template id is blank,
-rather than throwing out of its template-id switch — so the journey completes without it, but **no
-enquiry email is sent until the template is created and the id configured.**
+**The template (AB#298309 — ops runbook).** Created in the GOV.UK Notify admin UI on
+2026-09-01 as "Email confirmation", id `b93eb2fd-9fd4-4651-91eb-2735df5ba475` (set in
+every terraform/application/config/*.yml). If it ever needs re-creating, this is the
+content (the copy is from ticket AB#298309; declare only
+`((ref number))`. The code also sends an `email address` personalisation key by house convention —
+the recipient itself travels separately — which Notify simply ignores unless declared, so the
+template may declare `((email address))` but has no reason to. Declaring **any other** placeholder
+makes every send fail with "Missing personalisation": Notify ignores extra keys but rejects a send
+whose template wants a key the service does not supply, and `ref number` + `email address` are the
+only keys sent for this type — pinned by `The_personalisation_is_exactly_what_the_template_declares`):
+
+> **Subject:** `Your enquiry - ((ref number))`
+>
+> **Body:**
+>
+> Thank you for submitting an enquiry to the Department for Education.
+>
+> Reference number: ((ref number))
+>
+> We will investigate your enquiry and respond where appropriate.
+
+The template's id is set as `Notify__ResultsEnquirySubmittedTemplateId` in each
+`terraform/application/config/*.yml` (one template serves every environment, matching the existing
+six template ids). Until an environment has a value,
+`NotifyService` logs one warning per submission and sends nothing; the enquiry journey is unaffected.
+The same email is sent for **every** enquiry type — incorrect grade, missing qualification and result
+does not belong to student all share `ConfirmResultsEnquiryAsync`, and the wording is type-agnostic by
+design (AB#298309 AC4).
 
 ## Analytics
 
@@ -413,16 +489,14 @@ states, dataset reparenting, per-exercise ingress, draft-across-boundary rules.
 
 The "Review exam results" / Results / Late-results tab pages and CSV/ZIP downloads (entry-point
 ticket); the six-file ingestion pipeline itself (FACT tickets — the portal side of it, the admin upload and
-ingress run that fill these blobs, is #324);
-result-does-not-belong-to-student flow (sibling ticket, still no journey); drafts (decided
-against); duplicate-enquiry blocking (the spec allows multiples).
+ingress run that fill these blobs, is #324); drafts (decided against); duplicate-enquiry blocking (the
+spec allows multiples).
 
 ## Still open
 
 | Item | Owner |
 |---|---|
 | Full AODC export (`Dynamic form QAN list 2026 v1.xlsx`, SharePoint) → replace the seeded `grade-reference.json` | AODC team |
-| GOV.UK Notify template + `Notify:ResultsEnquirySubmittedTemplateId` — **no email sends without it** | Ops / content |
 | Copy sign-off: the must-differ message; "We cannot list grades for this qualification yet"; the issue page's expander body (never captured in Figma); the result label's appended session | Content designer |
 | Whether to keep or delete `/results/suggestions` | Dev team |
 | Breadcrumb: the designs show `Check your student data - 16 to 19 and result enquiry`, but no journey view in the service renders a breadcrumb. Worth doing across the whole 16-19 journey at once rather than on one page | Design / dev |

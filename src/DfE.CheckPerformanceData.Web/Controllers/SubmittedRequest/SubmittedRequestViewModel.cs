@@ -1,6 +1,7 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Extensions;
+using LearnerNoun = DfE.CheckPerformanceData.Application.WindowManagement.LearnerNoun;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.SubmittedRequest;
 
@@ -11,6 +12,9 @@ public sealed class SubmittedRequestViewModel
     public required RequestStatus Status { get; init; }
     public bool ConfirmingDelete { get; init; }
     public required string PupilName { get; init; }
+
+    /// <summary>The window's word for a learner, carried through from the persisted request.</summary>
+    public required LearnerNoun LearnerNoun { get; init; }
     public string? FirstRecordDisplay { get; init; }
     public string? SecondRecordDisplay { get; init; }
     public required IReadOnlyList<SubmittedRequestRow> Rows { get; init; }
@@ -20,13 +24,14 @@ public sealed class SubmittedRequestViewModel
     public DateTime? SubmittedAt { get; init; }
     public string? WithdrawnByEmail { get; init; }
     public string WithdrawnAtText { get; init; } = string.Empty;
+    public bool AllEst { get; set; }
 
     public string WhatToChangeLabel => WhatToChange switch
     {
-        WhatToChange.Remove => "Remove a pupil from data",
-        WhatToChange.Include => "Include a pupil in data",
-        WhatToChange.Merge => "Merge duplicate pupil records",
-        WhatToChange.Add => "Add a pupil to data",
+        WhatToChange.Remove => $"Remove a {LearnerNoun.Singular} from data",
+        WhatToChange.Include => $"Include a {LearnerNoun.Singular} in data",
+        WhatToChange.Merge => $"Merge duplicate {LearnerNoun.Singular} records",
+        WhatToChange.Add => $"Add a {LearnerNoun.Singular} to data",
         _ => WhatToChange.ToString()
     };
 

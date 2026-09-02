@@ -16,8 +16,18 @@ public sealed class LandingPageResult
     public required string OrganisationUrn { get; set; }
     public required List<OrganisationKeyStageDto> KeyStages { get; set; }
     public required List<CheckingWindowDto> OpenWindows { get; set; }
-    public string? NotValidWindowsText { get; set; }
-    public string? NoDataWindowsText { get; set; }
+    /// <summary>
+    /// Open windows whose key stage this school does not take part in. A list rather than one
+    /// joined sentence: the page prints a banner per window, so each can name its own window.
+    /// </summary>
+    public List<CheckingWindowDto> NotValidWindows { get; set; } = [];
+
+    /// <summary>
+    /// Open windows this school takes part in but holds no data for. A list rather than one joined
+    /// sentence because the banner names a learner, and two windows here can disagree about the
+    /// word — a 16-19 window says "student" where a KS4 one says "pupil".
+    /// </summary>
+    public List<CheckingWindowDto> NoDataWindows { get; set; } = [];
     public string OrganisationAddress { get; set; } = string.Empty;
 }
 

@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Application.AmendmentRequests;
@@ -5,6 +6,12 @@ namespace DfE.CheckPerformanceData.Application.AmendmentRequests;
 public sealed class AmendmentRequestsResult
 {
     public required string WindowTitle { get; init; }
+
+    /// <summary>
+    /// The window's word for a learner — "student" on 16-19. The grid holds both populations of a
+    /// single window, so one noun is right for the whole page.
+    /// </summary>
+    public required LearnerNoun LearnerNoun { get; init; }
 
     /// <summary>
     /// One deadline per checking exercise the window runs, in sort order (#320). The page used to

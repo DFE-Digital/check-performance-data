@@ -2,7 +2,8 @@ namespace DfE.CheckPerformanceData.Application.Admin;
 
 // Populates the initial role-section-access grid on an empty database:
 //   * Admin (cypmd_admin)  →  every well-known section
-//   * Editor (cypmd_content_access_user)  →  content-pages + seed-sample-pages only
+//   * Editor (cypmd_content_access_user)  →  the CMS-authoring set: content-pages,
+//     content-blocks, content-staging, deleted-pages, seed-sample-pages (see below)
 // Additional grants added through the settings UI are preserved; the seeder never overwrites
 // existing rows.
 public sealed class DefaultAdminAccessSeeder(IAdminSectionAccessRepository repository)

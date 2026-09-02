@@ -60,7 +60,8 @@ public sealed class EditAdviceService(
 
         var ctx = JourneyConditionContextFactory.Create(journey, currentUserService);
         var conditionallyOptional = optionalityService.GetConditionallyOptionalQuestionIds(evidencePage, ctx);
-        var result = validationService.ValidateEvidencePage(evidencePage, journey, PupilName(journey), conditionallyOptional);
+        var result = validationService.ValidateEvidencePage(evidencePage, journey, PupilName(journey), conditionallyOptional,
+            optionalityService.IsRequireAtLeastOneActive(evidencePage, ctx));
         return result?.Messages ?? [];
     }
 

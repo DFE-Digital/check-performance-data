@@ -5,8 +5,10 @@
       "commandVersion": "1.0",
       "composeProfile": {
         "includes": [
-          "all",
-          "e2e"
+          "rules_engine",
+          "web",
+          "database",
+          "storage"
         ],
         "launchBrowser": true,
         "launchUrl": "http://localhost:8080",

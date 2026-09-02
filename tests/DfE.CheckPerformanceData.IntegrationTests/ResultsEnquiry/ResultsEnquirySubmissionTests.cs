@@ -337,6 +337,69 @@ public sealed class ResultsEnquirySubmissionTests(PostgresFixture fixture)
         Assert.True(row.Submitted >= before, $"Submitted {row.Submitted} should be at or after {before}.");
     }
 
+    // ── AB#298704: the result-does-not-belong sibling enquiry ────────────────
+
+    private static RequestState ResultDoesNotBelongJourney(Guid windowId, string reference) => new()
+    {
+        SelectedWhatToChange = WhatToChange.ResultDoesNotBelong,
+        CheckingWindow = new CheckingWindowDto
+        {
+            Title = "16 to 19 2026", KeyStage = KeyStages.Post16,
+            CheckingWindowType = CheckingWindowType.Post16,
+            StartDate = new DateTime(2026, 10, 1), EndDate = new DateTime(2027, 3, 31)
+        },
+        ReferenceNumber = reference,
+        SelectedPupilId = PupilId.ToString(),
+        SelectedPupil = new PupilDto
+        {
+            Id = PupilId, Firstname = "Billy", Surname = "B", Sex = "M",
+            DateOfBirth = "12/03/2007", Age = 19, Cypmd_Id = "1596410810", Identifier = "9900000001"
+        },
+        SelectedResult = new StudentResultRecord
+        {
+            CypmdId = "1596410810", Qan = "60180882",
+            QualificationName = "GCSE (9-1) Art&Des : Fine Art", SyllabusCode = "1AD0",
+            Session = "S2024", Grade = "9", SourceFile = ResultsFileTags.Post16Main
+        },
+        QuestionAnswers = new Dictionary<string, QuestionAnswer>
+        {
+            ["q-additional-info"] = new() { TextValue = "QAN 60322222 grade B also does not belong" }
+        },
+        QuestionHistory = ["select-student", "select-result", "additional-info"]
+    };
+
+    [Fact]
+    public async Task A_result_does_not_belong_enquiry_is_persisted_as_a_results_enquiry_row_with_no_enqueue()
+    {
+        await TruncateAsync();
+        var windowId = await SeedPost16WindowAsync();
+        var (service, _, queue) = BuildService();
+
+        var reference = await service.SubmitResultsEnquiryAsync(
+            windowId, ResultDoesNotBelongJourney(windowId, "CYPMD_16to19_RE_RDB0001"));
+
+        Assert.Equal("CYPMD_16to19_RE_RDB0001", reference);
+        await using var ctx = _fixture.CreateContext();
+        var row = await ctx.ChangeRequests.SingleAsync(r => r.ReferenceNumber == reference);
+        Assert.Equal(RequestType.ResultsEnquiry, row.RequestType);
+        Assert.Equal(WhatToChange.ResultDoesNotBelong, row.AmendmentType);
+        Assert.Equal(RequestStatus.SubmittedUnCommitted, row.Status);
+        Assert.Equal("Results enquiry - Result does not belong to student", row.RequestTypeDescription);
+
+        await using var conn = new NpgsqlConnection(_fixture.ConnectionString);
+        await conn.OpenAsync();
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText =
+            @"SELECT ""RequestType"", ""AmendmentType"" FROM ""ChangeRequests""
+              WHERE ""ReferenceNumber"" = 'CYPMD_16to19_RE_RDB0001';";
+        await using var reader = await cmd.ExecuteReaderAsync();
+        Assert.True(await reader.ReadAsync());
+        Assert.Equal("ResultsEnquiry", reader.GetString(0));
+        Assert.Equal("ResultDoesNotBelong", reader.GetString(1));
+
+        await queue.DidNotReceiveWithAnyArgs().EnqueueAsync<object>(default!, default!);
+    }
+
     private async Task TruncateAsync()
     {
         await using var conn = new NpgsqlConnection(_fixture.ConnectionString);

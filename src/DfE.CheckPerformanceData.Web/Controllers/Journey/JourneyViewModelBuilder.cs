@@ -63,6 +63,7 @@ public sealed class JourneyViewModelBuilder(
             WindowId = windowId,
             WhatToChange = journey.SelectedWhatToChange!.Value,
             PupilName = pupilName,
+            LearnerNoun = journey.LearnerNoun,
             Rows = rows,
             FileRows = fileRows,
             BackPageId = backPageId,
@@ -83,12 +84,15 @@ public sealed class JourneyViewModelBuilder(
     }
 
     /// <summary>
-    /// The enquiry-shaped summary, or null for an amendment journey. AB#296648.
+    /// The enquiry-shaped summary, or null for an amendment journey. Serves both result-holding
+    /// enquiry kinds (incorrect grade, AB#296648; result does not belong to student, AB#298704).
     /// </summary>
     private ResultsEnquirySummary? BuildEnquirySummary(
         RequestState journey, QuestionFlowConfig config, string pupilName)
     {
-        if (journey.SelectedWhatToChange != Application.CheckYourPupilData.WhatToChange.IncorrectGrade)
+        var kind = journey.SelectedWhatToChange;
+        if (kind is not (Application.CheckYourPupilData.WhatToChange.IncorrectGrade
+            or Application.CheckYourPupilData.WhatToChange.ResultDoesNotBelong))
             return null;
 
         string? Answer(string questionId) =>
@@ -103,11 +107,15 @@ public sealed class JourneyViewModelBuilder(
         {
             DfeNumber = currentUserService.OrganisationLaestab,
             KeyStageLabel = KeyStageLabelFor(journey.CheckingWindow?.CheckingWindowType),
-            EnquiryTypeLabel = "Incorrect grade",
+            EnquiryTypeLabel = kind == Application.CheckYourPupilData.WhatToChange.IncorrectGrade
+                ? "Incorrect grade"
+                : "Result does not belong to student",
             StudentName = pupilName,
-            IsCohortWide = string.Equals(Answer(CohortScopeQuestionId), "yes", StringComparison.OrdinalIgnoreCase),
+            IsCohortWide = kind == Application.CheckYourPupilData.WhatToChange.IncorrectGrade
+                && string.Equals(Answer(CohortScopeQuestionId), "yes", StringComparison.OrdinalIgnoreCase),
             CohortCount = Answer(CohortCountQuestionId),
             Result = journey.SelectedResult,
+            ShowRevisedGrade = kind == Application.CheckYourPupilData.WhatToChange.IncorrectGrade,
             RevisedGrade = Answer(JourneyController.RevisedGradeQuestionId),
             RevisedGradePageId = PageAsking(JourneyController.RevisedGradeQuestionId),
             AdditionalInformation = Answer(AdditionalInfoQuestionId),
@@ -233,7 +241,8 @@ public sealed class JourneyViewModelBuilder(
                 ResolvedTitle = JourneyTemplate.Resolve(q.Title, pupilName) + (q.Optional ? " (Optional)" : ""),
                 VisibleOptions = q.Type switch
                 {
-                    QuestionType.Radio => optionVisibilityService.GetVisibleOptions(q, conditionContext),
+                    QuestionType.Radio or QuestionType.Checkbox =>
+                        optionVisibilityService.GetVisibleOptions(q, conditionContext),
                     // AB#297130: grades come from the AODC reference data for the selected result's
                     // QAN, not from the flow config — the config cannot know which qualification the
                     // user picked. Pass grades before fail grades, source order preserved within each.
@@ -292,6 +301,7 @@ public sealed class JourneyViewModelBuilder(
         return new PupilSearchViewModel
         {
             WindowId = windowId,
+            LearnerNoun = journey.LearnerNoun,
             PageId = pageId,
             Title = title,
             Filter = page.PupilFilter ?? PupilFilter.Included,
@@ -318,7 +328,9 @@ public sealed class JourneyViewModelBuilder(
             WindowId = windowId,
             PageId = pageId,
             Title = page.Title is not null ? JourneyTemplate.Resolve(page.Title, pupilName) : string.Empty,
+            PageTitle = page.PageTitle,
             Hint = page.Subheading,
+            Content = page.Content,
             SelectedResultKey = journey.SelectedResult?.CompositeKey,
             SelectedResult = journey.SelectedResult,
             AvailableResults = availableResults,

@@ -16,6 +16,7 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.0" />
     <PackageReference Include="Microsoft.Playwright" Version="1.59.0" />
     <PackageReference Include="Microsoft.Playwright.Xunit" Version="1.59.0" />
+    <PackageReference Include="Npgsql" Version="10.0.3" />
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
     <PackageReference Include="xRetry" Version="1.9.0" />
     <PackageReference Include="xunit" Version="2.9.3" />
@@ -28,6 +29,10 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="Snapshots\search-ux\messages\admin-messages-group-landing.png" />
   </ItemGroup>
 
 </Project>

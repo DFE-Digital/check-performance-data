@@ -1,6 +1,7 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.SubmittedRequest;
+using LearnerNoun = DfE.CheckPerformanceData.Application.WindowManagement.LearnerNoun;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.AmendmentRequests;
 
@@ -27,6 +28,7 @@ public sealed class SubmittedRequestViewModelTests
 
     private static SubmittedRequestViewModel MakeVm(WhatToChange whatToChange) => new()
     {
+        LearnerNoun = LearnerNoun.Pupil,
         WindowId = Guid.NewGuid(),
         WhatToChange = whatToChange,
         Status = RequestStatus.SubmittedUnCommitted,

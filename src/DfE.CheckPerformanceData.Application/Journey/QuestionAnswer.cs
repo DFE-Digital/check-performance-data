@@ -11,6 +11,13 @@ public sealed class QuestionAnswer
     /// </summary>
     public string? CodeValue { get; set; }
 
+    /// <summary>
+    /// For <c>Checkbox</c> questions: the ticked options' values. Null or empty means
+    /// nothing was ticked. <see cref="TextValue"/> stays null for a checkbox list, so no
+    /// display site can mistake a single stray value for a selection.
+    /// </summary>
+    public List<string>? SelectedValues { get; set; }
+
     public DateAnswer? DateValue { get; set; }
     public List<FileAnswer>? FileValues { get; set; }
 }

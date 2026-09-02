@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Journey;
+using DfE.CheckPerformanceData.Application.WindowManagement;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.Journey;
 
@@ -8,6 +9,13 @@ public sealed class SummaryViewModel
     public Guid WindowId { get; init; }
     public required WhatToChange WhatToChange { get; init; }
     public required string PupilName { get; init; }
+
+    /// <summary>
+    /// The window's word for a learner, from <c>RequestState.LearnerNoun</c> — "student" on 16-19.
+    /// Required rather than defaulted: a summary that quietly says "pupil" on a 16-19 request is
+    /// the failure this exists to prevent.
+    /// </summary>
+    public required LearnerNoun LearnerNoun { get; init; }
     public required List<SummaryRow> Rows { get; init; }
     public required List<SummaryFileRow> FileRows { get; init; }
     public required string BackPageId { get; init; }
@@ -40,16 +48,28 @@ public sealed class SummaryViewModel
     /// </summary>
     public MissingQualificationSummary? MissingQualification { get; init; }
 
-    public bool IsResultsEnquiry => Enquiry is not null || MissingQualification is not null;
+    /// <summary>
+    /// True when this journey is a 16-19 results enquiry rather than a pupil-data amendment — the
+    /// switch for the enquiry heading, the no-drafts rule and the cancel link. Resolved through the
+    /// checking-exercise map rather than the presence of <see cref="Enquiry"/> /
+    /// <see cref="MissingQualification"/>: each shape's builder guards on one named enum member, so
+    /// shape-presence would silently render a future third enquiry journey as an amendment (the
+    /// AB#297848 Back-link bug class). Mirrors <see cref="PageViewModel.IsResultsEnquiry"/>.
+    /// </summary>
+    public bool IsResultsEnquiry =>
+        Application.WindowManagement.WhatToChangeCheckingExerciseMap.CheckingExerciseFor(WhatToChange)
+            == Domain.Enums.CheckingExerciseType.ResultsEnquiry;
 
     public int TotalPagesUsed => FileRows.Sum(r => r.PageCount);
 
+    // Kept word-for-word in step with the radios on What to change: this row echoes the answer the
+    // school gave there.
     public string WhatToChangeLabel => WhatToChange switch
     {
-        WhatToChange.Remove => "Remove a pupil from data",
-        WhatToChange.Include => "Include a pupil in data",
-        WhatToChange.Merge => "Merge duplicate pupil records",
-        WhatToChange.Add => "Add a pupil to data",
+        WhatToChange.Remove => $"Remove a {LearnerNoun.Singular} from data",
+        WhatToChange.Include => $"Include a {LearnerNoun.Singular} in data",
+        WhatToChange.Merge => $"Merge duplicate {LearnerNoun.Singular} records",
+        WhatToChange.Add => $"Add a {LearnerNoun.Singular} to data",
         _ => WhatToChange.ToString()
     };
 
@@ -79,7 +99,7 @@ public sealed class SummaryViewModel
 
             var lines = new List<SummaryLine>
             {
-                new("What pupil data would you like to change?", WhatToChangeLabel, null, false, null)
+                new($"What {LearnerNoun.Singular} data would you like to change?", WhatToChangeLabel, null, false, null)
             };
 
             if (SecondRecordDisplay is not null)
@@ -93,7 +113,8 @@ public sealed class SummaryViewModel
                 // to go. The Add journey (AB#297310) has none — the pupil is typed in — and its
                 // first and last name rows below already carry their own Change links, so an
                 // actionless duplicate of them adds nothing.
-                lines.Add(new("Pupil name", PupilName, PrimaryPupilPageId, false, "pupil name"));
+                lines.Add(new($"{LearnerNoun.SingularCapitalised} name", PupilName, PrimaryPupilPageId,
+                    false, $"{LearnerNoun.Singular} name"));
             }
 
             foreach (var row in Rows)
@@ -127,6 +148,7 @@ public sealed class SummaryRow(JourneyPage page, Question question, QuestionAnsw
         QuestionType.Date when Answer?.DateValue is { } d => d.ToDisplayString(),
         QuestionType.Radio when Answer?.TextValue is { } v =>
             Question.Options?.FirstOrDefault(o => o.Value == v)?.Label ?? v,
+        QuestionType.Checkbox => CheckboxAnswerDisplay.Join(Question, Answer),
         _ => Answer?.TextValue ?? string.Empty
     };
 }

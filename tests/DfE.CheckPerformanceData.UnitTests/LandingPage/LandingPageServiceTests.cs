@@ -77,7 +77,7 @@ public class LandingPageServiceTests
     }
 
     [Fact]
-    public async Task WhenWindowHasNoPupilData_ExcludedFromOpenWindows_AddedToNoDataWindowsText()
+    public async Task WhenWindowHasNoPupilData_ExcludedFromOpenWindows_AddedToNoDataWindows()
     {
         var org = MakeOrganisation(lowAge: 3, highAge: 16);
         _dfESignInApiClient.GetOrganisationAsync("user-1", "org-1").Returns(org);
@@ -90,12 +90,12 @@ public class LandingPageServiceTests
 
         Assert.NotNull(result);
         Assert.Empty(result.OpenWindows);
-        Assert.Equal("KS2 2026", result.NoDataWindowsText);
-        Assert.Null(result.NotValidWindowsText);
+        Assert.Equal("KS2 2026", Assert.Single(result.NoDataWindows).Title);
+        Assert.Empty(result.NotValidWindows);
     }
 
     [Fact]
-    public async Task WhenWindowKeyStageDoesNotMatchOrganisation_ExcludedFromOpenWindows_AddedToNotValidWindowsText()
+    public async Task WhenWindowKeyStageDoesNotMatchOrganisation_ExcludedFromOpenWindows_AddedToNotValidWindows()
     {
         var org = MakeOrganisation(lowAge: 3, highAge: 12); // KS2 only
         _dfESignInApiClient.GetOrganisationAsync("user-1", "org-1").Returns(org);
@@ -108,12 +108,12 @@ public class LandingPageServiceTests
 
         Assert.NotNull(result);
         Assert.Empty(result.OpenWindows);
-        Assert.Equal("KS4 2026", result.NotValidWindowsText);
-        Assert.Null(result.NoDataWindowsText);
+        Assert.Equal("KS4 2026", Assert.Single(result.NotValidWindows).Title);
+        Assert.Empty(result.NoDataWindows);
     }
 
     [Fact]
-    public async Task WhenWindowHasNoDataAndWrongKeyStage_OnlyAppearsInNotValidWindowsText()
+    public async Task WhenWindowHasNoDataAndWrongKeyStage_OnlyAppearsInNotValidWindows()
     {
         var org = MakeOrganisation(lowAge: 3, highAge: 12); // KS2 only
         _dfESignInApiClient.GetOrganisationAsync("user-1", "org-1").Returns(org);
@@ -126,12 +126,12 @@ public class LandingPageServiceTests
 
         Assert.NotNull(result);
         Assert.Empty(result.OpenWindows);
-        Assert.Equal("KS4 2026", result.NotValidWindowsText);
-        Assert.Null(result.NoDataWindowsText);
+        Assert.Equal("KS4 2026", Assert.Single(result.NotValidWindows).Title);
+        Assert.Empty(result.NoDataWindows);
     }
 
     [Fact]
-    public async Task WhenNoExcludedWindows_NoDataWindowsTextAndNotValidWindowsTextAreNull()
+    public async Task WhenNoExcludedWindows_NoDataWindowsAndNotValidWindowsAreEmpty()
     {
         var org = MakeOrganisation(lowAge: 3, highAge: 16);
         _dfESignInApiClient.GetOrganisationAsync("user-1", "org-1").Returns(org);
@@ -143,8 +143,8 @@ public class LandingPageServiceTests
         var result = await _sut.GetLandingPageDataAsync(CancellationToken.None);
 
         Assert.NotNull(result);
-        Assert.Null(result.NoDataWindowsText);
-        Assert.Null(result.NotValidWindowsText);
+        Assert.Empty(result.NoDataWindows);
+        Assert.Empty(result.NotValidWindows);
     }
 
     [Fact]
@@ -183,15 +183,41 @@ public class LandingPageServiceTests
         StatutoryHighAge = highAge
     };
 
+    [Fact]
+    public async Task NoDataWindowsAreKeptSeparate_SoEachBannerCanNameItsOwnWindow()
+    {
+        // A school with a KS4 and a 16-19 window has no single word for a learner, which is why
+        // these are a list rather than one joined sentence: the page prints a banner per window.
+        var org = MakeOrganisation(lowAge: 11, highAge: 19);
+        _dfESignInApiClient.GetOrganisationAsync("user-1", "org-1").Returns(org);
+
+        var ks4 = MakeWindow(title: "KS4 June 2026", keyStage: KeyStages.KS4, hasPupilData: false,
+            windowType: CheckingWindowType.KS4June);
+        var post16 = MakeWindow(title: "16 to 19 2026", keyStage: KeyStages.Post16, hasPupilData: false,
+            windowType: CheckingWindowType.Post16);
+        _repository.GetOpenWindowsAsync(Now.DateTime, org.Laestab, Arg.Any<CancellationToken>())
+            .Returns([ks4, post16]);
+
+        var result = await _sut.GetLandingPageDataAsync(CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Equal(2, result.NoDataWindows.Count);
+        Assert.Equal(["KS4 June 2026", "16 to 19 2026"], result.NoDataWindows.Select(w => w.Title));
+        // The window type reaches the page, which is what lets each banner pick its own noun.
+        Assert.Equal([CheckingWindowType.KS4June, CheckingWindowType.Post16],
+            result.NoDataWindows.Select(w => w.CheckingWindowType));
+    }
+
     private static CheckingWindowDto MakeWindow(
         string title = "Test Window",
         KeyStages keyStage = KeyStages.KS2,
-        bool hasPupilData = true) => new()
+        bool hasPupilData = true,
+        CheckingWindowType windowType = CheckingWindowType.KS2) => new()
     {
         Id = Guid.NewGuid(),
         Title = title,
         KeyStage = keyStage,
-        CheckingWindowType = CheckingWindowType.KS2,
+        CheckingWindowType = windowType,
         HasPupilData = hasPupilData,
         StartDate = DateTime.UtcNow.AddDays(-1),
         EndDate = DateTime.UtcNow.AddDays(30)

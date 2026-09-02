@@ -1,9 +1,11 @@
 using System.Text;
 using System.Text.Json;
+using DfE.CheckPerformance.Persistence.Entities;
 using DfE.CheckPerformanceData.Application.ContentStaging;
 using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.PageTree;
+using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
@@ -23,8 +25,17 @@ public sealed class ContentStagingController(
     ILogger<ContentStagingController> logger,
     IConfiguration configuration,
     IHostEnvironment hostEnvironment,
-    ISettingService settingService) : Controller
+    ISettingService settingService,
+    IContentStagingSessionStore sessions,
+    IPortalDbContext? dbContext = null,
+    IContentStagingLock? importLock = null) : Controller
 {
+    // Nullable + defaulted so the pre-existing unit tests (which construct the controller
+    // with the required deps) keep compiling. Real DI wires the actual context in and the
+    // audit-write path activates.
+    private readonly IPortalDbContext? _dbContext = dbContext;
+    private readonly IContentStagingLock? _importLock = importLock;
+
     // Clear-all wipes every page and content block in the environment: fine on a development or
     // throwaway environment, and it has no business being reachable on one holding content anyone
     // depends on.
@@ -61,13 +72,20 @@ public sealed class ContentStagingController(
         return View();
     }
 
-    // Whole-environment export (the "export everything" convenience button).
+    // Whole-environment export (the "export everything" convenience button). Null id sets ask
+    // for everything; only the history preference is carried.
     [HttpGet("export")]
-    public async Task<IActionResult> Export()
+    public async Task<IActionResult> Export(bool fullHistory = false)
     {
-        var bundle = await staging.ExportAsync();
+        var bundle = await staging.ExportAsync(
+            new ContentExportSelection(MaxVersionsPerNode: MaxVersionsFor(fullHistory)));
         return ExportFile(bundle);
     }
+
+    // "Include full version history" on either export form. Off means the default per-page cap;
+    // on lifts it entirely, which is what a cross-environment migration needs.
+    private static int? MaxVersionsFor(bool fullHistory) =>
+        fullHistory ? null : ContentExportSelection.DefaultMaxVersionsPerNode;
 
     // The selection page: choose which pages and blocks to export.
     [HttpGet("select")]
@@ -80,13 +98,15 @@ public sealed class ContentStagingController(
     // Export only the ticked pages/blocks (ancestors of selected pages are added by the service).
     [HttpPost("export")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> ExportSelected(List<Guid>? pageNodeIds, List<Guid>? contentBlockIds)
+    public async Task<IActionResult> ExportSelected(
+        List<Guid>? pageNodeIds, List<Guid>? contentBlockIds, bool fullHistory = false)
     {
         var selection = new ContentExportSelection(
             pageNodeIds?.ToHashSet() ?? [],
-            contentBlockIds?.ToHashSet() ?? []);
+            contentBlockIds?.ToHashSet() ?? [],
+            MaxVersionsFor(fullHistory));
 
-        if (selection.PageNodeIds.Count == 0 && selection.ContentBlockIds.Count == 0)
+        if (selection.PageNodeIds!.Count == 0 && selection.ContentBlockIds!.Count == 0)
         {
             TempData["ContentStagingError"] = "Select at least one page or content block to export.";
             return Redirect("/admin/content-staging/select");
@@ -108,28 +128,39 @@ public sealed class ContentStagingController(
             ContentBlocks = bundle.ContentBlocks
         };
 
-        var bytes = Encoding.UTF8.GetBytes(ContentStagingJson.Serialize(stamped));
-        var fileName = $"cpd-content-{DateTime.UtcNow:yyyyMMdd-HHmmss}.json";
-        return File(bytes, "application/json", fileName);
+        // Zipped on the wire: bundles are repetitive JSON, so this is roughly an order of
+        // magnitude off the download and the subsequent re-upload into the target environment.
+        // Import sniffs the content, so a bundle exported before this still imports and a
+        // hand-unzipped one does too.
+        var bytes = ContentBundleArchive.ToZip(ContentStagingJson.Serialize(stamped));
+        var fileName = $"cpd-content-{DateTime.UtcNow:yyyyMMdd-HHmmss}.zip";
+        return File(bytes, "application/zip", fileName);
     }
 
     // Content-staging bundles from a real environment are commonly 5–20 MB (they carry
-    // full version history and base64-embedded images). Raise the two ASP.NET default
-    // request-size limits that would otherwise reject a legitimate export with an empty-
-    // body 400 before the controller sees it:
-    //  * Kestrel MaxRequestBodySize default ~28.6 MB — bumped to 64 MB for the file upload.
-    //  * FormOptions ValueLengthLimit default ~4 MB per form value — bumped to 64 MB so the
-    //    round-tripped BundleJson hidden field between Preview and Import gets through.
-    // Attribute-scoped so the raised limits apply ONLY to these two endpoints, not the
-    // whole app.
+    // full version history and base64-embedded images), against a Kestrel MaxRequestBodySize
+    // default of ~28.6 MB. Raised to 64 MB so a legitimate export is not rejected with an
+    // empty-body 400 before the controller sees it, and attribute-scoped so the raised limit
+    // applies only to the upload endpoint rather than the whole app.
+    //
+    // Only Preview needs it. Confirm posts a session id, so the FormOptions ValueLengthLimit
+    // that used to gate the round-tripped bundle no longer has anything large to carry.
     private const int LargeBundleLimitBytes = 64 * 1024 * 1024;
 
     // Step 1 of import: read the uploaded file, analyse it against the current environment, and
     // show the preview so the administrator can see new vs colliding content and decide per item.
+    // Cap the uploaded bundle at 50 MB. A typical whole-environment export tops out well
+    // under 10 MB; anything larger is either a bug (accidentally exported a bunch of
+    // base64-embedded images) or a DoS attempt via a maliciously-crafted JSON file. The cap
+    // is applied against IFormFile.Length before we ever open the stream, so a hostile
+    // upload can't force the JSON parser to allocate.
+    private const long MaxBundleBytes = 50 * 1024 * 1024;
+
     [HttpPost("preview")]
     [ValidateAntiForgeryToken]
     [RequestSizeLimit(LargeBundleLimitBytes)]
     [RequestFormLimits(MultipartBodyLengthLimit = LargeBundleLimitBytes)]
+    [Consumes("multipart/form-data")]
     public async Task<IActionResult> Preview(IFormFile? bundle)
     {
         if (bundle is null || bundle.Length == 0)
@@ -138,10 +169,76 @@ public sealed class ContentStagingController(
             return Redirect("/admin/content-staging");
         }
 
-        string json;
-        using (var reader = new StreamReader(bundle.OpenReadStream()))
+        if (bundle.Length > MaxBundleBytes)
         {
-            json = await reader.ReadToEndAsync();
+            TempData["ContentStagingError"] =
+                $"Bundle file is too large ({bundle.Length / (1024 * 1024)} MB). The limit is {MaxBundleBytes / (1024 * 1024)} MB.";
+            return Redirect("/admin/content-staging");
+        }
+
+        // Analysing a bundle costs several times its own size in memory — it is buffered,
+        // inflated, decoded to UTF-16, deserialised into an object graph, and re-serialised for
+        // storage, and each of those is a separate large allocation live at the same time. A
+        // bundle at the ceiling therefore peaks in the hundreds of megabytes against a pod
+        // limited to a few gigabytes, and a well-compressed upload costs the sender almost
+        // nothing. Nothing else bounds it: the advisory lock guards Import, not Preview.
+        //
+        // So let a pod analyse a small fixed number at once and turn the rest away politely
+        // rather than let a handful of concurrent requests take it out of memory.
+        // HttpContext is absent when the controller is exercised directly, so fall back rather
+        // than depend on the ambient request being there.
+        var aborted = HttpContext?.RequestAborted ?? CancellationToken.None;
+        if (!await PreviewSlots.WaitAsync(PreviewQueueTimeout, aborted))
+        {
+            logger.LogWarning("ContentStaging: preview refused — {Slots} concurrent analyses already in progress", MaxConcurrentPreviews);
+            TempData["ContentStagingError"] =
+                "The service is busy analysing another bundle. Wait a few moments and try again.";
+            return Redirect("/admin/content-staging");
+        }
+
+        try
+        {
+            return await PreviewCoreAsync(bundle);
+        }
+        finally
+        {
+            PreviewSlots.Release();
+        }
+    }
+
+    // Deliberately small: this bounds peak memory per pod, and the work is interactive and
+    // infrequent — an operator runs one import at a time. The wait is short so a queued caller
+    // gets a clear "busy, try again" rather than holding a request open.
+    private const int MaxConcurrentPreviews = 2;
+    private static readonly TimeSpan PreviewQueueTimeout = TimeSpan.FromSeconds(10);
+    private static readonly SemaphoreSlim PreviewSlots = new(MaxConcurrentPreviews, MaxConcurrentPreviews);
+
+    private async Task<IActionResult> PreviewCoreAsync(IFormFile bundle)
+    {
+        // Buffer the upload before decoding it. The size cap above already bounds this, and the
+        // bytes have to be in hand either way to tell a zipped bundle from a plain one.
+        using var uploaded = new MemoryStream();
+        await bundle.CopyToAsync(uploaded);
+
+        string json;
+        try
+        {
+            // Sniffs zip vs JSON rather than trusting the extension, decodes as strict UTF-8
+            // (invalid sequences are rejected rather than silently becoming U+FFFD, which would
+            // corrupt content invisibly and could land malformed strings in the DB), and bounds
+            // the decompressed size so a small hostile zip cannot expand to fill memory.
+            json = ContentBundleArchive.ReadBundleJson(uploaded.ToArray(), MaxBundleBytes);
+        }
+        catch (System.Text.DecoderFallbackException)
+        {
+            TempData["ContentStagingError"] =
+                "Bundle file contains invalid UTF-8 bytes. Re-export from a supported environment.";
+            return Redirect("/admin/content-staging");
+        }
+        catch (ContentBundleFormatException ex)
+        {
+            TempData["ContentStagingError"] = ex.Message;
+            return Redirect("/admin/content-staging");
         }
 
         if (!TryParseBundle(json, out var parsed, out var error))
@@ -150,11 +247,29 @@ public sealed class ContentStagingController(
             return Redirect("/admin/content-staging");
         }
 
-        var preview = await staging.PreviewAsync(parsed!);
+        ContentImportPreview preview;
+        try
+        {
+            preview = await staging.PreviewAsync(parsed!);
+        }
+        catch (ContentImportValidationException ex)
+        {
+            TempData["ContentStagingError"] =
+                "Bundle failed validation:\n" + Banner(ex.Issues.Select(i => "• " + i.Message).ToList());
+            return Redirect("/admin/content-staging");
+        }
+        // Sweep before storing. A session table that only ever holds in-flight previews needs no
+        // scheduler to bound it: the one action that adds a row is also the one that can afford
+        // to drop the rows nobody came back for.
+        await sessions.PurgeExpiredAsync();
+
+        var sessionId = await sessions.CreateAsync(
+            ContentStagingJson.Serialize(parsed!), currentUser.Email);
+
         return View(new ImportPreviewViewModel
         {
             Preview = preview,
-            BundleJson = ContentStagingJson.Serialize(parsed!)
+            SessionId = sessionId
         });
     }
 
@@ -191,19 +306,32 @@ public sealed class ContentStagingController(
     }
 
     // Step 2 of import: apply the previewed bundle with the chosen global mode and any per-item
-    // overrides. The bundle round-trips through a hidden field so no server-side state is needed —
-    // that field is BundleJson and can easily exceed the 4 MB default ValueLengthLimit for a real
-    // environment export, so the form-limits attribute below has to raise the ceiling or the
-    // model binder rejects the request with an empty-body 400 before this action runs.
+    // overrides. The body is a session id plus the mode radios, so it stays small no matter how
+    // big the bundle is — the bundle itself never left the server.
+    // The body is small — a session id and the mode radios — but it is neither short nor
+    // self-limiting, and all three ceilings have to agree or a bundle that validated and
+    // previewed cleanly dies on confirm:
+    //
+    //  * Field count. The preview renders a row per item and each row posts two fields, so a
+    //    bundle of a few hundred items runs past FormOptions.ValueCountLimit's default of 1024.
+    //    With the bundle no longer round-tripping, field COUNT is the binding ceiling where
+    //    field SIZE used to be.
+    //  * Collection size. MvcOptions.MaxModelBindingCollectionSize caps the bound Decisions
+    //    list at 1024 by default, and exceeding it throws rather than adding a model error — a
+    //    500, not a 400. Raised to match in CoreWebExtensions.
+    //  * Body size. Kestrel's MaxRequestBodySize is disabled application-wide, so without an
+    //    explicit limit here this endpoint accepts an unbounded body.
     [HttpPost("import")]
     [ValidateAntiForgeryToken]
-    [RequestSizeLimit(LargeBundleLimitBytes)]
-    [RequestFormLimits(ValueLengthLimit = LargeBundleLimitBytes)]
+    [RequestSizeLimit(ContentStagingFormLimits.MaxConfirmBodyBytes)]
+    [RequestFormLimits(ValueCountLimit = ContentStagingFormLimits.MaxFormValues)]
+    [Consumes("application/x-www-form-urlencoded")]
     public async Task<IActionResult> Import(ImportConfirmFormModel model)
     {
         ContentBundle? parsed = null;
         string? error = null;
-        if (string.IsNullOrEmpty(model.BundleJson) || !TryParseBundle(model.BundleJson, out parsed, out error))
+        var bundleJson = await sessions.GetBundleJsonAsync(model.SessionId, currentUser.Email);
+        if (string.IsNullOrEmpty(bundleJson) || !TryParseBundle(bundleJson, out parsed, out error))
         {
             TempData["ContentStagingError"] = error ?? "The import session expired. Upload the file again.";
             return Redirect("/admin/content-staging");
@@ -218,18 +346,84 @@ public sealed class ContentStagingController(
             "Import controller: bundle={PageCount} pages / {BlockCount} blocks, collisionMode={Mode}, newItemMode={NewMode}, perItemDecisions={DecisionCount}",
             parsed!.PageNodes.Count, parsed.ContentBlocks.Count, model.GlobalMode, model.GlobalNewMode, decisions.Count);
 
+        // Cross-pod concurrency guard. Two admins hitting Import at the same second — one
+        // on each of two pods — would race on individual pages and produce a chaotic mixed
+        // outcome. Acquire a Postgres advisory lock first; if a peer holds it, surface a
+        // specific "another import is in progress" banner rather than let them collide.
+        //
+        // Acquiring talks to the database, so it can fail the way any other query can. Every
+        // other database call on this path is guarded; without this one being guarded too, a
+        // connection blip during acquire is the one failure that reaches the operator as a bare
+        // 500 instead of a banner. A failure to acquire is treated as "somebody else has it",
+        // which is the safe reading — proceeding unguarded is the outcome the lock exists to
+        // prevent.
+        var lockAcquired = false;
+        if (_importLock is not null)
+        {
+            try
+            {
+                lockAcquired = await _importLock.TryAcquireAsync();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Import controller: could not acquire the import lock");
+            }
+
+            if (!lockAcquired)
+            {
+                TempData["ContentStagingError"] =
+                    "Another import is already in progress. Wait for it to finish and try again.";
+                return Redirect("/admin/content-staging");
+            }
+        }
+
         try
         {
             var result = await staging.ImportAsync(parsed!, model.GlobalMode, decisions, model.GlobalNewMode);
             TempData["ContentStagingResult"] = BuildSummary(result);
             if (result.Errors.Count > 0)
-                TempData["ContentStagingError"] = string.Join("\n", result.Errors);
+                TempData["ContentStagingError"] = Banner(result.Errors);
             if (result.Warnings.Count > 0)
-                TempData["ContentStagingWarnings"] = string.Join("\n", result.Warnings);
+                TempData["ContentStagingWarnings"] = Banner(result.Warnings);
+
+            // Forensic trail — every bulk destructive admin action lands in AuditEntries so
+            // an incident-responder can reconstruct "who imported what, when" without
+            // grepping app logs. Only successful imports are recorded (failed imports have
+            // no net effect worth tracing). Matches QueueAdminController's audit pattern.
+            //
+            // Outside the session delete below, and swallowing its own failure: the import has
+            // already been applied at this point, so letting an audit-write error reach the
+            // outer catch would report "import failed" for an import that succeeded, and leave
+            // the session inviting a re-run.
+            try
+            {
+                await WriteImportAuditAsync(result, bundleJson!, model.SessionId, parsed);
+            }
+            catch (Exception auditEx)
+            {
+                logger.LogError(auditEx, "Import controller: the import succeeded but its audit entry could not be written");
+            }
+
+            // The session is a ticket, spent once the bundle has fully landed. It is kept
+            // whenever anything went wrong — including per-item errors, which leave part of the
+            // bundle unapplied — so the operator can fix the cause and confirm again without
+            // re-uploading something that may have taken minutes to transfer.
+            if (result.Errors.Count == 0)
+            {
+                await sessions.DeleteAsync(model.SessionId);
+            }
         }
         catch (ContentImportConflictException ex)
         {
             TempData["ContentStagingError"] = ex.Message;
+        }
+        catch (ContentImportValidationException ex)
+        {
+            // Re-validation on Import trips if the round-tripped bundle JSON has been tampered
+            // with. Surface the specific issues rather than a generic message so the operator
+            // can see exactly what's wrong with the payload.
+            TempData["ContentStagingError"] =
+                "Bundle failed validation on import:\n" + Banner(ex.Issues.Select(i => "• " + i.Message).ToList());
         }
         catch (Exception ex)
         {
@@ -238,8 +432,33 @@ public sealed class ContentStagingController(
             // that the parser missed. Log the full exception so the review-app logs surface it,
             // and hand the user a coherent error instead of a blank 500 page.
             logger.LogError(ex, "Import controller: bundle import failed with an unhandled exception");
-            TempData["ContentStagingError"] =
-                $"Import failed: {ex.GetType().Name} — {ex.Message}. Check the application logs for the full stack trace.";
+            // Through Banner like every other message: a database exception routinely quotes the
+            // offending statement and parameters, which can carry the bundle's own content.
+            TempData["ContentStagingError"] = Banner(
+                [$"Import failed: {ex.GetType().Name} — {ex.Message}. Check the application logs for the full stack trace."]);
+        }
+        finally
+        {
+            // Always release — even if the import threw, we must free the lock for the
+            // next caller. Advisory-lock release is scoped to the session we acquired on,
+            // so a peer's separate session is unaffected either way.
+            //
+            // Its own failure is swallowed for the same reason the audit write's is: by this
+            // point the import has been applied, and letting an exception out of the finally
+            // would discard the redirect and the result banner and hand the operator a 500 for
+            // an import that succeeded. A lock left held is recovered when the connection
+            // closes at the end of the request, which drops session-scoped advisory locks.
+            if (lockAcquired && _importLock is not null)
+            {
+                try
+                {
+                    await _importLock.ReleaseAsync();
+                }
+                catch (Exception releaseEx)
+                {
+                    logger.LogError(releaseEx, "Import controller: the import finished but its advisory lock could not be released");
+                }
+            }
         }
 
         return Redirect("/admin/content-staging");
@@ -273,8 +492,98 @@ public sealed class ContentStagingController(
         return true;
     }
 
+    // Bounds on anything that reaches a banner.
+    //
+    // TempData here is cookie-backed, so whatever goes in comes back up as request headers on
+    // the next request. Past Kestrel's header limit that is a 431 for that browser until its
+    // cookies are cleared — self-inflicted, and triggerable by uploading one junk file.
+    //
+    // Both a count and a character budget are needed, and the budget is the one that matters.
+    // Validator and import messages embed the offending Title, Segment or Key verbatim, and
+    // none of those is length-limited — a segment is quoted back precisely because it failed
+    // the format rule, so its content is the uploader's choice. Twenty messages is therefore no
+    // protection at all if one of them is two megabytes.
+    private const int MaxBannerMessages = 20;
+    private const int MaxBannerChars = 2048;
+    private const int MaxBannerMessageChars = 200;
+
+    private static string Banner(IReadOnlyCollection<string> messages)
+    {
+        var shown = messages.Take(MaxBannerMessages).Select(Clip).ToList();
+        var omitted = messages.Count - shown.Count;
+
+        var text = string.Join("\n", shown);
+        if (text.Length > MaxBannerChars)
+        {
+            text = text[..MaxBannerChars] + "…";
+        }
+
+        return omitted > 0
+            ? text + $"\n… and {omitted} more. See the application logs for the full list."
+            : text;
+    }
+
+    private static string Clip(string message) =>
+        message.Length <= MaxBannerMessageChars ? message : message[..MaxBannerMessageChars] + "…";
+
     private static string BuildSummary(ContentImportResult r) =>
         $"Import complete. Pages: {r.PageNodesCreated} added, {r.PageNodesUpdated} updated, " +
         $"{r.PageNodesSkipped} skipped. Content blocks: {r.ContentBlocksCreated} added, " +
         $"{r.ContentBlocksUpdated} updated, {r.ContentBlocksSkipped} skipped.";
+
+    // Records an AuditEntry for a content-staging import, so an incident responder can answer
+    // "who imported what, when" without replaying the bundle.
+    //
+    // Three things beyond the mutation counts make that question answerable:
+    //
+    //  * The session id as EntityId. Every import used to record the literal string "import",
+    //    which identifies nothing. The session id ties the row to the preview it came from —
+    //    and, within the session lifetime, to a table still holding the exact bundle.
+    //  * A hash of the bundle, plus the header the source environment stamped on it. That is
+    //    what lets somebody prove two environments received the same content, or attribute a
+    //    bundle to where it was exported from. The hash is of the canonical JSON, so it is
+    //    stable across the zip.
+    //  * The outcome. A partially-applied import is the case an incident responder most needs
+    //    and the one that previously wrote no row at all, because the audit only ran on the
+    //    clean path.
+    //
+    // Guarded on _dbContext so tests that construct the controller without a context don't NRE.
+    private async Task WriteImportAuditAsync(
+        ContentImportResult result, string bundleJson, Guid sessionId, ContentBundle? bundle)
+    {
+        if (_dbContext is null) return;
+
+        var summary = JsonSerializer.Serialize(new
+        {
+            Outcome = result.Errors.Count == 0 ? "Succeeded" : "PartiallyApplied",
+            SessionId = sessionId,
+            BundleSha256 = Sha256Of(bundleJson),
+            SourceExportedBy = bundle?.ExportedBy,
+            SourceExportedAtUtc = bundle?.ExportedAtUtc,
+            ImportedBy = currentUser?.Email,
+            result.PageNodesCreated,
+            result.PageNodesUpdated,
+            result.PageNodesSkipped,
+            result.ContentBlocksCreated,
+            result.ContentBlocksUpdated,
+            result.ContentBlocksSkipped,
+            WarningCount = result.Warnings.Count,
+            ErrorCount = result.Errors.Count,
+            BundleJsonBytes = bundleJson.Length,
+        });
+
+        _dbContext.AuditEntries.Add(new AuditEntry
+        {
+            EntityType = "ContentBundle",
+            EntityId = sessionId.ToString(),
+            Action = "Import",
+            NewValues = summary,
+            Timestamp = DateTime.UtcNow,
+            UserId = currentUser?.UserId,
+        });
+        await _dbContext.SaveChangesAsync();
+    }
+
+    private static string Sha256Of(string value) =>
+        Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(value)));
 }

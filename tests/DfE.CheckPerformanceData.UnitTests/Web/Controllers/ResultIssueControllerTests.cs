@@ -18,7 +18,9 @@ using DfE.CheckPerformanceData.Application.UnitTests.WindowManagement;
 // Alias, not a namespace import: WindowManagement also declares a CheckingWindowDto and this
 // file already uses the LandingPage one.
 using ICheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.ICheckingExerciseService;
+using WhatToChangeCheckingExerciseMap = DfE.CheckPerformanceData.Application.WindowManagement.WhatToChangeCheckingExerciseMap;
 using DfE.CheckPerformanceData.Web.Common;
+using LearnerNoun = DfE.CheckPerformanceData.Application.WindowManagement.LearnerNoun;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Controllers;
 
@@ -160,9 +162,8 @@ public sealed class ResultIssueControllerTests
     [Fact]
     public async Task Post_with_an_unrecognised_option_is_rejected_as_unanswered()
     {
-        // "Result does not belong to pupil" is a sibling ticket with no journey. A posted value for
-        // it (or a forged one) must not start a journey there is no flow for.
-        var result = await _sut.Confirm(WindowId, new ResultIssueViewModel { WindowId = WindowId, IssueType = "result-does-not-belong" });
+        // A forged or unknown option value must not start a journey there is no flow for.
+        var result = await _sut.Confirm(WindowId, new ResultIssueViewModel { WindowId = WindowId, IssueType = "grade-boundary-appeal" });
 
         Assert.IsType<ViewResult>(result);
         await _flowService.DidNotReceiveWithAnyArgs().GetConfigAsync(default, default);
@@ -187,6 +188,28 @@ public sealed class ResultIssueControllerTests
 
         var state = _session.GetRequestState(WindowId);
         Assert.Equal(WhatToChange.MissingQualification, state.SelectedWhatToChange);
+        Assert.Empty(state.QuestionHistory);
+        await _lateResults.DidNotReceiveWithAnyArgs().IsSecondLateResultsAvailableAsync(default, default!, default);
+    }
+
+    [Fact]
+    public async Task Post_result_does_not_belong_starts_that_journey_at_its_first_page()
+    {
+        // AB#298704: no cohort question and no late-results interstitial — the flow opens on the
+        // student search, and a stray result has nothing to do with the second late results file.
+        _flowService.GetConfigAsync(WhatToChange.ResultDoesNotBelong, CheckingWindowType.Post16)
+            .Returns(new QuestionFlowConfig { FirstPageId = "select-student", Pages = [] });
+
+        var result = await _sut.Confirm(WindowId, new ResultIssueViewModel
+            { WindowId = WindowId, IssueType = ResultIssueViewModel.ResultDoesNotBelong });
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Journey", redirect.ControllerName);
+        Assert.Equal("Page", redirect.ActionName);
+        Assert.Equal("select-student", redirect.RouteValues!["pageId"]);
+
+        var state = _session.GetRequestState(WindowId);
+        Assert.Equal(WhatToChange.ResultDoesNotBelong, state.SelectedWhatToChange);
         Assert.Empty(state.QuestionHistory);
         await _lateResults.DidNotReceiveWithAnyArgs().IsSecondLateResultsAvailableAsync(default, default!, default);
     }
@@ -428,6 +451,20 @@ public sealed class ResultIssueControllerTests
     }
 
     [Fact]
+    public void Cancel_is_pinned_to_get_on_its_own_route()
+    {
+        // Review finding 2: with [Route] alone, POST and DELETE both executed (verified live).
+        // [HttpGet] narrows the surface to the one verb the summary link uses. It cannot stop a
+        // top-level cross-site GET navigation (session cookie is SameSite=Lax) — that residual is
+        // bounded by Task 1's guard and recorded in the PR body — but an unconstrained verb
+        // surface on a state-changing route is simply wrong.
+        var method = typeof(ResultIssueController).GetMethod(nameof(ResultIssueController.Cancel))!;
+
+        Assert.NotNull(method.GetCustomAttribute<HttpGetAttribute>());
+        Assert.Equal("/{windowId:guid}/ResultIssue/Cancel", method.GetCustomAttribute<RouteAttribute>()?.Template);
+    }
+
+    [Fact]
     public void The_controller_does_not_opt_out_of_authorisation()
     {
         // A school's results are not public. The global fallback policy authorises; an
@@ -436,6 +473,145 @@ public sealed class ResultIssueControllerTests
         Assert.All(
             typeof(ResultIssueController).GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
             m => Assert.Null(m.GetCustomAttribute<AllowAnonymousAttribute>()));
+    }
+
+    // ── AB#298229: cancel from the summary ───────────────────────────────────
+
+    [Fact]
+    public void Cancel_discards_everything_entered_for_the_current_enquiry()
+    {
+        // AC: "when I select 'Cancel and go back to create a new enquiry', then nothing I entered
+        // is submitted" and "no data carried over". Before AB#298229 the summary link went to
+        // Index, which clears nothing — the abandoned enquiry stayed resumable (and submittable)
+        // via a deep link back to /Journey/{windowId}/summary.
+        _session.SetRequestState(WindowId, new RequestState
+        {
+            SelectedWhatToChange = WhatToChange.MissingQualification,
+            SelectedPupilId = Guid.NewGuid().ToString(),
+            SelectedPupilLabel = "Smith, Alice",
+            QuestionAnswers = { ["q_award_date"] = new QuestionAnswer { TextValue = "2025-06-01" } },
+            QuestionHistory = { "cohort-scope", "select-student-single" }
+        });
+
+        _sut.Cancel(WindowId);
+
+        var state = _session.GetRequestState(WindowId);
+        Assert.Null(state.SelectedWhatToChange);
+        Assert.Null(state.SelectedPupilId);
+        Assert.Null(state.SelectedPupilLabel);
+        Assert.Empty(state.QuestionAnswers);
+        Assert.Empty(state.QuestionHistory);
+    }
+
+    [Fact]
+    public void Cancel_clears_the_bulk_and_single_edit_modes()
+    {
+        // Same hygiene as Confirm: a stale edit flag would make a later summary link back to the
+        // amendment-requests page instead of the journey. Cleared only alongside the journey wipe —
+        // a no-op cancel (nothing in progress) must leave an amendment's edit session untouched.
+        _session.SetRequestState(WindowId, new RequestState { SelectedWhatToChange = WhatToChange.IncorrectGrade });
+        _session.SetBulkEditMode(WindowId);
+        _session.SetSingleEditMode(WindowId);
+
+        _sut.Cancel(WindowId);
+
+        Assert.False(_session.IsBulkEditMode(WindowId));
+        Assert.False(_session.IsSingleEditMode(WindowId));
+    }
+
+    [Fact]
+    public void Cancel_after_submission_keeps_the_confirmation_renderable()
+    {
+        // Review finding 1 (verified live, CYPMD_16to19_RE_98DF50C): session state is keyed
+        // request_{windowId} alone, so every tab on a window shares one journey. Submitting leaves
+        // only { CheckingWindow, ReferenceNumber } so EnquiryConfirmation can render; the cancel
+        // link in a stale second tab must not wipe that residue, or the first tab's confirmation
+        // page — the only on-screen copy of the reference — dies on refresh.
+        _session.SetRequestState(WindowId, new RequestState
+        {
+            CheckingWindow = Post16Window,
+            ReferenceNumber = "CYPMD_16to19_RE_98DF50C"
+        });
+
+        _sut.Cancel(WindowId);
+
+        var state = _session.GetRequestState(WindowId);
+        Assert.Equal("CYPMD_16to19_RE_98DF50C", state.ReferenceNumber);
+        Assert.NotNull(state.CheckingWindow);
+    }
+
+    [Fact]
+    public void Cancel_leaves_an_in_progress_amendment_journey_alone()
+    {
+        // The route is reachable by URL alone; a forged or emailed link must not destroy a
+        // half-finished pupil-data amendment that happens to share the window's session slot.
+        _session.SetRequestState(WindowId, new RequestState
+        {
+            SelectedWhatToChange = WhatToChange.Remove,
+            QuestionAnswers = { ["q-removal-date"] = new QuestionAnswer { TextValue = "2026-07-01" } }
+        });
+
+        _sut.Cancel(WindowId);
+
+        var state = _session.GetRequestState(WindowId);
+        Assert.Equal(WhatToChange.Remove, state.SelectedWhatToChange);
+        Assert.NotEmpty(state.QuestionAnswers);
+    }
+
+    [Fact]
+    public void Every_enquiry_member_cancels_and_no_amendment_member_does()
+    {
+        // Guards that name one enum member are the recurring bug class on this subsystem (the
+        // AB#297848 Back link; the close-window replay). Resolving through the exercise map means
+        // a third enquiry journey becomes cancellable the moment it is mapped — and this sweep
+        // fails loudly if the guard ever regresses to naming members.
+        foreach (var change in Enum.GetValues<WhatToChange>())
+        {
+            _session.SetRequestState(WindowId, new RequestState { SelectedWhatToChange = change });
+
+            _sut.Cancel(WindowId);
+
+            var cleared = _session.GetRequestState(WindowId).SelectedWhatToChange is null;
+            var isEnquiry = WhatToChangeCheckingExerciseMap.CheckingExerciseFor(change)
+                == CheckingExerciseType.ResultsEnquiry;
+            Assert.Equal(isEnquiry, cleared);
+        }
+    }
+
+    [Fact]
+    public void Cancel_lands_on_the_issue_chooser()
+    {
+        // AC: "I am at the start of the enquiry journey" — the enquiry-type selection.
+        var result = _sut.Cancel(WindowId);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Index", redirect.ActionName);
+        Assert.Equal(WindowId, redirect.RouteValues!["windowId"]);
+    }
+
+    [Fact]
+    public void Cancel_leaves_another_windows_journey_alone()
+    {
+        // Journey state is per-window; cancelling this enquiry must not wipe a half-finished
+        // KS4 amendment in another window.
+        var otherWindow = Guid.NewGuid();
+        _session.SetRequestState(otherWindow, new RequestState { SelectedWhatToChange = WhatToChange.Merge });
+
+        _sut.Cancel(WindowId);
+
+        Assert.Equal(WhatToChange.Merge, _session.GetRequestState(otherWindow).SelectedWhatToChange);
+    }
+
+    [Fact]
+    public void Cancel_needs_no_window_lookup_so_it_works_after_the_exercise_closes()
+    {
+        // Abandoning must always work — including from a tab left open across the exercise's
+        // closing date — and must record nothing. Index owns the closed-exercise redirect for
+        // whatever the user does next; Cancel itself touches only session.
+        _sut.Cancel(WindowId);
+
+        Assert.Empty(_service.ReceivedCalls());
+        Assert.Empty(_analytics.ReceivedCalls());
     }
 
     private static ResultIssueViewModel ValidPost() =>
@@ -474,7 +650,7 @@ public sealed class ResultIssueControllerTests
         Assert.Equal("Index", redirect.ActionName);
         Assert.Equal("CheckYourPupilData", redirect.ControllerName);
         Assert.Equal(
-            ClosedExerciseGuard.MessageFor(CheckingExerciseType.ResultsEnquiry),
+            ClosedExerciseGuard.MessageFor(CheckingExerciseType.ResultsEnquiry, LearnerNoun.Pupil),
             _sut.TempData[ClosedExerciseGuard.TempDataKey]);
     }
 

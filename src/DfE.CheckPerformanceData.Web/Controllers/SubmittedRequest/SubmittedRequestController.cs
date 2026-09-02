@@ -1,4 +1,6 @@
 using DfE.CheckPerformanceData.Application.AmendmentRequests;
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.FileStorage;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
@@ -12,7 +14,10 @@ public sealed class SubmittedRequestController(
     ISubmittedRequestService service,
     IRequestService requestService,
     IFileStorageService fileStorageService,
-    IAnalyticsService analytics) : Controller
+    IAnalyticsService analytics,
+    // A confirm-data-correct request carries no journey state, so its learner noun comes from the
+    // window itself. Amendment requests take theirs from the persisted journey instead.
+    ICheckYourPupilDataService checkYourPupilDataService) : Controller
 {
     [Route("/{windowId}/AmendmentRequests/{referenceNumber}/view")]
     public Task<IActionResult> View(Guid windowId, string referenceNumber) =>
@@ -24,15 +29,15 @@ public sealed class SubmittedRequestController(
 
     // "Are you sure?" page for an amendment request — a confirm-mode rendering of View.
     [Route("/{windowId}/AmendmentRequests/{referenceNumber}/delete")]
-    public Task<IActionResult> ConfirmDelete(Guid windowId, string referenceNumber) =>
-        RenderAmendment(windowId, referenceNumber, confirmingDelete: true);
+    public Task<IActionResult> ConfirmDelete(Guid windowId, string referenceNumber, bool allEst = false) =>
+        RenderAmendment(windowId, referenceNumber, confirmingDelete: true, allEst);
 
     // "Are you sure?" page for a confirm-data request — a confirm-mode rendering of ViewConfirmation.
     [Route("/{windowId}/AmendmentRequests/{referenceNumber}/delete-confirmation")]
     public Task<IActionResult> ConfirmDeleteConfirmation(Guid windowId, string referenceNumber) =>
         RenderConfirmation(windowId, referenceNumber, confirmingDelete: true);
 
-    private async Task<IActionResult> RenderAmendment(Guid windowId, string referenceNumber, bool confirmingDelete)
+    private async Task<IActionResult> RenderAmendment(Guid windowId, string referenceNumber, bool confirmingDelete, bool allEst = false)
     {
         var request = await service.GetAsync(windowId, referenceNumber);
         if (request is null)
@@ -45,6 +50,7 @@ public sealed class SubmittedRequestController(
             Status = request.Status,
             ConfirmingDelete = confirmingDelete,
             PupilName = request.PupilName,
+            LearnerNoun = request.LearnerNoun,
             FirstRecordDisplay = request.FirstRecordDisplay,
             SecondRecordDisplay = request.SecondRecordDisplay,
             Rows = request.Rows.Select(r => new SubmittedRequestRow
@@ -62,7 +68,8 @@ public sealed class SubmittedRequestController(
             SubmittedByEmail = request.SubmittedByEmail,
             SubmittedAt = request.SubmittedAt,
             WithdrawnByEmail = request.WithdrawnByEmail,
-            WithdrawnAtText = LondonTime.ToSubmittedAtText(request.WithdrawnAt)
+            WithdrawnAtText = LondonTime.ToSubmittedAtText(request.WithdrawnAt),
+            AllEst = allEst
         });
     }
 
@@ -72,9 +79,12 @@ public sealed class SubmittedRequestController(
         if (request is null)
             return RedirectToAction("Index", "AmendmentRequests", new { windowId });
 
+        var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
+
         return View("ViewConfirmation", new ConfirmDataCorrectViewModel
         {
             WindowId = windowId,
+            LearnerNoun = LearnerNoun.For(window.CheckingWindowType),
             Status = request.Status,
             ConfirmingDelete = confirmingDelete,
             SubmittedByEmail = request.SubmittedByEmail,
@@ -106,7 +116,7 @@ public sealed class SubmittedRequestController(
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Route("/{windowId}/AmendmentRequests/{referenceNumber}/delete")]
-    public async Task<IActionResult> Delete(Guid windowId, string referenceNumber)
+    public async Task<IActionResult> Delete(Guid windowId, string referenceNumber, bool allEst = false)
     {
         var result = await requestService.DeleteAsync(windowId, referenceNumber);
 
@@ -127,6 +137,11 @@ public sealed class SubmittedRequestController(
         TempData["DeletedMessage"] = result.WasHardDeleted
             ? $"{result.PupilName} has been removed from your saved request"
             : $"{result.PupilName}(reference number - {referenceNumber}) has been removed from your submitted request.";
+        if (allEst)
+        {
+            return RedirectToAction("Index", "EstablishmentAmendmentRequests");
+        }
+
         return RedirectToAction("Index", "AmendmentRequests", new { windowId });
     }
 }

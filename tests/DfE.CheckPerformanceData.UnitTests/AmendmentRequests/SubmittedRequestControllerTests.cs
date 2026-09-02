@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using NSubstitute;
+using LearnerNoun = DfE.CheckPerformanceData.Application.WindowManagement.LearnerNoun;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.AmendmentRequests;
 
@@ -22,11 +23,25 @@ public class SubmittedRequestControllerTests
     private readonly IRequestService _requestService = Substitute.For<IRequestService>();
     private readonly IFileStorageService _fileStorage = Substitute.For<IFileStorageService>();
     private readonly IAnalyticsService _analytics = Substitute.For<IAnalyticsService>();
+    private readonly ICheckYourPupilDataService _checkYourPupilData =
+        Substitute.For<ICheckYourPupilDataService>();
     private readonly SubmittedRequestController _sut;
 
     public SubmittedRequestControllerTests()
     {
-        _sut = new SubmittedRequestController(_service, _requestService, _fileStorage, _analytics)
+        // The confirm-data-correct page reads its learner noun from the window.
+        _checkYourPupilData.GetCheckingWindowAsync(WindowId).Returns(new DfE.CheckPerformanceData.Application.LandingPage.CheckingWindowDto
+        {
+            Id = WindowId,
+            Title = "KS4 June",
+            KeyStage = KeyStages.KS4,
+            CheckingWindowType = CheckingWindowType.KS4June,
+            StartDate = DateTime.UtcNow.AddDays(-1),
+            EndDate = DateTime.UtcNow.AddDays(1)
+        });
+
+        _sut = new SubmittedRequestController(_service, _requestService, _fileStorage, _analytics,
+            _checkYourPupilData)
         {
             TempData = new TempDataDictionary(new DefaultHttpContext(), Substitute.For<ITempDataProvider>())
         };
@@ -49,7 +64,7 @@ public class SubmittedRequestControllerTests
     {
         var submittedAt = new DateTime(2026, 6, 16, 9, 30, 0);
         _service.GetAsync(WindowId, Reference).Returns(new SubmittedRequestView
-        {
+        { LearnerNoun = LearnerNoun.Pupil,
             WhatToChange = WhatToChange.Remove,
             Status = RequestStatus.SubmittedUnCommitted,
             PupilName = "Jane Smith",
@@ -118,7 +133,7 @@ public class SubmittedRequestControllerTests
     {
         var fileId = "55555555-5555-5555-5555-555555555555";
         _service.GetAsync(WindowId, Reference).Returns(new SubmittedRequestView
-        {
+        { LearnerNoun = LearnerNoun.Pupil,
             WhatToChange = WhatToChange.Remove,
             Status = RequestStatus.SubmittedUnCommitted,
             PupilName = "Jane Smith",
@@ -137,7 +152,7 @@ public class SubmittedRequestControllerTests
     {
         var fileId = "55555555-5555-5555-5555-555555555555";
         _service.GetAsync(WindowId, Reference).Returns(new SubmittedRequestView
-        {
+        { LearnerNoun = LearnerNoun.Pupil,
             WhatToChange = WhatToChange.Remove,
             Status = RequestStatus.SubmittedUnCommitted,
             PupilName = "Jane Smith",
@@ -167,7 +182,7 @@ public class SubmittedRequestControllerTests
     public async Task ConfirmDelete_WhenFound_ReturnsViewInConfirmMode()
     {
         _service.GetAsync(WindowId, Reference).Returns(new SubmittedRequestView
-        {
+        { LearnerNoun = LearnerNoun.Pupil,
             WhatToChange = WhatToChange.Remove,
             Status = RequestStatus.SubmittedUnCommitted,
             PupilName = "Jane Smith",
@@ -273,7 +288,7 @@ public class SubmittedRequestControllerTests
     public void ConfirmDataCorrectViewModel_ByLineTitle_ReturnsExpectedText(RequestStatus status, string expected)
     {
         var vm = new ConfirmDataCorrectViewModel
-        {
+        { LearnerNoun = LearnerNoun.Pupil,
             WindowId = WindowId,
             Status = status,
             ReferenceNumber = Reference
@@ -291,7 +306,7 @@ public class SubmittedRequestControllerTests
     public void SubmittedRequestViewModel_ByLineTitle_ReturnsExpectedText(RequestStatus status, string expected)
     {
         var vm = new SubmittedRequestViewModel
-        {
+        { LearnerNoun = LearnerNoun.Pupil,
             WindowId = WindowId,
             WhatToChange = WhatToChange.Remove,
             Status = status,
@@ -310,7 +325,7 @@ public class SubmittedRequestControllerTests
     public async Task View_WhenStatusWithdrawnAndNullWithdrawalFields_RendersGracefully()
     {
         _service.GetAsync(WindowId, Reference).Returns(new SubmittedRequestView
-        {
+        { LearnerNoun = LearnerNoun.Pupil,
             WhatToChange = WhatToChange.Remove,
             Status = RequestStatus.Withdrawn,
             PupilName = "Jane Smith",
@@ -434,7 +449,7 @@ public class SubmittedRequestControllerTests
         DateTime? submittedAt = null)
     {
         return new SubmittedRequestViewModel
-        {
+        { LearnerNoun = LearnerNoun.Pupil,
             WindowId = WindowId,
             WhatToChange = WhatToChange.Remove,
             Status = status,
@@ -543,7 +558,7 @@ public class SubmittedRequestControllerTests
         DateTime? submittedAt = null)
     {
         return new ConfirmDataCorrectViewModel
-        {
+        { LearnerNoun = LearnerNoun.Pupil,
             WindowId = WindowId,
             Status = status,
             ConfirmingDelete = confirmingDelete,

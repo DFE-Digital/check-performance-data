@@ -15,4 +15,15 @@ public sealed class QuestionOptionalityService(IEnumerable<IJourneyCondition> co
         }
         return ids;
     }
+
+    public bool IsRequireAtLeastOneActive(JourneyPage page, JourneyConditionContext ctx)
+    {
+        if (!page.RequireAtLeastOne) return false;
+        if (page.RequireAtLeastOneWhen is not { Count: > 0 } names) return true;
+
+        // Fail closed, as OptionalWhen does: an unregistered name keeps the rule on, so a
+        // typo cannot silently drop a mandatory-evidence rule.
+        return names.All(name =>
+            conditions.FirstOrDefault(c => c.Name == name) is not { } condition || condition.Evaluate(ctx));
+    }
 }

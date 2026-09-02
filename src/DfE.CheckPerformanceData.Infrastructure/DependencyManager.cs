@@ -336,8 +336,8 @@ public static class DependencyManager
     internal static List<string> MissingZendeskCredentials(ZendeskSettings settings)
     {
         var missing = new List<string>();
-        if (IsUnset(settings.Email)) missing.Add(nameof(settings.Email));
-        if (IsUnset(settings.ApiToken)) missing.Add(nameof(settings.ApiToken));
+        if (IsUnset(settings.ClientSecret)) missing.Add(nameof(settings.ClientSecret));
+        if (IsUnset(settings.ClientId)) missing.Add(nameof(settings.ClientId));
         return missing;
     }
 
@@ -366,6 +366,7 @@ public static class DependencyManager
         this IServiceCollection services, IConfiguration config, bool requireRealClient = true)
     {
         services.AddTransient<RefitLoggingHandler>();
+        
 
         var settings = config.GetSection(ZendeskSettings.SectionName).Get<ZendeskSettings>();
 
@@ -404,6 +405,11 @@ public static class DependencyManager
 
         services.Configure<ZendeskSettings>(config.GetSection(ZendeskSettings.SectionName));
 
+        // Register the OAuth token provider (singleton - caches token and refreshes automatically)
+        services.AddSingleton<IOAuthTokenProvider, OAuthTokenProvider>();
+        services.AddTransient<DfE.CheckPerformanceData.Infrastructure.ZendeskClient.ZendeskOAuthHandler>();
+
+
         services.AddRefitClient<IZendeskApi>(new RefitSettings
         {
             ContentSerializer = new NewtonsoftJsonContentSerializer()
@@ -411,11 +417,10 @@ public static class DependencyManager
            .ConfigureHttpClient(c =>
            {
                c.BaseAddress = ZendeskBaseAddress(settings);
-               var auth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{settings.Email}/token:{settings.ApiToken}"));
-               c.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", auth);
                c.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
            })
-           .AddHttpMessageHandler<RefitLoggingHandler>();
+           .AddHttpMessageHandler<RefitLoggingHandler>()
+           .AddHttpMessageHandler<ZendeskOAuthHandler>();
 
         services.AddScoped<IZendeskService, ZendeskService>();
         services.AddScoped<IZendeskAttachmentService, ZendeskAttachmentService>();

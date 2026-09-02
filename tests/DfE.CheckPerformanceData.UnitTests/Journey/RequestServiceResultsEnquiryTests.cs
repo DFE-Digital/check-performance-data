@@ -331,6 +331,59 @@ public sealed class RequestServiceResultsEnquiryTests
             () => _sut.SubmitResultsEnquiryAsync(WindowId, journey));
     }
 
+    // ── AB#298704: the result-does-not-belong sibling enquiry ────────────────
+
+    private static RequestState ResultDoesNotBelongJourney() => new()
+    {
+        SelectedWhatToChange = WhatToChange.ResultDoesNotBelong,
+        CheckingWindow = new CheckingWindowDto
+        {
+            Title = "16 to 19 2026", KeyStage = KeyStages.Post16,
+            CheckingWindowType = CheckingWindowType.Post16,
+            StartDate = new DateTime(2026, 10, 1), EndDate = new DateTime(2027, 3, 31)
+        },
+        ReferenceNumber = "CYPMD_16to19_RE_9D8E7F6",
+        SelectedPupilId = Guid.NewGuid().ToString(),
+        SelectedPupil = new PupilDto
+        {
+            Id = Guid.Parse("33333333-3333-3333-3333-333333333333"),
+            Firstname = "Billy", Surname = "B", Sex = "M", DateOfBirth = "12/03/2007",
+            Age = 19, Cypmd_Id = "1596410810", Identifier = "9900000001"
+        },
+        SelectedResult = Result(),
+        QuestionAnswers = new Dictionary<string, QuestionAnswer>
+        {
+            ["q-additional-info"] = new() { TextValue = "QAN 60322222 grade B also does not belong" }
+        },
+        QuestionHistory = ["select-student", "select-result", "additional-info"]
+    };
+
+    [Fact]
+    public async Task Submitting_a_result_does_not_belong_enquiry_persists_the_row_with_its_own_description()
+    {
+        // AB#298704: third enquiry kind. Subject is the selected result (like incorrect grade,
+        // unlike missing qualification), and the description is the support-facing label.
+        var journey = ResultDoesNotBelongJourney();
+
+        await _sut.SubmitResultsEnquiryAsync(WindowId, journey);
+
+        await _repository.Received(1).UpsertAsync(Arg.Is<ChangeRequestData>(d =>
+            d.RequestType == RequestType.ResultsEnquiry &&
+            d.RequestTypeDescription == "Results enquiry - Result does not belong to student" &&
+            d.AmendmentType == WhatToChange.ResultDoesNotBelong &&
+            d.Status == RequestStatus.SubmittedUnCommitted));
+    }
+
+    [Fact]
+    public async Task A_result_does_not_belong_enquiry_without_a_selected_result_is_rejected()
+    {
+        var journey = ResultDoesNotBelongJourney();
+        journey.SelectedResult = null;
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _sut.SubmitResultsEnquiryAsync(WindowId, journey));
+    }
+
     // ── Guard rails ──────────────────────────────────────────────────────────
 
     [Theory]

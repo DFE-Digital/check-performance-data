@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Common;
+using LearnerNoun = DfE.CheckPerformanceData.Application.WindowManagement.LearnerNoun;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Common;
 
@@ -12,7 +13,7 @@ public sealed class ClosedExerciseGuardTests
     [MemberData(nameof(AllExercises))]
     public void Every_checking_exercise_type_has_a_message(CheckingExerciseType exercise)
     {
-        var message = ClosedExerciseGuard.MessageFor(exercise);
+        var message = ClosedExerciseGuard.MessageFor(exercise, LearnerNoun.Pupil);
 
         Assert.False(string.IsNullOrWhiteSpace(message));
     }
@@ -24,7 +25,7 @@ public sealed class ClosedExerciseGuardTests
     {
         // Closed removes actions, never content — the message must not read as "come back later"
         // or as "your data has gone".
-        var message = ClosedExerciseGuard.MessageFor(exercise);
+        var message = ClosedExerciseGuard.MessageFor(exercise, LearnerNoun.Pupil);
 
         Assert.Contains("deadline", message, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("view and download", message, StringComparison.OrdinalIgnoreCase);
@@ -34,7 +35,7 @@ public sealed class ClosedExerciseGuardTests
     public void Each_exercise_has_its_own_wording()
     {
         var messages = Enum.GetValues<CheckingExerciseType>()
-            .Select(ClosedExerciseGuard.MessageFor)
+            .Select(e => ClosedExerciseGuard.MessageFor(e, LearnerNoun.Pupil))
             .ToList();
 
         Assert.Equal(messages.Count, messages.Distinct(StringComparer.Ordinal).Count());
@@ -43,7 +44,7 @@ public sealed class ClosedExerciseGuardTests
     [Fact]
     public void An_unmapped_exercise_throws_rather_than_borrowing_another_message()
         => Assert.Throws<ArgumentOutOfRangeException>(
-            () => ClosedExerciseGuard.MessageFor((CheckingExerciseType)999));
+            () => ClosedExerciseGuard.MessageFor((CheckingExerciseType)999, LearnerNoun.Pupil));
 
     public static TheoryData<CheckingExerciseType> AllExercises()
     {

@@ -3,6 +3,7 @@ using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.WindowManagement;
+using Microsoft.Extensions.Logging;
 
 namespace DfE.CheckPerformanceData.Application.AmendmentRequests;
 
@@ -11,7 +12,8 @@ public sealed class AmendmentRequestsService(
     IRequestRepository requestRepository,
     ICheckingExerciseService checkingExercises,
     ICurrentUserService currentUserService,
-    IRequestStateBlobClient requestStateBlobClient) : IAmendmentRequestsService
+    IRequestStateBlobClient requestStateBlobClient,
+    ILogger<AmendmentRequestsService> logger) : IAmendmentRequestsService
 {
     public async Task<AmendmentRequestsResult> GetAmendmentRequestsAsync(Guid windowId, string? issueSearch = null)
     {
@@ -39,10 +41,15 @@ public sealed class AmendmentRequestsService(
             {
                 state = await requestStateBlobClient.GetAsync(windowId, enquiry.ReferenceNumber);
             }
-            catch
+            catch (Exception ex)
             {
                 // A corrupt or unreachable blob degrades that row to empty enrichment cells rather
-                // than failing the page: the row is the record of truth and must stay visible.
+                // than failing the page: the row is the record of truth and must stay visible. Logged
+                // by reference number only — never pupil data — so a run of these is visible without
+                // becoming a PII leak in the logs.
+                logger.LogWarning(ex,
+                    "Failed to load the journey blob for results enquiry {ReferenceNumber}; Issues tab row will show empty enrichment cells",
+                    enquiry.ReferenceNumber);
             }
 
             issueRows.Add(new ResultsEnquiryIssueDto

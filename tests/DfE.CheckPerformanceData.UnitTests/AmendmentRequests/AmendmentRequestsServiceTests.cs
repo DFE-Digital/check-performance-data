@@ -7,6 +7,7 @@ using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Application.UnitTests.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
 // Alias, not a namespace import: WindowManagement also declares a CheckingWindowDto and this file
 // already uses the LandingPage one.
@@ -24,6 +25,7 @@ public class AmendmentRequestsServiceTests
     private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
     private readonly ICheckingExerciseService _checkingExercises = OpenCheckingExercises.AlwaysOpen();
     private readonly IRequestStateBlobClient _blobClient = Substitute.For<IRequestStateBlobClient>();
+    private readonly ILogger<AmendmentRequestsService> _logger = Substitute.For<ILogger<AmendmentRequestsService>>();
     private readonly AmendmentRequestsService _sut;
 
     public AmendmentRequestsServiceTests()
@@ -31,7 +33,7 @@ public class AmendmentRequestsServiceTests
         _currentUser.OrganisationUrn.Returns("100001");
         _requestRepo.GetSubmittedRequestsAsync(Arg.Any<Guid>(), Arg.Any<long>()).Returns([]);
         _requestRepo.GetSubmittedResultsEnquiriesAsync(Arg.Any<Guid>(), Arg.Any<long>()).Returns([]);
-        _sut = new AmendmentRequestsService(_windowService, _requestRepo, _checkingExercises, _currentUser, _blobClient);
+        _sut = new AmendmentRequestsService(_windowService, _requestRepo, _checkingExercises, _currentUser, _blobClient, _logger);
     }
 
     // #320: a deadline belongs to a checking exercise, not to the window. The window's own end is
@@ -288,6 +290,32 @@ public class AmendmentRequestsServiceTests
         Assert.Equal("Billy Brown", row.PupilName);
         Assert.Equal("", row.CypmdId);
         Assert.Equal("", row.QualificationText);
+    }
+
+    // A blob read that throws (corrupt document, storage outage) must degrade the same way a
+    // missing blob does — the row stays visible with empty cells — and the failure is logged by
+    // reference number only, never pupil data, so an operator can see it without a PII leak.
+    [Fact]
+    public async Task GetAmendmentRequestsAsync_BlobReadThatThrowsLeavesEnrichmentCellsEmpty()
+    {
+        _windowService.GetCheckingWindowAsync(WindowId).Returns(Window(DateTime.UtcNow));
+        _requestRepo.GetAmendmentRequestsAsync(WindowId, 100001L).Returns([]);
+        _requestRepo.GetSubmittedResultsEnquiriesAsync(WindowId, 100001L)
+            .Returns([Enquiry("REF-4", "Cara", "Davies")]);
+        _blobClient.GetAsync(WindowId, "REF-4").Returns(Task.FromException<RequestState?>(new InvalidOperationException("blob storage unavailable")));
+
+        var result = await _sut.GetAmendmentRequestsAsync(WindowId);
+
+        var row = Assert.Single(result.IssueRows);
+        Assert.Equal("Cara Davies", row.PupilName);
+        Assert.Equal("", row.CypmdId);
+        Assert.Equal("", row.QualificationText);
+        _logger.Received(1).Log(
+            LogLevel.Warning,
+            Arg.Any<EventId>(),
+            Arg.Is<object>(o => o.ToString()!.Contains("REF-4")),
+            Arg.Any<Exception>(),
+            Arg.Any<Func<object, Exception?, string>>());
     }
 
     [Fact]

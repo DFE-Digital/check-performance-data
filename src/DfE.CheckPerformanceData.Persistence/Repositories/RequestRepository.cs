@@ -231,9 +231,9 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
                 && r.OrganisationUrn == organisationUrn
                 && (r.Status == RequestStatus.SubmittedUnCommitted
                     || r.Status == RequestStatus.Withdrawn)
-                // AB#296648 — how the Amendment Requests screen should present a results enquiry
-                // is not yet designed, so enquiry rows are hidden here for now; they remain in
-                // ChangeRequests and reach support via the separate Zendesk story.
+                // AB#296648 / AB#298325 — enquiry rows are excluded here because they surface on
+                // the Issues tab instead, via GetSubmittedResultsEnquiriesAsync below. The two
+                // queries are complements and must never overlap, or a row would show on both tabs.
                 && r.RequestType != RequestType.ResultsEnquiry)
             .OrderByDescending(r => r.Submitted)
             .Select(r => new SubmittedRequestData

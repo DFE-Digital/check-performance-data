@@ -88,7 +88,9 @@ public class AmendmentRequestsControllerTests
                 new AmendmentRequestDto { PupilName = "Ann Alpha", RequestType = RequestType.Amendment, RequestTypeDescription = "Remove pupil", Status = RequestStatus.ReadyToSubmit, ReferenceNumber = "R1" },
                 new AmendmentRequestDto { PupilName = "Bob Beta", RequestType = RequestType.Amendment, RequestTypeDescription = "Remove pupil", Status = RequestStatus.ReadyToSubmit, ReferenceNumber = "R2" }
             ],
-            SubmittedRows = []
+            SubmittedRows = [],
+            IssueRows = [],
+            HasAnyIssues = false
         });
         _session.SetBulkSelection(WindowId, new[] { "R1" });
 
@@ -108,7 +110,9 @@ public class AmendmentRequestsControllerTests
             Deadlines = [Deadline(endDate)],
             WindowTitle = "Key stage 4",
             Rows = [],
-            SubmittedRows = []
+            SubmittedRows = [],
+            IssueRows = [],
+            HasAnyIssues = false
         });
 
         var result = await _sut.Index(WindowId);
@@ -133,7 +137,9 @@ public class AmendmentRequestsControllerTests
             ],
             WindowTitle = "16 to 19",
             Rows = [],
-            SubmittedRows = []
+            SubmittedRows = [],
+            IssueRows = [],
+            HasAnyIssues = false
         });
 
         var result = await _sut.Index(WindowId);
@@ -159,7 +165,9 @@ public class AmendmentRequestsControllerTests
             ],
             WindowTitle = "16 to 19",
             Rows = [],
-            SubmittedRows = []
+            SubmittedRows = [],
+            IssueRows = [],
+            HasAnyIssues = false
         });
 
         var result = await _sut.Index(WindowId);
@@ -187,7 +195,9 @@ public class AmendmentRequestsControllerTests
                     ReferenceNumber = "REF001"
                 }
             ],
-            SubmittedRows = []
+            SubmittedRows = [],
+            IssueRows = [],
+            HasAnyIssues = false
         });
 
         var result = await _sut.Index(WindowId);
@@ -221,7 +231,9 @@ public class AmendmentRequestsControllerTests
                     Status = RequestStatus.SubmittedUnCommitted,
                     Submitted = submitted
                 }
-            ]
+            ],
+            IssueRows = [],
+            HasAnyIssues = false
         });
 
         var result = await _sut.Index(WindowId);
@@ -255,7 +267,9 @@ public class AmendmentRequestsControllerTests
                     Status = RequestStatus.Withdrawn,
                     Submitted = DateTime.UtcNow
                 }
-            ]
+            ],
+            IssueRows = [],
+            HasAnyIssues = false
         });
 
         var result = await _sut.Index(WindowId);
@@ -635,7 +649,9 @@ public class AmendmentRequestsControllerTests
         Deadlines = [Deadline(new DateTime(2026, 6, 26, 17, 0, 0))],
         WindowTitle = "Key stage 4",
         Rows = [],
-        SubmittedRows = []
+        SubmittedRows = [],
+        IssueRows = [],
+        HasAnyIssues = false
     };
 
     private static CheckingWindowDto SampleWindow(bool withExercises = true)

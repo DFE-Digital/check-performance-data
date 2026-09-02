@@ -33,7 +33,6 @@ public sealed class DefaultAdminAccessSeeder(IAdminSectionAccessRepository repos
         "zendesk-queue",
         "dead-letter-queue",
         "observability",
-        "storage-admin",
         "storage-browser",
         "transactions",
         "replay-submissions",

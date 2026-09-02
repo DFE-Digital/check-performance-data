@@ -17,8 +17,11 @@ public sealed class AdminNavRegistryTests
 		using var provider = services.BuildServiceProvider();
 		var entries = provider.GetServices<IAdminNavEntry>().ToList();
 
-		// 30 since the Amendment requests group and its single Uncommitted requests tile were
-		// retired: the requests page is per window now and reached from the windows table.
+		// 30: the Amendment requests group and its single Uncommitted requests tile were retired
+		// (the requests page is per window now, reached from the windows table) and the Storage
+		// administration group went when the blob browser moved under Danger zone; the Danger
+		// zone group and that browser are registered unconditionally, Reset seed data is not
+		// (includeResetSeedData defaults to false).
 		Assert.Equal(30, entries.Count);
 
 		var titles = entries.Select(e => e.Title).ToList();
@@ -47,8 +50,12 @@ public sealed class AdminNavRegistryTests
 		Assert.DoesNotContain("Search messages inbox", titles);
 		Assert.Contains("System settings", titles);
 		Assert.DoesNotContain("CMS settings", titles);
-		Assert.Contains("Storage administration", titles);
+		Assert.DoesNotContain("Storage administration", titles);
+		// Blob storage browser is a Danger zone tile now, registered in every environment.
 		Assert.Contains("Blob storage browser", titles);
+		Assert.Contains("Danger zone", titles);
+		// Reset seed data is the one gated tile, and this overload leaves it out.
+		Assert.DoesNotContain("Reset seed data", titles);
 		Assert.DoesNotContain("Debug Pipelines", titles);
 		Assert.Contains("Pipeline dashboard", titles);
 		Assert.Contains("Transactions", titles);

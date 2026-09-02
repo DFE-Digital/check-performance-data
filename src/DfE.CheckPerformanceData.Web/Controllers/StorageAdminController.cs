@@ -8,9 +8,9 @@ using Microsoft.Extensions.Options;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-// Blob-storage browser and per-blob preview / download / delete. Gated by the storage-admin
-// section grant.
-[RequireAdminSection(AdminNavKeys.StorageAdmin)]
+// Blob-storage browser and per-blob preview / download / delete. Gated by the storage-browser
+// section grant. It sits in the nav under Danger zone (it deletes blobs), in every environment.
+[RequireAdminSection(AdminNavKeys.StorageBrowser)]
 public sealed class StorageAdminController(
     IReadOnlyDictionary<string, BlobServiceClient> storageAccounts,
     IOptions<StorageBrowserOptions> browserOptions) : Controller

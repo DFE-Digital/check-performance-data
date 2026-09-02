@@ -13,8 +13,11 @@ namespace DfE.CheckPerformanceData.Web.Extensions;
 // root.
 public static class AdminNavServiceCollectionExtensions
 {
-    // includeDangerZone gates the destructive "Danger zone" group + tile. Program.cs passes
-    // !IsProduction() so the reset action is never registered (and so never reachable) in prod.
+    // includeResetSeedData gates the "Reset seed data" tile alone. Program.cs passes
+    // !IsProduction() so the wipe-and-reseed action is never registered (and so never
+    // reachable) in prod. The Danger zone group and the blob storage browser under it are
+    // registered everywhere — the browser is a live-support surface, and the group renders
+    // wherever at least one of its tiles survives FilterByAccess.
     //
     // includeSampleSearchData gates the "Seed sample search data" tile against the same
     // environment whitelist TestDataController enforces (Development / Review / QA).
@@ -23,7 +26,7 @@ public static class AdminNavServiceCollectionExtensions
     // a dead link on a customer-facing environment is not.
     public static IServiceCollection AddAdminNavEntries(
         this IServiceCollection services,
-        bool includeDangerZone = false,
+        bool includeResetSeedData = false,
         bool includeSampleSearchData = false)
     {
         // Some entries may resolve state from configuration. Provide an empty fallback so a bare
@@ -53,22 +56,21 @@ public static class AdminNavServiceCollectionExtensions
         services.AddSingleton<IAdminNavEntry, ZendeskQueueNavEntry>();
         services.AddSingleton<IAdminNavEntry, DeadLetterQueueNavEntry>();
         services.AddSingleton<IAdminNavEntry, ObservabilityNavEntry>();
-        services.AddSingleton<IAdminNavEntry, StorageAdminGroupNavEntry>();
-        services.AddSingleton<IAdminNavEntry, StorageBrowserNavEntry>();
         services.AddSingleton<IAdminNavEntry, WindowAdminNavEntry>();
         services.AddSingleton<IAdminNavEntry, NewWindowNavEntry>();
         services.AddSingleton<IAdminNavEntry, ManageWindowNavEntry>();
         services.AddSingleton<IAdminNavEntry, TransactionsNavEntry>();
         services.AddSingleton<IAdminNavEntry, ReplaySubmissionsNavEntry>();
+        services.AddSingleton<IAdminNavEntry, DangerZoneGroupNavEntry>();
+        services.AddSingleton<IAdminNavEntry, StorageBrowserNavEntry>();
 
         if (includeSampleSearchData)
         {
             services.AddSingleton<IAdminNavEntry, SeedSampleSearchDataNavEntry>();
         }
 
-        if (includeDangerZone)
+        if (includeResetSeedData)
         {
-            services.AddSingleton<IAdminNavEntry, DangerZoneGroupNavEntry>();
             services.AddSingleton<IAdminNavEntry, ResetSeedDataNavEntry>();
         }
 

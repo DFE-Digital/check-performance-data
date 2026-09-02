@@ -25,13 +25,12 @@ public static class AdminNavKeys
     public const string ZendeskQueue = "zendesk-queue";
     public const string DeadLetterQueue = "dead-letter-queue";
     public const string Observability = "observability";
-    public const string StorageAdmin = "storage-admin";
-    public const string StorageBrowser = "storage-browser";
     public const string Transactions = "transactions";
     public const string ReplaySubmissions = "replay-submissions";
 
     public const string DangerZone = "danger-zone";
     public const string ResetSeedData = "reset-seed-data";
+    public const string StorageBrowser = "storage-browser";
 
     // Wallboard / share-token management. No sidebar nav entry today — the surface is reached
     // from the observability dashboard — but the key exists so the section can be gated through

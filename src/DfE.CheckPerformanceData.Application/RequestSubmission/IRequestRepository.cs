@@ -13,6 +13,13 @@ public interface IRequestRepository
     Task<IReadOnlyList<AmendmentRequestData>> GetAmendmentRequestsAsync(Guid windowId, long organisationUrn);
     Task<IReadOnlyList<SubmittedRequestData>> GetSubmittedRequestsAsync(Guid windowId, long organisationUrn);
     Task<IReadOnlyList<SubmittedRequestData>> GetAllSubmittedRequestsAsync(long organisationUrn);
+
+    /// <summary>
+    /// The school's submitted results enquiries for the window, newest first (AB#298325 Issues tab).
+    /// The complement of <see cref="GetSubmittedRequestsAsync"/>, which deliberately excludes
+    /// enquiry rows — the two must never overlap or a row shows on both tabs.
+    /// </summary>
+    Task<IReadOnlyList<SubmittedRequestData>> GetSubmittedResultsEnquiriesAsync(Guid windowId, long organisationUrn);
     Task<AmendmentRequestData?> GetAmendmentRequestAsync(Guid windowId, long organisationUrn, string referenceNumber);
     Task<ConfirmDataCorrectData?> GetConfirmDataCorrectAsync(Guid windowId, long organisationUrn, string referenceNumber);
 

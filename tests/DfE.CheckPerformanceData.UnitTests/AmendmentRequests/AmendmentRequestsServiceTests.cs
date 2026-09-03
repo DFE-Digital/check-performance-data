@@ -1,10 +1,13 @@
 using DfE.CheckPerformanceData.Application.AmendmentRequests;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.CurrentUser;
+using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
+using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Application.UnitTests.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
 // Alias, not a namespace import: WindowManagement also declares a CheckingWindowDto and this file
 // already uses the LandingPage one.
@@ -21,13 +24,16 @@ public class AmendmentRequestsServiceTests
     private readonly IRequestRepository _requestRepo = Substitute.For<IRequestRepository>();
     private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
     private readonly ICheckingExerciseService _checkingExercises = OpenCheckingExercises.AlwaysOpen();
+    private readonly IRequestStateBlobClient _blobClient = Substitute.For<IRequestStateBlobClient>();
+    private readonly ILogger<AmendmentRequestsService> _logger = Substitute.For<ILogger<AmendmentRequestsService>>();
     private readonly AmendmentRequestsService _sut;
 
     public AmendmentRequestsServiceTests()
     {
         _currentUser.OrganisationUrn.Returns("100001");
         _requestRepo.GetSubmittedRequestsAsync(Arg.Any<Guid>(), Arg.Any<long>()).Returns([]);
-        _sut = new AmendmentRequestsService(_windowService, _requestRepo, _checkingExercises, _currentUser);
+        _requestRepo.GetSubmittedResultsEnquiriesAsync(Arg.Any<Guid>(), Arg.Any<long>()).Returns([]);
+        _sut = new AmendmentRequestsService(_windowService, _requestRepo, _checkingExercises, _currentUser, _blobClient, _logger);
     }
 
     // #320: a deadline belongs to a checking exercise, not to the window. The window's own end is
@@ -208,6 +214,179 @@ public class AmendmentRequestsServiceTests
 
         Assert.Equal("N/A", result.SubmittedRows[0].PupilName);
     }
+
+    // The row alone can't fill the Issues table: CYPMD id and qualification live only in the
+    // journey blob the submission saved. A regression here renders blank cells for every issue.
+    [Fact]
+    public async Task GetAmendmentRequestsAsync_BuildsIssueRowsFromRowAndJourneyBlob()
+    {
+        _windowService.GetCheckingWindowAsync(WindowId).Returns(Window(DateTime.UtcNow));
+        _requestRepo.GetAmendmentRequestsAsync(WindowId, 100001L).Returns([]);
+        _requestRepo.GetSubmittedResultsEnquiriesAsync(WindowId, 100001L)
+            .Returns([Enquiry("REF-1", "Alice", "Smith")]);
+        _blobClient.GetAsync(WindowId, "REF-1").Returns(new RequestState
+        {
+            SelectedPupil = new PupilDto
+            {
+                Firstname = "Alice", Surname = "Smith", Id = Guid.NewGuid(), Sex = "F",
+                DateOfBirth = "2008-01-01", Age = 18, Cypmd_Id = "500001", Identifier = "ULN500001"
+            },
+            SelectedQualification = new QualificationReference
+                { Qan = "6037116X", QualificationTitle = "ABRSM level 3 certificate in practical music (Grade 8)" }
+        });
+
+        var result = await _sut.GetAmendmentRequestsAsync(WindowId);
+
+        var row = Assert.Single(result.IssueRows);
+        Assert.Equal("Alice Smith", row.PupilName);
+        Assert.Equal("500001", row.CypmdId);
+        Assert.Equal("Missing qualification", row.TypeLabel);
+        Assert.Equal("ABRSM level 3 certificate in practical music (Grade 8)", row.QualificationText);
+        Assert.True(result.HasAnyIssues);
+    }
+
+    // Incorrect-grade and result-does-not-belong journeys store SelectedResult, not
+    // SelectedQualification; the qualification cell must come from the result record's name.
+    [Fact]
+    public async Task GetAmendmentRequestsAsync_IssueQualificationFallsBackToSelectedResult()
+    {
+        _windowService.GetCheckingWindowAsync(WindowId).Returns(Window(DateTime.UtcNow));
+        _requestRepo.GetAmendmentRequestsAsync(WindowId, 100001L).Returns([]);
+        var enquiry = new SubmittedRequestData
+        {
+            PupilFirstname = "Noor", PupilSurname = "Farah",
+            RequestType = RequestType.ResultsEnquiry,
+            RequestTypeDescription = "Results enquiry - Incorrect grade",
+            ReferenceNumber = "REF-2", Status = RequestStatus.SubmittedUnCommitted, Submitted = DateTime.UtcNow
+        };
+        _requestRepo.GetSubmittedResultsEnquiriesAsync(WindowId, 100001L).Returns([enquiry]);
+        _blobClient.GetAsync(WindowId, "REF-2").Returns(new RequestState
+        {
+            SelectedResult = new StudentResultRecord { QualificationName = "GCSE (9-1) Bus. Studs:Single" }
+        });
+
+        var result = await _sut.GetAmendmentRequestsAsync(WindowId);
+
+        var row = Assert.Single(result.IssueRows);
+        Assert.Equal("Incorrect grade", row.TypeLabel);
+        Assert.Equal("GCSE (9-1) Bus. Studs:Single", row.QualificationText);
+        Assert.Equal("", row.CypmdId);
+    }
+
+    // A missing or unreadable blob must degrade to empty cells, never fail the whole page — the
+    // row is the record of truth and the school must still see that the enquiry exists.
+    [Fact]
+    public async Task GetAmendmentRequestsAsync_MissingJourneyBlobLeavesEnrichmentCellsEmpty()
+    {
+        _windowService.GetCheckingWindowAsync(WindowId).Returns(Window(DateTime.UtcNow));
+        _requestRepo.GetAmendmentRequestsAsync(WindowId, 100001L).Returns([]);
+        _requestRepo.GetSubmittedResultsEnquiriesAsync(WindowId, 100001L)
+            .Returns([Enquiry("REF-3", "Billy", "Brown")]);
+        _blobClient.GetAsync(WindowId, "REF-3").Returns((RequestState?)null);
+
+        var result = await _sut.GetAmendmentRequestsAsync(WindowId);
+
+        var row = Assert.Single(result.IssueRows);
+        Assert.Equal("Billy Brown", row.PupilName);
+        Assert.Equal("", row.CypmdId);
+        Assert.Equal("", row.QualificationText);
+    }
+
+    // A blob read that throws (corrupt document, storage outage) must degrade the same way a
+    // missing blob does — the row stays visible with empty cells — and the failure is logged by
+    // reference number only, never pupil data, so an operator can see it without a PII leak.
+    [Fact]
+    public async Task GetAmendmentRequestsAsync_BlobReadThatThrowsLeavesEnrichmentCellsEmpty()
+    {
+        _windowService.GetCheckingWindowAsync(WindowId).Returns(Window(DateTime.UtcNow));
+        _requestRepo.GetAmendmentRequestsAsync(WindowId, 100001L).Returns([]);
+        _requestRepo.GetSubmittedResultsEnquiriesAsync(WindowId, 100001L)
+            .Returns([Enquiry("REF-4", "Cara", "Davies")]);
+        _blobClient.GetAsync(WindowId, "REF-4").Returns(Task.FromException<RequestState?>(new InvalidOperationException("blob storage unavailable")));
+
+        var result = await _sut.GetAmendmentRequestsAsync(WindowId);
+
+        var row = Assert.Single(result.IssueRows);
+        Assert.Equal("Cara Davies", row.PupilName);
+        Assert.Equal("", row.CypmdId);
+        Assert.Equal("", row.QualificationText);
+        // The negative half is the real pin: adding {PupilName} "for debuggability" would land
+        // PII in the Serilog sinks while a contains-reference-only assertion stayed green.
+        _logger.Received(1).Log(
+            LogLevel.Warning,
+            Arg.Any<EventId>(),
+            Arg.Is<object>(o => o.ToString()!.Contains("REF-4")
+                && !o.ToString()!.Contains("Cara")
+                && !o.ToString()!.Contains("Davies")),
+            Arg.Any<Exception>(),
+            Arg.Any<Func<object, Exception?, string>>());
+    }
+
+    [Fact]
+    public async Task GetAmendmentRequestsAsync_SearchFiltersByFirstOrLastNameCaseInsensitively()
+    {
+        _windowService.GetCheckingWindowAsync(WindowId).Returns(Window(DateTime.UtcNow));
+        _requestRepo.GetAmendmentRequestsAsync(WindowId, 100001L).Returns([]);
+        _requestRepo.GetSubmittedResultsEnquiriesAsync(WindowId, 100001L).Returns(
+        [
+            Enquiry("REF-A", "Alice", "Smith"),
+            Enquiry("REF-B", "Billy", "Brown"),
+            Enquiry("REF-C", "Chloe", "Alison")
+        ]);
+
+        // "ali" hits Alice (first name) and Alison (last name), never Billy Brown.
+        var result = await _sut.GetAmendmentRequestsAsync(WindowId, issueSearch: "  ALI ");
+
+        Assert.Equal(["REF-A", "REF-C"], result.IssueRows.Select(r => r.ReferenceNumber));
+        Assert.True(result.HasAnyIssues);
+    }
+
+    // HasAnyIssues reports the pre-search population: the view uses it to choose between the
+    // "no enquiries at all" empty state and the "search matched nothing" message. Conflating them
+    // would tell a school with enquiries that it has none.
+    [Fact]
+    public async Task GetAmendmentRequestsAsync_NoMatchSearchKeepsHasAnyIssuesTrue()
+    {
+        _windowService.GetCheckingWindowAsync(WindowId).Returns(Window(DateTime.UtcNow));
+        _requestRepo.GetAmendmentRequestsAsync(WindowId, 100001L).Returns([]);
+        _requestRepo.GetSubmittedResultsEnquiriesAsync(WindowId, 100001L)
+            .Returns([Enquiry("REF-A", "Alice", "Smith")]);
+
+        var result = await _sut.GetAmendmentRequestsAsync(WindowId, issueSearch: "zzz");
+
+        Assert.Empty(result.IssueRows);
+        Assert.True(result.HasAnyIssues);
+    }
+
+    // Blob loads are IO per row; filtering first keeps a search over a long list from fetching
+    // blobs it will immediately discard.
+    [Fact]
+    public async Task GetAmendmentRequestsAsync_OnlyLoadsBlobsForRowsThatSurviveTheSearch()
+    {
+        _windowService.GetCheckingWindowAsync(WindowId).Returns(Window(DateTime.UtcNow));
+        _requestRepo.GetAmendmentRequestsAsync(WindowId, 100001L).Returns([]);
+        _requestRepo.GetSubmittedResultsEnquiriesAsync(WindowId, 100001L).Returns(
+        [
+            Enquiry("REF-A", "Alice", "Smith"),
+            Enquiry("REF-B", "Billy", "Brown")
+        ]);
+
+        await _sut.GetAmendmentRequestsAsync(WindowId, issueSearch: "alice");
+
+        await _blobClient.Received(1).GetAsync(WindowId, "REF-A");
+        await _blobClient.DidNotReceive().GetAsync(WindowId, "REF-B");
+    }
+
+    private static SubmittedRequestData Enquiry(string reference, string first, string last, DateTime? submitted = null) => new()
+    {
+        PupilFirstname = first,
+        PupilSurname = last,
+        RequestType = RequestType.ResultsEnquiry,
+        RequestTypeDescription = "Results enquiry - Missing qualification",
+        ReferenceNumber = reference,
+        Status = RequestStatus.SubmittedUnCommitted,
+        Submitted = submitted ?? DateTime.UtcNow
+    };
 
     private static CheckingWindowDto Window(DateTime endDate, params CheckingExerciseDto[] exercises) => new()
     {

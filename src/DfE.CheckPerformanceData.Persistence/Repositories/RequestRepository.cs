@@ -231,10 +231,31 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
                 && r.OrganisationUrn == organisationUrn
                 && (r.Status == RequestStatus.SubmittedUnCommitted
                     || r.Status == RequestStatus.Withdrawn)
-                // AB#296648 — how the Amendment Requests screen should present a results enquiry
-                // is not yet designed, so enquiry rows are hidden here for now; they remain in
-                // ChangeRequests and reach support via the separate Zendesk story.
+                // AB#296648 / AB#298325 — enquiry rows are excluded here because they surface on
+                // the Issues tab instead, via GetSubmittedResultsEnquiriesAsync below. The two
+                // queries are complements and must never overlap, or a row would show on both tabs.
                 && r.RequestType != RequestType.ResultsEnquiry)
+            .OrderByDescending(r => r.Submitted)
+            .Select(r => new SubmittedRequestData
+            {
+                PupilFirstname = r.PupilFirstname,
+                PupilSurname = r.PupilSurname,
+                RequestType = r.RequestType,
+                RequestTypeDescription = r.RequestTypeDescription,
+                ReferenceNumber = r.ReferenceNumber,
+                Status = r.Status,
+                Submitted = r.Submitted
+            })
+            .ToListAsync();
+
+    public async Task<IReadOnlyList<SubmittedRequestData>> GetSubmittedResultsEnquiriesAsync(Guid windowId, long organisationUrn) =>
+        await db.ChangeRequests
+            .Where(r => r.WindowId == windowId
+                && r.OrganisationUrn == organisationUrn
+                // Enquiries never move past SubmittedUnCommitted (dispatch to Zendesk is a parked
+                // story) and have no withdraw surface, so one status is the whole population.
+                && r.Status == RequestStatus.SubmittedUnCommitted
+                && r.RequestType == RequestType.ResultsEnquiry)
             .OrderByDescending(r => r.Submitted)
             .Select(r => new SubmittedRequestData
             {

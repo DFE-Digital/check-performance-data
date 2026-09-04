@@ -95,7 +95,7 @@ public sealed class RemovalJourneyDateRulesTests
         Assert.Equal(RollWording, violation.Message);
     }
 
-    // ── The two 16-19 removal pages (AB#298403) ────────────────────────────
+    // ── The 16-19 removal page (AB#298403) ─────────────────────────────────
 
     [Fact]
     public void Post16_StudentDied_FutureDate_UsesTheSchoolOrCollegeWording()
@@ -113,23 +113,9 @@ public sealed class RemovalJourneyDateRulesTests
             violation.Message);
     }
 
-    [Fact]
-    public void Post16_NotAtEndOfStudy_FutureDate_UsesTheSchoolRollWording()
-    {
-        // This 16-19 page asks about the "school roll" (no college), so it keeps the KS4 wording.
-        var violation = Assert.Single(Evaluate(
-            RemovalJourneyDateRules.NotAtEndOfStudyPageId,
-            RemovalJourneyDateRules.DateRemovedFromRoll,
-            Today.AddDays(1)));
-
-        Assert.Equal(RemovalJourneyDateRules.DateRemovedFromRoll, violation.QuestionId);
-        Assert.Equal(RollWording, violation.Message);
-    }
-
     [Theory]
     [InlineData(nameof(RemovalJourneyDateRules.StudentDiedPageId))]
-    [InlineData(nameof(RemovalJourneyDateRules.NotAtEndOfStudyPageId))]
-    public void AppliesToPage_IsTrue_ForBoth16To19RemovalPages(string pageIdField)
+    public void AppliesToPage_IsTrue_For16To19RemovalPages(string pageIdField)
     {
         // Without this, JourneyValidationService.ValidatePageDates never dispatches to the rule
         // and the whole check is silently absent from the 16-19 journey.
@@ -148,7 +134,6 @@ public sealed class RemovalJourneyDateRulesTests
     [InlineData(nameof(RemovalJourneyDateRules.PermanentlyExcludedPageId), nameof(RemovalJourneyDateRules.DatePermanentlyExcluded))]
     [InlineData(nameof(RemovalJourneyDateRules.PermanentlyLeftEnglandPageId), nameof(RemovalJourneyDateRules.DateRemovedFromRoll))]
     [InlineData(nameof(RemovalJourneyDateRules.StudentDiedPageId), nameof(RemovalJourneyDateRules.DateRemovedFromRoll))]
-    [InlineData(nameof(RemovalJourneyDateRules.NotAtEndOfStudyPageId), nameof(RemovalJourneyDateRules.DateRemovedFromRoll))]
     public void Today_IsAcceptable_OnEveryRemovalPage(string pageIdField, string questionIdField)
     {
         var pageId = (string)typeof(RemovalJourneyDateRules).GetField(pageIdField)!.GetValue(null)!;
@@ -176,7 +161,6 @@ public sealed class RemovalJourneyDateRulesTests
     [InlineData(nameof(RemovalJourneyDateRules.PermanentlyExcludedPageId), nameof(RemovalJourneyDateRules.DatePermanentlyExcluded))]
     [InlineData(nameof(RemovalJourneyDateRules.PermanentlyLeftEnglandPageId), nameof(RemovalJourneyDateRules.DateRemovedFromRoll))]
     [InlineData(nameof(RemovalJourneyDateRules.StudentDiedPageId), nameof(RemovalJourneyDateRules.DateRemovedFromRoll))]
-    [InlineData(nameof(RemovalJourneyDateRules.NotAtEndOfStudyPageId), nameof(RemovalJourneyDateRules.DateRemovedFromRoll))]
     public void HistoricallyDistantPastDate_IsAcceptable_OnEveryRemovalPage(string pageIdField, string questionIdField)
     {
         // US3: no lower limit — a removal a decade and a half ago is a legitimate answer.

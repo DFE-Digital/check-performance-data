@@ -1,16 +1,16 @@
 namespace DfE.CheckPerformanceData.Application.Journey.DateRules;
 
 /// <summary>
-/// Date rules for the eight "Remove" journeys: the six KS4 ones (admitted following
+/// Date rules for the seven "Remove" journeys: the six KS4 ones (admitted following
 /// permanent exclusion, child missing education, pupil has died, elective home
 /// education, permanently excluded from current school, permanently left England)
-/// and the two 16-19 ones (student has died, not at end of 16-19 study — AB#298403).
+/// and the 16-19 "student has died" one (AB#298403).
 /// The single removal/exclusion date on each page must be a real calendar date no
 /// later than today — a future date is rejected with the journey-specific
 /// "Date … must be in the past" message. Today itself is accepted on every journey:
 /// a pupil removed from the roll today is a legitimate answer.
 ///
-/// Wording follows the page, not the question id. Four KS4 pages and both 16-19 pages
+/// Wording follows the page, not the question id. Four KS4 pages and the 16-19 page
 /// share the <see cref="DateRemovedFromRoll"/> question, but the 16-19 student-died
 /// page asks about the "school or college roll" — see
 /// <c>PageSpecificFutureDateTemplates</c>.
@@ -35,7 +35,7 @@ namespace DfE.CheckPerformanceData.Application.Journey.DateRules;
 /// </summary>
 public static class RemovalJourneyDateRules
 {
-    // ── Page ids (all six in-scope removal journeys) ─────────────────────────
+    // ── Page ids (all seven in-scope removal journeys) ───────────────────────
 
     /// <summary>Scenario 001: admitted following permanent exclusion.</summary>
     public const string PermanentExclusionPageId = "permanent-exclusion";
@@ -58,9 +58,6 @@ public static class RemovalJourneyDateRules
     /// <summary>AB#298403: the 16-19 "student has died" page (Remove_Post16).</summary>
     public const string StudentDiedPageId = "student-died";
 
-    /// <summary>AB#298403: the 16-19 "not at end of 16-19 study" page (Remove_Post16).</summary>
-    public const string NotAtEndOfStudyPageId = "not-at-end-of-16-19-study";
-
     public static readonly IReadOnlySet<string> RemovalPageIds = new HashSet<string>(
         [
             PermanentExclusionPageId,
@@ -69,8 +66,7 @@ public static class RemovalJourneyDateRules
             ElectiveHomeEducationPageId,
             PermanentlyExcludedPageId,
             PermanentlyLeftEnglandPageId,
-            StudentDiedPageId,
-            NotAtEndOfStudyPageId
+            StudentDiedPageId
         ],
         StringComparer.Ordinal);
 
@@ -124,9 +120,7 @@ public static class RemovalJourneyDateRules
     /// <summary>
     /// Per-page wording overrides, keyed by "{pageId}\u0000{questionId}". A page appears here only
     /// when its question asks something the shared, question-id-keyed template words differently —
-    /// the message must mirror the question the user is reading. The 16-19
-    /// <see cref="NotAtEndOfStudyPageId"/> page is deliberately absent: it asks about the "school
-    /// roll", so the shared wording is already correct for it.
+    /// the message must mirror the question the user is reading.
     /// </summary>
     private static readonly IReadOnlyDictionary<string, string> PageSpecificFutureDateTemplates =
         new Dictionary<string, string>(StringComparer.Ordinal)
@@ -137,7 +131,7 @@ public static class RemovalJourneyDateRules
     private static string TemplateKey(string pageId, string questionId) => $"{pageId}\u0000{questionId}";
 
     /// <summary>
-    /// True when <paramref name="pageId"/> is one of the eight in-scope removal pages,
+    /// True when <paramref name="pageId"/> is one of the seven in-scope removal pages,
     /// i.e. its date questions should be checked for future dates. Used by
     /// <see cref="JourneyValidationService.ValidatePageDates"/> to dispatch.
     /// </summary>

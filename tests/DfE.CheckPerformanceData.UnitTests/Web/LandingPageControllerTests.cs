@@ -196,6 +196,36 @@ public sealed class LandingPageControllerTests
         Assert.Equal(["October 2027", "November 2027"], banners.Select(b => b.NextOpportunity));
     }
 
+    [Fact]
+    public async Task A_window_that_runs_no_pupil_data_exercise_gets_no_closed_banner()
+    {
+        // Review F2: HasClosedPupilData must fail closed for a window with no pupil-data exercise —
+        // ExercisesController.Submit allows an admin to select Results enquiry alone, and
+        // ICheckingExerciseService.IsOpen returns false for a missing exercise, so without the
+        // EndDateFor(...) is not null guard this window would wrongly get a "closed" banner for an
+        // exercise it never ran.
+        var enquiryOnly = new CheckingWindowDto
+        {
+            Id = Guid.NewGuid(),
+            Title = "16 to 19",
+            KeyStage = KeyStages.Post16,
+            CheckingWindowType = CheckingWindowType.Post16,
+            HasPupilData = true,
+            StartDate = PupilDataStart,
+            EndDate = EnquiryEnd,
+            Exercises = [Exercise(CheckingExerciseType.ResultsEnquiry, PupilDataStart, EnquiryEnd, 1)]
+        };
+        Landing(enquiryOnly);
+
+        var model = await Model();
+        var card = Assert.Single(model.OpenWindows);
+
+        Assert.Empty(model.ClosedWindows);
+        Assert.False(card.IsPupilDataOpen);
+        Assert.Null(card.PupilDataEndDate);
+        Assert.True(card.IsResultsEnquiryOpen);
+    }
+
     // ── Session plumbing for the hostless controller ─────────────────────────
 
     private sealed class TestSessionFeature(ISession session) : ISessionFeature

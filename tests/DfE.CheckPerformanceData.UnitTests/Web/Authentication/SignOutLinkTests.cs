@@ -68,4 +68,24 @@ public sealed class SignOutLinkTests
     {
         Assert.Equal("/dev/impersonate/clear", SignOutLink.For(new DefaultHttpContext(), _url));
     }
+
+    // AB#298317 review F6: the class predates the returnUrl parameter added for Check your pupil
+    // data's sign-out answer — neither branch was pinned against it.
+
+    [Fact]
+    public void A_return_url_is_ignored_on_the_real_auth_branch()
+    {
+        var context = ContextFor(new ClaimsIdentity([new Claim(ClaimTypes.Name, "Jo")], "Cookies"));
+
+        Assert.Equal("/Account/DfeSignOut", SignOutLink.For(context, _url, returnUrl: "/"));
+    }
+
+    [Fact]
+    public void A_return_url_is_appended_to_the_impersonation_path()
+    {
+        var context = ContextFor(
+            new ClaimsIdentity([new Claim(ClaimTypes.Name, "dev")], DevImpersonationConstants.Scheme));
+
+        Assert.Equal("/dev/impersonate/clear?returnUrl=%2F", SignOutLink.For(context, _url, returnUrl: "/"));
+    }
 }

@@ -155,6 +155,8 @@ public sealed class NextOpportunityControllerTests
         // The GOV.UK date-input binder does not raise its own error for this optional field — it
         // just binds an impossible date (e.g. 31 February) to null, same as a genuinely blank
         // submission. The controller tells the two apart from the raw posted date parts.
+        // The invalid-date check runs after the window loads (F8), so a window must be stubbed.
+        _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(Window(October2027));
         _sut.ControllerContext = new ControllerContext
         {
             HttpContext = ContextWithForm(
@@ -167,6 +169,9 @@ public sealed class NextOpportunityControllerTests
 
         var view = Assert.IsType<ViewResult>(result);
         Assert.Equal(PageView(), view.ViewName);
+        // Pins the ModelState entry the controller adds, not the text an admin actually sees — the
+        // GOV.UK date-input tag helper composes its own rendered message from the field's
+        // [Display(Name = ...)] (review F3), not from this string.
         Assert.Equal(
             "Next opportunity must be a real date",
             _sut.ModelState[nameof(WindowNextOpportunityEditItem.NextOpportunity)]!.Errors[0].ErrorMessage);
@@ -185,6 +190,31 @@ public sealed class NextOpportunityControllerTests
             CancellationToken.None);
 
         Assert.IsType<RedirectToActionResult>(result);
+        await _windowService.Received(1).UpdateAsync(
+            Arg.Is<CheckingWindowDto>(w => w.NextOpportunity == null),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_non_form_post_is_treated_as_left_blank_not_a_500()
+    {
+        // AB#298317 review F1: WasDatePosted() read Request.Form unguarded. An authenticated admin
+        // can reach Update with a non-form body (e.g. JSON) — [ValidateAntiForgeryToken] accepts the
+        // X-XSRF-TOKEN header as well as the form field — and Request.Form throws for a request with
+        // no form content type. A non-form POST carries no date parts to read, so it must be treated
+        // the same as "left blank".
+        _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(Window(October2027));
+        var httpContext = new DefaultHttpContext();
+        httpContext.Request.ContentType = "application/json";
+        _sut.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        var result = await _sut.Update(WindowId,
+            new WindowNextOpportunityEditItem { WindowId = WindowId, NextOpportunity = null },
+            CancellationToken.None);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Index", redirect.ActionName);
+        Assert.Equal("Summary", redirect.ControllerName);
         await _windowService.Received(1).UpdateAsync(
             Arg.Is<CheckingWindowDto>(w => w.NextOpportunity == null),
             Arg.Any<CancellationToken>());

@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
 
 /// <summary>
@@ -7,5 +9,8 @@ namespace DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
 /// </summary>
 public sealed class WindowNextOpportunityEditItem : AdminPage
 {
+    // The GOV.UK date-input tag helper renders "{DisplayName} must be a real date" from model
+    // metadata — without this, an admin reads the C# property name instead (review F3).
+    [Display(Name = "Next opportunity")]
     public DateTime? NextOpportunity { get; set; }
 }

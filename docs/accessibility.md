@@ -90,6 +90,19 @@ Publishing an accessibility statement is a legal requirement under the 2018 regu
 
 > **Content-block gotcha:** `IContentBlockService.EnsureAsync` seeds `defaultHtml` only when no block exists for the key. Editing `defaultHtml` in a view is therefore inert on every environment whose database already holds that block. That is why the footer block was re-keyed to `footer-support-and-guidance-v2` rather than edited in place; the old block is left orphaned (visible in `/admin/content-blocks`, no longer rendered) so hand-edited prose can still be recovered.
 
+## Journey pages must render exactly one heading
+
+**A question-flow page gets its `<h1>` from one of two places, and the config decides which.** `Page.cshtml` renders the page-level `<h1>` from the page's `title`; `JourneyViewModelBuilder` promotes the single question to the heading instead (`IsPageHeading`) when the page has exactly one question *and no title*. So:
+
+- **single question** → leave `title` empty; the question is the heading.
+- **anything else** — several questions, or a `Content`, `EvidenceUpload`, `ResultDetails` or `QualificationDetails` page — → set a `title`.
+
+Setting a `title` on a single-question page switches *both* headings off, and leaving it off a multi-question page never turns one on. Eight pages in `Remove_KS4June.json` were in the second state when the audit ran (#375). Either way the page still renders, validates and submits, and the browser title is fine, so nothing but a screen reader notices. Use `pageTitle` when the browser title has to differ from the heading — for instance to keep a pupil name out of it.
+
+`ResultDetails.cshtml` and `QualificationDetails.cshtml` render the `<h1>` unconditionally, so a missing title there gives an *empty* heading rather than none — worse, not better. `PupilSearch`, `ResultSearch` and `QualificationSearch` build their own heading (a `govuk-label-wrapper` `<h1>` around the search input, or a hard-coded fallback) and are exempt.
+
+Both halves are pinned in `QuestionFlowValidatorAlignmentTests` — `SingleQuestionPages_LeaveThePageTitleEmpty_…` and `PagesWithoutASingleQuestionHeading_SetATitle_…`.
+
 ## Landmarks
 
 **Every layout wraps its masthead in `<header role="banner">`.** GOV.UK Frontend's header component renders a plain `<div class="govuk-header">`, not a `<header>` element, so nothing in the masthead is a landmark unless the service supplies one. Without the wrapper, the GOV.UK home link and the phase banner's feedback link sit outside every landmark and are unreachable by landmark navigation (audit #374). `_Layout.cshtml`, `_AdminLayout.cshtml` and `_ShareLayout.cshtml` each open the wrapper before `<govuk-header>` and close it after the last masthead element; on `_Layout` that means the phase banner is inside it too.

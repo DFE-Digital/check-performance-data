@@ -324,6 +324,50 @@ public sealed class QuestionFlowValidatorAlignmentTests
     }
 
     /// <summary>
+    /// The other half of the same rule, and the one the accessibility audit caught (#375): every
+    /// page that does NOT hand its heading to a single question must set a <c>title</c>, because
+    /// nothing else supplies one.
+    ///
+    /// <c>Page.cshtml</c> renders <c>ResolvedTitle</c> as the <c>h1</c> only when it is non-null,
+    /// so a multi-question <c>Question</c> page or a <c>Content</c> page with no title renders no
+    /// heading at all. <c>EvidenceUpload.cshtml</c> guards on the same condition.
+    /// <c>ResultDetails.cshtml</c> and <c>QualificationDetails.cshtml</c> render the <c>h1</c>
+    /// unconditionally, which is worse rather than better — an absent title gives an empty
+    /// heading, which a screen reader announces as nothing.
+    ///
+    /// Eight pages in Remove_KS4June.json were in this state when the audit ran. The failure is
+    /// invisible without a screen reader: the page renders, validates and submits exactly as it
+    /// should, and the browser title is populated from <c>pageTitle</c> either way.
+    /// </summary>
+    [Fact]
+    public void PagesWithoutASingleQuestionHeading_SetATitle_SoTheyRenderAnH1()
+    {
+        // PupilSearch, ResultSearch and QualificationSearch are excluded: their views build the
+        // heading themselves (a govuk-label-wrapper h1 around the search input, or a hard-coded
+        // fallback), so the rule for them is not "a title is present".
+        PageType[] needATitle =
+        [
+            PageType.Content, PageType.EvidenceUpload,
+            PageType.ResultDetails, PageType.QualificationDetails
+        ];
+
+        foreach (var (file, page) in AllFlowPages())
+        {
+            var singleQuestionSuppliesTheHeading =
+                page.Type == PageType.Question && page.Questions.Count == 1;
+            if (singleQuestionSuppliesTheHeading) continue;
+
+            if (page.Type != PageType.Question && !needATitle.Contains(page.Type)) continue;
+
+            Assert.False(string.IsNullOrWhiteSpace(page.Title),
+                $"{file}: page '{page.Id}' ({page.Type}, {page.Questions.Count} questions) sets no " +
+                "title, so nothing renders an <h1> — no question is promoted to the heading and the " +
+                "page-level heading needs a title to render. Add 'title'; keep 'pageTitle' for the " +
+                "browser title if it must differ.");
+        }
+    }
+
+    /// <summary>
     /// An optional question's title must not spell out "(Optional)" — <c>JourneyViewModelBuilder</c>
     /// appends it, so a title containing it renders "… (Optional) (Optional)".
     /// </summary>

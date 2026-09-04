@@ -31,6 +31,7 @@ Fixed in code, with `AccessibilityAuditViewTests` pinning each one and the invar
 | # | What changed |
 |---|---|
 | 374 | `<header role="banner">` around the masthead in `_Layout`, `_AdminLayout` and `_ShareLayout`. |
+| 375 | Titles added to the eight untitled multi-question pages in `Remove_KS4June.json`. `QuestionFlowValidatorAlignmentTests` now pins both halves of the heading rule — the pre-existing test covered single-question pages only, which is why this half went unguarded. |
 | 377 | The CMS breadcrumb moved into an `@section Breadcrumbs` that renders before `<main>`. Three CSS rules that keyed off its old position were rewritten; the guidance page and a template-H1 page were compared before and after, pixel for pixel. |
 | 378 + 385 | Hidden ` request {reference} for {pupil}` on every Edit / View / Delete link. |
 | 379 | Hidden ` to {window title}` on each landing-page Continue. |
@@ -39,9 +40,8 @@ Fixed in code, with `AccessibilityAuditViewTests` pinning each one and the invar
 
 ## Still open
 
-- **375, 376, 382, 387** — need content decisions, not just code: eight page titles to write and sign
-  off, Guidance headings and link groups to re-author, and a hunt for literal em dashes that spans
-  the CMS as well as the views.
+- **376, 382, 387** — need content decisions, not just code: Guidance headings and link groups to
+  re-author, and a hunt for literal em dashes that spans the CMS as well as the views.
 - **380, 388** — both likely close with no code. Confirm with Zoonou.
 - **389** — confirm with the auditor which text is actually duplicated before removing anything.
 

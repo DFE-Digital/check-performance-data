@@ -160,6 +160,7 @@
     },
     {
       "id": "permanently-excluded",
+      "title": "Permanently excluded",
       "pageTitle": "Permanent exclusion details",
       "nextPageId" : "evidence",
       "questions": [
@@ -250,6 +251,7 @@
     },
     {
       "id": "child-missing-education",
+      "title": "Child missing education",
       "pageTitle": "Child missing education details",
       "nextPageId": "evidence",
       "questions": [
@@ -325,6 +327,7 @@
     },
     {
       "id": "english-not-first-language-details",
+      "title": "Admission and arrival dates",
       "pageTitle": "Admission and arrival dates",
       "nextPageId": "evidence",
       "questions": [
@@ -365,6 +368,7 @@
     },
     {
       "id": "permanent-exclusion",
+      "title": "Permanent exclusion",
       "pageTitle": "Excluding school details",
       "nextPageId": "evidence",
       "questions": [
@@ -391,6 +395,7 @@
     },
     {
       "id": "permanently-left-england-questions",
+      "title": "Permanently left England",
       "pageTitle": "Permanently left England details",
       "nextPageId": "evidence",
       "questions": [
@@ -415,6 +420,7 @@
     },
     {
       "id": "life-limiting-illness",
+      "title": "Life-limiting or critical illness",
       "pageTitle": "Health issue details",
       "nextPageId": "evidence",
       "questions": [
@@ -493,6 +499,7 @@
     },
     {
       "id": "year-group-change-higher",
+      "title": "Year group moved to",
       "pageTitle": "Year group change details",
       "nextPageId": "year-group-change-evidence",
       "questions": [
@@ -578,6 +585,7 @@
     },
     {
       "id": "social-care",
+      "title": "Social care",
       "pageTitle": "Social care details",
       "nextPageId": "evidence",
       "questions": [

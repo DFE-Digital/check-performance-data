@@ -58,6 +58,13 @@
       <action href="@Model.TurnaroundCommitmentLink" visually-hidden-text="Turnaround commitment">Change</action>
     </row-actions>
   </row>
+  <row>
+    <key>Next opportunity</key>
+    <value>@(Model.NextOpportunity ?? "Not set")</value>
+    <row-actions>
+      <action href="@Model.NextOpportunityLink" visually-hidden-text="Next opportunity">Change</action>
+    </row-actions>
+  </row>
 </govuk-summary-list>
 
 @* One section per checking exercise. Each validates independently — a window is usable while

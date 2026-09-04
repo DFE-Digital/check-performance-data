@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Application.WindowManagement;
+using DfE.CheckPerformanceData.Web.Common;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 
@@ -21,6 +22,7 @@ public sealed class SummaryController(IWindowService windowService): Controller
             WindowId = w.Id,
             Title = w.Title,
             TurnaroundCommitment = w.TurnaroundCommitment,
+            NextOpportunity = NextOpportunityText.For(w.NextOpportunity),
             StartDate = w.StartDate,
             EndDate = w.EndDate,
             KeyStage = w.KeyStage,

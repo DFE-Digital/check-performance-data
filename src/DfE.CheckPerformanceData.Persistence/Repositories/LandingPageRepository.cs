@@ -32,6 +32,7 @@ public sealed class LandingPageRepository(
                 w.CheckingWindowType,
                 w.Title,
                 w.TurnaroundCommitment,
+                w.NextOpportunity,
                 w.Id,
                 // #315: the landing page cannot tell whether a Post16 window's results enquiry is
                 // running from the window's own dates — only the exercise rows say that.
@@ -73,6 +74,7 @@ public sealed class LandingPageRepository(
                 CheckingWindowType = w.CheckingWindowType,
                 Title = w.Title,
                 TurnaroundCommitment = w.TurnaroundCommitment,
+                NextOpportunity = w.NextOpportunity,
                 Id = w.Id,
                 // #316: "has pupil data" asks about the pupil-data exercise's prefix specifically.
                 HasPupilData = await pupilDataBlobClient.HasPupilDataAsync(

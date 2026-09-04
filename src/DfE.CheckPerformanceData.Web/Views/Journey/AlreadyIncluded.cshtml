@@ -5,6 +5,16 @@
     Layout = "_Layout";
 }
 
+@await Html.PartialAsync("_JourneyBackLink", new DfE.CheckPerformanceData.Web.Controllers.Journey.PageViewModel
+{
+    WindowId = Model.WindowId,
+    BackPageId = Model.BackPageId,
+    BackPageAction = nameof(DfE.CheckPerformanceData.Web.Controllers.Journey.JourneyController.PupilSearchPage),
+    Page = new() { Id = "select-pupil" },
+    Answers = new(),
+    QuestionModels = []
+})
+
 <h1 class="govuk-heading-l">This pupil is already included</h1>
 
 <govuk-warning-text icon-fallback-text="Warning">

@@ -199,7 +199,7 @@ public sealed class JourneyController(
                     HttpContext.Session.SaveRequestState(windowId, s =>
                         s.IncludeMatchedPupils = includedSuggestions.ToList());
 
-                    return RedirectToAction(nameof(AlreadyIncluded), new { windowId });
+                    return RedirectToAction(nameof(AlreadyIncluded), new { windowId, pageId });
                 }
 
                 IReadOnlyList<PupilSuggestionDto>? nonIncludedSuggestions = null;
@@ -1695,7 +1695,7 @@ public sealed class JourneyController(
     /// PII) and consumed on arrival. A direct hit with no pending label bounces back out.
     /// </summary>
     [Route("/Journey/{windowId}/already-included")]
-    public async Task<IActionResult> AlreadyIncluded(Guid windowId)
+    public async Task<IActionResult> AlreadyIncluded(Guid windowId, string? pageId = null)
     {
         var journey = HttpContext.Session.GetRequestState(windowId);
         if (!IsSessionReady(journey)) return RedirectToCheckYourData(windowId);
@@ -1714,7 +1714,8 @@ public sealed class JourneyController(
         {
             WindowId = windowId,
             TypedPupilLabel = label,
-            Matches = matches
+            Matches = matches,
+            BackPageId = pageId
         });
     }
 

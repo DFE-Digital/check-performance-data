@@ -13,6 +13,9 @@ public sealed class IncludeAlreadyIncludedViewModel
 {
     public Guid WindowId { get; set; }
 
+    /// <summary>The pageId of the pupil search page to return to via the back link.</summary>
+    public string? BackPageId { get; set; }
+
     /// <summary>The name the user typed. Display only — never logged or placed in analytics.</summary>
     public string? TypedPupilLabel { get; set; }
 

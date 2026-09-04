@@ -297,7 +297,7 @@ public class AmendmentRequestsControllerTests
     {
         _service.GetAmendmentRequestsAsync(WindowId, "smith").Returns(EmptyResult());
 
-        await _sut.Index(WindowId, issueSearch: "smith");
+        await _sut.Index(WindowId, resultsEnquiriesSearch: "smith");
 
         await _service.Received(1).GetAmendmentRequestsAsync(WindowId, "smith");
     }
@@ -327,7 +327,7 @@ public class AmendmentRequestsControllerTests
             HasAnyIssues = true
         });
 
-        var view = Assert.IsType<ViewResult>(await _sut.Index(WindowId, issueSearch: "ali"));
+        var view = Assert.IsType<ViewResult>(await _sut.Index(WindowId, resultsEnquiriesSearch: "ali"));
         var model = Assert.IsType<AmendmentRequestsViewModel>(view.Model);
 
         var row = Assert.Single(model.IssueRows);

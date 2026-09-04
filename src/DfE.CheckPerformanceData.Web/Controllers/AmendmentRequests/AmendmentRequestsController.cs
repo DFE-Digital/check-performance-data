@@ -74,8 +74,8 @@ public sealed class AmendmentRequestsController(
     }
 
     [Route("/{windowId}/AmendmentRequests")]
-    public async Task<IActionResult> Index(Guid windowId, string? issueSearch = null) =>
-        View(await BuildIndexViewModelAsync(windowId, issueSearch));
+    public async Task<IActionResult> Index(Guid windowId, string? resultsEnquiriesSearch = null) =>
+        View(await BuildIndexViewModelAsync(windowId, resultsEnquiriesSearch));
 
     // Renders each submittable request as a full journey-style summary (no change links) rather
     // than a one-line row, with duplicates shown in a compact warning table.

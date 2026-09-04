@@ -37,6 +37,9 @@ now renders all three Figma options — *Incorrect grade*, *Missing qualificatio
 belong to student* — each routed to its own flow. A posted value matching none of them (forged or
 otherwise unknown) is rejected as unanswered rather than starting a journey with no flow behind it.
 
+After the pupil-data exercise closes (AB#298317) the same chooser is reached from the Yes/No question
+Check your pupil data asks in that state; the seeded window `7D3F0B21-…` is in that state locally.
+
 ## Late results guidance
 
 Exam results arrive in batches: main + non-included + late results 1 in October, **late results 2 in

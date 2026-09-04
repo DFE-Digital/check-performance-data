@@ -13,7 +13,7 @@ public sealed class AmendmentRequestsIndexViewSourceTests
     public void TheIssuesTabExists()
     {
         var source = ViewSource();
-        Assert.Contains("<govuk-tabs-item id=\"issues\" label=\"Issues\">", source);
+        Assert.Contains("<govuk-tabs-item id=\"results-enquiries\" label=\"Results Enquiries\">", source);
     }
 
     // Ticket copy, verbatim including the "enquires" typo — FLAGGED for content sign-off, but
@@ -56,17 +56,17 @@ public sealed class AmendmentRequestsIndexViewSourceTests
     public void TheSearchFormIsAGet()
     {
         var source = ViewSource();
-        var formIndex = source.IndexOf("issue-search-form", StringComparison.Ordinal);
-        Assert.True(formIndex >= 0, "The Issues search form (id issue-search-form) is missing.");
+        var formIndex = source.IndexOf("results-enquiries-search-form", StringComparison.Ordinal);
+        Assert.True(formIndex >= 0, "The Issues search form (id results-enquiries-search-form) is missing.");
         Assert.Contains("method=\"get\"", source[..source.IndexOf("</form>", formIndex, StringComparison.Ordinal)][formIndex..]);
     }
 
-    // The form action carries the #issues fragment so the tabs component re-selects the Issues
+    // The form action carries the #results-enquiries fragment so the tabs component re-selects the Results Enquiries
     // tab after the round trip; without it a search dumps the user back on the Requests tab.
     [Fact]
     public void TheSearchFormReturnsToTheIssuesTab()
     {
-        Assert.Contains("/AmendmentRequests#issues", ViewSource());
+        Assert.Contains("/AmendmentRequests#results-enquiries", ViewSource());
     }
 
     [Fact]
@@ -88,7 +88,7 @@ public sealed class AmendmentRequestsIndexViewSourceTests
     public void TheIssuesTabOffersNoRowActions()
     {
         var source = ViewSource();
-        var issuesStart = source.IndexOf("<govuk-tabs-item id=\"issues\"", StringComparison.Ordinal);
+        var issuesStart = source.IndexOf("<govuk-tabs-item id=\"results-enquiries\"", StringComparison.Ordinal);
         var issuesPanel = source[issuesStart..source.IndexOf("</govuk-tabs>", StringComparison.Ordinal)];
         var tableStart = issuesPanel.IndexOf("<table", StringComparison.Ordinal);
         Assert.True(tableStart >= 0, "The Issues table markup is missing.");

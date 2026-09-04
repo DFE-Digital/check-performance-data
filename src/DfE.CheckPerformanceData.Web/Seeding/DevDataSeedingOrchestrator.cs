@@ -5,7 +5,6 @@ using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
 using DfE.CheckPerformanceData.Infrastructure.RulesEngine;
 using DfE.CheckPerformanceData.Persistence.Seeding;
-using DfE.CheckPerformanceData.Web.QuestionFlow;
 using Microsoft.Extensions.Hosting;
 
 namespace DfE.CheckPerformanceData.Web.Seeding;
@@ -13,14 +12,16 @@ namespace DfE.CheckPerformanceData.Web.Seeding;
 // Single source of truth for the development-data seeding sequence. Mirrors the block that
 // previously ran inline in Program.cs: relational seed (countries + checking windows, which
 // is destructive — it wipes change requests and checking windows), per-school pupil JSON
-// blobs, question-flow config blobs, seeded change requests (Kingsmead), then the
-// rules-config blobs. The question-flow and change-request uploads tolerate an Azurite
-// API-version mismatch in Development only, exactly as before.
+// blobs, seeded change requests (Kingsmead), then the rules-config blobs. The change-request
+// upload tolerates an Azurite API-version mismatch in Development only, exactly as before.
+//
+// Question flows are NOT seeded here any more: they are served straight from the files that
+// ship in the image, in every environment, so there is nothing to upload. See
+// docs/question-flow-deployment.md.
 public sealed class DevDataSeedingOrchestrator(
     DevDataSeeder devDataSeeder,
     IPupilDataBlobClient pupilDataBlobClient,
     IStudentResultsClient studentResultsClient,
-    IQuestionFlowBlobClient questionFlowBlobClient,
     IRequestRepository requestRepository,
     IRequestStateBlobClient requestStateBlobClient,
     ICheckYourPupilDataService checkYourPupilDataService,
@@ -47,15 +48,6 @@ public sealed class DevDataSeedingOrchestrator(
         catch (Azure.RequestFailedException ex) when (environment.IsDevelopment())
         {
             logger.LogWarning(ex, "Student results seeding skipped: Azurite returned {Status} {ErrorCode}.", ex.Status, ex.ErrorCode);
-        }
-
-        try
-        {
-            await SeedQuestionFlows.ExecuteSeedAsync(questionFlowBlobClient, environment.ContentRootPath);
-        }
-        catch (Azure.RequestFailedException ex) when (environment.IsDevelopment())
-        {
-            logger.LogWarning(ex, "Blob seeding skipped: Azurite returned {Status} {ErrorCode}. Pin azurite to a tag whose API version supports the current Azure.Storage.Blobs SDK if you need flows/pupils seeded locally.", ex.Status, ex.ErrorCode);
         }
 
         try

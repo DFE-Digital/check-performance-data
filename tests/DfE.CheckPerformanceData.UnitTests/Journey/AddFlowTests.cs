@@ -15,7 +15,7 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 /// </summary>
 public sealed class AddFlowTests
 {
-    // Mirrors QuestionFlowBlobClient's deserialization options.
+    // Mirrors FileSystemQuestionFlowClient's deserialization options.
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,

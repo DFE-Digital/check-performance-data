@@ -337,8 +337,8 @@ When that happens:
 
 1. The exercise joins the key: `{Exercise}_{WhatToChange}_{CheckingWindowType}.json`. Every existing
    file is renamed to read `PupilData_*` except the results-enquiry ones, which read
-   `ResultsEnquiry_*`. Blobs are renamed in the `question-flows` container, and
-   `Web/Data/QuestionFlows/` renamed to match, in the same change — the seeder uploads by filename.
+   `ResultsEnquiry_*`. Only `Web/Data/QuestionFlows/` is renamed — the configs ship in the image
+   and are read by filename, so there are no blobs to rename (see `docs/question-flow-deployment.md`).
 2. `WhatToChangeCheckingExerciseMap` is retired. The exercise is no longer derived from the change
    type; it comes from whichever page started the journey and is carried into the key.
 3. `IsSessionReady`'s gate then needs the exercise from somewhere else. Storing it on `RequestState`

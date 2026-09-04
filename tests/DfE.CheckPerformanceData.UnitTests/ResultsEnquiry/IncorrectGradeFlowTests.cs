@@ -13,7 +13,7 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.ResultsEnquiry;
 /// </summary>
 public sealed class IncorrectGradeFlowTests
 {
-    // Mirrors QuestionFlowBlobClient's deserialization options.
+    // Mirrors FileSystemQuestionFlowClient's deserialization options.
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,

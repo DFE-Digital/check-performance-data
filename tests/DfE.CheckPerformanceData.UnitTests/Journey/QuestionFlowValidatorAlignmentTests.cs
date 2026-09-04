@@ -17,7 +17,7 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 /// </summary>
 public sealed class QuestionFlowValidatorAlignmentTests
 {
-    // Mirrors QuestionFlowBlobClient's deserialization options.
+    // Mirrors FileSystemQuestionFlowClient's deserialization options.
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
@@ -156,7 +156,9 @@ public sealed class QuestionFlowValidatorAlignmentTests
             RemovalJourneyDateRules.PupilDiedPageId,
             RemovalJourneyDateRules.ElectiveHomeEducationPageId,
             RemovalJourneyDateRules.PermanentlyExcludedPageId,
-            RemovalJourneyDateRules.PermanentlyLeftEnglandPageId
+            RemovalJourneyDateRules.PermanentlyLeftEnglandPageId,
+            RemovalJourneyDateRules.StudentDiedPageId,
+            RemovalJourneyDateRules.NotAtEndOfStudyPageId
         ];
 
         foreach (var pageId in removalPageIds)

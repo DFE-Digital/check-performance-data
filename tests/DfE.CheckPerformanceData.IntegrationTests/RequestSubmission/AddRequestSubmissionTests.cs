@@ -73,7 +73,7 @@ public sealed class AddRequestSubmissionTests(PostgresFixture fixture)
     /// real blob client uses, so the whole <see cref="QuestionFlowService"/> — config lookup,
     /// page lookup, request-type resolution — runs for real against the configs that ship.
     /// </summary>
-    private sealed class ShippedFlowFileClient(QuestionFlowConfig? addOverride) : IQuestionFlowBlobClient
+    private sealed class ShippedFlowFileClient(QuestionFlowConfig? addOverride) : IQuestionFlowConfigSource
     {
         public Task<QuestionFlowConfig?> GetConfigAsync(WhatToChange whatToChange, CheckingWindowType windowType)
         {
@@ -85,9 +85,6 @@ public sealed class AddRequestSubmissionTests(PostgresFixture fixture)
                 ? LoadFlowConfig(fileName)
                 : null);
         }
-
-        public Task UploadConfigAsync(WhatToChange whatToChange, CheckingWindowType windowType, string json) =>
-            Task.CompletedTask;
     }
 
     private static IQuestionFlowService BuildFlowService(QuestionFlowConfig? addOverride = null) =>

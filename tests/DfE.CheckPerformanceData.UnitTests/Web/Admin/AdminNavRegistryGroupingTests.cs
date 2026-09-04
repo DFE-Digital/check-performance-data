@@ -25,13 +25,16 @@ public sealed class AdminNavRegistryGroupingTests
 
 		var groups = entries.Where(e => e.ParentKey is null).ToList();
 
-		Assert.Equal(7, groups.Count);
+		// Six: the Amendment requests group was retired (its per-window requests page is reached
+		// from the windows table now) and the Storage administration group went with the blob
+		// browser moving under Danger zone, which is itself a root group registered everywhere.
+		Assert.Equal(6, groups.Count);
 		var groupKeys = groups.Select(g => g.Key).ToHashSet();
 		Assert.Contains("dashboard", groupKeys);
 		Assert.Contains("cms-admin", groupKeys);
 		Assert.Contains("system-admin", groupKeys);
-		Assert.Contains("storage-admin", groupKeys);
-		Assert.Contains("amendment-requests-admin", groupKeys);
+		Assert.DoesNotContain("storage-admin", groupKeys);
+		Assert.Contains("danger-zone", groupKeys);
 		Assert.Contains("window-admin", groupKeys);
 		Assert.Contains("messages-group", groupKeys);
 	}
@@ -64,7 +67,11 @@ public sealed class AdminNavRegistryGroupingTests
 
 		var keys = entries.Select(e => e.Key).ToList();
 
-		Assert.Equal(32, keys.Count);
+		// 30: the Amendment requests group and its Uncommitted requests tile were retired
+		// together and the Storage administration group went when the blob browser moved under
+		// Danger zone, which this overload registers along with the browser but without the
+		// gated Reset seed data tile.
+		Assert.Equal(30, keys.Count);
 		Assert.Equal(keys.Count, keys.Distinct().Count());
 	}
 

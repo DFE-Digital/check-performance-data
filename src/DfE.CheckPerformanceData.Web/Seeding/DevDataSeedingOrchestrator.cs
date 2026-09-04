@@ -2,6 +2,7 @@ using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
+using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
 using DfE.CheckPerformanceData.Infrastructure.RulesEngine;
 using DfE.CheckPerformanceData.Persistence.Seeding;
@@ -12,12 +13,9 @@ namespace DfE.CheckPerformanceData.Web.Seeding;
 // Single source of truth for the development-data seeding sequence. Mirrors the block that
 // previously ran inline in Program.cs: relational seed (countries + checking windows, which
 // is destructive — it wipes change requests and checking windows), per-school pupil JSON
-// blobs, seeded change requests (Kingsmead), then the rules-config blobs. The change-request
-// upload tolerates an Azurite API-version mismatch in Development only, exactly as before.
-//
-// Question flows are NOT seeded here any more: they are served straight from the files that
-// ship in the image, in every environment, so there is nothing to upload. See
-// docs/question-flow-deployment.md.
+// blobs, question-flow config blobs, seeded change requests (Kingsmead), then the
+// rules-config blobs. The question-flow and change-request uploads tolerate an Azurite
+// API-version mismatch in Development only, exactly as before.
 public sealed class DevDataSeedingOrchestrator(
     DevDataSeeder devDataSeeder,
     IPupilDataBlobClient pupilDataBlobClient,
@@ -25,6 +23,7 @@ public sealed class DevDataSeedingOrchestrator(
     IRequestRepository requestRepository,
     IRequestStateBlobClient requestStateBlobClient,
     ICheckYourPupilDataService checkYourPupilDataService,
+    ICheckingExerciseService checkingExerciseService,
     RulesConfigSeeder rulesConfigSeeder,
     GradeReferenceBlobClient gradeReferenceBlobClient,
     QualificationReferenceBlobClient qualificationReferenceBlobClient,
@@ -52,7 +51,7 @@ public sealed class DevDataSeedingOrchestrator(
 
         try
         {
-            await SeedChangeRequests.ExecuteSeedAsync(pupilDataBlobClient, requestRepository, requestStateBlobClient, checkYourPupilDataService);
+            await SeedChangeRequests.ExecuteSeedAsync(pupilDataBlobClient, requestRepository, requestStateBlobClient, checkYourPupilDataService, checkingExerciseService);
         }
         catch (Azure.RequestFailedException ex) when (environment.IsDevelopment())
         {

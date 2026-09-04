@@ -115,41 +115,6 @@
       ]
     },
     {
-      "id": "not-at-end-of-16-19-study",
-      "pageTitle": "Not at end of 16-19 study",
-      "nextPageId": "evidence",
-      "questions": [
-        {
-          "id": "why-removed",
-          "type": "Radio",
-          "title": "Why has {pupilName} been removed from your school roll?",
-          "hint": "Select one option",
-          "summaryTitle": "Why has {pupilName} been removed from your school roll",
-          "validationFailure": "Select why {pupilName} has been removed from your school roll",
-          "options": [
-            {
-              "value": "not-returned-after-agreed-leave",
-              "label": "Not come back after an agreed period of leave",
-              "subLabel": "Ground H of the School Attendance Regulations 2024"
-            },
-            {
-              "value": "no-agreed-leave-or-reason",
-              "label": "Been absent for a long time with no agreed leave and no clear reason",
-              "subLabel": "Ground I of the School Attendance Regulations 2024"
-            }
-          ]
-        },
-        {
-          "id": "date-removed-from-roll",
-          "type": "Date",
-          "title": "When was {pupilName} removed from your school roll?",
-          "hint": "For example, 27 3 2026",
-          "summaryTitle": "When was {pupilName} removed from your school roll",
-          "validationFailure": "Enter the date {pupilName} was removed from your school roll"
-        }
-      ]
-    },
-    {
       "id": "not-on-roll",
       "pageTitle": "Not on roll",
       "nextPageId": "not-on-roll-evidence",
@@ -205,31 +170,6 @@
           "summaryTitle": "How evidence demonstrates removal",
           "characterLimit": 1000,
           "optional": true
-        }
-      ]
-    },
-    {
-      "id": "evidence",
-      "pageTitle": "Provide evidence for the removal",
-      "type": "EvidenceUpload",
-      "title": "Provide evidence for the removal of {pupilName}",
-      "questions": [
-        {
-          "id": "evidence",
-          "type": "FileUpload",
-          "title": "Upload files",
-          "hint": "Evidence must be in a PDF format",
-          "optionalWhen": "EalWouldBeAutoRejected"
-        },
-        {
-          "id": "how-evidence-supports",
-          "type": "TextArea",
-          "title": "How does the evidence demonstrate why the student should be removed?",
-          "hint": "Your request will not be accepted unless you provide the correct evidence",
-          "summaryTitle": "How evidence demonstrates removal",
-          "characterLimit": 1000,
-          "validationFailure": "Explain how the evidence supports removing {pupilName}",
-          "optionalWhen": "EalWouldBeAutoRejected"
         }
       ]
     }

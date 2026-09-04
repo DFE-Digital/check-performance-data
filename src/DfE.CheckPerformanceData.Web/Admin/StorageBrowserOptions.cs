@@ -4,7 +4,7 @@ namespace DfE.CheckPerformanceData.Web.Admin;
 /// Containers the storage browser must never reach.
 /// </summary>
 /// <remarks>
-/// The storage-admin section grant decides who may open the browser. It says nothing about what
+/// The storage-browser section grant decides who may open the browser. It says nothing about what
 /// the browser may touch, so every container in the account was reachable — including the one
 /// holding the Data Protection keyring, which protects authentication cookies, session state and
 /// antiforgery tokens. Reading it allows those to be decrypted, replacing it allows them to be

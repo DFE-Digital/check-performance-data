@@ -123,7 +123,8 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
                             .SetProperty(r => r.SubmittedByEmail, data.SubmittedByEmail)
                             .SetProperty(r => r.RequestType, data.RequestType)
                             .SetProperty(r => r.RequestTypeDescription, data.RequestTypeDescription)
-                            .SetProperty(r => r.AmendmentType, data.AmendmentType));
+                            .SetProperty(r => r.AmendmentType, data.AmendmentType)
+                            .SetProperty(r => r.CheckingExerciseId, data.CheckingExerciseId));
                 }
                 else
                 {
@@ -132,6 +133,7 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
                     {
                         Id = id,
                         WindowId = data.WindowId,
+                        CheckingExerciseId = data.CheckingExerciseId,
                         ReferenceNumber = data.ReferenceNumber,
                         OrganisationUrn = data.OrganisationUrn,
                         PupilId = data.PupilId,
@@ -178,7 +180,8 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
                     .SetProperty(r => r.SubmittedByEmail, data.SubmittedByEmail)
                     .SetProperty(r => r.RequestType, data.RequestType)
                     .SetProperty(r => r.RequestTypeDescription, data.RequestTypeDescription)
-                    .SetProperty(r => r.AmendmentType, data.AmendmentType));
+                    .SetProperty(r => r.AmendmentType, data.AmendmentType)
+                    .SetProperty(r => r.CheckingExerciseId, data.CheckingExerciseId));
             return draftExistingId;
         }
 
@@ -187,6 +190,7 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
         {
             Id = newId,
             WindowId = data.WindowId,
+            CheckingExerciseId = data.CheckingExerciseId,
             ReferenceNumber = data.ReferenceNumber,
             OrganisationUrn = data.OrganisationUrn,
             PupilId = data.PupilId,

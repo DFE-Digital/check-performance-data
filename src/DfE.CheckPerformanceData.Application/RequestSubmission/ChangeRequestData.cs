@@ -6,6 +6,13 @@ namespace DfE.CheckPerformanceData.Application.RequestSubmission;
 public sealed class ChangeRequestData
 {
     public required Guid WindowId { get; init; }
+
+    /// <summary>
+    /// The <c>CheckingExercises</c> row this request belongs to. Resolved by the caller through
+    /// <c>ICheckingExerciseService.IdFor</c>; null when the window has no row for the exercise the
+    /// request's change type maps to.
+    /// </summary>
+    public Guid? CheckingExerciseId { get; init; }
     public required string ReferenceNumber { get; init; }
     public required long OrganisationUrn { get; init; }
     public Guid? PupilId { get; init; }

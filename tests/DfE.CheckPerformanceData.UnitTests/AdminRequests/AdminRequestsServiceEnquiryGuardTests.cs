@@ -4,11 +4,12 @@ using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
-using DfE.CheckPerformanceData.Application.UncommittedRequests;
+using DfE.CheckPerformanceData.Application.AdminRequests;
 using DfE.CheckPerformanceData.Domain.Enums;
 using NSubstitute;
+using IWindowService = DfE.CheckPerformanceData.Application.WindowManagement.IWindowService;
 
-namespace DfE.CheckPerformanceData.Application.UnitTests.UncommittedRequests;
+namespace DfE.CheckPerformanceData.Application.UnitTests.AdminRequests;
 
 // AB#296648/AB#297848/AB#298704: the window-close Zendesk replay must skip results enquiries —
 // every kind.
@@ -30,7 +31,7 @@ public sealed class AdminRequestsServiceEnquiryGuardTests
     private static readonly Guid AmendmentRowId = Guid.Parse("11111111-1111-1111-1111-111111111111");
     private static readonly Guid EnquiryRowId = Guid.Parse("22222222-2222-2222-2222-222222222222");
 
-    private readonly IUncommittedRequestsRepository _repository = Substitute.For<IUncommittedRequestsRepository>();
+    private readonly IAdminRequestsRepository _repository = Substitute.For<IAdminRequestsRepository>();
     private readonly IRequestStateBlobClient _stateBlob = Substitute.For<IRequestStateBlobClient>();
     private readonly IQuestionFlowService _flowService = Substitute.For<IQuestionFlowService>();
     private readonly IQueueService _queueService = Substitute.For<IQueueService>();
@@ -54,7 +55,8 @@ public sealed class AdminRequestsServiceEnquiryGuardTests
         _flowService.ResolveRequestType(Arg.Any<QuestionFlowConfig>(), Arg.Any<RequestState>()).Returns("Remove");
 
         _sut = new AdminRequestsService(
-            _repository, _stateBlob, _flowService, _queueService, new FakeTimeProvider(Now));
+            _repository, _stateBlob, _flowService, _queueService, Substitute.For<IWindowService>(),
+            new FakeTimeProvider(Now));
     }
 
     private static ReplayRequestRow Row(Guid id, string reference) => new()

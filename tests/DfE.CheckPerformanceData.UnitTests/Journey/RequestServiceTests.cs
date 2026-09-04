@@ -9,6 +9,7 @@ using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Domain.Enums;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
+using CheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseService;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 
@@ -37,7 +38,20 @@ public class RequestServiceTests
         _currentUser.OrganisationUrn.Returns("100000");
         _currentUser.Ukprn.Returns("10000000");
         _currentUser.OrganisationName.Returns("Test School");
-        _sut = new RequestService(_flowService, _requestStateBlobClient, _requestRepository, _currentUser, _logger, _queueService, _requestNotificationService, _checkYourPupilDataService);
+        // ConfirmDataCorrectAsync reads the window to resolve the pupil-data exercise it stamps on
+        // the row; every other path takes the window off the journey.
+        _checkYourPupilDataService.GetCheckingWindowAsync(WindowId).Returns(new CheckingWindowDto
+        {
+            Id = WindowId,
+            Title = "KS4 June",
+            KeyStage = KeyStages.KS4,
+            CheckingWindowType = CheckingWindowType.KS4June,
+            StartDate = DateTime.UtcNow.AddDays(-10),
+            EndDate = DateTime.UtcNow.AddDays(20)
+        });
+
+        _sut = new RequestService(_flowService, _requestStateBlobClient, _requestRepository, _currentUser, _logger, _queueService, _requestNotificationService, _checkYourPupilDataService,
+            new CheckingExerciseService(TimeProvider.System));
     }
 
     // ── ConfirmRequestAsync — guard checks ──────────────────────────────────

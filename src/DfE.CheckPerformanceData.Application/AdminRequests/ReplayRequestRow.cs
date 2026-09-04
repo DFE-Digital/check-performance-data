@@ -1,4 +1,4 @@
-namespace DfE.CheckPerformanceData.Application.UncommittedRequests;
+namespace DfE.CheckPerformanceData.Application.AdminRequests;
 
 // Minimal projection of a SubmittedUnCommitted ChangeRequests row needed to rebuild
 // its RequestDocument for the quick-and-dirty "send to Zendesk" admin replay. The rest

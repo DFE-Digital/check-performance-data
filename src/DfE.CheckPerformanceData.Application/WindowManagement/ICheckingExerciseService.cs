@@ -26,6 +26,18 @@ public interface ICheckingExerciseService
     /// <summary>The exercise's end date, or null when there is no row for that type.</summary>
     DateTime? EndDateFor(
         IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise);
+
+    /// <summary>
+    /// The exercise's row id, or null when there is no row for that type. This is what a
+    /// ChangeRequest is stamped with so it can say which exercise it belongs to; the type itself
+    /// comes from <see cref="WhatToChangeCheckingExerciseMap"/>, never from a second hardcoding.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately date-blind, unlike <see cref="IsOpen"/>: a draft saved on the last day and read
+    /// back the next must still carry its exercise, so the id is returned for a closed exercise
+    /// exactly as <see cref="EndDateFor"/> returns a lapsed end date.
+    /// </remarks>
+    Guid? IdFor(IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise);
 }
 
 /// <inheritdoc />
@@ -57,6 +69,9 @@ public sealed class CheckingExerciseService(TimeProvider timeProvider) : IChecki
     public DateTime? EndDateFor(
         IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise) =>
         exercises.FirstOrDefault(e => e.ExerciseType == exercise)?.EndDate;
+
+    public Guid? IdFor(IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise) =>
+        exercises.FirstOrDefault(e => e.ExerciseType == exercise)?.Id;
 
     private DateTime Now() => timeProvider.GetLocalNow().DateTime;
 

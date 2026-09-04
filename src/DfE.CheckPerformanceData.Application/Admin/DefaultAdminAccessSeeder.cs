@@ -33,12 +33,15 @@ public sealed class DefaultAdminAccessSeeder(IAdminSectionAccessRepository repos
         "zendesk-queue",
         "dead-letter-queue",
         "observability",
-        "storage-admin",
         "storage-browser",
         "transactions",
         "replay-submissions",
-        "amendment-requests-admin",
-        "uncommitted-requests",
+        // Window administration. The nav entries were always registered but no grant existed, so
+        // FilterByAccess (which checks each tile's own Key) hid the whole group. manage-window also
+        // gates the per-window requests page reached from the windows table.
+        "window-admin",
+        "new-window",
+        "manage-window",
         "reset-seed-data",
         "share-admin",
         "search-analytics",

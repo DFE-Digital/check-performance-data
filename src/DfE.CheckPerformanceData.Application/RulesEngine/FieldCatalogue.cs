@@ -38,7 +38,7 @@ public static class FieldCatalogue
 
             // Discrete reason answers
             ["yearGroupChange"]                   = FieldType.String, // "Lower" | "Higher"
-            ["removalReasonAtSchool"]             = FieldType.String, // Apprentice | External candidate | International student
+            ["removalReasonAtSchool"]             = FieldType.String, // not-on-roll-reason option values: apprentice | external-candidate | international-student | other
 
             // Social care / prison / police booleans
             ["hadSocialCareInvolvement"]          = FieldType.Bool,

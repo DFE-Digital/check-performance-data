@@ -230,4 +230,118 @@ public sealed class PupilDuplicateCheckTests
         Assert.Equal(DuplicateScenario.None, result.Scenario);
         Assert.Empty(result.Matches);
     }
+
+    // ── NameMatchesSplitQuery in duplicate-check context (T002) ────────────
+
+    [Fact]
+    public async Task Duplicate_check_matches_firstname_and_surname_via_split_query()
+    {
+        var pupil = Ks4Pupil(firstname: "John", surname: "Smith");
+        _repository.GetAllPupilsForSchoolAsync(Arg.Any<Guid>(), TestLaestab)
+            .Returns(new List<IPupilRecord> { pupil });
+
+        var result = await _sut.DuplicateCheckAsync(Guid.NewGuid(), "John", "Smith", "2010-09-01");
+
+        Assert.Equal(DuplicateScenario.SingleIncluded, result.Scenario);
+        Assert.Single(result.Matches);
+    }
+
+    [Fact]
+    public async Task Duplicate_check_matches_containing_names_via_split_query()
+    {
+        var pupil = Ks4Pupil(firstname: "Johnny", surname: "Smithson");
+        _repository.GetAllPupilsForSchoolAsync(Arg.Any<Guid>(), TestLaestab)
+            .Returns(new List<IPupilRecord> { pupil });
+
+        var result = await _sut.DuplicateCheckAsync(Guid.NewGuid(), "John", "Smith", "2010-09-01");
+
+        Assert.Equal(DuplicateScenario.SingleIncluded, result.Scenario);
+        Assert.Single(result.Matches);
+    }
+
+    [Fact]
+    public async Task Duplicate_check_rejects_when_only_one_name_part_matches()
+    {
+        var pupil = Ks4Pupil(firstname: "John", surname: "Jones");
+        _repository.GetAllPupilsForSchoolAsync(Arg.Any<Guid>(), TestLaestab)
+            .Returns(new List<IPupilRecord> { pupil });
+
+        var result = await _sut.DuplicateCheckAsync(Guid.NewGuid(), "John", "Smith", "2010-09-01");
+
+        Assert.Equal(DuplicateScenario.None, result.Scenario);
+        Assert.Empty(result.Matches);
+    }
+
+    // ── T010: Two-part split matching in duplicate check ────────────────────
+
+    [Fact]
+    public async Task Duplicate_check_finds_pupils_with_containing_names()
+    {
+        // "Johnny Smithson" contains "John" in firstname and "Smith" in surname
+        var pupil = Ks4Pupil(firstname: "Johnny", surname: "Smithson");
+        _repository.GetAllPupilsForSchoolAsync(Arg.Any<Guid>(), TestLaestab)
+            .Returns(new List<IPupilRecord> { pupil });
+
+        var result = await _sut.DuplicateCheckAsync(Guid.NewGuid(), "John", "Smith", "2010-09-01");
+
+        Assert.Equal(DuplicateScenario.SingleIncluded, result.Scenario);
+        Assert.Single(result.Matches);
+        Assert.Equal("Johnny", result.Matches[0].Firstname);
+        Assert.Equal("Smithson", result.Matches[0].Surname);
+    }
+
+    [Fact]
+    public async Task Duplicate_check_excludes_when_surname_part_does_not_match()
+    {
+        var pupil = Ks4Pupil(firstname: "Johnny", surname: "Jones");
+        _repository.GetAllPupilsForSchoolAsync(Arg.Any<Guid>(), TestLaestab)
+            .Returns(new List<IPupilRecord> { pupil });
+
+        var result = await _sut.DuplicateCheckAsync(Guid.NewGuid(), "John", "Smith", "2010-09-01");
+
+        Assert.Equal(DuplicateScenario.None, result.Scenario);
+        Assert.Empty(result.Matches);
+    }
+
+    [Fact]
+    public async Task Duplicate_check_excludes_when_firstname_part_does_not_match()
+    {
+        var pupil = Ks4Pupil(firstname: "Jane", surname: "Smithson");
+        _repository.GetAllPupilsForSchoolAsync(Arg.Any<Guid>(), TestLaestab)
+            .Returns(new List<IPupilRecord> { pupil });
+
+        var result = await _sut.DuplicateCheckAsync(Guid.NewGuid(), "John", "Smith", "2010-09-01");
+
+        Assert.Equal(DuplicateScenario.None, result.Scenario);
+        Assert.Empty(result.Matches);
+    }
+
+    // ── T011: Backward compatibility ─────────────────────────────────────────
+
+    [Fact]
+    public async Task Duplicate_check_exact_match_still_works()
+    {
+        // Exact match should still work via the split query's single-term fallback
+        var pupil = Ks4Pupil(firstname: "Alice", surname: "Smith");
+        _repository.GetAllPupilsForSchoolAsync(Arg.Any<Guid>(), TestLaestab)
+            .Returns(new List<IPupilRecord> { pupil });
+
+        var result = await _sut.DuplicateCheckAsync(Guid.NewGuid(), "Alice", "Smith", "2010-09-01");
+
+        Assert.Equal(DuplicateScenario.SingleIncluded, result.Scenario);
+        Assert.Single(result.Matches);
+    }
+
+    [Fact]
+    public async Task Duplicate_check_case_insensitive_matching_preserved_with_split()
+    {
+        var pupil = Ks4Pupil(firstname: "Alice", surname: "Smith");
+        _repository.GetAllPupilsForSchoolAsync(Arg.Any<Guid>(), TestLaestab)
+            .Returns(new List<IPupilRecord> { pupil });
+
+        var result = await _sut.DuplicateCheckAsync(Guid.NewGuid(), "alice", "smith", "2010-09-01");
+
+        Assert.Equal(DuplicateScenario.SingleIncluded, result.Scenario);
+        Assert.Single(result.Matches);
+    }
 }

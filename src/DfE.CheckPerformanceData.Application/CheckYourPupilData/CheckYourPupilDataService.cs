@@ -78,9 +78,9 @@ public sealed class CheckYourPupilDataService : ICheckYourPupilDataService
             var pupils = await _repository.GetAllPupilsForSchoolAsync(windowId, laestab);
 
             var displayDob = PupilDateFormatter.ToDisplayDate(dateOfBirth);
+            var nameQuery = $"{firstname} {surname}";
             var matches = pupils
-                .Where(p => NameEquals(p.Firstname, firstname)
-                         && NameEquals(p.Surname, surname)
+                .Where(p => PupilSuggestionFormat.NameMatchesSplitQuery(p.Firstname, p.Surname, nameQuery)
                          && PupilDateFormatter.ToDisplayDate(p.DateOfBirth) == displayDob)
                 .Select(p => new DuplicateMatch
                 {
@@ -112,6 +112,4 @@ public sealed class CheckYourPupilDataService : ICheckYourPupilDataService
         }
     }
 
-    private static bool NameEquals(string? record, string? entered)
-        => string.Equals(record, entered, StringComparison.OrdinalIgnoreCase);
 }

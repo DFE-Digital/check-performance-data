@@ -121,4 +121,172 @@ public sealed class PupilSuggestionFormatTests
     [Fact]
     public void A_pupil_with_no_date_of_birth_does_not_throw()
         => Assert.False(PupilSuggestionFormat.Matches(Post16(dob: string.Empty), "12/03", CheckingWindowType.Post16));
+
+    // ── NameMatchesSplitQuery helper (T001) ──────────────────────────────────
+
+    [Fact]
+    public void NameMatchesSplitQuery_matches_firstname_and_surname_parts()
+    {
+        Assert.True(PupilSuggestionFormat.NameMatchesSplitQuery("John", "Smith", "John Smith"));
+    }
+
+    [Fact]
+    public void NameMatchesSplitQuery_matches_partial_firstname_and_surname()
+    {
+        Assert.True(PupilSuggestionFormat.NameMatchesSplitQuery("Johnny", "Smithson", "john sm"));
+    }
+
+    [Fact]
+    public void NameMatchesSplitQuery_is_case_insensitive()
+    {
+        Assert.True(PupilSuggestionFormat.NameMatchesSplitQuery("John", "Smith", "JOHN smith"));
+    }
+
+    [Fact]
+    public void NameMatchesSplitQuery_rejects_when_surname_part_does_not_match()
+    {
+        Assert.False(PupilSuggestionFormat.NameMatchesSplitQuery("John", "Jones", "John Smith"));
+    }
+
+    [Fact]
+    public void NameMatchesSplitQuery_rejects_when_firstname_part_does_not_match()
+    {
+        Assert.False(PupilSuggestionFormat.NameMatchesSplitQuery("Jane", "Smith", "John Smith"));
+    }
+
+    [Theory]
+    [InlineData("John ")]       // trailing space
+    [InlineData(" John Smith")] // leading space
+    [InlineData("John  Smith")] // double space
+    public void NameMatchesSplitQuery_handles_whitespace_variations(string query)
+    {
+        Assert.True(PupilSuggestionFormat.NameMatchesSplitQuery("John", "Smith", query));
+    }
+
+    [Fact]
+    public void NameMatchesSplitQuery_degrades_to_single_term_when_no_space()
+    {
+        Assert.True(PupilSuggestionFormat.NameMatchesSplitQuery("John", "Smith", "John"));
+        Assert.True(PupilSuggestionFormat.NameMatchesSplitQuery("John", "Smith", "Smith"));
+    }
+
+    [Fact]
+    public void NameMatchesSplitQuery_returns_false_for_empty_query()
+    {
+        Assert.False(PupilSuggestionFormat.NameMatchesSplitQuery("John", "Smith", ""));
+    }
+
+    // ── T005: Two-part split matching via Matches ────────────────────────────
+
+    [Theory]
+    [InlineData("John Smith")]
+    [InlineData("john smith")]
+    [InlineData("JOHN SMITH")]
+    public void Matches_two_part_query_matches_both_name_parts_case_insensitive(string query)
+    {
+        var pupil = Ks4(firstname: "John", surname: "Smith");
+        Assert.True(PupilSuggestionFormat.Matches(pupil, query, CheckingWindowType.KS4June));
+    }
+
+    [Theory]
+    [InlineData("john sm")]
+    [InlineData("JOHN SMI")]
+    public void Matches_two_part_query_matches_partial_parts(string query)
+    {
+        var pupil = Ks4(firstname: "Johnny", surname: "Smithson");
+        Assert.True(PupilSuggestionFormat.Matches(pupil, query, CheckingWindowType.KS4June));
+    }
+
+    [Theory]
+    [InlineData("Jane Smith")]   // surname matches, firstname does not
+    [InlineData("John Jones")]   // firstname matches, surname does not
+    public void Matches_two_part_query_excludes_when_only_one_part_matches(string query)
+    {
+        var pupil = Ks4(firstname: "John", surname: "Smith");
+        Assert.False(PupilSuggestionFormat.Matches(pupil, query, CheckingWindowType.KS4June));
+    }
+
+    // ── T006: Edge cases ────────────────────────────────────────────────────
+
+    [Fact]
+    public void Matches_trailing_space_treats_as_single_term()
+    {
+        var pupil = Ks4(firstname: "John", surname: "Smith");
+        Assert.True(PupilSuggestionFormat.Matches(pupil, "John ", CheckingWindowType.KS4June));
+    }
+
+    [Fact]
+    public void Matches_leading_space_is_trimmed_before_split()
+    {
+        var pupil = Ks4(firstname: "John", surname: "Smith");
+        Assert.True(PupilSuggestionFormat.Matches(pupil, " John Smith", CheckingWindowType.KS4June));
+    }
+
+    [Fact]
+    public void Matches_double_space_splits_at_first_space()
+    {
+        var pupil = Ks4(firstname: "John", surname: "Smith");
+        Assert.True(PupilSuggestionFormat.Matches(pupil, "John  Smith", CheckingWindowType.KS4June));
+    }
+
+    [Fact]
+    public void Matches_three_names_splits_at_first_space()
+    {
+        var pupil = Ks4(firstname: "John", surname: "Smith");
+        // "John Michael Smith" → first part "John", second part "Michael Smith"
+        // surname.Contains("Michael Smith") is false → no match
+        Assert.False(PupilSuggestionFormat.Matches(pupil, "John Michael Smith", CheckingWindowType.KS4June));
+    }
+
+    [Fact]
+    public void Matches_three_names_matches_when_parts_contain()
+    {
+        var pupil = Ks4(firstname: "John", surname: "Michael Smith");
+        Assert.True(PupilSuggestionFormat.Matches(pupil, "John Michael", CheckingWindowType.KS4June));
+    }
+
+    [Fact]
+    public void Matches_all_spaces_returns_false_for_empty_after_trim()
+    {
+        var pupil = Ks4(firstname: "John", surname: "Smith");
+        // All spaces → trimmed to empty → no match
+        Assert.False(PupilSuggestionFormat.Matches(pupil, "   ", CheckingWindowType.KS4June));
+    }
+
+    // ── T007: Single-term backward compatibility (no regression) ────────────
+
+    [Theory]
+    [InlineData("A8604070001B")]   // UPN
+    [InlineData("A8604")]          // UPN prefix
+    [InlineData("Smi")]            // surname partial
+    [InlineData("smi")]            // surname partial, case-insensitive
+    [InlineData("Jan")]            // firstname partial
+    [InlineData("000001")]         // CYPMD ID
+    public void Matches_single_term_still_works_for_ks4(string query)
+    {
+        var pupil = Ks4(upn: "A8604070001B");
+        Assert.True(PupilSuggestionFormat.Matches(pupil, query, CheckingWindowType.KS4June));
+    }
+
+    [Theory]
+    [InlineData("9900000001")]     // ULN
+    [InlineData("990")]            // ULN prefix
+    [InlineData("500001")]         // CYPMD ID
+    [InlineData("5000")]           // CYPMD ID prefix
+    [InlineData("12/03/2007")]     // DOB display
+    [InlineData("12/03")]          // DOB partial
+    [InlineData("Bil")]            // firstname partial
+    [InlineData("b")]              // surname
+    public void Matches_single_term_still_works_for_post16(string query)
+    {
+        var pupil = Post16();
+        Assert.True(PupilSuggestionFormat.Matches(pupil, query, CheckingWindowType.Post16));
+    }
+
+    [Fact]
+    public void Matches_two_part_query_does_not_match_only_one_part_in_post16()
+    {
+        var pupil = Post16(firstname: "John", surname: "Smith");
+        Assert.False(PupilSuggestionFormat.Matches(pupil, "John Jones", CheckingWindowType.Post16));
+    }
 }

@@ -12,6 +12,9 @@ public sealed class DuplicateCheckViewModel
 {
     public Guid WindowId { get; set; }
 
+    /// <summary>The pageId of the page to return to via the back link.</summary>
+    public string? BackPageId { get; set; }
+
     public required DuplicateScenario Scenario { get; init; }
 
     public required IReadOnlyList<DuplicateMatch> Matches { get; init; }

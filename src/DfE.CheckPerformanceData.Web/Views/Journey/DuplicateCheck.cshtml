@@ -6,6 +6,16 @@
     var multiple = Model.Scenario == DfE.CheckPerformanceData.Application.CheckYourPupilData.DuplicateScenario.Multiple;
 }
 
+@await Html.PartialAsync("_JourneyBackLink", new DfE.CheckPerformanceData.Web.Controllers.Journey.PageViewModel
+{
+    WindowId = Model.WindowId,
+    BackPageId = Model.BackPageId,
+    BackPageAction = nameof(DfE.CheckPerformanceData.Web.Controllers.Journey.JourneyController.Page),
+    Page = new() { Id = "learner-details" },
+    Answers = new(),
+    QuestionModels = []
+})
+
 <h1 class="govuk-heading-l">This pupil may already be on the roll</h1>
 
 <govuk-warning-text icon-fallback-text="Warning">

@@ -1504,7 +1504,8 @@ public sealed class JourneyController(
             WindowId = windowId,
             Scenario = r.Scenario,
             Matches = r.Matches,
-            LearnerNameLabel = pupilName
+            LearnerNameLabel = pupilName,
+            BackPageId = AddPupilJourney.LearnerDetailsPageId
         });
     }
 

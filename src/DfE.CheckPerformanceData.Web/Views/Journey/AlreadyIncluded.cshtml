@@ -12,10 +12,53 @@
 </govuk-warning-text>
 
 <p class="govuk-body">
-    The pupil may already be the subject of an active request on the included list. You do not need to include them again.
+    No non-included pupils where found. The pupil may already be the subject of an active request on the included list. You do not need to include them again.
 </p>
+
+@if (Model.Matches.Count > 0)
+{
+    <h2 class="govuk-heading-m">Matching pupils on the included list</h2>
+
+    <table class="govuk-table">
+        <caption class="govuk-table__caption govuk-table__caption--s">Pupils matching "@Model.TypedPupilLabel"</caption>
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header">Name</th>
+                <th scope="col" class="govuk-table__header">Date of birth</th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            @foreach (var match in Model.Matches)
+            {
+                // The suggestion label is "Surname, Firstname, FitDob" (PupilSuggestionFormat.Label).
+                var displayName = match.Label;
+                var dob = "";
+                var parts = match.Label.Split(", ");
+                if (parts.Length >= 3)
+                {
+                    displayName = $"{parts[1]} {parts[0]}";
+                    dob = parts[2];
+                }
+
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">@displayName</td>
+                    <td class="govuk-table__cell">@dob</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<p class="govuk-body">
+    If the pupil should still be included, you can add them as a new pupil instead.
+</p>
+
+<form method="post" action="@Url.Action("StartAddingPupil", "Journey", new { windowId = Model.WindowId })">
+    @Html.AntiForgeryToken()
+    <govuk-button type="submit">Start adding this pupil</govuk-button>
+</form>
 
 <form method="post" action="@Url.Action("AbortInclude", "Journey", new { windowId = Model.WindowId })">
     @Html.AntiForgeryToken()
-    <govuk-button type="submit">Abort</govuk-button>
+    <govuk-button type="submit" prevent-double-click="false" class="govuk-button--secondary">Abort</govuk-button>
 </form>

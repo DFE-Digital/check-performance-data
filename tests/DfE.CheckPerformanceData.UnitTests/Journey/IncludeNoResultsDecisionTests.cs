@@ -22,10 +22,13 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 /// <summary>
 /// AB#027: Include journey no-results decision flow. When a user on the Include journey's
 /// select-pupil step types a name, gets no autocomplete result, and clicks Continue without
-/// selecting a pupil, the system looks the typed entry up against the included population:
-/// an included match warns "already included" (abort), no included match offers "pupil not
-/// found" (start Add / search again). Blank entry and lookup failure keep the existing
-/// validation.
+/// selecting a pupil, the system looks the typed entry up against BOTH the included and
+/// non-included populations:
+///  - included match warns "already included" (abort);
+///  - non-included-only match is a valid include candidate — the journey proceeds as normal
+///    (re-renders the search page with the candidate visible, no warning, no decision page);
+///  - no match on either list offers "pupil not found" (start Add / search again).
+/// Blank entry and lookup failure keep the existing validation (fail safe, never a dead end).
 /// </summary>
 public class IncludeNoResultsDecisionTests
 {
@@ -124,13 +127,15 @@ public class IncludeNoResultsDecisionTests
         };
     }
 
-    // -- T004: non-blank typed text + no selection + no included match → "Pupil not found" -- 
+    // -- T004: non-blank typed text + no selection + no match on EITHER list → "Pupil not found" --
 
     [Fact]
-    public async Task PupilSearchPost_NoIncludedMatch_ReturnsPupilNotFoundView()
+    public async Task PupilSearchPost_NeitherListMatch_ReturnsPupilNotFoundView()
     {
         SetupSession(SessionForInclude());
         _pupilDataService.GetPupilSuggestionsAsync(WindowId, "No Such", PupilFilter.Included, Arg.Any<Guid?>(), Arg.Any<bool>())
+            .Returns(new List<PupilSuggestionDto>());
+        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "No Such", PupilFilter.NonIncluded, Arg.Any<Guid?>(), Arg.Any<bool>())
             .Returns(new List<PupilSuggestionDto>());
 
         var result = await _sut.PupilSearchPost(WindowId, "select-pupil", null, "No Such");
@@ -144,21 +149,81 @@ public class IncludeNoResultsDecisionTests
         Assert.True(_sut.ModelState.IsValid);
     }
 
+    // -- T005: non-blank typed text + no selection + no included match but a NON-INCLUDED match
+    //    → a valid include candidate: proceed as normal (no decision page, no "not found" warning) --
+
+    [Fact]
+    public async Task PupilSearchPost_NonIncludedOnlyMatch_ProceedsAsNormal_NoDecisionRedirect()
+    {
+        SetupSession(SessionForInclude());
+        // "Johnson" is a non-included surname bucket — it matches the non-included pupil but no
+        // included one (included surnames are Smith..Davies).
+        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "Johnson", PupilFilter.Included, Arg.Any<Guid?>(), Arg.Any<bool>())
+            .Returns(new List<PupilSuggestionDto>());
+        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "Johnson", PupilFilter.NonIncluded, Arg.Any<Guid?>(), Arg.Any<bool>())
+            .Returns(new List<PupilSuggestionDto> { NonIncludedSuggestion });
+
+        var result = await _sut.PupilSearchPost(WindowId, "select-pupil", null, "Johnson");
+
+        // Not a decision redirect — the normal no-selection flow re-renders the search page with
+        // the typed label restored so the user can pick the matching non-included candidate.
+        var view = Assert.IsType<ViewResult>(result);
+        Assert.Equal("PupilSearch", view.ViewName);
+        Assert.True(_sut.ModelState.ContainsKey("selectedPupilId"), "The ordinary no-selection validation is shown so the user picks the candidate from the suggestions.");
+        Assert.Equal("Johnson", _session.GetRequestState(WindowId).IncludeSearchLabel);
+        // The three-way decision consults the non-included list to discover the valid candidate.
+        await _pupilDataService.Received()
+            .GetPupilSuggestionsAsync(WindowId, "Johnson", PupilFilter.NonIncluded, Arg.Any<Guid?>(), Arg.Any<bool>());
+    }
+
     // -- T005: non-blank typed text + no selection + included match → "Already included" --
 
     [Fact]
     public async Task PupilSearchPost_IncludedMatch_RedirectsToAlreadyIncluded()
     {
         SetupSession(SessionForInclude());
-        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "Smith, Alice", PupilFilter.Included, Arg.Any<Guid?>(), Arg.Any<bool>())
+        // "Smith" is an included surname bucket — it matches the included pupil Alice Smith.
+        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "Smith", PupilFilter.Included, Arg.Any<Guid?>(), Arg.Any<bool>())
             .Returns(new List<PupilSuggestionDto> { IncludedSuggestion });
 
-        var result = await _sut.PupilSearchPost(WindowId, "select-pupil", null, "Smith, Alice");
+        var result = await _sut.PupilSearchPost(WindowId, "select-pupil", null, "Smith");
 
         var redirect = Assert.IsType<RedirectToActionResult>(result);
         Assert.Equal("AlreadyIncluded", redirect.ActionName);
-        Assert.Equal("Smith, Alice", _session.GetRequestState(WindowId).IncludeSearchLabel);
+        var saved = _session.GetRequestState(WindowId);
+        Assert.Equal("Smith", saved.IncludeSearchLabel);
+        // The matching included pupils are carried in session (PII — never in the URL) so the
+        // "already included" page can show who was matched.
+        Assert.NotNull(saved.IncludeMatchedPupils);
+        var match = Assert.Single(saved.IncludeMatchedPupils!);
+        Assert.Equal(IncludedPupilId, match.Id);
+        Assert.Equal("Smith, Alice, 01/01/2010", match.Label);
         Assert.True(_sut.ModelState.IsValid);
+        // An included match is conclusive — there is no need to consult the non-included list.
+        await _pupilDataService.DidNotReceive()
+            .GetPupilSuggestionsAsync(WindowId, "Smith", PupilFilter.NonIncluded, Arg.Any<Guid?>(), Arg.Any<bool>());
+    }
+
+    // -- The "Already included" GET surfaces the persisted matches and consumes them on arrival --
+
+    [Fact]
+    public async Task AlreadyIncluded_Get_ShowsTypedLabelAndMatches_ThenClearsSession()
+    {
+        SetupSession(SessionForIncludeWith(
+            label: "Smith",
+            matches: [IncludedSuggestion]));
+
+        var result = await _sut.AlreadyIncluded(WindowId);
+
+        var view = Assert.IsType<ViewResult>(result);
+        var model = Assert.IsType<IncludeAlreadyIncludedViewModel>(view.Model);
+        Assert.Equal("Smith", model.TypedPupilLabel);
+        var match = Assert.Single(model.Matches);
+        Assert.Equal("Smith, Alice, 01/01/2010", match.Label);
+        // Consumed on arrival: both the label and the match list are cleared so the URL can't be
+        // reused to replay the (PII) decision.
+        Assert.Null(_session.GetRequestState(WindowId).IncludeSearchLabel);
+        Assert.Null(_session.GetRequestState(WindowId).IncludeMatchedPupils);
     }
 
     // -- T006: blank typed text + no selection → existing validation error (unchanged) --
@@ -239,6 +304,7 @@ public class IncludeNoResultsDecisionTests
         Assert.Null(saved.MatchedPupilId);
         Assert.Null(saved.MatchedPupilLabel);
         Assert.Null(saved.DuplicateCheck);
+        Assert.Null(saved.IncludeMatchedPupils);
         Assert.Empty(saved.QuestionAnswers);
         Assert.Equal("learner-details", saved.QuestionHistory.Single());
     }
@@ -290,6 +356,23 @@ public class IncludeNoResultsDecisionTests
             EndDate = DateTime.UtcNow.AddDays(13)
         },
         ReferenceNumber = "CYPMD_KS4June_TEST01"
+    };
+
+    private static RequestState SessionForIncludeWith(string label, params PupilSuggestionDto[] matches) => new()
+    {
+        SelectedWhatToChange = WhatToChange.Include,
+        CheckingWindow = new CheckingWindowDto
+        {
+            Id = WindowId,
+            Title = "KS4 June",
+            KeyStage = KeyStages.KS4,
+            CheckingWindowType = CheckingWindowType.KS4June,
+            StartDate = DateTime.UtcNow.AddDays(-1),
+            EndDate = DateTime.UtcNow.AddDays(13)
+        },
+        ReferenceNumber = "CYPMD_KS4June_TEST01",
+        IncludeSearchLabel = label,
+        IncludeMatchedPupils = matches.ToList()
     };
 
     private static RequestState SessionForRemove() => new()

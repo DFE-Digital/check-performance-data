@@ -8,10 +8,11 @@
 <h1 class="govuk-heading-l">Pupil not found</h1>
 
 <p class="govuk-body">
-    No pupil matching "@Model.TypedPupilLabel" was found on the included list.
+    No pupil matching "@Model.TypedPupilLabel" was found. This means the pupil is not currently
+    included and is not known to this school's records.
 </p>
 <p class="govuk-body">
-    If the pupil is not currently included, you can add them as a new pupil or search again with a different name.
+    You can add them as a new pupil or search again with a different name.
 </p>
 
 <form method="post" action="@Url.Action("StartAddingPupil", "Journey", new { windowId = Model.WindowId })">

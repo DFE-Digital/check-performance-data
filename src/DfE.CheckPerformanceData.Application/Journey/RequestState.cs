@@ -65,4 +65,14 @@ public sealed class RequestState
     /// Null when no no-results decision is in flight.
     /// </summary>
     public string? IncludeSearchLabel { get; set; }
+
+    /// <summary>
+    /// AB#027: the matching pupils found on the included list when the Include journey's
+    /// select-pupil search matched an included pupil (the "already included" decision). Carried
+    /// from the search POST to the "already included" page across the post/redirect/get round-trip,
+    /// so the page can show who was matched. Transient — consumed by <c>AlreadyIncluded</c> on
+    /// arrival; rows carry pupil PII and must never be logged or placed in analytics. Null when no
+    /// "already included" decision is in flight.
+    /// </summary>
+    public List<PupilSuggestionDto>? IncludeMatchedPupils { get; set; }
 }

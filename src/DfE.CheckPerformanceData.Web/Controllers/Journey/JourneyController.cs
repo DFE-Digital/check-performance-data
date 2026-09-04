@@ -148,17 +148,23 @@ public sealed class JourneyController(
                 : $"Enter the name of the {journey.LearnerNoun.Singular}";
 
             // AB#027: Include journey no-results path. When the user typed a name on the Include
-            // primary search but did not select a suggestion, look the typed entry up against the
-            // included population before falling back to the generic validation: an included match
-            // warns "already included" (abort), no included match offers "Pupil not found" (start
-            // Add / search again). Blank entry keeps the existing validation; a lookup failure
-            // also falls back to it (never a dead end) — see research.md Question 6.
+            // primary search but did not select a suggestion, look the typed entry up against BOTH
+            // the included and non-included populations and branch three ways:
+            //  - included match → warn "already included" (abort);
+            //  - non-included-only match → a valid include candidate, so proceed as normal: fall
+            //    through to the ordinary no-selection flow (re-render the search page with the
+            //    candidate's suggestions visible) with no warning and no decision page;
+            //  - match on neither list → offer "Pupil not found" (start Add / search again).
+            // Blank entry keeps the existing validation; a lookup failure falls back to it too
+            // (never a dead end) — see research.md Question 6.
             if (!string.IsNullOrWhiteSpace(selectedPupilLabel)
                 && journey.SelectedWhatToChange == WhatToChange.Include
                 && page.PupilKey == JourneyPage.PrimaryKey)
             {
-                // Null result → lookup failed/timed out → fall through to the existing validation
-                // below (never a redirect to the decision pages, so never a dead end).
+                // Carry the typed label across a post/redirect/get in session (not the URL, where a
+                // web server or proxy would log it): it is PII.
+                HttpContext.Session.SaveRequestState(windowId, s => s.IncludeSearchLabel = selectedPupilLabel.Trim());
+
                 IReadOnlyList<PupilSuggestionDto>? includedSuggestions = null;
                 try
                 {
@@ -168,18 +174,68 @@ public sealed class JourneyController(
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
                     logger.LogError(ex, "Included-pupil lookup failed for Include no-results decision; falling back to validation. windowId={WindowId}", windowId);
+                    includedSuggestions = null;
                 }
 
-                if (includedSuggestions is not null)
+                if (includedSuggestions is null)
                 {
-                    // Carry the typed label across the post/redirect/get in session (not the URL,
-                    // where a web server or proxy would log it): it is PII.
-                    HttpContext.Session.SaveRequestState(windowId, s => s.IncludeSearchLabel = selectedPupilLabel.Trim());
-
-                    return includedSuggestions.Count > 0
-                        ? RedirectToAction(nameof(AlreadyIncluded), new { windowId })
-                        : RedirectToAction(nameof(PupilNotFound), new { windowId, pageId });
+                    // Lookup failed/timed out → fall through to the existing validation below
+                    // (never a redirect to the decision pages, so never a dead end).
+                    ModelState.AddModelError("selectedPupilId", validationMessage);
+                    await analytics.TrackSafeAsync(new ValidationErrorEvent
+                    {
+                        ErrorCount = 1,
+                        ErrorCodes = [ValidationErrorCoding.NoSelection],
+                        ErrorFields = ["selectedPupilId"],
+                        WhatToChange = journey.SelectedWhatToChange?.ToString(),
+                    });
+                    return View("PupilSearch", viewModelBuilder.BuildPupilSearchVm(windowId, pageId, page, journey, config));
                 }
+
+                if (includedSuggestions.Count > 0)
+                {
+                    // Carry the matching included pupils across the post/redirect/get round-trip in
+                    // session (not the URL, where a web server or proxy would log them): they are PII.
+                    HttpContext.Session.SaveRequestState(windowId, s =>
+                        s.IncludeMatchedPupils = includedSuggestions.ToList());
+
+                    return RedirectToAction(nameof(AlreadyIncluded), new { windowId });
+                }
+
+                IReadOnlyList<PupilSuggestionDto>? nonIncludedSuggestions = null;
+                try
+                {
+                    nonIncludedSuggestions = await pupilDataService.GetPupilSuggestionsAsync(
+                        windowId, selectedPupilLabel, PupilFilter.NonIncluded);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    logger.LogError(ex, "Non-included-pupil lookup failed for Include no-results decision; falling back to validation. windowId={WindowId}", windowId);
+                    nonIncludedSuggestions = null;
+                }
+
+                if (nonIncludedSuggestions is null)
+                {
+                    // Lookup failed/timed out → fall through to the existing validation below
+                    // (never a redirect to the decision pages, so never a dead end).
+                    ModelState.AddModelError("selectedPupilId", validationMessage);
+                    await analytics.TrackSafeAsync(new ValidationErrorEvent
+                    {
+                        ErrorCount = 1,
+                        ErrorCodes = [ValidationErrorCoding.NoSelection],
+                        ErrorFields = ["selectedPupilId"],
+                        WhatToChange = journey.SelectedWhatToChange?.ToString(),
+                    });
+                    return View("PupilSearch", viewModelBuilder.BuildPupilSearchVm(windowId, pageId, page, journey, config));
+                }
+
+                if (nonIncludedSuggestions.Count == 0)
+                    return RedirectToAction(nameof(PupilNotFound), new { windowId, pageId });
+
+                // A non-included-only match is a valid include candidate: proceed as normal. Fall
+                // through to the ordinary no-selection flow below so the search page re-renders
+                // (the typed label, carried in session, repopulates the suggestions) — no warning,
+                // no decision page.
             }
 
             ModelState.AddModelError("selectedPupilId", validationMessage);
@@ -1647,12 +1703,18 @@ public sealed class JourneyController(
         var label = journey.IncludeSearchLabel;
         if (string.IsNullOrWhiteSpace(label)) return RedirectToCheckYourData(windowId);
 
-        HttpContext.Session.SaveRequestState(windowId, s => s.IncludeSearchLabel = null);
+        var matches = journey.IncludeMatchedPupils ?? [];
+        HttpContext.Session.SaveRequestState(windowId, s =>
+        {
+            s.IncludeSearchLabel = null;
+            s.IncludeMatchedPupils = null;
+        });
 
         return View(new IncludeAlreadyIncludedViewModel
         {
             WindowId = windowId,
-            TypedPupilLabel = label
+            TypedPupilLabel = label,
+            Matches = matches
         });
     }
 
@@ -1689,6 +1751,7 @@ public sealed class JourneyController(
             s.QuestionHistory = [config.FirstPageId];
             s.DuplicateCheck = null;
             s.IncludeSearchLabel = null;
+            s.IncludeMatchedPupils = null;
         });
 
         return RedirectToAction(nameof(Page), new { windowId, pageId = config.FirstPageId });

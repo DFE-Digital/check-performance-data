@@ -2,8 +2,9 @@ namespace DfE.CheckPerformanceData.Web.Controllers.Journey;
 
 /// <summary>
 /// View model for the Include journey's "Pupil not found" page. Shown when the typed search
-/// entry on the Include select-pupil step matched no pupil on the included list. Carries the
-/// typed pupil label for display only — it is PII and must never be logged.
+/// entry on the Include select-pupil step matched no pupil on either the included or the
+/// non-included list. Carries the typed pupil label for display only — it is PII and must
+/// never be logged.
 /// </summary>
 public sealed class IncludeNoResultsViewModel
 {

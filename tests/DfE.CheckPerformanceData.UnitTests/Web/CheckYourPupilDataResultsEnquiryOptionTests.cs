@@ -354,6 +354,121 @@ public sealed class CheckYourPupilDataResultsEnquiryOptionTests
         Assert.All(post16.Sections, s => Assert.EndsWith("-post16", s.EmptyContentKey));
     }
 
+    // ── AB#298317: the enquiry-only state ────────────────────────────────────
+
+    [Fact]
+    public async Task Enquiry_only_is_recognised_when_results_enquiry_is_the_sole_open_exercise()
+    {
+        Window(CheckingWindowType.Post16,
+            Closed(CheckingExerciseType.PupilData, 0),
+            Open(CheckingExerciseType.ResultsEnquiry, 1));
+
+        var model = await IndexModel();
+
+        Assert.True(model.OffersEnquiryOnly);
+        Assert.True(model.IsResultsEnquiryOpen);
+        Assert.False(model.IsPupilDataOpen);
+    }
+
+    [Fact]
+    public async Task Enquiry_only_is_not_the_case_while_pupil_data_is_still_open()
+    {
+        Window(CheckingWindowType.Post16,
+            Open(CheckingExerciseType.PupilData, 0),
+            Open(CheckingExerciseType.ResultsEnquiry, 1));
+
+        Assert.False((await IndexModel()).OffersEnquiryOnly);
+    }
+
+    [Fact]
+    public async Task The_next_opportunity_is_formatted_as_month_and_year()
+    {
+        _service.GetCheckingWindowAsync(WindowId).Returns(new CheckingWindowDto
+        {
+            Title = "16 to 19 2026",
+            KeyStage = KeyStages.Post16,
+            CheckingWindowType = CheckingWindowType.Post16,
+            StartDate = LastMonth,
+            EndDate = NextMonth,
+            NextOpportunity = new DateTime(2027, 10, 1),
+            Exercises = [Closed(CheckingExerciseType.PupilData, 0), Open(CheckingExerciseType.ResultsEnquiry, 1)]
+        });
+
+        Assert.Equal("October 2027", (await IndexModel()).NextOpportunity);
+    }
+
+    [Fact]
+    public async Task A_window_without_a_next_opportunity_leaves_it_null()
+    {
+        Window(CheckingWindowType.Post16,
+            Closed(CheckingExerciseType.PupilData, 0),
+            Open(CheckingExerciseType.ResultsEnquiry, 1));
+
+        Assert.Null((await IndexModel()).NextOpportunity);
+    }
+
+    [Fact]
+    public async Task Sign_out_is_accepted_in_the_enquiry_only_state_and_goes_to_the_sign_out_link()
+    {
+        Window(CheckingWindowType.Post16,
+            Closed(CheckingExerciseType.PupilData, 0),
+            Open(CheckingExerciseType.ResultsEnquiry, 1));
+        // No real-auth identity on the test principal, so SignOutLink resolves to the
+        // impersonation clear path without needing IUrlHelper.
+
+        var result = await _sut.NextStep(WindowId, Posted(NextSteps.SignOut));
+
+        var redirect = Assert.IsType<LocalRedirectResult>(result);
+        Assert.Equal("/dev/impersonate/clear", redirect.Url);
+        Assert.Null(_session.GetRequestState(WindowId).SelectedNextStep);
+    }
+
+    [Theory]
+    [InlineData(CheckingExerciseType.PupilData)]
+    [InlineData(CheckingExerciseType.ResultsEnquiry)]
+    public async Task Sign_out_is_rejected_as_unanswered_when_the_question_was_never_asked(CheckingExerciseType alsoOpen)
+    {
+        // Both exercises open (the many-option radios) or only pupil data open: neither page asks
+        // the Yes/No question, so a forged SignOut is treated exactly like no answer.
+        Window(CheckingWindowType.Post16,
+            Open(CheckingExerciseType.PupilData, 0),
+            alsoOpen == CheckingExerciseType.ResultsEnquiry
+                ? Open(CheckingExerciseType.ResultsEnquiry, 1)
+                : Closed(CheckingExerciseType.ResultsEnquiry, 1));
+
+        var result = await _sut.NextStep(WindowId, Posted(NextSteps.SignOut));
+
+        var view = Assert.IsType<ViewResult>(result);
+        Assert.Equal("Index", view.ViewName);
+        Assert.False(_sut.ModelState.IsValid);
+        Assert.Null(_session.GetRequestState(WindowId).SelectedNextStep);
+    }
+
+    [Fact]
+    public async Task Sign_out_is_rejected_when_nothing_is_open()
+    {
+        Window(CheckingWindowType.Post16,
+            Closed(CheckingExerciseType.PupilData, 0),
+            Closed(CheckingExerciseType.ResultsEnquiry, 1));
+
+        var view = Assert.IsType<ViewResult>(await _sut.NextStep(WindowId, Posted(NextSteps.SignOut)));
+        Assert.False(_sut.ModelState.IsValid);
+    }
+
+    [Fact]
+    public void Offers_enquiry_only_is_null_safe_for_a_binder_created_instance()
+    {
+        // MVC's validation visitor reads every property on the POSTed model, whose required
+        // collections are null — the same trap LearnerNoun documents on this class.
+        var bound = new CheckYourPupilDataViewModel
+        {
+            WindowId = WindowId.ToString(), WindowTitle = "", Sections = null!, SectionsAsTabs = false,
+            AvailableNextSteps = null!, OrganisationName = "", TitleContentKey = "k"
+        };
+
+        Assert.False(bound.OffersEnquiryOnly);
+    }
+
     private sealed class FakeSession : ISession
     {
         private readonly Dictionary<string, byte[]> _store = new();

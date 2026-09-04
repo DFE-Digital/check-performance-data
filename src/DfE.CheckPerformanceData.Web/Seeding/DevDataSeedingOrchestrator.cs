@@ -35,7 +35,8 @@ public sealed class DevDataSeedingOrchestrator(
         await devDataSeeder.SeedAsync();
 
         await SeedPupilData.ExecuteSeedAsync(pupilDataBlobClient);
-        await SeedPupilData.ExecutePost16SeedAsync(pupilDataBlobClient);
+        await SeedPupilData.ExecutePost16SeedAsync(pupilDataBlobClient, DevDataSeeder.Post16CheckingWindowId);
+        await SeedPupilData.ExecutePost16SeedAsync(pupilDataBlobClient, DevDataSeeder.ClosedPupilDataPost16CheckingWindowId);
 
         // AB#296648: the 16-19 exam results the incorrect-grade enquiry journey reads. Tolerates the
         // same Azurite API-version mismatch as the other blob seeds so a version skew degrades the

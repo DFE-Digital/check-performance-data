@@ -2,14 +2,19 @@ using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
 using DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Routing;
+using Microsoft.Extensions.Primitives;
 using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Admin.WindowAdmin;
 
 // AB#298317: the per-window "next opportunity" date, edited from the Summary exactly as the
-// turnaround commitment is. Optional — an admin may not know the date yet, and may clear it.
+// turnaround commitment is. Optional — an admin may not know the date yet, and may clear it. The
+// GOV.UK date-input binder only raises its own "must be a real date" error for a *required* date
+// field, so an impossible date on this optional one silently binds to null — indistinguishable
+// from a deliberate clear — unless the controller checks the raw posted date parts itself.
 public sealed class NextOpportunityControllerTests
 {
     private static readonly Guid WindowId = Guid.Parse("11111111-1111-1111-1111-111111111111");
@@ -22,7 +27,21 @@ public sealed class NextOpportunityControllerTests
     public NextOpportunityControllerTests()
     {
         _urlHelper.Action(Arg.Any<UrlActionContext>()).Returns("/dummy-url");
-        _sut = new NextOpportunityController(_windowService) { Url = _urlHelper };
+        // Empty form by default: the invalid-date check reads Request.Form, so every test needs a
+        // real HttpContext even when it never posts a date part.
+        _sut = new NextOpportunityController(_windowService)
+        {
+            Url = _urlHelper,
+            ControllerContext = new ControllerContext { HttpContext = ContextWithForm() }
+        };
+    }
+
+    private static DefaultHttpContext ContextWithForm(params (string Key, string Value)[] fields)
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Form = new FormCollection(
+            fields.ToDictionary(f => f.Key, f => new StringValues(f.Value)));
+        return context;
     }
 
     private static CheckingWindowDto Window(DateTime? nextOpportunity) => new()
@@ -113,10 +132,10 @@ public sealed class NextOpportunityControllerTests
     }
 
     [Fact]
-    public async Task Update_redisplays_the_page_with_its_urls_when_the_date_is_invalid()
+    public async Task Update_redisplays_the_page_with_its_urls_when_something_else_already_invalidated_it()
     {
-        // The GOV.UK date-input binder adds the model error; the controller only has to redisplay
-        // and re-decorate the urls, which are not posted back.
+        // A pre-existing ModelState error (from any source) short-circuits the controller's own
+        // invalid-date check, so it redisplays without touching Request.Form at all.
         _sut.ModelState.AddModelError(nameof(WindowNextOpportunityEditItem.NextOpportunity), "Next opportunity must be a real date");
 
         var result = await _sut.Update(WindowId,
@@ -129,4 +148,47 @@ public sealed class NextOpportunityControllerTests
         Assert.Equal("/dummy-url", model.CancelUrl);
         await _windowService.DidNotReceive().UpdateAsync(Arg.Any<CheckingWindowDto>(), Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task An_impossible_date_the_binder_silently_nulled_is_rejected_not_saved_as_cleared()
+    {
+        // The GOV.UK date-input binder does not raise its own error for this optional field — it
+        // just binds an impossible date (e.g. 31 February) to null, same as a genuinely blank
+        // submission. The controller tells the two apart from the raw posted date parts.
+        _sut.ControllerContext = new ControllerContext
+        {
+            HttpContext = ContextWithForm(
+                ("NextOpportunity.Day", "31"), ("NextOpportunity.Month", "2"), ("NextOpportunity.Year", "2027"))
+        };
+
+        var result = await _sut.Update(WindowId,
+            new WindowNextOpportunityEditItem { WindowId = WindowId, NextOpportunity = null },
+            CancellationToken.None);
+
+        var view = Assert.IsType<ViewResult>(result);
+        Assert.Equal(PageView(), view.ViewName);
+        Assert.Equal(
+            "Next opportunity must be a real date",
+            _sut.ModelState[nameof(WindowNextOpportunityEditItem.NextOpportunity)]!.Errors[0].ErrorMessage);
+        await _windowService.DidNotReceive().UpdateAsync(Arg.Any<CheckingWindowDto>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_genuinely_blank_submission_is_still_accepted_as_a_clear()
+    {
+        // The empty-form default from the constructor: WasDatePosted() is false, so the same
+        // null-binding result that the impossible-date test rejects is accepted here.
+        _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(Window(October2027));
+
+        var result = await _sut.Update(WindowId,
+            new WindowNextOpportunityEditItem { WindowId = WindowId, NextOpportunity = null },
+            CancellationToken.None);
+
+        Assert.IsType<RedirectToActionResult>(result);
+        await _windowService.Received(1).UpdateAsync(
+            Arg.Is<CheckingWindowDto>(w => w.NextOpportunity == null),
+            Arg.Any<CancellationToken>());
+    }
+
+    private static string PageView() => "~/Views/WindowAdmin/NextOpportunity.cshtml";
 }

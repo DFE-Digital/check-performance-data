@@ -419,7 +419,9 @@ public sealed class CheckYourPupilDataResultsEnquiryOptionTests
         var result = await _sut.NextStep(WindowId, Posted(NextSteps.SignOut));
 
         var redirect = Assert.IsType<LocalRedirectResult>(result);
-        Assert.Equal("/dev/impersonate/clear", redirect.Url);
+        // AB#298317: this page's own Referer requires authentication, so the redirect carries an
+        // explicit returnUrl of "/" rather than the default Referer-based one (see SignOutLink).
+        Assert.Equal("/dev/impersonate/clear?returnUrl=%2F", redirect.Url);
         Assert.Null(_session.GetRequestState(WindowId).SelectedNextStep);
     }
 

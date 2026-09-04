@@ -116,7 +116,10 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         // SignOut on a page that never asked the question is treated as no answer at all.
         if (viewModel.SelectedNextStep == NextSteps.SignOut && allowed is [NextSteps.ResultsEnquiry])
         {
-            return LocalRedirect(SignOutLink.For(HttpContext, Url));
+            // This page requires authentication, so its own Referer is no help once signed out —
+            // the default (impersonation-only) Referer-based redirect would bounce straight back
+            // into a fresh sign-in challenge instead of showing the school it has signed out.
+            return LocalRedirect(SignOutLink.For(HttpContext, Url, returnUrl: "/"));
         }
 
         if (viewModel.SelectedNextStep is null or NextSteps.SignOut

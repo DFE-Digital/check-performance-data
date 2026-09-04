@@ -33,9 +33,20 @@ public sealed class DevImpersonationControllerTests
 			http.Request.Headers["Referer"] = referrer;
 		}
 
+		var urlHelper = Substitute.For<IUrlHelper>();
+		// IUrlHelper.IsLocalUrl is a real interface member in this ASP.NET Core version (not the
+		// extension method of older versions), so an unconfigured substitute answers false for
+		// everything — it has to be stubbed to mirror the real "starts with a single '/'" rule.
+		urlHelper.IsLocalUrl(Arg.Any<string?>()).Returns(call =>
+		{
+			var candidate = call.Arg<string?>();
+			return !string.IsNullOrEmpty(candidate) && candidate.StartsWith('/') && !candidate.StartsWith("//");
+		});
+
 		return new DevImpersonationController(config, env)
 		{
-			ControllerContext = new ControllerContext { HttpContext = http }
+			ControllerContext = new ControllerContext { HttpContext = http },
+			Url = urlHelper
 		};
 	}
 
@@ -237,5 +248,33 @@ public sealed class DevImpersonationControllerTests
 
 		Assert.IsType<NotFoundResult>(result);
 		Assert.Null(GetSetCookieHeader(sut));
+	}
+
+	// --- AB#298317: an explicit returnUrl overrides the Referer-based redirect ---
+	// (Check your pupil data's "No, I'd like to sign out" answer needs this: its own Referer is an
+	// authenticated-only page that would otherwise bounce the now-signed-out browser into a fresh
+	// sign-in challenge instead of showing it has signed out.)
+
+	[Fact]
+	public void Clear_WithReturnUrl_RedirectsThereInsteadOfTheReferrer()
+	{
+		var sut = CreateSut("Development", referrer: "/CheckYourPupilData/some-window");
+
+		var result = sut.Clear(returnUrl: "/");
+
+		var redirect = Assert.IsType<RedirectResult>(result);
+		Assert.Equal("/", redirect.Url);
+	}
+
+	[Fact]
+	public void Clear_WithAnExternalReturnUrl_FallsBackToTheReferrer()
+	{
+		// Untrusted query-string input: never redirect the browser off-site.
+		var sut = CreateSut("Development", referrer: "/help");
+
+		var result = sut.Clear(returnUrl: "https://evil.example.com/");
+
+		var redirect = Assert.IsType<RedirectResult>(result);
+		Assert.Equal("/help", redirect.Url);
 	}
 }

@@ -18,15 +18,28 @@ public static class SignOutLink
 {
     public const string ImpersonationClearPath = "/dev/impersonate/clear";
 
-    public static string For(HttpContext context, IUrlHelper url)
+    /// <param name="returnUrl">
+    /// AB#298317: where the impersonation-clear path should land afterwards, instead of its default
+    /// Referer-based redirect. Only ever relevant to the impersonation branch — the layout's normal
+    /// call omits it, so /dev/impersonate/clear keeps returning to whatever page linked to it.
+    /// Check your pupil data passes "/" here, because its own Referer (the page the school was
+    /// signing out from) requires authentication and would otherwise bounce the now-signed-out
+    /// browser straight into a fresh DfE Sign-In challenge instead of showing it has signed out.
+    /// </param>
+    public static string For(HttpContext context, IUrlHelper url, string? returnUrl = null)
     {
         var user = context.User;
         var hasRealDfeAuth = user.Identity?.IsAuthenticated == true
             && user.Identities.Any(i => i.IsAuthenticated
                 && i.AuthenticationType != DevImpersonationConstants.Scheme);
 
-        return hasRealDfeAuth
-            ? url.Action("DfeSignOut", "Account") ?? "/Account/DfeSignOut"
-            : ImpersonationClearPath;
+        if (hasRealDfeAuth)
+        {
+            return url.Action("DfeSignOut", "Account") ?? "/Account/DfeSignOut";
+        }
+
+        return returnUrl is null
+            ? ImpersonationClearPath
+            : $"{ImpersonationClearPath}?returnUrl={Uri.EscapeDataString(returnUrl)}";
     }
 }

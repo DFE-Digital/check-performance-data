@@ -6,7 +6,7 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 
 public class VisibleWhenJsonConverterTests
 {
-    // Mirrors QuestionFlowBlobClient's deserialization options.
+    // Mirrors FileSystemQuestionFlowClient's deserialization options.
     private static readonly JsonSerializerOptions Options = new()
     {
         PropertyNameCaseInsensitive = true,

@@ -68,6 +68,59 @@ public sealed class NotifyServiceResultsEnquiryTests
     }
 
     [Fact]
+    public async Task The_personalisation_is_exactly_what_the_template_declares()
+    {
+        // GOV.UK Notify ignores extra personalisation keys but fails the whole send with
+        // "Missing personalisation" when the template declares a placeholder we don't supply.
+        // The exact two-key contract is what lets the ops runbook (docs/results-enquiry.md,
+        // "Confirmation email") be the whole truth: a template built from it can never hit a
+        // missing key, and no template can come to depend on a key the code might stop sending.
+        // The url and reference list are supplied here precisely so the optional-key branches
+        // are exercised: exclusion for this type must be structural, not "the caller happens
+        // to pass null" (the enquiry producer sets neither — RequestNotificationService).
+        await Build().SendNotificationsAsync(
+            "CYPMD_16to19_RE_4F9C2A1", string.Empty, ["ada@school.test"],
+            NotificationType.ResultsEnquirySubmitted, NoSubstitutions,
+            url: "https://service.test/submit-others", referenceNumbers: ["REF-A", "REF-B"]);
+
+        await _client.Received(1).SendEmailAsync(
+            Arg.Any<string>(), Arg.Any<string>(),
+            Arg.Is<Dictionary<string, object>>(p =>
+                p.Count == 2 && p.ContainsKey("email address") && p.ContainsKey("ref number")));
+    }
+
+    [Fact]
+    public async Task A_turnaround_commitment_never_reaches_the_enquiry_template()
+    {
+        // Unreachable via RequestNotificationService today (enquiry notifications enqueue empty
+        // substitutions), but the key gate must not depend on that: a future refactor passing real
+        // substitutions through would otherwise bounce every enquiry email against the template.
+        await Build().SendNotificationsAsync(
+            "CYPMD_16to19_RE_4F9C2A1", string.Empty, ["ada@school.test"],
+            NotificationType.ResultsEnquirySubmitted,
+            new EmailSubstitutions(string.Empty, string.Empty, "2 working days"));
+
+        await _client.Received(1).SendEmailAsync(
+            Arg.Any<string>(), Arg.Any<string>(),
+            Arg.Is<Dictionary<string, object>>(p => !p.ContainsKey("turnaround commitment")));
+    }
+
+    [Fact]
+    public async Task Amendment_notifications_still_carry_their_deadline()
+    {
+        // The deadline key moves behind a type gate in this change; the five amendment-side
+        // templates all declare ((deadline)) and must keep receiving it.
+        await Build().SendNotificationsAsync(
+            "REF-1", "4pm on Friday 3 October 2026", ["ada@school.test"],
+            NotificationType.SubmissionConfirmed, NoSubstitutions);
+
+        await _client.Received(1).SendEmailAsync(
+            Arg.Any<string>(), Arg.Any<string>(),
+            Arg.Is<Dictionary<string, object>>(p =>
+                (string)p["deadline"] == "4pm on Friday 3 October 2026"));
+    }
+
+    [Fact]
     public async Task Every_recipient_is_emailed()
     {
         await Build().SendNotificationsAsync(
@@ -84,7 +137,7 @@ public sealed class NotifyServiceResultsEnquiryTests
     [InlineData("   ")]
     public async Task An_unconfigured_template_logs_a_warning_and_sends_nothing(string? templateId)
     {
-        // The template does not exist yet (an ops prerequisite). Until it does, the send must be a
+        // An environment may have no template id configured. When that happens, the send must be a
         // no-op with a warning — not an exception, and not a call to Notify with a blank template that
         // would fail once per recipient.
         await Build(templateId).SendNotificationsAsync(

@@ -15,6 +15,7 @@ using Microsoft.Extensions.Logging;
 using Npgsql;
 using NSubstitute;
 using LearnerNoun = DfE.CheckPerformanceData.Application.WindowManagement.LearnerNoun;
+using CheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseService;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.RequestSubmission;
 
@@ -274,7 +275,8 @@ public sealed class DuplicateRequestValidationIntegrationTests
         var checkYourPupilDataService = Substitute.For<ICheckYourPupilDataService>();
 
         return new RequestService(flowService, requestStateBlobClient, repository, currentUser,
-            logger, queueService, requestNotificationService, checkYourPupilDataService);
+            logger, queueService, requestNotificationService, checkYourPupilDataService,
+            new CheckingExerciseService(TimeProvider.System));
     }
 
     private async Task SeedRequestAsync(

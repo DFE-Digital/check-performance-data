@@ -28,6 +28,15 @@ public static class WhatToChangeCheckingExerciseMap
     {
         WhatToChange.IncorrectGrade => CheckingExerciseType.ResultsEnquiry,
         WhatToChange.MissingQualification => CheckingExerciseType.ResultsEnquiry,
+        WhatToChange.ResultDoesNotBelong => CheckingExerciseType.ResultsEnquiry,
         _ => CheckingExerciseType.PupilData
     };
+
+    /// <summary>
+    /// AB#298704: the one predicate for "is this journey a results enquiry". Guards that used to
+    /// list members (`is IncorrectGrade or MissingQualification`) missed every new kind — the
+    /// AB#298229 "guard names one enum member" defect class — so they resolve through the map now.
+    /// </summary>
+    public static bool IsResultsEnquiry(WhatToChange? change) =>
+        change is { } c && CheckingExerciseFor(c) == CheckingExerciseType.ResultsEnquiry;
 }

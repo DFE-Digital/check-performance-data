@@ -142,6 +142,40 @@ public sealed class CheckingExerciseServiceTests
     }
 
     [Fact]
+    public void IdFor_returns_the_exercises_own_id()
+    {
+        var pupilData = Exercise(CheckingExerciseType.PupilData, Yesterday, Tomorrow);
+        var enquiry = Exercise(CheckingExerciseType.ResultsEnquiry, Yesterday, NextMonth);
+
+        Assert.Equal(enquiry.Id, Sut().IdFor([pupilData, enquiry], CheckingExerciseType.ResultsEnquiry));
+    }
+
+    [Fact]
+    public void IdFor_returns_the_id_of_a_closed_exercise_too()
+    {
+        // A request is stamped with the exercise it belongs to, and a draft can be saved and a
+        // submitted request read back after that exercise has ended. Withholding the id once the
+        // dates lapse would blank the stamp on exactly the rows an admin most needs to group.
+        var closed = Exercise(CheckingExerciseType.PupilData, LastMonth, Yesterday);
+
+        Assert.Equal(closed.Id, Sut().IdFor([closed], CheckingExerciseType.PupilData));
+    }
+
+    [Fact]
+    public void IdFor_is_null_when_there_is_no_row_for_that_type()
+    {
+        var exercises = new[] { Exercise(CheckingExerciseType.PupilData, Yesterday, Tomorrow) };
+
+        Assert.Null(Sut().IdFor(exercises, CheckingExerciseType.ResultsEnquiry));
+    }
+
+    [Fact]
+    public void IdFor_is_null_for_an_empty_exercise_list()
+    {
+        Assert.Null(Sut().IdFor([], CheckingExerciseType.PupilData));
+    }
+
+    [Fact]
     public void An_exercise_is_open_on_its_first_and_last_instant()
     {
         // The boundaries are inclusive, matching the outer window's own StartDate <= now <= EndDate.

@@ -90,6 +90,13 @@ public sealed class RulesEngineEndToEndTests
         Assert.Equal(scenario.ExpectedStatus, persisted.Outcome);
         Assert.Equal(scenario.ExpectedOutcomeKey, persisted.OutcomeKey);
         Assert.Equal(scenario.ExpectedRuleId, persisted.MatchedRuleId);
+
+        // The winning branch's trace is persisted alongside the decision, so the reason survives
+        // the worker process. Every decision this pipeline can reach records at least one line —
+        // including a bare "otherwise" branch and the synthetic unmatched-outcome fallback — so a
+        // null trace here means the reason was lost.
+        Assert.NotNull(persisted.DecisionTrace);
+        Assert.NotEqual(string.Empty, persisted.DecisionTrace);
     }
 
     // --- A processed message records a metric row carrying the decision status ---
@@ -220,6 +227,17 @@ public sealed class RulesEngineEndToEndTests
         yield return new("NotOnRoll-NonPost16", "Remove - not-on-roll", "KS4June",
             Answers: [],
             DecisionStatus.AutoApproved, "NOR-NONPOST16");
+
+        // The Post16 branch reads the reason answer, so it is only reachable with the
+        // option *value* the producer puts in RawValue — the rule was authored against
+        // the display labels and auto-approved nothing.
+        yield return new("NotOnRoll-Post16-QualifyingReason", "Remove - not-on-roll", "Post16",
+            Answers: [("not-on-roll-reason", "international-student")],
+            DecisionStatus.AutoApproved, "NOR-POST16-REASON");
+
+        yield return new("NotOnRoll-Post16-OtherReasonToScrutiny", "Remove - not-on-roll", "Post16",
+            Answers: [("not-on-roll-reason", "other")],
+            DecisionStatus.Scrutiny, "NOR-DEF");
 
         yield return new("PermanentlyExcludedFromCurrentSchool-Ks4PostCutoff", "Remove - permanently-excluded", "KS4June",
             Answers: [("date-permanently-excluded", "2025-02-01")],

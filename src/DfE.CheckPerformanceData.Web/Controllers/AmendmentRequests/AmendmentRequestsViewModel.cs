@@ -22,6 +22,15 @@ public sealed class AmendmentRequestsViewModel
 
     public required IReadOnlyList<AmendmentRequestRowViewModel> Rows { get; init; }
     public required IReadOnlyList<SubmittedRequestRowViewModel> SubmittedRows { get; init; }
+
+    /// <summary>Issues-tab rows (AB#298325), already filtered by <see cref="IssueSearch"/>.</summary>
+    public required IReadOnlyList<IssueRowViewModel> IssueRows { get; init; }
+
+    /// <summary>Pre-filter existence flag: distinguishes the empty state from a no-match search.</summary>
+    public required bool HasAnyIssues { get; init; }
+
+    /// <summary>The search term as typed, echoed back into the search input.</summary>
+    public string? IssueSearch { get; init; }
 }
 
 /// <summary>One exercise's deadline sentence on the amendment requests page.</summary>
@@ -98,4 +107,17 @@ public sealed class AmendmentRequestRowViewModel
         RequestStatus.InProgress => "In progress",
         _ => "In progress"
     };
+}
+
+public sealed class IssueRowViewModel
+{
+    public required string PupilName { get; init; }
+    public required DateTime Submitted { get; init; }
+    public required string CypmdId { get; init; }
+    public required string TypeLabel { get; init; }
+    public required string QualificationText { get; init; }
+
+    // Same conversion and format as SubmittedRequestRowViewModel.SubmittedDateText: the stored
+    // instant is UTC, display is London wall clock, GDS-style written-out date.
+    public string DateText => LondonTime.ToLondon(Submitted).ToString("d MMMM yyyy");
 }

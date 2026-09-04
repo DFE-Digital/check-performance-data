@@ -131,6 +131,54 @@ public sealed class RulesConsumerTests
         await _dbContext.Received().ExecuteInTransactionAsync(Arg.Any<Func<Task>>(), Arg.Any<CancellationToken>());
     }
 
+    // --- The decision trace is persisted so the reason survives the worker process ---
+
+    [Fact]
+    public void TruncateTrace_JoinsLinesVerbatim()
+    {
+        var trace = new[]
+        {
+            "checkingWindowType == \"KS4June\" → true (got \"KS4June\")",
+            "pupilAge >= 16 → false (got 14)",
+        };
+
+        var stored = RulesConsumer.TruncateTrace(trace);
+
+        Assert.Equal(string.Join(Environment.NewLine, trace), stored);
+    }
+
+    [Fact]
+    public void TruncateTrace_ReturnsNull_ForAnEmptyTrace()
+    {
+        // Null, not "": "no trace recorded" and "decided before the column existed" must read
+        // the same way to the admin page, which hides the detail row for both.
+        Assert.Null(RulesConsumer.TruncateTrace([]));
+    }
+
+    [Fact]
+    public void TruncateTrace_BoundsAnOversizedTrace()
+    {
+        // The engine caps the line COUNT but not the line WIDTH: a leaf line renders its field's
+        // value verbatim, and a free-text journey answer reaches the rule context intact. The
+        // write site is what keeps an outsized trace from failing the write.
+        var trace = new[] { new string('x', 20_000) };
+
+        var stored = RulesConsumer.TruncateTrace(trace)!;
+
+        Assert.True(stored.Length < 20_000);
+        Assert.EndsWith("... trace truncated.", stored, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TruncateTrace_PreservesASyntheticFallbackReason()
+    {
+        // A mapper or engine fault still has a reason worth recording — it is the only
+        // explanation an admin gets for a synthetic Scrutiny.
+        var decision = Decision.SyntheticScrutiny("_mapper_error", "Could not parse 'not-a-date'.");
+
+        Assert.Equal("Could not parse 'not-a-date'.", RulesConsumer.TruncateTrace(decision.Trace));
+    }
+
     private RulesConsumer CreateConsumer(IAnalyticsService analytics) =>
         new(_queueService, _rulesProvider, _rulesEngine, _contextMapper, _dbContext, analytics: analytics);
 

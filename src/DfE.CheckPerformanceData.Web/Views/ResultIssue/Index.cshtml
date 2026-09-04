@@ -39,14 +39,14 @@
                 <govuk-radios-error-message>@fieldErrorMessage</govuk-radios-error-message>
             }
 
-            @* The third Figma option (a pupil/result mismatch) is a sibling ticket with no journey —
-               rendering it here without one behind it would dead-end the user, so the controller
-               rejects it as unanswered until that flow exists. *@
             <govuk-radios-item value="@DfE.CheckPerformanceData.Web.Controllers.ResultIssueViewModel.IncorrectGrade" id="issueType">
                 Incorrect grade (once you have checked your second late results file in late November)
             </govuk-radios-item>
             <govuk-radios-item value="@DfE.CheckPerformanceData.Web.Controllers.ResultIssueViewModel.MissingQualification">
                 Missing qualification
+            </govuk-radios-item>
+            <govuk-radios-item value="@DfE.CheckPerformanceData.Web.Controllers.ResultIssueViewModel.ResultDoesNotBelong">
+                Result does not belong to student
             </govuk-radios-item>
         </govuk-radios-fieldset>
     </govuk-radios>

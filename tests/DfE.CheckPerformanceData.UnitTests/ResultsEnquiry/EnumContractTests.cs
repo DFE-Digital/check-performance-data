@@ -60,4 +60,16 @@ public sealed class EnumContractTests
         Assert.Equal(7, (int)PageType.QualificationDetails);
         Assert.Equal(7, (int)QuestionType.SyllabusSelect);
     }
+
+    [Fact]
+    public void ResultDoesNotBelong_what_to_change_exists_and_fits_column()
+    {
+        // Same contract as MissingQualification above: the name IS the persisted AmendmentType value
+        // (varchar(20)), so it is asserted exactly, and the ordinal is pinned because RequestState
+        // blobs round-trip numerically.
+        var name = WhatToChange.ResultDoesNotBelong.ToString();
+        Assert.Equal("ResultDoesNotBelong", name);
+        Assert.True(name.Length <= 20);
+        Assert.Equal(6, (int)WhatToChange.ResultDoesNotBelong); // appended after MissingQualification
+    }
 }

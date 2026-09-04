@@ -5,8 +5,10 @@ using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
 using DfE.CheckPerformanceData.Infrastructure.Ingress;
+using DfE.CheckPerformanceData.Infrastructure.QuestionFlow;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace DfE.CheckPerformanceData.Web.Startup;
@@ -46,12 +48,21 @@ public static class BlobStorageExtensions
         // deployed environments the rules-engine worker seeds them; that worker isn't part of the
         // local web stack, so without this the admin rules editor 404s on a fresh environment.
         services.AddScoped<Infrastructure.RulesEngine.RulesConfigSeeder>();
-        // TODO: revert to QuestionFlowBlobClient once storage permissions are configured for deployed environments
-        //if (builder.Environment.IsDevelopment())
-            services.AddSingleton<IQuestionFlowBlobClient, QuestionFlowBlobClient>();
-        // else
-        //     builder.Services.AddSingleton<IQuestionFlowBlobClient>(_ =>
-        //         new FileSystemQuestionFlowClient(builder.Environment.ContentRootPath));
+        // Question flow configs are read from the release image (Data/QuestionFlows/*.json), not
+        // from storage, in every environment. They used to live in the question-flows blob
+        // container, which Terraform provisions empty and which only the Development-gated
+        // seeding step ever filled — so QA, preproduction and production held whatever had been
+        // uploaded by hand, if anything, and a config change did not reach an environment just by
+        // deploying. The JSON already ships in the image, so reading it there makes a flow
+        // travel with the release that contains it and removes the drift entirely.
+        //
+        // The trade is that a flow cannot be hotfixed without a redeploy. Nothing edits these at
+        // runtime — there is no admin flow editor — so that costs nothing today. Reinstating a
+        // storage-backed source means reinstating a seeder that overwrites on every startup,
+        // version-gated like RulesConfigSeeder; see docs/question-flow-deployment.md.
+        services.AddSingleton<IQuestionFlowConfigSource>(sp =>
+            new FileSystemQuestionFlowClient(
+                sp.GetRequiredService<IHostEnvironment>().ContentRootPath));
         services.AddScoped<IRequestBlobClient, RequestBlobClient>();
         services.AddScoped<IRequestStateBlobClient, RequestStateBlobClient>();
         services.AddScoped<IPupilDataBlobClient, PupilDataBlobClient>();

@@ -14,22 +14,13 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Web;
 
 public sealed class StorageAdminNavEntryTests
 {
-    [Fact]
-    public void StorageAdminGroupNavEntry_HasCorrectKeyAndIsGroup()
-    {
-        var entry = new StorageAdminGroupNavEntry();
-        Assert.Equal("storage-admin", entry.Key);
-        Assert.Null(entry.ParentKey);
-        Assert.True(entry.Enabled);
-        Assert.Equal(30, entry.Order);
-    }
-
+    // The browser deletes blobs, so it is a Danger zone tile — there is no storage group.
     [Fact]
     public void StorageBrowserNavEntry_HasCorrectKeyAndParent()
     {
         var entry = new StorageBrowserNavEntry();
         Assert.Equal("storage-browser", entry.Key);
-        Assert.Equal("storage-admin", entry.ParentKey);
+        Assert.Equal("danger-zone", entry.ParentKey);
         Assert.Equal("/admin/storage", entry.Url);
         Assert.True(entry.Enabled);
     }

@@ -532,12 +532,18 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
+                    b.Property<Guid?>("CheckingExerciseId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("CrmId")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
                     b.Property<DateTime?>("DecidedAtUtc")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DecisionTrace")
+                        .HasColumnType("text");
 
                     b.Property<string>("MatchedRuleId")
                         .HasMaxLength(100)
@@ -620,6 +626,8 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CheckingExerciseId");
 
                     b.HasIndex("CrmId")
                         .IsUnique()
@@ -1326,6 +1334,11 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
 
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.ChangeRequest", b =>
                 {
+                    b.HasOne("DfE.CheckPerformanceData.Persistence.Entities.CheckingExercise", null)
+                        .WithMany()
+                        .HasForeignKey("CheckingExerciseId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("DfE.CheckPerformanceData.Persistence.Entities.CheckingWindow", null)
                         .WithMany()
                         .HasForeignKey("WindowId")

@@ -8,9 +8,9 @@ namespace DfE.CheckPerformanceData.Application.Journey.DateRules;
 /// were born.
 ///
 /// These live in code rather than in the flow JSON on purpose, for the same reason as
-/// <see cref="RemovalJourneyDateRules"/>: flow configs are served from blob at runtime and only
-/// reach blob via an environment-gated seeding step, so a JSON-declared rule can be silently
-/// absent in a deployed environment. A rule compiled into the container cannot go missing.
+/// <see cref="RemovalJourneyDateRules"/>: a rule compiled into the container is exactly as
+/// deployed as the journey it guards, where one expressed as data can be edited or dropped with
+/// nothing to indicate validation stopped happening.
 /// QuestionFlowValidatorAlignmentTests pins the ids below to the shipped config so the two
 /// cannot drift apart unnoticed.
 ///

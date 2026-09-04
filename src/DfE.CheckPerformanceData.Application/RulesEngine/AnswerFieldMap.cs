@@ -64,6 +64,7 @@ public static class AnswerFieldMap
             ["removal-reason-at-school"]               = "removalReasonAtSchool",
             ["continuing-ks2-studies"]                 = "isContinuingKS2Studies",
             ["pupil-age"]                              = "pupilAge",
+            ["not-on-roll-reason"]                     = "removalReasonAtSchool"
         };
 
     /// <summary>

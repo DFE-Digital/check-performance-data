@@ -23,6 +23,20 @@ public sealed class EstablishmentAmendmentRequestsViewSourceTests
         Assert.DoesNotContain("Url.Action(\"Index\", \"AmendmentRequests\"", source);
     }
 
+    [Fact]
+    public void Details_view_renders_the_learner_noun_not_a_hardcoded_pupil()
+    {
+        // #359 made the noun dynamic (student on 16-19, pupil elsewhere); #358's new details view
+        // predates that and hardcoded "pupil", so a 16-19 request showed mixed wording on one page.
+        // Mirrors Views/SubmittedRequest/View.cshtml:38,55 exactly.
+        string source = ViewSource("UrnAmendmentView.cshtml");
+
+        Assert.Contains("What @Model.LearnerNoun.Singular data would you like to change?", source);
+        Assert.Contains("@Model.LearnerNoun.SingularCapitalised name", source);
+        Assert.DoesNotContain("What pupil data", source);
+        Assert.DoesNotContain(">Pupil name<", source);
+    }
+
     private static string ViewSource(string fileName) =>
         File.ReadAllText(Path.Combine(
             RepoRoot,

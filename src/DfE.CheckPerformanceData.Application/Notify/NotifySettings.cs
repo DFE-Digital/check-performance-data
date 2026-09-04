@@ -24,9 +24,10 @@ public class NotifySettings
     public string BulkSubmissionNotificationTemplateId { get; set; } = null!;
 
     /// <summary>
-    /// AB#296648: confirms a submitted 16-19 results enquiry. Not <c>[Required]</c> — the team has yet
-    /// to create this template, and an unset value must degrade to "no email sent, warning logged"
-    /// rather than stopping the app from starting.
+    /// AB#298309: confirms a submitted results enquiry (every enquiry type; template content in
+    /// docs/results-enquiry.md, "Confirmation email"). Not <c>[Required]</c> — until the template
+    /// exists an unset value must degrade to "no email sent, warning logged" rather than stopping
+    /// the app from starting.
     /// </summary>
     public string ResultsEnquirySubmittedTemplateId { get; set; } = null!;
 

@@ -77,7 +77,7 @@ Two deployable containers (Web, RulesEngineWorker) share the same PostgreSQL dat
 The journey is data-driven from JSON flow configs:
 
 - **Types** (`Application/Journey/`): `QuestionFlowConfig` → `JourneyPage` (`PageType`: `Question`, `Content`, `EvidenceUpload`, `PupilSearch`) → `Question` (`Radio`, `FreeText`, `Date`, `FileUpload`, `TextArea`, `Autocomplete`; supports `Optional`, `CharacterLimit`, named `Validator`, per-option `NextPageId` branching, `VisibleWhen` conditions).
-- **Config source**: blob container `question-flows`, blob name `{WhatToChange}_{CheckingWindowType}.json`, loaded via `QuestionFlowBlobClient` and cached in `IMemoryCache` with `NeverRemove` priority (flow edits need an app restart). Source files live at `Web/Data/QuestionFlows/` and are seeded to blob by `SeedQuestionFlows`.
+- **Config source**: the files that ship in the release image at `Web/Data/QuestionFlows/{WhatToChange}_{CheckingWindowType}.json`, read via `IQuestionFlowConfigSource` / `FileSystemQuestionFlowClient` and cached in `IMemoryCache` with `NeverRemove` priority (flow edits need a redeploy). There is **no blob container and no seeding step** — a flow reaches an environment by deploying the commit that contains it. See `docs/question-flow-deployment.md`.
 - **Flows that exist today**: `Include_KS4June.json`, `Merge_KS4June.json`, `Remove_KS4June.json` (12-reason branch tree). **Only KS4 June has flows** — for KS2/Post16/KS4Autumn the config lookup returns null and `WhatToChangeController.Confirm` bounces back to the pupil list.
 - **State**: `RequestState` per window in session — answers keyed by question id, plus `QuestionHistory` (ordered visited pages). Session is a **Postgres distributed cache** (`AddDistributedPostgreSqlCache`, table `session_cache`) so journeys survive load-balancing across replicas. Auth cookie is 30-min sliding; there is **no auto-save** — drafts persist only on explicit "Save and continue later".
 - **Mechanics** (`JourneyController`, ~750 lines): navigation guard prevents URL-hacking ahead of answered history; changing a branch answer trims downstream history; `fromSummary=true` returns to Summary after single-page edits unless the branch changed. Evidence upload: **PDF only** (verified by PdfPig page counting in `Web/FileStorage/PdfPageCounter.cs`), **10 MB max per file**; the page-count cap exists but is **disabled** (`maxEvidencePages = 0` at `Application/DependencyManager.cs`). Validation failures emit `ValidationErrorEvent` analytics with coded reasons.
@@ -269,7 +269,6 @@ Migrations run on **every boot** (environment guard commented out) plus a raw `D
 | Container | Contents | Client |
 |---|---|---|
 | `{windowId}` (one per checking window) | `data/{laestab}_pupils.json` (pupil ingress), `request_{ref}.json` (submitted journey), `draft_requests/{ref}.json` (drafts), `evidence-uploads/{guid}` (PDF bytes), `ingress/<file>` (admin-copied ingress file) | `PupilDataBlobClient`, `RequestBlobClient`, `RequestStateBlobClient`, `EvidenceBlobStorageService` |
-| `question-flows` | Journey flow JSON per `{WhatToChange}_{CheckingWindowType}` | `QuestionFlowBlobClient` |
 | `rules-config` | `rules.json`, `country-languages.json` | `BlobRulesConfigStore` / `AzureRulesBlobReader` |
 | `data-protection-keys` | `keys.xml` DataProtection ring | ASP.NET DataProtection |
 
@@ -315,7 +314,7 @@ Producer/consumer split so requests never wait on Notify: `RequestNotificationSe
 - **Docker**: multi-stage Dockerfiles for Web and Worker (sdk:10.0 → aspnet:10.0, port 8080); pinned Playwright image for E2E; nginx maintenance page (`maintenance_page/`).
 - **docker-compose**: profiled services — `web`, `rules_engine`, `db` (Postgres 18.1-alpine), `azurite` (+ one-shot `azurite_init` rules seeder), `pgadmin`; `docker-compose.e2e.yml` adds the one-shot `e2e-tests` runner (kept separate so the VS `docker-compose.dcproj` orchestration ignores it). Never add a `docker-compose.override.yml` (breaks `make test-e2e`).
 - **CI/CD** (`.github/workflows/build-and-deploy.yml`): build + push both images to GHCR + Snyk scan → PR review apps (`deploy` label) → E2E (non-visual) against the review app → sequential deploy matrix **development → qa → preproduction → production** on push to `main`, via shared `DFE-Digital/github-actions` actions. Also: DB backup/PTR/restore workflows, maintenance toggle, Terraform validation, review-app teardown.
-- **Terraform** (`terraform/application/`): AKS web app + worker (separate replica counts, exec health probes), Azure Postgres **Flexible Server v17** (note: local compose runs 18.1), two storage accounts (app: `files`, `question-flows`, `rules-config`; private LDS ingress account), two Key Vaults, StatusCake, GCP WIF for analytics; `terraform/domains/` for DNS + Front Door. Environments: development, qa, review (per-PR), preproduction, production (`config/*.tfvars.json`).
+- **Terraform** (`terraform/application/`): AKS web app + worker (separate replica counts, exec health probes), Azure Postgres **Flexible Server v17** (note: local compose runs 18.1), two storage accounts (app: `files`, `rules-config`; private LDS ingress account), two Key Vaults, StatusCake, GCP WIF for analytics; `terraform/domains/` for DNS + Front Door. Environments: development, qa, review (per-PR), preproduction, production (`config/*.tfvars.json`).
 
 ## 17. Testing
 
@@ -365,7 +364,7 @@ Notes: **xUnit, not NUnit** (dead NUnit entries linger in `Directory.Packages.pr
 
 | Task | Where |
 |---|---|
-| New amendment journey / window type | Author `Web/Data/QuestionFlows/{WhatToChange}_{CheckingWindowType}.json`; seed to the `question-flows` container (`SeedQuestionFlows` locally); add any new answer fields to `FieldCatalogue` + `AnswerFieldMap` so the rules engine can read them |
+| New amendment journey / window type | Author `Web/Data/QuestionFlows/{WhatToChange}_{CheckingWindowType}.json` — it ships in the image, so no upload step; add any new answer fields to `FieldCatalogue` + `AnswerFieldMap` so the rules engine can read them |
 | New rule / outcome | Prefer the `/admin/rules` editor (versioned, validated); the worker seed (`RulesEngineWorker/seed/rules.json`) only bootstraps empty environments — bump its version stamp if you change it |
 | New question validator | Implement in `Application/Journey/Validators/`, register by name; flow JSON references it via `validator` — unregistered names fail open |
 | New entity | `Persistence/Entities/` + configuration + migration in Persistence (never Domain); interface in Application; repository in Persistence |

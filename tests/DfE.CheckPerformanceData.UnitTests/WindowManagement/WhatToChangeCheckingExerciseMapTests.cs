@@ -41,4 +41,19 @@ public sealed class WhatToChangeCheckingExerciseMapTests
             Assert.True(Enum.IsDefined(WhatToChangeCheckingExerciseMap.CheckingExerciseFor(change)));
         }
     }
+
+    [Fact]
+    public void Result_does_not_belong_maps_to_the_results_enquiry_exercise() =>
+        Assert.Equal(CheckingExerciseType.ResultsEnquiry,
+            WhatToChangeCheckingExerciseMap.CheckingExerciseFor(WhatToChange.ResultDoesNotBelong));
+
+    [Theory]
+    [InlineData(WhatToChange.IncorrectGrade, true)]
+    [InlineData(WhatToChange.MissingQualification, true)]
+    [InlineData(WhatToChange.ResultDoesNotBelong, true)]
+    [InlineData(WhatToChange.Remove, false)]
+    [InlineData(WhatToChange.Add, false)]
+    [InlineData(null, false)]
+    public void IsResultsEnquiry_answers_from_the_map_for_every_member(WhatToChange? change, bool expected) =>
+        Assert.Equal(expected, WhatToChangeCheckingExerciseMap.IsResultsEnquiry(change));
 }

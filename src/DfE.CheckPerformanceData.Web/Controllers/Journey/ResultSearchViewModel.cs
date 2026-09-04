@@ -15,6 +15,13 @@ public sealed class ResultSearchViewModel
     /// <summary>Title with <c>{pupilName}</c> resolved — safe to render, but not into the page title.</summary>
     public string Title { get; set; } = string.Empty;
 
+    /// <summary>
+    /// The flow config's name-free <c>pageTitle</c>, for the browser title (which reaches
+    /// analytics). AB#298704: this page serves two journeys, so the title cannot be hardcoded —
+    /// the same split QualificationSearch.cshtml documents.
+    /// </summary>
+    public string? PageTitle { get; set; }
+
     public string? Hint { get; set; }
 
     /// <summary>
@@ -33,6 +40,10 @@ public sealed class ResultSearchViewModel
     /// types — and a server-rendered list is the only version that is accessible without script.
     /// </summary>
     public IReadOnlyList<StudentResultRecord> AvailableResults { get; set; } = [];
+
+    /// <summary>Optional flow-config inset rendered between the search and Continue (AB#298704:
+    /// how to report more than one stray result). Null on the flows that declare none.</summary>
+    public string? Content { get; set; }
 
     public string? BackPageId { get; set; }
 

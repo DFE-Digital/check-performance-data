@@ -8,6 +8,7 @@ using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Domain.Enums;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
+using CheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseService;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 
@@ -39,7 +40,8 @@ public sealed class RequestServiceAddTests
 
         _sut = new RequestService(
             _flowService, _stateBlob, _repository, _currentUser,
-            NullLogger<RequestService>.Instance, _queue, _notifications, _pupilData);
+            NullLogger<RequestService>.Instance, _queue, _notifications, _pupilData,
+            new CheckingExerciseService(TimeProvider.System));
     }
 
     private static readonly QuestionFlowConfig AddConfig = new()

@@ -1,6 +1,6 @@
 {
-  "version": "2026.06.11-01",
-  "updatedAt": "2026-06-11T12:00:00Z",
+  "version": "2026.09.02-01",
+  "updatedAt": "2026-09-02T12:00:00Z",
   "outcomes": [
 
     {
@@ -226,7 +226,7 @@
         { "id": "NOR-POST16-REASON", "status": "AutoApproved",
           "when": { "all": [
             { "field": "checkingWindowType", "eq": "Post16" },
-            { "field": "removalReasonAtSchool", "in": ["Apprentice", "External candidate", "International student"] }
+            { "field": "removalReasonAtSchool", "in": ["apprentice", "external-candidate", "international-student"] }
           ] } },
         { "id": "NOR-DEF", "status": "Scrutiny", "when": "otherwise" }
       ]

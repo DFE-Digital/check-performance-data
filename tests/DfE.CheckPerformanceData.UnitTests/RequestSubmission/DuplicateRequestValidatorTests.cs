@@ -10,6 +10,7 @@ using DfE.CheckPerformanceData.Web.Common;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using LearnerNoun = DfE.CheckPerformanceData.Application.WindowManagement.LearnerNoun;
+using CheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseService;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.RequestSubmission;
 
@@ -41,7 +42,8 @@ public sealed class DuplicateRequestValidatorTests
         var checkYourPupilDataService = Substitute.For<ICheckYourPupilDataService>();
 
         _sut = new RequestService(_flowService, requestStateBlobClient, _repository, _currentUser,
-            logger, queueService, requestNotificationService, checkYourPupilDataService);
+            logger, queueService, requestNotificationService, checkYourPupilDataService,
+            new CheckingExerciseService(TimeProvider.System));
     }
 
     // ── CheckForConflictAsync (T007) ────────────────────────────────────────

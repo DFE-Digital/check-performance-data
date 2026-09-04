@@ -3,9 +3,12 @@ using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
+using DfE.CheckPerformanceData.Infrastructure.QuestionFlow;
 using DfE.CheckPerformanceData.Web.Startup;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Hosting;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Startup;
 
@@ -36,8 +39,20 @@ public class BlobStorageExtensionsTests
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddMemoryCache();
+        // The question-flow source reads the shipped JSON from the content root, so the host
+        // environment has to be resolvable here exactly as it is in the real web host.
+        services.AddSingleton<IHostEnvironment>(new StubHostEnvironment());
         services.AddCpdBlobStorage(configuration);
         return services.BuildServiceProvider(validateScopes: true);
+    }
+
+    private sealed class StubHostEnvironment : IHostEnvironment
+    {
+        public string EnvironmentName { get; set; } = Environments.Production;
+        public string ApplicationName { get; set; } = "DfE.CheckPerformanceData.Web";
+        public string ContentRootPath { get; set; } = AppContext.BaseDirectory;
+        public IFileProvider ContentRootFileProvider { get; set; } =
+            new NullFileProvider();
     }
 
     [Theory]
@@ -50,12 +65,30 @@ public class BlobStorageExtensionsTests
     [InlineData(typeof(QualificationReferenceBlobClient))]
     [InlineData(typeof(IRequestBlobClient))]
     [InlineData(typeof(IRequestStateBlobClient))]
-    [InlineData(typeof(IQuestionFlowBlobClient))]
+    [InlineData(typeof(IQuestionFlowConfigSource))]
     public void Every_blob_client_the_web_host_needs_resolves(Type serviceType)
     {
         using var provider = BuildWebBlobServices();
         using var scope = provider.CreateScope();
 
         Assert.NotNull(scope.ServiceProvider.GetRequiredService(serviceType));
+    }
+
+    /// <summary>
+    /// Question flow configs ship inside the release image (Data/QuestionFlows/*.json) and are
+    /// read from there in every environment. They used to be read from the question-flows blob
+    /// container, which Terraform provisions empty and which only the dev-only seeding step ever
+    /// filled — so QA, preproduction and production had no configs unless somebody uploaded them
+    /// by hand. Reading the image makes the config travel with the release it belongs to.
+    /// </summary>
+    [Fact]
+    public void Question_flows_are_served_from_the_shipped_image_not_from_blob()
+    {
+        using var provider = BuildWebBlobServices();
+        using var scope = provider.CreateScope();
+
+        var source = scope.ServiceProvider.GetRequiredService<IQuestionFlowConfigSource>();
+
+        Assert.IsType<FileSystemQuestionFlowClient>(source);
     }
 }

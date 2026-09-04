@@ -55,8 +55,8 @@ public static class DependencyManager
         services.AddScoped<IWindowRepository, WindowRepository>();
         services.AddScoped<ICheckYourPupilDataRepository, CheckYourPupilDataRepository>();
         services.AddScoped<IRequestRepository, RequestRepository>();
-        services.AddScoped<Application.UncommittedRequests.IUncommittedRequestsRepository,
-            Repositories.UncommittedRequestsRepository>();
+        services.AddScoped<Application.AdminRequests.IAdminRequestsRepository,
+            Repositories.AdminRequestsRepository>();
         services.AddScoped<ICountryRepository, CountryRepository>();
         services.AddScoped<Application.Dashboard.IOrganisationLoginRepository, Repositories.OrganisationLoginRepository>();
         services.AddScoped<Application.Dashboard.IDashboardRequestRepository, Repositories.DashboardRequestRepository>();

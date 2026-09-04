@@ -1,0 +1,41 @@
+{
+  "firstPageId": "select-student",
+  "pages": [
+    {
+      "id": "select-student",
+      "type": "PupilSearch",
+      "pupilFilter": "All",
+      "requireResults": true,
+      "pupilKey": "primary",
+      "title": "What is the name of the student the result does not belong to?",
+      "subheading": "Start typing to search by name, ULN, CYPMD ID or date of birth. You can only search for students who have results.",
+      "validationFailure": "Enter the name of the student the result does not belong to",
+      "nextPageId": "select-result"
+    },
+    {
+      "id": "select-result",
+      "type": "ResultSearch",
+      "title": "Which result does not belong to {pupilName}?",
+      "pageTitle": "Which result does not belong to the student?",
+      "subheading": "Start typing to search for results by subject or QAN",
+      "content": "If more than one result does not belong to the student, provide the QAN and grade for each result on the next page.",
+      "validationFailure": "Enter which result does not belong to {pupilName}",
+      "nextPageId": "additional-info"
+    },
+    {
+      "id": "additional-info",
+      "pageTitle": "Additional information",
+      "questions": [
+        {
+          "id": "q-additional-info",
+          "type": "TextArea",
+          "title": "Additional information",
+          "hint": "If there is more than one result that does not belong to the student, you can enter the QAN and grade for each result below. You can also provide us with any additional information to support your query if you need to.",
+          "optional": true,
+          "characterLimit": 1000,
+          "summaryTitle": "Additional information"
+        }
+      ]
+    }
+  ]
+}

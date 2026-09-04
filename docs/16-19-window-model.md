@@ -337,8 +337,8 @@ When that happens:
 
 1. The exercise joins the key: `{Exercise}_{WhatToChange}_{CheckingWindowType}.json`. Every existing
    file is renamed to read `PupilData_*` except the results-enquiry ones, which read
-   `ResultsEnquiry_*`. Blobs are renamed in the `question-flows` container, and
-   `Web/Data/QuestionFlows/` renamed to match, in the same change — the seeder uploads by filename.
+   `ResultsEnquiry_*`. Only `Web/Data/QuestionFlows/` is renamed — the configs ship in the image
+   and are read by filename, so there are no blobs to rename (see `docs/question-flow-deployment.md`).
 2. `WhatToChangeCheckingExerciseMap` is retired. The exercise is no longer derived from the change
    type; it comes from whichever page started the journey and is carried into the key.
 3. `IsSessionReady`'s gate then needs the exercise from somewhere else. Storing it on `RequestState`
@@ -348,7 +348,18 @@ When that happens:
 Until a collision exists, none of that buys anything: the key is shorter, the map is three lines,
 and the blobs need no rename.
 
-`ChangeRequest` needs no exercise column either — `AmendmentType` (`:33`) plus the map derives it.
+~~`ChangeRequest` needs no exercise column either — `AmendmentType` (`:33`) plus the map derives it.~~
+**Reversed: `ChangeRequests.CheckingExerciseId` now stores it.** Deriving it was sound but only ever
+half true — a `ConfirmCorrect` declaration has a null `AmendmentType`, so the derivation could not
+name its exercise at all, and every admin filter or per-exercise deadline check had to re-run the
+map and then join to `CheckingExercises` to reach the row. The column is written by
+`RequestService` from `ICheckingExerciseService.IdFor` and backfilled for existing rows.
+
+This does **not** reintroduce the disagreement the map guards against: the map is still the only
+statement of which exercise a change type belongs to, and the column is derived *through* it at
+write time rather than being an independent second answer. The stored value is a row id, not a type.
+The one restatement is the `CASE` in the backfill migration, which cannot call into Application —
+keep it in step with the map.
 
 ---
 

@@ -10,7 +10,7 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 public class QuestionFlowServiceTests
 {
     private readonly QuestionFlowConfig _config;
-    private readonly IQuestionFlowBlobClient _blobClient = Substitute.For<IQuestionFlowBlobClient>();
+    private readonly IQuestionFlowConfigSource _blobClient = Substitute.For<IQuestionFlowConfigSource>();
     private readonly QuestionFlowService _sut;
 
     public QuestionFlowServiceTests()

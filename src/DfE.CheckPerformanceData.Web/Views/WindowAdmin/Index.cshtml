@@ -42,7 +42,8 @@ else
                 </td>
                 <td class="govuk-table__cell">@window.IsPublished</td>
                 <td class="govuk-table__cell">
-                    <a class="govuk-link" href="/admin/windows/summary/@window.Id">Edit</a>
+                    <a class="govuk-link" href="/admin/windows/summary/@window.Id">Edit<span class="govuk-visually-hidden"> @window.Name</span></a>
+                    <a class="govuk-link govuk-!-margin-left-3" href="/admin/windows/@window.Id/requests">Requests<span class="govuk-visually-hidden"> for @window.Name</span></a>
                 </td>
             </tr>
         }

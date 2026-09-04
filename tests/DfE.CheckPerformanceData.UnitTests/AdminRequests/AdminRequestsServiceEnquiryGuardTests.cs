@@ -4,13 +4,15 @@ using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
-using DfE.CheckPerformanceData.Application.UncommittedRequests;
+using DfE.CheckPerformanceData.Application.AdminRequests;
 using DfE.CheckPerformanceData.Domain.Enums;
 using NSubstitute;
+using IWindowService = DfE.CheckPerformanceData.Application.WindowManagement.IWindowService;
 
-namespace DfE.CheckPerformanceData.Application.UnitTests.UncommittedRequests;
+namespace DfE.CheckPerformanceData.Application.UnitTests.AdminRequests;
 
-// AB#296648/AB#297848: the window-close Zendesk replay must skip results enquiries — BOTH kinds.
+// AB#296648/AB#297848/AB#298704: the window-close Zendesk replay must skip results enquiries —
+// every kind.
 //
 // This path rebuilds a PUPIL AMENDMENT ticket from a journey blob. An enquiry's QAN, session, current
 // and revised grade have no place in that shape, so replaying one would create a malformed ticket —
@@ -18,8 +20,10 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.UncommittedRequests;
 // enquiry-to-Zendesk dispatch (a separate story) could never find it again.
 //
 // The enquiry cases are Theories over every enquiry kind rather than one hardcoded member: a new
-// results-enquiry journey that forgets this guard is exactly the regression AB#297848 shipped with,
-// and EnquiryKinds below is the one place a future sibling has to be added.
+// results-enquiry journey that forgets this guard is exactly the regression AB#297848 shipped with.
+// EnquiryKinds below derives from WhatToChangeCheckingExerciseMap, so a new kind is covered here
+// the moment it maps to the ResultsEnquiry exercise — nothing to add by hand (AB#298704 arrived
+// this way).
 public sealed class AdminRequestsServiceEnquiryGuardTests
 {
     private static readonly DateTimeOffset Now = new(2026, 11, 19, 9, 0, 0, TimeSpan.Zero);
@@ -27,7 +31,7 @@ public sealed class AdminRequestsServiceEnquiryGuardTests
     private static readonly Guid AmendmentRowId = Guid.Parse("11111111-1111-1111-1111-111111111111");
     private static readonly Guid EnquiryRowId = Guid.Parse("22222222-2222-2222-2222-222222222222");
 
-    private readonly IUncommittedRequestsRepository _repository = Substitute.For<IUncommittedRequestsRepository>();
+    private readonly IAdminRequestsRepository _repository = Substitute.For<IAdminRequestsRepository>();
     private readonly IRequestStateBlobClient _stateBlob = Substitute.For<IRequestStateBlobClient>();
     private readonly IQuestionFlowService _flowService = Substitute.For<IQuestionFlowService>();
     private readonly IQueueService _queueService = Substitute.For<IQueueService>();
@@ -51,7 +55,8 @@ public sealed class AdminRequestsServiceEnquiryGuardTests
         _flowService.ResolveRequestType(Arg.Any<QuestionFlowConfig>(), Arg.Any<RequestState>()).Returns("Remove");
 
         _sut = new AdminRequestsService(
-            _repository, _stateBlob, _flowService, _queueService, new FakeTimeProvider(Now));
+            _repository, _stateBlob, _flowService, _queueService, Substitute.For<IWindowService>(),
+            new FakeTimeProvider(Now));
     }
 
     private static ReplayRequestRow Row(Guid id, string reference) => new()

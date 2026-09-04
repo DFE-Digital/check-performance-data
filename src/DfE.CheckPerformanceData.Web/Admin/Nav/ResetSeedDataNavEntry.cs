@@ -2,8 +2,8 @@ namespace DfE.CheckPerformanceData.Web.Admin.Nav;
 
 // Danger zone tile that links (GET) to the "Reset seed data" interstitial confirmation page.
 // HttpMethod is GET because the tile leads to a warning page, not the destructive action
-// itself — the reset only runs from the confirmation page's POST. Registered only outside
-// Production (see AddAdminNavEntries).
+// itself — the reset only runs from the confirmation page's POST. This tile alone carries the
+// Production gate (includeResetSeedData in AddAdminNavEntries); the group around it does not.
 public sealed record ResetSeedDataNavEntry : IAdminNavEntry
 {
     public string Key => AdminNavKeys.ResetSeedData;

@@ -59,12 +59,13 @@ public sealed class ResultIssueController(
         if (!checkingExercises.IsOpen(window.Exercises, Exercise))
             return this.RedirectExerciseClosed(windowId, Exercise, LearnerNoun.For(window.CheckingWindowType));
 
-        // Fail closed on anything that is not one of the two options this ticket renders, so a
-        // forged or sibling-ticket value cannot start a journey with no flow behind it.
+        // Fail closed on anything that is not one of the options this page renders, so a forged or
+        // unknown value cannot start a journey with no flow behind it.
         var whatToChange = vm.IssueType switch
         {
             ResultIssueViewModel.IncorrectGrade => Application.CheckYourPupilData.WhatToChange.IncorrectGrade,
             ResultIssueViewModel.MissingQualification => Application.CheckYourPupilData.WhatToChange.MissingQualification,
+            ResultIssueViewModel.ResultDoesNotBelong => Application.CheckYourPupilData.WhatToChange.ResultDoesNotBelong,
             _ => (Application.CheckYourPupilData.WhatToChange?)null
         };
         if (whatToChange is null)

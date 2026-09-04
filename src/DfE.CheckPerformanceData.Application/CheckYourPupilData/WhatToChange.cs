@@ -13,6 +13,10 @@ public enum WhatToChange
     IncorrectGrade,
     // AB#297848: the 16-19 "missing qualification" results-enquiry journey. Belongs to the
     // ResultsEnquiry checking exercise — see WhatToChangeCheckingExerciseMap. Exactly 20 chars,
-    // the AmendmentType column's HasMaxLength — pinned by EnumContractTests. Appended last.
-    MissingQualification
+    // the AmendmentType column's HasMaxLength — pinned by EnumContractTests.
+    MissingQualification,
+    // AB#298704: the 16-19 "result does not belong to student" results-enquiry journey. Belongs to
+    // the ResultsEnquiry checking exercise — see WhatToChangeCheckingExerciseMap. 19 chars, within
+    // the AmendmentType column's 20 — pinned by EnumContractTests. Appended last.
+    ResultDoesNotBelong
 }

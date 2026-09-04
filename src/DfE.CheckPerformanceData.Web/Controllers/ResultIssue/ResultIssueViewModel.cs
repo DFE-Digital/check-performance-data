@@ -2,14 +2,14 @@ namespace DfE.CheckPerformanceData.Web.Controllers;
 
 public sealed class ResultIssueViewModel
 {
-    /// <summary>AB#296648: the "report an incorrect grade" enquiry. "Result does not belong to
-    /// pupil" remains a sibling ticket with no journey, so posting it is still rejected as
-    /// unanswered.</summary>
+    /// <summary>AB#296648: the "report an incorrect grade" enquiry.</summary>
     public const string IncorrectGrade = "incorrect-grade";
 
-    /// <summary>AB#297848: the missing-qualification enquiry. "Result does not belong to pupil"
-    /// remains a sibling ticket with no journey, so posting it is still rejected as unanswered.</summary>
+    /// <summary>AB#297848: the missing-qualification enquiry.</summary>
     public const string MissingQualification = "missing-qualification";
+
+    /// <summary>AB#298704: the "result does not belong to student" enquiry.</summary>
+    public const string ResultDoesNotBelong = "result-does-not-belong";
 
     public Guid WindowId { get; set; }
 

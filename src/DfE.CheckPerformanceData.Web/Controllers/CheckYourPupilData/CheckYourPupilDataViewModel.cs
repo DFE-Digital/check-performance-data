@@ -47,6 +47,28 @@ public sealed class CheckYourPupilDataViewModel
     /// </summary>
     public bool IsPupilDataOpen { get; init; }
 
+    /// <summary>
+    /// AB#298317: whether the results-enquiry exercise is open, from
+    /// <c>ICheckingExerciseService.IsOpen</c>. Chooses the closing sentence of the closed-window
+    /// paragraph ("report any issues" versus "view and download").
+    /// </summary>
+    public bool IsResultsEnquiryOpen { get; init; }
+
+    /// <summary>
+    /// AB#298317: the window's next opportunity to review data, already formatted as month + year
+    /// by <c>NextOpportunityText</c>. Null when the admin has not set it, and then the sentence
+    /// that names it is omitted.
+    /// </summary>
+    public string? NextOpportunity { get; init; }
+
+    /// <summary>
+    /// AB#298317: results enquiry is the only thing left open — the state in which the page asks
+    /// "Would you like to report an issue with an exam result?" with a Yes/No answer instead of
+    /// offering a one-item form. A list pattern rather than Count/indexer so a binder-created
+    /// instance (null collection) answers false instead of throwing — see the LearnerNoun remarks.
+    /// </summary>
+    public bool OffersEnquiryOnly => AvailableNextSteps is [NextSteps.ResultsEnquiry];
+
     public required string OrganisationName { get; init; }
 
     /// <summary>

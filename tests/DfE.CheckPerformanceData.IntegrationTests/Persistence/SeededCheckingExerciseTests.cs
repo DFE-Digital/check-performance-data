@@ -20,13 +20,14 @@ public sealed class SeededCheckingExerciseTests : IAsyncLifetime
     private readonly Guid _openKs4 = Guid.NewGuid();
     private readonly Guid _closedKs4 = Guid.NewGuid();
     private readonly Guid _post16 = Guid.NewGuid();
+    private readonly Guid _closedPupilDataPost16 = Guid.NewGuid();
 
     public async Task InitializeAsync()
     {
         await _postgres.StartAsync();
         await using var ctx = CreateContext();
         await ctx.Database.MigrateAsync();
-        await SeedCheckingWindows.ExecuteSeed(ctx, _openKs4, _closedKs4, _post16);
+        await SeedCheckingWindows.ExecuteSeed(ctx, _openKs4, _closedKs4, _post16, _closedPupilDataPost16);
     }
 
     public Task DisposeAsync() => _postgres.DisposeAsync().AsTask();
@@ -75,7 +76,7 @@ public sealed class SeededCheckingExerciseTests : IAsyncLifetime
     [Fact]
     public async Task Every_seeded_windows_outer_dates_equal_the_union_of_its_exercises()
     {
-        foreach (var windowId in new[] { _openKs4, _closedKs4, _post16 })
+        foreach (var windowId in new[] { _openKs4, _closedKs4, _post16, _closedPupilDataPost16 })
         {
             var window = await LoadAsync(windowId);
 
@@ -83,5 +84,30 @@ public sealed class SeededCheckingExerciseTests : IAsyncLifetime
             Assert.Equal(window.StartDate, window.CheckingExercises.Min(e => e.StartDate));
             Assert.Equal(window.EndDate, window.CheckingExercises.Max(e => e.EndDate));
         }
+    }
+
+    // AB#298317: the state the ticket is about — pupil data has closed, results enquiry is still
+    // open, and the window knows when the school can next review its data. E2E and the local
+    // hand-walk rely on this window; the other three are untouched.
+    [Fact]
+    public async Task The_closed_pupil_data_post16_window_has_pupil_data_shut_and_results_enquiry_open()
+    {
+        var window = await LoadAsync(_closedPupilDataPost16);
+        var now = DateTime.Now;
+
+        var exercises = window.CheckingExercises.OrderBy(e => e.SortOrder).ToList();
+        Assert.Equal(
+            [CheckingExerciseType.PupilData, CheckingExerciseType.ResultsEnquiry],
+            exercises.Select(e => e.ExerciseType));
+        Assert.True(exercises[0].EndDate < now, "pupil data must already have closed");
+        Assert.True(exercises[1].StartDate <= now && exercises[1].EndDate > now, "results enquiry must still be open");
+        Assert.Equal(new DateTime(now.Year + 1, 10, 1), window.NextOpportunity);
+    }
+
+    [Fact]
+    public async Task The_open_post16_window_also_carries_a_next_opportunity()
+    {
+        var window = await LoadAsync(_post16);
+        Assert.Equal(new DateTime(DateTime.Now.Year + 1, 10, 1), window.NextOpportunity);
     }
 }

@@ -59,7 +59,7 @@ public static class SeedCheckingWindows
                 }
             ];
 
-    public static async Task ExecuteSeed(IPortalDbContext dbContext, Guid openKs4WindowId, Guid closedKs4WindowId, Guid post16WindowId)
+    public static async Task ExecuteSeed(IPortalDbContext dbContext, Guid openKs4WindowId, Guid closedKs4WindowId, Guid post16WindowId, Guid closedPupilDataPost16WindowId)
     {
         await dbContext.ChangeRequests.ExecuteDeleteAsync();
         await dbContext.CheckingWindows.ExecuteDeleteAsync();
@@ -99,6 +99,7 @@ public static class SeedCheckingWindows
         // that is the multi-exercise shape, and nothing reads the exercise rows yet.
         var post16Start = DateTime.Now.AddDays(-1);
         var post16End = DateTime.Now.AddDays(+180).Date.AddHours(17);
+        var nextOpportunity = new DateTime(DateTime.Now.Year + 1, 10, 1);
 
         var openPost16Window = new CheckingWindow
         {
@@ -109,7 +110,46 @@ public static class SeedCheckingWindows
             CheckingWindowType = CheckingWindowType.Post16,
             Title = "16 to 19",
             TurnaroundCommitment = "updated in the Spring",
+            NextOpportunity = nextOpportunity,
             CheckingExercises = ExercisesFor(CheckingWindowType.Post16, post16Start, post16End)
+        };
+
+        // AB#298317: pupil data checking shut yesterday; results enquiry runs on for months. The
+        // outer pair is the union of the two, as for every window. Built inline rather than through
+        // ExercisesFor because that helper always opens pupil data on the window's own start and
+        // closes it a fortnight later — here the fortnight is already in the past.
+        var closedPost16Start = DateTime.Now.AddDays(-30);
+        var closedPost16PupilDataEnd = DateTime.Now.AddDays(-1).Date.AddHours(17);
+        var closedPost16End = DateTime.Now.AddDays(+180).Date.AddHours(17);
+
+        var closedPupilDataPost16Window = new CheckingWindow
+        {
+            Id = closedPupilDataPost16WindowId,
+            StartDate = closedPost16Start,
+            EndDate = closedPost16End,
+            KeyStage = KeyStages.Post16,
+            CheckingWindowType = CheckingWindowType.Post16,
+            Title = "16 to 19 (pupil data closed)",
+            TurnaroundCommitment = "updated in the Spring",
+            NextOpportunity = nextOpportunity,
+            CheckingExercises =
+            [
+                new CheckingExercise
+                {
+                    ExerciseType = CheckingExerciseType.PupilData,
+                    StartDate = closedPost16Start,
+                    EndDate = closedPost16PupilDataEnd,
+                    SortOrder = 0,
+                    Datasets = DatasetsFor(CheckingWindowType.Post16)
+                },
+                new CheckingExercise
+                {
+                    ExerciseType = CheckingExerciseType.ResultsEnquiry,
+                    StartDate = closedPost16Start,
+                    EndDate = closedPost16End,
+                    SortOrder = 1
+                }
+            ]
         };
 
         await dbContext.CheckingWindows.AddRangeAsync(
@@ -151,7 +191,8 @@ public static class SeedCheckingWindows
             //     Title = "16-18"
             // },
             closedKs4JuneWindow,
-            openPost16Window
+            openPost16Window,
+            closedPupilDataPost16Window
         );
         
         await dbContext.SaveChangesAsync();

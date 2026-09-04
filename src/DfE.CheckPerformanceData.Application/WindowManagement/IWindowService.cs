@@ -33,6 +33,9 @@ public sealed class CheckingWindowDto
     public bool IsOpen { get; set; }
     public string TurnaroundCommitment { get; set; } = string.Empty;
 
+    /// <summary>AB#298317: the next chance to review data, shown to schools as month + year. Null = not set.</summary>
+    public DateTime? NextOpportunity { get; set; }
+
     // #319: Validated / ValidatedAt are gone from here. A window is not validated as a whole — ask
     // a CheckingExerciseDto, or fold the answer across Exercises.
 

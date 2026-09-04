@@ -13,6 +13,14 @@ public sealed class CheckingWindow
     public CheckingWindowType CheckingWindowType { get; init; }
     public string Title { get; init; } = string.Empty;
     public string TurnaroundCommitment { get; init; } = string.Empty;
+
+    /// <summary>
+    /// AB#298317: when the school will next be able to review its data — shown to schools as month
+    /// and year once the pupil-data exercise has closed. Null until an admin sets it; the day is
+    /// captured by the date input but never shown.
+    /// </summary>
+    public DateTime? NextOpportunity { get; init; }
+
     public bool Published { get; init; } = false;
     public string IngressFile { get; init; } = string.Empty;
     public string SchemaFile { get; init; } = string.Empty;
@@ -64,7 +72,10 @@ public sealed class CheckingWindowConfiguration : IEntityTypeConfiguration<Check
 
         builder.Property(x => x.TurnaroundCommitment)
             .HasMaxLength(200);
-        
+
+        builder.Property(x => x.NextOpportunity)
+            .HasColumnType("timestamp without time zone");
+
         builder.Property(x => x.IngressFile)
             .HasMaxLength(255);
         

@@ -50,5 +50,8 @@ public sealed class CheckingWindowDto
     /// </summary>
     public List<CheckingExerciseDto> Exercises { get; init; } = [];
     public string TurnaroundCommitment { get; init; } = string.Empty;
+
+    /// <summary>AB#298317: the next chance to review data, shown as month + year on the landing banner and Check your pupil data. Null = not set.</summary>
+    public DateTime? NextOpportunity { get; init; }
 }
 

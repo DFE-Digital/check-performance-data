@@ -27,6 +27,10 @@ public interface ICheckingExerciseService
     DateTime? EndDateFor(
         IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise);
 
+    /// <summary>The exercise's start date, or null when there is no row for that type (AB#298317).</summary>
+    DateTime? StartDateFor(
+        IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise);
+
     /// <summary>
     /// The exercise's row id, or null when there is no row for that type. This is what a
     /// ChangeRequest is stamped with so it can say which exercise it belongs to; the type itself
@@ -69,6 +73,10 @@ public sealed class CheckingExerciseService(TimeProvider timeProvider) : IChecki
     public DateTime? EndDateFor(
         IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise) =>
         exercises.FirstOrDefault(e => e.ExerciseType == exercise)?.EndDate;
+
+    public DateTime? StartDateFor(
+        IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise) =>
+        exercises.FirstOrDefault(e => e.ExerciseType == exercise)?.StartDate;
 
     public Guid? IdFor(IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise) =>
         exercises.FirstOrDefault(e => e.ExerciseType == exercise)?.Id;

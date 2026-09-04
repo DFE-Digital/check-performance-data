@@ -175,6 +175,24 @@ public sealed class CheckingExerciseServiceTests
         Assert.Null(Sut().IdFor([], CheckingExerciseType.PupilData));
     }
 
+    // AB#298317: the landing card prints the pupil-data range, so the start is needed beside the
+    // end. A lookup, not a clock question — same shape as EndDateFor.
+    [Fact]
+    public void StartDateFor_returns_the_exercises_own_start_or_null_when_absent()
+    {
+        var pupilData = new CheckingExerciseDto
+        {
+            ExerciseType = CheckingExerciseType.PupilData,
+            StartDate = new DateTime(2026, 10, 5),
+            EndDate = new DateTime(2026, 10, 16, 17, 0, 0),
+            SortOrder = 0
+        };
+
+        Assert.Equal(new DateTime(2026, 10, 5), Sut().StartDateFor([pupilData], CheckingExerciseType.PupilData));
+        Assert.Null(Sut().StartDateFor([pupilData], CheckingExerciseType.ResultsEnquiry));
+        Assert.Null(Sut().StartDateFor([], CheckingExerciseType.PupilData));
+    }
+
     [Fact]
     public void An_exercise_is_open_on_its_first_and_last_instant()
     {

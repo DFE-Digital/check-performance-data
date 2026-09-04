@@ -26,6 +26,29 @@
     </govuk-notification-banner>
 }
 
+@* AB#298317: pupil data checking has closed for this window. Results enquiry may still be running
+   for months — the last sentence turns on that. The next-opportunity sentence is omitted, not left
+   half-written, when the admin has not set a date. *@
+@foreach (var window in Model.ClosedWindows)
+{
+    <govuk-notification-banner>
+        <govuk-notification-banner-title>Important</govuk-notification-banner-title>
+        <p class="govuk-notification-banner__heading" style="max-width: none;">The @window.Title data checking window has closed.</p>
+        @if (window.NextOpportunity is not null)
+        {
+            <p class="govuk-body">The next opportunity to review your data is in @window.NextOpportunity. We'll email you about a month before.</p>
+        }
+        @if (window.IsResultsEnquiryOpen)
+        {
+            <p class="govuk-body">You can still view your exam results and report any issues.</p>
+        }
+        else
+        {
+            <p class="govuk-body">You can still view and download your @window.LearnerNoun.Singular data.</p>
+        }
+    </govuk-notification-banner>
+}
+
 <h1 class="govuk-heading-xl">@Model.OrganisationName</h1>
 
 <div class="school-details">
@@ -58,7 +81,24 @@
                 <div class="dfe-card-container">
                     <h3 class="govuk-heading-m">@openWindow.Title</h3>
 
-                    <p><strong>You have until @openWindow.EndTime on @openWindow.EndDate to review your data.</strong></p>
+                    @* AB#298317: every date on the card is an exercise's own. The outer window's end
+                       is the results-enquiry close on a 16-19 window — months after pupil data shuts —
+                       and must never be quoted as the review deadline. *@
+                    @if (openWindow.PupilDataEndDate is not null)
+                    {
+                        if (openWindow.IsPupilDataOpen)
+                        {
+                            <p><strong>You have until @openWindow.PupilDataEndTime on @openWindow.PupilDataEndDate to review your data.</strong></p>
+                        }
+                        else
+                        {
+                            <p>You can request amendments to @openWindow.LearnerNoun.Singular data from @openWindow.PupilDataRangeStart to @openWindow.PupilDataRangeEnd.</p>
+                        }
+                    }
+                    @if (openWindow.IsResultsEnquiryOpen)
+                    {
+                        <p>You can continue to use this service to raise enquiries about exam results until @openWindow.ResultsEnquiryEndDate.</p>
+                    }
 
                     <div>
                         <a draggable="false" data-module="govuk-button" asp-action="Index" asp-controller="CheckYourPupilData" asp-route-windowId="@openWindow.Id"

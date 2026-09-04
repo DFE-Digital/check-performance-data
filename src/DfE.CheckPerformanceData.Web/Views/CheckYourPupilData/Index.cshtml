@@ -40,11 +40,29 @@
     {
         @:You must request any changes to @Model.LearnerNoun.Singular data before @pupilDataDeadline
     }
-    else if (pupilDataDeadline is not null)
-    {
-        @:The window for requesting changes to @Model.LearnerNoun.Singular data closed at @pupilDataDeadline
-    }
 </p>
+
+@* AB#298317: once pupil data checking has closed the page says so, names the next opportunity
+   when the admin has set one, and says what the school can still do. Results enquiry may still be
+   open for months after this — that is what the final sentence turns on. *@
+@if (Model.PupilDataEndDate is not null && !Model.IsPupilDataOpen)
+{
+    <p class="govuk-body">
+        The @Model.WindowTitle data checking window has closed.
+        @if (Model.NextOpportunity is not null)
+        {
+            @:The next opportunity to review your performance data will be in @Model.NextOpportunity.
+        }
+        @if (Model.IsResultsEnquiryOpen)
+        {
+            @:You can still view your exam results and report any issues.
+        }
+        else
+        {
+            @:You can still view and download your @Model.LearnerNoun.Singular data.
+        }
+    </p>
+}
 
 <p class="govuk-body">
     <a asp-action="DownloadAll" asp-controller="CheckYourPupilData" asp-route-windowId="@Model.WindowId">Download all
@@ -88,17 +106,38 @@
 
 @* #317: the form offers whatever the open exercises offer. Nothing open means no form at all —
    the tables, the search and the downloads above are untouched, because a closed exercise removes
-   actions, never content. *@
-@if (Model.AvailableNextSteps.Count == 0)
+   actions, never content. AB#298317: when results enquiry is the only thing left, the page asks
+   the designed Yes/No question instead of showing a one-item form. *@
+@if (Model.OffersEnquiryOnly)
 {
-    <p class="govuk-body">This window is closed for changes. You can still review and download your
-        @Model.LearnerNoun.Singular data above.</p>
+    <form method="post" action="@Url.Action("NextStep", "CheckYourPupilData", new { windowId = Model.WindowId })">
+        @Html.AntiForgeryToken()
+        <govuk-radios for="SelectedNextStep">
+            <govuk-radios-fieldset>
+                @* Not is-page-heading: the EditableTitle above is the page's only h1. *@
+                <govuk-radios-fieldset-legend class="govuk-fieldset__legend--l">
+                    Would you like to report an issue with an exam result?
+                </govuk-radios-fieldset-legend>
+
+                <govuk-radios-hint>
+                    Select one option
+                </govuk-radios-hint>
+
+                <govuk-radios-item value="@NextSteps.ResultsEnquiry">Yes</govuk-radios-item>
+                <govuk-radios-item value="@NextSteps.SignOut">No, I'd like to sign out of this service</govuk-radios-item>
+            </govuk-radios-fieldset>
+        </govuk-radios>
+
+        <govuk-button type="submit">Continue</govuk-button>
+    </form>
 }
 else if (Model.AvailableNextSteps.Count == 1)
 {
     @* A radio group with a single choice is a poor pattern and contradicts the "select one option"
        hint, so the one surviving option becomes the button itself. The value still posts through a
-       hidden field, so NextStep re-derives and re-checks it exactly as it does for the radios. *@
+       hidden field, so NextStep re-derives and re-checks it exactly as it does for the radios.
+       Unreachable today (pupil data always offers two options and results enquiry is handled
+       above); kept for a future exercise type that offers exactly one. *@
     var only = Model.AvailableNextSteps[0];
 
     <form method="post" action="@Url.Action("NextStep", "CheckYourPupilData", new { windowId = Model.WindowId })">
@@ -107,7 +146,7 @@ else if (Model.AvailableNextSteps.Count == 1)
         <govuk-button type="submit">@NextStepLabels.For(only, Model.LearnerNoun)</govuk-button>
     </form>
 }
-else
+else if (Model.AvailableNextSteps.Count > 1)
 {
     <form method="post" action="@Url.Action("NextStep", "CheckYourPupilData", new { windowId = Model.WindowId })">
         @Html.AntiForgeryToken()

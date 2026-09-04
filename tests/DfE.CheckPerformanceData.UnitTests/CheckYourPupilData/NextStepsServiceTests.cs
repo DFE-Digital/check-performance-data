@@ -138,4 +138,19 @@ public sealed class NextStepsServiceTests
             Assert.NotEmpty(Sut().GetAvailableSteps([Open(type)]));
         }
     }
+
+    // AB#298317: SignOut is an answer to the enquiry-only question, not a journey any exercise
+    // offers. The service must never produce it; the controller accepts it only in that state.
+    [Fact]
+    public void No_exercise_ever_offers_sign_out()
+    {
+        var everythingOpen = new[]
+        {
+            Open(CheckingExerciseType.PupilData, 0),
+            Open(CheckingExerciseType.ResultsEnquiry, 1)
+        };
+
+        Assert.DoesNotContain(NextSteps.SignOut, Sut().GetAvailableSteps(everythingOpen));
+        Assert.DoesNotContain(NextSteps.SignOut, Sut().GetAvailableSteps([Open(CheckingExerciseType.ResultsEnquiry)]));
+    }
 }

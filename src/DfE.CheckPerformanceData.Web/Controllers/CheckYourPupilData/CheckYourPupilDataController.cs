@@ -6,6 +6,7 @@ using DfE.CheckPerformanceData.Application.LandingPage;
 // LandingPage one ambiguous here.
 using ICheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.ICheckingExerciseService;
 using LearnerNoun = DfE.CheckPerformanceData.Application.WindowManagement.LearnerNoun;
+using DfE.CheckPerformanceData.Web.Authentication;
 using DfE.CheckPerformanceData.Web.Common;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Analytics;
@@ -110,7 +111,19 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
         var allowed = nextSteps.GetAvailableSteps(window.Exercises);
 
-        if (viewModel.SelectedNextStep is null || !allowed.Contains(viewModel.SelectedNextStep.Value))
+        // AB#298317: "No, I'd like to sign out of this service" is only ever asked when results
+        // enquiry is the sole open exercise. Re-derived here, like every other option: a forged
+        // SignOut on a page that never asked the question is treated as no answer at all.
+        if (viewModel.SelectedNextStep == NextSteps.SignOut && allowed is [NextSteps.ResultsEnquiry])
+        {
+            // This page requires authentication, so its own Referer is no help once signed out —
+            // the default (impersonation-only) Referer-based redirect would bounce straight back
+            // into a fresh sign-in challenge instead of showing the school it has signed out.
+            return LocalRedirect(SignOutLink.For(HttpContext, Url, returnUrl: "/"));
+        }
+
+        if (viewModel.SelectedNextStep is null or NextSteps.SignOut
+            || !allowed.Contains(viewModel.SelectedNextStep.Value))
         {
             ModelState.AddModelError(nameof(CheckYourPupilDataViewModel.SelectedNextStep), "Select what you would like to do");
             await analytics.TrackSafeAsync(new ValidationErrorEvent { ErrorCount = 1, ErrorCodes = [ValidationErrorCoding.NoSelection], ErrorFields = [nameof(CheckYourPupilDataViewModel.SelectedNextStep)] });
@@ -204,6 +217,8 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
             // own dates. On a multi-exercise window the outer EndDate is months later.
             PupilDataEndDate = checkingExercises.EndDateFor(window.Exercises, CheckingExerciseType.PupilData),
             IsPupilDataOpen = checkingExercises.IsOpen(window.Exercises, CheckingExerciseType.PupilData),
+            IsResultsEnquiryOpen = checkingExercises.IsOpen(window.Exercises, CheckingExerciseType.ResultsEnquiry),
+            NextOpportunity = NextOpportunityText.For(window.NextOpportunity),
             OrganisationName = currentUserService.OrganisationName,
             LearnerNoun = noun,
             TitleContentKey = WindowScopedContentKey.For("check-pupil-data-title", window.CheckingWindowType)

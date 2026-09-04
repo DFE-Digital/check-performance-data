@@ -22,8 +22,10 @@ public sealed class CheckYourPupilDataViewRenderTests
     {
         var view = ReadView();
 
-        Assert.Contains("Model.AvailableNextSteps.Count == 0", view);
+        // AB#298317: four states — enquiry-only question, one other option, many, none.
+        Assert.Contains("Model.OffersEnquiryOnly", view);
         Assert.Contains("Model.AvailableNextSteps.Count == 1", view);
+        Assert.Contains("Model.AvailableNextSteps.Count > 1", view);
         // The outer window's open/closed state no longer gates the form: a window can be open with
         // every exercise inside it shut.
         Assert.DoesNotContain("Model.IsWindowOpen", view);
@@ -32,21 +34,22 @@ public sealed class CheckYourPupilDataViewRenderTests
     [Fact]
     public void No_available_option_renders_no_form_at_all()
     {
+        // AB#298317: the closed statement moved up into the intro paragraph (see
+        // The_closed_window_paragraph_…), so nothing renders below the tables when nothing is open.
         var view = ReadView();
-        var noOptions = Section(view, "Model.AvailableNextSteps.Count == 0", "Model.AvailableNextSteps.Count == 1");
 
-        Assert.DoesNotContain("<form", noOptions);
-        Assert.DoesNotContain("govuk-radios", noOptions);
-        // The tables, the search and the downloads all sit above this block and are untouched, so a
-        // closed window still says what it is rather than showing an empty page.
-        Assert.Contains("closed for changes", noOptions);
+        Assert.DoesNotContain("closed for changes", view);
+        // Every form is inside one of the three option branches; none is unconditional.
+        var firstForm = view.IndexOf("<form", StringComparison.Ordinal);
+        var firstBranch = view.IndexOf("@if (Model.OffersEnquiryOnly)", StringComparison.Ordinal);
+        Assert.True(firstBranch >= 0 && firstForm > firstBranch, "no form may render before the option branches");
     }
 
     [Fact]
     public void A_single_available_option_renders_a_button_not_a_one_item_radio_group()
     {
         var view = ReadView();
-        var single = Section(view, "Model.AvailableNextSteps.Count == 1", "else\n{");
+        var single = Section(view, "Model.AvailableNextSteps.Count == 1", "Model.AvailableNextSteps.Count > 1");
 
         Assert.Contains("<form", single);
         Assert.DoesNotContain("govuk-radios", single);
@@ -87,13 +90,42 @@ public sealed class CheckYourPupilDataViewRenderTests
     }
 
     [Fact]
-    public void The_deadline_sentence_has_a_past_tense_variant()
+    public void The_closed_window_paragraph_is_scoped_to_pupil_data_being_closed()
+    {
+        // AB#298317: once pupil data shuts the page says so, names the next opportunity when the
+        // admin has set one, and says what the school can still do — inside one branch, so the
+        // open-state deadline sentence and the closed paragraph can never both print.
+        var view = ReadView();
+        Assert.Contains("You must request any changes to @Model.LearnerNoun.Singular data before", view);
+
+        var closed = Section(view, "@if (Model.PupilDataEndDate is not null && !Model.IsPupilDataOpen)", "<a asp-action=\"DownloadAll\"");
+        Assert.Contains("data checking window has closed.", closed);
+        Assert.Contains("@if (Model.NextOpportunity is not null)", closed);
+        Assert.Contains("The next opportunity to review your performance data will be in @Model.NextOpportunity.", closed);
+        Assert.Contains("@if (Model.IsResultsEnquiryOpen)", closed);
+        Assert.Contains("You can still view your exam results and report any issues.", closed);
+        Assert.Contains("You can still view and download your @Model.LearnerNoun.Singular data.", closed);
+        // The old past-tense deadline sentence is gone: the paragraph above replaces it.
+        Assert.DoesNotContain("closed at", view);
+    }
+
+    [Fact]
+    public void The_enquiry_only_state_asks_the_yes_no_question()
     {
         var view = ReadView();
+        var enquiryOnly = Section(view, "@if (Model.OffersEnquiryOnly)", "Model.AvailableNextSteps.Count == 1");
 
-        // The noun is the window's, so the sentence is asserted around it rather than through it.
-        Assert.Contains("You must request any changes to @Model.LearnerNoun.Singular data before", view);
-        Assert.Contains("closed at", view);
+        Assert.Contains("<form", enquiryOnly);
+        Assert.Contains("govuk-radios", enquiryOnly);
+        Assert.Contains("Would you like to report an issue with an exam result?", enquiryOnly);
+        Assert.Contains("value=\"@NextSteps.ResultsEnquiry\">Yes<", enquiryOnly);
+        Assert.Contains("value=\"@NextSteps.SignOut\">No, I'd like to sign out of this service<", enquiryOnly);
+        // Not the page heading — the EditableTitle above is the only h1. The attribute form (not
+        // bare prose) is checked, because the branch's own comment explains this in words.
+        Assert.DoesNotContain("is-page-heading=", enquiryOnly);
+        // The amendment options never leak into this state.
+        Assert.DoesNotContain("NextSteps.RequestChange", enquiryOnly);
+        Assert.DoesNotContain("NextSteps.Confirm", enquiryOnly);
     }
 
     [Fact]

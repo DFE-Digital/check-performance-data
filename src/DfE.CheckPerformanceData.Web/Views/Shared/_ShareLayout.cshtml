@@ -22,7 +22,11 @@
 }
 
 @section Header {
-    <govuk-header home-page-url="https://gov.uk/"/>
+    @* <header role="banner"> so the GOV.UK home link sits in a landmark — the GOV.UK
+       Frontend header component itself renders a plain <div> (audit #374). *@
+    <header role="banner">
+        <govuk-header home-page-url="https://gov.uk/"/>
+    </header>
 }
 
 @Html.GovUkFrontendJsEnabledScript()

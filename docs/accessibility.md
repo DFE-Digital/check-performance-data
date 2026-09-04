@@ -2,7 +2,7 @@
 
 This is a public sector service, so **WCAG 2.2 AA** and the **Public Sector Bodies (Websites and Mobile Applications) (No. 2) Accessibility Regulations 2018** apply.
 
-Everything below is a defect that was found and fixed on the `accessibility-pass` branch ahead of the Zoonou audit. Treat each as an invariant when adding or editing a view — they are cheap to keep and expensive to re-find.
+Everything below is a defect that was found and fixed — first on the `accessibility-pass` branch ahead of the Zoonou audit, then from the audit's own findings (epic [#384](https://github.com/DFE-Digital/check-performance-data/issues/384), which names the ticket behind each rule). Treat each as an invariant when adding or editing a view — they are cheap to keep and expensive to re-find.
 
 ---
 
@@ -90,8 +90,37 @@ Publishing an accessibility statement is a legal requirement under the 2018 regu
 
 > **Content-block gotcha:** `IContentBlockService.EnsureAsync` seeds `defaultHtml` only when no block exists for the key. Editing `defaultHtml` in a view is therefore inert on every environment whose database already holds that block. That is why the footer block was re-keyed to `footer-support-and-guidance-v2` rather than edited in place; the old block is left orphaned (visible in `/admin/content-blocks`, no longer rendered) so hand-edited prose can still be recovered.
 
+## Landmarks
+
+**Every layout wraps its masthead in `<header role="banner">`.** GOV.UK Frontend's header component renders a plain `<div class="govuk-header">`, not a `<header>` element, so nothing in the masthead is a landmark unless the service supplies one. Without the wrapper, the GOV.UK home link and the phase banner's feedback link sit outside every landmark and are unreachable by landmark navigation (audit #374). `_Layout.cshtml`, `_AdminLayout.cshtml` and `_ShareLayout.cshtml` each open the wrapper before `<govuk-header>` and close it after the last masthead element; on `_Layout` that means the phase banner is inside it too.
+
+## Skip link and breadcrumbs
+
+**Breadcrumbs render before `<main>`, never inside it.** A breadcrumb is a repeated navigation block, so landing on it is exactly what "Skip to main content" exists to avoid (audit #377). `Views/Page/Content.cshtml` puts its breadcrumb in an `@section Breadcrumbs`, which `_Layout.cshtml` renders inside the `Header` section — after the banner landmark closes, before `@RenderBody()`. The section supplies its own `govuk-width-container`, because the layout renders it outside the template's.
+
+Moving it out of `<main>` broke three CSS rules that keyed off its old position (`main:has(.cpb-breadcrumbs)`, and `.cpb-breadcrumbs + .govuk-grid-row` twice). Those now key off `body:has(.cpb-breadcrumbs)` and the `.cpb-content` wrapper that `Content.cshtml` puts around the authored tree. Spacing is unchanged; `AccessibilityAuditViewTests` pins that the old selectors do not come back.
+
+## Repeated link and button text
+
+**A link or button whose text repeats down a page carries a `govuk-visually-hidden` suffix naming its row.** Identical accessible names give a screen reader user no way to tell one row's control from the next, and no way to pick one out of a list of links (audit #378, #385, #379).
+
+- `Views/AmendmentRequests/Index.cshtml` — Edit, View and Delete each carry ` request {reference} for {pupil name}`. The reference number is in there because it is the only value guaranteed unique when one pupil has two requests.
+- `Views/LandingPage/Index.cshtml` — each window card's "Continue" carries ` to {window title}`.
+
+## Decorative separators
+
+**A visible `<hr class="govuk-section-break--visible">` used as decoration is `aria-hidden="true"`.** An `<hr>` maps to the separator role, and VoiceOver and TalkBack announce it — noise, when the heading either side already carries the structure (audit #386). This covers the landing page, the amendment requests page, `_FileUpload.cshtml` and the CMS Divider widget. The footer's `govuk-footer__section-break` is left alone: it is part of the GOV.UK Frontend footer markup.
+
+## Option groups
+
+**A radio or checkbox fieldset names its own hint and error through `aria-describedby`, and each option names its own hint on its own input.** `_Radio.cshtml` had neither, so the group's hint and its error message were never announced with the group, and every option's `SubLabel` was rendered with an id that nothing referenced (audit #383). `_Checkbox.cshtml` and `_Date.cshtml` already described the group; both option partials now describe the per-option hint too.
+
+The id list is built conditionally on what the view actually emits, per the rule below — an option with no `SubLabel` gets no `aria-describedby` at all rather than a dangling one. `_Radio` also carries `data-module="govuk-radios"`, which is what GOV.UK Frontend's radios JS binds to.
+
 ## Testing
 
 The reusable pieces are unit tested — `PageTitleTests`, `PaginationWindowTests`, `QuestionPartialModelDescribedByTests`. Anything new that encodes an accessibility rule in C# should get the same treatment rather than being verified by eye alone.
+
+Rules that live in markup rather than in C# are pinned by `AccessibilityAuditViewTests` (`tests/.../Web/`), which reads the `.cshtml` as text and asserts on the source — the same hostless pattern as `LayoutRenderTests`. Each fact names the audit ticket it covers. Nothing else in the build notices a dropped attribute or a moved element, so add a fact there whenever you fix an accessibility defect in a view.
 
 Dev seeding is sized to expose these issues locally: `SeedPupilData` writes 120 included + 120 non-included pupils per school per window (`PupilsPerGroup`), well past the pupil list's page size of 10, so the pagination window and its ellipses are exercised on every local run. Don't shrink that back to a page or two.

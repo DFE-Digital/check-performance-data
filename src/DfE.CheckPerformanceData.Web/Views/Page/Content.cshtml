@@ -34,21 +34,31 @@
 }
 
 @* GDS breadcrumb — Home → ancestors → current page (plain text). Rendered even for
-   top-level pages so the "Home" anchor is always available. *@
-<nav class="govuk-breadcrumbs cpb-breadcrumbs" aria-label="Breadcrumb">
-    <ol class="govuk-breadcrumbs__list">
-        <li class="govuk-breadcrumbs__list-item">
-            <a class="govuk-breadcrumbs__link" href="/">Home</a>
-        </li>
-        @foreach (var crumb in Model.Breadcrumb)
-        {
+   top-level pages so the "Home" anchor is always available.
+
+   It goes in the layout's Breadcrumbs section, which renders before <main>, rather than
+   inline here. Inside <main> it is the first thing "Skip to main content" lands on, so
+   the skip link handed the user straight back into repeated navigation (audit #377). *@
+@section Breadcrumbs {
+    @* The layout renders this section outside govuk-width-container, so the bar supplies
+       its own — otherwise the breadcrumb runs to the edge of the viewport. *@
+    <div class="govuk-width-container">
+    <nav class="govuk-breadcrumbs cpb-breadcrumbs" aria-label="Breadcrumb">
+        <ol class="govuk-breadcrumbs__list">
             <li class="govuk-breadcrumbs__list-item">
-                <a class="govuk-breadcrumbs__link" href="@crumb.Href">@crumb.Title</a>
+                <a class="govuk-breadcrumbs__link" href="/">Home</a>
             </li>
-        }
-        <li class="govuk-breadcrumbs__list-item" aria-current="page">@Model.Title</li>
-    </ol>
-</nav>
+            @foreach (var crumb in Model.Breadcrumb)
+            {
+                <li class="govuk-breadcrumbs__list-item">
+                    <a class="govuk-breadcrumbs__link" href="@crumb.Href">@crumb.Title</a>
+                </li>
+            }
+            <li class="govuk-breadcrumbs__list-item" aria-current="page">@Model.Title</li>
+        </ol>
+    </nav>
+    </div>
+}
 
 @* In-page edit shortcut for CMS editors: small pencil icon pinned to the top-right of
    the page area so signed-in editors can jump into the admin editor for the current
@@ -80,7 +90,12 @@
     }
     <h1 class="govuk-heading-xl cpb-page-h1">@Model.Title</h1>
 }
-@await Html.PartialAsync("ContentPages/_ContentNodes", content)
+@* .cpb-content marks where the authored tree starts. The breadcrumb used to sit directly
+   above it and the spacing rules keyed off that adjacency; now that the breadcrumb renders
+   before <main> (audit #377), this wrapper is what those rules anchor on. *@
+<div class="cpb-content">
+    @await Html.PartialAsync("ContentPages/_ContentNodes", content)
+</div>
 
 @await Html.PartialAsync("ContentPages/_BackToTop")
 

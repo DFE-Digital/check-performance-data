@@ -1707,8 +1707,14 @@ body.js-enabled .rules-condition__apply {
 /* Content-page breadcrumbs sit tight against the phase banner. main-wrapper padding-top is
    pinned near-zero because the govuk-frontend default reserves 40px above the breadcrumb — no
    amount of breadcrumb margin can undo a parent's padding. Uses :has() (Chrome 105+, Firefox
-   121+, Safari 15.4+) so only pages that carry the .cpb-breadcrumbs marker are affected. */
-main.govuk-main-wrapper:has(.cpb-breadcrumbs) { padding-top: 0 !important; }
+   121+, Safari 15.4+) so only pages that carry the .cpb-breadcrumbs marker are affected.
+
+   The breadcrumb itself now renders BEFORE <main> so the skip link clears it (audit #377).
+   The main-wrapper rule therefore keys off body:has(...), and the two rules that used to key
+   off the breadcrumb being the grid row's previous sibling key off .cpb-content — the wrapper
+   Content.cshtml puts around the authored tree. Spacing is unchanged: 0 padding on main,
+   30px above the first grid row, 30px above the caption. */
+body:has(.cpb-breadcrumbs) main.govuk-main-wrapper { padding-top: 0 !important; }
 .cpb-breadcrumbs {
     margin: 0 !important;
     padding-top: 5px !important;
@@ -1730,7 +1736,7 @@ main.govuk-main-wrapper:has(.cpb-breadcrumbs) { padding-top: 0 !important; }
    inside the right column of a top region) drop straight from the breadcrumb into the grid
    row. Give that transition enough room to breathe — otherwise the side-nav crowds the
    breadcrumb. Matches the space above the title in the Figma design. */
-.cpb-breadcrumbs + .govuk-grid-row { margin-top: 30px; }
+.cpb-content > .govuk-grid-row:first-child { margin-top: 30px; }
 
 /* The caption widget is a richtext with a single govuk-caption-l inside. Its wrapping
    .govuk-body's default 20px margin-bottom pushes the following H1 too far down. When the
@@ -1744,7 +1750,7 @@ main.govuk-main-wrapper:has(.cpb-breadcrumbs) { padding-top: 0 !important; }
    so the first link text sits 30px below the nav container's top. Pad the caption widget
    the same amount when it's the first thing in the two-thirds column of a top region, so
    both columns start their visible text on the same baseline. */
-.cpb-breadcrumbs + .govuk-grid-row
+.cpb-content > .govuk-grid-row:first-child
   > .govuk-grid-column-two-thirds
   > .govuk-body:first-child:has(> .govuk-caption-l:only-child) {
     padding-top: 30px;

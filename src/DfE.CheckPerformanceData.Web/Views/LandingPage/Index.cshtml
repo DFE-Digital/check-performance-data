@@ -49,7 +49,9 @@
 
 @if (Model.OpenWindows.Any())
 {
-    <hr class="govuk-section-break govuk-section-break--xl govuk-section-break--visible">
+    @* Decorative rule: the <h2> below already marks the section boundary, so the separator
+       role only adds noise for VoiceOver and TalkBack (audit #386). *@
+    <hr class="govuk-section-break govuk-section-break--xl govuk-section-break--visible" aria-hidden="true">
     <h2 class="govuk-heading-m">Check data</h2>
     <div class="dfe-grid-container">
         @foreach (var openWindow in Model.OpenWindows)
@@ -61,9 +63,12 @@
                     <p><strong>You have until @openWindow.EndTime on @openWindow.EndDate to review your data.</strong></p>
 
                     <div>
+                        @* One card per open window, each with a button reading only "Continue".
+                           Tabbing or listing buttons gives no way to tell them apart, so the
+                           window title goes in as hidden text (audit #379). *@
                         <a draggable="false" data-module="govuk-button" asp-action="Index" asp-controller="CheckYourPupilData" asp-route-windowId="@openWindow.Id"
                            role="button" class="govuk-button">
-                            Continue
+                            Continue<span class="govuk-visually-hidden"> to @openWindow.Title</span>
                         </a>
                     </div>
                 </div>

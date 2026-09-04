@@ -13,12 +13,14 @@ public sealed record DateFieldViolation(string QuestionId, string Message);
 /// <c>arrivedInEngland &lt;= firstEnglishSchool &lt;= startedAtSchool</c>, none may be in the
 /// future, and the school start date may not predate the cohort.
 ///
-/// These live in code rather than in the flow JSON on purpose. Flow configs are served from blob
-/// at runtime (see <see cref="QuestionFlowService"/>) and only reach blob via a seeding step gated
-/// on the environment, so a JSON-declared rule can be silently absent in a deployed environment
-/// whose blob still holds an older config — with nothing to indicate validation stopped happening.
-/// A rule compiled into the container cannot go missing. QuestionFlowValidatorAlignmentTests pins
-/// the ids below to the shipped config so the two cannot drift apart unnoticed.
+/// These live in code rather than in the flow JSON on purpose: a rule expressed as data can be
+/// edited, partially applied or dropped with nothing to indicate validation stopped happening,
+/// whereas one compiled into the container is exactly as deployed as the journey it guards.
+/// (The original reason was stronger still — configs then reached a deployed environment only via
+/// a Development-gated blob seeding step, so a JSON-declared rule could be silently absent. They
+/// now ship in the image; see docs/question-flow-deployment.md.)
+/// QuestionFlowValidatorAlignmentTests pins the ids below to the shipped config so the two cannot
+/// drift apart unnoticed.
 /// </summary>
 public static class PageDateRules
 {

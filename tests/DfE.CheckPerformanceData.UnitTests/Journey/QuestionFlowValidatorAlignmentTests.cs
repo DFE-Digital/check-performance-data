@@ -17,7 +17,7 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 /// </summary>
 public sealed class QuestionFlowValidatorAlignmentTests
 {
-    // Mirrors QuestionFlowBlobClient's deserialization options.
+    // Mirrors FileSystemQuestionFlowClient's deserialization options.
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
@@ -141,7 +141,7 @@ public sealed class QuestionFlowValidatorAlignmentTests
 
     /// <summary>
     /// The same guard for the removal journey date rules in
-    /// <see cref="RemovalJourneyDateRules"/>. The six removal page ids and their three date
+    /// <see cref="RemovalJourneyDateRules"/>. The seven removal page ids and their three date
     /// question ids are addressed by code, and nothing at runtime notices if one is renamed in
     /// the flow JSON — the future-date check would simply stop matching and the validation would
     /// silently stop happening.
@@ -156,7 +156,8 @@ public sealed class QuestionFlowValidatorAlignmentTests
             RemovalJourneyDateRules.PupilDiedPageId,
             RemovalJourneyDateRules.ElectiveHomeEducationPageId,
             RemovalJourneyDateRules.PermanentlyExcludedPageId,
-            RemovalJourneyDateRules.PermanentlyLeftEnglandPageId
+            RemovalJourneyDateRules.PermanentlyLeftEnglandPageId,
+            RemovalJourneyDateRules.StudentDiedPageId
         ];
 
         foreach (var pageId in removalPageIds)

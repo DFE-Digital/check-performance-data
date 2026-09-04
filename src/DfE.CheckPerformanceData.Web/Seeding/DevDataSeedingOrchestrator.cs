@@ -6,7 +6,6 @@ using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
 using DfE.CheckPerformanceData.Infrastructure.RulesEngine;
 using DfE.CheckPerformanceData.Persistence.Seeding;
-using DfE.CheckPerformanceData.Web.QuestionFlow;
 using Microsoft.Extensions.Hosting;
 
 namespace DfE.CheckPerformanceData.Web.Seeding;
@@ -21,7 +20,6 @@ public sealed class DevDataSeedingOrchestrator(
     DevDataSeeder devDataSeeder,
     IPupilDataBlobClient pupilDataBlobClient,
     IStudentResultsClient studentResultsClient,
-    IQuestionFlowBlobClient questionFlowBlobClient,
     IRequestRepository requestRepository,
     IRequestStateBlobClient requestStateBlobClient,
     ICheckYourPupilDataService checkYourPupilDataService,
@@ -49,15 +47,6 @@ public sealed class DevDataSeedingOrchestrator(
         catch (Azure.RequestFailedException ex) when (environment.IsDevelopment())
         {
             logger.LogWarning(ex, "Student results seeding skipped: Azurite returned {Status} {ErrorCode}.", ex.Status, ex.ErrorCode);
-        }
-
-        try
-        {
-            await SeedQuestionFlows.ExecuteSeedAsync(questionFlowBlobClient, environment.ContentRootPath);
-        }
-        catch (Azure.RequestFailedException ex) when (environment.IsDevelopment())
-        {
-            logger.LogWarning(ex, "Blob seeding skipped: Azurite returned {Status} {ErrorCode}. Pin azurite to a tag whose API version supports the current Azure.Storage.Blobs SDK if you need flows/pupils seeded locally.", ex.Status, ex.ErrorCode);
         }
 
         try

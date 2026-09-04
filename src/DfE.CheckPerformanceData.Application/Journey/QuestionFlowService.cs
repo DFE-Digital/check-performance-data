@@ -4,7 +4,7 @@ using Microsoft.Extensions.Caching.Memory;
 
 namespace DfE.CheckPerformanceData.Application.Journey;
 
-public sealed class QuestionFlowService(IQuestionFlowBlobClient blobClient, IMemoryCache cache) : IQuestionFlowService
+public sealed class QuestionFlowService(IQuestionFlowConfigSource configSource, IMemoryCache cache) : IQuestionFlowService
 {
     public async Task<QuestionFlowConfig?> GetConfigAsync(WhatToChange whatToChange, CheckingWindowType checkingWindowType)
     {
@@ -12,10 +12,11 @@ public sealed class QuestionFlowService(IQuestionFlowBlobClient blobClient, IMem
         if (cache.TryGetValue<QuestionFlowConfig>(key, out var cached))
             return cached;
 
-        var config = await blobClient.GetConfigAsync(whatToChange, checkingWindowType);
-        // Only cache a config that was actually found. Caching a null (e.g. a lookup that races
-        // ahead of the blob being uploaded) with NeverRemove priority pins that miss for the life
-        // of the process, so a later upload is never picked up until the pod restarts.
+        var config = await configSource.GetConfigAsync(whatToChange, checkingWindowType);
+        // Only cache a config that was actually found. Caching a null with NeverRemove priority
+        // pins that miss for the life of the process. Since the configs now ship in the image a
+        // miss means the file genuinely is not there, but the guard stays: a cached null would
+        // turn a deploy-time packaging mistake into a permanent one that survives investigation.
         if (config is not null)
             cache.Set(key, config, new MemoryCacheEntryOptions { Priority = CacheItemPriority.NeverRemove });
         return config;

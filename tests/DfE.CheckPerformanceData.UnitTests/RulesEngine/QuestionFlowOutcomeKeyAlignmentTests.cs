@@ -15,7 +15,7 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.RulesEngine;
 /// </summary>
 public sealed class QuestionFlowOutcomeKeyAlignmentTests
 {
-    // Mirrors QuestionFlowBlobClient's deserialization options.
+    // Mirrors FileSystemQuestionFlowClient's deserialization options.
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,

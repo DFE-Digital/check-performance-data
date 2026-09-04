@@ -16,7 +16,11 @@ module "storage" {
   # Create containers for the application (all containers are private)
   containers = [
     { name = "files" },
-    { name = "question-flows" },
+    # NOTE: there is deliberately no "question-flows" container. Journey question flow
+    # configs ship inside the release image (Data/QuestionFlows/*.json) and are read from
+    # there in every environment, so nothing writes them to storage. Do not re-add it
+    # without reading docs/question-flow-deployment.md.
+
     # Rules-engine configuration. Holds rules.json + country-languages.json,
     # editable by business users without redeploying the worker.
     # NOTE: the rules-engine blobs must be excluded from the lifecycle delete

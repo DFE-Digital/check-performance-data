@@ -88,7 +88,7 @@ The journey checks `IsSessionReady` before every action. This requires only `Sel
 
 ### Config
 
-The question flow is defined by a JSON file in `Web/Data/QuestionFlows/{WhatToChange}_{CheckingWindowType}.json` (e.g. `Remove_KS4June.json`, `Merge_KS4June.json`). This file is uploaded to Azure Blob Storage on startup in dev via `SeedQuestionFlows`, and fetched at runtime via `IQuestionFlowBlobClient`.
+The question flow is defined by a JSON file in `Web/Data/QuestionFlows/{WhatToChange}_{CheckingWindowType}.json` (e.g. `Remove_KS4June.json`, `Merge_KS4June.json`). The file ships inside the release image and is read from there at runtime via `IQuestionFlowConfigSource` — there is no upload step and no blob container (see `docs/question-flow-deployment.md`).
 
 > For a page-by-page breakdown and branching diagram of the `Remove_KS4June.json` flow, see [Remove (KS4 June) — Question Flow](./Remove_KS4June-flow.md).
 
@@ -468,10 +468,12 @@ Container: f34d285b-8660-4d12-9c30-787328deaa0a   ← windowId
     └── {guid}                                      ← Uploaded PDF bytes (no extension)
 ```
 
-The `question-flows` container is separate and global:
+Question flow configs are **not** in blob storage. They ship inside the release image and are read
+from `{ContentRootPath}/Data/QuestionFlows/` in every environment (see
+`docs/question-flow-deployment.md`):
 
 ```
-Container: question-flows
+Data/QuestionFlows/
 ├── Remove_KS4June.json                             ← Remove flow config
 └── Merge_KS4June.json                              ← Merge flow config
 ```

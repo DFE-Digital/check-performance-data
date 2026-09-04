@@ -95,6 +95,35 @@ public sealed class RemovalJourneyDateRulesTests
         Assert.Equal(RollWording, violation.Message);
     }
 
+    // ── The 16-19 removal page (AB#298403) ─────────────────────────────────
+
+    [Fact]
+    public void Post16_StudentDied_FutureDate_UsesTheSchoolOrCollegeWording()
+    {
+        // The 16-19 page asks about the "school or college roll", so its error must say the same.
+        // Same question id as KS4, different page — which is why the message is keyed by page.
+        var violation = Assert.Single(Evaluate(
+            RemovalJourneyDateRules.StudentDiedPageId,
+            RemovalJourneyDateRules.DateRemovedFromRoll,
+            Today.AddDays(1)));
+
+        Assert.Equal(RemovalJourneyDateRules.DateRemovedFromRoll, violation.QuestionId);
+        Assert.Equal(
+            "Date Alice Smith was removed from your school or college roll must be in the past",
+            violation.Message);
+    }
+
+    [Theory]
+    [InlineData(nameof(RemovalJourneyDateRules.StudentDiedPageId))]
+    public void AppliesToPage_IsTrue_For16To19RemovalPages(string pageIdField)
+    {
+        // Without this, JourneyValidationService.ValidatePageDates never dispatches to the rule
+        // and the whole check is silently absent from the 16-19 journey.
+        var pageId = (string)typeof(RemovalJourneyDateRules).GetField(pageIdField)!.GetValue(null)!;
+
+        Assert.True(RemovalJourneyDateRules.AppliesToPage(pageId));
+    }
+
     // ── Today and the past are acceptable on every journey ─────────────────
 
     [Theory]
@@ -104,6 +133,7 @@ public sealed class RemovalJourneyDateRulesTests
     [InlineData(nameof(RemovalJourneyDateRules.ElectiveHomeEducationPageId), nameof(RemovalJourneyDateRules.DateRemovedFromRoll))]
     [InlineData(nameof(RemovalJourneyDateRules.PermanentlyExcludedPageId), nameof(RemovalJourneyDateRules.DatePermanentlyExcluded))]
     [InlineData(nameof(RemovalJourneyDateRules.PermanentlyLeftEnglandPageId), nameof(RemovalJourneyDateRules.DateRemovedFromRoll))]
+    [InlineData(nameof(RemovalJourneyDateRules.StudentDiedPageId), nameof(RemovalJourneyDateRules.DateRemovedFromRoll))]
     public void Today_IsAcceptable_OnEveryRemovalPage(string pageIdField, string questionIdField)
     {
         var pageId = (string)typeof(RemovalJourneyDateRules).GetField(pageIdField)!.GetValue(null)!;
@@ -130,6 +160,7 @@ public sealed class RemovalJourneyDateRulesTests
     [InlineData(nameof(RemovalJourneyDateRules.ElectiveHomeEducationPageId), nameof(RemovalJourneyDateRules.DateRemovedFromRoll))]
     [InlineData(nameof(RemovalJourneyDateRules.PermanentlyExcludedPageId), nameof(RemovalJourneyDateRules.DatePermanentlyExcluded))]
     [InlineData(nameof(RemovalJourneyDateRules.PermanentlyLeftEnglandPageId), nameof(RemovalJourneyDateRules.DateRemovedFromRoll))]
+    [InlineData(nameof(RemovalJourneyDateRules.StudentDiedPageId), nameof(RemovalJourneyDateRules.DateRemovedFromRoll))]
     public void HistoricallyDistantPastDate_IsAcceptable_OnEveryRemovalPage(string pageIdField, string questionIdField)
     {
         // US3: no lower limit — a removal a decade and a half ago is a legitimate answer.

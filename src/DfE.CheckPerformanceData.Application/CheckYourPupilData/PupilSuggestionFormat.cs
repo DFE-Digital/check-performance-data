@@ -42,8 +42,8 @@ public static class PupilSuggestionFormat
 
         if (pupil.Identifier.StartsWith(trimmed, StringComparison.OrdinalIgnoreCase) ||
             pupil.Cypmd_Id.StartsWith(trimmed, StringComparison.OrdinalIgnoreCase) ||
-            pupil.Surname.Contains(trimmed, StringComparison.OrdinalIgnoreCase) ||
-            pupil.Firstname.Contains(trimmed, StringComparison.OrdinalIgnoreCase))
+            pupil.Surname.StartsWith(trimmed, StringComparison.OrdinalIgnoreCase) ||
+            pupil.Firstname.StartsWith(trimmed, StringComparison.OrdinalIgnoreCase))
             return true;
 
         // Date-of-birth search is 16-19 only for now. Matched against the DISPLAYED date, because
@@ -57,7 +57,7 @@ public static class PupilSuggestionFormat
     /// <see cref="CheckYourPupilDataService.DuplicateCheckAsync"/> (Add Pupil).
     ///
     /// When the query contains a space the first token is matched against the first name and the
-    /// rest against the surname, both via case-insensitive contains.  A single token (no space)
+    /// rest against the surname, both via case-insensitive startsWith.  A single token (no space)
     /// falls back to matching either name part, preserving existing single-term behaviour.
     /// </summary>
     public static bool NameMatchesSplitQuery(string? firstname, string? surname, string query)
@@ -68,19 +68,19 @@ public static class PupilSuggestionFormat
         var spaceIndex = trimmed.IndexOf(' ');
         if (spaceIndex < 0)
         {
-            return (firstname?.Contains(trimmed, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                   (surname?.Contains(trimmed, StringComparison.OrdinalIgnoreCase) ?? false);
+            return (firstname?.StartsWith(trimmed, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                   (surname?.StartsWith(trimmed, StringComparison.OrdinalIgnoreCase) ?? false);
         }
 
         var firstNamePart = trimmed[..spaceIndex];
         var surnamePart = trimmed[(spaceIndex + 1)..].TrimStart();
 
         if (firstNamePart.Length == 0 || surnamePart.Length == 0)
-            return (firstname?.Contains(trimmed, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                   (surname?.Contains(trimmed, StringComparison.OrdinalIgnoreCase) ?? false);
+            return (firstname?.StartsWith(trimmed, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                   (surname?.StartsWith(trimmed, StringComparison.OrdinalIgnoreCase) ?? false);
 
-        return (firstname?.Contains(firstNamePart, StringComparison.OrdinalIgnoreCase) ?? false) &&
-               (surname?.Contains(surnamePart, StringComparison.OrdinalIgnoreCase) ?? false);
+        return (firstname?.StartsWith(firstNamePart, StringComparison.OrdinalIgnoreCase) ?? false) &&
+               (surname?.StartsWith(surnamePart, StringComparison.OrdinalIgnoreCase) ?? false);
     }
 
     private static bool MatchesDateOfBirth(IPupilRecord pupil, string query)

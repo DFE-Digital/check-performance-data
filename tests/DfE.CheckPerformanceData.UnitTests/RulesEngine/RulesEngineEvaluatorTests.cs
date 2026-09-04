@@ -351,6 +351,28 @@ public sealed class RulesEngineEvaluatorTests
         Assert.Equal("DifferentOutcome", d.OutcomeKey);
     }
 
+    // A terminal "otherwise" evaluates no conditions, but it still records why the decision was
+    // reached. Without this line the fall-through decisions — the ones that become Scrutiny with
+    // no rule matching — would persist an empty trace and show no reason to an admin at all.
+    [Fact]
+    public void Decision_CarriesTraceForABareOtherwiseBranch()
+    {
+        var rules = new RuleSet("v1", DateTimeOffset.UtcNow,
+        [
+            new OutcomeRules("Deceased", "Deceased",
+            [
+                new RuleBranch("DEC-DEF", DecisionStatus.Scrutiny, Predicate.Otherwise.Instance),
+            ]),
+        ]);
+
+        var d = new RulesEngineImpl().Evaluate(
+            rules, new RuleContext("Deceased", "KS4June", new Dictionary<string, FieldValue>()), Lookups.Empty);
+
+        Assert.Equal("DEC-DEF", d.MatchedRuleId);
+        Assert.Single(d.Trace);
+        Assert.Contains("otherwise → true", d.Trace[0]);
+    }
+
     [Fact]
     public void Decision_CarriesTraceForMatchedBranch()
     {

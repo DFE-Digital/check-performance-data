@@ -2,6 +2,7 @@ using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
+using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
 using DfE.CheckPerformanceData.Infrastructure.RulesEngine;
 using DfE.CheckPerformanceData.Persistence.Seeding;
@@ -24,6 +25,7 @@ public sealed class DevDataSeedingOrchestrator(
     IRequestRepository requestRepository,
     IRequestStateBlobClient requestStateBlobClient,
     ICheckYourPupilDataService checkYourPupilDataService,
+    ICheckingExerciseService checkingExerciseService,
     RulesConfigSeeder rulesConfigSeeder,
     GradeReferenceBlobClient gradeReferenceBlobClient,
     QualificationReferenceBlobClient qualificationReferenceBlobClient,
@@ -60,7 +62,7 @@ public sealed class DevDataSeedingOrchestrator(
 
         try
         {
-            await SeedChangeRequests.ExecuteSeedAsync(pupilDataBlobClient, requestRepository, requestStateBlobClient, checkYourPupilDataService);
+            await SeedChangeRequests.ExecuteSeedAsync(pupilDataBlobClient, requestRepository, requestStateBlobClient, checkYourPupilDataService, checkingExerciseService);
         }
         catch (Azure.RequestFailedException ex) when (environment.IsDevelopment())
         {

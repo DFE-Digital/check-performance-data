@@ -1,8 +1,10 @@
 namespace DfE.CheckPerformanceData.Web.Admin.Nav;
 
 // Group descriptor: top-level "Danger zone" section for destructive operational actions.
-// ParentKey is null so the landing-page controller treats it as a group container. Registered
-// only outside Production (see AddAdminNavEntries) so its destructive tiles never surface there.
+// ParentKey is null so the landing-page controller treats it as a group container. The group
+// itself is registered everywhere; each tile decides its own environments (Reset seed data is
+// registered only outside Production, the blob storage browser everywhere), and an empty group
+// is dropped by FilterByAccess rather than rendering as a bare heading.
 // High Order so it sorts last, after the routine admin groups.
 public sealed record DangerZoneGroupNavEntry : IAdminNavEntry
 {

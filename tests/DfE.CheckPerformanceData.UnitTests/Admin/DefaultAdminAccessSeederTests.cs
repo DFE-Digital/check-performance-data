@@ -74,4 +74,34 @@ public sealed class DefaultAdminAccessSeederTests
     {
         Assert.Contains("seed-sample-search-data", DefaultAdminAccessSeeder.AllSections);
     }
+
+    // Window administration. The three nav entries were registered from the start but had no
+    // grant, so FilterByAccess (which checks each tile's own Key) hid the group entirely and the
+    // sidebar offered no way to create or manage a window. Each needs its own row.
+    [Theory]
+    [InlineData("window-admin")]
+    [InlineData("new-window")]
+    [InlineData("manage-window")]
+    public void AllSections_ContainsTheWindowAdministrationSections(string section)
+    {
+        Assert.Contains(section, DefaultAdminAccessSeeder.AllSections);
+    }
+
+    [Fact]
+    public void AdminNavKeys_WindowAdministration_HaveKebabCaseValues()
+    {
+        Assert.Equal("window-admin", AdminNavKeys.WindowAdmin);
+        Assert.Equal("new-window", AdminNavKeys.NewWindow);
+        Assert.Equal("manage-window", AdminNavKeys.ManageWindow);
+    }
+
+    // The requests page moved out of the nav and under the windows table, so its old section is
+    // gone. Leaving the key granted would put a row on the role-settings grid that gates nothing;
+    // AdminRequestsController is gated on manage-window instead.
+    [Fact]
+    public void AllSections_NoLongerContainsTheRetiredUncommittedRequestsSections()
+    {
+        Assert.DoesNotContain("uncommitted-requests", DefaultAdminAccessSeeder.AllSections);
+        Assert.DoesNotContain("amendment-requests-admin", DefaultAdminAccessSeeder.AllSections);
+    }
 }

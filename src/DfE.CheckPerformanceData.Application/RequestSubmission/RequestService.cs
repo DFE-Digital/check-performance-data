@@ -18,9 +18,18 @@ public sealed class RequestService(
     ILogger<RequestService> logger,
     IQueueService queueService,
     IRequestNotificationService requestNotificationService,
-    ICheckYourPupilDataService checkYourPupilDataService) : IRequestService
+    ICheckYourPupilDataService checkYourPupilDataService,
+    ICheckingExerciseService checkingExerciseService) : IRequestService
 {
     private long OrganisationUrnLong => long.Parse(currentUserService.OrganisationUrn);
+
+    // The exercise a journey belongs to is derived from its change type, never stored on the
+    // session - a stored copy can disagree with the journey's own SelectedWhatToChange. The row is
+    // where it becomes durable, so this is the one place a journey's exercise id is resolved.
+    private Guid? ExerciseIdFor(RequestState journey) =>
+        checkingExerciseService.IdFor(
+            journey.CheckingWindow!.Exercises,
+            WhatToChangeCheckingExerciseMap.CheckingExerciseFor(journey.SelectedWhatToChange!.Value));
 
     private string ExtractCurrentReasonType(RequestState journey, QuestionFlowConfig? config)
     {
@@ -127,6 +136,7 @@ public sealed class RequestService(
         await requestRepository.UpsertAsync(new ChangeRequestData
         {
             WindowId = windowId,
+            CheckingExerciseId = ExerciseIdFor(journey),
             ReferenceNumber = journey.ReferenceNumber,
             OrganisationUrn = OrganisationUrnLong,
             PupilId = journey.SelectedPupil.Id,
@@ -175,9 +185,17 @@ public sealed class RequestService(
     public async Task ConfirmDataCorrectAsync(
         Guid windowId, string referenceNumber, DateTime endDate, EmailSubstitutions substitutions)
     {
+        // A declaration has no journey and no AmendmentType, so its exercise cannot be derived from
+        // the row later - confirming the data is correct is a pupil-data action by definition
+        // (ConfirmCorrectController pins the same constant). Hence the extra read: this is the one
+        // write site with no window already in hand, and it runs once per school per window.
+        var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
+
         await requestRepository.UpsertAsync(new ChangeRequestData
         {
             WindowId = windowId,
+            CheckingExerciseId =
+                checkingExerciseService.IdFor(window.Exercises, CheckingExerciseType.PupilData),
             ReferenceNumber = referenceNumber,
             OrganisationUrn = OrganisationUrnLong,
             // Stored as UTC and converted to London time at display. The column is
@@ -281,6 +299,7 @@ public sealed class RequestService(
         new()
         {
             WindowId = windowId,
+            CheckingExerciseId = ExerciseIdFor(journey),
             ReferenceNumber = journey.ReferenceNumber!,
             OrganisationUrn = OrganisationUrnLong,
             PupilId = journey.SelectedPupil!.Id,

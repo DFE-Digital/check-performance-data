@@ -32,7 +32,7 @@ try
         .AddApplicationDependencies()
         .AddNotifyService(builder.Configuration)
         .AddAdminNavEntries(
-            includeDangerZone: !builder.Environment.IsProduction(),
+            includeResetSeedData: !builder.Environment.IsProduction(),
             // Same whitelist TestDataController enforces, so the tile and the page it links
             // to appear and disappear together instead of the tile leading to a 404.
             includeSampleSearchData: builder.Environment.IsSampleDataAdminEnvironment())

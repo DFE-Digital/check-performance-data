@@ -80,20 +80,41 @@ public sealed class ZendeskConsumerTicketCompositionTests
     }
 
     [Fact]
-    public void Description_IncludesOutcomeRuleTraceAndAnswers()
+    public void Description_IncludesOutcomeRuleAndAnswers()
     {
         var consumer = NewConsumer();
         var msg = NewMessage("Deceased", Answer("Reason for removal", "Death certificate provided."));
-        var decision = new Decision(DecisionStatus.AutoApproved, "Deceased", "DEC-1",
-            new[] { "first trace line", "second trace line" });
+        var decision = new Decision(DecisionStatus.AutoApproved, "Deceased", "DEC-1", Array.Empty<string>());
 
         var ticket = consumer.BuildTicket(msg, decision).Ticket;
 
         Assert.Contains("Outcome: Deceased", ticket.Description);
         Assert.Contains("Decision: AutoApproved", ticket.Description);
         Assert.Contains("Matched rule: DEC-1", ticket.Description);
-        Assert.Contains("first trace line", ticket.Description);
-        Assert.Contains("second trace line", ticket.Description);
+        Assert.Contains("Reason for removal: Death certificate provided.", ticket.Description);
+    }
+
+    // The evaluation trace is admin-only: it is persisted on the change request and shown on
+    // the admin requests page (admin/windows/{id}/requests). DeriveDecision passes an empty trace, but this pins the
+    // stronger invariant — even handed a populated Decision, BuildTicket must not leak the
+    // trace (or the pupil field values its leaf lines quote) into a Zendesk ticket.
+    [Fact]
+    public void Description_ExcludesTrace_EvenWhenTheDecisionCarriesOne()
+    {
+        var consumer = NewConsumer();
+        var msg = NewMessage("Deceased", Answer("Reason for removal", "Death certificate provided."));
+        var decision = new Decision(DecisionStatus.AutoApproved, "Deceased", "DEC-1",
+            new[] { "dateOfDeath >= 2026-01-01 → true (got 2026-03-14)", "second trace line" });
+
+        var ticket = consumer.BuildTicket(msg, decision).Ticket;
+
+        Assert.DoesNotContain("Trace:", ticket.Description);
+        Assert.DoesNotContain("dateOfDeath", ticket.Description);
+        Assert.DoesNotContain("2026-03-14", ticket.Description);
+        Assert.DoesNotContain("second trace line", ticket.Description);
+
+        // The rest of the description is unaffected.
+        Assert.Contains("Matched rule: DEC-1", ticket.Description);
         Assert.Contains("Reason for removal: Death certificate provided.", ticket.Description);
     }
 

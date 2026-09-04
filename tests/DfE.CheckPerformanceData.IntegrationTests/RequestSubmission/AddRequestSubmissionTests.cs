@@ -7,7 +7,7 @@ using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Application.Notify;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
-using DfE.CheckPerformanceData.Application.UncommittedRequests;
+using DfE.CheckPerformanceData.Application.AdminRequests;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Infrastructure.Queue;
@@ -19,6 +19,8 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
 using Npgsql;
 using NSubstitute;
+using CheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseService;
+using IWindowService = DfE.CheckPerformanceData.Application.WindowManagement.IWindowService;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.RequestSubmission;
 
@@ -136,7 +138,8 @@ public sealed class AddRequestSubmissionTests(PostgresFixture fixture)
             NullLogger<RequestService>.Instance,
             new PostgresQueueService(_fixture.CreateContext()),
             Substitute.For<IRequestNotificationService>(),
-            Substitute.For<ICheckYourPupilDataService>());
+            Substitute.For<ICheckYourPupilDataService>(),
+            new CheckingExerciseService(TimeProvider.System));
 
         return (service, blob, flowService);
     }
@@ -250,10 +253,11 @@ public sealed class AddRequestSubmissionTests(PostgresFixture fixture)
         }
 
         var adminService = new AdminRequestsService(
-            new UncommittedRequestsRepository(_fixture.CreateContext()),
+            new AdminRequestsRepository(_fixture.CreateContext()),
             blob,
             BuildFlowService(LoadAddKs4JuneConfig()),
             new PostgresQueueService(_fixture.CreateContext()),
+            Substitute.For<IWindowService>(),
             TimeProvider.System);
 
         var replayedCount = await adminService.ProcessCloseWindowEvent(CancellationToken.None);

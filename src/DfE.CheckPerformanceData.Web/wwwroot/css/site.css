@@ -2039,3 +2039,23 @@ dialog.seed-progress-modal {
   padding-top: 15px;
   border-top: 2px solid #b1b4b6;
 }
+
+/* Decision trace detail row on admin/uncommitted-requests. The trace is pre-rendered
+   engine output, so it is shown verbatim in a <pre>; that scrolls inside its own box
+   because a long free-text leaf line must never scroll the page body sideways. */
+.decision-trace__cell {
+  padding-top: 0;
+}
+
+.decision-trace__scroll {
+  overflow-x: auto;
+}
+
+.decision-trace__lines {
+  margin: 0;
+  font-family: "GDS Transport", monospace;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  color: #0b0c0c;
+  white-space: pre;
+}

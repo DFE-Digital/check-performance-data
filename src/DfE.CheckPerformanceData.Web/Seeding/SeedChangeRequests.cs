@@ -1,6 +1,7 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
+using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Persistence.Seeding;
 
@@ -36,7 +37,8 @@ public static class SeedChangeRequests
         IPupilDataBlobClient pupilClient,
         IRequestRepository requestRepository,
         IRequestStateBlobClient requestStateBlobClient,
-        ICheckYourPupilDataService checkYourPupilDataService)
+        ICheckYourPupilDataService checkYourPupilDataService,
+        ICheckingExerciseService checkingExerciseService)
     {
         var windowId = DevDataSeeder.KeyStage4JuneCheckingWindowId;
 
@@ -77,6 +79,9 @@ public static class SeedChangeRequests
             await requestRepository.UpsertAsync(new ChangeRequestData
             {
                 WindowId = windowId,
+                CheckingExerciseId = checkingExerciseService.IdFor(
+                    window.Exercises,
+                    WhatToChangeCheckingExerciseMap.CheckingExerciseFor(WhatToChange.Remove)),
                 ReferenceNumber = scenario.Reference,
                 OrganisationUrn = Urn,
                 PupilId = scenario.Pupil.Id,

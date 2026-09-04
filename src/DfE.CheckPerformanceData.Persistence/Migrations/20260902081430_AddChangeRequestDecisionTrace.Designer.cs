@@ -3,6 +3,7 @@ using System;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using NpgsqlTypes;
@@ -12,9 +13,11 @@ using NpgsqlTypes;
 namespace DfE.CheckPerformanceData.Persistence.Migrations
 {
     [DbContext(typeof(PortalDbContext))]
-    partial class PortalDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260902081430_AddChangeRequestDecisionTrace")]
+    partial class AddChangeRequestDecisionTrace
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -532,9 +535,6 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
-                    b.Property<Guid?>("CheckingExerciseId")
-                        .HasColumnType("uuid");
-
                     b.Property<string>("CrmId")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
@@ -626,8 +626,6 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("CheckingExerciseId");
 
                     b.HasIndex("CrmId")
                         .IsUnique()
@@ -1334,11 +1332,6 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
 
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.ChangeRequest", b =>
                 {
-                    b.HasOne("DfE.CheckPerformanceData.Persistence.Entities.CheckingExercise", null)
-                        .WithMany()
-                        .HasForeignKey("CheckingExerciseId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("DfE.CheckPerformanceData.Persistence.Entities.CheckingWindow", null)
                         .WithMany()
                         .HasForeignKey("WindowId")

@@ -74,7 +74,7 @@ public static class DependencyManager
         services.AddScoped<IBulkSubmissionService, BulkSubmissionService>();
         services.AddScoped<ISubmittedRequestService, SubmittedRequestService>();
         services.AddScoped<IEditAdviceService, EditAdviceService>();
-        services.AddScoped<UncommittedRequests.IAdminRequestsService, UncommittedRequests.AdminRequestsService>();
+        services.AddScoped<AdminRequests.IAdminRequestsService, AdminRequests.AdminRequestsService>();
         // AB#296648: the single derivation of "the second late results file has landed".
         services.AddScoped<ResultsEnquiry.ILateResultsAvailability, ResultsEnquiry.LateResultsAvailability>();
 

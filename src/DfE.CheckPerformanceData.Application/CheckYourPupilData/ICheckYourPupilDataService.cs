@@ -25,6 +25,15 @@ public interface ICheckYourPupilDataService
         PupilFilter filter, Guid? excludeId = null, bool requireResults = false);
 
     Task<PupilDto> GetPupilAsync(Guid windowId, Guid pupilId);
+
+    /// <summary>
+    /// Finds pupils in a school-window's population (included and non-included) whose first
+    /// name, surname and date of birth match the learner details submitted in the Add journey.
+    /// Read-only; reuses the cached school population. Result rows carry PII for display only —
+    /// never for logging. A query failure is surfaced as a no-match result so the journey
+    /// continues (see <see cref="PupilDuplicateCheckResult.None"/>).
+    /// </summary>
+    Task<PupilDuplicateCheckResult> DuplicateCheckAsync(Guid windowId, string firstname, string surname, string dateOfBirth);
 }
 
 // public sealed class GetCheckYourPupilDataResult

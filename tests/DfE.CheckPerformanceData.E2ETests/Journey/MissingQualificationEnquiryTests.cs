@@ -1,7 +1,11 @@
 using DfE.CheckPerformanceData.E2ETests.Fixtures;
 using DfE.CheckPerformanceData.E2ETests.Helpers;
 using Microsoft.Playwright;
-using xRetry;
+// xRetry's RetryFact is only needed as the [RetryFact] attribute here; importing `using xRetry;`
+// would also drag in an Xunit.Skip that collides with SkippableFact's Xunit.Skip (used in the
+// Cancelling test to skip explicitly when the ChangeRequests table is unreachable), so alias just
+// the attribute.
+using RetryFact = xRetry.RetryFactAttribute;
 
 namespace DfE.CheckPerformanceData.E2ETests.Journey;
 
@@ -72,7 +76,7 @@ public sealed class MissingQualificationEnquiryTests(PlaywrightFixture fixture) 
             + "2023/24 and 2024/25 academic years");
     }
 
-    [RetryFact(3)]
+    [SkippableFact]
     public async Task Cancelling_from_the_summary_discards_the_enquiry_and_starts_fresh()
     {
         // AB#298229. Three ACs in one walk: nothing submitted, no data carried over, and the
@@ -80,11 +84,12 @@ public sealed class MissingQualificationEnquiryTests(PlaywrightFixture fixture) 
         // one — before this ticket, Cancel's target cleared nothing, so the "cancelled" enquiry
         // was still sitting in session, one summary URL away from being submitted.
         // AC: "nothing I entered is submitted" — proven at the table, not inferred from the UI
-        // (an enquiry row would be invisible on every school-facing list by design). The probe only
-        // runs where CPD_E2E_DB is set (the local compose stack); in CI there is no reachable
-        // Postgres, so it returns null and this row-count AC is skipped — see
-        // ChangeRequestProbeHelper.
-        var rowsBefore = await ChangeRequestProbeHelper.CountChangeRequestsAsync();
+        // (an enquiry row would be invisible on every school-facing list by design). Local
+        // workflows reach the compose Postgres and run it for real; in CI there is no reachable
+        // Postgres, so the probe is unavailable and this AC is reported as Skipped, not silently
+        // passed — see ChangeRequestProbeHelper.
+        var rowsBefore = await ChangeRequestProbeHelper.TryCountChangeRequestsAsync();
+        Skip.IfNot(rowsBefore is not null, ChangeRequestProbeHelper.UnavailableReason);
 
         await StartEnquiryAsync();
         await ChooseCohortScopeAsync("no");
@@ -113,10 +118,7 @@ public sealed class MissingQualificationEnquiryTests(PlaywrightFixture fixture) 
         await Page.GotoAsync($"{Fixture.BaseUrl}/Journey/{WindowId}/summary");
         await Page.WaitForURLAsync($"**/CheckYourPupilData/{WindowId}");
 
-        if (rowsBefore is not null)
-        {
-            Assert.Equal(rowsBefore, await ChangeRequestProbeHelper.CountChangeRequestsAsync());
-        }
+        await ChangeRequestProbeHelper.AssertNoRowsCreatedBetweenAsync(rowsBefore);
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────

@@ -214,6 +214,7 @@ One rule, in one place, in Application. Nothing else may compare dates.
 ```csharp
 // Application/WindowManagement/ICheckingExerciseService.cs
 bool IsOpen(IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise);
+bool HasClosed(IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise); // end date passed; false before start or when absent
 IReadOnlyList<CheckingExerciseType> OpenCheckingExercises(
     IReadOnlyList<CheckingExerciseDto> exercises);
 DateTime? EndDateFor(IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise);

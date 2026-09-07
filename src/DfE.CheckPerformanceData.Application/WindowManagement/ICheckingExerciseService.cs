@@ -19,6 +19,14 @@ public interface ICheckingExerciseService
     /// <summary>True when the exercise exists on the window and brackets now.</summary>
     bool IsOpen(IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise);
 
+    /// <summary>
+    /// True when the exercise exists on the window and its end date has passed (AB#298317 review).
+    /// Not the same as <c>!IsOpen</c>: an exercise that has not started yet is not open, but it
+    /// has not closed either, and a "has closed" notice about it would be wrong. An absent
+    /// exercise has nothing to have closed, so it answers false.
+    /// </summary>
+    bool HasClosed(IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise);
+
     /// <summary>Every exercise open right now, in SortOrder. Empty is a valid answer.</summary>
     IReadOnlyList<CheckingExerciseType> OpenCheckingExercises(
         IReadOnlyList<CheckingExerciseDto> exercises);
@@ -57,6 +65,13 @@ public sealed class CheckingExerciseService(TimeProvider timeProvider) : IChecki
     {
         var now = Now();
         return exercises.Any(e => e.ExerciseType == exercise && Brackets(e, now));
+    }
+
+    public bool HasClosed(IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise)
+    {
+        var now = Now();
+        // Strictly before: Brackets() keeps the last instant open, so this must not also call it closed.
+        return exercises.Any(e => e.ExerciseType == exercise && e.EndDate < now);
     }
 
     public IReadOnlyList<CheckingExerciseType> OpenCheckingExercises(

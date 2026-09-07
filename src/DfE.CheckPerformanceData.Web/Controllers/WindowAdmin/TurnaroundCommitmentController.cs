@@ -18,13 +18,12 @@ public sealed class TurnaroundCommitmentController(IWindowService windowService)
             return NotFound();
         }
 
-        WindowTurnaroundCommitmentEditItem model = new WindowTurnaroundCommitmentEditItem
+        var model = new WindowTurnaroundCommitmentEditItem
         {
             WindowId = window.Id,
-            TurnaroundCommitment = window.TurnaroundCommitment,
-            PostUrl = Url.Action("Update", "TurnaroundCommitment", new { id = window.Id }),
-            CancelUrl = Url.Action("Index", "Summary", new { id = window.Id })
+            TurnaroundCommitment = window.TurnaroundCommitment
         };
+        Decorate(model, id);
 
         return View(PageView, model);
     }
@@ -35,6 +34,10 @@ public sealed class TurnaroundCommitmentController(IWindowService windowService)
     {
         if (!ModelState.IsValid)
         {
+            // The urls are not posted back, so a redisplayed page has to be given them again —
+            // otherwise its form action and Cancel link are empty (AB#298317 review; the same fix
+            // NextOpportunityController shipped with).
+            Decorate(model, id);
             return View(PageView, model);
         }
 
@@ -52,6 +55,12 @@ public sealed class TurnaroundCommitmentController(IWindowService windowService)
         window.TurnaroundCommitment = model.TurnaroundCommitment ?? string.Empty;
         await windowService.UpdateAsync(window, cancellationToken);
 
-        return RedirectToAction("Index", "Summary", new { id = id });
+        return RedirectToAction("Index", "Summary", new { id });
+    }
+
+    private void Decorate(WindowTurnaroundCommitmentEditItem model, Guid id)
+    {
+        model.PostUrl = Url.Action("Update", "TurnaroundCommitment", new { id });
+        model.CancelUrl = Url.Action("Index", "Summary", new { id });
     }
 }

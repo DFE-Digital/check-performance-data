@@ -53,12 +53,13 @@ public static class PupilSuggestionFormat
     }
 
     /// <summary>
-    /// Shared split-query matching used by both <see cref="Matches"/> (autocomplete) and
-    /// <see cref="CheckYourPupilDataService.DuplicateCheckAsync"/> (Add Pupil).
+    /// Autocomplete split-query matching used by <see cref="Matches"/> only (the pupil-search
+    /// dropdown). When the query contains a space the first token is matched against the first
+    /// name and the rest against the surname, both via case-insensitive startsWith — a deliberately
+    /// prefix-only rule. A single token (no space) falls back to matching either name part.
     ///
-    /// When the query contains a space the first token is matched against the first name and the
-    /// rest against the surname, both via case-insensitive startsWith.  A single token (no space)
-    /// falls back to matching either name part, preserving existing single-term behaviour.
+    /// NOT shared with the Add-pupil duplicate check, which needs substring (Contains) matching
+    /// and a dual split — see <see cref="NameMatchesForDuplicateCheck"/>.
     /// </summary>
     public static bool NameMatchesSplitQuery(string? firstname, string? surname, string query)
     {
@@ -81,6 +82,49 @@ public static class PupilSuggestionFormat
 
         return (firstname?.StartsWith(firstNamePart, StringComparison.OrdinalIgnoreCase) ?? false) &&
                (surname?.StartsWith(surnamePart, StringComparison.OrdinalIgnoreCase) ?? false);
+    }
+
+    /// <summary>
+    /// Matcher for the Add-pupil duplicate check (<see cref="CheckYourPupilDataService.DuplicateCheckAsync"/>).
+    ///
+    /// Unlike the autocomplete <see cref="Matches"/>, which keeps its deliberate prefix-only
+    /// StartsWith behaviour, this matches on substrings (Contains) so a partial or variant spelling
+    /// still surfaces a duplicate, and it tries BOTH a first-space and a last-space split of the
+    /// typed full name so a multi-word first or last name is caught whichever way the clerk grouped
+    /// it. The caller also requires the date of birth to match, so a slightly fuzzy name match
+    /// cannot create a false positive.
+    /// </summary>
+    public static bool NameMatchesForDuplicateCheck(string? firstname, string? surname, string query)
+    {
+        var trimmed = query.Trim();
+        if (trimmed.Length == 0) return false;
+
+        var firstSpace = trimmed.IndexOf(' ');
+        if (firstSpace < 0)
+            return ContainsEither(firstname, surname, trimmed);
+
+        // Try both groupings; when they coincide (exactly one space) the second is a harmless repeat.
+        var lastSpace = trimmed.LastIndexOf(' ');
+        return GroupingMatches(firstname, surname, trimmed, firstSpace)
+            || GroupingMatches(firstname, surname, trimmed, lastSpace);
+    }
+
+    private static bool ContainsEither(string? first, string? surname, string part)
+        => (first is not null && first.Contains(part, StringComparison.OrdinalIgnoreCase)) ||
+           (surname is not null && surname.Contains(part, StringComparison.OrdinalIgnoreCase));
+
+    private static bool GroupingMatches(string? firstname, string? surname, string trimmed, int spaceIndex)
+    {
+        var firstNamePart = trimmed[..spaceIndex].Trim();
+        var surnamePart = trimmed[(spaceIndex + 1)..].Trim();
+
+        if (firstNamePart.Length == 0 || surnamePart.Length == 0)
+            return ContainsEither(firstname, surname, trimmed);
+
+        return firstname is not null
+               && firstname.Contains(firstNamePart, StringComparison.OrdinalIgnoreCase)
+               && surname is not null
+               && surname.Contains(surnamePart, StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool MatchesDateOfBirth(IPupilRecord pupil, string query)

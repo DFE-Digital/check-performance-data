@@ -155,8 +155,8 @@ public sealed class JourneyController(
             //    through to the ordinary no-selection flow (re-render the search page with the
             //    candidate's suggestions visible) with no warning and no decision page;
             //  - match on neither list → offer "Pupil not found" (start Add / search again).
-            // Blank entry keeps the existing validation; a lookup failure falls back to it too
-            // (never a dead end) — see research.md Question 6.
+            // Blank entry keeps the existing validation, and so does a lookup failure (never a
+            // dead end): the decision text above only ever runs for a deliberately typed name.
             if (!string.IsNullOrWhiteSpace(selectedPupilLabel)
                 && journey.SelectedWhatToChange == WhatToChange.Include
                 && page.PupilKey == JourneyPage.PrimaryKey)

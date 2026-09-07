@@ -321,7 +321,7 @@ public sealed class PupilDuplicateCheckTests
     [Fact]
     public async Task Duplicate_check_exact_match_still_works()
     {
-        // Exact match should still work via the split query's single-term fallback
+        // Exact match should still work via the matcher's single-term fallback
         var pupil = Ks4Pupil(firstname: "Alice", surname: "Smith");
         _repository.GetAllPupilsForSchoolAsync(Arg.Any<Guid>(), TestLaestab)
             .Returns(new List<IPupilRecord> { pupil });
@@ -330,6 +330,65 @@ public sealed class PupilDuplicateCheckTests
 
         Assert.Equal(DuplicateScenario.SingleIncluded, result.Scenario);
         Assert.Single(result.Matches);
+    }
+
+    // ── Multi-word names & substring matching (PR-367 follow-up) ─────────────
+
+    [Fact]
+    public async Task Duplicate_check_finds_a_substring_variant_not_just_the_prefix()
+    {
+        // A clerk typing "John Smith" must still hit "Johnny Smithson" — the matcher uses a
+        // substring comparison, not the autocomplete's prefix-only rule.
+        var pupil = Ks4Pupil(firstname: "Johnny", surname: "Smithson");
+        _repository.GetAllPupilsForSchoolAsync(Arg.Any<Guid>(), TestLaestab)
+            .Returns(new List<IPupilRecord> { pupil });
+
+        var result = await _sut.DuplicateCheckAsync(Guid.NewGuid(), "John", "Smith", "2010-09-01");
+
+        Assert.Equal(DuplicateScenario.SingleIncluded, result.Scenario);
+        Assert.Single(result.Matches);
+    }
+
+    [Fact]
+    public async Task Duplicate_check_finds_a_pupil_whose_first_name_is_multi_word()
+    {
+        // The stored first name "John Michael" only lines up with the typed
+        // "John | Michael Smith" when split at the LAST space — the dual split must catch it.
+        var pupil = Ks4Pupil(firstname: "John Michael", surname: "Smith");
+        _repository.GetAllPupilsForSchoolAsync(Arg.Any<Guid>(), TestLaestab)
+            .Returns(new List<IPupilRecord> { pupil });
+
+        var result = await _sut.DuplicateCheckAsync(Guid.NewGuid(), "John", "Michael Smith", "2010-09-01");
+
+        Assert.Equal(DuplicateScenario.SingleIncluded, result.Scenario);
+        Assert.Single(result.Matches);
+    }
+
+    [Fact]
+    public async Task Duplicate_check_finds_a_pupil_whose_surname_is_multi_word()
+    {
+        // "John | Van Der Berg" splits cleanly at the first space and matches "Van der Berg".
+        var pupil = Ks4Pupil(firstname: "John", surname: "Van der Berg");
+        _repository.GetAllPupilsForSchoolAsync(Arg.Any<Guid>(), TestLaestab)
+            .Returns(new List<IPupilRecord> { pupil });
+
+        var result = await _sut.DuplicateCheckAsync(Guid.NewGuid(), "John", "Van Der Berg", "2010-09-01");
+
+        Assert.Equal(DuplicateScenario.SingleIncluded, result.Scenario);
+        Assert.Single(result.Matches);
+    }
+
+    [Fact]
+    public async Task Duplicate_check_still_rejects_when_neither_split_lines_up_both_name_parts()
+    {
+        var pupil = Ks4Pupil(firstname: "John", surname: "Jones");
+        _repository.GetAllPupilsForSchoolAsync(Arg.Any<Guid>(), TestLaestab)
+            .Returns(new List<IPupilRecord> { pupil });
+
+        var result = await _sut.DuplicateCheckAsync(Guid.NewGuid(), "John", "Smith", "2010-09-01");
+
+        Assert.Equal(DuplicateScenario.None, result.Scenario);
+        Assert.Empty(result.Matches);
     }
 
     [Fact]

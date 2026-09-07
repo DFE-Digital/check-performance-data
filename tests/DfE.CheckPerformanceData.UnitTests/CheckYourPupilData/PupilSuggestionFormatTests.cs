@@ -176,6 +176,64 @@ public sealed class PupilSuggestionFormatTests
         Assert.False(PupilSuggestionFormat.NameMatchesSplitQuery("John", "Smith", ""));
     }
 
+    // ── NameMatchesForDuplicateCheck (AB#297780) ─────────────────────────────
+
+    [Fact]
+    public void Duplicate_check_matcher_matches_on_substrings_not_just_prefixes()
+    {
+        // The duplicate check intentionally matches with Contains: a partial surname must
+        // still surface the stored pupil ("mith" inside "Smith"), unlike the autocomplete.
+        Assert.True(PupilSuggestionFormat.NameMatchesForDuplicateCheck("Johnny", "Smithson", "john smith"));
+    }
+
+    [Fact]
+    public void Duplicate_check_matcher_catches_a_multi_word_surname_split_from_the_first_space()
+    {
+        // Clerk grouped as First="John", Last="Van Der Berg" → split at the first space works.
+        Assert.True(PupilSuggestionFormat.NameMatchesForDuplicateCheck("John", "Van der Berg", "John Van Der Berg"));
+    }
+
+    [Fact]
+    public void Duplicate_check_matcher_catches_a_multi_word_surname_that_only_lines_up_on_the_last_space()
+    {
+        // Stored first name is itself multi-word, so the clerk's "John | Michael Smith" grouping
+        // only matches when split at the LAST space: first="John Michael", surname="Smith".
+        Assert.True(PupilSuggestionFormat.NameMatchesForDuplicateCheck("John Michael", "Smith", "John Michael Smith"));
+    }
+
+    [Fact]
+    public void Duplicate_check_matcher_rejects_when_neither_split_lines_up_both_parts()
+    {
+        Assert.False(PupilSuggestionFormat.NameMatchesForDuplicateCheck("John", "Jones", "John Michael Smith"));
+    }
+
+    [Fact]
+    public void Duplicate_check_matcher_rejects_even_when_one_part_only_substring_matches()
+    {
+        // "Smith" sits inside "Smithson", but the firstname part "John" does not line up → no match.
+        Assert.False(PupilSuggestionFormat.NameMatchesForDuplicateCheck("Jane", "Smithson", "John Smith"));
+    }
+
+    [Fact]
+    public void Duplicate_check_matcher_is_case_insensitive_across_both_halves()
+    {
+        Assert.True(PupilSuggestionFormat.NameMatchesForDuplicateCheck("john michael", "smith", "John Michael Smith"));
+    }
+
+    [Fact]
+    public void Duplicate_check_matcher_single_term_matches_either_name_part()
+    {
+        Assert.True(PupilSuggestionFormat.NameMatchesForDuplicateCheck("John", "Smith", "john"));
+        Assert.True(PupilSuggestionFormat.NameMatchesForDuplicateCheck("John", "Smith", "mith"));
+    }
+
+    [Fact]
+    public void Duplicate_check_matcher_returns_false_for_empty_query()
+    {
+        Assert.False(PupilSuggestionFormat.NameMatchesForDuplicateCheck("John", "Smith", ""));
+        Assert.False(PupilSuggestionFormat.NameMatchesForDuplicateCheck("John", "Smith", "   "));
+    }
+
     // ── T005: Two-part split matching via Matches ────────────────────────────
 
     [Theory]

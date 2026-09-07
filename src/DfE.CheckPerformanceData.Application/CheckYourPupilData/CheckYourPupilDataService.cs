@@ -80,7 +80,7 @@ public sealed class CheckYourPupilDataService : ICheckYourPupilDataService
             var displayDob = PupilDateFormatter.ToDisplayDate(dateOfBirth);
             var nameQuery = $"{firstname} {surname}";
             var matches = pupils
-                .Where(p => PupilSuggestionFormat.NameMatchesSplitQuery(p.Firstname, p.Surname, nameQuery)
+                .Where(p => PupilSuggestionFormat.NameMatchesForDuplicateCheck(p.Firstname, p.Surname, nameQuery)
                          && PupilDateFormatter.ToDisplayDate(p.DateOfBirth) == displayDob)
                 .Select(p => new DuplicateMatch
                 {

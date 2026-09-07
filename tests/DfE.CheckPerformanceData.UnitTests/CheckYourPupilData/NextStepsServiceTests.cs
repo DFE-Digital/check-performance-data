@@ -153,4 +153,35 @@ public sealed class NextStepsServiceTests
         Assert.DoesNotContain(NextSteps.SignOut, Sut().GetAvailableSteps(everythingOpen));
         Assert.DoesNotContain(NextSteps.SignOut, Sut().GetAvailableSteps([Open(CheckingExerciseType.ResultsEnquiry)]));
     }
+
+    // ── IsResultsEnquiryOnly (AB#298317 review) ──────────────────────────────
+    // One definition of the state in which the page asks "Would you like to report an issue with
+    // an exam result?" and the POST accepts SignOut — previously spelt out twice, once in each.
+
+    [Fact]
+    public void Results_enquiry_alone_is_the_enquiry_only_state()
+    {
+        IReadOnlyList<NextSteps> steps = [NextSteps.ResultsEnquiry];
+
+        Assert.True(steps.IsResultsEnquiryOnly());
+    }
+
+    [Fact]
+    public void Results_enquiry_alongside_any_other_option_is_not()
+    {
+        IReadOnlyList<NextSteps> steps = [NextSteps.RequestChange, NextSteps.Confirm, NextSteps.ResultsEnquiry];
+
+        Assert.False(steps.IsResultsEnquiryOnly());
+    }
+
+    [Fact]
+    public void Nothing_open_or_no_list_at_all_is_not()
+    {
+        // A binder-created view model has a null list; it must answer false, not throw.
+        IReadOnlyList<NextSteps> empty = [];
+        IReadOnlyList<NextSteps>? none = null;
+
+        Assert.False(empty.IsResultsEnquiryOnly());
+        Assert.False(none.IsResultsEnquiryOnly());
+    }
 }

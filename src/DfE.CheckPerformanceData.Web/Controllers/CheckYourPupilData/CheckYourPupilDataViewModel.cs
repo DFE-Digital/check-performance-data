@@ -87,10 +87,10 @@ public sealed class CheckYourPupilDataViewModel
     /// <summary>
     /// AB#298317: results enquiry is the only thing left open — the state in which the page asks
     /// "Would you like to report an issue with an exam result?" with a Yes/No answer instead of
-    /// offering a one-item form. A list pattern rather than Count/indexer so a binder-created
-    /// instance (null collection) answers false instead of throwing — see the LearnerNoun remarks.
+    /// offering a one-item form. Same rule as the NextStep POST's SignOut guard, via
+    /// <see cref="NextStepsExtensions.IsResultsEnquiryOnly"/>.
     /// </summary>
-    public bool OffersEnquiryOnly => AvailableNextSteps is [NextSteps.ResultsEnquiry];
+    public bool OffersEnquiryOnly => AvailableNextSteps.IsResultsEnquiryOnly();
 
     public required string OrganisationName { get; init; }
 

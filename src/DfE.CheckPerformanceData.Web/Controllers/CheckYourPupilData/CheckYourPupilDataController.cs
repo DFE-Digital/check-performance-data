@@ -114,7 +114,7 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         // AB#298317: "No, I'd like to sign out of this service" is only ever asked when results
         // enquiry is the sole open exercise. Re-derived here, like every other option: a forged
         // SignOut on a page that never asked the question is treated as no answer at all.
-        if (viewModel.SelectedNextStep == NextSteps.SignOut && allowed is [NextSteps.ResultsEnquiry])
+        if (viewModel.SelectedNextStep == NextSteps.SignOut && allowed.IsResultsEnquiryOnly())
         {
             // This page requires authentication, so its own Referer is no help once signed out —
             // the default (impersonation-only) Referer-based redirect would bounce straight back

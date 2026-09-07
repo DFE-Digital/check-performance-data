@@ -510,6 +510,7 @@ CLAUDE.md
 .specify/
 .clinerules/
 .opencode/
+.nanocoder/
 opencode.json
 specs/
 tests/DfE.CheckPerformanceData.E2ETests/Snapshots/failures/

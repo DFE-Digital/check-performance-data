@@ -252,6 +252,58 @@ public sealed class SearchAnalyticsIndexViewRenderTests
     }
 
     [Fact]
+    public async Task HeatmapCellRects_CarryDrillInDataHref_WithNoNestedAnchor()
+    {
+        var model = ViewModelWithData(
+            totalCount: 100, uniqueSessions: 20, zeroRate: 5.0, p95: 40);
+
+        var html = await RenderIndexAsync(model);
+
+        // No cell rect is wrapped in an <a> any more — an svg <a> around a rect is a
+        // focusable control nested inside the SVG's own role="img" element, which axe
+        // flags as nested-interactive regardless of tabindex. The rect instead carries
+        // its drill-in target as data, and search-analytics.js wires up the navigation.
+        var cellAnchors = System.Text.RegularExpressions.Regex.Matches(
+            html, "<a[^>]*>\\s*<rect class=\"sa-heatmap__cell\"");
+        Assert.Empty(cellAnchors);
+
+        var cellRectsWithHref = System.Text.RegularExpressions.Regex.Matches(
+            html, "<rect class=\"sa-heatmap__cell\"[^>]*data-sa-href=\"[^\"]*\"[^>]*/>");
+        Assert.Equal(168, cellRectsWithHref.Count);
+
+        // Spot-check one drill-in target is the right shape for the fixture's data
+        // (RangeKey "7d" resolves to "range=7d"; the grid starts at Monday, hour 0).
+        // Built via Html.Raw like the rest of the SVG markup, so the querystring
+        // ampersand is literal, matching href/xlink:href elsewhere in this partial.
+        Assert.Contains(
+            "data-sa-href=\"/admin/Search/HeatmapCell?range=7d&weekday=1&hour=0\"",
+            html);
+    }
+
+    [Fact]
+    public async Task HeatmapDataTable_LinksEveryCellToItsDrillIn()
+    {
+        var model = ViewModelWithData(
+            totalCount: 100, uniqueSessions: 20, zeroRate: 5.0, p95: 40);
+
+        var html = await RenderIndexAsync(model);
+
+        var detailsStart = html.IndexOf("<details class=\"govuk-details\"", StringComparison.Ordinal);
+        Assert.True(detailsStart >= 0, "Expected the heatmap data table's <details> disclosure to render.");
+        var detailsEnd = html.IndexOf("</details>", detailsStart, StringComparison.Ordinal);
+        Assert.True(detailsEnd > detailsStart, "Expected a closing </details> tag.");
+        var detailsHtml = html.Substring(detailsStart, detailsEnd - detailsStart);
+
+        var rowLinks = System.Text.RegularExpressions.Regex.Matches(
+            detailsHtml, "href=\"/admin/Search/HeatmapCell\\?");
+        Assert.Equal(168, rowLinks.Count);
+
+        // RangeKey "7d" resolves to "range=7d"; the fixture's zero-filled grid starts at
+        // Monday (weekday 1), hour 0, so that exact href must be present.
+        Assert.Contains("href=\"/admin/Search/HeatmapCell?range=7d&amp;weekday=1&amp;hour=0\"", detailsHtml);
+    }
+
+    [Fact]
     public async Task RendersFilterFormWithRangeRadios_AlwaysVisible()
     {
         var model = EmptyViewModel(totalRowCount: 0);

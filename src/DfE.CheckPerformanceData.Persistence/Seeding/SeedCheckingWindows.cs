@@ -25,7 +25,7 @@ public static class SeedCheckingWindows
     // enquiry running far longer than pupil data checking (7 Oct - 31 Mar against 7 Oct - 18 Oct in
     // the real calendar). See docs/16-19-window-model.md.
     private static List<CheckingExercise> ExercisesFor(
-        CheckingWindowType type, DateTime startDate, DateTime endDate) =>
+        CheckingWindowType type, DateTime startDate, DateTime endDate, DateTime? pupilDataEnd = null) =>
         type == CheckingWindowType.Post16
             ?
             [
@@ -34,8 +34,9 @@ public static class SeedCheckingWindows
                     ExerciseType = CheckingExerciseType.PupilData,
                     StartDate = startDate,
                     // 14 days from a start of yesterday, which is the same fortnight the KS4
-                    // windows run for. Results enquiry then carries on to the window's own end.
-                    EndDate = startDate.AddDays(14).Date.AddHours(17),
+                    // windows run for, unless the caller wants pupil data to have shut already.
+                    // Results enquiry then carries on to the window's own end.
+                    EndDate = pupilDataEnd ?? startDate.AddDays(14).Date.AddHours(17),
                     SortOrder = 0,
                     Datasets = DatasetsFor(CheckingWindowType.Post16)
                 },
@@ -115,9 +116,7 @@ public static class SeedCheckingWindows
         };
 
         // AB#298317: pupil data checking shut yesterday; results enquiry runs on for months. The
-        // outer pair is the union of the two, as for every window. Built inline rather than through
-        // ExercisesFor because that helper always opens pupil data on the window's own start and
-        // closes it a fortnight later — here the fortnight is already in the past.
+        // outer pair is the union of the two, as for every window.
         var closedPost16Start = DateTime.Now.AddDays(-30);
         var closedPost16PupilDataEnd = DateTime.Now.AddDays(-1).Date.AddHours(17);
         var closedPost16End = DateTime.Now.AddDays(+180).Date.AddHours(17);
@@ -132,24 +131,9 @@ public static class SeedCheckingWindows
             Title = "16 to 19 (pupil data closed)",
             TurnaroundCommitment = "updated in the Spring",
             NextOpportunity = nextOpportunity,
-            CheckingExercises =
-            [
-                new CheckingExercise
-                {
-                    ExerciseType = CheckingExerciseType.PupilData,
-                    StartDate = closedPost16Start,
-                    EndDate = closedPost16PupilDataEnd,
-                    SortOrder = 0,
-                    Datasets = DatasetsFor(CheckingWindowType.Post16)
-                },
-                new CheckingExercise
-                {
-                    ExerciseType = CheckingExerciseType.ResultsEnquiry,
-                    StartDate = closedPost16Start,
-                    EndDate = closedPost16End,
-                    SortOrder = 1
-                }
-            ]
+            CheckingExercises = ExercisesFor(
+                CheckingWindowType.Post16, closedPost16Start, closedPost16End,
+                pupilDataEnd: closedPost16PupilDataEnd)
         };
 
         await dbContext.CheckingWindows.AddRangeAsync(

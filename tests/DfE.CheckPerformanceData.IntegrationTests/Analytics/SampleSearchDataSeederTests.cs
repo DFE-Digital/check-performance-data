@@ -148,9 +148,15 @@ public sealed class SampleSearchDataSeederTests
             cancellationToken: CancellationToken.None,
             progress: progress);
 
-        // Progress delivery is async — wait briefly for the marshal-to-context posts to drain.
+        // Progress delivery is async — wait for the tick matching the seed result's written
+        // counts, not just any tick. An early intermediate tick can otherwise satisfy a naive
+        // "has anything arrived yet" check while later ticks (including the final one) are
+        // still in flight under CI load, leaving ticks[^1] stale when the loop exits.
         var start = DateTime.UtcNow;
-        while (ticks.Count == 0 && (DateTime.UtcNow - start) < TimeSpan.FromSeconds(2))
+        while ((ticks.Count == 0 ||
+                ticks[^1].EventsWritten != result.EventsCreated ||
+                ticks[^1].MessagesWritten != result.MessagesCreated) &&
+               (DateTime.UtcNow - start) < TimeSpan.FromSeconds(2))
         {
             await Task.Delay(20);
         }

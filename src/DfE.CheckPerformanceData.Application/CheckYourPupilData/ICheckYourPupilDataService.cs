@@ -77,4 +77,15 @@ public sealed class PupilDto
     public string EntryDate { get; set; } = string.Empty;
 }
 
-public record PupilSuggestionDto(Guid Id, string Label);
+/// <summary>
+/// A single autocomplete suggestion. <see cref="Label"/> is the user-visible text shown in the
+/// pupil-search dropdown and served to the autocomplete endpoint. The typed identity fields are
+/// carried alongside it so consumers can render a name/date without reverse-engineering the label
+/// (whose shape differs between KS4 and Post16) — see the "already included" page.
+/// </summary>
+public sealed record PupilSuggestionDto(
+    Guid Id,
+    string Label,
+    string Firstname,
+    string Surname,
+    string DateOfBirth);

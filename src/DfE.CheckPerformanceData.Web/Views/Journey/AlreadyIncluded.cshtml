@@ -40,19 +40,13 @@
         <tbody class="govuk-table__body">
             @foreach (var match in Model.Matches)
             {
-                // The suggestion label is "Surname, Firstname, FitDob" (PupilSuggestionFormat.Label).
-                var displayName = match.Label;
-                var dob = "";
-                var parts = match.Label.Split(", ");
-                if (parts.Length >= 3)
-                {
-                    displayName = $"{parts[1]} {parts[0]}";
-                    dob = parts[2];
-                }
+                // Name and date of birth come as typed fields on the suggestion (not parsed back
+                // out of the label, whose shape differs between KS4 and Post16).
+                var displayName = $"{match.Firstname} {match.Surname}".Trim();
 
                 <tr class="govuk-table__row">
                     <td class="govuk-table__cell">@displayName</td>
-                    <td class="govuk-table__cell">@dob</td>
+                    <td class="govuk-table__cell">@match.DateOfBirth</td>
                 </tr>
             }
         </tbody>

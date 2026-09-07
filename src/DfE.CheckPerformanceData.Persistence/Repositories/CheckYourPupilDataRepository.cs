@@ -109,7 +109,12 @@ public sealed class CheckYourPupilDataRepository(
         return pupils
             .OrderBy(p => p.Surname).ThenBy(p => p.Firstname)
             .Take(10)
-            .Select(p => new PupilSuggestionDto(p.Id, PupilSuggestionFormat.Label(p, windowType)))
+            .Select(p => new PupilSuggestionDto(
+                p.Id,
+                PupilSuggestionFormat.Label(p, windowType),
+                p.Firstname,
+                p.Surname,
+                PupilDateFormatter.ToDisplayDate(p.DateOfBirth)))
             .ToList();
     }
 

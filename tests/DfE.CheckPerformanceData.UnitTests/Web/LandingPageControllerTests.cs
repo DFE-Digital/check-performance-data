@@ -226,6 +226,43 @@ public sealed class LandingPageControllerTests
         Assert.True(card.IsResultsEnquiryOpen);
     }
 
+    [Fact]
+    public async Task Pupil_data_that_has_not_opened_yet_gets_no_closed_banner()
+    {
+        // Review: HasClosedPupilData was "has an end date and is not open", which is also true of
+        // an exercise that has not started. ExerciseDatesController validates each exercise on its
+        // own, so an admin can open a Post16 window's results enquiry before its pupil data starts —
+        // and the school would then be told the window had closed before it ever opened.
+        var notYetOpen = new CheckingWindowDto
+        {
+            Id = Guid.NewGuid(),
+            Title = "16 to 19",
+            KeyStage = KeyStages.Post16,
+            CheckingWindowType = CheckingWindowType.Post16,
+            HasPupilData = true,
+            StartDate = PupilDataStart,
+            EndDate = EnquiryEnd,
+            NextOpportunity = new DateTime(2027, 10, 1),
+            Exercises =
+            [
+                Exercise(CheckingExerciseType.PupilData, new DateTime(2026, 11, 2), new DateTime(2026, 11, 13, 17, 0, 0), 0),
+                Exercise(CheckingExerciseType.ResultsEnquiry, PupilDataStart, EnquiryEnd, 1)
+            ]
+        };
+        Landing(notYetOpen);
+
+        var model = await Model();
+        var card = Assert.Single(model.OpenWindows);
+
+        Assert.Empty(model.ClosedWindows);
+        // The card still states the upcoming amendment range — that sentence reads correctly for a
+        // range in the future, so only the banner is withheld.
+        Assert.False(card.IsPupilDataOpen);
+        Assert.Equal("2 November", card.PupilDataRangeStart);
+        Assert.Equal("13 November 2026", card.PupilDataRangeEnd);
+        Assert.True(card.IsResultsEnquiryOpen);
+    }
+
     // ── Session plumbing for the hostless controller ─────────────────────────
 
     private sealed class TestSessionFeature(ISession session) : ISessionFeature

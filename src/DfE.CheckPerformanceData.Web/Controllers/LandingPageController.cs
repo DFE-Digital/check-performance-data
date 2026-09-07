@@ -90,12 +90,12 @@ public sealed class LandingPageController(
         };
     }
 
-    // A window that runs pupil data checking and has shut it. A window with no pupil-data exercise
-    // has nothing to have closed, so it gets no banner — fail-closed elsewhere means "no actions",
-    // and here it would mean a banner about an exercise the window never ran.
+    // A window that runs pupil data checking and has shut it. HasClosed (not !IsOpen) so that an
+    // exercise which has not started yet — possible, because exercise dates are validated one
+    // exercise at a time — is not announced as closed; and a window with no pupil-data exercise
+    // has nothing to have closed, so it gets no banner either.
     private bool HasClosedPupilData(CheckingWindowDto window) =>
-        checkingExercises.EndDateFor(window.Exercises, CheckingExerciseType.PupilData) is not null
-        && !checkingExercises.IsOpen(window.Exercises, CheckingExerciseType.PupilData);
+        checkingExercises.HasClosed(window.Exercises, CheckingExerciseType.PupilData);
 
     private LandingPageClosedWindowViewModel ClosedBanner(CheckingWindowDto window) =>
         new()

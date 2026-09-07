@@ -29,4 +29,13 @@ public sealed class DuplicateCheckViewModel
     /// </summary>
     public bool IncludeActionAvailable =>
         Scenario == DuplicateScenario.SingleNonIncluded && Matches.Count == 1;
+
+    // AB#297780 conflict state: set only when the Include hand-off found a submitted request for the
+    // matched pupil (FR-010). Null on every non-conflict render, so the existing page is unaffected.
+    public string? ConflictErrorReference { get; set; }
+    public string? ConflictErrorLink { get; set; }
+    public string? ConflictPupilName { get; set; }
+    public string? ConflictReasonType { get; set; }
+    public string? ConflictUserName { get; set; }
+    public string? ConflictAttentionHtml { get; set; }
 }

@@ -1487,26 +1487,40 @@ public sealed class JourneyController(
         var journey = HttpContext.Session.GetRequestState(windowId);
         if (!IsSessionReady(journey)) return RedirectToCheckYourData(windowId);
 
-        var result = journey.DuplicateCheck;
-        if (result is not { } r || r.Scenario == DuplicateScenario.None)
-            return await RedirectAfterLearnerDetailsAsync(windowId);
+        var vm = BuildDuplicateCheckViewModel(windowId, journey);
+        if (vm is null) return await RedirectAfterLearnerDetailsAsync(windowId);
 
         await analytics.TrackSafeAsync(new DuplicateCheckDecisionEvent
         {
-            Scenario = r.Scenario.ToString(),
+            Scenario = vm.Scenario.ToString(),
             Action = "shown",
             CheckingWindowType = journey.CheckingWindow?.CheckingWindowType.ToString() ?? ""
         });
 
+        return View(vm);
+    }
+
+    /// <summary>
+    /// Builds the duplicate-check view model from the still-populated session duplicate-check
+    /// result. Shared by the <see cref="DuplicateCheck"/> GET and the Include hand-off conflict
+    /// re-render so both present the identical match list and layout (SC-002/SC-003). Null when no
+    /// check has run or it found no matches.
+    /// </summary>
+    private DuplicateCheckViewModel? BuildDuplicateCheckViewModel(Guid windowId, RequestState journey)
+    {
+        var result = journey.DuplicateCheck;
+        if (result is not { } r || r.Scenario == DuplicateScenario.None)
+            return null;
+
         var pupilName = $"{journey.SelectedPupil?.Surname}, {journey.SelectedPupil?.Firstname}".TrimEnd(',');
-        return View(new DuplicateCheckViewModel
+        return new DuplicateCheckViewModel
         {
             WindowId = windowId,
             Scenario = r.Scenario,
             Matches = r.Matches,
             LearnerNameLabel = pupilName,
             BackPageId = AddPupilJourney.LearnerDetailsPageId
-        });
+        };
     }
 
     /// <summary>The school accepts the risk and adds the pupil anyway; continue the Add journey.</summary>
@@ -1576,6 +1590,9 @@ public sealed class JourneyController(
         var match = r.Matches[0];
 
         var redirect = await HandoffToIncludeJourneyAsync(windowId, windowType, match.Id);
+        // AB#297780: a conflict re-renders the duplicate-check page — never record an include
+        // decision for a blocked hand-off (same conflict surface as PupilSearchPost).
+        if (redirect is ViewResult) return redirect;
         if (redirect is null) return RedirectToCheckYourData(windowId);
 
         await analytics.TrackSafeAsync(new DuplicateCheckDecisionEvent
@@ -1610,6 +1627,9 @@ public sealed class JourneyController(
             return RedirectToAction(nameof(DuplicateCheck), new { windowId });
 
         var redirect = await HandoffToIncludeJourneyAsync(windowId, windowType, pupilId);
+        // AB#297780: a conflict re-renders the duplicate-check page — never record a
+        // switch-to-include decision for a blocked hand-off (same conflict surface as PupilSearchPost).
+        if (redirect is ViewResult) return redirect;
         if (redirect is null) return RedirectToCheckYourData(windowId);
 
         await analytics.TrackSafeAsync(new DuplicateCheckDecisionEvent
@@ -1627,6 +1647,15 @@ public sealed class JourneyController(
     /// same contract PupilSearchPost uses) and returns the redirect into the Include flow past its
     /// select-pupil search page — the duplicate check already IS that selection. Returns null when
     /// the Include flow config is missing for the window type.
+    ///
+    /// AB#297780 conflict check: the one-request-per-pupil rule still applies at this hand-off, so
+    /// before seeding we re-run <see cref="IRequestService.HasSubmittedRequestAsync"/> exactly as
+    /// <see cref="PupilSearchPost"/> does. A non-<see cref="DuplicateCheckResult.NoConflict"/>
+    /// result blocks the hand-off — no seed, no redirect — and re-renders the duplicate-check page
+    /// with the GDS conflict error (banner + summary + field error) via the shared
+    /// <see cref="BuildDuplicateCheckViewModel"/>, so both hand-off entry points and the pupil
+    /// search present an identical conflict surface (SC-002/SC-003). The session's
+    /// <see cref="RequestState.DuplicateCheck"/> is kept, so the match list stays visible (FR-006).
     /// </summary>
     private async Task<IActionResult?> HandoffToIncludeJourneyAsync(
         Guid windowId, CheckingWindowType windowType, Guid pupilId)
@@ -1636,6 +1665,74 @@ public sealed class JourneyController(
         if (config is null) return null;
 
         var pupil = await pupilDataService.GetPupilAsync(windowId, pupilId);
+
+        var journey = HttpContext.Session.GetRequestState(windowId);
+
+        // AB#296648: the one-request-per-pupil rule belongs to the pupil-data checking exercise —
+        // a results enquiry and a pupil-data amendment may legitimately coexist for the same pupil.
+        var isResultsEnquiry = WhatToChangeCheckingExerciseMap.IsResultsEnquiry(journey.SelectedWhatToChange);
+
+        if (!isResultsEnquiry)
+        {
+            var result = await requestService.HasSubmittedRequestAsync(windowId, pupil.Id, long.Parse(currentUserService.OrganisationUrn));
+            if (result is not DuplicateCheckResult.NoConflict)
+            {
+                var isSelf = result is DuplicateCheckResult.SelfSubmitted;
+                var conflictingReasonType = result switch
+                {
+                    DuplicateCheckResult.SelfSubmitted { ConflictingReasonType: var rt } => rt,
+                    DuplicateCheckResult.OtherSubmitted { ConflictingReasonType: var rt } => rt,
+                    _ => string.Empty
+                };
+                var conflictingCategory = result switch
+                {
+                    DuplicateCheckResult.SelfSubmitted { ConflictingRequestCategory: var rc } => rc,
+                    DuplicateCheckResult.OtherSubmitted { ConflictingRequestCategory: var rc } => rc,
+                    _ => string.Empty
+                };
+                var conflictingUserName = result switch
+                {
+                    DuplicateCheckResult.SelfSubmitted { ConflictingUserName: var un } => un,
+                    DuplicateCheckResult.OtherSubmitted { ConflictingUserName: var un } => un,
+                    _ => string.Empty
+                };
+                var currentReasonType = flowService.ResolveRequestType(await GetConfigAsync(journey), journey);
+                var reasonsMatch = !string.IsNullOrEmpty(currentReasonType)
+                    && string.Equals(currentReasonType, conflictingReasonType, StringComparison.OrdinalIgnoreCase);
+
+                ModelState.AddModelError("selectedPupilId",
+                    DuplicateRequestMessages.FieldErrorMessage(journey.LearnerNoun));
+                ModelState.AddModelError(string.Empty,
+                    DuplicateRequestMessages.ErrorSummaryMessage(journey.LearnerNoun));
+                await analytics.TrackSafeAsync(new ValidationErrorEvent
+                {
+                    ErrorCount = 1,
+                    ErrorCodes = [ValidationErrorCoding.Conflict],
+                    ErrorFields = ["selectedPupilId"],
+                    WhatToChange = journey.SelectedWhatToChange?.ToString(),
+                });
+                var pupilName = $"{pupil.Firstname} {pupil.Surname}".Trim();
+                var vm = BuildDuplicateCheckViewModel(windowId, journey)!;
+
+                var refNum = result switch
+                {
+                    DuplicateCheckResult.SelfSubmitted { ReferenceNumber: var r } => r,
+                    DuplicateCheckResult.OtherSubmitted { ReferenceNumber: var r } => r,
+                    _ => string.Empty
+                };
+                var linkUrl = $"/{windowId}/AmendmentRequests/{refNum}/view";
+                vm.ConflictErrorReference = refNum;
+                vm.ConflictErrorLink = linkUrl;
+                vm.ConflictPupilName = pupilName;
+                vm.ConflictReasonType = conflictingReasonType;
+                vm.ConflictUserName = conflictingUserName;
+                vm.ConflictAttentionHtml = DuplicateRequestMessages.AttentionBannerHtml(
+                    isSelf, reasonsMatch, conflictingCategory, pupilName, refNum, linkUrl, conflictingUserName,
+                    journey.LearnerNoun);
+
+                return View("DuplicateCheck", vm);
+            }
+        }
 
         // The duplicate check stands in for the Include flow's select-pupil search page, so seed the
         // history with that page and start the user on the page the search would have moved to next.

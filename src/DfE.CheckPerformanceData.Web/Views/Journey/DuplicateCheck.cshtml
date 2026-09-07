@@ -18,6 +18,46 @@
 
 <h1 class="govuk-heading-l">This pupil may already be on the roll</h1>
 
+@if (Model.ConflictAttentionHtml is not null)
+{
+    <div role="region" class="moj-alert moj-alert--warning moj-alert--with-heading" aria-label="warning: There is a problem" data-module="moj-alert">
+        <div>
+            <svg class="moj-alert__icon" role="presentation" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" height="30" width="30">
+                <path fill-rule="evenodd" clip-rule="evenodd" d="M15 2.44922L28.75 26.1992H1.25L15 2.44922ZM13.5107 9.49579H16.4697L16.2431 17.767H13.7373L13.5107 9.49579ZM15 20.2508C14.0795 20.2508 13.3333 21.0028 13.3333 21.9318C13.3333 22.8608 14.0795 23.6128 15 23.6128C15.9205 23.6128 16.6667 22.8608 16.6667 21.9318C16.6667 21.0028 15.9205 20.2508 15 20.2508Z" />
+            </svg>
+        </div>
+        <div class="moj-alert__content">
+            <h2 class="moj-alert__heading">Attention</h2>
+            <p class="govuk-body">
+                A request has already been submitted for @Model.ConflictPupilName. Reference @Model.ConflictErrorReference:
+                <a class="govuk-link" href="@Model.ConflictErrorLink" target="_blank" rel="noreferrer noopener">View submitted request (opens in new tab)</a>.
+            </p>
+            <p class="govuk-body">@Html.Raw(Model.ConflictAttentionHtml)</p>
+        </div>
+    </div>
+}
+
+@if (!ViewData.ModelState.IsValid)
+{
+    var modelError = ViewData.ModelState[string.Empty]?.Errors.FirstOrDefault()?.ErrorMessage;
+    var fieldErrorMessage = ViewData.ModelState["selectedPupilId"]?.Errors.FirstOrDefault()?.ErrorMessage;
+    if (!string.IsNullOrEmpty(modelError) || !string.IsNullOrEmpty(fieldErrorMessage))
+    {
+        <govuk-error-summary>
+            <govuk-error-summary-title>There is a problem</govuk-error-summary-title>
+            @if (!string.IsNullOrEmpty(modelError))
+            {
+                <govuk-error-summary-item>@modelError</govuk-error-summary-item>
+            }
+            <govuk-error-summary-item href="#selectedPupilId">@fieldErrorMessage</govuk-error-summary-item>
+        </govuk-error-summary>
+    }
+    <p id="selectedPupilId" class="govuk-error-message">
+        <span class="govuk-visually-hidden">Error:</span>
+        @fieldErrorMessage
+    </p>
+}
+
 <govuk-warning-text icon-fallback-text="Warning">
     There @(multiple ? "may already be pupils" : "may already be a pupil") matching "@Model.LearnerNameLabel" on the roll.
 </govuk-warning-text>

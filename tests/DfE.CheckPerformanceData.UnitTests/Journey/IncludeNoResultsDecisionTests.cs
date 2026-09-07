@@ -90,8 +90,8 @@ public class IncludeNoResultsDecisionTests
         Pages = [RemovePrimarySearchPage, QuestionPage]
     };
 
-    private static readonly PupilSuggestionDto IncludedSuggestion = new(IncludedPupilId, "Smith, Alice, 01/01/2010");
-    private static readonly PupilSuggestionDto NonIncludedSuggestion = new(IncludedPupilId, "Johnson, Bob, 02/02/2010");
+    private static readonly PupilSuggestionDto IncludedSuggestion = new(IncludedPupilId, "Smith, Alice, 01/01/2010", "Alice", "Smith", "01/01/2010");
+    private static readonly PupilSuggestionDto NonIncludedSuggestion = new(IncludedPupilId, "Johnson, Bob, 02/02/2010", "Bob", "Johnson", "02/02/2010");
 
     public IncludeNoResultsDecisionTests()
     {

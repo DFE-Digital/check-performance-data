@@ -55,6 +55,29 @@ public sealed class CheckYourPupilDataViewModel
     public bool IsResultsEnquiryOpen { get; init; }
 
     /// <summary>
+    /// AB#298317 review: the pupil-data exercise's end date has passed, from
+    /// <c>ICheckingExerciseService.HasClosed</c>. Distinct from <c>!IsPupilDataOpen</c>, which is
+    /// also true before the exercise starts and would announce a closure that has not happened.
+    /// </summary>
+    public bool HasPupilDataClosed { get; init; }
+
+    /// <summary>
+    /// AB#298317 review: the results-enquiry exercise's end date has passed, from
+    /// <c>ICheckingExerciseService.HasClosed</c>. Only consulted when the window has no pupil-data
+    /// exercise at all, so that such a window still says it has closed once its one exercise ends.
+    /// </summary>
+    public bool HasResultsEnquiryClosed { get; init; }
+
+    /// <summary>
+    /// Whether the "data checking window has closed" paragraph renders: pupil data checking has
+    /// ended, or — on a window that never ran pupil data checking (an admin may tick Results
+    /// enquiry alone) — results enquiry has ended. Without the second arm that window showed
+    /// tables and downloads with no notice and no form once its enquiry closed.
+    /// </summary>
+    public bool ShowsClosedNotice =>
+        HasPupilDataClosed || (PupilDataEndDate is null && HasResultsEnquiryClosed);
+
+    /// <summary>
     /// AB#298317: the window's next opportunity to review data, already formatted as month + year
     /// by <c>NextOpportunityText</c>. Null when the admin has not set it, and then the sentence
     /// that names it is omitted.

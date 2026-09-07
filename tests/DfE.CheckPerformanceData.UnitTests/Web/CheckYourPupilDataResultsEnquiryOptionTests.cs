@@ -214,6 +214,68 @@ public sealed class CheckYourPupilDataResultsEnquiryOptionTests
         Assert.False(model.IsPupilDataOpen);
     }
 
+    // ── AB#298317 review: when the closed notice shows ───────────────────────
+
+    [Fact]
+    public async Task Closed_pupil_data_shows_the_closed_notice()
+    {
+        Window(CheckingWindowType.Post16,
+            Closed(CheckingExerciseType.PupilData, 0),
+            Open(CheckingExerciseType.ResultsEnquiry, 1));
+
+        var model = await IndexModel();
+
+        Assert.True(model.HasPupilDataClosed);
+        Assert.False(model.HasResultsEnquiryClosed);
+        Assert.True(model.ShowsClosedNotice);
+    }
+
+    [Fact]
+    public async Task A_results_enquiry_only_window_whose_enquiry_has_closed_still_says_it_has_closed()
+    {
+        // Review: ExercisesController lets an admin tick Results enquiry alone. Once that exercise
+        // ends the page had no closed paragraph (it was gated on a pupil-data end date the window
+        // never had) and no form (nothing open) — tables and downloads with no explanation at all.
+        Window(CheckingWindowType.Post16, Closed(CheckingExerciseType.ResultsEnquiry, 0));
+
+        var model = await IndexModel();
+
+        Assert.Empty(model.AvailableNextSteps);
+        Assert.False(model.OffersEnquiryOnly);
+        Assert.Null(model.PupilDataEndDate);
+        Assert.False(model.HasPupilDataClosed);
+        Assert.True(model.HasResultsEnquiryClosed);
+        Assert.False(model.IsResultsEnquiryOpen);
+        Assert.True(model.ShowsClosedNotice);
+    }
+
+    [Fact]
+    public async Task Pupil_data_that_has_not_opened_yet_is_not_reported_as_closed()
+    {
+        // Same lower-bound defect as the landing page banner: "not open" is also true before start.
+        Window(CheckingWindowType.Post16,
+            Exercise(CheckingExerciseType.PupilData, Tomorrow, NextMonth, 0),
+            Open(CheckingExerciseType.ResultsEnquiry, 1));
+
+        var model = await IndexModel();
+
+        Assert.Equal(NextMonth, model.PupilDataEndDate);
+        Assert.False(model.IsPupilDataOpen);
+        Assert.False(model.HasPupilDataClosed);
+        Assert.False(model.ShowsClosedNotice);
+    }
+
+    [Fact]
+    public async Task A_results_enquiry_only_window_that_is_still_open_shows_no_closed_notice()
+    {
+        Window(CheckingWindowType.Post16, Open(CheckingExerciseType.ResultsEnquiry, 0));
+
+        var model = await IndexModel();
+
+        Assert.True(model.OffersEnquiryOnly);
+        Assert.False(model.ShowsClosedNotice);
+    }
+
     // ── Routing ──────────────────────────────────────────────────────────────
 
     [Fact]

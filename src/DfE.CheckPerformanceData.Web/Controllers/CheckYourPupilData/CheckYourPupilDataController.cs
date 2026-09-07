@@ -218,6 +218,10 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
             PupilDataEndDate = checkingExercises.EndDateFor(window.Exercises, CheckingExerciseType.PupilData),
             IsPupilDataOpen = checkingExercises.IsOpen(window.Exercises, CheckingExerciseType.PupilData),
             IsResultsEnquiryOpen = checkingExercises.IsOpen(window.Exercises, CheckingExerciseType.ResultsEnquiry),
+            // AB#298317 review: "closed" is the end date having passed, never !IsOpen — see the
+            // view model's HasPupilDataClosed remarks.
+            HasPupilDataClosed = checkingExercises.HasClosed(window.Exercises, CheckingExerciseType.PupilData),
+            HasResultsEnquiryClosed = checkingExercises.HasClosed(window.Exercises, CheckingExerciseType.ResultsEnquiry),
             NextOpportunity = NextOpportunityText.For(window.NextOpportunity),
             OrganisationName = currentUserService.OrganisationName,
             LearnerNoun = noun,

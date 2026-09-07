@@ -44,8 +44,10 @@
 
 @* AB#298317: once pupil data checking has closed the page says so, names the next opportunity
    when the admin has set one, and says what the school can still do. Results enquiry may still be
-   open for months after this — that is what the final sentence turns on. *@
-@if (Model.PupilDataEndDate is not null && !Model.IsPupilDataOpen)
+   open for months after this — that is what the final sentence turns on. The gate is
+   ShowsClosedNotice: "end date passed" (never !IsPupilDataOpen, which is also true before the
+   exercise starts), and it also covers a window that only ever ran results enquiry. *@
+@if (Model.ShowsClosedNotice)
 {
     <p class="govuk-body">
         The @Model.WindowTitle data checking window has closed.

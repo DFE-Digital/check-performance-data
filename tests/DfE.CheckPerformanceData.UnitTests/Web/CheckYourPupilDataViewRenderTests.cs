@@ -90,21 +90,25 @@ public sealed class CheckYourPupilDataViewRenderTests
     }
 
     [Fact]
-    public void The_closed_window_paragraph_is_scoped_to_pupil_data_being_closed()
+    public void The_closed_window_paragraph_is_gated_on_ShowsClosedNotice()
     {
         // AB#298317: once pupil data shuts the page says so, names the next opportunity when the
         // admin has set one, and says what the school can still do — inside one branch, so the
-        // open-state deadline sentence and the closed paragraph can never both print.
+        // open-state deadline sentence and the closed paragraph can never both print. Review: the
+        // gate is the view model's ShowsClosedNotice, which is "end date passed" (never !IsOpen,
+        // which is also true before start) and also covers a window that never ran pupil data.
         var view = ReadView();
         Assert.Contains("You must request any changes to @Model.LearnerNoun.Singular data before", view);
 
-        var closed = Section(view, "@if (Model.PupilDataEndDate is not null && !Model.IsPupilDataOpen)", "<a asp-action=\"DownloadAll\"");
+        var closed = Section(view, "@if (Model.ShowsClosedNotice)", "<a asp-action=\"DownloadAll\"");
         Assert.Contains("data checking window has closed.", closed);
         Assert.Contains("@if (Model.NextOpportunity is not null)", closed);
         Assert.Contains("The next opportunity to review your performance data will be in @Model.NextOpportunity.", closed);
         Assert.Contains("@if (Model.IsResultsEnquiryOpen)", closed);
         Assert.Contains("You can still view your exam results and report any issues.", closed);
         Assert.Contains("You can still view and download your @Model.LearnerNoun.Singular data.", closed);
+        // The view must not re-derive "closed" from "not open": that has no lower bound.
+        Assert.DoesNotContain("!Model.IsPupilDataOpen", view);
         // The old past-tense deadline sentence is gone: the paragraph above replaces it.
         Assert.DoesNotContain("closed at", view);
     }

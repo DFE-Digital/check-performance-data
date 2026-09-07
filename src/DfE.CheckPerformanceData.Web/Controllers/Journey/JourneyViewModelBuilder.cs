@@ -251,7 +251,7 @@ public sealed class JourneyViewModelBuilder(
                     // entry. The posted/validated value is the bare code; the title is display-only
                     // because sibling codes often differ only by specialism.
                     QuestionType.SyllabusSelect => journey.SelectedQualification?.SyllabusCodes
-                        .Select(c => new QuestionOption { Value = c.Code, Label = $"{c.Code} — {c.Title}" })
+                        .Select(c => new QuestionOption { Value = c.Code, Label = $"{c.Code} - {c.Title}" })
                         .ToList() ?? [],
                     _ => q.Options ?? []
                 },

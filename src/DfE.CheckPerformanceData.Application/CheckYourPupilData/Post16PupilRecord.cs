@@ -8,9 +8,9 @@ namespace DfE.CheckPerformanceData.Application.CheckYourPupilData;
 /// <c>data/{laestab}_pupils.json</c> per school. This record is therefore the union of both
 /// shapes: everything the non-included file lacks is nullable or defaulted.
 ///
-/// The non-included file has no <c>P_INCL</c> column at all, so inclusion is NOT derived from a
-/// code here. Ingress stamps an <c>INCLUDED</c> boolean from the file of origin and
-/// <see cref="IsIncluded"/> reads that.
+/// Ingress stamps an <c>INCLUDED</c> boolean from the file of origin.
+/// <see cref="IsIncluded"/> also includes records with <c>P_INCL</c> equal to 501,
+/// even when the stamped marker is false or absent.
 ///
 /// Field names differ from KS4: <c>FORENAMES</c> (plural), and identity is <c>ULN</c> — 16-19
 /// has no UPN. <c>URN</c>/<c>UKPRN</c> are strings here (the supplier declares them varchar and
@@ -54,7 +54,7 @@ public sealed class Post16PupilRecord : IPupilRecord
     public int Age { get; init; }
 
     /// <summary>Included file only: 501/502/505/506 or NULL. Absent from the non-included file.
-    /// Not used for the inclusion split — see <see cref="IsIncluded"/>.</summary>
+    /// Code 501 also marks the record as included — see <see cref="IsIncluded"/>.</summary>
     [JsonPropertyName("P_INCL")]
     public int? Pincl { get; init; }
 
@@ -93,5 +93,5 @@ public sealed class Post16PupilRecord : IPupilRecord
     public string Identifier => Uln;
 
     [JsonIgnore]
-    public bool IsIncluded => Included;
+    public bool IsIncluded => Included || Pincl == 501;
 }

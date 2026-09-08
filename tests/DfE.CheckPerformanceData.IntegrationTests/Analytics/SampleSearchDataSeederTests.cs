@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Persistence.Analytics;
@@ -136,8 +137,12 @@ public sealed class SampleSearchDataSeederTests
         var fromUtc = now - span;
         var sut = CreateSut();
 
-        var ticks = new List<SampleSearchDataSeedProgressTick>();
-        var progress = new Progress<SampleSearchDataSeedProgressTick>(t => ticks.Add(t));
+        // ConcurrentQueue, not List: Progress<T> marshals each Report call onto the ThreadPool
+        // (xUnit's async tests run without an ambient SynchronizationContext), so the callback
+        // below races the polling loop further down. A plain List<T> is not thread-safe against
+        // that — ToArray() gives the loop a stable snapshot without racing the writer.
+        var ticks = new ConcurrentQueue<SampleSearchDataSeedProgressTick>();
+        var progress = new Progress<SampleSearchDataSeedProgressTick>(t => ticks.Enqueue(t));
 
         var result = await sut.SeedAsync(
             span: span,
@@ -148,18 +153,27 @@ public sealed class SampleSearchDataSeederTests
             cancellationToken: CancellationToken.None,
             progress: progress);
 
-        // Progress delivery is async — wait briefly for the marshal-to-context posts to drain.
+        // Progress delivery is async — wait for the tick matching the seed result's written
+        // counts, not just any tick. An early intermediate tick can otherwise satisfy a naive
+        // "has anything arrived yet" check while later ticks (including the final one) are
+        // still in flight under CI load, leaving the snapshot's last entry stale when the loop
+        // exits.
         var start = DateTime.UtcNow;
-        while (ticks.Count == 0 && (DateTime.UtcNow - start) < TimeSpan.FromSeconds(2))
+        var snapshot = ticks.ToArray();
+        while ((snapshot.Length == 0 ||
+                snapshot[^1].EventsWritten != result.EventsCreated ||
+                snapshot[^1].MessagesWritten != result.MessagesCreated) &&
+               (DateTime.UtcNow - start) < TimeSpan.FromSeconds(2))
         {
             await Task.Delay(20);
+            snapshot = ticks.ToArray();
         }
 
-        Assert.True(ticks.Count >= 1,
-            $"Expected at least one progress tick for a 500-event seed; got {ticks.Count}.");
-        Assert.Equal(result.EventsCreated, ticks[^1].EventsWritten);
-        Assert.Equal(result.MessagesCreated, ticks[^1].MessagesWritten);
-        foreach (var t in ticks)
+        Assert.True(snapshot.Length >= 1,
+            $"Expected at least one progress tick for a 500-event seed; got {snapshot.Length}.");
+        Assert.Equal(result.EventsCreated, snapshot[^1].EventsWritten);
+        Assert.Equal(result.MessagesCreated, snapshot[^1].MessagesWritten);
+        foreach (var t in snapshot)
         {
             Assert.InRange(t.CurrentCursorUtc, fromUtc, now);
             Assert.True(t.EventsWritten >= 0);

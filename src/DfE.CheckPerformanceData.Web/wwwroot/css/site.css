@@ -924,13 +924,19 @@ dialog.govuk-modal-dialogue__box::backdrop {
   text-decoration: none;
 }
 
+/* messages-nav-item exists purely to bring the Messages link under this white-on-dark
+   override — it deliberately does NOT reuse admin-link-nav-item, which also sets
+   margin-left:auto and would shunt Messages to the right-hand edge of the nav band
+   next to Sign out (see the admin-link-nav-item + sign-in-nav-item rule above). */
 .admin-chrome .admin-service-navigation .sign-in-nav-item .govuk-service-navigation__link,
-.admin-chrome .admin-service-navigation .admin-link-nav-item .govuk-service-navigation__link {
+.admin-chrome .admin-service-navigation .admin-link-nav-item .govuk-service-navigation__link,
+.admin-chrome .admin-service-navigation .messages-nav-item .govuk-service-navigation__link {
   color: #ffffff;
 }
 
 .admin-chrome .admin-service-navigation .sign-in-nav-item .govuk-service-navigation__link:hover,
-.admin-chrome .admin-service-navigation .admin-link-nav-item .govuk-service-navigation__link:hover {
+.admin-chrome .admin-service-navigation .admin-link-nav-item .govuk-service-navigation__link:hover,
+.admin-chrome .admin-service-navigation .messages-nav-item .govuk-service-navigation__link:hover {
   color: #ffffff;
   text-decoration: underline;
   text-decoration-thickness: 3px;
@@ -938,7 +944,8 @@ dialog.govuk-modal-dialogue__box::backdrop {
 }
 
 .admin-chrome .admin-service-navigation .sign-in-nav-item .govuk-service-navigation__link:focus,
-.admin-chrome .admin-service-navigation .admin-link-nav-item .govuk-service-navigation__link:focus {
+.admin-chrome .admin-service-navigation .admin-link-nav-item .govuk-service-navigation__link:focus,
+.admin-chrome .admin-service-navigation .messages-nav-item .govuk-service-navigation__link:focus {
   color: #0b0c0c;
   background-color: #ffdd00;
   box-shadow: 0 -2px #ffdd00, 0 4px #0b0c0c;

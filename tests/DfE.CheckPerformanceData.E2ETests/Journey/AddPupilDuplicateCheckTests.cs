@@ -175,7 +175,102 @@ public sealed class AddPupilDuplicateCheckTests(PlaywrightFixture fixture) : See
         await Page.WaitForURLAsync($"**/Journey/{Ks4JuneWindowId}/page/evidence");
     }
 
+    // ── Summary Change-link edits re-run the duplicate check (AB#297780) ────
+    //
+    // Editing the learner-details answers from the Summary "Change" link re-posts the same page
+    // with fromSummary=true. The edit previously slipped past the duplicate check — a matched
+    // pupil edited in this way was added without ever seeing the warning — so these tests pin the
+    // seam: a match must branch to the duplicate-check page, a no-match must return to the
+    // Summary, and Continue-adding must carry on past it.
+
+    [RetryFact(3)]
+    public async Task EditFromSummary_WhenDetailsMatchExistingPupil_ShowsTheDuplicateWarning()
+    {
+        // Start on a non-matching pair (Alice Taylor 11/01/2010), reach the Summary, then edit the
+        // learner-details row to the seeded Alice Smith (included, 01/01/2010). The edit post must
+        // land on the duplicate-check page, not jump straight back to the Summary.
+        await CompleteAddJourneyToSummaryAsync();
+        await OpenLearnerDetailsEditFromSummaryAsync();
+
+        await FillLearnerDetailsAsync(
+            firstName: "Alice", lastName: "Smith", day: "1", month: "1", year: "2010",
+            sex: "F", upn: "A123456789012");
+
+        await Expect(Page.GetByRole(AriaRole.Heading, new() { Level = 1 }))
+            .ToContainTextAsync("This pupil may already be on the roll");
+        Assert.Contains("/duplicate-check", Page.Url);
+    }
+
+    [RetryFact(3)]
+    public async Task EditFromSummary_WhenDetailsMatchNoOne_ReturnsToSummary()
+    {
+        await CompleteAddJourneyToSummaryAsync();
+        await OpenLearnerDetailsEditFromSummaryAsync();
+
+        await FillLearnerDetailsAsync(
+            firstName: "Alice", lastName: "Taylor-Banks", day: "11", month: "1", year: "2010",
+            sex: "F", upn: "A123456789012");
+
+        // No seeded pair matches the edited details, so the edit keeps its pre-existing behaviour:
+        // straight back to the Summary with no duplicate warning in between.
+        await Page.WaitForURLAsync($"**/Journey/{Ks4JuneWindowId}/summary");
+        Assert.DoesNotContain("/duplicate-check", Page.Url);
+        await Expect(Page.GetByRole(AriaRole.Heading, new() { Level = 1 }))
+            .ToContainTextAsync("Summary of amendment request");
+    }
+
+    [RetryFact(3)]
+    public async Task EditFromSummary_WhenMatchWarned_ContinueAdding_ProceedsWithAdd()
+    {
+        await CompleteAddJourneyToSummaryAsync();
+        await OpenLearnerDetailsEditFromSummaryAsync();
+
+        await FillLearnerDetailsAsync(
+            firstName: "Alice", lastName: "Smith", day: "1", month: "1", year: "2010",
+            sex: "F", upn: "A123456789012");
+
+        await Expect(Page.GetByRole(AriaRole.Heading, new() { Level = 1 }))
+            .ToContainTextAsync("This pupil may already be on the roll");
+
+        var continueButton = Page.GetByRole(AriaRole.Button, new() { Name = "Continue adding" });
+        await Expect(continueButton).ToBeVisibleAsync();
+        await continueButton.ClickAsync();
+
+        // Continue-adding carries on the Add journey to the step after learner-details.
+        await Page.WaitForURLAsync($"**/Journey/{Ks4JuneWindowId}/page/admission-details");
+    }
+
     // ── helpers (mirror AddPupilJourneyTests) ───────────────────────────────
+
+    private async Task CompleteAddJourneyToSummaryAsync()
+    {
+        await StartAddJourneyAsync();
+        await FillLearnerDetailsAsync(
+            firstName: "Alice", lastName: "Taylor", day: "11", month: "1", year: "2010",
+            sex: "F", upn: "A123456789012");
+
+        await Page.WaitForURLAsync($"**/Journey/{Ks4JuneWindowId}/page/admission-details");
+        await FillDateAsync("admission-date", "1", "9", "2025");
+        await Page.Locator("input[name='q_year_group'][value='10']").CheckAsync(new() { Force = true });
+        await Page.Locator("input[name='q_sen_status'][value='N']").CheckAsync(new() { Force = true });
+        await ContinueAsync();
+
+        await Page.WaitForURLAsync($"**/Journey/{Ks4JuneWindowId}/page/evidence");
+        await Page.Locator("#q_how_evidence_supports").FillAsync("Pupil joined mid-term from another school.");
+        // The evidence page also carries "Save and continue later", so the substring Continue
+        // helper would be ambiguous here — use an exact match for the primary action.
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Continue", Exact = true }).ClickAsync();
+
+        await Page.WaitForURLAsync($"**/Journey/{Ks4JuneWindowId}/summary");
+    }
+
+    private async Task OpenLearnerDetailsEditFromSummaryAsync()
+    {
+        await Page.Locator(".govuk-summary-list__row", new() { HasText = "First name" })
+            .GetByRole(AriaRole.Link, new() { Name = "Change" })
+            .ClickAsync();
+        await Page.WaitForURLAsync($"**/Journey/{Ks4JuneWindowId}/page/learner-details*");
+    }
 
     private async Task StartAddJourneyAsync()
     {

@@ -933,6 +933,16 @@ public sealed class JourneyController(
             });
             MintSyntheticPupilIfNeeded(windowId, page);
 
+            // AB#297780 SEAM: learner-details edits committed from the Summary are the same
+            // "learner details continued" event the forward pass hooks, so run the same duplicate
+            // check here. A match stores the result and branches to the warning page; a no-match
+            // falls through to the edit-then-return-to-Summary routing below.
+            if (page.PupilFromAnswers)
+            {
+                var duplicateRedirect = await BranchToDuplicateCheckIfNeededAsync(windowId);
+                if (duplicateRedirect is not null) return duplicateRedirect;
+            }
+
             var newNextId = flowService.GetNextPageId(config, pageId, journey.QuestionAnswers);
 
             if (newNextId == oldNextId)

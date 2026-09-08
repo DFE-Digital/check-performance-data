@@ -1083,6 +1083,129 @@ public class JourneyControllerTests
         Assert.Equal(reference, edited.ReferenceNumber);
     }
 
+    // The Summary "Change" link re-posts the learner-details page with fromSummary=true. That
+    // edit is the same "learner details continued" event the forward pass hooks (AB#297780), so
+    // it must be held up by the same duplicate warning — editing a name to match an existing
+    // pupil, then continuing, would otherwise smuggle a duplicate row into the pupil list.
+    [Fact]
+    public async Task PagePost_OnPupilFromAnswersPage_FromSummary_WhenDetailsMatchExistingPupil_BranchesToDuplicateCheck()
+    {
+        SetupLearnerDetailsPage();
+        SetupSession(AddSession());
+        PostLearnerDetails();
+
+        await _sut.PagePost(WindowId, "learner-details", fromSummary: false);
+        Assert.Null(_session.GetRequestState(WindowId).DuplicateCheck);
+
+        _pupilDataService.DuplicateCheckAsync(WindowId, "Alicia", "Smith", "01/09/2010")
+            .Returns(PupilDuplicateCheckResult.Build(
+            [
+                new DuplicateMatch
+                {
+                    Id = Guid.NewGuid(),
+                    Firstname = "Alice",
+                    Surname = "Smith",
+                    DateOfBirth = "01/09/2010",
+                    Identifier = "A123456789012",
+                    IsIncluded = false
+                }
+            ]));
+
+        PostLearnerDetails(firstName: "Alicia");
+        var result = await _sut.PagePost(WindowId, "learner-details", fromSummary: true);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(JourneyController.DuplicateCheck), redirect.ActionName);
+        Assert.Equal(WindowId, redirect.RouteValues["windowId"]);
+        var saved = _session.GetRequestState(WindowId);
+        Assert.NotNull(saved.DuplicateCheck);
+        Assert.Equal("Alicia", saved.SelectedPupil!.Firstname);
+    }
+
+    // The mirror image: an edit that matches nothing must keep the existing edit-from-summary
+    // behaviour — return straight to the Summary and leave no duplicate marker behind.
+    [Fact]
+    public async Task PagePost_OnPupilFromAnswersPage_FromSummary_WhenNoMatch_ReturnsToSummaryAndClearsDuplicateCheck()
+    {
+        SetupLearnerDetailsPage();
+        SetupSession(AddSession());
+        PostLearnerDetails();
+
+        await _sut.PagePost(WindowId, "learner-details", fromSummary: false);
+
+        _pupilDataService.DuplicateCheckAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
+            .Returns(PupilDuplicateCheckResult.None);
+
+        PostLearnerDetails(firstName: "Alicia");
+        var result = await _sut.PagePost(WindowId, "learner-details", fromSummary: true);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(JourneyController.Summary), redirect.ActionName);
+        Assert.Null(_session.GetRequestState(WindowId).DuplicateCheck);
+    }
+
+    // Only the pupil-details (PupilFromAnswers) page carries the duplicate check. Editing an
+    // ordinary question page from the Summary must keep its existing return-to-Summary routing
+    // and never invoke the pupil duplicate service.
+    [Fact]
+    public async Task PagePost_FromSummary_OnNonPupilPage_DoesNotRunDuplicateCheck()
+    {
+        SetupSession(ValidSession(history: ["page-1", "page-2"]));
+        _journeyService.ValidateAnswer(Arg.Any<Question>(), Arg.Any<QuestionAnswer>(), Arg.Any<string>(), Arg.Any<string?>())
+            .Returns((string?)null);
+
+        _pupilDataService.DuplicateCheckAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
+            .Returns(PupilDuplicateCheckResult.None);
+
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>
+        {
+            ["q_q2"] = "Updated text"
+        });
+
+        var result = await _sut.PagePost(WindowId, "page-2", fromSummary: true);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(JourneyController.Summary), redirect.ActionName);
+        await _pupilDataService.DidNotReceiveWithAnyArgs().DuplicateCheckAsync(default, default!, default!, default!);
+    }
+
+    // FR-005: Continue after an edit-triggered warning carries on the Add journey to the step
+    // after learner-details — the same onward route the forward pass would have taken.
+    [Fact]
+    public async Task ContinueAdding_AfterEditTriggeredCheck_RoutesToPageAfterLearnerDetails()
+    {
+        SetupLearnerDetailsPage();
+        SetupSession(AddSession());
+        PostLearnerDetails();
+
+        await _sut.PagePost(WindowId, "learner-details", fromSummary: false);
+
+        _pupilDataService.DuplicateCheckAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
+            .Returns(PupilDuplicateCheckResult.Build(
+            [
+                new DuplicateMatch
+                {
+                    Id = Guid.NewGuid(),
+                    Firstname = "Alice",
+                    Surname = "Smith",
+                    DateOfBirth = "01/09/2010",
+                    Identifier = "A123456789012",
+                    IsIncluded = false
+                }
+            ]));
+
+        PostLearnerDetails(firstName: "Alicia");
+        await _sut.PagePost(WindowId, "learner-details", fromSummary: true);
+        Assert.NotNull(_session.GetRequestState(WindowId).DuplicateCheck);
+
+        var result = await _sut.ContinueAdding(WindowId);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(JourneyController.Page), redirect.ActionName);
+        Assert.Equal("page-2", redirect.RouteValues["pageId"]);
+        Assert.Null(_session.GetRequestState(WindowId).DuplicateCheck);
+    }
+
     // The mint runs after the validation gate, not before it. If it ever moved above the
     // early return, a rejected page would still stamp a pupil and a reference onto the session —
     // giving the journey an identity (and a draft row, once one is saved) built from answers the

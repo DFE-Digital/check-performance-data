@@ -1708,6 +1708,8 @@ public sealed class JourneyController(
         var config = await flowService.GetConfigAsync(WhatToChange.Include, windowType);
         if (config is null) return null;
 
+        var journey = HttpContext.Session.GetRequestState(windowId);
+
         var pupil = await pupilDataService.GetPupilAsync(windowId, pupilId);
 
         // AB#027: the duplicate-check hand-off must apply the same "already included" guard as the
@@ -1728,16 +1730,22 @@ public sealed class JourneyController(
 
         if (includedSuggestions is not null && includedSuggestions.Count > 0)
         {
-            var displayLabel = $"{pupil.Surname}, {pupil.Firstname}, {pupil.DateOfBirth}";
-            HttpContext.Session.SaveRequestState(windowId, s =>
+            // The duplicate-check page already surfaces each match's Included/Not-included status, so a
+            // same-name included pupil that was already on screen is not a bypass — only block when the
+            // included namesake is new information (e.g. a different-DOB pupil the check did not surface).
+            var alreadySurfaced = journey.DuplicateCheck?.Matches.Select(m => m.Id).ToHashSet() ?? [];
+            var hiddenNamesakes = includedSuggestions.Where(s => !alreadySurfaced.Contains(s.Id)).ToList();
+            if (hiddenNamesakes.Count > 0)
             {
-                s.IncludeSearchLabel = displayLabel;
-                s.IncludeMatchedPupils = includedSuggestions.ToList();
-            });
-            return RedirectToAction(nameof(AlreadyIncluded), new { windowId, backAction = nameof(DuplicateCheck) });
+                var displayLabel = $"{pupil.Surname}, {pupil.Firstname}, {pupil.DateOfBirth}";
+                HttpContext.Session.SaveRequestState(windowId, s =>
+                {
+                    s.IncludeSearchLabel = displayLabel;
+                    s.IncludeMatchedPupils = hiddenNamesakes;
+                });
+                return RedirectToAction(nameof(AlreadyIncluded), new { windowId, backAction = nameof(DuplicateCheck) });
+            }
         }
-
-        var journey = HttpContext.Session.GetRequestState(windowId);
 
         // AB#296648: the one-request-per-pupil rule belongs to the pupil-data checking exercise —
         // a results enquiry and a pupil-data amendment may legitimately coexist for the same pupil.

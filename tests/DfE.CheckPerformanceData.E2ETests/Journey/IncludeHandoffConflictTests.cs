@@ -12,7 +12,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Journey;
 // (identical to the PupilSearch conflict) and must NOT redirect to the Include evidence page.
 //
 // These browser tests drive the seeded Kingsmead School pupil blobs against the KS4June window:
-//   * non-included "Bob Johnson"  born 02/02/2010, UPN A860407000202B (index 201) -> the single
+//   * non-included "Bob Johnson"  born 02/02/2010, UPN A86040700202B (index 201) -> the single
 //     non-included match -> "Include this pupil" hand-off
 //   * "Casey Carter" born 15/03/2010 (index 300's deliberate same-name pair, one included, one
 //     not) -> the Multiple branch -> "Switch to include" on the non-included row
@@ -36,7 +36,7 @@ public sealed class IncludeHandoffConflictTests(PlaywrightFixture fixture) : See
     // Non-included pupil single-match (AddPupilDuplicateCheckTests): "Bob Johnson" 02/02/2010.
     private const string SingleSurname = "Johnson";
     private const string SingleFirstName = "Bob";
-    private const string SingleUpn = "A860407000202B";
+    private const string SingleUpn = "A86040700202B";
 
     // Deliberate same-name/DOB pair "Casey Carter" 15/03/2010 (one included, one not) -> the
     // Multiple branch; conflict seeded against the non-included row's UPN.
@@ -50,32 +50,42 @@ public sealed class IncludeHandoffConflictTests(PlaywrightFixture fixture) : See
     public async Task SelfSubmittedConflict_IncludeThisPupil_ReRendersDuplicateCheck()
     {
         await SeedHelpers.CleanupDevRequestsAsync(Fixture.SeedClient);
-        var reference = await SeedHelpers.SeedConflictRequestAsync(
-            Fixture.SeedClient, ImpersonatedUserId, SingleUpn, DevHarnessName, Ks4JuneWindowId);
+        try
+        {
+            var reference = await SeedHelpers.SeedConflictRequestAsync(
+                Fixture.SeedClient, ImpersonatedUserId, SingleUpn, DevHarnessName, Ks4JuneWindowId);
 
-        await StartAddJourneyAsync();
-        await FillLearnerDetailsAsync(SingleFirstName, SingleSurname, day: "2", month: "2", year: "2010", sex: "M");
+            await StartAddJourneyAsync();
+            await FillLearnerDetailsAsync(SingleFirstName, SingleSurname, day: "2", month: "2", year: "2010", sex: "M");
 
-        // The single non-included match offers the include hand-off.
-        var includeButton = Page.GetByRole(AriaRole.Button, new() { Name = "Include this pupil" });
-        await Expect(includeButton).ToBeVisibleAsync();
-        await includeButton.ClickAsync();
+            // The single non-included match offers the include hand-off.
+            var includeButton = Page.GetByRole(AriaRole.Button, new() { Name = "Include this pupil" });
+            await Expect(includeButton).ToBeVisibleAsync();
+            await includeButton.ClickAsync();
 
-        // Blocked: the duplicate-check page re-renders with the conflict surface, NOT a redirect.
-        Assert.Contains("/duplicate-check", Page.Url);
-        Assert.DoesNotContain("/page/evidence", Page.Url);
-        await Expect(Page.GetByRole(AriaRole.Heading, new() { Level = 1 }))
-            .ToContainTextAsync("This pupil may already be on the roll");
+            // Blocked: the duplicate-check page re-renders with the conflict surface, NOT a redirect.
+            Assert.Contains("/duplicate-check", Page.Url);
+            Assert.DoesNotContain("/page/evidence", Page.Url);
+            await Expect(Page.GetByRole(AriaRole.Heading, new() { Level = 1 }))
+                .ToContainTextAsync("This pupil may already be on the roll");
 
-        var banner = Page.Locator(".moj-alert--warning").First;
-        await Expect(banner).ToBeVisibleAsync();
-        var bannerText = await banner.InnerTextAsync();
-        Assert.Contains("You have already submitted", bannerText);
-        Assert.DoesNotContain(DevHarnessName, bannerText);
+            var banner = Page.Locator(".moj-alert--warning").First;
+            await Expect(banner).ToBeVisibleAsync();
+            var bannerText = await banner.InnerTextAsync();
+            Assert.Contains("You have already submitted", bannerText);
+            Assert.DoesNotContain(DevHarnessName, bannerText);
 
-        await AssertConflictErrorSurfaceAsync(reference);
-        // FR-006: the outcome list is still rendered for the blocked hand-off.
-        await Expect(Page.Locator("table.govuk-table")).ToContainTextAsync("Johnson, Bob");
+            await AssertConflictErrorSurfaceAsync(reference);
+            // FR-006: the outcome list is still rendered for the blocked hand-off. The single-match
+            // scenario shows the match as a summary list (the Multiple scenario renders a table).
+            await Expect(Page.Locator("dl.govuk-summary-list")).ToContainTextAsync("Johnson, Bob");
+        }
+        finally
+        {
+            // The seeded request must not leak into other tests (the Add-journey class runs in the
+            // same suite and Bob Johnson's single match would otherwise get blocked).
+            await SeedHelpers.CleanupDevRequestsAsync(Fixture.SeedClient);
+        }
     }
 
     // ── US2: a colleague's conflict blocks the Switch-to-include hand-off ────
@@ -84,32 +94,39 @@ public sealed class IncludeHandoffConflictTests(PlaywrightFixture fixture) : See
     public async Task OtherSubmittedConflict_SwitchToInclude_ShowsColleagueNameAndBlocksRedirect()
     {
         await SeedHelpers.CleanupDevRequestsAsync(Fixture.SeedClient);
-        var reference = await SeedHelpers.SeedConflictRequestAsync(
-            Fixture.SeedClient, Guid.NewGuid(), MultipleUpn, DevHarnessName, Ks4JuneWindowId);
+        try
+        {
+            var reference = await SeedHelpers.SeedConflictRequestAsync(
+                Fixture.SeedClient, Guid.NewGuid(), MultipleUpn, DevHarnessName, Ks4JuneWindowId);
 
-        await StartAddJourneyAsync();
-        await FillLearnerDetailsAsync(MultipleFirstName, MultipleSurname, day: "15", month: "3", year: "2010", sex: "F");
+            await StartAddJourneyAsync();
+            await FillLearnerDetailsAsync(MultipleFirstName, MultipleSurname, day: "15", month: "3", year: "2010", sex: "F");
 
-        var switchButton = Page.GetByRole(AriaRole.Button, new() { Name = "Switch to include" });
-        await Expect(switchButton).ToBeVisibleAsync();
-        await switchButton.ClickAsync();
+            var switchButton = Page.GetByRole(AriaRole.Button, new() { Name = "Switch to include" });
+            await Expect(switchButton).ToBeVisibleAsync();
+            await switchButton.ClickAsync();
 
-        Assert.Contains("/duplicate-check", Page.Url);
-        Assert.DoesNotContain("/page/evidence", Page.Url);
-        await Expect(Page.GetByRole(AriaRole.Heading, new() { Level = 1 }))
-            .ToContainTextAsync("This pupil may already be on the roll");
+            Assert.Contains("/duplicate-check", Page.Url);
+            Assert.DoesNotContain("/page/evidence", Page.Url);
+            await Expect(Page.GetByRole(AriaRole.Heading, new() { Level = 1 }))
+                .ToContainTextAsync("This pupil may already be on the roll");
 
-        var banner = Page.Locator(".moj-alert--warning").First;
-        await Expect(banner).ToBeVisibleAsync();
-        var bannerText = await banner.InnerTextAsync();
-        Assert.Contains("Your colleague", bannerText);
-        Assert.Contains(DevHarnessName, bannerText);
+            var banner = Page.Locator(".moj-alert--warning").First;
+            await Expect(banner).ToBeVisibleAsync();
+            var bannerText = await banner.InnerTextAsync();
+            Assert.Contains("Your colleague", bannerText);
+            Assert.Contains(DevHarnessName, bannerText);
 
-        await AssertConflictErrorSurfaceAsync(reference);
-        // FR-006: the outcome list (both rows) is still rendered.
-        var tableText = await Page.Locator("table.govuk-table").InnerTextAsync();
-        Assert.Contains("Carter, Casey", tableText);
-        Assert.Contains("15/03/2010", tableText);
+            await AssertConflictErrorSurfaceAsync(reference);
+            // FR-006: the outcome list (both rows) is still rendered.
+            var tableText = await Page.Locator("table.govuk-table").InnerTextAsync();
+            Assert.Contains("Carter, Casey", tableText);
+            Assert.Contains("15/03/2010", tableText);
+        }
+        finally
+        {
+            await SeedHelpers.CleanupDevRequestsAsync(Fixture.SeedClient);
+        }
     }
 
     // ── helpers (mirror AddPupilDuplicateCheckTests) ────────────────────────
@@ -149,7 +166,7 @@ public sealed class IncludeHandoffConflictTests(PlaywrightFixture fixture) : See
         await FillDateAsync("date-of-birth", day, month, year);
         await Page.Locator($"input[name='q_sex'][value='{sex}']").CheckAsync(new() { Force = true });
         await ContinueAsync();
-        await Page.WaitForURLAsync($"**/Journey/{Ks4JuneWindowId}/page/duplicate-check");
+        await Page.WaitForURLAsync($"**/Journey/{Ks4JuneWindowId}/duplicate-check");
     }
 
     private async Task FillDateAsync(string questionId, string day, string month, string year)

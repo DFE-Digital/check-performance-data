@@ -13,7 +13,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Journey;
 // These browser tests pin the seam at the only place it surfaces end-to-end: the redirect after
 // the learner-details post. They use the seeded Kingsmead School pupil blobs:
 //   * included "Alice Smith"  born 01/01/2010 (index 0), UPN A860407000001B
-//   * non-included "Bob Johnson" born 02/02/2010 (index 201), UPN A860407000202B
+//   * non-included "Bob Johnson" born 02/02/2010 (index 201), UPN A86040700202B
 //   * a deliberate same-name/DOB pair "Casey Carter" born 15/03/2010 — one included, one not
 //     (SeedPupilData.GenerateDuplicateMatchPair) — which drives the Multiple scenario below
 [Collection("E2E")]

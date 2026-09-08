@@ -202,8 +202,11 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
         await NavigateToGradePageAsync();
 
         // The summary row still states the current grade, so the user knows what they are revising.
-        await Expect(Page.Locator(".govuk-summary-list")).ToContainTextAsync("Current grade");
-        await Expect(Page.Locator(".govuk-summary-list")).ToContainTextAsync(BusStudsCurrentGrade);
+        // Scoped to the row: the same list holds the CYPMD ID 500001, which contains a "5" and would
+        // satisfy a list-wide substring match even if this row vanished (review F3).
+        var currentGradeRow = Page.Locator(".govuk-summary-list__row").Filter(new() { HasText = "Current grade" });
+        await Expect(currentGradeRow).ToHaveCountAsync(1);
+        await Expect(currentGradeRow.Locator(".govuk-summary-list__value")).ToHaveTextAsync(BusStudsCurrentGrade);
 
         var input = Page.Locator("input#q_q_revised_grade");
         await Expect(input).ToBeVisibleAsync();
@@ -213,6 +216,9 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
             .GetByText(BusStudsCurrentGrade, new() { Exact = true });
         await Expect(exactMatch).ToHaveCountAsync(0);
 
+        // Positive count beside the negative one, so this fact cannot pass on an absent select:
+        // placeholder + the ten remaining grades of the 9-1 scale (review F4).
+        await Expect(Page.Locator("select[name='q_q_revised_grade'] option")).ToHaveCountAsync(11);
         var hiddenOption = Page.Locator($"select[name='q_q_revised_grade'] option[value='{BusStudsCurrentGrade}']");
         await Expect(hiddenOption).ToHaveCountAsync(0);
     }

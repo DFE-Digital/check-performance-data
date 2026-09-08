@@ -1595,6 +1595,7 @@ public sealed class JourneyController(
     public async Task<IActionResult> AbortDuplicateCheck(Guid windowId)
     {
         var journey = HttpContext.Session.GetRequestState(windowId);
+        if (!IsSessionReady(journey)) return RedirectToCheckYourData(windowId);
 
         await analytics.TrackSafeAsync(new DuplicateCheckDecisionEvent
         {
@@ -1733,7 +1734,7 @@ public sealed class JourneyController(
                 s.IncludeSearchLabel = displayLabel;
                 s.IncludeMatchedPupils = includedSuggestions.ToList();
             });
-            return RedirectToAction(nameof(AlreadyIncluded), new { windowId });
+            return RedirectToAction(nameof(AlreadyIncluded), new { windowId, backAction = nameof(DuplicateCheck) });
         }
 
         var journey = HttpContext.Session.GetRequestState(windowId);
@@ -1863,7 +1864,7 @@ public sealed class JourneyController(
     /// PII) and consumed on arrival. A direct hit with no pending label bounces back out.
     /// </summary>
     [Route("/Journey/{windowId}/already-included")]
-    public async Task<IActionResult> AlreadyIncluded(Guid windowId, string? pageId = null)
+    public async Task<IActionResult> AlreadyIncluded(Guid windowId, string? pageId = null, string? backAction = null)
     {
         var journey = HttpContext.Session.GetRequestState(windowId);
         if (!IsSessionReady(journey)) return RedirectToCheckYourData(windowId);
@@ -1883,7 +1884,8 @@ public sealed class JourneyController(
             WindowId = windowId,
             TypedPupilLabel = label,
             Matches = matches,
-            BackPageId = pageId
+            BackPageId = pageId,
+            BackPageAction = backAction ?? nameof(PupilSearchPage)
         });
     }
 

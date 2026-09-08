@@ -220,10 +220,31 @@ public class IncludeNoResultsDecisionTests
         Assert.Equal("Smith", model.TypedPupilLabel);
         var match = Assert.Single(model.Matches);
         Assert.Equal("Smith, Alice, 01/01/2010", match.Label);
+        // The default back link (reached from the Include search) points at the pupil search
+        // page, not at the duplicate-check page.
+        Assert.Equal(nameof(JourneyController.PupilSearchPage), model.BackPageAction);
         // Consumed on arrival: both the label and the match list are cleared so the URL can't be
         // reused to replay the (PII) decision.
         Assert.Null(_session.GetRequestState(WindowId).IncludeSearchLabel);
         Assert.Null(_session.GetRequestState(WindowId).IncludeMatchedPupils);
+    }
+
+    // -- AB#297780: when reached from the duplicate-check hand-off, the back link returns to
+    // the match list rather than the Include search page --
+
+    [Fact]
+    public async Task AlreadyIncluded_WhenBackActionIsDuplicateCheck_SetsBackPageAction()
+    {
+        SetupSession(SessionForIncludeWith(
+            label: "Smith",
+            matches: [IncludedSuggestion]));
+
+        var result = await _sut.AlreadyIncluded(WindowId, pageId: null, backAction: nameof(JourneyController.DuplicateCheck));
+
+        var view = Assert.IsType<ViewResult>(result);
+        var model = Assert.IsType<IncludeAlreadyIncludedViewModel>(view.Model);
+        Assert.Equal(nameof(JourneyController.DuplicateCheck), model.BackPageAction);
+        Assert.Null(model.BackPageId);
     }
 
     // -- T006: blank typed text + no selection → existing validation error (unchanged) --

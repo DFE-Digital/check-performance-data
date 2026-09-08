@@ -9,7 +9,7 @@
 {
     WindowId = Model.WindowId,
     BackPageId = Model.BackPageId,
-    BackPageAction = nameof(DfE.CheckPerformanceData.Web.Controllers.Journey.JourneyController.PupilSearchPage),
+    BackPageAction = Model.BackPageAction,
     Page = new() { Id = "select-pupil" },
     Answers = new(),
     QuestionModels = []
@@ -22,7 +22,7 @@
 </govuk-warning-text>
 
 <p class="govuk-body">
-    No non-included pupils where found. The pupil may already be the subject of an active request on the included list. You do not need to include them again.
+    No non-included pupils were found. The pupil may already be the subject of an active request on the included list. You do not need to include them again.
 </p>
 
 @if (Model.Matches.Count > 0)

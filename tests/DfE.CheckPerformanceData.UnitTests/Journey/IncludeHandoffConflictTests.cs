@@ -323,6 +323,9 @@ public class IncludeHandoffConflictTests
 
         var redirect = Assert.IsType<RedirectToActionResult>(result);
         Assert.Equal("AlreadyIncluded", redirect.ActionName);
+        // AB#297780: the warning came from the duplicate-check hand-off, so "Back" must return to
+        // the match list — the pageId-less DuplicateCheck action, not the Include search.
+        Assert.Equal("DuplicateCheck", redirect.RouteValues!["backAction"]);
 
         var saved = _session.GetRequestState(WindowId);
         Assert.Equal(WhatToChange.Add, saved.SelectedWhatToChange);
@@ -350,6 +353,7 @@ public class IncludeHandoffConflictTests
 
         var redirect = Assert.IsType<RedirectToActionResult>(result);
         Assert.Equal("AlreadyIncluded", redirect.ActionName);
+        Assert.Equal("DuplicateCheck", redirect.RouteValues!["backAction"]);
 
         var saved = _session.GetRequestState(WindowId);
         Assert.Equal(WhatToChange.Add, saved.SelectedWhatToChange);

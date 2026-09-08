@@ -1206,6 +1206,48 @@ public class JourneyControllerTests
         Assert.Null(_session.GetRequestState(WindowId).DuplicateCheck);
     }
 
+    // The abort action backs out of adding a pupil who is already on the roll. Like every other
+    // duplicate-check POST it must not fire an analytics event (or touch the session) when the
+    // session was never started or the exercise has closed — a stale POST should not log an "abort"
+    // decision against a "None" scenario.
+    [Fact]
+    public async Task AbortDuplicateCheck_WhenSessionNotReady_RedirectsToCheckYourData()
+    {
+        SetupSession(new RequestState());
+
+        var result = await _sut.AbortDuplicateCheck(WindowId);
+
+        AssertRedirectToCheckYourData(result);
+        await _analytics.DidNotReceive().TrackSafeAsync(Arg.Any<DuplicateCheckDecisionEvent>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AbortDuplicateCheck_WhenSessionReady_EmitsAbortEventAndClearsDuplicateCheck()
+    {
+        var state = ValidSession();
+        state.DuplicateCheck = PupilDuplicateCheckResult.Build(
+        [
+            new DuplicateMatch
+            {
+                Id = Guid.NewGuid(),
+                Firstname = "Alice",
+                Surname = "Smith",
+                DateOfBirth = "01/01/2010",
+                Identifier = "A123456789012",
+                IsIncluded = false
+            }
+        ]);
+        SetupSession(state);
+
+        var result = await _sut.AbortDuplicateCheck(WindowId);
+
+        AssertRedirectToCheckYourData(result);
+        Assert.Null(_session.GetRequestState(WindowId).DuplicateCheck);
+        await _analytics.Received(1).TrackSafeAsync(
+            Arg.Is<DuplicateCheckDecisionEvent>(e => e.Action == "abort" && e.Scenario == "SingleNonIncluded"),
+            Arg.Any<CancellationToken>());
+    }
+
     // The mint runs after the validation gate, not before it. If it ever moved above the
     // early return, a rejected page would still stamp a pupil and a reference onto the session —
     // giving the journey an identity (and a draft row, once one is saved) built from answers the

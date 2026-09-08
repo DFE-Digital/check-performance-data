@@ -16,6 +16,11 @@ public sealed class IncludeAlreadyIncludedViewModel
     /// <summary>The pageId of the pupil search page to return to via the back link.</summary>
     public string? BackPageId { get; set; }
 
+    /// <summary>The JourneyController action the Back link targets. Defaults to the Include pupil
+    /// search page; the duplicate-check hand-off sets it to <see cref="JourneyController.DuplicateCheck"/>
+    /// so "Back" returns to the match list the pupil was included from.</summary>
+    public string BackPageAction { get; set; } = nameof(JourneyController.PupilSearchPage);
+
     /// <summary>The name the user typed. Display only — never logged or placed in analytics.</summary>
     public string? TypedPupilLabel { get; set; }
 

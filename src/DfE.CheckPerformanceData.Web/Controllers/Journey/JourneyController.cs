@@ -1632,9 +1632,9 @@ public sealed class JourneyController(
         var match = r.Matches[0];
 
         var redirect = await HandoffToIncludeJourneyAsync(windowId, windowType, match.Id);
-        // AB#297780: a conflict re-renders the duplicate-check page — never record an include
-        // decision for a blocked hand-off (same conflict surface as PupilSearchPost).
-        if (redirect is ViewResult) return redirect;
+        // AB#297780: a conflict re-renders the duplicate-check page, and AB#027 an already-included
+        // hand-off redirects to the warning page — never record an include decision for a blocked hand-off.
+        if (redirect is ViewResult or RedirectToActionResult { ActionName: nameof(AlreadyIncluded) }) return redirect;
         if (redirect is null) return RedirectToCheckYourData(windowId);
 
         await analytics.TrackSafeAsync(new DuplicateCheckDecisionEvent
@@ -1669,9 +1669,10 @@ public sealed class JourneyController(
             return RedirectToAction(nameof(DuplicateCheck), new { windowId });
 
         var redirect = await HandoffToIncludeJourneyAsync(windowId, windowType, pupilId);
-        // AB#297780: a conflict re-renders the duplicate-check page — never record a
-        // switch-to-include decision for a blocked hand-off (same conflict surface as PupilSearchPost).
-        if (redirect is ViewResult) return redirect;
+        // AB#297780: a conflict re-renders the duplicate-check page, and AB#027 an already-included
+        // hand-off redirects to the warning page — never record a switch-to-include decision for a
+        // blocked hand-off (same conflict surface as PupilSearchPost).
+        if (redirect is ViewResult or RedirectToActionResult { ActionName: nameof(AlreadyIncluded) }) return redirect;
         if (redirect is null) return RedirectToCheckYourData(windowId);
 
         await analytics.TrackSafeAsync(new DuplicateCheckDecisionEvent
@@ -1707,6 +1708,33 @@ public sealed class JourneyController(
         if (config is null) return null;
 
         var pupil = await pupilDataService.GetPupilAsync(windowId, pupilId);
+
+        // AB#027: the duplicate-check hand-off must apply the same "already included" guard as the
+        // Include flow's own select-pupil search page. The duplicate check may surface a non-included
+        // pupil whose name matches a pupil already on the included list, and switching to include must
+        // not silently bypass the warning the search page enforces.
+        IReadOnlyList<PupilSuggestionDto>? includedSuggestions = null;
+        try
+        {
+            includedSuggestions = await pupilDataService.GetPupilSuggestionsAsync(
+                windowId, $"{pupil.Firstname} {pupil.Surname}".Trim(), PupilFilter.Included);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Included-pupil lookup failed for Include hand-off guard; proceeding as normal. windowId={WindowId}", windowId);
+            includedSuggestions = null;
+        }
+
+        if (includedSuggestions is not null && includedSuggestions.Count > 0)
+        {
+            var displayLabel = $"{pupil.Surname}, {pupil.Firstname}, {pupil.DateOfBirth}";
+            HttpContext.Session.SaveRequestState(windowId, s =>
+            {
+                s.IncludeSearchLabel = displayLabel;
+                s.IncludeMatchedPupils = includedSuggestions.ToList();
+            });
+            return RedirectToAction(nameof(AlreadyIncluded), new { windowId });
+        }
 
         var journey = HttpContext.Session.GetRequestState(windowId);
 

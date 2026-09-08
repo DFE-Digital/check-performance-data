@@ -50,6 +50,7 @@ public class IncludeHandoffConflictTests
 
     private static readonly Guid WindowId = Guid.Parse("11111111-1111-1111-1111-111111111111");
     private static readonly Guid MatchPupilId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+    private static readonly Guid IncludedPupilId = Guid.Parse("dddddddd-dddd-dddd-dddd-dddddddddddd");
 
     private static readonly JourneyPage IncludeSearchPage = new()
     {
@@ -289,6 +290,85 @@ public class IncludeHandoffConflictTests
         SetupSession(AddSessionAwaitingInclude(MultipleCheck));
         _flowService.GetConfigAsync(WhatToChange.Include, CheckingWindowType.KS4June).Returns(IncludeConfig);
         _pupilDataService.GetPupilAsync(WindowId, MatchPupilId).Returns(MatchPupil);
+
+        var result = await _sut.SwitchToInclude(WindowId, MatchPupilId);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Page", redirect.ActionName);
+        Assert.Equal("evidence", redirect.RouteValues!["pageId"]);
+
+        var saved = _session.GetRequestState(WindowId);
+        Assert.Equal(WhatToChange.Include, saved.SelectedWhatToChange);
+        Assert.Equal(MatchPupilId, saved.SelectedPupil?.Id);
+        Assert.Null(saved.DuplicateCheck);
+
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<DuplicateCheckDecisionEvent>(e => e.Scenario == "Multiple" && e.Action == "switch-to-include"),
+            Arg.Any<CancellationToken>());
+        await AssertNoValidationErrorEvent();
+    }
+
+    // ── AB#027 already-included guard at the hand-off ──────────────────────
+
+    [Fact]
+    public async Task IncludeThisPupil_WhenSameNameAlreadyIncluded_RedirectsToAlreadyIncludedWithoutSeeding()
+    {
+        SetupSession(AddSessionAwaitingInclude(SingleNonIncludedCheck));
+        _flowService.GetConfigAsync(WhatToChange.Include, CheckingWindowType.KS4June).Returns(IncludeConfig);
+        _pupilDataService.GetPupilAsync(WindowId, MatchPupilId).Returns(MatchPupil);
+        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "John Doe", PupilFilter.Included)
+            .Returns([new PupilSuggestionDto(IncludedPupilId, "Doe, John", "John", "Doe", "02/02/2010")]);
+
+        var result = await _sut.IncludeThisPupil(WindowId);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("AlreadyIncluded", redirect.ActionName);
+
+        var saved = _session.GetRequestState(WindowId);
+        Assert.Equal(WhatToChange.Add, saved.SelectedWhatToChange);
+        Assert.Null(saved.SelectedPupil);
+        Assert.NotNull(saved.DuplicateCheck);
+        Assert.Equal("Doe, John, 02/02/2010", saved.IncludeSearchLabel);
+        var matches = Assert.Single(saved.IncludeMatchedPupils!);
+        Assert.Equal(IncludedPupilId, matches.Id);
+
+        await _requestService.DidNotReceive().HasSubmittedRequestAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<long>());
+        await _analytics.DidNotReceive().TrackAsync(Arg.Any<DuplicateCheckDecisionEvent>(), Arg.Any<CancellationToken>());
+        await AssertNoValidationErrorEvent();
+    }
+
+    [Fact]
+    public async Task SwitchToInclude_WhenSameNameAlreadyIncluded_RedirectsToAlreadyIncluded()
+    {
+        SetupSession(AddSessionAwaitingInclude(MultipleCheck));
+        _flowService.GetConfigAsync(WhatToChange.Include, CheckingWindowType.KS4June).Returns(IncludeConfig);
+        _pupilDataService.GetPupilAsync(WindowId, MatchPupilId).Returns(MatchPupil);
+        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "John Doe", PupilFilter.Included)
+            .Returns([new PupilSuggestionDto(IncludedPupilId, "Doe, John", "John", "Doe", "02/02/2010")]);
+
+        var result = await _sut.SwitchToInclude(WindowId, MatchPupilId);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("AlreadyIncluded", redirect.ActionName);
+
+        var saved = _session.GetRequestState(WindowId);
+        Assert.Equal(WhatToChange.Add, saved.SelectedWhatToChange);
+        Assert.Null(saved.SelectedPupil);
+        Assert.NotNull(saved.DuplicateCheck);
+
+        await _requestService.DidNotReceive().HasSubmittedRequestAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<long>());
+        await _analytics.DidNotReceive().TrackAsync(Arg.Any<DuplicateCheckDecisionEvent>(), Arg.Any<CancellationToken>());
+        await AssertNoValidationErrorEvent();
+    }
+
+    [Fact]
+    public async Task SwitchToInclude_WhenNoAlreadyIncludedNameMatch_ProceedsToSeed()
+    {
+        SetupSession(AddSessionAwaitingInclude(MultipleCheck));
+        _flowService.GetConfigAsync(WhatToChange.Include, CheckingWindowType.KS4June).Returns(IncludeConfig);
+        _pupilDataService.GetPupilAsync(WindowId, MatchPupilId).Returns(MatchPupil);
+        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "John Doe", PupilFilter.Included)
+            .Returns([]);
 
         var result = await _sut.SwitchToInclude(WindowId, MatchPupilId);
 

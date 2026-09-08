@@ -36,6 +36,10 @@
     <_ContentIncludedByDefault Remove="Views\Secret\Index.cshtml" />
     <_ContentIncludedByDefault Remove="Views\Shared\Components\SummaryListRow\Default.cshtml" />
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="Data/Ingress/ingress/*.csv" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Update="Data/Ingress/schema/*.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
   <!-- Rules-config seed JSON, linked from the rules-engine worker so there is one source of
        truth. RulesConfigSeeder (run from the dev-data seeding orchestrator in dev/E2E) reads
        these from the "seed" folder next to the binary to self-seed the rules-config blobs. -->

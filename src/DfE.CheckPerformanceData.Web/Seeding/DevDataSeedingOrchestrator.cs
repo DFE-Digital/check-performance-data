@@ -1,3 +1,5 @@
+using Azure.Storage.Blobs;
+using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
@@ -18,6 +20,8 @@ namespace DfE.CheckPerformanceData.Web.Seeding;
 // API-version mismatch in Development only, exactly as before.
 public sealed class DevDataSeedingOrchestrator(
     DevDataSeeder devDataSeeder,
+    IPortalDbContext dbContext,
+    BlobServiceClient blobServiceClient,
     IPupilDataBlobClient pupilDataBlobClient,
     IStudentResultsClient studentResultsClient,
     IRequestRepository requestRepository,
@@ -33,6 +37,7 @@ public sealed class DevDataSeedingOrchestrator(
     public async Task RunAsync()
     {
         await devDataSeeder.SeedAsync();
+        await SeedPost16Ingress.ExecuteSeedAsync(dbContext, blobServiceClient, environment.ContentRootPath);
 
         await SeedPupilData.ExecuteSeedAsync(pupilDataBlobClient);
         await SeedPupilData.ExecutePost16SeedAsync(pupilDataBlobClient, DevDataSeeder.Post16CheckingWindowId);

@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "post16NonIncludedPupilDataSchema.json",
+  "title": "Post16 Non Included Pupil Data",
+  "type": "object",
+  "additionalProperties": false,
+
+  "required": [
+    "SCHCNO",
+    "CYPMD_ID",
+    "SURNAME",
+    "FORENAMES",
+    "SEX",
+    "DOB",
+    "AGE",
+    "LAESTAB",
+    "URN",
+    "UKPRN",
+    "ULN",
+    "PTSPE",
+    "GPTSPE",
+    "CampID_0",
+    "CampID_1"
+  ],
+
+  "properties": {
+    "SCHCNO": {
+      "type": "string",
+      "maxLength": 20,
+      "description": "Candidate number allocated to each student within the school or college."
+    },
+
+    "CYPMD_ID": {
+      "type": ["string", "null"],
+      "maxLength": 20,
+      "description": "Student index number used in the checking exercise."
+    },
+
+    "SURNAME": {
+      "type": "string",
+      "maxLength": 100,
+      "description": "Student surname."
+    },
+
+    "FORENAMES": {
+      "type": "string",
+      "maxLength": 100,
+      "description": "Student forename(s)."
+    },
+
+    "SEX": {
+      "type": "string",
+      "enum": [
+        "F",
+        "M"
+      ],
+      "description": "Student sex."
+    },
+
+    "DOB": {
+      "type": "string",
+      "description": "Date of birth in DD/MM/YYYY format."
+    },
+
+    "AGE": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 99,
+      "description": "Student age at the beginning of the reporting year."
+    },
+
+    "LAESTAB": {
+      "type": "string",
+      "maxLength": 7,
+      "description": "DfE establishment number."
+    },
+
+    "URN": {
+      "type": "string",
+      "maxLength": 10,
+      "description": "Unique Reference Number."
+    },
+
+    "UKPRN": {
+      "type": "string",
+      "maxLength": 20,
+      "description": "UK Provider Registration Number."
+    },
+
+    "ULN": {
+      "type": ["string", "null"],
+      "maxLength": 20,
+      "description": "Unique Learner Number."
+    },
+
+    "PTSPE": {
+      "type": ["number", "null"],
+      "description": "KS4 prior attainment from all approved KS4 qualifications."
+    },
+
+    "GPTSPE": {
+      "type": ["number", "null"],
+      "description": "KS4 prior attainment from approved academic KS4 qualifications."
+    },
+
+    "CampID_0": {
+      "type": ["string", "null"],
+      "description": "Campus identifier for the 2025/26 academic year."
+    },
+
+    "CampID_1": {
+      "type": ["string", "null"],
+      "description": "Campus identifier for the 2024/25 academic year."
+    }
+  }
+}

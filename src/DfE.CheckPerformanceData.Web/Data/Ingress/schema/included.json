@@ -1,0 +1,294 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "post16IncludedPupilDataSchema.json",
+  "title": "Post16 Included Pupil Data",
+  "type": "object",
+  "additionalProperties": false,
+
+  "required": [
+    "CYPMD_ID",
+    "SURNAME",
+    "FORENAMES",
+    "SEX",
+    "DOB",
+    "AGE",
+    "P_INCL",
+    "P_INCL_aims",
+    "attendance_year_0",
+    "attendance_year_1",
+    "attendance_year_2",
+    "src_laestab_0",
+    "src_laestab_1",
+    "src_laestab_2",
+    "LAESTAB",
+    "URN",
+    "UKPRN",
+    "ULN",
+    "KS4_DISADVANTAGE",
+    "ALEV",
+    "TOTENTS_ALEV",
+    "TOTPTSE_ALEV",
+    "ACAD",
+    "TOTENTS_ACAD",
+    "TOTPTSE_ACAD",
+    "TLEV",
+    "TOTENTS_TLEV",
+    "TOTPTSE_TLEV",
+    "AGEN",
+    "TOTENTS_AGEN",
+    "TOTPTSE_AGEN",
+    "TechCert",
+    "TOTENTS_TechCert",
+    "TOTPTSE_TechCert",
+    "TLEVEL",
+    "TOTENTS_TLEVEL",
+    "TOTPTSE_TLEVEL",
+    "L3_FLAG",
+    "TechCert_nodisc",
+    "L2VOC_nodisc",
+    "TLEV_nodisc",
+    "TLEV_denom",
+    "AGEN_nodisc",
+    "AGEN_denom",
+    "LearningAimReference",
+    "INSCOPE_E",
+    "PROGRESS_E",
+    "BASE_pts_E",
+    "BEST_E",
+    "EXEMPT_E",
+    "NO_ENTRIES_E",
+    "INSCOPE_M",
+    "PROGRESS_M",
+    "BASE_pts_M",
+    "BEST_M",
+    "EXEMPT_M",
+    "NO_ENTRIES_M",
+    "BEST_L3M",
+    "InScope_L3M",
+    "ACH_L3M",
+    "Retention_CompletionStatus",
+    "AimSize_Final",
+    "CoreAimFlag",
+    "Ret_Trigger",
+    "InScope_ALEV_Ret",
+    "Retained_ALEV_Ret",
+    "Ret_Assessed_ALEV",
+    "InScope_ALEV_2ndYr",
+    "Retained_ALEV_2ndYr",
+    "InScope_ACAD_Ret",
+    "Retained_ACAD_Ret",
+    "Ret_Assessed_ACAD",
+    "InScope_ACAD_2ndYr",
+    "Retained_ACAD_2ndYr",
+    "InScope_TLEV_Ret",
+    "Retained_TLEV_Ret",
+    "Ret_Assessed_TLEV",
+    "InScope_TLEV_2ndYr",
+    "Retained_TLEV_2ndYr",
+    "InScope_AGEN_Ret",
+    "Retained_AGEN_Ret",
+    "Ret_Assessed_AGEN",
+    "InScope_AGEN_2ndYr",
+    "Retained_AGEN_2ndYr",
+    "InScope_TechCert_Ret",
+    "Retained_TechCert_Ret",
+    "Ret_Assessed_TechCert",
+    "INCLUDE_B3",
+    "B3PTSE_B3",
+    "INCLUDE_AAB",
+    "AAB_FAC",
+    "KS4_Year_Calc"
+  ],
+
+  "properties": {
+    "CYPMD_ID": {
+      "type": "string",
+      "maxLength": 20
+    },
+    "SURNAME": {
+      "type": "string",
+      "maxLength": 100
+    },
+    "FORENAMES": {
+      "type": "string",
+      "maxLength": 100
+    },
+    "SEX": {
+      "type": "string",
+      "enum": ["F", "M"]
+    },
+    "DOB": {
+      "type": "string"
+    },
+    "AGE": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 99
+    },
+    "P_INCL": {
+      "type": ["integer", "null"],
+      "enum": [501, 502, 505, 506, null]
+    },
+    "P_INCL_aims": {
+      "type": ["integer", "null"],
+      "enum": [503, 504, null]
+    },
+
+    "attendance_year_0": {
+      "type": "integer",
+      "enum": [0, 1]
+    },
+    "attendance_year_1": {
+      "type": "integer",
+      "enum": [0, 1]
+    },
+    "attendance_year_2": {
+      "type": "integer",
+      "enum": [0, 1]
+    },
+
+    "src_laestab_0": {
+      "type": ["string", "null"],
+      "enum": ["SC", "AO", "ILR", "", null]
+    },
+    "src_laestab_1": {
+      "type": ["string", "null"],
+      "enum": ["SC", "AO", "ILR", "", null]
+    },
+    "src_laestab_2": {
+      "type": ["string", "null"],
+      "enum": ["SC", "AO", "ILR", "", null]
+    },
+
+    "LAESTAB": {
+      "type": "string",
+      "maxLength": 7
+    },
+    "URN": {
+      "type": "string",
+      "maxLength": 10
+    },
+    "UKPRN": {
+      "type": "string",
+      "maxLength": 10
+    },
+    "ULN": {
+      "type": ["string", "null"],
+      "maxLength": 20
+    },
+
+    "KS4_DISADVANTAGE": {
+      "type": ["integer", "null"],
+      "enum": [0, 1, null]
+    },
+
+    "ALEV": { "type": "integer", "enum": [0, 1] },
+    "TOTENTS_ALEV": { "type": "number" },
+    "TOTPTSE_ALEV": { "type": "number" },
+
+    "ACAD": { "type": "integer", "enum": [0, 1] },
+    "TOTENTS_ACAD": { "type": "number" },
+    "TOTPTSE_ACAD": { "type": "number" },
+
+    "TLEV": { "type": "integer", "enum": [0, 1] },
+    "TOTENTS_TLEV": { "type": "number" },
+    "TOTPTSE_TLEV": { "type": "number" },
+
+    "AGEN": { "type": "integer", "enum": [0, 1] },
+    "TOTENTS_AGEN": { "type": "number" },
+    "TOTPTSE_AGEN": { "type": "number" },
+
+    "TechCert": { "type": "integer", "enum": [0, 1] },
+    "TOTENTS_TechCert": { "type": "number" },
+    "TOTPTSE_TechCert": { "type": "number" },
+
+    "TLEVEL": { "type": "integer", "enum": [0, 1] },
+    "TOTENTS_TLEVEL": { "type": "number" },
+    "TOTPTSE_TLEVEL": { "type": "number" },
+
+    "L3_FLAG": { "type": "integer", "enum": [0, 1] },
+
+    "TechCert_nodisc": { "type": "integer", "enum": [0, 1] },
+    "L2VOC_nodisc": { "type": "integer", "enum": [0, 1] },
+    "TLEV_nodisc": { "type": "integer", "enum": [0, 1] },
+    "TLEV_denom": { "type": "integer", "enum": [0, 1] },
+    "AGEN_nodisc": { "type": "integer", "enum": [0, 1] },
+    "AGEN_denom": { "type": "integer", "enum": [0, 1] },
+
+    "LearningAimReference": {
+      "type": ["string", "null"],
+      "maxLength": 8
+    },
+
+    "INSCOPE_E": { "type": "integer", "enum": [0, 1] },
+    "PROGRESS_E": { "type": "number" },
+    "BASE_pts_E": { "type": "number" },
+    "BEST_E": { "type": "number" },
+    "EXEMPT_E": { "type": ["integer", "null"] },
+    "NO_ENTRIES_E": { "type": "integer", "enum": [0, 1] },
+
+    "INSCOPE_M": { "type": "integer", "enum": [0, 1] },
+    "PROGRESS_M": { "type": "number" },
+    "BASE_pts_M": { "type": "number" },
+    "BEST_M": { "type": "number" },
+    "EXEMPT_M": { "type": ["integer", "null"] },
+    "NO_ENTRIES_M": { "type": "integer", "enum": [0, 1] },
+
+    "BEST_L3M": { "type": "integer", "enum": [0, 1] },
+    "InScope_L3M": { "type": "integer", "enum": [0, 1] },
+    "ACH_L3M": { "type": "integer", "enum": [0, 1] },
+
+    "Retention_CompletionStatus": {
+      "type": ["integer", "null"]
+    },
+    "AimSize_Final": {
+      "type": ["number", "null"]
+    },
+    "CoreAimFlag": {
+      "type": ["integer", "null"],
+      "enum": [0, 1, null]
+    },
+    "Ret_Trigger": {
+      "type": ["integer", "null"],
+      "enum": [0, 1, null]
+    },
+
+    "InScope_ALEV_Ret": { "type": "integer", "enum": [0, 1] },
+    "Retained_ALEV_Ret": { "type": "integer", "enum": [0, 1] },
+    "Ret_Assessed_ALEV": { "type": "integer", "enum": [0, 1] },
+    "InScope_ALEV_2ndYr": { "type": "integer", "enum": [0, 1] },
+    "Retained_ALEV_2ndYr": { "type": "integer", "enum": [0, 1] },
+
+    "InScope_ACAD_Ret": { "type": "integer", "enum": [0, 1] },
+    "Retained_ACAD_Ret": { "type": "integer", "enum": [0, 1] },
+    "Ret_Assessed_ACAD": { "type": "integer", "enum": [0, 1] },
+    "InScope_ACAD_2ndYr": { "type": "integer", "enum": [0, 1] },
+    "Retained_ACAD_2ndYr": { "type": "integer", "enum": [0, 1] },
+
+    "InScope_TLEV_Ret": { "type": "integer", "enum": [0, 1] },
+    "Retained_TLEV_Ret": { "type": "integer", "enum": [0, 1] },
+    "Ret_Assessed_TLEV": { "type": "integer", "enum": [0, 1] },
+    "InScope_TLEV_2ndYr": { "type": "integer", "enum": [0, 1] },
+    "Retained_TLEV_2ndYr": { "type": "integer", "enum": [0, 1] },
+
+    "InScope_AGEN_Ret": { "type": "integer", "enum": [0, 1] },
+    "Retained_AGEN_Ret": { "type": "integer", "enum": [0, 1] },
+    "Ret_Assessed_AGEN": { "type": "integer", "enum": [0, 1] },
+    "InScope_AGEN_2ndYr": { "type": "integer", "enum": [0, 1] },
+    "Retained_AGEN_2ndYr": { "type": "integer", "enum": [0, 1] },
+
+    "InScope_TechCert_Ret": { "type": "integer", "enum": [0, 1] },
+    "Retained_TechCert_Ret": { "type": "integer", "enum": [0, 1] },
+    "Ret_Assessed_TechCert": { "type": "integer", "enum": [0, 1] },
+
+    "INCLUDE_B3": { "type": "integer", "enum": [0, 1] },
+    "B3PTSE_B3": { "type": "number" },
+
+    "INCLUDE_AAB": { "type": "integer", "enum": [0, 1] },
+    "AAB_FAC": { "type": "integer", "enum": [0, 1] },
+
+    "KS4_Year_Calc": {
+      "type": "integer"
+    }
+  }
+}

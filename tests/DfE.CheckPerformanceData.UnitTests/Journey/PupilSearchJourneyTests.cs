@@ -544,6 +544,149 @@ public class PupilSearchJourneyTests
         await _requestService.Received(1).HasSubmittedRequestAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<long>());
     }
 
+    // ── PupilSearchPost — autocomplete "already included" guard (AB#027) ────
+
+    [Fact]
+    public async Task PupilSearchPost_WhenIncludeJourneyAndSelectedNameMatchesIncludedPupil_RedirectsToAlreadyIncluded()
+    {
+        var nonIncludedPupil = new PupilDto
+        {
+            Id = PrimaryPupilId, Firstname = "Casey", Surname = "Carter",
+            Sex = "F", DateOfBirth = "01/01/2010", Age = 16,
+            Cypmd_Id = "CYPMD123", Identifier = "UPN001"
+        };
+        SetupIncludeJourney();
+        _pupilDataService.GetPupilAsync(WindowId, PrimaryPupilId).Returns(nonIncludedPupil);
+        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "Casey Carter", PupilFilter.Included)
+            .Returns([new PupilSuggestionDto(Guid.NewGuid(), "Carter, Casey, 01/01/2010", "Casey", "Carter", "01/01/2010")]);
+
+        var result = await _sut.PupilSearchPost(WindowId, "select-pupil", PrimaryPupilId.ToString(), "Carter, Casey, 01/01/2010");
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("AlreadyIncluded", redirect.ActionName);
+    }
+
+    [Fact]
+    public async Task PupilSearchPost_WhenIncludeJourneyAndSelectedNameMatchesIncludedPupil_DoesNotRunConflictCheck()
+    {
+        var nonIncludedPupil = new PupilDto
+        {
+            Id = PrimaryPupilId, Firstname = "Casey", Surname = "Carter",
+            Sex = "F", DateOfBirth = "01/01/2010", Age = 16,
+            Cypmd_Id = "CYPMD123", Identifier = "UPN001"
+        };
+        SetupIncludeJourney();
+        _pupilDataService.GetPupilAsync(WindowId, PrimaryPupilId).Returns(nonIncludedPupil);
+        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "Casey Carter", PupilFilter.Included)
+            .Returns([new PupilSuggestionDto(Guid.NewGuid(), "Carter, Casey, 01/01/2010", "Casey", "Carter", "01/01/2010")]);
+
+        await _sut.PupilSearchPost(WindowId, "select-pupil", PrimaryPupilId.ToString(), "Carter, Casey, 01/01/2010");
+
+        await _requestService.DidNotReceive().HasSubmittedRequestAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<long>());
+    }
+
+    [Fact]
+    public async Task PupilSearchPost_WhenIncludeJourneyAndSelectedNameMatchesIncludedPupil_SetsSessionForAlreadyIncludedPage()
+    {
+        var nonIncludedPupil = new PupilDto
+        {
+            Id = PrimaryPupilId, Firstname = "Casey", Surname = "Carter",
+            Sex = "F", DateOfBirth = "01/01/2010", Age = 16,
+            Cypmd_Id = "CYPMD123", Identifier = "UPN001"
+        };
+        var includedSuggestion = new PupilSuggestionDto(Guid.NewGuid(), "Carter, Casey, 01/01/2010", "Casey", "Carter", "01/01/2010");
+        SetupIncludeJourney();
+        _pupilDataService.GetPupilAsync(WindowId, PrimaryPupilId).Returns(nonIncludedPupil);
+        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "Casey Carter", PupilFilter.Included)
+            .Returns([includedSuggestion]);
+
+        await _sut.PupilSearchPost(WindowId, "select-pupil", PrimaryPupilId.ToString(), "Carter, Casey, 01/01/2010");
+
+        var saved = _session.GetRequestState(WindowId);
+        Assert.Equal("Carter, Casey, 01/01/2010", saved.IncludeSearchLabel);
+        Assert.NotNull(saved.IncludeMatchedPupils);
+        Assert.Single(saved.IncludeMatchedPupils);
+        Assert.Equal(includedSuggestion.Id, saved.IncludeMatchedPupils[0].Id);
+    }
+
+    [Fact]
+    public async Task PupilSearchPost_WhenRemoveJourneyAndSelectedNameMatchesIncludedPupil_ProceedsNormally()
+    {
+        var includedPupil = new PupilDto
+        {
+            Id = PrimaryPupilId, Firstname = "Casey", Surname = "Carter",
+            Sex = "F", DateOfBirth = "01/01/2010", Age = 16,
+            Cypmd_Id = "CYPMD123", Identifier = "UPN001"
+        };
+        SetupSession(SessionWithoutPupil());
+        _pupilDataService.GetPupilAsync(WindowId, PrimaryPupilId).Returns(includedPupil);
+
+        var result = await _sut.PupilSearchPost(WindowId, "select-pupil", PrimaryPupilId.ToString(), "Carter, Casey, 01/01/2010");
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("reason", redirect.RouteValues!["pageId"]);
+    }
+
+    [Fact]
+    public async Task PupilSearchPost_WhenIncludeJourneyAndNoIncludedNameMatch_ProceedsNormally()
+    {
+        var nonIncludedPupil = new PupilDto
+        {
+            Id = PrimaryPupilId, Firstname = "Jane", Surname = "Smith",
+            Sex = "F", DateOfBirth = "01/01/2010", Age = 16,
+            Cypmd_Id = "CYPMD123", Identifier = "UPN001"
+        };
+        SetupIncludeJourney();
+        _pupilDataService.GetPupilAsync(WindowId, PrimaryPupilId).Returns(nonIncludedPupil);
+        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "Jane Smith", PupilFilter.Included)
+            .Returns([]);
+
+        var result = await _sut.PupilSearchPost(WindowId, "select-pupil", PrimaryPupilId.ToString(), "Smith, Jane, 01/01/2010");
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("evidence", redirect.RouteValues!["pageId"]);
+    }
+
+    [Fact]
+    public async Task PupilSearchPost_WhenIncludeJourneyAndIncludedLookupFails_ProceedsNormally()
+    {
+        var nonIncludedPupil = new PupilDto
+        {
+            Id = PrimaryPupilId, Firstname = "Casey", Surname = "Carter",
+            Sex = "F", DateOfBirth = "01/01/2010", Age = 16,
+            Cypmd_Id = "CYPMD123", Identifier = "UPN001"
+        };
+        SetupIncludeJourney();
+        _pupilDataService.GetPupilAsync(WindowId, PrimaryPupilId).Returns(nonIncludedPupil);
+        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "Casey Carter", PupilFilter.Included)
+            .Returns(Task.FromException<IReadOnlyList<PupilSuggestionDto>>(new TimeoutException()));
+
+        var result = await _sut.PupilSearchPost(WindowId, "select-pupil", PrimaryPupilId.ToString(), "Carter, Casey, 01/01/2010");
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("evidence", redirect.RouteValues!["pageId"]);
+    }
+
+    private void SetupIncludeJourney()
+    {
+        var includeConfig = new QuestionFlowConfig
+        {
+            FirstPageId = "select-pupil",
+            Pages = [new JourneyPage
+            {
+                Id = "select-pupil", Type = PageType.PupilSearch,
+                PupilFilter = PupilFilter.NonIncluded, PupilKey = JourneyPage.PrimaryKey,
+                NextPageId = "evidence"
+            }]
+        };
+        _flowService.GetConfigAsync(Arg.Any<WhatToChange>(), Arg.Any<CheckingWindowType>()).Returns(includeConfig);
+        _flowService.GetPage(includeConfig, "select-pupil").Returns(includeConfig.Pages[0]);
+
+        var state = SessionWithoutPupil();
+        state.SelectedWhatToChange = WhatToChange.Include;
+        SetupSession(state);
+    }
+
     // ── Summary — merge pupil display ───────────────────────────────────────
 
     [Fact]

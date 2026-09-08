@@ -267,6 +267,38 @@ public sealed class JourneyController(
 
         var pupil = await pupilDataService.GetPupilAsync(windowId, pupilId);
 
+        // AB#027: when the user selects a pupil from the autocomplete on the Include primary search,
+        // check the selected name against the included list too — a different pupil with the same
+        // name may already be on the included list, and the select-from-dropdown path would
+        // otherwise bypass the included-list guard the typed-entry path (lines 160-239) enforces.
+        // The search page's autocomplete filters to NonIncluded, so the *selected* record itself is
+        // non-included; the guard therefore looks up the typed label, exactly as the typed path does.
+        if (journey.SelectedWhatToChange == WhatToChange.Include && page.PupilKey == JourneyPage.PrimaryKey)
+        {
+            IReadOnlyList<PupilSuggestionDto>? includedSuggestions = null;
+            try
+            {
+                includedSuggestions = await pupilDataService.GetPupilSuggestionsAsync(
+                    windowId, $"{pupil.Firstname} {pupil.Surname}".Trim(), PupilFilter.Included);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger.LogError(ex, "Included-pupil lookup failed for Include autocomplete guard; proceeding as normal. windowId={WindowId}", windowId);
+                includedSuggestions = null;
+            }
+
+            if (includedSuggestions is not null && includedSuggestions.Count > 0)
+            {
+                var displayLabel = selectedPupilLabel ?? $"{pupil.Surname}, {pupil.Firstname}, {pupil.DateOfBirth}";
+                HttpContext.Session.SaveRequestState(windowId, s =>
+                {
+                    s.IncludeSearchLabel = displayLabel;
+                    s.IncludeMatchedPupils = includedSuggestions.ToList();
+                });
+                return RedirectToAction(nameof(AlreadyIncluded), new { windowId, pageId });
+            }
+        }
+
         // AB#296648: the one-request-per-pupil rule belongs to the pupil-data checking exercise —
         // a results enquiry and a pupil-data amendment may legitimately coexist for the same pupil.
         var isResultsEnquiry = journey.SelectedWhatToChange is { } whatToChange

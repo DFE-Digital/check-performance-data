@@ -112,12 +112,10 @@ public sealed class JourneyValidationService(
         if (string.IsNullOrEmpty(chosen))
             return required;
 
-        // Ordinal and case-sensitive throughout. Grades are opaque codes, and the IB Diploma proves
-        // why precision matters: 24F is a fail and 24D a pass, so 24F -> 24D is a real change. Any
-        // normalising comparison risks either rejecting a genuine enquiry or accepting a no-op one.
-        if (currentGrade is { Length: > 0 } current
-            && !string.IsNullOrWhiteSpace(current)
-            && string.Equals(chosen, current.Trim(), StringComparison.Ordinal))
+        // The picker never offers the current grade (AB#301913), so this is reached only by a
+        // forged or stale post — it stays because the server, not the picker, is the authority.
+        // The comparison rules (ordinal, trimmed) live in GradeEquality, shared with the picker.
+        if (GradeEquality.IsSame(chosen, currentGrade))
             return RevisedGradeMustDifferMessage;
 
         // Fail closed. A null reference (the QAN is missing from the AODC data) or an empty scale

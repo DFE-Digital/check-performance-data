@@ -10,8 +10,7 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Web;
 // Behaviour each test pins:
 //   - Anonymous nav shows "Sign in" + caret dropdown (non-prod only)
 //   - Real DfE auth flips text to "Sign out" with optional name and (impersonating CMS admin) suffix
-//   - Sign-out target is /Secret/DfeSignOut for real auth and /dev/impersonate/clear for
-//     impersonation-only (NOT /user — that was the regression the user reported)
+//   - Sign-out target comes from SignOutLink (see SignOutLinkTests)
 //   - hasRealDfeAuth uses "any non-impersonation identity" — not a hard-coded "Cookies"
 //     scheme match (the regression where DfE Sign-In auth wasn't detected)
 //   - The pink dev-impersonate pill is gone
@@ -58,24 +57,24 @@ public sealed class LayoutRenderTests
 	}
 
 	[Fact]
-	public void Layout_SignOutHref_GoesToDfeSignOut_ForRealAuth()
+	public void Layout_SignOutHref_ComesFromSignOutLink()
 	{
+		// AB#298317: the real-auth vs impersonation decision moved into SignOutLink so Check your
+		// pupil data can sign a school out the same way. SignOutLinkTests pins the two targets.
 		var view = ReadLayout();
-		Assert.Contains("Url.Action(\"DfeSignOut\", \"Account\")", view);
+		Assert.Contains("SignOutLink.For(Context, Url)", view);
+		Assert.DoesNotContain("Url.Action(\"DfeSignOut\", \"Account\")", view);
 	}
 
 	[Fact]
 	public void Layout_SignOutHref_ForImpersonationOnly_ClearsCookie()
 	{
 		// Regression: sign-out for impersonation-only used to point at /dev/impersonate/user,
-		// which kept a synthetic "Dev impersonation user" principal authenticated (visible
-		// in diagnostic footer) even though the UI claimed signed-out. /clear deletes the
-		// cookie outright.
+		// which kept a synthetic "Dev impersonation user" principal authenticated. The decision now
+		// lives in SignOutLink; the layout must not reintroduce its own fallback.
 		var view = ReadLayout();
-		Assert.Contains("/dev/impersonate/clear", view);
-		// And the buggy fallback is gone from the sign-out href branch. The string may
-		// still appear in a comment listing prior states, so check the actual href line.
 		Assert.DoesNotContain(": \"/dev/impersonate/user\"", view);
+		Assert.DoesNotContain(": \"/dev/impersonate/clear\"", view);
 	}
 
 	[Fact]

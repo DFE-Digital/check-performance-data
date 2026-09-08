@@ -53,25 +53,25 @@ public static class SeedPupilData
     }
 
     /// <summary>
-    /// Seeds the 16-19 window. Both populations go into ONE file per school — exactly what
+    /// Seeds a 16-19 window. Both populations go into ONE file per school — exactly what
     /// ingress produces after merging the supplier's two 16-19 CSVs — so the read path sees the
     /// same shape locally as it will in a real window.
     /// </summary>
-    public static async Task ExecutePost16SeedAsync(IPupilDataBlobClient client)
+    public static async Task ExecutePost16SeedAsync(IPupilDataBlobClient client, Guid windowId)
     {
         foreach (var school in Schools)
         {
             var pupils = new List<Post16PupilRecord>();
 
             if (school.AddIncluded)
-                pupils.AddRange(GeneratePost16Pupils(PupilsPerGroup, included: true, indexOffset: 0, school));
+                pupils.AddRange(GeneratePost16Pupils(PupilsPerGroup, included: true, indexOffset: 0, windowId, school));
 
             if (school.AddNonIncluded)
-                pupils.AddRange(GeneratePost16Pupils(PupilsPerGroup, included: false, NonIncludedIndexOffset, school));
+                pupils.AddRange(GeneratePost16Pupils(PupilsPerGroup, included: false, NonIncludedIndexOffset, windowId, school));
 
             if (pupils.Count > 0)
                 await client.UploadPupilsAsync(
-                    DevDataSeeder.Post16CheckingWindowId, CheckingExerciseType.PupilData, school.Laestab, pupils);
+                    windowId, CheckingExerciseType.PupilData, school.Laestab, pupils);
         }
     }
 
@@ -80,7 +80,7 @@ public static class SeedPupilData
     private static readonly int[] Post16PinclCodes = [501, 502, 505, 506];
 
     private static IEnumerable<Post16PupilRecord> GeneratePost16Pupils(
-        int count, bool included, int indexOffset, School school) =>
+        int count, bool included, int indexOffset, Guid checkingWindowId, School school) =>
         Enumerable.Range(0, count).Select(i =>
         {
             var n = i + indexOffset;
@@ -92,7 +92,7 @@ public static class SeedPupilData
             return new Post16PupilRecord
             {
                 Id = Guid.NewGuid(),
-                CheckingWindowId = DevDataSeeder.Post16CheckingWindowId,
+                CheckingWindowId = checkingWindowId,
                 Included = included,
                 Laestab = school.Laestab,
                 Firstname = Firstnames[n % Firstnames.Length],

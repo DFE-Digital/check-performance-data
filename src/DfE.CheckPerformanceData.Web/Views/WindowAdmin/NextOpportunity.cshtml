@@ -1,0 +1,33 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin.WindowNextOpportunityEditItem
+
+@{
+    // Matches the <h1> below.
+    ViewBag.Title = "Next opportunity to review data";
+}
+
+<h1 class="govuk-heading-l">Next opportunity to review data</h1>
+
+<p class="govuk-body">
+    Once this window's pupil data checking has closed, schools are told when they can next review
+    their data. They see the month and year only, for example "October 2027". Leave it blank if
+    the date is not known yet.
+</p>
+
+<form method="post" action="@Model.PostUrl" novalidate>
+    @Html.AntiForgeryToken()
+
+    <input type="hidden" asp-for="@Model.WindowId" />
+
+    <govuk-date-input for="@Model.NextOpportunity">
+        <govuk-date-input-fieldset>
+            <govuk-date-input-fieldset-legend class="govuk-fieldset__legend--m">
+                When is the next opportunity to review data?
+            </govuk-date-input-fieldset-legend>
+            <govuk-date-input-hint>For example, 1 10 2027</govuk-date-input-hint>
+            <govuk-date-input-error-message asp-validation-for="NextOpportunity" />
+        </govuk-date-input-fieldset>
+    </govuk-date-input>
+
+    <govuk-button type="submit">Save and continue</govuk-button>
+    <a class="govuk-link" href="@Model.CancelUrl">Cancel</a>
+</form>

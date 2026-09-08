@@ -175,6 +175,24 @@ public sealed class CheckingExerciseServiceTests
         Assert.Null(Sut().IdFor([], CheckingExerciseType.PupilData));
     }
 
+    // AB#298317: the landing card prints the pupil-data range, so the start is needed beside the
+    // end. A lookup, not a clock question — same shape as EndDateFor.
+    [Fact]
+    public void StartDateFor_returns_the_exercises_own_start_or_null_when_absent()
+    {
+        var pupilData = new CheckingExerciseDto
+        {
+            ExerciseType = CheckingExerciseType.PupilData,
+            StartDate = new DateTime(2026, 10, 5),
+            EndDate = new DateTime(2026, 10, 16, 17, 0, 0),
+            SortOrder = 0
+        };
+
+        Assert.Equal(new DateTime(2026, 10, 5), Sut().StartDateFor([pupilData], CheckingExerciseType.PupilData));
+        Assert.Null(Sut().StartDateFor([pupilData], CheckingExerciseType.ResultsEnquiry));
+        Assert.Null(Sut().StartDateFor([], CheckingExerciseType.PupilData));
+    }
+
     [Fact]
     public void An_exercise_is_open_on_its_first_and_last_instant()
     {
@@ -184,5 +202,62 @@ public sealed class CheckingExerciseServiceTests
 
         Assert.True(Sut().IsOpen(startsNow, CheckingExerciseType.PupilData));
         Assert.True(Sut().IsOpen(endsNow, CheckingExerciseType.PupilData));
+    }
+
+    // ── HasClosed (AB#298317 review) ─────────────────────────────────────────
+    // "Closed" was being derived as !IsOpen, which has no lower bound: an exercise that has not
+    // started yet is not open either, and a "the window has closed" notice about it is wrong.
+
+    [Fact]
+    public void HasClosed_is_true_after_the_exercise_ends()
+    {
+        var exercises = new[] { Exercise(CheckingExerciseType.PupilData, LastMonth, Yesterday) };
+
+        Assert.True(Sut().HasClosed(exercises, CheckingExerciseType.PupilData));
+    }
+
+    [Fact]
+    public void HasClosed_is_false_while_the_exercise_is_open()
+    {
+        var exercises = new[] { Exercise(CheckingExerciseType.PupilData, Yesterday, Tomorrow) };
+
+        Assert.False(Sut().HasClosed(exercises, CheckingExerciseType.PupilData));
+    }
+
+    [Fact]
+    public void HasClosed_is_false_before_the_exercise_starts()
+    {
+        // The whole point of the method: not open, but not closed either.
+        var exercises = new[] { Exercise(CheckingExerciseType.PupilData, Tomorrow, NextMonth) };
+
+        Assert.False(Sut().IsOpen(exercises, CheckingExerciseType.PupilData));
+        Assert.False(Sut().HasClosed(exercises, CheckingExerciseType.PupilData));
+    }
+
+    [Fact]
+    public void HasClosed_is_false_when_the_window_holds_no_row_for_that_type()
+    {
+        // Fail closed means "no actions", and here it must also mean "no closed notice" — a window
+        // that never ran an exercise has nothing to have closed.
+        var exercises = new[] { Exercise(CheckingExerciseType.PupilData, LastMonth, Yesterday) };
+
+        Assert.False(Sut().HasClosed(exercises, CheckingExerciseType.ResultsEnquiry));
+    }
+
+    [Fact]
+    public void HasClosed_is_false_for_an_empty_exercise_list()
+    {
+        Assert.False(Sut().HasClosed([], CheckingExerciseType.PupilData));
+    }
+
+    [Fact]
+    public void HasClosed_is_false_on_the_exercises_last_instant()
+    {
+        // IsOpen brackets inclusively, so an exercise ending exactly now is still open — HasClosed
+        // must agree, or one instant would be both open and closed.
+        var exercises = new[] { Exercise(CheckingExerciseType.PupilData, LastMonth, Now.DateTime) };
+
+        Assert.True(Sut().IsOpen(exercises, CheckingExerciseType.PupilData));
+        Assert.False(Sut().HasClosed(exercises, CheckingExerciseType.PupilData));
     }
 }

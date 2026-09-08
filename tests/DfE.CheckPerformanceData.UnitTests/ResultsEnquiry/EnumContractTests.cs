@@ -34,6 +34,7 @@ public sealed class EnumContractTests
         Assert.Equal(5, (int)PageType.ResultDetails);
         Assert.Equal(6, (int)QuestionType.GradeSelect);
         Assert.Equal(2, (int)NextSteps.ResultsEnquiry); // appended after Confirm
+        Assert.Equal(3, (int)NextSteps.SignOut); // AB#298317, appended after ResultsEnquiry
     }
 
     [Fact]

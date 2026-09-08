@@ -58,13 +58,20 @@ public sealed class DevImpersonationController(IConfiguration configuration, IHo
     // user genuinely anonymous, not leave a phantom "Dev impersonation user" identity
     // visible in diagnostics. /user stays untouched for E2E tests that rely on its
     // exact toggle semantics.
+    // AB#298317: returnUrl lets a caller override the default Referer-based redirect — needed when
+    // the Referer is a page that requires authentication (Check your pupil data's "No, I'd like to
+    // sign out" answer), which would otherwise bounce the now-signed-out browser straight into a
+    // fresh sign-in challenge. Validated as a local URL before use, the same way Controller's own
+    // LocalRedirect would, since it arrives as an untrusted query string value.
     [HttpGet("dev/impersonate/clear")]
     [HttpPost("dev/impersonate/clear")]
-    public IActionResult Clear()
+    public IActionResult Clear(string? returnUrl = null)
     {
         if (!IsAllowed) return NotFound();
         Response.Cookies.Delete(DevImpersonationConstants.CookieName);
-        return RedirectToReferrer();
+        return returnUrl is not null && Url.IsLocalUrl(returnUrl)
+            ? Redirect(returnUrl)
+            : RedirectToReferrer();
     }
 
     private void SetCookie(string value)

@@ -47,6 +47,51 @@ public sealed class CheckYourPupilDataViewModel
     /// </summary>
     public bool IsPupilDataOpen { get; init; }
 
+    /// <summary>
+    /// AB#298317: whether the results-enquiry exercise is open, from
+    /// <c>ICheckingExerciseService.IsOpen</c>. Chooses the closing sentence of the closed-window
+    /// paragraph ("report any issues" versus "view and download").
+    /// </summary>
+    public bool IsResultsEnquiryOpen { get; init; }
+
+    /// <summary>
+    /// AB#298317 review: the pupil-data exercise's end date has passed, from
+    /// <c>ICheckingExerciseService.HasClosed</c>. Distinct from <c>!IsPupilDataOpen</c>, which is
+    /// also true before the exercise starts and would announce a closure that has not happened.
+    /// </summary>
+    public bool HasPupilDataClosed { get; init; }
+
+    /// <summary>
+    /// AB#298317 review: the results-enquiry exercise's end date has passed, from
+    /// <c>ICheckingExerciseService.HasClosed</c>. Only consulted when the window has no pupil-data
+    /// exercise at all, so that such a window still says it has closed once its one exercise ends.
+    /// </summary>
+    public bool HasResultsEnquiryClosed { get; init; }
+
+    /// <summary>
+    /// Whether the "data checking window has closed" paragraph renders: pupil data checking has
+    /// ended, or — on a window that never ran pupil data checking (an admin may tick Results
+    /// enquiry alone) — results enquiry has ended. Without the second arm that window showed
+    /// tables and downloads with no notice and no form once its enquiry closed.
+    /// </summary>
+    public bool ShowsClosedNotice =>
+        HasPupilDataClosed || (PupilDataEndDate is null && HasResultsEnquiryClosed);
+
+    /// <summary>
+    /// AB#298317: the window's next opportunity to review data, already formatted as month + year
+    /// by <c>NextOpportunityText</c>. Null when the admin has not set it, and then the sentence
+    /// that names it is omitted.
+    /// </summary>
+    public string? NextOpportunity { get; init; }
+
+    /// <summary>
+    /// AB#298317: results enquiry is the only thing left open — the state in which the page asks
+    /// "Would you like to report an issue with an exam result?" with a Yes/No answer instead of
+    /// offering a one-item form. Same rule as the NextStep POST's SignOut guard, via
+    /// <see cref="NextStepsExtensions.IsResultsEnquiryOnly"/>.
+    /// </summary>
+    public bool OffersEnquiryOnly => AvailableNextSteps.IsResultsEnquiryOnly();
+
     public required string OrganisationName { get; init; }
 
     /// <summary>

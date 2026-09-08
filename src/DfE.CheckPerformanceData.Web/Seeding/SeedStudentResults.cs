@@ -29,8 +29,13 @@ public static class SeedStudentResults
     private const string StudentB = "500002";
     private const string StudentC = "500003";
 
+    // AB#298317: the pupil-data-closed 16-19 window holds the same results, so the enquiry journey
+    // can be walked end to end after pupil data has shut.
     public static async Task ExecuteSeedAsync(IStudentResultsClient client)
-        => await client.UploadResultsAsync(DevDataSeeder.Post16CheckingWindowId, Laestab, All);
+    {
+        await client.UploadResultsAsync(DevDataSeeder.Post16CheckingWindowId, Laestab, All);
+        await client.UploadResultsAsync(DevDataSeeder.ClosedPupilDataPost16CheckingWindowId, Laestab, All);
+    }
 
     private static IReadOnlyList<StudentResultRecord> All => [.. FigmaResults, .. GeneratedResults()];
 

@@ -25,7 +25,7 @@ public static class SeedCheckingWindows
     // enquiry running far longer than pupil data checking (7 Oct - 31 Mar against 7 Oct - 18 Oct in
     // the real calendar). See docs/16-19-window-model.md.
     private static List<CheckingExercise> ExercisesFor(
-        CheckingWindowType type, DateTime startDate, DateTime endDate) =>
+        CheckingWindowType type, DateTime startDate, DateTime endDate, DateTime? pupilDataEnd = null) =>
         type == CheckingWindowType.Post16
             ?
             [
@@ -34,8 +34,9 @@ public static class SeedCheckingWindows
                     ExerciseType = CheckingExerciseType.PupilData,
                     StartDate = startDate,
                     // 14 days from a start of yesterday, which is the same fortnight the KS4
-                    // windows run for. Results enquiry then carries on to the window's own end.
-                    EndDate = startDate.AddDays(14).Date.AddHours(17),
+                    // windows run for, unless the caller wants pupil data to have shut already.
+                    // Results enquiry then carries on to the window's own end.
+                    EndDate = pupilDataEnd ?? startDate.AddDays(14).Date.AddHours(17),
                     SortOrder = 0,
                     Datasets = DatasetsFor(CheckingWindowType.Post16)
                 },
@@ -59,7 +60,7 @@ public static class SeedCheckingWindows
                 }
             ];
 
-    public static async Task ExecuteSeed(IPortalDbContext dbContext, Guid openKs4WindowId, Guid closedKs4WindowId, Guid post16WindowId)
+    public static async Task ExecuteSeed(IPortalDbContext dbContext, Guid openKs4WindowId, Guid closedKs4WindowId, Guid post16WindowId, Guid closedPupilDataPost16WindowId)
     {
         await dbContext.ChangeRequests.ExecuteDeleteAsync();
         await dbContext.CheckingWindows.ExecuteDeleteAsync();
@@ -99,6 +100,7 @@ public static class SeedCheckingWindows
         // that is the multi-exercise shape, and nothing reads the exercise rows yet.
         var post16Start = DateTime.Now.AddDays(-1);
         var post16End = DateTime.Now.AddDays(+180).Date.AddHours(17);
+        var nextOpportunity = new DateTime(DateTime.Now.Year + 1, 10, 1);
 
         var openPost16Window = new CheckingWindow
         {
@@ -109,7 +111,29 @@ public static class SeedCheckingWindows
             CheckingWindowType = CheckingWindowType.Post16,
             Title = "16 to 19",
             TurnaroundCommitment = "updated in the Spring",
+            NextOpportunity = nextOpportunity,
             CheckingExercises = ExercisesFor(CheckingWindowType.Post16, post16Start, post16End)
+        };
+
+        // AB#298317: pupil data checking shut yesterday; results enquiry runs on for months. The
+        // outer pair is the union of the two, as for every window.
+        var closedPost16Start = DateTime.Now.AddDays(-30);
+        var closedPost16PupilDataEnd = DateTime.Now.AddDays(-1).Date.AddHours(17);
+        var closedPost16End = DateTime.Now.AddDays(+180).Date.AddHours(17);
+
+        var closedPupilDataPost16Window = new CheckingWindow
+        {
+            Id = closedPupilDataPost16WindowId,
+            StartDate = closedPost16Start,
+            EndDate = closedPost16End,
+            KeyStage = KeyStages.Post16,
+            CheckingWindowType = CheckingWindowType.Post16,
+            Title = "16 to 19 (pupil data closed)",
+            TurnaroundCommitment = "updated in the Spring",
+            NextOpportunity = nextOpportunity,
+            CheckingExercises = ExercisesFor(
+                CheckingWindowType.Post16, closedPost16Start, closedPost16End,
+                pupilDataEnd: closedPost16PupilDataEnd)
         };
 
         await dbContext.CheckingWindows.AddRangeAsync(
@@ -151,7 +175,8 @@ public static class SeedCheckingWindows
             //     Title = "16-18"
             // },
             closedKs4JuneWindow,
-            openPost16Window
+            openPost16Window,
+            closedPupilDataPost16Window
         );
         
         await dbContext.SaveChangesAsync();

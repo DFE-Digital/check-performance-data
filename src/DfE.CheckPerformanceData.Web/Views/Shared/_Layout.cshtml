@@ -21,9 +21,8 @@
     var hasAdminImpersonation = Context.Request.Cookies.TryGetValue(DevImpersonationConstants.CookieName, out var adminCookie)
         && adminCookie == DevImpersonationConstants.AdminValue;
     var showSignOut = hasRealDfeAuth || hasEditorImpersonation || hasAdminImpersonation;
-    var signOutHref = hasRealDfeAuth
-        ? Url.Action("DfeSignOut", "Account")
-        : "/dev/impersonate/clear";
+    // AB#298317: shared with Check your pupil data's sign-out answer — see SignOutLink.
+    var signOutHref = SignOutLink.For(Context, Url);
     // CMS editors now reach the admin surface too — they land on the pages tree, blocks,
     // and content-staging screens (gated per-section by the role-access grid). Show the
     // Admin link for both roles so editors don't have to know the URL by heart.

@@ -214,6 +214,7 @@ One rule, in one place, in Application. Nothing else may compare dates.
 ```csharp
 // Application/WindowManagement/ICheckingExerciseService.cs
 bool IsOpen(IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise);
+bool HasClosed(IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise); // end date passed; false before start or when absent
 IReadOnlyList<CheckingExerciseType> OpenCheckingExercises(
     IReadOnlyList<CheckingExerciseDto> exercises);
 DateTime? EndDateFor(IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise);
@@ -441,3 +442,14 @@ These do not block the model.
    (`check-pupil-data-title-post16`, and the two empty-state blocks) because a block seeds its
    default once per key and one key cannot hold both nouns. The unsuffixed keys are left orphaned,
    not deleted.
+
+## After pupil data closes (AB#298317)
+
+Once the pupil-data exercise has closed and results enquiry is still open, the landing page shows a
+"data checking window has closed" banner per window and the card prints the pupil-data range and
+the enquiry close date instead of the outer end date; Check your pupil data replaces its deadline
+sentence with the closed paragraph and asks "Would you like to report an issue with an exam
+result?" (Yes → the issue chooser, No → sign out). Both name the window's `NextOpportunity` date
+(admin Summary → "Next opportunity", shown as month + year) when it is set. Nothing about the
+enquiry journeys changes. A fully-ended window (results enquiry closed too) still drops its card and
+shows nothing — deliberately out of scope.

@@ -40,6 +40,7 @@ public sealed class CheckingWindowExerciseProjectionTests : IAsyncLifetime
             // The outer window is the union of its exercises' dates.
             StartDate = new DateTime(2026, 8, 1),
             EndDate = new DateTime(2026, 10, 31),
+            NextOpportunity = new DateTime(2027, 10, 1),
             CheckingExercises =
             [
                 new CheckingExercise
@@ -118,5 +119,31 @@ public sealed class CheckingWindowExerciseProjectionTests : IAsyncLifetime
         Assert.Equal(
             [CheckingExerciseType.PupilData, CheckingExerciseType.ResultsEnquiry],
             window.Exercises.Select(e => e.ExerciseType));
+    }
+
+    // AB#298317: the landing banner and Check your pupil data print the next opportunity, so both
+    // read paths have to carry it — a projection that drops it renders the sentence silently absent.
+    [Fact]
+    public async Task The_landing_page_read_carries_the_next_opportunity()
+    {
+        await using var ctx = CreateContext();
+        var sut = new LandingPageRepository(ctx, BlobClientWithPupilData(),
+            NullLogger<LandingPageRepository>.Instance);
+
+        var windows = await sut.GetOpenWindowsAsync(Now, Laestab, CancellationToken.None);
+
+        Assert.Equal(new DateTime(2027, 10, 1), Assert.Single(windows).NextOpportunity);
+    }
+
+    [Fact]
+    public async Task The_check_your_pupil_data_window_read_carries_the_next_opportunity()
+    {
+        await using var ctx = CreateContext();
+        var sut = new CheckYourPupilDataRepository(ctx, BlobClientWithPupilData(),
+            new MemoryCache(new MemoryCacheOptions()));
+
+        var window = await sut.GetCheckingWindowAsync(WindowId);
+
+        Assert.Equal(new DateTime(2027, 10, 1), window.NextOpportunity);
     }
 }

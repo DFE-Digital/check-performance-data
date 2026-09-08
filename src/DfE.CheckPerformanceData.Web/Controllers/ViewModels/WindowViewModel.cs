@@ -29,6 +29,14 @@ public class WindowEditItem : AdminPage
     {
         get => $"{BaseEditUrl}/turnaround-commitment";
     }
+
+    /// <summary>AB#298317: already formatted as month + year (<c>NextOpportunityText</c>); null = not set.</summary>
+    public string? NextOpportunity { get; set; }
+    public string NextOpportunityLink
+    {
+        get => $"{BaseEditUrl}/next-opportunity";
+    }
+
     public bool IsOpen { get; set; } = false;
     // #319: derived from the exercises as their union, so there is no Change link — the outer pair
     // is never typed. To move a window's dates, move an exercise's.

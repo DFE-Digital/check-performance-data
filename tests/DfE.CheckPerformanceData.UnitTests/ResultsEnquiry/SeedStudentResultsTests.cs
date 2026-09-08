@@ -19,8 +19,11 @@ public sealed class SeedStudentResultsTests
         var client = Substitute.For<IStudentResultsClient>();
         SeedStudentResults.ExecuteSeedAsync(client).GetAwaiter().GetResult();
 
+        // AB#298317: the same fixture content is now uploaded to both the Post16 window and the
+        // pupil-data-closed one, so the call is disambiguated by window id rather than Single().
         return (IReadOnlyList<StudentResultRecord>)client.ReceivedCalls()
-            .Single(c => c.GetMethodInfo().Name == nameof(IStudentResultsClient.UploadResultsAsync))
+            .Single(c => c.GetMethodInfo().Name == nameof(IStudentResultsClient.UploadResultsAsync)
+                && (Guid)c.GetArguments()[0]! == DevDataSeeder.Post16CheckingWindowId)
             .GetArguments()[2]!;
     }
 
@@ -113,6 +116,11 @@ public sealed class SeedStudentResultsTests
 
         client.Received(1).UploadResultsAsync(
             DevDataSeeder.Post16CheckingWindowId, "860/4070",
+            Arg.Any<IReadOnlyList<StudentResultRecord>>());
+        // AB#298317: the pupil-data-closed window holds the same results, so the enquiry journey
+        // can be walked end to end after pupil data has shut.
+        client.Received(1).UploadResultsAsync(
+            DevDataSeeder.ClosedPupilDataPost16CheckingWindowId, "860/4070",
             Arg.Any<IReadOnlyList<StudentResultRecord>>());
     }
 

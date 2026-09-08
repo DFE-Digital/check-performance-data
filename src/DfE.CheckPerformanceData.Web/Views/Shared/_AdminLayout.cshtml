@@ -32,9 +32,8 @@
     var hasAdminImpersonation = Context.Request.Cookies.TryGetValue(DevImpersonationConstants.CookieName, out var adminCookie)
         && adminCookie == DevImpersonationConstants.AdminValue;
     var showSignOut = hasRealDfeAuth || hasEditorImpersonation || hasAdminImpersonation;
-    var signOutHref = hasRealDfeAuth
-        ? Url.Action("DfeSignOut", "Account")
-        : "/dev/impersonate/clear";
+    // AB#298317: shared with _Layout and Check your pupil data's sign-out answer — see SignOutLink.
+    var signOutHref = SignOutLink.For(Context, Url);
 
     string? displayName = null;
     if (hasRealDfeAuth)

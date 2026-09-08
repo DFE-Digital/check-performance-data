@@ -54,6 +54,7 @@ public sealed class CheckYourPupilDataRepository(
                 CheckingWindowType = w.CheckingWindowType,
                 StartDate = w.StartDate,
                 TurnaroundCommitment = w.TurnaroundCommitment,
+                NextOpportunity = w.NextOpportunity,
                 // #315: ICheckingExerciseService answers "is this exercise open" from these rows,
                 // so every read path that reaches Web has to carry them.
                 Exercises = w.CheckingExercises

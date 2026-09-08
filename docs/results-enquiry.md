@@ -153,6 +153,10 @@ fail validation.
 
 ## Revised-grade rules
 
+The picker never offers the result's current grade (AB#301913 / #407): `JourneyViewModelBuilder.
+GradeOptions` drops it from the scale before the `<select>` is rendered, so the rule holds with
+JavaScript off. Rule 2 below is therefore reached only by a forged or stale post.
+
 Server-authoritative, in this order (`JourneyValidationService.ValidateGradeSelect`):
 
 1. Unanswered → `Select the revised grade`
@@ -162,9 +166,9 @@ Server-authoritative, in this order (`JourneyValidationService.ValidateGradeSele
    `We cannot list grades for this qualification yet`, a warning is logged, and validation can never
    pass
 
-Comparison is **ordinal and case-sensitive**. The IB Diploma is why: `24F` is a fail and `24D` a pass,
-so `24F` → `24D` is a real enquiry, and any normalising comparison risks either rejecting it or
-accepting a no-op.
+Comparison is **ordinal and case-sensitive** (`GradeEquality.IsSame`, shared by the validator and the
+picker). The IB Diploma is why: `24F` is a fail and `24D` a pass, so `24F` → `24D` is a real enquiry,
+and any normalising comparison risks either rejecting it or accepting a no-op.
 
 ## Progressive enhancement
 

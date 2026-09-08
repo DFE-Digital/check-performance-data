@@ -7,7 +7,9 @@
     93 grades, which is far too many to scan in a dropdown.
 
     Options come from the AODC reference data for the selected result's QAN: pass grades first, then
-    fail grades, in source order. Nothing is preselected — the user must choose.
+    fail grades, in source order, minus the grade the result already holds (AB#301913 — the server
+    still refuses a posted no-op; the filter lives in JourneyViewModelBuilder so it holds with
+    JavaScript off). Nothing is preselected — the user must choose.
 *@
 
 @{

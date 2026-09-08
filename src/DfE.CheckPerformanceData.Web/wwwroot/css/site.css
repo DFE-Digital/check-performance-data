@@ -1606,6 +1606,10 @@ body.js-enabled .rules-condition__apply {
   font-weight: 700;
   font-size: 1.5rem;
   line-height: 1.25;
+  /* This is a real heading element (#376) — the "Published:" line looked like a heading
+     but was a <p>, so screen reader users could not reach it from the heading list.
+     Zero the browser's default heading margin so the promotion is visually a no-op. */
+  margin-top: 0;
   margin-bottom: 10px;
 }
 

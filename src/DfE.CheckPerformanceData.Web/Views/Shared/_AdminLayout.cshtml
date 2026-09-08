@@ -140,7 +140,9 @@
 }
 
 @section Header {
-    <div class="admin-chrome">
+    @* <header role="banner"> so the GOV.UK home link sits in a landmark — the GOV.UK
+       Frontend header component itself renders a plain <div> (audit #374). *@
+    <header role="banner" class="admin-chrome">
         <govuk-header home-page-url="https://gov.uk/"/>
         <section class="govuk-service-navigation admin-service-navigation" data-module="govuk-service-navigation" aria-label="Service information">
             <div class="govuk-width-container">
@@ -179,7 +181,7 @@
                 </div>
             </div>
         </section>
-    </div>
+    </header>
 }
 
 @Html.GovUkFrontendJsEnabledScript()

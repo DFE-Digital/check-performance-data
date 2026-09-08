@@ -118,8 +118,12 @@
                             @{
                                 var draftDeleteAction = row.RequestType == RequestType.ConfirmCorrect ? "ConfirmDeleteConfirmation" : "ConfirmDelete";
                             }
-                            <a class="govuk-link govuk-!-margin-right-2" href="@Url.Action("Edit", "AmendmentRequests", new { windowId = Model.WindowId, referenceNumber = row.ReferenceNumber })">Edit</a>
-                            <a class="govuk-link" href="@Url.Action(draftDeleteAction, "SubmittedRequest", new { windowId = Model.WindowId, referenceNumber = row.ReferenceNumber })">Delete</a>
+                            @* Every row repeats the same two words, so on their own these links are
+                               indistinguishable to anyone tabbing or listing links (audit #378, #385).
+                               The hidden suffix names the pupil and the reference number, which is the
+                               only value guaranteed unique when one pupil has two requests. *@
+                            <a class="govuk-link govuk-!-margin-right-2" href="@Url.Action("Edit", "AmendmentRequests", new { windowId = Model.WindowId, referenceNumber = row.ReferenceNumber })">Edit<span class="govuk-visually-hidden"> request @row.ReferenceNumber for @row.PupilName</span></a>
+                            <a class="govuk-link" href="@Url.Action(draftDeleteAction, "SubmittedRequest", new { windowId = Model.WindowId, referenceNumber = row.ReferenceNumber })">Delete<span class="govuk-visually-hidden"> request @row.ReferenceNumber for @row.PupilName</span></a>
                         </td>
                     </tr>
                 }
@@ -136,7 +140,8 @@
     </div>
 </form>
 
-<hr class="govuk-section-break govuk-section-break--m govuk-section-break--visible">
+@* Decorative rule: the <h2> below marks the section boundary (audit #386). *@
+<hr class="govuk-section-break govuk-section-break--m govuk-section-break--visible" aria-hidden="true">
 
 <h2 class="govuk-heading-m">Summary of recent requests, decisions and results enquiries</h2>
 
@@ -192,10 +197,12 @@
                                     var viewAction = row.RequestType == RequestType.ConfirmCorrect ? "ViewConfirmation" : "View";
                                     var deleteAction = row.RequestType == RequestType.ConfirmCorrect ? "ConfirmDeleteConfirmation" : "ConfirmDelete";
                                 }
-                                <a class="govuk-link govuk-!-margin-right-2" href="@Url.Action(viewAction, "SubmittedRequest", new { windowId = Model.WindowId, referenceNumber = row.ReferenceNumber })">View</a>
+                                @* Hidden suffix distinguishes one row's links from the next — see the
+                                   drafts table above (audit #378, #385). *@
+                                <a class="govuk-link govuk-!-margin-right-2" href="@Url.Action(viewAction, "SubmittedRequest", new { windowId = Model.WindowId, referenceNumber = row.ReferenceNumber })">View<span class="govuk-visually-hidden"> request @row.ReferenceNumber for @row.PupilName</span></a>
                                 @if (row.ShowDelete)
                                 {
-                                    <a class="govuk-link" href="@Url.Action(deleteAction, "SubmittedRequest", new { windowId = Model.WindowId, referenceNumber = row.ReferenceNumber })">Delete</a>
+                                    <a class="govuk-link" href="@Url.Action(deleteAction, "SubmittedRequest", new { windowId = Model.WindowId, referenceNumber = row.ReferenceNumber })">Delete<span class="govuk-visually-hidden"> request @row.ReferenceNumber for @row.PupilName</span></a>
                                 }
                             </td>
                         </tr>

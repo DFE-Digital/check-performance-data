@@ -178,7 +178,7 @@ public sealed class JourneyControllerQualificationDetailsTests
         var syllabusModel = model.QuestionModels.Single(q => q.Question.Id == "q-syllabus-code");
 
         Assert.Equal(
-            [("8300F", "8300F — Mathematics Foundation Tier"), ("8300H", "8300H — Mathematics Higher Tier")],
+            [("8300F", "8300F - Mathematics Foundation Tier"), ("8300H", "8300H - Mathematics Higher Tier")],
             syllabusModel.VisibleOptions.Select(o => (o.Value, o.Label)).ToArray());
     }
 

@@ -65,9 +65,22 @@ public sealed class CheckboxRenderTests
         var html = await RenderAsync(YearsQuestion(),
             new QuestionAnswer { SelectedValues = ["2025-2026", "2023-2024"] });
 
-        Assert.Contains("value=\"2025-2026\" checked", html);
-        Assert.Contains("value=\"2023-2024\" checked", html);
-        Assert.DoesNotContain("value=\"2024-2025\" checked", html);
+        // Assert per input tag rather than on "value=... checked" adjacency: the input carries
+        // an optional aria-describedby between the two whenever the option has its own hint.
+        Assert.Contains("checked", InputTagFor(html, "q_years_to_remove-2025-2026"));
+        Assert.Contains("checked", InputTagFor(html, "q_years_to_remove-2023-2024"));
+        Assert.DoesNotContain("checked", InputTagFor(html, "q_years_to_remove-2024-2025"));
+    }
+
+    // The whole <input ...> tag carrying the given id.
+    private static string InputTagFor(string html, string id)
+    {
+        var marker = $"id=\"{id}\"";
+        var idAt = html.IndexOf(marker, StringComparison.Ordinal);
+        Assert.True(idAt >= 0, $"No element with {marker} was rendered.");
+        var start = html.LastIndexOf("<input", idAt, StringComparison.Ordinal);
+        Assert.True(start >= 0, $"{marker} is not on an <input>.");
+        return html[start..(html.IndexOf('>', idAt) + 1)];
     }
 
     // The page heading is the legend. A separate <h1> would give the page two.

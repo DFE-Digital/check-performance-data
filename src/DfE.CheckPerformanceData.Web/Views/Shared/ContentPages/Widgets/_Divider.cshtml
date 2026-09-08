@@ -1,2 +1,4 @@
 @model DfE.CheckPerformanceData.Application.ContentPages.WidgetNode
-<hr class="govuk-section-break govuk-section-break--visible govuk-section-break--l">
+@* A divider an author drops into a page is visual styling, not structure: the headings
+   around it already convey the split, so hide it from assistive technology (audit #386). *@
+<hr class="govuk-section-break govuk-section-break--visible govuk-section-break--l" aria-hidden="true">

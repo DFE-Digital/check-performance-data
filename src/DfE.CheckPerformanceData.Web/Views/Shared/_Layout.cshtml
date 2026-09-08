@@ -78,6 +78,12 @@
 }
 
 @section Header {
+    @* The GOV.UK Frontend header component renders a plain <div>, so nothing here is a
+       banner landmark on its own. Screen reader users navigating by landmark would miss
+       the GOV.UK home link and the phase banner's feedback link entirely (audit #374).
+       Wrap the whole masthead — logo, service navigation and phase banner — in one
+       <header role="banner">, which is what GOV.UK Frontend expects the service to supply. *@
+    <header role="banner">
     <govuk-header home-page-url="https://gov.uk/"/>
     @* The service navigation is hand-rolled (not <govuk-service-navigation>) because
        the sign-in cluster needs a split-button structure: a "Sign in" link plus a
@@ -150,10 +156,15 @@
                 Beta
             </strong>
             <span class="govuk-phase-banner__text">
-                This is a new service – your <a class="govuk-link" href="/feedback-link">feedback</a> will help us to improve it.
+                This is a new service - your <a class="govuk-link" href="/feedback-link">feedback</a> will help us to improve it.
             </span>
         </p>
     </div>
+    </header>
+    @* Breadcrumbs sit outside <main> so "Skip to main content" clears them: they are a
+       repeated navigation block, and landing on them defeats the skip link (audit #377).
+       Optional — only the CMS content pages render a breadcrumb. *@
+    @RenderSection("Breadcrumbs", required: false)
 }
 
 @Html.GovUkFrontendJsEnabledScript()

@@ -45,9 +45,14 @@
             {
                 var optionId = $"{Model.FieldName}-{option.Value}";
                 <div class="govuk-checkboxes__item">
+                    @* An option's own hint is announced only if the input points at it. The
+                       id is emitted below when SubLabel is set, so the reference is built on
+                       the same condition — naming an absent id drops the description entirely. *@
                     <input class="govuk-checkboxes__input"
                            id="@optionId" name="@Model.FieldName" type="checkbox"
-                           value="@option.Value" @(selected.Contains(option.Value) ? "checked" : "")>
+                           value="@option.Value"
+                           aria-describedby="@(option.SubLabel is not null ? optionId + "-item-hint" : null)"
+                           @(selected.Contains(option.Value) ? "checked" : "")>
                     <label class="govuk-label govuk-checkboxes__label" for="@optionId">@option.Label</label>
                     @if (option.SubLabel is not null)
                     {

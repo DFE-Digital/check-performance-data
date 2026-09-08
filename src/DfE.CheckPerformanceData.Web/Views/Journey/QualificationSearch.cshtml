@@ -107,7 +107,7 @@ else
                     @foreach (var q in group)
                     {
                         <option value="@q.Qan" data-ao="@q.AwardingOrganisation"
-                                selected="@(q.Qan == Model.SelectedQan)">@q.Qan — @q.QualificationTitle</option>
+                                selected="@(q.Qan == Model.SelectedQan)">@q.Qan - @q.QualificationTitle</option>
                     }
                 </optgroup>
             }

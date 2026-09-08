@@ -1,8 +1,22 @@
 @using DfE.CheckPerformanceData.Web.Controllers.Journey
 @model QuestionPartialModel
+@{
+    // Only name ids this view actually emits: a dangling aria-describedby resolves to nothing
+    // and silently drops the whole description, so a question with no hint would announce none.
+    // Same list _Checkbox and _Date build — this partial was the one left without it, so the
+    // hint and the error message were never announced with the group (audit #383).
+    var describedBy = string.Join(" ", new[]
+    {
+        Model.Question.Hint is not null ? $"{Model.FieldName}-hint" : null,
+        Model.HasError ? $"{Model.FieldName}-error" : null
+    }.Where(id => id is not null));
+}
 
 <div class="govuk-form-group @(Model.HasError ? "govuk-form-group--error" : "")">
-    <fieldset class="govuk-fieldset" id="@Model.FieldName">
+    @* Razor drops an attribute whose value expression is null, which is exactly the rule
+       needed here — no hint and no error means no aria-describedby at all. *@
+    <fieldset class="govuk-fieldset" id="@Model.FieldName"
+              aria-describedby="@(describedBy.Length > 0 ? describedBy : null)">
         <legend class="govuk-fieldset__legend @(Model.IsPageHeading ? "govuk-fieldset__legend--l" : "govuk-fieldset__legend--m")">
             @if (Model.IsPageHeading)
             {
@@ -23,15 +37,21 @@
                 <span class="govuk-visually-hidden">Error:</span> @Model.Error
             </p>
         }
-        <div class="govuk-radios">
+        @* data-module is what GOV.UK Frontend's radios JS binds to; _Checkbox carries the
+           equivalent. Without it the group is plain markup with no component behaviour. *@
+        <div class="govuk-radios" data-module="govuk-radios">
             @* Options are filtered by visibleWhen; the server also rejects posted values for hidden options. *@
             @foreach (var option in Model.VisibleOptions)
             {
                 var optionId = $"{Model.FieldName}-{option.Value}";
                 <div class="govuk-radios__item">
+                    @* An option's own hint is announced only if the input points at it. The
+                       id is emitted below when SubLabel is set, so the reference is built on
+                       the same condition — naming an absent id drops the description entirely. *@
                     <input class="govuk-radios__input"
                            id="@optionId" name="@Model.FieldName" type="radio"
                            value="@option.Value"
+                           aria-describedby="@(option.SubLabel is not null ? optionId + "-item-hint" : null)"
                            @(Model.ExistingAnswer?.TextValue == option.Value ? "checked" : "")>
                     <label class="govuk-label govuk-radios__label" for="@optionId">@option.Label</label>
                     @if (option.SubLabel is not null)

@@ -78,7 +78,7 @@ public sealed record GuidancePage
                 S("not-on-roll-january-census", "Not on roll at the time of January census", 3),
                 S("permanently-excluded-from-current-school", "Permanently excluded from current school", 3),
                 S("permanently-left-england", "Permanently left England", 3),
-                S("social-care-involvement", "Social care involvement – including police or prison", 3),
+                S("social-care-involvement", "Social care involvement - including police or prison", 3),
                 S("life-limiting-or-critical-illness", "Life-limiting or critical illness", 3),
                 S("change-a-pupils-year-group", "Change a pupil’s year group", 3),
                 S("remove-a-pupil-added-back", "Remove a pupil who has been added back", 3),

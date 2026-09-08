@@ -246,7 +246,10 @@ public sealed class JourneyViewModelBuilder(
                     // AB#297130: grades come from the AODC reference data for the selected result's
                     // QAN, not from the flow config — the config cannot know which qualification the
                     // user picked. Pass grades before fail grades, source order preserved within each.
-                    QuestionType.GradeSelect => GradeOptions(gradeReference),
+                    // AB#301913: minus the grade the result already holds — a revision to the same
+                    // grade is not a revision. The missing-qualification picker shares this type but
+                    // has no SelectedResult, so nothing is dropped there.
+                    QuestionType.GradeSelect => GradeOptions(gradeReference, journey.SelectedResult?.Grade),
                     // AB#297848: syllabus codes come from the selected qualification's QualList
                     // entry. The posted/validated value is the bare code; the title is display-only
                     // because sibling codes often differ only by specialism.
@@ -382,14 +385,18 @@ public sealed class JourneyViewModelBuilder(
     }
 
     /// <summary>
-    /// The qualification's grades as picker options, pass grades before fail grades. Empty when the
-    /// QAN is missing from the reference data, which the view reports rather than rendering an empty
-    /// control with no explanation.
+    /// The qualification's grades as picker options, pass grades before fail grades, without the
+    /// grade the selected result already holds (AB#301913 — offering it invites a no-op enquiry;
+    /// the validator still refuses one on POST, this just stops the picker suggesting it). Empty
+    /// when the QAN is missing from the reference data, which the view reports rather than
+    /// rendering an empty control with no explanation.
     /// </summary>
-    private static IReadOnlyList<QuestionOption> GradeOptions(GradeReference? reference) =>
+    private static IReadOnlyList<QuestionOption> GradeOptions(GradeReference? reference, string? currentGrade) =>
         reference is null
             ? []
-            : [.. reference.AllGrades.Select(g => new QuestionOption { Value = g, Label = g })];
+            : [.. reference.AllGrades
+                .Where(g => !GradeEquality.IsSame(g, currentGrade))
+                .Select(g => new QuestionOption { Value = g, Label = g })];
 
     private JourneyConditionContext BuildConditionContext(RequestState journey) =>
         JourneyConditionContextFactory.Create(journey, currentUserService);

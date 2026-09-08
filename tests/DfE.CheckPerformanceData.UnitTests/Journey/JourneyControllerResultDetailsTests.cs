@@ -160,6 +160,8 @@ public sealed class JourneyControllerResultDetailsTests
     [Fact]
     public async Task Get_offers_the_qualifications_own_grades_pass_before_fail()
     {
+        // The seeded result's current grade is M1 (Result() default); AB#301913 keeps it out of the
+        // picker, so the scale is offered minus that one entry, order otherwise untouched.
         Ready();
 
         var view = Assert.IsType<ViewResult>(await _sut.Page(WindowId, "grade-details"));
@@ -167,9 +169,39 @@ public sealed class JourneyControllerResultDetailsTests
         var options = vm.NonFileUploadModels.Single().VisibleOptions;
 
         Assert.Equal(
-            ["*2", "P1", "P2", "M1", "M2", "D1", "D2", "F", "Q", "R", "U", "X"],
+            ["*2", "P1", "P2", "M2", "D1", "D2", "F", "Q", "R", "U", "X"],
             options.Select(o => o.Value).ToArray());
         Assert.Equal(options.Select(o => o.Value), options.Select(o => o.Label));
+    }
+
+    [Fact]
+    public async Task Get_never_offers_the_results_current_grade()
+    {
+        // AB#301913 / #407: choosing the current grade is a no-op enquiry. The server already
+        // refuses it on POST; the picker must not offer it at all, with JavaScript on or off —
+        // and VisibleOptions is what the plain <select> renders, so this is the no-JS proof.
+        Ready(Result(grade: "D1"));
+
+        var view = Assert.IsType<ViewResult>(await _sut.Page(WindowId, "grade-details"));
+        var vm = Assert.IsType<PageViewModel>(view.Model);
+        var values = vm.NonFileUploadModels.Single().VisibleOptions.Select(o => o.Value).ToArray();
+
+        Assert.DoesNotContain("D1", values);
+        Assert.Equal(11, values.Length);
+        Assert.Equal("D1", vm.SelectedResult!.Grade); // the summary row still shows it
+    }
+
+    [Fact]
+    public async Task Get_keeps_the_whole_scale_when_the_current_grade_is_not_in_it()
+    {
+        // Stale or mismatched reference data: the result holds a grade the scale does not list.
+        // Nothing to drop, so the user still sees every grade the qualification offers.
+        Ready(Result(grade: "Z9"));
+
+        var view = Assert.IsType<ViewResult>(await _sut.Page(WindowId, "grade-details"));
+        var vm = Assert.IsType<PageViewModel>(view.Model);
+
+        Assert.Equal(12, vm.NonFileUploadModels.Single().VisibleOptions.Count);
     }
 
     [Fact]
@@ -295,7 +327,9 @@ public sealed class JourneyControllerResultDetailsTests
         var view = Assert.IsType<ViewResult>(await _sut.PagePost(WindowId, "grade-details", false));
         var qm = Assert.IsType<PageViewModel>(view.Model).NonFileUploadModels.Single();
 
-        Assert.Equal(12, qm.VisibleOptions.Count);
+        // 12 in the scale, minus the current grade (M1) — AB#301913.
+        Assert.Equal(11, qm.VisibleOptions.Count);
+        Assert.DoesNotContain("M1", qm.VisibleOptions.Select(o => o.Value));
         Assert.False(qm.GradeOptionsUnavailable);
     }
 

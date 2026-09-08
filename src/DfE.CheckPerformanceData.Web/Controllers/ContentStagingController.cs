@@ -494,9 +494,10 @@ public sealed class ContentStagingController(
 
     // Bounds on anything that reaches a banner.
     //
-    // TempData here is cookie-backed, so whatever goes in comes back up as request headers on
-    // the next request. Past Kestrel's header limit that is a 431 for that browser until its
-    // cookies are cleared — self-inflicted, and triggerable by uploading one junk file.
+    // TempData is held server-side (AddCpdCoreWeb), so an oversized banner no longer follows the
+    // operator around as a request header. It is still rendered into the next page, and the
+    // messages quote content the uploader chose, so it stays bounded here: a banner is a summary
+    // an operator reads, and the full list is in the application logs either way.
     //
     // Both a count and a character budget are needed, and the budget is the one that matters.
     // Validator and import messages embed the offending Title, Segment or Key verbatim, and

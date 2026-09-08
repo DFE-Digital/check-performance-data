@@ -55,7 +55,25 @@ public static class CoreWebExtensions
             // collection this large in the first place. Only the endpoints that opt in with
             // [RequestFormLimits] can reach the higher number.
             options.MaxModelBindingCollectionSize = ContentStagingFormLimits.MaxDecisions;
-        });
+        })
+        // Keep flash messages on the server.
+        //
+        // MVC defaults to CookieTempDataProvider, which encrypts each TempData payload into
+        // .AspNetCore.Mvc.CookieTempDataProvider (chunked across as many 4 KB cookies as it
+        // takes) and has the browser present it back on every subsequent request to the site.
+        // That turns a banner into a request header, and request headers are budgeted by the
+        // reverse proxy in front of the pod, not by Kestrel: past the proxy's buffer it answers
+        // 400 "Request Header Or Cookie Too Large" itself, so the app never sees the request and
+        // cannot clear the cookie that caused it. Every page then fails until the user clears
+        // their cookies by hand. A signed-in user already carries a chunked ~4 KB authentication
+        // cookie, so a couple of kilobytes of import-result banner is enough to cross the line —
+        // which is exactly how a content-staging import took an environment out.
+        //
+        // The session store is Postgres-backed and shared by every replica (AddCpdSessionStore),
+        // so server-side TempData survives a redirect that load-balances to another pod just as
+        // reliably as the cookie did, costs the client nothing, and removes the size ceiling
+        // from every banner in the app rather than one caller at a time.
+        .AddSessionStateTempDataProvider();
 
         builder.Services.AddAuthorization(options =>
         {

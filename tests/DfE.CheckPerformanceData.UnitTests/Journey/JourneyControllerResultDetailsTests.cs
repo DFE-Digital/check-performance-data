@@ -205,6 +205,48 @@ public sealed class JourneyControllerResultDetailsTests
     }
 
     [Fact]
+    public async Task Get_keeps_a_grade_that_differs_from_the_current_one_only_by_case()
+    {
+        // The comparison is ordinal and case-sensitive on purpose (24F is a fail, 24D a pass), so
+        // "m1" is not "M1" and the picker must still offer M1. This pins the *picker* to that rule,
+        // not just GradeEquality — without it the builder could stop using the shared helper.
+        Ready(Result(grade: "m1"));
+
+        var view = Assert.IsType<ViewResult>(await _sut.Page(WindowId, "grade-details"));
+        var vm = Assert.IsType<PageViewModel>(view.Model);
+        var values = vm.NonFileUploadModels.Single().VisibleOptions.Select(o => o.Value).ToArray();
+
+        Assert.Contains("M1", values);
+        Assert.Equal(12, values.Length);
+    }
+
+    [Fact]
+    public async Task Get_drops_the_grade_of_the_selected_result_not_of_the_student()
+    {
+        // The same student holds several results; which grade is withheld must follow the result
+        // they picked on the previous page, not the student. Seed one result, read the picker, then
+        // swap the selected result for another of the same student's and read it again: the first
+        // grade comes back and the second disappears. (Live equivalent: Alice Smith's S2024 result
+        // omits 5 and offers 4; her S2023 result omits 4 and offers 5.)
+        Ready(Result(grade: "M1"));
+        var first = Assert.IsType<PageViewModel>(
+            Assert.IsType<ViewResult>(await _sut.Page(WindowId, "grade-details")).Model);
+        var firstValues = first.NonFileUploadModels.Single().VisibleOptions.Select(o => o.Value).ToArray();
+
+        Ready(Result(grade: "D1"));
+        var second = Assert.IsType<PageViewModel>(
+            Assert.IsType<ViewResult>(await _sut.Page(WindowId, "grade-details")).Model);
+        var secondValues = second.NonFileUploadModels.Single().VisibleOptions.Select(o => o.Value).ToArray();
+
+        Assert.DoesNotContain("M1", firstValues);
+        Assert.Contains("D1", firstValues);
+        Assert.Contains("M1", secondValues);
+        Assert.DoesNotContain("D1", secondValues);
+        Assert.Equal(11, firstValues.Length);
+        Assert.Equal(11, secondValues.Length);
+    }
+
+    [Fact]
     public async Task Get_looks_the_grades_up_by_the_selected_results_qan()
     {
         Ready(Result(qan: "10025480"));

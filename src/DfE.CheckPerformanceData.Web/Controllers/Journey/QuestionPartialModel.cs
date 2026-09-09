@@ -30,9 +30,13 @@ public sealed class QuestionPartialModel
     public IReadOnlyList<QuestionOption> VisibleOptions { get; init; } = [];
 
     /// <summary>
-    /// True when this is a grade picker with nothing to pick — which can only mean the result's QAN
-    /// is absent from the AODC reference data, since every qualification in that data has at least one
-    /// grade. Drives the "we cannot list grades for this qualification yet" message. AB#297130.
+    /// True when this is a grade picker with nothing to pick. Either the result's QAN is absent
+    /// from the AODC reference data (every qualification in that data has at least one grade,
+    /// AB#297130), or — since AB#301913 drops the result's current grade from the scale — the scale
+    /// held exactly one grade and it is the one the result already holds. No known scale has one
+    /// grade (the smallest seeded scale has nine), so the second case is theoretical and the
+    /// "we cannot list grades for this qualification yet" message this drives is written for the
+    /// first.
     /// </summary>
     public bool GradeOptionsUnavailable =>
         Question.Type == QuestionType.GradeSelect && VisibleOptions.Count == 0;

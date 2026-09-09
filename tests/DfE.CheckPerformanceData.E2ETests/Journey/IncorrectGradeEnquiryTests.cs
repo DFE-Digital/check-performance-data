@@ -192,21 +192,42 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
     }
 
     [RetryFact(3)]
-    public async Task ChoosingTheCurrentGrade_ShowsTheMustDifferError()
+    public async Task TheCurrentGradeCannotBeChosenFromThePicker()
     {
-        // The result's current grade is 5, so choosing 5 reports no change.
+        // AB#301913 / #407: the result's current grade is 5. It used to be offered (and refused on
+        // POST); now the picker never suggests it. Typing it into the enhanced control must find
+        // nothing, and the hidden select behind it must not hold it either — the second half is
+        // what a keyboard user or a no-JS user would see. The POST-side refusal of a forged "5" is
+        // pinned at unit level (JourneyControllerResultDetailsTests.Post_the_current_grade_…).
         await NavigateToGradePageAsync();
 
-        await SelectGradeAsync(BusStudsCurrentGrade);
-        await ContinueAsync();
+        // The summary row still states the current grade, so the user knows what they are revising.
+        // Scoped to the row: the same list holds the CYPMD ID 500001, which contains a "5" and would
+        // satisfy a list-wide substring match even if this row vanished (review F3).
+        var currentGradeRow = Page.Locator(".govuk-summary-list__row").Filter(new() { HasText = "Current grade" });
+        await Expect(currentGradeRow).ToHaveCountAsync(1);
+        await Expect(currentGradeRow.Locator(".govuk-summary-list__value")).ToHaveTextAsync(BusStudsCurrentGrade);
 
-        await AssertErrorAsync("The revised grade must be different from the current grade");
+        var input = Page.Locator("input#q_q_revised_grade");
+        await Expect(input).ToBeVisibleAsync();
+        await input.FillAsync(BusStudsCurrentGrade);
+
+        var exactMatch = Page.Locator("#q_q_revised_grade__listbox li[role='option']")
+            .GetByText(BusStudsCurrentGrade, new() { Exact = true });
+        await Expect(exactMatch).ToHaveCountAsync(0);
+
+        // Positive count beside the negative one, so this fact cannot pass on an absent select:
+        // placeholder + the ten remaining grades of the 9-1 scale (review F4).
+        await Expect(Page.Locator("select[name='q_q_revised_grade'] option")).ToHaveCountAsync(11);
+        var hiddenOption = Page.Locator($"select[name='q_q_revised_grade'] option[value='{BusStudsCurrentGrade}']");
+        await Expect(hiddenOption).ToHaveCountAsync(0);
     }
 
     [RetryFact(3)]
-    public async Task TheGradePickerOffersTheQualificationsOwnScale()
+    public async Task TheGradePickerOffersTheQualificationsOwnScaleMinusTheCurrentGrade()
     {
-        // The GCSE 9-1 scale for this QAN, pass grades before fail grades, with a placeholder first.
+        // The GCSE 9-1 scale for this QAN, pass grades before fail grades, with a placeholder first
+        // — and without "5", the grade the seeded S2024 result already holds (AB#301913).
         await NavigateToGradePageAsync();
 
         // By name, not id: enhancement renames the select's id to "-select" but keeps its name,
@@ -214,7 +235,7 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
         var values = await Page.Locator("select[name='q_q_revised_grade'] option").EvaluateAllAsync<string[]>(
             "options => options.map(o => o.value)");
 
-        Assert.Equal(["", "9", "8", "7", "6", "5", "4", "3", "2", "1", "U", "X"], values);
+        Assert.Equal(["", "9", "8", "7", "6", "4", "3", "2", "1", "U", "X"], values);
     }
 
     // ── The way in, and the auth gate ───────────────────────────────────────

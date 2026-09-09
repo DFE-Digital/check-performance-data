@@ -7,7 +7,9 @@
     93 grades, which is far too many to scan in a dropdown.
 
     Options come from the AODC reference data for the selected result's QAN: pass grades first, then
-    fail grades, in source order. Nothing is preselected — the user must choose.
+    fail grades, in source order, minus the grade the result already holds (AB#301913 — the server
+    still refuses a posted no-op; the filter lives in JourneyViewModelBuilder so it holds with
+    JavaScript off). Nothing is preselected — the user must choose.
 *@
 
 @{
@@ -43,7 +45,9 @@
     {
         @* A reference-data gap, not a user error — so it is stated plainly rather than as a
            validation failure. Validation still holds the enquiry back, because a grade nobody can
-           confirm is valid is worse than no enquiry. FLAGGED: copy needs content sign-off. *@
+           confirm is valid is worse than no enquiry. (An empty list can in theory also mean a
+           one-grade scale whose only grade is the current one — AB#301913 — but no known scale has
+           one grade, so this copy is written for the gap.) FLAGGED: copy needs content sign-off. *@
         <div class="govuk-inset-text" id="@unavailableId">
             We cannot list grades for this qualification yet
         </div>

@@ -203,4 +203,44 @@ public sealed class AccessibilityAuditViewTests
 		var view = ReadView("Views", "Journey", "_Radio.cshtml");
 		Assert.Contains("data-module=\"govuk-radios\"", view);
 	}
+
+	// ── #408 / AB#301933 Enhanced pickers opened with their placeholder text as their value ──
+
+	[Theory]
+	[InlineData("_GradeSelect.cshtml")]
+	[InlineData("_SyllabusSelect.cshtml")]
+	public void EnhancedSelectPickers_StartEmpty_NotWithThePlaceholderOptionAsTheirValue(string partial)
+	{
+		// enhanceSelectElement copies the *selected* option's text into the new input when no
+		// defaultValue is given. Nothing is preselected, so the selected option is the placeholder
+		// ("Select revised grade" / "Select"): the input opened already "filled in" — a screen
+		// reader announced a value, and showAllValues filtered the scale against that text and
+		// found nothing until the user cleared it. Passing an empty defaultValue leaves the field
+		// empty; the library still overrides it with a genuinely selected option's text, so a
+		// redisplayed or revisited answer is restored without any code here.
+		var view = ReadView("Views", "Journey", partial);
+
+		var enhanceAt = view.IndexOf("accessibleAutocomplete.enhanceSelectElement({", StringComparison.Ordinal);
+		Assert.True(enhanceAt >= 0, $"{partial}: the picker must still be enhanced in place with enhanceSelectElement.");
+		var configBlock = view.Substring(enhanceAt, view.IndexOf("});", enhanceAt, StringComparison.Ordinal) - enhanceAt);
+
+		Assert.Contains("defaultValue: '',", configBlock);
+	}
+
+	[Theory]
+	[InlineData("_GradeSelect.cshtml")]
+	[InlineData("_SyllabusSelect.cshtml")]
+	public void EnhancedSelectPickers_KeepTheNullOptionForTheNoScriptPage_AndOutOfTheSuggestions(string partial)
+	{
+		// The fix is a script-side default, not a markup change: the placeholder <option value="">
+		// must stay so the JavaScript-off <select> has an unselected state, and preserveNullOptions
+		// must stay false so that row is never offered as a suggestion. A well-meant "tidy" that
+		// drops either would reintroduce a defect on one side or the other.
+		var view = ReadView("Views", "Journey", partial);
+
+		Assert.Contains("<option value=\"\">@(Model.Question.SelectPlaceholder ?? \"", view);
+		Assert.Contains("preserveNullOptions: false,", view);
+		// No native placeholder attribute either — GOV.UK guidance, and the very thing this bug is.
+		Assert.DoesNotContain("placeholder:", view);
+	}
 }

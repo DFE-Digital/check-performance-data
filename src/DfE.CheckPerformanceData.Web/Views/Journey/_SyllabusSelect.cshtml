@@ -8,7 +8,7 @@
 
     Options come from the resolved qualification's QualList reference entry, each paired with its
     title (sibling codes often differ only by specialism). Nothing is preselected — the user must
-    choose.
+    choose — and the enhanced input starts empty rather than holding the placeholder text (AB#301933).
 *@
 
 @{
@@ -93,6 +93,10 @@
         accessibleAutocomplete.enhanceSelectElement({
             selectElement: select,
             preserveNullOptions: false,
+            // Start empty (AB#301933) — same reason as _GradeSelect.cshtml: without this the input
+            // opens holding the placeholder "Select" as its value, and showAllValues finds no
+            // syllabus code matching it until the user clears the field.
+            defaultValue: '',
             showAllValues: true,
             autoselect: false,
             confirmOnBlur: false,

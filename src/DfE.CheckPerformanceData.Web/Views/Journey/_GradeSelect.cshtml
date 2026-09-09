@@ -9,7 +9,7 @@
     Options come from the AODC reference data for the selected result's QAN: pass grades first, then
     fail grades, in source order, minus the grade the result already holds (AB#301913 — the server
     still refuses a posted no-op; the filter lives in JourneyViewModelBuilder so it holds with
-    JavaScript off). Nothing is preselected — the user must choose.
+    JavaScript off). Nothing is preselected — the user must choose — and the enhanced input starts empty rather than holding the placeholder text (AB#301933; see the script below).
 *@
 
 @{
@@ -96,6 +96,15 @@
             selectElement: select,
             // "Select revised grade" is a placeholder, not a grade.
             preserveNullOptions: false,
+            // Start empty (AB#301933). Left unset, enhanceSelectElement copies the *selected*
+            // option's text into the new input — and with nothing chosen that is the placeholder,
+            // so the field opened already "filled in": a screen reader announced a value, and
+            // showAllValues filtered the scale against "Select revised grade" and found nothing
+            // until the user cleared it. The library still overrides this with a genuinely
+            // selected option's text (validation redisplay, Back, Change), so restoration needs no
+            // code here. No native placeholder attribute either: GOV.UK guidance, and it is the
+            // same defect by another route.
+            defaultValue: '',
             // A grade code is short and unguessable, so the user needs to see the scale rather than
             // type into an empty box.
             showAllValues: true,

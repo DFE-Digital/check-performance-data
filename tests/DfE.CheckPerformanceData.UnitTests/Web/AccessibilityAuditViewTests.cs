@@ -1,10 +1,11 @@
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web;
 
 // Static Razor-source assertions for the fixes raised by the Zoonou accessibility audit
-// (epic #384). Same hostless pattern as LayoutRenderTests: read the .cshtml as text and
+// (epic #384) and for other view-level accessibility defects fixed since (#408). Same
+// hostless pattern as LayoutRenderTests: read the .cshtml as text and
 // assert on the source, so the suite needs no MVC test harness.
 //
-// Each fact names the audit ticket it pins. These are all defects that were found once and
+// Each fact names the ticket it pins. These are all defects that were found once and
 // fixed once — the point of the test is that the markup cannot quietly regress, because
 // nothing else in the build would notice a dropped attribute or a moved element.
 public sealed class AccessibilityAuditViewTests
@@ -239,8 +240,15 @@ public sealed class AccessibilityAuditViewTests
 		var view = ReadView("Views", "Journey", partial);
 
 		Assert.Contains("<option value=\"\">@(Model.Question.SelectPlaceholder ?? \"", view);
-		Assert.Contains("preserveNullOptions: false,", view);
+
+		// Scoped to the enhancement call, not the file: the rule is "we never pass the component's
+		// placeholder option", and a comment explaining why we don't must not trip it.
+		var enhanceAt = view.IndexOf("accessibleAutocomplete.enhanceSelectElement({", StringComparison.Ordinal);
+		Assert.True(enhanceAt >= 0, $"{partial}: the picker must still be enhanced in place with enhanceSelectElement.");
+		var configBlock = view.Substring(enhanceAt, view.IndexOf("});", enhanceAt, StringComparison.Ordinal) - enhanceAt);
+
+		Assert.Contains("preserveNullOptions: false,", configBlock);
 		// No native placeholder attribute either — GOV.UK guidance, and the very thing this bug is.
-		Assert.DoesNotContain("placeholder:", view);
+		Assert.DoesNotContain("placeholder:", configBlock);
 	}
 }

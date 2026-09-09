@@ -1,3 +1,6 @@
+using System.Security.Cryptography;
+using Azure.Storage.Blobs;
+using DfE.CheckPerformanceData.Web.Seeding;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Persistence.Contexts;
@@ -11,7 +14,8 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Persistence;
 // The dev seed has to produce a window that runs two activities on two different date ranges, or
 // none of #315-#320 can be developed or demoed locally. It also has to obey the rule that holds the
 // model together: a window's outer dates are the union of its exercises' dates.
-public sealed class SeededCheckingExerciseTests : IAsyncLifetime
+[Collection(nameof(AzuriteCollection))]
+public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsyncLifetime
 {
     private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder()
         .WithImage("postgres:17-alpine")
@@ -41,7 +45,7 @@ public sealed class SeededCheckingExerciseTests : IAsyncLifetime
     {
         await using var ctx = CreateContext();
         return await ctx.CheckingWindows
-            .Include(w => w.CheckingExercises)
+            .Include(w => w.CheckingExercises).ThenInclude(e => e.Datasets)
             .AsNoTracking()
             .SingleAsync(w => w.Id == windowId);
     }
@@ -76,7 +80,7 @@ public sealed class SeededCheckingExerciseTests : IAsyncLifetime
     [Fact]
     public async Task Every_seeded_windows_outer_dates_equal_the_union_of_its_exercises()
     {
-        foreach (var windowId in new[] { _openKs4, _closedKs4, _post16, _closedPupilDataPost16 })
+        foreach (var windowId in new[] { _openKs4, _closedKs4, _post16, _closedPupilDataPost16, DevDataSeeder.Post16IngressCheckingWindowId })
         {
             var window = await LoadAsync(windowId);
 
@@ -109,5 +113,61 @@ public sealed class SeededCheckingExerciseTests : IAsyncLifetime
     {
         var window = await LoadAsync(_post16);
         Assert.Equal(new DateTime(DateTime.Now.Year + 1, 10, 1), window.NextOpportunity);
+    }
+    [Fact]
+    public async Task Post16_ingress_seed_links_both_file_pairs_and_can_be_repeated()
+    {
+        var id = DevDataSeeder.Post16IngressCheckingWindowId;
+        Assert.DoesNotContain(id, new[] { DevDataSeeder.Post16CheckingWindowId,
+            DevDataSeeder.KeyStage4JuneCheckingWindowId, DevDataSeeder.ClosedKeyStage4JuneCheckingWindowId });
+        var blobs = new BlobServiceClient(azurite.ConnectionString);
+        var container = blobs.GetBlobContainerClient(id.ToString());
+        try
+        {
+            await using (var ctx = CreateContext())
+            {
+                await SeedPost16Ingress.ExecuteSeedAsync(ctx, blobs, AppContext.BaseDirectory);
+                await SeedPost16Ingress.ExecuteSeedAsync(ctx, blobs, AppContext.BaseDirectory);
+            }
+
+            var window = await LoadAsync(id);
+            Assert.Equal(CheckingWindowType.Post16, window.CheckingWindowType);
+            Assert.Equal(KeyStages.Post16, window.KeyStage);
+            Assert.Equal(DateTime.Today, window.StartDate);
+            Assert.Equal(window.StartDate.AddMonths(1).AddHours(17), window.EndDate);
+            Assert.Equal(2, window.CheckingExercises.Count);
+            Assert.All(window.CheckingExercises, e =>
+            {
+                Assert.Equal(window.StartDate, e.StartDate);
+                Assert.Equal(window.EndDate, e.EndDate);
+            });
+            var datasets = window.CheckingExercises.Single(e => e.ExerciseType == CheckingExerciseType.PupilData)
+                .Datasets.OrderBy(d => d.SortOrder).ToList();
+            Assert.Equal(new[] { "included", "nonincluded" }, datasets.Select(d => d.Name));
+            Assert.Equal(new bool?[] { true, false }, datasets.Select(d => d.Included));
+            foreach (var dataset in datasets)
+            {
+                Assert.Equal($"{dataset.Name}.csv", dataset.IngressFile);
+                Assert.Equal($"{dataset.Name}.json", dataset.SchemaFile);
+                await AssertFileAsync("ingress", dataset.IngressFile, dataset.IngressFileChecksum, "text/csv");
+                await AssertFileAsync("schema", dataset.SchemaFile, dataset.SchemaFileChecksum, "application/json");
+            }
+            Assert.Equal(datasets[0].IngressFileChecksum, window.IngressFileChecksum);
+            Assert.Equal(datasets[0].SchemaFileChecksum, window.SchemaFileChecksum);
+        }
+        finally
+        {
+            await container.DeleteIfExistsAsync();
+        }
+
+        async Task AssertFileAsync(string folder, string filename, string checksum, string contentType)
+        {
+            var original = await File.ReadAllBytesAsync(Path.Combine(AppContext.BaseDirectory, "Data", "Ingress", folder, filename));
+            var downloaded = (await container.GetBlobClient($"{folder}/{filename}").DownloadContentAsync()).Value;
+            Assert.True(original.AsSpan().SequenceEqual(downloaded.Content.ToArray()), "Seed blob must match its source file.");
+            Assert.Equal(Convert.ToHexString(SHA256.HashData(original)), checksum);
+            Assert.Equal(checksum, downloaded.Details.Metadata["sha256"]);
+            Assert.Equal(contentType, downloaded.Details.ContentType);
+        }
     }
 }

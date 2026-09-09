@@ -136,44 +136,29 @@ public static class SeedCheckingWindows
                 pupilDataEnd: closedPost16PupilDataEnd)
         };
 
+        var ingressStart = DateTime.Today;
+        var ingressEnd = ingressStart.AddMonths(1).AddHours(17);
+        var ingressExercises = ExercisesFor(CheckingWindowType.Post16, ingressStart, ingressEnd);
+        foreach (var exercise in ingressExercises)
+        {
+            exercise.EndDate = ingressEnd;
+        }
+
+        var post16IngressWindow = new CheckingWindow
+        {
+            Id = DevDataSeeder.Post16IngressCheckingWindowId,
+            StartDate = ingressStart,
+            EndDate = ingressEnd,
+            KeyStage = KeyStages.Post16,
+            CheckingWindowType = CheckingWindowType.Post16,
+            Title = "16 to 19 ingress",
+            TurnaroundCommitment = "updated in Spring",
+            CheckingExercises = ingressExercises
+        };
+
         await dbContext.CheckingWindows.AddRangeAsync(
-            openKs4JuneWindow,
-            // new CheckingWindow
-            // {
-            //     Id = Guid.NewGuid(),
-            //     StartDate = DateTime.Now.AddMonths(1),
-            //     EndDate = DateTime.Now.AddMonths(1).AddDays(+14).Date.AddHours(17),
-            //     KeyStage = KeyStages.KS4,
-            //     CheckingWindowType = CheckingWindowType.KS4Autumn,
-            //     Title = "KS4 Autumn"
-            // },
-            // new CheckingWindow
-            // {
-            //     Id = Guid.NewGuid(),
-            //     StartDate = DateTime.Now.AddDays(-3),
-            //     EndDate = DateTime.Now.AddDays(+11).Date.AddHours(17),
-            //     KeyStage = KeyStages.KS2,
-            //     CheckingWindowType = CheckingWindowType.KS2,
-            //     Title = "KS2"
-            // },
-            // new CheckingWindow()
-            // {
-            //     Id = Guid.NewGuid(),
-            //     StartDate = DateTime.Now.AddDays(-4),
-            //     EndDate = DateTime.Now.AddDays(+14).Date.AddHours(17),
-            //     KeyStage = KeyStages.Post16,
-            //     CheckingWindowType = CheckingWindowType.Post16,
-            //     Title = "16-18"
-            // },
-            // new CheckingWindow()
-            // {
-            //     Id = Guid.NewGuid(),
-            //     StartDate = DateTime.Now.AddYears(-1).AddDays(-2),
-            //     EndDate = DateTime.Now.AddYears(-1).AddDays(+12).Date.AddHours(17),
-            //     KeyStage = KeyStages.Post16,
-            //     CheckingWindowType = CheckingWindowType.Post16,
-            //     Title = "16-18"
-            // },
+            post16IngressWindow,
+            openKs4JuneWindow, 
             closedKs4JuneWindow,
             openPost16Window,
             closedPupilDataPost16Window

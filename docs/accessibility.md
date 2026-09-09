@@ -66,6 +66,8 @@ var assistiveHint = (hasError ? 'Error: ' + errorText + '. ' : '')
 
 Error first, then hint, then the component's own arrow-key/touch instructions — which must be kept, since replacing `tAssistiveHint` replaces them. Both `Views/Journey/PupilSearch.cshtml` and `Views/Journey/_Autocomplete.cshtml` do this; keep them in step.
 
+**A select enhanced with `enhanceSelectElement` must pass `defaultValue: ''`** (AB#301933). Left unset, the library copies the *selected* option's text into the new input as its value; nothing is preselected on our pickers, so that is the placeholder row ("Select revised grade" / "Select") — the field opened already "filled in", a screen reader announced a value, and `showAllValues` filtered the options against that text and found nothing until the user cleared it. An empty `defaultValue` leaves the field empty; the library still overrides it with a genuinely selected option's text (validation redisplay, Back, Change), so restoration needs no code. Do not reach for the component's `placeholder` option instead: GOV.UK guidance is not to use placeholder text, and it is the same defect by another route. `Views/Journey/_GradeSelect.cshtml` and `Views/Journey/_SyllabusSelect.cshtml` do this, pinned by `AccessibilityAuditViewTests`; `ResultSearch.cshtml` is unaffected because its placeholder option has empty text.
+
 ## Links styled as buttons
 
 **Every `<a class="govuk-button …">` needs `role="button" draggable="false" data-module="govuk-button"`.**

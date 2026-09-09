@@ -178,6 +178,8 @@ server-side rather than fetched: a student holds a handful of results, so there 
 a round-trip, and a fetch-only control would be unusable without script. The grade picker is enhanced
 because some qualifications award 93 grades.
 
+The enhanced input starts **empty** (`defaultValue: ''`, AB#301933): without that, `enhanceSelectElement` copies the selected option's text into the input, and with nothing preselected that is the placeholder "Select revised grade" — so the field opened "filled in" and `showAllValues` found no grade matching it until the user cleared the box (GitHub #408, the defect the AB#301913 review recorded as F5). A genuinely chosen grade is still restored, because the library overrides `defaultValue` whenever the select holds a value. The same line sits in the missing-qualification syllabus and grade pickers. See `docs/accessibility.md`, "accessible-autocomplete".
+
 `/results/suggestions` (`ResultSuggestionsController`) exists and is tested but is **not used by the
 result page** as a consequence. It is scoped to the session's selected student — no pupil id is ever
 taken from the query string. Decide whether to keep it for the sibling "Review exam results" tickets or

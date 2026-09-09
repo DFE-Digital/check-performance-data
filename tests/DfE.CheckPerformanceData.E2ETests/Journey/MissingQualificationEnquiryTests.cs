@@ -88,6 +88,33 @@ public sealed class MissingQualificationEnquiryTests(PlaywrightFixture fixture) 
     }
 
     [RetryFact(3)]
+    public async Task Answered_pickers_are_restored_on_a_validation_redisplay()
+    {
+        // The route a Back-link fact cannot cover: the page is re-rendered by the POST handler with
+        // the posted answers, and the server marks each chosen <option> selected. defaultValue: ''
+        // (AB#301933) must not blank either enhanced input here — the library overrides it whenever
+        // the select holds a value. This is the one page in the enquiry journeys where a redisplay
+        // can carry an answer: on grade-details the only rejected grade is the current one, which is
+        // no longer an option at all (AB#301913).
+        await StartEnquiryAsync();
+        await ChooseCohortScopeAsync("no");
+        await ChooseStudentAsync("select-student-single");
+        await ChooseQualificationAsync();
+        await Page.WaitForURLAsync($"**/Journey/{WindowId}/page/qualification-details");
+
+        await SelectSyllabusAsync(SyllabusCode);
+        await SelectMissingGradeAsync("9");
+        // Award date deliberately left blank so the page redisplays with an error.
+        await ContinueAsync();
+
+        await AssertErrorAsync("Provide the award date");
+        await Expect(Page.Locator("input#q_q_syllabus_code")).ToHaveValueAsync(SyllabusLabel);
+        await Expect(Page.Locator("select[name='q_q_syllabus_code']")).ToHaveValueAsync(SyllabusCode);
+        await Expect(Page.Locator("input#q_q_missing_grade")).ToHaveValueAsync("9");
+        await Expect(Page.Locator("select[name='q_q_missing_grade']")).ToHaveValueAsync("9");
+    }
+
+    [RetryFact(3)]
     public async Task An_award_date_before_september_2023_is_rejected_with_the_window_message()
     {
         await StartEnquiryAsync();

@@ -259,7 +259,6 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
         await Expect(options).ToHaveCountAsync(10);
         var offered = await options.AllInnerTextsAsync();
         Assert.Equal(["9", "8", "7", "6", "4", "3", "2", "1", "U", "X"], offered.Select(o => o.Trim()).ToArray());
-        Assert.DoesNotContain(BusStudsCurrentGrade, offered);
         await Expect(Page.Locator("#q_q_revised_grade__listbox")).Not.ToContainTextAsync("No results found");
 
         // The placeholder row is still there for the JavaScript-off page — it is just not a value.

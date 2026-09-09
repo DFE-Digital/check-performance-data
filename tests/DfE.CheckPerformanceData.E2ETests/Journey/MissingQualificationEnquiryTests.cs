@@ -25,7 +25,7 @@ public sealed class MissingQualificationEnquiryTests(PlaywrightFixture fixture) 
     private const string Qan = "60146084";
     private const string AwardingOrganisation = "AQA";
     private const string SyllabusCode = "8300H";
-    private const string SyllabusLabel = "8300H — Mathematics Higher Tier";
+    private const string SyllabusLabel = "8300H - Mathematics Higher Tier";
 
     [RetryFact(3)]
     public async Task A_school_can_report_a_missing_qualification_end_to_end()
@@ -52,6 +52,39 @@ public sealed class MissingQualificationEnquiryTests(PlaywrightFixture fixture) 
         await Expect(Page.Locator(".govuk-panel")).ToContainTextAsync("Results enquiry submitted");
         var reference = await ReadReferenceAsync();
         Assert.Matches(@"^CYPMD_16to19_RE_[0-9A-F]{7}$", reference);
+    }
+
+    [RetryFact(3)]
+    public async Task The_syllabus_and_grade_pickers_open_empty_and_list_every_option_without_being_cleared()
+    {
+        // AB#301933 / #408, on the two clones of the incorrect-grade picker. Both used to open
+        // holding "Select" as their value, so showAllValues found nothing until the field was
+        // cleared. Counts are the QualList entry for QAN 60146084: two syllabus codes, thirteen
+        // grades — this journey has no current grade, so nothing is filtered out.
+        await StartEnquiryAsync();
+        await ChooseCohortScopeAsync("no");
+        await ChooseStudentAsync("select-student-single");
+        await ChooseQualificationAsync();
+        await Page.WaitForURLAsync($"**/Journey/{WindowId}/page/qualification-details");
+
+        var syllabus = Page.Locator("input#q_q_syllabus_code");
+        await Expect(syllabus).ToBeVisibleAsync();
+        await Expect(syllabus).ToHaveValueAsync(string.Empty);
+        await syllabus.ClickAsync();
+        var syllabusOptions = Page.Locator("#q_q_syllabus_code__listbox li[role='option']");
+        await Expect(syllabusOptions).ToHaveCountAsync(2);
+        await Expect(Page.Locator("#q_q_syllabus_code__listbox")).ToContainTextAsync(SyllabusLabel);
+
+        // Close the first menu before opening the second so the two listboxes cannot overlap.
+        await Page.Keyboard.PressAsync("Escape");
+
+        var grade = Page.Locator("input#q_q_missing_grade");
+        await Expect(grade).ToBeVisibleAsync();
+        await Expect(grade).ToHaveValueAsync(string.Empty);
+        await grade.ClickAsync();
+        var gradeOptions = Page.Locator("#q_q_missing_grade__listbox li[role='option']");
+        await Expect(gradeOptions).ToHaveCountAsync(13);
+        await Expect(Page.Locator("#q_q_missing_grade__listbox")).Not.ToContainTextAsync("No results found");
     }
 
     [RetryFact(3)]

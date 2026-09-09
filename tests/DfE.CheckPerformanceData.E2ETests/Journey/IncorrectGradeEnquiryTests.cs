@@ -238,6 +238,61 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
         Assert.Equal(["", "9", "8", "7", "6", "4", "3", "2", "1", "U", "X"], values);
     }
 
+    [RetryFact(3)]
+    public async Task TheGradePickerOpensEmptyAndListsTheWholeScaleWithoutBeingCleared()
+    {
+        // AB#301933 / #408: the enhanced input used to open holding "Select revised grade" as its
+        // *value* (enhanceSelectElement copies the selected option's text when no defaultValue is
+        // given, and the selected option was the placeholder). showAllValues then filtered the
+        // scale against that text and showed "No results found" until the user cleared the field,
+        // and a screen reader announced a filled-in field. Driving the enhanced input is the point:
+        // the raw <select> was always right (pinned by the fact above), only the enhancement lied.
+        await NavigateToGradePageAsync();
+
+        var input = Page.Locator("input#q_q_revised_grade");
+        await Expect(input).ToBeVisibleAsync();
+        await Expect(input).ToHaveValueAsync(string.Empty);
+
+        // Focus alone — no typing, no clearing — must open the full scale.
+        await input.ClickAsync();
+        var options = Page.Locator("#q_q_revised_grade__listbox li[role='option']");
+        await Expect(options).ToHaveCountAsync(10);
+        var offered = await options.AllInnerTextsAsync();
+        Assert.Equal(["9", "8", "7", "6", "4", "3", "2", "1", "U", "X"], offered.Select(o => o.Trim()).ToArray());
+        Assert.DoesNotContain(BusStudsCurrentGrade, offered);
+        await Expect(Page.Locator("#q_q_revised_grade__listbox")).Not.ToContainTextAsync("No results found");
+
+        // The placeholder row is still there for the JavaScript-off page — it is just not a value.
+        await Expect(Page.Locator("select[name='q_q_revised_grade'] option").First)
+            .ToHaveTextAsync("Select revised grade");
+        await Expect(Page.Locator("select[name='q_q_revised_grade']")).ToHaveValueAsync(string.Empty);
+    }
+
+    [RetryFact(3)]
+    public async Task AChosenGradeIsStillRestoredWhenTheUserComesBackToThePage()
+    {
+        // The guard for the fix: defaultValue: '' must not stop a real selection from being
+        // restored. enhanceSelectElement overrides defaultValue with the selected option's text
+        // whenever the select holds a value, so a Back to this page shows the grade, not an empty
+        // field — the AB#295434 restoration contract, on this picker.
+        await NavigateToGradePageAsync();
+        await SelectGradeAsync("4");
+        await ContinueAsync();
+        await Page.WaitForURLAsync($"**/Journey/{WindowId}/page/additional-info");
+
+        await Page.Locator("a.govuk-back-link").ClickAsync();
+        await Page.WaitForURLAsync($"**/Journey/{WindowId}/page/grade-details");
+
+        var input = Page.Locator("input#q_q_revised_grade");
+        await Expect(input).ToBeVisibleAsync();
+        await Expect(input).ToHaveValueAsync("4");
+        await Expect(Page.Locator("select[name='q_q_revised_grade']")).ToHaveValueAsync("4");
+
+        // Focusing a restored field must not blank it (the AB#295434 re-render regression).
+        await input.ClickAsync();
+        await Expect(input).ToHaveValueAsync("4");
+    }
+
     // ── The way in, and the auth gate ───────────────────────────────────────
 
     [RetryFact(3)]

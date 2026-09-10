@@ -211,4 +211,54 @@ public sealed class ResultSearchViewSourceTests
     }
 
     private static string ThisFilePath([CallerFilePath] string path = "") => path;
+
+    // ── AB#301934 / #409: a chosen result's details are revealed on the page, not fetched later ──
+
+    [Fact]
+    public void Every_available_result_has_a_details_block_and_only_the_selected_one_is_shown()
+    {
+        // The details used to render only from the session (Model.SelectedResult), so they appeared
+        // only after the user had continued past this page and come back. Now every result the
+        // student holds gets a block, hidden unless it is the one the session holds; the script
+        // reveals the one just picked. Server-side hiding by key is what keeps the Back / redisplay
+        // case working with JavaScript off.
+        var view = ViewSource();
+
+        Assert.Contains("<div id=\"result-search-details\" aria-live=\"polite\">", view);
+        Assert.Contains("data-result-details=\"@result.CompositeKey\"", view);
+        Assert.Contains("hidden=\"@(result.CompositeKey == Model.SelectedResultKey ? null : \"hidden\")\"", view);
+        Assert.DoesNotContain("Model.SelectedResult ", view);
+        Assert.DoesNotContain("Model.SelectedResult.", view);
+    }
+
+    [Fact]
+    public void Confirming_a_suggestion_reveals_its_details_and_still_selects_the_option_that_posts()
+    {
+        // Passing onConfirm replaces the library's default, and the default is what marked the
+        // matching <option> selected — the select is what the form posts. The override must do
+        // that first (matching on the untrimmed option text, exactly as the library does) and
+        // only then reveal the block for the option's value. Dropping the selected= line would
+        // leave every enquiry failing validation at Continue while looking right on screen.
+        var view = ViewSource();
+
+        var enhanceAt = view.IndexOf("accessibleAutocomplete.enhanceSelectElement({", StringComparison.Ordinal);
+        Assert.True(enhanceAt >= 0, "the select must still be enhanced in place with enhanceSelectElement");
+        var config = view.Substring(enhanceAt, view.IndexOf("tAssistiveHint:", enhanceAt, StringComparison.Ordinal) - enhanceAt);
+
+        Assert.Contains("onConfirm: function (label)", config);
+        Assert.Contains("(option.textContent || option.innerText) === label", config);
+        Assert.Contains("chosen.selected = true;", config);
+        Assert.Contains("showDetails(chosen.value);", config);
+    }
+
+    [Fact]
+    public void Editing_the_field_hides_the_details()
+    {
+        // The library leaves the hidden select on the last confirmed choice when the text is
+        // edited; the details must not keep describing a result the field no longer shows.
+        var view = ViewSource();
+
+        Assert.Contains("input.addEventListener('input', function () { showDetails(''); });", view);
+        Assert.Contains("details[i].hidden = details[i].getAttribute('data-result-details') !== key;", view);
+    }
 }

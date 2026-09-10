@@ -106,35 +106,46 @@ else
         <div class="govuk-inset-text">@Model.Content</div>
     }
 
-    @if (Model.SelectedResult is not null)
-    {
-        <govuk-summary-list>
-            <govuk-summary-list-row>
-                <govuk-summary-list-row-key>Qualification name and subject</govuk-summary-list-row-key>
-                <govuk-summary-list-row-value>@Model.SelectedResult.QualificationName</govuk-summary-list-row-value>
-            </govuk-summary-list-row>
-            <govuk-summary-list-row>
-                <govuk-summary-list-row-key>Qualification number (QAN)</govuk-summary-list-row-key>
-                <govuk-summary-list-row-value>@Model.SelectedResult.Qan</govuk-summary-list-row-value>
-            </govuk-summary-list-row>
-            <govuk-summary-list-row>
-                <govuk-summary-list-row-key>Syllabus code</govuk-summary-list-row-key>
-                <govuk-summary-list-row-value>@Model.SelectedResult.SyllabusCode</govuk-summary-list-row-value>
-            </govuk-summary-list-row>
-            <govuk-summary-list-row>
-                <govuk-summary-list-row-key>Session</govuk-summary-list-row-key>
-                <govuk-summary-list-row-value>@Model.SelectedResult.Session</govuk-summary-list-row-value>
-            </govuk-summary-list-row>
-            <govuk-summary-list-row>
-                <govuk-summary-list-row-key>Current Grade</govuk-summary-list-row-key>
-                <govuk-summary-list-row-value>@Model.SelectedResult.Grade</govuk-summary-list-row-value>
-            </govuk-summary-list-row>
-            <govuk-summary-list-row>
-                <govuk-summary-list-row-key>CSV file</govuk-summary-list-row-key>
-                <govuk-summary-list-row-value>@Model.SelectedResult.SourceFile</govuk-summary-list-row-value>
-            </govuk-summary-list-row>
-        </govuk-summary-list>
-    }
+    @* AB#301934 / #409: one details block per result the student holds, all rendered here so the
+       page can reveal the chosen one without a round-trip — a student holds a handful of results,
+       the same reason the options are server-rendered. The server shows the block for the result
+       the session already holds (validation redisplay, Back, Change from the summary); the script
+       below reveals the one just picked. With JavaScript off the select still posts and the details
+       appear on the next render of this page. The container is a polite live region so a screen
+       reader user who confirms with Enter is told what appeared below the field. *@
+    <div id="result-search-details" aria-live="polite">
+        @foreach (var result in Model.AvailableResults)
+        {
+            <div data-result-details="@result.CompositeKey" hidden="@(result.CompositeKey == Model.SelectedResultKey ? null : "hidden")">
+                <govuk-summary-list>
+                    <govuk-summary-list-row>
+                        <govuk-summary-list-row-key>Qualification name and subject</govuk-summary-list-row-key>
+                        <govuk-summary-list-row-value>@result.QualificationName</govuk-summary-list-row-value>
+                    </govuk-summary-list-row>
+                    <govuk-summary-list-row>
+                        <govuk-summary-list-row-key>Qualification number (QAN)</govuk-summary-list-row-key>
+                        <govuk-summary-list-row-value>@result.Qan</govuk-summary-list-row-value>
+                    </govuk-summary-list-row>
+                    <govuk-summary-list-row>
+                        <govuk-summary-list-row-key>Syllabus code</govuk-summary-list-row-key>
+                        <govuk-summary-list-row-value>@result.SyllabusCode</govuk-summary-list-row-value>
+                    </govuk-summary-list-row>
+                    <govuk-summary-list-row>
+                        <govuk-summary-list-row-key>Session</govuk-summary-list-row-key>
+                        <govuk-summary-list-row-value>@result.Session</govuk-summary-list-row-value>
+                    </govuk-summary-list-row>
+                    <govuk-summary-list-row>
+                        <govuk-summary-list-row-key>Current Grade</govuk-summary-list-row-key>
+                        <govuk-summary-list-row-value>@result.Grade</govuk-summary-list-row-value>
+                    </govuk-summary-list-row>
+                    <govuk-summary-list-row>
+                        <govuk-summary-list-row-key>CSV file</govuk-summary-list-row-key>
+                        <govuk-summary-list-row-value>@result.SourceFile</govuk-summary-list-row-value>
+                    </govuk-summary-list-row>
+                </govuk-summary-list>
+            </div>
+        }
+    </div>
 
     <govuk-button type="submit">Continue</govuk-button>
 </form>
@@ -158,6 +169,15 @@ else
                 + 'When autocomplete results are available use up and down arrows to review and '
                 + 'enter to select. Touch device users, explore by touch or with swipe gestures.';
 
+            // AB#301934 / #409: the details blocks are server-rendered, one per result, keyed by the
+            // option value (the composite key). Revealing one is a matter of which is hidden.
+            var details = document.querySelectorAll('[data-result-details]');
+            function showDetails(key) {
+                for (var i = 0; i < details.length; i++) {
+                    details[i].hidden = details[i].getAttribute('data-result-details') !== key;
+                }
+            }
+
             accessibleAutocomplete.enhanceSelectElement({
                 selectElement: select,
                 // The empty first <option> is a placeholder, not a choice, so it must not appear in
@@ -170,8 +190,32 @@ else
                 autoselect: false,
                 confirmOnBlur: false,
                 inputClasses: 'govuk-input' + (hasError ? ' govuk-input--error' : ''),
+                // Passing onConfirm replaces the library's default, and that default is what marked
+                // the matching <option> selected — the select is what the form posts. So this does
+                // the same thing first (matching on the untrimmed option text, exactly as the
+                // library does), then reveals the details for the chosen value. An unmatched
+                // confirm changes nothing, as in the library.
+                onConfirm: function (label) {
+                    var chosen = null;
+                    for (var i = 0; i < select.options.length; i++) {
+                        var option = select.options[i];
+                        if ((option.textContent || option.innerText) === label) chosen = option;
+                    }
+                    if (!chosen) return;
+                    chosen.selected = true;
+                    showDetails(chosen.value);
+                },
                 tAssistiveHint: function () { return assistiveHint; }
             });
+
+            // Editing the text does not change the hidden select (library behaviour), but the details
+            // must not keep describing a result the field no longer shows. enhanceSelectElement has
+            // moved the id onto the new input by now; guard anyway so a library change that leaves it
+            // on the select cannot make this throw.
+            var input = document.getElementById('result-search');
+            if (input && input.tagName === 'INPUT') {
+                input.addEventListener('input', function () { showDetails(''); });
+            }
         })();
     </script>
 }

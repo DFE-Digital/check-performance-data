@@ -335,7 +335,6 @@ public sealed class JourneyViewModelBuilder(
             Hint = page.Subheading,
             Content = page.Content,
             SelectedResultKey = journey.SelectedResult?.CompositeKey,
-            SelectedResult = journey.SelectedResult,
             AvailableResults = availableResults,
             BackPageId = backPageId,
             BackPageAction = JourneyRouting.ActionFor(backPage?.Type)

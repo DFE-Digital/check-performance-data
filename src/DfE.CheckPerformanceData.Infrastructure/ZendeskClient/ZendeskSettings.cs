@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 using System.ComponentModel.DataAnnotations;
 
-namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient 
+namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient
 {
     public sealed class ZendeskSettings
     {

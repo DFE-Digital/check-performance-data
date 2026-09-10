@@ -42,6 +42,9 @@ public sealed class CheckYourPupilDataRepository(
         return query.OrderBy(p => p.Surname).ThenBy(p => p.Firstname).ToList();
     }
 
+    public async Task<IReadOnlyList<IPupilRecord>> GetAllPupilsForSchoolAsync(Guid windowId, string laestab)
+        => await GetSchoolPupilsAsync(windowId, laestab);
+
     public async Task<CheckingWindowDto> GetCheckingWindowAsync(Guid windowId)
         => await dbContext.CheckingWindows
             .AsNoTracking()
@@ -107,7 +110,12 @@ public sealed class CheckYourPupilDataRepository(
         return pupils
             .OrderBy(p => p.Surname).ThenBy(p => p.Firstname)
             .Take(10)
-            .Select(p => new PupilSuggestionDto(p.Id, PupilSuggestionFormat.Label(p, windowType)))
+            .Select(p => new PupilSuggestionDto(
+                p.Id,
+                PupilSuggestionFormat.Label(p, windowType),
+                p.Firstname,
+                p.Surname,
+                PupilDateFormatter.ToDisplayDate(p.DateOfBirth)))
             .ToList();
     }
 

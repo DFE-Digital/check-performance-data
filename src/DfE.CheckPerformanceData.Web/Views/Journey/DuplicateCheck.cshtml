@@ -1,0 +1,148 @@
+@model DfE.CheckPerformanceData.Web.Controllers.Journey.DuplicateCheckViewModel
+
+@{
+    ViewBag.Title = "This pupil may already be on the roll";
+    Layout = "_Layout";
+    var multiple = Model.Scenario == DfE.CheckPerformanceData.Application.CheckYourPupilData.DuplicateScenario.Multiple;
+}
+
+@await Html.PartialAsync("_JourneyBackLink", new DfE.CheckPerformanceData.Web.Controllers.Journey.PageViewModel
+{
+    WindowId = Model.WindowId,
+    BackPageId = Model.BackPageId,
+    BackPageAction = nameof(DfE.CheckPerformanceData.Web.Controllers.Journey.JourneyController.Page),
+    Page = new() { Id = "learner-details" },
+    Answers = new(),
+    QuestionModels = []
+})
+
+<h1 class="govuk-heading-l">This pupil may already be on the roll</h1>
+
+@if (Model.ConflictAttentionHtml is not null)
+{
+    <div role="region" class="moj-alert moj-alert--warning moj-alert--with-heading" aria-label="warning: There is a problem" data-module="moj-alert">
+        <div>
+            <svg class="moj-alert__icon" role="presentation" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" height="30" width="30">
+                <path fill-rule="evenodd" clip-rule="evenodd" d="M15 2.44922L28.75 26.1992H1.25L15 2.44922ZM13.5107 9.49579H16.4697L16.2431 17.767H13.7373L13.5107 9.49579ZM15 20.2508C14.0795 20.2508 13.3333 21.0028 13.3333 21.9318C13.3333 22.8608 14.0795 23.6128 15 23.6128C15.9205 23.6128 16.6667 22.8608 16.6667 21.9318C16.6667 21.0028 15.9205 20.2508 15 20.2508Z" />
+            </svg>
+        </div>
+        <div class="moj-alert__content">
+            <h2 class="moj-alert__heading">Attention</h2>
+            <p class="govuk-body">
+                A request has already been submitted for @Model.ConflictPupilName. Reference @Model.ConflictErrorReference:
+                <a class="govuk-link" href="@Model.ConflictErrorLink" target="_blank" rel="noreferrer noopener">View submitted request (opens in new tab)</a>.
+            </p>
+            <p class="govuk-body">@Html.Raw(Model.ConflictAttentionHtml)</p>
+        </div>
+    </div>
+}
+
+@if (!ViewData.ModelState.IsValid)
+{
+    var modelError = ViewData.ModelState[string.Empty]?.Errors.FirstOrDefault()?.ErrorMessage;
+    var fieldErrorMessage = ViewData.ModelState["selectedPupilId"]?.Errors.FirstOrDefault()?.ErrorMessage;
+    if (!string.IsNullOrEmpty(modelError) || !string.IsNullOrEmpty(fieldErrorMessage))
+    {
+        <govuk-error-summary>
+            <govuk-error-summary-title>There is a problem</govuk-error-summary-title>
+            @if (!string.IsNullOrEmpty(modelError))
+            {
+                <govuk-error-summary-item>@modelError</govuk-error-summary-item>
+            }
+            <govuk-error-summary-item href="#selectedPupilId">@fieldErrorMessage</govuk-error-summary-item>
+        </govuk-error-summary>
+    }
+    <p id="selectedPupilId" class="govuk-error-message">
+        <span class="govuk-visually-hidden">Error:</span>
+        @fieldErrorMessage
+    </p>
+}
+
+<govuk-warning-text icon-fallback-text="Warning">
+    There @(multiple ? "may already be pupils" : "may already be a pupil") matching "@Model.LearnerNameLabel" on the roll.
+</govuk-warning-text>
+
+@if (multiple)
+{
+    <p class="govuk-body">
+        The details you entered match more than one pupil. Check the list and decide whether you need to add a new pupil.
+    </p>
+    <table class="govuk-table">
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header">Name</th>
+                <th scope="col" class="govuk-table__header">Date of birth</th>
+                <th scope="col" class="govuk-table__header">Identifier</th>
+                <th scope="col" class="govuk-table__header">Status</th>
+                <th scope="col" class="govuk-table__header">
+                    <span class="govuk-visually-hidden">Action</span>
+                </th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            @foreach (var match in Model.Matches)
+            {
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">@match.Surname, @match.Firstname</td>
+                    <td class="govuk-table__cell">@match.DateOfBirth</td>
+                    <td class="govuk-table__cell">@match.Identifier</td>
+                    <td class="govuk-table__cell">@(match.IsIncluded ? "Included" : "Not included")</td>
+                    <td class="govuk-table__cell">
+                        @if (!match.IsIncluded)
+                        {
+                            <form method="post" action="@Url.Action("SwitchToInclude", "Journey", new { windowId = Model.WindowId, pupilId = match.Id })">
+                                @Html.AntiForgeryToken()
+                                <govuk-button type="submit" class="govuk-button--secondary govuk-!-margin-bottom-0">Switch to include</govuk-button>
+                            </form>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <p class="govuk-body">
+        This pupil already appears on the roll. If you still need to add a new pupil with these details, you can continue.
+    </p>
+
+    @foreach (var match in Model.Matches)
+    {
+        <dl class="govuk-summary-list">
+            <div class="govuk-summary-list__row">
+                <dt class="govuk-summary-list__key">Name</dt>
+                <dd class="govuk-summary-list__value">@match.Surname, @match.Firstname</dd>
+            </div>
+            <div class="govuk-summary-list__row">
+                <dt class="govuk-summary-list__key">Date of birth</dt>
+                <dd class="govuk-summary-list__value">@match.DateOfBirth</dd>
+            </div>
+            <div class="govuk-summary-list__row">
+                <dt class="govuk-summary-list__key">Identifier</dt>
+                <dd class="govuk-summary-list__value">@match.Identifier</dd>
+            </div>
+        </dl>
+    }
+}
+
+@if (Model.IncludeActionAvailable)
+{
+    <p class="govuk-body">
+        This pupil is not currently included in any request. You can include this existing pupil instead of adding a new record.
+    </p>
+    <form method="post" action="@Url.Action("IncludeThisPupil", "Journey", new { windowId = Model.WindowId })">
+        @Html.AntiForgeryToken()
+        <govuk-button type="submit">Include this pupil</govuk-button>
+    </form>
+}
+
+<form method="post" action="@Url.Action("ContinueAdding", "Journey", new { windowId = Model.WindowId })">
+    @Html.AntiForgeryToken()
+    <govuk-button type="submit">Continue adding</govuk-button>
+</form>
+
+<form method="post" action="@Url.Action("AbortDuplicateCheck", "Journey", new { windowId = Model.WindowId })">
+    @Html.AntiForgeryToken()
+    <govuk-button type="submit" prevent-double-click="false" class="govuk-button--secondary">Abort adding this pupil</govuk-button>
+</form>

@@ -1,0 +1,68 @@
+@model DfE.CheckPerformanceData.Web.Controllers.Journey.IncludeAlreadyIncludedViewModel
+
+@{
+    ViewBag.Title = "This pupil is already included";
+    Layout = "_Layout";
+}
+
+@await Html.PartialAsync("_JourneyBackLink", new DfE.CheckPerformanceData.Web.Controllers.Journey.PageViewModel
+{
+    WindowId = Model.WindowId,
+    BackPageId = Model.BackPageId,
+    BackPageAction = Model.BackPageAction,
+    Page = new() { Id = "select-pupil" },
+    Answers = new(),
+    QuestionModels = []
+})
+
+<h1 class="govuk-heading-l">This pupil is already included</h1>
+
+<govuk-warning-text icon-fallback-text="Warning">
+    There may already be a pupil matching "@Model.TypedPupilLabel" on the included list.
+</govuk-warning-text>
+
+<p class="govuk-body">
+    No non-included pupils were found. The pupil may already be the subject of an active request on the included list. You do not need to include them again.
+</p>
+
+@if (Model.Matches.Count > 0)
+{
+    <h2 class="govuk-heading-m">Matching pupils on the included list</h2>
+
+    <table class="govuk-table">
+        <caption class="govuk-table__caption govuk-table__caption--s">Pupils matching "@Model.TypedPupilLabel"</caption>
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header">Name</th>
+                <th scope="col" class="govuk-table__header">Date of birth</th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            @foreach (var match in Model.Matches)
+            {
+                // Name and date of birth come as typed fields on the suggestion (not parsed back
+                // out of the label, whose shape differs between KS4 and Post16).
+                var displayName = $"{match.Firstname} {match.Surname}".Trim();
+
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">@displayName</td>
+                    <td class="govuk-table__cell">@match.DateOfBirth</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<p class="govuk-body">
+    If the pupil should still be included, you can add them as a new pupil instead.
+</p>
+
+<form method="post" action="@Url.Action("StartAddingPupil", "Journey", new { windowId = Model.WindowId })">
+    @Html.AntiForgeryToken()
+    <govuk-button type="submit">Start adding this pupil</govuk-button>
+</form>
+
+<form method="post" action="@Url.Action("AbortInclude", "Journey", new { windowId = Model.WindowId })">
+    @Html.AntiForgeryToken()
+    <govuk-button type="submit" prevent-double-click="false" class="govuk-button--secondary">Abort</govuk-button>
+</form>

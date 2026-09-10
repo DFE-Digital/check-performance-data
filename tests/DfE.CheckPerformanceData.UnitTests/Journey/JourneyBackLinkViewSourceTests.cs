@@ -53,6 +53,16 @@ public sealed class JourneyBackLinkViewSourceTests
         Assert.Contains("asp-action=\"Summary\"", view);
     }
 
+    [Fact]
+    public void The_AB027_duplicate_check_hand_off_returns_to_the_match_list()
+    {
+        var view = ViewSource();
+
+        Assert.Contains("Model.BackPageAction", view);
+        Assert.Contains("asp-action=\"DuplicateCheck\"", view);
+        Assert.Contains("asp-controller=\"Journey\"", view);
+    }
+
     private static string RepoRoot
     {
         get

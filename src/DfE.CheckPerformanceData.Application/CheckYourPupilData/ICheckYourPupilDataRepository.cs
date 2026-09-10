@@ -12,6 +12,13 @@ public interface ICheckYourPupilDataRepository
     /// <summary>Every pupil in a population, ordered as the table orders them. Feeds the CSV export.</summary>
     Task<IReadOnlyList<IPupilRecord>> GetAllPupilsAsync(Guid windowId, string laestab, bool included);
 
+    /// <summary>
+    /// Every pupil in a school-window's population — included and non-included — from the same
+    /// cached source the pupil search reads. Backs the Add journey's duplicate check; the
+    /// calling service classifies the result (see <see cref="DuplicateCheckResult"/>).
+    /// </summary>
+    Task<IReadOnlyList<IPupilRecord>> GetAllPupilsForSchoolAsync(Guid windowId, string laestab);
+
     Task<CheckingWindowDto> GetCheckingWindowAsync(Guid windowId);
 
     /// <summary>

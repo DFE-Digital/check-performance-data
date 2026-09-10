@@ -77,6 +77,9 @@ public sealed class AddRequestSubmissionTests(PostgresFixture fixture)
     /// </summary>
     private sealed class ShippedFlowFileClient(QuestionFlowConfig? addOverride) : IQuestionFlowConfigSource
     {
+        public bool Exists(WhatToChange whatToChange, CheckingWindowType checkingWindowType) =>
+            GetConfigAsync(whatToChange, checkingWindowType).GetAwaiter().GetResult() is not null;
+
         public Task<QuestionFlowConfig?> GetConfigAsync(WhatToChange whatToChange, CheckingWindowType windowType)
         {
             if (whatToChange == WhatToChange.Add && addOverride is not null)

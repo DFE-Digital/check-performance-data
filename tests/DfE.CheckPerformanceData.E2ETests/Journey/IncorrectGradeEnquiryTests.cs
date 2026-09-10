@@ -361,12 +361,12 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
         await search.FillAsync("French");
         await Expect(Page.Locator("li[role='option']").GetByText("GCSE (9-1) French")).ToBeVisibleAsync();
 
-        // Locator.PressAsync performs its own focus step before dispatching the key, and refocusing
-        // the enhanced input mid-interaction triggers the library's handleComponentBlur, which resets
-        // menuOpen to false and selected to null — so a second PressAsync's Enter lands on a closed
-        // menu and does nothing (handleEnter is a no-op when state.menuOpen is false). Page.Keyboard
-        // sends keys to whatever already has focus with no such step, matching how a real user's
-        // keystrokes land once the field is focused (AB#301934 deviation, see PR notes).
+        // Locator.PressAsync refocuses its element before dispatching each key. ArrowDown moves DOM
+        // focus onto the highlighted <li role="option">, so a PressAsync("Enter") on the input first
+        // refocuses it, which fires the library's handleInputFocus — that resets state.selected to
+        // -1 (the menu stays open; only the highlight is lost) — and handleEnter is a no-op unless
+        // state.selected >= 0. Page.Keyboard sends keys to whatever already has focus with no such
+        // step, matching how a real user's keystrokes land once the field is focused (AB#301934).
         await search.ClickAsync();
         await Page.Keyboard.PressAsync("ArrowDown");
         await Expect(Page.Locator("li[role='option'][aria-selected='true']")).ToBeVisibleAsync();

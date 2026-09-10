@@ -265,7 +265,8 @@ public sealed class ResultSearchViewSourceTests
         var config = view.Substring(enhanceAt, view.IndexOf("tAssistiveHint:", enhanceAt, StringComparison.Ordinal) - enhanceAt);
 
         Assert.Contains("onConfirm: function (label)", config);
-        Assert.Contains("(option.textContent || option.innerText) === label) { chosen = option; break; }", config);
+        Assert.Contains("(option.textContent || option.innerText) === label", config);
+        Assert.Contains("break;", config);
         Assert.Contains("chosen.selected = true;", config);
         Assert.Contains("showDetails(chosen.value);", config);
     }

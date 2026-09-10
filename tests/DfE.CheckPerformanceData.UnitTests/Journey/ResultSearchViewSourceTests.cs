@@ -239,6 +239,11 @@ public sealed class ResultSearchViewSourceTests
         // that first (matching on the untrimmed option text, exactly as the library does) and
         // only then reveal the block for the option's value. Dropping the selected= line would
         // leave every enquiry failing validation at Continue while looking right on screen.
+        //
+        // "Exactly as the library does" includes taking the FIRST match: the default is
+        // filter(...)[0]. Two of a student's results can share a label — ResultLabel.For omits the
+        // source file, CompositeKey includes it — and a loop that keeps overwriting would select the
+        // last one, raising the enquiry against the wrong file. The break is what pins first-wins.
         var view = ViewSource();
 
         var enhanceAt = view.IndexOf("accessibleAutocomplete.enhanceSelectElement({", StringComparison.Ordinal);
@@ -246,7 +251,7 @@ public sealed class ResultSearchViewSourceTests
         var config = view.Substring(enhanceAt, view.IndexOf("tAssistiveHint:", enhanceAt, StringComparison.Ordinal) - enhanceAt);
 
         Assert.Contains("onConfirm: function (label)", config);
-        Assert.Contains("(option.textContent || option.innerText) === label", config);
+        Assert.Contains("(option.textContent || option.innerText) === label) { chosen = option; break; }", config);
         Assert.Contains("chosen.selected = true;", config);
         Assert.Contains("showDetails(chosen.value);", config);
     }

@@ -192,14 +192,15 @@ else
                 inputClasses: 'govuk-input' + (hasError ? ' govuk-input--error' : ''),
                 // Passing onConfirm replaces the library's default, and that default is what marked
                 // the matching <option> selected — the select is what the form posts. So this does
-                // the same thing first (matching on the untrimmed option text, exactly as the
-                // library does), then reveals the details for the chosen value. An unmatched
-                // confirm changes nothing, as in the library.
+                // the same thing first (the first option whose untrimmed text matches, exactly as
+                // the library's filter(...)[0] does — two results can share a label, since the label
+                // omits the source file), then reveals the details for the chosen value. An
+                // unmatched confirm changes nothing, as in the library.
                 onConfirm: function (label) {
                     var chosen = null;
                     for (var i = 0; i < select.options.length; i++) {
                         var option = select.options[i];
-                        if ((option.textContent || option.innerText) === label) chosen = option;
+                        if ((option.textContent || option.innerText) === label) { chosen = option; break; }
                     }
                     if (!chosen) return;
                     chosen.selected = true;

@@ -40,6 +40,20 @@ public sealed class ResultSearchViewSourceTests
     }
 
     [Fact]
+    public void The_option_label_is_the_whole_of_the_option_text()
+    {
+        // accessible-autocomplete builds its suggestions from each option's untrimmed textContent
+        // and copies the confirmed one into the field. With the label on its own line that text
+        // carried a newline and the indentation; the input stripped the newline, the library's poll
+        // then saw the field and its own query disagree, re-filtered, found nothing, and reopened
+        // on "No results found" after every successful pick (AB#301934 review, F1). Tags and label
+        // stay on one line — Razor would otherwise put whitespace back into the option.
+        Assert.Contains(
+            ">@DfE.CheckPerformanceData.Application.ResultsEnquiry.ResultLabel.For(result)</option>",
+            ViewSource());
+    }
+
+    [Fact]
     public void Nothing_is_preselected()
     {
         var view = ViewSource();

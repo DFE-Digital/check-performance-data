@@ -94,9 +94,7 @@ else
             <option value=""></option>
             @foreach (var result in Model.AvailableResults)
             {
-                <option value="@result.CompositeKey" selected="@(result.CompositeKey == Model.SelectedResultKey)">
-                    @DfE.CheckPerformanceData.Application.ResultsEnquiry.ResultLabel.For(result)
-                </option>
+                <option value="@result.CompositeKey" selected="@(result.CompositeKey == Model.SelectedResultKey)">@DfE.CheckPerformanceData.Application.ResultsEnquiry.ResultLabel.For(result)</option>
             }
         </select>
     </div>

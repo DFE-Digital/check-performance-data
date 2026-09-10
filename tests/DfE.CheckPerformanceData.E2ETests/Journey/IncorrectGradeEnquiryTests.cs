@@ -349,6 +349,28 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
     }
 
     [RetryFact(3)]
+    public async Task ConfirmingAResultLeavesTheFieldShowingJustTheLabel()
+    {
+        // The option label used to sit on its own line in the Razor, so its textContent carried a
+        // newline and the indentation. The library builds its suggestions from that raw text and
+        // copies it into the field on confirm; the input strips the newlines, so 100 ms later the
+        // library's poll saw the field and its own query disagree, re-filtered, matched nothing,
+        // and reopened the menu on "No results found" — telling a screen reader user who had just
+        // picked correctly that there were "No search results". The label must be the whole text.
+        await NavigateToResultSearchAsync();
+        await PickResultAsync(BusStudsS2024);
+
+        await Expect(Page.Locator("input#result-search")).ToHaveValueAsync(BusStudsS2024);
+
+        // The reopen was driven by the library's 100 ms poll, so give it a chance to happen before
+        // asserting that it did not.
+        await Page.WaitForTimeoutAsync(500);
+        await Expect(Page.Locator("#result-search__listbox")).Not.ToContainTextAsync("No results found");
+        await Expect(Page.GetByText("No search results")).ToHaveCountAsync(0);
+        await Expect(ShownDetails(Page)).ToHaveCountAsync(1);
+    }
+
+    [RetryFact(3)]
     public async Task ChoosingAResultWithTheKeyboardShowsItsDetails()
     {
         // Enter on a highlighted suggestion goes through the same confirm as a click; proving it

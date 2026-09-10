@@ -25,6 +25,8 @@
       "pageTitle": "Provide evidence for merging duplicate records",
       "type": "EvidenceUpload",
       "title": "Provide evidence for merging duplicate records for {pupilName}",
+      "detailsSummary": "Merge duplicate pupil records",
+      "content": "<p class=\"govuk-body\">If the same pupil appears twice in your performance data and the records need to be combined into a single pupil record.</p><p class=\"govuk-body\"><strong>Information or evidence you must provide</strong></p><ul class=\"govuk-list govuk-list--bullet\"><li>CYPMD ID of the pupil record that should be deleted or merged into the other record</li><li>details explaining why the pupil records should be merged</li></ul>",
       "questions": [
         {
           "id": "evidence",

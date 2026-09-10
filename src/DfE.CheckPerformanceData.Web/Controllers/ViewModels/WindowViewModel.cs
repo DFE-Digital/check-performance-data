@@ -10,10 +10,24 @@ public class WindowViewModel(IReadOnlyList<WindowListItem> windows)
 
 public class WindowListItem
 {
+    public IReadOnlyList<CheckingExerciseListItem> Exercises { get; init; } = [];
     public Guid Id { get; init; }
     public string Name { get; init; } = string.Empty;
     public bool IsOpen { get; init; } = false;
     public bool IsPublished { get; init; } = false;
+}
+
+public sealed class CheckingExerciseListItem
+{
+    public required string Name { get; init; }
+    public required string Status { get; init; }
+    public IReadOnlyList<string> MissingJourneys { get; init; } = [];
+    public string TagColour => Status switch
+    {
+        "Missing journeys" => "red",
+        "Closed" => "grey",
+        _ => "green"
+    };
 }
 
 public class WindowEditItem : AdminPage

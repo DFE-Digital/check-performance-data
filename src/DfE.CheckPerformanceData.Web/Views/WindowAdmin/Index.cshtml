@@ -21,6 +21,7 @@ else
         <tr class="govuk-table__row">
             <th scope="col" class="govuk-table__header">Name</th>
             <th scope="col" class="govuk-table__header">Status</th>
+            <th scope="col" class="govuk-table__header">Checking exercises</th>
             <th scope="col" class="govuk-table__header">Published</th>
             <th scope="col" class="govuk-table__header">Actions</th>
         </tr>
@@ -38,6 +39,30 @@ else
                     else
                     {
                         <strong class="govuk-tag govuk-tag--grey">Closed</strong>
+                    }
+                </td>
+                <td class="govuk-table__cell">
+                    @if (window.Exercises.Count == 0)
+                    {
+                        <span>No checking exercises</span>
+                    }
+                    else
+                    {
+                        <ul class="govuk-list govuk-!-margin-bottom-0">
+                            @foreach (var exercise in window.Exercises)
+                            {
+                                <li class="govuk-!-margin-bottom-3">
+                                    <div class="govuk-!-margin-bottom-1">@exercise.Name</div>
+                                    <strong class="govuk-tag govuk-tag--@exercise.TagColour">@exercise.Status</strong>
+                                    @if (exercise.MissingJourneys.Count > 0)
+                                    {
+                                        <div class="govuk-body-s govuk-!-margin-top-1 govuk-!-margin-bottom-0">
+                                            Missing: @string.Join(", ", exercise.MissingJourneys)
+                                        </div>
+                                    }
+                                </li>
+                            }
+                        </ul>
                     }
                 </td>
                 <td class="govuk-table__cell">@window.IsPublished</td>

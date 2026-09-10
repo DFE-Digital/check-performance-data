@@ -24,9 +24,15 @@ public sealed class FileSystemQuestionFlowClient(string contentRootPath) : IQues
         Converters = { new JsonStringEnumConverter() }
     };
 
+    public bool Exists(WhatToChange whatToChange, CheckingWindowType checkingWindowType) =>
+        File.Exists(ConfigPath(whatToChange, checkingWindowType));
+
+    private string ConfigPath(WhatToChange whatToChange, CheckingWindowType checkingWindowType) =>
+        Path.Combine(contentRootPath, "Data", "QuestionFlows", $"{whatToChange}_{checkingWindowType}.json");
+
     public async Task<QuestionFlowConfig?> GetConfigAsync(WhatToChange whatToChange, CheckingWindowType checkingWindowType)
     {
-        var path = Path.Combine(contentRootPath, "Data", "QuestionFlows", $"{whatToChange}_{checkingWindowType}.json");
+        var path = ConfigPath(whatToChange, checkingWindowType);
         if (!File.Exists(path))
             return null;
 

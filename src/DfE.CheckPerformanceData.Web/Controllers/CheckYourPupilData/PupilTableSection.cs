@@ -28,6 +28,20 @@ public sealed class PupilTableSection
     /// partials reach it through the section they are rendering.
     /// </summary>
     public required LearnerNoun LearnerNoun { get; init; }
+
+    /// <summary>
+    /// The search box's label. Defaults to the pupil sections' wording; the Results section
+    /// overrides it because its search also matches subject, and a label that says "name" would
+    /// hide that.
+    /// </summary>
+    public string SearchLabel
+    {
+        get => _searchLabel ?? $"Search for a {LearnerNoun.Singular} by first or last name";
+        init => _searchLabel = value;
+    }
+
+    private readonly string? _searchLabel;
+
     public required int Page { get; init; }
     public required int TotalPages { get; init; }
     public string? Search { get; init; }

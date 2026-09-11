@@ -145,6 +145,24 @@ public sealed class CheckYourPupilDataViewRenderTests
         Assert.DoesNotContain("is-page-heading=", view);
     }
 
+    [Fact]
+    public void The_results_tab_renders_as_a_sibling_tab_in_both_layouts_when_present()
+    {
+        // One block, after the SectionsAsTabs if/else and inside the same <govuk-tabs>, so the
+        // KS4 tabbed layout and the Post16 stacked layout both get it — and only when the
+        // controller built a section.
+        var view = ReadView();
+
+        var block = Section(view, "@if (Model.ResultsSection is not null)", "</govuk-tabs>");
+        Assert.Contains("<govuk-tabs-item id=\"results\" label=\"Results\">", block);
+        Assert.Contains("_PupilSection", block);
+        Assert.Contains("TabAnchor = \"results\"", block);
+
+        var stackedBranch = view.IndexOf("<govuk-tabs-item id=\"pupils\"", StringComparison.Ordinal);
+        var resultsBranch = view.IndexOf("@if (Model.ResultsSection is not null)", StringComparison.Ordinal);
+        Assert.True(stackedBranch > 0 && resultsBranch > stackedBranch, "the results tab renders after the pupil tabs");
+    }
+
     private static string Section(string view, string fromMarker, string toMarker)
     {
         var start = view.IndexOf(fromMarker, StringComparison.Ordinal);

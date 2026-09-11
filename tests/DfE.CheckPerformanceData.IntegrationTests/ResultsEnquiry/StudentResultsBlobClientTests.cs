@@ -133,6 +133,27 @@ public sealed class StudentResultsBlobClientTests(AzuriteFixture azurite)
     }
 
     [Fact]
+    public async Task GetResultsForSourceAsync_returns_every_row_from_that_file_across_students()
+    {
+        // The Results tab lists the whole school's main-file results, not one student's.
+        var (windowId, service) = await SeededWindowAsync();
+
+        var results = await NewClient(service).GetResultsForSourceAsync(windowId, Laestab, ResultsFileTags.Post16Main);
+
+        Assert.Equal(["6037116X", "60180882"], results.Select(r => r.Qan).ToArray());
+    }
+
+    [Fact]
+    public async Task GetResultsForSourceAsync_returns_empty_when_the_blob_is_missing()
+    {
+        var service = new BlobServiceClient(azurite.ConnectionString);
+
+        var results = await NewClient(service).GetResultsForSourceAsync(Guid.NewGuid(), Laestab, ResultsFileTags.Post16Main);
+
+        Assert.Empty(results);
+    }
+
+    [Fact]
     public async Task The_school_file_is_downloaded_once_and_then_served_from_cache()
     {
         // A journey reads the results file on the search page, the details page and the summary.

@@ -27,14 +27,15 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
     [Route("CheckYourPupilData/{windowId}")]
     public async Task<IActionResult> Index(
         Guid windowId,
-        int includedPage = 0, int nonIncludedPage = 0,
-        string? includedSearch = null, string? nonIncludedSearch = null)
+        int includedPage = 0, int nonIncludedPage = 0, int resultsPage = 0,
+        string? includedSearch = null, string? nonIncludedSearch = null, string? resultsSearch = null)
     {
         if (includedSearch?.Length > MaxSearchLength) includedSearch = null;
         if (nonIncludedSearch?.Length > MaxSearchLength) nonIncludedSearch = null;
+        if (resultsSearch?.Length > MaxSearchLength) resultsSearch = null;
 
         HttpContext.Session.ClearRequestState(windowId);
-        var model = await BuildIndexModelAsync(windowId, includedPage, nonIncludedPage, includedSearch, nonIncludedSearch);
+        var model = await BuildIndexModelAsync(windowId, includedPage, nonIncludedPage, resultsPage, includedSearch, nonIncludedSearch, resultsSearch);
         return View(model);
     }
 
@@ -59,6 +60,14 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
             var nonIncludedCsvFilename = await GenerateCsvFileName(windowId, "pupil-non-include", window);
             await using (var s2 = await zip.CreateEntry(nonIncludedCsvFilename).OpenAsync())
                 s2.Write(nonIncludedCsv);
+
+            // The results CSV rides along only on a window that has a Results tab.
+            if (await checkYourPupilDataService.GetResultsCsvAsync(windowId) is { } results)
+            {
+                var resultsCsvFilename = await GenerateCsvFileName(windowId, "results", window);
+                await using var s3 = await zip.CreateEntry(resultsCsvFilename).OpenAsync();
+                s3.Write(PupilCsvGenerator.Generate(results));
+            }
         }
 
         var zipFileName = GenerateZipFileName(window);
@@ -98,6 +107,19 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         return File(bytes, "text/csv", filename);
     }
 
+    [Route("CheckYourPupilData/{windowId}/download/results")]
+    public async Task<IActionResult> DownloadResults(Guid windowId)
+    {
+        // The link is never rendered on a window without a Results tab, so a null here is a
+        // hand-typed URL. No gated path on this service returns 404.
+        var results = await checkYourPupilDataService.GetResultsCsvAsync(windowId);
+        if (results is null)
+            return RedirectToAction(nameof(Index), new { windowId });
+
+        var filename = await GenerateCsvFileName(windowId, "results");
+        return File(PupilCsvGenerator.Generate(results), "text/csv", filename);
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Route("CheckYourPupilData/{windowId}/nextstep")]
@@ -126,7 +148,7 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         {
             ModelState.AddModelError(nameof(CheckYourPupilDataViewModel.SelectedNextStep), "Select what you would like to do");
             await analytics.TrackSafeAsync(new ValidationErrorEvent { ErrorCount = 1, ErrorCodes = [ValidationErrorCoding.NoSelection], ErrorFields = [nameof(CheckYourPupilDataViewModel.SelectedNextStep)] });
-            var model = await BuildIndexModelAsync(windowId, 0, 0, null, null);
+            var model = await BuildIndexModelAsync(windowId, 0, 0, 0, null, null, null);
             return View("Index", model);
         }
 
@@ -145,11 +167,15 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         Guid windowId,
         int includedPage,
         int nonIncludedPage,
+        int resultsPage,
         string? includedSearch,
-        string? nonIncludedSearch)
+        string? nonIncludedSearch,
+        string? resultsSearch)
     {
         var (includedTable, includedTotal) = await checkYourPupilDataService.GetPupilTableAsync(windowId, included: true, includedSearch, includedPage, PageSize);
         var (nonIncludedTable, nonIncludedTotal) = await checkYourPupilDataService.GetPupilTableAsync(windowId, included: false, nonIncludedSearch, nonIncludedPage, PageSize);
+        // Null when the window has no Results tab (no results enquiry, or no main results slot).
+        var results = await checkYourPupilDataService.GetResultsTableAsync(windowId, resultsSearch, resultsPage, PageSize);
         var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
 
         // Fire only on a real search (a term was entered), per section — never the term itself.
@@ -157,6 +183,8 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
             await analytics.TrackSafeAsync(new PupilDataSearchResultsEvent { ResultCount = includedTotal, ActiveTab = "included" });
         if (!string.IsNullOrEmpty(nonIncludedSearch))
             await analytics.TrackSafeAsync(new PupilDataSearchResultsEvent { ResultCount = nonIncludedTotal, ActiveTab = "nonIncluded" });
+        if (!string.IsNullOrEmpty(resultsSearch) && results is { } searched)
+            await analytics.TrackSafeAsync(new PupilDataSearchResultsEvent { ResultCount = searched.TotalCount, ActiveTab = "results" });
 
         var journey = HttpContext.Session.GetRequestState(windowId);
 
@@ -206,12 +234,33 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
             }
         ];
 
+        // The Results tab is dataset-axis, so it is never one of the inclusion-status sections.
+        PupilTableSection? resultsSection = results is { } r
+            ? new()
+            {
+                Key = "results",
+                TabLabel = "Results",
+                Heading = "Results",
+                DownloadAction = nameof(DownloadResults),
+                DownloadLinkText = "results",
+                EmptyContentKey = WindowScopedContentKey.For("check-pupil-data-no-results-data-content", window.CheckingWindowType),
+                EmptyContentHtml = """<p>There are no results for your school to check in this window. If you believe this is incorrect, you can <a href="/contact">send us a message</a> or call us on 0300 131 2768</p>""",
+                Table = r.Table,
+                Page = resultsPage,
+                TotalPages = TotalPages(r.TotalCount),
+                Search = resultsSearch,
+                LearnerNoun = noun,
+                SearchLabel = $"Search for a {noun.Singular} by name or subject"
+            }
+            : null;
+
         return new CheckYourPupilDataViewModel
         {
             SelectedNextStep = journey.SelectedNextStep,
             WindowId = windowId.ToString(),
             WindowTitle = window.Title,
             Sections = sections,
+            ResultsSection = resultsSection,
             // 16-19 stacks both populations in one "Pupils" tab, because there the tab axis is
             // dataset (the other 16-19 import files become sibling tabs later), not inclusion.
             SectionsAsTabs = window.CheckingWindowType != CheckingWindowType.Post16,

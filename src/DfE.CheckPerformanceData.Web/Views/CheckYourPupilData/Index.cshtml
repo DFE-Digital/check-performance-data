@@ -71,6 +71,14 @@
         CSV files as a ZIP file</a>
 </p>
 
+@{
+    // Every section on the page, so a query string rebuilt from any one tab (search, paging)
+    // carries the others' page and search — the Results tab included, when there is one.
+    IReadOnlyList<PupilTableSection> allSections = Model.ResultsSection is null
+        ? Model.Sections
+        : [.. Model.Sections, Model.ResultsSection];
+}
+
 @* KS4 tabs by inclusion status; 16-19 stacks both tables in one "Pupils" tab, because there the
    tab axis is dataset — the other 16-19 import files become sibling tabs later. *@
 <govuk-tabs>
@@ -83,7 +91,7 @@
                 {
                     WindowId = Model.WindowId,
                     Section = pupilSection,
-                    AllSections = Model.Sections,
+                    AllSections = allSections,
                     TabAnchor = pupilSection.Key
                 })
             </govuk-tabs-item>
@@ -98,10 +106,24 @@
                 {
                     WindowId = Model.WindowId,
                     Section = pupilSection,
-                    AllSections = Model.Sections,
+                    AllSections = allSections,
                     TabAnchor = "pupils"
                 })
             }
+        </govuk-tabs-item>
+    }
+    @* The Results tab is a sibling of the pupil tab(s) in both layouts: its axis is dataset, not
+       inclusion status. Absent when the window has no results enquiry to list. *@
+    @if (Model.ResultsSection is not null)
+    {
+        <govuk-tabs-item id="results" label="Results">
+            @await Html.PartialAsync("_PupilSection", new PupilSectionViewModel
+            {
+                WindowId = Model.WindowId,
+                Section = Model.ResultsSection,
+                AllSections = allSections,
+                TabAnchor = "results"
+            })
         </govuk-tabs-item>
     }
 </govuk-tabs>

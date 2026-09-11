@@ -57,6 +57,9 @@ public sealed class ResultDoesNotBelongEnquiryTests(PlaywrightFixture fixture) :
         var summary = await Page.Locator(".govuk-summary-list").InnerTextAsync();
         Assert.Contains("Result does not belong to student", summary);
         Assert.Contains("60146084", summary);
+        // AB#301903: the stray result is named as the 16-19 reference names it, AO included.
+        Assert.Contains("Awarding Organisation (AO) name", summary);
+        Assert.Contains("AQA Level 1/Level 2 GCSE (9-1) in Mathematics", summary);
         Assert.DoesNotContain("Revised grade", summary);
         Assert.Equal(1, await Page.Locator(".govuk-summary-list__actions a", new() { HasTextString = "Change" }).CountAsync());
 

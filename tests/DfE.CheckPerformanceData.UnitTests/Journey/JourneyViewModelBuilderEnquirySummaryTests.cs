@@ -424,4 +424,30 @@ public sealed class JourneyViewModelBuilderEnquirySummaryTests
         Assert.DoesNotContain("Awarding Organisation (AO) name", lines.Keys);
         Assert.Equal("GCSE (9-1) Art&Des : Fine Art", lines["Qualification name and subject"]);
     }
+
+    [Fact]
+    public void A_result_does_not_belong_summary_also_names_the_qualification_from_the_reference()
+    {
+        // AB#301903: ResultSearchPost resolves the picked result's QAN for every journey with a
+        // result-search page, so this card identifies the stray result exactly as the
+        // incorrect-grade card does — AO row and reference title — just without the grade step.
+        foreach (var page in RdbFlow.Pages)
+            _flowService.GetPage(RdbFlow, page.Id).Returns(page);
+        var journey = ResultDoesNotBelongJourney();
+        journey.SelectedResultQualification = ArtAndDesignReference;
+
+        var lines = _sut.BuildSummaryVm(WindowId, journey, RdbFlow).Lines;
+
+        Assert.Equal(
+            [
+                "DfE number", "Key stage", "Enquiry type", "Name of student", "CYPMD ID",
+                "Awarding Organisation (AO) name", "Qualification number (QAN)",
+                "Qualification name and subject", "Session", "Current grade", "Additional information"
+            ],
+            lines.Select(l => l.Key).ToArray());
+        var values = lines.ToDictionary(l => l.Key, l => l.Value);
+        Assert.Equal("AQA", values["Awarding Organisation (AO) name"]);
+        Assert.Equal("AQA Level 1/Level 2 GCSE (9-1) in Art and Design", values["Qualification name and subject"]);
+        Assert.Single(lines, l => l.HasChange);
+    }
 }

@@ -115,6 +115,9 @@ public sealed class JourneyViewModelBuilder(
                 && string.Equals(Answer(CohortScopeQuestionId), "yes", StringComparison.OrdinalIgnoreCase),
             CohortCount = Answer(CohortCountQuestionId),
             Result = journey.SelectedResult,
+            // AB#301903: set for every kind with a result — the "does not belong" card identifies
+            // the stray result by the reference's AO and title too, pinned by
+            // A_result_does_not_belong_summary_also_names_the_qualification_from_the_reference.
             Qualification = journey.SelectedResultQualification,
             ShowRevisedGrade = kind == Application.CheckYourPupilData.WhatToChange.IncorrectGrade,
             RevisedGrade = Answer(JourneyController.RevisedGradeQuestionId),

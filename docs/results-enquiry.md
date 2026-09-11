@@ -392,6 +392,13 @@ Flow config: `src/DfE.CheckPerformanceData.Web/Data/QuestionFlows/ResultDoesNotB
 Reuses `ResultsEnquirySummary`: `EnquiryTypeLabel = "Result does not belong to student"`,
 `IsCohortWide = false` always, and `ShowRevisedGrade = false` — the row and its Change link are
 omitted entirely rather than rendered empty, since this journey has no grade step.
+
+Since AB#301903 the card also carries the reference's **Awarding Organisation (AO) name** row and
+**qualification title** whenever the picked result's QAN resolved — `ResultSearchPost` resolves the
+qualification for every journey with a result-search page, not only incorrect grade — so a stray
+result is identified the same way on every enquiry card. This journey has no details page, so the
+summary is the only place it shows.
+
 `JourneyController.ResultDoesNotBelongGap` is the completeness check: the selected result is the only
 hard prerequisite (additional info is optional), found via `PageType.ResultSearch` the same way
 `IncorrectGradeGap` does, so a flow-config id rename cannot orphan it.

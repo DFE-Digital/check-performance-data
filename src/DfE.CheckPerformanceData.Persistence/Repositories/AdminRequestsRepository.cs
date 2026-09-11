@@ -54,21 +54,31 @@ public sealed class AdminRequestsRepository(IPortalDbContext db) : IAdminRequest
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyList<ReplayRequestRow>> GetRequestsForOpenWindowsAsync(
-        DateTime now, CancellationToken cancellationToken)
-    {
-        var openWindowIds = await db.CheckingWindows
+    // Resolves a checking exercise TYPE to this window's own exercise ROW id. Two windows running
+    // the same exercise are still two different exercises, so the id is what the ChangeRequests
+    // rows are stamped with. A window with no row of that type yields null, and every query below
+    // then matches nothing — the correct empty answer.
+    private Task<Guid?> ExerciseIdAsync(
+        Guid windowId, CheckingExerciseType exercise, CancellationToken cancellationToken) =>
+        db.CheckingExercises
             .AsNoTracking()
-            .Where(w => w.StartDate <= now && w.EndDate >= now)
-            .Select(w => w.Id)
-            .ToListAsync(cancellationToken);
+            .Where(e => e.CheckingWindowId == windowId && e.ExerciseType == exercise)
+            .Select(e => (Guid?)e.Id)
+            .FirstOrDefaultAsync(cancellationToken);
 
-        if (openWindowIds.Count == 0)
+    public async Task<IReadOnlyList<ReplayRequestRow>> GetRequestsForExerciseAsync(
+        Guid windowId, CheckingExerciseType exercise, CancellationToken cancellationToken)
+    {
+        var exerciseId = await ExerciseIdAsync(windowId, exercise, cancellationToken);
+        if (exerciseId is null)
             return [];
 
         return await db.ChangeRequests
             .AsNoTracking()
-            .Where(r => openWindowIds.Contains(r.WindowId) && r.Status == RequestStatus.SubmittedUnCommitted)
+            .Where(r => r.WindowId == windowId
+                && r.CheckingExerciseId != null
+                && r.CheckingExerciseId == exerciseId
+                && r.Status == RequestStatus.SubmittedUnCommitted)
             .Select(r => new ReplayRequestRow
             {
                 ChangeRequestId = r.Id,
@@ -86,20 +96,33 @@ public sealed class AdminRequestsRepository(IPortalDbContext db) : IAdminRequest
             .Where(r => r.Id == changeRequestId)
             .ExecuteUpdateAsync(s => s.SetProperty(r => r.Status, status), cancellationToken);
 
-    public async Task<int> MarkDraftsNotSubmittedForOpenWindowsAsync(DateTime now, CancellationToken cancellationToken)
+    public async Task<int> MarkDraftsNotSubmittedForExerciseAsync(
+        Guid windowId, CheckingExerciseType exercise, CancellationToken cancellationToken)
     {
-        var openWindowIds = await db.CheckingWindows
-            .AsNoTracking()
-            .Where(w => w.StartDate <= now && w.EndDate >= now)
-            .Select(w => w.Id)
-            .ToListAsync(cancellationToken);
-
-        if (openWindowIds.Count == 0)
+        var exerciseId = await ExerciseIdAsync(windowId, exercise, cancellationToken);
+        if (exerciseId is null)
             return 0;
 
-        return await db.ChangeRequests
-            .Where(r => openWindowIds.Contains(r.WindowId)
-                && (r.Status == RequestStatus.InProgress || r.Status == RequestStatus.ReadyToSubmit))
+        return await DraftsForExercise(windowId, exerciseId)
             .ExecuteUpdateAsync(s => s.SetProperty(r => r.Status, RequestStatus.NotSubmitted), cancellationToken);
     }
+
+    public async Task<int> CountDraftsForExerciseAsync(
+        Guid windowId, CheckingExerciseType exercise, CancellationToken cancellationToken)
+    {
+        var exerciseId = await ExerciseIdAsync(windowId, exercise, cancellationToken);
+        if (exerciseId is null)
+            return 0;
+
+        return await DraftsForExercise(windowId, exerciseId).CountAsync(cancellationToken);
+    }
+
+    // One predicate for the count and the update, so the confirmation page cannot promise a
+    // different number of drafts from the one the close actually cancels.
+    private IQueryable<Entities.ChangeRequest> DraftsForExercise(Guid windowId, Guid? exerciseId) =>
+        db.ChangeRequests
+            .Where(r => r.WindowId == windowId
+                && r.CheckingExerciseId != null
+                && r.CheckingExerciseId == exerciseId
+                && (r.Status == RequestStatus.InProgress || r.Status == RequestStatus.ReadyToSubmit));
 }

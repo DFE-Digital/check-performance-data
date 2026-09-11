@@ -203,4 +203,29 @@ public sealed class AccessibilityAuditViewTests
 		var view = ReadView("Views", "Journey", "_Radio.cshtml");
 		Assert.Contains("data-module=\"govuk-radios\"", view);
 	}
+
+	// ── Close checking exercise: repeated control names ───────────────────────────────
+
+	[Fact]
+	public void SummaryPage_CloseButton_NamesItsExerciseInVisibleText()
+	{
+		// The Close button repeats once per exercise section down the page. Identical accessible
+		// names would leave no way to tell one section's button from the next (#378/#385/#379).
+		// Here the exercise label is in the VISIBLE text, which satisfies the rule without a
+		// govuk-visually-hidden suffix — so the label must not be dropped from the button.
+		var view = ReadView("Views", "WindowAdmin", "Summary.cshtml");
+
+		Assert.Contains("Close @exercise.Label", view);
+		Assert.Contains("@exercise.CloseLink", view);
+	}
+
+	[Fact]
+	public void ClosePage_TitleMatchesItsHeading()
+	{
+		// Every page sets ViewData/ViewBag Title and it matches the <h1>, same words, sentence case.
+		var view = ReadView("Views", "WindowAdmin", "Close.cshtml");
+
+		Assert.Contains("ViewBag.Title = $\"Close {Model.ExerciseLabel}\";", view);
+		Assert.Contains("<h1 class=\"govuk-heading-l\">Close @Model.ExerciseLabel</h1>", view);
+	}
 }

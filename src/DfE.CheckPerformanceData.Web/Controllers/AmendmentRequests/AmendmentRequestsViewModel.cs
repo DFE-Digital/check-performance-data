@@ -31,6 +31,12 @@ public sealed class AmendmentRequestsViewModel
 
     /// <summary>The search term as typed, echoed back into the search input.</summary>
     public string? IssueSearch { get; init; }
+
+    /// <summary>
+    /// Whether to render the Results Enquiries tab: true only when the window runs a results-enquiry
+    /// checking exercise. A window without one has no results feed, so the tab would say nothing.
+    /// </summary>
+    public required bool ShowResultsEnquiries { get; init; }
 }
 
 /// <summary>One exercise's deadline sentence on the amendment requests page.</summary>

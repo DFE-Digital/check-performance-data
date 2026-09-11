@@ -33,6 +33,15 @@ public sealed class AmendmentRequestsResult
     /// them off to raise a duplicate, the exact thing the ticket exists to prevent.
     /// </summary>
     public required bool HasAnyIssues { get; init; }
+
+    /// <summary>
+    /// Whether this window runs a results-enquiry checking exercise. The Results Enquiries tab is
+    /// hidden when it does not: with no exercise there is no results feed, so the tab could only
+    /// ever report an empty list. This is the WHOLE test — do not add a <c>CheckingWindowType</c>
+    /// check beside it. Results enquiry is not a 16-19 exercise: KS4 Autumn runs one too, and any
+    /// window can be given one in the admin wizard, which ticks defaults an admin may override.
+    /// </summary>
+    public required bool HasResultsEnquiry { get; init; }
 }
 
 /// <summary>When one of the window's checking exercises closes, and whether it still has.</summary>

@@ -170,13 +170,19 @@ Comparison is **ordinal and case-sensitive** (`GradeEquality.IsSame`, shared by 
 picker). The IB Diploma is why: `24F` is a fail and `24D` a pass, so `24F` → `24D` is a real enquiry,
 and any normalising comparison risks either rejecting it or accepting a no-op.
 
-## Progressive enhancement
+## Plain dropdowns, and why
 
-Both pickers are server-rendered GOV.UK `<select>`s that accessible-autocomplete upgrades in place via
-`enhanceSelectElement`, so **both pages work with JavaScript off**. The result options are rendered
-server-side rather than fetched: a student holds a handful of results, so there is nothing to gain from
-a round-trip, and a fetch-only control would be unusable without script. The grade picker is enhanced
-because some qualifications award 93 grades.
+The result, grade and syllabus pickers are all plain server-rendered GOV.UK `<select>`s with **no
+JavaScript enhancement**, so all three pages work with JavaScript off by construction rather than by
+progressive enhancement.
+
+All three were accessible-autocomplete type-aheads at first. Every list turned out short enough to read:
+a student holds a handful of results, no qualification holds more than 7 syllabus codes, and the typical
+grade scale is 6 to 15 (the IB Diploma's 93 is the outlier the enhancement was originally written for).
+So the type-ahead was removed rather than kept for one qualification. The result options stay
+server-rendered rather than fetched for the same reason — there is nothing to gain from a round-trip.
+
+The pupil/student search pages keep their autocomplete: a school's roll is long enough to need one.
 
 `/results/suggestions` (`ResultSuggestionsController`) exists and is tested but is **not used by the
 result page** as a consequence. It is scoped to the session's selected student — no pupil id is ever
@@ -509,7 +515,7 @@ spec allows multiples).
 | Item | Owner |
 |---|---|
 | Full AODC export (`Dynamic form QAN list 2026 v1.xlsx`, SharePoint) → replace the seeded `grade-reference.json` | AODC team |
-| Copy sign-off: the must-differ message; "We cannot list grades for this qualification yet"; the issue page's expander body (never captured in Figma); the result label's appended session | Content designer |
+| Copy sign-off: the must-differ message; "We cannot list grades for this qualification yet"; the issue page's expander body (never captured in Figma); the result label's appended session; the result page's hint, now "Results are listed by subject and QAN" since the type-ahead went (the designs' "Start typing to search" described a control the page no longer has); the "Enter which result is incorrect" validation copy, which still says Enter for what is now a dropdown | Content designer |
 | Whether to keep or delete `/results/suggestions` | Dev team |
 | Breadcrumb: the designs show `Check your student data - 16 to 19 and result enquiry`, but no journey view in the service renders a breadcrumb. Worth doing across the whole 16-19 journey at once rather than on one page | Design / dev |
-| `PupilSearch.cshtml` is still JavaScript-dependent (pre-existing). The same `enhanceSelectElement` approach used here would fix it | Dev team |
+| `PupilSearch.cshtml` is still JavaScript-dependent (pre-existing). A server-rendered `<select>`, enhanced or not, would fix it — the roll is too long to list unenhanced, so this one needs the `enhanceSelectElement` pattern the other pickers have now dropped | Dev team |

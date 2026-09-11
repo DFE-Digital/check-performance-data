@@ -69,7 +69,8 @@ public sealed class AmendmentRequestsController(
                 QualificationText = r.QualificationText
             }).ToList(),
             HasAnyIssues = result.HasAnyIssues,
-            IssueSearch = issueSearch
+            IssueSearch = issueSearch,
+            ShowResultsEnquiries = result.HasResultsEnquiry
         };
     }
 

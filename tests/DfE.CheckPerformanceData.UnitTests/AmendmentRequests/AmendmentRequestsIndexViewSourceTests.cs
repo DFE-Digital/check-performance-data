@@ -16,6 +16,19 @@ public sealed class AmendmentRequestsIndexViewSourceTests
         Assert.Contains("<govuk-tabs-item id=\"results-enquiries\" label=\"Results Enquiries\">", source);
     }
 
+    // The tab is gated on the window running a results-enquiry checking exercise. Asserting only
+    // that the condition exists somewhere in the file would miss the tab being moved out of it, so
+    // this pins the tab markup INSIDE the branch.
+    [Fact]
+    public void TheIssuesTabOnlyRendersForAWindowWithAResultsEnquiryExercise()
+    {
+        var source = ViewSource();
+        var ifIndex = source.IndexOf("@if (Model.ShowResultsEnquiries)", StringComparison.Ordinal);
+        Assert.True(ifIndex >= 0, "The Results Enquiries tab's exercise condition is missing or changed.");
+        var tabIndex = source.IndexOf("<govuk-tabs-item id=\"results-enquiries\"", StringComparison.Ordinal);
+        Assert.True(tabIndex > ifIndex, "The Results Enquiries tab is rendered outside its exercise condition.");
+    }
+
     // Ticket copy, verbatim including the "enquires" typo — FLAGGED for content sign-off, but
     // until the BA changes it, drift here is a defect.
     [Fact]

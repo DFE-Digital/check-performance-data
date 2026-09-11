@@ -7,6 +7,7 @@ using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Authentication;
 using DfE.CheckPerformanceData.Web.Common;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
+using DfE.CheckPerformanceData.Web.Session;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Mvc;
@@ -23,7 +24,7 @@ public sealed class LandingPageController(
 {
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
-        HttpContext.Session.Remove("SelectedWindowId");
+        HttpContext.Session.ClearSelectedWindow();
         var result = await landingPageService.GetLandingPageDataAsync(cancellationToken);
 
         if (result == null)

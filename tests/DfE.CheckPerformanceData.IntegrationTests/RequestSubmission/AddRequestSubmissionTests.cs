@@ -19,6 +19,8 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
 using Npgsql;
 using NSubstitute;
+using CloseExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.CloseExerciseService;
+using CheckingExerciseDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseDto;
 using CheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseService;
 using IWindowService = DfE.CheckPerformanceData.Application.WindowManagement.IWindowService;
 
@@ -155,7 +157,8 @@ public sealed class AddRequestSubmissionTests(PostgresFixture fixture)
                 KeyStage = KeyStages.KS4,
                 CheckingWindowType = CheckingWindowType.KS4June,
                 StartDate = DateTime.SpecifyKind(DateTime.UtcNow.Date.AddDays(-10), DateTimeKind.Unspecified),
-                EndDate = DateTime.SpecifyKind(DateTime.UtcNow.Date.AddDays(20), DateTimeKind.Unspecified)
+                EndDate = DateTime.SpecifyKind(DateTime.UtcNow.Date.AddDays(20), DateTimeKind.Unspecified),
+                Exercises = [PupilDataExercise(windowId)]
             },
             ReferenceNumber = reference,
             QuestionAnswers = new Dictionary<string, QuestionAnswer>
@@ -227,13 +230,17 @@ public sealed class AddRequestSubmissionTests(PostgresFixture fixture)
         Assert.Equal(2, rows.Select(r => r.PupilId).Distinct().Count());
     }
 
-    // The Add row must be skipped BECAUSE it is an Add — not incidentally, because some
-    // collaborator returned nothing. So the replay runs the real QuestionFlowService over the
-    // shipped configs, and a Remove row sits in the same batch: if the guard is removed the Add
-    // row is replayed and committed just like its sibling, and this fails. The sibling also
-    // proves the guard `continue`s rather than short-circuiting the loop.
+    // Closing the pupil-data exercise sweeps an Add row exactly like the Remove row beside it.
+    //
+    // This INVERTS the assertion this test shipped with, which pinned the parked AB#297310 guard
+    // skipping Adds. That guard assumed an Add's downstream is the LDS egress rather than Zendesk;
+    // the egress is not designed, so there is no contract to protect and no way to know what
+    // "closed" means for an Add. AB#297310 inherits the decision.
+    //
+    // The Remove row stays in the batch as the control: it proves the sweep is running the real
+    // QuestionFlowService over the shipped configs and processing every row, not short-circuiting.
     [Fact]
-    public async Task WindowCloseReplay_CommitsTheRemoveRow_AndLeavesTheAddRowUncommitted()
+    public async Task ClosingPupilData_CommitsBothTheAddAndTheRemoveRow()
     {
         await TruncateAsync();
         var windowId = await SeedKs4JuneWindowAsync();
@@ -249,36 +256,36 @@ public sealed class AddRequestSubmissionTests(PostgresFixture fixture)
             Assert.Equal(0, await seeded.QueueMessages.CountAsync(m => m.QueueName == QueueOptions.ZendeskQueue));
         }
 
-        var adminService = new AdminRequestsService(
+        var closeService = new CloseExerciseService(
             new AdminRequestsRepository(_fixture.CreateContext()),
             blob,
             BuildFlowService(LoadAddKs4JuneConfig()),
-            new PostgresQueueService(_fixture.CreateContext()),
-            Substitute.For<IWindowService>(),
-            TimeProvider.System);
+            new PostgresQueueService(_fixture.CreateContext()));
 
-        var replayedCount = await adminService.ProcessCloseWindowEvent(CancellationToken.None);
+        var preview = await closeService.PreviewAsync(
+            windowId, CheckingExerciseType.PupilData, CancellationToken.None);
+        Assert.Equal(2, preview.RequestsToClose);
 
-        Assert.Equal(1, replayedCount);
+        var result = await closeService.CloseAsync(
+            windowId, CheckingExerciseType.PupilData, CancellationToken.None);
+
+        Assert.Equal(2, result.Enqueued);
 
         await using var ctx = _fixture.CreateContext();
         var addRow = await ctx.ChangeRequests.SingleAsync(r => r.ReferenceNumber == "CYPMD_KS4June_ADD0004");
         var removeRow = await ctx.ChangeRequests.SingleAsync(r => r.ReferenceNumber == "CYPMD_KS4June_RMV0004");
 
-        Assert.Equal(RequestStatus.SubmittedUnCommitted, addRow.Status);
+        Assert.Equal(RequestStatus.SubmittedCommitted, addRow.Status);
         Assert.Equal(RequestStatus.SubmittedCommitted, removeRow.Status);
 
-        // Exactly one Zendesk document, and it is the Remove one — the Add reference appears on
-        // no queue at all.
+        // Both references reach Zendesk, one document each.
         var zendesk = await ctx.QueueMessages
             .Where(m => m.QueueName == QueueOptions.ZendeskQueue)
             .Select(m => m.Payload)
             .ToListAsync();
-        Assert.Single(zendesk);
-        Assert.Contains("CYPMD_KS4June_RMV0004", zendesk[0]);
-
-        var allPayloads = await ctx.QueueMessages.Select(m => m.Payload).ToListAsync();
-        Assert.DoesNotContain(allPayloads, p => p.Contains("CYPMD_KS4June_ADD0004"));
+        Assert.Equal(2, zendesk.Count);
+        Assert.Contains(zendesk, p => p.Contains("CYPMD_KS4June_ADD0004"));
+        Assert.Contains(zendesk, p => p.Contains("CYPMD_KS4June_RMV0004"));
     }
 
     // A roll pupil going through the Remove journey — the ordinary amendment the replay is built
@@ -293,7 +300,8 @@ public sealed class AddRequestSubmissionTests(PostgresFixture fixture)
             KeyStage = KeyStages.KS4,
             CheckingWindowType = CheckingWindowType.KS4June,
             StartDate = DateTime.SpecifyKind(DateTime.UtcNow.Date.AddDays(-10), DateTimeKind.Unspecified),
-            EndDate = DateTime.SpecifyKind(DateTime.UtcNow.Date.AddDays(20), DateTimeKind.Unspecified)
+            EndDate = DateTime.SpecifyKind(DateTime.UtcNow.Date.AddDays(20), DateTimeKind.Unspecified),
+            Exercises = [PupilDataExercise(windowId)]
         },
         ReferenceNumber = reference,
         SelectedPupil = new PupilDto
@@ -334,6 +342,28 @@ public sealed class AddRequestSubmissionTests(PostgresFixture fixture)
         }
     }
 
+    // RequestService stamps a request's CheckingExerciseId from the JOURNEY's own Exercises list
+    // (ICheckingExerciseService.IdFor), not from the database — so the seeded exercise row and the
+    // session DTO in each journey below have to name the same id, or every row lands orphaned and
+    // the per-exercise close sweep finds nothing.
+    // Derived from the window id rather than a constant: every test here seeds its own window into
+    // the same shared database, so a fixed exercise id collides on the second one.
+    private static Guid PupilDataExerciseId(Guid windowId)
+    {
+        var bytes = windowId.ToByteArray();
+        bytes[15] ^= 0x01;
+        return new Guid(bytes);
+    }
+
+    private static CheckingExerciseDto PupilDataExercise(Guid windowId) => new()
+    {
+        Id = PupilDataExerciseId(windowId),
+        ExerciseType = CheckingExerciseType.PupilData,
+        StartDate = DateTime.SpecifyKind(DateTime.UtcNow.Date.AddDays(-10), DateTimeKind.Unspecified),
+        EndDate = DateTime.SpecifyKind(DateTime.UtcNow.Date.AddDays(20), DateTimeKind.Unspecified),
+        SortOrder = 0
+    };
+
     private async Task<Guid> SeedKs4JuneWindowAsync()
     {
         await using var ctx = _fixture.CreateContext();
@@ -346,6 +376,19 @@ public sealed class AddRequestSubmissionTests(PostgresFixture fixture)
             StartDate = DateTime.SpecifyKind(DateTime.UtcNow.Date.AddDays(-10), DateTimeKind.Unspecified),
             EndDate = DateTime.SpecifyKind(DateTime.UtcNow.Date.AddDays(20), DateTimeKind.Unspecified)
         };
+        // A KS4 June window runs pupil-data checking. The exercise row has to exist for
+        // RequestService to stamp CheckingExerciseId onto the submitted requests, which is what the
+        // per-exercise close sweep matches on — without it every row is orphaned and closing the
+        // exercise finds nothing.
+        window.CheckingExercises.Add(new CheckingExercise
+        {
+            Id = PupilDataExerciseId(window.Id),
+            ExerciseType = CheckingExerciseType.PupilData,
+            StartDate = window.StartDate,
+            EndDate = window.EndDate,
+            SortOrder = 0
+        });
+
         ctx.CheckingWindows.Add(window);
         await ctx.SaveChangesAsync();
         return window.Id;

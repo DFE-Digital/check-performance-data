@@ -7,10 +7,9 @@ namespace DfE.CheckPerformanceData.E2ETests.Journey;
 
 // AB#296648: the 16-19 "report an incorrect grade" journey, driven through a real browser.
 //
-// These cover what only a browser can: that the accessible-autocomplete enhancement of the result and
-// grade pickers actually works (both are server-rendered <select>s upgraded in place), that the
-// journey holds together across every redirect, and that starting a second enquiry genuinely carries
-// nothing over.
+// These cover what only a browser can: that the result and grade dropdowns post the value they show,
+// that the journey holds together across every redirect, and that starting a second enquiry genuinely
+// carries nothing over.
 //
 // The seed (SeedStudentResults) deliberately writes no 16to19_LR2 rows, so the late-results
 // interstitial is on the happy path locally.
@@ -195,9 +194,7 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
     public async Task TheCurrentGradeCannotBeChosenFromThePicker()
     {
         // AB#301913 / #407: the result's current grade is 5. It used to be offered (and refused on
-        // POST); now the picker never suggests it. Typing it into the enhanced control must find
-        // nothing, and the hidden select behind it must not hold it either — the second half is
-        // what a keyboard user or a no-JS user would see. The POST-side refusal of a forged "5" is
+        // POST); now the picker never lists it at all. The POST-side refusal of a forged "5" is
         // pinned at unit level (JourneyControllerResultDetailsTests.Post_the_current_grade_…).
         await NavigateToGradePageAsync();
 
@@ -208,19 +205,11 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
         await Expect(currentGradeRow).ToHaveCountAsync(1);
         await Expect(currentGradeRow.Locator(".govuk-summary-list__value")).ToHaveTextAsync(BusStudsCurrentGrade);
 
-        var input = Page.Locator("input#q_q_revised_grade");
-        await Expect(input).ToBeVisibleAsync();
-        await input.FillAsync(BusStudsCurrentGrade);
-
-        var exactMatch = Page.Locator("#q_q_revised_grade__listbox li[role='option']")
-            .GetByText(BusStudsCurrentGrade, new() { Exact = true });
-        await Expect(exactMatch).ToHaveCountAsync(0);
-
         // Positive count beside the negative one, so this fact cannot pass on an absent select:
         // placeholder + the ten remaining grades of the 9-1 scale (review F4).
         await Expect(Page.Locator("select[name='q_q_revised_grade'] option")).ToHaveCountAsync(11);
-        var hiddenOption = Page.Locator($"select[name='q_q_revised_grade'] option[value='{BusStudsCurrentGrade}']");
-        await Expect(hiddenOption).ToHaveCountAsync(0);
+        var currentGradeOption = Page.Locator($"select[name='q_q_revised_grade'] option[value='{BusStudsCurrentGrade}']");
+        await Expect(currentGradeOption).ToHaveCountAsync(0);
     }
 
     [RetryFact(3)]
@@ -230,8 +219,7 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
         // — and without "5", the grade the seeded S2024 result already holds (AB#301913).
         await NavigateToGradePageAsync();
 
-        // By name, not id: enhancement renames the select's id to "-select" but keeps its name,
-        // so this locator finds the full server-rendered scale whether or not the script has run.
+        // By name rather than id, matching the other locators in this suite.
         var values = await Page.Locator("select[name='q_q_revised_grade'] option").EvaluateAllAsync<string[]>(
             "options => options.map(o => o.value)");
 
@@ -317,29 +305,18 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
     }
 
     /// <summary>
-    /// Picks a result through the enhanced autocomplete. The control is a server-rendered
-    /// &lt;select&gt; that accessible-autocomplete upgrades in place, so exercising it here is what
-    /// proves the enhancement works — a unit test can only see the select.
+    /// Picks a result from the plain server-rendered &lt;select&gt;. The type-ahead this control
+    /// once carried is gone — a student holds a handful of results, so the list is read.
     /// </summary>
     private async Task ChooseResultAsync(string label)
     {
         await Page.WaitForURLAsync($"**/Journey/{WindowId}/result-search/select-result");
-        var search = Page.Locator("#result-search").First;
-        await Expect(search).ToBeVisibleAsync();
-        await search.FillAsync("Bus");
-        var option = Page.Locator("li[role='option']").GetByText(label, new() { Exact = false });
-        await Expect(option.First).ToBeVisibleAsync();
-        await option.First.ClickAsync();
+        var select = Page.Locator("select[name='selectedResultKey']");
+        await Expect(select).ToBeVisibleAsync();
+        await select.SelectOptionAsync(new SelectOptionValue { Label = label });
+        await Expect(select.Locator("option:checked")).ToContainTextAsync(label);
 
-        // The autocomplete updates the hidden select asynchronously. Wait for the value that the
-        // form actually posts before submitting, otherwise a fast click on Continue can redisplay
-        // this page with the no-selection validation error.
-        await Expect(Page.Locator("select[name='selectedResultKey'] option:checked"))
-            .ToContainTextAsync(label);
-
-        // The open autocomplete menu can consume Playwright's pointer click on Continue without
-        // submitting the form. Native requestSubmit preserves browser validation and submit events.
-        await Page.Locator("form").EvaluateAsync("form => form.requestSubmit()");
+        await ContinueAsync();
     }
 
     private async Task ChooseRevisedGradeAsync(string grade)
@@ -349,26 +326,14 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
         await ContinueAsync();
     }
 
-    // The grade picker is a server-rendered <select> that accessible-autocomplete upgrades in
-    // place: the select is renamed "#q_q_revised_grade-select" and hidden, and the visible control
-    // becomes an <input> that takes the select's original id. Driving the input is the point — it
-    // proves the enhancement works, exactly like ChooseStudentAsync and ChooseResultAsync do for
-    // the other two autocompletes. There is deliberately no fallback to the raw select: if the
-    // enhancement stops activating, these tests must fail, not quietly route around it.
+    // The grade picker is a plain server-rendered <select> with no JavaScript enhancement — the
+    // scale is short enough to read, so the option is chosen on the select itself.
     private async Task SelectGradeAsync(string grade)
     {
-        var input = Page.Locator("input#q_q_revised_grade");
-        await Expect(input).ToBeVisibleAsync();
-        await input.FillAsync(grade);
-
-        var option = Page.Locator("#q_q_revised_grade__listbox li[role='option']")
-            .GetByText(grade, new() { Exact = true });
-        await Expect(option.First).ToBeVisibleAsync();
-        await option.First.ClickAsync();
-
-        // Confirming the option writes the value into the hidden select, which is what the form
-        // posts — waiting on it here makes the subsequent Continue deterministic.
-        await Expect(Page.Locator("select[name='q_q_revised_grade']")).ToHaveValueAsync(grade);
+        var select = Page.Locator("select[name='q_q_revised_grade']");
+        await Expect(select).ToBeVisibleAsync();
+        await select.SelectOptionAsync(grade);
+        await Expect(select).ToHaveValueAsync(grade);
     }
 
     private async Task FillAdditionalInfoAsync(string text)

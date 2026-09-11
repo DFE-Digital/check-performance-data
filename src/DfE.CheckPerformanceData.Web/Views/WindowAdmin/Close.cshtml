@@ -1,0 +1,53 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin.CloseExerciseViewModel
+
+@{
+    // Matches the <h1> below.
+    ViewBag.Title = $"Close {Model.ExerciseLabel}";
+}
+
+<govuk-back-link href="@Model.CancelLink" />
+
+<h1 class="govuk-heading-l">Close @Model.ExerciseLabel</h1>
+
+<p class="govuk-body">
+    This closes the @Model.ExerciseLabel exercise for <strong>@Model.WindowTitle</strong>.
+</p>
+
+@if (Model.HasNothingToDo)
+{
+    @* Closing an already-swept exercise is harmless. Say so plainly rather than blocking or
+       erroring — an admin who presses Close twice has done nothing wrong. *@
+    <p class="govuk-body">
+        There are no requests to send and no drafts to cancel for this exercise. Closing it now
+        will have no effect.
+    </p>
+}
+else
+{
+    <govuk-warning-text icon-fallback-text="Warning">
+        You cannot undo this.
+    </govuk-warning-text>
+
+    <govuk-summary-list>
+        <govuk-summary-list-row>
+            <govuk-summary-list-row-key>Requests to send for processing</govuk-summary-list-row-key>
+            <govuk-summary-list-row-value>@Model.RequestsToClose</govuk-summary-list-row-value>
+        </govuk-summary-list-row>
+        <govuk-summary-list-row>
+            <govuk-summary-list-row-key>Drafts to cancel</govuk-summary-list-row-key>
+            <govuk-summary-list-row-value>@Model.DraftsToCancel</govuk-summary-list-row-value>
+        </govuk-summary-list-row>
+    </govuk-summary-list>
+
+    <p class="govuk-body">
+        Submitted requests are sent for processing and cannot be changed afterwards. Drafts a school
+        has not submitted are cancelled and cannot be resumed.
+    </p>
+}
+
+<form method="post" action="/admin/windows/@Model.WindowId/@Model.ExerciseType/close">
+    <govuk-button type="submit" class="govuk-button--warning">
+        Close @Model.ExerciseLabel
+    </govuk-button>
+    <a class="govuk-link govuk-!-margin-left-3" href="@Model.CancelLink">Cancel</a>
+</form>

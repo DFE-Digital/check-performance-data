@@ -35,9 +35,7 @@ public class AdminRequestsServiceTests
                 Arg.Any<Guid>(), Arg.Any<CheckingExerciseType?>(), Arg.Any<CancellationToken>())
             .Returns([]);
 
-        _sut = new AdminRequestsService(
-            _repository, _requestStateBlobClient, _flowService, _queueService, _windowService,
-            new FakeTimeProvider(Now));
+        _sut = new AdminRequestsService(_repository, _windowService);
     }
 
     private sealed class FakeTimeProvider(DateTimeOffset now) : TimeProvider

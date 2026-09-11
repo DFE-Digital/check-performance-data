@@ -9,6 +9,20 @@
 
 <h1 class="govuk-heading-xl">@Model.Title</h1>
 
+@* Outcome of a close, stashed by CloseExerciseController. Quotes what the sweep actually did. *@
+@if (TempData[DfE.CheckPerformanceData.Web.Controllers.WindowAdmin.CloseExerciseController.TempDataKey] is string closeOutcome)
+{
+  <div class="govuk-notification-banner govuk-notification-banner--success" role="alert"
+       aria-labelledby="close-outcome-title" data-module="govuk-notification-banner">
+    <div class="govuk-notification-banner__header">
+      <h2 class="govuk-notification-banner__title" id="close-outcome-title">Success</h2>
+    </div>
+    <div class="govuk-notification-banner__content">
+      <p class="govuk-notification-banner__heading">@closeOutcome</p>
+    </div>
+  </div>
+}
+
 <h2 class="govuk-heading-m">Window details</h2>
 
 <govuk-summary-list>
@@ -140,6 +154,12 @@
 
     <govuk-button-link disabled="@(!exercise.IsValidatable)" href="@exercise.ValidateLink">
       Validate @exercise.Label
+    </govuk-button-link>
+
+    @* The label is in the VISIBLE text, so the repeated-accessible-name rule needs no
+       govuk-visually-hidden suffix here. Never disabled: closing ignores the exercise's dates. *@
+    <govuk-button-link class="govuk-button--warning" href="@exercise.CloseLink">
+      Close @exercise.Label
     </govuk-button-link>
   }
 }

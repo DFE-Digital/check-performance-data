@@ -74,14 +74,11 @@ public sealed class ClosedWindowEnquiryTests(PlaywrightFixture fixture) : Seedin
         await ContinueAsync();
 
         await Page.WaitForURLAsync($"**/Journey/{WindowId}/result-search/select-result");
-        var resultSearch = Page.Locator("#result-search").First;
-        await Expect(resultSearch).ToBeVisibleAsync();
-        await resultSearch.FillAsync("Bus");
-        var resultOption = Page.Locator("li[role='option']").GetByText(BusStudsS2024, new() { Exact = false });
-        await Expect(resultOption.First).ToBeVisibleAsync();
-        await resultOption.First.ClickAsync();
-        await Expect(Page.Locator("select[name='selectedResultKey'] option:checked")).ToContainTextAsync(BusStudsS2024);
-        await Page.Locator("form").EvaluateAsync("form => form.requestSubmit()");
+        var resultSelect = Page.Locator("select[name='selectedResultKey']");
+        await Expect(resultSelect).ToBeVisibleAsync();
+        await resultSelect.SelectOptionAsync(new SelectOptionValue { Label = BusStudsS2024 });
+        await Expect(resultSelect.Locator("option:checked")).ToContainTextAsync(BusStudsS2024);
+        await ContinueAsync();
 
         await Page.WaitForURLAsync($"**/Journey/{WindowId}/page/additional-info");
         await ContinueAsync();

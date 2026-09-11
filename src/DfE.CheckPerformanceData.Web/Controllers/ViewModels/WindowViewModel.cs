@@ -86,6 +86,11 @@ public sealed class ExerciseSummarySection
     public string DatesLink => $"/admin/windows/{WindowId}/exercises/{ExerciseType}/dates";
     public string ValidateLink => $"/admin/windows/{WindowId}/{ExerciseType}/validate";
 
+    // No IsValidatable-style gate beside this one: closing works regardless of the exercise's dates
+    // and regardless of whether its files ever validated. It is an admin decision, not a
+    // consequence of the clock — see ICloseExerciseService.
+    public string CloseLink => $"/admin/windows/{WindowId}/{ExerciseType}/close";
+
     // Every REQUIRED dataset must have both files — a Post16 pupil-data exercise is not validatable
     // until both the included and non-included CSV/schema pairs are chosen, because they ingest in
     // one run. An exercise with no complete dataset at all has nothing to validate. Optional slots

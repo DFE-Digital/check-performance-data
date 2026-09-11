@@ -183,24 +183,18 @@ public sealed class ResultDoesNotBelongEnquiryTests(PlaywrightFixture fixture) :
     }
 
     /// <summary>
-    /// Picks a result through the enhanced autocomplete, mirroring
-    /// IncorrectGradeEnquiryTests.ChooseResultAsync — the control is a server-rendered
-    /// &lt;select&gt; that accessible-autocomplete upgrades in place.
+    /// Picks a result from the plain &lt;select&gt;, mirroring
+    /// IncorrectGradeEnquiryTests.ChooseResultAsync.
     /// </summary>
     private async Task ChooseResultAsync(string label)
     {
         await Page.WaitForURLAsync($"**/Journey/{WindowId}/result-search/select-result");
-        var search = Page.Locator("#result-search").First;
-        await Expect(search).ToBeVisibleAsync();
-        await search.FillAsync("Bus");
-        var option = Page.Locator("li[role='option']").GetByText(label, new() { Exact = false });
-        await Expect(option.First).ToBeVisibleAsync();
-        await option.First.ClickAsync();
+        var select = Page.Locator("select[name='selectedResultKey']");
+        await Expect(select).ToBeVisibleAsync();
+        await select.SelectOptionAsync(new SelectOptionValue { Label = label });
+        await Expect(select.Locator("option:checked")).ToContainTextAsync(label);
 
-        await Expect(Page.Locator("select[name='selectedResultKey'] option:checked"))
-            .ToContainTextAsync(label);
-
-        await Page.Locator("form").EvaluateAsync("form => form.requestSubmit()");
+        await ContinueAsync();
     }
 
     private async Task<string> ReadReferenceAsync()

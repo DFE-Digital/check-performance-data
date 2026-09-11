@@ -137,33 +137,15 @@ public sealed class ResultDetailsViewSourceTests
     }
 
     [Fact]
-    public void The_select_is_enhanced_into_a_searchable_control()
+    public void The_picker_is_a_plain_dropdown_with_no_javascript_enhancement()
     {
-        // Some qualifications award 93 grades — far too many to scan in a plain dropdown.
+        // The picker used to be upgraded into an accessible-autocomplete type-ahead because a scale
+        // can hold 93 grades (the IB Diploma). The typical scale is 6 to 15 and the list is short
+        // enough to read, so the enhancement is gone: no script, no type-ahead, one <select>.
         var view = Partial();
 
-        Assert.Contains("accessibleAutocomplete.enhanceSelectElement({", view);
-        Assert.Contains("showAllValues: true", view);
-    }
-
-    [Fact]
-    public void The_enhancement_never_auto_picks_a_grade()
-    {
-        // 24F and 24D differ by one character; auto-selecting the first match could turn a fail into
-        // a pass without the user noticing.
-        var view = Partial();
-
-        Assert.Contains("autoselect: false", view);
-        Assert.Contains("confirmOnBlur: false", view);
-    }
-
-    [Fact]
-    public void The_enhancement_is_skipped_when_there_is_nothing_to_choose()
-    {
-        var view = Partial();
-
-        Assert.Contains("select.options.length <= 1", view);
-        Assert.Contains("typeof accessibleAutocomplete === 'undefined'", view);
+        Assert.DoesNotContain("<script", view);
+        Assert.DoesNotContain("accessibleAutocomplete", view);
     }
 
     private static string RepoRoot

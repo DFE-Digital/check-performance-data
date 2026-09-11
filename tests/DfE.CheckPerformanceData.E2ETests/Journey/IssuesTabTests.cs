@@ -85,17 +85,12 @@ public sealed class IssuesTabTests(PlaywrightFixture fixture) : SeedingPageTest(
     private async Task ChooseResultAsync(string label)
     {
         await Page.WaitForURLAsync($"**/Journey/{WindowId}/result-search/select-result");
-        var search = Page.Locator("#result-search").First;
-        await Expect(search).ToBeVisibleAsync();
-        await search.FillAsync("Bus");
-        var option = Page.Locator("li[role='option']").GetByText(label, new() { Exact = false });
-        await Expect(option.First).ToBeVisibleAsync();
-        await option.First.ClickAsync();
+        var select = Page.Locator("select[name='selectedResultKey']");
+        await Expect(select).ToBeVisibleAsync();
+        await select.SelectOptionAsync(new SelectOptionValue { Label = label });
+        await Expect(select.Locator("option:checked")).ToContainTextAsync(label);
 
-        await Expect(Page.Locator("select[name='selectedResultKey'] option:checked"))
-            .ToContainTextAsync(label);
-
-        await Page.Locator("form").EvaluateAsync("form => form.requestSubmit()");
+        await ContinueAsync();
     }
 
     private async Task<string> ReadReferenceAsync()

@@ -8,9 +8,9 @@ namespace DfE.CheckPerformanceData.E2ETests.Journey;
 // AB#297848: the 16-19 "missing qualification" journey — the sibling to IncorrectGradeEnquiryTests.
 //
 // These cover what only a browser can: that the qualification-search page's plain <select>s (AO,
-// then QAN grouped by AO) genuinely work without further help, that the details page's syllabus
-// picker accessible-autocomplete enhancement activates just like the grade picker's, and that the
-// whole journey holds together end to end with no late-results interstitial in the way.
+// then QAN grouped by AO) genuinely work without further help, that the details page's syllabus and
+// grade dropdowns post the value they show, and that the whole journey holds together end to end
+// with no late-results interstitial in the way.
 [Collection("E2E")]
 public sealed class MissingQualificationEnquiryTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
@@ -151,7 +151,7 @@ public sealed class MissingQualificationEnquiryTests(PlaywrightFixture fixture) 
 
     /// <summary>
     /// The AO then QAN pickers are plain, no-JS-required &lt;select&gt;s (unlike the accessible
-    /// -autocomplete pupil/result/syllabus/grade controls) — every QAN renders grouped by AO, and a
+    /// -autocomplete pupil and result controls) — every QAN renders grouped by AO, and a
     /// script narrows the visible group to the chosen AO. Selecting AO first keeps the QAN's
     /// optgroup enabled for the second select.
     /// </summary>
@@ -174,35 +174,22 @@ public sealed class MissingQualificationEnquiryTests(PlaywrightFixture fixture) 
         await ContinueAsync();
     }
 
-    // The syllabus picker is a server-rendered <select> that accessible-autocomplete upgrades in
-    // place, exactly like the grade picker — driving the enhanced input is the point, proving the
-    // enhancement actually activates.
+    // Both pickers are plain server-rendered <select>s with no JavaScript enhancement, so the
+    // option is chosen on the select itself.
     private async Task SelectSyllabusAsync(string code)
     {
-        var input = Page.Locator("input#q_q_syllabus_code");
-        await Expect(input).ToBeVisibleAsync();
-        await input.FillAsync(code);
-
-        var option = Page.Locator("#q_q_syllabus_code__listbox li[role='option']")
-            .GetByText(code, new() { Exact = false });
-        await Expect(option.First).ToBeVisibleAsync();
-        await option.First.ClickAsync();
-
-        await Expect(Page.Locator("select[name='q_q_syllabus_code']")).ToHaveValueAsync(code);
+        var select = Page.Locator("select[name='q_q_syllabus_code']");
+        await Expect(select).ToBeVisibleAsync();
+        await select.SelectOptionAsync(code);
+        await Expect(select).ToHaveValueAsync(code);
     }
 
     private async Task SelectMissingGradeAsync(string grade)
     {
-        var input = Page.Locator("input#q_q_missing_grade");
-        await Expect(input).ToBeVisibleAsync();
-        await input.FillAsync(grade);
-
-        var option = Page.Locator("#q_q_missing_grade__listbox li[role='option']")
-            .GetByText(grade, new() { Exact = true });
-        await Expect(option.First).ToBeVisibleAsync();
-        await option.First.ClickAsync();
-
-        await Expect(Page.Locator("select[name='q_q_missing_grade']")).ToHaveValueAsync(grade);
+        var select = Page.Locator("select[name='q_q_missing_grade']");
+        await Expect(select).ToBeVisibleAsync();
+        await select.SelectOptionAsync(grade);
+        await Expect(select).ToHaveValueAsync(grade);
     }
 
     // QuestionPartialModel renders date inputs as q_<id>_day/_month/_year, where the question id's

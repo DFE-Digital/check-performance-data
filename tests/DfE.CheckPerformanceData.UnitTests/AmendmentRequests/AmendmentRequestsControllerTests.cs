@@ -90,7 +90,8 @@ public class AmendmentRequestsControllerTests
             ],
             SubmittedRows = [],
             IssueRows = [],
-            HasAnyIssues = false
+            HasAnyIssues = false,
+            HasResultsEnquiry = true
         });
         _session.SetBulkSelection(WindowId, new[] { "R1" });
 
@@ -112,7 +113,8 @@ public class AmendmentRequestsControllerTests
             Rows = [],
             SubmittedRows = [],
             IssueRows = [],
-            HasAnyIssues = false
+            HasAnyIssues = false,
+            HasResultsEnquiry = true
         });
 
         var result = await _sut.Index(WindowId);
@@ -139,7 +141,8 @@ public class AmendmentRequestsControllerTests
             Rows = [],
             SubmittedRows = [],
             IssueRows = [],
-            HasAnyIssues = false
+            HasAnyIssues = false,
+            HasResultsEnquiry = true
         });
 
         var result = await _sut.Index(WindowId);
@@ -167,7 +170,8 @@ public class AmendmentRequestsControllerTests
             Rows = [],
             SubmittedRows = [],
             IssueRows = [],
-            HasAnyIssues = false
+            HasAnyIssues = false,
+            HasResultsEnquiry = true
         });
 
         var result = await _sut.Index(WindowId);
@@ -197,7 +201,8 @@ public class AmendmentRequestsControllerTests
             ],
             SubmittedRows = [],
             IssueRows = [],
-            HasAnyIssues = false
+            HasAnyIssues = false,
+            HasResultsEnquiry = true
         });
 
         var result = await _sut.Index(WindowId);
@@ -233,7 +238,8 @@ public class AmendmentRequestsControllerTests
                 }
             ],
             IssueRows = [],
-            HasAnyIssues = false
+            HasAnyIssues = false,
+            HasResultsEnquiry = true
         });
 
         var result = await _sut.Index(WindowId);
@@ -269,7 +275,8 @@ public class AmendmentRequestsControllerTests
                 }
             ],
             IssueRows = [],
-            HasAnyIssues = false
+            HasAnyIssues = false,
+            HasResultsEnquiry = true
         });
 
         var result = await _sut.Index(WindowId);
@@ -302,6 +309,21 @@ public class AmendmentRequestsControllerTests
         await _service.Received(1).GetAmendmentRequestsAsync(WindowId, "smith");
     }
 
+    // The Results Enquiries tab is hidden on a window that runs no results-enquiry exercise, so the
+    // service's answer must reach the view unchanged in both directions.
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Index_PassesTheResultsEnquiryExerciseFlagToTheView(bool hasResultsEnquiry)
+    {
+        _service.GetAmendmentRequestsAsync(WindowId).Returns(EmptyResultWith(hasResultsEnquiry));
+
+        var view = Assert.IsType<ViewResult>(await _sut.Index(WindowId));
+        var model = Assert.IsType<AmendmentRequestsViewModel>(view.Model);
+
+        Assert.Equal(hasResultsEnquiry, model.ShowResultsEnquiries);
+    }
+
     [Fact]
     public async Task Index_MapsIssueRowsOntoTheViewModel()
     {
@@ -324,7 +346,8 @@ public class AmendmentRequestsControllerTests
                     ReferenceNumber = "REF-1"
                 }
             ],
-            HasAnyIssues = true
+            HasAnyIssues = true,
+            HasResultsEnquiry = true
         });
 
         var view = Assert.IsType<ViewResult>(await _sut.Index(WindowId, resultsEnquiriesSearch: "ali"));
@@ -705,7 +728,9 @@ public class AmendmentRequestsControllerTests
         bool isOpen = true) =>
         new() { Exercise = exercise, EndDate = endDate, IsOpen = isOpen };
 
-    private static AmendmentRequestsResult EmptyResult() => new()
+    private static AmendmentRequestsResult EmptyResult() => EmptyResultWith(hasResultsEnquiry: true);
+
+    private static AmendmentRequestsResult EmptyResultWith(bool hasResultsEnquiry) => new()
     {
         LearnerNoun = LearnerNoun.Pupil,
         Deadlines = [Deadline(new DateTime(2026, 6, 26, 17, 0, 0))],
@@ -713,7 +738,8 @@ public class AmendmentRequestsControllerTests
         Rows = [],
         SubmittedRows = [],
         IssueRows = [],
-        HasAnyIssues = false
+        HasAnyIssues = false,
+        HasResultsEnquiry = hasResultsEnquiry
     };
 
     private static CheckingWindowDto SampleWindow(bool withExercises = true)

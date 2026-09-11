@@ -99,7 +99,7 @@ public class AmendmentRequestsServiceTests
     [Fact]
     public async Task GetAmendmentRequestsAsync_AWindowWithNoExercises_HasNoDeadlines()
     {
-        _windowService.GetCheckingWindowAsync(WindowId).Returns(Window(DateTime.UtcNow));
+        _windowService.GetCheckingWindowAsync(WindowId).Returns(WindowWithNoExercises(DateTime.UtcNow));
         _requestRepo.GetAmendmentRequestsAsync(WindowId, 100001L).Returns([]);
 
         var result = await _sut.GetAmendmentRequestsAsync(WindowId);
@@ -388,6 +388,70 @@ public class AmendmentRequestsServiceTests
         Submitted = submitted ?? DateTime.UtcNow
     };
 
+    // The Results Enquiries tab only belongs on a window that runs the exercise: without one there
+    // is no results feed, so the tab could only ever report an empty list. The exercise is the
+    // whole test — results enquiry is not a 16-19 exercise, KS4 Autumn runs one too, so a window
+    // type added beside this check would hide the tab from a window that has the data.
+    [Fact]
+    public async Task GetAmendmentRequestsAsync_ReportsAResultsEnquiryExercise()
+    {
+        var endDate = new DateTime(2026, 6, 26, 17, 0, 0);
+        _windowService.GetCheckingWindowAsync(WindowId).Returns(
+            Window(endDate,
+                Exercise(CheckingExerciseType.PupilData, endDate, sortOrder: 0),
+                Exercise(CheckingExerciseType.ResultsEnquiry, endDate, sortOrder: 1)));
+        _requestRepo.GetAmendmentRequestsAsync(WindowId, 100001L).Returns([]);
+
+        var result = await _sut.GetAmendmentRequestsAsync(WindowId);
+
+        Assert.True(result.HasResultsEnquiry);
+    }
+
+    [Fact]
+    public async Task GetAmendmentRequestsAsync_ReportsNoResultsEnquiryWhenTheWindowRunsNone()
+    {
+        var endDate = new DateTime(2026, 6, 26, 17, 0, 0);
+        _windowService.GetCheckingWindowAsync(WindowId).Returns(
+            Window(endDate, Exercise(CheckingExerciseType.PupilData, endDate, sortOrder: 0)));
+        _requestRepo.GetAmendmentRequestsAsync(WindowId, 100001L).Returns([]);
+
+        var result = await _sut.GetAmendmentRequestsAsync(WindowId);
+
+        Assert.False(result.HasResultsEnquiry);
+    }
+
+    // No exercise means no tab, so the rows behind it are never read: the query costs a round trip
+    // and, once matched, a blob read per row for data the page cannot show.
+    [Fact]
+    public async Task GetAmendmentRequestsAsync_DoesNotLoadEnquiriesWhenTheWindowRunsNone()
+    {
+        var endDate = new DateTime(2026, 6, 26, 17, 0, 0);
+        _windowService.GetCheckingWindowAsync(WindowId).Returns(
+            Window(endDate, Exercise(CheckingExerciseType.PupilData, endDate, sortOrder: 0)));
+        _requestRepo.GetAmendmentRequestsAsync(WindowId, 100001L).Returns([]);
+
+        var result = await _sut.GetAmendmentRequestsAsync(WindowId);
+
+        Assert.Empty(result.IssueRows);
+        Assert.False(result.HasAnyIssues);
+        await _requestRepo.DidNotReceive().GetSubmittedResultsEnquiriesAsync(Arg.Any<Guid>(), Arg.Any<long>());
+    }
+
+    /// <summary>The degenerate case the default below deliberately does not produce.</summary>
+    private static CheckingWindowDto WindowWithNoExercises(DateTime endDate) => new()
+    {
+        Id = WindowId,
+        Title = "KS4 2026",
+        EndDate = endDate,
+        StartDate = endDate.AddMonths(-3),
+        KeyStage = KeyStages.KS4,
+        CheckingWindowType = CheckingWindowType.KS4June,
+        Exercises = []
+    };
+
+    // A window always runs at least one checking exercise, so a caller that does not care which
+    // gets both — the results enquiry included, since the enquiry rows only exist on a window that
+    // runs that exercise. Tests about a specific set pass it explicitly.
     private static CheckingWindowDto Window(DateTime endDate, params CheckingExerciseDto[] exercises) => new()
     {
         Id = WindowId,
@@ -396,7 +460,13 @@ public class AmendmentRequestsServiceTests
         StartDate = endDate.AddMonths(-3),
         KeyStage = KeyStages.KS4,
         CheckingWindowType = CheckingWindowType.KS4June,
-        Exercises = [.. exercises]
+        Exercises = exercises.Length > 0
+            ? [.. exercises]
+            :
+            [
+                Exercise(CheckingExerciseType.PupilData, endDate, sortOrder: 0),
+                Exercise(CheckingExerciseType.ResultsEnquiry, endDate, sortOrder: 1)
+            ]
     };
 
     private static CheckingExerciseDto Exercise(

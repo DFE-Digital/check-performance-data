@@ -3,6 +3,7 @@ using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.WindowManagement;
+using DfE.CheckPerformanceData.Domain.Enums;
 using Microsoft.Extensions.Logging;
 
 namespace DfE.CheckPerformanceData.Application.AmendmentRequests;
@@ -21,7 +22,11 @@ public sealed class AmendmentRequestsService(
         var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
         var requests = await requestRepository.GetAmendmentRequestsAsync(windowId, urn);
         var submitted = await requestRepository.GetSubmittedRequestsAsync(windowId, urn);
-        var enquiries = await requestRepository.GetSubmittedResultsEnquiriesAsync(windowId, urn);
+        // The tab, and therefore the rows behind it, only exist on a window that runs the exercise.
+        var hasResultsEnquiry = window.Exercises.Any(e => e.ExerciseType == CheckingExerciseType.ResultsEnquiry);
+        var enquiries = hasResultsEnquiry
+            ? await requestRepository.GetSubmittedResultsEnquiriesAsync(windowId, urn)
+            : [];
 
         var term = issueSearch?.Trim();
         var matching = string.IsNullOrEmpty(term)
@@ -102,7 +107,8 @@ public sealed class AmendmentRequestsService(
                 Submitted = r.Submitted
             }).ToList(),
             IssueRows = issueRows,
-            HasAnyIssues = enquiries.Count > 0
+            HasAnyIssues = enquiries.Count > 0,
+            HasResultsEnquiry = hasResultsEnquiry
         };
     }
 

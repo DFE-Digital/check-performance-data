@@ -33,7 +33,6 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         if (includedSearch?.Length > MaxSearchLength) includedSearch = null;
         if (nonIncludedSearch?.Length > MaxSearchLength) nonIncludedSearch = null;
 
-        HttpContext.Session.SetString("SelectedWindowId", windowId.ToString());
         HttpContext.Session.ClearRequestState(windowId);
         var model = await BuildIndexModelAsync(windowId, includedPage, nonIncludedPage, includedSearch, nonIncludedSearch);
         return View(model);
@@ -165,6 +164,11 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         // derived from the window type and woven through this page's wording here, so no view has
         // to look it up.
         var noun = LearnerNoun.For(window.CheckingWindowType);
+
+        // Stamp the nav's selected window here, where the type is already in hand: the main nav
+        // labels its window-scoped link with this window's noun, so it needs the type as well as
+        // the id. Every render of this page re-stamps both.
+        HttpContext.Session.SetSelectedWindow(windowId, window.CheckingWindowType);
 
         List<PupilTableSection> sections =
         [

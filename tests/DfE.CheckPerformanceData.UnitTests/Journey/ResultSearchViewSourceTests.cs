@@ -4,10 +4,10 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 
 // AB#296648: pins the ResultSearch page's markup (Figma p-147877 / p-147913).
 //
-// The property that matters most is that this page works with JavaScript off. CLAUDE.md makes
-// progressive enhancement mandatory, so the options are server-rendered into a real <select> that
-// accessible-autocomplete upgrades in place — not fetched, which would leave a script-less browser
-// with an empty control.
+// The property that matters most is that this page works with JavaScript off: the options are
+// server-rendered into a real <select>, not fetched, which would leave a script-less browser with an
+// empty control. The accessible-autocomplete enhancement this control once carried was removed —
+// the list is short enough to read — so the select is now all there is.
 public sealed class ResultSearchViewSourceTests
 {
     private static string ViewSource() =>
@@ -34,8 +34,8 @@ public sealed class ResultSearchViewSourceTests
     [Fact]
     public void Option_text_comes_from_the_shared_label_helper()
     {
-        // Same helper the suggestions endpoint uses, so the enhanced and unenhanced views of this
-        // page cannot describe the same result differently.
+        // Same helper the suggestions endpoint uses, so this page and that endpoint cannot describe
+        // the same result differently.
         Assert.Contains("ResultLabel.For(result)", ViewSource());
     }
 
@@ -49,38 +49,21 @@ public sealed class ResultSearchViewSourceTests
     }
 
     [Fact]
-    public void The_select_is_enhanced_rather_than_replaced()
+    public void The_select_carries_no_javascript_enhancement()
     {
+        // The type-ahead is gone: a student holds a handful of results, so the list is read rather
+        // than searched. The no-JS guarantee below is unaffected — it was always the same <select>.
         var view = ViewSource();
 
-        Assert.Contains("accessibleAutocomplete.enhanceSelectElement({", view);
-        Assert.Contains("selectElement: select", view);
+        Assert.DoesNotContain("<script", view);
+        Assert.DoesNotContain("accessibleAutocomplete", view);
         // Guards against a regression to a fetch-only autocomplete, which would break the no-JS path.
         Assert.DoesNotContain("/results/suggestions", view);
     }
 
     [Fact]
-    public void The_enhancement_never_auto_picks_a_result()
-    {
-        // Choosing the wrong result sends the DfE to check a grade the school never queried.
-        var view = ViewSource();
-
-        Assert.Contains("autoselect: false", view);
-        Assert.Contains("confirmOnBlur: false", view);
-    }
-
-    [Fact]
-    public void The_script_degrades_quietly_when_the_autocomplete_library_is_absent()
-    {
-        // Without this the page would throw and leave the (working) select in place but unstyled.
-        Assert.Contains("typeof accessibleAutocomplete === 'undefined'", ViewSource());
-    }
-
-    [Fact]
     public void The_heading_labels_the_control()
     {
-        // enhanceSelectElement moves the select's id onto the new input, so this label names
-        // whichever control is visible.
         var view = ViewSource();
 
         Assert.Contains("<label class=\"govuk-label govuk-label--l\" for=\"result-search\">@Model.Title</label>", view);
@@ -88,8 +71,10 @@ public sealed class ResultSearchViewSourceTests
     }
 
     [Fact]
-    public void The_hint_matches_the_design()
-        => Assert.Contains("Start typing to search for results by subject or QAN", ViewSource());
+    public void The_hint_describes_the_list_rather_than_a_search()
+        // The design's "Start typing to search" described the type-ahead this page no longer has.
+        // FLAGGED: copy needs content sign-off.
+        => Assert.Contains("Results are listed by subject and QAN", ViewSource());
 
     [Fact]
     public void The_error_summary_and_inline_error_both_target_the_control()
@@ -159,7 +144,7 @@ public sealed class ResultSearchViewSourceTests
     [Fact]
     public void A_student_with_no_results_gets_an_explanation_rather_than_an_empty_control()
     {
-        // Rendering an empty autocomplete leaves the user typing into a box that can never answer.
+        // Rendering an empty dropdown leaves the user with a control that can never answer.
         // Mirrors _GradeSelect.cshtml, which states a missing-reference-data gap plainly.
         var view = ViewSource();
 

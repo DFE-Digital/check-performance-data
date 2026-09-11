@@ -276,6 +276,7 @@ public sealed class JourneyViewModelBuilder(
             BackPageAction = JourneyRouting.ActionFor(backPage?.Type),
             WhatToChange = journey.SelectedWhatToChange,
             SelectedResult = journey.SelectedResult,
+            SelectedResultQualification = journey.SelectedResultQualification,
             SelectedQualification = journey.SelectedQualification,
             CypmdId = journey.SelectedPupil?.Cypmd_Id,
             FromSummary = fromSummary,

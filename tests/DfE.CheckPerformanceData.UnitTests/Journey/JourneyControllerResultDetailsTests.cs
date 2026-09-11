@@ -289,6 +289,33 @@ public sealed class JourneyControllerResultDetailsTests
     }
 
     [Fact]
+    public async Task Get_passes_the_resolved_qualification_to_the_view()
+    {
+        // AB#301903: the page names the qualification from the 16-19 reference, with the AO.
+        Ready();
+
+        var view = Assert.IsType<ViewResult>(await _sut.Page(WindowId, "grade-details"));
+        var vm = Assert.IsType<PageViewModel>(view.Model);
+
+        Assert.NotNull(vm.SelectedResultQualification);
+        Assert.Equal("Pearson", vm.SelectedResultQualification.AwardingOrganisation);
+        Assert.Equal("Pearson BTEC Level 3 National Extended Certificate in Sport", vm.SelectedResultQualificationName);
+    }
+
+    [Fact]
+    public async Task Get_falls_back_to_the_results_file_name_when_the_qan_is_not_in_the_reference()
+    {
+        // The results file still knows what the school calls the result, so the page is never blank.
+        ReadyUnresolved(Result(qan: "99999999"));
+
+        var view = Assert.IsType<ViewResult>(await _sut.Page(WindowId, "grade-details"));
+        var vm = Assert.IsType<PageViewModel>(view.Model);
+
+        Assert.Null(vm.SelectedResultQualification);
+        Assert.Equal("Pearson BTEC L1/L2 Tech Award in Sport", vm.SelectedResultQualificationName);
+    }
+
+    [Fact]
     public async Task Get_with_no_reference_data_offers_nothing_and_says_so()
     {
         // A gap between the results CSVs and the 16-19 QualList is a real state — the two come from different teams. The page must explain it rather than showing an empty control.

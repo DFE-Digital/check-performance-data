@@ -16,7 +16,6 @@ public static class AuthenticationTicketStoreExtensions
     public static IServiceCollection AddCpdAuthenticationTicketStore(this IServiceCollection services)
     {
         services.TryAddSingleton<DistributedCacheTicketStore>();
-        services.AddOptions<AuthenticationTicketStoreOptions>();
 
         services.AddOptions<CookieAuthenticationOptions>(
                 CookieAuthenticationDefaults.AuthenticationScheme)

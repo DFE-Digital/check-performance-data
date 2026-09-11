@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Infrastructure;
@@ -221,10 +223,86 @@ public sealed class DistributedCacheTicketStoreTests
         Assert.Null(await underADifferentKeyRing.RetrieveAsync(key));
     }
 
+    // A ticket that cannot be read is a silent mass sign-out: after a key-ring change every user
+    // is bounced to DfE Sign-in on every request. Logged so an administrator has something to see
+    // in the application log, and dropped so it cannot be retried until it expires on its own.
+    [Fact]
+    public async Task RetrieveAsync_LogsAndDiscardsATicketItCannotRead()
+    {
+        var cache = NewCache();
+        var log = new CapturingLogger();
+        var key = await NewStore(cache).StoreAsync(NewTicket("someone@example.gov.uk"));
+
+        var underADifferentKeyRing = NewStore(cache, new EphemeralDataProtectionProvider(), log);
+        var result = await underADifferentKeyRing.RetrieveAsync(key);
+
+        Assert.Null(result);
+        Assert.Contains(log.Warnings, w => w.Contains("could not be read", StringComparison.Ordinal));
+        Assert.Null(await cache.GetAsync(key));
+    }
+
+    // The cookie handler reuses the session key it read from the request, so a sign-in that
+    // happens while a usable ticket is present rebinds that key to the new user. That is the
+    // shape of session fixation and does not occur in ordinary use, so it is recorded.
+    [Fact]
+    public async Task RenewAsync_LogsWhenTheSessionIsReboundToADifferentUser()
+    {
+        var log = new CapturingLogger();
+        var store = NewStore(logger: log);
+        var key = await store.StoreAsync(NewTicket("attacker@example.gov.uk"));
+
+        await store.RenewAsync(key, NewTicket("victim@example.gov.uk"));
+
+        Assert.Contains(log.Warnings, w => w.Contains("different user", StringComparison.Ordinal));
+    }
+
+    // Sign-out removes the row. A request already in flight in another tab would otherwise renew
+    // it straight back, undoing the sign-out and restoring access to any copy of that cookie.
+    [Fact]
+    public async Task RenewAsync_DoesNotResurrectATicketThatHasBeenRemoved()
+    {
+        var store = NewStore();
+        var key = await store.StoreAsync(NewTicket("someone@example.gov.uk"));
+        await store.RemoveAsync(key);
+
+        await store.RenewAsync(key, NewTicket("someone@example.gov.uk"));
+
+        Assert.Null(await store.RetrieveAsync(key));
+    }
+
+    [Fact]
+    public async Task RenewAsync_IsSilentForAnOrdinarySlidingRenewal()
+    {
+        var log = new CapturingLogger();
+        var store = NewStore(logger: log);
+        var key = await store.StoreAsync(NewTicket("someone@example.gov.uk"));
+
+        await store.RenewAsync(key, NewTicket("someone@example.gov.uk"));
+
+        Assert.Empty(log.Warnings);
+    }
+
+    // The PostgreSQL cache rejects an absolute expiry that is not in the future; the in-memory one
+    // accepts it silently. Clamping here keeps that difference out of production.
+    [Fact]
+    public async Task StoreAsync_ClampsAnExpiryThatHasAlreadyPassed()
+    {
+        var cache = NewCache();
+        var store = NewStore(cache);
+        var ticket = NewTicket("someone@example.gov.uk");
+        ticket.Properties.ExpiresUtc = DateTimeOffset.UtcNow.AddMinutes(-5);
+
+        var key = await store.StoreAsync(ticket);
+
+        var options = cache.LastOptionsFor(key);
+        Assert.Null(options?.AbsoluteExpiration);
+        Assert.NotNull(options?.AbsoluteExpirationRelativeToNow);
+    }
+
     private static AuthenticationTicket NewTicket(string email)
     {
         var identity = new ClaimsIdentity(
-            [new Claim(ClaimTypes.Email, email)],
+            [new Claim(ClaimTypes.Email, email), new Claim(ClaimTypes.NameIdentifier, email)],
             CookieAuthenticationDefaults.AuthenticationScheme);
         return new AuthenticationTicket(
             new ClaimsPrincipal(identity),
@@ -235,15 +313,35 @@ public sealed class DistributedCacheTicketStoreTests
     private static RecordingCache NewCache() => new();
 
     private static DistributedCacheTicketStore NewStore(
-        IDistributedCache? cache = null, IDataProtectionProvider? dataProtection = null) =>
+        IDistributedCache? cache = null,
+        IDataProtectionProvider? dataProtection = null,
+        ILogger<DistributedCacheTicketStore>? logger = null) =>
         new(cache ?? NewCache(),
             dataProtection ?? SharedDataProtection,
-            Options.Create(new AuthenticationTicketStoreOptions()));
+            logger ?? NullLogger<DistributedCacheTicketStore>.Instance);
 
     // One provider across a test's stores, so two stores in the same test can read each other's
     // tickets exactly as two pods sharing the persisted key ring do.
     private static readonly IDataProtectionProvider SharedDataProtection =
         new EphemeralDataProtectionProvider();
+
+    // Captures warning-level messages so the log-on-failure behaviour can be asserted rather
+    // than taken on trust. The real sink is an ILoggerProvider, so anything written here reaches
+    // the admin application-log surface in the running app.
+    private sealed class CapturingLogger : ILogger<DistributedCacheTicketStore>
+    {
+        public List<string> Warnings { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel, EventId eventId, TState state, Exception? exception,
+            Func<TState, Exception?, string> formatter)
+        {
+            if (logLevel >= LogLevel.Warning) Warnings.Add(formatter(state, exception));
+        }
+    }
 
     // MemoryDistributedCache with the entry options captured, so the expiry assertions can look at
     // what the store actually asked for rather than only at what survived.

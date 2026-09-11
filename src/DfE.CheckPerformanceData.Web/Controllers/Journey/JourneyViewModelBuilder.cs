@@ -115,6 +115,7 @@ public sealed class JourneyViewModelBuilder(
                 && string.Equals(Answer(CohortScopeQuestionId), "yes", StringComparison.OrdinalIgnoreCase),
             CohortCount = Answer(CohortCountQuestionId),
             Result = journey.SelectedResult,
+            Qualification = journey.SelectedResultQualification,
             ShowRevisedGrade = kind == Application.CheckYourPupilData.WhatToChange.IncorrectGrade,
             RevisedGrade = Answer(JourneyController.RevisedGradeQuestionId),
             RevisedGradePageId = PageAsking(JourneyController.RevisedGradeQuestionId),

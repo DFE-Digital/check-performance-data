@@ -382,4 +382,46 @@ public sealed class JourneyViewModelBuilderEnquirySummaryTests
         Assert.True(vm.Enquiry!.ShowRevisedGrade);
         Assert.Contains("Revised grade", vm.Enquiry!.Lines.Select(l => l.Key));
     }
+
+    // ── AB#301903: the qualification as the 16-19 reference names it ────────
+
+    private static readonly QualificationReference ArtAndDesignReference = new()
+    {
+        Qan = "60180882",
+        QualificationTitle = "AQA Level 1/Level 2 GCSE (9-1) in Art and Design",
+        AwardingOrganisation = "AQA",
+        Grades = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "Q", "R", "U", "X"]
+    };
+
+    [Fact]
+    public void A_resolved_qualification_adds_the_awarding_organisation_row_and_names_the_qualification_from_the_reference()
+    {
+        var journey = SingleJourney();
+        journey.SelectedResultQualification = ArtAndDesignReference;
+
+        var lines = Lines(journey);
+
+        Assert.Equal(
+            [
+                "DfE number", "Key stage", "Enquiry type", "Name of student", "CYPMD ID",
+                "Awarding Organisation (AO) name", "Qualification number (QAN)",
+                "Qualification name and subject", "Session", "Current grade",
+                "Revised grade", "Additional information"
+            ],
+            lines.Select(l => l.Key).ToArray());
+        var values = lines.ToDictionary(l => l.Key, l => l.Value);
+        Assert.Equal("AQA", values["Awarding Organisation (AO) name"]);
+        Assert.Equal("AQA Level 1/Level 2 GCSE (9-1) in Art and Design", values["Qualification name and subject"]);
+        Assert.Equal("60180882", values["Qualification number (QAN)"]);
+        Assert.False(lines.Single(l => l.Key == "Awarding Organisation (AO) name").HasChange);
+    }
+
+    [Fact]
+    public void Without_a_resolved_qualification_the_summary_keeps_the_results_file_name_and_no_ao_row()
+    {
+        var lines = Lines(SingleJourney()).ToDictionary(l => l.Key, l => l.Value);
+
+        Assert.DoesNotContain("Awarding Organisation (AO) name", lines.Keys);
+        Assert.Equal("GCSE (9-1) Art&Des : Fine Art", lines["Qualification name and subject"]);
+    }
 }

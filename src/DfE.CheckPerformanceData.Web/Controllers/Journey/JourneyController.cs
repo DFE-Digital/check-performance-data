@@ -500,8 +500,9 @@ public sealed class JourneyController(
         // reference (title, AO, grade scale), so it is resolved once here, beside the result. The
         // lookup is the cached QualList document — a keystroke-cheap read. A QAN the reference does
         // not hold stores null: the grade page then says grades cannot be listed and validation
-        // holds the enquiry back; a later page re-resolves it if the reference catches up
-        // (HealSelectedResultQualificationAsync).
+        // holds the enquiry back; a later page re-resolves it while it is still null
+        // (HealSelectedResultQualificationAsync). A resolved entry is a snapshot for the rest of the
+        // journey — a reference refreshed mid-journey shows through only when the result is re-picked.
         var lookup = await qualificationReferenceClient.GetLookupAsync(HttpContext.RequestAborted);
         var qualification = lookup.Find(resolved.Qan);
         if (qualification is null)
@@ -711,8 +712,11 @@ public sealed class JourneyController(
     /// before this shipped, or before the reference blob had seeded (a 404 is cached as an empty
     /// lookup for five minutes), carries a null it would otherwise keep for the rest of the journey —
     /// the picker empty, every post refused, no hint that re-picking heals it. So a result with no
-    /// qualification beside it is re-resolved here. A QAN the reference genuinely lacks stays null and
-    /// costs one probe of the cached document; the warning was already logged at result selection.
+    /// qualification beside it is re-resolved here. Only a null heals: a resolved entry is never
+    /// compared with the reference, so the title, AO and grade scale a user has already seen do not
+    /// change under them mid-journey; re-picking the result is what refreshes them. A QAN the
+    /// reference genuinely lacks stays null, costs one probe of the cached document and logs nothing
+    /// here — the warning was already logged at result selection.
     /// </summary>
     private async Task<RequestState> HealSelectedResultQualificationAsync(Guid windowId, RequestState journey)
     {

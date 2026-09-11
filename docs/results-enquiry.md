@@ -121,6 +121,12 @@ different teams. It is logged (QAN only), the result is still stored, the page f
 results file's own `QUAL_NAME`, shows no AO row, and the picker degrades to "We cannot list grades
 for this qualification yet" so validation holds the enquiry back.
 
+The stored entry is a snapshot taken at result selection. Only a `null` is ever re-resolved
+(`HealSelectedResultQualificationAsync`, on any later journey page GET or POST and on the summary);
+an entry that resolved is not compared with the reference again, so a QualList refresh mid-journey
+shows through only when the result is re-picked. That keeps the title, AO and grade scale a user has
+already seen stable for the rest of a 60-minute session.
+
 The result-search page and the Results Enquiries tab still describe a result by the results file's
 `QUAL_NAME` — that is the name the school's own records carry, and the one the option label is built
 from (`ResultLabel.For`).
@@ -176,8 +182,9 @@ Server-authoritative, in this order (`JourneyValidationService.ValidateGradeSele
 3. Not a grade the QAN offers → treated as unanswered (fail closed against a forged post)
 4. QAN absent from the 16-19 qualification reference → the picker is empty, the page says
    `We cannot list grades for this qualification yet`, a warning was logged when the result was chosen,
-   and validation can never pass. Any later journey page or the summary re-resolves the qualification
-   if the reference has since caught up.
+   and validation can never pass. Any later journey page or the summary re-resolves a qualification
+   that is still `null` if the reference has since caught up; the heal logs nothing on a repeat miss,
+   and never touches an entry that already resolved.
 
 Comparison is **ordinal and case-sensitive** (`GradeEquality.IsSame`, shared by the validator and the
 picker). The IB Diploma is why: `24F` is a fail and `24D` a pass, so `24F` → `24D` is a real enquiry,

@@ -425,6 +425,26 @@ public sealed class JourneyControllerResultDetailsTests
     }
 
     [Fact]
+    public async Task Post_re_resolves_a_result_whose_qualification_was_never_stored_and_accepts_its_grade()
+    {
+        // A user already on the grade page when this deployed posts straight into validation: the
+        // heal must run before ValidateGradeSelect, or the post is refused against an empty scale.
+        _qualificationReference.GetLookupAsync(Arg.Any<CancellationToken>())
+            .Returns(QualificationReferenceLookup.Parse("""
+                { "60370683": { "qan": "60370683", "qualificationTitle": "Pearson BTEC Level 3 National Extended Certificate in Sport",
+                  "awardingOrganisation": "Pearson", "grades": ["*", "D", "F", "M", "P", "Q", "R", "U", "X"], "syllabusCodes": [] } }
+                """));
+        ReadyUnresolved(Result(grade: "M"));
+        Post("D");
+
+        var redirect = Assert.IsType<RedirectToActionResult>(await _sut.PagePost(WindowId, "grade-details", false));
+
+        Assert.Equal("additional-info", redirect.RouteValues!["pageId"]);
+        Assert.Equal("D", _session.GetRequestState(WindowId).QuestionAnswers["q-revised-grade"].TextValue);
+        Assert.NotNull(_session.GetRequestState(WindowId).SelectedResultQualification);
+    }
+
+    [Fact]
     public async Task Post_with_no_reference_data_cannot_succeed()
     {
         ReadyUnresolved(Result(qan: "99999999"));

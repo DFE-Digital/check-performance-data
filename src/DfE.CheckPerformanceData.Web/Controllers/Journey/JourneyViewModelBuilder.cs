@@ -243,9 +243,10 @@ public sealed class JourneyViewModelBuilder(
                 {
                     QuestionType.Radio or QuestionType.Checkbox =>
                         optionVisibilityService.GetVisibleOptions(q, conditionContext),
-                    // AB#297130: grades come from the AODC reference data for the selected result's
-                    // QAN, not from the flow config — the config cannot know which qualification the
-                    // user picked. Pass grades before fail grades, source order preserved within each.
+                    // AB#297130 / AB#301903: grades come from the 16-19 qualification reference entry
+                    // resolved for the selected result (or, on a missing-qualification enquiry, the
+                    // selected qualification), not from the flow config — the config cannot know
+                    // which qualification the user picked. Source order is preserved.
                     // AB#301913: minus the grade the result already holds — a revision to the same
                     // grade is not a revision. The missing-qualification picker shares this type but
                     // has no SelectedResult, so nothing is dropped there.

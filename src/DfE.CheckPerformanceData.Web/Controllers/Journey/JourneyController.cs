@@ -29,7 +29,6 @@ public sealed class JourneyController(
     IQuestionOptionalityService optionalityService,
     IOriginCountryLanguageCapture originCountryLanguageCapture,
     IStudentResultsClient studentResultsClient,
-    IGradeReferenceClient gradeReferenceClient,
     IQualificationReferenceClient qualificationReferenceClient,
     IRequestNotificationService requestNotificationService,
     ICheckingExerciseService checkingExerciseService,
@@ -100,7 +99,7 @@ public sealed class JourneyController(
         return View(viewName, viewModelBuilder.BuildPageVm(windowId, page, journey.QuestionAnswers,
             journey, fromSummary, ModelState, config,
             uploadError: TempData["UploadError"] as string,
-            gradeReference: await GetGradeReferenceAsync(page, journey)));
+            gradeReference: ResolveGradeReference(page, journey)));
     }
 
     // ── PupilSearchPage (GET) ───────────────────────────────────────────────
@@ -705,31 +704,24 @@ public sealed class JourneyController(
     }
 
     /// <summary>
-    /// The grade scale for the selected result's qualification, or null when the page has no grade
-    /// picker or the QAN is absent from the AODC reference data. A gap is logged rather than thrown:
-    /// the page tells the user grades cannot be listed yet, and validation holds the enquiry back.
+    /// The grade scale for the page's picker, or null when the page has no grade picker or the
+    /// qualification is not in the 16-19 reference. No blob read happens here: both enquiry
+    /// journeys resolve their qualification when it is chosen (AB#297848 at qualification search,
+    /// AB#301903 at result search) and carry the QualList entry in session. A gap is a normal
+    /// state — the page tells the user grades cannot be listed yet, and validation holds the
+    /// enquiry back.
     /// </summary>
-    private async Task<GradeReference?> GetGradeReferenceAsync(
-        JourneyPage page, RequestState journey, CancellationToken ct = default)
+    private static GradeReference? ResolveGradeReference(JourneyPage page, RequestState journey)
     {
         if (page.Questions.All(q => q.Type != QuestionType.GradeSelect)) return null;
 
-        // AB#297848: on a missing-qualification enquiry the scale comes from the QualList entry
-        // resolved at qualification selection — there is no exam result and no AODC lookup.
-        if (journey.SelectedResult is null && journey.SelectedQualification is { } qualification)
-            return qualification.ToGradeReference();
+        // An incorrect-grade enquiry has a result; the scale is that result's qualification.
+        if (journey.SelectedResult is not null)
+            return journey.SelectedResultQualification?.ToGradeReference();
 
-        var qan = journey.SelectedResult?.Qan;
-        if (string.IsNullOrWhiteSpace(qan)) return null;
-
-        var reference = await gradeReferenceClient.GetByQanAsync(qan, ct);
-        if (reference is null)
-            logger.LogWarning(
-                "No AODC grade reference for QAN {Qan}; the revised-grade picker on page {PageId} will " +
-                "be empty and the enquiry cannot be submitted until the reference data covers it.",
-                qan, page.Id);
-
-        return reference;
+        // AB#297848: a missing-qualification enquiry has no result — the scale comes from the
+        // QualList entry resolved at qualification selection.
+        return journey.SelectedQualification?.ToGradeReference();
     }
 
     /// <summary>
@@ -765,9 +757,8 @@ public sealed class JourneyController(
 
         var newAnswers = new Dictionary<string, QuestionAnswer>();
         var pupilName = JourneyViewModelBuilder.GetPupilName(journey);
-        // Resolved once for the page rather than per question: the lookup is async and cached, and a
-        // page has at most one grade picker.
-        var gradeReference = await GetGradeReferenceAsync(page, journey);
+        // Resolved once for the page rather than per question: a page has at most one grade picker.
+        var gradeReference = ResolveGradeReference(page, journey);
         var isValid = true;
         var conditionContext = JourneyConditionContextFactory.Create(journey, currentUserService);
         var conditionallyOptional = optionalityService.GetConditionallyOptionalQuestionIds(page, conditionContext);

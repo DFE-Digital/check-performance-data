@@ -44,7 +44,6 @@ public sealed class JourneyControllerResultSearchTests
     private readonly IQuestionOptionalityService _optionality = Substitute.For<IQuestionOptionalityService>();
     private readonly IOriginCountryLanguageCapture _originCapture = Substitute.For<IOriginCountryLanguageCapture>();
     private readonly IStudentResultsClient _results = Substitute.For<IStudentResultsClient>();
-    private readonly IGradeReferenceClient _gradeReference = Substitute.For<IGradeReferenceClient>();
     private readonly IQualificationReferenceClient _qualificationReference = Substitute.For<IQualificationReferenceClient>();
     private readonly DfE.CheckPerformanceData.Application.Notify.IRequestNotificationService _notifications =
         Substitute.For<DfE.CheckPerformanceData.Application.Notify.IRequestNotificationService>();
@@ -122,7 +121,7 @@ public sealed class JourneyControllerResultSearchTests
         _sut = new JourneyController(
             _flowService, _journeyService, _fileStorage, _requestService, _pupilData, _vmBuilder,
             _analytics, _currentUser, _optionVisibility, _optionality, _originCapture, _results,
-            _gradeReference, _qualificationReference, _notifications, OpenCheckingExercises.AlwaysOpen(),
+            _qualificationReference, _notifications, OpenCheckingExercises.AlwaysOpen(),
             NullLogger<JourneyController>.Instance)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext }

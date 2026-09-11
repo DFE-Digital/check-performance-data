@@ -33,7 +33,7 @@ public sealed class QualificationDetailsViewSourceTests
         // The Figma mock swapped these two values; this pin stops the swap being reproduced.
         var view = DetailsView();
 
-        var aoIndex = view.IndexOf("Awarding Organisation name", StringComparison.Ordinal);
+        var aoIndex = view.IndexOf("Awarding Organisation (AO) name", StringComparison.Ordinal);
         var qanIndex = view.IndexOf("Qualification number", StringComparison.Ordinal);
 
         Assert.True(aoIndex >= 0);

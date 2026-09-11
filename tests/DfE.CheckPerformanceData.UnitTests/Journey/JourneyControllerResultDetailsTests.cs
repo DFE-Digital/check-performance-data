@@ -19,10 +19,11 @@ using DfE.CheckPerformanceData.Application.UnitTests.WindowManagement;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 
-// AB#296648 / AB#297130: the "Incorrect grade details" page. Uses the real view-model builder rather
-// than a substitute, because the thing most worth pinning is that the grade options reaching the view
-// come from the AODC reference data for the SELECTED result's QAN — not from the flow config, which
-// cannot know which qualification the user picked.
+// AB#296648 / AB#297130 / AB#301903: the "Incorrect grade details" page. Uses the real view-model
+// builder rather than a substitute, because the thing most worth pinning is that the grade options
+// reaching the view come from the 16-19 qualification reference entry resolved for the SELECTED
+// result — not from the flow config, which cannot know which qualification the user picked, and not
+// from a blob read on this page.
 public sealed class JourneyControllerResultDetailsTests
 {
     private static readonly Guid WindowId = Guid.Parse("6C2E1F4A-9B7D-4E38-8A15-3D9C2B4E7F01");
@@ -34,9 +35,9 @@ public sealed class JourneyControllerResultDetailsTests
     private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
     private readonly IOptionVisibilityService _optionVisibility = Substitute.For<IOptionVisibilityService>();
     private readonly IQuestionOptionalityService _optionality = Substitute.For<IQuestionOptionalityService>();
-    private readonly IGradeReferenceClient _gradeReference = Substitute.For<IGradeReferenceClient>();
     private readonly DfE.CheckPerformanceData.Application.Notify.IRequestNotificationService _notifications =
         Substitute.For<DfE.CheckPerformanceData.Application.Notify.IRequestNotificationService>();
+    private readonly IQualificationReferenceClient _qualificationReference = Substitute.For<IQualificationReferenceClient>();
     private readonly IAnalyticsService _analytics = Substitute.For<IAnalyticsService>();
     private readonly FakeSession _session = new();
     private readonly DefaultHttpContext _httpContext = new();
@@ -67,13 +68,15 @@ public sealed class JourneyControllerResultDetailsTests
         Pages = [GradeDetails, AdditionalInfo]
     };
 
-    private static readonly GradeReference Btec = new()
+    // A BTEC-shaped scale as a fixture (not the reference's own — the real 60172186 scale is *, D,
+    // F, M, P, Q, R, U, X): one flat list, source order, so the count/order facts assert what
+    // production decides.
+    private static readonly QualificationReference Btec = new()
     {
         Qan = "60370683",
-        QualificationTitle = "Pearson BTEC L1/L2 Tech Award in Sport",
+        QualificationTitle = "Pearson BTEC Level 3 National Extended Certificate in Sport",
         AwardingOrganisation = "Pearson",
-        PassGrades = ["*2", "P1", "P2", "M1", "M2", "D1", "D2"],
-        FailGrades = ["F", "Q", "R", "U", "X"]
+        Grades = ["*2", "P1", "P2", "M1", "M2", "D1", "D2", "F", "Q", "R", "U", "X"]
     };
 
     public JourneyControllerResultDetailsTests()
@@ -89,8 +92,10 @@ public sealed class JourneyControllerResultDetailsTests
             .Returns((JourneyNavigation?)null);
         _optionality.GetConditionallyOptionalQuestionIds(Arg.Any<JourneyPage>(), Arg.Any<JourneyConditionContext>())
             .Returns(new HashSet<string>());
-        _gradeReference.GetByQanAsync("60370683", Arg.Any<CancellationToken>()).Returns(Btec);
 
+        // The lookup is a sealed class NSubstitute cannot auto-fake, so an unstubbed call would hand
+        // the controller a null. Empty is the honest default: nothing resolves unless a fact says so.
+        _qualificationReference.GetLookupAsync(Arg.Any<CancellationToken>()).Returns(QualificationReferenceLookup.Empty);
         _httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(_session));
 
         var builder = new JourneyViewModelBuilder(_flowService, _journeyService, _optionVisibility, _currentUser);
@@ -100,8 +105,8 @@ public sealed class JourneyControllerResultDetailsTests
             Substitute.For<IRequestService>(), Substitute.For<ICheckYourPupilDataService>(), builder,
             _analytics, _currentUser, _optionVisibility, _optionality,
             Substitute.For<IOriginCountryLanguageCapture>(),
-            Substitute.For<IStudentResultsClient>(), _gradeReference,
-            Substitute.For<IQualificationReferenceClient>(), _notifications,
+            Substitute.For<IStudentResultsClient>(),
+            _qualificationReference, _notifications,
             OpenCheckingExercises.AlwaysOpen(),
             NullLogger<JourneyController>.Instance)
         {
@@ -116,7 +121,19 @@ public sealed class JourneyControllerResultDetailsTests
         SyllabusCode = "31525H", Session = "S2024", Grade = grade, SourceFile = ResultsFileTags.Post16Main
     };
 
-    private void Ready(StudentResultRecord? result = null, Dictionary<string, QuestionAnswer>? answers = null)
+    private void Ready(
+        StudentResultRecord? result = null,
+        Dictionary<string, QuestionAnswer>? answers = null,
+        QualificationReference? qualification = null)
+        => ReadyWith(result ?? Result(), answers, qualification ?? Btec);
+
+    /// <summary>The QAN-not-in-the-16-19-reference state: a result with no qualification beside it.</summary>
+    private void ReadyUnresolved(StudentResultRecord result) => ReadyWith(result, null, null);
+
+    private void ReadyWith(
+        StudentResultRecord result,
+        Dictionary<string, QuestionAnswer>? answers,
+        QualificationReference? qualification)
         => _session.SetRequestState(WindowId, new RequestState
         {
             SelectedWhatToChange = WhatToChange.IncorrectGrade,
@@ -132,7 +149,8 @@ public sealed class JourneyControllerResultDetailsTests
                 Id = Guid.NewGuid(), Firstname = "Billy", Surname = "B", Sex = "M",
                 DateOfBirth = "12/03/2007", Age = 19, Cypmd_Id = CypmdId, Identifier = "9900000001"
             },
-            SelectedResult = result ?? Result(),
+            SelectedResult = result,
+            SelectedResultQualification = qualification,
             QuestionAnswers = answers ?? [],
             QuestionHistory = ["select-result", "grade-details"]
         });
@@ -158,10 +176,9 @@ public sealed class JourneyControllerResultDetailsTests
     }
 
     [Fact]
-    public async Task Get_offers_the_qualifications_own_grades_pass_before_fail()
+    public async Task Get_offers_the_qualifications_own_grades_in_reference_order()
     {
-        // The seeded result's current grade is M1 (Result() default); AB#301913 keeps it out of the
-        // picker, so the scale is offered minus that one entry, order otherwise untouched.
+        // The scale is offered in the 16-19 reference's own order (AB#301903), minus the current grade M1 (AB#301913).
         Ready();
 
         var view = Assert.IsType<ViewResult>(await _sut.Page(WindowId, "grade-details"));
@@ -247,13 +264,21 @@ public sealed class JourneyControllerResultDetailsTests
     }
 
     [Fact]
-    public async Task Get_looks_the_grades_up_by_the_selected_results_qan()
+    public async Task Get_takes_the_scale_from_the_qualification_resolved_at_result_selection()
     {
-        Ready(Result(qan: "10025480"));
+        // AB#301903: no blob call on this page — the scale is the 16-19 reference entry the
+        // result-search POST stored beside the result.
+        var fsmq = new QualificationReference
+        {
+            Qan = "10025480", QualificationTitle = "OCR FSMQ Additional Maths",
+            AwardingOrganisation = "OCR", Grades = ["A", "B", "C"]
+        };
+        Ready(Result(qan: "10025480", grade: "B"), qualification: fsmq);
 
-        await _sut.Page(WindowId, "grade-details");
+        var view = Assert.IsType<ViewResult>(await _sut.Page(WindowId, "grade-details"));
+        var options = Assert.IsType<PageViewModel>(view.Model).NonFileUploadModels.Single().VisibleOptions;
 
-        await _gradeReference.Received(1).GetByQanAsync("10025480", Arg.Any<CancellationToken>());
+        Assert.Equal(["A", "C"], options.Select(o => o.Value).ToArray());
     }
 
     [Fact]
@@ -270,12 +295,37 @@ public sealed class JourneyControllerResultDetailsTests
     }
 
     [Fact]
+    public async Task Get_passes_the_resolved_qualification_to_the_view()
+    {
+        // AB#301903: the page names the qualification from the 16-19 reference, with the AO.
+        Ready();
+
+        var view = Assert.IsType<ViewResult>(await _sut.Page(WindowId, "grade-details"));
+        var vm = Assert.IsType<PageViewModel>(view.Model);
+
+        Assert.NotNull(vm.SelectedResultQualification);
+        Assert.Equal("Pearson", vm.SelectedResultQualification.AwardingOrganisation);
+        Assert.Equal("Pearson BTEC Level 3 National Extended Certificate in Sport", vm.SelectedResultQualificationName);
+    }
+
+    [Fact]
+    public async Task Get_falls_back_to_the_results_file_name_when_the_qan_is_not_in_the_reference()
+    {
+        // The results file still knows what the school calls the result, so the page is never blank.
+        ReadyUnresolved(Result(qan: "99999999"));
+
+        var view = Assert.IsType<ViewResult>(await _sut.Page(WindowId, "grade-details"));
+        var vm = Assert.IsType<PageViewModel>(view.Model);
+
+        Assert.Null(vm.SelectedResultQualification);
+        Assert.Equal("Pearson BTEC L1/L2 Tech Award in Sport", vm.SelectedResultQualificationName);
+    }
+
+    [Fact]
     public async Task Get_with_no_reference_data_offers_nothing_and_says_so()
     {
-        // A gap between the results CSVs and the AODC export is a real state — the two come from
-        // different teams. The page must explain it rather than showing an empty control.
-        Ready(Result(qan: "99999999"));
-        _gradeReference.GetByQanAsync("99999999", Arg.Any<CancellationToken>()).Returns((GradeReference?)null);
+        // A gap between the results CSVs and the 16-19 QualList is a real state — the two come from different teams. The page must explain it rather than showing an empty control.
+        ReadyUnresolved(Result(qan: "99999999"));
 
         var view = Assert.IsType<ViewResult>(await _sut.Page(WindowId, "grade-details"));
         var qm = Assert.IsType<PageViewModel>(view.Model).NonFileUploadModels.Single();
@@ -285,14 +335,40 @@ public sealed class JourneyControllerResultDetailsTests
     }
 
     [Fact]
-    public async Task A_page_without_a_grade_picker_never_reads_the_reference_data()
+    public async Task Get_re_resolves_a_result_whose_qualification_was_never_stored()
     {
-        // Guards against every page in every journey paying for a blob read.
-        Ready();
+        // A session that picked its result before AB#301903 shipped, or while the reference blob was
+        // still seeding (a 404 is cached as an empty lookup for five minutes), has a result and no
+        // qualification. The page heals it rather than dead-ending on an empty picker.
+        _qualificationReference.GetLookupAsync(Arg.Any<CancellationToken>())
+            .Returns(QualificationReferenceLookup.Parse("""
+                { "60370683": { "qan": "60370683", "qualificationTitle": "Pearson BTEC Level 3 National Extended Certificate in Sport",
+                  "awardingOrganisation": "Pearson", "grades": ["*", "D", "F", "M", "P", "Q", "R", "U", "X"], "syllabusCodes": [] } }
+                """));
+        ReadyUnresolved(Result(grade: "M"));
 
-        await _sut.Page(WindowId, "additional-info");
+        var view = Assert.IsType<ViewResult>(await _sut.Page(WindowId, "grade-details"));
+        var vm = Assert.IsType<PageViewModel>(view.Model);
 
-        await _gradeReference.DidNotReceiveWithAnyArgs().GetByQanAsync(default!);
+        Assert.Equal("Pearson", vm.SelectedResultQualification!.AwardingOrganisation);
+        Assert.Equal(["*", "D", "F", "P", "Q", "R", "U", "X"],
+            vm.NonFileUploadModels.Single().VisibleOptions.Select(o => o.Value).ToArray());
+        Assert.NotNull(_session.GetRequestState(WindowId).SelectedResultQualification);
+    }
+
+    [Fact]
+    public async Task Get_leaves_a_genuinely_unreferenced_qan_alone()
+    {
+        // The heal probes the cached document once; a QAN the reference lacks stays null and the
+        // page keeps its "cannot list grades" state. No second warning is logged here — the pick did.
+        ReadyUnresolved(Result(qan: "99999999"));
+
+        var view = Assert.IsType<ViewResult>(await _sut.Page(WindowId, "grade-details"));
+        var qm = Assert.IsType<PageViewModel>(view.Model).NonFileUploadModels.Single();
+
+        Assert.True(qm.GradeOptionsUnavailable);
+        Assert.Null(_session.GetRequestState(WindowId).SelectedResultQualification);
+        await _qualificationReference.Received(1).GetLookupAsync(Arg.Any<CancellationToken>());
     }
 
     // ── POST ─────────────────────────────────────────────────────────────────
@@ -349,10 +425,29 @@ public sealed class JourneyControllerResultDetailsTests
     }
 
     [Fact]
+    public async Task Post_re_resolves_a_result_whose_qualification_was_never_stored_and_accepts_its_grade()
+    {
+        // A user already on the grade page when this deployed posts straight into validation: the
+        // heal must run before ValidateGradeSelect, or the post is refused against an empty scale.
+        _qualificationReference.GetLookupAsync(Arg.Any<CancellationToken>())
+            .Returns(QualificationReferenceLookup.Parse("""
+                { "60370683": { "qan": "60370683", "qualificationTitle": "Pearson BTEC Level 3 National Extended Certificate in Sport",
+                  "awardingOrganisation": "Pearson", "grades": ["*", "D", "F", "M", "P", "Q", "R", "U", "X"], "syllabusCodes": [] } }
+                """));
+        ReadyUnresolved(Result(grade: "M"));
+        Post("D");
+
+        var redirect = Assert.IsType<RedirectToActionResult>(await _sut.PagePost(WindowId, "grade-details", false));
+
+        Assert.Equal("additional-info", redirect.RouteValues!["pageId"]);
+        Assert.Equal("D", _session.GetRequestState(WindowId).QuestionAnswers["q-revised-grade"].TextValue);
+        Assert.NotNull(_session.GetRequestState(WindowId).SelectedResultQualification);
+    }
+
+    [Fact]
     public async Task Post_with_no_reference_data_cannot_succeed()
     {
-        Ready(Result(qan: "99999999"));
-        _gradeReference.GetByQanAsync("99999999", Arg.Any<CancellationToken>()).Returns((GradeReference?)null);
+        ReadyUnresolved(Result(qan: "99999999"));
         Post("M1");
 
         Assert.IsType<ViewResult>(await _sut.PagePost(WindowId, "grade-details", false));
@@ -391,13 +486,12 @@ public sealed class JourneyControllerResultDetailsTests
     public async Task Prefix_sharing_grades_are_accepted_as_a_real_change()
     {
         // The IB Diploma case: 24F is a fail, 24D is a pass.
-        var ib = new GradeReference
+        var ib = new QualificationReference
         {
             Qan = "50034157", QualificationTitle = "IBO Level 3 International Baccalaureate Diploma",
-            PassGrades = ["24B", "24D"], FailGrades = ["24F", "U"]
+            AwardingOrganisation = "IBO", Grades = ["24B", "24D", "24F", "U"]
         };
-        _gradeReference.GetByQanAsync("50034157", Arg.Any<CancellationToken>()).Returns(ib);
-        Ready(Result(qan: "50034157", grade: "24F"));
+        Ready(Result(qan: "50034157", grade: "24F"), qualification: ib);
         Post("24D");
 
         Assert.IsType<RedirectToActionResult>(await _sut.PagePost(WindowId, "grade-details", false));

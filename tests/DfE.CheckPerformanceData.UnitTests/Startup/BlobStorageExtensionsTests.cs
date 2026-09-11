@@ -58,8 +58,6 @@ public class BlobStorageExtensionsTests
     [Theory]
     [InlineData(typeof(IPupilDataBlobClient))]
     [InlineData(typeof(IStudentResultsClient))]
-    [InlineData(typeof(IGradeReferenceClient))]
-    [InlineData(typeof(GradeReferenceBlobClient))]
     // AB#297848: the qualification reference, resolved the same way for the same reason.
     [InlineData(typeof(IQualificationReferenceClient))]
     [InlineData(typeof(QualificationReferenceBlobClient))]
@@ -72,6 +70,18 @@ public class BlobStorageExtensionsTests
         using var scope = provider.CreateScope();
 
         Assert.NotNull(scope.ServiceProvider.GetRequiredService(serviceType));
+    }
+
+    [Fact]
+    public void The_grade_reference_seeder_is_no_longer_hosted()
+    {
+        // AB#301903: grade-reference.json is gone — the 16-19 qualification reference is the only
+        // scale source. A hosted service seeding a blob nothing reads would be pure cost.
+        using var provider = BuildWebBlobServices();
+
+        Assert.DoesNotContain(
+            provider.GetServices<IHostedService>(),
+            s => s.GetType().Name == "GradeReferenceSeedingService");
     }
 
     /// <summary>

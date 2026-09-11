@@ -47,6 +47,18 @@ public sealed class PageViewModel
     /// </summary>
     public Application.ResultsEnquiry.StudentResultRecord? SelectedResult { get; init; }
 
+    /// <summary>
+    /// AB#301903: the 16-19 qualification reference entry for <see cref="SelectedResult"/>, resolved
+    /// when the result was chosen. Null when the QAN is not in the reference — the page then names
+    /// the result as the results file does and shows no awarding organisation.
+    /// </summary>
+    public Application.ResultsEnquiry.QualificationReference? SelectedResultQualification { get; init; }
+
+    /// <summary>The qualification name the ResultDetails page shows: the 16-19 reference title
+    /// when the QAN resolved, otherwise the results file's own name.</summary>
+    public string SelectedResultQualificationName =>
+        SelectedResultQualification?.QualificationTitle ?? SelectedResult?.QualificationName ?? string.Empty;
+
     /// <summary>AB#297848: the qualification a QualificationDetails page is about, shown as a
     /// summary card above the questions. Null on every other page type.</summary>
     public Application.ResultsEnquiry.QualificationReference? SelectedQualification { get; init; }

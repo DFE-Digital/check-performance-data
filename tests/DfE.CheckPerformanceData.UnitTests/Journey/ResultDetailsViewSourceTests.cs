@@ -2,7 +2,11 @@ using System.Runtime.CompilerServices;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 
-// AB#296648 / AB#297130: pins the "Incorrect grade details" page and the grade picker partial.
+// AB#296648 / AB#297130 / AB#301903: pins the "Incorrect grade details" page and the grade picker
+// partial. Since AB#301903 the page must describe the qualification from the 16-19 reference and
+// show its awarding organisation — and stay usable (name from the results file, no AO row) when the
+// QAN is not in the reference. Source-file assertions, because the always-on CI gate runs no E2E and
+// nothing else notices a dropped row.
 public sealed class ResultDetailsViewSourceTests
 {
     private static string View(string name) =>
@@ -68,6 +72,35 @@ public sealed class ResultDetailsViewSourceTests
 
         Assert.Contains("Url.Action(\"PagePost\", \"Journey\"", view);
         Assert.Contains("@Html.AntiForgeryToken()", view);
+    }
+
+    // ── AB#301903: the qualification name and AO come from the 16-19 reference ──────────────────
+
+    [Fact]
+    public void The_qualification_name_row_reads_the_reference_backed_name()
+    {
+        var view = Page();
+
+        Assert.Contains("@Model.SelectedResultQualificationName", view);
+        Assert.DoesNotContain("@Model.SelectedResult.QualificationName", view);
+    }
+
+    [Fact]
+    public void The_awarding_organisation_row_renders_only_when_the_qualification_resolved()
+    {
+        var view = Page();
+        var rowStart = view.IndexOf("Awarding Organisation (AO) name", StringComparison.Ordinal);
+
+        Assert.True(rowStart > 0, "no Awarding Organisation row");
+        var guardStart = view.LastIndexOf("@if (Model.SelectedResultQualification is not null)", rowStart, StringComparison.Ordinal);
+        Assert.True(guardStart > 0, "the AO row is not guarded on a resolved qualification");
+        Assert.Contains("@Model.SelectedResultQualification.AwardingOrganisation", view);
+
+        // The guard must open *this* row: nothing between it and the label may close a row or a
+        // block, or the guard is wrapping an earlier row and the AO row is unguarded.
+        var between = view[guardStart..rowStart];
+        Assert.DoesNotContain("</govuk-summary-list-row>", between);
+        Assert.DoesNotContain("}", between);
     }
 
     // ── The grade picker ─────────────────────────────────────────────────────

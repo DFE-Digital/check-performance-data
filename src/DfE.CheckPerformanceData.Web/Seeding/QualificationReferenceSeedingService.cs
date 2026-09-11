@@ -7,11 +7,10 @@ namespace DfE.CheckPerformanceData.Web.Seeding;
 /// Seeds the qualification reference blob on web startup in every environment. AB#297848.
 ///
 /// Unlike the rest of the dev-data seeding — which only runs in Development or behind
-/// <c>SeedDevelopmentData</c> — the qualification reference is real reference data the
-/// missing-qualification journey cannot work without, and Terraform provisions the rules-config
-/// container empty. So this runs everywhere, exactly as <see cref="GradeReferenceSeedingService"/>.
-/// It is seed-if-missing, so an environment that has had the full QualList export loaded is
-/// untouched.
+/// <c>SeedDevelopmentData</c> — the qualification reference is real reference data every
+/// results-enquiry journey (AB#301903) cannot work without, and Terraform provisions the
+/// rules-config container empty. So this runs everywhere. It is seed-if-missing, so an environment
+/// that has had the full QualList export loaded is untouched.
 ///
 /// Failures are swallowed inside <see cref="QualificationReferenceBlobClient.SeedIfMissingAsync"/>
 /// so a storage blip degrades the qualification search page rather than blocking startup.

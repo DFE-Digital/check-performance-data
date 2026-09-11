@@ -126,7 +126,6 @@ public class PupilSearchJourneyTests
             _requestService, _pupilDataService, viewModelBuilder, _analytics, _currentUserService,
             _optionVisibilityService, _optionalityService, _languageCapture,
             Substitute.For<DfE.CheckPerformanceData.Application.ResultsEnquiry.IStudentResultsClient>(),
-            Substitute.For<DfE.CheckPerformanceData.Application.ResultsEnquiry.IGradeReferenceClient>(),
             Substitute.For<DfE.CheckPerformanceData.Application.ResultsEnquiry.IQualificationReferenceClient>(),
             Substitute.For<DfE.CheckPerformanceData.Application.Notify.IRequestNotificationService>(),
             OpenCheckingExercises.AlwaysOpen(),

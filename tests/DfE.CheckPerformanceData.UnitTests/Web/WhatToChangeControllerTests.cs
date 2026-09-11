@@ -224,6 +224,7 @@ public sealed class WhatToChangeControllerTests
         Assert.Null(journey.MatchedPupilId);
         Assert.Null(journey.MatchedPupilLabel);
         Assert.Null(journey.SelectedResult);
+        Assert.Null(journey.SelectedResultQualification);
         // Only the EAL pages write these, and OriginCountryLanguageCapture no-ops on a page that
         // has no country question — so an abandoned EAL journey's country data would otherwise
         // ride into the added pupil's request blob.
@@ -283,6 +284,7 @@ public sealed class WhatToChangeControllerTests
         s.MatchedPupilId = "some-stale-match-id";
         s.MatchedPupilLabel = "Smith, Ian";
         s.SelectedResult = new StudentResultRecord();
+        s.SelectedResultQualification = new QualificationReference { Qan = "60146084", QualificationTitle = "Maths" };
         s.QuestionAnswers = new() { ["first-name"] = new QuestionAnswer { TextValue = "Alice" } };
         s.QuestionHistory = ["learner-details", "admission-details", "evidence"];
         // Left behind by an EAL journey: nothing outside the EAL pages ever writes these.
@@ -300,6 +302,7 @@ public sealed class WhatToChangeControllerTests
         Assert.Equal("some-stale-match-id", journey.MatchedPupilId);
         Assert.Equal("Smith, Ian", journey.MatchedPupilLabel);
         Assert.NotNull(journey.SelectedResult);
+        Assert.NotNull(journey.SelectedResultQualification);
         Assert.Equal("FR", journey.OriginCountryCode);
         Assert.NotEmpty(journey.QuestionAnswers);
         Assert.NotEmpty(journey.QuestionHistory);

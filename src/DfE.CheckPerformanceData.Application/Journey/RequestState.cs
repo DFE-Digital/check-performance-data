@@ -27,6 +27,16 @@ public sealed class RequestState
     /// Null until one is chosen.</summary>
     public QualificationReference? SelectedQualification { get; set; }
 
+    /// <summary>
+    /// AB#301903: the 16-19 qualification reference entry for <see cref="SelectedResult"/>'s QAN,
+    /// resolved from the QualList lookup when the result is chosen. The grade page and the summary
+    /// take the qualification title, awarding organisation and grade scale from here — never from
+    /// the results file's abbreviated name or from a KS4 grade list. Null until a result is chosen
+    /// and null when the QAN is absent from the reference (a real state: the results CSVs and the
+    /// QualList come from different teams). Cleared whenever <see cref="SelectedResult"/> is.
+    /// </summary>
+    public QualificationReference? SelectedResultQualification { get; set; }
+
     public CheckingWindowDto? CheckingWindow { get; set; }
 
     /// <summary>

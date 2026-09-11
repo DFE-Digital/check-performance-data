@@ -20,13 +20,13 @@
 <details class="govuk-details">
     <summary class="govuk-details__summary">
         <span class="govuk-details__summary-text">
-            What evidence do I need?
+            @(Model.Page.DetailsSummary ?? "What evidence do I need?")
         </span>
     </summary>
     <div class="govuk-details__text">
         @await Component.InvokeAsync("EditableContent", new {
             key = Model.ContentKey+"-evidence",
-            defaultHtml = @"<p class=""govuk-body"">
+            defaultHtml = Model.Page.Content ?? @"<p class=""govuk-body"">
                     PLACEHOLDER EVIDENCE REQUIREMENTS COPY
                     </p>"
         })

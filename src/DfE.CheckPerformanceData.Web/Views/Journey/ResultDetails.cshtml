@@ -36,9 +36,10 @@
         @if (Model.SelectedResultQualification is not null)
         {
             @* AB#301903: the awarding organisation is known only from the 16-19 reference, so the
-               row appears only when the QAN resolved. Label as on the missing-qualification card. *@
+               row appears only when the QAN resolved. One label — "Awarding Organisation (AO) name" —
+               on every enquiry details page and summary. *@
             <govuk-summary-list-row>
-                <govuk-summary-list-row-key>Awarding Organisation name</govuk-summary-list-row-key>
+                <govuk-summary-list-row-key>Awarding Organisation (AO) name</govuk-summary-list-row-key>
                 <govuk-summary-list-row-value>@Model.SelectedResultQualification.AwardingOrganisation</govuk-summary-list-row-value>
             </govuk-summary-list-row>
         }

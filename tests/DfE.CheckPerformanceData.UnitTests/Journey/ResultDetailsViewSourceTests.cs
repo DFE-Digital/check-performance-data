@@ -89,7 +89,7 @@ public sealed class ResultDetailsViewSourceTests
     public void The_awarding_organisation_row_renders_only_when_the_qualification_resolved()
     {
         var view = Page();
-        var rowStart = view.IndexOf("Awarding Organisation name", StringComparison.Ordinal);
+        var rowStart = view.IndexOf("Awarding Organisation (AO) name", StringComparison.Ordinal);
 
         Assert.True(rowStart > 0, "no Awarding Organisation row");
         var guardStart = view.LastIndexOf("@if (Model.SelectedResultQualification is not null)", rowStart, StringComparison.Ordinal);

@@ -112,7 +112,7 @@ missing-qualification journey already uses) and stores the `QualificationReferen
 `RequestState.SelectedResultQualification`. From there:
 
 - the "Incorrect grade details" page and the check-answers summary show the reference's
-  **qualification title** and an **Awarding Organisation** row;
+  **qualification title** and an **Awarding Organisation (AO) name** row;
 - the revised-grade picker offers the reference's **grade scale**, in the reference's own order
   (`1 … 9, Q, R, U, X` for a GCSE; `*, A … E, N, Q, R, U, X` for an A level), minus the current grade.
 
@@ -526,7 +526,7 @@ spec allows multiples).
 
 | Item | Owner |
 |---|---|
-| Copy sign-off: the must-differ message; "We cannot list grades for this qualification yet"; the issue page's expander body (never captured in Figma); the result label's appended session; the Awarding Organisation row label (AB#301903) | Content designer |
+| Copy sign-off: the must-differ message; "We cannot list grades for this qualification yet"; the issue page's expander body (never captured in Figma); the result label's appended session; the "Awarding Organisation (AO) name" row label, now the one label on both journeys' details pages and summaries (AB#301903) | Content designer |
 | Whether to keep or delete `/results/suggestions` | Dev team |
 | Breadcrumb: the designs show `Check your student data - 16 to 19 and result enquiry`, but no journey view in the service renders a breadcrumb. Worth doing across the whole 16-19 journey at once rather than on one page | Design / dev |
 | `PupilSearch.cshtml` is still JavaScript-dependent (pre-existing). The same `enhanceSelectElement` approach used here would fix it | Dev team |

@@ -250,7 +250,7 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
         // organisation the file never carried.
         await NavigateToGradePageAsync();
 
-        var aoRow = Page.Locator(".govuk-summary-list__row").Filter(new() { HasText = "Awarding Organisation name" });
+        var aoRow = Page.Locator(".govuk-summary-list__row").Filter(new() { HasText = "Awarding Organisation (AO) name" });
         await Expect(aoRow).ToHaveCountAsync(1);
         await Expect(aoRow.Locator(".govuk-summary-list__value")).ToHaveTextAsync("AQA");
 

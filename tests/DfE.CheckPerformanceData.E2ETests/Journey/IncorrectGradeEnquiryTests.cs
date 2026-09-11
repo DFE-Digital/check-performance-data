@@ -26,6 +26,10 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
     private const string BusStudsS2024 = "GCSE (9-1) Bus. Studs:Single, QAN: 6037116X, Session: S2024";
     private const string BusStudsCurrentGrade = "5";
 
+    // The same qualification in the previous session — the label differs only in the session, and
+    // only the details (grade 4, not 5) tell the two apart. From SeedStudentResults.
+    private const string BusStudsS2023 = "GCSE (9-1) Bus. Studs:Single, QAN: 6037116X, Session: S2023";
+
     // ── The cohort-wide happy path, end to end ───────────────────────────────
 
     [RetryFact(3)]
@@ -292,6 +296,153 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
         await Expect(input).ToHaveValueAsync("4");
     }
 
+    // ── AB#301934 / #409: a chosen result's details appear as soon as it is picked ──────────
+
+    // The details a chosen result reveals. All six rows are asserted — the CSV file row is the
+    // one thing the option label cannot show, and the grade is what separates the two sessions.
+    private static ILocator ShownDetails(IPage page) =>
+        page.Locator("form .govuk-summary-list:visible");
+
+    private async Task AssertDetailsRowAsync(ILocator details, string key, string value)
+    {
+        var row = details.Locator(".govuk-summary-list__row", new() { HasText = key });
+        await Expect(row.Locator(".govuk-summary-list__value")).ToHaveTextAsync(value);
+    }
+
+    private async Task NavigateToResultSearchAsync()
+    {
+        await StartEnquiryAsync();
+        await ContinueAsync();
+        await ChooseCohortScopeAsync("no");
+        await ChooseStudentAsync("select-student-single");
+        await Page.WaitForURLAsync($"**/Journey/{WindowId}/result-search/select-result");
+    }
+
+    [RetryFact(3)]
+    public async Task ChoosingAResultShowsItsDetailsWithoutLeavingThePage()
+    {
+        // #409: the details used to render only from the session, i.e. only after the user had
+        // continued past this page and come back. Picking a suggestion must reveal them here.
+        await NavigateToResultSearchAsync();
+        var details = ShownDetails(Page);
+        await Expect(details).ToHaveCountAsync(0);
+
+        await PickResultAsync(BusStudsS2024);
+
+        await Expect(details).ToHaveCountAsync(1);
+        await AssertDetailsRowAsync(details, "Qualification name and subject", "GCSE (9-1) Bus. Studs:Single");
+        await AssertDetailsRowAsync(details, "Qualification number (QAN)", "6037116X");
+        await AssertDetailsRowAsync(details, "Syllabus code", "1BS0");
+        await AssertDetailsRowAsync(details, "Session", "S2024");
+        await AssertDetailsRowAsync(details, "Current Grade", BusStudsCurrentGrade);
+        await AssertDetailsRowAsync(details, "CSV file", "16to19_MAIN");
+        // No round-trip: still on the search page, nothing posted.
+        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex(
+            $"/Journey/{WindowId}/result-search/select-result$", System.Text.RegularExpressions.RegexOptions.IgnoreCase));
+
+        // Picking the other session swaps the details — the label alone cannot show the grade.
+        await PickResultAsync(BusStudsS2023);
+        await Expect(details).ToHaveCountAsync(1);
+        await AssertDetailsRowAsync(details, "Session", "S2023");
+        await AssertDetailsRowAsync(details, "Current Grade", "4");
+        await Expect(Page.Locator("select[name='selectedResultKey']")).ToHaveValueAsync("6037116X|S2023|16to19_MAIN");
+    }
+
+    [RetryFact(3)]
+    public async Task ConfirmingAResultLeavesTheFieldShowingJustTheLabel()
+    {
+        // The option label used to sit on its own line in the Razor, so its textContent carried a
+        // newline and the indentation. The library builds its suggestions from that raw text and
+        // copies it into the field on confirm; the input strips the newlines, so 100 ms later the
+        // library's poll saw the field and its own query disagree, re-filtered, matched nothing,
+        // and reopened the menu on "No results found" — telling a screen reader user who had just
+        // picked correctly that there were "No search results". The label must be the whole text.
+        await NavigateToResultSearchAsync();
+        await PickResultAsync(BusStudsS2024);
+
+        await Expect(Page.Locator("input#result-search")).ToHaveValueAsync(BusStudsS2024);
+
+        // The reopen was driven by the library's 100 ms poll, so give it a chance to happen before
+        // asserting that it did not.
+        await Page.WaitForTimeoutAsync(500);
+        await Expect(Page.Locator("#result-search__listbox")).Not.ToContainTextAsync("No results found");
+        await Expect(Page.GetByText("No search results")).ToHaveCountAsync(0);
+        await Expect(ShownDetails(Page)).ToHaveCountAsync(1);
+    }
+
+    [RetryFact(3)]
+    public async Task ChoosingAResultWithTheKeyboardShowsItsDetails()
+    {
+        // Enter on a highlighted suggestion goes through the same confirm as a click; proving it
+        // separately guards the keyboard path, and this result is the one from a late-results file.
+        await NavigateToResultSearchAsync();
+        var details = ShownDetails(Page);
+
+        var search = Page.Locator("input#result-search");
+        await Expect(search).ToBeVisibleAsync();
+        await search.FillAsync("French");
+        await Expect(Page.Locator("li[role='option']").GetByText("GCSE (9-1) French")).ToBeVisibleAsync();
+
+        // Locator.PressAsync refocuses its element before dispatching each key. ArrowDown moves DOM
+        // focus onto the highlighted <li role="option">, so a PressAsync("Enter") on the input first
+        // refocuses it, which fires the library's handleInputFocus — that resets state.selected to
+        // -1 (the menu stays open; only the highlight is lost) — and handleEnter is a no-op unless
+        // state.selected >= 0. Page.Keyboard sends keys to whatever already has focus with no such
+        // step, matching how a real user's keystrokes land once the field is focused (AB#301934).
+        await search.ClickAsync();
+        await Page.Keyboard.PressAsync("ArrowDown");
+        await Expect(Page.Locator("li[role='option'][aria-selected='true']")).ToBeVisibleAsync();
+        await Page.Keyboard.PressAsync("Enter");
+
+        await Expect(Page.Locator("select[name='selectedResultKey']")).ToHaveValueAsync("60181576|S2024|16to19_LR1");
+        await Expect(details).ToHaveCountAsync(1);
+        await AssertDetailsRowAsync(details, "Qualification number (QAN)", "60181576");
+        await AssertDetailsRowAsync(details, "Syllabus code", "1FR0");
+        await AssertDetailsRowAsync(details, "Current Grade", "6");
+        await AssertDetailsRowAsync(details, "CSV file", "16to19_LR1");
+    }
+
+    [RetryFact(3)]
+    public async Task EditingTheFieldHidesTheDetailsUntilAResultIsPickedAgain()
+    {
+        // accessible-autocomplete leaves the hidden select holding the last confirmed choice when
+        // the text is edited (library behaviour, unchanged). The details must not keep describing
+        // a result the field no longer shows — and must come back on the next confirm.
+        await NavigateToResultSearchAsync();
+        var details = ShownDetails(Page);
+        await PickResultAsync(BusStudsS2024);
+        await Expect(details).ToHaveCountAsync(1);
+
+        var search = Page.Locator("input#result-search");
+        await search.FillAsync("");
+        await Expect(details).ToHaveCountAsync(0);
+
+        await PickResultAsync(BusStudsS2024);
+        await Expect(details).ToHaveCountAsync(1);
+        await AssertDetailsRowAsync(details, "Session", "S2024");
+    }
+
+    [RetryFact(3)]
+    public async Task TheChosenResultsDetailsAreStillShownWhenTheUserComesBackToThePage()
+    {
+        // The guard for the fix: the server-side render of a result the session already holds is
+        // the path that worked before #409 and must keep working with no script involved — the
+        // field shows the label and exactly one details block is visible, with the right session.
+        await NavigateToResultSearchAsync();
+        await ChooseResultAsync(BusStudsS2024);
+        await Page.WaitForURLAsync($"**/Journey/{WindowId}/page/grade-details");
+
+        await Page.Locator("a.govuk-back-link").ClickAsync();
+        await Page.WaitForURLAsync($"**/Journey/{WindowId}/result-search/select-result");
+
+        await Expect(Page.Locator("input#result-search")).ToHaveValueAsync(
+            new System.Text.RegularExpressions.Regex(@"6037116X.*S2024"));
+        var details = ShownDetails(Page);
+        await Expect(details).ToHaveCountAsync(1);
+        await AssertDetailsRowAsync(details, "Session", "S2024");
+        await AssertDetailsRowAsync(details, "Current Grade", BusStudsCurrentGrade);
+    }
+
     // ── The way in, and the auth gate ───────────────────────────────────────
 
     [RetryFact(3)]
@@ -371,11 +522,25 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
     }
 
     /// <summary>
-    /// Picks a result through the enhanced autocomplete. The control is a server-rendered
-    /// &lt;select&gt; that accessible-autocomplete upgrades in place, so exercising it here is what
-    /// proves the enhancement works — a unit test can only see the select.
+    /// Picks a result through the enhanced autocomplete and continues. The control is a
+    /// server-rendered &lt;select&gt; that accessible-autocomplete upgrades in place, so exercising
+    /// it here is what proves the enhancement works — a unit test can only see the select.
     /// </summary>
     private async Task ChooseResultAsync(string label)
+    {
+        await PickResultAsync(label);
+
+        // The open autocomplete menu can consume Playwright's pointer click on Continue without
+        // submitting the form. Native requestSubmit preserves browser validation and submit events.
+        await Page.Locator("form").EvaluateAsync("form => form.requestSubmit()");
+    }
+
+    /// <summary>
+    /// Picks a result through the enhanced autocomplete without continuing, so a test can look at
+    /// what the page does in response (AB#301934). Waits for the hidden select to hold the choice —
+    /// that is the value the form posts, and the enhancement writes it asynchronously.
+    /// </summary>
+    private async Task PickResultAsync(string label)
     {
         await Page.WaitForURLAsync($"**/Journey/{WindowId}/result-search/select-result");
         var search = Page.Locator("#result-search").First;
@@ -385,15 +550,8 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
         await Expect(option.First).ToBeVisibleAsync();
         await option.First.ClickAsync();
 
-        // The autocomplete updates the hidden select asynchronously. Wait for the value that the
-        // form actually posts before submitting, otherwise a fast click on Continue can redisplay
-        // this page with the no-selection validation error.
         await Expect(Page.Locator("select[name='selectedResultKey'] option:checked"))
             .ToContainTextAsync(label);
-
-        // The open autocomplete menu can consume Playwright's pointer click on Continue without
-        // submitting the form. Native requestSubmit preserves browser validation and submit events.
-        await Page.Locator("form").EvaluateAsync("form => form.requestSubmit()");
     }
 
     private async Task ChooseRevisedGradeAsync(string grade)

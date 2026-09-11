@@ -26,12 +26,10 @@ public sealed class ResultSearchViewModel
 
     /// <summary>
     /// The composite key (<c>QAN|SESSION|SOURCE</c>) of the current selection, re-rendered on a
-    /// validation redisplay so a valid choice is not silently lost. AB#295434's lesson.
+    /// validation redisplay so a valid choice is not silently lost (AB#295434's lesson), and the
+    /// key of the one details block the server shows un-hidden (AB#301934).
     /// </summary>
     public string? SelectedResultKey { get; set; }
-
-    /// <summary>The resolved result, shown as a confirmation summary once one is chosen.</summary>
-    public StudentResultRecord? SelectedResult { get; set; }
 
     /// <summary>
     /// Every result the selected pupil holds, rendered as real <c>&lt;option&gt;</c> elements so the

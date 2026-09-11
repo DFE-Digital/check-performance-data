@@ -407,6 +407,7 @@ public sealed class JourneyController(
                 // re-resolution on the result page would catch a stale key, but the summary and the
                 // grade page read SelectedResult directly.
                 s.SelectedResult = null;
+                s.SelectedResultQualification = null;
                 s.QuestionHistory = [.. historyBefore, pageId];
                 s.MatchedPupil = null;
                 s.MatchedPupilId = null;
@@ -494,9 +495,23 @@ public sealed class JourneyController(
         // change, so the grade survives back-navigation.
         var resultChanged = journey.SelectedResult?.CompositeKey != resolved.CompositeKey;
 
+        // AB#301903: the grade page and the summary describe the qualification from the 16-19
+        // reference (title, AO, grade scale), so it is resolved once here, beside the result. The
+        // lookup is the cached QualList document — a keystroke-cheap read. A QAN the reference does
+        // not hold stores null: the grade page then says grades cannot be listed and validation
+        // holds the enquiry back, exactly as a missing grade reference always has.
+        var lookup = await qualificationReferenceClient.GetLookupAsync(HttpContext.RequestAborted);
+        var qualification = lookup.Find(resolved.Qan);
+        if (qualification is null)
+            logger.LogWarning(
+                "QAN {Qan} is not in the 16-19 qualification reference; the revised-grade picker will be " +
+                "empty and the enquiry cannot be submitted until the reference covers it.",
+                resolved.Qan);
+
         HttpContext.Session.SaveRequestState(windowId, s =>
         {
             s.SelectedResult = resolved;
+            s.SelectedResultQualification = qualification;
             if (resultChanged)
                 s.QuestionAnswers.Remove(RevisedGradeQuestionId);
         });
@@ -1827,6 +1842,7 @@ public sealed class JourneyController(
             s.MatchedPupilId = null;
             s.MatchedPupilLabel = null;
             s.SelectedResult = null;
+            s.SelectedResultQualification = null;
             s.QuestionAnswers = new();
             s.QuestionHistory = [config.FirstPageId];
             s.DuplicateCheck = null;
@@ -1925,6 +1941,7 @@ public sealed class JourneyController(
             s.MatchedPupilId = null;
             s.MatchedPupilLabel = null;
             s.SelectedResult = null;
+            s.SelectedResultQualification = null;
             s.SelectedQualification = null;
             s.QuestionAnswers = new();
             s.QuestionHistory = [config.FirstPageId];

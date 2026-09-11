@@ -25,7 +25,7 @@ public sealed class ResultDoesNotBelongEnquiryTests(PlaywrightFixture fixture) :
 
     private const string StudentCypmdId = "500001";
     private const string StudentName = "Alice Smith";
-    private const string BusStudsS2024 = "GCSE (9-1) Bus. Studs:Single, QAN: 6037116X, Session: S2024";
+    private const string MathsS2024 = "GCSE (9-1) Mathematics, QAN: 60146084, Session: S2024";
 
     [RetryFact(3)]
     public async Task A_school_can_report_a_result_that_does_not_belong_end_to_end()
@@ -39,7 +39,7 @@ public sealed class ResultDoesNotBelongEnquiryTests(PlaywrightFixture fixture) :
         await Expect(Page.Locator(".govuk-inset-text")).ToContainTextAsync(
             "If more than one result does not belong to the student, provide the QAN and grade for "
             + "each result on the next page.");
-        await ChooseResultAsync(BusStudsS2024);
+        await ChooseResultAsync(MathsS2024);
 
         await Page.WaitForURLAsync($"**/Journey/{WindowId}/page/additional-info");
         await Expect(Page.Locator(".govuk-character-count")).ToHaveAttributeAsync("data-maxlength", "1000");
@@ -56,7 +56,7 @@ public sealed class ResultDoesNotBelongEnquiryTests(PlaywrightFixture fixture) :
             .ToContainTextAsync($"Summary of result enquiry for {StudentName}");
         var summary = await Page.Locator(".govuk-summary-list").InnerTextAsync();
         Assert.Contains("Result does not belong to student", summary);
-        Assert.Contains("6037116X", summary);
+        Assert.Contains("60146084", summary);
         Assert.DoesNotContain("Revised grade", summary);
         Assert.Equal(1, await Page.Locator(".govuk-summary-list__actions a", new() { HasTextString = "Change" }).CountAsync());
 
@@ -73,7 +73,7 @@ public sealed class ResultDoesNotBelongEnquiryTests(PlaywrightFixture fixture) :
         // AC: "proceed without entering any" — the row stays but is shown empty.
         await StartEnquiryAsync();
         await ChooseStudentAsync();
-        await ChooseResultAsync(BusStudsS2024);
+        await ChooseResultAsync(MathsS2024);
 
         await Page.WaitForURLAsync($"**/Journey/{WindowId}/page/additional-info");
         await ContinueAsync();
@@ -91,7 +91,7 @@ public sealed class ResultDoesNotBelongEnquiryTests(PlaywrightFixture fixture) :
         // from carrying more than the limit, so the server must still reject it.
         await StartEnquiryAsync();
         await ChooseStudentAsync();
-        await ChooseResultAsync(BusStudsS2024);
+        await ChooseResultAsync(MathsS2024);
 
         await Page.WaitForURLAsync($"**/Journey/{WindowId}/page/additional-info");
         await Page.Locator("#q_q_additional_info").FillAsync(new string('a', 1001));
@@ -105,7 +105,7 @@ public sealed class ResultDoesNotBelongEnquiryTests(PlaywrightFixture fixture) :
     {
         await StartEnquiryAsync();
         await ChooseStudentAsync();
-        await ChooseResultAsync(BusStudsS2024);
+        await ChooseResultAsync(MathsS2024);
         await Page.WaitForURLAsync($"**/Journey/{WindowId}/page/additional-info");
         await ContinueAsync();
         await Page.GetByRole(AriaRole.Button, new() { Name = "Submit request" }).ClickAsync();
@@ -119,7 +119,7 @@ public sealed class ResultDoesNotBelongEnquiryTests(PlaywrightFixture fixture) :
 
         await StartEnquiryAsync();
         await ChooseStudentAsync();
-        await ChooseResultAsync(BusStudsS2024);
+        await ChooseResultAsync(MathsS2024);
         await Page.WaitForURLAsync($"**/Journey/{WindowId}/page/additional-info");
         await ContinueAsync();
         await Page.GetByRole(AriaRole.Button, new() { Name = "Submit request" }).ClickAsync();
@@ -140,7 +140,7 @@ public sealed class ResultDoesNotBelongEnquiryTests(PlaywrightFixture fixture) :
 
         await StartEnquiryAsync();
         await ChooseStudentAsync();
-        await ChooseResultAsync(BusStudsS2024);
+        await ChooseResultAsync(MathsS2024);
         await Page.WaitForURLAsync($"**/Journey/{WindowId}/page/additional-info");
         await ContinueAsync();
 
@@ -194,7 +194,7 @@ public sealed class ResultDoesNotBelongEnquiryTests(PlaywrightFixture fixture) :
         await Page.WaitForURLAsync($"**/Journey/{WindowId}/result-search/select-result");
         var search = Page.Locator("#result-search").First;
         await Expect(search).ToBeVisibleAsync();
-        await search.FillAsync("Bus");
+        await search.FillAsync("Math");
         var option = Page.Locator("li[role='option']").GetByText(label, new() { Exact = false });
         await Expect(option.First).ToBeVisibleAsync();
         await option.First.ClickAsync();

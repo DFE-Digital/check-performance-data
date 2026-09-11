@@ -14,7 +14,7 @@ public sealed class IssuesTabTests(PlaywrightFixture fixture) : SeedingPageTest(
     private static readonly Guid WindowId = Guid.Parse("6C2E1F4A-9B7D-4E38-8A15-3D9C2B4E7F01");
     private const string StudentCypmdId = "500001";
     private const string StudentName = "Alice Smith";
-    private const string BusStudsS2024 = "GCSE (9-1) Bus. Studs:Single, QAN: 6037116X, Session: S2024";
+    private const string MathsS2024 = "GCSE (9-1) Mathematics, QAN: 60146084, Session: S2024";
 
     [RetryFact(1)]
     public async Task ASubmittedEnquiryAppearsOnTheIssuesTabAndIsSearchable()
@@ -22,7 +22,7 @@ public sealed class IssuesTabTests(PlaywrightFixture fixture) : SeedingPageTest(
         // Submit a real enquiry through the journey so the row AND its journey blob exist.
         await StartEnquiryAsync();
         await ChooseStudentAsync();
-        await ChooseResultAsync(BusStudsS2024);
+        await ChooseResultAsync(MathsS2024);
         await Page.WaitForURLAsync($"**/Journey/{WindowId}/page/additional-info");
         await ContinueAsync();
         await Page.GetByRole(AriaRole.Button, new() { Name = "Submit request" }).ClickAsync();
@@ -37,7 +37,7 @@ public sealed class IssuesTabTests(PlaywrightFixture fixture) : SeedingPageTest(
         await Expect(issuesPanel.GetByText(StudentName).First).ToBeVisibleAsync();
         await Expect(issuesPanel.GetByText(StudentCypmdId).First).ToBeVisibleAsync();
         await Expect(issuesPanel.GetByText("Result does not belong to student").First).ToBeVisibleAsync();
-        await Expect(issuesPanel.GetByText("GCSE (9-1) Bus. Studs:Single").First).ToBeVisibleAsync();
+        await Expect(issuesPanel.GetByText("GCSE (9-1) Mathematics").First).ToBeVisibleAsync();
 
         // Search round trip: the term filters and the user LANDS back on the Results Enquiries tab — the
         // whole point of the #results-enquiries fragment. Asserting only the response would miss a bounce
@@ -89,7 +89,7 @@ public sealed class IssuesTabTests(PlaywrightFixture fixture) : SeedingPageTest(
         await Page.WaitForURLAsync($"**/Journey/{WindowId}/result-search/select-result");
         var search = Page.Locator("#result-search").First;
         await Expect(search).ToBeVisibleAsync();
-        await search.FillAsync("Bus");
+        await search.FillAsync("Math");
         var option = Page.Locator("li[role='option']").GetByText(label, new() { Exact = false });
         await Expect(option.First).ToBeVisibleAsync();
         await option.First.ClickAsync();

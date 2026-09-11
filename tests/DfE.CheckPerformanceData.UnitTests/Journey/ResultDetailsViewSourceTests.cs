@@ -95,6 +95,12 @@ public sealed class ResultDetailsViewSourceTests
         var guardStart = view.LastIndexOf("@if (Model.SelectedResultQualification is not null)", rowStart, StringComparison.Ordinal);
         Assert.True(guardStart > 0, "the AO row is not guarded on a resolved qualification");
         Assert.Contains("@Model.SelectedResultQualification.AwardingOrganisation", view);
+
+        // The guard must open *this* row: nothing between it and the label may close a row or a
+        // block, or the guard is wrapping an earlier row and the AO row is unguarded.
+        var between = view[guardStart..rowStart];
+        Assert.DoesNotContain("</govuk-summary-list-row>", between);
+        Assert.DoesNotContain("}", between);
     }
 
     // ── The grade picker ─────────────────────────────────────────────────────

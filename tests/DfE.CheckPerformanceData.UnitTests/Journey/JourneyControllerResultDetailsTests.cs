@@ -68,7 +68,9 @@ public sealed class JourneyControllerResultDetailsTests
         Pages = [GradeDetails, AdditionalInfo]
     };
 
-    // The BTEC scale as the 16-19 reference lists it (AB#301903): one flat list, source order.
+    // A BTEC-shaped scale as a fixture (not the reference's own — the real 60172186 scale is *, D,
+    // F, M, P, Q, R, U, X): one flat list, source order, so the count/order facts assert what
+    // production decides.
     private static readonly QualificationReference Btec = new()
     {
         Qan = "60370683",

@@ -1,10 +1,11 @@
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web;
 
 // Static Razor-source assertions for the fixes raised by the Zoonou accessibility audit
-// (epic #384). Same hostless pattern as LayoutRenderTests: read the .cshtml as text and
-// assert on the source, so the suite needs no MVC test harness.
+// (epic #384) and for other view-level accessibility defects fixed since. Same hostless
+// pattern as LayoutRenderTests: read the .cshtml as text and assert on the source, so the
+// suite needs no MVC test harness.
 //
-// Each fact names the audit ticket it pins. These are all defects that were found once and
+// Each fact names the ticket it pins. These are all defects that were found once and
 // fixed once — the point of the test is that the markup cannot quietly regress, because
 // nothing else in the build would notice a dropped attribute or a moved element.
 public sealed class AccessibilityAuditViewTests

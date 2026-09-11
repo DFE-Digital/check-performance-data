@@ -1,10 +1,10 @@
 # Test-runner image: bundles Linux Chromium (from playwright/dotnet) +
 # .NET 10 SDK (side-installed because the upstream playwright/dotnet image
-# ships .NET 8 SDK only as of v1.59.0).
+# ships .NET 8 SDK only as of v1.62.0).
 #
 # Base image tag MUST track Microsoft.Playwright NuGet version in
 # src/Directory.Packages.props. Chromium binary protocol mismatch otherwise.
-FROM mcr.microsoft.com/playwright/dotnet:v1.59.0-noble
+FROM mcr.microsoft.com/playwright/dotnet:v1.62.0-noble
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG DOTNET_CHANNEL=10.0

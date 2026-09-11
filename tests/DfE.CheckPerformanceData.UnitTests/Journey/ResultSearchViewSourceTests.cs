@@ -49,13 +49,14 @@ public sealed class ResultSearchViewSourceTests
     }
 
     [Fact]
-    public void The_select_carries_no_javascript_enhancement()
+    public void The_select_carries_no_type_ahead()
     {
         // The type-ahead is gone: a student holds a handful of results, so the list is read rather
-        // than searched. The no-JS guarantee below is unaffected — it was always the same <select>.
+        // than searched. The no-JS guarantee is unaffected — it was always the same <select>, and
+        // the one script left (the #409 details reveal) only reacts to the select, never replaces
+        // it. See ResultSearch.cshtml's own comment; the grade and syllabus pickers match.
         var view = ViewSource();
 
-        Assert.DoesNotContain("<script", view);
         Assert.DoesNotContain("accessibleAutocomplete", view);
         // Guards against a regression to a fetch-only autocomplete, which would break the no-JS path.
         Assert.DoesNotContain("/results/suggestions", view);
@@ -196,4 +197,51 @@ public sealed class ResultSearchViewSourceTests
     }
 
     private static string ThisFilePath([CallerFilePath] string path = "") => path;
+
+    // ── AB#301934 / #409: a chosen result's details are revealed on the page, not fetched later ──
+
+    [Fact]
+    public void Every_available_result_has_a_details_block_and_only_the_selected_one_is_shown()
+    {
+        // The details used to render only from the session (Model.SelectedResult), so they appeared
+        // only after the user had continued past this page and come back. Now every result the
+        // student holds gets a block, hidden unless it is the one the session holds; the script
+        // reveals the one just picked. Server-side hiding by key is what keeps the Back / redisplay
+        // case working with JavaScript off.
+        var view = ViewSource();
+
+        Assert.Contains("<div id=\"result-search-details\" aria-live=\"polite\">", view);
+        Assert.Contains("data-result-details=\"@result.CompositeKey\"", view);
+        Assert.Contains("hidden=\"@(result.CompositeKey == Model.SelectedResultKey ? null : \"hidden\")\"", view);
+        Assert.DoesNotContain("Model.SelectedResult ", view);
+        Assert.DoesNotContain("Model.SelectedResult.", view);
+    }
+
+    [Fact]
+    public void Changing_the_selection_reveals_that_results_details()
+    {
+        // With a plain <select> the option the user picks is already the one that posts, so the
+        // script has one job: show the block keyed by the new value. The placeholder option's empty
+        // value hides every block, so clearing the choice cannot leave the page describing a result
+        // the control no longer shows.
+        var view = ViewSource();
+
+        Assert.Contains(
+            "select.addEventListener('change', function () { showDetails(select.value); });",
+            view);
+        Assert.Contains(
+            "details[i].hidden = details[i].getAttribute('data-result-details') !== key;",
+            view);
+    }
+
+    [Fact]
+    public void The_details_reveal_is_an_enhancement_the_page_does_not_depend_on()
+    {
+        // The server decides each block's hidden= from the session key, so validation redisplay,
+        // Back and Change all show the right details with JavaScript off. The script must not be
+        // the only thing that can reveal a block.
+        var view = ViewSource();
+
+        Assert.Contains("hidden=\"@(result.CompositeKey == Model.SelectedResultKey ? null : \"hidden\")\"", view);
+    }
 }

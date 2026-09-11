@@ -36,13 +36,14 @@ else
     </govuk-error-summary>
 }
 
-@* A plain GOV.UK <select> carrying every result the student holds, with no JavaScript enhancement:
-   a student holds a handful of results, so the list is read rather than searched. The options are
-   rendered server-side rather than fetched for the same reason — there is nothing to gain from a
-   round-trip, and a fetch-only version would not work without JavaScript at all.
+@* A plain GOV.UK <select> carrying every result the student holds, with no type-ahead: a student
+   holds a handful of results, so the list is read rather than searched. The options are rendered
+   server-side rather than fetched for the same reason — there is nothing to gain from a round-trip,
+   and a fetch-only version would not work without JavaScript at all.
 
    The accessible-autocomplete type-ahead this control used to carry was removed alongside the grade
-   and syllabus pickers; keep the three in step. *@
+   and syllabus pickers; keep the three in step. The only script left is the details reveal below,
+   which enhances the select rather than replacing it. *@
 @if (!Model.AvailableResults.Any())
 {
     @* A student the school holds no result for has no grade to correct. Rendering an empty
@@ -95,9 +96,7 @@ else
             <option value=""></option>
             @foreach (var result in Model.AvailableResults)
             {
-                <option value="@result.CompositeKey" selected="@(result.CompositeKey == Model.SelectedResultKey)">
-                    @DfE.CheckPerformanceData.Application.ResultsEnquiry.ResultLabel.For(result)
-                </option>
+                <option value="@result.CompositeKey" selected="@(result.CompositeKey == Model.SelectedResultKey)">@DfE.CheckPerformanceData.Application.ResultsEnquiry.ResultLabel.For(result)</option>
             }
         </select>
     </div>
@@ -107,36 +106,72 @@ else
         <div class="govuk-inset-text">@Model.Content</div>
     }
 
-    @if (Model.SelectedResult is not null)
-    {
-        <govuk-summary-list>
-            <govuk-summary-list-row>
-                <govuk-summary-list-row-key>Qualification name and subject</govuk-summary-list-row-key>
-                <govuk-summary-list-row-value>@Model.SelectedResult.QualificationName</govuk-summary-list-row-value>
-            </govuk-summary-list-row>
-            <govuk-summary-list-row>
-                <govuk-summary-list-row-key>Qualification number (QAN)</govuk-summary-list-row-key>
-                <govuk-summary-list-row-value>@Model.SelectedResult.Qan</govuk-summary-list-row-value>
-            </govuk-summary-list-row>
-            <govuk-summary-list-row>
-                <govuk-summary-list-row-key>Syllabus code</govuk-summary-list-row-key>
-                <govuk-summary-list-row-value>@Model.SelectedResult.SyllabusCode</govuk-summary-list-row-value>
-            </govuk-summary-list-row>
-            <govuk-summary-list-row>
-                <govuk-summary-list-row-key>Session</govuk-summary-list-row-key>
-                <govuk-summary-list-row-value>@Model.SelectedResult.Session</govuk-summary-list-row-value>
-            </govuk-summary-list-row>
-            <govuk-summary-list-row>
-                <govuk-summary-list-row-key>Current Grade</govuk-summary-list-row-key>
-                <govuk-summary-list-row-value>@Model.SelectedResult.Grade</govuk-summary-list-row-value>
-            </govuk-summary-list-row>
-            <govuk-summary-list-row>
-                <govuk-summary-list-row-key>CSV file</govuk-summary-list-row-key>
-                <govuk-summary-list-row-value>@Model.SelectedResult.SourceFile</govuk-summary-list-row-value>
-            </govuk-summary-list-row>
-        </govuk-summary-list>
-    }
+    @* AB#301934 / #409: one details block per result the student holds, all rendered here so the
+       page can reveal the chosen one without a round-trip — a student holds a handful of results,
+       the same reason the options are server-rendered. The server shows the block for the result
+       the session already holds (validation redisplay, Back, Change from the summary); the script
+       below reveals the one just picked. With JavaScript off the select still posts and the details
+       appear on the next render of this page. The container is a polite live region so a screen
+       reader user who confirms with Enter is told what appeared below the field. *@
+    <div id="result-search-details" aria-live="polite">
+        @foreach (var result in Model.AvailableResults)
+        {
+            <div data-result-details="@result.CompositeKey" hidden="@(result.CompositeKey == Model.SelectedResultKey ? null : "hidden")">
+                <govuk-summary-list>
+                    <govuk-summary-list-row>
+                        <govuk-summary-list-row-key>Qualification name and subject</govuk-summary-list-row-key>
+                        <govuk-summary-list-row-value>@result.QualificationName</govuk-summary-list-row-value>
+                    </govuk-summary-list-row>
+                    <govuk-summary-list-row>
+                        <govuk-summary-list-row-key>Qualification number (QAN)</govuk-summary-list-row-key>
+                        <govuk-summary-list-row-value>@result.Qan</govuk-summary-list-row-value>
+                    </govuk-summary-list-row>
+                    <govuk-summary-list-row>
+                        <govuk-summary-list-row-key>Syllabus code</govuk-summary-list-row-key>
+                        <govuk-summary-list-row-value>@result.SyllabusCode</govuk-summary-list-row-value>
+                    </govuk-summary-list-row>
+                    <govuk-summary-list-row>
+                        <govuk-summary-list-row-key>Session</govuk-summary-list-row-key>
+                        <govuk-summary-list-row-value>@result.Session</govuk-summary-list-row-value>
+                    </govuk-summary-list-row>
+                    <govuk-summary-list-row>
+                        <govuk-summary-list-row-key>Current Grade</govuk-summary-list-row-key>
+                        <govuk-summary-list-row-value>@result.Grade</govuk-summary-list-row-value>
+                    </govuk-summary-list-row>
+                    <govuk-summary-list-row>
+                        <govuk-summary-list-row-key>CSV file</govuk-summary-list-row-key>
+                        <govuk-summary-list-row-value>@result.SourceFile</govuk-summary-list-row-value>
+                    </govuk-summary-list-row>
+                </govuk-summary-list>
+            </div>
+        }
+    </div>
 
     <govuk-button type="submit">Continue</govuk-button>
 </form>
+}
+
+@section Scripts {
+    <script>
+        (function () {
+            var select = document.getElementById('result-search');
+            if (!select) return;
+
+            // AB#301934 / #409: the details blocks are server-rendered, one per result, keyed by the
+            // option value (the composite key). Revealing one is a matter of which is hidden, so the
+            // whole enhancement is a change listener — no library, and nothing the page depends on.
+            // With JavaScript off the select still posts and the server renders the chosen block on
+            // the next pass, which is why the hidden= attribute is decided server-side.
+            var details = document.querySelectorAll('[data-result-details]');
+            function showDetails(key) {
+                for (var i = 0; i < details.length; i++) {
+                    details[i].hidden = details[i].getAttribute('data-result-details') !== key;
+                }
+            }
+
+            // The empty placeholder option hides every block, so clearing the choice cannot leave
+            // the page describing a result the control no longer shows.
+            select.addEventListener('change', function () { showDetails(select.value); });
+        })();
+    </script>
 }

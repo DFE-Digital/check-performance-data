@@ -29,6 +29,8 @@ public sealed class IssuesTabTests(PlaywrightFixture fixture) : SeedingPageTest(
         await ReadReferenceAsync();
 
         await Page.GotoAsync($"{Fixture.BaseUrl}/{WindowId}/AmendmentRequests");
+        await Page.WaitForURLAsync($"**/{WindowId}/AmendmentRequests");
+        await Page.WaitForSelectorAsync("[role='tab']");
         await Page.GetByRole(AriaRole.Tab, new() { Name = "Results Enquiries" }).ClickAsync();
 
         var issuesPanel = Page.Locator("#results-enquiries");

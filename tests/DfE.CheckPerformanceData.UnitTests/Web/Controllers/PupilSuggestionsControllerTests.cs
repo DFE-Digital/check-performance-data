@@ -47,7 +47,7 @@ public class PupilSuggestionsControllerTests
     public async Task Suggestions_WithValidQuery_CallsServiceWithCorrectFilter()
     {
         _service.GetPupilSuggestionsAsync(WindowId, "Smi", PupilFilter.Included, null)
-            .Returns([new PupilSuggestionDto(Guid.NewGuid(), "Smith, Jane, 01/01/2000")]);
+            .Returns([new PupilSuggestionDto(Guid.NewGuid(), "Smith, Jane, 01/01/2000", "Jane", "Smith", "01/01/2000")]);
 
         await _sut.Suggestions(WindowId, "Smi", PupilFilter.Included, null);
 
@@ -103,7 +103,7 @@ public class PupilSuggestionsControllerTests
     {
         var pupilId = Guid.NewGuid();
         _service.GetPupilSuggestionsAsync(WindowId, "Sm", PupilFilter.Included, null)
-            .Returns([new PupilSuggestionDto(pupilId, "Smith, Jane, 01/01/2000")]);
+            .Returns([new PupilSuggestionDto(pupilId, "Smith, Jane, 01/01/2000", "Jane", "Smith", "01/01/2000")]);
 
         var result = await _sut.Suggestions(WindowId, "Sm", PupilFilter.Included, null);
 

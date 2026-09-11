@@ -184,6 +184,8 @@ server-rendered rather than fetched for the same reason — there is nothing to 
 
 The pupil/student search pages keep their autocomplete: a school's roll is long enough to need one.
 
+Picking a result **reveals its details on the same page** (AB#301934 / #409). `ResultSearch.cshtml` renders one details block per result the student holds — the same six rows the confirmation summary always showed — inside `#result-search-details`, each `hidden` unless its composite key is the session's `SelectedResultKey`; the enhancement's `onConfirm` un-hides the block for the chosen option, and editing the field hides them all again. Before this the summary rendered only from the session, so it appeared only after the user had continued past the page and come back. Nothing is fetched: the blocks are server-rendered for the same reason the options are, and with JavaScript off the select still posts and the details show on the next render of the page.
+
 `/results/suggestions` (`ResultSuggestionsController`) exists and is tested but is **not used by the
 result page** as a consequence. It is scoped to the session's selected student — no pupil id is ever
 taken from the query string. Decide whether to keep it for the sibling "Review exam results" tickets or

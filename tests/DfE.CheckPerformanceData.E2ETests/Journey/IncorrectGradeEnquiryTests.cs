@@ -25,6 +25,10 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
     private const string BusStudsS2024 = "GCSE (9-1) Bus. Studs:Single, QAN: 6037116X, Session: S2024";
     private const string BusStudsCurrentGrade = "5";
 
+    // The same qualification in the previous session — the label differs only in the session, and
+    // only the details (grade 4, not 5) tell the two apart. From SeedStudentResults.
+    private const string BusStudsS2023 = "GCSE (9-1) Bus. Studs:Single, QAN: 6037116X, Session: S2023";
+
     // ── The cohort-wide happy path, end to end ───────────────────────────────
 
     [RetryFact(3)]
@@ -226,6 +230,115 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
         Assert.Equal(["", "9", "8", "7", "6", "4", "3", "2", "1", "U", "X"], values);
     }
 
+    [RetryFact(3)]
+    public async Task AChosenGradeIsStillRestoredWhenTheUserComesBackToThePage()
+    {
+        // The AB#295434 restoration contract, on this picker: a Back to this page shows the grade
+        // the user chose, not an empty field. The picker is a plain <select>, so restoration is the
+        // server-side selected= attribute — there is no enhancement left to lose it.
+        await NavigateToGradePageAsync();
+        await SelectGradeAsync("4");
+        await ContinueAsync();
+        await Page.WaitForURLAsync($"**/Journey/{WindowId}/page/additional-info");
+
+        await Page.Locator("a.govuk-back-link").ClickAsync();
+        await Page.WaitForURLAsync($"**/Journey/{WindowId}/page/grade-details");
+
+        await Expect(Page.Locator("select[name='q_q_revised_grade']")).ToHaveValueAsync("4");
+    }
+
+    // ── AB#301934 / #409: a chosen result's details appear as soon as it is picked ──────────
+
+    // The details a chosen result reveals. All six rows are asserted — the CSV file row is the
+    // one thing the option label cannot show, and the grade is what separates the two sessions.
+    private static ILocator ShownDetails(IPage page) =>
+        page.Locator("form .govuk-summary-list:visible");
+
+    private async Task AssertDetailsRowAsync(ILocator details, string key, string value)
+    {
+        var row = details.Locator(".govuk-summary-list__row", new() { HasText = key });
+        await Expect(row.Locator(".govuk-summary-list__value")).ToHaveTextAsync(value);
+    }
+
+    private async Task NavigateToResultSearchAsync()
+    {
+        await StartEnquiryAsync();
+        await ContinueAsync();
+        await ChooseCohortScopeAsync("no");
+        await ChooseStudentAsync("select-student-single");
+        await Page.WaitForURLAsync($"**/Journey/{WindowId}/result-search/select-result");
+    }
+
+    [RetryFact(3)]
+    public async Task ChoosingAResultShowsItsDetailsWithoutLeavingThePage()
+    {
+        // #409: the details used to render only from the session, i.e. only after the user had
+        // continued past this page and come back. Picking a suggestion must reveal them here.
+        await NavigateToResultSearchAsync();
+        var details = ShownDetails(Page);
+        await Expect(details).ToHaveCountAsync(0);
+
+        await PickResultAsync(BusStudsS2024);
+
+        await Expect(details).ToHaveCountAsync(1);
+        await AssertDetailsRowAsync(details, "Qualification name and subject", "GCSE (9-1) Bus. Studs:Single");
+        await AssertDetailsRowAsync(details, "Qualification number (QAN)", "6037116X");
+        await AssertDetailsRowAsync(details, "Syllabus code", "1BS0");
+        await AssertDetailsRowAsync(details, "Session", "S2024");
+        await AssertDetailsRowAsync(details, "Current Grade", BusStudsCurrentGrade);
+        await AssertDetailsRowAsync(details, "CSV file", "16to19_MAIN");
+        // No round-trip: still on the search page, nothing posted.
+        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex(
+            $"/Journey/{WindowId}/result-search/select-result$", System.Text.RegularExpressions.RegexOptions.IgnoreCase));
+
+        // Picking the other session swaps the details — the label alone cannot show the grade.
+        await PickResultAsync(BusStudsS2023);
+        await Expect(details).ToHaveCountAsync(1);
+        await AssertDetailsRowAsync(details, "Session", "S2023");
+        await AssertDetailsRowAsync(details, "Current Grade", "4");
+        await Expect(Page.Locator("select[name='selectedResultKey']")).ToHaveValueAsync("6037116X|S2023|16to19_MAIN");
+    }
+
+    [RetryFact(3)]
+    public async Task ClearingTheChoiceHidesTheDetailsUntilAResultIsPickedAgain()
+    {
+        // Going back to the empty placeholder option must take the details with it — the page must
+        // not keep describing a result the control no longer holds — and they must come back on the
+        // next pick.
+        await NavigateToResultSearchAsync();
+        var details = ShownDetails(Page);
+        await PickResultAsync(BusStudsS2024);
+        await Expect(details).ToHaveCountAsync(1);
+
+        await Page.Locator("select[name='selectedResultKey']").SelectOptionAsync(string.Empty);
+        await Expect(details).ToHaveCountAsync(0);
+
+        await PickResultAsync(BusStudsS2024);
+        await Expect(details).ToHaveCountAsync(1);
+        await AssertDetailsRowAsync(details, "Session", "S2024");
+    }
+
+    [RetryFact(3)]
+    public async Task TheChosenResultsDetailsAreStillShownWhenTheUserComesBackToThePage()
+    {
+        // The guard for the fix: the server-side render of a result the session already holds is
+        // the path that worked before #409 and must keep working with no script involved — the
+        // field shows the label and exactly one details block is visible, with the right session.
+        await NavigateToResultSearchAsync();
+        await ChooseResultAsync(BusStudsS2024);
+        await Page.WaitForURLAsync($"**/Journey/{WindowId}/page/grade-details");
+
+        await Page.Locator("a.govuk-back-link").ClickAsync();
+        await Page.WaitForURLAsync($"**/Journey/{WindowId}/result-search/select-result");
+
+        await Expect(Page.Locator("select[name='selectedResultKey']"))
+            .ToHaveValueAsync("6037116X|S2024|16to19_MAIN");
+        var details = ShownDetails(Page);
+        await Expect(details).ToHaveCountAsync(1);
+        await AssertDetailsRowAsync(details, "Session", "S2024");
+        await AssertDetailsRowAsync(details, "Current Grade", BusStudsCurrentGrade);
+    }
+
     // ── The way in, and the auth gate ───────────────────────────────────────
 
     [RetryFact(3)]
@@ -310,13 +423,21 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
     /// </summary>
     private async Task ChooseResultAsync(string label)
     {
+        await PickResultAsync(label);
+        await ContinueAsync();
+    }
+
+    /// <summary>
+    /// Picks a result without continuing, so a test can look at what the page does in response
+    /// (AB#301934 — the details block the choice reveals).
+    /// </summary>
+    private async Task PickResultAsync(string label)
+    {
         await Page.WaitForURLAsync($"**/Journey/{WindowId}/result-search/select-result");
         var select = Page.Locator("select[name='selectedResultKey']");
         await Expect(select).ToBeVisibleAsync();
         await select.SelectOptionAsync(new SelectOptionValue { Label = label });
         await Expect(select.Locator("option:checked")).ToContainTextAsync(label);
-
-        await ContinueAsync();
     }
 
     private async Task ChooseRevisedGradeAsync(string grade)

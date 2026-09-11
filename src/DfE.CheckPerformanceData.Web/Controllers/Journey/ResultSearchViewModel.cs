@@ -3,9 +3,9 @@ using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 namespace DfE.CheckPerformanceData.Web.Controllers.Journey;
 
 /// <summary>
-/// The "Which of {pupil}'s results is incorrect?" page (AB#296648). Mirrors
-/// <see cref="PupilSearchViewModel"/>: an accessible-autocomplete over a JSON suggestions endpoint,
-/// with a hidden field carrying the machine-readable selection alongside the human-readable label.
+/// The "Which of {pupil}'s results is incorrect?" page (AB#296648). A plain server-rendered
+/// &lt;select&gt; over the results the student holds — unlike <see cref="PupilSearchViewModel"/>,
+/// which keeps its autocomplete because a school's roll is far too long to list.
 /// </summary>
 public sealed class ResultSearchViewModel
 {
@@ -26,18 +26,16 @@ public sealed class ResultSearchViewModel
 
     /// <summary>
     /// The composite key (<c>QAN|SESSION|SOURCE</c>) of the current selection, re-rendered on a
-    /// validation redisplay so a valid choice is not silently lost. AB#295434's lesson.
+    /// validation redisplay so a valid choice is not silently lost (AB#295434's lesson), and the
+    /// key of the one details block the server shows un-hidden (AB#301934).
     /// </summary>
     public string? SelectedResultKey { get; set; }
 
-    /// <summary>The resolved result, shown as a confirmation summary once one is chosen.</summary>
-    public StudentResultRecord? SelectedResult { get; set; }
-
     /// <summary>
     /// Every result the selected pupil holds, rendered as real <c>&lt;option&gt;</c> elements so the
-    /// page works with JavaScript off. accessible-autocomplete then enhances the select in place. A
-    /// pupil holds a handful of results, so there is nothing to gain from fetching them as the user
-    /// types — and a server-rendered list is the only version that is accessible without script.
+    /// page works with JavaScript off. A pupil holds a handful of results, so the list is read
+    /// rather than searched and there is nothing to gain from fetching it — a server-rendered list
+    /// is also the only version that is accessible without script.
     /// </summary>
     public IReadOnlyList<StudentResultRecord> AvailableResults { get; set; } = [];
 

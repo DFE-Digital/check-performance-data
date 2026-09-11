@@ -66,6 +66,14 @@ var assistiveHint = (hasError ? 'Error: ' + errorText + '. ' : '')
 
 Error first, then hint, then the component's own arrow-key/touch instructions — which must be kept, since replacing `tAssistiveHint` replaces them. Both `Views/Journey/PupilSearch.cshtml` and `Views/Journey/_Autocomplete.cshtml` do this; keep them in step.
 
+**No select in the service is enhanced with `enhanceSelectElement` any more.** The revised-grade, syllabus-code and result pickers were all type-aheads at first; every list turned out short enough to read, so the enhancement was removed and the three are plain GOV.UK `<select>`s (see `docs/results-enquiry.md`). That retired a class of defect with it — the input opening with the placeholder row's text as its value (AB#301933), and an `onConfirm` override having to re-do the library's job of marking the posted `<option>` selected (AB#301934). If a picker ever needs a type-ahead again, read those tickets before reaching for `enhanceSelectElement`.
+
+The remaining autocompletes — `PupilSearch.cshtml` and `_Autocomplete.cshtml` — are built with `accessibleAutocomplete({...})` over a suggestions endpoint, not by enhancing a select. `PupilSearch.cshtml` is therefore still JavaScript-dependent; that is a known gap, recorded in `docs/results-enquiry.md`.
+
+**A chosen option's details are revealed by the `<select>`'s own `change` event** (`ResultSearch.cshtml`, AB#301934). The blocks are server-rendered, one per result, and the server decides which is hidden from the session — so the reveal works with JavaScript off too, and the script is an enhancement rather than the only path. They sit in a polite live region (`aria-live="polite"`) so the change is announced; keep it polite.
+
+**A `Locator.PressAsync` call refocuses its element before dispatching the key.** ArrowDown moves DOM focus onto the highlighted `<li role="option">`, so refocusing the input between an ArrowDown and a following Enter fires the library's `handleInputFocus`, which resets `selected` to `-1` (the menu stays open; only the highlight is lost). `handleEnter` is a no-op unless `state.selected >= 0`, so that Enter silently does nothing. Drive the keyboard path of an autocomplete with `Page.Keyboard` instead, which sends keys to whatever already has focus.
+
 ## Links styled as buttons
 
 **Every `<a class="govuk-button …">` needs `role="button" draggable="false" data-module="govuk-button"`.**

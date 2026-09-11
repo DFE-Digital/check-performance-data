@@ -1,7 +1,11 @@
 using DfE.CheckPerformanceData.E2ETests.Fixtures;
 using DfE.CheckPerformanceData.E2ETests.Helpers;
 using Microsoft.Playwright;
-using xRetry;
+// xRetry's RetryFact is only needed as the [RetryFact] attribute here; importing `using xRetry;`
+// would also drag in an Xunit.Skip that collides with SkippableFact's Xunit.Skip (used in the
+// Cancelling test to skip explicitly when the ChangeRequests table is unreachable), so alias just
+// the attribute.
+using RetryFact = xRetry.RetryFactAttribute;
 
 namespace DfE.CheckPerformanceData.E2ETests.Journey;
 
@@ -25,7 +29,7 @@ public sealed class MissingQualificationEnquiryTests(PlaywrightFixture fixture) 
     private const string Qan = "60146084";
     private const string AwardingOrganisation = "AQA";
     private const string SyllabusCode = "8300H";
-    private const string SyllabusLabel = "8300H — Mathematics Higher Tier";
+    private const string SyllabusLabel = "8300H - Mathematics Higher Tier";
 
     [RetryFact(3)]
     public async Task A_school_can_report_a_missing_qualification_end_to_end()
@@ -55,6 +59,55 @@ public sealed class MissingQualificationEnquiryTests(PlaywrightFixture fixture) 
     }
 
     [RetryFact(3)]
+    public async Task The_syllabus_and_grade_pickers_offer_every_option_with_nothing_preselected()
+    {
+        // Both pickers are plain <select>s (the type-ahead the grade and result pickers once carried
+        // was removed with this one). Counts are the QualList entry for QAN 60146084: two syllabus
+        // codes, thirteen grades — this journey has no current grade, so nothing is filtered out.
+        // Each count is the options plus the placeholder row, which must be what is selected: the
+        // user has to choose.
+        await StartEnquiryAsync();
+        await ChooseCohortScopeAsync("no");
+        await ChooseStudentAsync("select-student-single");
+        await ChooseQualificationAsync();
+        await Page.WaitForURLAsync($"**/Journey/{WindowId}/page/qualification-details");
+
+        var syllabus = Page.Locator("select[name='q_q_syllabus_code']");
+        await Expect(syllabus).ToBeVisibleAsync();
+        await Expect(syllabus).ToHaveValueAsync(string.Empty);
+        await Expect(syllabus.Locator("option")).ToHaveCountAsync(3);
+        await Expect(syllabus).ToContainTextAsync(SyllabusLabel);
+
+        var grade = Page.Locator("select[name='q_q_missing_grade']");
+        await Expect(grade).ToBeVisibleAsync();
+        await Expect(grade).ToHaveValueAsync(string.Empty);
+        await Expect(grade.Locator("option")).ToHaveCountAsync(14);
+    }
+
+    [RetryFact(3)]
+    public async Task Answered_pickers_are_restored_on_a_validation_redisplay()
+    {
+        // The route a Back-link fact cannot cover: the page is re-rendered by the POST handler with
+        // the posted answers, and the server marks each chosen <option> selected. This is the one
+        // page in the enquiry journeys where a redisplay can carry an answer: on grade-details the
+        // only rejected grade is the current one, which is no longer an option at all (AB#301913).
+        await StartEnquiryAsync();
+        await ChooseCohortScopeAsync("no");
+        await ChooseStudentAsync("select-student-single");
+        await ChooseQualificationAsync();
+        await Page.WaitForURLAsync($"**/Journey/{WindowId}/page/qualification-details");
+
+        await SelectSyllabusAsync(SyllabusCode);
+        await SelectMissingGradeAsync("9");
+        // Award date deliberately left blank so the page redisplays with an error.
+        await ContinueAsync();
+
+        await AssertErrorAsync("Provide the award date");
+        await Expect(Page.Locator("select[name='q_q_syllabus_code']")).ToHaveValueAsync(SyllabusCode);
+        await Expect(Page.Locator("select[name='q_q_missing_grade']")).ToHaveValueAsync("9");
+    }
+
+    [RetryFact(3)]
     public async Task An_award_date_before_september_2023_is_rejected_with_the_window_message()
     {
         await StartEnquiryAsync();
@@ -72,7 +125,7 @@ public sealed class MissingQualificationEnquiryTests(PlaywrightFixture fixture) 
             + "2023/24 and 2024/25 academic years");
     }
 
-    [RetryFact(3)]
+    [SkippableFact]
     public async Task Cancelling_from_the_summary_discards_the_enquiry_and_starts_fresh()
     {
         // AB#298229. Three ACs in one walk: nothing submitted, no data carried over, and the
@@ -80,11 +133,12 @@ public sealed class MissingQualificationEnquiryTests(PlaywrightFixture fixture) 
         // one — before this ticket, Cancel's target cleared nothing, so the "cancelled" enquiry
         // was still sitting in session, one summary URL away from being submitted.
         // AC: "nothing I entered is submitted" — proven at the table, not inferred from the UI
-        // (an enquiry row would be invisible on every school-facing list by design). The probe only
-        // runs where CPD_E2E_DB is set (the local compose stack); in CI there is no reachable
-        // Postgres, so it returns null and this row-count AC is skipped — see
-        // ChangeRequestProbeHelper.
-        var rowsBefore = await ChangeRequestProbeHelper.CountChangeRequestsAsync();
+        // (an enquiry row would be invisible on every school-facing list by design). Local
+        // workflows reach the compose Postgres and run it for real; in CI there is no reachable
+        // Postgres, so the probe is unavailable and this AC is reported as Skipped, not silently
+        // passed — see ChangeRequestProbeHelper.
+        var rowsBefore = await ChangeRequestProbeHelper.TryCountChangeRequestsAsync();
+        Skip.IfNot(rowsBefore is not null, ChangeRequestProbeHelper.UnavailableReason);
 
         await StartEnquiryAsync();
         await ChooseCohortScopeAsync("no");
@@ -113,10 +167,7 @@ public sealed class MissingQualificationEnquiryTests(PlaywrightFixture fixture) 
         await Page.GotoAsync($"{Fixture.BaseUrl}/Journey/{WindowId}/summary");
         await Page.WaitForURLAsync($"**/CheckYourPupilData/{WindowId}");
 
-        if (rowsBefore is not null)
-        {
-            Assert.Equal(rowsBefore, await ChangeRequestProbeHelper.CountChangeRequestsAsync());
-        }
+        await ChangeRequestProbeHelper.AssertNoRowsCreatedBetweenAsync(rowsBefore);
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────

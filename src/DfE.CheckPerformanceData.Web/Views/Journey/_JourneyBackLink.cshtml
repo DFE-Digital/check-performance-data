@@ -21,6 +21,13 @@ else if (Model.IsResultsEnquiry)
        empty history, which lands here too. *@
     <a asp-action="Index" asp-controller="ResultIssue" asp-route-windowId="@Model.WindowId" class="govuk-back-link">Back</a>
 }
+else if (Model.BackPageAction == nameof(DfE.CheckPerformanceData.Web.Controllers.Journey.JourneyController.DuplicateCheck))
+{
+    @* The AB#027 already-included warning surfaced at the Include hand-off from the duplicate-check
+       page, not from the Include search. "Back" must return to that match list (a dedicated action,
+       not a Page route), or the fall-through below would drop the user onto the amendment chooser. *@
+    <a asp-action="DuplicateCheck" asp-controller="Journey" asp-route-windowId="@Model.WindowId" class="govuk-back-link">Back</a>
+}
 else
 {
     <a asp-action="Index" asp-controller="WhatToChange" asp-route-windowId="@Model.WindowId" class="govuk-back-link">Back</a>

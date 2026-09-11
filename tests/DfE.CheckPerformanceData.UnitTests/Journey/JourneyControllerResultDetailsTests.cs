@@ -37,6 +37,7 @@ public sealed class JourneyControllerResultDetailsTests
     private readonly IQuestionOptionalityService _optionality = Substitute.For<IQuestionOptionalityService>();
     private readonly DfE.CheckPerformanceData.Application.Notify.IRequestNotificationService _notifications =
         Substitute.For<DfE.CheckPerformanceData.Application.Notify.IRequestNotificationService>();
+    private readonly IQualificationReferenceClient _qualificationReference = Substitute.For<IQualificationReferenceClient>();
     private readonly IAnalyticsService _analytics = Substitute.For<IAnalyticsService>();
     private readonly FakeSession _session = new();
     private readonly DefaultHttpContext _httpContext = new();
@@ -90,6 +91,9 @@ public sealed class JourneyControllerResultDetailsTests
         _optionality.GetConditionallyOptionalQuestionIds(Arg.Any<JourneyPage>(), Arg.Any<JourneyConditionContext>())
             .Returns(new HashSet<string>());
 
+        // The lookup is a sealed class NSubstitute cannot auto-fake, so an unstubbed call would hand
+        // the controller a null. Empty is the honest default: nothing resolves unless a fact says so.
+        _qualificationReference.GetLookupAsync(Arg.Any<CancellationToken>()).Returns(QualificationReferenceLookup.Empty);
         _httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(_session));
 
         var builder = new JourneyViewModelBuilder(_flowService, _journeyService, _optionVisibility, _currentUser);
@@ -100,7 +104,7 @@ public sealed class JourneyControllerResultDetailsTests
             _analytics, _currentUser, _optionVisibility, _optionality,
             Substitute.For<IOriginCountryLanguageCapture>(),
             Substitute.For<IStudentResultsClient>(),
-            Substitute.For<IQualificationReferenceClient>(), _notifications,
+            _qualificationReference, _notifications,
             OpenCheckingExercises.AlwaysOpen(),
             NullLogger<JourneyController>.Instance)
         {
@@ -326,6 +330,43 @@ public sealed class JourneyControllerResultDetailsTests
 
         Assert.Empty(qm.VisibleOptions);
         Assert.True(qm.GradeOptionsUnavailable);
+    }
+
+    [Fact]
+    public async Task Get_re_resolves_a_result_whose_qualification_was_never_stored()
+    {
+        // A session that picked its result before AB#301903 shipped, or while the reference blob was
+        // still seeding (a 404 is cached as an empty lookup for five minutes), has a result and no
+        // qualification. The page heals it rather than dead-ending on an empty picker.
+        _qualificationReference.GetLookupAsync(Arg.Any<CancellationToken>())
+            .Returns(QualificationReferenceLookup.Parse("""
+                { "60370683": { "qan": "60370683", "qualificationTitle": "Pearson BTEC Level 3 National Extended Certificate in Sport",
+                  "awardingOrganisation": "Pearson", "grades": ["*", "D", "F", "M", "P", "Q", "R", "U", "X"], "syllabusCodes": [] } }
+                """));
+        ReadyUnresolved(Result(grade: "M"));
+
+        var view = Assert.IsType<ViewResult>(await _sut.Page(WindowId, "grade-details"));
+        var vm = Assert.IsType<PageViewModel>(view.Model);
+
+        Assert.Equal("Pearson", vm.SelectedResultQualification!.AwardingOrganisation);
+        Assert.Equal(["*", "D", "F", "P", "Q", "R", "U", "X"],
+            vm.NonFileUploadModels.Single().VisibleOptions.Select(o => o.Value).ToArray());
+        Assert.NotNull(_session.GetRequestState(WindowId).SelectedResultQualification);
+    }
+
+    [Fact]
+    public async Task Get_leaves_a_genuinely_unreferenced_qan_alone()
+    {
+        // The heal probes the cached document once; a QAN the reference lacks stays null and the
+        // page keeps its "cannot list grades" state. No second warning is logged here — the pick did.
+        ReadyUnresolved(Result(qan: "99999999"));
+
+        var view = Assert.IsType<ViewResult>(await _sut.Page(WindowId, "grade-details"));
+        var qm = Assert.IsType<PageViewModel>(view.Model).NonFileUploadModels.Single();
+
+        Assert.True(qm.GradeOptionsUnavailable);
+        Assert.Null(_session.GetRequestState(WindowId).SelectedResultQualification);
+        await _qualificationReference.Received(1).GetLookupAsync(Arg.Any<CancellationToken>());
     }
 
     // ── POST ─────────────────────────────────────────────────────────────────

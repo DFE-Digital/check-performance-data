@@ -63,6 +63,8 @@ public sealed class JourneyController(
         var page = flowService.GetPage(config, pageId);
         if (page is null) return NotFound();
 
+        journey = await HealSelectedResultQualificationAsync(windowId, journey);
+
         if (page.Type == PageType.PupilSearch)
             return RedirectToAction(nameof(PupilSearchPage), new { windowId, pageId });
 
@@ -498,7 +500,8 @@ public sealed class JourneyController(
         // reference (title, AO, grade scale), so it is resolved once here, beside the result. The
         // lookup is the cached QualList document — a keystroke-cheap read. A QAN the reference does
         // not hold stores null: the grade page then says grades cannot be listed and validation
-        // holds the enquiry back, exactly as a missing grade reference always has.
+        // holds the enquiry back; a later page re-resolves it if the reference catches up
+        // (HealSelectedResultQualificationAsync).
         var lookup = await qualificationReferenceClient.GetLookupAsync(HttpContext.RequestAborted);
         var qualification = lookup.Find(resolved.Qan);
         if (qualification is null)
@@ -704,6 +707,26 @@ public sealed class JourneyController(
     }
 
     /// <summary>
+    /// AB#301903: the qualification is resolved once, when the result is picked. A session that picked
+    /// before this shipped, or before the reference blob had seeded (a 404 is cached as an empty
+    /// lookup for five minutes), carries a null it would otherwise keep for the rest of the journey —
+    /// the picker empty, every post refused, no hint that re-picking heals it. So a result with no
+    /// qualification beside it is re-resolved here. A QAN the reference genuinely lacks stays null and
+    /// costs one probe of the cached document; the warning was already logged at result selection.
+    /// </summary>
+    private async Task<RequestState> HealSelectedResultQualificationAsync(Guid windowId, RequestState journey)
+    {
+        if (journey.SelectedResult is null || journey.SelectedResultQualification is not null) return journey;
+
+        var lookup = await qualificationReferenceClient.GetLookupAsync(HttpContext.RequestAborted);
+        var qualification = lookup.Find(journey.SelectedResult.Qan);
+        if (qualification is null) return journey;
+
+        HttpContext.Session.SaveRequestState(windowId, s => s.SelectedResultQualification = qualification);
+        return HttpContext.Session.GetRequestState(windowId);
+    }
+
+    /// <summary>
     /// The grade scale for the page's picker, or null when the page has no grade picker or the
     /// qualification is not in the 16-19 reference. No blob read happens here: both enquiry
     /// journeys resolve their qualification when it is chosen (AB#297848 at qualification search,
@@ -754,6 +777,8 @@ public sealed class JourneyController(
 
         var page = flowService.GetPage(config, pageId);
         if (page is null) return NotFound();
+
+        journey = await HealSelectedResultQualificationAsync(windowId, journey);
 
         var newAnswers = new Dictionary<string, QuestionAnswer>();
         var pupilName = JourneyViewModelBuilder.GetPupilName(journey);
@@ -1185,6 +1210,8 @@ public sealed class JourneyController(
 
         var config = await GetConfigAsync(journey);
         if (config is null) return RedirectToCheckYourData(windowId);
+
+        journey = await HealSelectedResultQualificationAsync(windowId, journey);
 
         // Redirect to start if journey hasn't been begun
         if (journey.QuestionHistory.Count == 0)

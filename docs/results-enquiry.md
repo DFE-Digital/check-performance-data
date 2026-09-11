@@ -176,7 +176,8 @@ Server-authoritative, in this order (`JourneyValidationService.ValidateGradeSele
 3. Not a grade the QAN offers → treated as unanswered (fail closed against a forged post)
 4. QAN absent from the 16-19 qualification reference → the picker is empty, the page says
    `We cannot list grades for this qualification yet`, a warning was logged when the result was chosen,
-   and validation can never pass
+   and validation can never pass. A later grade or summary page re-resolves the qualification if the
+   reference has since caught up.
 
 Comparison is **ordinal and case-sensitive** (`GradeEquality.IsSame`, shared by the validator and the
 picker). The IB Diploma is why: `24F` is a fail and `24D` a pass, so `24F` → `24D` is a real enquiry,

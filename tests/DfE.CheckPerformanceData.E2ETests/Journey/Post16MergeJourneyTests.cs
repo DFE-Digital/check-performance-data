@@ -117,5 +117,5 @@ public sealed class Post16MergeJourneyTests(PlaywrightFixture fixture) : Seeding
     }
 
     private async Task ContinueAsync() =>
-        await Page.GetByRole(AriaRole.Button, new() { Name = "Continue" }).ClickAsync();
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Continue", Exact = true }).ClickAsync();
 }

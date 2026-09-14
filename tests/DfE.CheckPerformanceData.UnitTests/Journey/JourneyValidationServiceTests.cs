@@ -585,6 +585,14 @@ public class JourneyValidationServiceTests
         Assert.All(parts[2], c => Assert.True(char.IsLetterOrDigit(c)));
     }
 
+    [Fact]
+    public void GenerateReference_Post16_Uses16to19()
+    {
+        var reference = _sut.GenerateReference(CheckingWindowType.Post16);
+
+        Assert.StartsWith("CYPMD_16to19_", reference);
+    }
+
     // ── ValidateEvidencePage ────────────────────────────────────────────────
 
     [Fact]

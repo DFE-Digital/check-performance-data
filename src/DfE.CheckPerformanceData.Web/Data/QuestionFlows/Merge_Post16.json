@@ -4,11 +4,11 @@
     {
       "id": "select-pupil",
       "type": "PupilSearch",
-      "title": "What is the name of the pupil for the first duplicate record to be merged?",
+      "title": "What is the name of the student for the first duplicate record to be merged?",
       "pupilFilter": "Included",
       "pupilKey": "primary",
       "nextPageId": "select-match-pupil",
-      "validationFailure": "Enter the name of the pupil for the first duplicate record to be merged."
+      "validationFailure": "Enter the name of the student for the first duplicate record to be merged."
     },
     {
       "id": "select-match-pupil",
@@ -24,9 +24,9 @@
       "id": "evidence",
       "pageTitle": "Provide evidence for merging duplicate records",
       "type": "EvidenceUpload",
-      "title": "Provide evidence for merging duplicate records for {pupilName}",
-      "detailsSummary": "Merge duplicate pupil records",
-      "content": "<p class=\"govuk-body\">If the same pupil appears twice in your performance data and the records need to be combined into a single pupil record.</p><p class=\"govuk-body\"><strong>Information or evidence you must provide</strong></p><ul class=\"govuk-list govuk-list--bullet\"><li>CYPMD ID of the pupil record that should be deleted or merged into the other record</li><li>details explaining why the pupil records should be merged</li></ul>",
+      "title": "Provide evidence for merging duplicate records for {pupilName} (Optional)",
+      "detailsSummary": "Merge duplicate student records",
+      "content": "<p class=\"govuk-body\">If the same student appears twice in your performance data and the records need to be combined into a single student record.</p><p class=\"govuk-body\"><strong>Information or evidence you must provide</strong></p><ul class=\"govuk-list govuk-list--bullet\"><li>CYPMD ID of the student record that should be deleted or merged into the other record</li><li>details explaining why the student records should be merged</li></ul>",
       "questions": [
         {
           "id": "evidence",
@@ -38,7 +38,7 @@
         {
           "id": "how-evidence-supports",
           "type": "TextArea",
-          "title": "If the records are not similar, please provide supporting explanation",
+          "title": "Explain how the evidence supports merging duplicate records",
           "summaryTitle": "How evidence supports merging duplicate records",
           "characterLimit": 1000,
           "optional": true

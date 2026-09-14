@@ -231,7 +231,11 @@ public sealed class JourneyValidationService(
 
     public string GenerateReference(CheckingWindowType? windowType)
     {
-        var type = windowType?.ToString() ?? "Unknown";
+        var type = windowType switch
+        {
+            CheckingWindowType.Post16 => "16to19",
+            _ => windowType?.ToString() ?? "Unknown"
+        };
         var uniqueId = Guid.NewGuid().ToString("N")[..7].ToUpper();
         return $"CYPMD_{type}_{uniqueId}";
     }

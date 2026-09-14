@@ -24,6 +24,10 @@ public interface IPortalDbContext
     DbSet<QueueMessageEntity> QueueMessages { get; }
     DbSet<DeadLetterEntity> DeadLetters { get; }
     DbSet<DevZendeskTicket> DevZendeskTickets { get; }
+    DbSet<EgressRun> EgressRuns { get; }
+    DbSet<EgressRunOutput> EgressRunOutputs { get; }
+    DbSet<EgressNewLearner> EgressNewLearners { get; }
+    DbSet<EgressRemoveLearner> EgressRemoveLearners { get; }
     DbSet<QueueMetricEvent> QueueMetricEvents { get; }
     DbSet<ShareToken> ShareTokens { get; }
     DbSet<PageNode> PageNodes { get; }

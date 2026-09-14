@@ -25,6 +25,9 @@ internal sealed class ChangeRequestConfiguration : IEntityTypeConfiguration<Chan
         builder.Property(x => x.PupilSurname)
             .HasMaxLength(100);
 
+        builder.Property(x => x.OrganisationLaestab)
+            .HasMaxLength(20);
+
         builder.Property(x => x.Submitted)
             .IsRequired()
             .HasColumnType("timestamp without time zone");

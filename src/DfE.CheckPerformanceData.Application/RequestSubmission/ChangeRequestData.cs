@@ -27,4 +27,7 @@ public sealed class ChangeRequestData
     public required RequestType RequestType { get; init; }
     public required string RequestTypeDescription { get; init; }
     public WhatToChange? AmendmentType { get; init; }
+
+    /// <summary>The school's LAESTAB from the DfE Sign-In claim; null when the claim is empty (AB#294553).</summary>
+    public string? OrganisationLaestab { get; init; }
 }

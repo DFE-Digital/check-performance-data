@@ -27,6 +27,10 @@ public sealed class PortalDbContext(
     public DbSet<QueueMessageEntity> QueueMessages => Set<QueueMessageEntity>();
     public DbSet<DeadLetterEntity> DeadLetters => Set<DeadLetterEntity>();
     public DbSet<DevZendeskTicket> DevZendeskTickets => Set<DevZendeskTicket>();
+    public DbSet<EgressRun> EgressRuns => Set<EgressRun>();
+    public DbSet<EgressRunOutput> EgressRunOutputs => Set<EgressRunOutput>();
+    public DbSet<EgressNewLearner> EgressNewLearners => Set<EgressNewLearner>();
+    public DbSet<EgressRemoveLearner> EgressRemoveLearners => Set<EgressRemoveLearner>();
     public DbSet<QueueMetricEvent> QueueMetricEvents => Set<QueueMetricEvent>();
     public DbSet<ShareToken> ShareTokens => Set<ShareToken>();
     public DbSet<PageNode> PageNodes => Set<PageNode>();
@@ -54,6 +58,10 @@ public sealed class PortalDbContext(
         modelBuilder.ApplyConfiguration(new QueueMessageConfiguration());
         modelBuilder.ApplyConfiguration(new DeadLetterConfiguration());
         modelBuilder.ApplyConfiguration(new DevZendeskTicketConfiguration());
+        modelBuilder.ApplyConfiguration(new EgressRunConfiguration());
+        modelBuilder.ApplyConfiguration(new EgressRunOutputConfiguration());
+        modelBuilder.ApplyConfiguration(new EgressNewLearnerConfiguration());
+        modelBuilder.ApplyConfiguration(new EgressRemoveLearnerConfiguration());
         modelBuilder.ApplyConfiguration(new QueueMetricEventConfiguration());
         modelBuilder.ApplyConfiguration(new ShareTokenConfiguration());
         modelBuilder.ApplyConfiguration(new PageNodeConfiguration());
@@ -124,6 +132,13 @@ public sealed class PortalDbContext(
             // login and keep a second copy of organisation data in audit_entries, which has
             // no retention purge.
             if (entry.Entity is OrganisationLogin) continue;
+
+            // Processed egress learner rows are derived data written in bulk from one deliberate
+            // admin action; the run-level AuditEntry written at transfer (EgressRun / Transfer)
+            // is the audit record AB#294553 asks for. Auditing each row would add hundreds of
+            // audit_entries per run that say nothing the run row does not.
+            if (entry.Entity is EgressNewLearner) continue;
+            if (entry.Entity is EgressRemoveLearner) continue;
             if (entry.State is EntityState.Detached or EntityState.Unchanged) continue;
 
             var audit = new AuditEntry

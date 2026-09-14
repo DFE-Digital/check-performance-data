@@ -35,7 +35,7 @@ public sealed class SearchAnalyticsSurfaceSourceTests
         // missing it.
         var bindings = Regex.Matches(Source, @"NpgsqlParameter\(""surfaces""");
 
-        Assert.Equal(1, bindings.Count);
+        Assert.Single(bindings);
     }
 
     private static string ReadQueryService()

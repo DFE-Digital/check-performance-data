@@ -126,7 +126,11 @@
         // to move, not only the viewport.
         window.location.hash = section.anchor;
         target.setAttribute('tabindex', '-1');
-        target.focus();
+        // Deferred: after a keyboard confirm the component puts focus back on its own input as
+        // part of closing the menu, which would undo this. Moving focus in a later task lands
+        // after that, so arrow-and-enter takes the reading position to the heading the same way
+        // a click does.
+        window.setTimeout(function () { target.focus(); }, 0);
     }
 
     function enhance(form) {

@@ -130,6 +130,29 @@ public sealed class InstantSearchWidgetE2ETests(PlaywrightFixture fixture) : See
     }
 
     // ============================================================
+    // 1b. The same jump by keyboard. Worth its own test: the component returns focus to its
+    //     own input when a keyboard confirm closes the menu, so a click passing does not mean
+    //     arrow-and-enter passes.
+    // ============================================================
+    [Fact]
+    public async Task PageMode_ChoosingBySection_ByKeyboard_AlsoMovesFocusToTheHeading()
+    {
+        var (url, _) = await SeedPageWithSectionsAsync(SearchProps("page", instant: true));
+
+        await Page.GotoAsync($"{Fixture.BaseUrl}{url}");
+        await TypeAsync("evidence");
+        await Expect(Options.First).ToContainTextAsync("Providing evidence");
+
+        var anchor = await Page.Locator("h2:has-text('Providing evidence')").First.GetAttributeAsync("id");
+
+        await Page.Keyboard.PressAsync("ArrowDown");
+        await Page.Keyboard.PressAsync("Enter");
+
+        await Expect(Page).ToHaveURLAsync(new Regex($"#{Regex.Escape(anchor!)}$"));
+        await Expect(Page.Locator($"#{anchor}")).ToBeFocusedAsync();
+    }
+
+    // ============================================================
     // 2. This page: a word that appears only in body copy still suggests the heading
     //    of the section it sits in, because that is the only place to land.
     // ============================================================

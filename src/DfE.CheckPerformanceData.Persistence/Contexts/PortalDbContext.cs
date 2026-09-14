@@ -109,6 +109,25 @@ public sealed class PortalDbContext(
         });
     }
 
+    // M4: the same re-entrant/execution-strategy shape as the void overload, for callers (like the
+    // egress terminal writes) that need to know how many rows a status-guarded update affected.
+    public async Task<T> ExecuteInTransactionAsync<T>(Func<Task<T>> work, CancellationToken cancellationToken = default)
+    {
+        if (Database.CurrentTransaction is not null)
+        {
+            return await work();
+        }
+
+        var strategy = Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync(async () =>
+        {
+            await using var transaction = await Database.BeginTransactionAsync(cancellationToken);
+            var result = await work();
+            await transaction.CommitAsync(cancellationToken);
+            return result;
+        });
+    }
+
     private List<(AuditEntry Audit, EntityEntry Entry, bool HasTempKey)> CollectAuditEntries()
     {
         ChangeTracker.DetectChanges();

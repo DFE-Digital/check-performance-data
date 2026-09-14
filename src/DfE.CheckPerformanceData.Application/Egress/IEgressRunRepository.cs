@@ -29,13 +29,18 @@ public interface IEgressRunRepository
     Task<EgressRunDto?> GetRunAsync(Guid runId, CancellationToken ct);
     Task<IReadOnlyList<EgressRunListItem>> ListRunsAsync(CancellationToken ct);
     Task<bool> TrySetStatusAsync(Guid runId, EgressRunStatus from, EgressRunStatus to, CancellationToken ct);
-    Task MarkPreprocessingFailedAsync(Guid runId, IReadOnlyList<EgressRecordFailure> failures, CancellationToken ct);
-    Task SavePreprocessedAsync(Guid runId, IReadOnlyList<NewLearnerRow> newLearners, IReadOnlyList<RemoveLearnerRow> removeLearners, DateOnly exportDate, IReadOnlyDictionary<EgressOutputType, string> fileNames, CancellationToken ct);
+    /// <summary>M4: guarded by <paramref name="expectedStatus"/>; returns rows affected (0 = lost the race — e.g. the run was abandoned in the meantime — nothing was written).</summary>
+    Task<int> MarkPreprocessingFailedAsync(Guid runId, EgressRunStatus expectedStatus, IReadOnlyList<EgressRecordFailure> failures, CancellationToken ct);
+    /// <summary>M4: guarded by <paramref name="expectedStatus"/>; returns rows affected (0 = lost the race — nothing was saved).</summary>
+    Task<int> SavePreprocessedAsync(Guid runId, EgressRunStatus expectedStatus, IReadOnlyList<NewLearnerRow> newLearners, IReadOnlyList<RemoveLearnerRow> removeLearners, DateOnly exportDate, IReadOnlyDictionary<EgressOutputType, string> fileNames, CancellationToken ct);
     Task<IReadOnlyList<NewLearnerRow>> GetNewLearnersAsync(Guid runId, CancellationToken ct);
     Task<IReadOnlyList<RemoveLearnerRow>> GetRemoveLearnersAsync(Guid runId, CancellationToken ct);
     /// <summary>Re-activates a TransferFailed run's outputs for a retry; returns the blocker if another run now holds the pair.</summary>
     Task<EgressBlocker?> TryReactivateAsync(Guid runId, CancellationToken ct);
-    Task MarkTransferredAsync(Guid runId, EgressTransferAudit audit, DateTime transferredAtUtc, CancellationToken ct);
-    Task MarkTransferFailedAsync(Guid runId, string reason, string userId, CancellationToken ct);
-    Task AbandonAsync(Guid runId, CancellationToken ct);
+    /// <summary>M4: guarded by <paramref name="expectedStatus"/>; returns rows affected (0 = lost the race — no Succeeded audit row is written).</summary>
+    Task<int> MarkTransferredAsync(Guid runId, EgressRunStatus expectedStatus, EgressTransferAudit audit, DateTime transferredAtUtc, CancellationToken ct);
+    /// <summary>M4: guarded by <paramref name="expectedStatus"/>; returns rows affected (0 = the run had already moved on, e.g. to Abandoned — nothing was overwritten).</summary>
+    Task<int> MarkTransferFailedAsync(Guid runId, EgressRunStatus expectedStatus, string reason, string userId, CancellationToken ct);
+    /// <summary>Excludes only Transferred; admits Preprocessing/Transferring so a stuck run can always be released. Returns rows affected (0 = already Transferred).</summary>
+    Task<int> AbandonAsync(Guid runId, CancellationToken ct);
 }

@@ -40,6 +40,11 @@
 
     <div class="govuk-button-group">
         <a class="govuk-button govuk-button--secondary" href="/admin/egress" data-testid="egress-save">Save and exit</a>
+        @* M4: the lock has no expiry, so a run stuck here after a restart must be releasable. *@
+        <form method="post" action="/admin/egress/runs/@Model.Run.Id/abandon" class="govuk-!-display-inline">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="govuk-button govuk-button--warning" data-module="govuk-button" data-testid="egress-abandon">Abandon run</button>
+        </form>
     </div>
 </div>
 

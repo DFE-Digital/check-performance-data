@@ -39,6 +39,12 @@ public sealed class EgressPreprocessorTests
             DateTime.UtcNow, null, null, null, null, [], null,
             [new EgressRunOutputDto(Guid.NewGuid(), EgressOutputType.RemoveLearners, true, records, records.Length, null, null, null)]));
         _windows.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(Window());
+        // M4: the guarded writes now return rows affected — default to "won the race" (1) so
+        // existing success/failure-path tests are unaffected; the specific lost-the-race test
+        // overrides this explicitly.
+        _repo.SavePreprocessedAsync(Arg.Any<Guid>(), Arg.Any<EgressRunStatus>(), Arg.Any<IReadOnlyList<NewLearnerRow>>(),
+            Arg.Any<IReadOnlyList<RemoveLearnerRow>>(), Arg.Any<DateOnly>(), Arg.Any<IReadOnlyDictionary<EgressOutputType, string>>(), Arg.Any<CancellationToken>()).Returns(1);
+        _repo.MarkPreprocessingFailedAsync(Arg.Any<Guid>(), Arg.Any<EgressRunStatus>(), Arg.Any<IReadOnlyList<EgressRecordFailure>>(), Arg.Any<CancellationToken>()).Returns(1);
     }
 
     private async Task<List<EgressProgress>> Collect()
@@ -65,7 +71,7 @@ public sealed class EgressPreprocessorTests
         Assert.True(last.IsComplete);
         Assert.False(last.IsError);
         Assert.Equal(EgressRunStatus.Preprocessed, last.FinalStatus);
-        await _repo.Received(1).SavePreprocessedAsync(RunId, Arg.Is<IReadOnlyList<NewLearnerRow>>(l => l.Count == 0),
+        await _repo.Received(1).SavePreprocessedAsync(RunId, EgressRunStatus.Preprocessing, Arg.Is<IReadOnlyList<NewLearnerRow>>(l => l.Count == 0),
             Arg.Is<IReadOnlyList<RemoveLearnerRow>>(l => l.Count == 2 && l.All(r => r.CorrectionReason == "4")),
             new DateOnly(2026, 6, 8),
             Arg.Is<IReadOnlyDictionary<EgressOutputType, string>>(d => d[EgressOutputType.RemoveLearners] == "CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv"),
@@ -86,8 +92,8 @@ public sealed class EgressPreprocessorTests
         Assert.Equal(EgressRunStatus.PreprocessingFailed, last.FinalStatus);
         Assert.Equal(1, last.FailureCount);
         Assert.Equal("failed", events.Single(e => e.StepName == "Save to database" && e.IsComplete).State);
-        await _repo.DidNotReceiveWithAnyArgs().SavePreprocessedAsync(default, default!, default!, default, default!, default);
-        await _repo.Received(1).MarkPreprocessingFailedAsync(RunId,
+        await _repo.DidNotReceiveWithAnyArgs().SavePreprocessedAsync(default, default, default!, default!, default, default!, default);
+        await _repo.Received(1).MarkPreprocessingFailedAsync(RunId, EgressRunStatus.Preprocessing,
             Arg.Is<IReadOnlyList<EgressRecordFailure>>(f => f.Count == 1 && f[0].ReferenceNumber == "R2" && f[0].Field == "Correction_Reason"),
             Arg.Any<CancellationToken>());
     }
@@ -104,7 +110,7 @@ public sealed class EgressPreprocessorTests
 
         await Collect();
 
-        await _repo.Received(1).SavePreprocessedAsync(RunId, Arg.Any<IReadOnlyList<NewLearnerRow>>(), Arg.Any<IReadOnlyList<RemoveLearnerRow>>(),
+        await _repo.Received(1).SavePreprocessedAsync(RunId, EgressRunStatus.Preprocessing, Arg.Any<IReadOnlyList<NewLearnerRow>>(), Arg.Any<IReadOnlyList<RemoveLearnerRow>>(),
             Arg.Any<DateOnly>(), Arg.Is<IReadOnlyDictionary<EgressOutputType, string>>(d => d[EgressOutputType.RemoveLearners].Contains("_KS2_")),
             Arg.Any<CancellationToken>());
     }
@@ -119,7 +125,7 @@ public sealed class EgressPreprocessorTests
 
         await Collect();
 
-        await _repo.Received(1).SavePreprocessedAsync(RunId, Arg.Any<IReadOnlyList<NewLearnerRow>>(), Arg.Any<IReadOnlyList<RemoveLearnerRow>>(),
+        await _repo.Received(1).SavePreprocessedAsync(RunId, EgressRunStatus.Preprocessing, Arg.Any<IReadOnlyList<NewLearnerRow>>(), Arg.Any<IReadOnlyList<RemoveLearnerRow>>(),
             new DateOnly(2026, 6, 9), Arg.Any<IReadOnlyDictionary<EgressOutputType, string>>(), Arg.Any<CancellationToken>());
     }
 
@@ -154,6 +160,43 @@ public sealed class EgressPreprocessorTests
         await _repo.DidNotReceiveWithAnyArgs().TrySetStatusAsync(default, default, default, default);
     }
 
+    // M4: SavePreprocessedAsync's own guard can lose the race (an Abandon landed while this
+    // pipeline ran) without throwing — 0 rows means the run must not be reported as Preprocessed.
+    [Fact]
+    public async Task Zero_rows_from_SavePreprocessed_reports_the_run_was_abandoned_not_preprocessed()
+    {
+        RunIs(EgressRunStatus.Pulled, Remove("R1", "approved"));
+        _repo.TrySetStatusAsync(RunId, EgressRunStatus.Pulled, EgressRunStatus.Preprocessing, Arg.Any<CancellationToken>()).Returns(true);
+        _repo.SavePreprocessedAsync(Arg.Any<Guid>(), Arg.Any<EgressRunStatus>(), Arg.Any<IReadOnlyList<NewLearnerRow>>(),
+            Arg.Any<IReadOnlyList<RemoveLearnerRow>>(), Arg.Any<DateOnly>(), Arg.Any<IReadOnlyDictionary<EgressOutputType, string>>(), Arg.Any<CancellationToken>()).Returns(0);
+
+        var events = await Collect();
+
+        var last = events.Last();
+        Assert.True(last.IsComplete);
+        Assert.True(last.IsError);
+        Assert.Null(last.FinalStatus);
+        Assert.Contains("abandoned", last.Message);
+    }
+
+    // M4: same race for the failure path — the run must not be reported PreprocessingFailed (with
+    // its failures pinned) when it is actually Abandoned.
+    [Fact]
+    public async Task Zero_rows_from_MarkPreprocessingFailed_reports_the_run_was_abandoned_not_failed()
+    {
+        RunIs(EgressRunStatus.Pulled, Remove("R1", "approved"), Remove("R2", "approved", reason: "other"));
+        _repo.TrySetStatusAsync(RunId, EgressRunStatus.Pulled, EgressRunStatus.Preprocessing, Arg.Any<CancellationToken>()).Returns(true);
+        _repo.MarkPreprocessingFailedAsync(Arg.Any<Guid>(), Arg.Any<EgressRunStatus>(), Arg.Any<IReadOnlyList<EgressRecordFailure>>(), Arg.Any<CancellationToken>()).Returns(0);
+
+        var events = await Collect();
+
+        var last = events.Last();
+        Assert.True(last.IsComplete);
+        Assert.True(last.IsError);
+        Assert.Null(last.FinalStatus);
+        Assert.Contains("abandoned", last.Message);
+    }
+
     [Fact]
     public async Task Cancellation_mid_run_puts_the_run_back_to_its_previous_state()
     {
@@ -168,7 +211,7 @@ public sealed class EgressPreprocessorTests
         await enumerator.DisposeAsync();
 
         await _repo.Received(1).TrySetStatusAsync(RunId, EgressRunStatus.Preprocessing, EgressRunStatus.Pulled, CancellationToken.None);
-        await _repo.DidNotReceiveWithAnyArgs().SavePreprocessedAsync(default, default!, default!, default, default!, default);
+        await _repo.DidNotReceiveWithAnyArgs().SavePreprocessedAsync(default, default, default!, default!, default, default!, default);
     }
 
     private sealed class FakeTimeProvider(DateTimeOffset now) : TimeProvider

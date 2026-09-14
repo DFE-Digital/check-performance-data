@@ -88,7 +88,7 @@ public sealed class EgressRunRepositoryTests(PostgresFixture fixture)
         var repo = Repository();
         var id = await repo.CreateRunAsync(Create(EgressOutputType.RemoveLearners), CancellationToken.None);
 
-        await repo.MarkPreprocessingFailedAsync(id,
+        await repo.MarkPreprocessingFailedAsync(id, EgressRunStatus.Pulled,
             [new EgressRecordFailure("Split DfE establishment number", 1001, "REF-1", "Local_Authority", "must be 3 digits")],
             CancellationToken.None);
 
@@ -108,7 +108,7 @@ public sealed class EgressRunRepositoryTests(PostgresFixture fixture)
         await ResetAsync();
         var repo = Repository();
         var failed = await repo.CreateRunAsync(Create(EgressOutputType.RemoveLearners), CancellationToken.None);
-        await repo.MarkPreprocessingFailedAsync(failed,
+        await repo.MarkPreprocessingFailedAsync(failed, EgressRunStatus.Pulled,
             [new EgressRecordFailure("Split DfE establishment number", 1001, "REF-1", "Local_Authority", "must be 3 digits")],
             CancellationToken.None);
 
@@ -134,7 +134,7 @@ public sealed class EgressRunRepositoryTests(PostgresFixture fixture)
             [EgressOutputType.NewLearners] = "CYPMD_LDS_KS4_NewLearners_2026_06_08.csv"
         };
 
-        await repo.SavePreprocessedAsync(id, [add], [remove], new DateOnly(2026, 6, 8), names, CancellationToken.None);
+        await repo.SavePreprocessedAsync(id, EgressRunStatus.Pulled, [add], [remove], new DateOnly(2026, 6, 8), names, CancellationToken.None);
 
         var run = await repo.GetRunAsync(id, CancellationToken.None);
         Assert.Equal(EgressRunStatus.Preprocessed, run!.Status);
@@ -145,7 +145,7 @@ public sealed class EgressRunRepositoryTests(PostgresFixture fixture)
         Assert.Equal(add, Assert.Single(await repo.GetNewLearnersAsync(id, CancellationToken.None)));
 
         // Saving again (a re-run of preprocessing) replaces rather than duplicates.
-        await repo.SavePreprocessedAsync(id, [add], [remove], new DateOnly(2026, 6, 8), names, CancellationToken.None);
+        await repo.SavePreprocessedAsync(id, EgressRunStatus.Preprocessed, [add], [remove], new DateOnly(2026, 6, 8), names, CancellationToken.None);
         Assert.Single(await repo.GetRemoveLearnersAsync(id, CancellationToken.None));
     }
 
@@ -158,7 +158,7 @@ public sealed class EgressRunRepositoryTests(PostgresFixture fixture)
         var audit = new EgressTransferAudit(UserId.ToString(), "Ops One", "cypmd/extracts_input",
             new Dictionary<EgressOutputType, (string, int, string)> { [EgressOutputType.RemoveLearners] = ("CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv", 1, "ABC") });
 
-        await repo.MarkTransferredAsync(id, audit, new DateTime(2026, 6, 8, 14, 38, 0, DateTimeKind.Utc), CancellationToken.None);
+        await repo.MarkTransferredAsync(id, EgressRunStatus.Pulled, audit, new DateTime(2026, 6, 8, 14, 38, 0, DateTimeKind.Utc), CancellationToken.None);
 
         var run = await repo.GetRunAsync(id, CancellationToken.None);
         Assert.Equal(EgressRunStatus.Transferred, run!.Status);
@@ -181,12 +181,12 @@ public sealed class EgressRunRepositoryTests(PostgresFixture fixture)
         var repo = Repository();
         var id = await repo.CreateRunAsync(Create(EgressOutputType.RemoveLearners), CancellationToken.None);
 
-        await repo.MarkTransferFailedAsync(id, "Blob upload refused", UserId.ToString(), CancellationToken.None);
+        await repo.MarkTransferFailedAsync(id, EgressRunStatus.Pulled, "Blob upload refused", UserId.ToString(), CancellationToken.None);
         Assert.Null(await repo.FindBlockerAsync(WindowId, EgressOutputType.RemoveLearners, CancellationToken.None));
         Assert.Equal("Blob upload refused", (await repo.GetRunAsync(id, CancellationToken.None))!.TransferFailureReason);
 
         Assert.Null(await repo.TryReactivateAsync(id, CancellationToken.None));            // retry allowed
-        await repo.MarkTransferFailedAsync(id, "again", UserId.ToString(), CancellationToken.None);
+        await repo.MarkTransferFailedAsync(id, EgressRunStatus.TransferFailed, "again", UserId.ToString(), CancellationToken.None);
 
         var newer = await Repository().CreateRunAsync(Create(EgressOutputType.RemoveLearners), CancellationToken.None);
         var blocker = await repo.TryReactivateAsync(id, CancellationToken.None);           // pair taken
@@ -194,6 +194,80 @@ public sealed class EgressRunRepositoryTests(PostgresFixture fixture)
 
         await using var db = fixture.CreateContext();
         Assert.Equal(2, await db.AuditEntries.CountAsync(a => a.EntityType == "EgressRun" && a.EntityId == id.ToString() && a.Action == "TransferFailed"));
+    }
+
+    // M4: every terminal write is guarded by the expected status it requires, so a run that has
+    // moved on (e.g. Abandoned) since the caller last read it can never be silently overwritten.
+    [Fact]
+    public async Task MarkTransferred_after_abandon_is_a_no_op()
+    {
+        await ResetAsync();
+        var repo = Repository();
+        var id = await repo.CreateRunAsync(Create(EgressOutputType.RemoveLearners), CancellationToken.None);
+        Assert.Equal(1, await repo.AbandonAsync(id, CancellationToken.None));
+        var audit = new EgressTransferAudit(UserId.ToString(), "Ops One", "cypmd/extracts_input",
+            new Dictionary<EgressOutputType, (string, int, string)> { [EgressOutputType.RemoveLearners] = ("CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv", 1, "ABC") });
+
+        var rows = await repo.MarkTransferredAsync(id, EgressRunStatus.Transferring, audit, DateTime.UtcNow, CancellationToken.None);
+
+        Assert.Equal(0, rows);
+        var run = await repo.GetRunAsync(id, CancellationToken.None);
+        Assert.Equal(EgressRunStatus.Abandoned, run!.Status);
+        Assert.Null(run.Outputs[0].FileName);
+        await using var db = fixture.CreateContext();
+        Assert.False(await db.AuditEntries.AnyAsync(a => a.EntityType == "EgressRun" && a.EntityId == id.ToString() && a.Action == "Transfer"));
+    }
+
+    [Fact]
+    public async Task Abandon_after_transferred_is_a_no_op()
+    {
+        await ResetAsync();
+        var repo = Repository();
+        var id = await repo.CreateRunAsync(Create(EgressOutputType.RemoveLearners), CancellationToken.None);
+        var audit = new EgressTransferAudit(UserId.ToString(), "Ops One", "cypmd/extracts_input",
+            new Dictionary<EgressOutputType, (string, int, string)> { [EgressOutputType.RemoveLearners] = ("CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv", 1, "ABC") });
+        Assert.Equal(1, await repo.MarkTransferredAsync(id, EgressRunStatus.Pulled, audit, DateTime.UtcNow, CancellationToken.None));
+
+        var rows = await repo.AbandonAsync(id, CancellationToken.None);
+
+        Assert.Equal(0, rows);
+        var run = await repo.GetRunAsync(id, CancellationToken.None);
+        Assert.Equal(EgressRunStatus.Transferred, run!.Status);
+        Assert.True(run.Outputs[0].IsActive);
+    }
+
+    // M4: a run stuck in Preprocessing (a pod restart mid-pipeline) must always be releasable —
+    // the lock has no expiry and no other override.
+    [Fact]
+    public async Task Abandon_admits_a_run_stuck_in_preprocessing()
+    {
+        await ResetAsync();
+        var repo = Repository();
+        var id = await repo.CreateRunAsync(Create(EgressOutputType.RemoveLearners), CancellationToken.None);
+        Assert.True(await repo.TrySetStatusAsync(id, EgressRunStatus.Pulled, EgressRunStatus.Preprocessing, CancellationToken.None));
+
+        var rows = await repo.AbandonAsync(id, CancellationToken.None);
+
+        Assert.Equal(1, rows);
+        Assert.Equal(EgressRunStatus.Abandoned, (await repo.GetRunAsync(id, CancellationToken.None))!.Status);
+    }
+
+    [Fact]
+    public async Task SavePreprocessed_after_abandon_is_a_no_op()
+    {
+        await ResetAsync();
+        var repo = Repository();
+        var id = await repo.CreateRunAsync(Create(EgressOutputType.RemoveLearners), CancellationToken.None);
+        Assert.Equal(1, await repo.AbandonAsync(id, CancellationToken.None));
+        var remove = new RemoveLearnerRow("1001", "31", "4", "KS4", "4070", "Smith", "Alice", "F", "2010-09-07", "2026", "6", "860", "555", Guid.NewGuid(), 1001, "REF-1");
+        var names = new Dictionary<EgressOutputType, string> { [EgressOutputType.RemoveLearners] = "CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv" };
+
+        var rows = await repo.SavePreprocessedAsync(id, EgressRunStatus.Preprocessing, [], [remove], new DateOnly(2026, 6, 8), names, CancellationToken.None);
+
+        Assert.Equal(0, rows);
+        var run = await repo.GetRunAsync(id, CancellationToken.None);
+        Assert.Equal(EgressRunStatus.Abandoned, run!.Status);
+        Assert.Empty(await repo.GetRemoveLearnersAsync(id, CancellationToken.None));
     }
 
     [Fact]

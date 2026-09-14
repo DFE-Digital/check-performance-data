@@ -26,16 +26,17 @@ public sealed class EgressTransferService(IEgressRunRepository repository, IEgre
         if (run.Outputs.All(o => (o.OutputRecordCount ?? 0) == 0))
             return new EgressTransferResult.NothingToTransfer();
 
-        if (run.Status == EgressRunStatus.TransferFailed)
+        var fromStatus = run.Status;
+        if (fromStatus == EgressRunStatus.TransferFailed)
         {
             var blocker = await repository.TryReactivateAsync(runId, ct);
             if (blocker is not null) return new EgressTransferResult.Refused(blocker);
         }
 
         if (!blobs.IsConfigured)
-            return await FailAsync(runId, actor, "Egress storage is not configured for this environment (ConnectionStrings:EgressStorage).", [], null, ct);
+            return await FailAsync(runId, actor, "Egress storage is not configured for this environment (ConnectionStrings:EgressStorage).", [], null, fromStatus, ct);
 
-        if (!await repository.TrySetStatusAsync(runId, run.Status, EgressRunStatus.Transferring, ct))
+        if (!await repository.TrySetStatusAsync(runId, fromStatus, EgressRunStatus.Transferring, ct))
             return new EgressTransferResult.NotTransferable(EgressRunStatus.Transferring);
 
         // M1: once the run has flipped to Transferring, the caller's token (RequestAborted — a
@@ -63,19 +64,29 @@ public sealed class EgressTransferService(IEgressRunRepository repository, IEgre
         catch (Exception ex)
         {
             logger.LogError(ex, "Egress run {RunId} transfer failed after {Uploaded} file(s); compensating", runId, uploaded.Count);
-            return await FailAsync(runId, actor, ex.Message, uploaded, inFlight, operationCt);
+            return await FailAsync(runId, actor, ex.Message, uploaded, inFlight, EgressRunStatus.Transferring, operationCt);
         }
 
         DateTime at;
+        int rows;
         try
         {
             at = DateTime.UtcNow;
-            await repository.MarkTransferredAsync(runId, new EgressTransferAudit(actor.UserId.ToString(), actor.DisplayName, blobs.TargetDescription, files), at, operationCt);
+            rows = await repository.MarkTransferredAsync(runId, EgressRunStatus.Transferring,
+                new EgressTransferAudit(actor.UserId.ToString(), actor.DisplayName, blobs.TargetDescription, files), at, operationCt);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Egress run {RunId}: MarkTransferredAsync failed after every file was uploaded; compensating", runId);
-            return await FailAsync(runId, actor, ex.Message, uploaded, null, operationCt);
+            return await FailAsync(runId, actor, ex.Message, uploaded, null, EgressRunStatus.Transferring, operationCt);
+        }
+        if (rows == 0)
+        {
+            // M4: lost the race — something else (an Abandon) moved the run off Transferring
+            // between the CAS flip and this write. Compensate the uploads; no Succeeded audit row
+            // is written because MarkTransferredAsync's own guard already refused to write one.
+            logger.LogWarning("Egress run {RunId} was no longer Transferring when the transfer completed; compensating", runId);
+            return await FailAsync(runId, actor, "This run was abandoned while the transfer was in progress.", uploaded, null, EgressRunStatus.Transferring, operationCt);
         }
         return new EgressTransferResult.Transferred(files.Select(f => (f.Key, f.Value.FileName, f.Value.Records)).ToList(), at);
     }
@@ -84,7 +95,10 @@ public sealed class EgressTransferService(IEgressRunRepository repository, IEgre
     // its PUT may have actually landed server-side with the response lost to the client, so it is
     // worth a metadata-checked delete attempt distinct from `uploaded` (which this call definitely
     // wrote, since a create-only PUT that returned success cannot belong to another run).
-    private async Task<EgressTransferResult> FailAsync(Guid runId, EgressActor actor, string reason, IReadOnlyList<string> uploaded, string? possiblyOrphaned, CancellationToken ct)
+    // expectedStatus (M4): the status MarkTransferFailedAsync's own guard requires — Transferring
+    // once the CAS flip has happened, or the run's pre-flip status for the unconfigured-storage
+    // refusal, which never flips at all.
+    private async Task<EgressTransferResult> FailAsync(Guid runId, EgressActor actor, string reason, IReadOnlyList<string> uploaded, string? possiblyOrphaned, EgressRunStatus expectedStatus, CancellationToken ct)
     {
         foreach (var name in uploaded)
         {
@@ -108,7 +122,7 @@ public sealed class EgressTransferService(IEgressRunRepository repository, IEgre
                 reason += $" Could not remove {possiblyOrphaned} from the target container — remove it by hand before retrying.";
             }
         }
-        await repository.MarkTransferFailedAsync(runId, reason, actor.UserId.ToString(), ct);
+        await repository.MarkTransferFailedAsync(runId, expectedStatus, reason, actor.UserId.ToString(), ct);
         return new EgressTransferResult.Failed(reason);
     }
 
@@ -131,8 +145,10 @@ public sealed class EgressTransferService(IEgressRunRepository repository, IEgre
                     removed.Add(output.FileName);
             }
         }
-        await repository.AbandonAsync(runId, ct);
-        return new EgressAbandonResult.Abandoned(removed);
+        // S8: pick the outcome from what the repository actually did, not an assumed success —
+        // a concurrent transfer could have completed between the read above and this write.
+        var rows = await repository.AbandonAsync(runId, ct);
+        return rows > 0 ? new EgressAbandonResult.Abandoned(removed) : new EgressAbandonResult.AlreadyTransferred();
     }
 
     public async Task<byte[]> BuildFileAsync(Guid runId, EgressOutputType type, CancellationToken ct) => (await BuildAsync(runId, type, ct)).Bytes;

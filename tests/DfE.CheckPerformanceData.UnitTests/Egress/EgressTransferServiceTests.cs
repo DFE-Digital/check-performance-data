@@ -33,6 +33,10 @@ public sealed class EgressTransferServiceTests
         _repo.GetNewLearnersAsync(RunId, Arg.Any<CancellationToken>()).Returns([NewRow("2001")]);
         _blobs.IsConfigured.Returns(true);
         _blobs.TargetDescription.Returns("cypmd/extracts_input");
+        // M4: the guarded writes now return rows affected — default to "won the race" (1) so
+        // existing success-path tests are unaffected; the specific lost-the-race tests override this.
+        _repo.MarkTransferredAsync(Arg.Any<Guid>(), Arg.Any<EgressRunStatus>(), Arg.Any<EgressTransferAudit>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>()).Returns(1);
+        _repo.AbandonAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(1);
     }
 
     [Fact]
@@ -50,12 +54,12 @@ public sealed class EgressTransferServiceTests
         Assert.StartsWith("Correction_ID,Correction_Type,Correction_Reason,", uploaded["CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv"]);
         Assert.Contains("\r\n1001,31,4,KS4,4070,Smith,Alice,F,2010-09-07,2026,6,860,555", uploaded["CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv"]);
         Assert.StartsWith("Correction_ID,Correction_Type,Key_Stage,", uploaded["CYPMD_LDS_KS4_NewLearners_2026_06_08.csv"]);
-        await _repo.Received(1).MarkTransferredAsync(RunId,
+        await _repo.Received(1).MarkTransferredAsync(RunId, EgressRunStatus.Transferring,
             Arg.Is<EgressTransferAudit>(a => a.UserName == "Ops One" && a.TargetContainer == "cypmd/extracts_input"
                 && a.Files[EgressOutputType.RemoveLearners].Records == 2 && a.Files[EgressOutputType.NewLearners].Records == 1
                 && a.Files[EgressOutputType.RemoveLearners].Sha256.Length == 64),
             Arg.Any<DateTime>(), Arg.Any<CancellationToken>());
-        await _repo.DidNotReceiveWithAnyArgs().MarkTransferFailedAsync(default, default!, default!, default);
+        await _repo.DidNotReceiveWithAnyArgs().MarkTransferFailedAsync(default, default, default!, default!, default);
     }
 
     [Fact]
@@ -71,8 +75,8 @@ public sealed class EgressTransferServiceTests
         var failed = Assert.IsType<EgressTransferResult.Failed>(result);
         Assert.Contains("already exists", failed.Reason);
         await _blobs.Received(1).DeleteIfExistsAsync("CYPMD_LDS_KS4_NewLearners_2026_06_08.csv", Arg.Any<CancellationToken>());
-        await _repo.Received(1).MarkTransferFailedAsync(RunId, Arg.Is<string>(r => r.Contains("already exists")), Actor.UserId.ToString(), Arg.Any<CancellationToken>());
-        await _repo.DidNotReceiveWithAnyArgs().MarkTransferredAsync(default, default!, default, default);
+        await _repo.Received(1).MarkTransferFailedAsync(RunId, EgressRunStatus.Transferring, Arg.Is<string>(r => r.Contains("already exists")), Actor.UserId.ToString(), Arg.Any<CancellationToken>());
+        await _repo.DidNotReceiveWithAnyArgs().MarkTransferredAsync(default, default, default!, default, default);
     }
 
     [Fact]
@@ -86,7 +90,7 @@ public sealed class EgressTransferServiceTests
         var failed = Assert.IsType<EgressTransferResult.Failed>(result);
         Assert.Contains("not configured", failed.Reason);
         await _blobs.DidNotReceiveWithAnyArgs().UploadAsync(default!, default!, default!, default, default);
-        await _repo.Received(1).MarkTransferFailedAsync(RunId, Arg.Any<string>(), Actor.UserId.ToString(), Arg.Any<CancellationToken>());
+        await _repo.Received(1).MarkTransferFailedAsync(RunId, EgressRunStatus.Preprocessed, Arg.Any<string>(), Actor.UserId.ToString(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -141,10 +145,28 @@ public sealed class EgressTransferServiceTests
         _repo.GetRemoveLearnersAsync(RunId, Arg.Any<CancellationToken>()).Returns([]);
         _repo.GetNewLearnersAsync(RunId, Arg.Any<CancellationToken>()).Returns([NewRow("2001")]);
         _blobs.IsConfigured.Returns(true);
+        _repo.MarkTransferredAsync(Arg.Any<Guid>(), Arg.Any<EgressRunStatus>(), Arg.Any<EgressTransferAudit>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>()).Returns(1);
 
         var result = await Sut().TransferAsync(RunId, Actor, CancellationToken.None);
 
         Assert.IsType<EgressTransferResult.Transferred>(result);
+    }
+
+    // M4: MarkTransferredAsync's own status guard can lose the race even without throwing (e.g.
+    // an Abandon landed between the Transferring flip and this write) — 0 rows means compensate,
+    // never report Transferred.
+    [Fact]
+    public async Task Zero_rows_from_MarkTransferredAsync_compensates_without_reporting_transferred()
+    {
+        RunIs(EgressRunStatus.Preprocessed, EgressOutputType.RemoveLearners);
+        _repo.TrySetStatusAsync(RunId, EgressRunStatus.Preprocessed, EgressRunStatus.Transferring, Arg.Any<CancellationToken>()).Returns(true);
+        _repo.MarkTransferredAsync(Arg.Any<Guid>(), Arg.Any<EgressRunStatus>(), Arg.Any<EgressTransferAudit>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>()).Returns(0);
+
+        var result = await Sut().TransferAsync(RunId, Actor, CancellationToken.None);
+
+        Assert.IsType<EgressTransferResult.Failed>(result);
+        await _blobs.Received(1).DeleteIfExistsAsync("CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv", Arg.Any<CancellationToken>());
+        await _repo.Received(1).MarkTransferFailedAsync(RunId, EgressRunStatus.Transferring, Arg.Any<string>(), Actor.UserId.ToString(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -170,14 +192,14 @@ public sealed class EgressTransferServiceTests
         CancellationToken? deleteToken = null;
         _blobs.DeleteIfExistsAsync(Arg.Any<string>(), Arg.Do<CancellationToken>(t => deleteToken = t)).Returns(Task.CompletedTask);
         CancellationToken? markFailedToken = null;
-        _repo.MarkTransferFailedAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Do<CancellationToken>(t => markFailedToken = t))
-            .Returns(Task.CompletedTask);
+        _repo.MarkTransferFailedAsync(Arg.Any<Guid>(), Arg.Any<EgressRunStatus>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Do<CancellationToken>(t => markFailedToken = t))
+            .Returns(1);
 
         var result = await Sut().TransferAsync(RunId, Actor, cts.Token);
 
         Assert.IsType<EgressTransferResult.Failed>(result);
         await _blobs.Received(1).DeleteIfExistsAsync("CYPMD_LDS_KS4_NewLearners_2026_06_08.csv", Arg.Any<CancellationToken>());
-        await _repo.Received(1).MarkTransferFailedAsync(RunId, Arg.Any<string>(), Actor.UserId.ToString(), Arg.Any<CancellationToken>());
+        await _repo.Received(1).MarkTransferFailedAsync(RunId, EgressRunStatus.Transferring, Arg.Any<string>(), Actor.UserId.ToString(), Arg.Any<CancellationToken>());
         Assert.Equal(CancellationToken.None, deleteToken);
         Assert.Equal(CancellationToken.None, markFailedToken);
     }
@@ -189,14 +211,14 @@ public sealed class EgressTransferServiceTests
     {
         RunIs(EgressRunStatus.Preprocessed, EgressOutputType.RemoveLearners);
         _repo.TrySetStatusAsync(RunId, EgressRunStatus.Preprocessed, EgressRunStatus.Transferring, Arg.Any<CancellationToken>()).Returns(true);
-        _repo.MarkTransferredAsync(Arg.Any<Guid>(), Arg.Any<EgressTransferAudit>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
-            .Returns(Task.FromException(new InvalidOperationException("database unreachable")));
+        _repo.MarkTransferredAsync(Arg.Any<Guid>(), Arg.Any<EgressRunStatus>(), Arg.Any<EgressTransferAudit>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromException<int>(new InvalidOperationException("database unreachable")));
 
         var result = await Sut().TransferAsync(RunId, Actor, CancellationToken.None);
 
         Assert.IsType<EgressTransferResult.Failed>(result);
         await _blobs.Received(1).DeleteIfExistsAsync("CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv", Arg.Any<CancellationToken>());
-        await _repo.Received(1).MarkTransferFailedAsync(RunId, Arg.Any<string>(), Actor.UserId.ToString(), Arg.Any<CancellationToken>());
+        await _repo.Received(1).MarkTransferFailedAsync(RunId, EgressRunStatus.Transferring, Arg.Any<string>(), Actor.UserId.ToString(), Arg.Any<CancellationToken>());
         await _repo.DidNotReceiveWithAnyArgs().TryReactivateAsync(default, default);
     }
 
@@ -216,7 +238,7 @@ public sealed class EgressTransferServiceTests
 
         var failed = Assert.IsType<EgressTransferResult.Failed>(result);
         Assert.Contains("remove it by hand", failed.Reason);
-        await _repo.Received(1).MarkTransferFailedAsync(RunId, Arg.Is<string>(r => r.Contains("remove it by hand")), Actor.UserId.ToString(), Arg.Any<CancellationToken>());
+        await _repo.Received(1).MarkTransferFailedAsync(RunId, EgressRunStatus.Transferring, Arg.Is<string>(r => r.Contains("remove it by hand")), Actor.UserId.ToString(), Arg.Any<CancellationToken>());
     }
 
     // S3: a PUT that succeeded server-side but whose response was lost must not leave an orphan

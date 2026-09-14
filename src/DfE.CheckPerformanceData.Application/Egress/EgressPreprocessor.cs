@@ -113,7 +113,14 @@ public sealed class EgressPreprocessor(IEgressRunRepository repository, IWindowS
         ct.ThrowIfCancellationRequested();
         if (allFailures.Count > 0)
         {
-            await repository.MarkPreprocessingFailedAsync(run.Id, allFailures, ct);
+            // M4: 0 rows means the run was abandoned by someone else while this pipeline ran — do
+            // not report PreprocessingFailed for a run that is actually Abandoned.
+            if (await repository.MarkPreprocessingFailedAsync(run.Id, EgressRunStatus.Preprocessing, allFailures, ct) == 0)
+            {
+                logger.LogWarning("Egress run {RunId} was abandoned while preprocessing; its failures were not recorded", run.Id);
+                yield return Terminal(8, StepNames[7], "This run was abandoned while preprocessing.", items.Count, 0, allFailures.Count, isError: true, null);
+                yield break;
+            }
             logger.LogWarning("Egress run {RunId} failed preprocessing with {Count} record failure(s)", run.Id, allFailures.Count);
             yield return Terminal(8, StepNames[7], "Preprocessing stopped: no records were saved because some records failed. Correct the source data and start a new run.",
                 items.Count, 0, allFailures.Count, isError: true, EgressRunStatus.PreprocessingFailed);
@@ -129,7 +136,14 @@ public sealed class EgressPreprocessor(IEgressRunRepository repository, IWindowS
         var fileNames = run.Outputs.ToDictionary(o => o.OutputType, o => EgressOutputTypes.FileName(windowType, o.OutputType, exportDate));
         var newRows = items.Select(x => x.NewRow).OfType<NewLearnerRow>().ToList();
         var removeRows = items.Select(x => x.RemoveRow).OfType<RemoveLearnerRow>().ToList();
-        await repository.SavePreprocessedAsync(run.Id, newRows, removeRows, exportDate, fileNames, ct);
+        // M4: 0 rows means the run was abandoned by someone else while this pipeline ran — do not
+        // report Preprocessed (with nothing actually saved) for a run that is actually Abandoned.
+        if (await repository.SavePreprocessedAsync(run.Id, EgressRunStatus.Preprocessing, newRows, removeRows, exportDate, fileNames, ct) == 0)
+        {
+            logger.LogWarning("Egress run {RunId} was abandoned while preprocessing; nothing was saved", run.Id);
+            yield return Terminal(8, StepNames[7], "This run was abandoned while preprocessing.", items.Count, 0, 0, isError: true, null);
+            yield break;
+        }
         yield return Terminal(8, StepNames[7], $"Saved {newRows.Count + removeRows.Count} record(s) to the database.", items.Count, newRows.Count + removeRows.Count, 0,
             isError: false, EgressRunStatus.Preprocessed);
     }

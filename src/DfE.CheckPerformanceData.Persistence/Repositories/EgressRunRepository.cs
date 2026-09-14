@@ -93,19 +93,30 @@ public sealed class EgressRunRepository(IPortalDbContext db) : IEgressRunReposit
         await db.EgressRuns.Where(r => r.Id == runId && r.Status == from)
             .ExecuteUpdateAsync(s => s.SetProperty(r => r.Status, to), ct) == 1;
 
-    public Task MarkPreprocessingFailedAsync(Guid runId, IReadOnlyList<EgressRecordFailure> failures, CancellationToken ct) =>
+    public Task<int> MarkPreprocessingFailedAsync(Guid runId, EgressRunStatus expectedStatus, IReadOnlyList<EgressRecordFailure> failures, CancellationToken ct) =>
         db.ExecuteInTransactionAsync(async () =>
         {
-            await db.EgressRuns.Where(r => r.Id == runId).ExecuteUpdateAsync(s => s
+            var rows = await db.EgressRuns.Where(r => r.Id == runId && r.Status == expectedStatus).ExecuteUpdateAsync(s => s
                 .SetProperty(r => r.Status, EgressRunStatus.PreprocessingFailed)
                 .SetProperty(r => r.FailureJson, JsonSerializer.Serialize(failures, Json)), ct);
-            await db.EgressRunOutputs.Where(o => o.RunId == runId).ExecuteUpdateAsync(s => s.SetProperty(o => o.IsActive, false), ct);
+            if (rows > 0)
+                await db.EgressRunOutputs.Where(o => o.RunId == runId).ExecuteUpdateAsync(s => s.SetProperty(o => o.IsActive, false), ct);
+            return rows;
         }, ct);
 
-    public Task SavePreprocessedAsync(Guid runId, IReadOnlyList<NewLearnerRow> newLearners, IReadOnlyList<RemoveLearnerRow> removeLearners,
+    public Task<int> SavePreprocessedAsync(Guid runId, EgressRunStatus expectedStatus, IReadOnlyList<NewLearnerRow> newLearners, IReadOnlyList<RemoveLearnerRow> removeLearners,
         DateOnly exportDate, IReadOnlyDictionary<EgressOutputType, string> fileNames, CancellationToken ct) =>
         db.ExecuteInTransactionAsync(async () =>
         {
+            // M4: guard first — if the run moved on (e.g. Abandoned) while preprocessing ran,
+            // nothing below must be written.
+            var rows = await db.EgressRuns.Where(r => r.Id == runId && r.Status == expectedStatus).ExecuteUpdateAsync(s => s
+                .SetProperty(r => r.Status, EgressRunStatus.Preprocessed)
+                .SetProperty(r => r.PreprocessedAtUtc, DateTime.UtcNow)
+                .SetProperty(r => r.ExportDate, exportDate)
+                .SetProperty(r => r.FailureJson, (string?)null), ct);
+            if (rows == 0) return 0;
+
             await db.EgressNewLearners.Where(x => x.RunId == runId).ExecuteDeleteAsync(ct);
             await db.EgressRemoveLearners.Where(x => x.RunId == runId).ExecuteDeleteAsync(ct);
             db.EgressNewLearners.AddRange(newLearners.Select(r => new EgressNewLearner
@@ -131,11 +142,7 @@ public sealed class EgressRunRepository(IPortalDbContext db) : IEgressRunReposit
                 await db.EgressRunOutputs.Where(o => o.RunId == runId && o.OutputType == type)
                     .ExecuteUpdateAsync(s => s.SetProperty(o => o.FileName, name).SetProperty(o => o.OutputRecordCount, count), ct);
             }
-            await db.EgressRuns.Where(r => r.Id == runId).ExecuteUpdateAsync(s => s
-                .SetProperty(r => r.Status, EgressRunStatus.Preprocessed)
-                .SetProperty(r => r.PreprocessedAtUtc, DateTime.UtcNow)
-                .SetProperty(r => r.ExportDate, exportDate)
-                .SetProperty(r => r.FailureJson, (string?)null), ct);
+            return rows;
         }, ct);
 
     public async Task<IReadOnlyList<NewLearnerRow>> GetNewLearnersAsync(Guid runId, CancellationToken ct) =>
@@ -179,19 +186,23 @@ public sealed class EgressRunRepository(IPortalDbContext db) : IEgressRunReposit
         return null;
     }
 
-    public Task MarkTransferredAsync(Guid runId, EgressTransferAudit audit, DateTime transferredAtUtc, CancellationToken ct) =>
+    public Task<int> MarkTransferredAsync(Guid runId, EgressRunStatus expectedStatus, EgressTransferAudit audit, DateTime transferredAtUtc, CancellationToken ct) =>
         db.ExecuteInTransactionAsync(async () =>
         {
+            // M4: guard first — if the run moved on (e.g. Abandoned mid-transfer) since the
+            // Transferring flip, no file/output row is touched and no Succeeded audit is written.
+            var rows = await db.EgressRuns.Where(r => r.Id == runId && r.Status == expectedStatus).ExecuteUpdateAsync(s => s
+                .SetProperty(r => r.Status, EgressRunStatus.Transferred)
+                .SetProperty(r => r.TransferredAtUtc, transferredAtUtc)
+                .SetProperty(r => r.TransferredByName, audit.UserName)
+                .SetProperty(r => r.TransferFailureReason, (string?)null), ct);
+            if (rows == 0) return 0;
+
             foreach (var (type, file) in audit.Files)
             {
                 await db.EgressRunOutputs.Where(o => o.RunId == runId && o.OutputType == type)
                     .ExecuteUpdateAsync(s => s.SetProperty(o => o.Sha256, file.Sha256).SetProperty(o => o.FileName, file.FileName), ct);
             }
-            await db.EgressRuns.Where(r => r.Id == runId).ExecuteUpdateAsync(s => s
-                .SetProperty(r => r.Status, EgressRunStatus.Transferred)
-                .SetProperty(r => r.TransferredAtUtc, transferredAtUtc)
-                .SetProperty(r => r.TransferredByName, audit.UserName)
-                .SetProperty(r => r.TransferFailureReason, (string?)null), ct);
             var run = await db.EgressRuns.AsNoTracking().FirstAsync(r => r.Id == runId, ct);
             db.AuditEntries.Add(new AuditEntry
             {
@@ -212,15 +223,20 @@ public sealed class EgressRunRepository(IPortalDbContext db) : IEgressRunReposit
                 }, Json)
             });
             await db.SaveChangesAsync(ct);
+            return rows;
         }, ct);
 
-    public Task MarkTransferFailedAsync(Guid runId, string reason, string userId, CancellationToken ct) =>
+    public Task<int> MarkTransferFailedAsync(Guid runId, EgressRunStatus expectedStatus, string reason, string userId, CancellationToken ct) =>
         db.ExecuteInTransactionAsync(async () =>
         {
             var clipped = reason.Length > 1000 ? reason[..1000] : reason;
-            await db.EgressRuns.Where(r => r.Id == runId).ExecuteUpdateAsync(s => s
+            // M4: guard first — a run that has already moved on (e.g. Abandoned) must not be
+            // overwritten to TransferFailed, and must not gain a spurious audit row for it.
+            var rows = await db.EgressRuns.Where(r => r.Id == runId && r.Status == expectedStatus).ExecuteUpdateAsync(s => s
                 .SetProperty(r => r.Status, EgressRunStatus.TransferFailed)
                 .SetProperty(r => r.TransferFailureReason, clipped), ct);
+            if (rows == 0) return 0;
+
             await db.EgressRunOutputs.Where(o => o.RunId == runId).ExecuteUpdateAsync(s => s.SetProperty(o => o.IsActive, false), ct);
             db.AuditEntries.Add(new AuditEntry
             {
@@ -229,15 +245,18 @@ public sealed class EgressRunRepository(IPortalDbContext db) : IEgressRunReposit
                 NewValues = JsonSerializer.Serialize(new { Outcome = "Failed", Reason = clipped }, Json)
             });
             await db.SaveChangesAsync(ct);
+            return rows;
         }, ct);
 
-    public Task AbandonAsync(Guid runId, CancellationToken ct) =>
+    public Task<int> AbandonAsync(Guid runId, CancellationToken ct) =>
         db.ExecuteInTransactionAsync(async () =>
         {
-            await db.EgressRuns.Where(r => r.Id == runId && r.Status != EgressRunStatus.Transferred)
+            // Excludes only Transferred — Preprocessing and Transferring are both admitted, so a
+            // run stuck there (a pod restart mid-pipeline) can always be released (M4).
+            var rows = await db.EgressRuns.Where(r => r.Id == runId && r.Status != EgressRunStatus.Transferred)
                 .ExecuteUpdateAsync(s => s.SetProperty(r => r.Status, EgressRunStatus.Abandoned), ct);
-            await db.EgressRunOutputs.Where(o => o.RunId == runId)
-                .Where(o => db.EgressRuns.Any(r => r.Id == runId && r.Status == EgressRunStatus.Abandoned))
-                .ExecuteUpdateAsync(s => s.SetProperty(o => o.IsActive, false), ct);
+            if (rows > 0)
+                await db.EgressRunOutputs.Where(o => o.RunId == runId).ExecuteUpdateAsync(s => s.SetProperty(o => o.IsActive, false), ct);
+            return rows;
         }, ct);
 }

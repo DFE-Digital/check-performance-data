@@ -76,6 +76,16 @@ public sealed class EgressViewSourceTests
         Assert.Contains("egress-preprocess.js", view);
     }
 
+    // M4: the lock has no expiry, so a run stuck in Preprocessing after a restart must be
+    // releasable from this page, not only from Results/Summary.
+    [Fact]
+    public void Preprocessing_page_offers_abandon()
+    {
+        var view = View("Preprocessing.cshtml");
+        Assert.Contains("<form method=\"post\" action=\"/admin/egress/runs/@Model.Run.Id/abandon\"", view);
+        Assert.Contains("data-testid=\"egress-abandon\"", view);
+    }
+
     [Fact]
     public void The_script_bows_out_without_EventSource_and_follows_the_terminal_next_url()
     {

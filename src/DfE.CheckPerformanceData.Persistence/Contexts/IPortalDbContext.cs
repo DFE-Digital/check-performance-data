@@ -2,6 +2,7 @@
 using DfE.CheckPerformanceData.Persistence.Entities;
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 
 namespace DfE.CheckPerformanceData.Persistence.Contexts;
@@ -9,6 +10,7 @@ namespace DfE.CheckPerformanceData.Persistence.Contexts;
 public interface IPortalDbContext
 {
     DatabaseFacade Database { get; }
+    ChangeTracker ChangeTracker { get; }
 
     DbSet<ChangeRequest> ChangeRequests { get; }
     DbSet<AuditEntry> AuditEntries { get; }

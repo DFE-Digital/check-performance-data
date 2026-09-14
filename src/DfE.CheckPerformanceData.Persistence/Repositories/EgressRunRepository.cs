@@ -108,6 +108,13 @@ public sealed class EgressRunRepository(IPortalDbContext db) : IEgressRunReposit
         DateOnly exportDate, IReadOnlyDictionary<EgressOutputType, string> fileNames, CancellationToken ct) =>
         db.ExecuteInTransactionAsync(async () =>
         {
+            // S2: EnableRetryOnFailure re-runs this whole delegate on a transient fault. Without
+            // clearing first, a prior attempt's AddRange calls stay tracked as Added (they were
+            // never persisted, so ExecuteDeleteAsync below — a bulk operation that bypasses the
+            // tracker — cannot remove them), and the retry's own AddRange would save both sets:
+            // 2N learner rows for an N-row run, which is what ends up in the CSV.
+            db.ChangeTracker.Clear();
+
             // M4: guard first — if the run moved on (e.g. Abandoned) while preprocessing ran,
             // nothing below must be written.
             var rows = await db.EgressRuns.Where(r => r.Id == runId && r.Status == expectedStatus).ExecuteUpdateAsync(s => s
@@ -189,6 +196,11 @@ public sealed class EgressRunRepository(IPortalDbContext db) : IEgressRunReposit
     public Task<int> MarkTransferredAsync(Guid runId, EgressRunStatus expectedStatus, EgressTransferAudit audit, DateTime transferredAtUtc, CancellationToken ct) =>
         db.ExecuteInTransactionAsync(async () =>
         {
+            // S2: same retry-duplication hazard as SavePreprocessedAsync — a stale tracked
+            // AuditEntry from a prior attempt would otherwise be saved a second time alongside
+            // this attempt's.
+            db.ChangeTracker.Clear();
+
             // M4: guard first — if the run moved on (e.g. Abandoned mid-transfer) since the
             // Transferring flip, no file/output row is touched and no Succeeded audit is written.
             var rows = await db.EgressRuns.Where(r => r.Id == runId && r.Status == expectedStatus).ExecuteUpdateAsync(s => s

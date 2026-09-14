@@ -120,6 +120,36 @@ public sealed class EgressRunRepositoryTests(PostgresFixture fixture)
         Assert.Equal(retry, blocker!.RunId);
     }
 
+    // S2: EnableRetryOnFailure re-runs the whole execution-strategy delegate on a transient fault.
+    // A prior attempt's AddRange calls leave their (never-persisted) entities tracked as Added; if
+    // the retry's AddRange runs again without clearing the tracker first, both sets of entities get
+    // saved — 2N learner rows for an N-row preprocessing run, which is what LDS receives as the
+    // file. Reproduced here by tracking a stale entity by hand rather than forcing a real transient
+    // Postgres fault, which the same ChangeTracker.Clear() at the top of the delegate must discard.
+    [Fact]
+    public async Task A_stale_tracked_entity_left_by_an_earlier_attempt_is_not_saved_alongside_the_real_one()
+    {
+        await ResetAsync();
+        var context = fixture.CreateContext();
+        var repo = new EgressRunRepository(context);
+        var id = await repo.CreateRunAsync(Create(EgressOutputType.RemoveLearners), CancellationToken.None);
+        context.EgressRemoveLearners.Add(new EgressRemoveLearner
+        {
+            Id = Guid.NewGuid(), RunId = id, ChangeRequestId = Guid.NewGuid(), TicketId = 9999, ReferenceNumber = "STALE",
+            CorrectionId = "9999", CorrectionType = "31", CorrectionReason = "4", KeyStage = "KS4", EstablishmentNumber = "4070",
+            Surname = "Stale", Forename = "Entity", Sex = "F", DateOfBirth = "2010-01-01", CycleYear = "2026", CycleMonth = "6",
+            LocalAuthority = "860", LearnerId = "555"
+        });
+        var remove = new RemoveLearnerRow("1001", "31", "4", "KS4", "4070", "Smith", "Alice", "F", "2010-09-07", "2026", "6", "860", "555", Guid.NewGuid(), 1001, "REF-1");
+        var names = new Dictionary<EgressOutputType, string> { [EgressOutputType.RemoveLearners] = "CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv" };
+
+        await repo.SavePreprocessedAsync(id, EgressRunStatus.Pulled, [], [remove], new DateOnly(2026, 6, 8), names, CancellationToken.None);
+
+        var saved = await repo.GetRemoveLearnersAsync(id, CancellationToken.None);
+        var only = Assert.Single(saved);
+        Assert.Equal("REF-1", only.ReferenceNumber);
+    }
+
     [Fact]
     public async Task Save_preprocessed_writes_rows_file_names_and_export_date_in_one_go()
     {

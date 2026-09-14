@@ -17,6 +17,8 @@ public static class EgressRunStatuses
         EgressRunStatus.Preprocessed => "Ready to transfer",
         EgressRunStatus.Transferring => "Transferring",
         EgressRunStatus.TransferFailed => "Transfer failed",
+        EgressRunStatus.Transferred => "Transferred",
+        EgressRunStatus.Abandoned => "Abandoned",
         _ => status.ToString()
     };
 }

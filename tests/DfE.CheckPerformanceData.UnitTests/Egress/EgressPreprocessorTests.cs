@@ -150,6 +150,11 @@ public sealed class EgressPreprocessorTests
     // Second-pass nit: the refusal text used to interpolate the raw enum member name
     // ("PreprocessingFailed"), leaking C# to the end user. It must use the same human label
     // Index.cshtml's StageLabel helper shows for this status ("Preprocessing failed") instead.
+    //
+    // Final-review nit: interpolating that label straight into "This run is {label} and cannot
+    // be preprocessed" reads as ungrammatical English for several labels (e.g. "This run is
+    // Transfer failed and cannot be preprocessed."). Phrased as a stage statement instead, which
+    // reads correctly for every label EgressRunStatuses.Label can return.
     [Fact]
     public async Task A_preprocessing_failed_run_is_refused_not_re_run()
     {
@@ -160,7 +165,7 @@ public sealed class EgressPreprocessorTests
         var only = Assert.Single(events);
         Assert.True(only.IsError);
         Assert.True(only.IsComplete);
-        Assert.Equal("This run is Preprocessing failed and cannot be preprocessed.", only.Message);
+        Assert.Equal("This run cannot be preprocessed because its stage is Preprocessing failed.", only.Message);
         await _repo.DidNotReceiveWithAnyArgs().TrySetStatusAsync(default, default, default, default);
     }
 

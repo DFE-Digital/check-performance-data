@@ -44,7 +44,11 @@ public sealed class EgressPreprocessor(IEgressRunRepository repository, IWindowS
         {
             // Second-pass nit: use the same human label Index.cshtml shows for this status, not
             // the raw enum member name (e.g. "PreprocessingFailed" leaking straight to the user).
-            yield return Terminal(0, "Preprocessing", $"This run is {EgressRunStatuses.Label(run.Status)} and cannot be preprocessed.", 0, 0, 0, isError: true, null);
+            // Final-review nit: interpolating the label straight into "This run is {label} and
+            // cannot be preprocessed" reads as ungrammatical English for several labels (e.g.
+            // "This run is Transfer failed and cannot be preprocessed."). Phrase it as a stage
+            // statement instead, which reads correctly for every label in EgressRunStatuses.Label.
+            yield return Terminal(0, "Preprocessing", $"This run cannot be preprocessed because its stage is {EgressRunStatuses.Label(run.Status)}.", 0, 0, 0, isError: true, null);
             yield break;
         }
         var previous = run.Status;

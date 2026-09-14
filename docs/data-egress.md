@@ -252,6 +252,19 @@ Explorer, or the Azure CLI, pointed at the `EgressStorage` connection string fro
 - **`PreprocessingStream` is a state-mutating GET** (the accepted `ValidateWindowController`
   pattern) — the JS closes the `EventSource` on a terminal/error event, so the browser's automatic
   reconnect never restarts the server-side pipeline. Left as-is; noted for the next contributor.
+- **Abandon crash-window orphan**: R1 reordered `AbandonAsync` to write `Abandoned` before
+  sweeping the run's blobs (closing a data-loss race — see the R1 commit), but that also moved
+  the crash window rather than removing it. If the process dies after the write commits but
+  before the sweep loop finishes, the run ends up `Abandoned` (not stuck `Transferring`) with one
+  or more files still sitting in LDS storage; the pair is released, so a same-stage/same-day retry
+  can hit the pre-existing "file already exists" collision above, and the orphaned file itself has
+  no UI-reachable recovery — only a manual LDS delete. Follow-up, not an open production incident.
+- Related: `EgressTransferService.FailAsync`'s compensation delete of its own just-uploaded files
+  (the `uploaded` list) calls `blobs.DeleteIfExistsAsync` unconditionally, unlike its
+  `possiblyOrphaned` check, which is ownership-checked via `DeleteIfOwnedByRunAsync`. In the
+  create-only-upload case this is safe today (a successful create-only PUT cannot belong to
+  another run), but it is a related blob-lifecycle-under-overlap gap worth tightening for
+  consistency. Follow-up, not an open production incident.
 - An independent review of the transfer/lock state machine found one Blocker (B1: the web host
   defaulted to the dev Zendesk fake with nothing but QA config overriding it, so Production would
   have read the dev outbox table instead of real Zendesk decisions) and four Must-fixes (M1:

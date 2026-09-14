@@ -95,6 +95,28 @@ public sealed class EgressRunServiceTests
         Assert.Equal("Ops One", created.StartedByName);
     }
 
+    // S10: only a null journey (not found) was tested — a genuinely failed read (blob storage
+    // unreachable) must be caught per-record too, not fail the whole pull.
+    [Fact]
+    public async Task A_journey_blob_read_that_throws_is_treated_the_same_as_not_found()
+    {
+        _windows.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(Window());
+        _repo.GetCandidateRequestsAsync(WindowId, WhatToChange.Remove, Arg.Any<CancellationToken>())
+            .Returns([Candidate("REF-1", "1001")]);
+        _tickets.GetDecisionStatusesAsync(Arg.Any<IReadOnlyCollection<long>>(), Arg.Any<CancellationToken>())
+            .Returns(new Dictionary<long, string> { [1001] = "auto_approved" });
+        _blobs.GetAsync(WindowId, "REF-1").Returns(Task.FromException<RequestState?>(new InvalidOperationException("blob storage unreachable")));
+        EgressRunCreate? created = null;
+        _repo.CreateRunAsync(Arg.Do<EgressRunCreate>(c => created = c), Arg.Any<CancellationToken>()).Returns(Guid.NewGuid());
+
+        var result = await Sut().StartAsync(WindowId, [EgressOutputType.RemoveLearners], Actor, CancellationToken.None);
+
+        Assert.IsType<EgressStartResult.Started>(result);
+        var record = Assert.Single(created!.Outputs).Records.Single();
+        Assert.False(record.JourneyFound);
+        Assert.Equal("auto_approved", record.Decision);
+    }
+
     [Fact]
     public async Task A_conflict_on_insert_is_reported_as_a_refusal_with_the_current_blocker()
     {

@@ -158,6 +158,163 @@ public sealed class EgressControllerTests
         Assert.Equal(nameof(EgressController.Resume), redirect.ActionName);
     }
 
+    // S10: Start's other two non-happy outcomes had no coverage.
+    [Fact]
+    public async Task Start_shows_the_window_error_when_the_window_no_longer_exists()
+    {
+        _runs.StartAsync(WindowId, Arg.Any<IReadOnlyList<EgressOutputType>>(), Arg.Any<EgressActor>(), Arg.Any<CancellationToken>())
+            .Returns(new EgressStartResult.WindowNotFound());
+
+        var view = Assert.IsType<ViewResult>(await Build().Start(new PullForm { WindowId = WindowId, OutputTypes = [EgressOutputType.RemoveLearners] }, CancellationToken.None));
+
+        var model = Assert.IsType<PullViewModel>(view.Model);
+        Assert.Equal("Select a checking window", model.WindowError);
+    }
+
+    [Fact]
+    public async Task Start_shows_the_pull_error_when_zendesk_could_not_be_read()
+    {
+        _runs.StartAsync(WindowId, Arg.Any<IReadOnlyList<EgressOutputType>>(), Arg.Any<EgressActor>(), Arg.Any<CancellationToken>())
+            .Returns(new EgressStartResult.PullFailed("Zendesk timed out"));
+
+        var view = Assert.IsType<ViewResult>(await Build().Start(new PullForm { WindowId = WindowId, OutputTypes = [EgressOutputType.RemoveLearners] }, CancellationToken.None));
+
+        var model = Assert.IsType<PullViewModel>(view.Model);
+        Assert.Equal("Zendesk timed out", model.PullError);
+    }
+
+    // S10: Results/Failed/Complete each guard their status but had no test.
+    [Theory]
+    [InlineData(EgressRunStatus.Pulled)]
+    [InlineData(EgressRunStatus.PreprocessingFailed)]
+    [InlineData(EgressRunStatus.Preprocessed)]
+    public async Task Results_renders_for_the_statuses_it_allows(EgressRunStatus status)
+    {
+        _runs.GetAsync(RunId, Arg.Any<CancellationToken>()).Returns(Run(status));
+        _windows.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(Window());
+        var view = Assert.IsType<ViewResult>(await Build().Results(RunId, CancellationToken.None));
+        Assert.Equal("Results", view.ViewName);
+    }
+
+    [Fact]
+    public async Task Results_redirects_to_resume_for_a_status_it_does_not_allow()
+    {
+        _runs.GetAsync(RunId, Arg.Any<CancellationToken>()).Returns(Run(EgressRunStatus.Transferring));
+        _windows.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(Window());
+        var redirect = Assert.IsType<RedirectToActionResult>(await Build().Results(RunId, CancellationToken.None));
+        Assert.Equal(nameof(EgressController.Resume), redirect.ActionName);
+    }
+
+    [Fact]
+    public async Task Failed_renders_only_for_preprocessing_failed()
+    {
+        _runs.GetAsync(RunId, Arg.Any<CancellationToken>()).Returns(Run(EgressRunStatus.PreprocessingFailed));
+        _windows.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(Window());
+        var view = Assert.IsType<ViewResult>(await Build().Failed(RunId, CancellationToken.None));
+        Assert.Equal("Failed", view.ViewName);
+
+        _runs.GetAsync(RunId, Arg.Any<CancellationToken>()).Returns(Run(EgressRunStatus.Pulled));
+        var redirect = Assert.IsType<RedirectToActionResult>(await Build().Failed(RunId, CancellationToken.None));
+        Assert.Equal(nameof(EgressController.Resume), redirect.ActionName);
+    }
+
+    [Fact]
+    public async Task Complete_renders_only_for_transferred()
+    {
+        _runs.GetAsync(RunId, Arg.Any<CancellationToken>()).Returns(Run(EgressRunStatus.Transferred));
+        _windows.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(Window());
+        var view = Assert.IsType<ViewResult>(await Build().Complete(RunId, CancellationToken.None));
+        Assert.Equal("Complete", view.ViewName);
+
+        _runs.GetAsync(RunId, Arg.Any<CancellationToken>()).Returns(Run(EgressRunStatus.Preprocessed));
+        var redirect = Assert.IsType<RedirectToActionResult>(await Build().Complete(RunId, CancellationToken.None));
+        Assert.Equal(nameof(EgressController.Resume), redirect.ActionName);
+    }
+
+    // S10: no PreprocessingRun (the no-JS fallback) outcome was covered.
+    private static async IAsyncEnumerable<EgressProgress> One(EgressProgress p) { await Task.Yield(); yield return p; }
+
+    [Fact]
+    public async Task PreprocessingRun_redirects_to_summary_when_the_pipeline_completes()
+    {
+        _preprocessor.RunAsync(RunId, Arg.Any<CancellationToken>())
+            .Returns(One(new EgressProgress(8, 8, "Save to database", "done", 1, 1, 0, true, false, "Saved 1 record(s).", EgressRunStatus.Preprocessed)));
+
+        var redirect = Assert.IsType<RedirectToActionResult>(await Build().PreprocessingRun(RunId, CancellationToken.None));
+
+        Assert.Equal(nameof(EgressController.Summary), redirect.ActionName);
+    }
+
+    [Fact]
+    public async Task PreprocessingRun_redirects_to_failed_when_the_pipeline_fails()
+    {
+        _preprocessor.RunAsync(RunId, Arg.Any<CancellationToken>())
+            .Returns(One(new EgressProgress(8, 8, "Save to database", "failed", 1, 0, 1, true, true, "Preprocessing stopped.", EgressRunStatus.PreprocessingFailed)));
+
+        var redirect = Assert.IsType<RedirectToActionResult>(await Build().PreprocessingRun(RunId, CancellationToken.None));
+
+        Assert.Equal(nameof(EgressController.Failed), redirect.ActionName);
+    }
+
+    [Fact]
+    public async Task PreprocessingRun_goes_home_with_the_message_when_it_does_not_complete()
+    {
+        _preprocessor.RunAsync(RunId, Arg.Any<CancellationToken>())
+            .Returns(One(new EgressProgress(0, 8, "Preprocessing", "failed", 0, 0, 0, true, true, "This run is Transferring and cannot be preprocessed.", null)));
+
+        var controller = Build();
+        var redirect = Assert.IsType<RedirectToActionResult>(await controller.PreprocessingRun(RunId, CancellationToken.None));
+
+        Assert.Equal(nameof(EgressController.Index), redirect.ActionName);
+        Assert.Equal("This run is Transferring and cannot be preprocessed.", controller.TempData[EgressController.BannerKey]);
+    }
+
+    // S10: Preview had no coverage.
+    [Fact]
+    public async Task Preview_splits_the_built_csv_into_headers_and_rows()
+    {
+        var run = Run(EgressRunStatus.Preprocessed) with
+        {
+            Outputs = [new EgressRunOutputDto(Guid.NewGuid(), EgressOutputType.RemoveLearners, true, [], 2, 2, "CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv", null)]
+        };
+        _runs.GetAsync(RunId, Arg.Any<CancellationToken>()).Returns(run);
+        _transfer.BuildFileAsync(RunId, EgressOutputType.RemoveLearners, Arg.Any<CancellationToken>())
+            .Returns(System.Text.Encoding.UTF8.GetBytes("Correction_ID,Surname\r\n1001,Smith"));
+
+        var view = Assert.IsType<ViewResult>(await Build().Preview(RunId, EgressOutputType.RemoveLearners, CancellationToken.None));
+
+        Assert.Equal("Preview", view.ViewName);
+        var model = Assert.IsType<PreviewViewModel>(view.Model);
+        Assert.Equal(["Correction_ID", "Surname"], model.Headers);
+        Assert.Equal(new[] { new List<string> { "1001", "Smith" } }, model.Rows);
+    }
+
+    [Fact]
+    public async Task Preview_404s_when_the_run_has_not_reached_this_output_yet()
+    {
+        var run = Run(EgressRunStatus.Pulled);
+        _runs.GetAsync(RunId, Arg.Any<CancellationToken>()).Returns(run);
+
+        Assert.IsType<NotFoundResult>(await Build().Preview(RunId, EgressOutputType.RemoveLearners, CancellationToken.None));
+    }
+
+    // S10: only the success/Failed branches of Transfer were covered; Refused was not.
+    [Fact]
+    public async Task Transfer_refused_shows_who_holds_the_pair_and_returns_to_summary()
+    {
+        var blocker = new EgressBlocker(Guid.NewGuid(), EgressRunStatus.Pulled, "Ops Two", DateTime.UtcNow, null, null);
+        _transfer.TransferAsync(RunId, Arg.Any<EgressActor>(), Arg.Any<CancellationToken>())
+            .Returns(new EgressTransferResult.Refused(blocker));
+
+        var controller = Build();
+        var redirect = Assert.IsType<RedirectToActionResult>(await controller.Transfer(RunId, CancellationToken.None));
+
+        Assert.Equal(nameof(EgressController.Summary), redirect.ActionName);
+        var message = Assert.IsType<string>(controller.TempData[EgressController.TransferErrorKey]);
+        Assert.Contains("Ops Two", message);
+        Assert.Contains("This checking window and output type", message);
+    }
+
     [Fact]
     public async Task Transfer_success_redirects_to_complete_and_failure_back_to_summary_with_the_reason()
     {
@@ -202,16 +359,53 @@ public sealed class EgressControllerTests
         Assert.Equal("CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv", file.FileDownloadName);
     }
 
-    // M1: moved from IEgressRunService to IEgressTransferService, since Abandon now needs blob
-    // access to sweep a Transferring run's own files. Fuller state/banner coverage is S10.
+    // S10: rewritten to assert the banner text the outcome actually produces, not merely that the
+    // mock was invoked — the four EgressAbandonResult branches each need a distinct message.
     [Fact]
-    public async Task Abandon_marks_the_run_and_returns_home()
+    public async Task Abandon_of_an_untransferred_run_reports_nothing_was_transferred()
     {
         _transfer.AbandonAsync(RunId, Arg.Any<CancellationToken>()).Returns(new EgressAbandonResult.Abandoned([]));
         var controller = Build();
+
         var redirect = Assert.IsType<RedirectToActionResult>(await controller.Abandon(RunId, CancellationToken.None));
+
         Assert.Equal(nameof(EgressController.Index), redirect.ActionName);
-        await _transfer.Received(1).AbandonAsync(RunId, Arg.Any<CancellationToken>());
-        Assert.NotNull(controller.TempData[EgressController.BannerKey]);
+        Assert.Equal("The egress run was abandoned. Nothing was transferred.", controller.TempData[EgressController.BannerKey]);
+    }
+
+    [Fact]
+    public async Task Abandon_of_a_run_that_swept_blobs_names_what_was_removed()
+    {
+        _transfer.AbandonAsync(RunId, Arg.Any<CancellationToken>())
+            .Returns(new EgressAbandonResult.Abandoned(["CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv"]));
+        var controller = Build();
+
+        var redirect = Assert.IsType<RedirectToActionResult>(await controller.Abandon(RunId, CancellationToken.None));
+
+        Assert.Equal(nameof(EgressController.Index), redirect.ActionName);
+        var banner = Assert.IsType<string>(controller.TempData[EgressController.BannerKey]);
+        Assert.Contains("CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv", banner);
+        Assert.DoesNotContain("Nothing was transferred", banner);
+    }
+
+    [Fact]
+    public async Task Abandon_of_an_already_transferred_run_refuses_without_re_abandoning()
+    {
+        _transfer.AbandonAsync(RunId, Arg.Any<CancellationToken>()).Returns(new EgressAbandonResult.AlreadyTransferred());
+        var controller = Build();
+
+        var redirect = Assert.IsType<RedirectToActionResult>(await controller.Abandon(RunId, CancellationToken.None));
+
+        Assert.Equal(nameof(EgressController.Index), redirect.ActionName);
+        var banner = Assert.IsType<string>(controller.TempData[EgressController.BannerKey]);
+        Assert.Contains("already been transferred", banner);
+    }
+
+    [Fact]
+    public async Task Abandon_of_an_unknown_run_returns_not_found()
+    {
+        _transfer.AbandonAsync(RunId, Arg.Any<CancellationToken>()).Returns(new EgressAbandonResult.NotFound());
+
+        Assert.IsType<NotFoundResult>(await Build().Abandon(RunId, CancellationToken.None));
     }
 }

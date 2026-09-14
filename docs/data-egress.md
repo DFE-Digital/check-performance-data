@@ -55,13 +55,22 @@ CYPMD holds, and the journey's answers flattened by question id (`EgressAnswers.
 Pulled → Preprocessing → (PreprocessingFailed | Preprocessed) → Transferring → (TransferFailed | Transferred)
 ```
 
-`Abandoned` is reachable from any non-terminal status. A run is persisted the moment the pull
-succeeds (`EgressRunService.StartAsync` → `IEgressRunRepository.CreateRunAsync`), so "Save and
-exit" on any screen is just leaving the page — there is no separate save action. Resume
+`Abandoned` is reachable from any non-terminal status, including `Preprocessing` and
+`Transferring` — the lock has no expiry, so a run stuck there after a pod restart or a crashed
+tab must always be releasable, and every screen from Preprocessing onwards carries an Abandon
+form. Abandoning a `Transferring` run also sweeps any blob it actually wrote (matched by the
+`egressRunId` metadata stamped on upload) before releasing the pair, so a same-named retry never
+collides with an orphaned file; the confirmation banner names what was removed, if anything, or
+says nothing was transferred. A run is persisted the moment the pull succeeds
+(`EgressRunService.StartAsync` → `IEgressRunRepository.CreateRunAsync`), so "Save and exit" on any
+screen is just leaving the page — there is no separate save action. Resume
 (`EgressController.Resume`) maps status to screen: `Pulled` → Results, `Preprocessing` →
 Preprocessing, `PreprocessingFailed` → Failed, `Preprocessed`/`TransferFailed`/`Transferring` →
 Summary, `Transferred` → Complete; `Abandoned` (or an unknown run) sends the user home with a
-banner. Preprocessing and a failed transfer can both be re-run from the same screen.
+banner. A failed **transfer** can be re-run from the same screen; a `PreprocessingFailed` run
+cannot — it releases its pair (its outputs go inactive) and the Failed screen's own copy directs
+starting a new run instead, so two runs (the retried one and a colleague's fresh one) can never
+both hold the same pair.
 
 ## 4. Concurrency
 
@@ -102,10 +111,17 @@ Eight steps, reported one at a time over the same `IAsyncEnumerable<EgressProgre
 8. **Save to database** — all or nothing: if **any** record failed at any step, nothing is written,
    the run becomes `PreprocessingFailed`, and every failure (step, ticket id, reference, field,
    reason) is listed on the Failed screen; otherwise rows go to `new_learners`/`remove_learners`,
-   file names are fixed for the run, and the run becomes `Preprocessed`.
+   file names are fixed for the run, and the run becomes `Preprocessed`. Every independent step
+   (2–4) runs regardless of an earlier one's outcome, so a record with two unrelated problems (say
+   an unmapped correction reason and an invalid LAESTAB) lists both in one pass rather than the
+   second only surfacing on a later re-run.
 
 Leaving the page mid-run (closing the SSE connection, or the no-JS POST being interrupted) puts the
 run back to its status before preprocessing started — nothing durable happens until step 8 commits.
+If the run was abandoned by someone else while this pipeline was still running, step 8's write is
+guarded by the run's expected status and does nothing; the stream reports "this run was abandoned
+while preprocessing" rather than claiming `Preprocessed` or `PreprocessingFailed` for a run that is
+actually `Abandoned`.
 
 ## 6. Files
 
@@ -137,17 +153,35 @@ calendar date at the moment preprocessing finishes (`EgressOutputTypes.FileName`
 
 ## 7. Transfer and audit
 
-`EgressTransferService.TransferAsync` builds each file's bytes from the **persisted rows**, never
-from the pulled payload, and uploads with `IfNoneMatch: *` (create-only — an existing blob is never
-overwritten). If any file in the run fails to upload, every file already written by that transfer
-attempt is deleted (`IEgressBlobClient.DeleteIfExistsAsync`) and the run becomes `TransferFailed`
-with the reason recorded; a retry re-activates the run's outputs first and is refused if another
-run has since claimed the pair. Success and failure each write an `AuditEntry` in the same
-transaction as the run's state change (`EgressRunRepository.MarkTransferredAsync` /
-`MarkTransferFailedAsync`): `EntityType` `"EgressRun"`, `Action` `"Transfer"` or `"TransferFailed"`,
-`NewValues` a JSON object with the outcome, window id, output types, file names, record counts,
-SHA-256 hashes, target container and who/when. No audit row ever claims success for a failed
-transfer.
+`EgressTransferService.TransferAsync` refuses before touching anything if every output's saved row
+count is zero (every record was rejected, undecided, or lost to a misconfigured ticket source) —
+Summary shows a plain message instead of Confirm in that case, so LDS is never sent a header-only
+file for a pair that then locks forever. Otherwise it builds each file's bytes from the
+**persisted rows**, never from the pulled payload, and uploads with `IfNoneMatch: *` (create-only —
+an existing blob is never overwritten).
+
+Once the run's status has flipped to `Transferring`, the upload loop, the commit
+(`MarkTransferredAsync`) and all compensation run with `CancellationToken.None`, not the request's
+own token — a browser tab closing mid-upload must not abandon a run with files already in LDS. If
+any file fails to upload, every file already written by that attempt is deleted
+(`IEgressBlobClient.DeleteIfExistsAsync`), and the specific file that was mid-upload when the
+failure happened is *also* checked and removed if it turns out to have landed server-side despite
+the client seeing a failure (matched by the `egressRunId` metadata stamped on upload, so a blob
+belonging to a different run is never touched); the run becomes `TransferFailed` with the reason
+recorded. A post-upload failure in the commit itself (every file uploaded, but marking the run
+`Transferred` throws, or loses a race because the run was abandoned in between) is caught the same
+way and compensated identically — no partial state survives silently. A retry re-activates the
+run's outputs first and is refused if another run has since claimed the pair.
+
+Every terminal write (`MarkPreprocessingFailedAsync`, `SavePreprocessedAsync`,
+`MarkTransferredAsync`, `MarkTransferFailedAsync`) is guarded by the status the caller expects the
+run to currently hold, and reports rows affected; a caller that gets zero back knows it lost a race
+(most often to a concurrent Abandon) and never overwrites what actually happened with a stale
+outcome. Success and failure each write an `AuditEntry` in the same transaction as the guarded
+state change: `EntityType` `"EgressRun"`, `Action` `"Transfer"` or `"TransferFailed"`, `NewValues` a
+JSON object with the outcome, window id, output types, file names, record counts, SHA-256 hashes,
+target container and who/when. No audit row is ever written for a write that lost its race, and no
+audit row ever claims success for a failed transfer.
 
 ## 8. Configuration
 
@@ -155,14 +189,16 @@ transfer.
 |---|---|
 | `ConnectionStrings:EgressStorage` | The LDS storage account. Absent → the app refuses to transfer with a clear "not configured" message rather than failing at startup. Must be added to each deployed environment's Key Vault/Terraform secrets; **not done in this PR** — see gaps below. |
 | `EgressStorage:Container` (default `cypmd`) / `EgressStorage:Prefix` (default `extracts_input/`) | Where in the account files land. Bindable only so a test can point at a scratch container — never user-editable. |
-| `Zendesk:UseFake` (default `true`) | Selects the ticket source: the dev outbox (`DevOutboxEgressTicketSource`, no Zendesk settings needed) when true, the real Zendesk client (`ZendeskEgressTicketSource`, via the same `AddZendeskApiClient` the worker uses) when false. |
+| `Zendesk:UseFake` (default **`false`**) | Selects the ticket source: the real Zendesk client (`ZendeskEgressTicketSource`, via the same `AddZendeskApiClient` the worker uses) unless explicitly set to `true`, which selects the dev outbox (`DevOutboxEgressTicketSource`, no Zendesk settings needed). The default matches the worker's own configured default — a fresh environment that sets nothing reads real Zendesk decisions, not the dev outbox. `AddCpdEgress` refuses to start if `UseFake=true` is set in Production, regardless of configuration, so the dev outbox can never be reached there. Local/E2E stacks opt in explicitly via `Zendesk__UseFake=true` (`docker-compose.yaml`, `docker-compose.sandbox.yaml`), since neither has real Zendesk credentials. |
 | `ZendeskTicketFields:DecisionStatusId` | The real ticket source's required field id; `0` in production today, so it refuses to pull until configured. |
 | Admin grant `egress` | `DefaultAdminAccessSeeder.AllSections` — without it a fresh database 404s on `/admin/egress` even for an admin. |
 
 ## 9. Local development and E2E
 
 Locally the web container gets a third Azurite account (`docker-compose.yaml`,
-`ConnectionStrings__EgressStorage`, alongside the app and ingress accounts).
+`ConnectionStrings__EgressStorage`, alongside the app and ingress accounts), and opts in to the
+dev outbox fake explicitly with `Zendesk__UseFake=true` — the code/config default is now the real
+Zendesk client, which this stack has no credentials for.
 
 `DevEgressController` (dev-only, 404 unless `Dev:ToolsEnabled` and not Production, same rule as
 `DevPipelineController`) stages fixture data with no worker and no real Zendesk:
@@ -208,3 +244,14 @@ Explorer, or the Azure CLI, pointed at the `EgressStorage` connection string fro
 - The pre-existing gap that `Controllers/WindowAdmin/*` carries no `[RequireAdminSection]` is a
   separate ticket and was not touched here; the new `EgressController` **is** gated.
 - Every copy string introduced by this feature is FLAGGED for content sign-off — see the PR notes.
+- **Same-stage same-day file-name collision**: two different checking windows of the same stage
+  transferred on the same day produce the same file name, so the second run's transfer fails with
+  "already exists" — the only ways out today are waiting a day or a manual delete in LDS. Question
+  for LDS: is one-window-per-stage-per-day a real constraint? Tracked as a follow-up, not fixed by
+  this pass.
+- **`PreprocessingStream` is a state-mutating GET** (the accepted `ValidateWindowController`
+  pattern) — the JS closes the `EventSource` on a terminal/error event, so the browser's automatic
+  reconnect never restarts the server-side pipeline. Left as-is; noted for the next contributor.
+- An independent review (`.superpowers/plans/2026-09-14-294553-opus-review.md`) found one Blocker
+  and four Must-fixes in the transfer/lock state machine plus several should-fixes, all addressed
+  in follow-up commits on this branch — see the PR notes §9 for the finding-by-finding record.

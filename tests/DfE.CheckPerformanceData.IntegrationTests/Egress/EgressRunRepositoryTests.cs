@@ -196,6 +196,26 @@ public sealed class EgressRunRepositoryTests(PostgresFixture fixture)
         Assert.Equal(2, await db.AuditEntries.CountAsync(a => a.EntityType == "EgressRun" && a.EntityId == id.ToString() && a.Action == "TransferFailed"));
     }
 
+    // S1: RawRecordsJson (the pulled payload — names, DOB, sex, UPN, every journey answer) must not
+    // be copied into AuditEntries.NewValues on insert; only the run-level Transfer/TransferFailed
+    // audit row (already asserted above) is the audit record this feature writes. Same rationale as
+    // the existing EgressNewLearner/EgressRemoveLearner exemption, extended to the row that carries
+    // the raw pull.
+    [Fact]
+    public async Task Creating_a_run_and_saving_preprocessed_rows_writes_no_audit_entry_for_any_egress_row()
+    {
+        await ResetAsync();
+        var repo = Repository();
+        var id = await repo.CreateRunAsync(Create(EgressOutputType.RemoveLearners), CancellationToken.None);
+        var remove = new RemoveLearnerRow("1001", "31", "4", "KS4", "4070", "Smith", "Alice", "F", "2010-09-07", "2026", "6", "860", "555", Guid.NewGuid(), 1001, "REF-1");
+        var names = new Dictionary<EgressOutputType, string> { [EgressOutputType.RemoveLearners] = "CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv" };
+        await repo.SavePreprocessedAsync(id, EgressRunStatus.Pulled, [], [remove], new DateOnly(2026, 6, 8), names, CancellationToken.None);
+
+        await using var db = fixture.CreateContext();
+        Assert.False(await db.AuditEntries.AnyAsync(a =>
+            a.EntityType == "EgressRunOutput" || a.EntityType == "EgressNewLearner" || a.EntityType == "EgressRemoveLearner"));
+    }
+
     // M4: every terminal write is guarded by the expected status it requires, so a run that has
     // moved on (e.g. Abandoned) since the caller last read it can never be silently overwritten.
     [Fact]

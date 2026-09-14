@@ -306,6 +306,26 @@
             </div>
         </div>
 
+        @* Single-page search gets its own entry point rather than a card of figures: its rows
+           answer a different question from the rest of the dashboard (what one page was asked,
+           not what the site was asked), and reading them alongside site totals invites
+           comparing numbers that do not mean the same thing. *@
+        <div class="govuk-summary-card govuk-!-margin-bottom-6 sa-summary-card">
+            <div class="govuk-summary-card__title-wrapper">
+                <h2 class="govuk-summary-card__title">Single-page search</h2>
+            </div>
+            <div class="govuk-summary-card__content">
+                <p class="govuk-body">
+                    Searches made with a widget set to search the page it sits on. A visitor is
+                    offered the sections of that page and jumps to one, so these never show up as
+                    a page view or a results page anywhere else.
+                </p>
+                <p class="govuk-body">
+                    <a class="govuk-link" href="/admin/Search/OnPage?@rangeQs">View single-page search &rarr;</a>
+                </p>
+            </div>
+        </div>
+
         <div class="govuk-summary-card govuk-!-margin-bottom-6 sa-summary-card">
             <div class="govuk-summary-card__title-wrapper">
                 <h2 class="govuk-summary-card__title">Top zero-result queries</h2>

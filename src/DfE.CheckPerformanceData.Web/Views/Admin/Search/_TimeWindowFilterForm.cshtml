@@ -1,5 +1,7 @@
 @using System.Globalization
+@using DfE.CheckPerformanceData.Application.Analytics
 @model DfE.CheckPerformanceData.Web.Controllers.ViewModels.TimeWindowFilterModel
+@inject ISearchSurfaceFilter SurfaceFilter
 @{
     // Shared time-window + bucket-size filter form used by the landing dashboard and every
     // series drill-in. Same GDS controls; the form's action URL varies per caller (the
@@ -100,6 +102,35 @@
             </div>
         </div>
     }
+
+    @* Which search surfaces the figures cover. Read from the same ISearchSurfaceFilter the
+       query layer uses, so the boxes ticked here can never disagree with what was counted.
+       All ticked (or none) means everything, which is what an unfiltered dashboard shows. *@
+    <div class="govuk-form-group">
+        <fieldset class="govuk-fieldset">
+            <legend class="govuk-fieldset__legend govuk-fieldset__legend--s">Search surface</legend>
+            <div class="govuk-hint">
+                Leave all ticked to count every search. A submitted search is one someone pressed
+                the button for; an instant search is a typeahead they settled on.
+            </div>
+            <div class="govuk-checkboxes govuk-checkboxes--small govuk-checkboxes--inline" data-module="govuk-checkboxes">
+                @foreach (var (value, label) in new[]
+                {
+                    (SearchSurfaces.Site, "Submitted search"),
+                    (SearchSurfaces.Instant, "Instant search"),
+                    (SearchSurfaces.InstantPage, "Single-page search"),
+                })
+                {
+                    var id = "surface-" + value;
+                    <div class="govuk-checkboxes__item">
+                        <input class="govuk-checkboxes__input" id="@id" name="surface" type="checkbox"
+                               value="@value" @(SurfaceFilter.Surfaces.Contains(value) ? "checked=\"checked\"" : "") />
+                        <label class="govuk-label govuk-checkboxes__label" for="@id">@label</label>
+                    </div>
+                }
+            </div>
+        </fieldset>
+    </div>
 
     <div class="govuk-button-group">
         <button class="govuk-button" data-module="govuk-button" type="submit">Apply filters</button>

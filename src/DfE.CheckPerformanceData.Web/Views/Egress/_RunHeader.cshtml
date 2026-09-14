@@ -1,0 +1,4 @@
+@model DfE.CheckPerformanceData.Web.Controllers.Egress.RunPageViewModel
+@using DfE.CheckPerformanceData.Application.Egress
+
+<span class="govuk-caption-l">@Model.WindowTitle · @string.Join(", ", Model.Run.Outputs.Select(o => EgressOutputTypes.Label(o.OutputType)))</span>

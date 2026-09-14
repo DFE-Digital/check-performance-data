@@ -1,0 +1,48 @@
+@model DfE.CheckPerformanceData.Web.Controllers.Egress.RunPageViewModel
+@{
+    ViewData["Title"] = "Preprocessing data";
+}
+
+<a class="govuk-back-link" href="/admin/egress/runs/@Model.Run.Id/results">Back to pulled data</a>
+<partial name="_RunHeader" model="Model" />
+<h1 class="govuk-heading-xl">Preprocessing data</h1>
+<p class="govuk-body">@Model.WindowTitle: do not navigate away from this page while preprocessing runs. If you do, the run goes back to the pulled data and nothing is saved.</p>
+
+<div data-module="egress-preprocess" data-stream-url="@Model.StreamUrl">
+
+    @* No-JS path: the button posts and the server runs every step before redirecting. JS hides
+       this form and opens the stream instead, ticking the steps below as they complete. *@
+    <form method="post" action="/admin/egress/runs/@Model.Run.Id/preprocessing" data-egress-form>
+        @Html.AntiForgeryToken()
+        <govuk-button type="submit" data-egress-start data-testid="egress-run-preprocessing">Run preprocessing</govuk-button>
+    </form>
+
+    <div class="govuk-!-display-none" data-egress-progress-wrapper>
+        <h2 class="govuk-heading-s govuk-!-margin-bottom-1">Preprocessing progress</h2>
+        <div role="progressbar" aria-valuemin="0" aria-valuemax="@Model.StepNames.Count" aria-valuenow="0" aria-label="Preprocessing progress" data-egress-progressbar>
+            <p class="govuk-body" data-egress-status aria-live="polite">Starting…</p>
+        </div>
+    </div>
+
+    <h2 class="govuk-heading-s govuk-!-margin-top-4">Steps</h2>
+    <ol class="govuk-list govuk-list--number" data-egress-steps>
+        @{ var index = 0; }
+        @foreach (var step in Model.StepNames)
+        {
+            index++;
+            <li data-egress-step="@index">
+                @step
+                <strong class="govuk-tag govuk-tag--grey govuk-!-margin-left-2" data-egress-step-state>Not started</strong>
+                <span class="govuk-hint govuk-!-display-inline govuk-!-margin-left-1" data-egress-step-message></span>
+            </li>
+        }
+    </ol>
+
+    <div class="govuk-button-group">
+        <a class="govuk-button govuk-button--secondary" href="/admin/egress" data-testid="egress-save">Save and exit</a>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/egress-preprocess.js" asp-append-version="true"></script>
+}

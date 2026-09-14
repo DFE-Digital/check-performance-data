@@ -80,4 +80,34 @@ public class WidgetRegistryTests
 
         Assert.Empty(props);
     }
+
+    // ----- Search widget: the two axes (scope target x instant) -----
+
+    [Fact]
+    public void CreateDefaultProps_Search_DefaultsToWholeSite_NotInstant()
+    {
+        var props = WidgetRegistry.CreateDefaultProps("search");
+
+        Assert.Equal("site", (string)props["searchIn"]!);
+        Assert.Equal("false", (string)props["instant"]!);
+    }
+
+    [Fact]
+    public void CreateDefaultProps_Search_KeepsItsExistingProps()
+    {
+        // The new props are additive: a widget placed before they existed must keep working,
+        // so nothing that was already in the schema may be dropped.
+        var props = WidgetRegistry.CreateDefaultProps("search");
+
+        foreach (var key in new[] { "label", "placeholder", "action", "buttonText", "scope" })
+            Assert.True(props.ContainsKey(key), $"search default props lost '{key}'.");
+    }
+
+    [Fact]
+    public void CreateDefaultProps_Search_CarriesNoResultsCopy()
+    {
+        var props = WidgetRegistry.CreateDefaultProps("search");
+
+        Assert.False(string.IsNullOrWhiteSpace((string?)props["noResultsText"]));
+    }
 }

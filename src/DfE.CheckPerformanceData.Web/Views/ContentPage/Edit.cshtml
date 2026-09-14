@@ -418,6 +418,29 @@
     })();
 </script>
 
+@* Live toggling for the Search widget editor: the scope path only applies to a section of the
+   site, and the no-results copy only to instant search. *@
+<script>
+    (function () {
+        'use strict';
+        document.querySelectorAll('[data-cpb-search-in]').forEach(function (select) {
+            var wrapper = select.closest('.govuk-details__text');
+            if (!wrapper) return;
+            var pathField = wrapper.querySelector('[data-cpb-search-pathfield]');
+            var instantCheckbox = wrapper.querySelector('[data-cpb-search-instant]');
+            var instantFields = wrapper.querySelector('[data-cpb-search-instantfields]');
+
+            function refresh() {
+                if (pathField) pathField.hidden = select.value !== 'path';
+                if (instantFields) instantFields.hidden = !(instantCheckbox && instantCheckbox.checked);
+            }
+            select.addEventListener('change', refresh);
+            if (instantCheckbox) instantCheckbox.addEventListener('change', refresh);
+            refresh();
+        });
+    })();
+</script>
+
 @* URL-change confirmation. When the segment field differs from the value the page loaded
    with, the outer form's submit is cancelled, the current title / subtitle / page name / segment
    are copied into the modal's hidden inputs, and the govuk-confirm-modal is opened. Title-only

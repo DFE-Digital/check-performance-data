@@ -66,6 +66,40 @@ public sealed class WidgetEditorContractTests
         Assert.Contains("props[buttonText]", b);
     }
 
+    [Fact]
+    public void Search_EditorExposesTheThreeSearchTargets()
+    {
+        var b = SearchBranch();
+        Assert.Contains("props[searchIn]", b);
+        Assert.Contains("value=\"site\"", b);
+        Assert.Contains("value=\"path\"", b);
+        Assert.Contains("value=\"page\"", b);
+    }
+
+    [Fact]
+    public void Search_EditorExposesTheInstantTickBox()
+    {
+        var b = SearchBranch();
+        Assert.Contains("props[instant]", b);
+        Assert.Contains("type=\"checkbox\"", b);
+    }
+
+    [Fact]
+    public void Search_EditorExposesNoResultsCopy()
+    {
+        Assert.Contains("props[noResultsText]", SearchBranch());
+    }
+
+    [Fact]
+    public void Search_EditorKeepsTheFallbackFieldsVisible()
+    {
+        // Action and button text are what a no-JS visitor uses even when instant search is on,
+        // so they must not be hidden behind the instant toggle.
+        var b = SearchBranch();
+        Assert.Contains("props[action]", b);
+        Assert.Contains("props[buttonText]", b);
+    }
+
     // ----- helpers -----
 
     // Returns the slice of the editor between the `case "results":` line and its `break;`.

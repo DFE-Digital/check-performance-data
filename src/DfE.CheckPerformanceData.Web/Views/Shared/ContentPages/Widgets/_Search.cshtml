@@ -6,10 +6,39 @@
     var action      = Model.GetString("action")      ?? string.Empty;
     var buttonText  = Model.GetString("buttonText")  ?? "Search";
     // Optional scope: narrows results to pages under a path prefix (matches /search's ?scope=).
-    var scope       = (Model.GetString("scope") ?? string.Empty).Trim().Trim('/');
-    var inputId     = string.IsNullOrEmpty(Model.Anchor) ? "search" : $"search-{Model.Anchor}";
+    var scopeProp   = (Model.GetString("scope") ?? string.Empty).Trim().Trim('/');
+
+    // Where the widget searches: the whole site, one section of it, or the page it sits on.
+    var searchIn = (Model.GetString("searchIn") ?? string.Empty).Trim().ToLowerInvariant();
+    // Widgets placed before this prop existed carry only a scope, so a scope they already set still
+    // means a section and an empty one still means the whole site. Nothing needs migrating.
+    if (searchIn.Length == 0) searchIn = scopeProp.Length > 0 ? "path" : "site";
+    // An unrecognised value searches the whole site rather than rendering a box that does nothing.
+    if (searchIn != "path" && searchIn != "page") searchIn = "site";
+
+    // The scope that travels with the form. "This page" resolves to the page being viewed, which is
+    // what lets a no-JS submit still land on a search of just this page.
+    var currentPath = (ViewContext.HttpContext.Request.Path.Value ?? string.Empty).Trim('/');
+    var scope = searchIn switch
+    {
+        "path" => scopeProp,
+        "page" => currentPath,
+        _      => string.Empty
+    };
+
+    // Instant search is an enhancement over the form below, never a replacement for it: the markup
+    // is identical either way, and the script only binds when the marker attribute is present.
+    var instant       = Model.GetBool("instant") ?? false;
+    var noResultsText = Model.GetString("noResultsText") ?? "No results found";
+    var inputId       = string.IsNullOrEmpty(Model.Anchor) ? "search" : $"search-{Model.Anchor}";
 }
-<form class="cypmd-search" role="search" method="get" action="@action">
+@* Razor omits an attribute whose value expression is null, so a non-instant widget carries no
+   marker, so the enhancement script never binds to it. *@
+<form class="cypmd-search" role="search" method="get" action="@action"
+      data-cypmd-instant-search="@(instant ? "true" : null)"
+      data-search-in="@(instant ? searchIn : null)"
+      data-scope="@(instant ? scope : null)"
+      data-no-results="@(instant ? noResultsText : null)">
     <div class="govuk-form-group">
         <label class="govuk-label govuk-label--s" for="@inputId">@label</label>
         <div class="cypmd-search__row">
@@ -25,3 +54,7 @@
         <input type="hidden" name="scope" value="@scope" />
     }
 </form>
+@if (instant)
+{
+    <script src="~/js/instant-search.js" asp-append-version="true"></script>
+}

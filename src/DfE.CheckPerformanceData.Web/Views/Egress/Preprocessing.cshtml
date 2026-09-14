@@ -19,9 +19,11 @@
 
     <div class="govuk-!-display-none" data-egress-progress-wrapper>
         <h2 class="govuk-heading-s govuk-!-margin-bottom-1">Preprocessing progress</h2>
-        <div role="progressbar" aria-valuemin="0" aria-valuemax="@Model.StepNames.Count" aria-valuenow="0" aria-label="Preprocessing progress" data-egress-progressbar>
-            <p class="govuk-body" data-egress-status aria-live="polite">Starting…</p>
-        </div>
+        @* S6: role="progressbar" only permits presentational children per the ARIA spec, so an
+           aria-live region nested inside it may never be announced by assistive tech. Nothing
+           visual is drawn inside the bar itself, so the status paragraph is a sibling instead. *@
+        <div role="progressbar" aria-valuemin="0" aria-valuemax="@Model.StepNames.Count" aria-valuenow="0" aria-label="Preprocessing progress" data-egress-progressbar></div>
+        <p class="govuk-body" data-egress-status aria-live="polite">Starting…</p>
     </div>
 
     <h2 class="govuk-heading-s govuk-!-margin-top-4">Steps</h2>

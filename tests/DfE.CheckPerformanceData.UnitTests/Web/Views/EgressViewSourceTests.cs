@@ -93,6 +93,20 @@ public sealed class EgressViewSourceTests
         Assert.Contains("egress-preprocess.js", view);
     }
 
+    // S6: role="progressbar" only permits presentational children per the ARIA spec, so an
+    // aria-live region nested inside it may never be announced. The status paragraph must be a
+    // sibling of the progressbar element, not a child.
+    [Fact]
+    public void Preprocessing_page_keeps_the_live_region_out_of_the_progressbar()
+    {
+        var view = View("Preprocessing.cshtml");
+        var progressbarOpen = view.IndexOf("role=\"progressbar\"", StringComparison.Ordinal);
+        var progressbarClose = view.IndexOf("</div>", progressbarOpen, StringComparison.Ordinal);
+        var liveRegion = view.IndexOf("aria-live=\"polite\"", StringComparison.Ordinal);
+        Assert.True(liveRegion < progressbarOpen || liveRegion > progressbarClose,
+            "the aria-live region must not be nested inside the role=\"progressbar\" element");
+    }
+
     // M4: the lock has no expiry, so a run stuck in Preprocessing after a restart must be
     // releasable from this page, not only from Results/Summary.
     [Fact]

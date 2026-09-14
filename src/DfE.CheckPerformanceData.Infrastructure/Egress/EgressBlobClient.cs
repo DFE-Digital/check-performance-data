@@ -30,7 +30,11 @@ public sealed class EgressBlobClient(IReadOnlyDictionary<string, BlobServiceClie
                 Conditions = new BlobRequestConditions { IfNoneMatch = ETag.All }
             }, ct);
         }
-        catch (RequestFailedException ex) when (ex.Status == 409)
+        // S7: only the conflict this code actually handles — a blob already exists — is worth its
+        // own exception; a lease held on the blob or the container mid-delete also returns 409 but
+        // means something else entirely, and must propagate rather than being misreported as
+        // "remove it by hand".
+        catch (RequestFailedException ex) when (ex.Status == 409 && ex.ErrorCode == BlobErrorCode.BlobAlreadyExists.ToString())
         {
             throw new EgressBlobAlreadyExistsException(options.Value.Prefix + fileName);
         }

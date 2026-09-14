@@ -219,8 +219,9 @@ public sealed class EgressRunRepositoryTests(PostgresFixture fixture)
         await repo.MarkTransferFailedAsync(id, EgressRunStatus.TransferFailed, "again", UserId.ToString(), CancellationToken.None);
 
         var newer = await Repository().CreateRunAsync(Create(EgressOutputType.RemoveLearners), CancellationToken.None);
-        var blocker = await repo.TryReactivateAsync(id, CancellationToken.None);           // pair taken
-        Assert.Equal(newer, blocker!.RunId);
+        var blocked = await repo.TryReactivateAsync(id, CancellationToken.None);           // pair taken
+        Assert.Equal(EgressOutputType.RemoveLearners, blocked!.Value.OutputType);
+        Assert.Equal(newer, blocked.Value.Blocker.RunId);
 
         await using var db = fixture.CreateContext();
         Assert.Equal(2, await db.AuditEntries.CountAsync(a => a.EntityType == "EgressRun" && a.EntityId == id.ToString() && a.Action == "TransferFailed"));

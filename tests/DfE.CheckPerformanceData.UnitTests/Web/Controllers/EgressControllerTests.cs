@@ -269,24 +269,30 @@ public sealed class EgressControllerTests
         Assert.Equal("This run is Transferring and cannot be preprocessed.", controller.TempData[EgressController.BannerKey]);
     }
 
-    // S10: Preview had no coverage.
+    // S10/Nit: Preview must come from the saved rows via EgressColumnSets, not by splitting the
+    // CSV text — a quoted value containing a comma (a real surname, e.g. "Smith, Jr") would
+    // otherwise shift every column after it.
     [Fact]
-    public async Task Preview_splits_the_built_csv_into_headers_and_rows()
+    public async Task Preview_builds_the_table_from_the_saved_rows_not_the_csv_text()
     {
         var run = Run(EgressRunStatus.Preprocessed) with
         {
             Outputs = [new EgressRunOutputDto(Guid.NewGuid(), EgressOutputType.RemoveLearners, true, [], 2, 2, "CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv", null)]
         };
         _runs.GetAsync(RunId, Arg.Any<CancellationToken>()).Returns(run);
-        _transfer.BuildFileAsync(RunId, EgressOutputType.RemoveLearners, Arg.Any<CancellationToken>())
-            .Returns(System.Text.Encoding.UTF8.GetBytes("Correction_ID,Surname\r\n1001,Smith"));
+        _transfer.GetPreviewAsync(RunId, EgressOutputType.RemoveLearners, Arg.Any<CancellationToken>())
+            .Returns((EgressColumnSets.RemoveLearners.Select(c => c.Header).ToList(),
+                (IReadOnlyList<IReadOnlyList<string>>)[["1001", "31", "4", "KS4", "4070", "Smith, Jr", "Alice", "F", "2010-09-07", "2026", "6", "860", "555"]]));
 
         var view = Assert.IsType<ViewResult>(await Build().Preview(RunId, EgressOutputType.RemoveLearners, CancellationToken.None));
 
         Assert.Equal("Preview", view.ViewName);
         var model = Assert.IsType<PreviewViewModel>(view.Model);
-        Assert.Equal(["Correction_ID", "Surname"], model.Headers);
-        Assert.Equal(new[] { new List<string> { "1001", "Smith" } }, model.Rows);
+        Assert.Equal(EgressColumnSets.RemoveLearners.Select(c => c.Header), model.Headers);
+        var row = Assert.Single(model.Rows);
+        Assert.Equal("Smith, Jr", row[5]);
+        Assert.Equal(13, row.Count);
+        await _transfer.DidNotReceiveWithAnyArgs().BuildFileAsync(default, default, default);
     }
 
     [Fact]
@@ -299,12 +305,15 @@ public sealed class EgressControllerTests
     }
 
     // S10: only the success/Failed branches of Transfer were covered; Refused was not.
+    // Nit: EgressTransferResult.Refused now carries the specific output type instead of the
+    // controller hard-coding RemoveLearners and string-replacing the description — NewLearners
+    // here proves the real type is used, not the old placeholder.
     [Fact]
     public async Task Transfer_refused_shows_who_holds_the_pair_and_returns_to_summary()
     {
         var blocker = new EgressBlocker(Guid.NewGuid(), EgressRunStatus.Pulled, "Ops Two", DateTime.UtcNow, null, null);
         _transfer.TransferAsync(RunId, Arg.Any<EgressActor>(), Arg.Any<CancellationToken>())
-            .Returns(new EgressTransferResult.Refused(blocker));
+            .Returns(new EgressTransferResult.Refused(EgressOutputType.NewLearners, blocker));
 
         var controller = Build();
         var redirect = Assert.IsType<RedirectToActionResult>(await controller.Transfer(RunId, CancellationToken.None));
@@ -312,7 +321,16 @@ public sealed class EgressControllerTests
         Assert.Equal(nameof(EgressController.Summary), redirect.ActionName);
         var message = Assert.IsType<string>(controller.TempData[EgressController.TransferErrorKey]);
         Assert.Contains("Ops Two", message);
-        Assert.Contains("This checking window and output type", message);
+        Assert.Contains("New learners", message);
+    }
+
+    [Fact]
+    public async Task Transfer_of_an_unknown_run_returns_not_found()
+    {
+        _transfer.TransferAsync(RunId, Arg.Any<EgressActor>(), Arg.Any<CancellationToken>())
+            .Returns(new EgressTransferResult.NotFound());
+
+        Assert.IsType<NotFoundResult>(await Build().Transfer(RunId, CancellationToken.None));
     }
 
     [Fact]
@@ -355,7 +373,7 @@ public sealed class EgressControllerTests
 
         var file = Assert.IsType<FileContentResult>(await Build().Download(RunId, EgressOutputType.RemoveLearners, CancellationToken.None));
 
-        Assert.Equal("text/csv", file.ContentType);
+        Assert.Equal("text/csv; charset=utf-8", file.ContentType);
         Assert.Equal("CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv", file.FileDownloadName);
     }
 

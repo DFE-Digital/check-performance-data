@@ -16,7 +16,7 @@ public sealed class EgressTransferService(IEgressRunRepository repository, IEgre
     public async Task<EgressTransferResult> TransferAsync(Guid runId, EgressActor actor, CancellationToken ct)
     {
         var run = await repository.GetRunAsync(runId, ct);
-        if (run is null) return new EgressTransferResult.NotTransferable(EgressRunStatus.Abandoned);
+        if (run is null) return new EgressTransferResult.NotFound();
         if (run.Status is not (EgressRunStatus.Preprocessed or EgressRunStatus.TransferFailed))
             return new EgressTransferResult.NotTransferable(run.Status);
 
@@ -29,8 +29,8 @@ public sealed class EgressTransferService(IEgressRunRepository repository, IEgre
         var fromStatus = run.Status;
         if (fromStatus == EgressRunStatus.TransferFailed)
         {
-            var blocker = await repository.TryReactivateAsync(runId, ct);
-            if (blocker is not null) return new EgressTransferResult.Refused(blocker);
+            var blocked = await repository.TryReactivateAsync(runId, ct);
+            if (blocked is { } b) return new EgressTransferResult.Refused(b.OutputType, b.Blocker);
         }
 
         if (!blobs.IsConfigured)
@@ -152,6 +152,27 @@ public sealed class EgressTransferService(IEgressRunRepository repository, IEgre
     }
 
     public async Task<byte[]> BuildFileAsync(Guid runId, EgressOutputType type, CancellationToken ct) => (await BuildAsync(runId, type, ct)).Bytes;
+
+    public async Task<(IReadOnlyList<string> Headers, IReadOnlyList<IReadOnlyList<string>> Rows)> GetPreviewAsync(Guid runId, EgressOutputType type, CancellationToken ct)
+    {
+        switch (type)
+        {
+            case EgressOutputType.NewLearners:
+            {
+                var rows = await repository.GetNewLearnersAsync(runId, ct);
+                return (EgressColumnSets.NewLearners.Select(c => c.Header).ToList(),
+                    rows.Select(r => (IReadOnlyList<string>)EgressColumnSets.NewLearners.Select(c => c.Value(r)).ToList()).ToList());
+            }
+            case EgressOutputType.RemoveLearners:
+            {
+                var rows = await repository.GetRemoveLearnersAsync(runId, ct);
+                return (EgressColumnSets.RemoveLearners.Select(c => c.Header).ToList(),
+                    rows.Select(r => (IReadOnlyList<string>)EgressColumnSets.RemoveLearners.Select(c => c.Value(r)).ToList()).ToList());
+            }
+            default:
+                throw new ArgumentOutOfRangeException(nameof(type), type, "No preview builder for this output type.");
+        }
+    }
 
     private async Task<(byte[] Bytes, int Records)> BuildAsync(Guid runId, EgressOutputType type, CancellationToken ct)
     {

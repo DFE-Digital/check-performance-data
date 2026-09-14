@@ -86,4 +86,38 @@ public sealed class DevEgressControllerTests(PostgresFixture fixture)
         Assert.Empty(await db.ChangeRequests.Where(r => r.WindowId == WindowId).ToListAsync());
         await journeys.Received(1).DeleteAsync(WindowId, Arg.Any<string>());
     }
+
+    // Nit: Cleanup previously deleted blobs by file name alone, which could remove another run's
+    // blob if two windows' files happened to collide on name (Q3). It must delete only a blob this
+    // run actually owns, via the same egressRunId-metadata check the M1 sweep uses.
+    [Fact]
+    public async Task Cleanup_deletes_a_blob_using_its_owning_runs_id_not_just_its_file_name()
+    {
+        await ResetAsync();
+        var runId = Guid.NewGuid();
+        const string fileName = "CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv";
+        await using (var db = fixture.CreateContext())
+        {
+            db.EgressRuns.Add(new EgressRun
+            {
+                Id = runId, WindowId = WindowId, Status = EgressRunStatus.TransferFailed,
+                StartedById = Guid.NewGuid(), StartedByName = "Ops One", StartedAtUtc = DateTime.UtcNow
+            });
+            db.EgressRunOutputs.Add(new EgressRunOutput
+            {
+                Id = Guid.NewGuid(), RunId = runId, WindowId = WindowId, OutputType = EgressOutputType.RemoveLearners,
+                IsActive = false, RawRecordsJson = "[]", SourceRecordCount = 0, FileName = fileName
+            });
+            await db.SaveChangesAsync();
+        }
+        var blobs = Substitute.For<IEgressBlobClient>();
+        blobs.IsConfigured.Returns(true);
+        blobs.DeleteIfOwnedByRunAsync(fileName, runId, Arg.Any<CancellationToken>()).Returns(true);
+
+        var result = await Build(Substitute.For<IRequestStateBlobClient>(), blobs).Cleanup(WindowId, CancellationToken.None);
+
+        Assert.IsType<JsonResult>(result);
+        await blobs.Received(1).DeleteIfOwnedByRunAsync(fileName, runId, Arg.Any<CancellationToken>());
+        await blobs.DidNotReceiveWithAnyArgs().DeleteIfExistsAsync(default!, default);
+    }
 }

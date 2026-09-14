@@ -35,8 +35,9 @@ public interface IEgressRunRepository
     Task<int> SavePreprocessedAsync(Guid runId, EgressRunStatus expectedStatus, IReadOnlyList<NewLearnerRow> newLearners, IReadOnlyList<RemoveLearnerRow> removeLearners, DateOnly exportDate, IReadOnlyDictionary<EgressOutputType, string> fileNames, CancellationToken ct);
     Task<IReadOnlyList<NewLearnerRow>> GetNewLearnersAsync(Guid runId, CancellationToken ct);
     Task<IReadOnlyList<RemoveLearnerRow>> GetRemoveLearnersAsync(Guid runId, CancellationToken ct);
-    /// <summary>Re-activates a TransferFailed run's outputs for a retry; returns the blocker if another run now holds the pair.</summary>
-    Task<EgressBlocker?> TryReactivateAsync(Guid runId, CancellationToken ct);
+    /// <summary>Re-activates a TransferFailed run's outputs for a retry; returns the output type
+    /// and blocker if another run now holds one of the run's pairs.</summary>
+    Task<(EgressOutputType OutputType, EgressBlocker Blocker)?> TryReactivateAsync(Guid runId, CancellationToken ct);
     /// <summary>M4: guarded by <paramref name="expectedStatus"/>; returns rows affected (0 = lost the race — no Succeeded audit row is written).</summary>
     Task<int> MarkTransferredAsync(Guid runId, EgressRunStatus expectedStatus, EgressTransferAudit audit, DateTime transferredAtUtc, CancellationToken ct);
     /// <summary>M4: guarded by <paramref name="expectedStatus"/>; returns rows affected (0 = the run had already moved on, e.g. to Abandoned — nothing was overwritten).</summary>

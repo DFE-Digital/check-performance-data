@@ -211,19 +211,13 @@ public sealed class EgressController(
         var run = await runs.GetAsync(id, cancellationToken);
         var output = run?.Outputs.FirstOrDefault(o => o.OutputType == outputType);
         if (run is null || output?.FileName is null) return NotFound();
-        var bytes = await transfer.BuildFileAsync(id, outputType, cancellationToken);
-        var lines = System.Text.Encoding.UTF8.GetString(bytes).Split("\r\n");
+        var (headers, rows) = await transfer.GetPreviewAsync(id, outputType, cancellationToken);
         return View("Preview", new PreviewViewModel
         {
             RunId = id, OutputType = outputType, FileName = output.FileName,
-            Headers = SplitCsv(lines[0]),
-            Rows = lines.Skip(1).Where(l => l.Length > 0).Select(SplitCsv).ToList()
+            Headers = headers, Rows = rows
         });
     }
-
-    // Preview only: values never contain quotes today (validated digits, names, dates); a quoted
-    // value renders with its quotes rather than being mis-split — acceptable for a preview.
-    private static IReadOnlyList<string> SplitCsv(string line) => line.Split(',');
 
     [HttpGet("runs/{id:guid}/download/{outputType}")]
     public async Task<IActionResult> Download(Guid id, EgressOutputType outputType, CancellationToken cancellationToken)
@@ -231,7 +225,7 @@ public sealed class EgressController(
         var run = await runs.GetAsync(id, cancellationToken);
         var output = run?.Outputs.FirstOrDefault(o => o.OutputType == outputType);
         if (run is null || output?.FileName is null) return NotFound();
-        return File(await transfer.BuildFileAsync(id, outputType, cancellationToken), "text/csv", output.FileName);
+        return File(await transfer.BuildFileAsync(id, outputType, cancellationToken), "text/csv; charset=utf-8", output.FileName);
     }
 
     [HttpPost("runs/{id:guid}/transfer")]
@@ -251,8 +245,11 @@ public sealed class EgressController(
             case EgressTransferResult.NothingToTransfer:
                 return RedirectToAction(nameof(Summary), new { id });
             case EgressTransferResult.Refused refused:
-                TempData[TransferErrorKey] = Describe((EgressOutputType.RemoveLearners, refused.Blocker)).Replace("Remove learners for this checking window", "This checking window and output type");
+                TempData[TransferErrorKey] = Describe((refused.OutputType, refused.Blocker));
                 return RedirectToAction(nameof(Summary), new { id });
+            // Nit: a missing run is its own outcome rather than a NotTransferable(Abandoned) guess.
+            case EgressTransferResult.NotFound:
+                return NotFound();
             default:
                 return RedirectToAction(nameof(Resume), new { id });
         }

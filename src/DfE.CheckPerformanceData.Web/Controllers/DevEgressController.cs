@@ -128,12 +128,19 @@ public sealed class DevEgressController(
     {
         if (!IsAllowed) return NotFound();
 
-        var fileNames = await dbContext.EgressRunOutputs.AsNoTracking()
-            .Where(o => o.WindowId == windowId && o.FileName != null).Select(o => o.FileName!).Distinct().ToListAsync(cancellationToken);
+        // Nit: delete only blobs owned by a run this cleanup is actually removing, matched by
+        // egressRunId metadata (the M1 sweep helper) — plain by-filename deletion could remove
+        // another run's blob if two windows' files collided on name (Q3).
+        var owners = await dbContext.EgressRunOutputs.AsNoTracking()
+            .Where(o => o.WindowId == windowId && o.FileName != null)
+            .Select(o => new { o.RunId, FileName = o.FileName! }).Distinct().ToListAsync(cancellationToken);
         var blobs = 0;
         if (egressBlobs.IsConfigured)
         {
-            foreach (var name in fileNames) { await egressBlobs.DeleteIfExistsAsync(name, cancellationToken); blobs++; }
+            foreach (var owner in owners)
+            {
+                if (await egressBlobs.DeleteIfOwnedByRunAsync(owner.FileName, owner.RunId, cancellationToken)) blobs++;
+            }
         }
 
         var runs = await dbContext.EgressRuns.Where(r => r.WindowId == windowId).ExecuteDeleteAsync(cancellationToken);

@@ -13,6 +13,9 @@ namespace DfE.CheckPerformanceData.Persistence.Repositories;
 public sealed class EgressRunRepository(IPortalDbContext db) : IEgressRunRepository
 {
     private const string UniqueViolation = "23505";
+    // Nit: match the specific constraint, not any 23505 — a coincidental unrelated unique
+    // violation must not be misreported as "another run holds this pair".
+    private const string ActiveWindowOutputConstraint = "ix_egress_run_outputs_active_window_output";
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
     public async Task<EgressBlocker?> FindBlockerAsync(Guid windowId, EgressOutputType outputType, CancellationToken ct) =>
@@ -55,7 +58,7 @@ public sealed class EgressRunRepository(IPortalDbContext db) : IEgressRunReposit
         {
             await db.SaveChangesAsync(ct);
         }
-        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: UniqueViolation })
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: UniqueViolation, ConstraintName: ActiveWindowOutputConstraint })
         {
             throw new EgressRunConflictException("Another egress run already holds this checking window and output type.");
         }
@@ -165,7 +168,7 @@ public sealed class EgressRunRepository(IPortalDbContext db) : IEgressRunReposit
                 r.Sex, r.DateOfBirth, r.CycleYear, r.CycleMonth, r.LocalAuthority, r.LearnerId, r.ChangeRequestId, r.TicketId, r.ReferenceNumber))
             .ToListAsync(ct);
 
-    public async Task<EgressBlocker?> TryReactivateAsync(Guid runId, CancellationToken ct)
+    public async Task<(EgressOutputType OutputType, EgressBlocker Blocker)?> TryReactivateAsync(Guid runId, CancellationToken ct)
     {
         try
         {
@@ -182,13 +185,13 @@ public sealed class EgressRunRepository(IPortalDbContext db) : IEgressRunReposit
         }
     }
 
-    private async Task<EgressBlocker?> BlockerForRunPairsAsync(Guid runId, CancellationToken ct)
+    private async Task<(EgressOutputType, EgressBlocker)?> BlockerForRunPairsAsync(Guid runId, CancellationToken ct)
     {
         var pairs = await db.EgressRunOutputs.AsNoTracking().Where(o => o.RunId == runId).Select(o => new { o.WindowId, o.OutputType }).ToListAsync(ct);
         foreach (var pair in pairs)
         {
             var blocker = await FindBlockerAsync(pair.WindowId, pair.OutputType, ct);
-            if (blocker is not null && blocker.RunId != runId) return blocker;
+            if (blocker is not null && blocker.RunId != runId) return (pair.OutputType, blocker);
         }
         return null;
     }

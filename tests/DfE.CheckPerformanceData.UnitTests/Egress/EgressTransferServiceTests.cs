@@ -98,11 +98,13 @@ public sealed class EgressTransferServiceTests
     {
         RunIs(EgressRunStatus.TransferFailed, EgressOutputType.RemoveLearners);
         var blocker = new EgressBlocker(Guid.NewGuid(), EgressRunStatus.Pulled, "Ops Two", DateTime.UtcNow, null, null);
-        _repo.TryReactivateAsync(RunId, Arg.Any<CancellationToken>()).Returns(blocker);
+        _repo.TryReactivateAsync(RunId, Arg.Any<CancellationToken>()).Returns((EgressOutputType.RemoveLearners, blocker));
 
         var result = await Sut().TransferAsync(RunId, Actor, CancellationToken.None);
 
-        Assert.Equal(blocker, Assert.IsType<EgressTransferResult.Refused>(result).Blocker);
+        var refused = Assert.IsType<EgressTransferResult.Refused>(result);
+        Assert.Equal(blocker, refused.Blocker);
+        Assert.Equal(EgressOutputType.RemoveLearners, refused.OutputType);
         await _blobs.DidNotReceiveWithAnyArgs().UploadAsync(default!, default!, default!, default, default);
     }
 

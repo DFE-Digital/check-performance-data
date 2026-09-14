@@ -22,12 +22,12 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
     // Kingsmead's first seeded Post16 student, and the results SeedStudentResults gives them.
     private const string StudentCypmdId = "500001";
     private const string StudentName = "Alice Smith";
-    private const string BusStudsS2024 = "GCSE (9-1) Bus. Studs:Single, QAN: 6037116X, Session: S2024";
-    private const string BusStudsCurrentGrade = "5";
+    private const string MathsS2024 = "GCSE (9-1) Mathematics, QAN: 60146084, Session: S2024";
+    private const string MathsCurrentGrade = "5";
 
     // The same qualification in the previous session — the label differs only in the session, and
     // only the details (grade 4, not 5) tell the two apart. From SeedStudentResults.
-    private const string BusStudsS2023 = "GCSE (9-1) Bus. Studs:Single, QAN: 6037116X, Session: S2023";
+    private const string MathsS2023 = "GCSE (9-1) Mathematics, QAN: 60146084, Session: S2023";
 
     // ── The cohort-wide happy path, end to end ───────────────────────────────
 
@@ -44,7 +44,7 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
         await ChooseCohortScopeAsync("yes");
         await FillCohortCountAsync("10");
         await ChooseStudentAsync("select-student-cohort");
-        await ChooseResultAsync(BusStudsS2024);
+        await ChooseResultAsync(MathsS2024);
         await ChooseRevisedGradeAsync("1");
         await FillAdditionalInfoAsync("The whole class was marked against the wrong paper.");
 
@@ -54,7 +54,7 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
         var summary = await Page.Locator(".govuk-summary-list").InnerTextAsync();
         Assert.Contains("Number of students in affected cohort", summary);
         Assert.Contains("Name of a student in cohort", summary);
-        Assert.Contains("6037116X", summary);
+        Assert.Contains("60146084", summary);
         Assert.Contains("Incorrect grade", summary);
 
         await Page.GetByRole(AriaRole.Button, new() { Name = "Submit request" }).ClickAsync();
@@ -80,7 +80,7 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
             .ToContainTextAsync("What is the name of the student with an incorrect grade?");
 
         await ChooseStudentAsync("select-student-single");
-        await ChooseResultAsync(BusStudsS2024);
+        await ChooseResultAsync(MathsS2024);
         await ChooseRevisedGradeAsync("2");
         await FillAdditionalInfoAsync(string.Empty);
 
@@ -102,7 +102,7 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
         await ChooseCohortScopeAsync("yes");
         await FillCohortCountAsync("10");
         await ChooseStudentAsync("select-student-cohort");
-        await ChooseResultAsync(BusStudsS2024);
+        await ChooseResultAsync(MathsS2024);
         await ChooseRevisedGradeAsync("3");
         await FillAdditionalInfoAsync(string.Empty);
         await Page.GetByRole(AriaRole.Button, new() { Name = "Submit request" }).ClickAsync();
@@ -125,7 +125,7 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
         // A second enquiry for the same student and result is allowed, with its own reference.
         await ChooseCohortScopeAsync("no");
         await ChooseStudentAsync("select-student-single");
-        await ChooseResultAsync(BusStudsS2024);
+        await ChooseResultAsync(MathsS2024);
         await ChooseRevisedGradeAsync("4");
         await FillAdditionalInfoAsync(string.Empty);
         await Page.GetByRole(AriaRole.Button, new() { Name = "Submit request" }).ClickAsync();
@@ -207,27 +207,44 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
         // satisfy a list-wide substring match even if this row vanished (review F3).
         var currentGradeRow = Page.Locator(".govuk-summary-list__row").Filter(new() { HasText = "Current grade" });
         await Expect(currentGradeRow).ToHaveCountAsync(1);
-        await Expect(currentGradeRow.Locator(".govuk-summary-list__value")).ToHaveTextAsync(BusStudsCurrentGrade);
+        await Expect(currentGradeRow.Locator(".govuk-summary-list__value")).ToHaveTextAsync(MathsCurrentGrade);
 
         // Positive count beside the negative one, so this fact cannot pass on an absent select:
-        // placeholder + the ten remaining grades of the 9-1 scale (review F4).
-        await Expect(Page.Locator("select[name='q_q_revised_grade'] option")).ToHaveCountAsync(11);
-        var currentGradeOption = Page.Locator($"select[name='q_q_revised_grade'] option[value='{BusStudsCurrentGrade}']");
+        // placeholder + the twelve remaining grades of the reference's 1-9, Q, R, U, X scale (review F4).
+        await Expect(Page.Locator("select[name='q_q_revised_grade'] option")).ToHaveCountAsync(13);
+        var currentGradeOption = Page.Locator($"select[name='q_q_revised_grade'] option[value='{MathsCurrentGrade}']");
         await Expect(currentGradeOption).ToHaveCountAsync(0);
     }
 
     [RetryFact(3)]
     public async Task TheGradePickerOffersTheQualificationsOwnScaleMinusTheCurrentGrade()
     {
-        // The GCSE 9-1 scale for this QAN, pass grades before fail grades, with a placeholder first
-        // — and without "5", the grade the seeded S2024 result already holds (AB#301913).
+        // The 16-19 reference's scale for this QAN in the reference's own order (AB#301903), with a
+        // placeholder first — and without "5", the grade the seeded S2024 result already holds (AB#301913).
         await NavigateToGradePageAsync();
 
         // By name rather than id, matching the other locators in this suite.
         var values = await Page.Locator("select[name='q_q_revised_grade'] option").EvaluateAllAsync<string[]>(
             "options => options.map(o => o.value)");
 
-        Assert.Equal(["", "9", "8", "7", "6", "4", "3", "2", "1", "U", "X"], values);
+        Assert.Equal(["", "1", "2", "3", "4", "6", "7", "8", "9", "Q", "R", "U", "X"], values);
+    }
+
+    [RetryFact(3)]
+    public async Task TheDetailsPageNamesTheQualificationFromThe1619Reference()
+    {
+        // AB#301903 / #410: the results file abbreviates the qualification ("GCSE (9-1) Mathematics");
+        // the page names it as the 16-19 qualification reference does, and shows the awarding
+        // organisation the file never carried.
+        await NavigateToGradePageAsync();
+
+        var aoRow = Page.Locator(".govuk-summary-list__row").Filter(new() { HasText = "Awarding Organisation (AO) name" });
+        await Expect(aoRow).ToHaveCountAsync(1);
+        await Expect(aoRow.Locator(".govuk-summary-list__value")).ToHaveTextAsync("AQA");
+
+        var nameRow = Page.Locator(".govuk-summary-list__row").Filter(new() { HasText = "Qualification name and subject" });
+        await Expect(nameRow.Locator(".govuk-summary-list__value"))
+            .ToHaveTextAsync("AQA Level 1/Level 2 GCSE (9-1) in Mathematics");
     }
 
     [RetryFact(3)]
@@ -278,25 +295,25 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
         var details = ShownDetails(Page);
         await Expect(details).ToHaveCountAsync(0);
 
-        await PickResultAsync(BusStudsS2024);
+        await PickResultAsync(MathsS2024);
 
         await Expect(details).ToHaveCountAsync(1);
-        await AssertDetailsRowAsync(details, "Qualification name and subject", "GCSE (9-1) Bus. Studs:Single");
-        await AssertDetailsRowAsync(details, "Qualification number (QAN)", "6037116X");
-        await AssertDetailsRowAsync(details, "Syllabus code", "1BS0");
+        await AssertDetailsRowAsync(details, "Qualification name and subject", "GCSE (9-1) Mathematics");
+        await AssertDetailsRowAsync(details, "Qualification number (QAN)", "60146084");
+        await AssertDetailsRowAsync(details, "Syllabus code", "8300H");
         await AssertDetailsRowAsync(details, "Session", "S2024");
-        await AssertDetailsRowAsync(details, "Current Grade", BusStudsCurrentGrade);
+        await AssertDetailsRowAsync(details, "Current Grade", MathsCurrentGrade);
         await AssertDetailsRowAsync(details, "CSV file", "16to19_MAIN");
         // No round-trip: still on the search page, nothing posted.
         await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex(
             $"/Journey/{WindowId}/result-search/select-result$", System.Text.RegularExpressions.RegexOptions.IgnoreCase));
 
         // Picking the other session swaps the details — the label alone cannot show the grade.
-        await PickResultAsync(BusStudsS2023);
+        await PickResultAsync(MathsS2023);
         await Expect(details).ToHaveCountAsync(1);
         await AssertDetailsRowAsync(details, "Session", "S2023");
         await AssertDetailsRowAsync(details, "Current Grade", "4");
-        await Expect(Page.Locator("select[name='selectedResultKey']")).ToHaveValueAsync("6037116X|S2023|16to19_MAIN");
+        await Expect(Page.Locator("select[name='selectedResultKey']")).ToHaveValueAsync("60146084|S2023|16to19_MAIN");
     }
 
     [RetryFact(3)]
@@ -307,13 +324,13 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
         // next pick.
         await NavigateToResultSearchAsync();
         var details = ShownDetails(Page);
-        await PickResultAsync(BusStudsS2024);
+        await PickResultAsync(MathsS2024);
         await Expect(details).ToHaveCountAsync(1);
 
         await Page.Locator("select[name='selectedResultKey']").SelectOptionAsync(string.Empty);
         await Expect(details).ToHaveCountAsync(0);
 
-        await PickResultAsync(BusStudsS2024);
+        await PickResultAsync(MathsS2024);
         await Expect(details).ToHaveCountAsync(1);
         await AssertDetailsRowAsync(details, "Session", "S2024");
     }
@@ -325,18 +342,18 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
         // the path that worked before #409 and must keep working with no script involved — the
         // field shows the label and exactly one details block is visible, with the right session.
         await NavigateToResultSearchAsync();
-        await ChooseResultAsync(BusStudsS2024);
+        await ChooseResultAsync(MathsS2024);
         await Page.WaitForURLAsync($"**/Journey/{WindowId}/page/grade-details");
 
         await Page.Locator("a.govuk-back-link").ClickAsync();
         await Page.WaitForURLAsync($"**/Journey/{WindowId}/result-search/select-result");
 
         await Expect(Page.Locator("select[name='selectedResultKey']"))
-            .ToHaveValueAsync("6037116X|S2024|16to19_MAIN");
+            .ToHaveValueAsync("60146084|S2024|16to19_MAIN");
         var details = ShownDetails(Page);
         await Expect(details).ToHaveCountAsync(1);
         await AssertDetailsRowAsync(details, "Session", "S2024");
-        await AssertDetailsRowAsync(details, "Current Grade", BusStudsCurrentGrade);
+        await AssertDetailsRowAsync(details, "Current Grade", MathsCurrentGrade);
     }
 
     // ── The way in, and the auth gate ───────────────────────────────────────
@@ -387,7 +404,7 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
         await ContinueAsync();
         await ChooseCohortScopeAsync("no");
         await ChooseStudentAsync("select-student-single");
-        await ChooseResultAsync(BusStudsS2024);
+        await ChooseResultAsync(MathsS2024);
         await Page.WaitForURLAsync($"**/Journey/{WindowId}/page/grade-details");
     }
 

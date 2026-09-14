@@ -32,6 +32,11 @@ public sealed class ResultsEnquirySummary
 
     public StudentResultRecord? Result { get; init; }
 
+    /// <summary>AB#301903: the 16-19 reference entry for <see cref="Result"/>'s QAN, when it
+    /// resolved. Supplies the awarding organisation row and the qualification's title; null keeps
+    /// the results file's own name and no AO row, exactly as the details page does.</summary>
+    public QualificationReference? Qualification { get; init; }
+
     /// <summary>False for enquiry kinds with no revised-grade step (AB#298704): the row and its
     /// Change link are omitted entirely rather than rendered empty.</summary>
     public required bool ShowRevisedGrade { get; init; }
@@ -60,8 +65,13 @@ public sealed class ResultsEnquirySummary
             lines.Add(Fixed(IsCohortWide ? "Name of a student in cohort" : "Name of student", StudentName));
 
             lines.Add(Fixed("CYPMD ID", Result?.CypmdId ?? string.Empty));
+            // AB#301903: the AO is known only from the 16-19 reference, so the row appears only
+            // when the QAN resolved — labelled as the missing-qualification summary labels it.
+            if (Qualification is not null)
+                lines.Add(Fixed("Awarding Organisation (AO) name", Qualification.AwardingOrganisation));
             lines.Add(Fixed("Qualification number (QAN)", Result?.Qan ?? string.Empty));
-            lines.Add(Fixed("Qualification name and subject", Result?.QualificationName ?? string.Empty));
+            lines.Add(Fixed("Qualification name and subject",
+                Qualification?.QualificationTitle ?? Result?.QualificationName ?? string.Empty));
             lines.Add(Fixed("Session", Result?.Session ?? string.Empty));
             lines.Add(Fixed("Current grade", Result?.Grade ?? string.Empty));
 

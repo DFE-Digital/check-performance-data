@@ -20,7 +20,7 @@ public sealed class ClosedWindowEnquiryTests(PlaywrightFixture fixture) : Seedin
 
     private const string StudentCypmdId = "500001";
     private const string StudentName = "Alice Smith";
-    private const string BusStudsS2024 = "GCSE (9-1) Bus. Studs:Single, QAN: 6037116X, Session: S2024";
+    private const string MathsS2024 = "GCSE (9-1) Mathematics, QAN: 60146084, Session: S2024";
 
     private string PageUrl => $"{Fixture.BaseUrl}/CheckYourPupilData/{WindowId}";
 
@@ -76,8 +76,8 @@ public sealed class ClosedWindowEnquiryTests(PlaywrightFixture fixture) : Seedin
         await Page.WaitForURLAsync($"**/Journey/{WindowId}/result-search/select-result");
         var resultSelect = Page.Locator("select[name='selectedResultKey']");
         await Expect(resultSelect).ToBeVisibleAsync();
-        await resultSelect.SelectOptionAsync(new SelectOptionValue { Label = BusStudsS2024 });
-        await Expect(resultSelect.Locator("option:checked")).ToContainTextAsync(BusStudsS2024);
+        await resultSelect.SelectOptionAsync(new SelectOptionValue { Label = MathsS2024 });
+        await Expect(resultSelect.Locator("option:checked")).ToContainTextAsync(MathsS2024);
         await ContinueAsync();
 
         await Page.WaitForURLAsync($"**/Journey/{WindowId}/page/additional-info");

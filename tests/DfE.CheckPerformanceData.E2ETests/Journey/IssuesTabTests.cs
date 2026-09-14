@@ -13,7 +13,7 @@ public sealed class IssuesTabTests(PlaywrightFixture fixture) : SeedingPageTest(
     private static readonly Guid WindowId = Guid.Parse("6C2E1F4A-9B7D-4E38-8A15-3D9C2B4E7F01");
     private const string StudentCypmdId = "500001";
     private const string StudentName = "Alice Smith";
-    private const string BusStudsS2024 = "GCSE (9-1) Bus. Studs:Single, QAN: 6037116X, Session: S2024";
+    private const string MathsS2024 = "GCSE (9-1) Mathematics, QAN: 60146084, Session: S2024";
 
     [RetryFact(1)]
     public async Task ASubmittedEnquiryAppearsOnTheIssuesTab()
@@ -21,7 +21,7 @@ public sealed class IssuesTabTests(PlaywrightFixture fixture) : SeedingPageTest(
         // Submit a real enquiry through the journey so the row AND its journey blob exist.
         await StartEnquiryAsync();
         await ChooseStudentAsync();
-        await ChooseResultAsync(BusStudsS2024);
+        await ChooseResultAsync(MathsS2024);
         await Page.WaitForURLAsync($"**/Journey/{WindowId}/page/additional-info");
         await ContinueAsync();
         await Page.GetByRole(AriaRole.Button, new() { Name = "Submit request" }).ClickAsync();
@@ -36,7 +36,7 @@ public sealed class IssuesTabTests(PlaywrightFixture fixture) : SeedingPageTest(
         await Expect(issuesPanel.GetByText(StudentName).First).ToBeVisibleAsync();
         await Expect(issuesPanel.GetByText(StudentCypmdId).First).ToBeVisibleAsync();
         await Expect(issuesPanel.GetByText("Result does not belong to student").First).ToBeVisibleAsync();
-        await Expect(issuesPanel.GetByText("GCSE (9-1) Bus. Studs:Single").First).ToBeVisibleAsync();
+        await Expect(issuesPanel.GetByText("GCSE (9-1) Mathematics").First).ToBeVisibleAsync();
 
         // The results-enquiry deadline is stated on this tab, not in the page header.
         await Expect(issuesPanel.GetByText("Submit your results enquiry requests by").First).ToBeVisibleAsync();

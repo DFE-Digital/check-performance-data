@@ -10,7 +10,7 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.ResultsEnquiry;
 /// Pins the dev results seed. It is fixture data, but three things about it are load-bearing:
 /// E2E drives student 500001 by name, the pupil search now lists only students who hold results
 /// (so three students would make the picker useless to a manual tester), and the revised-grade
-/// picker can only list grades for a QAN the grade reference knows.
+/// picker can only list grades for a QAN the 16-19 qualification reference knows (AB#301903).
 /// </summary>
 public sealed class SeedStudentResultsTests
 {
@@ -43,8 +43,8 @@ public sealed class SeedStudentResultsTests
         var byStudent = Seeded().GroupBy(r => r.CypmdId).ToDictionary(g => g.Key, g => g.ToArray());
 
         Assert.Equal(4, byStudent["500001"].Length);
-        Assert.Equal(2, byStudent["500001"].Count(r => r.Qan == "6037116X"));
-        Assert.Equal(["S2024", "S2023"], byStudent["500001"].Where(r => r.Qan == "6037116X").Select(r => r.Session).ToArray());
+        Assert.Equal(2, byStudent["500001"].Count(r => r.Qan == "60146084"));
+        Assert.Equal(["S2024", "S2023"], byStudent["500001"].Where(r => r.Qan == "60146084").Select(r => r.Session).ToArray());
         Assert.Equal(3, byStudent["500002"].Length);
         Assert.Single(byStudent["500003"]);
     }
@@ -89,14 +89,29 @@ public sealed class SeedStudentResultsTests
     }
 
     [Fact]
-    public void Every_qualification_is_one_the_grade_reference_can_list_grades_for()
+    public void Every_qualification_is_one_the_16_19_reference_can_list_grades_for()
     {
-        // Otherwise the revised-grade page says "We cannot list grades for this qualification yet"
-        // and the journey cannot be completed locally.
-        var known = JsonDocument.Parse(File.ReadAllText(GradeReferencePath))
-            .RootElement.EnumerateObject().Select(p => p.Name).ToHashSet();
+        // AB#301903: the revised-grade picker lists the 16-19 reference's scale. A seeded QAN the
+        // reference does not hold would make the page say "We cannot list grades for this
+        // qualification yet" and the journey could not be completed locally.
+        using var doc = JsonDocument.Parse(File.ReadAllText(QualificationReferencePath));
+        var known = doc.RootElement.EnumerateObject().Select(p => p.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         Assert.All(Seeded(), r => Assert.Contains(r.Qan, known));
+    }
+
+    [Fact]
+    public void Every_seeded_grade_is_one_the_16_19_reference_lists_for_that_qan()
+    {
+        // The current grade is shown on the page and excluded from the picker; a grade the scale
+        // does not hold would be a fixture lie that the picker silently tolerates.
+        using var doc = JsonDocument.Parse(File.ReadAllText(QualificationReferencePath));
+        var scales = doc.RootElement.EnumerateObject().ToDictionary(
+            p => p.Name,
+            p => p.Value.GetProperty("grades").EnumerateArray().Select(g => g.GetString()!).ToHashSet(StringComparer.Ordinal),
+            StringComparer.OrdinalIgnoreCase);
+
+        Assert.All(Seeded(), r => Assert.Contains(r.Grade, scales[r.Qan]));
     }
 
     [Fact]
@@ -124,8 +139,8 @@ public sealed class SeedStudentResultsTests
             Arg.Any<IReadOnlyList<StudentResultRecord>>());
     }
 
-    private static string GradeReferencePath => Path.Combine(
-        RepoRoot, "src", "DfE.CheckPerformanceData.Web", "Data", "GradeReference", "grade-reference.json");
+    private static string QualificationReferencePath => Path.Combine(
+        RepoRoot, "src", "DfE.CheckPerformanceData.Web", "Data", "QualificationReference", "qualification-reference.json");
 
     private static string RepoRoot
     {

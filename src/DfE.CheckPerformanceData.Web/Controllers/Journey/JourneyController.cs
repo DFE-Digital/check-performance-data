@@ -29,7 +29,6 @@ public sealed class JourneyController(
     IQuestionOptionalityService optionalityService,
     IOriginCountryLanguageCapture originCountryLanguageCapture,
     IStudentResultsClient studentResultsClient,
-    IGradeReferenceClient gradeReferenceClient,
     IQualificationReferenceClient qualificationReferenceClient,
     IRequestNotificationService requestNotificationService,
     ICheckingExerciseService checkingExerciseService,
@@ -63,6 +62,8 @@ public sealed class JourneyController(
 
         var page = flowService.GetPage(config, pageId);
         if (page is null) return NotFound();
+
+        journey = await HealSelectedResultQualificationAsync(windowId, journey);
 
         if (page.Type == PageType.PupilSearch)
             return RedirectToAction(nameof(PupilSearchPage), new { windowId, pageId });
@@ -100,7 +101,7 @@ public sealed class JourneyController(
         return View(viewName, viewModelBuilder.BuildPageVm(windowId, page, journey.QuestionAnswers,
             journey, fromSummary, ModelState, config,
             uploadError: TempData["UploadError"] as string,
-            gradeReference: await GetGradeReferenceAsync(page, journey)));
+            gradeReference: ResolveGradeReference(page, journey)));
     }
 
     // ── PupilSearchPage (GET) ───────────────────────────────────────────────
@@ -407,6 +408,7 @@ public sealed class JourneyController(
                 // re-resolution on the result page would catch a stale key, but the summary and the
                 // grade page read SelectedResult directly.
                 s.SelectedResult = null;
+                s.SelectedResultQualification = null;
                 s.QuestionHistory = [.. historyBefore, pageId];
                 s.MatchedPupil = null;
                 s.MatchedPupilId = null;
@@ -494,9 +496,25 @@ public sealed class JourneyController(
         // change, so the grade survives back-navigation.
         var resultChanged = journey.SelectedResult?.CompositeKey != resolved.CompositeKey;
 
+        // AB#301903: the grade page and the summary describe the qualification from the 16-19
+        // reference (title, AO, grade scale), so it is resolved once here, beside the result. The
+        // lookup is the cached QualList document — a keystroke-cheap read. A QAN the reference does
+        // not hold stores null: the grade page then says grades cannot be listed and validation
+        // holds the enquiry back; a later page re-resolves it while it is still null
+        // (HealSelectedResultQualificationAsync). A resolved entry is a snapshot for the rest of the
+        // journey — a reference refreshed mid-journey shows through only when the result is re-picked.
+        var lookup = await qualificationReferenceClient.GetLookupAsync(HttpContext.RequestAborted);
+        var qualification = lookup.Find(resolved.Qan);
+        if (qualification is null)
+            logger.LogWarning(
+                "QAN {Qan} is not in the 16-19 qualification reference; the revised-grade picker will be " +
+                "empty and the enquiry cannot be submitted until the reference covers it.",
+                resolved.Qan);
+
         HttpContext.Session.SaveRequestState(windowId, s =>
         {
             s.SelectedResult = resolved;
+            s.SelectedResultQualification = qualification;
             if (resultChanged)
                 s.QuestionAnswers.Remove(RevisedGradeQuestionId);
         });
@@ -690,31 +708,47 @@ public sealed class JourneyController(
     }
 
     /// <summary>
-    /// The grade scale for the selected result's qualification, or null when the page has no grade
-    /// picker or the QAN is absent from the AODC reference data. A gap is logged rather than thrown:
-    /// the page tells the user grades cannot be listed yet, and validation holds the enquiry back.
+    /// AB#301903: the qualification is resolved once, when the result is picked. A session that picked
+    /// before this shipped, or before the reference blob had seeded (a 404 is cached as an empty
+    /// lookup for five minutes), carries a null it would otherwise keep for the rest of the journey —
+    /// the picker empty, every post refused, no hint that re-picking heals it. So a result with no
+    /// qualification beside it is re-resolved here. Only a null heals: a resolved entry is never
+    /// compared with the reference, so the title, AO and grade scale a user has already seen do not
+    /// change under them mid-journey; re-picking the result is what refreshes them. A QAN the
+    /// reference genuinely lacks stays null, costs one probe of the cached document and logs nothing
+    /// here — the warning was already logged at result selection.
     /// </summary>
-    private async Task<GradeReference?> GetGradeReferenceAsync(
-        JourneyPage page, RequestState journey, CancellationToken ct = default)
+    private async Task<RequestState> HealSelectedResultQualificationAsync(Guid windowId, RequestState journey)
+    {
+        if (journey.SelectedResult is null || journey.SelectedResultQualification is not null) return journey;
+
+        var lookup = await qualificationReferenceClient.GetLookupAsync(HttpContext.RequestAborted);
+        var qualification = lookup.Find(journey.SelectedResult.Qan);
+        if (qualification is null) return journey;
+
+        HttpContext.Session.SaveRequestState(windowId, s => s.SelectedResultQualification = qualification);
+        return HttpContext.Session.GetRequestState(windowId);
+    }
+
+    /// <summary>
+    /// The grade scale for the page's picker, or null when the page has no grade picker or the
+    /// qualification is not in the 16-19 reference. No blob read happens here: both enquiry
+    /// journeys resolve their qualification when it is chosen (AB#297848 at qualification search,
+    /// AB#301903 at result search) and carry the QualList entry in session. A gap is a normal
+    /// state — the page tells the user grades cannot be listed yet, and validation holds the
+    /// enquiry back.
+    /// </summary>
+    private static GradeReference? ResolveGradeReference(JourneyPage page, RequestState journey)
     {
         if (page.Questions.All(q => q.Type != QuestionType.GradeSelect)) return null;
 
-        // AB#297848: on a missing-qualification enquiry the scale comes from the QualList entry
-        // resolved at qualification selection — there is no exam result and no AODC lookup.
-        if (journey.SelectedResult is null && journey.SelectedQualification is { } qualification)
-            return qualification.ToGradeReference();
+        // An incorrect-grade enquiry has a result; the scale is that result's qualification.
+        if (journey.SelectedResult is not null)
+            return journey.SelectedResultQualification?.ToGradeReference();
 
-        var qan = journey.SelectedResult?.Qan;
-        if (string.IsNullOrWhiteSpace(qan)) return null;
-
-        var reference = await gradeReferenceClient.GetByQanAsync(qan, ct);
-        if (reference is null)
-            logger.LogWarning(
-                "No AODC grade reference for QAN {Qan}; the revised-grade picker on page {PageId} will " +
-                "be empty and the enquiry cannot be submitted until the reference data covers it.",
-                qan, page.Id);
-
-        return reference;
+        // AB#297848: a missing-qualification enquiry has no result — the scale comes from the
+        // QualList entry resolved at qualification selection.
+        return journey.SelectedQualification?.ToGradeReference();
     }
 
     /// <summary>
@@ -748,11 +782,12 @@ public sealed class JourneyController(
         var page = flowService.GetPage(config, pageId);
         if (page is null) return NotFound();
 
+        journey = await HealSelectedResultQualificationAsync(windowId, journey);
+
         var newAnswers = new Dictionary<string, QuestionAnswer>();
         var pupilName = JourneyViewModelBuilder.GetPupilName(journey);
-        // Resolved once for the page rather than per question: the lookup is async and cached, and a
-        // page has at most one grade picker.
-        var gradeReference = await GetGradeReferenceAsync(page, journey);
+        // Resolved once for the page rather than per question: a page has at most one grade picker.
+        var gradeReference = ResolveGradeReference(page, journey);
         var isValid = true;
         var conditionContext = JourneyConditionContextFactory.Create(journey, currentUserService);
         var conditionallyOptional = optionalityService.GetConditionallyOptionalQuestionIds(page, conditionContext);
@@ -1179,6 +1214,8 @@ public sealed class JourneyController(
 
         var config = await GetConfigAsync(journey);
         if (config is null) return RedirectToCheckYourData(windowId);
+
+        journey = await HealSelectedResultQualificationAsync(windowId, journey);
 
         // Redirect to start if journey hasn't been begun
         if (journey.QuestionHistory.Count == 0)
@@ -1827,6 +1864,7 @@ public sealed class JourneyController(
             s.MatchedPupilId = null;
             s.MatchedPupilLabel = null;
             s.SelectedResult = null;
+            s.SelectedResultQualification = null;
             s.QuestionAnswers = new();
             s.QuestionHistory = [config.FirstPageId];
             s.DuplicateCheck = null;
@@ -1925,6 +1963,7 @@ public sealed class JourneyController(
             s.MatchedPupilId = null;
             s.MatchedPupilLabel = null;
             s.SelectedResult = null;
+            s.SelectedResultQualification = null;
             s.SelectedQualification = null;
             s.QuestionAnswers = new();
             s.QuestionHistory = [config.FirstPageId];

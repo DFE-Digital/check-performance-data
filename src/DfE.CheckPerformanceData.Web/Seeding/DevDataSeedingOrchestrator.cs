@@ -29,7 +29,6 @@ public sealed class DevDataSeedingOrchestrator(
     ICheckYourPupilDataService checkYourPupilDataService,
     ICheckingExerciseService checkingExerciseService,
     RulesConfigSeeder rulesConfigSeeder,
-    GradeReferenceBlobClient gradeReferenceBlobClient,
     QualificationReferenceBlobClient qualificationReferenceBlobClient,
     IHostEnvironment environment,
     ILogger<DevDataSeedingOrchestrator> logger) : IDevDataSeedingOrchestrator
@@ -70,14 +69,9 @@ public sealed class DevDataSeedingOrchestrator(
         // rules editor usable. Idempotent and version-gated — never clobbers a newer valid blob.
         await rulesConfigSeeder.SeedAsync();
 
-        // AB#297130: the AODC grade reference, seeded into the same rules-config container. Also
-        // seeded by GradeReferenceSeedingService on every startup; repeating it here means the admin
-        // "Reset seed data" action restores it if the blob was deleted. Seed-if-missing, so this is
-        // a no-op whenever it is already there.
-        await SeedGradeReference.ExecuteSeedAsync(gradeReferenceBlobClient, environment.ContentRootPath);
-
         // AB#297848: the QualList qualification reference, seeded into the same rules-config
-        // container for the same "reset seed data" reason as the grade reference above.
+        // container so the admin "Reset seed data" action restores it if the blob was deleted
+        // (seed-if-missing, so a no-op whenever it is already there).
         await SeedQualificationReference.ExecuteSeedAsync(qualificationReferenceBlobClient, environment.ContentRootPath);
     }
 }

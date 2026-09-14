@@ -1698,6 +1698,10 @@ body.js-enabled .rules-condition__apply {
 .cypmd-search { margin: 20px 0 30px; }
 .cypmd-search__row { display: flex; gap: 20px; max-width: 45em; }
 .cypmd-search__input { flex: 1 1 auto; margin-bottom: 0; }
+/* accessible-autocomplete replaces the input with its own wrapper, so the flex sizing has to
+   move to the element that actually becomes the flex child. */
+.cypmd-search__row .cypmd-search__autocomplete,
+.cypmd-search__row .autocomplete__wrapper { flex: 1 1 auto; min-width: 0; }
 .cypmd-search__button { flex: 0 0 auto; margin: 0; }
 
 /* On narrow viewports the button's intrinsic width (padding + "Search" text) is

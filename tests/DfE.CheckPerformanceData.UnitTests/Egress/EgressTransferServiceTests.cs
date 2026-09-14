@@ -278,6 +278,40 @@ public sealed class EgressTransferServiceTests
         await _repo.Received(1).AbandonAsync(RunId, Arg.Any<CancellationToken>());
     }
 
+    // R1: the repository write must happen — and be committed — before any blob is swept. A
+    // concurrent TransferAsync can flip Transferring -> Transferred between the read at the top
+    // of AbandonAsync and the write here; if the sweep ran first (the pre-fix ordering) it would
+    // delete the files that transfer had just uploaded, and this call would still go on to lose
+    // the race (rows == 0) and report AlreadyTransferred — leaving the run Transferred, with a
+    // Succeeded audit row, and no files in LDS. Reading rows-affected from the write is what
+    // tells this method which case actually happened, so the write must come first.
+    [Fact]
+    public async Task Abandoning_a_transferring_run_that_lost_the_race_reports_AlreadyTransferred_and_never_sweeps_blobs()
+    {
+        RunIs(EgressRunStatus.Transferring, EgressOutputType.NewLearners, EgressOutputType.RemoveLearners);
+        _repo.AbandonAsync(RunId, Arg.Any<CancellationToken>()).Returns(0);
+
+        var result = await Sut().AbandonAsync(RunId, CancellationToken.None);
+
+        Assert.IsType<EgressAbandonResult.AlreadyTransferred>(result);
+        await _blobs.DidNotReceiveWithAnyArgs().DeleteIfOwnedByRunAsync(default!, default, default);
+    }
+
+    // M1: once this method starts changing state, the caller's token (RequestAborted) must not be
+    // able to abandon it half-way — the repository write itself must use CancellationToken.None,
+    // not whatever token the caller passed in.
+    [Fact]
+    public async Task Abandoning_a_run_passes_None_to_the_repository_write_regardless_of_the_callers_token()
+    {
+        RunIs(EgressRunStatus.Transferring, EgressOutputType.RemoveLearners);
+        using var cts = new CancellationTokenSource();
+
+        var result = await Sut().AbandonAsync(RunId, cts.Token);
+
+        Assert.IsType<EgressAbandonResult.Abandoned>(result);
+        await _repo.Received(1).AbandonAsync(RunId, CancellationToken.None);
+    }
+
     [Fact]
     public async Task Abandoning_a_run_that_is_not_transferring_never_touches_blob_storage()
     {

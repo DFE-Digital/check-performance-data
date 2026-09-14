@@ -135,8 +135,21 @@ public sealed class EgressTransferService(IEgressRunRepository repository, IEgre
         if (run is null) return new EgressAbandonResult.NotFound();
         if (run.Status == EgressRunStatus.Transferred) return new EgressAbandonResult.AlreadyTransferred();
 
+        // S8 / R1: the write must happen — and its rows-affected be read — before any blob is
+        // swept, not after. A concurrent TransferAsync can flip Transferring -> Transferred
+        // between the read above and this write; sweeping first (the earlier ordering) would then
+        // delete the files that transfer had just uploaded, while this call still went on to lose
+        // the race and report AlreadyTransferred — leaving the run Transferred, with a Succeeded
+        // audit row, but no files in LDS. Writing first and branching on what it actually affected
+        // is what tells us which case happened. The write itself also runs on CancellationToken.
+        // None, not the caller's token: per M1, once state starts changing, a closed tab must not
+        // be able to abandon this call half-way.
+        var wasTransferring = run.Status == EgressRunStatus.Transferring;
+        var rows = await repository.AbandonAsync(runId, CancellationToken.None);
+        if (rows == 0) return new EgressAbandonResult.AlreadyTransferred();
+
         var removed = new List<string>();
-        if (run.Status == EgressRunStatus.Transferring)
+        if (wasTransferring)
         {
             foreach (var output in run.Outputs)
             {
@@ -145,10 +158,7 @@ public sealed class EgressTransferService(IEgressRunRepository repository, IEgre
                     removed.Add(output.FileName);
             }
         }
-        // S8: pick the outcome from what the repository actually did, not an assumed success —
-        // a concurrent transfer could have completed between the read above and this write.
-        var rows = await repository.AbandonAsync(runId, ct);
-        return rows > 0 ? new EgressAbandonResult.Abandoned(removed) : new EgressAbandonResult.AlreadyTransferred();
+        return new EgressAbandonResult.Abandoned(removed);
     }
 
     public async Task<byte[]> BuildFileAsync(Guid runId, EgressOutputType type, CancellationToken ct) => (await BuildAsync(runId, type, ct)).Bytes;

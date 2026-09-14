@@ -244,6 +244,11 @@ public sealed class EgressRunRepository(IPortalDbContext db) : IEgressRunReposit
     public Task<int> MarkTransferFailedAsync(Guid runId, EgressRunStatus expectedStatus, string reason, string userId, CancellationToken ct) =>
         db.ExecuteInTransactionAsync(async () =>
         {
+            // S2: same retry-duplication hazard as SavePreprocessedAsync and MarkTransferredAsync
+            // — a stale tracked AuditEntry from a prior attempt would otherwise be saved a second
+            // time alongside this attempt's, leaving two TransferFailed audit rows for one failure.
+            db.ChangeTracker.Clear();
+
             var clipped = reason.Length > 1000 ? reason[..1000] : reason;
             // M4: guard first — a run that has already moved on (e.g. Abandoned) must not be
             // overwritten to TransferFailed, and must not gain a spurious audit row for it.

@@ -112,8 +112,21 @@ public sealed class EgressController(
             EgressRunStatus.PreprocessingFailed => RedirectToAction(nameof(Failed), new { id }),
             EgressRunStatus.Preprocessed or EgressRunStatus.TransferFailed or EgressRunStatus.Transferring => RedirectToAction(nameof(Summary), new { id }),
             EgressRunStatus.Transferred => RedirectToAction(nameof(Complete), new { id }),
-            _ => Home("That egress run was abandoned. Start a new one if it is still needed.")
+            _ => AbandonedHome()
         };
+    }
+
+    // Second-pass nit: Transfer's "abandoned while the transfer was in progress" Failed result
+    // (EgressTransferService.FailAsync) sets TransferErrorKey then redirects to Summary — but
+    // Summary never renders for an Abandoned run, it redirects straight here instead, so that
+    // TempData entry is never read on this request. Left alone it would surface incorrectly as a
+    // transfer error on the next unrelated run's Summary page. This is the one place every
+    // Abandoned run lands, so clearing it here (rather than at every caller of Home) closes the
+    // leak without guessing which Failed result caused it.
+    private IActionResult AbandonedHome()
+    {
+        TempData.Remove(TransferErrorKey);
+        return Home("That egress run was abandoned. Start a new one if it is still needed.");
     }
 
     private IActionResult Home(string banner)
@@ -143,7 +156,9 @@ public sealed class EgressController(
         if (page is null) return NotFound();
         // Nit: a Transferred or Abandoned run has nothing left to preprocess — without this guard
         // the page rendered a live "Run preprocessing" button for a run that is already finished.
-        if (page.Run.Status is EgressRunStatus.Transferred or EgressRunStatus.Abandoned)
+        // PreprocessingFailed is the same story: the POST already refuses it (EgressPreprocessor),
+        // so the GET must not keep offering the button either.
+        if (page.Run.Status is EgressRunStatus.Transferred or EgressRunStatus.Abandoned or EgressRunStatus.PreprocessingFailed)
             return RedirectToAction(nameof(Resume), new { id });
         if (page.Run.Outputs.Sum(o => o.SourceRecordCount) == 0)
             return RedirectToAction(nameof(Results), new { id });

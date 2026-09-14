@@ -146,6 +146,10 @@ public sealed class EgressPreprocessorTests
     // pair (Failed.cshtml says "start a new run"), so a re-run reaching Preprocessed while a
     // colleague's fresh run also holds the pair would let both transfer it. Same terminal refusal
     // shape as any other non-runnable status.
+    //
+    // Second-pass nit: the refusal text used to interpolate the raw enum member name
+    // ("PreprocessingFailed"), leaking C# to the end user. It must use the same human label
+    // Index.cshtml's StageLabel helper shows for this status ("Preprocessing failed") instead.
     [Fact]
     public async Task A_preprocessing_failed_run_is_refused_not_re_run()
     {
@@ -156,7 +160,7 @@ public sealed class EgressPreprocessorTests
         var only = Assert.Single(events);
         Assert.True(only.IsError);
         Assert.True(only.IsComplete);
-        Assert.Contains("cannot be preprocessed", only.Message);
+        Assert.Equal("This run is Preprocessing failed and cannot be preprocessed.", only.Message);
         await _repo.DidNotReceiveWithAnyArgs().TrySetStatusAsync(default, default, default, default);
     }
 

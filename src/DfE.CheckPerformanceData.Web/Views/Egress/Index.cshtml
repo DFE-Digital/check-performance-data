@@ -166,16 +166,9 @@ else
 
 @functions {
     // Where a saved run will reopen. FLAGGED copy.
-    private static string StageLabel(EgressRunStatus status) => status switch
-    {
-        EgressRunStatus.Pulled => "Data pulled",
-        EgressRunStatus.Preprocessing => "Preprocessing",
-        EgressRunStatus.PreprocessingFailed => "Preprocessing failed",
-        EgressRunStatus.Preprocessed => "Ready to transfer",
-        EgressRunStatus.Transferring => "Transferring",
-        EgressRunStatus.TransferFailed => "Transfer failed",
-        _ => status.ToString()
-    };
+    // Second-pass nit: delegates to EgressRunStatuses.Label — the single source of truth this
+    // mapping now shares with the preprocessing refusal copy — instead of keeping its own copy.
+    private static string StageLabel(EgressRunStatus status) => EgressRunStatuses.Label(status);
 
     // Nit: the saved-runs list gave every stage the same blue tag, including the two failed ones.
     private static string StageTagClass(EgressRunStatus status) => status switch

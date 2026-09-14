@@ -1,3 +1,4 @@
+using DfE.CheckPerformance.Persistence.Entities;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Egress;
 using DfE.CheckPerformanceData.Domain.Enums;
@@ -148,6 +149,30 @@ public sealed class EgressRunRepositoryTests(PostgresFixture fixture)
         var saved = await repo.GetRemoveLearnersAsync(id, CancellationToken.None);
         var only = Assert.Single(saved);
         Assert.Equal("REF-1", only.ReferenceNumber);
+    }
+
+    // S2 (second-pass nit): MarkTransferFailedAsync also writes an AuditEntry inside its retried
+    // delegate but was missing the ChangeTracker.Clear() that SavePreprocessedAsync and
+    // MarkTransferredAsync already have — the same retry-duplication hazard as the fact above,
+    // reproduced the same way: a stale tracked AuditEntry left by an earlier attempt must not be
+    // saved alongside the real one.
+    [Fact]
+    public async Task A_stale_tracked_audit_entry_left_by_an_earlier_attempt_is_not_saved_alongside_the_real_one()
+    {
+        await ResetAsync();
+        var context = fixture.CreateContext();
+        var repo = new EgressRunRepository(context);
+        var id = await repo.CreateRunAsync(Create(EgressOutputType.RemoveLearners), CancellationToken.None);
+        context.AuditEntries.Add(new AuditEntry
+        {
+            EntityType = "EgressRun", EntityId = id.ToString(), Action = "TransferFailed",
+            Timestamp = DateTime.UtcNow, UserId = UserId.ToString(), NewValues = "{}"
+        });
+
+        await repo.MarkTransferFailedAsync(id, EgressRunStatus.Pulled, "Blob upload refused", UserId.ToString(), CancellationToken.None);
+
+        await using var db = fixture.CreateContext();
+        Assert.Equal(1, await db.AuditEntries.CountAsync(a => a.EntityType == "EgressRun" && a.EntityId == id.ToString() && a.Action == "TransferFailed"));
     }
 
     [Fact]

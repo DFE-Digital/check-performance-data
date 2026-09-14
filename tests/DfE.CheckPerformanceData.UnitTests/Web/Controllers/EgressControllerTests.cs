@@ -147,6 +147,23 @@ public sealed class EgressControllerTests
         Assert.IsType<NotFoundResult>(await Build().Resume(RunId, CancellationToken.None));
     }
 
+    // Second-pass nit: EgressTransferService's "abandoned while the transfer was in progress"
+    // Failed result sets TransferErrorKey then Transfer redirects to Summary — but Summary
+    // redirects an Abandoned run straight on to Resume without ever reading it, so the entry was
+    // left to surface incorrectly as a transfer error on the next unrelated run's Summary page.
+    // Clearing it in Resume's abandoned-run branch stops that leak at its one landing point.
+    [Fact]
+    public async Task Resume_of_an_abandoned_run_clears_any_leftover_transfer_error()
+    {
+        var controller = Build();
+        controller.TempData[EgressController.TransferErrorKey] = "This run was abandoned while the transfer was in progress.";
+        _runs.GetAsync(RunId, Arg.Any<CancellationToken>()).Returns(Run(EgressRunStatus.Abandoned));
+
+        await controller.Resume(RunId, CancellationToken.None);
+
+        Assert.Null(controller.TempData[EgressController.TransferErrorKey]);
+    }
+
     [Theory]
     [InlineData(EgressRunStatus.Pulled)]
     [InlineData(EgressRunStatus.Abandoned)]
@@ -205,10 +222,13 @@ public sealed class EgressControllerTests
         Assert.Equal(nameof(EgressController.Resume), redirect.ActionName);
     }
 
-    // Nit: a Transferred/Abandoned run has nothing left to preprocess.
+    // Nit: a Transferred/Abandoned run has nothing left to preprocess. A PreprocessingFailed run
+    // has nothing left to preprocess either — the POST already refuses it, and until this fix the
+    // GET still rendered the "Run preprocessing" button/page for it regardless.
     [Theory]
     [InlineData(EgressRunStatus.Transferred)]
     [InlineData(EgressRunStatus.Abandoned)]
+    [InlineData(EgressRunStatus.PreprocessingFailed)]
     public async Task Preprocessing_redirects_to_resume_for_a_finished_run(EgressRunStatus status)
     {
         var run = Run(status) with { Outputs = [new EgressRunOutputDto(Guid.NewGuid(), EgressOutputType.RemoveLearners, true, [], 3, null, null, null)] };

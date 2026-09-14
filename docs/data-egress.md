@@ -252,6 +252,12 @@ Explorer, or the Azure CLI, pointed at the `EgressStorage` connection string fro
 - **`PreprocessingStream` is a state-mutating GET** (the accepted `ValidateWindowController`
   pattern) — the JS closes the `EventSource` on a terminal/error event, so the browser's automatic
   reconnect never restarts the server-side pipeline. Left as-is; noted for the next contributor.
-- An independent review (`.superpowers/plans/2026-09-14-294553-opus-review.md`) found one Blocker
-  and four Must-fixes in the transfer/lock state machine plus several should-fixes, all addressed
-  in follow-up commits on this branch — see the PR notes §9 for the finding-by-finding record.
+- An independent review of the transfer/lock state machine found one Blocker (B1: the web host
+  defaulted to the dev Zendesk fake with nothing but QA config overriding it, so Production would
+  have read the dev outbox table instead of real Zendesk decisions) and four Must-fixes (M1:
+  transfer was not atomic on cancellation or a post-upload database failure, leaving a run stuck
+  `Transferring` with files already in LDS; M2: re-running a `PreprocessingFailed` run bypassed
+  its released lock; M3: a run whose approved set was empty could still transfer a header-only
+  file and lock its pair forever; M4: every terminal status write was unconditional, so a
+  concurrent Abandon could be silently overwritten) plus several should-fixes, all addressed in
+  follow-up commits on this branch — see the PR description for the finding-by-finding record.

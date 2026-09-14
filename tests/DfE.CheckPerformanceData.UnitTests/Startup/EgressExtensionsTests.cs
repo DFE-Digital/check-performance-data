@@ -82,4 +82,23 @@ public sealed class EgressExtensionsTests
         using var scope = sp.CreateScope();
         Assert.IsType<ZendeskEgressTicketSource>(scope.ServiceProvider.GetRequiredService<IEgressTicketSource>());
     }
+
+    // B1(b): Default_is_the_real_zendesk_source_so_missing_settings_fail_fast above only proves
+    // the default indirectly (missing settings on the real branch throw). This proves it directly:
+    // with no Zendesk:UseFake key present at all — not "false", simply absent — and full,
+    // complete ZendeskSettings configured, DI resolves the real client type outright.
+    [Fact]
+    public void Default_resolves_the_real_zendesk_client_when_UseFake_is_not_configured_at_all()
+    {
+        using var sp = Build(new Dictionary<string, string?>
+        {
+            ["ZendeskSettings:Subdomain"] = "esfa-preprod",
+            ["ZendeskSettings:Domain"] = "zendesk",
+            ["ZendeskSettings:ClientId"] = "id",
+            ["ZendeskSettings:ClientSecret"] = "secret",
+            ["SchoolCheckingExercise:TargetViewTitle"] = "View"
+        });
+        using var scope = sp.CreateScope();
+        Assert.IsType<ZendeskEgressTicketSource>(scope.ServiceProvider.GetRequiredService<IEgressTicketSource>());
+    }
 }

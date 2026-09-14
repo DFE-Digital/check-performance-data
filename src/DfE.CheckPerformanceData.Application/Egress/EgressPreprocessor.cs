@@ -42,7 +42,9 @@ public sealed class EgressPreprocessor(IEgressRunRepository repository, IWindowS
         // gets the same refusal shape as any other non-runnable status.
         if (run.Status is not (EgressRunStatus.Pulled or EgressRunStatus.Preprocessed))
         {
-            yield return Terminal(0, "Preprocessing", $"This run is {run.Status} and cannot be preprocessed.", 0, 0, 0, isError: true, null);
+            // Second-pass nit: use the same human label Index.cshtml shows for this status, not
+            // the raw enum member name (e.g. "PreprocessingFailed" leaking straight to the user).
+            yield return Terminal(0, "Preprocessing", $"This run is {EgressRunStatuses.Label(run.Status)} and cannot be preprocessed.", 0, 0, 0, isError: true, null);
             yield break;
         }
         var previous = run.Status;

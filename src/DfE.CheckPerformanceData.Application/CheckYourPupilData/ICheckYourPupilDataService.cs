@@ -13,6 +13,17 @@ public interface ICheckYourPupilDataService
     /// <summary>Every pupil in a population, projected to the window type's CSV column set.</summary>
     Task<PupilTable> GetPupilCsvAsync(Guid windowId, bool included);
 
+    /// <summary>
+    /// One page of the Results tab: main-file results joined to the pupil file on CYPMD ID, sorted
+    /// by surname, first name then subject, and filtered by <paramref name="search"/>. Null when
+    /// the window runs no results enquiry, or its type has no main results slot (KS2) — then there
+    /// is no tab to render.
+    /// </summary>
+    Task<(PupilTable Table, int TotalCount)?> GetResultsTableAsync(Guid windowId, string? search, int page, int pageSize);
+
+    /// <summary>Every main-file result projected to the CSV column set. Null under the same rule as <see cref="GetResultsTableAsync"/>.</summary>
+    Task<PupilTable?> GetResultsCsvAsync(Guid windowId);
+
     Task<CheckingWindowDto> GetCheckingWindowAsync(Guid windowId);
     /// <summary>
     /// Autocomplete suggestions for the pupil search.

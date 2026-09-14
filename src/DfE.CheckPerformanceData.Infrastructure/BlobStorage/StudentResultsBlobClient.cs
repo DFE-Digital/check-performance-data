@@ -34,6 +34,13 @@ public sealed class StudentResultsBlobClient(BlobServiceClient blobServiceClient
         return all.Select(r => r.CypmdId).ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
 
+    public async Task<IReadOnlyList<StudentResultRecord>> GetResultsForSourceAsync(
+        Guid windowId, string laestab, string sourceTag, CancellationToken ct = default)
+    {
+        var all = await GetSchoolResultsAsync(windowId, laestab, ct);
+        return all.Where(r => string.Equals(r.SourceFile, sourceTag, StringComparison.Ordinal)).ToList();
+    }
+
     public async Task<bool> AnyForSourceAsync(
         Guid windowId, string laestab, string sourceTag, CancellationToken ct = default)
     {

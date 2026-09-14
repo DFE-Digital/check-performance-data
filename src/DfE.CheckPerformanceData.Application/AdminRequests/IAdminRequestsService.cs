@@ -11,13 +11,4 @@ public interface IAdminRequestsService
     /// </summary>
     Task<WindowRequestsResult?> GetForWindowAsync(
         Guid windowId, CheckingExerciseType? exercise, CancellationToken cancellationToken);
-
-    // Quick-and-dirty test hook: rebuild a RequestDocument for every SubmittedUnCommitted
-    // request in the current open window(s) and drop each onto the Zendesk queue. Returns
-    // the number of documents enqueued.
-    //
-    // Currently unreachable from the UI: the "Process Close Window" button is disabled and
-    // AdminRequestsController exposes no action that calls this. Kept, with its tests, because
-    // the close-window story will re-enable it — do not delete it as dead code.
-    Task<int> ProcessCloseWindowEvent(CancellationToken cancellationToken);
 }

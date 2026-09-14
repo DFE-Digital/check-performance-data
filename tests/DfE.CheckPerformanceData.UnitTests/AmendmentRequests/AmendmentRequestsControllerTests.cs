@@ -90,7 +90,7 @@ public class AmendmentRequestsControllerTests
             ],
             SubmittedRows = [],
             IssueRows = [],
-            HasAnyIssues = false
+            HasResultsEnquiry = true
         });
         _session.SetBulkSelection(WindowId, new[] { "R1" });
 
@@ -112,7 +112,7 @@ public class AmendmentRequestsControllerTests
             Rows = [],
             SubmittedRows = [],
             IssueRows = [],
-            HasAnyIssues = false
+            HasResultsEnquiry = true
         });
 
         var result = await _sut.Index(WindowId);
@@ -139,7 +139,7 @@ public class AmendmentRequestsControllerTests
             Rows = [],
             SubmittedRows = [],
             IssueRows = [],
-            HasAnyIssues = false
+            HasResultsEnquiry = true
         });
 
         var result = await _sut.Index(WindowId);
@@ -167,7 +167,7 @@ public class AmendmentRequestsControllerTests
             Rows = [],
             SubmittedRows = [],
             IssueRows = [],
-            HasAnyIssues = false
+            HasResultsEnquiry = true
         });
 
         var result = await _sut.Index(WindowId);
@@ -197,7 +197,7 @@ public class AmendmentRequestsControllerTests
             ],
             SubmittedRows = [],
             IssueRows = [],
-            HasAnyIssues = false
+            HasResultsEnquiry = true
         });
 
         var result = await _sut.Index(WindowId);
@@ -233,7 +233,7 @@ public class AmendmentRequestsControllerTests
                 }
             ],
             IssueRows = [],
-            HasAnyIssues = false
+            HasResultsEnquiry = true
         });
 
         var result = await _sut.Index(WindowId);
@@ -269,7 +269,7 @@ public class AmendmentRequestsControllerTests
                 }
             ],
             IssueRows = [],
-            HasAnyIssues = false
+            HasResultsEnquiry = true
         });
 
         var result = await _sut.Index(WindowId);
@@ -290,22 +290,25 @@ public class AmendmentRequestsControllerTests
         Assert.Equal(WindowId, vm.WindowId);
     }
 
-    // The search box round-trips through a GET parameter; losing the pass-through silently turns
-    // every search into "show everything".
-    [Fact]
-    public async Task Index_PassesTheIssueSearchTermToTheService()
+    // The Results Enquiries tab is hidden on a window that runs no results-enquiry exercise, so the
+    // service's answer must reach the view unchanged in both directions.
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Index_PassesTheResultsEnquiryExerciseFlagToTheView(bool hasResultsEnquiry)
     {
-        _service.GetAmendmentRequestsAsync(WindowId, "smith").Returns(EmptyResult());
+        _service.GetAmendmentRequestsAsync(WindowId).Returns(EmptyResultWith(hasResultsEnquiry));
 
-        await _sut.Index(WindowId, resultsEnquiriesSearch: "smith");
+        var view = Assert.IsType<ViewResult>(await _sut.Index(WindowId));
+        var model = Assert.IsType<AmendmentRequestsViewModel>(view.Model);
 
-        await _service.Received(1).GetAmendmentRequestsAsync(WindowId, "smith");
+        Assert.Equal(hasResultsEnquiry, model.ShowResultsEnquiries);
     }
 
     [Fact]
     public async Task Index_MapsIssueRowsOntoTheViewModel()
     {
-        _service.GetAmendmentRequestsAsync(WindowId, "ali").Returns(new AmendmentRequestsResult
+        _service.GetAmendmentRequestsAsync(WindowId).Returns(new AmendmentRequestsResult
         {
             LearnerNoun = LearnerNoun.Pupil,
             Deadlines = [Deadline(DateTime.UtcNow)],
@@ -324,10 +327,10 @@ public class AmendmentRequestsControllerTests
                     ReferenceNumber = "REF-1"
                 }
             ],
-            HasAnyIssues = true
+            HasResultsEnquiry = true
         });
 
-        var view = Assert.IsType<ViewResult>(await _sut.Index(WindowId, resultsEnquiriesSearch: "ali"));
+        var view = Assert.IsType<ViewResult>(await _sut.Index(WindowId));
         var model = Assert.IsType<AmendmentRequestsViewModel>(view.Model);
 
         var row = Assert.Single(model.IssueRows);
@@ -335,8 +338,6 @@ public class AmendmentRequestsControllerTests
         Assert.Equal("500001", row.CypmdId);
         Assert.Equal("Missing qualification", row.TypeLabel);
         Assert.Equal("ABRSM level 3", row.QualificationText);
-        Assert.Equal("ali", model.IssueSearch);
-        Assert.True(model.HasAnyIssues);
     }
 
     // GDS style writes dates out; 01/10/2026 would also collide with the US reading. Matches the
@@ -705,7 +706,9 @@ public class AmendmentRequestsControllerTests
         bool isOpen = true) =>
         new() { Exercise = exercise, EndDate = endDate, IsOpen = isOpen };
 
-    private static AmendmentRequestsResult EmptyResult() => new()
+    private static AmendmentRequestsResult EmptyResult() => EmptyResultWith(hasResultsEnquiry: true);
+
+    private static AmendmentRequestsResult EmptyResultWith(bool hasResultsEnquiry) => new()
     {
         LearnerNoun = LearnerNoun.Pupil,
         Deadlines = [Deadline(new DateTime(2026, 6, 26, 17, 0, 0))],
@@ -713,7 +716,7 @@ public class AmendmentRequestsControllerTests
         Rows = [],
         SubmittedRows = [],
         IssueRows = [],
-        HasAnyIssues = false
+        HasResultsEnquiry = hasResultsEnquiry
     };
 
     private static CheckingWindowDto SampleWindow(bool withExercises = true)

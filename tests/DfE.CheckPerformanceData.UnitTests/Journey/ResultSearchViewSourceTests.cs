@@ -4,10 +4,10 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 
 // AB#296648: pins the ResultSearch page's markup (Figma p-147877 / p-147913).
 //
-// The property that matters most is that this page works with JavaScript off. CLAUDE.md makes
-// progressive enhancement mandatory, so the options are server-rendered into a real <select> that
-// accessible-autocomplete upgrades in place — not fetched, which would leave a script-less browser
-// with an empty control.
+// The property that matters most is that this page works with JavaScript off: the options are
+// server-rendered into a real <select>, not fetched, which would leave a script-less browser with an
+// empty control. The accessible-autocomplete enhancement this control once carried was removed —
+// the list is short enough to read — so the select is now all there is.
 public sealed class ResultSearchViewSourceTests
 {
     private static string ViewSource() =>
@@ -34,23 +34,9 @@ public sealed class ResultSearchViewSourceTests
     [Fact]
     public void Option_text_comes_from_the_shared_label_helper()
     {
-        // Same helper the suggestions endpoint uses, so the enhanced and unenhanced views of this
-        // page cannot describe the same result differently.
+        // Same helper the suggestions endpoint uses, so this page and that endpoint cannot describe
+        // the same result differently.
         Assert.Contains("ResultLabel.For(result)", ViewSource());
-    }
-
-    [Fact]
-    public void The_option_label_is_the_whole_of_the_option_text()
-    {
-        // accessible-autocomplete builds its suggestions from each option's untrimmed textContent
-        // and copies the confirmed one into the field. With the label on its own line that text
-        // carried a newline and the indentation; the input stripped the newline, the library's poll
-        // then saw the field and its own query disagree, re-filtered, found nothing, and reopened
-        // on "No results found" after every successful pick (AB#301934 review, F1). Tags and label
-        // stay on one line — Razor would otherwise put whitespace back into the option.
-        Assert.Contains(
-            ">@DfE.CheckPerformanceData.Application.ResultsEnquiry.ResultLabel.For(result)</option>",
-            ViewSource());
     }
 
     [Fact]
@@ -63,38 +49,22 @@ public sealed class ResultSearchViewSourceTests
     }
 
     [Fact]
-    public void The_select_is_enhanced_rather_than_replaced()
+    public void The_select_carries_no_type_ahead()
     {
+        // The type-ahead is gone: a student holds a handful of results, so the list is read rather
+        // than searched. The no-JS guarantee is unaffected — it was always the same <select>, and
+        // the one script left (the #409 details reveal) only reacts to the select, never replaces
+        // it. See ResultSearch.cshtml's own comment; the grade and syllabus pickers match.
         var view = ViewSource();
 
-        Assert.Contains("accessibleAutocomplete.enhanceSelectElement({", view);
-        Assert.Contains("selectElement: select", view);
+        Assert.DoesNotContain("accessibleAutocomplete", view);
         // Guards against a regression to a fetch-only autocomplete, which would break the no-JS path.
         Assert.DoesNotContain("/results/suggestions", view);
     }
 
     [Fact]
-    public void The_enhancement_never_auto_picks_a_result()
-    {
-        // Choosing the wrong result sends the DfE to check a grade the school never queried.
-        var view = ViewSource();
-
-        Assert.Contains("autoselect: false", view);
-        Assert.Contains("confirmOnBlur: false", view);
-    }
-
-    [Fact]
-    public void The_script_degrades_quietly_when_the_autocomplete_library_is_absent()
-    {
-        // Without this the page would throw and leave the (working) select in place but unstyled.
-        Assert.Contains("typeof accessibleAutocomplete === 'undefined'", ViewSource());
-    }
-
-    [Fact]
     public void The_heading_labels_the_control()
     {
-        // enhanceSelectElement moves the select's id onto the new input, so this label names
-        // whichever control is visible.
         var view = ViewSource();
 
         Assert.Contains("<label class=\"govuk-label govuk-label--l\" for=\"result-search\">@Model.Title</label>", view);
@@ -102,8 +72,10 @@ public sealed class ResultSearchViewSourceTests
     }
 
     [Fact]
-    public void The_hint_matches_the_design()
-        => Assert.Contains("Start typing to search for results by subject or QAN", ViewSource());
+    public void The_hint_describes_the_list_rather_than_a_search()
+        // The design's "Start typing to search" described the type-ahead this page no longer has.
+        // FLAGGED: copy needs content sign-off.
+        => Assert.Contains("Results are listed by subject and QAN", ViewSource());
 
     [Fact]
     public void The_error_summary_and_inline_error_both_target_the_control()
@@ -173,7 +145,7 @@ public sealed class ResultSearchViewSourceTests
     [Fact]
     public void A_student_with_no_results_gets_an_explanation_rather_than_an_empty_control()
     {
-        // Rendering an empty autocomplete leaves the user typing into a box that can never answer.
+        // Rendering an empty dropdown leaves the user with a control that can never answer.
         // Mirrors _GradeSelect.cshtml, which states a missing-reference-data gap plainly.
         var view = ViewSource();
 
@@ -246,39 +218,30 @@ public sealed class ResultSearchViewSourceTests
     }
 
     [Fact]
-    public void Confirming_a_suggestion_reveals_its_details_and_still_selects_the_option_that_posts()
+    public void Changing_the_selection_reveals_that_results_details()
     {
-        // Passing onConfirm replaces the library's default, and the default is what marked the
-        // matching <option> selected — the select is what the form posts. The override must do
-        // that first (matching on the untrimmed option text, exactly as the library does) and
-        // only then reveal the block for the option's value. Dropping the selected= line would
-        // leave every enquiry failing validation at Continue while looking right on screen.
-        //
-        // "Exactly as the library does" includes taking the FIRST match: the default is
-        // filter(...)[0]. Two of a student's results can share a label — ResultLabel.For omits the
-        // source file, CompositeKey includes it — and a loop that keeps overwriting would select the
-        // last one, raising the enquiry against the wrong file. The break is what pins first-wins.
+        // With a plain <select> the option the user picks is already the one that posts, so the
+        // script has one job: show the block keyed by the new value. The placeholder option's empty
+        // value hides every block, so clearing the choice cannot leave the page describing a result
+        // the control no longer shows.
         var view = ViewSource();
 
-        var enhanceAt = view.IndexOf("accessibleAutocomplete.enhanceSelectElement({", StringComparison.Ordinal);
-        Assert.True(enhanceAt >= 0, "the select must still be enhanced in place with enhanceSelectElement");
-        var config = view.Substring(enhanceAt, view.IndexOf("tAssistiveHint:", enhanceAt, StringComparison.Ordinal) - enhanceAt);
-
-        Assert.Contains("onConfirm: function (label)", config);
-        Assert.Contains("(option.textContent || option.innerText) === label", config);
-        Assert.Contains("break;", config);
-        Assert.Contains("chosen.selected = true;", config);
-        Assert.Contains("showDetails(chosen.value);", config);
+        Assert.Contains(
+            "select.addEventListener('change', function () { showDetails(select.value); });",
+            view);
+        Assert.Contains(
+            "details[i].hidden = details[i].getAttribute('data-result-details') !== key;",
+            view);
     }
 
     [Fact]
-    public void Editing_the_field_hides_the_details()
+    public void The_details_reveal_is_an_enhancement_the_page_does_not_depend_on()
     {
-        // The library leaves the hidden select on the last confirmed choice when the text is
-        // edited; the details must not keep describing a result the field no longer shows.
+        // The server decides each block's hidden= from the session key, so validation redisplay,
+        // Back and Change all show the right details with JavaScript off. The script must not be
+        // the only thing that can reveal a block.
         var view = ViewSource();
 
-        Assert.Contains("input.addEventListener('input', function () { showDetails(''); });", view);
-        Assert.Contains("details[i].hidden = details[i].getAttribute('data-result-details') !== key;", view);
+        Assert.Contains("hidden=\"@(result.CompositeKey == Model.SelectedResultKey ? null : \"hidden\")\"", view);
     }
 }

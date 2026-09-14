@@ -27,6 +27,13 @@ public interface IStudentResultsClient
     Task<IReadOnlySet<string>> GetStudentIdsWithResultsAsync(Guid windowId, string laestab, CancellationToken ct = default);
 
     /// <summary>
+    /// Every result the school holds from one source file, across all students — what the Results
+    /// tab lists. Empty when the container, the blob or the tag is absent. Served from the same
+    /// cached school file as <see cref="GetResultsAsync"/>.
+    /// </summary>
+    Task<IReadOnlyList<StudentResultRecord>> GetResultsForSourceAsync(Guid windowId, string laestab, string sourceTag, CancellationToken ct = default);
+
+    /// <summary>
     /// Whether the school holds any result from a given source file. This is how the service works
     /// out for itself whether a supplier file has landed, rather than being told separately.
     /// </summary>

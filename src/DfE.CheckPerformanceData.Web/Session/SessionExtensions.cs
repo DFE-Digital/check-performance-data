@@ -1,11 +1,46 @@
 using System.Text.Json;
 using DfE.CheckPerformanceData.Application.Journey;
+using DfE.CheckPerformanceData.Domain.Enums;
+using LearnerNoun = DfE.CheckPerformanceData.Application.WindowManagement.LearnerNoun;
 
 namespace DfE.CheckPerformanceData.Web.Session;
 
 public static class SessionExtensions
 {
     private static string Key(Guid windowId) => $"request_{windowId}";
+
+    private const string SelectedWindowIdKey = "SelectedWindowId";
+    private const string SelectedWindowTypeKey = "SelectedWindowType";
+
+    /// <summary>
+    /// Stamps the window the main nav's window-scoped links point at, together with the type those
+    /// links take their learner noun from. The two are always written and cleared together, so the
+    /// nav can never label a 16-19 window's link "Pupils".
+    /// </summary>
+    public static void SetSelectedWindow(this ISession session, Guid windowId, CheckingWindowType type)
+    {
+        session.SetString(SelectedWindowIdKey, windowId.ToString());
+        session.SetString(SelectedWindowTypeKey, type.ToString());
+    }
+
+    public static string? GetSelectedWindowId(this ISession session) =>
+        session.GetString(SelectedWindowIdKey);
+
+    /// <summary>
+    /// The learner noun of the selected window — "student" on 16-19, "pupil" everywhere else.
+    /// Falls back to "pupil" when no type is stamped (a session written before the type was, or
+    /// no window selected at all), which is the noun every key stage but 16-19 uses.
+    /// </summary>
+    public static LearnerNoun GetSelectedWindowLearnerNoun(this ISession session) =>
+        Enum.TryParse<CheckingWindowType>(session.GetString(SelectedWindowTypeKey), out var type)
+            ? LearnerNoun.For(type)
+            : LearnerNoun.Pupil;
+
+    public static void ClearSelectedWindow(this ISession session)
+    {
+        session.Remove(SelectedWindowIdKey);
+        session.Remove(SelectedWindowTypeKey);
+    }
 
     public static RequestState GetRequestState(this ISession session, Guid windowId)
     {

@@ -51,17 +51,6 @@
     </form>
 }
 
-@* Disabled for now: the close-window replay has no action behind it while the close-window
-   story is outstanding. Rendered rather than removed so its place on the page is kept, and
-   aria-disabled carries the state to a screen reader as well as to the pointer. *@
-<div class="govuk-!-margin-bottom-6">
-    <button type="button" class="govuk-button govuk-button--secondary" data-module="govuk-button"
-            disabled aria-disabled="true" aria-describedby="close-window-hint">
-        Process "Close Window"
-    </button>
-    <p class="govuk-hint" id="close-window-hint">This action is turned off.</p>
-</div>
-
 @if (Model.Rows.Count == 0)
 {
     <p class="govuk-body">

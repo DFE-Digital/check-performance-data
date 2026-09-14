@@ -12,9 +12,9 @@ namespace DfE.CheckPerformanceData.E2ETests.Journey;
 // AB#297848: the 16-19 "missing qualification" journey — the sibling to IncorrectGradeEnquiryTests.
 //
 // These cover what only a browser can: that the qualification-search page's plain <select>s (AO,
-// then QAN grouped by AO) genuinely work without further help, that the details page's syllabus
-// picker accessible-autocomplete enhancement activates just like the grade picker's, and that the
-// whole journey holds together end to end with no late-results interstitial in the way.
+// then QAN grouped by AO) genuinely work without further help, that the details page's syllabus and
+// grade dropdowns post the value they show, and that the whole journey holds together end to end
+// with no late-results interstitial in the way.
 [Collection("E2E")]
 public sealed class MissingQualificationEnquiryTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
@@ -59,47 +59,38 @@ public sealed class MissingQualificationEnquiryTests(PlaywrightFixture fixture) 
     }
 
     [RetryFact(3)]
-    public async Task The_syllabus_and_grade_pickers_open_empty_and_list_every_option_without_being_cleared()
+    public async Task The_syllabus_and_grade_pickers_offer_every_option_with_nothing_preselected()
     {
-        // AB#301933 / #408, on the two clones of the incorrect-grade picker. Both used to open
-        // holding "Select" as their value, so showAllValues found nothing until the field was
-        // cleared. Counts are the QualList entry for QAN 60146084: two syllabus codes, thirteen
-        // grades — this journey has no current grade, so nothing is filtered out.
+        // Both pickers are plain <select>s (the type-ahead the grade and result pickers once carried
+        // was removed with this one). Counts are the QualList entry for QAN 60146084: two syllabus
+        // codes, thirteen grades — this journey has no current grade, so nothing is filtered out.
+        // Each count is the options plus the placeholder row, which must be what is selected: the
+        // user has to choose.
         await StartEnquiryAsync();
         await ChooseCohortScopeAsync("no");
         await ChooseStudentAsync("select-student-single");
         await ChooseQualificationAsync();
         await Page.WaitForURLAsync($"**/Journey/{WindowId}/page/qualification-details");
 
-        var syllabus = Page.Locator("input#q_q_syllabus_code");
+        var syllabus = Page.Locator("select[name='q_q_syllabus_code']");
         await Expect(syllabus).ToBeVisibleAsync();
         await Expect(syllabus).ToHaveValueAsync(string.Empty);
-        await syllabus.ClickAsync();
-        var syllabusOptions = Page.Locator("#q_q_syllabus_code__listbox li[role='option']");
-        await Expect(syllabusOptions).ToHaveCountAsync(2);
-        await Expect(Page.Locator("#q_q_syllabus_code__listbox")).ToContainTextAsync(SyllabusLabel);
+        await Expect(syllabus.Locator("option")).ToHaveCountAsync(3);
+        await Expect(syllabus).ToContainTextAsync(SyllabusLabel);
 
-        // Close the first menu before opening the second so the two listboxes cannot overlap.
-        await Page.Keyboard.PressAsync("Escape");
-
-        var grade = Page.Locator("input#q_q_missing_grade");
+        var grade = Page.Locator("select[name='q_q_missing_grade']");
         await Expect(grade).ToBeVisibleAsync();
         await Expect(grade).ToHaveValueAsync(string.Empty);
-        await grade.ClickAsync();
-        var gradeOptions = Page.Locator("#q_q_missing_grade__listbox li[role='option']");
-        await Expect(gradeOptions).ToHaveCountAsync(13);
-        await Expect(Page.Locator("#q_q_missing_grade__listbox")).Not.ToContainTextAsync("No results found");
+        await Expect(grade.Locator("option")).ToHaveCountAsync(14);
     }
 
     [RetryFact(3)]
     public async Task Answered_pickers_are_restored_on_a_validation_redisplay()
     {
         // The route a Back-link fact cannot cover: the page is re-rendered by the POST handler with
-        // the posted answers, and the server marks each chosen <option> selected. defaultValue: ''
-        // (AB#301933) must not blank either enhanced input here — the library overrides it whenever
-        // the select holds a value. This is the one page in the enquiry journeys where a redisplay
-        // can carry an answer: on grade-details the only rejected grade is the current one, which is
-        // no longer an option at all (AB#301913).
+        // the posted answers, and the server marks each chosen <option> selected. This is the one
+        // page in the enquiry journeys where a redisplay can carry an answer: on grade-details the
+        // only rejected grade is the current one, which is no longer an option at all (AB#301913).
         await StartEnquiryAsync();
         await ChooseCohortScopeAsync("no");
         await ChooseStudentAsync("select-student-single");
@@ -112,9 +103,7 @@ public sealed class MissingQualificationEnquiryTests(PlaywrightFixture fixture) 
         await ContinueAsync();
 
         await AssertErrorAsync("Provide the award date");
-        await Expect(Page.Locator("input#q_q_syllabus_code")).ToHaveValueAsync(SyllabusLabel);
         await Expect(Page.Locator("select[name='q_q_syllabus_code']")).ToHaveValueAsync(SyllabusCode);
-        await Expect(Page.Locator("input#q_q_missing_grade")).ToHaveValueAsync("9");
         await Expect(Page.Locator("select[name='q_q_missing_grade']")).ToHaveValueAsync("9");
     }
 
@@ -213,7 +202,7 @@ public sealed class MissingQualificationEnquiryTests(PlaywrightFixture fixture) 
 
     /// <summary>
     /// The AO then QAN pickers are plain, no-JS-required &lt;select&gt;s (unlike the accessible
-    /// -autocomplete pupil/result/syllabus/grade controls) — every QAN renders grouped by AO, and a
+    /// -autocomplete pupil and result controls) — every QAN renders grouped by AO, and a
     /// script narrows the visible group to the chosen AO. Selecting AO first keeps the QAN's
     /// optgroup enabled for the second select.
     /// </summary>
@@ -236,35 +225,22 @@ public sealed class MissingQualificationEnquiryTests(PlaywrightFixture fixture) 
         await ContinueAsync();
     }
 
-    // The syllabus picker is a server-rendered <select> that accessible-autocomplete upgrades in
-    // place, exactly like the grade picker — driving the enhanced input is the point, proving the
-    // enhancement actually activates.
+    // Both pickers are plain server-rendered <select>s with no JavaScript enhancement, so the
+    // option is chosen on the select itself.
     private async Task SelectSyllabusAsync(string code)
     {
-        var input = Page.Locator("input#q_q_syllabus_code");
-        await Expect(input).ToBeVisibleAsync();
-        await input.FillAsync(code);
-
-        var option = Page.Locator("#q_q_syllabus_code__listbox li[role='option']")
-            .GetByText(code, new() { Exact = false });
-        await Expect(option.First).ToBeVisibleAsync();
-        await option.First.ClickAsync();
-
-        await Expect(Page.Locator("select[name='q_q_syllabus_code']")).ToHaveValueAsync(code);
+        var select = Page.Locator("select[name='q_q_syllabus_code']");
+        await Expect(select).ToBeVisibleAsync();
+        await select.SelectOptionAsync(code);
+        await Expect(select).ToHaveValueAsync(code);
     }
 
     private async Task SelectMissingGradeAsync(string grade)
     {
-        var input = Page.Locator("input#q_q_missing_grade");
-        await Expect(input).ToBeVisibleAsync();
-        await input.FillAsync(grade);
-
-        var option = Page.Locator("#q_q_missing_grade__listbox li[role='option']")
-            .GetByText(grade, new() { Exact = true });
-        await Expect(option.First).ToBeVisibleAsync();
-        await option.First.ClickAsync();
-
-        await Expect(Page.Locator("select[name='q_q_missing_grade']")).ToHaveValueAsync(grade);
+        var select = Page.Locator("select[name='q_q_missing_grade']");
+        await Expect(select).ToBeVisibleAsync();
+        await select.SelectOptionAsync(grade);
+        await Expect(select).ToHaveValueAsync(grade);
     }
 
     // QuestionPartialModel renders date inputs as q_<id>_day/_month/_year, where the question id's

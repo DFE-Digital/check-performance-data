@@ -14,23 +14,32 @@ public sealed class AmendmentRequestsViewModel
     public required LearnerNoun LearnerNoun { get; init; }
 
     /// <summary>
-    /// One sentence per checking exercise the window runs (#320). The grid is deliberately left
+    /// One deadline per checking exercise the window runs (#320). The grid is deliberately left
     /// unsplit — both populations share one table and one bulk submit — but they do not share a
-    /// deadline, so each is stated.
+    /// deadline, so each is stated where its requests live: the results-enquiry deadline on the
+    /// Results Enquiries tab, every other one above the grid and on the Requests tab.
     /// </summary>
     public required IReadOnlyList<ExerciseDeadlineViewModel> Deadlines { get; init; }
+
+    /// <summary>The deadlines stated above the grid and on the Requests tab: every exercise but results enquiry.</summary>
+    public IEnumerable<ExerciseDeadlineViewModel> RequestDeadlines =>
+        Deadlines.Where(d => d.Exercise != CheckingExerciseType.ResultsEnquiry);
+
+    /// <summary>The results-enquiry deadline, stated on the Results Enquiries tab; null when the window runs no such exercise.</summary>
+    public ExerciseDeadlineViewModel? ResultsEnquiryDeadline =>
+        Deadlines.FirstOrDefault(d => d.Exercise == CheckingExerciseType.ResultsEnquiry);
 
     public required IReadOnlyList<AmendmentRequestRowViewModel> Rows { get; init; }
     public required IReadOnlyList<SubmittedRequestRowViewModel> SubmittedRows { get; init; }
 
-    /// <summary>Issues-tab rows (AB#298325), already filtered by <see cref="IssueSearch"/>.</summary>
+    /// <summary>Results Enquiries tab rows (AB#298325): every submitted enquiry for the school.</summary>
     public required IReadOnlyList<IssueRowViewModel> IssueRows { get; init; }
 
-    /// <summary>Pre-filter existence flag: distinguishes the empty state from a no-match search.</summary>
-    public required bool HasAnyIssues { get; init; }
-
-    /// <summary>The search term as typed, echoed back into the search input.</summary>
-    public string? IssueSearch { get; init; }
+    /// <summary>
+    /// Whether to render the Results Enquiries tab: true only when the window runs a results-enquiry
+    /// checking exercise. A window without one has no results feed, so the tab would say nothing.
+    /// </summary>
+    public required bool ShowResultsEnquiries { get; init; }
 }
 
 /// <summary>One exercise's deadline sentence on the amendment requests page.</summary>

@@ -11,6 +11,14 @@ public sealed class CheckYourPupilDataViewModel
     public required IReadOnlyList<PupilTableSection> Sections { get; init; }
 
     /// <summary>
+    /// The Results tab: one row per main-file result, joined to the pupil file. Null when the
+    /// window runs no results enquiry (or its type has no main results slot), and then no tab
+    /// renders. Kept out of <see cref="Sections"/> because on Post16 those stack inside one tab,
+    /// and Results must be a sibling tab — its axis is dataset, not inclusion status.
+    /// </summary>
+    public PupilTableSection? ResultsSection { get; init; }
+
+    /// <summary>
     /// True for KS4-style windows, where each section is its own tab. False for Post16, where all
     /// sections stack inside one "Pupils" tab.
     /// </summary>

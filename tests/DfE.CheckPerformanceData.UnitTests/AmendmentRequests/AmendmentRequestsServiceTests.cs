@@ -99,7 +99,7 @@ public class AmendmentRequestsServiceTests
     [Fact]
     public async Task GetAmendmentRequestsAsync_AWindowWithNoExercises_HasNoDeadlines()
     {
-        _windowService.GetCheckingWindowAsync(WindowId).Returns(Window(DateTime.UtcNow));
+        _windowService.GetCheckingWindowAsync(WindowId).Returns(WindowWithNoExercises(DateTime.UtcNow));
         _requestRepo.GetAmendmentRequestsAsync(WindowId, 100001L).Returns([]);
 
         var result = await _sut.GetAmendmentRequestsAsync(WindowId);
@@ -242,7 +242,6 @@ public class AmendmentRequestsServiceTests
         Assert.Equal("500001", row.CypmdId);
         Assert.Equal("Missing qualification", row.TypeLabel);
         Assert.Equal("ABRSM level 3 certificate in practical music (Grade 8)", row.QualificationText);
-        Assert.True(result.HasAnyIssues);
     }
 
     // Incorrect-grade and result-does-not-belong journeys store SelectedResult, not
@@ -322,61 +321,6 @@ public class AmendmentRequestsServiceTests
             Arg.Any<Func<object, Exception?, string>>());
     }
 
-    [Fact]
-    public async Task GetAmendmentRequestsAsync_SearchFiltersByFirstOrLastNameCaseInsensitively()
-    {
-        _windowService.GetCheckingWindowAsync(WindowId).Returns(Window(DateTime.UtcNow));
-        _requestRepo.GetAmendmentRequestsAsync(WindowId, 100001L).Returns([]);
-        _requestRepo.GetSubmittedResultsEnquiriesAsync(WindowId, 100001L).Returns(
-        [
-            Enquiry("REF-A", "Alice", "Smith"),
-            Enquiry("REF-B", "Billy", "Brown"),
-            Enquiry("REF-C", "Chloe", "Alison")
-        ]);
-
-        // "ali" hits Alice (first name) and Alison (last name), never Billy Brown.
-        var result = await _sut.GetAmendmentRequestsAsync(WindowId, issueSearch: "  ALI ");
-
-        Assert.Equal(["REF-A", "REF-C"], result.IssueRows.Select(r => r.ReferenceNumber));
-        Assert.True(result.HasAnyIssues);
-    }
-
-    // HasAnyIssues reports the pre-search population: the view uses it to choose between the
-    // "no enquiries at all" empty state and the "search matched nothing" message. Conflating them
-    // would tell a school with enquiries that it has none.
-    [Fact]
-    public async Task GetAmendmentRequestsAsync_NoMatchSearchKeepsHasAnyIssuesTrue()
-    {
-        _windowService.GetCheckingWindowAsync(WindowId).Returns(Window(DateTime.UtcNow));
-        _requestRepo.GetAmendmentRequestsAsync(WindowId, 100001L).Returns([]);
-        _requestRepo.GetSubmittedResultsEnquiriesAsync(WindowId, 100001L)
-            .Returns([Enquiry("REF-A", "Alice", "Smith")]);
-
-        var result = await _sut.GetAmendmentRequestsAsync(WindowId, issueSearch: "zzz");
-
-        Assert.Empty(result.IssueRows);
-        Assert.True(result.HasAnyIssues);
-    }
-
-    // Blob loads are IO per row; filtering first keeps a search over a long list from fetching
-    // blobs it will immediately discard.
-    [Fact]
-    public async Task GetAmendmentRequestsAsync_OnlyLoadsBlobsForRowsThatSurviveTheSearch()
-    {
-        _windowService.GetCheckingWindowAsync(WindowId).Returns(Window(DateTime.UtcNow));
-        _requestRepo.GetAmendmentRequestsAsync(WindowId, 100001L).Returns([]);
-        _requestRepo.GetSubmittedResultsEnquiriesAsync(WindowId, 100001L).Returns(
-        [
-            Enquiry("REF-A", "Alice", "Smith"),
-            Enquiry("REF-B", "Billy", "Brown")
-        ]);
-
-        await _sut.GetAmendmentRequestsAsync(WindowId, issueSearch: "alice");
-
-        await _blobClient.Received(1).GetAsync(WindowId, "REF-A");
-        await _blobClient.DidNotReceive().GetAsync(WindowId, "REF-B");
-    }
-
     private static SubmittedRequestData Enquiry(string reference, string first, string last, DateTime? submitted = null) => new()
     {
         PupilFirstname = first,
@@ -388,6 +332,69 @@ public class AmendmentRequestsServiceTests
         Submitted = submitted ?? DateTime.UtcNow
     };
 
+    // The Results Enquiries tab only belongs on a window that runs the exercise: without one there
+    // is no results feed, so the tab could only ever report an empty list. The exercise is the
+    // whole test — results enquiry is not a 16-19 exercise, KS4 Autumn runs one too, so a window
+    // type added beside this check would hide the tab from a window that has the data.
+    [Fact]
+    public async Task GetAmendmentRequestsAsync_ReportsAResultsEnquiryExercise()
+    {
+        var endDate = new DateTime(2026, 6, 26, 17, 0, 0);
+        _windowService.GetCheckingWindowAsync(WindowId).Returns(
+            Window(endDate,
+                Exercise(CheckingExerciseType.PupilData, endDate, sortOrder: 0),
+                Exercise(CheckingExerciseType.ResultsEnquiry, endDate, sortOrder: 1)));
+        _requestRepo.GetAmendmentRequestsAsync(WindowId, 100001L).Returns([]);
+
+        var result = await _sut.GetAmendmentRequestsAsync(WindowId);
+
+        Assert.True(result.HasResultsEnquiry);
+    }
+
+    [Fact]
+    public async Task GetAmendmentRequestsAsync_ReportsNoResultsEnquiryWhenTheWindowRunsNone()
+    {
+        var endDate = new DateTime(2026, 6, 26, 17, 0, 0);
+        _windowService.GetCheckingWindowAsync(WindowId).Returns(
+            Window(endDate, Exercise(CheckingExerciseType.PupilData, endDate, sortOrder: 0)));
+        _requestRepo.GetAmendmentRequestsAsync(WindowId, 100001L).Returns([]);
+
+        var result = await _sut.GetAmendmentRequestsAsync(WindowId);
+
+        Assert.False(result.HasResultsEnquiry);
+    }
+
+    // No exercise means no tab, so the rows behind it are never read: the query costs a round trip
+    // and, once matched, a blob read per row for data the page cannot show.
+    [Fact]
+    public async Task GetAmendmentRequestsAsync_DoesNotLoadEnquiriesWhenTheWindowRunsNone()
+    {
+        var endDate = new DateTime(2026, 6, 26, 17, 0, 0);
+        _windowService.GetCheckingWindowAsync(WindowId).Returns(
+            Window(endDate, Exercise(CheckingExerciseType.PupilData, endDate, sortOrder: 0)));
+        _requestRepo.GetAmendmentRequestsAsync(WindowId, 100001L).Returns([]);
+
+        var result = await _sut.GetAmendmentRequestsAsync(WindowId);
+
+        Assert.Empty(result.IssueRows);
+        await _requestRepo.DidNotReceive().GetSubmittedResultsEnquiriesAsync(Arg.Any<Guid>(), Arg.Any<long>());
+    }
+
+    /// <summary>The degenerate case the default below deliberately does not produce.</summary>
+    private static CheckingWindowDto WindowWithNoExercises(DateTime endDate) => new()
+    {
+        Id = WindowId,
+        Title = "KS4 2026",
+        EndDate = endDate,
+        StartDate = endDate.AddMonths(-3),
+        KeyStage = KeyStages.KS4,
+        CheckingWindowType = CheckingWindowType.KS4June,
+        Exercises = []
+    };
+
+    // A window always runs at least one checking exercise, so a caller that does not care which
+    // gets both — the results enquiry included, since the enquiry rows only exist on a window that
+    // runs that exercise. Tests about a specific set pass it explicitly.
     private static CheckingWindowDto Window(DateTime endDate, params CheckingExerciseDto[] exercises) => new()
     {
         Id = WindowId,
@@ -396,7 +403,13 @@ public class AmendmentRequestsServiceTests
         StartDate = endDate.AddMonths(-3),
         KeyStage = KeyStages.KS4,
         CheckingWindowType = CheckingWindowType.KS4June,
-        Exercises = [.. exercises]
+        Exercises = exercises.Length > 0
+            ? [.. exercises]
+            :
+            [
+                Exercise(CheckingExerciseType.PupilData, endDate, sortOrder: 0),
+                Exercise(CheckingExerciseType.ResultsEnquiry, endDate, sortOrder: 1)
+            ]
     };
 
     private static CheckingExerciseDto Exercise(

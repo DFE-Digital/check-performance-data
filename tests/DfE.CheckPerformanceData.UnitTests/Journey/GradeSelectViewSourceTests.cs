@@ -10,12 +10,11 @@
 // (a null-valued attribute expression omits the attribute entirely) instead of building the whole
 // "name=\"value\"" string inside an interpolated string.
 //
-// Defect B: the enhancement script ran as an IIFE that executes as soon as the browser parses it,
-// mid-body. accessible-autocomplete.min.js loads at the bottom of _Layout.cshtml, after
-// @RenderBody(), so typeof accessibleAutocomplete === 'undefined' was always true here and the
-// guard always returned early — the grade picker never enhanced into the type-ahead. Fixed by
-// wrapping the same body in a DOMContentLoaded listener, matching the pattern already used by
-// _Autocomplete.cshtml.
+// Defect B (historic, now moot): the enhancement script ran as an IIFE mid-body, before
+// accessible-autocomplete.min.js loaded at the bottom of _Layout.cshtml, so the guard always
+// returned early. It was fixed with a DOMContentLoaded listener, and the enhancement has since been
+// removed altogether — the grade list is short enough to read, so the picker is a plain dropdown.
+// ResultDetailsViewSourceTests pins that there is no script left.
 public sealed class GradeSelectViewSourceTests
 {
     private static string RepoRoot
@@ -53,44 +52,5 @@ public sealed class GradeSelectViewSourceTests
         // interpolated string inside @(...) causes Razor to HTML-encode the quotes as &quot;,
         // so the attribute never reaches the browser as a real id reference.
         Assert.DoesNotContain("aria-describedby=\\\"", view);
-    }
-
-    [Fact]
-    public void GradeSelect_EnhancementRunsAfterDOMContentLoaded()
-    {
-        var view = ViewSource();
-
-        // accessible-autocomplete.min.js loads at the bottom of _Layout.cshtml, after
-        // @RenderBody(), so a script that runs immediately (an IIFE executing mid-parse) always
-        // sees accessibleAutocomplete as undefined and bails out.
-        Assert.Contains("document.addEventListener('DOMContentLoaded', function () {", view);
-    }
-
-    // Defect C (still open after the first two fixes): in the ENHANCED state the server-rendered
-    // aria-describedby on the now-hidden <select> never reaches the visible input, because
-    // accessible-autocomplete owns its input's aria-describedby and points it at its own generated
-    // "#{id}__assistiveHint" element. tAssistiveHint is the only supported way in — see
-    // PupilSearch.cshtml for the full rationale.
-    [Fact]
-    public void GradeSelect_PassesTAssistiveHintToTheEnhancement()
-    {
-        var view = ViewSource();
-
-        Assert.Contains("tAssistiveHint: function () { return assistiveHint; }", view);
-    }
-
-    [Fact]
-    public void GradeSelect_AssistiveHintAnnouncesTheErrorTheUnavailableInsetAndTheHint()
-    {
-        var view = ViewSource();
-
-        // The error, so a screen-reader user on the enhanced control hears the validation failure.
-        Assert.Contains("@Json.Serialize(Model.Error ?? \"\")", view);
-        // The reference-data inset — copy kept verbatim in step with the inset div above.
-        Assert.Contains(
-            "@Json.Serialize(Model.GradeOptionsUnavailable ? \"We cannot list grades for this qualification yet\" : \"\")",
-            view);
-        // The question hint.
-        Assert.Contains("@Json.Serialize(Model.Question.Hint ?? \"\")", view);
     }
 }

@@ -1,4 +1,7 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData.Columns;
+using DfE.CheckPerformanceData.Application.CheckYourPupilData.Results;
+using WindowDatasets = DfE.CheckPerformanceData.Application.WindowManagement.WindowDatasets;
+using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.LandingPage;
@@ -43,6 +46,68 @@ public sealed class CheckYourPupilDataService : ICheckYourPupilDataService
         var items = await _repository.GetAllPupilsAsync(windowId, laestab, included);
 
         return PupilTable.Build(PupilColumnSets.Csv(window.CheckingWindowType, included), items);
+    }
+
+    public async Task<(PupilTable Table, int TotalCount)?> GetResultsTableAsync(Guid windowId, string? search, int page, int pageSize)
+    {
+        var rows = await GetResultRowsAsync(windowId);
+        if (rows is null) return null;
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            // The pupil sections' rules — name Contains, CYPMD ID StartsWith — plus subject.
+            rows = rows.Where(r =>
+                    (r.Pupil?.Surname.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false)
+                    || (r.Pupil?.Firstname.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false)
+                    || r.Result.CypmdId.StartsWith(term, StringComparison.OrdinalIgnoreCase)
+                    || r.Result.QualificationName.Contains(term, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+
+        var pageRows = rows.Skip(page * pageSize).Take(pageSize).ToList();
+        return (ResultTable.Build(ResultColumnSets.Table(), pageRows), rows.Count);
+    }
+
+    public async Task<PupilTable?> GetResultsCsvAsync(Guid windowId)
+    {
+        var rows = await GetResultRowsAsync(windowId);
+        return rows is null ? null : ResultTable.Build(ResultColumnSets.Csv(), rows);
+    }
+
+    /// <summary>
+    /// Every main-file result for the school, joined and sorted. Null when there is no Results
+    /// tab for this window.
+    /// </summary>
+    private async Task<List<ResultRow>?> GetResultRowsAsync(Guid windowId)
+    {
+        var laestab = _currentUserService.OrganisationLaestab;
+        var window = await _repository.GetCheckingWindowAsync(windowId);
+
+        if (window.Exercises.All(e => e.ExerciseType != CheckingExerciseType.ResultsEnquiry))
+            return null;
+
+        // The main file is the exercise's one required slot (#324). KS2 has no slots at all, so a
+        // results enquiry on a KS2 window has nothing to list. No key-stage test lives here.
+        var mainTag = WindowDatasets.DefaultsFor(window.CheckingWindowType, CheckingExerciseType.ResultsEnquiry)
+            .SingleOrDefault(d => d.Required)?.SourceFile;
+        if (mainTag is null)
+            return null;
+
+        var results = await _studentResultsClient.GetResultsForSourceAsync(windowId, laestab, mainTag);
+        var pupils = await _repository.GetAllPupilsForSchoolAsync(windowId, laestab);
+
+        // Case-insensitive, matching how the results client compares ids itself.
+        var byCypmdId = pupils
+            .GroupBy(p => p.Cypmd_Id, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+        return results
+            .Select(r => new ResultRow(byCypmdId.GetValueOrDefault(r.CypmdId), r))
+            .OrderBy(r => r.Pupil?.Surname ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(r => r.Pupil?.Firstname ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(r => r.Result.QualificationName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     public Task<CheckingWindowDto> GetCheckingWindowAsync(Guid windowId)

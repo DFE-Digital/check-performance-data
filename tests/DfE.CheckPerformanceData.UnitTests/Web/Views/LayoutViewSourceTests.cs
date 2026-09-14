@@ -30,4 +30,16 @@ public sealed class LayoutViewSourceTests
         Assert.Contains("analytics-events.js", source);
         Assert.DoesNotContain("href=\"#\"", source); // the dead feedback link is gone (Task 4)
     }
+
+    [Fact]
+    public void Layout_labels_the_window_scoped_nav_link_with_the_windows_learner_noun()
+    {
+        var source = ReadViewSource("Views/Shared/_Layout.cshtml");
+
+        // 16-19 calls a learner a student. The nav link is window-scoped, so its label comes from
+        // the selected window's LearnerNoun and the word "Pupils" must not be written into the view.
+        Assert.Contains("Context.Session.GetSelectedWindowLearnerNoun()", source);
+        Assert.Contains("@navLearnerNoun.PluralCapitalised", source);
+        Assert.DoesNotContain(">Pupils<", source);
+    }
 }

@@ -3,6 +3,7 @@
 @using DfE.CheckPerformanceData.Web.Authentication
 @using DfE.CheckPerformanceData.Web.Common
 @using DfE.CheckPerformanceData.Web.Controllers
+@using DfE.CheckPerformanceData.Web.Session
 @inject Microsoft.Extensions.Hosting.IHostEnvironment HostEnvironment
 @inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 @inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
@@ -98,7 +99,11 @@
                 <nav aria-label="Menu" class="govuk-service-navigation__wrapper">
                     <ul class="govuk-service-navigation__list" id="govuk-service-navigation-list">
                         @{
-                            var selectedWindowId = Context.Session.GetString("SelectedWindowId");
+                            var selectedWindowId = Context.Session.GetSelectedWindowId();
+                            // 16-19 calls a learner a student, every other key stage a pupil. The
+                            // nav link points at the selected window, so it takes that window's
+                            // noun rather than the word "Pupils" (LearnerNoun).
+                            var navLearnerNoun = Context.Session.GetSelectedWindowLearnerNoun();
                         }
                         <li class="govuk-service-navigation__item">
                             <a class="govuk-service-navigation__link" href="/guidance">Guidance</a>
@@ -106,7 +111,7 @@
                         @if (User.Identity is { IsAuthenticated: true } && selectedWindowId is not null)
                         {
                             <li class="govuk-service-navigation__item">
-                                <a class="govuk-service-navigation__link" href="@Url.Action("Index", "CheckYourPupilData", new { windowId = selectedWindowId })">Pupils</a>
+                                <a class="govuk-service-navigation__link" href="@Url.Action("Index", "CheckYourPupilData", new { windowId = selectedWindowId })">@navLearnerNoun.PluralCapitalised</a>
                             </li>
                             <li class="govuk-service-navigation__item">
                                 <a class="govuk-service-navigation__link" href="@Url.Action("Index", "AmendmentRequests", new { windowId = selectedWindowId })">Amendment requests</a>

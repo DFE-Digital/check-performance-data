@@ -10,7 +10,10 @@
     var hasError = !ViewData.ModelState.IsValid;
     var fieldErrorMessage = ViewData.ModelState["selectedResultKey"]?.Errors.FirstOrDefault()?.ErrorMessage
         ?? "Enter which result is incorrect";
-    var hintText = Model.Hint ?? "Start typing to search for results by subject or QAN";
+    @* FLAGGED: copy needs content sign-off. "Start typing to search" described the type-ahead this
+       page no longer has, so the hint now says what the options are instead of how to search them.
+       The flow configs' subheading carries the same replacement. *@
+    var hintText = Model.Hint ?? "Results are listed by subject and QAN";
 }
 
 @if (Model.BackPageId is not null)
@@ -33,22 +36,21 @@ else
     </govuk-error-summary>
 }
 
-@* Progressive enhancement: a real <select> carrying every result the student holds, which
-   accessible-autocomplete upgrades in place via enhanceSelectElement. With script off the page is a
-   working GOV.UK select; with script on it becomes a type-ahead. This is why the options are rendered
-   server-side rather than fetched — a student holds a handful of results, so there is nothing to gain
-   from a round-trip, and a fetch-only version would not work without JavaScript at all.
+@* A plain GOV.UK <select> carrying every result the student holds, with no type-ahead: a student
+   holds a handful of results, so the list is read rather than searched. The options are rendered
+   server-side rather than fetched for the same reason — there is nothing to gain from a round-trip,
+   and a fetch-only version would not work without JavaScript at all.
 
-   enhanceSelectElement hides the select, moves its id to "{id}-select" and gives the new input the
-   original id, so the <label for="result-search"> keeps naming whichever control is visible. The
-   select keeps its name, so it is still what posts. *@
+   The accessible-autocomplete type-ahead this control used to carry was removed alongside the grade
+   and syllabus pickers; keep the three in step. The only script left is the details reveal below,
+   which enhances the select rather than replacing it. *@
 @if (!Model.AvailableResults.Any())
 {
-    @* A student the school holds no result for has no grade to correct. Rendering the (empty)
-       autocomplete would leave the user typing into a box that can never answer, and Continue
-       could only ever fail validation — so the page states the position and offers the one move
-       left. Mirrors _GradeSelect.cshtml, which reports a reference-data gap plainly rather than
-       as a user error. FLAGGED: copy needs content sign-off.
+    @* A student the school holds no result for has no grade to correct. Rendering an empty
+       dropdown would leave the user with a control that can never answer, and Continue could only
+       ever fail validation — so the page states the position and offers the one move left. Mirrors
+       _GradeSelect.cshtml, which reports a reference-data gap plainly rather than as a user error.
+       FLAGGED: copy needs content sign-off.
 
        The student search normally prevents this (its config sets requireResults), so this is the
        back-navigation and stale-session case, not the everyday one. *@
@@ -153,22 +155,13 @@ else
     <script>
         (function () {
             var select = document.getElementById('result-search');
-            if (!select || typeof accessibleAutocomplete === 'undefined') return;
-
-            var hasError = @(hasError ? "true" : "false");
-            var hintText = @Json.Serialize(hintText);
-            var errorText = @Json.Serialize(fieldErrorMessage);
-
-            // accessible-autocomplete owns the input's aria-describedby, rewriting it on every
-            // re-render, so tAssistiveHint is the supported way to get the hint and error announced.
-            // See PupilSearch.cshtml for the full rationale.
-            var assistiveHint = (hasError ? 'Error: ' + errorText + '. ' : '')
-                + hintText + '. '
-                + 'When autocomplete results are available use up and down arrows to review and '
-                + 'enter to select. Touch device users, explore by touch or with swipe gestures.';
+            if (!select) return;
 
             // AB#301934 / #409: the details blocks are server-rendered, one per result, keyed by the
-            // option value (the composite key). Revealing one is a matter of which is hidden.
+            // option value (the composite key). Revealing one is a matter of which is hidden, so the
+            // whole enhancement is a change listener — no library, and nothing the page depends on.
+            // With JavaScript off the select still posts and the server renders the chosen block on
+            // the next pass, which is why the hidden= attribute is decided server-side.
             var details = document.querySelectorAll('[data-result-details]');
             function showDetails(key) {
                 for (var i = 0; i < details.length; i++) {
@@ -176,45 +169,9 @@ else
                 }
             }
 
-            accessibleAutocomplete.enhanceSelectElement({
-                selectElement: select,
-                // The empty first <option> is a placeholder, not a choice, so it must not appear in
-                // the suggestion list.
-                preserveNullOptions: false,
-                // Qualification titles are long and a student holds few results, so showing the whole
-                // list on focus is more useful than making them guess a search term.
-                showAllValues: true,
-                // Never silently pick the first match — the user must confirm which result is wrong.
-                autoselect: false,
-                confirmOnBlur: false,
-                inputClasses: 'govuk-input' + (hasError ? ' govuk-input--error' : ''),
-                // Passing onConfirm replaces the library's default, and that default is what marked
-                // the matching <option> selected — the select is what the form posts. So this does
-                // the same thing first (the first option whose untrimmed text matches, exactly as
-                // the library's filter(...)[0] does — two results can share a label, since the label
-                // omits the source file), then reveals the details for the chosen value. An
-                // unmatched confirm changes nothing, as in the library.
-                onConfirm: function (label) {
-                    var chosen = null;
-                    for (var i = 0; i < select.options.length; i++) {
-                        var option = select.options[i];
-                        if ((option.textContent || option.innerText) === label) { chosen = option; break; }
-                    }
-                    if (!chosen) return;
-                    chosen.selected = true;
-                    showDetails(chosen.value);
-                },
-                tAssistiveHint: function () { return assistiveHint; }
-            });
-
-            // Editing the text does not change the hidden select (library behaviour), but the details
-            // must not keep describing a result the field no longer shows. enhanceSelectElement has
-            // moved the id onto the new input by now; guard anyway so a library change that leaves it
-            // on the select cannot make this throw.
-            var input = document.getElementById('result-search');
-            if (input && input.tagName === 'INPUT') {
-                input.addEventListener('input', function () { showDetails(''); });
-            }
+            // The empty placeholder option hides every block, so clearing the choice cannot leave
+            // the page describing a result the control no longer shows.
+            select.addEventListener('change', function () { showDetails(select.value); });
         })();
     </script>
 }

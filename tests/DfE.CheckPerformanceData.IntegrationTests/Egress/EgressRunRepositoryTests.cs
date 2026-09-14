@@ -99,6 +99,27 @@ public sealed class EgressRunRepositoryTests(PostgresFixture fixture)
         Assert.Null(await repo.FindBlockerAsync(WindowId, EgressOutputType.RemoveLearners, CancellationToken.None));
     }
 
+    // M2: the repository side of "no re-run" — a failed run's own outputs stay inactive forever
+    // (EgressPreprocessor now refuses to touch them again), and a fresh run for the same pair is
+    // admitted rather than blocked, exactly as the Failed page's "start a new run" copy promises.
+    [Fact]
+    public async Task A_fresh_run_for_the_same_pair_is_admitted_after_a_preprocessing_failure()
+    {
+        await ResetAsync();
+        var repo = Repository();
+        var failed = await repo.CreateRunAsync(Create(EgressOutputType.RemoveLearners), CancellationToken.None);
+        await repo.MarkPreprocessingFailedAsync(failed,
+            [new EgressRecordFailure("Split DfE establishment number", 1001, "REF-1", "Local_Authority", "must be 3 digits")],
+            CancellationToken.None);
+
+        var retry = await repo.CreateRunAsync(Create(EgressOutputType.RemoveLearners), CancellationToken.None);
+
+        var failedRun = await repo.GetRunAsync(failed, CancellationToken.None);
+        Assert.All(failedRun!.Outputs, o => Assert.False(o.IsActive));
+        var blocker = await repo.FindBlockerAsync(WindowId, EgressOutputType.RemoveLearners, CancellationToken.None);
+        Assert.Equal(retry, blocker!.RunId);
+    }
+
     [Fact]
     public async Task Save_preprocessed_writes_rows_file_names_and_export_date_in_one_go()
     {

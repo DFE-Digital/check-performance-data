@@ -1,5 +1,6 @@
 @model DfE.CheckPerformanceData.Web.Controllers.Egress.RunPageViewModel
 @using DfE.CheckPerformanceData.Application.Egress
+@using DfE.CheckPerformanceData.Domain.Enums
 @using DfE.CheckPerformanceData.Web.Controllers.Egress
 @{
     ViewData["Title"] = "Data pulled from Zendesk";
@@ -50,7 +51,7 @@
 </govuk-tabs>
 
 <div class="govuk-button-group">
-    @if (total > 0)
+    @if (total > 0 && Model.Run.Status != EgressRunStatus.PreprocessingFailed)
     {
         <govuk-button-link href="/admin/egress/runs/@Model.Run.Id/preprocessing" data-testid="egress-proceed">Proceed to preprocessing</govuk-button-link>
     }

@@ -108,15 +108,22 @@ public sealed class EgressPreprocessorTests
         await _repo.DidNotReceiveWithAnyArgs().TrySetStatusAsync(default, default, default, default);
     }
 
+    // M2: re-running a PreprocessingFailed run bypassed the lock — the failed run releases its
+    // pair (Failed.cshtml says "start a new run"), so a re-run reaching Preprocessed while a
+    // colleague's fresh run also holds the pair would let both transfer it. Same terminal refusal
+    // shape as any other non-runnable status.
     [Fact]
-    public async Task A_re_run_after_failure_is_allowed()
+    public async Task A_preprocessing_failed_run_is_refused_not_re_run()
     {
         RunIs(EgressRunStatus.PreprocessingFailed, Remove("R1", "approved"));
-        _repo.TrySetStatusAsync(RunId, EgressRunStatus.PreprocessingFailed, EgressRunStatus.Preprocessing, Arg.Any<CancellationToken>()).Returns(true);
 
         var events = await Collect();
 
-        Assert.Equal(EgressRunStatus.Preprocessed, events.Last().FinalStatus);
+        var only = Assert.Single(events);
+        Assert.True(only.IsError);
+        Assert.True(only.IsComplete);
+        Assert.Contains("cannot be preprocessed", only.Message);
+        await _repo.DidNotReceiveWithAnyArgs().TrySetStatusAsync(default, default, default, default);
     }
 
     [Fact]

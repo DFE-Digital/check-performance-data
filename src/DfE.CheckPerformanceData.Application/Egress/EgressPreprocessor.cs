@@ -34,7 +34,12 @@ public sealed class EgressPreprocessor(IEgressRunRepository repository, TimeProv
             yield return Terminal(0, "Preprocessing", "This egress run no longer exists.", 0, 0, 0, isError: true, null);
             yield break;
         }
-        if (run.Status is not (EgressRunStatus.Pulled or EgressRunStatus.PreprocessingFailed or EgressRunStatus.Preprocessed))
+        // M2: a PreprocessingFailed run releases its pair (IsActive=false) so that a fresh run for
+        // the same window/type is admitted — the Failed page's own copy says "start a new run".
+        // Re-running the failed run instead could reach Preprocessed while a colleague's fresh run
+        // also holds the pair, and both could then transfer it. A failed run is terminal here; it
+        // gets the same refusal shape as any other non-runnable status.
+        if (run.Status is not (EgressRunStatus.Pulled or EgressRunStatus.Preprocessed))
         {
             yield return Terminal(0, "Preprocessing", $"This run is {run.Status} and cannot be preprocessed.", 0, 0, 0, isError: true, null);
             yield break;

@@ -52,6 +52,15 @@ public sealed class EgressViewSourceTests
         Assert.Contains("RunPageViewModel.RawColumns", view);
     }
 
+    // M2: a PreprocessingFailed run released its pair — Failed.cshtml's own copy says "start a new
+    // run" — so Results must not offer a path back into preprocessing for it.
+    [Fact]
+    public void Results_page_hides_proceed_to_preprocessing_for_a_preprocessing_failed_run()
+    {
+        var view = View("Results.cshtml");
+        Assert.Contains("Model.Run.Status != EgressRunStatus.PreprocessingFailed", view);
+    }
+
     [Fact]
     public void Preprocessing_page_is_a_real_form_the_script_enhances()
     {

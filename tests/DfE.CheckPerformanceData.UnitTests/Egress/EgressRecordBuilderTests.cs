@@ -104,6 +104,19 @@ public sealed class EgressRecordBuilderTests
         Assert.Equal("Date_of_Birth", failure.Field);
     }
 
+    // S4: steps 2-4 are independent of one another, so a fault in one must not hide a fault in
+    // another — ops must see everything wrong with a record in one run, not discover the second
+    // problem only after fixing the first and re-running.
+    [Fact]
+    public void Independent_faults_in_different_steps_are_all_listed_not_just_the_first()
+    {
+        var item = Run(Remove(reason: "other", pupilLaestab: "", orgLaestab: null));
+        Assert.Equal(2, item.Failures.Count);
+        Assert.Contains(item.Failures, f => f.Step == EgressRecordBuilder.StepCodes && f.Field == "Correction_Reason");
+        Assert.Contains(item.Failures, f => f.Step == EgressRecordBuilder.StepSplit && f.Field == "Establishment_Number");
+        Assert.Null(item.RemoveRow);
+    }
+
     [Fact]
     public void Post16_reasons_and_stage_are_handled()
     {

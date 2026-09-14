@@ -48,11 +48,14 @@ public static class EgressRecordBuilder
         item.CorrectionReason = code;
     }
 
+    // S4: steps 2-4 are independent of one another (a bad correction reason says nothing about
+    // whether the LAESTAB is valid), so none of them gates on HasFailed — only Build/Trim/Validate
+    // do, once every independent check has had its turn. A record with two unrelated faults lists
+    // both instead of ops discovering the second one only on the next run.
     // The pupil record's LAESTAB first (a real pupil always has one), then the school's from the
     // request row (the only source for a new learner, whose synthetic pupil has none).
     public static void SplitEstablishment(EgressWorkItem item)
     {
-        if (item.HasFailed) return;
         var raw = !string.IsNullOrWhiteSpace(item.Source.PupilLaestab) ? item.Source.PupilLaestab : item.Source.OrganisationLaestab;
         if (LaestabSplitter.TrySplit(raw, out var la, out var estab))
         {
@@ -68,7 +71,6 @@ public static class EgressRecordBuilder
 
     public static void StandardiseDates(EgressWorkItem item)
     {
-        if (item.HasFailed) return;
         var dobRaw = item.Source.OutputType == EgressOutputType.NewLearners
             ? item.Source.Answer("date-of-birth") ?? item.Source.PupilDateOfBirth
             : item.Source.PupilDateOfBirth;

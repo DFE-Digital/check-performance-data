@@ -27,49 +27,106 @@ public sealed class EgressTransferService(IEgressRunRepository repository, IEgre
         }
 
         if (!blobs.IsConfigured)
-            return await FailAsync(runId, actor, "Egress storage is not configured for this environment (ConnectionStrings:EgressStorage).", [], ct);
+            return await FailAsync(runId, actor, "Egress storage is not configured for this environment (ConnectionStrings:EgressStorage).", [], null, ct);
 
         if (!await repository.TrySetStatusAsync(runId, run.Status, EgressRunStatus.Transferring, ct))
             return new EgressTransferResult.NotTransferable(EgressRunStatus.Transferring);
 
+        // M1: once the run has flipped to Transferring, the caller's token (RequestAborted — a
+        // closed browser tab) must not be able to leave the run half-transferred. Everything from
+        // here on, including compensation, runs to completion regardless of the caller's token.
+        var operationCt = CancellationToken.None;
+
         var files = new Dictionary<EgressOutputType, (string FileName, int Records, string Sha256)>();
         var uploaded = new List<string>();
+        string? inFlight = null;
         try
         {
             foreach (var output in run.Outputs)
             {
-                var (bytes, records) = await BuildAsync(runId, output.OutputType, ct);
+                var (bytes, records) = await BuildAsync(runId, output.OutputType, operationCt);
                 var fileName = output.FileName ?? throw new InvalidOperationException($"Run {runId} has no file name for {output.OutputType}.");
+                inFlight = fileName;
                 var sha = Convert.ToHexString(SHA256.HashData(bytes));
-                await blobs.UploadAsync(fileName, bytes, sha, runId, ct);
+                await blobs.UploadAsync(fileName, bytes, sha, runId, operationCt);
+                inFlight = null;
                 uploaded.Add(fileName);
                 files[output.OutputType] = (fileName, records, sha);
             }
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex)
         {
             logger.LogError(ex, "Egress run {RunId} transfer failed after {Uploaded} file(s); compensating", runId, uploaded.Count);
-            return await FailAsync(runId, actor, ex.Message, uploaded, ct);
+            return await FailAsync(runId, actor, ex.Message, uploaded, inFlight, operationCt);
         }
 
-        var at = DateTime.UtcNow;
-        await repository.MarkTransferredAsync(runId, new EgressTransferAudit(actor.UserId.ToString(), actor.DisplayName, blobs.TargetDescription, files), at, ct);
+        DateTime at;
+        try
+        {
+            at = DateTime.UtcNow;
+            await repository.MarkTransferredAsync(runId, new EgressTransferAudit(actor.UserId.ToString(), actor.DisplayName, blobs.TargetDescription, files), at, operationCt);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Egress run {RunId}: MarkTransferredAsync failed after every file was uploaded; compensating", runId);
+            return await FailAsync(runId, actor, ex.Message, uploaded, null, operationCt);
+        }
         return new EgressTransferResult.Transferred(files.Select(f => (f.Key, f.Value.FileName, f.Value.Records)).ToList(), at);
     }
 
-    private async Task<EgressTransferResult> FailAsync(Guid runId, EgressActor actor, string reason, IReadOnlyList<string> uploaded, CancellationToken ct)
+    // possiblyOrphaned (S3): the file that was mid-upload when the exception was thrown, if any —
+    // its PUT may have actually landed server-side with the response lost to the client, so it is
+    // worth a metadata-checked delete attempt distinct from `uploaded` (which this call definitely
+    // wrote, since a create-only PUT that returned success cannot belong to another run).
+    private async Task<EgressTransferResult> FailAsync(Guid runId, EgressActor actor, string reason, IReadOnlyList<string> uploaded, string? possiblyOrphaned, CancellationToken ct)
     {
         foreach (var name in uploaded)
         {
-            try { await blobs.DeleteIfExistsAsync(name, CancellationToken.None); }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            try { await blobs.DeleteIfExistsAsync(name, ct); }
+            catch (Exception ex)
             {
                 logger.LogError(ex, "Egress run {RunId}: could not delete {File} while compensating a failed transfer", runId, name);
                 reason += $" Could not remove {name} from the target container — remove it by hand before retrying.";
             }
         }
-        await repository.MarkTransferFailedAsync(runId, reason, actor.UserId.ToString(), CancellationToken.None);
+        if (possiblyOrphaned is not null)
+        {
+            try
+            {
+                if (await blobs.DeleteIfOwnedByRunAsync(possiblyOrphaned, runId, ct))
+                    logger.LogWarning("Egress run {RunId}: removed {File}, which had landed despite its upload response failing", runId, possiblyOrphaned);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Egress run {RunId}: could not check/remove {File} while compensating a failed transfer", runId, possiblyOrphaned);
+                reason += $" Could not remove {possiblyOrphaned} from the target container — remove it by hand before retrying.";
+            }
+        }
+        await repository.MarkTransferFailedAsync(runId, reason, actor.UserId.ToString(), ct);
         return new EgressTransferResult.Failed(reason);
+    }
+
+    // M1: the lock has no expiry, so a run stuck in Transferring (a pod restart mid-upload) must be
+    // releasable. Any blob this run actually wrote is swept first — never a blob owned by another
+    // run — so the freed pair does not collide with a same-named retry.
+    public async Task<EgressAbandonResult> AbandonAsync(Guid runId, CancellationToken ct)
+    {
+        var run = await repository.GetRunAsync(runId, ct);
+        if (run is null) return new EgressAbandonResult.NotFound();
+        if (run.Status == EgressRunStatus.Transferred) return new EgressAbandonResult.AlreadyTransferred();
+
+        var removed = new List<string>();
+        if (run.Status == EgressRunStatus.Transferring)
+        {
+            foreach (var output in run.Outputs)
+            {
+                if (output.FileName is null) continue;
+                if (await blobs.DeleteIfOwnedByRunAsync(output.FileName, runId, CancellationToken.None))
+                    removed.Add(output.FileName);
+            }
+        }
+        await repository.AbandonAsync(runId, ct);
+        return new EgressAbandonResult.Abandoned(removed);
     }
 
     public async Task<byte[]> BuildFileAsync(Guid runId, EgressOutputType type, CancellationToken ct) => (await BuildAsync(runId, type, ct)).Bytes;

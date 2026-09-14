@@ -23,4 +23,11 @@ public interface IEgressBlobClient
     /// <exception cref="EgressBlobAlreadyExistsException">A blob with that name exists — never overwritten.</exception>
     Task UploadAsync(string fileName, byte[] content, string sha256, Guid runId, CancellationToken ct);
     Task DeleteIfExistsAsync(string fileName, CancellationToken ct);
+    /// <summary>
+    /// Deletes the blob only if it exists and its egressRunId metadata equals <paramref name="runId"/>;
+    /// a blob that is absent or stamped with a different run is left untouched. Returns whether
+    /// something was actually deleted (M1/S3: cleans up a write whose success response was lost,
+    /// and the M1 Abandon-during-Transferring sweep, without ever touching another run's file).
+    /// </summary>
+    Task<bool> DeleteIfOwnedByRunAsync(string fileName, Guid runId, CancellationToken ct);
 }

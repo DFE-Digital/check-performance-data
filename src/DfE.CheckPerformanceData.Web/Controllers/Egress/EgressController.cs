@@ -259,8 +259,19 @@ public sealed class EgressController(
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Abandon(Guid id, CancellationToken cancellationToken)
     {
-        await runs.AbandonAsync(id, cancellationToken);
-        return Home("The egress run was abandoned. Nothing was transferred.");
+        var result = await transfer.AbandonAsync(id, cancellationToken);
+        return result switch
+        {
+            // M1: a Transferring run's own files may have been swept — the banner must say so
+            // rather than always claiming nothing was transferred.
+            EgressAbandonResult.Abandoned { RemovedFiles.Count: > 0 } abandoned =>
+                Home($"The egress run was abandoned. Removed from the target container: {string.Join(", ", abandoned.RemovedFiles)}."),
+            EgressAbandonResult.Abandoned =>
+                Home("The egress run was abandoned. Nothing was transferred."),
+            EgressAbandonResult.AlreadyTransferred =>
+                Home("That egress run has already been transferred to LDS and cannot be abandoned."),
+            _ => NotFound()
+        };
     }
 
     private async Task<RunPageViewModel?> PageAsync(Guid id, CancellationToken ct)

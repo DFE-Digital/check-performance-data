@@ -120,4 +120,136 @@ public sealed class EgressTransferServiceTests
         Assert.Equal(3, text.Split("\r\n").Length);
         Assert.DoesNotContain("\n\n", text);
     }
+
+    // M1: once the CAS flip to Transferring has happened, cancellation of the caller's token must
+    // not abandon a run with files already uploaded — the upload/commit phase and its compensation
+    // run with CancellationToken.None.
+    [Fact]
+    public async Task After_the_status_flips_to_transferring_the_callers_cancellation_no_longer_skips_compensation()
+    {
+        RunIs(EgressRunStatus.Preprocessed, EgressOutputType.NewLearners, EgressOutputType.RemoveLearners);
+        _repo.TrySetStatusAsync(RunId, EgressRunStatus.Preprocessed, EgressRunStatus.Transferring, Arg.Any<CancellationToken>()).Returns(true);
+        using var cts = new CancellationTokenSource();
+        _blobs.UploadAsync("CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv", Arg.Any<byte[]>(), Arg.Any<string>(), RunId, Arg.Any<CancellationToken>())
+            .Returns(_ => { cts.Cancel(); throw new OperationCanceledException("client disconnected"); });
+        CancellationToken? deleteToken = null;
+        _blobs.DeleteIfExistsAsync(Arg.Any<string>(), Arg.Do<CancellationToken>(t => deleteToken = t)).Returns(Task.CompletedTask);
+        CancellationToken? markFailedToken = null;
+        _repo.MarkTransferFailedAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Do<CancellationToken>(t => markFailedToken = t))
+            .Returns(Task.CompletedTask);
+
+        var result = await Sut().TransferAsync(RunId, Actor, cts.Token);
+
+        Assert.IsType<EgressTransferResult.Failed>(result);
+        await _blobs.Received(1).DeleteIfExistsAsync("CYPMD_LDS_KS4_NewLearners_2026_06_08.csv", Arg.Any<CancellationToken>());
+        await _repo.Received(1).MarkTransferFailedAsync(RunId, Arg.Any<string>(), Actor.UserId.ToString(), Arg.Any<CancellationToken>());
+        Assert.Equal(CancellationToken.None, deleteToken);
+        Assert.Equal(CancellationToken.None, markFailedToken);
+    }
+
+    // M1: a post-upload DB failure (every file landed, but the commit that marks Transferred
+    // threw) must not leave the run silently stuck in Transferring with no audit trail.
+    [Fact]
+    public async Task MarkTransferredAsync_throwing_after_every_upload_succeeds_compensates_and_marks_transfer_failed()
+    {
+        RunIs(EgressRunStatus.Preprocessed, EgressOutputType.RemoveLearners);
+        _repo.TrySetStatusAsync(RunId, EgressRunStatus.Preprocessed, EgressRunStatus.Transferring, Arg.Any<CancellationToken>()).Returns(true);
+        _repo.MarkTransferredAsync(Arg.Any<Guid>(), Arg.Any<EgressTransferAudit>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromException(new InvalidOperationException("database unreachable")));
+
+        var result = await Sut().TransferAsync(RunId, Actor, CancellationToken.None);
+
+        Assert.IsType<EgressTransferResult.Failed>(result);
+        await _blobs.Received(1).DeleteIfExistsAsync("CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv", Arg.Any<CancellationToken>());
+        await _repo.Received(1).MarkTransferFailedAsync(RunId, Arg.Any<string>(), Actor.UserId.ToString(), Arg.Any<CancellationToken>());
+        await _repo.DidNotReceiveWithAnyArgs().TryReactivateAsync(default, default);
+    }
+
+    // M1/S3: the compensation delete itself can fail (the ops user has no LDS access to fix it by
+    // hand) — the reason must say so rather than silently dropping the detail.
+    [Fact]
+    public async Task If_the_compensation_delete_itself_fails_the_reason_explains_manual_cleanup_is_needed()
+    {
+        RunIs(EgressRunStatus.Preprocessed, EgressOutputType.NewLearners, EgressOutputType.RemoveLearners);
+        _repo.TrySetStatusAsync(RunId, EgressRunStatus.Preprocessed, EgressRunStatus.Transferring, Arg.Any<CancellationToken>()).Returns(true);
+        _blobs.UploadAsync("CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv", Arg.Any<byte[]>(), Arg.Any<string>(), RunId, Arg.Any<CancellationToken>())
+            .Returns(Task.FromException(new EgressBlobAlreadyExistsException("CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv")));
+        _blobs.DeleteIfExistsAsync("CYPMD_LDS_KS4_NewLearners_2026_06_08.csv", Arg.Any<CancellationToken>())
+            .Returns(Task.FromException(new InvalidOperationException("network blip")));
+
+        var result = await Sut().TransferAsync(RunId, Actor, CancellationToken.None);
+
+        var failed = Assert.IsType<EgressTransferResult.Failed>(result);
+        Assert.Contains("remove it by hand", failed.Reason);
+        await _repo.Received(1).MarkTransferFailedAsync(RunId, Arg.Is<string>(r => r.Contains("remove it by hand")), Actor.UserId.ToString(), Arg.Any<CancellationToken>());
+    }
+
+    // S3: a PUT that succeeded server-side but whose response was lost must not leave an orphan
+    // that only LDS (not the ops user) can remove — the failing file itself is swept too, but only
+    // if it is stamped as this run's own.
+    [Fact]
+    public async Task S3_a_failed_upload_also_removes_its_own_blob_if_the_write_actually_landed()
+    {
+        RunIs(EgressRunStatus.Preprocessed, EgressOutputType.RemoveLearners);
+        _repo.TrySetStatusAsync(RunId, EgressRunStatus.Preprocessed, EgressRunStatus.Transferring, Arg.Any<CancellationToken>()).Returns(true);
+        _blobs.UploadAsync("CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv", Arg.Any<byte[]>(), Arg.Any<string>(), RunId, Arg.Any<CancellationToken>())
+            .Returns(Task.FromException(new TimeoutException("response lost")));
+        _blobs.DeleteIfOwnedByRunAsync("CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv", RunId, Arg.Any<CancellationToken>()).Returns(true);
+
+        var result = await Sut().TransferAsync(RunId, Actor, CancellationToken.None);
+
+        Assert.IsType<EgressTransferResult.Failed>(result);
+        await _blobs.Received(1).DeleteIfOwnedByRunAsync("CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv", RunId, Arg.Any<CancellationToken>());
+    }
+
+    // M1: Abandon during Transferring — the lock has no expiry, so a run stuck there (a pod
+    // restart mid-upload) must be releasable, and any blob it actually wrote must be swept so it
+    // does not block a same-named retry, without ever touching a blob owned by another run.
+    [Fact]
+    public async Task Abandoning_a_transferring_run_sweeps_only_the_blobs_this_run_owns()
+    {
+        RunIs(EgressRunStatus.Transferring, EgressOutputType.NewLearners, EgressOutputType.RemoveLearners);
+        _blobs.DeleteIfOwnedByRunAsync("CYPMD_LDS_KS4_NewLearners_2026_06_08.csv", RunId, Arg.Any<CancellationToken>()).Returns(true);
+        _blobs.DeleteIfOwnedByRunAsync("CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv", RunId, Arg.Any<CancellationToken>()).Returns(false);
+
+        var result = await Sut().AbandonAsync(RunId, CancellationToken.None);
+
+        var abandoned = Assert.IsType<EgressAbandonResult.Abandoned>(result);
+        Assert.Equal(["CYPMD_LDS_KS4_NewLearners_2026_06_08.csv"], abandoned.RemovedFiles);
+        await _repo.Received(1).AbandonAsync(RunId, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Abandoning_a_run_that_is_not_transferring_never_touches_blob_storage()
+    {
+        RunIs(EgressRunStatus.Pulled, EgressOutputType.RemoveLearners);
+
+        var result = await Sut().AbandonAsync(RunId, CancellationToken.None);
+
+        var abandoned = Assert.IsType<EgressAbandonResult.Abandoned>(result);
+        Assert.Empty(abandoned.RemovedFiles);
+        await _blobs.DidNotReceiveWithAnyArgs().DeleteIfOwnedByRunAsync(default!, default, default);
+        await _repo.Received(1).AbandonAsync(RunId, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Abandoning_an_already_transferred_run_is_refused()
+    {
+        RunIs(EgressRunStatus.Transferred, EgressOutputType.RemoveLearners);
+
+        var result = await Sut().AbandonAsync(RunId, CancellationToken.None);
+
+        Assert.IsType<EgressAbandonResult.AlreadyTransferred>(result);
+        await _repo.DidNotReceiveWithAnyArgs().AbandonAsync(default, default);
+    }
+
+    [Fact]
+    public async Task Abandoning_an_unknown_run_reports_not_found()
+    {
+        _repo.GetRunAsync(RunId, Arg.Any<CancellationToken>()).Returns((EgressRunDto?)null);
+
+        var result = await Sut().AbandonAsync(RunId, CancellationToken.None);
+
+        Assert.IsType<EgressAbandonResult.NotFound>(result);
+    }
 }

@@ -43,4 +43,40 @@ public sealed class EgressBlobClientTests(AzuriteFixture fixture)
         Assert.False(Sut(configured: false).IsConfigured);
         Assert.Equal("cypmd/extracts_input", Sut().TargetDescription);
     }
+
+    // S3/M1: the metadata-checked delete used by transfer compensation and the Abandon sweep.
+    [Fact]
+    public async Task DeleteIfOwnedByRun_deletes_a_blob_stamped_with_that_run_and_returns_true()
+    {
+        var runId = Guid.NewGuid();
+        var name = $"CYPMD_LDS_KS4_RemoveLearners_{Guid.NewGuid():N}.csv";
+        var sut = Sut();
+        await sut.UploadAsync(name, Encoding.UTF8.GetBytes("A,B\r\n1,2"), "ABC", runId, CancellationToken.None);
+
+        var removed = await sut.DeleteIfOwnedByRunAsync(name, runId, CancellationToken.None);
+
+        Assert.True(removed);
+        Assert.False(await _blobs.GetBlobContainerClient("cypmd").GetBlobClient($"extracts_input/{name}").ExistsAsync());
+    }
+
+    [Fact]
+    public async Task DeleteIfOwnedByRun_never_touches_a_blob_stamped_with_a_different_run()
+    {
+        var owningRun = Guid.NewGuid();
+        var name = $"CYPMD_LDS_KS4_RemoveLearners_{Guid.NewGuid():N}.csv";
+        var sut = Sut();
+        await sut.UploadAsync(name, Encoding.UTF8.GetBytes("A,B\r\n1,2"), "ABC", owningRun, CancellationToken.None);
+
+        var removed = await sut.DeleteIfOwnedByRunAsync(name, Guid.NewGuid(), CancellationToken.None);
+
+        Assert.False(removed);
+        Assert.True(await _blobs.GetBlobContainerClient("cypmd").GetBlobClient($"extracts_input/{name}").ExistsAsync());
+    }
+
+    [Fact]
+    public async Task DeleteIfOwnedByRun_returns_false_for_a_blob_that_does_not_exist()
+    {
+        var removed = await Sut().DeleteIfOwnedByRunAsync($"CYPMD_LDS_KS4_RemoveLearners_{Guid.NewGuid():N}.csv", Guid.NewGuid(), CancellationToken.None);
+        Assert.False(removed);
+    }
 }

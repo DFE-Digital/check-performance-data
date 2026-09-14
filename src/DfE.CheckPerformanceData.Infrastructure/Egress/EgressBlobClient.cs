@@ -41,4 +41,22 @@ public sealed class EgressBlobClient(IReadOnlyDictionary<string, BlobServiceClie
         var container = clients[ClientKey].GetBlobContainerClient(options.Value.Container);
         await container.GetBlobClient(options.Value.Prefix + fileName).DeleteIfExistsAsync(cancellationToken: ct);
     }
+
+    public async Task<bool> DeleteIfOwnedByRunAsync(string fileName, Guid runId, CancellationToken ct)
+    {
+        var blob = clients[ClientKey].GetBlobContainerClient(options.Value.Container).GetBlobClient(options.Value.Prefix + fileName);
+        BlobProperties properties;
+        try
+        {
+            properties = await blob.GetPropertiesAsync(cancellationToken: ct);
+        }
+        catch (RequestFailedException ex) when (ex.Status == 404)
+        {
+            return false;
+        }
+        if (!properties.Metadata.TryGetValue("egressRunId", out var owner) || owner != runId.ToString())
+            return false;
+        await blob.DeleteIfExistsAsync(cancellationToken: ct);
+        return true;
+    }
 }

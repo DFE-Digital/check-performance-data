@@ -170,13 +170,16 @@ public sealed class EgressControllerTests
         Assert.Equal("CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv", file.FileDownloadName);
     }
 
+    // M1: moved from IEgressRunService to IEgressTransferService, since Abandon now needs blob
+    // access to sweep a Transferring run's own files. Fuller state/banner coverage is S10.
     [Fact]
     public async Task Abandon_marks_the_run_and_returns_home()
     {
+        _transfer.AbandonAsync(RunId, Arg.Any<CancellationToken>()).Returns(new EgressAbandonResult.Abandoned([]));
         var controller = Build();
         var redirect = Assert.IsType<RedirectToActionResult>(await controller.Abandon(RunId, CancellationToken.None));
         Assert.Equal(nameof(EgressController.Index), redirect.ActionName);
-        await _runs.Received(1).AbandonAsync(RunId, Arg.Any<CancellationToken>());
+        await _transfer.Received(1).AbandonAsync(RunId, Arg.Any<CancellationToken>());
         Assert.NotNull(controller.TempData[EgressController.BannerKey]);
     }
 }

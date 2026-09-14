@@ -123,5 +123,4 @@ public sealed class EgressRunService(
 
     public Task<EgressRunDto?> GetAsync(Guid runId, CancellationToken ct) => repository.GetRunAsync(runId, ct);
     public Task<IReadOnlyList<EgressRunListItem>> ListAsync(CancellationToken ct) => repository.ListRunsAsync(ct);
-    public Task AbandonAsync(Guid runId, CancellationToken ct) => repository.AbandonAsync(runId, ct);
 }

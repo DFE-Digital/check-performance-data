@@ -10,8 +10,18 @@ public abstract record EgressTransferResult
     public sealed record NotTransferable(EgressRunStatus Status) : EgressTransferResult;
 }
 
+/// <summary>M1: Abandon needs blob access (to sweep a Transferring run's own files), which is why
+/// it lives beside Transfer rather than on <see cref="IEgressRunService"/>.</summary>
+public abstract record EgressAbandonResult
+{
+    public sealed record Abandoned(IReadOnlyList<string> RemovedFiles) : EgressAbandonResult;
+    public sealed record AlreadyTransferred : EgressAbandonResult;
+    public sealed record NotFound : EgressAbandonResult;
+}
+
 public interface IEgressTransferService
 {
     Task<EgressTransferResult> TransferAsync(Guid runId, EgressActor actor, CancellationToken ct);
     Task<byte[]> BuildFileAsync(Guid runId, EgressOutputType type, CancellationToken ct);
+    Task<EgressAbandonResult> AbandonAsync(Guid runId, CancellationToken ct);
 }

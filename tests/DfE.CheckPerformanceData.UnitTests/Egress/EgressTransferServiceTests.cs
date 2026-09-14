@@ -1,0 +1,123 @@
+using System.Text;
+using DfE.CheckPerformanceData.Application.Egress;
+using DfE.CheckPerformanceData.Domain.Enums;
+using Microsoft.Extensions.Logging;
+using NSubstitute;
+
+namespace DfE.CheckPerformanceData.Application.UnitTests.Egress;
+
+// Transfer is atomic from the user's point of view: every file lands or none does, the database
+// is the source of the files (never the pulled payload), and the audit row is written by the
+// repository in the same transaction as the run state.
+public sealed class EgressTransferServiceTests
+{
+    private static readonly Guid RunId = Guid.Parse("33333333-3333-3333-3333-333333333333");
+    private static readonly EgressActor Actor = new(Guid.Parse("22222222-2222-2222-2222-222222222222"), "Ops One", "ops@example.com");
+    private readonly IEgressRunRepository _repo = Substitute.For<IEgressRunRepository>();
+    private readonly IEgressBlobClient _blobs = Substitute.For<IEgressBlobClient>();
+
+    private EgressTransferService Sut() => new(_repo, _blobs, Substitute.For<ILogger<EgressTransferService>>());
+
+    private static RemoveLearnerRow RemoveRow(string ticket) =>
+        new(ticket, "31", "4", "KS4", "4070", "Smith", "Alice", "F", "2010-09-07", "2026", "6", "860", "555", Guid.NewGuid(), long.Parse(ticket), $"REF-{ticket}");
+    private static NewLearnerRow NewRow(string ticket) =>
+        new(ticket, "10", "KS4", "860", "4070", "Jones", "", "Bob", "M", "2010-01-02", "2018-09-04", "", "2026", "6", "142313", "", "A860407000011", "", "10", "N", Guid.NewGuid(), long.Parse(ticket), $"REF-{ticket}");
+
+    private void RunIs(EgressRunStatus status, params EgressOutputType[] types)
+    {
+        _repo.GetRunAsync(RunId, Arg.Any<CancellationToken>()).Returns(new EgressRunDto(RunId, Guid.NewGuid(), status, Guid.NewGuid(), "Ops One",
+            DateTime.UtcNow, DateTime.UtcNow, new DateOnly(2026, 6, 8), null, null, [], null,
+            types.Select(t => new EgressRunOutputDto(Guid.NewGuid(), t, true, [], 2, 2,
+                $"CYPMD_LDS_KS4_{EgressOutputTypes.FileToken(t)}_2026_06_08.csv", null)).ToList()));
+        _repo.GetRemoveLearnersAsync(RunId, Arg.Any<CancellationToken>()).Returns([RemoveRow("1001"), RemoveRow("1002")]);
+        _repo.GetNewLearnersAsync(RunId, Arg.Any<CancellationToken>()).Returns([NewRow("2001")]);
+        _blobs.IsConfigured.Returns(true);
+        _blobs.TargetDescription.Returns("cypmd/extracts_input");
+    }
+
+    [Fact]
+    public async Task Uploads_every_file_from_the_database_rows_then_marks_transferred_with_the_audit()
+    {
+        RunIs(EgressRunStatus.Preprocessed, EgressOutputType.NewLearners, EgressOutputType.RemoveLearners);
+        _repo.TrySetStatusAsync(RunId, EgressRunStatus.Preprocessed, EgressRunStatus.Transferring, Arg.Any<CancellationToken>()).Returns(true);
+        var uploaded = new Dictionary<string, string>();
+        await _blobs.UploadAsync(Arg.Do<string>(n => uploaded[n] = ""), Arg.Do<byte[]>(b => uploaded[uploaded.Keys.Last()] = Encoding.UTF8.GetString(b)), Arg.Any<string>(), RunId, Arg.Any<CancellationToken>());
+
+        var result = await Sut().TransferAsync(RunId, Actor, CancellationToken.None);
+
+        var ok = Assert.IsType<EgressTransferResult.Transferred>(result);
+        Assert.Equal(2, ok.Files.Count);
+        Assert.StartsWith("Correction_ID,Correction_Type,Correction_Reason,", uploaded["CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv"]);
+        Assert.Contains("\r\n1001,31,4,KS4,4070,Smith,Alice,F,2010-09-07,2026,6,860,555", uploaded["CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv"]);
+        Assert.StartsWith("Correction_ID,Correction_Type,Key_Stage,", uploaded["CYPMD_LDS_KS4_NewLearners_2026_06_08.csv"]);
+        await _repo.Received(1).MarkTransferredAsync(RunId,
+            Arg.Is<EgressTransferAudit>(a => a.UserName == "Ops One" && a.TargetContainer == "cypmd/extracts_input"
+                && a.Files[EgressOutputType.RemoveLearners].Records == 2 && a.Files[EgressOutputType.NewLearners].Records == 1
+                && a.Files[EgressOutputType.RemoveLearners].Sha256.Length == 64),
+            Arg.Any<DateTime>(), Arg.Any<CancellationToken>());
+        await _repo.DidNotReceiveWithAnyArgs().MarkTransferFailedAsync(default, default!, default!, default);
+    }
+
+    [Fact]
+    public async Task A_failure_on_the_second_file_deletes_the_first_and_marks_the_run_failed()
+    {
+        RunIs(EgressRunStatus.Preprocessed, EgressOutputType.NewLearners, EgressOutputType.RemoveLearners);
+        _repo.TrySetStatusAsync(RunId, EgressRunStatus.Preprocessed, EgressRunStatus.Transferring, Arg.Any<CancellationToken>()).Returns(true);
+        _blobs.UploadAsync("CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv", Arg.Any<byte[]>(), Arg.Any<string>(), RunId, Arg.Any<CancellationToken>())
+            .Returns(Task.FromException(new EgressBlobAlreadyExistsException("CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv")));
+
+        var result = await Sut().TransferAsync(RunId, Actor, CancellationToken.None);
+
+        var failed = Assert.IsType<EgressTransferResult.Failed>(result);
+        Assert.Contains("already exists", failed.Reason);
+        await _blobs.Received(1).DeleteIfExistsAsync("CYPMD_LDS_KS4_NewLearners_2026_06_08.csv", Arg.Any<CancellationToken>());
+        await _repo.Received(1).MarkTransferFailedAsync(RunId, Arg.Is<string>(r => r.Contains("already exists")), Actor.UserId.ToString(), Arg.Any<CancellationToken>());
+        await _repo.DidNotReceiveWithAnyArgs().MarkTransferredAsync(default, default!, default, default);
+    }
+
+    [Fact]
+    public async Task Unconfigured_storage_fails_before_anything_is_uploaded()
+    {
+        RunIs(EgressRunStatus.Preprocessed, EgressOutputType.RemoveLearners);
+        _blobs.IsConfigured.Returns(false);
+
+        var result = await Sut().TransferAsync(RunId, Actor, CancellationToken.None);
+
+        var failed = Assert.IsType<EgressTransferResult.Failed>(result);
+        Assert.Contains("not configured", failed.Reason);
+        await _blobs.DidNotReceiveWithAnyArgs().UploadAsync(default!, default!, default!, default, default);
+        await _repo.Received(1).MarkTransferFailedAsync(RunId, Arg.Any<string>(), Actor.UserId.ToString(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_retry_after_failure_reactivates_first_and_is_refused_when_the_pair_is_taken()
+    {
+        RunIs(EgressRunStatus.TransferFailed, EgressOutputType.RemoveLearners);
+        var blocker = new EgressBlocker(Guid.NewGuid(), EgressRunStatus.Pulled, "Ops Two", DateTime.UtcNow, null, null);
+        _repo.TryReactivateAsync(RunId, Arg.Any<CancellationToken>()).Returns(blocker);
+
+        var result = await Sut().TransferAsync(RunId, Actor, CancellationToken.None);
+
+        Assert.Equal(blocker, Assert.IsType<EgressTransferResult.Refused>(result).Blocker);
+        await _blobs.DidNotReceiveWithAnyArgs().UploadAsync(default!, default!, default!, default, default);
+    }
+
+    [Theory]
+    [InlineData(EgressRunStatus.Pulled)]
+    [InlineData(EgressRunStatus.Transferred)]
+    [InlineData(EgressRunStatus.Abandoned)]
+    public async Task Only_a_preprocessed_or_failed_run_can_be_transferred(EgressRunStatus status)
+    {
+        RunIs(status, EgressOutputType.RemoveLearners);
+        Assert.Equal(status, Assert.IsType<EgressTransferResult.NotTransferable>(await Sut().TransferAsync(RunId, Actor, CancellationToken.None)).Status);
+    }
+
+    [Fact]
+    public async Task BuildFile_renders_the_persisted_rows_for_preview_and_download()
+    {
+        RunIs(EgressRunStatus.Preprocessed, EgressOutputType.RemoveLearners);
+        var text = Encoding.UTF8.GetString(await Sut().BuildFileAsync(RunId, EgressOutputType.RemoveLearners, CancellationToken.None));
+        Assert.Equal(3, text.Split("\r\n").Length);
+        Assert.DoesNotContain("\n\n", text);
+    }
+}

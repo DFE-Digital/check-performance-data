@@ -26,6 +26,114 @@
     // heading look like a body match on every other heading.
     var NON_CONTENT = 'form.cypmd-search, nav, script, style, template';
 
+    var REPORT_URL = '/search/instant-analytics';
+
+    // Reporting an instant search
+    // ---------------------------
+    // A typeahead fires on every keystroke, and almost none of those keystrokes are an event
+    // anyone wants to read. What matters is the query a person settled on: what they were
+    // shown for it, and whether they took any of it. So nothing is sent while they are still
+    // typing. One report goes out when the query is settled, which is any of:
+    //
+    //   * they chose something from the menu;
+    //   * they changed the query to something that is not a continuation of it — which is a
+    //     person looking at the results and deciding none of them will do;
+    //   * they left the box, hid the tab, or closed the page.
+    //
+    // Continuations supersede rather than accumulate, so typing "e-v-i-d-e-n-c-e" reports
+    // once, as "evidence". A report with no selection is a real finding, not missing data.
+    function antiforgeryToken() {
+        var meta = document.querySelector('meta[name="request-verification-token"]');
+        return meta ? meta.getAttribute('content') : null;
+    }
+
+    function send(fields) {
+        var token = antiforgeryToken();
+        if (!token) return;
+
+        var body = new URLSearchParams();
+        Object.keys(fields).forEach(function (k) {
+            if (fields[k] !== null && fields[k] !== undefined) body.set(k, fields[k]);
+        });
+        body.set('__RequestVerificationToken', token);
+        var text = body.toString();
+
+        // sendBeacon is the only transport that reliably survives the page being closed, and
+        // it cannot set headers — so the token travels in a form-encoded body rather than the
+        // usual header. Fetch with keepalive is the fallback where sendBeacon is refused.
+        if (navigator.sendBeacon) {
+            var blob = new Blob([text], { type: 'application/x-www-form-urlencoded' });
+            if (navigator.sendBeacon(REPORT_URL, blob)) return;
+        }
+        if (window.fetch) {
+            window.fetch(REPORT_URL, {
+                method: 'POST',
+                body: text,
+                keepalive: true,
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+            }).catch(function () { /* analytics must never break the page */ });
+        }
+    }
+
+    // One is a continuation of the other when either is a prefix of it — the shape of someone
+    // typing a word out, or backspacing within it. Anything else is a fresh attempt.
+    function isContinuation(a, b) {
+        var x = (a || '').toLowerCase();
+        var y = (b || '').toLowerCase();
+        return x.indexOf(y) === 0 || y.indexOf(x) === 0;
+    }
+
+    function tracker(config) {
+        var pending = null;
+
+        function flush(selectedKey, selectedPosition) {
+            if (!pending || pending.sent) return;
+            if (pending.query.length < MIN_LENGTH) { pending = null; return; }
+            pending.sent = true;
+
+            send({
+                Surface: config.surface,
+                Q: pending.query,
+                Scope: config.scope || null,
+                HostPath: config.hostPath || null,
+                Shown: JSON.stringify(pending.shown),
+                SelectedKey: selectedKey || null,
+                SelectedPosition: selectedPosition || null,
+                LatencyMs: pending.latencyMs
+            });
+        }
+
+        return {
+            // Called each time the menu is filled. Supersedes a continuation of the pending
+            // query; anything else settles the pending one first.
+            observe: function (query, shown, latencyMs) {
+                var q = (query || '').trim();
+
+                if (pending && !isContinuation(pending.query, q)) {
+                    flush(null, null);
+                    pending = null;
+                }
+
+                // Emptying the box ends the attempt rather than becoming a shorter one.
+                if (q.length < MIN_LENGTH) {
+                    flush(null, null);
+                    pending = null;
+                    return;
+                }
+
+                if (pending && pending.sent) pending = null;
+                pending = {
+                    query: q,
+                    shown: shown,
+                    latencyMs: latencyMs,
+                    sent: false
+                };
+            },
+            selected: function (key, position) { flush(key, position); },
+            settle: function () { flush(null, null); }
+        };
+    }
+
     function escapeHtml(text) {
         return String(text)
             .replace(/&/g, '&amp;')
@@ -152,7 +260,28 @@
         }
 
         var lastQuery = '';
+        var lastShown = [];
         var source = searchIn === 'page' ? pageSource(sections) : remoteSource(scope);
+
+        var report = tracker({
+            surface: searchIn === 'page' ? 'instant-page' : 'instant',
+            scope: searchIn === 'page' ? '' : scope,
+            hostPath: searchIn === 'page' ? window.location.pathname : ''
+        });
+
+        // What the person was actually shown, in the order they saw it — the browser is the
+        // only place that knows this, which is why the report comes from here at all.
+        function describe(results) {
+            return results.map(function (r, i) {
+                return searchIn === 'page'
+                    ? { position: i + 1, kind: 'section', key: '#' + r.anchor, label: r.label }
+                    : { position: i + 1, kind: 'page', key: r.url, label: r.label };
+            });
+        }
+
+        function keyOf(result) {
+            return searchIn === 'page' ? '#' + result.anchor : result.url;
+        }
 
         var container = document.createElement('div');
         container.className = 'cypmd-search__autocomplete';
@@ -175,7 +304,15 @@
             tNoResults: function () { return noResults; },
             source: function (query, populateResults) {
                 lastQuery = (query || '').trim();
-                source(query, populateResults);
+                var startedAt = (window.performance && window.performance.now)
+                    ? window.performance.now() : Date.now();
+                source(query, function (results) {
+                    var now = (window.performance && window.performance.now)
+                        ? window.performance.now() : Date.now();
+                    lastShown = results || [];
+                    report.observe(query, describe(lastShown), Math.round(now - startedAt));
+                    populateResults(lastShown);
+                });
             },
             templates: {
                 inputValue: function (result) { return result ? result.label : ''; },
@@ -185,6 +322,13 @@
             },
             onConfirm: function (result) {
                 if (!result) return;
+
+                var position = 0;
+                for (var i = 0; i < lastShown.length; i++) {
+                    if (lastShown[i] === result) { position = i + 1; break; }
+                }
+                report.selected(keyOf(result), position);
+
                 if (searchIn === 'page') goToSection(result);
                 else if (result.url) window.location.assign(result.url);
             }
@@ -204,6 +348,17 @@
         }
 
         form.setAttribute('data-cypmd-instant-ready', 'true');
+
+        // Settling points. Leaving the box, hiding the tab and closing the page all mean the
+        // person has stopped working on this query, whether or not they took anything from it.
+        if (enhanced) {
+            enhanced.addEventListener('blur', function () { report.settle(); });
+        }
+        document.addEventListener('visibilitychange', function () {
+            if (document.visibilityState === 'hidden') report.settle();
+        });
+        window.addEventListener('pagehide', function () { report.settle(); });
+        form.addEventListener('submit', function () { report.settle(); });
 
         if (searchIn === 'page') {
             // Pressing the button on a page search has nowhere to navigate to, so it jumps to

@@ -47,8 +47,10 @@ public sealed class EgressViewSourceTests
     {
         var view = View("Index.cshtml");
         Assert.Contains("govuk-form-group @(Model.OutputTypesError is not null ? \"govuk-form-group--error\" : \"\")", view);
-        Assert.Contains("<govuk-checkboxes-fieldset aria-describedby=\"OutputTypes-hint@(Model.OutputTypesError is not null ? \" OutputTypes-error\" : \"\")\">", view);
-        var hintIndex = view.IndexOf("<govuk-checkboxes-hint id=\"OutputTypes-hint\">", StringComparison.Ordinal);
+        // The library appends its own auto-generated OutputTypes-hint id to whatever value is
+        // supplied here (verified live), so only the error id needs adding.
+        Assert.Contains("<govuk-checkboxes-fieldset aria-describedby=\"@(Model.OutputTypesError is not null ? \"OutputTypes-error\" : \"\")\">", view);
+        var hintIndex = view.IndexOf("<govuk-checkboxes-hint>", StringComparison.Ordinal);
         var errorIndex = view.IndexOf("id=\"OutputTypes-error\"", StringComparison.Ordinal);
         var itemsIndex = view.IndexOf("<govuk-checkboxes-item", StringComparison.Ordinal);
         Assert.True(hintIndex >= 0 && errorIndex > hintIndex && itemsIndex > errorIndex,

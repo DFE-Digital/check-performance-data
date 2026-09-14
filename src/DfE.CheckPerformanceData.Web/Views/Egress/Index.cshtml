@@ -65,9 +65,12 @@
        from the fieldset's aria-describedby, matching the window select's error above. *@
     <div class="govuk-form-group @(Model.OutputTypesError is not null ? "govuk-form-group--error" : "")">
         <govuk-checkboxes name="OutputTypes">
-            <govuk-checkboxes-fieldset aria-describedby="OutputTypes-hint@(Model.OutputTypesError is not null ? " OutputTypes-error" : "")">
+            @* The library already appends its own auto-generated OutputTypes-hint id to whatever
+               aria-describedby is supplied here (verified live), so only the error id — which it
+               does not know about — needs adding, and only when there is one. *@
+            <govuk-checkboxes-fieldset aria-describedby="@(Model.OutputTypesError is not null ? "OutputTypes-error" : "")">
                 <govuk-checkboxes-fieldset-legend class="govuk-fieldset__legend--s">2. Select data to pull from Zendesk</govuk-checkboxes-fieldset-legend>
-                <govuk-checkboxes-hint id="OutputTypes-hint">Select one or more output types to retrieve.</govuk-checkboxes-hint>
+                <govuk-checkboxes-hint>Select one or more output types to retrieve.</govuk-checkboxes-hint>
                 @* govuk-checkboxes-before-inputs is the fieldset's one slot for plain markup between
                    the hint and the items — govuk-checkboxes-fieldset itself only allows tag-helper
                    children, so a bare <p> here (as tried before) is RZ2009. *@

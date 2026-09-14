@@ -68,7 +68,7 @@ public sealed class DataEgressTests(PlaywrightFixture fixture) : SeedingPageTest
 
             var html = await PostFormAsync("/admin/egress", [], HttpStatusCode.OK);
 
-            Assert.Equal(1, Regex.Matches(html, "There is a problem").Count);
+            Assert.Single(Regex.Matches(html, "There is a problem"));
             Assert.Contains("govuk-form-group govuk-form-group--error", html);
             Assert.Matches("<fieldset[^>]*aria-describedby=\"OutputTypes-hint OutputTypes-error\"", html);
         }
@@ -177,6 +177,91 @@ public sealed class DataEgressTests(PlaywrightFixture fixture) : SeedingPageTest
 
             // The pair is free again: a new run can start.
             await PostFormAsync("/admin/egress", new Dictionary<string, string> { ["WindowId"] = WindowId.ToString(), ["OutputTypes"] = "RemoveLearners" });
+        }
+        finally
+        {
+            await CleanupAsync();
+            await AuthHelpers.ImpersonateAsEditorAsync(Fixture);
+        }
+    }
+
+    // S10: E2E had no Abandon fact — confirms the pair is genuinely released, not just that the
+    // banner appears.
+    [Fact]
+    public async Task Abandon_releases_the_pair_for_a_fresh_pull()
+    {
+        try
+        {
+            await AuthHelpers.ImpersonateAsAdminAsync(Fixture);
+            await CleanupAsync();
+            await SeedAsync("RemoveLearners", "auto_approved", 1);
+
+            var resultsUrl = await PostFormAsync("/admin/egress", new Dictionary<string, string> { ["WindowId"] = WindowId.ToString(), ["OutputTypes"] = "RemoveLearners" });
+            var runId = Regex.Match(resultsUrl, "runs/([0-9a-f-]{36})").Groups[1].Value;
+
+            var homeUrl = await PostFormAsync($"/admin/egress/runs/{runId}/abandon", []);
+            Assert.EndsWith("/admin/egress", homeUrl);
+            // The banner itself is TempData-cookie-driven, which this harness's UseCookies=false
+            // no-redirect client does not carry across the redirect (unlike a real browser or the
+            // manual curl walk that confirmed it live) — the state change below is what matters.
+
+            // The pair is free again: a new pull for the same window and output type succeeds
+            // rather than being refused.
+            var freshResultsUrl = await PostFormAsync("/admin/egress", new Dictionary<string, string> { ["WindowId"] = WindowId.ToString(), ["OutputTypes"] = "RemoveLearners" });
+            Assert.Matches("/admin/egress/runs/[0-9a-f-]{36}/results$", freshResultsUrl);
+        }
+        finally
+        {
+            await CleanupAsync();
+            await AuthHelpers.ImpersonateAsEditorAsync(Fixture);
+        }
+    }
+
+    // S10: E2E had no fact for the "in-progress" refusal (only the post-transfer one).
+    [Fact]
+    public async Task A_second_pull_for_the_same_pair_is_refused_while_the_first_is_still_open()
+    {
+        try
+        {
+            await AuthHelpers.ImpersonateAsAdminAsync(Fixture);
+            await CleanupAsync();
+            await SeedAsync("RemoveLearners", "auto_approved", 1);
+            await PostFormAsync("/admin/egress", new Dictionary<string, string> { ["WindowId"] = WindowId.ToString(), ["OutputTypes"] = "RemoveLearners" });
+
+            var refused = await PostFormAsync("/admin/egress",
+                new Dictionary<string, string> { ["WindowId"] = WindowId.ToString(), ["OutputTypes"] = "RemoveLearners" }, HttpStatusCode.OK);
+
+            Assert.Contains("is already being processed by", refused);
+            Assert.Contains("Wait for that run to finish or be abandoned", refused);
+        }
+        finally
+        {
+            await CleanupAsync();
+            await AuthHelpers.ImpersonateAsEditorAsync(Fixture);
+        }
+    }
+
+    // S10: E2E had no fact for resuming a saved (in-progress) run from the Pull page's list.
+    [Fact]
+    public async Task A_saved_run_is_listed_on_the_pull_page_and_resume_reopens_it()
+    {
+        try
+        {
+            await AuthHelpers.ImpersonateAsAdminAsync(Fixture);
+            await CleanupAsync();
+            await SeedAsync("RemoveLearners", "auto_approved", 1);
+            var resultsUrl = await PostFormAsync("/admin/egress", new Dictionary<string, string> { ["WindowId"] = WindowId.ToString(), ["OutputTypes"] = "RemoveLearners" });
+            var runId = Regex.Match(resultsUrl, "runs/([0-9a-f-]{36})").Groups[1].Value;
+
+            var index = await GetAsync("/admin/egress");
+            Assert.Contains("data-testid=\"egress-saved-runs\"", index);
+            Assert.Contains(runId, index);
+            Assert.Contains("Data pulled", index);
+
+            using var resumeRequest = new HttpRequestMessage(HttpMethod.Get, $"{Fixture.BaseUrl}/admin/egress/runs/{runId}");
+            var resumeResponse = await TestHttpClients.SendAsync(resumeRequest);
+            Assert.Equal(HttpStatusCode.Found, resumeResponse.StatusCode);
+            Assert.EndsWith(resultsUrl, resumeResponse.Headers.Location?.ToString());
         }
         finally
         {

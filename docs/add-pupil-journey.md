@@ -105,8 +105,8 @@ defensible to keep either way.
 
 ## LDS bound values
 
-These are a hard contract against the `LDS_CYPMD_Data specification v2.4` the future egress story
-reads from.
+These are a hard contract against the `LDS_CYPMD_Data specification v2.4` the egress story reads
+from. Consumed by `Application/Egress/EgressRecordBuilder.Build` since AB#294553.
 
 **Where the egress story will find them.** Not in a `RequestDocument`: `BuildAnswerRecord` and its
 `RawValue`/`Value` split only exist inside `RequestService.BuildRequestDocument`, which an Add

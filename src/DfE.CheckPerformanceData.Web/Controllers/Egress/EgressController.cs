@@ -6,6 +6,7 @@ using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Web.Admin.Nav;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.Egress;
 
@@ -45,7 +46,14 @@ public sealed class EgressController(
     public async Task<IActionResult> Start(PullForm form, CancellationToken cancellationToken)
     {
         var windowError = form.WindowId is null || form.WindowId == Guid.Empty ? "Select a checking window" : null;
-        var typesError = form.OutputTypes.Count == 0 ? "Select at least one output type" : null;
+        // S9: an unbindable OutputTypes value (e.g. OutputTypes=garbage) previously bound as
+        // default(EgressOutputType) — NewLearners — with a ModelState error nobody read, so the
+        // request silently proceeded as if NewLearners had been ticked. Checking the field's own
+        // validation state catches that case without mislabelling an unrelated WindowId failure
+        // (already handled above) as an output-types error.
+        var typesError = form.OutputTypes.Count == 0
+            || ModelState.GetValidationState(nameof(PullForm.OutputTypes)) == ModelValidationState.Invalid
+                ? "Select at least one output type" : null;
         if (windowError is not null || typesError is not null)
             return View("Index", await PullModelAsync(form, windowError, typesError, [], null, cancellationToken));
 

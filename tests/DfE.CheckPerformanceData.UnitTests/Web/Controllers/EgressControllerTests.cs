@@ -69,6 +69,26 @@ public sealed class EgressControllerTests
         await _runs.DidNotReceiveWithAnyArgs().StartAsync(default, default!, default!, default);
     }
 
+    // S9: an unbindable OutputTypes value (e.g. OutputTypes=garbage) previously bound as
+    // default(EgressOutputType) — NewLearners — with nobody reading the resulting ModelState
+    // error, so the request silently proceeded. A window is selected here so only the
+    // OutputTypes binding failure is under test.
+    [Fact]
+    public async Task Start_with_an_unbindable_output_type_redisplays_with_an_error_rather_than_defaulting()
+    {
+        var controller = Build();
+        controller.ModelState.AddModelError(nameof(PullForm.OutputTypes), "The value 'garbage' is not valid.");
+
+        var result = await controller.Start(
+            new PullForm { WindowId = WindowId, OutputTypes = [EgressOutputType.NewLearners] }, CancellationToken.None);
+
+        var view = Assert.IsType<ViewResult>(result);
+        Assert.Equal("Index", view.ViewName);
+        var model = Assert.IsType<PullViewModel>(view.Model);
+        Assert.NotNull(model.OutputTypesError);
+        await _runs.DidNotReceiveWithAnyArgs().StartAsync(default, default!, default!, default);
+    }
+
     [Fact]
     public async Task Start_redirects_to_results_and_passes_the_actor()
     {

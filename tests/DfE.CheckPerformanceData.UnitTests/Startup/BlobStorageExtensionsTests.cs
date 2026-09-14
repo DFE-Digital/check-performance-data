@@ -1,3 +1,4 @@
+using Azure.Storage.Blobs;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
@@ -44,6 +45,32 @@ public class BlobStorageExtensionsTests
         services.AddSingleton<IHostEnvironment>(new StubHostEnvironment());
         services.AddCpdBlobStorage(configuration);
         return services.BuildServiceProvider(validateScopes: true);
+    }
+
+    private static IReadOnlyDictionary<string, BlobServiceClient> BuildClients(Dictionary<string, string?> values)
+    {
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(values).Build();
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddMemoryCache();
+        services.AddSingleton<IHostEnvironment>(new StubHostEnvironment());
+        services.AddCpdBlobStorage(configuration);
+        using var provider = services.BuildServiceProvider(validateScopes: true);
+        return provider.GetRequiredService<IReadOnlyDictionary<string, BlobServiceClient>>();
+    }
+
+    [Fact]
+    public void Registers_the_egress_client_only_when_its_connection_string_is_present()
+    {
+        var with = BuildClients(new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:AzureStorage"] = "UseDevelopmentStorage=true",
+            ["ConnectionStrings:EgressStorage"] = "UseDevelopmentStorage=true"
+        });
+        Assert.True(with.ContainsKey("egress"));
+
+        var without = BuildClients(new Dictionary<string, string?> { ["ConnectionStrings:AzureStorage"] = "UseDevelopmentStorage=true" });
+        Assert.False(without.ContainsKey("egress"));
     }
 
     private sealed class StubHostEnvironment : IHostEnvironment

@@ -68,4 +68,10 @@ public static class AdminNavKeys
     // form + POST action for pumping plausible search events + feedback messages into the
     // sink so the search-analytics dashboard has something to show during demos.
     public const string SeedSampleSearchData = "seed-sample-search-data";
+
+    // Data egress to LDS (AB#294553). EgressGroup is a container (not in AllSections); Egress is
+    // the tile's own key and the [RequireAdminSection] gate on EgressController, so it IS in
+    // DefaultAdminAccessSeeder.AllSections.
+    public const string EgressGroup = "egress-group";
+    public const string Egress = "egress";
 }

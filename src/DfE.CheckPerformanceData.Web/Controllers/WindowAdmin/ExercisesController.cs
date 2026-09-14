@@ -1,3 +1,5 @@
+using DfE.CheckPerformanceData.Web.Admin;
+using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
@@ -11,6 +13,7 @@ namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 /// is listed, pre-ticked from the window type's defaults, so a new member of the enum surfaces here
 /// with no change to this controller — while a single-exercise window is still one Continue.
 /// </summary>
+[RequireAdminSection(AdminNavKeys.ManageWindow)]
 public sealed class ExercisesController(IWindowService windowService) : Controller
 {
     private const string PageView = "~/Views/WindowAdmin/Exercises.cshtml";

@@ -1,3 +1,5 @@
+using DfE.CheckPerformanceData.Web.Admin;
+using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
@@ -11,6 +13,7 @@ namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 /// window's StartDate/EndDate is the union of these, derived in
 /// <see cref="CheckingWindowDto.DeriveDatesFromExercises"/>, so the two cannot disagree.
 /// </summary>
+[RequireAdminSection(AdminNavKeys.ManageWindow)]
 public sealed class ExerciseDatesController(IWindowService windowService) : Controller
 {
     private const string PageView = "~/Views/WindowAdmin/ExerciseDates.cshtml";

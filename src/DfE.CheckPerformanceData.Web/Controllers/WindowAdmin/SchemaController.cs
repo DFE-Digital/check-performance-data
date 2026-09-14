@@ -1,3 +1,5 @@
+using DfE.CheckPerformanceData.Web.Admin;
+using DfE.CheckPerformanceData.Web.Admin.Nav;
 using System.Security.Cryptography;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
@@ -9,6 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 
+[RequireAdminSection(AdminNavKeys.ManageWindow)]
 public class SchemaController(
     ILogger<SchemaController> logger,
     IWindowService windowService,

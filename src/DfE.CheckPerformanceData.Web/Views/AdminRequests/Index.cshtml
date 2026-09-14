@@ -31,8 +31,7 @@
 
 @if (Model.Exercises.Count > 0)
 {
-    <form method="get" action="/admin/windows/requests" class="govuk-!-margin-bottom-6">
-        <input type="hidden" name="windowId" value="@Model.WindowId" />
+    <form method="get" action="/admin/windows/@Model.WindowId/requests" class="govuk-!-margin-bottom-6">
         <div class="govuk-form-group govuk-!-margin-bottom-3">
             <label class="govuk-label" for="exercise">Checking exercise</label>
             <select class="govuk-select" id="exercise" name="exercise">

@@ -6,8 +6,8 @@
     off, enhanced into a searchable type-ahead when script is available — some qualifications award
     93 grades, which is far too many to scan in a dropdown.
 
-    Options come from the AODC reference data for the selected result's QAN: pass grades first, then
-    fail grades, in source order, minus the grade the result already holds (AB#301913 — the server
+    Options come from the 16-19 qualification reference entry for the selected result's QAN (AB#301903),
+    in the reference's own order, minus the grade the result already holds (AB#301913 — the server
     still refuses a posted no-op; the filter lives in JourneyViewModelBuilder so it holds with
     JavaScript off). Nothing is preselected — the user must choose — and the enhanced input starts
     empty rather than holding the placeholder text (AB#301933; see the script below).

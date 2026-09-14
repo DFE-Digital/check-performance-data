@@ -44,7 +44,7 @@ public sealed class JourneyControllerResultSearchTests
     private readonly IQuestionOptionalityService _optionality = Substitute.For<IQuestionOptionalityService>();
     private readonly IOriginCountryLanguageCapture _originCapture = Substitute.For<IOriginCountryLanguageCapture>();
     private readonly IStudentResultsClient _results = Substitute.For<IStudentResultsClient>();
-    private readonly IGradeReferenceClient _gradeReference = Substitute.For<IGradeReferenceClient>();
+    private readonly IQualificationReferenceClient _qualificationReference = Substitute.For<IQualificationReferenceClient>();
     private readonly DfE.CheckPerformanceData.Application.Notify.IRequestNotificationService _notifications =
         Substitute.For<DfE.CheckPerformanceData.Application.Notify.IRequestNotificationService>();
     private readonly FakeSession _session = new();
@@ -87,6 +87,20 @@ public sealed class JourneyControllerResultSearchTests
     private static readonly StudentResultRecord French =
         Result("60181576", "GCSE (9-1) French", "S2024", ResultsFileTags.Post16LateResults1, "6");
 
+    // The 16-19 qualification reference, as ResultSearchPost resolves it (AB#301903). Holds the
+    // Business Studies QAN only, so the French result is the "not in the reference" case.
+    private const string QualificationReferenceJson = """
+        {
+          "6037116X": {
+            "qan": "6037116X",
+            "qualificationTitle": "Pearson Edexcel Level 1/Level 2 GCSE (9-1) in Business",
+            "awardingOrganisation": "Pearson",
+            "grades": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "Q", "R", "U", "X"],
+            "syllabusCodes": []
+          }
+        }
+        """;
+
     public JourneyControllerResultSearchTests()
     {
         _currentUser.OrganisationLaestab.Returns(Laestab);
@@ -98,6 +112,8 @@ public sealed class JourneyControllerResultSearchTests
             .Returns((JourneyNavigation?)null);
         _results.GetResultsAsync(WindowId, Laestab, CypmdId, Arg.Any<CancellationToken>())
             .Returns([BusStuds, French]);
+        _qualificationReference.GetLookupAsync(Arg.Any<CancellationToken>())
+            .Returns(QualificationReferenceLookup.Parse(QualificationReferenceJson));
 
         var httpContext = new DefaultHttpContext();
         httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(_session));
@@ -105,7 +121,7 @@ public sealed class JourneyControllerResultSearchTests
         _sut = new JourneyController(
             _flowService, _journeyService, _fileStorage, _requestService, _pupilData, _vmBuilder,
             _analytics, _currentUser, _optionVisibility, _optionality, _originCapture, _results,
-            _gradeReference, Substitute.For<IQualificationReferenceClient>(), _notifications, OpenCheckingExercises.AlwaysOpen(),
+            _qualificationReference, _notifications, OpenCheckingExercises.AlwaysOpen(),
             NullLogger<JourneyController>.Instance)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext }
@@ -209,6 +225,52 @@ public sealed class JourneyControllerResultSearchTests
         Assert.Equal("S2024", stored.Session);
         Assert.Equal("5", stored.Grade);
         Assert.Equal("GCSE (9-1) Bus. Studs:Single", stored.QualificationName);
+    }
+
+    [Fact]
+    public async Task Post_resolves_the_16_19_qualification_for_the_chosen_result()
+    {
+        // AB#301903: the grade page and the summary describe the qualification from the 16-19
+        // reference, not from the results file, so it is resolved once here beside the result.
+        ReadyJourney();
+
+        await _sut.ResultSearchPost(WindowId, "select-result", BusStudsKey);
+
+        var qualification = _session.GetRequestState(WindowId).SelectedResultQualification;
+        Assert.NotNull(qualification);
+        Assert.Equal("6037116X", qualification.Qan);
+        Assert.Equal("Pearson Edexcel Level 1/Level 2 GCSE (9-1) in Business", qualification.QualificationTitle);
+        Assert.Equal("Pearson", qualification.AwardingOrganisation);
+        Assert.Equal(13, qualification.Grades.Count);
+    }
+
+    [Fact]
+    public async Task Post_stores_no_qualification_when_the_qan_is_not_in_the_16_19_reference()
+    {
+        // A gap between the results file and the QualList is a real state (different teams, different
+        // cadences). The result is still stored and the journey continues — the grade page explains
+        // the gap and validation holds the enquiry back.
+        ReadyJourney();
+
+        var redirect = Assert.IsType<RedirectToActionResult>(
+            await _sut.ResultSearchPost(WindowId, "select-result", French.CompositeKey));
+
+        var state = _session.GetRequestState(WindowId);
+        Assert.Equal("60181576", state.SelectedResult!.Qan);
+        Assert.Null(state.SelectedResultQualification);
+        Assert.Equal(nameof(JourneyController.Page), redirect.ActionName);
+    }
+
+    [Fact]
+    public async Task Choosing_a_different_result_replaces_the_resolved_qualification()
+    {
+        ReadyJourney();
+        await _sut.ResultSearchPost(WindowId, "select-result", BusStudsKey);
+        Assert.NotNull(_session.GetRequestState(WindowId).SelectedResultQualification);
+
+        await _sut.ResultSearchPost(WindowId, "select-result", French.CompositeKey);
+
+        Assert.Null(_session.GetRequestState(WindowId).SelectedResultQualification);
     }
 
     [Fact]
@@ -507,6 +569,7 @@ public sealed class JourneyControllerResultSearchTests
         {
             s.QuestionHistory = ["select-student-single", "select-result", "grade-details"];
             s.SelectedResult = BusStuds;
+            s.SelectedResultQualification = new QualificationReference { Qan = "6037116X", QualificationTitle = "Business" };
             s.QuestionAnswers["q-revised-grade"] = new QuestionAnswer { TextValue = "7" };
         });
 
@@ -515,6 +578,7 @@ public sealed class JourneyControllerResultSearchTests
         var state = _session.GetRequestState(WindowId);
         Assert.Empty(state.QuestionAnswers);
         Assert.Null(state.SelectedResult);
+        Assert.Null(state.SelectedResultQualification);
         Assert.Equal(["select-student-single"], state.QuestionHistory);
     }
 

@@ -115,6 +115,10 @@ public sealed class JourneyViewModelBuilder(
                 && string.Equals(Answer(CohortScopeQuestionId), "yes", StringComparison.OrdinalIgnoreCase),
             CohortCount = Answer(CohortCountQuestionId),
             Result = journey.SelectedResult,
+            // AB#301903: set for every kind with a result — the "does not belong" card identifies
+            // the stray result by the reference's AO and title too, pinned by
+            // A_result_does_not_belong_summary_also_names_the_qualification_from_the_reference.
+            Qualification = journey.SelectedResultQualification,
             ShowRevisedGrade = kind == Application.CheckYourPupilData.WhatToChange.IncorrectGrade,
             RevisedGrade = Answer(JourneyController.RevisedGradeQuestionId),
             RevisedGradePageId = PageAsking(JourneyController.RevisedGradeQuestionId),
@@ -243,9 +247,10 @@ public sealed class JourneyViewModelBuilder(
                 {
                     QuestionType.Radio or QuestionType.Checkbox =>
                         optionVisibilityService.GetVisibleOptions(q, conditionContext),
-                    // AB#297130: grades come from the AODC reference data for the selected result's
-                    // QAN, not from the flow config — the config cannot know which qualification the
-                    // user picked. Pass grades before fail grades, source order preserved within each.
+                    // AB#297130 / AB#301903: grades come from the 16-19 qualification reference entry
+                    // resolved for the selected result (or, on a missing-qualification enquiry, the
+                    // selected qualification), not from the flow config — the config cannot know
+                    // which qualification the user picked. Source order is preserved.
                     // AB#301913: minus the grade the result already holds — a revision to the same
                     // grade is not a revision. The missing-qualification picker shares this type but
                     // has no SelectedResult, so nothing is dropped there.
@@ -275,6 +280,7 @@ public sealed class JourneyViewModelBuilder(
             BackPageAction = JourneyRouting.ActionFor(backPage?.Type),
             WhatToChange = journey.SelectedWhatToChange,
             SelectedResult = journey.SelectedResult,
+            SelectedResultQualification = journey.SelectedResultQualification,
             SelectedQualification = journey.SelectedQualification,
             CypmdId = journey.SelectedPupil?.Cypmd_Id,
             FromSummary = fromSummary,

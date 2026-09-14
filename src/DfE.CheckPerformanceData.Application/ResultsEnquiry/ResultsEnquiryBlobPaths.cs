@@ -15,7 +15,7 @@ namespace DfE.CheckPerformanceData.Application.ResultsEnquiry;
 /// The layout itself is no longer described here. #316 moved it to
 /// <see cref="CheckingExerciseBlobPaths"/>, which every exercise's reader and writer shares, so the
 /// prefix cannot be changed in one place and missed in another. What is left here is the
-/// results-enquiry flavour of those paths, plus the grade-reference blob, which lives in the
+/// results-enquiry flavour of those paths, plus the qualification-reference blob, which lives in the
 /// rules-config container and is not part of a window's layout at all.
 /// </summary>
 public static class ResultsEnquiryBlobPaths
@@ -23,10 +23,7 @@ public static class ResultsEnquiryBlobPaths
     public static string ResultsPrefix => CheckingExerciseBlobPaths.DataPrefix(CheckingExerciseType.ResultsEnquiry);
     public const string ResultsSuffix = CheckingExerciseBlobPaths.ResultsSuffix;
 
-    /// <summary>The grade-reference blob, seeded alongside <c>rules.json</c> in the rules-config container.</summary>
-    public const string GradeReferenceBlobName = "grade-reference.json";
-
-    /// <summary>The QualList qualification reference blob (AB#297848), beside the grade reference.</summary>
+    /// <summary>The QualList 16-19 qualification reference blob (AB#297848), beside rules.json in the rules-config container.</summary>
     public const string QualificationReferenceBlobName = "qualification-reference.json";
 
     /// <summary>e.g. "933/4070" -> "results-enquiry/data/9334070_results.json".</summary>

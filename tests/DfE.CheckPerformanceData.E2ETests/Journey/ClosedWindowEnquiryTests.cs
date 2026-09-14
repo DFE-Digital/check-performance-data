@@ -20,7 +20,7 @@ public sealed class ClosedWindowEnquiryTests(PlaywrightFixture fixture) : Seedin
 
     private const string StudentCypmdId = "500001";
     private const string StudentName = "Alice Smith";
-    private const string BusStudsS2024 = "GCSE (9-1) Bus. Studs:Single, QAN: 6037116X, Session: S2024";
+    private const string MathsS2024 = "GCSE (9-1) Mathematics, QAN: 60146084, Session: S2024";
 
     private string PageUrl => $"{Fixture.BaseUrl}/CheckYourPupilData/{WindowId}";
 
@@ -76,11 +76,11 @@ public sealed class ClosedWindowEnquiryTests(PlaywrightFixture fixture) : Seedin
         await Page.WaitForURLAsync($"**/Journey/{WindowId}/result-search/select-result");
         var resultSearch = Page.Locator("#result-search").First;
         await Expect(resultSearch).ToBeVisibleAsync();
-        await resultSearch.FillAsync("Bus");
-        var resultOption = Page.Locator("li[role='option']").GetByText(BusStudsS2024, new() { Exact = false });
+        await resultSearch.FillAsync("Math");
+        var resultOption = Page.Locator("li[role='option']").GetByText(MathsS2024, new() { Exact = false });
         await Expect(resultOption.First).ToBeVisibleAsync();
         await resultOption.First.ClickAsync();
-        await Expect(Page.Locator("select[name='selectedResultKey'] option:checked")).ToContainTextAsync(BusStudsS2024);
+        await Expect(Page.Locator("select[name='selectedResultKey'] option:checked")).ToContainTextAsync(MathsS2024);
         await Page.Locator("form").EvaluateAsync("form => form.requestSubmit()");
 
         await Page.WaitForURLAsync($"**/Journey/{WindowId}/page/additional-info");

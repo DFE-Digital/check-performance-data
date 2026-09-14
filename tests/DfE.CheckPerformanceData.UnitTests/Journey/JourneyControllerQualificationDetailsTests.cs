@@ -53,7 +53,6 @@ public sealed class JourneyControllerQualificationDetailsTests
     private readonly IQuestionOptionalityService _optionality = Substitute.For<IQuestionOptionalityService>();
     private readonly IOriginCountryLanguageCapture _originCapture = Substitute.For<IOriginCountryLanguageCapture>();
     private readonly IStudentResultsClient _results = Substitute.For<IStudentResultsClient>();
-    private readonly IGradeReferenceClient _gradeReference = Substitute.For<IGradeReferenceClient>();
     private readonly IQualificationReferenceClient _qualificationReference = Substitute.For<IQualificationReferenceClient>();
     private readonly DfE.CheckPerformanceData.Application.Notify.IRequestNotificationService _notifications =
         Substitute.For<DfE.CheckPerformanceData.Application.Notify.IRequestNotificationService>();
@@ -107,7 +106,7 @@ public sealed class JourneyControllerQualificationDetailsTests
         _sut = new JourneyController(
             _flowService, _journeyService, _fileStorage, _requestService, _pupilData, _vmBuilder,
             _analytics, _currentUser, _optionVisibility, _optionality, _originCapture, _results,
-            _gradeReference, _qualificationReference, _notifications, OpenCheckingExercises.AlwaysOpen(),
+            _qualificationReference, _notifications, OpenCheckingExercises.AlwaysOpen(),
             NullLogger<JourneyController>.Instance)
         {
             ControllerContext = new ControllerContext { HttpContext = _httpContext },
@@ -165,7 +164,6 @@ public sealed class JourneyControllerQualificationDetailsTests
         var gradeModel = model.QuestionModels.Single(q => q.Question.Id == "q-missing-grade");
 
         Assert.Equal(["1", "2", "3"], gradeModel.VisibleOptions.Select(o => o.Value).ToArray());
-        await _gradeReference.DidNotReceiveWithAnyArgs().GetByQanAsync(default!, default);
     }
 
     [Fact]

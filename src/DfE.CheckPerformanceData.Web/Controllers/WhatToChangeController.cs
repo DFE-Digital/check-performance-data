@@ -98,6 +98,8 @@ public sealed class WhatToChangeController(
             s.MatchedPupilId = null;
             s.MatchedPupilLabel = null;
             s.SelectedResult = null;
+            // AB#301903: resolved beside SelectedResult, cleared with it.
+            s.SelectedResultQualification = null;
             // AB#297848: the missing-qualification enquiry's equivalent of SelectedResult. Inert on
             // today's amendment journeys, which never read it — cleared anyway because this block's
             // whole argument is that it must not leave anything of the previous journey behind.

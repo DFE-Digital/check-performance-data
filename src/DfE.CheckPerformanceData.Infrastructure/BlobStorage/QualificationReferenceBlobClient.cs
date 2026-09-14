@@ -12,8 +12,7 @@ namespace DfE.CheckPerformanceData.Infrastructure.BlobStorage;
 
 /// <summary>
 /// Reads the QualList qualification reference document from the rules-config container, and
-/// self-seeds it from the bundled copy when absent — the same arrangement as
-/// <see cref="GradeReferenceBlobClient"/>, and for the same reason: Terraform provisions an empty
+/// self-seeds it from the bundled copy when absent — Terraform provisions an empty
 /// container and the storage account has no public network access, so nothing outside the cluster
 /// can upload the blob.
 ///

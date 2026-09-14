@@ -35,8 +35,8 @@ reinstate a plain seed-if-missing upload: it freezes each environment at whateve
 which is the original bug. Copy the version gate from
 `Infrastructure/RulesEngine/RulesConfigSeeder.cs` — a `version` field in each config, the bundled
 copy replacing the stored one only when it is strictly newer, admin saves stamped so they outrank
-the bundled seed. `GradeReferenceSeedingService` is the simpler precedent for a hosted service that
-runs in every environment.
+the bundled seed. `QualificationReferenceSeedingService` is the simpler precedent for a hosted service
+that runs in every environment.
 
 The `question-flows` container has been removed from `terraform/application/storage.tf`. Terraform
 deletes the container on the next apply in each environment, along with any configs that had been

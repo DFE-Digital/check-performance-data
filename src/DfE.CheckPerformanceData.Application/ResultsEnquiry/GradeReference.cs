@@ -1,10 +1,12 @@
 namespace DfE.CheckPerformanceData.Application.ResultsEnquiry;
 
 /// <summary>
-/// AB#297130: the valid grades for one qualification, from the AODC reference data.
-/// <see cref="PassGrades"/> render before <see cref="FailGrades"/>; ordering within each list is
-/// preserved from the source, because a grade scale has a meaningful order (highest first) that
-/// alphabetical sorting would destroy.
+/// The grade scale the revised-grade and missing-grade pickers render and validate against. Since
+/// AB#301903 it is only ever produced by <see cref="QualificationReference.ToGradeReference"/> from
+/// the 16-19 qualification reference — every grade lands in <see cref="PassGrades"/>,
+/// <see cref="FailGrades"/> is empty, and the order is the reference's own (a scale's order is
+/// meaningful; alphabetical sorting would destroy it). The pass/fail split is kept because the
+/// validator and picker consume <see cref="AllGrades"/>, and a future source may carry the split.
 /// </summary>
 public sealed class GradeReference
 {

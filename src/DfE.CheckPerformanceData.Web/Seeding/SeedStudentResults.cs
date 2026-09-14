@@ -8,8 +8,9 @@ namespace DfE.CheckPerformanceData.Web.Seeding;
 /// <c>results-enquiry/data/{laestab}_results.json</c>) so the incorrect-grade enquiry journey works
 /// locally before the six-file ingestion pipeline exists. AB#296648.
 ///
-/// The qualifications, QANs, syllabus codes, sessions and grades are the fixtures from the Figma
-/// screens. The CYPMD ids are NOT: they are the ids <see cref="SeedPupilData"/> actually generates
+/// The QANs are real 16-19 qualifications from the QualList reference (AB#301903 — the Figma
+/// screens' GCSE fixtures were KS4 QANs the 16-19 reference does not hold); sessions and grades
+/// follow the Figma screens. The CYPMD ids are NOT: they are the ids <see cref="SeedPupilData"/> actually generates
 /// for the seeded Post16 school, because a result must belong to a pupil the school can select —
 /// results keyed to the Figma's own CYPMD id would leave the journey with a selectable pupil who
 /// holds no results.
@@ -45,47 +46,47 @@ public static class SeedStudentResults
         // ticket calls out as the reason the result search cannot key on QAN alone.
         new()
         {
-            CypmdId = StudentA, Qan = "6037116X", QualificationName = "GCSE (9-1) Bus. Studs:Single",
-            SyllabusCode = "1BS0", Session = "S2024", Grade = "5", SourceFile = ResultsFileTags.Post16Main
+            CypmdId = StudentA, Qan = "60146084", QualificationName = "GCSE (9-1) Mathematics",
+            SyllabusCode = "8300H", Session = "S2024", Grade = "5", SourceFile = ResultsFileTags.Post16Main
         },
         new()
         {
-            CypmdId = StudentA, Qan = "6037116X", QualificationName = "GCSE (9-1) Bus. Studs:Single",
-            SyllabusCode = "1BS0", Session = "S2023", Grade = "4", SourceFile = ResultsFileTags.Post16Main
+            CypmdId = StudentA, Qan = "60146084", QualificationName = "GCSE (9-1) Mathematics",
+            SyllabusCode = "8300H", Session = "S2023", Grade = "4", SourceFile = ResultsFileTags.Post16Main
         },
         new()
         {
-            CypmdId = StudentA, Qan = "60181576", QualificationName = "GCSE (9-1) French",
-            SyllabusCode = "1FR0", Session = "S2024", Grade = "6", SourceFile = ResultsFileTags.Post16LateResults1
+            CypmdId = StudentA, Qan = "60148366", QualificationName = "GCSE (9-1) English Language",
+            SyllabusCode = "1EN0", Session = "S2024", Grade = "6", SourceFile = ResultsFileTags.Post16LateResults1
         },
         new()
         {
-            CypmdId = StudentA, Qan = "60180882", QualificationName = "GCSE (9-1) Art&Des : Fine Art",
-            SyllabusCode = "1AD0", Session = "S2024", Grade = "9", SourceFile = ResultsFileTags.Post16Main
+            CypmdId = StudentA, Qan = "60149589", QualificationName = "GCE A Level Art and Design",
+            SyllabusCode = "9FA0", Session = "S2024", Grade = "A", SourceFile = ResultsFileTags.Post16Main
         },
 
         // Student B: a vocational qualification, so the grade picker shows a non-GCSE scale.
         new()
         {
-            CypmdId = StudentB, Qan = "60370683", QualificationName = "Pearson BTEC Level 3 National Extended Certificate in Sport",
-            SyllabusCode = "31525H", Session = "S2024", Grade = "M1", SourceFile = ResultsFileTags.Post16Main
+            CypmdId = StudentB, Qan = "60172186", QualificationName = "BTEC L3 Nat Ext Cert in Sport",
+            SyllabusCode = "31525H", Session = "S2024", Grade = "M", SourceFile = ResultsFileTags.Post16Main
         },
         new()
         {
-            CypmdId = StudentB, Qan = "10025480", QualificationName = "OCR Level 3 FSMQ Additional Mathematics",
+            CypmdId = StudentB, Qan = "10025480", QualificationName = "OCR Level 3 FSMQ: Additional Maths",
             SyllabusCode = "6993", Session = "S2024", Grade = "B", SourceFile = ResultsFileTags.Post16LateResults1
         },
         new()
         {
-            CypmdId = StudentB, Qan = "60181576", QualificationName = "GCSE (9-1) French",
-            SyllabusCode = "1FR0", Session = "S2024", Grade = "3", SourceFile = ResultsFileTags.Post16Main
+            CypmdId = StudentB, Qan = "60148366", QualificationName = "GCSE (9-1) English Language",
+            SyllabusCode = "1EN0", Session = "S2024", Grade = "3", SourceFile = ResultsFileTags.Post16Main
         },
 
         // Student C: a single result, so the "one obvious choice" case is covered too.
         new()
         {
-            CypmdId = StudentC, Qan = "6037116X", QualificationName = "GCSE (9-1) Bus. Studs:Single",
-            SyllabusCode = "1BS0", Session = "S2024", Grade = "2", SourceFile = ResultsFileTags.Post16Main
+            CypmdId = StudentC, Qan = "60146084", QualificationName = "GCSE (9-1) Mathematics",
+            SyllabusCode = "8300H", Session = "S2024", Grade = "2", SourceFile = ResultsFileTags.Post16Main
         }
     ];
 
@@ -100,8 +101,9 @@ public static class SeedStudentResults
     // Deliberately NOT every student: the search restriction and the result page's empty state are
     // both only visible when some students hold nothing.
     //
-    // Qualifications come from the seeded grade reference, so the revised-grade picker can always
-    // list grades. Sessions and grades vary with the student so two suggestions never read alike.
+    // Qualifications come from the 16-19 qualification reference, so the revised-grade picker can
+    // always list grades. Sessions and grades vary with the student so two suggestions never read
+    // alike.
     private static IEnumerable<StudentResultRecord> GeneratedResults()
     {
         // SeedPupilData: 120 included students from index 0, then 120 non-included from index 200.
@@ -135,14 +137,16 @@ public static class SeedStudentResults
 
     private sealed record Qualification(string Qan, string Name, string SyllabusCode, string[] Grades);
 
-    // Every QAN here is in Web/Data/GradeReference/grade-reference.json, and the grades are drawn
-    // from that file's pass grades for the qualification.
+    // Every QAN here is in Web/Data/QualificationReference/qualification-reference.json — the 16-19
+    // reference the revised-grade picker lists (AB#301903) — and every grade is one that QAN's scale
+    // holds. QUAL_NAME is deliberately the abbreviated, results-file style of name: the grade page
+    // shows the reference's full title instead, which is the point of the ticket.
     private static readonly Qualification[] Catalogue =
     [
-        new("6037116X", "GCSE (9-1) Bus. Studs:Single", "1BS0", ["4", "5", "6", "7"]),
-        new("60181576", "GCSE (9-1) French", "1FR0", ["3", "5", "6", "8"]),
-        new("60180882", "GCSE (9-1) Art&Des : Fine Art", "1AD0", ["5", "6", "7", "9"]),
-        new("60370683", "Pearson BTEC L1/L2 Tech Award in Sport", "31525H", ["P1", "M1", "M2", "D1"]),
+        new("60146084", "GCSE (9-1) Mathematics", "8300H", ["4", "5", "6", "7"]),
+        new("60148366", "GCSE (9-1) English Language", "1EN0", ["3", "5", "6", "8"]),
+        new("60149589", "GCE A Level Art and Design", "9FA0", ["A", "B", "C", "D"]),
+        new("60172186", "BTEC L3 Nat Ext Cert in Sport", "31525H", ["P", "M", "D", "*"]),
         new("10025480", "OCR Level 3 FSMQ: Additional Maths", "6993", ["A", "B", "C", "D"]),
         new("50034157", "IBO Level 3 International Baccalaureate Diploma", "IBDP", ["24B", "25B", "26B", "27B"])
     ];

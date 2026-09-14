@@ -284,6 +284,37 @@ public sealed class InstantSearchWidgetE2ETests(PlaywrightFixture fixture) : See
     }
 
     // ============================================================
+    // 6b. Two instant widgets on one page each get their own input and their own menu.
+    // ============================================================
+    [Fact]
+    public async Task TwoWidgetsOnOnePage_DoNotShareAnInputId()
+    {
+        var segment = $"e2e-instant-{Guid.NewGuid():N}";
+        var id = await CmsSeedHelpers.CreatePageNodeAsync(
+            Fixture.SeedClient, CmsSeedHelpers.HelpRootId, "content", segment, "E2E two widgets");
+        _createdPages.Add(id);
+
+        await AddAndSetAsync(id, "0.0", "search", SearchProps("page", instant: true));
+        await AddAndSetAsync(id, "0.1", "heading",
+            new Dictionary<string, string> { ["level"] = "2", ["text"] = "Providing evidence" });
+        await AddAndSetAsync(id, "0.2", "search", SearchProps("page", instant: true));
+        await CmsSeedHelpers.PublishDraftAsync(Fixture.SeedClient, id);
+
+        await Page.GotoAsync($"{Fixture.BaseUrl}/help/{segment}");
+
+        var inputs = Page.Locator("input.autocomplete__input");
+        Assert.Equal(2, await inputs.CountAsync());
+
+        var ids = await inputs.EvaluateAllAsync<string[]>("els => els.map(e => e.id)");
+        Assert.Equal(2, ids.Distinct(StringComparer.Ordinal).Count());
+
+        // Each input owns a listbox of its own, named after it.
+        var owned = await inputs.EvaluateAllAsync<string[]>(
+            "els => els.map(e => e.getAttribute('aria-controls'))");
+        Assert.Equal(2, owned.Distinct(StringComparer.Ordinal).Count());
+    }
+
+    // ============================================================
     // 7. The enhanced widget carries no accessibility violations.
     // ============================================================
     [Fact]

@@ -30,7 +30,15 @@
     // is identical either way, and the script only binds when the marker attribute is present.
     var instant       = Model.GetBool("instant") ?? false;
     var noResultsText = Model.GetString("noResultsText") ?? "No results found";
-    var inputId       = string.IsNullOrEmpty(Model.Anchor) ? "search" : $"search-{Model.Anchor}";
+    // Two search widgets on one page must not share an input id: the label's `for` keys off it,
+    // and so do the listbox and status ids accessible-autocomplete derives from it — duplicates
+    // would point a screen reader at the wrong menu. Counted per request; the first widget keeps
+    // the plain "search" id it has always had.
+    var widgetSeq = (int?)ViewContext.HttpContext.Items["cypmd-search-widget-seq"] ?? 0;
+    ViewContext.HttpContext.Items["cypmd-search-widget-seq"] = widgetSeq + 1;
+    var inputId = !string.IsNullOrEmpty(Model.Anchor) ? $"search-{Model.Anchor}"
+        : widgetSeq == 0 ? "search"
+        : $"search-{widgetSeq + 1}";
 }
 @* Razor omits an attribute whose value expression is null, so a non-instant widget carries no
    marker, so the enhancement script never binds to it. *@

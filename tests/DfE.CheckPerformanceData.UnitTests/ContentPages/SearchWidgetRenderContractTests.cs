@@ -128,6 +128,15 @@ public sealed class SearchWidgetRenderContractTests
         Assert.Contains("GetBool(\"instant\")", View);
     }
 
+    [Fact]
+    public void EachWidgetOnAPageGetsItsOwnInputId()
+    {
+        // The label's `for` and the ids accessible-autocomplete derives from the input both key
+        // off this, so a second search widget sharing the id would aim a screen reader at the
+        // first widget's menu.
+        Assert.Contains("cypmd-search-widget-seq", View);
+    }
+
     private static string ReadSearchView()
     {
         var solutionRoot = FindSolutionRoot(AppContext.BaseDirectory);

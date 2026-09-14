@@ -38,6 +38,8 @@ using Notify.Client;
 using Refit;
 using DfE.CheckPerformanceData.Infrastructure.Notify;
 
+using DfE.CheckPerformanceData.Infrastructure.Authentication;
+
 namespace DfE.CheckPerformanceData.Infrastructure;
 
 public static class DependencyManager
@@ -133,6 +135,10 @@ public static class DependencyManager
                 "Set DfeSignIn:MetadataAddress, DfeSignIn:ClientId, DfeSignIn:ClientSecret, " +
                 "DfeSignIn:Audience and DfeSignIn:ApiClientSecret in appsettings.json " +
                 "or via environment variables (e.g. DfeSignIn__MetadataAddress).");
+
+        // The ticket is held server-side and the cookie carries only a key — see
+        // DistributedCacheTicketStore for why the cookie's size is an availability concern.
+        services.AddCpdAuthenticationTicketStore();
 
         services.AddAuthentication(options =>
         {

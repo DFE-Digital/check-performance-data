@@ -5,17 +5,25 @@ using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Web.Startup;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Startup;
 
-// The web host never registered a Zendesk client before this feature. With the fake selected (the
-// default) the egress must resolve without any Zendesk configuration at all; with it disabled the
-// real Refit client is registered and the real ticket source is used.
+// The web host never registered a Zendesk client before this feature. Review finding B1: the safe
+// default is the real Zendesk client (matching the worker's configured default), never the dev
+// outbox fake — the fake is opt-in only, and never available in Production regardless of config.
 public sealed class EgressExtensionsTests
 {
-    private static ServiceProvider Build(Dictionary<string, string?> values)
+    private static IHostEnvironment Env(string environmentName)
+    {
+        var env = Substitute.For<IHostEnvironment>();
+        env.EnvironmentName = environmentName;
+        return env;
+    }
+
+    private static ServiceProvider Build(Dictionary<string, string?> values, string environmentName = "Development")
     {
         var config = new ConfigurationBuilder().AddInMemoryCollection(values).Build();
         var services = new ServiceCollection();
@@ -24,17 +32,39 @@ public sealed class EgressExtensionsTests
         services.AddSingleton(Substitute.For<IPortalDbContext>());
         services.AddSingleton<IReadOnlyDictionary<string, BlobServiceClient>>(new Dictionary<string, BlobServiceClient>());
         services.AddSingleton(TimeProvider.System);
-        services.AddCpdEgress(config);
+        services.AddCpdEgress(config, Env(environmentName));
         return services.BuildServiceProvider();
     }
 
+    // B1(a): with no Zendesk:UseFake configured at all, the code takes the real-client branch —
+    // proven here because the real branch's own settings validation is what throws. Before the
+    // fix this scenario silently resolved the dev outbox fake instead.
     [Fact]
-    public void Default_is_the_dev_outbox_source_with_no_zendesk_settings_needed()
+    public void Default_is_the_real_zendesk_source_so_missing_settings_fail_fast()
     {
-        using var sp = Build(new Dictionary<string, string?>());
+        var ex = Assert.Throws<InvalidOperationException>(
+            () => Build(new Dictionary<string, string?>()));
+        Assert.Contains("section is missing", ex.Message);
+    }
+
+    [Fact]
+    public void UseFake_true_in_a_non_production_environment_selects_the_dev_outbox_source()
+    {
+        using var sp = Build(
+            new Dictionary<string, string?> { ["Zendesk:UseFake"] = "true" },
+            environmentName: "Development");
         using var scope = sp.CreateScope();
         Assert.IsType<DevOutboxEgressTicketSource>(scope.ServiceProvider.GetRequiredService<IEgressTicketSource>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IEgressBlobClient>());
+    }
+
+    [Fact]
+    public void UseFake_true_in_production_refuses_at_startup()
+    {
+        var ex = Assert.Throws<InvalidOperationException>(() => Build(
+            new Dictionary<string, string?> { ["Zendesk:UseFake"] = "true" },
+            environmentName: "Production"));
+        Assert.Contains("Production", ex.Message);
     }
 
     [Fact]

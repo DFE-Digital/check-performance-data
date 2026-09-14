@@ -4,16 +4,19 @@ using DfE.CheckPerformanceData.Application.ZendeskClient;
 using DfE.CheckPerformanceData.Infrastructure;
 using DfE.CheckPerformanceData.Infrastructure.Egress;
 using DfE.CheckPerformanceData.Persistence.Repositories;
+using Microsoft.Extensions.Hosting;
 
 namespace DfE.CheckPerformanceData.Web.Startup;
 
 public static class EgressExtensions
 {
-    // Registers the LDS data egress (AB#294553). The web host had no Zendesk client before this:
-    // with Zendesk:UseFake true (the default, so a fresh dev/test stack never talks to real
-    // Zendesk) decisions come from the worker's dev outbox and no Zendesk settings are needed;
-    // with it false the real Refit client is registered here exactly as the worker registers it.
-    public static IServiceCollection AddCpdEgress(this IServiceCollection services, IConfiguration configuration)
+    // Registers the LDS data egress (AB#294553). Review finding B1: the safe default is the real
+    // Zendesk client, matching the worker's own configured default (RulesEngineWorker's
+    // appsettings.json pins Zendesk:UseFake=false; Web/appsettings.json now does the same) — the
+    // dev outbox fake is opt-in only (Zendesk__UseFake=true), and refused outright in Production
+    // regardless of what configuration says, the same way DevEgressController is unreachable there.
+    public static IServiceCollection AddCpdEgress(
+        this IServiceCollection services, IConfiguration configuration, IHostEnvironment environment)
     {
         services.Configure<EgressStorageOptions>(configuration.GetSection(EgressStorageOptions.SectionName));
         services.Configure<ZendeskTicketFieldSettings>(configuration.GetSection(ZendeskTicketFieldSettings.SectionName));
@@ -24,9 +27,16 @@ public static class EgressExtensions
         services.AddScoped<IEgressTransferService, EgressTransferService>();
         services.AddScoped<IEgressBlobClient, EgressBlobClient>();
 
-        var useFake = configuration.GetValue(SettingKeys.ZendeskUseFake, defaultValue: true);
+        var useFake = configuration.GetValue(SettingKeys.ZendeskUseFake, defaultValue: false);
         if (useFake)
         {
+            if (environment.IsProduction())
+            {
+                throw new InvalidOperationException(
+                    $"{SettingKeys.ZendeskUseFake}=true is not permitted in Production: the dev " +
+                    "outbox ticket source must never be reachable there. Remove the setting (or " +
+                    "set it to false) for this environment.");
+            }
             services.AddScoped<IEgressTicketSource, DevOutboxEgressTicketSource>();
         }
         else

@@ -42,7 +42,7 @@ try
         .AddCpdQueue(configuration)
         .AddCpdJourneyAndCmsServices()
         .AddCpdBlobStorage(configuration)
-        .AddCpdEgress(configuration)
+        .AddCpdEgress(configuration, builder.Environment)
         .AddCpdBigQueryAnalytics(configuration);
 
     builder.AddCpdDevImpersonation();

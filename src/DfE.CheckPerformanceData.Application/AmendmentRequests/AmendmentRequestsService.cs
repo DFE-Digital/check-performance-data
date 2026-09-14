@@ -16,7 +16,7 @@ public sealed class AmendmentRequestsService(
     IRequestStateBlobClient requestStateBlobClient,
     ILogger<AmendmentRequestsService> logger) : IAmendmentRequestsService
 {
-    public async Task<AmendmentRequestsResult> GetAmendmentRequestsAsync(Guid windowId, string? issueSearch = null)
+    public async Task<AmendmentRequestsResult> GetAmendmentRequestsAsync(Guid windowId)
     {
         var urn = long.Parse(currentUserService.OrganisationUrn);
         var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
@@ -28,18 +28,8 @@ public sealed class AmendmentRequestsService(
             ? await requestRepository.GetSubmittedResultsEnquiriesAsync(windowId, urn)
             : [];
 
-        var term = issueSearch?.Trim();
-        var matching = string.IsNullOrEmpty(term)
-            ? enquiries
-            : enquiries.Where(r =>
-                    (r.PupilFirstname?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false)
-                    || (r.PupilSurname?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false))
-                .ToList();
-
-        // Filter before the blob loads: each surviving row costs one blob read, and a search
-        // exists precisely to shrink the list.
-        var issueRows = new List<ResultsEnquiryIssueDto>(matching.Count);
-        foreach (var enquiry in matching)
+        var issueRows = new List<ResultsEnquiryIssueDto>(enquiries.Count);
+        foreach (var enquiry in enquiries)
         {
             RequestState? state = null;
             try
@@ -107,7 +97,6 @@ public sealed class AmendmentRequestsService(
                 Submitted = r.Submitted
             }).ToList(),
             IssueRows = issueRows,
-            HasAnyIssues = enquiries.Count > 0,
             HasResultsEnquiry = hasResultsEnquiry
         };
     }

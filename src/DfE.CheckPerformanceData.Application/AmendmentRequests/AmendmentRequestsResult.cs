@@ -23,16 +23,8 @@ public sealed class AmendmentRequestsResult
     public required IReadOnlyList<AmendmentRequestDto> Rows { get; init; }
     public required IReadOnlyList<SubmittedRequestDto> SubmittedRows { get; init; }
 
-    /// <summary>The Issues tab's rows (AB#298325), after any pupil-name search filter.</summary>
+    /// <summary>The Results Enquiries tab's rows (AB#298325): every submitted enquiry for the school.</summary>
     public required IReadOnlyList<ResultsEnquiryIssueDto> IssueRows { get; init; }
-
-    /// <summary>
-    /// Whether the school has ANY submitted enquiries for this window, before search filtering.
-    /// The view needs both facts: no-issues-at-all shows the empty state, issues-but-no-match
-    /// shows a no-results message — telling a school with enquiries "there are none" would send
-    /// them off to raise a duplicate, the exact thing the ticket exists to prevent.
-    /// </summary>
-    public required bool HasAnyIssues { get; init; }
 
     /// <summary>
     /// Whether this window runs a results-enquiry checking exercise. The Results Enquiries tab is

@@ -26,11 +26,12 @@
 <span class="govuk-caption-l">Amendment requests</span>
 <h1 class="govuk-heading-xl">Amendment request summary</h1>
 
-@* #320: one line per checking exercise. The grid stays unsplit — both populations share one table
-   and one bulk submit — but they do not share a deadline: on a 16-19 window pupil data checking
-   shuts months before results enquiry does, so the outer window's end date was right for neither. *@
+@* #320: one line per checking exercise the grid holds. The grid stays unsplit — both populations
+   share one table and one bulk submit — but they do not share a deadline: on a 16-19 window pupil
+   data checking shuts months before results enquiry does, so the outer window's end date was right
+   for neither. The results-enquiry deadline is stated on its own tab, beside its enquiries. *@
 <div class="govuk-inset-text">
-    @foreach (var deadline in Model.Deadlines)
+    @foreach (var deadline in Model.RequestDeadlines)
     {
         <p class="govuk-body">@deadline.Sentence</p>
     }
@@ -148,17 +149,18 @@
 <govuk-tabs>
     <govuk-tabs-item id="requests" label="Requests">
         <div class="govuk-inset-text">
-            @foreach (var deadline in Model.Deadlines.Where(d => d.IsOpen))
+            @foreach (var deadline in Model.RequestDeadlines.Where(d => d.IsOpen))
             {
                 <p class="govuk-body">
                     You can edit your @deadline.ExerciseLabel.ToLowerInvariant() requests any time
                     before <strong>@deadline.DeadlineText</strong>
                 </p>
             }
-            @if (Model.Deadlines.All(d => !d.IsOpen))
+            @if (Model.RequestDeadlines.All(d => !d.IsOpen))
             {
-                @* Every exercise has closed, so nothing here can still be edited. Saying "you can
-                   edit these" would be flatly untrue — #318 blocks the resume. *@
+                @* Every exercise behind this tab has closed, so nothing here can still be edited.
+                   Saying "you can edit these" would be flatly untrue — #318 blocks the resume. An
+                   open results enquiry does not count: its requests live on the other tab. *@
                 <p class="govuk-body">This window is closed. You can still view your requests.</p>
             }
         </div>
@@ -221,62 +223,52 @@
             <h2 class="govuk-heading-m">Results Enquiries</h2>
             <p class="govuk-body">View recent results enquiries with results reported.</p>
 
-            @if (!Model.HasAnyIssues)
+            @if (Model.ResultsEnquiryDeadline is { } enquiryDeadline)
+            {
+                @* The results-enquiry deadline lives here, beside the enquiries it governs, not in
+                   the page header with the pupil-data one. *@
+                <div class="govuk-inset-text">
+                    <p class="govuk-body">@enquiryDeadline.Sentence</p>
+                    @if (enquiryDeadline.IsOpen)
+                    {
+                        <p class="govuk-body">
+                            You can edit your @enquiryDeadline.ExerciseLabel.ToLowerInvariant() requests any time
+                            before <strong>@enquiryDeadline.DeadlineText</strong>
+                        </p>
+                    }
+                </div>
+            }
+
+            @if (Model.IssueRows.Count == 0)
             {
                 @* Ticket AB#298325 empty state, verbatim (typo FLAGGED): told, not shown an empty table. *@
                 <p class="govuk-body">There are no submitted result enquires</p>
             }
             else
             {
-                @* Mirrors the [Route] template on Index (kept as a literal to avoid IUrlHelper in unit
-                   tests — same convention as backUrl in AmendmentRequestsController). The #results-enquiries
-                   fragment makes the tabs component re-select this tab after the round trip. *@
-                <form id="results-enquiries-search-form" method="get" action="/@Model.WindowId/AmendmentRequests#results-enquiries">
-                    <div class="govuk-form-group">
-                        <label class="govuk-label" for="results-enquiries-search">
-                            Search for a @Model.LearnerNoun.Singular by first or last name
-                        </label>
-                        <input class="govuk-input govuk-!-width-two-thirds" id="results-enquiries-search"
-                               name="resultsEnquiriesSearch" type="search" value="@Model.IssueSearch">
-                        <button type="submit" class="govuk-button govuk-!-margin-bottom-0" data-module="govuk-button">
-                            Search
-                        </button>
-                    </div>
-                </form>
-
-                @if (Model.IssueRows.Count == 0)
-                {
-                    @* Issues exist but none match the search: saying "there are none" here would send
-                       the school off to raise the duplicate this page exists to prevent. Copy is ours,
-                       not the ticket's — FLAGGED. *@
-                    <p class="govuk-body">There are no submitted result enquiries matching your search</p>
-                }
-                else
-                {
-                    <table class="govuk-table">
-                        <thead class="govuk-table__head">
+                <table class="govuk-table">
+                    <thead class="govuk-table__head">
+                        <tr class="govuk-table__row">
+                            <th scope="col" class="govuk-table__header">@Model.LearnerNoun.SingularCapitalised name</th>
+                            <th scope="col" class="govuk-table__header">Date</th>
+                            <th scope="col" class="govuk-table__header">CYPMD id</th>
+                            <th scope="col" class="govuk-table__header">Type</th>
+                            <th scope="col" class="govuk-table__header">Qualification</th>
+                        </tr>
+                    </thead>
+                    <tbody class="govuk-table__body">
+                        @foreach (var issue in Model.IssueRows)
+                        {
                             <tr class="govuk-table__row">
-                                <th scope="col" class="govuk-table__header">@Model.LearnerNoun.SingularCapitalised name</th>
-                                <th scope="col" class="govuk-table__header">Date</th>
-                                <th scope="col" class="govuk-table__header">CYPMD id</th>
-                                <th scope="col" class="govuk-table__header">Type</th>
-                                <th scope="col" class="govuk-table__header">Qualification</th>
+                                <td class="govuk-table__cell">@issue.PupilName</td>
+                                <td class="govuk-table__cell">@issue.DateText</td>
+                                <td class="govuk-table__cell">@issue.CypmdId</td>
+                                <td class="govuk-table__cell">@issue.TypeLabel</td>
+                                <td class="govuk-table__cell">@issue.QualificationText</td>
                             </tr>
-                        </thead>
-                        <tbody class="govuk-table__body">
-                            @foreach (var issue in Model.IssueRows)
-                            {
-                                <tr class="govuk-table__row">
-                                    <td class="govuk-table__cell">@issue.PupilName</td>
-                                    <td class="govuk-table__cell">@issue.DateText</td>
-                                    <td class="govuk-table__cell">@issue.CypmdId</td>
-                                    <td class="govuk-table__cell">@issue.TypeLabel</td>
-                                    <td class="govuk-table__cell">@issue.QualificationText</td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                }
+                        }
+                    </tbody>
+                </table>
             }
         </govuk-tabs-item>
 }

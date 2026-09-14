@@ -242,7 +242,6 @@ public class AmendmentRequestsServiceTests
         Assert.Equal("500001", row.CypmdId);
         Assert.Equal("Missing qualification", row.TypeLabel);
         Assert.Equal("ABRSM level 3 certificate in practical music (Grade 8)", row.QualificationText);
-        Assert.True(result.HasAnyIssues);
     }
 
     // Incorrect-grade and result-does-not-belong journeys store SelectedResult, not
@@ -322,61 +321,6 @@ public class AmendmentRequestsServiceTests
             Arg.Any<Func<object, Exception?, string>>());
     }
 
-    [Fact]
-    public async Task GetAmendmentRequestsAsync_SearchFiltersByFirstOrLastNameCaseInsensitively()
-    {
-        _windowService.GetCheckingWindowAsync(WindowId).Returns(Window(DateTime.UtcNow));
-        _requestRepo.GetAmendmentRequestsAsync(WindowId, 100001L).Returns([]);
-        _requestRepo.GetSubmittedResultsEnquiriesAsync(WindowId, 100001L).Returns(
-        [
-            Enquiry("REF-A", "Alice", "Smith"),
-            Enquiry("REF-B", "Billy", "Brown"),
-            Enquiry("REF-C", "Chloe", "Alison")
-        ]);
-
-        // "ali" hits Alice (first name) and Alison (last name), never Billy Brown.
-        var result = await _sut.GetAmendmentRequestsAsync(WindowId, issueSearch: "  ALI ");
-
-        Assert.Equal(["REF-A", "REF-C"], result.IssueRows.Select(r => r.ReferenceNumber));
-        Assert.True(result.HasAnyIssues);
-    }
-
-    // HasAnyIssues reports the pre-search population: the view uses it to choose between the
-    // "no enquiries at all" empty state and the "search matched nothing" message. Conflating them
-    // would tell a school with enquiries that it has none.
-    [Fact]
-    public async Task GetAmendmentRequestsAsync_NoMatchSearchKeepsHasAnyIssuesTrue()
-    {
-        _windowService.GetCheckingWindowAsync(WindowId).Returns(Window(DateTime.UtcNow));
-        _requestRepo.GetAmendmentRequestsAsync(WindowId, 100001L).Returns([]);
-        _requestRepo.GetSubmittedResultsEnquiriesAsync(WindowId, 100001L)
-            .Returns([Enquiry("REF-A", "Alice", "Smith")]);
-
-        var result = await _sut.GetAmendmentRequestsAsync(WindowId, issueSearch: "zzz");
-
-        Assert.Empty(result.IssueRows);
-        Assert.True(result.HasAnyIssues);
-    }
-
-    // Blob loads are IO per row; filtering first keeps a search over a long list from fetching
-    // blobs it will immediately discard.
-    [Fact]
-    public async Task GetAmendmentRequestsAsync_OnlyLoadsBlobsForRowsThatSurviveTheSearch()
-    {
-        _windowService.GetCheckingWindowAsync(WindowId).Returns(Window(DateTime.UtcNow));
-        _requestRepo.GetAmendmentRequestsAsync(WindowId, 100001L).Returns([]);
-        _requestRepo.GetSubmittedResultsEnquiriesAsync(WindowId, 100001L).Returns(
-        [
-            Enquiry("REF-A", "Alice", "Smith"),
-            Enquiry("REF-B", "Billy", "Brown")
-        ]);
-
-        await _sut.GetAmendmentRequestsAsync(WindowId, issueSearch: "alice");
-
-        await _blobClient.Received(1).GetAsync(WindowId, "REF-A");
-        await _blobClient.DidNotReceive().GetAsync(WindowId, "REF-B");
-    }
-
     private static SubmittedRequestData Enquiry(string reference, string first, string last, DateTime? submitted = null) => new()
     {
         PupilFirstname = first,
@@ -433,7 +377,6 @@ public class AmendmentRequestsServiceTests
         var result = await _sut.GetAmendmentRequestsAsync(WindowId);
 
         Assert.Empty(result.IssueRows);
-        Assert.False(result.HasAnyIssues);
         await _requestRepo.DidNotReceive().GetSubmittedResultsEnquiriesAsync(Arg.Any<Guid>(), Arg.Any<long>());
     }
 

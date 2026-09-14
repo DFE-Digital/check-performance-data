@@ -38,16 +38,16 @@ public sealed class AmendmentRequestsIndexViewSourceTests
     }
 
     // The sibling test above only proves the copy exists SOMEWHERE in the file — a flipped
-    // condition (e.g. "@if (Model.HasAnyIssues)") would still pass it. A flip like that tells a
-    // school with enquiries "there are none" and sends them off to raise the duplicate this page
-    // exists to prevent, and nothing else catches it: the always-on CI build gate excludes E2E
+    // condition (e.g. "@if (Model.IssueRows.Count > 0)") would still pass it. A flip like that
+    // tells a school with enquiries "there are none" and sends them off to raise the duplicate this
+    // page exists to prevent, and nothing else catches it: the always-on CI build gate excludes E2E
     // (that job needs the `deploy` label). So this pin is branch-scoped: it locates the literal
-    // negated condition and asserts the copy sits inside THAT branch, not just in the file.
+    // empty condition and asserts the copy sits inside THAT branch, not just in the file.
     [Fact]
     public void TheEmptyStateOnlyRendersInsideTheNoIssuesBranch()
     {
         var source = ViewSource();
-        var ifIndex = source.IndexOf("@if (!Model.HasAnyIssues)", StringComparison.Ordinal);
+        var ifIndex = source.IndexOf("@if (Model.IssueRows.Count == 0)", StringComparison.Ordinal);
         Assert.True(ifIndex >= 0, "The Issues tab's \"no issues at all\" branch condition is missing or changed.");
         var elseIndex = source.IndexOf("else", ifIndex, StringComparison.Ordinal);
         Assert.True(elseIndex >= 0, "Expected an else branch after the no-issues condition.");
@@ -59,27 +59,43 @@ public sealed class AmendmentRequestsIndexViewSourceTests
         // swallow the has-issues markup — so a slice that contains the positive condition proves
         // the landmark has slipped, not that the copy is in the right branch. If this fires on an
         // intentional restructure, re-anchor the slice; do not delete the assertion.
-        Assert.DoesNotContain("@if (Model.HasAnyIssues)", noIssuesBranch);
+        Assert.DoesNotContain("@if (Model.IssueRows.Count > 0)", noIssuesBranch);
     }
 
-    // A search is a safe, repeatable read: it must be a GET so refresh/back/bookmark work and no
-    // antiforgery token is involved. (The app 404s unmatched verbs, so a POST form would break
-    // outright — this pins the cheaper-to-read source instead.)
+    // The search box was removed: the tab lists every enquiry, so there is nothing to filter and
+    // no GET round trip to land back on the tab. Its return would bring the round trip with it.
     [Fact]
-    public void TheSearchFormIsAGet()
+    public void TheIssuesTabHasNoSearchForm()
+    {
+        var panel = ResultsEnquiriesPanel();
+        Assert.DoesNotContain("<form", panel);
+        Assert.DoesNotContain("resultsEnquiriesSearch", panel);
+        Assert.DoesNotContain("type=\"search\"", panel);
+    }
+
+    // The results-enquiry deadline is stated beside the enquiries it governs, on this tab — not
+    // in the page header, which now carries the pupil-data deadline alone. Both sentences come
+    // from the tab: the submit-by one (past tense once closed) and the open-only edit one.
+    [Fact]
+    public void TheIssuesTabStatesTheResultsEnquiryDeadline()
+    {
+        var panel = ResultsEnquiriesPanel();
+        Assert.Contains("@enquiryDeadline.Sentence", panel);
+        Assert.Contains("You can edit your @enquiryDeadline.ExerciseLabel.ToLowerInvariant() requests any time", panel);
+    }
+
+    // The header inset and the Requests tab list every deadline BUT results enquiry: a results
+    // enquiry stated there would be stated twice, and the Requests tab's "window is closed" line
+    // would stay hidden by an open results enquiry after pupil data had shut.
+    [Fact]
+    public void TheHeaderAndRequestsTabStateOnlyTheRequestDeadlines()
     {
         var source = ViewSource();
-        var formIndex = source.IndexOf("results-enquiries-search-form", StringComparison.Ordinal);
-        Assert.True(formIndex >= 0, "The Issues search form (id results-enquiries-search-form) is missing.");
-        Assert.Contains("method=\"get\"", source[..source.IndexOf("</form>", formIndex, StringComparison.Ordinal)][formIndex..]);
-    }
-
-    // The form action carries the #results-enquiries fragment so the tabs component re-selects the Results Enquiries
-    // tab after the round trip; without it a search dumps the user back on the Requests tab.
-    [Fact]
-    public void TheSearchFormReturnsToTheIssuesTab()
-    {
-        Assert.Contains("/AmendmentRequests#results-enquiries", ViewSource());
+        var beforeIssuesTab = source[..source.IndexOf("<govuk-tabs-item id=\"results-enquiries\"", StringComparison.Ordinal)];
+        Assert.DoesNotContain("Model.Deadlines", beforeIssuesTab);
+        Assert.Contains("@foreach (var deadline in Model.RequestDeadlines)", beforeIssuesTab);
+        Assert.Contains("@foreach (var deadline in Model.RequestDeadlines.Where(d => d.IsOpen))", beforeIssuesTab);
+        Assert.Contains("@if (Model.RequestDeadlines.All(d => !d.IsOpen))", beforeIssuesTab);
     }
 
     [Fact]
@@ -94,15 +110,12 @@ public sealed class AmendmentRequestsIndexViewSourceTests
     // AC 4 (separation): the Issues TABLE renders enquiry fields only, with no per-row actions —
     // reusing the Requests rows' view/delete links here would resurrect the broken enquiry
     // View/Delete surface that hiding enquiries from the Requests tab was meant to avoid.
-    // Scoped to the table markup deliberately, not the whole panel: a "Clear search" link (parked
-    // as a BA question, see PR notes) may legitimately land in the panel — outside the table —
-    // later, and a whole-panel anchor-free pin would break the moment that ships.
+    // Scoped to the table markup deliberately, not the whole panel, so a link elsewhere in the
+    // panel does not break the pin.
     [Fact]
     public void TheIssuesTabOffersNoRowActions()
     {
-        var source = ViewSource();
-        var issuesStart = source.IndexOf("<govuk-tabs-item id=\"results-enquiries\"", StringComparison.Ordinal);
-        var issuesPanel = source[issuesStart..source.IndexOf("</govuk-tabs>", StringComparison.Ordinal)];
+        var issuesPanel = ResultsEnquiriesPanel();
         var tableStart = issuesPanel.IndexOf("<table", StringComparison.Ordinal);
         Assert.True(tableStart >= 0, "The Issues table markup is missing.");
         var tableEnd = issuesPanel.IndexOf("</table>", tableStart, StringComparison.Ordinal) + "</table>".Length;
@@ -110,9 +123,16 @@ public sealed class AmendmentRequestsIndexViewSourceTests
         Assert.DoesNotContain("<a", issuesTable);
         // Belt and braces for the whole panel: the anchor check above cannot see a link emitted
         // at runtime (e.g. @Html.ActionLink), but any route to the enquiry-hostile
-        // SubmittedRequest controller has to name it in source. A future "Clear search" link
-        // (parked BA question) points at AmendmentRequests, so this stays safe.
+        // SubmittedRequest controller has to name it in source.
         Assert.DoesNotContain("SubmittedRequest", issuesPanel);
+    }
+
+    private static string ResultsEnquiriesPanel()
+    {
+        var source = ViewSource();
+        var issuesStart = source.IndexOf("<govuk-tabs-item id=\"results-enquiries\"", StringComparison.Ordinal);
+        Assert.True(issuesStart >= 0, "The Results Enquiries tab is missing.");
+        return source[issuesStart..source.IndexOf("</govuk-tabs>", StringComparison.Ordinal)];
     }
 
     private static string RepoRoot => Path.GetFullPath(Path.Combine(

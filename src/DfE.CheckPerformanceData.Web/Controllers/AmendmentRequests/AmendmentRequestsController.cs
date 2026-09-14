@@ -25,9 +25,9 @@ public sealed class AmendmentRequestsController(
 {
     private const string BulkSubmittedRefsKey = "BulkSubmittedRefs";
 
-    private async Task<AmendmentRequestsViewModel> BuildIndexViewModelAsync(Guid windowId, string? issueSearch)
+    private async Task<AmendmentRequestsViewModel> BuildIndexViewModelAsync(Guid windowId)
     {
-        var result = await service.GetAmendmentRequestsAsync(windowId, issueSearch);
+        var result = await service.GetAmendmentRequestsAsync(windowId);
         // Re-check the boxes that were selected before going into the bulk review (kept in session).
         var selected = HttpContext.Session.GetBulkSelection(windowId).ToHashSet(StringComparer.Ordinal);
         return new AmendmentRequestsViewModel
@@ -68,15 +68,13 @@ public sealed class AmendmentRequestsController(
                 TypeLabel = r.TypeLabel,
                 QualificationText = r.QualificationText
             }).ToList(),
-            HasAnyIssues = result.HasAnyIssues,
-            IssueSearch = issueSearch,
             ShowResultsEnquiries = result.HasResultsEnquiry
         };
     }
 
     [Route("/{windowId}/AmendmentRequests")]
-    public async Task<IActionResult> Index(Guid windowId, string? resultsEnquiriesSearch = null) =>
-        View(await BuildIndexViewModelAsync(windowId, resultsEnquiriesSearch));
+    public async Task<IActionResult> Index(Guid windowId) =>
+        View(await BuildIndexViewModelAsync(windowId));
 
     // Renders each submittable request as a full journey-style summary (no change links) rather
     // than a one-line row, with duplicates shown in a compact warning table.
@@ -88,7 +86,7 @@ public sealed class AmendmentRequestsController(
         if (selectedReferences is null || selectedReferences.Length == 0)
         {
             ModelState.AddModelError("selectedReferences", "Select the amendment request(s) you would like to submit");
-            return View("Index", await BuildIndexViewModelAsync(windowId, null));
+            return View("Index", await BuildIndexViewModelAsync(windowId));
         }
 
         HttpContext.Session.SetBulkSelection(windowId, selectedReferences);

@@ -6,8 +6,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Journey;
 
 // AB#298325: the Issues tab on the Amendment request summary page. Covers what only a browser
 // can: that a just-submitted enquiry appears in the tab with its blob-enriched cells, that the
-// GET search round-trips AND re-selects the Results Enquiries tab (the #results-enquiries fragment doing its job), and
-// that enquiries never leak into the Requests tab.
+// tab states the results-enquiry deadline, and that enquiries never leak into the Requests tab.
 [Collection("E2E")]
 public sealed class IssuesTabTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
@@ -17,7 +16,7 @@ public sealed class IssuesTabTests(PlaywrightFixture fixture) : SeedingPageTest(
     private const string BusStudsS2024 = "GCSE (9-1) Bus. Studs:Single, QAN: 6037116X, Session: S2024";
 
     [RetryFact(1)]
-    public async Task ASubmittedEnquiryAppearsOnTheIssuesTabAndIsSearchable()
+    public async Task ASubmittedEnquiryAppearsOnTheIssuesTab()
     {
         // Submit a real enquiry through the journey so the row AND its journey blob exist.
         await StartEnquiryAsync();
@@ -39,22 +38,9 @@ public sealed class IssuesTabTests(PlaywrightFixture fixture) : SeedingPageTest(
         await Expect(issuesPanel.GetByText("Result does not belong to student").First).ToBeVisibleAsync();
         await Expect(issuesPanel.GetByText("GCSE (9-1) Bus. Studs:Single").First).ToBeVisibleAsync();
 
-        // Search round trip: the term filters and the user LANDS back on the Results Enquiries tab — the
-        // whole point of the #results-enquiries fragment. Asserting only the response would miss a bounce
-        // back to the Requests tab.
-        await issuesPanel.Locator("#results-enquiries-search").FillAsync("alice");
-        await issuesPanel.GetByRole(AriaRole.Button, new() { Name = "Search" }).ClickAsync();
-        await Page.WaitForURLAsync($"**/{WindowId}/AmendmentRequests?resultsEnquiriesSearch=alice#results-enquiries");
-        await Expect(Page.Locator("#results-enquiries").GetByText(StudentName).First).ToBeVisibleAsync();
-        await Expect(Page.GetByRole(AriaRole.Tab, new() { Name = "Results Enquiries" }))
-            .ToHaveAttributeAsync("aria-selected", "true");
-
-        // A search that matches nothing keeps the search visible and says so, without the
-        // "there are none" empty state (issues DO exist).
-        await Page.Locator("#results-enquiries #results-enquiries-search").FillAsync("zzzznotaname");
-        await Page.Locator("#results-enquiries").GetByRole(AriaRole.Button, new() { Name = "Search" }).ClickAsync();
-        await Expect(Page.Locator("#results-enquiries")
-            .GetByText("There are no submitted result enquiries matching your search")).ToBeVisibleAsync();
+        // The results-enquiry deadline is stated on this tab, not in the page header.
+        await Expect(issuesPanel.GetByText("Submit your results enquiry requests by").First).ToBeVisibleAsync();
+        await Expect(issuesPanel.GetByText("You can edit your results enquiry requests").First).ToBeVisibleAsync();
 
         // Separation (AC 4): the enquiry never leaks into the Requests tab.
         await Page.GetByRole(AriaRole.Tab, new() { Name = "Requests" }).ClickAsync();

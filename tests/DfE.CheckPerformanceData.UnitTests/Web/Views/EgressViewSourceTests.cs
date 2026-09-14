@@ -39,6 +39,34 @@ public sealed class EgressViewSourceTests
         Assert.Contains("govuk-error-summary", view);
     }
 
+    // Nit: every banner this page shows is neutral (abandoned, already transferred, refused) —
+    // role="alert" is reserved for a success banner GOV.UK doesn't have here.
+    [Fact]
+    public void Pull_page_banner_is_a_neutral_region_not_an_alert()
+    {
+        var view = View("Index.cshtml");
+        Assert.Contains("role=\"region\"", view);
+        Assert.DoesNotContain("role=\"alert\"", view);
+    }
+
+    // Nit: WindowId's aria-describedby must not carry a trailing space when there is no error.
+    [Fact]
+    public void Window_select_aria_describedby_has_no_trailing_space_without_an_error()
+    {
+        var view = View("Index.cshtml");
+        Assert.Contains("aria-describedby=\"WindowId-hint@(Model.WindowError is not null ? \" WindowId-error\" : \"\")\"", view);
+    }
+
+    // Nit: failed stages must get the red tag; every other stage keeps blue.
+    [Fact]
+    public void Saved_runs_give_failed_stages_the_red_tag()
+    {
+        var view = View("Index.cshtml");
+        Assert.Contains("<strong class=\"govuk-tag @StageTagClass(run.Status)\">", view);
+        Assert.Contains("govuk-tag--red", view);
+        Assert.Contains("EgressRunStatus.PreprocessingFailed or EgressRunStatus.TransferFailed => \"govuk-tag--red\"", view);
+    }
+
     // S5: the output-types error must sit inside the form group between hint and checkboxes, be
     // referenced by the fieldset's aria-describedby, and the group must carry the error class —
     // fallout from the Task 12 duplicate-summary workaround having moved the error outside entirely.
@@ -69,6 +97,26 @@ public sealed class EgressViewSourceTests
         Assert.Contains("Save and exit", view);
         Assert.Contains("Abandon run", view);
         Assert.Contains("RunPageViewModel.RawColumns", view);
+    }
+
+    // Nit: rewritten from developer-note phrasing ("discarded by the preprocessing filter, not
+    // here") into plain user-facing language.
+    [Fact]
+    public void Results_page_explains_filtering_in_plain_language()
+    {
+        var view = View("Results.cshtml");
+        Assert.DoesNotContain("discarded by the preprocessing filter", view);
+        Assert.Contains("Only approved and auto-approved requests will be included", view);
+    }
+
+    // Nit: every page using _RunHeader has an <h1 class="govuk-heading-xl">, so its caption must
+    // be govuk-caption-xl, matched to that heading size.
+    [Fact]
+    public void RunHeader_caption_size_matches_the_pages_heading()
+    {
+        var view = View("_RunHeader.cshtml");
+        Assert.Contains("govuk-caption-xl", view);
+        Assert.DoesNotContain("govuk-caption-l\"", view);
     }
 
     // M2: a PreprocessingFailed run released its pair — Failed.cshtml's own copy says "start a new
@@ -150,7 +198,16 @@ public sealed class EgressViewSourceTests
         var view = View("Summary.cshtml");
         Assert.Contains("Model.Run.Outputs.All(o => (o.OutputRecordCount ?? 0) == 0)", view);
         Assert.Contains("data-testid=\"egress-nothing-to-transfer\"", view);
-        Assert.Contains("@if (!nothingToTransfer)", view);
+        Assert.Contains("@if (offerConfirm)", view);
+    }
+
+    // Nit: a Transferring run already has a transfer in flight; Summary must not offer Confirm
+    // for it either.
+    [Fact]
+    public void Summary_does_not_offer_confirm_while_a_transfer_is_already_in_flight()
+    {
+        var view = View("Summary.cshtml");
+        Assert.Contains("Model.Run.Status != EgressRunStatus.Transferring", view);
     }
 
     [Fact]

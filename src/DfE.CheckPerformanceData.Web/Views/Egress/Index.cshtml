@@ -10,7 +10,10 @@
 
 @if (Model.Banner is not null)
 {
-    <div class="govuk-notification-banner" role="alert" aria-labelledby="egress-banner-title" data-module="govuk-notification-banner" data-testid="egress-banner">
+    @* Nit: GOV.UK's default notification banner is role="region" — "alert" is reserved for a
+       success banner, and every banner this page shows today ("abandoned", "already
+       transferred", refusals) is neutral, not success. *@
+    <div class="govuk-notification-banner" role="region" aria-labelledby="egress-banner-title" data-module="govuk-notification-banner" data-testid="egress-banner">
         <div class="govuk-notification-banner__header">
             <h2 class="govuk-notification-banner__title" id="egress-banner-title">Important</h2>
         </div>
@@ -47,7 +50,7 @@
             <p class="govuk-error-message" id="WindowId-error"><span class="govuk-visually-hidden">Error:</span> @Model.WindowError</p>
         }
         <select class="govuk-select @(Model.WindowError is not null ? "govuk-select--error" : "")" id="WindowId" name="WindowId"
-                aria-describedby="WindowId-hint @(Model.WindowError is not null ? "WindowId-error" : "")">
+                aria-describedby="WindowId-hint@(Model.WindowError is not null ? " WindowId-error" : "")">
             <option value="">Select a checking window</option>
             @foreach (var window in Model.Windows)
             {
@@ -116,7 +119,7 @@ else
                 <tr class="govuk-table__row">
                     <td class="govuk-table__cell">@run.WindowTitle</td>
                     <td class="govuk-table__cell">@string.Join(", ", run.OutputTypes.Select(EgressOutputTypes.Label))</td>
-                    <td class="govuk-table__cell"><strong class="govuk-tag govuk-tag--blue">@StageLabel(run.Status)</strong></td>
+                    <td class="govuk-table__cell"><strong class="govuk-tag @StageTagClass(run.Status)">@StageLabel(run.Status)</strong></td>
                     <td class="govuk-table__cell">@run.StartedByName</td>
                     <td class="govuk-table__cell">@run.StartedAtUtc.ToString("d MMM yyyy HH:mm") UTC</td>
                     <td class="govuk-table__cell"><a class="govuk-link" href="/admin/egress/runs/@run.Id">Resume<span class="govuk-visually-hidden"> run for @run.WindowTitle started @run.StartedAtUtc.ToString("d MMM yyyy HH:mm")</span></a></td>
@@ -172,5 +175,12 @@ else
         EgressRunStatus.Transferring => "Transferring",
         EgressRunStatus.TransferFailed => "Transfer failed",
         _ => status.ToString()
+    };
+
+    // Nit: the saved-runs list gave every stage the same blue tag, including the two failed ones.
+    private static string StageTagClass(EgressRunStatus status) => status switch
+    {
+        EgressRunStatus.PreprocessingFailed or EgressRunStatus.TransferFailed => "govuk-tag--red",
+        _ => "govuk-tag--blue"
     };
 }

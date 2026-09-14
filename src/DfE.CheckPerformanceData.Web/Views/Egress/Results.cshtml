@@ -10,7 +10,9 @@
 <a class="govuk-back-link" href="/admin/egress">Back to data egress</a>
 <partial name="_RunHeader" model="Model" />
 <h1 class="govuk-heading-xl">Data pulled from Zendesk</h1>
-<p class="govuk-body">Every request for the selected output types is listed, whatever its decision. Rejected, auto-rejected and undecided records are discarded by the preprocessing filter, not here.</p>
+@* Nit: rewritten from developer-note phrasing into plain user-facing language.
+   FLAGGED copy — see PR notes §5. *@
+<p class="govuk-body">Every request for the selected output types is listed below, whatever its decision. Only approved and auto-approved requests will be included when you proceed to preprocessing.</p>
 
 @if (total == 0)
 {

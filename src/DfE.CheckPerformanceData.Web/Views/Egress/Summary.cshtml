@@ -1,10 +1,14 @@
 @model DfE.CheckPerformanceData.Web.Controllers.Egress.RunPageViewModel
 @using DfE.CheckPerformanceData.Application.Egress
+@using DfE.CheckPerformanceData.Domain.Enums
 @{
     ViewData["Title"] = "Confirm transfer to LDS";
     ViewData["HasError"] = Model.TransferError is not null;
     // M3: every output preprocessed to zero saved rows — nothing to send, so no Confirm button.
     var nothingToTransfer = Model.Run.Outputs.All(o => (o.OutputRecordCount ?? 0) == 0);
+    // Nit: a Transferring run already has a transfer in flight (guarded server-side by the CAS
+    // status flip regardless), so Confirm is not offered a second time here either.
+    var offerConfirm = !nothingToTransfer && Model.Run.Status != EgressRunStatus.Transferring;
 }
 
 <a class="govuk-back-link" href="/admin/egress">Back to data egress</a>
@@ -78,7 +82,7 @@
 }
 
 <div class="govuk-button-group">
-    @if (!nothingToTransfer)
+    @if (offerConfirm)
     {
         <form method="post" action="/admin/egress/runs/@Model.Run.Id/transfer" class="govuk-!-display-inline">
             @Html.AntiForgeryToken()

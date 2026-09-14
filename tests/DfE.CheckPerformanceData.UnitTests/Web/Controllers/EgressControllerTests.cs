@@ -205,6 +205,21 @@ public sealed class EgressControllerTests
         Assert.Equal(nameof(EgressController.Resume), redirect.ActionName);
     }
 
+    // Nit: a Transferred/Abandoned run has nothing left to preprocess.
+    [Theory]
+    [InlineData(EgressRunStatus.Transferred)]
+    [InlineData(EgressRunStatus.Abandoned)]
+    public async Task Preprocessing_redirects_to_resume_for_a_finished_run(EgressRunStatus status)
+    {
+        var run = Run(status) with { Outputs = [new EgressRunOutputDto(Guid.NewGuid(), EgressOutputType.RemoveLearners, true, [], 3, null, null, null)] };
+        _runs.GetAsync(RunId, Arg.Any<CancellationToken>()).Returns(run);
+        _windows.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(Window());
+
+        var redirect = Assert.IsType<RedirectToActionResult>(await Build().Preprocessing(RunId, CancellationToken.None));
+
+        Assert.Equal(nameof(EgressController.Resume), redirect.ActionName);
+    }
+
     [Fact]
     public async Task Failed_renders_only_for_preprocessing_failed()
     {

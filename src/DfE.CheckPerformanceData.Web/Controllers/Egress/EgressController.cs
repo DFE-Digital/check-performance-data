@@ -141,6 +141,10 @@ public sealed class EgressController(
     {
         var page = await PageAsync(id, cancellationToken);
         if (page is null) return NotFound();
+        // Nit: a Transferred or Abandoned run has nothing left to preprocess — without this guard
+        // the page rendered a live "Run preprocessing" button for a run that is already finished.
+        if (page.Run.Status is EgressRunStatus.Transferred or EgressRunStatus.Abandoned)
+            return RedirectToAction(nameof(Resume), new { id });
         if (page.Run.Outputs.Sum(o => o.SourceRecordCount) == 0)
             return RedirectToAction(nameof(Results), new { id });
         return View("Preprocessing", page with { StreamUrl = Url.Action(nameof(PreprocessingStream), new { id }) });

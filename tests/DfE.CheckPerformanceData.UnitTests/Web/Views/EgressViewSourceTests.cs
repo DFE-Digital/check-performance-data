@@ -39,6 +39,23 @@ public sealed class EgressViewSourceTests
         Assert.Contains("govuk-error-summary", view);
     }
 
+    // S5: the output-types error must sit inside the form group between hint and checkboxes, be
+    // referenced by the fieldset's aria-describedby, and the group must carry the error class —
+    // fallout from the Task 12 duplicate-summary workaround having moved the error outside entirely.
+    [Fact]
+    public void Pull_page_associates_the_output_types_error_with_its_fieldset()
+    {
+        var view = View("Index.cshtml");
+        Assert.Contains("govuk-form-group @(Model.OutputTypesError is not null ? \"govuk-form-group--error\" : \"\")", view);
+        Assert.Contains("<govuk-checkboxes-fieldset aria-describedby=\"OutputTypes-hint@(Model.OutputTypesError is not null ? \" OutputTypes-error\" : \"\")\">", view);
+        var hintIndex = view.IndexOf("<govuk-checkboxes-hint id=\"OutputTypes-hint\">", StringComparison.Ordinal);
+        var errorIndex = view.IndexOf("id=\"OutputTypes-error\"", StringComparison.Ordinal);
+        var itemsIndex = view.IndexOf("<govuk-checkboxes-item", StringComparison.Ordinal);
+        Assert.True(hintIndex >= 0 && errorIndex > hintIndex && itemsIndex > errorIndex,
+            "the error message must render between the hint and the checkbox items");
+        Assert.Contains("<govuk-checkboxes-before-inputs>", view);
+    }
+
     [Fact]
     public void Results_page_has_one_tab_per_output_type_and_offers_save_and_abandon()
     {

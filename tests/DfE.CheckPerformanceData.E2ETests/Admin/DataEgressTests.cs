@@ -56,6 +56,25 @@ public sealed class DataEgressTests(PlaywrightFixture fixture) : SeedingPageTest
         (await TestHttpClients.SendAsync(request)).EnsureSuccessStatusCode();
     }
 
+    // S5: the Task 12 duplicate-error-summary fix (moving the output-types error out of the
+    // fieldset entirely) detached the field error from its fieldset. Confirms live that exactly
+    // one error summary still renders and the fieldset's aria-describedby now includes the error.
+    [Fact]
+    public async Task Pull_with_nothing_selected_shows_one_error_summary_and_associates_the_checkbox_error()
+    {
+        try
+        {
+            await AuthHelpers.ImpersonateAsAdminAsync(Fixture);
+
+            var html = await PostFormAsync("/admin/egress", [], HttpStatusCode.OK);
+
+            Assert.Equal(1, Regex.Matches(html, "There is a problem").Count);
+            Assert.Contains("govuk-form-group govuk-form-group--error", html);
+            Assert.Matches("<fieldset[^>]*aria-describedby=\"OutputTypes-hint OutputTypes-error\"", html);
+        }
+        finally { await AuthHelpers.ImpersonateAsEditorAsync(Fixture); }
+    }
+
     [Fact]
     public async Task A_school_user_gets_404_from_the_egress_section()
     {

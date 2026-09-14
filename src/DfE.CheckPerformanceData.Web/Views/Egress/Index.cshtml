@@ -56,17 +56,27 @@
         </select>
     </div>
 
-    @* Deliberately not the govuk-checkboxes-error-message tag helper here: in this version of
-       GovUk.Frontend.AspNetCore that tag helper unconditionally auto-renders its OWN page-level
+    @* S5: still deliberately not the govuk-checkboxes-error-message tag helper — in this version
+       of GovUk.Frontend.AspNetCore that tag helper unconditionally auto-renders its OWN page-level
        error summary at the top of <main> in addition to this page's single, consolidated
-       govuk-error-summary above (which also needs to list refusals and pull failures that have
-       no field of their own to attach to) — so the field-level error is shown with plain markup
-       instead, matching the window select's error styling below it. *@
+       govuk-error-summary above, and it only binds via asp-validation-for against ModelState,
+       which this field does not use. The field-level error is plain markup instead, but now placed
+       inside the form group between the hint and the checkboxes (the GOV.UK pattern) and referenced
+       from the fieldset's aria-describedby, matching the window select's error above. *@
     <div class="govuk-form-group @(Model.OutputTypesError is not null ? "govuk-form-group--error" : "")">
         <govuk-checkboxes name="OutputTypes">
-            <govuk-checkboxes-fieldset>
+            <govuk-checkboxes-fieldset aria-describedby="OutputTypes-hint@(Model.OutputTypesError is not null ? " OutputTypes-error" : "")">
                 <govuk-checkboxes-fieldset-legend class="govuk-fieldset__legend--s">2. Select data to pull from Zendesk</govuk-checkboxes-fieldset-legend>
-                <govuk-checkboxes-hint>Select one or more output types to retrieve.</govuk-checkboxes-hint>
+                <govuk-checkboxes-hint id="OutputTypes-hint">Select one or more output types to retrieve.</govuk-checkboxes-hint>
+                @* govuk-checkboxes-before-inputs is the fieldset's one slot for plain markup between
+                   the hint and the items — govuk-checkboxes-fieldset itself only allows tag-helper
+                   children, so a bare <p> here (as tried before) is RZ2009. *@
+                <govuk-checkboxes-before-inputs>
+                    @if (Model.OutputTypesError is not null)
+                    {
+                        <p class="govuk-error-message" id="OutputTypes-error"><span class="govuk-visually-hidden">Error:</span> @Model.OutputTypesError</p>
+                    }
+                </govuk-checkboxes-before-inputs>
                 @foreach (var type in Model.OutputTypes)
                 {
                     <govuk-checkboxes-item value="@type" checked="@Model.SelectedOutputTypes.Contains(type)">@EgressOutputTypes.Label(type)</govuk-checkboxes-item>
@@ -74,10 +84,6 @@
             </govuk-checkboxes-fieldset>
         </govuk-checkboxes>
     </div>
-    @if (Model.OutputTypesError is not null)
-    {
-        <p class="govuk-error-message" id="OutputTypes-error"><span class="govuk-visually-hidden">Error:</span> @Model.OutputTypesError</p>
-    }
 
     <govuk-button type="submit" data-testid="egress-pull">Pull data from Zendesk</govuk-button>
 </form>

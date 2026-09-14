@@ -61,7 +61,12 @@ public sealed class DbSearchAnalyticsSink : ISearchAnalyticsSink
                 Scope = dto.Scope,
                 ResultsPages = dto.ResultsPages,
                 ResultsBlocks = dto.ResultsBlocks,
+                ResultsSections = dto.ResultsSections,
                 LatencyMs = dto.LatencyMs,
+                Surface = dto.Surface,
+                HostPath = dto.HostPath,
+                SelectedKey = dto.SelectedKey,
+                SelectedPosition = dto.SelectedPosition,
                 IsSeeded = dto.IsSeeded,
                 JobId = dto.JobId,
             };

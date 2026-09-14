@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.Search;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.Fixtures;
@@ -15,4 +16,11 @@ public sealed class FakeSearchTelemetry : ISearchTelemetry
     public SearchTelemetryEvent LastEvent => Events[^1];
 
     public void RecordSearch(SearchTelemetryEvent evt) => Events.Add(evt);
+
+    // Instant searches are captured on their own list: the two event shapes are different
+    // records and a test asserting "exactly one search was recorded" must not be satisfied by
+    // a typeahead turning up in the same bucket.
+    public List<InstantSearchTelemetryEvent> InstantEvents { get; } = [];
+
+    public void RecordInstantSearch(InstantSearchTelemetryEvent evt) => InstantEvents.Add(evt);
 }

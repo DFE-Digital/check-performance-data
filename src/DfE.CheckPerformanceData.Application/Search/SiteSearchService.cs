@@ -116,6 +116,56 @@ public sealed class SiteSearchService(
         }
     }
 
+    // Per-corpus fetch window for a suggestion pass. Far below SearchAsync's 500 because a menu
+    // shows ten rows: canonicalisation only has to have enough candidates to fill them.
+    private const int SuggestFetchCap = 50;
+    private const int SuggestMaxLimit = 10;
+
+    public async Task<IReadOnlyList<SiteSearchSuggestion>> SuggestAsync(SiteSearchSuggestQuery query)
+    {
+        var rawTerm = query.Query ?? string.Empty;
+        if (rawTerm.IndexOf('\0') >= 0) rawTerm = rawTerm.Replace("\0", string.Empty);
+        var term = rawTerm.Trim();
+        var scope = string.IsNullOrWhiteSpace(query.ScopePath) ? null : query.ScopePath.Trim().Trim('/');
+        var limit = Math.Clamp(query.Limit, 1, SuggestMaxLimit);
+
+        try
+        {
+            // Same pass the real search runs, so scope handling, the silent filters and URL
+            // canonicalisation cannot drift between what is suggested and what /search returns.
+            var (result, _) = await SearchOnceAsync(
+                new SiteSearchQuery(term, scope, MaxPerType: SuggestFetchCap, Page: 1, PageSize: limit),
+                term,
+                scope,
+                1,
+                limit);
+
+            // The telemetry event is built and discarded on purpose. SearchAsync is the single
+            // place a SearchEvent row is written, and that is what makes "one row per search a
+            // person actually ran" true. A typeahead fires on every keystroke; recording here
+            // would bury the 90-day store in partial words and skew every volume, latency and
+            // zero-result chart on the analytics dashboard. Recording one event when a
+            // suggestion is chosen would be the useful signal, and is its own piece of work.
+            return result.Hits
+                .Select(h => new SiteSearchSuggestion(h.Title, h.Url))
+                .ToArray();
+        }
+        catch (Exception ex) when (ex is System.Data.Common.DbException
+                                   || (ex is RetryLimitExceededException && ex.InnerException is System.Data.Common.DbException))
+        {
+            // A typeahead has no way to show an error state that would help anyone mid-word, and
+            // the page it sits on must not break. An empty menu is the honest degradation; the
+            // visitor can still submit the form, which surfaces the real unavailable screen.
+            logger.LogWarning(
+                ex,
+                "Search suggestions failed data store unavailable QueryRaw={QueryRaw} Scope={Scope}",
+                term,
+                scope ?? "(none)");
+
+            return [];
+        }
+    }
+
     // Runs one canonicalised search pass and builds (but does not emit) the telemetry event.
     // The public SearchAsync decides when to call telemetry.RecordSearch so a DB-unavailable
     // branch produces zero events and a future hyphen-fallback re-invocation still emits

@@ -10,7 +10,21 @@ namespace DfE.CheckPerformanceData.Application.Search;
 public interface ISiteSearchService
 {
     Task<SiteSearchPagedResult> SearchAsync(SiteSearchQuery query);
+
+    // Typeahead for the instant-search widget: the same corpus, the same scope rules and the
+    // same silent filters as SearchAsync, reduced to the handful of rows a suggestion menu can
+    // show. Deliberately records no telemetry — see the implementation for why.
+    Task<IReadOnlyList<SiteSearchSuggestion>> SuggestAsync(SiteSearchSuggestQuery query);
 }
+
+// A typeahead request. Limit is the number of rows the caller can display; the service clamps
+// it so a hand-crafted request cannot ask for the whole corpus.
+public sealed record SiteSearchSuggestQuery(string? Query, string? ScopePath = null, int Limit = 10);
+
+// One row in a suggestion menu. Label is what the visitor reads, Url where choosing it takes
+// them — the menu navigates rather than filling a hidden field, which is why this carries a URL
+// and not the id/label shape the journey-domain suggestion endpoints use.
+public sealed record SiteSearchSuggestion(string Label, string Url);
 
 // Positional record: the trailing three ints carry the paging window.
 //   MaxPerType — per-corpus fetch window feeding the canonicaliser. Default 500 is the retired

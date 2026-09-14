@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Application.Egress;
+using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -12,9 +13,16 @@ public sealed class EgressPreprocessorTests
     private static readonly Guid RunId = Guid.Parse("33333333-3333-3333-3333-333333333333");
     private static readonly Guid WindowId = Guid.Parse("11111111-1111-1111-1111-111111111111");
     private readonly IEgressRunRepository _repo = Substitute.For<IEgressRunRepository>();
+    private readonly IWindowService _windows = Substitute.For<IWindowService>();
     private readonly FakeTimeProvider _clock = new(new DateTimeOffset(2026, 6, 8, 13, 35, 0, TimeSpan.Zero));
 
-    private EgressPreprocessor Sut() => new(_repo, _clock, Substitute.For<ILogger<EgressPreprocessor>>());
+    private EgressPreprocessor Sut() => new(_repo, _windows, _clock, Substitute.For<ILogger<EgressPreprocessor>>());
+
+    private static CheckingWindowDto Window(CheckingWindowType type = CheckingWindowType.KS4June) => new()
+    {
+        Id = WindowId, Title = "Window", KeyStage = KeyStages.KS4, CheckingWindowType = type,
+        StartDate = new DateTime(2026, 6, 1), EndDate = new DateTime(2026, 6, 30)
+    };
 
     private static EgressSourceRecord Remove(string reference, string decision, string reason = "pupil-died") => new()
     {
@@ -25,10 +33,13 @@ public sealed class EgressPreprocessorTests
         PupilMatchRef = 555, PupilLaestab = "8604070", JourneyFound = true, Answers = new Dictionary<string, string> { ["reason"] = reason }
     };
 
-    private void RunIs(EgressRunStatus status, params EgressSourceRecord[] records) =>
+    private void RunIs(EgressRunStatus status, params EgressSourceRecord[] records)
+    {
         _repo.GetRunAsync(RunId, Arg.Any<CancellationToken>()).Returns(new EgressRunDto(RunId, WindowId, status, Guid.NewGuid(), "Ops One",
             DateTime.UtcNow, null, null, null, null, [], null,
             [new EgressRunOutputDto(Guid.NewGuid(), EgressOutputType.RemoveLearners, true, records, records.Length, null, null, null)]));
+        _windows.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(Window());
+    }
 
     private async Task<List<EgressProgress>> Collect()
     {
@@ -78,6 +89,23 @@ public sealed class EgressPreprocessorTests
         await _repo.DidNotReceiveWithAnyArgs().SavePreprocessedAsync(default, default!, default!, default, default!, default);
         await _repo.Received(1).MarkPreprocessingFailedAsync(RunId,
             Arg.Is<IReadOnlyList<EgressRecordFailure>>(f => f.Count == 1 && f[0].ReferenceNumber == "R2" && f[0].Field == "Correction_Reason"),
+            Arg.Any<CancellationToken>());
+    }
+
+    // Nit (folded into M3): the file-name stage must come from the window, not be guessed from
+    // records — a run with zero pulled records (a window with no candidate requests at all) must
+    // still name its file after the window's own stage, never a hard-coded KS4June default.
+    [Fact]
+    public async Task File_name_stage_comes_from_the_window_even_when_the_run_has_no_records()
+    {
+        RunIs(EgressRunStatus.Pulled);
+        _windows.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(Window(CheckingWindowType.KS2));
+        _repo.TrySetStatusAsync(RunId, EgressRunStatus.Pulled, EgressRunStatus.Preprocessing, Arg.Any<CancellationToken>()).Returns(true);
+
+        await Collect();
+
+        await _repo.Received(1).SavePreprocessedAsync(RunId, Arg.Any<IReadOnlyList<NewLearnerRow>>(), Arg.Any<IReadOnlyList<RemoveLearnerRow>>(),
+            Arg.Any<DateOnly>(), Arg.Is<IReadOnlyDictionary<EgressOutputType, string>>(d => d[EgressOutputType.RemoveLearners].Contains("_KS2_")),
             Arg.Any<CancellationToken>());
     }
 

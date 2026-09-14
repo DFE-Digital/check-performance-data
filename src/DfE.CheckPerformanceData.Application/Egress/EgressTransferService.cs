@@ -20,6 +20,12 @@ public sealed class EgressTransferService(IEgressRunRepository repository, IEgre
         if (run.Status is not (EgressRunStatus.Preprocessed or EgressRunStatus.TransferFailed))
             return new EgressTransferResult.NotTransferable(run.Status);
 
+        // M3: an approved set that preprocessed to zero saved rows (every record rejected,
+        // undecided, or lost to a misconfigured ticket source) must never send a header-only file
+        // and lock the pair forever — refuse before touching storage or flipping status.
+        if (run.Outputs.All(o => (o.OutputRecordCount ?? 0) == 0))
+            return new EgressTransferResult.NothingToTransfer();
+
         if (run.Status == EgressRunStatus.TransferFailed)
         {
             var blocker = await repository.TryReactivateAsync(runId, ct);

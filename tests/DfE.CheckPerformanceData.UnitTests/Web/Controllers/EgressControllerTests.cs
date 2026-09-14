@@ -154,6 +154,18 @@ public sealed class EgressControllerTests
         Assert.Equal("Blob upload refused", controller.TempData[EgressController.TransferErrorKey]);
     }
 
+    // M3: never Complete for an empty approved set.
+    [Fact]
+    public async Task Transfer_of_an_empty_approved_set_redirects_to_summary_not_complete()
+    {
+        _transfer.TransferAsync(RunId, Arg.Any<EgressActor>(), Arg.Any<CancellationToken>())
+            .Returns(new EgressTransferResult.NothingToTransfer());
+
+        var redirect = Assert.IsType<RedirectToActionResult>(await Build().Transfer(RunId, CancellationToken.None));
+
+        Assert.Equal(nameof(EgressController.Summary), redirect.ActionName);
+    }
+
     [Fact]
     public async Task Download_returns_csv_with_the_runs_file_name()
     {

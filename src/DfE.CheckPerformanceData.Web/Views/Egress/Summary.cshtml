@@ -3,6 +3,8 @@
 @{
     ViewData["Title"] = "Confirm transfer to LDS";
     ViewData["HasError"] = Model.TransferError is not null;
+    // M3: every output preprocessed to zero saved rows — nothing to send, so no Confirm button.
+    var nothingToTransfer = Model.Run.Outputs.All(o => (o.OutputRecordCount ?? 0) == 0);
 }
 
 <a class="govuk-back-link" href="/admin/egress">Back to data egress</a>
@@ -70,11 +72,19 @@
 
 <div class="govuk-inset-text">Once confirmed, these files will be uploaded to LDS blob storage. This action cannot be undone.</div>
 
+@if (nothingToTransfer)
+{
+    <p class="govuk-body" data-testid="egress-nothing-to-transfer">Every record was rejected, undecided or discarded before preprocessing, so there is nothing to transfer to LDS. Abandon this run if it is no longer needed.</p>
+}
+
 <div class="govuk-button-group">
-    <form method="post" action="/admin/egress/runs/@Model.Run.Id/transfer" class="govuk-!-display-inline">
-        @Html.AntiForgeryToken()
-        <button type="submit" class="govuk-button" data-module="govuk-button" data-testid="egress-transfer">Confirm and transfer</button>
-    </form>
+    @if (!nothingToTransfer)
+    {
+        <form method="post" action="/admin/egress/runs/@Model.Run.Id/transfer" class="govuk-!-display-inline">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="govuk-button" data-module="govuk-button" data-testid="egress-transfer">Confirm and transfer</button>
+        </form>
+    }
     <a class="govuk-button govuk-button--secondary" href="/admin/egress" data-testid="egress-save">Save and exit</a>
     <form method="post" action="/admin/egress/runs/@Model.Run.Id/abandon" class="govuk-!-display-inline">
         @Html.AntiForgeryToken()

@@ -100,6 +100,16 @@ public sealed class EgressViewSourceTests
         Assert.Contains("@if (Model.TransferError is not null)", view);
     }
 
+    // M3: a run whose approved set is empty must not offer Confirm, only Abandon.
+    [Fact]
+    public void Summary_replaces_confirm_with_a_message_when_there_is_nothing_to_transfer()
+    {
+        var view = View("Summary.cshtml");
+        Assert.Contains("Model.Run.Outputs.All(o => (o.OutputRecordCount ?? 0) == 0)", view);
+        Assert.Contains("data-testid=\"egress-nothing-to-transfer\"", view);
+        Assert.Contains("@if (!nothingToTransfer)", view);
+    }
+
     [Fact]
     public void Failed_page_lists_every_failure_with_step_field_and_reason()
     {

@@ -8,6 +8,8 @@ public abstract record EgressTransferResult
     public sealed record Refused(EgressBlocker Blocker) : EgressTransferResult;
     public sealed record Failed(string Reason) : EgressTransferResult;
     public sealed record NotTransferable(EgressRunStatus Status) : EgressTransferResult;
+    /// <summary>M3: every output's saved row count is zero — nothing to send, so refused before any upload.</summary>
+    public sealed record NothingToTransfer : EgressTransferResult;
 }
 
 /// <summary>M1: Abandon needs blob access (to sweep a Transferring run's own files), which is why

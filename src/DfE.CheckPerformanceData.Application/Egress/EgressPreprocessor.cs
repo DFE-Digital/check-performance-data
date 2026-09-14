@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using Microsoft.Extensions.Logging;
 
@@ -10,7 +11,7 @@ namespace DfE.CheckPerformanceData.Application.Egress;
 /// listed and NOTHING written, so no record is ever silently lost. Cancellation (the browser left
 /// the stream) puts the run back where it was; the only durable write is the final step.
 /// </summary>
-public sealed class EgressPreprocessor(IEgressRunRepository repository, TimeProvider clock, ILogger<EgressPreprocessor> logger) : IEgressPreprocessor
+public sealed class EgressPreprocessor(IEgressRunRepository repository, IWindowService windows, TimeProvider clock, ILogger<EgressPreprocessor> logger) : IEgressPreprocessor
 {
     public static readonly string[] StepNames =
     [
@@ -119,7 +120,11 @@ public sealed class EgressPreprocessor(IEgressRunRepository repository, TimeProv
             yield break;
         }
 
-        var windowType = all.Count > 0 ? all[0].WindowType : run.Outputs.Select(o => o.Records.FirstOrDefault()?.WindowType).FirstOrDefault() ?? CheckingWindowType.KS4June;
+        // Derived from the window itself, not guessed from records — a run with no pulled records
+        // (a window with no candidate requests at all) still needs the right stage in its file name.
+        var window = await windows.GetByIdAsync(run.WindowId, ct)
+            ?? throw new InvalidOperationException($"Checking window {run.WindowId} for egress run {run.Id} no longer exists.");
+        var windowType = window.CheckingWindowType;
         var exportDate = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(clock.GetUtcNow(), London).DateTime);
         var fileNames = run.Outputs.ToDictionary(o => o.OutputType, o => EgressOutputTypes.FileName(windowType, o.OutputType, exportDate));
         var newRows = items.Select(x => x.NewRow).OfType<NewLearnerRow>().ToList();

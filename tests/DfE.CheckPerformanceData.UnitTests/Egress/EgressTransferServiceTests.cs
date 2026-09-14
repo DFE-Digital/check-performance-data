@@ -112,6 +112,41 @@ public sealed class EgressTransferServiceTests
         Assert.Equal(status, Assert.IsType<EgressTransferResult.NotTransferable>(await Sut().TransferAsync(RunId, Actor, CancellationToken.None)).Status);
     }
 
+    // M3: a run whose approved set is empty (every record rejected, undecided, or lost to B1) must
+    // not send a header-only file and lock the pair forever — this must refuse before any upload.
+    [Fact]
+    public async Task A_run_whose_every_output_has_zero_saved_rows_refuses_before_any_upload()
+    {
+        _repo.GetRunAsync(RunId, Arg.Any<CancellationToken>()).Returns(new EgressRunDto(RunId, Guid.NewGuid(), EgressRunStatus.Preprocessed, Guid.NewGuid(), "Ops One",
+            DateTime.UtcNow, DateTime.UtcNow, new DateOnly(2026, 6, 8), null, null, [], null,
+            [new EgressRunOutputDto(Guid.NewGuid(), EgressOutputType.RemoveLearners, true, [], 3, 0, "CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv", null)]));
+
+        var result = await Sut().TransferAsync(RunId, Actor, CancellationToken.None);
+
+        Assert.IsType<EgressTransferResult.NothingToTransfer>(result);
+        await _blobs.DidNotReceiveWithAnyArgs().UploadAsync(default!, default!, default!, default, default);
+        await _repo.DidNotReceiveWithAnyArgs().TrySetStatusAsync(default, default, default, default);
+    }
+
+    [Fact]
+    public async Task A_run_with_at_least_one_non_empty_output_is_still_transferable()
+    {
+        _repo.GetRunAsync(RunId, Arg.Any<CancellationToken>()).Returns(new EgressRunDto(RunId, Guid.NewGuid(), EgressRunStatus.Preprocessed, Guid.NewGuid(), "Ops One",
+            DateTime.UtcNow, DateTime.UtcNow, new DateOnly(2026, 6, 8), null, null, [], null,
+            [
+                new EgressRunOutputDto(Guid.NewGuid(), EgressOutputType.RemoveLearners, true, [], 3, 0, "CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv", null),
+                new EgressRunOutputDto(Guid.NewGuid(), EgressOutputType.NewLearners, true, [], 1, 1, "CYPMD_LDS_KS4_NewLearners_2026_06_08.csv", null)
+            ]));
+        _repo.TrySetStatusAsync(RunId, EgressRunStatus.Preprocessed, EgressRunStatus.Transferring, Arg.Any<CancellationToken>()).Returns(true);
+        _repo.GetRemoveLearnersAsync(RunId, Arg.Any<CancellationToken>()).Returns([]);
+        _repo.GetNewLearnersAsync(RunId, Arg.Any<CancellationToken>()).Returns([NewRow("2001")]);
+        _blobs.IsConfigured.Returns(true);
+
+        var result = await Sut().TransferAsync(RunId, Actor, CancellationToken.None);
+
+        Assert.IsType<EgressTransferResult.Transferred>(result);
+    }
+
     [Fact]
     public async Task BuildFile_renders_the_persisted_rows_for_preview_and_download()
     {

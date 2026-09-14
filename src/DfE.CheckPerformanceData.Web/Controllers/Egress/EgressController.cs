@@ -238,6 +238,10 @@ public sealed class EgressController(
             case EgressTransferResult.Failed failed:
                 TempData[TransferErrorKey] = failed.Reason;
                 return RedirectToAction(nameof(Summary), new { id });
+            // M3: never Complete for an empty approved set — Summary derives the same "nothing to
+            // transfer" state from the run's own saved row counts, so no TempData is needed here.
+            case EgressTransferResult.NothingToTransfer:
+                return RedirectToAction(nameof(Summary), new { id });
             case EgressTransferResult.Refused refused:
                 TempData[TransferErrorKey] = Describe((EgressOutputType.RemoveLearners, refused.Blocker)).Replace("Remove learners for this checking window", "This checking window and output type");
                 return RedirectToAction(nameof(Summary), new { id });

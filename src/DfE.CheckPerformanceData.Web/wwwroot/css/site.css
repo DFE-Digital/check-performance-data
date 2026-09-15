@@ -1771,6 +1771,21 @@ body:has(.cpb-breadcrumbs) main.govuk-main-wrapper { padding-top: 0 !important; 
     padding-top: 30px;
 }
 
+/* On-page search: the heading it took you to.
+   The heading is given focus so a screen reader moves with the jump, and the browser drew a
+   box around it as a side effect — but only when its own :focus-visible heuristic felt like
+   it, so the box came and went between jumps. Asking for it explicitly on :focus makes it
+   the same every time. GDS focus yellow, matching the rest of the service. */
+.cpb-content h1:focus,
+.cpb-content h2:focus,
+.cpb-content h3:focus,
+.cpb-content h4:focus,
+.cpb-content h5:focus,
+.cpb-content h6:focus {
+  outline: 3px solid #fd0;
+  outline-offset: 3px;
+}
+
 /* Page-contents nav: show the nesting.
    moj-side-navigation sets margin and padding to zero on every list at every depth, so a
    nested item sits at exactly the same left edge as its parent and the hierarchy exists only

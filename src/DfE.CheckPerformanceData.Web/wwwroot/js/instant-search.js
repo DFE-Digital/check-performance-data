@@ -153,8 +153,16 @@
         return safe.slice(0, at) + '<strong>' + safe.slice(at, end) + '</strong>' + safe.slice(end);
     }
 
-    // Every heading with an anchor becomes a section; the text between it and the next heading
-    // becomes that section's body, so a match on a paragraph still points somewhere landable.
+    // Every heading becomes a section; the text between it and the next heading becomes that
+    // section's body, so a match on a paragraph still points somewhere landable.
+    //
+    // Headings without an id are indexed too, and given one. Only heading WIDGETS are anchored
+    // by the CMS — a heading an author typed inside a rich-text block is just markup, and on a
+    // long page most headings are those. Skipping them did not merely lose them: their text ran
+    // on into the previous anchored heading, so searching for a word under an unanchored
+    // heading offered the wrong section, some distance up the page.
+    var generatedIdSeq = 0;
+
     function buildPageIndex() {
         var root = document.querySelector('.cpb-content');
         if (!root) return null;
@@ -166,9 +174,18 @@
 
         while ((node = walker.nextNode())) {
             if (node.nodeType === 1) {
-                if (/^H[1-6]$/.test(node.tagName) && node.id && !node.closest(NON_CONTENT)) {
-                    current = { anchor: node.id, label: node.textContent.trim(), text: '', el: node };
-                    if (current.label) sections.push(current);
+                if (/^H[1-6]$/.test(node.tagName) && !node.closest(NON_CONTENT)) {
+                    var label = node.textContent.trim();
+                    if (!label) continue;
+
+                    if (!node.id) {
+                        do { generatedIdSeq++; }
+                        while (document.getElementById('cypmd-section-' + generatedIdSeq));
+                        node.id = 'cypmd-section-' + generatedIdSeq;
+                    }
+
+                    current = { anchor: node.id, label: label, text: '', el: node };
+                    sections.push(current);
                 }
                 continue;
             }
@@ -181,6 +198,61 @@
 
         sections.forEach(function (s) { s.haystack = (s.label + ' ' + s.text).toLowerCase(); });
         return sections;
+    }
+
+    // Marking the term on the page
+    // ---------------------------
+    // Jumping to a section answers "where", but not "where exactly" — on a long section the word
+    // can still be several paragraphs down. Every occurrence is wrapped in <mark>, the same
+    // element the search results page uses for its snippets, so the yellow means the same thing
+    // in both places.
+    var MARK_CLASS = 'cypmd-onpage-mark';
+
+    function clearMarks(root) {
+        var marks = root.querySelectorAll('mark.' + MARK_CLASS);
+        for (var i = 0; i < marks.length; i++) {
+            var mark = marks[i];
+            var parent = mark.parentNode;
+            while (mark.firstChild) parent.insertBefore(mark.firstChild, mark);
+            parent.removeChild(mark);
+            // Re-join the text nodes the unwrap left adjacent, so a later pass sees whole words.
+            parent.normalize();
+        }
+    }
+
+    function markTerm(root, term) {
+        clearMarks(root);
+        var needle = (term || '').trim().toLowerCase();
+        if (needle.length < MIN_LENGTH) return;
+
+        // Collected first: wrapping a node while walking would have the walker step into the
+        // <mark> just inserted.
+        var targets = [];
+        var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+        var node;
+        while ((node = walker.nextNode())) {
+            if (!node.nodeValue || node.nodeValue.toLowerCase().indexOf(needle) < 0) continue;
+            if (node.parentElement && node.parentElement.closest(NON_CONTENT)) continue;
+            targets.push(node);
+        }
+
+        targets.forEach(function (textNode) {
+            var value = textNode.nodeValue;
+            var lower = value.toLowerCase();
+            var fragment = document.createDocumentFragment();
+            var at = 0;
+            var found;
+            while ((found = lower.indexOf(needle, at)) >= 0) {
+                if (found > at) fragment.appendChild(document.createTextNode(value.slice(at, found)));
+                var mark = document.createElement('mark');
+                mark.className = MARK_CLASS;
+                mark.appendChild(document.createTextNode(value.slice(found, found + needle.length)));
+                fragment.appendChild(mark);
+                at = found + needle.length;
+            }
+            if (at < value.length) fragment.appendChild(document.createTextNode(value.slice(at)));
+            textNode.parentNode.replaceChild(fragment, textNode);
+        });
     }
 
     function pageSource(sections) {
@@ -227,9 +299,13 @@
         };
     }
 
-    function goToSection(section) {
+    function goToSection(section, term) {
         var target = document.getElementById(section.anchor);
         if (!target) return;
+
+        var root = document.querySelector('.cpb-content');
+        if (root) markTerm(root, term);
+
         // Focus, not just scroll: a screen-reader or keyboard user needs the reading position
         // to move, not only the viewport.
         window.location.hash = section.anchor;
@@ -329,7 +405,7 @@
                 }
                 report.selected(keyOf(result), position);
 
-                if (searchIn === 'page') goToSection(result);
+                if (searchIn === 'page') goToSection(result, lastQuery);
                 else if (result.url) window.location.assign(result.url);
             }
         };
@@ -384,7 +460,7 @@
 
                 if (match) {
                     event.preventDefault();
-                    goToSection(match);
+                    goToSection(match, q);
                 }
             });
         }

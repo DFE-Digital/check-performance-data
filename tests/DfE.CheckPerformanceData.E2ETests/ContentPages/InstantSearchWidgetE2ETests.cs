@@ -63,6 +63,14 @@ public sealed class InstantSearchWidgetE2ETests(PlaywrightFixture fixture) : See
             new Dictionary<string, string> { ["level"] = "2", ["text"] = "Uploading files" });
         await AddAndSetAsync(id, "0.4", "richtext",
             new Dictionary<string, string> { ["html"] = $"<p>Accepted formats include {bodyToken} archives.</p>" });
+        // A heading an author typed inside a rich-text block. The CMS anchors heading WIDGETS
+        // only, so this one reaches the page with no id — which is most of the headings on a
+        // long page assembled from real guidance.
+        await AddAndSetAsync(id, "0.5", "richtext",
+            new Dictionary<string, string>
+            {
+                ["html"] = "<h3>Typed inside rich text</h3><p>Only reachable by its own words: zarquon.</p>",
+            });
 
         await CmsSeedHelpers.PublishDraftAsync(Fixture.SeedClient, id);
 
@@ -166,6 +174,68 @@ public sealed class InstantSearchWidgetE2ETests(PlaywrightFixture fixture) : See
 
         await Expect(Options.First).ToBeVisibleAsync();
         await Expect(Options.First).ToContainTextAsync("Uploading files");
+    }
+
+    // ============================================================
+    // 2b. A heading written inside a rich-text block is a section too.
+    //
+    //     Only heading widgets get an anchor from the CMS, so these arrive with no id. Skipping
+    //     them did not just lose them: their text ran on into the previous anchored heading, so
+    //     a word underneath one offered a section some distance up the page.
+    // ============================================================
+    [Fact]
+    public async Task AHeadingInsideRichText_IsItsOwnSection_NotPartOfThePreviousOne()
+    {
+        var (url, _) = await SeedPageWithSectionsAsync(SearchProps("page", instant: true));
+
+        await Page.GotoAsync($"{Fixture.BaseUrl}{url}");
+        await TypeAsync("zarquon");
+
+        await Expect(Options.First).ToBeVisibleAsync();
+        await Expect(Options.First).ToContainTextAsync("Typed inside rich text");
+        // The section it used to be wrongly attributed to.
+        var labels = await Options.AllInnerTextsAsync();
+        Assert.DoesNotContain(labels, l => l.Contains("Uploading files", StringComparison.Ordinal));
+    }
+
+    // ============================================================
+    // 2c. The searched word is marked on the page, so it can be found within the section.
+    // ============================================================
+    [Fact]
+    public async Task ChoosingASection_MarksTheSearchedWordOnThePage()
+    {
+        var (url, _) = await SeedPageWithSectionsAsync(SearchProps("page", instant: true));
+
+        await Page.GotoAsync($"{Fixture.BaseUrl}{url}");
+        await TypeAsync("evidence");
+        await Expect(Options.First).ToContainTextAsync("Providing evidence");
+        await Options.First.ClickAsync();
+
+        var marks = Page.Locator("mark.cypmd-onpage-mark");
+        await Expect(marks.First).ToBeVisibleAsync();
+        Assert.All(
+            await marks.AllInnerTextsAsync(),
+            text => Assert.Equal("evidence", text.ToLowerInvariant()));
+    }
+
+    [Fact]
+    public async Task SearchingAgain_ClearsTheMarksFromThePreviousTerm()
+    {
+        var (url, _) = await SeedPageWithSectionsAsync(SearchProps("page", instant: true));
+
+        await Page.GotoAsync($"{Fixture.BaseUrl}{url}");
+        await TypeAsync("evidence");
+        await Expect(Options.First).ToContainTextAsync("Providing evidence");
+        await Options.First.ClickAsync();
+        await Expect(Page.Locator("mark.cypmd-onpage-mark").First).ToBeVisibleAsync();
+
+        await TypeAsync("uploading");
+        await Expect(Options.First).ToContainTextAsync("Uploading files");
+        await Options.First.ClickAsync();
+
+        Assert.All(
+            await Page.Locator("mark.cypmd-onpage-mark").AllInnerTextsAsync(),
+            text => Assert.Equal("uploading", text.ToLowerInvariant()));
     }
 
     // ============================================================

@@ -4,6 +4,7 @@ namespace DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 
 public class IngressFolderBrowseViewModel
 {
+    public Guid? ExerciseId { get; init; }
     public required Guid WindowId { get; init; }
 
     /// <summary>

@@ -64,21 +64,24 @@ public sealed class CheckingExerciseService(TimeProvider timeProvider) : IChecki
     public bool IsOpen(IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise)
     {
         var now = Now();
-        return exercises.Any(e => e.ExerciseType == exercise && Brackets(e, now));
+        var target = Candidate(exercises, exercise, now);
+        return target is not null && Brackets(target, now);
     }
 
     public bool HasClosed(IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise)
     {
         var now = Now();
         // Strictly before: Brackets() keeps the last instant open, so this must not also call it closed.
-        return exercises.Any(e => e.ExerciseType == exercise && e.EndDate < now);
+        return Candidate(exercises, exercise, now)?.EndDate < now;
     }
 
     public IReadOnlyList<CheckingExerciseType> OpenCheckingExercises(
         IReadOnlyList<CheckingExerciseDto> exercises)
     {
         var now = Now();
-        return exercises
+        return exercises.Select(e => e.ExerciseType).Distinct()
+            .Select(type => Candidate(exercises, type, now))
+            .OfType<CheckingExerciseDto>()
             .Where(e => Brackets(e, now))
             .OrderBy(e => e.SortOrder)
             .Select(e => e.ExerciseType)
@@ -87,18 +90,33 @@ public sealed class CheckingExerciseService(TimeProvider timeProvider) : IChecki
 
     public DateTime? EndDateFor(
         IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise) =>
-        exercises.FirstOrDefault(e => e.ExerciseType == exercise)?.EndDate;
+        Candidate(exercises, exercise, Now())?.EndDate;
 
     public DateTime? StartDateFor(
         IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise) =>
-        exercises.FirstOrDefault(e => e.ExerciseType == exercise)?.StartDate;
+        Candidate(exercises, exercise, Now())?.StartDate;
 
     public Guid? IdFor(IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise) =>
-        exercises.FirstOrDefault(e => e.ExerciseType == exercise)?.Id;
+        Candidate(exercises, exercise, Now())?.Id;
+
+    private static IEnumerable<CheckingExerciseDto> Candidates(IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType type, DateTime now)
+        => exercises.Where(e => e.ExerciseType == type
+            && (e.DataType is null || e.DataType == CheckingExerciseBlobPaths.DefaultDataType(type)) && (e.TabName is null ||
+            (e.IsEnabled && (e.VisibleFrom is null || e.VisibleFrom <= now) && (e.VisibleUntil is null || e.VisibleUntil > now))));
+
+    private static CheckingExerciseDto? Candidate(IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType type, DateTime now)
+    {
+        var candidates = Candidates(exercises, type, now).Take(2).ToList();
+        return candidates.Count == 1 ? candidates[0] : null;
+    }
 
     private DateTime Now() => timeProvider.GetLocalNow().DateTime;
 
     // Inclusive at both ends, matching how the outer window's own dates are compared.
     private static bool Brackets(CheckingExerciseDto exercise, DateTime now) =>
-        exercise.StartDate <= now && exercise.EndDate >= now;
+        exercise.StartDate <= now && exercise.EndDate >= now
+        && (exercise.TabName is null || (exercise.IsEnabled
+            && (exercise.VisibleFrom is null || exercise.VisibleFrom <= now)
+            && (exercise.VisibleUntil is null || exercise.VisibleUntil > now)
+            && exercise.WindowStart <= now && exercise.WindowEnd >= now));
 }

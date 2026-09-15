@@ -147,8 +147,8 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
             Assert.Equal(new bool?[] { true, false }, datasets.Select(d => d.Included));
             foreach (var dataset in datasets)
             {
-                Assert.Equal($"{dataset.Name}.csv", dataset.IngressFile);
-                Assert.Equal($"{dataset.Name}.json", dataset.SchemaFile);
+                Assert.Equal(DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DefinitionFile(dataset.CheckingExerciseId, dataset.Id, $"{dataset.Name}.csv"), dataset.IngressFile);
+                Assert.Equal(DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DefinitionFile(dataset.CheckingExerciseId, dataset.Id, $"{dataset.Name}.json"), dataset.SchemaFile);
                 await AssertFileAsync("ingress", dataset.IngressFile, dataset.IngressFileChecksum, "text/csv");
                 await AssertFileAsync("schema", dataset.SchemaFile, dataset.SchemaFileChecksum, "application/json");
             }
@@ -162,8 +162,8 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
 
         async Task AssertFileAsync(string folder, string filename, string checksum, string contentType)
         {
-            var original = await File.ReadAllBytesAsync(Path.Combine(AppContext.BaseDirectory, "Data", "Ingress", folder, filename));
-            var downloaded = (await container.GetBlobClient($"{folder}/{filename}").DownloadContentAsync()).Value;
+            var original = await File.ReadAllBytesAsync(Path.Combine(AppContext.BaseDirectory, "Data", "Ingress", folder, Path.GetFileName(filename)));
+            var downloaded = (await container.GetBlobClient(filename).DownloadContentAsync()).Value;
             Assert.True(original.AsSpan().SequenceEqual(downloaded.Content.ToArray()), "Seed blob must match its source file.");
             Assert.Equal(Convert.ToHexString(SHA256.HashData(original)), checksum);
             Assert.Equal(checksum, downloaded.Details.Metadata["sha256"]);

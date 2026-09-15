@@ -10,7 +10,7 @@ using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Infrastructure.BlobStorage;
 
-public sealed class PupilDataBlobClient(BlobServiceClient blobServiceClient) : IPupilDataBlobClient
+public sealed class PupilDataBlobClient(BlobServiceClient blobServiceClient, ICheckingExerciseStorageResolver? resolver = null) : IPupilDataBlobClient
 {
     // Public so the pupil-schema deserialization tests bind supplier JSON exactly as production does.
     public static readonly JsonSerializerOptions JsonOptions = new()
@@ -34,9 +34,9 @@ public sealed class PupilDataBlobClient(BlobServiceClient blobServiceClient) : I
     public async Task<IReadOnlyList<IPupilRecord>?> GetPupilsAsync(
         Guid windowId, CheckingExerciseType exercise, string laestab, CheckingWindowType windowType)
     {
-        var blob = GetBlobClient(windowId, exercise, laestab);
+        var blob = await GetBlobClientAsync(windowId, exercise, laestab);
 
-        if (!await blob.ExistsAsync())
+        if (blob is null || !await blob.ExistsAsync())
             return null;
 
         var response = await blob.DownloadContentAsync();
@@ -45,7 +45,10 @@ public sealed class PupilDataBlobClient(BlobServiceClient blobServiceClient) : I
     }
 
     public async Task<bool> HasPupilDataAsync(Guid windowId, CheckingExerciseType exercise, string laestab)
-        => await GetBlobClient(windowId, exercise, laestab).ExistsAsync();
+    {
+        var blob = await GetBlobClientAsync(windowId, exercise, laestab);
+        return blob is not null && await blob.ExistsAsync();
+    }
 
     public async Task<IReadOnlyList<string>> ListSchoolLaestabsAsync(
         Guid windowId, CheckingExerciseType exercise, CancellationToken cancellationToken = default)
@@ -54,7 +57,10 @@ public sealed class PupilDataBlobClient(BlobServiceClient blobServiceClient) : I
         if (!await container.ExistsAsync(cancellationToken))
             return [];
 
-        string prefix = CheckingExerciseBlobPaths.DataPrefix(exercise);
+        var target = resolver is null ? null : await resolver.ResolveAsync(windowId, exercise, cancellationToken);
+        if (resolver is not null && target is null) return [];
+        string prefix = target is { UsesExerciseStorage: true }
+            ? CheckingExerciseBlobPaths.DataPrefix(target.Id) : CheckingExerciseBlobPaths.DataPrefix(exercise);
         const string suffix = CheckingExerciseBlobPaths.PupilsSuffix;
         var laestabs = new HashSet<string>(StringComparer.Ordinal);
         await foreach (var blob in container.GetBlobsAsync(BlobTraits.None, BlobStates.None, prefix, cancellationToken))
@@ -78,7 +84,8 @@ public sealed class PupilDataBlobClient(BlobServiceClient blobServiceClient) : I
         var container = blobServiceClient.GetBlobContainerClient(windowId.ToString());
         await container.CreateIfNotExistsAsync();
 
-        var blob = container.GetBlobClient(CheckingExerciseBlobPaths.PupilsBlobName(exercise, laestab));
+        var blob = await GetBlobClientAsync(windowId, exercise, laestab)
+            ?? throw new InvalidOperationException("No checking exercise owns this upload.");
         // Serialise against the runtime type so each record's own [JsonPropertyName] map is used.
         var json = JsonSerializer.Serialize<List<T>>(pupils, JsonOptions);
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
@@ -87,7 +94,13 @@ public sealed class PupilDataBlobClient(BlobServiceClient blobServiceClient) : I
 
     // The layout lives in CheckingExerciseBlobPaths and nowhere else, so a prefix change cannot
     // leave the reader and the ingress writer disagreeing about where a school's file is.
-    private BlobClient GetBlobClient(Guid windowId, CheckingExerciseType exercise, string laestab)
-        => blobServiceClient.GetBlobContainerClient(windowId.ToString())
-            .GetBlobClient(CheckingExerciseBlobPaths.PupilsBlobName(exercise, laestab));
+    private async Task<BlobClient?> GetBlobClientAsync(Guid windowId, CheckingExerciseType exercise, string laestab)
+    {
+        var target = resolver is null ? null : await resolver.ResolveAsync(windowId, exercise);
+        if (resolver is not null && target is null) return null;
+        var path = target is { UsesExerciseStorage: true }
+            ? CheckingExerciseBlobPaths.DataBlobName(target.Id, target.DataType ?? CheckingDataType.Pupil, laestab)
+            : CheckingExerciseBlobPaths.PupilsBlobName(exercise, laestab);
+        return blobServiceClient.GetBlobContainerClient(windowId.ToString()).GetBlobClient(path);
+    }
 }

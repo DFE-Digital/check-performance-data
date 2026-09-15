@@ -16,8 +16,8 @@ public static class SeedPost16Ingress
         var window = await dbContext.CheckingWindows
             .Include(w => w.CheckingExercises).ThenInclude(e => e.Datasets)
             .SingleAsync(w => w.Id == DevDataSeeder.Post16IngressCheckingWindowId);
-        var datasets = window.CheckingExercises
-            .Single(e => e.ExerciseType == CheckingExerciseType.PupilData).Datasets;
+        var exercise = window.CheckingExercises.Single(e => e.ExerciseType == CheckingExerciseType.PupilData);
+        var datasets = exercise.Datasets;
         var container = blobs.GetBlobContainerClient(window.Id.ToString());
         await container.CreateIfNotExistsAsync();
 
@@ -25,11 +25,11 @@ public static class SeedPost16Ingress
         {
             var ingressFile = $"{dataset.Name}.csv";
             var schemaFile = $"{dataset.Name}.json";
-            var ingressChecksum = await UploadAsync("ingress", ingressFile, "text/csv");
-            var schemaChecksum = await UploadAsync("schema", schemaFile, "application/json");
-            dataset.IngressFile = ingressFile;
+            var ingressChecksum = await UploadAsync("ingress", ingressFile, "text/csv", dataset.Id);
+            var schemaChecksum = await UploadAsync("schema", schemaFile, "application/json", dataset.Id);
+            dataset.IngressFile = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DefinitionFile(exercise.Id, dataset.Id, ingressFile);
             dataset.IngressFileChecksum = ingressChecksum;
-            dataset.SchemaFile = schemaFile;
+            dataset.SchemaFile = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DefinitionFile(exercise.Id, dataset.Id, schemaFile);
             dataset.SchemaFileChecksum = schemaChecksum;
 
         }
@@ -45,12 +45,12 @@ public static class SeedPost16Ingress
             .SetProperty(w => w.SchemaFile, first.SchemaFile)
             .SetProperty(w => w.SchemaFileChecksum, first.SchemaFileChecksum));
 
-        async Task<string> UploadAsync(string folder, string filename, string contentType)
+        async Task<string> UploadAsync(string folder, string filename, string contentType, Guid definitionId)
         {
             await using var stream = File.OpenRead(Path.Combine(contentRootPath, "Data", "Ingress", folder, filename));
             var checksum = Convert.ToHexString(await SHA256.HashDataAsync(stream));
             stream.Position = 0;
-            await container.GetBlobClient($"{folder}/{filename}").UploadAsync(stream, new BlobUploadOptions
+            await container.GetBlobClient(DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DefinitionFile(exercise.Id, definitionId, filename)).UploadAsync(stream, new BlobUploadOptions
             {
                 HttpHeaders = new BlobHttpHeaders { ContentType = contentType },
                 Metadata = new Dictionary<string, string> { ["sha256"] = checksum }

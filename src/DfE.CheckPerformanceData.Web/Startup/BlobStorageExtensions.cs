@@ -84,6 +84,8 @@ public static class BlobStorageExtensions
             sp => sp.GetRequiredService<QualificationReferenceBlobClient>());
         services.AddHostedService<Seeding.QualificationReferenceSeedingService>();
         services.AddScoped<ICsvSchemaFileProcessor, CsvSchemaFileProcessor>();
+        services.AddScoped<ICheckingExerciseIngress, CheckingExerciseIngress>();
+        services.AddScoped<Application.WindowManagement.ICheckingDataReader, CheckingDataReader>();
 
         return services;
     }

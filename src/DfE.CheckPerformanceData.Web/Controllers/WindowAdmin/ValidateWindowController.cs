@@ -20,35 +20,35 @@ namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 /// is what makes "a window is usable while another exercise is still unvalidated" true rather than
 /// merely allowed.
 /// </remarks>
-public class ValidateWindowController(IWindowService windowService, ICsvSchemaFileProcessor processor): Controller
+public class ValidateWindowController(IWindowService windowService, ICheckingExerciseIngress processor) : Controller
 {
     private const string PageView = "~/Views/WindowAdmin/Validate.cshtml";
 
     [HttpGet("admin/windows/{id:guid}/{exercise}/validate")]
-    public IActionResult Index(Guid id, CheckingExerciseType exercise)
+    public IActionResult Index(Guid id, CheckingExerciseType exercise, Guid? exerciseId = null)
     {
-        return View(PageView, Model(id, exercise));
+        return View(PageView, Model(id, exercise, exerciseId));
     }
 
     // Live progress stream (step 1-7). EventSource can only issue GET, so validation runs here;
     // the client opens this on demand from the Start button rather than on page load.
     [HttpGet("admin/windows/{id:guid}/{exercise}/validate/stream")]
-    public IResult Stream(Guid id, CheckingExerciseType exercise, CancellationToken cancellationToken)
+    public IResult Stream(Guid id, CheckingExerciseType exercise, CancellationToken cancellationToken, Guid? exerciseId = null)
     {
-        return Results.ServerSentEvents(Run(id, exercise, cancellationToken), eventType: "progress");
+        return Results.ServerSentEvents(Run(id, exercise, cancellationToken, exerciseId), eventType: "progress");
     }
 
     // No-JS fallback: run to completion and render the final summary.
     [HttpPost("admin/windows/{id:guid}/{exercise}/validate")]
-    public async Task<IActionResult> Validate(Guid id, CheckingExerciseType exercise, CancellationToken cancellationToken)
+    public async Task<IActionResult> Validate(Guid id, CheckingExerciseType exercise, CancellationToken cancellationToken, Guid? exerciseId = null)
     {
         ValidationProgress? last = null;
-        await foreach (ValidationProgress progress in Run(id, exercise, cancellationToken))
+        await foreach (ValidationProgress progress in Run(id, exercise, cancellationToken, exerciseId))
         {
             last = progress;
         }
 
-        ValidationViewModel model = Model(id, exercise);
+        ValidationViewModel model = Model(id, exercise, exerciseId);
         model.ProcessingResult = last is null
             ? null
             : new ProcessingResult(last.RecordsRead, last.FilesWritten, last.ErrorCount, new StringBuilder(last.Message), last.SchoolSummary);
@@ -56,12 +56,12 @@ public class ValidateWindowController(IWindowService windowService, ICsvSchemaFi
         return View(PageView, model);
     }
 
-    private ValidationViewModel Model(Guid id, CheckingExerciseType exercise) => new()
+    private ValidationViewModel Model(Guid id, CheckingExerciseType exercise, Guid? exerciseId = null) => new()
     {
         WindowId = id,
         ExerciseLabel = ExerciseLabels.For(exercise),
-        StreamUrl = Url.Action(nameof(Stream), "ValidateWindow", new { id, exercise }),
-        PostUrl = Url.Action(nameof(Validate), "ValidateWindow", new { id, exercise }),
+        StreamUrl = Url.Action(nameof(Stream), "ValidateWindow", new { id, exercise, exerciseId }),
+        PostUrl = Url.Action(nameof(Validate), "ValidateWindow", new { id, exercise, exerciseId }),
         CancelUrl = Url.Action("Index", "Summary", new { id })
     };
 
@@ -70,7 +70,7 @@ public class ValidateWindowController(IWindowService windowService, ICsvSchemaFi
     private async IAsyncEnumerable<ValidationProgress> Run(
         Guid id,
         CheckingExerciseType exercise,
-        [EnumeratorCancellation] CancellationToken cancellationToken)
+        [EnumeratorCancellation] CancellationToken cancellationToken, Guid? exerciseId = null)
     {
         CheckingWindowDto? window = await windowService.GetByIdAsync(id, cancellationToken);
 
@@ -84,7 +84,7 @@ public class ValidateWindowController(IWindowService windowService, ICsvSchemaFi
             yield break;
         }
 
-        CheckingExerciseDto? target = window.FindExercise(exercise);
+        CheckingExerciseDto? target = exerciseId is { } targetId ? window.Exercises.SingleOrDefault(e => e.Id == targetId) : window.FindExercise(exercise);
 
         if (target is null)
         {
@@ -96,39 +96,7 @@ public class ValidateWindowController(IWindowService windowService, ICsvSchemaFi
             yield break;
         }
 
-        // A Post16 pupil-data exercise supplies two datasets (included + non-included) and a
-        // results enquiry supplies one per source file in the results feed; every other pupil-data
-        // exercise supplies a single dataset. They are ingested in a single run so every population
-        // lands in one blob per school — which is why a run is per exercise and not per dataset.
-        IReadOnlyList<IngressDataset> datasets = target.DatasetsToIngest
-            .Select(d => new IngressDataset(
-                d.Name,
-                d.IngressFile,
-                d.IngressFileChecksum,
-                d.SchemaFile,
-                d.SchemaFileChecksum,
-                d.Included,
-                d.SourceFile))
-            .ToList();
-
-        await foreach (ValidationProgress progress in processor.ProcessAsync(
-                           window.Id,
-                           exercise,
-                           datasets,
-                           cancellationToken: cancellationToken))
-        {
-            if (progress is { IsComplete: true, IsError: false })
-            {
-                // Stamped with the checksums of the files this run actually read, so replacing one
-                // afterwards leaves a stamp the summary page can show as stale rather than as a
-                // clean bill of health for data nobody validated.
-                target.ValidatedAt = DateTime.UtcNow;
-                target.ValidatedIngressChecksum = target.CurrentIngressChecksum;
-                target.ValidatedSchemaChecksum = target.CurrentSchemaChecksum;
-                await windowService.UpdateAsync(window, cancellationToken);
-            }
-
+        await foreach (ValidationProgress progress in processor.ProcessAsync(target.Id, cancellationToken: cancellationToken))
             yield return progress;
-        }
     }
 }

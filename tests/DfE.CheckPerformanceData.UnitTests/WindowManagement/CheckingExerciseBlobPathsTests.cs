@@ -8,6 +8,31 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.WindowManagement;
 // exact strings, because a change to any of them orphans blobs that are already written.
 public sealed class CheckingExerciseBlobPathsTests
 {
+    [Fact]
+    public void Definition_files_and_schemas_share_a_flat_pair_folder()
+    {
+        var exerciseId = Guid.NewGuid();
+        var definitionId = Guid.NewGuid();
+        var file = CheckingExerciseBlobPaths.DefinitionFile(exerciseId, definitionId, "source.csv");
+        var schema = CheckingExerciseBlobPaths.DefinitionFile(exerciseId, definitionId, "schema.json");
+
+        Assert.Equal($"ingress/{exerciseId}/{definitionId}/source.csv", file);
+        Assert.Equal($"ingress/{exerciseId}/{definitionId}/schema.json", schema);
+        Assert.Equal(file, CheckingExerciseBlobPaths.IngressBlobName(file));
+        Assert.Equal(schema, CheckingExerciseBlobPaths.SchemaBlobName(schema));
+        Assert.NotEqual(file, CheckingExerciseBlobPaths.DefinitionFile(exerciseId, Guid.NewGuid(), "source.csv"));
+        Assert.NotEqual(file, CheckingExerciseBlobPaths.DefinitionFile(Guid.NewGuid(), definitionId, "source.csv"));
+    }
+
+    [Theory]
+    [InlineData("source.csv", "schema.json")]
+    [InlineData("exercises/old-exercise/definitions/old-definition/source.csv", "exercises/old-exercise/definitions/old-definition/schema.json")]
+    public void Existing_relative_paths_keep_their_original_roots(string file, string schema)
+    {
+        Assert.Equal($"ingress/{file}", CheckingExerciseBlobPaths.IngressBlobName(file));
+        Assert.Equal($"schema/{schema}", CheckingExerciseBlobPaths.SchemaBlobName(schema));
+    }
+
     private static readonly Guid WindowId = Guid.Parse("6C2E1F4A-9B7D-4E38-8A15-3D9C2B4E7F01");
 
     [Fact]

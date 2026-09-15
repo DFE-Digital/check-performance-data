@@ -40,5 +40,6 @@ public interface ICsvSchemaFileProcessor
         IReadOnlyList<IngressDataset> datasets,
         bool validateOnly = false,
         bool clearExistingFiles = false,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        Guid? checkingExerciseId = null, CheckingDataType? dataType = null);
 }

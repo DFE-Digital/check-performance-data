@@ -34,7 +34,19 @@ public static class StartupTasksExtensions
         // register handlers — nothing serves requests until app.Run().
         var seedData = app.Environment.IsDevelopment()
             || app.Configuration["SeedDevelopmentData"] == "true";
-        if (seedData)
+        var pocState = app.Configuration["CheckingExercisePoc:State"];
+        if (app.Environment.IsDevelopment() && !string.IsNullOrWhiteSpace(pocState))
+        {
+            if (!Enum.TryParse<CheckingExercisePocState>(pocState, out var state) || !Enum.IsDefined(state))
+                throw new InvalidOperationException("Unknown CheckingExercisePoc state.");
+            using var scope = app.Services.CreateScope();
+            await CheckingExercisePocSeed.ApplyAsync(
+                scope.ServiceProvider.GetRequiredService<PortalDbContext>(),
+                scope.ServiceProvider.GetRequiredService<Azure.Storage.Blobs.BlobServiceClient>(),
+                scope.ServiceProvider.GetRequiredService<DfE.CheckPerformanceData.Infrastructure.Ingress.ICheckingExerciseIngress>(),
+                state, scope.ServiceProvider.GetRequiredService<TimeProvider>().GetLocalNow().DateTime);
+        }
+        else if (seedData)
         {
             using var scope = app.Services.CreateScope();
             await scope.ServiceProvider.GetRequiredService<IDevDataSeedingOrchestrator>().RunAsync();

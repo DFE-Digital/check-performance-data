@@ -123,13 +123,13 @@ public sealed class ExercisesController(IWindowService windowService) : Controll
         // then edits, not an answer — but it means the window is never left holding an exercise with
         // no dates at all, which the union that derives the outer pair could not survive.
         window.Exercises = wanted
-            .Select(type => window.FindExercise(type) ?? new CheckingExerciseDto
+            .SelectMany(type => window.Exercises.Where(e => e.ExerciseType == type).DefaultIfEmpty(new CheckingExerciseDto
             {
                 ExerciseType = type,
                 StartDate = window.StartDate,
                 EndDate = window.EndDate,
                 SortOrder = WindowExercises.SortOrderFor(type)
-            })
+            }))
             .ToList();
 
         await windowService.UpdateAsync(window, cancellationToken);
@@ -146,15 +146,15 @@ public sealed class ExercisesController(IWindowService windowService) : Controll
     private static ExercisesItem Redisplay(
         ExercisesItem model, string? postUrl, string? cancelUrl, Guid windowId = default,
         CheckingWindowDto? window = null) => new()
-    {
-        WindowId = windowId,
-        All = AllExercises,
-        Selected = model.Selected,
-        WithFiles = window is null
+        {
+            WindowId = windowId,
+            All = AllExercises,
+            Selected = model.Selected,
+            WithFiles = window is null
             ? []
             : window.Exercises.Where(e => e.Datasets.Any(d => d.IsComplete))
                 .Select(e => e.ExerciseType).ToList(),
-        PostUrl = postUrl,
-        CancelUrl = cancelUrl
-    };
+            PostUrl = postUrl,
+            CancelUrl = cancelUrl
+        };
 }

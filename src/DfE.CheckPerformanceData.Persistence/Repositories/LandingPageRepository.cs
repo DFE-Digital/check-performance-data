@@ -41,6 +41,13 @@ public sealed class LandingPageRepository(
                     .Select(e => new CheckingExerciseDto
                     {
                         Id = e.Id,
+                        DataType = e.DataType,
+                        TabName = e.TabName,
+                        IsEnabled = e.IsEnabled,
+                        VisibleFrom = e.VisibleFrom,
+                        VisibleUntil = e.VisibleUntil,
+                        WindowStart = w.StartDate,
+                        WindowEnd = w.EndDate,
                         ExerciseType = e.ExerciseType,
                         StartDate = e.StartDate,
                         EndDate = e.EndDate,

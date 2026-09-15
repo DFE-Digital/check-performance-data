@@ -52,7 +52,7 @@ public class CheckingExerciseMappingTests
     }
 
     [Fact]
-    public void One_exercise_type_may_appear_only_once_per_window()
+    public void Multiple_exercises_of_the_same_type_can_share_a_window()
     {
         var index = Assert.Single(
             ExerciseEntity().GetIndexes(),
@@ -60,18 +60,30 @@ public class CheckingExerciseMappingTests
                 new[] { nameof(CheckingExercise.CheckingWindowId), nameof(CheckingExercise.ExerciseType) }));
 
         Assert.True(index.IsUnique);
+        Assert.Equal("\"UsesExerciseStorage\" = false", index.GetFilter());
     }
 
     [Fact]
     public void Deleting_a_window_cascades_to_its_exercises()
     {
-        var foreignKey = Assert.Single(ExerciseEntity().GetForeignKeys());
+        var foreignKey = Assert.Single(ExerciseEntity().GetForeignKeys(),
+            fk => fk.PrincipalEntityType.ClrType == typeof(CheckingWindow));
 
         Assert.Equal(typeof(CheckingWindow), foreignKey.PrincipalEntityType.ClrType);
         Assert.Equal(DeleteBehavior.Cascade, foreignKey.DeleteBehavior);
         Assert.Equal(
             nameof(CheckingWindow.CheckingExercises),
             foreignKey.PrincipalToDependent!.Name);
+    }
+
+    [Fact]
+    public void Lineage_is_nullable_and_prevents_deleting_a_replaced_exercise()
+    {
+        var foreignKey = Assert.Single(ExerciseEntity().GetForeignKeys(),
+            fk => fk.PrincipalEntityType.ClrType == typeof(CheckingExercise));
+        Assert.Equal(DeleteBehavior.Restrict, foreignKey.DeleteBehavior);
+        Assert.Equal(nameof(CheckingExercise.ReplacesCheckingExerciseId), Assert.Single(foreignKey.Properties).Name);
+        Assert.True(Assert.Single(foreignKey.Properties).IsNullable);
     }
 
     // Every type stores as its own member name, and the column is wide enough for all of them, so

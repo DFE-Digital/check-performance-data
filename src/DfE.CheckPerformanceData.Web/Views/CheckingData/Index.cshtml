@@ -1,0 +1,51 @@
+@model IReadOnlyList<DfE.CheckPerformanceData.Web.Controllers.CheckingDataTab>
+@{
+    ViewBag.Title = "Check data";
+    Layout = "_Layout";
+}
+<h1 class="govuk-heading-xl">Check data</h1>
+@if (Model.Count == 0)
+{
+    <p class="govuk-body">There are no checking exercises available for your school.</p>
+}
+else
+{
+    <govuk-tabs>
+        @foreach (var tab in Model)
+        {
+            <govuk-tabs-item id="exercise-@tab.Exercise.Id" label="@tab.Exercise.TabName">
+                <h2 class="govuk-heading-l">@tab.Exercise.Name</h2>
+                <p class="govuk-body">@(tab.CanAct ? "Checking is open." : "Checking is closed. You can still view and download your data.")</p>
+                <p class="govuk-body"><a asp-action="Download" asp-route-exerciseId="@tab.Exercise.Id">Download @tab.Exercise.TabName data (JSON)</a></p>
+                <div style="overflow-x: auto" tabindex="0" role="region" aria-label="@tab.Exercise.Name">
+                    <table class="govuk-table">
+                        <caption class="govuk-table__caption govuk-table__caption--m">@tab.Exercise.TabName</caption>
+                        <thead class="govuk-table__head"><tr class="govuk-table__row">
+                            @foreach (var column in tab.Columns)
+                            {
+                                <th scope="col" class="govuk-table__header">@column</th>
+                            }
+                        </tr></thead>
+                        <tbody class="govuk-table__body">
+                            @foreach (var row in tab.Rows)
+                            {
+                                <tr class="govuk-table__row">
+                                    @foreach (var column in tab.Columns)
+                                    {
+                                        <td class="govuk-table__cell">@row.GetValueOrDefault(column)</td>
+                                    }
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                @if (tab.CanAct)
+                {
+                    <form method="post" asp-action="Start" asp-route-exerciseId="@tab.Exercise.Id">
+                        <govuk-button type="submit">Request a change to @tab.Exercise.TabName</govuk-button>
+                    </form>
+                }
+            </govuk-tabs-item>
+        }
+    </govuk-tabs>
+}

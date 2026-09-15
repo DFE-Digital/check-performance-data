@@ -18,6 +18,16 @@ public sealed class CheckingExercise
     public Guid Id { get; init; }
     public Guid CheckingWindowId { get; set; }
     public CheckingExerciseType ExerciseType { get; init; }
+    public bool UsesExerciseStorage { get; init; } = true;
+    public string? Name { get; set; }
+    public string? Stage { get; set; }
+    public string? TabName { get; set; }
+    public int TabOrder { get; set; }
+    public CheckingDataType? DataType { get; set; }
+    public bool IsEnabled { get; set; }
+    public DateTime? VisibleFrom { get; set; }
+    public DateTime? VisibleUntil { get; set; }
+    public Guid? ReplacesCheckingExerciseId { get; set; }
 
     // Settable since #319: the admin wizard captures each exercise's dates, so an existing row has
     // to be able to take new ones. Before that nothing could change them once written.
@@ -66,6 +76,14 @@ public sealed class CheckingExerciseConfiguration : IEntityTypeConfiguration<Che
         builder.ToTable("CheckingExercises");
 
         builder.HasKey(x => x.Id);
+        builder.Property(x => x.Name).HasMaxLength(200);
+        builder.Property(x => x.Stage).HasMaxLength(100);
+        builder.Property(x => x.TabName).HasMaxLength(100);
+        builder.Property(x => x.DataType).HasConversion<string>().HasMaxLength(50);
+        builder.Property(x => x.VisibleFrom).HasColumnType("timestamp without time zone");
+        builder.Property(x => x.VisibleUntil).HasColumnType("timestamp without time zone");
+        builder.HasOne<CheckingExercise>().WithMany()
+            .HasForeignKey(x => x.ReplacesCheckingExerciseId).OnDelete(DeleteBehavior.Restrict);
 
         builder.Property(x => x.Id)
             .HasDefaultValueSql("gen_random_uuid()");
@@ -88,9 +106,10 @@ public sealed class CheckingExerciseConfiguration : IEntityTypeConfiguration<Che
             .HasForeignKey(x => x.CheckingWindowId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // One row per exercise type per window: the lookup #315 does. This caps repeats of a type,
-        // never how many types a window may hold.
-        builder.HasIndex(x => new { x.CheckingWindowId, x.ExerciseType }).IsUnique();
+        // Only historic Window/type paths need uniqueness. New exercise-ID storage allows
+        // multiple releases and output types in the same scheduling Window.
+        builder.HasIndex(x => new { x.CheckingWindowId, x.ExerciseType })
+            .IsUnique().HasFilter("\"UsesExerciseStorage\" = false");
 
         builder.OwnsOne(x => x.Validated, validated =>
         {

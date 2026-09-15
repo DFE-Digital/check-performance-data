@@ -23,6 +23,37 @@ namespace DfE.CheckPerformanceData.Application.WindowManagement;
 /// </remarks>
 public static class CheckingExerciseBlobPaths
 {
+    public static string DefinitionFile(Guid exerciseId, Guid definitionId, string filename)
+        => $"ingress/{exerciseId}/{definitionId}/{Path.GetFileName(filename)}";
+
+    // New definitions store the complete blob name. Earlier definitions store paths relative
+    // to separate ingress/schema roots; keep those records readable without moving their blobs.
+    public static string IngressBlobName(string storedPath)
+        => storedPath.StartsWith("ingress/", StringComparison.Ordinal) ? storedPath : $"ingress/{storedPath}";
+
+    public static string SchemaBlobName(string storedPath)
+        => storedPath.StartsWith("ingress/", StringComparison.Ordinal) ? storedPath : $"schema/{storedPath}";
+
+    public static string DataPrefix(Guid exerciseId) => $"exercises/{exerciseId}/data/";
+    public static string LogPrefix(Guid exerciseId) => $"exercises/{exerciseId}/logs/";
+    public static CheckingDataType DefaultDataType(CheckingExerciseType type) => type switch
+    {
+        CheckingExerciseType.PupilData => CheckingDataType.Pupil,
+        CheckingExerciseType.ResultsEnquiry => CheckingDataType.Results,
+        _ => throw new ArgumentOutOfRangeException(nameof(type))
+    };
+
+    public static string DataBlobName(Guid exerciseId, CheckingDataType type, string laestab)
+        => $"{DataPrefix(exerciseId)}{laestab.Replace("/", string.Empty)}_{type switch
+        {
+            CheckingDataType.Pupil => "pupils",
+            CheckingDataType.Results => "results",
+            CheckingDataType.PreviouslyPublished => "previously-published",
+            CheckingDataType.ValueAdded => "value-added",
+            CheckingDataType.Other => "data",
+            _ => throw new ArgumentOutOfRangeException(nameof(type))
+        }}.json";
+
     /// <summary>Everything an exercise writes sits under this prefix. Empty for pupil data.</summary>
     /// <exception cref="ArgumentOutOfRangeException">
     /// The exercise has no prefix mapping. There is no default case on purpose: a new exercise type

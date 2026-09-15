@@ -71,6 +71,19 @@ public sealed class CheckingWindowDto
 
 public sealed class CheckingExerciseDto
 {
+    public bool UsesExerciseStorage { get; init; } = true;
+    public CheckingDataType? DataType { get; init; }
+    public string? Name { get; init; }
+    public string? Stage { get; init; }
+    public int TabOrder { get; init; }
+    public Guid? ReplacesCheckingExerciseId { get; init; }
+    // Null TabName preserves the legacy action rules for exercises outside the POC.
+    public string? TabName { get; init; }
+    public bool IsEnabled { get; init; }
+    public DateTime? VisibleFrom { get; init; }
+    public DateTime? VisibleUntil { get; init; }
+    public DateTime? WindowStart { get; init; }
+    public DateTime? WindowEnd { get; init; }
     public Guid Id { get; init; }
     public required CheckingExerciseType ExerciseType { get; init; }
     public required DateTime StartDate { get; set; }
@@ -200,7 +213,7 @@ public static class WindowDatasets
                 new CheckingWindowDatasetDto { Name = Included, Included = true, SortOrder = 0 },
                 new CheckingWindowDatasetDto { Name = NonIncluded, Included = false, SortOrder = 1 }
             ]
-            : [ new CheckingWindowDatasetDto { Name = Pupils, Included = null, SortOrder = 0 } ];
+            : [new CheckingWindowDatasetDto { Name = Pupils, Included = null, SortOrder = 0 }];
 
     // One slot per source file. The slot is named by the tag it stamps, so the admin uploading the
     // files sees the supplier's own file names and a dataset can never be given the wrong tag.

@@ -5,9 +5,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 
-public sealed class SummaryController(IWindowService windowService): Controller
+public sealed class SummaryController(IWindowService windowService) : Controller
 {
-   
+
     [HttpGet("admin/windows/summary/{id:guid}")]
     public async Task<IActionResult> Index(Guid id, CancellationToken cancellationToken)
     {
@@ -35,8 +35,9 @@ public sealed class SummaryController(IWindowService windowService): Controller
                 .Select(e => new ExerciseSummarySection
                 {
                     WindowId = w.Id,
+                    ExerciseId = e.Id,
                     ExerciseType = e.ExerciseType,
-                    Label = ExerciseLabels.For(e.ExerciseType),
+                    Label = e.Name ?? ExerciseLabels.For(e.ExerciseType),
                     StartDate = e.StartDate,
                     EndDate = e.EndDate,
                     IsValidated = e.IsValidated,
@@ -47,6 +48,7 @@ public sealed class SummaryController(IWindowService windowService): Controller
                         .Select(d => new DatasetSummaryRow
                         {
                             WindowId = w.Id,
+                            ExerciseId = e.Id,
                             Exercise = e.ExerciseType,
                             Name = d.Name,
                             Label = DatasetLabels.For(d.Name),

@@ -180,7 +180,7 @@ public class WindowExercisesTests
     // The dataset slots follow the window type, so switching type replaces slots the new type does
     // not have. Post16 supplies two named files; KS2 supplies one under a different name.
     [Fact]
-    public async Task Changing_the_window_type_replaces_the_slots_the_new_type_does_not_use()
+    public async Task Changing_the_window_type_preserves_the_exercises_configured_definitions()
     {
         IWindowRepository repository = Substitute.For<IWindowRepository>();
         CheckingWindowDto? persisted = null;
@@ -198,7 +198,7 @@ public class WindowExercisesTests
         await service.UpdateAsync(window, CancellationToken.None);
 
         Assert.Equal(
-            ["included", "nonincluded"],
+            ["pupils"],
             Assert.Single(persisted!.Exercises).Datasets.Select(d => d.Name));
     }
 

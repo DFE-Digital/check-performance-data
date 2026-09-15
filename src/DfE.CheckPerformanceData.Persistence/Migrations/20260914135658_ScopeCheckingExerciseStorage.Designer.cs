@@ -3,6 +3,7 @@ using System;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using NpgsqlTypes;
@@ -12,9 +13,11 @@ using NpgsqlTypes;
 namespace DfE.CheckPerformanceData.Persistence.Migrations
 {
     [DbContext(typeof(PortalDbContext))]
-    partial class PortalDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260914135658_ScopeCheckingExerciseStorage")]
+    partial class ScopeCheckingExerciseStorage
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -705,9 +708,7 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
 
                     b.HasIndex("ReplacesCheckingExerciseId");
 
-                    b.HasIndex("CheckingWindowId", "ExerciseType")
-                        .IsUnique()
-                        .HasFilter("\"UsesExerciseStorage\" = false");
+                    b.HasIndex("CheckingWindowId", "ExerciseType");
 
                     b.ToTable("CheckingExercises", (string)null);
                 });

@@ -76,10 +76,10 @@ public sealed class ExerciseDatesController(IWindowService windowService) : Cont
     }
 
     [HttpGet("admin/windows/{id:guid}/exercises/{exercise}/dates")]
-    public async Task<IActionResult> Edit(Guid id, CheckingExerciseType exercise, CancellationToken cancellationToken)
+    public async Task<IActionResult> Edit(Guid id, CheckingExerciseType exercise, CancellationToken cancellationToken, Guid? exerciseId = null)
     {
         CheckingWindowDto? window = await windowService.GetByIdAsync(id, cancellationToken);
-        CheckingExerciseDto? target = window?.FindExercise(exercise);
+        CheckingExerciseDto? target = (exerciseId is { } targetId ? window?.Exercises.SingleOrDefault(e => e.Id == targetId) : window?.FindExercise(exercise));
 
         if (target is null)
         {
@@ -87,24 +87,24 @@ public sealed class ExerciseDatesController(IWindowService windowService) : Cont
         }
 
         return View(PageView, Model(id, exercise, target.StartDate, target.EndDate,
-            Url.Action("Update", "ExerciseDates", new { id, exercise }),
+            Url.Action("Update", "ExerciseDates", new { id, exercise, exerciseId }),
             Url.Action("Index", "Summary", new { id })));
     }
 
     [HttpPost("admin/windows/{id:guid}/exercises/{exercise}/dates")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Update(
-        Guid id, CheckingExerciseType exercise, ExerciseDatesItem model, CancellationToken cancellationToken)
+        Guid id, CheckingExerciseType exercise, ExerciseDatesItem model, CancellationToken cancellationToken, Guid? exerciseId = null)
     {
         CheckingWindowDto? window = await windowService.GetByIdAsync(id, cancellationToken);
-        CheckingExerciseDto? target = window?.FindExercise(exercise);
+        CheckingExerciseDto? target = (exerciseId is { } targetId ? window?.Exercises.SingleOrDefault(e => e.Id == targetId) : window?.FindExercise(exercise));
 
         if (window is null || target is null)
         {
             return NotFound();
         }
 
-        Decorate(model, exercise, Url.Action("Update", "ExerciseDates", new { id, exercise }),
+        Decorate(model, exercise, Url.Action("Update", "ExerciseDates", new { id, exercise, exerciseId }),
             Url.Action("Index", "Summary", new { id }));
 
         if (ModelState.IsValid)

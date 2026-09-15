@@ -22,7 +22,7 @@ public class SchemaController(
     // and dataset names are only unique within one — "pupils" could belong to either once a
     // second exercise gains slots.
     [HttpGet("admin/windows/{id:guid}/{exercise}/schema-file/{dataset}")]
-    public async Task<IActionResult> Index(Guid id, CheckingExerciseType exercise, string dataset, CancellationToken cancellationToken)
+    public async Task<IActionResult> Index(Guid id, CheckingExerciseType exercise, string dataset, CancellationToken cancellationToken, Guid? exerciseId = null)
     {
         CheckingWindowDto? window = await windowService.GetByIdAsync(id, cancellationToken);
 
@@ -31,7 +31,7 @@ public class SchemaController(
             return NotFound();
         }
 
-        CheckingWindowDatasetDto? target = FindDataset(window, exercise, dataset);
+        CheckingWindowDatasetDto? target = FindDataset(window, exercise, dataset, exerciseId);
 
         if (target is null)
         {
@@ -44,14 +44,14 @@ public class SchemaController(
             SchemaFile = target.SchemaFile,
             Dataset = target.Name,
             DatasetLabel = DatasetLabels.For(target.Name),
-            PostUrl = Url.Action("Submit", "Schema", new { id = window.Id, exercise, dataset = target.Name }),
+            PostUrl = Url.Action("Submit", "Schema", new { id = window.Id, exercise, dataset = target.Name, exerciseId }),
         };
         return View(PageView, model);
     }
 
     [HttpPost("admin/windows/{id:guid}/{exercise}/schema-file/{dataset}")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Submit(Guid id, CheckingExerciseType exercise, string dataset, SchemaItem model, CancellationToken cancellationToken)
+    public async Task<IActionResult> Submit(Guid id, CheckingExerciseType exercise, string dataset, SchemaItem model, CancellationToken cancellationToken, Guid? exerciseId = null)
     {
         if (id != model.WindowId)
         {
@@ -69,6 +69,10 @@ public class SchemaController(
         {
             return NotFound();
         }
+
+        var target = FindDataset(window, exercise, dataset, exerciseId);
+        var owner = exerciseId is { } selectedId ? window.Exercises.SingleOrDefault(e => e.Id == selectedId) : window.FindExercise(exercise);
+        if (target is null || owner is null) return NotFound();
 
         using var buffer = new MemoryStream();
         await using (Stream upload = model.Schema.OpenReadStream())
@@ -95,8 +99,8 @@ public class SchemaController(
         BlobContainerClient destinationContainer = appBlobClient.GetBlobContainerClient(id.ToString());
         await destinationContainer.CreateIfNotExistsAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
 
-        string schemaFileName = Path.GetFileName(model.Schema.FileName);
-        string blobName = $"schema/{schemaFileName}";
+        string schemaFileName = CheckingExerciseBlobPaths.DefinitionFile(owner.Id, target.Id, model.Schema.FileName);
+        string blobName = schemaFileName;
         BlobClient destinationBlob = destinationContainer.GetBlobClient(blobName);
 
         buffer.Position = 0;
@@ -108,13 +112,6 @@ public class SchemaController(
                 Metadata = new Dictionary<string, string> { ["sha256"] = checksum }
             },
             cancellationToken);
-
-        CheckingWindowDatasetDto? target = FindDataset(window, exercise, dataset);
-
-        if (target is null)
-        {
-            return NotFound();
-        }
 
         target.SchemaFile = schemaFileName;
         target.SchemaFileChecksum = checksum;
@@ -132,6 +129,6 @@ public class SchemaController(
     }
 
     private static CheckingWindowDatasetDto? FindDataset(
-        CheckingWindowDto window, CheckingExerciseType exercise, string dataset) =>
-        window.FindExercise(exercise)?.Datasets.SingleOrDefault(d => d.Name == dataset);
+        CheckingWindowDto window, CheckingExerciseType exercise, string dataset, Guid? exerciseId = null) =>
+        (exerciseId is { } id ? window.Exercises.SingleOrDefault(e => e.Id == id) : window.FindExercise(exercise))?.Datasets.SingleOrDefault(d => d.Name == dataset);
 }

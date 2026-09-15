@@ -65,6 +65,13 @@ public sealed class CheckYourPupilDataRepository(
                     .Select(e => new CheckingExerciseDto
                     {
                         Id = e.Id,
+                        DataType = e.DataType,
+                        TabName = e.TabName,
+                        IsEnabled = e.IsEnabled,
+                        VisibleFrom = e.VisibleFrom,
+                        VisibleUntil = e.VisibleUntil,
+                        WindowStart = w.StartDate,
+                        WindowEnd = w.EndDate,
                         ExerciseType = e.ExerciseType,
                         StartDate = e.StartDate,
                         EndDate = e.EndDate,
@@ -126,16 +133,19 @@ public sealed class CheckYourPupilDataRepository(
 
     private async Task<SchoolPupilsCacheEntry> GetSchoolPupilsWithWindowTypeAsync(Guid windowId, string laestab)
     {
-        var key = $"pupils:{windowId}:{laestab}";
+        var version = cache.Get<Guid?>($"pupil-window-version:{windowId}");
+        var key = $"pupils:{windowId}:{laestab}:{version}";
         if (cache.TryGetValue(key, out SchoolPupilsCacheEntry? cached) && cached is not null)
             return cached;
+        var window = await GetCheckingWindowAsync(windowId);
+        // Configured releases can switch visibility with the clock, so their reader resolves fresh.
+        var cacheable = window.Exercises.All(e => e.TabName is null);
 
         // The blob's record shape depends on the window type, so the window is resolved first.
-        var window = await GetCheckingWindowAsync(windowId);
         var pupils = await pupilDataBlobClient.GetPupilsAsync(
             windowId, CheckingExerciseType.PupilData, laestab, window.CheckingWindowType) ?? [];
         var entry = new SchoolPupilsCacheEntry(pupils, window.CheckingWindowType);
-        cache.Set(key, entry, new MemoryCacheEntryOptions { SlidingExpiration = CacheSlidingExpiry });
+        if (cacheable) cache.Set(key, entry, new MemoryCacheEntryOptions { SlidingExpiration = CacheSlidingExpiry });
         return entry;
     }
 

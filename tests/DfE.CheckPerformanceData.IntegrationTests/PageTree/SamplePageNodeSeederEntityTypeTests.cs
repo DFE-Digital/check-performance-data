@@ -52,9 +52,9 @@ public sealed class SamplePageNodeSeederEntityTypeTests
         await using (var ctx = _fixture.CreateContext())
         {
             var seeder = new SamplePageNodeSeeder(BuildStaging(ctx));
+            var expected = SampleContentSeedBundle.Load().PageNodes.Count;
             created = await seeder.SeedAsync();
-            Assert.True(created >= 13,
-                $"Seeder should create every sample page under the four roots; got {created}.");
+            Assert.Equal(expected, created);
         }
 
         await using var conn = new NpgsqlConnection(_fixture.ConnectionString);
@@ -65,16 +65,16 @@ public sealed class SamplePageNodeSeederEntityTypeTests
             "SELECT COUNT(*) FROM \"PageNodes\" WHERE \"ParentId\" IS NOT NULL;");
         var pageNodeVersionCount = await ScalarLongAsync(conn,
             "SELECT COUNT(*) FROM \"PageNodeVersions\";");
-        Assert.True(pageNodeCount >= 13,
-            $"Expected at least 13 sample-page PageNode rows; got {pageNodeCount}.");
-        Assert.True(pageNodeVersionCount >= 13,
-            $"Expected at least 13 PageNodeVersion rows; got {pageNodeVersionCount}.");
+        Assert.True(pageNodeCount >= created,
+            $"Expected at least {created} sample-page PageNode rows; got {pageNodeCount}.");
+        Assert.True(pageNodeVersionCount >= created,
+            $"Expected at least {created} PageNodeVersion rows; got {pageNodeVersionCount}.");
 
         // Every sample must end up published, or it 404s on the front end and the samples are
         // useless for browsing and for the browser tests that navigate to them.
         var publishedCount = await ScalarLongAsync(conn,
             "SELECT COUNT(*) FROM \"PageNodeVersions\" WHERE \"PublishFrom\" IS NOT NULL;");
-        Assert.True(publishedCount >= 13,
+        Assert.True(publishedCount >= created,
             $"Expected every sample to have a published version; got {publishedCount}.");
 
         // Retired wiki tables must not exist in the current schema — the DropWikiPagePlumbing

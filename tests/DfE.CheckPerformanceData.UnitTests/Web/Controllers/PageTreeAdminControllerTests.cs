@@ -1,6 +1,7 @@
 using System.Reflection;
 using DfE.CheckPerformanceData.Application.Common;
 using DfE.CheckPerformanceData.Application.ContentPages;
+using DfE.CheckPerformanceData.Application.ContentStaging;
 using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Web.Admin;
@@ -10,6 +11,7 @@ using DfE.CheckPerformanceData.Web.Models.PageTree;
 using DfE.CheckPerformanceData.Web.PageTree;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Hosting;
 using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Controllers;
@@ -24,13 +26,53 @@ public sealed class PageTreeAdminControllerTests
     private readonly IHtmlRenderingService _renderer = Substitute.For<IHtmlRenderingService>();
     private readonly IPageNodeContentEditor _contentEditor = Substitute.For<IPageNodeContentEditor>();
     private readonly ISettingService _settings = Substitute.For<ISettingService>();
-    private readonly SamplePageNodeSeeder _sampleSeeder =
-        new(Substitute.For<DfE.CheckPerformanceData.Application.ContentStaging.IContentStagingService>());
+    // Both seeders are concrete classes with no virtual members, so they are built for real over
+    // substituted collaborators. Asserting on the staging substitute is then the same thing as
+    // asserting on whether that seeder ran.
+    private readonly IContentStagingService _sampleStaging = Substitute.For<IContentStagingService>();
+    private readonly IContentStagingService _fixtureStaging = Substitute.For<IContentStagingService>();
+    private readonly IPageNodeService _fixturePages = Substitute.For<IPageNodeService>();
+    private readonly IPageNodeRepository _fixtureRepository = Substitute.For<IPageNodeRepository>();
 
-    private PageTreeAdminController Sut(PageNodePathValidator? validator = null)
+    public PageTreeAdminControllerTests()
     {
+        StubImport(_sampleStaging, new ContentImportResult());
+        StubImport(_fixtureStaging, new ContentImportResult());
+
+        // The fixture seeder creates its root before importing; without a row coming back it would
+        // fail on the returned node's Id rather than on anything these tests are about.
+        _fixtureRepository.CreateNodeForStagingAsync(
+                Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(),
+                Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<int>(),
+                Arg.Any<bool>(), Arg.Any<string?>(), Arg.Any<string?>())
+            .Returns(new PageNodeDto
+            {
+                Id = DefaultPageNodeRoots.DevelopmentTestingRootId,
+                Segment = DefaultPageNodeRoots.DevelopmentTestingSegment,
+                Path = DefaultPageNodeRoots.DevelopmentTestingSegment,
+                Title = "Development testing",
+                PageType = "folder",
+            });
+    }
+
+    private static void StubImport(IContentStagingService staging, ContentImportResult result) =>
+        staging.ImportAsync(
+                Arg.Any<ContentBundle>(), Arg.Any<ContentImportMode>(),
+                Arg.Any<IReadOnlyDictionary<Guid, ContentImportMode>?>(), Arg.Any<ContentImportMode>())
+            .Returns(result);
+
+    private PageTreeAdminController Sut(
+        PageNodePathValidator? validator = null,
+        string? environmentName = null)
+    {
+        var environment = Substitute.For<IHostEnvironment>();
+        environment.EnvironmentName.Returns(environmentName ?? Environments.Development);
+
         var controller = new PageTreeAdminController(
-            _service, validator ?? OpenValidator(), _renderer, _contentEditor, _settings, _sampleSeeder);
+            _service, validator ?? OpenValidator(), _renderer, _contentEditor, _settings,
+            new SamplePageNodeSeeder(_sampleStaging),
+            new TestFixturePageNodeSeeder(_fixturePages, _fixtureRepository, _fixtureStaging),
+            environment);
         controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext()
@@ -1701,5 +1743,52 @@ public sealed class PageTreeAdminControllerTests
         var method = typeof(PageTreeAdminController).GetMethod(nameof(PageTreeAdminController.Copy))!;
         Assert.NotNull(method.GetCustomAttribute<ValidateAntiForgeryTokenAttribute>());
         Assert.NotNull(method.GetCustomAttribute<HttpPostAttribute>());
+    }
+
+    // ── Seed sample pages ────────────────────────────────────────────────────
+
+    // One button, two seeds. Sample content is demonstration material for editors; fixture content
+    // is what the automated browser tests navigate to. A developer pressing this wants both, and
+    // separating them into two buttons would only mean remembering to press two.
+    [Fact]
+    public async Task SampleSeed_OutsideProduction_SeedsTheTestFixturesAlongsideTheSamples()
+    {
+        StubImport(_fixtureStaging, new ContentImportResult { PageNodesUpdated = 3 });
+
+        var result = await Sut(environmentName: Environments.Development).SampleSeed();
+
+        Assert.IsType<RedirectResult>(result);
+        await _fixtureStaging.Received(1).ImportAsync(
+            Arg.Any<ContentBundle>(), Arg.Any<ContentImportMode>(),
+            Arg.Any<IReadOnlyDictionary<Guid, ContentImportMode>?>(), Arg.Any<ContentImportMode>());
+    }
+
+    // Production is the one environment where nothing runs the browser suite and nobody wants a
+    // tree of test pages appearing in the CMS. The sample seed still runs — that is editor-facing
+    // demonstration content and is not what this gate is about.
+    [Fact]
+    public async Task SampleSeed_InProduction_SeedsNoTestFixtures()
+    {
+        var result = await Sut(environmentName: Environments.Production).SampleSeed();
+
+        Assert.IsType<RedirectResult>(result);
+        await _fixtureStaging.DidNotReceive().ImportAsync(
+            Arg.Any<ContentBundle>(), Arg.Any<ContentImportMode>(),
+            Arg.Any<IReadOnlyDictionary<Guid, ContentImportMode>?>(), Arg.Any<ContentImportMode>());
+    }
+
+    // A fixture seed that repaired three emptied pages created nothing, so reporting creations
+    // alone would tell the operator nothing happened when in fact the whole tree was restored.
+    [Fact]
+    public async Task SampleSeed_ReportsWhatTheFixtureSeedRepaired()
+    {
+        StubImport(_fixtureStaging, new ContentImportResult { PageNodesUpdated = 3 });
+
+        var controller = Sut(environmentName: Environments.Development);
+        await controller.SampleSeed();
+
+        var message = Assert.IsType<string>(controller.TempData["SampleSeedResult"]);
+        Assert.Contains("3 test fixture pages", message);
+        Assert.Contains(DefaultPageNodeRoots.DevelopmentTestingSegment, message);
     }
 }

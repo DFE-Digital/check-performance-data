@@ -102,6 +102,44 @@
                                         <option value="children" selected="@(pnMode == "children" ? "selected" : null)">Child pages</option>
                                     </select>
                                 </div>
+                                @* Heading-levels: which levels the contents list covers. Shown when
+                                   mode=headings. The chosen levels nest in the order they are
+                                   chosen, so ticking H2 and H4 on a page that skips H3 puts the
+                                   H4s directly under the H2s. *@
+                                <div class="govuk-form-group cpb-pagenav__headings-fields" data-cpb-pagenav-headings @(pnMode == "headings" ? null : Html.Raw("hidden"))>
+                                    <fieldset class="govuk-fieldset">
+                                        <legend class="govuk-fieldset__legend">Heading levels to show</legend>
+                                        <div class="govuk-hint">
+                                            They nest in the order ticked. If this page skips a level —
+                                            H2s and H4s but no H3s — tick just the ones it uses.
+                                        </div>
+                                        <div class="govuk-checkboxes govuk-checkboxes--small govuk-checkboxes--inline" data-module="govuk-checkboxes">
+                                            @for (var lvl = 1; lvl <= 6; lvl++)
+                                            {
+                                                var lvlKey = $"h{lvl}";
+                                                // A widget placed before these existed declares none of them, and
+                                                // means the default pair rather than nothing.
+                                                var declared = w.Props?.ContainsKey(lvlKey) == true;
+                                                var ticked = declared ? (w.GetBool(lvlKey) ?? false) : lvl is 2 or 3;
+                                                <div class="govuk-checkboxes__item">
+                                                    <input class="govuk-checkboxes__input" id="pnh@(lvl)-@Model.Path"
+                                                           name="props[@lvlKey]" type="checkbox" value="true"
+                                                           @(ticked ? "checked" : null) />
+                                                    <label class="govuk-label govuk-checkboxes__label" for="pnh@(lvl)-@Model.Path">H@(lvl)</label>
+                                                    @* An unticked box posts nothing, and the props builder keeps the
+                                                       registry default for a field it never sees — so without this,
+                                                       unticking a level that defaults to on would not turn it off.
+                                                       It goes AFTER the label, not between input and label: the
+                                                       browser posts in DOM order and the first value wins, so the
+                                                       checkbox's "true" must come first, and the GDS tick and focus
+                                                       ring are drawn by an adjacent-sibling rule on input + label
+                                                       that anything in between would break. *@
+                                                    <input type="hidden" name="props[@lvlKey]" value="false" />
+                                                </div>
+                                            }
+                                        </div>
+                                    </fieldset>
+                                </div>
                                 @* Children-only fields — shown when mode=children. The script at the bottom
                                    of Edit.cshtml toggles visibility live as the select changes. *@
                                 <div class="cpb-pagenav__children-fields" data-cpb-pagenav-children @(pnMode == "children" ? null : Html.Raw("hidden"))>

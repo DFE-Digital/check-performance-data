@@ -110,4 +110,15 @@ public class WidgetRegistryTests
 
         Assert.False(string.IsNullOrWhiteSpace((string?)props["noResultsText"]));
     }
+
+    [Fact]
+    public void CreateDefaultProps_PageNav_TicksH2AndH3Only()
+    {
+        var props = WidgetRegistry.CreateDefaultProps("pagenav");
+
+        Assert.Equal("true", (string)props["h2"]!);
+        Assert.Equal("true", (string)props["h3"]!);
+        foreach (var off in new[] { "h1", "h4", "h5", "h6" })
+            Assert.Equal("false", (string)props[off]!);
+    }
 }

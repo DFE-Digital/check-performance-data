@@ -17,7 +17,7 @@ public static class WidgetRegistry
         new("published", "Published callout", ContributesToNav: false, """{"text":""}"""),
         new("search",    "Search",            ContributesToNav: false, """{"label":"Search","placeholder":"","action":"/search","buttonText":"Search","scope":"","searchIn":"site","instant":"false","noResultsText":"No results found"}"""),
         new("results",   "Search results",    ContributesToNav: false, """{"scope":"","emptyText":"No results found."}"""),
-        new("pagenav",   "Page navigation",   ContributesToNav: false, """{"mode":"headings","childrenParentPath":"","showSearch":false,"searchPath":"","searchLabel":"Search"}""")
+        new("pagenav",   "Page navigation",   ContributesToNav: false, """{"mode":"headings","childrenParentPath":"","showSearch":false,"searchPath":"","searchLabel":"Search","h1":"false","h2":"true","h3":"true","h4":"false","h5":"false","h6":"false"}""")
     ];
 
     private static readonly Dictionary<string, WidgetDefinition> ByType =

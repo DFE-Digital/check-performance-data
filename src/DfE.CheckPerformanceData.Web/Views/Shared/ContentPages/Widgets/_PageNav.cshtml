@@ -5,8 +5,10 @@
 @*
     Page-navigation widget. Two modes:
 
-    - "headings" (default) → renders the auto-generated heading nav for the current page
-      (H2 top-level, H3 nested). Pre-computed by PageController and stashed in ViewData.
+    - "headings" (default) → renders a contents list of the current page, covering whichever
+      heading levels the author ticked (H2 and H3 unless they said otherwise). Built here from
+      the page's own tree, because the levels are this widget's choice and two nav widgets on
+      one page may legitimately want different ones.
 
     - "children" → renders a list of direct child pages. Which parent's children are listed
       is set by the childrenParentPath prop (empty = current page). Optionally shows a
@@ -50,7 +52,12 @@
     }
     else
     {
-        items = ViewData["PageHeadingNav"] as IReadOnlyList<ContentNavItem> ?? [];
+        var tree = ViewData["PageContentTree"] as IReadOnlyList<ContentNode>;
+        items = tree is not null
+            ? ContentNavBuilder.Build(tree, NavLevelSelection.For(Model))
+            // No tree in scope — the widget is being previewed in the editor, where the
+            // controller's precomputed list is the best available answer.
+            : ViewData["PageHeadingNav"] as IReadOnlyList<ContentNavItem> ?? [];
     }
 
     var showSearch = mode == "children" && (Model.GetBool("showSearch") ?? false);

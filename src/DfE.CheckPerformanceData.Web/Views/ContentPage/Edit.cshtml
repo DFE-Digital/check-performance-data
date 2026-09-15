@@ -402,6 +402,7 @@
             var wrapper = select.closest('.govuk-details__text');
             if (!wrapper) return;
             var childrenPanel = wrapper.querySelector('[data-cpb-pagenav-children]');
+            var headingsPanel = wrapper.querySelector('[data-cpb-pagenav-headings]');
             var searchCheckbox = wrapper.querySelector('[data-cpb-pagenav-showsearch]');
             var searchPanel = wrapper.querySelector('[data-cpb-pagenav-searchfields]');
             if (!childrenPanel) return;
@@ -409,6 +410,7 @@
             function refresh() {
                 var isChildren = select.value === 'children';
                 childrenPanel.hidden = !isChildren;
+                if (headingsPanel) headingsPanel.hidden = isChildren;
                 if (searchPanel) searchPanel.hidden = !isChildren || !(searchCheckbox && searchCheckbox.checked);
             }
             select.addEventListener('change', refresh);

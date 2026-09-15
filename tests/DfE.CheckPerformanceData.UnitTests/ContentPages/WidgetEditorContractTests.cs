@@ -100,6 +100,34 @@ public sealed class WidgetEditorContractTests
         Assert.Contains("props[buttonText]", b);
     }
 
+    // ----- PageNav widget -----
+
+    [Fact]
+    public void PageNav_EditorExposesAHeadingLevelBoxForEachOfH1ToH6()
+    {
+        // The boxes come out of a loop, so the source carries the bounds and the name pattern
+        // rather than six literals. That the rendered form really has six is asserted in the
+        // browser, by PageNavLevelsE2ETests.
+        var b = BranchSlice("case \"pagenav\":");
+        Assert.Contains("for (var lvl = 1; lvl <= 6; lvl++)", b);
+        Assert.Contains("name=\"props[@lvlKey]\"", b);
+        Assert.Contains("$\"h{lvl}\"", b);
+    }
+
+    [Fact]
+    public void PageNav_HeadingLevelBoxes_AreCheckboxes()
+    {
+        Assert.Contains("type=\"checkbox\" value=\"true\"", BranchSlice("case \"pagenav\":"));
+    }
+
+    [Fact]
+    public void PageNav_AWidgetPlacedBeforeTheBoxesExisted_ShowsH2AndH3Ticked()
+    {
+        // Not the same as an author unticking everything, and the editor has to render the
+        // difference or opening an old widget would look like it had been turned off.
+        Assert.Contains("lvl is 2 or 3", BranchSlice("case \"pagenav\":"));
+    }
+
     // ----- helpers -----
 
     // Returns the slice of the editor between the `case "results":` line and its `break;`.

@@ -1,3 +1,5 @@
+using DfE.CheckPerformanceData.Web.Admin;
+using DfE.CheckPerformanceData.Web.Admin.Nav;
 using Azure.Storage.Blobs;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Web.Extensions;
@@ -5,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 
+[RequireAdminSection(AdminNavKeys.NewWindow)]
 public sealed class CreateCheckingWindowController(ILogger<CreateCheckingWindowController> logger, IWindowService windowService, IReadOnlyDictionary<string, BlobServiceClient> blobClients) : Controller
 {
     private const string PageView = "~/Views/WindowAdmin/CheckingWindow.cshtml";

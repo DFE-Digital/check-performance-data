@@ -1,3 +1,5 @@
+using DfE.CheckPerformanceData.Web.Admin;
+using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.WindowManagement;
@@ -7,6 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
+[RequireAdminSection(AdminNavKeys.ManageWindow)]
 public sealed class WindowAdminController(
     IWindowService windowService,
     IQuestionFlowConfigSource questionFlows,

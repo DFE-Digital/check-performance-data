@@ -1,10 +1,13 @@
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Web.Common;
+using DfE.CheckPerformanceData.Web.Admin;
+using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 
+[RequireAdminSection(AdminNavKeys.ManageWindow)]
 public sealed class SummaryController(IWindowService windowService) : Controller
 {
 
@@ -32,11 +35,14 @@ public sealed class SummaryController(IWindowService windowService) : Controller
             // validates on its own, and a window is usable while another is still unvalidated.
             Exercises = w.Exercises
                 .OrderBy(e => e.SortOrder)
+                .ThenBy(e => e.Id)
                 .Select(e => new ExerciseSummarySection
                 {
                     WindowId = w.Id,
                     ExerciseId = e.Id,
                     ExerciseType = e.ExerciseType,
+                    TabName = e.TabName,
+                    IsEnabled = e.IsEnabled,
                     Label = e.Name ?? ExerciseLabels.For(e.ExerciseType),
                     StartDate = e.StartDate,
                     EndDate = e.EndDate,

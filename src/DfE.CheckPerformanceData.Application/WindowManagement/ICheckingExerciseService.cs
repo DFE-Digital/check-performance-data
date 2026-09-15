@@ -101,7 +101,7 @@ public sealed class CheckingExerciseService(TimeProvider timeProvider) : IChecki
 
     private static IEnumerable<CheckingExerciseDto> Candidates(IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType type, DateTime now)
         => exercises.Where(e => e.ExerciseType == type
-            && (e.DataType is null || e.DataType == CheckingExerciseBlobPaths.DefaultDataType(type)) && (e.TabName is null ||
+            && (e.TabName is null ||
             (e.IsEnabled && (e.VisibleFrom is null || e.VisibleFrom <= now) && (e.VisibleUntil is null || e.VisibleUntil > now))));
 
     private static CheckingExerciseDto? Candidate(IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType type, DateTime now)

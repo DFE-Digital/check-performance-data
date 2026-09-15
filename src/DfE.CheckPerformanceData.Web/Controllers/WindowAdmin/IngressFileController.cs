@@ -5,18 +5,23 @@ using Azure.Storage.Blobs.Models;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
+using DfE.CheckPerformanceData.Web.Admin;
+using DfE.CheckPerformanceData.Web.Admin.Nav;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 
+[RequireAdminSection(AdminNavKeys.ManageWindow)]
 public sealed class IngressFileController(ILogger<IngressFileController> logger,
     IWindowService windowService,
     IReadOnlyDictionary<string, BlobServiceClient> blobClients) : Controller
 {
     // #319: the route names the exercise — see the note on SchemaController.
     [HttpGet("admin/windows/{id:guid}/{exercise}/ingress-file/{dataset}")]
-    public async Task<IActionResult> Index(Guid id, CheckingExerciseType exercise, string dataset, CancellationToken cancellationToken, Guid? exerciseId = null)
+    public async Task<IActionResult> Index(Guid id, CheckingExerciseType exercise, string dataset, CancellationToken cancellationToken, Guid? exerciseId = null, bool returnToExercise = false)
     {
+        if (!await HasDataset(id, exercise, dataset, exerciseId, cancellationToken)) return NotFound();
+
         if (!blobClients.TryGetValue("ingress", out var ingressBlobClient))
         {
             logger.LogWarning("Ingress storage client is not configured");
@@ -39,6 +44,7 @@ public sealed class IngressFileController(ILogger<IngressFileController> logger,
             Dataset = dataset,
             DatasetLabel = DatasetLabels.For(dataset),
             ExerciseId = exerciseId,
+            ReturnToExercise = returnToExercise,
             Exercise = exercise
         };
 
@@ -46,11 +52,13 @@ public sealed class IngressFileController(ILogger<IngressFileController> logger,
     }
 
     [HttpGet("admin/windows/{id:guid}/{exercise}/ingress-file/{dataset}/browse")]
-    public async Task<IActionResult> Browse(Guid id, CheckingExerciseType exercise, string dataset, string container, string? path, CancellationToken cancellationToken, Guid? exerciseId = null)
+    public async Task<IActionResult> Browse(Guid id, CheckingExerciseType exercise, string dataset, string container, string? path, CancellationToken cancellationToken, Guid? exerciseId = null, bool returnToExercise = false)
     {
+        if (!await HasDataset(id, exercise, dataset, exerciseId, cancellationToken)) return NotFound();
+
         if (string.IsNullOrWhiteSpace(container))
         {
-            return RedirectToAction(nameof(Index), new { id, exercise, dataset, exerciseId });
+            return RedirectToAction(nameof(Index), new { id, exercise, dataset, exerciseId, returnToExercise });
         }
 
         if (!blobClients.TryGetValue("ingress", out var ingressBlobClient))
@@ -82,7 +90,7 @@ public sealed class IngressFileController(ILogger<IngressFileController> logger,
                 folders.Add(item.Prefix);
             }
 
-            if (item.IsBlob)
+            if (item.IsBlob && item.Blob.Name.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
             {
                 files.Add(item.Blob.Name);
             }
@@ -99,10 +107,23 @@ public sealed class IngressFileController(ILogger<IngressFileController> logger,
             Dataset = dataset,
             DatasetLabel = DatasetLabels.For(dataset),
             ExerciseId = exerciseId,
+            ReturnToExercise = returnToExercise,
             Exercise = exercise
         };
 
         return View("~/Views/WindowAdmin/IngressFile.cshtml", model);
+    }
+
+    private async Task<bool> HasDataset(Guid id, CheckingExerciseType type, string dataset, Guid? exerciseId, CancellationToken cancellationToken)
+    {
+        var window = await windowService.GetByIdAsync(id, cancellationToken);
+        return FindExercise(window, type, exerciseId)?.Datasets.Any(d => d.Name == dataset) == true;
+    }
+
+    private static CheckingExerciseDto? FindExercise(CheckingWindowDto? window, CheckingExerciseType type, Guid? id)
+    {
+        var matches = window?.Exercises.Where(e => e.ExerciseType == type && (id is null || e.Id == id)).Take(2).ToList();
+        return matches?.Count == 1 ? matches[0] : null;
     }
 
     private static string? GetParentPath(string? path)
@@ -126,24 +147,29 @@ public sealed class IngressFileController(ILogger<IngressFileController> logger,
     [HttpPost("admin/windows/{id:guid}/{exercise}/ingress-file/{dataset}")]
     [RequestSizeLimit(100_000_000)]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Select(Guid id, CheckingExerciseType exercise, string dataset, string selectedFile, CancellationToken cancellationToken, Guid? exerciseId = null)
+    public async Task<IActionResult> Select(Guid id, CheckingExerciseType exercise, string dataset, string selectedFile, CancellationToken cancellationToken, Guid? exerciseId = null, bool returnToExercise = false)
     {
         if (string.IsNullOrWhiteSpace(selectedFile))
         {
             ModelState.AddModelError(nameof(selectedFile), "Select an ingress file");
-            return RedirectToAction(nameof(Index), new { id, exercise, dataset, exerciseId });
+            return await Index(id, exercise, dataset, cancellationToken, exerciseId, returnToExercise);
         }
 
         int separatorIndex = selectedFile.IndexOf('/');
         if (separatorIndex <= 0 || separatorIndex == selectedFile.Length - 1)
         {
             ModelState.AddModelError(nameof(selectedFile), "Select an ingress file");
-            return RedirectToAction(nameof(Index), new { id, exercise, dataset, exerciseId });
+            return await Index(id, exercise, dataset, cancellationToken, exerciseId, returnToExercise);
         }
 
         string sourceContainer = selectedFile[..separatorIndex];
         string sourceBlobName = selectedFile[(separatorIndex + 1)..];
         string ingressFileName = sourceBlobName.Split('/').Last();
+        if (!ingressFileName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
+        {
+            ModelState.AddModelError(nameof(selectedFile), "Select a CSV file");
+            return await Index(id, exercise, dataset, cancellationToken, exerciseId, returnToExercise);
+        }
 
         if (!blobClients.TryGetValue("ingress", out var ingressBlobClient))
         {
@@ -164,7 +190,7 @@ public sealed class IngressFileController(ILogger<IngressFileController> logger,
             return NotFound();
         }
 
-        var owner = exerciseId is { } selectedId ? window.Exercises.SingleOrDefault(e => e.Id == selectedId) : window.FindExercise(exercise);
+        var owner = FindExercise(window, exercise, exerciseId);
         var target = owner?.Datasets.SingleOrDefault(d => d.Name == dataset);
         if (target is null || owner is null) return NotFound();
         ingressFileName = CheckingExerciseBlobPaths.DefinitionFile(owner.Id, target.Id, ingressFileName);
@@ -212,6 +238,8 @@ public sealed class IngressFileController(ILogger<IngressFileController> logger,
 
         await windowService.UpdateAsync(window, cancellationToken);
 
-        return RedirectToAction("index", "Summary", new { id = id });
+        return returnToExercise
+            ? RedirectToAction("Edit", "EditCheckingExercise", new { id, exerciseId = owner.Id }, "data-files")
+            : RedirectToAction("index", "Summary", new { id });
     }
 }

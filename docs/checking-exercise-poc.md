@@ -1,5 +1,15 @@
 # Independent Checking Exercises POC (first attempt, superseded)
 
+## Admin model update (September 2026)
+
+Checking exercises no longer store a separate stage or output data type. Include the stage in the exercise or tab name. The existing exercise type determines the pupil/results output filename; CSV content continues to be validated and transformed using the selected JSON schema.
+
+`20260915175109_RemoveCheckingExerciseStageAndDataType` removes the two columns. The web host applies migrations on startup. Restart the updated application to apply this change. Exercise IDs, names, dates, visibility, replacement relationships and CSV/schema definitions are preserved.
+
+If an exercise previously used a custom output type (different from its exercise type's pupil/results default), the migration clears its validation stamp. Use **Validate data** on its edit page to regenerate output from the existing CSV/schema pairs. The migration does not delete blobs. Default-output exercises retain their validation stamps.
+
+The original POC notes below describe its earlier design.
+
 This document records the first attempt. The retry replaces its separate-Window storage approach. See [current-state trace](checking-exercise-current-state.md) and [normalised implementation](checking-exercise-normalised-poc.md) for the current architecture and demo.
 
 ## Problem

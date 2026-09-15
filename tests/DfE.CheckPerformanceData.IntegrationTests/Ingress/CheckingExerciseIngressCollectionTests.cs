@@ -20,11 +20,11 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Ingress;
 public sealed class CheckingExerciseIngressCollectionTests(PostgresFixture postgres, AzuriteFixture azurite) : IClassFixture<AzuriteFixture>
 {
     [Theory]
-    [InlineData(CheckingWindowType.KS4June, 1, CheckingDataType.Pupil)]
-    [InlineData(CheckingWindowType.Post16, 2, CheckingDataType.Pupil)]
-    [InlineData(CheckingWindowType.Post16, 4, CheckingDataType.Pupil)]
-    [InlineData(CheckingWindowType.Post16, 3, CheckingDataType.ValueAdded)]
-    public async Task Generic_collection_persists_and_processes_every_correctly_paired_input(CheckingWindowType type, int count, CheckingDataType dataType)
+    [InlineData(CheckingWindowType.KS4June, 1, CheckingExerciseType.PupilData)]
+    [InlineData(CheckingWindowType.Post16, 2, CheckingExerciseType.PupilData)]
+    [InlineData(CheckingWindowType.Post16, 4, CheckingExerciseType.PupilData)]
+    [InlineData(CheckingWindowType.Post16, 3, CheckingExerciseType.ResultsEnquiry)]
+    public async Task Generic_collection_persists_and_processes_every_correctly_paired_input(CheckingWindowType type, int count, CheckingExerciseType exerciseType)
     {
         await using var db = postgres.CreateContext();
         var windows = new WindowRepository(db);
@@ -39,8 +39,8 @@ public sealed class CheckingExerciseIngressCollectionTests(PostgresFixture postg
             EndDate = now.AddDays(1),
             Exercises = [new CheckingExerciseDto
             {
-                ExerciseType = CheckingExerciseType.PupilData, StartDate = now.AddDays(-1), EndDate = now.AddDays(1),
-                Name = "Collection", TabName = "Students", DataType = dataType, IsEnabled = true,
+                ExerciseType = exerciseType, StartDate = now.AddDays(-1), EndDate = now.AddDays(1),
+                Name = "Collection", TabName = "Students", IsEnabled = true,
                 Datasets = Enumerable.Range(0, count).Select(i => new CheckingWindowDatasetDto { Name = $"pair-{i}", SortOrder = i }).ToList()
             }]
         }, default);

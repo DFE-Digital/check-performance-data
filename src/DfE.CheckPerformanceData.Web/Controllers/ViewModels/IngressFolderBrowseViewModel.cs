@@ -4,6 +4,11 @@ namespace DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 
 public class IngressFolderBrowseViewModel
 {
+    public bool ReturnToExercise { get; init; }
+    public string CancelUrl => ReturnToExercise
+        ? $"/admin/windows/{WindowId}/exercises/{ExerciseId}/edit"
+        : $"/admin/windows/summary/{WindowId}";
+
     public Guid? ExerciseId { get; init; }
     public required Guid WindowId { get; init; }
 

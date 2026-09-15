@@ -2,6 +2,11 @@ namespace DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
 
 public class SchemaItem : AdminPage
 {
+    public Guid? ExistingSchemaDatasetId { get; set; }
+
+    [Microsoft.AspNetCore.Mvc.ModelBinding.BindNever]
+    public IReadOnlyList<ExistingSchemaOption> ExistingSchemas { get; set; } = [];
+
     public IFormFile? Schema { get; set; }
     public string? SchemaFile { get; set; } = string.Empty;
 
@@ -12,3 +17,5 @@ public class SchemaItem : AdminPage
     /// <summary>Human label for the page heading, e.g. "Included pupils".</summary>
     public string DatasetLabel { get; set; } = "Pupils";
 }
+
+public sealed record ExistingSchemaOption(Guid DatasetId, string Label);

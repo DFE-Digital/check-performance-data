@@ -1,27 +1,52 @@
 @model DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin.SchemaItem
 @{
-    var error = ViewData.ModelState["Schema"]?.Errors.FirstOrDefault()?.ErrorMessage;
+    ViewBag.Title = "Choose a JSON schema";
 }
+<govuk-back-link href="@Model.CancelUrl" />
+<h1 class="govuk-heading-l">Choose a JSON schema for @Model.DatasetLabel</h1>
 
-@if (error is not null)
+@if (!ViewData.ModelState.IsValid)
 {
     <govuk-error-summary>
         <govuk-error-summary-title>There is a problem</govuk-error-summary-title>
-        <govuk-error-summary-item href="#Schema">@error</govuk-error-summary-item>
+        @foreach (var entry in ViewData.ModelState.Where(e => e.Value?.Errors.Count > 0))
+        {
+            @foreach (var error in entry.Value!.Errors)
+            {
+                <govuk-error-summary-item href="#@entry.Key">@error.ErrorMessage</govuk-error-summary-item>
+            }
+        }
     </govuk-error-summary>
 }
-
+@if (!string.IsNullOrWhiteSpace(Model.SchemaFile))
+{
+    <p class="govuk-body">Current schema: @System.IO.Path.GetFileName(Model.SchemaFile)</p>
+}
 <form method="post" action="@Model.PostUrl" enctype="multipart/form-data" novalidate>
     @Html.AntiForgeryToken()
-    <input type="hidden" name="WindowId" value="@Model.WindowId" />
-    
-    <input type="hidden" name="WindowId" value="@Model.WindowId" />
-
-    <govuk-file-upload name="Schema" id="Schema" class="govuk-file-upload">
-        <govuk-file-upload-label is-page-heading="true" class="govuk-label--l">Upload a JSON schema file for @Model.DatasetLabel</govuk-file-upload-label>
-        <govuk-file-upload-error-message asp-validation-for="@Model.Schema" />
+    <input type="hidden" asp-for="WindowId" />
+    @if (Model.ExistingSchemas.Count > 0)
+    {
+        <govuk-select for="ExistingSchemaDatasetId">
+            <govuk-select-label>Use an existing schema</govuk-select-label>
+            <govuk-select-hint>A copy will be saved for this data file. Other exercises will keep their schemas.</govuk-select-hint>
+            <govuk-select-error-message asp-validation-for="ExistingSchemaDatasetId" />
+            <govuk-select-item value="">Choose a schema, or upload below</govuk-select-item>
+            @foreach (var schema in Model.ExistingSchemas)
+            {
+                <govuk-select-item value="@schema.DatasetId" selected="@(Model.ExistingSchemaDatasetId == schema.DatasetId)">@schema.Label</govuk-select-item>
+            }
+        </govuk-select>
+    }
+    else
+    {
+        <p class="govuk-body">There are no uploaded schemas available to reuse. Upload a JSON schema below.</p>
+    }
+    <govuk-file-upload name="Schema" id="Schema" accept=".json,application/json">
+        <govuk-file-upload-label>Upload a JSON schema file</govuk-file-upload-label>
+        <govuk-file-upload-hint>Choose an existing schema above or upload a file.</govuk-file-upload-hint>
+        <govuk-file-upload-error-message asp-validation-for="Schema" />
     </govuk-file-upload>
-
-    <govuk-button type="submit">Save and continue</govuk-button>
+    <govuk-button type="submit">Use schema</govuk-button>
     <a class="govuk-link" href="@Model.CancelUrl">Cancel</a>
 </form>

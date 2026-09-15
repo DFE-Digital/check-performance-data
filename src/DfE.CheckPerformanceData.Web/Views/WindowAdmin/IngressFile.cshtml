@@ -1,5 +1,16 @@
 @model DfE.CheckPerformanceData.Web.Controllers.ViewModels.IngressFolderBrowseViewModel
 
+<govuk-back-link href="@Model.CancelUrl" />
+@if (!ViewData.ModelState.IsValid)
+{
+    <govuk-error-summary>
+        <govuk-error-summary-title>There is a problem</govuk-error-summary-title>
+        @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+        {
+            <govuk-error-summary-item>@error.ErrorMessage</govuk-error-summary-item>
+        }
+    </govuk-error-summary>
+}
 <h1 class="govuk-heading-xl">Browse ingress files for @Model.DatasetLabel</h1>
 
 @if (Model.IsChoosingContainer)
@@ -17,7 +28,7 @@
             {
                 <li>
                     <a class="govuk-link"
-                       href="@Model.BaseUrl/browse?exerciseId=@Model.ExerciseId&container=@Uri.EscapeDataString(container)">
+                       href="@Model.BaseUrl/browse?exerciseId=@Model.ExerciseId&returnToExercise=@Model.ReturnToExercise&container=@Uri.EscapeDataString(container)">
                         @container
                     </a>
                 </li>
@@ -39,14 +50,14 @@ else
     <p class="govuk-body">
         @if (Model.ParentPath is null)
         {
-            <a class="govuk-link" href="@Model.BaseUrl?exerciseId=@Model.ExerciseId">
+            <a class="govuk-link" href="@Model.BaseUrl?exerciseId=@Model.ExerciseId&returnToExercise=@Model.ReturnToExercise">
                 Back to Containers
             </a>
         }
         else
         {
             <a class="govuk-link"
-               href="@Model.BaseUrl/browse?exerciseId=@Model.ExerciseId&container=@Uri.EscapeDataString(Model.Container!)&path=@Uri.EscapeDataString(Model.ParentPath)">
+               href="@Model.BaseUrl/browse?exerciseId=@Model.ExerciseId&returnToExercise=@Model.ReturnToExercise&container=@Uri.EscapeDataString(Model.Container!)&path=@Uri.EscapeDataString(Model.ParentPath)">
                 Back
             </a>
         }
@@ -69,7 +80,7 @@ else
 
                     <li>
                         <a class="govuk-link"
-                           href="@Model.BaseUrl/browse?exerciseId=@Model.ExerciseId&container=@Uri.EscapeDataString(Model.Container!)&path=@Uri.EscapeDataString(folder)">
+                           href="@Model.BaseUrl/browse?exerciseId=@Model.ExerciseId&returnToExercise=@Model.ReturnToExercise&container=@Uri.EscapeDataString(Model.Container!)&path=@Uri.EscapeDataString(folder)">
                             @folderName
                         </a>
                     </li>
@@ -81,7 +92,7 @@ else
         {
             <h2 class="govuk-heading-m">Files</h2>
 
-            <form method="post" action="@Model.BaseUrl?exerciseId=@Model.ExerciseId">
+            <form method="post" action="@Model.BaseUrl?exerciseId=@Model.ExerciseId&returnToExercise=@Model.ReturnToExercise">
                 @Html.AntiForgeryToken()
 
                 <div class="govuk-form-group">

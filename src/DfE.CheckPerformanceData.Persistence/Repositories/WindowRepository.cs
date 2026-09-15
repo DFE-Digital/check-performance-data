@@ -31,9 +31,7 @@ public sealed class WindowRepository(PortalDbContext dbContext, IMemoryCache? ca
                     {
                         Id = e.Id,
                         UsesExerciseStorage = e.UsesExerciseStorage,
-                        DataType = e.DataType,
                         Name = e.Name,
-                        Stage = e.Stage,
                         TabName = e.TabName,
                         TabOrder = e.TabOrder,
                         IsEnabled = e.IsEnabled,
@@ -99,9 +97,7 @@ public sealed class WindowRepository(PortalDbContext dbContext, IMemoryCache? ca
                     {
                         Id = e.Id,
                         UsesExerciseStorage = e.UsesExerciseStorage,
-                        DataType = e.DataType,
                         Name = e.Name,
-                        Stage = e.Stage,
                         TabName = e.TabName,
                         TabOrder = e.TabOrder,
                         IsEnabled = e.IsEnabled,
@@ -212,6 +208,7 @@ public sealed class WindowRepository(PortalDbContext dbContext, IMemoryCache? ca
                 // this loop only ever reconciled datasets.
                 dbContext.Entry(existing).CurrentValues.SetValues(new
                 {
+                    dto.ExerciseType,
                     dto.StartDate,
                     dto.EndDate,
                     dto.SortOrder
@@ -219,10 +216,8 @@ public sealed class WindowRepository(PortalDbContext dbContext, IMemoryCache? ca
             }
 
             existing.Name = dto.Name;
-            existing.Stage = dto.Stage;
             existing.TabName = dto.TabName;
             existing.TabOrder = dto.TabOrder;
-            existing.DataType = dto.DataType;
             existing.IsEnabled = dto.IsEnabled;
             existing.VisibleFrom = dto.VisibleFrom;
             existing.VisibleUntil = dto.VisibleUntil;
@@ -337,9 +332,7 @@ public sealed class WindowRepository(PortalDbContext dbContext, IMemoryCache? ca
             {
                 Id = dto.Id == Guid.Empty ? Guid.NewGuid() : dto.Id,
                 UsesExerciseStorage = true,
-                DataType = dto.DataType,
                 Name = dto.Name,
-                Stage = dto.Stage,
                 TabName = dto.TabName,
                 TabOrder = dto.TabOrder,
                 IsEnabled = dto.IsEnabled,
@@ -379,9 +372,7 @@ public sealed class WindowRepository(PortalDbContext dbContext, IMemoryCache? ca
                 {
                     Id = e.Id,
                     UsesExerciseStorage = e.UsesExerciseStorage,
-                    DataType = e.DataType,
                     Name = e.Name,
-                    Stage = e.Stage,
                     TabName = e.TabName,
                     TabOrder = e.TabOrder,
                     IsEnabled = e.IsEnabled,

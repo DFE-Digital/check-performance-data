@@ -20,10 +20,8 @@ public sealed class CheckingExercise
     public CheckingExerciseType ExerciseType { get; init; }
     public bool UsesExerciseStorage { get; init; } = true;
     public string? Name { get; set; }
-    public string? Stage { get; set; }
     public string? TabName { get; set; }
     public int TabOrder { get; set; }
-    public CheckingDataType? DataType { get; set; }
     public bool IsEnabled { get; set; }
     public DateTime? VisibleFrom { get; set; }
     public DateTime? VisibleUntil { get; set; }
@@ -77,9 +75,7 @@ public sealed class CheckingExerciseConfiguration : IEntityTypeConfiguration<Che
 
         builder.HasKey(x => x.Id);
         builder.Property(x => x.Name).HasMaxLength(200);
-        builder.Property(x => x.Stage).HasMaxLength(100);
         builder.Property(x => x.TabName).HasMaxLength(100);
-        builder.Property(x => x.DataType).HasConversion<string>().HasMaxLength(50);
         builder.Property(x => x.VisibleFrom).HasColumnType("timestamp without time zone");
         builder.Property(x => x.VisibleUntil).HasColumnType("timestamp without time zone");
         builder.HasOne<CheckingExercise>().WithMany()
@@ -107,7 +103,7 @@ public sealed class CheckingExerciseConfiguration : IEntityTypeConfiguration<Che
             .OnDelete(DeleteBehavior.Cascade);
 
         // Only historic Window/type paths need uniqueness. New exercise-ID storage allows
-        // multiple releases and output types in the same scheduling Window.
+        // multiple releases and activities in the same scheduling Window.
         builder.HasIndex(x => new { x.CheckingWindowId, x.ExerciseType })
             .IsUnique().HasFilter("\"UsesExerciseStorage\" = false");
 

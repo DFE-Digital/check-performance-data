@@ -29,7 +29,7 @@ public sealed class CheckingExerciseIngress(ICheckingExerciseDefinitionRepositor
         var schemaChecksum = exercise.CurrentSchemaChecksum;
         await foreach (var progress in processor.ProcessAsync(definition.WindowId, exercise.ExerciseType, inputs,
             clearExistingFiles: clearExistingFiles, cancellationToken: cancellationToken,
-            checkingExerciseId: exercise.UsesExerciseStorage ? exercise.Id : null, dataType: exercise.DataType))
+            checkingExerciseId: exercise.UsesExerciseStorage ? exercise.Id : null))
         {
             if (progress is { IsComplete: true, IsError: false })
                 await definitions.StampAsync(exerciseId, clock.GetUtcNow().UtcDateTime, ingressChecksum, schemaChecksum, cancellationToken);

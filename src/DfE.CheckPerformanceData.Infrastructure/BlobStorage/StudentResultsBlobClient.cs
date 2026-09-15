@@ -96,7 +96,7 @@ public sealed class StudentResultsBlobClient(BlobServiceClient blobServiceClient
         var target = resolver is null ? null : await resolver.ResolveAsync(windowId, CheckingExerciseType.ResultsEnquiry, ct);
         if (resolver is not null && target is null) return null;
         return target is { UsesExerciseStorage: true }
-            ? CheckingExerciseBlobPaths.DataBlobName(target.Id, target.DataType ?? CheckingDataType.Results, LaestabNormaliser.Normalise(laestab))
+            ? CheckingExerciseBlobPaths.DataBlobName(target.Id, CheckingDataType.Results, LaestabNormaliser.Normalise(laestab))
             : ResultsEnquiryBlobPaths.ResultsBlobName(laestab);
     }
 

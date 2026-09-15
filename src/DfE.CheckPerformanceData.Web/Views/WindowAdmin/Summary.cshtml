@@ -67,11 +67,54 @@
   </row>
 </govuk-summary-list>
 
+
+<h2 class="govuk-heading-m">Checking exercises</h2>
+
+@if (Model.Exercises.Count == 0)
+{
+  <p class="govuk-body">There are no checking exercises in this window. Add a checking exercise to set up its dates and data files.</p>
+}
+else
+{
+  <table class="govuk-table">
+    <caption class="govuk-table__caption govuk-visually-hidden">Checking exercises for @Model.Title</caption>
+    <thead class="govuk-table__head">
+      <tr class="govuk-table__row">
+        <th scope="col" class="govuk-table__header">Exercise</th>
+        <th scope="col" class="govuk-table__header">Type</th>
+        <th scope="col" class="govuk-table__header">Tab</th>
+        <th scope="col" class="govuk-table__header">Checking dates</th>
+        <th scope="col" class="govuk-table__header">Actions</th>
+      </tr>
+    </thead>
+    <tbody class="govuk-table__body">
+      @foreach (var exercise in Model.Exercises)
+      {
+        <tr class="govuk-table__row">
+          <th scope="row" class="govuk-table__header">
+            <a class="govuk-link" href="#exercise-@exercise.ExerciseId">@exercise.Label</a>
+          </th>
+          <td class="govuk-table__cell">
+            @DfE.CheckPerformanceData.Web.Controllers.WindowAdmin.ExerciseLabels.For(exercise.ExerciseType)
+          </td>
+          <td class="govuk-table__cell">@(exercise.TabName ?? "Not configured")</td>
+          <td class="govuk-table__cell">
+            @exercise.StartDate.ToString("dd/MM/yyyy HH:mm")<br />
+            to @exercise.EndDate.ToString("dd/MM/yyyy HH:mm")
+          </td>
+          <td class="govuk-table__cell"><a class="govuk-link" href="@exercise.EditLink">Edit<span class="govuk-visually-hidden"> @exercise.Label</span></a></td>
+        </tr>
+      }
+    </tbody>
+  </table>
+}
+<govuk-button-link href="@Model.AddExerciseLink">Add checking exercise</govuk-button-link>
+
 @* One section per checking exercise. Each validates independently — a window is usable while
    another of its exercises is still unvalidated. *@
 @foreach (var exercise in Model.Exercises)
 {
-  <h2 class="govuk-heading-m">@exercise.Label</h2>
+  <h2 class="govuk-heading-m" id="exercise-@exercise.ExerciseId">@exercise.Label</h2>
 
   <govuk-summary-list>
     <row>

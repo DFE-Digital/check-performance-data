@@ -19,8 +19,8 @@ public sealed class CheckingDataPocTests
     }
 
     private static CheckingDataExercise Exercise(bool open = true) => new(
-        Guid.NewGuid(), Guid.NewGuid(), "Provisional Students", "Provisional", "Students", 0,
-        CheckingDataType.Pupil, CheckingExerciseType.PupilData, KeyStages.Post16, true, null, null,
+        Guid.NewGuid(), Guid.NewGuid(), "Provisional Students", "Students", 0,
+        CheckingExerciseType.PupilData, KeyStages.Post16, true, null, null,
         Now.AddDays(-2), open ? Now.AddDays(1) : Now.AddDays(-1), Now.AddDays(-2), Now.AddDays(1), null);
 
     [Fact]
@@ -43,7 +43,7 @@ public sealed class CheckingDataPocTests
     [InlineData(false, CheckingExerciseType.ResultsEnquiry)]
     public async Task Visible_data_can_be_viewed_and_downloaded_but_only_open_windows_allow_actions(bool open, CheckingExerciseType type)
     {
-        var exercise = Exercise(open) with { ExerciseType = type, DataType = CheckingExerciseBlobPaths.DefaultDataType(type) };
+        var exercise = Exercise(open) with { ExerciseType = type };
         var catalogue = Substitute.For<ICheckingDataCatalogue>();
         catalogue.GetVisibleAsync(default).Returns(Task.FromResult<IReadOnlyList<CheckingDataExercise>>([exercise]));
         var reader = Substitute.For<ICheckingDataReader>();

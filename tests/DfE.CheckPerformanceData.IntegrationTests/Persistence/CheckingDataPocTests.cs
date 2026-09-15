@@ -42,9 +42,9 @@ public sealed class CheckingDataPocTests(PostgresFixture postgres, AzuriteFixtur
         Assert.All(provisional, e => Assert.True(e.CanAct(Now)));
         Assert.Equal(4, (await legacyReader.GetAllPupilsForSchoolAsync(CheckingExercisePocSeed.WindowId, CheckingExercisePocSeed.Laestab)).Count);
         Assert.Equal(4, (await resultsReader.GetStudentIdsWithResultsAsync(CheckingExercisePocSeed.WindowId, CheckingExercisePocSeed.Laestab)).Count);
-        var students = provisional.Single(e => e.DataType == CheckingDataType.Pupil);
+        var students = provisional.Single(e => e.ExerciseType == CheckingExerciseType.PupilData);
         var original = await reader.ReadAsync(students, CheckingExercisePocSeed.Laestab, default);
-        var results = provisional.Single(e => e.DataType == CheckingDataType.Results);
+        var results = provisional.Single(e => e.ExerciseType == CheckingExerciseType.ResultsEnquiry);
         using (var resultJson = JsonDocument.Parse((await reader.ReadAsync(results, CheckingExercisePocSeed.Laestab, default))!))
         {
             var result = resultJson.RootElement[0];
@@ -60,10 +60,10 @@ public sealed class CheckingDataPocTests(PostgresFixture postgres, AzuriteFixtur
         await Seed(CheckingExercisePocState.RevisedClosed);
         var revised = await Visible();
         Assert.Equal(2, revised.Count);
-        Assert.All(revised, e => { Assert.Equal("Revised", e.Stage); Assert.False(e.CanAct(Now)); });
+        Assert.All(revised, e => { Assert.StartsWith("Revised ", e.Name); Assert.False(e.CanAct(Now)); });
         Assert.Equal(3, (await legacyReader.GetAllPupilsForSchoolAsync(CheckingExercisePocSeed.WindowId, CheckingExercisePocSeed.Laestab)).Count);
         Assert.Equal(3, (await resultsReader.GetStudentIdsWithResultsAsync(CheckingExercisePocSeed.WindowId, CheckingExercisePocSeed.Laestab)).Count);
-        var revisedStudents = revised.Single(e => e.DataType == CheckingDataType.Pupil);
+        var revisedStudents = revised.Single(e => e.ExerciseType == CheckingExerciseType.PupilData);
         Assert.Equal(students.Id, revisedStudents.ReplacesCheckingExerciseId);
         Assert.Equal(new[] { "A", "B", "C" }, Names((await reader.ReadAsync(revisedStudents, CheckingExercisePocSeed.Laestab, default))!));
         Assert.Equal(original, await reader.ReadAsync(students, CheckingExercisePocSeed.Laestab, default));

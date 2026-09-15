@@ -3,8 +3,8 @@ using DfE.CheckPerformanceData.Domain.Enums;
 namespace DfE.CheckPerformanceData.Application.WindowManagement;
 
 public sealed record CheckingDataExercise(
-    Guid Id, Guid WindowId, string Name, string Stage, string TabName, int TabOrder,
-    CheckingDataType DataType, CheckingExerciseType ExerciseType, KeyStages KeyStage,
+    Guid Id, Guid WindowId, string Name, string TabName, int TabOrder,
+    CheckingExerciseType ExerciseType, KeyStages KeyStage,
     bool IsEnabled, DateTime? VisibleFrom, DateTime? VisibleUntil,
     DateTime WindowStart, DateTime WindowEnd, DateTime ActionStart, DateTime ActionEnd,
     Guid? ReplacesCheckingExerciseId, bool UsesExerciseStorage = false)

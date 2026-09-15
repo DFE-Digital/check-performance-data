@@ -65,6 +65,7 @@ public class SchemaControllerTests
         var id = Guid.NewGuid();
         var controller = BuildController(windowService);
 
+        windowService.GetByIdAsync(id, Arg.Any<CancellationToken>()).Returns(Window(id));
         var model = new SchemaItem { WindowId = id, Schema = null };
         var result = await controller.Submit(id, CheckingExerciseType.PupilData, Dataset, model, CancellationToken.None);
 

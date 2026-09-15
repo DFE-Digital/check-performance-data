@@ -46,8 +46,6 @@ public static class CheckingExercisePocSeed
                         CheckingWindowId = WindowId,
                         ExerciseType = type,
                         Name = $"{stage} {(pupil ? "Students" : "Results")}",
-                        Stage = stage,
-                        DataType = pupil ? CheckingDataType.Pupil : CheckingDataType.Results,
                         TabName = pupil ? "Students" : "Results",
                         TabOrder = pupil ? 0 : 1,
                         StartDate = window.StartDate,
@@ -63,9 +61,9 @@ public static class CheckingExercisePocSeed
                         }).ToList()
                     });
                 }
-            foreach (var exercise in window.CheckingExercises.Where(e => e.Stage == "Revised"))
+            foreach (var exercise in window.CheckingExercises.Where(e => e.Name!.StartsWith("Revised ")))
                 exercise.ReplacesCheckingExerciseId = window.CheckingExercises
-                    .Single(e => e.Stage == "Provisional" && e.ExerciseType == exercise.ExerciseType).Id;
+                    .Single(e => e.Name!.StartsWith("Provisional ") && e.ExerciseType == exercise.ExerciseType).Id;
             db.CheckingWindows.Add(window);
             await db.SaveChangesAsync();
         }
@@ -73,12 +71,12 @@ public static class CheckingExercisePocSeed
         await container.CreateIfNotExistsAsync();
         foreach (var exercise in window.CheckingExercises)
         {
-            var output = CheckingExerciseBlobPaths.DataBlobName(exercise.Id, exercise.DataType!.Value, Laestab);
+            var output = CheckingExerciseBlobPaths.DataBlobName(exercise.Id, CheckingExerciseBlobPaths.DefaultDataType(exercise.ExerciseType), Laestab);
             if (await container.GetBlobClient(output).ExistsAsync()) continue;
-            var names = exercise.Stage == "Provisional" ? new[] { "A", "B", "C", "D" } : new[] { "A", "B", "C" };
+            var names = exercise.Name!.StartsWith("Provisional ") ? new[] { "A", "B", "C", "D" } : new[] { "A", "B", "C" };
             foreach (var definition in exercise.Datasets.OrderBy(d => d.SortOrder))
             {
-                var pupil = exercise.DataType == CheckingDataType.Pupil;
+                var pupil = exercise.ExerciseType == CheckingExerciseType.PupilData;
                 var rows = pupil ? names.Select((name, i) => (name, i)).Where(x => x.i % 2 == definition.SortOrder)
                     : names.Select((name, i) => (name, i));
                 var csv = pupil ? "CYPMD_ID,SURNAME,FORENAMES,LAESTAB,ULN,DOB,SEX\n" : "CYPMD_ID,LAESTAB,QAN,QUAL_NAME,SYLLABUS,SESSION,GRADE\n";
@@ -114,7 +112,7 @@ public static class CheckingExercisePocSeed
         db.Entry(window).Property(w => w.EndDate).CurrentValue = open ? now.AddDays(30) : now.AddDays(-1);
         foreach (var exercise in window.CheckingExercises)
         {
-            exercise.IsEnabled = (exercise.Stage == "Revised") == revised;
+            exercise.IsEnabled = (exercise.Name!.StartsWith("Revised ")) == revised;
             exercise.StartDate = window.StartDate;
             exercise.EndDate = window.EndDate;
         }

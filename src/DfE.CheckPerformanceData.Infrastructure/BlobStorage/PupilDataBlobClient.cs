@@ -99,7 +99,7 @@ public sealed class PupilDataBlobClient(BlobServiceClient blobServiceClient, ICh
         var target = resolver is null ? null : await resolver.ResolveAsync(windowId, exercise);
         if (resolver is not null && target is null) return null;
         var path = target is { UsesExerciseStorage: true }
-            ? CheckingExerciseBlobPaths.DataBlobName(target.Id, target.DataType ?? CheckingDataType.Pupil, laestab)
+            ? CheckingExerciseBlobPaths.DataBlobName(target.Id, CheckingDataType.Pupil, laestab)
             : CheckingExerciseBlobPaths.PupilsBlobName(exercise, laestab);
         return blobServiceClient.GetBlobContainerClient(windowId.ToString()).GetBlobClient(path);
     }

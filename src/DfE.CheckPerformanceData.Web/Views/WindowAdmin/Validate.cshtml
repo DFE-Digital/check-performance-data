@@ -5,6 +5,7 @@
     ViewBag.Title = $"Validate {Model.ExerciseLabel}";
 }
 
+<govuk-back-link href="@Model.CancelUrl" />
 <h1 class="govuk-heading-l">Validate @Model.ExerciseLabel</h1>
 
 @* No-JS fallback: the POST renders this summary once processing has run to completion. *@

@@ -71,6 +71,7 @@ public class WindowEditItem : AdminPage
     public IReadOnlyList<ExerciseSummarySection> Exercises { get; set; } = [];
 
     public string ExercisesLink => $"{BaseEditUrl}/exercises";
+    public string AddExerciseLink => $"{BaseEditUrl}/exercises/new";
 
     public string? OutputPath { get; set; }
     public bool IsPublished { get; set; } = false;
@@ -80,6 +81,8 @@ public class WindowEditItem : AdminPage
 /// <summary>One checking exercise on the window summary page.</summary>
 public sealed class ExerciseSummarySection
 {
+    public string? TabName { get; init; }
+    public bool IsEnabled { get; init; }
     public Guid? ExerciseId { get; init; }
     public required Guid WindowId { get; init; }
     public required CheckingExerciseType ExerciseType { get; init; }
@@ -98,6 +101,8 @@ public sealed class ExerciseSummarySection
 
     /// <summary>Validated once, but not against the files it holds now — a stale stamp.</summary>
     public bool IsStale { get; init; }
+
+    public string EditLink => $"/admin/windows/{WindowId}/exercises/{ExerciseId}/edit";
 
     public string DatesLink => $"/admin/windows/{WindowId}/exercises/{ExerciseType}/dates" + (ExerciseId is null ? "" : $"?exerciseId={ExerciseId}");
     public string ValidateLink => $"/admin/windows/{WindowId}/{ExerciseType}/validate" + (ExerciseId is null ? "" : $"?exerciseId={ExerciseId}");

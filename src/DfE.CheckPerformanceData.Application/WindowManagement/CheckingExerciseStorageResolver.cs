@@ -16,7 +16,7 @@ public sealed class CheckingExerciseStorageResolver(IWindowRepository windows, T
         var window = await windows.GetByIdAsync(windowId, cancellationToken);
         var now = clock.GetLocalNow().DateTime;
         var candidates = window?.Exercises.Where(e => e.ExerciseType == type
-            && (e.DataType is null || e.DataType == CheckingExerciseBlobPaths.DefaultDataType(type)) && (e.TabName is null ||
+            && (e.TabName is null ||
             (e.IsEnabled && (e.VisibleFrom is null || e.VisibleFrom <= now) && (e.VisibleUntil is null || e.VisibleUntil > now)))).Take(2).ToList();
         return candidates is { Count: 1 } ? candidates[0] : null;
     }

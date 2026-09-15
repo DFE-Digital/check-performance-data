@@ -41,7 +41,7 @@ public sealed class CheckingDataController(
         var exercise = (await catalogue.GetVisibleAsync(cancellationToken)).SingleOrDefault(e => e.Id == exerciseId);
         if (exercise is null) return NotFound();
         var bytes = await reader.ReadAsync(exercise, user.OrganisationLaestab, cancellationToken);
-        return bytes is null ? NotFound() : File(bytes, "application/json", $"{exercise.Id}_{exercise.DataType}.json");
+        return bytes is null ? NotFound() : File(bytes, "application/json", $"{exercise.Id}.json");
     }
 
     [HttpPost("{exerciseId:guid}/start")]
@@ -72,9 +72,7 @@ public sealed class CheckingDataController(
     }
     private bool CanStart(CheckingDataExercise exercise, IReadOnlyList<CheckingDataExercise> visible)
         => exercise.CanAct(clock.GetLocalNow().DateTime)
-            && exercise.DataType == CheckingExerciseBlobPaths.DefaultDataType(exercise.ExerciseType)
-            && visible.Count(e => e.WindowId == exercise.WindowId && e.ExerciseType == exercise.ExerciseType
-                && e.DataType == exercise.DataType) == 1;
+            && visible.Count(e => e.WindowId == exercise.WindowId && e.ExerciseType == exercise.ExerciseType) == 1;
 
 }
 

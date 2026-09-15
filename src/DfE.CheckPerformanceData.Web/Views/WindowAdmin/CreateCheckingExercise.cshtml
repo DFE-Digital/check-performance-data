@@ -1,0 +1,232 @@
+@using DfE.CheckPerformanceData.Domain.Enums
+@using DfE.CheckPerformanceData.Web.Controllers.WindowAdmin
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin.CreateCheckingExerciseItem
+
+@{
+    ViewBag.Title = Model.PageTitle;
+}
+
+<govuk-back-link href="@Model.CancelUrl" />
+<span class="govuk-caption-l">@Model.WindowTitle</span>
+<h1 class="govuk-heading-l">@Model.PageTitle</h1>
+
+@if (!ViewData.ModelState.IsValid)
+{
+    <govuk-error-summary>
+        <govuk-error-summary-title>There is a problem</govuk-error-summary-title>
+        @foreach (var entry in ViewData.ModelState.Where(e => e.Value?.Errors.Count > 0))
+        {
+            @foreach (var error in entry.Value!.Errors)
+            {
+                <govuk-error-summary-item href="#@entry.Key.Replace(".", "_")">@error.ErrorMessage</govuk-error-summary-item>
+            }
+        }
+    </govuk-error-summary>
+}
+
+<form method="post" action="@Model.PostUrl" novalidate>
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="WindowId" />
+
+    <govuk-input for="Name">
+        <govuk-input-label>Exercise name</govuk-input-label>
+        <govuk-input-hint>For example, Provisional students.</govuk-input-hint>
+        <govuk-input-error-message asp-validation-for="Name" />
+    </govuk-input>
+
+    <govuk-radios for="ExerciseType">
+        <govuk-radios-fieldset>
+            <govuk-radios-fieldset-legend class="govuk-fieldset__legend--m">Exercise type</govuk-radios-fieldset-legend>
+            <govuk-radios-hint>The checking activity this exercise supports.</govuk-radios-hint>
+            <govuk-radios-error-message asp-validation-for="ExerciseType" />
+            @foreach (var type in Enum.GetValues<CheckingExerciseType>())
+            {
+                <govuk-radios-item value="@type" checked="@(Model.ExerciseType == type)">@ExerciseLabels.For(type)</govuk-radios-item>
+            }
+        </govuk-radios-fieldset>
+    </govuk-radios>
+
+    <govuk-input for="TabName">
+        <govuk-input-label>Tab name@(Model.TabNameOptional ? " (optional)" : "")</govuk-input-label>
+        <govuk-input-hint>The label shown to schools, for example Students or Results.</govuk-input-hint>
+        <govuk-input-error-message asp-validation-for="TabName" />
+    </govuk-input>
+
+    <govuk-input for="TabOrder" inputmode="numeric" input-class="govuk-input--width-4">
+        <govuk-input-label>Tab order</govuk-input-label>
+        <govuk-input-hint>Lower numbers appear first on the checking data page.</govuk-input-hint>
+        <govuk-input-error-message asp-validation-for="TabOrder" />
+    </govuk-input>
+
+    <govuk-input for="SortOrder" inputmode="numeric" input-class="govuk-input--width-4">
+        <govuk-input-label>Display order</govuk-input-label>
+        <govuk-input-hint>Lower numbers appear first in this window's exercise list.</govuk-input-hint>
+        <govuk-input-error-message asp-validation-for="SortOrder" />
+    </govuk-input>
+
+    <h2 class="govuk-heading-m">Checking dates</h2>
+    <p class="govuk-body">These dates control when this exercise accepts requests. The parent window must also be open.</p>
+
+    <govuk-date-input for="Dates.StartDate">
+        <govuk-date-input-fieldset>
+            <govuk-date-input-fieldset-legend class="govuk-fieldset__legend--m">When does it open?</govuk-date-input-fieldset-legend>
+            <govuk-date-input-hint>For example, 1 10 2026.</govuk-date-input-hint>
+            <govuk-date-input-error-message asp-validation-for="Dates.StartDate" />
+        </govuk-date-input-fieldset>
+    </govuk-date-input>
+
+    <govuk-fieldset role="group" aria-describedby="start-time-hint">
+        <govuk-fieldset-legend class="govuk-fieldset__legend--s">What time does it open?</govuk-fieldset-legend>
+        <p class="govuk-hint" id="start-time-hint">Use the 24-hour clock, for example 09 30 or 17 00.</p>
+        <div class="govuk-date-input">
+
+            <div class="govuk-date-input__item">
+                <govuk-input for="Dates.StartHour" inputmode="numeric" input-class="govuk-input--width-2">
+                    <govuk-input-label>Hour</govuk-input-label>
+                    <govuk-input-error-message asp-validation-for="Dates.StartHour" />
+                </govuk-input>
+            </div>
+
+            <div class="govuk-date-input__item">
+                <govuk-input for="Dates.StartMinute" inputmode="numeric" input-class="govuk-input--width-2">
+                    <govuk-input-label>Minute</govuk-input-label>
+                    <govuk-input-error-message asp-validation-for="Dates.StartMinute" />
+                </govuk-input>
+            </div>
+        </div>
+    </govuk-fieldset>
+
+    <govuk-date-input for="Dates.EndDate">
+        <govuk-date-input-fieldset>
+            <govuk-date-input-fieldset-legend class="govuk-fieldset__legend--m">When does it close?</govuk-date-input-fieldset-legend>
+            <govuk-date-input-hint>For example, 1 10 2026.</govuk-date-input-hint>
+            <govuk-date-input-error-message asp-validation-for="Dates.EndDate" />
+        </govuk-date-input-fieldset>
+    </govuk-date-input>
+
+    <govuk-fieldset role="group" aria-describedby="end-time-hint">
+        <govuk-fieldset-legend class="govuk-fieldset__legend--s">What time does it close?</govuk-fieldset-legend>
+        <p class="govuk-hint" id="end-time-hint">Use the 24-hour clock, for example 09 30 or 17 00.</p>
+        <div class="govuk-date-input">
+
+            <div class="govuk-date-input__item">
+                <govuk-input for="Dates.EndHour" inputmode="numeric" input-class="govuk-input--width-2">
+                    <govuk-input-label>Hour</govuk-input-label>
+                    <govuk-input-error-message asp-validation-for="Dates.EndHour" />
+                </govuk-input>
+            </div>
+
+            <div class="govuk-date-input__item">
+                <govuk-input for="Dates.EndMinute" inputmode="numeric" input-class="govuk-input--width-2">
+                    <govuk-input-label>Minute</govuk-input-label>
+                    <govuk-input-error-message asp-validation-for="Dates.EndMinute" />
+                </govuk-input>
+            </div>
+        </div>
+    </govuk-fieldset>
+
+    <h2 class="govuk-heading-m">Visibility</h2>
+    <p class="govuk-body">Visibility is separate from checking dates. Schools can view and download available data after checking closes.</p>
+    <govuk-checkboxes for="IsEnabled">
+        <govuk-checkboxes-item value="true" checked="@Model.IsEnabled">Enable this exercise for schools</govuk-checkboxes-item>
+    </govuk-checkboxes>
+
+    @if (Model.IsEditing)
+    {
+        <div class="govuk-form-group @(ViewData.ModelState["VisibleFrom"]?.Errors.Count > 0 ? "govuk-form-group--error" : "")">
+            <label class="govuk-label" for="VisibleFrom">Visible from (optional)</label>
+            <div class="govuk-hint" id="VisibleFrom-hint">Visible from this date and time when enabled. Leave blank for no start limit.</div>
+            <span class="govuk-error-message" id="VisibleFrom-error" asp-validation-for="VisibleFrom"></span>
+            <input class="govuk-input @(ViewData.ModelState["VisibleFrom"]?.Errors.Count > 0 ? "govuk-input--error" : "")" asp-for="VisibleFrom" type="datetime-local" step="1" asp-format="{0:yyyy-MM-ddTHH:mm:ss}" aria-describedby="VisibleFrom-hint VisibleFrom-error" />
+        </div>
+    }
+    else
+    {
+    <govuk-date-input for="VisibleFrom">
+        <govuk-date-input-fieldset>
+            <govuk-date-input-fieldset-legend class="govuk-fieldset__legend--m">Visible from (optional)</govuk-date-input-fieldset-legend>
+            <govuk-date-input-hint>Visible from midnight on this date when enabled. Leave blank for no start limit.</govuk-date-input-hint>
+            <govuk-date-input-error-message asp-validation-for="VisibleFrom" />
+        </govuk-date-input-fieldset>
+    </govuk-date-input>
+    }
+
+    @if (Model.IsEditing)
+    {
+        <div class="govuk-form-group @(ViewData.ModelState["VisibleUntil"]?.Errors.Count > 0 ? "govuk-form-group--error" : "")">
+            <label class="govuk-label" for="VisibleUntil">Visible until (optional)</label>
+            <div class="govuk-hint" id="VisibleUntil-hint">Hidden from this date and time. Leave blank for no end limit.</div>
+            <span class="govuk-error-message" id="VisibleUntil-error" asp-validation-for="VisibleUntil"></span>
+            <input class="govuk-input @(ViewData.ModelState["VisibleUntil"]?.Errors.Count > 0 ? "govuk-input--error" : "")" asp-for="VisibleUntil" type="datetime-local" step="1" asp-format="{0:yyyy-MM-ddTHH:mm:ss}" aria-describedby="VisibleUntil-hint VisibleUntil-error" />
+        </div>
+    }
+    else
+    {
+    <govuk-date-input for="VisibleUntil">
+        <govuk-date-input-fieldset>
+            <govuk-date-input-fieldset-legend class="govuk-fieldset__legend--m">Visible until (optional)</govuk-date-input-fieldset-legend>
+            <govuk-date-input-hint>Hidden from midnight on this date. Leave blank for no end limit.</govuk-date-input-hint>
+            <govuk-date-input-error-message asp-validation-for="VisibleUntil" />
+        </govuk-date-input-fieldset>
+    </govuk-date-input>
+    }
+
+    <govuk-select for="ReplacesCheckingExerciseId">
+        <govuk-select-label>Replaces exercise (optional)</govuk-select-label>
+        <govuk-select-hint>Choose an exercise in this window. This records the relationship only; it does not hide the earlier exercise or copy its data.</govuk-select-hint>
+        <govuk-select-error-message asp-validation-for="ReplacesCheckingExerciseId" />
+        <govuk-select-item value="">None</govuk-select-item>
+        @foreach (var exercise in Model.ReplacementOptions)
+        {
+            <govuk-select-item value="@exercise.Id" selected="@(Model.ReplacesCheckingExerciseId == exercise.Id)">@(exercise.Name ?? ExerciseLabels.For(exercise.ExerciseType)) (@exercise.StartDate.ToString("dd/MM/yyyy HH:mm"))</govuk-select-item>
+        }
+    </govuk-select>
+
+    <p class="govuk-body">After saving, use the window summary to choose ingress and schema files and validate the exercise.</p>
+    <govuk-button type="submit">@Model.SubmitLabel</govuk-button>
+    <a class="govuk-link" href="@Model.CancelUrl">Cancel</a>
+</form>
+
+@if (Model.IsEditing && Model.DataExercise is { } dataExercise)
+{
+    <h2 class="govuk-heading-m" id="data-files">Data files</h2>
+    <p class="govuk-body">Choose incoming CSVs and their JSON schemas. Save any changes above before choosing files.</p>
+    @if (dataExercise.Datasets.Count == 0)
+    {
+        <p class="govuk-body">This exercise has no data files. Add a data file to choose its CSV and schema.</p>
+    }
+    else
+    {
+        <table class="govuk-table">
+            <caption class="govuk-table__caption govuk-visually-hidden">Data files for @dataExercise.Name</caption>
+            <thead class="govuk-table__head">
+                <tr class="govuk-table__row">
+                    <th scope="col" class="govuk-table__header">Data file</th>
+                    <th scope="col" class="govuk-table__header">CSV</th>
+                    <th scope="col" class="govuk-table__header">JSON schema</th>
+                </tr>
+            </thead>
+            <tbody class="govuk-table__body">
+                @foreach (var dataset in dataExercise.Datasets.OrderBy(d => d.SortOrder))
+                {
+                    var prefix = $"/admin/windows/{Model.WindowId}/{dataExercise.ExerciseType}";
+                    var query = $"?exerciseId={dataExercise.Id}&returnToExercise=true";
+                    <tr class="govuk-table__row">
+                        <th scope="row" class="govuk-table__header">@DatasetLabels.For(dataset.Name)<div class="govuk-body-s">@(dataset.Required ? "Required" : "Optional")</div></th>
+                        <td class="govuk-table__cell">
+                            <div>@(string.IsNullOrWhiteSpace(dataset.IngressFile) ? "Not selected" : System.IO.Path.GetFileName(dataset.IngressFile))</div>
+                            <a class="govuk-link" href="@($"{prefix}/ingress-file/{Uri.EscapeDataString(dataset.Name)}{query}")">Choose CSV<span class="govuk-visually-hidden"> for @DatasetLabels.For(dataset.Name)</span></a>
+                        </td>
+                        <td class="govuk-table__cell">
+                            <div>@(string.IsNullOrWhiteSpace(dataset.SchemaFile) ? "Not selected" : System.IO.Path.GetFileName(dataset.SchemaFile))</div>
+                            <a class="govuk-link" href="@($"{prefix}/schema-file/{Uri.EscapeDataString(dataset.Name)}{query}")">Choose schema<span class="govuk-visually-hidden"> for @DatasetLabels.For(dataset.Name)</span></a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    <govuk-button-link href="@($"/admin/windows/{Model.WindowId}/exercises/{dataExercise.Id}/data/new")">Add data file</govuk-button-link>
+    <p class="govuk-body">Validation: @(dataExercise.IsValidated ? "Up to date" : dataExercise.ValidatedAt is not null ? "Files have changed since the last validation" : "Not yet validated")</p>
+    <govuk-button-link class="govuk-button--secondary" disabled="@(!dataExercise.HasRequiredFiles)" href="@($"/admin/windows/{Model.WindowId}/{dataExercise.ExerciseType}/validate?exerciseId={dataExercise.Id}&returnToExercise=true")">Validate data</govuk-button-link>
+}

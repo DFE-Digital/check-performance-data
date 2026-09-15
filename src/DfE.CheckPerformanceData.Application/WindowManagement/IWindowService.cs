@@ -72,9 +72,7 @@ public sealed class CheckingWindowDto
 public sealed class CheckingExerciseDto
 {
     public bool UsesExerciseStorage { get; init; } = true;
-    public CheckingDataType? DataType { get; init; }
     public string? Name { get; init; }
-    public string? Stage { get; init; }
     public int TabOrder { get; init; }
     public Guid? ReplacesCheckingExerciseId { get; init; }
     // Null TabName preserves the legacy action rules for exercises outside the POC.

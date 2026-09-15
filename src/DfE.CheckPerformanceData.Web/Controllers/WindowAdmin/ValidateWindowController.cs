@@ -4,6 +4,8 @@ using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Infrastructure.Ingress;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
+using DfE.CheckPerformanceData.Web.Admin;
+using DfE.CheckPerformanceData.Web.Admin.Nav;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
@@ -20,14 +22,15 @@ namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 /// is what makes "a window is usable while another exercise is still unvalidated" true rather than
 /// merely allowed.
 /// </remarks>
+[RequireAdminSection(AdminNavKeys.ManageWindow)]
 public class ValidateWindowController(IWindowService windowService, ICheckingExerciseIngress processor) : Controller
 {
     private const string PageView = "~/Views/WindowAdmin/Validate.cshtml";
 
     [HttpGet("admin/windows/{id:guid}/{exercise}/validate")]
-    public IActionResult Index(Guid id, CheckingExerciseType exercise, Guid? exerciseId = null)
+    public IActionResult Index(Guid id, CheckingExerciseType exercise, Guid? exerciseId = null, bool returnToExercise = false)
     {
-        return View(PageView, Model(id, exercise, exerciseId));
+        return View(PageView, Model(id, exercise, exerciseId, returnToExercise));
     }
 
     // Live progress stream (step 1-7). EventSource can only issue GET, so validation runs here;
@@ -40,7 +43,8 @@ public class ValidateWindowController(IWindowService windowService, ICheckingExe
 
     // No-JS fallback: run to completion and render the final summary.
     [HttpPost("admin/windows/{id:guid}/{exercise}/validate")]
-    public async Task<IActionResult> Validate(Guid id, CheckingExerciseType exercise, CancellationToken cancellationToken, Guid? exerciseId = null)
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Validate(Guid id, CheckingExerciseType exercise, CancellationToken cancellationToken, Guid? exerciseId = null, bool returnToExercise = false)
     {
         ValidationProgress? last = null;
         await foreach (ValidationProgress progress in Run(id, exercise, cancellationToken, exerciseId))
@@ -48,7 +52,7 @@ public class ValidateWindowController(IWindowService windowService, ICheckingExe
             last = progress;
         }
 
-        ValidationViewModel model = Model(id, exercise, exerciseId);
+        ValidationViewModel model = Model(id, exercise, exerciseId, returnToExercise);
         model.ProcessingResult = last is null
             ? null
             : new ProcessingResult(last.RecordsRead, last.FilesWritten, last.ErrorCount, new StringBuilder(last.Message), last.SchoolSummary);
@@ -56,13 +60,15 @@ public class ValidateWindowController(IWindowService windowService, ICheckingExe
         return View(PageView, model);
     }
 
-    private ValidationViewModel Model(Guid id, CheckingExerciseType exercise, Guid? exerciseId = null) => new()
+    private ValidationViewModel Model(Guid id, CheckingExerciseType exercise, Guid? exerciseId = null, bool returnToExercise = false) => new()
     {
         WindowId = id,
         ExerciseLabel = ExerciseLabels.For(exercise),
         StreamUrl = Url.Action(nameof(Stream), "ValidateWindow", new { id, exercise, exerciseId }),
-        PostUrl = Url.Action(nameof(Validate), "ValidateWindow", new { id, exercise, exerciseId }),
-        CancelUrl = Url.Action("Index", "Summary", new { id })
+        PostUrl = Url.Action(nameof(Validate), "ValidateWindow", new { id, exercise, exerciseId, returnToExercise }),
+        CancelUrl = returnToExercise && exerciseId is not null
+            ? Url.Action("Edit", "EditCheckingExercise", new { id, exerciseId })
+            : Url.Action("Index", "Summary", new { id })
     };
 
     // Drives the processor for one exercise and, on a clean finish, stamps that exercise validated

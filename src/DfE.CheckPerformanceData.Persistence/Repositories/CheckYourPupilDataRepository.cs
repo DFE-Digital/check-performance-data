@@ -65,7 +65,6 @@ public sealed class CheckYourPupilDataRepository(
                     .Select(e => new CheckingExerciseDto
                     {
                         Id = e.Id,
-                        DataType = e.DataType,
                         TabName = e.TabName,
                         IsEnabled = e.IsEnabled,
                         VisibleFrom = e.VisibleFrom,

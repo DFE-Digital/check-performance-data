@@ -5,8 +5,13 @@ using Microsoft.Playwright;
 namespace DfE.CheckPerformanceData.E2ETests.ContentPages;
 
 // End-to-end coverage for the search-results widget on content pages. Each test
-// seeds its own PageNode under /help with a Guid-suffixed segment so tests can
-// interleave without collisions; teardown best-effort deletes the leaf page.
+// seeds its own PageNode under the fixture root with a Guid-suffixed segment so tests
+// can interleave without collisions; teardown best-effort deletes the leaf page.
+//
+// Under the fixture root rather than /help because teardown is best-effort and the
+// delete route is a soft delete, so anything that leaks stays in the tree — and a
+// content export carries it to the next environment. Eighteen of these have already
+// travelled into a preproduction bundle that way. They now leak somewhere harmless.
 //
 // Pairs with:
 //   ResultsWidgetRenderContractTests (source-file tokens)
@@ -36,14 +41,14 @@ public sealed class ResultsWidgetE2ETests(PlaywrightFixture fixture) : SeedingPa
         await base.DisposeAsync();
     }
 
-    // Creates /help/{segment} with a results widget; returns (id, url path).
+    // Creates a fixture page with a results widget; returns (id, url path).
     private async Task<(Guid Id, string UrlPath, string Segment)> SeedResultsPageAsync(
         Dictionary<string, string>? widgetProps = null)
     {
         var segment = $"e2e-results-{Guid.NewGuid():N}";
         var id = await CmsSeedHelpers.CreatePageNodeAsync(
             Fixture.SeedClient,
-            parentId: CmsSeedHelpers.HelpRootId,
+            parentId: FixtureContent.RootId,
             pageType: "content",
             segment: segment,
             title: "E2E results widget");
@@ -57,41 +62,16 @@ public sealed class ResultsWidgetE2ETests(PlaywrightFixture fixture) : SeedingPa
         }
         await CmsSeedHelpers.PublishDraftAsync(Fixture.SeedClient, id);
 
-        return (id, $"/help/{segment}", segment);
+        return (id, $"{FixtureContent.RootPath}/{segment}", segment);
     }
 
-    // Seeds `count` PageNodes under /help whose titles all contain a fresh unique token,
-    // then returns the token. A search for that token is guaranteed to hit exactly those
-    // pages — makes the pagination tests independent of whatever content the deployed env
-    // happens to carry (review-app envs may have far fewer live pages than the local dev
-    // stack). Each seeded page's Title contributes to PageNode.SearchVector at weight B.
-    private async Task<string> SeedSearchableFixturesAsync(int count)
-    {
-        // Lowercase hex chunk: tsvector-safe (no stopword collision) and short enough to
-        // keep the test title readable.
-        var token = "cypde2e" + Guid.NewGuid().ToString("N")[..12].ToLowerInvariant();
-        for (int i = 0; i < count; i++)
-        {
-            var segment = $"e2e-fixture-{i}-{Guid.NewGuid():N}";
-            var id = await CmsSeedHelpers.CreatePageNodeAsync(
-                Fixture.SeedClient,
-                parentId: CmsSeedHelpers.HelpRootId,
-                pageType: "content",
-                segment: segment,
-                title: $"E2E fixture {token} number {i}");
-            _createdPages.Add(id);
-            await CmsSeedHelpers.PublishDraftAsync(Fixture.SeedClient, id);
-        }
-        return token;
-    }
-
-    // Creates /help/{segment} with a search-input widget targeting the given action URL.
+    // Creates a fixture page with a search-input widget targeting the given action URL.
     private async Task<(Guid Id, string UrlPath)> SeedSearchInputPageAsync(string actionUrl)
     {
         var segment = $"e2e-search-{Guid.NewGuid():N}";
         var id = await CmsSeedHelpers.CreatePageNodeAsync(
             Fixture.SeedClient,
-            parentId: CmsSeedHelpers.HelpRootId,
+            parentId: FixtureContent.RootId,
             pageType: "content",
             segment: segment,
             title: "E2E search input");
@@ -110,7 +90,7 @@ public sealed class ResultsWidgetE2ETests(PlaywrightFixture fixture) : SeedingPa
             });
         await CmsSeedHelpers.PublishDraftAsync(Fixture.SeedClient, id);
 
-        return (id, $"/help/{segment}");
+        return (id, $"{FixtureContent.RootPath}/{segment}");
     }
 
     // ============================================================
@@ -152,7 +132,7 @@ public sealed class ResultsWidgetE2ETests(PlaywrightFixture fixture) : SeedingPa
     public async Task PaginationAppearsAndNavigates_ForMultiPageTerm()
     {
         var (_, url, _) = await SeedResultsPageAsync();
-        var searchToken = await SeedSearchableFixturesAsync(count: 25);
+        var searchToken = await CmsSeedHelpers.SeedSearchableFixturesAsync(Fixture.SeedClient, count: 25, _createdPages);
 
         await Page.GotoAsync($"{Fixture.BaseUrl}{url}?q={searchToken}");
 
@@ -219,7 +199,7 @@ public sealed class ResultsWidgetE2ETests(PlaywrightFixture fixture) : SeedingPa
         // are pinnable:
         //   pageSize=20 → 2 pages, 20 items on page 1.
         //   pageSize=5  → 5 pages, 5 items on page 1 (max page link >= 5).
-        var searchToken = await SeedSearchableFixturesAsync(count: 25);
+        var searchToken = await CmsSeedHelpers.SeedSearchableFixturesAsync(Fixture.SeedClient, count: 25, _createdPages);
 
         try
         {

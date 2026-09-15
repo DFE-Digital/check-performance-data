@@ -1,5 +1,7 @@
 @using System.Globalization
+@using DfE.CheckPerformanceData.Application.Analytics
 @model DfE.CheckPerformanceData.Web.Controllers.ViewModels.TimeWindowFilterModel
+@inject ISearchSurfaceFilter SurfaceFilter
 @{
     // Shared time-window + bucket-size filter form used by the landing dashboard and every
     // series drill-in. Same GDS controls; the form's action URL varies per caller (the
@@ -59,6 +61,8 @@
         </div>
     </div>
 
+    @if (Model.ShowBucketSize)
+    {
     <div class="govuk-form-group">
         <fieldset class="govuk-fieldset">
             <legend class="govuk-fieldset__legend govuk-fieldset__legend--s">Chart bucket size</legend>
@@ -82,6 +86,7 @@
             </div>
         </fieldset>
     </div>
+    }
 
     @if (Model.ShowAggregateToggle)
     {
@@ -100,6 +105,40 @@
             </div>
         </div>
     }
+
+    @* Which search surfaces the figures cover. Read from the same ISearchSurfaceFilter the
+       query layer uses, so the boxes ticked here can never disagree with what was counted.
+       All ticked (or none) means everything, which is what an unfiltered dashboard shows. *@
+    <div class="govuk-form-group">
+        <fieldset class="govuk-fieldset">
+            <legend class="govuk-fieldset__legend govuk-fieldset__legend--s">Search surface</legend>
+            <div class="govuk-hint">
+                Leave all ticked to count every search. Two of these are instant search — the
+                typeahead — and they are recorded separately because searching a whole section
+                of the site and searching the page you are reading are different acts.
+            </div>
+            <div class="govuk-checkboxes govuk-checkboxes--small govuk-checkboxes--inline" data-module="govuk-checkboxes">
+                @foreach (var (value, label) in new[]
+                {
+                    @* Named so the family is visible. The first labelling called these
+                       "Instant search" and "Single-page search", which reads as two unrelated
+                       features — so someone who used the instant search on a page ticked
+                       "Instant search" and their own searches were filtered out. *@
+                    (SearchSurfaces.Site, "Submitted — someone pressed the button"),
+                    (SearchSurfaces.Instant, "Instant — the whole site or a section"),
+                    (SearchSurfaces.InstantPage, "Instant — this page only"),
+                })
+                {
+                    var id = "surface-" + value;
+                    <div class="govuk-checkboxes__item">
+                        <input class="govuk-checkboxes__input" id="@id" name="surface" type="checkbox"
+                               value="@value" @(SurfaceFilter.Surfaces.Contains(value) ? "checked=\"checked\"" : "") />
+                        <label class="govuk-label govuk-checkboxes__label" for="@id">@label</label>
+                    </div>
+                }
+            </div>
+        </fieldset>
+    </div>
 
     <div class="govuk-button-group">
         <button class="govuk-button" data-module="govuk-button" type="submit">Apply filters</button>

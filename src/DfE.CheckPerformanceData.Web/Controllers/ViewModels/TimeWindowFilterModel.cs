@@ -20,4 +20,8 @@ public sealed class TimeWindowFilterModel
     // there and no aggregate value is submitted.
     public bool ShowAggregateToggle { get; init; }
     public bool AggregateOn { get; init; }
+
+    // Bucket size only means something to a view that draws a time series. The single-page
+    // search tables do not, and a control that changes nothing is worse than no control.
+    public bool ShowBucketSize { get; init; } = true;
 }

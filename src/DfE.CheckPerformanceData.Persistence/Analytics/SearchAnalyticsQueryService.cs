@@ -29,13 +29,27 @@ public sealed class SearchAnalyticsQueryService : ISearchAnalyticsQueryService
     // any window strictly greater than 48 hours reads day-granularity buckets.
     private static readonly TimeSpan HourBucketThreshold = TimeSpan.FromHours(48);
 
+    // Every dashboard read names the events table through this rather than directly, so a new
+    // query cannot quietly skip the surface filter. @surfaces is bound centrally in ReadAsync,
+    // and the (surface, occurred_at_utc) index carries the extra predicate.
+    private const string EventsSource =
+        "(SELECT * FROM search_events WHERE surface = ANY(@surfaces))";
+
     private readonly IPortalDbContext _dbContext;
     private readonly ISettingService _settings;
+    private readonly ISearchSurfaceFilter _surfaces;
 
-    public SearchAnalyticsQueryService(IPortalDbContext dbContext, ISettingService settings)
+    // The surface filter is optional so the many test call sites that predate it keep
+    // compiling, and so that "no filter supplied" means every surface rather than an
+    // accidental site-only view.
+    public SearchAnalyticsQueryService(
+        IPortalDbContext dbContext,
+        ISettingService settings,
+        ISearchSurfaceFilter? surfaceFilter = null)
     {
         _dbContext = dbContext;
         _settings = settings;
+        _surfaces = surfaceFilter ?? new AllSearchSurfaces();
     }
 
     public async Task<SearchAnalyticsSummary> GetSummaryAsync(
@@ -48,13 +62,13 @@ public sealed class SearchAnalyticsQueryService : ISearchAnalyticsQueryService
         // pass; percentile_cont(0.95) WITHIN GROUP (ORDER BY latency_ms) is Postgres's
         // continuous percentile aggregate — interpolates between the two rows surrounding
         // the 95th percentile, so the tile stays smooth as the window slides.
-        const string sql = @"
+        const string sql = $@"
 SELECT
     COUNT(*)::int AS total_count,
     COUNT(DISTINCT session_id)::int AS unique_sessions,
     COUNT(*) FILTER (WHERE zero_results)::int AS zero_count,
     COALESCE(percentile_cont(0.95) WITHIN GROUP (ORDER BY latency_ms), 0) AS p95_latency
-FROM search_events
+FROM {EventsSource} AS search_events
 WHERE occurred_at_utc >= @from AND occurred_at_utc < @to;";
 
         var totalCount = 0;
@@ -93,12 +107,12 @@ WHERE occurred_at_utc >= @from AND occurred_at_utc < @to;";
         int limit,
         CancellationToken cancellationToken = default)
     {
-        const string sql = @"
+        const string sql = $@"
 SELECT
     query_normalised,
     COUNT(*)::int AS c,
     SUM(CASE WHEN zero_results THEN 1 ELSE 0 END)::int AS z
-FROM search_events
+FROM {EventsSource} AS search_events
 WHERE occurred_at_utc >= @from AND occurred_at_utc < @to AND query_normalised IS NOT NULL
 GROUP BY query_normalised
 ORDER BY c DESC, query_normalised ASC
@@ -131,12 +145,12 @@ LIMIT @limit;";
         // returned nothing. ZeroResultCount equals Count for every row in this projection
         // by construction — the view uses both fields so the top-queries and top-zero
         // tables share one row shape.
-        const string sql = @"
+        const string sql = $@"
 SELECT
     query_normalised,
     COUNT(*)::int AS c,
     COUNT(*)::int AS z
-FROM search_events
+FROM {EventsSource} AS search_events
 WHERE occurred_at_utc >= @from AND occurred_at_utc < @to
   AND query_normalised IS NOT NULL
   AND zero_results = true
@@ -284,7 +298,7 @@ LEFT JOIN (
     SELECT
         {groupedBucketExpr} AS bucket,
         {countExpr}::int AS value
-    FROM search_events
+    FROM {EventsSource} AS search_events
     WHERE occurred_at_utc >= @from AND occurred_at_utc < @to{extraWhere}
     GROUP BY 1
 ) e ON e.bucket = b.bucket
@@ -337,7 +351,7 @@ LEFT JOIN (
         percentile_cont(0.05) WITHIN GROUP (ORDER BY latency_ms) AS p5,
         percentile_cont(0.50) WITHIN GROUP (ORDER BY latency_ms) AS p50,
         percentile_cont(0.95) WITHIN GROUP (ORDER BY latency_ms) AS p95
-    FROM search_events
+    FROM {EventsSource} AS search_events
     WHERE occurred_at_utc >= @from AND occurred_at_utc < @to
     GROUP BY 1
 ) e ON e.bucket = b.bucket
@@ -411,7 +425,7 @@ LEFT JOIN (
         {groupedBucketExpr} AS bucket,
         COUNT(*)::int AS searches,
         COUNT(DISTINCT session_id)::int AS unique_sessions
-    FROM search_events
+    FROM {EventsSource} AS search_events
     WHERE occurred_at_utc >= @from AND occurred_at_utc < @to
     GROUP BY 1
 ) e ON e.bucket = b.bucket
@@ -518,7 +532,7 @@ LEFT JOIN (
         EXTRACT(ISODOW FROM occurred_at_utc AT TIME ZONE 'UTC')::int AS weekday,
         EXTRACT(HOUR   FROM occurred_at_utc AT TIME ZONE 'UTC')::int AS hour,
         {countExpr}::int AS value
-    FROM search_events
+    FROM {EventsSource} AS search_events
     WHERE occurred_at_utc >= @from AND occurred_at_utc < @to{extraWhere}
     GROUP BY 1, 2
 ) e ON e.weekday = w.weekday AND e.hour = hh.hour
@@ -546,7 +560,7 @@ ORDER BY w.weekday, hh.hour;";
         DateTime toUtc,
         CancellationToken cancellationToken = default)
     {
-        var sql = @"
+        var sql = $@"
 SELECT
     w.weekday::int AS weekday,
     hh.hour::int   AS hour,
@@ -562,7 +576,7 @@ LEFT JOIN (
         percentile_cont(0.05) WITHIN GROUP (ORDER BY latency_ms) AS p5,
         percentile_cont(0.50) WITHIN GROUP (ORDER BY latency_ms) AS p50,
         percentile_cont(0.95) WITHIN GROUP (ORDER BY latency_ms) AS p95
-    FROM search_events
+    FROM {EventsSource} AS search_events
     WHERE occurred_at_utc >= @from AND occurred_at_utc < @to
     GROUP BY 1, 2
 ) e ON e.weekday = w.weekday AND e.hour = hh.hour
@@ -677,7 +691,7 @@ LEFT JOIN (
         {groupedBucketExpr} AS bucket,
         COUNT(*)::int AS searches,
         COUNT(DISTINCT session_id)::int AS unique_sessions
-    FROM search_events
+    FROM {EventsSource} AS search_events
     WHERE occurred_at_utc >= @from AND occurred_at_utc < @to
     GROUP BY 1
 ) e ON e.bucket = b.bucket
@@ -751,7 +765,7 @@ LEFT JOIN (
     SELECT
         {groupedBucketExpr} AS bucket,
         {countExpr}::int AS value
-    FROM search_events
+    FROM {EventsSource} AS search_events
     WHERE occurred_at_utc >= @from AND occurred_at_utc < @to{extraWhere}
     GROUP BY 1
 ) e ON e.bucket = b.bucket
@@ -827,7 +841,7 @@ LEFT JOIN (
         percentile_cont(0.05) WITHIN GROUP (ORDER BY latency_ms) AS p5,
         percentile_cont(0.50) WITHIN GROUP (ORDER BY latency_ms) AS p50,
         percentile_cont(0.95) WITHIN GROUP (ORDER BY latency_ms) AS p95
-    FROM search_events
+    FROM {EventsSource} AS search_events
     WHERE occurred_at_utc >= @from AND occurred_at_utc < @to
     GROUP BY 1
 ) e ON e.bucket = b.bucket
@@ -913,7 +927,7 @@ LIMIT @limit OFFSET @offset;";
         var countSql = $@"
 SELECT COUNT(*) FROM (
     SELECT query_normalised
-    FROM search_events
+    FROM {EventsSource} AS search_events
     WHERE occurred_at_utc >= @from AND occurred_at_utc < @to
       AND query_normalised IS NOT NULL{extraFilter}
     GROUP BY query_normalised
@@ -930,7 +944,7 @@ SELECT
     query_normalised,
     COUNT(*)::int AS c,
     {zeroExpr} AS z
-FROM search_events
+FROM {EventsSource} AS search_events
 WHERE occurred_at_utc >= @from AND occurred_at_utc < @to
   AND query_normalised IS NOT NULL{extraFilter}
 GROUP BY query_normalised
@@ -997,23 +1011,23 @@ LIMIT @limit OFFSET @offset;";
         if (page < 1) page = 1;
         if (pageSize < 1) pageSize = 1;
 
-        const string countSql = @"
+        const string countSql = $@"
 SELECT COUNT(*) FROM (
     SELECT r.result_key
     FROM search_event_results r
-    JOIN search_events e ON e.id = r.search_event_id
+    JOIN {EventsSource} e ON e.id = r.search_event_id
     WHERE e.occurred_at_utc >= @from AND e.occurred_at_utc < @to
       AND r.result_kind = @kind
     GROUP BY r.result_key
 ) p;";
 
-        const string pageSql = @"
+        const string pageSql = $@"
 SELECT
     r.result_key,
     COUNT(*)::int AS impressions,
     COUNT(DISTINCT r.search_event_id)::int AS unique_queries
 FROM search_event_results r
-JOIN search_events e ON e.id = r.search_event_id
+JOIN {EventsSource} e ON e.id = r.search_event_id
 WHERE e.occurred_at_utc >= @from AND e.occurred_at_utc < @to
   AND r.result_kind = @kind
 GROUP BY r.result_key
@@ -1093,9 +1107,9 @@ LIMIT @limit OFFSET @offset;";
     {
         if (samplingLimit < 1) samplingLimit = 1;
 
-        const string sql = @"
+        const string sql = $@"
 SELECT occurred_at_utc, latency_ms, session_id, query_raw, results_total
-FROM search_events
+FROM {EventsSource} AS search_events
 WHERE occurred_at_utc >= @from AND occurred_at_utc < @to
 ORDER BY random()
 LIMIT @limit;";
@@ -1131,14 +1145,14 @@ LIMIT @limit;";
         if (page < 1) page = 1;
         if (pageSize < 1) pageSize = 1;
 
-        const string countSql = @"
+        const string countSql = $@"
 SELECT COUNT(*)::int
-FROM search_events
+FROM {EventsSource} AS search_events
 WHERE occurred_at_utc >= @from AND occurred_at_utc < @to;";
 
-        const string pageSql = @"
+        const string pageSql = $@"
 SELECT occurred_at_utc, latency_ms, session_id, query_raw, results_total
-FROM search_events
+FROM {EventsSource} AS search_events
 WHERE occurred_at_utc >= @from AND occurred_at_utc < @to
 ORDER BY occurred_at_utc DESC, id DESC
 LIMIT @limit OFFSET @offset;";
@@ -1197,16 +1211,16 @@ LIMIT @limit OFFSET @offset;";
         // Postgres whose session default is Europe/London the same URL returns different
         // rows twice a year across the BST/GMT switch. AT TIME ZONE 'UTC' pins the field
         // extraction to UTC clock-face values regardless of the session's default.
-        const string countSql = @"
+        const string countSql = $@"
 SELECT COUNT(*)::int
-FROM search_events
+FROM {EventsSource} AS search_events
 WHERE occurred_at_utc >= @from AND occurred_at_utc < @to
   AND EXTRACT(ISODOW FROM occurred_at_utc AT TIME ZONE 'UTC')::int = @weekday
   AND EXTRACT(HOUR   FROM occurred_at_utc AT TIME ZONE 'UTC')::int = @hour;";
 
-        const string pageSql = @"
+        const string pageSql = $@"
 SELECT occurred_at_utc, latency_ms, session_id, query_raw, results_total
-FROM search_events
+FROM {EventsSource} AS search_events
 WHERE occurred_at_utc >= @from AND occurred_at_utc < @to
   AND EXTRACT(ISODOW FROM occurred_at_utc AT TIME ZONE 'UTC')::int = @weekday
   AND EXTRACT(HOUR   FROM occurred_at_utc AT TIME ZONE 'UTC')::int = @hour
@@ -1270,10 +1284,10 @@ LIMIT @limit OFFSET @offset;";
         // recovered even though the last thing they did was fail — and the sibling
         // GetZeroResultOutcomeFunnelAsync (which does enforce the ordering) would report
         // a lower "refined" figure for the same window, so the two cards disagreed.
-        const string sql = @"
+        const string sql = $@"
 WITH first_zero AS (
     SELECT session_id, MIN(occurred_at_utc) AS first_zero_utc
-    FROM search_events
+    FROM {EventsSource} AS search_events
     WHERE occurred_at_utc >= @from AND occurred_at_utc < @to
       AND zero_results
     GROUP BY session_id
@@ -1281,7 +1295,7 @@ WITH first_zero AS (
 recovered AS (
     SELECT DISTINCT fz.session_id
     FROM first_zero fz
-    JOIN search_events e ON e.session_id = fz.session_id
+    JOIN {EventsSource} e ON e.session_id = fz.session_id
     WHERE e.occurred_at_utc >= @from AND e.occurred_at_utc < @to
       AND e.occurred_at_utc > fz.first_zero_utc
       AND NOT e.zero_results
@@ -1339,10 +1353,10 @@ SELECT
         if (page < 1) page = 1;
         if (pageSize < 1) pageSize = 1;
 
-        const string countSql = @"
+        const string countSql = $@"
 SELECT COUNT(*)::int FROM (
     SELECT session_id
-    FROM search_events
+    FROM {EventsSource} AS search_events
     WHERE occurred_at_utc >= @from AND occurred_at_utc < @to
     GROUP BY session_id
     HAVING BOOL_OR(zero_results)
@@ -1351,10 +1365,10 @@ SELECT COUNT(*)::int FROM (
         // Rank sessions by their in-window chain length (event count) desc, id asc, take
         // the requested page, then fan out to every event for the ids on that page. One
         // ORDER BY at the outer SELECT gives per-session chronological chains.
-        const string pageSql = @"
+        const string pageSql = $@"
 WITH ranked AS (
     SELECT session_id, COUNT(*) AS chain_length
-    FROM search_events
+    FROM {EventsSource} AS search_events
     WHERE occurred_at_utc >= @from AND occurred_at_utc < @to
     GROUP BY session_id
     HAVING BOOL_OR(zero_results)
@@ -1367,7 +1381,7 @@ page_sessions AS (
 events AS (
     SELECT e.session_id, e.occurred_at_utc, e.query_normalised, e.results_total,
            e.zero_results
-    FROM search_events e
+    FROM {EventsSource} e
     JOIN page_sessions p ON p.session_id = e.session_id
     WHERE e.occurred_at_utc >= @from AND e.occurred_at_utc < @to
 ),
@@ -1379,7 +1393,7 @@ feedback AS (
 ),
 first_zero AS (
     SELECT p.session_id, MIN(e.occurred_at_utc) AS first_zero_utc
-    FROM search_events e
+    FROM {EventsSource} e
     JOIN page_sessions p ON p.session_id = e.session_id
     WHERE e.occurred_at_utc >= @from AND e.occurred_at_utc < @to
       AND e.zero_results
@@ -1388,7 +1402,7 @@ first_zero AS (
 recovered AS (
     SELECT DISTINCT fz.session_id
     FROM first_zero fz
-    JOIN search_events e ON e.session_id = fz.session_id
+    JOIN {EventsSource} e ON e.session_id = fz.session_id
     WHERE e.occurred_at_utc >= @from AND e.occurred_at_utc < @to
       AND e.occurred_at_utc > fz.first_zero_utc
       AND NOT e.zero_results
@@ -1464,7 +1478,7 @@ ORDER BY (SELECT chain_length FROM ranked WHERE ranked.session_id = e.session_id
         DateTime toUtc,
         CancellationToken cancellationToken = default)
     {
-        const string sql = @"
+        const string sql = $@"
 SELECT
     w.weekday::int AS weekday,
     h.hour::int AS hour,
@@ -1476,7 +1490,7 @@ LEFT JOIN (
         EXTRACT(ISODOW FROM occurred_at_utc AT TIME ZONE 'UTC')::int AS weekday,
         EXTRACT(HOUR   FROM occurred_at_utc AT TIME ZONE 'UTC')::int AS hour,
         COUNT(*)::int AS c
-    FROM search_events
+    FROM {EventsSource} AS search_events
     WHERE occurred_at_utc >= @from AND occurred_at_utc < @to
     GROUP BY 1, 2
 ) e ON e.weekday = w.weekday AND e.hour = h.hour
@@ -1508,7 +1522,7 @@ ORDER BY w.weekday, h.hour;";
         DateTime toUtc,
         CancellationToken cancellationToken = default)
     {
-        const string sql = @"
+        const string sql = $@"
 WITH first_zero AS (
     -- DISTINCT ON rather than MIN(): the baseline must be the query that actually ran
     -- first, and MIN(query_normalised) is the alphabetically smallest zero-result query
@@ -1520,7 +1534,7 @@ WITH first_zero AS (
            session_id,
            occurred_at_utc  AS first_zero_utc,
            query_normalised AS first_zero_query
-    FROM search_events
+    FROM {EventsSource} AS search_events
     WHERE occurred_at_utc >= @from AND occurred_at_utc < @to
       AND zero_results = true
     ORDER BY session_id, occurred_at_utc, id
@@ -1528,7 +1542,7 @@ WITH first_zero AS (
 refined AS (
     SELECT DISTINCT fz.session_id
     FROM first_zero fz
-    JOIN search_events e ON e.session_id = fz.session_id
+    JOIN {EventsSource} e ON e.session_id = fz.session_id
     WHERE e.occurred_at_utc > fz.first_zero_utc
       AND e.occurred_at_utc < @to
       AND (e.query_normalised IS DISTINCT FROM fz.first_zero_query)
@@ -1553,7 +1567,7 @@ classified AS (
 ),
 all_sessions AS (
     SELECT COUNT(DISTINCT session_id)::int AS c
-    FROM search_events
+    FROM {EventsSource} AS search_events
     WHERE occurred_at_utc >= @from AND occurred_at_utc < @to
 )
 SELECT
@@ -1638,6 +1652,126 @@ SELECT
     // hands each row to the caller. Mirrors MetricsQueryService's helper — the two read
     // services share the layering pattern and a copy here keeps the sibling boundary
     // clean without introducing a shared helper class.
+    // ── Single-page search ───────────────────────────────────────────────────
+    //
+    // Only an on-page search records a host path, so the IS NOT NULL predicate is what
+    // separates this section from the rest of the dashboard — no surface literal is hard-coded
+    // here, and a reader who has filtered the surfaces down sees that filter applied as well.
+
+    public async Task<(IReadOnlyList<OnPageSearchPageRow> Rows, int TotalCount)> GetOnPageSearchPagesAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        // One-indexed at the API boundary, matching every other paged drill-in here.
+        var safePage = Math.Max(1, page);
+        var safeSize = Math.Max(1, pageSize);
+
+        var countSql = $@"
+SELECT COUNT(DISTINCT host_path)::int
+FROM {EventsSource} AS search_events
+WHERE occurred_at_utc >= @from AND occurred_at_utc < @to
+  AND host_path IS NOT NULL;";
+
+        var total = 0;
+        await ReadAsync(countSql, cancellationToken, Bind, reader => total = reader.GetInt32(0));
+
+        var sql = $@"
+SELECT
+    host_path,
+    COUNT(*)::int,
+    COUNT(DISTINCT session_id)::int,
+    COUNT(*) FILTER (WHERE zero_results)::int,
+    COUNT(*) FILTER (WHERE selected_key IS NOT NULL)::int
+FROM {EventsSource} AS search_events
+WHERE occurred_at_utc >= @from AND occurred_at_utc < @to
+  AND host_path IS NOT NULL
+GROUP BY host_path
+ORDER BY COUNT(*) DESC, host_path ASC
+LIMIT @limit OFFSET @offset;";
+
+        var rows = new List<OnPageSearchPageRow>();
+        await ReadAsync(sql, cancellationToken, command =>
+        {
+            Bind(command);
+            command.Parameters.Add(new NpgsqlParameter("limit", NpgsqlDbType.Integer) { Value = safeSize });
+            command.Parameters.Add(new NpgsqlParameter("offset", NpgsqlDbType.Integer) { Value = (safePage - 1) * safeSize });
+        }, reader => rows.Add(new OnPageSearchPageRow(
+            reader.GetString(0),
+            reader.GetInt32(1),
+            reader.GetInt32(2),
+            reader.GetInt32(3),
+            reader.GetInt32(4))));
+
+        return (rows, total);
+
+        void Bind(NpgsqlCommand command)
+        {
+            command.Parameters.Add(new NpgsqlParameter("from", NpgsqlDbType.TimestampTz) { Value = fromUtc });
+            command.Parameters.Add(new NpgsqlParameter("to", NpgsqlDbType.TimestampTz) { Value = toUtc });
+        }
+    }
+
+    public async Task<(IReadOnlyList<OnPageSearchTermRow> Rows, int TotalCount)> GetOnPageSearchTermsAsync(
+        string hostPath,
+        DateTime fromUtc,
+        DateTime toUtc,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        // One-indexed at the API boundary, matching every other paged drill-in here.
+        var safePage = Math.Max(1, page);
+        var safeSize = Math.Max(1, pageSize);
+
+        var countSql = $@"
+SELECT COUNT(DISTINCT query_normalised)::int
+FROM {EventsSource} AS search_events
+WHERE occurred_at_utc >= @from AND occurred_at_utc < @to
+  AND host_path = @path
+  AND query_normalised IS NOT NULL;";
+
+        var total = 0;
+        await ReadAsync(countSql, cancellationToken, Bind, reader => total = reader.GetInt32(0));
+
+        var sql = $@"
+SELECT
+    query_normalised,
+    COUNT(*)::int,
+    COUNT(*) FILTER (WHERE zero_results)::int,
+    COUNT(*) FILTER (WHERE selected_key IS NOT NULL)::int
+FROM {EventsSource} AS search_events
+WHERE occurred_at_utc >= @from AND occurred_at_utc < @to
+  AND host_path = @path
+  AND query_normalised IS NOT NULL
+GROUP BY query_normalised
+ORDER BY COUNT(*) DESC, query_normalised ASC
+LIMIT @limit OFFSET @offset;";
+
+        var rows = new List<OnPageSearchTermRow>();
+        await ReadAsync(sql, cancellationToken, command =>
+        {
+            Bind(command);
+            command.Parameters.Add(new NpgsqlParameter("limit", NpgsqlDbType.Integer) { Value = safeSize });
+            command.Parameters.Add(new NpgsqlParameter("offset", NpgsqlDbType.Integer) { Value = (safePage - 1) * safeSize });
+        }, reader => rows.Add(new OnPageSearchTermRow(
+            reader.GetString(0),
+            reader.GetInt32(1),
+            reader.GetInt32(2),
+            reader.GetInt32(3))));
+
+        return (rows, total);
+
+        void Bind(NpgsqlCommand command)
+        {
+            command.Parameters.Add(new NpgsqlParameter("from", NpgsqlDbType.TimestampTz) { Value = fromUtc });
+            command.Parameters.Add(new NpgsqlParameter("to", NpgsqlDbType.TimestampTz) { Value = toUtc });
+            command.Parameters.Add(new NpgsqlParameter("path", NpgsqlDbType.Text) { Value = hostPath });
+        }
+    }
+
     private async Task ReadAsync(
         string sql,
         CancellationToken cancellationToken,
@@ -1657,6 +1791,18 @@ SELECT
             await using var command = connection.CreateCommand();
             command.CommandText = sql;
             bindParameters(command);
+
+            // Bound here rather than at each call site: the parameter belongs to EventsSource,
+            // which every read composes, and a query that forgot it would silently widen to
+            // every surface. Only added when the SQL actually names it.
+            if (sql.Contains("@surfaces", StringComparison.Ordinal)
+                && !command.Parameters.Contains("surfaces"))
+            {
+                command.Parameters.Add(new NpgsqlParameter("surfaces", NpgsqlDbType.Array | NpgsqlDbType.Text)
+                {
+                    Value = _surfaces.Surfaces.ToArray(),
+                });
+            }
 
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
             while (await reader.ReadAsync(cancellationToken))

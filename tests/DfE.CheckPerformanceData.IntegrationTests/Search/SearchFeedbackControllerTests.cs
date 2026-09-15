@@ -683,6 +683,12 @@ public sealed class SearchFeedbackViewRenderTests
                     services.AddControllersWithViews()
                         .AddApplicationPart(typeof(SearchFeedbackController).Assembly);
                     services.AddGovUkFrontend();
+                    // The shared analytics filter partial @inject-s ISearchSurfaceFilter.
+                    // Registering the all-surfaces default mirrors an unfiltered dashboard,
+                    // which is the state these render assertions describe.
+                    services.AddSingleton<
+                        DfE.CheckPerformanceData.Application.Analytics.ISearchSurfaceFilter,
+                        DfE.CheckPerformanceData.Application.Analytics.AllSearchSurfaces>();
                 });
                 web.Configure(_ => { });
             })
@@ -792,6 +798,12 @@ public sealed class SearchIndexInsetTextRenderTests
                     services.AddControllersWithViews()
                         .AddApplicationPart(typeof(SearchController).Assembly);
                     services.AddGovUkFrontend();
+                    // The shared analytics filter partial @inject-s ISearchSurfaceFilter.
+                    // Registering the all-surfaces default mirrors an unfiltered dashboard,
+                    // which is the state these render assertions describe.
+                    services.AddSingleton<
+                        DfE.CheckPerformanceData.Application.Analytics.ISearchSurfaceFilter,
+                        DfE.CheckPerformanceData.Application.Analytics.AllSearchSurfaces>();
                     // Views/Search/Index.cshtml @inject-s ISearchDebugOptions; register a
                     // fake returning ShowSearchDebug=false so the debug-only markup
                     // branches don't fire in the assertion body.

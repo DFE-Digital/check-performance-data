@@ -402,6 +402,7 @@
             var wrapper = select.closest('.govuk-details__text');
             if (!wrapper) return;
             var childrenPanel = wrapper.querySelector('[data-cpb-pagenav-children]');
+            var headingsPanel = wrapper.querySelector('[data-cpb-pagenav-headings]');
             var searchCheckbox = wrapper.querySelector('[data-cpb-pagenav-showsearch]');
             var searchPanel = wrapper.querySelector('[data-cpb-pagenav-searchfields]');
             if (!childrenPanel) return;
@@ -409,10 +410,34 @@
             function refresh() {
                 var isChildren = select.value === 'children';
                 childrenPanel.hidden = !isChildren;
+                if (headingsPanel) headingsPanel.hidden = isChildren;
                 if (searchPanel) searchPanel.hidden = !isChildren || !(searchCheckbox && searchCheckbox.checked);
             }
             select.addEventListener('change', refresh);
             if (searchCheckbox) searchCheckbox.addEventListener('change', refresh);
+            refresh();
+        });
+    })();
+</script>
+
+@* Live toggling for the Search widget editor: the scope path only applies to a section of the
+   site, and the no-results copy only to instant search. *@
+<script>
+    (function () {
+        'use strict';
+        document.querySelectorAll('[data-cpb-search-in]').forEach(function (select) {
+            var wrapper = select.closest('.govuk-details__text');
+            if (!wrapper) return;
+            var pathField = wrapper.querySelector('[data-cpb-search-pathfield]');
+            var instantCheckbox = wrapper.querySelector('[data-cpb-search-instant]');
+            var instantFields = wrapper.querySelector('[data-cpb-search-instantfields]');
+
+            function refresh() {
+                if (pathField) pathField.hidden = select.value !== 'path';
+                if (instantFields) instantFields.hidden = !(instantCheckbox && instantCheckbox.checked);
+            }
+            select.addEventListener('change', refresh);
+            if (instantCheckbox) instantCheckbox.addEventListener('change', refresh);
             refresh();
         });
     })();

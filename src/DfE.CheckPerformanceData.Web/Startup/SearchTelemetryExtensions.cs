@@ -16,6 +16,13 @@ public static class SearchTelemetryExtensions
             Application.Search.ISearchDebugOptions,
             Application.Search.CmsSettingsSearchDebugOptions>();
 
+        // Which surfaces the analytics dashboard is reading. Scoped for the same reason as
+        // the debug options above: it is a property of the current request, and a Singleton
+        // would pin one reader's filter to every other reader.
+        services.AddScoped<
+            Application.Analytics.ISearchSurfaceFilter,
+            Analytics.QueryStringSearchSurfaceFilter>();
+
         // Emits a structured log per search request (Info summary, Debug/Info per-hit and
         // per-exclusion depending on the debug toggle, Warn zero-result). Registered as the
         // CONCRETE type so the composite decorator below can resolve it directly without a

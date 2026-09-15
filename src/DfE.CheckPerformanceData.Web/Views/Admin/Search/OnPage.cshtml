@@ -1,0 +1,168 @@
+@using System.Globalization
+@using DfE.CheckPerformanceData.Application.Analytics
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.OnPageSearchViewModel
+@inject ISearchSurfaceFilter SurfaceFilter
+@{
+    var isDrillIn = !string.IsNullOrWhiteSpace(Model.HostPath);
+    ViewData["Title"] = isDrillIn ? "Single-page search: " + Model.HostPath : "Single-page search";
+
+    var rangeQs = SearchAnalyticsRangeQuery.Build(Model.RangeKey, Model.FromUtc, Model.ToUtc);
+    string PageLink(int p) => isDrillIn
+        ? $"/admin/Search/OnPage?path={Uri.EscapeDataString(Model.HostPath!)}&{rangeQs}&page={p}"
+        : $"/admin/Search/OnPage?{rangeQs}&page={p}";
+
+    const string tableId = "sa-onpage-table";
+    var firstRow = Model.TotalCount == 0 ? 0 : ((Model.Page - 1) * Model.PageSize) + 1;
+    var lastRow = Math.Min(Model.Page * Model.PageSize, Model.TotalCount);
+
+    // Searches where the person was offered sections and took none of them. The count worth
+    // reading on this page: it is the page being asked a question it could not answer.
+    string NotTaken(int searches, int selected) =>
+        (searches - selected).ToString("N0", CultureInfo.CurrentCulture);
+}
+
+<link rel="stylesheet" href="~/css/search-analytics.css" asp-append-version="true" />
+
+@if (isDrillIn)
+{
+    <a class="govuk-back-link" href="/admin/Search/OnPage?@rangeQs">Back to single-page search</a>
+}
+else
+{
+    <a class="govuk-back-link" href="/admin/Search/?@rangeQs">Back to search analytics</a>
+}
+
+<h1 class="govuk-heading-xl">Single-page search</h1>
+
+@if (isDrillIn)
+{
+    <p class="govuk-body">
+        What visitors searched for on
+        <a class="govuk-link" href="@Model.HostPath" target="_blank" rel="noopener noreferrer">@Model.HostPath</a>
+        using the search widget on that page.
+    </p>
+}
+else
+{
+    <p class="govuk-body">
+        Pages carrying a search widget set to search the page itself. A search here never leaves
+        the page — the visitor is offered its sections and jumps to one — so these searches do
+        not appear as page views anywhere else.
+    </p>
+}
+
+@await Html.PartialAsync("~/Views/Admin/Search/_TimeWindowFilterForm.cshtml",
+    new DfE.CheckPerformanceData.Web.Controllers.ViewModels.TimeWindowFilterModel
+    {
+        FormAction = isDrillIn
+            ? $"/admin/Search/OnPage?path={Uri.EscapeDataString(Model.HostPath!)}"
+            : "/admin/Search/OnPage",
+        RangeKey = Model.RangeKey,
+        FromUtc = Model.FromUtc,
+        ToUtc = Model.ToUtc,
+        BucketKey = "1d",
+        ShowBucketSize = false,
+    })
+
+@* Every row on this page is an on-page search, so a surface filter that excludes them
+   empties the table. Saying "nothing was searched for" in that case would be a lie, and the
+   reader has no way to tell the difference. *@
+@if (!SurfaceFilter.Surfaces.Contains(SearchSurfaces.InstantPage))
+{
+    <div class="govuk-warning-text">
+        <span class="govuk-warning-text__icon" aria-hidden="true">!</span>
+        <strong class="govuk-warning-text__text">
+            <span class="govuk-visually-hidden">Warning</span>
+            The search surface filter currently excludes on-page searches, so this section has
+            nothing to show. Tick <strong>Instant — this page only</strong> above to see it.
+        </strong>
+    </div>
+}
+else if (Model.TotalCount == 0)
+{
+    <p class="govuk-body">
+        @(isDrillIn
+            ? "Nothing was searched for on this page in this window."
+            : "No on-page searches recorded in this window.")
+    </p>
+}
+else if (SurfaceFilter.Surfaces.Contains(SearchSurfaces.InstantPage))
+{
+    <p class="govuk-body-s govuk-hint">
+        Showing @firstRow to @lastRow of @Model.TotalCount.
+    </p>
+
+    <div class="govuk-form-group">
+        <label class="govuk-label" for="sa-onpage-filter">Filter loaded rows</label>
+        <div class="govuk-hint">Instant filter, no server round-trip.</div>
+        <input class="govuk-input sa-filter-input" id="sa-onpage-filter"
+               type="search" data-filter-target="@tableId" autocomplete="off" />
+    </div>
+
+    <table class="govuk-table" id="@tableId">
+        <caption class="govuk-table__caption govuk-table__caption--s govuk-visually-hidden">
+            @(isDrillIn ? "Terms searched on this page" : "Pages with an on-page search widget")
+        </caption>
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header">@(isDrillIn ? "Term" : "Page")</th>
+                <th scope="col" class="govuk-table__header govuk-table__header--numeric"
+                    title="How many settled searches were made in the selected window.">Searches</th>
+                @if (!isDrillIn)
+                {
+                    <th scope="col" class="govuk-table__header govuk-table__header--numeric"
+                        title="Distinct sessions that searched on this page.">Sessions</th>
+                }
+                <th scope="col" class="govuk-table__header govuk-table__header--numeric"
+                    title="Searches that matched no section on the page.">No match</th>
+                <th scope="col" class="govuk-table__header govuk-table__header--numeric"
+                    title="Searches where the visitor jumped to one of the sections offered.">Jumped</th>
+                <th scope="col" class="govuk-table__header govuk-table__header--numeric"
+                    title="Searches where sections were offered and none were taken — the page was asked something it could not answer.">Not taken</th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            @if (isDrillIn)
+            {
+                @foreach (var row in Model.Terms)
+                {
+                    <tr class="govuk-table__row" data-filter-key="@row.QueryNormalised">
+                        <td class="govuk-table__cell sa-onpage-path">@row.QueryNormalised</td>
+                        <td class="govuk-table__cell govuk-table__cell--numeric">@row.Searches.ToString("N0", CultureInfo.CurrentCulture)</td>
+                        <td class="govuk-table__cell govuk-table__cell--numeric">@row.ZeroResultCount.ToString("N0", CultureInfo.CurrentCulture)</td>
+                        <td class="govuk-table__cell govuk-table__cell--numeric">@row.SelectedCount.ToString("N0", CultureInfo.CurrentCulture)</td>
+                        <td class="govuk-table__cell govuk-table__cell--numeric">@NotTaken(row.Searches, row.SelectedCount)</td>
+                    </tr>
+                }
+            }
+            else
+            {
+                @foreach (var row in Model.Pages)
+                {
+                    <tr class="govuk-table__row" data-filter-key="@row.HostPath">
+                        <td class="govuk-table__cell sa-onpage-path">
+                            <a class="govuk-link"
+                               href="/admin/Search/OnPage?path=@Uri.EscapeDataString(row.HostPath)&@rangeQs">@row.HostPath</a>
+                        </td>
+                        <td class="govuk-table__cell govuk-table__cell--numeric">@row.Searches.ToString("N0", CultureInfo.CurrentCulture)</td>
+                        <td class="govuk-table__cell govuk-table__cell--numeric">@row.UniqueSessions.ToString("N0", CultureInfo.CurrentCulture)</td>
+                        <td class="govuk-table__cell govuk-table__cell--numeric">@row.ZeroResultCount.ToString("N0", CultureInfo.CurrentCulture)</td>
+                        <td class="govuk-table__cell govuk-table__cell--numeric">@row.SelectedCount.ToString("N0", CultureInfo.CurrentCulture)</td>
+                        <td class="govuk-table__cell govuk-table__cell--numeric">@NotTaken(row.Searches, row.SelectedCount)</td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+
+    @await Component.InvokeAsync("Pager", new
+    {
+        currentPage = Model.Page,
+        totalPages = Model.TotalPages,
+        urlBuilder = (Func<int, string>)PageLink,
+    })
+}
+
+@section Scripts {
+    <script src="~/js/search-analytics.js" asp-append-version="true"></script>
+}

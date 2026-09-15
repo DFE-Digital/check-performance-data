@@ -309,6 +309,60 @@ public sealed class SearchAnalyticsController : Controller
         });
     }
 
+    // Single-page search. One action, two states: without a path it lists the pages that
+    // carry an on-page search widget; with one it lists what was searched for on that page.
+    // The gap between a page's searches and its selections is the number worth reading — it
+    // counts the times the page was asked something and had nothing useful to offer.
+    [HttpGet("OnPage")]
+    public async Task<IActionResult> OnPage(
+        string? path,
+        string? range,
+        DateTime? from,
+        DateTime? to,
+        int page = 1,
+        CancellationToken ct = default)
+    {
+        ViewData["AdminActiveKey"] = AdminNavKeys.SearchAnalytics;
+        ViewData["Title"] = string.IsNullOrWhiteSpace(path)
+            ? "Single-page search"
+            : "Single-page search: " + path;
+        ViewData["AdminWide"] = true;
+
+        var (fromUtc, toUtc, rangeKey) = ResolveWindowFromRequest(range, from, to);
+        var pageSize = await ResolvePageSizeAsync();
+        if (page < 1) page = 1;
+
+        var hostPath = string.IsNullOrWhiteSpace(path) ? null : path.Trim();
+
+        if (hostPath is null)
+        {
+            var (pages, pagesTotal) = await _query.GetOnPageSearchPagesAsync(fromUtc, toUtc, page, pageSize, ct);
+            return View("~/Views/Admin/Search/OnPage.cshtml", new OnPageSearchViewModel
+            {
+                Pages = pages,
+                TotalCount = pagesTotal,
+                Page = page,
+                PageSize = pageSize,
+                FromUtc = fromUtc,
+                ToUtc = toUtc,
+                RangeKey = rangeKey,
+            });
+        }
+
+        var (terms, termsTotal) = await _query.GetOnPageSearchTermsAsync(hostPath, fromUtc, toUtc, page, pageSize, ct);
+        return View("~/Views/Admin/Search/OnPage.cshtml", new OnPageSearchViewModel
+        {
+            HostPath = hostPath,
+            Terms = terms,
+            TotalCount = termsTotal,
+            Page = page,
+            PageSize = pageSize,
+            FromUtc = fromUtc,
+            ToUtc = toUtc,
+            RangeKey = rangeKey,
+        });
+    }
+
     [HttpGet("Queries")]
     public async Task<IActionResult> Queries(
         string? range,

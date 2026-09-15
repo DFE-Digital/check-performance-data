@@ -107,6 +107,12 @@ public sealed class TreeNodeRenderTests
                     // _TreeNode.cshtml renders GovUk form tag helpers (move up/down),
                     // which resolve IComponentGenerator from the GovUk.Frontend services.
                     services.AddGovUkFrontend();
+                    // The shared analytics filter partial @inject-s ISearchSurfaceFilter.
+                    // Registering the all-surfaces default mirrors an unfiltered dashboard,
+                    // which is the state these render assertions describe.
+                    services.AddSingleton<
+                        DfE.CheckPerformanceData.Application.Analytics.ISearchSurfaceFilter,
+                        DfE.CheckPerformanceData.Application.Analytics.AllSearchSurfaces>();
                 });
                 web.Configure(_ => { });
             })

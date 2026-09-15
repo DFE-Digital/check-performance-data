@@ -178,3 +178,22 @@ public sealed record ZeroResultJourney(
     IReadOnlyList<RefinementStep> Steps,
     bool EventuallyRecovered,
     bool SentFeedback);
+
+// One page that carries an on-page search widget, summarised over the window.
+//
+// SelectedCount is the number of searches where the person took one of the sections offered.
+// The gap between Searches and SelectedCount is the interesting number: searches where the
+// page was asked a question and the answer on offer was not taken.
+public sealed record OnPageSearchPageRow(
+    string HostPath,
+    int Searches,
+    int UniqueSessions,
+    int ZeroResultCount,
+    int SelectedCount);
+
+// One term searched for on a single page.
+public sealed record OnPageSearchTermRow(
+    string QueryNormalised,
+    int Searches,
+    int ZeroResultCount,
+    int SelectedCount);

@@ -69,4 +69,23 @@ public sealed class SinkAndLogSearchTelemetry : ISearchTelemetry
         // its summary log line.
         _inner.RecordSearch(evt);
     }
+
+    public void RecordInstantSearch(InstantSearchTelemetryEvent evt)
+    {
+        var sessionId = _sessionProvider.GetSessionId();
+
+        if (!string.IsNullOrEmpty(sessionId))
+        {
+            var (dto, _) = InstantSearchEventMapper.From(evt, sessionId);
+            if (!_writer.TryWrite(dto))
+            {
+                _droppedCounter.Increment();
+                _logger.LogWarning(
+                    "Search analytics event dropped: channel full (SearchId={SearchId})",
+                    evt.SearchId);
+            }
+        }
+
+        _inner.RecordInstantSearch(evt);
+    }
 }

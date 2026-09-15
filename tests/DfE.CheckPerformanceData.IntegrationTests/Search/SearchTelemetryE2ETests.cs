@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.Common;
 using DfE.CheckPerformanceData.Application.ContentBlocks;
+using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.Search;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Persistence.Entities;
@@ -363,6 +364,12 @@ public sealed class SearchTelemetryE2ETests(PostgresFixture fixture)
         {
             primary.RecordSearch(evt);
             secondary.RecordSearch(evt);
+        }
+
+        public void RecordInstantSearch(InstantSearchTelemetryEvent evt)
+        {
+            primary.RecordInstantSearch(evt);
+            secondary.RecordInstantSearch(evt);
         }
     }
 

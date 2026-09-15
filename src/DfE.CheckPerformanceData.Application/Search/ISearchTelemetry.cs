@@ -1,3 +1,5 @@
+using DfE.CheckPerformanceData.Application.Analytics;
+
 namespace DfE.CheckPerformanceData.Application.Search;
 
 // Fire-and-forget emission surface for a completed search request. Callers assemble a
@@ -9,4 +11,10 @@ namespace DfE.CheckPerformanceData.Application.Search;
 public interface ISearchTelemetry
 {
     void RecordSearch(SearchTelemetryEvent evt);
+
+    // A typeahead reports once the person has settled on a query, not once per keystroke, and
+    // it reports from the browser — which is the only place that knows what was actually shown
+    // and whether any of it was taken. Separate from RecordSearch because the event shape is
+    // different and because the two must stay countable apart on the dashboard.
+    void RecordInstantSearch(InstantSearchTelemetryEvent evt);
 }

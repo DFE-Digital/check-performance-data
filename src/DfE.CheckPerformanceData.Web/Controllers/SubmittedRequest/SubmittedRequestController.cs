@@ -120,6 +120,14 @@ public sealed class SubmittedRequestController(
     {
         var result = await requestService.DeleteAsync(windowId, referenceNumber);
 
+        // Nothing changed (the row is already committed), so there is nothing to announce.
+        if (!result.Deleted)
+        {
+            return allEst
+                ? RedirectToAction("Index", "EstablishmentAmendmentRequests")
+                : RedirectToAction("Index", "AmendmentRequests", new { windowId });
+        }
+
         // Both amendment requests and data-correct confirmations post to this action;
         // the deleted row's type picks the analytics event. No row found → no event.
         if (result.RequestType is not null)

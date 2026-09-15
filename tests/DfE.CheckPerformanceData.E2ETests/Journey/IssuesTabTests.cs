@@ -13,7 +13,7 @@ public sealed class IssuesTabTests(PlaywrightFixture fixture) : SeedingPageTest(
     private static readonly Guid WindowId = Guid.Parse("6C2E1F4A-9B7D-4E38-8A15-3D9C2B4E7F01");
     private const string StudentCypmdId = "500001";
     private const string StudentName = "Alice Smith";
-    private const string MathsS2024 = "GCSE (9-1) Mathematics, QAN: 60146084, Session: S2024";
+    private const string MathsS2024 = "GCE A Level Mathematics, QAN: 60311642, Session: S2024, Grade: B";
 
     [RetryFact(1)]
     public async Task ASubmittedEnquiryAppearsOnTheIssuesTab()
@@ -36,11 +36,12 @@ public sealed class IssuesTabTests(PlaywrightFixture fixture) : SeedingPageTest(
         await Expect(issuesPanel.GetByText(StudentName).First).ToBeVisibleAsync();
         await Expect(issuesPanel.GetByText(StudentCypmdId).First).ToBeVisibleAsync();
         await Expect(issuesPanel.GetByText("Result does not belong to student").First).ToBeVisibleAsync();
-        await Expect(issuesPanel.GetByText("GCSE (9-1) Mathematics").First).ToBeVisibleAsync();
+        await Expect(issuesPanel.GetByText("GCE A Level Mathematics").First).ToBeVisibleAsync();
 
         // The results-enquiry deadline is stated on this tab, not in the page header.
         await Expect(issuesPanel.GetByText("Submit your results enquiry requests by").First).ToBeVisibleAsync();
-        await Expect(issuesPanel.GetByText("You can edit your results enquiry requests").First).ToBeVisibleAsync();
+        // A submitted results enquiry cannot be edited, so the tab must not say it can.
+        Assert.Equal(0, await issuesPanel.GetByText("You can edit your").CountAsync());
 
         // Separation (AC 4): the enquiry never leaks into the Requests tab.
         await Page.GetByRole(AriaRole.Tab, new() { Name = "Requests" }).ClickAsync();

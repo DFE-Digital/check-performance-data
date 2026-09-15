@@ -102,8 +102,8 @@ public sealed class ResultSuggestionsControllerTests
 
         Assert.Equal(
             [
-                ("6037116X|S2024|16to19_MAIN", "GCSE (9-1) Bus. Studs:Single, QAN: 6037116X, Session: S2024"),
-                ("60181576|S2024|16to19_LR1", "GCSE (9-1) French, QAN: 60181576, Session: S2024")
+                ("6037116X|S2024|16to19_MAIN", "GCSE (9-1) Bus. Studs:Single, QAN: 6037116X, Session: S2024, Grade: 5"),
+                ("60181576|S2024|16to19_LR1", "GCSE (9-1) French, QAN: 60181576, Session: S2024, Grade: 5")
             ],
             payload);
     }
@@ -116,7 +116,7 @@ public sealed class ResultSuggestionsControllerTests
 
         var payload = Payload(await _sut.Suggestions(WindowId, "french", default));
 
-        Assert.Equal([("60181576|S2024|16to19_LR1", "GCSE (9-1) French, QAN: 60181576, Session: S2024")], payload);
+        Assert.Equal([("60181576|S2024|16to19_LR1", "GCSE (9-1) French, QAN: 60181576, Session: S2024, Grade: 5")], payload);
     }
 
     [Fact]
@@ -161,8 +161,8 @@ public sealed class ResultSuggestionsControllerTests
             payload.Select(p => p.Value).ToArray());
         Assert.Equal(
             [
-                "GCSE (9-1) Bus. Studs:Single, QAN: 6037116X, Session: S2024",
-                "GCSE (9-1) Bus. Studs:Single, QAN: 6037116X, Session: S2023"
+                "GCSE (9-1) Bus. Studs:Single, QAN: 6037116X, Session: S2024, Grade: 5",
+                "GCSE (9-1) Bus. Studs:Single, QAN: 6037116X, Session: S2023, Grade: 5"
             ],
             payload.Select(p => p.Label).ToArray());
     }

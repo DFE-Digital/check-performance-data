@@ -74,14 +74,15 @@ public sealed class AmendmentRequestsIndexViewSourceTests
     }
 
     // The results-enquiry deadline is stated beside the enquiries it governs, on this tab — not
-    // in the page header, which now carries the pupil-data deadline alone. Both sentences come
-    // from the tab: the submit-by one (past tense once closed) and the open-only edit one.
+    // in the page header, which now carries the pupil-data deadline alone. Only the submit-by
+    // sentence (past tense once closed) is stated: a submitted results enquiry cannot be edited,
+    // so the "You can edit your ... requests" line the Requests tab carries must not appear here.
     [Fact]
     public void TheIssuesTabStatesTheResultsEnquiryDeadline()
     {
         var panel = ResultsEnquiriesPanel();
         Assert.Contains("@enquiryDeadline.Sentence", panel);
-        Assert.Contains("You can edit your @enquiryDeadline.ExerciseLabel.ToLowerInvariant() requests any time", panel);
+        Assert.DoesNotContain("You can edit your", panel);
     }
 
     // The header inset and the Requests tab list every deadline BUT results enquiry: a results

@@ -754,6 +754,25 @@ public class RequestServiceTests
         await _requestStateBlobClient.DidNotReceive().DeleteAsync(WindowId, "REF001");
     }
 
+    // Once an exercise is closed its rows are SubmittedCommitted — already dispatched. A delete
+    // must neither withdraw the row nor send a "withdrawn" email; a hand-crafted POST is refused.
+    [Fact]
+    public async Task DeleteAsync_WhenSubmittedCommitted_RefusesWithoutWithdrawingOrNotifying()
+    {
+        _requestRepository.GetAmendmentRequestAsync(WindowId, 100000L, "REF001")
+            .Returns(AmendmentRow(RequestStatus.SubmittedCommitted, "Jane", "Smith"));
+
+        var result = await _sut.DeleteAsync(WindowId, "REF001");
+
+        Assert.False(result.Deleted);
+        Assert.False(result.WasHardDeleted);
+        Assert.Equal("Jane Smith", result.PupilName);
+        Assert.Equal(RequestType.Amendment, result.RequestType);
+        await _requestRepository.DidNotReceive().WithdrawAsync(Arg.Any<Guid>(), Arg.Any<long>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<DateTime>());
+        await _requestRepository.DidNotReceive().DeleteAsync(Arg.Any<Guid>(), Arg.Any<long>(), Arg.Any<string>());
+        await _requestNotificationService.DidNotReceiveWithAnyArgs().NotifyAmendmentWithdrawnAsync(default!, default, default!);
+    }
+
     [Fact]
     public async Task DeleteAsync_WhenSubmitted_PassesCurrentUserEmailAndUtcNowToWithdrawAsync()
     {

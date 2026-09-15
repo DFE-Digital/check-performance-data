@@ -109,10 +109,10 @@ public sealed class ResultsTableServiceTests
         Assert.Equal(4, total);
         Assert.Equal(
         [
-            ["", "", "", "", "", "999999", "Physics"],   // unmatched: blank names sort first
-            ["Jones", "Bob", "F", "01/09/2007", "18", "500002", "Maths"],
-            ["Smith", "Alice", "F", "01/09/2007", "18", "500001", "Art"],
-            ["Smith", "Alice", "F", "01/09/2007", "18", "500001", "French"]
+            ["", "", "", "", "", "999999", "Physics", "5"],   // unmatched: blank names sort first
+            ["Jones", "Bob", "F", "01/09/2007", "18", "500002", "Maths", "5"],
+            ["Smith", "Alice", "F", "01/09/2007", "18", "500001", "Art", "5"],
+            ["Smith", "Alice", "F", "01/09/2007", "18", "500001", "French", "5"]
         ], table.Rows.Select(r => r.ToArray()).ToArray());
     }
 

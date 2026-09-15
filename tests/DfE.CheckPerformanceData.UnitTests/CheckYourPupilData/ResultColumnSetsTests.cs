@@ -37,10 +37,10 @@ public class ResultColumnSetsTests
     };
 
     [Fact]
-    public void Table_columns_are_the_agreed_seven()
+    public void Table_columns_are_the_agreed_seven_plus_grade()
     {
         Assert.Equal(
-            ["Last name", "First name", "Sex", "Date of birth", "Age", "CYPMD ID", "Subject"],
+            ["Last name", "First name", "Sex", "Date of birth", "Age", "CYPMD ID", "Subject", "Grade"],
             ResultColumnSets.Table().Select(c => c.Header));
     }
 
@@ -48,7 +48,7 @@ public class ResultColumnSetsTests
     public void Csv_columns_are_the_table_columns_plus_the_result_detail()
     {
         Assert.Equal(
-            ["Last name", "First name", "Sex", "Date of birth", "Age", "CYPMD ID", "Subject", "QAN", "Session", "Grade", "Source file"],
+            ["Last name", "First name", "Sex", "Date of birth", "Age", "CYPMD ID", "Subject", "Grade", "QAN", "Session", "Source file"],
             ResultColumnSets.Csv().Select(c => c.Header));
     }
 
@@ -58,7 +58,7 @@ public class ResultColumnSetsTests
         var table = ResultTable.Build(ResultColumnSets.Csv(), [new ResultRow(Pupil(), Result())]);
 
         var row = Assert.Single(table.Rows);
-        Assert.Equal(["Jones", "Bob", "M", "01/09/2007", "18", "500123", "GCSE (9-1) Bus. Studs:Single", "60145642", "S2024", "5", ResultsFileTags.Post16Main], row);
+        Assert.Equal(["Jones", "Bob", "M", "01/09/2007", "18", "500123", "GCSE (9-1) Bus. Studs:Single", "5", "60145642", "S2024", ResultsFileTags.Post16Main], row);
     }
 
     [Fact]
@@ -67,6 +67,6 @@ public class ResultColumnSetsTests
         var table = ResultTable.Build(ResultColumnSets.Table(), [new ResultRow(null, Result())]);
 
         var row = Assert.Single(table.Rows);
-        Assert.Equal(["", "", "", "", "", "500123", "GCSE (9-1) Bus. Studs:Single"], row);
+        Assert.Equal(["", "", "", "", "", "500123", "GCSE (9-1) Bus. Studs:Single", "5"], row);
     }
 }

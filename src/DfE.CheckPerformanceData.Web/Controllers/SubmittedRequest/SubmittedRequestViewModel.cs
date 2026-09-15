@@ -46,7 +46,11 @@ public sealed class SubmittedRequestViewModel
 
     public string SubmittedAtText => LondonTime.ToSubmittedAtText(SubmittedAt);
 
-    public bool ShowDeleteButton => Status != RequestStatus.Withdrawn;
+    // Drafts are hard-deleted and uncommitted submissions withdrawn; a committed submission is
+    // already on the Zendesk queue and a withdrawn one is gone, so neither offers Delete.
+    public bool ShowDeleteButton => Status is RequestStatus.InProgress
+        or RequestStatus.ReadyToSubmit
+        or RequestStatus.SubmittedUnCommitted;
 
     public bool IsDraft => Status is RequestStatus.InProgress or RequestStatus.ReadyToSubmit;
 

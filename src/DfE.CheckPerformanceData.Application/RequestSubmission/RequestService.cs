@@ -253,6 +253,14 @@ public sealed class RequestService(
             return new RequestDeletionResult(WasHardDeleted: true, pupilName, row.RequestType);
         }
 
+        // Closing the exercise committed this row onto the Zendesk queue. It stays on the Requests
+        // tab as "Submitted" with no Delete link; a hand-crafted POST must not withdraw it or send
+        // a "withdrawn" email for a request that has already gone.
+        if (row?.Status is RequestStatus.SubmittedCommitted)
+        {
+            return RequestDeletionResult.Refused(pupilName, row.RequestType);
+        }
+
         await requestRepository.WithdrawAsync(windowId, urn, referenceNumber, currentUserService.Email, DateTime.UtcNow);
 
         var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);

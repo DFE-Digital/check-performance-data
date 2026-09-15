@@ -10,10 +10,12 @@ namespace DfE.CheckPerformanceData.Application.ResultsEnquiry;
 /// The Figma frame shows "{qualification}, QAN: {qan}". The session is appended because
 /// AB#296648 requires that "each result shows enough detail for me to identify the right one", and
 /// its stated rationale is that a pupil can hold several results in one subject area — a resit would
-/// otherwise be indistinguishable from the original sitting. FLAGGED for content sign-off.
+/// otherwise be indistinguishable from the original sitting. The current grade is appended so the
+/// school sees what the result holds before it says the grade is wrong. FLAGGED for content
+/// sign-off.
 /// </summary>
 public static class ResultLabel
 {
     public static string For(StudentResultRecord result)
-        => $"{result.QualificationName}, QAN: {result.Qan}, Session: {result.Session}";
+        => $"{result.QualificationName}, QAN: {result.Qan}, Session: {result.Session}, Grade: {result.Grade}";
 }

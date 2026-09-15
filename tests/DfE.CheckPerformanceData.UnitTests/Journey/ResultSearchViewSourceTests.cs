@@ -111,18 +111,20 @@ public sealed class ResultSearchViewSourceTests
     [Fact]
     public void The_selected_state_shows_the_confirmation_summary_rows()
     {
-        // Figma p-147894: once a result is chosen the page proves which one, including the source
-        // file — the one thing the label itself cannot disambiguate.
+        // Figma p-147894: once a result is chosen the page proves which one. The source file is
+        // deliberately not shown — it is an ingest detail, not something a school can act on.
         var view = ViewSource();
 
         foreach (var row in new[]
                  {
                      "Qualification name and subject", "Qualification number (QAN)",
-                     "Syllabus code", "Session", "Current Grade", "CSV file"
+                     "Syllabus code", "Session", "Current Grade"
                  })
         {
             Assert.Contains($"<govuk-summary-list-row-key>{row}</govuk-summary-list-row-key>", view);
         }
+
+        Assert.DoesNotContain("<govuk-summary-list-row-key>CSV file</govuk-summary-list-row-key>", view);
     }
 
     [Fact]

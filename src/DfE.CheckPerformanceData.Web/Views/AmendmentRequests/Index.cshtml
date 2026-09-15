@@ -227,15 +227,9 @@
             {
                 @* The results-enquiry deadline lives here, beside the enquiries it governs, not in
                    the page header with the pupil-data one. *@
+                @* No "you can edit" line here: a submitted results enquiry cannot be edited. *@
                 <div class="govuk-inset-text">
                     <p class="govuk-body">@enquiryDeadline.Sentence</p>
-                    @if (enquiryDeadline.IsOpen)
-                    {
-                        <p class="govuk-body">
-                            You can edit your @enquiryDeadline.ExerciseLabel.ToLowerInvariant() requests any time
-                            before <strong>@enquiryDeadline.DeadlineText</strong>
-                        </p>
-                    }
                 </div>
             }
 

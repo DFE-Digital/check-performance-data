@@ -88,7 +88,9 @@ public sealed class SubmittedRequestRowViewModel
 
     public string SubmittedDateText => LondonTime.ToLondon(Submitted).ToString("d MMMM yyyy");
 
-    public bool ShowDelete => Status != RequestStatus.Withdrawn;
+    // Only an uncommitted submission can still be withdrawn; a committed one is already on the
+    // Zendesk queue, and a withdrawn one is gone.
+    public bool ShowDelete => Status == RequestStatus.SubmittedUnCommitted;
 }
 
 public sealed class AmendmentRequestRowViewModel

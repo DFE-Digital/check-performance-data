@@ -32,7 +32,10 @@ public sealed class ConfirmDataCorrectViewModel
         _ => "Submitted by"
     };
 
-    public bool ShowDeleteButton => Status != RequestStatus.Withdrawn;
+    // Same rule as SubmittedRequestViewModel: a committed confirmation is already dispatched.
+    public bool ShowDeleteButton => Status is RequestStatus.InProgress
+        or RequestStatus.ReadyToSubmit
+        or RequestStatus.SubmittedUnCommitted;
 
     public string ConfirmDeleteTitle =>
         $"Are you sure you want to delete the confirmation that {LearnerNoun.Singular} data is correct?";

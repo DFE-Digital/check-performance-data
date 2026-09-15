@@ -43,8 +43,8 @@ public sealed class SeedStudentResultsTests
         var byStudent = Seeded().GroupBy(r => r.CypmdId).ToDictionary(g => g.Key, g => g.ToArray());
 
         Assert.Equal(4, byStudent["500001"].Length);
-        Assert.Equal(2, byStudent["500001"].Count(r => r.Qan == "60146084"));
-        Assert.Equal(["S2024", "S2023"], byStudent["500001"].Where(r => r.Qan == "60146084").Select(r => r.Session).ToArray());
+        Assert.Equal(2, byStudent["500001"].Count(r => r.Qan == "60311642"));
+        Assert.Equal(["S2024", "S2023"], byStudent["500001"].Where(r => r.Qan == "60311642").Select(r => r.Session).ToArray());
         Assert.Equal(3, byStudent["500002"].Length);
         Assert.Single(byStudent["500003"]);
     }
@@ -112,6 +112,15 @@ public sealed class SeedStudentResultsTests
             StringComparer.OrdinalIgnoreCase);
 
         Assert.All(Seeded(), r => Assert.Contains(r.Grade, scales[r.Qan]));
+    }
+
+    [Fact]
+    public void No_gcse_is_seeded()
+    {
+        // The 16-19 reference lists GCSE English and maths (the condition-of-funding resits), so the
+        // reference check above cannot catch one. A 16-19 results file is not where a school checks
+        // a KS4 grade, so the seed holds none.
+        Assert.DoesNotContain(Seeded(), r => r.QualificationName.Contains("GCSE", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

@@ -233,7 +233,10 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
         await db.ChangeRequests
             .Where(r => r.WindowId == windowId
                 && r.OrganisationUrn == organisationUrn
+                // A committed row (the exercise was closed) is still a submitted request, so it
+                // stays on the tab as "Submitted"; only its Delete link goes.
                 && (r.Status == RequestStatus.SubmittedUnCommitted
+                    || r.Status == RequestStatus.SubmittedCommitted
                     || r.Status == RequestStatus.Withdrawn)
                 // AB#296648 / AB#298325 — enquiry rows are excluded here because they surface on
                 // the Issues tab instead, via GetSubmittedResultsEnquiriesAsync below. The two

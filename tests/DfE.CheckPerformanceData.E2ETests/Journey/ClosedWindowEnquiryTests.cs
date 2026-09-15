@@ -20,7 +20,7 @@ public sealed class ClosedWindowEnquiryTests(PlaywrightFixture fixture) : Seedin
 
     private const string StudentCypmdId = "500001";
     private const string StudentName = "Alice Smith";
-    private const string MathsS2024 = "GCSE (9-1) Mathematics, QAN: 60146084, Session: S2024";
+    private const string MathsS2024 = "GCE A Level Mathematics, QAN: 60311642, Session: S2024, Grade: B";
 
     private string PageUrl => $"{Fixture.BaseUrl}/CheckYourPupilData/{WindowId}";
 

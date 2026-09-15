@@ -25,7 +25,7 @@ public sealed class ResultDoesNotBelongEnquiryTests(PlaywrightFixture fixture) :
 
     private const string StudentCypmdId = "500001";
     private const string StudentName = "Alice Smith";
-    private const string MathsS2024 = "GCSE (9-1) Mathematics, QAN: 60146084, Session: S2024";
+    private const string MathsS2024 = "GCE A Level Mathematics, QAN: 60311642, Session: S2024, Grade: B";
 
     [RetryFact(3)]
     public async Task A_school_can_report_a_result_that_does_not_belong_end_to_end()
@@ -56,10 +56,10 @@ public sealed class ResultDoesNotBelongEnquiryTests(PlaywrightFixture fixture) :
             .ToContainTextAsync($"Summary of result enquiry for {StudentName}");
         var summary = await Page.Locator(".govuk-summary-list").InnerTextAsync();
         Assert.Contains("Result does not belong to student", summary);
-        Assert.Contains("60146084", summary);
+        Assert.Contains("60311642", summary);
         // AB#301903: the stray result is named as the 16-19 reference names it, AO included.
         Assert.Contains("Awarding Organisation (AO) name", summary);
-        Assert.Contains("AQA Level 1/Level 2 GCSE (9-1) in Mathematics", summary);
+        Assert.Contains("AQA Level 3 Advanced GCE in Mathematics", summary);
         Assert.DoesNotContain("Revised grade", summary);
         Assert.Equal(1, await Page.Locator(".govuk-summary-list__actions a", new() { HasTextString = "Change" }).CountAsync());
 

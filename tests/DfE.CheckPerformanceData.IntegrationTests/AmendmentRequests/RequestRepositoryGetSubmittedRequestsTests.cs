@@ -51,8 +51,27 @@ public sealed class RequestRepositoryGetSubmittedRequestsTests(PostgresFixture f
         Assert.Contains(result, r => r.ReferenceNumber == "REF-CC-1" && r.RequestType == RequestType.ConfirmCorrect);
     }
 
+    // Closing an exercise flips its submitted rows to SubmittedCommitted. The request has still
+    // been submitted, so a school must keep seeing it as "Submitted" — only the Delete link goes.
+    [Fact]
+    public async Task GetSubmittedRequestsAsync_ReturnsSubmittedCommittedRows()
+    {
+        await TruncateAsync();
+        var windowId = await SeedWindowAsync();
+        await new RequestRepository(_fixture.CreateContext())
+            .UpsertAsync(Data(windowId, "REF-COMMITTED-1", RequestType.Amendment, pupilId: Guid.NewGuid(), status: RequestStatus.SubmittedCommitted));
+
+        var result = await new RequestRepository(_fixture.CreateContext())
+            .GetSubmittedRequestsAsync(windowId, 100000);
+
+        var row = Assert.Single(result);
+        Assert.Equal("REF-COMMITTED-1", row.ReferenceNumber);
+        Assert.Equal(RequestStatus.SubmittedCommitted, row.Status);
+    }
+
     private static ChangeRequestData Data(
-        Guid windowId, string referenceNumber, RequestType requestType, Guid? pupilId = null) =>
+        Guid windowId, string referenceNumber, RequestType requestType, Guid? pupilId = null,
+        RequestStatus status = RequestStatus.SubmittedUnCommitted) =>
         new()
         {
             WindowId = windowId,
@@ -65,7 +84,7 @@ public sealed class RequestRepositoryGetSubmittedRequestsTests(PostgresFixture f
             Timestamp = DateTime.UtcNow,
             SubmittedById = Guid.NewGuid(),
             SubmittedByName = "Test User",
-            Status = RequestStatus.SubmittedUnCommitted,
+            Status = status,
             RequestType = requestType,
             RequestTypeDescription = requestType.ToString()
         };

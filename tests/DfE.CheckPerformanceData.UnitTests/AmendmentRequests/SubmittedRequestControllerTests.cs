@@ -552,6 +552,48 @@ public class SubmittedRequestControllerTests
         Assert.True(vm.ShowDeleteButton);
     }
 
+    // A committed request is already on the Zendesk queue; withdrawing it would change nothing
+    // downstream, so the button goes once the exercise has been closed.
+    [Fact]
+    public void ConfirmDataCorrect_ShowDeleteButton_HidesForSubmittedCommitted()
+    {
+        var vm = ConfirmDataCorrectViewModelForStatus(RequestStatus.SubmittedCommitted);
+
+        Assert.False(vm.ShowDeleteButton);
+    }
+
+    [Fact]
+    public void SubmittedRequest_ShowDeleteButton_ShowsForSubmittedUnCommitted()
+    {
+        var view = SubmittedRequestViewModelForStatus(RequestStatus.SubmittedUnCommitted);
+
+        Assert.True(view.ShowDeleteButton);
+    }
+
+    [Theory]
+    [InlineData(RequestStatus.SubmittedCommitted)]
+    [InlineData(RequestStatus.Withdrawn)]
+    public void SubmittedRequest_ShowDeleteButton_HidesOnceCommittedOrWithdrawn(RequestStatus status)
+    {
+        var view = SubmittedRequestViewModelForStatus(status);
+
+        Assert.False(view.ShowDeleteButton);
+    }
+
+    [Fact]
+    public async Task Delete_WhenRefused_RedirectsWithoutBannerOrAnalytics()
+    {
+        _requestService.DeleteAsync(WindowId, Reference).Returns(RequestDeletionResult.Refused("Jane Smith", RequestType.Amendment));
+
+        var result = await _sut.Delete(WindowId, Reference);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Index", redirect.ActionName);
+        Assert.Equal("AmendmentRequests", redirect.ControllerName);
+        Assert.False(_sut.TempData.ContainsKey("DeletedMessage"));
+        await _analytics.DidNotReceive().TrackAsync(Arg.Any<AmendmentRequestDeletedEvent>(), Arg.Any<CancellationToken>());
+    }
+
     private static ConfirmDataCorrectViewModel ConfirmDataCorrectViewModelForStatus(
         RequestStatus status,
         bool confirmingDelete = false,

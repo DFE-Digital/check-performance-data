@@ -119,7 +119,8 @@ design for as-built:
 | Gov Notify integration | **Implemented** — `INotifyService` / `NotifyEmailClient`; notifications are dispatched from the Web app via `NotificationBackgroundService`. |
 | **Admin Portal** | **Not a separate app** — admin functionality currently lives **inside the Web Portal** (`Web/Admin/`, `AdminController`, `WindowAdmin`, `QueueAdmin`, `StorageAdmin`, `ShareAdmin`, `AdminRequests`, `PageTreeAdmin`). |
 | **Request Status Updater** | **Planned** — no time-triggered Zendesk-polling worker exists yet (the worker currently runs only `DlqRetentionJob` / `MetricsRetentionJob`). |
-| **Data Ingress / Egress Processing**, **LDS Interface Data Storage**, LDS exchange | **Planned** — the LDS pipeline is not implemented; pupil/school JSON in Data Blob Storage is currently produced by dev seeding (`SeedPupilData`). |
+| **Data Egress Processing** | **Implemented (AB#294553)** as an admin-driven run inside the web app; the worker container in the diagram is not used. Pull → Preprocess → Transfer at `/admin/egress` (`DfE.CheckPerformanceData.Web/Controllers/Egress/EgressController.cs`), see `docs/data-egress.md`. |
+| **Data Ingress Processing**, **LDS Interface Data Storage**, LDS exchange | **Planned** — the LDS ingress pipeline is not implemented; pupil/school JSON in Data Blob Storage is currently produced by dev seeding (`SeedPupilData`). |
 
 > Update this section as the LDS pipeline, a dedicated Admin Portal, and the
 > Request Status Updater are built out, or split the workers into separate

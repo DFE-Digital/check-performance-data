@@ -1,0 +1,97 @@
+@model DfE.CheckPerformanceData.Web.Controllers.Egress.RunPageViewModel
+@using DfE.CheckPerformanceData.Application.Egress
+@using DfE.CheckPerformanceData.Domain.Enums
+@{
+    ViewData["Title"] = "Confirm transfer to LDS";
+    ViewData["HasError"] = Model.TransferError is not null;
+    // M3: every output preprocessed to zero saved rows — nothing to send, so no Confirm button.
+    var nothingToTransfer = Model.Run.Outputs.All(o => (o.OutputRecordCount ?? 0) == 0);
+    // Nit: a Transferring run already has a transfer in flight (guarded server-side by the CAS
+    // status flip regardless), so Confirm is not offered a second time here either.
+    var offerConfirm = !nothingToTransfer && Model.Run.Status != EgressRunStatus.Transferring;
+}
+
+<a class="govuk-back-link" href="/admin/egress">Back to data egress</a>
+<partial name="_RunHeader" model="Model" />
+<h1 class="govuk-heading-xl">Confirm transfer to LDS</h1>
+
+@if (Model.TransferError is not null)
+{
+    <div class="govuk-error-summary" data-module="govuk-error-summary" data-testid="egress-transfer-error">
+        <div role="alert">
+            <h2 class="govuk-error-summary__title">The transfer did not complete</h2>
+            <div class="govuk-error-summary__body">
+                <p class="govuk-body">@Model.TransferError</p>
+                <p class="govuk-body">No files were left in the target container and the prepared records are intact. You can try again.</p>
+            </div>
+        </div>
+    </div>
+}
+
+<p class="govuk-body">Review the details below before transferring data to LDS blob storage.</p>
+
+<h2 class="govuk-heading-m">Transfer details</h2>
+<dl class="govuk-summary-list">
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">Checking window</dt>
+        <dd class="govuk-summary-list__value">@Model.WindowTitle</dd>
+    </div>
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">Preprocessed on</dt>
+        <dd class="govuk-summary-list__value">@Model.Run.PreprocessedAtUtc?.ToString("d MMMM yyyy 'at' HH:mm") UTC</dd>
+    </div>
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">Target container</dt>
+        <dd class="govuk-summary-list__value">@Model.TargetDescription</dd>
+    </div>
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">Transferred by</dt>
+        <dd class="govuk-summary-list__value">@Model.CurrentUserName</dd>
+    </div>
+</dl>
+
+<h2 class="govuk-heading-m">Files to be transferred</h2>
+<table class="govuk-table" data-testid="egress-files">
+    <caption class="govuk-table__caption govuk-visually-hidden">Files to be transferred</caption>
+    <thead class="govuk-table__head">
+        <tr class="govuk-table__row">
+            <th scope="col" class="govuk-table__header">Output type</th>
+            <th scope="col" class="govuk-table__header">File name</th>
+            <th scope="col" class="govuk-table__header govuk-table__header--numeric">Records</th>
+            <th scope="col" class="govuk-table__header"><span class="govuk-visually-hidden">Download</span></th>
+        </tr>
+    </thead>
+    <tbody class="govuk-table__body">
+        @foreach (var output in Model.Run.Outputs)
+        {
+            <tr class="govuk-table__row">
+                <td class="govuk-table__cell">@EgressOutputTypes.Label(output.OutputType)</td>
+                <td class="govuk-table__cell"><a class="govuk-link" href="/admin/egress/runs/@Model.Run.Id/preview/@output.OutputType">@output.FileName<span class="govuk-visually-hidden"> (preview)</span></a></td>
+                <td class="govuk-table__cell govuk-table__cell--numeric">@output.OutputRecordCount</td>
+                <td class="govuk-table__cell"><a class="govuk-link" href="/admin/egress/runs/@Model.Run.Id/download/@output.OutputType">Download<span class="govuk-visually-hidden"> @output.FileName</span></a></td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<div class="govuk-inset-text">Once confirmed, these files will be uploaded to LDS blob storage. This action cannot be undone.</div>
+
+@if (nothingToTransfer)
+{
+    <p class="govuk-body" data-testid="egress-nothing-to-transfer">Every record was rejected, undecided or discarded before preprocessing, so there is nothing to transfer to LDS. Abandon this run if it is no longer needed.</p>
+}
+
+<div class="govuk-button-group">
+    @if (offerConfirm)
+    {
+        <form method="post" action="/admin/egress/runs/@Model.Run.Id/transfer" class="govuk-!-display-inline">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="govuk-button" data-module="govuk-button" data-testid="egress-transfer">Confirm and transfer</button>
+        </form>
+    }
+    <a class="govuk-button govuk-button--secondary" href="/admin/egress" data-testid="egress-save">Save and exit</a>
+    <form method="post" action="/admin/egress/runs/@Model.Run.Id/abandon" class="govuk-!-display-inline">
+        @Html.AntiForgeryToken()
+        <button type="submit" class="govuk-button govuk-button--warning" data-module="govuk-button" data-testid="egress-abandon">Abandon run</button>
+    </form>
+</div>

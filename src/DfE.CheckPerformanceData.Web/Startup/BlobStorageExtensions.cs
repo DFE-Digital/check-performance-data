@@ -35,6 +35,11 @@ public static class BlobStorageExtensions
             var ingressConn = configuration.GetConnectionString("IngressStorage");
             if (!string.IsNullOrEmpty(ingressConn))
                 clients["ingress"] = new BlobServiceClient(ingressConn);
+            // The LDS interface account (AB#294553): container cypmd, folder extracts_input. Absent
+            // locally unless the compose file supplies it; the egress refuses to transfer without it.
+            var egressConn = configuration.GetConnectionString("EgressStorage");
+            if (!string.IsNullOrEmpty(egressConn))
+                clients["egress"] = new BlobServiceClient(egressConn);
             return clients;
         });
         services.Configure<Infrastructure.RulesEngine.BlobRulesProviderOptions>(

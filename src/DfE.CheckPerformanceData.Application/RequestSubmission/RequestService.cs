@@ -23,6 +23,10 @@ public sealed class RequestService(
 {
     private long OrganisationUrnLong => long.Parse(currentUserService.OrganisationUrn);
 
+    // Empty claim → null column, never an empty string, so "unknown" reads the same on every row.
+    private string? OrganisationLaestabOrNull =>
+        string.IsNullOrWhiteSpace(currentUserService.OrganisationLaestab) ? null : currentUserService.OrganisationLaestab.Trim();
+
     // The exercise a journey belongs to is derived from its change type, never stored on the
     // session - a stored copy can disagree with the journey's own SelectedWhatToChange. The row is
     // where it becomes durable, so this is the one place a journey's exercise id is resolved.
@@ -160,7 +164,8 @@ public sealed class RequestService(
                 _ => throw new InvalidOperationException(
                     $"No results-enquiry description for {journey.SelectedWhatToChange}.")
             },
-            AmendmentType = journey.SelectedWhatToChange.Value
+            AmendmentType = journey.SelectedWhatToChange.Value,
+            OrganisationLaestab = OrganisationLaestabOrNull
         });
 
         // The journey JSON is the enquiry's full record — it carries the selected result and every
@@ -207,7 +212,8 @@ public sealed class RequestService(
             SubmittedByEmail = currentUserService.Email,
             Status = RequestStatus.SubmittedUnCommitted,
             RequestType = RequestType.ConfirmCorrect,
-            RequestTypeDescription = "Confirm Pupil Data Declaration"
+            RequestTypeDescription = "Confirm Pupil Data Declaration",
+            OrganisationLaestab = OrganisationLaestabOrNull
         });
 
         await requestNotificationService.NotifyDataCheckConfirmedAsync(
@@ -316,7 +322,8 @@ public sealed class RequestService(
             Status = status,
             RequestType = RequestType.Amendment,
             RequestTypeDescription = BuildRequestTypeDescription(journey, config),
-            AmendmentType = journey.SelectedWhatToChange
+            AmendmentType = journey.SelectedWhatToChange,
+            OrganisationLaestab = OrganisationLaestabOrNull
         };
 
     private RequestDocument BuildRequestDocument(JourneySubmissionContext context, QuestionFlowConfig config, Guid changeRequestId)

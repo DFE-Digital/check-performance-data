@@ -1,0 +1,6 @@
+@model DfE.CheckPerformanceData.Web.Controllers.Egress.RunPageViewModel
+@using DfE.CheckPerformanceData.Application.Egress
+
+@* Nit: every page using this partial has an <h1 class="govuk-heading-xl">, so the caption must
+   be govuk-caption-xl to match — GOV.UK pairs caption size to heading size. *@
+<span class="govuk-caption-xl">@Model.WindowTitle · @string.Join(", ", Model.Run.Outputs.Select(o => EgressOutputTypes.Label(o.OutputType)))</span>

@@ -43,6 +43,15 @@ public class ChangeRequest
     public WhatToChange? AmendmentType { get; init; }
     public string? CrmId { get; init; }
 
+    /// <summary>
+    /// The submitting school's 7-digit DfE establishment number (LAESTAB), from the DfE Sign-In
+    /// organisation_laestab claim at submit time (AB#294553). The LDS egress splits it into LA and
+    /// establishment for a new learner, whose synthetic pupil record carries no LAESTAB of its own.
+    /// Null on rows written before the column existed; egress then falls back to the pupil's and
+    /// fails the record, with a reason, when neither is known.
+    /// </summary>
+    public string? OrganisationLaestab { get; init; }
+
     // Written by the rules engine consumer once it has decided on the request, and read
     // back by the Zendesk consumer; all stay null until the rules engine has run.
     public DecisionStatus? Outcome { get; set; }

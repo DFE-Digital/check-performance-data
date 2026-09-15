@@ -2,6 +2,7 @@
 using DfE.CheckPerformanceData.Persistence.Entities;
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 
 namespace DfE.CheckPerformanceData.Persistence.Contexts;
@@ -9,6 +10,7 @@ namespace DfE.CheckPerformanceData.Persistence.Contexts;
 public interface IPortalDbContext
 {
     DatabaseFacade Database { get; }
+    ChangeTracker ChangeTracker { get; }
 
     DbSet<ChangeRequest> ChangeRequests { get; }
     DbSet<AuditEntry> AuditEntries { get; }
@@ -24,6 +26,10 @@ public interface IPortalDbContext
     DbSet<QueueMessageEntity> QueueMessages { get; }
     DbSet<DeadLetterEntity> DeadLetters { get; }
     DbSet<DevZendeskTicket> DevZendeskTickets { get; }
+    DbSet<EgressRun> EgressRuns { get; }
+    DbSet<EgressRunOutput> EgressRunOutputs { get; }
+    DbSet<EgressNewLearner> EgressNewLearners { get; }
+    DbSet<EgressRemoveLearner> EgressRemoveLearners { get; }
     DbSet<QueueMetricEvent> QueueMetricEvents { get; }
     DbSet<ShareToken> ShareTokens { get; }
     DbSet<PageNode> PageNodes { get; }
@@ -37,4 +43,5 @@ public interface IPortalDbContext
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     Task ExecuteInTransactionAsync(Func<Task> work, CancellationToken cancellationToken = default);
+    Task<T> ExecuteInTransactionAsync<T>(Func<Task<T>> work, CancellationToken cancellationToken = default);
 }

@@ -113,15 +113,20 @@
         <fieldset class="govuk-fieldset">
             <legend class="govuk-fieldset__legend govuk-fieldset__legend--s">Search surface</legend>
             <div class="govuk-hint">
-                Leave all ticked to count every search. A submitted search is one someone pressed
-                the button for; an instant search is a typeahead they settled on.
+                Leave all ticked to count every search. Two of these are instant search — the
+                typeahead — and they are recorded separately because searching a whole section
+                of the site and searching the page you are reading are different acts.
             </div>
             <div class="govuk-checkboxes govuk-checkboxes--small govuk-checkboxes--inline" data-module="govuk-checkboxes">
                 @foreach (var (value, label) in new[]
                 {
-                    (SearchSurfaces.Site, "Submitted search"),
-                    (SearchSurfaces.Instant, "Instant search"),
-                    (SearchSurfaces.InstantPage, "Single-page search"),
+                    @* Named so the family is visible. The first labelling called these
+                       "Instant search" and "Single-page search", which reads as two unrelated
+                       features — so someone who used the instant search on a page ticked
+                       "Instant search" and their own searches were filtered out. *@
+                    (SearchSurfaces.Site, "Submitted — someone pressed the button"),
+                    (SearchSurfaces.Instant, "Instant — the whole site or a section"),
+                    (SearchSurfaces.InstantPage, "Instant — this page only"),
                 })
                 {
                     var id = "surface-" + value;

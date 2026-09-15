@@ -1,5 +1,7 @@
 @using System.Globalization
+@using DfE.CheckPerformanceData.Application.Analytics
 @model DfE.CheckPerformanceData.Web.Controllers.ViewModels.OnPageSearchViewModel
+@inject ISearchSurfaceFilter SurfaceFilter
 @{
     var isDrillIn = !string.IsNullOrWhiteSpace(Model.HostPath);
     ViewData["Title"] = isDrillIn ? "Single-page search: " + Model.HostPath : "Single-page search";
@@ -62,7 +64,21 @@ else
         ShowBucketSize = false,
     })
 
-@if (Model.TotalCount == 0)
+@* Every row on this page is an on-page search, so a surface filter that excludes them
+   empties the table. Saying "nothing was searched for" in that case would be a lie, and the
+   reader has no way to tell the difference. *@
+@if (!SurfaceFilter.Surfaces.Contains(SearchSurfaces.InstantPage))
+{
+    <div class="govuk-warning-text">
+        <span class="govuk-warning-text__icon" aria-hidden="true">!</span>
+        <strong class="govuk-warning-text__text">
+            <span class="govuk-visually-hidden">Warning</span>
+            The search surface filter currently excludes on-page searches, so this section has
+            nothing to show. Tick <strong>Instant — this page only</strong> above to see it.
+        </strong>
+    </div>
+}
+else if (Model.TotalCount == 0)
 {
     <p class="govuk-body">
         @(isDrillIn
@@ -70,7 +86,7 @@ else
             : "No on-page searches recorded in this window.")
     </p>
 }
-else
+else if (SurfaceFilter.Surfaces.Contains(SearchSurfaces.InstantPage))
 {
     <p class="govuk-body-s govuk-hint">
         Showing @firstRow to @lastRow of @Model.TotalCount.

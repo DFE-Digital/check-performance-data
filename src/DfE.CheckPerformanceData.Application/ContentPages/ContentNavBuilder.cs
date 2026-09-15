@@ -1,14 +1,23 @@
 namespace DfE.CheckPerformanceData.Application.ContentPages;
 
 // Builds a page's left-hand nav by walking the content tree (depth-first, document order) for
-// Heading widgets. H2 → top-level item; H3 → nested under the most recent H2 (an H3 before any H2
-// falls back to top-level). Other widgets and other heading levels (H1, H4–H6) do not contribute.
+// Heading widgets. H2 → top-level item; H3 → nested under the most recent H2; H4 → nested under
+// the most recent H3.
+//
+// Authors skip levels, so each level falls back to the nearest one that exists rather than being
+// dropped: an H4 with no H3 above it attaches to the current H2, and a heading with nothing above
+// it at all becomes top-level. Dropping it instead would leave a section of the page that the
+// nav cannot reach, which is the whole job of this list.
+//
+// H1 is the page title and would duplicate the heading above the nav; H5 and H6 are below the
+// depth a contents list stays readable at. Neither contributes.
 public static class ContentNavBuilder
 {
     public static IReadOnlyList<ContentNavItem> Build(IReadOnlyList<ContentNode> tree)
     {
         var top = new List<MutableItem>();
         MutableItem? currentH2 = null;
+        MutableItem? currentH3 = null;
 
         foreach (var heading in Walk(tree))
         {
@@ -16,17 +25,30 @@ public static class ContentNavBuilder
             if (text is null || heading.Anchor is null) continue;
 
             var item = new MutableItem(text, $"#{heading.Anchor}");
-            if (level == 2)
+            switch (level)
             {
-                top.Add(item);
-                currentH2 = item;
+                case 2:
+                    top.Add(item);
+                    currentH2 = item;
+                    // A new section starts a fresh branch: without this reset an H4 under the
+                    // new H2 would attach to the previous section's last H3.
+                    currentH3 = null;
+                    break;
+
+                case 3:
+                    if (currentH2 is null) top.Add(item);
+                    else currentH2.Children.Add(item);
+                    currentH3 = item;
+                    break;
+
+                case 4:
+                    if (currentH3 is not null) currentH3.Children.Add(item);
+                    else if (currentH2 is not null) currentH2.Children.Add(item);
+                    else top.Add(item);
+                    break;
+
+                // Other levels do not appear in the nav.
             }
-            else if (level == 3)
-            {
-                if (currentH2 is null) top.Add(item);
-                else currentH2.Children.Add(item);
-            }
-            // Other levels do not appear in the nav.
         }
 
         return top.Select(Freeze).ToList();

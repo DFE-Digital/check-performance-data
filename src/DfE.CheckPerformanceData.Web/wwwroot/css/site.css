@@ -1771,6 +1771,22 @@ body:has(.cpb-breadcrumbs) main.govuk-main-wrapper { padding-top: 0 !important; 
     padding-top: 30px;
 }
 
+/* Page-contents nav: show the nesting.
+   moj-side-navigation sets margin and padding to zero on every list at every depth, so a
+   nested item sits at exactly the same left edge as its parent and the hierarchy exists only
+   in the markup. One step of indent per level, and a smaller face as it goes deeper, so a
+   reader can see which section a sub-heading belongs to. The sizes are the GDS scale's 16px
+   and 14px steps down from the 19px the nav uses at the top level. */
+.moj-side-navigation__list .moj-side-navigation__list {
+  padding-left: 15px;
+}
+.moj-side-navigation__list .moj-side-navigation__list a {
+  font-size: 16px;
+}
+.moj-side-navigation__list .moj-side-navigation__list .moj-side-navigation__list a {
+  font-size: 14px;
+}
+
 /* Landing-page data-check sections: visible rule directly under the heading. */
 .cypmd-landing-section { margin-bottom: 40px; }
 .cypmd-landing-section__rule { margin-top: 5px; margin-bottom: 20px; }

@@ -23,5 +23,10 @@
            importer by SamplePageNodeSeeder. Embedded so it travels with the assembly and
            needs no deployment-relative file path. -->
       <EmbeddedResource Include="PageTree/SeedContent/sample-content.json" />
+
+      <!-- Content the automated browser tests navigate to, seeded under its own root by
+           TestFixturePageNodeSeeder. Separate from the sample content because it is re-imported
+           over the top on every seed, which the sample content must never be. -->
+      <EmbeddedResource Include="PageTree/SeedContent/test-fixture-content.json" />
     </ItemGroup>
 </Project>

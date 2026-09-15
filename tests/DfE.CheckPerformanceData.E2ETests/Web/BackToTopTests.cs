@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.E2ETests.Fixtures;
+using DfE.CheckPerformanceData.E2ETests.Helpers;
 using Microsoft.Playwright;
 using Microsoft.Playwright.Xunit;
 
@@ -24,19 +25,26 @@ namespace DfE.CheckPerformanceData.E2ETests.Web;
 //     before the link appears, and pages that fit (or nearly fit) the viewport
 //     never show it at all.
 //
-// Uses /wiki/wiki-sandbox because it's the sample seeded specifically for this kind
-// of layout check (long body, Wiki.cshtml render path). The behaviour is layout-
-// agnostic though — every Content/Wiki page picks the same partial + CSS up.
-// /guidance/short-page is its counterpart: a one-paragraph sample that fits the
-// viewport, used to pin the "never show on a short page" half of the contract.
+// Uses the long fixture under /development-testing because it is seeded specifically
+// for this kind of layout check (long body, Wiki.cshtml render path). The behaviour is
+// layout-agnostic though — every Content/Wiki page picks the same partial + CSS up.
+// The short fixture is its counterpart: a one-paragraph page that fits the viewport,
+// used to pin the "never show on a short page" half of the contract.
+//
+// Both are fixture content rather than sample content, and that distinction is the
+// point. These used to be /wiki/wiki-sandbox and /guidance/short-page, which sat in the
+// ordinary content tree looking like any other page; an editor emptied them and every
+// test below failed on its first assertion with a 404. Fixtures live under their own
+// root, and the seed re-imports them over the top rather than skipping what already
+// exists, so an emptied one comes back.
 [Collection("E2E")]
 public sealed class BackToTopTests(PlaywrightFixture fixture) : PageTest
 {
     private readonly PlaywrightFixture _fixture = fixture;
 
-    private const string TargetPath = "/wiki/wiki-sandbox";
+    private const string TargetPath = FixtureContent.LongPagePath;
 
-    private const string ShortPagePath = "/guidance/short-page";
+    private const string ShortPagePath = FixtureContent.ShortPagePath;
 
     [Theory]
     [InlineData(1280, 900, "desktop")]
@@ -234,7 +242,7 @@ public sealed class BackToTopTests(PlaywrightFixture fixture) : PageTest
         var scrollable = await Page.EvaluateAsync<int>(
             "() => Math.round(document.documentElement.scrollHeight - window.innerHeight)");
         Assert.True(scrollable < 900,
-            $"/guidance/short-page is meant to fit the viewport but has {scrollable}px of scroll beyond it — " +
+            $"{ShortPagePath} is meant to fit the viewport but has {scrollable}px of scroll beyond it — " +
             "shorten the seeded body or this test proves nothing");
 
         // Bottom of the document is the most favourable position for a reveal — if the

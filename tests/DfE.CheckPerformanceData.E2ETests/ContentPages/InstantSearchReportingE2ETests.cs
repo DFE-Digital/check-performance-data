@@ -177,6 +177,51 @@ public sealed class InstantSearchReportingE2ETests(PlaywrightFixture fixture) : 
     }
 
     // ============================================================
+    // 2b. Abandoning by navigating away, without blurring the box or picking anything. The
+    //     most ordinary way someone gives up on a search.
+    //
+    //     Asserted through the dashboard rather than at the network boundary: this report is
+    //     sent with sendBeacon while the page unloads, and route interception is torn down
+    //     with the page before it can see it. The claim worth testing is that the row arrives
+    //     anyway, which is what the admin surface answers.
+    // ============================================================
+    [Fact]
+    public async Task AQueryAbandonedByLeavingThePage_IsStillReported()
+    {
+        var term = "cypdnav" + Guid.NewGuid().ToString("N")[..10].ToLowerInvariant();
+        var url = await SeedPageAsync("page");
+        await Page.GotoAsync($"{Fixture.BaseUrl}{url}");
+
+        await Input.ClickAsync();
+        await Input.FillAsync(term);
+        await Expect(Page.Locator(".autocomplete__menu")).ToContainTextAsync("No matches");
+
+        // Leave, without blurring the box or choosing anything.
+        await Page.GotoAsync($"{Fixture.BaseUrl}/guidance");
+
+        try
+        {
+            var adminCookie = await AuthHelpers.ImpersonateAsAdminAsync(Fixture);
+            AttachCookieToContext(adminCookie);
+
+            var drillIn = $"{Fixture.BaseUrl}/admin/Search/OnPage?path={Uri.EscapeDataString(url)}&range=24h";
+            for (var attempt = 0; attempt < 30; attempt++)
+            {
+                await Page.GotoAsync(drillIn);
+                var body = await Page.Locator("body").InnerTextAsync();
+                if (body.Contains(term, StringComparison.Ordinal)) return;
+                await Page.WaitForTimeoutAsync(500);
+            }
+
+            Assert.Fail($"Abandoned query '{term}' never reached the dashboard for {url}.");
+        }
+        finally
+        {
+            await AuthHelpers.ImpersonateAsEditorAsync(Fixture);
+        }
+    }
+
+    // ============================================================
     // 3. What was shown, and what was chosen, both reach the report.
     // ============================================================
     [Fact]

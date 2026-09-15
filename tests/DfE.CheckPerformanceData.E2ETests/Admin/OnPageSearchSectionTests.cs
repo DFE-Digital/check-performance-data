@@ -78,21 +78,26 @@ public sealed class OnPageSearchSectionTests(PlaywrightFixture fixture) : Seedin
             var adminCookie = await AuthHelpers.ImpersonateAsAdminAsync(Fixture);
             AttachCookieToContext(adminCookie);
 
+            // The terms drill-in is addressed by path, so this does not depend on where the
+            // page happens to land in a paged list that every other test is also writing to.
+            var drillIn = $"{Fixture.BaseUrl}/admin/Search/OnPage?path={Uri.EscapeDataString(hostPath)}&range=24h";
+
             // The sink drains on a timer.
             for (var attempt = 0; attempt < 30; attempt++)
             {
-                await Page.GotoAsync($"{Fixture.BaseUrl}/admin/Search/OnPage?range=24h");
-                if (await Page.Locator($"a:has-text('{hostPath}')").CountAsync() > 0) break;
+                await Page.GotoAsync(drillIn);
+                if ((await Page.Locator("body").InnerTextAsync()).Contains(term, StringComparison.Ordinal)) break;
                 await Page.WaitForTimeoutAsync(500);
             }
 
-            var pageLink = Page.Locator($"a:has-text('{hostPath}')").First;
-            await Expect(pageLink).ToBeVisibleAsync();
-
-            // Drill in: the terms searched on that page.
-            await pageLink.ClickAsync();
             await Expect(Page.Locator("h1")).ToContainTextAsync("Single-page search");
             await Expect(Page.Locator("#sa-onpage-table")).ToContainTextAsync(term);
+
+            // And the list view renders pages with rows in it, each linking to its own drill-in.
+            await Page.GotoAsync($"{Fixture.BaseUrl}/admin/Search/OnPage?range=24h");
+            await Expect(Page.Locator("#sa-onpage-table")).ToBeVisibleAsync();
+            Assert.True(await Page.Locator("#sa-onpage-table tbody tr").CountAsync() > 0);
+            Assert.True(await Page.Locator("#sa-onpage-table tbody a[href*='OnPage?path=']").CountAsync() > 0);
         }
         finally
         {

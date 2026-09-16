@@ -145,7 +145,7 @@ public sealed class ZendeskConsumerTicketCompositionTests
         var ticket = consumer.BuildTicket(NewMessage("Other"), decision).Ticket;
 
         Assert.Contains(ticket.CustomFields!, f => f.Id == 10 && (string)f.Value! == "123456");
-        Assert.Contains(ticket.CustomFields!, f => f.Id == 11 && (string)f.Value! == "c1");
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 11 && (string)f.Value! == "1001");
         // UPN comes from the pupil's Upn (upper-cased), not the internal pupil Id.
         Assert.Contains(ticket.CustomFields!, f => f.Id == 12 && (string)f.Value! == "UPN1");
         // Surname/forename are upper-cased before mapping.
@@ -153,6 +153,35 @@ public sealed class ZendeskConsumerTicketCompositionTests
         Assert.Contains(ticket.CustomFields!, f => f.Id == 14 && (string)f.Value! == "BOB");
         // dd/MM/yyyy is normalised to ISO yyyy-MM-dd.
         Assert.Contains(ticket.CustomFields!, f => f.Id == 15 && (string)f.Value! == "2010-01-01");
+    }
+
+    // The Zendesk CYPMD_ID field is an integer field: Zendesk rejects the WHOLE ticket (422
+    // "CYPMD ID: is invalid") when the value is not an integer. A pupil with a non-numeric id
+    // (the UAT seed used "CY0045") must therefore lose that one field, not the ticket.
+    [Fact]
+    public void CypmdField_IsOmitted_WhenTheIdIsNotAnInteger()
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CypmdName).Returns(11L);
+
+        var consumer = NewConsumer();
+        var decision = new Decision(DecisionStatus.Scrutiny, "Other", "OTH-DEF", Array.Empty<string>());
+
+        var ticket = consumer.BuildTicket(NewMessage("Other", "KS4", cypmdId: "CY0045"), decision).Ticket;
+
+        Assert.DoesNotContain(ticket.CustomFields!, f => f.Id == 11);
+    }
+
+    [Fact]
+    public void CypmdField_IsOmitted_WhenTheIdIsEmpty()
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CypmdName).Returns(11L);
+
+        var consumer = NewConsumer();
+        var decision = new Decision(DecisionStatus.Scrutiny, "Other", "OTH-DEF", Array.Empty<string>());
+
+        var ticket = consumer.BuildTicket(NewMessage("Other", "KS4", cypmdId: ""), decision).Ticket;
+
+        Assert.DoesNotContain(ticket.CustomFields!, f => f.Id == 11);
     }
 
     [Fact]
@@ -507,9 +536,9 @@ public sealed class ZendeskConsumerTicketCompositionTests
     // --- helpers ---
 
     private static RequestDocument NewMessage(string whatToChange, params AnswerRecord[] answers) =>
-        NewMessage(whatToChange, "KS4", laestab: null, matchRef: 0, entryDate: null, upn: "UPN1", answers);
+        NewMessage(whatToChange, "KS4", laestab: null, matchRef: 0, entryDate: null, upn: "UPN1", cypmdId: "1001", answers);
 
-    private static RequestDocument NewMessage(string whatToChange, string windowType, string? laestab = null, int matchRef = 0, string? entryDate = null, string? upn = "UPN1", params AnswerRecord[] answers) => new()
+    private static RequestDocument NewMessage(string whatToChange, string windowType, string? laestab = null, int matchRef = 0, string? entryDate = null, string? upn = "UPN1", string cypmdId = "1001", params AnswerRecord[] answers) => new()
     {
         ReferenceNumber = "REF",
         CheckingWindowId = Guid.NewGuid(),
@@ -521,7 +550,7 @@ public sealed class ZendeskConsumerTicketCompositionTests
         School = new SchoolDetails { Urn = "123456", Name = "Test School", Laestab = laestab ?? string.Empty },
         Pupil = new PupilDetails
         {
-            Id = "p1", CypmdId = "c1", Firstname = "Bob", Surname = "Smith",
+            Id = "p1", CypmdId = cypmdId, Firstname = "Bob", Surname = "Smith",
             DateOfBirth = "01/01/2010", Sex = "M", Age = 14, Upn = upn, MatchRef = matchRef,
             EntryDate = entryDate ?? string.Empty,
         },

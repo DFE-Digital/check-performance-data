@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using System.Threading;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
@@ -16,11 +17,11 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 
 // AB#296648: submitting a results enquiry.
 //
-// BA decision 2026-08-17: an enquiry drops into ChangeRequests and saves its journey JSON exactly as
-// a pupil change request does — and is NOT enqueued. It is ultimately bound for Zendesk, but how it
-// gets there is a separate story. The "never enqueues" assertions are the guard on that boundary:
-// if enqueueing ever appears here it must be a deliberate change, not a copy-paste from the
-// amendment path.
+// An enquiry drops into ChangeRequests and saves its journey JSON exactly as a pupil change request
+// does, and (AB#301974) dispatches exactly one RequestDocument to the Zendesk queue at submit time —
+// the readable request-type description plus a synthetic challenged-result / challenged-qualification
+// answer block (FR-003), because QAN / syllabus / session / grade live on the journey, not in
+// QuestionAnswers. The enqueue site is SubmitResultsEnquiryAsync and nowhere else.
 public sealed class RequestServiceResultsEnquiryTests
 {
     private static readonly Guid WindowId = Guid.Parse("6C2E1F4A-9B7D-4E38-8A15-3D9C2B4E7F01");
@@ -44,6 +45,10 @@ public sealed class RequestServiceResultsEnquiryTests
         _currentUser.DisplayName.Returns("Ada Editor");
         _currentUser.Email.Returns("ada@school.test");
         _repository.UpsertAsync(Arg.Any<ChangeRequestData>()).Returns(ChangeRequestId);
+        _flowService.GetConfigAsync(
+            Arg.Any<WhatToChange>(),
+            Arg.Any<CheckingWindowType>())
+            .Returns(new QuestionFlowConfig { FirstPageId = "cohort-scope", Pages = [] });
 
         _sut = new RequestService(
             _flowService, _stateBlob, _repository, _currentUser,
@@ -205,12 +210,34 @@ public sealed class RequestServiceResultsEnquiryTests
     // ── The parked boundary ──────────────────────────────────────────────────
 
     [Fact]
-    public async Task Submitting_never_enqueues_anything()
+    public async Task Submitting_dispatches_one_enquiry_message_to_the_zendesk_queue()
     {
-        // BA decision: Zendesk dispatch is a separate story. Nothing here may enqueue until it lands.
+        // AB#301974: an enquiry is dispatched to Zendesk at submit time, exactly once, carrying the
+        // readable request-type description and the challenged result (QAN / syllabus / session / grade).
+        RequestDocument? enqueued = null;
+        _queue.EnqueueAsync<RequestDocument>(
+                QueueOptions.ZendeskQueue,
+                Arg.Do<RequestDocument>(d => enqueued = d),
+                Arg.Any<CancellationToken>())
+            .Returns(Guid.NewGuid());
+
         await _sut.SubmitResultsEnquiryAsync(WindowId, Journey());
 
-        await _queue.DidNotReceiveWithAnyArgs().EnqueueAsync<object>(default!, default!);
+        await _queue.Received(1).EnqueueAsync<RequestDocument>(
+            QueueOptions.ZendeskQueue, Arg.Any<RequestDocument>(), Arg.Any<CancellationToken>());
+        Assert.NotNull(enqueued);
+        Assert.Equal("CYPMD_16to19_RE_4F9C2A1", enqueued.ReferenceNumber);
+        Assert.Equal(ChangeRequestId, enqueued.ChangeRequestId);
+        Assert.Equal("Results enquiry - Incorrect grade", enqueued.RequestTypeCode);
+
+        var challenged = Assert.Single(enqueued.Answers, a => a.QuestionId == "challenged-result");
+        Assert.Equal("Challenged result", challenged.QuestionTitle);
+        Assert.Equal("ResultsEnquiry", challenged.Type);
+        Assert.Contains("GCSE (9-1) Art&Des : Fine Art", challenged.Value);
+        Assert.Contains("60180882", challenged.Value);
+        Assert.Contains("1AD0", challenged.Value);
+        Assert.Contains("S2024", challenged.Value);
+        Assert.Contains("9", challenged.Value);
     }
 
     [Fact]
@@ -293,11 +320,30 @@ public sealed class RequestServiceResultsEnquiryTests
     }
 
     [Fact]
-    public async Task A_missing_qualification_enquiry_never_enqueues()
+    public async Task A_missing_qualification_enquiry_dispatches_one_message()
     {
+        RequestDocument? enqueued = null;
+        _queue.EnqueueAsync<RequestDocument>(
+                QueueOptions.ZendeskQueue,
+                Arg.Do<RequestDocument>(d => enqueued = d),
+                Arg.Any<CancellationToken>())
+            .Returns(Guid.NewGuid());
+
         await _sut.SubmitResultsEnquiryAsync(WindowId, MissingQualificationJourney());
 
-        await _queue.DidNotReceiveWithAnyArgs().EnqueueAsync<object>(default!, default!);
+        await _queue.Received(1).EnqueueAsync<RequestDocument>(
+            QueueOptions.ZendeskQueue, Arg.Any<RequestDocument>(), Arg.Any<CancellationToken>());
+        Assert.NotNull(enqueued);
+        Assert.Equal("Results enquiry - Missing qualification", enqueued.RequestTypeCode);
+        Assert.Equal(ChangeRequestId, enqueued.ChangeRequestId);
+
+        var challenged = Assert.Single(enqueued.Answers, a => a.QuestionId == "challenged-qualification");
+        Assert.Equal("Challenged qualification", challenged.QuestionTitle);
+        Assert.Equal("ResultsEnquiry", challenged.Type);
+        Assert.Contains("AQA Level 1/Level 2 GCSE (9-1) in Mathematics", challenged.Value);
+        Assert.Contains("60146084", challenged.Value);
+        Assert.Contains("AQA", challenged.Value);
+        Assert.Contains("8300H", challenged.Value);
     }
 
     [Fact]
@@ -384,6 +430,29 @@ public sealed class RequestServiceResultsEnquiryTests
 
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => _sut.SubmitResultsEnquiryAsync(WindowId, journey));
+    }
+
+    [Fact]
+    public async Task A_result_does_not_belong_enquiry_dispatches_one_message()
+    {
+        RequestDocument? enqueued = null;
+        _queue.EnqueueAsync<RequestDocument>(
+                QueueOptions.ZendeskQueue,
+                Arg.Do<RequestDocument>(d => enqueued = d),
+                Arg.Any<CancellationToken>())
+            .Returns(Guid.NewGuid());
+
+        await _sut.SubmitResultsEnquiryAsync(WindowId, ResultDoesNotBelongJourney());
+
+        await _queue.Received(1).EnqueueAsync<RequestDocument>(
+            QueueOptions.ZendeskQueue, Arg.Any<RequestDocument>(), Arg.Any<CancellationToken>());
+        Assert.NotNull(enqueued);
+        Assert.Equal("CYPMD_16to19_RE_9D8E7F6", enqueued.ReferenceNumber);
+        Assert.Equal("Results enquiry - Result does not belong to student", enqueued.RequestTypeCode);
+
+        var challenged = Assert.Single(enqueued.Answers, a => a.QuestionId == "challenged-result");
+        Assert.Contains("60180882", challenged.Value);
+        Assert.Contains("1AD0", challenged.Value);
     }
 
     // ── Guard rails ──────────────────────────────────────────────────────────

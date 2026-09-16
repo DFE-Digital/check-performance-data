@@ -174,10 +174,12 @@ public sealed class ZendeskConsumer : ConsumerBase
             response.Ticket.Id, message.ReferenceNumber, decision.Status, decision.MatchedRuleId);
     }
 
-    // Atomically flips the request from RulesProcessed into the in-progress "creating" state.
+    // Atomically flips the request into the in-progress "creating" state: a RulesProcessed row
+    // (rules-consumer path) or an enquiry row — which never passes the rules engine, so its
+    // WorkerStatus is NULL and it is claimed only when RequestType is ResultsEnquiry (FR-002).
     // Returns true to the single delivery that wins the flip. The flip is exclusive: Postgres
     // takes a row lock on the matching row, so of two concurrent deliveries the second re-checks
-    // its WHERE against the winner's committed row — which is no longer RulesProcessed — and
+    // its WHERE against the winner's committed row — which is no longer claimable — and
     // matches zero rows. The loser therefore skips without ever calling Zendesk, so concurrent
     // redelivery cannot create a duplicate ticket. CrmId == null keeps an already-ticketed
     // request (whose status is ZendeskTicketCreated) from ever being re-claimed.
@@ -189,7 +191,8 @@ public sealed class ZendeskConsumer : ConsumerBase
             claimed = await _dbContext.ChangeRequests
                 .Where(r => r.ReferenceNumber == referenceNumber
                     && r.CrmId == null
-                    && r.WorkerStatus == WorkerStatus.RulesProcessed)
+                    && (r.WorkerStatus == WorkerStatus.RulesProcessed
+                        || (r.WorkerStatus == null && r.RequestType == RequestType.ResultsEnquiry)))
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(r => r.WorkerStatus, WorkerStatus.ZendeskTicketCreating),
                     cancellationToken);

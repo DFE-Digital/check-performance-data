@@ -56,7 +56,7 @@ public sealed class InstantSearchReportingE2ETests(PlaywrightFixture fixture) : 
     {
         var segment = $"e2e-report-{Guid.NewGuid():N}";
         var id = await CmsSeedHelpers.CreatePageNodeAsync(
-            Fixture.SeedClient, CmsSeedHelpers.HelpRootId, "content", segment, "E2E instant reporting");
+            Fixture.SeedClient, FixtureContent.RootId, "content", segment, "E2E instant reporting");
         _createdPages.Add(id);
 
         await CmsSeedHelpers.AddWidgetAsync(Fixture.SeedClient, id, "0.0", "search");
@@ -82,7 +82,7 @@ public sealed class InstantSearchReportingE2ETests(PlaywrightFixture fixture) : 
             new Dictionary<string, string> { ["level"] = "2", ["text"] = "Uploading files" });
         await CmsSeedHelpers.PublishDraftAsync(Fixture.SeedClient, id);
 
-        return $"/help/{segment}";
+        return $"{FixtureContent.RootPath}/{segment}";
     }
 
     // Same shape as the admin suites use: mirror an impersonation cookie into the browser

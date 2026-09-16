@@ -48,7 +48,7 @@ public sealed class InstantSearchWidgetE2ETests(PlaywrightFixture fixture) : See
 
         var id = await CmsSeedHelpers.CreatePageNodeAsync(
             Fixture.SeedClient,
-            parentId: CmsSeedHelpers.HelpRootId,
+            parentId: FixtureContent.RootId,
             pageType: "content",
             segment: segment,
             title: "E2E instant search");
@@ -74,7 +74,7 @@ public sealed class InstantSearchWidgetE2ETests(PlaywrightFixture fixture) : See
 
         await CmsSeedHelpers.PublishDraftAsync(Fixture.SeedClient, id);
 
-        return ($"/help/{segment}", bodyToken);
+        return ($"{FixtureContent.RootPath}/{segment}", bodyToken);
     }
 
     private async Task AddAndSetAsync(Guid pageId, string path, string widgetType, Dictionary<string, string> props)
@@ -264,7 +264,7 @@ public sealed class InstantSearchWidgetE2ETests(PlaywrightFixture fixture) : See
 
         var containerSegment = $"e2e-section-{Guid.NewGuid():N}";
         var containerId = await CmsSeedHelpers.CreatePageNodeAsync(
-            Fixture.SeedClient, CmsSeedHelpers.HelpRootId, "content", containerSegment, "E2E section");
+            Fixture.SeedClient, FixtureContent.RootId, "content", containerSegment, "E2E section");
         _createdPages.Add(containerId);
         await CmsSeedHelpers.PublishDraftAsync(Fixture.SeedClient, containerId);
 
@@ -276,12 +276,12 @@ public sealed class InstantSearchWidgetE2ETests(PlaywrightFixture fixture) : See
 
         var outsideSegment = $"e2e-outside-{Guid.NewGuid():N}";
         var outsideId = await CmsSeedHelpers.CreatePageNodeAsync(
-            Fixture.SeedClient, CmsSeedHelpers.HelpRootId, "content", outsideSegment, $"Outside {token} page");
+            Fixture.SeedClient, FixtureContent.RootId, "content", outsideSegment, $"Outside {token} page");
         _createdPages.Add(outsideId);
         await CmsSeedHelpers.PublishDraftAsync(Fixture.SeedClient, outsideId);
 
         var (hostUrl, _) = await SeedPageWithSectionsAsync(
-            SearchProps("path", instant: true, scope: $"help/{containerSegment}"));
+            SearchProps("path", instant: true, scope: $"{FixtureContent.RootSegment}/{containerSegment}"));
 
         await Page.GotoAsync($"{Fixture.BaseUrl}{hostUrl}");
         await TypeAsync(token);
@@ -293,7 +293,7 @@ public sealed class InstantSearchWidgetE2ETests(PlaywrightFixture fixture) : See
         Assert.DoesNotContain(labels, l => l.Contains("Outside", StringComparison.Ordinal));
 
         await Options.First.ClickAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex($"/help/{Regex.Escape(containerSegment)}/{Regex.Escape(insideSegment)}$"));
+        await Expect(Page).ToHaveURLAsync(new Regex($"{FixtureContent.RootPath}/{Regex.Escape(containerSegment)}/{Regex.Escape(insideSegment)}$"));
     }
 
     // ============================================================
@@ -361,7 +361,7 @@ public sealed class InstantSearchWidgetE2ETests(PlaywrightFixture fixture) : See
     {
         var segment = $"e2e-instant-{Guid.NewGuid():N}";
         var id = await CmsSeedHelpers.CreatePageNodeAsync(
-            Fixture.SeedClient, CmsSeedHelpers.HelpRootId, "content", segment, "E2E two widgets");
+            Fixture.SeedClient, FixtureContent.RootId, "content", segment, "E2E two widgets");
         _createdPages.Add(id);
 
         await AddAndSetAsync(id, "0.0", "search", SearchProps("page", instant: true));
@@ -370,7 +370,7 @@ public sealed class InstantSearchWidgetE2ETests(PlaywrightFixture fixture) : See
         await AddAndSetAsync(id, "0.2", "search", SearchProps("page", instant: true));
         await CmsSeedHelpers.PublishDraftAsync(Fixture.SeedClient, id);
 
-        await Page.GotoAsync($"{Fixture.BaseUrl}/help/{segment}");
+        await Page.GotoAsync($"{Fixture.BaseUrl}{FixtureContent.RootPath}/{segment}");
 
         var inputs = Page.Locator("input.autocomplete__input");
         Assert.Equal(2, await inputs.CountAsync());

@@ -44,7 +44,7 @@ public sealed class OnPageSearchSectionTests(PlaywrightFixture fixture) : Seedin
         var segment = $"e2e-section-{Guid.NewGuid():N}";
 
         var id = await CmsSeedHelpers.CreatePageNodeAsync(
-            Fixture.SeedClient, CmsSeedHelpers.HelpRootId, "content", segment, "E2E single-page section");
+            Fixture.SeedClient, FixtureContent.RootId, "content", segment, "E2E single-page section");
         _createdPages.Add(id);
 
         await CmsSeedHelpers.AddWidgetAsync(Fixture.SeedClient, id, "0.0", "search");
@@ -63,7 +63,7 @@ public sealed class OnPageSearchSectionTests(PlaywrightFixture fixture) : Seedin
             new Dictionary<string, string> { ["level"] = "2", ["text"] = "Providing evidence" });
         await CmsSeedHelpers.PublishDraftAsync(Fixture.SeedClient, id);
 
-        var hostPath = $"/help/{segment}";
+        var hostPath = $"{FixtureContent.RootPath}/{segment}";
 
         // Search as a visitor would, and settle the query by leaving the box.
         await Page.GotoAsync($"{Fixture.BaseUrl}{hostPath}");

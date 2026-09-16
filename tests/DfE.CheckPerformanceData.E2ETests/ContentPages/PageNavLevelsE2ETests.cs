@@ -26,7 +26,7 @@ public sealed class PageNavLevelsE2ETests(PlaywrightFixture fixture) : SeedingPa
     {
         var segment = $"e2e-navlevels-{Guid.NewGuid():N}";
         var id = await CmsSeedHelpers.CreatePageNodeAsync(
-            Fixture.SeedClient, CmsSeedHelpers.HelpRootId, "content", segment, "E2E nav levels");
+            Fixture.SeedClient, FixtureContent.RootId, "content", segment, "E2E nav levels");
         _createdPages.Add(id);
 
         await CmsSeedHelpers.AddWidgetAsync(Fixture.SeedClient, id, "0.0", "pagenav");
@@ -44,7 +44,7 @@ public sealed class PageNavLevelsE2ETests(PlaywrightFixture fixture) : SeedingPa
         }
         await CmsSeedHelpers.PublishDraftAsync(Fixture.SeedClient, id);
 
-        return (id, $"/help/{segment}");
+        return (id, $"{FixtureContent.RootPath}/{segment}");
     }
 
     private static Dictionary<string, string> Nav(params int[] ticked)

@@ -128,24 +128,41 @@ actually `Abandoned`.
 Both LDS files use the same writer (`EgressCsvWriter`): RFC 4180 quoting, `\r\n` between lines, no
 line terminator after the final data row, every value trimmed, UTF-8 without a byte-order mark.
 
-**Remove learners** columns (`EgressColumnSets.RemoveLearners`, the spike's list verbatim):
+Both files follow `LDS_CYPMD_Data specification_v2.4.xlsx` (sheets "New Learner" and "Remove
+Learner", read top to bottom, keeping the rows marked X for the window's key stage). The column set
+is therefore the *window's*: `EgressColumnSets.RemoveLearnersFor(windowType)` /
+`NewLearnersFor(windowType)`.
+
+**Remove learners** — every key stage:
 
 ```
 Correction_ID, Correction_Type, Correction_Reason, Key_Stage, Establishment_Number, Surname,
 Forename, Sex, Date_of_Birth, Cycle_Year, Cycle_Month, Local_Authority, Learner_ID
 ```
 
-**New learners** columns (`EgressColumnSets.NewLearners`) — **FLAGGED**: the LDS
-`LDS_CYPMD_Data specification v2.4` workbook was not available when this shipped, so this set is
-derived from the tactical Zendesk "New Learner Output" report plus AB#292610's rules (LA and
-establishment split from the 7-digit number, UPN placed between ULN and the matched LDS reference,
-SEN status included because the Add journey captures it as an LDS-bound value):
+then, KS4 only: `Year_Group` (populated for year-group-change removals from the journey's
+`year-group-higher/lower-moved-to` answer, blank otherwise); 16-19 only: `Removal_Year_0`,
+`Removal_Year_1`, `Removal_Year_2` (`TRUE`/`FALSE` from the `years-to-remove` checkbox — Year_0 is
+the academic year ending in Cycle_Year; blank when the journey route did not ask).
+
+**New learners** — every key stage (the spec's `Middle_Name` is struck through in v2.4, "CYPMD will
+not be sending this field from June 2026", so it is not emitted; there is no SEN attribute):
 
 ```
-Correction_ID, Correction_Type, Key_Stage, Local_Authority, Establishment_Number, Surname,
-Middle_Name, Forename, Sex, Date_of_Birth, Admission_Date, Postcode, Cycle_Year, Cycle_Month,
-School_URN, ULN, UPN, Learner_ID, Year_Group, SEN_Status
+Correction_ID, Correction_Type, Key_Stage, Establishment_Number, Surname, Forename, Sex,
+Date_of_Birth, Admission_Date, Post_Code, Cycle_Year, Cycle_Month, Local_Authority, URN, ULN, UPN,
+Learner_ID, Year_Group
 ```
+
+then, 16-19 only: `Attendance_Year_0`, `Attendance_Year_1`, `Attendance_Year_2`, `KS4_Year` — all
+blank today because no Post16 Add journey exists.
+
+Values: `Key_Stage` is `KS2` / `KS4` / `16-19` (`EgressOutputTypes.KeyStageValue`; the *file name*
+still uses AB#292610's `KS5` token). `Cycle_Year` / `Cycle_Month` are the checking window's start
+year and month (the spec's "month in which the cycle takes place"), not each record's submission
+date. `Sex` is `F` / `M` / `U` on both files. 16-19 `Correction_Reason` codes are the spec's
+(`CorrectionCodes`): 4 deceased, 325 not at end of study, 326/328/331 not on roll (international /
+external / apprentice), 329 other with evidence.
 
 File names are fixed when preprocessing completes: `CYPMD_LDS_{stage}_{type}_{yyyy_MM_dd}.csv`,
 where `{stage}` is `KS2`/`KS4`/`KS5` (`EgressOutputTypes.StageToken`) and the date is the **London**
@@ -228,12 +245,16 @@ Explorer, or the Azure CLI, pointed at the `EgressStorage` connection string fro
   deliberately out of scope — its own column set and rule, tracked as a follow-up ticket.
 - **Runs history with filters and pagination** is AB#294590; the Pull page carries only a minimal
   saved/completed list.
-- **New learners column set is unverified against the spec.** Correct `EgressColumnSets`,
-  `EgressColumnSetsTests` and `LdsSpecValidator` together once `LDS_CYPMD_Data specification v2.4`
-  arrives — nowhere else defines the file's shape.
-- **Post16 (KS5) gaps**: no Add flow exists; only two Remove reasons (`student-died`,
-  `not-on-roll`) have a mapped correction code — any other Post16 reason fails validation with an
-  explicit reason rather than being guessed; Post16 pupils have no MATCHREF.
+- **LDS spec v2.4 questions still open with LDS/BA** (see the PR notes §10): the struck
+  `Middle_Name` heading is omitted entirely; `Key_Stage` says `16-19` (v2.4 changed the Remove
+  sheet from 16-18, the New Learner sheet was not updated); year-group-change removals go out as
+  Correction_Type 31 / reason 17 (business-confirmed 2026-08-06) although the spec's hidden Addback
+  sheet has them as type 30; `Removal_Year_0..2` are blank unless the 16-19 journey took the
+  "other" route; 16-19 "other" is always 329 (evidence is always collected, so 330 never occurs);
+  Correction_Type 11 (Include learner) is in the spec but Include is not an egress output yet.
+- **16-19 gaps**: no Add journey exists, so the New learners file for a 16-19 window can only ever
+  be header-only (and Transfer refuses a run whose outputs are all empty); 16-19 pupil records have
+  no MATCHREF, so `Learner_ID` fails validation for them until the 16-19 pupil file supplies one.
 - **Trailing newline**: files end after the last data row with no trailing line terminator, to
   honour "no additional rows below the final data row" — confirm this reading with LDS.
 - **`ConnectionStrings__EgressStorage` is not yet in Terraform** (`terraform/application/

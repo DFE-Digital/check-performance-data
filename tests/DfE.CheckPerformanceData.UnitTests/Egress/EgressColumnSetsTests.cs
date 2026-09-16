@@ -1,42 +1,65 @@
 using DfE.CheckPerformanceData.Application.Egress;
+using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Egress;
 
 // Headings are a contract with LDS: exact text, order and count (AB#292610 "Field headings match
-// the spec exactly"). The Remove set is the spike's list verbatim; the New learners set is DERIVED
-// from the tactical Zendesk report and AB#292610's rules and is FLAGGED for verification against
-// LDS_CYPMD_Data specification v2.4 — when the spec arrives, edit EgressColumnSets and these
-// expectations together, nothing else.
+// the spec exactly"). Both sets are the LDS_CYPMD_Data specification v2.4 sheets ("New Learner",
+// "Remove Learner") read top to bottom, keeping only rows marked X for the key stage in question.
+// Middle_Name is struck through in v2.4 ("CYPMD will not be sending this field from June 2026")
+// and is therefore absent. Edit EgressColumnSets and these expectations together, nothing else.
 public sealed class EgressColumnSetsTests
 {
-    [Fact]
-    public void Remove_learners_headings_are_the_spike_list_in_order()
-    {
-        var headers = EgressColumnSets.RemoveLearners.Select(c => c.Header).ToArray();
-        Assert.Equal(
-            ["Correction_ID", "Correction_Type", "Correction_Reason", "Key_Stage", "Establishment_Number",
-             "Surname", "Forename", "Sex", "Date_of_Birth", "Cycle_Year", "Cycle_Month", "Local_Authority", "Learner_ID"],
-            headers);
-    }
+    private static readonly string[] RemoveBase =
+    [
+        "Correction_ID", "Correction_Type", "Correction_Reason", "Key_Stage", "Establishment_Number",
+        "Surname", "Forename", "Sex", "Date_of_Birth", "Cycle_Year", "Cycle_Month", "Local_Authority", "Learner_ID"
+    ];
+
+    private static readonly string[] NewBase =
+    [
+        "Correction_ID", "Correction_Type", "Key_Stage", "Establishment_Number", "Surname", "Forename", "Sex",
+        "Date_of_Birth", "Admission_Date", "Post_Code", "Cycle_Year", "Cycle_Month", "Local_Authority", "URN",
+        "ULN", "UPN", "Learner_ID", "Year_Group"
+    ];
 
     [Fact]
-    public void New_learners_headings_put_UPN_between_ULN_and_the_matched_LDS_ref()
+    public void Remove_learners_base_headings_are_the_spec_sheet_in_order()
+        => Assert.Equal(RemoveBase, EgressColumnSets.RemoveLearners.Select(c => c.Header).ToArray());
+
+    [Fact]
+    public void New_learners_base_headings_are_the_spec_sheet_in_order_without_the_struck_Middle_Name()
     {
         var headers = EgressColumnSets.NewLearners.Select(c => c.Header).ToArray();
-        Assert.Equal(
-            ["Correction_ID", "Correction_Type", "Key_Stage", "Local_Authority", "Establishment_Number",
-             "Surname", "Middle_Name", "Forename", "Sex", "Date_of_Birth", "Admission_Date", "Postcode",
-             "Cycle_Year", "Cycle_Month", "School_URN", "ULN", "UPN", "Learner_ID", "Year_Group", "SEN_Status"],
-            headers);
+        Assert.Equal(NewBase, headers);
         Assert.Equal(Array.IndexOf(headers, "ULN") + 1, Array.IndexOf(headers, "UPN"));
         Assert.Equal(Array.IndexOf(headers, "UPN") + 1, Array.IndexOf(headers, "Learner_ID"));
+        Assert.DoesNotContain("Middle_Name", headers);
+        Assert.DoesNotContain("SEN_Status", headers);
+    }
+
+    [Theory]
+    [InlineData(CheckingWindowType.KS2)]
+    [InlineData(CheckingWindowType.KS4June)]
+    [InlineData(CheckingWindowType.KS4Autumn)]
+    public void New_learners_for_KS2_and_KS4_is_the_base_set(CheckingWindowType windowType)
+        => Assert.Equal(NewBase, EgressColumnSets.NewLearnersFor(windowType).Select(c => c.Header).ToArray());
+
+    [Fact]
+    public void New_learners_for_16_19_appends_the_attendance_years_and_KS4_year()
+    {
+        var headers = EgressColumnSets.NewLearnersFor(CheckingWindowType.Post16).Select(c => c.Header).ToArray();
+        Assert.Equal([.. NewBase, "Attendance_Year_0", "Attendance_Year_1", "Attendance_Year_2", "KS4_Year"], headers);
+        // No Post16 Add journey exists yet, so the four extra cells are blank (spec: NULL allowed).
+        var values = EgressColumnSets.NewLearnersFor(CheckingWindowType.Post16).Select(c => c.Value(SampleRows.New())).ToArray();
+        Assert.Equal(["", "", "", ""], values[^4..]);
     }
 
     [Fact]
     public void No_heading_carries_a_trailing_underscore_or_whitespace()
     {
         foreach (var header in EgressColumnSets.RemoveLearners.Select(c => c.Header)
-                     .Concat(EgressColumnSets.NewLearners.Select(c => c.Header)))
+                     .Concat(EgressColumnSets.NewLearnersFor(CheckingWindowType.Post16).Select(c => c.Header)))
         {
             Assert.Equal(header.Trim(), header);
             Assert.False(header.EndsWith('_'), header);
@@ -46,18 +69,16 @@ public sealed class EgressColumnSetsTests
     [Fact]
     public void Remove_row_projects_every_column_from_the_row()
     {
-        var row = SampleRows.Remove();
-        var values = EgressColumnSets.RemoveLearners.Select(c => c.Value(row)).ToArray();
+        var values = EgressColumnSets.RemoveLearners.Select(c => c.Value(SampleRows.Remove())).ToArray();
         Assert.Equal(["88856", "31", "4", "KS4", "4603", "Bellingham", "Jude", "M", "2007-06-01", "2026", "6", "873", "10000011"], values);
     }
 
     [Fact]
-    public void New_row_projects_every_column_from_the_row()
+    public void New_row_projects_every_column_from_the_row_in_spec_order()
     {
-        var row = SampleRows.New();
-        var values = EgressColumnSets.NewLearners.Select(c => c.Value(row)).ToArray();
-        Assert.Equal(["69390", "10", "KS4", "881", "5412", "Lennox", "", "Annie", "F", "2010-09-07", "2018-09-04", "",
-                      "2026", "6", "136412", "", "A881541200011", "", "10", "N"], values);
+        var values = EgressColumnSets.NewLearners.Select(c => c.Value(SampleRows.New())).ToArray();
+        Assert.Equal(["69390", "10", "KS4", "5412", "Lennox", "Annie", "F", "2010-09-07", "2018-09-04", "",
+                      "2026", "6", "881", "136412", "", "A881541200011", "", "10"], values);
     }
 }
 
@@ -71,8 +92,8 @@ internal static class SampleRows
 
     public static NewLearnerRow New() => new(
         CorrectionId: "69390", CorrectionType: "10", KeyStage: "KS4", LocalAuthority: "881", EstablishmentNumber: "5412",
-        Surname: "Lennox", MiddleName: "", Forename: "Annie", Sex: "F", DateOfBirth: "2010-09-07", AdmissionDate: "2018-09-04",
+        Surname: "Lennox", Forename: "Annie", Sex: "F", DateOfBirth: "2010-09-07", AdmissionDate: "2018-09-04",
         Postcode: "", CycleYear: "2026", CycleMonth: "6", SchoolUrn: "136412", Uln: "", Upn: "A881541200011", LearnerId: "",
-        YearGroup: "10", SenStatus: "N",
+        YearGroup: "10",
         ChangeRequestId: Guid.Parse("22222222-2222-2222-2222-222222222222"), TicketId: 69390, ReferenceNumber: "CYPMD_KS4June_AAA0002");
 }

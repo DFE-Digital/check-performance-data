@@ -133,16 +133,17 @@ public sealed class EgressRunRepository(IPortalDbContext db) : IEgressRunReposit
             {
                 Id = Guid.NewGuid(), RunId = runId, ChangeRequestId = r.ChangeRequestId, TicketId = r.TicketId, ReferenceNumber = r.ReferenceNumber,
                 CorrectionId = r.CorrectionId, CorrectionType = r.CorrectionType, KeyStage = r.KeyStage, LocalAuthority = r.LocalAuthority,
-                EstablishmentNumber = r.EstablishmentNumber, Surname = r.Surname, MiddleName = r.MiddleName, Forename = r.Forename, Sex = r.Sex,
+                EstablishmentNumber = r.EstablishmentNumber, Surname = r.Surname, Forename = r.Forename, Sex = r.Sex,
                 DateOfBirth = r.DateOfBirth, AdmissionDate = r.AdmissionDate, Postcode = r.Postcode, CycleYear = r.CycleYear, CycleMonth = r.CycleMonth,
-                SchoolUrn = r.SchoolUrn, Uln = r.Uln, Upn = r.Upn, LearnerId = r.LearnerId, YearGroup = r.YearGroup, SenStatus = r.SenStatus
+                SchoolUrn = r.SchoolUrn, Uln = r.Uln, Upn = r.Upn, LearnerId = r.LearnerId, YearGroup = r.YearGroup
             }));
             db.EgressRemoveLearners.AddRange(removeLearners.Select(r => new EgressRemoveLearner
             {
                 Id = Guid.NewGuid(), RunId = runId, ChangeRequestId = r.ChangeRequestId, TicketId = r.TicketId, ReferenceNumber = r.ReferenceNumber,
                 CorrectionId = r.CorrectionId, CorrectionType = r.CorrectionType, CorrectionReason = r.CorrectionReason, KeyStage = r.KeyStage,
                 EstablishmentNumber = r.EstablishmentNumber, Surname = r.Surname, Forename = r.Forename, Sex = r.Sex, DateOfBirth = r.DateOfBirth,
-                CycleYear = r.CycleYear, CycleMonth = r.CycleMonth, LocalAuthority = r.LocalAuthority, LearnerId = r.LearnerId
+                CycleYear = r.CycleYear, CycleMonth = r.CycleMonth, LocalAuthority = r.LocalAuthority, LearnerId = r.LearnerId,
+                YearGroup = r.YearGroup, RemovalYear0 = r.RemovalYear0, RemovalYear1 = r.RemovalYear1, RemovalYear2 = r.RemovalYear2
             }));
             await db.SaveChangesAsync(ct);
 
@@ -157,15 +158,18 @@ public sealed class EgressRunRepository(IPortalDbContext db) : IEgressRunReposit
 
     public async Task<IReadOnlyList<NewLearnerRow>> GetNewLearnersAsync(Guid runId, CancellationToken ct) =>
         await db.EgressNewLearners.AsNoTracking().Where(x => x.RunId == runId).OrderBy(x => x.Surname).ThenBy(x => x.Forename).ThenBy(x => x.ReferenceNumber)
-            .Select(r => new NewLearnerRow(r.CorrectionId, r.CorrectionType, r.KeyStage, r.LocalAuthority, r.EstablishmentNumber, r.Surname, r.MiddleName,
+            .Select(r => new NewLearnerRow(r.CorrectionId, r.CorrectionType, r.KeyStage, r.LocalAuthority, r.EstablishmentNumber, r.Surname,
                 r.Forename, r.Sex, r.DateOfBirth, r.AdmissionDate, r.Postcode, r.CycleYear, r.CycleMonth, r.SchoolUrn, r.Uln, r.Upn, r.LearnerId,
-                r.YearGroup, r.SenStatus, r.ChangeRequestId, r.TicketId, r.ReferenceNumber))
+                r.YearGroup, r.ChangeRequestId, r.TicketId, r.ReferenceNumber))
             .ToListAsync(ct);
 
     public async Task<IReadOnlyList<RemoveLearnerRow>> GetRemoveLearnersAsync(Guid runId, CancellationToken ct) =>
         await db.EgressRemoveLearners.AsNoTracking().Where(x => x.RunId == runId).OrderBy(x => x.Surname).ThenBy(x => x.Forename).ThenBy(x => x.ReferenceNumber)
             .Select(r => new RemoveLearnerRow(r.CorrectionId, r.CorrectionType, r.CorrectionReason, r.KeyStage, r.EstablishmentNumber, r.Surname, r.Forename,
-                r.Sex, r.DateOfBirth, r.CycleYear, r.CycleMonth, r.LocalAuthority, r.LearnerId, r.ChangeRequestId, r.TicketId, r.ReferenceNumber))
+                r.Sex, r.DateOfBirth, r.CycleYear, r.CycleMonth, r.LocalAuthority, r.LearnerId, r.ChangeRequestId, r.TicketId, r.ReferenceNumber)
+            {
+                YearGroup = r.YearGroup, RemovalYear0 = r.RemovalYear0, RemovalYear1 = r.RemovalYear1, RemovalYear2 = r.RemovalYear2
+            })
             .ToListAsync(ct);
 
     public async Task<(EgressOutputType OutputType, EgressBlocker Blocker)?> TryReactivateAsync(Guid runId, CancellationToken ct)

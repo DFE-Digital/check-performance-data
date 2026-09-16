@@ -58,8 +58,8 @@ public sealed class EgressRecordBuilderTests
     {
         var item = Run(Add(), cycleMonth: "10");
         Assert.Empty(item.Failures);
-        Assert.Equal(new NewLearnerRow("69390", "10", "KS2", "860", "4070", "Lennox", "", "Annie", "F", "2010-09-07", "2018-09-04", "", "2026", "10",
-            "136412", "", "A881541200011", "", "6", "N", Guid.Parse("22222222-2222-2222-2222-222222222222"), 69390, "REF-A"), item.NewRow);
+        Assert.Equal(new NewLearnerRow("69390", "10", "KS2", "860", "4070", "Lennox", "Annie", "F", "2010-09-07", "2018-09-04", "", "2026", "10",
+            "136412", "", "A881541200011", "", "6", Guid.Parse("22222222-2222-2222-2222-222222222222"), 69390, "REF-A"), item.NewRow);
     }
 
     [Fact]

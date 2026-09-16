@@ -117,7 +117,7 @@ public static class EgressRecordBuilder
         item.NewRow = new NewLearnerRow(
             CorrectionId: ticket, CorrectionType: item.CorrectionType ?? string.Empty, KeyStage: stage,
             LocalAuthority: item.LocalAuthority, EstablishmentNumber: item.Establishment,
-            Surname: s.Answer("last-name") ?? s.PupilSurname ?? string.Empty, MiddleName: string.Empty,
+            Surname: s.Answer("last-name") ?? s.PupilSurname ?? string.Empty,
             Forename: s.Answer("first-name") ?? s.PupilFirstname ?? string.Empty,
             Sex: (s.Answer("sex") ?? s.PupilSex ?? string.Empty).ToUpperInvariant(),
             DateOfBirth: item.DateOfBirthIso, AdmissionDate: item.AdmissionDateIso, Postcode: string.Empty,
@@ -125,7 +125,7 @@ public static class EgressRecordBuilder
             Uln: s.WindowType == CheckingWindowType.Post16 ? s.PupilIdentifier ?? string.Empty : string.Empty,
             Upn: (s.Answer("upn") ?? string.Empty).ToUpperInvariant(),
             LearnerId: s.PupilMatchRef > 0 ? s.PupilMatchRef.ToString(CultureInfo.InvariantCulture) : string.Empty,
-            YearGroup: s.Answer("year-group") ?? string.Empty, SenStatus: s.Answer("sen-status") ?? string.Empty,
+            YearGroup: s.Answer("year-group") ?? string.Empty,
             ChangeRequestId: s.ChangeRequestId, TicketId: s.TicketId, ReferenceNumber: s.ReferenceNumber);
     }
 
@@ -145,10 +145,10 @@ public static class EgressRecordBuilder
             {
                 CorrectionId = n.CorrectionId.Trim(), CorrectionType = n.CorrectionType.Trim(), KeyStage = n.KeyStage.Trim(),
                 LocalAuthority = n.LocalAuthority.Trim(), EstablishmentNumber = n.EstablishmentNumber.Trim(), Surname = n.Surname.Trim(),
-                MiddleName = n.MiddleName.Trim(), Forename = n.Forename.Trim(), Sex = n.Sex.Trim(), DateOfBirth = n.DateOfBirth.Trim(),
+                Forename = n.Forename.Trim(), Sex = n.Sex.Trim(), DateOfBirth = n.DateOfBirth.Trim(),
                 AdmissionDate = n.AdmissionDate.Trim(), Postcode = n.Postcode.Trim(), CycleYear = n.CycleYear.Trim(), CycleMonth = n.CycleMonth.Trim(),
                 SchoolUrn = n.SchoolUrn.Trim(), Uln = n.Uln.Trim(), Upn = n.Upn.Trim(), LearnerId = n.LearnerId.Trim(),
-                YearGroup = n.YearGroup.Trim(), SenStatus = n.SenStatus.Trim()
+                YearGroup = n.YearGroup.Trim()
             };
     }
 }

@@ -21,7 +21,7 @@ public sealed class EgressTransferServiceTests
     private static RemoveLearnerRow RemoveRow(string ticket) =>
         new(ticket, "31", "4", "KS4", "4070", "Smith", "Alice", "F", "2010-09-07", "2026", "6", "860", "555", Guid.NewGuid(), long.Parse(ticket), $"REF-{ticket}");
     private static NewLearnerRow NewRow(string ticket) =>
-        new(ticket, "10", "KS4", "860", "4070", "Jones", "", "Bob", "M", "2010-01-02", "2018-09-04", "", "2026", "6", "142313", "", "A860407000011", "", "10", "N", Guid.NewGuid(), long.Parse(ticket), $"REF-{ticket}");
+        new(ticket, "10", "KS4", "860", "4070", "Jones", "Bob", "M", "2010-01-02", "2018-09-04", "", "2026", "6", "142313", "", "A860407000011", "", "10", Guid.NewGuid(), long.Parse(ticket), $"REF-{ticket}");
 
     private void RunIs(EgressRunStatus status, params EgressOutputType[] types)
     {

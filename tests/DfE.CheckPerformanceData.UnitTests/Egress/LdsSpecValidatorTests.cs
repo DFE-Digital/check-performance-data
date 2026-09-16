@@ -55,9 +55,8 @@ public sealed class LdsSpecValidatorTests
     [InlineData("Sex", "Z")]
     [InlineData("Admission_Date", "")]
     [InlineData("Year_Group", "7")]
-    [InlineData("SEN_Status", "Y")]
     [InlineData("UPN", "A8815412000110000")]
-    [InlineData("School_URN", "")]
+    [InlineData("URN", "")]
     public void A_new_learner_row_fails_on_the_named_field(string field, string bad)
     {
         var row = SampleRows.New();
@@ -66,9 +65,8 @@ public sealed class LdsSpecValidatorTests
             "Sex" => row with { Sex = bad },
             "Admission_Date" => row with { AdmissionDate = bad },
             "Year_Group" => row with { YearGroup = bad },
-            "SEN_Status" => row with { SenStatus = bad },
             "UPN" => row with { Upn = bad },
-            "School_URN" => row with { SchoolUrn = bad },
+            "URN" => row with { SchoolUrn = bad },
             _ => throw new ArgumentOutOfRangeException(nameof(field))
         };
 
@@ -79,7 +77,7 @@ public sealed class LdsSpecValidatorTests
     [Fact]
     public void New_learner_optional_fields_may_be_blank()
     {
-        var row = SampleRows.New() with { Upn = "", Uln = "", LearnerId = "", MiddleName = "", Postcode = "" };
+        var row = SampleRows.New() with { Upn = "", Uln = "", LearnerId = "", Postcode = "" };
         Assert.Empty(LdsSpecValidator.Validate(row));
     }
 

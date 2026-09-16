@@ -13,7 +13,6 @@ public static partial class LdsSpecValidator
 
     private static readonly HashSet<string> Stages = ["KS2", "KS4", "16-19"];
     private static readonly HashSet<string> YearGroups = ["3", "4", "5", "6", "10", "11"];
-    private static readonly HashSet<string> SenStatuses = ["E", "K", "N"];
     private static readonly HashSet<string> RemoveSexes = ["M", "F"];
     private static readonly HashSet<string> NewLearnerSexes = ["M", "F", "U"];
 
@@ -51,12 +50,11 @@ public static partial class LdsSpecValidator
         f.IsoDate("Admission_Date", row.AdmissionDate);
         f.DigitsOfLength("Cycle_Year", row.CycleYear, 4);
         f.Month("Cycle_Month", row.CycleMonth);
-        f.Digits("School_URN", row.SchoolUrn);
+        f.Digits("URN", row.SchoolUrn);
         f.OptionalDigits("ULN", row.Uln);
         f.OptionalMaxLength("UPN", row.Upn, 13);
         f.OptionalDigits("Learner_ID", row.LearnerId);
         f.OneOf("Year_Group", row.YearGroup, YearGroups);
-        f.OneOf("SEN_Status", row.SenStatus, SenStatuses);
         return f.List;
     }
 

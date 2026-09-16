@@ -181,8 +181,9 @@ public sealed class EgressRunRepositoryTests(PostgresFixture fixture)
         await ResetAsync();
         var repo = Repository();
         var id = await repo.CreateRunAsync(Create(EgressOutputType.RemoveLearners, EgressOutputType.NewLearners), CancellationToken.None);
-        var remove = new RemoveLearnerRow("1001", "31", "4", "KS4", "4070", "Smith", "Alice", "F", "2010-09-07", "2026", "6", "860", "555", Guid.NewGuid(), 1001, "REF-1");
-        var add = new NewLearnerRow("1003", "10", "KS4", "860", "4070", "Jones", "", "Bob", "M", "2010-01-02", "2018-09-04", "", "2026", "6", "142313", "", "A860407000011", "", "10", "N", Guid.NewGuid(), 1003, "REF-3");
+        var remove = new RemoveLearnerRow("1001", "31", "4", "KS4", "4070", "Smith", "Alice", "F", "2010-09-07", "2026", "6", "860", "555", Guid.NewGuid(), 1001, "REF-1")
+            { YearGroup = "12", RemovalYear0 = "TRUE", RemovalYear1 = "FALSE", RemovalYear2 = "" };
+        var add = new NewLearnerRow("1003", "10", "KS4", "860", "4070", "Jones", "Bob", "M", "2010-01-02", "2018-09-04", "", "2026", "6", "142313", "", "A860407000011", "", "10", Guid.NewGuid(), 1003, "REF-3");
         var names = new Dictionary<EgressOutputType, string>
         {
             [EgressOutputType.RemoveLearners] = "CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv",

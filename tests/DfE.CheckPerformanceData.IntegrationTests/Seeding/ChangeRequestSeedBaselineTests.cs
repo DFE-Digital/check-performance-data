@@ -25,10 +25,15 @@ public sealed class ChangeRequestSeedBaselineTests(PostgresFixture fixture)
 {
     private readonly PostgresFixture _fixture = fixture;
 
-    private async Task<int> ResetAsync()
+    // The reset works across the whole table, as it must — it is the environment-wide reset the
+    // browser suite calls. So the assertions below are all about which of THIS class's rows
+    // survive it, never about how many rows it removed in total: the shared database carries
+    // whatever other tests in this collection have left behind, and a count would be asserting on
+    // them. (Clearing the table wholesale is already what SeedCheckingWindows does here.)
+    private async Task ResetAsync()
     {
         await using var ctx = _fixture.CreateContext();
-        return await SeedChangeRequests.ResetToSeedBaselineAsync(ctx);
+        await SeedChangeRequests.ResetToSeedBaselineAsync(ctx);
     }
 
     // ChangeRequest.WindowId is a real foreign key, so the rows need a window to hang off. One
@@ -77,9 +82,8 @@ public sealed class ChangeRequestSeedBaselineTests(PostgresFixture fixture)
     {
         await GivenRequestsAsync("CYPMD_16to19_A1B2C3D");
 
-        var deleted = await ResetAsync();
+        await ResetAsync();
 
-        Assert.Equal(1, deleted);
         Assert.Empty(await SurvivingReferencesAsync());
     }
 
@@ -93,9 +97,8 @@ public sealed class ChangeRequestSeedBaselineTests(PostgresFixture fixture)
         var seeded = SeedChangeRequests.SeededReferenceNumbers.OrderBy(r => r).ToArray();
         await GivenRequestsAsync(seeded);
 
-        var deleted = await ResetAsync();
+        await ResetAsync();
 
-        Assert.Equal(0, deleted);
         Assert.Equal(seeded, await SurvivingReferencesAsync());
     }
 
@@ -106,9 +109,8 @@ public sealed class ChangeRequestSeedBaselineTests(PostgresFixture fixture)
     {
         await GivenRequestsAsync("DEV-0123456789ab");
 
-        var deleted = await ResetAsync();
+        await ResetAsync();
 
-        Assert.Equal(1, deleted);
         Assert.Empty(await SurvivingReferencesAsync());
     }
 
@@ -120,9 +122,8 @@ public sealed class ChangeRequestSeedBaselineTests(PostgresFixture fixture)
     {
         await GivenRequestsAsync("CYPMDxKS4JunexSEED001", "CYPMD_KS4June_SEED999");
 
-        var deleted = await ResetAsync();
+        await ResetAsync();
 
-        Assert.Equal(2, deleted);
         Assert.Empty(await SurvivingReferencesAsync());
     }
 
@@ -133,23 +134,24 @@ public sealed class ChangeRequestSeedBaselineTests(PostgresFixture fixture)
         var seeded = SeedChangeRequests.SeededReferenceNumbers.OrderBy(r => r).ToArray();
         await GivenRequestsAsync([.. seeded, "CYPMD_16to19_A1B2C3D", "DEV-0123456789ab"]);
 
-        var deleted = await ResetAsync();
+        await ResetAsync();
 
-        Assert.Equal(2, deleted);
         Assert.Equal(seeded, await SurvivingReferencesAsync());
     }
 
-    // Running it twice must not report work it did not do — the callers use the count to tell
-    // whether the endpoint is wired up at all.
+    // Running it twice must leave the same state, not compound.
     [Fact]
     public async Task Reset_IsIdempotent()
     {
-        await GivenRequestsAsync("CYPMD_16to19_A1B2C3D");
+        var seeded = SeedChangeRequests.SeededReferenceNumbers.OrderBy(r => r).ToArray();
+        await GivenRequestsAsync([.. seeded, "CYPMD_16to19_A1B2C3D"]);
 
         await ResetAsync();
-        var secondRun = await ResetAsync();
+        var afterFirst = await SurvivingReferencesAsync();
+        await ResetAsync();
 
-        Assert.Equal(0, secondRun);
+        Assert.Equal(seeded, afterFirst);
+        Assert.Equal(afterFirst, await SurvivingReferencesAsync());
     }
 
     private static ChangeRequest Request(string referenceNumber) => new()

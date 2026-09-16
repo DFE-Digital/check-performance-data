@@ -41,17 +41,11 @@ public sealed class CloseExerciseService(
             if (journey?.SelectedWhatToChange is null || journey.CheckingWindow is null || journey.SelectedPupil is null)
                 continue;
 
-            // PARKED AB#296648/AB#297848: a results enquiry is excluded from this replay. It IS bound
-            // for Zendesk, but this path builds a pupil-amendment ticket — BuildDocument maps journey
-            // answers onto the amendment ticket fields, and an enquiry's QAN, syllabus code, session,
-            // current and revised grade have no place in that shape. Replaying one would create a
-            // malformed ticket AND flip the row to SubmittedCommitted, so the real dispatch could
-            // never pick it up. Remove this once the enquiry-to-Zendesk story defines its ticket shape.
-            //
-            // This is what makes closing the ResultsEnquiry exercise enqueue nothing while still
-            // cancelling its drafts — intended, not an accident of the row filter. It is keyed on the
-            // checking-exercise map rather than on the journey's own exercise stamp, so a mis-stamped
-            // row cannot produce a malformed ticket either.
+            // Results enquiries are excluded from this close-window replay: their Zendesk dispatch happens
+            // immediately at submit time (AB#301974), so replaying one here would create a duplicate
+            // ticket AND flip the row to SubmittedCommitted — preventing the worker ever claiming
+            // it. The exclusion is keyed on the checking-exercise map rather than on the journey's
+            // own exercise stamp, so a mis-stamped row cannot produce a malformed ticket either.
             if (WhatToChangeCheckingExerciseMap.CheckingExerciseFor(
                     journey.SelectedWhatToChange.Value) == CheckingExerciseType.ResultsEnquiry)
                 continue;

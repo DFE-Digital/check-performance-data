@@ -260,8 +260,8 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
         await db.ChangeRequests
             .Where(r => r.WindowId == windowId
                 && r.OrganisationUrn == organisationUrn
-                // Enquiries never move past SubmittedUnCommitted (dispatch to Zendesk is a parked
-                // story) and have no withdraw surface, so one status is the whole population.
+                // Enquiries remain SubmittedUnCommitted: dispatch to Zendesk happens at submit time (AB#301974)
+                // without flipping Status, so one status is the whole population.
                 && r.Status == RequestStatus.SubmittedUnCommitted
                 && r.RequestType == RequestType.ResultsEnquiry)
             .OrderByDescending(r => r.Submitted)

@@ -3,6 +3,8 @@
     ViewData["Title"] = "Check your performance measures data";
 }
 
+        @await Html.PartialAsync("_BetaBanner")
+
         <div class="govuk-grid-row">
             <div class="govuk-grid-column-two-thirds">
                 @await Component.InvokeAsync("EditableTitle", new {

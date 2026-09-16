@@ -137,7 +137,16 @@ public sealed class RequestService(
 
         // The row first: it is the record of truth, and a journey blob with no row would be invisible
         // to every admin view.
-        await requestRepository.UpsertAsync(new ChangeRequestData
+        var requestTypeDescription = journey.SelectedWhatToChange switch
+        {
+            WhatToChange.IncorrectGrade => "Results enquiry - Incorrect grade",
+            WhatToChange.MissingQualification => "Results enquiry - Missing qualification",
+            WhatToChange.ResultDoesNotBelong => "Results enquiry - Result does not belong to student",
+            _ => throw new InvalidOperationException(
+                $"No results-enquiry description for {journey.SelectedWhatToChange}.")
+        };
+
+        var changeRequestId = await requestRepository.UpsertAsync(new ChangeRequestData
         {
             WindowId = windowId,
             CheckingExerciseId = ExerciseIdFor(journey),
@@ -156,25 +165,28 @@ public sealed class RequestService(
             SubmittedByEmail = currentUserService.Email,
             Status = RequestStatus.SubmittedUnCommitted,
             RequestType = RequestType.ResultsEnquiry,
-            RequestTypeDescription = journey.SelectedWhatToChange switch
-            {
-                WhatToChange.IncorrectGrade => "Results enquiry - Incorrect grade",
-                WhatToChange.MissingQualification => "Results enquiry - Missing qualification",
-                WhatToChange.ResultDoesNotBelong => "Results enquiry - Result does not belong to student",
-                _ => throw new InvalidOperationException(
-                    $"No results-enquiry description for {journey.SelectedWhatToChange}.")
-            },
+            RequestTypeDescription = requestTypeDescription,
             AmendmentType = journey.SelectedWhatToChange.Value,
             OrganisationLaestab = OrganisationLaestabOrNull
         });
 
         // The journey JSON is the enquiry's full record — it carries the selected result and every
-        // answer — so the separate Zendesk story can build its ticket from this without a new schema.
+        // answer — so the Zendesk dispatch can build its ticket from this without a new schema.
         await requestStateBlobClient.SaveAsync(windowId, journey.ReferenceNumber, journey);
 
-        // PARKED AB#296648: no enqueue. Enquiries are destined for Zendesk, but the dispatch is a
-        // separate ticket. When it lands, the enqueue goes HERE and nowhere else — and the exclusion
-        // in AdminRequestsService.ProcessCloseWindowEvent comes out at the same time.
+        // Zendesk dispatch happens HERE at submit time (AB#301974), and nowhere else: the enquiry is
+        // built into the same RequestDocument the ticket consumer reads and enqueued exactly once
+        // onto the Zendesk queue, so a ticket opens as soon as the enquiry is accepted rather than
+        // when the window closes. The Close-window sweep stays excluded for enquiries (permanent
+        // double-dispatch guard) — this method is the single enqueue site.
+        var config = await flowService.GetConfigAsync(
+            journey.SelectedWhatToChange.Value, journey.CheckingWindow.CheckingWindowType);
+        if (config is null)
+            throw new InvalidOperationException(
+                $"No question flow config found for {journey.SelectedWhatToChange}/{journey.CheckingWindow.CheckingWindowType}.");
+
+        var document = BuildEnquiryDocument(windowId, journey, config, changeRequestId, requestTypeDescription);
+        await queueService.EnqueueAsync(QueueOptions.ZendeskQueue, document, ct);
 
         return journey.ReferenceNumber;
     }
@@ -394,6 +406,54 @@ public sealed class RequestService(
                 EntryDate = mp.EntryDate
             } : null,
             Answers = answers
+        };
+    }
+
+    // The enquiry variant of BuildRequestDocument: the same pupil/school/answers mapping, but
+    // RequestTypeCode carries the readable description (not an engine key) and a synthetic
+    // challenged-subject block is appended because QAN / syllabus / session / grade live on the
+    // journey (SelectedResult / SelectedQualification), not in QuestionAnswers (FR-003).
+    private RequestDocument BuildEnquiryDocument(
+        Guid windowId, RequestState journey, QuestionFlowConfig config, Guid changeRequestId, string requestTypeDescription)
+    {
+        var context = new JourneySubmissionContext
+        {
+            WindowId = windowId,
+            ReferenceNumber = journey.ReferenceNumber ?? string.Empty,
+            WhatToChange = requestTypeDescription,
+            Pupil = journey.SelectedPupil!,
+            MatchedPupil = journey.MatchedPupil,
+            CheckingWindow = journey.CheckingWindow!,
+            Answers = journey.QuestionAnswers,
+            History = journey.QuestionHistory
+        };
+
+        var document = BuildRequestDocument(context, config, changeRequestId);
+        document.Answers.Add(BuildChallengedSubjectAnswer(journey));
+        return document;
+    }
+
+    private static AnswerRecord BuildChallengedSubjectAnswer(RequestState journey)
+    {
+        if (journey.SelectedWhatToChange == WhatToChange.MissingQualification)
+        {
+            var qualification = journey.SelectedQualification!;
+            return new AnswerRecord
+            {
+                QuestionId = "challenged-qualification",
+                QuestionTitle = "Challenged qualification",
+                Type = "ResultsEnquiry",
+                Value = $"{qualification.QualificationTitle} ({qualification.AwardingOrganisation}) — QAN {qualification.Qan}, syllabus {qualification.SyllabusCodes[0].Code}"
+            };
+        }
+
+        var result = journey.SelectedResult!;
+        return new AnswerRecord
+        {
+            QuestionId = "challenged-result",
+            QuestionTitle = "Challenged result",
+            Type = "ResultsEnquiry",
+            Value = $"{result.QualificationName} — QAN {result.Qan}, syllabus {result.SyllabusCode}, session {result.Session}, held grade {result.Grade}"
         };
     }
 

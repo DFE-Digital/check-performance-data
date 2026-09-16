@@ -1,5 +1,6 @@
 using System.Text;
 using DfE.CheckPerformanceData.Application.Egress;
+using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -15,8 +16,9 @@ public sealed class EgressTransferServiceTests
     private static readonly EgressActor Actor = new(Guid.Parse("22222222-2222-2222-2222-222222222222"), "Ops One", "ops@example.com");
     private readonly IEgressRunRepository _repo = Substitute.For<IEgressRunRepository>();
     private readonly IEgressBlobClient _blobs = Substitute.For<IEgressBlobClient>();
+    private readonly IWindowService _windows = Substitute.For<IWindowService>();
 
-    private EgressTransferService Sut() => new(_repo, _blobs, Substitute.For<ILogger<EgressTransferService>>());
+    private EgressTransferService Sut() => new(_repo, _blobs, _windows, Substitute.For<ILogger<EgressTransferService>>());
 
     private static RemoveLearnerRow RemoveRow(string ticket) =>
         new(ticket, "31", "4", "KS4", "4070", "Smith", "Alice", "F", "2010-09-07", "2026", "6", "860", "555", Guid.NewGuid(), long.Parse(ticket), $"REF-{ticket}");
@@ -31,6 +33,11 @@ public sealed class EgressTransferServiceTests
                 $"CYPMD_LDS_KS4_{EgressOutputTypes.FileToken(t)}_2026_06_08.csv", null)).ToList()));
         _repo.GetRemoveLearnersAsync(RunId, Arg.Any<CancellationToken>()).Returns([RemoveRow("1001"), RemoveRow("1002")]);
         _repo.GetNewLearnersAsync(RunId, Arg.Any<CancellationToken>()).Returns([NewRow("2001")]);
+        _windows.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(new CheckingWindowDto
+        {
+            Id = Guid.NewGuid(), Title = "KS4 June 2026", KeyStage = KeyStages.KS4, CheckingWindowType = CheckingWindowType.KS4June,
+            StartDate = new DateTime(2026, 6, 1), EndDate = new DateTime(2026, 6, 30)
+        });
         _blobs.IsConfigured.Returns(true);
         _blobs.TargetDescription.Returns("cypmd/extracts_input");
         // M4: the guarded writes now return rows affected — default to "won the race" (1) so
@@ -54,6 +61,12 @@ public sealed class EgressTransferServiceTests
         Assert.StartsWith("Correction_ID,Correction_Type,Correction_Reason,", uploaded["CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv"]);
         Assert.Contains("\r\n1001,31,4,KS4,4070,Smith,Alice,F,2010-09-07,2026,6,860,555", uploaded["CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv"]);
         Assert.StartsWith("Correction_ID,Correction_Type,Key_Stage,", uploaded["CYPMD_LDS_KS4_NewLearners_2026_06_08.csv"]);
+        // KS4 window → the Remove file ends with the spec's KS4-only Year_Group column.
+        Assert.StartsWith("Correction_ID,Correction_Type,Correction_Reason,Key_Stage,Establishment_Number,Surname,Forename,Sex,Date_of_Birth,Cycle_Year,Cycle_Month,Local_Authority,Learner_ID,Year_Group\r\n",
+            uploaded["CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv"]);
+        Assert.Contains("\r\n1001,31,4,KS4,4070,Smith,Alice,F,2010-09-07,2026,6,860,555,", uploaded["CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv"]);
+        Assert.StartsWith("Correction_ID,Correction_Type,Key_Stage,Establishment_Number,Surname,Forename,Sex,Date_of_Birth,Admission_Date,Post_Code,Cycle_Year,Cycle_Month,Local_Authority,URN,ULN,UPN,Learner_ID,Year_Group\r\n",
+            uploaded["CYPMD_LDS_KS4_NewLearners_2026_06_08.csv"]);
         await _repo.Received(1).MarkTransferredAsync(RunId, EgressRunStatus.Transferring,
             Arg.Is<EgressTransferAudit>(a => a.UserName == "Ops One" && a.TargetContainer == "cypmd/extracts_input"
                 && a.Files[EgressOutputType.RemoveLearners].Records == 2 && a.Files[EgressOutputType.NewLearners].Records == 1
@@ -146,6 +159,11 @@ public sealed class EgressTransferServiceTests
         _repo.TrySetStatusAsync(RunId, EgressRunStatus.Preprocessed, EgressRunStatus.Transferring, Arg.Any<CancellationToken>()).Returns(true);
         _repo.GetRemoveLearnersAsync(RunId, Arg.Any<CancellationToken>()).Returns([]);
         _repo.GetNewLearnersAsync(RunId, Arg.Any<CancellationToken>()).Returns([NewRow("2001")]);
+        _windows.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(new CheckingWindowDto
+        {
+            Id = Guid.NewGuid(), Title = "KS4 June 2026", KeyStage = KeyStages.KS4, CheckingWindowType = CheckingWindowType.KS4June,
+            StartDate = new DateTime(2026, 6, 1), EndDate = new DateTime(2026, 6, 30)
+        });
         _blobs.IsConfigured.Returns(true);
         _repo.MarkTransferredAsync(Arg.Any<Guid>(), Arg.Any<EgressRunStatus>(), Arg.Any<EgressTransferAudit>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>()).Returns(1);
 
@@ -178,6 +196,25 @@ public sealed class EgressTransferServiceTests
         var text = Encoding.UTF8.GetString(await Sut().BuildFileAsync(RunId, EgressOutputType.RemoveLearners, CancellationToken.None));
         Assert.Equal(3, text.Split("\r\n").Length);
         Assert.DoesNotContain("\n\n", text);
+    }
+
+    [Fact]
+    public async Task Preview_and_download_use_the_windows_column_set()
+    {
+        RunIs(EgressRunStatus.Preprocessed, EgressOutputType.RemoveLearners);
+        _windows.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(new CheckingWindowDto
+        {
+            Id = Guid.NewGuid(), Title = "16 to 19 October 2026", KeyStage = KeyStages.Post16, CheckingWindowType = CheckingWindowType.Post16,
+            StartDate = new DateTime(2026, 10, 1), EndDate = new DateTime(2026, 10, 31)
+        });
+
+        var (headers, rows) = await Sut().GetPreviewAsync(RunId, EgressOutputType.RemoveLearners, CancellationToken.None);
+        var csv = Encoding.UTF8.GetString(await Sut().BuildFileAsync(RunId, EgressOutputType.RemoveLearners, CancellationToken.None));
+
+        Assert.Equal(["Removal_Year_0", "Removal_Year_1", "Removal_Year_2"], headers.TakeLast(3).ToArray());
+        Assert.Equal(2, rows.Count);
+        Assert.StartsWith("Correction_ID,", csv);
+        Assert.EndsWith(",Removal_Year_0,Removal_Year_1,Removal_Year_2\r\n1001,", csv[..(csv.IndexOf("\r\n", StringComparison.Ordinal) + 7)]);
     }
 
     // M1: once the CAS flip to Transferring has happened, cancellation of the caller's token must

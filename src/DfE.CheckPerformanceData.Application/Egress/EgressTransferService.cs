@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using Microsoft.Extensions.Logging;
 
@@ -11,7 +12,7 @@ namespace DfE.CheckPerformanceData.Application.Egress;
 /// partial set. Success and failure each write an audit row (repository, same transaction as the
 /// state change); only success is ever recorded as such.
 /// </summary>
-public sealed class EgressTransferService(IEgressRunRepository repository, IEgressBlobClient blobs, ILogger<EgressTransferService> logger) : IEgressTransferService
+public sealed class EgressTransferService(IEgressRunRepository repository, IEgressBlobClient blobs, IWindowService windows, ILogger<EgressTransferService> logger) : IEgressTransferService
 {
     public async Task<EgressTransferResult> TransferAsync(Guid runId, EgressActor actor, CancellationToken ct)
     {
@@ -26,6 +27,7 @@ public sealed class EgressTransferService(IEgressRunRepository repository, IEgre
         if (run.Outputs.All(o => (o.OutputRecordCount ?? 0) == 0))
             return new EgressTransferResult.NothingToTransfer();
 
+        var windowType = await WindowTypeAsync(run.WindowId, runId, ct);
         var fromStatus = run.Status;
         if (fromStatus == EgressRunStatus.TransferFailed)
         {
@@ -51,7 +53,7 @@ public sealed class EgressTransferService(IEgressRunRepository repository, IEgre
         {
             foreach (var output in run.Outputs)
             {
-                var (bytes, records) = await BuildAsync(runId, output.OutputType, operationCt);
+                var (bytes, records) = await BuildAsync(runId, windowType, output.OutputType, operationCt);
                 var fileName = output.FileName ?? throw new InvalidOperationException($"Run {runId} has no file name for {output.OutputType}.");
                 inFlight = fileName;
                 var sha = Convert.ToHexString(SHA256.HashData(bytes));
@@ -161,42 +163,59 @@ public sealed class EgressTransferService(IEgressRunRepository repository, IEgre
         return new EgressAbandonResult.Abandoned(removed);
     }
 
-    public async Task<byte[]> BuildFileAsync(Guid runId, EgressOutputType type, CancellationToken ct) => (await BuildAsync(runId, type, ct)).Bytes;
+    public async Task<byte[]> BuildFileAsync(Guid runId, EgressOutputType type, CancellationToken ct) =>
+        (await BuildAsync(runId, await WindowTypeOfRunAsync(runId, ct), type, ct)).Bytes;
 
     public async Task<(IReadOnlyList<string> Headers, IReadOnlyList<IReadOnlyList<string>> Rows)> GetPreviewAsync(Guid runId, EgressOutputType type, CancellationToken ct)
     {
+        var windowType = await WindowTypeOfRunAsync(runId, ct);
         switch (type)
         {
             case EgressOutputType.NewLearners:
             {
+                var columns = EgressColumnSets.NewLearnersFor(windowType);
                 var rows = await repository.GetNewLearnersAsync(runId, ct);
-                return (EgressColumnSets.NewLearners.Select(c => c.Header).ToList(),
-                    rows.Select(r => (IReadOnlyList<string>)EgressColumnSets.NewLearners.Select(c => c.Value(r)).ToList()).ToList());
+                return (columns.Select(c => c.Header).ToList(), rows.Select(r => (IReadOnlyList<string>)columns.Select(c => c.Value(r)).ToList()).ToList());
             }
             case EgressOutputType.RemoveLearners:
             {
+                var columns = EgressColumnSets.RemoveLearnersFor(windowType);
                 var rows = await repository.GetRemoveLearnersAsync(runId, ct);
-                return (EgressColumnSets.RemoveLearners.Select(c => c.Header).ToList(),
-                    rows.Select(r => (IReadOnlyList<string>)EgressColumnSets.RemoveLearners.Select(c => c.Value(r)).ToList()).ToList());
+                return (columns.Select(c => c.Header).ToList(), rows.Select(r => (IReadOnlyList<string>)columns.Select(c => c.Value(r)).ToList()).ToList());
             }
             default:
                 throw new ArgumentOutOfRangeException(nameof(type), type, "No preview builder for this output type.");
         }
     }
 
-    private async Task<(byte[] Bytes, int Records)> BuildAsync(Guid runId, EgressOutputType type, CancellationToken ct)
+    // The column set is the WINDOW's (spec v2.4 adds columns for KS4 and 16-19 only), so every
+    // file, preview and download of a run resolves it the same way.
+    private async Task<CheckingWindowType> WindowTypeOfRunAsync(Guid runId, CancellationToken ct)
+    {
+        var run = await repository.GetRunAsync(runId, ct) ?? throw new InvalidOperationException($"Egress run {runId} no longer exists.");
+        return await WindowTypeAsync(run.WindowId, runId, ct);
+    }
+
+    private async Task<CheckingWindowType> WindowTypeAsync(Guid windowId, Guid runId, CancellationToken ct)
+    {
+        var window = await windows.GetByIdAsync(windowId, ct)
+            ?? throw new InvalidOperationException($"Checking window {windowId} for egress run {runId} no longer exists.");
+        return window.CheckingWindowType;
+    }
+
+    private async Task<(byte[] Bytes, int Records)> BuildAsync(Guid runId, CheckingWindowType windowType, EgressOutputType type, CancellationToken ct)
     {
         switch (type)
         {
             case EgressOutputType.NewLearners:
             {
                 var rows = await repository.GetNewLearnersAsync(runId, ct);
-                return (EgressCsvWriter.Write(EgressColumnSets.NewLearners, rows), rows.Count);
+                return (EgressCsvWriter.Write(EgressColumnSets.NewLearnersFor(windowType), rows), rows.Count);
             }
             case EgressOutputType.RemoveLearners:
             {
                 var rows = await repository.GetRemoveLearnersAsync(runId, ct);
-                return (EgressCsvWriter.Write(EgressColumnSets.RemoveLearners, rows), rows.Count);
+                return (EgressCsvWriter.Write(EgressColumnSets.RemoveLearnersFor(windowType), rows), rows.Count);
             }
             default:
                 throw new ArgumentOutOfRangeException(nameof(type), type, "No file builder for this output type.");

@@ -126,10 +126,11 @@ public sealed class DataEgressTests(PlaywrightFixture fixture) : SeedingPageTest
             // Download: only the two approved removals, in spec shape
             var csv = await GetAsync($"/admin/egress/runs/{runId}/download/RemoveLearners");
             var lines = csv.Split("\r\n");
-            Assert.Equal("Correction_ID,Correction_Type,Correction_Reason,Key_Stage,Establishment_Number,Surname,Forename,Sex,Date_of_Birth,Cycle_Year,Cycle_Month,Local_Authority,Learner_ID", lines[0]);
+            Assert.Equal("Correction_ID,Correction_Type,Correction_Reason,Key_Stage,Establishment_Number,Surname,Forename,Sex,Date_of_Birth,Cycle_Year,Cycle_Month,Local_Authority,Learner_ID,Year_Group", lines[0]);
             Assert.Equal(3, lines.Length);
             Assert.Contains(",31,4,KS4,4070,", lines[1]);
             Assert.Contains(",860,", lines[1]);
+            Assert.EndsWith(",", lines[1]);   // blank Year_Group: pupil-died is not a year-group change
             Assert.DoesNotContain("\n", lines[2]);
 
             // Transfer → Complete

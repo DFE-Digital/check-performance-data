@@ -48,16 +48,34 @@ public sealed class GoogleSiteVerificationHeadTests
 		Assert.Contains("string.IsNullOrWhiteSpace", view);
 	}
 
+	// Every layout sets Layout = "_GovUkPageTemplate", and that template owns the real
+	// <html><head>. A literal <head> in a layout is not a head: the outer template drops it into
+	// <body>, where the parser discards the tag and its contents become body markup. That is
+	// where GTM, Clarity, the stylesheets and the verification tag were all landing on QA, so
+	// Google never saw the tag. Head content must go through the template's Head section.
+	[Theory]
+	[InlineData("_Layout.cshtml")]
+	[InlineData("_AdminLayout.cshtml")]
+	[InlineData("_ShareLayout.cshtml")]
+	public void Layouts_DoNotWriteTheirOwnHeadElement(string layout)
+	{
+		var view = ReadView(layout);
+
+		Assert.DoesNotContain("<head>", view);
+		Assert.DoesNotContain("</head>", view);
+		Assert.Contains("@section Head", view);
+	}
+
 	[Fact]
-	public void Layout_IncludesThePartialInHead()
+	public void Layout_IncludesThePartialInTheHeadSection()
 	{
 		var layout = ReadView("_Layout.cshtml");
 
-		var head = layout.IndexOf("<head>", StringComparison.Ordinal);
-		var headEnd = layout.IndexOf("</head>", StringComparison.Ordinal);
+		var start = layout.IndexOf("@section Head", StringComparison.Ordinal);
+		Assert.True(start >= 0, "layout defines @section Head");
+		var end = layout.IndexOf("\n}", start, StringComparison.Ordinal);
 		var include = layout.IndexOf("_GoogleSiteVerificationHead", StringComparison.Ordinal);
 
-		Assert.True(head >= 0 && headEnd > head, "layout has a <head> block");
-		Assert.InRange(include, head, headEnd);
+		Assert.InRange(include, start, end);
 	}
 }

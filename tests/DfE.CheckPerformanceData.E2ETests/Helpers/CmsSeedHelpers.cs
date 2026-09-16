@@ -10,10 +10,31 @@ namespace DfE.CheckPerformanceData.E2ETests.Helpers;
 // another.
 public static class CmsSeedHelpers
 {
-    // Stable root Guid seeded by DefaultPageNodeRoots. Use as parentId when placing a
-    // test page under /help. Segment must be unique per test to avoid the CMS
-    // rejecting the second create with "A page already exists at that path".
-    public static readonly Guid HelpRootId = new("00000000-cd94-4a01-8f01-000000000003");
+    // Seeds `count` PageNodes under the fixture root whose titles all contain a fresh
+    // unique token, then returns the token. A search for that token is guaranteed to hit
+    // exactly those pages, which makes a pagination test independent of whatever content
+    // the deployed environment happens to carry — a review app may hold far fewer live
+    // pages than a local stack. Each page's Title contributes to PageNode.SearchVector at
+    // weight B. Ids are appended to `createdPages` so the caller's teardown removes them.
+    public static async Task<string> SeedSearchableFixturesAsync(
+        HttpClient client, int count, ICollection<Guid> createdPages)
+    {
+        // Lowercase hex chunk: tsvector-safe (no stopword collision) and short enough to
+        // keep the test title readable.
+        var token = "cypde2e" + Guid.NewGuid().ToString("N")[..12].ToLowerInvariant();
+        for (var i = 0; i < count; i++)
+        {
+            var id = await CreatePageNodeAsync(
+                client,
+                parentId: FixtureContent.RootId,
+                pageType: "content",
+                segment: $"e2e-fixture-{i}-{Guid.NewGuid():N}",
+                title: $"E2E fixture {token} number {i}");
+            createdPages.Add(id);
+            await PublishDraftAsync(client, id);
+        }
+        return token;
+    }
 
     // Creates a PageNode under the given parent. Returns the new node's Guid parsed
     // from the redirect Location. Throws with the response body if the CMS returns

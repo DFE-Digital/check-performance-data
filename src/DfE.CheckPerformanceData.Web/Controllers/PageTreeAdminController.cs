@@ -8,6 +8,7 @@ using DfE.CheckPerformanceData.Web.Models.Guidance;
 using DfE.CheckPerformanceData.Web.Models.PageTree;
 using DfE.CheckPerformanceData.Web.PageTree;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Hosting;
 using System.Globalization;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
@@ -22,7 +23,9 @@ public sealed class PageTreeAdminController(
     IHtmlRenderingService htmlRenderingService,
     IPageNodeContentEditor nodeContentEditor,
     ISettingService settingService,
-    SamplePageNodeSeeder samplePageSeeder) : Controller
+    SamplePageNodeSeeder samplePageSeeder,
+    TestFixturePageNodeSeeder testFixtureSeeder,
+    IHostEnvironment hostEnvironment) : Controller
 {
     private const int DefaultPageLength = 20;
 
@@ -302,20 +305,45 @@ public sealed class PageTreeAdminController(
     // Adds a small set of published sample pages under each of the four root nodes
     // (/wiki, /help, /support, /guidance). Idempotent: only pages whose (root, segment)
     // path does not already exist are created.
+    //
+    // Outside Production it also refreshes the fixture content the automated browser tests
+    // navigate to, under its own /development-testing root. Two seeds behind one button because
+    // they answer the same question — "give me something to look at" — and a developer who wants
+    // real pages to work against wants both. They stay separate underneath because their rules
+    // differ: sample content is left alone where it already exists, fixture content is replaced.
     [HttpPost("/admin/pages/sample-seed")]
     [ValidateAntiForgeryToken]
     [RequireAdminSection(AdminNavKeys.SeedSamplePages)]
     public async Task<IActionResult> SampleSeed()
     {
         var created = await samplePageSeeder.SeedAsync();
-        TempData["SampleSeedResult"] = created switch
+        var message = created switch
         {
             0 => "Sample pages are already present. Nothing was added.",
             1 => "Added 1 sample page.",
             _ => $"Added {created} sample pages."
         };
+
+        if (FixtureSeedingAllowed)
+        {
+            var fixtures = await testFixtureSeeder.SeedAsync();
+            if (fixtures > 0)
+                message += $" Refreshed {fixtures} test fixture {(fixtures == 1 ? "page" : "pages")} under /{DefaultPageNodeRoots.DevelopmentTestingSegment}.";
+        }
+
+        TempData["SampleSeedResult"] = message;
         return Redirect("/admin/pages");
     }
+
+    // Fixture content is scaffolding for the automated tests, and Production is the one environment
+    // where nothing runs them and nobody wants a tree of test pages appearing in the CMS. Everywhere
+    // else it is wanted — including the deployed DEV and QA apps, where a developer reproducing a
+    // layout problem needs the same pages the browser suite uses.
+    //
+    // Deliberately a bare not-Production test rather than the Dev:ToolsEnabled gate the /dev/*
+    // surfaces use: that flag is not set on deployed DEV, and switching it on there to compensate
+    // would enable dev impersonation as a side effect.
+    private bool FixtureSeedingAllowed => !hostEnvironment.IsProduction();
 
     // If someone lands on the seed URL as a GET — a stale bookmark, an out-of-date link
     // that hasn't picked up the POST-form rendering, or a copy-pasted URL — bounce them

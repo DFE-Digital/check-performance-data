@@ -36,11 +36,12 @@ public sealed class PlaywrightFixture : IAsyncLifetime
         // never run against prod).
         await AuthHelpers.ImpersonateAsEditorAsync(this);
 
-        // Run the sample-page seeder so tests that depend on stable seeded content
-        // (e.g. /wiki/wiki-sandbox for the back-to-top and deleted-content round trip
-        // suites) can rely on the row being present on a fresh DB. Idempotent — the
-        // seeder skips any (root, segment) whose path already exists, so re-running
-        // is safe.
+        // Run the seed so tests that depend on stable seeded content can rely on the rows
+        // being present, whatever state the target environment's content is in. One button,
+        // two seeds: sample pages are created where missing and otherwise left alone, while
+        // the fixture pages this suite navigates to are re-imported over the top. The second
+        // half is what matters here — a fixture whose versions an editor deleted still exists,
+        // so a skip-on-collision seed walks past it and the route stays 404.
         await EnsureSamplePagesSeededAsync();
     }
 

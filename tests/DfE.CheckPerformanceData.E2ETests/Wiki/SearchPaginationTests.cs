@@ -32,31 +32,6 @@ public sealed class SearchPaginationTests(PlaywrightFixture fixture) : SeedingPa
         await base.DisposeAsync();
     }
 
-    // Seeds `count` PageNodes under /help whose titles all contain a fresh unique
-    // token, then returns the token. A search for that token is guaranteed to hit
-    // exactly those pages — makes the pagination test independent of whatever content
-    // the deployed env happens to carry. Each seeded page's Title contributes to
-    // PageNode.SearchVector at weight B.
-    private async Task<string> SeedSearchableFixturesAsync(int count)
-    {
-        // Lowercase hex chunk: tsvector-safe (no stopword collision) and short enough
-        // to keep the test title readable.
-        var token = "cypde2e" + Guid.NewGuid().ToString("N")[..12].ToLowerInvariant();
-        for (int i = 0; i < count; i++)
-        {
-            var segment = $"e2e-fixture-{i}-{Guid.NewGuid():N}";
-            var id = await CmsSeedHelpers.CreatePageNodeAsync(
-                Fixture.SeedClient,
-                parentId: CmsSeedHelpers.HelpRootId,
-                pageType: "content",
-                segment: segment,
-                title: $"E2E fixture {token} number {i}");
-            _createdPages.Add(id);
-            await CmsSeedHelpers.PublishDraftAsync(Fixture.SeedClient, id);
-        }
-        return token;
-    }
-
     // Reader-path pagination smoke over /search. Seeds 25 hits and lets the shared
     // 20-per-page default drive the paginator into a 2-page state, navigates the
     // pager, and asserts the URL + hit set both change.
@@ -64,7 +39,7 @@ public sealed class SearchPaginationTests(PlaywrightFixture fixture) : SeedingPa
     [Trait("search-case", "pagination")]
     public async Task Search_PaginatesAcrossMultiplePages_ForHighVolumeQuery()
     {
-        var token = await SeedSearchableFixturesAsync(count: 25);
+        var token = await CmsSeedHelpers.SeedSearchableFixturesAsync(Fixture.SeedClient, count: 25, _createdPages);
 
         await Page.GotoAsync($"{Fixture.BaseUrl}/search?q={token}");
 

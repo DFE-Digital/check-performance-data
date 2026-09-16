@@ -79,6 +79,22 @@ public sealed class EgressPreprocessorTests
     }
 
     [Fact]
+    public async Task Saved_rows_carry_the_windows_cycle_year_and_month()
+    {
+        RunIs(EgressRunStatus.Pulled, Remove("R1", "approved") with { SubmittedAtUtc = new DateTime(2026, 7, 5, 9, 0, 0, DateTimeKind.Utc) });
+        _repo.TrySetStatusAsync(RunId, EgressRunStatus.Pulled, EgressRunStatus.Preprocessing, Arg.Any<CancellationToken>()).Returns(true);
+        IReadOnlyList<RemoveLearnerRow>? saved = null;
+        _repo.SavePreprocessedAsync(RunId, EgressRunStatus.Preprocessing, Arg.Any<IReadOnlyList<NewLearnerRow>>(),
+            Arg.Do<IReadOnlyList<RemoveLearnerRow>>(r => saved = r), Arg.Any<DateOnly>(), Arg.Any<IReadOnlyDictionary<EgressOutputType, string>>(), Arg.Any<CancellationToken>()).Returns(1);
+
+        await Collect();
+
+        var row = Assert.Single(saved!);
+        Assert.Equal("2026", row.CycleYear);   // Window() starts 2026-06-01
+        Assert.Equal("6", row.CycleMonth);
+    }
+
+    [Fact]
     public async Task One_failing_record_fails_the_batch_and_saves_nothing()
     {
         RunIs(EgressRunStatus.Pulled, Remove("R1", "approved"), Remove("R2", "approved", reason: "other"));

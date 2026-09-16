@@ -3,10 +3,13 @@ using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Application.Egress;
 
-/// <summary>Mutable per-record state carried through steps 2-7. One instance per pulled record that survived the filter.</summary>
-public sealed class EgressWorkItem(EgressSourceRecord source)
+/// <summary>Mutable per-record state carried through steps 2-7. One instance per pulled record that survived the filter.
+/// Cycle_Year/Cycle_Month are the WINDOW's (spec: the month the exercise takes place), so every row of a run agrees.</summary>
+public sealed class EgressWorkItem(EgressSourceRecord source, string cycleYear, string cycleMonth)
 {
     public EgressSourceRecord Source { get; } = source;
+    public string CycleYear { get; } = cycleYear;
+    public string CycleMonth { get; } = cycleMonth;
     public string? CorrectionType { get; set; }
     public string? CorrectionReason { get; set; }
     public string LocalAuthority { get; set; } = string.Empty;
@@ -96,15 +99,13 @@ public static class EgressRecordBuilder
         }
         var stage = EgressOutputTypes.KeyStageValue(s.WindowType);
         var ticket = s.TicketId?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
-        var cycleYear = s.SubmittedAtUtc.Year.ToString(CultureInfo.InvariantCulture);
-        var cycleMonth = s.SubmittedAtUtc.Month.ToString(CultureInfo.InvariantCulture);
 
         if (s.OutputType == EgressOutputType.RemoveLearners)
         {
             item.RemoveRow = new RemoveLearnerRow(
                 CorrectionId: ticket, CorrectionType: item.CorrectionType ?? string.Empty, CorrectionReason: item.CorrectionReason ?? string.Empty,
                 KeyStage: stage, EstablishmentNumber: item.Establishment, Surname: s.PupilSurname ?? string.Empty, Forename: s.PupilFirstname ?? string.Empty,
-                Sex: (s.PupilSex ?? string.Empty).ToUpperInvariant(), DateOfBirth: item.DateOfBirthIso, CycleYear: cycleYear, CycleMonth: cycleMonth,
+                Sex: (s.PupilSex ?? string.Empty).ToUpperInvariant(), DateOfBirth: item.DateOfBirthIso, CycleYear: item.CycleYear, CycleMonth: item.CycleMonth,
                 LocalAuthority: item.LocalAuthority,
                 LearnerId: s.PupilMatchRef > 0 ? s.PupilMatchRef.ToString(CultureInfo.InvariantCulture) : string.Empty,
                 ChangeRequestId: s.ChangeRequestId, TicketId: s.TicketId, ReferenceNumber: s.ReferenceNumber);
@@ -120,7 +121,7 @@ public static class EgressRecordBuilder
             Forename: s.Answer("first-name") ?? s.PupilFirstname ?? string.Empty,
             Sex: (s.Answer("sex") ?? s.PupilSex ?? string.Empty).ToUpperInvariant(),
             DateOfBirth: item.DateOfBirthIso, AdmissionDate: item.AdmissionDateIso, Postcode: string.Empty,
-            CycleYear: cycleYear, CycleMonth: cycleMonth, SchoolUrn: s.OrganisationUrn.ToString(CultureInfo.InvariantCulture),
+            CycleYear: item.CycleYear, CycleMonth: item.CycleMonth, SchoolUrn: s.OrganisationUrn.ToString(CultureInfo.InvariantCulture),
             Uln: s.WindowType == CheckingWindowType.Post16 ? s.PupilIdentifier ?? string.Empty : string.Empty,
             Upn: (s.Answer("upn") ?? string.Empty).ToUpperInvariant(),
             LearnerId: s.PupilMatchRef > 0 ? s.PupilMatchRef.ToString(CultureInfo.InvariantCulture) : string.Empty,

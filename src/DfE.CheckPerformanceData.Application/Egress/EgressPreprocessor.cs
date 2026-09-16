@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
@@ -81,12 +82,19 @@ public sealed class EgressPreprocessor(IEgressRunRepository repository, IWindowS
 
     private async IAsyncEnumerable<EgressProgress> StepsAsync(EgressRunDto run, [EnumeratorCancellation] CancellationToken ct)
     {
+        // The window drives the Key_Stage cell, Cycle_Year/Cycle_Month (spec: the exercise's month,
+        // not each record's submission month) and the file-name stage — load it once, up front.
+        var window = await windows.GetByIdAsync(run.WindowId, ct)
+            ?? throw new InvalidOperationException($"Checking window {run.WindowId} for egress run {run.Id} no longer exists.");
+        var windowType = window.CheckingWindowType;
+        var cycleYear = window.StartDate.Year.ToString(CultureInfo.InvariantCulture);
+        var cycleMonth = window.StartDate.Month.ToString(CultureInfo.InvariantCulture);
         var all = run.Outputs.SelectMany(o => o.Records).ToList();
 
         // 1. Filter
         yield return Running(1, all.Count);
         ct.ThrowIfCancellationRequested();
-        var items = all.Where(r => EgressDecisions.IsApproved(r.Decision)).Select(r => new EgressWorkItem(r)).ToList();
+        var items = all.Where(r => EgressDecisions.IsApproved(r.Decision)).Select(r => new EgressWorkItem(r, cycleYear, cycleMonth)).ToList();
         yield return Done(1, all.Count, items.Count, 0, $"{items.Count} of {all.Count} records are approved or auto-approved; {all.Count - items.Count} discarded.");
 
         // 2-6. Per-record transforms
@@ -133,11 +141,6 @@ public sealed class EgressPreprocessor(IEgressRunRepository repository, IWindowS
             yield break;
         }
 
-        // Derived from the window itself, not guessed from records — a run with no pulled records
-        // (a window with no candidate requests at all) still needs the right stage in its file name.
-        var window = await windows.GetByIdAsync(run.WindowId, ct)
-            ?? throw new InvalidOperationException($"Checking window {run.WindowId} for egress run {run.Id} no longer exists.");
-        var windowType = window.CheckingWindowType;
         var exportDate = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(clock.GetUtcNow(), London).DateTime);
         var fileNames = run.Outputs.ToDictionary(o => o.OutputType, o => EgressOutputTypes.FileName(windowType, o.OutputType, exportDate));
         var newRows = items.Select(x => x.NewRow).OfType<NewLearnerRow>().ToList();

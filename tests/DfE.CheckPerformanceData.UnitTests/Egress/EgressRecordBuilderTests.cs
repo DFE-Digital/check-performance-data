@@ -30,9 +30,12 @@ public sealed class EgressRecordBuilderTests
         }
     };
 
-    private static EgressWorkItem Run(EgressSourceRecord source)
+    // Cycle_Year/Cycle_Month come from the checking window (spec: "the month number in which the
+    // cycle ... takes place", "For June checking exercise this will hold 6"), never from each
+    // record's submission date — a June window's July submissions still say 6.
+    private static EgressWorkItem Run(EgressSourceRecord source, string cycleYear = "2026", string cycleMonth = "6")
     {
-        var item = new EgressWorkItem(source);
+        var item = new EgressWorkItem(source, cycleYear, cycleMonth);
         EgressRecordBuilder.DeriveCodes(item);
         EgressRecordBuilder.SplitEstablishment(item);
         EgressRecordBuilder.StandardiseDates(item);
@@ -53,7 +56,7 @@ public sealed class EgressRecordBuilderTests
     [Fact]
     public void A_new_learner_record_becomes_a_spec_row_from_the_journey_answers_and_the_schools_laestab()
     {
-        var item = Run(Add());
+        var item = Run(Add(), cycleMonth: "10");
         Assert.Empty(item.Failures);
         Assert.Equal(new NewLearnerRow("69390", "10", "KS2", "860", "4070", "Lennox", "", "Annie", "F", "2010-09-07", "2018-09-04", "", "2026", "10",
             "136412", "", "A881541200011", "", "6", "N", Guid.Parse("22222222-2222-2222-2222-222222222222"), 69390, "REF-A"), item.NewRow);
@@ -129,6 +132,15 @@ public sealed class EgressRecordBuilderTests
     public void Cycle_month_is_not_zero_padded_and_cycle_year_is_four_digits()
     {
         var item = Run(Remove());
+        Assert.Equal("6", item.RemoveRow!.CycleMonth);
+        Assert.Equal("2026", item.RemoveRow.CycleYear);
+    }
+
+    [Fact]
+    public void Cycle_values_come_from_the_window_not_the_submission_date()
+    {
+        // Submitted 5 July, but the KS4 June exercise is month 6.
+        var item = Run(Remove() with { SubmittedAtUtc = new DateTime(2026, 7, 5, 9, 0, 0, DateTimeKind.Utc) }, cycleYear: "2026", cycleMonth: "6");
         Assert.Equal("6", item.RemoveRow!.CycleMonth);
         Assert.Equal("2026", item.RemoveRow.CycleYear);
     }

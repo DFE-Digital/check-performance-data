@@ -1,0 +1,25 @@
+@using DfE.CheckPerformanceData.Web.Settings
+@using Microsoft.Extensions.Options
+@inject IOptions<BetaBannerSettings> BannerOptions
+@{
+    // Home page only. Tells a school that landed here from a search that this beta is not the
+    // existing checking-exercise site, and where that site is. Off unless BetaBanner__Enabled
+    // is set for the environment; wording and link come from the same settings.
+    var banner = BannerOptions.Value;
+}
+@if (banner.Enabled)
+{
+    <div class="govuk-notification-banner" role="region"
+         aria-labelledby="beta-banner-title" data-module="govuk-notification-banner">
+        <div class="govuk-notification-banner__header">
+            <h2 class="govuk-notification-banner__title" id="beta-banner-title">Important</h2>
+        </div>
+        <div class="govuk-notification-banner__content">
+            <p class="govuk-notification-banner__heading">This is a beta version of a new service</p>
+            <p class="govuk-body">
+                @banner.Message
+                <a class="govuk-notification-banner__link" href="@banner.ExistingSiteUrl">@banner.ExistingSiteLinkText</a>.
+            </p>
+        </div>
+    </div>
+}

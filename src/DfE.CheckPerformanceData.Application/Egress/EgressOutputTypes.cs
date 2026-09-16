@@ -55,6 +55,18 @@ public static class EgressOutputTypes
             "This window type has no LDS stage token. Add it to EgressOutputTypes.StageToken before egressing it.")
     };
 
+    // The Key_Stage CELL in both LDS files (LDS_CYPMD_Data specification v2.4: "KS2, KS4, 16-19").
+    // Deliberately not StageToken: LDS names the 16-19 FILE KS5 but the column value is 16-19.
+    public static string KeyStageValue(CheckingWindowType windowType) => windowType switch
+    {
+        CheckingWindowType.KS4June => "KS4",
+        CheckingWindowType.KS4Autumn => "KS4",
+        CheckingWindowType.KS2 => "KS2",
+        CheckingWindowType.Post16 => "16-19",
+        _ => throw new ArgumentOutOfRangeException(nameof(windowType), windowType,
+            "This window type has no LDS Key_Stage value. Add it to EgressOutputTypes.KeyStageValue before egressing it.")
+    };
+
     public static string FileName(CheckingWindowType windowType, EgressOutputType type, DateOnly exportDate) =>
         $"CYPMD_LDS_{StageToken(windowType)}_{FileToken(type)}_{exportDate:yyyy_MM_dd}.csv";
 

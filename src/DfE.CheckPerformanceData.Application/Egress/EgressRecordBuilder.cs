@@ -94,7 +94,7 @@ public static class EgressRecordBuilder
             item.Fail(StepBuild, "Correction_ID", "The request's journey record could not be read, so its values are unknown");
             return;
         }
-        var stage = EgressOutputTypes.StageToken(s.WindowType);
+        var stage = EgressOutputTypes.KeyStageValue(s.WindowType);
         var ticket = s.TicketId?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
         var cycleYear = s.SubmittedAtUtc.Year.ToString(CultureInfo.InvariantCulture);
         var cycleMonth = s.SubmittedAtUtc.Month.ToString(CultureInfo.InvariantCulture);

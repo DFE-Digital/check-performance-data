@@ -46,7 +46,7 @@ public sealed record RunPageViewModel
         ("Reference", r => r.ReferenceNumber),
         ("Decision", r => EgressDecisions.Label(r.Decision)),
         ("Reason", r => r.Answer("reason") ?? ""),
-        ("Key stage", r => EgressOutputTypes.StageToken(r.WindowType)),
+        ("Key stage", r => EgressOutputTypes.KeyStageValue(r.WindowType)),
         ("DfE establishment number", r => string.IsNullOrWhiteSpace(r.PupilLaestab) ? r.OrganisationLaestab ?? "" : r.PupilLaestab),
         ("Surname", r => r.Answer("last-name") ?? r.PupilSurname ?? ""),
         ("Forename", r => r.Answer("first-name") ?? r.PupilFirstname ?? ""),

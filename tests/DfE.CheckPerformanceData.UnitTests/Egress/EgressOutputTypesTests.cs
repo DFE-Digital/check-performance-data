@@ -22,6 +22,16 @@ public sealed class EgressOutputTypesTests
     public void Stage_token_follows_the_LDS_naming_convention(CheckingWindowType windowType, string expected)
         => Assert.Equal(expected, EgressOutputTypes.StageToken(windowType));
 
+    // The Key_Stage cell is the spec's value (LDS_CYPMD_Data specification v2.4, Remove Learner J12:
+    // "KS2, KS4, 16-19"); only the FILE NAME uses AB#292610's KS5 token.
+    [Theory]
+    [InlineData(CheckingWindowType.KS4June, "KS4")]
+    [InlineData(CheckingWindowType.KS4Autumn, "KS4")]
+    [InlineData(CheckingWindowType.KS2, "KS2")]
+    [InlineData(CheckingWindowType.Post16, "16-19")]
+    public void Key_stage_cell_value_is_the_spec_value_not_the_file_token(CheckingWindowType windowType, string expected)
+        => Assert.Equal(expected, EgressOutputTypes.KeyStageValue(windowType));
+
     [Fact]
     public void File_name_is_the_agreed_convention_with_the_export_date()
     {

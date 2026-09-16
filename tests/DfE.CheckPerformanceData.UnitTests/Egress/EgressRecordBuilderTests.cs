@@ -121,7 +121,7 @@ public sealed class EgressRecordBuilderTests
     public void Post16_reasons_and_stage_are_handled()
     {
         var item = Run(Remove(reason: "student-died") with { WindowType = CheckingWindowType.Post16 });
-        Assert.Equal("KS5", item.RemoveRow!.KeyStage);
+        Assert.Equal("16-19", item.RemoveRow!.KeyStage);
         Assert.Equal("4", item.RemoveRow.CorrectionReason);
     }
 

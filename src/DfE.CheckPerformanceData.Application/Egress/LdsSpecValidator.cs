@@ -11,7 +11,7 @@ public static partial class LdsSpecValidator
 {
     public const string StepName = "Validate against LDS spec";
 
-    private static readonly HashSet<string> Stages = ["KS2", "KS4", "KS5"];
+    private static readonly HashSet<string> Stages = ["KS2", "KS4", "16-19"];
     private static readonly HashSet<string> YearGroups = ["3", "4", "5", "6", "10", "11"];
     private static readonly HashSet<string> SenStatuses = ["E", "K", "N"];
     private static readonly HashSet<string> RemoveSexes = ["M", "F"];

@@ -48,8 +48,18 @@ public sealed class RequestService(
         return await requestRepository.CheckForConflictAsync(windowId, pupilId, organisationUrn, string.Empty, userId);
     }
 
+    private async Task EnsureJourneysAllowedAsync(Guid windowId, CheckingExerciseType exercise)
+    {
+        var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
+        if (window.Exercises.Any(e => e.ExerciseType == exercise && e.DisplayOnly)
+            && !checkingExerciseService.IsOpen(window.Exercises, exercise))
+            throw new InvalidOperationException("This exercise only displays data and does not accept requests.");
+    }
+
     public async Task SubmitRequestAsync(Guid windowId, RequestState journey)
     {
+        if (journey.SelectedWhatToChange is { } change)
+            await EnsureJourneysAllowedAsync(windowId, WhatToChangeCheckingExerciseMap.CheckingExerciseFor(change));
         if (journey.SelectedWhatToChange is null || journey.CheckingWindow is null || journey.SelectedPupil is null)
             throw new InvalidOperationException("Session state is incomplete for request submission.");
 
@@ -116,6 +126,7 @@ public sealed class RequestService(
     public async Task<string> SubmitResultsEnquiryAsync(
         Guid windowId, RequestState journey, CancellationToken ct = default)
     {
+        await EnsureJourneysAllowedAsync(windowId, CheckingExerciseType.ResultsEnquiry);
         if (!WhatToChangeCheckingExerciseMap.IsResultsEnquiry(journey.SelectedWhatToChange))
             throw new InvalidOperationException(
                 $"SubmitResultsEnquiryAsync is the results-enquiry path; got {journey.SelectedWhatToChange}. " +
@@ -190,6 +201,7 @@ public sealed class RequestService(
         // (ConfirmCorrectController pins the same constant). Hence the extra read: this is the one
         // write site with no window already in hand, and it runs once per school per window.
         var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
+        await EnsureJourneysAllowedAsync(windowId, CheckingExerciseType.PupilData);
 
         await requestRepository.UpsertAsync(new ChangeRequestData
         {

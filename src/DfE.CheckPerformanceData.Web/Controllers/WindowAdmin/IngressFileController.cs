@@ -18,7 +18,8 @@ public sealed class IngressFileController(ILogger<IngressFileController> logger,
 {
     // #319: the route names the exercise — see the note on SchemaController.
     [HttpGet("admin/windows/{id:guid}/{exercise}/ingress-file/{dataset}")]
-    public async Task<IActionResult> Index(Guid id, CheckingExerciseType exercise, string dataset, CancellationToken cancellationToken, Guid? exerciseId = null, bool returnToExercise = false)
+    [HttpGet("admin/windows/{id:guid}/exercises/{exerciseId:guid}/ingress-file/{dataset}")]
+    public async Task<IActionResult> Index(Guid id, CheckingExerciseType? exercise, string dataset, CancellationToken cancellationToken, Guid? exerciseId = null, bool returnToExercise = false)
     {
         if (!await HasDataset(id, exercise, dataset, exerciseId, cancellationToken)) return NotFound();
 
@@ -52,7 +53,8 @@ public sealed class IngressFileController(ILogger<IngressFileController> logger,
     }
 
     [HttpGet("admin/windows/{id:guid}/{exercise}/ingress-file/{dataset}/browse")]
-    public async Task<IActionResult> Browse(Guid id, CheckingExerciseType exercise, string dataset, string container, string? path, CancellationToken cancellationToken, Guid? exerciseId = null, bool returnToExercise = false)
+    [HttpGet("admin/windows/{id:guid}/exercises/{exerciseId:guid}/ingress-file/{dataset}/browse")]
+    public async Task<IActionResult> Browse(Guid id, CheckingExerciseType? exercise, string dataset, string container, string? path, CancellationToken cancellationToken, Guid? exerciseId = null, bool returnToExercise = false)
     {
         if (!await HasDataset(id, exercise, dataset, exerciseId, cancellationToken)) return NotFound();
 
@@ -114,15 +116,15 @@ public sealed class IngressFileController(ILogger<IngressFileController> logger,
         return View("~/Views/WindowAdmin/IngressFile.cshtml", model);
     }
 
-    private async Task<bool> HasDataset(Guid id, CheckingExerciseType type, string dataset, Guid? exerciseId, CancellationToken cancellationToken)
+    private async Task<bool> HasDataset(Guid id, CheckingExerciseType? type, string dataset, Guid? exerciseId, CancellationToken cancellationToken)
     {
         var window = await windowService.GetByIdAsync(id, cancellationToken);
         return FindExercise(window, type, exerciseId)?.Datasets.Any(d => d.Name == dataset) == true;
     }
 
-    private static CheckingExerciseDto? FindExercise(CheckingWindowDto? window, CheckingExerciseType type, Guid? id)
+    private static CheckingExerciseDto? FindExercise(CheckingWindowDto? window, CheckingExerciseType? type, Guid? id)
     {
-        var matches = window?.Exercises.Where(e => e.ExerciseType == type && (id is null || e.Id == id)).Take(2).ToList();
+        var matches = window?.Exercises.Where(e => (id is not null ? e.Id == id && (type is null || e.ExerciseType == type) : type is not null && e.ExerciseType == type)).Take(2).ToList();
         return matches?.Count == 1 ? matches[0] : null;
     }
 
@@ -145,9 +147,10 @@ public sealed class IngressFileController(ILogger<IngressFileController> logger,
     }
 
     [HttpPost("admin/windows/{id:guid}/{exercise}/ingress-file/{dataset}")]
+    [HttpPost("admin/windows/{id:guid}/exercises/{exerciseId:guid}/ingress-file/{dataset}")]
     [RequestSizeLimit(100_000_000)]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Select(Guid id, CheckingExerciseType exercise, string dataset, string selectedFile, CancellationToken cancellationToken, Guid? exerciseId = null, bool returnToExercise = false)
+    public async Task<IActionResult> Select(Guid id, CheckingExerciseType? exercise, string dataset, string selectedFile, CancellationToken cancellationToken, Guid? exerciseId = null, bool returnToExercise = false)
     {
         if (string.IsNullOrWhiteSpace(selectedFile))
         {

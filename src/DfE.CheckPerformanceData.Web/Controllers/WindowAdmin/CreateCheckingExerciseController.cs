@@ -49,18 +49,19 @@ public sealed class CreateCheckingExerciseController(IWindowService windowServic
         window.Exercises.Add(new CheckingExerciseDto
         {
             Id = Guid.NewGuid(),
-            ExerciseType = model.ExerciseType!.Value,
+            ExerciseType = model.ExerciseType,
             Name = model.Name!.Trim(),
             TabName = model.TabName!.Trim(),
             TabOrder = model.TabOrder!.Value,
             SortOrder = model.SortOrder!.Value,
             IsEnabled = model.IsEnabled,
+            DisplayOnly = model.DisplayOnly,
             VisibleFrom = model.VisibleFrom,
             VisibleUntil = model.VisibleUntil,
             ReplacesCheckingExerciseId = model.ReplacesCheckingExerciseId,
             StartDate = model.Dates.StartDateTime!.Value,
             EndDate = model.Dates.EndDateTime!.Value,
-            Datasets = WindowDatasets.DefaultsFor(window.CheckingWindowType, model.ExerciseType.Value).ToList()
+            Datasets = WindowDatasets.DefaultsFor(window.CheckingWindowType, model.ExerciseType).ToList()
         });
         await windowService.UpdateAsync(window, cancellationToken);
         return RedirectToAction("Index", "Summary", new { id });

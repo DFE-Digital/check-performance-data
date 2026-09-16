@@ -15,7 +15,7 @@ else
         {
             <govuk-tabs-item id="exercise-@tab.Exercise.Id" label="@tab.Exercise.TabName">
                 <h2 class="govuk-heading-l">@tab.Exercise.Name</h2>
-                <p class="govuk-body">@(tab.CanAct ? "Checking is open." : "Checking is closed. You can still view and download your data.")</p>
+                <p class="govuk-body">@(tab.Exercise.DisplayOnly ? "You can view and download this data." : tab.CanAct ? "Checking is open." : "Checking is closed. You can still view and download your data.")</p>
                 <p class="govuk-body"><a asp-action="Download" asp-route-exerciseId="@tab.Exercise.Id">Download @tab.Exercise.TabName data (JSON)</a></p>
                 <div style="overflow-x: auto" tabindex="0" role="region" aria-label="@tab.Exercise.Name">
                     <table class="govuk-table">

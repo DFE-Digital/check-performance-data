@@ -26,7 +26,6 @@ public sealed class CreateCheckingExerciseItem : AdminPage, IValidatableObject
     [StringLength(200, ErrorMessage = "Exercise name must be 200 characters or fewer")]
     public string? Name { get; set; }
 
-    [Required(ErrorMessage = "Select an exercise type")]
     [EnumDataType(typeof(CheckingExerciseType), ErrorMessage = "Select a valid exercise type")]
     public CheckingExerciseType? ExerciseType { get; set; }
 
@@ -42,6 +41,7 @@ public sealed class CreateCheckingExerciseItem : AdminPage, IValidatableObject
     public int? SortOrder { get; set; } = 0;
 
     public bool IsEnabled { get; set; }
+    public bool DisplayOnly { get; set; }
     public DateTime? VisibleFrom { get; set; }
     public DateTime? VisibleUntil { get; set; }
     public Guid? ReplacesCheckingExerciseId { get; set; }
@@ -57,6 +57,9 @@ public sealed class CreateCheckingExerciseItem : AdminPage, IValidatableObject
 
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
+        if (!DisplayOnly && ExerciseType is null)
+            yield return new ValidationResult("Select an exercise type for an exercise with journeys", [nameof(ExerciseType)]);
+
         if (Dates.StartHour is >= 0 and <= 23 && Dates.StartMinute is >= 0 and <= 59
             && Dates.EndHour is >= 0 and <= 23 && Dates.EndMinute is >= 0 and <= 59
             && Dates.EndDateTime < Dates.StartDateTime)

@@ -23,7 +23,8 @@ public sealed class AdminRequestsService(
 
         var exercises = window.Exercises
             .OrderBy(e => e.SortOrder)
-            .Select(e => e.ExerciseType)
+            .Where(e => e.ExerciseType.HasValue)
+            .Select(e => e.ExerciseType!.Value)
             .ToList();
 
         // A filter naming an exercise this window does not run is dropped rather than honoured.

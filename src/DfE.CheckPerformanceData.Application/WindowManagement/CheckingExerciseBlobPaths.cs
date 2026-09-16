@@ -36,10 +36,11 @@ public static class CheckingExerciseBlobPaths
 
     public static string DataPrefix(Guid exerciseId) => $"exercises/{exerciseId}/data/";
     public static string LogPrefix(Guid exerciseId) => $"exercises/{exerciseId}/logs/";
-    public static CheckingDataType DefaultDataType(CheckingExerciseType type) => type switch
+    public static CheckingDataType DefaultDataType(CheckingExerciseType? type) => type switch
     {
         CheckingExerciseType.PupilData => CheckingDataType.Pupil,
         CheckingExerciseType.ResultsEnquiry => CheckingDataType.Results,
+        null => CheckingDataType.Other,
         _ => throw new ArgumentOutOfRangeException(nameof(type))
     };
 
@@ -60,7 +61,7 @@ public static class CheckingExerciseBlobPaths
     /// must fail loudly rather than silently share another exercise's prefix, which is the failure
     /// this whole layout exists to prevent.
     /// </exception>
-    public static string ExercisePrefix(CheckingExerciseType exercise) => exercise switch
+    public static string ExercisePrefix(CheckingExerciseType? exercise) => exercise switch
     {
         CheckingExerciseType.PupilData => string.Empty,
         CheckingExerciseType.ResultsEnquiry => "results-enquiry/",
@@ -70,14 +71,14 @@ public static class CheckingExerciseBlobPaths
     };
 
     /// <summary>Where the exercise's per-school data files live, e.g. <c>data/</c>.</summary>
-    public static string DataPrefix(CheckingExerciseType exercise) => $"{ExercisePrefix(exercise)}data/";
+    public static string DataPrefix(CheckingExerciseType? exercise) => $"{ExercisePrefix(exercise)}data/";
 
     /// <summary>The prefix every timestamped run summary for this exercise shares.</summary>
-    public static string SummaryPrefix(CheckingExerciseType exercise, Guid windowId)
+    public static string SummaryPrefix(CheckingExerciseType? exercise, Guid windowId)
         => $"{ExercisePrefix(exercise)}{windowId}_summary_";
 
     /// <summary>The exercise's error log. One per exercise, so two runs cannot overwrite each other.</summary>
-    public static string ErrorLogBlobName(CheckingExerciseType exercise, Guid windowId)
+    public static string ErrorLogBlobName(CheckingExerciseType? exercise, Guid windowId)
         => $"{ExercisePrefix(exercise)}{windowId}_error_log.txt";
 
     public const string PupilsSuffix = "_pupils.json";
@@ -89,7 +90,7 @@ public static class CheckingExerciseBlobPaths
     /// verbatim, and the two differ on any value that is not slash-separated digits. Keeping the
     /// weaker rule is what guarantees every pupil blob already written is still found.
     /// </remarks>
-    public static string PupilsBlobName(CheckingExerciseType exercise, string laestab)
+    public static string PupilsBlobName(CheckingExerciseType? exercise, string laestab)
         => $"{DataPrefix(exercise)}{laestab.Replace("/", string.Empty)}{PupilsSuffix}";
 
     public const string ResultsSuffix = "_results.json";
@@ -114,7 +115,7 @@ public static class CheckingExerciseBlobPaths
     /// The exercise has no output name. No default case, for the same reason as
     /// <see cref="ExercisePrefix"/>.
     /// </exception>
-    public static string DataBlobName(CheckingExerciseType exercise, string laestab) => exercise switch
+    public static string DataBlobName(CheckingExerciseType? exercise, string laestab) => exercise switch
     {
         CheckingExerciseType.PupilData => PupilsBlobName(exercise, laestab),
         CheckingExerciseType.ResultsEnquiry => ResultsBlobName(laestab),

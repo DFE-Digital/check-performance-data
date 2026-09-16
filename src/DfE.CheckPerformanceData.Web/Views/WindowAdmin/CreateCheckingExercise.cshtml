@@ -37,8 +37,9 @@
     <govuk-radios for="ExerciseType">
         <govuk-radios-fieldset>
             <govuk-radios-fieldset-legend class="govuk-fieldset__legend--m">Exercise type</govuk-radios-fieldset-legend>
-            <govuk-radios-hint>The checking activity this exercise supports.</govuk-radios-hint>
+            <govuk-radios-hint>Optional for display-only exercises such as Summary. Required when schools can start journeys.</govuk-radios-hint>
             <govuk-radios-error-message asp-validation-for="ExerciseType" />
+            <govuk-radios-item value="" checked="@(Model.ExerciseType is null)">No exercise type (display only)</govuk-radios-item>
             @foreach (var type in Enum.GetValues<CheckingExerciseType>())
             {
                 <govuk-radios-item value="@type" checked="@(Model.ExerciseType == type)">@ExerciseLabels.For(type)</govuk-radios-item>
@@ -64,8 +65,13 @@
         <govuk-input-error-message asp-validation-for="SortOrder" />
     </govuk-input>
 
-    <h2 class="govuk-heading-m">Checking dates</h2>
-    <p class="govuk-body">These dates control when this exercise accepts requests. The parent window must also be open.</p>
+    <govuk-checkboxes for="DisplayOnly">
+        <govuk-checkboxes-hint>Schools can view and download data without starting amendment, results enquiry or confirmation journeys.</govuk-checkboxes-hint>
+        <govuk-checkboxes-item value="true" checked="@Model.DisplayOnly">Display data only</govuk-checkboxes-item>
+    </govuk-checkboxes>
+
+    <h2 class="govuk-heading-m">Exercise dates</h2>
+    <p class="govuk-body">These dates contribute to the overall window dates. For exercises with journeys, they also control when requests are accepted. The parent window must also be open. Display-only exercises never accept requests.</p>
 
     <govuk-date-input for="Dates.StartDate">
         <govuk-date-input-fieldset>
@@ -209,7 +215,9 @@
             <tbody class="govuk-table__body">
                 @foreach (var dataset in dataExercise.Datasets.OrderBy(d => d.SortOrder))
                 {
-                    var prefix = $"/admin/windows/{Model.WindowId}/{dataExercise.ExerciseType}";
+                    var prefix = dataExercise.ExerciseType is null
+                        ? $"/admin/windows/{Model.WindowId}/exercises/{dataExercise.Id}"
+                        : $"/admin/windows/{Model.WindowId}/{dataExercise.ExerciseType}";
                     var query = $"?exerciseId={dataExercise.Id}&returnToExercise=true";
                     <tr class="govuk-table__row">
                         <th scope="row" class="govuk-table__header">@DatasetLabels.For(dataset.Name)<div class="govuk-body-s">@(dataset.Required ? "Required" : "Optional")</div></th>
@@ -228,5 +236,5 @@
     }
     <govuk-button-link href="@($"/admin/windows/{Model.WindowId}/exercises/{dataExercise.Id}/data/new")">Add data file</govuk-button-link>
     <p class="govuk-body">Validation: @(dataExercise.IsValidated ? "Up to date" : dataExercise.ValidatedAt is not null ? "Files have changed since the last validation" : "Not yet validated")</p>
-    <govuk-button-link class="govuk-button--secondary" disabled="@(!dataExercise.HasRequiredFiles)" href="@($"/admin/windows/{Model.WindowId}/{dataExercise.ExerciseType}/validate?exerciseId={dataExercise.Id}&returnToExercise=true")">Validate data</govuk-button-link>
+    <govuk-button-link class="govuk-button--secondary" disabled="@(!dataExercise.HasRequiredFiles)" href="@(dataExercise.ExerciseType is null ? $"/admin/windows/{Model.WindowId}/exercises/{dataExercise.Id}/validate?returnToExercise=true" : $"/admin/windows/{Model.WindowId}/{dataExercise.ExerciseType}/validate?exerciseId={dataExercise.Id}&returnToExercise=true")">Validate data</govuk-button-link>
 }

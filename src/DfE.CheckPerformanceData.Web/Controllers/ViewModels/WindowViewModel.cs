@@ -83,9 +83,10 @@ public sealed class ExerciseSummarySection
 {
     public string? TabName { get; init; }
     public bool IsEnabled { get; init; }
+    public bool DisplayOnly { get; init; }
     public Guid? ExerciseId { get; init; }
     public required Guid WindowId { get; init; }
-    public required CheckingExerciseType ExerciseType { get; init; }
+    public required CheckingExerciseType? ExerciseType { get; init; }
     public required string Label { get; init; }
     public required DateTime StartDate { get; init; }
     public required DateTime EndDate { get; init; }
@@ -104,8 +105,8 @@ public sealed class ExerciseSummarySection
 
     public string EditLink => $"/admin/windows/{WindowId}/exercises/{ExerciseId}/edit";
 
-    public string DatesLink => $"/admin/windows/{WindowId}/exercises/{ExerciseType}/dates" + (ExerciseId is null ? "" : $"?exerciseId={ExerciseId}");
-    public string ValidateLink => $"/admin/windows/{WindowId}/{ExerciseType}/validate" + (ExerciseId is null ? "" : $"?exerciseId={ExerciseId}");
+    public string DatesLink => ExerciseType is null ? EditLink : $"/admin/windows/{WindowId}/exercises/{ExerciseType}/dates" + (ExerciseId is null ? "" : $"?exerciseId={ExerciseId}");
+    public string ValidateLink => ExerciseType is null ? $"/admin/windows/{WindowId}/exercises/{ExerciseId}/validate" : $"/admin/windows/{WindowId}/{ExerciseType}/validate" + (ExerciseId is null ? "" : $"?exerciseId={ExerciseId}");
 
     // Every REQUIRED dataset must have both files — a Post16 pupil-data exercise is not validatable
     // until both the included and non-included CSV/schema pairs are chosen, because they ingest in
@@ -132,7 +133,7 @@ public sealed class DatasetSummaryRow
 {
     public Guid? ExerciseId { get; init; }
     public required Guid WindowId { get; init; }
-    public required CheckingExerciseType Exercise { get; init; }
+    public required CheckingExerciseType? Exercise { get; init; }
     public required string Name { get; init; }
     public required string Label { get; init; }
     public string? IngressFile { get; init; }
@@ -141,8 +142,8 @@ public sealed class DatasetSummaryRow
     /// <summary>The exercise cannot be validated until this slot holds both files (#324).</summary>
     public bool Required { get; init; } = true;
 
-    public string IngressFileLink => $"/admin/windows/{WindowId}/{Exercise}/ingress-file/{Name}" + (ExerciseId is null ? "" : $"?exerciseId={ExerciseId}");
-    public string SchemaFileLink => $"/admin/windows/{WindowId}/{Exercise}/schema-file/{Name}" + (ExerciseId is null ? "" : $"?exerciseId={ExerciseId}");
+    public string IngressFileLink => Exercise is null ? $"/admin/windows/{WindowId}/exercises/{ExerciseId}/ingress-file/{Name}" : $"/admin/windows/{WindowId}/{Exercise}/ingress-file/{Name}" + (ExerciseId is null ? "" : $"?exerciseId={ExerciseId}");
+    public string SchemaFileLink => Exercise is null ? $"/admin/windows/{WindowId}/exercises/{ExerciseId}/schema-file/{Name}" : $"/admin/windows/{WindowId}/{Exercise}/schema-file/{Name}" + (ExerciseId is null ? "" : $"?exerciseId={ExerciseId}");
 
     public bool IsComplete =>
         !string.IsNullOrWhiteSpace(IngressFile) && !string.IsNullOrWhiteSpace(SchemaFile);

@@ -96,6 +96,10 @@ else
           </th>
           <td class="govuk-table__cell">
             @DfE.CheckPerformanceData.Web.Controllers.WindowAdmin.ExerciseLabels.For(exercise.ExerciseType)
+            @if (exercise.DisplayOnly)
+            {
+                <strong class="govuk-tag govuk-tag--grey">Display data only</strong>
+            }
           </td>
           <td class="govuk-table__cell">@(exercise.TabName ?? "Not configured")</td>
           <td class="govuk-table__cell">

@@ -41,8 +41,10 @@ public class IngressFolderBrowseViewModel
     /// The checking exercise that consumes this dataset (#319). Part of every link on the page,
     /// because a dataset name is only unique within one exercise.
     /// </summary>
-    public CheckingExerciseType Exercise { get; init; }
+    public CheckingExerciseType? Exercise { get; init; }
 
     /// <summary>Route prefix shared by every link and the form action on this page.</summary>
-    public string BaseUrl => $"/admin/windows/{WindowId}/{Exercise}/ingress-file/{Dataset}";
+    public string BaseUrl => Exercise is null
+        ? $"/admin/windows/{WindowId}/exercises/{ExerciseId}/ingress-file/{Dataset}"
+        : $"/admin/windows/{WindowId}/{Exercise}/ingress-file/{Dataset}";
 }

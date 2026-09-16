@@ -234,4 +234,37 @@ public sealed class EditCheckingExerciseControllerTests
             foreach (var member in result.MemberNames)
                 _controller.ModelState.AddModelError(member, result.ErrorMessage!);
     }
+    [Fact]
+    public async Task Display_only_can_be_saved_reloaded_and_turned_off()
+    {
+        var model = await Model();
+        model.DisplayOnly = true;
+        Assert.IsType<RedirectToActionResult>(await _controller.Update(_window.Id, _window.Exercises[0].Id, model, default));
+        Assert.True((await Model()).DisplayOnly);
+        model = await Model();
+        model.DisplayOnly = false;
+        Assert.IsType<RedirectToActionResult>(await _controller.Update(_window.Id, _window.Exercises[0].Id, model, default));
+        Assert.False((await Model()).DisplayOnly);
+    }
+
+    [Fact]
+    public async Task Display_only_type_can_be_cleared_but_journeys_cannot_be_enabled_without_a_type()
+    {
+        var model = await Model();
+        model.DisplayOnly = true;
+        model.ExerciseType = null;
+        Validate(model);
+        Assert.True(_controller.ModelState.IsValid);
+        Assert.IsType<RedirectToActionResult>(await _controller.Update(_window.Id, _window.Exercises[0].Id, model, default));
+        model = await Model();
+        Assert.Null(model.ExerciseType);
+        Assert.True(model.DisplayOnly);
+        model.DisplayOnly = false;
+        Validate(model);
+        Assert.False(_controller.ModelState.IsValid);
+        Assert.Contains("ExerciseType", _controller.ModelState.Keys);
+        Assert.IsType<ViewResult>(await _controller.Update(_window.Id, _window.Exercises[0].Id, model, default));
+        Assert.True(_window.Exercises[0].DisplayOnly);
+    }
+
 }

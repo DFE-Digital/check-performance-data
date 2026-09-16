@@ -2505,4 +2505,34 @@ public class JourneyControllerTests
         Assert.False(_sut.TempData.ContainsKey(ClosedExerciseGuard.TempDataKey));
     }
 
+    [Fact]
+    public async Task Action_filter_blocks_a_stale_session_when_the_exercise_becomes_display_only()
+    {
+        var state = ValidSession();
+        SetupSession(state);
+        var current = ValidSession().CheckingWindow!;
+        current.Exercises.Clear();
+        current.Exercises.Add(new DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseDto
+        {
+            ExerciseType = DfE.CheckPerformanceData.Application.WindowManagement.WhatToChangeCheckingExerciseMap.CheckingExerciseFor(state.SelectedWhatToChange!.Value),
+            DisplayOnly = true, StartDate = DateTime.Today.AddDays(-1), EndDate = DateTime.Today.AddDays(1)
+        });
+        _pupilDataService.GetCheckingWindowAsync(WindowId).Returns(current);
+        _checkingExercises.Close();
+        var filters = new List<Microsoft.AspNetCore.Mvc.Filters.IFilterMetadata>();
+        var actionContext = new ActionContext(_httpContext, new Microsoft.AspNetCore.Routing.RouteData(),
+            new Microsoft.AspNetCore.Mvc.Abstractions.ActionDescriptor());
+        var context = new Microsoft.AspNetCore.Mvc.Filters.ActionExecutingContext(actionContext, filters,
+            new Dictionary<string, object?> { ["windowId"] = WindowId }, _sut);
+        var called = false;
+        await _sut.OnActionExecutionAsync(context, () =>
+        {
+            called = true;
+            return Task.FromResult(new Microsoft.AspNetCore.Mvc.Filters.ActionExecutedContext(actionContext, filters, _sut));
+        });
+        Assert.False(called);
+        Assert.Equal("CheckingData", Assert.IsType<RedirectToActionResult>(context.Result).ControllerName);
+        Assert.Empty(_sut.TempData);
+    }
+
 }

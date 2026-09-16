@@ -43,6 +43,7 @@ public sealed class SummaryController(IWindowService windowService) : Controller
                     ExerciseType = e.ExerciseType,
                     TabName = e.TabName,
                     IsEnabled = e.IsEnabled,
+                    DisplayOnly = e.DisplayOnly,
                     Label = e.Name ?? ExerciseLabels.For(e.ExerciseType),
                     StartDate = e.StartDate,
                     EndDate = e.EndDate,

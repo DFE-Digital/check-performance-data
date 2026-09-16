@@ -42,6 +42,8 @@ public sealed class ChangeRequestCheckingExerciseStampTests
         _currentUser.DisplayName.Returns("Ada Editor");
         _currentUser.Email.Returns("ada@school.test");
 
+        _pupilData.GetCheckingWindowAsync(WindowId).Returns(Window());
+
         _sut = new RequestService(
             _flowService, _stateBlob, _repository, _currentUser,
             NullLogger<RequestService>.Instance, Substitute.For<IQueueService>(),
@@ -197,4 +199,37 @@ public sealed class ChangeRequestCheckingExerciseStampTests
 
         Assert.Equal(PupilDataExerciseId, captured!.CheckingExerciseId);
     }
+    [Theory]
+    [InlineData(WhatToChange.Remove)]
+    [InlineData(WhatToChange.IncorrectGrade)]
+    public async Task Display_only_blocks_submission_even_when_session_still_allows_journeys(WhatToChange change)
+    {
+        var type = DfE.CheckPerformanceData.Application.WindowManagement.WhatToChangeCheckingExerciseMap.CheckingExerciseFor(change);
+        _pupilData.GetCheckingWindowAsync(WindowId).Returns(Window([new CheckingExerciseDto
+        {
+            ExerciseType = type, DisplayOnly = true,
+            StartDate = DateTime.Today.AddDays(-1), EndDate = DateTime.Today.AddDays(1)
+        }]));
+        var journey = Journey(change);
+        if (change == WhatToChange.Remove)
+            await Assert.ThrowsAsync<InvalidOperationException>(() => _sut.SubmitRequestAsync(WindowId, journey));
+        else
+            await Assert.ThrowsAsync<InvalidOperationException>(() => _sut.SubmitResultsEnquiryAsync(WindowId, journey));
+        await _repository.DidNotReceiveWithAnyArgs().UpsertAsync(default!);
+    }
+
+    [Fact]
+    public async Task Display_only_blocks_confirmation()
+    {
+        var window = Window([new CheckingExerciseDto
+        {
+            ExerciseType = CheckingExerciseType.PupilData, DisplayOnly = true,
+            StartDate = DateTime.Today.AddDays(-1), EndDate = DateTime.Today.AddDays(1)
+        }]);
+        _pupilData.GetCheckingWindowAsync(WindowId).Returns(window);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _sut.ConfirmDataCorrectAsync(
+            WindowId, "CYPMD_16to19_ABC1234", window.EndDate, EmailSubstitutions.From(window)));
+        await _repository.DidNotReceiveWithAnyArgs().UpsertAsync(default!);
+    }
+
 }

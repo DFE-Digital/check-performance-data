@@ -109,4 +109,103 @@ public sealed class CheckingDataPocTests
         };
         Assert.False(new CheckingExerciseService(new Clock()).IsOpen([exercise], CheckingExerciseType.PupilData));
     }
+    [Theory]
+    [InlineData(CheckingExerciseType.PupilData)]
+    [InlineData(CheckingExerciseType.ResultsEnquiry)]
+    [InlineData(null)]
+    public async Task Display_only_data_remains_readable_but_cannot_start_a_journey(CheckingExerciseType? type)
+    {
+        var exercise = Exercise() with { ExerciseType = type, DisplayOnly = true, TabName = "Summary" };
+        var catalogue = Substitute.For<ICheckingDataCatalogue>();
+        catalogue.GetVisibleAsync(default).Returns(Task.FromResult<IReadOnlyList<CheckingDataExercise>>([exercise]));
+        var reader = Substitute.For<ICheckingDataReader>();
+        var bytes = Encoding.UTF8.GetBytes("[{\"Total\":4}]");
+        reader.ReadAsync(exercise, "860/4070", default).Returns(Task.FromResult<byte[]?>(bytes));
+        var user = Substitute.For<ICurrentUserService>();
+        user.OrganisationLaestab.Returns("860/4070");
+        var controller = new CheckingDataController(catalogue, reader, user, new Clock());
+
+        var tabs = Assert.IsType<List<CheckingDataTab>>(Assert.IsType<ViewResult>(await controller.Index(default)).Model);
+        Assert.False(Assert.Single(tabs).CanAct);
+        Assert.Equal("4", tabs[0].Rows[0]["Total"]);
+        Assert.Equal(bytes, Assert.IsType<FileContentResult>(await controller.Download(exercise.Id, default)).FileContents);
+        Assert.Equal(403, Assert.IsType<StatusCodeResult>(await controller.Start(exercise.Id, default)).StatusCode);
+    }
+
+    [Theory]
+    [InlineData(CheckingExerciseType.PupilData, false)]
+    [InlineData(CheckingExerciseType.PupilData, true)]
+    [InlineData(CheckingExerciseType.ResultsEnquiry, false)]
+    [InlineData(CheckingExerciseType.ResultsEnquiry, true)]
+    public void Display_only_exercises_offer_no_actions_deadlines_or_closed_notices(CheckingExerciseType type, bool past)
+    {
+        var exercise = new CheckingExerciseDto
+        {
+            Id = Guid.NewGuid(), ExerciseType = type, DisplayOnly = true,
+            StartDate = Now.AddDays(-2), EndDate = past ? Now.AddDays(-1) : Now.AddDays(1)
+        };
+        var service = new CheckingExerciseService(new Clock());
+        Assert.False(service.IsOpen([exercise], type));
+        Assert.False(service.HasClosed([exercise], type));
+        Assert.Empty(service.OpenCheckingExercises([exercise]));
+        Assert.Null(service.StartDateFor([exercise], type));
+        Assert.Null(service.EndDateFor([exercise], type));
+        Assert.Equal(exercise.Id, service.IdFor([exercise], type));
+    }
+
+    [Fact]
+    public async Task Display_only_summary_does_not_block_an_interactive_tab_of_the_same_type()
+    {
+        var interactive = Exercise();
+        var summary = interactive with { Id = Guid.NewGuid(), TabName = "Summary", DisplayOnly = true };
+        var catalogue = Substitute.For<ICheckingDataCatalogue>();
+        catalogue.GetVisibleAsync(default).Returns(Task.FromResult<IReadOnlyList<CheckingDataExercise>>([summary, interactive]));
+        var reader = Substitute.For<ICheckingDataReader>();
+        reader.ReadAsync(Arg.Any<CheckingDataExercise>(), "860/4070", default)
+            .Returns(Task.FromResult<byte[]?>(Encoding.UTF8.GetBytes("[]")));
+        var user = Substitute.For<ICurrentUserService>();
+        user.OrganisationLaestab.Returns("860/4070");
+        var controller = new CheckingDataController(catalogue, reader, user, new Clock())
+        {
+            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { Session = Substitute.For<ISession>() } }
+        };
+        var tabs = Assert.IsType<List<CheckingDataTab>>(Assert.IsType<ViewResult>(await controller.Index(default)).Model);
+        Assert.False(tabs[0].CanAct);
+        Assert.True(tabs[1].CanAct);
+        Assert.IsType<RedirectToActionResult>(await controller.Start(interactive.Id, default));
+        Assert.Equal(403, Assert.IsType<StatusCodeResult>(await controller.Start(summary.Id, default)).StatusCode);
+
+        var exercises = new List<CheckingExerciseDto>
+        {
+            new() { Id = summary.Id, ExerciseType = summary.ExerciseType, DisplayOnly = true, StartDate = summary.ActionStart, EndDate = summary.ActionEnd },
+            new() { Id = interactive.Id, ExerciseType = interactive.ExerciseType, StartDate = interactive.ActionStart, EndDate = interactive.ActionEnd }
+        };
+        var service = new CheckingExerciseService(new Clock());
+        Assert.True(service.IsOpen(exercises, interactive.ExerciseType!.Value));
+        Assert.Equal(interactive.Id, service.IdFor(exercises, interactive.ExerciseType!.Value));
+        var windows = Substitute.For<IWindowRepository>();
+        windows.GetByIdAsync(interactive.WindowId, default).Returns(new CheckingWindowDto
+        {
+            Id = interactive.WindowId, Title = "Checking", KeyStage = KeyStages.Post16,
+            CheckingWindowType = CheckingWindowType.Post16, StartDate = interactive.WindowStart,
+            EndDate = interactive.WindowEnd, Exercises = exercises
+        });
+        var resolved = await new CheckingExerciseStorageResolver(windows, new Clock()).ResolveAsync(interactive.WindowId, interactive.ExerciseType!.Value);
+        Assert.Equal(interactive.Id, resolved!.Id);
+    }
+
+    [Fact]
+    public void Untyped_summary_has_no_open_journey_types()
+    {
+        var summary = new CheckingExerciseDto
+        {
+            ExerciseType = null, DisplayOnly = true,
+            StartDate = Now.AddDays(-1), EndDate = Now.AddDays(1)
+        };
+        var service = new CheckingExerciseService(new Clock());
+        Assert.Empty(service.OpenCheckingExercises([summary]));
+        foreach (var type in Enum.GetValues<CheckingExerciseType>())
+            Assert.False(service.IsOpen([summary], type));
+    }
+
 }

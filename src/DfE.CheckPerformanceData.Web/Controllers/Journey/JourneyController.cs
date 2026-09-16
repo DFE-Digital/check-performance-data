@@ -35,6 +35,29 @@ public sealed class JourneyController(
     ICheckingExerciseService checkingExerciseService,
     ILogger<JourneyController> logger) : Controller
 {
+    public override async Task OnActionExecutionAsync(
+        Microsoft.AspNetCore.Mvc.Filters.ActionExecutingContext context,
+        Microsoft.AspNetCore.Mvc.Filters.ActionExecutionDelegate next)
+    {
+        // Re-read the setting: a session opened before an admin disables journeys is stale.
+        if (context.ActionArguments.TryGetValue("windowId", out var value) && value is Guid windowId)
+        {
+            var journey = HttpContext.Session.GetRequestState(windowId);
+            if (journey.SelectedWhatToChange is { } change)
+            {
+                var window = await pupilDataService.GetCheckingWindowAsync(windowId);
+                var type = WhatToChangeCheckingExerciseMap.CheckingExerciseFor(change);
+                if (window.Exercises.Any(e => e.ExerciseType == type && e.DisplayOnly)
+                    && !checkingExerciseService.IsOpen(window.Exercises, type))
+                {
+                    context.Result = RedirectToAction("Index", "CheckingData");
+                    return;
+                }
+            }
+        }
+        await next();
+    }
+
     internal static string FieldName(string questionId) => $"q_{questionId.Replace("-", "_")}";
 
     /// <summary>
@@ -2001,7 +2024,7 @@ public sealed class JourneyController(
             return this.RedirectExerciseClosed(
                 windowId,
                 WhatToChangeCheckingExerciseMap.CheckingExerciseFor(journey.SelectedWhatToChange!.Value),
-                journey.LearnerNoun);
+                journey.LearnerNoun, journey.CheckingWindow?.Exercises);
 
         return RedirectToAction("Index", "CheckYourPupilData", new { windowId });
     }

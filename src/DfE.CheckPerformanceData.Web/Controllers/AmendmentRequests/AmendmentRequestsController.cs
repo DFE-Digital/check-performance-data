@@ -207,7 +207,7 @@ public sealed class AmendmentRequestsController(
         {
             var draftExercise = WhatToChangeCheckingExerciseMap.CheckingExerciseFor(draftChange);
             if (!checkingExercises.IsOpen(journey.CheckingWindow.Exercises, draftExercise))
-                return this.RedirectExerciseClosed(windowId, draftExercise, journey.LearnerNoun);
+                return this.RedirectExerciseClosed(windowId, draftExercise, journey.LearnerNoun, journey.CheckingWindow.Exercises);
         }
 
         HttpContext.Session.SetRequestState(windowId, journey);

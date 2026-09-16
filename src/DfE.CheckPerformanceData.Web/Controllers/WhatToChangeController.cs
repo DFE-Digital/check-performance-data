@@ -27,7 +27,7 @@ public sealed class WhatToChangeController(
     {
         var window = await service.GetCheckingWindowAsync(windowId);
         if (!checkingExercises.IsOpen(window.Exercises, Exercise))
-            return this.RedirectExerciseClosed(windowId, Exercise, LearnerNoun.For(window.CheckingWindowType));
+            return this.RedirectExerciseClosed(windowId, Exercise, LearnerNoun.For(window.CheckingWindowType), window.Exercises);
 
         var journey = HttpContext.Session.GetRequestState(windowId);
         return View(new WhatToChangeViewModel
@@ -46,7 +46,7 @@ public sealed class WhatToChangeController(
     {
         var window = await service.GetCheckingWindowAsync(windowId);
         if (!checkingExercises.IsOpen(window.Exercises, Exercise))
-            return this.RedirectExerciseClosed(windowId, Exercise, LearnerNoun.For(window.CheckingWindowType));
+            return this.RedirectExerciseClosed(windowId, Exercise, LearnerNoun.For(window.CheckingWindowType), window.Exercises);
 
         if (vm.SelectedWhatToChange == null)
         {

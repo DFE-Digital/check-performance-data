@@ -52,8 +52,8 @@ public sealed class CheckingWindowDto
     // and the validate run are all per-exercise now, and each asks the exercise it means.
 
     /// <summary>The exercise of this type, or null when the window does not run it.</summary>
-    public CheckingExerciseDto? FindExercise(CheckingExerciseType exercise) =>
-        Exercises.SingleOrDefault(e => e.ExerciseType == exercise);
+    public CheckingExerciseDto? FindExercise(CheckingExerciseType? exercise) =>
+        exercise is null ? null : Exercises.SingleOrDefault(e => e.ExerciseType == exercise);
 
     /// <summary>
     /// The outer pair derived from the exercises: earliest start, latest end. The wizard never asks
@@ -78,12 +78,13 @@ public sealed class CheckingExerciseDto
     // Null TabName preserves the legacy action rules for exercises outside the POC.
     public string? TabName { get; init; }
     public bool IsEnabled { get; init; }
+    public bool DisplayOnly { get; init; }
     public DateTime? VisibleFrom { get; init; }
     public DateTime? VisibleUntil { get; init; }
     public DateTime? WindowStart { get; init; }
     public DateTime? WindowEnd { get; init; }
     public Guid Id { get; init; }
-    public required CheckingExerciseType ExerciseType { get; init; }
+    public required CheckingExerciseType? ExerciseType { get; init; }
     public required DateTime StartDate { get; set; }
     public required DateTime EndDate { get; set; }
     public int SortOrder { get; init; }
@@ -196,11 +197,12 @@ public static class WindowDatasets
     public const string Pupils = "pupils";
 
     public static IReadOnlyList<CheckingWindowDatasetDto> DefaultsFor(
-        CheckingWindowType type, CheckingExerciseType exercise) =>
+        CheckingWindowType type, CheckingExerciseType? exercise) =>
         exercise switch
         {
             CheckingExerciseType.PupilData => PupilDataDefaults(type),
             CheckingExerciseType.ResultsEnquiry => ResultsEnquiryDefaults(type),
+            null => [new CheckingWindowDatasetDto { Name = "data", SortOrder = 0 }],
             _ => []
         };
 

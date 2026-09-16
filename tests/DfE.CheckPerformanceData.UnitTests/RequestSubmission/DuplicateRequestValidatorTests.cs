@@ -41,6 +41,13 @@ public sealed class DuplicateRequestValidatorTests
         var requestNotificationService = Substitute.For<IRequestNotificationService>();
         var checkYourPupilDataService = Substitute.For<ICheckYourPupilDataService>();
 
+        checkYourPupilDataService.GetCheckingWindowAsync(Arg.Any<Guid>()).Returns(new CheckingWindowDto
+        {
+            Title = "Checking window", KeyStage = KeyStages.Post16,
+            CheckingWindowType = CheckingWindowType.Post16,
+            StartDate = DateTime.Today.AddDays(-1), EndDate = DateTime.Today.AddDays(1)
+        });
+
         _sut = new RequestService(_flowService, requestStateBlobClient, _repository, _currentUser,
             logger, queueService, requestNotificationService, checkYourPupilDataService,
             new CheckingExerciseService(TimeProvider.System));

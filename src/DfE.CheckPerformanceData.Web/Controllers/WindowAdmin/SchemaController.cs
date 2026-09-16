@@ -20,7 +20,8 @@ public class SchemaController(
     private const string PageView = "~/Views/WindowAdmin/Schema.cshtml";
 
     [HttpGet("admin/windows/{id:guid}/{exercise}/schema-file/{dataset}")]
-    public async Task<IActionResult> Index(Guid id, CheckingExerciseType exercise, string dataset,
+    [HttpGet("admin/windows/{id:guid}/exercises/{exerciseId:guid}/schema-file/{dataset}")]
+    public async Task<IActionResult> Index(Guid id, CheckingExerciseType? exercise, string dataset,
         CancellationToken cancellationToken, Guid? exerciseId = null, bool returnToExercise = false)
     {
         var window = await windowService.GetByIdAsync(id, cancellationToken);
@@ -34,8 +35,9 @@ public class SchemaController(
     }
 
     [HttpPost("admin/windows/{id:guid}/{exercise}/schema-file/{dataset}")]
+    [HttpPost("admin/windows/{id:guid}/exercises/{exerciseId:guid}/schema-file/{dataset}")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Submit(Guid id, CheckingExerciseType exercise, string dataset, SchemaItem model,
+    public async Task<IActionResult> Submit(Guid id, CheckingExerciseType? exercise, string dataset, SchemaItem model,
         CancellationToken cancellationToken, Guid? exerciseId = null, bool returnToExercise = false)
     {
         if (id != model.WindowId) return BadRequest();
@@ -151,9 +153,9 @@ public class SchemaController(
             : Url.Action("Index", "Summary", new { id = window.Id });
     }
 
-    private static CheckingExerciseDto? FindExercise(CheckingWindowDto? window, CheckingExerciseType type, Guid? id)
+    private static CheckingExerciseDto? FindExercise(CheckingWindowDto? window, CheckingExerciseType? type, Guid? id)
     {
-        var matches = window?.Exercises.Where(e => e.ExerciseType == type && (id is null || e.Id == id)).Take(2).ToList();
+        var matches = window?.Exercises.Where(e => (id is not null ? e.Id == id && (type is null || e.ExerciseType == type) : type is not null && e.ExerciseType == type)).Take(2).ToList();
         return matches?.Count == 1 ? matches[0] : null;
     }
 

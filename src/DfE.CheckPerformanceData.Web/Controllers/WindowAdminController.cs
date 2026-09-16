@@ -26,16 +26,16 @@ public sealed class WindowAdminController(
             Exercises = window.Exercises.OrderBy(e => e.SortOrder).Select(exercise =>
             {
                 var missing = Enum.GetValues<WhatToChange>()
-                    .Where(journey => WhatToChangeCheckingExerciseMap.CheckingExerciseFor(journey) == exercise.ExerciseType)
+                    .Where(journey => !exercise.DisplayOnly && WhatToChangeCheckingExerciseMap.CheckingExerciseFor(journey) == exercise.ExerciseType)
                     .Where(journey => !questionFlows.Exists(journey, window.CheckingWindowType))
                     .Select(JourneyLabel)
                     .ToList();
-                var status = missing.Count > 0 ? "Missing journeys"
+                var status = exercise.DisplayOnly ? "Display data only" : missing.Count > 0 ? "Missing journeys"
                     : now < exercise.StartDate ? "Upcoming"
                     : now > exercise.EndDate ? "Closed" : "Open";
                 return new CheckingExerciseListItem
                 {
-                    Name = ExerciseLabels.For(exercise.ExerciseType),
+                    Name = exercise.Name ?? ExerciseLabels.For(exercise.ExerciseType),
                     Status = status,
                     MissingJourneys = missing
                 };

@@ -43,6 +43,7 @@ public sealed class LandingPageRepository(
                         Id = e.Id,
                         TabName = e.TabName,
                         IsEnabled = e.IsEnabled,
+                        DisplayOnly = e.DisplayOnly,
                         VisibleFrom = e.VisibleFrom,
                         VisibleUntil = e.VisibleUntil,
                         WindowStart = w.StartDate,

@@ -17,12 +17,13 @@ public sealed class CheckingExercise
 {
     public Guid Id { get; init; }
     public Guid CheckingWindowId { get; set; }
-    public CheckingExerciseType ExerciseType { get; init; }
+    public CheckingExerciseType? ExerciseType { get; init; }
     public bool UsesExerciseStorage { get; init; } = true;
     public string? Name { get; set; }
     public string? TabName { get; set; }
     public int TabOrder { get; set; }
     public bool IsEnabled { get; set; }
+    public bool DisplayOnly { get; set; }
     public DateTime? VisibleFrom { get; set; }
     public DateTime? VisibleUntil { get; set; }
     public Guid? ReplacesCheckingExerciseId { get; set; }
@@ -71,7 +72,9 @@ public sealed class CheckingExerciseConfiguration : IEntityTypeConfiguration<Che
 {
     public void Configure(EntityTypeBuilder<CheckingExercise> builder)
     {
-        builder.ToTable("CheckingExercises");
+        builder.ToTable("CheckingExercises", table => table.HasCheckConstraint(
+            "CK_CheckingExercises_TypeOrDisplayOnly",
+            "\"ExerciseType\" IS NOT NULL OR (\"DisplayOnly\" AND \"UsesExerciseStorage\")"));
 
         builder.HasKey(x => x.Id);
         builder.Property(x => x.Name).HasMaxLength(200);
@@ -85,7 +88,7 @@ public sealed class CheckingExerciseConfiguration : IEntityTypeConfiguration<Che
             .HasDefaultValueSql("gen_random_uuid()");
 
         builder.Property(x => x.ExerciseType)
-            .IsRequired()
+            .IsRequired(false)
             .HasConversion<string>()
             .HasMaxLength(50);
 

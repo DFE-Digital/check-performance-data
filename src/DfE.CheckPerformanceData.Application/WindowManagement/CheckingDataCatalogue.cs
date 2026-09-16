@@ -4,16 +4,16 @@ namespace DfE.CheckPerformanceData.Application.WindowManagement;
 
 public sealed record CheckingDataExercise(
     Guid Id, Guid WindowId, string Name, string TabName, int TabOrder,
-    CheckingExerciseType ExerciseType, KeyStages KeyStage,
+    CheckingExerciseType? ExerciseType, KeyStages KeyStage,
     bool IsEnabled, DateTime? VisibleFrom, DateTime? VisibleUntil,
     DateTime WindowStart, DateTime WindowEnd, DateTime ActionStart, DateTime ActionEnd,
-    Guid? ReplacesCheckingExerciseId, bool UsesExerciseStorage = false)
+    Guid? ReplacesCheckingExerciseId, bool UsesExerciseStorage = false, bool DisplayOnly = false)
 {
     public bool IsVisible(DateTime now) => IsEnabled
         && (!VisibleFrom.HasValue || VisibleFrom <= now)
         && (!VisibleUntil.HasValue || VisibleUntil > now);
 
-    public bool CanAct(DateTime now) => IsVisible(now)
+    public bool CanAct(DateTime now) => ExerciseType is not null && !DisplayOnly && IsVisible(now)
         && WindowStart <= now && WindowEnd >= now
         && ActionStart <= now && ActionEnd >= now;
 }

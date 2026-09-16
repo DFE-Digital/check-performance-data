@@ -85,6 +85,7 @@ public sealed class CreateCheckingExerciseControllerTests
         Assert.Equal(2, created.TabOrder);
         Assert.Equal(3, created.SortOrder);
         Assert.True(created.IsEnabled);
+        Assert.True(created.DisplayOnly);
         Assert.True(created.UsesExerciseStorage);
         Assert.Equal(Today.AddDays(1).AddHours(9).AddMinutes(30), created.StartDate);
         Assert.Equal(model.VisibleFrom, created.VisibleFrom);
@@ -110,7 +111,7 @@ public sealed class CreateCheckingExerciseControllerTests
         switch (field)
         {
             case "Name": model.Name = " "; break;
-            case "ExerciseType": model.ExerciseType = null; break;
+            case "ExerciseType": model.ExerciseType = null; model.DisplayOnly = false; break;
             case "TabName": model.TabName = " "; break;
             case "TabOrder": model.TabOrder = null; break;
             case "SortOrder": model.SortOrder = null; break;
@@ -207,7 +208,7 @@ public sealed class CreateCheckingExerciseControllerTests
     {
         WindowId = _window.Id, Name = "  Revised students  ",
         ExerciseType = CheckingExerciseType.PupilData,
-        TabName = " Students ", TabOrder = 2, SortOrder = 3, IsEnabled = true,
+        TabName = " Students ", TabOrder = 2, SortOrder = 3, IsEnabled = true, DisplayOnly = true,
         VisibleFrom = Today, VisibleUntil = Today.AddMonths(2),
         Dates = new ExerciseDatesItem
         {
@@ -215,6 +216,24 @@ public sealed class CreateCheckingExerciseControllerTests
             EndDate = Today.AddDays(10), EndHour = 17
         }
     };
+
+    [Fact]
+    public async Task Display_only_summary_can_be_created_without_an_exercise_type()
+    {
+        var model = Valid();
+        model.Name = "Summary";
+        model.TabName = "Summary";
+        model.ExerciseType = null;
+        model.DisplayOnly = true;
+        Validate(model);
+        Assert.True(_controller.ModelState.IsValid);
+        Assert.IsType<RedirectToActionResult>(await _controller.Submit(_window.Id, model, default));
+        var summary = Assert.Single(_window.Exercises.Where(e => e.Name == "Summary"));
+        Assert.Null(summary.ExerciseType);
+        Assert.True(summary.DisplayOnly);
+        Assert.True(summary.UsesExerciseStorage);
+        Assert.Equal("data", Assert.Single(summary.Datasets).Name);
+    }
 
     private void Validate(CreateCheckingExerciseItem model)
     {
@@ -291,4 +310,6 @@ public sealed class CheckingExerciseSummaryControllerTests
         Assert.Empty(Assert.IsType<WindowEditItem>(view.Model).Exercises);
         Assert.IsType<NotFoundResult>(await controller.Index(Guid.NewGuid(), default));
     }
+
+
 }

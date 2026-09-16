@@ -19,7 +19,7 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
 {
     public async IAsyncEnumerable<ValidationProgress> ProcessAsync(
         Guid checkingWindowId,
-        CheckingExerciseType exercise,
+        CheckingExerciseType? exercise,
         IReadOnlyList<IngressDataset> datasets,
         bool validateOnly = false,
         bool clearExistingFiles = false,
@@ -430,7 +430,7 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
         return value;
     }
 
-    private async Task ClearOutputAsync(BlobContainerClient container, Guid checkingWindowId, CheckingExerciseType exercise, string errorLogBlobName, CancellationToken cancellationToken, Guid? checkingExerciseId = null)
+    private async Task ClearOutputAsync(BlobContainerClient container, Guid checkingWindowId, CheckingExerciseType? exercise, string errorLogBlobName, CancellationToken cancellationToken, Guid? checkingExerciseId = null)
     {
         if (!await container.ExistsAsync(cancellationToken))
         {

@@ -28,7 +28,8 @@ public class ValidateWindowController(IWindowService windowService, ICheckingExe
     private const string PageView = "~/Views/WindowAdmin/Validate.cshtml";
 
     [HttpGet("admin/windows/{id:guid}/{exercise}/validate")]
-    public IActionResult Index(Guid id, CheckingExerciseType exercise, Guid? exerciseId = null, bool returnToExercise = false)
+    [HttpGet("admin/windows/{id:guid}/exercises/{exerciseId:guid}/validate")]
+    public IActionResult Index(Guid id, CheckingExerciseType? exercise, Guid? exerciseId = null, bool returnToExercise = false)
     {
         return View(PageView, Model(id, exercise, exerciseId, returnToExercise));
     }
@@ -36,15 +37,17 @@ public class ValidateWindowController(IWindowService windowService, ICheckingExe
     // Live progress stream (step 1-7). EventSource can only issue GET, so validation runs here;
     // the client opens this on demand from the Start button rather than on page load.
     [HttpGet("admin/windows/{id:guid}/{exercise}/validate/stream")]
-    public IResult Stream(Guid id, CheckingExerciseType exercise, CancellationToken cancellationToken, Guid? exerciseId = null)
+    [HttpGet("admin/windows/{id:guid}/exercises/{exerciseId:guid}/validate/stream")]
+    public IResult Stream(Guid id, CheckingExerciseType? exercise, CancellationToken cancellationToken, Guid? exerciseId = null)
     {
         return Results.ServerSentEvents(Run(id, exercise, cancellationToken, exerciseId), eventType: "progress");
     }
 
     // No-JS fallback: run to completion and render the final summary.
     [HttpPost("admin/windows/{id:guid}/{exercise}/validate")]
+    [HttpPost("admin/windows/{id:guid}/exercises/{exerciseId:guid}/validate")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Validate(Guid id, CheckingExerciseType exercise, CancellationToken cancellationToken, Guid? exerciseId = null, bool returnToExercise = false)
+    public async Task<IActionResult> Validate(Guid id, CheckingExerciseType? exercise, CancellationToken cancellationToken, Guid? exerciseId = null, bool returnToExercise = false)
     {
         ValidationProgress? last = null;
         await foreach (ValidationProgress progress in Run(id, exercise, cancellationToken, exerciseId))
@@ -60,10 +63,10 @@ public class ValidateWindowController(IWindowService windowService, ICheckingExe
         return View(PageView, model);
     }
 
-    private ValidationViewModel Model(Guid id, CheckingExerciseType exercise, Guid? exerciseId = null, bool returnToExercise = false) => new()
+    private ValidationViewModel Model(Guid id, CheckingExerciseType? exercise, Guid? exerciseId = null, bool returnToExercise = false) => new()
     {
         WindowId = id,
-        ExerciseLabel = ExerciseLabels.For(exercise),
+        ExerciseLabel = exercise is null ? "data" : ExerciseLabels.For(exercise),
         StreamUrl = Url.Action(nameof(Stream), "ValidateWindow", new { id, exercise, exerciseId }),
         PostUrl = Url.Action(nameof(Validate), "ValidateWindow", new { id, exercise, exerciseId, returnToExercise }),
         CancelUrl = returnToExercise && exerciseId is not null
@@ -75,7 +78,7 @@ public class ValidateWindowController(IWindowService windowService, ICheckingExe
     // before the terminal event reaches the caller.
     private async IAsyncEnumerable<ValidationProgress> Run(
         Guid id,
-        CheckingExerciseType exercise,
+        CheckingExerciseType? exercise,
         [EnumeratorCancellation] CancellationToken cancellationToken, Guid? exerciseId = null)
     {
         CheckingWindowDto? window = await windowService.GetByIdAsync(id, cancellationToken);

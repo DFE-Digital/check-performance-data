@@ -57,7 +57,6 @@ public sealed class CheckingExerciseCreationPersistenceTests : IAsyncLifetime
     {
         await using var db = Context();
         var migrator = db.GetService<Microsoft.EntityFrameworkCore.Migrations.IMigrator>();
-        await migrator.MigrateAsync("20260914150016_ProtectLegacyExerciseStorage");
         var now = new DateTime(2026, 9, 15);
         var exercise = new CheckingExercise
         {
@@ -73,6 +72,7 @@ public sealed class CheckingExerciseCreationPersistenceTests : IAsyncLifetime
         };
         db.CheckingWindows.Add(window);
         await db.SaveChangesAsync();
+        await migrator.MigrateAsync("20260914150016_ProtectLegacyExerciseStorage");
         await db.Database.ExecuteSqlInterpolatedAsync($"""
             UPDATE "CheckingExercises" SET "Stage" = 'Revised', "DataType" = {oldDataType} WHERE "Id" = {exercise.Id}
             """);
@@ -137,7 +137,7 @@ public sealed class CheckingExerciseCreationPersistenceTests : IAsyncLifetime
         {
             WindowId = parent.Id, Name = "Revised students",
             ExerciseType = CheckingExerciseType.PupilData,
-            TabName = "Students", TabOrder = 2, SortOrder = 3, IsEnabled = true,
+            TabName = "Students", TabOrder = 2, SortOrder = 3, IsEnabled = true, DisplayOnly = true,
             VisibleFrom = now, VisibleUntil = now.AddMonths(2), ReplacesCheckingExerciseId = previous.Id,
             Dates = new() { StartDate = now.AddDays(5), StartHour = 9, EndDate = now.AddDays(10), EndHour = 17 }
         }, default));
@@ -154,6 +154,7 @@ public sealed class CheckingExerciseCreationPersistenceTests : IAsyncLifetime
         Assert.Equal(2, created.TabOrder);
         Assert.Equal(3, created.SortOrder);
         Assert.True(created.IsEnabled);
+        Assert.True(created.DisplayOnly);
         Assert.True(created.UsesExerciseStorage);
         Assert.Equal(previous.Id, created.ReplacesCheckingExerciseId);
         Assert.Equal(now, created.VisibleFrom);
@@ -186,6 +187,8 @@ public sealed class CheckingExerciseCreationPersistenceTests : IAsyncLifetime
         edit.TabName = "Results";
         edit.TabOrder = 4;
         edit.SortOrder = 6;
+        Assert.True(edit.DisplayOnly);
+        edit.DisplayOnly = false;
         edit.IsEnabled = false;
         edit.VisibleFrom = now.AddHours(9);
         edit.VisibleUntil = now.AddDays(20).AddHours(17);
@@ -200,6 +203,7 @@ public sealed class CheckingExerciseCreationPersistenceTests : IAsyncLifetime
         Assert.Equal(4, edited.TabOrder);
         Assert.Equal(6, edited.SortOrder);
         Assert.False(edited.IsEnabled);
+        Assert.False(edited.DisplayOnly);
         Assert.Equal(edit.VisibleFrom, edited.VisibleFrom);
         Assert.Equal(edit.VisibleUntil, edited.VisibleUntil);
         Assert.Equal(edit.Dates.EndDateTime, edited.EndDate);
@@ -225,6 +229,29 @@ public sealed class CheckingExerciseCreationPersistenceTests : IAsyncLifetime
         Assert.Equal(datasetCount + 1, await db.Set<CheckingWindowDataset>().CountAsync(d => d.CheckingExerciseId == created.Id));
         Assert.Single(await db.Set<CheckingWindowDataset>().Where(d => d.CheckingExerciseId == previous.Id).ToListAsync());
     }
+    [Theory]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    public async Task Untyped_exercises_require_display_only_and_exercise_scoped_storage(bool displayOnly, bool usesExerciseStorage)
+    {
+        await using var db = Context();
+        var now = DateTime.SpecifyKind(DateTime.Today, DateTimeKind.Unspecified);
+        var exercise = new CheckingExercise
+        {
+            Id = Guid.NewGuid(), Name = "Summary", TabName = "Summary", ExerciseType = null,
+            DisplayOnly = displayOnly, UsesExerciseStorage = usesExerciseStorage,
+            StartDate = now, EndDate = now.AddDays(1)
+        };
+        db.CheckingWindows.Add(new CheckingWindow
+        {
+            Id = Guid.NewGuid(), Title = "Summary", CheckingWindowType = CheckingWindowType.Post16,
+            KeyStage = KeyStages.Post16, StartDate = now, EndDate = now.AddDays(1), CheckingExercises = [exercise]
+        });
+        var error = await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
+        var postgresError = Assert.IsType<Npgsql.PostgresException>(error.InnerException);
+        Assert.Equal("CK_CheckingExercises_TypeOrDisplayOnly", postgresError.ConstraintName);
+    }
+
 }
 
 public sealed class CheckingExerciseAdminRenderTests
@@ -287,7 +314,7 @@ public sealed class CheckingExerciseAdminRenderTests
         Assert.Contains("Entered name", html);
         Assert.Contains("There is a problem", html);
         Assert.Contains("Enter a real start date", html);
-        foreach (var field in new[] { "Name", "ExerciseType", "TabName", "TabOrder", "SortOrder", "ReplacesCheckingExerciseId" })
+        foreach (var field in new[] { "Name", "ExerciseType", "TabName", "TabOrder", "SortOrder", "DisplayOnly", "ReplacesCheckingExerciseId" })
             Assert.Contains($"name=\"{field}\"", html);
         // Error-summary links must target elements that exist in the rendered GOV.UK controls.
         foreach (Match match in Regex.Matches(html, "href=\"#([^\"]+)\""))
@@ -415,6 +442,26 @@ public sealed class CheckingExerciseAdminRenderTests
         StartDate = new DateTime(2026, 10, 1), EndDate = new DateTime(2026, 10, 31)
     };
 
+    [Fact]
+    public async Task Display_only_tab_renders_data_without_journey_or_closed_message()
+    {
+        var now = DateTime.Today;
+        var exercise = new DfE.CheckPerformanceData.Application.WindowManagement.CheckingDataExercise(
+            Guid.NewGuid(), Guid.NewGuid(), "Summary", "Summary", 0,
+            null, KeyStages.Post16, true, null, null,
+            now.AddDays(-1), now.AddDays(1), now.AddDays(-1), now.AddDays(1), null,
+            UsesExerciseStorage: true, DisplayOnly: true);
+        IReadOnlyList<DfE.CheckPerformanceData.Web.Controllers.CheckingDataTab> tabs =
+            [new(exercise, false, [new Dictionary<string, string> { ["Total"] = "4" }])];
+        var html = await Render("/Views/CheckingData/Index.cshtml", tabs);
+        Assert.Contains("Summary", html);
+        Assert.Contains("Total", html);
+        Assert.Contains("You can view and download this data.", html);
+        Assert.Contains("Download Summary data", html);
+        Assert.DoesNotContain("Request a change", html);
+        Assert.DoesNotContain("Checking is closed", html);
+    }
+
     private static async Task<string> Render<T>(string name, T model, ModelStateDictionary? errors = null)
     {
         using var host = await new HostBuilder().ConfigureWebHost(web =>
@@ -422,10 +469,19 @@ public sealed class CheckingExerciseAdminRenderTests
             web.UseTestServer();
             web.ConfigureServices(services =>
             {
-                services.AddControllersWithViews().AddApplicationPart(typeof(SummaryController).Assembly);
+                services.AddControllersWithViews().AddApplicationPart(typeof(SummaryController).Assembly)
+                .AddApplicationPart(typeof(GovUk.Frontend.AspNetCore.TagHelpers.CheckboxesTagHelper).Assembly);
                 services.AddGovUkFrontend();
+                var content = Substitute.For<DfE.CheckPerformanceData.Application.ContentBlocks.IContentBlockService>();
+                content.EnsureAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
+                    .Returns(call => new DfE.CheckPerformanceData.Application.ContentBlocks.ContentBlockDto
+                    {
+                        Key = call.ArgAt<string>(0), ValueHtml = call.ArgAt<string>(2)
+                    });
+                services.AddSingleton(content);
                 var urls = Substitute.For<IUrlHelper>();
                 urls.Action(Arg.Any<UrlActionContext>()).Returns("/admin/windows");
+            urls.Content(Arg.Any<string>()).Returns(call => call.Arg<string>().Replace("~/", "/"));
                 var urlFactory = Substitute.For<IUrlHelperFactory>();
                 urlFactory.GetUrlHelper(Arg.Any<ActionContext>()).Returns(urls);
                 services.AddSingleton(urlFactory);
@@ -434,10 +490,10 @@ public sealed class CheckingExerciseAdminRenderTests
         }).StartAsync();
         using var scope = host.Services.CreateScope();
         var services = scope.ServiceProvider;
-        var http = new DefaultHttpContext { RequestServices = services };
+        var http = new DefaultHttpContext { RequestServices = services, Session = Substitute.For<ISession>() };
         var action = new ActionContext(http, new RouteData(), new ActionDescriptor());
         var view = services.GetRequiredService<ICompositeViewEngine>()
-            .GetView(null, $"/Views/WindowAdmin/{name}.cshtml", false);
+            .GetView(null, name.StartsWith("/") ? name : $"/Views/WindowAdmin/{name}.cshtml", false);
         Assert.True(view.Success);
         var data = new ViewDataDictionary<T>(services.GetRequiredService<IModelMetadataProvider>(),
             errors ?? new ModelStateDictionary()) { Model = model };

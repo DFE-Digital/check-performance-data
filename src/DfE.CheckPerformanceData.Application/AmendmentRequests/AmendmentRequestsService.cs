@@ -74,14 +74,14 @@ public sealed class AmendmentRequestsService(
             // #320: a deadline per exercise the window runs, not the outer window's end date. The
             // grid lists both populations, and on a 16-19 window pupil data checking shuts months
             // before results enquiry does — one date could only ever be right for one of them.
-            Deadlines = window.Exercises
+            Deadlines = window.Exercises.Where(e => !e.DisplayOnly && e.ExerciseType.HasValue)
                 .OrderBy(e => e.SortOrder)
                 .Select(e => new ExerciseDeadlineDto
                 {
-                    Exercise = e.ExerciseType,
+                    Exercise = e.ExerciseType!.Value,
                     EndDate = e.EndDate,
                     // The clock lives in one place, so "has this closed" is asked, never computed.
-                    IsOpen = checkingExercises.IsOpen(window.Exercises, e.ExerciseType)
+                    IsOpen = checkingExercises.IsOpen(window.Exercises, e.ExerciseType!.Value)
                 })
                 .ToList(),
             Rows = requests.Select(r => new AmendmentRequestDto

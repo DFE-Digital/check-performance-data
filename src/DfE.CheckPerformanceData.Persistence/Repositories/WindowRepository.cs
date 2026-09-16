@@ -35,6 +35,7 @@ public sealed class WindowRepository(PortalDbContext dbContext, IMemoryCache? ca
                         TabName = e.TabName,
                         TabOrder = e.TabOrder,
                         IsEnabled = e.IsEnabled,
+                        DisplayOnly = e.DisplayOnly,
                         VisibleFrom = e.VisibleFrom,
                         VisibleUntil = e.VisibleUntil,
                         WindowStart = w.StartDate,
@@ -101,6 +102,7 @@ public sealed class WindowRepository(PortalDbContext dbContext, IMemoryCache? ca
                         TabName = e.TabName,
                         TabOrder = e.TabOrder,
                         IsEnabled = e.IsEnabled,
+                        DisplayOnly = e.DisplayOnly,
                         VisibleFrom = e.VisibleFrom,
                         VisibleUntil = e.VisibleUntil,
                         WindowStart = w.StartDate,
@@ -219,6 +221,7 @@ public sealed class WindowRepository(PortalDbContext dbContext, IMemoryCache? ca
             existing.TabName = dto.TabName;
             existing.TabOrder = dto.TabOrder;
             existing.IsEnabled = dto.IsEnabled;
+            existing.DisplayOnly = dto.DisplayOnly;
             existing.VisibleFrom = dto.VisibleFrom;
             existing.VisibleUntil = dto.VisibleUntil;
             existing.ReplacesCheckingExerciseId = dto.ReplacesCheckingExerciseId;
@@ -336,6 +339,7 @@ public sealed class WindowRepository(PortalDbContext dbContext, IMemoryCache? ca
                 TabName = dto.TabName,
                 TabOrder = dto.TabOrder,
                 IsEnabled = dto.IsEnabled,
+                DisplayOnly = dto.DisplayOnly,
                 VisibleFrom = dto.VisibleFrom,
                 VisibleUntil = dto.VisibleUntil,
                 ReplacesCheckingExerciseId = dto.ReplacesCheckingExerciseId,
@@ -376,6 +380,7 @@ public sealed class WindowRepository(PortalDbContext dbContext, IMemoryCache? ca
                     TabName = e.TabName,
                     TabOrder = e.TabOrder,
                     IsEnabled = e.IsEnabled,
+                    DisplayOnly = e.DisplayOnly,
                     VisibleFrom = e.VisibleFrom,
                     VisibleUntil = e.VisibleUntil,
                     WindowStart = entity.StartDate,

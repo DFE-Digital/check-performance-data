@@ -21,7 +21,7 @@ public sealed class CheckingDataCatalogue(PortalDbContext db, TimeProvider clock
                 x.Exercise.TabName!, x.Exercise.TabOrder,
                 x.Exercise.ExerciseType, x.Window.KeyStage, x.Exercise.IsEnabled,
                 x.Exercise.VisibleFrom, x.Exercise.VisibleUntil, x.Window.StartDate, x.Window.EndDate,
-                x.Exercise.StartDate, x.Exercise.EndDate, x.Exercise.ReplacesCheckingExerciseId, x.Exercise.UsesExerciseStorage))
+                x.Exercise.StartDate, x.Exercise.EndDate, x.Exercise.ReplacesCheckingExerciseId, x.Exercise.UsesExerciseStorage, x.Exercise.DisplayOnly))
             .ToListAsync(cancellationToken);
     }
 }

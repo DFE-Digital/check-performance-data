@@ -69,6 +69,13 @@ public sealed class ResultsEnquirySubmissionTests(PostgresFixture fixture)
         var blob = new InMemoryRequestStateBlobClient();
         var queue = Substitute.For<IQueueService>();
 
+        var pupilData = Substitute.For<ICheckYourPupilDataService>();
+        pupilData.GetCheckingWindowAsync(Arg.Any<Guid>()).Returns(new DfE.CheckPerformanceData.Application.LandingPage.CheckingWindowDto
+        {
+            Title = "Checking window", KeyStage = KeyStages.Post16,
+            CheckingWindowType = CheckingWindowType.Post16,
+            StartDate = DateTime.Today.AddDays(-1), EndDate = DateTime.Today.AddDays(1)
+        });
         var service = new RequestService(
             Substitute.For<IQuestionFlowService>(),
             blob,
@@ -77,7 +84,7 @@ public sealed class ResultsEnquirySubmissionTests(PostgresFixture fixture)
             NullLogger<RequestService>.Instance,
             queue,
             Substitute.For<IRequestNotificationService>(),
-            Substitute.For<ICheckYourPupilDataService>(),
+            pupilData,
             new CheckingExerciseService(TimeProvider.System));
 
         return (service, blob, queue);

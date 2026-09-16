@@ -24,7 +24,8 @@ public sealed class CheckingExerciseIngressCollectionTests(PostgresFixture postg
     [InlineData(CheckingWindowType.Post16, 2, CheckingExerciseType.PupilData)]
     [InlineData(CheckingWindowType.Post16, 4, CheckingExerciseType.PupilData)]
     [InlineData(CheckingWindowType.Post16, 3, CheckingExerciseType.ResultsEnquiry)]
-    public async Task Generic_collection_persists_and_processes_every_correctly_paired_input(CheckingWindowType type, int count, CheckingExerciseType exerciseType)
+    [InlineData(CheckingWindowType.Post16, 1, null)]
+    public async Task Generic_collection_persists_and_processes_every_correctly_paired_input(CheckingWindowType type, int count, CheckingExerciseType? exerciseType)
     {
         await using var db = postgres.CreateContext();
         var windows = new WindowRepository(db);
@@ -39,7 +40,7 @@ public sealed class CheckingExerciseIngressCollectionTests(PostgresFixture postg
             EndDate = now.AddDays(1),
             Exercises = [new CheckingExerciseDto
             {
-                ExerciseType = exerciseType, StartDate = now.AddDays(-1), EndDate = now.AddDays(1),
+                ExerciseType = exerciseType, DisplayOnly = exerciseType is null, StartDate = now.AddDays(-1), EndDate = now.AddDays(1),
                 Name = "Collection", TabName = "Students", IsEnabled = true,
                 Datasets = Enumerable.Range(0, count).Select(i => new CheckingWindowDatasetDto { Name = $"pair-{i}", SortOrder = i }).ToList()
             }]
@@ -94,6 +95,16 @@ public sealed class CheckingExerciseIngressCollectionTests(PostgresFixture postg
         Assert.Equal(count, tabs.Single(t => t.Exercise.Id == entity.Id).Rows.Count);
         Assert.Equal(1, last.FilesWritten); // Output belongs to the exercise, not to each input.
         Assert.NotNull(entity.Validated);
+        if (exerciseType is null)
+        {
+            Assert.Null(visible.ExerciseType);
+            Assert.True(visible.DisplayOnly);
+            Assert.False(tabs.Single(t => t.Exercise.Id == entity.Id).CanAct);
+            Assert.Equal(403, Assert.IsType<StatusCodeResult>(await page.Start(entity.Id, default)).StatusCode);
+            Assert.Equal(output, Assert.IsType<FileContentResult>(await page.Download(entity.Id, default)).FileContents);
+            Assert.True(await container.GetBlobClient(CheckingExerciseBlobPaths.DataBlobName(entity.Id,
+                CheckingDataType.Other, "860/4070")).ExistsAsync());
+        }
         Assert.Equal(count, (await new CheckingExerciseDefinitionRepository(db, windows).GetAsync(entity.Id, default))!.Exercise.Datasets.Count);
 
         // An incomplete required pair must fail before a clear/write, preserving the existing output.

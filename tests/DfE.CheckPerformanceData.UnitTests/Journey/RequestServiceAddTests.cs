@@ -38,6 +38,13 @@ public sealed class RequestServiceAddTests
         _currentUser.Email.Returns("ada@school.test");
         _repository.UpsertAsync(Arg.Any<ChangeRequestData>()).Returns(ChangeRequestId);
 
+        _pupilData.GetCheckingWindowAsync(Arg.Any<Guid>()).Returns(new CheckingWindowDto
+        {
+            Title = "Checking window", KeyStage = KeyStages.Post16,
+            CheckingWindowType = CheckingWindowType.Post16,
+            StartDate = DateTime.Today.AddDays(-1), EndDate = DateTime.Today.AddDays(1)
+        });
+
         _sut = new RequestService(
             _flowService, _stateBlob, _repository, _currentUser,
             NullLogger<RequestService>.Instance, _queue, _notifications, _pupilData,

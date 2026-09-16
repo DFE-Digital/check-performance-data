@@ -91,9 +91,9 @@ public sealed class ExercisesController(IWindowService windowService) : Controll
         {
             WindowId = id,
             All = AllExercises,
-            Selected = window.Exercises.OrderBy(e => e.SortOrder).Select(e => e.ExerciseType).ToList(),
-            WithFiles = window.Exercises.Where(e => e.Datasets.Any(d => d.IsComplete))
-                .Select(e => e.ExerciseType).ToList(),
+            Selected = window.Exercises.Where(e => e.ExerciseType.HasValue).OrderBy(e => e.SortOrder).Select(e => e.ExerciseType!.Value).ToList(),
+            WithFiles = window.Exercises.Where(e => e.ExerciseType.HasValue && e.Datasets.Any(d => d.IsComplete))
+                .Select(e => e.ExerciseType!.Value).ToList(),
             PostUrl = Url.Action("Update", "Exercises", new { id }),
             CancelUrl = Url.Action("Index", "Summary", new { id })
         });
@@ -122,6 +122,7 @@ public sealed class ExercisesController(IWindowService windowService) : Controll
         // A newly ticked exercise starts on the window's own dates. That is a placeholder the admin
         // then edits, not an answer — but it means the window is never left holding an exercise with
         // no dates at all, which the union that derives the outer pair could not survive.
+        var untyped = window.Exercises.Where(e => e.ExerciseType is null).ToList();
         window.Exercises = wanted
             .SelectMany(type => window.Exercises.Where(e => e.ExerciseType == type).DefaultIfEmpty(new CheckingExerciseDto
             {
@@ -132,6 +133,7 @@ public sealed class ExercisesController(IWindowService windowService) : Controll
             }))
             .ToList();
 
+        window.Exercises.AddRange(untyped);
         await windowService.UpdateAsync(window, cancellationToken);
 
         return RedirectToAction("Index", "Summary", new { id });
@@ -152,8 +154,8 @@ public sealed class ExercisesController(IWindowService windowService) : Controll
             Selected = model.Selected,
             WithFiles = window is null
             ? []
-            : window.Exercises.Where(e => e.Datasets.Any(d => d.IsComplete))
-                .Select(e => e.ExerciseType).ToList(),
+            : window.Exercises.Where(e => e.ExerciseType.HasValue && e.Datasets.Any(d => d.IsComplete))
+                .Select(e => e.ExerciseType!.Value).ToList(),
             PostUrl = postUrl,
             CancelUrl = cancelUrl
         };

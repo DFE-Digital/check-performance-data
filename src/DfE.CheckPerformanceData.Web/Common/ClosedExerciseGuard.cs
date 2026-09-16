@@ -43,8 +43,12 @@ public static class ClosedExerciseGuard
     /// Rejects the request: stashes the reason and sends the user back to Check your pupil data.
     /// </summary>
     public static RedirectToActionResult RedirectExerciseClosed(
-        this Controller controller, Guid windowId, CheckingExerciseType exercise, LearnerNoun noun)
+        this Controller controller, Guid windowId, CheckingExerciseType exercise, LearnerNoun noun,
+        IReadOnlyList<CheckingExerciseDto>? exercises = null)
     {
+        if (exercises?.Any(e => e.ExerciseType == exercise && e.DisplayOnly) == true)
+            return controller.RedirectToAction("Index", "CheckingData");
+
         controller.TempData[TempDataKey] = MessageFor(exercise, noun);
         return controller.RedirectToAction("Index", "CheckYourPupilData", new { windowId });
     }

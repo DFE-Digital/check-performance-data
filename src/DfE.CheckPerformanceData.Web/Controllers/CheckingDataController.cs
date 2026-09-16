@@ -72,7 +72,7 @@ public sealed class CheckingDataController(
     }
     private bool CanStart(CheckingDataExercise exercise, IReadOnlyList<CheckingDataExercise> visible)
         => exercise.CanAct(clock.GetLocalNow().DateTime)
-            && visible.Count(e => e.WindowId == exercise.WindowId && e.ExerciseType == exercise.ExerciseType) == 1;
+            && visible.Count(e => !e.DisplayOnly && e.WindowId == exercise.WindowId && e.ExerciseType == exercise.ExerciseType) == 1;
 
 }
 

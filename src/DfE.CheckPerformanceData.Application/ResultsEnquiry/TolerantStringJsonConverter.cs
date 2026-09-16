@@ -29,7 +29,7 @@ public sealed class TolerantStringJsonConverter : JsonConverter<string>
         => reader.TokenType switch
         {
             JsonTokenType.Null => string.Empty,
-            JsonTokenType.String => reader.GetString() ?? string.Empty,
+            JsonTokenType.String => (reader.GetString() ?? string.Empty).Trim(),
             // The raw token text, so 5 reads as "5" and not "5.0" via a round-trip through double.
             JsonTokenType.Number => Encoding.UTF8.GetString(
                 reader.HasValueSequence ? BuffersExtensions.ToArray(reader.ValueSequence) : reader.ValueSpan),

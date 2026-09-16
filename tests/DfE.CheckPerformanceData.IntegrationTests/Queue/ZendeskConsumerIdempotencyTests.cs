@@ -167,14 +167,13 @@ public sealed class ZendeskConsumerIdempotencyTests
         Assert.Equal(WorkerStatus.ZendeskTicketCreated, saved.WorkerStatus);
     }
 
-    // A row that never had a rules decision (WorkerStatus null — an Add request skips the rules
-    // queue) is still a request an admin closed. It must be ticketed, with DeriveDecision's
-    // Scrutiny fallback, rather than silently dropped by the claim.
+    // A results enquiry never passes the rules engine, so its WorkerStatus is null by design. It
+    // must be ticketed, with DeriveDecision's Scrutiny fallback, rather than dropped by the claim.
     [Fact]
-    public async Task RowWithNoRulesDecision_IsStillTicketed()
+    public async Task EnquiryRowWithNoRulesDecision_IsStillTicketed()
     {
         await ResetChangeRequestsAsync();
-        await SeedChangeRequestAsync(workerStatus: null);
+        await SeedChangeRequestAsync(workerStatus: null, requestType: RequestType.ResultsEnquiry);
 
         var zendesk = Substitute.For<IZendeskService>();
         zendesk.CreateTicketAsync(Arg.Any<CreateTicketRequestDto>())
@@ -192,6 +191,25 @@ public sealed class ZendeskConsumerIdempotencyTests
         var saved = await verify.ChangeRequests.SingleAsync(r => r.ReferenceNumber == Reference);
         Assert.Equal("7200", saved.CrmId);
         Assert.Equal(WorkerStatus.ZendeskTicketCreated, saved.WorkerStatus);
+    }
+
+    // An AMENDMENT with no rules decision is not claimable (SC-005): its decision was never
+    // recorded, so it must not be ticketed under a guess. But it must not be acked away either —
+    // throwing sends it to the DLQ with a reason an admin can act on.
+    [Fact]
+    public async Task AmendmentRowWithNoRulesDecision_ThrowsSoTheMessageIsRetriedNotAcked()
+    {
+        await ResetChangeRequestsAsync();
+        await SeedChangeRequestAsync(workerStatus: null, requestType: RequestType.Amendment);
+
+        var zendesk = Substitute.For<IZendeskService>();
+
+        await using var ctx = _fixture.CreateContext();
+        var consumer = new ZendeskConsumer(Substitute.For<DfE.CheckPerformanceData.Application.Queue.IQueueService>(), zendesk, ctx);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => consumer.ProcessMessageBodyAsync(Message, CancellationToken.None));
+        await zendesk.DidNotReceive().CreateTicketAsync(Arg.Any<CreateTicketRequestDto>());
     }
 
     // A row stuck in ZendeskTicketCreating with no ticket id is an earlier attempt that died
@@ -214,7 +232,9 @@ public sealed class ZendeskConsumerIdempotencyTests
         await zendesk.DidNotReceive().CreateTicketAsync(Arg.Any<CreateTicketRequestDto>());
     }
 
-    private async Task<Guid> SeedChangeRequestAsync(WorkerStatus? workerStatus = WorkerStatus.RulesProcessed)
+    private async Task<Guid> SeedChangeRequestAsync(
+        WorkerStatus? workerStatus = WorkerStatus.RulesProcessed,
+        RequestType requestType = RequestType.Amendment)
     {
         await using var ctx = _fixture.CreateContext();
         var window = new CheckingWindow
@@ -239,7 +259,7 @@ public sealed class ZendeskConsumerIdempotencyTests
             WorkerStatus = workerStatus,
             Status = RequestStatus.SubmittedCommitted,
             ReferenceNumber = Reference,
-            RequestType = RequestType.Amendment,
+            RequestType = requestType,
             RequestTypeDescription = "Not on roll",
             Outcome = DecisionStatus.Scrutiny,
         });

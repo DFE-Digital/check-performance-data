@@ -207,8 +207,10 @@ public sealed class ZendeskConsumer : ConsumerBase
     //
     // Two states are claimable, both meaning "no ticket exists and nobody is creating one":
     //   - RulesProcessed: the ordinary path, a rules decision has been recorded;
-    //   - null: no decision was ever recorded (an Add request skips the rules queue). It is
-    //     still a request an admin closed, and DeriveDecision falls back to Scrutiny for it.
+    //   - null, for a results enquiry only: an enquiry never passes the rules engine (FR-002), so
+    //     its status is NULL by design and DeriveDecision falls back to Scrutiny for it. A null
+    //     AMENDMENT is deliberately not claimable (SC-005): it means the rules decision was never
+    //     recorded, and it must surface on the DLQ rather than be ticketed under a guess.
     // ZendeskTicketCreating is deliberately NOT claimable — that is what makes the claim exclusive
     // under concurrency — so a failed attempt must hand its claim back (ReleaseTicketCreationClaimAsync)
     // for the redelivery to take.
@@ -220,7 +222,8 @@ public sealed class ZendeskConsumer : ConsumerBase
             claimed = await _dbContext.ChangeRequests
                 .Where(r => r.ReferenceNumber == referenceNumber
                     && r.CrmId == null
-                    && (r.WorkerStatus == WorkerStatus.RulesProcessed || r.WorkerStatus == null))
+                    && (r.WorkerStatus == WorkerStatus.RulesProcessed
+                        || (r.WorkerStatus == null && r.RequestType == RequestType.ResultsEnquiry)))
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(r => r.WorkerStatus, WorkerStatus.ZendeskTicketCreating),
                     cancellationToken);

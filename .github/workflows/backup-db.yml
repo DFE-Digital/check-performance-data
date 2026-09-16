@@ -40,6 +40,8 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: ${{ inputs.environment || 'production' }}
+      deployment: false
+
     env:
       DEPLOY_ENV: ${{ inputs.environment || 'production'  }}
       BACKUP_FILE: ${{ inputs.backup-file || 'schedule'  }}

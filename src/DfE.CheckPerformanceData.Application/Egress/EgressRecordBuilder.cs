@@ -45,9 +45,13 @@ public static class EgressRecordBuilder
         if (item.Source.OutputType != EgressOutputType.RemoveLearners) return;
 
         var reason = item.Source.Answer("reason");
-        var code = CorrectionCodes.RemoveReasonCode(reason);
+        var notOnRollReason = item.Source.Answer("not-on-roll-reason");
+        var code = CorrectionCodes.RemoveReasonCode(item.Source.WindowType, reason, notOnRollReason);
         if (code is null)
-            item.Fail(StepCodes, "Correction_Reason", $"No LDS correction reason code is defined for removal reason '{reason ?? "(none)"}'");
+        {
+            var detail = notOnRollReason is null ? $"'{reason ?? "(none)"}'" : $"'{reason}' / '{notOnRollReason}'";
+            item.Fail(StepCodes, "Correction_Reason", $"No LDS correction reason code is defined for removal reason {detail}");
+        }
         item.CorrectionReason = code;
     }
 

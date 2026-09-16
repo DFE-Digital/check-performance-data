@@ -163,8 +163,8 @@ public sealed class EgressRecordBuilderTests
     [Fact]
     public void A_16_19_removal_maps_the_chosen_academic_years_onto_Removal_Year_0_to_2()
     {
-        var source = Remove(reason: "student-died") with { WindowType = CheckingWindowType.Post16 };
-        source = source with { Answers = new Dictionary<string, string> { ["reason"] = "student-died", ["years-to-remove"] = "2025-2026|2023-2024" } };
+        var source = Remove(reason: "other") with { WindowType = CheckingWindowType.Post16 };
+        source = source with { Answers = new Dictionary<string, string> { ["reason"] = "other", ["years-to-remove"] = "2025-2026|2023-2024" } };
         var item = Run(source, cycleYear: "2026", cycleMonth: "10");
         Assert.Empty(item.Failures);
         Assert.Equal("16-19", item.RemoveRow!.KeyStage);
@@ -172,6 +172,7 @@ public sealed class EgressRecordBuilderTests
         Assert.Equal("FALSE", item.RemoveRow.RemovalYear1);   // 2024-2025
         Assert.Equal("TRUE", item.RemoveRow.RemovalYear2);    // 2023-2024
         Assert.Equal("", item.RemoveRow.YearGroup);
+        Assert.Equal("329", item.RemoveRow.CorrectionReason);
     }
 
     [Fact]
@@ -179,5 +180,25 @@ public sealed class EgressRecordBuilderTests
     {
         var item = Run(Remove(reason: "student-died") with { WindowType = CheckingWindowType.Post16 }, cycleMonth: "10");
         Assert.Equal(("", "", ""), (item.RemoveRow!.RemovalYear0, item.RemoveRow.RemovalYear1, item.RemoveRow.RemovalYear2));
+    }
+
+    [Fact]
+    public void A_16_19_not_on_roll_removal_uses_the_sub_reason_code()
+    {
+        var source = Remove(reason: "not-on-roll") with { WindowType = CheckingWindowType.Post16 };
+        source = source with { Answers = new Dictionary<string, string> { ["reason"] = "not-on-roll", ["not-on-roll-reason"] = "apprentice" } };
+        var item = Run(source, cycleMonth: "10");
+        Assert.Empty(item.Failures);
+        Assert.Equal("331", item.RemoveRow!.CorrectionReason);
+    }
+
+    [Fact]
+    public void A_16_19_not_on_roll_removal_without_a_sub_reason_fails_the_codes_step_naming_both()
+    {
+        var item = Run(Remove(reason: "not-on-roll") with { WindowType = CheckingWindowType.Post16 }, cycleMonth: "10");
+        var failure = Assert.Single(item.Failures);
+        Assert.Equal(EgressRecordBuilder.StepCodes, failure.Step);
+        Assert.Equal("Correction_Reason", failure.Field);
+        Assert.Contains("not-on-roll", failure.Reason);
     }
 }

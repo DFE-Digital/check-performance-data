@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.Egress;
 using DfE.CheckPerformanceData.Application.Journey;
+using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Egress;
 
@@ -38,18 +39,33 @@ public sealed class EgressTransformTests
     [InlineData("child-missing-education", "501")]
     [InlineData("permanently-left-england", "3")]
     [InlineData("year-group-change", "17")]
-    [InlineData("student-died", "4")]          // Post16 wording of the same reason
-    public void Remove_reason_becomes_the_bare_LDS_code(string reason, string expected)
-        => Assert.Equal(expected, CorrectionCodes.RemoveReasonCode(reason));
+    [InlineData("dual-registered-moved", "332")]
+    public void KS4_remove_reason_becomes_the_bare_LDS_code(string reason, string expected)
+        => Assert.Equal(expected, CorrectionCodes.RemoveReasonCode(CheckingWindowType.KS4June, reason, null));
+
+    // LDS_CYPMD_Data specification v2.4, "Remove Learner" K11 — the 16-19 codes. Not on roll is
+    // split by the journey's not-on-roll-reason; "other" always has evidence in CYPMD → 329.
+    [Theory]
+    [InlineData("student-died", null, "4")]
+    [InlineData("not-at-end-of-16-19-study", null, "325")]
+    [InlineData("other", null, "329")]
+    [InlineData("not-on-roll", "apprentice", "331")]
+    [InlineData("not-on-roll", "external-candidate", "328")]
+    [InlineData("not-on-roll", "international-student", "326")]
+    [InlineData("not-on-roll", "other", "329")]
+    public void Post16_remove_reason_becomes_the_spec_code(string reason, string? notOnRollReason, string expected)
+        => Assert.Equal(expected, CorrectionCodes.RemoveReasonCode(CheckingWindowType.Post16, reason, notOnRollReason));
 
     [Theory]
-    [InlineData("other")]
-    [InlineData("completed-ks4-elsewhere")]
-    [InlineData("not-at-end-of-16-19-study")]
-    [InlineData("")]
-    [InlineData(null)]
-    public void An_unmapped_reason_has_no_code_rather_than_a_guess(string? reason)
-        => Assert.Null(CorrectionCodes.RemoveReasonCode(reason));
+    [InlineData(CheckingWindowType.KS4June, "other", null)]
+    [InlineData(CheckingWindowType.KS4June, "completed-ks4-elsewhere", null)]
+    [InlineData(CheckingWindowType.Post16, "not-on-roll", null)]          // sub-reason missing
+    [InlineData(CheckingWindowType.Post16, "not-on-roll", "something")]
+    [InlineData(CheckingWindowType.Post16, "pupil-died", null)]           // KS4 wording on a 16-19 window
+    [InlineData(CheckingWindowType.KS4June, "", null)]
+    [InlineData(CheckingWindowType.KS4June, null, null)]
+    public void An_unmapped_reason_has_no_code_rather_than_a_guess(CheckingWindowType windowType, string? reason, string? notOnRollReason)
+        => Assert.Null(CorrectionCodes.RemoveReasonCode(windowType, reason, notOnRollReason));
 
     [Theory]
     [InlineData("2007-06-01", "2007-06-01")]

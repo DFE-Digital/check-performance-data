@@ -54,7 +54,7 @@ public sealed class LdsSpecValidatorTests
     [Theory]
     [InlineData("Sex", "Z")]
     [InlineData("Admission_Date", "")]
-    [InlineData("Year_Group", "7")]
+    [InlineData("Year_Group", "14")]
     [InlineData("UPN", "A8815412000110000")]
     [InlineData("URN", "")]
     public void A_new_learner_row_fails_on_the_named_field(string field, string bad)
@@ -81,10 +81,43 @@ public sealed class LdsSpecValidatorTests
         Assert.Empty(LdsSpecValidator.Validate(row));
     }
 
+    // v2.4: both sheets permit F, M and U ("can allow 'U' (unknown)").
     [Fact]
-    public void Sex_U_is_permitted_for_a_new_learner_but_not_a_removal()
+    public void Sex_U_is_permitted_on_both_files()
     {
         Assert.Empty(LdsSpecValidator.Validate(SampleRows.New() with { Sex = "U" }));
-        Assert.Single(LdsSpecValidator.Validate(SampleRows.Remove() with { Sex = "U" }));
+        Assert.Empty(LdsSpecValidator.Validate(SampleRows.Remove() with { Sex = "U" }));
     }
+
+    // v2.4 New Learner: Year_Group is 1-13 and NULL-able; ULN is varchar(11); Post_Code varchar(8).
+    [Theory]
+    [InlineData("1")]
+    [InlineData("13")]
+    [InlineData("")]
+    public void New_learner_year_group_may_be_blank_or_any_year_1_to_13(string yearGroup)
+        => Assert.Empty(LdsSpecValidator.Validate(SampleRows.New() with { YearGroup = yearGroup }));
+
+    [Theory]
+    [InlineData("Year_Group", "0")]
+    [InlineData("Year_Group", "14")]
+    [InlineData("Year_Group", "ten")]
+    [InlineData("ULN", "123456789012")]
+    [InlineData("ULN", "12345678A")]
+    [InlineData("Post_Code", "SW1A 1AA extra")]
+    public void New_learner_out_of_range_values_fail_on_the_named_field(string field, string bad)
+    {
+        var row = field switch
+        {
+            "Year_Group" => SampleRows.New() with { YearGroup = bad },
+            "ULN" => SampleRows.New() with { Uln = bad },
+            "Post_Code" => SampleRows.New() with { Postcode = bad },
+            _ => throw new ArgumentOutOfRangeException(nameof(field))
+        };
+        var failure = Assert.Single(LdsSpecValidator.Validate(row));
+        Assert.Equal(field, failure.Field);
+    }
+
+    [Fact]
+    public void New_learner_eleven_digit_ULN_and_eight_character_postcode_pass()
+        => Assert.Empty(LdsSpecValidator.Validate(SampleRows.New() with { Uln = "12345678901", Postcode = "SW1A 1AA" }));
 }

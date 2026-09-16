@@ -4,17 +4,16 @@ namespace DfE.CheckPerformanceData.Application.Egress;
 
 /// <summary>
 /// The "Validate against LDS spec" step. Required fields, permitted values and shapes, one failure
-/// per offending field. Rules that the spec workbook may tighten are marked FLAGGED in the PR
-/// notes; nothing here loosens as a work-around — a record that fails here fails the batch.
+/// per offending field. Values and shapes are LDS_CYPMD_Data specification v2.4; nothing here
+/// loosens as a work-around — a record that fails here fails the batch.
 /// </summary>
 public static partial class LdsSpecValidator
 {
     public const string StepName = "Validate against LDS spec";
 
     private static readonly HashSet<string> Stages = ["KS2", "KS4", "16-19"];
-    private static readonly HashSet<string> YearGroups = ["3", "4", "5", "6", "10", "11"];
-    private static readonly HashSet<string> RemoveSexes = ["M", "F"];
-    private static readonly HashSet<string> NewLearnerSexes = ["M", "F", "U"];
+    // v2.4: both sheets — "F" (female), "M" (male), "U" (unknown).
+    private static readonly HashSet<string> Sexes = ["F", "M", "U"];
 
     public static IReadOnlyList<EgressRecordFailure> Validate(RemoveLearnerRow row)
     {
@@ -26,7 +25,7 @@ public static partial class LdsSpecValidator
         f.DigitsOfLength("Establishment_Number", row.EstablishmentNumber, 4);
         f.Required("Surname", row.Surname);
         f.Required("Forename", row.Forename);
-        f.OneOf("Sex", row.Sex, RemoveSexes);
+        f.OneOf("Sex", row.Sex, Sexes);
         f.IsoDate("Date_of_Birth", row.DateOfBirth);
         f.DigitsOfLength("Cycle_Year", row.CycleYear, 4);
         f.Month("Cycle_Month", row.CycleMonth);
@@ -41,20 +40,21 @@ public static partial class LdsSpecValidator
         f.Digits("Correction_ID", row.CorrectionId);
         f.Equals("Correction_Type", row.CorrectionType, "10");
         f.OneOf("Key_Stage", row.KeyStage, Stages);
-        f.DigitsOfLength("Local_Authority", row.LocalAuthority, 3);
         f.DigitsOfLength("Establishment_Number", row.EstablishmentNumber, 4);
         f.Required("Surname", row.Surname);
         f.Required("Forename", row.Forename);
-        f.OneOf("Sex", row.Sex, NewLearnerSexes);
+        f.OneOf("Sex", row.Sex, Sexes);
         f.IsoDate("Date_of_Birth", row.DateOfBirth);
         f.IsoDate("Admission_Date", row.AdmissionDate);
+        f.OptionalMaxLength("Post_Code", row.Postcode, 8);
         f.DigitsOfLength("Cycle_Year", row.CycleYear, 4);
         f.Month("Cycle_Month", row.CycleMonth);
+        f.DigitsOfLength("Local_Authority", row.LocalAuthority, 3);
         f.Digits("URN", row.SchoolUrn);
-        f.OptionalDigits("ULN", row.Uln);
+        f.OptionalDigitsMaxLength("ULN", row.Uln, 11);
         f.OptionalMaxLength("UPN", row.Upn, 13);
         f.OptionalDigits("Learner_ID", row.LearnerId);
-        f.OneOf("Year_Group", row.YearGroup, YearGroups);
+        f.OptionalYearGroup("Year_Group", row.YearGroup);
         return f.List;
     }
 
@@ -99,6 +99,24 @@ public static partial class LdsSpecValidator
         public void OptionalMaxLength(string field, string value, int max)
         {
             if (value.Length > max) Add(field, $"must be {max} characters or fewer");
+        }
+
+        public void OptionalDigitsMaxLength(string field, string value, int max)
+        {
+            if (value.Length == 0) return;
+            if (!DigitsOnly().IsMatch(value)) Add(field, "must be a number when supplied");
+            else if (value.Length > max) Add(field, $"must be {max} digits or fewer");
+        }
+
+        public void OptionalOneOf(string field, string value, IReadOnlySet<string> permitted)
+        {
+            if (value.Length > 0 && !permitted.Contains(value)) Add(field, $"must be blank or one of {string.Join(", ", permitted.Order())}");
+        }
+
+        // Spec: Year_Group "1-13", NULL allowed.
+        public void OptionalYearGroup(string field, string value)
+        {
+            if (value.Length > 0 && (!int.TryParse(value, out var y) || y is < 1 or > 13)) Add(field, "must be blank or a year group 1 to 13");
         }
 
         public void OneOf(string field, string value, IReadOnlySet<string> permitted)

@@ -9,6 +9,10 @@ GoogleTagManager__Enabled: true
 GoogleTagManager__PreviewId: env-1
 Clarity__Enabled: true
 Clarity__ProjectId: wjs4rw6fei
+# Home-page banner: this beta is not the existing checking-exercise site. Wording and link
+# default in BetaBannerSettings; override here with BetaBanner__Message,
+# BetaBanner__ExistingSiteUrl and BetaBanner__ExistingSiteLinkText when the exercise changes.
+BetaBanner__Enabled: true
 
 # Notify template IDs, deadline text, and UTM parameters
 Notify__PupilDataCheckConfirmTemplateId: 04d5ea15-63a4-4e13-8ed8-548477f734b2

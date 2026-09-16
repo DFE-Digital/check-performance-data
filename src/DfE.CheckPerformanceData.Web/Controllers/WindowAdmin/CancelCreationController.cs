@@ -1,8 +1,11 @@
+using DfE.CheckPerformanceData.Web.Admin;
+using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Web.Extensions;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 
+[RequireAdminSection(AdminNavKeys.NewWindow)]
 public sealed class CancelCreationController : Controller
 {
     private const string PageView = "~/Views/WindowAdmin/CheckingWindow.cshtml";

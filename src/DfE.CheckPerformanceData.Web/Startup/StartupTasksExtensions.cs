@@ -38,6 +38,17 @@ public static class StartupTasksExtensions
         {
             using var scope = app.Services.CreateScope();
             await scope.ServiceProvider.GetRequiredService<IDevDataSeedingOrchestrator>().RunAsync();
+
+            // Content the automated browser tests navigate to, under its own /development-testing
+            // root. Seeded here as well as behind the admin button so a developer running the stack
+            // — and the ephemeral review app the browser suite runs against — always has it,
+            // without anyone remembering to press anything. Re-imported over the top every time,
+            // which is what brings back a fixture whose versions were deleted; nothing under that
+            // root is anyone's work, so there is nothing to lose.
+            //
+            // The gate is the same SeedDevelopmentData one as the rest of this block, which is set
+            // only on local, the deployed DEV app and the review apps.
+            await scope.ServiceProvider.GetRequiredService<TestFixturePageNodeSeeder>().SeedAsync();
         }
     }
 }

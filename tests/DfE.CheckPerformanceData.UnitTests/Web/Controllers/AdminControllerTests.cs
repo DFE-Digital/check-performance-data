@@ -1,8 +1,11 @@
 using System.Reflection;
+using System.Security.Claims;
+using DfE.CheckPerformanceData.Application.Admin;
 using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Web.Controllers;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Routing;
 using NSubstitute;
@@ -51,27 +54,28 @@ public sealed class AdminControllerTests
 	// --- Index_Returns_AdminLandingViewModel_As_Forest_Sorted_By_Order ---
 
 	[Fact]
-	public void Index_Returns_AdminLandingViewModel_As_Forest_Sorted_By_Order()
+	public async Task Index_Returns_AdminLandingViewModel_As_Forest_Sorted_By_Order()
 	{
 		// Two groups, two children each. Children intentionally out of Order to verify
-		// per-group sorting. Groups intentionally out of Order in the list to verify
+		// per-group sorting. Leaves carry a Url because the landing applies the sidebar's grant
+		// filter, which drops a container whose descendants are not navigable pages. Groups intentionally out of Order in the list to verify
 		// top-level sorting. The landing page now uses the recursive forest model.
 		var groupA = StubEntry(key: "cms-admin", parentKey: null, order: 10, title: "CMS administration");
-		var groupAChildHigh = StubEntry(key: "child-a-hi", parentKey: "cms-admin", order: 20, title: "Child A2");
-		var groupAChildLow = StubEntry(key: "child-a-lo", parentKey: "cms-admin", order: 10, title: "Child A1");
+		var groupAChildHigh = StubEntry(key: "child-a-hi", parentKey: "cms-admin", order: 20, title: "Child A2", url: "/admin/a2");
+		var groupAChildLow = StubEntry(key: "child-a-lo", parentKey: "cms-admin", order: 10, title: "Child A1", url: "/admin/a1");
 
 		var groupB = StubEntry(key: "system-admin", parentKey: null, order: 20, title: "System administration");
-		var groupBChildHigh = StubEntry(key: "child-b-hi", parentKey: "system-admin", order: 20, title: "Child B2");
-		var groupBChildLow = StubEntry(key: "child-b-lo", parentKey: "system-admin", order: 10, title: "Child B1");
+		var groupBChildHigh = StubEntry(key: "child-b-hi", parentKey: "system-admin", order: 20, title: "Child B2", url: "/admin/b2");
+		var groupBChildLow = StubEntry(key: "child-b-lo", parentKey: "system-admin", order: 10, title: "Child B1", url: "/admin/b1");
 
 		var entries = new List<IAdminNavEntry>
 		{
 			groupB, groupAChildHigh, groupA, groupBChildLow, groupAChildLow, groupBChildHigh
 		};
 
-		var sut = new AdminController(entries);
+		var sut = AllowAll(entries);
 
-		var result = sut.Index();
+		var result = await sut.Index();
 
 		var view = Assert.IsType<ViewResult>(result);
 		var model = Assert.IsType<AdminLandingViewModel>(view.Model);
@@ -94,7 +98,7 @@ public sealed class AdminControllerTests
 	// --- Index_Nests_Empty_Url_Container_With_Its_Child_Links ---
 
 	[Fact]
-	public void Index_Nests_Empty_Url_Container_With_Its_Child_Links()
+	public async Task Index_Nests_Empty_Url_Container_With_Its_Child_Links()
 	{
 		// Regression: the "Rules Engine" sub-group is a container with an empty Url whose children
 		// are the real pages. The landing model must expose the container WITH its children nested,
@@ -107,9 +111,9 @@ public sealed class AdminControllerTests
 		var page = StubEntry(key: "rules-config", parentKey: "rules-engine-group", order: 30,
 			title: "Rules Engine configuration", url: "/admin/rules", enabled: true);
 
-		var sut = new AdminController(new List<IAdminNavEntry> { group, container, page });
+		var sut = AllowAll(new List<IAdminNavEntry> { group, container, page });
 
-		var result = sut.Index();
+		var result = await sut.Index();
 
 		var model = Assert.IsType<AdminLandingViewModel>(Assert.IsType<ViewResult>(result).Model);
 
@@ -120,6 +124,51 @@ public sealed class AdminControllerTests
 
 		var pageNode = Assert.Single(containerNode.Children);
 		Assert.Equal("/admin/rules", pageNode.Entry.Url);
+	}
+
+	// --- Index_Hides_Tiles_The_Users_Roles_Are_Not_Granted ---
+
+	[Fact]
+	public async Task Index_Hides_Tiles_The_Users_Roles_Are_Not_Granted()
+	{
+		// The landing must apply the same grant filter as the sidebar. It once rendered the
+		// full forest, so an editor-only user was shown a Manage windows tile that led straight
+		// to pages their role was never granted.
+		var group = StubEntry(key: "window-admin", parentKey: null, order: 10, title: "Window administration");
+		var granted = StubEntry(key: "new-window", parentKey: "window-admin", order: 10,
+			title: "New window", url: "/admin/windows/create-checking-window", enabled: true);
+		var denied = StubEntry(key: "manage-window", parentKey: "window-admin", order: 20,
+			title: "Manage windows", url: "/admin/windows", enabled: true);
+
+		var policy = Substitute.For<IAdminAccessPolicy>();
+		policy.CanAccessAsync(Arg.Any<ClaimsPrincipal>(), "new-window").Returns(true);
+		policy.CanAccessAsync(Arg.Any<ClaimsPrincipal>(), "manage-window").Returns(false);
+
+		var sut = new AdminController(new List<IAdminNavEntry> { group, granted, denied }, policy);
+		sut.ControllerContext = new ControllerContext
+		{
+			HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity()) }
+		};
+
+		var result = await sut.Index();
+
+		var model = Assert.IsType<AdminLandingViewModel>(Assert.IsType<ViewResult>(result).Model);
+		var root = Assert.Single(model.Roots);
+		var tile = Assert.Single(root.Children);
+		Assert.Equal("new-window", tile.Entry.Key);
+	}
+
+	private static AdminController AllowAll(IEnumerable<IAdminNavEntry> entries)
+	{
+		var policy = Substitute.For<IAdminAccessPolicy>();
+		policy.CanAccessAsync(Arg.Any<ClaimsPrincipal>(), Arg.Any<string>()).Returns(true);
+		return new AdminController(entries, policy)
+		{
+			ControllerContext = new ControllerContext
+			{
+				HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity()) }
+			}
+		};
 	}
 
 	private static IAdminNavEntry StubEntry(

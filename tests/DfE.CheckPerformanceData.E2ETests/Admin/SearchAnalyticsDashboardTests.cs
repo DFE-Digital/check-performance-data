@@ -586,7 +586,10 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
             }
         }
 
-        var search = await userPage.GotoAsync($"{Fixture.BaseUrl}/search?q=widget");
+        // Search for the fixture keyword rather than a word that merely happens to be somewhere in
+        // the content. The assertion below is about how hits are rendered, so it needs hits to
+        // exist; searching for editor-owned prose made that a matter of luck, and it ran out.
+        var search = await userPage.GotoAsync($"{Fixture.BaseUrl}/search?q={FixtureContent.SearchTerm}");
         Assert.NotNull(search);
         Assert.Equal(200, search!.Status);
 

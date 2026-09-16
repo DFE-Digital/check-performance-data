@@ -36,7 +36,8 @@ public sealed class MessagesGroupAndDetailTests(PlaywrightFixture fixture) : See
             AttachCookieToContext(adminCookie);
 
             // Post one feedback so the badge count is at least 1 for the numeric-sum assertion.
-            await PostFeedbackAsync("widget", "widget was not returning results i expected", "u@example.com");
+            await PostFeedbackAsync(
+                FixtureContent.SearchTerm, "search was not returning results i expected", "u@example.com");
 
             var adminLanding = await Page.GotoAsync($"{Fixture.BaseUrl}/admin/");
             Assert.NotNull(adminLanding);
@@ -100,11 +101,15 @@ public sealed class MessagesGroupAndDetailTests(PlaywrightFixture fixture) : See
 
         try
         {
-            var whatLookingFor = $"e2e-{Guid.NewGuid():N} — cannot find the widget guide";
+            var whatLookingFor = $"e2e-{Guid.NewGuid():N} — cannot find the guide i wanted";
 
             // Post a feedback message. The message-service pins the row to the seed
             // HttpClient's session; the admin then reviews from a fresh admin session.
-            await PostFeedbackAsync("widget", whatLookingFor, email: null);
+            // The fixture keyword, not a word that merely happens to be in the content. The
+            // assertion further down is about how the prior-search hits are rendered, so it needs
+            // the search to have produced some; picking a term out of editor-owned prose made that
+            // a matter of luck, and it ran out.
+            await PostFeedbackAsync(FixtureContent.SearchTerm, whatLookingFor, email: null);
 
             var adminCookie = await AuthHelpers.ImpersonateAsAdminAsync(Fixture);
             AttachCookieToContext(adminCookie);

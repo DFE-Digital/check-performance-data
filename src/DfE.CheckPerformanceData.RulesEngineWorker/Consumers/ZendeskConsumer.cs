@@ -135,24 +135,49 @@ public sealed class ZendeskConsumer : ConsumerBase
         // Durably claim the "ticket created" transition before calling Zendesk. The claim flips
         // the status out of RulesProcessed in a single atomic UPDATE, so of two concurrent
         // deliveries that both saw CrmId == null only one flips a row — the loser gets zero rows
-        // affected and skips without ever calling Zendesk, so no duplicate ticket is created.
-        // A redelivery of this worker's own crashed attempt (status already Creating, CrmId
-        // still null) re-claims and retries rather than stranding the request.
+        // affected and never calls Zendesk, so no duplicate ticket is created. A failed attempt
+        // hands its claim back (see the catch below) so its own redelivery can claim afresh.
         if (!await TryClaimTicketCreationAsync(message.ReferenceNumber, cancellationToken))
         {
-            return;
+            // A lost claim is only benign when a ticket now exists (a concurrent delivery won and
+            // finished). Otherwise the row is stuck in ZendeskTicketCreating — an attempt that died
+            // mid-call, or another worker still in flight — and returning here would ACK the
+            // message as handled and lose the request with nothing dead-lettered. Throw instead:
+            // the queue retries, and a row that stays stuck reaches the DLQ with this reason.
+            var current = await LoadChangeRequestAsync(message.ReferenceNumber, cancellationToken);
+            if (!string.IsNullOrEmpty(current?.CrmId))
+            {
+                return;
+            }
+
+            throw new InvalidOperationException(
+                $"Could not claim ticket creation for Reference={message.ReferenceNumber}: " +
+                $"WorkerStatus={current?.WorkerStatus?.ToString() ?? "null"}, row found={current is not null}.");
         }
 
         var decision = DeriveDecision(message, changeRequest);
         var ticket = BuildTicket(message, decision);
-        var response = await _zendeskService.CreateTicketAsync(ticket);
 
-        var files = message.Answers
-            .Where(a => a.Files is not null)
-            .SelectMany(a => a.Files!);
-        foreach (var file in files)
+        CreateTicketResponseDto response;
+        try
         {
-            await UploadAttachmentToTicketAsync(response.Ticket.Id, message.CheckingWindowId, file, cancellationToken);
+            response = await _zendeskService.CreateTicketAsync(ticket);
+
+            var files = message.Answers
+                .Where(a => a.Files is not null)
+                .SelectMany(a => a.Files!);
+            foreach (var file in files)
+            {
+                await UploadAttachmentToTicketAsync(response.Ticket.Id, message.CheckingWindowId, file, cancellationToken);
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Hand the claim back so the redelivery can take it. Without this the retry finds the
+            // row in ZendeskTicketCreating, cannot claim it, and the request is lost — every one of
+            // a 120-request preprod replay went this way after Zendesk returned 422.
+            await ReleaseTicketCreationClaimAsync(message.ReferenceNumber, cancellationToken);
+            throw;
         }
 
         var crmId = response.Ticket.Id.ToString(CultureInfo.InvariantCulture);
@@ -174,13 +199,21 @@ public sealed class ZendeskConsumer : ConsumerBase
             response.Ticket.Id, message.ReferenceNumber, decision.Status, decision.MatchedRuleId);
     }
 
-    // Atomically flips the request from RulesProcessed into the in-progress "creating" state.
-    // Returns true to the single delivery that wins the flip. The flip is exclusive: Postgres
-    // takes a row lock on the matching row, so of two concurrent deliveries the second re-checks
-    // its WHERE against the winner's committed row — which is no longer RulesProcessed — and
-    // matches zero rows. The loser therefore skips without ever calling Zendesk, so concurrent
-    // redelivery cannot create a duplicate ticket. CrmId == null keeps an already-ticketed
-    // request (whose status is ZendeskTicketCreated) from ever being re-claimed.
+    // Atomically claims the request for ticket creation. Returns true to the single delivery that
+    // wins. The flip is exclusive: Postgres takes a row lock on the matching row, so of two
+    // concurrent deliveries the second re-checks its WHERE against the winner's committed row —
+    // now ZendeskTicketCreating — and matches zero rows, so it never calls Zendesk and no duplicate
+    // ticket is created. CrmId == null keeps an already-ticketed request from being re-claimed.
+    //
+    // Two states are claimable, both meaning "no ticket exists and nobody is creating one":
+    //   - RulesProcessed: the ordinary path, a rules decision has been recorded;
+    //   - null, for a results enquiry only: an enquiry never passes the rules engine (FR-002), so
+    //     its status is NULL by design and DeriveDecision falls back to Scrutiny for it. A null
+    //     AMENDMENT is deliberately not claimable (SC-005): it means the rules decision was never
+    //     recorded, and it must surface on the DLQ rather than be ticketed under a guess.
+    // ZendeskTicketCreating is deliberately NOT claimable — that is what makes the claim exclusive
+    // under concurrency — so a failed attempt must hand its claim back (ReleaseTicketCreationClaimAsync)
+    // for the redelivery to take.
     private async Task<bool> TryClaimTicketCreationAsync(string referenceNumber, CancellationToken cancellationToken)
     {
         var claimed = 0;
@@ -189,13 +222,41 @@ public sealed class ZendeskConsumer : ConsumerBase
             claimed = await _dbContext.ChangeRequests
                 .Where(r => r.ReferenceNumber == referenceNumber
                     && r.CrmId == null
-                    && r.WorkerStatus == WorkerStatus.RulesProcessed)
+                    && (r.WorkerStatus == WorkerStatus.RulesProcessed
+                        || (r.WorkerStatus == null && r.RequestType == RequestType.ResultsEnquiry)))
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(r => r.WorkerStatus, WorkerStatus.ZendeskTicketCreating),
                     cancellationToken);
         }, cancellationToken);
 
         return claimed == 1;
+    }
+
+    // Undoes TryClaimTicketCreationAsync after a failed create so the redelivery can claim again.
+    // Guarded on CrmId == null and the Creating state so it can never disturb a row that a
+    // concurrent delivery has since ticketed. Best effort: if this write itself fails, the original
+    // exception is the one worth surfacing, and the row's stuck state surfaces on the next attempt.
+    private async Task ReleaseTicketCreationClaimAsync(string referenceNumber, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _dbContext.ExecuteInTransactionAsync(async () =>
+            {
+                await _dbContext.ChangeRequests
+                    .Where(r => r.ReferenceNumber == referenceNumber
+                        && r.CrmId == null
+                        && r.WorkerStatus == WorkerStatus.ZendeskTicketCreating)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(r => r.WorkerStatus, WorkerStatus.RulesProcessed),
+                        cancellationToken);
+            }, cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex,
+                "Could not release the ticket-creation claim for Reference={Reference}; the next attempt will report the stuck row.",
+                referenceNumber);
+        }
     }
 
     private async Task<ChangeRequest?> LoadChangeRequestAsync(string referenceNumber, CancellationToken cancellationToken)
@@ -349,14 +410,27 @@ public sealed class ZendeskConsumer : ConsumerBase
             });
         }
 
+        // CYPMD_ID is an integer field in Zendesk, and a value that does not parse as one makes
+        // Zendesk reject the whole ticket (422 "CYPMD ID: is invalid") — which is how a UAT seed
+        // with "CY0045" ids sank an entire close-exercise replay. Losing the one field is the
+        // lesser harm: the ticket still carries the UPN, name and DOB to identify the pupil.
         var cypmdFieldId = GetConfiguredFieldId(ZendeskTicketFieldConstants.CypmdName);
         if (cypmdFieldId.HasValue)
         {
-            dto.Ticket.CustomFields.Add(new CustomFieldDto
+            if (long.TryParse(message.Pupil.CypmdId, NumberStyles.None, CultureInfo.InvariantCulture, out _))
             {
-                Id = cypmdFieldId.Value,
-                Value = message.Pupil.CypmdId,
-            });
+                dto.Ticket.CustomFields.Add(new CustomFieldDto
+                {
+                    Id = cypmdFieldId.Value,
+                    Value = message.Pupil.CypmdId,
+                });
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "CYPMD id for Reference={Reference} is not an integer; omitting the CYPMD_ID field from the ticket.",
+                    message.ReferenceNumber);
+            }
         }
 
         var upnId = GetConfiguredFieldId(ZendeskTicketFieldConstants.UpnName);

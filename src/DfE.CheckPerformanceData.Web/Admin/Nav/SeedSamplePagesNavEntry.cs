@@ -1,7 +1,8 @@
 namespace DfE.CheckPerformanceData.Web.Admin.Nav;
 
 // Live admin nav entry that posts to /admin/pages/sample-seed to seed a small set of
-// published content pages under each of the four default root nodes. HttpMethod is POST so
+// published content pages under each of the four default root nodes, and — outside Production —
+// to refresh the fixture pages the automated browser tests navigate to. HttpMethod is POST so
 // the landing-page view renders this tile as a form-button rather than an anchor; double-click
 // prevention is wired in the view markup. ParentKey moved from CMS admin to the Test data
 // sub-group so both seed tiles cluster together; the route + controller action stay put so
@@ -12,7 +13,8 @@ public sealed record SeedSamplePagesNavEntry : IAdminNavEntry
     public string? ParentKey => AdminNavKeys.TestDataGroup;
     public string Title => "Seed sample CMS pages";
     public string Description =>
-        "Add a handful of published sample content pages under /wiki, /help, /support and /guidance for testing and demonstration.";
+        "Add a handful of published sample content pages under /wiki, /help, /support and /guidance for testing and demonstration, " +
+        "and restore the test fixture pages under /development-testing.";
     public string Url => "/admin/pages/sample-seed";
     public string HttpMethod => "POST";
     public bool Enabled => true;

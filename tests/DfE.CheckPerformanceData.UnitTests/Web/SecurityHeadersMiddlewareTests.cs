@@ -1,5 +1,7 @@
 using DfE.CheckPerformanceData.Web.Middleware;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Hosting;
+using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web;
 
@@ -9,13 +11,25 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Web;
 // rather than per-controller, and asserted here rather than left to a scan to notice.
 public sealed class SecurityHeadersMiddlewareTests
 {
-    private static async Task<HttpContext> Run(string method = "GET", Action<HttpContext>? arrange = null)
+    private static IHostEnvironment Env(string name)
+    {
+        var env = Substitute.For<IHostEnvironment>();
+        env.EnvironmentName.Returns(name);
+        return env;
+    }
+
+    private static readonly IHostEnvironment Production = Env(Environments.Production);
+
+    private static async Task<HttpContext> Run(
+        string method = "GET",
+        Action<HttpContext>? arrange = null,
+        IHostEnvironment? env = null)
     {
         var context = new DefaultHttpContext();
         context.Request.Method = method;
         arrange?.Invoke(context);
 
-        var sut = new SecurityHeadersMiddleware(_ => Task.CompletedTask);
+        var sut = new SecurityHeadersMiddleware(_ => Task.CompletedTask, env ?? Production);
         await sut.InvokeAsync(context);
         return context;
     }
@@ -70,7 +84,7 @@ public sealed class SecurityHeadersMiddlewareTests
         context.Request.Method = "TRACE";
         var reached = false;
 
-        var sut = new SecurityHeadersMiddleware(_ => { reached = true; return Task.CompletedTask; });
+        var sut = new SecurityHeadersMiddleware(_ => { reached = true; return Task.CompletedTask; }, Production);
         await sut.InvokeAsync(context);
 
         Assert.False(reached);
@@ -86,7 +100,7 @@ public sealed class SecurityHeadersMiddlewareTests
         context.Request.Method = method;
         var reached = false;
 
-        var sut = new SecurityHeadersMiddleware(_ => { reached = true; return Task.CompletedTask; });
+        var sut = new SecurityHeadersMiddleware(_ => { reached = true; return Task.CompletedTask; }, Production);
         await sut.InvokeAsync(context);
 
         Assert.True(reached);
@@ -114,5 +128,39 @@ public sealed class SecurityHeadersMiddlewareTests
         var context = await Run(arrange: c => c.Response.Headers["X-Content-Type-Options"] = "nosniff");
 
         Assert.Single(context.Response.Headers["X-Content-Type-Options"]);
+    }
+
+    // The QA site was ranking in the top Google results for the service (#444). Anonymous pages
+    // — Home, Search, content, Privacy — are crawlable on every host, and nothing told a crawler
+    // to stay away. A header rather than a meta tag: it covers static assets, PDFs and JSON as
+    // well as HTML, and it is the one signal that removes a page already in the index.
+    [Theory]
+    [InlineData("Development")]
+    [InlineData("Review")]
+    [InlineData("QA")]
+    [InlineData("Preproduction")]
+    public async Task NonProduction_TellsCrawlersNotToIndex(string environment)
+    {
+        var context = await Run(env: Env(environment));
+
+        Assert.Equal("noindex, nofollow", context.Response.Headers["X-Robots-Tag"]);
+    }
+
+    // Keyed on !IsProduction rather than a list of hidden names, so an environment nobody
+    // thought to list defaults to hidden.
+    [Fact]
+    public async Task AnUnknownEnvironment_IsHidden()
+    {
+        var context = await Run(env: Env("Staging2"));
+
+        Assert.Equal("noindex, nofollow", context.Response.Headers["X-Robots-Tag"]);
+    }
+
+    [Fact]
+    public async Task Production_DoesNotSetTheRobotsHeader()
+    {
+        var context = await Run(env: Production);
+
+        Assert.False(context.Response.Headers.ContainsKey("X-Robots-Tag"));
     }
 }

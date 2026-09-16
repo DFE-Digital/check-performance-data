@@ -1,3 +1,5 @@
+using DfE.CheckPerformanceData.Web.Admin;
+using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
@@ -6,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 
+[RequireAdminSection(AdminNavKeys.NewWindow)]
 public sealed class KeyStageController(IWindowService windowService): Controller
 {
     private const string PageView = "~/Views/WindowAdmin/KeyStage.cshtml";

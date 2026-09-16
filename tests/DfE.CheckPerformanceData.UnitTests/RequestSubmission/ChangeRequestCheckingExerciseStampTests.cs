@@ -136,6 +136,11 @@ public sealed class ChangeRequestCheckingExerciseStampTests
             SourceFile = ResultsFileTags.Post16Main
         };
 
+        // The submit path now dispatches a Zendesk enquiry message, which requires the flow
+        // config just like any other answered journey (AB#301974).
+        _flowService.GetConfigAsync(WhatToChange.IncorrectGrade, CheckingWindowType.Post16)
+            .Returns(new QuestionFlowConfig { FirstPageId = "cohort-scope", Pages = [] });
+
         await _sut.SubmitResultsEnquiryAsync(WindowId, journey);
 
         Assert.Equal(ResultsEnquiryExerciseId, captured!.CheckingExerciseId);

@@ -24,6 +24,7 @@ DfeSignIn__ClientId: CheckPerformanceData
 DfeSignIn__Audience: signin.education.gov.uk
 DfeSignIn__MetadataAddress: https://test-oidc.signin.education.gov.uk/.well-known/openid-configuration
 DfeSignIn__ServiceId: F9CB3B88-11F7-4E52-AEA6-2E5E22218DBB
+GoogleSiteVerification__Content: 3eOM00L7_Utyt5O8wbWGiDDA3NscLoi4o2owfzbuJ7E
 GoogleTagManager__Enabled: true
 GoogleTagManager__PreviewId: env-4
 Clarity__Enabled: true

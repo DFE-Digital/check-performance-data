@@ -1,3 +1,4 @@
+using System.Threading;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
@@ -69,8 +70,14 @@ public sealed class ResultsEnquirySubmissionTests(PostgresFixture fixture)
         var blob = new InMemoryRequestStateBlobClient();
         var queue = Substitute.For<IQueueService>();
 
+        // Submit now dispatches a Zendesk enquiry message, which needs the flow config just like
+        // any other answered journey (AB#301974). The real flow was already answered to get here.
+        var flowService = Substitute.For<IQuestionFlowService>();
+        flowService.GetConfigAsync(Arg.Any<WhatToChange>(), Arg.Any<CheckingWindowType>())
+            .Returns(new QuestionFlowConfig { FirstPageId = "cohort-scope", Pages = [] });
+
         var service = new RequestService(
-            Substitute.For<IQuestionFlowService>(),
+            flowService,
             blob,
             new RequestRepository(_fixture.CreateContext()),
             currentUser,
@@ -182,16 +189,19 @@ public sealed class ResultsEnquirySubmissionTests(PostgresFixture fixture)
     }
 
     [Fact]
-    public async Task Nothing_is_enqueued()
+    public async Task An_enquiry_submission_dispatches_one_zendesk_message()
     {
-        // BA decision 2026-08-17: Zendesk dispatch is a separate story.
+        // AB#301974: Zendesk dispatch happens at submit time, immediately, exactly once.
         await TruncateAsync();
         var windowId = await SeedPost16WindowAsync();
         var (service, _, queue) = BuildService();
 
         await service.SubmitResultsEnquiryAsync(windowId, Journey(windowId, "CYPMD_16to19_RE_DDDDDD4"));
 
-        await queue.DidNotReceiveWithAnyArgs().EnqueueAsync<object>(default!, default!);
+        await queue.Received(1).EnqueueAsync<RequestDocument>(
+            "zendesk",
+            Arg.Is<RequestDocument>(d => d.ReferenceNumber == "CYPMD_16to19_RE_DDDDDD4"),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -399,7 +409,11 @@ public sealed class ResultsEnquirySubmissionTests(PostgresFixture fixture)
         Assert.Equal("ResultsEnquiry", reader.GetString(0));
         Assert.Equal("ResultDoesNotBelong", reader.GetString(1));
 
-        await queue.DidNotReceiveWithAnyArgs().EnqueueAsync<object>(default!, default!);
+        // AB#301974: dispatch at submit, exactly one message, regardless of enquiry flavour.
+        await queue.Received(1).EnqueueAsync<RequestDocument>(
+            "zendesk",
+            Arg.Is<RequestDocument>(d => d.ReferenceNumber == "CYPMD_16to19_RE_RDB0001"),
+            Arg.Any<CancellationToken>());
     }
 
     private async Task TruncateAsync()

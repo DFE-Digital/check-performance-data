@@ -14,7 +14,7 @@ public abstract class SeedingPageTest(PlaywrightFixture fixture) : PageTest, IAs
 {
     protected PlaywrightFixture Fixture { get; } = fixture;
 
-    public new async Task InitializeAsync()
+    public new virtual async Task InitializeAsync()
     {
         await base.InitializeAsync();
 

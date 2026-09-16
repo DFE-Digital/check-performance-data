@@ -3,7 +3,9 @@ using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
+using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Seeding;
+using Microsoft.EntityFrameworkCore;
 
 namespace DfE.CheckPerformanceData.Web.Seeding;
 
@@ -33,6 +35,51 @@ public static class SeedChangeRequests
     // seeded rows read identically to genuine requests in the Amendment requests / bulk grids.
     private const string RequestTypeDescription = "Remove - " + ReasonLabel;
 
+    /// <summary>How many requests this seeder writes. Their references run 001..this.</summary>
+    public const int SeededRequestCount = 11;
+
+    private const string ReferencePrefix = "CYPMD_KS4June_SEED";
+
+    private static string Reference(int number) => $"{ReferencePrefix}{number:000}";
+
+    /// <summary>
+    /// The references of the rows this seeder writes — the baseline a dev environment is reset
+    /// back to, and the single thing that decides which requests survive
+    /// <see cref="ResetToSeedBaselineAsync"/>. Derived from the same generator the rows are
+    /// written with, so the two cannot drift.
+    /// </summary>
+    public static readonly IReadOnlySet<string> SeededReferenceNumbers =
+        Enumerable.Range(1, SeededRequestCount).Select(Reference).ToHashSet(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Deletes every change request that is not part of the seeded baseline, and returns how many
+    /// went. This is what the browser suite calls between journeys to get back to a known state.
+    ///
+    /// Membership of <see cref="SeededReferenceNumbers"/> rather than a pattern, for two reasons.
+    /// The seeded rows share the CYPMD prefix with the ones a journey submits, so no prefix
+    /// separates them; and '_' is a single-character wildcard in SQL LIKE, so a pattern spelt the
+    /// obvious way silently matches references that merely resemble a seeded one.
+    ///
+    /// It replaces a filter on 'DEV-%', a prefix minted only by the dev pipeline harness. A
+    /// request submitted through a journey is referenced CYPMD_{type}_{id} and so was never
+    /// matched: the reset answered "deleted 0" while its callers believed state had been cleared.
+    /// Harmless for most journeys, fatal for the merge journey, whose duplicate guard refuses a
+    /// student who already has a request — that suite passed the first time it ran against an
+    /// environment and failed on every run after.
+    /// </summary>
+    public static Task<int> ResetToSeedBaselineAsync(
+        IPortalDbContext dbContext, CancellationToken cancellationToken = default)
+    {
+        // Materialised to an array first: EF cannot translate Contains on IReadOnlySet, but it
+        // renders the array form as a SQL parameter list. The set stays the public shape because
+        // membership is what the baseline means.
+        var baseline = SeededReferenceNumbers.ToArray();
+
+        return dbContext.ChangeRequests
+            .Where(r => !baseline.Contains(r.ReferenceNumber))
+            .ExecuteDeleteAsync(cancellationToken);
+    }
+
     public static async Task ExecuteSeedAsync(
         IPupilDataBlobClient pupilClient,
         IRequestRepository requestRepository,
@@ -61,17 +108,17 @@ public static class SeedChangeRequests
 
         var scenarios = new[]
         {
-            (Reference: "CYPMD_KS4June_SEED001", Status: RequestStatus.ReadyToSubmit, Pupil: p[0]),
-            (Reference: "CYPMD_KS4June_SEED002", Status: RequestStatus.ReadyToSubmit, Pupil: p[1]),
-            (Reference: "CYPMD_KS4June_SEED003", Status: RequestStatus.ReadyToSubmit, Pupil: p[2]),
-            (Reference: "CYPMD_KS4June_SEED004", Status: RequestStatus.ReadyToSubmit, Pupil: p[3]),
-            (Reference: "CYPMD_KS4June_SEED005", Status: RequestStatus.ReadyToSubmit, Pupil: p[4]),
-            (Reference: "CYPMD_KS4June_SEED006", Status: RequestStatus.ReadyToSubmit, Pupil: p[5]),
-            (Reference: "CYPMD_KS4June_SEED007", Status: RequestStatus.ReadyToSubmit, Pupil: p[5]), // duplicate of SEED006
-            (Reference: "CYPMD_KS4June_SEED008", Status: RequestStatus.SubmittedUnCommitted, Pupil: p[6]),
-            (Reference: "CYPMD_KS4June_SEED009", Status: RequestStatus.ReadyToSubmit, Pupil: p[6]), // duplicate of already-submitted SEED008
-            (Reference: "CYPMD_KS4June_SEED010", Status: RequestStatus.InProgress, Pupil: p[7]),
-            (Reference: "CYPMD_KS4June_SEED011", Status: RequestStatus.InProgress, Pupil: p[8])
+            (Reference: Reference(1), Status: RequestStatus.ReadyToSubmit, Pupil: p[0]),
+            (Reference: Reference(2), Status: RequestStatus.ReadyToSubmit, Pupil: p[1]),
+            (Reference: Reference(3), Status: RequestStatus.ReadyToSubmit, Pupil: p[2]),
+            (Reference: Reference(4), Status: RequestStatus.ReadyToSubmit, Pupil: p[3]),
+            (Reference: Reference(5), Status: RequestStatus.ReadyToSubmit, Pupil: p[4]),
+            (Reference: Reference(6), Status: RequestStatus.ReadyToSubmit, Pupil: p[5]),
+            (Reference: Reference(7), Status: RequestStatus.ReadyToSubmit, Pupil: p[5]), // duplicate of SEED006
+            (Reference: Reference(8), Status: RequestStatus.SubmittedUnCommitted, Pupil: p[6]),
+            (Reference: Reference(9), Status: RequestStatus.ReadyToSubmit, Pupil: p[6]), // duplicate of already-submitted SEED008
+            (Reference: Reference(10), Status: RequestStatus.InProgress, Pupil: p[7]),
+            (Reference: Reference(11), Status: RequestStatus.InProgress, Pupil: p[8])
         };
 
         foreach (var scenario in scenarios)

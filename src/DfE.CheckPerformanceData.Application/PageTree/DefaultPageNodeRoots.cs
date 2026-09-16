@@ -24,6 +24,23 @@ public static class DefaultPageNodeRoots
     /// <summary>Stable Guid for the auto-seeded /help/not-found content page.</summary>
     public static readonly Guid HelpNotFoundId = new("00000000-cd94-4a01-8f01-00000000000f");
 
+    /// <summary>
+    /// The root the automated browser tests' fixture content hangs off. Deliberately NOT in
+    /// <see cref="All"/>: the four roots above are part of the product and exist in every
+    /// environment, whereas this one has no business existing anywhere nobody runs the browser
+    /// suite. It is created by the fixture seeder instead, so it appears only where somebody has
+    /// asked for it — and, being a folder that is hidden from the menu, an ordinary visitor has
+    /// no route to it even there.
+    ///
+    /// Pinned for the same reason as the roots, and one more besides: the fixture seed re-imports
+    /// over the top of whatever is already present, and it can only find the rows to repair while
+    /// their identity is stable across environments.
+    /// </summary>
+    public static readonly Guid DevelopmentTestingRootId = new("00000000-cd94-4a01-8f01-00000000000e");
+
+    /// <summary>URL segment of the fixture root — <c>/development-testing</c>.</summary>
+    public const string DevelopmentTestingSegment = "development-testing";
+
     public static readonly IReadOnlySet<string> Segments =
         new HashSet<string>(All.Select(r => r.Segment), StringComparer.OrdinalIgnoreCase);
 }

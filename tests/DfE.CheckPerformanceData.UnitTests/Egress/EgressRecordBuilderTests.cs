@@ -144,4 +144,40 @@ public sealed class EgressRecordBuilderTests
         Assert.Equal("6", item.RemoveRow!.CycleMonth);
         Assert.Equal("2026", item.RemoveRow.CycleYear);
     }
+
+    [Fact]
+    public void A_KS4_year_group_change_carries_the_year_group_moved_to()
+    {
+        var source = Remove(reason: "year-group-change");
+        source = source with { Answers = new Dictionary<string, string>(source.Answers) { ["higher-lower"] = "lower", ["year-group-lower-moved-to"] = "9", ["year-group-higher-moved-to"] = "12" } };
+        var item = Run(source);
+        Assert.Empty(item.Failures);
+        Assert.Equal("17", item.RemoveRow!.CorrectionReason);
+        Assert.Equal("9", item.RemoveRow.YearGroup);
+    }
+
+    [Fact]
+    public void A_KS4_removal_that_is_not_a_year_group_change_leaves_Year_Group_blank()
+        => Assert.Equal("", Run(Remove()).RemoveRow!.YearGroup);
+
+    [Fact]
+    public void A_16_19_removal_maps_the_chosen_academic_years_onto_Removal_Year_0_to_2()
+    {
+        var source = Remove(reason: "student-died") with { WindowType = CheckingWindowType.Post16 };
+        source = source with { Answers = new Dictionary<string, string> { ["reason"] = "student-died", ["years-to-remove"] = "2025-2026|2023-2024" } };
+        var item = Run(source, cycleYear: "2026", cycleMonth: "10");
+        Assert.Empty(item.Failures);
+        Assert.Equal("16-19", item.RemoveRow!.KeyStage);
+        Assert.Equal("TRUE", item.RemoveRow.RemovalYear0);    // 2025-2026
+        Assert.Equal("FALSE", item.RemoveRow.RemovalYear1);   // 2024-2025
+        Assert.Equal("TRUE", item.RemoveRow.RemovalYear2);    // 2023-2024
+        Assert.Equal("", item.RemoveRow.YearGroup);
+    }
+
+    [Fact]
+    public void A_16_19_removal_whose_journey_did_not_ask_about_years_leaves_them_blank()
+    {
+        var item = Run(Remove(reason: "student-died") with { WindowType = CheckingWindowType.Post16 }, cycleMonth: "10");
+        Assert.Equal(("", "", ""), (item.RemoveRow!.RemovalYear0, item.RemoveRow.RemovalYear1, item.RemoveRow.RemovalYear2));
+    }
 }

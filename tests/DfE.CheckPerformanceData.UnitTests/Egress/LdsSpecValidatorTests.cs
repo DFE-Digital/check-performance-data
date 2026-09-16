@@ -120,4 +120,25 @@ public sealed class LdsSpecValidatorTests
     [Fact]
     public void New_learner_eleven_digit_ULN_and_eight_character_postcode_pass()
         => Assert.Empty(LdsSpecValidator.Validate(SampleRows.New() with { Uln = "12345678901", Postcode = "SW1A 1AA" }));
+
+    [Theory]
+    [InlineData("Year_Group", "14")]
+    [InlineData("Removal_Year_0", "yes")]
+    [InlineData("Removal_Year_2", "true")]   // spec value is upper-case TRUE/FALSE
+    public void Remove_row_key_stage_specific_values_fail_on_the_named_field(string field, string bad)
+    {
+        var row = field switch
+        {
+            "Year_Group" => SampleRows.Remove() with { YearGroup = bad },
+            "Removal_Year_0" => SampleRows.Remove() with { RemovalYear0 = bad },
+            "Removal_Year_2" => SampleRows.Remove() with { RemovalYear2 = bad },
+            _ => throw new ArgumentOutOfRangeException(nameof(field))
+        };
+        var failure = Assert.Single(LdsSpecValidator.Validate(row));
+        Assert.Equal(field, failure.Field);
+    }
+
+    [Fact]
+    public void Remove_row_key_stage_specific_values_may_be_blank_or_valid()
+        => Assert.Empty(LdsSpecValidator.Validate(SampleRows.Remove() with { YearGroup = "12", RemovalYear0 = "TRUE", RemovalYear1 = "FALSE", RemovalYear2 = "" }));
 }

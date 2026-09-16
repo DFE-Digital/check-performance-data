@@ -102,13 +102,17 @@ public static class EgressRecordBuilder
 
         if (s.OutputType == EgressOutputType.RemoveLearners)
         {
+            var (year0, year1, year2) = RemovalYears(s, item.CycleYear);
             item.RemoveRow = new RemoveLearnerRow(
                 CorrectionId: ticket, CorrectionType: item.CorrectionType ?? string.Empty, CorrectionReason: item.CorrectionReason ?? string.Empty,
                 KeyStage: stage, EstablishmentNumber: item.Establishment, Surname: s.PupilSurname ?? string.Empty, Forename: s.PupilFirstname ?? string.Empty,
                 Sex: (s.PupilSex ?? string.Empty).ToUpperInvariant(), DateOfBirth: item.DateOfBirthIso, CycleYear: item.CycleYear, CycleMonth: item.CycleMonth,
                 LocalAuthority: item.LocalAuthority,
                 LearnerId: s.PupilMatchRef > 0 ? s.PupilMatchRef.ToString(CultureInfo.InvariantCulture) : string.Empty,
-                ChangeRequestId: s.ChangeRequestId, TicketId: s.TicketId, ReferenceNumber: s.ReferenceNumber);
+                ChangeRequestId: s.ChangeRequestId, TicketId: s.TicketId, ReferenceNumber: s.ReferenceNumber)
+            {
+                YearGroup = YearGroupMovedTo(s), RemovalYear0 = year0, RemovalYear1 = year1, RemovalYear2 = year2
+            };
             return;
         }
 
@@ -138,7 +142,8 @@ public static class EgressRecordBuilder
                 CorrectionId = r.CorrectionId.Trim(), CorrectionType = r.CorrectionType.Trim(), CorrectionReason = r.CorrectionReason.Trim(),
                 KeyStage = r.KeyStage.Trim(), EstablishmentNumber = r.EstablishmentNumber.Trim(), Surname = r.Surname.Trim(), Forename = r.Forename.Trim(),
                 Sex = r.Sex.Trim(), DateOfBirth = r.DateOfBirth.Trim(), CycleYear = r.CycleYear.Trim(), CycleMonth = r.CycleMonth.Trim(),
-                LocalAuthority = r.LocalAuthority.Trim(), LearnerId = r.LearnerId.Trim()
+                LocalAuthority = r.LocalAuthority.Trim(), LearnerId = r.LearnerId.Trim(), YearGroup = r.YearGroup.Trim(),
+                RemovalYear0 = r.RemovalYear0.Trim(), RemovalYear1 = r.RemovalYear1.Trim(), RemovalYear2 = r.RemovalYear2.Trim()
             };
         if (item.NewRow is { } n)
             item.NewRow = n with
@@ -150,5 +155,32 @@ public static class EgressRecordBuilder
                 SchoolUrn = n.SchoolUrn.Trim(), Uln = n.Uln.Trim(), Upn = n.Upn.Trim(), LearnerId = n.LearnerId.Trim(),
                 YearGroup = n.YearGroup.Trim()
             };
+    }
+
+    // v2.4 Remove Learner row 22: KS4 files carry Year_Group "for year group change requests only".
+    // The KS4 Remove journey asks higher-lower, then year-group-higher-moved-to (12/13) or
+    // year-group-lower-moved-to (8/9/10); a stale answer from the other branch can linger in the
+    // blob, so the branch actually chosen decides which one is read.
+    private static string YearGroupMovedTo(EgressSourceRecord s)
+    {
+        if (s.WindowType is not (CheckingWindowType.KS4June or CheckingWindowType.KS4Autumn)) return string.Empty;
+        if (!string.Equals(s.Answer("reason"), "year-group-change", StringComparison.OrdinalIgnoreCase)) return string.Empty;
+        var lower = string.Equals(s.Answer("higher-lower"), "lower", StringComparison.OrdinalIgnoreCase);
+        return (lower ? s.Answer("year-group-lower-moved-to") : s.Answer("year-group-higher-moved-to")) ?? string.Empty;
+    }
+
+    // v2.4 Remove Learner rows 23-25: 16-19 files carry TRUE/FALSE per academic year. The Post16
+    // Remove journey's years-to-remove checkbox uses labels "YYYY-YYYY" (EgressAnswers joins them
+    // with "|"); Year_0 is the academic year ending in Cycle_Year, Year_1 the one before, Year_2
+    // the one before that. Only the "other" route asks the question — every other reason leaves
+    // all three blank (NULL-able in the spec) rather than guessing.
+    private static (string Year0, string Year1, string Year2) RemovalYears(EgressSourceRecord s, string cycleYear)
+    {
+        var answer = s.Answer("years-to-remove");
+        if (s.WindowType != CheckingWindowType.Post16 || string.IsNullOrWhiteSpace(answer) || !int.TryParse(cycleYear, out var end))
+            return (string.Empty, string.Empty, string.Empty);
+        var chosen = answer.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToHashSet(StringComparer.Ordinal);
+        string Flag(int n) => chosen.Contains($"{end - 1 - n}-{end - n}") ? "TRUE" : "FALSE";
+        return (Flag(0), Flag(1), Flag(2));
     }
 }

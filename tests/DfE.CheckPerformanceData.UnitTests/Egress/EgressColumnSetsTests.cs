@@ -55,6 +55,31 @@ public sealed class EgressColumnSetsTests
         Assert.Equal(["", "", "", ""], values[^4..]);
     }
 
+    // v2.4 "Remove Learner": Year_Group is X for KS4 only ("for year group change requests only");
+    // Removal_Year_0..2 are X for 16-18 only; KS2 gets neither.
+    [Fact]
+    public void Remove_learners_for_KS2_is_the_base_set()
+        => Assert.Equal(RemoveBase, EgressColumnSets.RemoveLearnersFor(CheckingWindowType.KS2).Select(c => c.Header).ToArray());
+
+    [Theory]
+    [InlineData(CheckingWindowType.KS4June)]
+    [InlineData(CheckingWindowType.KS4Autumn)]
+    public void Remove_learners_for_KS4_appends_Year_Group(CheckingWindowType windowType)
+    {
+        var columns = EgressColumnSets.RemoveLearnersFor(windowType);
+        Assert.Equal([.. RemoveBase, "Year_Group"], columns.Select(c => c.Header).ToArray());
+        Assert.Equal("12", columns[^1].Value(SampleRows.Remove() with { YearGroup = "12" }));
+    }
+
+    [Fact]
+    public void Remove_learners_for_16_19_appends_the_three_removal_years()
+    {
+        var columns = EgressColumnSets.RemoveLearnersFor(CheckingWindowType.Post16);
+        Assert.Equal([.. RemoveBase, "Removal_Year_0", "Removal_Year_1", "Removal_Year_2"], columns.Select(c => c.Header).ToArray());
+        var row = SampleRows.Remove() with { RemovalYear0 = "TRUE", RemovalYear1 = "FALSE", RemovalYear2 = "TRUE" };
+        Assert.Equal(["TRUE", "FALSE", "TRUE"], columns.Skip(RemoveBase.Length).Select(c => c.Value(row)).ToArray());
+    }
+
     [Fact]
     public void No_heading_carries_a_trailing_underscore_or_whitespace()
     {

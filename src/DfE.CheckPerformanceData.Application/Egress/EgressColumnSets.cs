@@ -73,6 +73,26 @@ public static class EgressColumnSets
         _ => throw Unmapped(windowType)
     };
 
+    // v2.4 "Remove Learner" row 22: Year_Group is X for KS4 only ("for year group change requests
+    // only"; "This field will be removed from the files for KS2 and 16-18").
+    private static readonly EgressColumn<RemoveLearnerRow> RemoveYearGroup = new("Year_Group", r => r.YearGroup);
+
+    // v2.4 "Remove Learner" rows 23-25: 16-18 only, TRUE/FALSE per academic year.
+    private static readonly IReadOnlyList<EgressColumn<RemoveLearnerRow>> RemovalYears =
+    [
+        new("Removal_Year_0", r => r.RemovalYear0),
+        new("Removal_Year_1", r => r.RemovalYear1),
+        new("Removal_Year_2", r => r.RemovalYear2)
+    ];
+
+    public static IReadOnlyList<EgressColumn<RemoveLearnerRow>> RemoveLearnersFor(CheckingWindowType windowType) => windowType switch
+    {
+        CheckingWindowType.KS2 => RemoveLearners,
+        CheckingWindowType.KS4June or CheckingWindowType.KS4Autumn => [.. RemoveLearners, RemoveYearGroup],
+        CheckingWindowType.Post16 => [.. RemoveLearners, .. RemovalYears],
+        _ => throw Unmapped(windowType)
+    };
+
     private static ArgumentOutOfRangeException Unmapped(CheckingWindowType windowType) =>
         new(nameof(windowType), windowType, "This window type has no LDS column set. Add it to EgressColumnSets before egressing it.");
 }

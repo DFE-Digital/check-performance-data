@@ -14,6 +14,7 @@ public static partial class LdsSpecValidator
     private static readonly HashSet<string> Stages = ["KS2", "KS4", "16-19"];
     // v2.4: both sheets — "F" (female), "M" (male), "U" (unknown).
     private static readonly HashSet<string> Sexes = ["F", "M", "U"];
+    private static readonly HashSet<string> TrueFalse = ["TRUE", "FALSE"];
 
     public static IReadOnlyList<EgressRecordFailure> Validate(RemoveLearnerRow row)
     {
@@ -31,6 +32,10 @@ public static partial class LdsSpecValidator
         f.Month("Cycle_Month", row.CycleMonth);
         f.DigitsOfLength("Local_Authority", row.LocalAuthority, 3);
         f.Digits("Learner_ID", row.LearnerId);
+        f.OptionalYearGroup("Year_Group", row.YearGroup);
+        f.OptionalOneOf("Removal_Year_0", row.RemovalYear0, TrueFalse);
+        f.OptionalOneOf("Removal_Year_1", row.RemovalYear1, TrueFalse);
+        f.OptionalOneOf("Removal_Year_2", row.RemovalYear2, TrueFalse);
         return f.List;
     }
 

@@ -4,6 +4,7 @@ using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Web.Models.Dev;
+using DfE.CheckPerformanceData.Web.Seeding;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -72,21 +73,13 @@ public sealed class DevPipelineController(
         if (!IsAllowed)
             return NotFound();
 
-        // EF Core/Npgsql cannot translate StartsWith in either SELECT or ExecuteDelete.
-        // Use EF.Functions.Like which maps to PostgreSQL's LIKE operator, then delete
-        // by the fetched IDs using Contains which EF Core can translate as IN (...).
-        var devIds = await dbContext.ChangeRequests
-            .Where(r => EF.Functions.Like(r.ReferenceNumber, "DEV-%"))
-            .Select(r => r.Id)
-            .ToListAsync(cancellationToken);
-
-        var deleted = devIds.Count;
-        if (devIds.Count > 0)
-        {
-            deleted = await dbContext.ChangeRequests
-                .Where(r => devIds.Contains(r.Id))
-                .ExecuteDeleteAsync(cancellationToken);
-        }
+        // Reset to the seeded baseline rather than filter by prefix. The browser suite calls this
+        // between journeys to get back to a known state, and a prefix could not give it one: the
+        // filter here used to be 'DEV-%', which only the dev pipeline harness ever mints, so a
+        // request submitted through a journey — referenced CYPMD_{type}_{id} — was never deleted
+        // and the endpoint answered "deleted 0" while its caller believed state had been cleared.
+        // Refs #449.
+        var deleted = await SeedChangeRequests.ResetToSeedBaselineAsync(dbContext, cancellationToken);
 
         return Json(new { deleted });
     }

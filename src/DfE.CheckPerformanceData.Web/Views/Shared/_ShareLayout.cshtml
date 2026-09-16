@@ -13,10 +13,14 @@
 @{
     Layout = "_GovUkPageTemplate";
 }
-<head>
+@* Head content goes through the page template's Head section. Writing a head element here
+   does nothing: _GovUkPageTemplate owns the document head, and anything outside a section
+   is body content. Defining Head replaces the template's default stylesheet import, so the
+   GovUkFrontendStyleImports() call below is what keeps the GOV.UK CSS. *@
+@section Head {
     @Html.GovUkFrontendStyleImports()
     <link rel="stylesheet" href="~/css/dfefrontend-2.0.0.min.css" />
-</head>
+}
 @section BodyStart {
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 }

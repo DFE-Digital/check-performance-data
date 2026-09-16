@@ -1,0 +1,14 @@
+@using DfE.CheckPerformanceData.Web.Settings
+@using Microsoft.Extensions.Options
+@inject IOptions<GoogleSiteVerificationSettings> VerificationOptions
+@{
+    // Google Search Console reads this from the home page to prove ownership of the host.
+    // Verification is what unlocks the Removals tool that takes a non-production host out of
+    // Google's results (#444). The token is per host, so an environment with none configured
+    // renders no tag at all — an empty content attribute reads as a failed verification.
+    var content = VerificationOptions.Value.Content;
+}
+@if (!string.IsNullOrWhiteSpace(content))
+{
+    <meta name="google-site-verification" content="@content" />
+}

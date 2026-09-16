@@ -1,3 +1,5 @@
+using DfE.CheckPerformanceData.Web.Admin;
+using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
@@ -17,6 +19,7 @@ namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 /// same page: the sweep is irreversible and dispatches to an external system, so the admin sees
 /// what it will touch first.
 /// </remarks>
+[RequireAdminSection(AdminNavKeys.ManageWindow)]
 public sealed class CloseExerciseController(
     ICloseExerciseService closeService,
     IWindowService windowService) : Controller

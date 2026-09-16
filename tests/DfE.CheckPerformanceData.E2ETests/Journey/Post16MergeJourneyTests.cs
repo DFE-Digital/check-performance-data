@@ -90,7 +90,7 @@ public sealed class Post16MergeJourneyTests(PlaywrightFixture fixture) : Seeding
         await Page.GotoAsync($"{Fixture.BaseUrl}/WhatToChange/{WindowId}");
         await Page.GetByLabel("Merge").First.CheckAsync(new() { Force = true });
         await ContinueAsync();
-        await Page.WaitForURLAsync($"**/Journey/{WindowId}/pupil-search/select-pupil");
+        await AdvanceToAsync("pupil-search/select-pupil", "choosing Merge");
     }
 
     private async Task ChooseStudentAsync(string cypmdId)
@@ -106,7 +106,7 @@ public sealed class Post16MergeJourneyTests(PlaywrightFixture fixture) : Seeding
 
     private async Task ChooseMatchStudentAsync(string cypmdId)
     {
-        await Page.WaitForURLAsync($"**/Journey/{WindowId}/pupil-search/select-match-pupil");
+        await AdvanceToAsync("pupil-search/select-match-pupil", "choosing the first student");
         var search = Page.Locator("#pupil-search").First;
         await Expect(search).ToBeVisibleAsync();
         await search.FillAsync(cypmdId);
@@ -118,4 +118,33 @@ public sealed class Post16MergeJourneyTests(PlaywrightFixture fixture) : Seeding
 
     private async Task ContinueAsync() =>
         await Page.GetByRole(AriaRole.Button, new() { Name = "Continue", Exact = true }).ClickAsync();
+
+    // Wait for the journey to move on, and say why it didn't when it doesn't.
+    //
+    // A step that the server rejects re-renders the page it was already on, so the plain
+    // WaitForURLAsync this replaces simply ran out of time and reported "Timeout 30000ms
+    // exceeded". The reason was on the screen the whole time, in the GDS error summary: a
+    // student who already has a submitted request is refused here, which is what happened
+    // every time the environment carried a request left over from an earlier run. Reading
+    // the summary turns a half-day of investigation into the first line of the failure.
+    private async Task AdvanceToAsync(string expectedPathSuffix, string afterStep)
+    {
+        try
+        {
+            await Page.WaitForURLAsync($"**/Journey/{WindowId}/{expectedPathSuffix}");
+        }
+        catch (TimeoutException)
+        {
+            var summary = Page.Locator(".govuk-error-summary");
+            var problem = await summary.CountAsync() > 0
+                ? Whitespace.Replace(await summary.InnerTextAsync(), " ").Trim()
+                : "no error summary was rendered";
+
+            Assert.Fail(
+                $"The journey did not reach {expectedPathSuffix} after {afterStep}. " +
+                $"It is still on {Page.Url}. The page says: {problem}");
+        }
+    }
+
+    private static readonly System.Text.RegularExpressions.Regex Whitespace = new(@"\s+");
 }

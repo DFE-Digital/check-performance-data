@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.E2ETests.Fixtures;
+using DfE.CheckPerformanceData.E2ETests.Helpers;
 using Microsoft.Playwright;
 
 namespace DfE.CheckPerformanceData.E2ETests.WindowAdmin;
@@ -18,6 +19,21 @@ public sealed class NextOpportunityTests(PlaywrightFixture fixture) : SeedingPag
 
     private string SummaryUrl => $"{Fixture.BaseUrl}/admin/windows/summary/{SeededWindowId}";
     private string EditUrl => $"{Fixture.BaseUrl}/admin/windows/{SeededWindowId}/next-opportunity";
+
+    // The summary and edit pages are gated on the manage-window section, so the collection's
+    // default editor principal 404s on them. Switch to admin for this class and hand the
+    // collection's editor cookie back afterwards, as WindowExerciseWizardTests does per test.
+    public override async Task InitializeAsync()
+    {
+        await AuthHelpers.ImpersonateAsAdminAsync(Fixture);
+        await base.InitializeAsync();
+    }
+
+    public override async Task DisposeAsync()
+    {
+        await base.DisposeAsync();
+        await AuthHelpers.ImpersonateAsEditorAsync(Fixture);
+    }
 
     [Fact]
     public async Task Summary_ShowsNextOpportunityRow_WithChangeLink()

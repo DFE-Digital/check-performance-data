@@ -1,3 +1,5 @@
+using DfE.CheckPerformanceData.Web.Admin;
+using DfE.CheckPerformanceData.Web.Admin.Nav;
 using System.Runtime.CompilerServices;
 using System.Text;
 using DfE.CheckPerformanceData.Application.WindowManagement;
@@ -20,6 +22,7 @@ namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 /// is what makes "a window is usable while another exercise is still unvalidated" true rather than
 /// merely allowed.
 /// </remarks>
+[RequireAdminSection(AdminNavKeys.ManageWindow)]
 public class ValidateWindowController(IWindowService windowService, ICsvSchemaFileProcessor processor): Controller
 {
     private const string PageView = "~/Views/WindowAdmin/Validate.cshtml";

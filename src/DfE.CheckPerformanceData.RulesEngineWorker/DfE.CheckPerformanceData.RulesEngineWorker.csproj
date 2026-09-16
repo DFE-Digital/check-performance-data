@@ -17,6 +17,10 @@
         <PackageReference Include="Azure.Storage.Blobs" />
         <PackageReference Include="Azure.Storage.Common" />
         <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" />
+        <PackageReference Include="Serilog.AspNetCore" />
+        <PackageReference Include="Serilog.Expressions" />
+        <PackageReference Include="Serilog.Formatting.Compact" />
+        <PackageReference Include="Serilog.Sinks.Console" />
     </ItemGroup>
 
     <ItemGroup>

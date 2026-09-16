@@ -66,6 +66,7 @@
     <meta name="request-verification-token" content="@Antiforgery.GetAndStoreTokens(Context).RequestToken" />
     @await Html.PartialAsync("_GtmHead")
     @await Html.PartialAsync("_ClarityHead")
+    @await Html.PartialAsync("_GoogleSiteVerificationHead")
     @Html.GovUkFrontendStyleImports()
     <link rel="stylesheet" href="~/css/dfefrontend-2.0.0.min.css" />
     <link rel="stylesheet" href="~/css/accessible-autocomplete.min.css" />

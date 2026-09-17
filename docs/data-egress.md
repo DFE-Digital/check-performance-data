@@ -204,7 +204,7 @@ audit row ever claims success for a failed transfer.
 
 | Setting | Purpose |
 |---|---|
-| `ConnectionStrings:EgressStorage` | The LDS storage account. Absent → the app refuses to transfer with a clear "not configured" message rather than failing at startup. Must be added to each deployed environment's Key Vault/Terraform secrets; **not done in this PR** — see gaps below. |
+| `ConnectionStrings:EgressStorage` | The LDS storage account. Absent → the app refuses to transfer with a clear "not configured" message rather than failing at startup, and the dev cleanup skips its blob sweep. **`appsettings.json` deliberately carries no default** (pinned by `AppSettingsEgressStorageTests`): a local-Azurite default there made every deployed environment without an account believe it had one at `127.0.0.1:10000` inside the pod, so transfers and cleanups failed after the SDK's retries instead of refusing. Local runs get it from `docker-compose.yaml` and the launch profiles. Must be added to each deployed environment's Key Vault/Terraform secrets; **not done in this PR** — see gaps below. |
 | `EgressStorage:Container` (default `cypmd`) / `EgressStorage:Prefix` (default `extracts_input/`) | Where in the account files land. Bindable only so a test can point at a scratch container — never user-editable. |
 | `Zendesk:UseFake` (default **`false`**) | Selects the ticket source: the real Zendesk client (`ZendeskEgressTicketSource`, via the same `AddZendeskApiClient` the worker uses) unless explicitly set to `true`, which selects the dev outbox (`DevOutboxEgressTicketSource`, no Zendesk settings needed). The default matches the worker's own configured default — a fresh environment that sets nothing reads real Zendesk decisions, not the dev outbox. `AddCpdEgress` refuses to start if `UseFake=true` is set in Production, regardless of configuration, so the dev outbox can never be reached there. Local/E2E stacks opt in explicitly via `Zendesk__UseFake=true` (`docker-compose.yaml`, `docker-compose.sandbox.yaml`), since neither has real Zendesk credentials. |
 | `ZendeskTicketFields:DecisionStatusId` | The real ticket source's required field id; `0` in production today, so it refuses to pull until configured. |
@@ -237,7 +237,20 @@ tests/DfE.CheckPerformanceData.E2ETests/ --filter "FullyQualifiedName~DataEgress
 To inspect what actually landed in the local LDS account, the Storage browser under Danger zone
 covers the **app** account only — the egress account needs a separate client (e.g. Azure Storage
 Explorer, or the Azure CLI, pointed at the `EgressStorage` connection string from
-`appsettings.json`/the compose file), container `cypmd`, prefix `extracts_input/`.
+`docker-compose.yaml` or `Properties/launchSettings.json`), container `cypmd`, prefix `extracts_input/`.
+
+Two rules keep a dev or review environment recoverable after a failed run:
+
+- `POST /dev/egress/cleanup` always deletes its database rows. The blob sweep is best effort — a
+  blob that could not be deleted is counted in the response's `blobErrors`, never thrown — because
+  a cleanup that answered 500 and left the runs behind is what broke the next deploy (below).
+- The dev seeder (`SeedCheckingWindows`, run at start-up wherever `SeedDevelopmentData` is on)
+  deletes `egress_runs` before it wipes `CheckingWindows`. The foreign key from a run to its window
+  is RESTRICT on purpose — an egress is an audit record — so a leftover run used to make the wipe
+  throw before the host listened. On a review app that looked like a stalled rollout: the new pod
+  never became Ready, the old one kept serving, terraform reported "old replicas are pending
+  termination" and a re-run reported "No changes". PR #441's review app served a two-day-old image
+  that way; `CheckingWindowSeedWithEgressHistoryTests` pins the fix.
 
 ## 10. Known gaps and follow-ups
 

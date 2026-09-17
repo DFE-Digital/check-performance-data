@@ -120,4 +120,40 @@ public sealed class DevEgressControllerTests(PostgresFixture fixture)
         await blobs.Received(1).DeleteIfOwnedByRunAsync(fileName, runId, Arg.Any<CancellationToken>());
         await blobs.DidNotReceiveWithAnyArgs().DeleteIfExistsAsync(default!, default);
     }
+
+    // The blob sweep ran before the row deletes and threw straight out of the action, so on an
+    // environment whose egress account was unreachable every cleanup answered 500 and left the
+    // runs behind — and a leftover run is what stopped the dev seeder (and so the pod) starting on
+    // the next deploy. A dev reset must reset: the database rows go whatever the blob store did.
+    [Fact]
+    public async Task Cleanup_still_removes_the_runs_when_the_blob_sweep_fails()
+    {
+        await ResetAsync();
+        var runId = Guid.NewGuid();
+        await using (var db = fixture.CreateContext())
+        {
+            db.EgressRuns.Add(new EgressRun
+            {
+                Id = runId, WindowId = WindowId, Status = EgressRunStatus.Preprocessed,
+                StartedById = Guid.NewGuid(), StartedByName = "Ops One", StartedAtUtc = DateTime.UtcNow
+            });
+            db.EgressRunOutputs.Add(new EgressRunOutput
+            {
+                Id = Guid.NewGuid(), RunId = runId, WindowId = WindowId, OutputType = EgressOutputType.RemoveLearners,
+                IsActive = true, RawRecordsJson = "[]", SourceRecordCount = 0,
+                FileName = "CYPMD_LDS_KS4_RemoveLearners_2026_09_17.csv"
+            });
+            await db.SaveChangesAsync();
+        }
+        var blobs = Substitute.For<IEgressBlobClient>();
+        blobs.IsConfigured.Returns(true);
+        blobs.DeleteIfOwnedByRunAsync(Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns<bool>(_ => throw new HttpRequestException("Connection refused (127.0.0.1:10000)"));
+
+        var result = await Build(Substitute.For<IRequestStateBlobClient>(), blobs).Cleanup(WindowId, CancellationToken.None);
+
+        Assert.IsType<JsonResult>(result);
+        await using var after = fixture.CreateContext();
+        Assert.False(await after.EgressRuns.AnyAsync(r => r.Id == runId), "the run survived a cleanup whose blob sweep failed");
+    }
 }

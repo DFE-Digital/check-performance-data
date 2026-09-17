@@ -134,12 +134,24 @@ public sealed class DevEgressController(
         var owners = await dbContext.EgressRunOutputs.AsNoTracking()
             .Where(o => o.WindowId == windowId && o.FileName != null)
             .Select(o => new { o.RunId, FileName = o.FileName! }).Distinct().ToListAsync(cancellationToken);
+        // Best effort, per blob: a reset must reset. This used to throw straight out of the action,
+        // so on an environment whose egress account was unreachable every cleanup answered 500 and
+        // left the runs behind — and a leftover run is what stopped the dev seeder (and so the pod)
+        // starting on the next deploy. A failed delete is reported in the response, not fatal.
         var blobs = 0;
+        var blobErrors = 0;
         if (egressBlobs.IsConfigured)
         {
             foreach (var owner in owners)
             {
-                if (await egressBlobs.DeleteIfOwnedByRunAsync(owner.FileName, owner.RunId, cancellationToken)) blobs++;
+                try
+                {
+                    if (await egressBlobs.DeleteIfOwnedByRunAsync(owner.FileName, owner.RunId, cancellationToken)) blobs++;
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    blobErrors++;
+                }
             }
         }
 
@@ -154,6 +166,6 @@ public sealed class DevEgressController(
         var ids = devRequests.Select(r => r.Id).ToList();
         var requests = ids.Count == 0 ? 0 : await dbContext.ChangeRequests.Where(r => ids.Contains(r.Id)).ExecuteDeleteAsync(cancellationToken);
 
-        return Json(new { runs, requests, blobs });
+        return Json(new { runs, requests, blobs, blobErrors });
     }
 }

@@ -66,11 +66,13 @@ public sealed class ZendeskConsumerEnquiryMessageTests
     public async Task Non_enquiry_row_with_null_WorkerStatus_is_not_claimed()
     {
         // SC-005: the widened claim must not accidentally claim an amendment with null status.
+        // Not claimed — but not quietly acked away either: the consumer throws so the queue
+        // retries and, if the row stays unclaimable, dead-letters it with a reason.
         var harness = new ConsumerHarness([NewAmendmentRow(Reference)]);
         harness.StubTicketCreation();
 
-        await harness.Consumer.ProcessMessageBodyAsync(
-            Serialize(NewEnquiryMessage(Reference)), CancellationToken.None);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => harness.Consumer.ProcessMessageBodyAsync(
+            Serialize(NewEnquiryMessage(Reference)), CancellationToken.None));
 
         await harness.Zendesk.DidNotReceive().CreateTicketAsync(Arg.Any<CreateTicketRequestDto>());
     }
@@ -246,8 +248,10 @@ public sealed class ZendeskConsumerEnquiryMessageTests
             if (TryExecuteUpdate(expression, out var affected))
                 return (TResult)(object)Task.FromResult(affected);
 
-            // FirstOrDefaultAsync: returns the first match or null from the in-memory list.
-            if (expression is MethodCallExpression { Method.Name: "FirstOrDefaultAsync" } call
+            // FirstOrDefaultAsync: returns the first match or null from the in-memory list. EF
+            // builds the expression over the synchronous QueryableMethods, so the method is named
+            // "FirstOrDefault" here, not "FirstOrDefaultAsync".
+            if (expression is MethodCallExpression { Method.Name: "FirstOrDefault" or "FirstOrDefaultAsync" } call
                 && call.Arguments.Count > 1
                 && TryGetPredicate(call.Arguments[1], out var firstPredicate))
             {

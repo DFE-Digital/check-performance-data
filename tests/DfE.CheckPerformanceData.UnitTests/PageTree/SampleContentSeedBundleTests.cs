@@ -61,15 +61,22 @@ public class SampleContentSeedBundleTests
         }
     }
 
-    // The wiki render path takes a different code path from content pages (raw HTML through
-    // IHtmlRenderingService rather than a widget tree), and it only stays exercised while at
-    // least one wiki-typed sample exists.
-    [Fact]
-    public void Bundle_KeepsAWikiTypedSample_SoTheWikiRenderPathStaysCovered()
+    // Sample content is demonstration material an editor may edit, rename or delete, and the seed
+    // leaves anything already present alone so pressing the button never destroys their work. That
+    // makes it the wrong home for anything a browser test navigates to: an emptied sample page
+    // still exists, so the seed skips it and the route 404s for good. Those pages moved out to the
+    // fixture bundle, which is re-imported over the top on every seed, and this pins the split so
+    // a future sample does not quietly become a test dependency again.
+    //
+    // Wiki-render-path coverage moved with them — see TestFixtureSeedBundleTests.
+    [Theory]
+    [InlineData("wiki-sandbox")]
+    [InlineData("short-page")]
+    public void Bundle_NoLongerCarriesTheBrowserTestFixtures(string segment)
     {
         var bundle = SampleContentSeedBundle.Load();
 
-        Assert.Contains(bundle.PageNodes, p => p.PageType == "wiki");
+        Assert.DoesNotContain(bundle.PageNodes, p => p.Segment == segment);
     }
 
     // Two pages under the same parent with the same segment would collide on path. Nothing in

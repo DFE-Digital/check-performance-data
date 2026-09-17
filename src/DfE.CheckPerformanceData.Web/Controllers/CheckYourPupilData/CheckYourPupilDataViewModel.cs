@@ -7,6 +7,8 @@ public sealed class CheckYourPupilDataViewModel
 {
     public required string WindowId { get; init; }
 
+    public IReadOnlyList<CheckingExerciseTab> CheckingExerciseTabs { get; init; } = [];
+
     /// <summary>The page's pupil tables, in display order.</summary>
     public required IReadOnlyList<PupilTableSection> Sections { get; init; }
 
@@ -127,4 +129,12 @@ public sealed class CheckYourPupilDataViewModel
     /// (WCAG 2.4.2), so both read this one value rather than each spelling the noun themselves.
     /// </summary>
     public string Title => $"Check your {LearnerNoun.Singular} data";
+}
+
+public sealed record CheckingExerciseTab(
+    CheckingDataExercise Exercise,
+    IReadOnlyList<Dictionary<string, string>> Rows,
+    bool HasData)
+{
+    public IReadOnlyList<string> Columns => Rows.SelectMany(row => row.Keys).Distinct().ToList();
 }

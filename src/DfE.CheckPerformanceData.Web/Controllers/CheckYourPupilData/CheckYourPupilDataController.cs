@@ -1,3 +1,4 @@
+using System.Text.Json;
 using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.CurrentUser;
@@ -5,6 +6,8 @@ using DfE.CheckPerformanceData.Application.LandingPage;
 // Aliased, not imported: WindowManagement also declares a CheckingWindowDto, which would make the
 // LandingPage one ambiguous here.
 using ICheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.ICheckingExerciseService;
+using ICheckingDataReader = DfE.CheckPerformanceData.Application.WindowManagement.ICheckingDataReader;
+using CheckingDataExercise = DfE.CheckPerformanceData.Application.WindowManagement.CheckingDataExercise;
 using LearnerNoun = DfE.CheckPerformanceData.Application.WindowManagement.LearnerNoun;
 using DfE.CheckPerformanceData.Web.Authentication;
 using DfE.CheckPerformanceData.Web.Common;
@@ -19,7 +22,8 @@ namespace DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData;
 // goes through ICheckingExerciseService, which owns the only clock in that path.
 public sealed class CheckYourPupilDataController(ICheckYourPupilDataService checkYourPupilDataService,
     ICurrentUserService currentUserService, IAnalyticsService analytics,
-    INextStepsService nextSteps, ICheckingExerciseService checkingExercises) : Controller
+    INextStepsService nextSteps, ICheckingExerciseService checkingExercises,
+    ICheckingDataReader checkingDataReader, TimeProvider clock) : Controller
 {
     private const int PageSize = 10;
     private const int MaxSearchLength = 100;
@@ -202,12 +206,55 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
             }
         ];
 
+        var now = clock.GetLocalNow().DateTime;
+        var visibleExercises = window.Exercises
+            .Select(exercise =>
+            {
+                var name = exercise.Name ?? exercise.ExerciseType?.ToString() ?? "Checking exercise";
+                var tabName = string.IsNullOrWhiteSpace(exercise.TabName) ? name : exercise.TabName;
+                return new CheckingDataExercise(
+                    exercise.Id, windowId, name, tabName, exercise.TabOrder,
+                    exercise.ExerciseType, window.KeyStage, exercise.IsEnabled,
+                    exercise.VisibleFrom, exercise.VisibleUntil, window.StartDate, window.EndDate,
+                    exercise.StartDate, exercise.EndDate, exercise.ReplacesCheckingExerciseId,
+                    exercise.UsesExerciseStorage, exercise.DisplayOnly);
+            })
+            .Where(exercise => exercise.IsVisible(now))
+            .OrderBy(exercise => exercise.TabOrder)
+            .ThenBy(exercise => exercise.Id);
+
+        var checkingExerciseTabs = new List<CheckingExerciseTab>();
+        foreach (var exercise in visibleExercises)
+        {
+            if (string.IsNullOrWhiteSpace(currentUserService.OrganisationLaestab))
+            {
+                checkingExerciseTabs.Add(new CheckingExerciseTab(exercise, [], false));
+                continue;
+            }
+
+            var bytes = await checkingDataReader.ReadAsync(
+                exercise, currentUserService.OrganisationLaestab, HttpContext.RequestAborted);
+            if (bytes is null || bytes.Length == 0)
+            {
+                checkingExerciseTabs.Add(new CheckingExerciseTab(exercise, [], false));
+                continue;
+            }
+
+            using var json = JsonDocument.Parse(bytes);
+            var rows = json.RootElement.EnumerateArray()
+                .Select(row => row.EnumerateObject()
+                    .ToDictionary(property => property.Name, property => property.Value.ToString()))
+                .ToList();
+            checkingExerciseTabs.Add(new CheckingExerciseTab(exercise, rows, true));
+        }
+
         return new CheckYourPupilDataViewModel
         {
             SelectedNextStep = journey.SelectedNextStep,
             WindowId = windowId.ToString(),
             WindowTitle = window.Title,
             Sections = sections,
+            CheckingExerciseTabs = checkingExerciseTabs,
             // 16-19 stacks both populations in one "Pupils" tab, because there the tab axis is
             // dataset (the other 16-19 import files become sibling tabs later), not inclusion.
             SectionsAsTabs = window.CheckingWindowType != CheckingWindowType.Post16,

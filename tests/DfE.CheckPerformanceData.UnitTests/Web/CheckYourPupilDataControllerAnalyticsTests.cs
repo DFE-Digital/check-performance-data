@@ -7,6 +7,7 @@ using DfE.CheckPerformanceData.Application.LandingPage;
 // LandingPage one ambiguous here.
 using CheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseService;
 using LearnerNoun = DfE.CheckPerformanceData.Application.WindowManagement.LearnerNoun;
+using ICheckingDataReader = DfE.CheckPerformanceData.Application.WindowManagement.ICheckingDataReader;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData;
 using Microsoft.AspNetCore.Http;
@@ -37,7 +38,8 @@ public sealed class CheckYourPupilDataControllerAnalyticsTests
 
         var checkingExercises = new CheckingExerciseService(TimeProvider.System);
         _sut = new CheckYourPupilDataController(
-            _service, _currentUser, _analytics, new NextStepsService(checkingExercises), checkingExercises)
+            _service, _currentUser, _analytics, new NextStepsService(checkingExercises), checkingExercises,
+            Substitute.For<ICheckingDataReader>(), TimeProvider.System)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext }
         };

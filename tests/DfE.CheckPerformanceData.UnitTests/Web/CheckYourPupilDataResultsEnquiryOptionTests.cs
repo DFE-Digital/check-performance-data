@@ -8,6 +8,8 @@ using DfE.CheckPerformanceData.Application.LandingPage;
 using CheckingExerciseDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseDto;
 using CheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseService;
 using LearnerNoun = DfE.CheckPerformanceData.Application.WindowManagement.LearnerNoun;
+using ICheckingDataReader = DfE.CheckPerformanceData.Application.WindowManagement.ICheckingDataReader;
+using CheckingDataExercise = DfE.CheckPerformanceData.Application.WindowManagement.CheckingDataExercise;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData;
 using DfE.CheckPerformanceData.Web.Session;
@@ -42,6 +44,7 @@ public sealed class CheckYourPupilDataResultsEnquiryOptionTests
     private readonly ICheckYourPupilDataService _service = Substitute.For<ICheckYourPupilDataService>();
     private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
     private readonly IAnalyticsService _analytics = Substitute.For<IAnalyticsService>();
+    private readonly ICheckingDataReader _reader = Substitute.For<ICheckingDataReader>();
     private readonly FakeSession _session = new();
     private readonly CheckYourPupilDataController _sut;
 
@@ -58,13 +61,70 @@ public sealed class CheckYourPupilDataResultsEnquiryOptionTests
         var clock = new FixedTimeProvider(Now);
         var checkingExercises = new CheckingExerciseService(clock);
 
+
         _sut = new CheckYourPupilDataController(
             _service, _currentUser, _analytics,
-            new NextStepsService(checkingExercises), checkingExercises)
+            new NextStepsService(checkingExercises), checkingExercises,
+            _reader, clock)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext }
         };
     }
+
+    [Fact]
+    public async Task Checking_exercise_tabs_follow_visibility_and_tab_order()
+    {
+        var later = TabExercise(2);
+        var earlier = TabExercise(1, tabName: null);
+        var disabled = TabExercise(0, enabled: false);
+        var future = TabExercise(0, visibleFrom: Tomorrow);
+        var expired = TabExercise(0, visibleUntil: Yesterday);
+        Window(CheckingWindowType.Post16, later, disabled, future, earlier, expired);
+        _currentUser.OrganisationLaestab.Returns("1234567");
+        _reader.ReadAsync(
+                Arg.Is<CheckingDataExercise>(exercise => exercise.Id == earlier.Id),
+                "1234567", Arg.Any<CancellationToken>())
+            .Returns(System.Text.Encoding.UTF8.GetBytes("""[{"Name":"Alice"}]"""));
+
+        var tabs = (await IndexModel()).CheckingExerciseTabs;
+
+        Assert.Equal([earlier.Id, later.Id], tabs.Select(tab => tab.Exercise.Id));
+        Assert.Equal(earlier.Name, tabs[0].Exercise.TabName);
+        Assert.True(tabs[0].HasData);
+        Assert.Equal("Alice", tabs[0].Rows[0]["Name"]);
+        Assert.False(tabs[1].HasData);
+    }
+
+    [Fact]
+    public async Task Checking_exercise_tabs_remain_visible_without_a_school_identifier()
+    {
+        var exercise = TabExercise(1);
+        Window(CheckingWindowType.Post16, exercise);
+        _currentUser.OrganisationLaestab.Returns("");
+
+        var tab = Assert.Single((await IndexModel()).CheckingExerciseTabs);
+
+        Assert.Equal(exercise.Id, tab.Exercise.Id);
+        Assert.False(tab.HasData);
+        await _reader.DidNotReceiveWithAnyArgs().ReadAsync(default!, default!, default);
+    }
+
+    private static CheckingExerciseDto TabExercise(
+        int tabOrder, bool enabled = true, string? tabName = "Students",
+        DateTime? visibleFrom = null, DateTime? visibleUntil = null) => new()
+    {
+        Id = Guid.NewGuid(),
+        Name = $"Exercise {tabOrder}",
+        TabName = tabName,
+        TabOrder = tabOrder,
+        IsEnabled = enabled,
+        DisplayOnly = true,
+        ExerciseType = null,
+        StartDate = Yesterday,
+        EndDate = Tomorrow,
+        VisibleFrom = visibleFrom,
+        VisibleUntil = visibleUntil
+    };
 
     private static CheckingExerciseDto Exercise(
         CheckingExerciseType type, DateTime start, DateTime end, int sortOrder) =>

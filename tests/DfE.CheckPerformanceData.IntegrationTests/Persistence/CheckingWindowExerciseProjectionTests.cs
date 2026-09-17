@@ -46,6 +46,10 @@ public sealed class CheckingWindowExerciseProjectionTests : IAsyncLifetime
                 new CheckingExercise
                 {
                     ExerciseType = CheckingExerciseType.PupilData,
+                    Name = "Provisional pupils",
+                    TabName = "Pupils",
+                    TabOrder = 20,
+                    IsEnabled = true,
                     StartDate = new DateTime(2026, 8, 1),
                     EndDate = new DateTime(2026, 8, 31),
                     SortOrder = 0
@@ -119,6 +123,11 @@ public sealed class CheckingWindowExerciseProjectionTests : IAsyncLifetime
         Assert.Equal(
             [CheckingExerciseType.PupilData, CheckingExerciseType.ResultsEnquiry],
             window.Exercises.Select(e => e.ExerciseType));
+        var pupilData = window.Exercises[0];
+        Assert.Equal("Provisional pupils", pupilData.Name);
+        Assert.Equal("Pupils", pupilData.TabName);
+        Assert.Equal(20, pupilData.TabOrder);
+        Assert.True(pupilData.IsEnabled);
     }
 
     // AB#298317: the landing banner and Check your pupil data print the next opportunity, so both

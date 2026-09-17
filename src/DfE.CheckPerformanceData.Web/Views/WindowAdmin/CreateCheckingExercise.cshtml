@@ -28,24 +28,34 @@
     @Html.AntiForgeryToken()
     <input type="hidden" asp-for="WindowId" />
 
-    <govuk-input for="Name">
-        <govuk-input-label>Exercise name</govuk-input-label>
-        <govuk-input-hint>For example, Provisional students.</govuk-input-hint>
-        <govuk-input-error-message asp-validation-for="Name" />
-    </govuk-input>
+    <govuk-tabs>
+        <govuk-tabs-item id="ExerciseDetails" label="Exercise Details">
+<govuk-input for="Name">
+                <govuk-input-label>Exercise name</govuk-input-label>
+                <govuk-input-hint>For example, Provisional students.</govuk-input-hint>
+                <govuk-input-error-message asp-validation-for="Name" />
+            </govuk-input>
 
-    <govuk-radios for="ExerciseType">
-        <govuk-radios-fieldset>
-            <govuk-radios-fieldset-legend class="govuk-fieldset__legend--m">Exercise type</govuk-radios-fieldset-legend>
-            <govuk-radios-hint>Optional for display-only exercises such as Summary. Required when schools can start journeys.</govuk-radios-hint>
-            <govuk-radios-error-message asp-validation-for="ExerciseType" />
-            <govuk-radios-item value="" checked="@(Model.ExerciseType is null)">No exercise type (display only)</govuk-radios-item>
-            @foreach (var type in Enum.GetValues<CheckingExerciseType>())
-            {
-                <govuk-radios-item value="@type" checked="@(Model.ExerciseType == type)">@ExerciseLabels.For(type)</govuk-radios-item>
-            }
-        </govuk-radios-fieldset>
-    </govuk-radios>
+    <div class="govuk-form-group @(ViewData.ModelState["ExerciseType"]?.Errors.Count > 0 ? "govuk-form-group--error" : "")">
+        <fieldset class="govuk-fieldset" aria-describedby="ExerciseType-hint">
+            <legend class="govuk-fieldset__legend govuk-fieldset__legend--m">Exercise type</legend>
+            <div class="govuk-hint" id="ExerciseType-hint">Optional for display-only exercises such as Summary. Required when schools can start journeys.</div>
+            <span class="govuk-error-message" asp-validation-for="ExerciseType"></span>
+            <div class="govuk-radios">
+                <div class="govuk-radios__item">
+                    <input class="govuk-radios__input" id="ExerciseType" name="ExerciseType" type="radio" value="" checked="@(Model.ExerciseType is null)" />
+                    <label class="govuk-label govuk-radios__label" for="ExerciseType">No exercise type (display only)</label>
+                </div>
+                @foreach (var type in Enum.GetValues<CheckingExerciseType>())
+                {
+                    <div class="govuk-radios__item">
+                        <input class="govuk-radios__input" id="ExerciseType-@type" name="ExerciseType" type="radio" value="@type" checked="@(Model.ExerciseType == type)" />
+                        <label class="govuk-label govuk-radios__label" for="ExerciseType-@type">@ExerciseLabels.For(type)</label>
+                    </div>
+                }
+            </div>
+        </fieldset>
+    </div>
 
     <govuk-input for="TabName">
         <govuk-input-label>Tab name@(Model.TabNameOptional ? " (optional)" : "")</govuk-input-label>
@@ -69,8 +79,10 @@
         <govuk-checkboxes-hint>Schools can view and download data without starting amendment, results enquiry or confirmation journeys.</govuk-checkboxes-hint>
         <govuk-checkboxes-item value="true" checked="@Model.DisplayOnly">Display data only</govuk-checkboxes-item>
     </govuk-checkboxes>
+    </govuk-tabs-item>
 
-    <h2 class="govuk-heading-m">Exercise dates</h2>
+        <govuk-tabs-item id="Dates" label="Dates">
+<h2 class="govuk-heading-m">Exercise dates</h2>
     <p class="govuk-body">These dates contribute to the overall window dates. For exercises with journeys, they also control when requests are accepted. The parent window must also be open. Display-only exercises never accept requests.</p>
 
     <govuk-date-input for="Dates.StartDate">
@@ -188,11 +200,9 @@
         }
     </govuk-select>
 
-    <p class="govuk-body">After saving, use the window summary to choose ingress and schema files and validate the exercise.</p>
-    <govuk-button type="submit">@Model.SubmitLabel</govuk-button>
-    <a class="govuk-link" href="@Model.CancelUrl">Cancel</a>
-</form>
+    <p class="govuk-body">After saving, use the window summary to choose ingress and schema files and validate the exercise.</p>        </govuk-tabs-item>
 
+        <govuk-tabs-item id="Data" label="Data">
 @if (Model.IsEditing && Model.DataExercise is { } dataExercise)
 {
     <h2 class="govuk-heading-m" id="data-files">Data files</h2>
@@ -238,3 +248,12 @@
     <p class="govuk-body">Validation: @(dataExercise.IsValidated ? "Up to date" : dataExercise.ValidatedAt is not null ? "Files have changed since the last validation" : "Not yet validated")</p>
     <govuk-button-link class="govuk-button--secondary" disabled="@(!dataExercise.HasRequiredFiles)" href="@(dataExercise.ExerciseType is null ? $"/admin/windows/{Model.WindowId}/exercises/{dataExercise.Id}/validate?returnToExercise=true" : $"/admin/windows/{Model.WindowId}/{dataExercise.ExerciseType}/validate?exerciseId={dataExercise.Id}&returnToExercise=true")">Validate data</govuk-button-link>
 }
+        </govuk-tabs-item>
+    </govuk-tabs>
+
+
+
+
+    <govuk-button type="submit">@Model.SubmitLabel</govuk-button>
+    <a class="govuk-link" href="@Model.CancelUrl">Cancel</a>
+</form>

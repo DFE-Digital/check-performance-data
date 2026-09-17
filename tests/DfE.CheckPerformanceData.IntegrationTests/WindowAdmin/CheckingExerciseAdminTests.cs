@@ -312,6 +312,7 @@ public sealed class CheckingExerciseAdminRenderTests
         var html = await Render("CreateCheckingExercise", model, errors);
         Assert.Contains("__RequestVerificationToken", html);
         Assert.Contains("Entered name", html);
+        Assert.Matches("""<input[^>]*name="ExerciseType"[^>]*value=""[^>]*checked[^>]*>""", html);
         Assert.Contains("There is a problem", html);
         Assert.Contains("Enter a real start date", html);
         foreach (var field in new[] { "Name", "ExerciseType", "TabName", "TabOrder", "SortOrder", "DisplayOnly", "ReplacesCheckingExerciseId" })

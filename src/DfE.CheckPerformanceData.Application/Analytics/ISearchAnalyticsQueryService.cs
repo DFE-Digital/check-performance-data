@@ -318,4 +318,22 @@ public interface ISearchAnalyticsQueryService
         DateTime fromUtc,
         DateTime toUtc,
         CancellationToken cancellationToken = default);
+
+    // Pages that carry an on-page search widget, ranked by how much they were searched.
+    // Only instant-page rows have a host path, so the shape of the data does the filtering.
+    Task<(IReadOnlyList<OnPageSearchPageRow> Rows, int TotalCount)> GetOnPageSearchPagesAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+
+    // What was searched for on one page.
+    Task<(IReadOnlyList<OnPageSearchTermRow> Rows, int TotalCount)> GetOnPageSearchTermsAsync(
+        string hostPath,
+        DateTime fromUtc,
+        DateTime toUtc,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
 }

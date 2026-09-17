@@ -18,7 +18,10 @@ public static class FixtureContent
     /// <summary>Pinned Guid of the /development-testing root. Parent for runtime-created fixtures.</summary>
     public static readonly Guid RootId = new("00000000-cd94-4a01-8f01-00000000000e");
 
-    public const string RootPath = "/development-testing";
+    /// <summary>The root's URL segment, with no leading slash — the shape a widget scope takes.</summary>
+    public const string RootSegment = "development-testing";
+
+    public const string RootPath = "/" + RootSegment;
 
     /// <summary>Long, wiki-typed page — the half of the back-to-top contract that scrolls.</summary>
     public const string LongPagePath = $"{RootPath}/long-page";

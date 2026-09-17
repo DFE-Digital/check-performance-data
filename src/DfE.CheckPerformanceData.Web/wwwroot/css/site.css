@@ -1698,6 +1698,10 @@ body.js-enabled .rules-condition__apply {
 .cypmd-search { margin: 20px 0 30px; }
 .cypmd-search__row { display: flex; gap: 20px; max-width: 45em; }
 .cypmd-search__input { flex: 1 1 auto; margin-bottom: 0; }
+/* accessible-autocomplete replaces the input with its own wrapper, so the flex sizing has to
+   move to the element that actually becomes the flex child. */
+.cypmd-search__row .cypmd-search__autocomplete,
+.cypmd-search__row .autocomplete__wrapper { flex: 1 1 auto; min-width: 0; }
 .cypmd-search__button { flex: 0 0 auto; margin: 0; }
 
 /* On narrow viewports the button's intrinsic width (padding + "Search" text) is
@@ -1765,6 +1769,37 @@ body:has(.cpb-breadcrumbs) main.govuk-main-wrapper { padding-top: 0 !important; 
   > .govuk-grid-column-two-thirds
   > .govuk-body:first-child:has(> .govuk-caption-l:only-child) {
     padding-top: 30px;
+}
+
+/* On-page search: the heading it took you to.
+   The heading is given focus so a screen reader moves with the jump, and the browser drew a
+   box around it as a side effect — but only when its own :focus-visible heuristic felt like
+   it, so the box came and went between jumps. Asking for it explicitly on :focus makes it
+   the same every time. GDS focus yellow, matching the rest of the service. */
+.cpb-content h1:focus,
+.cpb-content h2:focus,
+.cpb-content h3:focus,
+.cpb-content h4:focus,
+.cpb-content h5:focus,
+.cpb-content h6:focus {
+  outline: 3px solid #fd0;
+  outline-offset: 3px;
+}
+
+/* Page-contents nav: show the nesting.
+   moj-side-navigation sets margin and padding to zero on every list at every depth, so a
+   nested item sits at exactly the same left edge as its parent and the hierarchy exists only
+   in the markup. One step of indent per level, and a smaller face as it goes deeper, so a
+   reader can see which section a sub-heading belongs to. The sizes are the GDS scale's 16px
+   and 14px steps down from the 19px the nav uses at the top level. */
+.moj-side-navigation__list .moj-side-navigation__list {
+  padding-left: 15px;
+}
+.moj-side-navigation__list .moj-side-navigation__list a {
+  font-size: 16px;
+}
+.moj-side-navigation__list .moj-side-navigation__list .moj-side-navigation__list a {
+  font-size: 14px;
 }
 
 /* Landing-page data-check sections: visible rule directly under the heading. */

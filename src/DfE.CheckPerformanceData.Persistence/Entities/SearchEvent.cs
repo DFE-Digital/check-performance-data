@@ -1,3 +1,5 @@
+using DfE.CheckPerformanceData.Application.Analytics;
+
 namespace DfE.CheckPerformance.Persistence.Entities;
 
 // An append-only record of a search request against the site-search corpus. Keyed by an
@@ -17,9 +19,35 @@ public sealed class SearchEvent
     public string? Scope { get; set; }
     public int ResultsPages { get; set; }
     public int ResultsBlocks { get; set; }
+
+    // Sections of a single page offered by an on-page instant search. A third result kind
+    // rather than a reuse of ResultsPages, because a section is not a document: counting
+    // them as pages would inflate every per-page figure on the dashboard. Folded into the
+    // computed ResultsTotal/ZeroResults so an on-page search that showed three sections is
+    // not filed as a zero-result search.
+    public int ResultsSections { get; set; }
+
     public int ResultsTotal { get; set; }
     public bool ZeroResults { get; set; }
     public int LatencyMs { get; set; }
+
+    // Which search surface produced the row: "site" for a submitted search at /search or a
+    // results widget, "instant" for a typeahead over the whole site or a section of it, and
+    // "instant-page" for a typeahead over the sections of the page the widget sits on.
+    // Existing rows migrate to "site", which is what they all were.
+    public string Surface { get; set; } = SearchSurfaces.Site;
+
+    // The page the widget was sitting on, for an on-page search. Null for every other
+    // surface — a site search has no host page, it IS the search.
+    public string? HostPath { get; set; }
+
+    // What the person chose from the menu, and where it sat in the list. Null means the
+    // menu was shown and nothing was taken from it: they either found their answer in the
+    // list without clicking, or none of it was any good and they typed something else.
+    // That second case is the signal an instant search cannot get any other way, so it is
+    // recorded as deliberately as a selection is.
+    public string? SelectedKey { get; set; }
+    public int? SelectedPosition { get; set; }
 
     // True when the row was written by the sample-data seeder (dev-only Test-data admin
     // surface); false for every event captured from a real user request. Existing rows

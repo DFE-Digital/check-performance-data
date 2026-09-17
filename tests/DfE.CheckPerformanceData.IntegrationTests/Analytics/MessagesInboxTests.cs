@@ -270,6 +270,12 @@ public sealed class MessagesInboxTests
                     services.AddControllersWithViews()
                         .AddApplicationPart(typeof(MessagesController).Assembly);
                     services.AddGovUkFrontend();
+                    // The shared analytics filter partial @inject-s ISearchSurfaceFilter.
+                    // Registering the all-surfaces default mirrors an unfiltered dashboard,
+                    // which is the state these render assertions describe.
+                    services.AddSingleton<
+                        DfE.CheckPerformanceData.Application.Analytics.ISearchSurfaceFilter,
+                        DfE.CheckPerformanceData.Application.Analytics.AllSearchSurfaces>();
                 });
                 web.Configure(_ => { });
             })

@@ -15,6 +15,17 @@ public sealed record SearchEventDto(
     int ResultsBlocks,
     int LatencyMs,
     IReadOnlyList<SearchEventResultDto> Results,
+    // Sections offered by an on-page instant search; zero for every other surface.
+    int ResultsSections = 0,
+    // Which surface produced the event. Defaulted so the existing site-search call sites
+    // need no change and cannot accidentally file themselves as something else.
+    string Surface = SearchSurfaces.Site,
+    // The page an on-page search ran on; null elsewhere.
+    string? HostPath = null,
+    // What was chosen from a suggestion menu, and where it sat. Null means nothing was
+    // taken — which for a typeahead is a result in its own right.
+    string? SelectedKey = null,
+    int? SelectedPosition = null,
     // Optional marker set by the sample-data seeder to true. Real events captured from
     // live user requests leave this at its default (false). The sink propagates the
     // flag onto both the parent SearchEvent row and its child SearchEventResult rows so

@@ -133,8 +133,14 @@ public sealed class InstantSearchWidgetE2ETests(PlaywrightFixture fixture) : See
         await Options.First.ClickAsync();
 
         await Expect(Page).ToHaveURLAsync(new Regex($"#{Regex.Escape(anchor!)}$"));
-        var focusedId = await Page.EvaluateAsync<string?>("() => document.activeElement && document.activeElement.id");
-        Assert.Equal(anchor, focusedId);
+
+        // A retrying assertion, not a single read of document.activeElement. The module sets the
+        // hash synchronously and then moves focus in a later task on purpose — the autocomplete
+        // puts focus back on its own input while closing the menu, so the move has to land after
+        // that. The URL therefore matches before the focus has moved, and a one-shot read taken
+        // the moment ToHaveURLAsync is satisfied catches whatever held focus first. It did on CI.
+        // Same assertion the keyboard twin below already uses.
+        await Expect(Page.Locator($"#{anchor}")).ToBeFocusedAsync();
     }
 
     // ============================================================

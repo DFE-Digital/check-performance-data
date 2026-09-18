@@ -32,28 +32,51 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
     public async Task<IActionResult> Index(
         Guid windowId,
         int includedPage = 0, int nonIncludedPage = 0,
-        string? includedSearch = null, string? nonIncludedSearch = null)
+        string? includedSearch = null, string? nonIncludedSearch = null,
+        string? studentDataset = null, string? studentSearch = null, int studentPage = 0)
     {
         if (includedSearch?.Length > MaxSearchLength) includedSearch = null;
         if (nonIncludedSearch?.Length > MaxSearchLength) nonIncludedSearch = null;
+        if (studentSearch?.Length > MaxSearchLength) studentSearch = null;
 
         HttpContext.Session.SetString("SelectedWindowId", windowId.ToString());
         HttpContext.Session.ClearRequestState(windowId);
-        var model = await BuildIndexModelAsync(windowId, includedPage, nonIncludedPage, includedSearch, nonIncludedSearch);
+        var model = await BuildIndexModelAsync(windowId, includedPage, nonIncludedPage, includedSearch, nonIncludedSearch,
+            studentDataset, studentSearch, studentPage);
         return View(model);
     }
 
     [Route("CheckYourPupilData/{windowId}/download/all")]
     public async Task<IActionResult> DownloadAll(Guid windowId)
     {
+        var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
+        if (window.CheckingWindowType == CheckingWindowType.Post16 &&
+            !string.IsNullOrWhiteSpace(currentUserService.OrganisationLaestab))
+        {
+            var model = await BuildIndexModelAsync(windowId, 0, 0, null, null);
+            var students = model.CheckingExerciseTabs.Select(t => t.Students).FirstOrDefault(s => s is not null);
+            if (students is not null)
+            {
+                using var archiveBytes = new MemoryStream();
+                await using (var archive = new System.IO.Compression.ZipArchive(archiveBytes,
+                    System.IO.Compression.ZipArchiveMode.Create, leaveOpen: true))
+                {
+                    foreach (var dataset in students.Datasets)
+                    {
+                        await using var entry = await archive.CreateEntry(dataset.FileName).OpenAsync();
+                        await entry.WriteAsync(Post16StudentDisplay.Csv(dataset));
+                    }
+                }
+                return File(archiveBytes.ToArray(), "application/zip", GenerateZipFileName(window));
+            }
+        }
+
         var included = await checkYourPupilDataService.GetPupilCsvAsync(windowId, included: true);
         var nonIncluded = await checkYourPupilDataService.GetPupilCsvAsync(windowId, included: false);
 
         var includedCsv = PupilCsvGenerator.Generate(included);
         var nonIncludedCsv = PupilCsvGenerator.Generate(nonIncluded);
 
-        var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
-        
         using var ms = new MemoryStream();
         await using (var zip = new System.IO.Compression.ZipArchive(ms, System.IO.Compression.ZipArchiveMode.Create, leaveOpen: true))
         {
@@ -77,6 +100,16 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         var pupils = await checkYourPupilDataService.GetPupilCsvAsync(windowId, included: true);
         var bytes = PupilCsvGenerator.Generate(pupils);
         return File(bytes, "text/csv", filename);
+    }
+
+    [Route("CheckYourPupilData/{windowId}/download/students/{exerciseId}/{dataset}")]
+    public async Task<IActionResult> DownloadStudentDataset(Guid windowId, Guid exerciseId, string dataset)
+    {
+        if (string.IsNullOrWhiteSpace(currentUserService.OrganisationLaestab)) return Forbid();
+        var model = await BuildIndexModelAsync(windowId, 0, 0, null, null);
+        var tab = model.CheckingExerciseTabs.SingleOrDefault(t => t.Exercise.Id == exerciseId);
+        var selected = tab?.Students?.Datasets.SingleOrDefault(d => d.Key == dataset);
+        return selected is null ? NotFound() : File(Post16StudentDisplay.Csv(selected), "text/csv", selected.FileName);
     }
 
     private string GenerateZipFileName(CheckingWindowDto window)
@@ -106,7 +139,8 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Route("CheckYourPupilData/{windowId}/nextstep")]
-    public async Task<IActionResult> NextStep(Guid windowId, CheckYourPupilDataViewModel viewModel)
+    public async Task<IActionResult> NextStep(Guid windowId, CheckYourPupilDataViewModel viewModel,
+        Guid? selectedExerciseId = null)
     {
         // #317: the allowed options are re-derived from the window's open exercises here rather
         // than trusted from the post. Not rendering an option is a UI courtesy; a hand-crafted post
@@ -114,6 +148,24 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         // at all, so it is rejected exactly as an unanswered question would be.
         var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
         var allowed = nextSteps.GetAvailableSteps(window.Exercises);
+        if (selectedExerciseId is null && window.Exercises.Any(e => e.TabName is not null))
+        {
+            ModelState.AddModelError(nameof(CheckYourPupilDataViewModel.SelectedNextStep),
+                "Select an open checking exercise");
+            var model = await BuildIndexModelAsync(windowId, 0, 0, null, null);
+            return View("Index", model);
+        }
+        if (selectedExerciseId is { } exerciseId)
+        {
+            var selectedExercise = window.Exercises.SingleOrDefault(e => e.Id == exerciseId);
+            if (selectedExercise is null || nextSteps.GetAvailableSteps([selectedExercise]).Count == 0)
+            {
+                ModelState.AddModelError(nameof(CheckYourPupilDataViewModel.SelectedNextStep),
+                    "This checking exercise is not open for changes");
+                var model = await BuildIndexModelAsync(windowId, 0, 0, null, null);
+                return View("Index", model);
+            }
+        }
 
         // AB#298317: "No, I'd like to sign out of this service" is only ever asked when results
         // enquiry is the sole open exercise. Re-derived here, like every other option: a forged
@@ -151,7 +203,10 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         int includedPage,
         int nonIncludedPage,
         string? includedSearch,
-        string? nonIncludedSearch)
+        string? nonIncludedSearch,
+        string? studentDataset = null,
+        string? studentSearch = null,
+        int studentPage = 0)
     {
         var (includedTable, includedTotal) = await checkYourPupilDataService.GetPupilTableAsync(windowId, included: true, includedSearch, includedPage, PageSize);
         var (nonIncludedTable, nonIncludedTotal) = await checkYourPupilDataService.GetPupilTableAsync(windowId, included: false, nonIncludedSearch, nonIncludedPage, PageSize);
@@ -228,7 +283,8 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         {
             if (string.IsNullOrWhiteSpace(currentUserService.OrganisationLaestab))
             {
-                checkingExerciseTabs.Add(new CheckingExerciseTab(exercise, [], false));
+                checkingExerciseTabs.Add(new CheckingExerciseTab(exercise, [], false)
+                { CanShowActions = exercise.CanAct(now) });
                 continue;
             }
 
@@ -236,16 +292,23 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
                 exercise, currentUserService.OrganisationLaestab, HttpContext.RequestAborted);
             if (bytes is null || bytes.Length == 0)
             {
-                checkingExerciseTabs.Add(new CheckingExerciseTab(exercise, [], false));
+                checkingExerciseTabs.Add(new CheckingExerciseTab(exercise, [], false)
+                { CanShowActions = exercise.CanAct(now) });
                 continue;
             }
 
             using var json = JsonDocument.Parse(bytes);
-            var rows = json.RootElement.EnumerateArray()
-                .Select(row => row.EnumerateObject()
-                    .ToDictionary(property => property.Name, property => property.Value.ToString()))
-                .ToList();
-            checkingExerciseTabs.Add(new CheckingExerciseTab(exercise, rows, true));
+            var rows = Post16StudentDisplay.ReadRows(json.RootElement);
+            var isStudentsTab = window.CheckingWindowType == CheckingWindowType.Post16 &&
+                (exercise.ExerciseType == CheckingExerciseType.PupilData ||
+                 exercise.TabName.Equals("Students", StringComparison.OrdinalIgnoreCase));
+            checkingExerciseTabs.Add(new CheckingExerciseTab(exercise, rows, true)
+            {
+                CanShowActions = exercise.CanAct(now),
+                Students = isStudentsTab
+                    ? Post16StudentDisplay.Build(rows, studentDataset, studentSearch, studentPage, PageSize)
+                    : null
+            });
         }
 
         return new CheckYourPupilDataViewModel
@@ -278,4 +341,3 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
 
     private static int TotalPages(int count) => (int)Math.Ceiling(count / (double)PageSize);
 }
-

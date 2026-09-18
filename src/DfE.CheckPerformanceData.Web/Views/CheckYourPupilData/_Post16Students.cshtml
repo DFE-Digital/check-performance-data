@@ -1,0 +1,91 @@
+@using DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData
+@model CheckingExerciseTab
+
+@{
+    var students = Model.Students!;
+    var anchor = $"exercise-{Model.Exercise.Id}";
+}
+
+<div class="govuk-form-group">
+    <form method="get" action="@Url.Action("Index", "CheckYourPupilData", new { windowId = Model.Exercise.WindowId })#@anchor">
+        <label class="govuk-label govuk-label--s" for="studentDataset">Select the data you want to view</label>
+        <select class="govuk-select" id="studentDataset" name="studentDataset" onchange="this.form.submit()">
+            @foreach (var dataset in students.Datasets)
+            {
+                <option value="@dataset.Key" selected="@(dataset.Key == students.Selected.Key)">@dataset.Label</option>
+            }
+        </select>
+        <noscript><button class="govuk-button govuk-button--secondary" type="submit">View data</button></noscript>
+    </form>
+</div>
+
+@foreach (var dataset in students.Datasets)
+{
+    <p class="govuk-body">Download <a asp-action="DownloadStudentDataset" asp-controller="CheckYourPupilData"
+                                      asp-route-windowId="@Model.Exercise.WindowId"
+                                      asp-route-exerciseId="@Model.Exercise.Id"
+                                      asp-route-dataset="@dataset.Key">@dataset.Label.ToLowerInvariant()</a> as a CSV file.</p>
+}
+
+<h2 class="govuk-heading-l">@students.Selected.Label</h2>
+
+<div class="govuk-!-padding-4 govuk-!-margin-bottom-6" style="background: #f3f2f1">
+    <form method="get" action="@Url.Action("Index", "CheckYourPupilData", new { windowId = Model.Exercise.WindowId })#@anchor">
+        <input type="hidden" name="studentDataset" value="@students.Selected.Key" />
+        <label class="govuk-label govuk-label--s" for="studentSearch">Search for a student by first or last name</label>
+        <div class="pupil-search__row">
+            <input class="govuk-input" id="studentSearch" name="studentSearch" type="search" maxlength="100" value="@students.Search" />
+            <button class="govuk-button" type="submit">Search</button>
+            @if (!string.IsNullOrWhiteSpace(students.Search))
+            {
+                <a class="govuk-button govuk-button--secondary" href="@Url.Action("Index", "CheckYourPupilData", new { windowId = Model.Exercise.WindowId, studentDataset = students.Selected.Key })#@anchor">Clear</a>
+            }
+        </div>
+    </form>
+</div>
+
+@if (students.Rows.Count == 0)
+{
+    <p class="govuk-body">@(string.IsNullOrWhiteSpace(students.Search) ? "No students available in this dataset." : "No students found. Check the spelling or clear the search.")</p>
+}
+else
+{
+    <div class="moj-scrollable-pane" role="region" tabindex="0" aria-label="@students.Selected.Label">
+        <table class="govuk-table">
+            <thead class="govuk-table__head">
+                <tr class="govuk-table__row">
+                    @foreach (var column in students.Selected.Columns)
+                    {
+                        <th scope="col" class="govuk-table__header">@column.Label</th>
+                    }
+                </tr>
+            </thead>
+            <tbody class="govuk-table__body">
+                @foreach (var row in students.Rows)
+                {
+                    <tr class="govuk-table__row">
+                        @foreach (var column in students.Selected.Columns)
+                        {
+                            <td class="govuk-table__cell">@Post16StudentDisplay.Value(row, column.Field)</td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@if (students.TotalPages > 1)
+{
+    <nav class="govuk-pagination" aria-label="Pagination">
+        @if (students.Page > 0)
+        {
+            <a class="govuk-pagination__link" href="@Url.Action("Index", "CheckYourPupilData", new { windowId = Model.Exercise.WindowId, studentDataset = students.Selected.Key, studentSearch = students.Search, studentPage = students.Page - 1 })#@anchor">Previous</a>
+        }
+        <span class="govuk-body govuk-!-margin-left-3 govuk-!-margin-right-3">Page @(students.Page + 1) of @students.TotalPages</span>
+        @if (students.Page + 1 < students.TotalPages)
+        {
+            <a class="govuk-pagination__link" href="@Url.Action("Index", "CheckYourPupilData", new { windowId = Model.Exercise.WindowId, studentDataset = students.Selected.Key, studentSearch = students.Search, studentPage = students.Page + 1 })#@anchor">Next</a>
+        }
+    </nav>
+}

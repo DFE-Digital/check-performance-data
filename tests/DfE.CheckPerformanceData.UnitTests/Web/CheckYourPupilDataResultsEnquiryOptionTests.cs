@@ -109,6 +109,28 @@ public sealed class CheckYourPupilDataResultsEnquiryOptionTests
         await _reader.DidNotReceiveWithAnyArgs().ReadAsync(default!, default!, default);
     }
 
+    [Fact]
+    public async Task Actions_are_available_only_on_an_open_interactive_tab()
+    {
+        var dataOnly = TabExercise(0, tabName: "Summary");
+        var interactive = new CheckingExerciseDto
+        {
+            Id = Guid.NewGuid(), Name = "Student checking", TabName = "Students", TabOrder = 1,
+            ExerciseType = CheckingExerciseType.PupilData, IsEnabled = true, DisplayOnly = false,
+            StartDate = Yesterday, EndDate = Tomorrow, WindowStart = LastMonth, WindowEnd = NextMonth
+        };
+        Window(CheckingWindowType.Post16, dataOnly, interactive);
+
+        var tabs = (await IndexModel()).CheckingExerciseTabs;
+        Assert.False(tabs[0].CanShowActions);
+        Assert.True(tabs[1].CanShowActions);
+
+        var rejected = Assert.IsType<ViewResult>(await _sut.NextStep(
+            WindowId, Posted(NextSteps.RequestChange), dataOnly.Id));
+        Assert.Equal("Index", rejected.ViewName);
+        Assert.False(_sut.ModelState.IsValid);
+    }
+
     private static CheckingExerciseDto TabExercise(
         int tabOrder, bool enabled = true, string? tabName = "Students",
         DateTime? visibleFrom = null, DateTime? visibleUntil = null) => new()

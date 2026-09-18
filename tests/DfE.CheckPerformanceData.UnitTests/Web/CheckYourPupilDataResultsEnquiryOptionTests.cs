@@ -6,6 +6,7 @@ using DfE.CheckPerformanceData.Application.LandingPage;
 // Aliased, not imported: WindowManagement also declares a CheckingWindowDto, which would make the
 // LandingPage one ambiguous here.
 using CheckingExerciseDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseDto;
+using CheckingWindowDatasetDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingWindowDatasetDto;
 using CheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseService;
 using LearnerNoun = DfE.CheckPerformanceData.Application.WindowManagement.LearnerNoun;
 using ICheckingDataReader = DfE.CheckPerformanceData.Application.WindowManagement.ICheckingDataReader;
@@ -93,6 +94,67 @@ public sealed class CheckYourPupilDataResultsEnquiryOptionTests
         Assert.True(tabs[0].HasData);
         Assert.Equal("Alice", tabs[0].Rows[0]["Name"]);
         Assert.False(tabs[1].HasData);
+    }
+
+    [Fact]
+    public async Task Student_table_reads_the_schema_attached_to_its_exercise_dataset()
+    {
+        var exercise = new CheckingExerciseDto
+        {
+            Id = Guid.NewGuid(), Name = "Students", TabName = "Students", IsEnabled = true,
+            ExerciseType = CheckingExerciseType.PupilData, StartDate = Yesterday, EndDate = Tomorrow,
+            Datasets = [new CheckingWindowDatasetDto
+            {
+                Id = Guid.NewGuid(), Name = "nonincluded", Included = false,
+                IngressFile = "ingress/students/input.csv",
+                SchemaFile = "ingress/students/schema.json"
+            }]
+        };
+        Window(CheckingWindowType.Post16, exercise);
+        _currentUser.OrganisationLaestab.Returns("1234567");
+        _reader.ReadAsync(Arg.Is<CheckingDataExercise>(e => e.Id == exercise.Id),
+                "1234567", Arg.Any<CancellationToken>())
+            .Returns(System.Text.Encoding.UTF8.GetBytes("""[{"INCLUDED":false,"SURNAME":"Konsa","LAESTAB":"1234567"}]"""));
+        _reader.ReadSchemaAsync(WindowId, "ingress/students/schema.json", Arg.Any<CancellationToken>())
+            .Returns(System.Text.Encoding.UTF8.GetBytes("""
+                {"x-ingress":{"collection":"students-non-included"},
+                 "x-display":{"section":"Students non-included"},
+                 "properties":{
+                   "SURNAME":{"x-display":{"label":"Family name","visible":true,"order":0}},
+                   "LAESTAB":{"x-display":{"label":"School number","visible":true,"order":1}}
+                 }}
+                """));
+
+        var students = Assert.Single((await IndexModel()).CheckingExerciseTabs).Students!;
+
+        Assert.Equal(["Family name", "School number"], students.Selected.Columns.Select(c => c.Label));
+        Assert.Equal("Konsa", Assert.Single(students.Rows)["SURNAME"]);
+        await _reader.Received(1).ReadSchemaAsync(WindowId, "ingress/students/schema.json",
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Student_tab_does_not_guess_columns_when_its_uploaded_schema_is_missing()
+    {
+        var exercise = new CheckingExerciseDto
+        {
+            Id = Guid.NewGuid(), Name = "Students", TabName = "Students", IsEnabled = true,
+            ExerciseType = CheckingExerciseType.PupilData, StartDate = Yesterday, EndDate = Tomorrow,
+            Datasets = [new CheckingWindowDatasetDto
+            {
+                Id = Guid.NewGuid(), Name = "included", Included = true,
+                IngressFile = "ingress/students/input.csv", SchemaFile = "ingress/students/schema.json"
+            }]
+        };
+        Window(CheckingWindowType.Post16, exercise);
+        _currentUser.OrganisationLaestab.Returns("1234567");
+        _reader.ReadAsync(Arg.Any<CheckingDataExercise>(), "1234567", Arg.Any<CancellationToken>())
+            .Returns(System.Text.Encoding.UTF8.GetBytes("""[{"SURNAME":"Watkins"}]"""));
+
+        var tab = Assert.Single((await IndexModel()).CheckingExerciseTabs);
+
+        Assert.True(tab.StudentSchemaUnavailable);
+        Assert.Null(tab.Students);
     }
 
     [Fact]

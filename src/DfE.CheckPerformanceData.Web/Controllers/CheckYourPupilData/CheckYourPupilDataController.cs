@@ -302,11 +302,33 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
             var isStudentsTab = window.CheckingWindowType == CheckingWindowType.Post16 &&
                 (exercise.ExerciseType == CheckingExerciseType.PupilData ||
                  exercise.TabName.Equals("Students", StringComparison.OrdinalIgnoreCase));
+            var studentDefinitions = new List<StudentDataset>();
+            var studentSchemaUnavailable = false;
+            if (isStudentsTab)
+            {
+                var sourceExercise = window.Exercises.Single(e => e.Id == exercise.Id);
+                var uploadedDatasets = sourceExercise.DatasetsToIngest;
+                studentSchemaUnavailable = uploadedDatasets.Count == 0;
+                foreach (var dataset in uploadedDatasets)
+                {
+                    var schemaBytes = await checkingDataReader.ReadSchemaAsync(
+                        windowId, dataset.SchemaFile, HttpContext.RequestAborted);
+                    if (schemaBytes is null || schemaBytes.Length == 0)
+                    {
+                        studentSchemaUnavailable = true;
+                        break;
+                    }
+                    using var schema = JsonDocument.Parse(schemaBytes);
+                    studentDefinitions.Add(Post16StudentDisplay.ParseDefinition(
+                        dataset.Name, dataset.Included, schema.RootElement));
+                }
+            }
             checkingExerciseTabs.Add(new CheckingExerciseTab(exercise, rows, true)
             {
                 CanShowActions = exercise.CanAct(now),
-                Students = isStudentsTab
-                    ? Post16StudentDisplay.Build(rows, studentDataset, studentSearch, studentPage, PageSize)
+                StudentSchemaUnavailable = studentSchemaUnavailable,
+                Students = isStudentsTab && !studentSchemaUnavailable
+                    ? Post16StudentDisplay.Build(rows, studentDefinitions, studentDataset, studentSearch, studentPage, PageSize)
                     : null
             });
         }

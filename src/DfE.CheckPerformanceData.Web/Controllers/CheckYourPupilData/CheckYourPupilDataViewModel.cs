@@ -138,5 +138,6 @@ public sealed record CheckingExerciseTab(
 {
     public IReadOnlyList<string> Columns => Rows.SelectMany(row => row.Keys).Distinct().ToList();
     public Post16StudentsView? Students { get; init; }
+    public bool StudentSchemaUnavailable { get; init; }
     public bool CanShowActions { get; init; }
 }

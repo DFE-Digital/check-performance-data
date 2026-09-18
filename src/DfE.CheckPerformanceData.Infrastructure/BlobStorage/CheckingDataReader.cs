@@ -15,4 +15,12 @@ public sealed class CheckingDataReader(BlobServiceClient blobs) : ICheckingDataR
         if (!await blob.ExistsAsync(cancellationToken)) return null;
         return (await blob.DownloadContentAsync(cancellationToken)).Value.Content.ToArray();
     }
+
+    public async Task<byte[]?> ReadSchemaAsync(Guid windowId, string schemaFile, CancellationToken cancellationToken)
+    {
+        var blob = blobs.GetBlobContainerClient(windowId.ToString())
+            .GetBlobClient(CheckingExerciseBlobPaths.SchemaBlobName(schemaFile));
+        if (!await blob.ExistsAsync(cancellationToken)) return null;
+        return (await blob.DownloadContentAsync(cancellationToken)).Value.Content.ToArray();
+    }
 }

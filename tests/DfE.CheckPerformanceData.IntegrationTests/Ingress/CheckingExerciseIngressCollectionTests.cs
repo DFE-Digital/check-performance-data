@@ -13,6 +13,9 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
 using DfE.CheckPerformanceData.Web.Controllers;
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using Microsoft.Extensions.Caching.Memory;
+using NSubstitute;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.Ingress;
 
@@ -77,6 +80,17 @@ public sealed class CheckingExerciseIngressCollectionTests(PostgresFixture postg
             await container.GetBlobClient(pair.SchemaFile).UploadAsync(BinaryData.FromString(schema));
         }
         await db.SaveChangesAsync();
+        using var cache = new MemoryCache(new MemoryCacheOptions());
+        var windowForPage = await new CheckYourPupilDataRepository(db,
+            Substitute.For<IPupilDataBlobClient>(), cache).GetCheckingWindowAsync(created.Id);
+        var uploadedDatasets = Assert.Single(windowForPage.Exercises).Datasets;
+        Assert.Equal(count, uploadedDatasets.Count);
+        foreach (var dataset in uploadedDatasets)
+        {
+            Assert.Equal(entity.Datasets.Single(d => d.Id == dataset.Id).SchemaFile, dataset.SchemaFile);
+            Assert.NotNull(await new CheckingDataReader(blobs).ReadSchemaAsync(
+                created.Id, dataset.SchemaFile, default));
+        }
         var ingress = new CheckingExerciseIngress(new CheckingExerciseDefinitionRepository(db, windows),
             new CsvSchemaFileProcessor(NullLogger<CsvSchemaFileProcessor>.Instance,
                 new Dictionary<string, BlobServiceClient> { ["app"] = blobs }), TimeProvider.System);

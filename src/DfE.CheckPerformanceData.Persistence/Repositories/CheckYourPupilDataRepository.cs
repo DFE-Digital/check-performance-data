@@ -7,6 +7,7 @@ using DfE.CheckPerformanceData.Persistence.Contexts;
 // Aliased, not imported: WindowManagement also declares a CheckingWindowDto, which would make the
 // LandingPage one ambiguous here.
 using CheckingExerciseDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseDto;
+using CheckingWindowDatasetDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingWindowDatasetDto;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 
@@ -79,7 +80,19 @@ public sealed class CheckYourPupilDataRepository(
                         ExerciseType = e.ExerciseType,
                         StartDate = e.StartDate,
                         EndDate = e.EndDate,
-                        SortOrder = e.SortOrder
+                        SortOrder = e.SortOrder,
+                        Datasets = e.Datasets.OrderBy(d => d.SortOrder).Select(d => new CheckingWindowDatasetDto
+                        {
+                            Id = d.Id,
+                            Name = d.Name,
+                            IngressFile = d.IngressFile,
+                            IngressFileChecksum = d.IngressFileChecksum,
+                            SchemaFile = d.SchemaFile,
+                            SchemaFileChecksum = d.SchemaFileChecksum,
+                            Included = d.Included,
+                            Required = d.Required,
+                            SortOrder = d.SortOrder
+                        }).ToList()
                     })
                     .ToList()
             })

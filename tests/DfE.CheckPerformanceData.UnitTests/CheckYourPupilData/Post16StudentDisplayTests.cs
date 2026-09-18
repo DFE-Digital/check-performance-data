@@ -6,32 +6,36 @@ namespace DfE.CheckPerformanceData.UnitTests.CheckYourPupilData;
 public class Post16StudentDisplayTests
 {
     [Fact]
-    public void Uses_schema_columns_and_searchable_fields_for_each_student_dataset()
+    public void Uses_each_uploaded_schema_for_table_search_and_download()
     {
+        var included = Definition("students-included", true, "Last name", false);
+        var nonIncluded = Definition("students-non-included", false, "Family name", true);
         var rows = new List<Dictionary<string, string>>
         {
-            new() { ["P_INCL"] = "501", ["SURNAME"] = "Watkins", ["FORENAMES"] = "Ollie", ["DOB"] = "2009-01-01", ["CYPMD_ID"] = "1" },
-            new() { ["SURNAME"] = "Konsa", ["FORENAMES"] = "Ezri", ["CYPMD_ID"] = "2" },
-            new() { ["SURNAME_0"] = "Gallagher", ["FORENAMES_0"] = "Conor", ["CYPMD_ID"] = "3" }
+            new() { ["INCLUDED"] = "True", ["SURNAME"] = "Watkins", ["LAESTAB"] = "1234567" },
+            new() { ["INCLUDED"] = "False", ["SURNAME"] = "Konsa", ["LAESTAB"] = "7654321" }
         };
 
-        var included = Post16StudentDisplay.Build(rows, "students-included", "oll", 0, 10);
-        Assert.Equal(["Last name", "First name", "Sex", "Date of birth", "Age", "CYPMD ID"],
-            included.Selected.Columns.Select(c => c.Label));
-        Assert.Single(included.Rows);
-        Assert.Equal("01/01/2009", Post16StudentDisplay.Value(included.Rows[0], "DOB"));
+        var view = Post16StudentDisplay.Build(rows, [included, nonIncluded],
+            "students-non-included", "kon", 0, 10);
 
-        var nonIncluded = Post16StudentDisplay.Build(rows, "students-non-included", null, 0, 10);
-        Assert.Single(nonIncluded.Rows);
-        Assert.Equal("Konsa", nonIncluded.Rows[0]["SURNAME"]);
-        var csv = System.Text.Encoding.UTF8.GetString(Post16StudentDisplay.Csv(nonIncluded.Selected));
-        Assert.StartsWith("CYPMD ID,Surname,Forename,Sex,Date of birth,Age", csv);
-        Assert.Contains("Konsa,Ezri", csv);
+        Assert.Equal(["Family name", "DfE number"], view.Selected.Columns.Select(c => c.Label));
+        Assert.Single(view.Rows);
+        Assert.Equal("Konsa", view.Rows[0]["SURNAME"]);
+        var csv = System.Text.Encoding.UTF8.GetString(Post16StudentDisplay.Csv(view.Selected));
+        Assert.StartsWith("Surname,DfE number", csv);
+        Assert.Contains("Konsa,7654321", csv);
+        Assert.DoesNotContain(included.Columns, c => c.Field == "LAESTAB");
+    }
 
-        var previous = Post16StudentDisplay.Build(rows, "students-previously-published", "Con", 0, 10);
-        Assert.Single(previous.Rows);
-        Assert.Equal("Gallagher", previous.Rows[0]["SURNAME_0"]);
-        Assert.DoesNotContain(previous.Selected.Columns, c => c.Field == "AGE");
+    [Fact]
+    public void Replacing_an_uploaded_schema_changes_the_display_definition()
+    {
+        var oldDefinition = Definition("students-non-included", false, "Last name", false);
+        var newDefinition = Definition("students-non-included", false, "Family name", true);
+
+        Assert.Equal("Last name", oldDefinition.Columns[0].Label);
+        Assert.Equal(["Family name", "DfE number"], newDefinition.Columns.Select(c => c.Label));
     }
 
     [Fact]
@@ -41,8 +45,14 @@ public class Post16StudentDisplayTests
             {"students-included":[{"SURNAME":"Watkins"}],"students-non-included":[{"SURNAME":"Konsa"}],"results-included":[{"SURNAME":"Watkins","GNUMBER":"123"}]}
             """);
         var rows = Post16StudentDisplay.ReadRows(json.RootElement);
-        Assert.Single(Post16StudentDisplay.Build(rows, "students-included", null, 0, 10).Rows);
-        Assert.Single(Post16StudentDisplay.Build(rows, "students-non-included", null, 0, 10).Rows);
+        var definitions = new[]
+        {
+            Definition("students-included", true, "Last name", false),
+            Definition("students-non-included", false, "Last name", false)
+        };
+
+        Assert.Single(Post16StudentDisplay.Build(rows, definitions, "students-included", null, 0, 10).Rows);
+        Assert.Single(Post16StudentDisplay.Build(rows, definitions, "students-non-included", null, 0, 10).Rows);
     }
 
     [Fact]
@@ -50,11 +60,39 @@ public class Post16StudentDisplayTests
     {
         var rows = new List<Dictionary<string, string>>
         {
-            new() { ["INCLUDED"] = "True", ["SURNAME"] = "Watkins", ["FORENAMES"] = "Ollie", ["LearningAimReference"] = "" },
-            new() { ["INCLUDED"] = "False", ["SURNAME"] = "Konsa", ["FORENAMES"] = "Ezri", ["P_INCL"] = "" }
+            new() { ["INCLUDED"] = "True", ["SURNAME"] = "Watkins", ["LAESTAB"] = "123" },
+            new() { ["INCLUDED"] = "False", ["SURNAME"] = "Konsa", ["LAESTAB"] = "123" }
+        };
+        var definitions = new[]
+        {
+            Definition("students-included", true, "Last name", false),
+            Definition("students-non-included", false, "Last name", false)
         };
 
-        Assert.Single(Post16StudentDisplay.Build(rows, "students-included", null, 0, 10).Rows);
-        Assert.Single(Post16StudentDisplay.Build(rows, "students-non-included", null, 0, 10).Rows);
+        Assert.Single(Post16StudentDisplay.Build(rows, definitions, "students-included", null, 0, 10).Rows);
+        Assert.Single(Post16StudentDisplay.Build(rows, definitions, "students-non-included", null, 0, 10).Rows);
+    }
+
+    private static StudentDataset Definition(string key, bool included, string surnameLabel, bool showLaestab)
+    {
+        var schema = $$"""
+            {
+              "x-ingress": { "collection": "{{key}}" },
+              "x-display": { "section": "{{key}}" },
+              "x-download": { "fileName": "{{key}}.csv" },
+              "properties": {
+                "SURNAME": {
+                  "x-display": { "label": "{{surnameLabel}}", "visible": true, "order": 0, "searchable": true },
+                  "x-csv": { "columns": { "default": "A" }, "heading": "Surname" }
+                },
+                "LAESTAB": {
+                  "x-display": { "label": "DfE number", "visible": {{showLaestab.ToString().ToLowerInvariant()}}, "order": 1 },
+                  "x-csv": { "columns": { "default": "B" }, "heading": "DfE number" }
+                }
+              }
+            }
+            """;
+        using var json = JsonDocument.Parse(schema);
+        return Post16StudentDisplay.ParseDefinition(key, included, json.RootElement);
     }
 }

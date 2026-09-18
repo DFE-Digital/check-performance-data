@@ -24,7 +24,18 @@ module "application_configuration" {
     AZURE_STORAGE_ACCOUNT_NAME        = local.azure_storage_account_name
     AZURE_STORAGE_ACCESS_KEY          = local.azure_storage_access_key
     AZURE_STORAGE_CONTAINER           = local.azure_storage_container
-  }, local.federated_auth_secrets)
+  }, local.federated_auth_secrets, local.egress_storage_secrets)
+}
+
+# AB#294553: the LDS egress needs an account to transfer into (ConnectionStrings__EgressStorage);
+# without it the app refuses to transfer with a "not configured" message. The real LDS account
+# for the long-lived environments is still to be confirmed with LDS (docs/data-egress.md, gaps),
+# so only review apps get one here — the E2E suite's egress facts walk the transfer end to end
+# against the per-PR "lds" account, whose cypmd/extracts_input the app creates on first upload.
+locals {
+  egress_storage_secrets = var.config == "review" ? {
+    ConnectionStrings__EgressStorage = module.storage_private.primary_connection_string
+  } : {}
 }
 
 

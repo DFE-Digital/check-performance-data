@@ -1,0 +1,48 @@
+@model DfE.CheckPerformanceData.Web.Controllers.Egress.RunPageViewModel
+@{
+    ViewData["Title"] = "Preprocessing failed";
+    ViewData["HasError"] = true;
+}
+
+<a class="govuk-back-link" href="/admin/egress">Back to data egress</a>
+<partial name="_RunHeader" model="Model" />
+<h1 class="govuk-heading-xl">Preprocessing failed</h1>
+
+<div class="govuk-error-summary" data-module="govuk-error-summary" data-testid="egress-failed-summary">
+    <div role="alert">
+        <h2 class="govuk-error-summary__title">No records were transferred</h2>
+        <div class="govuk-error-summary__body">
+            <p class="govuk-body">@Model.Run.Failures.Count problem(s) were found across @Model.Run.Failures.Select(f => f.ReferenceNumber).Distinct().Count() record(s). Because one failing record fails the whole batch, nothing was saved and nothing was sent. Correct the source data, then start a new run.</p>
+        </div>
+    </div>
+</div>
+
+<table class="govuk-table" data-testid="egress-failures">
+    <caption class="govuk-table__caption govuk-table__caption--m">Records that failed</caption>
+    <thead class="govuk-table__head">
+        <tr class="govuk-table__row">
+            <th scope="col" class="govuk-table__header">Ticket ID</th>
+            <th scope="col" class="govuk-table__header">Reference</th>
+            <th scope="col" class="govuk-table__header">Step</th>
+            <th scope="col" class="govuk-table__header">Field</th>
+            <th scope="col" class="govuk-table__header">Problem</th>
+        </tr>
+    </thead>
+    <tbody class="govuk-table__body">
+        @foreach (var failure in Model.Run.Failures)
+        {
+            <tr class="govuk-table__row">
+                <td class="govuk-table__cell">@failure.TicketId</td>
+                <td class="govuk-table__cell">@failure.ReferenceNumber</td>
+                <td class="govuk-table__cell">@failure.Step</td>
+                <td class="govuk-table__cell">@failure.Field</td>
+                <td class="govuk-table__cell">@failure.Reason</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<div class="govuk-button-group">
+    <govuk-button-link href="/admin/egress/runs/@Model.Run.Id/results">View the pulled data</govuk-button-link>
+    <a class="govuk-button govuk-button--secondary" href="/admin/egress">Start a new egress</a>
+</div>

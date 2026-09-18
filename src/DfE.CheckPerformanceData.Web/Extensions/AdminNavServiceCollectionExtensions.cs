@@ -59,6 +59,8 @@ public static class AdminNavServiceCollectionExtensions
         services.AddSingleton<IAdminNavEntry, WindowAdminNavEntry>();
         services.AddSingleton<IAdminNavEntry, NewWindowNavEntry>();
         services.AddSingleton<IAdminNavEntry, ManageWindowNavEntry>();
+        services.AddSingleton<IAdminNavEntry, EgressGroupNavEntry>();
+        services.AddSingleton<IAdminNavEntry, StartEgressNavEntry>();
         services.AddSingleton<IAdminNavEntry, TransactionsNavEntry>();
         services.AddSingleton<IAdminNavEntry, ReplaySubmissionsNavEntry>();
         services.AddSingleton<IAdminNavEntry, DangerZoneGroupNavEntry>();

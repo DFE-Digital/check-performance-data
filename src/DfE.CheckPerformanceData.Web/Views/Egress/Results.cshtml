@@ -1,0 +1,65 @@
+@model DfE.CheckPerformanceData.Web.Controllers.Egress.RunPageViewModel
+@using DfE.CheckPerformanceData.Application.Egress
+@using DfE.CheckPerformanceData.Domain.Enums
+@using DfE.CheckPerformanceData.Web.Controllers.Egress
+@{
+    ViewData["Title"] = "Data pulled from Zendesk";
+    var total = Model.Run.Outputs.Sum(o => o.SourceRecordCount);
+}
+
+<a class="govuk-back-link" href="/admin/egress">Back to data egress</a>
+<partial name="_RunHeader" model="Model" />
+<h1 class="govuk-heading-xl">Data pulled from Zendesk</h1>
+@* Nit: rewritten from developer-note phrasing into plain user-facing language.
+   FLAGGED copy — see PR notes §5. *@
+<p class="govuk-body">Every request for the selected output types is listed below, whatever its decision. Only approved and auto-approved requests will be included when you proceed to preprocessing.</p>
+
+@if (total == 0)
+{
+    <p class="govuk-body" data-testid="egress-no-records">There are no requests to process for this checking window and these output types.</p>
+}
+
+<govuk-tabs>
+    @foreach (var output in Model.Run.Outputs)
+    {
+        <govuk-tabs-item id="@output.OutputType.ToString().ToLowerInvariant()" label="@EgressOutputTypes.Label(output.OutputType)">
+            <h2 class="govuk-heading-m">@EgressOutputTypes.Label(output.OutputType) <span class="govuk-hint govuk-!-display-inline">(@output.SourceRecordCount records)</span></h2>
+            <div class="govuk-!-overflow-x-auto" style="overflow-x: auto;">
+                <table class="govuk-table" data-testid="egress-results-@output.OutputType.ToString().ToLowerInvariant()">
+                    <caption class="govuk-table__caption govuk-visually-hidden">@EgressOutputTypes.Label(output.OutputType) pulled from Zendesk</caption>
+                    <thead class="govuk-table__head">
+                        <tr class="govuk-table__row">
+                            @foreach (var column in RunPageViewModel.RawColumns)
+                            {
+                                <th scope="col" class="govuk-table__header">@column.Header</th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody class="govuk-table__body">
+                        @foreach (var record in output.Records)
+                        {
+                            <tr class="govuk-table__row">
+                                @foreach (var column in RunPageViewModel.RawColumns)
+                                {
+                                    <td class="govuk-table__cell">@column.Value(record)</td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </govuk-tabs-item>
+    }
+</govuk-tabs>
+
+<div class="govuk-button-group">
+    @if (total > 0 && Model.Run.Status != EgressRunStatus.PreprocessingFailed)
+    {
+        <govuk-button-link href="/admin/egress/runs/@Model.Run.Id/preprocessing" data-testid="egress-proceed">Proceed to preprocessing</govuk-button-link>
+    }
+    <a class="govuk-button govuk-button--secondary" href="/admin/egress" data-testid="egress-save">Save and exit</a>
+    <form method="post" action="/admin/egress/runs/@Model.Run.Id/abandon" class="govuk-!-display-inline">
+        @Html.AntiForgeryToken()
+        <button type="submit" class="govuk-button govuk-button--warning" data-module="govuk-button" data-testid="egress-abandon">Abandon run</button>
+    </form>
+</div>

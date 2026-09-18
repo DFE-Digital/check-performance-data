@@ -34,6 +34,14 @@ SeedDevelopmentData: true
 # hard-guards against Production regardless of this flag.
 Dev__ToolsEnabled: true
 
+# AB#294553: the E2E egress facts seed their decisions into the DevZendeskTickets outbox
+# (/dev/egress/seed), so the review app must read decisions from that outbox rather than
+# from esfa-preprod, where those ticket ids do not exist. This is the same opt-in the local
+# docker-compose stack makes. Web and worker share this ConfigMap, so the worker's ticket
+# writes land in the outbox too — review apps do not create real Zendesk tickets.
+# AddCpdEgress refuses this flag in Production regardless of configuration.
+Zendesk__UseFake: true
+
 # Rules Engine Worker configuration
 RulesEngineOptions__QueueName: change-requests
 RulesEngineOptions__RetryDelayMs: 5000

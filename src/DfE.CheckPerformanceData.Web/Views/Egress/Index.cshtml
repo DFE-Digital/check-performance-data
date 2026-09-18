@@ -1,0 +1,192 @@
+@model DfE.CheckPerformanceData.Web.Controllers.Egress.PullViewModel
+@using DfE.CheckPerformanceData.Application.Egress
+@using DfE.CheckPerformanceData.Domain.Enums
+@{
+    ViewData["Title"] = "Data egress";
+    ViewData["HasError"] = !Model.IsValid;
+}
+
+<a class="govuk-back-link" href="/admin">Back to administration</a>
+
+@if (Model.Banner is not null)
+{
+    @* Nit: GOV.UK's default notification banner is role="region" — "alert" is reserved for a
+       success banner, and every banner this page shows today ("abandoned", "already
+       transferred", refusals) is neutral, not success. *@
+    <div class="govuk-notification-banner" role="region" aria-labelledby="egress-banner-title" data-module="govuk-notification-banner" data-testid="egress-banner">
+        <div class="govuk-notification-banner__header">
+            <h2 class="govuk-notification-banner__title" id="egress-banner-title">Important</h2>
+        </div>
+        <div class="govuk-notification-banner__content">
+            <p class="govuk-notification-banner__heading">@Model.Banner</p>
+        </div>
+    </div>
+}
+
+<h1 class="govuk-heading-xl">Data egress</h1>
+
+@if (Model.StorageNotConfigured)
+{
+    @* Review finding (18 Sep): say so on the first screen, not only after Confirm. Pull, preprocess,
+       preview and download still work without a target account; only Transfer refuses. *@
+    <div class="govuk-warning-text" data-testid="egress-storage-not-configured">
+        <span class="govuk-warning-text__icon" aria-hidden="true">!</span>
+        <strong class="govuk-warning-text__text">
+            <span class="govuk-visually-hidden">Warning</span>
+            Egress storage is not configured for this environment (ConnectionStrings:EgressStorage). You can pull, preprocess and download files, but a transfer to LDS will be refused until it is set.
+        </strong>
+    </div>
+}
+
+@* The library's govuk-checkboxes-error-message tag helper below registers its error with
+   GovUk.Frontend.AspNetCore's page-level error-summary aggregator; using the library's own
+   govuk-error-summary tag helper here (rather than hand-written markup) is what "claims" that
+   aggregator, so it does not also auto-render a second, unclaimed summary. *@
+@if (!Model.IsValid)
+{
+    <govuk-error-summary data-testid="egress-error-summary">
+        @if (Model.WindowError is not null) { <govuk-error-summary-item href="#WindowId">@Model.WindowError</govuk-error-summary-item> }
+        @if (Model.OutputTypesError is not null) { <govuk-error-summary-item href="#OutputTypes">@Model.OutputTypesError</govuk-error-summary-item> }
+        @foreach (var refusal in Model.Refusals) { <govuk-error-summary-item>@refusal</govuk-error-summary-item> }
+        @if (Model.PullError is not null) { <govuk-error-summary-item>Zendesk could not be read: @Model.PullError</govuk-error-summary-item> }
+    </govuk-error-summary>
+}
+
+<form method="post" action="/admin/egress" novalidate>
+    @Html.AntiForgeryToken()
+
+    <div class="govuk-form-group @(Model.WindowError is not null ? "govuk-form-group--error" : "")">
+        <label class="govuk-label govuk-label--s" for="WindowId">1. Select a checking window</label>
+        <div class="govuk-hint" id="WindowId-hint">Choose the checking window you want to export data for.</div>
+        @if (Model.WindowError is not null)
+        {
+            <p class="govuk-error-message" id="WindowId-error"><span class="govuk-visually-hidden">Error:</span> @Model.WindowError</p>
+        }
+        <select class="govuk-select @(Model.WindowError is not null ? "govuk-select--error" : "")" id="WindowId" name="WindowId"
+                aria-describedby="WindowId-hint@(Model.WindowError is not null ? " WindowId-error" : "")">
+            <option value="">Select a checking window</option>
+            @foreach (var window in Model.Windows)
+            {
+                <option value="@window.Id" selected="@(Model.SelectedWindowId == window.Id)">@window.Label</option>
+            }
+        </select>
+    </div>
+
+    @* S5: still deliberately not the govuk-checkboxes-error-message tag helper — in this version
+       of GovUk.Frontend.AspNetCore that tag helper unconditionally auto-renders its OWN page-level
+       error summary at the top of <main> in addition to this page's single, consolidated
+       govuk-error-summary above, and it only binds via asp-validation-for against ModelState,
+       which this field does not use. The field-level error is plain markup instead, but now placed
+       inside the form group between the hint and the checkboxes (the GOV.UK pattern) and referenced
+       from the fieldset's aria-describedby, matching the window select's error above. *@
+    <div class="govuk-form-group @(Model.OutputTypesError is not null ? "govuk-form-group--error" : "")">
+        <govuk-checkboxes name="OutputTypes">
+            @* The library already appends its own auto-generated OutputTypes-hint id to whatever
+               aria-describedby is supplied here (verified live), so only the error id — which it
+               does not know about — needs adding, and only when there is one. *@
+            <govuk-checkboxes-fieldset aria-describedby="@(Model.OutputTypesError is not null ? "OutputTypes-error" : "")">
+                <govuk-checkboxes-fieldset-legend class="govuk-fieldset__legend--s">2. Select data to pull from Zendesk</govuk-checkboxes-fieldset-legend>
+                <govuk-checkboxes-hint>Select one or more output types to retrieve.</govuk-checkboxes-hint>
+                @* govuk-checkboxes-before-inputs is the fieldset's one slot for plain markup between
+                   the hint and the items — govuk-checkboxes-fieldset itself only allows tag-helper
+                   children, so a bare <p> here (as tried before) is RZ2009. *@
+                <govuk-checkboxes-before-inputs>
+                    @if (Model.OutputTypesError is not null)
+                    {
+                        <p class="govuk-error-message" id="OutputTypes-error"><span class="govuk-visually-hidden">Error:</span> @Model.OutputTypesError</p>
+                    }
+                </govuk-checkboxes-before-inputs>
+                @foreach (var type in Model.OutputTypes)
+                {
+                    <govuk-checkboxes-item value="@type" checked="@Model.SelectedOutputTypes.Contains(type)">@EgressOutputTypes.Label(type)</govuk-checkboxes-item>
+                }
+            </govuk-checkboxes-fieldset>
+        </govuk-checkboxes>
+    </div>
+
+    <govuk-button type="submit" data-testid="egress-pull">Pull data from Zendesk</govuk-button>
+</form>
+
+<h2 class="govuk-heading-m">Saved runs</h2>
+@if (Model.SavedRuns.Count == 0)
+{
+    <p class="govuk-body">There are no saved runs.</p>
+}
+else
+{
+    <table class="govuk-table" data-testid="egress-saved-runs">
+        <caption class="govuk-table__caption govuk-visually-hidden">Saved runs</caption>
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header">Checking window</th>
+                <th scope="col" class="govuk-table__header">Output types</th>
+                <th scope="col" class="govuk-table__header">Stage</th>
+                <th scope="col" class="govuk-table__header">Started by</th>
+                <th scope="col" class="govuk-table__header">Started</th>
+                <th scope="col" class="govuk-table__header"><span class="govuk-visually-hidden">Action</span></th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            @foreach (var run in Model.SavedRuns)
+            {
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">@run.WindowTitle</td>
+                    <td class="govuk-table__cell">@string.Join(", ", run.OutputTypes.Select(EgressOutputTypes.Label))</td>
+                    <td class="govuk-table__cell"><strong class="govuk-tag @StageTagClass(run.Status)">@StageLabel(run.Status)</strong></td>
+                    <td class="govuk-table__cell">@run.StartedByName</td>
+                    <td class="govuk-table__cell">@run.StartedAtUtc.ToString("d MMM yyyy HH:mm") UTC</td>
+                    <td class="govuk-table__cell"><a class="govuk-link" href="/admin/egress/runs/@run.Id">Resume<span class="govuk-visually-hidden"> run for @run.WindowTitle started @run.StartedAtUtc.ToString("d MMM yyyy HH:mm")</span></a></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<h2 class="govuk-heading-m">Completed runs</h2>
+@if (Model.CompletedRuns.Count == 0)
+{
+    <p class="govuk-body">Nothing has been transferred yet.</p>
+}
+else
+{
+    <table class="govuk-table" data-testid="egress-completed-runs">
+        <caption class="govuk-table__caption govuk-visually-hidden">Completed runs</caption>
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header">Checking window</th>
+                <th scope="col" class="govuk-table__header">Output types</th>
+                <th scope="col" class="govuk-table__header">Status</th>
+                <th scope="col" class="govuk-table__header">Started by</th>
+                <th scope="col" class="govuk-table__header">Transferred</th>
+                <th scope="col" class="govuk-table__header"><span class="govuk-visually-hidden">Action</span></th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            @foreach (var run in Model.CompletedRuns)
+            {
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">@run.WindowTitle</td>
+                    <td class="govuk-table__cell">@string.Join(", ", run.OutputTypes.Select(EgressOutputTypes.Label))</td>
+                    <td class="govuk-table__cell"><strong class="govuk-tag govuk-tag--green">Transferred</strong></td>
+                    <td class="govuk-table__cell">@run.StartedByName</td>
+                    <td class="govuk-table__cell">@run.TransferredAtUtc?.ToString("d MMM yyyy HH:mm") UTC</td>
+                    <td class="govuk-table__cell"><a class="govuk-link" href="/admin/egress/runs/@run.Id">View<span class="govuk-visually-hidden"> run for @run.WindowTitle</span></a></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@functions {
+    // Where a saved run will reopen. FLAGGED copy.
+    // Second-pass nit: delegates to EgressRunStatuses.Label — the single source of truth this
+    // mapping now shares with the preprocessing refusal copy — instead of keeping its own copy.
+    private static string StageLabel(EgressRunStatus status) => EgressRunStatuses.Label(status);
+
+    // Nit: the saved-runs list gave every stage the same blue tag, including the two failed ones.
+    private static string StageTagClass(EgressRunStatus status) => status switch
+    {
+        EgressRunStatus.PreprocessingFailed or EgressRunStatus.TransferFailed => "govuk-tag--red",
+        _ => "govuk-tag--blue"
+    };
+}

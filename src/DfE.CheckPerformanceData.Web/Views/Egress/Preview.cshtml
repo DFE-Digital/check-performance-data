@@ -1,0 +1,33 @@
+@model DfE.CheckPerformanceData.Web.Controllers.Egress.PreviewViewModel
+@{
+    ViewData["Title"] = $"Preview {Model.FileName}";
+}
+
+<a class="govuk-back-link" href="/admin/egress/runs/@Model.RunId/summary">Back to confirm transfer</a>
+<h1 class="govuk-heading-l">@Model.FileName</h1>
+<p class="govuk-body">@Model.Rows.Count data row(s). <a class="govuk-link" href="/admin/egress/runs/@Model.RunId/download/@Model.OutputType">Download the file</a>.</p>
+
+<div style="overflow-x: auto;">
+    <table class="govuk-table" data-testid="egress-preview">
+        <caption class="govuk-table__caption govuk-visually-hidden">File contents</caption>
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                @foreach (var header in Model.Headers)
+                {
+                    <th scope="col" class="govuk-table__header">@header</th>
+                }
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            @foreach (var row in Model.Rows)
+            {
+                <tr class="govuk-table__row">
+                    @foreach (var cell in row)
+                    {
+                        <td class="govuk-table__cell">@cell</td>
+                    }
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

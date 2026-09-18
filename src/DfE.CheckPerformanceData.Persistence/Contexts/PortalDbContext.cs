@@ -27,6 +27,10 @@ public sealed class PortalDbContext(
     public DbSet<QueueMessageEntity> QueueMessages => Set<QueueMessageEntity>();
     public DbSet<DeadLetterEntity> DeadLetters => Set<DeadLetterEntity>();
     public DbSet<DevZendeskTicket> DevZendeskTickets => Set<DevZendeskTicket>();
+    public DbSet<EgressRun> EgressRuns => Set<EgressRun>();
+    public DbSet<EgressRunOutput> EgressRunOutputs => Set<EgressRunOutput>();
+    public DbSet<EgressNewLearner> EgressNewLearners => Set<EgressNewLearner>();
+    public DbSet<EgressRemoveLearner> EgressRemoveLearners => Set<EgressRemoveLearner>();
     public DbSet<QueueMetricEvent> QueueMetricEvents => Set<QueueMetricEvent>();
     public DbSet<ShareToken> ShareTokens => Set<ShareToken>();
     public DbSet<PageNode> PageNodes => Set<PageNode>();
@@ -54,6 +58,10 @@ public sealed class PortalDbContext(
         modelBuilder.ApplyConfiguration(new QueueMessageConfiguration());
         modelBuilder.ApplyConfiguration(new DeadLetterConfiguration());
         modelBuilder.ApplyConfiguration(new DevZendeskTicketConfiguration());
+        modelBuilder.ApplyConfiguration(new EgressRunConfiguration());
+        modelBuilder.ApplyConfiguration(new EgressRunOutputConfiguration());
+        modelBuilder.ApplyConfiguration(new EgressNewLearnerConfiguration());
+        modelBuilder.ApplyConfiguration(new EgressRemoveLearnerConfiguration());
         modelBuilder.ApplyConfiguration(new QueueMetricEventConfiguration());
         modelBuilder.ApplyConfiguration(new ShareTokenConfiguration());
         modelBuilder.ApplyConfiguration(new PageNodeConfiguration());
@@ -101,6 +109,25 @@ public sealed class PortalDbContext(
         });
     }
 
+    // M4: the same re-entrant/execution-strategy shape as the void overload, for callers (like the
+    // egress terminal writes) that need to know how many rows a status-guarded update affected.
+    public async Task<T> ExecuteInTransactionAsync<T>(Func<Task<T>> work, CancellationToken cancellationToken = default)
+    {
+        if (Database.CurrentTransaction is not null)
+        {
+            return await work();
+        }
+
+        var strategy = Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync(async () =>
+        {
+            await using var transaction = await Database.BeginTransactionAsync(cancellationToken);
+            var result = await work();
+            await transaction.CommitAsync(cancellationToken);
+            return result;
+        });
+    }
+
     private List<(AuditEntry Audit, EntityEntry Entry, bool HasTempKey)> CollectAuditEntries()
     {
         ChangeTracker.DetectChanges();
@@ -124,6 +151,17 @@ public sealed class PortalDbContext(
             // login and keep a second copy of organisation data in audit_entries, which has
             // no retention purge.
             if (entry.Entity is OrganisationLogin) continue;
+
+            // Processed egress learner rows are derived data written in bulk from one deliberate
+            // admin action; the run-level AuditEntry written at transfer (EgressRun / Transfer)
+            // is the audit record AB#294553 asks for. Auditing each row would add hundreds of
+            // audit_entries per run that say nothing the run row does not.
+            if (entry.Entity is EgressNewLearner) continue;
+            if (entry.Entity is EgressRemoveLearner) continue;
+            // S1 (review): EgressRunOutput.RawRecordsJson is the raw pulled payload — names, DOB,
+            // sex, UPN, every journey answer for every candidate — for the same reason as the two
+            // learner rows above, and because AuditEntries has no retention purge of its own.
+            if (entry.Entity is EgressRunOutput) continue;
             if (entry.State is EntityState.Detached or EntityState.Unchanged) continue;
 
             var audit = new AuditEntry

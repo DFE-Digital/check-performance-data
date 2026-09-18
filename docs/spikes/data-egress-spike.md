@@ -1,3 +1,7 @@
+> **Implemented as of AB#294553** — see `docs/data-egress.md` for the shipped design; this page is
+> kept for its background on Zendesk and the Remove learners column list, which the implementation
+> follows verbatim.
+
 # Data Egress Spike
 
 ## Aims

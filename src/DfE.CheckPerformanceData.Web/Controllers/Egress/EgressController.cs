@@ -94,7 +94,8 @@ public sealed class EgressController(
             PullError = pullError,
             SavedRuns = list.Where(r => SavedStatuses.Contains(r.Status)).ToList(),
             CompletedRuns = list.Where(r => r.Status == EgressRunStatus.Transferred).ToList(),
-            Banner = TempData[BannerKey] as string
+            Banner = TempData[BannerKey] as string,
+            StorageNotConfigured = !blobs.IsConfigured
         };
     }
 
@@ -313,7 +314,8 @@ public sealed class EgressController(
             WindowTitle = window?.Title ?? "Unknown window",
             WindowType = window?.CheckingWindowType ?? CheckingWindowType.KS4June,
             TargetDescription = blobs.TargetDescription,
-            CurrentUserName = currentUser.DisplayName
+            CurrentUserName = currentUser.DisplayName,
+            StorageNotConfigured = !blobs.IsConfigured
         };
     }
 }

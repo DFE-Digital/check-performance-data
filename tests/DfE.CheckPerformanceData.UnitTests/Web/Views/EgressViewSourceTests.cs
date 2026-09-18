@@ -50,6 +50,25 @@ public sealed class EgressViewSourceTests
     }
 
     // Nit: WindowId's aria-describedby must not carry a trailing space when there is no error.
+    // Review finding (18 Sep): warn about a missing egress storage account on the first screen
+    // and on the confirm screen, not only in the failure banner after Confirm.
+    [Fact]
+    public void Pull_page_warns_when_egress_storage_is_not_configured()
+    {
+        var view = View("Index.cshtml");
+        Assert.Contains("@if (Model.StorageNotConfigured)", view);
+        Assert.Contains("data-testid=\"egress-storage-not-configured\"", view);
+        Assert.Contains("ConnectionStrings:EgressStorage", view);
+    }
+
+    [Fact]
+    public void Summary_warns_when_egress_storage_is_not_configured()
+    {
+        var view = View("Summary.cshtml");
+        Assert.Contains("@if (Model.StorageNotConfigured)", view);
+        Assert.Contains("data-testid=\"egress-storage-not-configured\"", view);
+    }
+
     [Fact]
     public void Window_select_aria_describedby_has_no_trailing_space_without_an_error()
     {

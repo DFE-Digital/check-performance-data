@@ -25,6 +25,19 @@
 
 <h1 class="govuk-heading-xl">Data egress</h1>
 
+@if (Model.StorageNotConfigured)
+{
+    @* Review finding (18 Sep): say so on the first screen, not only after Confirm. Pull, preprocess,
+       preview and download still work without a target account; only Transfer refuses. *@
+    <div class="govuk-warning-text" data-testid="egress-storage-not-configured">
+        <span class="govuk-warning-text__icon" aria-hidden="true">!</span>
+        <strong class="govuk-warning-text__text">
+            <span class="govuk-visually-hidden">Warning</span>
+            Egress storage is not configured for this environment (ConnectionStrings:EgressStorage). You can pull, preprocess and download files, but a transfer to LDS will be refused until it is set.
+        </strong>
+    </div>
+}
+
 @* The library's govuk-checkboxes-error-message tag helper below registers its error with
    GovUk.Frontend.AspNetCore's page-level error-summary aggregator; using the library's own
    govuk-error-summary tag helper here (rather than hand-written markup) is what "claims" that

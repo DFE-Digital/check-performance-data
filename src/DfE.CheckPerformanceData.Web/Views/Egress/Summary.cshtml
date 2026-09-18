@@ -28,6 +28,18 @@
     </div>
 }
 
+@if (Model.StorageNotConfigured)
+{
+    @* Review finding (18 Sep): warn before Confirm, not only in the failure banner after it. *@
+    <div class="govuk-warning-text" data-testid="egress-storage-not-configured">
+        <span class="govuk-warning-text__icon" aria-hidden="true">!</span>
+        <strong class="govuk-warning-text__text">
+            <span class="govuk-visually-hidden">Warning</span>
+            Egress storage is not configured for this environment (ConnectionStrings:EgressStorage). Confirm will be refused until it is set; the prepared files can still be previewed and downloaded.
+        </strong>
+    </div>
+}
+
 <p class="govuk-body">Review the details below before transferring data to LDS blob storage.</p>
 
 <h2 class="govuk-heading-m">Transfer details</h2>

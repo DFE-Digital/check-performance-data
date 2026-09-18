@@ -175,6 +175,45 @@ public sealed class EgressControllerTests
         Assert.Equal(nameof(EgressController.Resume), redirect.ActionName);
     }
 
+    // Review finding (18 Sep): ConnectionStrings:EgressStorage arrives only from deployment
+    // configuration, and the only check was at the very last step — an ops user could pull,
+    // preprocess and reach Summary before learning the environment had no target account. The
+    // Pull page and the Summary now carry the flag so the views can warn up front. Pull and
+    // preprocess are NOT blocked: preview and download are still useful without an account.
+    [Fact]
+    public async Task Index_tells_the_view_when_egress_storage_is_not_configured()
+    {
+        _blobs.IsConfigured.Returns(false);
+
+        var view = Assert.IsType<ViewResult>(await Build().Index(CancellationToken.None));
+
+        var model = Assert.IsType<PullViewModel>(view.Model);
+        Assert.True(model.StorageNotConfigured);
+    }
+
+    [Fact]
+    public async Task Summary_tells_the_view_when_egress_storage_is_not_configured()
+    {
+        _blobs.IsConfigured.Returns(false);
+        _runs.GetAsync(RunId, Arg.Any<CancellationToken>()).Returns(Run(EgressRunStatus.Preprocessed));
+        _windows.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(Window());
+
+        var view = Assert.IsType<ViewResult>(await Build().Summary(RunId, CancellationToken.None));
+
+        var model = Assert.IsType<RunPageViewModel>(view.Model);
+        Assert.True(model.StorageNotConfigured);
+    }
+
+    [Fact]
+    public async Task Index_does_not_warn_when_egress_storage_is_configured()
+    {
+        _blobs.IsConfigured.Returns(true);
+
+        var view = Assert.IsType<ViewResult>(await Build().Index(CancellationToken.None));
+
+        Assert.False(Assert.IsType<PullViewModel>(view.Model).StorageNotConfigured);
+    }
+
     // S10: Start's other two non-happy outcomes had no coverage.
     [Fact]
     public async Task Start_shows_the_window_error_when_the_window_no_longer_exists()

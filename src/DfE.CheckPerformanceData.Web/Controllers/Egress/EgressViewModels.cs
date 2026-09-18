@@ -26,6 +26,8 @@ public sealed class PullViewModel
     public IReadOnlyList<EgressRunListItem> SavedRuns { get; init; } = [];
     public IReadOnlyList<EgressRunListItem> CompletedRuns { get; init; } = [];
     public string? Banner { get; init; }
+    /// <summary>True when ConnectionStrings:EgressStorage is absent — the view warns up front that a transfer will refuse.</summary>
+    public bool StorageNotConfigured { get; init; }
     public bool IsValid => WindowError is null && OutputTypesError is null && Refusals.Count == 0 && PullError is null;
 }
 
@@ -39,6 +41,8 @@ public sealed record RunPageViewModel
     public string? StreamUrl { get; init; }
     public IReadOnlyList<string> StepNames { get; init; } = EgressPreprocessor.StepNames;
     public string CurrentUserName { get; init; } = string.Empty;
+    /// <summary>True when ConnectionStrings:EgressStorage is absent — the Summary warns before Confirm rather than after.</summary>
+    public bool StorageNotConfigured { get; init; }
     /// <summary>The Results page's "raw data" columns — one shared set; a column a record has no value for renders blank.</summary>
     public static readonly IReadOnlyList<(string Header, Func<EgressSourceRecord, string> Value)> RawColumns =
     [

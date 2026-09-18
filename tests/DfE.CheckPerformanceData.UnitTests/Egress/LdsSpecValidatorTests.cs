@@ -14,6 +14,42 @@ public sealed class LdsSpecValidatorTests
     public void A_complete_new_learner_row_passes()
         => Assert.Empty(LdsSpecValidator.Validate(SampleRows.New()));
 
+    // Review finding (18 Sep): the file goes to an external organisation and may be opened in a
+    // spreadsheet, where a cell beginning with = + - @ is evaluated as a formula (OWASP CSV
+    // injection). Surname and Forename are the only free-text cells — typed by the school in the
+    // Add journey. Rejecting here keeps the file spec-pure (no apostrophe prefix LDS never asked
+    // for) and fails the record with a named reason instead of silently rewriting a name.
+    [Theory]
+    [InlineData("=1+1")]
+    [InlineData("+cmd")]
+    [InlineData("-2")]
+    [InlineData("@SUM(A1)")]
+    public void A_new_learner_name_beginning_with_a_formula_trigger_fails_that_field(string bad)
+    {
+        var failures = LdsSpecValidator.Validate(SampleRows.New() with { Forename = bad });
+
+        var failure = Assert.Single(failures);
+        Assert.Equal("Forename", failure.Field);
+        Assert.Equal("must not begin with =, +, - or @", failure.Reason);
+    }
+
+    [Theory]
+    [InlineData("=HYPERLINK(\"http://x\")")]
+    [InlineData("-Smith")]
+    public void A_remove_row_surname_beginning_with_a_formula_trigger_fails_that_field(string bad)
+    {
+        var failures = LdsSpecValidator.Validate(SampleRows.Remove() with { Surname = bad });
+
+        var failure = Assert.Single(failures);
+        Assert.Equal("Surname", failure.Field);
+        Assert.Equal("must not begin with =, +, - or @", failure.Reason);
+    }
+
+    // A hyphen INSIDE a name is ordinary (double-barrelled surnames); only a leading trigger is refused.
+    [Fact]
+    public void A_hyphenated_surname_passes()
+        => Assert.Empty(LdsSpecValidator.Validate(SampleRows.Remove() with { Surname = "Smith-Jones" }));
+
     [Theory]
     [InlineData("Local_Authority", "87")]
     [InlineData("Local_Authority", "")]

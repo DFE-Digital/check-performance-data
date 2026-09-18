@@ -24,8 +24,8 @@ public static partial class LdsSpecValidator
         f.Digits("Correction_Reason", row.CorrectionReason);
         f.OneOf("Key_Stage", row.KeyStage, Stages);
         f.DigitsOfLength("Establishment_Number", row.EstablishmentNumber, 4);
-        f.Required("Surname", row.Surname);
-        f.Required("Forename", row.Forename);
+        f.FreeText("Surname", row.Surname);
+        f.FreeText("Forename", row.Forename);
         f.OneOf("Sex", row.Sex, Sexes);
         f.IsoDate("Date_of_Birth", row.DateOfBirth);
         f.DigitsOfLength("Cycle_Year", row.CycleYear, 4);
@@ -46,8 +46,8 @@ public static partial class LdsSpecValidator
         f.Equals("Correction_Type", row.CorrectionType, "10");
         f.OneOf("Key_Stage", row.KeyStage, Stages);
         f.DigitsOfLength("Establishment_Number", row.EstablishmentNumber, 4);
-        f.Required("Surname", row.Surname);
-        f.Required("Forename", row.Forename);
+        f.FreeText("Surname", row.Surname);
+        f.FreeText("Forename", row.Forename);
         f.OneOf("Sex", row.Sex, Sexes);
         f.IsoDate("Date_of_Birth", row.DateOfBirth);
         f.IsoDate("Admission_Date", row.AdmissionDate);
@@ -79,6 +79,17 @@ public static partial class LdsSpecValidator
         public void Required(string field, string value)
         {
             if (string.IsNullOrWhiteSpace(value)) Add(field, "is required");
+        }
+
+        // The only cells a school types freely (Surname, Forename). The file leaves for an
+        // external organisation and may be opened in a spreadsheet, where a leading = + - or @
+        // is evaluated as a formula (OWASP CSV injection). Refused here rather than rewritten
+        // with an apostrophe in the writer: LDS expects raw values, no real name begins with one
+        // of these, and a named failure tells the ops user which record to look at.
+        public void FreeText(string field, string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) Add(field, "is required");
+            else if (value[0] is '=' or '+' or '-' or '@') Add(field, "must not begin with =, +, - or @");
         }
 
         public void Equals(string field, string value, string expected)

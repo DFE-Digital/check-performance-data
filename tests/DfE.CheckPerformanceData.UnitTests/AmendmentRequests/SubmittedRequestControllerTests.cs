@@ -249,7 +249,7 @@ public class SubmittedRequestControllerTests
 
         await _sut.Delete(WindowId, Reference);
 
-        Assert.Equal($"Jane Smith(reference number - {Reference}) has been removed from your submitted request.", _sut.TempData["DeletedMessage"]);
+        Assert.Equal($"Jane Smith (reference number - {Reference}) has been removed from your submitted request.", _sut.TempData["DeletedMessage"]);
     }
 
     [Fact]

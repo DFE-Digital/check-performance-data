@@ -20,6 +20,12 @@
     "selectorOrder": 1
   },
   "properties": {
+    "INCLUDED": {
+      "type": "boolean",
+      "description": "Whether this row came from the included students file",
+      "x-csv": { "columns": {}, "heading": "Included" },
+      "x-display": { "label": "Included", "visible": false, "order": 999 }
+    },
     "SCHCNO": {
       "type": [
         "string",

@@ -24,9 +24,14 @@ public static class SeedPost16Ingress
         foreach (var dataset in datasets.OrderBy(d => d.SortOrder))
         {
             var ingressFile = $"{dataset.Name}.csv";
-            var schemaFile = $"{dataset.Name}.json";
+            var schemaFile = dataset.Name switch
+            {
+                "included" => "students-included.json",
+                "nonincluded" => "students-non-included.json",
+                _ => throw new InvalidOperationException($"Unexpected Post-16 student dataset: {dataset.Name}")
+            };
             var ingressChecksum = await UploadAsync("ingress", ingressFile, "text/csv", dataset.Id);
-            var schemaChecksum = await UploadAsync("schema", schemaFile, "application/json", dataset.Id);
+            var schemaChecksum = await UploadAsync("schema/post16", schemaFile, "application/json", dataset.Id);
             dataset.IngressFile = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DefinitionFile(exercise.Id, dataset.Id, ingressFile);
             dataset.IngressFileChecksum = ingressChecksum;
             dataset.SchemaFile = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DefinitionFile(exercise.Id, dataset.Id, schemaFile);

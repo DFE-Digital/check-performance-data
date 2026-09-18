@@ -135,12 +135,22 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
             Assert.Equal(KeyStages.Post16, window.KeyStage);
             Assert.Equal(DateTime.Today, window.StartDate);
             Assert.Equal(window.StartDate.AddMonths(1).AddHours(17), window.EndDate);
-            Assert.Equal(2, window.CheckingExercises.Count);
+            Assert.Equal(3, window.CheckingExercises.Count);
             Assert.All(window.CheckingExercises, e =>
             {
                 Assert.Equal(window.StartDate, e.StartDate);
                 Assert.Equal(window.EndDate, e.EndDate);
             });
+            var tabs = window.CheckingExercises.OrderBy(e => e.TabOrder).ToList();
+            Assert.Equal(new[] { "Summary", "Students", "Results" }, tabs.Select(e => e.TabName));
+            Assert.Equal(new[] { 100, 200, 300 }, tabs.Select(e => e.TabOrder));
+            Assert.Equal(new[] { 0, 1, 2 }, tabs.Select(e => e.SortOrder));
+            Assert.All(tabs, e => Assert.True(e.IsEnabled));
+            Assert.Null(tabs[0].ExerciseType);
+            Assert.True(tabs[0].DisplayOnly);
+            Assert.Empty(tabs[0].Datasets);
+            Assert.Equal(CheckingExerciseType.PupilData, tabs[1].ExerciseType);
+            Assert.Equal(CheckingExerciseType.ResultsEnquiry, tabs[2].ExerciseType);
             var datasets = window.CheckingExercises.Single(e => e.ExerciseType == CheckingExerciseType.PupilData)
                 .Datasets.OrderBy(d => d.SortOrder).ToList();
             Assert.Equal(new[] { "included", "nonincluded" }, datasets.Select(d => d.Name));
@@ -148,9 +158,10 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
             foreach (var dataset in datasets)
             {
                 Assert.Equal(DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DefinitionFile(dataset.CheckingExerciseId, dataset.Id, $"{dataset.Name}.csv"), dataset.IngressFile);
-                Assert.Equal(DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DefinitionFile(dataset.CheckingExerciseId, dataset.Id, $"{dataset.Name}.json"), dataset.SchemaFile);
+                var schemaName = dataset.Name == "included" ? "students-included.json" : "students-non-included.json";
+                Assert.Equal(DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DefinitionFile(dataset.CheckingExerciseId, dataset.Id, schemaName), dataset.SchemaFile);
                 await AssertFileAsync("ingress", dataset.IngressFile, dataset.IngressFileChecksum, "text/csv");
-                await AssertFileAsync("schema", dataset.SchemaFile, dataset.SchemaFileChecksum, "application/json");
+                await AssertFileAsync("schema/post16", dataset.SchemaFile, dataset.SchemaFileChecksum, "application/json");
             }
             Assert.Equal(datasets[0].IngressFileChecksum, window.IngressFileChecksum);
             Assert.Equal(datasets[0].SchemaFileChecksum, window.SchemaFileChecksum);

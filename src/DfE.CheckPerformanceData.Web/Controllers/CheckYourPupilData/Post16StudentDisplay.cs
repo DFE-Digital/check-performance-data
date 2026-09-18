@@ -90,6 +90,9 @@ public static class Post16StudentDisplay
         if (row.TryGetValue("DATASET", out var dataset))
             return DatasetKeys.Contains(dataset) ? dataset : null;
         if (row.ContainsKey("SURNAME_0")) return "students-previously-published";
+        if (row.TryGetValue("INCLUDED", out var included))
+            return included.Equals("True", StringComparison.OrdinalIgnoreCase)
+                ? "students-included" : "students-non-included";
         if (!row.ContainsKey("SURNAME") || !row.ContainsKey("FORENAMES") ||
             row.ContainsKey("GNUMBER") || row.ContainsKey("LearningAimReference")) return null;
         if (row.ContainsKey("P_INCL") || row.GetValueOrDefault("INCLUDED", "") == "True")

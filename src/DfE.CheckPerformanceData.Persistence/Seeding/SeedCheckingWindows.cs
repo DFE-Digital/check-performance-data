@@ -142,7 +142,31 @@ public static class SeedCheckingWindows
         foreach (var exercise in ingressExercises)
         {
             exercise.EndDate = ingressEnd;
+            exercise.IsEnabled = true;
         }
+        var students = ingressExercises.Single(e => e.ExerciseType == CheckingExerciseType.PupilData);
+        students.Name = "Pupil data checking";
+        students.TabName = "Students";
+        students.TabOrder = 200;
+        students.SortOrder = 1;
+
+        var results = ingressExercises.Single(e => e.ExerciseType == CheckingExerciseType.ResultsEnquiry);
+        results.Name = "Results enquiry";
+        results.TabName = "Results";
+        results.TabOrder = 300;
+        results.SortOrder = 2;
+
+        ingressExercises.Add(new CheckingExercise
+        {
+            Name = "Summary",
+            TabName = "Summary",
+            TabOrder = 100,
+            SortOrder = 0,
+            StartDate = ingressStart,
+            EndDate = ingressEnd,
+            IsEnabled = true,
+            DisplayOnly = true
+        });
 
         var post16IngressWindow = new CheckingWindow
         {

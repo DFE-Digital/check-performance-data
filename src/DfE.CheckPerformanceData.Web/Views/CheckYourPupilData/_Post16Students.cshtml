@@ -77,15 +77,20 @@ else
 
 @if (students.TotalPages > 1)
 {
+    @* GOV.UK stretches each link's ::after hit area to its positioned prev/next wrapper. *@
     <nav class="govuk-pagination" aria-label="Pagination">
         @if (students.Page > 0)
         {
-            <a class="govuk-pagination__link" href="@Url.Action("Index", "CheckYourPupilData", new { windowId = Model.Exercise.WindowId, studentDataset = students.Selected.Key, studentSearch = students.Search, studentPage = students.Page - 1 })#@anchor">Previous</a>
+            <div class="govuk-pagination__prev">
+                <a class="govuk-link govuk-pagination__link" rel="prev" href="@Url.Action("Index", "CheckYourPupilData", new { windowId = Model.Exercise.WindowId, studentDataset = students.Selected.Key, studentSearch = students.Search, studentPage = students.Page - 1 })#@anchor">Previous</a>
+            </div>
         }
         <span class="govuk-body govuk-!-margin-left-3 govuk-!-margin-right-3">Page @(students.Page + 1) of @students.TotalPages</span>
         @if (students.Page + 1 < students.TotalPages)
         {
-            <a class="govuk-pagination__link" href="@Url.Action("Index", "CheckYourPupilData", new { windowId = Model.Exercise.WindowId, studentDataset = students.Selected.Key, studentSearch = students.Search, studentPage = students.Page + 1 })#@anchor">Next</a>
+            <div class="govuk-pagination__next">
+                <a class="govuk-link govuk-pagination__link" rel="next" href="@Url.Action("Index", "CheckYourPupilData", new { windowId = Model.Exercise.WindowId, studentDataset = students.Selected.Key, studentSearch = students.Search, studentPage = students.Page + 1 })#@anchor">Next</a>
+            </div>
         }
     </nav>
 }

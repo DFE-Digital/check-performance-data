@@ -44,4 +44,17 @@ public class Post16StudentDisplayTests
         Assert.Single(Post16StudentDisplay.Build(rows, "students-included", null, 0, 10).Rows);
         Assert.Single(Post16StudentDisplay.Build(rows, "students-non-included", null, 0, 10).Rows);
     }
+
+    [Fact]
+    public void Uses_ingress_inclusion_marker_when_all_schema_fields_are_present()
+    {
+        var rows = new List<Dictionary<string, string>>
+        {
+            new() { ["INCLUDED"] = "True", ["SURNAME"] = "Watkins", ["FORENAMES"] = "Ollie", ["LearningAimReference"] = "" },
+            new() { ["INCLUDED"] = "False", ["SURNAME"] = "Konsa", ["FORENAMES"] = "Ezri", ["P_INCL"] = "" }
+        };
+
+        Assert.Single(Post16StudentDisplay.Build(rows, "students-included", null, 0, 10).Rows);
+        Assert.Single(Post16StudentDisplay.Build(rows, "students-non-included", null, 0, 10).Rows);
+    }
 }

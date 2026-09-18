@@ -1,0 +1,303 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "students-value-added.json",
+  "title": "Value added",
+  "description": "One row from the 1618 Value-added Pupil Data worksheet of Post16.ods.",
+  "type": "object",
+  "additionalProperties": false,
+  "x-ingress": {
+    "collection": "students-value-added",
+    "pageTab": "students",
+    "institutionKey": "Laestab"
+  },
+  "x-download": {
+    "fileName": "ks5va25.csv",
+    "label": "Value added"
+  },
+  "x-display": {
+    "tab": "students",
+    "section": "Value added",
+    "selectorOrder": 3
+  },
+  "properties": {
+    "Forename": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 50,
+      "x-csv": {
+        "columns": {
+          "default": "A"
+        },
+        "heading": "Forename"
+      },
+      "x-display": {
+        "label": "Forename",
+        "visible": false
+      }
+    },
+    "Surname": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 50,
+      "x-csv": {
+        "columns": {
+          "default": "B"
+        },
+        "heading": "Surname"
+      },
+      "x-display": {
+        "label": "Surname",
+        "visible": false
+      }
+    },
+    "Sex": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 1,
+      "x-csv": {
+        "columns": {
+          "default": "C"
+        },
+        "heading": "Sex"
+      },
+      "x-display": {
+        "label": "Sex",
+        "visible": false
+      }
+    },
+    "Qualification_code": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "x-csv": {
+        "columns": {
+          "default": "D"
+        },
+        "heading": "Qualification code"
+      },
+      "x-display": {
+        "label": "Qualification code",
+        "visible": false
+      }
+    },
+    "Qualification_name": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 255,
+      "x-csv": {
+        "columns": {
+          "default": "E"
+        },
+        "heading": "Qualification name"
+      },
+      "x-display": {
+        "label": "Qualification name",
+        "visible": false
+      }
+    },
+    "Subject_code": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "x-csv": {
+        "columns": {
+          "default": "F"
+        },
+        "heading": "Subject code"
+      },
+      "x-display": {
+        "label": "Subject code",
+        "visible": false
+      }
+    },
+    "Subject_name": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 255,
+      "x-csv": {
+        "columns": {
+          "default": "G"
+        },
+        "heading": "Subject name"
+      },
+      "x-display": {
+        "label": "Subject name",
+        "visible": false
+      }
+    },
+    "Size": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "x-csv": {
+        "columns": {
+          "default": "H"
+        },
+        "heading": "Size"
+      },
+      "x-display": {
+        "label": "Size",
+        "visible": false
+      }
+    },
+    "Cohort": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 21,
+      "x-csv": {
+        "columns": {
+          "default": "I"
+        },
+        "heading": "Cohort"
+      },
+      "x-display": {
+        "label": "Cohort",
+        "visible": false
+      }
+    },
+    "Prior_attainment": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "x-csv": {
+        "columns": {
+          "default": "J"
+        },
+        "heading": "Prior attainment"
+      },
+      "x-display": {
+        "label": "Prior attainment",
+        "visible": false
+      }
+    },
+    "Estimated_points": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "x-csv": {
+        "columns": {
+          "default": "K"
+        },
+        "heading": "Estimated points (new points)"
+      },
+      "x-display": {
+        "label": "Estimated points (new points)",
+        "visible": false
+      }
+    },
+    "Actual_points": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "x-csv": {
+        "columns": {
+          "default": "L"
+        },
+        "heading": "Actual points (new points)"
+      },
+      "x-display": {
+        "label": "Actual points (new points)",
+        "visible": false
+      }
+    },
+    "Value_Added_score": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "x-csv": {
+        "columns": {
+          "default": "M"
+        },
+        "heading": "Value Added score"
+      },
+      "x-display": {
+        "label": "Value Added score",
+        "visible": false
+      }
+    },
+    "QUAL_ID": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "x-csv": {
+        "columns": {
+          "default": "N"
+        },
+        "heading": "QUAL_ID"
+      },
+      "x-display": {
+        "label": "QUAL_ID",
+        "visible": false
+      }
+    },
+    "Disadvantaged_status": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "x-csv": {
+        "columns": {
+          "default": "O"
+        },
+        "heading": "Disadvantaged status"
+      },
+      "x-display": {
+        "label": "Disadvantaged status",
+        "visible": false
+      }
+    },
+    "CYPMD_ID": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "x-csv": {
+        "columns": {
+          "default": "P"
+        },
+        "heading": "CYPMD ID"
+      },
+      "x-display": {
+        "label": "CYPMD ID",
+        "visible": false
+      }
+    },
+    "Laestab": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 7,
+      "x-csv": {
+        "columns": {
+          "default": "Q"
+        },
+        "heading": "DfE number"
+      },
+      "x-display": {
+        "label": "DfE number",
+        "visible": false
+      }
+    }
+  }
+}

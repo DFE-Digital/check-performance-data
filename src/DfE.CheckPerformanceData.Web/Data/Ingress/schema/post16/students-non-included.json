@@ -1,0 +1,243 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "students-non-included.json",
+  "title": "Students non-included",
+  "description": "One row from the 16-18 Non-included Pupil Data worksheet of Post16.ods.",
+  "type": "object",
+  "additionalProperties": false,
+  "x-ingress": {
+    "collection": "students-non-included",
+    "pageTab": "students",
+    "institutionKey": "LAESTAB"
+  },
+  "x-download": {
+    "fileName": "KS5_not_incl_pup25.csv",
+    "label": "Students non-included"
+  },
+  "x-display": {
+    "tab": "students",
+    "section": "Students non-included",
+    "selectorOrder": 1
+  },
+  "properties": {
+    "SCHCNO": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "description": "A number allocated to each student within each school/college",
+      "x-csv": {
+        "columns": {},
+        "heading": "Candidate number"
+      },
+      "x-display": {
+        "label": "Candidate number",
+        "visible": false
+      }
+    },
+    "CYPMD_ID": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "description": "Student index number (for use in checking exercise)",
+      "x-csv": {
+        "columns": {
+          "default": "A"
+        },
+        "heading": "CYPMD ID"
+      },
+      "x-display": {
+        "label": "CYPMD ID",
+        "visible": true,
+        "order": 5
+      }
+    },
+    "SURNAME": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 100,
+      "description": "Student surname",
+      "x-csv": {
+        "columns": {
+          "default": "B"
+        },
+        "heading": "Surname"
+      },
+      "x-display": {
+        "label": "Last name",
+        "visible": true,
+        "order": 0,
+        "searchable": true
+      }
+    },
+    "FORENAMES": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 100,
+      "description": "Student forename",
+      "x-csv": {
+        "columns": {
+          "default": "C"
+        },
+        "heading": "Forename"
+      },
+      "x-display": {
+        "label": "First name",
+        "visible": true,
+        "order": 1,
+        "searchable": true
+      }
+    },
+    "SEX": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 1,
+      "description": "Student sex (F=female, M=male)",
+      "x-csv": {
+        "columns": {
+          "default": "D"
+        },
+        "heading": "Sex"
+      },
+      "x-display": {
+        "label": "Sex",
+        "visible": true,
+        "order": 2
+      }
+    },
+    "DOB": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 10,
+      "description": "Student date of birth in format DD/MM/YYYY",
+      "x-csv": {
+        "columns": {
+          "default": "E"
+        },
+        "heading": "Date of birth"
+      },
+      "x-display": {
+        "label": "Date of birth",
+        "visible": true,
+        "order": 3
+      }
+    },
+    "AGE": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Student age at beginning of the reporting year (ie, 31 August 2024)",
+      "x-csv": {
+        "columns": {
+          "default": "F"
+        },
+        "heading": "Age"
+      },
+      "x-display": {
+        "label": "Age",
+        "visible": true,
+        "order": 4
+      }
+    },
+    "LAESTAB": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 7,
+      "description": "DfE number for school or college",
+      "x-csv": {
+        "columns": {
+          "default": "G"
+        },
+        "heading": "DfE number"
+      },
+      "x-display": {
+        "label": "DfE number",
+        "visible": false
+      }
+    },
+    "URN": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 10,
+      "description": "School or college Unique Reference Number",
+      "x-csv": {
+        "columns": {
+          "default": "H"
+        },
+        "heading": "URN"
+      },
+      "x-display": {
+        "label": "URN",
+        "visible": false
+      }
+    },
+    "UKPRN": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "description": "School or college UK Provider Registration Number",
+      "x-csv": {
+        "columns": {
+          "default": "I"
+        },
+        "heading": "UKPRN"
+      },
+      "x-display": {
+        "label": "UKPRN",
+        "visible": false
+      }
+    },
+    "ULN": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "description": "Student's Unique Learner Number",
+      "x-csv": {
+        "columns": {
+          "default": "J"
+        },
+        "heading": "ULN"
+      },
+      "x-display": {
+        "label": "ULN",
+        "visible": false
+      }
+    },
+    "cypmd_pk": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 50,
+      "description": "primary key for use by Oracle team (laestab,pupilid)",
+      "x-csv": {
+        "columns": {},
+        "heading": "cypmd_pk"
+      },
+      "x-display": {
+        "label": "cypmd_pk",
+        "visible": false
+      }
+    }
+  }
+}

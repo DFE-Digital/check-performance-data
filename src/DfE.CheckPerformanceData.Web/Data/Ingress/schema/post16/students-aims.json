@@ -1,0 +1,290 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "students-aims.json",
+  "title": "Pupil aims",
+  "description": "One row from the 1618 Pupil Aims worksheet of Post16.ods.",
+  "type": "object",
+  "additionalProperties": false,
+  "x-ingress": {
+    "collection": "students-aims",
+    "pageTab": "students",
+    "institutionKey": "AimLAESTAB"
+  },
+  "x-download": {
+    "fileName": "ks5aim25.csv",
+    "label": "Pupil aims"
+  },
+  "x-display": {
+    "tab": "students",
+    "section": "Pupil aims",
+    "selectorOrder": 4
+  },
+  "properties": {
+    "LAESTAB": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 7,
+      "description": "DfE number for institution",
+      "x-csv": {
+        "columns": {
+          "default": "A"
+        },
+        "heading": "DfE number"
+      },
+      "x-display": {
+        "label": "DfE number",
+        "visible": false
+      }
+    },
+    "URN": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 10,
+      "description": "School or college URN",
+      "x-csv": {
+        "columns": {
+          "default": "B"
+        },
+        "heading": "URN"
+      },
+      "x-display": {
+        "label": "URN",
+        "visible": false
+      }
+    },
+    "UKPRN": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 10,
+      "description": "School or college UKPRN",
+      "x-csv": {
+        "columns": {
+          "default": "C"
+        },
+        "heading": "UKPRN"
+      },
+      "x-display": {
+        "label": "UKPRN",
+        "visible": false
+      }
+    },
+    "AimLAESTAB": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 7,
+      "description": "The DfE number for the provider where an aim is recorded. This maybe different to where the student is allocated or qualification assessed.",
+      "x-csv": {
+        "columns": {
+          "default": "D"
+        },
+        "heading": "DfE number where the aim was recorded"
+      },
+      "x-display": {
+        "label": "DfE number where the aim was recorded",
+        "visible": false
+      }
+    },
+    "ULN": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "description": "Student's Unique Learner Number",
+      "x-csv": {
+        "columns": {
+          "default": "E"
+        },
+        "heading": "ULN"
+      },
+      "x-display": {
+        "label": "ULN",
+        "visible": false
+      }
+    },
+    "CYPMD_ID": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "description": "Student index number (for use in checking exercise)",
+      "x-csv": {
+        "columns": {
+          "default": "F"
+        },
+        "heading": "CYPMD ID"
+      },
+      "x-display": {
+        "label": "CYPMD ID",
+        "visible": false
+      }
+    },
+    "SURNAME": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 100,
+      "description": "Student surname",
+      "x-csv": {
+        "columns": {
+          "default": "G"
+        },
+        "heading": "Surname"
+      },
+      "x-display": {
+        "label": "Surname",
+        "visible": false
+      }
+    },
+    "FORENAMES": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 100,
+      "description": "Student forename",
+      "x-csv": {
+        "columns": {
+          "default": "H"
+        },
+        "heading": "Forename"
+      },
+      "x-display": {
+        "label": "Forename",
+        "visible": false
+      }
+    },
+    "SEX": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 1,
+      "description": "Student Sex (F = female, M = male)",
+      "x-csv": {
+        "columns": {
+          "default": "I"
+        },
+        "heading": "Sex"
+      },
+      "x-display": {
+        "label": "Sex",
+        "visible": false
+      }
+    },
+    "DOB": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 10,
+      "description": "Student date of birth in format DD/MM/YYYY",
+      "x-csv": {
+        "columns": {
+          "default": "J"
+        },
+        "heading": "Date of birth"
+      },
+      "x-display": {
+        "label": "Date of birth",
+        "visible": false
+      }
+    },
+    "AGE": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Student age at beginning of the reporting year (i.e. 31 August 2020)",
+      "x-csv": {
+        "columns": {
+          "default": "K"
+        },
+        "heading": "Age"
+      },
+      "x-display": {
+        "label": "Age",
+        "visible": false
+      }
+    },
+    "LearningAimReference": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 8,
+      "description": "Qualification number for each qualification (one row per qualification)",
+      "x-csv": {
+        "columns": {
+          "default": "L"
+        },
+        "heading": "Qualification number"
+      },
+      "x-display": {
+        "label": "Qualification number",
+        "visible": false
+      }
+    },
+    "Subj_Desc": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 50,
+      "description": "Subject description for this learning aim",
+      "x-csv": {
+        "columns": {
+          "default": "M"
+        },
+        "heading": "Description of subject"
+      },
+      "x-display": {
+        "label": "Description of subject",
+        "visible": false
+      }
+    },
+    "Aim_Type": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Learning aim type (2 = tech levels, 4 = tech certifications, 5 = other level 2 vocational qualifications). Tech certifications are a subset of the level 2 vocational category.",
+      "x-csv": {
+        "columns": {
+          "default": "N"
+        },
+        "heading": "Aim type"
+      },
+      "x-display": {
+        "label": "Aim type",
+        "visible": false
+      }
+    },
+    "cypmd_pk": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 50,
+      "description": "primary key for use by Oracle team (aimlaestab,pupilid,learningaimreference)",
+      "x-csv": {
+        "columns": {},
+        "heading": "cypmd_pk"
+      },
+      "x-display": {
+        "label": "cypmd_pk",
+        "visible": false
+      }
+    }
+  }
+}

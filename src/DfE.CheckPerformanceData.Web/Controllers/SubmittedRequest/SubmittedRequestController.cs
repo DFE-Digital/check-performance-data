@@ -136,7 +136,7 @@ public sealed class SubmittedRequestController(
 
         TempData["DeletedMessage"] = result.WasHardDeleted
             ? $"{result.PupilName} has been removed from your saved request"
-            : $"{result.PupilName}(reference number - {referenceNumber}) has been removed from your submitted request.";
+            : $"{result.PupilName} (reference number - {referenceNumber}) has been removed from your submitted request.";
         if (allEst)
         {
             return RedirectToAction("Index", "EstablishmentAmendmentRequests");

@@ -291,6 +291,12 @@ public sealed class PageTreeGridRenderTests
                         .AddApplicationPart(typeof(PageController).Assembly);
                     // Index.cshtml renders move-up/down forms which need GovUk tag helpers.
                     services.AddGovUkFrontend();
+                    // The shared analytics filter partial @inject-s ISearchSurfaceFilter.
+                    // Registering the all-surfaces default mirrors an unfiltered dashboard,
+                    // which is the state these render assertions describe.
+                    services.AddSingleton<
+                        DfE.CheckPerformanceData.Application.Analytics.ISearchSurfaceFilter,
+                        DfE.CheckPerformanceData.Application.Analytics.AllSearchSurfaces>();
                 });
                 web.Configure(_ => { });
             })

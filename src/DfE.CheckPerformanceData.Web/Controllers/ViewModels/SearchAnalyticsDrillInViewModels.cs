@@ -39,3 +39,21 @@ public sealed class SearchAnalyticsPagesDrillInViewModel
 
     public int TotalPages => PageSize <= 0 ? 0 : (int)Math.Ceiling(TotalCount / (double)PageSize);
 }
+
+// The single-page-search section. Two states behind one view model: with no HostPath it lists
+// the pages that carry an on-page search widget; with one it lists the terms searched on that
+// page. Sharing the model keeps the paging, window and filter chrome identical between them.
+public sealed class OnPageSearchViewModel
+{
+    public string? HostPath { get; init; }
+    public IReadOnlyList<OnPageSearchPageRow> Pages { get; init; } = [];
+    public IReadOnlyList<OnPageSearchTermRow> Terms { get; init; } = [];
+    public required int TotalCount { get; init; }
+    public required int Page { get; init; }
+    public required int PageSize { get; init; }
+    public required DateTime FromUtc { get; init; }
+    public required DateTime ToUtc { get; init; }
+    public required string RangeKey { get; init; }
+
+    public int TotalPages => PageSize <= 0 ? 0 : (int)Math.Ceiling(TotalCount / (double)PageSize);
+}

@@ -79,4 +79,38 @@ public class WidgetPropsBuilderTests
         var rows = props["rows"]!.AsArray();
         Assert.Equal(2, rows.Count);
     }
+
+    // ----- Search widget -----
+
+    [Fact]
+    public void Build_Search_TakesSearchInAndInstant()
+    {
+        var props = WidgetPropsBuilder.Build("search",
+            new Dictionary<string, string?> { ["searchIn"] = "page", ["instant"] = "true" });
+
+        Assert.Equal("page", (string)props["searchIn"]!);
+        Assert.Equal("true", (string)props["instant"]!);
+    }
+
+    [Fact]
+    public void Build_Search_UntickedInstantFallsBackToTheDefault()
+    {
+        // An unticked checkbox posts no field at all; the builder starts from the registry
+        // defaults, so the absence has to read as "off" rather than leaving the old value.
+        var props = WidgetPropsBuilder.Build("search",
+            new Dictionary<string, string?> { ["searchIn"] = "site" });
+
+        Assert.Equal("false", (string)props["instant"]!);
+    }
+
+    [Fact]
+    public void Build_Search_KeepsAnUnrecognisedSearchIn_ForTheViewToNormalise()
+    {
+        // The builder is a schema mapper, not a validator: the partial is the single place
+        // that decides an unknown target degrades to whole-site.
+        var props = WidgetPropsBuilder.Build("search",
+            new Dictionary<string, string?> { ["searchIn"] = "elsewhere" });
+
+        Assert.Equal("elsewhere", (string)props["searchIn"]!);
+    }
 }

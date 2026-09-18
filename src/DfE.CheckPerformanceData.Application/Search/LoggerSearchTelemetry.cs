@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.Analytics;
 using Microsoft.Extensions.Logging;
 
 namespace DfE.CheckPerformanceData.Application.Search;
@@ -87,6 +88,46 @@ public sealed class LoggerSearchTelemetry(
                 excl.Corpus,
                 excl.RowKey,
                 excl.Kind);
+        }
+    }
+
+    // Same discrete-placeholder discipline as above: every browser-supplied string crosses as
+    // its own templated argument, never spliced into the format string.
+    public void RecordInstantSearch(InstantSearchTelemetryEvent evt)
+    {
+        if (evt.Shown.Count == 0)
+        {
+            counter.Increment();
+            logger.LogWarning(
+                "Instant search returned zero results SearchId={SearchId} Surface={Surface} QueryRaw={QueryRaw} HostPath={HostPath}",
+                evt.SearchId,
+                evt.Surface,
+                evt.QueryRaw,
+                evt.HostPath ?? "(none)");
+        }
+
+        logger.LogInformation(
+            "Instant search settled SearchId={SearchId} Surface={Surface} QueryRaw={QueryRaw} HostPath={HostPath} Shown={Shown} SelectedKey={SelectedKey} SelectedPosition={SelectedPosition} LatencyMs={LatencyMs}ms",
+            evt.SearchId,
+            evt.Surface,
+            evt.QueryRaw,
+            evt.HostPath ?? "(none)",
+            evt.Shown.Count,
+            evt.SelectedKey ?? "(none)",
+            evt.SelectedPosition,
+            evt.LatencyMs);
+
+        var breadcrumbLevel = debug.ShowSearchDebug ? LogLevel.Information : LogLevel.Debug;
+        foreach (var hit in evt.Shown)
+        {
+            logger.Log(
+                breadcrumbLevel,
+                "Instant search {SearchId} shown position={Position} kind={Kind} key={Key} label=\"{Label}\"",
+                evt.SearchId,
+                hit.Position,
+                hit.Kind,
+                hit.Key,
+                hit.Label);
         }
     }
 }

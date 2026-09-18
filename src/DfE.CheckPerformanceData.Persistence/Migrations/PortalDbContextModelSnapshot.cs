@@ -175,6 +175,10 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
+                    b.Property<string>("HostPath")
+                        .HasColumnType("text")
+                        .HasColumnName("host_path");
+
                     b.Property<bool>("IsSeeded")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -209,26 +213,47 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("results_pages");
 
+                    b.Property<int>("ResultsSections")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("results_sections");
+
                     b.Property<int>("ResultsTotal")
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("integer")
                         .HasColumnName("results_total")
-                        .HasComputedColumnSql("results_pages + results_blocks", true);
+                        .HasComputedColumnSql("results_pages + results_blocks + results_sections", true);
 
                     b.Property<string>("Scope")
                         .HasColumnType("text")
                         .HasColumnName("scope");
+
+                    b.Property<string>("SelectedKey")
+                        .HasColumnType("text")
+                        .HasColumnName("selected_key");
+
+                    b.Property<int?>("SelectedPosition")
+                        .HasColumnType("integer")
+                        .HasColumnName("selected_position");
 
                     b.Property<string>("SessionId")
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("session_id");
 
+                    b.Property<string>("Surface")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("site")
+                        .HasColumnName("surface");
+
                     b.Property<bool>("ZeroResults")
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("boolean")
                         .HasColumnName("zero_results")
-                        .HasComputedColumnSql("(results_pages + results_blocks) = 0", true);
+                        .HasComputedColumnSql("(results_pages + results_blocks + results_sections) = 0", true);
 
                     b.HasKey("Id");
 
@@ -245,12 +270,19 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     b.HasIndex("SessionId")
                         .HasDatabaseName("ix_search_events_session_id");
 
+                    b.HasIndex("HostPath", "OccurredAtUtc")
+                        .HasDatabaseName("ix_search_events_host_path_occurred_at")
+                        .HasFilter("host_path IS NOT NULL");
+
                     b.HasIndex("OccurredAtUtc", "QueryNormalised")
                         .HasDatabaseName("ix_search_events_occurred_at_query_normalised")
                         .HasFilter("query_normalised IS NOT NULL");
 
                     b.HasIndex("OccurredAtUtc", "SessionId")
                         .HasDatabaseName("ix_search_events_occurred_at_session_id");
+
+                    b.HasIndex("Surface", "OccurredAtUtc")
+                        .HasDatabaseName("ix_search_events_surface_occurred_at");
 
                     b.HasIndex("ZeroResults", "OccurredAtUtc")
                         .HasDatabaseName("ix_search_events_zero_results_occurred_at")

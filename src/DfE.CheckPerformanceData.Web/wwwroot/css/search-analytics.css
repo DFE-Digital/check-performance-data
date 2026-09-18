@@ -339,3 +339,11 @@
     align-items: center;
     gap: 12px;
 }
+
+/* Single-page search: a page path is often one long unbroken token, and a table cell will
+   not break inside one. Left alone it sets the table's minimum width and pushes the numeric
+   columns off the side of the admin layout at anything under a very wide viewport. */
+.sa-onpage-path {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}

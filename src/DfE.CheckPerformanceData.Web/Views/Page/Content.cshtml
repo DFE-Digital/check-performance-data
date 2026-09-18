@@ -10,6 +10,9 @@
     // on ViewData here — the widget partial reads whichever key its mode dictates.
     ViewData["PageHeadingNav"]  = Model.Nav         ?? Array.Empty<ContentNavItem>();
     ViewData["PageChildrenNav"] = Model.ChildrenNav ?? Array.Empty<ContentNavItem>();
+    // The tree itself, so a PageNav widget can build a heading list for the levels its author
+    // ticked rather than being stuck with the one the controller happened to precompute.
+    ViewData["PageContentTree"] = content;
 
     // If the author has placed their own H1 widget inside the content tree, suppress the
     // template-emitted title + subtitle — otherwise we'd render two H1s and the title would

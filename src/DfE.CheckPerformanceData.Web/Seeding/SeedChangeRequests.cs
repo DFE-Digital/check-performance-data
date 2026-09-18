@@ -114,9 +114,9 @@ public static class SeedChangeRequests
             (Reference: Reference(4), Status: RequestStatus.ReadyToSubmit, Pupil: p[3]),
             (Reference: Reference(5), Status: RequestStatus.ReadyToSubmit, Pupil: p[4]),
             (Reference: Reference(6), Status: RequestStatus.ReadyToSubmit, Pupil: p[5]),
-            (Reference: Reference(7), Status: RequestStatus.ReadyToSubmit, Pupil: p[5]), // duplicate of SEED006
+            (Reference: Reference(7), Status: RequestStatus.ReadyToSubmit, Pupil: p[5]), // duplicate of Reference(6)
             (Reference: Reference(8), Status: RequestStatus.SubmittedUnCommitted, Pupil: p[6]),
-            (Reference: Reference(9), Status: RequestStatus.ReadyToSubmit, Pupil: p[6]), // duplicate of already-submitted SEED008
+            (Reference: Reference(9), Status: RequestStatus.ReadyToSubmit, Pupil: p[6]), // duplicate of already-submitted Reference(8)
             (Reference: Reference(10), Status: RequestStatus.InProgress, Pupil: p[7]),
             (Reference: Reference(11), Status: RequestStatus.InProgress, Pupil: p[8])
         };

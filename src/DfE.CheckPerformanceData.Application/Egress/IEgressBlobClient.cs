@@ -30,4 +30,11 @@ public interface IEgressBlobClient
     /// and the M1 Abandon-during-Transferring sweep, without ever touching another run's file).
     /// </summary>
     Task<bool> DeleteIfOwnedByRunAsync(string fileName, Guid runId, CancellationToken ct);
+    /// <summary>
+    /// The egressRunId stamped on an existing blob, or null when the blob is absent or carries no
+    /// such stamp (a file this service never wrote). Lets a transfer that collides with a
+    /// same-named file decide whether it is reclaiming its own leftover, an abandoned run's
+    /// orphan, or colliding with a real file that must be left alone.
+    /// </summary>
+    Task<Guid?> GetOwnerRunIdAsync(string fileName, CancellationToken ct);
 }

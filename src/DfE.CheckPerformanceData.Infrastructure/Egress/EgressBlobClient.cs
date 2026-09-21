@@ -48,19 +48,27 @@ public sealed class EgressBlobClient(IReadOnlyDictionary<string, BlobServiceClie
 
     public async Task<bool> DeleteIfOwnedByRunAsync(string fileName, Guid runId, CancellationToken ct)
     {
-        var blob = clients[ClientKey].GetBlobContainerClient(options.Value.Container).GetBlobClient(options.Value.Prefix + fileName);
+        if (await OwnerAsync(fileName, ct) != runId) return false;
+        await Blob(fileName).DeleteIfExistsAsync(cancellationToken: ct);
+        return true;
+    }
+
+    public Task<Guid?> GetOwnerRunIdAsync(string fileName, CancellationToken ct) => OwnerAsync(fileName, ct);
+
+    private BlobClient Blob(string fileName) =>
+        clients[ClientKey].GetBlobContainerClient(options.Value.Container).GetBlobClient(options.Value.Prefix + fileName);
+
+    private async Task<Guid?> OwnerAsync(string fileName, CancellationToken ct)
+    {
         BlobProperties properties;
         try
         {
-            properties = await blob.GetPropertiesAsync(cancellationToken: ct);
+            properties = await Blob(fileName).GetPropertiesAsync(cancellationToken: ct);
         }
         catch (RequestFailedException ex) when (ex.Status == 404)
         {
-            return false;
+            return null;
         }
-        if (!properties.Metadata.TryGetValue("egressRunId", out var owner) || owner != runId.ToString())
-            return false;
-        await blob.DeleteIfExistsAsync(cancellationToken: ct);
-        return true;
+        return properties.Metadata.TryGetValue("egressRunId", out var owner) && Guid.TryParse(owner, out var id) ? id : null;
     }
 }

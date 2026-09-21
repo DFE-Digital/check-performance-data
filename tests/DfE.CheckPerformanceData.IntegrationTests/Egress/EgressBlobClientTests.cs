@@ -79,4 +79,35 @@ public sealed class EgressBlobClientTests(AzuriteFixture fixture)
         var removed = await Sut().DeleteIfOwnedByRunAsync($"CYPMD_LDS_KS4_RemoveLearners_{Guid.NewGuid():N}.csv", Guid.NewGuid(), CancellationToken.None);
         Assert.False(removed);
     }
+
+    // Follow-up (Abandon crash-window orphan): transfer needs to know WHO stamped a colliding
+    // file before deciding whether it may be reclaimed.
+    [Fact]
+    public async Task GetOwnerRunId_returns_the_run_stamped_on_the_blob()
+    {
+        var runId = Guid.NewGuid();
+        var name = $"CYPMD_LDS_KS4_RemoveLearners_{Guid.NewGuid():N}.csv";
+        var sut = Sut();
+        await sut.UploadAsync(name, Encoding.UTF8.GetBytes("A,B\r\n1,2"), "ABC", runId, CancellationToken.None);
+
+        Assert.Equal(runId, await sut.GetOwnerRunIdAsync(name, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task GetOwnerRunId_is_null_for_a_blob_that_does_not_exist()
+    {
+        Assert.Null(await Sut().GetOwnerRunIdAsync($"CYPMD_LDS_KS4_RemoveLearners_{Guid.NewGuid():N}.csv", CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task GetOwnerRunId_is_null_for_a_blob_this_service_never_stamped()
+    {
+        var name = $"CYPMD_LDS_KS4_RemoveLearners_{Guid.NewGuid():N}.csv";
+        var container = _blobs.GetBlobContainerClient("cypmd");
+        await container.CreateIfNotExistsAsync();
+        await container.GetBlobClient($"extracts_input/{name}").UploadAsync(new BinaryData("A,B\r\n1,2"));
+
+        Assert.Null(await Sut().GetOwnerRunIdAsync(name, CancellationToken.None));
+        Assert.False(await Sut().DeleteIfOwnedByRunAsync(name, Guid.NewGuid(), CancellationToken.None));
+    }
 }

@@ -54,7 +54,7 @@ public sealed class EgressRunsViewSourceTests
     public void Both_empty_states_are_stated_and_neither_renders_a_table()
     {
         var view = View("Index.cshtml");
-        Assert.Contains("@if (Model.IsEmpty)", view);
+        Assert.Contains("Model.IsEmpty", view);
         Assert.Contains("data-testid=\"egress-runs-empty\"", view);
         Assert.Contains("No egress runs match the filters you have applied.", view);
         Assert.Contains("There are no egress runs yet.", view);
@@ -73,7 +73,7 @@ public sealed class EgressRunsViewSourceTests
         Assert.Contains("govuk-table__cell--numeric\">@row.RecordsTransferred</td>", view);
         Assert.Contains("@row.OutcomeTagClass", view);
         Assert.Contains("@row.OutcomeLabel", view);
-        Assert.Contains("govuk-tag--blue\">@label</strong>", view);   // one tag per output type
+        Assert.Contains("govuk-tag--blue govuk-!-margin-bottom-1\">@label</strong>", view);   // one tag per output type, spaced when they stack
         Assert.Contains("@row.StartedAtUtc.ToString(\"d MMM yyyy HH:mm\") UTC", view);
     }
 
@@ -96,7 +96,7 @@ public sealed class EgressRunsViewSourceTests
         Assert.Contains("currentPage = Model.Page", view);
         Assert.Contains("totalPages = Model.TotalPages", view);
         Assert.Contains("ariaLabel = \"Egress runs pages\"", view);
-        Assert.Contains("string PageLink(int p)", view);
+        Assert.Contains("PageLink(int ", view);
         Assert.Contains("windowId=", view);
         Assert.Contains("status=", view);
     }

@@ -34,6 +34,24 @@ public sealed class DefaultAdminAccessSeederTests
         Assert.Contains("messages-inbox", DefaultAdminAccessSeeder.AllSections);
     }
 
+    // The egress controller is gated on AdminNavKeys.Egress; without a matching grant a fresh-DB
+    // admin would 404 on /admin/egress (AB#294553).
+    [Fact]
+    public void AllSections_ContainsEgress()
+    {
+        Assert.Contains(AdminNavKeys.Egress, DefaultAdminAccessSeeder.AllSections);
+        Assert.Equal("egress", AdminNavKeys.Egress);
+    }
+
+    // The group is a container only: access is implied by the tile, so it must NOT be a section
+    // (the same rule as cms-admin / system-admin).
+    [Fact]
+    public void AllSections_DoesNotContainTheEgressGroup()
+    {
+        Assert.Equal("egress-group", AdminNavKeys.EgressGroup);
+        Assert.DoesNotContain(AdminNavKeys.EgressGroup, DefaultAdminAccessSeeder.AllSections);
+    }
+
     // The two lists MUST stay in sync — the seeder's comment above the list literally
     // says so, and the [RequireAdminSection(AdminNavKeys.X)] gate only lets a user
     // through if AdminSectionAccess has a matching row for their role. Guards against

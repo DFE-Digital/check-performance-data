@@ -27,6 +27,10 @@ services:
       - Dev__ToolsEnabled=${DEV_TOOLS_ENABLED:-true}
       - ASPNETCORE_URLS=http://+:8080
       - Notify__UseFake=${NOTIFY_USEFAKE:-true}
+      # This stack has no ZendeskSettings and no EgressStorage account; without opting into the
+      # dev outbox fake the app fails to start at all (AB#294553 review B1 made the real Zendesk
+      # client the default everywhere, including here).
+      - Zendesk__UseFake=true
       # Points at the sandbox db + azurite services on the sandbox network,
       # NOT the main stack's cypd_db / cypd_azurite. Kept literal so the
       # sandbox can never accidentally speak to the main-stack DB.

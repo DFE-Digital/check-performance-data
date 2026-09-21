@@ -666,6 +666,22 @@ public class RequestServiceTests
     }
 
     [Fact]
+    public async Task Submit_stamps_the_schools_laestab_on_the_request_row()
+    {
+        // AB#294553: the egress needs the school's establishment number for a new learner, and the
+        // synthetic Add pupil has none — so the row carries the claim value from submit onward.
+        var (journey, config) = MakeSubmission();
+        SetupConfig(config);
+        ChangeRequestData? captured = null;
+        _requestRepository.UpsertAsync(Arg.Do<ChangeRequestData>(d => captured = d)).Returns(Guid.NewGuid());
+        _currentUser.OrganisationLaestab.Returns("860/4070");
+
+        await _sut.SubmitRequestAsync(WindowId, journey);
+
+        Assert.Equal("860/4070", captured!.OrganisationLaestab);
+    }
+
+    [Fact]
     public async Task ConfirmRequestAsync_SavesJourneyBlobBeforeSendingEmail()
     {
         var (journey, config) = MakeSubmission();

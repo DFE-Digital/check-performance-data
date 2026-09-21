@@ -62,6 +62,12 @@ public static class SeedCheckingWindows
 
     public static async Task ExecuteSeed(IPortalDbContext dbContext, Guid openKs4WindowId, Guid closedKs4WindowId, Guid post16WindowId, Guid closedPupilDataPost16WindowId)
     {
+        // Egress runs first: egress_runs → CheckingWindows is a RESTRICT foreign key (an egress
+        // is an audit record and must never vanish because a window was deleted), so a run left
+        // behind — an E2E cleanup that failed part-way is enough — made the window wipe below
+        // throw, the host terminated before it listened, and the review app's new pod never became
+        // Ready while the old one kept serving. Outputs and learner rows cascade from the run.
+        await dbContext.EgressRuns.ExecuteDeleteAsync();
         await dbContext.ChangeRequests.ExecuteDeleteAsync();
         await dbContext.CheckingWindows.ExecuteDeleteAsync();
 

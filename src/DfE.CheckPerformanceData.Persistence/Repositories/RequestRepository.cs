@@ -124,6 +124,7 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
                             .SetProperty(r => r.RequestType, data.RequestType)
                             .SetProperty(r => r.RequestTypeDescription, data.RequestTypeDescription)
                             .SetProperty(r => r.AmendmentType, data.AmendmentType)
+                            .SetProperty(r => r.OrganisationLaestab, data.OrganisationLaestab)
                             .SetProperty(r => r.CheckingExerciseId, data.CheckingExerciseId));
                 }
                 else
@@ -147,7 +148,8 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
                         Status = data.Status,
                         RequestType = data.RequestType,
                         RequestTypeDescription = data.RequestTypeDescription,
-                        AmendmentType = data.AmendmentType
+                        AmendmentType = data.AmendmentType,
+                        OrganisationLaestab = data.OrganisationLaestab
                     });
                     await db.SaveChangesAsync();
                 }
@@ -181,6 +183,7 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
                     .SetProperty(r => r.RequestType, data.RequestType)
                     .SetProperty(r => r.RequestTypeDescription, data.RequestTypeDescription)
                     .SetProperty(r => r.AmendmentType, data.AmendmentType)
+                    .SetProperty(r => r.OrganisationLaestab, data.OrganisationLaestab)
                     .SetProperty(r => r.CheckingExerciseId, data.CheckingExerciseId));
             return draftExistingId;
         }
@@ -204,7 +207,8 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
             Status = data.Status,
             RequestType = data.RequestType,
             RequestTypeDescription = data.RequestTypeDescription,
-            AmendmentType = data.AmendmentType
+            AmendmentType = data.AmendmentType,
+            OrganisationLaestab = data.OrganisationLaestab
         });
         await db.SaveChangesAsync();
         return newId;

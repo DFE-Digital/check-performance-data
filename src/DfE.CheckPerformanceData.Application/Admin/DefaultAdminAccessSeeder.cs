@@ -42,6 +42,8 @@ public sealed class DefaultAdminAccessSeeder(IAdminSectionAccessRepository repos
         "window-admin",
         "new-window",
         "manage-window",
+        // Data egress tile + the EgressController gate (AB#294553). The group container is omitted.
+        "egress",
         "reset-seed-data",
         "share-admin",
         "search-analytics",

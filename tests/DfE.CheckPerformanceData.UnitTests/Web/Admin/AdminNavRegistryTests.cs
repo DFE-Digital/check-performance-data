@@ -17,12 +17,13 @@ public sealed class AdminNavRegistryTests
 		using var provider = services.BuildServiceProvider();
 		var entries = provider.GetServices<IAdminNavEntry>().ToList();
 
-		// 30: the Amendment requests group and its single Uncommitted requests tile were retired
+		// 32: the Amendment requests group and its single Uncommitted requests tile were retired
 		// (the requests page is per window now, reached from the windows table) and the Storage
 		// administration group went when the blob browser moved under Danger zone; the Danger
 		// zone group and that browser are registered unconditionally, Reset seed data is not
-		// (includeResetSeedData defaults to false).
-		Assert.Equal(30, entries.Count);
+		// (includeResetSeedData defaults to false) — plus the Data egress group and its
+		// Start a new egress tile (AB#294553).
+		Assert.Equal(32, entries.Count);
 
 		var titles = entries.Select(e => e.Title).ToList();
 		Assert.Contains("Dashboard", titles);

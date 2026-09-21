@@ -1,0 +1,204 @@
+using DfE.CheckPerformanceData.Application.Egress;
+using DfE.CheckPerformanceData.Domain.Enums;
+
+namespace DfE.CheckPerformanceData.Application.UnitTests.Egress;
+
+// Steps 2-6 of the pipeline on one record. A failure is recorded against the step and field that
+// found it and the record carries on, so the ops user sees EVERY problem in one run.
+public sealed class EgressRecordBuilderTests
+{
+    private static EgressSourceRecord Remove(string? reason = "pupil-died", string? pupilLaestab = "8604070", string? orgLaestab = "860/4070", string dob = "07/09/2010", int matchRef = 555) => new()
+    {
+        ChangeRequestId = Guid.Parse("11111111-1111-1111-1111-111111111111"), ReferenceNumber = "REF-R", TicketId = 88856, Decision = "approved",
+        OutputType = EgressOutputType.RemoveLearners, WindowType = CheckingWindowType.KS4June,
+        SubmittedAtUtc = new DateTime(2026, 6, 5, 9, 0, 0, DateTimeKind.Utc), OrganisationUrn = 142313, OrganisationLaestab = orgLaestab,
+        PupilFirstname = " Jude ", PupilSurname = "Bellingham", PupilSex = "M", PupilDateOfBirth = dob, PupilIdentifier = "A860407000011",
+        PupilMatchRef = matchRef, PupilLaestab = pupilLaestab, JourneyFound = true,
+        Answers = reason is null ? new Dictionary<string, string>() : new Dictionary<string, string> { ["reason"] = reason }
+    };
+
+    private static EgressSourceRecord Add(string? orgLaestab = "860/4070") => new()
+    {
+        ChangeRequestId = Guid.Parse("22222222-2222-2222-2222-222222222222"), ReferenceNumber = "REF-A", TicketId = 69390, Decision = "approved",
+        OutputType = EgressOutputType.NewLearners, WindowType = CheckingWindowType.KS2,
+        SubmittedAtUtc = new DateTime(2026, 10, 7, 9, 0, 0, DateTimeKind.Utc), OrganisationUrn = 136412, OrganisationLaestab = orgLaestab,
+        PupilFirstname = "Annie", PupilSurname = "Lennox", PupilSex = "F", PupilDateOfBirth = "07/09/2010", PupilIdentifier = "", PupilLaestab = "", JourneyFound = true,
+        Answers = new Dictionary<string, string>
+        {
+            ["first-name"] = "Annie", ["last-name"] = "Lennox", ["date-of-birth"] = "2010-09-07", ["sex"] = "F", ["upn"] = "A881541200011",
+            ["admission-date"] = "2018-09-04", ["year-group"] = "6", ["sen-status"] = "N"
+        }
+    };
+
+    // Cycle_Year/Cycle_Month come from the checking window (spec: "the month number in which the
+    // cycle ... takes place", "For June checking exercise this will hold 6"), never from each
+    // record's submission date — a June window's July submissions still say 6.
+    private static EgressWorkItem Run(EgressSourceRecord source, string cycleYear = "2026", string cycleMonth = "6")
+    {
+        var item = new EgressWorkItem(source, cycleYear, cycleMonth);
+        EgressRecordBuilder.DeriveCodes(item);
+        EgressRecordBuilder.SplitEstablishment(item);
+        EgressRecordBuilder.StandardiseDates(item);
+        EgressRecordBuilder.Build(item);
+        EgressRecordBuilder.Trim(item);
+        return item;
+    }
+
+    [Fact]
+    public void A_remove_record_becomes_a_spec_row()
+    {
+        var item = Run(Remove());
+        Assert.Empty(item.Failures);
+        Assert.Equal(new RemoveLearnerRow("88856", "31", "4", "KS4", "4070", "Bellingham", "Jude", "M", "2010-09-07", "2026", "6", "860", "555",
+            Guid.Parse("11111111-1111-1111-1111-111111111111"), 88856, "REF-R"), item.RemoveRow);
+    }
+
+    [Fact]
+    public void A_new_learner_record_becomes_a_spec_row_from_the_journey_answers_and_the_schools_laestab()
+    {
+        var item = Run(Add(), cycleMonth: "10");
+        Assert.Empty(item.Failures);
+        Assert.Equal(new NewLearnerRow("69390", "10", "KS2", "860", "4070", "Lennox", "Annie", "F", "2010-09-07", "2018-09-04", "", "2026", "10",
+            "136412", "", "A881541200011", "", "6", Guid.Parse("22222222-2222-2222-2222-222222222222"), 69390, "REF-A"), item.NewRow);
+    }
+
+    [Fact]
+    public void Pupil_laestab_wins_over_the_request_rows_when_both_are_present()
+    {
+        var item = Run(Remove(pupilLaestab: "3735401", orgLaestab: "860/4070"));
+        Assert.Equal("373", item.RemoveRow!.LocalAuthority);
+        Assert.Equal("5401", item.RemoveRow.EstablishmentNumber);
+    }
+
+    [Fact]
+    public void No_laestab_anywhere_fails_the_split_step_with_the_field_named()
+    {
+        var item = Run(Remove(pupilLaestab: "", orgLaestab: null));
+        var failure = Assert.Single(item.Failures);
+        Assert.Equal(EgressRecordBuilder.StepSplit, failure.Step);
+        Assert.Equal("Establishment_Number", failure.Field);
+        Assert.Equal(88856, failure.TicketId);
+        Assert.Null(item.RemoveRow);
+    }
+
+    [Fact]
+    public void An_unmapped_remove_reason_fails_the_codes_step()
+    {
+        var item = Run(Remove(reason: "other"));
+        var failure = Assert.Single(item.Failures);
+        Assert.Equal(EgressRecordBuilder.StepCodes, failure.Step);
+        Assert.Equal("Correction_Reason", failure.Field);
+        Assert.Contains("other", failure.Reason);
+    }
+
+    [Fact]
+    public void A_missing_journey_fails_the_build_step()
+    {
+        var item = Run(Remove() with { JourneyFound = false });
+        Assert.Contains(item.Failures, f => f.Step == EgressRecordBuilder.StepBuild && f.Reason.Contains("journey"));
+    }
+
+    [Fact]
+    public void An_unparseable_date_fails_the_dates_step_and_later_steps_do_not_pile_on()
+    {
+        var item = Run(Remove(dob: "31/02/2010"));
+        var failure = Assert.Single(item.Failures);
+        Assert.Equal(EgressRecordBuilder.StepDates, failure.Step);
+        Assert.Equal("Date_of_Birth", failure.Field);
+    }
+
+    // S4: steps 2-4 are independent of one another, so a fault in one must not hide a fault in
+    // another — ops must see everything wrong with a record in one run, not discover the second
+    // problem only after fixing the first and re-running.
+    [Fact]
+    public void Independent_faults_in_different_steps_are_all_listed_not_just_the_first()
+    {
+        var item = Run(Remove(reason: "other", pupilLaestab: "", orgLaestab: null));
+        Assert.Equal(2, item.Failures.Count);
+        Assert.Contains(item.Failures, f => f.Step == EgressRecordBuilder.StepCodes && f.Field == "Correction_Reason");
+        Assert.Contains(item.Failures, f => f.Step == EgressRecordBuilder.StepSplit && f.Field == "Establishment_Number");
+        Assert.Null(item.RemoveRow);
+    }
+
+    [Fact]
+    public void Post16_reasons_and_stage_are_handled()
+    {
+        var item = Run(Remove(reason: "student-died") with { WindowType = CheckingWindowType.Post16 });
+        Assert.Equal("16-19", item.RemoveRow!.KeyStage);
+        Assert.Equal("4", item.RemoveRow.CorrectionReason);
+    }
+
+    [Fact]
+    public void Cycle_month_is_not_zero_padded_and_cycle_year_is_four_digits()
+    {
+        var item = Run(Remove());
+        Assert.Equal("6", item.RemoveRow!.CycleMonth);
+        Assert.Equal("2026", item.RemoveRow.CycleYear);
+    }
+
+    [Fact]
+    public void Cycle_values_come_from_the_window_not_the_submission_date()
+    {
+        // Submitted 5 July, but the KS4 June exercise is month 6.
+        var item = Run(Remove() with { SubmittedAtUtc = new DateTime(2026, 7, 5, 9, 0, 0, DateTimeKind.Utc) }, cycleYear: "2026", cycleMonth: "6");
+        Assert.Equal("6", item.RemoveRow!.CycleMonth);
+        Assert.Equal("2026", item.RemoveRow.CycleYear);
+    }
+
+    [Fact]
+    public void A_KS4_year_group_change_carries_the_year_group_moved_to()
+    {
+        var source = Remove(reason: "year-group-change");
+        source = source with { Answers = new Dictionary<string, string>(source.Answers) { ["higher-lower"] = "lower", ["year-group-lower-moved-to"] = "9", ["year-group-higher-moved-to"] = "12" } };
+        var item = Run(source);
+        Assert.Empty(item.Failures);
+        Assert.Equal("17", item.RemoveRow!.CorrectionReason);
+        Assert.Equal("9", item.RemoveRow.YearGroup);
+    }
+
+    [Fact]
+    public void A_KS4_removal_that_is_not_a_year_group_change_leaves_Year_Group_blank()
+        => Assert.Equal("", Run(Remove()).RemoveRow!.YearGroup);
+
+    [Fact]
+    public void A_16_19_removal_maps_the_chosen_academic_years_onto_Removal_Year_0_to_2()
+    {
+        var source = Remove(reason: "other") with { WindowType = CheckingWindowType.Post16 };
+        source = source with { Answers = new Dictionary<string, string> { ["reason"] = "other", ["years-to-remove"] = "2025-2026|2023-2024" } };
+        var item = Run(source, cycleYear: "2026", cycleMonth: "10");
+        Assert.Empty(item.Failures);
+        Assert.Equal("16-19", item.RemoveRow!.KeyStage);
+        Assert.Equal("TRUE", item.RemoveRow.RemovalYear0);    // 2025-2026
+        Assert.Equal("FALSE", item.RemoveRow.RemovalYear1);   // 2024-2025
+        Assert.Equal("TRUE", item.RemoveRow.RemovalYear2);    // 2023-2024
+        Assert.Equal("", item.RemoveRow.YearGroup);
+        Assert.Equal("329", item.RemoveRow.CorrectionReason);
+    }
+
+    [Fact]
+    public void A_16_19_removal_whose_journey_did_not_ask_about_years_leaves_them_blank()
+    {
+        var item = Run(Remove(reason: "student-died") with { WindowType = CheckingWindowType.Post16 }, cycleMonth: "10");
+        Assert.Equal(("", "", ""), (item.RemoveRow!.RemovalYear0, item.RemoveRow.RemovalYear1, item.RemoveRow.RemovalYear2));
+    }
+
+    [Fact]
+    public void A_16_19_not_on_roll_removal_uses_the_sub_reason_code()
+    {
+        var source = Remove(reason: "not-on-roll") with { WindowType = CheckingWindowType.Post16 };
+        source = source with { Answers = new Dictionary<string, string> { ["reason"] = "not-on-roll", ["not-on-roll-reason"] = "apprentice" } };
+        var item = Run(source, cycleMonth: "10");
+        Assert.Empty(item.Failures);
+        Assert.Equal("331", item.RemoveRow!.CorrectionReason);
+    }
+
+    [Fact]
+    public void A_16_19_not_on_roll_removal_without_a_sub_reason_fails_the_codes_step_naming_both()
+    {
+        var item = Run(Remove(reason: "not-on-roll") with { WindowType = CheckingWindowType.Post16 }, cycleMonth: "10");
+        var failure = Assert.Single(item.Failures);
+        Assert.Equal(EgressRecordBuilder.StepCodes, failure.Step);
+        Assert.Equal("Correction_Reason", failure.Field);
+        Assert.Contains("not-on-roll", failure.Reason);
+    }
+}

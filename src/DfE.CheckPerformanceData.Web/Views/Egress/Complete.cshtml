@@ -1,0 +1,49 @@
+@model DfE.CheckPerformanceData.Web.Controllers.Egress.RunPageViewModel
+@using DfE.CheckPerformanceData.Application.Egress
+@{
+    ViewData["Title"] = "Transfer complete";
+}
+
+<a class="govuk-back-link" href="/admin/egress">Back to data egress</a>
+
+<div class="govuk-panel govuk-panel--confirmation" data-testid="egress-complete">
+    <h1 class="govuk-panel__title">Transfer complete</h1>
+    <div class="govuk-panel__body">Files successfully transferred to LDS blob storage</div>
+</div>
+
+<h2 class="govuk-heading-m govuk-!-margin-top-6">Transfer summary</h2>
+<dl class="govuk-summary-list">
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">Checking window</dt>
+        <dd class="govuk-summary-list__value">@Model.WindowTitle</dd>
+    </div>
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">Transferred by</dt>
+        <dd class="govuk-summary-list__value">@Model.Run.TransferredByName</dd>
+    </div>
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">Transferred at</dt>
+        <dd class="govuk-summary-list__value">@Model.Run.TransferredAtUtc?.ToString("d MMMM yyyy 'at' HH:mm") UTC</dd>
+    </div>
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">Target container</dt>
+        <dd class="govuk-summary-list__value">@Model.TargetDescription</dd>
+    </div>
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">Files transferred</dt>
+        <dd class="govuk-summary-list__value">
+            <ul class="govuk-list">
+                @foreach (var output in Model.Run.Outputs)
+                {
+                    <li>@output.FileName (@output.OutputRecordCount records, SHA-256 <code>@output.Sha256</code>)</li>
+                }
+            </ul>
+        </dd>
+    </div>
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">Status</dt>
+        <dd class="govuk-summary-list__value"><strong class="govuk-tag govuk-tag--green">Success</strong></dd>
+    </div>
+</dl>
+
+<govuk-button-link href="/admin/egress">Start a new egress</govuk-button-link>

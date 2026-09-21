@@ -1,0 +1,113 @@
+using System.Text;
+using Azure.Storage.Blobs;
+using DfE.CheckPerformanceData.Application.Egress;
+using DfE.CheckPerformanceData.Infrastructure.Egress;
+using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
+using Microsoft.Extensions.Options;
+
+namespace DfE.CheckPerformanceData.IntegrationTests.Egress;
+
+[Collection(nameof(AzuriteCollection))]
+public sealed class EgressBlobClientTests(AzuriteFixture fixture)
+{
+    private readonly BlobServiceClient _blobs = new(fixture.ConnectionString);
+    private static readonly EgressStorageOptions Options = new() { Container = "cypmd", Prefix = "extracts_input/" };
+
+    private EgressBlobClient Sut(bool configured = true) => new(
+        configured ? new Dictionary<string, BlobServiceClient> { ["egress"] = _blobs } : new Dictionary<string, BlobServiceClient>(),
+        Microsoft.Extensions.Options.Options.Create(Options));
+
+    [Fact]
+    public async Task Uploads_under_the_prefix_with_csv_content_type_and_hash_metadata_and_never_overwrites()
+    {
+        var name = $"CYPMD_LDS_KS4_RemoveLearners_{Guid.NewGuid():N}.csv";
+        var sut = Sut();
+
+        await sut.UploadAsync(name, Encoding.UTF8.GetBytes("A,B\r\n1,2"), "ABC", Guid.NewGuid(), CancellationToken.None);
+
+        var blob = _blobs.GetBlobContainerClient("cypmd").GetBlobClient($"extracts_input/{name}");
+        var props = await blob.GetPropertiesAsync();
+        Assert.Equal("text/csv", props.Value.ContentType);
+        Assert.Equal("ABC", props.Value.Metadata["sha256"]);
+        await Assert.ThrowsAsync<EgressBlobAlreadyExistsException>(() => sut.UploadAsync(name, [1], "X", Guid.NewGuid(), CancellationToken.None));
+
+        await sut.DeleteIfExistsAsync(name, CancellationToken.None);
+        Assert.False(await blob.ExistsAsync());
+        await sut.DeleteIfExistsAsync(name, CancellationToken.None);   // idempotent
+    }
+
+    [Fact]
+    public void Reports_configuration_and_the_target_description()
+    {
+        Assert.True(Sut().IsConfigured);
+        Assert.False(Sut(configured: false).IsConfigured);
+        Assert.Equal("cypmd/extracts_input", Sut().TargetDescription);
+    }
+
+    // S3/M1: the metadata-checked delete used by transfer compensation and the Abandon sweep.
+    [Fact]
+    public async Task DeleteIfOwnedByRun_deletes_a_blob_stamped_with_that_run_and_returns_true()
+    {
+        var runId = Guid.NewGuid();
+        var name = $"CYPMD_LDS_KS4_RemoveLearners_{Guid.NewGuid():N}.csv";
+        var sut = Sut();
+        await sut.UploadAsync(name, Encoding.UTF8.GetBytes("A,B\r\n1,2"), "ABC", runId, CancellationToken.None);
+
+        var removed = await sut.DeleteIfOwnedByRunAsync(name, runId, CancellationToken.None);
+
+        Assert.True(removed);
+        Assert.False(await _blobs.GetBlobContainerClient("cypmd").GetBlobClient($"extracts_input/{name}").ExistsAsync());
+    }
+
+    [Fact]
+    public async Task DeleteIfOwnedByRun_never_touches_a_blob_stamped_with_a_different_run()
+    {
+        var owningRun = Guid.NewGuid();
+        var name = $"CYPMD_LDS_KS4_RemoveLearners_{Guid.NewGuid():N}.csv";
+        var sut = Sut();
+        await sut.UploadAsync(name, Encoding.UTF8.GetBytes("A,B\r\n1,2"), "ABC", owningRun, CancellationToken.None);
+
+        var removed = await sut.DeleteIfOwnedByRunAsync(name, Guid.NewGuid(), CancellationToken.None);
+
+        Assert.False(removed);
+        Assert.True(await _blobs.GetBlobContainerClient("cypmd").GetBlobClient($"extracts_input/{name}").ExistsAsync());
+    }
+
+    [Fact]
+    public async Task DeleteIfOwnedByRun_returns_false_for_a_blob_that_does_not_exist()
+    {
+        var removed = await Sut().DeleteIfOwnedByRunAsync($"CYPMD_LDS_KS4_RemoveLearners_{Guid.NewGuid():N}.csv", Guid.NewGuid(), CancellationToken.None);
+        Assert.False(removed);
+    }
+
+    // Follow-up (Abandon crash-window orphan): transfer needs to know WHO stamped a colliding
+    // file before deciding whether it may be reclaimed.
+    [Fact]
+    public async Task GetOwnerRunId_returns_the_run_stamped_on_the_blob()
+    {
+        var runId = Guid.NewGuid();
+        var name = $"CYPMD_LDS_KS4_RemoveLearners_{Guid.NewGuid():N}.csv";
+        var sut = Sut();
+        await sut.UploadAsync(name, Encoding.UTF8.GetBytes("A,B\r\n1,2"), "ABC", runId, CancellationToken.None);
+
+        Assert.Equal(runId, await sut.GetOwnerRunIdAsync(name, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task GetOwnerRunId_is_null_for_a_blob_that_does_not_exist()
+    {
+        Assert.Null(await Sut().GetOwnerRunIdAsync($"CYPMD_LDS_KS4_RemoveLearners_{Guid.NewGuid():N}.csv", CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task GetOwnerRunId_is_null_for_a_blob_this_service_never_stamped()
+    {
+        var name = $"CYPMD_LDS_KS4_RemoveLearners_{Guid.NewGuid():N}.csv";
+        var container = _blobs.GetBlobContainerClient("cypmd");
+        await container.CreateIfNotExistsAsync();
+        await container.GetBlobClient($"extracts_input/{name}").UploadAsync(new BinaryData("A,B\r\n1,2"));
+
+        Assert.Null(await Sut().GetOwnerRunIdAsync(name, CancellationToken.None));
+        Assert.False(await Sut().DeleteIfOwnedByRunAsync(name, Guid.NewGuid(), CancellationToken.None));
+    }
+}

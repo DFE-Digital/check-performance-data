@@ -35,7 +35,7 @@
         {
           "id": "q-cohort-count",
           "type": "FreeText",
-          "title": "Enter the number of students with missing qualification",
+          "title": "How many students are missing this qualification?",
           "hint": "Enter the number of students who are missing this qualification",
           "validator": "WholeNumber",
           "validationFailure": "Enter how many students are missing this qualification",

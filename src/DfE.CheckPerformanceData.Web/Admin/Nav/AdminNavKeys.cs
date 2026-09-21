@@ -74,4 +74,8 @@ public static class AdminNavKeys
     // DefaultAdminAccessSeeder.AllSections.
     public const string EgressGroup = "egress-group";
     public const string Egress = "egress";
+
+    // Runs history tile + the EgressRunsController gate (AB#294590). Its own key because the
+    // sidebar filters each tile by the tile's own key; also in DefaultAdminAccessSeeder.AllSections.
+    public const string EgressRuns = "egress-runs";
 }

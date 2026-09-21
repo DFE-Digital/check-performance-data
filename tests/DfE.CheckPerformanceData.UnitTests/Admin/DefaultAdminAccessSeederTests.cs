@@ -43,6 +43,16 @@ public sealed class DefaultAdminAccessSeederTests
         Assert.Equal("egress", AdminNavKeys.Egress);
     }
 
+    // The runs history controller is gated on its own key, and the sidebar filters tiles by their
+    // own key, so the tile needs its own grant (AB#294590). The seeder tops the admin role up on
+    // every start, so existing databases get it on deploy.
+    [Fact]
+    public void AllSections_ContainsEgressRuns()
+    {
+        Assert.Contains(AdminNavKeys.EgressRuns, DefaultAdminAccessSeeder.AllSections);
+        Assert.Equal("egress-runs", AdminNavKeys.EgressRuns);
+    }
+
     // The group is a container only: access is implied by the tile, so it must NOT be a section
     // (the same rule as cms-admin / system-admin).
     [Fact]

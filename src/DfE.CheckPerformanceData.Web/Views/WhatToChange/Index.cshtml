@@ -24,7 +24,11 @@
             </govuk-radios-hint>
 
             <govuk-radios-item value="@WhatToChange.Merge">Merge duplicate @Model.Noun.Singular records</govuk-radios-item>
-            <govuk-radios-item value="@WhatToChange.Include">Include a @Model.Noun.Singular in data</govuk-radios-item>
+            @if (Model.CheckingWindowType is { } includeWindowType
+                && IncludeJourney.SupportedWindowTypes.Contains(includeWindowType))
+            {
+                <govuk-radios-item value="@WhatToChange.Include">Include a @Model.Noun.Singular in data</govuk-radios-item>
+            }
             <govuk-radios-item value="@WhatToChange.Remove">Remove a @Model.Noun.Singular from data</govuk-radios-item>
             @if (Model.CheckingWindowType is { } windowType
                 && AddPupilJourney.SupportedWindowTypes.Contains(windowType))

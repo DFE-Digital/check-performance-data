@@ -56,6 +56,14 @@ public sealed class WhatToChangeController(
             return View("Index", new WhatToChangeViewModel { WindowId = windowId, SelectedWhatToChange = null, CheckingWindowType = window.CheckingWindowType, LearnerNoun = noun });
         }
 
+        // #439: the Include journey exists only for the window types that have an Include_*.json.
+        // The radio is hidden elsewhere, but a posted form still arrives here, and a flow file
+        // uploaded to blob for an unsupported window would otherwise open the journey with
+        // nothing failing. Checked before the flow service or the session is touched.
+        if (vm.SelectedWhatToChange == WhatToChange.Include
+            && !IncludeJourney.SupportedWindowTypes.Contains(window.CheckingWindowType))
+            return RedirectToAction("Index", "CheckYourPupilData", new { windowId });
+
         // AB#297310: the Add journey exists only for the window types that have an Add_*.json.
         // The radio is hidden elsewhere, but a posted form still arrives here, and a flow file
         // uploaded to blob for an unsupported window would otherwise open the journey with

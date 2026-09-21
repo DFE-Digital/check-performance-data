@@ -251,6 +251,53 @@ public sealed class WhatToChangeControllerTests
         AssertStaleIdentityIntact(_session.GetRequestState(WindowId));
     }
 
+    // ── #439: Include is refused on a Post16 window, and untouched on KS4June ──
+
+    // The window-type rule itself: an Include_Post16.json uploaded to blob must not open the
+    // Include journey on a Post16 window, any more than an Add_Post16.json could for Add. The
+    // stubbed config proves the redirect comes from the window-type gate, not the (today absent)
+    // Include_Post16.json producing a null flow.
+    [Fact]
+    public async Task Confirm_IncludeOnPost16_WithAnIncludeFlowPresent_StillRedirectsAndLeavesStateAlone()
+    {
+        _service.GetCheckingWindowAsync(WindowId).Returns(Post16Window());
+        _flowService.GetConfigAsync(WhatToChange.Include, CheckingWindowType.Post16)
+            .Returns(FlowWithoutPupilSearch);
+        _session.SaveRequestState(WindowId, SeedStaleIdentity);
+
+        var result = await _sut.Confirm(WindowId,
+            new WhatToChangeViewModel { WindowId = WindowId, SelectedWhatToChange = WhatToChange.Include });
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("CheckYourPupilData", redirect.ControllerName);
+        Assert.Equal("Index", redirect.ActionName);
+        AssertStaleIdentityIntact(_session.GetRequestState(WindowId));
+        // The refusal happens before analytics is touched — no ChangeTypeSelectedEvent.
+        await _analytics.DidNotReceive().TrackAsync(Arg.Any<ChangeTypeSelectedEvent>(), Arg.Any<CancellationToken>());
+    }
+
+    // The Include journey must keep opening on a window type that genuinely supports it — the
+    // regression guard for FR-005 (the Post16 refusal must not leak to other key stages).
+    [Fact]
+    public async Task Confirm_IncludeOnKs4June_StillStartsTheJourney()
+    {
+        _service.GetCheckingWindowAsync(WindowId).Returns(Ks4JuneWindow());
+        _flowService.GetConfigAsync(WhatToChange.Include, CheckingWindowType.KS4June)
+            .Returns(FlowWithPupilSearch);
+
+        var result = await _sut.Confirm(WindowId,
+            new WhatToChangeViewModel { WindowId = WindowId, SelectedWhatToChange = WhatToChange.Include });
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Journey", redirect.ControllerName);
+        Assert.Equal("Page", redirect.ActionName);
+        Assert.Equal("select-pupil", redirect.RouteValues!["pageId"]);
+        Assert.Equal(WhatToChange.Include, _session.GetRequestState(WindowId).SelectedWhatToChange);
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<ChangeTypeSelectedEvent>(e => e.WhatToChange == "Include" && e.CheckingWindowType == "KS4June"),
+            Arg.Any<CancellationToken>());
+    }
+
     private static readonly QuestionFlowConfig FlowWithoutPupilSearch = new()
     {
         FirstPageId = "learner-details",

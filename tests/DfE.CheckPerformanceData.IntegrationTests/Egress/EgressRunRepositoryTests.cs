@@ -13,6 +13,7 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Egress;
 public sealed class EgressRunRepositoryTests(PostgresFixture fixture)
 {
     private static readonly Guid WindowId = Guid.Parse("A0000000-0000-0000-0000-00000000E602");
+    private static readonly Guid WindowId2 = Guid.Parse("A0000000-0000-0000-0000-00000000E603");
     private static readonly Guid UserId = Guid.Parse("A0000000-0000-0000-0000-00000000E6AA");
 
     private EgressRunRepository Repository() => new(fixture.CreateContext());
@@ -20,18 +21,21 @@ public sealed class EgressRunRepositoryTests(PostgresFixture fixture)
     private async Task ResetAsync()
     {
         await using var db = fixture.CreateContext();
-        if (!await db.CheckingWindows.AnyAsync(w => w.Id == WindowId))
+        foreach (var (id, title) in new[] { (WindowId, "Egress repo window"), (WindowId2, "Egress repo window two") })
         {
-            db.CheckingWindows.Add(new CheckingWindow
+            if (!await db.CheckingWindows.AnyAsync(w => w.Id == id))
             {
-                Id = WindowId, Title = "Egress repo window", KeyStage = KeyStages.KS4,
-                CheckingWindowType = CheckingWindowType.KS4June,
-                StartDate = new DateTime(2026, 6, 1), EndDate = new DateTime(2026, 6, 30)
-            });
-            await db.SaveChangesAsync();
+                db.CheckingWindows.Add(new CheckingWindow
+                {
+                    Id = id, Title = title, KeyStage = KeyStages.KS4,
+                    CheckingWindowType = CheckingWindowType.KS4June,
+                    StartDate = new DateTime(2026, 6, 1), EndDate = new DateTime(2026, 6, 30)
+                });
+                await db.SaveChangesAsync();
+            }
         }
-        await db.EgressRuns.Where(r => r.WindowId == WindowId).ExecuteDeleteAsync();
-        await db.ChangeRequests.Where(r => r.WindowId == WindowId).ExecuteDeleteAsync();
+        await db.EgressRuns.Where(r => r.WindowId == WindowId || r.WindowId == WindowId2).ExecuteDeleteAsync();
+        await db.ChangeRequests.Where(r => r.WindowId == WindowId || r.WindowId == WindowId2).ExecuteDeleteAsync();
     }
 
     private static EgressSourceRecord Record(string reference, long? ticket, string decision) => new()
@@ -45,6 +49,23 @@ public sealed class EgressRunRepositoryTests(PostgresFixture fixture)
     private static EgressRunCreate Create(params EgressOutputType[] types) => new(
         WindowId, UserId, "Ops One", "ops.one@education.gov.uk",
         types.Select(t => new EgressRunOutputCreate(t, [Record("REF-1", 1001, "auto_approved"), Record("REF-2", 1002, "rejected")])).ToList());
+
+    private static EgressRunCreate CreateIn(Guid windowId, params EgressOutputType[] types) => new(
+        windowId, UserId, "Ops One", "ops.one@education.gov.uk",
+        types.Select(t => new EgressRunOutputCreate(t, [Record("REF-1", 1001, "auto_approved"), Record("REF-2", 1002, "rejected")])).ToList());
+
+    private static RemoveLearnerRow RemoveRow(string reference = "REF-1") =>
+        new("1001", "31", "4", "KS4", "4070", "Smith", "Alice", "F", "2010-09-07", "2026", "6", "860", "555", Guid.NewGuid(), 1001, reference);
+
+    private static readonly IReadOnlyDictionary<EgressOutputType, string> RemoveFileName = new Dictionary<EgressOutputType, string>
+    {
+        [EgressOutputType.RemoveLearners] = "CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv"
+    };
+
+    private static EgressTransferAudit Audit(int records) => new(UserId.ToString(), "Ops One", "cypmd/extracts_input",
+        new Dictionary<EgressOutputType, (string, int, string)> { [EgressOutputType.RemoveLearners] = ("CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv", records, "ABC") });
+
+    private static EgressRunHistoryFilter In(Guid windowId, EgressRunOutcome? outcome = null) => new(windowId, outcome);
 
     [Fact]
     public async Task Create_then_get_round_trips_the_raw_records()
@@ -401,5 +422,150 @@ public sealed class EgressRunRepositoryTests(PostgresFixture fixture)
         Assert.True(await repo.TrySetStatusAsync(id, EgressRunStatus.Pulled, EgressRunStatus.Preprocessing, CancellationToken.None));
         Assert.False(await repo.TrySetStatusAsync(id, EgressRunStatus.Pulled, EgressRunStatus.Preprocessing, CancellationToken.None));
         Assert.Equal(EgressRunStatus.Preprocessing, (await repo.GetRunAsync(id, CancellationToken.None))!.Status);
+    }
+
+    // ---------------------------------------------------------------- Runs history (AB#294590)
+
+    // Every status appears, newest StartedAtUtc first; ties break on Id so paging is stable.
+    [Fact]
+    public async Task History_lists_every_status_newest_first_with_the_id_as_tiebreak()
+    {
+        await ResetAsync();
+        var repo = Repository();
+        var abandoned = await repo.CreateRunAsync(CreateIn(WindowId, EgressOutputType.RemoveLearners), CancellationToken.None);
+        await repo.AbandonAsync(abandoned, CancellationToken.None);
+        var failed = await repo.CreateRunAsync(CreateIn(WindowId, EgressOutputType.RemoveLearners), CancellationToken.None);
+        await repo.MarkTransferFailedAsync(failed, EgressRunStatus.Pulled, "Blob upload refused", UserId.ToString(), CancellationToken.None);
+        var transferred = await repo.CreateRunAsync(CreateIn(WindowId, EgressOutputType.RemoveLearners), CancellationToken.None);
+        await repo.MarkTransferredAsync(transferred, EgressRunStatus.Pulled, Audit(0), DateTime.UtcNow, CancellationToken.None);
+        var draft = await repo.CreateRunAsync(CreateIn(WindowId, EgressOutputType.NewLearners), CancellationToken.None);
+
+        var page = await repo.ListHistoryAsync(In(WindowId), 1, 20, CancellationToken.None);
+
+        Assert.Equal(4, page.TotalCount);
+        Assert.Equal([draft, transferred, failed, abandoned], page.Rows.Select(r => r.Id));
+        Assert.Equal([EgressRunStatus.Pulled, EgressRunStatus.Transferred, EgressRunStatus.TransferFailed, EgressRunStatus.Abandoned], page.Rows.Select(r => r.Status));
+        Assert.All(page.Rows, r => Assert.Equal("Egress repo window", r.WindowTitle));
+
+        // Force every run onto one timestamp: the order must then be Id descending, not arbitrary.
+        await using var db = fixture.CreateContext();
+        var sameInstant = new DateTime(2026, 6, 8, 9, 0, 0, DateTimeKind.Utc);
+        await db.EgressRuns.Where(r => r.WindowId == WindowId).ExecuteUpdateAsync(s => s.SetProperty(r => r.StartedAtUtc, sameInstant));
+        var tied = await Repository().ListHistoryAsync(In(WindowId), 1, 20, CancellationToken.None);
+        var expected = new[] { draft, transferred, failed, abandoned }.OrderByDescending(id => id).ToList();
+        Assert.Equal(expected, tied.Rows.Select(r => r.Id));
+    }
+
+    // "Records" answers what LDS received: only a transferred run reports its saved count.
+    [Fact]
+    public async Task History_reports_records_transferred_only_for_a_transferred_run()
+    {
+        await ResetAsync();
+        var repo = Repository();
+        var failedAfterSave = await repo.CreateRunAsync(CreateIn(WindowId, EgressOutputType.RemoveLearners), CancellationToken.None);
+        await repo.SavePreprocessedAsync(failedAfterSave, EgressRunStatus.Pulled, [], [RemoveRow("REF-1"), RemoveRow("REF-2")], new DateOnly(2026, 6, 8), RemoveFileName, CancellationToken.None);
+        await repo.MarkTransferFailedAsync(failedAfterSave, EgressRunStatus.Preprocessed, "Blob upload refused", UserId.ToString(), CancellationToken.None);
+        var transferred = await repo.CreateRunAsync(CreateIn(WindowId, EgressOutputType.RemoveLearners), CancellationToken.None);
+        await repo.SavePreprocessedAsync(transferred, EgressRunStatus.Pulled, [], [RemoveRow("REF-1"), RemoveRow("REF-2"), RemoveRow("REF-3")], new DateOnly(2026, 6, 8), RemoveFileName, CancellationToken.None);
+        await repo.MarkTransferredAsync(transferred, EgressRunStatus.Preprocessed, Audit(3), DateTime.UtcNow, CancellationToken.None);
+        var draft = await repo.CreateRunAsync(CreateIn(WindowId, EgressOutputType.NewLearners), CancellationToken.None);
+
+        var rows = (await repo.ListHistoryAsync(In(WindowId), 1, 20, CancellationToken.None)).Rows.ToDictionary(r => r.Id);
+
+        Assert.Equal(3, rows[transferred].RecordsTransferred);
+        Assert.Equal(0, rows[failedAfterSave].RecordsTransferred);   // rows were saved, nothing was sent
+        Assert.Equal(0, rows[draft].RecordsTransferred);
+    }
+
+    [Fact]
+    public async Task History_lists_every_output_type_a_run_covered()
+    {
+        await ResetAsync();
+        var repo = Repository();
+        var both = await repo.CreateRunAsync(CreateIn(WindowId, EgressOutputType.RemoveLearners, EgressOutputType.NewLearners), CancellationToken.None);
+
+        var row = Assert.Single((await repo.ListHistoryAsync(In(WindowId), 1, 20, CancellationToken.None)).Rows);
+
+        Assert.Equal(both, row.Id);
+        Assert.Equal([EgressOutputType.NewLearners, EgressOutputType.RemoveLearners], row.OutputTypes);
+        Assert.Equal("Ops One", row.StartedByName);
+    }
+
+    // Filters are cumulative (ticket "Filtering"): window alone, status alone, both together.
+    [Fact]
+    public async Task History_filters_by_window_and_by_outcome_cumulatively()
+    {
+        await ResetAsync();
+        var repo = Repository();
+        var w1Abandoned = await repo.CreateRunAsync(CreateIn(WindowId, EgressOutputType.RemoveLearners), CancellationToken.None);
+        await repo.AbandonAsync(w1Abandoned, CancellationToken.None);
+        var w1Draft = await repo.CreateRunAsync(CreateIn(WindowId, EgressOutputType.RemoveLearners), CancellationToken.None);
+        var w2Abandoned = await repo.CreateRunAsync(CreateIn(WindowId2, EgressOutputType.RemoveLearners), CancellationToken.None);
+        await repo.AbandonAsync(w2Abandoned, CancellationToken.None);
+        var w2Draft = await repo.CreateRunAsync(CreateIn(WindowId2, EgressOutputType.RemoveLearners), CancellationToken.None);
+
+        var window2 = await repo.ListHistoryAsync(new EgressRunHistoryFilter(WindowId2, null), 1, 20, CancellationToken.None);
+        Assert.Equal([w2Draft, w2Abandoned], window2.Rows.Select(r => r.Id));
+        Assert.Equal(2, window2.TotalCount);
+
+        // Status alone spans windows; other test classes may own runs in other windows, so only
+        // membership of this class's runs is asserted, not the total.
+        var abandonedOnly = await repo.ListHistoryAsync(new EgressRunHistoryFilter(null, EgressRunOutcome.Abandoned), 1, 200, CancellationToken.None);
+        Assert.Contains(w1Abandoned, abandonedOnly.Rows.Select(r => r.Id));
+        Assert.Contains(w2Abandoned, abandonedOnly.Rows.Select(r => r.Id));
+        Assert.DoesNotContain(w1Draft, abandonedOnly.Rows.Select(r => r.Id));
+        Assert.DoesNotContain(w2Draft, abandonedOnly.Rows.Select(r => r.Id));
+
+        var both = await repo.ListHistoryAsync(new EgressRunHistoryFilter(WindowId, EgressRunOutcome.Draft), 1, 20, CancellationToken.None);
+        Assert.Equal([w1Draft], both.Rows.Select(r => r.Id));
+        Assert.Equal(1, both.TotalCount);
+    }
+
+    [Fact]
+    public async Task History_pages_twenty_at_a_time_and_clamps_an_out_of_range_page()
+    {
+        await ResetAsync();
+        var repo = Repository();
+        for (var i = 0; i < 25; i++)
+        {
+            var id = await repo.CreateRunAsync(CreateIn(WindowId2, EgressOutputType.RemoveLearners), CancellationToken.None);
+            await repo.AbandonAsync(id, CancellationToken.None);   // releases the pair for the next one
+        }
+
+        var first = await repo.ListHistoryAsync(In(WindowId2), 1, 20, CancellationToken.None);
+        Assert.Equal(20, first.Rows.Count);
+        Assert.Equal(25, first.TotalCount);
+        Assert.Equal(2, first.TotalPages);
+        Assert.Equal(1, first.Page);
+        Assert.Equal(20, first.PageSize);
+
+        var second = await repo.ListHistoryAsync(In(WindowId2), 2, 20, CancellationToken.None);
+        Assert.Equal(5, second.Rows.Count);
+        Assert.Equal(2, second.Page);
+        Assert.Empty(first.Rows.Select(r => r.Id).Intersect(second.Rows.Select(r => r.Id)));
+
+        var beyond = await repo.ListHistoryAsync(In(WindowId2), 99, 20, CancellationToken.None);
+        Assert.Equal(2, beyond.Page);
+        Assert.Equal(second.Rows.Select(r => r.Id), beyond.Rows.Select(r => r.Id));
+
+        var below = await repo.ListHistoryAsync(In(WindowId2), 0, 20, CancellationToken.None);
+        Assert.Equal(1, below.Page);
+        Assert.Equal(first.Rows.Select(r => r.Id), below.Rows.Select(r => r.Id));
+    }
+
+    [Fact]
+    public async Task History_with_no_match_is_an_empty_first_page()
+    {
+        await ResetAsync();
+        var repo = Repository();
+        var draft = await repo.CreateRunAsync(CreateIn(WindowId, EgressOutputType.RemoveLearners), CancellationToken.None);
+
+        var page = await repo.ListHistoryAsync(new EgressRunHistoryFilter(WindowId, EgressRunOutcome.Success), 1, 20, CancellationToken.None);
+
+        Assert.Empty(page.Rows);
+        Assert.Equal(0, page.TotalCount);
+        Assert.Equal(1, page.Page);
+        Assert.Equal(1, page.TotalPages);
+        Assert.NotEqual(Guid.Empty, draft);
     }
 }

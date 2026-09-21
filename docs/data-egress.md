@@ -190,6 +190,17 @@ recorded. A post-upload failure in the commit itself (every file uploaded, but m
 way and compensated identically — no partial state survives silently. A retry re-activates the
 run's outputs first and is refused if another run has since claimed the pair.
 
+A create-only upload that hits an existing blob (`EgressBlobAlreadyExistsException`) is not
+always a real collision. Before giving up, transfer reads the blob's `egressRunId` stamp
+(`IEgressBlobClient.GetOwnerRunIdAsync`): a file stamped by a run that is now `Abandoned` (a sweep
+the process died in the middle of) or by this very run (an earlier attempt whose compensation
+delete failed) is reclaimed — deleted with the ownership-checked delete and the upload retried
+exactly once. A file stamped by any live run, or carrying no stamp at all, is left untouched and
+the run becomes `TransferFailed` with a reason that names who wrote it and the way out. Note that
+the file name carries the *preprocessing* date, so retrying the same run on a later day reuses
+the same name: the way out of a genuine same-stage/same-day collision is to abandon the run and
+start a new one on a later day, or to have LDS remove the file.
+
 Every terminal write (`MarkPreprocessingFailedAsync`, `SavePreprocessedAsync`,
 `MarkTransferredAsync`, `MarkTransferFailedAsync`) is guarded by the status the caller expects the
 run to currently hold, and reports rows affected; a caller that gets zero back knows it lost a race
@@ -280,20 +291,25 @@ Two rules keep a dev or review environment recoverable after a failed run:
   separate ticket and was not touched here; the new `EgressController` **is** gated.
 - Every copy string introduced by this feature is FLAGGED for content sign-off — see the PR notes.
 - **Same-stage same-day file-name collision**: two different checking windows of the same stage
-  transferred on the same day produce the same file name, so the second run's transfer fails with
-  "already exists" — the only ways out today are waiting a day or a manual delete in LDS. Question
-  for LDS: is one-window-per-stage-per-day a real constraint? Tracked as a follow-up, not fixed by
-  this pass.
+  (KS4 June and KS4 Autumn both map to the `KS4` file token) transferred on the same day produce
+  the same file name, so the second run's transfer fails with "already exists". The file name is
+  fixed at preprocessing, so retrying the *same* run on a later day collides again; the ways out
+  are to abandon the run and start a new one on a later day, or a manual delete in LDS — and the
+  recorded failure reason now says exactly that (§7). A stable fix means a different naming
+  scheme, which is LDS's to agree. Question for LDS: is one-window-per-stage-per-day a real
+  constraint? Tracked as a follow-up.
 - **`PreprocessingStream` is a state-mutating GET** (the accepted `ValidateWindowController`
   pattern) — the JS closes the `EventSource` on a terminal/error event, so the browser's automatic
   reconnect never restarts the server-side pipeline. Left as-is; noted for the next contributor.
 - **Abandon crash-window orphan**: R1 reordered `AbandonAsync` to write `Abandoned` before
-  sweeping the run's blobs (closing a data-loss race — see the R1 commit), but that also moved
-  the crash window rather than removing it. If the process dies after the write commits but
-  before the sweep loop finishes, the run ends up `Abandoned` (not stuck `Transferring`) with one
-  or more files still sitting in LDS storage; the pair is released, so a same-stage/same-day retry
-  can hit the pre-existing "file already exists" collision above, and the orphaned file itself has
-  no UI-reachable recovery — only a manual LDS delete. Follow-up, not an open production incident.
+  sweeping the run's blobs (closing a data-loss race — see the R1 commit), which moved the crash
+  window rather than removing it: if the process dies after the write commits but before the
+  sweep loop finishes, the run ends up `Abandoned` with one or more files still in LDS storage.
+  The recovery is now automatic rather than a manual LDS delete: the next transfer whose file
+  name collides with such a file reclaims it (§7), because it is stamped with an `Abandoned` run's
+  id. Two residual caveats: LDS may already have picked the orphan up before it is reclaimed
+  (true of any orphan, reclaimed or not), and an orphan whose name no later transfer ever reuses
+  stays there until LDS or an operator removes it.
 - Related: `EgressTransferService.FailAsync`'s compensation delete of its own just-uploaded files
   (the `uploaded` list) calls `blobs.DeleteIfExistsAsync` unconditionally, unlike its
   `possiblyOrphaned` check, which is ownership-checked via `DeleteIfOwnedByRunAsync`. In the

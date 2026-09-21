@@ -14,7 +14,12 @@ public sealed class EgressStorageOptions
     public string TargetDescription => $"{Container}/{Prefix.TrimEnd('/')}";
 }
 
-public sealed class EgressBlobAlreadyExistsException(string blobName) : Exception($"A file named {blobName} already exists in the LDS container.");
+public sealed class EgressBlobAlreadyExistsException(string blobName, string? detail = null)
+    : Exception(detail is null ? Sentence(blobName) : $"{Sentence(blobName)} {detail}")
+{
+    public string BlobName { get; } = blobName;
+    private static string Sentence(string blobName) => $"A file named {blobName} already exists in the LDS container.";
+}
 
 public interface IEgressBlobClient
 {

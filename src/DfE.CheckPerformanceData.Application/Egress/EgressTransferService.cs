@@ -99,7 +99,9 @@ public sealed class EgressTransferService(IEgressRunRepository repository, IEgre
     // ABANDONED run (a sweep the process died in the middle of) or this very run (an earlier
     // attempt). Both are files nobody wants in LDS and neither has any other UI path out. A file
     // stamped by any live run, or carrying no stamp at all, is a real collision: left untouched,
-    // and the exception propagates to FailAsync as before.
+    // and the exception propagates to FailAsync — with the reason spelling out who wrote the file
+    // and what actually gets the operator out, because the file name carries the preprocessing
+    // date, so simply retrying this run tomorrow collides on the same name again.
     private async Task UploadReclaimingLeftoversAsync(string fileName, byte[] bytes, string sha, Guid runId, CancellationToken ct)
     {
         try
@@ -107,11 +109,18 @@ public sealed class EgressTransferService(IEgressRunRepository repository, IEgre
             await blobs.UploadAsync(fileName, bytes, sha, runId, ct);
             return;
         }
-        catch (EgressBlobAlreadyExistsException)
+        catch (EgressBlobAlreadyExistsException ex)
         {
-            if (await blobs.GetOwnerRunIdAsync(fileName, ct) is not { } owner) throw;
-            var reclaimable = owner == runId || (await repository.GetRunAsync(owner, ct))?.Status == EgressRunStatus.Abandoned;
-            if (!reclaimable) throw;
+            if (await blobs.GetOwnerRunIdAsync(fileName, ct) is not { } owner)
+                throw new EgressBlobAlreadyExistsException(ex.BlobName,
+                    "It was not written by this service, so it was left in place. Ask LDS to remove or rename it, then retry.");
+            var ownerRun = owner == runId ? null : await repository.GetRunAsync(owner, ct);
+            var reclaimable = owner == runId || ownerRun?.Status == EgressRunStatus.Abandoned;
+            if (!reclaimable)
+                throw new EgressBlobAlreadyExistsException(ex.BlobName,
+                    $"Another egress run wrote it{(ownerRun is null ? "" : $" (its status is {EgressRunStatuses.Label(ownerRun.Status)})")}, so it was left in place. "
+                    + "Two checking windows of the same key stage cannot transfer on the same day. "
+                    + "Abandon this run and start a new one on a later day, or ask LDS to remove the file and then retry.");
             // Ownership is re-checked at delete time; a false here means the file changed hands
             // between the two calls, which is the live-collision case again.
             if (!await blobs.DeleteIfOwnedByRunAsync(fileName, owner, ct)) throw;

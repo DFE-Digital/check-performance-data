@@ -476,4 +476,48 @@ public sealed class EgressTransferServiceTests
         await _blobs.Received(2).UploadAsync(RemoveFile, Arg.Any<byte[]>(), Arg.Any<string>(), RunId, Arg.Any<CancellationToken>());
         await _repo.Received(1).MarkTransferFailedAsync(RunId, EgressRunStatus.Transferring, Arg.Any<string>(), Actor.UserId.ToString(), Arg.Any<CancellationToken>());
     }
+
+    // Same-stage/same-day collision: the file name carries the preprocessing date, so retrying the
+    // SAME run tomorrow reuses today's name and collides again. The recorded reason must say what
+    // actually gets the operator out, not just "already exists".
+    [Fact]
+    public async Task A_collision_with_another_runs_live_file_records_who_wrote_it_and_the_way_out()
+    {
+        RunIs(EgressRunStatus.Preprocessed, EgressOutputType.RemoveLearners);
+        _repo.TrySetStatusAsync(RunId, EgressRunStatus.Preprocessed, EgressRunStatus.Transferring, Arg.Any<CancellationToken>()).Returns(true);
+        var owner = Guid.NewGuid();
+        _blobs.UploadAsync(RemoveFile, Arg.Any<byte[]>(), Arg.Any<string>(), RunId, Arg.Any<CancellationToken>())
+            .Returns(Task.FromException(new EgressBlobAlreadyExistsException("extracts_input/" + RemoveFile)));
+        _blobs.GetOwnerRunIdAsync(RemoveFile, Arg.Any<CancellationToken>()).Returns(owner);
+        _repo.GetRunAsync(owner, Arg.Any<CancellationToken>()).Returns(OtherRun(owner, EgressRunStatus.Transferred));
+
+        var result = await Sut().TransferAsync(RunId, Actor, CancellationToken.None);
+
+        var failed = Assert.IsType<EgressTransferResult.Failed>(result);
+        Assert.Equal("A file named extracts_input/CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv already exists in the LDS container. "
+            + "Another egress run wrote it (its status is Transferred), so it was left in place. "
+            + "Two checking windows of the same key stage cannot transfer on the same day. "
+            + "Abandon this run and start a new one on a later day, or ask LDS to remove the file and then retry.", failed.Reason);
+        await _repo.Received(1).MarkTransferFailedAsync(RunId, EgressRunStatus.Transferring, failed.Reason, Actor.UserId.ToString(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_collision_with_a_file_this_service_never_stamped_says_so()
+    {
+        RunIs(EgressRunStatus.Preprocessed, EgressOutputType.RemoveLearners);
+        _repo.TrySetStatusAsync(RunId, EgressRunStatus.Preprocessed, EgressRunStatus.Transferring, Arg.Any<CancellationToken>()).Returns(true);
+        _blobs.UploadAsync(RemoveFile, Arg.Any<byte[]>(), Arg.Any<string>(), RunId, Arg.Any<CancellationToken>())
+            .Returns(Task.FromException(new EgressBlobAlreadyExistsException("extracts_input/" + RemoveFile)));
+        _blobs.GetOwnerRunIdAsync(RemoveFile, Arg.Any<CancellationToken>()).Returns((Guid?)null);
+
+        var result = await Sut().TransferAsync(RunId, Actor, CancellationToken.None);
+
+        var failed = Assert.IsType<EgressTransferResult.Failed>(result);
+        Assert.Equal("A file named extracts_input/CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv already exists in the LDS container. "
+            + "It was not written by this service, so it was left in place. Ask LDS to remove or rename it, then retry.", failed.Reason);
+        // The only ownership-checked delete is S3's "did my own in-flight write land" probe with
+        // THIS run's id; nothing is ever attempted under any other owner.
+        await _blobs.DidNotReceive().DeleteIfOwnedByRunAsync(Arg.Any<string>(), Arg.Is<Guid>(g => g != RunId), Arg.Any<CancellationToken>());
+        await _blobs.DidNotReceiveWithAnyArgs().DeleteIfExistsAsync(default!, default);
+    }
 }

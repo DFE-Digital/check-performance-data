@@ -73,6 +73,116 @@ public class Post16StudentDisplayTests
         Assert.Single(Post16StudentDisplay.Build(rows, definitions, "students-non-included", null, 0, 10).Rows);
     }
 
+    [Fact]
+    public void Slots_that_share_a_schema_present_as_one_dataset()
+    {
+        // A results enquiry has one slot per supplier file (main, late, revised...) but every file
+        // has the same shape and lands in the same per-school blob, so the page shows one dataset.
+        var main = Definition("results-included", true, "Last name", false);
+        var late = Definition("results-included", true, "Last name", false);
+        var rows = new List<Dictionary<string, string>>
+        {
+            new() { ["SURNAME"] = "Watkins", ["SOURCE"] = "16to19_MAIN" },
+            new() { ["SURNAME"] = "Konsa", ["SOURCE"] = "16to19_LR1" }
+        };
+
+        var view = Post16StudentDisplay.Build(rows, [main, late], null, null, 0, 10);
+
+        var only = Assert.Single(view.Datasets);
+        Assert.Equal("results-included", only.Key);
+        Assert.Equal(2, view.Rows.Count);
+    }
+
+    [Fact]
+    public void Layout_defaults_to_table_when_the_schema_does_not_say()
+    {
+        Assert.Equal(StudentLayout.Table, Definition("students-included", true, "Last name", false).Layout);
+    }
+
+    [Theory]
+    [InlineData("vertical", StudentLayout.Vertical)]
+    [InlineData("table", StudentLayout.Table)]
+    [InlineData("sideways", StudentLayout.Table)]
+    public void Layout_is_read_from_the_root_x_display(string layout, StudentLayout expected)
+    {
+        Assert.Equal(expected, SummaryDefinition(layout).Layout);
+    }
+
+    [Fact]
+    public void Vertical_view_lists_visible_fields_in_order_with_the_records_values()
+    {
+        var definition = SummaryDefinition("vertical");
+        var rows = new List<Dictionary<string, string>>
+        {
+            new() { ["LAESTAB"] = "8412009", ["TALLPUP_1618"] = "48", ["TALEVPUP_1618"] = "" }
+        };
+
+        var view = Post16StudentDisplay.BuildVertical(rows, definition);
+
+        Assert.Equal("Summary", view.Label);
+        Assert.Equal("summary.csv", view.FileName);
+        Assert.Equal(
+            [("Number of students", "48"), ("A level students", ""), ("Average point score", "")],
+            view.Fields.Select(f => (f.Label, f.Value)));
+    }
+
+    [Fact]
+    public void Vertical_view_uses_the_first_record_when_a_school_has_more_than_one()
+    {
+        var rows = new List<Dictionary<string, string>>
+        {
+            new() { ["TALLPUP_1618"] = "48" },
+            new() { ["TALLPUP_1618"] = "99" }
+        };
+
+        var view = Post16StudentDisplay.BuildVertical(rows, SummaryDefinition("vertical"));
+
+        Assert.Equal("48", view.Fields[0].Value);
+    }
+
+    [Fact]
+    public void Vertical_view_has_no_fields_when_a_school_has_no_record()
+    {
+        var view = Post16StudentDisplay.BuildVertical([], SummaryDefinition("vertical"));
+
+        Assert.Empty(view.Fields);
+    }
+
+    [Fact]
+    public void Csv_columns_fall_back_to_the_sheets_own_variant_when_there_is_no_default()
+    {
+        // The students sheets key their columns "provisional-revised"/"retention" with no
+        // "default"; a schema may use any workbook variant names.
+        var definition = SummaryDefinition("vertical");
+        var csv = System.Text.Encoding.UTF8.GetString(Post16StudentDisplay.Csv(
+            definition with { Rows = [new Dictionary<string, string> { ["LAESTAB"] = "8412009", ["TALLPUP_1618"] = "48" }] }));
+
+        Assert.StartsWith("DfE number,Students", csv);
+        Assert.Contains("8412009,48", csv);
+    }
+
+    private static StudentDataset SummaryDefinition(string layout)
+    {
+        var schema = $$"""
+            {
+              "x-ingress": { "collection": "summary" },
+              "x-display": { "section": "Summary", "layout": "{{layout}}" },
+              "x-download": { "fileName": "summary.csv" },
+              "properties": {
+                "LAESTAB": { "x-display": { "label": "DfE number", "visible": false },
+                             "x-csv": { "columns": { "autumn": "A" }, "heading": "DfE number" } },
+                "TAPS_1618": { "x-display": { "label": "Average point score", "order": 2 },
+                               "x-csv": { "columns": {} } },
+                "TALLPUP_1618": { "x-display": { "label": "Number of students", "order": 0 },
+                                  "x-csv": { "columns": { "autumn": "B", "retention": "C" }, "heading": "Students" } },
+                "TALEVPUP_1618": { "x-display": { "label": "A level students", "order": 1 } }
+              }
+            }
+            """;
+        using var json = JsonDocument.Parse(schema);
+        return Post16StudentDisplay.ParseDefinition("summary", null, json.RootElement);
+    }
+
     private static StudentDataset Definition(string key, bool included, string surnameLabel, bool showLaestab)
     {
         var schema = $$"""

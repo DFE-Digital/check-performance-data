@@ -1,0 +1,32 @@
+@using DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData
+@model CheckingExerciseTab
+
+@{
+    // One record per school, pivoted: a label/value row per visible schema field. No dataset
+    // selector, search or paging — there is one record, and each would only add tab stops.
+    var summary = Model.Vertical!;
+}
+
+<h2 class="govuk-heading-l">@summary.Label</h2>
+
+<p class="govuk-body">Download <a asp-action="DownloadStudentDataset" asp-controller="CheckYourPupilData"
+                                  asp-route-windowId="@Model.Exercise.WindowId"
+                                  asp-route-exerciseId="@Model.Exercise.Id"
+                                  asp-route-dataset="@summary.Key">@summary.Label.ToLowerInvariant()</a> as a CSV file.</p>
+
+@if (summary.Fields.Count == 0)
+{
+    <p class="govuk-body">There is no data available for this exercise.</p>
+}
+else
+{
+    <dl class="govuk-summary-list cpd-summary-measures">
+        @foreach (var field in summary.Fields)
+        {
+            <div class="govuk-summary-list__row">
+                <dt class="govuk-summary-list__key">@field.Label</dt>
+                <dd class="govuk-summary-list__value">@field.Value</dd>
+            </div>
+        }
+    </dl>
+}

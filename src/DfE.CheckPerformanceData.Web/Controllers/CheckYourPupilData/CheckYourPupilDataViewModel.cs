@@ -137,7 +137,9 @@ public sealed record CheckingExerciseTab(
     bool HasData)
 {
     public IReadOnlyList<string> Columns => Rows.SelectMany(row => row.Keys).Distinct().ToList();
+    /// <summary>Set for a table-layout schema; null otherwise. Never set together with <see cref="Vertical"/>.</summary>
     public Post16StudentsView? Students { get; init; }
+    /// <summary>Set for a vertical-layout schema (one record per school); null otherwise.</summary>
+    public VerticalStudentView? Vertical { get; init; }
     public bool StudentSchemaUnavailable { get; init; }
-    public bool CanShowActions { get; init; }
 }

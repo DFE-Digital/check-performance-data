@@ -23,7 +23,8 @@ namespace DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData;
 public sealed class CheckYourPupilDataController(ICheckYourPupilDataService checkYourPupilDataService,
     ICurrentUserService currentUserService, IAnalyticsService analytics,
     INextStepsService nextSteps, ICheckingExerciseService checkingExercises,
-    ICheckingDataReader checkingDataReader, TimeProvider clock) : Controller
+    ICheckingDataReader checkingDataReader, TimeProvider clock,
+    ILogger<CheckYourPupilDataController> logger) : Controller
 {
     private const int PageSize = 10;
     private const int MaxSearchLength = 100;
@@ -54,14 +55,17 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
             !string.IsNullOrWhiteSpace(currentUserService.OrganisationLaestab))
         {
             var model = await BuildIndexModelAsync(windowId, 0, 0, null, null);
-            var students = model.CheckingExerciseTabs.Select(t => t.Students).FirstOrDefault(s => s is not null);
-            if (students is not null)
+            // Every schema-backed dataset on the page, in tab order: a table tab's datasets and a
+            // vertical tab's single one.
+            var datasets = model.CheckingExerciseTabs.SelectMany(t =>
+                t.Students?.Datasets ?? (t.Vertical is not null ? [t.Vertical.Dataset] : [])).ToList();
+            if (datasets.Count > 0)
             {
                 using var archiveBytes = new MemoryStream();
                 await using (var archive = new System.IO.Compression.ZipArchive(archiveBytes,
                     System.IO.Compression.ZipArchiveMode.Create, leaveOpen: true))
                 {
-                    foreach (var dataset in students.Datasets)
+                    foreach (var dataset in datasets)
                     {
                         await using var entry = await archive.CreateEntry(dataset.FileName).OpenAsync();
                         await entry.WriteAsync(Post16StudentDisplay.Csv(dataset));
@@ -108,7 +112,8 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         if (string.IsNullOrWhiteSpace(currentUserService.OrganisationLaestab)) return Forbid();
         var model = await BuildIndexModelAsync(windowId, 0, 0, null, null);
         var tab = model.CheckingExerciseTabs.SingleOrDefault(t => t.Exercise.Id == exerciseId);
-        var selected = tab?.Students?.Datasets.SingleOrDefault(d => d.Key == dataset);
+        var selected = tab?.Students?.Datasets.SingleOrDefault(d => d.Key == dataset)
+            ?? (tab?.Vertical?.Key == dataset ? tab.Vertical.Dataset : null);
         return selected is null ? NotFound() : File(Post16StudentDisplay.Csv(selected), "text/csv", selected.FileName);
     }
 
@@ -139,33 +144,16 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Route("CheckYourPupilData/{windowId}/nextstep")]
-    public async Task<IActionResult> NextStep(Guid windowId, CheckYourPupilDataViewModel viewModel,
-        Guid? selectedExerciseId = null)
+    public async Task<IActionResult> NextStep(Guid windowId, CheckYourPupilDataViewModel viewModel)
     {
         // #317: the allowed options are re-derived from the window's open exercises here rather
         // than trusted from the post. Not rendering an option is a UI courtesy; a hand-crafted post
         // must not start a journey for an exercise that is shut, or that this window does not run
-        // at all, so it is rejected exactly as an unanswered question would be.
+        // at all, so it is rejected exactly as an unanswered question would be. The option names
+        // the exercise it starts, so the post carries no exercise id and the selected tab plays
+        // no part.
         var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
         var allowed = nextSteps.GetAvailableSteps(window.Exercises);
-        if (selectedExerciseId is null && window.Exercises.Any(e => e.TabName is not null))
-        {
-            ModelState.AddModelError(nameof(CheckYourPupilDataViewModel.SelectedNextStep),
-                "Select an open checking exercise");
-            var model = await BuildIndexModelAsync(windowId, 0, 0, null, null);
-            return View("Index", model);
-        }
-        if (selectedExerciseId is { } exerciseId)
-        {
-            var selectedExercise = window.Exercises.SingleOrDefault(e => e.Id == exerciseId);
-            if (selectedExercise is null || nextSteps.GetAvailableSteps([selectedExercise]).Count == 0)
-            {
-                ModelState.AddModelError(nameof(CheckYourPupilDataViewModel.SelectedNextStep),
-                    "This checking exercise is not open for changes");
-                var model = await BuildIndexModelAsync(windowId, 0, 0, null, null);
-                return View("Index", model);
-            }
-        }
 
         // AB#298317: "No, I'd like to sign out of this service" is only ever asked when results
         // enquiry is the sole open exercise. Re-derived here, like every other option: a forged
@@ -283,8 +271,7 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         {
             if (string.IsNullOrWhiteSpace(currentUserService.OrganisationLaestab))
             {
-                checkingExerciseTabs.Add(new CheckingExerciseTab(exercise, [], false)
-                { CanShowActions = exercise.CanAct(now) });
+                checkingExerciseTabs.Add(new CheckingExerciseTab(exercise, [], false));
                 continue;
             }
 
@@ -292,44 +279,48 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
                 exercise, currentUserService.OrganisationLaestab, HttpContext.RequestAborted);
             if (bytes is null || bytes.Length == 0)
             {
-                checkingExerciseTabs.Add(new CheckingExerciseTab(exercise, [], false)
-                { CanShowActions = exercise.CanAct(now) });
+                checkingExerciseTabs.Add(new CheckingExerciseTab(exercise, [], false));
                 continue;
             }
 
             using var json = JsonDocument.Parse(bytes);
             var rows = Post16StudentDisplay.ReadRows(json.RootElement);
-            var isStudentsTab = window.CheckingWindowType == CheckingWindowType.Post16 &&
-                (exercise.ExerciseType == CheckingExerciseType.PupilData ||
-                 exercise.TabName.Equals("Students", StringComparison.OrdinalIgnoreCase));
-            var studentDefinitions = new List<StudentDataset>();
+            // Any exercise with uploaded schemas is rendered from them; only an exercise with none
+            // falls back to a raw column-per-key table. The schema, not the tab name or exercise
+            // type, decides the layout.
+            var sourceExercise = window.Exercises.Single(e => e.Id == exercise.Id);
+            var uploadedDatasets = sourceExercise.DatasetsToIngest;
+            var definitions = new List<StudentDataset>();
             var studentSchemaUnavailable = false;
-            if (isStudentsTab)
+            foreach (var dataset in uploadedDatasets)
             {
-                var sourceExercise = window.Exercises.Single(e => e.Id == exercise.Id);
-                var uploadedDatasets = sourceExercise.DatasetsToIngest;
-                studentSchemaUnavailable = uploadedDatasets.Count == 0;
-                foreach (var dataset in uploadedDatasets)
+                var schemaBytes = await checkingDataReader.ReadSchemaAsync(
+                    windowId, dataset.SchemaFile, HttpContext.RequestAborted);
+                if (schemaBytes is null || schemaBytes.Length == 0)
                 {
-                    var schemaBytes = await checkingDataReader.ReadSchemaAsync(
-                        windowId, dataset.SchemaFile, HttpContext.RequestAborted);
-                    if (schemaBytes is null || schemaBytes.Length == 0)
-                    {
-                        studentSchemaUnavailable = true;
-                        break;
-                    }
-                    using var schema = JsonDocument.Parse(schemaBytes);
-                    studentDefinitions.Add(Post16StudentDisplay.ParseDefinition(
-                        dataset.Name, dataset.Included, schema.RootElement));
+                    studentSchemaUnavailable = true;
+                    break;
                 }
+                using var schema = JsonDocument.Parse(schemaBytes);
+                definitions.Add(Post16StudentDisplay.ParseDefinition(
+                    dataset.Name, dataset.Included, schema.RootElement));
             }
+            var hasSchemas = uploadedDatasets.Count > 0 && !studentSchemaUnavailable;
+            // One layout per exercise. A mix is a schema-authoring fault; the table renderer can
+            // show every dataset, so it wins, and the odd one out is logged rather than hidden.
+            var vertical = hasSchemas && definitions.All(d => d.Layout == StudentLayout.Vertical);
+            if (hasSchemas && !vertical && definitions.Any(d => d.Layout == StudentLayout.Vertical))
+                logger.LogWarning("Exercise {ExerciseId} mixes vertical and table schemas; rendering as a table", exercise.Id);
+            if (vertical && rows.Count > 1)
+                logger.LogWarning("Exercise {ExerciseId} holds {Count} records for {Laestab}; a vertical layout shows the first",
+                    exercise.Id, rows.Count, currentUserService.OrganisationLaestab);
             checkingExerciseTabs.Add(new CheckingExerciseTab(exercise, rows, true)
             {
-                CanShowActions = exercise.CanAct(now),
                 StudentSchemaUnavailable = studentSchemaUnavailable,
-                Students = isStudentsTab && !studentSchemaUnavailable
-                    ? Post16StudentDisplay.Build(rows, studentDefinitions, studentDataset, studentSearch, studentPage, PageSize)
-                    : null
+                Students = hasSchemas && !vertical
+                    ? Post16StudentDisplay.Build(rows, definitions, studentDataset, studentSearch, studentPage, PageSize)
+                    : null,
+                Vertical = vertical ? Post16StudentDisplay.BuildVertical(rows, definitions[0]) : null
             });
         }
 

@@ -66,7 +66,8 @@ public sealed class CheckYourPupilDataResultsEnquiryOptionTests
         _sut = new CheckYourPupilDataController(
             _service, _currentUser, _analytics,
             new NextStepsService(checkingExercises), checkingExercises,
-            _reader, clock)
+            _reader, clock,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<CheckYourPupilDataController>.Instance)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext }
         };
@@ -158,6 +159,148 @@ public sealed class CheckYourPupilDataResultsEnquiryOptionTests
     }
 
     [Fact]
+    public async Task Display_only_exercise_with_a_vertical_schema_renders_one_record_as_rows()
+    {
+        var exercise = new CheckingExerciseDto
+        {
+            Id = Guid.NewGuid(), Name = "Summary", TabName = "Summary", IsEnabled = true,
+            ExerciseType = null, DisplayOnly = true, UsesExerciseStorage = true,
+            StartDate = Yesterday, EndDate = Tomorrow,
+            Datasets = [new CheckingWindowDatasetDto
+            {
+                Id = Guid.NewGuid(), Name = "summary",
+                IngressFile = "ingress/summary/input.csv", SchemaFile = "ingress/summary/schema.json"
+            }]
+        };
+        Window(CheckingWindowType.Post16, exercise);
+        _currentUser.OrganisationLaestab.Returns("1234567");
+        _reader.ReadAsync(Arg.Is<CheckingDataExercise>(e => e.Id == exercise.Id),
+                "1234567", Arg.Any<CancellationToken>())
+            .Returns(System.Text.Encoding.UTF8.GetBytes("""[{"LAESTAB":"1234567","TALLPUP_1618":"48"}]"""));
+        _reader.ReadSchemaAsync(WindowId, "ingress/summary/schema.json", Arg.Any<CancellationToken>())
+            .Returns(System.Text.Encoding.UTF8.GetBytes("""
+                {"x-ingress":{"collection":"summary"},
+                 "x-display":{"section":"Summary","layout":"vertical"},
+                 "properties":{
+                   "LAESTAB":{"x-display":{"label":"DfE number","visible":false}},
+                   "TALLPUP_1618":{"x-display":{"label":"Number of students","order":0}}
+                 }}
+                """));
+
+        var tab = Assert.Single((await IndexModel()).CheckingExerciseTabs);
+
+        Assert.Null(tab.Students);
+        var vertical = Assert.IsType<VerticalStudentView>(tab.Vertical);
+        Assert.Equal("Summary", vertical.Label);
+        var field = Assert.Single(vertical.Fields);
+        Assert.Equal(("Number of students", "48"), (field.Label, field.Value));
+    }
+
+    [Fact]
+    public async Task Vertical_exercise_downloads_its_single_record_as_csv()
+    {
+        var exercise = new CheckingExerciseDto
+        {
+            Id = Guid.NewGuid(), Name = "Summary", TabName = "Summary", IsEnabled = true,
+            ExerciseType = null, DisplayOnly = true, UsesExerciseStorage = true,
+            StartDate = Yesterday, EndDate = Tomorrow,
+            Datasets = [new CheckingWindowDatasetDto
+            {
+                Id = Guid.NewGuid(), Name = "summary",
+                IngressFile = "ingress/summary/input.csv", SchemaFile = "ingress/summary/schema.json"
+            }]
+        };
+        Window(CheckingWindowType.Post16, exercise);
+        _currentUser.OrganisationLaestab.Returns("1234567");
+        _reader.ReadAsync(Arg.Is<CheckingDataExercise>(e => e.Id == exercise.Id),
+                "1234567", Arg.Any<CancellationToken>())
+            .Returns(System.Text.Encoding.UTF8.GetBytes("""[{"LAESTAB":"1234567","TALLPUP_1618":"48"}]"""));
+        _reader.ReadSchemaAsync(WindowId, "ingress/summary/schema.json", Arg.Any<CancellationToken>())
+            .Returns(System.Text.Encoding.UTF8.GetBytes("""
+                {"x-ingress":{"collection":"summary"},
+                 "x-display":{"section":"Summary","layout":"vertical"},
+                 "x-download":{"fileName":"summary.csv"},
+                 "properties":{
+                   "LAESTAB":{"x-display":{"label":"DfE number","visible":false},"x-csv":{"columns":{"default":"A"},"heading":"DfE number"}},
+                   "TALLPUP_1618":{"x-display":{"label":"Number of students","order":0},"x-csv":{"columns":{"default":"B"},"heading":"Students"}}
+                 }}
+                """));
+
+        var file = Assert.IsType<FileContentResult>(await _sut.DownloadStudentDataset(WindowId, exercise.Id, "summary"));
+
+        Assert.Equal("summary.csv", file.FileDownloadName);
+        var csv = System.Text.Encoding.UTF8.GetString(file.FileContents);
+        Assert.StartsWith("DfE number,Students", csv);
+        Assert.Contains("1234567,48", csv);
+    }
+
+    [Fact]
+    public async Task Download_all_zips_every_schema_backed_dataset_across_tabs()
+    {
+        var summary = new CheckingExerciseDto
+        {
+            Id = Guid.NewGuid(), Name = "Summary", TabName = "Summary", TabOrder = 0, IsEnabled = true,
+            ExerciseType = null, DisplayOnly = true, UsesExerciseStorage = true,
+            StartDate = Yesterday, EndDate = Tomorrow,
+            Datasets = [new CheckingWindowDatasetDto
+            {
+                Id = Guid.NewGuid(), Name = "summary",
+                IngressFile = "ingress/summary/input.csv", SchemaFile = "ingress/summary/schema.json"
+            }]
+        };
+        var students = new CheckingExerciseDto
+        {
+            Id = Guid.NewGuid(), Name = "Students", TabName = "Students", TabOrder = 1, IsEnabled = true,
+            ExerciseType = CheckingExerciseType.PupilData, StartDate = Yesterday, EndDate = Tomorrow,
+            Datasets = [new CheckingWindowDatasetDto
+            {
+                Id = Guid.NewGuid(), Name = "included", Included = true,
+                IngressFile = "ingress/students/input.csv", SchemaFile = "ingress/students/schema.json"
+            }]
+        };
+        Window(CheckingWindowType.Post16, summary, students);
+        _currentUser.OrganisationLaestab.Returns("1234567");
+        _reader.ReadAsync(Arg.Is<CheckingDataExercise>(e => e.Id == summary.Id), "1234567", Arg.Any<CancellationToken>())
+            .Returns(System.Text.Encoding.UTF8.GetBytes("""[{"LAESTAB":"1234567","TALLPUP_1618":"48"}]"""));
+        _reader.ReadAsync(Arg.Is<CheckingDataExercise>(e => e.Id == students.Id), "1234567", Arg.Any<CancellationToken>())
+            .Returns(System.Text.Encoding.UTF8.GetBytes("""[{"INCLUDED":true,"SURNAME":"Konsa","LAESTAB":"1234567"}]"""));
+        _reader.ReadSchemaAsync(WindowId, "ingress/summary/schema.json", Arg.Any<CancellationToken>())
+            .Returns(System.Text.Encoding.UTF8.GetBytes("""
+                {"x-ingress":{"collection":"summary"},"x-display":{"section":"Summary","layout":"vertical"},
+                 "x-download":{"fileName":"summary.csv"},
+                 "properties":{"TALLPUP_1618":{"x-display":{"label":"Students"},"x-csv":{"columns":{"default":"A"},"heading":"Students"}}}}
+                """));
+        _reader.ReadSchemaAsync(WindowId, "ingress/students/schema.json", Arg.Any<CancellationToken>())
+            .Returns(System.Text.Encoding.UTF8.GetBytes("""
+                {"x-ingress":{"collection":"students-included"},"x-display":{"section":"Students included"},
+                 "x-download":{"fileName":"students-included.csv"},
+                 "properties":{"SURNAME":{"x-display":{"label":"Surname"},"x-csv":{"columns":{"default":"A"},"heading":"Surname"}}}}
+                """));
+
+        var file = Assert.IsType<FileContentResult>(await _sut.DownloadAll(WindowId));
+
+        using var zip = new System.IO.Compression.ZipArchive(new MemoryStream(file.FileContents));
+        Assert.Equal(["summary.csv", "students-included.csv"], zip.Entries.Select(e => e.FullName));
+    }
+
+    [Fact]
+    public async Task Exercise_without_datasets_keeps_the_raw_table_fallback()
+    {
+        var exercise = TabExercise(0, tabName: "Campus");
+        Window(CheckingWindowType.Post16, exercise);
+        _currentUser.OrganisationLaestab.Returns("1234567");
+        _reader.ReadAsync(Arg.Any<CheckingDataExercise>(), "1234567", Arg.Any<CancellationToken>())
+            .Returns(System.Text.Encoding.UTF8.GetBytes("""[{"Name":"Alice"}]"""));
+
+        var tab = Assert.Single((await IndexModel()).CheckingExerciseTabs);
+
+        Assert.Null(tab.Students);
+        Assert.Null(tab.Vertical);
+        Assert.False(tab.StudentSchemaUnavailable);
+        Assert.Equal(["Name"], tab.Columns);
+    }
+
+    [Fact]
     public async Task Checking_exercise_tabs_remain_visible_without_a_school_identifier()
     {
         var exercise = TabExercise(1);
@@ -172,8 +315,11 @@ public sealed class CheckYourPupilDataResultsEnquiryOptionTests
     }
 
     [Fact]
-    public async Task Actions_are_available_only_on_an_open_interactive_tab()
+    public async Task Next_steps_come_from_the_open_exercises_whatever_tab_is_selected()
     {
+        // The question sits below the tabs and offers what the window's open exercises offer: a
+        // display-only Summary tab contributes nothing and hides nothing, and the POST needs no
+        // exercise id because the option itself names the exercise it starts.
         var dataOnly = TabExercise(0, tabName: "Summary");
         var interactive = new CheckingExerciseDto
         {
@@ -183,14 +329,10 @@ public sealed class CheckYourPupilDataResultsEnquiryOptionTests
         };
         Window(CheckingWindowType.Post16, dataOnly, interactive);
 
-        var tabs = (await IndexModel()).CheckingExerciseTabs;
-        Assert.False(tabs[0].CanShowActions);
-        Assert.True(tabs[1].CanShowActions);
+        Assert.Equal([NextSteps.RequestChange, NextSteps.Confirm], (await IndexModel()).AvailableNextSteps);
 
-        var rejected = Assert.IsType<ViewResult>(await _sut.NextStep(
-            WindowId, Posted(NextSteps.RequestChange), dataOnly.Id));
-        Assert.Equal("Index", rejected.ViewName);
-        Assert.False(_sut.ModelState.IsValid);
+        var accepted = Assert.IsType<RedirectToActionResult>(await _sut.NextStep(WindowId, Posted(NextSteps.RequestChange)));
+        Assert.Equal("WhatToChange", accepted.ControllerName);
     }
 
     private static CheckingExerciseDto TabExercise(

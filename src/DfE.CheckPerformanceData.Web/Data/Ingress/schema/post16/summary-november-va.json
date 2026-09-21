@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "summary.json",
-  "title": "Summary",
-  "description": "One row from the 1618 Summary Data (inc VA) worksheet of Post16.ods.",
+  "$id": "summary-november-va.json",
+  "title": "Summary (Provisional Value Added and light touch revised data share)",
+  "description": "One row per institution from the 1618 Summary Data worksheet of Post16.ods, in the Column (November VA) layout used by the Provisional Value Added and light touch revised data share exercise.",
   "type": "object",
   "additionalProperties": false,
   "x-ingress": {
@@ -17,7 +17,8 @@
   "x-display": {
     "tab": "summary",
     "section": "Summary",
-    "selectorOrder": 0
+    "selectorOrder": 0,
+    "layout": "vertical"
   },
   "properties": {
     "LAESTAB": {
@@ -28,13 +29,32 @@
       "maxLength": 7,
       "x-csv": {
         "columns": {
-          "autumn": "A"
+          "default": "A"
         },
         "heading": "DfE number"
       },
       "x-display": {
         "label": "DfE number",
-        "visible": false
+        "visible": true,
+        "order": 1
+      }
+    },
+    "CampID": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 8,
+      "x-csv": {
+        "columns": {
+          "default": "B"
+        },
+        "heading": "Campus Identifier"
+      },
+      "x-display": {
+        "label": "Campus Identifier",
+        "visible": true,
+        "order": 2
       }
     },
     "TALLPUP_1618": {
@@ -45,13 +65,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "B"
+          "default": "C"
         },
         "heading": "Number of students at the end of 16 to 18 studies"
       },
       "x-display": {
         "label": "Number of students at the end of 16 to 18 studies",
-        "visible": false
+        "visible": true,
+        "order": 3
       }
     },
     "TALLPUP_ALEV_1618": {
@@ -62,13 +83,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "C"
+          "default": "D"
         },
         "heading": "Number of students at the end of 16 to 18 study with an A level exam entry (for average grade measure)"
       },
       "x-display": {
         "label": "Number of students at the end of 16 to 18 study with an A level exam entry (for average grade measure)",
-        "visible": false
+        "visible": true,
+        "order": 4
       }
     },
     "TALLPPEGRD_ALEV_1618": {
@@ -79,13 +101,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "D"
+          "default": "E"
         },
         "heading": "Average point score per A level entry expressed as a grade"
       },
       "x-display": {
         "label": "Average point score per A level entry expressed as a grade",
-        "visible": false
+        "visible": true,
+        "order": 5
       }
     },
     "TALLPPE_ALEV_1618": {
@@ -96,13 +119,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "E"
+          "default": "F"
         },
         "heading": "Average point score per A level entry"
       },
       "x-display": {
         "label": "Average point score per A level entry",
-        "visible": false
+        "visible": true,
+        "order": 6
       }
     },
     "TALLPUP_ACAD_1618": {
@@ -113,13 +137,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "F"
+          "default": "G"
         },
         "heading": "Number of students at the end of 16 to 18 study with an academic exam entry (for average grade measure)"
       },
       "x-display": {
         "label": "Number of students at the end of 16 to 18 study with an academic exam entry (for average grade measure)",
-        "visible": false
+        "visible": true,
+        "order": 7
       }
     },
     "TALLPPEGRD_ACAD_1618": {
@@ -130,13 +155,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "G"
+          "default": "H"
         },
         "heading": "Average point score per academic entry expressed as an A level grade"
       },
       "x-display": {
         "label": "Average point score per academic entry expressed as an A level grade",
-        "visible": false
+        "visible": true,
+        "order": 8
       }
     },
     "TALLPPE_ACAD_1618": {
@@ -147,13 +173,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "H"
+          "default": "I"
         },
         "heading": "Average point score per academic entry"
       },
       "x-display": {
         "label": "Average point score per academic entry",
-        "visible": false
+        "visible": true,
+        "order": 9
       }
     },
     "TALLPUP_AGEN": {
@@ -164,13 +191,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "I"
+          "default": "J"
         },
         "heading": "Number of students at the end of 16 to 18 study with an applied general exam entry (for average grade measure)"
       },
       "x-display": {
         "label": "Number of students at the end of 16 to 18 study with an applied general exam entry (for average grade measure)",
-        "visible": false
+        "visible": true,
+        "order": 10
       }
     },
     "TALLPPEGRD_AGEN": {
@@ -181,13 +209,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "J"
+          "default": "K"
         },
         "heading": "Average point score per applied general entry expressed as a vocational grade"
       },
       "x-display": {
         "label": "Average point score per applied general entry expressed as a vocational grade",
-        "visible": false
+        "visible": true,
+        "order": 11
       }
     },
     "TALLPPE_AGEN": {
@@ -198,13 +227,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "K"
+          "default": "L"
         },
         "heading": "Average point score per applied general entry"
       },
       "x-display": {
         "label": "Average point score per applied general entry",
-        "visible": false
+        "visible": true,
+        "order": 12
       }
     },
     "TALLPUP_TLEV": {
@@ -215,13 +245,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "L"
+          "default": "M"
         },
         "heading": "Number of students at the end of 16 to 18 study with a tech level exam entry (for average grade measure)"
       },
       "x-display": {
         "label": "Number of students at the end of 16 to 18 study with a tech level exam entry (for average grade measure)",
-        "visible": false
+        "visible": true,
+        "order": 13
       }
     },
     "TALLPPEGRD_TLEV": {
@@ -232,13 +263,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "M"
+          "default": "N"
         },
         "heading": "Average point score per tech level entry expressed as a vocational grade"
       },
       "x-display": {
         "label": "Average point score per tech level entry expressed as a vocational grade",
-        "visible": false
+        "visible": true,
+        "order": 14
       }
     },
     "TALLPPE_TLEV": {
@@ -249,13 +281,68 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "N"
+          "default": "O"
         },
         "heading": "Average point score per tech level entry"
       },
       "x-display": {
         "label": "Average point score per tech level entry",
-        "visible": false
+        "visible": true,
+        "order": 15
+      }
+    },
+    "TALLPUP_TLEVEL": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "P"
+        },
+        "heading": "Number of students at the end of 16-18 study with a T Level entry"
+      },
+      "x-display": {
+        "label": "Number of students at the end of 16-18 study with a T Level entry",
+        "visible": true,
+        "order": 16
+      }
+    },
+    "TALLPPEGRD_TLEVEL": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "Q"
+        },
+        "heading": "Average point score per T Level entry"
+      },
+      "x-display": {
+        "label": "Average point score per T Level entry",
+        "visible": true,
+        "order": 17
+      }
+    },
+    "TALLPPE_TLEVEL": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "R"
+        },
+        "heading": "Average point score per T Level entry expressed as a grade"
+      },
+      "x-display": {
+        "label": "Average point score per T Level entry expressed as a grade",
+        "visible": true,
+        "order": 18
       }
     },
     "TALLPUP_TechCert": {
@@ -266,13 +353,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "O"
+          "default": "S"
         },
         "heading": "Number of students at the end of 16 to 18 study with a technical certificate exam entry (for average grade measure)"
       },
       "x-display": {
         "label": "Number of students at the end of 16 to 18 study with a technical certificate exam entry (for average grade measure)",
-        "visible": false
+        "visible": true,
+        "order": 19
       }
     },
     "TALLPPEGRD_TechCert": {
@@ -283,13 +371,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "P"
+          "default": "T"
         },
         "heading": "Average point score per technical certificate entry expressed as a vocational grade"
       },
       "x-display": {
         "label": "Average point score per technical certificate entry expressed as a vocational grade",
-        "visible": false
+        "visible": true,
+        "order": 20
       }
     },
     "TALLPPE_TechCert": {
@@ -300,13 +389,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "Q"
+          "default": "U"
         },
         "heading": "Average point score per technical certificate entry"
       },
       "x-display": {
         "label": "Average point score per technical certificate entry",
-        "visible": false
+        "visible": true,
+        "order": 21
       }
     },
     "TALLPUP_ALEV_1618_DIS": {
@@ -317,13 +407,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "R"
+          "default": "V"
         },
         "heading": "Disadvantaged - Number of students at the end of 16 to 18 study with an A level exam entry (for average grade measure)"
       },
       "x-display": {
         "label": "Disadvantaged - Number of students at the end of 16 to 18 study with an A level exam entry (for average grade measure)",
-        "visible": false
+        "visible": true,
+        "order": 22
       }
     },
     "TALLPPEGRD_ALEV_DIS": {
@@ -334,13 +425,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "S"
+          "default": "W"
         },
         "heading": "Disadvantaged - Average point score per A level entry expressed as a grade"
       },
       "x-display": {
         "label": "Disadvantaged - Average point score per A level entry expressed as a grade",
-        "visible": false
+        "visible": true,
+        "order": 23
       }
     },
     "TALLPPE_ALEV_1618_DIS": {
@@ -351,13 +443,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "T"
+          "default": "X"
         },
         "heading": "Disadvantaged - Average point score per A level entry"
       },
       "x-display": {
         "label": "Disadvantaged - Average point score per A level entry",
-        "visible": false
+        "visible": true,
+        "order": 24
       }
     },
     "TALLPUP_ACAD_1618_DIS": {
@@ -368,13 +461,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "U"
+          "default": "Y"
         },
         "heading": "Disadvantaged - Number of students at the end of 16 to 18 study with an academic exam entry (for average grade measure)"
       },
       "x-display": {
         "label": "Disadvantaged - Number of students at the end of 16 to 18 study with an academic exam entry (for average grade measure)",
-        "visible": false
+        "visible": true,
+        "order": 25
       }
     },
     "TALLPPEGRD_ACAD_DIS": {
@@ -385,13 +479,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "V"
+          "default": "Z"
         },
         "heading": "Disadvantaged - Average point score per academic entry expressed as an A level grade"
       },
       "x-display": {
         "label": "Disadvantaged - Average point score per academic entry expressed as an A level grade",
-        "visible": false
+        "visible": true,
+        "order": 26
       }
     },
     "TALLPPE_ACAD_1618_DIS": {
@@ -402,13 +497,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "W"
+          "default": "AA"
         },
         "heading": "Disadvantaged - Average point score per academic entry"
       },
       "x-display": {
         "label": "Disadvantaged - Average point score per academic entry",
-        "visible": false
+        "visible": true,
+        "order": 27
       }
     },
     "TALLPUP_AGEN_DIS": {
@@ -419,13 +515,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "X"
+          "default": "AB"
         },
         "heading": "Disadvantaged - Number of students at the end of 16 to 18 study with an applied general exam entry (for average grade measure)"
       },
       "x-display": {
         "label": "Disadvantaged - Number of students at the end of 16 to 18 study with an applied general exam entry (for average grade measure)",
-        "visible": false
+        "visible": true,
+        "order": 28
       }
     },
     "TALLPPEGRD_AGEN_DIS": {
@@ -436,13 +533,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "Y"
+          "default": "AC"
         },
         "heading": "Disadvantaged - Average point score per applied general entry expressed as a vocational grade"
       },
       "x-display": {
         "label": "Disadvantaged - Average point score per applied general entry expressed as a vocational grade",
-        "visible": false
+        "visible": true,
+        "order": 29
       }
     },
     "TALLPPE_AGEN_DIS": {
@@ -453,13 +551,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "Z"
+          "default": "AD"
         },
         "heading": "Disadvantaged - Average point score per applied general entry"
       },
       "x-display": {
         "label": "Disadvantaged - Average point score per applied general entry",
-        "visible": false
+        "visible": true,
+        "order": 30
       }
     },
     "TALLPUP_TLEV_DIS": {
@@ -470,13 +569,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "AA"
+          "default": "AE"
         },
         "heading": "Disadvantaged - Number of students at the end of 16 to 18 study with a tech level exam entry (for average grade measure)"
       },
       "x-display": {
         "label": "Disadvantaged - Number of students at the end of 16 to 18 study with a tech level exam entry (for average grade measure)",
-        "visible": false
+        "visible": true,
+        "order": 31
       }
     },
     "TALLPPEGRD_TLEV_DIS": {
@@ -487,13 +587,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "AB"
+          "default": "AF"
         },
         "heading": "Disadvantaged - Average point score per tech level entry expressed as a vocational grade"
       },
       "x-display": {
         "label": "Disadvantaged - Average point score per tech level entry expressed as a vocational grade",
-        "visible": false
+        "visible": true,
+        "order": 32
       }
     },
     "TALLPPE_TLEV_DIS": {
@@ -504,13 +605,68 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "AC"
+          "default": "AG"
         },
         "heading": "Disadvantaged - Average point score per tech level entry"
       },
       "x-display": {
         "label": "Disadvantaged - Average point score per tech level entry",
-        "visible": false
+        "visible": true,
+        "order": 33
+      }
+    },
+    "TALLPUP_TLEVEL_DIS": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "AH"
+        },
+        "heading": "Number of disadvantaged students at the end of 16-18 study with a T Level entry"
+      },
+      "x-display": {
+        "label": "Number of disadvantaged students at the end of 16-18 study with a T Level entry",
+        "visible": true,
+        "order": 34
+      }
+    },
+    "TALLPPEGRD_TLEVEL_DIS": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "AI"
+        },
+        "heading": "Average point score per T Level entry for disadvantaged students"
+      },
+      "x-display": {
+        "label": "Average point score per T Level entry for disadvantaged students",
+        "visible": true,
+        "order": 35
+      }
+    },
+    "TALLPPE_TLEVEL_DIS": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "AJ"
+        },
+        "heading": "Average point score per T Level entry expressed as a grade for disadvantaged students"
+      },
+      "x-display": {
+        "label": "Average point score per T Level entry expressed as a grade for disadvantaged students",
+        "visible": true,
+        "order": 36
       }
     },
     "TALLPUP_TechCert_DIS": {
@@ -521,13 +677,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "AD"
+          "default": "AK"
         },
         "heading": "Disadvantaged - Number of students at the end of 16 to 18 study with a tech certificate exam entry (for average grade measure)"
       },
       "x-display": {
         "label": "Disadvantaged - Number of students at the end of 16 to 18 study with a tech certificate exam entry (for average grade measure)",
-        "visible": false
+        "visible": true,
+        "order": 37
       }
     },
     "TALLPPEGRD_TechCert_DIS": {
@@ -538,13 +695,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "AE"
+          "default": "AL"
         },
         "heading": "Disadvantaged - Average point score per technical certificate entry expressed as a vocational grade"
       },
       "x-display": {
         "label": "Disadvantaged - Average point score per technical certificate entry expressed as a vocational grade",
-        "visible": false
+        "visible": true,
+        "order": 38
       }
     },
     "TALLPPE_TechCert_DIS": {
@@ -555,13 +713,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "AF"
+          "default": "AM"
         },
         "heading": "Disadvantaged - Average point score per technical certificate entry"
       },
       "x-display": {
         "label": "Disadvantaged - Average point score per technical certificate entry",
-        "visible": false
+        "visible": true,
+        "order": 39
       }
     },
     "TINCLUDE_AAB_2FAC": {
@@ -572,13 +731,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "AG"
+          "default": "AN"
         },
         "heading": "Number of students included in the AAB measure"
       },
       "x-display": {
         "label": "Number of students included in the AAB measure",
-        "visible": false
+        "visible": true,
+        "order": 40
       }
     },
     "PTAAB_2FAC": {
@@ -589,13 +749,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "AH"
+          "default": "AO"
         },
         "heading": "Percentage of students who achieve three GCE A levels at grades AAB or higher, with two in facilitating subjects"
       },
       "x-display": {
         "label": "Percentage of students who achieve three GCE A levels at grades AAB or higher, with two in facilitating subjects",
-        "visible": false
+        "visible": true,
+        "order": 41
       }
     },
     "TINCLUDE_B3": {
@@ -606,13 +767,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "AI"
+          "default": "AP"
         },
         "heading": "Number of students included in the best three A levels measure"
       },
       "x-display": {
         "label": "Number of students included in the best three A levels measure",
-        "visible": false
+        "visible": true,
+        "order": 42
       }
     },
     "TB3PTSE_GRD": {
@@ -623,13 +785,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "AJ"
+          "default": "AQ"
         },
         "heading": "Average points per entry in best three A levels expressed as a grade"
       },
       "x-display": {
         "label": "Average points per entry in best three A levels expressed as a grade",
-        "visible": false
+        "visible": true,
+        "order": 43
       }
     },
     "TB3PTSE": {
@@ -640,13 +803,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "AK"
+          "default": "AR"
         },
         "heading": "Average point score per entry in best three A levels entries"
       },
       "x-display": {
         "label": "Average point score per entry in best three A levels entries",
-        "visible": false
+        "visible": true,
+        "order": 44
       }
     },
     "TALLPUP_TLEVDENOM": {
@@ -657,13 +821,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "AL"
+          "default": "AS"
         },
         "heading": "Number of students entering at least one level 3 vocational qualification excluding applied generals"
       },
       "x-display": {
         "label": "Number of students entering at least one level 3 vocational qualification excluding applied generals",
-        "visible": false
+        "visible": true,
+        "order": 45
       }
     },
     "TLEV_PER": {
@@ -674,13 +839,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "AM"
+          "default": "AT"
         },
         "heading": "Percentage entering tech level qualifications as a proportion who enter level 3 vocational qualifications (excl applied general)"
       },
       "x-display": {
         "label": "Percentage entering tech level qualifications as a proportion who enter level 3 vocational qualifications (excl applied general)",
-        "visible": false
+        "visible": true,
+        "order": 46
       }
     },
     "TALLPUP_AGENDENOM": {
@@ -691,13 +857,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "AN"
+          "default": "AU"
         },
         "heading": "Number of students entering at least one level 3 vocational qualification excluding tech levels"
       },
       "x-display": {
         "label": "Number of students entering at least one level 3 vocational qualification excluding tech levels",
-        "visible": false
+        "visible": true,
+        "order": 47
       }
     },
     "AGEN_PER": {
@@ -708,13 +875,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "AO"
+          "default": "AV"
         },
         "heading": "Percentage entering applied general qualifications as a proportion who enter level 3 vocational qualifications (excl tech level)"
       },
       "x-display": {
         "label": "Percentage entering applied general qualifications as a proportion who enter level 3 vocational qualifications (excl tech level)",
-        "visible": false
+        "visible": true,
+        "order": 48
       }
     },
     "TALLPUP_ANYL2VOC": {
@@ -725,13 +893,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "AP"
+          "default": "AW"
         },
         "heading": "Number of students whose highest attainment is at level 2"
       },
       "x-display": {
         "label": "Number of students whose highest attainment is at level 2",
-        "visible": false
+        "visible": true,
+        "order": 49
       }
     },
     "Techcert_PER": {
@@ -742,13 +911,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "AQ"
+          "default": "AX"
         },
         "heading": "Percentage of students entering a technical certificate whose highest attainment is at level 2"
       },
       "x-display": {
         "label": "Percentage of students entering a technical certificate whose highest attainment is at level 2",
-        "visible": false
+        "visible": true,
+        "order": 50
       }
     },
     "ENTRY_PER_E": {
@@ -759,13 +929,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "AR"
+          "default": "AY"
         },
         "heading": "Percentage of students in scope for English progress measure entering an approved qualification"
       },
       "x-display": {
         "label": "Percentage of students in scope for English progress measure entering an approved qualification",
-        "visible": false
+        "visible": true,
+        "order": 51
       }
     },
     "ENTRY_PER_M": {
@@ -776,234 +947,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "AS"
+          "default": "AZ"
         },
         "heading": "Percentage of students in scope for maths progress measure entering an approved qualification"
       },
       "x-display": {
         "label": "Percentage of students in scope for maths progress measure entering an approved qualification",
-        "visible": false
-      }
-    },
-    "PT_RET_ASSESSED_ALEV": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "maxLength": 20,
-      "x-csv": {
-        "columns": {
-          "retention": "AT"
-        },
-        "heading": "Percentage of A level students retained and assessed"
-      },
-      "x-display": {
-        "label": "Percentage of A level students retained and assessed",
-        "visible": false
-      }
-    },
-    "T_INSCOPE_ALEV_2ndYR": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "maxLength": 20,
-      "x-csv": {
-        "columns": {
-          "retention": "AU"
-        },
-        "heading": "Number of students at the end of 16 to 18 study with an A level core aim (for returned and retained for a second year measure)"
-      },
-      "x-display": {
-        "label": "Number of students at the end of 16 to 18 study with an A level core aim (for returned and retained for a second year measure)",
-        "visible": false
-      }
-    },
-    "PT_RETAINED_ALEV_2ndYR": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "maxLength": 20,
-      "x-csv": {
-        "columns": {
-          "retention": "AV"
-        },
-        "heading": "Percentage of A level students returned and retained for a second year"
-      },
-      "x-display": {
-        "label": "Percentage of A level students returned and retained for a second year",
-        "visible": false
-      }
-    },
-    "PT_RET_ASSESSED_ACAD": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "maxLength": 20,
-      "x-csv": {
-        "columns": {
-          "retention": "AW"
-        },
-        "heading": "Percentage of academic students retained and assessed"
-      },
-      "x-display": {
-        "label": "Percentage of academic students retained and assessed",
-        "visible": false
-      }
-    },
-    "T_INSCOPE_ACAD_2ndYR": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "maxLength": 20,
-      "x-csv": {
-        "columns": {
-          "retention": "AX"
-        },
-        "heading": "Number of students at the end of 16 to 18 study with an academic core aim (for returned and retained for a second year measure)"
-      },
-      "x-display": {
-        "label": "Number of students at the end of 16 to 18 study with an academic core aim (for returned and retained for a second year measure)",
-        "visible": false
-      }
-    },
-    "PT_RETAINED_ACAD_2ndYR": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "maxLength": 20,
-      "x-csv": {
-        "columns": {
-          "retention": "AY"
-        },
-        "heading": "Percentage of academic students returned and retained for a second year"
-      },
-      "x-display": {
-        "label": "Percentage of academic students returned and retained for a second year",
-        "visible": false
-      }
-    },
-    "PT_RET_ASSESSED_AGEN": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "maxLength": 20,
-      "x-csv": {
-        "columns": {
-          "retention": "AZ"
-        },
-        "heading": "Percentage of applied general students retained and assessed"
-      },
-      "x-display": {
-        "label": "Percentage of applied general students retained and assessed",
-        "visible": false
-      }
-    },
-    "T_INSCOPE_AGEN_2ndYR": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "maxLength": 20,
-      "x-csv": {
-        "columns": {
-          "retention": "BA"
-        },
-        "heading": "Number of students at the end of 16-18 study with applied general core aim (for returned and retained for a second year measure)"
-      },
-      "x-display": {
-        "label": "Number of students at the end of 16-18 study with applied general core aim (for returned and retained for a second year measure)",
-        "visible": false
-      }
-    },
-    "PT_RETAINED_AGEN_2ndYR": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "maxLength": 20,
-      "x-csv": {
-        "columns": {
-          "retention": "BB"
-        },
-        "heading": "Percentage of applied general students returned and retained for a second year"
-      },
-      "x-display": {
-        "label": "Percentage of applied general students returned and retained for a second year",
-        "visible": false
-      }
-    },
-    "PT_RET_ASSESSED_TLEV": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "maxLength": 20,
-      "x-csv": {
-        "columns": {
-          "retention": "BC"
-        },
-        "heading": "Percentage of tech level students retained and assessed"
-      },
-      "x-display": {
-        "label": "Percentage of tech level students retained and assessed",
-        "visible": false
-      }
-    },
-    "T_INSCOPE_TLEV_2ndYR": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "maxLength": 20,
-      "x-csv": {
-        "columns": {
-          "retention": "BD"
-        },
-        "heading": "Number of students at the end of 16 to 18 study with a tech level core aim (for returned and retained for a second year measure)"
-      },
-      "x-display": {
-        "label": "Number of students at the end of 16 to 18 study with a tech level core aim (for returned and retained for a second year measure)",
-        "visible": false
-      }
-    },
-    "PT_RETAINED_TLEV_2ndYR": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "maxLength": 20,
-      "x-csv": {
-        "columns": {
-          "retention": "BE"
-        },
-        "heading": "Percentage of tech level students returned and retained for a second year"
-      },
-      "x-display": {
-        "label": "Percentage of tech level students returned and retained for a second year",
-        "visible": false
-      }
-    },
-    "PT_RET_ASSESSED_TechCert": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "maxLength": 20,
-      "x-csv": {
-        "columns": {
-          "retention": "BF"
-        },
-        "heading": "Percentage of technical certificate students retained and assessed"
-      },
-      "x-display": {
-        "label": "Percentage of technical certificate students retained and assessed",
-        "visible": false
+        "visible": true,
+        "order": 52
       }
     },
     "VA_INS_ALEV": {
@@ -1014,13 +965,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "retention": "BG"
+          "default": "BA"
         },
         "heading": "A level value added score"
       },
       "x-display": {
         "label": "A level value added score",
-        "visible": false
+        "visible": true,
+        "order": 53
       }
     },
     "UCI_INS_ALEV": {
@@ -1031,13 +983,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "retention": "BH"
+          "default": "BB"
         },
         "heading": "Upper confidence limit (A level)"
       },
       "x-display": {
         "label": "Upper confidence limit (A level)",
-        "visible": false
+        "visible": true,
+        "order": 54
       }
     },
     "LCI_INS_ALEV": {
@@ -1048,13 +1001,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "retention": "BI"
+          "default": "BC"
         },
         "heading": "Lower confidence limit (A level)"
       },
       "x-display": {
         "label": "Lower confidence limit (A level)",
-        "visible": false
+        "visible": true,
+        "order": 55
       }
     },
     "ENTRIES_ALEV": {
@@ -1065,13 +1019,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "retention": "BJ"
+          "default": "BD"
         },
         "heading": "Number of A level exam entries (for value added measure)"
       },
       "x-display": {
         "label": "Number of A level exam entries (for value added measure)",
-        "visible": false
+        "visible": true,
+        "order": 56
       }
     },
     "VA_INS_ACAD": {
@@ -1082,13 +1037,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "retention": "BK"
+          "default": "BE"
         },
         "heading": "Academic value added score"
       },
       "x-display": {
         "label": "Academic value added score",
-        "visible": false
+        "visible": true,
+        "order": 57
       }
     },
     "UCI_INS_ACAD": {
@@ -1099,13 +1055,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "retention": "BL"
+          "default": "BF"
         },
         "heading": "Upper confidence limit (Academic)"
       },
       "x-display": {
         "label": "Upper confidence limit (Academic)",
-        "visible": false
+        "visible": true,
+        "order": 58
       }
     },
     "LCI_INS_ACAD": {
@@ -1116,13 +1073,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "retention": "BM"
+          "default": "BG"
         },
         "heading": "Lower confidence limit (Academic)"
       },
       "x-display": {
         "label": "Lower confidence limit (Academic)",
-        "visible": false
+        "visible": true,
+        "order": 59
       }
     },
     "ENTRIES_ACAD": {
@@ -1133,13 +1091,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "retention": "BN"
+          "default": "BH"
         },
         "heading": "Number of academic entries (for value added measure)"
       },
       "x-display": {
         "label": "Number of academic entries (for value added measure)",
-        "visible": false
+        "visible": true,
+        "order": 60
       }
     },
     "VA_INS_AGEN": {
@@ -1150,13 +1109,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "retention": "BO"
+          "default": "BI"
         },
         "heading": "Applied general value added score"
       },
       "x-display": {
         "label": "Applied general value added score",
-        "visible": false
+        "visible": true,
+        "order": 61
       }
     },
     "UCI_INS_AGEN": {
@@ -1167,13 +1127,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "retention": "BP"
+          "default": "BJ"
         },
         "heading": "Upper confidence limit (Applied General)"
       },
       "x-display": {
         "label": "Upper confidence limit (Applied General)",
-        "visible": false
+        "visible": true,
+        "order": 62
       }
     },
     "LCI_INS_AGEN": {
@@ -1184,13 +1145,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "retention": "BQ"
+          "default": "BK"
         },
         "heading": "Lower confidence limit (Applied General)"
       },
       "x-display": {
         "label": "Lower confidence limit (Applied General)",
-        "visible": false
+        "visible": true,
+        "order": 63
       }
     },
     "ENTRIES_AGEN": {
@@ -1201,13 +1163,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "retention": "BR"
+          "default": "BL"
         },
         "heading": "Number of applied general entries (for value added measure)"
       },
       "x-display": {
         "label": "Number of applied general entries (for value added measure)",
-        "visible": false
+        "visible": true,
+        "order": 64
       }
     },
     "VA_INS_TLEV": {
@@ -1218,13 +1181,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "retention": "BS"
+          "default": "BM"
         },
         "heading": "Tech Level value added score"
       },
       "x-display": {
         "label": "Tech Level value added score",
-        "visible": false
+        "visible": true,
+        "order": 65
       }
     },
     "UCI_INS_TLEV": {
@@ -1235,13 +1199,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "retention": "BT"
+          "default": "BN"
         },
         "heading": "Upper confidence limit (Tech Level)"
       },
       "x-display": {
         "label": "Upper confidence limit (Tech Level)",
-        "visible": false
+        "visible": true,
+        "order": 66
       }
     },
     "LCI_INS_TLEV": {
@@ -1252,13 +1217,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "retention": "BU"
+          "default": "BO"
         },
         "heading": "Lower confidence limit (Tech Level)"
       },
       "x-display": {
         "label": "Lower confidence limit (Tech Level)",
-        "visible": false
+        "visible": true,
+        "order": 67
       }
     },
     "ENTRIES_TLEV": {
@@ -1269,13 +1235,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "retention": "BV"
+          "default": "BP"
         },
         "heading": "Number of Tech Level entries (for value added measure)"
       },
       "x-display": {
         "label": "Number of Tech Level entries (for value added measure)",
-        "visible": false
+        "visible": true,
+        "order": 68
       }
     },
     "VA_INS_TechCERT": {
@@ -1286,13 +1253,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "retention": "BW"
+          "default": "BQ"
         },
         "heading": "Technical Certificate value added score"
       },
       "x-display": {
         "label": "Technical Certificate value added score",
-        "visible": false
+        "visible": true,
+        "order": 69
       }
     },
     "UCI_INS_TechCERT": {
@@ -1303,13 +1271,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "retention": "BX"
+          "default": "BR"
         },
         "heading": "Upper confidence limit (Technical Certificate)"
       },
       "x-display": {
         "label": "Upper confidence limit (Technical Certificate)",
-        "visible": false
+        "visible": true,
+        "order": 70
       }
     },
     "LCI_INS_TechCERT": {
@@ -1320,13 +1289,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "retention": "BY"
+          "default": "BS"
         },
         "heading": "Lower confidence limit (Technical Certificate)"
       },
       "x-display": {
         "label": "Lower confidence limit (Technical Certificate)",
-        "visible": false
+        "visible": true,
+        "order": 71
       }
     },
     "ENTRIES_TechCERT": {
@@ -1337,13 +1307,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "retention": "BZ"
+          "default": "BT"
         },
         "heading": "Number of Technical Certificate entries (for value added measure)"
       },
       "x-display": {
         "label": "Number of Technical Certificate entries (for value added measure)",
-        "visible": false
+        "visible": true,
+        "order": 72
       }
     },
     "T_SCOPEEX_E": {
@@ -1354,14 +1325,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "AT",
-          "retention": "CA"
+          "default": "BU"
         },
         "heading": "Number of students at the end of 16 to 18 study in scope for English progress measure"
       },
       "x-display": {
         "label": "Number of students at the end of 16 to 18 study in scope for English progress measure",
-        "visible": false
+        "visible": true,
+        "order": 73
       }
     },
     "PROGEX_E": {
@@ -1372,14 +1343,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "AU",
-          "retention": "CB"
+          "default": "BV"
         },
         "heading": "Average progress made in English"
       },
       "x-display": {
         "label": "Average progress made in English",
-        "visible": false
+        "visible": true,
+        "order": 74
       }
     },
     "T_SCOPEEX_M": {
@@ -1390,14 +1361,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "AV",
-          "retention": "CC"
+          "default": "BW"
         },
         "heading": "Number of students at the end of 16 to 18 study in scope for maths progress measure"
       },
       "x-display": {
         "label": "Number of students at the end of 16 to 18 study in scope for maths progress measure",
-        "visible": false
+        "visible": true,
+        "order": 75
       }
     },
     "PROGEX_M": {
@@ -1408,184 +1379,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "AW",
-          "retention": "CD"
+          "default": "BX"
         },
         "heading": "Average progress made in maths"
       },
       "x-display": {
         "label": "Average progress made in maths",
-        "visible": false
-      }
-    },
-    "T_INSCOPE_ALEV_RET": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "maxLength": 20,
-      "x-csv": {
-        "columns": {
-          "retention": "CE"
-        },
-        "heading": "Number of students at the end of 16 to 18 study with an A level core aim (for retention and retained and assessed measures)"
-      },
-      "x-display": {
-        "label": "Number of students at the end of 16 to 18 study with an A level core aim (for retention and retained and assessed measures)",
-        "visible": false
-      }
-    },
-    "PT_Retained_ALEV_Ret": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "maxLength": 20,
-      "x-csv": {
-        "columns": {
-          "retention": "CF"
-        },
-        "heading": "Percentage of A level students retained"
-      },
-      "x-display": {
-        "label": "Percentage of A level students retained",
-        "visible": false
-      }
-    },
-    "T_InScope_ACAD_Ret": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "maxLength": 20,
-      "x-csv": {
-        "columns": {
-          "retention": "CG"
-        },
-        "heading": "Number of students at the end of 16 to 18 study with an academic core aim (for retention and retained and assessed measures)"
-      },
-      "x-display": {
-        "label": "Number of students at the end of 16 to 18 study with an academic core aim (for retention and retained and assessed measures)",
-        "visible": false
-      }
-    },
-    "PT_Retained_ACAD_Ret": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "maxLength": 20,
-      "x-csv": {
-        "columns": {
-          "retention": "CH"
-        },
-        "heading": "Percentage of academic students retained"
-      },
-      "x-display": {
-        "label": "Percentage of academic students retained",
-        "visible": false
-      }
-    },
-    "T_InScope_AGEN_Ret": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "maxLength": 20,
-      "x-csv": {
-        "columns": {
-          "retention": "CI"
-        },
-        "heading": "Number of students at the end of 16 to 18 study with applied general core aim (for retention, retained and assessed measures)"
-      },
-      "x-display": {
-        "label": "Number of students at the end of 16 to 18 study with applied general core aim (for retention, retained and assessed measures)",
-        "visible": false
-      }
-    },
-    "PT_Retained_AGEN_Ret": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "maxLength": 20,
-      "x-csv": {
-        "columns": {
-          "retention": "CJ"
-        },
-        "heading": "Percentage of applied general students retained"
-      },
-      "x-display": {
-        "label": "Percentage of applied general students retained",
-        "visible": false
-      }
-    },
-    "T_InScope_TLEV_Ret": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "maxLength": 20,
-      "x-csv": {
-        "columns": {
-          "retention": "CK"
-        },
-        "heading": "Number of students at the end of 16 to 18 study with a tech level core aim (for retention and retained and assessed measures)"
-      },
-      "x-display": {
-        "label": "Number of students at the end of 16 to 18 study with a tech level core aim (for retention and retained and assessed measures)",
-        "visible": false
-      }
-    },
-    "PT_Retained_TLEV_Ret": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "maxLength": 20,
-      "x-csv": {
-        "columns": {
-          "retention": "CL"
-        },
-        "heading": "Percentage of tech level students retained"
-      },
-      "x-display": {
-        "label": "Percentage of tech level students retained",
-        "visible": false
-      }
-    },
-    "T_INSCOPE_TechCert_RET": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "maxLength": 20,
-      "x-csv": {
-        "columns": {
-          "retention": "CM"
-        },
-        "heading": "Number of students at the end of 16 to 18 study with a technical certificate core aim (for retention measure)"
-      },
-      "x-display": {
-        "label": "Number of students at the end of 16 to 18 study with a technical certificate core aim (for retention measure)",
-        "visible": false
-      }
-    },
-    "PT_RETAINED_TechCert_RET": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "maxLength": 20,
-      "x-csv": {
-        "columns": {
-          "retention": "CN"
-        },
-        "heading": "Percentage of technical certificate students retained"
-      },
-      "x-display": {
-        "label": "Percentage of technical certificate students retained",
-        "visible": false
+        "visible": true,
+        "order": 76
       }
     },
     "VA_INS_ALEV_DIS": {
@@ -1596,13 +1397,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "retention": "CO"
+          "default": "BY"
         },
         "heading": "Disadvantaged - A level value added score"
       },
       "x-display": {
         "label": "Disadvantaged - A level value added score",
-        "visible": false
+        "visible": true,
+        "order": 77
       }
     },
     "UCI_INS_ALEV_DIS": {
@@ -1613,13 +1415,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "retention": "CP"
+          "default": "BZ"
         },
         "heading": "Upper confidence limit (A level - disadvantaged)"
       },
       "x-display": {
         "label": "Upper confidence limit (A level - disadvantaged)",
-        "visible": false
+        "visible": true,
+        "order": 78
       }
     },
     "LCI_INS_ALEV_DIS": {
@@ -1630,13 +1433,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "retention": "CQ"
+          "default": "CA"
         },
         "heading": "Lower confidence limit (A level - disadvantaged)"
       },
       "x-display": {
         "label": "Lower confidence limit (A level - disadvantaged)",
-        "visible": false
+        "visible": true,
+        "order": 79
       }
     },
     "ENTRIES_ALEV_DIS": {
@@ -1647,13 +1451,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "retention": "CR"
+          "default": "CB"
         },
         "heading": "Disadvantaged - Number of A level exam entries (for value added measure)"
       },
       "x-display": {
         "label": "Disadvantaged - Number of A level exam entries (for value added measure)",
-        "visible": false
+        "visible": true,
+        "order": 80
       }
     },
     "VA_INS_ACAD_DIS": {
@@ -1664,13 +1469,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "retention": "CS"
+          "default": "CC"
         },
         "heading": "Disadvantaged - Academic value added score"
       },
       "x-display": {
         "label": "Disadvantaged - Academic value added score",
-        "visible": false
+        "visible": true,
+        "order": 81
       }
     },
     "UCI_INS_ACAD_DIS": {
@@ -1681,13 +1487,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "retention": "CT"
+          "default": "CD"
         },
         "heading": "Upper confidence limit (Academic - disadvantaged)"
       },
       "x-display": {
         "label": "Upper confidence limit (Academic - disadvantaged)",
-        "visible": false
+        "visible": true,
+        "order": 82
       }
     },
     "LCI_INS_ACAD_DIS": {
@@ -1698,13 +1505,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "retention": "CU"
+          "default": "CE"
         },
         "heading": "Lower confidence limit (Academic - disadvantaged)"
       },
       "x-display": {
         "label": "Lower confidence limit (Academic - disadvantaged)",
-        "visible": false
+        "visible": true,
+        "order": 83
       }
     },
     "ENTRIES_ACAD_DIS": {
@@ -1715,13 +1523,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "retention": "CV"
+          "default": "CF"
         },
         "heading": "Disadvantaged - Number of academic entries (for value added measure)"
       },
       "x-display": {
         "label": "Disadvantaged - Number of academic entries (for value added measure)",
-        "visible": false
+        "visible": true,
+        "order": 84
       }
     },
     "VA_INS_AGEN_DIS": {
@@ -1732,13 +1541,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "retention": "CW"
+          "default": "CG"
         },
         "heading": "Disadvantaged - Applied general value added score"
       },
       "x-display": {
         "label": "Disadvantaged - Applied general value added score",
-        "visible": false
+        "visible": true,
+        "order": 85
       }
     },
     "UCI_INS_AGEN_DIS": {
@@ -1749,13 +1559,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "retention": "CX"
+          "default": "CH"
         },
         "heading": "Upper confidence limit (Applied General - disadvantaged)"
       },
       "x-display": {
         "label": "Upper confidence limit (Applied General - disadvantaged)",
-        "visible": false
+        "visible": true,
+        "order": 86
       }
     },
     "LCI_INS_AGEN_DIS": {
@@ -1766,13 +1577,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "retention": "CY"
+          "default": "CI"
         },
         "heading": "Lower confidence limit (Applied General - disadvantaged)"
       },
       "x-display": {
         "label": "Lower confidence limit (Applied General - disadvantaged)",
-        "visible": false
+        "visible": true,
+        "order": 87
       }
     },
     "ENTRIES_AGEN_DIS": {
@@ -1783,13 +1595,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "retention": "CZ"
+          "default": "CJ"
         },
         "heading": "Disadvantaged - Number of applied general exam entries (for value added measure)"
       },
       "x-display": {
         "label": "Disadvantaged - Number of applied general exam entries (for value added measure)",
-        "visible": false
+        "visible": true,
+        "order": 88
       }
     },
     "VA_INS_TLEV_DIS": {
@@ -1800,13 +1613,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "retention": "DA"
+          "default": "CK"
         },
         "heading": "Disadvantaged - Tech Level value added score"
       },
       "x-display": {
         "label": "Disadvantaged - Tech Level value added score",
-        "visible": false
+        "visible": true,
+        "order": 89
       }
     },
     "UCI_INS_TLEV_DIS": {
@@ -1817,13 +1631,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "retention": "DB"
+          "default": "CL"
         },
         "heading": "Upper confidence limit (Tech Level - disadvantaged)"
       },
       "x-display": {
         "label": "Upper confidence limit (Tech Level - disadvantaged)",
-        "visible": false
+        "visible": true,
+        "order": 90
       }
     },
     "LCI_INS_TLEV_DIS": {
@@ -1834,13 +1649,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "retention": "DC"
+          "default": "CM"
         },
         "heading": "Lower confidence limit (Tech Level - disadvantaged)"
       },
       "x-display": {
         "label": "Lower confidence limit (Tech Level - disadvantaged)",
-        "visible": false
+        "visible": true,
+        "order": 91
       }
     },
     "ENTRIES_TLEV_DIS": {
@@ -1851,13 +1667,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "retention": "DD"
+          "default": "CN"
         },
         "heading": "Disadvantaged - Number of Tech Level entries (for value added measure)"
       },
       "x-display": {
         "label": "Disadvantaged - Number of Tech Level entries (for value added measure)",
-        "visible": false
+        "visible": true,
+        "order": 92
       }
     },
     "VA_INS_TechCERT_DIS": {
@@ -1868,13 +1685,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "retention": "DE"
+          "default": "CO"
         },
         "heading": "Disadvantaged - Technical Certificate value added score"
       },
       "x-display": {
         "label": "Disadvantaged - Technical Certificate value added score",
-        "visible": false
+        "visible": true,
+        "order": 93
       }
     },
     "UCI_INS_TechCERT_DIS": {
@@ -1885,13 +1703,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "retention": "DF"
+          "default": "CP"
         },
         "heading": "Upper confidence limit (Technical Certificate - disadvantaged)"
       },
       "x-display": {
         "label": "Upper confidence limit (Technical Certificate - disadvantaged)",
-        "visible": false
+        "visible": true,
+        "order": 94
       }
     },
     "LCI_INS_TechCERT_DIS": {
@@ -1902,13 +1721,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "retention": "DG"
+          "default": "CQ"
         },
         "heading": "Lower confidence limit (Technical Certificate - disadvantaged)"
       },
       "x-display": {
         "label": "Lower confidence limit (Technical Certificate - disadvantaged)",
-        "visible": false
+        "visible": true,
+        "order": 95
       }
     },
     "ENTRIES_TechCERT_DIS": {
@@ -1919,13 +1739,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "retention": "DH"
+          "default": "CR"
         },
         "heading": "Disadvantaged - Number of Technical Certificate entries (for value added measure)"
       },
       "x-display": {
         "label": "Disadvantaged - Number of Technical Certificate entries (for value added measure)",
-        "visible": false
+        "visible": true,
+        "order": 96
       }
     },
     "T_SCOPEEX_E_DIS": {
@@ -1936,14 +1757,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "AX",
-          "retention": "DI"
+          "default": "CS"
         },
         "heading": "Disadvantaged - Number of students at the end of 16 to 18 study in scope for English progress measure"
       },
       "x-display": {
         "label": "Disadvantaged - Number of students at the end of 16 to 18 study in scope for English progress measure",
-        "visible": false
+        "visible": true,
+        "order": 97
       }
     },
     "PROGEX_E_DIS": {
@@ -1954,14 +1775,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "AY",
-          "retention": "DJ"
+          "default": "CT"
         },
         "heading": "Disadvantaged - Average progress made in English"
       },
       "x-display": {
         "label": "Disadvantaged - Average progress made in English",
-        "visible": false
+        "visible": true,
+        "order": 98
       }
     },
     "T_SCOPEEX_M_DIS": {
@@ -1972,14 +1793,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "AZ",
-          "retention": "DK"
+          "default": "CU"
         },
         "heading": "Disadvantaged - Number of students at the end of 16 to 18 study in scope for maths progress measure"
       },
       "x-display": {
         "label": "Disadvantaged - Number of students at the end of 16 to 18 study in scope for maths progress measure",
-        "visible": false
+        "visible": true,
+        "order": 99
       }
     },
     "PROGEX_M_DIS": {
@@ -1990,184 +1811,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "BA",
-          "retention": "DL"
+          "default": "CV"
         },
         "heading": "Disadvantaged - Average progress made in maths"
       },
       "x-display": {
         "label": "Disadvantaged - Average progress made in maths",
-        "visible": false
-      }
-    },
-    "T_INSCOPE_ALEV_RET_DIS": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "maxLength": 20,
-      "x-csv": {
-        "columns": {
-          "retention": "DM"
-        },
-        "heading": "Disadvantaged - Number of students at the end of 16 to 18 study with an A level core aim (for retention measure)"
-      },
-      "x-display": {
-        "label": "Disadvantaged - Number of students at the end of 16 to 18 study with an A level core aim (for retention measure)",
-        "visible": false
-      }
-    },
-    "PT_Retained_ALEV_Ret_DIS": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "maxLength": 20,
-      "x-csv": {
-        "columns": {
-          "retention": "DN"
-        },
-        "heading": "Disadvantaged - Percentage of A level students retained"
-      },
-      "x-display": {
-        "label": "Disadvantaged - Percentage of A level students retained",
-        "visible": false
-      }
-    },
-    "T_InScope_ACAD_Ret_DIS": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "maxLength": 20,
-      "x-csv": {
-        "columns": {
-          "retention": "DO"
-        },
-        "heading": "Disadvantaged - Number of students at the end of 16 to 18 study with an academic core aim (for retention measure)"
-      },
-      "x-display": {
-        "label": "Disadvantaged - Number of students at the end of 16 to 18 study with an academic core aim (for retention measure)",
-        "visible": false
-      }
-    },
-    "PT_Retained_ACAD_Ret_DIS": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "maxLength": 20,
-      "x-csv": {
-        "columns": {
-          "retention": "DP"
-        },
-        "heading": "Disadvantaged - Percentage of academic students retained"
-      },
-      "x-display": {
-        "label": "Disadvantaged - Percentage of academic students retained",
-        "visible": false
-      }
-    },
-    "T_InScope_AGEN_Ret_DIS": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "maxLength": 20,
-      "x-csv": {
-        "columns": {
-          "retention": "DQ"
-        },
-        "heading": "Disadvantaged - Number of students at the end of 16 to 18 study with an applied general core aim (for retention measure)"
-      },
-      "x-display": {
-        "label": "Disadvantaged - Number of students at the end of 16 to 18 study with an applied general core aim (for retention measure)",
-        "visible": false
-      }
-    },
-    "PT_Retained_AGEN_Ret_DIS": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "maxLength": 20,
-      "x-csv": {
-        "columns": {
-          "retention": "DR"
-        },
-        "heading": "Disadvantaged - Percentage of applied general students retained"
-      },
-      "x-display": {
-        "label": "Disadvantaged - Percentage of applied general students retained",
-        "visible": false
-      }
-    },
-    "T_InScope_TLEV_Ret_DIS": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "maxLength": 20,
-      "x-csv": {
-        "columns": {
-          "retention": "DS"
-        },
-        "heading": "Disadvantaged - Number of students at the end of 16 to 18 study with a tech level core aim (for retention measure)"
-      },
-      "x-display": {
-        "label": "Disadvantaged - Number of students at the end of 16 to 18 study with a tech level core aim (for retention measure)",
-        "visible": false
-      }
-    },
-    "PT_Retained_TLEV_Ret_DIS": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "maxLength": 20,
-      "x-csv": {
-        "columns": {
-          "retention": "DT"
-        },
-        "heading": "Disadvantaged - Percentage of tech level students retained"
-      },
-      "x-display": {
-        "label": "Disadvantaged - Percentage of tech level students retained",
-        "visible": false
-      }
-    },
-    "T_INSCOPE_TechCert_RET_DIS": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "maxLength": 20,
-      "x-csv": {
-        "columns": {
-          "retention": "DU"
-        },
-        "heading": "Disadvantaged - Number of students at the end of 16 to 18 study with a technical certificate core aim (for retention measure)"
-      },
-      "x-display": {
-        "label": "Disadvantaged - Number of students at the end of 16 to 18 study with a technical certificate core aim (for retention measure)",
-        "visible": false
-      }
-    },
-    "PT_RETAINED_TechCert_RET_DIS": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "maxLength": 20,
-      "x-csv": {
-        "columns": {
-          "retention": "DV"
-        },
-        "heading": "Disadvantaged - Percentage of technical certificate students retained"
-      },
-      "x-display": {
-        "label": "Disadvantaged - Percentage of technical certificate students retained",
-        "visible": false
+        "visible": true,
+        "order": 100
       }
     },
     "TALLPUP_SCOPE_L3M": {
@@ -2178,14 +1829,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "BB",
-          "retention": "DW"
+          "default": "CW"
         },
         "heading": "Number of students in level 3 maths measure"
       },
       "x-display": {
         "label": "Number of students in level 3 maths measure",
-        "visible": false
+        "visible": true,
+        "order": 101
       }
     },
     "L3M_PER": {
@@ -2196,14 +1847,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "autumn": "BC",
-          "retention": "DX"
+          "default": "CX"
         },
         "heading": "Percentage of students in scope of level 3 maths measure achieving approved level 3 maths"
       },
       "x-display": {
         "label": "Percentage of students in scope of level 3 maths measure achieving approved level 3 maths",
-        "visible": false
+        "visible": true,
+        "order": 102
       }
     }
   }

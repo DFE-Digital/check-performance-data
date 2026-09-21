@@ -251,4 +251,71 @@ public sealed class AccessibilityAuditViewTests
 		// No native placeholder attribute either — GOV.UK guidance, and the very thing this bug is.
 		Assert.DoesNotContain("placeholder:", configBlock);
 	}
+
+	// ── Students / Results tabs: schema-driven tables ────────────────────────────────
+
+	[Fact]
+	public void Post16Students_UsesTheGovUkPaginationComponent_WithAWindowedPageList()
+	{
+		// The schema-driven tables page the same way the pupil tables do: the GOV.UK component
+		// with first, last and current ± 1 from PaginationWindow. A hand-rolled Previous/Next
+		// with a "Page x of y" span has no numbered links and no ellipsis, and the span is not
+		// part of the component's markup, so a screen reader hears it as a stray sentence.
+		var view = ReadView("Views", "CheckYourPupilData", "_Post16Students.cshtml");
+
+		Assert.Contains("<govuk-pagination>", view);
+		Assert.Contains("<govuk-pagination-previous", view);
+		Assert.Contains("<govuk-pagination-next", view);
+		Assert.Contains("PaginationWindow.Build(", view);
+		Assert.Contains("<govuk-pagination-ellipsis />", view);
+		Assert.DoesNotContain("<nav class=\"govuk-pagination\"", view);
+		Assert.DoesNotContain("Page @(", view);
+	}
+
+	[Fact]
+	public void CheckYourPupilData_NextStepsQuestion_IsNotTiedToTheSelectedTab()
+	{
+		// The "what would you like to do?" question sits below the tabs and stays whatever tab is
+		// selected: it offers what the window's open exercises offer, exactly as the older 16 to 19
+		// window does. A block that JavaScript hides per tab, and a hidden exercise id the POST
+		// demands, leave a keyboard or no-script user with a question that comes and goes.
+		var view = ReadView("Views", "CheckYourPupilData", "Index.cshtml");
+
+		Assert.DoesNotContain("selectedExerciseId", view);
+		Assert.DoesNotContain("data-actionable-tabs", view);
+		Assert.DoesNotContain("checking-exercise-actions.js", view);
+		Assert.DoesNotContain("CanShowActions", view);
+	}
+
+	// ── Summary tab: one record per school, pivoted ───────────────────────────────────
+
+	[Fact]
+	public void VerticalSummary_IsASummaryList_WithNoSearchPaginationOrActions()
+	{
+		// A one-record dataset has nothing to page or search; each would add tab stops and
+		// state to a page that is otherwise a single scroll. The pivot is a summary list with
+		// no actions column, so there is no empty <dd> for a screen reader to land on.
+		var view = ReadView("Views", "CheckYourPupilData", "_VerticalSummary.cshtml");
+
+		Assert.Contains("govuk-summary-list", view);
+		Assert.DoesNotContain("govuk-summary-list__actions", view);
+		Assert.DoesNotContain("type=\"search\"", view);
+		Assert.DoesNotContain("govuk-pagination", view);
+		Assert.DoesNotContain("<form", view);
+	}
+
+	[Fact]
+	public void VerticalSummary_WidensTheKeyColumn_ForLongMeasureNames()
+	{
+		// The measure names run to several lines ("Number of students at the end of 16 to 18
+		// study with an A level exam entry (for average grade measure)") and the values are a
+		// number or a grade, so GOV.UK's 30% key column leaves a tall label beside a short
+		// value. The list carries a modifier that site.css widens, scoped so no other summary
+		// list moves.
+		var view = ReadView("Views", "CheckYourPupilData", "_VerticalSummary.cshtml");
+		var css = ReadCss();
+
+		Assert.Contains("govuk-summary-list cpd-summary-measures", view);
+		Assert.Contains(".cpd-summary-measures .govuk-summary-list__key", css);
+	}
 }

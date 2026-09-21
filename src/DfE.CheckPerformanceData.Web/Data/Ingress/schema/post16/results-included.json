@@ -70,7 +70,9 @@
       },
       "x-display": {
         "label": "Surname",
-        "visible": false
+        "visible": true,
+        "order": 1,
+        "searchable": true
       }
     },
     "FORENAMES": {
@@ -88,7 +90,9 @@
       },
       "x-display": {
         "label": "Forename",
-        "visible": false
+        "visible": true,
+        "order": 2,
+        "searchable": true
       }
     },
     "SEX": {
@@ -176,7 +180,8 @@
       },
       "x-display": {
         "label": "Qualification number",
-        "visible": false
+        "visible": true,
+        "order": 5
       }
     },
     "AB_Code": {
@@ -229,7 +234,8 @@
       },
       "x-display": {
         "label": "Season",
-        "visible": false
+        "visible": true,
+        "order": 6
       }
     },
     "exam_date": {
@@ -265,7 +271,8 @@
       },
       "x-display": {
         "label": "Qualification type",
-        "visible": false
+        "visible": true,
+        "order": 3
       }
     },
     "SubjectDescription": {
@@ -283,7 +290,8 @@
       },
       "x-display": {
         "label": "Subject name",
-        "visible": false
+        "visible": true,
+        "order": 4
       }
     },
     "GRADE": {
@@ -301,7 +309,8 @@
       },
       "x-display": {
         "label": "Grade",
-        "visible": false
+        "visible": true,
+        "order": 7
       }
     },
     "POINTS_1618": {
@@ -318,7 +327,8 @@
       },
       "x-display": {
         "label": "Point score",
-        "visible": false
+        "visible": true,
+        "order": 8
       }
     },
     "CAPPED_PTS": {
@@ -595,6 +605,20 @@
       },
       "x-display": {
         "label": "cypmd_pk",
+        "visible": false
+      }
+    },
+    "SOURCE": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "x-csv": {
+        "columns": {},
+        "heading": "Source file"
+      },
+      "x-display": {
+        "label": "Source file",
         "visible": false
       }
     }

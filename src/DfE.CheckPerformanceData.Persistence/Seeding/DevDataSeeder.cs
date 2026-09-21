@@ -5,6 +5,11 @@ namespace DfE.CheckPerformanceData.Persistence.Seeding;
 public sealed class DevDataSeeder(IPortalDbContext dbContext)
 {
     public static readonly Guid Post16IngressCheckingWindowId = Guid.Parse("BA9A1FD7-3EC6-44A2-A58F-21F7C289A560");
+
+    // A 16-19 window seen in February: opened in the autumn, pupil data checking long shut,
+    // results enquiry still open with the first late results file in, and the third Summary
+    // exercise (light touch revised data share) showing. Ingested from files like the window above.
+    public static readonly Guid Post16FebruaryCheckingWindowId = Guid.Parse("5E2C7A19-8D4B-4F63-9A0E-6B1D3C8F2A74");
     public static readonly Guid KeyStage4JuneCheckingWindowId = Guid.Parse("F34D285B-8660-4D12-9C30-787328DEAA0A");
     public static readonly Guid ClosedKeyStage4JuneCheckingWindowId = Guid.Parse("44AEDD2C-7F3E-4F83-BB3D-47FBFAC1C604");
     public static readonly Guid Post16CheckingWindowId = Guid.Parse("6C2E1F4A-9B7D-4E38-8A15-3D9C2B4E7F01");

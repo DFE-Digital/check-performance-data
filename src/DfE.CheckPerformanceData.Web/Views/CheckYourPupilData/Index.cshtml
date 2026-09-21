@@ -7,7 +7,6 @@
     // stay identical and this page's noun changes with the window type ("student" on 16-19).
     ViewBag.Title = Model.Title;
     Layout = "_Layout";
-    var firstExerciseTab = Model.CheckingExerciseTabs.FirstOrDefault();
 }
 
 <a asp-action="Index" asp-controller="LandingPage" class="govuk-back-link">Back</a>
@@ -84,6 +83,10 @@
                 @if (tab.StudentSchemaUnavailable)
                 {
                     <p class="govuk-body">Student data cannot be displayed because an exercise schema is unavailable.</p>
+                }
+                else if (tab.Vertical is not null)
+                {
+                    @await Html.PartialAsync("_VerticalSummary", tab)
                 }
                 else if (tab.Students is not null)
                 {
@@ -166,21 +169,15 @@
 @*     } *@
 @* </govuk-tabs> *@
 
-@if (Model.CheckingExerciseTabs.Any(tab => tab.CanShowActions) && Model.AvailableNextSteps.Count > 0)
-{
-<div id="checking-exercise-actions"
-     data-actionable-tabs="@string.Join(',', Model.CheckingExerciseTabs.Where(tab => tab.CanShowActions).Select(tab => $"exercise-{tab.Exercise.Id}"))"
-     data-default-tab="exercise-@firstExerciseTab?.Exercise.Id"
-     hidden="@(firstExerciseTab?.CanShowActions == true ? null : "hidden")">
-@* #317: the form offers whatever the open exercises offer. Nothing open means no form at all —
-   the tables, the search and the downloads above are untouched, because a closed exercise removes
-   actions, never content. AB#298317: when results enquiry is the only thing left, the page asks
-   the designed Yes/No question instead of showing a one-item form. *@
+@* #317: the form offers whatever the open exercises offer, below the tabs and whatever tab is
+   selected — a display-only tab contributes nothing and hides nothing. Nothing open means no form
+   at all — the tables, the search and the downloads above are untouched, because a closed exercise
+   removes actions, never content. AB#298317: when results enquiry is the only thing left, the page
+   asks the designed Yes/No question instead of showing a one-item form. *@
 @if (Model.OffersEnquiryOnly)
 {
     <form method="post" action="@Url.Action("NextStep", "CheckYourPupilData", new { windowId = Model.WindowId })">
         @Html.AntiForgeryToken()
-        <input type="hidden" name="selectedExerciseId" value="@firstExerciseTab?.Exercise.Id" />
         <govuk-radios for="SelectedNextStep">
             <govuk-radios-fieldset>
                 @* Not is-page-heading: the EditableTitle above is the page's only h1. *@
@@ -211,7 +208,6 @@ else if (Model.AvailableNextSteps.Count == 1)
 
     <form method="post" action="@Url.Action("NextStep", "CheckYourPupilData", new { windowId = Model.WindowId })">
         @Html.AntiForgeryToken()
-        <input type="hidden" name="selectedExerciseId" value="@firstExerciseTab?.Exercise.Id" />
         <input type="hidden" name="@nameof(Model.SelectedNextStep)" value="@only"/>
         <govuk-button type="submit">@NextStepLabels.For(only, Model.LearnerNoun)</govuk-button>
     </form>
@@ -220,7 +216,6 @@ else if (Model.AvailableNextSteps.Count > 1)
 {
     <form method="post" action="@Url.Action("NextStep", "CheckYourPupilData", new { windowId = Model.WindowId })">
         @Html.AntiForgeryToken()
-        <input type="hidden" name="selectedExerciseId" value="@firstExerciseTab?.Exercise.Id" />
         <govuk-radios for="SelectedNextStep">
             <govuk-radios-fieldset>
                 @* Not is-page-heading: that renders the legend as an <h1>, and this page already
@@ -252,7 +247,4 @@ else if (Model.AvailableNextSteps.Count > 1)
 
         <govuk-button type="submit">Continue</govuk-button>
     </form>
-}
-</div>
-<script src="~/js/checking-exercise-actions.js" asp-append-version="true"></script>
 }

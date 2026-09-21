@@ -28,6 +28,7 @@ public sealed class DevDataSeedingOrchestrator(
     IRequestStateBlobClient requestStateBlobClient,
     ICheckYourPupilDataService checkYourPupilDataService,
     ICheckingExerciseService checkingExerciseService,
+    DfE.CheckPerformanceData.Infrastructure.Ingress.ICheckingExerciseIngress checkingExerciseIngress,
     RulesConfigSeeder rulesConfigSeeder,
     GradeReferenceBlobClient gradeReferenceBlobClient,
     QualificationReferenceBlobClient qualificationReferenceBlobClient,
@@ -37,7 +38,7 @@ public sealed class DevDataSeedingOrchestrator(
     public async Task RunAsync()
     {
         await devDataSeeder.SeedAsync();
-        await SeedPost16Ingress.ExecuteSeedAsync(dbContext, blobServiceClient, environment.ContentRootPath);
+        await SeedPost16Ingress.ExecuteSeedAsync(dbContext, blobServiceClient, checkingExerciseIngress, environment.ContentRootPath);
 
         await SeedPupilData.ExecuteSeedAsync(pupilDataBlobClient);
         await SeedPupilData.ExecutePost16SeedAsync(pupilDataBlobClient, DevDataSeeder.Post16CheckingWindowId);

@@ -168,6 +168,69 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
         Assert.Null(await ReadPupilsAsync(container, "8604070"));
     }
 
+    [Fact]
+    public async Task Every_bad_row_in_a_school_is_reported_with_its_row_index()
+    {
+        // A school's rows are validated as one batch (see the test below), so the log must still
+        // name every failing row, and by index.
+        var windowId = Guid.NewGuid();
+        const string strictSchema = """
+        {
+          "type": "object",
+          "properties": {
+            "Id":       { "type": ["string", "null"] },
+            "CYPMD_ID": { "type": ["string", "null"] },
+            "LAESTAB":  { "type": ["string", "null"] },
+            "AGE":      { "type": "integer" }
+          }
+        }
+        """;
+        const string csv = "CYPMD_ID,LAESTAB,AGE\n1,8604070,x\n2,8604070,17\n3,8604070,y\n4,1234567,18\n";
+
+        var container = await SeedWindowAsync(windowId,
+            ("ingress/pupils.csv", csv), ("schema/strict.json", strictSchema));
+        IReadOnlyList<IngressDataset> datasets =
+            [new("pupils", "pupils.csv", Checksum(csv), "strict.json", Checksum(strictSchema), Included: null)];
+
+        var progress = await DrainAsync(Processor().ProcessAsync(windowId, CheckingExerciseType.PupilData, datasets));
+
+        var last = progress[^1];
+        Assert.True(last.IsError);
+        Assert.Equal(2, last.ErrorCount);
+        Assert.Equal(4, last.RecordsRead);
+        Assert.Equal([new SchoolRecordCount("8604070", 3), new SchoolRecordCount("1234567", 1)], last.SchoolSummary);
+        var log = (await container.GetBlobClient(
+            DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.ErrorLogBlobName(
+                CheckingExerciseType.PupilData, windowId)).DownloadContentAsync()).Value.Content.ToString();
+        Assert.Contains("Validation Failed for School: 8604070", log);
+        Assert.Contains("Path '[0].AGE'", log);
+        Assert.Contains("Path '[2].AGE'", log);
+        Assert.DoesNotContain("1234567", log);
+    }
+
+    [Fact]
+    public async Task A_school_of_many_rows_costs_one_schema_validation()
+    {
+        // Newtonsoft.Json.Schema caps an unlicensed process at 1,000 validations an hour and counts
+        // calls, not rows. This test process holds no licence, so validating per row would throw
+        // JSchemaException before the 1,200th row; validating each school's batch once does not.
+        var windowId = Guid.NewGuid();
+        var csv = "CYPMD_ID,LAESTAB,AGE\n" + string.Concat(Enumerable.Range(1, 1200).Select(i => $"{i},8604070,17\n"));
+
+        var container = await SeedWindowAsync(windowId,
+            ("ingress/pupils.csv", csv), ("schema/ks4.json", Ks4Schema));
+        IReadOnlyList<IngressDataset> datasets =
+            [new("pupils", "pupils.csv", Checksum(csv), "ks4.json", Checksum(Ks4Schema), Included: null)];
+
+        var progress = await DrainAsync(Processor().ProcessAsync(windowId, CheckingExerciseType.PupilData, datasets));
+
+        var last = progress[^1];
+        Assert.True(last.IsComplete);
+        Assert.False(last.IsError, last.Message);
+        Assert.Equal(1200, last.RecordsRead);
+        Assert.Equal(1200, (await ReadPupilsAsync(container, "8604070"))!.Count);
+    }
+
     // A KS4 schema declares no INCLUDED property at all — inclusion comes from the record's own
     // P_INCL. This is the shape every pre-16-19 window uses.
     private const string Ks4Schema = """

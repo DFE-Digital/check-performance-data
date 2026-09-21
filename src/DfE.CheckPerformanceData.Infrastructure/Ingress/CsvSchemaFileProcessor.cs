@@ -110,6 +110,12 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
 
             JSchema schema = JSchema.Parse(schemaJson!);
             schema.AllowAdditionalProperties = false;
+            // Newtonsoft.Json.Schema counts licensed validations per call, not per row, and caps an
+            // unlicensed process at 1,000 an hour. A school's rows are therefore validated as one
+            // array, one call per school per dataset, rather than one call per record. The
+            // messages are the same, and each already carries its row index within the school
+            // ("Path '[12].ULN'") because the record's path includes its parent array.
+            JSchema schoolSchema = new() { Type = JSchemaType.Array, Items = { schema } };
 
             // Read the records and report how many there are.
             List<IDictionary<string, object>> records;
@@ -203,10 +209,11 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
                         record["SOURCE"] = sourceFile;
                     }
 
-                    if (!record.IsValid(schema, out IList<string> errorMessages))
-                    {
-                        schoolErrors.AddRange(errorMessages);
-                    }
+                }
+
+                if (!jsonArray.IsValid(schoolSchema, out IList<string> errorMessages))
+                {
+                    schoolErrors.AddRange(errorMessages);
                 }
 
                 if (schoolErrors.Count > 0)

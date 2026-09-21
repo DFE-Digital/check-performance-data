@@ -39,7 +39,8 @@ public sealed class CheckYourPupilDataControllerAnalyticsTests
         var checkingExercises = new CheckingExerciseService(TimeProvider.System);
         _sut = new CheckYourPupilDataController(
             _service, _currentUser, _analytics, new NextStepsService(checkingExercises), checkingExercises,
-            Substitute.For<ICheckingDataReader>(), TimeProvider.System)
+            Substitute.For<ICheckingDataReader>(), TimeProvider.System,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<CheckYourPupilDataController>.Instance)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext }
         };

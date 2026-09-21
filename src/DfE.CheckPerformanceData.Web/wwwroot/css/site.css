@@ -1268,6 +1268,22 @@ dialog.govuk-modal-dialogue__box::backdrop {
 }
 
 /* ==========================================================================
+   Check your pupil data — Summary tab
+   ========================================================================== */
+
+/* The Summary tab pivots one record into a summary list: a measure name on the
+   left and a number or grade on the right. The names run to several lines and
+   the values to a few characters, so the GOV.UK default key column (30%) gives
+   a tall label beside a short value. Widen the key column on this list only.
+   GOV.UK stacks the columns below the tablet breakpoint, so the width applies
+   from 40.0625em up, as the component's own rule does. */
+@media (min-width: 40.0625em) {
+  .cpd-summary-measures .govuk-summary-list__key {
+    width: 70%;
+  }
+}
+
+/* ==========================================================================
    Rules branch editor — condition cards
    ========================================================================== */
 

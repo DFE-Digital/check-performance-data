@@ -83,6 +83,10 @@ public sealed class ExerciseSummarySection
     public required Guid ExerciseId { get; init; }
     public required CheckingExerciseType ExerciseType { get; init; }
     public required string Label { get; init; }
+
+    // #466 shim: no Change link for these — DatesLink
+    // (/admin/windows/{id}/exercises/{ExerciseType}/dates) is gone now that ExerciseDatesController
+    // became create-only. The per-exercise Edit page (Task 8) restores date editing from here.
     public required DateTime StartDate { get; init; }
     public required DateTime EndDate { get; init; }
 
@@ -98,9 +102,6 @@ public sealed class ExerciseSummarySection
     /// <summary>Validated once, but not against the files it holds now — a stale stamp.</summary>
     public bool IsStale { get; init; }
 
-    // #466 shim: DatesLink (/admin/windows/{id}/exercises/{ExerciseType}/dates) is gone — that
-    // route no longer exists since ExerciseDatesController became create-only. The per-exercise
-    // Edit page (Task 8) restores date editing from here.
     // #466 shim: keyed by exercise id (Task 6) rather than ExerciseType — a dataset name is only
     // unique within one exercise, and a display-only exercise has no kind to name.
     public string ValidateLink => $"/admin/windows/{WindowId}/exercises/{ExerciseId}/validate";

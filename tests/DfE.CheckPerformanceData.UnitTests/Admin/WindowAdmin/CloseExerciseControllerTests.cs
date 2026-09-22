@@ -23,11 +23,13 @@ public class CloseExerciseControllerTests
     private readonly ICloseExerciseService _closeService = Substitute.For<ICloseExerciseService>();
     private readonly IWindowService _windowService = Substitute.For<IWindowService>();
 
+    // No default case (repo rule): a future CheckingExerciseType member with no fixed id here must
+    // fail loudly, not hand back a fresh, unlookupable Guid every call.
     private static Guid ExerciseIdFor(CheckingExerciseType exercise) => exercise switch
     {
         CheckingExerciseType.PupilData => Guid.Parse("22222222-2222-2222-2222-222222222222"),
         CheckingExerciseType.ResultsEnquiry => Guid.Parse("33333333-3333-3333-3333-333333333333"),
-        _ => Guid.NewGuid()
+        _ => throw new ArgumentOutOfRangeException(nameof(exercise), exercise, "No fixture id registered for this exercise type.")
     };
 
     private static CheckingWindowDto Window(params CheckingExerciseType[] exercises) => new()
@@ -174,6 +176,30 @@ public class CloseExerciseControllerTests
             .Returns(Window(CheckingExerciseType.ResultsEnquiry));
 
         var result = await Build().Close(WindowId, ExerciseId, CancellationToken.None);
+
+        Assert.IsType<NotFoundResult>(result);
+        await _closeService.DidNotReceiveWithAnyArgs().CloseAsync(default, default, default);
+    }
+
+    [Fact]
+    public async Task Close_post_returns_not_found_for_a_display_only_exercise()
+    {
+        // The POST guard is what authorises the sweep, not the GET confirmation page — a
+        // display-only exercise must be refused here too, not only on Confirm.
+        var displayOnlyId = Guid.NewGuid();
+        var window = Window(Exercise);
+        window.Exercises.Add(new CheckingExerciseDto
+        {
+            Id = displayOnlyId,
+            ExerciseType = null,
+            Name = "Summary data (Autumn)",
+            StartDate = new DateTime(2026, 6, 1),
+            EndDate = new DateTime(2026, 6, 30),
+            SortOrder = 5
+        });
+        _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(window);
+
+        var result = await Build().Close(WindowId, displayOnlyId, CancellationToken.None);
 
         Assert.IsType<NotFoundResult>(result);
         await _closeService.DidNotReceiveWithAnyArgs().CloseAsync(default, default, default);

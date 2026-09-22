@@ -34,7 +34,9 @@ public sealed class CloseExerciseController(
         var target = window?.FindExercise(exerciseId);
 
         // A display-only exercise has no journeys, so nothing to sweep: not found, same as an
-        // exercise the window does not run.
+        // exercise the window does not run. (ValidateWindowController treats the same exercise
+        // differently — 400, not 404 — because there it exists and is simply not ready; see the
+        // note there.)
         if (window is null || target?.ExerciseType is not { } kind)
             return NotFound();
 

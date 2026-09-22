@@ -37,8 +37,13 @@ public class ValidateWindowController(IWindowService windowService, ICsvSchemaFi
             return NotFound();
         }
 
-        // A display-only exercise has no blob prefix until slice 2 (#466). Summary disables the
-        // button; this is the guard for a typed URL.
+        // A display-only exercise is a real row on this window, just not ready to validate — 400,
+        // not 404. (Close treats the same exercise as 404 instead: it has no journeys, so there is
+        // nothing to sweep — see the note on CloseExerciseController.)
+        // Two distinct reasons collapse into one guard here: a display-only exercise has no blob
+        // prefix until slice 2 (#466), and a kind exercise may simply be missing a required
+        // ingress or schema file. Summary disables the button either way; this is the guard for a
+        // typed URL. Run() below tells the two apart in its own error message.
         if (!target.CanValidate)
         {
             return BadRequest("This exercise cannot be validated yet.");
@@ -116,11 +121,25 @@ public class ValidateWindowController(IWindowService windowService, ICsvSchemaFi
             yield break;
         }
 
-        if (!target.CanValidate)
+        // CanValidate fails for two different reasons, and the admin needs to know which: a
+        // display-only exercise has no kind to pick a data store with, while a kind exercise may
+        // simply be missing one of its required files. Telling both the same message sends an
+        // admin who is only short a file hunting for a kind setting that does not exist.
+        if (target.ExerciseType is null)
         {
             yield return new ValidationProgress(
                 Phase: "error",
                 Message: $"{target.Name} cannot be validated yet: it has no data store until its kind is known.",
+                RecordsRead: 0, RecordsProcessed: 0, FilesWritten: 0, ErrorCount: 1,
+                IsComplete: true, IsError: true);
+            yield break;
+        }
+
+        if (!target.HasRequiredFiles)
+        {
+            yield return new ValidationProgress(
+                Phase: "error",
+                Message: $"{target.Name} does not yet have every required ingress and schema file.",
                 RecordsRead: 0, RecordsProcessed: 0, FilesWritten: 0, ErrorCount: 1,
                 IsComplete: true, IsError: true);
             yield break;

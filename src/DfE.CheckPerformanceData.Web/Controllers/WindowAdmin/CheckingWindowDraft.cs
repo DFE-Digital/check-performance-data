@@ -35,15 +35,28 @@ public sealed class CheckingWindowDraft : AdminPage
             ? Exercises.Max(e => e.EndDate!.Value)
             : null;
 
-    /// <summary>The first exercise still missing its dates, or null when all are complete.</summary>
-    public ExerciseDraft? FirstUndatedExercise =>
-        Exercises.OrderBy(e => e.SortOrder).FirstOrDefault(e => !e.IsDated);
+    /// <summary>Index into <see cref="Exercises"/> (sorted by SortOrder) of the first exercise
+    /// without dates; null when all are dated. The dates page is keyed by this index because a
+    /// display-only exercise has no kind to key on (#466).</summary>
+    public int? FirstUndatedIndex
+    {
+        get
+        {
+            List<ExerciseDraft> ordered = Exercises.OrderBy(e => e.SortOrder).ToList();
+            int i = ordered.FindIndex(e => !e.IsDated);
+            return i < 0 ? null : i;
+        }
+    }
+
+    /// <summary>The exercise at this position in sort order, or null.</summary>
+    public ExerciseDraft? ExerciseAt(int index) =>
+        index < 0 || index >= Exercises.Count ? null : Exercises.OrderBy(e => e.SortOrder).ElementAt(index);
 
     public bool IsValid
     {
         get
         {
-            if (IsEmpty || Exercises.Count == 0 || FirstUndatedExercise is not null)
+            if (IsEmpty || Exercises.Count == 0 || FirstUndatedIndex is not null)
                 return false;
 
             // Each exercise must be a sane range in its own right. The outer pair is their union,
@@ -67,10 +80,10 @@ public sealed class CheckingWindowDraft : AdminPage
         if (!KeyStage.HasValue) return url.Action("New", "KeyStage")!;
         if (Exercises.Count == 0) return url.Action("New", "Exercises")!;
 
-        ExerciseDraft? undated = FirstUndatedExercise;
+        int? undated = FirstUndatedIndex;
         return undated is null
             ? url.Action("New", "CreateCheckingWindow")!
-            : url.Action("New", "ExerciseDates", new { exercise = undated.ExerciseType })!;
+            : url.Action("New", "ExerciseDates", new { index = undated.Value })!;
     }
 
     /// <summary>The draft's exercises as DTOs, ready for <see cref="IWindowService.CreateAsync"/>.</summary>
@@ -80,9 +93,12 @@ public sealed class CheckingWindowDraft : AdminPage
             .Select(e => new CheckingExerciseDto
             {
                 ExerciseType = e.ExerciseType,
+                Name = e.Name,
+                TabName = e.TabName,
                 StartDate = e.StartDate!.Value,
                 EndDate = e.EndDate!.Value,
-                SortOrder = e.SortOrder
+                SortOrder = e.SortOrder,
+                Datasets = e.Datasets
             })
             .ToList();
 }
@@ -90,10 +106,24 @@ public sealed class CheckingWindowDraft : AdminPage
 /// <summary>One ticked checking exercise and its dates, while the window is still a draft.</summary>
 public sealed class ExerciseDraft
 {
-    public CheckingExerciseType ExerciseType { get; set; }
+    /// <summary>Null for a display-only template (#466). Immutable once the window exists.</summary>
+    public CheckingExerciseType? ExerciseType { get; set; }
+    /// <summary>The checkbox identity on the exercises step, and the row's name once saved.</summary>
+    public string Name { get; set; } = string.Empty;
+    public string TabName { get; set; } = string.Empty;
     public DateTime? StartDate { get; set; }
     public DateTime? EndDate { get; set; }
     public int SortOrder { get; set; }
-
+    /// <summary>The template's dataset slots, carried so the window is born with them.</summary>
+    public List<CheckingWindowDatasetDto> Datasets { get; set; } = [];
     public bool IsDated => StartDate.HasValue && EndDate.HasValue;
+
+    public static ExerciseDraft From(ExerciseTemplate template) => new()
+    {
+        ExerciseType = template.ExerciseType,
+        Name = template.Name,
+        TabName = template.TabName,
+        SortOrder = template.SortOrder,
+        Datasets = template.NewDatasets()
+    };
 }

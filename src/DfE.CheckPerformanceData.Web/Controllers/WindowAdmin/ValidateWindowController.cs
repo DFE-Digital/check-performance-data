@@ -3,7 +3,6 @@ using DfE.CheckPerformanceData.Web.Admin.Nav;
 using System.Runtime.CompilerServices;
 using System.Text;
 using DfE.CheckPerformanceData.Application.WindowManagement;
-using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Infrastructure.Ingress;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
 using Microsoft.AspNetCore.Mvc;
@@ -27,31 +26,49 @@ public class ValidateWindowController(IWindowService windowService, ICsvSchemaFi
 {
     private const string PageView = "~/Views/WindowAdmin/Validate.cshtml";
 
-    [HttpGet("admin/windows/{id:guid}/{exercise}/validate")]
-    public IActionResult Index(Guid id, CheckingExerciseType exercise)
+    [HttpGet("admin/windows/{id:guid}/exercises/{exerciseId:guid}/validate")]
+    public async Task<IActionResult> Index(Guid id, Guid exerciseId, CancellationToken cancellationToken)
     {
-        return View(PageView, Model(id, exercise));
+        CheckingWindowDto? window = await windowService.GetByIdAsync(id, cancellationToken);
+        CheckingExerciseDto? target = window?.FindExercise(exerciseId);
+
+        if (target is null)
+        {
+            return NotFound();
+        }
+
+        // A display-only exercise has no blob prefix until slice 2 (#466). Summary disables the
+        // button; this is the guard for a typed URL.
+        if (!target.CanValidate)
+        {
+            return BadRequest("This exercise cannot be validated yet.");
+        }
+
+        return View(PageView, Model(id, exerciseId, target.Name));
     }
 
     // Live progress stream (step 1-7). EventSource can only issue GET, so validation runs here;
     // the client opens this on demand from the Start button rather than on page load.
-    [HttpGet("admin/windows/{id:guid}/{exercise}/validate/stream")]
-    public IResult Stream(Guid id, CheckingExerciseType exercise, CancellationToken cancellationToken)
+    [HttpGet("admin/windows/{id:guid}/exercises/{exerciseId:guid}/validate/stream")]
+    public IResult Stream(Guid id, Guid exerciseId, CancellationToken cancellationToken)
     {
-        return Results.ServerSentEvents(Run(id, exercise, cancellationToken), eventType: "progress");
+        return Results.ServerSentEvents(Run(id, exerciseId, cancellationToken), eventType: "progress");
     }
 
     // No-JS fallback: run to completion and render the final summary.
-    [HttpPost("admin/windows/{id:guid}/{exercise}/validate")]
-    public async Task<IActionResult> Validate(Guid id, CheckingExerciseType exercise, CancellationToken cancellationToken)
+    [HttpPost("admin/windows/{id:guid}/exercises/{exerciseId:guid}/validate")]
+    public async Task<IActionResult> Validate(Guid id, Guid exerciseId, CancellationToken cancellationToken)
     {
         ValidationProgress? last = null;
-        await foreach (ValidationProgress progress in Run(id, exercise, cancellationToken))
+        await foreach (ValidationProgress progress in Run(id, exerciseId, cancellationToken))
         {
             last = progress;
         }
 
-        ValidationViewModel model = Model(id, exercise);
+        CheckingWindowDto? window = await windowService.GetByIdAsync(id, cancellationToken);
+        string label = window?.FindExercise(exerciseId)?.Name ?? "exercise";
+
+        ValidationViewModel model = Model(id, exerciseId, label);
         model.ProcessingResult = last is null
             ? null
             : new ProcessingResult(last.RecordsRead, last.FilesWritten, last.ErrorCount, new StringBuilder(last.Message), last.SchoolSummary);
@@ -59,12 +76,12 @@ public class ValidateWindowController(IWindowService windowService, ICsvSchemaFi
         return View(PageView, model);
     }
 
-    private ValidationViewModel Model(Guid id, CheckingExerciseType exercise) => new()
+    private ValidationViewModel Model(Guid id, Guid exerciseId, string label) => new()
     {
         WindowId = id,
-        ExerciseLabel = ExerciseLabels.For(exercise),
-        StreamUrl = Url.Action(nameof(Stream), "ValidateWindow", new { id, exercise }),
-        PostUrl = Url.Action(nameof(Validate), "ValidateWindow", new { id, exercise }),
+        ExerciseLabel = label,
+        StreamUrl = Url.Action(nameof(Stream), "ValidateWindow", new { id, exerciseId }),
+        PostUrl = Url.Action(nameof(Validate), "ValidateWindow", new { id, exerciseId }),
         CancelUrl = Url.Action("Index", "Summary", new { id })
     };
 
@@ -72,7 +89,7 @@ public class ValidateWindowController(IWindowService windowService, ICsvSchemaFi
     // before the terminal event reaches the caller.
     private async IAsyncEnumerable<ValidationProgress> Run(
         Guid id,
-        CheckingExerciseType exercise,
+        Guid exerciseId,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         CheckingWindowDto? window = await windowService.GetByIdAsync(id, cancellationToken);
@@ -87,13 +104,23 @@ public class ValidateWindowController(IWindowService windowService, ICsvSchemaFi
             yield break;
         }
 
-        CheckingExerciseDto? target = window.FindExercise(exercise);
+        CheckingExerciseDto? target = window.FindExercise(exerciseId);
 
         if (target is null)
         {
             yield return new ValidationProgress(
                 Phase: "error",
-                Message: $"This window does not run {ExerciseLabels.For(exercise)}.",
+                Message: "This window does not run that exercise.",
+                RecordsRead: 0, RecordsProcessed: 0, FilesWritten: 0, ErrorCount: 1,
+                IsComplete: true, IsError: true);
+            yield break;
+        }
+
+        if (!target.CanValidate)
+        {
+            yield return new ValidationProgress(
+                Phase: "error",
+                Message: $"{target.Name} cannot be validated yet: it has no data store until its kind is known.",
                 RecordsRead: 0, RecordsProcessed: 0, FilesWritten: 0, ErrorCount: 1,
                 IsComplete: true, IsError: true);
             yield break;
@@ -114,9 +141,11 @@ public class ValidateWindowController(IWindowService windowService, ICsvSchemaFi
                 d.SourceFile))
             .ToList();
 
+        // CanValidate guarantees a kind above, so the processor (which selects its blob prefix by
+        // CheckingExerciseType) always has one to read.
         await foreach (ValidationProgress progress in processor.ProcessAsync(
                            window.Id,
-                           exercise,
+                           target.ExerciseType!.Value,
                            datasets,
                            cancellationToken: cancellationToken))
         {

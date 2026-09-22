@@ -15,8 +15,9 @@ public sealed class AdminRequestsService(
             return null;
 
         var exercises = window.Exercises
+            .Where(e => e.ExerciseType is not null)
             .OrderBy(e => e.SortOrder)
-            .Select(e => e.ExerciseType)
+            .Select(e => e.ExerciseType.Value)
             .ToList();
 
         // A filter naming an exercise this window does not run is dropped rather than honoured.

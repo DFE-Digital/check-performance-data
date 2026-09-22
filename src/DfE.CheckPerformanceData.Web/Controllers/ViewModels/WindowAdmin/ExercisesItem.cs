@@ -1,23 +1,18 @@
-using DfE.CheckPerformanceData.Domain.Enums;
+using DfE.CheckPerformanceData.Application.WindowManagement;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
 
 /// <summary>
-/// The "which checking exercises does this window run?" step (#319). Every
-/// <see cref="CheckingExerciseType"/> is offered, pre-ticked from the window type's defaults, so a
-/// new member of the enum appears here without this page being touched.
+/// The "which checking exercises does this window run?" step (#319, #466). The page lists the
+/// window type's templates, pre-ticked, plus (on an existing window) any exercise the admin added
+/// by hand. <see cref="ExerciseChoice"/> (Application) decides which exercises are on offer and
+/// whether a Change here would discard files.
 /// </summary>
 public sealed class ExercisesItem : AdminPage
 {
-    /// <summary>Every exercise type, in display order.</summary>
-    public IReadOnlyList<CheckingExerciseType> All { get; set; } = [];
+    /// <summary>Every offered exercise, in display order.</summary>
+    public IReadOnlyList<ExerciseChoice> All { get; set; } = [];
 
-    /// <summary>The ticked ones. Bound from the checkboxes on post.</summary>
-    public List<CheckingExerciseType> Selected { get; set; } = [];
-
-    /// <summary>
-    /// Exercises that already hold ingress files. Unticking one throws those files away, so the
-    /// page warns rather than doing it silently.
-    /// </summary>
-    public IReadOnlyList<CheckingExerciseType> WithFiles { get; set; } = [];
+    /// <summary>The ticked names. Bound from the checkboxes on post.</summary>
+    public List<string> Selected { get; set; } = [];
 }

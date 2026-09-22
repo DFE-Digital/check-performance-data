@@ -30,6 +30,8 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                     {
                         Id = e.Id,
                         ExerciseType = e.ExerciseType,
+                        Name = e.Name,
+                        TabName = e.TabName,
                         StartDate = e.StartDate,
                         EndDate = e.EndDate,
                         SortOrder = e.SortOrder,
@@ -86,6 +88,8 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                     {
                         Id = e.Id,
                         ExerciseType = e.ExerciseType,
+                        Name = e.Name,
+                        TabName = e.TabName,
                         StartDate = e.StartDate,
                         EndDate = e.EndDate,
                         SortOrder = e.SortOrder,
@@ -118,6 +122,9 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
             })
             .FirstOrDefaultAsync(cancellationToken);
 
+    public Task<bool> HasChangeRequestsAsync(Guid exerciseId, CancellationToken cancellationToken) =>
+        dbContext.ChangeRequests.AnyAsync(r => r.CheckingExerciseId == exerciseId, cancellationToken);
+
     public async Task UpdateAsync(CheckingWindowDto window, CancellationToken cancellationToken)
     {
         // Loaded and mutated rather than Update(new CheckingWindow{...}) — a detached overwrite
@@ -147,9 +154,13 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    // Exercises are keyed by type within a window (the unique index), datasets by name within an
-    // exercise: existing rows are updated in place so their Ids — and any files already uploaded
-    // against them — survive, new ones are added, and rows no longer wanted are removed.
+    // Exercises are keyed by ID within a window (#466 — two display-only exercises share a null
+    // kind, so kind can no longer tell rows apart); datasets by name within an exercise. Existing
+    // rows are updated in place so their Ids — and any files already uploaded against them —
+    // survive, new ones (Guid.Empty) are added, and rows no longer wanted are removed. A DTO
+    // carrying an id that no longer exists on the window is re-created as a fresh row rather than
+    // throwing — only reachable when two admins edit one window at once, same as the old by-kind
+    // sync.
     private void SyncExercises(CheckingWindow entity, List<CheckingExerciseDto> wanted)
     {
         if (wanted.Count == 0)
@@ -159,8 +170,9 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
 
         foreach (CheckingExerciseDto dto in wanted)
         {
-            CheckingExercise? existing =
-                entity.CheckingExercises.SingleOrDefault(e => e.ExerciseType == dto.ExerciseType);
+            CheckingExercise? existing = dto.Id == Guid.Empty
+                ? null
+                : entity.CheckingExercises.SingleOrDefault(e => e.Id == dto.Id);
 
             if (existing is null)
             {
@@ -168,6 +180,8 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                 {
                     CheckingWindowId = entity.Id,
                     ExerciseType = dto.ExerciseType,
+                    Name = dto.Name,
+                    TabName = dto.TabName,
                     StartDate = dto.StartDate,
                     EndDate = dto.EndDate,
                     SortOrder = dto.SortOrder
@@ -181,6 +195,8 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                 // this loop only ever reconciled datasets.
                 dbContext.Entry(existing).CurrentValues.SetValues(new
                 {
+                    dto.Name,
+                    dto.TabName,
                     dto.StartDate,
                     dto.EndDate,
                     dto.SortOrder
@@ -192,8 +208,11 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
             SyncDatasets(entity, existing, dto.Datasets);
         }
 
+        // Rows added above still have Guid.Empty (the database assigns the id on save), so they
+        // are never mistaken for stale.
+        HashSet<Guid> keep = wanted.Where(x => x.Id != Guid.Empty).Select(x => x.Id).ToHashSet();
         foreach (CheckingExercise stale in entity.CheckingExercises
-                     .Where(e => wanted.All(x => x.ExerciseType != e.ExerciseType))
+                     .Where(e => e.Id != Guid.Empty && !keep.Contains(e.Id))
                      .ToList())
         {
             entity.CheckingExercises.Remove(stale);
@@ -290,6 +309,8 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
             entity.CheckingExercises.Add(new CheckingExercise
             {
                 ExerciseType = dto.ExerciseType,
+                Name = dto.Name,
+                TabName = dto.TabName,
                 StartDate = dto.StartDate,
                 EndDate = dto.EndDate,
                 SortOrder = dto.SortOrder,
@@ -321,6 +342,8 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                 {
                     Id = e.Id,
                     ExerciseType = e.ExerciseType,
+                    Name = e.Name,
+                    TabName = e.TabName,
                     StartDate = e.StartDate,
                     EndDate = e.EndDate,
                     SortOrder = e.SortOrder,

@@ -80,8 +80,9 @@ public sealed class CheckingExerciseService(TimeProvider timeProvider) : IChecki
         var now = Now();
         return exercises
             .Where(e => Brackets(e, now))
+            .Where(e => e.ExerciseType is not null)
             .OrderBy(e => e.SortOrder)
-            .Select(e => e.ExerciseType)
+            .Select(e => e.ExerciseType.Value)
             .ToList();
     }
 

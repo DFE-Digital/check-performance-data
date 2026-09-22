@@ -1,4 +1,3 @@
-@using DfE.CheckPerformanceData.Web.Controllers.WindowAdmin
 @model DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin.ExercisesItem
 
 @{
@@ -21,9 +20,9 @@
 
             @foreach (var exercise in Model.All)
             {
-                <govuk-checkboxes-item value="@exercise" checked="@Model.Selected.Contains(exercise)">
-                    @ExerciseLabels.For(exercise)
-                    @if (Model.WithFiles.Contains(exercise))
+                <govuk-checkboxes-item value="@exercise.Name" checked="@Model.Selected.Contains(exercise.Name)">
+                    @exercise.Name
+                    @if (exercise.HasFiles)
                     {
                         @* Unticking throws the exercise's ingress and schema files away, so say so
                            before the admin does it rather than after. *@

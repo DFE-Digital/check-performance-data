@@ -33,13 +33,17 @@ public sealed class SummaryController(IWindowService windowService): Controller
             // #319: one section per checking exercise, each with its own dates, files and
             // validation state. There is no window-level validate button any more — an exercise
             // validates on its own, and a window is usable while another is still unvalidated.
+            // #466 shim: ExerciseSummarySection doesn't yet render a display-only exercise
+            // (Task 7) — skip null kinds rather than throw on the ExerciseType!.Value below.
             Exercises = w.Exercises
+                .Where(e => e.ExerciseType is not null)
                 .OrderBy(e => e.SortOrder)
                 .Select(e => new ExerciseSummarySection
                 {
                     WindowId = w.Id,
-                    ExerciseType = e.ExerciseType,
-                    Label = ExerciseLabels.For(e.ExerciseType),
+                    ExerciseId = e.Id,
+                    ExerciseType = e.ExerciseType!.Value,
+                    Label = ExerciseLabels.For(e.ExerciseType!.Value),
                     StartDate = e.StartDate,
                     EndDate = e.EndDate,
                     IsValidated = e.IsValidated,
@@ -50,7 +54,7 @@ public sealed class SummaryController(IWindowService windowService): Controller
                         .Select(d => new DatasetSummaryRow
                         {
                             WindowId = w.Id,
-                            Exercise = e.ExerciseType,
+                            ExerciseId = e.Id,
                             Name = d.Name,
                             Label = DatasetLabels.For(d.Name),
                             IngressFile = d.IngressFile,

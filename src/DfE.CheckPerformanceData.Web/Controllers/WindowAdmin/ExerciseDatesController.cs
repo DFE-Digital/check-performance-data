@@ -1,7 +1,5 @@
 using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Web.Admin.Nav;
-using DfE.CheckPerformanceData.Application.WindowManagement;
-using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
 using DfE.CheckPerformanceData.Web.Extensions;
 using Microsoft.AspNetCore.Mvc;
@@ -9,56 +7,55 @@ using Microsoft.AspNetCore.Mvc;
 namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 
 /// <summary>
-/// One checking exercise's own dates (#319). There is no window-level date step any more: the
-/// window's StartDate/EndDate is the union of these, derived in
-/// <see cref="CheckingWindowDto.DeriveDatesFromExercises"/>, so the two cannot disagree.
+/// One checking exercise's own dates, while the window is still a draft (#319, #466). There is no
+/// window-level date step: the window's StartDate/EndDate is the union of these, derived in
+/// <see cref="Application.WindowManagement.CheckingWindowDto.DeriveDatesFromExercises"/>, so the two
+/// cannot disagree. Keyed by position in the draft's exercise list rather than by
+/// <c>CheckingExerciseType</c> — a display-only exercise has no kind to key on. Editing an existing
+/// window's exercise dates is a separate page (Task 8).
 /// </summary>
-[RequireAdminSection(AdminNavKeys.ManageWindow)]
-public sealed class ExerciseDatesController(IWindowService windowService) : Controller
+[RequireAdminSection(AdminNavKeys.NewWindow)]
+public sealed class ExerciseDatesController : Controller
 {
     private const string PageView = "~/Views/WindowAdmin/ExerciseDates.cshtml";
 
-    [HttpGet("admin/windows/exercises/{exercise}/dates")]
-    public IActionResult New(CheckingExerciseType exercise)
+    [HttpGet("admin/windows/exercises/{index:int}/dates")]
+    public IActionResult New(int index)
     {
         CheckingWindowDraft? draft = HttpContext.Session.GetObject<CheckingWindowDraft>("CheckingWindowDraft");
-
         if (draft == null)
         {
             return BadRequest("No draft data");
         }
 
-        ExerciseDraft? target = draft.Exercises.SingleOrDefault(e => e.ExerciseType == exercise);
-
+        ExerciseDraft? target = draft.ExerciseAt(index);
         if (target is null)
         {
             return NotFound();
         }
 
-        return View(PageView, Model(Guid.Empty, exercise, target.StartDate, target.EndDate,
-            Url.Action("Submit", "ExerciseDates", new { exercise }),
+        return View(PageView, Model(index, target.Name, target.StartDate, target.EndDate,
+            Url.Action("Submit", "ExerciseDates", new { index }),
             Url.Action("Index", "CancelCreation")));
     }
 
-    [HttpPost("admin/windows/exercises/{exercise}/dates")]
+    [HttpPost("admin/windows/exercises/{index:int}/dates")]
     [ValidateAntiForgeryToken]
-    public IActionResult Submit(CheckingExerciseType exercise, ExerciseDatesItem model)
+    public IActionResult Submit(int index, ExerciseDatesItem model)
     {
         CheckingWindowDraft? draft = HttpContext.Session.GetObject<CheckingWindowDraft>("CheckingWindowDraft");
-
         if (draft == null)
         {
             return BadRequest("No draft data");
         }
 
-        ExerciseDraft? target = draft.Exercises.SingleOrDefault(e => e.ExerciseType == exercise);
-
+        ExerciseDraft? target = draft.ExerciseAt(index);
         if (target is null)
         {
             return NotFound();
         }
 
-        Decorate(model, exercise, Url.Action("Submit", "ExerciseDates", new { exercise }),
+        Decorate(model, index, target.Name, Url.Action("Submit", "ExerciseDates", new { index }),
             Url.Action("Index", "CancelCreation"));
 
         if (ModelState.IsValid)
@@ -78,79 +75,25 @@ public sealed class ExerciseDatesController(IWindowService windowService) : Cont
         return Redirect(draft.NextController(Url));
     }
 
-    [HttpGet("admin/windows/{id:guid}/exercises/{exercise}/dates")]
-    public async Task<IActionResult> Edit(Guid id, CheckingExerciseType exercise, CancellationToken cancellationToken)
-    {
-        CheckingWindowDto? window = await windowService.GetByIdAsync(id, cancellationToken);
-        CheckingExerciseDto? target = window?.FindExercise(exercise);
-
-        if (target is null)
-        {
-            return NotFound();
-        }
-
-        return View(PageView, Model(id, exercise, target.StartDate, target.EndDate,
-            Url.Action("Update", "ExerciseDates", new { id, exercise }),
-            Url.Action("Index", "Summary", new { id })));
-    }
-
-    [HttpPost("admin/windows/{id:guid}/exercises/{exercise}/dates")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Update(
-        Guid id, CheckingExerciseType exercise, ExerciseDatesItem model, CancellationToken cancellationToken)
-    {
-        CheckingWindowDto? window = await windowService.GetByIdAsync(id, cancellationToken);
-        CheckingExerciseDto? target = window?.FindExercise(exercise);
-
-        if (window is null || target is null)
-        {
-            return NotFound();
-        }
-
-        Decorate(model, exercise, Url.Action("Update", "ExerciseDates", new { id, exercise }),
-            Url.Action("Index", "Summary", new { id }));
-
-        if (ModelState.IsValid)
-        {
-            Validate(model);
-        }
-
-        if (!ModelState.IsValid)
-        {
-            return View(PageView, model);
-        }
-
-        target.StartDate = model.StartDateTime!.Value;
-        target.EndDate = model.EndDateTime!.Value;
-
-        // UpdateAsync re-derives the window's outer pair from every exercise, so moving one
-        // exercise's end past the window's own end widens the window rather than being rejected.
-        await windowService.UpdateAsync(window, cancellationToken);
-
-        return RedirectToAction("Index", "Summary", new { id });
-    }
-
     private void Validate(ExerciseDatesItem model)
     {
         if (model.StartDateTime < DateTime.UtcNow.Date)
         {
-            ModelState.AddModelError(nameof(ExerciseDatesItem.StartDate), "Start date can not occur in the past.");
+            ModelState.AddModelError(nameof(ExerciseDatesItem.StartDate), "Start date can not occur in the past");
         }
 
         if (model.EndDateTime < model.StartDateTime)
         {
-            ModelState.AddModelError(nameof(ExerciseDatesItem.EndDate), "End date can not occur before the start date.");
+            ModelState.AddModelError(nameof(ExerciseDatesItem.EndDate), "End date can not occur before the start date");
         }
     }
 
     private static ExerciseDatesItem Model(
-        Guid windowId, CheckingExerciseType exercise, DateTime? start, DateTime? end,
-        string? postUrl, string? cancelUrl) =>
+        int index, string label, DateTime? start, DateTime? end, string? postUrl, string? cancelUrl) =>
         new()
         {
-            WindowId = windowId,
-            ExerciseType = exercise,
-            ExerciseLabel = ExerciseLabels.For(exercise),
+            Index = index,
+            ExerciseLabel = label,
             StartDate = start,
             StartHour = start?.Hour ?? ExerciseDatesItem.DefaultStartHour,
             StartMinute = start?.Minute ?? 0,
@@ -162,11 +105,10 @@ public sealed class ExerciseDatesController(IWindowService windowService) : Cont
         };
 
     // The label and the urls are not posted back, so a redisplayed page has to be given them again.
-    private static void Decorate(
-        ExerciseDatesItem model, CheckingExerciseType exercise, string? postUrl, string? cancelUrl)
+    private static void Decorate(ExerciseDatesItem model, int index, string label, string? postUrl, string? cancelUrl)
     {
-        model.ExerciseType = exercise;
-        model.ExerciseLabel = ExerciseLabels.For(exercise);
+        model.Index = index;
+        model.ExerciseLabel = label;
         model.PostUrl = postUrl;
         model.CancelUrl = cancelUrl;
     }

@@ -45,7 +45,7 @@ else
     </p>
 }
 
-<form method="post" action="/admin/windows/@Model.WindowId/@Model.ExerciseType/close">
+<form method="post" action="/admin/windows/@Model.WindowId/exercises/@Model.ExerciseId/close">
     @Html.AntiForgeryToken()
     <govuk-button type="submit" class="govuk-button--warning">
         Close @Model.ExerciseLabel

@@ -88,19 +88,16 @@
   <h2 class="govuk-heading-m">@exercise.Label</h2>
 
   <govuk-summary-list>
+    @* #466 shim: no Change link here — ExerciseDatesController became create-only, so the old
+       route (/admin/windows/{id}/exercises/{ExerciseType}/dates) no longer exists. The per-exercise
+       Edit page (Task 8) restores date editing. *@
     <row>
       <key>Start Date</key>
       <value>@exercise.StartDate.ToString("dd/MM/yyyy HH:mm")</value>
-      <row-actions>
-        <action href="@exercise.DatesLink" visually-hidden-text="@exercise.Label start date">Change</action>
-      </row-actions>
     </row>
     <row>
       <key>End Date</key>
       <value>@exercise.EndDate.ToString("dd/MM/yyyy HH:mm")</value>
-      <row-actions>
-        <action href="@exercise.DatesLink" visually-hidden-text="@exercise.Label end date">Change</action>
-      </row-actions>
     </row>
     <row>
       <key>Validated</key>

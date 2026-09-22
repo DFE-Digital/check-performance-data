@@ -71,6 +71,14 @@ public sealed class WindowTypeController(IWindowService windowService) : Control
             return View(PageView, model);
         }
 
+        // The type decides which exercises are on offer (WindowExercises.DefaultsFor), so changing
+        // it after exercises were already ticked would otherwise leave the old type's templates —
+        // including a display-only one no longer offered at all — stuck in the draft.
+        if (draft.CheckingWindowType != model.WindowType)
+        {
+            draft.Exercises = [];
+        }
+
         draft.CheckingWindowType = model.WindowType;
         HttpContext.Session.SetObject("CheckingWindowDraft", draft);
 

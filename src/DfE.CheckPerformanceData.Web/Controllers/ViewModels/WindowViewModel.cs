@@ -80,6 +80,7 @@ public class WindowEditItem : AdminPage
 public sealed class ExerciseSummarySection
 {
     public required Guid WindowId { get; init; }
+    public required Guid ExerciseId { get; init; }
     public required CheckingExerciseType ExerciseType { get; init; }
     public required string Label { get; init; }
     public required DateTime StartDate { get; init; }
@@ -97,13 +98,17 @@ public sealed class ExerciseSummarySection
     /// <summary>Validated once, but not against the files it holds now — a stale stamp.</summary>
     public bool IsStale { get; init; }
 
-    public string DatesLink => $"/admin/windows/{WindowId}/exercises/{ExerciseType}/dates";
-    public string ValidateLink => $"/admin/windows/{WindowId}/{ExerciseType}/validate";
+    // #466 shim: DatesLink (/admin/windows/{id}/exercises/{ExerciseType}/dates) is gone — that
+    // route no longer exists since ExerciseDatesController became create-only. The per-exercise
+    // Edit page (Task 8) restores date editing from here.
+    // #466 shim: keyed by exercise id (Task 6) rather than ExerciseType — a dataset name is only
+    // unique within one exercise, and a display-only exercise has no kind to name.
+    public string ValidateLink => $"/admin/windows/{WindowId}/exercises/{ExerciseId}/validate";
 
     // No IsValidatable-style gate beside this one: closing works regardless of the exercise's dates
     // and regardless of whether its files ever validated. It is an admin decision, not a
     // consequence of the clock — see ICloseExerciseService.
-    public string CloseLink => $"/admin/windows/{WindowId}/{ExerciseType}/close";
+    public string CloseLink => $"/admin/windows/{WindowId}/exercises/{ExerciseId}/close";
 
     // Every REQUIRED dataset must have both files — a Post16 pupil-data exercise is not validatable
     // until both the included and non-included CSV/schema pairs are chosen, because they ingest in
@@ -129,7 +134,7 @@ public sealed class ExerciseSummarySection
 public sealed class DatasetSummaryRow
 {
     public required Guid WindowId { get; init; }
-    public required CheckingExerciseType Exercise { get; init; }
+    public required Guid ExerciseId { get; init; }
     public required string Name { get; init; }
     public required string Label { get; init; }
     public string? IngressFile { get; init; }
@@ -138,8 +143,9 @@ public sealed class DatasetSummaryRow
     /// <summary>The exercise cannot be validated until this slot holds both files (#324).</summary>
     public bool Required { get; init; } = true;
 
-    public string IngressFileLink => $"/admin/windows/{WindowId}/{Exercise}/ingress-file/{Name}";
-    public string SchemaFileLink => $"/admin/windows/{WindowId}/{Exercise}/schema-file/{Name}";
+    // #466 shim: keyed by exercise id (Task 6) rather than CheckingExerciseType.
+    public string IngressFileLink => $"/admin/windows/{WindowId}/exercises/{ExerciseId}/ingress-file/{Name}";
+    public string SchemaFileLink => $"/admin/windows/{WindowId}/exercises/{ExerciseId}/schema-file/{Name}";
 
     public bool IsComplete =>
         !string.IsNullOrWhiteSpace(IngressFile) && !string.IsNullOrWhiteSpace(SchemaFile);

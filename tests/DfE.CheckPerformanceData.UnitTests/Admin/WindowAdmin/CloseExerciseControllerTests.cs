@@ -16,8 +16,19 @@ public class CloseExerciseControllerTests
     private static readonly Guid WindowId = Guid.Parse("11111111-1111-1111-1111-111111111111");
     private const CheckingExerciseType Exercise = CheckingExerciseType.PupilData;
 
+    // #466: the route keys the exercise by id, not by CheckingExerciseType. Fixed per-kind ids so
+    // Window(...) can build a stable, deterministic fixture from a list of kinds.
+    private static readonly Guid ExerciseId = ExerciseIdFor(Exercise);
+
     private readonly ICloseExerciseService _closeService = Substitute.For<ICloseExerciseService>();
     private readonly IWindowService _windowService = Substitute.For<IWindowService>();
+
+    private static Guid ExerciseIdFor(CheckingExerciseType exercise) => exercise switch
+    {
+        CheckingExerciseType.PupilData => Guid.Parse("22222222-2222-2222-2222-222222222222"),
+        CheckingExerciseType.ResultsEnquiry => Guid.Parse("33333333-3333-3333-3333-333333333333"),
+        _ => Guid.NewGuid()
+    };
 
     private static CheckingWindowDto Window(params CheckingExerciseType[] exercises) => new()
     {
@@ -29,7 +40,9 @@ public class CloseExerciseControllerTests
         EndDate = new DateTime(2026, 6, 30),
         Exercises = exercises.Select((e, i) => new CheckingExerciseDto
         {
+            Id = ExerciseIdFor(e),
             ExerciseType = e,
+            Name = ExerciseLabels.For(e),
             StartDate = new DateTime(2026, 6, 1),
             EndDate = new DateTime(2026, 6, 30),
             SortOrder = i
@@ -53,7 +66,7 @@ public class CloseExerciseControllerTests
         _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>())
             .Returns((CheckingWindowDto?)null);
 
-        var result = await Build().Confirm(WindowId, Exercise, CancellationToken.None);
+        var result = await Build().Confirm(WindowId, ExerciseId, CancellationToken.None);
 
         Assert.IsType<NotFoundResult>(result);
     }
@@ -65,9 +78,31 @@ public class CloseExerciseControllerTests
         _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>())
             .Returns(Window(CheckingExerciseType.ResultsEnquiry));
 
-        var result = await Build().Confirm(WindowId, Exercise, CancellationToken.None);
+        var result = await Build().Confirm(WindowId, ExerciseId, CancellationToken.None);
 
         Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task Confirm_get_returns_not_found_for_a_display_only_exercise()
+    {
+        var displayOnlyId = Guid.NewGuid();
+        var window = Window(Exercise);
+        window.Exercises.Add(new CheckingExerciseDto
+        {
+            Id = displayOnlyId,
+            ExerciseType = null,
+            Name = "Summary data (Autumn)",
+            StartDate = new DateTime(2026, 6, 1),
+            EndDate = new DateTime(2026, 6, 30),
+            SortOrder = 5
+        });
+        _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(window);
+
+        var result = await Build().Confirm(WindowId, displayOnlyId, CancellationToken.None);
+
+        Assert.IsType<NotFoundResult>(result);
+        await _closeService.DidNotReceiveWithAnyArgs().PreviewAsync(default, default, default);
     }
 
     [Fact]
@@ -77,14 +112,14 @@ public class CloseExerciseControllerTests
         _closeService.PreviewAsync(WindowId, Exercise, Arg.Any<CancellationToken>())
             .Returns(new CloseExercisePreview { RequestsToClose = 4, DraftsToCancel = 2 });
 
-        var result = await Build().Confirm(WindowId, Exercise, CancellationToken.None);
+        var result = await Build().Confirm(WindowId, ExerciseId, CancellationToken.None);
 
         var view = Assert.IsType<ViewResult>(result);
         var vm = Assert.IsType<CloseExerciseViewModel>(view.Model);
         Assert.Equal(4, vm.RequestsToClose);
         Assert.Equal(2, vm.DraftsToCancel);
         Assert.Equal(WindowId, vm.WindowId);
-        Assert.Equal(Exercise, vm.ExerciseType);
+        Assert.Equal(ExerciseId, vm.ExerciseId);
     }
 
     [Fact]
@@ -95,7 +130,7 @@ public class CloseExerciseControllerTests
         _closeService.PreviewAsync(WindowId, Exercise, Arg.Any<CancellationToken>())
             .Returns(new CloseExercisePreview { RequestsToClose = 0, DraftsToCancel = 0 });
 
-        var result = await Build().Confirm(WindowId, Exercise, CancellationToken.None);
+        var result = await Build().Confirm(WindowId, ExerciseId, CancellationToken.None);
 
         var view = Assert.IsType<ViewResult>(result);
         var vm = Assert.IsType<CloseExerciseViewModel>(view.Model);
@@ -109,7 +144,7 @@ public class CloseExerciseControllerTests
         _closeService.CloseAsync(WindowId, Exercise, Arg.Any<CancellationToken>())
             .Returns(new CloseExerciseResult { Enqueued = 3, DraftsCancelled = 1 });
 
-        var result = await Build().Close(WindowId, Exercise, CancellationToken.None);
+        var result = await Build().Close(WindowId, ExerciseId, CancellationToken.None);
 
         await _closeService.Received(1).CloseAsync(WindowId, Exercise, Arg.Any<CancellationToken>());
         var redirect = Assert.IsType<RedirectResult>(result);
@@ -125,7 +160,7 @@ public class CloseExerciseControllerTests
             .Returns(new CloseExerciseResult { Enqueued = 3, DraftsCancelled = 1 });
 
         var controller = Build();
-        await controller.Close(WindowId, Exercise, CancellationToken.None);
+        await controller.Close(WindowId, ExerciseId, CancellationToken.None);
 
         var message = Assert.IsType<string>(controller.TempData[CloseExerciseController.TempDataKey]);
         Assert.Contains("3", message);
@@ -138,7 +173,7 @@ public class CloseExerciseControllerTests
         _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>())
             .Returns(Window(CheckingExerciseType.ResultsEnquiry));
 
-        var result = await Build().Close(WindowId, Exercise, CancellationToken.None);
+        var result = await Build().Close(WindowId, ExerciseId, CancellationToken.None);
 
         Assert.IsType<NotFoundResult>(result);
         await _closeService.DidNotReceiveWithAnyArgs().CloseAsync(default, default, default);

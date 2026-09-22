@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 using Microsoft.AspNetCore.Mvc;
@@ -48,7 +49,7 @@ public class CheckingWindowDraftTests
         draft.Exercises[1].EndDate = null;
 
         Assert.Equal("ExerciseDates", draft.NextController(_url));
-        Assert.Equal(CheckingExerciseType.ResultsEnquiry, draft.FirstUndatedExercise!.ExerciseType);
+        Assert.Equal(1, draft.FirstUndatedIndex);
     }
 
     [Fact]
@@ -115,9 +116,38 @@ public class CheckingWindowDraftTests
 
         Assert.Equal(2, dtos.Count);
         Assert.Equal(new DateTime(2027, 1, 14, 17, 0, 0),
-            dtos.Single(d => d.ExerciseType == CheckingExerciseType.PupilData).EndDate);
+            dtos.Single(d => d.Name == "Pupil data checking").EndDate);
         Assert.Equal(new DateTime(2027, 6, 30, 17, 0, 0),
-            dtos.Single(d => d.ExerciseType == CheckingExerciseType.ResultsEnquiry).EndDate);
+            dtos.Single(d => d.Name == "Results enquiry").EndDate);
+    }
+
+    [Fact]
+    public void ExerciseAt_indexes_in_sort_order_and_is_null_out_of_range()
+    {
+        CheckingWindowDraft draft = Complete();
+        draft.Exercises.Reverse(); // List<T>.Reverse() — in place, not the LINQ extension.
+
+        Assert.Equal("Pupil data checking", draft.ExerciseAt(0)!.Name);
+        Assert.Null(draft.ExerciseAt(2));
+        Assert.Null(draft.ExerciseAt(-1));
+    }
+
+    [Fact]
+    public void ToExerciseDtos_carries_name_tab_name_kind_and_slots()
+    {
+        CheckingWindowDraft draft = new()
+        {
+            Title = "w", CheckingWindowType = CheckingWindowType.Post16, KeyStage = KeyStages.Post16,
+            Exercises = WindowExercises.DefaultsFor(CheckingWindowType.Post16).Select(ExerciseDraft.From)
+                .Select(e => { e.StartDate = new DateTime(2027, 1, 1); e.EndDate = new DateTime(2027, 1, 14); return e; })
+                .ToList()
+        };
+
+        var dtos = draft.ToExerciseDtos();
+
+        Assert.Equal(["Pupil data checking", "Results enquiry", "Summary data (Autumn)"], dtos.Select(d => d.Name));
+        Assert.Null(dtos[2].ExerciseType);
+        Assert.Equal("summary", Assert.Single(dtos[2].Datasets).Name);
     }
 
     private static CheckingWindowDraft Complete() => new()
@@ -130,6 +160,7 @@ public class CheckingWindowDraftTests
             new ExerciseDraft
             {
                 ExerciseType = CheckingExerciseType.PupilData,
+                Name = "Pupil data checking",
                 StartDate = new DateTime(2027, 1, 1),
                 EndDate = new DateTime(2027, 1, 14, 17, 0, 0),
                 SortOrder = 0
@@ -137,6 +168,7 @@ public class CheckingWindowDraftTests
             new ExerciseDraft
             {
                 ExerciseType = CheckingExerciseType.ResultsEnquiry,
+                Name = "Results enquiry",
                 StartDate = new DateTime(2027, 1, 1),
                 EndDate = new DateTime(2027, 6, 30, 17, 0, 0),
                 SortOrder = 1

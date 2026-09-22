@@ -26,7 +26,9 @@ public sealed class WindowAdminController(
             Name = window.Title,
             IsOpen = window.IsOpen,
             IsPublished = true,
-            Exercises = window.Exercises.OrderBy(e => e.SortOrder).Select(exercise =>
+            // #466 shim: CheckingExerciseListItem doesn't yet render a display-only exercise
+            // (Task 7) — skip null kinds rather than throw on the ExerciseType!.Value below.
+            Exercises = window.Exercises.Where(e => e.ExerciseType is not null).OrderBy(e => e.SortOrder).Select(exercise =>
             {
                 var missing = Enum.GetValues<WhatToChange>()
                     .Where(journey => WhatToChangeCheckingExerciseMap.CheckingExerciseFor(journey) == exercise.ExerciseType)
@@ -38,7 +40,9 @@ public sealed class WindowAdminController(
                     : now > exercise.EndDate ? "Closed" : "Open";
                 return new CheckingExerciseListItem
                 {
-                    Name = ExerciseLabels.For(exercise.ExerciseType),
+                    // #466 shim: ExerciseLabels doesn't yet handle a display-only exercise (Task 7)
+                    // — safe now only because the Where above already dropped null kinds.
+                    Name = ExerciseLabels.For(exercise.ExerciseType!.Value),
                     Status = status,
                     MissingJourneys = missing
                 };

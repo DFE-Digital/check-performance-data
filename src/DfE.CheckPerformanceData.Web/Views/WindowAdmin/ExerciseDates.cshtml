@@ -16,8 +16,6 @@
 <form method="post" action="@Model.PostUrl" novalidate>
     @Html.AntiForgeryToken()
 
-    <input type="hidden" asp-for="@Model.WindowId" />
-
     <govuk-date-input for="@Model.StartDate">
         <govuk-date-input-fieldset>
             <govuk-date-input-fieldset-legend class="govuk-fieldset__legend--m">

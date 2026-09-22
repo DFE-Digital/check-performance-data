@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -17,7 +18,18 @@ public sealed class CheckingExercise
 {
     public Guid Id { get; init; }
     public Guid CheckingWindowId { get; set; }
-    public CheckingExerciseType ExerciseType { get; init; }
+
+    /// <summary>
+    /// Null for a display-only data share the admin defined (#466). Journeys, next steps and the
+    /// close sweep look an exercise up by kind, so a null here means "content only, no actions".
+    /// </summary>
+    public CheckingExerciseType? ExerciseType { get; init; }
+
+    /// <summary>Heading for admins and, from slice 3, schools. Required in the database.</summary>
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>Short tab label. Required in the database.</summary>
+    public string TabName { get; set; } = string.Empty;
 
     // Settable since #319: the admin wizard captures each exercise's dates, so an existing row has
     // to be able to take new ones. Before that nothing could change them once written.
@@ -71,9 +83,17 @@ public sealed class CheckingExerciseConfiguration : IEntityTypeConfiguration<Che
             .HasDefaultValueSql("gen_random_uuid()");
 
         builder.Property(x => x.ExerciseType)
-            .IsRequired()
+            .IsRequired(false)
             .HasConversion<string>()
             .HasMaxLength(50);
+
+        builder.Property(x => x.Name)
+            .IsRequired()
+            .HasMaxLength(ExerciseDefinition.MaxNameLength);
+
+        builder.Property(x => x.TabName)
+            .IsRequired()
+            .HasMaxLength(ExerciseDefinition.MaxTabNameLength);
 
         builder.Property(x => x.StartDate)
             .IsRequired()
@@ -88,9 +108,12 @@ public sealed class CheckingExerciseConfiguration : IEntityTypeConfiguration<Che
             .HasForeignKey(x => x.CheckingWindowId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // One row per exercise type per window: the lookup #315 does. This caps repeats of a type,
-        // never how many types a window may hold.
-        builder.HasIndex(x => new { x.CheckingWindowId, x.ExerciseType }).IsUnique();
+        // One row per KIND per window, so every "the pupil-data exercise of window X" lookup stays
+        // single-valued. Filtered: a display-only exercise has no kind, and a window may hold any
+        // number of those (#466).
+        builder.HasIndex(x => new { x.CheckingWindowId, x.ExerciseType })
+            .IsUnique()
+            .HasFilter("\"ExerciseType\" IS NOT NULL");
 
         builder.OwnsOne(x => x.Validated, validated =>
         {

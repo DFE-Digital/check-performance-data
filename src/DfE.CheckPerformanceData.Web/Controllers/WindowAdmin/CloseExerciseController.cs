@@ -1,7 +1,6 @@
 using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Application.WindowManagement;
-using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
 using Microsoft.AspNetCore.Mvc;
 
@@ -27,43 +26,49 @@ public sealed class CloseExerciseController(
     /// <summary>Carries the outcome sentence to the notification banner on the summary page.</summary>
     public const string TempDataKey = "CloseExerciseOutcome";
 
-    [HttpGet("admin/windows/{id:guid}/{exercise}/close")]
+    [HttpGet("admin/windows/{id:guid}/exercises/{exerciseId:guid}/close")]
     public async Task<IActionResult> Confirm(
-        Guid id, CheckingExerciseType exercise, CancellationToken cancellationToken)
+        Guid id, Guid exerciseId, CancellationToken cancellationToken)
     {
         var window = await windowService.GetByIdAsync(id, cancellationToken);
-        if (window?.FindExercise(exercise) is null)
+        var target = window?.FindExercise(exerciseId);
+
+        // A display-only exercise has no journeys, so nothing to sweep: not found, same as an
+        // exercise the window does not run.
+        if (window is null || target?.ExerciseType is not { } kind)
             return NotFound();
 
-        var preview = await closeService.PreviewAsync(id, exercise, cancellationToken);
+        var preview = await closeService.PreviewAsync(id, kind, cancellationToken);
 
         return View("~/Views/WindowAdmin/Close.cshtml", new CloseExerciseViewModel
         {
             WindowId = id,
             WindowTitle = window.Title,
-            ExerciseType = exercise,
-            ExerciseLabel = ExerciseLabels.For(exercise),
+            ExerciseId = exerciseId,
+            ExerciseLabel = target.Name,
             RequestsToClose = preview.RequestsToClose,
             DraftsToCancel = preview.DraftsToCancel
         });
     }
 
-    [HttpPost("admin/windows/{id:guid}/{exercise}/close")]
+    [HttpPost("admin/windows/{id:guid}/exercises/{exerciseId:guid}/close")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Close(
-        Guid id, CheckingExerciseType exercise, CancellationToken cancellationToken)
+        Guid id, Guid exerciseId, CancellationToken cancellationToken)
     {
         // Re-checked on the POST, not only on the GET: the confirmation page is not what authorises
         // the sweep, the route is.
         var window = await windowService.GetByIdAsync(id, cancellationToken);
-        if (window?.FindExercise(exercise) is null)
+        var target = window?.FindExercise(exerciseId);
+
+        if (window is null || target?.ExerciseType is not { } kind)
             return NotFound();
 
-        var result = await closeService.CloseAsync(id, exercise, cancellationToken);
+        var result = await closeService.CloseAsync(id, kind, cancellationToken);
 
         // Quotes the RESULT, never the preview — rows can change between the two.
         TempData[TempDataKey] =
-            $"{ExerciseLabels.For(exercise)} closed. " +
+            $"{target.Name} closed. " +
             $"{Pluralise(result.Enqueued, "request")} sent for processing and " +
             $"{Pluralise(result.DraftsCancelled, "draft")} cancelled.";
 

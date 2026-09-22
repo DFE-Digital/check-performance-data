@@ -1,4 +1,3 @@
-@using DfE.CheckPerformanceData.Web.Controllers.WindowAdmin
 @model DfE.CheckPerformanceData.Web.Controllers.WindowAdmin.CheckingWindowDraft
 
 <form method="post" action="@Model.PostUrl" novalidate> 
@@ -38,24 +37,27 @@
         <value>
             @(Model.Exercises.Count == 0
                 ? "None"
-                : string.Join(", ", Model.Exercises.Select(e => ExerciseLabels.For(e.ExerciseType))))
+                : string.Join(", ", Model.Exercises.OrderBy(e => e.SortOrder).Select(e => e.Name)))
         </value>
         <row-actions>
             <action href="@Model.ExercisesLink(Url)" visually-hidden-text="Checking exercises">Change</action>
         </row-actions>
     </row>
     @* #319: the window's own dates are the union of these and are never typed, so they get no row
-       of their own here — only the exercises that produce them. *@
-    @foreach (var exercise in Model.Exercises.OrderBy(e => e.SortOrder))
+       of their own here — only the exercises that produce them. Keyed by position in sort order
+       (#466): a display-only exercise has no kind to key on. *@
+    @{ var orderedExercises = Model.Exercises.OrderBy(e => e.SortOrder).ToList(); }
+    @for (var i = 0; i < orderedExercises.Count; i++)
     {
+        var exercise = orderedExercises[i];
         <row>
-            <key>@ExerciseLabels.For(exercise.ExerciseType) dates</key>
+            <key>@exercise.Name dates</key>
             <value>
                 @exercise.StartDate?.ToString("dd/MM/yyyy HH:mm") to @exercise.EndDate?.ToString("dd/MM/yyyy HH:mm")
             </value>
             <row-actions>
-                <action href="@Url.Action("New", "ExerciseDates", new { exercise = exercise.ExerciseType })"
-                        visually-hidden-text="@ExerciseLabels.For(exercise.ExerciseType) dates">Change</action>
+                <action href="@Url.Action("New", "ExerciseDates", new { index = i })"
+                        visually-hidden-text="@exercise.Name dates">Change</action>
             </row-actions>
         </row>
     }

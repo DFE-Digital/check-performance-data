@@ -10,11 +10,41 @@ public interface IWindowService
     Task<CheckingWindowDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
     Task UpdateAsync(CheckingWindowDto window, CancellationToken cancellationToken);
     Task<CheckingWindowDto> CreateAsync(CheckingWindowDto window, CancellationToken cancellationToken);
+
+    /// <summary>Adds a display-only exercise (#466). Rules and reasons are the service's.</summary>
+    Task<ExerciseChangeResult> AddExerciseAsync(Guid windowId, ExerciseDefinition definition, CancellationToken cancellationToken);
+    /// <summary>Renames, reorders or re-dates one exercise. Its kind and slots are untouched.</summary>
+    Task<ExerciseChangeResult> UpdateExerciseAsync(Guid windowId, Guid exerciseId, ExerciseDefinition definition, CancellationToken cancellationToken);
+    /// <summary>Removes one exercise and its dataset rows. Refused when it holds change requests.</summary>
+    Task<ExerciseChangeResult> RemoveExerciseAsync(Guid windowId, Guid exerciseId, CancellationToken cancellationToken);
+
+    /// <summary>Sets which exercises the window runs, by name (#466): keeps every existing exercise
+    /// named, adds every template named that the window lacks (on the window's own dates), removes
+    /// the rest. Refused when a removed exercise holds change requests, or when nothing would
+    /// remain.</summary>
+    Task<ExerciseChangeResult> SetExercisesAsync(Guid windowId, IReadOnlyCollection<string> selectedNames, CancellationToken cancellationToken);
 }
 
 public class PageResult
 {
     public required List<CheckingWindowDto> Windows { get; set; }
+}
+
+/// <summary>What an admin types for an exercise (#466). Kind is never here — it is immutable.</summary>
+public sealed record ExerciseDefinition(string Name, string TabName, int SortOrder, DateTime StartDate, DateTime EndDate)
+{
+    // Single source of truth for the column widths: Persistence's CheckingExerciseConfiguration
+    // reads these same constants for HasMaxLength, so a length that Validate() lets through is
+    // guaranteed to fit the column.
+    public const int MaxNameLength = 200;
+    public const int MaxTabNameLength = 100;
+}
+
+/// <summary>A refused change carries the reason the page shows. Never thrown.</summary>
+public sealed record ExerciseChangeResult(bool Succeeded, string? Reason)
+{
+    public static ExerciseChangeResult Ok() => new(true, null);
+    public static ExerciseChangeResult Refused(string reason) => new(false, reason);
 }
 
 public sealed class CheckingWindowDto
@@ -51,9 +81,14 @@ public sealed class CheckingWindowDto
     // only ever right while a single exercise held them all — the admin wizard, the summary page
     // and the validate run are all per-exercise now, and each asks the exercise it means.
 
-    /// <summary>The exercise of this type, or null when the window does not run it.</summary>
+    /// <summary>The exercise of this kind, or null when the window does not run it. A display-only
+    /// exercise has no kind and is never returned here — reach it by id.</summary>
     public CheckingExerciseDto? FindExercise(CheckingExerciseType exercise) =>
         Exercises.SingleOrDefault(e => e.ExerciseType == exercise);
+
+    /// <summary>The exercise with this id, or null. The admin routes key on this (#466).</summary>
+    public CheckingExerciseDto? FindExercise(Guid id) =>
+        Exercises.SingleOrDefault(e => e.Id == id);
 
     /// <summary>
     /// The outer pair derived from the exercises: earliest start, latest end. The wizard never asks
@@ -72,10 +107,24 @@ public sealed class CheckingWindowDto
 public sealed class CheckingExerciseDto
 {
     public Guid Id { get; init; }
-    public required CheckingExerciseType ExerciseType { get; init; }
+
+    /// <summary>
+    /// What the exercise does: pupil data checking, results enquiry — or <c>null</c> for a
+    /// display-only data share the admin defined (#466). Journeys, next steps and close all look
+    /// an exercise up by kind, so a null-kind exercise offers none of them.
+    /// </summary>
+    public required CheckingExerciseType? ExerciseType { get; init; }
+
+    /// <summary>Heading for admins and, from slice 3, schools. Defaulted from
+    /// <see cref="CheckingExerciseNames"/> for a kind exercise; typed by the admin otherwise.</summary>
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>Short tab label. Stored now, rendered in slice 3.</summary>
+    public string TabName { get; set; } = string.Empty;
+
     public required DateTime StartDate { get; set; }
     public required DateTime EndDate { get; set; }
-    public int SortOrder { get; init; }
+    public int SortOrder { get; set; }
 
     /// <summary>
     /// The CSV + schema pairs this exercise ingests, in sort order. Any number, including none.
@@ -100,6 +149,13 @@ public sealed class CheckingExerciseDto
     /// </summary>
     public bool HasRequiredFiles =>
         Datasets.Any(d => d.IsComplete) && Datasets.Where(d => d.Required).All(d => d.IsComplete);
+
+    /// <summary>
+    /// Validate can run: the files are present AND the exercise has a kind. A display-only exercise
+    /// has no blob prefix until slice 2, so <see cref="CheckingExerciseBlobPaths"/> must never be
+    /// reached for one — this is the gate that stops it.
+    /// </summary>
+    public bool CanValidate => HasRequiredFiles && ExerciseType is not null;
 
     /// <summary>
     /// The datasets a run actually reads, in sort order — the complete ones. An empty optional slot
@@ -235,4 +291,13 @@ public static class WindowDatasets
             Required = index == 0,
             SortOrder = index
         })];
+}
+
+/// <summary>An admin's own exercise takes one required slot named <c>data</c> (#466).</summary>
+public static class CustomExerciseDatasets
+{
+    public const string Data = "data";
+
+    public static CheckingWindowDatasetDto Slot() =>
+        new() { Name = Data, Included = null, Required = true, SortOrder = 0 };
 }

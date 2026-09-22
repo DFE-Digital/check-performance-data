@@ -1,5 +1,3 @@
-using DfE.CheckPerformanceData.Domain.Enums;
-
 namespace DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
 
 /// <summary>The close confirmation page: what is about to be swept, and for which exercise.</summary>
@@ -7,7 +5,7 @@ public sealed class CloseExerciseViewModel
 {
     public required Guid WindowId { get; init; }
     public required string WindowTitle { get; init; }
-    public required CheckingExerciseType ExerciseType { get; init; }
+    public required Guid ExerciseId { get; init; }
     public required string ExerciseLabel { get; init; }
 
     public required int RequestsToClose { get; init; }

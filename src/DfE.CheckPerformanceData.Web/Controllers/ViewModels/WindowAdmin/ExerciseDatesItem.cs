@@ -1,5 +1,4 @@
 using System.ComponentModel.DataAnnotations;
-using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
 
@@ -14,7 +13,9 @@ namespace DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
 /// </remarks>
 public sealed class ExerciseDatesItem : AdminPage
 {
-    public CheckingExerciseType ExerciseType { get; set; }
+    /// <summary>Position in the draft's exercise list, sorted by SortOrder (#466). A display-only
+    /// exercise has no kind to key on, so the dates page is keyed by index instead.</summary>
+    public int Index { get; set; }
 
     /// <summary>Human label for the heading, e.g. "Pupil data checking".</summary>
     public string ExerciseLabel { get; set; } = string.Empty;

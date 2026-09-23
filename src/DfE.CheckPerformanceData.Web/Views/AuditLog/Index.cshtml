@@ -1,0 +1,132 @@
+@model DfE.CheckPerformanceData.Web.Controllers.AuditLog.AuditLogViewModel
+@using DfE.CheckPerformanceData.Application.Audit
+@{
+    ViewData["Title"] = "Audit log";
+}
+
+@* Audit log (AB#294592). FLAGGED copy throughout. HTML first: the filters are a plain GET form with
+   a real button — the prototype's bare selects assume auto-submit script, and this page carries
+   none. Read-only by construction: one GET form, one GET export, nothing that posts. *@
+
+<a class="govuk-back-link" href="/admin">Back to administration</a>
+
+<h1 class="govuk-heading-xl">Audit log</h1>
+<p class="govuk-body">A record of data egress runs and other administrative activity.</p>
+
+<form method="get" action="/admin/audit-log" class="govuk-!-margin-bottom-6" data-testid="audit-log-filters">
+    <div class="govuk-grid-row">
+        <div class="govuk-grid-column-one-third">
+            <div class="govuk-form-group">
+                <label class="govuk-label" for="activity">Filter by activity</label>
+                <select class="govuk-select" id="activity" name="activity">
+                    <option value="" selected="@(Model.SelectedActivity is null)">All activity</option>
+                    @foreach (var activity in Model.Activities)
+                    {
+                        <option value="@activity.Value" selected="@(Model.SelectedActivity == activity.Value)">@activity.Label</option>
+                    }
+                </select>
+            </div>
+        </div>
+        <div class="govuk-grid-column-one-third">
+            <div class="govuk-form-group">
+                <label class="govuk-label" for="windowId">Filter by checking window</label>
+                <select class="govuk-select" id="windowId" name="windowId">
+                    <option value="" selected="@(Model.SelectedWindowId is null)">All windows</option>
+                    @foreach (var window in Model.Windows)
+                    {
+                        <option value="@window.Id" selected="@(Model.SelectedWindowId == window.Id)">@window.Label</option>
+                    }
+                </select>
+            </div>
+        </div>
+        <div class="govuk-grid-column-one-third">
+            <div class="govuk-form-group">
+                <label class="govuk-label" for="status">Filter by status</label>
+                <select class="govuk-select" id="status" name="status">
+                    <option value="" selected="@(Model.SelectedOutcome is null)">All statuses</option>
+                    @foreach (var outcome in AuditActivities.AllOutcomes)
+                    {
+                        <option value="@outcome" selected="@(Model.SelectedOutcome == outcome)">@AuditActivities.OutcomeLabel(outcome)</option>
+                    }
+                </select>
+            </div>
+        </div>
+    </div>
+    @* No hidden page field on purpose: applying a filter starts again from page 1. *@
+    <button type="submit" class="govuk-button govuk-button--secondary" data-module="govuk-button">Apply filters</button>
+</form>
+
+@if (Model.IsEmpty)
+{
+    @* An empty table is ambiguous between "no matches" and "failed to load", so nothing tabular renders here. *@
+    <p class="govuk-body" data-testid="audit-log-empty">
+        @(Model.FiltersApplied ? "No audit records match the filters you have applied." : "There are no audit records yet.")
+    </p>
+}
+else
+{
+    <table class="govuk-table" data-testid="audit-log">
+        <caption class="govuk-table__caption govuk-visually-hidden">Audit log</caption>
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header">User</th>
+                <th scope="col" class="govuk-table__header">Activity</th>
+                <th scope="col" class="govuk-table__header">Checking window</th>
+                <th scope="col" class="govuk-table__header">Time</th>
+                <th scope="col" class="govuk-table__header">Status</th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            @foreach (var row in Model.Rows)
+            {
+                @* The data attributes identify a row to the E2E facts (a run has an Insert row for its
+                   pull and one per transfer attempt, so id alone is not unique); nothing in the app reads them. *@
+                <tr class="govuk-table__row" data-testid="audit-log-row" data-entity-type="@row.EntityType" data-entity-id="@row.EntityId" data-action="@row.Action">
+                    <td class="govuk-table__cell">@row.UserLabel</td>
+                    <td class="govuk-table__cell">
+                        <strong class="govuk-tag @row.ActivityTagClass">@row.ActivityLabel</strong>
+                        @if (row.ActivityDetail is not null)
+                        {
+                            <br><span class="govuk-body-s">@row.ActivityDetail</span>
+                        }
+                    </td>
+                    <td class="govuk-table__cell">
+                        @row.WindowTitle
+                        @if (row.WindowDetail is not null)
+                        {
+                            <br><span class="govuk-body-s">@row.WindowDetail</span>
+                        }
+                    </td>
+                    <td class="govuk-table__cell">
+                        @row.TimestampUtc.ToString("d MMM yyyy")<br>
+                        <span class="govuk-body-s">@row.TimestampUtc.ToString("HH:mm:ss") UTC</span>
+                    </td>
+                    <td class="govuk-table__cell">
+                        @if (row.OutcomeLabel is not null)
+                        {
+                            <strong class="govuk-tag @row.OutcomeTagClass">@row.OutcomeLabel</strong>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@* Renders nothing on a single page, so no guard is needed here. *@
+@await Component.InvokeAsync("Pager", new
+{
+    currentPage = Model.Page,
+    totalPages = Model.TotalPages,
+    urlBuilder = (Func<int, string>)PageLink,
+    ariaLabel = "Audit log pages"
+})
+
+<div class="govuk-button-group govuk-!-margin-top-4">
+    <a href="@Model.ExportUrl" role="button" draggable="false" class="govuk-button govuk-button--secondary" data-module="govuk-button">Export log as CSV</a>
+</div>
+
+@functions {
+    // Every page link keeps every filter, so paging never widens the list.
+    string PageLink(int p) => Model.PageUrl(p);
+}

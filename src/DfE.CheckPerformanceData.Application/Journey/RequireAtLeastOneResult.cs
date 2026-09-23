@@ -7,4 +7,9 @@ namespace DfE.CheckPerformanceData.Application.Journey;
 /// </summary>
 public sealed record RequireAtLeastOneResult(
     string SummaryMessage,
-    IReadOnlyDictionary<string, string> FieldErrors);
+    IReadOnlyDictionary<string, string> FieldErrors)
+{
+    /// <summary>The rule, in words. The evidence page shows it as its prompt and the error
+    /// summary shows it on a violation, so the two cannot disagree.</summary>
+    public const string Message = "Provide either an evidence upload or text description as evidence as a minimum";
+}

@@ -101,7 +101,7 @@ public sealed class JourneyControllerQualificationDetailsTests
 
         _httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(_session));
 
-        _vmBuilder = new JourneyViewModelBuilder(_flowService, _journeyService, _optionVisibility, _currentUser);
+        _vmBuilder = new JourneyViewModelBuilder(_flowService, _journeyService, _optionVisibility, _currentUser, _optionality);
 
         _sut = new JourneyController(
             _flowService, _journeyService, _fileStorage, _requestService, _pupilData, _vmBuilder,

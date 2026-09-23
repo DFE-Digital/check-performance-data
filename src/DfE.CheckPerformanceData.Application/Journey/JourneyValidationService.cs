@@ -51,7 +51,7 @@ public sealed class JourneyValidationService(
                 ? "Upload at least one file"
                 : JourneyTemplate.Resolve(q.Title, pupilName));
 
-        return new RequireAtLeastOneResult("You must answer at least one of these questions", fieldErrors);
+        return new RequireAtLeastOneResult(RequireAtLeastOneResult.Message, fieldErrors);
     }
 
     public IReadOnlyList<DateFieldViolation> ValidatePageDates(

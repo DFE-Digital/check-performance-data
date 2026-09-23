@@ -15,6 +15,7 @@ public class JourneyViewModelBuilderTests
     private readonly IJourneyValidationService _journeyService = Substitute.For<IJourneyValidationService>();
     private readonly IOptionVisibilityService _optionVisibilityService = Substitute.For<IOptionVisibilityService>();
     private readonly ICurrentUserService _currentUserService = Substitute.For<ICurrentUserService>();
+    private readonly IQuestionOptionalityService _optionalityService = Substitute.For<IQuestionOptionalityService>();
     private readonly JourneyViewModelBuilder _sut;
 
     private static readonly Guid WindowId = Guid.Parse("11111111-1111-1111-1111-111111111111");
@@ -76,7 +77,7 @@ public class JourneyViewModelBuilderTests
             .Returns(ci => ci.Arg<Question>().Options ?? (IReadOnlyList<QuestionOption>)[]);
 
         _sut = new JourneyViewModelBuilder(
-            _flowService, _journeyService, _optionVisibilityService, _currentUserService);
+            _flowService, _journeyService, _optionVisibilityService, _currentUserService, _optionalityService);
     }
 
     // ── BuildSummaryVm ───────────────────────────────────────────────────────
@@ -262,6 +263,47 @@ public class JourneyViewModelBuilderTests
     }
 
     // ── BuildPageVm ──────────────────────────────────────────────────────────
+
+    private static readonly JourneyPage EitherOrEvidencePage = new()
+    {
+        Id = "other-evidence",
+        Type = PageType.EvidenceUpload,
+        RequireAtLeastOne = true,
+        Questions =
+        [
+            new Question { Id = "evidence", Type = QuestionType.FileUpload, Title = "Upload files", Optional = true },
+            new Question { Id = "how", Type = QuestionType.TextArea, Title = "How?", Optional = true }
+        ]
+    };
+
+    [Fact]
+    public void BuildPageVm_RequireAtLeastOneActive_DropsOptionalSuffixAndFlagsPage()
+    {
+        _optionalityService.IsRequireAtLeastOneActive(EitherOrEvidencePage, Arg.Any<JourneyConditionContext>())
+            .Returns(true);
+        var journey = JourneyWithHistory(["select-pupil"]);
+
+        var vm = _sut.BuildPageVm(WindowId, EitherOrEvidencePage, journey.QuestionAnswers, journey,
+            fromSummary: false, modelState: new ModelStateDictionary(), config: Config);
+
+        Assert.True(vm.RequireAtLeastOne);
+        Assert.Equal(["Upload files", "How?"], vm.QuestionModels.Select(q => q.ResolvedTitle).ToList());
+    }
+
+    [Fact]
+    public void BuildPageVm_RequireAtLeastOneInactive_KeepsOptionalSuffix()
+    {
+        _optionalityService.IsRequireAtLeastOneActive(EitherOrEvidencePage, Arg.Any<JourneyConditionContext>())
+            .Returns(false);
+        var journey = JourneyWithHistory(["select-pupil"]);
+
+        var vm = _sut.BuildPageVm(WindowId, EitherOrEvidencePage, journey.QuestionAnswers, journey,
+            fromSummary: false, modelState: new ModelStateDictionary(), config: Config);
+
+        Assert.False(vm.RequireAtLeastOne);
+        Assert.Equal(["Upload files (Optional)", "How? (Optional)"],
+            vm.QuestionModels.Select(q => q.ResolvedTitle).ToList());
+    }
 
     [Fact]
     public void BuildPageVm_WhenPageNotInHistory_BackPageIdIsLastHistoryEntry()

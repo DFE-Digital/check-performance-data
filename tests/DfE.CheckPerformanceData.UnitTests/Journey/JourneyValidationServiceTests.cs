@@ -397,7 +397,7 @@ public class JourneyValidationServiceTests
         var result = _sut.ValidateRequireAtLeastOne(page, new Dictionary<string, QuestionAnswer>(), "Sam Smith");
 
         Assert.NotNull(result);
-        Assert.Equal("You must answer at least one of these questions", result.SummaryMessage);
+        Assert.Equal("Provide either an evidence upload or text description as evidence as a minimum", result.SummaryMessage);
         Assert.Equal(2, result.FieldErrors.Count);
         Assert.Equal("Upload at least one file", result.FieldErrors["evidence"]);
         Assert.Equal("Explain how the evidence supports the change", result.FieldErrors["how-evidence-supports"]);
@@ -710,7 +710,7 @@ public class JourneyValidationServiceTests
         var result = _sut.ValidateEvidencePage(page, journey, "Jane Smith");
 
         Assert.NotNull(result);
-        Assert.Contains("You must answer at least one of these questions", result!.Messages);
+        Assert.Contains("Provide either an evidence upload or text description as evidence as a minimum", result!.Messages);
     }
 
     // ── ValidatePageDates ───────────────────────────────────────────────────

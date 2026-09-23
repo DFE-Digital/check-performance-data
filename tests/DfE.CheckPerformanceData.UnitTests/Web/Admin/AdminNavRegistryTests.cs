@@ -22,11 +22,13 @@ public sealed class AdminNavRegistryTests
 		// administration group went when the blob browser moved under Danger zone; the Danger
 		// zone group and that browser are registered unconditionally, Reset seed data is not
 		// (includeResetSeedData defaults to false) — plus the Data egress group and its
-		// Start a new egress tile (AB#294553) and its Egress runs tile (AB#294590).
-		Assert.Equal(33, entries.Count);
+		// Start a new egress tile (AB#294553) and its Egress runs tile (AB#294590) — plus the
+		// Audit log root tile (AB#294592).
+		Assert.Equal(34, entries.Count);
 
 		var titles = entries.Select(e => e.Title).ToList();
 		Assert.Contains("Dashboard", titles);
+		Assert.Contains("Audit log", titles);
 		Assert.DoesNotContain("Version retention", titles);
 		Assert.Contains("Content staging import/export", titles);
 		Assert.Contains("Pages", titles);

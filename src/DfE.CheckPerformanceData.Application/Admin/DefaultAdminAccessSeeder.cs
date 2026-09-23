@@ -46,6 +46,8 @@ public sealed class DefaultAdminAccessSeeder(IAdminSectionAccessRepository repos
         "egress",
         // Runs history tile + the EgressRunsController gate (AB#294590).
         "egress-runs",
+        // Audit log (AB#294592): the root tile's own gate.
+        "audit-log",
         "reset-seed-data",
         "share-admin",
         "search-analytics",

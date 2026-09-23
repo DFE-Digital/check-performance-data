@@ -53,6 +53,14 @@ public sealed class DefaultAdminAccessSeederTests
         Assert.Equal("egress-runs", AdminNavKeys.EgressRuns);
     }
 
+    // AB#294592: the audit log is a root tile gated by its own key; without the grant the tile is
+    // hidden and /admin/audit-log 404s even for an admin.
+    [Fact]
+    public void AllSections_ContainsAuditLog()
+    {
+        Assert.Contains(AdminNavKeys.AuditLog, DefaultAdminAccessSeeder.AllSections);
+    }
+
     // The group is a container only: access is implied by the tile, so it must NOT be a section
     // (the same rule as cms-admin / system-admin).
     [Fact]

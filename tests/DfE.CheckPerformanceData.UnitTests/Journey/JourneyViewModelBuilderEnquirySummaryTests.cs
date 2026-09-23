@@ -75,7 +75,8 @@ public sealed class JourneyViewModelBuilderEnquirySummaryTests
 
         _sut = new JourneyViewModelBuilder(
             _flowService, new JourneyValidationService(),
-            Substitute.For<IOptionVisibilityService>(), _currentUser);
+            Substitute.For<IOptionVisibilityService>(), _currentUser,
+            Substitute.For<IQuestionOptionalityService>());
     }
 
     // The Figma fixture from the plan.

@@ -98,7 +98,7 @@ public sealed class JourneyControllerResultDetailsTests
         _qualificationReference.GetLookupAsync(Arg.Any<CancellationToken>()).Returns(QualificationReferenceLookup.Empty);
         _httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(_session));
 
-        var builder = new JourneyViewModelBuilder(_flowService, _journeyService, _optionVisibility, _currentUser);
+        var builder = new JourneyViewModelBuilder(_flowService, _journeyService, _optionVisibility, _currentUser, _optionality);
 
         _sut = new JourneyController(
             _flowService, _journeyService, Substitute.For<IFileStorageService>(),

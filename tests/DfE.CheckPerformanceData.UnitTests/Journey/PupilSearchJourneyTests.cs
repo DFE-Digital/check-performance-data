@@ -120,7 +120,7 @@ public class PupilSearchJourneyTests
         _httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(_session));
 
         var viewModelBuilder = new JourneyViewModelBuilder(
-            _flowService, _journeyService, _optionVisibilityService, _currentUserService);
+            _flowService, _journeyService, _optionVisibilityService, _currentUserService, _optionalityService);
 
         _sut = new JourneyController(_flowService, _journeyService, _fileStorageService,
             _requestService, _pupilDataService, viewModelBuilder, _analytics, _currentUserService,

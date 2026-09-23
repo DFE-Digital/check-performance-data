@@ -4,7 +4,17 @@
     <govuk-error-summary-title>There is a problem</govuk-error-summary-title>
     @if (Model.AtLeastOneError is not null)
     {
-        <govuk-error-summary-description>@Model.AtLeastOneError</govuk-error-summary-description>
+        @* The rule covers several fields, so it links to the first one rendered (GOV.UK pattern
+           for a multi-field error) and gets the same style as every other error. *@
+        var firstField = Model.FileUploadModels.Concat(Model.NonFileUploadModels).FirstOrDefault();
+        if (firstField is not null)
+        {
+            <govuk-error-summary-item href="#@firstField.ErrorFieldRef">@Model.AtLeastOneError</govuk-error-summary-item>
+        }
+        else
+        {
+            <govuk-error-summary-description>@Model.AtLeastOneError</govuk-error-summary-description>
+        }
     }
     @if (Model.UploadError is not null)
     {

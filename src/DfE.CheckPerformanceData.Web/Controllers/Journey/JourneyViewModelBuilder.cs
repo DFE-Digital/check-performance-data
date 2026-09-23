@@ -9,7 +9,8 @@ public sealed class JourneyViewModelBuilder(
     IQuestionFlowService flowService,
     IJourneyValidationService journeyService,
     IOptionVisibilityService optionVisibilityService,
-    ICurrentUserService currentUserService) : IJourneyViewModelBuilder
+    ICurrentUserService currentUserService,
+    IQuestionOptionalityService optionalityService) : IJourneyViewModelBuilder
 {
     public SummaryViewModel BuildSummaryVm(
         Guid windowId, RequestState journey, QuestionFlowConfig config, string? conflictError = null, string? conflictErrorLink = null, bool fromBulk = false, bool fromEdit = false)
@@ -226,6 +227,10 @@ public sealed class JourneyViewModelBuilder(
 
         var conditionContext = BuildConditionContext(journey);
 
+        // When the page needs at least one answer, no single question is optional on its own, so
+        // the "(Optional)" suffix would mislead. The page explains the rule instead.
+        var requireAtLeastOne = optionalityService.IsRequireAtLeastOneActive(page, conditionContext);
+
         var questionModels = page.Questions.Select(q =>
         {
             var error = modelState.TryGetValue(q.Id, out var entry)
@@ -242,7 +247,7 @@ public sealed class JourneyViewModelBuilder(
                 MaxEvidencePages = journeyService.MaxEvidencePages,
                 Error = error,
                 UploadError = uploadError,
-                ResolvedTitle = JourneyTemplate.Resolve(q.Title, pupilName) + (q.Optional ? " (Optional)" : ""),
+                ResolvedTitle = JourneyTemplate.Resolve(q.Title, pupilName) + (q.Optional && !requireAtLeastOne ? " (Optional)" : ""),
                 VisibleOptions = q.Type switch
                 {
                     QuestionType.Radio or QuestionType.Checkbox =>
@@ -288,6 +293,7 @@ public sealed class JourneyViewModelBuilder(
             ContentKey = contentKey,
             UploadError = uploadError,
             AtLeastOneError = atLeastOneError,
+            RequireAtLeastOne = requireAtLeastOne,
             QuestionModels = questionModels
         };
     }

@@ -17,6 +17,13 @@
     <h1 class="govuk-heading-xl">@Model.ResolvedTitle</h1>
 }
 
+@if (Model.RequireAtLeastOne)
+{
+    <div class="govuk-inset-text">
+        @DfE.CheckPerformanceData.Application.Journey.RequireAtLeastOneResult.Message
+    </div>
+}
+
 <details class="govuk-details">
     <summary class="govuk-details__summary">
         <span class="govuk-details__summary-text">

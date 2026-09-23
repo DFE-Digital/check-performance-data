@@ -7,7 +7,8 @@ account. Everything lives inside the web app — no separate worker or scheduled
 
 ## 1. What it does
 
-Five screens under `/admin/egress`, gated by `[RequireAdminSection(AdminNavKeys.Egress)]`:
+Six screens under `/admin/egress`. The five journey screens are gated by
+`[RequireAdminSection(AdminNavKeys.Egress)]`; the runs history has its own gate (below):
 
 - **Pull** (`GET`/`POST /admin/egress`) — choose a checking window and one or more output types
   (New learners, Remove learners), then pull. Also lists saved (in-progress) and completed runs.
@@ -23,6 +24,16 @@ Five screens under `/admin/egress`, gated by `[RequireAdminSection(AdminNavKeys.
   (`GET .../download/{outputType}`) per file, then transfers.
 - **Complete** (`GET /admin/egress/runs/{id}/complete`) — the transfer summary: files, record
   counts, hashes, who did it and when.
+- **Runs history** (`GET /admin/egress/runs`, AB#294590; sidebar tile "Egress runs";
+  `EgressRunsController`, gated by `[RequireAdminSection(AdminNavKeys.EgressRuns)]`) — read-only:
+  every run newest first with one of four statuses (`EgressRunOutcomes`: Success = Transferred;
+  Failed = PreprocessingFailed or TransferFailed; Draft = Pulled, Preprocessing, Preprocessed or
+  Transferring; Abandoned), the output types it covered, the records transferred (the saved row
+  count for a Success, zero for everything else — it answers what LDS received), who started it
+  and when. Filters by checking window and status are cumulative (`?windowId=&status=`), 20 rows a
+  page (`?page=`, clamped), and a filter that matches nothing says so instead of rendering an
+  empty table. A Draft's Resume link and a finished run's View link both go to Resume (below).
+  Plain GET form, no script.
 
 `GET /admin/egress/runs/{id}` (Resume) sends the browser to whichever of these a run's status
 implies, so a saved run reopens without re-pulling. `POST /admin/egress/runs/{id}/abandon` ends a
@@ -220,6 +231,7 @@ audit row ever claims success for a failed transfer.
 | `Zendesk:UseFake` (default **`false`**) | Selects the ticket source: the real Zendesk client (`ZendeskEgressTicketSource`, via the same `AddZendeskApiClient` the worker uses) unless explicitly set to `true`, which selects the dev outbox (`DevOutboxEgressTicketSource`, no Zendesk settings needed). The default matches the worker's own configured default — a fresh environment that sets nothing reads real Zendesk decisions, not the dev outbox. `AddCpdEgress` refuses to start if `UseFake=true` is set in Production, regardless of configuration, so the dev outbox can never be reached there. Local/E2E stacks opt in explicitly via `Zendesk__UseFake=true` (`docker-compose.yaml`, `docker-compose.sandbox.yaml`), since neither has real Zendesk credentials. Review apps opt in too (`terraform/application/config/review.yml`): the E2E egress facts seed their decisions into the outbox via `/dev/egress/seed`, and against real esfa-preprod every seeded id read back as "Ticket not found", so the suite could not pass there. Web and worker share the ConfigMap, so review-app submissions land in the outbox rather than creating esfa-preprod tickets. |
 | `ZendeskTicketFields:DecisionStatusId` | The real ticket source's required field id; `0` in production today, so it refuses to pull until configured. |
 | Admin grant `egress` | `DefaultAdminAccessSeeder.AllSections` — without it a fresh database 404s on `/admin/egress` even for an admin. |
+| Admin grant `egress-runs` | `DefaultAdminAccessSeeder.AllSections` — the runs history's own gate and its sidebar tile's key (AB#294590); the seeder tops the admin role up on every start, so existing databases gain it on deploy. |
 
 ## 9. Local development and E2E
 
@@ -267,8 +279,6 @@ Two rules keep a dev or review environment recoverable after a failed run:
 
 - **Merged learners** (and the KS4 June code `20`→`21` correction-code rule, AB#292610) is
   deliberately out of scope — its own column set and rule, tracked as a follow-up ticket.
-- **Runs history with filters and pagination** is AB#294590; the Pull page carries only a minimal
-  saved/completed list.
 - **LDS spec v2.4 questions still open with LDS/BA** (see the PR notes §10): the struck
   `Middle_Name` heading is omitted entirely; `Key_Stage` says `16-19` (v2.4 changed the Remove
   sheet from 16-18, the New Learner sheet was not updated); year-group-change removals go out as

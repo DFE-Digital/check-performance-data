@@ -92,6 +92,44 @@ public sealed class EgressRunRepository(IPortalDbContext db) : IEgressRunReposit
         return rows.Select(r => new EgressRunListItem(r.Id, r.WindowId, r.WindowTitle, r.Status, r.Types, r.StartedByName, r.StartedAtUtc, r.TransferredAtUtc)).ToList();
     }
 
+    // Runs history (AB#294590). Filter, count, order and page in SQL — the Pull page's
+    // ListRunsAsync loads everything because it shows a handful of live runs; this list grows for
+    // ever. The zero-unless-transferred rule is applied after materialisation so the projection
+    // stays a plain translatable shape.
+    public async Task<EgressRunHistoryPage> ListHistoryAsync(EgressRunHistoryFilter filter, int page, int pageSize, CancellationToken ct)
+    {
+        if (pageSize < 1) pageSize = 1;
+        var query = db.EgressRuns.AsNoTracking();
+        if (filter.WindowId is { } windowId)
+            query = query.Where(r => r.WindowId == windowId);
+        if (filter.Outcome is { } outcome)
+        {
+            var statuses = EgressRunOutcomes.StatusesOf(outcome).ToArray();   // an array parameter translates to IN (...)
+            query = query.Where(r => statuses.Contains(r.Status));
+        }
+
+        var total = await query.CountAsync(ct);
+        var totalPages = Math.Max(1, (int)Math.Ceiling(total / (double)pageSize));
+        page = Math.Clamp(page, 1, totalPages);
+
+        var rows = await query
+            .OrderByDescending(r => r.StartedAtUtc).ThenByDescending(r => r.Id)
+            .Skip((page - 1) * pageSize).Take(pageSize)
+            .Select(r => new
+            {
+                r.Id, r.WindowId, r.Status, r.StartedByName, r.StartedAtUtc,
+                WindowTitle = db.CheckingWindows.Where(w => w.Id == r.WindowId).Select(w => w.Title).FirstOrDefault() ?? string.Empty,
+                Types = r.Outputs.OrderBy(o => o.OutputType).Select(o => o.OutputType).ToList(),
+                Records = r.Outputs.Sum(o => o.OutputRecordCount ?? 0)
+            })
+            .ToListAsync(ct);
+
+        return new EgressRunHistoryPage(
+            rows.Select(r => new EgressRunHistoryRow(r.Id, r.WindowId, r.WindowTitle, r.Status, r.Types,
+                r.Status == EgressRunStatus.Transferred ? r.Records : 0, r.StartedByName, r.StartedAtUtc)).ToList(),
+            total, page, pageSize);
+    }
+
     public async Task<bool> TrySetStatusAsync(Guid runId, EgressRunStatus from, EgressRunStatus to, CancellationToken ct) =>
         await db.EgressRuns.Where(r => r.Id == runId && r.Status == from)
             .ExecuteUpdateAsync(s => s.SetProperty(r => r.Status, to), ct) == 1;

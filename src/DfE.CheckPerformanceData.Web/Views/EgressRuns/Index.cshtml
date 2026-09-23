@@ -1,0 +1,116 @@
+@model DfE.CheckPerformanceData.Web.Controllers.Egress.EgressRunsViewModel
+@using DfE.CheckPerformanceData.Application.Egress
+@{
+    ViewData["Title"] = "Egress runs";
+}
+
+@* Runs history (AB#294590). FLAGGED copy throughout. HTML first: the filters are a plain GET form
+   with a real button — the prototype's bare selects assume auto-submit script, and this page
+   carries none. *@
+
+<a class="govuk-back-link" href="/admin">Back to administration</a>
+
+<h1 class="govuk-heading-xl">Egress runs</h1>
+<p class="govuk-body">A history of all data egress runs.</p>
+
+<form method="get" action="/admin/egress/runs" class="govuk-!-margin-bottom-6" data-testid="egress-runs-filters">
+    <div class="govuk-grid-row">
+        <div class="govuk-grid-column-one-half">
+            <div class="govuk-form-group">
+                <label class="govuk-label" for="windowId">Filter by checking window</label>
+                <select class="govuk-select" id="windowId" name="windowId">
+                    <option value="" selected="@(Model.SelectedWindowId is null)">All windows</option>
+                    @foreach (var window in Model.Windows)
+                    {
+                        <option value="@window.Id" selected="@(Model.SelectedWindowId == window.Id)">@window.Label</option>
+                    }
+                </select>
+            </div>
+        </div>
+        <div class="govuk-grid-column-one-half">
+            <div class="govuk-form-group">
+                <label class="govuk-label" for="status">Filter by status</label>
+                <select class="govuk-select" id="status" name="status">
+                    <option value="" selected="@(Model.SelectedOutcome is null)">All statuses</option>
+                    @foreach (var outcome in EgressRunOutcomes.All)
+                    {
+                        <option value="@outcome" selected="@(Model.SelectedOutcome == outcome)">@EgressRunOutcomes.Label(outcome)</option>
+                    }
+                </select>
+            </div>
+        </div>
+    </div>
+    @* No hidden page field on purpose: applying a filter starts again from page 1. *@
+    <button type="submit" class="govuk-button govuk-button--secondary" data-module="govuk-button">Apply filters</button>
+</form>
+
+@if (Model.IsEmpty)
+{
+    @* An empty table is ambiguous between "no matches" and "failed to load" (ticket "Empty state"),
+       so nothing tabular renders here. *@
+    <p class="govuk-body" data-testid="egress-runs-empty">
+        @(Model.FiltersApplied ? "No egress runs match the filters you have applied." : "There are no egress runs yet.")
+    </p>
+}
+else
+{
+    <table class="govuk-table" data-testid="egress-runs">
+        <caption class="govuk-table__caption govuk-visually-hidden">Egress runs</caption>
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header">Checking window</th>
+                <th scope="col" class="govuk-table__header">Output types</th>
+                <th scope="col" class="govuk-table__header govuk-table__header--numeric">Records</th>
+                <th scope="col" class="govuk-table__header">Run by</th>
+                <th scope="col" class="govuk-table__header">Started</th>
+                <th scope="col" class="govuk-table__header"><span class="govuk-visually-hidden">Action</span></th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            @foreach (var row in Model.Rows)
+            {
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">
+                        @row.WindowTitle<br>
+                        <strong class="govuk-tag @row.OutcomeTagClass govuk-!-margin-top-1">@row.OutcomeLabel</strong>
+                    </td>
+                    <td class="govuk-table__cell">
+                        @foreach (var label in row.OutputTypeLabels)
+                        {
+                            <strong class="govuk-tag govuk-tag--blue govuk-!-margin-bottom-1">@label</strong>
+                        }
+                    </td>
+                    <td class="govuk-table__cell govuk-table__cell--numeric">@row.RecordsTransferred</td>
+                    <td class="govuk-table__cell">@row.StartedByName</td>
+                    <td class="govuk-table__cell">@row.StartedAtUtc.ToString("d MMM yyyy HH:mm") UTC</td>
+                    <td class="govuk-table__cell">
+                        @if (row.LinkText is not null)
+                        {
+                            <a class="govuk-link" href="/admin/egress/runs/@row.Id">@row.LinkText<span class="govuk-visually-hidden"> run for @row.WindowTitle started @row.StartedAtUtc.ToString("d MMM yyyy HH:mm")</span></a>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@* Renders nothing on a single page, so no guard is needed here. *@
+@await Component.InvokeAsync("Pager", new
+{
+    currentPage = Model.Page,
+    totalPages = Model.TotalPages,
+    urlBuilder = (Func<int, string>)PageLink,
+    ariaLabel = "Egress runs pages"
+})
+
+@functions {
+    // Every page link keeps both filters (the Inbox pattern), so paging never widens the list.
+    string PageLink(int p)
+    {
+        var qs = $"?page={p}";
+        if (Model.SelectedWindowId is { } windowId) qs += $"&windowId={windowId}";
+        if (Model.SelectedOutcome is { } outcome) qs += $"&status={outcome}";
+        return "/admin/egress/runs" + qs;
+    }
+}

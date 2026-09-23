@@ -10,6 +10,15 @@ public sealed record EgressRunOutputCreate(EgressOutputType OutputType, IReadOnl
 public sealed record EgressRunOutputDto(Guid Id, EgressOutputType OutputType, bool IsActive, IReadOnlyList<EgressSourceRecord> Records, int SourceRecordCount, int? OutputRecordCount, string? FileName, string? Sha256);
 public sealed record EgressRunDto(Guid Id, Guid WindowId, EgressRunStatus Status, Guid StartedById, string StartedByName, DateTime StartedAtUtc, DateTime? PreprocessedAtUtc, DateOnly? ExportDate, DateTime? TransferredAtUtc, string? TransferredByName, IReadOnlyList<EgressRecordFailure> Failures, string? TransferFailureReason, IReadOnlyList<EgressRunOutputDto> Outputs);
 public sealed record EgressRunListItem(Guid Id, Guid WindowId, string WindowTitle, EgressRunStatus Status, IReadOnlyList<EgressOutputType> OutputTypes, string StartedByName, DateTime StartedAtUtc, DateTime? TransferredAtUtc);
+/// <summary>Runs history filters (AB#294590); null means "all". They are cumulative.</summary>
+public sealed record EgressRunHistoryFilter(Guid? WindowId, EgressRunOutcome? Outcome);
+/// <summary>One history row. RecordsTransferred is what LDS received: the saved row count for a Transferred run, 0 for every other status.</summary>
+public sealed record EgressRunHistoryRow(Guid Id, Guid WindowId, string WindowTitle, EgressRunStatus Status, IReadOnlyList<EgressOutputType> OutputTypes, int RecordsTransferred, string StartedByName, DateTime StartedAtUtc);
+/// <summary>One page of the history. Page is 1-based and already clamped to [1, TotalPages].</summary>
+public sealed record EgressRunHistoryPage(IReadOnlyList<EgressRunHistoryRow> Rows, int TotalCount, int Page, int PageSize)
+{
+    public int TotalPages => Math.Max(1, (int)Math.Ceiling(TotalCount / (double)Math.Max(1, PageSize)));
+}
 public sealed record EgressTransferAudit(string UserId, string UserName, string TargetContainer, IReadOnlyDictionary<EgressOutputType, (string FileName, int Records, string Sha256)> Files);
 public sealed class EgressRunConflictException(string message) : Exception(message);
 
@@ -28,6 +37,8 @@ public interface IEgressRunRepository
     Task<Guid> CreateRunAsync(EgressRunCreate create, CancellationToken ct);
     Task<EgressRunDto?> GetRunAsync(Guid runId, CancellationToken ct);
     Task<IReadOnlyList<EgressRunListItem>> ListRunsAsync(CancellationToken ct);
+    /// <summary>Runs history (AB#294590): filtered, newest StartedAtUtc first (Id descending on a tie), one page. An out-of-range page clamps; a pageSize below 1 is treated as 1.</summary>
+    Task<EgressRunHistoryPage> ListHistoryAsync(EgressRunHistoryFilter filter, int page, int pageSize, CancellationToken ct);
     Task<bool> TrySetStatusAsync(Guid runId, EgressRunStatus from, EgressRunStatus to, CancellationToken ct);
     /// <summary>M4: guarded by <paramref name="expectedStatus"/>; returns rows affected (0 = lost the race — e.g. the run was abandoned in the meantime — nothing was written).</summary>
     Task<int> MarkPreprocessingFailedAsync(Guid runId, EgressRunStatus expectedStatus, IReadOnlyList<EgressRecordFailure> failures, CancellationToken ct);

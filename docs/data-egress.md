@@ -34,6 +34,10 @@ Six screens under `/admin/egress`. The five journey screens are gated by
   page (`?page=`, clamped), and a filter that matches nothing says so instead of rendering an
   empty table. A Draft's Resume link and a finished run's View link both go to Resume (below).
   Plain GET form, no script.
+- **Audit log** (`GET /admin/audit-log`, AB#294592; root tile "Audit log"; gated by
+  `[RequireAdminSection(AdminNavKeys.AuditLog)]`) — not an egress screen but where every transfer's
+  audit row is seen: filter by activity "Data egress", checking window and Success/Failed, and
+  export the filtered set as CSV. See `docs/audit-log.md`.
 
 `GET /admin/egress/runs/{id}` (Resume) sends the browser to whichever of these a run's status
 implies, so a saved run reopens without re-pulling. `POST /admin/egress/runs/{id}/abandon` ends a
@@ -218,8 +222,10 @@ run to currently hold, and reports rows affected; a caller that gets zero back k
 (most often to a concurrent Abandon) and never overwrites what actually happened with a stale
 outcome. Success and failure each write an `AuditEntry` in the same transaction as the guarded
 state change: `EntityType` `"EgressRun"`, `Action` `"Transfer"` or `"TransferFailed"`, `NewValues` a
-JSON object with the outcome, window id, output types, file names, record counts, SHA-256 hashes,
-target container and who/when. No audit row is ever written for a write that lost its race, and no
+camelCase JSON object. Both carry the outcome, window id, output types and the person who ran the
+transfer (`transferredBy`); success adds file names, record counts, SHA-256 hashes, target container
+and time; failure adds the reason (AB#294592 made the failure payload self-describing so the audit
+log needs no join). No audit row is ever written for a write that lost its race, and no
 audit row ever claims success for a failed transfer.
 
 ## 8. Configuration
@@ -232,6 +238,7 @@ audit row ever claims success for a failed transfer.
 | `ZendeskTicketFields:DecisionStatusId` | The real ticket source's required field id; `0` in production today, so it refuses to pull until configured. |
 | Admin grant `egress` | `DefaultAdminAccessSeeder.AllSections` — without it a fresh database 404s on `/admin/egress` even for an admin. |
 | Admin grant `egress-runs` | `DefaultAdminAccessSeeder.AllSections` — the runs history's own gate and its sidebar tile's key (AB#294590); the seeder tops the admin role up on every start, so existing databases gain it on deploy. |
+| Admin grant `audit-log` | `DefaultAdminAccessSeeder.AllSections` — the Audit log root tile's own gate (AB#294592); topped up on every start. |
 
 ## 9. Local development and E2E
 

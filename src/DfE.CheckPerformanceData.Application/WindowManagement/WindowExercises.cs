@@ -112,6 +112,17 @@ public static class WindowExercises
     public static readonly int DisplayOnlySortOrderStart =
         Enum.GetValues<CheckingExerciseType>().Cast<int>().Max() + 1;
 
+    /// <summary>
+    /// Where a freshly-added display-only exercise sorts (#466 review fix). Not
+    /// <c>DisplayOnlySortOrderStart + count(display-only)</c> — that collides after an
+    /// add-remove-add, because the count drops back down while the highest SortOrder already used
+    /// does not. One past the highest SortOrder any exercise on the window already holds, floored
+    /// at <see cref="DisplayOnlySortOrderStart"/> so a display-only exercise never sorts ahead of a
+    /// kind exercise on a window that runs none yet.
+    /// </summary>
+    public static int NextDisplayOnlySortOrder(CheckingWindowDto window) =>
+        Math.Max(DisplayOnlySortOrderStart, window.Exercises.Count == 0 ? 0 : window.Exercises.Max(e => e.SortOrder) + 1);
+
     private static ExerciseTemplate Kind(CheckingExerciseType kind, CheckingWindowType type) =>
         new(CheckingExerciseNames.NameFor(kind), CheckingExerciseNames.TabNameFor(kind), kind,
             SortOrderFor(kind), WindowDatasets.DefaultsFor(type, kind));

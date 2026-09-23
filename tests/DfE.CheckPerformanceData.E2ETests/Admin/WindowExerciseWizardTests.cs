@@ -21,7 +21,7 @@ public sealed class WindowExerciseWizardTests(PlaywrightFixture fixture) : Seedi
         new() { ViewportSize = new ViewportSize { Width = 1440, Height = 900 } };
 
     [SkippableFact]
-    public async Task An_admin_can_create_a_window_that_runs_two_exercises_on_different_dates()
+    public async Task An_admin_can_create_a_window_that_runs_three_exercises_on_different_dates()
     {
         Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux),
             "Playwright browser test Linux-only");
@@ -34,10 +34,14 @@ public sealed class WindowExerciseWizardTests(PlaywrightFixture fixture) : Seedi
 
             await StartWizardAsync(title, windowType: "Post16", keyStage: "Post16");
 
-            // Post16 pre-ticks both exercises, so Continue accepts them as they stand.
+            // Post16 pre-ticks all three of its templates (#466: pupil data, results enquiry, and
+            // the display-only Summary data share), so Continue accepts them as they stand. The
+            // checkbox value is the exercise's own Name (ExercisesController posts back on that,
+            // not the CheckingExerciseType), so these must be the display strings, not enum names.
             await Expect(Page.Locator("h1")).ToContainTextAsync("Which checking exercises");
-            await Expect(Page.Locator("input[name='Selected'][value='PupilData']")).ToBeCheckedAsync();
-            await Expect(Page.Locator("input[name='Selected'][value='ResultsEnquiry']")).ToBeCheckedAsync();
+            await Expect(Page.Locator("input[name='Selected'][value='Pupil data checking']")).ToBeCheckedAsync();
+            await Expect(Page.Locator("input[name='Selected'][value='Results enquiry']")).ToBeCheckedAsync();
+            await Expect(Page.Locator("input[name='Selected'][value='Summary data (Autumn)']")).ToBeCheckedAsync();
             await Page.ClickAsync("button[type='submit']");
 
             // Pupil data checking runs for a fortnight...
@@ -50,28 +54,35 @@ public sealed class WindowExerciseWizardTests(PlaywrightFixture fixture) : Seedi
             await Expect(Page.Locator("h1")).ToContainTextAsync("Results enquiry dates");
             await FillDatesAsync(start, enquiryEnd);
 
+            // The Summary share is display-only, but it still takes its own dates on its own page —
+            // matching the seed's own convention of the window start plus two months.
+            await Expect(Page.Locator("h1")).ToContainTextAsync("Summary data (Autumn) dates");
+            await FillDatesAsync(start, start.AddMonths(2));
+
             // Check answers, then create.
             await Expect(Page.Locator("h1")).ToContainTextAsync("Check your answers");
             string checkAnswers = await Page.Locator("body").InnerTextAsync();
             Assert.Contains("Pupil data checking dates", checkAnswers);
             Assert.Contains("Results enquiry dates", checkAnswers);
+            Assert.Contains("Summary data (Autumn) dates", checkAnswers);
             await Page.ClickAsync("button[type='submit']");
 
-            // The summary derives the window's own dates as the union of the two exercises.
+            // The summary derives the window's own dates as the union of the three exercises.
             await Expect(Page.Locator("h1")).ToContainTextAsync(title);
             string summary = await Page.Locator("body").InnerTextAsync();
 
             Assert.Contains("(earliest exercise start)", summary);
             Assert.Contains("(latest exercise end)", summary);
             Assert.Contains(enquiryEnd.ToString("dd/MM/yyyy"), summary);
-            Assert.Contains("Pupil data checking, Results enquiry", summary);
+            Assert.Contains("Pupil data checking, Results enquiry, Summary data (Autumn)", summary);
 
             // Each exercise validates on its own, so each gets its own section and its own state.
             Assert.Contains("Validated", summary);
             Assert.True(
                 await Page.Locator("h2:text('Pupil data checking')").CountAsync() > 0
-                && await Page.Locator("h2:text('Results enquiry')").CountAsync() > 0,
-                "Expected a per-exercise section for each of the window's two exercises.");
+                && await Page.Locator("h2:text('Results enquiry')").CountAsync() > 0
+                && await Page.Locator("h2:text('Summary data (Autumn)')").CountAsync() > 0,
+                "Expected a per-exercise section for each of the window's three exercises.");
         }
         finally
         {
@@ -93,9 +104,10 @@ public sealed class WindowExerciseWizardTests(PlaywrightFixture fixture) : Seedi
 
             await StartWizardAsync(title, windowType: "KS4June", keyStage: "KS4");
 
-            // KS4 June pre-ticks pupil data checking only.
-            await Expect(Page.Locator("input[name='Selected'][value='PupilData']")).ToBeCheckedAsync();
-            await Expect(Page.Locator("input[name='Selected'][value='ResultsEnquiry']")).Not.ToBeCheckedAsync();
+            // KS4 June's own templates are pupil data checking only (WindowExercises.DefaultsFor),
+            // so the page lists no Results enquiry checkbox at all — not an unticked one.
+            await Expect(Page.Locator("input[name='Selected'][value='Pupil data checking']")).ToBeCheckedAsync();
+            await Expect(Page.Locator("input[name='Selected'][value='Results enquiry']")).Not.ToBeVisibleAsync();
             await Page.ClickAsync("button[type='submit']");
 
             DateTime start = DateTime.UtcNow.AddMonths(2).Date;

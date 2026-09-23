@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Entities;
@@ -9,7 +10,8 @@ public static class SeedCheckingWindows
 {
     // A KS4-style window ingests one supplier file; a Post16 window ingests two (included +
     // non-included), so each pupil-data exercise is seeded with the dataset slots its window type
-    // requires. The results-enquiry exercise reads the school results file and has no slots.
+    // requires. The results-enquiry exercise seeded here has no slots, though a real Post16 results
+    // enquiry has five (#324) — the seed only exercises pupil data and, now, the Summary share.
     private static List<CheckingWindowDataset> DatasetsFor(CheckingWindowType type) =>
         type == CheckingWindowType.Post16
             ?
@@ -23,7 +25,10 @@ public static class SeedCheckingWindows
     // lets the landing page keep deciding card visibility from the outer pair alone. Single-activity
     // window types get one PupilData exercise across the whole window; Post16 splits, with results
     // enquiry running far longer than pupil data checking (7 Oct - 31 Mar against 7 Oct - 18 Oct in
-    // the real calendar). See docs/16-19-window-model.md.
+    // the real calendar), plus a display-only Summary data share (#466) so a developer sees that
+    // shape locally too. Every seeded exercise is named from CheckingExerciseNames — an unnamed row
+    // is the "Not since the files changed" of #319 all over again, silently blank instead of stamped.
+    // See docs/16-19-window-model.md.
     private static List<CheckingExercise> ExercisesFor(
         CheckingWindowType type, DateTime startDate, DateTime endDate, DateTime? pupilDataEnd = null) =>
         type == CheckingWindowType.Post16
@@ -32,6 +37,8 @@ public static class SeedCheckingWindows
                 new CheckingExercise
                 {
                     ExerciseType = CheckingExerciseType.PupilData,
+                    Name = CheckingExerciseNames.NameFor(CheckingExerciseType.PupilData),
+                    TabName = CheckingExerciseNames.TabNameFor(CheckingExerciseType.PupilData),
                     StartDate = startDate,
                     // 14 days from a start of yesterday, which is the same fortnight the KS4
                     // windows run for, unless the caller wants pupil data to have shut already.
@@ -43,9 +50,29 @@ public static class SeedCheckingWindows
                 new CheckingExercise
                 {
                     ExerciseType = CheckingExerciseType.ResultsEnquiry,
+                    Name = CheckingExerciseNames.NameFor(CheckingExerciseType.ResultsEnquiry),
+                    TabName = CheckingExerciseNames.TabNameFor(CheckingExerciseType.ResultsEnquiry),
                     StartDate = startDate,
                     EndDate = endDate,
                     SortOrder = 1
+                },
+                new CheckingExercise
+                {
+                    ExerciseType = null,
+                    Name = WindowExercises.SummaryAutumnName,
+                    TabName = WindowExercises.SummaryTabName,
+                    // A display-only share (#466): its dates are its visibility. Runs from the
+                    // window start for two months, whatever pupil data checking does.
+                    StartDate = startDate,
+                    EndDate = startDate.AddMonths(2).Date.AddHours(17),
+                    SortOrder = WindowExercises.DisplayOnlySortOrderStart,
+                    Datasets =
+                    [
+                        new CheckingWindowDataset
+                        {
+                            Name = WindowExercises.SummarySlot, Included = null, Required = true, SortOrder = 0
+                        }
+                    ]
                 }
             ]
             :
@@ -53,6 +80,8 @@ public static class SeedCheckingWindows
                 new CheckingExercise
                 {
                     ExerciseType = CheckingExerciseType.PupilData,
+                    Name = CheckingExerciseNames.NameFor(CheckingExerciseType.PupilData),
+                    TabName = CheckingExerciseNames.TabNameFor(CheckingExerciseType.PupilData),
                     StartDate = startDate,
                     EndDate = endDate,
                     SortOrder = 0,

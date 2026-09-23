@@ -30,25 +30,26 @@ public sealed class SummaryController(IWindowService windowService): Controller
             EndDate = w.EndDate,
             KeyStage = w.KeyStage,
             CheckingWindowType = w.CheckingWindowType,
-            // #319: one section per checking exercise, each with its own dates, files and
+            // #319/#466: one section per checking exercise, each with its own dates, files and
             // validation state. There is no window-level validate button any more — an exercise
-            // validates on its own, and a window is usable while another is still unvalidated.
-            // #466 shim: ExerciseSummarySection doesn't yet render a display-only exercise
-            // (Task 7) — skip null kinds rather than throw on the ExerciseType!.Value below.
+            // validates on its own, and a window is usable while another is still unvalidated. A
+            // display-only exercise (null ExerciseType) renders too, just with no Validate/Close.
             Exercises = w.Exercises
-                .Where(e => e.ExerciseType is not null)
                 .OrderBy(e => e.SortOrder)
                 .Select(e => new ExerciseSummarySection
                 {
                     WindowId = w.Id,
                     ExerciseId = e.Id,
-                    ExerciseType = e.ExerciseType!.Value,
-                    Label = ExerciseLabels.For(e.ExerciseType!.Value),
+                    ExerciseType = e.ExerciseType,
+                    Label = e.Name,
+                    TabName = e.TabName,
                     StartDate = e.StartDate,
                     EndDate = e.EndDate,
                     IsValidated = e.IsValidated,
                     ValidatedAt = e.ValidatedAt,
                     IsStale = e.ValidatedAt is not null && !e.IsValidated,
+                    // #466 review fix: the page's gate is the DTO's own gate, not a re-implementation.
+                    IsValidatable = e.CanValidate,
                     Datasets = e.Datasets
                         .OrderBy(d => d.SortOrder)
                         .Select(d => new DatasetSummaryRow

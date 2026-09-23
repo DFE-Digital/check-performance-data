@@ -26,10 +26,11 @@ public sealed class WindowAdminController(
             Name = window.Title,
             IsOpen = window.IsOpen,
             IsPublished = true,
-            // #466 shim: CheckingExerciseListItem doesn't yet render a display-only exercise
-            // (Task 7) — skip null kinds rather than throw on the ExerciseType!.Value below.
-            Exercises = window.Exercises.Where(e => e.ExerciseType is not null).OrderBy(e => e.SortOrder).Select(exercise =>
+            // #466: a display-only exercise renders too, alongside pupil data and results enquiry.
+            Exercises = window.Exercises.OrderBy(e => e.SortOrder).Select(exercise =>
             {
+                // Lifted equality: a null ExerciseType matches no WhatToChange journey, so a
+                // display-only exercise always reports no missing journeys, never a false positive.
                 var missing = Enum.GetValues<WhatToChange>()
                     .Where(journey => WhatToChangeCheckingExerciseMap.CheckingExerciseFor(journey) == exercise.ExerciseType)
                     .Where(journey => !questionFlows.Exists(journey, window.CheckingWindowType))
@@ -40,9 +41,7 @@ public sealed class WindowAdminController(
                     : now > exercise.EndDate ? "Closed" : "Open";
                 return new CheckingExerciseListItem
                 {
-                    // #466 shim: ExerciseLabels doesn't yet handle a display-only exercise (Task 7)
-                    // — safe now only because the Where above already dropped null kinds.
-                    Name = ExerciseLabels.For(exercise.ExerciseType!.Value),
+                    Name = exercise.Name,
                     Status = status,
                     MissingJourneys = missing
                 };

@@ -1,0 +1,43 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin.RemoveExerciseViewModel
+
+@{
+    // Matches the <h1> below.
+    ViewBag.Title = $"Remove {Model.ExerciseLabel}";
+}
+
+<govuk-back-link href="@Model.CancelLink" />
+
+@if (Model.Refusal is not null)
+{
+    @* The refusal lives on the view model, not ModelState, so the controller sets HasError for the
+       "Error: " title prefix separately (_AdminLayout only checks ModelState by default). *@
+    <govuk-error-summary>
+        <govuk-error-summary-title>There is a problem</govuk-error-summary-title>
+        <govuk-error-summary-item>@Model.Refusal</govuk-error-summary-item>
+    </govuk-error-summary>
+}
+
+<h1 class="govuk-heading-l">Remove @Model.ExerciseLabel</h1>
+
+<p class="govuk-body">
+    This removes the @Model.ExerciseLabel exercise from <strong>@Model.WindowTitle</strong>.
+</p>
+
+<govuk-warning-text icon-fallback-text="Warning">
+    You cannot undo this.
+</govuk-warning-text>
+
+<govuk-summary-list>
+    <govuk-summary-list-row>
+        <govuk-summary-list-row-key>Files that will be discarded</govuk-summary-list-row-key>
+        <govuk-summary-list-row-value>@Model.FileCount</govuk-summary-list-row-value>
+    </govuk-summary-list-row>
+</govuk-summary-list>
+
+<form method="post" action="@Model.PostUrl">
+    @Html.AntiForgeryToken()
+    <govuk-button type="submit" class="govuk-button--warning">
+        Remove @Model.ExerciseLabel
+    </govuk-button>
+    <a class="govuk-link govuk-!-margin-left-3" href="@Model.CancelLink">Cancel</a>
+</form>

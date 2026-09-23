@@ -34,6 +34,55 @@ public class WindowExercisesTests
         Assert.Null(window.FindExercise(CheckingExerciseType.ResultsEnquiry));
     }
 
+    // #466 review fix: DisplayOnlySortOrderStart + count(display-only) collides after an
+    // add-remove-add, because the count drops back down while the sort order already handed out
+    // does not.
+    [Fact]
+    public void NextDisplayOnlySortOrder_is_one_past_the_highest_sort_order_on_the_window()
+    {
+        CheckingWindowDto window = Window();
+        window.Exercises =
+        [
+            Exercise(CheckingExerciseType.PupilData, sortOrder: 0, datasets: []),
+            Exercise(CheckingExerciseType.ResultsEnquiry, sortOrder: 1, datasets: [])
+        ];
+
+        Assert.Equal(WindowExercises.DisplayOnlySortOrderStart, WindowExercises.NextDisplayOnlySortOrder(window));
+    }
+
+    [Fact]
+    public void NextDisplayOnlySortOrder_does_not_collide_after_add_then_remove_then_add()
+    {
+        CheckingWindowDto window = Window();
+        window.Exercises =
+        [
+            Exercise(CheckingExerciseType.PupilData, sortOrder: 0, datasets: []),
+            Exercise(CheckingExerciseType.ResultsEnquiry, sortOrder: 1, datasets: [])
+        ];
+
+        // First add takes DisplayOnlySortOrderStart, same as the count-based rule used to give.
+        int first = WindowExercises.NextDisplayOnlySortOrder(window);
+        window.Exercises.Add(new CheckingExerciseDto
+        {
+            ExerciseType = null, Name = "Summary one", TabName = "Summary",
+            StartDate = window.StartDate, EndDate = window.EndDate, SortOrder = first
+        });
+
+        // A second add before any remove takes the next slot up, not the same one again.
+        int second = WindowExercises.NextDisplayOnlySortOrder(window);
+        Assert.Equal(first + 1, second);
+        window.Exercises.Add(new CheckingExerciseDto
+        {
+            ExerciseType = null, Name = "Summary two", TabName = "Summary",
+            StartDate = window.StartDate, EndDate = window.EndDate, SortOrder = second
+        });
+
+        // Removing the first display-only exercise must not let a third add reuse "first" — the
+        // count-based rule (DisplayOnlySortOrderStart + count) would, because the count is back to 1.
+        window.Exercises.RemoveAt(2);
+        Assert.Equal(second + 1, WindowExercises.NextDisplayOnlySortOrder(window));
+    }
+
     // #319: the outer pair is derived, not typed, so it always equals the union of the exercises.
     [Fact]
     public void The_windows_dates_are_the_union_of_its_exercises_dates()

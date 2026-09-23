@@ -71,22 +71,26 @@ public class WindowEditItem : AdminPage
 
     public string ExercisesLink => $"{BaseEditUrl}/exercises";
 
+    /// <summary>Served by AddExerciseController (#466).</summary>
+    public string AddExerciseLink => $"{BaseEditUrl}/exercises/add";
+
     public string? OutputPath { get; set; }
     public bool IsPublished { get; set; } = false;
     public Guid? PublishedId { get; set; }
 }
 
-/// <summary>One checking exercise on the window summary page.</summary>
+/// <summary>One checking exercise on the window summary page (#466).</summary>
 public sealed class ExerciseSummarySection
 {
+    public const string NoStorageReason = "Validate is not available for a data share until its storage is ready";
+
     public required Guid WindowId { get; init; }
     public required Guid ExerciseId { get; init; }
-    public required CheckingExerciseType ExerciseType { get; init; }
-    public required string Label { get; init; }
 
-    // #466 shim: no Change link for these — DatesLink
-    // (/admin/windows/{id}/exercises/{ExerciseType}/dates) is gone now that ExerciseDatesController
-    // became create-only. The per-exercise Edit page (Task 8) restores date editing from here.
+    /// <summary>Null = display-only data share, admin-defined and with no blob prefix yet.</summary>
+    public CheckingExerciseType? ExerciseType { get; init; }
+    public required string Label { get; init; }
+    public required string TabName { get; init; }
     public required DateTime StartDate { get; init; }
     public required DateTime EndDate { get; init; }
 
@@ -102,34 +106,38 @@ public sealed class ExerciseSummarySection
     /// <summary>Validated once, but not against the files it holds now — a stale stamp.</summary>
     public bool IsStale { get; init; }
 
-    // #466 shim: keyed by exercise id (Task 6) rather than ExerciseType — a dataset name is only
-    // unique within one exercise, and a display-only exercise has no kind to name.
-    public string ValidateLink => $"/admin/windows/{WindowId}/exercises/{ExerciseId}/validate";
+    private string BaseUrl => $"/admin/windows/{WindowId}/exercises/{ExerciseId}";
+
+    /// <summary>Served by EditExerciseController (#466).</summary>
+    public string EditLink => $"{BaseUrl}/edit";
+
+    /// <summary>Served by RemoveExerciseController (#466).</summary>
+    public string RemoveLink => $"{BaseUrl}/remove";
+
+    public string ValidateLink => $"{BaseUrl}/validate";
 
     // No IsValidatable-style gate beside this one: closing works regardless of the exercise's dates
     // and regardless of whether its files ever validated. It is an admin decision, not a
     // consequence of the clock — see ICloseExerciseService.
-    public string CloseLink => $"/admin/windows/{WindowId}/exercises/{ExerciseId}/close";
+    public string CloseLink => $"{BaseUrl}/close";
 
-    // Every REQUIRED dataset must have both files — a Post16 pupil-data exercise is not validatable
-    // until both the included and non-included CSV/schema pairs are chosen, because they ingest in
-    // one run. An exercise with no complete dataset at all has nothing to validate. Optional slots
-    // (#324) may be empty: a results file that has not been delivered yet must not hold up the ones
-    // that have.
-    private bool HasRequiredFiles =>
-        Datasets.Any(d => d.IsComplete) && Datasets.Where(d => d.Required).All(d => d.IsComplete);
+    /// <summary>Only a kind exercise has journeys to sweep — a display-only data share has nothing
+    /// for ICloseExerciseService to close.</summary>
+    public bool CanClose => ExerciseType is not null;
 
-    private bool HasValidDates
-    {
-        get
-        {
-            var today = DateTime.UtcNow.Date;
+    /// <summary>
+    /// Projected straight from <see cref="CheckingExerciseDto.CanValidate"/> (#466 review fix) —
+    /// the page must agree with <c>ValidateWindowController</c>'s own guard by construction, not by
+    /// a second, drifting copy of "files present". There is deliberately no date condition here:
+    /// nothing compares an exercise's dates to the clock outside <c>ICheckingExerciseService</c>,
+    /// and Validate has never depended on the clock — only Close does not, and Validate is the
+    /// same kind of admin action.
+    /// </summary>
+    public required bool IsValidatable { get; init; }
 
-            return EndDate.Date >= today && EndDate.Date >= StartDate.Date;
-        }
-    }
-
-    public bool IsValidatable => HasValidDates && HasRequiredFiles;
+    /// <summary>The message shown in place of the Validate button when it is not available.
+    /// Null-kind exercise: no data store yet. Otherwise: the required files are not all present.</summary>
+    public string? ValidateDisabledReason => ExerciseType is null ? NoStorageReason : null;
 }
 
 public sealed class DatasetSummaryRow
@@ -144,7 +152,6 @@ public sealed class DatasetSummaryRow
     /// <summary>The exercise cannot be validated until this slot holds both files (#324).</summary>
     public bool Required { get; init; } = true;
 
-    // #466 shim: keyed by exercise id (Task 6) rather than CheckingExerciseType.
     public string IngressFileLink => $"/admin/windows/{WindowId}/exercises/{ExerciseId}/ingress-file/{Name}";
     public string SchemaFileLink => $"/admin/windows/{WindowId}/exercises/{ExerciseId}/schema-file/{Name}";
 

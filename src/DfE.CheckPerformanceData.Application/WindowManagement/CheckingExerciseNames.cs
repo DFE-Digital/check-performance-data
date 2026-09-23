@@ -13,6 +13,11 @@ namespace DfE.CheckPerformanceData.Application.WindowManagement;
 /// </remarks>
 public static class CheckingExerciseNames
 {
+    /// <summary>Shown wherever a display-only exercise's kind is named (#466), e.g. the Edit
+    /// exercise page. Not in the NameFor/TabNameFor switches — those default a kind exercise's own
+    /// Name/TabName, and a display-only exercise has neither to default.</summary>
+    public const string DisplayOnlyLabel = "Data share (display only)";
+
     public static string NameFor(CheckingExerciseType kind) => kind switch
     {
         CheckingExerciseType.PupilData => "Pupil data checking",

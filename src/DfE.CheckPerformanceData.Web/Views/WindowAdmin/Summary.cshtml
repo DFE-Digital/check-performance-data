@@ -81,23 +81,28 @@
   </row>
 </govuk-summary-list>
 
-@* One section per checking exercise. Each validates independently — a window is usable while
-   another of its exercises is still unvalidated. *@
+@* One section per checking exercise, headed by its own name (#466). Each validates independently
+   — a window is usable while another of its exercises is still unvalidated. *@
 @foreach (var exercise in Model.Exercises)
 {
   <h2 class="govuk-heading-m">@exercise.Label</h2>
 
   <govuk-summary-list>
-    @* #466 shim: no Change link here — ExerciseDatesController became create-only, so the old
-       route (/admin/windows/{id}/exercises/{ExerciseType}/dates) no longer exists. The per-exercise
-       Edit page (Task 8) restores date editing. *@
     <row>
-      <key>Start Date</key>
-      <value>@exercise.StartDate.ToString("dd/MM/yyyy HH:mm")</value>
+      <key>Tab name</key>
+      <value>@exercise.TabName</value>
+      <row-actions>
+        <action href="@exercise.EditLink" visually-hidden-text="@exercise.Label tab name">Change</action>
+      </row-actions>
     </row>
+    @* Both ends are captured together on one Edit page (#319) — there is no field-scoped date
+       edit, so one row with one Change link, not a Start/End pair that would imply otherwise. *@
     <row>
-      <key>End Date</key>
-      <value>@exercise.EndDate.ToString("dd/MM/yyyy HH:mm")</value>
+      <key>Dates</key>
+      <value>@exercise.StartDate.ToString("dd/MM/yyyy HH:mm") to @exercise.EndDate.ToString("dd/MM/yyyy HH:mm")</value>
+      <row-actions>
+        <action href="@exercise.EditLink" visually-hidden-text="@exercise.Label dates">Change</action>
+      </row-actions>
     </row>
     <row>
       <key>Validated</key>
@@ -136,27 +141,54 @@
           <key>@dataset.Label — ingress file@(dataset.Required ? "" : " (optional)")</key>
           <value>@(string.IsNullOrWhiteSpace(dataset.IngressFile) ? "Not supplied" : dataset.IngressFile)</value>
           <row-actions>
-            <action href="@dataset.IngressFileLink" visually-hidden-text="@dataset.Label ingress file">Change</action>
+            <action href="@dataset.IngressFileLink" visually-hidden-text="@exercise.Label @dataset.Label ingress file">Change</action>
           </row-actions>
         </row>
         <row>
           <key>@dataset.Label — schema file@(dataset.Required ? "" : " (optional)")</key>
           <value>@(string.IsNullOrWhiteSpace(dataset.SchemaFile) ? "Not supplied" : dataset.SchemaFile)</value>
           <row-actions>
-            <action href="@dataset.SchemaFileLink" visually-hidden-text="@dataset.Label schema file">Change</action>
+            <action href="@dataset.SchemaFileLink" visually-hidden-text="@exercise.Label @dataset.Label schema file">Change</action>
           </row-actions>
         </row>
       }
     </govuk-summary-list>
+  }
 
-    <govuk-button-link disabled="@(!exercise.IsValidatable)" href="@exercise.ValidateLink">
+  @* Validate and Close are admin decisions independent of whether the exercise has any dataset
+     rows at all (#466 review fix) — a results-enquiry exercise on a window type with no results
+     feed still has journeys and drafts a Close should sweep. *@
+  @if (exercise.IsValidatable)
+  {
+    <govuk-button-link href="@exercise.ValidateLink">
       Validate @exercise.Label
     </govuk-button-link>
+  }
+  else
+  {
+    var reason = exercise.ValidateDisabledReason ?? $"{exercise.Label} cannot be validated until every required ingress and schema file is supplied.";
+    @* No disabled button-link exists in this component library (govuk-button-link never emits
+       disabled/aria-disabled) — an unavailable action is not rendered at all, matching Close's
+       existing CanClose gate, rather than rendered as a live-looking link that 400s. *@
+    <p class="govuk-body">@reason</p>
+  }
 
+  @if (exercise.CanClose)
+  {
     @* The label is in the VISIBLE text, so the repeated-accessible-name rule needs no
        govuk-visually-hidden suffix here. Never disabled: closing ignores the exercise's dates. *@
     <govuk-button-link class="govuk-button--warning" href="@exercise.CloseLink">
       Close @exercise.Label
     </govuk-button-link>
   }
+
+  <p class="govuk-body">
+    <a class="govuk-link" href="@exercise.RemoveLink">Remove<span class="govuk-visually-hidden"> @exercise.Label</span></a>
+  </p>
 }
+
+@* The tag helper emits role/draggable/data-module itself, so this can't drift from the
+   link-styled-as-button rule the way hand-written attributes could. *@
+<govuk-button-link class="govuk-button--secondary" href="@Model.AddExerciseLink">
+  Add exercise
+</govuk-button-link>

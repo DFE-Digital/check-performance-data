@@ -38,11 +38,11 @@ public class WindowAdminControllerTests
                 StartDate = now.DateTime.AddDays(-10), EndDate = now.DateTime.AddDays(10),
                 Exercises = [new CheckingExerciseDto
                 {
-                    ExerciseType = CheckingExerciseType.ResultsEnquiry,
+                    ExerciseType = CheckingExerciseType.ResultsEnquiry, Name = "Results enquiry",
                     StartDate = now.DateTime.AddDays(start), EndDate = now.DateTime.AddDays(end)
                 }, new CheckingExerciseDto
                 {
-                    ExerciseType = CheckingExerciseType.PupilData, SortOrder = -1,
+                    ExerciseType = CheckingExerciseType.PupilData, Name = "Pupil data checking", SortOrder = -1,
                     StartDate = now.DateTime.AddDays(-1), EndDate = now.DateTime.AddDays(1)
                 }]
             }]

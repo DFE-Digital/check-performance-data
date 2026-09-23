@@ -220,6 +220,82 @@ public sealed class AccessibilityAuditViewTests
 		Assert.Contains("@exercise.CloseLink", view);
 	}
 
+	// ── #466 Exercise framework: repeated Remove links, Add exercise button semantics ─
+
+	[Fact]
+	public void Summary_remove_links_name_their_exercise()
+	{
+		// Remove repeats once per exercise (#466); the hidden suffix tells them apart.
+		var view = ReadView("Views", "WindowAdmin", "Summary.cshtml");
+		Assert.Contains("Remove<span class=\"govuk-visually-hidden\"> @exercise.Label</span>", view);
+	}
+
+	[Fact]
+	public void Summary_add_exercise_is_the_govuk_button_link_component()
+	{
+		// The tag helper emits role/draggable/data-module itself, so hand-written button
+		// semantics can't drift out of step with it (#466 review fix — was a raw <a>).
+		var view = ReadView("Views", "WindowAdmin", "Summary.cshtml");
+		Assert.Contains("<govuk-button-link class=\"govuk-button--secondary\" href=\"@Model.AddExerciseLink\">", view);
+		Assert.DoesNotContain("role=\"button\" draggable=\"false\" data-module=\"govuk-button\"", view);
+	}
+
+	// ── #466 review fix: no disabled button-link on the Summary page ──────────────────
+
+	[Fact]
+	public void SummaryPage_NeverRendersADisabledButtonLink()
+	{
+		// govuk-button-link has no disabled/aria-disabled support (the only earlier attempt at
+		// this rendered a live-looking, still-clickable <a disabled="True">). An unavailable
+		// action must not be rendered as a button-link at all.
+		var view = ReadView("Views", "WindowAdmin", "Summary.cshtml");
+		Assert.DoesNotContain("disabled=", view);
+	}
+
+	[Fact]
+	public void SummaryPage_ValidateButton_OnlyRendersWhenTheExerciseIsValidatable()
+	{
+		// Pins the shape of fix 1: the button only exists inside an IsValidatable branch, with a
+		// plain-text fallback (not a disabled control) on the other side.
+		var view = ReadView("Views", "WindowAdmin", "Summary.cshtml");
+
+		var ifIndex = view.IndexOf("@if (exercise.IsValidatable)", StringComparison.Ordinal);
+		Assert.True(ifIndex >= 0, "Expected an `@if (exercise.IsValidatable)` branch.");
+
+		var validateButtonIndex = view.IndexOf("Validate @exercise.Label", StringComparison.Ordinal);
+		var elseIndex = view.IndexOf("else", ifIndex, StringComparison.Ordinal);
+		Assert.InRange(validateButtonIndex, ifIndex, elseIndex);
+
+		Assert.Contains("<p class=\"govuk-body\">@reason</p>", view);
+	}
+
+	// ── #466 review fix: dataset Change links stay disambiguated by exercise label ─────
+
+	[Fact]
+	public void Summary_dataset_change_links_name_their_exercise_and_dataset()
+	{
+		// With more than one exercise on a window, two "included" ingress rows would otherwise
+		// carry identical accessible names.
+		var view = ReadView("Views", "WindowAdmin", "Summary.cshtml");
+
+		Assert.Contains("visually-hidden-text=\"@exercise.Label @dataset.Label ingress file\"", view);
+		Assert.Contains("visually-hidden-text=\"@exercise.Label @dataset.Label schema file\"", view);
+	}
+
+	[Fact]
+	public void Summary_exercise_rows_have_one_dates_row_with_one_change_link()
+	{
+		// #466 review fix: dates are captured both-ends-together on one Edit page (Task 8), so a
+		// Start/End pair with two Change links to the same destination would misrepresent the
+		// page as offering field-scoped editing. One "Dates" row, one link.
+		var view = ReadView("Views", "WindowAdmin", "Summary.cshtml");
+
+		Assert.Contains("<key>Dates</key>", view);
+		Assert.Contains("visually-hidden-text=\"@exercise.Label dates\"", view);
+		Assert.DoesNotContain("visually-hidden-text=\"@exercise.Label start date\"", view);
+		Assert.DoesNotContain("visually-hidden-text=\"@exercise.Label end date\"", view);
+	}
+
 	[Fact]
 	public void ClosePage_TitleMatchesItsHeading()
 	{
@@ -228,5 +304,59 @@ public sealed class AccessibilityAuditViewTests
 
 		Assert.Contains("ViewBag.Title = $\"Close {Model.ExerciseLabel}\";", view);
 		Assert.Contains("<h1 class=\"govuk-heading-l\">Close @Model.ExerciseLabel</h1>", view);
+	}
+
+	// ── #466 Task 8: Add/Edit/Remove exercise pages ────────────────────────────────────
+
+	[Theory]
+	[InlineData("ExerciseForm.cshtml", "ViewBag.Title = Model.Heading;", "<h1 class=\"govuk-heading-l\">@Model.Heading</h1>")]
+	[InlineData("RemoveExercise.cshtml", "ViewBag.Title = $\"Remove {Model.ExerciseLabel}\";", "<h1 class=\"govuk-heading-l\">Remove @Model.ExerciseLabel</h1>")]
+	public void Exercise_admin_pages_title_matches_their_h1(string view, string title, string h1)
+	{
+		var markup = ReadView("Views", "WindowAdmin", view);
+		Assert.Contains(title, markup);
+		Assert.Contains(h1, markup);
+	}
+
+	[Theory]
+	[InlineData("ExerciseForm.cshtml", "<h1 class=\"govuk-heading-l\">@Model.Heading</h1>")]
+	[InlineData("RemoveExercise.cshtml", "<h1 class=\"govuk-heading-l\">Remove @Model.ExerciseLabel</h1>")]
+	public void Exercise_admin_pages_render_their_error_summary_before_the_h1(string view, string h1)
+	{
+		// GDS: the error summary must be the first thing a screen reader announces after the back
+		// link, above the heading, not below it.
+		var markup = ReadView("Views", "WindowAdmin", view);
+
+		var errorSummaryIndex = markup.IndexOf("<govuk-error-summary>", StringComparison.Ordinal);
+		var h1Index = markup.IndexOf(h1, StringComparison.Ordinal);
+
+		Assert.True(errorSummaryIndex >= 0, $"{view} has no <govuk-error-summary> to order against the <h1>.");
+		Assert.True(errorSummaryIndex < h1Index,
+			$"{view}: <govuk-error-summary> must appear before the <h1>.");
+	}
+
+	[Fact]
+	public void Remove_exercise_flags_a_refusal_as_a_page_error_for_the_title_prefix()
+	{
+		// The refusal lives on the view model, not ModelState, so the controller sets HasError.
+		var repoRoot = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(ThisFilePath())!, "..", "..", ".."));
+		var controller = File.ReadAllText(Path.Combine(repoRoot, "src", "DfE.CheckPerformanceData.Web",
+			"Controllers", "WindowAdmin", "RemoveExerciseController.cs"));
+		Assert.Contains("ViewData[\"HasError\"] = true;", controller);
+	}
+
+	[Fact]
+	public void ExerciseForm_error_summary_items_are_explicit_for_attributes_not_a_ModelState_key_loop()
+	{
+		// #466 review fix (Critical): govuk-date-input for="StartDate" renders ids
+		// StartDate.Day/.Month/.Year, so a generic "#@state.Key"-style link to "#StartDate" would
+		// resolve to nothing and every date error's link would focus no control. The for="..." form
+		// asks the tag helper to compute the right id itself, including which date part failed.
+		var view = ReadView("Views", "WindowAdmin", "ExerciseForm.cshtml");
+
+		Assert.Contains("<govuk-error-summary-item for=\"StartDate\" />", view);
+		Assert.Contains("<govuk-error-summary-item for=\"EndDate\" />", view);
+		Assert.DoesNotContain("href=\"#@state.Key\"", view);
+		Assert.DoesNotContain("ViewData.ModelState)", view);
 	}
 }

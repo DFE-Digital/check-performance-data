@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using Azure.Storage.Blobs;
 using DfE.CheckPerformanceData.Web.Seeding;
+using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Persistence.Contexts;
@@ -57,7 +58,7 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
 
         var exercises = window.CheckingExercises.OrderBy(e => e.SortOrder).ToList();
         Assert.Equal(
-            [CheckingExerciseType.PupilData, CheckingExerciseType.ResultsEnquiry],
+            [CheckingExerciseType.PupilData, CheckingExerciseType.ResultsEnquiry, null],
             exercises.Select(e => e.ExerciseType));
         Assert.True(
             exercises[1].EndDate > exercises[0].EndDate,
@@ -101,7 +102,7 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
 
         var exercises = window.CheckingExercises.OrderBy(e => e.SortOrder).ToList();
         Assert.Equal(
-            [CheckingExerciseType.PupilData, CheckingExerciseType.ResultsEnquiry],
+            [CheckingExerciseType.PupilData, CheckingExerciseType.ResultsEnquiry, null],
             exercises.Select(e => e.ExerciseType));
         Assert.True(exercises[0].EndDate < now, "pupil data must already have closed");
         Assert.True(exercises[1].StartDate <= now && exercises[1].EndDate > now, "results enquiry must still be open");
@@ -135,7 +136,7 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
             Assert.Equal(KeyStages.Post16, window.KeyStage);
             Assert.Equal(DateTime.Today, window.StartDate);
             Assert.Equal(window.StartDate.AddMonths(1).AddHours(17), window.EndDate);
-            Assert.Equal(2, window.CheckingExercises.Count);
+            Assert.Equal(3, window.CheckingExercises.Count);
             Assert.All(window.CheckingExercises, e =>
             {
                 Assert.Equal(window.StartDate, e.StartDate);
@@ -154,6 +155,18 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
             }
             Assert.Equal(datasets[0].IngressFileChecksum, window.IngressFileChecksum);
             Assert.Equal(datasets[0].SchemaFileChecksum, window.SchemaFileChecksum);
+
+            // The display-only Summary share's single slot must be uploaded too, or the loop added
+            // for it in SeedPost16Ingress is dead code that only compiles.
+            var summaryDataset = Assert.Single(
+                window.CheckingExercises.Single(e => e.ExerciseType == null).Datasets);
+            Assert.Equal("summary", summaryDataset.Name);
+            Assert.Equal("summary.csv", summaryDataset.IngressFile);
+            Assert.Equal("summary.json", summaryDataset.SchemaFile);
+            Assert.NotEqual(string.Empty, summaryDataset.IngressFileChecksum);
+            Assert.NotEqual(string.Empty, summaryDataset.SchemaFileChecksum);
+            await AssertFileAsync("ingress", summaryDataset.IngressFile, summaryDataset.IngressFileChecksum, "text/csv");
+            await AssertFileAsync("schema", summaryDataset.SchemaFile, summaryDataset.SchemaFileChecksum, "application/json");
         }
         finally
         {
@@ -169,5 +182,39 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
             Assert.Equal(checksum, downloaded.Details.Metadata["sha256"]);
             Assert.Equal(contentType, downloaded.Details.ContentType);
         }
+    }
+
+    [Fact]
+    public async Task Every_seeded_exercise_is_named()
+    {
+        await using var ctx = CreateContext();
+        var rows = await ctx.CheckingExercises.Select(e => new { e.Name, e.TabName }).ToListAsync();
+        Assert.NotEmpty(rows);
+        Assert.All(rows, r =>
+        {
+            Assert.False(string.IsNullOrWhiteSpace(r.Name));
+            Assert.False(string.IsNullOrWhiteSpace(r.TabName));
+        });
+    }
+
+    [Fact]
+    public async Task The_open_post16_window_has_a_summary_data_share_with_one_slot()
+    {
+        // This fixture seeds with its own random ids (_post16), not DevDataSeeder's fixed
+        // constants — _post16 is what SeedCheckingWindows.ExecuteSeed was given as the Post16
+        // window id in InitializeAsync above, i.e. the same seed-time role as
+        // DevDataSeeder.Post16CheckingWindowId plays against the real dev database.
+        await using var ctx = CreateContext();
+        var summary = await ctx.CheckingExercises.Include(e => e.Datasets)
+            .SingleAsync(e => e.CheckingWindowId == _post16 && e.ExerciseType == null);
+        Assert.Equal("Summary data (Autumn)", summary.Name);
+        Assert.Equal("Summary", summary.TabName);
+        Assert.Equal(WindowExercises.DisplayOnlySortOrderStart, summary.SortOrder);
+        Assert.Equal("summary", Assert.Single(summary.Datasets).Name);
+
+        // "Its dates are its visibility" (SeedCheckingWindows) — assert the seed's own convention
+        // rather than leaving the only hand-rolled values in the seed block unchecked.
+        Assert.Equal(summary.StartDate.AddMonths(2).Date.AddHours(17), summary.EndDate);
+        Assert.True(summary.EndDate > DateTime.Now, "the seeded Summary share must still be open locally");
     }
 }

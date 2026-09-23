@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using Azure.Storage.Blobs;
 using DfE.CheckPerformanceData.Web.Seeding;
+using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
@@ -167,6 +168,39 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
             Assert.NotEqual(string.Empty, summaryDataset.SchemaFileChecksum);
             await AssertFileAsync("ingress", summaryDataset.IngressFile, summaryDataset.IngressFileChecksum, "text/csv");
             await AssertFileAsync("schema", summaryDataset.SchemaFile, summaryDataset.SchemaFileChecksum, "application/json");
+
+            // A results enquiry takes one slot per source file, and the seed fills the two files a
+            // supplier has actually sent by the time a window opens. The other three are optional
+            // (#324) and stay empty on purpose: that is what proves the exercise validates on its
+            // main file alone, and that the seed skips a slot with no file rather than throwing.
+            var results = window.CheckingExercises
+                .Single(e => e.ExerciseType == CheckingExerciseType.ResultsEnquiry)
+                .Datasets.OrderBy(d => d.SortOrder).ToList();
+            Assert.Equal(
+                new[]
+                {
+                    ResultsFileTags.Post16Main, ResultsFileTags.Post16LateResults1,
+                    ResultsFileTags.Post16LateResults2, ResultsFileTags.Post16Revised,
+                    ResultsFileTags.Post16Retention
+                },
+                results.Select(d => d.Name));
+            Assert.Equal(results.Select(d => d.Name), results.Select(d => d.SourceFile));
+            Assert.Equal(new[] { true, false, false, false, false }, results.Select(d => d.Required));
+            Assert.All(results, d => Assert.Null(d.Included));
+
+            foreach (var dataset in results.Take(2))
+            {
+                Assert.Equal($"{dataset.Name}.csv", dataset.IngressFile);
+                Assert.Equal($"{dataset.Name}.json", dataset.SchemaFile);
+                await AssertFileAsync("ingress", dataset.IngressFile, dataset.IngressFileChecksum, "text/csv");
+                await AssertFileAsync("schema", dataset.SchemaFile, dataset.SchemaFileChecksum, "application/json");
+            }
+
+            Assert.All(results.Skip(2), d =>
+            {
+                Assert.Equal(string.Empty, d.IngressFile);
+                Assert.Equal(string.Empty, d.SchemaFile);
+            });
         }
         finally
         {

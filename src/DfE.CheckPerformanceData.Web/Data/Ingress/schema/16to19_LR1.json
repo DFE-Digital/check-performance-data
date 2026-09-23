@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "post16ResultsLateResults1Schema.json",
+  "title": "Post16 Results - first late results file",
+  "$comment": "One row per result. LAESTAB is deliberately absent: it groups the supplier file into one blob per school and is dropped from the output, which leaves each record exactly the shape StudentResultRecord reads. SOURCE carries no column in the CSV either - the processor stamps it from the dataset slot the file was uploaded to (#324), and the schema must declare it or AllowAdditionalProperties would reject the stamped record.",
+  "type": "object",
+  "additionalProperties": false,
+
+  "required": [
+    "CYPMD_ID",
+    "QAN",
+    "QUAL_NAME",
+    "SYLLABUS",
+    "SESSION",
+    "GRADE",
+    "SOURCE"
+  ],
+
+  "properties": {
+    "CYPMD_ID": {
+      "type": "string",
+      "maxLength": 20,
+      "description": "Student index number used in the checking exercise."
+    },
+
+    "QAN": {
+      "type": "string",
+      "maxLength": 20,
+      "description": "Qualification accreditation number."
+    },
+
+    "QUAL_NAME": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "Qualification title as the results file gives it, abbreviated."
+    },
+
+    "SYLLABUS": {
+      "type": "string",
+      "maxLength": 20,
+      "description": "Awarding organisation syllabus code."
+    },
+
+    "SESSION": {
+      "type": "string",
+      "maxLength": 10,
+      "description": "Exam session, for example S2024."
+    },
+
+    "GRADE": {
+      "type": "string",
+      "maxLength": 10,
+      "description": "Grade awarded, on the scale the qualification uses."
+    },
+
+    "SOURCE": {
+      "type": "string",
+      "maxLength": 20,
+      "description": "Provenance tag, stamped from the dataset slot rather than read from the file."
+    }
+  }
+}

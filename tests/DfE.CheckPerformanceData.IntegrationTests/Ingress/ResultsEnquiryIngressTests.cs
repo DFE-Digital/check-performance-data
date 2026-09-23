@@ -103,6 +103,66 @@ public sealed class ResultsEnquiryIngressTests(AzuriteFixture fixture)
         new StudentResultsBlobClient(_blobs, new MemoryCache(new MemoryCacheOptions()));
 
     [Fact]
+    public async Task The_shipped_seed_files_validate_and_reach_the_journeys_own_client()
+    {
+        // The seed files SeedPost16Ingress uploads are the ones a developer presses Validate on,
+        // and nothing else checks them: an unparseable grade or a column the schema forbids would
+        // only show up as a failed run on somebody's laptop. Run the real pair through the real
+        // processor instead.
+        var windowId = Guid.NewGuid();
+        var container = _blobs.GetBlobContainerClient(windowId.ToString());
+        await container.CreateIfNotExistsAsync();
+
+        try
+        {
+            var datasets = new List<IngressDataset>();
+            foreach (var tag in new[] { ResultsFileTags.Post16Main, ResultsFileTags.Post16LateResults1 })
+            {
+                var csv = await UploadSeedFileAsync(container, "ingress", $"{tag}.csv");
+                var schema = await UploadSeedFileAsync(container, "schema", $"{tag}.json");
+                datasets.Add(new IngressDataset(tag, $"{tag}.csv", csv, $"{tag}.json", schema,
+                    Included: null, SourceFile: tag));
+            }
+
+            var last = await RunAsync(windowId, datasets);
+            Assert.False(last.IsError, last.Message);
+
+            // Kingsmead is the school the dev impersonation signs in as, so a seed that validated
+            // but held no row for it would still leave the journey empty.
+            var client = ResultsClient();
+            Assert.True(await client.AnyForSourceAsync(windowId, Laestab, ResultsFileTags.Post16Main));
+            Assert.True(await client.AnyForSourceAsync(windowId, Laestab, ResultsFileTags.Post16LateResults1));
+            Assert.False(await client.AnyForSourceAsync(windowId, Laestab, ResultsFileTags.Post16LateResults2));
+
+            var students = await client.GetStudentIdsWithResultsAsync(windowId, Laestab);
+            Assert.NotEmpty(students);
+
+            var results = await client.GetResultsAsync(windowId, Laestab, students.First());
+            Assert.All(results, r =>
+            {
+                Assert.NotEqual(string.Empty, r.Qan);
+                Assert.NotEqual(string.Empty, r.QualificationName);
+                Assert.NotEqual(string.Empty, r.Grade);
+                Assert.NotEqual(string.Empty, r.Session);
+            });
+        }
+        finally
+        {
+            await container.DeleteIfExistsAsync();
+        }
+
+        static async Task<string> UploadSeedFileAsync(
+            Azure.Storage.Blobs.BlobContainerClient container, string folder, string filename)
+        {
+            var bytes = await File.ReadAllBytesAsync(
+                Path.Combine(AppContext.BaseDirectory, "Data", "Ingress", folder, filename));
+            using var stream = new MemoryStream(bytes);
+            await container.GetBlobClient($"{folder}/{filename}").UploadAsync(stream, overwrite: true);
+            return Convert.ToHexString(SHA256.HashData(bytes));
+        }
+    }
+
+    [Fact]
     public async Task A_clean_run_writes_one_merged_file_the_enquiry_journey_can_read()
     {
         var windowId = await SeedWindowAsync();

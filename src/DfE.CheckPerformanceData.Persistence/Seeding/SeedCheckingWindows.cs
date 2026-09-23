@@ -8,18 +8,22 @@ namespace DfE.CheckPerformanceData.Persistence.Seeding;
 
 public static class SeedCheckingWindows
 {
-    // A KS4-style window ingests one supplier file; a Post16 window ingests two (included +
-    // non-included), so each pupil-data exercise is seeded with the dataset slots its window type
-    // requires. The results-enquiry exercise seeded here has no slots, though a real Post16 results
-    // enquiry has five (#324) — the seed only exercises pupil data and, now, the Summary share.
-    private static List<CheckingWindowDataset> DatasetsFor(CheckingWindowType type) =>
-        type == CheckingWindowType.Post16
-            ?
-            [
-                new CheckingWindowDataset { Name = "included", Included = true, SortOrder = 0 },
-                new CheckingWindowDataset { Name = "nonincluded", Included = false, SortOrder = 1 }
-            ]
-            : [new CheckingWindowDataset { Name = "pupils", Included = null, SortOrder = 0 }];
+    // Every exercise is seeded with the slots WindowDatasets already decides for its window type,
+    // rather than a second hand-written list: a Post16 pupil-data exercise takes two files
+    // (included + non-included), and a Post16 results enquiry takes five, one per source file and
+    // each named by the tag it stamps (#324). Writing the names again here is how the seed came to
+    // give results enquiry no slots at all, so a developer could never run the ingress it exists
+    // to exercise.
+    private static List<CheckingWindowDataset> DatasetsFor(
+        CheckingWindowType type, CheckingExerciseType exercise) =>
+        [.. WindowDatasets.DefaultsFor(type, exercise).Select(dataset => new CheckingWindowDataset
+        {
+            Name = dataset.Name,
+            Included = dataset.Included,
+            SourceFile = dataset.SourceFile,
+            Required = dataset.Required,
+            SortOrder = dataset.SortOrder
+        })];
 
     // A window's exercises must cover exactly its outer StartDate/EndDate — that union rule is what
     // lets the landing page keep deciding card visibility from the outer pair alone. Single-activity
@@ -45,7 +49,7 @@ public static class SeedCheckingWindows
                     // Results enquiry then carries on to the window's own end.
                     EndDate = pupilDataEnd ?? startDate.AddDays(14).Date.AddHours(17),
                     SortOrder = 0,
-                    Datasets = DatasetsFor(CheckingWindowType.Post16)
+                    Datasets = DatasetsFor(CheckingWindowType.Post16, CheckingExerciseType.PupilData)
                 },
                 new CheckingExercise
                 {
@@ -54,7 +58,8 @@ public static class SeedCheckingWindows
                     TabName = CheckingExerciseNames.TabNameFor(CheckingExerciseType.ResultsEnquiry),
                     StartDate = startDate,
                     EndDate = endDate,
-                    SortOrder = 1
+                    SortOrder = 1,
+                    Datasets = DatasetsFor(CheckingWindowType.Post16, CheckingExerciseType.ResultsEnquiry)
                 },
                 new CheckingExercise
                 {
@@ -85,7 +90,7 @@ public static class SeedCheckingWindows
                     StartDate = startDate,
                     EndDate = endDate,
                     SortOrder = 0,
-                    Datasets = DatasetsFor(type)
+                    Datasets = DatasetsFor(type, CheckingExerciseType.PupilData)
                 }
             ];
 

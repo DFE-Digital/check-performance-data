@@ -19,10 +19,13 @@ public static class SeedPost16Ingress
         var container = blobs.GetBlobContainerClient(window.Id.ToString());
         await container.CreateIfNotExistsAsync();
 
-        // A slot with no seed CSV/schema on disk is skipped; today that is every results-enquiry
-        // slot. Both files are checked before either is opened, or a slot with a CSV but no schema
-        // (or vice versa) would throw FileNotFoundException out of UploadAsync and take the seed
-        // (and startup) down — the exact failure this guard exists to prevent.
+        // A slot with no seed CSV/schema on disk is skipped; today that is the second late
+        // results file, the revised file and the retention file. All three are optional slots
+        // (#324), so leaving them empty is the shape a real window is in for most of its life —
+        // and it is what proves the exercise validates on its main file alone. Both files are
+        // checked before either is opened, or a slot with a CSV but no schema (or vice versa)
+        // would throw FileNotFoundException out of UploadAsync and take the seed (and startup)
+        // down — the exact failure this guard exists to prevent.
         foreach (var exercise in window.CheckingExercises)
         {
             foreach (var dataset in exercise.Datasets.OrderBy(d => d.SortOrder))

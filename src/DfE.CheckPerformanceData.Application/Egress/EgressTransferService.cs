@@ -160,7 +160,7 @@ public sealed class EgressTransferService(IEgressRunRepository repository, IEgre
                 reason += $" Could not remove {possiblyOrphaned} from the target container — remove it by hand before retrying.";
             }
         }
-        await repository.MarkTransferFailedAsync(runId, expectedStatus, reason, actor.UserId.ToString(), ct);
+        await repository.MarkTransferFailedAsync(runId, expectedStatus, reason, actor.UserId.ToString(), actor.DisplayName, ct);
         return new EgressTransferResult.Failed(reason);
     }
 

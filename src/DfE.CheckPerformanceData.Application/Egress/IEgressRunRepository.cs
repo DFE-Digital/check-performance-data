@@ -51,8 +51,8 @@ public interface IEgressRunRepository
     Task<(EgressOutputType OutputType, EgressBlocker Blocker)?> TryReactivateAsync(Guid runId, CancellationToken ct);
     /// <summary>M4: guarded by <paramref name="expectedStatus"/>; returns rows affected (0 = lost the race — no Succeeded audit row is written).</summary>
     Task<int> MarkTransferredAsync(Guid runId, EgressRunStatus expectedStatus, EgressTransferAudit audit, DateTime transferredAtUtc, CancellationToken ct);
-    /// <summary>M4: guarded by <paramref name="expectedStatus"/>; returns rows affected (0 = the run had already moved on, e.g. to Abandoned — nothing was overwritten).</summary>
-    Task<int> MarkTransferFailedAsync(Guid runId, EgressRunStatus expectedStatus, string reason, string userId, CancellationToken ct);
+    /// <summary>M4: guarded by <paramref name="expectedStatus"/>; returns rows affected (0 = the run had already moved on, e.g. to Abandoned — nothing was overwritten). The audit row names the window, output types and <paramref name="userName"/> (AB#294592).</summary>
+    Task<int> MarkTransferFailedAsync(Guid runId, EgressRunStatus expectedStatus, string reason, string userId, string userName, CancellationToken ct);
     /// <summary>Excludes only Transferred; admits Preprocessing/Transferring so a stuck run can always be released. Returns rows affected (0 = already Transferred).</summary>
     Task<int> AbandonAsync(Guid runId, CancellationToken ct);
 }

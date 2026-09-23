@@ -10,13 +10,16 @@ cumulative filters, 20 rows a page, and a CSV export of the filtered set.
   per tracked entity change: `EntityType` is the CLR type name, `EntityId` the primary key,
   `UserId` the DfE Sign-In subject (`system` outside a request, `rules-engine-worker` in the
   worker). Excluded as telemetry or bulk-derived data: queue metrics, search events and hit rows,
-  organisation logins, the egress learner rows and `EgressRunOutput`.
+  organisation logins, the egress learner rows and `EgressRunOutput`. Not excluded: every `AppLog`
+  row the database log sink persists, so "App log / Insert" rows make up most of an unfiltered log
+  (about 70% in a dev database). Whether to exclude them is an open product question.
 - **Deliberate rows** written by hand: `ContentBundle/Import`, `DlqMessage/…` (redrive, purge,
   full-payload view), `SearchSession/SearchSessionDelete`, `SearchAnalyticsSink/…`, rules-config
   actions, and the two egress rows below.
 - **Egress pulls.** The run row itself is not excluded from the generic capture, so every pull is
-  also an `EgressRun`/`Insert` row (PascalCase payload with the window id). The log shows it as
-  **Data egress · Run started** with no status; the status filter never matches it.
+  also an `EgressRun`/`Insert` row (PascalCase payload with the window id and the starter's name).
+  The log shows it as **Data egress · Run started**, naming the person who pulled, with no status;
+  the status filter never matches it.
 - **Egress transfers.** `EgressRunRepository.MarkTransferredAsync` and `MarkTransferFailedAsync`
   each write one `EgressRun` row — `Transfer` or `TransferFailed` — **inside the same transaction as
   the guarded status flip**, so a run that reached transfer always has exactly one row per attempt
@@ -64,4 +67,6 @@ Entity id,Checking window,Output types,Status`. No cap; rows stream straight to 
 - Egress failure rows written before AB#294592 carry no `windowId`/`outputTypes`/`transferredBy`
   (dev and review databases only): they show "Unknown window", no files and the subject id, but
   still filter by window through their run.
-- A dev "Reset seed data" wipes `egress_runs`; the audit rows stay and show "Unknown window".
+- A dev "Reset seed data" or `/dev/egress/cleanup` deletes the runs; their audit rows remain and
+  still show the window's title (the payload carries the window id), but they no longer match the
+  checking-window filter, which resolves through `egress_runs`. Production never deletes runs.

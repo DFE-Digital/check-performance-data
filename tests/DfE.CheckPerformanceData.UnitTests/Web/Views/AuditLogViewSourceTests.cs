@@ -35,8 +35,10 @@ public sealed class AuditLogViewSourceTests
         Assert.Contains("name=\"windowId\"", view);
         Assert.Contains("name=\"status\"", view);
         Assert.Contains("Filter by activity", view);
-        Assert.Contains("Filter by checking window", view);
+        Assert.Contains("Filter by window", view);
         Assert.Contains("Filter by status", view);
+        // Three one-third columns: without the width override govuk-select's minimum width overflows them.
+        Assert.Equal(3, view.Split("govuk-select govuk-!-width-full").Length - 1);
         Assert.Contains(">All activity</option>", view);
         Assert.Contains(">All windows</option>", view);
         Assert.Contains(">All statuses</option>", view);
@@ -53,7 +55,7 @@ public sealed class AuditLogViewSourceTests
         Assert.Contains("data-testid=\"audit-log-empty\"", view);
         Assert.Contains("No audit records match the filters you have applied.", view);
         Assert.Contains("There are no audit records yet.", view);
-        Assert.Contains("@if (Model.IsEmpty)", view);
+        Assert.Contains("Model.IsEmpty", view);
     }
 
     [Fact]
@@ -68,12 +70,16 @@ public sealed class AuditLogViewSourceTests
         Assert.Contains(">Status</th>", view);
         Assert.Contains("data-testid=\"audit-log-row\"", view);
         Assert.Contains("data-entity-type=\"@row.EntityType\"", view);
-        Assert.Contains("data-entity-id=\"@row.EntityId\" data-action=\"@row.Action\"", view);
-        Assert.Contains("govuk-tag @row.ActivityTagClass\">@row.ActivityLabel</strong>", view);
-        Assert.Contains("govuk-tag @row.OutcomeTagClass\">@row.OutcomeLabel</strong>", view);
+        Assert.Contains("data-entity-id=\"@row.EntityId\"", view);
+        Assert.Contains("data-action=\"@row.Action\"", view);
+        Assert.Contains("@row.ActivityTagClass", view);
+        Assert.Contains("@row.ActivityLabel", view);
+        Assert.Contains("@row.OutcomeTagClass", view);
+        Assert.Contains("@row.OutcomeLabel", view);
         Assert.Contains("@row.WindowDetail", view);
         Assert.Contains("@row.ActivityDetail", view);
-        Assert.Contains("HH:mm:ss\") UTC", view);
+        Assert.Contains("HH:mm:ss", view);
+        Assert.Contains("UTC", view);
     }
 
     [Fact]

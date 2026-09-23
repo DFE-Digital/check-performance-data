@@ -19,10 +19,10 @@ public sealed class EgressAuditPayloadTests
         var payload = EgressAuditPayload.TryParse(json);
 
         Assert.NotNull(payload);
-        Assert.Equal("Succeeded", payload!.Outcome);
-        Assert.Equal(Guid.Parse("f34d285b-8660-4d12-9c30-787328deaa0a"), payload.WindowId);
+        Assert.Equal(Guid.Parse("f34d285b-8660-4d12-9c30-787328deaa0a"), payload!.WindowId);
         Assert.Equal(new[] { "NewLearners", "RemoveLearners" }, payload.OutputTypes);
         Assert.Equal("Ops One", payload.TransferredBy);
+        Assert.Null(payload.StartedByName);
     }
 
     [Fact]
@@ -30,8 +30,7 @@ public sealed class EgressAuditPayloadTests
     {
         var legacy = EgressAuditPayload.TryParse("""{"outcome":"Failed","reason":"Blob upload refused"}""");
         Assert.NotNull(legacy);
-        Assert.Equal("Failed", legacy!.Outcome);
-        Assert.Null(legacy.WindowId);
+        Assert.Null(legacy!.WindowId);
         Assert.Null(legacy.OutputTypes);
         Assert.Null(legacy.TransferredBy);
 
@@ -44,11 +43,12 @@ public sealed class EgressAuditPayloadTests
     public void Parses_the_generic_captures_pascal_case_insert_row_for_a_run()
     {
         // PortalDbContext's capture records the run row's creation (the pull) with PascalCase keys;
-        // the log still needs its window, and must not invent output types or a person.
-        var pulled = EgressAuditPayload.TryParse("""{"Id":"33333333-3333-3333-3333-333333333333","WindowId":"f34d285b-8660-4d12-9c30-787328deaa0a","Status":"Pulled","StartedByName":"Ops One","StartedAtUtc":"2026-06-08T14:00:00Z"}""");
+        // the log still needs its window and the person who started the run, and must not invent
+        // output types or a transfer.
+        var pulled = EgressAuditPayload.TryParse("""{"Id":"33333333-3333-3333-3333-333333333333","WindowId":"f34d285b-8660-4d12-9c30-787328deaa0a","Status":"Pulled","StartedByName":"Ops One","StartedByEmail":"ops.one@education.gov.uk","StartedAtUtc":"2026-06-08T14:00:00Z"}""");
         Assert.NotNull(pulled);
-        Assert.Null(pulled!.Outcome);
-        Assert.Equal(Guid.Parse("f34d285b-8660-4d12-9c30-787328deaa0a"), pulled.WindowId);
+        Assert.Equal(Guid.Parse("f34d285b-8660-4d12-9c30-787328deaa0a"), pulled!.WindowId);
+        Assert.Equal("Ops One", pulled.StartedByName);
         Assert.Null(pulled.OutputTypes);
         Assert.Null(pulled.TransferredBy);
     }

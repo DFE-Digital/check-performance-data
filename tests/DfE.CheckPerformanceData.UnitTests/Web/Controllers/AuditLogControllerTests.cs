@@ -52,7 +52,7 @@ public sealed class AuditLogControllerTests
     private static AuditLogRow Plain() => new(3, At, "system", null, "Setting", "CMS:PageLength", "Update", null, null, [], null);
 
     // The generic capture's record of a run's creation (the pull): egress activity, no outcome.
-    private static AuditLogRow Pulled() => new(4, At, "sub-1", null, "EgressRun", "44444444-4444-4444-4444-444444444444", "Insert", WindowId, "KS4 June 2026", [], null);
+    private static AuditLogRow Pulled() => new(4, At, "sub-1", "Ops One", "EgressRun", "44444444-4444-4444-4444-444444444444", "Insert", WindowId, "KS4 June 2026", [], null);
 
     private static async Task<AuditLogViewModel> ModelOf(AuditLogController controller, string? activity = null, Guid? windowId = null, string? status = null, int page = 1)
     {
@@ -131,7 +131,7 @@ public sealed class AuditLogControllerTests
     public async Task A_pull_is_egress_activity_with_no_status()
     {
         var row = Assert.Single((await ModelOf(Build(Pulled()))).Rows);
-        Assert.Equal("sub-1", row.UserLabel);               // the generic capture knows the subject id only
+        Assert.Equal("Ops One", row.UserLabel);             // the run row's own payload names the starter
         Assert.Equal("Data egress", row.ActivityLabel);
         Assert.Equal("govuk-tag--turquoise", row.ActivityTagClass);
         Assert.Equal("Run started", row.ActivityDetail);

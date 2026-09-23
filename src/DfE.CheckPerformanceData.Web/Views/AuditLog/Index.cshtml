@@ -18,7 +18,7 @@
         <div class="govuk-grid-column-one-third">
             <div class="govuk-form-group">
                 <label class="govuk-label" for="activity">Filter by activity</label>
-                <select class="govuk-select" id="activity" name="activity">
+                <select class="govuk-select govuk-!-width-full" id="activity" name="activity">
                     <option value="" selected="@(Model.SelectedActivity is null)">All activity</option>
                     @foreach (var activity in Model.Activities)
                     {
@@ -29,8 +29,8 @@
         </div>
         <div class="govuk-grid-column-one-third">
             <div class="govuk-form-group">
-                <label class="govuk-label" for="windowId">Filter by checking window</label>
-                <select class="govuk-select" id="windowId" name="windowId">
+                <label class="govuk-label" for="windowId">Filter by window</label>
+                <select class="govuk-select govuk-!-width-full" id="windowId" name="windowId">
                     <option value="" selected="@(Model.SelectedWindowId is null)">All windows</option>
                     @foreach (var window in Model.Windows)
                     {
@@ -42,7 +42,7 @@
         <div class="govuk-grid-column-one-third">
             <div class="govuk-form-group">
                 <label class="govuk-label" for="status">Filter by status</label>
-                <select class="govuk-select" id="status" name="status">
+                <select class="govuk-select govuk-!-width-full" id="status" name="status">
                     <option value="" selected="@(Model.SelectedOutcome is null)">All statuses</option>
                     @foreach (var outcome in AuditActivities.AllOutcomes)
                     {

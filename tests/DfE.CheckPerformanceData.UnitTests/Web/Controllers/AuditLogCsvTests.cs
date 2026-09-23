@@ -44,6 +44,18 @@ public sealed class AuditLogCsvTests
     public void Fields_are_quoted_only_when_they_need_to_be(string? field, string expected)
         => Assert.Equal(expected, AuditLogCsv.Field(field));
 
+    // OWASP CSV injection: a leading = + - @ tab or CR would run as a formula in a spreadsheet.
+    [Theory]
+    [InlineData("=HYPERLINK(\"x\")", "\"'=HYPERLINK(\"\"x\"\")\"")]
+    [InlineData("+1", "'+1")]
+    [InlineData("-1", "'-1")]
+    [InlineData("@x", "'@x")]
+    [InlineData("\tx", "'\tx")]
+    [InlineData("\rx", "\"'\rx\"")]
+    [InlineData("x=1", "x=1")]
+    public void A_field_that_would_run_as_a_formula_is_prefixed_with_an_apostrophe(string field, string expected)
+        => Assert.Equal(expected, AuditLogCsv.Field(field));
+
     private static async IAsyncEnumerable<AuditLogRow> Rows(params AuditLogRow[] rows)
     {
         foreach (var row in rows)
@@ -64,6 +76,7 @@ public sealed class AuditLogCsvTests
 
         Assert.Equal("text/csv; charset=utf-8", http.Response.ContentType);
         Assert.Equal("attachment; filename=\"audit-log-20260608-143802.csv\"", http.Response.Headers["Content-Disposition"].ToString());
+        Assert.Equal("no-store", http.Response.Headers.CacheControl.ToString());
         http.Response.Body.Position = 0;
         var body = await new StreamReader(http.Response.Body).ReadToEndAsync();
         // Encoding.UTF8 writes a BOM (Excel-friendly, same as the app-logs download), so Contains, not StartsWith.

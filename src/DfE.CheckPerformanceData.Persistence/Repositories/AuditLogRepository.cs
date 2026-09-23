@@ -107,7 +107,7 @@ public sealed class AuditLogRepository(IPortalDbContext db) : IAuditLogRepositor
         {
             var payload = EgressAuditPayload.TryParse(raw.EgressPayload);
             windowId = payload?.WindowId;
-            userName = payload?.TransferredBy;
+            userName = payload?.TransferredBy ?? payload?.StartedByName;   // a transfer names the transferrer; a pull, the starter
             outputTypes = payload?.OutputTypes ?? [];
         }
         else if (raw.EntityType == AuditActivities.CheckingWindow && Guid.TryParse(raw.EntityId, out var id))

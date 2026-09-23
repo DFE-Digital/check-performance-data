@@ -122,8 +122,8 @@ public sealed class AuditLogRepositoryTests(PostgresFixture fixture)
         Assert.Equal("Audit log window", failure.WindowTitle);
         Assert.Equal(new[] { "RemoveLearners" }, failure.OutputTypes);
 
-        // The pulls: the generic capture's PascalCase payload still yields the window; no outcome,
-        // no output types, no person beyond the subject id.
+        // The pulls: the generic capture's PascalCase payload still yields the window and the person
+        // who started the run; no outcome and no output types.
         var pulled = rows.Where(r => r.EntityType == AuditActivities.Egress && r.Action == "Insert").ToList();
         Assert.Equal(2, pulled.Count);
         Assert.All(pulled, r =>
@@ -132,7 +132,7 @@ public sealed class AuditLogRepositoryTests(PostgresFixture fixture)
             Assert.Equal(windowId, r.WindowId);
             Assert.Equal("Audit log window", r.WindowTitle);
             Assert.Empty(r.OutputTypes);
-            Assert.Null(r.UserName);
+            Assert.Equal("Ops One", r.UserName);   // StartedByName from the run row's payload; UserId is the capture's current user
         });
 
         var window = rows.First(r => r.EntityType == AuditActivities.CheckingWindow);
@@ -166,6 +166,36 @@ public sealed class AuditLogRepositoryTests(PostgresFixture fixture)
         var windowRowOnly = await repo.ListAsync(new AuditLogFilter(AuditActivities.CheckingWindow, windowId, null), 1, 20, CancellationToken.None);
         Assert.All(windowRowOnly.Rows, r => Assert.Equal(AuditActivities.CheckingWindow, r.EntityType));
         Assert.NotEmpty(windowRowOnly.Rows);
+    }
+
+    [Fact]
+    public async Task The_status_filter_never_matches_a_non_egress_row_that_shares_the_action_name()
+    {
+        // Guards the EntityType half of the status clause: another entity type may legitimately
+        // record a "Transfer" or "TransferFailed" action, and it must neither gain an outcome nor
+        // answer a status filter. Every row of the window facts is either egress or a CheckingWindow
+        // Insert, so without this probe the clause could be dropped unnoticed.
+        var probe = NewProbeType();
+        await using (var db = fixture.CreateContext())
+        {
+            var at = new DateTime(2026, 1, 2, 3, 4, 5, DateTimeKind.Utc);
+            db.AuditEntries.Add(new AuditEntry { EntityType = probe, EntityId = "t", Action = AuditActivities.TransferAction, Timestamp = at, UserId = "probe-user" });
+            db.AuditEntries.Add(new AuditEntry { EntityType = probe, EntityId = "f", Action = AuditActivities.TransferFailedAction, Timestamp = at, UserId = "probe-user" });
+            await db.SaveChangesAsync();
+        }
+        var repo = Repository();
+
+        var unfiltered = await repo.ListAsync(new AuditLogFilter(probe, null, null), 1, 20, CancellationToken.None);
+        Assert.Equal(2, unfiltered.TotalCount);
+        Assert.All(unfiltered.Rows, r => Assert.Null(r.Outcome));
+
+        var success = await repo.ListAsync(new AuditLogFilter(probe, null, AuditOutcome.Success), 1, 20, CancellationToken.None);
+        Assert.Empty(success.Rows);
+        Assert.Equal(0, success.TotalCount);
+
+        var failed = await repo.ListAsync(new AuditLogFilter(probe, null, AuditOutcome.Failed), 1, 20, CancellationToken.None);
+        Assert.Empty(failed.Rows);
+        Assert.Equal(0, failed.TotalCount);
     }
 
     [Fact]

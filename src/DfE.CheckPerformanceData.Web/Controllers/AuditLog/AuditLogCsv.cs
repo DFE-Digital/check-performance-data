@@ -25,10 +25,14 @@ public static class AuditLogCsv
     });
 
     // Excel-friendly CSV: quote when the field contains a delimiter, quote, or newline; double any
-    // embedded quotes. Same rule as the app-logs download.
+    // embedded quotes (the app-logs download's rule). One addition: a value that begins with = + - @
+    // tab or CR is evaluated as a formula when the file is opened in a spreadsheet (OWASP CSV
+    // injection), and window titles and display names are typed by other people, so such a value
+    // is prefixed with an apostrophe, which spreadsheets show as text.
     public static string Field(string? field)
     {
         if (string.IsNullOrEmpty(field)) return string.Empty;
+        if (field[0] is '=' or '+' or '-' or '@' or '\t' or '\r') field = "'" + field;
         var needsQuotes = field.IndexOfAny([',', '"', '\n', '\r']) >= 0;
         var escaped = field.Replace("\"", "\"\"");
         return needsQuotes ? $"\"{escaped}\"" : escaped;
@@ -50,6 +54,7 @@ public sealed class AuditLogCsvResult(IAsyncEnumerable<AuditLogRow> rows, string
         var response = context.HttpContext.Response;
         response.ContentType = "text/csv; charset=utf-8";
         response.Headers.Append("Content-Disposition", $"attachment; filename=\"{fileName}\"");
+        response.Headers.CacheControl = "no-store";   // the file names people; never leave it in a shared cache
 
         await using var writer = new StreamWriter(response.Body, Encoding.UTF8, bufferSize: 4096, leaveOpen: true);
         await writer.WriteLineAsync(AuditLogCsv.Header);

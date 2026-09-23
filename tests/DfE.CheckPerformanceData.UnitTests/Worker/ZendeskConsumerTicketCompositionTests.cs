@@ -1,4 +1,5 @@
 using System.Globalization;
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.RulesEngine;
@@ -533,12 +534,99 @@ public sealed class ZendeskConsumerTicketCompositionTests
         Assert.DoesNotContain(ticket.CustomFields ?? new(), f => f.Id == 51);
     }
 
+    // --- Feature 456: KS4 included Pincl rendered as a description line (US1 / FR-002, FR-003) ---
+
+    [Fact]
+    public void Description_IncludesPinclLine_ForKs4AddBackPupil()
+    {
+        var consumer = NewConsumer();
+        // The ticket 90082 shape: a KS4 add-back where the engine fell back to Scrutiny.
+        var msg = NewMessage("Remove - completed-ks4-elsewhere", "KS4June", pincl: 403);
+        var decision = new Decision(DecisionStatus.Scrutiny, "CompletedKs4Elsewhere", "CKS4-DEF", Array.Empty<string>());
+
+        var ticket = consumer.BuildTicket(msg, decision).Ticket;
+
+        Assert.Contains($"Matched rule: CKS4-DEF{Environment.NewLine}Pincl: 403", ticket.Description);
+    }
+
+    public static IEnumerable<object[]> Ks4IncludedPinclCodes =>
+        PupilInclusion.Ks4IncludedPinclCodes.Select(code => new object[] { code });
+
+    [Theory]
+    [MemberData(nameof(Ks4IncludedPinclCodes))]
+    public void Description_IncludesPinclLine_ForEveryKs4IncludedCode(int pinclCode)
+    {
+        var consumer = NewConsumer();
+        var decision = new Decision(DecisionStatus.AutoApproved, "Deceased", "DEC-1", Array.Empty<string>());
+
+        var ticket = consumer.BuildTicket(NewMessage("Remove - pupil-died", "KS4", pincl: pinclCode), decision).Ticket;
+
+        Assert.Contains($"Pincl: {pinclCode}", ticket.Description);
+    }
+
+    [Fact]
+    public void Description_ExcludesPinclLine_ForNonIncludedPincl()
+    {
+        var consumer = NewConsumer();
+        var decision = new Decision(DecisionStatus.AutoApproved, "Deceased", "DEC-1", Array.Empty<string>());
+
+        foreach (var code in new[] { 402, 404, 0 })
+        {
+            var ticket = consumer.BuildTicket(NewMessage("Remove - pupil-died", "KS4", pincl: code), decision).Ticket;
+            Assert.DoesNotContain("Pincl:", ticket.Description);
+        }
+    }
+
+    [Fact]
+    public void Description_ExcludesPinclLine_ForNonRemoveRequests()
+    {
+        var consumer = NewConsumer();
+        var decision = new Decision(DecisionStatus.AutoApproved, "Deceased", "DEC-1", Array.Empty<string>());
+
+        foreach (var whatToChange in new[] { "Include", "Add - pupil-died", "Results enquiry - Incorrect grade" })
+        {
+            var ticket = consumer.BuildTicket(NewMessage(whatToChange, "KS4", pincl: 403), decision).Ticket;
+            Assert.DoesNotContain("Pincl:", ticket.Description);
+        }
+    }
+
+    [Fact]
+    public void Description_ExcludesPinclLine_ForPost16Window()
+    {
+        var consumer = NewConsumer();
+        var decision = new Decision(DecisionStatus.Scrutiny, "Deceased", "P16-DEF", Array.Empty<string>());
+
+        // A Post16 pupil cannot hold a KS4 included Pincl: Post16 inclusion is ingest-stamped
+        // (Post16PupilRecord.Included) and its seeded codes are 501/502/505/506, so the
+        // IsKs4Included gate alone excludes Post16 - no window-type check is needed (FR-003).
+        foreach (var code in new[] { 501, 0 })
+        {
+            var ticket = consumer.BuildTicket(NewMessage("Remove - student-died", "Post16", pincl: code), decision).Ticket;
+            Assert.DoesNotContain("Pincl:", ticket.Description);
+        }
+    }
+
+    // The Pincl line is description-only (SC-003): it must never become a custom field. With the
+    // engine field IDs unset (all 0, as in production.yml), the eligible add-back request renders
+    // "Pincl: 403" in the description while CustomFields stays empty.
+    [Fact]
+    public void Description_IncludesPinclLine_WithoutAddingACustomField()
+    {
+        var consumer = NewConsumer();
+        var decision = new Decision(DecisionStatus.Scrutiny, "CompletedKs4Elsewhere", "CKS4-DEF", Array.Empty<string>());
+
+        var ticket = consumer.BuildTicket(NewMessage("Remove - completed-ks4-elsewhere", "KS4June", pincl: 403), decision).Ticket;
+
+        Assert.Contains("Pincl: 403", ticket.Description);
+        Assert.DoesNotContain(ticket.CustomFields ?? new(), f => (string)f.Value! == "CompletedKs4Elsewhere");
+    }
+
     // --- helpers ---
 
     private static RequestDocument NewMessage(string whatToChange, params AnswerRecord[] answers) =>
-        NewMessage(whatToChange, "KS4", laestab: null, matchRef: 0, entryDate: null, upn: "UPN1", cypmdId: "1001", answers);
+        NewMessage(whatToChange, "KS4", laestab: null, matchRef: 0, entryDate: null, upn: "UPN1", cypmdId: "1001", answers: answers);
 
-    private static RequestDocument NewMessage(string whatToChange, string windowType, string? laestab = null, int matchRef = 0, string? entryDate = null, string? upn = "UPN1", string cypmdId = "1001", params AnswerRecord[] answers) => new()
+    private static RequestDocument NewMessage(string whatToChange, string windowType, string? laestab = null, int matchRef = 0, string? entryDate = null, string? upn = "UPN1", string cypmdId = "1001", int pincl = 0, params AnswerRecord[] answers) => new()
     {
         ReferenceNumber = "REF",
         CheckingWindowId = Guid.NewGuid(),
@@ -552,7 +640,7 @@ public sealed class ZendeskConsumerTicketCompositionTests
         {
             Id = "p1", CypmdId = cypmdId, Firstname = "Bob", Surname = "Smith",
             DateOfBirth = "01/01/2010", Sex = "M", Age = 14, Upn = upn, MatchRef = matchRef,
-            EntryDate = entryDate ?? string.Empty,
+            EntryDate = entryDate ?? string.Empty, Pincl = pincl,
         },
         Answers = answers.ToList(),
     };

@@ -350,6 +350,12 @@ public sealed class ZendeskConsumer : ConsumerBase
         sb.AppendLine($"Outcome: {decision.OutcomeKey}");
         sb.AppendLine($"Decision: {decision.Status}");
         sb.AppendLine($"Matched rule: {decision.MatchedRuleId}");
+        if (message.RequestTypeCode.StartsWith("Remove", StringComparison.OrdinalIgnoreCase)
+            && PupilInclusion.IsKs4Included(message.Pupil.Pincl))
+        {
+            sb.AppendLine($"Pincl: {message.Pupil.Pincl}");
+        }
+
         sb.AppendLine();
 
         // The evaluation trace is deliberately NOT rendered here. It is admin-only: it lives on

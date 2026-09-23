@@ -6,6 +6,7 @@ using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
+using DfE.CheckPerformanceData.Infrastructure.Ingress;
 using DfE.CheckPerformanceData.Infrastructure.RulesEngine;
 using DfE.CheckPerformanceData.Persistence.Seeding;
 using Microsoft.Extensions.Hosting;
@@ -28,6 +29,7 @@ public sealed class DevDataSeedingOrchestrator(
     IRequestStateBlobClient requestStateBlobClient,
     ICheckYourPupilDataService checkYourPupilDataService,
     ICheckingExerciseService checkingExerciseService,
+    ICheckingExerciseIngress checkingExerciseIngress,
     RulesConfigSeeder rulesConfigSeeder,
     QualificationReferenceBlobClient qualificationReferenceBlobClient,
     IHostEnvironment environment,
@@ -36,7 +38,7 @@ public sealed class DevDataSeedingOrchestrator(
     public async Task RunAsync()
     {
         await devDataSeeder.SeedAsync();
-        await SeedPost16Ingress.ExecuteSeedAsync(dbContext, blobServiceClient, environment.ContentRootPath);
+        await SeedPost16Ingress.ExecuteSeedAsync(dbContext, blobServiceClient, checkingExerciseIngress, environment.ContentRootPath);
 
         await SeedPupilData.ExecuteSeedAsync(pupilDataBlobClient);
         await SeedPupilData.ExecutePost16SeedAsync(pupilDataBlobClient, DevDataSeeder.Post16CheckingWindowId);

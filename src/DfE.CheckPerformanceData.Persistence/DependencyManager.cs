@@ -53,6 +53,9 @@ public static class DependencyManager
                            ContentStaging.ContentStagingSessionStore>();
         services.AddScoped<ILandingPageRepository, LandingPageRepository>();
         services.AddScoped<IWindowRepository, WindowRepository>();
+        services.AddScoped<ICheckingDataCatalogue, CheckingDataCatalogue>();
+        services.AddScoped<ICheckingExerciseDefinitionRepository, CheckingExerciseDefinitionRepository>();
+        services.AddScoped<ICheckingExerciseStorageResolver, CheckingExerciseStorageResolver>();
         services.AddScoped<ICheckYourPupilDataRepository, CheckYourPupilDataRepository>();
         services.AddScoped<IRequestRepository, RequestRepository>();
         services.AddScoped<Application.AdminRequests.IAdminRequestsRepository,

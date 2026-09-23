@@ -65,9 +65,13 @@ public class CheckingExerciseMappingTests
     [Fact]
     public void Deleting_a_window_cascades_to_its_exercises()
     {
-        var foreignKey = Assert.Single(ExerciseEntity().GetForeignKeys());
+        // #466 added a second foreign key (ReplacesCheckingExerciseId, self-referencing, Restrict)
+        // alongside this one, so the window relationship is picked out by its principal type rather
+        // than assumed to be the only one.
+        var foreignKey = Assert.Single(
+            ExerciseEntity().GetForeignKeys(),
+            fk => fk.PrincipalEntityType.ClrType == typeof(CheckingWindow));
 
-        Assert.Equal(typeof(CheckingWindow), foreignKey.PrincipalEntityType.ClrType);
         Assert.Equal(DeleteBehavior.Cascade, foreignKey.DeleteBehavior);
         Assert.Equal(
             nameof(CheckingWindow.CheckingExercises),

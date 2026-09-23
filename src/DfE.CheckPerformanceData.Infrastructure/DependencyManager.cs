@@ -15,6 +15,7 @@ using DfE.CheckPerformanceData.Application.Notify;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Application.RulesConfig;
 using DfE.CheckPerformanceData.Application.RulesEngine;
+using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Application.ZendeskClient;
 using DfE.CheckPerformanceData.Infrastructure.DfeSignInApiClient;
 using DfE.CheckPerformanceData.Infrastructure.Ingress;
@@ -61,6 +62,15 @@ public static class DependencyManager
         // the Web host) because the Persistence repositories that consume it are pulled in
         // by every host that calls AddPersistenceDependencies — including the worker.
         services.AddScoped<IPupilDataBlobClient, PupilDataBlobClient>();
+        // ICheckingDataReader takes only a BlobServiceClient, so it is safe to construct in every
+        // host that reaches this bundle (including the worker). ICheckingExerciseIngress is
+        // deliberately NOT registered here: it also needs ICheckingExerciseDefinitionRepository
+        // (Persistence, wired by AddPersistenceDependencies — which the worker opts out of, see
+        // the IStudentResultsClient note below) and ICsvSchemaFileProcessor (registered only in
+        // the Web host's AddCpdBlobStorage). Registering it here would pass validate-on-build for
+        // no host, because the web host never calls AddInfrastructureDependencies either — see
+        // BlobStorageExtensions.AddCpdBlobStorage, which is where it is registered instead.
+        services.AddScoped<ICheckingDataReader, CheckingDataReader>();
 
         // IStudentResultsClient is deliberately NOT registered here. Its implementation takes an
         // IMemoryCache, which this bundle's only caller — the worker — does not have: AddMemoryCache

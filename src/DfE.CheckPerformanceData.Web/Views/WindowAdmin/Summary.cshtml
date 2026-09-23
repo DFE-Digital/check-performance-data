@@ -60,7 +60,7 @@
   </row>
   <row>
     <key>Checking exercises</key>
-    <value>@(Model.Exercises.Count == 0 ? "None" : string.Join(", ", Model.Exercises.Select(e => e.Label)))</value>
+    <value>@(Model.Exercises.Count == 0 ? "None" : string.Join(", ", Model.Exercises.Select(e => e.Name)))</value>
     <row-actions>
       <action href="@Model.ExercisesLink" visually-hidden-text="Checking exercises">Change</action>
     </row-actions>
@@ -81,26 +81,40 @@
   </row>
 </govuk-summary-list>
 
-@* One section per checking exercise. Each validates independently — a window is usable while
-   another of its exercises is still unvalidated. *@
+<h2 class="govuk-heading-m">Checking exercises</h2>
+
+@* One section per checking exercise, including display-only data shares (#466) — every link here
+   is addressed by exercise id, which every exercise has, never by kind, which a data share does
+   not. Each validates independently — a window is usable while another of its exercises is still
+   unvalidated. *@
 @foreach (var exercise in Model.Exercises)
 {
-  <h2 class="govuk-heading-m">@exercise.Label</h2>
+  <h3 class="govuk-heading-s">@exercise.Name</h3>
 
   <govuk-summary-list>
     <row>
+      <key>Name</key>
+      <value>@exercise.Name</value>
+    </row>
+    <row>
+      <key>Tab name</key>
+      <value>@(exercise.TabName ?? "Not configured")</value>
+    </row>
+    <row>
+      <key>Kind</key>
+      <value>@exercise.KindLabel</value>
+    </row>
+    <row>
       <key>Start Date</key>
       <value>@exercise.StartDate.ToString("dd/MM/yyyy HH:mm")</value>
-      <row-actions>
-        <action href="@exercise.DatesLink" visually-hidden-text="@exercise.Label start date">Change</action>
-      </row-actions>
     </row>
     <row>
       <key>End Date</key>
       <value>@exercise.EndDate.ToString("dd/MM/yyyy HH:mm")</value>
-      <row-actions>
-        <action href="@exercise.DatesLink" visually-hidden-text="@exercise.Label end date">Change</action>
-      </row-actions>
+    </row>
+    <row>
+      <key>Visible to schools</key>
+      <value>@(exercise.IsEnabled ? "Yes" : "No")</value>
     </row>
     <row>
       <key>Validated</key>
@@ -123,6 +137,12 @@
     </row>
   </govuk-summary-list>
 
+  @* Everything above is edited on the one page — name, tab, kind, dates, visibility and data
+     files — so there is a single Edit link per section rather than a Change link per field. *@
+  <p class="govuk-body">
+    <a class="govuk-link" href="@exercise.EditLink">Edit<span class="govuk-visually-hidden"> @exercise.Name</span></a>
+  </p>
+
   @if (exercise.Datasets.Count == 0)
   {
     <p class="govuk-body">This exercise has no ingress files to load.</p>
@@ -134,32 +154,33 @@
       {
         @* An optional slot is a file the supplier may deliver later, or not at all — the results
            feed's late, revised and retention files. Saying so is what stops an admin waiting for a
-           file that is not coming before validating the ones that have arrived. *@
+           file that is not coming before validating the ones that have arrived. Bare filenames —
+           an upload stores a complete blob name (ingress/{exerciseId}/{datasetId}/main.csv), and
+           showing that path verbatim would be meaningless to an admin. *@
         <row>
           <key>@dataset.Label — ingress file@(dataset.Required ? "" : " (optional)")</key>
-          <value>@(string.IsNullOrWhiteSpace(dataset.IngressFile) ? "Not supplied" : dataset.IngressFile)</value>
-          <row-actions>
-            <action href="@dataset.IngressFileLink" visually-hidden-text="@dataset.Label ingress file">Change</action>
-          </row-actions>
+          <value>@(string.IsNullOrWhiteSpace(dataset.IngressFile) ? "Not supplied" : System.IO.Path.GetFileName(dataset.IngressFile))</value>
         </row>
         <row>
           <key>@dataset.Label — schema file@(dataset.Required ? "" : " (optional)")</key>
-          <value>@(string.IsNullOrWhiteSpace(dataset.SchemaFile) ? "Not supplied" : dataset.SchemaFile)</value>
-          <row-actions>
-            <action href="@dataset.SchemaFileLink" visually-hidden-text="@dataset.Label schema file">Change</action>
-          </row-actions>
+          <value>@(string.IsNullOrWhiteSpace(dataset.SchemaFile) ? "Not supplied" : System.IO.Path.GetFileName(dataset.SchemaFile))</value>
         </row>
       }
     </govuk-summary-list>
+  }
 
-    <govuk-button-link disabled="@(!exercise.IsValidatable)" href="@exercise.ValidateLink">
-      Validate @exercise.Label
-    </govuk-button-link>
+  <govuk-button-link disabled="@(!exercise.IsValidatable)" href="@exercise.ValidateLink">
+    Validate<span class="govuk-visually-hidden"> @exercise.Name</span>
+  </govuk-button-link>
 
-    @* The label is in the VISIBLE text, so the repeated-accessible-name rule needs no
-       govuk-visually-hidden suffix here. Never disabled: closing ignores the exercise's dates. *@
+  @* Kind-addressed, so only shown when this exercise has a kind: closing replays ChangeRequests,
+     which are only ever routed to a kind, so a display-only exercise can hold none to close. *@
+  @if (exercise.ExerciseType is not null)
+  {
     <govuk-button-link class="govuk-button--warning" href="@exercise.CloseLink">
-      Close @exercise.Label
+      Close<span class="govuk-visually-hidden"> @exercise.Name</span>
     </govuk-button-link>
   }
 }
+
+<govuk-button-link href="@Model.AddExerciseLink">Add checking exercise</govuk-button-link>

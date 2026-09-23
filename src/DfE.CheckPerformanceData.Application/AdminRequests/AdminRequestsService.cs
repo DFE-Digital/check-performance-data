@@ -14,9 +14,12 @@ public sealed class AdminRequestsService(
         if (window is null)
             return null;
 
+        // A display-only exercise has no kind to filter by, so it is not offered as a filter option
+        // (it has no ChangeRequest rows stamped with a kind either).
         var exercises = window.Exercises
             .OrderBy(e => e.SortOrder)
             .Select(e => e.ExerciseType)
+            .OfType<CheckingExerciseType>()
             .ToList();
 
         // A filter naming an exercise this window does not run is dropped rather than honoured.

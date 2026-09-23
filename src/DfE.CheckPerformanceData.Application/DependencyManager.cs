@@ -49,6 +49,8 @@ public static class DependencyManager
         // #317: which next-step options the check-your-pupil-data page may offer, from the open
         // exercises. The exercise-to-options map is domain knowledge, so it is not in the controller.
         services.AddScoped<INextStepsService, NextStepsService>();
+        services.AddScoped<IExerciseDisplayService, ExerciseDisplayService>();
+        services.AddScoped<IExerciseTabBuilder, ExerciseTabBuilder>();
         services.AddScoped<IJourneyValidationService, JourneyValidationService>();
         services.AddScoped<IRequestService, RequestService>();
         services.AddSingleton<IQuestionFlowService, QuestionFlowService>();

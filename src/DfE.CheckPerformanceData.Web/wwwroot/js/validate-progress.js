@@ -16,6 +16,7 @@
 
         var form = root.querySelector('[data-validate-form]');
         var startButton = root.querySelector('[data-validate-start]');
+        var clearCheckbox = root.querySelector('[data-validate-clear-checkbox]');
         var statusWrapper = root.querySelector('[data-validate-status-wrapper]');
         var statusLine = root.querySelector('[data-validate-status]');
         var summary = root.querySelector('[data-validate-summary]');
@@ -42,7 +43,13 @@
             if (statusWrapper) { statusWrapper.classList.remove('govuk-!-display-none'); }
             setStatus('Starting checks…');
 
-            var es = new EventSource(streamUrl);
+            // The checkbox is read here, not baked into the static data-stream-url attribute, so
+            // ticking it right before pressing Run affects the run that follows.
+            var clearExistingFiles = !!(clearCheckbox && clearCheckbox.checked);
+            var separator = streamUrl.indexOf('?') >= 0 ? '&' : '?';
+            var url = clearCheckbox ? streamUrl + separator + 'clearExistingFiles=' + clearExistingFiles : streamUrl;
+
+            var es = new EventSource(url);
 
             es.addEventListener('progress', function (event) {
                 var data;

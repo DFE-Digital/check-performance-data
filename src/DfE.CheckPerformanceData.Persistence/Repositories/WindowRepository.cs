@@ -29,6 +29,17 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                     .Select(e => new CheckingExerciseDto
                     {
                         Id = e.Id,
+                        UsesExerciseStorage = e.UsesExerciseStorage,
+                        Name = e.Name,
+                        TabName = e.TabName,
+                        TabOrder = e.TabOrder,
+                        IsEnabled = e.IsEnabled,
+                        DisplayOnly = e.DisplayOnly,
+                        VisibleFrom = e.VisibleFrom,
+                        VisibleUntil = e.VisibleUntil,
+                        WindowStart = w.StartDate,
+                        WindowEnd = w.EndDate,
+                        ReplacesCheckingExerciseId = e.ReplacesCheckingExerciseId,
                         ExerciseType = e.ExerciseType,
                         StartDate = e.StartDate,
                         EndDate = e.EndDate,
@@ -61,7 +72,7 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                     .ToList()
             })
             .ToListAsync(cancellationToken);
-    
+
     public async Task<CheckingWindowDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
         await dbContext.CheckingWindows
             .AsNoTracking()
@@ -85,6 +96,17 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                     .Select(e => new CheckingExerciseDto
                     {
                         Id = e.Id,
+                        UsesExerciseStorage = e.UsesExerciseStorage,
+                        Name = e.Name,
+                        TabName = e.TabName,
+                        TabOrder = e.TabOrder,
+                        IsEnabled = e.IsEnabled,
+                        DisplayOnly = e.DisplayOnly,
+                        VisibleFrom = e.VisibleFrom,
+                        VisibleUntil = e.VisibleUntil,
+                        WindowStart = w.StartDate,
+                        WindowEnd = w.EndDate,
+                        ReplacesCheckingExerciseId = e.ReplacesCheckingExerciseId,
                         ExerciseType = e.ExerciseType,
                         StartDate = e.StartDate,
                         EndDate = e.EndDate,
@@ -147,9 +169,11 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    // Exercises are keyed by type within a window (the unique index), datasets by name within an
-    // exercise: existing rows are updated in place so their Ids — and any files already uploaded
-    // against them — survive, new ones are added, and rows no longer wanted are removed.
+    // Keyed by id since #466. Type is no longer unique within a window, and a typeless share has
+    // no type to key on at all. An empty id is a row the wizard has just built. Datasets stay
+    // keyed by name within an exercise: existing rows are updated in place so their Ids — and any
+    // files already uploaded against them — survive, new ones are added, and rows no longer
+    // wanted are removed (or, for a configured exercise, disabled — see the sweep below).
     private void SyncExercises(CheckingWindow entity, List<CheckingExerciseDto> wanted)
     {
         if (wanted.Count == 0)
@@ -160,18 +184,23 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
         foreach (CheckingExerciseDto dto in wanted)
         {
             CheckingExercise? existing =
-                entity.CheckingExercises.SingleOrDefault(e => e.ExerciseType == dto.ExerciseType);
+                dto.Id != Guid.Empty
+                    ? entity.CheckingExercises.SingleOrDefault(e => e.Id == dto.Id)
+                    : entity.CheckingExercises.SingleOrDefault(e => e.ExerciseType == dto.ExerciseType);
 
             if (existing is null)
             {
                 existing = new CheckingExercise
                 {
+                    Id = dto.Id == Guid.Empty ? Guid.NewGuid() : dto.Id,
                     CheckingWindowId = entity.Id,
+                    UsesExerciseStorage = true,
                     ExerciseType = dto.ExerciseType,
                     StartDate = dto.StartDate,
                     EndDate = dto.EndDate,
                     SortOrder = dto.SortOrder
                 };
+                dbContext.Set<CheckingExercise>().Add(existing);
                 entity.CheckingExercises.Add(existing);
             }
             else
@@ -181,22 +210,34 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                 // this loop only ever reconciled datasets.
                 dbContext.Entry(existing).CurrentValues.SetValues(new
                 {
+                    dto.ExerciseType,
                     dto.StartDate,
                     dto.EndDate,
                     dto.SortOrder
                 });
             }
 
+            existing.Name = dto.Name;
+            existing.TabName = dto.TabName;
+            existing.TabOrder = dto.TabOrder;
+            existing.IsEnabled = dto.IsEnabled;
+            existing.DisplayOnly = dto.DisplayOnly;
+            existing.VisibleFrom = dto.VisibleFrom;
+            existing.VisibleUntil = dto.VisibleUntil;
+            existing.ReplacesCheckingExerciseId = dto.ReplacesCheckingExerciseId;
             existing.Validated = StampFor(dto);
 
             SyncDatasets(entity, existing, dto.Datasets);
         }
 
         foreach (CheckingExercise stale in entity.CheckingExercises
-                     .Where(e => wanted.All(x => x.ExerciseType != e.ExerciseType))
+                     .Where(e => wanted.All(x => x.Id != e.Id && (x.Id != Guid.Empty || x.ExerciseType != e.ExerciseType)))
                      .ToList())
         {
-            entity.CheckingExercises.Remove(stale);
+            // A configured release is history: its blobs and its change requests point at this row.
+            // Hide it instead of destroying it. A row the wizard never configured is still deleted.
+            if (stale.TabName is not null) stale.IsEnabled = false;
+            else entity.CheckingExercises.Remove(stale);
         }
     }
 
@@ -231,6 +272,10 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                 continue;
             }
 
+            existing.Required = dto.Required;
+            existing.SortOrder = dto.SortOrder;
+            existing.Included = dto.Included;
+            existing.SourceFile = dto.SourceFile;
             existing.IngressFile = dto.IngressFile;
             existing.IngressFileChecksum = dto.IngressFileChecksum;
             existing.SchemaFile = dto.SchemaFile;
@@ -289,6 +334,16 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
         {
             entity.CheckingExercises.Add(new CheckingExercise
             {
+                Id = dto.Id == Guid.Empty ? Guid.NewGuid() : dto.Id,
+                UsesExerciseStorage = true,
+                Name = dto.Name,
+                TabName = dto.TabName,
+                TabOrder = dto.TabOrder,
+                IsEnabled = dto.IsEnabled,
+                DisplayOnly = dto.DisplayOnly,
+                VisibleFrom = dto.VisibleFrom,
+                VisibleUntil = dto.VisibleUntil,
+                ReplacesCheckingExerciseId = dto.ReplacesCheckingExerciseId,
                 ExerciseType = dto.ExerciseType,
                 StartDate = dto.StartDate,
                 EndDate = dto.EndDate,
@@ -320,6 +375,17 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                 .Select(e => new CheckingExerciseDto
                 {
                     Id = e.Id,
+                    UsesExerciseStorage = e.UsesExerciseStorage,
+                    Name = e.Name,
+                    TabName = e.TabName,
+                    TabOrder = e.TabOrder,
+                    IsEnabled = e.IsEnabled,
+                    DisplayOnly = e.DisplayOnly,
+                    VisibleFrom = e.VisibleFrom,
+                    VisibleUntil = e.VisibleUntil,
+                    WindowStart = entity.StartDate,
+                    WindowEnd = entity.EndDate,
+                    ReplacesCheckingExerciseId = e.ReplacesCheckingExerciseId,
                     ExerciseType = e.ExerciseType,
                     StartDate = e.StartDate,
                     EndDate = e.EndDate,

@@ -689,13 +689,25 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     b.Property<Guid>("CheckingWindowId")
                         .HasColumnType("uuid");
 
+                    b.Property<bool>("DisplayOnly")
+                        .HasColumnType("boolean");
+
                     b.Property<DateTime>("EndDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("ExerciseType")
-                        .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid?>("ReplacesCheckingExerciseId")
+                        .HasColumnType("uuid");
 
                     b.Property<int>("SortOrder")
                         .HasColumnType("integer");
@@ -703,12 +715,34 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     b.Property<DateTime>("StartDate")
                         .HasColumnType("timestamp without time zone");
 
+                    b.Property<string>("TabName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("TabOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("UsesExerciseStorage")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("VisibleFrom")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<DateTime?>("VisibleUntil")
+                        .HasColumnType("timestamp without time zone");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("CheckingWindowId", "ExerciseType")
-                        .IsUnique();
+                    b.HasIndex("ReplacesCheckingExerciseId");
 
-                    b.ToTable("CheckingExercises", (string)null);
+                    b.HasIndex("CheckingWindowId", "ExerciseType")
+                        .IsUnique()
+                        .HasFilter("\"UsesExerciseStorage\" = false");
+
+                    b.ToTable("CheckingExercises", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_CheckingExercises_TypeOrDisplayOnly", "\"ExerciseType\" IS NOT NULL OR (\"DisplayOnly\" AND \"UsesExerciseStorage\")");
+                        });
                 });
 
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingWindow", b =>
@@ -1729,6 +1763,11 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .HasForeignKey("CheckingWindowId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("DfE.CheckPerformanceData.Persistence.Entities.CheckingExercise", null)
+                        .WithMany()
+                        .HasForeignKey("ReplacesCheckingExerciseId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.OwnsOne("DfE.CheckPerformanceData.Persistence.Entities.ExerciseValidated", "Validated", b1 =>
                         {

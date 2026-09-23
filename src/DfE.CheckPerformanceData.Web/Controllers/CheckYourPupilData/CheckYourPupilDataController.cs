@@ -5,6 +5,8 @@ using DfE.CheckPerformanceData.Application.LandingPage;
 // Aliased, not imported: WindowManagement also declares a CheckingWindowDto, which would make the
 // LandingPage one ambiguous here.
 using ICheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.ICheckingExerciseService;
+using ICheckingDataReader = DfE.CheckPerformanceData.Application.WindowManagement.ICheckingDataReader;
+using ExerciseCheckingWindowDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingWindowDto;
 using LearnerNoun = DfE.CheckPerformanceData.Application.WindowManagement.LearnerNoun;
 using DfE.CheckPerformanceData.Web.Authentication;
 using DfE.CheckPerformanceData.Web.Common;
@@ -12,6 +14,7 @@ using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Analytics;
 using DfE.CheckPerformanceData.Web.Session;
 using Microsoft.AspNetCore.Mvc;
+using System.IO.Compression;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData;
 
@@ -19,7 +22,8 @@ namespace DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData;
 // goes through ICheckingExerciseService, which owns the only clock in that path.
 public sealed class CheckYourPupilDataController(ICheckYourPupilDataService checkYourPupilDataService,
     ICurrentUserService currentUserService, IAnalyticsService analytics,
-    INextStepsService nextSteps, ICheckingExerciseService checkingExercises) : Controller
+    INextStepsService nextSteps, ICheckingExerciseService checkingExercises,
+    IExerciseTabBuilder tabBuilder, IExerciseDisplayService display, ICheckingDataReader checkingDataReader) : Controller
 {
     private const int PageSize = 10;
     private const int MaxSearchLength = 100;
@@ -28,28 +32,50 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
     public async Task<IActionResult> Index(
         Guid windowId,
         int includedPage = 0, int nonIncludedPage = 0, int resultsPage = 0,
-        string? includedSearch = null, string? nonIncludedSearch = null, string? resultsSearch = null)
+        string? includedSearch = null, string? nonIncludedSearch = null, string? resultsSearch = null,
+        string? studentDataset = null, string? studentSearch = null, int studentPage = 0)
     {
         if (includedSearch?.Length > MaxSearchLength) includedSearch = null;
         if (nonIncludedSearch?.Length > MaxSearchLength) nonIncludedSearch = null;
         if (resultsSearch?.Length > MaxSearchLength) resultsSearch = null;
+        if (studentSearch?.Length > MaxSearchLength) studentSearch = null;
 
         HttpContext.Session.ClearRequestState(windowId);
-        var model = await BuildIndexModelAsync(windowId, includedPage, nonIncludedPage, resultsPage, includedSearch, nonIncludedSearch, resultsSearch);
+        var model = await BuildIndexModelAsync(windowId, includedPage, nonIncludedPage, resultsPage,
+            includedSearch, nonIncludedSearch, resultsSearch, studentDataset, studentSearch, studentPage);
         return View(model);
     }
 
     [Route("CheckYourPupilData/{windowId}/download/all")]
     public async Task<IActionResult> DownloadAll(Guid windowId)
     {
+        // The exercise tabs, rebuilt for this school. A window with schema-backed datasets zips
+        // one CSV per dataset instead; every KS2 and KS4 window today draws no exercise tabs, so
+        // this falls straight through to the pupil-inclusion zip below, exactly as before.
+        var model = await BuildIndexModelAsync(windowId, 0, 0, 0, null, null, null);
+        var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
+
+        var datasets = model.CheckingExerciseTabs.SelectMany(GetDatasets).ToList();
+        if (datasets.Count > 0)
+        {
+            using var archiveBytes = new MemoryStream();
+            await using (var archive = new ZipArchive(archiveBytes, ZipArchiveMode.Create, leaveOpen: true))
+            {
+                foreach (var dataset in datasets)
+                {
+                    await using var entry = await archive.CreateEntry(dataset.FileName).OpenAsync();
+                    await entry.WriteAsync(display.Csv(dataset));
+                }
+            }
+            return File(archiveBytes.ToArray(), "application/zip", GenerateZipFileName(window));
+        }
+
         var included = await checkYourPupilDataService.GetPupilCsvAsync(windowId, included: true);
         var nonIncluded = await checkYourPupilDataService.GetPupilCsvAsync(windowId, included: false);
 
         var includedCsv = PupilCsvGenerator.Generate(included);
         var nonIncludedCsv = PupilCsvGenerator.Generate(nonIncluded);
 
-        var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
-        
         using var ms = new MemoryStream();
         await using (var zip = new System.IO.Compression.ZipArchive(ms, System.IO.Compression.ZipArchiveMode.Create, leaveOpen: true))
         {
@@ -82,6 +108,44 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         var bytes = PupilCsvGenerator.Generate(pupils);
         return File(bytes, "text/csv", filename);
     }
+
+    // Rebuilds the tabs for this school and finds the dataset by exercise id and key, so an id
+    // from another window (or a dataset this window does not run) reaches nothing.
+    [Route("CheckYourPupilData/{windowId}/download/exercise/{exerciseId:guid}/{dataset}")]
+    public async Task<IActionResult> DownloadExerciseDataset(Guid windowId, Guid exerciseId, string dataset)
+    {
+        if (string.IsNullOrWhiteSpace(currentUserService.OrganisationLaestab)) return Forbid();
+
+        var model = await BuildIndexModelAsync(windowId, 0, 0, 0, null, null, null);
+        var tab = model.CheckingExerciseTabs.SingleOrDefault(t => t.Exercise.Id == exerciseId);
+        var selected = tab?.Table?.Datasets.SingleOrDefault(d => d.Key == dataset)
+            ?? (tab?.Vertical?.Key == dataset ? tab.Vertical.Dataset : null);
+
+        return selected is null ? NotFound() : File(display.Csv(selected), "text/csv", selected.FileName);
+    }
+
+    // The raw JSON the ingress run wrote, unshaped by any schema. This is the endpoint the POC put
+    // on /check-data; that page is not ported, so it lives here with the tabs it belongs to.
+    [Route("CheckYourPupilData/{windowId}/download/exercise/{exerciseId:guid}/json")]
+    public async Task<IActionResult> DownloadExerciseJson(Guid windowId, Guid exerciseId,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(currentUserService.OrganisationLaestab)) return Forbid();
+
+        var model = await BuildIndexModelAsync(windowId, 0, 0, 0, null, null, null);
+        var tab = model.CheckingExerciseTabs.SingleOrDefault(t => t.Exercise.Id == exerciseId);
+        if (tab is null) return NotFound();
+
+        // Re-read rather than re-serialise the parsed rows: the file a school downloads must be
+        // the file the run produced, byte for byte.
+        var bytes = await checkingDataReader.ReadAsync(tab.Exercise,
+            currentUserService.OrganisationLaestab!, cancellationToken);
+
+        return bytes is null ? NotFound() : File(bytes, "application/json", $"{tab.Exercise.TabName}.json");
+    }
+
+    private static IEnumerable<ExerciseDataset> GetDatasets(ExerciseTab tab) =>
+        tab.Table?.Datasets ?? (tab.Vertical is not null ? [tab.Vertical.Dataset] : []);
 
     private string GenerateZipFileName(CheckingWindowDto window)
     {
@@ -170,7 +234,10 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         int resultsPage,
         string? includedSearch,
         string? nonIncludedSearch,
-        string? resultsSearch)
+        string? resultsSearch,
+        string? studentDataset = null,
+        string? studentSearch = null,
+        int studentPage = 0)
     {
         var (includedTable, includedTotal) = await checkYourPupilDataService.GetPupilTableAsync(windowId, included: true, includedSearch, includedPage, PageSize);
         var (nonIncludedTable, nonIncludedTotal) = await checkYourPupilDataService.GetPupilTableAsync(windowId, included: false, nonIncludedSearch, nonIncludedPage, PageSize);
@@ -197,6 +264,20 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         // labels its window-scoped link with this window's noun, so it needs the type as well as
         // the id. Every render of this page re-stamps both.
         HttpContext.Session.SetSelectedWindow(windowId, window.CheckingWindowType);
+
+        // The tab builder wants WindowManagement's CheckingWindowDto (it carries the exercises'
+        // TabName and Datasets, which the landing page's own DTO has no use for and does not
+        // build on that path). window.Exercises is already that type, so this is a plain reshape,
+        // not a second read.
+        var exerciseTabs = await tabBuilder.BuildAsync(
+            new ExerciseCheckingWindowDto
+            {
+                Id = window.Id, Title = window.Title, EndDate = window.EndDate,
+                KeyStage = window.KeyStage, CheckingWindowType = window.CheckingWindowType,
+                StartDate = window.StartDate, Exercises = window.Exercises
+            },
+            currentUserService.OrganisationLaestab, studentDataset, studentSearch, studentPage,
+            PageSize, HttpContext.RequestAborted);
 
         List<PupilTableSection> sections =
         [
@@ -258,6 +339,9 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         {
             SelectedNextStep = journey.SelectedNextStep,
             WindowId = windowId.ToString(),
+            // Empty means this window's exercises draw no tabs — every KS2 and KS4 window today —
+            // and the view falls back to the inclusion tabs it has always drawn.
+            CheckingExerciseTabs = exerciseTabs,
             WindowTitle = window.Title,
             Sections = sections,
             ResultsSection = resultsSection,

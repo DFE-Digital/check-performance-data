@@ -7,6 +7,15 @@ public sealed class CheckYourPupilDataViewModel
 {
     public required string WindowId { get; init; }
 
+    /// <summary>
+    /// One tab per visible exercise that draws a tab (#466), rendered from its own schemas. Empty
+    /// means this window's exercises draw no tabs — every window configured before #466 — and the
+    /// view falls back to <see cref="Sections"/>/<see cref="ResultsSection"/> exactly as it always
+    /// has. Defaulted rather than required for the same reason as <see cref="LearnerNoun"/>: this
+    /// class is also the NextStep POST's model-binding target.
+    /// </summary>
+    public IReadOnlyList<ExerciseTab> CheckingExerciseTabs { get; init; } = [];
+
     /// <summary>The page's pupil tables, in display order.</summary>
     public required IReadOnlyList<PupilTableSection> Sections { get; init; }
 

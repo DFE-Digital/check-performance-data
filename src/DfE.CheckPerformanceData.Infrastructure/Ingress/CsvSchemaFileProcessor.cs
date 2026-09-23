@@ -19,11 +19,12 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
 {
     public async IAsyncEnumerable<ValidationProgress> ProcessAsync(
         Guid checkingWindowId,
-        CheckingExerciseType exercise,
+        CheckingExerciseType? exercise,
         IReadOnlyList<IngressDataset> datasets,
         bool validateOnly = false,
         bool clearExistingFiles = false,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        [EnumeratorCancellation] CancellationToken cancellationToken = default,
+        Guid? checkingExerciseId = null, CheckingDataType? dataType = null)
     {
         if (datasets.Count == 0)
         {
@@ -40,7 +41,12 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
 
         // Every output path this run touches is scoped to its exercise (#316). Two exercises share
         // one container, so an unscoped name would let one run overwrite or delete another's output.
-        string errorLogBlobName = CheckingExerciseBlobPaths.ErrorLogBlobName(exercise, checkingWindowId);
+        // Since #466 a run may instead be scoped to the exercise's own id, so several releases of
+        // one kind can each own their output; when no id is given every path stays exactly as it
+        // was before this task.
+        string errorLogBlobName = checkingExerciseId is { } logId
+            ? $"{CheckingExerciseBlobPaths.LogPrefix(logId)}error_log.txt"
+            : CheckingExerciseBlobPaths.ErrorLogBlobName(exercise!.Value, checkingWindowId);
         BlobContainerClient container = sourceBlobClient.GetBlobContainerClient(checkingWindowId.ToString());
         bool multipleDatasets = datasets.Count > 1;
 
@@ -55,14 +61,9 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
         // A fresh, timestamped summary file is written on every real run, so runs never overwrite
         // each other's summary.
         string summaryBlobName =
-            $"{CheckingExerciseBlobPaths.SummaryPrefix(exercise, checkingWindowId)}{DateTime.UtcNow:yyyyMMdd_HHmmss}.csv";
-
-        // Wipe output left by a previous run before anything is written. Safe now that a single
-        // run produces every dataset's output.
-        if (clearExistingFiles && !validateOnly)
-        {
-            await ClearOutputAsync(container, checkingWindowId, exercise, errorLogBlobName, cancellationToken);
-        }
+            $"{(checkingExerciseId is { } summaryId
+                ? CheckingExerciseBlobPaths.LogPrefix(summaryId) + "summary_"
+                : CheckingExerciseBlobPaths.SummaryPrefix(exercise!.Value, checkingWindowId))}{DateTime.UtcNow:yyyyMMdd_HHmmss_fffffff}.csv";
 
         foreach (IngressDataset dataset in datasets)
         {
@@ -76,8 +77,10 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
             string? checksumError = null;
             try
             {
-                csvBytes = await DownloadBytesAsync(container, $"ingress/{dataset.InputCsvFile}", cancellationToken);
-                byte[] schemaBytes = await DownloadBytesAsync(container, $"schema/{dataset.SchemaFile}", cancellationToken);
+                csvBytes = await DownloadBytesAsync(container,
+                    CheckingExerciseBlobPaths.IngressBlobName(dataset.InputCsvFile), cancellationToken);
+                byte[] schemaBytes = await DownloadBytesAsync(container,
+                    CheckingExerciseBlobPaths.SchemaBlobName(dataset.SchemaFile), cancellationToken);
 
                 if (!ChecksumMatches(csvBytes, dataset.InputCsvChecksum))
                 {
@@ -114,6 +117,13 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
 
             JSchema schema = JSchema.Parse(schemaJson!);
             schema.AllowAdditionalProperties = false;
+
+            // Newtonsoft.Json.Schema counts licensed validations per call, not per row, and caps an
+            // unlicensed process at 1,000 an hour. A school's rows are therefore validated as one
+            // array, one call per school per dataset, rather than one call per record. The messages
+            // are the same, and each already carries its row index within the school
+            // ("Path '[12].ULN'") because the record's path includes its parent array.
+            JSchema schoolSchema = new() { Type = JSchemaType.Array, Items = { schema } };
 
             // Read the records and report how many there are.
             List<IDictionary<string, object>> records;
@@ -207,10 +217,11 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
                         record["SOURCE"] = sourceFile;
                     }
 
-                    if (!record.IsValid(schema, out IList<string> errorMessages))
-                    {
-                        schoolErrors.AddRange(errorMessages);
-                    }
+                }
+
+                if (!jsonArray.IsValid(schoolSchema, out IList<string> errorMessages))
+                {
+                    schoolErrors.AddRange(errorMessages);
                 }
 
                 if (schoolErrors.Count > 0)
@@ -323,11 +334,20 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
         int filesWritten = 0;
         string? writeError = null;
 
+        // Never clear a dataset that is currently good until every supplied pair has validated.
+        // Clearing first meant one bad supplier file emptied the school's page.
+        if (clearExistingFiles && !validateOnly)
+            await ClearOutputAsync(container, checkingWindowId, exercise, errorLogBlobName,
+                cancellationToken, checkingExerciseId);
+
         foreach ((string schoolId, JArray jsonArray) in mergedBySchool)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            string outputBlobName = CheckingExerciseBlobPaths.DataBlobName(exercise, schoolId);
+            string outputBlobName = checkingExerciseId is { } outputId
+                ? CheckingExerciseBlobPaths.DataBlobName(outputId,
+                    dataType ?? CheckingExerciseBlobPaths.DefaultDataType(exercise), schoolId)
+                : CheckingExerciseBlobPaths.DataBlobName(exercise!.Value, schoolId);
             try
             {
                 await WriteAsync(container, outputBlobName, jsonArray.ToString(Formatting.Indented), cancellationToken);
@@ -428,7 +448,7 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
         return value;
     }
 
-    private async Task ClearOutputAsync(BlobContainerClient container, Guid checkingWindowId, CheckingExerciseType exercise, string errorLogBlobName, CancellationToken cancellationToken)
+    private async Task ClearOutputAsync(BlobContainerClient container, Guid checkingWindowId, CheckingExerciseType? exercise, string errorLogBlobName, CancellationToken cancellationToken, Guid? checkingExerciseId = null)
     {
         if (!await container.ExistsAsync(cancellationToken))
         {
@@ -442,8 +462,12 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
         // reach "results-enquiry/data/" and vice versa.
         foreach (string prefix in new[]
                  {
-                     CheckingExerciseBlobPaths.DataPrefix(exercise),
-                     CheckingExerciseBlobPaths.SummaryPrefix(exercise, checkingWindowId)
+                     checkingExerciseId is { } outputId
+                        ? CheckingExerciseBlobPaths.DataPrefix(outputId)
+                        : CheckingExerciseBlobPaths.DataPrefix(exercise!.Value),
+                     checkingExerciseId is { } logId
+                        ? CheckingExerciseBlobPaths.LogPrefix(logId)
+                        : CheckingExerciseBlobPaths.SummaryPrefix(exercise!.Value, checkingWindowId)
                  })
         {
             await foreach (BlobItem blob in container.GetBlobsAsync(BlobTraits.None, BlobStates.None, prefix, cancellationToken))

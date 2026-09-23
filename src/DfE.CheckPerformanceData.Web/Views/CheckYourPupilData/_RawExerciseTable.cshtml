@@ -1,0 +1,47 @@
+@using DfE.CheckPerformanceData.Application.CheckYourPupilData
+@model ExerciseTab
+
+@{
+    // No schema at all: a column-per-key table straight off the parsed JSON. The exercise still
+    // gets a tab (ExerciseTabBuilder), but nothing shapes how it is shown, so this is the least a
+    // school can be given rather than nothing.
+}
+
+<h2 class="govuk-heading-l">@Model.Exercise.Name</h2>
+
+@if (!Model.HasData || Model.Rows.Count == 0)
+{
+    <p class="govuk-body">There is no data available for this exercise.</p>
+}
+else
+{
+    <p class="govuk-body">
+        <a asp-action="DownloadExerciseJson" asp-controller="CheckYourPupilData"
+           asp-route-windowId="@Model.Exercise.WindowId"
+           asp-route-exerciseId="@Model.Exercise.Id">Download @Model.Exercise.TabName data (JSON)</a>
+    </p>
+    <div class="moj-scrollable-pane" role="region" tabindex="0" aria-label="@Model.Exercise.Name">
+        <table class="govuk-table">
+            <caption class="govuk-table__caption govuk-table__caption--m govuk-visually-hidden">@Model.Exercise.TabName</caption>
+            <thead class="govuk-table__head">
+                <tr class="govuk-table__row">
+                    @foreach (var column in Model.Columns)
+                    {
+                        <th scope="col" class="govuk-table__header">@column</th>
+                    }
+                </tr>
+            </thead>
+            <tbody class="govuk-table__body">
+                @foreach (var row in Model.Rows)
+                {
+                    <tr class="govuk-table__row">
+                        @foreach (var column in Model.Columns)
+                        {
+                            <td class="govuk-table__cell">@row.GetValueOrDefault(column)</td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

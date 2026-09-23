@@ -23,6 +23,67 @@ namespace DfE.CheckPerformanceData.Application.WindowManagement;
 /// </remarks>
 public static class CheckingExerciseBlobPaths
 {
+    // ---- Exercise-id storage (#466) -------------------------------------------------
+    // An exercise is identified by its own Id, not by its type, so one window can hold several
+    // releases of one activity and any number of display-only data shares. Everything below is
+    // addressed by that Id. The type-based methods further down are untouched and still serve
+    // every row with UsesExerciseStorage = false, which is why this ticket needs no blob migration.
+
+    /// <summary>Where an uploaded ingress or schema file is stored for one dataset slot.</summary>
+    // Path.GetFileName only recognises '\' as a separator on Windows, so an upload's original path
+    // (which may be a Windows path even when this runs on Linux) is trimmed by hand rather than
+    // relying on it to strip the directory.
+    public static string DefinitionFile(Guid exerciseId, Guid definitionId, string filename)
+        => $"ingress/{exerciseId}/{definitionId}/{filename.Split('/', '\\')[^1]}";
+
+    // A dataset row stores a complete blob name once it has been uploaded through the new screens.
+    // Rows written before that store a path relative to the separate ingress/ and schema/ roots.
+    // Both are read without moving anything.
+    public static string IngressBlobName(string storedPath)
+        => storedPath.StartsWith("ingress/", StringComparison.Ordinal) ? storedPath : $"ingress/{storedPath}";
+
+    public static string SchemaBlobName(string storedPath)
+        => storedPath.StartsWith("ingress/", StringComparison.Ordinal) ? storedPath : $"schema/{storedPath}";
+
+    /// <summary>The exercise's per-school output files.</summary>
+    public static string DataPrefix(Guid exerciseId) => $"exercises/{exerciseId}/data/";
+
+    /// <summary>The exercise's run summaries and error log.</summary>
+    public static string LogPrefix(Guid exerciseId) => $"exercises/{exerciseId}/logs/";
+
+    /// <summary>
+    /// The data type an exercise holds when nothing says otherwise.
+    /// </summary>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// No default case, for the same reason as <see cref="ExercisePrefix"/>: a new exercise type
+    /// must fail loudly rather than quietly share another exercise's file names.
+    /// </exception>
+    public static CheckingDataType DefaultDataType(CheckingExerciseType? type) => type switch
+    {
+        CheckingExerciseType.PupilData => CheckingDataType.Pupil,
+        CheckingExerciseType.ResultsEnquiry => CheckingDataType.Results,
+        null => CheckingDataType.Other,
+        _ => throw new ArgumentOutOfRangeException(nameof(type), type,
+            "This checking exercise has no data type. Add one to CheckingExerciseBlobPaths before ingesting it.")
+    };
+
+    /// <summary>e.g. "933/4290" -> "exercises/{id}/data/9334290_pupils.json".</summary>
+    /// <remarks>
+    /// The slash is stripped rather than the laestab being normalised, exactly as
+    /// <see cref="PupilsBlobName"/> does, because ingress writes the supplier's LAESTAB column
+    /// through verbatim and the two rules differ on any value that is not slash-separated digits.
+    /// </remarks>
+    public static string DataBlobName(Guid exerciseId, CheckingDataType type, string laestab)
+        => $"{DataPrefix(exerciseId)}{laestab.Replace("/", string.Empty)}_{type switch
+        {
+            CheckingDataType.Pupil => "pupils",
+            CheckingDataType.Results => "results",
+            CheckingDataType.PreviouslyPublished => "previously-published",
+            CheckingDataType.ValueAdded => "value-added",
+            CheckingDataType.Other => "data",
+            _ => throw new ArgumentOutOfRangeException(nameof(type), type, "This data type has no file name.")
+        }}.json";
+
     /// <summary>Everything an exercise writes sits under this prefix. Empty for pupil data.</summary>
     /// <exception cref="ArgumentOutOfRangeException">
     /// The exercise has no prefix mapping. There is no default case on purpose: a new exercise type

@@ -6,6 +6,7 @@ using DfE.CheckPerformanceData.Application.LandingPage;
 // Aliased, not imported: WindowManagement also declares a CheckingWindowDto, which would make the
 // LandingPage one ambiguous here.
 using CheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseService;
+using ICheckingDataReader = DfE.CheckPerformanceData.Application.WindowManagement.ICheckingDataReader;
 using LearnerNoun = DfE.CheckPerformanceData.Application.WindowManagement.LearnerNoun;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData;
@@ -36,8 +37,16 @@ public sealed class CheckYourPupilDataControllerAnalyticsTests
         _service.GetCheckingWindowAsync(WindowId).Returns(Window());
 
         var checkingExercises = new CheckingExerciseService(TimeProvider.System);
+        var tabBuilder = Substitute.For<IExerciseTabBuilder>();
+        // No window here has a tab-drawing exercise: the fallback inclusion tabs are what these
+        // tests exercise, exactly as before #466.
+        tabBuilder.BuildAsync(Arg.Any<Application.WindowManagement.CheckingWindowDto>(),
+                Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<int>(), Arg.Any<int>(),
+                Arg.Any<CancellationToken>())
+            .Returns(new List<ExerciseTab>());
         _sut = new CheckYourPupilDataController(
-            _service, _currentUser, _analytics, new NextStepsService(checkingExercises), checkingExercises)
+            _service, _currentUser, _analytics, new NextStepsService(checkingExercises), checkingExercises,
+            tabBuilder, new ExerciseDisplayService(), Substitute.For<ICheckingDataReader>())
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext }
         };

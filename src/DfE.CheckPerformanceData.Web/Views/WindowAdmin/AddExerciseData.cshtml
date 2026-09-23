@@ -1,0 +1,59 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin.AddExerciseDataItem
+@{
+    ViewBag.Title = "Add data file";
+}
+<govuk-back-link href="@Model.CancelUrl" />
+<span class="govuk-caption-l">@Model.ExerciseName</span>
+<h1 class="govuk-heading-l">Add data file</h1>
+
+@if (!ViewData.ModelState.IsValid)
+{
+    <govuk-error-summary>
+        <govuk-error-summary-title>There is a problem</govuk-error-summary-title>
+        @foreach (var entry in ViewData.ModelState.Where(e => e.Value?.Errors.Count > 0))
+        {
+            @foreach (var error in entry.Value!.Errors)
+            {
+                <govuk-error-summary-item href="#@entry.Key">@error.ErrorMessage</govuk-error-summary-item>
+            }
+        }
+    </govuk-error-summary>
+}
+<p class="govuk-body">Add a CSV and schema pair to this exercise. After saving, choose the incoming CSV and its JSON schema.</p>
+<form method="post" action="@Model.PostUrl" novalidate>
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="WindowId" />
+    <govuk-input for="Name">
+        <govuk-input-label>Data file name</govuk-input-label>
+        <govuk-input-hint>Use a short name such as included-pupils or late-results. Use lowercase letters, numbers, hyphens or underscores.</govuk-input-hint>
+        <govuk-input-error-message asp-validation-for="Name" />
+    </govuk-input>
+    <govuk-checkboxes for="Required">
+        <govuk-checkboxes-item value="true" checked="@Model.Required">This file is required before the exercise can be validated</govuk-checkboxes-item>
+    </govuk-checkboxes>
+    <govuk-radios for="Inclusion">
+        <govuk-radios-fieldset>
+            <govuk-radios-fieldset-legend class="govuk-fieldset__legend--m">Pupil inclusion</govuk-radios-fieldset-legend>
+            <govuk-radios-hint>For pupil data, choose whether inclusion comes from the CSV or applies to every pupil in this file. For other data, use the CSV option.</govuk-radios-hint>
+            <govuk-radios-error-message asp-validation-for="Inclusion" />
+            <govuk-radios-item value="file" checked="@(Model.Inclusion == "file")">Use the CSV's values</govuk-radios-item>
+            <govuk-radios-item value="included" checked="@(Model.Inclusion == "included")">All pupils are included</govuk-radios-item>
+            <govuk-radios-item value="excluded" checked="@(Model.Inclusion == "excluded")">All pupils are not included</govuk-radios-item>
+        </govuk-radios-fieldset>
+    </govuk-radios>
+    @if (Model.SourceOptions.Count > 0)
+    {
+        <govuk-select for="SourceFile">
+            <govuk-select-label>Results source (optional)</govuk-select-label>
+            <govuk-select-hint>For results data, choose the supplier's source label to apply to records in this file.</govuk-select-hint>
+            <govuk-select-error-message asp-validation-for="SourceFile" />
+            <govuk-select-item value="">None</govuk-select-item>
+            @foreach (var source in Model.SourceOptions)
+            {
+                <govuk-select-item value="@source" selected="@(Model.SourceFile == source)">@source</govuk-select-item>
+            }
+        </govuk-select>
+    }
+    <govuk-button type="submit">Add data file</govuk-button>
+    <a class="govuk-link" href="@Model.CancelUrl">Cancel</a>
+</form>

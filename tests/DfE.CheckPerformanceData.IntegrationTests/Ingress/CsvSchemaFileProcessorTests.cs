@@ -231,4 +231,102 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
         Assert.True(progress[^1].IsError);
         Assert.Null(await ReadPupilsAsync(container, "8604070"));
     }
+
+    private static async Task<List<string>> ListBlobNamesAsync(BlobContainerClient container)
+    {
+        List<string> names = [];
+        await foreach (var blob in container.GetBlobsAsync())
+        {
+            names.Add(blob.Name);
+        }
+        return names;
+    }
+
+    [Fact]
+    public async Task ARunForAnExercise_WritesUnderThatExercisesPrefix()
+    {
+        var windowId = Guid.NewGuid();
+        var exerciseId = Guid.NewGuid();
+        var container = await SeedWindowAsync(windowId,
+            ("ingress/pupils.csv", IncludedCsv),
+            ("schema/ks4.json", Ks4Schema));
+
+        IReadOnlyList<IngressDataset> datasets =
+        [
+            new("pupils", "pupils.csv", Checksum(IncludedCsv), "ks4.json", Checksum(Ks4Schema), Included: null)
+        ];
+
+        var progress = await DrainAsync(Processor().ProcessAsync(
+            windowId, CheckingExerciseType.PupilData, datasets, checkingExerciseId: exerciseId));
+
+        Assert.False(progress[^1].IsError);
+
+        var writtenBlobNames = await ListBlobNamesAsync(container);
+
+        Assert.Contains(writtenBlobNames, name =>
+            name.StartsWith($"exercises/{exerciseId}/data/", StringComparison.Ordinal));
+        Assert.DoesNotContain(writtenBlobNames, name => name.StartsWith("data/", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task ARunWithNoExerciseId_KeepsWritingTheLegacyPaths()
+    {
+        var windowId = Guid.NewGuid();
+        var container = await SeedWindowAsync(windowId,
+            ("ingress/pupils.csv", IncludedCsv),
+            ("schema/ks4.json", Ks4Schema));
+
+        IReadOnlyList<IngressDataset> datasets =
+        [
+            new("pupils", "pupils.csv", Checksum(IncludedCsv), "ks4.json", Checksum(Ks4Schema), Included: null)
+        ];
+
+        var progress = await DrainAsync(Processor().ProcessAsync(
+            windowId, CheckingExerciseType.PupilData, datasets, checkingExerciseId: null));
+
+        Assert.False(progress[^1].IsError);
+
+        var writtenBlobNames = await ListBlobNamesAsync(container);
+
+        Assert.Contains(writtenBlobNames, name => name.StartsWith("data/", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task AFailedRun_LeavesThePreviousOutputInPlace()
+    {
+        // Clearing before validation destroyed a school's good data whenever the new file was bad.
+        var windowId = Guid.NewGuid();
+        const string strictSchema = """
+        {
+          "type": "object",
+          "properties": {
+            "Id":       { "type": ["string", "null"] },
+            "INCLUDED": { "type": "boolean" },
+            "SURNAME":  { "type": ["string", "null"] },
+            "FORENAMES":{ "type": ["string", "null"] },
+            "CYPMD_ID": { "type": ["string", "null"] },
+            "LAESTAB":  { "type": ["string", "null"] },
+            "CampID_0": { "type": "integer" }
+          }
+        }
+        """;
+
+        var container = await SeedWindowAsync(windowId,
+            ("data/8604070_pupils.json", "[{\"SURNAME\":\"Existing\"}]"),
+            ("ingress/nonincluded.csv", NonIncludedCsv),
+            ("schema/strict.json", strictSchema));
+
+        IReadOnlyList<IngressDataset> datasets =
+        [
+            new("nonincluded", "nonincluded.csv", Checksum(NonIncludedCsv), "strict.json", Checksum(strictSchema), Included: false)
+        ];
+
+        var progress = await DrainAsync(Processor().ProcessAsync(
+            windowId, CheckingExerciseType.PupilData, datasets, clearExistingFiles: true));
+
+        Assert.True(progress[^1].IsError);
+
+        var existingBlobNames = await ListBlobNamesAsync(container);
+        Assert.Contains(existingBlobNames, name => name.StartsWith("data/", StringComparison.Ordinal));
+    }
 }

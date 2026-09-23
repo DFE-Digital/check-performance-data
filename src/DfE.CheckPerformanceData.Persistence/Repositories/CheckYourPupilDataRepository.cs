@@ -7,6 +7,7 @@ using DfE.CheckPerformanceData.Persistence.Contexts;
 // Aliased, not imported: WindowManagement also declares a CheckingWindowDto, which would make the
 // LandingPage one ambiguous here.
 using CheckingExerciseDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseDto;
+using CheckingWindowDatasetDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingWindowDatasetDto;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 
@@ -51,6 +52,7 @@ public sealed class CheckYourPupilDataRepository(
             .Where(w => w.Id == windowId)
             .Select(w => new CheckingWindowDto
             {
+                Id = w.Id,
                 EndDate = w.EndDate,
                 Title = w.Title,
                 KeyStage = w.KeyStage,
@@ -59,16 +61,46 @@ public sealed class CheckYourPupilDataRepository(
                 TurnaroundCommitment = w.TurnaroundCommitment,
                 NextOpportunity = w.NextOpportunity,
                 // #315: ICheckingExerciseService answers "is this exercise open" from these rows,
-                // so every read path that reaches Web has to carry them.
+                // so every read path that reaches Web has to carry them. #466: the exercise tab
+                // builder needs the rest — TabName is what decides whether a row draws a tab at
+                // all, and Datasets is what lets it read the schema that shapes one. Mirrors the
+                // projection WindowRepository already carries for the admin summary page.
                 Exercises = w.CheckingExercises
                     .OrderBy(e => e.SortOrder)
                     .Select(e => new CheckingExerciseDto
                     {
                         Id = e.Id,
+                        UsesExerciseStorage = e.UsesExerciseStorage,
+                        Name = e.Name,
+                        TabName = e.TabName,
+                        TabOrder = e.TabOrder,
+                        IsEnabled = e.IsEnabled,
+                        DisplayOnly = e.DisplayOnly,
+                        VisibleFrom = e.VisibleFrom,
+                        VisibleUntil = e.VisibleUntil,
+                        WindowStart = w.StartDate,
+                        WindowEnd = w.EndDate,
+                        ReplacesCheckingExerciseId = e.ReplacesCheckingExerciseId,
                         ExerciseType = e.ExerciseType,
                         StartDate = e.StartDate,
                         EndDate = e.EndDate,
-                        SortOrder = e.SortOrder
+                        SortOrder = e.SortOrder,
+                        Datasets = e.Datasets
+                            .OrderBy(d => d.SortOrder)
+                            .Select(d => new CheckingWindowDatasetDto
+                            {
+                                Id = d.Id,
+                                Name = d.Name,
+                                IngressFile = d.IngressFile,
+                                IngressFileChecksum = d.IngressFileChecksum,
+                                SchemaFile = d.SchemaFile,
+                                SchemaFileChecksum = d.SchemaFileChecksum,
+                                Included = d.Included,
+                                SourceFile = d.SourceFile,
+                                Required = d.Required,
+                                SortOrder = d.SortOrder
+                            })
+                            .ToList()
                     })
                     .ToList()
             })

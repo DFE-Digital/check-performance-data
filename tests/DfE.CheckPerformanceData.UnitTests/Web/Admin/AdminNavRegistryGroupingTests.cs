@@ -69,12 +69,12 @@ public sealed class AdminNavRegistryGroupingTests
 
 		var keys = entries.Select(e => e.Key).ToList();
 
-		// 32: the Amendment requests group and its Uncommitted requests tile were retired
+		// 33: the Amendment requests group and its Uncommitted requests tile were retired
 		// together and the Storage administration group went when the blob browser moved under
 		// Danger zone, which this overload registers along with the browser but without the
 		// gated Reset seed data tile — plus the Data egress group and its Start a new egress
-		// tile (AB#294553).
-		Assert.Equal(32, keys.Count);
+		// tile (AB#294553) and its Egress runs tile (AB#294590).
+		Assert.Equal(33, keys.Count);
 		Assert.Equal(keys.Count, keys.Distinct().Count());
 	}
 

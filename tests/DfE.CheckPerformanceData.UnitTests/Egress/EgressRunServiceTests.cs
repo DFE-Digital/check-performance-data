@@ -159,4 +159,18 @@ public sealed class EgressRunServiceTests
     [Fact]
     public async Task No_output_types_is_refused_as_an_argument_error()
         => await Assert.ThrowsAsync<ArgumentException>(() => Sut().StartAsync(WindowId, [], Actor, CancellationToken.None));
+
+    // The history is the repository's query verbatim: no re-filtering, no re-paging in the service.
+    [Fact]
+    public async Task History_passes_the_filter_page_and_size_straight_through_to_the_repository()
+    {
+        var filter = new EgressRunHistoryFilter(WindowId, EgressRunOutcome.Failed);
+        var expected = new EgressRunHistoryPage([], 0, 1, 20);
+        _repo.ListHistoryAsync(filter, 3, 20, Arg.Any<CancellationToken>()).Returns(expected);
+
+        var page = await Sut().ListHistoryAsync(filter, 3, 20, CancellationToken.None);
+
+        Assert.Same(expected, page);
+        await _repo.Received(1).ListHistoryAsync(filter, 3, 20, Arg.Any<CancellationToken>());
+    }
 }

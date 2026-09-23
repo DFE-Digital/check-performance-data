@@ -169,4 +169,23 @@ public sealed class AdminNavActiveTrackingTests
             new SystemSettingsNavEntry(),
         };
     }
+
+    // --- The runs history is a sibling of the Pull page, and a prefix of every run's own pages ---
+
+    // AB#294590 (deliberate): /admin/egress/runs is the longest matching prefix for the history AND
+    // for /admin/egress/runs/{id}/... run pages, so a run's screens light "Egress runs"; the Pull
+    // page alone lights "Start a new egress".
+    [Theory]
+    [InlineData("/admin/egress", AdminNavKeys.Egress)]
+    [InlineData("/admin/egress/runs", AdminNavKeys.EgressRuns)]
+    [InlineData("/admin/egress/runs?windowId=&status=Failed&page=2", AdminNavKeys.EgressRuns)]
+    [InlineData("/admin/egress/runs/33333333-3333-3333-3333-333333333333/summary", AdminNavKeys.EgressRuns)]
+    public void ResolveActiveKey_EgressPages_LightThePullTileOrTheRunsTile(string path, string expectedKey)
+    {
+        var entries = new List<IAdminNavEntry> { new EgressGroupNavEntry(), new StartEgressNavEntry(), new EgressRunsNavEntry() };
+
+        var key = AdminNavActive.ResolveActiveKey(path, entries);
+
+        Assert.Equal(expectedKey, key);
+    }
 }

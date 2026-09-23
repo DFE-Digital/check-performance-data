@@ -22,8 +22,8 @@ public sealed class AdminNavRegistryTests
 		// administration group went when the blob browser moved under Danger zone; the Danger
 		// zone group and that browser are registered unconditionally, Reset seed data is not
 		// (includeResetSeedData defaults to false) — plus the Data egress group and its
-		// Start a new egress tile (AB#294553).
-		Assert.Equal(32, entries.Count);
+		// Start a new egress tile (AB#294553) and its Egress runs tile (AB#294590).
+		Assert.Equal(33, entries.Count);
 
 		var titles = entries.Select(e => e.Title).ToList();
 		Assert.Contains("Dashboard", titles);
@@ -322,6 +322,26 @@ public sealed class AdminNavRegistryTests
 		Assert.Equal("/admin/rules", entry.Url);
 		Assert.Equal("GET", entry.HttpMethod);
 		Assert.Equal(30, entry.Order);
+		Assert.True(entry.Enabled);
+	}
+
+	// --- EgressRuns_Tile_Is_Enabled_EgressGroup_Child_Order_20_LinkingToTheRunsHistory ---
+
+	[Fact]
+	public void EgressRuns_Tile_Is_Enabled_EgressGroup_Child_Order_20_LinkingToTheRunsHistory()
+	{
+		var services = new ServiceCollection();
+		services.AddAdminNavEntries(includeSampleSearchData: true);
+
+		using var provider = services.BuildServiceProvider();
+		var entry = provider.GetServices<IAdminNavEntry>()
+			.Single(e => e.Key == AdminNavKeys.EgressRuns);
+
+		Assert.Equal(AdminNavKeys.EgressGroup, entry.ParentKey);
+		Assert.Equal("Egress runs", entry.Title);
+		Assert.Equal("/admin/egress/runs", entry.Url);
+		Assert.Equal("GET", entry.HttpMethod);
+		Assert.Equal(20, entry.Order);
 		Assert.True(entry.Enabled);
 	}
 }

@@ -17,4 +17,6 @@ public interface IEgressRunService
     Task<EgressStartResult> StartAsync(Guid windowId, IReadOnlyList<EgressOutputType> outputTypes, EgressActor actor, CancellationToken ct);
     Task<EgressRunDto?> GetAsync(Guid runId, CancellationToken ct);
     Task<IReadOnlyList<EgressRunListItem>> ListAsync(CancellationToken ct);
+    /// <summary>Runs history (AB#294590) — see IEgressRunRepository.ListHistoryAsync.</summary>
+    Task<EgressRunHistoryPage> ListHistoryAsync(EgressRunHistoryFilter filter, int page, int pageSize, CancellationToken ct);
 }

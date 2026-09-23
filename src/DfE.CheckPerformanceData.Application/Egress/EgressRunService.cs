@@ -123,4 +123,6 @@ public sealed class EgressRunService(
 
     public Task<EgressRunDto?> GetAsync(Guid runId, CancellationToken ct) => repository.GetRunAsync(runId, ct);
     public Task<IReadOnlyList<EgressRunListItem>> ListAsync(CancellationToken ct) => repository.ListRunsAsync(ct);
+    public Task<EgressRunHistoryPage> ListHistoryAsync(EgressRunHistoryFilter filter, int page, int pageSize, CancellationToken ct) =>
+        repository.ListHistoryAsync(filter, page, pageSize, ct);
 }

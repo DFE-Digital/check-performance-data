@@ -44,8 +44,14 @@ public class IngressFolderBrowseViewModel
     /// </summary>
     public Guid? ExerciseId { get; init; }
 
+    /// <summary>The exercise's Data tab, where the admin chose this dataset. Null when the page
+    /// was reached by kind alone.</summary>
+    public string? ExerciseDataUrl => ExerciseId is not null
+        ? $"/admin/windows/{WindowId}/exercises/{ExerciseId}/edit#{Controllers.WindowAdmin.ExerciseLinks.DataTab}"
+        : null;
+
     /// <summary>Route prefix shared by every link and the form action on this page.</summary>
     public string BaseUrl => ExerciseId is not null
-        ? $"/admin/windows/{WindowId}/exercises/{ExerciseId}/ingress-file/{Dataset}"
-        : $"/admin/windows/{WindowId}/{Exercise}/ingress-file/{Dataset}";
+        ? $"/admin/windows/{WindowId}/exercises/{ExerciseId}/ingress-file/{Uri.EscapeDataString(Dataset)}"
+        : $"/admin/windows/{WindowId}/{Exercise}/ingress-file/{Uri.EscapeDataString(Dataset)}";
 }

@@ -60,9 +60,15 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
         BlobContainerClient container = sourceBlobClient.GetBlobContainerClient(checkingWindowId.ToString());
         bool multipleDatasets = datasets.Count > 1;
 
+        // A release writes one file per dataset, unless the merged file already is that one
+        // dataset's file. Writing both would store every record twice.
+        bool writesDatasetFiles = releaseId is not null
+            && !CheckingExerciseBlobPaths.MergedFileIsDatasetFile([.. datasets.Select(d => d.FeedsJourney)]);
+
         // Records from every dataset are merged per school, so one run produces the complete file.
         // On a release run only the datasets that feed the journey are merged, and every dataset
-        // also gets its own per-school file (byDataset), which is what the display reads.
+        // also gets its own per-school file (byDataset), which is what the display reads. The
+        // exception is writesDatasetFiles, above.
         Dictionary<string, JArray> mergedBySchool = new();
         Dictionary<(Guid DatasetId, string School), JArray> byDataset = new();
         Dictionary<string, int> recordCountBySchool = new();
@@ -286,7 +292,7 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
                         }
                     }
 
-                    if (releaseId is not null)
+                    if (writesDatasetFiles)
                     {
                         if (!byDataset.TryGetValue((dataset.DatasetId, schoolId), out JArray? own))
                         {
@@ -397,8 +403,8 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
                 cancellationToken, checkingExerciseId);
 
         // The merged file per school (the journey's file), then, on a release run, each
-        // dataset's own file per school. Records are counted once: from the dataset files on a
-        // release run, where every record lands exactly once, and from the merged files otherwise.
+        // dataset's own file per school. Records are counted once: from the dataset files when
+        // they are written, where every record lands exactly once, and from the merged files otherwise.
         IEnumerable<(string BlobName, JArray Records, bool Counted)> outputs = mergedBySchool
             .Select(entry => (
                 checkingExerciseId is { } outputId
@@ -406,7 +412,7 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
                         dataType ?? CheckingExerciseBlobPaths.DefaultDataType(exercise), entry.Key, releaseId)
                     : CheckingExerciseBlobPaths.DataBlobName(exercise!.Value, entry.Key),
                 entry.Value,
-                releaseId is null))
+                !writesDatasetFiles))
             .Concat(byDataset.Select(entry => (
                 CheckingExerciseBlobPaths.DatasetBlobName(checkingExerciseId!.Value, releaseId!.Value,
                     entry.Key.DatasetId, entry.Key.School),

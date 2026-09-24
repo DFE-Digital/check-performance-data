@@ -53,7 +53,8 @@ public sealed class ExerciseDataControllerTests
         Assert.Empty(second.Datasets);
         Assert.Equal("EditCheckingExercise", result.ControllerName);
         Assert.Equal(first.Id, result.RouteValues!["exerciseId"]);
-        Assert.Equal("data-files", result.Fragment);
+        // The tabs component opens the tab named by the fragment.
+        Assert.Equal(ExerciseLinks.DataTab, result.Fragment);
         await _service.Received(1).UpdateAsync(_window, Arg.Any<CancellationToken>());
     }
 
@@ -73,7 +74,8 @@ public sealed class ExerciseDataControllerTests
     [Fact]
     public async Task Duplicate_names_and_unknown_sources_do_not_save()
     {
-        var owner = _window.Exercises[0];
+        // A results source is asked only on a results enquiry.
+        var owner = AddExercise(CheckingExerciseType.ResultsEnquiry);
         owner.Datasets.Add(new() { Name = "existing" });
         var model = new AddExerciseDataItem { WindowId = _window.Id, Name = "existing", SourceFile = "unknown" };
         var result = Assert.IsType<ViewResult>(await _controller.Submit(_window.Id, owner.Id, model, default));
@@ -111,7 +113,9 @@ public sealed class ExerciseDataControllerTests
     [InlineData(null)]
     [InlineData("../file")]
     [InlineData("file/name")]
-    [InlineData("File Name")]
+    [InlineData(@"file\name")]
+    [InlineData("..")]
+    [InlineData(" . ")]
     public async Task Invalid_names_redisplay_the_form(string? name)
     {
         var model = new AddExerciseDataItem { WindowId = _window.Id, Name = name };
@@ -150,5 +154,65 @@ public sealed class ExerciseDataControllerTests
         await _controller.Submit(_window.Id, exercise.Id, model, default);
 
         Assert.False(Assert.Single(exercise.Datasets).FeedsJourney);
+    }
+
+    // The name is not part of any blob path, so an admin may write it as they would say it.
+    [Theory]
+    [InlineData("File Name")]
+    [InlineData("Late results (Jan)")]
+    [InlineData("included-pupils")]
+    [InlineData("KS4 v2.1")]
+    public void Plain_text_names_are_valid(string name)
+    {
+        var model = new AddExerciseDataItem { WindowId = _window.Id, Name = name };
+        Assert.True(Validator.TryValidateObject(model, new ValidationContext(model), [], true));
+    }
+
+    [Theory]
+    [InlineData(CheckingExerciseType.PupilData, true, false)]
+    [InlineData(CheckingExerciseType.ResultsEnquiry, false, true)]
+    [InlineData(null, false, false)]
+    public async Task Each_question_is_asked_only_on_the_exercise_it_applies_to(
+        CheckingExerciseType? type, bool asksInclusion, bool asksSource)
+    {
+        var exercise = AddExercise(type);
+
+        var page = Assert.IsType<AddExerciseDataItem>(
+            Assert.IsType<ViewResult>(await _controller.New(_window.Id, exercise.Id, default)).Model);
+
+        Assert.Equal(asksInclusion, page.AsksInclusion);
+        Assert.Equal(asksSource, page.AsksSource);
+        Assert.Equal(asksSource, page.SourceOptions.Count > 0);
+    }
+
+    [Theory]
+    [InlineData(CheckingExerciseType.PupilData, true, false)]
+    [InlineData(CheckingExerciseType.ResultsEnquiry, false, true)]
+    [InlineData(null, false, false)]
+    public async Task A_value_for_a_question_not_asked_is_not_stored(
+        CheckingExerciseType? type, bool storesInclusion, bool storesSource)
+    {
+        var exercise = AddExercise(type);
+        var source = WindowDatasets.DefaultsFor(_window.CheckingWindowType, CheckingExerciseType.ResultsEnquiry)
+            .Select(d => d.SourceFile).OfType<string>().First();
+        // A hand-made post can send both.
+        var model = new AddExerciseDataItem { WindowId = _window.Id, Name = "File", Inclusion = "included", SourceFile = source };
+
+        Assert.IsType<RedirectToActionResult>(await _controller.Submit(_window.Id, exercise.Id, model, default));
+
+        var added = Assert.Single(exercise.Datasets);
+        Assert.Equal(storesInclusion ? true : null, added.Included);
+        Assert.Equal(storesSource ? source : null, added.SourceFile);
+    }
+
+    private CheckingExerciseDto AddExercise(CheckingExerciseType? type)
+    {
+        var exercise = new CheckingExerciseDto
+        {
+            Id = Guid.NewGuid(), ExerciseType = type, DisplayOnly = type is null,
+            StartDate = _window.Exercises[0].StartDate, EndDate = _window.Exercises[0].EndDate
+        };
+        _window.Exercises.Add(exercise);
+        return exercise;
     }
 }

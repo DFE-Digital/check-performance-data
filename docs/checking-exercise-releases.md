@@ -124,6 +124,13 @@ admin had added.
 A run with no release (a legacy row, or the kind-addressed processor path) keeps the old behaviour:
 it merges every dataset into one file and writes no per-dataset files.
 
+A release run also writes no per-dataset file when the exercise has **one** dataset and that
+dataset feeds the journey (KS4 pupil data, for example). The merged file already holds exactly that
+dataset's records, so a per-dataset file would be a copy. `ExerciseTabBuilder` reads the merged
+file for such a release and puts every row under that one dataset. The rule is
+`CheckingExerciseBlobPaths.MergedFileIsDatasetFile`, which the run and the tab builder both call.
+A release written before this rule also has the copy. It is not read, and its content is the same.
+
 ### Releases from before per-dataset files
 
 A release published before `AddExerciseLayoutAndJourneySlots` wrote only the merged file. Its

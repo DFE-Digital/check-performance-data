@@ -449,6 +449,30 @@ public sealed class ExerciseTabBuilderTests
     }
 
     [Fact]
+    public async Task AReleaseWithOneJourneyDataset_IsReadFromItsMergedFile()
+    {
+        // KS4 pupil data: the one dataset is the whole merged file, so the run writes no copy of
+        // it. Every row of the merged file belongs to that dataset.
+        var releaseId = Guid.NewGuid();
+        var datasetId = Guid.NewGuid();
+        var exercise = WithRelease(Exercise(), releaseId,
+            new CheckingExerciseReleaseFileDto
+            {
+                DatasetId = datasetId, DatasetName = "pupils", SchemaFile = "p.json", FeedsJourney = true
+            });
+        _reader.ReadAsync(Arg.Is<CheckingDataExercise>(e => e.CurrentReleaseId == releaseId), "933/4290",
+                Arg.Any<CancellationToken>())
+            .Returns(Encoding.UTF8.GetBytes("""[{"ULN":"1"},{"ULN":"2"}]"""));
+        _reader.ReadSchemaAsync(Arg.Any<Guid>(), "p.json", Arg.Any<CancellationToken>())
+            .Returns(Encoding.UTF8.GetBytes("""{"x-ingress":{"collection":"pupils"},"properties":{"ULN":{}}}"""));
+
+        var tab = Assert.Single(await Builder().BuildAsync(Window(exercise), "933/4290", null, null, null, 0, 10, default));
+
+        Assert.Equal(["1", "2"], Assert.Single(tab.Table!.Datasets).Rows.Select(r => r["ULN"]));
+        await _reader.DidNotReceiveWithAnyArgs().ReadDatasetAsync(default!, default, default!, default);
+    }
+
+    [Fact]
     public async Task TheRawDownloadOfARelease_HoldsEachDatasetUnderItsName()
     {
         var releaseId = Guid.NewGuid();

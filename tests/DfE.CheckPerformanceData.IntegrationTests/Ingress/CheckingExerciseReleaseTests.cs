@@ -332,4 +332,27 @@ public sealed class CheckingExerciseReleaseTests(AzuriteFixture azurite) : IAsyn
         Assert.Contains("\"GRADE\": \"5\"", included);
         Assert.DoesNotContain("\"GRADE\": \"4\"", included);
     }
+
+    [Fact]
+    public async Task One_journey_dataset_is_written_once_as_the_merged_file()
+    {
+        // With one dataset that feeds the journey, the merged file already holds exactly that
+        // dataset's records. A per-dataset file would be a copy of it.
+        await UploadAsync(Csv("5"), Csv("4"));
+        await using (var ctx = CreateContext())
+        {
+            ctx.CheckingWindowDatasets.Remove(await ctx.CheckingWindowDatasets.SingleAsync(d => d.Id == _nonIncludedId));
+            await ctx.SaveChangesAsync();
+        }
+
+        Assert.False((await RunAsync()).IsError);
+
+        Assert.Equal(["5"], await GradesSchoolsSeeAsync());
+        var release = (await LoadExerciseAsync()).CurrentReleaseId!.Value;
+        var container = _blobs.GetBlobContainerClient(_windowId.ToString());
+        Assert.True((await container.GetBlobClient(CheckingExerciseBlobPaths.DataBlobName(
+            _exerciseId, CheckingDataType.Results, "8604070", release)).ExistsAsync()).Value);
+        Assert.False((await container.GetBlobClient(CheckingExerciseBlobPaths.DatasetBlobName(
+            _exerciseId, release, _includedId, "8604070")).ExistsAsync()).Value);
+    }
 }

@@ -60,6 +60,8 @@
             </tfoot>
         </table>
     }
+
+    <p class="govuk-body"><a class="govuk-link" href="@Model.CancelUrl">Return to the checking window</a></p>
 }
 
 <div class="validate-window" data-module="validate-progress" data-stream-url="@Model.StreamUrl">
@@ -113,6 +115,11 @@
     </div>
 
     <div class="govuk-!-display-none" data-validate-summary aria-live="polite"></div>
+
+    @* Shown by the script when the run finishes, whatever the result. *@
+    <p class="govuk-body govuk-!-display-none" data-validate-done>
+        <a class="govuk-link" href="@Model.CancelUrl">Return to the checking window</a>
+    </p>
 </div>
 
 @section Scripts {

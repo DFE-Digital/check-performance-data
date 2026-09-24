@@ -86,6 +86,19 @@ public static class CheckingExerciseBlobPaths
     public static string DatasetBlobName(Guid exerciseId, Guid releaseId, Guid datasetId, string laestab)
         => $"exercises/{exerciseId}/releases/{releaseId}/datasets/{datasetId}/{laestab.Replace("/", string.Empty)}.json";
 
+    /// <summary>
+    /// True when a release's merged file already holds exactly one dataset's records, so a
+    /// per-dataset file would be a copy of it. This is an exercise with one dataset that feeds the
+    /// journey, e.g. KS4 pupil data. The release then writes only the merged file, and the display
+    /// reads that dataset from it.
+    /// </summary>
+    /// <remarks>
+    /// The run and the display must use the same rule, so it is here. A release written before
+    /// this rule also has the per-dataset file. That file is not read, but its content is the same.
+    /// </remarks>
+    public static bool MergedFileIsDatasetFile(IReadOnlyList<bool> datasetsFeedJourney)
+        => datasetsFeedJourney is [true];
+
     /// <summary>The exercise's run summaries and error log.</summary>
     public static string LogPrefix(Guid exerciseId) => $"exercises/{exerciseId}/logs/";
 

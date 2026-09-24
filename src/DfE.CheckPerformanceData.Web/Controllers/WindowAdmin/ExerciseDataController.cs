@@ -36,7 +36,7 @@ public sealed class ExerciseDataController(IWindowService windows) : Controller
 
         if (exercise.Datasets.Any(d => string.Equals(d.Name, model.Name?.Trim(), StringComparison.OrdinalIgnoreCase)))
             ModelState.AddModelError(nameof(model.Name), "This exercise already has a data file with this name");
-        if (!string.IsNullOrEmpty(model.SourceFile) && !model.SourceOptions.Contains(model.SourceFile))
+        if (model.AsksSource && !string.IsNullOrEmpty(model.SourceFile) && !model.SourceOptions.Contains(model.SourceFile))
             ModelState.AddModelError(nameof(model.SourceFile), "Select a source from the list");
         if (!ModelState.IsValid) return View(PageView, model);
 
@@ -44,8 +44,12 @@ public sealed class ExerciseDataController(IWindowService windows) : Controller
         {
             Name = model.Name!.Trim(),
             Required = model.Required,
-            Included = model.Inclusion switch { "included" => true, "excluded" => false, _ => null },
-            SourceFile = string.IsNullOrEmpty(model.SourceFile) ? null : model.SourceFile,
+            // Each is asked only on the exercise it applies to, so a value posted anywhere else
+            // is ignored.
+            Included = model.AsksInclusion
+                ? model.Inclusion switch { "included" => true, "excluded" => false, _ => null }
+                : null,
+            SourceFile = model.AsksSource && !string.IsNullOrEmpty(model.SourceFile) ? model.SourceFile : null,
             // On pupil data checking every file is merged into the pupils data the journey reads.
             // On a results enquiry an added file is display only (only the supplier's result slots
             // feed the journey), and a data share has no journey.
@@ -55,16 +59,23 @@ public sealed class ExerciseDataController(IWindowService windows) : Controller
         // Adding a required input changes completeness even before it has received a file.
         exercise.ValidatedAt = null;
         await windows.UpdateAsync(window, cancellationToken);
-        return RedirectToAction("Edit", "EditCheckingExercise", new { id, exerciseId }, "data-files");
+        return RedirectToAction("Edit", "EditCheckingExercise", new { id, exerciseId }, ExerciseLinks.DataTab);
     }
 
     private void Decorate(AddExerciseDataItem model, CheckingWindowDto window, CheckingExerciseDto exercise)
     {
         model.ExerciseName = exercise.Name ?? ExerciseLabels.For(exercise.ExerciseType);
         model.FeedsJourney = WindowDatasets.AddedSlotFeedsJourney(exercise.ExerciseType);
-        model.SourceOptions = WindowDatasets.DefaultsFor(window.CheckingWindowType, CheckingExerciseType.ResultsEnquiry)
-            .Select(d => d.SourceFile).OfType<string>().Distinct().ToList();
+        // Pupil inclusion applies only to pupil data, and a results source only to results. A data
+        // share holds neither.
+        model.AsksInclusion = exercise.ExerciseType == CheckingExerciseType.PupilData;
+        model.SourceOptions = exercise.ExerciseType == CheckingExerciseType.ResultsEnquiry
+            ? WindowDatasets.DefaultsFor(window.CheckingWindowType, CheckingExerciseType.ResultsEnquiry)
+                .Select(d => d.SourceFile).OfType<string>().Distinct().ToList()
+            : [];
+        // A window type with no results feed (KS2) has no sources to offer.
+        model.AsksSource = model.SourceOptions.Count > 0;
         model.PostUrl = Url.Action("Submit", "ExerciseData", new { id = window.Id, exerciseId = exercise.Id });
-        model.CancelUrl = Url.Action("Edit", "EditCheckingExercise", new { id = window.Id, exerciseId = exercise.Id });
+        model.CancelUrl = Url.Action("Edit", "EditCheckingExercise", new { id = window.Id, exerciseId = exercise.Id }, null, null, ExerciseLinks.DataTab);
     }
 }

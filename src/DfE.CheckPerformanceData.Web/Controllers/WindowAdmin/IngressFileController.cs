@@ -250,7 +250,9 @@ public sealed class IngressFileController(ILogger<IngressFileController> logger,
 
         await windowService.UpdateAsync(window, cancellationToken);
 
-        return RedirectToAction("index", "Summary", new { id = id });
+        // Files are chosen from the exercise's Data tab, so the admin goes back there to choose
+        // the next one.
+        return RedirectToAction("Edit", "EditCheckingExercise", new { id, exerciseId = owner.Id }, ExerciseLinks.DataTab);
     }
 
     // Addressed by exercise id when the caller has one (#466); otherwise by kind, for every

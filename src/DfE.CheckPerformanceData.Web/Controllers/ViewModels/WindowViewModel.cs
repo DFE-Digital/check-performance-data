@@ -63,7 +63,7 @@ public class WindowEditItem : AdminPage
     public required KeyStages KeyStage { get; set; }
     public required CheckingWindowType CheckingWindowType { get; set; }
     public string CheckingWindowTypeLink {
-        get => $"{BaseEditUrl}/checking-window-type";
+        get => $"{BaseEditUrl}/window-type";
     }
 
     /// <summary>

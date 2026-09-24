@@ -66,7 +66,8 @@ public sealed class ExerciseTabBuilder(ICheckingDataReader reader, IExerciseDisp
 
             // With a release, each dataset has its own file, so every row's dataset is known.
             // Without one, the exercise has one merged file, and the display service works out
-            // each row's dataset from the row itself.
+            // each row's dataset from the row itself. A release whose merged file is its one
+            // dataset's file is read from the merged file, and every row belongs to that dataset.
             var files = new List<(CheckingWindowDatasetDto? Dataset, IReadOnlyList<Dictionary<string, string>> Rows)>();
             if (!HasDatasetFiles(exercise, published))
             {
@@ -74,7 +75,7 @@ public sealed class ExerciseTabBuilder(ICheckingDataReader reader, IExerciseDisp
                 if (bytes is { Length: > 0 })
                 {
                     using var json = JsonDocument.Parse(bytes);
-                    files.Add((null, display.ReadRows(json.RootElement)));
+                    files.Add((MergedFileDataset(exercise, published), display.ReadRows(json.RootElement)));
                 }
             }
             else
@@ -236,6 +237,16 @@ public sealed class ExerciseTabBuilder(ICheckingDataReader reader, IExerciseDisp
 
     // Per-dataset files exist only in a release, and only in one published since they were
     // introduced: a release from before then records no dataset ids and wrote only the merged file.
+    // A release whose merged file is its one dataset's file does not write a copy of it.
     private static bool HasDatasetFiles(CheckingDataExercise exercise, IReadOnlyList<CheckingWindowDatasetDto> published) =>
-        exercise.CurrentReleaseId is not null && published.Count > 0 && published.All(d => d.Id != Guid.Empty);
+        exercise.CurrentReleaseId is not null && published.Count > 0 && published.All(d => d.Id != Guid.Empty)
+        && !CheckingExerciseBlobPaths.MergedFileIsDatasetFile([.. published.Select(d => d.FeedsJourney)]);
+
+    // The one dataset every row of the merged file came from, when the release says so.
+    private static CheckingWindowDatasetDto? MergedFileDataset(CheckingDataExercise exercise,
+        IReadOnlyList<CheckingWindowDatasetDto> published) =>
+        exercise.CurrentReleaseId is not null && published is [{ Id: var id } only] && id != Guid.Empty
+        && CheckingExerciseBlobPaths.MergedFileIsDatasetFile([only.FeedsJourney])
+            ? only
+            : null;
 }

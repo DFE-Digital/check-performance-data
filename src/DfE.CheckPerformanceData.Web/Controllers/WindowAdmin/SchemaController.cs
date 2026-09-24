@@ -54,7 +54,7 @@ public class SchemaController(
             DatasetLabel = DatasetLabels.For(target.Name),
             PostUrl = Url.Action("Submit", "Schema",
                 new { id = window.Id, exercise = owner.ExerciseType, exerciseId = owner.Id, dataset = target.Name }),
-            CancelUrl = Url.Action("Index", "Summary", new { id = window.Id }),
+            CancelUrl = DataTabUrl(window.Id, owner.Id),
         };
         return View(PageView, model);
     }
@@ -149,8 +149,13 @@ public class SchemaController(
 
         await windowService.UpdateAsync(window, cancellationToken);
 
-        return RedirectToAction("Index", "Summary", new { id });
+        // Files are chosen from the exercise's Data tab, so the admin goes back there to choose
+        // the next one.
+        return RedirectToAction("Edit", "EditCheckingExercise", new { id, exerciseId = owner.Id }, ExerciseLinks.DataTab);
     }
+
+    private string DataTabUrl(Guid id, Guid exerciseId) =>
+        Url.Action("Edit", "EditCheckingExercise", new { id, exerciseId }, null, null, ExerciseLinks.DataTab)!;
 
     // Addressed by exercise id when the caller has one (#466 — the only way to name a
     // display-only exercise, or one of several releases of the same kind); otherwise by kind, for

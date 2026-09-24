@@ -20,6 +20,7 @@
         var statusWrapper = root.querySelector('[data-validate-status-wrapper]');
         var statusLine = root.querySelector('[data-validate-status]');
         var summary = root.querySelector('[data-validate-summary]');
+        var done = root.querySelector('[data-validate-done]');
 
         var fields = {
             recordsRead: root.querySelector('[data-validate-records-read]'),
@@ -67,6 +68,7 @@
                 // EventSource retries on its own; only surface a message if we never finished.
                 setStatus('Connection lost. Refresh the page to try again.');
                 es.close();
+                showDone();
             };
         }
 
@@ -107,6 +109,13 @@
             }
 
             summary.classList.remove('govuk-!-display-none');
+            showDone();
+        }
+
+        // The link back to the window. Shown only when the run has stopped, so an admin does not
+        // leave mid-run.
+        function showDone() {
+            if (done) { done.classList.remove('govuk-!-display-none'); }
         }
 
         // Records-processed-per-LAESTAB table with a totals footer, mirroring the server-rendered

@@ -234,7 +234,11 @@ public class SchemaControllerTests
         var model = new SchemaItem { WindowId = id, Schema = FileFrom(ValidSchema) };
         var result = await controller.Submit(id, CheckingExerciseType.PupilData, Dataset, model, CancellationToken.None, exerciseId);
 
-        Assert.IsType<RedirectToActionResult>(result);
+        // Back to the exercise's Data tab, where the next file is chosen.
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("EditCheckingExercise", redirect.ControllerName);
+        Assert.Equal(exerciseId, redirect.RouteValues!["exerciseId"]);
+        Assert.Equal(ExerciseLinks.DataTab, redirect.Fragment);
         // The checksum folder keeps an earlier schema of the same name: a release names the schema
         // it was displayed with, so a new upload must not overwrite it.
         var checksum = window.Exercises[0].Datasets[0].SchemaFileChecksum;

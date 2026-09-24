@@ -1,5 +1,10 @@
 @model DfE.CheckPerformanceData.Web.Controllers.ViewModels.IngressFolderBrowseViewModel
 
+@if (Model.ExerciseDataUrl is not null)
+{
+    <govuk-back-link href="@Model.ExerciseDataUrl" />
+}
+
 <h1 class="govuk-heading-xl">Browse ingress files for @Model.DatasetLabel</h1>
 
 @if (Model.IsChoosingContainer)

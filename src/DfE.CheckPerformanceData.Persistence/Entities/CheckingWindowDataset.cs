@@ -43,6 +43,13 @@ public sealed class CheckingWindowDataset
     /// </summary>
     public bool Required { get; set; } = true;
 
+    /// <summary>
+    /// The journey reads this slot's records. True for the supplier slots a pupil-data or results
+    /// enquiry exercise is created with; false for a slot an admin adds later, which is display
+    /// only. Written once, when the slot is created, and never changed by an update.
+    /// </summary>
+    public bool FeedsJourney { get; set; }
+
     public int SortOrder { get; set; }
 }
 

@@ -13,6 +13,12 @@ public sealed class ChangeRequestData
     /// request's change type maps to.
     /// </summary>
     public Guid? CheckingExerciseId { get; init; }
+
+    /// <summary>
+    /// The exercise's current release when the request was saved: the data the school saw. Null
+    /// when the exercise has no release.
+    /// </summary>
+    public Guid? CheckingExerciseReleaseId { get; init; }
     public required string ReferenceNumber { get; init; }
     public required long OrganisationUrn { get; init; }
     public Guid? PupilId { get; init; }

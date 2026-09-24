@@ -44,6 +44,9 @@ public sealed class ExerciseDataControllerTests
         Assert.Equal(4, added.SortOrder);
         Assert.True(added.Included);
         Assert.False(added.Required);
+        // On pupil data checking every file is merged into the pupils data the journey reads.
+        Assert.Equal(CheckingExerciseType.PupilData, first.ExerciseType);
+        Assert.True(added.FeedsJourney);
         Assert.Empty(added.IngressFile);
         Assert.Empty(added.SchemaFile);
         Assert.Null(first.ValidatedAt);
@@ -129,5 +132,23 @@ public sealed class ExerciseDataControllerTests
         Assert.IsType<NotFoundResult>(await _controller.Submit(_window.Id, Guid.NewGuid(), new() { WindowId = _window.Id }, default));
         Assert.IsType<BadRequestResult>(await _controller.Submit(_window.Id, _window.Exercises[0].Id, new() { WindowId = Guid.NewGuid() }, default));
         await _service.DidNotReceiveWithAnyArgs().UpdateAsync(default!, default);
+    }
+
+    [Theory]
+    [InlineData(CheckingExerciseType.ResultsEnquiry)]
+    [InlineData(null)]
+    public async Task A_file_added_to_a_results_enquiry_or_a_data_share_is_display_only(CheckingExerciseType? type)
+    {
+        var exercise = new CheckingExerciseDto
+        {
+            Id = Guid.NewGuid(), ExerciseType = type, DisplayOnly = type is null,
+            StartDate = _window.Exercises[0].StartDate, EndDate = _window.Exercises[0].EndDate
+        };
+        _window.Exercises.Add(exercise);
+        var model = new AddExerciseDataItem { WindowId = _window.Id, Name = "extra-share", Inclusion = "file" };
+
+        await _controller.Submit(_window.Id, exercise.Id, model, default);
+
+        Assert.False(Assert.Single(exercise.Datasets).FeedsJourney);
     }
 }

@@ -20,6 +20,14 @@
     </govuk-error-summary>
 }
 <p class="govuk-body">Add a CSV and schema pair to this exercise. After saving, choose the incoming CSV and its JSON schema.</p>
+@if (Model.FeedsJourney)
+{
+    <p class="govuk-body">This file is merged with this exercise's other files into the pupils data that schools check and ask to change. Add one file for KS4, or two (included and non-included) for 16 to 19.</p>
+}
+else
+{
+    <p class="govuk-body">Schools can view and download this file on the exercise's tab. It does not change the data any journey uses.</p>
+}
 <form method="post" action="@Model.PostUrl" novalidate>
     @Html.AntiForgeryToken()
     <input type="hidden" asp-for="WindowId" />

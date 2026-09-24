@@ -1,0 +1,45 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin.MakeReleaseLiveViewModel
+@using DfE.CheckPerformanceData.Web.Controllers.WindowAdmin
+
+@{
+    // Matches the <h1> below.
+    ViewBag.Title = $"Make release {Model.Release.Number} live";
+}
+
+<govuk-back-link href="@Model.CancelLink" />
+
+<span class="govuk-caption-l">@Model.WindowTitle: @Model.ExerciseName</span>
+<h1 class="govuk-heading-l">Make release @Model.Release.Number live</h1>
+
+<p class="govuk-body">
+    Schools will see the data from release @Model.Release.Number at once.
+    @if (Model.LiveRelease is { } live)
+    {
+        @:Release @live.Number stops being live. It is kept, so you can make it live again.
+    }
+</p>
+
+<govuk-summary-list>
+    <govuk-summary-list-row>
+        <govuk-summary-list-row-key>Published (UTC)</govuk-summary-list-row-key>
+        <govuk-summary-list-row-value>@Model.Release.PublishedAt.ToString("dd/MM/yyyy HH:mm")@(string.IsNullOrWhiteSpace(Model.Release.PublishedBy) ? "" : $" by {Model.Release.PublishedBy}")</govuk-summary-list-row-value>
+    </govuk-summary-list-row>
+    @foreach (var file in Model.Release.Files.OrderBy(f => f.SortOrder))
+    {
+        <govuk-summary-list-row>
+            <govuk-summary-list-row-key>@DatasetLabels.For(file.DatasetName)</govuk-summary-list-row-key>
+            <govuk-summary-list-row-value>@System.IO.Path.GetFileName(file.IngressFile) (schema @System.IO.Path.GetFileName(file.SchemaFile))</govuk-summary-list-row-value>
+        </govuk-summary-list-row>
+    }
+</govuk-summary-list>
+
+<p class="govuk-body">
+    The page titles and columns come from the schemas of release @Model.Release.Number. Change requests
+    that schools already submitted are not changed.
+</p>
+
+<form method="post" action="@Model.PostUrl">
+    @Html.AntiForgeryToken()
+    <govuk-button type="submit">Make release @Model.Release.Number live</govuk-button>
+    <a class="govuk-link govuk-!-margin-left-3" href="@Model.CancelLink">Cancel</a>
+</form>

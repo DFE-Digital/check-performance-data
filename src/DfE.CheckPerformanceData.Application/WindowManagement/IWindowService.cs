@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Domain.Enums;
 
@@ -94,6 +95,27 @@ public sealed class CheckingExerciseDto
     public DateTime? VisibleUntil { get; init; }
     public Guid? ReplacesCheckingExerciseId { get; init; }
 
+    /// <summary>
+    /// How the tab shows this exercise's data: a table with a dataset selector, or one record per
+    /// school turned on its side. Set by the admin on the exercise, not by the schemas, so every
+    /// dataset of one exercise is shown the same way.
+    /// </summary>
+    public ExerciseLayout Layout { get; init; } = ExerciseLayout.Table;
+
+    /// <summary>
+    /// The release schools see. Null means the exercise has no release yet: its output (if any) is
+    /// at the unversioned <see cref="CheckingExerciseBlobPaths.DataPrefix(Guid, Guid?)"/>, which is
+    /// where every run before releases existed, and every seeder, wrote it.
+    /// </summary>
+    public Guid? CurrentReleaseId { get; init; }
+
+    /// <summary>Every release of this exercise, oldest first.</summary>
+    public List<CheckingExerciseReleaseDto> Releases { get; init; } = [];
+
+    /// <summary>The release that <see cref="CurrentReleaseId"/> names, or null.</summary>
+    public CheckingExerciseReleaseDto? CurrentRelease =>
+        CurrentReleaseId is { } id ? Releases.SingleOrDefault(r => r.Id == id) : null;
+
     /// <summary>The outer window's dates, carried so a caller holding only an exercise can ask
     /// whether its window is running without loading the window again.</summary>
     public DateTime? WindowStart { get; init; }
@@ -130,6 +152,29 @@ public sealed class CheckingExerciseDto
     /// </summary>
     public IReadOnlyList<CheckingWindowDatasetDto> DatasetsToIngest =>
         [.. Datasets.Where(d => d.IsComplete).OrderBy(d => d.SortOrder)];
+
+    /// <summary>
+    /// The datasets as schools see them: the files that the current release read, or the complete
+    /// slots when the exercise has no release. The display reads its schemas from here, not from
+    /// the slots, because a slot can hold a newer file that has not been run yet. Its schema (and
+    /// the title in it) must not reach schools before its data does.
+    /// </summary>
+    public IReadOnlyList<CheckingWindowDatasetDto> PublishedDatasets =>
+        CurrentRelease is { } release
+            ? [.. release.Files.OrderBy(f => f.SortOrder).Select(f => new CheckingWindowDatasetDto
+            {
+                Id = f.DatasetId,
+                Name = f.DatasetName,
+                FeedsJourney = f.FeedsJourney,
+                Included = f.Included,
+                SourceFile = f.SourceFile,
+                IngressFile = f.IngressFile,
+                IngressFileChecksum = f.IngressFileChecksum,
+                SchemaFile = f.SchemaFile,
+                SchemaFileChecksum = f.SchemaFileChecksum,
+                SortOrder = f.SortOrder
+            })]
+            : DatasetsToIngest;
 
     /// <summary>
     /// Validated, and against the files it currently holds. A stamp taken before an ingress file
@@ -181,6 +226,15 @@ public sealed class CheckingWindowDatasetDto
     /// </summary>
     public bool Required { get; init; } = true;
 
+    /// <summary>
+    /// The journey reads this slot's records. True only for the supplier slots an exercise is
+    /// created with (<see cref="WindowDatasets.DefaultsFor"/>) on a pupil-data or results enquiry
+    /// exercise. A slot an admin adds later is display only: its records never reach a journey,
+    /// so a data share added to a results exercise can never become results a school can query.
+    /// Set once, when the slot is created.
+    /// </summary>
+    public bool FeedsJourney { get; init; }
+
     public int SortOrder { get; init; }
 
     public bool IsComplete =>
@@ -210,22 +264,35 @@ public static class WindowDatasets
         CheckingWindowType type, CheckingExerciseType? exercise) =>
         exercise switch
         {
-            CheckingExerciseType.PupilData => PupilDataDefaults(type),
+            // Pupil data checking and a data share start with no slots. The admin adds the files
+            // this window needs: one for KS4, two (included and non-included) for 16-19, or any
+            // number for a share. A fixed set of slots guessed the files wrongly as soon as a
+            // supplier sent something else, and gave a share a "required" slot it did not need.
+            CheckingExerciseType.PupilData => [],
+            null => [],
+            // The results feed is a fixed set of supplier files, each stamped with its own tag, so
+            // a results enquiry still starts with one slot per file.
             CheckingExerciseType.ResultsEnquiry => ResultsEnquiryDefaults(type),
-            // A named data share has no supplier feed behind it, so it gets one slot the admin
-            // uploads into rather than none, which would leave the exercise unable to hold a file.
-            null => [new CheckingWindowDatasetDto { Name = "data", SortOrder = 0 }],
             _ => []
         };
 
-    private static IReadOnlyList<CheckingWindowDatasetDto> PupilDataDefaults(CheckingWindowType type) =>
-        type == CheckingWindowType.Post16
-            ?
-            [
-                new CheckingWindowDatasetDto { Name = Included, Included = true, SortOrder = 0 },
-                new CheckingWindowDatasetDto { Name = NonIncluded, Included = false, SortOrder = 1 }
-            ]
-            : [ new CheckingWindowDatasetDto { Name = Pupils, Included = null, SortOrder = 0 } ];
+    /// <summary>
+    /// Whether a slot an admin adds to an exercise of this type feeds the journey. On pupil data
+    /// checking every file is part of the pupils data the journey reads (one file for KS4, two for
+    /// 16-19), so yes. On a results enquiry only the supplier's result slots feed it, and a data
+    /// share has no journey, so no.
+    /// </summary>
+    public static bool AddedSlotFeedsJourney(CheckingExerciseType? exercise) =>
+        exercise == CheckingExerciseType.PupilData;
+
+    /// <summary>
+    /// A supplier slot that belongs to another window type, left behind when the window's type
+    /// changed (a KS4 results tag on a window that is now 16-19). Only these are removed when a
+    /// window is saved; a slot an admin added is never removed.
+    /// </summary>
+    public static bool IsStaleSupplierSlot(CheckingWindowType type, CheckingExerciseType? exercise, string name) =>
+        DefaultsFor(type, exercise).All(d => d.Name != name)
+        && Enum.GetValues<CheckingWindowType>().Any(other => DefaultsFor(other, exercise).Any(d => d.Name == name));
 
     // One slot per source file. The slot is named by the tag it stamps, so the admin uploading the
     // files sees the supplier's own file names and a dataset can never be given the wrong tag.
@@ -254,6 +321,7 @@ public static class WindowDatasets
         [.. tags.Select((tag, index) => new CheckingWindowDatasetDto
         {
             Name = tag,
+            FeedsJourney = true,
             SourceFile = tag,
             // Inclusion is a pupil-data concept: a result row is not included or non-included.
             Included = null,

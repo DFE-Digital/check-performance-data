@@ -89,98 +89,135 @@
    unvalidated. *@
 @foreach (var exercise in Model.Exercises)
 {
-  <h3 class="govuk-heading-s">@exercise.Name</h3>
-
-  <govuk-summary-list>
-    <row>
-      <key>Name</key>
-      <value>@exercise.Name</value>
-    </row>
-    <row>
-      <key>Tab name</key>
-      <value>@(exercise.TabName ?? "Not configured")</value>
-    </row>
-    <row>
-      <key>Kind</key>
-      <value>@exercise.KindLabel</value>
-    </row>
-    <row>
-      <key>Start Date</key>
-      <value>@exercise.StartDate.ToString("dd/MM/yyyy HH:mm")</value>
-    </row>
-    <row>
-      <key>End Date</key>
-      <value>@exercise.EndDate.ToString("dd/MM/yyyy HH:mm")</value>
-    </row>
-    <row>
-      <key>Visible to schools</key>
-      <value>@(exercise.IsEnabled ? "Yes" : "No")</value>
-    </row>
-    <row>
-      <key>Validated</key>
-      <value>
-        @if (exercise.IsValidated)
+  @* A GOV.UK summary card per exercise: the border and grey title bar mark where one exercise
+     ends and the next begins. Plain sub-headings and stacked summary lists did not. *@
+  <div class="govuk-summary-card">
+    <div class="govuk-summary-card__title-wrapper">
+      <h3 class="govuk-summary-card__title">
+        @exercise.Name
+        <strong class="govuk-tag govuk-tag--grey govuk-!-margin-left-2">@exercise.KindLabel</strong>
+      </h3>
+      @* Everything in the card is edited on the one page — name, tab, kind, dates, visibility and
+         data files — so there is a single Edit link per card rather than a Change link per field. *@
+      <ul class="govuk-summary-card__actions">
+        <li class="govuk-summary-card__action">
+          <a class="govuk-link" href="@exercise.EditLink">Edit<span class="govuk-visually-hidden"> @exercise.Name</span></a>
+        </li>
+      </ul>
+    </div>
+    <div class="govuk-summary-card__content">
+      <p class="govuk-body">
+        @if (exercise.IsEnabled)
         {
-          @($"Yes, {exercise.ValidatedAt:dd/MM/yyyy HH:mm}")
-        }
-        else if (exercise.IsStale)
-        {
-          @* The stamp's checksums no longer match the files the exercise holds, so it describes
-             data that has since been replaced. Saying "No" would lose that distinction. *@
-          @($"Not since the files changed (last validated {exercise.ValidatedAt:dd/MM/yyyy HH:mm})")
+          <strong class="govuk-tag govuk-tag--green">Visible to schools</strong>
         }
         else
         {
-          @:No
+          <strong class="govuk-tag govuk-tag--grey">Hidden from schools</strong>
         }
-      </value>
-    </row>
-  </govuk-summary-list>
+        @if (exercise.IsValidated)
+        {
+          <strong class="govuk-tag govuk-tag--green">Validated</strong>
+        }
+        else if (exercise.IsStale)
+        {
+          <strong class="govuk-tag govuk-tag--yellow">Files changed since validation</strong>
+        }
+        else
+        {
+          <strong class="govuk-tag govuk-tag--red">Not validated</strong>
+        }
+      </p>
 
-  @* Everything above is edited on the one page — name, tab, kind, dates, visibility and data
-     files — so there is a single Edit link per section rather than a Change link per field. *@
-  <p class="govuk-body">
-    <a class="govuk-link" href="@exercise.EditLink">Edit<span class="govuk-visually-hidden"> @exercise.Name</span></a>
-  </p>
+      <govuk-summary-list>
+        <row>
+          <key>Tab name</key>
+          <value>@(exercise.TabName ?? "Not configured")</value>
+        </row>
+        <row>
+          <key>Start Date</key>
+          <value>@exercise.StartDate.ToString("dd/MM/yyyy HH:mm")</value>
+        </row>
+        <row>
+          <key>End Date</key>
+          <value>@exercise.EndDate.ToString("dd/MM/yyyy HH:mm")</value>
+        </row>
+        <row>
+          <key>Validated</key>
+          <value>
+            @if (exercise.IsValidated)
+            {
+              @($"Yes, {exercise.ValidatedAt:dd/MM/yyyy HH:mm}")
+            }
+            else if (exercise.IsStale)
+            {
+              @* The stamp's checksums no longer match the files the exercise holds, so it describes
+                 data that has since been replaced. Saying "No" would lose that distinction. *@
+              @($"Not since the files changed (last validated {exercise.ValidatedAt:dd/MM/yyyy HH:mm})")
+            }
+            else
+            {
+              @:No
+            }
+          </value>
+        </row>
+      </govuk-summary-list>
 
-  @if (exercise.Datasets.Count == 0)
-  {
-    <p class="govuk-body">This exercise has no ingress files to load.</p>
-  }
-  else
-  {
-    <govuk-summary-list>
-      @foreach (var dataset in exercise.Datasets)
+      @if (exercise.Datasets.Count == 0)
+      {
+        <p class="govuk-body">This exercise has no ingress files to load.</p>
+      }
+      else
       {
         @* An optional slot is a file the supplier may deliver later, or not at all — the results
            feed's late, revised and retention files. Saying so is what stops an admin waiting for a
            file that is not coming before validating the ones that have arrived. Bare filenames —
            an upload stores a complete blob name (ingress/{exerciseId}/{datasetId}/main.csv), and
            showing that path verbatim would be meaningless to an admin. *@
-        <row>
-          <key>@dataset.Label — ingress file@(dataset.Required ? "" : " (optional)")</key>
-          <value>@(string.IsNullOrWhiteSpace(dataset.IngressFile) ? "Not supplied" : System.IO.Path.GetFileName(dataset.IngressFile))</value>
-        </row>
-        <row>
-          <key>@dataset.Label — schema file@(dataset.Required ? "" : " (optional)")</key>
-          <value>@(string.IsNullOrWhiteSpace(dataset.SchemaFile) ? "Not supplied" : System.IO.Path.GetFileName(dataset.SchemaFile))</value>
-        </row>
+        <table class="govuk-table">
+          <caption class="govuk-table__caption govuk-table__caption--s">Data files<span class="govuk-visually-hidden"> for @exercise.Name</span></caption>
+          <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+              <th scope="col" class="govuk-table__header">Dataset</th>
+              <th scope="col" class="govuk-table__header">Ingress file</th>
+              <th scope="col" class="govuk-table__header">Schema file</th>
+            </tr>
+          </thead>
+          <tbody class="govuk-table__body">
+            @foreach (var dataset in exercise.Datasets)
+            {
+              <tr class="govuk-table__row">
+                <th scope="row" class="govuk-table__header">
+                  @dataset.Label
+                  @if (!dataset.Required)
+                  {
+                    <span class="govuk-hint govuk-!-display-inline govuk-!-font-weight-regular">(optional)</span>
+                  }
+                </th>
+                <td class="govuk-table__cell">@(string.IsNullOrWhiteSpace(dataset.IngressFile) ? "Not supplied" : System.IO.Path.GetFileName(dataset.IngressFile))</td>
+                <td class="govuk-table__cell">@(string.IsNullOrWhiteSpace(dataset.SchemaFile) ? "Not supplied" : System.IO.Path.GetFileName(dataset.SchemaFile))</td>
+              </tr>
+            }
+          </tbody>
+        </table>
       }
-    </govuk-summary-list>
-  }
 
-  <govuk-button-link disabled="@(!exercise.IsValidatable)" href="@exercise.ValidateLink">
-    Validate<span class="govuk-visually-hidden"> @exercise.Name</span>
-  </govuk-button-link>
+      <div class="govuk-button-group govuk-!-margin-bottom-0">
+        <govuk-button-link disabled="@(!exercise.IsValidatable)" href="@exercise.ValidateLink">
+          Validate<span class="govuk-visually-hidden"> @exercise.Name</span>
+        </govuk-button-link>
 
-  @* Kind-addressed, so only shown when this exercise has a kind: closing replays ChangeRequests,
-     which are only ever routed to a kind, so a display-only exercise can hold none to close. *@
-  @if (exercise.ExerciseType is not null)
-  {
-    <govuk-button-link class="govuk-button--warning" href="@exercise.CloseLink">
-      Close<span class="govuk-visually-hidden"> @exercise.Name</span>
-    </govuk-button-link>
-  }
+        @* Kind-addressed, so only shown when this exercise has a kind: closing replays ChangeRequests,
+           which are only ever routed to a kind, so a display-only exercise can hold none to close. *@
+        @if (exercise.ExerciseType is not null)
+        {
+          <govuk-button-link class="govuk-button--warning" href="@exercise.CloseLink">
+            Close<span class="govuk-visually-hidden"> @exercise.Name</span>
+          </govuk-button-link>
+        }
+      </div>
+    </div>
+  </div>
 }
 
 <govuk-button-link href="@Model.AddExerciseLink">Add checking exercise</govuk-button-link>

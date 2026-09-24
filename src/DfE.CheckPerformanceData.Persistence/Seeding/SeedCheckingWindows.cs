@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Persistence.Contexts;
@@ -15,24 +16,32 @@ public static class SeedCheckingWindows
         type == CheckingWindowType.Post16
             ?
             [
-                new CheckingWindowDataset { Name = "included", Included = true, SortOrder = 0 },
-                new CheckingWindowDataset { Name = "nonincluded", Included = false, SortOrder = 1 }
+                new CheckingWindowDataset { Name = "included", Included = true, FeedsJourney = true, SortOrder = 0 },
+                new CheckingWindowDataset { Name = "nonincluded", Included = false, FeedsJourney = true, SortOrder = 1 }
             ]
-            : [new CheckingWindowDataset { Name = "pupils", Included = null, SortOrder = 0 }];
+            : [new CheckingWindowDataset { Name = "pupils", Included = null, FeedsJourney = true, SortOrder = 0 }];
 
     // A window's exercises must cover exactly its outer StartDate/EndDate — that union rule is what
     // lets the landing page keep deciding card visibility from the outer pair alone. Single-activity
     // window types get one PupilData exercise across the whole window; Post16 splits, with results
     // enquiry running far longer than pupil data checking (7 Oct - 31 Mar against 7 Oct - 18 Oct in
     // the real calendar). See docs/16-19-window-model.md.
+    //
+    // Every seeded exercise is new style: named, enabled and on a tab, so the Check Your Pupil
+    // Data page draws exercise tabs for every seeded window.
     private static List<CheckingExercise> ExercisesFor(
-        CheckingWindowType type, DateTime startDate, DateTime endDate, DateTime? pupilDataEnd = null) =>
+        CheckingWindowType type, DateTime startDate, DateTime endDate, DateTime? pupilDataEnd = null,
+        IReadOnlyList<string>? resultsFiles = null) =>
         type == CheckingWindowType.Post16
             ?
             [
                 new CheckingExercise
                 {
                     ExerciseType = CheckingExerciseType.PupilData,
+                    Name = "Pupil data checking",
+                    TabName = "Students",
+                    TabOrder = 200,
+                    IsEnabled = true,
                     StartDate = startDate,
                     // 14 days from a start of yesterday, which is the same fortnight the KS4
                     // windows run for, unless the caller wants pupil data to have shut already.
@@ -44,9 +53,14 @@ public static class SeedCheckingWindows
                 new CheckingExercise
                 {
                     ExerciseType = CheckingExerciseType.ResultsEnquiry,
+                    Name = "Results enquiry",
+                    TabName = "Results",
+                    TabOrder = 300,
+                    IsEnabled = true,
                     StartDate = startDate,
                     EndDate = endDate,
-                    SortOrder = 1
+                    SortOrder = 1,
+                    Datasets = ResultsDatasetsFor(resultsFiles ?? DefaultResultsFiles)
                 }
             ]
             :
@@ -54,12 +68,29 @@ public static class SeedCheckingWindows
                 new CheckingExercise
                 {
                     ExerciseType = CheckingExerciseType.PupilData,
+                    Name = "Pupil data checking",
+                    TabName = "Pupils",
+                    TabOrder = 200,
+                    IsEnabled = true,
                     StartDate = startDate,
                     EndDate = endDate,
                     SortOrder = 0,
                     Datasets = DatasetsFor(type)
                 }
             ];
+
+    // The results files the E2E fixture windows hold: SeedStudentResults writes rows from the main
+    // file and the first late file, and deliberately none from the second late file.
+    private static readonly string[] DefaultResultsFiles = [ResultsFileTags.Post16Main, ResultsFileTags.Post16LateResults1];
+
+    // One slot per results file that has landed, named by the tag it stamps, as the admin wizard
+    // names them. Only the main file is required.
+    private static List<CheckingWindowDataset> ResultsDatasetsFor(IReadOnlyList<string> resultsFiles) =>
+        resultsFiles.Select((tag, index) => new CheckingWindowDataset
+        {
+            Name = tag, SourceFile = tag, Included = null, Required = tag == ResultsFileTags.Post16Main,
+            FeedsJourney = true, SortOrder = index
+        }).ToList();
 
     public static async Task ExecuteSeed(IPortalDbContext dbContext, Guid openKs4WindowId, Guid closedKs4WindowId, Guid post16WindowId, Guid closedPupilDataPost16WindowId)
     {
@@ -179,30 +210,17 @@ public static class SeedCheckingWindows
     private static CheckingWindow IngestedPost16Window(Guid id, string title, DateTime start, DateTime pupilDataEnd,
         DateTime end, int currentSummary, IReadOnlyList<string> resultsFiles)
     {
-        var exercises = ExercisesFor(CheckingWindowType.Post16, start, end, pupilDataEnd);
-        foreach (var exercise in exercises) exercise.IsEnabled = true;
+        var exercises = ExercisesFor(CheckingWindowType.Post16, start, end, pupilDataEnd, resultsFiles);
 
+        // The Summary exercises sort first on this window.
         var students = exercises.Single(e => e.ExerciseType == CheckingExerciseType.PupilData);
-        students.Name = "Pupil data checking";
-        students.TabName = "Students";
-        students.TabOrder = 200;
         students.SortOrder = 1;
 
         var results = exercises.Single(e => e.ExerciseType == CheckingExerciseType.ResultsEnquiry);
-        results.Name = "Results enquiry";
-        results.TabName = "Results";
-        results.TabOrder = 300;
         results.SortOrder = 2;
-        // One slot per results file that has landed, named by the tag it stamps, as the admin
-        // wizard names them. Only the main file is required.
-        foreach (var (tag, index) in resultsFiles.Select((tag, index) => (tag, index)))
-            results.Datasets.Add(new CheckingWindowDataset
-            {
-                Name = tag, SourceFile = tag, Included = null, Required = tag == ResultsFileTags.Post16Main, SortOrder = index
-            });
 
-        // The Summary tab is one record per school, pivoted on the page (each schema says
-        // "layout": "vertical"). Over the year it is four exercises, each replacing the last, and
+        // The Summary tab is one record per school, pivoted on the page (the exercise's layout is
+        // Vertical). Over the year it is four exercises, each replacing the last, and
         // the supplier's file has a different column set for each (62, 102, 102 and 135 columns),
         // so each dataset names the schema for its own shape. Display-only, so no journey or close
         // action. One is enabled: an admin enables the next to swap the tab.
@@ -226,6 +244,7 @@ public static class SeedCheckingWindows
                 EndDate = end,
                 IsEnabled = index == currentSummary,
                 DisplayOnly = true,
+                Layout = ExerciseLayout.Vertical,
                 UsesExerciseStorage = true,
                 ReplacesCheckingExerciseId = previous?.Id,
                 Datasets = [new CheckingWindowDataset { Name = dataset, Included = null, Required = true, SortOrder = 0 }]

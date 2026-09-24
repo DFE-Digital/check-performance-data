@@ -3,7 +3,6 @@ using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
-using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
 using DfE.CheckPerformanceData.Infrastructure.Ingress;
@@ -24,7 +23,6 @@ public sealed class DevDataSeedingOrchestrator(
     IPortalDbContext dbContext,
     BlobServiceClient blobServiceClient,
     IPupilDataBlobClient pupilDataBlobClient,
-    IStudentResultsClient studentResultsClient,
     IRequestRepository requestRepository,
     IRequestStateBlobClient requestStateBlobClient,
     ICheckYourPupilDataService checkYourPupilDataService,
@@ -40,21 +38,9 @@ public sealed class DevDataSeedingOrchestrator(
         await devDataSeeder.SeedAsync();
         await SeedPost16Ingress.ExecuteSeedAsync(dbContext, blobServiceClient, checkingExerciseIngress, environment.ContentRootPath);
 
-        await SeedPupilData.ExecuteSeedAsync(pupilDataBlobClient);
-        await SeedPupilData.ExecutePost16SeedAsync(pupilDataBlobClient, DevDataSeeder.Post16CheckingWindowId);
-        await SeedPupilData.ExecutePost16SeedAsync(pupilDataBlobClient, DevDataSeeder.ClosedPupilDataPost16CheckingWindowId);
-
-        // AB#296648: the 16-19 exam results the incorrect-grade enquiry journey reads. Tolerates the
-        // same Azurite API-version mismatch as the other blob seeds so a version skew degrades the
-        // enquiry journey rather than aborting the whole seed.
-        try
-        {
-            await SeedStudentResults.ExecuteSeedAsync(studentResultsClient);
-        }
-        catch (Azure.RequestFailedException ex) when (environment.IsDevelopment())
-        {
-            logger.LogWarning(ex, "Student results seeding skipped: Azurite returned {Status} {ErrorCode}.", ex.Status, ex.ErrorCode);
-        }
+        // The E2E fixture windows' pupils and results (AB#296648), ingested from generated CSVs so
+        // every seeded window has schemas and a release.
+        await SeedExerciseFixtures.ExecuteSeedAsync(dbContext, blobServiceClient, checkingExerciseIngress, environment.ContentRootPath);
 
         try
         {

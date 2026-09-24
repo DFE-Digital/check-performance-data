@@ -25,6 +25,9 @@ public static class DatasetLabels
         ResultsFileTags.Ks4LateResults1 => $"Late results 1 ({ResultsFileTags.Ks4LateResults1})",
         ResultsFileTags.Ks4LateResults2 => $"Late results 2 ({ResultsFileTags.Ks4LateResults2})",
         ResultsFileTags.Ks4Revised => $"Revised results ({ResultsFileTags.Ks4Revised})",
-        _ => "Pupils"
+        // A slot an admin added is shown by the name they gave it. This used to say "Pupils" for
+        // every other name, so a data share's slot was labelled as pupil data.
+        WindowDatasets.Pupils => "Pupils",
+        _ => datasetName
     };
 }

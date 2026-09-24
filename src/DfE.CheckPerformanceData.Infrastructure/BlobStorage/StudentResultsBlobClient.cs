@@ -109,13 +109,15 @@ public sealed class StudentResultsBlobClient(
         var target = resolver is null ? null : await resolver.ResolveAsync(windowId, CheckingExerciseType.ResultsEnquiry, ct);
         if (resolver is not null && target is null) return null;
         return target is { UsesExerciseStorage: true }
-            ? CheckingExerciseBlobPaths.DataBlobName(target.Id, CheckingDataType.Results, LaestabNormaliser.Normalise(laestab))
+            ? CheckingExerciseBlobPaths.DataBlobName(target.Id, CheckingDataType.Results,
+                LaestabNormaliser.Normalise(laestab), target.CurrentReleaseId)
             : ResultsEnquiryBlobPaths.ResultsBlobName(laestab);
     }
 
     // The laestab is normalised so a claim value of "933/4070" and a blob name of "9334070" agree.
     // The path is folded in so a resolved exercise's cache entry never collides with another
-    // exercise's — or the legacy path's — entry for the same window and school.
+    // exercise's — or the legacy path's — entry for the same window and school. The path also
+    // names the current release, so a new release is a new key and is read at once.
     private static string CacheKey(Guid windowId, string laestab, string path)
         => $"results:{windowId}:{LaestabNormaliser.Normalise(laestab)}:{path}";
 }

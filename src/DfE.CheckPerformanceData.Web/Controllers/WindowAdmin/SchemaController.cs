@@ -117,9 +117,11 @@ public class SchemaController(
         await destinationContainer.CreateIfNotExistsAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
 
         // #466: stored at a path unique to this exercise and dataset, not a name relative to a
-        // shared schema/ root — two exercises can both have a slot called "main".
+        // shared schema/ root — two exercises can both have a slot called "main". The checksum
+        // folder keeps an earlier upload of the same file name: a release names the schema it
+        // was displayed with, so replacing a slot's schema must not overwrite it.
         string schemaFileName = Path.GetFileName(model.Schema.FileName);
-        string blobName = CheckingExerciseBlobPaths.DefinitionFile(owner.Id, target.Id, schemaFileName);
+        string blobName = CheckingExerciseBlobPaths.DefinitionFile(owner.Id, target.Id, checksum, schemaFileName);
         BlobClient destinationBlob = destinationContainer.GetBlobClient(blobName);
 
         buffer.Position = 0;

@@ -22,4 +22,8 @@ public sealed class AddExerciseDataItem : AdminPage
 
     [BindNever]
     public IReadOnlyList<string> SourceOptions { get; set; } = [];
+
+    /// <summary>True when a file added here is merged into the data the journey reads.</summary>
+    [BindNever]
+    public bool FeedsJourney { get; set; }
 }

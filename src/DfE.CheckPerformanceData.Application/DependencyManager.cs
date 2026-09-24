@@ -45,6 +45,7 @@ public static class DependencyManager
         // #315: the single place that compares an exercise's dates against the clock. Nothing else
         // in the solution may do that comparison for itself.
         services.AddScoped<ICheckingExerciseService, CheckingExerciseService>();
+        services.AddScoped<ICheckingExerciseReleaseService, CheckingExerciseReleaseService>();
         services.AddScoped<ICheckYourPupilDataService, CheckYourPupilDataService>();
         // #317: which next-step options the check-your-pupil-data page may offer, from the open
         // exercises. The exercise-to-options map is domain knowledge, so it is not in the controller.

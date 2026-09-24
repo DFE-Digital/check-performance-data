@@ -47,6 +47,8 @@ public sealed class PortalDbContext(
         modelBuilder.ApplyConfiguration(new CheckingWindowConfiguration());
         modelBuilder.ApplyConfiguration(new CheckingWindowDatasetConfiguration());
         modelBuilder.ApplyConfiguration(new CheckingExerciseConfiguration());
+        modelBuilder.ApplyConfiguration(new CheckingExerciseReleaseConfiguration());
+        modelBuilder.ApplyConfiguration(new CheckingExerciseReleaseFileConfiguration());
         modelBuilder.ApplyConfiguration(new ContentBlockConfiguration());
         modelBuilder.ApplyConfiguration(new ContentBlockVersionConfiguration());
         modelBuilder.ApplyConfiguration(new ContentStagingSessionConfiguration());

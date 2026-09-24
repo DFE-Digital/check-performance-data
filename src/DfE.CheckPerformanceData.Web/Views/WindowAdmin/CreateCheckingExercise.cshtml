@@ -1,3 +1,4 @@
+@using DfE.CheckPerformanceData.Application.CheckYourPupilData
 @using DfE.CheckPerformanceData.Domain.Enums
 @using DfE.CheckPerformanceData.Web.Controllers.WindowAdmin
 @model DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin.CreateCheckingExerciseItem
@@ -83,6 +84,27 @@
         <govuk-checkboxes-hint>Schools can view and download data without starting amendment, results enquiry or confirmation journeys.</govuk-checkboxes-hint>
         <govuk-checkboxes-item value="true" checked="@Model.DisplayOnly">Display data only</govuk-checkboxes-item>
     </govuk-checkboxes>
+
+    @* The exercise sets the layout for all of its data files. A schema's own x-display.layout is
+       ignored, so two files of one exercise can never be shown two different ways. *@
+    <div class="govuk-form-group">
+        <fieldset class="govuk-fieldset" aria-describedby="Layout-hint">
+            <legend class="govuk-fieldset__legend govuk-fieldset__legend--m">How schools see the data</legend>
+            <div class="govuk-hint" id="Layout-hint">This applies to every data file in this exercise.</div>
+            <div class="govuk-radios" data-module="govuk-radios">
+                <div class="govuk-radios__item">
+                    <input class="govuk-radios__input" id="Layout" name="Layout" type="radio" value="@ExerciseLayout.Table" checked="@(Model.Layout == ExerciseLayout.Table)" aria-describedby="Layout-Table-hint" />
+                    <label class="govuk-label govuk-radios__label" for="Layout">Table</label>
+                    <div class="govuk-hint govuk-radios__hint" id="Layout-Table-hint">Many records for each school. Schools choose a data file, then search and page through it.</div>
+                </div>
+                <div class="govuk-radios__item">
+                    <input class="govuk-radios__input" id="Layout-Vertical" name="Layout" type="radio" value="@ExerciseLayout.Vertical" checked="@(Model.Layout == ExerciseLayout.Vertical)" aria-describedby="Layout-Vertical-hint" />
+                    <label class="govuk-label govuk-radios__label" for="Layout-Vertical">Summary list</label>
+                    <div class="govuk-hint govuk-radios__hint" id="Layout-Vertical-hint">One record for each school, shown as labels and values. Use this for a summary.</div>
+                </div>
+            </div>
+        </fieldset>
+    </div>
     </govuk-tabs-item>
 
         <govuk-tabs-item id="Dates" label="Dates">
@@ -250,7 +272,62 @@
     }
     <govuk-button-link href="@($"/admin/windows/{Model.WindowId}/exercises/{dataExercise.Id}/data/new")">Add data file</govuk-button-link>
     <p class="govuk-body">Validation: @(dataExercise.IsValidated ? "Up to date" : dataExercise.ValidatedAt is not null ? "Files have changed since the last validation" : "Not yet validated")</p>
-    <govuk-button-link class="govuk-button--secondary" disabled="@(!dataExercise.HasRequiredFiles)" href="@(dataExercise.ExerciseType is null ? $"/admin/windows/{Model.WindowId}/exercises/{dataExercise.Id}/validate?returnToExercise=true" : $"/admin/windows/{Model.WindowId}/{dataExercise.ExerciseType}/validate?exerciseId={dataExercise.Id}&returnToExercise=true")">Validate data</govuk-button-link>
+    <govuk-button-link class="govuk-button--secondary" disabled="@(!dataExercise.HasRequiredFiles)" href="@($"/admin/windows/{Model.WindowId}/exercises/{dataExercise.Id}/validate?returnToExercise=true")">Validate data</govuk-button-link>
+
+    @* Each clean run is a release with its own output. Schools see the live one; the earlier ones
+       stay in storage, so an admin can put one back without a re-upload. Times are UTC, as on
+       every admin page. *@
+    <h2 class="govuk-heading-m" id="releases">Data releases</h2>
+    @if (dataExercise.Releases.Count == 0)
+    {
+        <p class="govuk-body">This exercise has no releases. Validate the data to make the first release.</p>
+    }
+    else
+    {
+        <p class="govuk-body">Each time the data validates, it becomes a new release and schools see it. Earlier releases are kept. You can make an earlier release live again.</p>
+        <table class="govuk-table">
+            <caption class="govuk-table__caption govuk-visually-hidden">Data releases for @dataExercise.Name</caption>
+            <thead class="govuk-table__head">
+                <tr class="govuk-table__row">
+                    <th scope="col" class="govuk-table__header">Release</th>
+                    <th scope="col" class="govuk-table__header">Published (UTC)</th>
+                    <th scope="col" class="govuk-table__header">Files</th>
+                    <th scope="col" class="govuk-table__header">Status</th>
+                </tr>
+            </thead>
+            <tbody class="govuk-table__body">
+                @foreach (var release in dataExercise.Releases.OrderByDescending(r => r.Number))
+                {
+                    <tr class="govuk-table__row">
+                        <th scope="row" class="govuk-table__header">Release @release.Number</th>
+                        <td class="govuk-table__cell">
+                            @release.PublishedAt.ToString("dd/MM/yyyy HH:mm")
+                            @if (!string.IsNullOrWhiteSpace(release.PublishedBy))
+                            {
+                                <div class="govuk-body-s govuk-!-margin-bottom-0">by @release.PublishedBy</div>
+                            }
+                        </td>
+                        <td class="govuk-table__cell">
+                            @foreach (var file in release.Files.OrderBy(f => f.SortOrder))
+                            {
+                                <div>@DatasetLabels.For(file.DatasetName): @System.IO.Path.GetFileName(file.IngressFile)</div>
+                            }
+                        </td>
+                        <td class="govuk-table__cell">
+                            @if (release.Id == dataExercise.CurrentReleaseId)
+                            {
+                                <strong class="govuk-tag govuk-tag--green">Live</strong>
+                            }
+                            else
+                            {
+                                <a class="govuk-link" href="@($"/admin/windows/{Model.WindowId}/exercises/{dataExercise.Id}/releases/{release.Id}/make-live")">Make live<span class="govuk-visually-hidden"> release @release.Number</span></a>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
 }
         </govuk-tabs-item>
     </govuk-tabs>

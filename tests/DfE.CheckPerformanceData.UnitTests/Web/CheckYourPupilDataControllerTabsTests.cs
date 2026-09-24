@@ -32,7 +32,6 @@ public sealed class CheckYourPupilDataControllerTabsTests
     private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
     private readonly IAnalyticsService _analytics = Substitute.For<IAnalyticsService>();
     private readonly IExerciseTabBuilder _tabBuilder = Substitute.For<IExerciseTabBuilder>();
-    private readonly ICheckingDataReader _reader = Substitute.For<ICheckingDataReader>();
     private readonly IExerciseDisplayService _display = new ExerciseDisplayService();
 
     public CheckYourPupilDataControllerTabsTests()
@@ -52,7 +51,7 @@ public sealed class CheckYourPupilDataControllerTabsTests
 
         var checkingExercises = new CheckingExerciseService(TimeProvider.System);
         return new CheckYourPupilDataController(_service, _currentUser, _analytics,
-            new NextStepsService(checkingExercises), checkingExercises, _tabBuilder, _display, _reader)
+            new NextStepsService(checkingExercises), checkingExercises, _tabBuilder, _display)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext }
         };
@@ -118,7 +117,7 @@ public sealed class CheckYourPupilDataControllerTabsTests
         _tabBuilder.BuildAsync(Arg.Any<CheckingWindowDto>(), Arg.Any<string?>(), Arg.Any<string?>(),
                 Arg.Any<string?>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns([ATab()]);
-        _reader.ReadAsync(Arg.Any<CheckingDataExercise>(), "933/4290", Arg.Any<CancellationToken>())
+        _tabBuilder.ReadRawAsync(Arg.Any<ExerciseTab>(), "933/4290", Arg.Any<CancellationToken>())
             .Returns(Encoding.UTF8.GetBytes("""[{"ULN":"1"}]"""));
 
         var result = Assert.IsType<FileContentResult>(

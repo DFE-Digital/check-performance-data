@@ -36,6 +36,17 @@ public static class CheckingExerciseBlobPaths
     public static string DefinitionFile(Guid exerciseId, Guid definitionId, string filename)
         => $"ingress/{exerciseId}/{definitionId}/{filename.Split('/', '\\')[^1]}";
 
+    /// <summary>
+    /// Where an uploaded file is stored when its content is known. The checksum is part of the
+    /// path, so a new upload with the same file name as an earlier one gets a new blob and does not
+    /// overwrite it. A release records the path of each file it read, so that file must stay where
+    /// it is for as long as the release does.
+    /// </summary>
+    public static string DefinitionFile(Guid exerciseId, Guid definitionId, string checksum, string filename)
+        => string.IsNullOrEmpty(checksum)
+            ? DefinitionFile(exerciseId, definitionId, filename)
+            : $"ingress/{exerciseId}/{definitionId}/{checksum[..Math.Min(16, checksum.Length)].ToLowerInvariant()}/{filename.Split('/', '\\')[^1]}";
+
     // A dataset row stores a complete blob name once it has been uploaded through the new screens.
     // Rows written before that store a path relative to the separate ingress/ and schema/ roots.
     // Both are read without moving anything.
@@ -45,8 +56,35 @@ public static class CheckingExerciseBlobPaths
     public static string SchemaBlobName(string storedPath)
         => storedPath.StartsWith("ingress/", StringComparison.Ordinal) ? storedPath : $"schema/{storedPath}";
 
-    /// <summary>The exercise's per-school output files.</summary>
-    public static string DataPrefix(Guid exerciseId) => $"exercises/{exerciseId}/data/";
+    /// <summary>
+    /// The exercise's per-school output files. With no release, the unversioned prefix: where
+    /// every run wrote before releases existed, and where the dev seeders still write.
+    /// </summary>
+    public static string DataPrefix(Guid exerciseId, Guid? releaseId = null)
+        => releaseId is { } release ? ReleaseDataPrefix(exerciseId, release) : $"exercises/{exerciseId}/data/";
+
+    /// <summary>
+    /// The per-school output of one release. Each run writes under a new release id, so it never
+    /// overwrites the output that schools see now. The switch to the new output is one change to
+    /// the exercise's current release, after every file is written.
+    /// </summary>
+    public static string ReleaseDataPrefix(Guid exerciseId, Guid releaseId)
+        => $"exercises/{exerciseId}/releases/{releaseId}/data/";
+
+    /// <summary>
+    /// One dataset's per-school output in one release, e.g.
+    /// <c>exercises/{id}/releases/{release}/datasets/{dataset}/9334290.json</c>.
+    /// </summary>
+    /// <remarks>
+    /// Each dataset has its own file, so the display never has to guess which dataset a record came
+    /// from, and datasets with unrelated schemas never share a file. The merged file under
+    /// <see cref="ReleaseDataPrefix"/> still exists for the journeys, and holds only the slots that
+    /// feed them. The two prefixes do not overlap, so listing <c>data/</c> never finds a dataset
+    /// file. The dataset id, not its name, names the folder: an admin types the name, and the id
+    /// is always safe in a path.
+    /// </remarks>
+    public static string DatasetBlobName(Guid exerciseId, Guid releaseId, Guid datasetId, string laestab)
+        => $"exercises/{exerciseId}/releases/{releaseId}/datasets/{datasetId}/{laestab.Replace("/", string.Empty)}.json";
 
     /// <summary>The exercise's run summaries and error log.</summary>
     public static string LogPrefix(Guid exerciseId) => $"exercises/{exerciseId}/logs/";
@@ -73,8 +111,8 @@ public static class CheckingExerciseBlobPaths
     /// <see cref="PupilsBlobName"/> does, because ingress writes the supplier's LAESTAB column
     /// through verbatim and the two rules differ on any value that is not slash-separated digits.
     /// </remarks>
-    public static string DataBlobName(Guid exerciseId, CheckingDataType type, string laestab)
-        => $"{DataPrefix(exerciseId)}{laestab.Replace("/", string.Empty)}_{type switch
+    public static string DataBlobName(Guid exerciseId, CheckingDataType type, string laestab, Guid? releaseId = null)
+        => $"{DataPrefix(exerciseId, releaseId)}{laestab.Replace("/", string.Empty)}_{type switch
         {
             CheckingDataType.Pupil => "pupils",
             CheckingDataType.Results => "results",

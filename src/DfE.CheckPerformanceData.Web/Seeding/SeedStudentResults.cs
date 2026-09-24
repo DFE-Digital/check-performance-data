@@ -4,9 +4,9 @@ using DfE.CheckPerformanceData.Persistence.Seeding;
 namespace DfE.CheckPerformanceData.Web.Seeding;
 
 /// <summary>
-/// Dev-only: writes the per-school 16-19 exam results JSON (container <c>{windowId}</c>, blob
-/// <c>results-enquiry/data/{laestab}_results.json</c>) so the incorrect-grade enquiry journey works
-/// locally before the six-file ingestion pipeline exists. AB#296648.
+/// Dev-only: the 16-19 exam results the incorrect-grade enquiry journey reads (AB#296648).
+/// <see cref="SeedExerciseFixtures"/> writes them as one CSV per results file and runs them
+/// through ingress, so the Results tab has a schema and a release like any other exercise.
 ///
 /// The QANs are real 16-19 qualifications from the QualList reference (AB#301903 — the Figma
 /// screens' GCSE fixtures were KS4 QANs the 16-19 reference does not hold); sessions and grades
@@ -22,7 +22,7 @@ namespace DfE.CheckPerformanceData.Web.Seeding;
 public static class SeedStudentResults
 {
     // Kingsmead School — the Post16 school the change-request seed also uses.
-    private const string Laestab = "860/4070";
+    public const string Laestab = "860/4070";
 
     // The first three included Post16 pupils SeedPupilData generates for this school
     // (Cypmd_Id = $"5{(n + 1):D5}" for n = 0, 1, 2).
@@ -32,13 +32,11 @@ public static class SeedStudentResults
 
     // AB#298317: the pupil-data-closed 16-19 window holds the same results, so the enquiry journey
     // can be walked end to end after pupil data has shut.
-    public static async Task ExecuteSeedAsync(IStudentResultsClient client)
-    {
-        await client.UploadResultsAsync(DevDataSeeder.Post16CheckingWindowId, Laestab, All);
-        await client.UploadResultsAsync(DevDataSeeder.ClosedPupilDataPost16CheckingWindowId, Laestab, All);
-    }
+    public static readonly Guid[] WindowIds =
+        [DevDataSeeder.Post16CheckingWindowId, DevDataSeeder.ClosedPupilDataPost16CheckingWindowId];
 
-    private static IReadOnlyList<StudentResultRecord> All => [.. FigmaResults, .. GeneratedResults()];
+    /// <summary>Every seeded result, all for <see cref="Laestab"/>.</summary>
+    public static IReadOnlyList<StudentResultRecord> All => [.. FigmaResults, .. GeneratedResults()];
 
     private static readonly StudentResultRecord[] FigmaResults =
     [

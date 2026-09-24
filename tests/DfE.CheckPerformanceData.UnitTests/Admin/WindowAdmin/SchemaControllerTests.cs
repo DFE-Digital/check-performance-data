@@ -235,7 +235,12 @@ public class SchemaControllerTests
         var result = await controller.Submit(id, CheckingExerciseType.PupilData, Dataset, model, CancellationToken.None, exerciseId);
 
         Assert.IsType<RedirectToActionResult>(result);
-        Assert.Equal($"ingress/{exerciseId}/{datasetId}/schema.json", capturedBlobName);
-        Assert.Equal($"ingress/{exerciseId}/{datasetId}/schema.json", window.Exercises[0].Datasets[0].SchemaFile);
+        // The checksum folder keeps an earlier schema of the same name: a release names the schema
+        // it was displayed with, so a new upload must not overwrite it.
+        var checksum = window.Exercises[0].Datasets[0].SchemaFileChecksum;
+        Assert.NotEmpty(checksum);
+        var expected = $"ingress/{exerciseId}/{datasetId}/{checksum[..16].ToLowerInvariant()}/schema.json";
+        Assert.Equal(expected, capturedBlobName);
+        Assert.Equal(expected, window.Exercises[0].Datasets[0].SchemaFile);
     }
 }

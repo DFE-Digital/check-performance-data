@@ -219,8 +219,10 @@ public sealed class IngressFileController(ILogger<IngressFileController> logger,
         await destinationContainer.CreateIfNotExistsAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
 
         // #466: stored at a path unique to this exercise and dataset, not a name relative to a
-        // shared ingress/ root — two exercises can both have a slot called "main".
-        string blobName = CheckingExerciseBlobPaths.DefinitionFile(owner.Id, target.Id, ingressFileName);
+        // shared ingress/ root — two exercises can both have a slot called "main". The checksum
+        // folder keeps an earlier upload of the same file name: a release names the files it
+        // read, so replacing a slot's file must not overwrite them.
+        string blobName = CheckingExerciseBlobPaths.DefinitionFile(owner.Id, target.Id, checksum, ingressFileName);
         BlobClient? destinationBlob = destinationContainer.GetBlobClient(blobName);
 
         buffer.Position = 0;

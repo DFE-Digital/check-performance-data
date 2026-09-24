@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -47,6 +48,9 @@ public sealed class CheckingExercise
     /// <summary>False hides the exercise without deleting it, and without losing its files.</summary>
     public bool IsEnabled { get; set; }
 
+    /// <summary>How the tab shows the data. Set by the admin, never by the schemas.</summary>
+    public ExerciseLayout Layout { get; set; } = ExerciseLayout.Table;
+
     /// <summary>The school may look at this data and download it, and do nothing else.</summary>
     public bool DisplayOnly { get; set; }
 
@@ -81,6 +85,21 @@ public sealed class CheckingExercise
     /// ever describe one of them.
     /// </summary>
     public ExerciseValidated? Validated { get; set; }
+
+    /// <summary>
+    /// The release schools see. Null = no release yet, and the output (if any) is at the
+    /// unversioned <c>exercises/{Id}/data/</c> prefix.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately not a foreign key. A key from here to the release table, plus the key from the
+    /// release table back here, is a cycle that EF cannot order when an exercise is deleted. The
+    /// only code that writes it (<c>CheckingExerciseDefinitionRepository</c>) sets it to a release
+    /// of this exercise.
+    /// </remarks>
+    public Guid? CurrentReleaseId { get; set; }
+
+    /// <summary>Every successful run of this exercise, each with its own output.</summary>
+    public List<CheckingExerciseRelease> Releases { get; init; } = [];
 }
 
 /// <summary>
@@ -132,6 +151,11 @@ public sealed class CheckingExerciseConfiguration : IEntityTypeConfiguration<Che
             .WithMany(w => w.CheckingExercises)
             .HasForeignKey(x => x.CheckingWindowId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Property(x => x.Layout)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .HasDefaultValue(ExerciseLayout.Table);
 
         builder.Property(x => x.Name).HasMaxLength(200);
         builder.Property(x => x.TabName).HasMaxLength(100);

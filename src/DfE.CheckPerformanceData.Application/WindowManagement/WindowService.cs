@@ -40,14 +40,15 @@ public class WindowService(IWindowRepository windowRepository, TimeProvider time
     }
 
     /// <summary>
-    /// A window's dataset set is decided by its type and by which exercises it runs, so changing
-    /// the type (e.g. KS4June -> Post16) adds or removes dataset slots on every exercise. Files
-    /// already uploaded to a slot that survives are kept.
+    /// Adds the supplier slots a window type needs, and removes supplier slots of another window
+    /// type when the type changes (e.g. KS4June -> Post16). Only a results enquiry has supplier
+    /// slots now. Every other slot, and every uploaded file, is kept.
     /// </summary>
     /// <remarks>
-    /// Every exercise is asked, not just pupil data: since #324 the results-enquiry exercise owns
-    /// one slot per source file in the results feed, which is what gives an admin somewhere to
-    /// upload them on a deployed environment.
+    /// Every exercise is asked: since #324 the results-enquiry exercise owns one slot per source
+    /// file in the results feed, which is what gives an admin somewhere to upload them on a
+    /// deployed environment. Pupil data checking and data shares start with no slots; the admin
+    /// adds them.
     ///
     /// A window that runs no pupil-data exercise gets no pupil dataset slots and no exercise
     /// invented for it — since #319 the admin chooses the exercises, so a results-enquiry-only
@@ -71,13 +72,19 @@ public class WindowService(IWindowRepository windowRepository, TimeProvider time
 
         foreach (CheckingExerciseDto exercise in window.Exercises)
         {
-            List<CheckingWindowDatasetDto> wanted = [];
+            // Keep every slot the exercise has, except a supplier slot of another window type.
+            // This used to rebuild the list from the defaults alone, which silently dropped every
+            // slot an admin added with "Add data file" the moment the window was saved.
+            List<CheckingWindowDatasetDto> wanted = exercise.Datasets
+                .Where(d => !WindowDatasets.IsStaleSupplierSlot(window.CheckingWindowType, exercise.ExerciseType, d.Name))
+                .ToList();
 
+            // Add any supplier slot this window type needs and the exercise does not have yet.
             foreach (CheckingWindowDatasetDto expected in
                      WindowDatasets.DefaultsFor(window.CheckingWindowType, exercise.ExerciseType))
             {
-                CheckingWindowDatasetDto? existing = exercise.Datasets.SingleOrDefault(d => d.Name == expected.Name);
-                wanted.Add(existing ?? expected);
+                if (wanted.All(d => d.Name != expected.Name))
+                    wanted.Add(expected);
             }
 
             exercise.Datasets = wanted;

@@ -11,7 +11,8 @@ public sealed record CheckingDataExercise(
     CheckingExerciseType? ExerciseType, KeyStages KeyStage,
     bool IsEnabled, DateTime? VisibleFrom, DateTime? VisibleUntil,
     DateTime WindowStart, DateTime WindowEnd, DateTime ActionStart, DateTime ActionEnd,
-    Guid? ReplacesCheckingExerciseId, bool UsesExerciseStorage = false, bool DisplayOnly = false)
+    Guid? ReplacesCheckingExerciseId, bool UsesExerciseStorage = false, bool DisplayOnly = false,
+    Guid? CurrentReleaseId = null)
 {
     /// <summary>The tab is drawn. VisibleUntil is exclusive, so a share disappears at the instant
     /// it ends rather than lingering for the rest of that day.</summary>

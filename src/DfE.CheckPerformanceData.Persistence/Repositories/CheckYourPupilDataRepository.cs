@@ -8,6 +8,8 @@ using DfE.CheckPerformanceData.Persistence.Contexts;
 // LandingPage one ambiguous here.
 using CheckingExerciseDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseDto;
 using CheckingWindowDatasetDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingWindowDatasetDto;
+using CheckingExerciseReleaseDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseReleaseDto;
+using CheckingExerciseReleaseFileDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseReleaseFileDto;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 
@@ -49,6 +51,9 @@ public sealed class CheckYourPupilDataRepository(
     public async Task<CheckingWindowDto> GetCheckingWindowAsync(Guid windowId)
         => await dbContext.CheckingWindows
             .AsNoTracking()
+            // Datasets and Releases are sibling collections. In one query each release file would
+            // repeat every dataset row; split queries load each collection once.
+            .AsSplitQuery()
             .Where(w => w.Id == windowId)
             .Select(w => new CheckingWindowDto
             {
@@ -81,6 +86,37 @@ public sealed class CheckYourPupilDataRepository(
                         WindowStart = w.StartDate,
                         WindowEnd = w.EndDate,
                         ReplacesCheckingExerciseId = e.ReplacesCheckingExerciseId,
+                        CurrentReleaseId = e.CurrentReleaseId,
+                        Layout = e.Layout,
+                        // Oldest first. The school-facing display reads its schemas from the current release, and
+                        // the admin exercise page lists every release so an earlier one can be made live again.
+                        Releases = e.Releases
+                            .OrderBy(r => r.Number)
+                            .Select(r => new CheckingExerciseReleaseDto
+                            {
+                                Id = r.Id,
+                                Number = r.Number,
+                                PublishedAt = r.PublishedAt,
+                                PublishedBy = r.PublishedBy,
+                                FilesWritten = r.FilesWritten,
+                                Files = r.Files
+                                    .OrderBy(f => f.SortOrder)
+                                    .Select(f => new CheckingExerciseReleaseFileDto
+                                    {
+                                        DatasetId = f.DatasetId,
+                                        DatasetName = f.DatasetName,
+                                        FeedsJourney = f.FeedsJourney,
+                                        Included = f.Included,
+                                        SourceFile = f.SourceFile,
+                                        IngressFile = f.IngressFile,
+                                        IngressFileChecksum = f.IngressFileChecksum,
+                                        SchemaFile = f.SchemaFile,
+                                        SchemaFileChecksum = f.SchemaFileChecksum,
+                                        SortOrder = f.SortOrder
+                                    })
+                                    .ToList()
+                            })
+                            .ToList(),
                         ExerciseType = e.ExerciseType,
                         StartDate = e.StartDate,
                         EndDate = e.EndDate,
@@ -98,6 +134,7 @@ public sealed class CheckYourPupilDataRepository(
                                 Included = d.Included,
                                 SourceFile = d.SourceFile,
                                 Required = d.Required,
+                                FeedsJourney = d.FeedsJourney,
                                 SortOrder = d.SortOrder
                             })
                             .ToList()
@@ -158,7 +195,16 @@ public sealed class CheckYourPupilDataRepository(
 
     private async Task<SchoolPupilsCacheEntry> GetSchoolPupilsWithWindowTypeAsync(Guid windowId, string laestab)
     {
-        var key = $"pupils:{windowId}:{laestab}";
+        // The current release is part of the key. When an admin publishes a new release, or makes
+        // an earlier one live again, the next read misses and loads that release's file, rather
+        // than serving the old one until the 30-minute sliding expiry runs out.
+        var releases = await dbContext.CheckingExercises
+            .AsNoTracking()
+            .Where(e => e.CheckingWindowId == windowId && e.ExerciseType == CheckingExerciseType.PupilData)
+            .OrderBy(e => e.Id)
+            .Select(e => e.CurrentReleaseId)
+            .ToListAsync();
+        var key = $"pupils:{windowId}:{laestab}:{string.Join(",", releases)}";
         if (cache.TryGetValue(key, out SchoolPupilsCacheEntry? cached) && cached is not null)
             return cached;
 

@@ -3,9 +3,9 @@ using DfE.CheckPerformanceData.Persistence.Seeding;
 
 namespace DfE.CheckPerformanceData.Web.Seeding;
 
-// Dev-only: writes per-school pupil JSON into blob storage (container {windowId},
-// blob data/{laestab}_pupils.json) so local development has pupil data now that it no
-// longer lives in the database. Mirrors the data the former DB SeedPupils produced.
+// Dev-only: generates the pupils of the fixture windows. SeedExerciseFixtures writes them as
+// supplier-shaped CSVs and runs them through ingress, so each window gets a schema and a release
+// exactly as an admin upload would.
 public static class SeedPupilData
 {
     private sealed record School(string Urn, string Laestab, bool AddIncluded, bool AddNonIncluded);
@@ -32,19 +32,13 @@ public static class SeedPupilData
     // whose seed carries the deliberate duplicate below.
     private const string KingsmeadLaestab = "860/4070";
 
-    private static readonly Guid[] WindowIds =
-    [
-        DevDataSeeder.KeyStage4JuneCheckingWindowId,
-        DevDataSeeder.ClosedKeyStage4JuneCheckingWindowId
-    ];
-
-    public static async Task ExecuteSeedAsync(IPupilDataBlobClient client)
+    /// <summary>Every school's pupils for one KS4 window, in one list: the supplier's KS4 file is
+    /// one file for every school, split into one blob per school by its LAESTAB column.</summary>
+    public static IReadOnlyList<PupilRecord> Ks4Pupils(Guid windowId)
     {
-        foreach (var windowId in WindowIds)
+        var pupils = new List<PupilRecord>();
         foreach (var school in Schools)
         {
-            var pupils = new List<PupilRecord>();
-
             if (school.AddIncluded)
                 pupils.AddRange(GeneratePupils(PupilsPerGroup, includedPincl: true, indexOffset: 0, windowId, school));
 
@@ -55,33 +49,27 @@ public static class SeedPupilData
             // not — so the Add journey's duplicate check can be exercised in its Multiple state.
             if (windowId == DevDataSeeder.KeyStage4JuneCheckingWindowId && school.Laestab == KingsmeadLaestab)
                 pupils.AddRange(GenerateDuplicateMatchPair(windowId, school));
-
-            if (pupils.Count > 0)
-                await client.UploadPupilsAsync(windowId, CheckingExerciseType.PupilData, school.Laestab, pupils);
         }
+        return pupils;
     }
 
     /// <summary>
-    /// Seeds a 16-19 window. Both populations go into ONE file per school — exactly what
-    /// ingress produces after merging the supplier's two 16-19 CSVs — so the read path sees the
-    /// same shape locally as it will in a real window.
+    /// Every school's students for one 16-19 window. The supplier sends the included and the
+    /// non-included students as two files; the caller splits this list on
+    /// <see cref="Post16PupilRecord.Included"/> to write them.
     /// </summary>
-    public static async Task ExecutePost16SeedAsync(IPupilDataBlobClient client, Guid windowId)
+    public static IReadOnlyList<Post16PupilRecord> Post16Pupils(Guid windowId)
     {
+        var pupils = new List<Post16PupilRecord>();
         foreach (var school in Schools)
         {
-            var pupils = new List<Post16PupilRecord>();
-
             if (school.AddIncluded)
                 pupils.AddRange(GeneratePost16Pupils(PupilsPerGroup, included: true, indexOffset: 0, windowId, school));
 
             if (school.AddNonIncluded)
                 pupils.AddRange(GeneratePost16Pupils(PupilsPerGroup, included: false, NonIncludedIndexOffset, windowId, school));
-
-            if (pupils.Count > 0)
-                await client.UploadPupilsAsync(
-                    windowId, CheckingExerciseType.PupilData, school.Laestab, pupils);
         }
+        return pupils;
     }
 
     // Codes seen in the supplier's included-file sample. Post16 inclusion is decided by file of
@@ -103,13 +91,15 @@ public static class SeedPupilData
                 Id = Guid.NewGuid(),
                 CheckingWindowId = checkingWindowId,
                 Included = included,
-                Laestab = school.Laestab,
+                // The supplier's 16-19 file writes LAESTAB without the slash, and its schema caps
+                // the column at seven characters.
+                Laestab = school.Laestab.Replace("/", string.Empty),
                 Firstname = Firstnames[n % Firstnames.Length],
                 Surname = Surnames[(n / Firstnames.Length) % Surnames.Length],
                 Sex = Sexes[i % 2],
-                // The 16-19 supplier sends DOB as a timestamp string, so the seed mirrors that
-                // to exercise PupilDateFormatter's timestamp branch.
-                DateOfBirth = dob.ToDateTime(TimeOnly.MinValue).ToString("yyyy-MM-dd HH:mm:ss.fffffff"),
+                // dd/MM/yyyy, as the supplier's 16-19 CSV writes it; its schema caps DOB at ten
+                // characters.
+                DateOfBirth = dob.ToString("dd/MM/yyyy"),
                 Age = age,
                 // The non-included supplier file has no P_INCL column at all.
                 Pincl = included ? Post16PinclCodes[i % Post16PinclCodes.Length] : null,

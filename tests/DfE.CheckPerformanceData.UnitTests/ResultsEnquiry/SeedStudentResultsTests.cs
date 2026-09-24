@@ -14,18 +14,7 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.ResultsEnquiry;
 /// </summary>
 public sealed class SeedStudentResultsTests
 {
-    private static IReadOnlyList<StudentResultRecord> Seeded()
-    {
-        var client = Substitute.For<IStudentResultsClient>();
-        SeedStudentResults.ExecuteSeedAsync(client).GetAwaiter().GetResult();
-
-        // AB#298317: the same fixture content is now uploaded to both the Post16 window and the
-        // pupil-data-closed one, so the call is disambiguated by window id rather than Single().
-        return (IReadOnlyList<StudentResultRecord>)client.ReceivedCalls()
-            .Single(c => c.GetMethodInfo().Name == nameof(IStudentResultsClient.UploadResultsAsync)
-                && (Guid)c.GetArguments()[0]! == DevDataSeeder.Post16CheckingWindowId)
-            .GetArguments()[2]!;
-    }
+    private static IReadOnlyList<StudentResultRecord> Seeded() => SeedStudentResults.All;
 
     // The ids SeedPupilData generates for Kingsmead in the Post16 window: 120 included from
     // 500001, then 120 non-included from 500201 (the NonIncludedIndexOffset of 200).
@@ -125,18 +114,11 @@ public sealed class SeedStudentResultsTests
     [Fact]
     public void Results_are_written_to_the_post16_window()
     {
-        var client = Substitute.For<IStudentResultsClient>();
-
-        SeedStudentResults.ExecuteSeedAsync(client).GetAwaiter().GetResult();
-
-        client.Received(1).UploadResultsAsync(
-            DevDataSeeder.Post16CheckingWindowId, "860/4070",
-            Arg.Any<IReadOnlyList<StudentResultRecord>>());
+        Assert.Contains(DevDataSeeder.Post16CheckingWindowId, SeedStudentResults.WindowIds);
         // AB#298317: the pupil-data-closed window holds the same results, so the enquiry journey
         // can be walked end to end after pupil data has shut.
-        client.Received(1).UploadResultsAsync(
-            DevDataSeeder.ClosedPupilDataPost16CheckingWindowId, "860/4070",
-            Arg.Any<IReadOnlyList<StudentResultRecord>>());
+        Assert.Contains(DevDataSeeder.ClosedPupilDataPost16CheckingWindowId, SeedStudentResults.WindowIds);
+        Assert.Equal("860/4070", SeedStudentResults.Laestab);
     }
 
     private static string QualificationReferencePath => Path.Combine(

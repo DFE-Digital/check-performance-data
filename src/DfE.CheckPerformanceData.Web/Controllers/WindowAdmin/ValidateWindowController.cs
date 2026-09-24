@@ -2,6 +2,7 @@ using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Web.Admin.Nav;
 using System.Runtime.CompilerServices;
 using System.Text;
+using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Infrastructure.Ingress;
@@ -26,7 +27,8 @@ namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 public class ValidateWindowController(
     IWindowService windowService,
     ICsvSchemaFileProcessor processor,
-    ICheckingExerciseIngress ingress): Controller
+    ICheckingExerciseIngress ingress,
+    ICurrentUserService currentUser): Controller
 {
     private const string PageView = "~/Views/WindowAdmin/Validate.cshtml";
 
@@ -92,7 +94,7 @@ public class ValidateWindowController(
         }
 
         return Results.ServerSentEvents(
-            ingress.ProcessAsync(exerciseId, clearExistingFiles, cancellationToken), eventType: "progress");
+            ingress.ProcessAsync(exerciseId, clearExistingFiles, cancellationToken, currentUser.Email), eventType: "progress");
     }
 
     // No-JS fallback for the exercise-id route: run the one named exercise to completion through
@@ -111,7 +113,7 @@ public class ValidateWindowController(
         }
 
         ValidationProgress? last = null;
-        await foreach (ValidationProgress progress in ingress.ProcessAsync(exerciseId, clearExistingFiles, cancellationToken))
+        await foreach (ValidationProgress progress in ingress.ProcessAsync(exerciseId, clearExistingFiles, cancellationToken, currentUser.Email))
         {
             last = progress;
         }
@@ -179,6 +181,20 @@ public class ValidateWindowController(
                 Message: $"This window does not run {ExerciseLabels.For(exercise)}.",
                 RecordsRead: 0, RecordsProcessed: 0, FilesWritten: 0, ErrorCount: 1,
                 IsComplete: true, IsError: true);
+            yield break;
+        }
+
+        // An exercise on the exercise-id storage is run through the ingress, which writes a new
+        // release and makes it live. The processor call below writes the kind-based paths, which
+        // only a legacy row's readers use. The admin exercise page links here for every exercise
+        // that has a kind, so without this a new row's run went to paths nothing reads.
+        if (target.UsesExerciseStorage)
+        {
+            await foreach (ValidationProgress progress in ingress.ProcessAsync(
+                               target.Id, cancellationToken: cancellationToken, publishedBy: currentUser.Email))
+            {
+                yield return progress;
+            }
             yield break;
         }
 

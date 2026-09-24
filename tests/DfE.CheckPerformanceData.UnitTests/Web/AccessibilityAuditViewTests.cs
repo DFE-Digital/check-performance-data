@@ -359,4 +359,25 @@ public sealed class AccessibilityAuditViewTests
 		}
 		return count;
 	}
+
+	// ── Exercise releases: repeated "Make live" links ──────────────────────────────────
+
+	[Fact]
+	public void ExerciseReleases_MakeLiveLink_NamesItsReleaseForScreenReaders()
+	{
+		// One "Make live" link per earlier release. Identical accessible names leave no way to
+		// tell one row's link from the next (the #378 rule).
+		var view = ReadView("Views", "WindowAdmin", "CreateCheckingExercise.cshtml");
+
+		Assert.Contains("Make live<span class=\"govuk-visually-hidden\"> release @release.Number</span>", view);
+	}
+
+	[Fact]
+	public void MakeReleaseLive_TitleMatchesItsHeading()
+	{
+		var view = ReadView("Views", "WindowAdmin", "MakeReleaseLive.cshtml");
+
+		Assert.Contains("ViewBag.Title = $\"Make release {Model.Release.Number} live\";", view);
+		Assert.Contains("<h1 class=\"govuk-heading-l\">Make release @Model.Release.Number live</h1>", view);
+	}
 }

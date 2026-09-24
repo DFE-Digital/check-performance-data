@@ -130,6 +130,38 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
     }
 
     [Fact]
+    public async Task A_pupils_id_is_always_generated_on_ingress_even_when_the_schema_and_file_disagree()
+    {
+        // A pupil's Id is ours, never the supplier's. The supplier's schema does not declare one,
+        // and a file that does carry one must not set it.
+        const string schema = """
+        {
+          "type": "object",
+          "properties": {
+            "CYPMD_ID": { "type": ["string", "null"] },
+            "SURNAME":  { "type": ["string", "null"] },
+            "LAESTAB":  { "type": ["string", "null"] }
+          }
+        }
+        """;
+        const string supplied = "11111111-1111-1111-1111-111111111111";
+        var csv = $"Id,CYPMD_ID,SURNAME,LAESTAB\n{supplied},500001,Smith,8604070\n{supplied},500002,Jones,8604070\n";
+        var windowId = Guid.NewGuid();
+        var container = await SeedWindowAsync(windowId, ("ingress/pupils.csv", csv), ("schema/pupils.json", schema));
+
+        var progress = await DrainAsync(Processor().ProcessAsync(windowId, CheckingExerciseType.PupilData,
+            [new IngressDataset("pupils", "pupils.csv", Checksum(csv), "pupils.json", Checksum(schema), Included: null)]));
+
+        Assert.False(progress[^1].IsError);
+        var ids = (await ReadPupilsAsync(container, "8604070"))!.Children<JObject>()
+            .Select(p => Guid.Parse(p["Id"]!.Value<string>()!)).ToList();
+        Assert.Equal(2, ids.Count);
+        Assert.DoesNotContain(Guid.Empty, ids);
+        Assert.DoesNotContain(Guid.Parse(supplied), ids);
+        Assert.Equal(2, ids.Distinct().Count());
+    }
+
+    [Fact]
     public async Task An_error_in_either_dataset_writes_nothing()
     {
         var windowId = Guid.NewGuid();

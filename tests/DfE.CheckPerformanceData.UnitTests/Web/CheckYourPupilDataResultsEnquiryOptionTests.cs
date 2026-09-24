@@ -69,7 +69,7 @@ public sealed class CheckYourPupilDataResultsEnquiryOptionTests
         _sut = new CheckYourPupilDataController(
             _service, _currentUser, _analytics,
             new NextStepsService(checkingExercises), checkingExercises,
-            tabBuilder, new ExerciseDisplayService(), Substitute.For<ICheckingDataReader>())
+            tabBuilder, new ExerciseDisplayService())
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext }
         };

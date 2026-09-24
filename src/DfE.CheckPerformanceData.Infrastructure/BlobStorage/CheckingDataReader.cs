@@ -7,11 +7,23 @@ public sealed class CheckingDataReader(BlobServiceClient blobs) : ICheckingDataR
 {
     public async Task<byte[]?> ReadAsync(CheckingDataExercise exercise, string laestab, CancellationToken cancellationToken)
     {
-        // Window/type is unique in the database; separate release windows never share output.
+        // The exercise's current release names the output schools see.
         var blob = blobs.GetBlobContainerClient(exercise.WindowId.ToString())
             .GetBlobClient(exercise.UsesExerciseStorage
-                ? CheckingExerciseBlobPaths.DataBlobName(exercise.Id, CheckingExerciseBlobPaths.DefaultDataType(exercise.ExerciseType), laestab)
+                ? CheckingExerciseBlobPaths.DataBlobName(exercise.Id,
+                    CheckingExerciseBlobPaths.DefaultDataType(exercise.ExerciseType), laestab, exercise.CurrentReleaseId)
                 : CheckingExerciseBlobPaths.DataBlobName(exercise.ExerciseType!.Value, laestab));
+        if (!await blob.ExistsAsync(cancellationToken)) return null;
+        return (await blob.DownloadContentAsync(cancellationToken)).Value.Content.ToArray();
+    }
+
+    public async Task<byte[]?> ReadDatasetAsync(CheckingDataExercise exercise, Guid datasetId, string laestab,
+        CancellationToken cancellationToken)
+    {
+        // Only a release has per-dataset files. Output from before releases is one merged file.
+        if (exercise.CurrentReleaseId is not { } releaseId || !exercise.UsesExerciseStorage) return null;
+        var blob = blobs.GetBlobContainerClient(exercise.WindowId.ToString())
+            .GetBlobClient(CheckingExerciseBlobPaths.DatasetBlobName(exercise.Id, releaseId, datasetId, laestab));
         if (!await blob.ExistsAsync(cancellationToken)) return null;
         return (await blob.DownloadContentAsync(cancellationToken)).Value.Content.ToArray();
     }

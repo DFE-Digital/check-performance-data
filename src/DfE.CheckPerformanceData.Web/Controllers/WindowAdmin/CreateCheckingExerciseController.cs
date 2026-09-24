@@ -56,6 +56,7 @@ public sealed class CreateCheckingExerciseController(IWindowService windowServic
             SortOrder = model.SortOrder!.Value,
             IsEnabled = model.IsEnabled,
             DisplayOnly = model.DisplayOnly,
+            Layout = model.Layout,
             VisibleFrom = model.VisibleFrom,
             VisibleUntil = model.VisibleUntil,
             ReplacesCheckingExerciseId = model.ReplacesCheckingExerciseId,

@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Infrastructure.Ingress;
@@ -22,6 +23,7 @@ public class ValidateWindowControllerTests
     private readonly ICsvSchemaFileProcessor _processor = Substitute.For<ICsvSchemaFileProcessor>();
     private readonly ICheckingExerciseIngress _ingress = Substitute.For<ICheckingExerciseIngress>();
     private readonly IUrlHelper _urlHelper = Substitute.For<IUrlHelper>();
+    private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
 
     public ValidateWindowControllerTests()
     {
@@ -30,7 +32,7 @@ public class ValidateWindowControllerTests
 
     private ValidateWindowController Controller()
     {
-        var controller = new ValidateWindowController(_windowService, _processor, _ingress)
+        var controller = new ValidateWindowController(_windowService, _processor, _ingress, _currentUser)
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() },
             Url = _urlHelper
@@ -69,12 +71,12 @@ public class ValidateWindowControllerTests
         var exerciseId = Guid.NewGuid();
         _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>())
             .Returns(Window(Exercise(exerciseId)));
-        _ingress.ProcessAsync(exerciseId, false, Arg.Any<CancellationToken>())
+        _ingress.ProcessAsync(exerciseId, false, Arg.Any<CancellationToken>(), Arg.Any<string>())
             .Returns(Progress(new ValidationProgress("Done", "ok", 1, 1, 1, 0, true, false)));
 
         await Controller().Run(WindowId, exerciseId, clearExistingFiles: false, CancellationToken.None);
 
-        _ingress.Received(1).ProcessAsync(exerciseId, false, Arg.Any<CancellationToken>());
+        _ingress.Received(1).ProcessAsync(exerciseId, false, Arg.Any<CancellationToken>(), Arg.Any<string>());
     }
 
     [Fact]
@@ -93,7 +95,7 @@ public class ValidateWindowControllerTests
             yield return new ValidationProgress("Done", "done", 1, 1, 1, 0, true, false);
         }
 
-        _ingress.ProcessAsync(exerciseId, false, Arg.Any<CancellationToken>()).Returns(TwoSteps());
+        _ingress.ProcessAsync(exerciseId, false, Arg.Any<CancellationToken>(), Arg.Any<string>()).Returns(TwoSteps());
 
         var result = await Controller().Run(WindowId, exerciseId, clearExistingFiles: false, CancellationToken.None);
 
@@ -101,7 +103,7 @@ public class ValidateWindowControllerTests
         var model = Assert.IsType<ValidationViewModel>(view.Model);
         Assert.NotNull(model.ProcessingResult);
         Assert.Equal("done", model.ProcessingResult!.ErrorLogs.ToString());
-        _ingress.Received(1).ProcessAsync(exerciseId, false, Arg.Any<CancellationToken>());
+        _ingress.Received(1).ProcessAsync(exerciseId, false, Arg.Any<CancellationToken>(), Arg.Any<string>());
     }
 
     [Fact]
@@ -177,15 +179,20 @@ public class ValidateWindowControllerTests
     }
 
     [Fact]
-    public async Task Validate_ByKind_StillRunsThroughTheCsvSchemaFileProcessor()
+    public async Task Validate_ByKind_OnALegacyRow_StillRunsThroughTheCsvSchemaFileProcessor()
     {
-        // The kind route's own behaviour is out of scope for slice 2 and must not have moved onto
-        // the exercise ingress.
+        // A row on the kind-based paths has no releases: its readers do not know the release
+        // prefix, so its run must still write the kind-based paths.
         var exerciseId = Guid.NewGuid();
-        _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>())
-            .Returns(Window(Exercise(exerciseId, CheckingExerciseType.PupilData)));
+        var legacy = new CheckingExerciseDto
+        {
+            Id = exerciseId, ExerciseType = CheckingExerciseType.PupilData, UsesExerciseStorage = false,
+            StartDate = new DateTime(2026, 6, 1), EndDate = new DateTime(2026, 6, 30)
+        };
+        _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(Window(legacy));
         _processor.ProcessAsync(WindowId, CheckingExerciseType.PupilData, Arg.Any<IReadOnlyList<IngressDataset>>(),
-                Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<CancellationToken>(), Arg.Any<Guid?>(), Arg.Any<CheckingDataType?>())
+                Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<CancellationToken>(), Arg.Any<Guid?>(),
+                Arg.Any<CheckingDataType?>(), Arg.Any<Guid?>())
             .Returns(Progress(new ValidationProgress("Done", "ok", 1, 1, 1, 0, true, false)));
 
         var result = await Controller().Validate(WindowId, CheckingExerciseType.PupilData, CancellationToken.None);
@@ -193,7 +200,42 @@ public class ValidateWindowControllerTests
         Assert.IsType<ViewResult>(result);
         _processor.Received(1).ProcessAsync(WindowId, CheckingExerciseType.PupilData,
             Arg.Any<IReadOnlyList<IngressDataset>>(), Arg.Any<bool>(), Arg.Any<bool>(),
-            Arg.Any<CancellationToken>(), Arg.Any<Guid?>(), Arg.Any<CheckingDataType?>());
-        _ingress.DidNotReceiveWithAnyArgs().ProcessAsync(default, default, default);
+            Arg.Any<CancellationToken>(), Arg.Any<Guid?>(), Arg.Any<CheckingDataType?>(), Arg.Any<Guid?>());
+        _ingress.DidNotReceiveWithAnyArgs().ProcessAsync(default, default, default, default!);
+    }
+
+    [Fact]
+    public async Task Validate_ByKind_OnAnExerciseStorageRow_RunsThroughTheIngressAsARelease()
+    {
+        // The kind route used to call the processor with no exercise id, which wrote the
+        // kind-based paths. A row on the exercise-id storage is read from its own prefix, so that
+        // run went where nothing reads. The ingress writes a release and makes it live.
+        var exerciseId = Guid.NewGuid();
+        _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>())
+            .Returns(Window(Exercise(exerciseId, CheckingExerciseType.PupilData)));
+        _currentUser.Email.Returns("admin@example.gov.uk");
+        _ingress.ProcessAsync(exerciseId, false, Arg.Any<CancellationToken>(), "admin@example.gov.uk")
+            .Returns(Progress(new ValidationProgress("Done", "ok", 1, 1, 1, 0, true, false)));
+
+        var result = await Controller().Validate(WindowId, CheckingExerciseType.PupilData, CancellationToken.None);
+
+        Assert.IsType<ViewResult>(result);
+        _ingress.Received(1).ProcessAsync(exerciseId, false, Arg.Any<CancellationToken>(), "admin@example.gov.uk");
+        _processor.DidNotReceiveWithAnyArgs().ProcessAsync(default, default, default!);
+    }
+
+    [Fact]
+    public async Task RunsTheExerciseTheRouteNames_RecordingWhoStartedIt()
+    {
+        var exerciseId = Guid.NewGuid();
+        _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>())
+            .Returns(Window(Exercise(exerciseId)));
+        _currentUser.Email.Returns("admin@example.gov.uk");
+        _ingress.ProcessAsync(exerciseId, false, Arg.Any<CancellationToken>(), Arg.Any<string>())
+            .Returns(Progress(new ValidationProgress("Done", "ok", 1, 1, 1, 0, true, false)));
+
+        await Controller().Run(WindowId, exerciseId, false, CancellationToken.None);
+
+        _ingress.Received(1).ProcessAsync(exerciseId, false, Arg.Any<CancellationToken>(), "admin@example.gov.uk");
     }
 }

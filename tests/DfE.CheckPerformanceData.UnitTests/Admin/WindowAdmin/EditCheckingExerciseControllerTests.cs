@@ -79,6 +79,7 @@ public sealed class EditCheckingExerciseControllerTests
         model.VisibleFrom = original.StartDate.AddHours(9);
         model.VisibleUntil = original.EndDate.AddHours(17);
         model.ReplacesCheckingExerciseId = other.Id;
+        model.Layout = DfE.CheckPerformanceData.Application.CheckYourPupilData.ExerciseLayout.Vertical;
         Validate(model);
 
         var redirect = Assert.IsType<RedirectToActionResult>(
@@ -93,6 +94,7 @@ public sealed class EditCheckingExerciseControllerTests
         Assert.Equal(model.VisibleFrom, updated.VisibleFrom);
         Assert.Equal(model.VisibleUntil, updated.VisibleUntil);
         Assert.Equal(other.Id, updated.ReplacesCheckingExerciseId);
+        Assert.Equal(DfE.CheckPerformanceData.Application.CheckYourPupilData.ExerciseLayout.Vertical, updated.Layout);
         Assert.Same(original.Datasets, updated.Datasets);
         Assert.Equal(original.ValidatedAt, updated.ValidatedAt);
         Assert.Same(other, _window.Exercises[1]);

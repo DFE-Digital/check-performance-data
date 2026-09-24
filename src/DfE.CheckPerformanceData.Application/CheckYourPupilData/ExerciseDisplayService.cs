@@ -144,10 +144,9 @@ public sealed class ExerciseDisplayService : IExerciseDisplayService
                 ? new CsvColumn(property.Name, Text(csv, "heading") ?? property.Name,
                     ExcelOrder(variant.GetString()!)) : null;
         }).Where(c => c is not null).Select(c => c!).OrderBy(c => c.Order).ToList();
-        var layout = string.Equals(Text(root, "x-display", "layout"), "vertical", StringComparison.OrdinalIgnoreCase)
-            ? ExerciseLayout.Vertical : ExerciseLayout.Table;
+        // x-display.layout in a schema is ignored: the exercise sets the layout (see ExerciseLayout).
         return new ExerciseDataset(key, label, fileName, columns, csvColumns, [], included,
-            new HashSet<string>(properties.Select(p => p.Name), StringComparer.OrdinalIgnoreCase), layout);
+            new HashSet<string>(properties.Select(p => p.Name), StringComparer.OrdinalIgnoreCase));
     }
 
     private static string? Text(JsonElement element, params string[] path)

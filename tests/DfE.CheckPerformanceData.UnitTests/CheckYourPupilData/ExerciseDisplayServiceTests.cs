@@ -114,21 +114,6 @@ public class ExerciseDisplayServiceTests
     }
 
     [Fact]
-    public void Layout_defaults_to_table_when_the_schema_does_not_say()
-    {
-        Assert.Equal(ExerciseLayout.Table, Definition("students-included", true, "Last name", false).Layout);
-    }
-
-    [Theory]
-    [InlineData("vertical", ExerciseLayout.Vertical)]
-    [InlineData("table", ExerciseLayout.Table)]
-    [InlineData("sideways", ExerciseLayout.Table)]
-    public void Layout_is_read_from_the_root_x_display(string layout, ExerciseLayout expected)
-    {
-        Assert.Equal(expected, SummaryDefinition(layout).Layout);
-    }
-
-    [Fact]
     public void Vertical_view_lists_visible_fields_in_order_with_the_records_values()
     {
         var definition = SummaryDefinition("vertical");

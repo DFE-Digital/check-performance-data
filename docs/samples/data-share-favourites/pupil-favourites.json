@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "pupil-favourites.json",
+  "title": "Pupil favourites",
+  "description": "A sample data share: one row per pupil with their favourite band or singer, food and colour. It shows what a schema can do without any code change.",
+  "type": "object",
+  "additionalProperties": false,
+  "x-ingress": {
+    "collection": "pupil-favourites",
+    "institutionKey": "LAESTAB"
+  },
+  "x-download": {
+    "fileName": "pupil-favourites.csv",
+    "label": "Pupil favourites"
+  },
+  "x-display": {
+    "section": "Pupil favourites"
+  },
+  "properties": {
+    "LAESTAB": {
+      "type": ["string", "null"],
+      "maxLength": 10,
+      "description": "The school. Splits the file into one file per school. Not shown and not exported.",
+      "x-csv": { "columns": {}, "heading": "LAESTAB" },
+      "x-display": { "label": "LAESTAB", "visible": false }
+    },
+    "SURNAME": {
+      "type": ["string", "null"],
+      "maxLength": 100,
+      "description": "Surname. Shown first on screen, second in the CSV.",
+      "x-csv": { "columns": { "default": "B" }, "heading": "Surname" },
+      "x-display": { "label": "Last name", "order": 0, "searchable": true }
+    },
+    "FORENAMES": {
+      "type": ["string", "null"],
+      "maxLength": 100,
+      "description": "First name. Screen says 'First name', the CSV says 'Forename', and the CSV puts it first.",
+      "x-csv": { "columns": { "default": "A" }, "heading": "Forename" },
+      "x-display": { "label": "First name", "order": 1, "searchable": true }
+    },
+    "YEAR_GROUP": {
+      "type": "integer",
+      "minimum": 7,
+      "maximum": 13,
+      "description": "National curriculum year. A value outside 7 to 13 fails validation.",
+      "x-csv": { "columns": { "default": "C" }, "heading": "Year group" },
+      "x-display": { "label": "Year", "order": 2 }
+    },
+    "FAV_ARTIST": {
+      "type": ["string", "null"],
+      "maxLength": 100,
+      "description": "Favourite band or singer. A long label on screen, a short heading in the CSV.",
+      "x-csv": { "columns": { "default": "F" }, "heading": "Artist" },
+      "x-display": { "label": "Favourite band or singer", "order": 3, "searchable": true }
+    },
+    "FAV_FOOD": {
+      "type": ["string", "null"],
+      "maxLength": 100,
+      "description": "Favourite food.",
+      "x-csv": { "columns": { "default": "G" }, "heading": "Food" },
+      "x-display": { "label": "Favourite food", "order": 4 }
+    },
+    "FAV_COLOUR": {
+      "type": ["string", "null"],
+      "maxLength": 20,
+      "description": "Favourite colour. 'Colour' on screen, 'Favourite colour (British spelling)' in the CSV.",
+      "x-csv": { "columns": { "default": "H" }, "heading": "Favourite colour (British spelling)" },
+      "x-display": { "label": "Colour", "order": 5 }
+    },
+    "FUN_FACT": {
+      "type": ["string", "null"],
+      "maxLength": 200,
+      "description": "Shown on screen only. The empty column map means it is not exported.",
+      "x-csv": { "columns": {}, "heading": "Fun fact" },
+      "x-display": { "label": "Fun fact", "order": 6 }
+    },
+    "CYPMD_ID": {
+      "type": ["string", "null"],
+      "maxLength": 20,
+      "description": "CSV only: hidden on screen, exported in column D.",
+      "x-csv": { "columns": { "default": "D" }, "heading": "CYPMD ID" },
+      "x-display": { "label": "CYPMD ID", "visible": false }
+    },
+    "UPN": {
+      "type": ["string", "null"],
+      "maxLength": 13,
+      "description": "CSV only: hidden on screen, exported in column E.",
+      "x-csv": { "columns": { "default": "E" }, "heading": "UPN" },
+      "x-display": { "label": "UPN", "visible": false }
+    },
+    "SURVEY_DATE": {
+      "type": ["string", "null"],
+      "format": "date",
+      "description": "CSV only: the day the pupil answered. Stored as yyyy-MM-dd.",
+      "x-csv": { "columns": { "default": "I" }, "heading": "Date surveyed" },
+      "x-display": { "label": "Date surveyed", "visible": false }
+    },
+    "CONSENT_REF": {
+      "type": ["string", "null"],
+      "maxLength": 20,
+      "description": "CSV only: the consent form reference.",
+      "x-csv": { "columns": { "default": "J" }, "heading": "Consent form reference" },
+      "x-display": { "label": "Consent reference", "visible": false }
+    }
+  }
+}

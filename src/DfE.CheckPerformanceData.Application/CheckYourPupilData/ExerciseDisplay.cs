@@ -7,8 +7,8 @@ public sealed record DisplayColumn(string Field, string Label, int Order, bool S
 public sealed record CsvColumn(string Field, string Heading, int Order);
 
 /// <summary>
-/// How a dataset's schema asks to be shown, from the root <c>x-display.layout</c>. Anything the
-/// schema does not say, or says wrongly, is <see cref="Table"/>.
+/// How an exercise's tab shows its data. An admin sets it on the exercise. The schemas do not
+/// set it, so all datasets of one exercise are shown the same way.
 /// </summary>
 public enum ExerciseLayout
 {
@@ -21,8 +21,7 @@ public enum ExerciseLayout
 /// <summary>One schema's worth of a school's data: how to show it, how to export it, and its rows.</summary>
 public sealed record ExerciseDataset(string Key, string Label, string FileName,
     IReadOnlyList<DisplayColumn> Columns, IReadOnlyList<CsvColumn> CsvColumns,
-    IReadOnlyList<Dictionary<string, string>> Rows, bool? Included, IReadOnlySet<string> Fields,
-    ExerciseLayout Layout = ExerciseLayout.Table);
+    IReadOnlyList<Dictionary<string, string>> Rows, bool? Included, IReadOnlySet<string> Fields);
 
 public sealed record VerticalField(string Label, string Value);
 
@@ -49,6 +48,10 @@ public sealed record ExerciseTab(WindowManagement.CheckingDataExercise Exercise,
 
     public ExerciseTableView? Table { get; init; }
     public VerticalExerciseView? Vertical { get; init; }
+
+    /// <summary>The datasets the tab was built from: the live release's, or the slots when there
+    /// is no release. The raw download reads the same ones.</summary>
+    public IReadOnlyList<WindowManagement.CheckingWindowDatasetDto> PublishedDatasets { get; init; } = [];
 
     /// <summary>The raw columns, for an exercise with no schemas at all.</summary>
     public IReadOnlyList<string> Columns => Rows.SelectMany(r => r.Keys).Distinct().ToList();

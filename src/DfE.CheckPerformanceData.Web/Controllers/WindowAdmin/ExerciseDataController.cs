@@ -46,6 +46,10 @@ public sealed class ExerciseDataController(IWindowService windows) : Controller
             Required = model.Required,
             Included = model.Inclusion switch { "included" => true, "excluded" => false, _ => null },
             SourceFile = string.IsNullOrEmpty(model.SourceFile) ? null : model.SourceFile,
+            // On pupil data checking every file is merged into the pupils data the journey reads.
+            // On a results enquiry an added file is display only (only the supplier's result slots
+            // feed the journey), and a data share has no journey.
+            FeedsJourney = WindowDatasets.AddedSlotFeedsJourney(exercise.ExerciseType),
             SortOrder = exercise.Datasets.Count == 0 ? 0 : exercise.Datasets.Max(d => d.SortOrder) + 1
         });
         // Adding a required input changes completeness even before it has received a file.
@@ -57,6 +61,7 @@ public sealed class ExerciseDataController(IWindowService windows) : Controller
     private void Decorate(AddExerciseDataItem model, CheckingWindowDto window, CheckingExerciseDto exercise)
     {
         model.ExerciseName = exercise.Name ?? ExerciseLabels.For(exercise.ExerciseType);
+        model.FeedsJourney = WindowDatasets.AddedSlotFeedsJourney(exercise.ExerciseType);
         model.SourceOptions = WindowDatasets.DefaultsFor(window.CheckingWindowType, CheckingExerciseType.ResultsEnquiry)
             .Select(d => d.SourceFile).OfType<string>().Distinct().ToList();
         model.PostUrl = Url.Action("Submit", "ExerciseData", new { id = window.Id, exerciseId = exercise.Id });

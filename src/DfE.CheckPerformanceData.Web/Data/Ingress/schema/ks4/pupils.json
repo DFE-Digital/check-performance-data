@@ -1,0 +1,328 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "pupils.json",
+  "title": "Pupils",
+  "description": "Dev seed schema for a KS4 pupil file, in the shape PupilRecord reads. There is no confirmed supplier KS4 schema in the repo yet; replace this when there is.",
+  "type": "object",
+  "additionalProperties": false,
+  "x-ingress": {
+    "collection": "pupils",
+    "pageTab": "pupils",
+    "institutionKey": "LAESTAB"
+  },
+  "x-download": {
+    "fileName": "ks4pupils.csv",
+    "label": "Pupils"
+  },
+  "x-display": {
+    "tab": "pupils",
+    "section": "Pupils",
+    "selectorOrder": 0
+  },
+  "properties": {
+    "SURNAME": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 100,
+      "x-csv": {
+        "columns": {
+          "default": "A"
+        },
+        "heading": "Surname"
+      },
+      "x-display": {
+        "label": "Last name",
+        "visible": true,
+        "order": 0,
+        "searchable": true
+      }
+    },
+    "FORENAME": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 100,
+      "x-csv": {
+        "columns": {
+          "default": "B"
+        },
+        "heading": "Forename"
+      },
+      "x-display": {
+        "label": "First name",
+        "visible": true,
+        "order": 1,
+        "searchable": true
+      }
+    },
+    "UPN": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 13,
+      "x-csv": {
+        "columns": {
+          "default": "C"
+        },
+        "heading": "UPN"
+      },
+      "x-display": {
+        "label": "UPN",
+        "visible": true,
+        "order": 2,
+        "searchable": true
+      }
+    },
+    "CYPMD_ID": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "D"
+        },
+        "heading": "CYPMD ID"
+      },
+      "x-display": {
+        "label": "CYPMD ID",
+        "visible": true,
+        "order": 3
+      }
+    },
+    "SEX": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 1,
+      "x-csv": {
+        "columns": {
+          "default": "E"
+        },
+        "heading": "Sex"
+      },
+      "x-display": {
+        "label": "Sex",
+        "visible": true,
+        "order": 4
+      }
+    },
+    "DOB": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 30,
+      "x-csv": {
+        "columns": {
+          "default": "F"
+        },
+        "heading": "Date of birth"
+      },
+      "x-display": {
+        "label": "Date of birth",
+        "visible": true,
+        "order": 5
+      }
+    },
+    "AGE": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "x-csv": {
+        "columns": {
+          "default": "G"
+        },
+        "heading": "Age"
+      },
+      "x-display": {
+        "label": "Age",
+        "visible": false,
+        "order": 6
+      }
+    },
+    "P_INCL": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "x-csv": {
+        "columns": {
+          "default": "H"
+        },
+        "heading": "Pupil Inclusion Status Flag"
+      },
+      "x-display": {
+        "label": "Inclusion status",
+        "visible": true,
+        "order": 7
+      }
+    },
+    "LAESTAB": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 10,
+      "x-csv": {
+        "columns": {
+          "default": "I"
+        },
+        "heading": "DfE Establishment Number"
+      },
+      "x-display": {
+        "label": "DfE Establishment Number",
+        "visible": false,
+        "order": 8
+      }
+    },
+    "URN": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "x-csv": {
+        "columns": {
+          "default": "J"
+        },
+        "heading": "School URN"
+      },
+      "x-display": {
+        "label": "School URN",
+        "visible": false,
+        "order": 9
+      }
+    },
+    "ENTRYDAT": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 30,
+      "x-csv": {
+        "columns": {
+          "default": "K"
+        },
+        "heading": "Admission date"
+      },
+      "x-display": {
+        "label": "Admission date",
+        "visible": false,
+        "order": 10
+      }
+    },
+    "SENF": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 2,
+      "x-csv": {
+        "columns": {
+          "default": "L"
+        },
+        "heading": "SEN"
+      },
+      "x-display": {
+        "label": "SEN",
+        "visible": false,
+        "order": 11
+      }
+    },
+    "LANG1ST": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 4,
+      "x-csv": {
+        "columns": {
+          "default": "M"
+        },
+        "heading": "Pupil's first language"
+      },
+      "x-display": {
+        "label": "First language",
+        "visible": false,
+        "order": 12
+      }
+    },
+    "ETHNIC": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 4,
+      "x-csv": {
+        "columns": {
+          "default": "N"
+        },
+        "heading": "Pupil's ethnicity"
+      },
+      "x-display": {
+        "label": "Ethnicity",
+        "visible": false,
+        "order": 13
+      }
+    },
+    "ACTYRGRP": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 2,
+      "x-csv": {
+        "columns": {
+          "default": "O"
+        },
+        "heading": "Actual Year Group"
+      },
+      "x-display": {
+        "label": "Year group",
+        "visible": true,
+        "order": 14
+      }
+    },
+    "NEWMOBILE": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "x-csv": {
+        "columns": {
+          "default": "P"
+        },
+        "heading": "Mobile"
+      },
+      "x-display": {
+        "label": "Mobile",
+        "visible": false,
+        "order": 15
+      }
+    },
+    "MATCHREF": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "x-csv": {
+        "columns": {
+          "default": "Q"
+        },
+        "heading": "Match reference"
+      },
+      "x-display": {
+        "label": "Match reference",
+        "visible": false,
+        "order": 16
+      }
+    }
+  }
+}

@@ -90,7 +90,8 @@ public sealed class CreateCheckingExerciseControllerTests
         Assert.Equal(Today.AddDays(1).AddHours(9).AddMinutes(30), created.StartDate);
         Assert.Equal(model.VisibleFrom, created.VisibleFrom);
         Assert.Equal(model.VisibleUntil, created.VisibleUntil);
-        Assert.Equal(new[] { WindowDatasets.Included, WindowDatasets.NonIncluded }, created.Datasets.Select(d => d.Name));
+        // Pupil data checking starts with no slots; the admin adds the files the window needs.
+        Assert.Empty(created.Datasets);
         Assert.Null(created.ValidatedAt);
         Assert.Equal(Today, _window.StartDate);
         Assert.Equal(Today.AddMonths(1), _window.EndDate);
@@ -232,7 +233,8 @@ public sealed class CreateCheckingExerciseControllerTests
         Assert.Null(summary.ExerciseType);
         Assert.True(summary.DisplayOnly);
         Assert.True(summary.UsesExerciseStorage);
-        Assert.Equal("data", Assert.Single(summary.Datasets).Name);
+        // A data share starts with no slots; the admin adds as many as it needs.
+        Assert.Empty(summary.Datasets);
     }
 
     private void Validate(CreateCheckingExerciseItem model)

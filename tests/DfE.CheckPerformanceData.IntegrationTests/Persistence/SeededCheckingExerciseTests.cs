@@ -189,9 +189,10 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
                 Assert.Equal(DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DefinitionFile(exercise.Id, dataset.Id, $"{dataset.Name}.json"), dataset.SchemaFile);
                 await AssertFileAsync("ingress", dataset.IngressFile, dataset.IngressFileChecksum, "text/csv");
                 await AssertFileAsync("schema/post16", dataset.SchemaFile, dataset.SchemaFileChecksum, "application/json");
+                // A display-only share has no journey, so its release writes only each dataset's own file.
                 Assert.True(await container.GetBlobClient(
-                    DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DataBlobName(
-                        exercise.Id, CheckingDataType.Other, "8604070")).ExistsAsync(), $"{exercise.Name} output missing");
+                    DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DatasetBlobName(
+                        exercise.Id, exercise.CurrentReleaseId!.Value, dataset.Id, "8604070")).ExistsAsync(), $"{exercise.Name} output missing");
             }
             Assert.Equal(CheckingExerciseType.PupilData, tabs[0].ExerciseType);
             Assert.Equal(CheckingExerciseType.ResultsEnquiry, tabs[1].ExerciseType);
@@ -219,8 +220,10 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
             await AssertFileAsync("schema/post16", results.SchemaFile, results.SchemaFileChecksum, "application/json");
             Assert.True(await container.GetBlobClient(
                 DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DataBlobName(
-                    tabs[1].Id, CheckingDataType.Results, "8604070")).ExistsAsync(), "Results output missing");
+                        tabs[1].Id, CheckingDataType.Results, "8604070", tabs[1].CurrentReleaseId)).ExistsAsync(), "Results output missing");
             Assert.NotNull(tabs[1].Validated);
+            // The seed runs the same ingress as the admin button, so each run is a live release.
+            Assert.NotNull(tabs[1].CurrentReleaseId);
             Assert.Equal(datasets[0].IngressFileChecksum, window.IngressFileChecksum);
             Assert.Equal(datasets[0].SchemaFileChecksum, window.SchemaFileChecksum);
 
@@ -229,7 +232,7 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
             // Validate. 8604070 is the dev sign-in school (860/4070).
             Assert.True(await container.GetBlobClient(
                 DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DataBlobName(
-                    tabs[0].Id, CheckingDataType.Pupil, "8604070")).ExistsAsync(), "Students output missing");
+                        tabs[0].Id, CheckingDataType.Pupil, "8604070", tabs[0].CurrentReleaseId)).ExistsAsync(), "Students output missing");
             Assert.NotNull(tabs[0].Validated);
         }
         finally
@@ -283,7 +286,7 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
             Assert.Equal(window.EndDate, results.EndDate);
             Assert.True(await container.GetBlobClient(
                 DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DataBlobName(
-                    students.Id, CheckingDataType.Pupil, "8604070")).ExistsAsync(), "Students output missing");
+                        students.Id, CheckingDataType.Pupil, "8604070", students.CurrentReleaseId)).ExistsAsync(), "Students output missing");
 
             // The February summary is the third exercise in the chain; the two before it have run.
             var summaries = SummaryChain(window.CheckingExercises);
@@ -291,8 +294,8 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
             Assert.Equal("Light touch revised data share", summaries[2].Name);
             Assert.Equal("summary-november-va", Assert.Single(summaries[2].Datasets).Name);
             Assert.True(await container.GetBlobClient(
-                DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DataBlobName(
-                    summaries[2].Id, CheckingDataType.Other, "8604070")).ExistsAsync(), "Summary output missing");
+                DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DatasetBlobName(
+                        summaries[2].Id, summaries[2].CurrentReleaseId!.Value, summaries[2].Datasets.Single().Id, "8604070")).ExistsAsync(), "Summary output missing");
 
             // By February the main and first late results files have both landed.
             var slots = results.Datasets.OrderBy(d => d.SortOrder).ToList();
@@ -309,10 +312,11 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
             }
             var output = (await container.GetBlobClient(
                 DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DataBlobName(
-                    results.Id, CheckingDataType.Results, "8604070")).DownloadContentAsync()).Value.Content.ToString();
+                        results.Id, CheckingDataType.Results, "8604070", results.CurrentReleaseId)).DownloadContentAsync()).Value.Content.ToString();
             Assert.Contains("\"16to19_MAIN\"", output);
             Assert.Contains("\"16to19_LR1\"", output);
             Assert.NotNull(results.Validated);
+            Assert.NotNull(results.CurrentReleaseId);
         }
         finally
         {
@@ -345,6 +349,82 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
         while (summaries.SingleOrDefault(e => e.ReplacesCheckingExerciseId == chain[^1].Id) is { } next) chain.Add(next);
         Assert.Equal(summaries.Count, chain.Count);
         return chain;
+    }
+
+    [Fact]
+    public async Task Fixture_windows_are_ingested_so_every_exercise_has_a_release_and_journey_data()
+    {
+        // The E2E fixture windows are seeded through ingress, like an admin upload, so the Check
+        // Your Pupil Data page draws schema-driven tabs for them. The journeys still read the
+        // same fixtures: pupils by Id, results by QAN and session.
+        var blobs = new BlobServiceClient(azurite.ConnectionString);
+        try
+        {
+            await using (var ctx = CreateContext())
+            {
+                var ingress = new CheckingExerciseIngress(
+                    new CheckingExerciseDefinitionRepository(ctx, new WindowRepository(ctx)),
+                    new CsvSchemaFileProcessor(NullLogger<CsvSchemaFileProcessor>.Instance,
+                        new Dictionary<string, BlobServiceClient> { ["app"] = blobs }), TimeProvider.System);
+                await SeedExerciseFixtures.ExecuteSeedAsync(ctx, blobs, ingress, AppContext.BaseDirectory,
+                    [_openKs4, _closedKs4], [_post16, _closedPupilDataPost16]);
+            }
+
+            foreach (var windowId in new[] { _openKs4, _closedKs4, _post16, _closedPupilDataPost16 })
+            {
+                var window = await LoadAsync(windowId);
+                Assert.All(window.CheckingExercises, e =>
+                {
+                    Assert.True(e.IsEnabled, $"{e.Name} is not enabled");
+                    Assert.False(string.IsNullOrWhiteSpace(e.TabName), $"{e.Name} has no tab");
+                    Assert.NotNull(e.CurrentReleaseId);
+                    Assert.NotNull(e.Validated);
+                    Assert.All(e.Datasets, d => Assert.False(string.IsNullOrEmpty(d.SchemaFile)));
+                });
+            }
+
+            // KS4: Alice Smith, whom the E2E suite drives by UPN, keeps a real Id.
+            var ks4 = (await LoadAsync(_openKs4)).CheckingExercises.Single();
+            var ks4Pupils = DfE.CheckPerformanceData.Infrastructure.BlobStorage.PupilDataBlobClient.Deserialize(
+                await ReadAsync(_openKs4, DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths
+                    .DataBlobName(ks4.Id, CheckingDataType.Pupil, "860/4070", ks4.CurrentReleaseId)),
+                CheckingWindowType.KS4June);
+            var alice = Assert.Single(ks4Pupils, p => p.Identifier == "A86040700001B");
+            Assert.Equal(("Alice", "Smith"), (alice.Firstname, alice.Surname));
+            Assert.NotEqual(Guid.Empty, alice.Id);
+            Assert.Equal(240, ks4Pupils.Count);
+
+            // 16-19: both populations in the journey file, each with an Id and its inclusion stamp.
+            var post16 = await LoadAsync(_post16);
+            var students = post16.CheckingExercises.Single(e => e.ExerciseType == CheckingExerciseType.PupilData);
+            var post16Pupils = DfE.CheckPerformanceData.Infrastructure.BlobStorage.PupilDataBlobClient.Deserialize(
+                await ReadAsync(_post16, DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths
+                    .DataBlobName(students.Id, CheckingDataType.Pupil, "860/4070", students.CurrentReleaseId)),
+                CheckingWindowType.Post16);
+            Assert.Equal(240, post16Pupils.Count);
+            Assert.Equal(120, post16Pupils.Count(p => p.IsIncluded));
+            Assert.DoesNotContain(post16Pupils, p => p.Id == Guid.Empty);
+
+            // Results keep the fields the enquiry journey reads, and the tag of the file they came in.
+            var results = post16.CheckingExercises.Single(e => e.ExerciseType == CheckingExerciseType.ResultsEnquiry);
+            var seeded = System.Text.Json.JsonSerializer.Deserialize<List<DfE.CheckPerformanceData.Application.ResultsEnquiry.StudentResultRecord>>(
+                await ReadAsync(_post16, DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths
+                    .DataBlobName(results.Id, CheckingDataType.Results, "860/4070", results.CurrentReleaseId)),
+                DfE.CheckPerformanceData.Infrastructure.BlobStorage.StudentResultsBlobClient.JsonOptions)!;
+            Assert.Equal(SeedStudentResults.All.Count, seeded.Count);
+            Assert.Equal(
+                SeedStudentResults.All.Select(r => r.CompositeKey).Order(),
+                seeded.Select(r => r.CompositeKey).Order());
+        }
+        finally
+        {
+            foreach (var windowId in new[] { _openKs4, _closedKs4, _post16, _closedPupilDataPost16 })
+                await blobs.GetBlobContainerClient(windowId.ToString()).DeleteIfExistsAsync();
+        }
+
+        async Task<byte[]> ReadAsync(Guid windowId, string blobName) =>
+            (await blobs.GetBlobContainerClient(windowId.ToString()).GetBlobClient(blobName).DownloadContentAsync())
+                .Value.Content.ToArray();
     }
 
     private static string TrimmedContentRoot(string laestab)

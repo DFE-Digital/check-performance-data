@@ -179,10 +179,8 @@ public class WindowServiceTests
         Assert.Equal(5, enquiry.Datasets.Count);
         Assert.All(enquiry.Datasets, d => Assert.Equal(d.Name, d.SourceFile));
 
-        // The pupil-data exercise keeps its own slots, unaffected.
-        Assert.Equal(
-            ["included", "nonincluded"],
-            persisted.FindExercise(CheckingExerciseType.PupilData)!.Datasets.Select(d => d.Name));
+        // The pupil-data exercise gets no supplier slots: the admin adds its files.
+        Assert.Empty(persisted.FindExercise(CheckingExerciseType.PupilData)!.Datasets);
     }
 
     [Fact]

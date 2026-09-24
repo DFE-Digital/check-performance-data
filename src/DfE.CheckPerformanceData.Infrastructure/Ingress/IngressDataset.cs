@@ -16,6 +16,14 @@ namespace DfE.CheckPerformanceData.Infrastructure.Ingress;
 /// of origin — the exact analogue of <paramref name="Included"/>. A results file tag on a
 /// results-enquiry dataset; <c>null</c> on pupil data, where nothing is stamped.
 /// </param>
+/// <param name="DatasetId">
+/// The slot this pair was uploaded to. A release run writes each dataset's output to its own
+/// folder, named by this id, so a release run needs it.
+/// </param>
+/// <param name="FeedsJourney">
+/// On a release run, only these datasets go into the merged file that the journeys read. A run
+/// with no release merges every dataset, as before.
+/// </param>
 public sealed record IngressDataset(
     string Name,
     string InputCsvFile,
@@ -23,4 +31,6 @@ public sealed record IngressDataset(
     string SchemaFile,
     string SchemaChecksum,
     bool? Included,
-    string? SourceFile = null);
+    string? SourceFile = null,
+    Guid DatasetId = default,
+    bool FeedsJourney = true);

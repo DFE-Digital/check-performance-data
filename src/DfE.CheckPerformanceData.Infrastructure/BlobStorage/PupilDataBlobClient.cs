@@ -60,7 +60,8 @@ public sealed class PupilDataBlobClient(BlobServiceClient blobServiceClient, ICh
         var target = resolver is null ? null : await resolver.ResolveAsync(windowId, exercise, cancellationToken);
         if (resolver is not null && target is null) return [];
         string prefix = target is { UsesExerciseStorage: true }
-            ? CheckingExerciseBlobPaths.DataPrefix(target.Id) : CheckingExerciseBlobPaths.DataPrefix(exercise);
+            ? CheckingExerciseBlobPaths.DataPrefix(target.Id, target.CurrentReleaseId)
+            : CheckingExerciseBlobPaths.DataPrefix(exercise);
         const string suffix = CheckingExerciseBlobPaths.PupilsSuffix;
         var laestabs = new HashSet<string>(StringComparer.Ordinal);
         await foreach (var blob in container.GetBlobsAsync(BlobTraits.None, BlobStates.None, prefix, cancellationToken))
@@ -92,6 +93,8 @@ public sealed class PupilDataBlobClient(BlobServiceClient blobServiceClient, ICh
         await blob.UploadAsync(stream, overwrite: true);
     }
 
+    // The current release decides the path: each release has its own output, and the exercise
+    // names the one schools see. No release means the unversioned path.
     // The layout lives in CheckingExerciseBlobPaths and nowhere else, so a prefix change cannot
     // leave the reader and the ingress writer disagreeing about where a school's file is. A null
     // resolver reproduces the legacy behaviour exactly: every window configured before #466, and
@@ -101,7 +104,8 @@ public sealed class PupilDataBlobClient(BlobServiceClient blobServiceClient, ICh
         var target = resolver is null ? null : await resolver.ResolveAsync(windowId, exercise);
         if (resolver is not null && target is null) return null;
         var path = target is { UsesExerciseStorage: true }
-            ? CheckingExerciseBlobPaths.DataBlobName(target.Id, CheckingExerciseBlobPaths.DefaultDataType(exercise), laestab)
+            ? CheckingExerciseBlobPaths.DataBlobName(target.Id, CheckingExerciseBlobPaths.DefaultDataType(exercise),
+                laestab, target.CurrentReleaseId)
             : CheckingExerciseBlobPaths.PupilsBlobName(exercise, laestab);
         return blobServiceClient.GetBlobContainerClient(windowId.ToString()).GetBlobClient(path);
     }

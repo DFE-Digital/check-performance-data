@@ -10,6 +10,9 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
     public async Task<List<CheckingWindowDto>> GetAllWindowsAsync(CancellationToken cancellationToken) =>
         await dbContext.CheckingWindows
             .AsNoTracking()
+            // Datasets and Releases are sibling collections. In one query each release file would
+            // repeat every dataset row; split queries load each collection once.
+            .AsSplitQuery()
             .Select(w => new CheckingWindowDto
             {
                 StartDate = w.StartDate,
@@ -40,6 +43,37 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                         WindowStart = w.StartDate,
                         WindowEnd = w.EndDate,
                         ReplacesCheckingExerciseId = e.ReplacesCheckingExerciseId,
+                        CurrentReleaseId = e.CurrentReleaseId,
+                        Layout = e.Layout,
+                        // Oldest first. The school-facing display reads its schemas from the current release, and
+                        // the admin exercise page lists every release so an earlier one can be made live again.
+                        Releases = e.Releases
+                            .OrderBy(r => r.Number)
+                            .Select(r => new CheckingExerciseReleaseDto
+                            {
+                                Id = r.Id,
+                                Number = r.Number,
+                                PublishedAt = r.PublishedAt,
+                                PublishedBy = r.PublishedBy,
+                                FilesWritten = r.FilesWritten,
+                                Files = r.Files
+                                    .OrderBy(f => f.SortOrder)
+                                    .Select(f => new CheckingExerciseReleaseFileDto
+                                    {
+                                        DatasetId = f.DatasetId,
+                                        DatasetName = f.DatasetName,
+                                        FeedsJourney = f.FeedsJourney,
+                                        Included = f.Included,
+                                        SourceFile = f.SourceFile,
+                                        IngressFile = f.IngressFile,
+                                        IngressFileChecksum = f.IngressFileChecksum,
+                                        SchemaFile = f.SchemaFile,
+                                        SchemaFileChecksum = f.SchemaFileChecksum,
+                                        SortOrder = f.SortOrder
+                                    })
+                                    .ToList()
+                            })
+                            .ToList(),
                         ExerciseType = e.ExerciseType,
                         StartDate = e.StartDate,
                         EndDate = e.EndDate,
@@ -65,6 +99,7 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                                 Included = d.Included,
                                 SourceFile = d.SourceFile,
                                 Required = d.Required,
+                                FeedsJourney = d.FeedsJourney,
                                 SortOrder = d.SortOrder
                             })
                             .ToList()
@@ -76,6 +111,9 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
     public async Task<CheckingWindowDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
         await dbContext.CheckingWindows
             .AsNoTracking()
+            // Datasets and Releases are sibling collections. In one query each release file would
+            // repeat every dataset row; split queries load each collection once.
+            .AsSplitQuery()
             .Where(w => w.Id == id)
             .Select(w => new CheckingWindowDto
             {
@@ -107,6 +145,37 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                         WindowStart = w.StartDate,
                         WindowEnd = w.EndDate,
                         ReplacesCheckingExerciseId = e.ReplacesCheckingExerciseId,
+                        CurrentReleaseId = e.CurrentReleaseId,
+                        Layout = e.Layout,
+                        // Oldest first. The school-facing display reads its schemas from the current release, and
+                        // the admin exercise page lists every release so an earlier one can be made live again.
+                        Releases = e.Releases
+                            .OrderBy(r => r.Number)
+                            .Select(r => new CheckingExerciseReleaseDto
+                            {
+                                Id = r.Id,
+                                Number = r.Number,
+                                PublishedAt = r.PublishedAt,
+                                PublishedBy = r.PublishedBy,
+                                FilesWritten = r.FilesWritten,
+                                Files = r.Files
+                                    .OrderBy(f => f.SortOrder)
+                                    .Select(f => new CheckingExerciseReleaseFileDto
+                                    {
+                                        DatasetId = f.DatasetId,
+                                        DatasetName = f.DatasetName,
+                                        FeedsJourney = f.FeedsJourney,
+                                        Included = f.Included,
+                                        SourceFile = f.SourceFile,
+                                        IngressFile = f.IngressFile,
+                                        IngressFileChecksum = f.IngressFileChecksum,
+                                        SchemaFile = f.SchemaFile,
+                                        SchemaFileChecksum = f.SchemaFileChecksum,
+                                        SortOrder = f.SortOrder
+                                    })
+                                    .ToList()
+                            })
+                            .ToList(),
                         ExerciseType = e.ExerciseType,
                         StartDate = e.StartDate,
                         EndDate = e.EndDate,
@@ -132,6 +201,7 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                                 Included = d.Included,
                                 SourceFile = d.SourceFile,
                                 Required = d.Required,
+                                FeedsJourney = d.FeedsJourney,
                                 SortOrder = d.SortOrder
                             })
                             .ToList()
@@ -222,6 +292,7 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
             existing.TabOrder = dto.TabOrder;
             existing.IsEnabled = dto.IsEnabled;
             existing.DisplayOnly = dto.DisplayOnly;
+            existing.Layout = dto.Layout;
             existing.VisibleFrom = dto.VisibleFrom;
             existing.VisibleUntil = dto.VisibleUntil;
             existing.ReplacesCheckingExerciseId = dto.ReplacesCheckingExerciseId;
@@ -305,6 +376,9 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
             Included = dto.Included,
             SourceFile = dto.SourceFile,
             Required = dto.Required,
+            // Set here and nowhere else: whether a slot feeds the journey is decided when it is
+            // created (supplier slot or admin-added), and no update may change it.
+            FeedsJourney = dto.FeedsJourney,
             SortOrder = dto.SortOrder
         };
 
@@ -341,6 +415,7 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                 TabOrder = dto.TabOrder,
                 IsEnabled = dto.IsEnabled,
                 DisplayOnly = dto.DisplayOnly,
+                Layout = dto.Layout,
                 VisibleFrom = dto.VisibleFrom,
                 VisibleUntil = dto.VisibleUntil,
                 ReplacesCheckingExerciseId = dto.ReplacesCheckingExerciseId,
@@ -386,6 +461,37 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                     WindowStart = entity.StartDate,
                     WindowEnd = entity.EndDate,
                     ReplacesCheckingExerciseId = e.ReplacesCheckingExerciseId,
+                    CurrentReleaseId = e.CurrentReleaseId,
+                    Layout = e.Layout,
+                    // Oldest first. The school-facing display reads its schemas from the current release, and
+                    // the admin exercise page lists every release so an earlier one can be made live again.
+                    Releases = e.Releases
+                        .OrderBy(r => r.Number)
+                        .Select(r => new CheckingExerciseReleaseDto
+                        {
+                            Id = r.Id,
+                            Number = r.Number,
+                            PublishedAt = r.PublishedAt,
+                            PublishedBy = r.PublishedBy,
+                            FilesWritten = r.FilesWritten,
+                            Files = r.Files
+                                .OrderBy(f => f.SortOrder)
+                                .Select(f => new CheckingExerciseReleaseFileDto
+                                {
+                                    DatasetId = f.DatasetId,
+                                    DatasetName = f.DatasetName,
+                                    FeedsJourney = f.FeedsJourney,
+                                    Included = f.Included,
+                                    SourceFile = f.SourceFile,
+                                    IngressFile = f.IngressFile,
+                                    IngressFileChecksum = f.IngressFileChecksum,
+                                    SchemaFile = f.SchemaFile,
+                                    SchemaFileChecksum = f.SchemaFileChecksum,
+                                    SortOrder = f.SortOrder
+                                })
+                                .ToList()
+                        })
+                        .ToList(),
                     ExerciseType = e.ExerciseType,
                     StartDate = e.StartDate,
                     EndDate = e.EndDate,
@@ -403,6 +509,7 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                             Included = d.Included,
                             SourceFile = d.SourceFile,
                             Required = d.Required,
+                            FeedsJourney = d.FeedsJourney,
                             SortOrder = d.SortOrder
                         })
                         .ToList()

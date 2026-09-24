@@ -136,7 +136,7 @@ public class WindowExercisesTests
     }
 
     [Fact]
-    public async Task The_pupil_data_exercise_holds_the_dataset_slots_the_window_type_requires()
+    public async Task A_new_pupil_data_exercise_has_no_slots_until_the_admin_adds_them()
     {
         (WindowService service, Func<CheckingWindowDto?> persisted) = ServiceCapturingCreate();
 
@@ -145,9 +145,7 @@ public class WindowExercisesTests
 
         await service.CreateAsync(window, CancellationToken.None);
 
-        Assert.Equal(
-            ["included", "nonincluded"],
-            Assert.Single(persisted()!.Exercises).Datasets.Select(d => d.Name));
+        Assert.Empty(Assert.Single(persisted()!.Exercises).Datasets);
     }
 
     [Fact]
@@ -180,7 +178,7 @@ public class WindowExercisesTests
     // The dataset slots follow the window type, so switching type replaces slots the new type does
     // not have. Post16 supplies two named files; KS2 supplies one under a different name.
     [Fact]
-    public async Task Changing_the_window_type_replaces_the_slots_the_new_type_does_not_use()
+    public async Task Changing_the_window_type_replaces_the_supplier_slots_the_new_type_does_not_use()
     {
         IWindowRepository repository = Substitute.For<IWindowRepository>();
         CheckingWindowDto? persisted = null;
@@ -192,14 +190,44 @@ public class WindowExercisesTests
         window.CheckingWindowType = CheckingWindowType.Post16;
         window.Exercises =
         [
-            Exercise(CheckingExerciseType.PupilData, sortOrder: 0, datasets: [Dataset("pupils", 0)])
+            Exercise(CheckingExerciseType.ResultsEnquiry, sortOrder: 0,
+                datasets: [Dataset(DfE.CheckPerformanceData.Application.ResultsEnquiry.ResultsFileTags.Ks4Main, 0)])
         ];
 
         await service.UpdateAsync(window, CancellationToken.None);
 
-        Assert.Equal(
-            ["included", "nonincluded"],
-            Assert.Single(persisted!.Exercises).Datasets.Select(d => d.Name));
+        var names = Assert.Single(persisted!.Exercises).Datasets.Select(d => d.Name).ToList();
+        Assert.DoesNotContain(DfE.CheckPerformanceData.Application.ResultsEnquiry.ResultsFileTags.Ks4Main, names);
+        Assert.Contains(DfE.CheckPerformanceData.Application.ResultsEnquiry.ResultsFileTags.Post16Main, names);
+    }
+
+    [Fact]
+    public async Task Saving_a_window_keeps_every_slot_an_admin_added()
+    {
+        // Saving used to rebuild the slots from the defaults alone, which silently dropped every
+        // slot added with "Add data file".
+        IWindowRepository repository = Substitute.For<IWindowRepository>();
+        CheckingWindowDto? persisted = null;
+        await repository.UpdateAsync(
+            Arg.Do<CheckingWindowDto>(w => persisted = w), Arg.Any<CancellationToken>());
+        WindowService service = new(repository, TimeProvider.System);
+
+        CheckingWindowDto window = Window();
+        window.CheckingWindowType = CheckingWindowType.Post16;
+        window.Exercises =
+        [
+            Exercise(CheckingExerciseType.PupilData, sortOrder: 0,
+                datasets: [Dataset("included-pupils", 0), Dataset("non-included-pupils", 1)]),
+            Exercise(null, sortOrder: 1, datasets: [Dataset("summary", 0)]),
+            Exercise(CheckingExerciseType.ResultsEnquiry, sortOrder: 2, datasets: [Dataset("revised-summary", 9)])
+        ];
+
+        await service.UpdateAsync(window, CancellationToken.None);
+
+        Assert.Equal(["included-pupils", "non-included-pupils"],
+            persisted!.Exercises[0].Datasets.Select(d => d.Name));
+        Assert.Equal(["summary"], persisted.Exercises[1].Datasets.Select(d => d.Name));
+        Assert.Contains("revised-summary", persisted.Exercises[2].Datasets.Select(d => d.Name));
     }
 
     private static (WindowService, Func<CheckingWindowDto?>) ServiceCapturingCreate()
@@ -216,7 +244,7 @@ public class WindowExercisesTests
     }
 
     private static CheckingExerciseDto Exercise(
-        CheckingExerciseType type, int sortOrder, List<CheckingWindowDatasetDto> datasets) =>
+        CheckingExerciseType? type, int sortOrder, List<CheckingWindowDatasetDto> datasets) =>
         new()
         {
             ExerciseType = type,

@@ -24,8 +24,17 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
         bool validateOnly = false,
         bool clearExistingFiles = false,
         [EnumeratorCancellation] CancellationToken cancellationToken = default,
-        Guid? checkingExerciseId = null, CheckingDataType? dataType = null)
+        Guid? checkingExerciseId = null, CheckingDataType? dataType = null, Guid? releaseId = null)
     {
+        if (releaseId is not null && checkingExerciseId is null)
+            throw new ArgumentException("A release belongs to an exercise, so it needs the exercise id.", nameof(releaseId));
+
+        // A release writes each dataset to a folder named by its slot id, so two datasets with no
+        // id, or the same id, would write over each other.
+        if (releaseId is not null
+            && (datasets.Any(d => d.DatasetId == Guid.Empty) || datasets.Select(d => d.DatasetId).Distinct().Count() != datasets.Count))
+            throw new ArgumentException("A release run needs a distinct dataset id for every dataset.", nameof(datasets));
+
         if (datasets.Count == 0)
         {
             yield return Failed("No ingress datasets are configured for this window.");
@@ -51,7 +60,10 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
         bool multipleDatasets = datasets.Count > 1;
 
         // Records from every dataset are merged per school, so one run produces the complete file.
+        // On a release run only the datasets that feed the journey are merged, and every dataset
+        // also gets its own per-school file (byDataset), which is what the display reads.
         Dictionary<string, JArray> mergedBySchool = new();
+        Dictionary<(Guid DatasetId, string School), JArray> byDataset = new();
         Dictionary<string, int> recordCountBySchool = new();
         StringBuilder errorLogBuilder = new StringBuilder();
         int totalErrors = 0;
@@ -236,15 +248,43 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
                 }
                 else
                 {
-                    if (!mergedBySchool.TryGetValue(schoolId, out JArray? existing))
+                    // A pupil's Id is always ours, generated here, never the supplier's: the
+                    // journeys select a pupil by it. Stamped after validation, so the supplier's
+                    // schema need not declare it, and over any Id the file carries.
+                    if (exercise == CheckingExerciseType.PupilData)
                     {
-                        existing = new JArray();
-                        mergedBySchool[schoolId] = existing;
+                        foreach (JObject record in jsonArray.Children<JObject>())
+                        {
+                            record["Id"] = Guid.NewGuid().ToString();
+                        }
                     }
 
-                    foreach (JObject record in jsonArray.Children<JObject>().ToList())
+                    if (releaseId is null || dataset.FeedsJourney)
                     {
-                        existing.Add(record);
+                        if (!mergedBySchool.TryGetValue(schoolId, out JArray? existing))
+                        {
+                            existing = new JArray();
+                            mergedBySchool[schoolId] = existing;
+                        }
+
+                        foreach (JObject record in jsonArray.Children<JObject>())
+                        {
+                            existing.Add(record.DeepClone());
+                        }
+                    }
+
+                    if (releaseId is not null)
+                    {
+                        if (!byDataset.TryGetValue((dataset.DatasetId, schoolId), out JArray? own))
+                        {
+                            own = new JArray();
+                            byDataset[(dataset.DatasetId, schoolId)] = own;
+                        }
+
+                        foreach (JObject record in jsonArray.Children<JObject>())
+                        {
+                            own.Add(record.DeepClone());
+                        }
                     }
                 }
 
@@ -327,8 +367,9 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
             yield break;
         }
 
-        // Every dataset is valid, so write one merged JSON file per school. Track written files
-        // so partial output from an I/O failure can be rolled back.
+        // Every dataset is valid, so write one merged JSON file per school (and, on a release run,
+        // one file per dataset per school). Track written files so partial output from an I/O
+        // failure can be rolled back.
         List<string> writtenBlobNames = new List<string>();
         int recordsProcessed = 0;
         int filesWritten = 0;
@@ -336,18 +377,33 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
 
         // Never clear a dataset that is currently good until every supplied pair has validated.
         // Clearing first meant one bad supplier file emptied the school's page.
-        if (clearExistingFiles && !validateOnly)
+        // A release writes under a new prefix, so the output that schools see now stays untouched
+        // until the caller switches to the new release. There is nothing to clear.
+        if (clearExistingFiles && !validateOnly && releaseId is null)
             await ClearOutputAsync(container, checkingWindowId, exercise, errorLogBlobName,
                 cancellationToken, checkingExerciseId);
 
-        foreach ((string schoolId, JArray jsonArray) in mergedBySchool)
+        // The merged file per school (the journey's file), then, on a release run, each
+        // dataset's own file per school. Records are counted once: from the dataset files on a
+        // release run, where every record lands exactly once, and from the merged files otherwise.
+        IEnumerable<(string BlobName, JArray Records, bool Counted)> outputs = mergedBySchool
+            .Select(entry => (
+                checkingExerciseId is { } outputId
+                    ? CheckingExerciseBlobPaths.DataBlobName(outputId,
+                        dataType ?? CheckingExerciseBlobPaths.DefaultDataType(exercise), entry.Key, releaseId)
+                    : CheckingExerciseBlobPaths.DataBlobName(exercise!.Value, entry.Key),
+                entry.Value,
+                releaseId is null))
+            .Concat(byDataset.Select(entry => (
+                CheckingExerciseBlobPaths.DatasetBlobName(checkingExerciseId!.Value, releaseId!.Value,
+                    entry.Key.DatasetId, entry.Key.School),
+                entry.Value,
+                true)));
+
+        foreach ((string outputBlobName, JArray jsonArray, bool counted) in outputs)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            string outputBlobName = checkingExerciseId is { } outputId
-                ? CheckingExerciseBlobPaths.DataBlobName(outputId,
-                    dataType ?? CheckingExerciseBlobPaths.DefaultDataType(exercise), schoolId)
-                : CheckingExerciseBlobPaths.DataBlobName(exercise!.Value, schoolId);
             try
             {
                 await WriteAsync(container, outputBlobName, jsonArray.ToString(Formatting.Indented), cancellationToken);
@@ -361,7 +417,7 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
 
             writtenBlobNames.Add(outputBlobName);
             filesWritten++;
-            recordsProcessed += jsonArray.Count;
+            if (counted) recordsProcessed += jsonArray.Count;
 
             yield return new ValidationProgress(
                 "Processing",

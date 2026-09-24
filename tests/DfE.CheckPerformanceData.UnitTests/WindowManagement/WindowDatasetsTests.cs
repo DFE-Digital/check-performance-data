@@ -7,16 +7,6 @@ namespace DfE.CheckPerformanceData.UnitTests.WindowManagement;
 public sealed class WindowDatasetsTests
 {
     [Fact]
-    public void AnUntypedShare_GetsOneSlotToUploadInto()
-    {
-        var datasets = WindowDatasets.DefaultsFor(CheckingWindowType.Post16, null);
-
-        var dataset = Assert.Single(datasets);
-        Assert.Equal("data", dataset.Name);
-        Assert.Equal(0, dataset.SortOrder);
-    }
-
-    [Fact]
     public void FindExercise_OfNoType_FindsNothing()
     {
         var window = new CheckingWindowDto
@@ -32,5 +22,18 @@ public sealed class WindowDatasetsTests
 
         // Two typeless rows are legal. Asking for "the exercise of no type" must not throw.
         Assert.Null(window.FindExercise(null));
+    }
+
+    [Theory]
+    [InlineData(CheckingWindowType.Post16, CheckingExerciseType.ResultsEnquiry)]
+    [InlineData(CheckingWindowType.KS4Autumn, CheckingExerciseType.ResultsEnquiry)]
+    public void EverySupplierSlot_FeedsTheJourney(CheckingWindowType window, CheckingExerciseType exercise)
+    {
+        // These are the "journey data" files: only a new version of these may change what a
+        // journey reads.
+        var datasets = WindowDatasets.DefaultsFor(window, exercise);
+
+        Assert.NotEmpty(datasets);
+        Assert.All(datasets, d => Assert.True(d.FeedsJourney, d.Name));
     }
 }

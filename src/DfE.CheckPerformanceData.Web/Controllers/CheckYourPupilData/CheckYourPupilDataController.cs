@@ -23,7 +23,7 @@ namespace DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData;
 public sealed class CheckYourPupilDataController(ICheckYourPupilDataService checkYourPupilDataService,
     ICurrentUserService currentUserService, IAnalyticsService analytics,
     INextStepsService nextSteps, ICheckingExerciseService checkingExercises,
-    IExerciseTabBuilder tabBuilder, IExerciseDisplayService display, ICheckingDataReader checkingDataReader) : Controller
+    IExerciseTabBuilder tabBuilder, IExerciseDisplayService display) : Controller
 {
     private const int PageSize = 10;
     private const int MaxSearchLength = 100;
@@ -137,9 +137,8 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         if (tab is null) return NotFound();
 
         // Re-read rather than re-serialise the parsed rows: the file a school downloads must be
-        // the file the run produced, byte for byte.
-        var bytes = await checkingDataReader.ReadAsync(tab.Exercise,
-            currentUserService.OrganisationLaestab!, cancellationToken);
+        // the data the run produced (with a release, each dataset's file under its name).
+        var bytes = await tabBuilder.ReadRawAsync(tab, currentUserService.OrganisationLaestab!, cancellationToken);
 
         return bytes is null ? NotFound() : File(bytes, "application/json", $"{tab.Exercise.TabName}.json");
     }

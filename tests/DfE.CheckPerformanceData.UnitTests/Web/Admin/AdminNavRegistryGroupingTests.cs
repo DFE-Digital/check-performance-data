@@ -28,8 +28,9 @@ public sealed class AdminNavRegistryGroupingTests
 		// Seven: the Amendment requests group was retired (its per-window requests page is reached
 		// from the windows table now) and the Storage administration group went with the blob
 		// browser moving under Danger zone, which is itself a root group registered everywhere;
-		// plus the Data egress group (AB#294553).
-		Assert.Equal(7, groups.Count);
+		// plus the Data egress group (AB#294553); plus the Audit log root tile (AB#294592), a root
+		// with a URL and no children like Dashboard.
+		Assert.Equal(8, groups.Count);
 		var groupKeys = groups.Select(g => g.Key).ToHashSet();
 		Assert.Contains("dashboard", groupKeys);
 		Assert.Contains("cms-admin", groupKeys);
@@ -39,6 +40,7 @@ public sealed class AdminNavRegistryGroupingTests
 		Assert.Contains("window-admin", groupKeys);
 		Assert.Contains("messages-group", groupKeys);
 		Assert.Contains("egress-group", groupKeys);
+		Assert.Contains("audit-log", groupKeys);
 	}
 
 	// --- Tiles_Have_NonNull_ParentKey_Matching_An_Existing_Entry ---
@@ -73,8 +75,8 @@ public sealed class AdminNavRegistryGroupingTests
 		// together and the Storage administration group went when the blob browser moved under
 		// Danger zone, which this overload registers along with the browser but without the
 		// gated Reset seed data tile — plus the Data egress group and its Start a new egress
-		// tile (AB#294553) and its Egress runs tile (AB#294590).
-		Assert.Equal(33, keys.Count);
+		// tile (AB#294553) and its Egress runs tile (AB#294590) and the Audit log root tile (AB#294592).
+		Assert.Equal(34, keys.Count);
 		Assert.Equal(keys.Count, keys.Distinct().Count());
 	}
 

@@ -14,11 +14,12 @@
 <p class="govuk-body">A history of all data egress runs.</p>
 
 <form method="get" action="/admin/egress/runs" class="govuk-!-margin-bottom-6" data-testid="egress-runs-filters">
+    @* Stacked, not side by side: two one-half columns squashed the selects together. *@
     <div class="govuk-grid-row">
-        <div class="govuk-grid-column-one-half">
+        <div class="govuk-grid-column-two-thirds">
             <div class="govuk-form-group">
                 <label class="govuk-label" for="windowId">Filter by checking window</label>
-                <select class="govuk-select" id="windowId" name="windowId">
+                <select class="govuk-select govuk-!-width-full" id="windowId" name="windowId">
                     <option value="" selected="@(Model.SelectedWindowId is null)">All windows</option>
                     @foreach (var window in Model.Windows)
                     {
@@ -26,11 +27,9 @@
                     }
                 </select>
             </div>
-        </div>
-        <div class="govuk-grid-column-one-half">
             <div class="govuk-form-group">
                 <label class="govuk-label" for="status">Filter by status</label>
-                <select class="govuk-select" id="status" name="status">
+                <select class="govuk-select govuk-!-width-full" id="status" name="status">
                     <option value="" selected="@(Model.SelectedOutcome is null)">All statuses</option>
                     @foreach (var outcome in EgressRunOutcomes.All)
                     {
@@ -38,10 +37,10 @@
                     }
                 </select>
             </div>
+            @* No hidden page field on purpose: applying a filter starts again from page 1. *@
+            <button type="submit" class="govuk-button govuk-button--secondary" data-module="govuk-button">Apply filters</button>
         </div>
     </div>
-    @* No hidden page field on purpose: applying a filter starts again from page 1. *@
-    <button type="submit" class="govuk-button govuk-button--secondary" data-module="govuk-button">Apply filters</button>
 </form>
 
 @if (Model.IsEmpty)

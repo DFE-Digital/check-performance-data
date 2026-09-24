@@ -190,10 +190,32 @@ public sealed class EgressRunRepositoryTests(PostgresFixture fixture)
             Timestamp = DateTime.UtcNow, UserId = UserId.ToString(), NewValues = "{}"
         });
 
-        await repo.MarkTransferFailedAsync(id, EgressRunStatus.Pulled, "Blob upload refused", UserId.ToString(), CancellationToken.None);
+        await repo.MarkTransferFailedAsync(id, EgressRunStatus.Pulled, "Blob upload refused", UserId.ToString(), "Ops One", CancellationToken.None);
 
         await using var db = fixture.CreateContext();
         Assert.Equal(1, await db.AuditEntries.CountAsync(a => a.EntityType == "EgressRun" && a.EntityId == id.ToString() && a.Action == "TransferFailed"));
+    }
+
+    // AB#294592: the audit log displays from the payload, so a failure row must say which window,
+    // which files and who — as the success row always has. Read after the guarded flip, same
+    // transaction.
+    [Fact]
+    public async Task A_failed_transfer_audit_row_names_the_window_output_types_and_person()
+    {
+        await ResetAsync();
+        var repo = Repository();
+        var id = await repo.CreateRunAsync(Create(EgressOutputType.RemoveLearners, EgressOutputType.NewLearners), CancellationToken.None);
+
+        await repo.MarkTransferFailedAsync(id, EgressRunStatus.Pulled, "Blob upload refused", UserId.ToString(), "Ops One", CancellationToken.None);
+
+        await using var db = fixture.CreateContext();
+        var entry = await db.AuditEntries.SingleAsync(a => a.EntityType == "EgressRun" && a.EntityId == id.ToString() && a.Action == "TransferFailed");
+        Assert.Equal(UserId.ToString(), entry.UserId);
+        Assert.Contains("\"outcome\":\"Failed\"", entry.NewValues);
+        Assert.Contains($"\"windowId\":\"{WindowId.ToString().ToLowerInvariant()}\"", entry.NewValues);
+        Assert.Contains("\"outputTypes\":[\"NewLearners\",\"RemoveLearners\"]", entry.NewValues);
+        Assert.Contains("\"transferredBy\":\"Ops One\"", entry.NewValues);
+        Assert.Contains("\"reason\":\"Blob upload refused\"", entry.NewValues);
     }
 
     [Fact]
@@ -258,12 +280,12 @@ public sealed class EgressRunRepositoryTests(PostgresFixture fixture)
         var repo = Repository();
         var id = await repo.CreateRunAsync(Create(EgressOutputType.RemoveLearners), CancellationToken.None);
 
-        await repo.MarkTransferFailedAsync(id, EgressRunStatus.Pulled, "Blob upload refused", UserId.ToString(), CancellationToken.None);
+        await repo.MarkTransferFailedAsync(id, EgressRunStatus.Pulled, "Blob upload refused", UserId.ToString(), "Ops One", CancellationToken.None);
         Assert.Null(await repo.FindBlockerAsync(WindowId, EgressOutputType.RemoveLearners, CancellationToken.None));
         Assert.Equal("Blob upload refused", (await repo.GetRunAsync(id, CancellationToken.None))!.TransferFailureReason);
 
         Assert.Null(await repo.TryReactivateAsync(id, CancellationToken.None));            // retry allowed
-        await repo.MarkTransferFailedAsync(id, EgressRunStatus.TransferFailed, "again", UserId.ToString(), CancellationToken.None);
+        await repo.MarkTransferFailedAsync(id, EgressRunStatus.TransferFailed, "again", UserId.ToString(), "Ops One", CancellationToken.None);
 
         var newer = await Repository().CreateRunAsync(Create(EgressOutputType.RemoveLearners), CancellationToken.None);
         var blocked = await repo.TryReactivateAsync(id, CancellationToken.None);           // pair taken
@@ -435,7 +457,7 @@ public sealed class EgressRunRepositoryTests(PostgresFixture fixture)
         var abandoned = await repo.CreateRunAsync(CreateIn(WindowId, EgressOutputType.RemoveLearners), CancellationToken.None);
         await repo.AbandonAsync(abandoned, CancellationToken.None);
         var failed = await repo.CreateRunAsync(CreateIn(WindowId, EgressOutputType.RemoveLearners), CancellationToken.None);
-        await repo.MarkTransferFailedAsync(failed, EgressRunStatus.Pulled, "Blob upload refused", UserId.ToString(), CancellationToken.None);
+        await repo.MarkTransferFailedAsync(failed, EgressRunStatus.Pulled, "Blob upload refused", UserId.ToString(), "Ops One", CancellationToken.None);
         var transferred = await repo.CreateRunAsync(CreateIn(WindowId, EgressOutputType.RemoveLearners), CancellationToken.None);
         await repo.MarkTransferredAsync(transferred, EgressRunStatus.Pulled, Audit(0), DateTime.UtcNow, CancellationToken.None);
         var draft = await repo.CreateRunAsync(CreateIn(WindowId, EgressOutputType.NewLearners), CancellationToken.None);
@@ -464,7 +486,7 @@ public sealed class EgressRunRepositoryTests(PostgresFixture fixture)
         var repo = Repository();
         var failedAfterSave = await repo.CreateRunAsync(CreateIn(WindowId, EgressOutputType.RemoveLearners), CancellationToken.None);
         await repo.SavePreprocessedAsync(failedAfterSave, EgressRunStatus.Pulled, [], [RemoveRow("REF-1"), RemoveRow("REF-2")], new DateOnly(2026, 6, 8), RemoveFileName, CancellationToken.None);
-        await repo.MarkTransferFailedAsync(failedAfterSave, EgressRunStatus.Preprocessed, "Blob upload refused", UserId.ToString(), CancellationToken.None);
+        await repo.MarkTransferFailedAsync(failedAfterSave, EgressRunStatus.Preprocessed, "Blob upload refused", UserId.ToString(), "Ops One", CancellationToken.None);
         var transferred = await repo.CreateRunAsync(CreateIn(WindowId, EgressOutputType.RemoveLearners), CancellationToken.None);
         await repo.SavePreprocessedAsync(transferred, EgressRunStatus.Pulled, [], [RemoveRow("REF-1"), RemoveRow("REF-2"), RemoveRow("REF-3")], new DateOnly(2026, 6, 8), RemoveFileName, CancellationToken.None);
         await repo.MarkTransferredAsync(transferred, EgressRunStatus.Preprocessed, Audit(3), DateTime.UtcNow, CancellationToken.None);

@@ -14,8 +14,9 @@
 <p class="govuk-body">A record of data egress runs and other administrative activity.</p>
 
 <form method="get" action="/admin/audit-log" class="govuk-!-margin-bottom-6" data-testid="audit-log-filters">
+    @* Stacked, not side by side: three one-third columns squashed the selects together. *@
     <div class="govuk-grid-row">
-        <div class="govuk-grid-column-one-third">
+        <div class="govuk-grid-column-two-thirds">
             <div class="govuk-form-group">
                 <label class="govuk-label" for="activity">Filter by activity</label>
                 <select class="govuk-select govuk-!-width-full" id="activity" name="activity">
@@ -26,8 +27,6 @@
                     }
                 </select>
             </div>
-        </div>
-        <div class="govuk-grid-column-one-third">
             <div class="govuk-form-group">
                 <label class="govuk-label" for="windowId">Filter by window</label>
                 <select class="govuk-select govuk-!-width-full" id="windowId" name="windowId">
@@ -38,8 +37,6 @@
                     }
                 </select>
             </div>
-        </div>
-        <div class="govuk-grid-column-one-third">
             <div class="govuk-form-group">
                 <label class="govuk-label" for="status">Filter by status</label>
                 <select class="govuk-select govuk-!-width-full" id="status" name="status">
@@ -50,10 +47,10 @@
                     }
                 </select>
             </div>
+            @* No hidden page field on purpose: applying a filter starts again from page 1. *@
+            <button type="submit" class="govuk-button govuk-button--secondary" data-module="govuk-button">Apply filters</button>
         </div>
     </div>
-    @* No hidden page field on purpose: applying a filter starts again from page 1. *@
-    <button type="submit" class="govuk-button govuk-button--secondary" data-module="govuk-button">Apply filters</button>
 </form>
 
 @if (Model.IsEmpty)

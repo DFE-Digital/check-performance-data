@@ -37,7 +37,9 @@ public sealed class AuditLogViewSourceTests
         Assert.Contains("Filter by activity", view);
         Assert.Contains("Filter by window", view);
         Assert.Contains("Filter by status", view);
-        // Three one-third columns: without the width override govuk-select's minimum width overflows them.
+        // Stacked in one two-thirds column, not side by side: three one-third columns squashed them together.
+        Assert.Equal(1, view.Split("govuk-grid-column-two-thirds").Length - 1);
+        Assert.DoesNotContain("govuk-grid-column-one-third", view);
         Assert.Equal(3, view.Split("govuk-select govuk-!-width-full").Length - 1);
         Assert.Contains(">All activity</option>", view);
         Assert.Contains(">All windows</option>", view);

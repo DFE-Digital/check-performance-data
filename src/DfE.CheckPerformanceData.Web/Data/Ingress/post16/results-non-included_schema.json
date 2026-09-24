@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "results-non-included.json",
+  "$id": "results-non-included_schema.json",
   "title": "Results non-included",
   "description": "One row from the 16-18 Non-included Results Data worksheet of Post16.ods.",
   "type": "object",

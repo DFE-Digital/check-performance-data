@@ -186,9 +186,9 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
                 Assert.True(dataset.Required);
                 Assert.Null(dataset.Included);
                 Assert.Equal(DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DefinitionFile(exercise.Id, dataset.Id, $"{dataset.Name}.csv"), dataset.IngressFile);
-                Assert.Equal(DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DefinitionFile(exercise.Id, dataset.Id, $"{dataset.Name}.json"), dataset.SchemaFile);
-                await AssertFileAsync("ingress", dataset.IngressFile, dataset.IngressFileChecksum, "text/csv");
-                await AssertFileAsync("schema/post16", dataset.SchemaFile, dataset.SchemaFileChecksum, "application/json");
+                Assert.Equal(DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DefinitionFile(exercise.Id, dataset.Id, $"{dataset.Name}_schema.json"), dataset.SchemaFile);
+                await AssertFileAsync(dataset.IngressFile, dataset.IngressFileChecksum, "text/csv");
+                await AssertFileAsync(dataset.SchemaFile, dataset.SchemaFileChecksum, "application/json");
                 // A display-only share has no journey, so its release writes only each dataset's own file.
                 Assert.True(await container.GetBlobClient(
                     DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DatasetBlobName(
@@ -203,10 +203,10 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
             foreach (var dataset in datasets)
             {
                 Assert.Equal(DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DefinitionFile(dataset.CheckingExerciseId, dataset.Id, $"{dataset.Name}.csv"), dataset.IngressFile);
-                var schemaName = dataset.Name == "included" ? "students-included.json" : "students-non-included.json";
+                var schemaName = dataset.Name == "included" ? "students-included_schema.json" : "students-non-included_schema.json";
                 Assert.Equal(DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DefinitionFile(dataset.CheckingExerciseId, dataset.Id, schemaName), dataset.SchemaFile);
-                await AssertFileAsync("ingress", dataset.IngressFile, dataset.IngressFileChecksum, "text/csv");
-                await AssertFileAsync("schema/post16", dataset.SchemaFile, dataset.SchemaFileChecksum, "application/json");
+                await AssertFileAsync(dataset.IngressFile, dataset.IngressFileChecksum, "text/csv");
+                await AssertFileAsync(dataset.SchemaFile, dataset.SchemaFileChecksum, "application/json");
             }
             // Staged as the start of the Autumn window: the results enquiry holds the supplier's
             // main results file, in the workbook's shape, tagged 16to19_MAIN by its slot.
@@ -215,9 +215,9 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
             Assert.Equal(DfE.CheckPerformanceData.Application.ResultsEnquiry.ResultsFileTags.Post16Main, results.SourceFile);
             Assert.True(results.Required);
             Assert.Equal(DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DefinitionFile(tabs[1].Id, results.Id, "16to19_MAIN.csv"), results.IngressFile);
-            Assert.Equal(DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DefinitionFile(tabs[1].Id, results.Id, "results-included.json"), results.SchemaFile);
-            await AssertFileAsync("ingress", results.IngressFile, results.IngressFileChecksum, "text/csv");
-            await AssertFileAsync("schema/post16", results.SchemaFile, results.SchemaFileChecksum, "application/json");
+            Assert.Equal(DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DefinitionFile(tabs[1].Id, results.Id, "results-included_schema.json"), results.SchemaFile);
+            await AssertFileAsync(results.IngressFile, results.IngressFileChecksum, "text/csv");
+            await AssertFileAsync(results.SchemaFile, results.SchemaFileChecksum, "application/json");
             Assert.True(await container.GetBlobClient(
                 DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DataBlobName(
                         tabs[1].Id, CheckingDataType.Results, "8604070", tabs[1].CurrentReleaseId)).ExistsAsync(), "Results output missing");
@@ -241,9 +241,9 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
             Directory.Delete(contentRoot, recursive: true);
         }
 
-        async Task AssertFileAsync(string folder, string filename, string checksum, string contentType)
+        async Task AssertFileAsync(string filename, string checksum, string contentType)
         {
-            var original = await File.ReadAllBytesAsync(Path.Combine(contentRoot, "Data", "Ingress", folder, Path.GetFileName(filename)));
+            var original = await File.ReadAllBytesAsync(Path.Combine(contentRoot, "Data", "Ingress", "post16", Path.GetFileName(filename)));
             var downloaded = (await container.GetBlobClient(filename).DownloadContentAsync()).Value;
             Assert.True(original.AsSpan().SequenceEqual(downloaded.Content.ToArray()), "Seed blob must match its source file.");
             Assert.Equal(Convert.ToHexString(SHA256.HashData(original)), checksum);
@@ -308,7 +308,7 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
             foreach (var slot in slots)
             {
                 Assert.Equal(DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DefinitionFile(results.Id, slot.Id, $"{slot.Name}.csv"), slot.IngressFile);
-                Assert.Equal(DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DefinitionFile(results.Id, slot.Id, "results-included.json"), slot.SchemaFile);
+                Assert.Equal(DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DefinitionFile(results.Id, slot.Id, "results-included_schema.json"), slot.SchemaFile);
             }
             var output = (await container.GetBlobClient(
                 DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DataBlobName(
@@ -429,20 +429,18 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
 
     private static string TrimmedContentRoot(string laestab)
     {
-        var source = Path.Combine(AppContext.BaseDirectory, "Data", "Ingress");
+        var source = Path.Combine(AppContext.BaseDirectory, "Data", "Ingress", "post16");
         var root = Path.Combine(Path.GetTempPath(), "cpd-seed-" + Guid.NewGuid().ToString("N"));
-        var schemaDir = Path.Combine(root, "Data", "Ingress", "schema", "post16");
-        var ingressDir = Path.Combine(root, "Data", "Ingress", "ingress");
-        Directory.CreateDirectory(schemaDir);
-        Directory.CreateDirectory(ingressDir);
-        foreach (var schema in Directory.GetFiles(Path.Combine(source, "schema", "post16"), "*.json"))
-            File.Copy(schema, Path.Combine(schemaDir, Path.GetFileName(schema)));
-        foreach (var csv in Directory.GetFiles(Path.Combine(source, "ingress"), "*.csv"))
+        var post16Dir = Path.Combine(root, "Data", "Ingress", "post16");
+        Directory.CreateDirectory(post16Dir);
+        foreach (var schema in Directory.GetFiles(source, "*.json"))
+            File.Copy(schema, Path.Combine(post16Dir, Path.GetFileName(schema)));
+        foreach (var csv in Directory.GetFiles(source, "*.csv"))
         {
             var lines = File.ReadAllLines(csv);
             var laestabColumn = Array.IndexOf(lines[0].Split(','), "LAESTAB");
             var rows = lines.Skip(1).Where(l => l.Split(',')[laestabColumn] == laestab);
-            File.WriteAllLines(Path.Combine(ingressDir, Path.GetFileName(csv)), [lines[0], .. rows]);
+            File.WriteAllLines(Path.Combine(post16Dir, Path.GetFileName(csv)), [lines[0], .. rows]);
         }
         return root;
     }

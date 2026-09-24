@@ -166,6 +166,39 @@ public class ExerciseDisplayServiceTests
         Assert.Contains("8412009,48", csv);
     }
 
+    [Fact]
+    public void Supplier_dates_are_shown_and_downloaded_as_day_month_year()
+    {
+        // LDS supplies DOB and ENTRYDAT as YYYY-MM-DD; schools read them as DD/MM/YYYY.
+        using var json = JsonDocument.Parse("""
+            {
+              "x-ingress": { "collection": "pupils" },
+              "properties": {
+                "SURNAME": { "x-display": { "label": "Last name", "visible": true, "order": 0, "searchable": true },
+                             "x-csv": { "columns": { "default": "A" }, "heading": "Surname" } },
+                "DOB": { "x-display": { "label": "Date of birth", "visible": true, "order": 1 },
+                         "x-csv": { "columns": { "default": "B" }, "heading": "Date of birth" } },
+                "ENTRYDAT": { "x-display": { "label": "Admission date", "visible": true, "order": 2 },
+                              "x-csv": { "columns": { "default": "C" }, "heading": "Admission date" } }
+              }
+            }
+            """);
+        var definition = Service().ParseDefinition("pupils", null, json.RootElement);
+        var rows = new List<Dictionary<string, string>>
+        {
+            new() { ["SURNAME"] = "Smith", ["DOB"] = "2010-01-31", ["ENTRYDAT"] = "2021-09-01" }
+        };
+
+        var view = Service().BuildTable(rows, [definition], null, null, 0, 10);
+        var csv = System.Text.Encoding.UTF8.GetString(Service().Csv(view.Selected));
+        var vertical = Service().BuildVertical(rows, definition);
+
+        Assert.Equal("31/01/2010", view.Rows[0]["DOB"]);
+        Assert.Equal("01/09/2021", view.Rows[0]["ENTRYDAT"]);
+        Assert.Contains("Smith,31/01/2010,01/09/2021", csv);
+        Assert.Equal(["Smith", "31/01/2010", "01/09/2021"], vertical.Fields.Select(f => f.Value));
+    }
+
     private static ExerciseDataset SummaryDefinition(string layout)
     {
         var schema = $$"""

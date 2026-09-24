@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "summary-retention.json",
+  "$id": "summary-retention_schema.json",
   "title": "Summary (Retention)",
   "description": "One row per institution from the 1618 Summary Data worksheet of Post16.ods, in the Column (Retention) layout used by the Retention exercise.",
   "type": "object",

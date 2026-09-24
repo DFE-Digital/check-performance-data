@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "students-value-added.json",
+  "$id": "students-value-added_schema.json",
   "title": "Value added",
   "description": "One row from the 1618 Value-added Pupil Data worksheet of Post16.ods.",
   "type": "object",

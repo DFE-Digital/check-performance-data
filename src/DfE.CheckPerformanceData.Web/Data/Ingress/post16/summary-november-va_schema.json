@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "summary-autumn.json",
-  "title": "Summary (Autumn CE)",
-  "description": "One row per institution from the 1618 Summary Data worksheet of Post16.ods, in the Column (Autumn) layout used by the Autumn CE exercise.",
+  "$id": "summary-november-va_schema.json",
+  "title": "Summary (Provisional Value Added and light touch revised data share)",
+  "description": "One row per institution from the 1618 Summary Data worksheet of Post16.ods, in the Column (November VA) layout used by the Provisional Value Added and light touch revised data share exercise.",
   "type": "object",
   "additionalProperties": false,
   "x-ingress": {
@@ -957,7 +957,7 @@
         "order": 52
       }
     },
-    "T_SCOPEEX_E": {
+    "VA_INS_ALEV": {
       "type": [
         "string",
         "null"
@@ -967,12 +967,372 @@
         "columns": {
           "default": "BA"
         },
+        "heading": "A level value added score"
+      },
+      "x-display": {
+        "label": "A level value added score",
+        "visible": true,
+        "order": 53
+      }
+    },
+    "UCI_INS_ALEV": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "BB"
+        },
+        "heading": "Upper confidence limit (A level)"
+      },
+      "x-display": {
+        "label": "Upper confidence limit (A level)",
+        "visible": true,
+        "order": 54
+      }
+    },
+    "LCI_INS_ALEV": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "BC"
+        },
+        "heading": "Lower confidence limit (A level)"
+      },
+      "x-display": {
+        "label": "Lower confidence limit (A level)",
+        "visible": true,
+        "order": 55
+      }
+    },
+    "ENTRIES_ALEV": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "BD"
+        },
+        "heading": "Number of A level exam entries (for value added measure)"
+      },
+      "x-display": {
+        "label": "Number of A level exam entries (for value added measure)",
+        "visible": true,
+        "order": 56
+      }
+    },
+    "VA_INS_ACAD": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "BE"
+        },
+        "heading": "Academic value added score"
+      },
+      "x-display": {
+        "label": "Academic value added score",
+        "visible": true,
+        "order": 57
+      }
+    },
+    "UCI_INS_ACAD": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "BF"
+        },
+        "heading": "Upper confidence limit (Academic)"
+      },
+      "x-display": {
+        "label": "Upper confidence limit (Academic)",
+        "visible": true,
+        "order": 58
+      }
+    },
+    "LCI_INS_ACAD": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "BG"
+        },
+        "heading": "Lower confidence limit (Academic)"
+      },
+      "x-display": {
+        "label": "Lower confidence limit (Academic)",
+        "visible": true,
+        "order": 59
+      }
+    },
+    "ENTRIES_ACAD": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "BH"
+        },
+        "heading": "Number of academic entries (for value added measure)"
+      },
+      "x-display": {
+        "label": "Number of academic entries (for value added measure)",
+        "visible": true,
+        "order": 60
+      }
+    },
+    "VA_INS_AGEN": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "BI"
+        },
+        "heading": "Applied general value added score"
+      },
+      "x-display": {
+        "label": "Applied general value added score",
+        "visible": true,
+        "order": 61
+      }
+    },
+    "UCI_INS_AGEN": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "BJ"
+        },
+        "heading": "Upper confidence limit (Applied General)"
+      },
+      "x-display": {
+        "label": "Upper confidence limit (Applied General)",
+        "visible": true,
+        "order": 62
+      }
+    },
+    "LCI_INS_AGEN": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "BK"
+        },
+        "heading": "Lower confidence limit (Applied General)"
+      },
+      "x-display": {
+        "label": "Lower confidence limit (Applied General)",
+        "visible": true,
+        "order": 63
+      }
+    },
+    "ENTRIES_AGEN": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "BL"
+        },
+        "heading": "Number of applied general entries (for value added measure)"
+      },
+      "x-display": {
+        "label": "Number of applied general entries (for value added measure)",
+        "visible": true,
+        "order": 64
+      }
+    },
+    "VA_INS_TLEV": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "BM"
+        },
+        "heading": "Tech Level value added score"
+      },
+      "x-display": {
+        "label": "Tech Level value added score",
+        "visible": true,
+        "order": 65
+      }
+    },
+    "UCI_INS_TLEV": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "BN"
+        },
+        "heading": "Upper confidence limit (Tech Level)"
+      },
+      "x-display": {
+        "label": "Upper confidence limit (Tech Level)",
+        "visible": true,
+        "order": 66
+      }
+    },
+    "LCI_INS_TLEV": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "BO"
+        },
+        "heading": "Lower confidence limit (Tech Level)"
+      },
+      "x-display": {
+        "label": "Lower confidence limit (Tech Level)",
+        "visible": true,
+        "order": 67
+      }
+    },
+    "ENTRIES_TLEV": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "BP"
+        },
+        "heading": "Number of Tech Level entries (for value added measure)"
+      },
+      "x-display": {
+        "label": "Number of Tech Level entries (for value added measure)",
+        "visible": true,
+        "order": 68
+      }
+    },
+    "VA_INS_TechCERT": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "BQ"
+        },
+        "heading": "Technical Certificate value added score"
+      },
+      "x-display": {
+        "label": "Technical Certificate value added score",
+        "visible": true,
+        "order": 69
+      }
+    },
+    "UCI_INS_TechCERT": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "BR"
+        },
+        "heading": "Upper confidence limit (Technical Certificate)"
+      },
+      "x-display": {
+        "label": "Upper confidence limit (Technical Certificate)",
+        "visible": true,
+        "order": 70
+      }
+    },
+    "LCI_INS_TechCERT": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "BS"
+        },
+        "heading": "Lower confidence limit (Technical Certificate)"
+      },
+      "x-display": {
+        "label": "Lower confidence limit (Technical Certificate)",
+        "visible": true,
+        "order": 71
+      }
+    },
+    "ENTRIES_TechCERT": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "BT"
+        },
+        "heading": "Number of Technical Certificate entries (for value added measure)"
+      },
+      "x-display": {
+        "label": "Number of Technical Certificate entries (for value added measure)",
+        "visible": true,
+        "order": 72
+      }
+    },
+    "T_SCOPEEX_E": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "BU"
+        },
         "heading": "Number of students at the end of 16 to 18 study in scope for English progress measure"
       },
       "x-display": {
         "label": "Number of students at the end of 16 to 18 study in scope for English progress measure",
         "visible": true,
-        "order": 53
+        "order": 73
       }
     },
     "PROGEX_E": {
@@ -983,14 +1343,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "default": "BB"
+          "default": "BV"
         },
         "heading": "Average progress made in English"
       },
       "x-display": {
         "label": "Average progress made in English",
         "visible": true,
-        "order": 54
+        "order": 74
       }
     },
     "T_SCOPEEX_M": {
@@ -1001,14 +1361,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "default": "BC"
+          "default": "BW"
         },
         "heading": "Number of students at the end of 16 to 18 study in scope for maths progress measure"
       },
       "x-display": {
         "label": "Number of students at the end of 16 to 18 study in scope for maths progress measure",
         "visible": true,
-        "order": 55
+        "order": 75
       }
     },
     "PROGEX_M": {
@@ -1019,14 +1379,374 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "default": "BD"
+          "default": "BX"
         },
         "heading": "Average progress made in maths"
       },
       "x-display": {
         "label": "Average progress made in maths",
         "visible": true,
-        "order": 56
+        "order": 76
+      }
+    },
+    "VA_INS_ALEV_DIS": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "BY"
+        },
+        "heading": "Disadvantaged - A level value added score"
+      },
+      "x-display": {
+        "label": "Disadvantaged - A level value added score",
+        "visible": true,
+        "order": 77
+      }
+    },
+    "UCI_INS_ALEV_DIS": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "BZ"
+        },
+        "heading": "Upper confidence limit (A level - disadvantaged)"
+      },
+      "x-display": {
+        "label": "Upper confidence limit (A level - disadvantaged)",
+        "visible": true,
+        "order": 78
+      }
+    },
+    "LCI_INS_ALEV_DIS": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "CA"
+        },
+        "heading": "Lower confidence limit (A level - disadvantaged)"
+      },
+      "x-display": {
+        "label": "Lower confidence limit (A level - disadvantaged)",
+        "visible": true,
+        "order": 79
+      }
+    },
+    "ENTRIES_ALEV_DIS": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "CB"
+        },
+        "heading": "Disadvantaged - Number of A level exam entries (for value added measure)"
+      },
+      "x-display": {
+        "label": "Disadvantaged - Number of A level exam entries (for value added measure)",
+        "visible": true,
+        "order": 80
+      }
+    },
+    "VA_INS_ACAD_DIS": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "CC"
+        },
+        "heading": "Disadvantaged - Academic value added score"
+      },
+      "x-display": {
+        "label": "Disadvantaged - Academic value added score",
+        "visible": true,
+        "order": 81
+      }
+    },
+    "UCI_INS_ACAD_DIS": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "CD"
+        },
+        "heading": "Upper confidence limit (Academic - disadvantaged)"
+      },
+      "x-display": {
+        "label": "Upper confidence limit (Academic - disadvantaged)",
+        "visible": true,
+        "order": 82
+      }
+    },
+    "LCI_INS_ACAD_DIS": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "CE"
+        },
+        "heading": "Lower confidence limit (Academic - disadvantaged)"
+      },
+      "x-display": {
+        "label": "Lower confidence limit (Academic - disadvantaged)",
+        "visible": true,
+        "order": 83
+      }
+    },
+    "ENTRIES_ACAD_DIS": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "CF"
+        },
+        "heading": "Disadvantaged - Number of academic entries (for value added measure)"
+      },
+      "x-display": {
+        "label": "Disadvantaged - Number of academic entries (for value added measure)",
+        "visible": true,
+        "order": 84
+      }
+    },
+    "VA_INS_AGEN_DIS": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "CG"
+        },
+        "heading": "Disadvantaged - Applied general value added score"
+      },
+      "x-display": {
+        "label": "Disadvantaged - Applied general value added score",
+        "visible": true,
+        "order": 85
+      }
+    },
+    "UCI_INS_AGEN_DIS": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "CH"
+        },
+        "heading": "Upper confidence limit (Applied General - disadvantaged)"
+      },
+      "x-display": {
+        "label": "Upper confidence limit (Applied General - disadvantaged)",
+        "visible": true,
+        "order": 86
+      }
+    },
+    "LCI_INS_AGEN_DIS": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "CI"
+        },
+        "heading": "Lower confidence limit (Applied General - disadvantaged)"
+      },
+      "x-display": {
+        "label": "Lower confidence limit (Applied General - disadvantaged)",
+        "visible": true,
+        "order": 87
+      }
+    },
+    "ENTRIES_AGEN_DIS": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "CJ"
+        },
+        "heading": "Disadvantaged - Number of applied general exam entries (for value added measure)"
+      },
+      "x-display": {
+        "label": "Disadvantaged - Number of applied general exam entries (for value added measure)",
+        "visible": true,
+        "order": 88
+      }
+    },
+    "VA_INS_TLEV_DIS": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "CK"
+        },
+        "heading": "Disadvantaged - Tech Level value added score"
+      },
+      "x-display": {
+        "label": "Disadvantaged - Tech Level value added score",
+        "visible": true,
+        "order": 89
+      }
+    },
+    "UCI_INS_TLEV_DIS": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "CL"
+        },
+        "heading": "Upper confidence limit (Tech Level - disadvantaged)"
+      },
+      "x-display": {
+        "label": "Upper confidence limit (Tech Level - disadvantaged)",
+        "visible": true,
+        "order": 90
+      }
+    },
+    "LCI_INS_TLEV_DIS": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "CM"
+        },
+        "heading": "Lower confidence limit (Tech Level - disadvantaged)"
+      },
+      "x-display": {
+        "label": "Lower confidence limit (Tech Level - disadvantaged)",
+        "visible": true,
+        "order": 91
+      }
+    },
+    "ENTRIES_TLEV_DIS": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "CN"
+        },
+        "heading": "Disadvantaged - Number of Tech Level entries (for value added measure)"
+      },
+      "x-display": {
+        "label": "Disadvantaged - Number of Tech Level entries (for value added measure)",
+        "visible": true,
+        "order": 92
+      }
+    },
+    "VA_INS_TechCERT_DIS": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "CO"
+        },
+        "heading": "Disadvantaged - Technical Certificate value added score"
+      },
+      "x-display": {
+        "label": "Disadvantaged - Technical Certificate value added score",
+        "visible": true,
+        "order": 93
+      }
+    },
+    "UCI_INS_TechCERT_DIS": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "CP"
+        },
+        "heading": "Upper confidence limit (Technical Certificate - disadvantaged)"
+      },
+      "x-display": {
+        "label": "Upper confidence limit (Technical Certificate - disadvantaged)",
+        "visible": true,
+        "order": 94
+      }
+    },
+    "LCI_INS_TechCERT_DIS": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "CQ"
+        },
+        "heading": "Lower confidence limit (Technical Certificate - disadvantaged)"
+      },
+      "x-display": {
+        "label": "Lower confidence limit (Technical Certificate - disadvantaged)",
+        "visible": true,
+        "order": 95
+      }
+    },
+    "ENTRIES_TechCERT_DIS": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 20,
+      "x-csv": {
+        "columns": {
+          "default": "CR"
+        },
+        "heading": "Disadvantaged - Number of Technical Certificate entries (for value added measure)"
+      },
+      "x-display": {
+        "label": "Disadvantaged - Number of Technical Certificate entries (for value added measure)",
+        "visible": true,
+        "order": 96
       }
     },
     "T_SCOPEEX_E_DIS": {
@@ -1037,14 +1757,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "default": "BE"
+          "default": "CS"
         },
         "heading": "Disadvantaged - Number of students at the end of 16 to 18 study in scope for English progress measure"
       },
       "x-display": {
         "label": "Disadvantaged - Number of students at the end of 16 to 18 study in scope for English progress measure",
         "visible": true,
-        "order": 57
+        "order": 97
       }
     },
     "PROGEX_E_DIS": {
@@ -1055,14 +1775,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "default": "BF"
+          "default": "CT"
         },
         "heading": "Disadvantaged - Average progress made in English"
       },
       "x-display": {
         "label": "Disadvantaged - Average progress made in English",
         "visible": true,
-        "order": 58
+        "order": 98
       }
     },
     "T_SCOPEEX_M_DIS": {
@@ -1073,14 +1793,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "default": "BG"
+          "default": "CU"
         },
         "heading": "Disadvantaged - Number of students at the end of 16 to 18 study in scope for maths progress measure"
       },
       "x-display": {
         "label": "Disadvantaged - Number of students at the end of 16 to 18 study in scope for maths progress measure",
         "visible": true,
-        "order": 59
+        "order": 99
       }
     },
     "PROGEX_M_DIS": {
@@ -1091,14 +1811,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "default": "BH"
+          "default": "CV"
         },
         "heading": "Disadvantaged - Average progress made in maths"
       },
       "x-display": {
         "label": "Disadvantaged - Average progress made in maths",
         "visible": true,
-        "order": 60
+        "order": 100
       }
     },
     "TALLPUP_SCOPE_L3M": {
@@ -1109,14 +1829,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "default": "BI"
+          "default": "CW"
         },
         "heading": "Number of students in level 3 maths measure"
       },
       "x-display": {
         "label": "Number of students in level 3 maths measure",
         "visible": true,
-        "order": 61
+        "order": 101
       }
     },
     "L3M_PER": {
@@ -1127,14 +1847,14 @@
       "maxLength": 20,
       "x-csv": {
         "columns": {
-          "default": "BJ"
+          "default": "CX"
         },
         "heading": "Percentage of students in scope of level 3 maths measure achieving approved level 3 maths"
       },
       "x-display": {
         "label": "Percentage of students in scope of level 3 maths measure achieving approved level 3 maths",
         "visible": true,
-        "order": 62
+        "order": 102
       }
     }
   }

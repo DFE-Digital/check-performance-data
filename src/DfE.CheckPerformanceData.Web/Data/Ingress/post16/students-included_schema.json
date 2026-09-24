@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "students-included.json",
+  "$id": "students-included_schema.json",
   "title": "Students included",
   "description": "One row from the 16-18 Pupil Data worksheet of Post16.ods.",
   "type": "object",

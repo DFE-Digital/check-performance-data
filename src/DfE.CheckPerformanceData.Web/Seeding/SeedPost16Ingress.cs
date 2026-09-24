@@ -38,8 +38,8 @@ public static class SeedPost16Ingress
         // columns its exercise's file has; a summary dataset is named after its schema.
         await LinkAsync(students, dataset => dataset.Name switch
         {
-            "included" => "students-included.json",
-            "nonincluded" => "students-non-included.json",
+            "included" => "students-included_schema.json",
+            "nonincluded" => "students-non-included_schema.json",
             _ => throw new InvalidOperationException($"Unexpected Post-16 student dataset: {dataset.Name}")
         });
         // A results slot is named by its source tag; every results file is the workbook's
@@ -47,11 +47,11 @@ public static class SeedPost16Ingress
         // every record.
         await LinkAsync(results, dataset => dataset.Name switch
         {
-            ResultsFileTags.Post16Main or ResultsFileTags.Post16LateResults1 => "results-included.json",
+            ResultsFileTags.Post16Main or ResultsFileTags.Post16LateResults1 => "results-included_schema.json",
             _ => throw new InvalidOperationException($"Unexpected Post-16 results dataset: {dataset.Name}")
         });
         foreach (var summary in summaries)
-            await LinkAsync(summary, dataset => $"{dataset.Name}.json");
+            await LinkAsync(summary, dataset => $"{dataset.Name}_schema.json");
 
         await dbContext.SaveChangesAsync();
 
@@ -85,16 +85,16 @@ public static class SeedPost16Ingress
             {
                 var ingressFile = $"{dataset.Name}.csv";
                 var schemaFile = schemaFor(dataset);
-                dataset.IngressFileChecksum = await UploadAsync(exercise, "ingress", ingressFile, "text/csv", dataset.Id);
-                dataset.SchemaFileChecksum = await UploadAsync(exercise, "schema/post16", schemaFile, "application/json", dataset.Id);
+                dataset.IngressFileChecksum = await UploadAsync(exercise, ingressFile, "text/csv", dataset.Id);
+                dataset.SchemaFileChecksum = await UploadAsync(exercise, schemaFile, "application/json", dataset.Id);
                 dataset.IngressFile = CheckingExerciseBlobPaths.DefinitionFile(exercise.Id, dataset.Id, ingressFile);
                 dataset.SchemaFile = CheckingExerciseBlobPaths.DefinitionFile(exercise.Id, dataset.Id, schemaFile);
             }
         }
 
-        async Task<string> UploadAsync(CheckingExercise exercise, string folder, string filename, string contentType, Guid definitionId)
+        async Task<string> UploadAsync(CheckingExercise exercise, string filename, string contentType, Guid definitionId)
         {
-            await using var stream = File.OpenRead(Path.Combine(contentRootPath, "Data", "Ingress", folder, filename));
+            await using var stream = File.OpenRead(Path.Combine(contentRootPath, "Data", "Ingress", "post16", filename));
             var checksum = Convert.ToHexString(await SHA256.HashDataAsync(stream));
             stream.Position = 0;
             await container.GetBlobClient(CheckingExerciseBlobPaths.DefinitionFile(exercise.Id, definitionId, filename)).UploadAsync(stream, new BlobUploadOptions

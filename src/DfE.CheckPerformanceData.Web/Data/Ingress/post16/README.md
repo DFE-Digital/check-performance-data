@@ -1,6 +1,8 @@
 # Post-16 workbook schemas
 
-These row schemas transcribe the field references, SQL types, CSV column letters and supplied headings in `Post16.ods`. `post16-ingress.json` defines one combined document per institution. A collection name identifies the source dataset, so a CSV download can select that collection without guessing from overlapping fields.
+This folder holds the 16-19 supplier files: each dev seed CSV (`included.csv`, `16to19_MAIN.csv`, `summary-autumn.csv` and so on) sits beside the schemas, which are named `{name}_schema.json`.
+
+These row schemas transcribe the field references, SQL types, CSV column letters and supplied headings in `Post16.ods`. `post16-ingress_schema.json` defines one combined document per institution. A collection name identifies the source dataset, so a CSV download can select that collection without guessing from overlapping fields.
 
 Each row schema uses the same extensions:
 
@@ -16,7 +18,7 @@ The workbook does not define JSON nullability or required values consistently ac
 
 ## Results schema and the dev seed
 
-`results-included.json` carries one field the workbook does not: `SOURCE`. The processor stamps the dataset slot's tag (`16to19_MAIN` and so on) on every record, and only does so when the schema declares the column, because `additionalProperties` is false. It has no CSV column, so it is not exported. The schema also marks the student and result columns visible, with the names searchable, so the Results tab renders a table; the dev seed's `16to19_MAIN.csv` and `16to19_LR1.csv` are in this shape (the main file and the first late results file), built from the students in `included.csv`. The seed feeds two windows from these files: "16 to 19 ingress" at the start of the Autumn window, and "16 to 19 February" four months in, with pupil data checking shut, the late results file landed and the third Summary exercise enabled.
+`results-included_schema.json` carries one field the workbook does not: `SOURCE`. The processor stamps the dataset slot's tag (`16to19_MAIN` and so on) on every record, and only does so when the schema declares the column, because `additionalProperties` is false. It has no CSV column, so it is not exported. The schema also marks the student and result columns visible, with the names searchable, so the Results tab renders a table; the dev seed's `16to19_MAIN.csv` and `16to19_LR1.csv` are in this shape (the main file and the first late results file), built from the students in `included.csv`. The seed feeds two windows from these files: "16 to 19 ingress" at the start of the Autumn window, and "16 to 19 February" four months in, with pupil data checking shut, the late results file landed and the third Summary exercise enabled.
 
 ## Summary schemas
 
@@ -24,9 +26,9 @@ The 1618 Summary Data sheet feeds four checking exercises over the year, and the
 
 | Exercise | Workbook column | Columns | Schema |
 |---|---|---|---|
-| Autumn CE | Column (Autumn) | 62 (A–BJ) | `summary-autumn.json` |
-| Provisional Value Added (November) | Column (November VA) | 102 (A–CX) | `summary-november-va.json` |
-| Light touch, revised data share (February) | Column (November VA) | 102 (A–CX) | `summary-november-va.json` |
-| Retention (March) | Column (Retention) | 135 (A–EE) | `summary-retention.json` |
+| Autumn CE | Column (Autumn) | 62 (A–BJ) | `summary-autumn_schema.json` |
+| Provisional Value Added (November) | Column (November VA) | 102 (A–CX) | `summary-november-va_schema.json` |
+| Light touch, revised data share (February) | Column (November VA) | 102 (A–CX) | `summary-november-va_schema.json` |
+| Retention (March) | Column (Retention) | 135 (A–EE) | `summary-retention_schema.json` |
 
 Each schema lists only the fields its file carries, with one `default` column letter each, every field visible and `order` equal to the column position. There is one schema per file shape rather than one schema with three variants, so an exercise's dataset is uploaded with the schema that matches its file and nothing has to record which variant an exercise uses. The workbook's Autumn column repeats `AZ` for `ENTRY_PER_M` and `T_SCOPEEX_E`; the schema numbers the column contiguously, so `T_SCOPEEX_E` onwards is one letter later than the sheet (BA–BJ). All three set `x-display.layout` to `vertical`: one record per school, pivoted into label/value rows. The CSV filename is still to be confirmed; `summary.csv` is a placeholder in all three.

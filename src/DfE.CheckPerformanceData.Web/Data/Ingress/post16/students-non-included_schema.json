@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "students-non-included.json",
+  "$id": "students-non-included_schema.json",
   "title": "Students non-included",
   "description": "One row from the 16-18 Non-included Pupil Data worksheet of Post16.ods.",
   "type": "object",

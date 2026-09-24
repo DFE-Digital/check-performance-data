@@ -153,25 +153,25 @@ public static class SeedPupilData
     {
         const string firstname = "Casey";
         const string surname = "Carter";
-        const string dob = "15/03/2010";
+        const string dob = "2010-03-15";
 
         yield return new PupilRecord
         {
             Id = Guid.NewGuid(),
             CheckingWindowId = checkingWindowId,
-            Laestab = school.Laestab,
+            Laestab = SupplierLaestab(school),
             Firstname = firstname,
             Surname = surname,
             Sex = "F",
             DateOfBirth = dob,
-            Age = 16,
+            Age = Ks4AgeAtStartOfYear(new DateOnly(2010, 3, 15)),
             FirstLanguage = "ENG",
             Pincl = PupilInclusion.Ks4IncludedPinclCodes[0],
             NewMobile = false,
             ActualYearGroup = "11",
             Ethnicity = "WOTH",
             SenF = "N",
-            EntryDate = "01/09/2021",
+            EntryDate = "2021-09-01",
             Urn = long.Parse(school.Urn),
             Cypmd_Id = "800001",
             MatchRef = 80001,
@@ -182,24 +182,37 @@ public static class SeedPupilData
         {
             Id = Guid.NewGuid(),
             CheckingWindowId = checkingWindowId,
-            Laestab = school.Laestab,
+            Laestab = SupplierLaestab(school),
             Firstname = firstname,
             Surname = surname,
             Sex = "F",
             DateOfBirth = dob,
-            Age = 16,
+            Age = Ks4AgeAtStartOfYear(new DateOnly(2010, 3, 15)),
             FirstLanguage = "ENG",
             Pincl = NonIncludedPinclCodes[0],
             NewMobile = false,
             ActualYearGroup = "11",
             Ethnicity = "WOTH",
             SenF = "N",
-            EntryDate = "01/09/2021",
+            EntryDate = "2021-09-01",
             Urn = long.Parse(school.Urn),
             Cypmd_Id = "800002",
             MatchRef = 80002,
             Upn = "A8604078002B"
         };
+    }
+
+    // The KS4 records are in the formats of the LDS KS4 June file (Data/Ingress/ks4june/pupils_schema.json): LAESTAB
+    // as seven digits, dates as YYYY-MM-DD, and AGE at the start of the school year. The sample file
+    // Data/Ingress/ks4june/pupils.csv holds the same pupils for the open KS4 June window.
+    private static string SupplierLaestab(School school) => school.Laestab.Replace("/", string.Empty);
+
+    private static readonly DateOnly Ks4StartOfYear = new(2025, 8, 31);
+
+    private static int Ks4AgeAtStartOfYear(DateOnly dob)
+    {
+        var age = Ks4StartOfYear.Year - dob.Year;
+        return dob.AddYears(age) > Ks4StartOfYear ? age - 1 : age;
     }
 
     private static IEnumerable<PupilRecord> GeneratePupils(int count, bool includedPincl, int indexOffset,
@@ -208,30 +221,27 @@ public static class SeedPupilData
         {
             var n = i + indexOffset;
             var dob = new DateOnly(2010, (i % 12) + 1, (i % 28) + 1);
-            var today = DateOnly.FromDateTime(DateTime.UtcNow);
-            var age = today.Year - dob.Year;
-            if (dob.AddYears(age) > today) age--;
             var pinclCodes = includedPincl ? PupilInclusion.Ks4IncludedPinclCodes : NonIncludedPinclCodes;
 
             return new PupilRecord
             {
                 Id = Guid.NewGuid(),
                 CheckingWindowId = checkingWindowId,
-                Laestab = school.Laestab,
+                Laestab = SupplierLaestab(school),
                 // Firstname cycles every 20 while surname advances once per full cycle, so the
                 // name pair stays unique across all 400 combinations rather than repeating every 20.
                 Firstname = Firstnames[n % Firstnames.Length],
                 Surname = Surnames[(n / Firstnames.Length) % Surnames.Length],
                 Sex = Sexes[i % 2],
-                DateOfBirth = dob.ToString("dd/MM/yyyy"),
-                Age = age,
+                DateOfBirth = dob.ToString("yyyy-MM-dd"),
+                Age = Ks4AgeAtStartOfYear(dob),
                 FirstLanguage = FirstLanguages[i % FirstLanguages.Length],
                 Pincl = pinclCodes[i % pinclCodes.Length],
                 NewMobile = i % 5 == 0,
                 ActualYearGroup = YearGroups[i % YearGroups.Length],
                 Ethnicity = EthnicityCodes[n % EthnicityCodes.Length],
                 SenF = SenCodes[i % SenCodes.Length],
-                EntryDate = new DateTime(2021, 9, (i % 20) + 1, 0, 0, 0, DateTimeKind.Utc).ToString("dd/MM/yyyy"),
+                EntryDate = new DateOnly(2021, 9, (i % 20) + 1).ToString("yyyy-MM-dd"),
                 Urn = long.Parse(school.Urn),
                 Cypmd_Id = $"{(n + 1):D6}",
                 MatchRef = 10000 + n,

@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "pupils.json",
+  "$id": "pupils_schema.json",
   "title": "Pupils",
-  "description": "Dev seed schema for a KS4 pupil file, in the shape PupilRecord reads. There is no confirmed supplier KS4 schema in the repo yet; replace this when there is.",
+  "description": "One row of the supplier's (LDS) KS4 June pupil file, transcribed from the LDS field specification (reviewed 30/04/2026). Sample file: pupils.csv, in this folder.",
   "type": "object",
   "additionalProperties": false,
   "x-ingress": {
@@ -20,15 +20,70 @@
     "selectorOrder": 0
   },
   "properties": {
+    "UPN": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 13,
+      "description": "Unique Pupil Number. May be incorrect or missing: it is not yet used directly in the calculation of performance data.",
+      "x-csv": {
+        "columns": {
+          "default": "A"
+        },
+        "heading": "UPN"
+      },
+      "x-display": {
+        "label": "UPN",
+        "visible": true,
+        "order": 2,
+        "searchable": true
+      }
+    },
+    "MATCHREF": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Unique pupil identifier for NPD assigned during matching. Provided for reference only; not in the CSV output.",
+      "x-csv": {
+        "columns": {},
+        "heading": "Match reference"
+      },
+      "x-display": {
+        "label": "Match reference",
+        "visible": false,
+        "order": 16
+      }
+    },
+    "CYPMD_ID": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "A pupil reference number for use in the checking exercise (5-digit CYPMD pupil ID)",
+      "x-csv": {
+        "columns": {
+          "default": "B"
+        },
+        "heading": "CYPMD ID"
+      },
+      "x-display": {
+        "label": "CYPMD ID",
+        "visible": true,
+        "order": 3
+      }
+    },
     "SURNAME": {
       "type": [
         "string",
         "null"
       ],
-      "maxLength": 100,
+      "maxLength": 50,
+      "description": "Pupil surname",
       "x-csv": {
         "columns": {
-          "default": "A"
+          "default": "C"
         },
         "heading": "Surname"
       },
@@ -44,10 +99,11 @@
         "string",
         "null"
       ],
-      "maxLength": 100,
+      "maxLength": 50,
+      "description": "Pupil forename",
       "x-csv": {
         "columns": {
-          "default": "B"
+          "default": "D"
         },
         "heading": "Forename"
       },
@@ -58,49 +114,13 @@
         "searchable": true
       }
     },
-    "UPN": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "maxLength": 13,
-      "x-csv": {
-        "columns": {
-          "default": "C"
-        },
-        "heading": "UPN"
-      },
-      "x-display": {
-        "label": "UPN",
-        "visible": true,
-        "order": 2,
-        "searchable": true
-      }
-    },
-    "CYPMD_ID": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "maxLength": 20,
-      "x-csv": {
-        "columns": {
-          "default": "D"
-        },
-        "heading": "CYPMD ID"
-      },
-      "x-display": {
-        "label": "CYPMD ID",
-        "visible": true,
-        "order": 3
-      }
-    },
     "SEX": {
       "type": [
         "string",
         "null"
       ],
       "maxLength": 1,
+      "description": "Pupil sex (F = female, M = male)",
       "x-csv": {
         "columns": {
           "default": "E"
@@ -118,7 +138,9 @@
         "string",
         "null"
       ],
-      "maxLength": 30,
+      "maxLength": 10,
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+      "description": "Pupil date of birth. Supplied as YYYY-MM-DD; shown and downloaded as DD/MM/YYYY.",
       "x-csv": {
         "columns": {
           "default": "F"
@@ -136,6 +158,9 @@
         "integer",
         "null"
       ],
+      "minimum": 0,
+      "maximum": 99,
+      "description": "Pupil age at the start of the school year (31 August 2025)",
       "x-csv": {
         "columns": {
           "default": "G"
@@ -150,9 +175,11 @@
     },
     "P_INCL": {
       "type": [
-        "integer",
+        "string",
         "null"
       ],
+      "maxLength": 5,
+      "description": "Pupil Inclusion Status flag",
       "x-csv": {
         "columns": {
           "default": "H"
@@ -165,22 +192,41 @@
         "order": 7
       }
     },
+    "P_INCL_DESC": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Pupil Inclusion Status description. The spec gives no field reference (the DCI team populates it); the name is from the supplier's JSON sample.",
+      "x-csv": {
+        "columns": {
+          "default": "I"
+        },
+        "heading": "Pupil Inclusion description"
+      },
+      "x-display": {
+        "label": "Inclusion description",
+        "visible": false,
+        "order": 8
+      }
+    },
     "LAESTAB": {
       "type": [
         "string",
         "null"
       ],
-      "maxLength": 10,
+      "maxLength": 7,
+      "description": "7-digit DfE number for school",
       "x-csv": {
         "columns": {
-          "default": "I"
+          "default": "J"
         },
         "heading": "DfE Establishment Number"
       },
       "x-display": {
         "label": "DfE Establishment Number",
         "visible": false,
-        "order": 8
+        "order": 9
       }
     },
     "URN": {
@@ -188,16 +234,19 @@
         "integer",
         "null"
       ],
+      "minimum": 0,
+      "maximum": 999999,
+      "description": "School Unique Reference number",
       "x-csv": {
         "columns": {
-          "default": "J"
+          "default": "K"
         },
         "heading": "School URN"
       },
       "x-display": {
         "label": "School URN",
         "visible": false,
-        "order": 9
+        "order": 10
       }
     },
     "ENTRYDAT": {
@@ -205,17 +254,19 @@
         "string",
         "null"
       ],
-      "maxLength": 30,
+      "maxLength": 10,
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+      "description": "Pupil's date of admission to school. Supplied as YYYY-MM-DD; shown and downloaded as DD/MM/YYYY.",
       "x-csv": {
         "columns": {
-          "default": "K"
+          "default": "L"
         },
         "heading": "Admission date"
       },
       "x-display": {
         "label": "Admission date",
         "visible": false,
-        "order": 10
+        "order": 11
       }
     },
     "SENF": {
@@ -223,17 +274,18 @@
         "string",
         "null"
       ],
-      "maxLength": 2,
+      "maxLength": 1,
+      "description": "Special Educational Needs status (K = SEN support, E = EHC plan, N = No recorded SEN)",
       "x-csv": {
         "columns": {
-          "default": "L"
+          "default": "M"
         },
         "heading": "SEN"
       },
       "x-display": {
         "label": "SEN",
         "visible": false,
-        "order": 11
+        "order": 12
       }
     },
     "LANG1ST": {
@@ -241,17 +293,18 @@
         "string",
         "null"
       ],
-      "maxLength": 4,
+      "maxLength": 3,
+      "description": "First language",
       "x-csv": {
         "columns": {
-          "default": "M"
+          "default": "N"
         },
         "heading": "Pupil's first language"
       },
       "x-display": {
         "label": "First language",
         "visible": false,
-        "order": 12
+        "order": 13
       }
     },
     "ETHNIC": {
@@ -260,16 +313,17 @@
         "null"
       ],
       "maxLength": 4,
+      "description": "Pupil's ethnicity",
       "x-csv": {
         "columns": {
-          "default": "N"
+          "default": "O"
         },
         "heading": "Pupil's ethnicity"
       },
       "x-display": {
         "label": "Ethnicity",
         "visible": false,
-        "order": 13
+        "order": 14
       }
     },
     "ACTYRGRP": {
@@ -278,16 +332,17 @@
         "null"
       ],
       "maxLength": 2,
+      "description": "Pupil's year group. Year 11 is deemed to be end of KS4 studies.",
       "x-csv": {
         "columns": {
-          "default": "O"
+          "default": "P"
         },
         "heading": "Actual Year Group"
       },
       "x-display": {
         "label": "Year group",
         "visible": true,
-        "order": 14
+        "order": 15
       }
     },
     "NEWMOBILE": {
@@ -295,33 +350,22 @@
         "integer",
         "null"
       ],
+      "enum": [
+        0,
+        1,
+        null
+      ],
+      "description": "Has pupil joined the school in the last two academic years (on or after 12 September 2024): 0 = No, 1 = Yes",
       "x-csv": {
         "columns": {
-          "default": "P"
+          "default": "Q"
         },
         "heading": "Mobile"
       },
       "x-display": {
         "label": "Mobile",
         "visible": false,
-        "order": 15
-      }
-    },
-    "MATCHREF": {
-      "type": [
-        "integer",
-        "null"
-      ],
-      "x-csv": {
-        "columns": {
-          "default": "Q"
-        },
-        "heading": "Match reference"
-      },
-      "x-display": {
-        "label": "Match reference",
-        "visible": false,
-        "order": 16
+        "order": 17
       }
     }
   }

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "students-aims.json",
+  "$id": "students-aims_schema.json",
   "title": "Pupil aims",
   "description": "One row from the 1618 Pupil Aims worksheet of Post16.ods.",
   "type": "object",

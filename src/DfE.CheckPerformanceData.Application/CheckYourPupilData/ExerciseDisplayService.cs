@@ -36,7 +36,7 @@ public sealed class ExerciseDisplayService : IExerciseDisplayService
         var totalPages = (int)Math.Ceiling(filtered.Count / (double)pageSize);
         page = Math.Clamp(page, 0, Math.Max(0, totalPages - 1));
         return new ExerciseTableView(datasets, selected,
-            filtered.Skip(page * pageSize).Take(pageSize).ToList(), search, page, totalPages);
+            filtered.Skip(page * pageSize).Take(pageSize).Select(Displayed).ToList(), search, page, totalPages);
     }
 
     /// <summary>Pivots a school's single record into label/value rows. A file with more than one
@@ -50,18 +50,28 @@ public sealed class ExerciseDisplayService : IExerciseDisplayService
         return new VerticalExerciseView(definition with { Rows = rows }, fields);
     }
 
+    // The supplier sends dates as YYYY-MM-DD; schools read them, on screen and in a download, as
+    // DD/MM/YYYY.
+    private static readonly HashSet<string> DateFields = new(StringComparer.OrdinalIgnoreCase)
+        { "DOB", "DOB_0", "ENTRYDAT" };
+
     private static string Value(Dictionary<string, string> row, string field)
     {
         var value = row.GetValueOrDefault(field, "");
-        return field is "DOB" or "DOB_0" ? PupilDateFormatter.ToDisplayDate(value) : value;
+        return DateFields.Contains(field) ? PupilDateFormatter.ToDisplayDate(value) : value;
     }
+
+    // A copy, so the page's rows are not changed for the next search or download.
+    private static Dictionary<string, string> Displayed(Dictionary<string, string> row) =>
+        row.ToDictionary(p => p.Key, p => DateFields.Contains(p.Key) ? PupilDateFormatter.ToDisplayDate(p.Value) : p.Value,
+            StringComparer.OrdinalIgnoreCase);
 
     public byte[] Csv(ExerciseDataset dataset)
     {
         var table = new PupilTable(
             dataset.CsvColumns.Select(c => c.Heading).ToList(),
             dataset.Rows.Select(row => (IReadOnlyList<string>)dataset.CsvColumns
-                .Select(c => row.GetValueOrDefault(c.Field, "")).ToList()).ToList());
+                .Select(c => Value(row, c.Field)).ToList()).ToList());
         return PupilCsvGenerator.Generate(table);
     }
 

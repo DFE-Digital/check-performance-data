@@ -48,16 +48,16 @@ public static class SeedExerciseFixtures
         ICheckingExerciseIngress ingress, string contentRootPath,
         IReadOnlyList<Guid> ks4WindowIds, IReadOnlyList<Guid> post16WindowIds)
     {
-        var schemaFolder = Path.Combine(contentRootPath, "Data", "Ingress", "schema");
+        var ingressFolder = Path.Combine(contentRootPath, "Data", "Ingress");
 
         foreach (var windowId in ks4WindowIds)
         {
             var window = await LoadAsync(dbContext, windowId);
             var pupils = Exercise(window, CheckingExerciseType.PupilData);
-            var schema = await File.ReadAllTextAsync(Path.Combine(schemaFolder, "ks4", "pupils.json"));
+            var schema = await File.ReadAllTextAsync(Path.Combine(ingressFolder, "ks4june", "pupils_schema.json"));
             foreach (var dataset in pupils.Datasets)
                 await LinkAsync(blobs, pupils, dataset, "pupils.csv", RecordsCsv(SeedPupilData.Ks4Pupils(windowId)),
-                    "pupils.json", schema);
+                    "pupils_schema.json", schema);
             await dbContext.SaveChangesAsync();
             await IngestAsync(blobs, ingress, pupils);
         }
@@ -69,22 +69,22 @@ public static class SeedExerciseFixtures
             var all = SeedPupilData.Post16Pupils(windowId);
             foreach (var dataset in students.Datasets)
             {
-                var schemaFile = dataset.Included == true ? "students-included.json" : "students-non-included.json";
-                var schema = await File.ReadAllTextAsync(Path.Combine(schemaFolder, "post16", schemaFile));
+                var schemaFile = dataset.Included == true ? "students-included_schema.json" : "students-non-included_schema.json";
+                var schema = await File.ReadAllTextAsync(Path.Combine(ingressFolder, "post16", schemaFile));
                 await LinkAsync(blobs, students, dataset, $"{dataset.Name}.csv",
                     RecordsCsv(all.Where(p => p.Included == dataset.Included)), schemaFile, schema);
             }
 
             var results = Exercise(window, CheckingExerciseType.ResultsEnquiry);
             var resultsSchema = WithResultKeys(
-                await File.ReadAllTextAsync(Path.Combine(schemaFolder, "post16", "results-included.json")));
+                await File.ReadAllTextAsync(Path.Combine(ingressFolder, "post16", "results-included_schema.json")));
             // Every school is generated from the same ids, and the results are all Kingsmead's.
             var byCypmd = all.Where(p => p.Laestab == SeedStudentResults.Laestab.Replace("/", string.Empty))
                 .ToDictionary(p => p.Cypmd_Id);
             foreach (var dataset in results.Datasets)
                 await LinkAsync(blobs, results, dataset, $"{dataset.Name}.csv",
                     ResultsCsv(SeedStudentResults.All.Where(r => r.SourceFile == dataset.SourceFile), byCypmd),
-                    "results-included.json", resultsSchema);
+                    "results-included_schema.json", resultsSchema);
 
             await dbContext.SaveChangesAsync();
             await IngestAsync(blobs, ingress, students);

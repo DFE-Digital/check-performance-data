@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "students-previously-published.json",
+  "$id": "students-previously-published_schema.json",
   "title": "Previously published",
   "description": "One row from the 16-18 Previously Published Data worksheet of Post16.ods.",
   "type": "object",

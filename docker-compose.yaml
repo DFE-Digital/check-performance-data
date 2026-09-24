@@ -24,7 +24,12 @@ services:
       - Notify__UseFake=${NOTIFY_USEFAKE:-true}
       # AB#294553 review B1: the code/appsettings default is now the real Zendesk client (matching
       # the worker), so the local/E2E stack must opt in to the dev outbox fake explicitly here.
+      # This flag drives the WORKER's ticket write: true = worker writes DevZendeskTickets.
       - Zendesk__UseFake=${ZENDESK_USE_FAKE:-true}
+      # Decoupled from Zendesk__UseFake: this keeps the WEB's egress ticket reads on the
+      # outbox (DevOutboxEgressTicketSource) even if the worker is switched to the real
+      # Zendesk client (ZENDESK_USE_FAKE=false). E2E /dev/egress/seed facts live in the outbox.
+      - Egress__UseDevOutbox=${EGRESS_USE_DEV_OUTBOX:-true}
       - ConnectionStrings__Postgres=${POSTGRES_CONNECTION_STRING:-Host=db;Database=cypd;Username=postgres;Password=postgres}
       - ConnectionStrings__AzureStorage=${AZURE_STORAGE_CONNECTION_STRING:-DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;QueueEndpoint=http://azurite:10001/devstoreaccount1;}
       - ConnectionStrings__EgressStorage=${EGRESS_STORAGE_CONNECTION_STRING:-DefaultEndpointsProtocol=http;AccountName=egressaccount;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/egressaccount;QueueEndpoint=http://azurite:10001/egressaccount;}

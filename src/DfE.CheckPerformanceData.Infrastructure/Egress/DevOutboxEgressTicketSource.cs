@@ -11,7 +11,8 @@ namespace DfE.CheckPerformanceData.Infrastructure.Egress;
 /// Development stand-in: reads decisions from the DevZendeskTickets outbox the worker's fake
 /// Zendesk writes. The captured ticket's "Decision status" custom field wins (so a dev seeder can
 /// stage a human "approved"); otherwise the subject prefix the ticket builder always writes
-/// decides. Selected when Zendesk:UseFake is true (the default), exactly like the worker's fake.
+/// decides. Selected via Egress:UseDevOutbox (web egress reads), decoupled from the worker's
+/// Zendesk:UseFake write-path flag.
 /// </summary>
 public sealed class DevOutboxEgressTicketSource(IPortalDbContext db, IOptions<ZendeskTicketFieldSettings> fieldSettings) : IEgressTicketSource
 {

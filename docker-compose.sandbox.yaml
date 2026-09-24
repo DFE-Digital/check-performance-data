@@ -31,6 +31,9 @@ services:
       # dev outbox fake the app fails to start at all (AB#294553 review B1 made the real Zendesk
       # client the default everywhere, including here).
       - Zendesk__UseFake=true
+      # Keeps the WEB's egress ticket reads on the outbox (DevOutboxEgressTicketSource);
+      # decoupled from Zendesk__UseFake, which only drives the worker's ticket write.
+      - Egress__UseDevOutbox=true
       # Points at the sandbox db + azurite services on the sandbox network,
       # NOT the main stack's cypd_db / cypd_azurite. Kept literal so the
       # sandbox can never accidentally speak to the main-stack DB.

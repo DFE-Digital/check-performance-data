@@ -133,6 +133,18 @@ public sealed class ZendeskTicketFieldOptionsTests
     [InlineData("pupil-died", "deceased")]
     [InlineData("pupil died", "deceased")]
     [InlineData("life-limiting-illness", "terminal_critical_illness")]
+    [InlineData("completed-ks4-elsewhere", "add_back_removal")]
+    [InlineData("permanent-exclusion", "admitted_following_permanent_exclusion")]
+    [InlineData("english-not-first-language", "admitted_from_abroad_with_english_not_first_language")]
+    [InlineData("child-missing-education", "pupil_missing_in_education")]
+    [InlineData("dual-registered-moved", "moved_school_dual_registration")]
+    [InlineData("elective-home-education", "elective_home_education")]
+    [InlineData("permanently-excluded", "permanently_excluded_from_current_school")]
+    [InlineData("permanently-left-england", "permanently_left_england")]
+    [InlineData("social-care-involvement", "social_care_involvement_including_police_prison")]
+    [InlineData("year-group-change", "year_group_change")]
+    [InlineData("student-died", "deceased")]
+    [InlineData("not-at-end-of-16-19-study", "not_at_end_of_16_to_18_study")]
     public void ReasonForRemoval_GetOptionValue_MapsRemovalReasons(string removalReason, string expected)
     {
         var value = ZendeskTicketFieldOptions.GetOptionValue(ZendeskTicketFieldConstants.ReasonForRemovalName, removalReason);
@@ -141,8 +153,8 @@ public sealed class ZendeskTicketFieldOptionsTests
     }
 
     [Theory]
-    [InlineData("permanent-exclusion")]
-    [InlineData("social-care-involvement")]
+    [InlineData("merge-pupils")]
+    [InlineData("pupil-added-after-summer-term")]
     public void ReasonForRemoval_GetOptionValue_ReturnsNullForUnmappedRemovalReason(string removalReason)
     {
         var value = ZendeskTicketFieldOptions.GetOptionValue(ZendeskTicketFieldConstants.ReasonForRemovalName, removalReason);

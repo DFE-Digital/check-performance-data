@@ -652,7 +652,7 @@ public sealed class ZendeskConsumer : ConsumerBase
         var reasonForRemovalId = GetConfiguredFieldId(ZendeskTicketFieldConstants.ReasonForRemovalName);
         if (reasonForRemovalId.HasValue)
         {
-            var reasonForRemovalValue = _ticketFieldService.GetOptionValue(ZendeskTicketFieldConstants.ReasonForRemovalName, removalReason);
+            var reasonForRemovalValue = ResolveReasonForRemovalValue(message, removalReason);
             if (!string.IsNullOrEmpty(reasonForRemovalValue))
             {
                 dto.Ticket.CustomFields.Add(new CustomFieldDto
@@ -666,6 +666,53 @@ public sealed class ZendeskConsumer : ConsumerBase
                 _logger.LogWarning("No reason for removal option for removal reason '{RemovalReason}', skipping field.", removalReason);
             }
         }
+    }
+
+    // FR-001 (feature 457): the "Reason for removal" value for a Remove request.
+    // The KS4 add-back category is decided on Pincl BEFORE the per-reason map, so a KS4-included
+    // pupil never resolves by journey reason. "other" resolves from evidence (FR-004); Post16
+    // "not-on-roll" resolves from its sub-reason answer (FR-003, Phase 4c). Everything else falls
+    // through to the static ReasonForRemovalHelpers map; unmapped -> null -> the caller omits the
+    // field with a warning log (FR-014).
+    private string? ResolveReasonForRemovalValue(RequestDocument message, string removalReason)
+    {
+        // FR-001: KS4 add-back category decided on Pincl BEFORE the per-reason map.
+        if (PupilInclusion.IsKs4Included(message.Pupil.Pincl))
+        {
+            return ZendeskTicketFieldOptions.ReasonForRemoval.AddBackRemoval;
+        }
+
+        // FR-004: "other" is answer-aware. Evidence = at least one uploaded file.
+        // No evidence-bearing answer at all on the document -> default _with_evidence (safer triage).
+        if (removalReason == "other")
+        {
+            var hasEvidence = message.Answers.Any(a => a.Files is { Count: > 0 });
+            var hasEvidenceAnswer = message.Answers.Any(a => string.Equals(a.Type, "FileUpload", StringComparison.OrdinalIgnoreCase));
+            return hasEvidence || !hasEvidenceAnswer
+                ? ZendeskTicketFieldOptions.ReasonForRemoval.OtherWithEvidence
+                : ZendeskTicketFieldOptions.ReasonForRemoval.OtherEvidenceNotRequired;
+        }
+
+        // FR-003: Post16 "not-on-roll" has a sub-reason answer (Remove_Post16.json "not-on-roll-reason");
+        // KS4 has none -> plain "not_on_roll". Sub-answer presence distinguishes the flows.
+        if (removalReason == "not-on-roll")
+        {
+            var subReason = message.Answers.FirstOrDefault(a => a.QuestionId == "not-on-roll-reason")?.RawValue;
+            if (string.IsNullOrWhiteSpace(subReason))
+            {
+                return ZendeskTicketFieldOptions.ReasonForRemoval.NotOnRoll;
+            }
+
+            // Same evidence predicate as the "other" reason (FR-004): no evidence-bearing answer
+            // at all on the document -> _with_evidence (safer triage).
+            var hasEvidence = message.Answers.Any(a => a.Files is { Count: > 0 });
+            var hasEvidenceAnswer = message.Answers.Any(a => string.Equals(a.Type, "FileUpload", StringComparison.OrdinalIgnoreCase));
+            var effectiveWithEvidence = hasEvidence || !hasEvidenceAnswer;
+            return ZendeskTicketFieldOptions.GetPost16NotOnRollOption(subReason, effectiveWithEvidence)
+                ?? ZendeskTicketFieldOptions.ReasonForRemoval.NotOnRoll; // unknown sub-reason -> fallback (FR-014)
+        }
+
+        return _ticketFieldService.GetOptionValue(ZendeskTicketFieldConstants.ReasonForRemovalName, removalReason);
     }
 
     // FR-007: LDS matched pupil ID from the matched record, falling back to the submitted

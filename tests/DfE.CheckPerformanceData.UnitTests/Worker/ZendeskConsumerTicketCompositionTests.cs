@@ -284,8 +284,10 @@ public sealed class ZendeskConsumerTicketCompositionTests
         _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CorrectionTypeName).Returns(25L);
         _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CorrectionReason31Name).Returns(26L);
         _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.ReasonForRemovalName).Returns(27L);
-        // "Remove - other" maps to no correction-reason code (FR-014 edge case).
-        _ticketFieldService.GetOptionValue(ZendeskTicketFieldConstants.ReasonForRemovalName, "other").Returns("other");
+        // "Remove - other" maps to no correction-reason code (FR-014 edge case). Its
+        // reason-for-removal value is answer-aware (FR-004): this fixture sends no evidence
+        // answer at all, so the documented safe-triage default applies (FR-004: no evidence
+        // answer -> _with_evidence).
 
         var consumer = NewConsumer();
         var decision = new Decision(DecisionStatus.AutoApproved, "Other", "OTH-1", Array.Empty<string>());
@@ -294,7 +296,7 @@ public sealed class ZendeskConsumerTicketCompositionTests
 
         Assert.Contains(ticket.CustomFields!, f => f.Id == 25 && (string)f.Value! == "31_");
         Assert.DoesNotContain(ticket.CustomFields!, f => f.Id == 26);
-        Assert.Contains(ticket.CustomFields!, f => f.Id == 27 && (string)f.Value! == "other");
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 27 && (string)f.Value! == "other_-_with_evidence");
     }
 
     [Fact]
@@ -621,6 +623,214 @@ public sealed class ZendeskConsumerTicketCompositionTests
         Assert.DoesNotContain(ticket.CustomFields ?? new(), f => (string)f.Value! == "CompletedKs4Elsewhere");
     }
 
+    // --- Feature 457: "Reason for removal" field for all mapped removal reasons (US1 / FR-001) ---
+
+    [Theory]
+    [MemberData(nameof(Ks4IncludedPinclCodes))]
+    public void ReasonForRemovalField_IsAddBackRemoval_ForEveryKs4IncludedCode(int pinclCode)
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.ReasonForRemovalName).Returns(27L);
+
+        var consumer = NewConsumer();
+        // year-group-change maps per-reason today -> proves Pincl wins over the reason (FR-001).
+        var decision = new Decision(DecisionStatus.AutoApproved, "YearGroupChange", "YGC-1", Array.Empty<string>());
+
+        var ticket = consumer.BuildTicket(NewMessage("Remove - year-group-change", "KS4June", pincl: pinclCode), decision).Ticket;
+
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 27 && (string)f.Value! == "add_back_removal");
+        Assert.Contains($"Pincl: {pinclCode}", ticket.Description);
+    }
+
+    [Theory]
+    [InlineData("Remove - completed-ks4-elsewhere")]
+    [InlineData("Remove - not-on-roll")]
+    [InlineData("Remove - other")]
+    public void ReasonForRemovalField_IsAddBackRemoval_AcrossMultipleReasons(string requestTypeCode)
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.ReasonForRemovalName).Returns(27L);
+
+        var consumer = NewConsumer();
+        var decision = new Decision(DecisionStatus.AutoApproved, "YearGroupChange", "YGC-1", Array.Empty<string>());
+
+        var ticket = consumer.BuildTicket(NewMessage(requestTypeCode, "KS4June", pincl: 403), decision).Ticket;
+
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 27 && (string)f.Value! == "add_back_removal");
+        Assert.Contains("Pincl: 403", ticket.Description);
+    }
+
+    [Theory]
+    [InlineData(402)]
+    [InlineData(404)]
+    [InlineData(0)]
+    public void ReasonForRemovalField_NotAddBack_ForNonIncludedPincl(int pinclCode)
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.ReasonForRemovalName).Returns(27L);
+
+        var consumer = NewConsumer();
+        var decision = new Decision(DecisionStatus.AutoApproved, "YearGroupChange", "YGC-1", Array.Empty<string>());
+
+        var ticket = consumer.BuildTicket(NewMessage("Remove - year-group-change", "KS4June", pincl: pinclCode), decision).Ticket;
+
+        Assert.DoesNotContain(ticket.CustomFields ?? new(), f => (string)f.Value! == "add_back_removal");
+        Assert.DoesNotContain("Pincl:", ticket.Description);
+    }
+
+    [Theory]
+    [InlineData(501)]
+    [InlineData(0)]
+    public void ReasonForRemovalField_NotAddBack_ForPost16(int pinclCode)
+    {
+        // A Post16 pupil cannot hold a KS4-included Pincl: Post16 inclusion is ingest-stamped
+        // (seeded codes 501/502/505/506), so IsKs4Included alone excludes Post16 from US1.
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.ReasonForRemovalName).Returns(27L);
+
+        var consumer = NewConsumer();
+        var decision = new Decision(DecisionStatus.AutoApproved, "Deceased", "DEC-1", Array.Empty<string>());
+
+        var ticket = consumer.BuildTicket(NewMessage("Remove - student-died", "Post16", pincl: pinclCode), decision).Ticket;
+
+        Assert.DoesNotContain(ticket.CustomFields ?? new(), f => (string)f.Value! == "add_back_removal");
+        Assert.DoesNotContain("Pincl:", ticket.Description);
+    }
+
+    // --- Feature 457: "other" evidence variant (US2b / FR-004) ---
+
+    [Theory]
+    [InlineData("KS4June")]
+    [InlineData("Post16")]
+    public void ReasonForRemovalField_Other_WithEvidence(string windowType)
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.ReasonForRemovalName).Returns(27L);
+
+        var consumer = NewConsumer();
+        var decision = new Decision(DecisionStatus.AutoApproved, "Other", "OTH-1", Array.Empty<string>());
+        var evidence = Answer("evidence", "", files: AnEvidenceFile());
+
+        var ticket = consumer.BuildTicket(NewMessage("Remove - other", windowType, pincl: 0, answers: new[] { evidence }), decision).Ticket;
+
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 27 && (string)f.Value! == "other_-_with_evidence");
+    }
+
+    [Theory]
+    [InlineData("KS4June")]
+    [InlineData("Post16")]
+    public void ReasonForRemovalField_Other_EvidenceAnswerButNoFiles(string windowType)
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.ReasonForRemovalName).Returns(27L);
+
+        var consumer = NewConsumer();
+        var decision = new Decision(DecisionStatus.AutoApproved, "Other", "OTH-1", Array.Empty<string>());
+        var evidence = Answer("evidence", "", files: new List<FileRecord>());
+
+        var ticket = consumer.BuildTicket(NewMessage("Remove - other", windowType, pincl: 0, answers: new[] { evidence }), decision).Ticket;
+
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 27 && (string)f.Value! == "other_-_evidence_not_required");
+    }
+
+    [Theory]
+    [InlineData("KS4June")]
+    [InlineData("Post16")]
+    public void ReasonForRemovalField_Other_NoEvidenceAnswer_DefaultsWithEvidence(string windowType)
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.ReasonForRemovalName).Returns(27L);
+
+        var consumer = NewConsumer();
+        var decision = new Decision(DecisionStatus.AutoApproved, "Other", "OTH-1", Array.Empty<string>());
+
+        var ticket = consumer.BuildTicket(NewMessage("Remove - other", windowType, pincl: 0), decision).Ticket;
+
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 27 && (string)f.Value! == "other_-_with_evidence");
+    }
+
+    // --- Feature 457: Post16 "not-on-roll" sub-options (US2c / FR-003) ---
+
+    [Theory]
+    [InlineData("apprentice", "not_on_roll_apprentice")]
+    [InlineData("external-candidate", "not_on_roll_external")]
+    [InlineData("international-student", "not_on_roll_international_student")]
+    public void ReasonForRemovalField_Post16NotOnRoll_SubOptions(string subReason, string expected)
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.ReasonForRemovalName).Returns(27L);
+
+        var consumer = NewConsumer();
+        var decision = new Decision(DecisionStatus.AutoApproved, "NotOnRoll", "NOR-1", Array.Empty<string>());
+        var subAnswer = Answer("not-on-roll-reason", "A label", rawValue: subReason);
+
+        var ticket = consumer.BuildTicket(
+            NewMessage("Remove - not-on-roll", "Post16", pincl: 0, answers: new[] { subAnswer }),
+            decision).Ticket;
+
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 27 && (string)f.Value! == expected);
+    }
+
+    [Theory]
+    [InlineData("other", true, "not_on_roll_other_with_evidence")]
+    [InlineData("other", false, "not_on_roll_other_evidence_not_required")]
+    public void ReasonForRemovalField_Post16NotOnRoll_OtherSubReason_EvidenceVariant(
+        string subReason, bool hasEvidence, string expected)
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.ReasonForRemovalName).Returns(27L);
+
+        var consumer = NewConsumer();
+        var decision = new Decision(DecisionStatus.AutoApproved, "NotOnRoll", "NOR-1", Array.Empty<string>());
+        var subAnswer = Answer("not-on-roll-reason", "A label", rawValue: subReason);
+        // hasEvidence=false -> FileUpload answer present but with no files (vs. no answer at all,
+        // which FR-004 defaults to _with_evidence and is covered by its own test below).
+        var evidence = hasEvidence ? Answer("evidence", "", files: AnEvidenceFile()) : Answer("evidence", "", files: new List<FileRecord>());
+        var ticket = consumer.BuildTicket(
+            NewMessage("Remove - not-on-roll", "Post16", pincl: 0, answers: new[] { subAnswer, evidence }),
+            decision).Ticket;
+
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 27 && (string)f.Value! == expected);
+    }
+
+    // Same evidence default as FR-004: a "not-on-roll-reason: other" answer with NO evidence
+    // answer at all on the document -> _with_evidence (safer triage).
+    [Fact]
+    public void ReasonForRemovalField_Post16NotOnRoll_OtherSubReason_NoEvidenceAnswer_DefaultsWithEvidence()
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.ReasonForRemovalName).Returns(27L);
+
+        var consumer = NewConsumer();
+        var decision = new Decision(DecisionStatus.AutoApproved, "NotOnRoll", "NOR-1", Array.Empty<string>());
+        var subAnswer = Answer("not-on-roll-reason", "A label", rawValue: "other");
+
+        var ticket = consumer.BuildTicket(
+            NewMessage("Remove - not-on-roll", "Post16", pincl: 0, answers: new[] { subAnswer }),
+            decision).Ticket;
+
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 27 && (string)f.Value! == "not_on_roll_other_with_evidence");
+    }
+
+    [Fact]
+    public void ReasonForRemovalField_Post16NotOnRoll_MissingSubAnswer_FallsBackToNotOnRoll()
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.ReasonForRemovalName).Returns(27L);
+
+        var consumer = NewConsumer();
+        var decision = new Decision(DecisionStatus.AutoApproved, "NotOnRoll", "NOR-1", Array.Empty<string>());
+
+        var ticket = consumer.BuildTicket(NewMessage("Remove - not-on-roll", "Post16", pincl: 0), decision).Ticket;
+
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 27 && (string)f.Value! == "not_on_roll");
+    }
+
+    [Fact]
+    public void ReasonForRemovalField_Ks4NotOnRoll_MapsPlain()
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.ReasonForRemovalName).Returns(27L);
+
+        var consumer = NewConsumer();
+        var decision = new Decision(DecisionStatus.AutoApproved, "NotOnRoll", "NOR-1", Array.Empty<string>());
+        var onSchoolRoll = Answer("on-school-roll", "Yes");
+
+        var ticket = consumer.BuildTicket(
+            NewMessage("Remove - not-on-roll", "KS4June", pincl: 0, answers: new[] { onSchoolRoll }),
+            decision).Ticket;
+
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 27 && (string)f.Value! == "not_on_roll");
+    }
+
     // --- helpers ---
 
     private static RequestDocument NewMessage(string whatToChange, params AnswerRecord[] answers) =>
@@ -645,6 +855,17 @@ public sealed class ZendeskConsumerTicketCompositionTests
         Answers = answers.ToList(),
     };
 
-    private static AnswerRecord Answer(string title, string value) =>
-        new() { QuestionId = title, QuestionTitle = title, Type = "text", Value = value };
+    private static AnswerRecord Answer(string title, string value, string? rawValue = null, List<FileRecord>? files = null) =>
+        new()
+        {
+            QuestionId = title,
+            QuestionTitle = title,
+            Type = files is null ? "text" : "FileUpload",
+            Value = value,
+            RawValue = rawValue ?? value,
+            Files = files,
+        };
+
+    private static List<FileRecord> AnEvidenceFile() =>
+        new() { new FileRecord { OriginalFileName = "evidence.pdf", StoredFileName = "s1.pdf", PageCount = 1, FileSizeBytes = 4096 } };
 }

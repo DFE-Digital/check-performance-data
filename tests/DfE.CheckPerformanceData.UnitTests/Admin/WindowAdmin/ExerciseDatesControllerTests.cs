@@ -226,7 +226,6 @@ public class ExerciseDatesControllerTests
     {
         Title = "Autumn 2026 checking window",
         CheckingWindowType = CheckingWindowType.KS4Autumn,
-        KeyStage = KeyStages.KS4,
         Exercises = exercises
             .Select(e => new ExerciseDraft { ExerciseType = e, SortOrder = WindowExercises.SortOrderFor(e) })
             .ToList()

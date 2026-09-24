@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 using Microsoft.AspNetCore.Mvc;
@@ -28,16 +29,23 @@ public class CheckingWindowDraftTests
     }
 
     [Fact]
-    public void The_exercise_step_follows_the_key_stage()
+    public void The_exercise_step_follows_the_window_type_because_the_key_stage_is_derived()
     {
         CheckingWindowDraft draft = new()
         {
             Title = "A window",
-            CheckingWindowType = CheckingWindowType.Post16,
-            KeyStage = KeyStages.Post16
+            CheckingWindowType = CheckingWindowType.Post16
         };
 
         Assert.Equal("Exercises", draft.NextController(_url));
+    }
+
+    [Fact]
+    public void The_key_stage_is_derived_from_the_window_type()
+    {
+        Assert.Null(new CheckingWindowDraft().KeyStage);
+        Assert.Equal(KeyStages.KS4,
+            new CheckingWindowDraft { CheckingWindowType = CheckingWindowType.KS4Autumn }.KeyStage);
     }
 
     [Fact]
@@ -120,11 +128,21 @@ public class CheckingWindowDraftTests
             dtos.Single(d => d.ExerciseType == CheckingExerciseType.ResultsEnquiry).EndDate);
     }
 
+    [Fact]
+    public void Wizard_exercises_get_a_default_tab_name_and_start_disabled()
+    {
+        // Disabled until an admin has loaded data and enables it, so schools see nothing before then.
+        List<CheckingExerciseDto> dtos = Complete().ToExerciseDtos();
+
+        Assert.Equal("Students", dtos.Single(d => d.ExerciseType == CheckingExerciseType.PupilData).TabName);
+        Assert.Equal("Results", dtos.Single(d => d.ExerciseType == CheckingExerciseType.ResultsEnquiry).TabName);
+        Assert.All(dtos, d => Assert.False(d.IsEnabled));
+    }
+
     private static CheckingWindowDraft Complete() => new()
     {
         Title = "16 to 19 2027",
         CheckingWindowType = CheckingWindowType.Post16,
-        KeyStage = KeyStages.Post16,
         Exercises =
         [
             new ExerciseDraft

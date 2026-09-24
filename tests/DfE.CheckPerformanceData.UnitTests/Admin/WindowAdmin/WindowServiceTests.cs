@@ -217,10 +217,86 @@ public class WindowServiceTests
         Assert.Equal("ABC", main.IngressFileChecksum);
     }
 
+    [Fact]
+    public async Task CreateAsync_derives_the_key_stage_from_the_window_type()
+    {
+        IWindowRepository repository = Substitute.For<IWindowRepository>();
+        repository.CreateAsync(Arg.Any<CheckingWindowDto>(), Arg.Any<CancellationToken>())
+            .Returns(call => call.Arg<CheckingWindowDto>());
+        WindowService service = new(repository, TimeProvider.System);
+
+        CheckingWindowDto window = Window(new DateTime(2027, 1, 1), new DateTime(2027, 2, 1));
+        window.CheckingWindowType = CheckingWindowType.Post16;
+
+        await service.CreateAsync(window, CancellationToken.None);
+
+        await repository.Received(1).CreateAsync(
+            Arg.Is<CheckingWindowDto>(w => w.KeyStage == KeyStages.Post16),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task UpdateAsync_moves_the_key_stage_when_the_window_type_changes()
+    {
+        IWindowRepository repository = Substitute.For<IWindowRepository>();
+        WindowService service = new(repository, TimeProvider.System);
+
+        // Stored as KS2 / KS2; the admin changes the type on the summary page.
+        CheckingWindowDto window = Window(new DateTime(2027, 1, 1), new DateTime(2027, 2, 1));
+        window.CheckingWindowType = CheckingWindowType.KS4Autumn;
+
+        await service.UpdateAsync(window, CancellationToken.None);
+
+        await repository.Received(1).UpdateAsync(
+            Arg.Is<CheckingWindowDto>(w => w.KeyStage == KeyStages.KS4),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Saving_an_exercise_with_no_tab_name_is_refused()
+    {
+        IWindowRepository repository = Substitute.For<IWindowRepository>();
+        WindowService service = new(repository, TimeProvider.System);
+
+        CheckingWindowDto window = Window(new DateTime(2027, 1, 1), new DateTime(2027, 2, 1));
+        CheckingExerciseDto exercise = Exercise(CheckingExerciseType.PupilData);
+        exercise.TabName = " ";
+        window.Exercises = [exercise];
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateAsync(window, CancellationToken.None));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.UpdateAsync(window, CancellationToken.None));
+        await repository.DidNotReceiveWithAnyArgs().CreateAsync(default!, default);
+        await repository.DidNotReceiveWithAnyArgs().UpdateAsync(default!, default);
+    }
+
+    [Fact]
+    public async Task Saving_two_live_exercises_of_one_kind_is_refused()
+    {
+        IWindowRepository repository = Substitute.For<IWindowRepository>();
+        WindowService service = new(repository, TimeProvider.System);
+
+        CheckingWindowDto window = Window(new DateTime(2027, 1, 1), new DateTime(2027, 2, 1));
+        window.Exercises =
+        [
+            Enabled(Exercise(CheckingExerciseType.PupilData)),
+            Enabled(Exercise(CheckingExerciseType.PupilData))
+        ];
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.UpdateAsync(window, CancellationToken.None));
+        await repository.DidNotReceiveWithAnyArgs().UpdateAsync(default!, default);
+    }
+
+    private static CheckingExerciseDto Enabled(CheckingExerciseDto e) => new()
+    {
+        Id = Guid.NewGuid(), ExerciseType = e.ExerciseType, TabName = e.TabName, IsEnabled = true,
+        StartDate = e.StartDate, EndDate = e.EndDate, SortOrder = e.SortOrder
+    };
+
     private static CheckingExerciseDto Exercise(CheckingExerciseType type) =>
         new()
         {
             ExerciseType = type,
+            TabName = "Tab",
             StartDate = new DateTime(2027, 1, 1),
             EndDate = new DateTime(2027, 2, 1),
             SortOrder = WindowExercises.SortOrderFor(type)

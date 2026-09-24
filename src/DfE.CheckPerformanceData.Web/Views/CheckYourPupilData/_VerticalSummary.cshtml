@@ -13,7 +13,8 @@
     Download <a asp-action="DownloadExerciseDataset" asp-controller="CheckYourPupilData"
                 asp-route-windowId="@Model.Exercise.WindowId"
                 asp-route-exerciseId="@Model.Exercise.Id"
-                asp-route-dataset="@summary.Key">@summary.Label.ToLowerInvariant()</a> as a CSV file.
+                asp-route-dataset="@summary.Key"
+                asp-route-tab="@Model.Key">@summary.Label.ToLowerInvariant()</a> as a CSV file.
 </p>
 
 @if (summary.Fields.Count == 0)

@@ -72,6 +72,9 @@ public static class SeedCheckingWindows
                     TabName = "Pupils",
                     TabOrder = 200,
                     IsEnabled = true,
+                    // KS4 sends one pupils file; each pupil's own P_INCL puts them on the
+                    // "Pupils Included" or the "Pupils Non Included" tab.
+                    Layout = ExerciseLayout.InclusionTabs,
                     StartDate = startDate,
                     EndDate = endDate,
                     SortOrder = 0,

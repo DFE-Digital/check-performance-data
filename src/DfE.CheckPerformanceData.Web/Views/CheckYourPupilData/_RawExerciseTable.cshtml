@@ -20,9 +20,9 @@ else
            asp-route-windowId="@Model.Exercise.WindowId"
            asp-route-exerciseId="@Model.Exercise.Id">Download @Model.Exercise.TabName data (JSON)</a>
     </p>
-    <div class="moj-scrollable-pane" role="region" tabindex="0" aria-label="@Model.Exercise.Name">
+    <div class="moj-scrollable-pane" role="region" tabindex="0" aria-label="@Model.Label">
         <table class="govuk-table">
-            <caption class="govuk-table__caption govuk-table__caption--m govuk-visually-hidden">@Model.Exercise.TabName</caption>
+            <caption class="govuk-table__caption govuk-table__caption--m govuk-visually-hidden">@Model.Label</caption>
             <thead class="govuk-table__head">
                 <tr class="govuk-table__row">
                     @foreach (var column in Model.Columns)

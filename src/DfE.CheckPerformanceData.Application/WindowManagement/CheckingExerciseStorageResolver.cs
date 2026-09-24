@@ -28,13 +28,7 @@ public sealed class CheckingExerciseStorageResolver(IWindowRepository windows, T
         var window = await windows.GetByIdAsync(windowId, cancellationToken);
         var now = clock.GetLocalNow().DateTime;
 
-        // A row with no tab name was configured before #466. It has no visibility dates to honour,
-        // so the visibility rules are not applied to it — only to rows that opted into them.
-        var candidates = window?.Exercises.Where(e => e.ExerciseType == type
-            && (e.TabName is null
-                || (e.IsEnabled
-                    && (e.VisibleFrom is null || e.VisibleFrom <= now)
-                    && (e.VisibleUntil is null || e.VisibleUntil > now)))).ToList();
+        var candidates = window?.Exercises.Where(e => e.ExerciseType == type && e.IsLiveAt(now)).ToList();
 
         // A display-only release never owns a journey's storage while an interactive one exists.
         var interactive = candidates?.Where(e => !e.DisplayOnly).ToList();

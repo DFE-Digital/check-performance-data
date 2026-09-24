@@ -32,7 +32,7 @@ public sealed class WindowExerciseWizardTests(PlaywrightFixture fixture) : Seedi
 
             string title = $"E2E 16 to 19 {Guid.NewGuid():N}"[..24];
 
-            await StartWizardAsync(title, windowType: "Post16", keyStage: "Post16");
+            await StartWizardAsync(title, windowType: "Post16");
 
             // Post16 pre-ticks both exercises, so Continue accepts them as they stand.
             await Expect(Page.Locator("h1")).ToContainTextAsync("Which checking exercises");
@@ -91,7 +91,7 @@ public sealed class WindowExerciseWizardTests(PlaywrightFixture fixture) : Seedi
 
             string title = $"E2E KS4 {Guid.NewGuid():N}"[..20];
 
-            await StartWizardAsync(title, windowType: "KS4June", keyStage: "KS4");
+            await StartWizardAsync(title, windowType: "KS4June");
 
             // KS4 June pre-ticks pupil data checking only.
             await Expect(Page.Locator("input[name='Selected'][value='PupilData']")).ToBeCheckedAsync();
@@ -133,18 +133,15 @@ public sealed class WindowExerciseWizardTests(PlaywrightFixture fixture) : Seedi
         }]).GetAwaiter().GetResult();
     }
 
-    // Title, then window type, then key stage — the exercise step comes after the type because the
-    // type decides which exercises start ticked.
-    private async Task StartWizardAsync(string title, string windowType, string keyStage)
+    // Title, then window type — the exercise step comes after the type because the type decides
+    // which exercises start ticked. There is no key stage step: it is derived from the type.
+    private async Task StartWizardAsync(string title, string windowType)
     {
-        await Page.GotoAsync($"{Fixture.BaseUrl}/admin/windows/title");
+        await Page.GotoAsync($"{Fixture.BaseUrl}/admin/windows/new");
         await Page.FillAsync("input[name='Title']", title);
         await Page.ClickAsync("button[type='submit']");
 
         await Page.CheckAsync($"input[name='WindowType'][value='{windowType}']");
-        await Page.ClickAsync("button[type='submit']");
-
-        await Page.CheckAsync($"input[name='KeyStage'][value='{keyStage}']");
         await Page.ClickAsync("button[type='submit']");
     }
 

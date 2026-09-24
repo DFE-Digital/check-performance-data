@@ -62,7 +62,7 @@ public sealed class CheckYourPupilDataResultsEnquiryOptionTests
         // No window here has a tab-drawing exercise: the point of these tests is the next-step
         // options, which the fallback inclusion tabs leave untouched.
         tabBuilder.BuildAsync(Arg.Any<Application.WindowManagement.CheckingWindowDto>(),
-                Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<int>(), Arg.Any<int>(),
+                Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<int>(), Arg.Any<int>(),
                 Arg.Any<CancellationToken>())
             .Returns(new List<ExerciseTab>());
 

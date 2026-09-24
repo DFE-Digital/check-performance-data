@@ -199,10 +199,9 @@ public sealed class EditCheckingExerciseControllerTests
         _window.Exercises[0] = new CheckingExerciseDto
         {
             Id = original.Id, UsesExerciseStorage = false, ExerciseType = original.ExerciseType,
-            StartDate = original.StartDate, EndDate = original.EndDate
+            TabName = "Pupils", StartDate = original.StartDate, EndDate = original.EndDate
         };
         var model = await Model();
-        Assert.True(model.TabNameOptional);
         if (changeType) model.ExerciseType = CheckingExerciseType.ResultsEnquiry;
         Validate(model);
         var result = await _controller.Update(_window.Id, original.Id, model, default);
@@ -215,8 +214,53 @@ public sealed class EditCheckingExerciseControllerTests
         {
             Assert.IsType<RedirectToActionResult>(result);
             Assert.False(_window.Exercises[0].UsesExerciseStorage);
-            Assert.Null(_window.Exercises[0].TabName);
+            Assert.Equal("Pupils", _window.Exercises[0].TabName);
         }
+    }
+
+    [Fact]
+    public async Task The_tab_name_is_always_required()
+    {
+        var model = await Model();
+        model.TabName = " ";
+        Validate(model);
+
+        Assert.IsType<ViewResult>(await _controller.Update(_window.Id, _window.Exercises[0].Id, model, default));
+        Assert.True(_controller.ModelState.ContainsKey(nameof(model.TabName)));
+        await _service.DidNotReceiveWithAnyArgs().UpdateAsync(default!, default);
+    }
+
+    [Fact]
+    public async Task Enabling_an_exercise_while_another_of_its_kind_is_live_is_rejected()
+    {
+        var live = CreateCheckingExerciseControllerTests.Live(_window.Exercises[0], null, null);
+        _window.Exercises[0] = live;
+        var second = new CheckingExerciseDto
+        {
+            Id = Guid.NewGuid(), Name = "Revised", ExerciseType = CheckingExerciseType.PupilData,
+            TabName = "Revised", StartDate = live.StartDate, EndDate = live.EndDate, SortOrder = 1
+        };
+        _window.Exercises.Add(second);
+
+        var model = await Model(second.Id);
+        model.IsEnabled = true;
+        Validate(model);
+
+        Assert.IsType<ViewResult>(await _controller.Update(_window.Id, second.Id, model, default));
+        Assert.True(_controller.ModelState.ContainsKey(nameof(model.IsEnabled)));
+        await _service.DidNotReceiveWithAnyArgs().UpdateAsync(default!, default);
+    }
+
+    [Fact]
+    public async Task Saving_the_live_exercise_does_not_clash_with_itself()
+    {
+        _window.Exercises[0] = CreateCheckingExerciseControllerTests.Live(_window.Exercises[0], null, null);
+
+        var model = await Model();
+        Validate(model);
+
+        Assert.IsType<RedirectToActionResult>(
+            await _controller.Update(_window.Id, _window.Exercises[0].Id, model, default));
     }
 
     [Fact]

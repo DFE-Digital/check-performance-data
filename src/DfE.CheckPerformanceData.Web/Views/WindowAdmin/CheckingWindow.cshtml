@@ -28,10 +28,8 @@
     </row>
     <row>
         <key>Key Stage</key>
+        @* Derived from the window type; change the window type to change it. *@
         <value>@Model.KeyStage?.GetDisplayName()</value>
-        <row-actions>
-            <action href="@Model.KeyStageLink(Url)" visually-hidden-text="Key Stage">Change</action>
-        </row-actions>
     </row>
     <row>
         <key>Checking exercises</key>

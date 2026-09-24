@@ -52,25 +52,13 @@ public sealed class CheckingDataCatalogueTests(PostgresFixture fixture) : IAsync
         await seedCtx.SaveChangesAsync();
     }
 
-    private static CheckingExercise Exercise(string? tabName, bool enabled = true,
+    private static CheckingExercise Exercise(string tabName, bool enabled = true,
         int tabOrder = 0, DateTime? until = null, Guid? id = null) => new()
         {
             Id = id ?? Guid.NewGuid(), ExerciseType = CheckingExerciseType.PupilData,
             Name = "Student data", TabName = tabName, TabOrder = tabOrder,
             IsEnabled = enabled, VisibleUntil = until, UsesExerciseStorage = true
         };
-
-    [Fact]
-    public async Task ReturnsOnlyExercisesThatDrawATab()
-    {
-        // A row with no tab name was configured before #466. It has no tab and must not gain one.
-        await SeedAsync(Exercise("Students"), Exercise(null));
-
-        await using var ctx = fixture.CreateContext();
-        var visible = await new CheckingDataCatalogue(ctx, _clock).GetVisibleAsync(default);
-
-        Assert.Equal("Students", Assert.Single(visible).TabName);
-    }
 
     [Fact]
     public async Task IgnoresDisabledAndExpiredExercises()

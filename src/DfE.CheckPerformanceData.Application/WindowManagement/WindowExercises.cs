@@ -26,6 +26,19 @@ public static class WindowExercises
             _ => [CheckingExerciseType.PupilData]
         };
 
+    /// <summary>
+    /// The tab name an exercise gets when the wizard creates it. The admin can change it on the
+    /// exercise's edit page. No default case: a new kind must state its own tab name.
+    /// </summary>
+    public static string DefaultTabName(CheckingWindowType windowType, CheckingExerciseType exercise) =>
+        exercise switch
+        {
+            CheckingExerciseType.PupilData => LearnerNoun.For(windowType).PluralCapitalised,
+            CheckingExerciseType.ResultsEnquiry => "Results",
+            _ => throw new ArgumentOutOfRangeException(nameof(exercise), exercise,
+                "No default tab name is defined for this checking exercise type.")
+        };
+
     /// <summary>Display order, and the SortOrder written to each row. Enum order.</summary>
     public static int SortOrderFor(CheckingExerciseType exercise) => (int)exercise;
 }

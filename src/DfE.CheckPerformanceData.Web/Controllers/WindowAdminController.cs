@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.Admin;
 using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
@@ -13,7 +14,8 @@ namespace DfE.CheckPerformanceData.Web.Controllers;
 public sealed class WindowAdminController(
     IWindowService windowService,
     IQuestionFlowConfigSource questionFlows,
-    TimeProvider timeProvider) : Controller
+    TimeProvider timeProvider,
+    IAdminAccessPolicy accessPolicy) : Controller
 {
     [HttpGet("admin/windows")]
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
@@ -45,7 +47,12 @@ public sealed class WindowAdminController(
             }).ToList()
         }).ToList() ?? [];
 
-        return View(new WindowViewModel(windows));
+        // The wizard's create steps are gated on NewWindow, not ManageWindow, so the button that
+        // starts it is only shown to a user who can finish it.
+        return View(new WindowViewModel(windows)
+        {
+            CanCreateWindow = await accessPolicy.CanAccessAsync(User, AdminNavKeys.NewWindow)
+        });
     }
 
     private static string JourneyLabel(WhatToChange journey) => journey switch

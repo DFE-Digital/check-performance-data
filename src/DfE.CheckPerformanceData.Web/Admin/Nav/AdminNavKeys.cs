@@ -38,8 +38,9 @@ public static class AdminNavKeys
     public const string ShareAdmin = "share-admin";
 
     // Window administration. All three are in DefaultAdminAccessSeeder.AllSections: FilterByAccess
-    // checks each tile's own Key, so without a grant the whole group stayed invisible in the
-    // sidebar even though the entries were registered. ManageWindow additionally gates the
+    // checks each tile's own Key, so without a grant the entry stays invisible in the sidebar.
+    // Only ManageWindow has a nav entry now (a top-level link); WindowAdmin no longer names a
+    // group and NewWindow gates the create steps only. ManageWindow additionally gates the
     // per-window requests page (AdminRequestsController), which is reached from that table.
     public const string WindowAdmin = "window-admin";
     public const string NewWindow = "new-window";

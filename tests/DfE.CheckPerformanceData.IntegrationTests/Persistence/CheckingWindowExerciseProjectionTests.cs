@@ -81,8 +81,7 @@ public sealed class CheckingWindowExerciseProjectionTests : IAsyncLifetime
     public async Task The_landing_page_read_carries_the_windows_exercises_in_sort_order()
     {
         await using var ctx = CreateContext();
-        var sut = new LandingPageRepository(ctx, BlobClientWithPupilData(),
-            NullLogger<LandingPageRepository>.Instance);
+        var sut = new LandingPageRepository(ctx, NullLogger<LandingPageRepository>.Instance);
 
         var windows = await sut.GetOpenWindowsAsync(Now, Laestab, CancellationToken.None);
 
@@ -96,8 +95,7 @@ public sealed class CheckingWindowExerciseProjectionTests : IAsyncLifetime
     public async Task The_landing_page_read_carries_each_exercises_own_dates()
     {
         await using var ctx = CreateContext();
-        var sut = new LandingPageRepository(ctx, BlobClientWithPupilData(),
-            NullLogger<LandingPageRepository>.Instance);
+        var sut = new LandingPageRepository(ctx, NullLogger<LandingPageRepository>.Instance);
 
         var windows = await sut.GetOpenWindowsAsync(Now, Laestab, CancellationToken.None);
 
@@ -127,8 +125,7 @@ public sealed class CheckingWindowExerciseProjectionTests : IAsyncLifetime
     public async Task The_landing_page_read_carries_the_next_opportunity()
     {
         await using var ctx = CreateContext();
-        var sut = new LandingPageRepository(ctx, BlobClientWithPupilData(),
-            NullLogger<LandingPageRepository>.Instance);
+        var sut = new LandingPageRepository(ctx, NullLogger<LandingPageRepository>.Instance);
 
         var windows = await sut.GetOpenWindowsAsync(Now, Laestab, CancellationToken.None);
 

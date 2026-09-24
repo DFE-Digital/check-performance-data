@@ -58,6 +58,10 @@ public sealed class CreateCheckingWindowController(ILogger<CreateCheckingWindowC
          };
         CheckingWindowDto window = await windowService.CreateAsync(checkingWindowDto, cancellationToken);
 
+        // The window exists now, so the draft is spent. Removed before the container step: if that
+        // fails, a kept draft would only let the admin create the same window a second time.
+        HttpContext.Session.RemoveObject("CheckingWindowDraft");
+
         if (!CreateWindowContainer(window.Id.ToString()))
         {
             return Problem("App storage is not configured.");

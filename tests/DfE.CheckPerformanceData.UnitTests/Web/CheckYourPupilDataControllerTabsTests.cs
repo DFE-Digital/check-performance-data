@@ -42,6 +42,7 @@ public sealed class CheckYourPupilDataControllerTabsTests
             .Returns((PupilTable.Empty, 0));
         _service.GetCheckingWindowAsync(WindowId).Returns(Window());
         _currentUser.OrganisationLaestab.Returns("933/4290");
+        _currentUser.OrganisationUrn.Returns("123456");
     }
 
     private CheckYourPupilDataController Controller()
@@ -60,7 +61,7 @@ public sealed class CheckYourPupilDataControllerTabsTests
     [Fact]
     public async Task ShowsTheExerciseTabsWhenTheWindowHasThem()
     {
-        _tabBuilder.BuildAsync(Arg.Any<CheckingWindowDto>(), Arg.Any<string?>(), Arg.Any<string?>(),
+        _tabBuilder.BuildAsync(Arg.Any<CheckingWindowDto>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string?>(),
                 Arg.Any<string?>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns([ATab()]);
 
@@ -73,7 +74,7 @@ public sealed class CheckYourPupilDataControllerTabsTests
     public async Task FallsBackToTheInclusionTabsWhenNoExerciseDrawsOne()
     {
         // Every KS2 and KS4 window today. The page must look exactly as it did.
-        _tabBuilder.BuildAsync(Arg.Any<CheckingWindowDto>(), Arg.Any<string?>(), Arg.Any<string?>(),
+        _tabBuilder.BuildAsync(Arg.Any<CheckingWindowDto>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string?>(),
                 Arg.Any<string?>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns([]);
 
@@ -86,7 +87,7 @@ public sealed class CheckYourPupilDataControllerTabsTests
     [Fact]
     public async Task DownloadsOneDatasetAsCsv()
     {
-        _tabBuilder.BuildAsync(Arg.Any<CheckingWindowDto>(), Arg.Any<string?>(), Arg.Any<string?>(),
+        _tabBuilder.BuildAsync(Arg.Any<CheckingWindowDto>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string?>(),
                 Arg.Any<string?>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns([ATab()]);
 
@@ -94,14 +95,15 @@ public sealed class CheckYourPupilDataControllerTabsTests
             await Controller().DownloadExerciseDataset(WindowId, ExerciseId, "students-included"));
 
         Assert.Equal("text/csv", result.ContentType);
-        Assert.Equal("students-included.csv", result.FileDownloadName);
+        // Named as the pupil CSVs always were: {prefix}-{urn}-{window type}-{year}.csv.
+        Assert.Equal($"students-included-123456-Post16-{Window().EndDate:yyyy}.csv", result.FileDownloadName);
     }
 
     [Fact]
     public async Task DownloadOfADatasetThatIsNotOnThisWindow_IsNotFound()
     {
         // The tabs are rebuilt for this school, so an id from another window reaches nothing.
-        _tabBuilder.BuildAsync(Arg.Any<CheckingWindowDto>(), Arg.Any<string?>(), Arg.Any<string?>(),
+        _tabBuilder.BuildAsync(Arg.Any<CheckingWindowDto>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string?>(),
                 Arg.Any<string?>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns([ATab()]);
 
@@ -114,7 +116,7 @@ public sealed class CheckYourPupilDataControllerTabsTests
     {
         // The JSON is what the supplier's file became. An admin chasing a data fault needs it
         // exactly as ingress wrote it, not reshaped by a schema.
-        _tabBuilder.BuildAsync(Arg.Any<CheckingWindowDto>(), Arg.Any<string?>(), Arg.Any<string?>(),
+        _tabBuilder.BuildAsync(Arg.Any<CheckingWindowDto>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string?>(),
                 Arg.Any<string?>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns([ATab()]);
         _tabBuilder.ReadRawAsync(Arg.Any<ExerciseTab>(), "933/4290", Arg.Any<CancellationToken>())

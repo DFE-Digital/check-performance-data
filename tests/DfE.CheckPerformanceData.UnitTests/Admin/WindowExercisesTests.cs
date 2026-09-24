@@ -248,6 +248,7 @@ public class WindowExercisesTests
         new()
         {
             ExerciseType = type,
+            TabName = "Tab",
             StartDate = new DateTime(2027, 1, 1),
             EndDate = new DateTime(2027, 1, 14),
             SortOrder = sortOrder,
@@ -256,7 +257,7 @@ public class WindowExercisesTests
 
     private static CheckingExerciseDto Dated(
         CheckingExerciseType type, DateTime start, DateTime end, int sortOrder) =>
-        new() { ExerciseType = type, StartDate = start, EndDate = end, SortOrder = sortOrder };
+        new() { ExerciseType = type, TabName = "Tab", StartDate = start, EndDate = end, SortOrder = sortOrder };
 
     private static CheckingWindowDatasetDto Dataset(string name, int sortOrder) =>
         new() { Name = name, SortOrder = sortOrder };

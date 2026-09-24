@@ -35,7 +35,7 @@
       },
       "x-display": {
         "label": "UPN",
-        "visible": true,
+        "visible": false,
         "order": 2,
         "searchable": true
       }
@@ -71,7 +71,7 @@
       "x-display": {
         "label": "CYPMD ID",
         "visible": true,
-        "order": 3
+        "order": 5
       }
     },
     "SURNAME": {
@@ -130,7 +130,7 @@
       "x-display": {
         "label": "Sex",
         "visible": true,
-        "order": 4
+        "order": 2
       }
     },
     "DOB": {
@@ -150,7 +150,7 @@
       "x-display": {
         "label": "Date of birth",
         "visible": true,
-        "order": 5
+        "order": 3
       }
     },
     "AGE": {
@@ -169,8 +169,8 @@
       },
       "x-display": {
         "label": "Age",
-        "visible": false,
-        "order": 6
+        "visible": true,
+        "order": 4
       }
     },
     "P_INCL": {
@@ -188,7 +188,7 @@
       },
       "x-display": {
         "label": "Inclusion status",
-        "visible": true,
+        "visible": false,
         "order": 7
       }
     },
@@ -328,7 +328,7 @@
     },
     "ACTYRGRP": {
       "type": [
-        "string",
+        "string", 
         "null"
       ],
       "maxLength": 2,
@@ -341,7 +341,7 @@
       },
       "x-display": {
         "label": "Year group",
-        "visible": true,
+        "visible": false,
         "order": 15
       }
     },

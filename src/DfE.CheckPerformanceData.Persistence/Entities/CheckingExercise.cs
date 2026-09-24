@@ -36,11 +36,8 @@ public sealed class CheckingExercise
     /// <summary>The admin's name for this exercise, shown as the tab's heading.</summary>
     public string? Name { get; set; }
 
-    /// <summary>
-    /// The tab label on Check Your Pupil Data. Null means the exercise draws no tab, which is what
-    /// keeps every window configured before #466 rendering exactly as it did.
-    /// </summary>
-    public string? TabName { get; set; }
+    /// <summary>The tab label on Check Your Pupil Data. Required: every exercise draws a tab.</summary>
+    public string TabName { get; set; } = string.Empty;
 
     /// <summary>Left-to-right order of the tabs.</summary>
     public int TabOrder { get; set; }
@@ -158,7 +155,7 @@ public sealed class CheckingExerciseConfiguration : IEntityTypeConfiguration<Che
             .HasDefaultValue(ExerciseLayout.Table);
 
         builder.Property(x => x.Name).HasMaxLength(200);
-        builder.Property(x => x.TabName).HasMaxLength(100);
+        builder.Property(x => x.TabName).HasMaxLength(100).IsRequired();
         builder.Property(x => x.VisibleFrom).HasColumnType("timestamp without time zone");
         builder.Property(x => x.VisibleUntil).HasColumnType("timestamp without time zone");
         builder.HasOne<CheckingExercise>().WithMany()

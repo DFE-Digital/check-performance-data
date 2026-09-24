@@ -9,4 +9,11 @@ public interface ICheckingDataReader
     Task<byte[]?> ReadDatasetAsync(CheckingDataExercise exercise, Guid datasetId, string laestab,
         CancellationToken cancellationToken);
     Task<byte[]?> ReadSchemaAsync(Guid windowId, string schemaFile, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The school has a file in what this exercise shows now: its merged file, or any dataset file
+    /// of its current release. A cheap existence check; nothing is downloaded.
+    /// </summary>
+    Task<bool> HasSchoolDataAsync(Guid windowId, CheckingExerciseDto exercise, string laestab,
+        CancellationToken cancellationToken);
 }

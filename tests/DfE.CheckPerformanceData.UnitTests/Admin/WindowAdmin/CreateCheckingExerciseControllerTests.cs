@@ -219,6 +219,37 @@ public sealed class CreateCheckingExerciseControllerTests
     };
 
     [Fact]
+    public async Task A_second_live_exercise_of_one_kind_is_rejected()
+    {
+        _window.Exercises[0] = Live(_window.Exercises[0], from: null, until: null);
+        var model = Valid();
+        Validate(model);
+
+        Assert.IsType<ViewResult>(await _controller.Submit(_window.Id, model, default));
+
+        Assert.True(_controller.ModelState.ContainsKey(nameof(model.IsEnabled)));
+        await _service.DidNotReceiveWithAnyArgs().UpdateAsync(default!, default);
+    }
+
+    [Fact]
+    public async Task A_release_that_starts_when_the_live_one_ends_is_allowed()
+    {
+        _window.Exercises[0] = Live(_window.Exercises[0], from: null, until: Today);
+        var model = Valid();
+        model.VisibleFrom = Today;
+        Validate(model);
+
+        Assert.IsType<RedirectToActionResult>(await _controller.Submit(_window.Id, model, default));
+    }
+
+    internal static CheckingExerciseDto Live(CheckingExerciseDto e, DateTime? from, DateTime? until) => new()
+    {
+        Id = e.Id, Name = e.Name, ExerciseType = e.ExerciseType, TabName = e.TabName, IsEnabled = true,
+        VisibleFrom = from, VisibleUntil = until,
+        StartDate = e.StartDate, EndDate = e.EndDate, SortOrder = e.SortOrder
+    };
+
+    [Fact]
     public async Task Display_only_summary_can_be_created_without_an_exercise_type()
     {
         var model = Valid();
@@ -260,7 +291,7 @@ public sealed class CreateCheckingExerciseControllerTests
         Exercises = [new CheckingExerciseDto
         {
             Id = Guid.NewGuid(), Name = "Provisional students", ExerciseType = CheckingExerciseType.PupilData,
-            StartDate = Today, EndDate = Today.AddDays(5), SortOrder = 0
+            TabName = "Provisional", StartDate = Today, EndDate = Today.AddDays(5), SortOrder = 0
         }]
     };
 

@@ -63,7 +63,7 @@
     </div>
 
     <govuk-input for="TabName">
-        <govuk-input-label>Tab name@(Model.TabNameOptional ? " (optional)" : "")</govuk-input-label>
+        <govuk-input-label>Tab name</govuk-input-label>
         <govuk-input-hint>The label shown to schools, for example Students or Results.</govuk-input-hint>
         <govuk-input-error-message asp-validation-for="TabName" />
     </govuk-input>
@@ -101,6 +101,11 @@
                     <input class="govuk-radios__input" id="Layout-Vertical" name="Layout" type="radio" value="@ExerciseLayout.Vertical" checked="@(Model.Layout == ExerciseLayout.Vertical)" aria-describedby="Layout-Vertical-hint" />
                     <label class="govuk-label govuk-radios__label" for="Layout-Vertical">Summary list</label>
                     <div class="govuk-hint govuk-radios__hint" id="Layout-Vertical-hint">One record for each school, shown as labels and values. Use this for a summary.</div>
+                </div>
+                <div class="govuk-radios__item">
+                    <input class="govuk-radios__input" id="Layout-InclusionTabs" name="Layout" type="radio" value="@ExerciseLayout.InclusionTabs" checked="@(Model.Layout == ExerciseLayout.InclusionTabs)" aria-describedby="Layout-InclusionTabs-hint" />
+                    <label class="govuk-label govuk-radios__label" for="Layout-InclusionTabs">Included and non-included tabs</label>
+                    <div class="govuk-hint govuk-radios__hint" id="Layout-InclusionTabs-hint">Two tables, each on its own tab: "[tab name] Included" and "[tab name] Non Included". A pupil is put on a tab by P_INCL, or by the file's inclusion setting. Use this for KS4 pupil data.</div>
                 </div>
             </div>
         </fieldset>

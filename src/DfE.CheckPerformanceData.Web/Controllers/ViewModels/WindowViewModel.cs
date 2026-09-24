@@ -6,6 +6,9 @@ namespace DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 public class WindowViewModel(IReadOnlyList<WindowListItem> windows)
 {
     public IReadOnlyList<WindowListItem> Windows { get; } = windows;
+
+    /// <summary>The user holds the new-window section, so the page offers the New window button.</summary>
+    public bool CanCreateWindow { get; init; }
 }
 
 public class WindowListItem
@@ -99,7 +102,7 @@ public sealed class ExerciseSummarySection
     /// which is the admin's own label for this exercise.</summary>
     public required string KindLabel { get; init; }
 
-    public string? TabName { get; init; }
+    public required string TabName { get; init; }
     public bool IsEnabled { get; init; }
     public required DateTime StartDate { get; init; }
     public required DateTime EndDate { get; init; }

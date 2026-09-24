@@ -242,6 +242,68 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
         Assert.Equal(501, alice["P_INCL"]!.Value<int>());
     }
 
+    // The KS4 supplier file has no P_INCL_DESC column, but the school's CSV shows it as "Pupil
+    // Inclusion description". Ingress fills it in from P_INCL when the schema declares it.
+    private const string Ks4SchemaWithDescription = """
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "SURNAME":     { "type": ["string", "null"] },
+        "LAESTAB":     { "type": ["string", "null"] },
+        "P_INCL":      { "type": ["string", "null"] },
+        "P_INCL_DESC": { "type": ["string", "null"] }
+      }
+    }
+    """;
+
+    [Theory]
+    [InlineData("SURNAME,LAESTAB,P_INCL\nSmith,8604070,401\n",
+        "Pupil on roll and included in key stage 4 (both NOR and results).")]
+    [InlineData("SURNAME,LAESTAB,P_INCL\nSmith,8604070,402\n",
+        "Pupil not on roll and omitted from all figures to be published.")]
+    [InlineData("SURNAME,LAESTAB,P_INCL,P_INCL_DESC\nSmith,8604070,401,From the supplier\n",
+        "From the supplier")]
+    public async Task A_ks4_run_stamps_the_inclusion_description_from_P_INCL(string csv, string description)
+    {
+        var windowId = Guid.NewGuid();
+        var container = await SeedWindowAsync(windowId,
+            ("ingress/pupils.csv", csv),
+            ("schema/ks4.json", Ks4SchemaWithDescription));
+
+        IReadOnlyList<IngressDataset> datasets =
+        [
+            new("pupils", "pupils.csv", Checksum(csv), "ks4.json", Checksum(Ks4SchemaWithDescription), Included: null)
+        ];
+
+        var progress = await DrainAsync(Processor().ProcessAsync(windowId, CheckingExerciseType.PupilData, datasets));
+
+        Assert.False(progress[^1].IsError);
+        var pupil = Assert.Single((await ReadPupilsAsync(container, "8604070"))!.Children<JObject>());
+        Assert.Equal(description, pupil["P_INCL_DESC"]!.Value<string>());
+    }
+
+    [Fact]
+    public async Task An_unknown_P_INCL_code_leaves_the_inclusion_description_empty()
+    {
+        const string csv = "SURNAME,LAESTAB,P_INCL\nSmith,8604070,999\n";
+        var windowId = Guid.NewGuid();
+        var container = await SeedWindowAsync(windowId,
+            ("ingress/pupils.csv", csv),
+            ("schema/ks4.json", Ks4SchemaWithDescription));
+
+        IReadOnlyList<IngressDataset> datasets =
+        [
+            new("pupils", "pupils.csv", Checksum(csv), "ks4.json", Checksum(Ks4SchemaWithDescription), Included: null)
+        ];
+
+        var progress = await DrainAsync(Processor().ProcessAsync(windowId, CheckingExerciseType.PupilData, datasets));
+
+        Assert.False(progress[^1].IsError);
+        var pupil = Assert.Single((await ReadPupilsAsync(container, "8604070"))!.Children<JObject>());
+        Assert.True(string.IsNullOrEmpty(pupil["P_INCL_DESC"]?.Value<string>()));
+    }
+
     [Fact]
     public async Task A_dataset_with_no_marker_does_not_claim_inclusion_when_the_schema_declares_it()
     {

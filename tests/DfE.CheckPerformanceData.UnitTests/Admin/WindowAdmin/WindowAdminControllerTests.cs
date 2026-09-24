@@ -1,10 +1,14 @@
+using System.Security.Claims;
+using DfE.CheckPerformanceData.Application.Admin;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Infrastructure.QuestionFlow;
+using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Web.Controllers;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 
@@ -47,7 +51,7 @@ public class WindowAdminControllerTests
                 }]
             }]
         });
-        var controller = new WindowAdminController(service, flows, new FixedClock(now));
+        var controller = Controller(service, flows, new FixedClock(now), Substitute.For<IAdminAccessPolicy>());
 
         var result = Assert.IsType<ViewResult>(await controller.Index(CancellationToken.None));
         var model = Assert.IsType<WindowViewModel>(result.Model);
@@ -79,6 +83,31 @@ public class WindowAdminControllerTests
             Directory.Delete(root, true);
         }
     }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Index_offers_a_new_window_button_only_to_a_user_who_may_create_one(bool allowed)
+    {
+        // The "Create new window" nav entry is gone; this button is the way in. The wizard's
+        // create steps are gated on NewWindow, so a user without it must not be shown the door.
+        var service = Substitute.For<IWindowService>();
+        service.GetAllDataAsync(Arg.Any<CancellationToken>()).Returns(new PageResult { Windows = [] });
+        var policy = Substitute.For<IAdminAccessPolicy>();
+        policy.CanAccessAsync(Arg.Any<ClaimsPrincipal>(), AdminNavKeys.NewWindow).Returns(allowed);
+        var controller = Controller(service, Substitute.For<IQuestionFlowConfigSource>(), TimeProvider.System, policy);
+
+        var result = Assert.IsType<ViewResult>(await controller.Index(CancellationToken.None));
+
+        Assert.Equal(allowed, Assert.IsType<WindowViewModel>(result.Model).CanCreateWindow);
+    }
+
+    private static WindowAdminController Controller(IWindowService service, IQuestionFlowConfigSource flows,
+        TimeProvider clock, IAdminAccessPolicy policy) =>
+        new(service, flows, clock, policy)
+        {
+            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
+        };
 
     private sealed class FixedClock(DateTimeOffset now) : TimeProvider
     {

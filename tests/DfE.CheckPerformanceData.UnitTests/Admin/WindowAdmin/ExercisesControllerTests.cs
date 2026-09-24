@@ -229,8 +229,7 @@ public class ExercisesControllerTests
     private static CheckingWindowDraft Draft(CheckingWindowType type) => new()
     {
         Title = "A window",
-        CheckingWindowType = type,
-        KeyStage = KeyStages.KS4
+        CheckingWindowType = type
     };
 
     private static ISession SessionWithDraft(CheckingWindowDraft draft)

@@ -6,7 +6,12 @@ namespace DfE.CheckPerformanceData.Application.CheckYourPupilData;
 
 public interface IExerciseTabBuilder
 {
-    Task<IReadOnlyList<ExerciseTab>> BuildAsync(CheckingWindowDto window, string? laestab,
+    /// <param name="activeTab">
+    /// The <see cref="ExerciseTab.Key"/> the dataset, search and page belong to. Every other tab
+    /// starts on its first dataset, with no search, on its first page. Null applies them to every
+    /// tab, which is how a link from before tab keys existed still works.
+    /// </param>
+    Task<IReadOnlyList<ExerciseTab>> BuildAsync(CheckingWindowDto window, string? laestab, string? activeTab,
         string? selectedDataset, string? search, int page, int pageSize, CancellationToken cancellationToken);
 
     /// <summary>
@@ -23,23 +28,22 @@ public interface IExerciseTabBuilder
 /// visible, what each holds for this school, and how its schemas ask to be shown.
 /// </summary>
 /// <remarks>
-/// An empty result means this window's exercises draw no tabs, which is every window configured
-/// before #466. The page falls back to its inclusion tabs, so a window that has not been given
-/// exercises keeps working exactly as it did.
+/// An empty result means no exercise of this window is visible now. The page then falls back to
+/// its inclusion tabs.
 /// </remarks>
 public sealed class ExerciseTabBuilder(ICheckingDataReader reader, IExerciseDisplayService display,
     TimeProvider clock, ILogger<ExerciseTabBuilder> logger) : IExerciseTabBuilder
 {
     public async Task<IReadOnlyList<ExerciseTab>> BuildAsync(CheckingWindowDto window, string? laestab,
-        string? selectedDataset, string? search, int page, int pageSize, CancellationToken cancellationToken)
+        string? activeTab, string? selectedDataset, string? search, int page, int pageSize,
+        CancellationToken cancellationToken)
     {
         var now = clock.GetLocalNow().DateTime;
+        var noun = LearnerNoun.For(window.CheckingWindowType);
 
-        // A row with no tab name draws no tab. That is what keeps the fallback reachable.
         var visible = window.Exercises
-            .Where(e => !string.IsNullOrWhiteSpace(e.TabName))
             .Select(e => new CheckingDataExercise(e.Id, window.Id,
-                e.Name ?? e.TabName!, e.TabName!, e.TabOrder, e.ExerciseType, window.KeyStage,
+                e.Name ?? e.TabName, e.TabName, e.TabOrder, e.ExerciseType, window.KeyStage,
                 e.IsEnabled, e.VisibleFrom, e.VisibleUntil, window.StartDate, window.EndDate,
                 e.StartDate, e.EndDate, e.ReplacesCheckingExerciseId, e.UsesExerciseStorage, e.DisplayOnly,
                 e.CurrentReleaseId))
@@ -52,10 +56,11 @@ public sealed class ExerciseTabBuilder(ICheckingDataReader reader, IExerciseDisp
         {
             var source = window.Exercises.Single(e => e.Id == exercise.Id);
             var published = source.PublishedDatasets;
+            var shapes = ShapesFor(exercise, source.Layout);
 
             if (string.IsNullOrWhiteSpace(laestab))
             {
-                tabs.Add(new ExerciseTab(exercise, [], false) { PublishedDatasets = published });
+                tabs.AddRange(shapes.Select(shape => Empty(exercise, shape, published, noun)));
                 continue;
             }
 
@@ -87,7 +92,7 @@ public sealed class ExerciseTabBuilder(ICheckingDataReader reader, IExerciseDisp
             {
                 // The tab stays. A school seeing an empty tab knows the exercise exists and holds
                 // nothing for them yet; a missing tab tells them nothing at all.
-                tabs.Add(new ExerciseTab(exercise, [], false) { PublishedDatasets = published });
+                tabs.AddRange(shapes.Select(shape => Empty(exercise, shape, published, noun)));
                 continue;
             }
 
@@ -137,19 +142,71 @@ public sealed class ExerciseTabBuilder(ICheckingDataReader reader, IExerciseDisp
                     exercise.Id, verticalRows.Count, laestab);
             }
 
-            tabs.Add(new ExerciseTab(exercise, rows, true)
+            foreach (var shape in shapes)
             {
-                PublishedDatasets = published,
-                SchemaUnavailable = schemaUnavailable,
-                Table = hasSchemas && !vertical
-                    ? display.BuildTable(rows, definitions, selectedDataset, search, page, pageSize)
-                    : null,
-                Vertical = vertical ? display.BuildVertical(verticalRows, definitions[0]) : null
-            });
+                // An inclusion tab holds only its own pupils, and names its datasets for itself, so
+                // its heading, its download and its file in the download-all zip are its own. It
+                // keeps the names and the surname, forename order the pupil CSVs had before
+                // exercises: "pupil-include" and "pupil-non-include". The controller adds the
+                // school and window to the name.
+                var tabRows = shape.Included is { } included
+                    ? rows.Where(r => PupilInclusion.IsIncluded(r) == included)
+                        .OrderBy(r => r.GetValueOrDefault("SURNAME", ""))
+                        .ThenBy(r => r.GetValueOrDefault("FORENAME", ""))
+                        .ToList()
+                    : rows;
+                var tabDefinitions = shape.Included is null
+                    ? definitions
+                    : definitions.Select(d => d with
+                    {
+                        Label = $"{d.Label} {shape.Suffix}",
+                        FileName = definitions.Count == 1
+                            ? $"pupil-{shape.FileSuffix}.csv"
+                            : $"{Path.GetFileNameWithoutExtension(d.FileName)}-{shape.FileSuffix}{Path.GetExtension(d.FileName)}"
+                    }).ToList();
+                var active = activeTab is null || activeTab == shape.Key;
+
+                tabs.Add(new ExerciseTab(exercise, tabRows, true)
+                {
+                    Key = shape.Key,
+                    Label = shape.Label,
+                    Included = shape.Included,
+                    LearnerNoun = noun,
+                    PublishedDatasets = published,
+                    SchemaUnavailable = schemaUnavailable,
+                    Table = hasSchemas && !vertical
+                        ? display.BuildTable(tabRows, tabDefinitions, active ? selectedDataset : null,
+                            active ? search : null, active ? page : 0, pageSize)
+                        : null,
+                    Vertical = vertical ? display.BuildVertical(verticalRows, definitions[0]) : null
+                });
+            }
         }
 
         return tabs;
     }
+
+    // One tab per exercise, except under InclusionTabs: an included tab and a non-included tab.
+    private static IReadOnlyList<TabShape> ShapesFor(CheckingDataExercise exercise, ExerciseLayout layout) =>
+        layout == ExerciseLayout.InclusionTabs
+            ?
+            [
+                new TabShape($"exercise-{exercise.Id}-included", $"{exercise.TabName} Included",
+                    true, "Included", "include"),
+                new TabShape($"exercise-{exercise.Id}-nonincluded", $"{exercise.TabName} Non Included",
+                    false, "Non Included", "non-include")
+            ]
+            : [new TabShape($"exercise-{exercise.Id}", exercise.TabName, null, "", "")];
+
+    private static ExerciseTab Empty(CheckingDataExercise exercise, TabShape shape,
+        IReadOnlyList<CheckingWindowDatasetDto> published, LearnerNoun noun) =>
+        new(exercise, [], false)
+        {
+            Key = shape.Key, Label = shape.Label, Included = shape.Included, LearnerNoun = noun,
+            PublishedDatasets = published
+        };
+
+    private sealed record TabShape(string Key, string Label, bool? Included, string Suffix, string FileSuffix);
 
     public async Task<byte[]?> ReadRawAsync(ExerciseTab tab, string laestab, CancellationToken cancellationToken)
     {

@@ -28,15 +28,36 @@ public class WindowService(IWindowRepository windowRepository, TimeProvider time
     public async Task UpdateAsync(CheckingWindowDto window, CancellationToken cancellationToken)
     {
         EnsureDatasetsMatchType(window);
+        EnsureExercisesAreValid(window);
         window.DeriveDatesFromExercises();
+        window.DeriveKeyStageFromWindowType();
         await windowRepository.UpdateAsync(window, cancellationToken);
     }
 
     public async Task<CheckingWindowDto> CreateAsync(CheckingWindowDto window, CancellationToken cancellationToken)
     {
         EnsureDatasetsMatchType(window);
+        EnsureExercisesAreValid(window);
         window.DeriveDatesFromExercises();
+        window.DeriveKeyStageFromWindowType();
         return await windowRepository.CreateAsync(window, cancellationToken);
+    }
+
+    /// <summary>
+    /// The last guard before a save. The admin pages validate the same rules and show a form error;
+    /// this refuses a caller that skipped them. Every exercise has a tab name, and a window never
+    /// has two live exercises of one kind (see <see cref="LiveExercises"/>).
+    /// </summary>
+    private static void EnsureExercisesAreValid(CheckingWindowDto window)
+    {
+        if (window.Exercises.FirstOrDefault(e => string.IsNullOrWhiteSpace(e.TabName)) is { } unnamed)
+            throw new InvalidOperationException(
+                $"Checking exercise {unnamed.Id} ({unnamed.ExerciseType}) has no tab name.");
+
+        if (LiveExercises.FindAnyClash(window.Exercises) is var (first, second))
+            throw new InvalidOperationException(
+                $"Checking exercises {first.Id} and {second.Id} are both live {first.ExerciseType} exercises " +
+                "with overlapping visibility.");
     }
 
     /// <summary>
@@ -64,6 +85,7 @@ public class WindowService(IWindowRepository windowRepository, TimeProvider time
             window.Exercises.Add(new CheckingExerciseDto
             {
                 ExerciseType = CheckingExerciseType.PupilData,
+                TabName = WindowExercises.DefaultTabName(window.CheckingWindowType, CheckingExerciseType.PupilData),
                 StartDate = window.StartDate,
                 EndDate = window.EndDate,
                 SortOrder = WindowExercises.SortOrderFor(CheckingExerciseType.PupilData)

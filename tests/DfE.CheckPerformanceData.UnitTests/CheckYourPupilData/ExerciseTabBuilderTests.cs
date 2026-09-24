@@ -26,7 +26,7 @@ public sealed class ExerciseTabBuilderTests
 
     // Datasets carries one complete slot by default so the tests that read a school's file also
     // reach the schema-reading step; AnExerciseWithNoSchemas turns it off explicitly.
-    private static CheckingExerciseDto Exercise(string? tabName = "Students", bool enabled = true,
+    private static CheckingExerciseDto Exercise(string tabName = "Students", bool enabled = true,
         ExerciseLayout layout = ExerciseLayout.Table) => new()
     {
         Id = Guid.NewGuid(), ExerciseType = CheckingExerciseType.PupilData, Layout = layout,
@@ -43,10 +43,9 @@ public sealed class ExerciseTabBuilderTests
     };
 
     [Fact]
-    public async Task AWindowWhoseExercisesDrawNoTabs_BuildsNoTabs()
+    public async Task AWindowWithNoVisibleExercise_BuildsNoTabs()
     {
-        // This is every window configured before #466. The page must fall back to its old tabs.
-        var tabs = await Builder().BuildAsync(Window(Exercise(tabName: null)), "933/4290", null, null, 0, 10, default);
+        var tabs = await Builder().BuildAsync(Window(Exercise(enabled: false)), "933/4290", null, null, null, 0, 10, default);
 
         Assert.Empty(tabs);
     }
@@ -59,7 +58,7 @@ public sealed class ExerciseTabBuilderTests
         _reader.ReadAsync(Arg.Any<CheckingDataExercise>(), "933/4290", Arg.Any<CancellationToken>())
             .Returns((byte[]?)null);
 
-        var tab = Assert.Single(await Builder().BuildAsync(Window(Exercise()), "933/4290", null, null, 0, 10, default));
+        var tab = Assert.Single(await Builder().BuildAsync(Window(Exercise()), "933/4290", null, null, null, 0, 10, default));
 
         Assert.False(tab.HasData);
         Assert.Empty(tab.Rows);
@@ -73,7 +72,7 @@ public sealed class ExerciseTabBuilderTests
         _reader.ReadAsync(Arg.Any<CheckingDataExercise>(), "933/4290", Arg.Any<CancellationToken>())
             .Returns(Encoding.UTF8.GetBytes("""[{"ULN":"1","SURNAME":"Smith"}]"""));
 
-        var tab = Assert.Single(await Builder().BuildAsync(Window(exercise), "933/4290", null, null, 0, 10, default));
+        var tab = Assert.Single(await Builder().BuildAsync(Window(exercise), "933/4290", null, null, null, 0, 10, default));
 
         Assert.Null(tab.Table);
         Assert.Null(tab.Vertical);
@@ -89,7 +88,7 @@ public sealed class ExerciseTabBuilderTests
         _reader.ReadSchemaAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns((byte[]?)null);
 
-        var tab = Assert.Single(await Builder().BuildAsync(Window(exercise), "933/4290", null, null, 0, 10, default));
+        var tab = Assert.Single(await Builder().BuildAsync(Window(exercise), "933/4290", null, null, null, 0, 10, default));
 
         Assert.True(tab.SchemaUnavailable);
     }
@@ -111,7 +110,7 @@ public sealed class ExerciseTabBuilderTests
         _reader.ReadSchemaAsync(Arg.Any<Guid>(), "s.json", Arg.Any<CancellationToken>())
             .Returns(Encoding.UTF8.GetBytes("""{"properties":{"ULN":{"x-display":{"label":"ULN"}}}}"""));
 
-        var tab = Assert.Single(await Builder().BuildAsync(Window(exercise), "933/4290", null, null, 0, 10, default));
+        var tab = Assert.Single(await Builder().BuildAsync(Window(exercise), "933/4290", null, null, null, 0, 10, default));
 
         Assert.NotNull(tab.Vertical);
         Assert.Null(tab.Table);
@@ -138,7 +137,7 @@ public sealed class ExerciseTabBuilderTests
                 {"x-display":{"layout":"vertical"},"properties":{"ULN":{"x-display":{"label":"ULN"}}}}
                 """));
 
-        var tab = Assert.Single(await Builder().BuildAsync(Window(exercise), "933/4290", null, null, 0, 10, default));
+        var tab = Assert.Single(await Builder().BuildAsync(Window(exercise), "933/4290", null, null, null, 0, 10, default));
 
         Assert.NotNull(tab.Table);
         Assert.Null(tab.Vertical);
@@ -174,7 +173,7 @@ public sealed class ExerciseTabBuilderTests
                 {"properties":{"SURNAME":{"x-display":{"label":"Surname"}}}}
                 """));
 
-        var tab = Assert.Single(await Builder().BuildAsync(Window(exercise), "933/4290", null, null, 0, 10, default));
+        var tab = Assert.Single(await Builder().BuildAsync(Window(exercise), "933/4290", null, null, null, 0, 10, default));
 
         Assert.NotNull(tab.Table);
         Assert.Null(tab.Vertical);
@@ -201,9 +200,152 @@ public sealed class ExerciseTabBuilderTests
         _reader.ReadAsync(Arg.Any<CheckingDataExercise>(), "933/4290", Arg.Any<CancellationToken>())
             .Returns((byte[]?)null);
 
-        var tabs = await Builder().BuildAsync(window, "933/4290", null, null, 0, 10, default);
+        var tabs = await Builder().BuildAsync(window, "933/4290", null, null, null, 0, 10, default);
 
         Assert.Equal(["First", "Second"], tabs.Select(t => t.Exercise.Name));
+    }
+
+    // KS4 sends one pupils file, and each record carries its own P_INCL. 401 is an included code,
+    // 402 is not, and a record with no P_INCL is not included.
+    private CheckingExerciseDto AnInclusionTabsExercise()
+    {
+        var exercise = Exercise(tabName: "Pupils", layout: ExerciseLayout.InclusionTabs);
+        exercise.Datasets =
+        [
+            new CheckingWindowDatasetDto
+            {
+                Name = "pupils", IngressFile = "p.csv", IngressFileChecksum = "1",
+                SchemaFile = "p.json", SchemaFileChecksum = "2"
+            }
+        ];
+        _reader.ReadAsync(Arg.Any<CheckingDataExercise>(), "933/4290", Arg.Any<CancellationToken>())
+            .Returns(Encoding.UTF8.GetBytes("""
+                [{"SURNAME":"Adams","P_INCL":"401"},{"SURNAME":"Brown","P_INCL":402},
+                 {"SURNAME":"Clark"},{"SURNAME":"Davis","P_INCL":"431"}]
+                """));
+        _reader.ReadSchemaAsync(Arg.Any<Guid>(), "p.json", Arg.Any<CancellationToken>())
+            .Returns(Encoding.UTF8.GetBytes("""
+                {"x-ingress":{"collection":"pupils"},"x-download":{"fileName":"ks4pupils.csv","label":"Pupils"},
+                 "properties":{"SURNAME":{"x-display":{"label":"Surname","searchable":true}}}}
+                """));
+        return exercise;
+    }
+
+    [Fact]
+    public async Task AnInclusionTabsExercise_DrawsAnIncludedTabAndANonIncludedTab()
+    {
+        var exercise = AnInclusionTabsExercise();
+
+        var tabs = await Builder().BuildAsync(Window(exercise), "933/4290", null, null, null, 0, 10, default);
+
+        Assert.Equal(["Pupils Included", "Pupils Non Included"], tabs.Select(t => t.Label));
+        Assert.Equal([$"exercise-{exercise.Id}-included", $"exercise-{exercise.Id}-nonincluded"],
+            tabs.Select(t => t.Key));
+        Assert.Equal(["Adams", "Davis"], tabs[0].Table!.Rows.Select(r => r["SURNAME"]));
+        Assert.Equal(["Brown", "Clark"], tabs[1].Table!.Rows.Select(r => r["SURNAME"]));
+    }
+
+    [Fact]
+    public async Task AnInclusionTab_DownloadsOnlyItsOwnPupils_UnderItsOwnFileName()
+    {
+        // The download-all zip holds every tab's CSV, so the two must not share a file name.
+        var tabs = await Builder().BuildAsync(Window(AnInclusionTabsExercise()), "933/4290", null, null, null, 0, 10, default);
+
+        var included = Assert.Single(tabs[0].Table!.Datasets);
+        var nonIncluded = Assert.Single(tabs[1].Table!.Datasets);
+        Assert.Equal(2, included.Rows.Count);
+        Assert.Equal(2, nonIncluded.Rows.Count);
+        Assert.NotEqual(included.FileName, nonIncluded.FileName);
+        Assert.Equal("Pupils Included", included.Label);
+    }
+
+    [Fact]
+    public async Task AnInclusionTab_KeepsThePupilCsvNamesAndOrder()
+    {
+        // The names and order the pupil CSVs had before exercises. The controller adds the
+        // school, window type and year.
+        var exercise = AnInclusionTabsExercise();
+        _reader.ReadAsync(Arg.Any<CheckingDataExercise>(), "933/4290", Arg.Any<CancellationToken>())
+            .Returns(Encoding.UTF8.GetBytes("""
+                [{"SURNAME":"Smith","FORENAME":"Bob","P_INCL":"401"},
+                 {"SURNAME":"Adams","FORENAME":"Zoe","P_INCL":"401"},
+                 {"SURNAME":"Smith","FORENAME":"Amy","P_INCL":"401"}]
+                """));
+
+        var tabs = await Builder().BuildAsync(Window(exercise), "933/4290", null, null, null, 0, 10, default);
+
+        Assert.Equal("pupil-include.csv", tabs[0].Table!.Datasets[0].FileName);
+        Assert.Equal("pupil-non-include.csv", tabs[1].Table!.Datasets[0].FileName);
+        Assert.Equal(["Adams Zoe", "Smith Amy", "Smith Bob"],
+            tabs[0].Table!.Datasets[0].Rows.Select(r => $"{r["SURNAME"]} {r["FORENAME"]}"));
+    }
+
+    [Fact]
+    public async Task AnIncludedStamp_DecidesInclusionBeforePIncl()
+    {
+        // A file stamped by its slot (INCLUDED) was placed by the admin; the stamp wins.
+        var exercise = AnInclusionTabsExercise();
+        _reader.ReadAsync(Arg.Any<CheckingDataExercise>(), "933/4290", Arg.Any<CancellationToken>())
+            .Returns(Encoding.UTF8.GetBytes("""[{"SURNAME":"Adams","P_INCL":"402","INCLUDED":true}]"""));
+
+        var tabs = await Builder().BuildAsync(Window(exercise), "933/4290", null, null, null, 0, 10, default);
+
+        Assert.Single(tabs[0].Table!.Rows);
+        Assert.Empty(tabs[1].Table!.Rows);
+    }
+
+    [Fact]
+    public async Task ASearch_AppliesOnlyToTheTabItWasMadeOn()
+    {
+        var exercise = AnInclusionTabsExercise();
+
+        var tabs = await Builder().BuildAsync(Window(exercise), "933/4290",
+            $"exercise-{exercise.Id}-nonincluded", null, "Clark", 0, 10, default);
+
+        Assert.Equal(["Adams", "Davis"], tabs[0].Table!.Rows.Select(r => r["SURNAME"]));
+        Assert.Null(tabs[0].Table!.Search);
+        Assert.Equal(["Clark"], tabs[1].Table!.Rows.Select(r => r["SURNAME"]));
+    }
+
+    [Fact]
+    public async Task AnInclusionTabsExerciseWithNoDataForThisSchool_StillDrawsBothTabs()
+    {
+        var exercise = AnInclusionTabsExercise();
+        _reader.ReadAsync(Arg.Any<CheckingDataExercise>(), "933/4290", Arg.Any<CancellationToken>())
+            .Returns((byte[]?)null);
+
+        var tabs = await Builder().BuildAsync(Window(exercise), "933/4290", null, null, null, 0, 10, default);
+
+        Assert.Equal(["Pupils Included", "Pupils Non Included"], tabs.Select(t => t.Label));
+        Assert.All(tabs, t => Assert.False(t.HasData));
+    }
+
+    [Theory]
+    [InlineData(CheckingWindowType.KS4June, "pupil")]
+    [InlineData(CheckingWindowType.Post16, "student")]
+    public async Task EveryTab_CarriesItsWindowsLearnerNoun(CheckingWindowType type, string noun)
+    {
+        // The table partial is shared by every key stage, so its wording comes from the tab.
+        var window = Window(AnInclusionTabsExercise());
+        window.CheckingWindowType = type;
+
+        var tabs = await Builder().BuildAsync(window, "933/4290", null, null, null, 0, 10, default);
+        var noLaestab = await Builder().BuildAsync(window, null, null, null, null, 0, 10, default);
+
+        Assert.All(tabs.Concat(noLaestab), t => Assert.Equal(noun, t.LearnerNoun.Singular));
+    }
+
+    [Fact]
+    public async Task ATableExercise_KeepsOneTabNamedByItsTabName()
+    {
+        var exercise = Exercise(tabName: "Students");
+        _reader.ReadAsync(Arg.Any<CheckingDataExercise>(), "933/4290", Arg.Any<CancellationToken>())
+            .Returns((byte[]?)null);
+
+        var tab = Assert.Single(await Builder().BuildAsync(Window(exercise), "933/4290", null, null, null, 0, 10, default));
+
+        Assert.Equal("Students", tab.Label);
+        Assert.Equal($"exercise-{exercise.Id}", tab.Key);
     }
 
     private sealed class FakeTimeProvider(DateTimeOffset now) : TimeProvider
@@ -251,7 +393,7 @@ public sealed class ExerciseTabBuilderTests
         _reader.ReadSchemaAsync(Arg.Any<Guid>(), "new.json", Arg.Any<CancellationToken>())
             .Returns(Encoding.UTF8.GetBytes("""{"properties":{"ULN":{"x-display":{"label":"New label"}}}}"""));
 
-        var tab = Assert.Single(await Builder().BuildAsync(Window(withRelease), "933/4290", null, null, 0, 10, default));
+        var tab = Assert.Single(await Builder().BuildAsync(Window(withRelease), "933/4290", null, null, null, 0, 10, default));
 
         Assert.True(tab.HasData);
         Assert.Equal("Old label", Assert.Single(tab.Vertical!.Fields).Label);
@@ -279,7 +421,7 @@ public sealed class ExerciseTabBuilderTests
         _reader.ReadSchemaAsync(Arg.Any<Guid>(), "b.json", Arg.Any<CancellationToken>())
             .Returns(Encoding.UTF8.GetBytes("""{"x-ingress":{"collection":"share-b"},"properties":{"ULN":{},"NAME":{}}}"""));
 
-        var tab = Assert.Single(await Builder().BuildAsync(Window(exercise), "933/4290", "share-b", null, 0, 10, default));
+        var tab = Assert.Single(await Builder().BuildAsync(Window(exercise), "933/4290", null, "share-b", null, 0, 10, default));
 
         var datasets = tab.Table!.Datasets.ToDictionary(d => d.Key);
         Assert.Equal(["1"], datasets["share-a"].Rows.Select(r => r["ULN"]));
@@ -300,7 +442,7 @@ public sealed class ExerciseTabBuilderTests
         _reader.ReadSchemaAsync(Arg.Any<Guid>(), "d.json", Arg.Any<CancellationToken>())
             .Returns(Encoding.UTF8.GetBytes("""{"properties":{"ULN":{}}}"""));
 
-        var tab = Assert.Single(await Builder().BuildAsync(Window(exercise), "933/4290", null, null, 0, 10, default));
+        var tab = Assert.Single(await Builder().BuildAsync(Window(exercise), "933/4290", null, null, null, 0, 10, default));
 
         Assert.True(tab.HasData);
         await _reader.DidNotReceiveWithAnyArgs().ReadDatasetAsync(default!, default, default!, default);
@@ -317,7 +459,7 @@ public sealed class ExerciseTabBuilderTests
             .Returns(Encoding.UTF8.GetBytes("""[{"ULN":"1"}]"""));
         _reader.ReadSchemaAsync(Arg.Any<Guid>(), "a.json", Arg.Any<CancellationToken>())
             .Returns(Encoding.UTF8.GetBytes("""{"properties":{"ULN":{}}}"""));
-        var tab = Assert.Single(await Builder().BuildAsync(Window(exercise), "933/4290", null, null, 0, 10, default));
+        var tab = Assert.Single(await Builder().BuildAsync(Window(exercise), "933/4290", null, null, null, 0, 10, default));
 
         var raw = await Builder().ReadRawAsync(tab, "933/4290", default);
 

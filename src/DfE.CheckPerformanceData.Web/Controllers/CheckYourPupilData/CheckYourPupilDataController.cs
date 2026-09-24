@@ -33,7 +33,7 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         Guid windowId,
         int includedPage = 0, int nonIncludedPage = 0, int resultsPage = 0,
         string? includedSearch = null, string? nonIncludedSearch = null, string? resultsSearch = null,
-        string? studentDataset = null, string? studentSearch = null, int studentPage = 0)
+        string? studentDataset = null, string? studentSearch = null, int studentPage = 0, string? tab = null)
     {
         if (includedSearch?.Length > MaxSearchLength) includedSearch = null;
         if (nonIncludedSearch?.Length > MaxSearchLength) nonIncludedSearch = null;
@@ -42,7 +42,7 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
 
         HttpContext.Session.ClearRequestState(windowId);
         var model = await BuildIndexModelAsync(windowId, includedPage, nonIncludedPage, resultsPage,
-            includedSearch, nonIncludedSearch, resultsSearch, studentDataset, studentSearch, studentPage);
+            includedSearch, nonIncludedSearch, resultsSearch, studentDataset, studentSearch, studentPage, tab);
         return View(model);
     }
 
@@ -63,7 +63,8 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
             {
                 foreach (var dataset in datasets)
                 {
-                    await using var entry = await archive.CreateEntry(dataset.FileName).OpenAsync();
+                    var entryName = await GenerateCsvFileName(windowId, CsvPrefix(dataset), window);
+                    await using var entry = await archive.CreateEntry(entryName).OpenAsync();
                     await entry.WriteAsync(display.Csv(dataset));
                 }
             }
@@ -110,18 +111,23 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
     }
 
     // Rebuilds the tabs for this school and finds the dataset by exercise id and key, so an id
-    // from another window (or a dataset this window does not run) reaches nothing.
+    // from another window (or a dataset this window does not run) reaches nothing. An exercise
+    // split by inclusion draws two tabs, so the tab key picks one; with no key, the first.
     [Route("CheckYourPupilData/{windowId}/download/exercise/{exerciseId:guid}/{dataset}")]
-    public async Task<IActionResult> DownloadExerciseDataset(Guid windowId, Guid exerciseId, string dataset)
+    public async Task<IActionResult> DownloadExerciseDataset(Guid windowId, Guid exerciseId, string dataset,
+        string? tab = null)
     {
         if (string.IsNullOrWhiteSpace(currentUserService.OrganisationLaestab)) return Forbid();
 
         var model = await BuildIndexModelAsync(windowId, 0, 0, 0, null, null, null);
-        var tab = model.CheckingExerciseTabs.SingleOrDefault(t => t.Exercise.Id == exerciseId);
-        var selected = tab?.Table?.Datasets.SingleOrDefault(d => d.Key == dataset)
-            ?? (tab?.Vertical?.Key == dataset ? tab.Vertical.Dataset : null);
+        var exerciseTab = model.CheckingExerciseTabs
+            .FirstOrDefault(t => t.Exercise.Id == exerciseId && (tab is null || t.Key == tab));
+        var selected = exerciseTab?.Table?.Datasets.SingleOrDefault(d => d.Key == dataset)
+            ?? (exerciseTab?.Vertical?.Key == dataset ? exerciseTab.Vertical.Dataset : null);
 
-        return selected is null ? NotFound() : File(display.Csv(selected), "text/csv", selected.FileName);
+        if (selected is null) return NotFound();
+
+        return File(display.Csv(selected), "text/csv", await GenerateCsvFileName(windowId, CsvPrefix(selected)));
     }
 
     // The raw JSON the ingress run wrote, unshaped by any schema. This is the endpoint the POC put
@@ -133,7 +139,8 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         if (string.IsNullOrWhiteSpace(currentUserService.OrganisationLaestab)) return Forbid();
 
         var model = await BuildIndexModelAsync(windowId, 0, 0, 0, null, null, null);
-        var tab = model.CheckingExerciseTabs.SingleOrDefault(t => t.Exercise.Id == exerciseId);
+        // The raw file is the whole exercise's, so either of an exercise's inclusion tabs serves it.
+        var tab = model.CheckingExerciseTabs.FirstOrDefault(t => t.Exercise.Id == exerciseId);
         if (tab is null) return NotFound();
 
         // Re-read rather than re-serialise the parsed rows: the file a school downloads must be
@@ -142,6 +149,10 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
 
         return bytes is null ? NotFound() : File(bytes, "application/json", $"{tab.Exercise.TabName}.json");
     }
+
+    // A dataset's file name, less ".csv", is the prefix. GenerateCsvFileName adds the school, the
+    // window type and the year, as the pupil CSVs have always been named.
+    private static string CsvPrefix(ExerciseDataset dataset) => Path.GetFileNameWithoutExtension(dataset.FileName);
 
     private static IEnumerable<ExerciseDataset> GetDatasets(ExerciseTab tab) =>
         tab.Table?.Datasets ?? (tab.Vertical is not null ? [tab.Vertical.Dataset] : []);
@@ -236,7 +247,8 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         string? resultsSearch,
         string? studentDataset = null,
         string? studentSearch = null,
-        int studentPage = 0)
+        int studentPage = 0,
+        string? tab = null)
     {
         var (includedTable, includedTotal) = await checkYourPupilDataService.GetPupilTableAsync(windowId, included: true, includedSearch, includedPage, PageSize);
         var (nonIncludedTable, nonIncludedTotal) = await checkYourPupilDataService.GetPupilTableAsync(windowId, included: false, nonIncludedSearch, nonIncludedPage, PageSize);
@@ -275,7 +287,7 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
                 KeyStage = window.KeyStage, CheckingWindowType = window.CheckingWindowType,
                 StartDate = window.StartDate, Exercises = window.Exercises
             },
-            currentUserService.OrganisationLaestab, studentDataset, studentSearch, studentPage,
+            currentUserService.OrganisationLaestab, tab, studentDataset, studentSearch, studentPage,
             PageSize, HttpContext.RequestAborted);
 
         List<PupilTableSection> sections =

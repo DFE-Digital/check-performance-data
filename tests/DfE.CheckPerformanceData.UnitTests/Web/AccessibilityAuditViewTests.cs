@@ -310,8 +310,29 @@ public sealed class AccessibilityAuditViewTests
 	{
 		var view = ReadView("Views", "CheckYourPupilData", "_Post16Students.cshtml");
 
-		Assert.Contains("for=\"studentSearch\"", view);
-		Assert.Contains("id=\"studentSearch\"", view);
+		Assert.Contains("for=\"@searchId\"", view);
+		Assert.Contains("id=\"@searchId\"", view);
+	}
+
+	[Fact]
+	public void Post16Students_TakesItsLearnerNounFromTheTab()
+	{
+		// KS4 exercise tabs use this partial too, and a KS4 school says "pupil", not "student".
+		var view = ReadView("Views", "CheckYourPupilData", "_Post16Students.cshtml");
+
+		Assert.Contains("Search for a @Model.LearnerNoun.Singular by first or last name", view);
+		Assert.DoesNotContain("No students", view);
+	}
+
+	[Fact]
+	public void Post16Students_ControlIdsCarryTheTabKey()
+	{
+		// An exercise split by inclusion renders this partial twice on one page. A fixed id would
+		// be repeated, and a label's for= would then name the first tab's control.
+		var view = ReadView("Views", "CheckYourPupilData", "_Post16Students.cshtml");
+
+		Assert.Contains("var searchId = $\"studentSearch-{Model.Key}\";", view);
+		Assert.Contains("var datasetId = $\"studentDataset-{Model.Key}\";", view);
 	}
 
 	[Fact]
@@ -319,8 +340,8 @@ public sealed class AccessibilityAuditViewTests
 	{
 		var view = ReadView("Views", "CheckYourPupilData", "_Post16Students.cshtml");
 
-		Assert.Contains("for=\"studentDataset\"", view);
-		Assert.Contains("id=\"studentDataset\"", view);
+		Assert.Contains("for=\"@datasetId\"", view);
+		Assert.Contains("id=\"@datasetId\"", view);
 	}
 
 	[Fact]

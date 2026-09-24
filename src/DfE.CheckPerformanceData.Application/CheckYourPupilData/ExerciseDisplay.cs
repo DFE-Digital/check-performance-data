@@ -15,7 +15,12 @@ public enum ExerciseLayout
     /// <summary>Many records: dataset selector, search, paged table.</summary>
     Table,
     /// <summary>One record per school, pivoted to label/value rows. No search, no paging.</summary>
-    Vertical
+    Vertical,
+    /// <summary>
+    /// Two table tabs: included pupils and non-included pupils. For a KS4 pupil-data exercise,
+    /// whose one supplier file carries each pupil's own P_INCL. See <see cref="PupilInclusion.IsIncluded"/>.
+    /// </summary>
+    InclusionTabs
 }
 
 /// <summary>One schema's worth of a school's data: how to show it, how to export it, and its rows.</summary>
@@ -52,6 +57,21 @@ public sealed record ExerciseTab(WindowManagement.CheckingDataExercise Exercise,
     /// <summary>The datasets the tab was built from: the live release's, or the slots when there
     /// is no release. The raw download reads the same ones.</summary>
     public IReadOnlyList<WindowManagement.CheckingWindowDatasetDto> PublishedDatasets { get; init; } = [];
+
+    /// <summary>
+    /// Unique on the page. It is the tab's anchor, and the query names it so that a search or a
+    /// page change applies to this tab only. One exercise draws two tabs under
+    /// <see cref="ExerciseLayout.InclusionTabs"/>, so the exercise id alone is not enough.
+    /// </summary>
+    public string Key { get; init; } = $"exercise-{Exercise.Id}";
+
+    public string Label { get; init; } = Exercise.TabName;
+
+    /// <summary>The inclusion this tab holds: null for a tab that holds every row.</summary>
+    public bool? Included { get; init; }
+
+    /// <summary>The window's word for a learner. The tab partials are shared by every key stage.</summary>
+    public WindowManagement.LearnerNoun LearnerNoun { get; init; } = WindowManagement.LearnerNoun.Pupil;
 
     /// <summary>The raw columns, for an exercise with no schemas at all.</summary>
     public IReadOnlyList<string> Columns => Rows.SelectMany(r => r.Keys).Distinct().ToList();

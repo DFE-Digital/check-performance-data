@@ -1,6 +1,9 @@
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.DfESignInApiClient;
 using DfE.CheckPerformanceData.Application.LandingPage;
+// Aliased, not imported: WindowManagement also declares a CheckingWindowDto.
+using CheckingExerciseDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseDto;
+using ICheckingDataReader = DfE.CheckPerformanceData.Application.WindowManagement.ICheckingDataReader;
 using DfE.CheckPerformanceData.Domain.Enums;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -13,6 +16,7 @@ public class LandingPageServiceTests
     private readonly ILandingPageRepository _repository = Substitute.For<ILandingPageRepository>();
     private readonly IDfESignInApiClient _dfESignInApiClient = Substitute.For<IDfESignInApiClient>();
     private readonly ICurrentUserService _currentUserService = Substitute.For<ICurrentUserService>();
+    private readonly ICheckingDataReader _reader = Substitute.For<ICheckingDataReader>();
     private readonly LandingPageService _sut;
 
     private static readonly DateTimeOffset Now = new(2026, 5, 8, 12, 0, 0, TimeSpan.Zero);
@@ -22,7 +26,7 @@ public class LandingPageServiceTests
         _currentUserService.UserId.Returns("user-1");
         _currentUserService.OrganisationId.Returns("org-1");
         _sut = new LandingPageService(_repository, new FakeTimeProvider(Now), _dfESignInApiClient, _currentUserService,
-            Substitute.For<ILogger<LandingPageService>>());
+            _reader, Substitute.For<ILogger<LandingPageService>>());
     }
 
     private sealed class FakeTimeProvider(DateTimeOffset now) : TimeProvider
@@ -208,18 +212,112 @@ public class LandingPageServiceTests
             result.NoDataWindows.Select(w => w.CheckingWindowType));
     }
 
-    private static CheckingWindowDto MakeWindow(
+    // One live exercise, with or without a file for the school. Most tests only care about that.
+    private CheckingWindowDto MakeWindow(
         string title = "Test Window",
         KeyStages keyStage = KeyStages.KS2,
         bool hasPupilData = true,
-        CheckingWindowType windowType = CheckingWindowType.KS2) => new()
+        CheckingWindowType windowType = CheckingWindowType.KS2) =>
+        MakeWindowWith(title, keyStage, windowType, (Exercise(CheckingExerciseType.PupilData), hasPupilData));
+
+    private CheckingWindowDto MakeWindowWith(string title, KeyStages keyStage, CheckingWindowType windowType,
+        params (CheckingExerciseDto Exercise, bool HasFile)[] exercises)
+    {
+        var window = new CheckingWindowDto
+        {
+            Id = Guid.NewGuid(),
+            Title = title,
+            KeyStage = keyStage,
+            CheckingWindowType = windowType,
+            StartDate = Now.DateTime.AddDays(-1),
+            EndDate = Now.DateTime.AddDays(30),
+            Exercises = [.. exercises.Select(e => e.Exercise)]
+        };
+        foreach (var (exercise, hasFile) in exercises)
+            _reader.HasSchoolDataAsync(window.Id, exercise, Arg.Any<string>(), Arg.Any<CancellationToken>())
+                .Returns(hasFile);
+        return window;
+    }
+
+    private static CheckingExerciseDto Exercise(CheckingExerciseType? type, bool enabled = true,
+        DateTime? visibleFrom = null) => new()
     {
         Id = Guid.NewGuid(),
-        Title = title,
-        KeyStage = keyStage,
-        CheckingWindowType = windowType,
-        HasPupilData = hasPupilData,
-        StartDate = DateTime.UtcNow.AddDays(-1),
-        EndDate = DateTime.UtcNow.AddDays(30)
+        ExerciseType = type,
+        TabName = "Tab",
+        IsEnabled = enabled,
+        VisibleFrom = visibleFrom,
+        StartDate = Now.DateTime.AddDays(-1),
+        EndDate = Now.DateTime.AddDays(30)
     };
+
+    private void ArrangeWindows(params CheckingWindowDto[] windows)
+    {
+        var org = MakeOrganisation(lowAge: 3, highAge: 19);
+        _dfESignInApiClient.GetOrganisationAsync("user-1", "org-1").Returns(org);
+        _repository.GetOpenWindowsAsync(Now.DateTime, org.Laestab, Arg.Any<CancellationToken>())
+            .Returns([.. windows]);
+    }
+
+    // A window with no live exercise is not set up yet. Schools must not see it at all: not as a
+    // card, and not as a "no data" or "not for your school" message that hints at work in progress.
+    [Fact]
+    public async Task A_window_with_no_live_exercise_is_hidden_completely()
+    {
+        var disabled = MakeWindowWith("Not ready", KeyStages.KS2, CheckingWindowType.KS2,
+            (Exercise(CheckingExerciseType.PupilData, enabled: false), true));
+        var notYetVisible = MakeWindowWith("Not yet", KeyStages.KS4, CheckingWindowType.KS4June,
+            (Exercise(CheckingExerciseType.PupilData, visibleFrom: Now.DateTime.AddDays(1)), true));
+        ArrangeWindows(disabled, notYetVisible);
+
+        var result = await _sut.GetLandingPageDataAsync(CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Empty(result.OpenWindows);
+        Assert.Empty(result.NoDataWindows);
+        Assert.Empty(result.NotValidWindows);
+        await _reader.DidNotReceiveWithAnyArgs().HasSchoolDataAsync(default, default!, default!, default);
+    }
+
+    [Fact]
+    public async Task A_window_whose_only_file_is_in_a_live_results_exercise_shows_a_card()
+    {
+        var window = MakeWindowWith("16 to 19", KeyStages.Post16, CheckingWindowType.Post16,
+            (Exercise(CheckingExerciseType.PupilData, enabled: false), false),
+            (Exercise(CheckingExerciseType.ResultsEnquiry), true));
+        ArrangeWindows(window);
+
+        var result = await _sut.GetLandingPageDataAsync(CancellationToken.None);
+
+        Assert.Equal("16 to 19", Assert.Single(result!.OpenWindows).Title);
+        Assert.Empty(result.NoDataWindows);
+    }
+
+    [Fact]
+    public async Task A_file_in_a_disabled_exercise_does_not_count()
+    {
+        var window = MakeWindowWith("16 to 19", KeyStages.Post16, CheckingWindowType.Post16,
+            (Exercise(CheckingExerciseType.PupilData, enabled: false), true),
+            (Exercise(CheckingExerciseType.ResultsEnquiry), false));
+        ArrangeWindows(window);
+
+        var result = await _sut.GetLandingPageDataAsync(CancellationToken.None);
+
+        Assert.Empty(result!.OpenWindows);
+        Assert.Equal("16 to 19", Assert.Single(result.NoDataWindows).Title);
+    }
+
+    [Fact]
+    public async Task A_school_with_no_file_in_any_live_exercise_gets_the_no_data_message()
+    {
+        var window = MakeWindowWith("KS4 June", KeyStages.KS4, CheckingWindowType.KS4June,
+            (Exercise(CheckingExerciseType.PupilData), false),
+            (Exercise(type: null), false));
+        ArrangeWindows(window);
+
+        var result = await _sut.GetLandingPageDataAsync(CancellationToken.None);
+
+        Assert.Empty(result!.OpenWindows);
+        Assert.Equal("KS4 June", Assert.Single(result.NoDataWindows).Title);
+    }
 }

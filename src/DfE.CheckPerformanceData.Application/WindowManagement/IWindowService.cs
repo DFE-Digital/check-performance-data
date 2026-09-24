@@ -70,6 +70,12 @@ public sealed class CheckingWindowDto
         StartDate = Exercises.Min(e => e.StartDate);
         EndDate = Exercises.Max(e => e.EndDate);
     }
+
+    /// <summary>
+    /// The key stage derived from the window type. The wizard never asks an admin for it, so the
+    /// two can never disagree, and changing the type moves the key stage with it.
+    /// </summary>
+    public void DeriveKeyStageFromWindowType() => KeyStage = WindowKeyStage.For(CheckingWindowType);
 }
 
 public sealed class CheckingExerciseDto
@@ -86,14 +92,23 @@ public sealed class CheckingExerciseDto
     /// <summary>The admin's name for this exercise.</summary>
     public string? Name { get; init; }
 
-    /// <summary>Null means this exercise draws no tab, which is every window configured before #466.</summary>
-    public string? TabName { get; set; }
+    /// <summary>The tab label schools see. Every exercise has one; saving an empty one is refused.</summary>
+    public string TabName { get; set; } = string.Empty;
     public int TabOrder { get; init; }
     public bool IsEnabled { get; init; }
     public bool DisplayOnly { get; init; }
     public DateTime? VisibleFrom { get; init; }
     public DateTime? VisibleUntil { get; init; }
     public Guid? ReplacesCheckingExerciseId { get; init; }
+
+    /// <summary>
+    /// Schools see this exercise: it is enabled and <paramref name="now"/> is inside its visibility
+    /// dates. VisibleUntil is exclusive. A window with no live exercise is not set up yet, and
+    /// schools do not see it at all.
+    /// </summary>
+    public bool IsLiveAt(DateTime now) => IsEnabled
+        && (VisibleFrom is null || VisibleFrom <= now)
+        && (VisibleUntil is null || VisibleUntil > now);
 
     /// <summary>
     /// How the tab shows this exercise's data: a table with a dataset selector, or one record per

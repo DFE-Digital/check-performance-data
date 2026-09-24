@@ -305,10 +305,9 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                      .Where(e => wanted.All(x => x.Id != e.Id && (x.Id != Guid.Empty || x.ExerciseType != e.ExerciseType)))
                      .ToList())
         {
-            // A configured release is history: its blobs and its change requests point at this row.
-            // Hide it instead of destroying it. A row the wizard never configured is still deleted.
-            if (stale.TabName is not null) stale.IsEnabled = false;
-            else entity.CheckingExercises.Remove(stale);
+            // A release is history: its blobs and its change requests point at this row. Hide it
+            // instead of destroying it.
+            stale.IsEnabled = false;
         }
     }
 

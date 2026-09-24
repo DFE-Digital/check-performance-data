@@ -17,13 +17,15 @@ public sealed class AdminNavRegistryTests
 		using var provider = services.BuildServiceProvider();
 		var entries = provider.GetServices<IAdminNavEntry>().ToList();
 
-		// 32: the Amendment requests group and its single Uncommitted requests tile were retired
+		// 31: the Amendment requests group and its single Uncommitted requests tile were retired
 		// (the requests page is per window now, reached from the windows table) and the Storage
 		// administration group went when the blob browser moved under Danger zone; the Danger
 		// zone group and that browser are registered unconditionally, Reset seed data is not
 		// (includeResetSeedData defaults to false) — plus the Data egress group and its
-		// Start a new egress tile (AB#294553) and its Egress runs tile (AB#294590).
-		Assert.Equal(33, entries.Count);
+		// Start a new egress tile (AB#294553) and its Egress runs tile (AB#294590). The Create
+		// new window tile went too: a new window starts from the button on Manage windows. That
+		// left Manage windows alone in Window administration, so the group went as well.
+		Assert.Equal(31, entries.Count);
 
 		var titles = entries.Select(e => e.Title).ToList();
 		Assert.Contains("Dashboard", titles);
@@ -64,15 +66,14 @@ public sealed class AdminNavRegistryTests
 		// Retired together: the requests page is per window and reached from the windows table.
 		Assert.DoesNotContain("Amendment requests", titles);
 		Assert.DoesNotContain("Uncommitted requests", titles);
-		// Window administration must be in the nav — its tiles were always registered, but the
-		// group only reaches a sidebar once DefaultAdminAccessSeeder grants their sections.
-		Assert.Contains("Window administration", titles);
-		Assert.Contains("Create new window", titles);
+		// Manage windows is a top-level link. The Window administration group is gone, because
+		// it held that one tile only.
+		Assert.DoesNotContain("Window administration", titles);
 		Assert.Contains("Manage windows", titles);
 		Assert.Contains("View logs", titles);
-		Assert.Contains("Window administration", titles);
-		Assert.Contains("Create new window", titles);
-		Assert.Contains("Manage windows", titles);
+		// A new window is started from the button on Manage windows, not from the nav. The
+		// new-window section key still gates the create steps.
+		Assert.DoesNotContain("Create new window", titles);
 	}
 
 	// --- Tiles_Within_Each_Group_Have_Distinct_Orders_Per_UI_Spec ---

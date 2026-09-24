@@ -5,19 +5,25 @@
 @{
     // A table tab: dataset selector, search, paged table. Set by ExerciseTabBuilder whenever the
     // exercise's schemas ask for the table layout (or a mix, which is logged and falls back here).
+    // Every link and form names this tab (tab = Model.Key), so a search or a page change applies
+    // to this tab only. A page can hold several of these partials, so each control id carries the
+    // tab key too.
     var table = Model.Table!;
-    var anchor = $"exercise-{Model.Exercise.Id}";
+    var anchor = Model.Key;
+    var datasetId = $"studentDataset-{Model.Key}";
+    var searchId = $"studentSearch-{Model.Key}";
 
     string PageUrl(int page) => Url.Action("Index", "CheckYourPupilData",
-        new { windowId = Model.Exercise.WindowId, studentDataset = table.Selected.Key, studentSearch = table.Search, studentPage = page })! + "#" + anchor;
+        new { windowId = Model.Exercise.WindowId, tab = Model.Key, studentDataset = table.Selected.Key, studentSearch = table.Search, studentPage = page })! + "#" + anchor;
 }
 
 @if (table.Datasets.Count > 1)
 {
     <div class="govuk-form-group">
         <form method="get" action="@Url.Action("Index", "CheckYourPupilData", new { windowId = Model.Exercise.WindowId })#@anchor">
-            <label class="govuk-label govuk-label--s" for="studentDataset">Select the data you want to view</label>
-            <select class="govuk-select" id="studentDataset" name="studentDataset" onchange="this.form.submit()">
+            <input type="hidden" name="tab" value="@Model.Key" />
+            <label class="govuk-label govuk-label--s" for="@datasetId">Select the data you want to view</label>
+            <select class="govuk-select" id="@datasetId" name="studentDataset" onchange="this.form.submit()">
                 @foreach (var dataset in table.Datasets)
                 {
                     <option value="@dataset.Key" selected="@(dataset.Key == table.Selected.Key)">@dataset.Label</option>
@@ -34,7 +40,8 @@
         Download <a asp-action="DownloadExerciseDataset" asp-controller="CheckYourPupilData"
                     asp-route-windowId="@Model.Exercise.WindowId"
                     asp-route-exerciseId="@Model.Exercise.Id"
-                    asp-route-dataset="@dataset.Key">@dataset.Label.ToLowerInvariant()</a> as a CSV file.
+                    asp-route-dataset="@dataset.Key"
+                    asp-route-tab="@Model.Key">@dataset.Label.ToLowerInvariant()</a> as a CSV file.
     </p>
 }
 
@@ -42,16 +49,17 @@
 
 <div class="pupil-search">
     <form method="get" action="@Url.Action("Index", "CheckYourPupilData", new { windowId = Model.Exercise.WindowId })#@anchor">
+        <input type="hidden" name="tab" value="@Model.Key" />
         <input type="hidden" name="studentDataset" value="@table.Selected.Key" />
         <div class="govuk-form-group">
-            <label class="govuk-label govuk-label--s" for="studentSearch">Search for a student by first or last name</label>
+            <label class="govuk-label govuk-label--s" for="@searchId">Search for a @Model.LearnerNoun.Singular by first or last name</label>
             <div class="pupil-search__row">
-                <input class="govuk-input" id="studentSearch" name="studentSearch" type="search" maxlength="100" value="@table.Search" />
+                <input class="govuk-input" id="@searchId" name="studentSearch" type="search" maxlength="100" value="@table.Search" />
                 <button class="govuk-button" data-module="govuk-button" type="submit">Search</button>
                 @if (!string.IsNullOrWhiteSpace(table.Search))
                 {
                     <a role="button" draggable="false" data-module="govuk-button" class="govuk-button govuk-button--secondary"
-                       href="@Url.Action("Index", "CheckYourPupilData", new { windowId = Model.Exercise.WindowId, studentDataset = table.Selected.Key })#@anchor">Clear</a>
+                       href="@Url.Action("Index", "CheckYourPupilData", new { windowId = Model.Exercise.WindowId, tab = Model.Key, studentDataset = table.Selected.Key })#@anchor">Clear</a>
                 }
             </div>
         </div>
@@ -60,7 +68,7 @@
 
 @if (table.Rows.Count == 0)
 {
-    <p class="govuk-body">@(string.IsNullOrWhiteSpace(table.Search) ? "No students available in this dataset." : "No students found. Check the spelling or clear the search.")</p>
+    <p class="govuk-body">@(string.IsNullOrWhiteSpace(table.Search) ? $"No {Model.LearnerNoun.Plural} available in this dataset." : $"No {Model.LearnerNoun.Plural} found. Check the spelling or clear the search.")</p>
 }
 else
 {

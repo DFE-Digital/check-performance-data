@@ -56,8 +56,6 @@ public static class AdminNavServiceCollectionExtensions
         services.AddSingleton<IAdminNavEntry, ZendeskQueueNavEntry>();
         services.AddSingleton<IAdminNavEntry, DeadLetterQueueNavEntry>();
         services.AddSingleton<IAdminNavEntry, ObservabilityNavEntry>();
-        services.AddSingleton<IAdminNavEntry, WindowAdminNavEntry>();
-        services.AddSingleton<IAdminNavEntry, NewWindowNavEntry>();
         services.AddSingleton<IAdminNavEntry, ManageWindowNavEntry>();
         services.AddSingleton<IAdminNavEntry, EgressGroupNavEntry>();
         services.AddSingleton<IAdminNavEntry, StartEgressNavEntry>();

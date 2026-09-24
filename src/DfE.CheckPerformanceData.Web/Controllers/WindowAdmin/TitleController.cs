@@ -12,6 +12,18 @@ public sealed class TitleController(IWindowService windowService): Controller
 {
     private const string PageView = "~/Views/WindowAdmin/Title.cshtml";
 
+    /// <summary>
+    /// The "New window" entry point. It discards any draft left in session, so a new window never
+    /// opens with an abandoned window's answers. The title step itself cannot do this, because the
+    /// check answers page links back to it to change the title.
+    /// </summary>
+    [HttpGet("admin/windows/new")]
+    public IActionResult Start()
+    {
+        HttpContext.Session.RemoveObject("CheckingWindowDraft");
+        return RedirectToAction("New", "Title");
+    }
+
     [HttpGet("admin/windows/title")]
     public async Task<IActionResult> New(CancellationToken cancellationToken)
     {

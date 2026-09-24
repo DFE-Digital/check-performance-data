@@ -132,6 +132,8 @@ public sealed class ExercisesController(IWindowService windowService) : Controll
             .Select(type => window.FindExercise(type) ?? new CheckingExerciseDto
             {
                 ExerciseType = type,
+                // Disabled, like a wizard exercise: schools see it once an admin enables it.
+                TabName = WindowExercises.DefaultTabName(window.CheckingWindowType, type),
                 StartDate = window.StartDate,
                 EndDate = window.EndDate,
                 SortOrder = WindowExercises.SortOrderFor(type)

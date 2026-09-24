@@ -5,6 +5,8 @@ using DfE.CheckPerformanceData.Persistence.Contexts;
 // Aliased, not imported: WindowManagement also declares a CheckingWindowDto, which would make the
 // LandingPage one ambiguous here.
 using CheckingExerciseDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseDto;
+using CheckingExerciseReleaseDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseReleaseDto;
+using CheckingExerciseReleaseFileDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseReleaseFileDto;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -12,7 +14,6 @@ namespace DfE.CheckPerformanceData.Persistence.Repositories;
 
 public sealed class LandingPageRepository(
     IPortalDbContext dbContext,
-    IPupilDataBlobClient pupilDataBlobClient,
     ILogger<LandingPageRepository> logger) : ILandingPageRepository
 {
     public async Task<List<CheckingWindowDto>> GetOpenWindowsAsync(DateTime now, string laestab,
@@ -44,7 +45,31 @@ public sealed class LandingPageRepository(
                         ExerciseType = e.ExerciseType,
                         StartDate = e.StartDate,
                         EndDate = e.EndDate,
-                        SortOrder = e.SortOrder
+                        SortOrder = e.SortOrder,
+                        // The service decides from these whether the window is shown at all, and
+                        // where to look for the school's files.
+                        TabName = e.TabName,
+                        IsEnabled = e.IsEnabled,
+                        VisibleFrom = e.VisibleFrom,
+                        VisibleUntil = e.VisibleUntil,
+                        UsesExerciseStorage = e.UsesExerciseStorage,
+                        CurrentReleaseId = e.CurrentReleaseId,
+                        // Only the current release: its files name the per-dataset outputs.
+                        Releases = e.Releases
+                            .Where(r => r.Id == e.CurrentReleaseId)
+                            .Select(r => new CheckingExerciseReleaseDto
+                            {
+                                Id = r.Id,
+                                Number = r.Number,
+                                Files = r.Files
+                                    .Select(f => new CheckingExerciseReleaseFileDto
+                                    {
+                                        DatasetId = f.DatasetId,
+                                        DatasetName = f.DatasetName
+                                    })
+                                    .ToList()
+                            })
+                            .ToList()
                     })
                     .ToList()
             })
@@ -76,9 +101,6 @@ public sealed class LandingPageRepository(
                 TurnaroundCommitment = w.TurnaroundCommitment,
                 NextOpportunity = w.NextOpportunity,
                 Id = w.Id,
-                // #316: "has pupil data" asks about the pupil-data exercise's prefix specifically.
-                HasPupilData = await pupilDataBlobClient.HasPupilDataAsync(
-                    w.Id, CheckingExerciseType.PupilData, laestab),
                 Exercises = w.Exercises
             });
         }

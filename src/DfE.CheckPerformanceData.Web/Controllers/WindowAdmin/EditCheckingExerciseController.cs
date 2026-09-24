@@ -57,7 +57,7 @@ public sealed class EditCheckingExerciseController(IWindowService windowService)
         if (window is null || exercise is null) return NotFound();
 
         Decorate(model, window, exercise);
-        if (!model.TabNameOptional && string.IsNullOrWhiteSpace(model.TabName))
+        if (string.IsNullOrWhiteSpace(model.TabName))
             ModelState.AddModelError(nameof(model.TabName), "Enter a tab name");
 
         if (model.ReplacesCheckingExerciseId is { } replacementId
@@ -82,7 +82,7 @@ public sealed class EditCheckingExerciseController(IWindowService windowService)
             UsesExerciseStorage = exercise.UsesExerciseStorage,
             ExerciseType = model.ExerciseType,
             Name = model.Name!.Trim(),
-            TabName = string.IsNullOrWhiteSpace(model.TabName) ? null : model.TabName.Trim(),
+            TabName = model.TabName!.Trim(),
             TabOrder = model.TabOrder!.Value,
             SortOrder = model.SortOrder!.Value,
             IsEnabled = model.IsEnabled,
@@ -100,6 +100,12 @@ public sealed class EditCheckingExerciseController(IWindowService windowService)
             ValidatedIngressChecksum = exercise.ValidatedIngressChecksum,
             ValidatedSchemaChecksum = exercise.ValidatedSchemaChecksum
         };
+        if (LiveExerciseClash.Message(updated, window.Exercises) is { } clash)
+        {
+            ModelState.AddModelError(nameof(model.IsEnabled), clash);
+            return View(PageView, model);
+        }
+
         window.Exercises[window.Exercises.IndexOf(exercise)] = updated;
         await windowService.UpdateAsync(window, cancellationToken);
         return RedirectToAction("Index", "Summary", new { id });
@@ -109,7 +115,6 @@ public sealed class EditCheckingExerciseController(IWindowService windowService)
     {
         model.DataExercise = exercise;
         model.IsEditing = true;
-        model.TabNameOptional = exercise.TabName is null;
         model.WindowTitle = window.Title;
         model.ReplacementOptions = window.Exercises
             .Where(e => !WouldCreateCycle(window, exercise.Id, e.Id))

@@ -46,7 +46,7 @@ public sealed class CreateCheckingExerciseController(IWindowService windowServic
 
         // Empty IDs are matched by type by the legacy wizard. Assign an identity here so that
         // adding another release of the same type cannot overwrite an existing exercise.
-        window.Exercises.Add(new CheckingExerciseDto
+        var created = new CheckingExerciseDto
         {
             Id = Guid.NewGuid(),
             ExerciseType = model.ExerciseType,
@@ -63,7 +63,15 @@ public sealed class CreateCheckingExerciseController(IWindowService windowServic
             StartDate = model.Dates.StartDateTime!.Value,
             EndDate = model.Dates.EndDateTime!.Value,
             Datasets = WindowDatasets.DefaultsFor(window.CheckingWindowType, model.ExerciseType).ToList()
-        });
+        };
+
+        if (LiveExerciseClash.Message(created, window.Exercises) is { } clash)
+        {
+            ModelState.AddModelError(nameof(model.IsEnabled), clash);
+            return View(PageView, model);
+        }
+
+        window.Exercises.Add(created);
         await windowService.UpdateAsync(window, cancellationToken);
         return RedirectToAction("Index", "Summary", new { id });
     }

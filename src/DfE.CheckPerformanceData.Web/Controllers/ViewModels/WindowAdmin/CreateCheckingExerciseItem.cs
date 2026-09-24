@@ -14,9 +14,6 @@ public sealed class CreateCheckingExerciseItem : AdminPage, IValidatableObject
     [BindNever]
     public bool IsEditing { get; set; }
 
-    [BindNever]
-    public bool TabNameOptional { get; set; }
-
     public string PageTitle => IsEditing ? "Edit checking exercise" : "Add checking exercise";
     public string SubmitLabel => IsEditing ? "Save changes" : "Add checking exercise";
 

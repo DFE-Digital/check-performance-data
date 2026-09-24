@@ -21,7 +21,7 @@ public sealed class CheckingExerciseStorageResolverTests
             Exercises = [.. exercises]
         });
 
-    private static CheckingExerciseDto Exercise(Guid id, string? tabName = "Pupils",
+    private static CheckingExerciseDto Exercise(Guid id, string tabName = "Pupils",
         bool enabled = true, bool displayOnly = false, DateTime? until = null) => new()
         {
             Id = id, ExerciseType = CheckingExerciseType.PupilData,
@@ -42,16 +42,13 @@ public sealed class CheckingExerciseStorageResolverTests
     }
 
     [Fact]
-    public async Task ALegacyRowWithNoTab_IsStillResolved()
+    public async Task ADisabledExercise_IsNeverResolved()
     {
-        // Rows written before #466 have no tab name and no visibility dates. They must keep working.
+        // Every exercise has a tab name now, so none is exempt: disabled means no journey data.
         var windowId = Guid.NewGuid();
-        var id = Guid.NewGuid();
-        Window(windowId, Exercise(id, tabName: null, enabled: false));
+        Window(windowId, Exercise(Guid.NewGuid(), enabled: false));
 
-        var resolved = await Resolver().ResolveAsync(windowId, CheckingExerciseType.PupilData);
-
-        Assert.Equal(id, resolved!.Id);
+        Assert.Null(await Resolver().ResolveAsync(windowId, CheckingExerciseType.PupilData));
     }
 
     [Fact]

@@ -80,6 +80,8 @@ public sealed class CheckingExerciseReleaseTests(AzuriteFixture azurite) : IAsyn
                 {
                     Id = _exerciseId,
                     ExerciseType = CheckingExerciseType.ResultsEnquiry,
+                    TabName = "Results",
+                    IsEnabled = true,
                     UsesExerciseStorage = true,
                     StartDate = new DateTime(2026, 1, 1),
                     EndDate = new DateTime(2026, 12, 31),

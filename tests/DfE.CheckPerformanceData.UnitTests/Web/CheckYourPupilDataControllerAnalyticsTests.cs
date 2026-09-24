@@ -41,7 +41,7 @@ public sealed class CheckYourPupilDataControllerAnalyticsTests
         // No window here has a tab-drawing exercise: the fallback inclusion tabs are what these
         // tests exercise, exactly as before #466.
         tabBuilder.BuildAsync(Arg.Any<Application.WindowManagement.CheckingWindowDto>(),
-                Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<int>(), Arg.Any<int>(),
+                Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<int>(), Arg.Any<int>(),
                 Arg.Any<CancellationToken>())
             .Returns(new List<ExerciseTab>());
         _sut = new CheckYourPupilDataController(

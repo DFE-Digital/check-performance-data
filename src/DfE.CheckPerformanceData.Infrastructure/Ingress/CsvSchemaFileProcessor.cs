@@ -6,6 +6,7 @@ using Azure;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using CsvHelper;
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using Microsoft.Extensions.Logging;
@@ -227,6 +228,18 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
                     if (dataset.SourceFile is { Length: > 0 } sourceFile && schema.Properties.ContainsKey("SOURCE"))
                     {
                         record["SOURCE"] = sourceFile;
+                    }
+
+                    // The KS4 supplier file has no P_INCL_DESC column, but the school's CSV has a
+                    // "Pupil Inclusion description" column. Its words come from the P_INCL code.
+                    // A description the supplier did send is kept. Guarded by the schema check,
+                    // for the same reason as INCLUDED and SOURCE above.
+                    if (schema.Properties.ContainsKey("P_INCL_DESC")
+                        && string.IsNullOrWhiteSpace(record["P_INCL_DESC"]?.ToString())
+                        && int.TryParse(record["P_INCL"]?.ToString(), out var pinclCode)
+                        && PupilInclusion.Ks4Description(pinclCode) is { Length: > 0 } pinclDescription)
+                    {
+                        record["P_INCL_DESC"] = pinclDescription;
                     }
 
                 }

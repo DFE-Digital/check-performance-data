@@ -3,10 +3,12 @@ using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.ContentBlocks;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Web.Controllers;
+using DfE.CheckPerformanceData.Web.Settings;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using NSubstitute;
 using NSubstitute.Core;
 
@@ -19,13 +21,18 @@ public sealed class ContactControllerTests
     private readonly IContentBlockService _contentBlocks = Substitute.For<IContentBlockService>();
     private readonly ILogger<ContactController> _logger = Substitute.For<ILogger<ContactController>>();
 
+    // Not the live URL: proves the redirect takes the configured value, not a constant.
+    private const string SurveyUrl = "https://survey.example/feedback";
+    private readonly IOptions<FeedbackSurveySettings> _feedbackSurvey =
+        Options.Create(new FeedbackSurveySettings { Url = SurveyUrl });
+
     private ContactController CreateSut(bool authenticated, out DefaultHttpContext httpContext)
     {
         httpContext = new DefaultHttpContext();
         httpContext.Request.Host = new HostString("localhost");
         var identity = authenticated ? new ClaimsIdentity("TestAuth") : new ClaimsIdentity();
         httpContext.User = new ClaimsPrincipal(identity);
-        return new ContactController(_analytics, _currentUser, _contentBlocks, _logger)
+        return new ContactController(_analytics, _currentUser, _contentBlocks, _feedbackSurvey, _logger)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext },
             TempData = new TempDataDictionary(httpContext, Substitute.For<ITempDataProvider>()),
@@ -157,17 +164,33 @@ public sealed class ContactControllerTests
     }
 
     [Fact]
-    public async Task FeedbackLink_tracks_referer_path_only_and_redirects_to_index()
+    public async Task FeedbackLink_tracks_referer_path_only_and_redirects_to_the_survey()
     {
         var sut = CreateSut(authenticated: false, out var ctx);
         ctx.Request.Headers.Referer = "https://localhost/CheckYourPupilData/x?includedSearch=Smith";
 
         var result = await sut.FeedbackLink();
 
-        Assert.Equal(nameof(ContactController.Index), Assert.IsType<RedirectToActionResult>(result).ActionName);
+        // Redirect, not LocalRedirect: the survey is an external Microsoft Forms page, and the
+        // target comes from FeedbackSurveySettings rather than a constant.
+        Assert.Equal(SurveyUrl, Assert.IsType<RedirectResult>(result).Url);
         await _analytics.Received(1).TrackAsync(
             Arg.Is<FeedbackClickedEvent>(e => e.PagePath == "/CheckYourPupilData/x"),
             Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task FeedbackLink_sends_no_referrer_on_to_the_survey()
+    {
+        // A Referrer-Policy on a redirect response governs the redirected request, so the
+        // survey host never sees which service page the user was on. The same-origin hop
+        // that RefererPagePath reads is unaffected.
+        var sut = CreateSut(authenticated: false, out var ctx);
+        ctx.Request.Headers.Referer = "https://localhost/CheckYourPupilData/x";
+
+        await sut.FeedbackLink();
+
+        Assert.Equal("no-referrer", ctx.Response.Headers["Referrer-Policy"].ToString());
     }
 
     [Fact]

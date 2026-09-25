@@ -3,9 +3,11 @@ using DfE.CheckPerformanceData.Application.ContentBlocks;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Web.Analytics;
 using DfE.CheckPerformanceData.Web.Common;
+using DfE.CheckPerformanceData.Web.Settings;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
@@ -17,6 +19,7 @@ public sealed class ContactController(
     IAnalyticsService analytics,
     ICurrentUserService currentUser,
     IContentBlockService contentBlocks,
+    IOptions<FeedbackSurveySettings> feedbackSurvey,
     ILogger<ContactController> logger) : Controller
 {
     private const string HighlightBlockKey = "contact-highlight";
@@ -31,8 +34,9 @@ public sealed class ContactController(
     }
 
     // The Beta phase-banner "feedback" link routes through here so we can record the
-    // click server-side before handing off to the same Contact Us form. page_path is
-    // the referer's path only — never its query string, which may carry a search term.
+    // click server-side before handing off to the feedback survey, an external Microsoft
+    // Forms page that the anchor opens in a new tab. page_path is the referer's path only —
+    // never its query string, which may carry a search term.
     [HttpGet("/feedback-link")]
     public async Task<IActionResult> FeedbackLink()
     {
@@ -40,7 +44,15 @@ public sealed class ContactController(
 
         await analytics.TrackSafeAsync(new FeedbackClickedEvent { PagePath = pagePath }, HttpContext.RequestAborted);
 
-        return RedirectToAction(nameof(Index));
+        // The survey host has no need to know which page of this service the user was on. A
+        // Referrer-Policy on a redirect response governs the redirected request, so this strips
+        // the referrer from the hop to the survey without touching the same-origin hop that
+        // RefererPagePath has already read. Assignment, not Append: SecurityHeadersMiddleware
+        // has already set strict-origin-when-cross-origin on this response.
+        Response.Headers["Referrer-Policy"] = "no-referrer";
+
+        // Redirect, not LocalRedirect: the target is an absolute external URL.
+        return Redirect(feedbackSurvey.Value.Url);
     }
 
     [HttpPost("/contact")]

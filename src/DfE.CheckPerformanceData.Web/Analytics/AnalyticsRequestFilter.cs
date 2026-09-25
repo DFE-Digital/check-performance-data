@@ -28,7 +28,7 @@ public static class AnalyticsRequestFilter
         "/debug",                // technical/API
         "/docs",                 // technical/API
         "/favicon.ico",          // static asset
-        "/feedback-link",        // AB#286387 R20: emits feedback_clicked itself, then redirects to /contact
+        "/feedback-link",        // AB#286387 R20: emits feedback_clicked itself, then redirects to the feedback survey
         "/graphql",              // technical/API
         "/ip",                   // technical/API
         "/openapi.json",         // technical/API

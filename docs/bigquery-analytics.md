@@ -108,7 +108,7 @@ All custom events carry **no PII as plain fields**; a hidden field is noted belo
 | `confirmation_deleted` | `reference_number` | `SubmittedRequestController.Delete` (ConfirmCorrect row) | `reference_number` |
 | `request_decision` | `decision_status`, `outcome_key`, `matched_rule_id`, `rules_version`, `request_type_code`, `checking_window_type`, `is_synthetic_fallback` | `RulesConsumer` (worker) | — |
 | `search_result_count` | `result_count`, `scope` | `SearchController.Index` (query entered) | — |
-| `feedback_clicked` | `page_path` | `ContactController.FeedbackLink` (via `/feedback-link`) | — |
+| `feedback_clicked` | `page_path` | `ContactController.FeedbackLink` (via `/feedback-link`, which then redirects to the feedback survey) | — |
 | `help_details_expanded` | `expand_text`, `page_path` | `ClientEventsController` (JS beacon) | — |
 | `external_link_clicked` | `destination`, `page_path` | `ClientEventsController` (JS beacon) | — |
 | `evidence_file_selected` | `page_path` | `ClientEventsController` (JS beacon) | — |

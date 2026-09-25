@@ -172,6 +172,26 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
     }
 
     [RetryFact(3)]
+    public async Task TheSearchHintReadToScreenReaders_HasNoDoubleFullStop()
+    {
+        // This page's hint already ends in a full stop, so the text the autocomplete announces must
+        // not add a second one ("who have results.. When autocomplete…").
+        await StartEnquiryAsync();
+        await ContinueAsync();
+        await ChooseCohortScopeAsync("no");
+        await Page.WaitForURLAsync($"**/Journey/{WindowId}/pupil-search/select-student-single");
+
+        await ContinueAsync();
+        await Expect(Page.Locator(".govuk-error-summary")).ToBeVisibleAsync();
+
+        var assistiveHint = await Page.Locator("#pupil-search__assistiveHint").TextContentAsync();
+        Assert.Contains(
+            "Error: Enter the name of the student with an incorrect grade. Start typing", assistiveHint);
+        Assert.Contains("students who have results. When autocomplete results", assistiveHint);
+        Assert.DoesNotContain("..", assistiveHint);
+    }
+
+    [RetryFact(3)]
     public async Task ContinuingWithoutChoosingAResult_ShowsTheTemplatedError()
     {
         await StartEnquiryAsync();

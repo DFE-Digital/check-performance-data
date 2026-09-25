@@ -100,8 +100,15 @@ else
             // describedby already references. Prepending the error and hint means both are
             // announced on load and on focus, which is when they matter; the component drops the
             // description once the user starts typing, by design.
-            var assistiveHint = (hasError ? 'Error: ' + errorText + '. ' : '')
-                + hintText + '. '
+            // Some flow hints and errors already end in a full stop, so only add one where it is
+            // missing — otherwise screen readers read out "who have results.. When…".
+            function sentence(text) {
+                text = text.trim();
+                return /[.!?]$/.test(text) ? text + ' ' : text + '. ';
+            }
+
+            var assistiveHint = (hasError ? 'Error: ' + sentence(errorText) : '')
+                + sentence(hintText)
                 + 'When autocomplete results are available use up and down arrows to review and '
                 + 'enter to select. Touch device users, explore by touch or with swipe gestures.';
 

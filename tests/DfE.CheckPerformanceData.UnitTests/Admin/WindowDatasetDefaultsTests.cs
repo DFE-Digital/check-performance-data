@@ -108,15 +108,26 @@ public class WindowDatasetDefaultsTests
     }
 
     [Fact]
-    public void Only_the_first_results_file_is_required()
+    public void A_16_to_19_results_enquiry_requires_the_three_files_it_starts_with()
     {
-        // The late, revised and retention files land weeks apart and one may never land. Requiring
-        // them would leave an exercise that can never be validated and a school with no results.
-        // A retired slot is never required, so the first slot stops blocking once it is replaced.
+        // Included, non-included and late results 1 are the minimum the exercise starts with. The
+        // later files land weeks apart and one may never land. Requiring them would leave an
+        // exercise that can never be validated and a school with no results.
         var datasets = WindowDatasets.DefaultsFor(CheckingWindowType.Post16, CheckingExerciseType.ResultsEnquiry);
 
-        Assert.True(datasets[0].Required);
-        Assert.All(datasets.Skip(1), dataset => Assert.False(dataset.Required));
+        Assert.Equal(
+            [ResultsFileTags.Post16Included, ResultsFileTags.Post16NonIncluded, ResultsFileTags.Post16LateResults1],
+            datasets.Where(d => d.Required).Select(d => d.Name));
+    }
+
+    [Theory]
+    [InlineData(CheckingWindowType.KS4June)]
+    [InlineData(CheckingWindowType.KS4Autumn)]
+    public void A_KS4_results_enquiry_requires_only_the_main_results_file(CheckingWindowType type)
+    {
+        var datasets = WindowDatasets.DefaultsFor(type, CheckingExerciseType.ResultsEnquiry);
+
+        Assert.Equal([ResultsFileTags.Ks4Main], datasets.Where(d => d.Required).Select(d => d.Name));
     }
 
     [Fact]

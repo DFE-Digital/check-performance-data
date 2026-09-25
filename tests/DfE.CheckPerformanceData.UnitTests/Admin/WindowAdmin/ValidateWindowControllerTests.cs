@@ -71,12 +71,12 @@ public class ValidateWindowControllerTests
         var exerciseId = Guid.NewGuid();
         _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>())
             .Returns(Window(Exercise(exerciseId)));
-        _ingress.ProcessAsync(exerciseId, false, Arg.Any<CancellationToken>(), Arg.Any<string>())
+        _ingress.ProcessAsync(exerciseId, Arg.Any<CancellationToken>(), Arg.Any<string>())
             .Returns(Progress(new ValidationProgress("Done", "ok", 1, 1, 1, 0, true, false)));
 
-        await Controller().Run(WindowId, exerciseId, clearExistingFiles: false, CancellationToken.None);
+        await Controller().Run(WindowId, exerciseId, CancellationToken.None);
 
-        _ingress.Received(1).ProcessAsync(exerciseId, false, Arg.Any<CancellationToken>(), Arg.Any<string>());
+        _ingress.Received(1).ProcessAsync(exerciseId, Arg.Any<CancellationToken>(), Arg.Any<string>());
     }
 
     [Fact]
@@ -95,15 +95,15 @@ public class ValidateWindowControllerTests
             yield return new ValidationProgress("Done", "done", 1, 1, 1, 0, true, false);
         }
 
-        _ingress.ProcessAsync(exerciseId, false, Arg.Any<CancellationToken>(), Arg.Any<string>()).Returns(TwoSteps());
+        _ingress.ProcessAsync(exerciseId, Arg.Any<CancellationToken>(), Arg.Any<string>()).Returns(TwoSteps());
 
-        var result = await Controller().Run(WindowId, exerciseId, clearExistingFiles: false, CancellationToken.None);
+        var result = await Controller().Run(WindowId, exerciseId, CancellationToken.None);
 
         var view = Assert.IsType<ViewResult>(result);
         var model = Assert.IsType<ValidationViewModel>(view.Model);
         Assert.NotNull(model.ProcessingResult);
         Assert.Equal("done", model.ProcessingResult!.ErrorLogs.ToString());
-        _ingress.Received(1).ProcessAsync(exerciseId, false, Arg.Any<CancellationToken>(), Arg.Any<string>());
+        _ingress.Received(1).ProcessAsync(exerciseId, Arg.Any<CancellationToken>(), Arg.Any<string>());
     }
 
     [Fact]
@@ -112,7 +112,7 @@ public class ValidateWindowControllerTests
         _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>())
             .Returns(Window(Exercise(Guid.NewGuid())));
 
-        var result = await Controller().Run(WindowId, Guid.NewGuid(), false, CancellationToken.None);
+        var result = await Controller().Run(WindowId, Guid.NewGuid(), CancellationToken.None);
 
         Assert.IsType<NotFoundResult>(result);
         _ingress.DidNotReceiveWithAnyArgs().ProcessAsync(default, default, default);
@@ -124,7 +124,7 @@ public class ValidateWindowControllerTests
         _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>())
             .Returns((CheckingWindowDto?)null);
 
-        var result = await Controller().Run(WindowId, Guid.NewGuid(), false, CancellationToken.None);
+        var result = await Controller().Run(WindowId, Guid.NewGuid(), CancellationToken.None);
 
         Assert.IsType<NotFoundResult>(result);
     }
@@ -135,7 +135,7 @@ public class ValidateWindowControllerTests
         _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>())
             .Returns(Window(Exercise(Guid.NewGuid())));
 
-        var result = await Controller().StreamForExercise(WindowId, Guid.NewGuid(), false, CancellationToken.None);
+        var result = await Controller().StreamForExercise(WindowId, Guid.NewGuid(), CancellationToken.None);
 
         Assert.IsType<Microsoft.AspNetCore.Http.HttpResults.NotFound>(result);
     }
@@ -201,7 +201,7 @@ public class ValidateWindowControllerTests
         _processor.Received(1).ProcessAsync(WindowId, CheckingExerciseType.PupilData,
             Arg.Any<IReadOnlyList<IngressDataset>>(), Arg.Any<bool>(), Arg.Any<bool>(),
             Arg.Any<CancellationToken>(), Arg.Any<Guid?>(), Arg.Any<CheckingDataType?>(), Arg.Any<Guid?>());
-        _ingress.DidNotReceiveWithAnyArgs().ProcessAsync(default, default, default, default!);
+        _ingress.DidNotReceiveWithAnyArgs().ProcessAsync(default, default, default!);
     }
 
     [Fact]
@@ -214,13 +214,13 @@ public class ValidateWindowControllerTests
         _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>())
             .Returns(Window(Exercise(exerciseId, CheckingExerciseType.PupilData)));
         _currentUser.Email.Returns("admin@example.gov.uk");
-        _ingress.ProcessAsync(exerciseId, false, Arg.Any<CancellationToken>(), "admin@example.gov.uk")
+        _ingress.ProcessAsync(exerciseId, Arg.Any<CancellationToken>(), "admin@example.gov.uk")
             .Returns(Progress(new ValidationProgress("Done", "ok", 1, 1, 1, 0, true, false)));
 
         var result = await Controller().Validate(WindowId, CheckingExerciseType.PupilData, CancellationToken.None);
 
         Assert.IsType<ViewResult>(result);
-        _ingress.Received(1).ProcessAsync(exerciseId, false, Arg.Any<CancellationToken>(), "admin@example.gov.uk");
+        _ingress.Received(1).ProcessAsync(exerciseId, Arg.Any<CancellationToken>(), "admin@example.gov.uk");
         _processor.DidNotReceiveWithAnyArgs().ProcessAsync(default, default, default!);
     }
 
@@ -231,11 +231,11 @@ public class ValidateWindowControllerTests
         _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>())
             .Returns(Window(Exercise(exerciseId)));
         _currentUser.Email.Returns("admin@example.gov.uk");
-        _ingress.ProcessAsync(exerciseId, false, Arg.Any<CancellationToken>(), Arg.Any<string>())
+        _ingress.ProcessAsync(exerciseId, Arg.Any<CancellationToken>(), Arg.Any<string>())
             .Returns(Progress(new ValidationProgress("Done", "ok", 1, 1, 1, 0, true, false)));
 
-        await Controller().Run(WindowId, exerciseId, false, CancellationToken.None);
+        await Controller().Run(WindowId, exerciseId, CancellationToken.None);
 
-        _ingress.Received(1).ProcessAsync(exerciseId, false, Arg.Any<CancellationToken>(), "admin@example.gov.uk");
+        _ingress.Received(1).ProcessAsync(exerciseId, Arg.Any<CancellationToken>(), "admin@example.gov.uk");
     }
 }

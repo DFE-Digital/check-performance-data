@@ -339,20 +339,18 @@ public static class WindowDatasets
     // dataset can never be given the wrong tag. KS2 has no results feed, so a results enquiry on a
     // KS2 window gets no slots at all.
     private static IReadOnlyList<CheckingWindowDatasetDto> ResultsEnquiryDefaults(CheckingWindowType type) =>
-        Slots([.. ResultsSources.For(type).Select(s => s.Tag)]);
-
-    // Only the first file is required. The late, revised and retention files land weeks apart and
-    // one may never land — an exercise that could not be validated until all of them had arrived
-    // would leave a school with no results at all in the meantime.
-    private static IReadOnlyList<CheckingWindowDatasetDto> Slots(params string[] tags) =>
-        [.. tags.Select((tag, index) => new CheckingWindowDatasetDto
+        [.. ResultsSources.For(type).Select((source, index) => new CheckingWindowDatasetDto
         {
-            Name = tag,
+            Name = source.Tag,
             FeedsJourney = true,
-            SourceFile = tag,
+            SourceFile = source.Tag,
             // Inclusion is a pupil-data concept: a result row is not included or non-included.
             Included = null,
-            Required = index == 0,
+            // Only the files the exercise starts with are required (16-19: included, non-included
+            // and late results 1; KS4: main). The later files land weeks apart and one may never
+            // land — an exercise that could not be validated until all of them had arrived would
+            // leave a school with no results at all in the meantime.
+            Required = source.IsRequired,
             SortOrder = index
         })];
 }

@@ -70,24 +70,6 @@
        still works without JS, posting to the fallback action above. *@
     <form method="post" action="@Model.PostUrl" novalidate data-validate-form>
         @Html.AntiForgeryToken()
-        @if (Model.ShowClearExistingFiles)
-        {
-            @* Exercise-id addressed route only (#466 slice 2/3) — the kind-addressed run never
-               supported wiping previous output, so the checkbox is not shown there. *@
-            <div class="govuk-checkboxes govuk-checkboxes--small" data-module="govuk-checkboxes">
-                <div class="govuk-checkboxes__item">
-                    <input class="govuk-checkboxes__input" id="clearExistingFiles" name="clearExistingFiles"
-                           type="checkbox" value="true" data-validate-clear-checkbox />
-                    <label class="govuk-label govuk-checkboxes__label" for="clearExistingFiles">
-                        Delete this exercise's previous output before running
-                    </label>
-                    <div class="govuk-hint govuk-checkboxes__hint">
-                        Removes every file this exercise wrote on an earlier run before writing the new ones. Use this if a
-                        school's data should no longer include records from a file that has since been removed.
-                    </div>
-                </div>
-            </div>
-        }
         <govuk-button type="submit" data-validate-start>Run validation</govuk-button>
     </form>
 

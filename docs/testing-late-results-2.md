@@ -107,7 +107,7 @@ An Amendment row does not replace the earlier row. After the run, both rows show
    **"Does the incorrect grade affect the whole cohort?"**.
 6. Search for **Edward Smith**. Make sure that he is now in the suggestions.
 7. Choose Edward Smith. Make sure that his result reads
-   *"OCR Level 3 FSMQ: Additional Maths, QAN: 10025480, Session: S2024, File: Late results 2"*.
+   *"OCR Level 3 FSMQ: Additional Maths, QAN: 10025480, Session: S2024, Grade: …, File: Late results 2"*.
 8. Go back and choose **Alice Smith**. Make sure that GCSE English Language shows twice:
    grade 6 (**File: Late results 1**) and grade 7 (**File: Late results 2**).
 9. Choose **Charlie Smith**. Make sure that GCSE Mathematics shows grade 2 (**File: Included**) and

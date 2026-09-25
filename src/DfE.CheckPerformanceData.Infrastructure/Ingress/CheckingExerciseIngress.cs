@@ -11,14 +11,14 @@ public interface ICheckingExerciseIngress
     /// after every file is written. The earlier releases stay in storage.
     /// </summary>
     /// <param name="publishedBy">Who started the run, recorded on the release.</param>
-    IAsyncEnumerable<ValidationProgress> ProcessAsync(Guid exerciseId, bool clearExistingFiles = false,
+    IAsyncEnumerable<ValidationProgress> ProcessAsync(Guid exerciseId,
         CancellationToken cancellationToken = default, string publishedBy = "");
 }
 
 public sealed class CheckingExerciseIngress(ICheckingExerciseDefinitionRepository definitions,
     ICsvSchemaFileProcessor processor, TimeProvider clock) : ICheckingExerciseIngress
 {
-    public async IAsyncEnumerable<ValidationProgress> ProcessAsync(Guid exerciseId, bool clearExistingFiles = false,
+    public async IAsyncEnumerable<ValidationProgress> ProcessAsync(Guid exerciseId,
         [EnumeratorCancellation] CancellationToken cancellationToken = default, string publishedBy = "")
     {
         var definition = await definitions.GetAsync(exerciseId, cancellationToken);
@@ -41,7 +41,7 @@ public sealed class CheckingExerciseIngress(ICheckingExerciseDefinitionRepositor
         Guid? releaseId = exercise.UsesExerciseStorage ? Guid.NewGuid() : null;
 
         await foreach (var progress in processor.ProcessAsync(definition.WindowId, exercise.ExerciseType, inputs,
-            clearExistingFiles: clearExistingFiles, cancellationToken: cancellationToken,
+            cancellationToken: cancellationToken,
             checkingExerciseId: exercise.UsesExerciseStorage ? exercise.Id : null, releaseId: releaseId))
         {
             if (progress is { IsComplete: true, IsError: false })

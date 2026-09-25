@@ -84,7 +84,7 @@ public class ValidateWindowController(
 
     [HttpGet("admin/windows/{id:guid}/exercises/{exerciseId:guid}/validate/stream")]
     public async Task<IResult> StreamForExercise(
-        Guid id, Guid exerciseId, bool clearExistingFiles, CancellationToken cancellationToken)
+        Guid id, Guid exerciseId, CancellationToken cancellationToken)
     {
         CheckingExerciseDto? target = await ResolveExerciseAsync(id, exerciseId, cancellationToken);
 
@@ -94,7 +94,7 @@ public class ValidateWindowController(
         }
 
         return Results.ServerSentEvents(
-            ingress.ProcessAsync(exerciseId, clearExistingFiles, cancellationToken, currentUser.Email), eventType: "progress");
+            ingress.ProcessAsync(exerciseId, cancellationToken, currentUser.Email), eventType: "progress");
     }
 
     // No-JS fallback for the exercise-id route: run the one named exercise to completion through
@@ -103,7 +103,7 @@ public class ValidateWindowController(
     [HttpPost("admin/windows/{id:guid}/exercises/{exerciseId:guid}/validate")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Run(
-        Guid id, Guid exerciseId, bool clearExistingFiles, CancellationToken cancellationToken)
+        Guid id, Guid exerciseId, CancellationToken cancellationToken)
     {
         CheckingExerciseDto? target = await ResolveExerciseAsync(id, exerciseId, cancellationToken);
 
@@ -113,7 +113,7 @@ public class ValidateWindowController(
         }
 
         ValidationProgress? last = null;
-        await foreach (ValidationProgress progress in ingress.ProcessAsync(exerciseId, clearExistingFiles, cancellationToken, currentUser.Email))
+        await foreach (ValidationProgress progress in ingress.ProcessAsync(exerciseId, cancellationToken, currentUser.Email))
         {
             last = progress;
         }
@@ -149,8 +149,7 @@ public class ValidateWindowController(
         ExerciseLabel = ExerciseLabels.For(exercise),
         StreamUrl = Url.Action(nameof(StreamForExercise), "ValidateWindow", new { id, exerciseId }),
         PostUrl = Url.Action(nameof(Run), "ValidateWindow", new { id, exerciseId }),
-        CancelUrl = Url.Action("Index", "Summary", new { id }),
-        ShowClearExistingFiles = true
+        CancelUrl = Url.Action("Index", "Summary", new { id })
     };
 
     // Drives the processor for one exercise and, on a clean finish, stamps that exercise validated

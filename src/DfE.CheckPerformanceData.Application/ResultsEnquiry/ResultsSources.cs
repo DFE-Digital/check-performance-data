@@ -7,7 +7,11 @@ namespace DfE.CheckPerformanceData.Application.ResultsEnquiry;
 /// The file that corrects nearly all incorrect grades. While its slot is in use and the live release
 /// has not read it, the enquiry journey tells a school to wait for it (<see cref="LateResultsAvailability"/>).
 /// </param>
-public sealed record ResultsSource(string Tag, string Label, bool IsSecondLateResults = false);
+/// <param name="IsRequired">
+/// A file the exercise starts with: its slot must hold a file before the exercise can be validated.
+/// The later files land weeks apart and one may never land, so they are optional.
+/// </param>
+public sealed record ResultsSource(string Tag, string Label, bool IsSecondLateResults = false, bool IsRequired = false);
 
 /// <summary>
 /// The results files each window type offers, in the order they arrive, and the label schools see
@@ -18,9 +22,10 @@ public static class ResultsSources
 {
     private static readonly IReadOnlyList<ResultsSource> Post16 =
     [
-        new(ResultsFileTags.Post16Included, "Included"),
-        new(ResultsFileTags.Post16NonIncluded, "Non-included"),
-        new(ResultsFileTags.Post16LateResults1, "Late results 1"),
+        // A 16-19 results enquiry starts with these three files.
+        new(ResultsFileTags.Post16Included, "Included", IsRequired: true),
+        new(ResultsFileTags.Post16NonIncluded, "Non-included", IsRequired: true),
+        new(ResultsFileTags.Post16LateResults1, "Late results 1", IsRequired: true),
         new(ResultsFileTags.Post16LateResults2, "Late results 2", IsSecondLateResults: true),
         new(ResultsFileTags.Post16IncludedRevised, "Included revised"),
         new(ResultsFileTags.Post16NonIncludedRevised, "Non-included revised"),
@@ -29,7 +34,7 @@ public static class ResultsSources
 
     private static readonly IReadOnlyList<ResultsSource> Ks4 =
     [
-        new(ResultsFileTags.Ks4Main, "Main results"),
+        new(ResultsFileTags.Ks4Main, "Main results", IsRequired: true),
         new(ResultsFileTags.Ks4LateResults1, "Late results 1"),
         new(ResultsFileTags.Ks4LateResults2, "Late results 2", IsSecondLateResults: true),
         new(ResultsFileTags.Ks4Revised, "Revised results")

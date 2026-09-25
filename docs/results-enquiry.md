@@ -78,8 +78,9 @@ school across the supplier files the live release read, each row stamped with it
 Written by the results-enquiry checking exercise's own ingress run (#324): one dataset slot per
 source file, each stamping its `SOURCE` tag onto every record it contributes, all merged into one
 file per school in a single run. `SeedStudentResults` still writes the same blob in development, so
-a developer needs no supplier files. Only the first slot (included) is required to validate the
-exercise — the other files are optional slots, because they land weeks apart and one may never land,
+a developer needs no supplier files. The files the exercise starts with are required to validate
+it — on 16-19, included, non-included and late results 1; on KS4, main results
+(`ResultsSource.IsRequired`). The other files are optional slots, because they land weeks apart and one may never land,
 and each run rewrites the school's whole file from the slots that are filled and not retired. The supplier CSVs must carry a `LAESTAB` column — that is what
 splits one file into one blob per school — and a file without one fails the run by name.
 
@@ -134,7 +135,7 @@ name the CSV column it is read from, or a list of columns to join with `x-ingres
 late file. Rows with a NULL `CYPMD_ID` are ignored — they match no student.
 
 Schools see the label, never the raw tag: the result dropdown reads
-*"{qualification}, QAN: {qan}, Session: {session}, File: {label}"* (`ResultLabel`), the result
+*"{qualification}, QAN: {qan}, Session: {session}, Grade: {grade}, File: {label}"* (`ResultLabel`), the result
 details say *CSV file: {label}*, and the Results tab CSV's *Source file* column carries the label. The
 Results tab lists every result in the live file, not one tag's.
 

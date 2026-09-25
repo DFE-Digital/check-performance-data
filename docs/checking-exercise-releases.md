@@ -168,7 +168,8 @@ A run that fails writes no release row, so the current release does not change. 
 removes the files it wrote after a write error. A cancelled run can leave files under its release
 prefix, but no row points to them, so no reader finds them.
 
-`clearExistingFiles` does nothing on a release run. The new prefix is always empty.
+A release run needs no clear sweep: the new prefix is always empty. The validate page has no
+"delete previous output" checkbox for this reason.
 
 ## What reads the current release
 

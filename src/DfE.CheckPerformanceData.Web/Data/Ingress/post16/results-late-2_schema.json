@@ -1,23 +1,23 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "results-late_schema.json",
-  "title": "Late results",
-  "description": "One row of a 16-19 late results file (data specification: 1618 names). Used for late results 1 (late results 2 has results-late-2_schema.json, so the two are separate datasets); the slot stamps SOURCE. A property with x-ingress.source is read from that CSV column, so the journey's QAN, QUAL_NAME, SYLLABUS and SESSION are filled from the supplier's own column names.",
+  "$id": "results-late-2_schema.json",
+  "title": "Late results 2",
+  "description": "One row of the 16-19 second late results file, which arrives in November (data specification: 1618 names). The same columns as results-late_schema.json, but its own collection, download and section, so late results 1 and late results 2 are two datasets on the Results tab rather than one. The slot stamps SOURCE (16to19_LR2). A property with x-ingress.source is read from that CSV column, so the journey's QAN, QUAL_NAME, SYLLABUS and SESSION are filled from the supplier's own column names.",
   "type": "object",
   "additionalProperties": false,
   "x-ingress": {
-    "collection": "results-late",
+    "collection": "results-late-2",
     "pageTab": "results",
     "institutionKey": "LAESTAB"
   },
   "x-download": {
-    "fileName": "late-results.csv",
-    "label": "Late results"
+    "fileName": "late-results-2.csv",
+    "label": "Late results 2"
   },
   "x-display": {
     "tab": "results",
-    "section": "Late results",
-    "selectorOrder": 2
+    "section": "Late results 2",
+    "selectorOrder": 3
   },
   "properties": {
     "LAESTAB": {
@@ -285,7 +285,7 @@
         "string",
         "null"
       ],
-      "description": "The results file the row came in, stamped from the dataset slot (e.g. 16to19_LR1). Not a CSV column.",
+      "description": "The results file the row came in, stamped from the dataset slot (16to19_LR2). Not a CSV column.",
       "x-csv": {
         "columns": {},
         "heading": "Source file"

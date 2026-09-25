@@ -120,6 +120,7 @@ public sealed class SeedPost16OctoberSamplesTests
     [InlineData("results-included_schema.json")]
     [InlineData("results-non-included_schema.json")]
     [InlineData("results-late_schema.json")]
+    [InlineData("results-late-2_schema.json")]
     public void Every_results_schema_shows_the_student_and_the_grade_on_the_Results_tab(string schema)
     {
         // A schema with no visible column draws a table with nothing in it. The workbook's
@@ -138,6 +139,7 @@ public sealed class SeedPost16OctoberSamplesTests
     [InlineData("results-included_schema.json")]
     [InlineData("results-non-included_schema.json")]
     [InlineData("results-late_schema.json")]
+    [InlineData("results-late-2_schema.json")]
     public void The_results_schemas_set_no_length_limits(string schema)
     {
         // The specifications' lengths were written for SQL tables. In a CSV import one long value
@@ -152,6 +154,7 @@ public sealed class SeedPost16OctoberSamplesTests
     [InlineData("results-included_schema.json")]
     [InlineData("results-non-included_schema.json")]
     [InlineData("results-late_schema.json")]
+    [InlineData("results-late-2_schema.json")]
     public void The_results_schemas_declare_what_the_journey_reads_and_the_stamped_source(string schema)
     {
         var declared = Properties(schema);

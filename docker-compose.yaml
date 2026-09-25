@@ -33,6 +33,9 @@ services:
       - ConnectionStrings__Postgres=${POSTGRES_CONNECTION_STRING:-Host=db;Database=cypd;Username=postgres;Password=postgres}
       - ConnectionStrings__AzureStorage=${AZURE_STORAGE_CONNECTION_STRING:-DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;QueueEndpoint=http://azurite:10001/devstoreaccount1;}
       - ConnectionStrings__EgressStorage=${EGRESS_STORAGE_CONNECTION_STRING:-DefaultEndpointsProtocol=http;AccountName=egressaccount;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/egressaccount;QueueEndpoint=http://azurite:10001/egressaccount;}
+      # Without this the appsettings.json default (127.0.0.1:10000) applies, which in this container is the
+      # container itself: the 16 to 19 Oct sample seeder cannot connect, the app exits, and every restart reseeds.
+      - ConnectionStrings__IngressStorage=${INGRESS_STORAGE_CONNECTION_STRING:-DefaultEndpointsProtocol=http;AccountName=ingressaccount;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/ingressaccount;QueueEndpoint=http://azurite:10001/ingressaccount;}
       - DfeSignIn__BaseUrl=${DFESIGNIN_BASEURL:-https://test-api.signin.education.gov.uk/}
       - DfeSignIn__ClientId=${DFESIGNIN_CLIENTID}
       - DfeSignIn__ApiClientSecret=${DFESIGNIN_APICLIENTSECRET}

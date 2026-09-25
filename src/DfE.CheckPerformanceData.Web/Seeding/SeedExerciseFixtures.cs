@@ -59,17 +59,17 @@ public static class SeedExerciseFixtures
         }
     }
 
-    private static Task<CheckingWindow> LoadAsync(IPortalDbContext dbContext, Guid windowId) =>
+    internal static Task<CheckingWindow> LoadAsync(IPortalDbContext dbContext, Guid windowId) =>
         dbContext.CheckingWindows
             .Include(w => w.CheckingExercises).ThenInclude(e => e.Datasets)
             .SingleAsync(w => w.Id == windowId);
 
-    private static CheckingExercise Exercise(CheckingWindow window, CheckingExerciseType type) =>
+    internal static CheckingExercise Exercise(CheckingWindow window, CheckingExerciseType type) =>
         window.CheckingExercises.Single(e => e.ExerciseType == type);
 
     // Same path the admin Validate button drives, so the seed cannot drift from it. A failure
     // quotes the head of the run's error log: the progress message is only a count.
-    private static async Task IngestAsync(BlobServiceClient blobs, ICheckingExerciseIngress ingress, CheckingExercise exercise)
+    internal static async Task IngestAsync(BlobServiceClient blobs, ICheckingExerciseIngress ingress, CheckingExercise exercise)
     {
         ValidationProgress? last = null;
         await foreach (var progress in ingress.ProcessAsync(exercise.Id)) last = progress;
@@ -121,7 +121,7 @@ public static class SeedExerciseFixtures
         _ => node.ToJsonString()
     };
 
-    private static async Task LinkAsync(BlobServiceClient blobs, CheckingExercise exercise, CheckingWindowDataset dataset,
+    internal static async Task LinkAsync(BlobServiceClient blobs, CheckingExercise exercise, CheckingWindowDataset dataset,
         string ingressFile, byte[] csv, string schemaFile, string schema)
     {
         var container = blobs.GetBlobContainerClient(exercise.CheckingWindowId.ToString());

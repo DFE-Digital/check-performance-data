@@ -91,7 +91,8 @@ public static class SeedCheckingWindows
                 FeedsJourney = true, SortOrder = d.SortOrder
             }).ToList();
 
-    public static async Task ExecuteSeed(IPortalDbContext dbContext, Guid openKs4WindowId, Guid closedKs4WindowId, Guid post16OctoberWindowId)
+    public static async Task ExecuteSeed(IPortalDbContext dbContext, Guid openKs4WindowId, Guid closedKs4WindowId,
+        Guid post16OctoberWindowId, Guid post16NovemberWindowId)
     {
         // Egress runs first: egress_runs → CheckingWindows is a RESTRICT foreign key (an egress
         // is an audit record and must never vanish because a window was deleted), so a run left
@@ -155,10 +156,27 @@ public static class SeedCheckingWindows
             CheckingExercises = ExercisesFor(CheckingWindowType.Post16, octoberStart, octoberEnd, pupilDataEnd: octoberPupilDataEnd)
         };
 
+        // "16 to 19 Nov": the same exercises, slots and dates as October. The Web seed then imports
+        // and validates the October files into it (SeedPost16NovemberSamples), so only the late
+        // results 2 slot is empty: an admin adds that file to test the November release.
+        var post16NovemberWindow = new CheckingWindow
+        {
+            Id = post16NovemberWindowId,
+            StartDate = octoberStart,
+            EndDate = octoberEnd,
+            KeyStage = KeyStages.Post16,
+            CheckingWindowType = CheckingWindowType.Post16,
+            Title = "16 to 19 Nov",
+            TurnaroundCommitment = "updated in the Spring",
+            NextOpportunity = new DateTime(DateTime.Now.Year + 1, 10, 1),
+            CheckingExercises = ExercisesFor(CheckingWindowType.Post16, octoberStart, octoberEnd, pupilDataEnd: octoberPupilDataEnd)
+        };
+
         await dbContext.CheckingWindows.AddRangeAsync(
             openKs4JuneWindow,
             closedKs4JuneWindow,
-            post16OctoberWindow
+            post16OctoberWindow,
+            post16NovemberWindow
         );
         
         await dbContext.SaveChangesAsync();

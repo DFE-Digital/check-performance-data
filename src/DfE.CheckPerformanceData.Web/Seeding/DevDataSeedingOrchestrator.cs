@@ -46,6 +46,11 @@ public sealed class DevDataSeedingOrchestrator(
         // admin to import and validate.
         await SeedPost16OctoberSamples.ExecuteSeedAsync(blobClients, logger);
 
+        // The "16 to 19 Nov" window has the October files imported and validated; only its late
+        // results 2 file goes to ingress storage, for an admin to add.
+        await SeedPost16NovemberSamples.ExecuteSeedAsync(dbContext, blobServiceClient, checkingExerciseIngress, environment.ContentRootPath);
+        await SeedPost16NovemberSamples.WriteSamplesAsync(blobClients, logger);
+
         try
         {
             await SeedChangeRequests.ExecuteSeedAsync(pupilDataBlobClient, requestRepository, requestStateBlobClient, checkYourPupilDataService, checkingExerciseService);

@@ -559,7 +559,7 @@ Validation failures flow through the existing `validation_error` event; `GradeSe
 
 ## Local development
 
-The only seeded 16-19 window is **"16 to 19 Oct"** (`DevDataSeeder.Post16OctoberCheckingWindowId`),
+There are two seeded 16-19 windows. The first is **"16 to 19 Oct"** (`DevDataSeeder.Post16OctoberCheckingWindowId`),
 set up for the start of the results enquiry: pupil data checking open for the fortnight, the results
 enquiry to 31 March, both exercises enabled, every dataset slot in place — and **no data**. An admin
 imports it as they would the supplier's files: `SeedPost16OctoberSamples` writes the October sample
@@ -585,6 +585,15 @@ qualification held twice in different sessions, and **no `16to19_LR2` rows**. Th
 sample is in the supplier's late shape (`GNUMBER`, `SYLLABUS_TITLE`, `BRDSUBNO`, `EXAM_YEAR_SEASON`,
 `Late_Result_Type`), and amends student `500002`'s BTEC Sport grade: the included row and the
 amendment both show in the search.
+
+The second is **"16 to 19 Nov"** (`DevDataSeeder.Post16NovemberCheckingWindowId`): the same
+exercises, slots and dates, but `SeedPost16NovemberSamples` imports and validates the October files
+above into it at seed time, so both exercises have a release. Only the late results 2 slot is empty.
+Its sample, `results/16to19_LR2.csv` (`SeedStudentResults.LateResults2`), is in ingress container
+`16-to-19-nov`; pair it with `results-late-2_schema.json`. That schema has the late results columns
+but its own collection, so late results 1 and 2 are two datasets on the Results tab. The file amends
+two earlier results, adds one, and gives the first result to two students who held none, so they
+reach the results search only after it is run. Step-by-step: `docs/testing-late-results-2.md`.
 
 No 16-19 E2E journey tests remain: they needed a window with data, and this one starts empty. Only
 the what-to-change option tests use it.

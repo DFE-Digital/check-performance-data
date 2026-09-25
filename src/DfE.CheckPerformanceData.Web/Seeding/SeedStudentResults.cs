@@ -14,9 +14,10 @@ namespace DfE.CheckPerformanceData.Web.Seeding;
 /// results keyed to the Figma's own CYPMD id would leave the journey with a selectable pupil who
 /// holds no results.
 ///
-/// Deliberately seeds no <see cref="ResultsFileTags.Post16LateResults2"/> row: it arrives in
+/// <see cref="All"/> holds no <see cref="ResultsFileTags.Post16LateResults2"/> row: it arrives in
 /// November, so after the October import its slot is empty, <c>ILateResultsAvailability</c> reports
-/// the file as awaited and the "check your second late results file" interstitial shows.
+/// the file as awaited and the "check your second late results file" interstitial shows. The
+/// November file is <see cref="LateResults2"/>, kept apart for the same reason.
 /// </summary>
 public static class SeedStudentResults
 {
@@ -31,6 +32,51 @@ public static class SeedStudentResults
 
     /// <summary>Every seeded result, all for <see cref="Laestab"/>.</summary>
     public static IReadOnlyList<StudentResultRecord> All => [.. FigmaResults, .. GeneratedResults()];
+
+    // Included index 4 (Edward Smith) and non-included index 201 (Bob Johnson) hold no result in
+    // any October file: GeneratedResults skips them.
+    private const string IncludedStudentWithNoResults = "500005";
+    private const string NonIncludedStudentWithNoResults = "500202";
+
+    /// <summary>
+    /// The November second late results file (<see cref="ResultsFileTags.Post16LateResults2"/>). It
+    /// is NOT in <see cref="All"/>: <see cref="SeedPost16NovemberSamples"/> writes it to ingress
+    /// storage for an admin to add to the "16 to 19 Nov" window. Two rows amend a result from an
+    /// earlier file, one gives a student with results a new one, and two give a result to a student
+    /// who held none, so that student only appears in the results search after the file is run.
+    /// </summary>
+    public static IReadOnlyList<StudentResultRecord> LateResults2 =>
+    [
+        // Amends Student A's English Language grade from late results 1 (6 → 7).
+        new()
+        {
+            CypmdId = StudentA, Qan = "60148366", QualificationName = "GCSE (9-1) English Language",
+            SyllabusCode = "1EN0", Session = "S2024", Grade = "7", SourceFile = ResultsFileTags.Post16LateResults2
+        },
+        // Amends Student C's Maths grade from the included file (2 → 3).
+        new()
+        {
+            CypmdId = StudentC, Qan = "60146084", QualificationName = "GCSE (9-1) Mathematics",
+            SyllabusCode = "8300H", Session = "S2024", Grade = "3", SourceFile = ResultsFileTags.Post16LateResults2
+        },
+        // New: Student B's A Level, not in any earlier file.
+        new()
+        {
+            CypmdId = StudentB, Qan = "60149589", QualificationName = "GCE A Level Art and Design",
+            SyllabusCode = "9FA0", Session = "S2024", Grade = "C", SourceFile = ResultsFileTags.Post16LateResults2
+        },
+        // New: the first result for a student who held none.
+        new()
+        {
+            CypmdId = IncludedStudentWithNoResults, Qan = "10025480", QualificationName = "OCR Level 3 FSMQ: Additional Maths",
+            SyllabusCode = "6993", Session = "S2024", Grade = "B", SourceFile = ResultsFileTags.Post16LateResults2
+        },
+        new()
+        {
+            CypmdId = NonIncludedStudentWithNoResults, Qan = "60172186", QualificationName = "BTEC L3 Nat Ext Cert in Sport",
+            SyllabusCode = "31525H", Session = "S2024", Grade = "M", SourceFile = ResultsFileTags.Post16LateResults2
+        }
+    ];
 
     private static readonly StudentResultRecord[] FigmaResults =
     [

@@ -40,8 +40,7 @@ public static class SeedPost16OctoberSamples
     public static IReadOnlyDictionary<string, byte[]> Files()
     {
         var students = SeedPupilData.Post16Pupils(DevDataSeeder.Post16OctoberCheckingWindowId);
-        var byCypmd = students.Where(p => p.Laestab == SeedStudentResults.Laestab.Replace("/", string.Empty))
-            .ToDictionary(p => p.Cypmd_Id);
+        var byCypmd = KingsmeadStudents();
 
         var files = new Dictionary<string, byte[]>
         {
@@ -51,25 +50,36 @@ public static class SeedPost16OctoberSamples
         foreach (var tag in new[] { ResultsFileTags.Post16Included, ResultsFileTags.Post16NonIncluded })
             files[$"results/{tag}.csv"] = ResultsCsv(SeedStudentResults.All.Where(r => r.SourceFile == tag), byCypmd);
         files[$"results/{ResultsFileTags.Post16LateResults1}.csv"] = LateResultsCsv(
-            SeedStudentResults.All.Where(r => r.SourceFile == ResultsFileTags.Post16LateResults1), byCypmd);
+            SeedStudentResults.All.Where(r => r.SourceFile == ResultsFileTags.Post16LateResults1), byCypmd,
+            SeedStudentResults.All.Where(r => r.SourceFile is ResultsFileTags.Post16Included or ResultsFileTags.Post16NonIncluded));
         return files;
     }
+
+    /// <summary>Kingsmead's students by CYPMD id, as the sample files name them.</summary>
+    internal static IReadOnlyDictionary<string, Post16PupilRecord> KingsmeadStudents() =>
+        SeedPupilData.Post16Pupils(DevDataSeeder.Post16OctoberCheckingWindowId)
+            .Where(p => p.Laestab == SeedStudentResults.Laestab.Replace("/", string.Empty))
+            .ToDictionary(p => p.Cypmd_Id);
 
     /// <summary>
     /// Writes the sample files, replacing any from an earlier seed. Does nothing when no ingress
     /// storage account is configured.
     /// </summary>
-    public static async Task ExecuteSeedAsync(IReadOnlyDictionary<string, BlobServiceClient> blobClients, ILogger logger)
+    public static Task ExecuteSeedAsync(IReadOnlyDictionary<string, BlobServiceClient> blobClients, ILogger logger) =>
+        WriteToIngressAsync(blobClients, Container, Files(), "16 to 19 Oct", logger);
+
+    internal static async Task WriteToIngressAsync(IReadOnlyDictionary<string, BlobServiceClient> blobClients,
+        string containerName, IReadOnlyDictionary<string, byte[]> files, string windowTitle, ILogger logger)
     {
         if (!blobClients.TryGetValue("ingress", out var ingress))
         {
-            logger.LogWarning("No ingress storage account: the 16 to 19 Oct sample files were not written.");
+            logger.LogWarning("No ingress storage account: the {Window} sample files were not written.", windowTitle);
             return;
         }
 
-        var container = ingress.GetBlobContainerClient(Container);
+        var container = ingress.GetBlobContainerClient(containerName);
         await container.CreateIfNotExistsAsync();
-        foreach (var (path, content) in Files())
+        foreach (var (path, content) in files)
             await container.GetBlobClient(path).UploadAsync(new BinaryData(content), new BlobUploadOptions
             {
                 HttpHeaders = new BlobHttpHeaders { ContentType = "text/csv" }
@@ -127,11 +137,11 @@ public static class SeedPost16OctoberSamples
     // DOB or URN, and the qualification by GNUMBER, SYLLABUS_TITLE, BRDSUBNO and EXAM_YEAR_SEASON,
     // which results-late_schema.json reads into QAN, QUAL_NAME, SYLLABUS and SESSION. A row is an
     // Amendment when an earlier file holds the same student, QAN and session; otherwise it is New.
-    private static byte[] LateResultsCsv(
-        IEnumerable<StudentResultRecord> results, IReadOnlyDictionary<string, Post16PupilRecord> students)
+    internal static byte[] LateResultsCsv(
+        IEnumerable<StudentResultRecord> results, IReadOnlyDictionary<string, Post16PupilRecord> students,
+        IEnumerable<StudentResultRecord> earlierFiles)
     {
-        var earlier = SeedStudentResults.All
-            .Where(r => r.SourceFile is ResultsFileTags.Post16Included or ResultsFileTags.Post16NonIncluded)
+        var earlier = earlierFiles
             .Select(r => (r.CypmdId, r.Qan, r.Session))
             .ToHashSet();
         return SeedExerciseFixtures.WriteCsv(results.Select(result =>

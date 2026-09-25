@@ -37,4 +37,32 @@ public sealed class PhaseBannerFeedbackLinkTests
     {
         Assert.Equal("https://forms.cloud.microsoft/e/NtJTefhXHz", new FeedbackSurveySettings().Url);
     }
+
+    [Fact]
+    public void PhaseBannerLink_OpensInANewTab()
+    {
+        var anchor = FeedbackAnchor();
+
+        Assert.Contains("target=\"_blank\"", anchor);
+    }
+
+    [Fact]
+    public void PhaseBannerLink_SaysItOpensInANewTab()
+    {
+        // GOV.UK Design System: a link that opens in a new tab says so in its link text.
+        var anchor = FeedbackAnchor();
+
+        Assert.EndsWith(">feedback (opens in new tab)</a>", anchor);
+    }
+
+    [Fact]
+    public void PhaseBannerLink_UsesNoopenerButKeepsTheReferer()
+    {
+        // "noreferrer" would strip the Referer header that RefererPagePath reads for the
+        // feedback_clicked event's page_path, so every click would log page_path = null.
+        var anchor = FeedbackAnchor();
+
+        Assert.Contains("rel=\"noopener\"", anchor);
+        Assert.DoesNotContain("noreferrer", anchor);
+    }
 }

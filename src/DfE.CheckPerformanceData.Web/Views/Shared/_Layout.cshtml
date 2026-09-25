@@ -165,7 +165,13 @@
                 Beta
             </strong>
             <span class="govuk-phase-banner__text">
-                This is a new service - your <a class="govuk-link" href="/feedback-link">feedback</a> will help us to improve it.
+                @* The link goes through /feedback-link so the click is recorded as a
+                   feedback_clicked analytics event before the redirect to the survey
+                   (ContactController.FeedbackLink). rel is "noopener" only: "noreferrer"
+                   would strip the Referer header that RefererPagePath reads for page_path.
+                   "(opens in new tab)" sits in the link text, per the GOV.UK Design System
+                   guidance on links that open in a new tab. *@
+                This is a new service - your <a class="govuk-link" href="/feedback-link" target="_blank" rel="noopener">feedback (opens in new tab)</a> will help us to improve it.
             </span>
         </p>
     </div>

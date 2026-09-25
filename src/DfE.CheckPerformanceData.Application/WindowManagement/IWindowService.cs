@@ -58,6 +58,10 @@ public sealed class CheckingWindowDto
     public CheckingExerciseDto? FindExercise(CheckingExerciseType? exercise) =>
         exercise is null ? null : Exercises.SingleOrDefault(e => e.ExerciseType == exercise);
 
+    /// <summary>Schools see this window: at least one of its exercises is live at
+    /// <paramref name="now"/>. A window with no live exercise is not set up yet and is hidden.</summary>
+    public bool HasLiveExerciseAt(DateTime now) => Exercises.Any(e => e.IsLiveAt(now));
+
     /// <summary>
     /// The outer pair derived from the exercises: earliest start, latest end. The wizard never asks
     /// an admin for the window's own dates, so the two can never disagree. A window with no

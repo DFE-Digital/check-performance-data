@@ -83,6 +83,28 @@ public sealed class LiveExercisesTests
         Assert.Null(LiveExercises.FindClash(second, [first, second]));
     }
 
+    [Fact]
+    public void A_window_with_one_live_exercise_has_a_live_exercise()
+    {
+        var window = Window(Exercise(enabled: false), Exercise(type: null));
+
+        Assert.True(window.HasLiveExerciseAt(Now));
+    }
+
+    [Fact]
+    public void A_window_whose_exercises_are_all_disabled_or_out_of_visibility_has_no_live_exercise()
+    {
+        var window = Window(Exercise(enabled: false), Exercise(until: Now));
+
+        Assert.False(window.HasLiveExerciseAt(Now));
+    }
+
+    [Fact]
+    public void A_window_with_no_exercises_has_no_live_exercise()
+    {
+        Assert.False(Window().HasLiveExerciseAt(Now));
+    }
+
     [Theory]
     [InlineData(CheckingWindowType.KS4June, CheckingExerciseType.PupilData, "Pupils")]
     [InlineData(CheckingWindowType.KS2, CheckingExerciseType.PupilData, "Pupils")]
@@ -102,6 +124,16 @@ public sealed class LiveExercisesTests
         foreach (var kind in Enum.GetValues<CheckingExerciseType>())
             Assert.False(string.IsNullOrWhiteSpace(WindowExercises.DefaultTabName(window, kind)));
     }
+
+    private static CheckingWindowDto Window(params CheckingExerciseDto[] exercises) => new()
+    {
+        Title = "Window",
+        StartDate = Now.AddDays(-1),
+        EndDate = Now.AddDays(1),
+        KeyStage = KeyStages.KS4,
+        CheckingWindowType = CheckingWindowType.KS4June,
+        Exercises = [.. exercises]
+    };
 
     private static CheckingExerciseDto Exercise(CheckingExerciseType? type = CheckingExerciseType.PupilData,
         bool enabled = true, DateTime? from = null, DateTime? until = null) => new()

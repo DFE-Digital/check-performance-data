@@ -102,6 +102,34 @@ public class WindowAdminControllerTests
         Assert.Equal(allowed, Assert.IsType<WindowViewModel>(result.Model).CanCreateWindow);
     }
 
+    [Theory]
+    [InlineData(true, true)]
+    [InlineData(false, false)]
+    public async Task Index_shows_a_window_as_published_only_while_an_exercise_is_live(bool enabled, bool published)
+    {
+        var service = Substitute.For<IWindowService>();
+        service.GetAllDataAsync(Arg.Any<CancellationToken>()).Returns(new PageResult
+        {
+            Windows = [new CheckingWindowDto
+            {
+                Title = "Test window", KeyStage = KeyStages.KS4,
+                CheckingWindowType = CheckingWindowType.KS4June,
+                StartDate = DateTime.MinValue, EndDate = DateTime.MaxValue,
+                Exercises = [new CheckingExerciseDto
+                {
+                    ExerciseType = CheckingExerciseType.PupilData, IsEnabled = enabled,
+                    StartDate = DateTime.MinValue, EndDate = DateTime.MaxValue
+                }]
+            }]
+        });
+        var controller = Controller(service, Substitute.For<IQuestionFlowConfigSource>(), TimeProvider.System,
+            Substitute.For<IAdminAccessPolicy>());
+
+        var result = Assert.IsType<ViewResult>(await controller.Index(CancellationToken.None));
+
+        Assert.Equal(published, Assert.Single(Assert.IsType<WindowViewModel>(result.Model).Windows).IsPublished);
+    }
+
     private static WindowAdminController Controller(IWindowService service, IQuestionFlowConfigSource flows,
         TimeProvider clock, IAdminAccessPolicy policy) =>
         new(service, flows, clock, policy)

@@ -27,7 +27,7 @@ public sealed class WindowAdminController(
             Id = window.Id,
             Name = window.Title,
             IsOpen = window.IsOpen,
-            IsPublished = true,
+            IsPublished = window.HasLiveExerciseAt(now),
             Exercises = window.Exercises.OrderBy(e => e.SortOrder).Select(exercise =>
             {
                 var missing = Enum.GetValues<WhatToChange>()

@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 
 [RequireAdminSection(AdminNavKeys.ManageWindow)]
-public sealed class SummaryController(IWindowService windowService): Controller
+public sealed class SummaryController(IWindowService windowService, TimeProvider timeProvider): Controller
 {
    
     [HttpGet("admin/windows/summary/{id:guid}")]
@@ -30,6 +30,7 @@ public sealed class SummaryController(IWindowService windowService): Controller
             EndDate = w.EndDate,
             KeyStage = w.KeyStage,
             CheckingWindowType = w.CheckingWindowType,
+            IsPublished = w.HasLiveExerciseAt(timeProvider.GetLocalNow().DateTime),
             // #319/#466: one section per checking exercise, each with its own dates, files and
             // validation state. There is no window-level validate button any more — an exercise
             // validates on its own, and a window is usable while another is still unvalidated.

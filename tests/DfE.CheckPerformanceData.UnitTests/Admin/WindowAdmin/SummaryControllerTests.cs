@@ -21,7 +21,7 @@ public sealed class SummaryControllerTests
 
     private readonly IWindowService _windowService = Substitute.For<IWindowService>();
 
-    private SummaryController Controller() => new(_windowService);
+    private SummaryController Controller() => new(_windowService, TimeProvider.System);
 
     private static WindowEditItem Model(IActionResult result) =>
         Assert.IsType<WindowEditItem>(Assert.IsType<ViewResult>(result).Model);
@@ -55,6 +55,20 @@ public sealed class SummaryControllerTests
         var model = Model(await Controller().Index(WindowId, CancellationToken.None));
 
         Assert.Equal(["Autumn release", "Withdrawn release"], model.Exercises.Select(e => e.Name));
+    }
+
+    [Theory]
+    [InlineData(true, true)]
+    [InlineData(false, false)]
+    public async Task IsPublishedOnlyWhileAnExerciseIsLive(bool enabled, bool published)
+    {
+        // No visibility dates, so the exercise is live exactly when it is enabled.
+        _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(Window(
+            Exercise("Autumn release", enabled: enabled)));
+
+        var model = Model(await Controller().Index(WindowId, CancellationToken.None));
+
+        Assert.Equal(published, model.IsPublished);
     }
 
     [Fact]

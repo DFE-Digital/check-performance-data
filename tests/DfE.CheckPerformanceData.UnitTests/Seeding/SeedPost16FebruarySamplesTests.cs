@@ -6,8 +6,8 @@ using DfE.CheckPerformanceData.Web.Seeding;
 namespace DfE.CheckPerformanceData.Application.UnitTests.Seeding;
 
 /// <summary>
-/// The "16 to 19 Feb" window has the October files and late results 2 imported by the seed, and
-/// its revised files are left for an admin to add. These pin that the revised files replace the four
+/// The "16 to 19 Feb" window has the October files, late results 2 and then the revised files
+/// imported by the seed. These pin that the revised files replace the four
 /// earlier files, and that their schemas read every column and are their own datasets.
 /// </summary>
 public sealed class SeedPost16FebruarySamplesTests

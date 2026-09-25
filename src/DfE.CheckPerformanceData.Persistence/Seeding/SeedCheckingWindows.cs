@@ -92,7 +92,8 @@ public static class SeedCheckingWindows
             }).ToList();
 
     public static async Task ExecuteSeed(IPortalDbContext dbContext, Guid openKs4WindowId, Guid closedKs4WindowId,
-        Guid post16OctoberWindowId, Guid post16NovemberWindowId, Guid post16FebruaryWindowId)
+        Guid post16OctoberWindowId, Guid post16NovemberWindowId, Guid post16FebruaryWindowId,
+        Guid post16MarchWindowId)
     {
         // Egress runs first: egress_runs → CheckingWindows is a RESTRICT foreign key (an egress
         // is an audit record and must never vanish because a window was deleted), so a run left
@@ -136,9 +137,9 @@ public static class SeedCheckingWindows
         // "16 to 19 Oct": the start of the 16-19 results enquiry. It opens today with pupil data
         // checking for a fortnight (7 to 18 October in the real calendar) and the results enquiry
         // to the end of March. Both exercises are enabled and have their dataset slots — two
-        // student files, and a results slot for every file of the year — but no data: an admin
-        // imports the October files (included, non-included and late results 1) from the sample
-        // files in ingress storage and validates. The outer dates are the union of the exercises.
+        // student files, and a results slot for every file of the year — but no data here: the Web
+        // seed imports and validates the October files (included, non-included and late results 1)
+        // with SeedPost16OctoberSamples. The outer dates are the union of the exercises.
         var octoberStart = DateTime.Today;
         var octoberPupilDataEnd = octoberStart.AddDays(11).AddHours(17);
         var octoberEnd = new DateTime(octoberStart.Month > 3 ? octoberStart.Year + 1 : octoberStart.Year, 3, 31, 17, 0, 0);
@@ -156,9 +157,8 @@ public static class SeedCheckingWindows
             CheckingExercises = ExercisesFor(CheckingWindowType.Post16, octoberStart, octoberEnd, pupilDataEnd: octoberPupilDataEnd)
         };
 
-        // "16 to 19 Nov": the same exercises, slots and dates as October. The Web seed then imports
-        // and validates the October files into it (SeedPost16NovemberSamples), so only the late
-        // results 2 slot is empty: an admin adds that file to test the November release.
+        // "16 to 19 Nov": the same exercises, slots and dates as October. The Web seed does the
+        // October import, then adds and validates late results 2 (SeedPost16NovemberSamples).
         var post16NovemberWindow = new CheckingWindow
         {
             Id = post16NovemberWindowId,
@@ -172,10 +172,9 @@ public static class SeedCheckingWindows
             CheckingExercises = ExercisesFor(CheckingWindowType.Post16, octoberStart, octoberEnd, pupilDataEnd: octoberPupilDataEnd)
         };
 
-        // "16 to 19 Feb": the same exercises, slots and dates again. The Web seed imports and
-        // validates the October files and then late results 2 (SeedPost16FebruarySamples), so the
-        // results enquiry has an October and a November release. An admin adds the revised files,
-        // retires the four files they replace and validates, to test the February release.
+        // "16 to 19 Feb": the same exercises, slots and dates again. The Web seed does the November
+        // steps, then adds the revised files, retires the four files they replace and validates
+        // (SeedPost16FebruarySamples): an October, a November and a February release.
         var post16FebruaryWindow = new CheckingWindow
         {
             Id = post16FebruaryWindowId,
@@ -189,12 +188,28 @@ public static class SeedCheckingWindows
             CheckingExercises = ExercisesFor(CheckingWindowType.Post16, octoberStart, octoberEnd, pupilDataEnd: octoberPupilDataEnd)
         };
 
+        // "16 to 19 Mar": the same again. The Web seed does the February steps, then adds included
+        // revised with retention, retires included revised and validates (SeedPost16MarchSamples).
+        var post16MarchWindow = new CheckingWindow
+        {
+            Id = post16MarchWindowId,
+            StartDate = octoberStart,
+            EndDate = octoberEnd,
+            KeyStage = KeyStages.Post16,
+            CheckingWindowType = CheckingWindowType.Post16,
+            Title = "16 to 19 Mar",
+            TurnaroundCommitment = "updated in the Spring",
+            NextOpportunity = new DateTime(DateTime.Now.Year + 1, 10, 1),
+            CheckingExercises = ExercisesFor(CheckingWindowType.Post16, octoberStart, octoberEnd, pupilDataEnd: octoberPupilDataEnd)
+        };
+
         await dbContext.CheckingWindows.AddRangeAsync(
             openKs4JuneWindow,
             closedKs4JuneWindow,
             post16OctoberWindow,
             post16NovemberWindow,
-            post16FebruaryWindow
+            post16FebruaryWindow,
+            post16MarchWindow
         );
         
         await dbContext.SaveChangesAsync();

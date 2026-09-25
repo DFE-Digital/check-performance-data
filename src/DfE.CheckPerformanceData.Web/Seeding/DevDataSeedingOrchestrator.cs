@@ -42,19 +42,19 @@ public sealed class DevDataSeedingOrchestrator(
         // release.
         await SeedExerciseFixtures.ExecuteSeedAsync(dbContext, blobServiceClient, checkingExerciseIngress, environment.ContentRootPath);
 
-        // The "16 to 19 Oct" window is not ingested: its sample files go to ingress storage for an
-        // admin to import and validate.
-        await SeedPost16OctoberSamples.ExecuteSeedAsync(blobClients, logger);
-
-        // The "16 to 19 Nov" window has the October files imported and validated; only its late
-        // results 2 file goes to ingress storage, for an admin to add.
+        // The 16-19 windows, one for each step of the results enquiry year. Each seed does the
+        // step before it, then its own: Oct imports and validates the October files, Nov adds late
+        // results 2, Feb adds the revised files and retires the four they replace, and Mar adds
+        // included revised with retention and retires included revised. Each window's sample files
+        // also go to ingress storage, so an admin can do a step again by hand.
+        await SeedPost16OctoberSamples.ExecuteSeedAsync(dbContext, blobServiceClient, checkingExerciseIngress, environment.ContentRootPath);
+        await SeedPost16OctoberSamples.WriteSamplesAsync(blobClients, logger);
         await SeedPost16NovemberSamples.ExecuteSeedAsync(dbContext, blobServiceClient, checkingExerciseIngress, environment.ContentRootPath);
         await SeedPost16NovemberSamples.WriteSamplesAsync(blobClients, logger);
-
-        // The "16 to 19 Feb" window has the October files and late results 2 imported and
-        // validated; its revised files go to ingress storage, for an admin to add.
         await SeedPost16FebruarySamples.ExecuteSeedAsync(dbContext, blobServiceClient, checkingExerciseIngress, environment.ContentRootPath);
         await SeedPost16FebruarySamples.WriteSamplesAsync(blobClients, logger);
+        await SeedPost16MarchSamples.ExecuteSeedAsync(dbContext, blobServiceClient, checkingExerciseIngress, environment.ContentRootPath);
+        await SeedPost16MarchSamples.WriteSamplesAsync(blobClients, logger);
 
         try
         {

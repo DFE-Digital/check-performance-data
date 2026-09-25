@@ -565,12 +565,21 @@ Validation failures flow through the existing `validation_error` event; `GradeSe
 
 ## Local development
 
-There are two seeded 16-19 windows. The first is **"16 to 19 Oct"** (`DevDataSeeder.Post16OctoberCheckingWindowId`),
-set up for the start of the results enquiry: pupil data checking open for the fortnight, the results
-enquiry to 31 March, both exercises enabled, every dataset slot in place — and **no data**. An admin
-imports it as they would the supplier's files: `SeedPost16OctoberSamples` writes the October sample
-CSVs to the ingress storage account, container `16-to-19-oct`, and the schemas are in
-`src/DfE.CheckPerformanceData.Web/Data/Ingress/post16/` for the "Choose schema" upload:
+There are four seeded 16-19 windows, one for each step of the results enquiry year. All have the
+same exercises, slots and dates: pupil data checking open for the fortnight, the results enquiry to
+31 March, both exercises enabled. Each seed does the step before it, then its own step, and
+validates, so each step makes a release. Each window's sample files also go to the ingress storage
+account, so an admin can do a step again by hand. The schemas are in
+`src/DfE.CheckPerformanceData.Web/Data/Ingress/post16/`.
+
+| Window | Seed | Ingress container | Results slots in use | Releases |
+|---|---|---|---|---|
+| **16 to 19 Oct** | `SeedPost16OctoberSamples` | `16-to-19-oct` | Included, Non-included, Late results 1 | 1 |
+| **16 to 19 Nov** | `SeedPost16NovemberSamples` | `16-to-19-nov` | + Late results 2 | 2 |
+| **16 to 19 Feb** | `SeedPost16FebruarySamples` | `16-to-19-feb` | Included revised, Non-included revised (the four earlier slots retired) | 3 |
+| **16 to 19 Mar** | `SeedPost16MarchSamples` | `16-to-19-mar` | Included revised with retention, Non-included revised (included revised retired too) | 4 |
+
+The October import (the only one that touches pupil data checking):
 
 | Slot | CSV (ingress storage) | Schema |
 |---|---|---|
@@ -580,10 +589,8 @@ CSVs to the ingress storage account, container `16-to-19-oct`, and the schemas a
 | Results: Non-included | `results/16to19_NONINC.csv` | `results-non-included_schema.json` |
 | Results: Late results 1 | `results/16to19_LR1.csv` | `results-late_schema.json` |
 
-Then validate each exercise. There is no late results 2 file (it arrives in November), so after the
-import that slot is empty and the late-results interstitial is on the happy path.
-`SeededCheckingExerciseTests.The_October_sample_files_import_and_validate_into_the_October_window`
-walks this import end to end.
+There is no late results 2 file in October, so in the October window that slot is empty and the
+late-results interstitial is on the happy path.
 
 The results are `SeedStudentResults`, all for Kingsmead (`860/4070`): included students' rows in the
 included file, non-included students' in the non-included file, some in late results 1, one
@@ -592,27 +599,27 @@ sample is in the supplier's late shape (`GNUMBER`, `SYLLABUS_TITLE`, `BRDSUBNO`,
 `Late_Result_Type`), and amends student `500002`'s BTEC Sport grade: the included row and the
 amendment both show in the search.
 
-The second is **"16 to 19 Nov"** (`DevDataSeeder.Post16NovemberCheckingWindowId`): the same
-exercises, slots and dates, but `SeedPost16NovemberSamples` imports and validates the October files
-above into it at seed time, so both exercises have a release. Only the late results 2 slot is empty.
-Its sample, `results/16to19_LR2.csv` (`SeedStudentResults.LateResults2`), is in ingress container
-`16-to-19-nov`; pair it with `results-late-2_schema.json`. That schema has the late results columns
-but its own collection, so late results 1 and 2 are two datasets on the Results tab. The file amends
-two earlier results, adds one, and gives the first result to two students who held none, so they
-reach the results search only after it is run. Step-by-step: `docs/testing-late-results-2.md`.
+November adds `results/16to19_LR2.csv` (`SeedStudentResults.LateResults2`) with
+`results-late-2_schema.json`. That schema has the late results columns but its own collection, so
+late results 1 and 2 are two datasets on the Results tab. The file amends two earlier results, adds
+one, and gives the first result to two students who held none. Step-by-step:
+`docs/testing-late-results-2.md`.
 
-The third is **"16 to 19 Feb"** (`DevDataSeeder.Post16FebruaryCheckingWindowId`): the same again,
-but `SeedPost16FebruarySamples` also adds and validates late results 2, so the results enquiry has an
-October and a November release. Only the two revised slots are empty. Their samples,
-`results/16to19_INC_REV.csv` and `results/16to19_NONINC_REV.csv` (`SeedStudentResults.Revised`), are
-in ingress container `16-to-19-feb`; pair them with `results-included-revised_schema.json` and
-`results-non-included-revised_schema.json` (the original columns, their own collections). They hold
-one row per earlier result, with each late amendment in place of the row it corrects, and change one
-grade no earlier file did. The admin retires the four slots they replace before validating.
-Step-by-step: `docs/testing-revised-results.md`.
+February adds `results/16to19_INC_REV.csv` and `results/16to19_NONINC_REV.csv`
+(`SeedStudentResults.Revised`) with `results-included-revised_schema.json` and
+`results-non-included-revised_schema.json` (the original columns, their own collections), and retires
+the four slots they replace. They hold one row per earlier result, with each late amendment in place
+of the row it corrects, and change one grade no earlier file did.
 
-No 16-19 E2E journey tests remain: they needed a window with data, and this one starts empty. Only
-the what-to-change option tests use it.
+March adds `results/16to19_INC_REV_RET.csv` (`SeedStudentResults.IncludedRevisedWithRetention`) with
+`results-included-revised-retention_schema.json` (the included revised columns, its own collection),
+and retires included revised. It holds the included revised rows and changes one grade no earlier
+file did (Charlie Smith's GCSE Mathematics, 3 → 4). Step-by-step for February and March:
+`docs/testing-revised-results.md`.
+
+`SeededCheckingExerciseTests` runs each seed and checks its slots, retirements, releases and results.
+
+No 16-19 E2E journey tests remain. Only the what-to-change option tests use a 16-19 window.
 
 Three students (`500001`–`500003`) carry results on real 16-19 QANs (AB#301903 — the Figma screens'
 GCSE fixtures were KS4 QANs the 16-19 reference does not hold): Alice Smith holds AQA GCSE Maths

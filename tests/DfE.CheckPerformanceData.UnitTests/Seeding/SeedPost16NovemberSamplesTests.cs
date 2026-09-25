@@ -6,8 +6,8 @@ using DfE.CheckPerformanceData.Web.Seeding;
 namespace DfE.CheckPerformanceData.Application.UnitTests.Seeding;
 
 /// <summary>
-/// The "16 to 19 Nov" window has the October files imported by the seed, and its late results 2
-/// file is left for an admin to add. These pin that the file and its schema give the journey what
+/// The "16 to 19 Nov" window has the October files and then its late results 2 file imported by the
+/// seed. These pin that the file and its schema give the journey what
 /// it reads, and that the two late files stay two datasets.
 /// </summary>
 public sealed class SeedPost16NovemberSamplesTests
@@ -22,7 +22,7 @@ public sealed class SeedPost16NovemberSamplesTests
     [Fact]
     public void The_seed_imports_every_October_sample_file()
         => Assert.Equal(SeedPost16OctoberSamples.Files().Keys.Order(),
-            SeedPost16NovemberSamples.OctoberImport.Select(i => i.File).Order());
+            SeedPost16OctoberSamples.Import.Select(i => i.File).Order());
 
     [Fact]
     public void The_late_results_2_file_has_the_same_columns_as_late_results_1()

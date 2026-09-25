@@ -5,7 +5,7 @@ namespace DfE.CheckPerformanceData.Web.Seeding;
 /// <summary>
 /// Dev-only: the 16-19 exam results the incorrect-grade enquiry journey reads (AB#296648).
 /// <see cref="SeedPost16OctoberSamples"/> writes them as one sample CSV per October results file
-/// (included, non-included, late results 1) for an admin to import into the "16 to 19 Oct" window.
+/// (included, non-included, late results 1) and validates them into the "16 to 19 Oct" window.
 ///
 /// The QANs are real 16-19 qualifications from the QualList reference (AB#301903 — the Figma
 /// screens' GCSE fixtures were KS4 QANs the 16-19 reference does not hold); sessions and grades
@@ -17,7 +17,8 @@ namespace DfE.CheckPerformanceData.Web.Seeding;
 /// <see cref="All"/> holds no <see cref="ResultsFileTags.Post16LateResults2"/> row: it arrives in
 /// November, so after the October import its slot is empty, <c>ILateResultsAvailability</c> reports
 /// the file as awaited and the "check your second late results file" interstitial shows. The
-/// November file is <see cref="LateResults2"/>, kept apart for the same reason.
+/// November file is <see cref="LateResults2"/>, kept apart for the same reason, and so are the
+/// February and March files.
 /// </summary>
 public static class SeedStudentResults
 {
@@ -40,8 +41,8 @@ public static class SeedStudentResults
 
     /// <summary>
     /// The November second late results file (<see cref="ResultsFileTags.Post16LateResults2"/>). It
-    /// is NOT in <see cref="All"/>: <see cref="SeedPost16NovemberSamples"/> writes it to ingress
-    /// storage for an admin to add to the "16 to 19 Nov" window. Two rows amend a result from an
+    /// is NOT in <see cref="All"/>: <see cref="SeedPost16NovemberSamples"/> validates it into the
+    /// "16 to 19 Nov" window after the October files. Two rows amend a result from an
     /// earlier file, one gives a student with results a new one, and two give a result to a student
     /// who held none, so that student only appears in the results search after the file is run.
     /// </summary>
@@ -85,8 +86,8 @@ public static class SeedStudentResults
     /// <see cref="LateResults2"/>, with a late Amendment in place of the row it corrects. One grade
     /// changes only here (<see cref="RevisedOnlyGrade"/>). A student's row is in the included revised
     /// file when the student is included, otherwise in the non-included revised file. Not in
-    /// <see cref="All"/>: <see cref="SeedPost16FebruarySamples"/> writes them to ingress storage for
-    /// an admin to add to the "16 to 19 Feb" window.
+    /// <see cref="All"/>: <see cref="SeedPost16FebruarySamples"/> validates them into the
+    /// "16 to 19 Feb" window after the November files.
     /// </summary>
     public static IReadOnlyList<StudentResultRecord> Revised =>
         [.. All.Concat(LateResults2)
@@ -108,6 +109,31 @@ public static class SeedStudentResults
     /// </summary>
     public static readonly ((string CypmdId, string Qan, string Session) Result, string Grade) RevisedOnlyGrade =
         ((StudentA, "60149589", "S2024"), "B");
+
+    /// <summary>
+    /// The March included revised with retention file
+    /// (<see cref="ResultsFileTags.Post16IncludedRevisedWithRetention"/>). It replaces the included
+    /// revised file, so it holds the same rows, tagged with its own file. One grade changes only here
+    /// (<see cref="RetentionOnlyGrade"/>). <see cref="SeedPost16MarchSamples"/> validates it into the
+    /// "16 to 19 Mar" window.
+    /// </summary>
+    public static IReadOnlyList<StudentResultRecord> IncludedRevisedWithRetention =>
+        [.. Revised
+            .Where(r => r.SourceFile == ResultsFileTags.Post16IncludedRevised)
+            .Select(r => new StudentResultRecord
+            {
+                CypmdId = r.CypmdId, Qan = r.Qan, QualificationName = r.QualificationName,
+                SyllabusCode = r.SyllabusCode, Session = r.Session,
+                Grade = (r.CypmdId, r.Qan, r.Session) == RetentionOnlyGrade.Result ? RetentionOnlyGrade.Grade : r.Grade,
+                SourceFile = ResultsFileTags.Post16IncludedRevisedWithRetention
+            })];
+
+    /// <summary>
+    /// The one grade the included revised with retention file changes: Charlie Smith's GCSE
+    /// Mathematics, 3 in the revised file, 4 after a review of marking.
+    /// </summary>
+    public static readonly ((string CypmdId, string Qan, string Session) Result, string Grade) RetentionOnlyGrade =
+        ((StudentC, "60146084", "S2024"), "4");
 
     // A later file's row replaces an earlier one's for the same result.
     private static int FileOrder(string tag) => tag switch

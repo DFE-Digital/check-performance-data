@@ -1,23 +1,28 @@
-# Testing guide: add late results 2 to the "16 to 19 Nov" window
+# Testing guide: add late results 2 (the "16 to 19 Oct" and "16 to 19 Nov" windows)
 
 This guide tests the November step of the 16-19 results enquiry: an admin adds the second late
 results file (`16to19_LR2`) to a results enquiry that already has a validated October release.
 
 ## What the seed gives you
 
-The dev seed makes the window **"16 to 19 Nov"** (`DevDataSeeder.Post16NovemberCheckingWindowId`,
-`3b1d7c52-6e0a-4f8b-9c21-5a4e8d7f1b63`). It has the same exercises, slots and dates as
-"16 to 19 Oct". The difference: the seed has already imported and validated the October files
-(`SeedPost16NovemberSamples`).
+The dev seed makes two windows for this step. Both have the same exercises, slots and dates.
 
-| Exercise | Slot | File | Schema | State after seed |
-|---|---|---|---|---|
-| Pupil data checking | Students: included | `included.csv` | `students-included_schema.json` | Validated |
-| Pupil data checking | Students: non-included | `nonincluded.csv` | `students-non-included_schema.json` | Validated |
-| Results enquiry | Included | `16to19_INC.csv` | `results-included_schema.json` | Validated |
-| Results enquiry | Non-included | `16to19_NONINC.csv` | `results-non-included_schema.json` | Validated |
-| Results enquiry | Late results 1 | `16to19_LR1.csv` | `results-late_schema.json` | Validated |
-| Results enquiry | Late results 2 | — | — | **Not supplied** |
+- **"16 to 19 Oct"** (`DevDataSeeder.Post16OctoberCheckingWindowId`,
+  `ec6493b8-9b66-4090-8be6-9dfc3805751f`) is the state **before** the step. The seed has imported and
+  validated the October files (`SeedPost16OctoberSamples`). Use it to add late results 2 by hand.
+- **"16 to 19 Nov"** (`DevDataSeeder.Post16NovemberCheckingWindowId`,
+  `3b1d7c52-6e0a-4f8b-9c21-5a4e8d7f1b63`) is the state **after** the step. The seed has also added
+  and validated late results 2 (`SeedPost16NovemberSamples`). It has an October and a November
+  release.
+
+| Exercise | Slot | File | Schema | Oct window | Nov window |
+|---|---|---|---|---|---|
+| Pupil data checking | Students: included | `included.csv` | `students-included_schema.json` | Validated | Validated |
+| Pupil data checking | Students: non-included | `nonincluded.csv` | `students-non-included_schema.json` | Validated | Validated |
+| Results enquiry | Included | `16to19_INC.csv` | `results-included_schema.json` | Validated | Validated |
+| Results enquiry | Non-included | `16to19_NONINC.csv` | `results-non-included_schema.json` | Validated | Validated |
+| Results enquiry | Late results 1 | `16to19_LR1.csv` | `results-late_schema.json` | Validated | Validated |
+| Results enquiry | Late results 2 | `16to19_LR2.csv` | `results-late-2_schema.json` | **Not supplied** | Validated |
 
 The seed also writes the late results 2 sample to the ingress storage account:
 
@@ -59,21 +64,21 @@ An Amendment row does not replace the earlier row. After the run, both rows show
    Do not open `/LandingPage` while you impersonate. It starts a real DfE Sign-in and drops the
    impersonation cookie.
 
-## Test 1: the seeded state is correct
+## Test 1: the October window is correct
 
-1. As an admin, open `/admin/windows/summary/3b1d7c52-6e0a-4f8b-9c21-5a4e8d7f1b63`.
+1. As an admin, open `/admin/windows/summary/ec6493b8-9b66-4090-8be6-9dfc3805751f`.
 2. Make sure that both exercises show the **Validated** tag.
 3. In the Results enquiry data files table, make sure that:
    - Included, Non-included and Late results 1 show their file and schema names.
    - Late results 2 shows **Not supplied** and **(optional)**.
-4. As an editor, open `/CheckYourPupilData/3b1d7c52-6e0a-4f8b-9c21-5a4e8d7f1b63`.
+4. As an editor, open `/CheckYourPupilData/ec6493b8-9b66-4090-8be6-9dfc3805751f`.
 5. Make sure that the Students tab shows 240 students (120 included, 120 non-included).
 6. Open the Results tab. Make sure that it shows the Included, Non-included and Late results
    sections, and no Late results 2 section.
 
 ## Test 2: the late results guidance shows before late results 2
 
-1. As an editor, on the Check your pupil data page, choose the results enquiry option and continue.
+1. As an editor, on the October window's Check your pupil data page, choose the results enquiry option and continue.
 2. Choose **Incorrect grade**.
 3. Make sure that the page **"Check your second late results file before you report an incorrect
    grade"** shows.
@@ -81,9 +86,11 @@ An Amendment row does not replace the earlier row. After the run, both rows show
    result yet, and the search lists only students with results.
 5. Cancel the journey.
 
-## Test 3: add late results 2
+## Test 3: add late results 2 by hand
 
-1. As an admin, open the window summary. Choose **Edit** on the Results enquiry to open its edit
+Do this on the **October** window. The November window already has the result of these steps.
+
+1. As an admin, open the October window summary. Choose **Edit** on the Results enquiry to open its edit
    page (`/admin/windows/{id}/exercises/{exerciseId}/edit`).
 2. In **Data files**, on the Late results 2 row, choose **Choose CSV**.
 3. Open the `16-to-19-nov` container, then `results/`. Choose `16to19_LR2.csv`.
@@ -98,6 +105,8 @@ An Amendment row does not replace the earlier row. After the run, both rows show
    it is the live release. The October release is still in the list.
 
 ## Test 4: schools see late results 2
+
+Do this on the November window, or on the October window after Test 3.
 
 1. As an editor, open `/CheckYourPupilData/3b1d7c52-6e0a-4f8b-9c21-5a4e8d7f1b63`.
 2. Open the Results tab. Make sure that there is a **Late results 2** section with 5 rows.
@@ -117,7 +126,7 @@ An Amendment row does not replace the earlier row. After the run, both rows show
 
 ## Test 5: go back to the October release (optional)
 
-1. As an admin, on the Results enquiry edit page, in **Data releases**, choose **Make live** on the
+1. As an admin, on the November window's Results enquiry edit page, in **Data releases**, choose **Make live** on the
    October release.
 2. As an editor, make sure that the Results tab has no Late results 2 section, that Edward Smith is
    not in the search, and that the late results guidance shows again.
@@ -125,8 +134,9 @@ An Amendment row does not replace the earlier row. After the run, both rows show
 
 ## Automated cover
 
-- `SeededCheckingExerciseTests.The_November_window_has_the_October_files_validated_and_takes_late_results_2`
-  runs the seed, then adds the LR2 file and schema, validates, and checks the new release, the
-  results and the late results guidance.
+- `SeededCheckingExerciseTests.The_October_window_has_the_October_files_validated` runs the October
+  seed and checks its release, its results and that the late results guidance shows.
+- `SeededCheckingExerciseTests.The_November_window_has_late_results_2_validated_after_the_October_files`
+  runs the November seed and checks the two releases, the results and that the guidance does not show.
 - `SeedPost16NovemberSamplesTests` pins the LR2 sample: its columns, its Amendment/New marks, its
   students, and that its schema is a separate dataset from late results 1.

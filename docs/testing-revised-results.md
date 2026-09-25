@@ -1,27 +1,37 @@
-# Testing guide: add the revised results to the "16 to 19 Feb" window
+# Testing guide: add the revised results (the "16 to 19 Feb" and "16 to 19 Mar" windows)
 
 This guide tests the February step of the 16-19 results enquiry. An admin adds the two revised
 results files (`16to19_INC_REV` and `16to19_NONINC_REV`) to a results enquiry that already has an
 October and a November release. The revised files **replace** the included, non-included and both
-late results files, so the admin also retires those four slots.
+late results files, so the admin also retires those four slots. The last part tests the March step:
+the included revised with retention file (`16to19_INC_REV_RET`) replaces included revised.
 
 ## What the seed gives you
 
-The dev seed makes the window **"16 to 19 Feb"** (`DevDataSeeder.Post16FebruaryCheckingWindowId`,
-`9e2a4c71-3b5d-4f60-8a17-c4d2e6f80b95`). It has the same exercises, slots and dates as
-"16 to 19 Nov". The difference: the seed has also added and validated late results 2
-(`SeedPost16FebruarySamples`). The results enquiry has two releases: October, and November (live).
+The dev seed makes a window for each step. All have the same exercises, slots and dates.
 
-| Exercise | Slot | File | Schema | State after seed |
-|---|---|---|---|---|
-| Pupil data checking | Students: included | `included.csv` | `students-included_schema.json` | Validated |
-| Pupil data checking | Students: non-included | `nonincluded.csv` | `students-non-included_schema.json` | Validated |
-| Results enquiry | Included | `16to19_INC.csv` | `results-included_schema.json` | Validated |
-| Results enquiry | Non-included | `16to19_NONINC.csv` | `results-non-included_schema.json` | Validated |
-| Results enquiry | Late results 1 | `16to19_LR1.csv` | `results-late_schema.json` | Validated |
-| Results enquiry | Late results 2 | `16to19_LR2.csv` | `results-late-2_schema.json` | Validated |
-| Results enquiry | Included revised | — | — | **Not supplied** |
-| Results enquiry | Non-included revised | — | — | **Not supplied** |
+- **"16 to 19 Nov"** (`DevDataSeeder.Post16NovemberCheckingWindowId`, `3b1d7c52-6e0a-4f8b-9c21-5a4e8d7f1b63`) is the state
+  **before** the February step: the October files and late results 2 are validated. The results
+  enquiry has two releases, October and November (live). Use it to add the revised files by hand.
+- **"16 to 19 Feb"** (`DevDataSeeder.Post16FebruaryCheckingWindowId`, `9e2a4c71-3b5d-4f60-8a17-c4d2e6f80b95`) is the state
+  **after** the February step (`SeedPost16FebruarySamples`): the revised files are validated and the
+  four files they replace are retired. It has three releases. It is also the state **before** the
+  March step.
+- **"16 to 19 Mar"** (`DevDataSeeder.Post16MarchCheckingWindowId`, `5c8f1e26-7a94-4d3b-b06e-2f9d4a1c7e58`) is the state **after**
+  the March step (`SeedPost16MarchSamples`): included revised with retention is validated and
+  included revised is retired. It has four releases.
+
+| Exercise | Slot | File | Schema | Nov | Feb | Mar |
+|---|---|---|---|---|---|---|
+| Pupil data checking | Students: included | `included.csv` | `students-included_schema.json` | Validated | Validated | Validated |
+| Pupil data checking | Students: non-included | `nonincluded.csv` | `students-non-included_schema.json` | Validated | Validated | Validated |
+| Results enquiry | Included | `16to19_INC.csv` | `results-included_schema.json` | Live | Retired | Retired |
+| Results enquiry | Non-included | `16to19_NONINC.csv` | `results-non-included_schema.json` | Live | Retired | Retired |
+| Results enquiry | Late results 1 | `16to19_LR1.csv` | `results-late_schema.json` | Live | Retired | Retired |
+| Results enquiry | Late results 2 | `16to19_LR2.csv` | `results-late-2_schema.json` | Live | Retired | Retired |
+| Results enquiry | Included revised | `16to19_INC_REV.csv` | `results-included-revised_schema.json` | Not supplied | Live | Retired |
+| Results enquiry | Non-included revised | `16to19_NONINC_REV.csv` | `results-non-included-revised_schema.json` | Not supplied | Live | Live |
+| Results enquiry | Included revised with retention | `16to19_INC_REV_RET.csv` | `results-included-revised-retention_schema.json` | Not supplied | Not supplied | Live |
 
 The seed also writes the revised samples to the ingress storage account, container `16-to-19-feb`:
 
@@ -65,9 +75,12 @@ Alice Smith's two GCSE Mathematics results (S2023 and S2024) stay two rows: the 
 3. Sign in as an admin: `/dev/impersonate/admin`. For school pages, use `/dev/impersonate/editor`.
    Do not open `/LandingPage` while you impersonate.
 
-## Test 1: the seeded state is correct
+Tests 1 to 4 and 7 add the revised files by hand on the **November** window. The February window
+already has the result of those steps: use it for Tests 5 and 6 if you do not want to do them.
 
-1. As an admin, open `/admin/windows/summary/9e2a4c71-3b5d-4f60-8a17-c4d2e6f80b95`.
+## Test 1: the November window is correct
+
+1. As an admin, open `/admin/windows/summary/3b1d7c52-6e0a-4f8b-9c21-5a4e8d7f1b63`.
 2. Make sure that both exercises show the **Validated** tag.
 3. In the Results enquiry data files table, make sure that Included, Non-included, Late results 1
    and Late results 2 show their file and schema names, and that Included revised and Non-included
@@ -76,7 +89,7 @@ Alice Smith's two GCSE Mathematics results (S2023 and S2024) stay two rows: the 
    **Live** for Included, Non-included, Late results 1 and Late results 2, and **Not supplied** for
    the three revised slots (Included revised, Non-included revised, Included revised with retention).
 5. In **Data releases**, make sure that there are two releases and that the second (November) is live.
-6. As an editor, open `/CheckYourPupilData/9e2a4c71-3b5d-4f60-8a17-c4d2e6f80b95`.
+6. As an editor, open `/CheckYourPupilData/3b1d7c52-6e0a-4f8b-9c21-5a4e8d7f1b63`.
 7. Open the Results tab. Make sure that it shows the Included, Non-included, Late results and
    Late results 2 sections.
 
@@ -118,9 +131,11 @@ in use holds a file.
 3. Make sure that both revised rows now show **Live**, the four retired rows still show **Retired**,
    and Included revised with retention still shows **Not supplied**.
 4. In **Data releases**, make sure that there is a third release and that it is live. The October
-   and November releases are still in the list.
+   and November releases are still in the list. The February window shows the same.
 
 ## Test 5: schools see only the revised results
+
+Do this on the February window, or on the November window after Test 4.
 
 1. As an editor, open `/CheckYourPupilData/9e2a4c71-3b5d-4f60-8a17-c4d2e6f80b95`.
 2. Open the Results tab. Make sure that it shows **Results included revised** (62 rows) and
@@ -156,10 +171,54 @@ in use holds a file.
 4. Retire Late results 2 again. Do not validate with it back in use: its rows would show beside the
    revised rows that already hold them.
 
+## Test 8: add included revised with retention by hand (March)
+
+Do this on the **February** window. The March window already has the result of these steps.
+
+The seed writes the sample to the ingress storage account, container `16-to-19-mar`:
+
+| File | Schema (upload from your machine) | Rows |
+|---|---|---|
+| `results/16to19_INC_REV_RET.csv` | `results-included-revised-retention_schema.json` | 62 |
+
+The file holds the same rows as the included revised file, with one grade changed:
+Charlie Smith (`500003`), GCSE Mathematics (`60146084`), S2024, 3 → **4**.
+
+1. As an admin, open `/admin/windows/summary/9e2a4c71-3b5d-4f60-8a17-c4d2e6f80b95`. Choose **Edit** on the Results enquiry, then
+   the **Data** tab.
+2. On the Included revised with retention row, choose **Choose CSV**. Open the `16-to-19-mar`
+   container, then `results/`. Choose `16to19_INC_REV_RET.csv`.
+3. On the same row, choose **Choose schema**. Upload `results-included-revised-retention_schema.json`.
+4. On the Included revised row, choose **Retire** and confirm.
+5. Choose **Validate data**. Wait for the run to complete without errors.
+6. Make sure that Included revised with retention and Non-included revised show **Live**, and the
+   other five slots show **Retired**.
+7. In **Data releases**, make sure that there is a fourth release and that it is live.
+
+## Test 9: schools see the retention results (March)
+
+Do this on the March window, or on the February window after Test 8.
+
+1. As an editor, open `/CheckYourPupilData/5c8f1e26-7a94-4d3b-b06e-2f9d4a1c7e58`.
+2. Open the Results tab. Make sure that it shows **Results included revised with retention**
+   (62 rows) and **Results non-included revised** (33 rows), and no Results included revised section.
+3. Start the results enquiry and choose **Incorrect grade**.
+4. Choose **Charlie Smith**. Make sure that GCSE Mathematics shows once, grade **4**,
+   **File: Included revised with retention**.
+5. Search for **Bob Johnson** (non-included). Make sure that his BTEC Sport result still shows
+   **File: Non-included revised**.
+6. As an admin, on the March window's Results enquiry edit page, choose **Make live** on the
+   February release. Make sure that Charlie Smith's Maths grade is 3 again. Then make the March
+   release live again.
+
 ## Automated cover
 
-- `SeededCheckingExerciseTests.The_February_window_has_late_results_2_validated_and_takes_the_revised_files`
-  runs the seed, checks the two releases, then adds the revised files, retires the four slots,
-  validates, and checks that the new release holds only the revised rows.
+- `SeededCheckingExerciseTests.The_February_window_has_the_revised_files_validated_and_the_four_they_replace_retired`
+  runs the February seed and checks the retired slots, the three releases and that the live release
+  holds only the revised rows.
+- `SeededCheckingExerciseTests.The_March_window_has_included_revised_with_retention_validated_and_included_revised_retired`
+  runs the March seed and checks the retired slots, the four releases and the changed grade.
 - `SeedPost16FebruarySamplesTests` pins the revised samples: their columns, their schemas, one row
   per earlier result, the amended grades, and that each student is in the file for their inclusion.
+- `SeedPost16MarchSamplesTests` pins the retention sample: its columns, its schema, one row per
+  included revised result and the one changed grade.

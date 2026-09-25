@@ -3,21 +3,24 @@ using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
+using DfE.CheckPerformanceData.Domain.Enums;
+using DfE.CheckPerformanceData.Infrastructure.Ingress;
+using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Seeding;
 
 namespace DfE.CheckPerformanceData.Web.Seeding;
 
 /// <summary>
-/// Dev-only: the sample files for the "16 to 19 Oct" window, written to the ingress storage
-/// account, where the admin's "Choose CSV" page lists them. The seed does not link or ingest them:
-/// the window is left for an admin to import and validate, as they would the supplier's files.
+/// Dev-only: the "16 to 19 Oct" window, where the October import is done. The seed links the
+/// October sample files to their slots, as an admin would, and validates both exercises, so each has
+/// a release. The late results 2 slot and the later slots are empty.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Container <see cref="Container"/>: the two student files under <c>students/</c> and the three
-/// October results files under <c>results/</c>. The schemas are not uploaded: the admin's "Choose
-/// schema" page takes a file from their own machine, so they are in the repository under
-/// <c>src/DfE.CheckPerformanceData.Web/Data/Ingress/post16/</c>:
+/// The seed also writes the sample files to the ingress storage account, container
+/// <see cref="Container"/>, where the admin's "Choose CSV" page lists them: the two student files
+/// under <c>students/</c> and the three October results files under <c>results/</c>. Their schemas
+/// are in <c>src/DfE.CheckPerformanceData.Web/Data/Ingress/post16/</c> (see <see cref="Import"/>):
 /// </para>
 /// <list type="bullet">
 /// <item><c>students/included.csv</c> → <c>students-included_schema.json</c></item>
@@ -29,12 +32,22 @@ namespace DfE.CheckPerformanceData.Web.Seeding;
 /// <para>
 /// The students come from <see cref="SeedPupilData"/> and the results from
 /// <see cref="SeedStudentResults"/>, so every result names a student in the student files. There
-/// is no late results 2 file: it arrives in November.
+/// is no late results 2 file: it arrives in November (<see cref="SeedPost16NovemberSamples"/>).
 /// </para>
 /// </remarks>
 public static class SeedPost16OctoberSamples
 {
     public const string Container = "16-to-19-oct";
+
+    /// <summary>What the seed imports for the admin: slot, sample file, schema.</summary>
+    public static readonly IReadOnlyList<(CheckingExerciseType Exercise, string Slot, string File, string Schema)> Import =
+    [
+        (CheckingExerciseType.PupilData, "included", "students/included.csv", "students-included_schema.json"),
+        (CheckingExerciseType.PupilData, "nonincluded", "students/nonincluded.csv", "students-non-included_schema.json"),
+        (CheckingExerciseType.ResultsEnquiry, ResultsFileTags.Post16Included, "results/16to19_INC.csv", "results-included_schema.json"),
+        (CheckingExerciseType.ResultsEnquiry, ResultsFileTags.Post16NonIncluded, "results/16to19_NONINC.csv", "results-non-included_schema.json"),
+        (CheckingExerciseType.ResultsEnquiry, ResultsFileTags.Post16LateResults1, "results/16to19_LR1.csv", "results-late_schema.json")
+    ];
 
     /// <summary>The sample files, by their path in <see cref="Container"/>.</summary>
     public static IReadOnlyDictionary<string, byte[]> Files()
@@ -61,11 +74,61 @@ public static class SeedPost16OctoberSamples
             .Where(p => p.Laestab == SeedStudentResults.Laestab.Replace("/", string.Empty))
             .ToDictionary(p => p.Cypmd_Id);
 
+    public static Task ExecuteSeedAsync(
+        IPortalDbContext dbContext, BlobServiceClient blobs, ICheckingExerciseIngress ingress, string contentRootPath) =>
+        ExecuteSeedAsync(dbContext, blobs, ingress, contentRootPath, DevDataSeeder.Post16OctoberCheckingWindowId);
+
+    /// <summary>Imports and validates the October files into the given window, which must already
+    /// exist with the exercises <see cref="SeedCheckingWindows"/> gives a 16-19 window. The id is a
+    /// parameter for the tests, and for the later windows, which start from the October import.</summary>
+    public static async Task ExecuteSeedAsync(IPortalDbContext dbContext, BlobServiceClient blobs,
+        ICheckingExerciseIngress ingress, string contentRootPath, Guid windowId)
+    {
+        var samples = Files();
+        var window = await SeedExerciseFixtures.LoadAsync(dbContext, windowId);
+
+        foreach (var (type, slot, file, schema) in Import)
+        {
+            var exercise = SeedExerciseFixtures.Exercise(window, type);
+            var dataset = exercise.Datasets.Single(d => d.Name == slot);
+            await SeedExerciseFixtures.LinkAsync(blobs, exercise, dataset, Path.GetFileName(file), samples[file],
+                schema, await ReadSchemaAsync(contentRootPath, schema));
+        }
+        await dbContext.SaveChangesAsync();
+
+        foreach (var type in new[] { CheckingExerciseType.PupilData, CheckingExerciseType.ResultsEnquiry })
+            await SeedExerciseFixtures.IngestAsync(blobs, ingress, SeedExerciseFixtures.Exercise(window, type));
+    }
+
+    /// <summary>
+    /// What an admin does when a later results file lands: links each file to its slot, retires the
+    /// slots it replaces, and validates the results enquiry, which makes a new release.
+    /// </summary>
+    internal static async Task AddResultsFilesAsync(IPortalDbContext dbContext, BlobServiceClient blobs,
+        ICheckingExerciseIngress ingress, string contentRootPath, Guid windowId,
+        IReadOnlyList<(string Slot, string File, byte[] Content, string Schema)> files, params string[] retire)
+    {
+        var window = await SeedExerciseFixtures.LoadAsync(dbContext, windowId);
+        var results = SeedExerciseFixtures.Exercise(window, CheckingExerciseType.ResultsEnquiry);
+
+        foreach (var (slot, file, content, schema) in files)
+            await SeedExerciseFixtures.LinkAsync(blobs, results, results.Datasets.Single(d => d.Name == slot),
+                Path.GetFileName(file), content, schema, await ReadSchemaAsync(contentRootPath, schema));
+        foreach (var slot in retire)
+            results.Datasets.Single(d => d.Name == slot).Retired = true;
+        await dbContext.SaveChangesAsync();
+
+        await SeedExerciseFixtures.IngestAsync(blobs, ingress, results);
+    }
+
+    private static Task<string> ReadSchemaAsync(string contentRootPath, string schema) =>
+        File.ReadAllTextAsync(Path.Combine(contentRootPath, "Data", "Ingress", "post16", schema));
+
     /// <summary>
     /// Writes the sample files, replacing any from an earlier seed. Does nothing when no ingress
     /// storage account is configured.
     /// </summary>
-    public static Task ExecuteSeedAsync(IReadOnlyDictionary<string, BlobServiceClient> blobClients, ILogger logger) =>
+    public static Task WriteSamplesAsync(IReadOnlyDictionary<string, BlobServiceClient> blobClients, ILogger logger) =>
         WriteToIngressAsync(blobClients, Container, Files(), "16 to 19 Oct", logger);
 
     internal static async Task WriteToIngressAsync(IReadOnlyDictionary<string, BlobServiceClient> blobClients,

@@ -159,18 +159,23 @@ public sealed class CheckingExerciseDto
     /// Every required dataset has both its files, and at least one file pair is present — so the
     /// exercise can be validated. Optional slots may be empty (#324): the results feed's late,
     /// revised and retention files arrive weeks apart and one of them may never arrive at all, so
-    /// waiting for every slot would mean never validating.
+    /// waiting for every slot would mean never validating. A retired slot is left out: its file
+    /// has been replaced, so a required slot stops blocking once it is retired.
     /// </summary>
     public bool HasRequiredFiles =>
-        Datasets.Any(d => d.IsComplete) && Datasets.Where(d => d.Required).All(d => d.IsComplete);
+        InUse.Any(d => d.IsComplete) && InUse.Where(d => d.Required).All(d => d.IsComplete);
+
+    /// <summary>The slots that are not retired.</summary>
+    private IEnumerable<CheckingWindowDatasetDto> InUse => Datasets.Where(d => !d.Retired);
 
     /// <summary>
     /// The datasets a run actually reads, in sort order — the complete ones. An empty optional slot
     /// is a file that has not arrived, not a file to fail on, and a run rewrites the exercise's
-    /// whole output, so the same exercise is simply re-run when the next file lands.
+    /// whole output, so the same exercise is simply re-run when the next file lands. A retired slot
+    /// is never read: its file was replaced (the 16-19 revised files replace the first four).
     /// </summary>
     public IReadOnlyList<CheckingWindowDatasetDto> DatasetsToIngest =>
-        [.. Datasets.Where(d => d.IsComplete).OrderBy(d => d.SortOrder)];
+        [.. InUse.Where(d => d.IsComplete).OrderBy(d => d.SortOrder)];
 
     /// <summary>
     /// The datasets as schools see them: the files that the current release read, or the complete
@@ -204,11 +209,12 @@ public sealed class CheckingExerciseDto
         && ValidatedIngressChecksum == CurrentIngressChecksum
         && ValidatedSchemaChecksum == CurrentSchemaChecksum;
 
-    /// <summary>The dataset ingress checksums as they stand, in dataset order.</summary>
-    public string CurrentIngressChecksum => Combine(Datasets.OrderBy(d => d.SortOrder).Select(d => d.IngressFileChecksum));
+    /// <summary>The ingress checksums of the slots in use, in dataset order. Retiring a slot
+    /// changes it, so the stamp goes stale until the exercise is run without that file.</summary>
+    public string CurrentIngressChecksum => Combine(InUse.OrderBy(d => d.SortOrder).Select(d => d.IngressFileChecksum));
 
-    /// <summary>The dataset schema checksums as they stand, in dataset order.</summary>
-    public string CurrentSchemaChecksum => Combine(Datasets.OrderBy(d => d.SortOrder).Select(d => d.SchemaFileChecksum));
+    /// <summary>The schema checksums of the slots in use, in dataset order.</summary>
+    public string CurrentSchemaChecksum => Combine(InUse.OrderBy(d => d.SortOrder).Select(d => d.SchemaFileChecksum));
 
     // Hashed rather than joined: each part is 64 hex characters, and an exercise with six datasets
     // (the results-enquiry shape) would overflow the 256-character column on a plain join.
@@ -254,6 +260,14 @@ public sealed class CheckingWindowDatasetDto
     /// </summary>
     public bool FeedsJourney { get; init; }
 
+    /// <summary>
+    /// The slot's file has been replaced by another slot's, so no run reads it any more. The slot is
+    /// kept, not deleted, because the releases that read it still name it and an admin can put it
+    /// back in use. On a 16-19 results enquiry, February retires included, non-included and both
+    /// late files; March retires included revised.
+    /// </summary>
+    public bool Retired { get; set; }
+
     public int SortOrder { get; init; }
 
     public bool IsComplete =>
@@ -264,7 +278,8 @@ public sealed class CheckingWindowDatasetDto
 /// Which datasets a checking exercise ingests, decided by the window type it sits in and the
 /// exercise itself. Pupil data checking takes the supplier's pupil files — two for Post16, because
 /// the non-included file has no P_INCL column — and a results enquiry takes one file per source in
-/// the six-file results feed, each named by its <see cref="ResultsFileTags"/> tag (#324).
+/// the results feed, each named by its <see cref="ResultsFileTags"/> tag (#324), from
+/// <see cref="ResultsSources"/>.
 /// </summary>
 /// <remarks>
 /// An exercise type with no row here gets no dataset slots rather than a throw: an exercise is
@@ -298,11 +313,16 @@ public static class WindowDatasets
     /// <summary>
     /// Whether a slot an admin adds to an exercise of this type feeds the journey. On pupil data
     /// checking every file is part of the pupils data the journey reads (one file for KS4, two for
-    /// 16-19), so yes. On a results enquiry only the supplier's result slots feed it, and a data
-    /// share has no journey, so no.
+    /// 16-19), so yes. On a results enquiry a file with a results source is supplier results, so
+    /// yes; a file with no source is display only. A data share has no journey, so no.
     /// </summary>
-    public static bool AddedSlotFeedsJourney(CheckingExerciseType? exercise) =>
-        exercise == CheckingExerciseType.PupilData;
+    public static bool AddedSlotFeedsJourney(CheckingExerciseType? exercise, string? sourceFile) =>
+        exercise switch
+        {
+            CheckingExerciseType.PupilData => true,
+            CheckingExerciseType.ResultsEnquiry => !string.IsNullOrEmpty(sourceFile),
+            _ => false
+        };
 
     /// <summary>
     /// A supplier slot that belongs to another window type, left behind when the window's type
@@ -313,27 +333,15 @@ public static class WindowDatasets
         DefaultsFor(type, exercise).All(d => d.Name != name)
         && Enum.GetValues<CheckingWindowType>().Any(other => DefaultsFor(other, exercise).Any(d => d.Name == name));
 
-    // One slot per source file. The slot is named by the tag it stamps, so the admin uploading the
-    // files sees the supplier's own file names and a dataset can never be given the wrong tag.
-    // KS2 has no results feed, so a results enquiry on a KS2 window gets no slots at all.
+    // One slot per source file, every file of the year from the start: the admin fills each slot
+    // when its file arrives and retires a slot when its file is replaced. The slot is named by the
+    // tag it stamps, so the admin uploading the files sees the supplier's own file names and a
+    // dataset can never be given the wrong tag. KS2 has no results feed, so a results enquiry on a
+    // KS2 window gets no slots at all.
     private static IReadOnlyList<CheckingWindowDatasetDto> ResultsEnquiryDefaults(CheckingWindowType type) =>
-        type switch
-        {
-            CheckingWindowType.Post16 => Slots(
-                ResultsFileTags.Post16Main,
-                ResultsFileTags.Post16LateResults1,
-                ResultsFileTags.Post16LateResults2,
-                ResultsFileTags.Post16Revised,
-                ResultsFileTags.Post16Retention),
-            CheckingWindowType.KS4June or CheckingWindowType.KS4Autumn => Slots(
-                ResultsFileTags.Ks4Main,
-                ResultsFileTags.Ks4LateResults1,
-                ResultsFileTags.Ks4LateResults2,
-                ResultsFileTags.Ks4Revised),
-            _ => []
-        };
+        Slots([.. ResultsSources.For(type).Select(s => s.Tag)]);
 
-    // Only the main file is required. The late, revised and retention files land weeks apart and
+    // Only the first file is required. The late, revised and retention files land weeks apart and
     // one may never land — an exercise that could not be validated until all of them had arrived
     // would leave a school with no results at all in the meantime.
     private static IReadOnlyList<CheckingWindowDatasetDto> Slots(params string[] tags) =>

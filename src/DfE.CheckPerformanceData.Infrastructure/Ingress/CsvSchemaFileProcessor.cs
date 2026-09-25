@@ -144,6 +144,13 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
             // ("Path '[12].ULN'") because the record's path includes its parent array.
             JSchema schoolSchema = new() { Type = JSchemaType.Array, Items = { schema } };
 
+            // The supplier's column names differ by file and key stage (GNUMBER is the QAN; the
+            // session is EXAM_YEAR_SEASON in a 16-19 late file, SEASON_AND_YEAR in a KS4 one, and
+            // SEASON + EXAMYEAR in the 16-18 results file). A property's x-ingress.source names the
+            // CSV column, or the columns to join, it is read from, so every file writes the keys its
+            // readers expect and the code holds no list of supplier names.
+            IReadOnlyList<SourceColumn> sourceColumns = SourceColumns(schema);
+
             // Read the records and report how many there are.
             List<IDictionary<string, object>> records;
             using (var reader = new StreamReader(new MemoryStream(csvBytes!)))
@@ -194,6 +201,7 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
 
                 foreach (JObject record in jsonArray.Children<JObject>())
                 {
+                    CopySourceColumns(record, sourceColumns);
                     RemoveFieldsNotInSchema(record, schema);
                     EnsureSchemaFieldsExist(record, schema);
                     SchemaTypeConvertor.ApplySchemaTypes(record, schema);
@@ -611,6 +619,49 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
             }
 
             record[schemaProperty.Key] = JValue.CreateNull();
+        }
+    }
+
+    /// <summary>
+    /// A property read from other CSV columns: <c>"x-ingress": { "source": "GNUMBER" }</c>, or
+    /// <c>{ "source": ["SEASON", "EXAMYEAR"], "separator": "" }</c> to join several.
+    /// </summary>
+    private sealed record SourceColumn(string Property, IReadOnlyList<string> Columns, string Separator);
+
+    private static IReadOnlyList<SourceColumn> SourceColumns(JSchema schema)
+    {
+        List<SourceColumn> sources = [];
+        foreach (KeyValuePair<string, JSchema> property in schema.Properties)
+        {
+            if (!property.Value.ExtensionData.TryGetValue("x-ingress", out JToken? ingress)) continue;
+
+            string[] columns = ingress["source"] switch
+            {
+                JArray list => [.. list.Values<string>().OfType<string>()],
+                JValue { Type: JTokenType.String } single => [single.Value<string>()!],
+                _ => []
+            };
+            if (columns.Length > 0)
+                sources.Add(new SourceColumn(property.Key, columns, ingress["separator"]?.Value<string>() ?? string.Empty));
+        }
+        return sources;
+    }
+
+    // A copy, not a move: a CSV that already carries the property by its own name keeps its value,
+    // and the source columns are then dropped with every other column the schema does not declare.
+    // Blank parts are skipped when joining, so a missing season does not leave a stray separator.
+    private static void CopySourceColumns(JObject record, IReadOnlyList<SourceColumn> sourceColumns)
+    {
+        foreach (SourceColumn source in sourceColumns)
+        {
+            if (record.ContainsKey(source.Property)) continue;
+
+            List<string> parts = [.. source.Columns
+                .Select(c => record.TryGetValue(c, out JToken? value) ? value.Type == JTokenType.Null ? null : value.ToString() : null)
+                .Where(v => !string.IsNullOrWhiteSpace(v))
+                .Select(v => v!.Trim())];
+            if (parts.Count > 0 || source.Columns.Any(record.ContainsKey))
+                record[source.Property] = parts.Count > 0 ? string.Join(source.Separator, parts) : null;
         }
     }
 

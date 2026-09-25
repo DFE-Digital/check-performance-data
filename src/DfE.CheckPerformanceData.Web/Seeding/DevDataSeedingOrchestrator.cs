@@ -22,6 +22,7 @@ public sealed class DevDataSeedingOrchestrator(
     DevDataSeeder devDataSeeder,
     IPortalDbContext dbContext,
     BlobServiceClient blobServiceClient,
+    IReadOnlyDictionary<string, BlobServiceClient> blobClients,
     IPupilDataBlobClient pupilDataBlobClient,
     IRequestRepository requestRepository,
     IRequestStateBlobClient requestStateBlobClient,
@@ -36,11 +37,14 @@ public sealed class DevDataSeedingOrchestrator(
     public async Task RunAsync()
     {
         await devDataSeeder.SeedAsync();
-        await SeedPost16Ingress.ExecuteSeedAsync(dbContext, blobServiceClient, checkingExerciseIngress, environment.ContentRootPath);
 
-        // The E2E fixture windows' pupils and results (AB#296648), ingested from generated CSVs so
-        // every seeded window has schemas and a release.
+        // The KS4 fixture windows' pupils, ingested from generated CSVs so each has schemas and a
+        // release.
         await SeedExerciseFixtures.ExecuteSeedAsync(dbContext, blobServiceClient, checkingExerciseIngress, environment.ContentRootPath);
+
+        // The "16 to 19 Oct" window is not ingested: its sample files go to ingress storage for an
+        // admin to import and validate.
+        await SeedPost16OctoberSamples.ExecuteSeedAsync(blobClients, logger);
 
         try
         {

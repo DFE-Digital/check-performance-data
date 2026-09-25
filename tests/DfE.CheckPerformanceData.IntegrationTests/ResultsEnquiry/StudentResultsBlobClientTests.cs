@@ -109,48 +109,23 @@ public sealed class StudentResultsBlobClientTests(AzuriteFixture azurite)
             () => NewClient(service).GetResultsAsync(windowId, Laestab, "1606464434"));
     }
 
-    [Theory]
-    [InlineData(ResultsFileTags.Post16Main, true)]
-    [InlineData(ResultsFileTags.Post16LateResults1, true)]
-    [InlineData(ResultsFileTags.Post16LateResults2, false)]
-    [InlineData(ResultsFileTags.Post16Revised, false)]
-    public async Task AnyForSourceAsync_reports_whether_a_source_file_has_landed(string tag, bool expected)
+    [Fact]
+    public async Task GetAllResultsAsync_returns_every_row_across_students_and_source_files()
     {
+        // The Results tab lists the whole school's results from every file the release read.
         var (windowId, service) = await SeededWindowAsync();
 
-        Assert.Equal(expected, await NewClient(service).AnyForSourceAsync(windowId, Laestab, tag));
+        var results = await NewClient(service).GetAllResultsAsync(windowId, Laestab);
+
+        Assert.Equal(["6037116X", "60181576", "60180882"], results.Select(r => r.Qan).ToArray());
     }
 
     [Fact]
-    public async Task AnyForSourceAsync_is_not_scoped_to_one_student()
-    {
-        // The Art&Des row belongs to a different student but still proves MAIN has landed.
-        var (windowId, service) = await SeededWindowAsync("""
-        [{ "CYPMD_ID": "9999999999", "QAN": "60180882", "SESSION": "S2024", "GRADE": "9", "SOURCE": "16to19_MAIN" }]
-        """);
-
-        Assert.True(await NewClient(service).AnyForSourceAsync(windowId, Laestab, ResultsFileTags.Post16Main));
-    }
-
-    [Fact]
-    public async Task GetResultsForSourceAsync_returns_every_row_from_that_file_across_students()
-    {
-        // The Results tab lists the whole school's main-file results, not one student's.
-        var (windowId, service) = await SeededWindowAsync();
-
-        var results = await NewClient(service).GetResultsForSourceAsync(windowId, Laestab, ResultsFileTags.Post16Main);
-
-        Assert.Equal(["6037116X", "60180882"], results.Select(r => r.Qan).ToArray());
-    }
-
-    [Fact]
-    public async Task GetResultsForSourceAsync_returns_empty_when_the_blob_is_missing()
+    public async Task GetAllResultsAsync_returns_empty_when_the_blob_is_missing()
     {
         var service = new BlobServiceClient(azurite.ConnectionString);
 
-        var results = await NewClient(service).GetResultsForSourceAsync(Guid.NewGuid(), Laestab, ResultsFileTags.Post16Main);
-
-        Assert.Empty(results);
+        Assert.Empty(await NewClient(service).GetAllResultsAsync(Guid.NewGuid(), Laestab));
     }
 
     [Fact]
@@ -174,7 +149,7 @@ public sealed class StudentResultsBlobClientTests(AzuriteFixture azurite)
     }
 
     [Fact]
-    public async Task AnyForSourceAsync_shares_the_cached_file_with_GetResultsAsync()
+    public async Task GetAllResultsAsync_shares_the_cached_file_with_GetResultsAsync()
     {
         var (windowId, service) = await SeededWindowAsync();
         var client = NewClient(service);
@@ -184,7 +159,7 @@ public sealed class StudentResultsBlobClientTests(AzuriteFixture azurite)
             .GetBlobClient(ResultsEnquiryBlobPaths.ResultsBlobName(Laestab))
             .UploadAsync(BinaryData.FromString("[]"), overwrite: true);
 
-        Assert.True(await client.AnyForSourceAsync(windowId, Laestab, ResultsFileTags.Post16Main));
+        Assert.Equal(3, (await client.GetAllResultsAsync(windowId, Laestab)).Count);
     }
 
     [Fact]

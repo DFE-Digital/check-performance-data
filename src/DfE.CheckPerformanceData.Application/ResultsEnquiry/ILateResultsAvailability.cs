@@ -1,13 +1,13 @@
 namespace DfE.CheckPerformanceData.Application.ResultsEnquiry;
 
 /// <summary>
-/// Whether a school's second late results file has landed for a window. AB#296648.
+/// Whether a window's second late results file is still awaited. AB#296648.
 ///
-/// Nearly all incorrect grades are corrected by that file, so the enquiry journey tells the user to
-/// check it first. The service is never told separately whether it exists — it derives the answer
-/// from the results data it already holds.
+/// Nearly all incorrect grades are corrected by that file, so while it is awaited the enquiry
+/// journey tells the user to check it first. The service is never told separately — it derives the
+/// answer from the results exercise's slots and its live release.
 /// </summary>
 public interface ILateResultsAvailability
 {
-    Task<bool> IsSecondLateResultsAvailableAsync(Guid windowId, string laestab, CancellationToken ct = default);
+    Task<bool> IsAwaitingSecondLateResultsAsync(Guid windowId, CancellationToken ct = default);
 }

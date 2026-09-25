@@ -100,6 +100,7 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                                 SourceFile = d.SourceFile,
                                 Required = d.Required,
                                 FeedsJourney = d.FeedsJourney,
+                                Retired = d.Retired,
                                 SortOrder = d.SortOrder
                             })
                             .ToList()
@@ -202,6 +203,7 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                                 SourceFile = d.SourceFile,
                                 Required = d.Required,
                                 FeedsJourney = d.FeedsJourney,
+                                Retired = d.Retired,
                                 SortOrder = d.SortOrder
                             })
                             .ToList()
@@ -346,6 +348,7 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
             existing.SortOrder = dto.SortOrder;
             existing.Included = dto.Included;
             existing.SourceFile = dto.SourceFile;
+            existing.Retired = dto.Retired;
             existing.IngressFile = dto.IngressFile;
             existing.IngressFileChecksum = dto.IngressFileChecksum;
             existing.SchemaFile = dto.SchemaFile;
@@ -378,6 +381,7 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
             // Set here and nowhere else: whether a slot feeds the journey is decided when it is
             // created (supplier slot or admin-added), and no update may change it.
             FeedsJourney = dto.FeedsJourney,
+            Retired = dto.Retired,
             SortOrder = dto.SortOrder
         };
 
@@ -509,6 +513,7 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                             SourceFile = d.SourceFile,
                             Required = d.Required,
                             FeedsJourney = d.FeedsJourney,
+                            Retired = d.Retired,
                             SortOrder = d.SortOrder
                         })
                         .ToList()

@@ -16,18 +16,11 @@ public static class DatasetLabels
     {
         WindowDatasets.Included => "Included pupils",
         WindowDatasets.NonIncluded => "Non-included pupils",
-        ResultsFileTags.Post16Main => $"Main results ({ResultsFileTags.Post16Main})",
-        ResultsFileTags.Post16LateResults1 => $"Late results 1 ({ResultsFileTags.Post16LateResults1})",
-        ResultsFileTags.Post16LateResults2 => $"Late results 2 ({ResultsFileTags.Post16LateResults2})",
-        ResultsFileTags.Post16Revised => $"Revised results ({ResultsFileTags.Post16Revised})",
-        ResultsFileTags.Post16Retention => $"Retention ({ResultsFileTags.Post16Retention})",
-        ResultsFileTags.Ks4Main => $"Main results ({ResultsFileTags.Ks4Main})",
-        ResultsFileTags.Ks4LateResults1 => $"Late results 1 ({ResultsFileTags.Ks4LateResults1})",
-        ResultsFileTags.Ks4LateResults2 => $"Late results 2 ({ResultsFileTags.Ks4LateResults2})",
-        ResultsFileTags.Ks4Revised => $"Revised results ({ResultsFileTags.Ks4Revised})",
         // A slot an admin added is shown by the name they gave it. This used to say "Pupils" for
         // every other name, so a data share's slot was labelled as pupil data.
         WindowDatasets.Pupils => "Pupils",
+        // A results slot is named by its tag: shown with its label, from the one list of results files.
+        _ when ResultsSources.LabelFor(datasetName) is var label && label != datasetName => $"{label} ({datasetName})",
         _ => datasetName
     };
 }

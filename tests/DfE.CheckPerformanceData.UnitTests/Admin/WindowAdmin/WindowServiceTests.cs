@@ -176,7 +176,7 @@ public class WindowServiceTests
         await service.UpdateAsync(window, CancellationToken.None);
 
         CheckingExerciseDto enquiry = persisted!.FindExercise(CheckingExerciseType.ResultsEnquiry)!;
-        Assert.Equal(5, enquiry.Datasets.Count);
+        Assert.Equal(7, enquiry.Datasets.Count);
         Assert.All(enquiry.Datasets, d => Assert.Equal(d.Name, d.SourceFile));
 
         // The pupil-data exercise gets no supplier slots: the admin adds its files.

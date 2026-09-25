@@ -198,7 +198,7 @@ public class WindowExercisesTests
 
         var names = Assert.Single(persisted!.Exercises).Datasets.Select(d => d.Name).ToList();
         Assert.DoesNotContain(DfE.CheckPerformanceData.Application.ResultsEnquiry.ResultsFileTags.Ks4Main, names);
-        Assert.Contains(DfE.CheckPerformanceData.Application.ResultsEnquiry.ResultsFileTags.Post16Main, names);
+        Assert.Contains(DfE.CheckPerformanceData.Application.ResultsEnquiry.ResultsFileTags.Post16Included, names);
     }
 
     [Fact]

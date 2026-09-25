@@ -8,8 +8,9 @@ using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.CheckYourPupilData;
 
-// The Results tab: one row per main-file result, joined to the pupil file on CYPMD ID. The tab
-// exists only for a window that runs a results enquiry whose type has a main results slot.
+// The Results tab: one row per result in the live file, from every source the release read, joined
+// to the pupil file on CYPMD ID. The tab exists only for a window that runs a results enquiry whose
+// type has a results feed.
 public sealed class ResultsTableServiceTests
 {
     private const string Laestab = "860/4070";
@@ -30,10 +31,10 @@ public sealed class ResultsTableServiceTests
             Pupil("500001", "Smith", "Alice"),
             Pupil("500002", "Jones", "Bob")
         });
-        _results.GetResultsForSourceAsync(WindowId, Laestab, ResultsFileTags.Post16Main).Returns(new List<StudentResultRecord>
+        _results.GetAllResultsAsync(WindowId, Laestab).Returns(new List<StudentResultRecord>
         {
             Result("500002", "Maths"),
-            Result("500001", "French"),
+            Result("500001", "French", ResultsFileTags.Post16LateResults1),
             Result("500001", "Art"),
             Result("999999", "Physics")
         });
@@ -60,7 +61,7 @@ public sealed class ResultsTableServiceTests
         Sex = "F", DateOfBirth = "2007-09-01", Age = 18, Laestab = Laestab, Urn = "1", Ukprn = "1", Uln = "1"
     };
 
-    private static StudentResultRecord Result(string cypmdId, string subject, string source = ResultsFileTags.Post16Main) => new()
+    private static StudentResultRecord Result(string cypmdId, string subject, string source = ResultsFileTags.Post16Included) => new()
     {
         CypmdId = cypmdId, Qan = "Q", QualificationName = subject, Session = "S2024", Grade = "5", SourceFile = source
     };
@@ -75,7 +76,7 @@ public sealed class ResultsTableServiceTests
     }
 
     [Fact]
-    public async Task Null_when_the_window_type_has_no_main_results_slot()
+    public async Task Null_when_the_window_type_has_no_results_feed()
     {
         // KS2 has no results feed, so a results enquiry ticked on one has nothing to list.
         Window(CheckingWindowType.KS2, CheckingExerciseType.ResultsEnquiry);
@@ -83,22 +84,19 @@ public sealed class ResultsTableServiceTests
         Assert.Null(await _sut.GetResultsTableAsync(WindowId, null, 0, 10));
     }
 
-    [Fact]
-    public async Task Reads_only_the_main_file_for_the_window_type()
+    [Theory]
+    [InlineData(CheckingWindowType.Post16)]
+    [InlineData(CheckingWindowType.KS4Autumn)]
+    public async Task Lists_every_file_the_release_read(CheckingWindowType type)
     {
-        await _sut.GetResultsTableAsync(WindowId, null, 0, 10);
+        // The 16-19 feed has no single main file: in February the revised files replace the first
+        // two, so reading one tag would empty the tab.
+        Window(type, CheckingExerciseType.ResultsEnquiry);
 
-        await _results.Received(1).GetResultsForSourceAsync(WindowId, Laestab, ResultsFileTags.Post16Main);
-    }
+        var (_, total) = (await _sut.GetResultsTableAsync(WindowId, null, 0, 10))!.Value;
 
-    [Fact]
-    public async Task Ks4_window_reads_the_ks4_main_file()
-    {
-        Window(CheckingWindowType.KS4Autumn, CheckingExerciseType.ResultsEnquiry);
-
-        await _sut.GetResultsTableAsync(WindowId, null, 0, 10);
-
-        await _results.Received(1).GetResultsForSourceAsync(WindowId, Laestab, ResultsFileTags.Ks4Main);
+        Assert.Equal(4, total);
+        await _results.Received(1).GetAllResultsAsync(WindowId, Laestab);
     }
 
     [Fact]
@@ -119,7 +117,7 @@ public sealed class ResultsTableServiceTests
     [Fact]
     public async Task Join_is_case_insensitive_on_cypmd_id()
     {
-        _results.GetResultsForSourceAsync(WindowId, Laestab, ResultsFileTags.Post16Main)
+        _results.GetAllResultsAsync(WindowId, Laestab)
             .Returns(new List<StudentResultRecord> { Result("500001", "Art") });
         _repository.GetAllPupilsForSchoolAsync(WindowId, Laestab)
             .Returns(new List<IPupilRecord> { Pupil("500001".ToUpperInvariant(), "Smith", "Alice") });
@@ -158,6 +156,8 @@ public sealed class ResultsTableServiceTests
 
         Assert.Equal(4, table!.Rows.Count);
         Assert.Equal("Source file", table.Headers[^1]);
-        Assert.Equal(ResultsFileTags.Post16Main, table.Rows[0][^1]);
+        // The source is shown by its label, as the enquiry search shows it.
+        Assert.Equal("Included", table.Rows[0][^1]);
+        Assert.Contains(table.Rows, r => r[^1] == "Late results 1");
     }
 }

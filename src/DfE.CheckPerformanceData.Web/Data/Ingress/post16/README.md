@@ -1,6 +1,6 @@
 # Post-16 workbook schemas
 
-This folder holds the 16-19 supplier files: each dev seed CSV (`included.csv`, `16to19_MAIN.csv`, `summary-autumn.csv` and so on) sits beside the schemas, which are named `{name}_schema.json`.
+This folder holds the 16-19 supplier schemas, named `{name}_schema.json`. It holds no CSVs: the dev seed generates its sample files (`SeedPost16OctoberSamples`).
 
 These row schemas transcribe the field references, SQL types, CSV column letters and supplied headings in `Post16.ods`. `post16-ingress_schema.json` defines one combined document per institution. A collection name identifies the source dataset, so a CSV download can select that collection without guessing from overlapping fields.
 
@@ -18,7 +18,19 @@ The workbook does not define JSON nullability or required values consistently ac
 
 ## Results schema and the dev seed
 
-`results-included_schema.json` carries one field the workbook does not: `SOURCE`. The processor stamps the dataset slot's tag (`16to19_MAIN` and so on) on every record, and only does so when the schema declares the column, because `additionalProperties` is false. It has no CSV column, so it is not exported. The schema also marks the student and result columns visible, with the names searchable, so the Results tab renders a table; the dev seed's `16to19_MAIN.csv` and `16to19_LR1.csv` are in this shape (the main file and the first late results file), built from the students in `included.csv`. The seed feeds two windows from these files: "16 to 19 ingress" at the start of the Autumn window, and "16 to 19 February" four months in, with pupil data checking shut, the late results file landed and the third Summary exercise enabled.
+`results-included_schema.json` carries one field the workbook does not: `SOURCE`. The processor stamps the dataset slot's tag (`16to19_INC` and so on) on every record, and only does so when the schema declares the column, because `additionalProperties` is false. It has no CSV column, so it is not exported. The schema also marks the student and result columns visible, with the names searchable, so the Results tab renders a table.
+
+`results-included_schema.json` and `results-non-included_schema.json` are the 16-18 included and non-included results data files, as their data specifications define them (fields 1-32, headed by field reference; the descriptive "column heading" is the heading of the CSV a school downloads, in column order A-AD). The two differ in the `CAPPED_PTS` download heading ("Maths"/"Math"), so each file has its own schema. The results schemas (these two and `results-late_schema.json`) set **no `maxLength`**: the specifications' lengths were written for SQL tables, and in a CSV import one over-long value would fail validation and stop the whole run. `SCHCNO` and `EXAMCAND` are struck through in the workbook and are not exported. Each schema adds the four values the enquiry journey reads, which are not CSV columns: `x-ingress.source` fills them from the supplier columns — `QAN` from `GNUMBER`, `SYLLABUS` from `BRDSUBNO`, `SESSION` from `SEASON` + `EXAMYEAR` joined (`S2025`), and `QUAL_NAME` from `Short_Qual_Desc` + `SubjectDescription` joined with a space (`GCE A English`). They repeat supplier columns, so they are neither downloaded nor shown on the Results tab.
+
+The "16 to 19 Oct" dev window uses these schemas: the dev seed (`SeedPost16OctoberSamples`) writes that window's sample CSVs to the ingress storage account, container `16-to-19-oct`, and leaves the window for an admin to import. Pair `students/included.csv` with `students-included_schema.json`, `students/nonincluded.csv` with `students-non-included_schema.json`, `results/16to19_INC.csv` with `results-included_schema.json`, `results/16to19_NONINC.csv` with `results-non-included_schema.json`, and `results/16to19_LR1.csv` with `results-late_schema.json`.
+
+## Late results schema and column renaming
+
+`results-late_schema.json` is the 16-19 late results file as the data specification defines it (1618 names): `LAESTAB`, `CYPMD_ID`, `SURNAME`, `FORENAMES`, `AB_CODE_NDAQ`, `Short_Qual_Desc`, `EXAM_YEAR_SEASON`, `EXAM_DATE`, `Discount_Code`, `SYLLABUS_TITLE`, `GNUMBER`, `BRDSUBNO`, `GRADE` and `Late_Result_Type` (`Amendment` or `New`). It is for late results 1 and late results 2. The KS4 version, with the KS4 names (`FORENAME`, `QUALIFICATION_TYPE`, `SEASON_AND_YEAR`, `WOLF_DISC_CODE`, `QUALIFICATION_DESCRIPTION`), is `../ks4autumn/results-late_schema.json`.
+
+Ingress writes each JSON key with the property's name. A property may set `x-ingress.source` to the CSV column it is read from — or to a list of columns, joined with `x-ingress.separator` (default none), blank parts skipped — so a supplier column reaches the journey under the name the journey reads: `QAN` ← `GNUMBER`, `QUAL_NAME` ← `SYLLABUS_TITLE` / `QUALIFICATION_DESCRIPTION`, `SYLLABUS` ← `BRDSUBNO`, `SESSION` ← `EXAM_YEAR_SEASON` / `SEASON_AND_YEAR`. It is a copy: a CSV that already has the property's own column keeps it, and the source column is then dropped like any column the schema does not declare.
+
+An `Amendment` row does not replace the result it corrects. Both rows reach the journey, and the amendment carries its late file's tag, so the search shows the original ("File: Included") and the amendment ("File: Late results 1").
 
 ## Summary schemas
 

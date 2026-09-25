@@ -1,6 +1,5 @@
 using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
-using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Application.WindowManagement;
@@ -20,7 +19,6 @@ public sealed class ResultIssueController(
     ICheckYourPupilDataService service,
     IQuestionFlowService flowService,
     ILateResultsAvailability lateResults,
-    ICurrentUserService currentUser,
     ICheckingExerciseService checkingExercises,
     IAnalyticsService analytics) : Controller
 {
@@ -95,20 +93,19 @@ public sealed class ResultIssueController(
             // the option above is always selectable, and both paths continue into the same journey.
             // The Figma frame that greys the option out ("Incorrect grade option will be available
             // after releasing second late results") was considered and not chosen.
-            var available = await lateResults.IsSecondLateResultsAvailableAsync(
-                windowId, currentUser.OrganisationLaestab, ct);
+            var awaiting = await lateResults.IsAwaitingSecondLateResultsAsync(windowId, ct);
 
             // When the guidance page is the entry point it is seeded into the history. The flow
             // config's firstPageId is cohort-scope, so without this the journey engine's
             // out-of-sequence guard would bounce the user straight past the guidance to cohort-scope
             // and the "tell me to check that file first" acceptance criterion would never be met.
             // Seeding is also the truthful record: this controller has decided the journey starts there.
-            if (!available)
+            if (awaiting)
             {
                 pageId = LateResultsGuidancePageId;
                 history = [LateResultsGuidancePageId];
             }
-            guidanceShown = !available;
+            guidanceShown = awaiting;
         }
 
         // Paired with results_enquiry_submitted to give the start-to-submit funnel. The guidance flag

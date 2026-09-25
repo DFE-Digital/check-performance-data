@@ -1,0 +1,299 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "results-late_schema.json",
+  "title": "Late results",
+  "description": "One row of a KS4 late results file (data specification: KS4 names). Used for late results 1 and late results 2; the slot stamps SOURCE. A property with x-ingress.source is read from that CSV column, so the journey's QAN, QUAL_NAME, SYLLABUS and SESSION are filled from the supplier's own column names.",
+  "type": "object",
+  "additionalProperties": false,
+  "x-ingress": {
+    "collection": "results-late",
+    "pageTab": "results",
+    "institutionKey": "LAESTAB"
+  },
+  "x-download": {
+    "fileName": "late-results.csv",
+    "label": "Late results"
+  },
+  "x-display": {
+    "tab": "results",
+    "section": "Late results",
+    "selectorOrder": 2
+  },
+  "properties": {
+    "LAESTAB": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "DfE number for the institution",
+      "x-csv": {
+        "columns": {
+          "default": "A"
+        },
+        "heading": "DfE Establishment Number"
+      },
+      "x-display": {
+        "label": "DfE Establishment Number",
+        "visible": false
+      }
+    },
+    "CYPMD_ID": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Pupil identifier (KS4: 40000-99999)",
+      "x-csv": {
+        "columns": {
+          "default": "B"
+        },
+        "heading": "CYPMD ID"
+      },
+      "x-display": {
+        "label": "CYPMD ID",
+        "visible": false
+      }
+    },
+    "SURNAME": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Pupil surname",
+      "x-csv": {
+        "columns": {
+          "default": "C"
+        },
+        "heading": "Surname"
+      },
+      "x-display": {
+        "label": "Surname",
+        "visible": true,
+        "order": 1,
+        "searchable": true
+      }
+    },
+    "FORENAME": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Pupil forename",
+      "x-csv": {
+        "columns": {
+          "default": "D"
+        },
+        "heading": "Forename"
+      },
+      "x-display": {
+        "label": "Forename",
+        "visible": true,
+        "order": 2,
+        "searchable": true
+      }
+    },
+    "AB_CODE_NDAQ": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Awarding body",
+      "x-csv": {
+        "columns": {
+          "default": "E"
+        },
+        "heading": "Awarding Body"
+      },
+      "x-display": {
+        "label": "Awarding Body",
+        "visible": false
+      }
+    },
+    "QUALIFICATION_TYPE": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Type of qualification",
+      "x-csv": {
+        "columns": {
+          "default": "F"
+        },
+        "heading": "Qualification type"
+      },
+      "x-display": {
+        "label": "Qualification type",
+        "visible": true,
+        "order": 3
+      }
+    },
+    "SESSION": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Exam season and year, from SEASON_AND_YEAR",
+      "x-ingress": {
+        "source": "SEASON_AND_YEAR"
+      },
+      "x-csv": {
+        "columns": {
+          "default": "G"
+        },
+        "heading": "Exam/Assessment SEASON AND YEAR"
+      },
+      "x-display": {
+        "label": "Exam/Assessment SEASON AND YEAR",
+        "visible": true,
+        "order": 6
+      }
+    },
+    "EXAM_DATE": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Exam date",
+      "x-csv": {
+        "columns": {
+          "default": "H"
+        },
+        "heading": "Exam date"
+      },
+      "x-display": {
+        "label": "Exam date",
+        "visible": false
+      }
+    },
+    "WOLF_DISC_CODE": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Discount code",
+      "x-csv": {
+        "columns": {
+          "default": "I"
+        },
+        "heading": "Discount Code"
+      },
+      "x-display": {
+        "label": "Discount Code",
+        "visible": false
+      }
+    },
+    "QUAL_NAME": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Qualification description, from QUALIFICATION_DESCRIPTION",
+      "x-ingress": {
+        "source": "QUALIFICATION_DESCRIPTION"
+      },
+      "x-csv": {
+        "columns": {
+          "default": "J"
+        },
+        "heading": "Qualification description"
+      },
+      "x-display": {
+        "label": "Qualification description",
+        "visible": true,
+        "order": 4
+      }
+    },
+    "QAN": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Qualification number, from GNUMBER",
+      "x-ingress": {
+        "source": "GNUMBER"
+      },
+      "x-csv": {
+        "columns": {
+          "default": "K"
+        },
+        "heading": "QAN number"
+      },
+      "x-display": {
+        "label": "QAN number",
+        "visible": true,
+        "order": 5
+      }
+    },
+    "SYLLABUS": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Syllabus code, from BRDSUBNO",
+      "x-ingress": {
+        "source": "BRDSUBNO"
+      },
+      "x-csv": {
+        "columns": {
+          "default": "L"
+        },
+        "heading": "Syllabus code"
+      },
+      "x-display": {
+        "label": "Syllabus code",
+        "visible": false
+      }
+    },
+    "GRADE": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Grade",
+      "x-csv": {
+        "columns": {
+          "default": "M"
+        },
+        "heading": "Grade"
+      },
+      "x-display": {
+        "label": "Grade",
+        "visible": true,
+        "order": 7
+      }
+    },
+    "Late_Result_Type": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "'Amendment' (corrects a result in an earlier file) or 'New'",
+      "x-csv": {
+        "columns": {
+          "default": "N"
+        },
+        "heading": "Late result type"
+      },
+      "x-display": {
+        "label": "Late result type",
+        "visible": true,
+        "order": 8
+      }
+    },
+    "SOURCE": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The results file the row came in, stamped from the dataset slot (e.g. 16to19_LR1). Not a CSV column.",
+      "x-csv": {
+        "columns": {},
+        "heading": "Source file"
+      },
+      "x-display": {
+        "label": "Source file",
+        "visible": false
+      }
+    }
+  }
+}

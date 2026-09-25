@@ -29,11 +29,16 @@ public class WindowDatasetDefaultsTests
     }
 
     [Theory]
-    [InlineData(CheckingExerciseType.PupilData, true)]
-    [InlineData(CheckingExerciseType.ResultsEnquiry, false)]
-    [InlineData(null, false)]
-    public void Only_a_file_added_to_pupil_data_checking_feeds_the_journey(CheckingExerciseType? type, bool feeds)
-        => Assert.Equal(feeds, WindowDatasets.AddedSlotFeedsJourney(type));
+    [InlineData(CheckingExerciseType.PupilData, null, true)]
+    [InlineData(CheckingExerciseType.ResultsEnquiry, null, false)]
+    [InlineData(CheckingExerciseType.ResultsEnquiry, ResultsFileTags.Post16LateResults1, true)]
+    [InlineData(null, null, false)]
+    [InlineData(null, ResultsFileTags.Post16LateResults1, false)]
+    public void An_added_file_feeds_the_journey_on_pupil_data_or_as_a_results_source(
+        CheckingExerciseType? type, string? source, bool feeds)
+        // A results file with a source is supplier results, so the journey reads it. A results
+        // file with no source is display only, and a data share has no journey.
+        => Assert.Equal(feeds, WindowDatasets.AddedSlotFeedsJourney(type, source));
 
     [Fact]
     public void A_KS4_results_tag_is_stale_on_a_16_to_19_window_but_an_admin_slot_never_is()
@@ -49,17 +54,22 @@ public class WindowDatasetDefaultsTests
     }
 
     [Fact]
-    public void A_16_to_19_results_enquiry_gets_a_slot_per_source_file()
+    public void A_16_to_19_results_enquiry_gets_a_slot_per_file_of_the_year()
     {
+        // October: included, non-included, late 1. November: late 2. February: the two revised
+        // files replace the first four. March: revised with retention replaces included revised.
+        // The admin retires a slot when its file is replaced, so every slot exists from the start.
         var datasets = WindowDatasets.DefaultsFor(CheckingWindowType.Post16, CheckingExerciseType.ResultsEnquiry);
 
         Assert.Equal(
             [
-                ResultsFileTags.Post16Main,
+                ResultsFileTags.Post16Included,
+                ResultsFileTags.Post16NonIncluded,
                 ResultsFileTags.Post16LateResults1,
                 ResultsFileTags.Post16LateResults2,
-                ResultsFileTags.Post16Revised,
-                ResultsFileTags.Post16Retention
+                ResultsFileTags.Post16IncludedRevised,
+                ResultsFileTags.Post16NonIncludedRevised,
+                ResultsFileTags.Post16IncludedRevisedWithRetention
             ],
             datasets.Select(d => d.Name));
     }
@@ -94,14 +104,15 @@ public class WindowDatasetDefaultsTests
             Assert.Equal(dataset.Name, dataset.SourceFile);
             Assert.Null(dataset.Included);
         });
-        Assert.Equal([0, 1, 2, 3, 4], datasets.Select(d => d.SortOrder));
+        Assert.Equal([0, 1, 2, 3, 4, 5, 6], datasets.Select(d => d.SortOrder));
     }
 
     [Fact]
-    public void Only_the_main_results_file_is_required()
+    public void Only_the_first_results_file_is_required()
     {
         // The late, revised and retention files land weeks apart and one may never land. Requiring
         // them would leave an exercise that can never be validated and a school with no results.
+        // A retired slot is never required, so the first slot stops blocking once it is replaced.
         var datasets = WindowDatasets.DefaultsFor(CheckingWindowType.Post16, CheckingExerciseType.ResultsEnquiry);
 
         Assert.True(datasets[0].Required);

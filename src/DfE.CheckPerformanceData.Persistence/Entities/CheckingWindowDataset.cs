@@ -50,6 +50,12 @@ public sealed class CheckingWindowDataset
     /// </summary>
     public bool FeedsJourney { get; set; }
 
+    /// <summary>
+    /// The slot's file has been replaced by another slot's, so no run reads it. Kept, not deleted,
+    /// because the releases that read it still name it and an admin can put it back in use.
+    /// </summary>
+    public bool Retired { get; set; }
+
     public int SortOrder { get; set; }
 }
 

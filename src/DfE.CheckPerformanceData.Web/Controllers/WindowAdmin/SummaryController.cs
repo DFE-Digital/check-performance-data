@@ -53,7 +53,10 @@ public sealed class SummaryController(IWindowService windowService, TimeProvider
                     IsValidated = e.IsValidated,
                     ValidatedAt = e.ValidatedAt,
                     IsStale = e.ValidatedAt is not null && !e.IsValidated,
+                    // A retired slot is left out: no run reads it, so it neither blocks nor
+                    // counts towards validation. The exercise's Data tab still lists it.
                     Datasets = e.Datasets
+                        .Where(d => !d.Retired)
                         .OrderBy(d => d.SortOrder)
                         .Select(d => new DatasetSummaryRow
                         {

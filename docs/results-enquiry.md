@@ -42,13 +42,15 @@ Check your pupil data asks in that state; the seeded window `7D3F0B21-…` is in
 
 ## Late results guidance
 
-Exam results arrive in batches: main + non-included + late results 1 in October, **late results 2 in
-November**, revised in February, retention in March. Nearly all incorrect grades correct themselves in
+Exam results arrive in batches: included + non-included + late results 1 in October, **late results 2
+in November**. In February included revised and non-included revised **replace** those four, and in
+March included revised with retention replaces included revised (see [The results files over the
+year](#the-results-files-over-the-year)). Nearly all incorrect grades correct themselves in
 the November batch, so a school reporting one in October may be doing work that batch was about to do
 for them.
 
-**Decision (BA, 2026-08-17): the guidance informs, it never blocks.** When the school holds no
-`16to19_LR2` row, `ResultIssueController` routes into `check-late-results`; when it does, straight to
+**Decision (BA, 2026-08-17): the guidance informs, it never blocks.** While the second late results
+file is awaited, `ResultIssueController` routes into `check-late-results`; otherwise straight to
 `cohort-scope`. The option itself is always selectable. A Figma frame showing the option greyed out
 with *"Incorrect grade option will be available after releasing second late results"* was considered
 and not chosen — it contradicts the ticket's own acceptance criteria.
@@ -57,23 +59,28 @@ Because the flow's `firstPageId` is `cohort-scope`, the controller **seeds `Ques
 `check-late-results`** when that is the entry point. Without it the journey engine's out-of-sequence
 guard bounces the user straight past the guidance and the AC silently never happens.
 
-Availability is derived, never configured: `ILateResultsAvailability` asks
-`IStudentResultsClient.AnyForSourceAsync(..., "16to19_LR2")`. That is the only place the service
-decides what "the second late results file has landed" means.
+Availability is derived, never configured. `ILateResultsAvailability.IsAwaitingSecondLateResultsAsync`
+says the file is awaited while the results exercise has a slot for it that is **not retired** and the
+**live release has not read** that slot. October: awaited. November, once the file is run: not.
+February, when the slot is retired with the files the revised ones replace: not, so the guidance
+stops (decision, 2026-09-25). Which tag is "the second late file" comes from `ResultsSources`
+(`IsSecondLateResults`), not from a literal. The answer is per file, not per school: it used to be
+"does this school hold any LR2 row", which told a school with no late results to wait for a file that
+had already arrived. That is the only place the service decides this.
 
 ## Data seams
 
 ### Student results — `IStudentResultsClient`
 
 Container `{windowId}`, blob `results-enquiry/data/{laestab}_results.json`. One merged array per
-school across all six supplier files, each row stamped with its source tag.
+school across the supplier files the live release read, each row stamped with its source tag.
 
 Written by the results-enquiry checking exercise's own ingress run (#324): one dataset slot per
 source file, each stamping its `SOURCE` tag onto every record it contributes, all merged into one
 file per school in a single run. `SeedStudentResults` still writes the same blob in development, so
-a developer needs no supplier files. Only the main file is required to validate the exercise — the
-late, revised and retention files are optional slots, because they land weeks apart and one may
-never land, and each run rewrites the school's whole file from the slots that are filled. The supplier CSVs must carry a `LAESTAB` column — that is what
+a developer needs no supplier files. Only the first slot (included) is required to validate the
+exercise — the other files are optional slots, because they land weeks apart and one may never land,
+and each run rewrites the school's whole file from the slots that are filled and not retired. The supplier CSVs must carry a `LAESTAB` column — that is what
 splits one file into one blob per school — and a file without one fails the run by name.
 
 The `results-enquiry/` prefix is deliberate: per consequence #2 of `docs/16-19-window-model.md` each
@@ -81,10 +88,67 @@ checking exercise owns its own blob prefix, so when ingress becomes per-exercise
 needed and one exercise's sweep cannot destroy another's output. Pupil-data checking keeps its bare
 `data/` prefix. Every path segment lives in `ResultsEnquiryBlobPaths`.
 
-Source tags (`ResultsFileTags`, verbatim from AB#296999 — a data contract with ingestion):
+### The results files over the year
+
+`ResultsSources` (Application) is the one list of results files: per window type, the tags in the
+order they arrive, the label schools see, and which is the second late file. The default slots, the
+admin's source dropdown, the late-results check and every label read it. A new supplier file is one
+row there.
+
+| Month | 16-19 file | Tag | Label |
+|---|---|---|---|
+| Oct | Included | `16to19_INC` | Included |
+| Oct | Non-included | `16to19_NONINC` | Non-included |
+| Oct | Late results 1 | `16to19_LR1` | Late results 1 |
+| Nov | Late results 2 | `16to19_LR2` | Late results 2 |
+| Feb | Included revised (replaces the four above, with the next) | `16to19_INC_REV` | Included revised |
+| Feb | Non-included revised | `16to19_NONINC_REV` | Non-included revised |
+| Mar | Included revised with retention (replaces included revised) | `16to19_INC_REV_RET` | Included revised with retention |
+
+A Post16 results enquiry is created with all seven slots. The admin fills each slot when its file
+arrives, and **retires** a slot when its file is replaced (Data tab → Retire, a confirmation page,
+`ExerciseDataController`). A retired slot is not read by a run, does not count as required, and is
+left out of the validation checksums, so the stamp goes stale until the next run. It is kept, not
+deleted, because earlier releases name it, and it can be put back in use. Each run is a release, so
+the October, November, February and March states are four releases and any can be made live again.
+
+A file added to a results enquiry **with** a source feeds the journey; one without a source is
+display only (`WindowDatasets.AddedSlotFeedsJourney`). That is how a KS4 Autumn window, or a supplier
+file nobody planned for, is handled without a code change beyond a row in `ResultsSources`.
+
+**The included and non-included results files** (the 16-18 results data specifications) use
+`post16/results-included_schema.json` and `post16/results-non-included_schema.json` — one each,
+because their lengths and one download heading differ. Neither file has a single session or
+qualification-name column, so
+the schema joins columns: `SESSION` is `SEASON` + `EXAMYEAR` (`S2025`) and `QUAL_NAME` is
+`Short_Qual_Desc` + `SubjectDescription` (`GCE A English`). `QAN` is `GNUMBER` and `SYLLABUS` is
+`BRDSUBNO`, as in the late files.
+
+**Late results files have their own schema** (`post16/results-late_schema.json`,
+`ks4autumn/results-late_schema.json`), in the data specification's column names. A schema property may
+name the CSV column it is read from, or a list of columns to join with `x-ingress.separator`
+(`x-ingress.source`), which is how `GNUMBER` becomes the journey's
+`QAN`, `SYLLABUS_TITLE` / `QUALIFICATION_DESCRIPTION` its `QUAL_NAME`, `BRDSUBNO` its `SYLLABUS` and
+`EXAM_YEAR_SEASON` / `SEASON_AND_YEAR` its `SESSION`. A late row with `Late_Result_Type` `Amendment` does
+**not** replace the result it corrects (decision, 2026-09-25): both show, the amendment tagged with its
+late file. Rows with a NULL `CYPMD_ID` are ignored — they match no student.
+
+Schools see the label, never the raw tag: the result dropdown reads
+*"{qualification}, QAN: {qan}, Session: {session}, File: {label}"* (`ResultLabel`), the result
+details say *CSV file: {label}*, and the Results tab CSV's *Source file* column carries the label. The
+Results tab lists every result in the live file, not one tag's.
+
+Source tags (`ResultsFileTags`, verbatim from AB#296999 — a data contract with ingestion). The MAIN,
+Revised and Retention 16-19 tags are no longer offered, but blobs already written may carry them, so
+they keep their constants and labels:
 
 | Constant | Value |
 |---|---|
+| `Post16Included` | `16to19_INC` |
+| `Post16NonIncluded` | `16to19_NONINC` |
+| `Post16IncludedRevised` | `16to19_INC_REV` |
+| `Post16NonIncludedRevised` | `16to19_NONINC_REV` |
+| `Post16IncludedRevisedWithRetention` | `16to19_INC_REV_RET` |
 | `Post16Main` | `16to19_MAIN` |
 | `Post16LateResults1` | `16to19_LR1` |
 | `Post16LateResults2` | `16to19_LR2` |
@@ -495,15 +559,41 @@ Validation failures flow through the existing `validation_error` event; `GradeSe
 
 ## Local development
 
-`SeedStudentResults` writes results for Kingsmead (`860/4070`) in the seeded Post16 window: mixed
-`16to19_MAIN` / `16to19_LR1` tags, one qualification held twice in different sessions, and **no
-`16to19_LR2` rows** so the interstitial is on the happy path.
+The only seeded 16-19 window is **"16 to 19 Oct"** (`DevDataSeeder.Post16OctoberCheckingWindowId`),
+set up for the start of the results enquiry: pupil data checking open for the fortnight, the results
+enquiry to 31 March, both exercises enabled, every dataset slot in place — and **no data**. An admin
+imports it as they would the supplier's files: `SeedPost16OctoberSamples` writes the October sample
+CSVs to the ingress storage account, container `16-to-19-oct`, and the schemas are in
+`src/DfE.CheckPerformanceData.Web/Data/Ingress/post16/` for the "Choose schema" upload:
+
+| Slot | CSV (ingress storage) | Schema |
+|---|---|---|
+| Students: included | `students/included.csv` | `students-included_schema.json` |
+| Students: non-included | `students/nonincluded.csv` | `students-non-included_schema.json` |
+| Results: Included | `results/16to19_INC.csv` (16-18 results data shape) | `results-included_schema.json` |
+| Results: Non-included | `results/16to19_NONINC.csv` | `results-non-included_schema.json` |
+| Results: Late results 1 | `results/16to19_LR1.csv` | `results-late_schema.json` |
+
+Then validate each exercise. There is no late results 2 file (it arrives in November), so after the
+import that slot is empty and the late-results interstitial is on the happy path.
+`SeededCheckingExerciseTests.The_October_sample_files_import_and_validate_into_the_October_window`
+walks this import end to end.
+
+The results are `SeedStudentResults`, all for Kingsmead (`860/4070`): included students' rows in the
+included file, non-included students' in the non-included file, some in late results 1, one
+qualification held twice in different sessions, and **no `16to19_LR2` rows**. The late results 1
+sample is in the supplier's late shape (`GNUMBER`, `SYLLABUS_TITLE`, `BRDSUBNO`, `EXAM_YEAR_SEASON`,
+`Late_Result_Type`), and amends student `500002`'s BTEC Sport grade: the included row and the
+amendment both show in the search.
+
+No 16-19 E2E journey tests remain: they needed a window with data, and this one starts empty. Only
+the what-to-change option tests use it.
 
 Three students (`500001`–`500003`) carry results on real 16-19 QANs (AB#301903 — the Figma screens'
 GCSE fixtures were KS4 QANs the 16-19 reference does not hold): Alice Smith holds AQA GCSE Maths
 `60146084` in two sessions. The CYPMD ids are the ones `SeedPupilData` actually generates — a result
-keyed to Figma's own id would belong to no selectable student and dead-end the journey. E2E drives
-`500001` by name, so those three rows are pinned by `SeedStudentResultsTests`.
+keyed to Figma's own id would belong to no selectable student and dead-end the journey. Those three
+rows are pinned by `SeedStudentResultsTests`.
 
 The rest is generated across both populations (every third included student, every fifth
 non-included), giving roughly a quarter of the school. That is deliberate on both sides: with the

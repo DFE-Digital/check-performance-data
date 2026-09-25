@@ -1,6 +1,5 @@
 using System.Text.Json;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
-using DfE.CheckPerformanceData.Persistence.Seeding;
 using DfE.CheckPerformanceData.Web.Seeding;
 using NSubstitute;
 
@@ -34,7 +33,11 @@ public sealed class SeedStudentResultsTests
         Assert.Equal(4, byStudent["500001"].Length);
         Assert.Equal(2, byStudent["500001"].Count(r => r.Qan == "60146084"));
         Assert.Equal(["S2024", "S2023"], byStudent["500001"].Where(r => r.Qan == "60146084").Select(r => r.Session).ToArray());
-        Assert.Equal(3, byStudent["500002"].Length);
+        Assert.Equal(4, byStudent["500002"].Length);
+        // Late results 1 amends B's Sport grade; the original row stays, so both show.
+        Assert.Equal(
+            [ResultsFileTags.Post16Included, ResultsFileTags.Post16LateResults1],
+            byStudent["500002"].Where(r => r.Qan == "60172186").Select(r => r.SourceFile).ToArray());
         Assert.Single(byStudent["500003"]);
     }
 
@@ -112,12 +115,12 @@ public sealed class SeedStudentResultsTests
     }
 
     [Fact]
-    public void Results_are_written_to_the_post16_window()
+    public void A_non_included_students_results_are_in_the_non_included_file()
     {
-        Assert.Contains(DevDataSeeder.Post16CheckingWindowId, SeedStudentResults.WindowIds);
-        // AB#298317: the pupil-data-closed window holds the same results, so the enquiry journey
-        // can be walked end to end after pupil data has shut.
-        Assert.Contains(DevDataSeeder.ClosedPupilDataPost16CheckingWindowId, SeedStudentResults.WindowIds);
+        // SeedPupilData generates the non-included students from 500201.
+        Assert.All(Seeded().Where(r => r.SourceFile != ResultsFileTags.Post16LateResults1), r =>
+            Assert.Equal(int.Parse(r.CypmdId[1..]) > 200 ? ResultsFileTags.Post16NonIncluded : ResultsFileTags.Post16Included, r.SourceFile));
+        Assert.Contains(Seeded(), r => r.SourceFile == ResultsFileTags.Post16NonIncluded);
         Assert.Equal("860/4070", SeedStudentResults.Laestab);
     }
 

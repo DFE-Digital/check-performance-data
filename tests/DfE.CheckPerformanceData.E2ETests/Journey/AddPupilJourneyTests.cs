@@ -19,8 +19,8 @@ public sealed class AddPupilJourneyTests(PlaywrightFixture fixture) : SeedingPag
     // its pupil blobs, only an open KS4June window.
     private static readonly Guid Ks4JuneWindowId = Guid.Parse("F34D285B-8660-4D12-9C30-787328DEAA0A");
 
-    // The seeded Post16 window — no Add_Post16.json flow exists, so the option must not appear.
-    private static readonly Guid Post16WindowId = Guid.Parse("6C2E1F4A-9B7D-4E38-8A15-3D9C2B4E7F01");
+    // The seeded "16 to 19 Oct" window — no Add_Post16.json flow exists, so the option must not appear.
+    private static readonly Guid Post16WindowId = Guid.Parse("EC6493B8-9B66-4090-8BE6-9DFC3805751F");
 
     [RetryFact(3)]
     public async Task HappyPath_SubmitsAndShowsAReference()

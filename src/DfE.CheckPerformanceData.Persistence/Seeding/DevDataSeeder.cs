@@ -4,26 +4,20 @@ namespace DfE.CheckPerformanceData.Persistence.Seeding;
 
 public sealed class DevDataSeeder(IPortalDbContext dbContext)
 {
-    public static readonly Guid Post16IngressCheckingWindowId = Guid.Parse("BA9A1FD7-3EC6-44A2-A58F-21F7C289A560");
-    // A 16-19 window seen in February: opened in the autumn, pupil data checking long shut,
-    // results enquiry still open with the first late results file in, and the third Summary
-    // exercise (light touch revised data share) showing. Ingested from files like the window above.
-    public static readonly Guid Post16FebruaryCheckingWindowId = Guid.Parse("5E2C7A19-8D4B-4F63-9A0E-6B1D3C8F2A74");
     public static readonly Guid KeyStage4JuneCheckingWindowId = Guid.Parse("F34D285B-8660-4D12-9C30-787328DEAA0A");
     public static readonly Guid ClosedKeyStage4JuneCheckingWindowId = Guid.Parse("44AEDD2C-7F3E-4F83-BB3D-47FBFAC1C604");
-    public static readonly Guid Post16CheckingWindowId = Guid.Parse("6C2E1F4A-9B7D-4E38-8A15-3D9C2B4E7F01");
 
-    // AB#298317: a 16-19 window whose pupil-data exercise closed yesterday while results enquiry
-    // runs on — the state in which a school is told the window has closed and offered only the
-    // results-enquiry question.
-    public static readonly Guid ClosedPupilDataPost16CheckingWindowId = Guid.Parse("7D3F0B21-4C8E-4A9B-9F62-1E5A8C0D3B47");
+    // The only seeded 16-19 window: "16 to 19 Oct", set up for the start of the results enquiry in
+    // October. It has its exercises and dataset slots but no data. An admin imports the sample
+    // files (SeedPost16OctoberSamples) and validates, as they would the supplier's files.
+    public static readonly Guid Post16OctoberCheckingWindowId = Guid.Parse("EC6493B8-9B66-4090-8BE6-9DFC3805751F");
 
     public async Task SeedAsync()
     {
         // Countries are seeded unconditionally on startup in every environment (see Program.cs),
         // idempotently via SeedCountries.ExecuteSeed. They are not window-specific, so they are
         // deliberately not part of the destructive dev/reset seed here.
-        await SeedCheckingWindows.ExecuteSeed(dbContext, KeyStage4JuneCheckingWindowId, ClosedKeyStage4JuneCheckingWindowId, Post16CheckingWindowId, ClosedPupilDataPost16CheckingWindowId);
+        await SeedCheckingWindows.ExecuteSeed(dbContext, KeyStage4JuneCheckingWindowId, ClosedKeyStage4JuneCheckingWindowId, Post16OctoberCheckingWindowId);
 
         // Pupil data is no longer stored in the database — it is seeded into blob storage
         // as per-school JSON by SeedPupilData (Web), which runs after this seeder.

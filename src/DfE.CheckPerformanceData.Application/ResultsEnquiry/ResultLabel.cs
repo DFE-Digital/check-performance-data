@@ -11,9 +11,12 @@ namespace DfE.CheckPerformanceData.Application.ResultsEnquiry;
 /// AB#296648 requires that "each result shows enough detail for me to identify the right one", and
 /// its stated rationale is that a pupil can hold several results in one subject area — a resit would
 /// otherwise be indistinguishable from the original sitting. FLAGGED for content sign-off.
+///
+/// The file is appended too, by its label, because one result can be in two files (a late file
+/// corrects a grade in the included file) and the school must see which row it picks.
 /// </summary>
 public static class ResultLabel
 {
     public static string For(StudentResultRecord result)
-        => $"{result.QualificationName}, QAN: {result.Qan}, Session: {result.Session}";
+        => $"{result.QualificationName}, QAN: {result.Qan}, Session: {result.Session}, File: {ResultsSources.LabelFor(result.SourceFile)}";
 }

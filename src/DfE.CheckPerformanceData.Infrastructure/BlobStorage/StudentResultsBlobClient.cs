@@ -38,19 +38,9 @@ public sealed class StudentResultsBlobClient(
         return all.Select(r => r.CypmdId).ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
 
-    public async Task<IReadOnlyList<StudentResultRecord>> GetResultsForSourceAsync(
-        Guid windowId, string laestab, string sourceTag, CancellationToken ct = default)
-    {
-        var all = await GetSchoolResultsAsync(windowId, laestab, ct);
-        return all.Where(r => string.Equals(r.SourceFile, sourceTag, StringComparison.Ordinal)).ToList();
-    }
-
-    public async Task<bool> AnyForSourceAsync(
-        Guid windowId, string laestab, string sourceTag, CancellationToken ct = default)
-    {
-        var all = await GetSchoolResultsAsync(windowId, laestab, ct);
-        return all.Any(r => string.Equals(r.SourceFile, sourceTag, StringComparison.Ordinal));
-    }
+    public Task<IReadOnlyList<StudentResultRecord>> GetAllResultsAsync(
+        Guid windowId, string laestab, CancellationToken ct = default)
+        => GetSchoolResultsAsync(windowId, laestab, ct);
 
     public async Task UploadResultsAsync(
         Guid windowId, string laestab, IReadOnlyList<StudentResultRecord> results, CancellationToken ct = default)

@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
+using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Entities;
@@ -30,8 +31,7 @@ public static class SeedCheckingWindows
     // Every seeded exercise is new style: named, enabled and on a tab, so the Check Your Pupil
     // Data page draws exercise tabs for every seeded window.
     private static List<CheckingExercise> ExercisesFor(
-        CheckingWindowType type, DateTime startDate, DateTime endDate, DateTime? pupilDataEnd = null,
-        IReadOnlyList<string>? resultsFiles = null) =>
+        CheckingWindowType type, DateTime startDate, DateTime endDate, DateTime? pupilDataEnd = null) =>
         type == CheckingWindowType.Post16
             ?
             [
@@ -43,9 +43,8 @@ public static class SeedCheckingWindows
                     TabOrder = 200,
                     IsEnabled = true,
                     StartDate = startDate,
-                    // 14 days from a start of yesterday, which is the same fortnight the KS4
-                    // windows run for, unless the caller wants pupil data to have shut already.
-                    // Results enquiry then carries on to the window's own end.
+                    // A fortnight from the start unless the caller sets it. Results enquiry
+                    // then carries on to the window's own end.
                     EndDate = pupilDataEnd ?? startDate.AddDays(14).Date.AddHours(17),
                     SortOrder = 0,
                     Datasets = DatasetsFor(CheckingWindowType.Post16)
@@ -60,7 +59,7 @@ public static class SeedCheckingWindows
                     StartDate = startDate,
                     EndDate = endDate,
                     SortOrder = 1,
-                    Datasets = ResultsDatasetsFor(resultsFiles ?? DefaultResultsFiles)
+                    Datasets = ResultsDatasets()
                 }
             ]
             :
@@ -82,20 +81,17 @@ public static class SeedCheckingWindows
                 }
             ];
 
-    // The results files the E2E fixture windows hold: SeedStudentResults writes rows from the main
-    // file and the first late file, and deliberately none from the second late file.
-    private static readonly string[] DefaultResultsFiles = [ResultsFileTags.Post16Main, ResultsFileTags.Post16LateResults1];
+    // Every slot of the year, as the admin wizard creates them (WindowDatasets.DefaultsFor). All
+    // start empty: the admin fills each one when its file arrives.
+    private static List<CheckingWindowDataset> ResultsDatasets() =>
+        WindowDatasets.DefaultsFor(CheckingWindowType.Post16, CheckingExerciseType.ResultsEnquiry)
+            .Select(d => new CheckingWindowDataset
+            {
+                Name = d.Name, SourceFile = d.SourceFile, Included = null, Required = d.Required,
+                FeedsJourney = true, SortOrder = d.SortOrder
+            }).ToList();
 
-    // One slot per results file that has landed, named by the tag it stamps, as the admin wizard
-    // names them. Only the main file is required.
-    private static List<CheckingWindowDataset> ResultsDatasetsFor(IReadOnlyList<string> resultsFiles) =>
-        resultsFiles.Select((tag, index) => new CheckingWindowDataset
-        {
-            Name = tag, SourceFile = tag, Included = null, Required = tag == ResultsFileTags.Post16Main,
-            FeedsJourney = true, SortOrder = index
-        }).ToList();
-
-    public static async Task ExecuteSeed(IPortalDbContext dbContext, Guid openKs4WindowId, Guid closedKs4WindowId, Guid post16WindowId, Guid closedPupilDataPost16WindowId)
+    public static async Task ExecuteSeed(IPortalDbContext dbContext, Guid openKs4WindowId, Guid closedKs4WindowId, Guid post16OctoberWindowId)
     {
         // Egress runs first: egress_runs → CheckingWindows is a RESTRICT foreign key (an egress
         // is an audit record and must never vanish because a window was deleted), so a run left
@@ -136,136 +132,35 @@ public static class SeedCheckingWindows
             CheckingExercises = ExercisesFor(CheckingWindowType.KS4June, closedKs4Start, closedKs4End)
         };
 
-        // The outer end date runs out to the results-enquiry exercise, because the window's dates
-        // are the union of its exercises. The window is open for longer than it used to be locally;
-        // that is the multi-exercise shape, and nothing reads the exercise rows yet.
-        var post16Start = DateTime.Now.AddDays(-1);
-        var post16End = DateTime.Now.AddDays(+180).Date.AddHours(17);
-        var nextOpportunity = new DateTime(DateTime.Now.Year + 1, 10, 1);
+        // "16 to 19 Oct": the start of the 16-19 results enquiry. It opens today with pupil data
+        // checking for a fortnight (7 to 18 October in the real calendar) and the results enquiry
+        // to the end of March. Both exercises are enabled and have their dataset slots — two
+        // student files, and a results slot for every file of the year — but no data: an admin
+        // imports the October files (included, non-included and late results 1) from the sample
+        // files in ingress storage and validates. The outer dates are the union of the exercises.
+        var octoberStart = DateTime.Today;
+        var octoberPupilDataEnd = octoberStart.AddDays(11).AddHours(17);
+        var octoberEnd = new DateTime(octoberStart.Month > 3 ? octoberStart.Year + 1 : octoberStart.Year, 3, 31, 17, 0, 0);
 
-        var openPost16Window = new CheckingWindow
+        var post16OctoberWindow = new CheckingWindow
         {
-            Id = post16WindowId,
-            StartDate = post16Start,
-            EndDate = post16End,
+            Id = post16OctoberWindowId,
+            StartDate = octoberStart,
+            EndDate = octoberEnd,
             KeyStage = KeyStages.Post16,
             CheckingWindowType = CheckingWindowType.Post16,
-            Title = "16 to 19",
+            Title = "16 to 19 Oct",
             TurnaroundCommitment = "updated in the Spring",
-            NextOpportunity = nextOpportunity,
-            CheckingExercises = ExercisesFor(CheckingWindowType.Post16, post16Start, post16End)
+            NextOpportunity = new DateTime(DateTime.Now.Year + 1, 10, 1),
+            CheckingExercises = ExercisesFor(CheckingWindowType.Post16, octoberStart, octoberEnd, pupilDataEnd: octoberPupilDataEnd)
         };
-
-        // AB#298317: pupil data checking shut yesterday; results enquiry runs on for months. The
-        // outer pair is the union of the two, as for every window.
-        var closedPost16Start = DateTime.Now.AddDays(-30);
-        var closedPost16PupilDataEnd = DateTime.Now.AddDays(-1).Date.AddHours(17);
-        var closedPost16End = DateTime.Now.AddDays(+180).Date.AddHours(17);
-
-        var closedPupilDataPost16Window = new CheckingWindow
-        {
-            Id = closedPupilDataPost16WindowId,
-            StartDate = closedPost16Start,
-            EndDate = closedPost16End,
-            KeyStage = KeyStages.Post16,
-            CheckingWindowType = CheckingWindowType.Post16,
-            Title = "16 to 19 (pupil data closed)",
-            TurnaroundCommitment = "updated in the Spring",
-            NextOpportunity = nextOpportunity,
-            CheckingExercises = ExercisesFor(
-                CheckingWindowType.Post16, closedPost16Start, closedPost16End,
-                pupilDataEnd: closedPost16PupilDataEnd)
-        };
-
-        // Two windows ingested from the files under Data/Ingress: one at the start of the Autumn
-        // window today, and one seen in February, four months in.
-        var ingressStart = DateTime.Today;
-        var ingressEnd = ingressStart.AddMonths(1).AddHours(17);
-        var post16IngressWindow = IngestedPost16Window(
-            DevDataSeeder.Post16IngressCheckingWindowId, "16 to 19 ingress",
-            start: ingressStart, pupilDataEnd: ingressEnd, end: ingressEnd,
-            currentSummary: 0, resultsFiles: [ResultsFileTags.Post16Main]);
-        var februaryStart = DateTime.Today.AddMonths(-4);
-        var post16FebruaryWindow = IngestedPost16Window(
-            DevDataSeeder.Post16FebruaryCheckingWindowId, "16 to 19 February",
-            start: februaryStart, pupilDataEnd: februaryStart.AddDays(14).AddHours(17), end: DateTime.Today.AddMonths(2).AddHours(17),
-            currentSummary: 2, resultsFiles: [ResultsFileTags.Post16Main, ResultsFileTags.Post16LateResults1]);
 
         await dbContext.CheckingWindows.AddRangeAsync(
-            post16IngressWindow,
-            post16FebruaryWindow,
-            openKs4JuneWindow, 
+            openKs4JuneWindow,
             closedKs4JuneWindow,
-            openPost16Window,
-            closedPupilDataPost16Window
+            post16OctoberWindow
         );
         
         await dbContext.SaveChangesAsync();
-    }
-
-    /// <summary>
-    /// A 16-19 window whose exercises are ingested from the files under Data/Ingress by
-    /// SeedPost16Ingress. Pupil data checking runs a fortnight from the start and results enquiry
-    /// to the end, so a start in the past stages a window where only enquiry is still open.
-    /// </summary>
-    /// <param name="currentSummary">Which of the four Summary exercises is enabled (0 = Autumn CE).</param>
-    /// <param name="resultsFiles">The results files that have landed, as <see cref="ResultsFileTags"/>.</param>
-    private static CheckingWindow IngestedPost16Window(Guid id, string title, DateTime start, DateTime pupilDataEnd,
-        DateTime end, int currentSummary, IReadOnlyList<string> resultsFiles)
-    {
-        var exercises = ExercisesFor(CheckingWindowType.Post16, start, end, pupilDataEnd, resultsFiles);
-
-        // The Summary exercises sort first on this window.
-        var students = exercises.Single(e => e.ExerciseType == CheckingExerciseType.PupilData);
-        students.SortOrder = 1;
-
-        var results = exercises.Single(e => e.ExerciseType == CheckingExerciseType.ResultsEnquiry);
-        results.SortOrder = 2;
-
-        // The Summary tab is one record per school, pivoted on the page (the exercise's layout is
-        // Vertical). Over the year it is four exercises, each replacing the last, and
-        // the supplier's file has a different column set for each (62, 102, 102 and 135 columns),
-        // so each dataset names the schema for its own shape. Display-only, so no journey or close
-        // action. One is enabled: an admin enables the next to swap the tab.
-        CheckingExercise? previous = null;
-        foreach (var ((name, dataset), index) in new[]
-        {
-            ("Autumn CE", "summary-autumn"),
-            ("Provisional value added", "summary-november-va"),
-            ("Light touch revised data share", "summary-november-va"),
-            ("Retention", "summary-retention")
-        }.Select((summary, index) => (summary, index)))
-        {
-            var summary = new CheckingExercise
-            {
-                Id = Guid.NewGuid(),
-                Name = name,
-                TabName = "Summary",
-                TabOrder = 100,
-                SortOrder = 0,
-                StartDate = start,
-                EndDate = end,
-                IsEnabled = index == currentSummary,
-                DisplayOnly = true,
-                Layout = ExerciseLayout.Vertical,
-                UsesExerciseStorage = true,
-                ReplacesCheckingExerciseId = previous?.Id,
-                Datasets = [new CheckingWindowDataset { Name = dataset, Included = null, Required = true, SortOrder = 0 }]
-            };
-            exercises.Add(summary);
-            previous = summary;
-        }
-
-        return new CheckingWindow
-        {
-            Id = id,
-            StartDate = start,
-            EndDate = end,
-            KeyStage = KeyStages.Post16,
-            CheckingWindowType = CheckingWindowType.Post16,
-            Title = title,
-            TurnaroundCommitment = "updated in Spring",
-            CheckingExercises = exercises
-        };
     }
 }

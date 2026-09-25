@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
@@ -65,7 +66,8 @@ public sealed class ExerciseDataControllerTests
             Assert.NotNull(Attribute.GetCustomAttribute(controller, typeof(DfE.CheckPerformanceData.Web.Admin.RequireAdminSectionAttribute)));
         foreach (var (controller, action) in new[]
         {
-            (typeof(ExerciseDataController), "Submit"), (typeof(IngressFileController), "Select"),
+            (typeof(ExerciseDataController), "Submit"), (typeof(ExerciseDataController), "Retire"),
+            (typeof(ExerciseDataController), "PutBackInUse"), (typeof(IngressFileController), "Select"),
             (typeof(SchemaController), "Submit"), (typeof(ValidateWindowController), "Validate")
         })
             Assert.NotNull(Attribute.GetCustomAttribute(controller.GetMethod(action)!, typeof(ValidateAntiForgeryTokenAttribute)));
@@ -141,7 +143,7 @@ public sealed class ExerciseDataControllerTests
     [Theory]
     [InlineData(CheckingExerciseType.ResultsEnquiry)]
     [InlineData(null)]
-    public async Task A_file_added_to_a_results_enquiry_or_a_data_share_is_display_only(CheckingExerciseType? type)
+    public async Task A_file_with_no_results_source_added_to_a_results_enquiry_or_a_data_share_is_display_only(CheckingExerciseType? type)
     {
         var exercise = new CheckingExerciseDto
         {
@@ -154,6 +156,55 @@ public sealed class ExerciseDataControllerTests
         await _controller.Submit(_window.Id, exercise.Id, model, default);
 
         Assert.False(Assert.Single(exercise.Datasets).FeedsJourney);
+    }
+
+    [Fact]
+    public async Task A_results_file_with_a_source_feeds_the_journey()
+    {
+        // A new supplier results file (a revised file, say) must reach the enquiry search.
+        var exercise = AddExercise(CheckingExerciseType.ResultsEnquiry);
+        var model = new AddExerciseDataItem
+        {
+            WindowId = _window.Id, Name = "Included revised 2", SourceFile = ResultsFileTags.Post16IncludedRevised, Required = false
+        };
+
+        Assert.IsType<RedirectToActionResult>(await _controller.Submit(_window.Id, exercise.Id, model, default));
+
+        var added = Assert.Single(exercise.Datasets);
+        Assert.True(added.FeedsJourney);
+        Assert.Equal(ResultsFileTags.Post16IncludedRevised, added.SourceFile);
+    }
+
+    [Fact]
+    public async Task Retire_takes_a_slot_out_of_use_and_put_back_restores_it()
+    {
+        var exercise = AddExercise(CheckingExerciseType.ResultsEnquiry);
+        var slot = new CheckingWindowDatasetDto { Id = Guid.NewGuid(), Name = ResultsFileTags.Post16LateResults1 };
+        exercise.Datasets.Add(slot);
+
+        var retired = Assert.IsType<RedirectToActionResult>(await _controller.Retire(_window.Id, exercise.Id, slot.Id, default));
+        Assert.True(slot.Retired);
+        Assert.Equal("EditCheckingExercise", retired.ControllerName);
+        Assert.Equal(ExerciseLinks.DataTab, retired.Fragment);
+
+        Assert.IsType<RedirectToActionResult>(await _controller.PutBackInUse(_window.Id, exercise.Id, slot.Id, default));
+        Assert.False(slot.Retired);
+        await _service.Received(2).UpdateAsync(_window, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Retire_of_an_unknown_slot_or_exercise_is_not_found()
+    {
+        var exercise = AddExercise(CheckingExerciseType.ResultsEnquiry);
+        var slot = new CheckingWindowDatasetDto { Id = Guid.NewGuid(), Name = "late" };
+        exercise.Datasets.Add(slot);
+
+        Assert.IsType<NotFoundResult>(await _controller.Retire(_window.Id, exercise.Id, Guid.NewGuid(), default));
+        // A slot of another exercise cannot be retired through this one.
+        Assert.IsType<NotFoundResult>(await _controller.Retire(_window.Id, _window.Exercises[0].Id, slot.Id, default));
+        Assert.IsType<NotFoundResult>(await _controller.PutBackInUse(Guid.NewGuid(), exercise.Id, slot.Id, default));
+        Assert.False(slot.Retired);
+        await _service.DidNotReceiveWithAnyArgs().UpdateAsync(default!, default);
     }
 
     // The name is not part of any blob path, so an admin may write it as they would say it.
@@ -193,8 +244,7 @@ public sealed class ExerciseDataControllerTests
         CheckingExerciseType? type, bool storesInclusion, bool storesSource)
     {
         var exercise = AddExercise(type);
-        var source = WindowDatasets.DefaultsFor(_window.CheckingWindowType, CheckingExerciseType.ResultsEnquiry)
-            .Select(d => d.SourceFile).OfType<string>().First();
+        var source = ResultsSources.For(_window.CheckingWindowType).First().Tag;
         // A hand-made post can send both.
         var model = new AddExerciseDataItem { WindowId = _window.Id, Name = "File", Inclusion = "included", SourceFile = source };
 

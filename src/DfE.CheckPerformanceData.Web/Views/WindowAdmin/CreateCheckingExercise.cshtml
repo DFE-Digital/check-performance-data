@@ -251,6 +251,7 @@
                     <th scope="col" class="govuk-table__header">Data file</th>
                     <th scope="col" class="govuk-table__header">CSV</th>
                     <th scope="col" class="govuk-table__header">JSON schema</th>
+                    <th scope="col" class="govuk-table__header">In use</th>
                 </tr>
             </thead>
             <tbody class="govuk-table__body">
@@ -261,7 +262,7 @@
                         : $"/admin/windows/{Model.WindowId}/{dataExercise.ExerciseType}";
                     var query = $"?exerciseId={dataExercise.Id}&returnToExercise=true";
                     <tr class="govuk-table__row">
-                        <th scope="row" class="govuk-table__header">@DatasetLabels.For(dataset.Name)<div class="govuk-body-s">@(dataset.Required ? "Required" : "Optional")</div></th>
+                        <th scope="row" class="govuk-table__header">@DatasetLabels.For(dataset.Name)<div class="govuk-body-s">@(dataset.Retired ? "Retired" : dataset.Required ? "Required" : "Optional")</div></th>
                         <td class="govuk-table__cell">
                             <div>@(string.IsNullOrWhiteSpace(dataset.IngressFile) ? "Not selected" : System.IO.Path.GetFileName(dataset.IngressFile))</div>
                             <a class="govuk-link" href="@($"{prefix}/ingress-file/{Uri.EscapeDataString(dataset.Name)}{query}")">Choose CSV<span class="govuk-visually-hidden"> for @DatasetLabels.For(dataset.Name)</span></a>
@@ -269,6 +270,20 @@
                         <td class="govuk-table__cell">
                             <div>@(string.IsNullOrWhiteSpace(dataset.SchemaFile) ? "Not selected" : System.IO.Path.GetFileName(dataset.SchemaFile))</div>
                             <a class="govuk-link" href="@($"{prefix}/schema-file/{Uri.EscapeDataString(dataset.Name)}{query}")">Choose schema<span class="govuk-visually-hidden"> for @DatasetLabels.For(dataset.Name)</span></a>
+                        </td>
+                        @* A retired slot's file was replaced by another slot's, so no run reads it. *@
+                        <td class="govuk-table__cell">
+                            @{ var dataLink = $"/admin/windows/{Model.WindowId}/exercises/{dataExercise.Id}/data/{dataset.Id}"; }
+                            @if (dataset.Retired)
+                            {
+                                <strong class="govuk-tag govuk-tag--grey">Retired</strong>
+                                <div><a class="govuk-link" href="@($"{dataLink}/put-back")">Put back in use<span class="govuk-visually-hidden">: @DatasetLabels.For(dataset.Name)</span></a></div>
+                            }
+                            else
+                            {
+                                <div>Yes</div>
+                                <a class="govuk-link" href="@($"{dataLink}/retire")">Retire<span class="govuk-visually-hidden"> @DatasetLabels.For(dataset.Name)</span></a>
+                            }
                         </td>
                     </tr>
                 }

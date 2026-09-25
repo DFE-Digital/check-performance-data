@@ -123,18 +123,112 @@ public sealed class ResultsEnquiryIngressTests(AzuriteFixture fixture)
         Assert.Equal("5", main.Grade);
     }
 
+    // A late results file as the supplier sends it (data specification, 16-19 and KS4 names). The
+    // journey's QAN, QUAL_NAME, SYLLABUS and SESSION come from the schema's x-ingress.source
+    // columns: GNUMBER, the description column, BRDSUBNO and the season column.
+    [Theory]
+    [InlineData("post16",
+        "LAESTAB,CYPMD_ID,SURNAME,FORENAMES,AB_CODE_NDAQ,Short_Qual_Desc,EXAM_YEAR_SEASON,EXAM_DATE,Discount_Code,SYLLABUS_TITLE,GNUMBER,BRDSUBNO,GRADE,Late_Result_Type",
+        "8604070,500001,Smith,Alice,AQA,GCSE,S2024,20240615,,GCSE (9-1) Mathematics,60146084,8300H,6,Amendment")]
+    [InlineData("ks4autumn",
+        "LAESTAB,CYPMD_ID,SURNAME,FORENAME,AB_CODE_NDAQ,QUALIFICATION_TYPE,SEASON_AND_YEAR,EXAM_DATE,WOLF_DISC_CODE,QUALIFICATION_DESCRIPTION,GNUMBER,BRDSUBNO,GRADE,Late_Result_Type",
+        "8604070,500001,Smith,Alice,AQA,GCSE,S2024,20240615,,GCSE (9-1) Mathematics,60146084,8300H,6,Amendment")]
+    public async Task A_supplier_late_results_file_reaches_the_journey_through_its_schemas_source_columns(
+        string folder, string header, string row)
+    {
+        var schema = await File.ReadAllTextAsync(
+            Path.Combine(AppContext.BaseDirectory, "Data", "Ingress", folder, "results-late_schema.json"));
+        var csv = header + "\n" + row + "\n";
+        var windowId = await SeedWindowAsync(("ingress/lr1.csv", csv), ("schema/late.json", schema));
+
+        var last = await RunAsync(windowId,
+        [
+            new(ResultsFileTags.Post16LateResults1, "lr1.csv", Checksum(csv), "late.json", Checksum(schema),
+                Included: null, SourceFile: ResultsFileTags.Post16LateResults1)
+        ]);
+        Assert.False(last.IsError, last.Message);
+
+        var result = Assert.Single(await ResultsClient().GetResultsAsync(windowId, Laestab, "500001"));
+        Assert.Equal("60146084", result.Qan);
+        Assert.Equal("GCSE (9-1) Mathematics", result.QualificationName);
+        Assert.Equal("8300H", result.SyllabusCode);
+        Assert.Equal("S2024", result.Session);
+        Assert.Equal("6", result.Grade);
+        Assert.Equal(ResultsFileTags.Post16LateResults1, result.SourceFile);
+    }
+
+    // The 16-18 results data file as the supplier sends it (field references as headers). The
+    // session is two columns, SEASON and EXAMYEAR, and the qualification is a type and a subject,
+    // so the schema joins columns as well as renaming them.
+    [Theory]
+    [InlineData("results-included_schema.json")]
+    [InlineData("results-non-included_schema.json")]
+    public async Task A_supplier_results_file_reaches_the_journey_with_joined_session_and_qualification(string schemaFile)
+    {
+        var schema = await File.ReadAllTextAsync(
+            Path.Combine(AppContext.BaseDirectory, "Data", "Ingress", "post16", schemaFile));
+        const string csv =
+            "ULN,CYPMD_ID,SURNAME,FORENAMES,SEX,DOB,AGE,EXAMNO,GNUMBER,AB_Code,EXAMYEAR,SEASON,exam_date,Short_Qual_Desc,SubjectDescription,GRADE,POINTS_1618,CAPPED_PTS,ANCN,ADFECN,BRDSUBNO,MAPPING,Level3QualificationCategory,EMQualificationCategory,R_INCL,R_INCL_EM,QUAL_KS4,UKPRN,URN,LAESTAB,cypmd_pk\n" +
+            // DOB in the specification's own example format: 23 characters, though the SQL column
+            // was 10. The schemas set no lengths, so it loads.
+            "9900000001,500001,Smith,Alice,F,2007-01-01 00:00:00.000,18,1,60149589,Pearson,2025,S,15/06/2025,GCE A,Art and Design,A,40.00,0.00,12345,8604070,9FA0,5010,A level,,51,57,60,10000001,142313,8604070,pk1\n";
+        var windowId = await SeedWindowAsync(("ingress/inc.csv", csv), ("schema/results.json", schema));
+
+        var last = await RunAsync(windowId,
+        [
+            new(ResultsFileTags.Post16Included, "inc.csv", Checksum(csv), "results.json", Checksum(schema),
+                Included: null, SourceFile: ResultsFileTags.Post16Included)
+        ]);
+        Assert.False(last.IsError, last.Message);
+
+        var result = Assert.Single(await ResultsClient().GetResultsAsync(windowId, Laestab, "500001"));
+        Assert.Equal("60149589", result.Qan);
+        Assert.Equal("GCE A Art and Design", result.QualificationName);
+        Assert.Equal("9FA0", result.SyllabusCode);
+        Assert.Equal("S2025", result.Session);
+        Assert.Equal("A", result.Grade);
+        Assert.Equal(ResultsFileTags.Post16Included, result.SourceFile);
+    }
+
+    [Fact]
+    public async Task A_named_column_is_kept_when_the_csv_already_has_it()
+    {
+        // x-ingress.source fills a property only when the CSV does not carry it by that name, so a
+        // file already in the output shape is unchanged.
+        const string schema = """
+        {
+          "type": "object",
+          "properties": {
+            "CYPMD_ID": { "type": ["string", "null"] },
+            "QAN":      { "type": ["string", "null"], "x-ingress": { "source": "GNUMBER" } },
+            "SOURCE":   { "type": "string" }
+          }
+        }
+        """;
+        const string csv = "CYPMD_ID,QAN,GNUMBER,LAESTAB\n500001,KEEP,IGNORED,8604070\n";
+        var windowId = await SeedWindowAsync(("ingress/main.csv", csv), ("schema/results.json", schema));
+
+        var last = await RunAsync(windowId,
+        [
+            new(ResultsFileTags.Post16Included, "main.csv", Checksum(csv), "results.json", Checksum(schema),
+                Included: null, SourceFile: ResultsFileTags.Post16Included)
+        ]);
+        Assert.False(last.IsError, last.Message);
+
+        Assert.Equal("KEEP", Assert.Single(await ResultsClient().GetResultsAsync(windowId, Laestab, "500001")).Qan);
+    }
+
     [Fact]
     public async Task Every_row_is_stamped_with_the_tag_of_the_file_it_came_from()
     {
-        // Provenance by file of origin. The result picker's file column and
-        // ILateResultsAvailability both read this, and no CSV supplies it.
+        // Provenance by file of origin. The result picker's file label and the Results tab's
+        // source column read this, and no CSV supplies it.
         var windowId = await SeedWindowAsync();
 
         await RunAsync(windowId);
 
-        Assert.True(await ResultsClient().AnyForSourceAsync(windowId, Laestab, ResultsFileTags.Post16Main));
-        Assert.True(await ResultsClient().AnyForSourceAsync(windowId, Laestab, ResultsFileTags.Post16LateResults1));
-        Assert.False(await ResultsClient().AnyForSourceAsync(windowId, Laestab, ResultsFileTags.Post16LateResults2));
+        var sources = (await ResultsClient().GetAllResultsAsync(windowId, Laestab)).Select(r => r.SourceFile).ToHashSet();
+        Assert.Equal([ResultsFileTags.Post16LateResults1, ResultsFileTags.Post16Main], sources.Order());
     }
 
     [Fact]

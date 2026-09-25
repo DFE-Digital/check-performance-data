@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
@@ -25,7 +26,11 @@ public sealed class AddExerciseDataItem : AdminPage
     public string ExerciseName { get; set; } = string.Empty;
 
     [BindNever]
-    public IReadOnlyList<string> SourceOptions { get; set; } = [];
+    public IReadOnlyList<ResultsSource> SourceOptions { get; set; } = [];
+
+    /// <summary>True on a results enquiry. Whether a file there feeds the journey depends on its source.</summary>
+    [BindNever]
+    public bool IsResultsEnquiry { get; set; }
 
     /// <summary>True on pupil data checking, the only exercise whose files hold pupils to include.</summary>
     [BindNever]

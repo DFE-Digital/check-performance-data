@@ -1,71 +1,102 @@
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
+using DfE.CheckPerformanceData.Application.WindowManagement;
+using DfE.CheckPerformanceData.Domain.Enums;
 using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.ResultsEnquiry;
 
-// AB#296648: "the service works out whether the second late results file is available from data it
-// already holds" — it is never told separately. This is the one place that derivation lives, so the
-// interstitial and any future gating cannot disagree about it.
+// AB#296648: the service works out from data it already holds whether the second late results
+// file is still awaited. It is never told separately. Since the results slots became data, "awaited"
+// means: the exercise has a slot for the second late file in use, and the live release has not read
+// it. October: awaited. November (the file is in the release): not. February (the slot is retired):
+// not, so the guidance stops.
 public sealed class LateResultsAvailabilityTests
 {
     private static readonly Guid WindowId = Guid.Parse("6C2E1F4A-9B7D-4E38-8A15-3D9C2B4E7F01");
-    private const string Laestab = "860/4070";
 
-    [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task Availability_mirrors_whether_the_school_holds_any_LR2_result(bool holdsLr2)
+    private static CheckingWindowDatasetDto Slot(string tag, bool retired = false) => new()
     {
-        var results = Substitute.For<IStudentResultsClient>();
-        results.AnyForSourceAsync(WindowId, Laestab, Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(holdsLr2);
+        Id = Guid.NewGuid(),
+        Name = tag,
+        SourceFile = tag,
+        FeedsJourney = true,
+        Retired = retired
+    };
 
-        var actual = await new LateResultsAvailability(results)
-            .IsSecondLateResultsAvailableAsync(WindowId, Laestab);
+    private static CheckingExerciseDto Exercise(IEnumerable<CheckingWindowDatasetDto> slots, params CheckingWindowDatasetDto[] released)
+    {
+        var release = new CheckingExerciseReleaseDto
+        {
+            Id = Guid.NewGuid(),
+            Files = [.. released.Select(d => new CheckingExerciseReleaseFileDto { DatasetId = d.Id, DatasetName = d.Name, SourceFile = d.SourceFile })]
+        };
+        return new CheckingExerciseDto
+        {
+            ExerciseType = CheckingExerciseType.ResultsEnquiry,
+            StartDate = DateTime.Today,
+            EndDate = DateTime.Today,
+            Datasets = [.. slots],
+            Releases = [release],
+            CurrentReleaseId = release.Id
+        };
+    }
 
-        Assert.Equal(holdsLr2, actual);
+    private static Task<bool> IsAwaiting(CheckingExerciseDto? exercise, CancellationToken ct = default)
+    {
+        var resolver = Substitute.For<ICheckingExerciseStorageResolver>();
+        resolver.ResolveAsync(WindowId, CheckingExerciseType.ResultsEnquiry, Arg.Any<CancellationToken>())
+            .Returns(exercise);
+        return new LateResultsAvailability(resolver).IsAwaitingSecondLateResultsAsync(WindowId, ct);
     }
 
     [Fact]
-    public async Task It_asks_for_the_second_late_results_tag_specifically()
+    public async Task October_the_second_late_file_is_awaited()
     {
-        // The tag is the data contract with ingestion. Asking for the wrong one (LR1, Revised) would
-        // show or hide the interstitial on the strength of an unrelated file having landed.
-        var results = Substitute.For<IStudentResultsClient>();
+        var inc = Slot(ResultsFileTags.Post16Included);
+        var lr1 = Slot(ResultsFileTags.Post16LateResults1);
+        var lr2 = Slot(ResultsFileTags.Post16LateResults2);
 
-        await new LateResultsAvailability(results).IsSecondLateResultsAvailableAsync(WindowId, Laestab);
-
-        await results.Received(1).AnyForSourceAsync(
-            WindowId,
-            Laestab,
-            Arg.Is<string>(tag => tag == "16to19_LR2"),
-            Arg.Any<CancellationToken>());
+        Assert.True(await IsAwaiting(Exercise([inc, lr1, lr2], inc, lr1)));
     }
 
     [Fact]
-    public async Task It_passes_the_window_and_school_through_untouched()
+    public async Task November_the_second_late_file_is_in_the_live_release()
     {
-        // Normalising the laestab is the blob client's job; doing it here too would hide a
-        // disagreement between the two.
-        var results = Substitute.For<IStudentResultsClient>();
-        var otherWindow = Guid.NewGuid();
+        var inc = Slot(ResultsFileTags.Post16Included);
+        var lr2 = Slot(ResultsFileTags.Post16LateResults2);
 
-        await new LateResultsAvailability(results).IsSecondLateResultsAvailableAsync(otherWindow, "9334290");
-
-        await results.Received(1).AnyForSourceAsync(
-            otherWindow, "9334290", ResultsFileTags.Post16LateResults2, Arg.Any<CancellationToken>());
+        Assert.False(await IsAwaiting(Exercise([inc, lr2], inc, lr2)));
     }
 
     [Fact]
-    public async Task The_cancellation_token_reaches_the_results_client()
+    public async Task February_the_second_late_slot_is_retired_so_the_guidance_stops()
     {
-        var results = Substitute.For<IStudentResultsClient>();
+        var incRev = Slot(ResultsFileTags.Post16IncludedRevised);
+        var lr2 = Slot(ResultsFileTags.Post16LateResults2, retired: true);
+
+        Assert.False(await IsAwaiting(Exercise([incRev, lr2], incRev)));
+    }
+
+    [Fact]
+    public async Task An_exercise_with_no_second_late_slot_awaits_nothing()
+    {
+        var inc = Slot(ResultsFileTags.Post16Included);
+
+        Assert.False(await IsAwaiting(Exercise([inc], inc)));
+    }
+
+    [Fact]
+    public async Task No_results_exercise_awaits_nothing()
+        => Assert.False(await IsAwaiting(null));
+
+    [Fact]
+    public async Task The_cancellation_token_reaches_the_resolver()
+    {
+        var resolver = Substitute.For<ICheckingExerciseStorageResolver>();
         using var cts = new CancellationTokenSource();
 
-        await new LateResultsAvailability(results)
-            .IsSecondLateResultsAvailableAsync(WindowId, Laestab, cts.Token);
+        await new LateResultsAvailability(resolver).IsAwaitingSecondLateResultsAsync(WindowId, cts.Token);
 
-        await results.Received(1).AnyForSourceAsync(
-            WindowId, Laestab, ResultsFileTags.Post16LateResults2, cts.Token);
+        await resolver.Received(1).ResolveAsync(WindowId, CheckingExerciseType.ResultsEnquiry, cts.Token);
     }
 }

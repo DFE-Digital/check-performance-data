@@ -7,14 +7,14 @@ namespace DfE.CheckPerformanceData.E2ETests.Journey;
 // #439: the Include amendment option is not offered on a 16-19 (Post16) window and a crafted
 // submission of it is refused server-side, while a KS4 window keeps the option exactly as before.
 //
-// The seeded Post16 window (DevDataSeeder.Post16CheckingWindowId) and the seeded KS4June window
+// The seeded "16 to 19 Oct" window (DevDataSeeder.Post16OctoberCheckingWindowId) and the seeded KS4June window
 // (DevDataSeeder.KeyStage4JuneCheckingWindowId) — the same ids AddPupilJourneyTests uses.
 [Collection("E2E")]
 public sealed class WhatToChangePost16OptionsTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
-    // The seeded Post16 window — Include must not be offered (US1) and a crafted Include post
+    // The seeded "16 to 19 Oct" window — Include must not be offered (US1) and a crafted Include post
     // must be refused (US3).
-    private static readonly Guid Post16WindowId = Guid.Parse("6C2E1F4A-9B7D-4E38-8A15-3D9C2B4E7F01");
+    private static readonly Guid Post16WindowId = Guid.Parse("EC6493B8-9B66-4090-8BE6-9DFC3805751F");
 
     // The seeded KS4June window — Include must still be offered (US2).
     private static readonly Guid Ks4JuneWindowId = Guid.Parse("F34D285B-8660-4D12-9C30-787328DEAA0A");

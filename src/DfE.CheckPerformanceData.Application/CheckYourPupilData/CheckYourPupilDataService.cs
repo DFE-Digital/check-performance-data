@@ -1,6 +1,5 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData.Columns;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData.Results;
-using WindowDatasets = DfE.CheckPerformanceData.Application.WindowManagement.WindowDatasets;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
@@ -76,8 +75,8 @@ public sealed class CheckYourPupilDataService : ICheckYourPupilDataService
     }
 
     /// <summary>
-    /// Every main-file result for the school, joined and sorted. Null when there is no Results
-    /// tab for this window.
+    /// Every result for the school, from every file the live release read, joined and sorted. Null
+    /// when there is no Results tab for this window.
     /// </summary>
     private async Task<List<ResultRow>?> GetResultRowsAsync(Guid windowId)
     {
@@ -87,14 +86,13 @@ public sealed class CheckYourPupilDataService : ICheckYourPupilDataService
         if (window.Exercises.All(e => e.ExerciseType != CheckingExerciseType.ResultsEnquiry))
             return null;
 
-        // The main file is the exercise's one required slot (#324). KS2 has no slots at all, so a
-        // results enquiry on a KS2 window has nothing to list. No key-stage test lives here.
-        var mainTag = WindowDatasets.DefaultsFor(window.CheckingWindowType, CheckingExerciseType.ResultsEnquiry)
-            .SingleOrDefault(d => d.Required)?.SourceFile;
-        if (mainTag is null)
+        // KS2 has no results feed, so a results enquiry on a KS2 window has nothing to list. No
+        // key-stage test lives here. The tab lists every file the release read, not one file: the
+        // 16-19 feed has no single main file (in February the revised files replace the first two).
+        if (ResultsSources.For(window.CheckingWindowType).Count == 0)
             return null;
 
-        var results = await _studentResultsClient.GetResultsForSourceAsync(windowId, laestab, mainTag);
+        var results = await _studentResultsClient.GetAllResultsAsync(windowId, laestab);
         var pupils = await _repository.GetAllPupilsForSchoolAsync(windowId, laestab);
 
         // Case-insensitive, matching how the results client compares ids itself.

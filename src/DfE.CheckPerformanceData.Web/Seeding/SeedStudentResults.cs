@@ -1,12 +1,11 @@
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
-using DfE.CheckPerformanceData.Persistence.Seeding;
 
 namespace DfE.CheckPerformanceData.Web.Seeding;
 
 /// <summary>
 /// Dev-only: the 16-19 exam results the incorrect-grade enquiry journey reads (AB#296648).
-/// <see cref="SeedExerciseFixtures"/> writes them as one CSV per results file and runs them
-/// through ingress, so the Results tab has a schema and a release like any other exercise.
+/// <see cref="SeedPost16OctoberSamples"/> writes them as one sample CSV per October results file
+/// (included, non-included, late results 1) for an admin to import into the "16 to 19 Oct" window.
 ///
 /// The QANs are real 16-19 qualifications from the QualList reference (AB#301903 — the Figma
 /// screens' GCSE fixtures were KS4 QANs the 16-19 reference does not hold); sessions and grades
@@ -15,9 +14,9 @@ namespace DfE.CheckPerformanceData.Web.Seeding;
 /// results keyed to the Figma's own CYPMD id would leave the journey with a selectable pupil who
 /// holds no results.
 ///
-/// Deliberately seeds no <see cref="ResultsFileTags.Post16LateResults2"/> row, so
-/// <c>ILateResultsAvailability</c> reports false locally and the "check your second late results
-/// file" interstitial is on the happy path.
+/// Deliberately seeds no <see cref="ResultsFileTags.Post16LateResults2"/> row: it arrives in
+/// November, so after the October import its slot is empty, <c>ILateResultsAvailability</c> reports
+/// the file as awaited and the "check your second late results file" interstitial shows.
 /// </summary>
 public static class SeedStudentResults
 {
@@ -30,11 +29,6 @@ public static class SeedStudentResults
     private const string StudentB = "500002";
     private const string StudentC = "500003";
 
-    // AB#298317: the pupil-data-closed 16-19 window holds the same results, so the enquiry journey
-    // can be walked end to end after pupil data has shut.
-    public static readonly Guid[] WindowIds =
-        [DevDataSeeder.Post16CheckingWindowId, DevDataSeeder.ClosedPupilDataPost16CheckingWindowId];
-
     /// <summary>Every seeded result, all for <see cref="Laestab"/>.</summary>
     public static IReadOnlyList<StudentResultRecord> All => [.. FigmaResults, .. GeneratedResults()];
 
@@ -45,12 +39,12 @@ public static class SeedStudentResults
         new()
         {
             CypmdId = StudentA, Qan = "60146084", QualificationName = "GCSE (9-1) Mathematics",
-            SyllabusCode = "8300H", Session = "S2024", Grade = "5", SourceFile = ResultsFileTags.Post16Main
+            SyllabusCode = "8300H", Session = "S2024", Grade = "5", SourceFile = ResultsFileTags.Post16Included
         },
         new()
         {
             CypmdId = StudentA, Qan = "60146084", QualificationName = "GCSE (9-1) Mathematics",
-            SyllabusCode = "8300H", Session = "S2023", Grade = "4", SourceFile = ResultsFileTags.Post16Main
+            SyllabusCode = "8300H", Session = "S2023", Grade = "4", SourceFile = ResultsFileTags.Post16Included
         },
         new()
         {
@@ -60,31 +54,38 @@ public static class SeedStudentResults
         new()
         {
             CypmdId = StudentA, Qan = "60149589", QualificationName = "GCE A Level Art and Design",
-            SyllabusCode = "9FA0", Session = "S2024", Grade = "A", SourceFile = ResultsFileTags.Post16Main
+            SyllabusCode = "9FA0", Session = "S2024", Grade = "A", SourceFile = ResultsFileTags.Post16Included
         },
 
         // Student B: a vocational qualification, so the grade picker shows a non-GCSE scale.
         new()
         {
             CypmdId = StudentB, Qan = "60172186", QualificationName = "BTEC L3 Nat Ext Cert in Sport",
-            SyllabusCode = "31525H", Session = "S2024", Grade = "M", SourceFile = ResultsFileTags.Post16Main
+            SyllabusCode = "31525H", Session = "S2024", Grade = "M", SourceFile = ResultsFileTags.Post16Included
         },
         new()
         {
             CypmdId = StudentB, Qan = "10025480", QualificationName = "OCR Level 3 FSMQ: Additional Maths",
             SyllabusCode = "6993", Session = "S2024", Grade = "B", SourceFile = ResultsFileTags.Post16LateResults1
         },
+        // Late results 1 amends Student B's Sport grade: the original stays in the included file and
+        // the amendment is a second row, tagged with the late file, so both show in the search.
+        new()
+        {
+            CypmdId = StudentB, Qan = "60172186", QualificationName = "BTEC L3 Nat Ext Cert in Sport",
+            SyllabusCode = "31525H", Session = "S2024", Grade = "D", SourceFile = ResultsFileTags.Post16LateResults1
+        },
         new()
         {
             CypmdId = StudentB, Qan = "60148366", QualificationName = "GCSE (9-1) English Language",
-            SyllabusCode = "1EN0", Session = "S2024", Grade = "3", SourceFile = ResultsFileTags.Post16Main
+            SyllabusCode = "1EN0", Session = "S2024", Grade = "3", SourceFile = ResultsFileTags.Post16Included
         },
 
         // Student C: a single result, so the "one obvious choice" case is covered too.
         new()
         {
             CypmdId = StudentC, Qan = "60146084", QualificationName = "GCSE (9-1) Mathematics",
-            SyllabusCode = "8300H", Session = "S2024", Grade = "2", SourceFile = ResultsFileTags.Post16Main
+            SyllabusCode = "8300H", Session = "S2024", Grade = "2", SourceFile = ResultsFileTags.Post16Included
         }
     ];
 
@@ -94,7 +95,8 @@ public static class SeedStudentResults
     // three students leaves a manual tester unable to exercise a common-surname search, the ten
     // suggestion cap, or anything else the picker does. This spreads results across both
     // populations — every third included student and every fifth non-included one — which is
-    // roughly a quarter of the school.
+    // roughly a quarter of the school. A non-included student's results are in the non-included
+    // file, as the supplier sends them.
     //
     // Deliberately NOT every student: the search restriction and the result page's empty state are
     // both only visible when some students hold nothing.
@@ -114,14 +116,16 @@ public static class SeedStudentResults
 
             // One qualification each, plus a second for every third student so the "which of these
             // is wrong?" choice is a real one rather than a formality.
-            yield return Row(cypmdId, Catalogue[position % Catalogue.Length], position);
+            // SeedPupilData generates the non-included students from index 200.
+            var included = index < 200;
+            yield return Row(cypmdId, Catalogue[position % Catalogue.Length], position, included);
 
             if (position % 3 == 0)
-                yield return Row(cypmdId, Catalogue[(position + 1) % Catalogue.Length], position + 1);
+                yield return Row(cypmdId, Catalogue[(position + 1) % Catalogue.Length], position + 1, included);
         }
     }
 
-    private static StudentResultRecord Row(string cypmdId, Qualification qualification, int position) => new()
+    private static StudentResultRecord Row(string cypmdId, Qualification qualification, int position, bool included) => new()
     {
         CypmdId = cypmdId,
         Qan = qualification.Qan,
@@ -130,7 +134,8 @@ public static class SeedStudentResults
         Session = position % 4 == 0 ? "S2023" : "S2024",
         Grade = qualification.Grades[position % qualification.Grades.Length],
         // No LR2 row anywhere in the seed — see the class summary.
-        SourceFile = position % 3 == 0 ? ResultsFileTags.Post16LateResults1 : ResultsFileTags.Post16Main
+        SourceFile = position % 3 == 0 ? ResultsFileTags.Post16LateResults1
+            : included ? ResultsFileTags.Post16Included : ResultsFileTags.Post16NonIncluded
     };
 
     private sealed record Qualification(string Qan, string Name, string SyllabusCode, string[] Grades);

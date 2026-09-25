@@ -3,8 +3,8 @@ namespace DfE.CheckPerformanceData.Application.ResultsEnquiry;
 /// <summary>
 /// Reads (and, for dev seeding, writes) the per-school 16-19 exam results held in blob storage at
 /// container <c>{windowId}</c>, blob <c>results-enquiry/data/{laestab}_results.json</c> — see
-/// <see cref="ResultsEnquiryBlobPaths"/>. The file is one merged array across all six supplier
-/// input files, each row stamped with its <see cref="ResultsFileTags"/> source tag by ingestion.
+/// <see cref="ResultsEnquiryBlobPaths"/>. The file is one merged array across the supplier
+/// input files the live release read, each row stamped with its <see cref="ResultsFileTags"/> source tag by ingestion.
 /// </summary>
 public interface IStudentResultsClient
 {
@@ -27,17 +27,11 @@ public interface IStudentResultsClient
     Task<IReadOnlySet<string>> GetStudentIdsWithResultsAsync(Guid windowId, string laestab, CancellationToken ct = default);
 
     /// <summary>
-    /// Every result the school holds from one source file, across all students — what the Results
-    /// tab lists. Empty when the container, the blob or the tag is absent. Served from the same
-    /// cached school file as <see cref="GetResultsAsync"/>.
+    /// Every result the school holds, across all students and every source file the live release
+    /// read — what the Results tab lists. Empty when the container or the blob is absent. Served
+    /// from the same cached school file as <see cref="GetResultsAsync"/>.
     /// </summary>
-    Task<IReadOnlyList<StudentResultRecord>> GetResultsForSourceAsync(Guid windowId, string laestab, string sourceTag, CancellationToken ct = default);
-
-    /// <summary>
-    /// Whether the school holds any result from a given source file. This is how the service works
-    /// out for itself whether a supplier file has landed, rather than being told separately.
-    /// </summary>
-    Task<bool> AnyForSourceAsync(Guid windowId, string laestab, string sourceTag, CancellationToken ct = default);
+    Task<IReadOnlyList<StudentResultRecord>> GetAllResultsAsync(Guid windowId, string laestab, CancellationToken ct = default);
 
     /// <summary>Writes a school's results file. Used only by development data seeding.</summary>
     Task UploadResultsAsync(Guid windowId, string laestab, IReadOnlyList<StudentResultRecord> results, CancellationToken ct = default);

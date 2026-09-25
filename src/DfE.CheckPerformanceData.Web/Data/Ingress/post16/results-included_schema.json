@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "results-included_schema.json",
   "title": "Results included",
-  "description": "One row from the 16-18 Results Data worksheet of Post16.ods.",
+  "description": "One row of the 16-18 included results data file, as the data specification defines it (fields 1-32, headed by field reference), plus the values the enquiry journey reads. QAN, QUAL_NAME, SYLLABUS and SESSION are not CSV columns: x-ingress.source fills them from GNUMBER, Short_Qual_Desc + SubjectDescription, BRDSUBNO and SEASON + EXAMYEAR. They are not downloaded or shown. The slot stamps SOURCE.",
   "type": "object",
   "additionalProperties": false,
   "x-ingress": {
@@ -25,7 +25,6 @@
         "string",
         "null"
       ],
-      "maxLength": 20,
       "description": "Student's Unique Learner Number",
       "x-csv": {
         "columns": {
@@ -43,7 +42,6 @@
         "string",
         "null"
       ],
-      "maxLength": 20,
       "x-csv": {
         "columns": {
           "default": "B"
@@ -60,7 +58,6 @@
         "string",
         "null"
       ],
-      "maxLength": 100,
       "description": "Student surname",
       "x-csv": {
         "columns": {
@@ -80,7 +77,6 @@
         "string",
         "null"
       ],
-      "maxLength": 100,
       "description": "Student forename",
       "x-csv": {
         "columns": {
@@ -100,7 +96,6 @@
         "string",
         "null"
       ],
-      "maxLength": 1,
       "description": "Student sex (F=female, M=male)",
       "x-csv": {
         "columns": {
@@ -118,7 +113,6 @@
         "string",
         "null"
       ],
-      "maxLength": 10,
       "description": "Student date of birth in format DD/MM/YYYY",
       "x-csv": {
         "columns": {
@@ -170,7 +164,6 @@
         "string",
         "null"
       ],
-      "maxLength": 8,
       "description": "Qualification number for each qualification (one row per qualification)",
       "x-csv": {
         "columns": {
@@ -189,7 +182,6 @@
         "string",
         "null"
       ],
-      "maxLength": 28,
       "description": "Awarding organisation abbreviation, eg AQA",
       "x-csv": {
         "columns": {
@@ -224,7 +216,6 @@
         "string",
         "null"
       ],
-      "maxLength": 1,
       "description": "Exam season, ie S (summer), W (winter)",
       "x-csv": {
         "columns": {
@@ -243,7 +234,6 @@
         "string",
         "null"
       ],
-      "maxLength": 10,
       "description": "Result date",
       "x-csv": {
         "columns": {
@@ -261,7 +251,6 @@
         "string",
         "null"
       ],
-      "maxLength": 12,
       "description": "Type of qualification, eg GCE AS level",
       "x-csv": {
         "columns": {
@@ -280,7 +269,6 @@
         "string",
         "null"
       ],
-      "maxLength": 30,
       "description": "Subject mapping description, eg English",
       "x-csv": {
         "columns": {
@@ -299,7 +287,6 @@
         "string",
         "null"
       ],
-      "maxLength": 4,
       "description": "Grade achieved",
       "x-csv": {
         "columns": {
@@ -353,7 +340,6 @@
         "string",
         "null"
       ],
-      "maxLength": 20,
       "description": "A number allocated to each student within each school/college (same for each line for the same student).",
       "x-csv": {
         "columns": {},
@@ -369,7 +355,6 @@
         "string",
         "null"
       ],
-      "maxLength": 13,
       "description": "Candidate number for actual entry",
       "x-csv": {
         "columns": {},
@@ -385,7 +370,6 @@
         "string",
         "null"
       ],
-      "maxLength": 6,
       "description": "National Centre number",
       "x-csv": {
         "columns": {
@@ -420,7 +404,6 @@
         "string",
         "null"
       ],
-      "maxLength": 20,
       "description": "Syllabus/scheme code where available",
       "x-csv": {
         "columns": {
@@ -438,7 +421,6 @@
         "string",
         "null"
       ],
-      "maxLength": 4,
       "description": "LEAP or LDCS subject classification code, eg 5010",
       "x-csv": {
         "columns": {
@@ -456,7 +438,6 @@
         "string",
         "null"
       ],
-      "maxLength": 50,
       "description": "Qualification category: ie A level, academic, tech level or applied general qualifications, technical certificate and other level 2 vocational qualifications",
       "x-csv": {
         "columns": {
@@ -474,7 +455,6 @@
         "string",
         "null"
       ],
-      "maxLength": 50,
       "description": "English or maths qualification",
       "x-csv": {
         "columns": {
@@ -543,7 +523,6 @@
         "string",
         "null"
       ],
-      "maxLength": 10,
       "description": "School or college UK Provider Registration Number",
       "x-csv": {
         "columns": {
@@ -561,7 +540,6 @@
         "string",
         "null"
       ],
-      "maxLength": 10,
       "description": "School or college Unique Reference Number",
       "x-csv": {
         "columns": {
@@ -579,7 +557,6 @@
         "string",
         "null"
       ],
-      "maxLength": 7,
       "description": "DfE number for institution",
       "x-csv": {
         "columns": {
@@ -597,7 +574,6 @@
         "string",
         "null"
       ],
-      "maxLength": 50,
       "description": "primary key for use by Oracle team (laestab,pupilid,gnumber,examyear,examno)",
       "x-csv": {
         "columns": {},
@@ -620,6 +596,82 @@
       "x-display": {
         "label": "Source file",
         "visible": false
+      }
+    },
+    "QAN": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "x-ingress": {
+        "source": "GNUMBER"
+      },
+      "x-display": {
+        "label": "QAN",
+        "visible": false
+      },
+      "x-csv": {
+        "columns": {},
+        "heading": "QAN"
+      }
+    },
+    "QUAL_NAME": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "x-ingress": {
+        "source": [
+          "Short_Qual_Desc",
+          "SubjectDescription"
+        ],
+        "separator": " "
+      },
+      "x-display": {
+        "label": "Qualification",
+        "visible": false
+      },
+      "x-csv": {
+        "columns": {},
+        "heading": "Qualification"
+      }
+    },
+    "SYLLABUS": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "x-ingress": {
+        "source": "BRDSUBNO"
+      },
+      "x-display": {
+        "label": "Syllabus",
+        "visible": false
+      },
+      "x-csv": {
+        "columns": {},
+        "heading": "Syllabus"
+      }
+    },
+    "SESSION": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "x-ingress": {
+        "source": [
+          "SEASON",
+          "EXAMYEAR"
+        ],
+        "separator": ""
+      },
+      "x-display": {
+        "label": "Session",
+        "visible": false
+      },
+      "x-csv": {
+        "columns": {},
+        "heading": "Session"
       }
     }
   }

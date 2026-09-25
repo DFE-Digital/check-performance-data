@@ -135,6 +135,7 @@ public sealed class CheckYourPupilDataRepository(
                                 SourceFile = d.SourceFile,
                                 Required = d.Required,
                                 FeedsJourney = d.FeedsJourney,
+                                Retired = d.Retired,
                                 SortOrder = d.SortOrder
                             })
                             .ToList()

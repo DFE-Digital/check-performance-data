@@ -34,12 +34,10 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Controllers;
 public sealed class ResultIssueControllerTests
 {
     private static readonly Guid WindowId = Guid.Parse("6C2E1F4A-9B7D-4E38-8A15-3D9C2B4E7F01");
-    private const string Laestab = "860/4070";
 
     private readonly ICheckYourPupilDataService _service = Substitute.For<ICheckYourPupilDataService>();
     private readonly IQuestionFlowService _flowService = Substitute.For<IQuestionFlowService>();
     private readonly ILateResultsAvailability _lateResults = Substitute.For<ILateResultsAvailability>();
-    private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
     private readonly IAnalyticsService _analytics = Substitute.For<IAnalyticsService>();
     private readonly FakeSession _session = new();
     private readonly ICheckingExerciseService _checkingExercises = OpenCheckingExercises.AlwaysOpen();
@@ -62,23 +60,23 @@ public sealed class ResultIssueControllerTests
 
     public ResultIssueControllerTests()
     {
-        _currentUser.OrganisationLaestab.Returns(Laestab);
         _service.GetCheckingWindowAsync(WindowId).Returns(Post16Window);
         _flowService.GetConfigAsync(WhatToChange.IncorrectGrade, CheckingWindowType.Post16).Returns(Flow);
 
         var httpContext = new DefaultHttpContext();
         httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(_session));
 
-        _sut = new ResultIssueController(_service, _flowService, _lateResults, _currentUser, _checkingExercises, _analytics)
+        _sut = new ResultIssueController(_service, _flowService, _lateResults, _checkingExercises, _analytics)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext },
             TempData = new TempDataDictionary(httpContext, Substitute.For<ITempDataProvider>())
         };
     }
 
+    // "Available" is the file no longer being awaited: run into the live release, or retired.
     private void SecondLateResultsAvailable(bool available) =>
-        _lateResults.IsSecondLateResultsAvailableAsync(WindowId, Laestab, Arg.Any<CancellationToken>())
-            .Returns(available);
+        _lateResults.IsAwaitingSecondLateResultsAsync(WindowId, Arg.Any<CancellationToken>())
+            .Returns(!available);
 
     private static RedirectToActionResult AssertJourneyRedirect(IActionResult result, string pageId)
     {
@@ -189,7 +187,7 @@ public sealed class ResultIssueControllerTests
         var state = _session.GetRequestState(WindowId);
         Assert.Equal(WhatToChange.MissingQualification, state.SelectedWhatToChange);
         Assert.Empty(state.QuestionHistory);
-        await _lateResults.DidNotReceiveWithAnyArgs().IsSecondLateResultsAvailableAsync(default, default!, default);
+        await _lateResults.DidNotReceiveWithAnyArgs().IsAwaitingSecondLateResultsAsync(default, default);
     }
 
     [Fact]
@@ -211,7 +209,7 @@ public sealed class ResultIssueControllerTests
         var state = _session.GetRequestState(WindowId);
         Assert.Equal(WhatToChange.ResultDoesNotBelong, state.SelectedWhatToChange);
         Assert.Empty(state.QuestionHistory);
-        await _lateResults.DidNotReceiveWithAnyArgs().IsSecondLateResultsAvailableAsync(default, default!, default);
+        await _lateResults.DidNotReceiveWithAnyArgs().IsAwaitingSecondLateResultsAsync(default, default);
     }
 
     // ── POST: the late-results branch ────────────────────────────────────────
@@ -316,14 +314,14 @@ public sealed class ResultIssueControllerTests
     }
 
     [Fact]
-    public async Task Availability_is_asked_for_the_signed_in_school_and_this_window()
+    public async Task Availability_is_asked_for_this_window()
     {
         SecondLateResultsAvailable(true);
 
         await _sut.Confirm(WindowId, ValidPost());
 
         await _lateResults.Received(1)
-            .IsSecondLateResultsAvailableAsync(WindowId, Laestab, Arg.Any<CancellationToken>());
+            .IsAwaitingSecondLateResultsAsync(WindowId, Arg.Any<CancellationToken>());
     }
 
     [Fact]

@@ -20,33 +20,29 @@ using Microsoft.EntityFrameworkCore;
 namespace DfE.CheckPerformanceData.Web.Seeding;
 
 /// <summary>
-/// Seeds the E2E fixture windows (both KS4 June windows and both plain 16-19 windows) the way an
-/// admin would: each dataset gets a CSV and a schema, and each exercise is run through ingress.
+/// Seeds the E2E fixture windows (both KS4 June windows) the way an admin would: each dataset gets a CSV and a schema, and each exercise is run through ingress.
 /// Every fixture window therefore has a release, and the Check Your Pupil Data page draws its tabs
 /// from the schemas — a table with a CSV download, the same as the ingressed windows.
 /// </summary>
 /// <remarks>
-/// The CSVs are generated from <see cref="SeedPupilData"/> and <see cref="SeedStudentResults"/>, so
-/// the fixtures the E2E suite drives by name (Alice Smith, the Kingsmead duplicate pair, students
-/// 500001-500003 and their results) are unchanged.
+/// The CSVs are generated from <see cref="SeedPupilData"/>, so the fixtures the E2E suite drives by
+/// name (Alice Smith, the Kingsmead duplicate pair) are unchanged. The 16-19 window is not a
+/// fixture: it is left for an admin to import (<see cref="SeedPost16OctoberSamples"/>).
 /// </remarks>
 public static class SeedExerciseFixtures
 {
     private static readonly Guid[] Ks4WindowIds =
         [DevDataSeeder.KeyStage4JuneCheckingWindowId, DevDataSeeder.ClosedKeyStage4JuneCheckingWindowId];
 
-    // Both plain 16-19 windows hold the same students and the same results.
-    private static readonly Guid[] Post16WindowIds = SeedStudentResults.WindowIds;
-
     public static Task ExecuteSeedAsync(
         IPortalDbContext dbContext, BlobServiceClient blobs, ICheckingExerciseIngress ingress, string contentRootPath) =>
-        ExecuteSeedAsync(dbContext, blobs, ingress, contentRootPath, Ks4WindowIds, Post16WindowIds);
+        ExecuteSeedAsync(dbContext, blobs, ingress, contentRootPath, Ks4WindowIds);
 
     /// <summary>Seeds the given windows, which must already exist with the exercises
     /// <see cref="SeedCheckingWindows"/> gives them. The ids are a parameter for the tests.</summary>
     public static async Task ExecuteSeedAsync(IPortalDbContext dbContext, BlobServiceClient blobs,
         ICheckingExerciseIngress ingress, string contentRootPath,
-        IReadOnlyList<Guid> ks4WindowIds, IReadOnlyList<Guid> post16WindowIds)
+        IReadOnlyList<Guid> ks4WindowIds)
     {
         var ingressFolder = Path.Combine(contentRootPath, "Data", "Ingress");
 
@@ -60,35 +56,6 @@ public static class SeedExerciseFixtures
                     "pupils_schema.json", schema);
             await dbContext.SaveChangesAsync();
             await IngestAsync(blobs, ingress, pupils);
-        }
-
-        foreach (var windowId in post16WindowIds)
-        {
-            var window = await LoadAsync(dbContext, windowId);
-            var students = Exercise(window, CheckingExerciseType.PupilData);
-            var all = SeedPupilData.Post16Pupils(windowId);
-            foreach (var dataset in students.Datasets)
-            {
-                var schemaFile = dataset.Included == true ? "students-included_schema.json" : "students-non-included_schema.json";
-                var schema = await File.ReadAllTextAsync(Path.Combine(ingressFolder, "post16", schemaFile));
-                await LinkAsync(blobs, students, dataset, $"{dataset.Name}.csv",
-                    RecordsCsv(all.Where(p => p.Included == dataset.Included)), schemaFile, schema);
-            }
-
-            var results = Exercise(window, CheckingExerciseType.ResultsEnquiry);
-            var resultsSchema = WithResultKeys(
-                await File.ReadAllTextAsync(Path.Combine(ingressFolder, "post16", "results-included_schema.json")));
-            // Every school is generated from the same ids, and the results are all Kingsmead's.
-            var byCypmd = all.Where(p => p.Laestab == SeedStudentResults.Laestab.Replace("/", string.Empty))
-                .ToDictionary(p => p.Cypmd_Id);
-            foreach (var dataset in results.Datasets)
-                await LinkAsync(blobs, results, dataset, $"{dataset.Name}.csv",
-                    ResultsCsv(SeedStudentResults.All.Where(r => r.SourceFile == dataset.SourceFile), byCypmd),
-                    "results-included_schema.json", resultsSchema);
-
-            await dbContext.SaveChangesAsync();
-            await IngestAsync(blobs, ingress, students);
-            await IngestAsync(blobs, ingress, results);
         }
     }
 
@@ -118,86 +85,18 @@ public static class SeedExerciseFixtures
             $"Fixture ingress seed failed for exercise '{exercise.Name}' ({exercise.CheckingWindowId}): {last?.Message}{Environment.NewLine}{head}");
     }
 
-    // The enquiry journey reads a result by QAN, qualification name, syllabus and session
-    // (StudentResultRecord), which the supplier's results schema does not carry yet.
-    private static string WithResultKeys(string schemaJson) => AddProperties(schemaJson,
-        ("QAN", Shown("QAN", 20)),
-        ("QUAL_NAME", Shown("Qualification", 21)),
-        ("SYLLABUS", Shown("Syllabus", 22)),
-        ("SESSION", Shown("Session", 23)));
-
-    // No x-csv: an x-csv without column positions means "not exported", and these are.
-    private static JsonObject Shown(string label, int order) => new()
-    {
-        ["type"] = new JsonArray("string", "null"),
-        ["x-display"] = new JsonObject { ["label"] = label, ["visible"] = true, ["order"] = order }
-    };
-
-    private static string AddProperties(string schemaJson, params (string Name, JsonObject Definition)[] additions)
-    {
-        var root = JsonNode.Parse(schemaJson)!.AsObject();
-        var properties = root["properties"]!.AsObject();
-        foreach (var (name, definition) in additions)
-            properties[name] = definition;
-        return root.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
-    }
-
     // Ours, not the supplier's: ingress generates a pupil's Id, and nothing reads the window id.
     private static readonly HashSet<string> NotSupplierColumns = ["Id", "CheckingWindowId"];
 
     // One row per record, one column per JSON property, serialised exactly as the read models
     // bind them. Columns the schema does not declare are dropped by ingress.
-    private static byte[] RecordsCsv<T>(IEnumerable<T> records) =>
+    internal static byte[] RecordsCsv<T>(IEnumerable<T> records) =>
         WriteCsv(records.Select(record =>
             JsonSerializer.SerializeToNode(record, PupilDataBlobClient.JsonOptions)!.AsObject()
                 .Where(p => !NotSupplierColumns.Contains(p.Key))
                 .ToDictionary(p => p.Key, p => Text(p.Value))));
 
-    // A result row carries the supplier's student columns as well as the result, so the Results
-    // tab reads like the supplier's file rather than a list of bare codes.
-    private static byte[] ResultsCsv(
-        IEnumerable<StudentResultRecord> results, IReadOnlyDictionary<string, Post16PupilRecord> students) =>
-        WriteCsv(results.Select(result =>
-        {
-            var student = students[result.CypmdId];
-            return new Dictionary<string, string>
-            {
-                ["ULN"] = student.Uln,
-                ["CYPMD_ID"] = result.CypmdId,
-                ["SURNAME"] = student.Surname,
-                ["FORENAMES"] = student.Firstname,
-                ["SEX"] = student.Sex,
-                ["DOB"] = student.DateOfBirth,
-                ["AGE"] = student.Age.ToString(CultureInfo.InvariantCulture),
-                ["EXAMYEAR"] = result.Session[1..],
-                ["SEASON"] = result.Session[..1],
-                ["Short_Qual_Desc"] = SupplierQualifications[result.Qan].Short,
-                ["SubjectDescription"] = SupplierQualifications[result.Qan].Subject,
-                ["GRADE"] = result.Grade,
-                ["UKPRN"] = student.Ukprn,
-                ["URN"] = student.Urn,
-                ["LAESTAB"] = student.Laestab,
-                ["QAN"] = result.Qan,
-                ["QUAL_NAME"] = result.QualificationName,
-                ["SYLLABUS"] = result.SyllabusCode,
-                ["SESSION"] = result.Session
-            };
-        }));
-
-    // The supplier's results file splits a qualification into a short type (at most 12 characters)
-    // and a subject. One row per QAN in SeedStudentResults' catalogue.
-    private static readonly IReadOnlyDictionary<string, (string Short, string Subject)> SupplierQualifications =
-        new Dictionary<string, (string, string)>
-        {
-            ["60146084"] = ("GCSE", "Mathematics"),
-            ["60148366"] = ("GCSE", "English Language"),
-            ["60149589"] = ("GCE A", "Art and Design"),
-            ["60172186"] = ("BTEC NEC", "Sport"),
-            ["10025480"] = ("FSMQ", "Additional Maths"),
-            ["50034157"] = ("IB", "International Baccalaureate")
-        };
-
-    private static byte[] WriteCsv(IEnumerable<IReadOnlyDictionary<string, string>> rows)
+    internal static byte[] WriteCsv(IEnumerable<IReadOnlyDictionary<string, string>> rows)
     {
         var list = rows.ToList();
         var headers = list.SelectMany(r => r.Keys).Distinct().ToList();

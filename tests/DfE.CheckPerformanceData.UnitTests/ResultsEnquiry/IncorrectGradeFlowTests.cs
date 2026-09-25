@@ -166,9 +166,16 @@ public sealed class IncorrectGradeFlowTests
     // ── Pupil search: both branches converge ─────────────────────────────────
 
     [Theory]
-    [InlineData("select-student-cohort", "What is the name of one of the students from the affected cohort?")]
-    [InlineData("select-student-single", "What is the name of the student with an incorrect grade?")]
-    public void Both_student_search_pages_search_all_students_and_lead_to_the_result(string pageId, string title)
+    [InlineData(
+        "select-student-cohort",
+        "What is the name of one of the students from the affected cohort?",
+        "Enter the name of one of the students from the affected cohort")]
+    [InlineData(
+        "select-student-single",
+        "What is the name of the student with an incorrect grade?",
+        "Enter the name of the student with an incorrect grade")]
+    public void Both_student_search_pages_search_all_students_and_lead_to_the_result(
+        string pageId, string title, string validationFailure)
     {
         // "A pupil may be missing from the included data and still have a wrong grade", so both
         // populations are searchable — PupilFilter.All, not Included.
@@ -178,7 +185,10 @@ public sealed class IncorrectGradeFlowTests
         Assert.Equal(title, page.Title);
         Assert.Equal(PupilFilter.All, page.PupilFilter);
         Assert.Equal(JourneyPage.PrimaryKey, page.PupilKey);
-        Assert.Equal("Enter the name of the student with an incorrect grade", page.ValidationFailure);
+        // #460: the error must name what the heading asks for. The cohort page asks for "one of
+        // the students", so its required-field message says so rather than reusing the
+        // single-student wording.
+        Assert.Equal(validationFailure, page.ValidationFailure);
         Assert.Equal("select-result", page.NextPageId);
     }
 

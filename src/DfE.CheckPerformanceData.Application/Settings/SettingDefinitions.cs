@@ -32,6 +32,7 @@ public static class SettingKeys
 
     public const string DevToolsEnabled = "Dev:ToolsEnabled";
     public const string ZendeskUseFake = "Zendesk:UseFake";
+    public const string EgressUseDevOutbox = "Egress:UseDevOutbox";
     public const string NotifyUseFake = "Notify:UseFake";
 }
 

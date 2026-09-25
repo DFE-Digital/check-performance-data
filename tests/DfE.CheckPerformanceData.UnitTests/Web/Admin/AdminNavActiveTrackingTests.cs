@@ -188,4 +188,19 @@ public sealed class AdminNavActiveTrackingTests
 
         Assert.Equal(expectedKey, key);
     }
+
+    // AB#294592: the audit log is a root tile; its export URL hangs beneath it and lights the same
+    // tile. It shares no prefix with /admin/egress, so the egress entries are in the list to prove it.
+    [Theory]
+    [InlineData("/admin/audit-log", AdminNavKeys.AuditLog)]
+    [InlineData("/admin/audit-log?activity=EgressRun&status=Failed&page=2", AdminNavKeys.AuditLog)]
+    [InlineData("/admin/audit-log/export?activity=EgressRun", AdminNavKeys.AuditLog)]
+    public void ResolveActiveKey_AuditLogPages_LightTheAuditLogTile(string path, string expectedKey)
+    {
+        var entries = new List<IAdminNavEntry> { new EgressGroupNavEntry(), new StartEgressNavEntry(), new EgressRunsNavEntry(), new AuditLogNavEntry() };
+
+        var key = AdminNavActive.ResolveActiveKey(path, entries);
+
+        Assert.Equal(expectedKey, key);
+    }
 }

@@ -79,4 +79,9 @@ public static class AdminNavKeys
     // Runs history tile + the EgressRunsController gate (AB#294590). Its own key because the
     // sidebar filters each tile by the tile's own key; also in DefaultAdminAccessSeeder.AllSections.
     public const string EgressRuns = "egress-runs";
+
+    // Audit log (AB#294592): a root tile with a URL and no children (like Dashboard) and the
+    // AuditLogController gate. Its own key because the sidebar filters each tile by the tile's own
+    // key; also in DefaultAdminAccessSeeder.AllSections.
+    public const string AuditLog = "audit-log";
 }

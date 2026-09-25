@@ -283,7 +283,7 @@ public sealed class EgressRunRepository(IPortalDbContext db) : IEgressRunReposit
             return rows;
         }, ct);
 
-    public Task<int> MarkTransferFailedAsync(Guid runId, EgressRunStatus expectedStatus, string reason, string userId, CancellationToken ct) =>
+    public Task<int> MarkTransferFailedAsync(Guid runId, EgressRunStatus expectedStatus, string reason, string userId, string userName, CancellationToken ct) =>
         db.ExecuteInTransactionAsync(async () =>
         {
             // S2: same retry-duplication hazard as SavePreprocessedAsync and MarkTransferredAsync
@@ -300,11 +300,23 @@ public sealed class EgressRunRepository(IPortalDbContext db) : IEgressRunReposit
             if (rows == 0) return 0;
 
             await db.EgressRunOutputs.Where(o => o.RunId == runId).ExecuteUpdateAsync(s => s.SetProperty(o => o.IsActive, false), ct);
+
+            // AB#294592: the audit row is the durable record of the attempt, so it names the window,
+            // the output types and the person — the same fields the success row carries — rather
+            // than leaving the audit log to join back to a run row that a dev reset may have wiped.
+            var run = await db.EgressRuns.AsNoTracking().Include(r => r.Outputs).FirstAsync(r => r.Id == runId, ct);
             db.AuditEntries.Add(new AuditEntry
             {
                 EntityType = "EgressRun", EntityId = runId.ToString(), Action = "TransferFailed",
                 Timestamp = DateTime.UtcNow, UserId = userId,
-                NewValues = JsonSerializer.Serialize(new { Outcome = "Failed", Reason = clipped }, Json)
+                NewValues = JsonSerializer.Serialize(new
+                {
+                    Outcome = "Failed",
+                    run.WindowId,
+                    OutputTypes = run.Outputs.Select(o => o.OutputType.ToString()).Order().ToList(),
+                    TransferredBy = userName,
+                    Reason = clipped
+                }, Json)
             });
             await db.SaveChangesAsync(ct);
             return rows;

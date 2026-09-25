@@ -50,7 +50,7 @@
       "pupilKey": "primary",
       "title": "What is the name of one of the students from the affected cohort?",
       "subheading": "Start typing to search by name, ULN, CYPMD ID or date of birth",
-      "validationFailure": "Enter the name of the student missing this qualification",
+      "validationFailure": "Enter the name of one of the students from the affected cohort",
       "nextPageId": "select-qualification"
     },
     {

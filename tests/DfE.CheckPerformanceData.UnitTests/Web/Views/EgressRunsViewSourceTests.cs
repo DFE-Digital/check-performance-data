@@ -33,6 +33,10 @@ public sealed class EgressRunsViewSourceTests
         Assert.Contains("name=\"status\"", view);
         Assert.Contains("Filter by checking window", view);
         Assert.Contains("Filter by status", view);
+        // Stacked in one two-thirds column, not side by side: two one-half columns squashed them together.
+        Assert.Equal(1, view.Split("govuk-grid-column-two-thirds").Length - 1);
+        Assert.DoesNotContain("govuk-grid-column-one-half", view);
+        Assert.Equal(2, view.Split("govuk-select govuk-!-width-full").Length - 1);
         Assert.Contains(">All windows</option>", view);
         Assert.Contains(">All statuses</option>", view);
         Assert.Contains("govuk-button--secondary", view);

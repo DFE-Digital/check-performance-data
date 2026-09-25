@@ -72,7 +72,7 @@ public sealed class EgressTransferServiceTests
                 && a.Files[EgressOutputType.RemoveLearners].Records == 2 && a.Files[EgressOutputType.NewLearners].Records == 1
                 && a.Files[EgressOutputType.RemoveLearners].Sha256.Length == 64),
             Arg.Any<DateTime>(), Arg.Any<CancellationToken>());
-        await _repo.DidNotReceiveWithAnyArgs().MarkTransferFailedAsync(default, default, default!, default!, default);
+        await _repo.DidNotReceiveWithAnyArgs().MarkTransferFailedAsync(default, default, default!, default!, default!, default);
     }
 
     [Fact]
@@ -88,7 +88,7 @@ public sealed class EgressTransferServiceTests
         var failed = Assert.IsType<EgressTransferResult.Failed>(result);
         Assert.Contains("already exists", failed.Reason);
         await _blobs.Received(1).DeleteIfExistsAsync("CYPMD_LDS_KS4_NewLearners_2026_06_08.csv", Arg.Any<CancellationToken>());
-        await _repo.Received(1).MarkTransferFailedAsync(RunId, EgressRunStatus.Transferring, Arg.Is<string>(r => r.Contains("already exists")), Actor.UserId.ToString(), Arg.Any<CancellationToken>());
+        await _repo.Received(1).MarkTransferFailedAsync(RunId, EgressRunStatus.Transferring, Arg.Is<string>(r => r.Contains("already exists")), Actor.UserId.ToString(), Actor.DisplayName, Arg.Any<CancellationToken>());
         await _repo.DidNotReceiveWithAnyArgs().MarkTransferredAsync(default, default, default!, default, default);
     }
 
@@ -103,7 +103,7 @@ public sealed class EgressTransferServiceTests
         var failed = Assert.IsType<EgressTransferResult.Failed>(result);
         Assert.Contains("not configured", failed.Reason);
         await _blobs.DidNotReceiveWithAnyArgs().UploadAsync(default!, default!, default!, default, default);
-        await _repo.Received(1).MarkTransferFailedAsync(RunId, EgressRunStatus.Preprocessed, Arg.Any<string>(), Actor.UserId.ToString(), Arg.Any<CancellationToken>());
+        await _repo.Received(1).MarkTransferFailedAsync(RunId, EgressRunStatus.Preprocessed, Arg.Any<string>(), Actor.UserId.ToString(), Actor.DisplayName, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -186,7 +186,7 @@ public sealed class EgressTransferServiceTests
 
         Assert.IsType<EgressTransferResult.Failed>(result);
         await _blobs.Received(1).DeleteIfExistsAsync("CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv", Arg.Any<CancellationToken>());
-        await _repo.Received(1).MarkTransferFailedAsync(RunId, EgressRunStatus.Transferring, Arg.Any<string>(), Actor.UserId.ToString(), Arg.Any<CancellationToken>());
+        await _repo.Received(1).MarkTransferFailedAsync(RunId, EgressRunStatus.Transferring, Arg.Any<string>(), Actor.UserId.ToString(), Actor.DisplayName, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -231,14 +231,14 @@ public sealed class EgressTransferServiceTests
         CancellationToken? deleteToken = null;
         _blobs.DeleteIfExistsAsync(Arg.Any<string>(), Arg.Do<CancellationToken>(t => deleteToken = t)).Returns(Task.CompletedTask);
         CancellationToken? markFailedToken = null;
-        _repo.MarkTransferFailedAsync(Arg.Any<Guid>(), Arg.Any<EgressRunStatus>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Do<CancellationToken>(t => markFailedToken = t))
+        _repo.MarkTransferFailedAsync(Arg.Any<Guid>(), Arg.Any<EgressRunStatus>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Do<CancellationToken>(t => markFailedToken = t))
             .Returns(1);
 
         var result = await Sut().TransferAsync(RunId, Actor, cts.Token);
 
         Assert.IsType<EgressTransferResult.Failed>(result);
         await _blobs.Received(1).DeleteIfExistsAsync("CYPMD_LDS_KS4_NewLearners_2026_06_08.csv", Arg.Any<CancellationToken>());
-        await _repo.Received(1).MarkTransferFailedAsync(RunId, EgressRunStatus.Transferring, Arg.Any<string>(), Actor.UserId.ToString(), Arg.Any<CancellationToken>());
+        await _repo.Received(1).MarkTransferFailedAsync(RunId, EgressRunStatus.Transferring, Arg.Any<string>(), Actor.UserId.ToString(), Actor.DisplayName, Arg.Any<CancellationToken>());
         Assert.Equal(CancellationToken.None, deleteToken);
         Assert.Equal(CancellationToken.None, markFailedToken);
     }
@@ -257,7 +257,7 @@ public sealed class EgressTransferServiceTests
 
         Assert.IsType<EgressTransferResult.Failed>(result);
         await _blobs.Received(1).DeleteIfExistsAsync("CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv", Arg.Any<CancellationToken>());
-        await _repo.Received(1).MarkTransferFailedAsync(RunId, EgressRunStatus.Transferring, Arg.Any<string>(), Actor.UserId.ToString(), Arg.Any<CancellationToken>());
+        await _repo.Received(1).MarkTransferFailedAsync(RunId, EgressRunStatus.Transferring, Arg.Any<string>(), Actor.UserId.ToString(), Actor.DisplayName, Arg.Any<CancellationToken>());
         await _repo.DidNotReceiveWithAnyArgs().TryReactivateAsync(default, default);
     }
 
@@ -277,7 +277,7 @@ public sealed class EgressTransferServiceTests
 
         var failed = Assert.IsType<EgressTransferResult.Failed>(result);
         Assert.Contains("remove it by hand", failed.Reason);
-        await _repo.Received(1).MarkTransferFailedAsync(RunId, EgressRunStatus.Transferring, Arg.Is<string>(r => r.Contains("remove it by hand")), Actor.UserId.ToString(), Arg.Any<CancellationToken>());
+        await _repo.Received(1).MarkTransferFailedAsync(RunId, EgressRunStatus.Transferring, Arg.Is<string>(r => r.Contains("remove it by hand")), Actor.UserId.ToString(), Actor.DisplayName, Arg.Any<CancellationToken>());
     }
 
     // S3: a PUT that succeeded server-side but whose response was lost must not leave an orphan
@@ -410,7 +410,7 @@ public sealed class EgressTransferServiceTests
         Assert.IsType<EgressTransferResult.Transferred>(result);
         await _blobs.Received(1).DeleteIfOwnedByRunAsync(RemoveFile, orphanOwner, Arg.Any<CancellationToken>());
         await _blobs.Received(2).UploadAsync(RemoveFile, Arg.Any<byte[]>(), Arg.Any<string>(), RunId, Arg.Any<CancellationToken>());
-        await _repo.DidNotReceiveWithAnyArgs().MarkTransferFailedAsync(default, default, default!, default!, default);
+        await _repo.DidNotReceiveWithAnyArgs().MarkTransferFailedAsync(default, default, default!, default!, default!, default);
     }
 
     // The same path also clears a leftover from THIS run's own earlier attempt — the case where
@@ -474,7 +474,7 @@ public sealed class EgressTransferServiceTests
         Assert.IsType<EgressTransferResult.Failed>(result);
         await _blobs.Received(1).DeleteIfOwnedByRunAsync(RemoveFile, orphanOwner, Arg.Any<CancellationToken>());
         await _blobs.Received(2).UploadAsync(RemoveFile, Arg.Any<byte[]>(), Arg.Any<string>(), RunId, Arg.Any<CancellationToken>());
-        await _repo.Received(1).MarkTransferFailedAsync(RunId, EgressRunStatus.Transferring, Arg.Any<string>(), Actor.UserId.ToString(), Arg.Any<CancellationToken>());
+        await _repo.Received(1).MarkTransferFailedAsync(RunId, EgressRunStatus.Transferring, Arg.Any<string>(), Actor.UserId.ToString(), Actor.DisplayName, Arg.Any<CancellationToken>());
     }
 
     // Same-stage/same-day collision: the file name carries the preprocessing date, so retrying the
@@ -498,7 +498,7 @@ public sealed class EgressTransferServiceTests
             + "Another egress run wrote it (its status is Transferred), so it was left in place. "
             + "Two checking windows of the same key stage cannot transfer on the same day. "
             + "Abandon this run and start a new one on a later day, or ask LDS to remove the file and then retry.", failed.Reason);
-        await _repo.Received(1).MarkTransferFailedAsync(RunId, EgressRunStatus.Transferring, failed.Reason, Actor.UserId.ToString(), Arg.Any<CancellationToken>());
+        await _repo.Received(1).MarkTransferFailedAsync(RunId, EgressRunStatus.Transferring, failed.Reason, Actor.UserId.ToString(), Actor.DisplayName, Arg.Any<CancellationToken>());
     }
 
     [Fact]

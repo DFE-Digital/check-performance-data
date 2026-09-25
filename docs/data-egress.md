@@ -34,6 +34,10 @@ Six screens under `/admin/egress`. The five journey screens are gated by
   page (`?page=`, clamped), and a filter that matches nothing says so instead of rendering an
   empty table. A Draft's Resume link and a finished run's View link both go to Resume (below).
   Plain GET form, no script.
+- **Audit log** (`GET /admin/audit-log`, AB#294592; root tile "Audit log"; gated by
+  `[RequireAdminSection(AdminNavKeys.AuditLog)]`) — not an egress screen but where every transfer's
+  audit row is seen: filter by activity "Data egress", checking window and Success/Failed, and
+  export the filtered set as CSV. See `docs/audit-log.md`.
 
 `GET /admin/egress/runs/{id}` (Resume) sends the browser to whichever of these a run's status
 implies, so a saved run reopens without re-pulling. `POST /admin/egress/runs/{id}/abandon` ends a
@@ -218,8 +222,10 @@ run to currently hold, and reports rows affected; a caller that gets zero back k
 (most often to a concurrent Abandon) and never overwrites what actually happened with a stale
 outcome. Success and failure each write an `AuditEntry` in the same transaction as the guarded
 state change: `EntityType` `"EgressRun"`, `Action` `"Transfer"` or `"TransferFailed"`, `NewValues` a
-JSON object with the outcome, window id, output types, file names, record counts, SHA-256 hashes,
-target container and who/when. No audit row is ever written for a write that lost its race, and no
+camelCase JSON object. Both carry the outcome, window id, output types and the person who ran the
+transfer (`transferredBy`); success adds file names, record counts, SHA-256 hashes, target container
+and time; failure adds the reason (AB#294592 made the failure payload self-describing so the audit
+log needs no join). No audit row is ever written for a write that lost its race, and no
 audit row ever claims success for a failed transfer.
 
 ## 8. Configuration
@@ -228,17 +234,20 @@ audit row ever claims success for a failed transfer.
 |---|---|
 | `ConnectionStrings:EgressStorage` | The LDS storage account. Absent → the Pull page and the Summary show a warning up front (`egress-storage-not-configured`), the app refuses to transfer with a clear "not configured" message rather than failing at startup, and the dev cleanup skips its blob sweep. Pull, preprocess, preview and download still work without it. **`appsettings.json` deliberately carries no default** (pinned by `AppSettingsEgressStorageTests`): a local-Azurite default there made every deployed environment without an account believe it had one at `127.0.0.1:10000` inside the pod, so transfers and cleanups failed after the SDK's retries instead of refusing. Local runs get it from `docker-compose.yaml` and the launch profiles. Review apps get the per-PR `lds` account (`terraform/application/application.tf`, `local.egress_storage_secrets`, gated on `var.config == "review"`) so the E2E transfer facts run end to end; the long-lived environments are still unconfigured until the real LDS account is known — see gaps below. |
 | `EgressStorage:Container` (default `cypmd`) / `EgressStorage:Prefix` (default `extracts_input/`) | Where in the account files land. Bindable only so a test can point at a scratch container — never user-editable. |
-| `Zendesk:UseFake` (default **`false`**) | Selects the ticket source: the real Zendesk client (`ZendeskEgressTicketSource`, via the same `AddZendeskApiClient` the worker uses) unless explicitly set to `true`, which selects the dev outbox (`DevOutboxEgressTicketSource`, no Zendesk settings needed). The default matches the worker's own configured default — a fresh environment that sets nothing reads real Zendesk decisions, not the dev outbox. `AddCpdEgress` refuses to start if `UseFake=true` is set in Production, regardless of configuration, so the dev outbox can never be reached there. Local/E2E stacks opt in explicitly via `Zendesk__UseFake=true` (`docker-compose.yaml`, `docker-compose.sandbox.yaml`), since neither has real Zendesk credentials. Review apps opt in too (`terraform/application/config/review.yml`): the E2E egress facts seed their decisions into the outbox via `/dev/egress/seed`, and against real esfa-preprod every seeded id read back as "Ticket not found", so the suite could not pass there. Web and worker share the ConfigMap, so review-app submissions land in the outbox rather than creating esfa-preprod tickets. |
+| `Zendesk:UseFake` (default **`false`** in the deployed config, **`true`** in the worker's code default) | Selects the worker's ticket-*write* service: `false` → real Zendesk (`ZendeskService`), `true` → dev outbox (`DevOutboxZendeskService`) so tickets land in `DevZendeskTickets`. Deliberately decoupled from the web's egress *read* choice — see `Egress:UseDevOutbox` below. Local/E2E compose stacks default it to `true` because they have no Zendesk credentials. |
+| `Egress:UseDevOutbox` (default **`false`**) | Selects the web's egress ticket-*read* source: `false` → the real Zendesk client (`ZendeskEgressTicketSource`, via the same `AddZendeskApiClient` the worker uses), `true` → the dev outbox (`DevOutboxEgressTicketSource`, no Zendesk settings needed). Decoupled from `Zendesk:UseFake` so a review app can write real esfa-preprod tickets while still reading egress decisions from the outbox. Local/E2E stacks opt in explicitly (`Egress__UseDevOutbox=true` in `docker-compose.yaml`, `docker-compose.sandbox.yaml`, `terraform/application/config/review.yml`) because the E2E egress facts seed their decisions into the outbox via `/dev/egress/seed` — against real esfa-preprod every seeded id reads back as "Ticket not found". `AddCpdEgress` refuses `true` in Production regardless of configuration, so the dev outbox can never be reached there. |
 | `ZendeskTicketFields:DecisionStatusId` | The real ticket source's required field id; `0` in production today, so it refuses to pull until configured. |
 | Admin grant `egress` | `DefaultAdminAccessSeeder.AllSections` — without it a fresh database 404s on `/admin/egress` even for an admin. |
 | Admin grant `egress-runs` | `DefaultAdminAccessSeeder.AllSections` — the runs history's own gate and its sidebar tile's key (AB#294590); the seeder tops the admin role up on every start, so existing databases gain it on deploy. |
+| Admin grant `audit-log` | `DefaultAdminAccessSeeder.AllSections` — the Audit log root tile's own gate (AB#294592); topped up on every start. |
 
 ## 9. Local development and E2E
 
 Locally the web container gets a third Azurite account (`docker-compose.yaml`,
 `ConnectionStrings__EgressStorage`, alongside the app and ingress accounts), and opts in to the
-dev outbox fake explicitly with `Zendesk__UseFake=true` — the code/config default is now the real
-Zendesk client, which this stack has no credentials for.
+dev outbox explicitly with `Egress__UseDevOutbox=true` (outbox covered by the worker writing
+through `Zendesk__UseFake=true`) — the code/config default is the real Zendesk client, which the
+local web has no read credentials for.
 
 `DevEgressController` (dev-only, 404 unless `Dev:ToolsEnabled` and not Production, same rule as
 `DevPipelineController`) stages fixture data with no worker and no real Zendesk:

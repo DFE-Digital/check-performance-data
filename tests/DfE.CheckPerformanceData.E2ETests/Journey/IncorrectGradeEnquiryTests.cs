@@ -172,6 +172,21 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
     }
 
     [RetryFact(3)]
+    public async Task ContinuingWithoutChoosingACohortStudent_ShowsTheCohortWordedError()
+    {
+        // #460: the cohort page asks for "one of the students", and its error must say the same.
+        await StartEnquiryAsync();
+        await ContinueAsync();
+        await ChooseCohortScopeAsync("yes");
+        await FillCohortCountAsync("2");
+        await Page.WaitForURLAsync($"**/Journey/{WindowId}/pupil-search/select-student-cohort");
+
+        await ContinueAsync();
+
+        await AssertErrorAsync("Enter the name of one of the students from the affected cohort");
+    }
+
+    [RetryFact(3)]
     public async Task ContinuingWithoutChoosingAResult_ShowsTheTemplatedError()
     {
         await StartEnquiryAsync();

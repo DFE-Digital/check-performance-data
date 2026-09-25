@@ -59,6 +59,22 @@ public sealed class MissingQualificationEnquiryTests(PlaywrightFixture fixture) 
     }
 
     [RetryFact(3)]
+    public async Task ContinuingWithoutChoosingACohortStudent_ShowsTheCohortWordedError()
+    {
+        // #460: the cohort page asks for "one of the students", and its error must say the same.
+        await StartEnquiryAsync();
+        await ChooseCohortScopeAsync("yes");
+        await Page.WaitForURLAsync($"**/Journey/{WindowId}/page/cohort-count");
+        await Page.Locator("#q_q_cohort_count").FillAsync("2");
+        await ContinueAsync();
+        await Page.WaitForURLAsync($"**/Journey/{WindowId}/pupil-search/select-student-cohort");
+
+        await ContinueAsync();
+
+        await AssertErrorAsync("Enter the name of one of the students from the affected cohort");
+    }
+
+    [RetryFact(3)]
     public async Task The_syllabus_and_grade_pickers_offer_every_option_with_nothing_preselected()
     {
         // Both pickers are plain <select>s (the type-ahead the grade and result pickers once carried

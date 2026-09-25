@@ -201,6 +201,23 @@ public sealed class CheckingExerciseDto
             : DatasetsToIngest;
 
     /// <summary>
+    /// Where one of this exercise's slots stands. Live means the live release read the files the
+    /// slot holds now, matched by checksum: a slot whose file was replaced after the run is not
+    /// live until the next run. An exercise with no release has nothing live.
+    /// </summary>
+    public DatasetStatus StatusOf(CheckingWindowDatasetDto dataset)
+    {
+        if (dataset.Retired) return DatasetStatus.Retired;
+        if (!dataset.IsComplete) return DatasetStatus.NotSupplied;
+        return CurrentRelease?.Files.Any(f =>
+                f.DatasetId == dataset.Id
+                && f.IngressFileChecksum == dataset.IngressFileChecksum
+                && f.SchemaFileChecksum == dataset.SchemaFileChecksum) == true
+            ? DatasetStatus.Live
+            : DatasetStatus.NotValidated;
+    }
+
+    /// <summary>
     /// Validated, and against the files it currently holds. A stamp taken before an ingress file
     /// was swapped is stale, and saying so is the only reason the checksums are stored.
     /// </summary>

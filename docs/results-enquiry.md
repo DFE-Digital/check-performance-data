@@ -113,6 +113,11 @@ left out of the validation checksums, so the stamp goes stale until the next run
 deleted, because earlier releases name it, and it can be put back in use. Each run is a release, so
 the October, November, February and March states are four releases and any can be made live again.
 
+The Data tab gives each slot a status (`CheckingExerciseDto.StatusOf`): **Live** when the live release
+read the files the slot holds now (matched by checksum), **Not validated** when the slot holds files
+the live release did not read, **Not supplied** when it lacks its CSV or schema, and **Retired**. It
+used to say "In use: Yes" for every slot that was not retired, so an empty slot read as if schools saw it.
+
 A file added to a results enquiry **with** a source feeds the journey; one without a source is
 display only (`WindowDatasets.AddedSlotFeedsJourney`). That is how a KS4 Autumn window, or a supplier
 file nobody planned for, is handled without a code change beyond a row in `ResultsSources`.
@@ -595,6 +600,16 @@ Its sample, `results/16to19_LR2.csv` (`SeedStudentResults.LateResults2`), is in 
 but its own collection, so late results 1 and 2 are two datasets on the Results tab. The file amends
 two earlier results, adds one, and gives the first result to two students who held none, so they
 reach the results search only after it is run. Step-by-step: `docs/testing-late-results-2.md`.
+
+The third is **"16 to 19 Feb"** (`DevDataSeeder.Post16FebruaryCheckingWindowId`): the same again,
+but `SeedPost16FebruarySamples` also adds and validates late results 2, so the results enquiry has an
+October and a November release. Only the two revised slots are empty. Their samples,
+`results/16to19_INC_REV.csv` and `results/16to19_NONINC_REV.csv` (`SeedStudentResults.Revised`), are
+in ingress container `16-to-19-feb`; pair them with `results-included-revised_schema.json` and
+`results-non-included-revised_schema.json` (the original columns, their own collections). They hold
+one row per earlier result, with each late amendment in place of the row it corrects, and change one
+grade no earlier file did. The admin retires the four slots they replace before validating.
+Step-by-step: `docs/testing-revised-results.md`.
 
 No 16-19 E2E journey tests remain: they needed a window with data, and this one starts empty. Only
 the what-to-change option tests use it.

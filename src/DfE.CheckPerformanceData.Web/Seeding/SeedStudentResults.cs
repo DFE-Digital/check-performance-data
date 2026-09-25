@@ -78,6 +78,49 @@ public static class SeedStudentResults
         }
     ];
 
+    /// <summary>
+    /// The February revised files (<see cref="ResultsFileTags.Post16IncludedRevised"/> and
+    /// <see cref="ResultsFileTags.Post16NonIncludedRevised"/>). They replace included, non-included
+    /// and both late files, so they hold one row per result: every result of <see cref="All"/> and
+    /// <see cref="LateResults2"/>, with a late Amendment in place of the row it corrects. One grade
+    /// changes only here (<see cref="RevisedOnlyGrade"/>). A student's row is in the included revised
+    /// file when the student is included, otherwise in the non-included revised file. Not in
+    /// <see cref="All"/>: <see cref="SeedPost16FebruarySamples"/> writes them to ingress storage for
+    /// an admin to add to the "16 to 19 Feb" window.
+    /// </summary>
+    public static IReadOnlyList<StudentResultRecord> Revised =>
+        [.. All.Concat(LateResults2)
+            .GroupBy(r => (r.CypmdId, r.Qan, r.Session))
+            .Select(g => g.MaxBy(r => FileOrder(r.SourceFile))!)
+            .Select(r => new StudentResultRecord
+            {
+                CypmdId = r.CypmdId, Qan = r.Qan, QualificationName = r.QualificationName,
+                SyllabusCode = r.SyllabusCode, Session = r.Session,
+                Grade = (r.CypmdId, r.Qan, r.Session) == RevisedOnlyGrade.Result ? RevisedOnlyGrade.Grade : r.Grade,
+                SourceFile = IsIncludedStudent(r.CypmdId)
+                    ? ResultsFileTags.Post16IncludedRevised
+                    : ResultsFileTags.Post16NonIncludedRevised
+            })];
+
+    /// <summary>
+    /// The one grade the revised files change that no earlier file did: Alice Smith's A Level Art
+    /// and Design, A in the included file, B after a review of marking.
+    /// </summary>
+    public static readonly ((string CypmdId, string Qan, string Session) Result, string Grade) RevisedOnlyGrade =
+        ((StudentA, "60149589", "S2024"), "B");
+
+    // A later file's row replaces an earlier one's for the same result.
+    private static int FileOrder(string tag) => tag switch
+    {
+        ResultsFileTags.Post16LateResults2 => 2,
+        ResultsFileTags.Post16LateResults1 => 1,
+        _ => 0
+    };
+
+    // SeedPupilData generates the included students from index 0 (CYPMD ids 500001-500120) and the
+    // non-included ones from index 200 (500201 on).
+    private static bool IsIncludedStudent(string cypmdId) => int.Parse(cypmdId[1..]) <= 200;
+
     private static readonly StudentResultRecord[] FigmaResults =
     [
         // Student A holds the same qualification twice, distinguished only by session — the case the

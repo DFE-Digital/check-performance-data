@@ -1,5 +1,6 @@
 @using DfE.CheckPerformanceData.Application.CheckYourPupilData
 @using DfE.CheckPerformanceData.Domain.Enums
+@using DfE.CheckPerformanceData.Application.WindowManagement
 @using DfE.CheckPerformanceData.Web.Controllers.WindowAdmin
 @model DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin.CreateCheckingExerciseItem
 
@@ -251,7 +252,7 @@
                     <th scope="col" class="govuk-table__header">Data file</th>
                     <th scope="col" class="govuk-table__header">CSV</th>
                     <th scope="col" class="govuk-table__header">JSON schema</th>
-                    <th scope="col" class="govuk-table__header">In use</th>
+                    <th scope="col" class="govuk-table__header">Status</th>
                 </tr>
             </thead>
             <tbody class="govuk-table__body">
@@ -271,18 +272,21 @@
                             <div>@(string.IsNullOrWhiteSpace(dataset.SchemaFile) ? "Not selected" : System.IO.Path.GetFileName(dataset.SchemaFile))</div>
                             <a class="govuk-link" href="@($"{prefix}/schema-file/{Uri.EscapeDataString(dataset.Name)}{query}")">Choose schema<span class="govuk-visually-hidden"> for @DatasetLabels.For(dataset.Name)</span></a>
                         </td>
-                        @* A retired slot's file was replaced by another slot's, so no run reads it. *@
+                        @* Live: schools see these files. A retired slot's file was replaced by another
+                           slot's, so no run reads it. *@
                         <td class="govuk-table__cell">
-                            @{ var dataLink = $"/admin/windows/{Model.WindowId}/exercises/{dataExercise.Id}/data/{dataset.Id}"; }
-                            @if (dataset.Retired)
+                            @{
+                                var dataLink = $"/admin/windows/{Model.WindowId}/exercises/{dataExercise.Id}/data/{dataset.Id}";
+                                var status = dataExercise.StatusOf(dataset);
+                            }
+                            <strong class="govuk-tag @DatasetStatusTags.CssClass(status)">@DatasetStatusTags.Label(status)</strong>
+                            @if (status == DatasetStatus.Retired)
                             {
-                                <strong class="govuk-tag govuk-tag--grey">Retired</strong>
                                 <div><a class="govuk-link" href="@($"{dataLink}/put-back")">Put back in use<span class="govuk-visually-hidden">: @DatasetLabels.For(dataset.Name)</span></a></div>
                             }
                             else
                             {
-                                <div>Yes</div>
-                                <a class="govuk-link" href="@($"{dataLink}/retire")">Retire<span class="govuk-visually-hidden"> @DatasetLabels.For(dataset.Name)</span></a>
+                                <div><a class="govuk-link" href="@($"{dataLink}/retire")">Retire<span class="govuk-visually-hidden"> @DatasetLabels.For(dataset.Name)</span></a></div>
                             }
                         </td>
                     </tr>

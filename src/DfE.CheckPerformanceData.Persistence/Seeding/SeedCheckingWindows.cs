@@ -92,7 +92,7 @@ public static class SeedCheckingWindows
             }).ToList();
 
     public static async Task ExecuteSeed(IPortalDbContext dbContext, Guid openKs4WindowId, Guid closedKs4WindowId,
-        Guid post16OctoberWindowId, Guid post16NovemberWindowId)
+        Guid post16OctoberWindowId, Guid post16NovemberWindowId, Guid post16FebruaryWindowId)
     {
         // Egress runs first: egress_runs → CheckingWindows is a RESTRICT foreign key (an egress
         // is an audit record and must never vanish because a window was deleted), so a run left
@@ -172,11 +172,29 @@ public static class SeedCheckingWindows
             CheckingExercises = ExercisesFor(CheckingWindowType.Post16, octoberStart, octoberEnd, pupilDataEnd: octoberPupilDataEnd)
         };
 
+        // "16 to 19 Feb": the same exercises, slots and dates again. The Web seed imports and
+        // validates the October files and then late results 2 (SeedPost16FebruarySamples), so the
+        // results enquiry has an October and a November release. An admin adds the revised files,
+        // retires the four files they replace and validates, to test the February release.
+        var post16FebruaryWindow = new CheckingWindow
+        {
+            Id = post16FebruaryWindowId,
+            StartDate = octoberStart,
+            EndDate = octoberEnd,
+            KeyStage = KeyStages.Post16,
+            CheckingWindowType = CheckingWindowType.Post16,
+            Title = "16 to 19 Feb",
+            TurnaroundCommitment = "updated in the Spring",
+            NextOpportunity = new DateTime(DateTime.Now.Year + 1, 10, 1),
+            CheckingExercises = ExercisesFor(CheckingWindowType.Post16, octoberStart, octoberEnd, pupilDataEnd: octoberPupilDataEnd)
+        };
+
         await dbContext.CheckingWindows.AddRangeAsync(
             openKs4JuneWindow,
             closedKs4JuneWindow,
             post16OctoberWindow,
-            post16NovemberWindow
+            post16NovemberWindow,
+            post16FebruaryWindow
         );
         
         await dbContext.SaveChangesAsync();

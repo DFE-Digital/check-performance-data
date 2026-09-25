@@ -1,0 +1,678 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "results-included-revised_schema.json",
+  "title": "Results included revised",
+  "description": "One row of the 16-18 included revised results data file, which arrives in February. With the non-included revised file it replaces the included, non-included and both late results files. The same columns as results-included_schema.json (fields 1-32, headed by field reference), but its own collection, download and section, so the revised file is its own dataset on the Results tab. QAN, QUAL_NAME, SYLLABUS and SESSION are not CSV columns: x-ingress.source fills them from GNUMBER, Short_Qual_Desc + SubjectDescription, BRDSUBNO and SEASON + EXAMYEAR. The slot stamps SOURCE (16to19_INC_REV).",
+  "type": "object",
+  "additionalProperties": false,
+  "x-ingress": {
+    "collection": "results-included-revised",
+    "pageTab": "results",
+    "institutionKey": "LAESTAB"
+  },
+  "x-download": {
+    "fileName": "KS5res25_revised.csv",
+    "label": "Results included revised"
+  },
+  "x-display": {
+    "tab": "results",
+    "section": "Results included revised",
+    "selectorOrder": 4
+  },
+  "properties": {
+    "ULN": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Student's Unique Learner Number",
+      "x-csv": {
+        "columns": {
+          "default": "A"
+        },
+        "heading": "ULN"
+      },
+      "x-display": {
+        "label": "ULN",
+        "visible": false
+      }
+    },
+    "CYPMD_ID": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "x-csv": {
+        "columns": {
+          "default": "B"
+        },
+        "heading": "CYPMD ID"
+      },
+      "x-display": {
+        "label": "CYPMD ID",
+        "visible": false
+      }
+    },
+    "SURNAME": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Student surname",
+      "x-csv": {
+        "columns": {
+          "default": "C"
+        },
+        "heading": "Surname"
+      },
+      "x-display": {
+        "label": "Surname",
+        "visible": true,
+        "order": 1,
+        "searchable": true
+      }
+    },
+    "FORENAMES": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Student forename",
+      "x-csv": {
+        "columns": {
+          "default": "D"
+        },
+        "heading": "Forename"
+      },
+      "x-display": {
+        "label": "Forename",
+        "visible": true,
+        "order": 2,
+        "searchable": true
+      }
+    },
+    "SEX": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Student sex (F=female, M=male)",
+      "x-csv": {
+        "columns": {
+          "default": "E"
+        },
+        "heading": "Sex"
+      },
+      "x-display": {
+        "label": "Sex",
+        "visible": false
+      }
+    },
+    "DOB": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Student date of birth in format DD/MM/YYYY",
+      "x-csv": {
+        "columns": {
+          "default": "F"
+        },
+        "heading": "Date of birth"
+      },
+      "x-display": {
+        "label": "Date of birth",
+        "visible": false
+      }
+    },
+    "AGE": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Student age at beginning of the reporting year (ie, 31 August 2024)",
+      "x-csv": {
+        "columns": {
+          "default": "G"
+        },
+        "heading": "Age"
+      },
+      "x-display": {
+        "label": "Age",
+        "visible": false
+      }
+    },
+    "EXAMNO": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Exam serial number",
+      "x-csv": {
+        "columns": {
+          "default": "H"
+        },
+        "heading": "Exam"
+      },
+      "x-display": {
+        "label": "Exam",
+        "visible": false
+      }
+    },
+    "GNUMBER": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Qualification number for each qualification (one row per qualification)",
+      "x-csv": {
+        "columns": {
+          "default": "I"
+        },
+        "heading": "Qualification number"
+      },
+      "x-display": {
+        "label": "Qualification number",
+        "visible": true,
+        "order": 5
+      }
+    },
+    "AB_Code": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Awarding organisation abbreviation, eg AQA",
+      "x-csv": {
+        "columns": {
+          "default": "J"
+        },
+        "heading": "Awarding Organisation"
+      },
+      "x-display": {
+        "label": "Awarding Organisation",
+        "visible": false
+      }
+    },
+    "EXAMYEAR": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Exam year",
+      "x-csv": {
+        "columns": {
+          "default": "K"
+        },
+        "heading": "Year"
+      },
+      "x-display": {
+        "label": "Year",
+        "visible": false
+      }
+    },
+    "SEASON": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Exam season, ie S (summer), W (winter)",
+      "x-csv": {
+        "columns": {
+          "default": "L"
+        },
+        "heading": "Season"
+      },
+      "x-display": {
+        "label": "Season",
+        "visible": true,
+        "order": 6
+      }
+    },
+    "exam_date": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Result date",
+      "x-csv": {
+        "columns": {
+          "default": "M"
+        },
+        "heading": "Exam date"
+      },
+      "x-display": {
+        "label": "Exam date",
+        "visible": false
+      }
+    },
+    "Short_Qual_Desc": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Type of qualification, eg GCE AS level",
+      "x-csv": {
+        "columns": {
+          "default": "N"
+        },
+        "heading": "Qualification type"
+      },
+      "x-display": {
+        "label": "Qualification type",
+        "visible": true,
+        "order": 3
+      }
+    },
+    "SubjectDescription": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Subject mapping description, eg English",
+      "x-csv": {
+        "columns": {
+          "default": "O"
+        },
+        "heading": "Subject name"
+      },
+      "x-display": {
+        "label": "Subject name",
+        "visible": true,
+        "order": 4
+      }
+    },
+    "GRADE": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Grade achieved",
+      "x-csv": {
+        "columns": {
+          "default": "P"
+        },
+        "heading": "Grade"
+      },
+      "x-display": {
+        "label": "Grade",
+        "visible": true,
+        "order": 7
+      }
+    },
+    "POINTS_1618": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Point score for qualification",
+      "x-csv": {
+        "columns": {
+          "default": "Q"
+        },
+        "heading": "Point score"
+      },
+      "x-display": {
+        "label": "Point score",
+        "visible": true,
+        "order": 8
+      }
+    },
+    "CAPPED_PTS": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Capped points for English and Maths progress measures",
+      "x-csv": {
+        "columns": {
+          "default": "R"
+        },
+        "heading": "Capped points for English and Maths progress"
+      },
+      "x-display": {
+        "label": "Capped points for English and Maths progress",
+        "visible": false
+      }
+    },
+    "SCHCNO": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "A number allocated to each student within each school/college (same for each line for the same student).",
+      "x-csv": {
+        "columns": {},
+        "heading": "Candidate number"
+      },
+      "x-display": {
+        "label": "Candidate number",
+        "visible": false
+      }
+    },
+    "EXAMCAND": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Candidate number for actual entry",
+      "x-csv": {
+        "columns": {},
+        "heading": "Actual candidate number"
+      },
+      "x-display": {
+        "label": "Actual candidate number",
+        "visible": false
+      }
+    },
+    "ANCN": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "National Centre number",
+      "x-csv": {
+        "columns": {
+          "default": "S"
+        },
+        "heading": "NCN"
+      },
+      "x-display": {
+        "label": "NCN",
+        "visible": false
+      }
+    },
+    "ADFECN": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "DfE (LAESTAB) number of the centre where the exam/assessment was entered",
+      "x-csv": {
+        "columns": {
+          "default": "T"
+        },
+        "heading": "ADFECN"
+      },
+      "x-display": {
+        "label": "ADFECN",
+        "visible": false
+      }
+    },
+    "BRDSUBNO": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Syllabus/scheme code where available",
+      "x-csv": {
+        "columns": {
+          "default": "U"
+        },
+        "heading": "Syllabus code"
+      },
+      "x-display": {
+        "label": "Syllabus code",
+        "visible": false
+      }
+    },
+    "MAPPING": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "LEAP or LDCS subject classification code, eg 5010",
+      "x-csv": {
+        "columns": {
+          "default": "V"
+        },
+        "heading": "LEAP/LDCS code"
+      },
+      "x-display": {
+        "label": "LEAP/LDCS code",
+        "visible": false
+      }
+    },
+    "Level3QualificationCategory": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Qualification category: ie A level, academic, tech level or applied general qualifications, technical certificate and other level 2 vocational qualifications",
+      "x-csv": {
+        "columns": {
+          "default": "W"
+        },
+        "heading": "Qualification category"
+      },
+      "x-display": {
+        "label": "Qualification category",
+        "visible": false
+      }
+    },
+    "EMQualificationCategory": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "English or maths qualification",
+      "x-csv": {
+        "columns": {
+          "default": "X"
+        },
+        "heading": "English and maths qualification category"
+      },
+      "x-display": {
+        "label": "English and maths qualification category",
+        "visible": false
+      }
+    },
+    "R_INCL": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "51= Level 3 or level 2 Result included in performance measures and student entries 52= Level 3 Point score counted but size of qualification discounted 53= Level 3 Point score discounted but size of qualification counted 54 = Both point score and size of qualification discounted by a better result 55= Qualification does not count in the performance tables or is not approved by the secretary of state for this age group 56= Student only has result(s) in an approved qualification with a size less than 0.5 (excluding extended project) and is not included in performance measures",
+      "x-csv": {
+        "columns": {
+          "default": "Y"
+        },
+        "heading": "Exam inclusion status - attainment measures"
+      },
+      "x-display": {
+        "label": "Exam inclusion status - attainment measures",
+        "visible": false
+      }
+    },
+    "R_INCL_EM": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "57= Result excluded from English and/or maths measures 58= Result included in English and/or maths measures",
+      "x-csv": {
+        "columns": {
+          "default": "Z"
+        },
+        "heading": "English and maths included"
+      },
+      "x-display": {
+        "label": "English and maths included",
+        "visible": false
+      }
+    },
+    "QUAL_KS4": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "59= Qualification was taken during KS4 60= Qualification was not taken during KS4",
+      "x-csv": {
+        "columns": {
+          "default": "AA"
+        },
+        "heading": "Qualifications taken during KS4"
+      },
+      "x-display": {
+        "label": "Qualifications taken during KS4",
+        "visible": false
+      }
+    },
+    "UKPRN": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "School or college UK Provider Registration Number",
+      "x-csv": {
+        "columns": {
+          "default": "AB"
+        },
+        "heading": "UKPRN"
+      },
+      "x-display": {
+        "label": "UKPRN",
+        "visible": false
+      }
+    },
+    "URN": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "School or college Unique Reference Number",
+      "x-csv": {
+        "columns": {
+          "default": "AC"
+        },
+        "heading": "URN"
+      },
+      "x-display": {
+        "label": "URN",
+        "visible": false
+      }
+    },
+    "LAESTAB": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "DfE number for institution",
+      "x-csv": {
+        "columns": {
+          "default": "AD"
+        },
+        "heading": "DfE number"
+      },
+      "x-display": {
+        "label": "DfE number",
+        "visible": false
+      }
+    },
+    "cypmd_pk": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "primary key for use by Oracle team (laestab,pupilid,gnumber,examyear,examno)",
+      "x-csv": {
+        "columns": {},
+        "heading": "cypmd_pk"
+      },
+      "x-display": {
+        "label": "cypmd_pk",
+        "visible": false
+      }
+    },
+    "SOURCE": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "x-csv": {
+        "columns": {},
+        "heading": "Source file"
+      },
+      "x-display": {
+        "label": "Source file",
+        "visible": false
+      }
+    },
+    "QAN": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "x-ingress": {
+        "source": "GNUMBER"
+      },
+      "x-display": {
+        "label": "QAN",
+        "visible": false
+      },
+      "x-csv": {
+        "columns": {},
+        "heading": "QAN"
+      }
+    },
+    "QUAL_NAME": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "x-ingress": {
+        "source": [
+          "Short_Qual_Desc",
+          "SubjectDescription"
+        ],
+        "separator": " "
+      },
+      "x-display": {
+        "label": "Qualification",
+        "visible": false
+      },
+      "x-csv": {
+        "columns": {},
+        "heading": "Qualification"
+      }
+    },
+    "SYLLABUS": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "x-ingress": {
+        "source": "BRDSUBNO"
+      },
+      "x-display": {
+        "label": "Syllabus",
+        "visible": false
+      },
+      "x-csv": {
+        "columns": {},
+        "heading": "Syllabus"
+      }
+    },
+    "SESSION": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "x-ingress": {
+        "source": [
+          "SEASON",
+          "EXAMYEAR"
+        ],
+        "separator": ""
+      },
+      "x-display": {
+        "label": "Session",
+        "visible": false
+      },
+      "x-csv": {
+        "columns": {},
+        "heading": "Session"
+      }
+    }
+  }
+}

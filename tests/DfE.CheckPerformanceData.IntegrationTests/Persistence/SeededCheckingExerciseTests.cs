@@ -30,13 +30,14 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
     private readonly Guid _closedKs4 = Guid.NewGuid();
     private readonly Guid _october = Guid.NewGuid();
     private readonly Guid _november = Guid.NewGuid();
+    private readonly Guid _february = Guid.NewGuid();
 
     public async Task InitializeAsync()
     {
         await _postgres.StartAsync();
         await using var ctx = CreateContext();
         await ctx.Database.MigrateAsync();
-        await SeedCheckingWindows.ExecuteSeed(ctx, _openKs4, _closedKs4, _october, _november);
+        await SeedCheckingWindows.ExecuteSeed(ctx, _openKs4, _closedKs4, _october, _november, _february);
     }
 
     public Task DisposeAsync() => _postgres.DisposeAsync().AsTask();
@@ -133,7 +134,7 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
         for (var start = 0; start < 2; start++)
         {
             await using var ctx = CreateContext();
-            await SeedCheckingWindows.ExecuteSeed(ctx, _openKs4, _closedKs4, _october, _november);
+            await SeedCheckingWindows.ExecuteSeed(ctx, _openKs4, _closedKs4, _october, _november, _february);
         }
 
         Assert.Equal(2, (await LoadAsync(_october)).CheckingExercises.Count);
@@ -310,6 +311,97 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
             return await new DfE.CheckPerformanceData.Application.ResultsEnquiry.LateResultsAvailability(
                 new DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseStorageResolver(
                     new WindowRepository(ctx), TimeProvider.System)).IsAwaitingSecondLateResultsAsync(_november);
+        }
+
+        static async Task<(string, string)> UploadAsync(BlobContainerClient container, Guid exerciseId, Guid datasetId, string name, byte[] content)
+        {
+            var path = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DefinitionFile(exerciseId, datasetId, name);
+            await container.GetBlobClient(path).UploadAsync(new BinaryData(content), overwrite: true);
+            return (path, Convert.ToHexString(SHA256.HashData(content)));
+        }
+    }
+
+    [Fact]
+    public async Task The_February_window_has_late_results_2_validated_and_takes_the_revised_files()
+    {
+        // The seed does the October import and the November late results 2 for the admin. The
+        // revised files then replace the four earlier files: the admin adds them, retires the four
+        // and validates, which makes a release that holds only the revised rows.
+        var blobs = new BlobServiceClient(azurite.ConnectionString);
+        try
+        {
+            await using (var ctx = CreateContext())
+                await SeedPost16FebruarySamples.ExecuteSeedAsync(ctx, blobs, Ingress(ctx), AppContext.BaseDirectory, _february);
+
+            var february = await LoadAsync(_february);
+            Assert.Equal("16 to 19 Feb", february.Title);
+            var results = february.CheckingExercises.Single(e => e.ExerciseType == CheckingExerciseType.ResultsEnquiry);
+            Assert.Equal(
+                ["16to19_INC", "16to19_LR1", "16to19_LR2", "16to19_NONINC"],
+                results.Datasets.Where(d => d.IngressFile != string.Empty).Select(d => d.Name).Order());
+            await using (var ctx = CreateContext())
+                Assert.Equal(2, await ctx.Set<CheckingExerciseRelease>().CountAsync(r => r.CheckingExerciseId == results.Id));
+            Assert.Equal(
+                SeedStudentResults.All.Concat(SeedStudentResults.LateResults2).Select(r => r.CompositeKey).Order(),
+                (await ResultsAsync(results)).Select(r => r.CompositeKey).Order());
+
+            // What the admin does by hand: choose each revised file and its schema, retire the four
+            // files they replace, then validate.
+            var novemberRelease = results.CurrentReleaseId;
+            await using (var ctx = CreateContext())
+            {
+                var container = blobs.GetBlobContainerClient(_february.ToString());
+                var datasets = await ctx.CheckingWindowDatasets.Where(d => d.CheckingExerciseId == results.Id).ToListAsync();
+                foreach (var (slot, file, schema) in new[]
+                {
+                    ("16to19_INC_REV", SeedPost16FebruarySamples.IncludedRevisedFile, "results-included-revised_schema.json"),
+                    ("16to19_NONINC_REV", SeedPost16FebruarySamples.NonIncludedRevisedFile, "results-non-included-revised_schema.json")
+                })
+                {
+                    var dataset = datasets.Single(d => d.Name == slot);
+                    (dataset.IngressFile, dataset.IngressFileChecksum) = await UploadAsync(container, results.Id, dataset.Id,
+                        Path.GetFileName(file), SeedPost16FebruarySamples.Files()[file]);
+                    (dataset.SchemaFile, dataset.SchemaFileChecksum) = await UploadAsync(container, results.Id, dataset.Id,
+                        schema, await File.ReadAllBytesAsync(Path.Combine(AppContext.BaseDirectory, "Data", "Ingress", "post16", schema)));
+                }
+                foreach (var dataset in datasets.Where(d => d.Name is "16to19_INC" or "16to19_NONINC" or "16to19_LR1" or "16to19_LR2"))
+                    dataset.Retired = true;
+                await ctx.SaveChangesAsync();
+            }
+            await using (var ctx = CreateContext())
+            {
+                ValidationProgress? last = null;
+                await foreach (var progress in Ingress(ctx).ProcessAsync(results.Id)) last = progress;
+                Assert.True(last is { IsComplete: true, IsError: false }, last?.Message);
+            }
+
+            results = (await LoadAsync(_february)).CheckingExercises.Single(e => e.ExerciseType == CheckingExerciseType.ResultsEnquiry);
+            Assert.NotEqual(novemberRelease, results.CurrentReleaseId);
+            var revised = await ResultsAsync(results);
+            Assert.Equal(SeedStudentResults.Revised.Select(r => r.CompositeKey).Order(), revised.Select(r => r.CompositeKey).Order());
+            // The amendment replaced the row it corrected: one English row for Alice, at grade 7.
+            Assert.Equal("7", Assert.Single(revised, r => r.CypmdId == "500001" && r.Qan == "60148366").Grade);
+            Assert.False(await AwaitingSecondLateResultsAsync());
+        }
+        finally
+        {
+            await blobs.GetBlobContainerClient(_february.ToString()).DeleteIfExistsAsync();
+        }
+
+        async Task<List<DfE.CheckPerformanceData.Application.ResultsEnquiry.StudentResultRecord>> ResultsAsync(CheckingExercise exercise) =>
+            System.Text.Json.JsonSerializer.Deserialize<List<DfE.CheckPerformanceData.Application.ResultsEnquiry.StudentResultRecord>>(
+                (await blobs.GetBlobContainerClient(_february.ToString()).GetBlobClient(
+                    DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths
+                        .DataBlobName(exercise.Id, CheckingDataType.Results, "860/4070", exercise.CurrentReleaseId))
+                    .DownloadContentAsync()).Value.Content.ToArray(),
+                DfE.CheckPerformanceData.Infrastructure.BlobStorage.StudentResultsBlobClient.JsonOptions)!;
+
+        async Task<bool> AwaitingSecondLateResultsAsync()
+        {
+            await using var ctx = CreateContext();
+            return await new DfE.CheckPerformanceData.Application.ResultsEnquiry.LateResultsAvailability(
+                new DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseStorageResolver(
+                    new WindowRepository(ctx), TimeProvider.System)).IsAwaitingSecondLateResultsAsync(_february);
         }
 
         static async Task<(string, string)> UploadAsync(BlobContainerClient container, Guid exerciseId, Guid datasetId, string name, byte[] content)

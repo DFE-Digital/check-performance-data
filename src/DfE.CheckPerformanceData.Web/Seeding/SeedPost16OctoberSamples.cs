@@ -90,7 +90,7 @@ public static class SeedPost16OctoberSamples
     // specification, headed by its field reference. There is no QAN, QUAL_NAME, SYLLABUS or SESSION
     // column: results-included_schema.json and results-non-included_schema.json read them from GNUMBER, Short_Qual_Desc +
     // SubjectDescription, BRDSUBNO and SEASON + EXAMYEAR, as it must for the supplier's real file.
-    private static byte[] ResultsCsv(
+    internal static byte[] ResultsCsv(
         IEnumerable<StudentResultRecord> results, IReadOnlyDictionary<string, Post16PupilRecord> students) =>
         SeedExerciseFixtures.WriteCsv(results.Select((result, index) =>
         {

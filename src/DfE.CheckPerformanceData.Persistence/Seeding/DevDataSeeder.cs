@@ -16,13 +16,17 @@ public sealed class DevDataSeeder(IPortalDbContext dbContext)
     // files (SeedPost16NovemberSamples). Only the late results 2 slot is empty, for an admin to fill.
     public static readonly Guid Post16NovemberCheckingWindowId = Guid.Parse("3B1D7C52-6E0A-4F8B-9C21-5A4E8D7F1B63");
 
+    // "16 to 19 Feb": the same setup as November, but the seed also adds and validates late results
+    // 2 (SeedPost16FebruarySamples). The revised files are left for an admin to add.
+    public static readonly Guid Post16FebruaryCheckingWindowId = Guid.Parse("9E2A4C71-3B5D-4F60-8A17-C4D2E6F80B95");
+
     public async Task SeedAsync()
     {
         // Countries are seeded unconditionally on startup in every environment (see Program.cs),
         // idempotently via SeedCountries.ExecuteSeed. They are not window-specific, so they are
         // deliberately not part of the destructive dev/reset seed here.
         await SeedCheckingWindows.ExecuteSeed(dbContext, KeyStage4JuneCheckingWindowId, ClosedKeyStage4JuneCheckingWindowId,
-            Post16OctoberCheckingWindowId, Post16NovemberCheckingWindowId);
+            Post16OctoberCheckingWindowId, Post16NovemberCheckingWindowId, Post16FebruaryCheckingWindowId);
 
         // Pupil data is no longer stored in the database — it is seeded into blob storage
         // as per-school JSON by SeedPupilData (Web), which runs after this seeder.

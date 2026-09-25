@@ -82,6 +82,23 @@ public sealed class Post16MergeJourneyTests(PlaywrightFixture fixture) : Seeding
         await Expect(option.First).ToBeVisibleAsync();
     }
 
+    // ── What the autocomplete announces ─────────────────────────────────────
+
+    [RetryFact(3)]
+    public async Task TheErrorReadToScreenReaders_HasNoDoubleFullStop()
+    {
+        // This page's error message ends in a full stop, so the text the autocomplete announces
+        // must not add a second one ("to be merged.. Start typing…").
+        await StartMergeJourneyAsync();
+
+        await ContinueAsync();
+        await Expect(Page.Locator(".govuk-error-summary")).ToBeVisibleAsync();
+
+        var assistiveHint = await Page.Locator("#pupil-search__assistiveHint").TextContentAsync();
+        Assert.Contains("for the first duplicate record to be merged. Start typing", assistiveHint);
+        Assert.DoesNotContain("..", assistiveHint);
+    }
+
     // ── Helpers ─────────────────────────────────────────────────────────────
 
     private async Task StartMergeJourneyAsync()

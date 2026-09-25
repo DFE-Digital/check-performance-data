@@ -66,8 +66,31 @@ public static class ZendeskTicketFieldOptions
     /// </summary>
     public static class ReasonForRemoval
     {
+        public const string AddBackRemoval = "add_back_removal";
+        public const string AdmittedFollowingPermanentExclusion = "admitted_following_permanent_exclusion";
+        public const string AdmittedFromAbroadWithEnglishNotFirstLanguage = "admitted_from_abroad_with_english_not_first_language";
         public const string Deceased = "deceased";
+        public const string ElectiveHomeEducation = "elective_home_education";
+        public const string MovedSchoolDualRegistration = "moved_school_dual_registration";
+        public const string NotAtEndOf16To18Study = "not_at_end_of_16_to_18_study";
+        public const string NotOnRoll = "not_on_roll";
+        public const string OtherEvidenceNotRequired = "other_-_evidence_not_required";
+        public const string OtherWithEvidence = "other_-_with_evidence";
+        public const string PermanentlyExcludedFromCurrentSchool = "permanently_excluded_from_current_school";
+        public const string PermanentlyLeftEngland = "permanently_left_england";
+        public const string PupilMissingInEducation = "pupil_missing_in_education";
+        public const string SocialCareInvolvementIncludingPolicePrison = "social_care_involvement_including_police_prison";
         public const string TerminalCriticalIllness = "terminal_critical_illness";
+        public const string YearGroupChange = "year_group_change";
+
+        public static class Post16NotOnRoll
+        {
+            public const string Apprentice = "not_on_roll_apprentice";
+            public const string ExternalCandidate = "not_on_roll_external";
+            public const string InternationalStudent = "not_on_roll_international_student";
+            public const string OtherEvidenceNotRequired = "not_on_roll_other_evidence_not_required";
+            public const string OtherWithEvidence = "not_on_roll_other_with_evidence";
+        }
     }
 
     /// <summary>
@@ -187,6 +210,26 @@ public static class ZendeskTicketFieldOptions
         };
     }
 
+    /// <summary>
+    /// Resolves the Post16 "not-on-roll" reason-for-removal option from the sub-reason answer
+    /// (Remove_Post16.json "not-on-roll-reason" radio raw value, FR-003). Returns null for an
+    /// unknown/missing sub-reason so the worker falls back to "not_on_roll" (FR-014).
+    /// "other" follows the same evidence predicate as the "other" reason (FR-004).
+    /// </summary>
+    public static string? GetPost16NotOnRollOption(string subReason, bool hasEvidence)
+    {
+        return subReason.ToLowerInvariant() switch
+        {
+            "apprentice" => ReasonForRemoval.Post16NotOnRoll.Apprentice,
+            "external-candidate" => ReasonForRemoval.Post16NotOnRoll.ExternalCandidate,
+            "international-student" => ReasonForRemoval.Post16NotOnRoll.InternationalStudent,
+            "other" => hasEvidence
+                ? ReasonForRemoval.Post16NotOnRoll.OtherWithEvidence
+                : ReasonForRemoval.Post16NotOnRoll.OtherEvidenceNotRequired,
+            _ => null,
+        };
+    }
+
     #region Helper methods for each field
 
     private static class TypeOfOrganisationHelpers
@@ -270,12 +313,24 @@ public static class ZendeskTicketFieldOptions
             // Authoritative Zendesk option strings from the field's option list
             // (spec field table, field ID 19381440546322). Keyed on the RequestTypeCode
             // removal-reason suffix (the flow option value), e.g. "life-limiting-illness".
-            // The "pupil died" removal reason maps to option "deceased". The remaining
-            // removal-reason options are not yet confirmed; unmapped reasons are omitted +
+            // "other" and "not-on-roll" are answer-aware (evidence / Post16 sub-reason) and
+            // are resolved by the worker, not these rows; unmapped reasons are omitted +
             // warning-logged (FR-014).
-            { "pupil-died", ReasonForRemoval.Deceased },
+            { "completed-ks4-elsewhere", ReasonForRemoval.AddBackRemoval },
+            { "child-missing-education", ReasonForRemoval.PupilMissingInEducation },
+            { "dual-registered-moved", ReasonForRemoval.MovedSchoolDualRegistration },
+            { "elective-home-education", ReasonForRemoval.ElectiveHomeEducation },
+            { "english-not-first-language", ReasonForRemoval.AdmittedFromAbroadWithEnglishNotFirstLanguage },
+            { "life-limiting-illness", ReasonForRemoval.TerminalCriticalIllness },
+            { "not-at-end-of-16-19-study", ReasonForRemoval.NotAtEndOf16To18Study },
+            { "permanent-exclusion", ReasonForRemoval.AdmittedFollowingPermanentExclusion },
+            { "permanently-excluded", ReasonForRemoval.PermanentlyExcludedFromCurrentSchool },
+            { "permanently-left-england", ReasonForRemoval.PermanentlyLeftEngland },
             { "pupil died", ReasonForRemoval.Deceased },
-            { "life-limiting-illness", ReasonForRemoval.TerminalCriticalIllness }
+            { "pupil-died", ReasonForRemoval.Deceased },
+            { "social-care-involvement", ReasonForRemoval.SocialCareInvolvementIncludingPolicePrison },
+            { "student-died", ReasonForRemoval.Deceased },
+            { "year-group-change", ReasonForRemoval.YearGroupChange }
         };
 
         public static string? GetOption(string name) => Map.TryGetValue(name, out var value) ? value : null;

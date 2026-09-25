@@ -9,8 +9,8 @@ using Microsoft.Extensions.Options;
 namespace DfE.CheckPerformanceData.IntegrationTests.Egress;
 
 // The fake reads the worker's dev outbox: the decision custom field when the ticket carried one,
-// else the subject prefix the ticket builder always writes. Without this the dev/E2E stack, where
-// Zendesk:UseFake defaults to true, could never pull.
+// else the subject prefix the ticket builder always writes. Without this the dev/E2E stack, which
+// opts into Egress:UseDevOutbox, could never pull.
 //
 // Deviation from the plan: the unit-test project has no in-memory-EF pattern and must not gain a
 // MockQueryable dependency, so — per the plan's own fallback — this class lives here against real

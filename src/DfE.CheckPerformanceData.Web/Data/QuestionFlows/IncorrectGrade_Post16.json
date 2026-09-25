@@ -58,7 +58,7 @@
       "pupilKey": "primary",
       "title": "What is the name of one of the students from the affected cohort?",
       "subheading": "Start typing to search by name, ULN, CYPMD ID or date of birth. You can only search for students who have results.",
-      "validationFailure": "Enter the name of the student with an incorrect grade",
+      "validationFailure": "Enter the name of one of the students from the affected cohort",
       "nextPageId": "select-result"
     },
     {

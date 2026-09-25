@@ -108,8 +108,9 @@ public sealed class MissingQualificationFlowTests
         Assert.Equal(
             "Select if the missing qualification affects the whole cohort",
             Question("cohort-scope", "q-cohort-scope").ValidationFailure);
+        // #460: the cohort page's heading asks for "one of the students", so its error says so.
         Assert.Equal(
-            "Enter the name of the student missing this qualification",
+            "Enter the name of one of the students from the affected cohort",
             Page("select-student-cohort").ValidationFailure);
         Assert.Equal(
             "Enter the name of the student missing this qualification",

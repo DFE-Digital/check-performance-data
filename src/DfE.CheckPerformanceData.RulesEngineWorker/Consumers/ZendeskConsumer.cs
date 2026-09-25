@@ -712,7 +712,7 @@ public sealed class ZendeskConsumer : ConsumerBase
                 ?? ZendeskTicketFieldOptions.ReasonForRemoval.NotOnRoll; // unknown sub-reason -> fallback (FR-014)
         }
 
-        return _ticketFieldService.GetOptionValue(ZendeskTicketFieldConstants.ReasonForRemovalName, removalReason);
+        return _ticketFieldService?.GetOptionValue(ZendeskTicketFieldConstants.ReasonForRemovalName, removalReason);
     }
 
     // FR-007: LDS matched pupil ID from the matched record, falling back to the submitted

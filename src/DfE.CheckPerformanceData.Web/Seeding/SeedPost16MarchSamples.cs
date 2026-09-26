@@ -1,4 +1,6 @@
+using System.Globalization;
 using Azure.Storage.Blobs;
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Infrastructure.Ingress;
 using DfE.CheckPerformanceData.Persistence.Contexts;
@@ -10,15 +12,21 @@ namespace DfE.CheckPerformanceData.Web.Seeding;
 /// Dev-only: the "16 to 19 Mar" window, where the March step is done. The seed does the February
 /// seed (<see cref="SeedPost16FebruarySamples"/>), then links the included revised with retention
 /// file, retires the included revised file it replaces and validates the results enquiry again. It
-/// has an October, a November, a February and a March release.
+/// has an October, a November, a February and a March release. It also fills and validates the
+/// window's pupil aims data share, a display-only exercise with no kind.
 /// </summary>
 /// <remarks>
-/// The seed also writes the sample to the ingress storage account, container <see cref="Container"/>:
-/// <c>results/16to19_INC_REV_RET.csv</c> → <c>results-included-revised-retention_schema.json</c>, in
-/// the supplier's 16-18 results data file shape, in
-/// <c>src/DfE.CheckPerformanceData.Web/Data/Ingress/post16/</c>. Its rows are
+/// The seed also writes the samples to the ingress storage account, container <see cref="Container"/>.
+/// Their schemas are in <c>src/DfE.CheckPerformanceData.Web/Data/Ingress/post16/</c>:
+/// <list type="bullet">
+/// <item><c>results/16to19_INC_REV_RET.csv</c>, in the supplier's 16-18 results data file shape →
+/// <c>results-included-revised-retention_schema.json</c>. Its rows are
 /// <see cref="SeedStudentResults.IncludedRevisedWithRetention"/>. Testing guide:
-/// <c>docs/testing-revised-results.md</c>.
+/// <c>docs/testing-revised-results.md</c>.</item>
+/// <item><c>students/aims.csv</c>, in the supplier's pupil aims data file shape →
+/// <c>students-aims_schema.json</c>. Its rows are one or two learning aims for every included
+/// student.</item>
+/// </list>
 /// </remarks>
 public static class SeedPost16MarchSamples
 {
@@ -27,11 +35,15 @@ public static class SeedPost16MarchSamples
     public const string IncludedRevisedWithRetentionFile = $"results/{ResultsFileTags.Post16IncludedRevisedWithRetention}.csv";
     public const string IncludedRevisedWithRetentionSchema = "results-included-revised-retention_schema.json";
 
+    public const string AimsFile = "students/aims.csv";
+    public const string AimsSchema = "students-aims_schema.json";
+
     /// <summary>The sample files, by their path in <see cref="Container"/>.</summary>
     public static IReadOnlyDictionary<string, byte[]> Files() => new Dictionary<string, byte[]>
     {
         [IncludedRevisedWithRetentionFile] = SeedPost16OctoberSamples.ResultsCsv(
-            SeedStudentResults.IncludedRevisedWithRetention, SeedPost16OctoberSamples.KingsmeadStudents())
+            SeedStudentResults.IncludedRevisedWithRetention, SeedPost16OctoberSamples.KingsmeadStudents()),
+        [AimsFile] = AimsCsv(SeedPupilData.Post16Pupils(DevDataSeeder.Post16MarchCheckingWindowId).Where(p => p.Included))
     };
 
     public static Task ExecuteSeedAsync(
@@ -52,12 +64,64 @@ public static class SeedPost16MarchSamples
                     Files()[IncludedRevisedWithRetentionFile], IncludedRevisedWithRetentionSchema)
             ],
             ResultsFileTags.Post16IncludedRevised);
+
+        var window = await SeedExerciseFixtures.LoadAsync(dbContext, windowId);
+        var aims = window.CheckingExercises.Single(e => e.ExerciseType is null && e.Name == "Pupil aims");
+        await SeedExerciseFixtures.LinkAsync(blobs, aims,
+            aims.Datasets.Single(d => d.Name == SeedCheckingWindows.AimsDataset), Path.GetFileName(AimsFile),
+            Files()[AimsFile], AimsSchema,
+            await File.ReadAllTextAsync(Path.Combine(contentRootPath, "Data", "Ingress", "post16", AimsSchema)));
+        await dbContext.SaveChangesAsync();
+        await SeedExerciseFixtures.IngestAsync(blobs, ingress, aims);
     }
 
     /// <summary>
-    /// Writes the included revised with retention sample file, replacing one from an earlier seed.
-    /// Does nothing when no ingress storage account is configured.
+    /// Writes the March sample files, replacing any from an earlier seed. Does nothing when no
+    /// ingress storage account is configured.
     /// </summary>
     public static Task WriteSamplesAsync(IReadOnlyDictionary<string, BlobServiceClient> blobClients, ILogger logger) =>
         SeedPost16OctoberSamples.WriteToIngressAsync(blobClients, Container, Files(), "16 to 19 Mar", logger);
+
+    /// <summary>The DfE number every tenth aim is recorded at, a provider other than the student's own.</summary>
+    public const string PartnerAimLaestab = "8604099";
+
+    // A pupil aims data file in the supplier's own shape: every column of the data specification,
+    // headed by its field reference, one row per student per learning aim. Every third student has
+    // two aims.
+    internal static byte[] AimsCsv(IEnumerable<Post16PupilRecord> students) =>
+        SeedExerciseFixtures.WriteCsv(students.SelectMany((student, index) =>
+            Enumerable.Range(0, index % 3 == 0 ? 2 : 1).Select(n =>
+            {
+                var aim = Aims[(index + n) % Aims.Length];
+                var aimLaestab = (index + n) % 10 == 9 ? PartnerAimLaestab : student.Laestab;
+                return (IReadOnlyDictionary<string, string>)new Dictionary<string, string>
+                {
+                    ["LAESTAB"] = student.Laestab,
+                    ["URN"] = student.Urn,
+                    ["UKPRN"] = student.Ukprn,
+                    ["AimLAESTAB"] = aimLaestab,
+                    ["ULN"] = student.Uln,
+                    ["CYPMD_ID"] = student.Cypmd_Id,
+                    ["SURNAME"] = student.Surname,
+                    ["FORENAMES"] = student.Firstname,
+                    ["SEX"] = student.Sex,
+                    ["DOB"] = student.DateOfBirth,
+                    ["AGE"] = student.Age.ToString(CultureInfo.InvariantCulture),
+                    ["LearningAimReference"] = aim.Reference,
+                    ["Subj_Desc"] = aim.Subject,
+                    ["Aim_Type"] = aim.Type.ToString(CultureInfo.InvariantCulture),
+                    ["cypmd_pk"] = $"{aimLaestab}{student.Cypmd_Id}{aim.Reference}"
+                };
+            })));
+
+    // Vocational learning aims: 2 = tech level, 4 = tech certification, 5 = other level 2 vocational.
+    private static readonly (string Reference, string Subject, int Type)[] Aims =
+    [
+        ("60183123", "Applied Science", 2),
+        ("60175680", "Health and Social Care", 2),
+        ("60304588", "Digital Production", 4),
+        ("60146412", "Construction and the Built Environment", 4),
+        ("50079657", "Hospitality", 5),
+        ("60171731", "Sport and Active Leisure", 5)
+    ];
 }

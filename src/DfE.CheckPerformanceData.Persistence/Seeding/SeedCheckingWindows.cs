@@ -91,6 +91,26 @@ public static class SeedCheckingWindows
                 FeedsJourney = true, SortOrder = d.SortOrder
             }).ToList();
 
+    /// <summary>The name of the pupil aims share's one dataset slot.</summary>
+    public const string AimsDataset = "aims";
+
+    // A display-only data share, as an admin adds one through CreateCheckingExerciseController: no
+    // kind, so no journey, and one slot that feeds no journey. It runs on the results enquiry's
+    // dates, so the window's outer dates do not change.
+    private static CheckingExercise AimsDataShare(DateTime startDate, DateTime endDate) => new()
+    {
+        ExerciseType = null,
+        DisplayOnly = true,
+        Name = "Pupil aims",
+        TabName = "Aims",
+        TabOrder = 400,
+        IsEnabled = true,
+        StartDate = startDate,
+        EndDate = endDate,
+        SortOrder = 2,
+        Datasets = [new CheckingWindowDataset { Name = AimsDataset, Included = null, FeedsJourney = false, SortOrder = 0 }]
+    };
+
     public static async Task ExecuteSeed(IPortalDbContext dbContext, Guid openKs4WindowId, Guid closedKs4WindowId,
         Guid post16OctoberWindowId, Guid post16NovemberWindowId, Guid post16FebruaryWindowId,
         Guid post16MarchWindowId)
@@ -188,8 +208,9 @@ public static class SeedCheckingWindows
             CheckingExercises = ExercisesFor(CheckingWindowType.Post16, octoberStart, octoberEnd, pupilDataEnd: octoberPupilDataEnd)
         };
 
-        // "16 to 19 Mar": the same again. The Web seed does the February steps, then adds included
-        // revised with retention, retires included revised and validates (SeedPost16MarchSamples).
+        // "16 to 19 Mar": the same again, plus the pupil aims data share. The Web seed does the
+        // February steps, then adds included revised with retention, retires included revised and
+        // validates, and fills and validates the aims share (SeedPost16MarchSamples).
         var post16MarchWindow = new CheckingWindow
         {
             Id = post16MarchWindowId,
@@ -200,7 +221,11 @@ public static class SeedCheckingWindows
             Title = "16 to 19 Mar",
             TurnaroundCommitment = "updated in the Spring",
             NextOpportunity = new DateTime(DateTime.Now.Year + 1, 10, 1),
-            CheckingExercises = ExercisesFor(CheckingWindowType.Post16, octoberStart, octoberEnd, pupilDataEnd: octoberPupilDataEnd)
+            CheckingExercises =
+            [
+                .. ExercisesFor(CheckingWindowType.Post16, octoberStart, octoberEnd, pupilDataEnd: octoberPupilDataEnd),
+                AimsDataShare(octoberStart, octoberEnd)
+            ]
         };
 
         await dbContext.CheckingWindows.AddRangeAsync(

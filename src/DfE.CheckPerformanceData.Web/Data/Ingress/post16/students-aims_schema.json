@@ -2,13 +2,13 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "students-aims_schema.json",
   "title": "Pupil aims",
-  "description": "One row from the 1618 Pupil Aims worksheet of Post16.ods.",
+  "description": "One row of the 16-19 pupil aims data file, as the data specification defines it (fields 1-15, headed by field reference): one row per student per learning aim. The descriptive column heading is the heading of the CSV a school downloads, in column order A-N. cypmd_pk has no column and is not exported. Rows are split by LAESTAB, the student's institution; AimLAESTAB is where the aim was recorded and may differ.",
   "type": "object",
   "additionalProperties": false,
   "x-ingress": {
     "collection": "students-aims",
     "pageTab": "students",
-    "institutionKey": "AimLAESTAB"
+    "institutionKey": "LAESTAB"
   },
   "x-download": {
     "fileName": "ks5aim25.csv",
@@ -25,7 +25,6 @@
         "string",
         "null"
       ],
-      "maxLength": 7,
       "description": "DfE number for institution",
       "x-csv": {
         "columns": {
@@ -43,7 +42,6 @@
         "string",
         "null"
       ],
-      "maxLength": 10,
       "description": "School or college URN",
       "x-csv": {
         "columns": {
@@ -61,7 +59,6 @@
         "string",
         "null"
       ],
-      "maxLength": 10,
       "description": "School or college UKPRN",
       "x-csv": {
         "columns": {
@@ -79,7 +76,6 @@
         "string",
         "null"
       ],
-      "maxLength": 7,
       "description": "The DfE number for the provider where an aim is recorded. This maybe different to where the student is allocated or qualification assessed.",
       "x-csv": {
         "columns": {
@@ -89,7 +85,8 @@
       },
       "x-display": {
         "label": "DfE number where the aim was recorded",
-        "visible": false
+        "visible": true,
+        "order": 6
       }
     },
     "ULN": {
@@ -97,7 +94,6 @@
         "string",
         "null"
       ],
-      "maxLength": 20,
       "description": "Student's Unique Learner Number",
       "x-csv": {
         "columns": {
@@ -115,7 +111,6 @@
         "string",
         "null"
       ],
-      "maxLength": 20,
       "description": "Student index number (for use in checking exercise)",
       "x-csv": {
         "columns": {
@@ -133,7 +128,6 @@
         "string",
         "null"
       ],
-      "maxLength": 100,
       "description": "Student surname",
       "x-csv": {
         "columns": {
@@ -143,7 +137,9 @@
       },
       "x-display": {
         "label": "Surname",
-        "visible": false
+        "visible": true,
+        "order": 1,
+        "searchable": true
       }
     },
     "FORENAMES": {
@@ -151,7 +147,6 @@
         "string",
         "null"
       ],
-      "maxLength": 100,
       "description": "Student forename",
       "x-csv": {
         "columns": {
@@ -161,7 +156,9 @@
       },
       "x-display": {
         "label": "Forename",
-        "visible": false
+        "visible": true,
+        "order": 2,
+        "searchable": true
       }
     },
     "SEX": {
@@ -169,7 +166,6 @@
         "string",
         "null"
       ],
-      "maxLength": 1,
       "description": "Student Sex (F = female, M = male)",
       "x-csv": {
         "columns": {
@@ -187,7 +183,6 @@
         "string",
         "null"
       ],
-      "maxLength": 10,
       "description": "Student date of birth in format DD/MM/YYYY",
       "x-csv": {
         "columns": {
@@ -205,7 +200,7 @@
         "integer",
         "null"
       ],
-      "description": "Student age at beginning of the reporting year (i.e. 31 August 2020)",
+      "description": "Student age at beginning of the reporting year (i.e. 31 August 2025)",
       "x-csv": {
         "columns": {
           "default": "K"
@@ -222,7 +217,6 @@
         "string",
         "null"
       ],
-      "maxLength": 8,
       "description": "Qualification number for each qualification (one row per qualification)",
       "x-csv": {
         "columns": {
@@ -232,7 +226,8 @@
       },
       "x-display": {
         "label": "Qualification number",
-        "visible": false
+        "visible": true,
+        "order": 3
       }
     },
     "Subj_Desc": {
@@ -240,7 +235,6 @@
         "string",
         "null"
       ],
-      "maxLength": 50,
       "description": "Subject description for this learning aim",
       "x-csv": {
         "columns": {
@@ -250,7 +244,8 @@
       },
       "x-display": {
         "label": "Description of subject",
-        "visible": false
+        "visible": true,
+        "order": 4
       }
     },
     "Aim_Type": {
@@ -267,7 +262,8 @@
       },
       "x-display": {
         "label": "Aim type",
-        "visible": false
+        "visible": true,
+        "order": 5
       }
     },
     "cypmd_pk": {
@@ -275,7 +271,6 @@
         "string",
         "null"
       ],
-      "maxLength": 50,
       "description": "primary key for use by Oracle team (aimlaestab,pupilid,learningaimreference)",
       "x-csv": {
         "columns": {},

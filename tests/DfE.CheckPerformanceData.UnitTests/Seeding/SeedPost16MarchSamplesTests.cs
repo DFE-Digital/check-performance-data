@@ -16,8 +16,35 @@ public sealed class SeedPost16MarchSamplesTests
     private static byte[] Retention => Files[SeedPost16MarchSamples.IncludedRevisedWithRetentionFile];
 
     [Fact]
-    public void The_only_March_sample_is_the_included_revised_with_retention_file()
-        => Assert.Equal(["results/16to19_INC_REV_RET.csv"], Files.Keys);
+    public void The_March_samples_are_the_included_revised_with_retention_file_and_the_aims_file()
+        => Assert.Equal(["results/16to19_INC_REV_RET.csv", "students/aims.csv"], Files.Keys.Order());
+
+    [Fact]
+    public void The_aims_file_has_every_specified_column_in_order_and_its_schema_reads_each_one()
+    {
+        using var doc = Parse(SeedPost16MarchSamples.AimsSchema);
+        var properties = doc.RootElement.GetProperty("properties").EnumerateObject().Select(p => p.Name).ToList();
+
+        // Fields 1-15 of the data specification, by field reference.
+        Assert.Equal(
+            ["LAESTAB", "URN", "UKPRN", "AimLAESTAB", "ULN", "CYPMD_ID", "SURNAME", "FORENAMES", "SEX", "DOB",
+             "AGE", "LearningAimReference", "Subj_Desc", "Aim_Type", "cypmd_pk"],
+            Header(Files[SeedPost16MarchSamples.AimsFile]));
+        Assert.Equal(Header(Files[SeedPost16MarchSamples.AimsFile]), properties);
+    }
+
+    [Fact]
+    public void Every_included_student_has_an_aim_and_some_aims_are_recorded_elsewhere()
+    {
+        var rows = Rows(Files[SeedPost16MarchSamples.AimsFile]);
+        var included = SeedPupilData.Post16Pupils(Guid.Empty).Where(p => p.Included).ToList();
+
+        Assert.Equal(included.Select(p => (p.Laestab, p.Cypmd_Id)).Order(),
+            rows.Select(r => (r["LAESTAB"], r["CYPMD_ID"])).Distinct().Order());
+        Assert.Contains(rows, r => r["AimLAESTAB"] == SeedPost16MarchSamples.PartnerAimLaestab);
+        Assert.All(rows, r => Assert.Contains(r["Aim_Type"], new[] { "2", "4", "5" }));
+        Assert.All(rows, r => Assert.Equal(r["AimLAESTAB"] + r["CYPMD_ID"] + r["LearningAimReference"], r["cypmd_pk"]));
+    }
 
     [Fact]
     public void It_has_the_same_columns_as_the_included_revised_file()

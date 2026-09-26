@@ -263,6 +263,16 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
             Assert.Equal(["16to19_INC_REV_RET", "16to19_NONINC_REV"], seeded.Select(r => r.SourceFile).Distinct().Order());
             // The grade only the retention file changes: Charlie Smith's Maths, 3 → 4.
             Assert.Equal("4", Assert.Single(seeded, r => r.CypmdId == "500003" && r.Qan == "60146084" && r.Session == "S2024").Grade);
+
+            // The pupil aims data share: no kind, display only, validated into its own release.
+            var aims = Assert.Single(march.CheckingExercises, e => e.ExerciseType is null);
+            Assert.True(aims.DisplayOnly);
+            Assert.Equal("Aims", aims.TabName);
+            var slot = Assert.Single(aims.Datasets);
+            Assert.False(slot.FeedsJourney);
+            Assert.NotEqual(string.Empty, slot.IngressFile);
+            Assert.NotNull(aims.CurrentReleaseId);
+            Assert.Equal(1, await ReleaseCountAsync(aims));
         }
         finally
         {

@@ -32,6 +32,12 @@ Ingress writes each JSON key with the property's name. A property may set `x-ing
 
 An `Amendment` row does not replace the result it corrects. Both rows reach the journey, and the amendment carries its late file's tag, so the search shows the original ("File: Included") and the amendment ("File: Late results 1").
 
+## Pupil aims schema
+
+`students-aims_schema.json` is the 16-19 pupil aims data file as the data specification defines it: fields 1-15, headed by field reference, one row per student per learning aim. The descriptive column heading is the heading of the CSV a school downloads, in column order A-N. `cypmd_pk` has no column and is not exported. Like the results schemas, it sets no `maxLength`. Ingress splits the rows by `LAESTAB`, the student's institution; `AimLAESTAB` is where the aim was recorded, and it can be a different provider. The table shows surname and forename (searchable), qualification number, subject, aim type and where the aim was recorded.
+
+The "16 to 19 Mar" dev window has a "Pupil aims" data share (tab "Aims"): a display-only exercise with no kind and one slot, `aims`, that feeds no journey. `SeedPost16MarchSamples` validates `students/aims.csv` (ingress container `16-to-19-mar`) with this schema: one or two aims for every included student, with every tenth aim recorded at another provider.
+
 ## Summary schemas
 
 The 1618 Summary Data sheet feeds four checking exercises over the year, and the supplier sends a different file shape for each. The sheet's three column-letter columns describe those shapes, and its four "Included in" flags say which exercise gets which:

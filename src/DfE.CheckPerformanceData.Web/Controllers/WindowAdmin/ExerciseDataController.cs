@@ -42,20 +42,22 @@ public sealed class ExerciseDataController(IWindowService windows) : Controller
         if (!ModelState.IsValid) return View(PageView, model);
 
         var sourceFile = model.AsksSource && !string.IsNullOrEmpty(model.SourceFile) ? model.SourceFile : null;
+        var dataShare = model.AsksUse && model.Use == "share";
         exercise.Datasets.Add(new CheckingWindowDatasetDto
         {
             Name = model.Name!.Trim(),
             Required = model.Required,
             // Each is asked only on the exercise it applies to, so a value posted anywhere else
-            // is ignored.
-            Included = model.AsksInclusion
+            // is ignored. Inclusion is about the journey's pupils, so a data share has none.
+            Included = model.AsksInclusion && !dataShare
                 ? model.Inclusion switch { "included" => true, "excluded" => false, _ => null }
                 : null,
             SourceFile = sourceFile,
-            // On pupil data checking every file is merged into the pupils data the journey reads.
-            // On a results enquiry a file with a results source is supplier results and feeds the
-            // journey; one with no source is display only. A data share has no journey.
-            FeedsJourney = WindowDatasets.AddedSlotFeedsJourney(exercise.ExerciseType, sourceFile),
+            // On pupil data checking a file is merged into the pupils data the journey reads,
+            // unless the admin adds it as a data share. On a results enquiry a file with a results
+            // source is supplier results and feeds the journey; one with no source is display
+            // only. A data share exercise has no journey.
+            FeedsJourney = WindowDatasets.AddedSlotFeedsJourney(exercise.ExerciseType, sourceFile, dataShare),
             SortOrder = exercise.Datasets.Count == 0 ? 0 : exercise.Datasets.Max(d => d.SortOrder) + 1
         });
         // Adding a required input changes completeness even before it has received a file.
@@ -131,10 +133,11 @@ public sealed class ExerciseDataController(IWindowService windows) : Controller
     {
         model.ExerciseName = exercise.Name ?? ExerciseLabels.For(exercise.ExerciseType);
         model.IsResultsEnquiry = exercise.ExerciseType == CheckingExerciseType.ResultsEnquiry;
-        model.FeedsJourney = WindowDatasets.AddedSlotFeedsJourney(exercise.ExerciseType, sourceFile: null);
-        // Pupil inclusion applies only to pupil data, and a results source only to results. A data
-        // share holds neither.
+        model.FeedsJourney = WindowDatasets.AddedSlotFeedsJourney(exercise.ExerciseType, sourceFile: null, dataShare: false);
+        // Pupil inclusion and the journey-or-share choice apply only to pupil data, and a results
+        // source only to results. A data share exercise holds none of them.
         model.AsksInclusion = exercise.ExerciseType == CheckingExerciseType.PupilData;
+        model.AsksUse = model.AsksInclusion;
         model.SourceOptions = model.IsResultsEnquiry ? ResultsSources.For(window.CheckingWindowType) : [];
         // A window type with no results feed (KS2) has no sources to offer.
         model.AsksSource = model.SourceOptions.Count > 0;

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "students-previously-published_schema.json",
   "title": "Previously published",
-  "description": "One row from the 16-18 Previously Published Data worksheet of Post16.ods.",
+  "description": "One row of the 16-19 previously published data file, as the data specification defines it (fields 1-10 and 13, headed by field reference). The descriptive column heading is the heading of the CSV a school downloads, in column order B-J. SCHCNO is not shared and cypmd_pk has no column, so neither is exported. Rows are split by LAESTAB_0 (x-ingress.institutionKey). The file is display only: it never feeds the journeys' pupil data.",
   "type": "object",
   "additionalProperties": false,
   "x-ingress": {
@@ -25,12 +25,9 @@
         "string",
         "null"
       ],
-      "maxLength": 20,
       "description": "A number allocated to each student within each school/college",
       "x-csv": {
-        "columns": {
-          "default": "A"
-        },
+        "columns": {},
         "heading": "Candidate number"
       },
       "x-display": {
@@ -43,7 +40,6 @@
         "string",
         "null"
       ],
-      "maxLength": 20,
       "description": "Student index number (for use in checking exercise)",
       "x-csv": {
         "columns": {
@@ -62,7 +58,6 @@
         "string",
         "null"
       ],
-      "maxLength": 100,
       "description": "Student surname",
       "x-csv": {
         "columns": {
@@ -71,9 +66,9 @@
         "heading": "Surname"
       },
       "x-display": {
-        "label": "Last name",
+        "label": "Surname",
         "visible": true,
-        "order": 0,
+        "order": 1,
         "searchable": true
       }
     },
@@ -82,7 +77,6 @@
         "string",
         "null"
       ],
-      "maxLength": 100,
       "description": "Student forename",
       "x-csv": {
         "columns": {
@@ -91,9 +85,9 @@
         "heading": "Forename"
       },
       "x-display": {
-        "label": "First name",
+        "label": "Forename",
         "visible": true,
-        "order": 1,
+        "order": 2,
         "searchable": true
       }
     },
@@ -102,7 +96,6 @@
         "string",
         "null"
       ],
-      "maxLength": 1,
       "description": "Student sex (F=female, M=male)",
       "x-csv": {
         "columns": {
@@ -113,7 +106,7 @@
       "x-display": {
         "label": "Sex",
         "visible": true,
-        "order": 2
+        "order": 3
       }
     },
     "DOB_0": {
@@ -121,7 +114,6 @@
         "string",
         "null"
       ],
-      "maxLength": 10,
       "description": "Student date of birth in format DD/MM/YYYY",
       "x-csv": {
         "columns": {
@@ -132,7 +124,7 @@
       "x-display": {
         "label": "Date of birth",
         "visible": true,
-        "order": 3
+        "order": 4
       }
     },
     "LAESTAB_0": {
@@ -140,7 +132,6 @@
         "string",
         "null"
       ],
-      "maxLength": 7,
       "description": "DfE number for school or college",
       "x-csv": {
         "columns": {
@@ -158,7 +149,6 @@
         "string",
         "null"
       ],
-      "maxLength": 10,
       "description": "School or college Unique Reference Number",
       "x-csv": {
         "columns": {
@@ -176,7 +166,6 @@
         "string",
         "null"
       ],
-      "maxLength": 10,
       "description": "School or college UK Provider Registration Number",
       "x-csv": {
         "columns": {
@@ -194,7 +183,6 @@
         "string",
         "null"
       ],
-      "maxLength": 20,
       "description": "Student's Unique Learner Number",
       "x-csv": {
         "columns": {
@@ -212,7 +200,6 @@
         "string",
         "null"
       ],
-      "maxLength": 50,
       "description": "primary key for use by Oracle team (laestab_0,pupilid)",
       "x-csv": {
         "columns": {},

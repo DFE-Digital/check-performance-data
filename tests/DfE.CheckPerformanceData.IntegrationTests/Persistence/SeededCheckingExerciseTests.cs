@@ -86,7 +86,9 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
         var window = await LoadAsync(_october);
 
         var students = window.CheckingExercises.Single(e => e.ExerciseType == CheckingExerciseType.PupilData);
-        Assert.Equal(["included", "nonincluded"], students.Datasets.OrderBy(d => d.SortOrder).Select(d => d.Name));
+        Assert.Equal(["included", "nonincluded", "previously-published"], students.Datasets.OrderBy(d => d.SortOrder).Select(d => d.Name));
+        // The previously published data is shown to schools, never read by a journey.
+        Assert.Equal([true, true, false], students.Datasets.OrderBy(d => d.SortOrder).Select(d => d.FeedsJourney));
 
         var results = window.CheckingExercises.Single(e => e.ExerciseType == CheckingExerciseType.ResultsEnquiry);
         Assert.Equal(
@@ -161,8 +163,18 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
                 await ReadAsync(_october, DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths
                     .DataBlobName(studentsExercise.Id, CheckingDataType.Pupil, "860/4070", studentsExercise.CurrentReleaseId)),
                 CheckingWindowType.Post16);
+            // The journeys' pupils file holds the two student files only, not the previously published one.
             Assert.Equal(240, pupils.Count);
             Assert.Equal(120, pupils.Count(p => p.IsIncluded));
+
+            // The previously published data has its own file per school, split by LAESTAB_0.
+            var previous = studentsExercise.Datasets.Single(d => d.Name == "previously-published");
+            Assert.NotEqual(string.Empty, previous.IngressFile);
+            var published = Newtonsoft.Json.Linq.JArray.Parse(System.Text.Encoding.UTF8.GetString(
+                await ReadAsync(_october, DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths
+                    .DatasetBlobName(studentsExercise.Id, studentsExercise.CurrentReleaseId!.Value, previous.Id, "860/4070"))));
+            Assert.Equal(60, published.Count);
+            Assert.All(published, r => Assert.Equal("8604070", r["LAESTAB_0"]!.ToString()));
 
             var results = Results(october);
             Assert.Equal(["16to19_INC", "16to19_LR1", "16to19_NONINC"], Linked(results));

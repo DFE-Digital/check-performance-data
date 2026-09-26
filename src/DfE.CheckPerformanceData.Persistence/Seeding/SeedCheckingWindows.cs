@@ -91,6 +91,9 @@ public static class SeedCheckingWindows
                 FeedsJourney = true, SortOrder = d.SortOrder
             }).ToList();
 
+    /// <summary>The name of the "16 to 19 Oct" pupil data slot for the previously published data.</summary>
+    public const string PreviouslyPublishedDataset = "previously-published";
+
     /// <summary>The name of the pupil aims share's one dataset slot.</summary>
     public const string AimsDataset = "aims";
 
@@ -157,9 +160,10 @@ public static class SeedCheckingWindows
         // "16 to 19 Oct": the start of the 16-19 results enquiry. It opens today with pupil data
         // checking for a fortnight (7 to 18 October in the real calendar) and the results enquiry
         // to the end of March. Both exercises are enabled and have their dataset slots — two
-        // student files, and a results slot for every file of the year — but no data here: the Web
-        // seed imports and validates the October files (included, non-included and late results 1)
-        // with SeedPost16OctoberSamples. The outer dates are the union of the exercises.
+        // student files and the previously published file, and a results slot for every file of
+        // the year — but no data here: the Web seed imports and validates the October files
+        // (students, previously published, included, non-included and late results 1) with
+        // SeedPost16OctoberSamples. The outer dates are the union of the exercises.
         var octoberStart = DateTime.Today;
         var octoberPupilDataEnd = octoberStart.AddDays(11).AddHours(17);
         var octoberEnd = new DateTime(octoberStart.Month > 3 ? octoberStart.Year + 1 : octoberStart.Year, 3, 31, 17, 0, 0);
@@ -176,6 +180,15 @@ public static class SeedCheckingWindows
             NextOpportunity = new DateTime(DateTime.Now.Year + 1, 10, 1),
             CheckingExercises = ExercisesFor(CheckingWindowType.Post16, octoberStart, octoberEnd, pupilDataEnd: octoberPupilDataEnd)
         };
+
+        // October's pupil data checking also shares the previously published student data. It is
+        // display only: the slot feeds no journey, so it stays out of the journeys' pupils file.
+        post16OctoberWindow.CheckingExercises
+            .Single(e => e.ExerciseType == CheckingExerciseType.PupilData)
+            .Datasets.Add(new CheckingWindowDataset
+            {
+                Name = PreviouslyPublishedDataset, Included = null, FeedsJourney = false, SortOrder = 2
+            });
 
         // "16 to 19 Nov": the same exercises, slots and dates as October. The Web seed does the
         // October import, then adds and validates late results 2 (SeedPost16NovemberSamples).

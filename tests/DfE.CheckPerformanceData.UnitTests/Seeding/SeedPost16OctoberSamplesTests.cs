@@ -18,13 +18,39 @@ public sealed class SeedPost16OctoberSamplesTests
     private static readonly IReadOnlyDictionary<string, byte[]> Files = SeedPost16OctoberSamples.Files();
 
     [Fact]
-    public void The_October_files_are_the_two_student_files_and_three_results_files()
+    public void The_October_files_are_the_student_files_and_three_results_files()
         => Assert.Equal(
             [
                 "results/16to19_INC.csv", "results/16to19_LR1.csv", "results/16to19_NONINC.csv",
-                "students/included.csv", "students/nonincluded.csv"
+                "students/included.csv", "students/nonincluded.csv", "students/previously-published.csv"
             ],
             Files.Keys.Order());
+
+    [Fact]
+    public void The_previously_published_file_has_every_specified_column_in_order_and_its_schema_reads_each_one()
+    {
+        // Fields 1-10 and 13 of the data specification, by field reference.
+        string[] specified = ["SCHCNO", "CYPMD_ID", "SURNAME_0", "FORENAMES_0", "SEX_0", "DOB_0", "LAESTAB_0",
+            "URN_0", "UKPRN", "ULN_0", "cypmd_pk"];
+
+        Assert.Equal(specified, Header(SeedPost16OctoberSamples.PreviouslyPublishedFile));
+        Assert.Equal(specified, Properties(SeedPost16OctoberSamples.PreviouslyPublishedSchema));
+    }
+
+    [Fact]
+    public void The_previously_published_file_holds_every_second_included_student_keyed_by_LAESTAB_0()
+    {
+        var rows = Rows(SeedPost16OctoberSamples.PreviouslyPublishedFile);
+        var included = Rows("students/included.csv");
+
+        Assert.Equal((included.Count + 1) / 2, rows.Count);
+        Assert.All(rows, r =>
+        {
+            var student = Assert.Single(included, s => s["CYPMD_ID"] == r["CYPMD_ID"] && s["LAESTAB"] == r["LAESTAB_0"]);
+            Assert.Equal(student["SURNAME"], r["SURNAME_0"]);
+            Assert.Equal(r["LAESTAB_0"] + r["CYPMD_ID"], r["cypmd_pk"]);
+        });
+    }
 
     [Theory]
     [InlineData("results/16to19_INC.csv", "results-included_schema.json")]

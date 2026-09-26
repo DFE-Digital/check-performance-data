@@ -22,6 +22,11 @@ public sealed class AddExerciseDataItem : AdminPage
 
     public string? SourceFile { get; set; }
 
+    /// <summary>On pupil data checking: "journey" merges the file into the pupils data the
+    /// journeys read; "share" makes it a data share that schools only view and download.</summary>
+    [RegularExpression("journey|share", ErrorMessage = "Select what this file is for")]
+    public string Use { get; set; } = "journey";
+
     [BindNever]
     public string ExerciseName { get; set; } = string.Empty;
 
@@ -35,6 +40,11 @@ public sealed class AddExerciseDataItem : AdminPage
     /// <summary>True on pupil data checking, the only exercise whose files hold pupils to include.</summary>
     [BindNever]
     public bool AsksInclusion { get; set; }
+
+    /// <summary>True on pupil data checking, the only exercise where a file may or may not feed the
+    /// journey by the admin's choice.</summary>
+    [BindNever]
+    public bool AsksUse { get; set; }
 
     /// <summary>True on a results enquiry, the only exercise whose files hold supplier results.</summary>
     [BindNever]

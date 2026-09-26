@@ -165,19 +165,22 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
 
             yield return new ValidationProgress("Counting", $"{records.Count} records found{label}", recordsRead, recordsValidated, 0, totalErrors, false, false);
 
-            // Every feed keys its rows to a school by a LAESTAB column, which is what lets one
-            // supplier file be split into one blob per school. A file without it cannot be split at
-            // all, so it fails the run by name rather than throwing out of the group-by.
-            if (records.Count > 0 && !records[0].ContainsKey("LAESTAB"))
+            // Every feed keys its rows to a school by a DfE number column, which is what lets one
+            // supplier file be split into one blob per school. The column is LAESTAB unless the
+            // schema's x-ingress.institutionKey names another (the previously published file has
+            // LAESTAB_0). A file without it cannot be split at all, so it fails the run by name
+            // rather than throwing out of the group-by.
+            string institutionKey = InstitutionKey(schema);
+            if (records.Count > 0 && !records[0].ContainsKey(institutionKey))
             {
                 yield return Failed(
-                    $"Ingress file '{dataset.InputCsvFile}' has no LAESTAB column, so its records " +
+                    $"Ingress file '{dataset.InputCsvFile}' has no {institutionKey} column, so its records " +
                     "cannot be grouped by school.");
                 yield break;
             }
 
             List<IGrouping<string, IDictionary<string, object>>> groupedSchools = records
-                .GroupBy(r => r.TryGetValue("LAESTAB", out object? laestab)
+                .GroupBy(r => r.TryGetValue(institutionKey, out object? laestab)
                     ? laestab?.ToString() ?? "UnknownSchool"
                     : "UnknownSchool")
                 .ToList();
@@ -627,6 +630,15 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
     /// <c>{ "source": ["SEASON", "EXAMYEAR"], "separator": "" }</c> to join several.
     /// </summary>
     private sealed record SourceColumn(string Property, IReadOnlyList<string> Columns, string Separator);
+
+    /// <summary>The CSV column that holds the school's DfE number: <c>"x-ingress": { "institutionKey": "LAESTAB_0" }</c>
+    /// at the schema's root, or <c>LAESTAB</c>.</summary>
+    private static string InstitutionKey(JSchema schema) =>
+        schema.ExtensionData.TryGetValue("x-ingress", out JToken? ingress) &&
+        ingress["institutionKey"] is JValue { Type: JTokenType.String } key &&
+        !string.IsNullOrWhiteSpace(key.Value<string>())
+            ? key.Value<string>()!
+            : "LAESTAB";
 
     private static IReadOnlyList<SourceColumn> SourceColumns(JSchema schema)
     {

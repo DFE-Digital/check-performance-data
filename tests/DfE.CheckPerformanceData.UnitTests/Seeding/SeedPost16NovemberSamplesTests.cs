@@ -19,9 +19,12 @@ public sealed class SeedPost16NovemberSamplesTests
     public void The_only_November_sample_is_the_late_results_2_file()
         => Assert.Equal(["results/16to19_LR2.csv"], Files.Keys);
 
+    // The previously published file is not in Import: only the October window has its slot, and
+    // the seed links it there alone.
     [Fact]
-    public void The_seed_imports_every_October_sample_file()
-        => Assert.Equal(SeedPost16OctoberSamples.Files().Keys.Order(),
+    public void The_seed_imports_every_October_sample_file_but_previously_published()
+        => Assert.Equal(
+            SeedPost16OctoberSamples.Files().Keys.Where(k => k != SeedPost16OctoberSamples.PreviouslyPublishedFile).Order(),
             SeedPost16OctoberSamples.Import.Select(i => i.File).Order());
 
     [Fact]

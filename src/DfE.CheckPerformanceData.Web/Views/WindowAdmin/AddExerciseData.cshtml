@@ -24,9 +24,9 @@
 {
     <p class="govuk-body">A file with a results source is merged into the results that schools search in a results enquiry, and each result shows the source's name. A file with no source is display only: schools can view and download it on the exercise's tab.</p>
 }
-else if (Model.FeedsJourney)
+else if (Model.AsksUse)
 {
-    <p class="govuk-body">This file is merged with this exercise's other files into the pupils data that schools check and ask to change. Add one file for KS4, or two (included and non-included) for 16 to 19.</p>
+    <p class="govuk-body">A pupil data file is merged with this exercise's other pupil data files into the pupils data that schools check and ask to change. Add one file for KS4, or two (included and non-included) for 16 to 19. A data share file is not: schools can view and download it on the exercise's tab, and no journey uses it.</p>
 }
 else
 {
@@ -43,13 +43,30 @@ else
     <govuk-checkboxes for="Required">
         <govuk-checkboxes-item value="true" checked="@Model.Required">This file is required before the exercise can be validated</govuk-checkboxes-item>
     </govuk-checkboxes>
-    @* Inclusion applies only to pupil data, and a results source only to results. *@
+    @* Use and inclusion apply only to pupil data, and a results source only to results. *@
+    @if (Model.AsksUse)
+    {
+        <govuk-radios for="Use">
+            <govuk-radios-fieldset>
+                <govuk-radios-fieldset-legend class="govuk-fieldset__legend--m">What is this file for?</govuk-radios-fieldset-legend>
+                <govuk-radios-error-message asp-validation-for="Use" />
+                <govuk-radios-item value="journey" checked="@(Model.Use == "journey")">
+                    Pupil data for the journeys
+                    <govuk-radios-item-hint>Merged into the pupils data that schools check and ask to change.</govuk-radios-item-hint>
+                </govuk-radios-item>
+                <govuk-radios-item value="share" checked="@(Model.Use == "share")">
+                    Data share only
+                    <govuk-radios-item-hint>Schools can view and download it. No journey uses it, for example previously published data.</govuk-radios-item-hint>
+                </govuk-radios-item>
+            </govuk-radios-fieldset>
+        </govuk-radios>
+    }
     @if (Model.AsksInclusion)
     {
         <govuk-radios for="Inclusion">
             <govuk-radios-fieldset>
                 <govuk-radios-fieldset-legend class="govuk-fieldset__legend--m">Pupil inclusion</govuk-radios-fieldset-legend>
-                <govuk-radios-hint>Choose whether inclusion comes from the CSV or applies to every pupil in this file.</govuk-radios-hint>
+                <govuk-radios-hint>Choose whether inclusion comes from the CSV or applies to every pupil in this file. A data share file has no inclusion, so this is ignored for it.</govuk-radios-hint>
                 <govuk-radios-error-message asp-validation-for="Inclusion" />
                 <govuk-radios-item value="file" checked="@(Model.Inclusion == "file")">Use the CSV's values</govuk-radios-item>
                 <govuk-radios-item value="included" checked="@(Model.Inclusion == "included")">All pupils are included</govuk-radios-item>

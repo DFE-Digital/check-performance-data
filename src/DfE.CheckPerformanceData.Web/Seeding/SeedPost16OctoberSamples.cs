@@ -13,7 +13,8 @@ namespace DfE.CheckPerformanceData.Web.Seeding;
 /// <summary>
 /// Dev-only: the "16 to 19 Oct" window, where the October import is done. The seed links the
 /// October sample files to their slots, as an admin would, and validates both exercises, so each has
-/// a release. The late results 2 slot and the later slots are empty.
+/// a release. The late results 2 slot and the later slots are empty. The pupil data exercise also
+/// shares the previously published student data, in a slot that feeds no journey.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -25,6 +26,8 @@ namespace DfE.CheckPerformanceData.Web.Seeding;
 /// <list type="bullet">
 /// <item><c>students/included.csv</c> → <c>students-included_schema.json</c></item>
 /// <item><c>students/nonincluded.csv</c> → <c>students-non-included_schema.json</c></item>
+/// <item><c>students/previously-published.csv</c>, in the supplier's previously published shape →
+/// <c>students-previously-published_schema.json</c>. Only the October window has its slot.</item>
 /// <item><c>results/16to19_INC.csv</c> → <c>results-included_schema.json</c></item>
 /// <item><c>results/16to19_NONINC.csv</c> → <c>results-non-included_schema.json</c></item>
 /// <item><c>results/16to19_LR1.csv</c>, in the supplier's late results shape → <c>results-late_schema.json</c></item>
@@ -49,6 +52,9 @@ public static class SeedPost16OctoberSamples
         (CheckingExerciseType.ResultsEnquiry, ResultsFileTags.Post16LateResults1, "results/16to19_LR1.csv", "results-late_schema.json")
     ];
 
+    public const string PreviouslyPublishedFile = "students/previously-published.csv";
+    public const string PreviouslyPublishedSchema = "students-previously-published_schema.json";
+
     /// <summary>The sample files, by their path in <see cref="Container"/>.</summary>
     public static IReadOnlyDictionary<string, byte[]> Files()
     {
@@ -58,7 +64,8 @@ public static class SeedPost16OctoberSamples
         var files = new Dictionary<string, byte[]>
         {
             ["students/included.csv"] = SeedExerciseFixtures.RecordsCsv(students.Where(p => p.Included == true)),
-            ["students/nonincluded.csv"] = SeedExerciseFixtures.RecordsCsv(students.Where(p => p.Included != true))
+            ["students/nonincluded.csv"] = SeedExerciseFixtures.RecordsCsv(students.Where(p => p.Included != true)),
+            [PreviouslyPublishedFile] = PreviouslyPublishedCsv(students.Where(p => p.Included))
         };
         foreach (var tag in new[] { ResultsFileTags.Post16Included, ResultsFileTags.Post16NonIncluded })
             files[$"results/{tag}.csv"] = ResultsCsv(SeedStudentResults.All.Where(r => r.SourceFile == tag), byCypmd);
@@ -94,6 +101,13 @@ public static class SeedPost16OctoberSamples
             await SeedExerciseFixtures.LinkAsync(blobs, exercise, dataset, Path.GetFileName(file), samples[file],
                 schema, await ReadSchemaAsync(contentRootPath, schema));
         }
+
+        // Only the October window has the previously published slot; the later windows do not.
+        var pupilData = SeedExerciseFixtures.Exercise(window, CheckingExerciseType.PupilData);
+        if (pupilData.Datasets.SingleOrDefault(d => d.Name == SeedCheckingWindows.PreviouslyPublishedDataset) is { } previous)
+            await SeedExerciseFixtures.LinkAsync(blobs, pupilData, previous, Path.GetFileName(PreviouslyPublishedFile),
+                samples[PreviouslyPublishedFile], PreviouslyPublishedSchema,
+                await ReadSchemaAsync(contentRootPath, PreviouslyPublishedSchema));
         await dbContext.SaveChangesAsync();
 
         foreach (var type in new[] { CheckingExerciseType.PupilData, CheckingExerciseType.ResultsEnquiry })
@@ -148,6 +162,26 @@ public static class SeedPost16OctoberSamples
                 HttpHeaders = new BlobHttpHeaders { ContentType = "text/csv" }
             });
     }
+
+    // A previously published data file in the supplier's own shape: every column of the data
+    // specification, headed by its field reference, one row per student. Its names end in _0, and
+    // it keys a row to a school by LAESTAB_0, not LAESTAB. Every second included student is in it.
+    internal static byte[] PreviouslyPublishedCsv(IEnumerable<Post16PupilRecord> students) =>
+        SeedExerciseFixtures.WriteCsv(students.Where((_, index) => index % 2 == 0).Select((student, index) =>
+            (IReadOnlyDictionary<string, string>)new Dictionary<string, string>
+            {
+                ["SCHCNO"] = (1000 + index).ToString(CultureInfo.InvariantCulture),
+                ["CYPMD_ID"] = student.Cypmd_Id,
+                ["SURNAME_0"] = student.Surname,
+                ["FORENAMES_0"] = student.Firstname,
+                ["SEX_0"] = student.Sex,
+                ["DOB_0"] = student.DateOfBirth,
+                ["LAESTAB_0"] = student.Laestab,
+                ["URN_0"] = student.Urn,
+                ["UKPRN"] = student.Ukprn,
+                ["ULN_0"] = student.Uln,
+                ["cypmd_pk"] = $"{student.Laestab}{student.Cypmd_Id}"
+            }));
 
     // A 16-18 results data file in the supplier's own shape: every column of the data
     // specification, headed by its field reference. There is no QAN, QUAL_NAME, SYLLABUS or SESSION

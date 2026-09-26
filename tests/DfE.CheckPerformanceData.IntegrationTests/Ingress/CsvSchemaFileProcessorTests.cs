@@ -326,6 +326,39 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
         Assert.Null(await ReadPupilsAsync(container, "8604070"));
     }
 
+    [Fact]
+    public async Task A_schema_with_an_institution_key_splits_the_file_by_that_column()
+    {
+        // The previously published file has no LAESTAB column: its DfE number is LAESTAB_0.
+        const string schema = """
+        {
+          "type": "object",
+          "x-ingress": { "institutionKey": "LAESTAB_0" },
+          "properties": {
+            "CYPMD_ID":  { "type": ["string", "null"] },
+            "SURNAME_0": { "type": ["string", "null"] },
+            "LAESTAB_0": { "type": ["string", "null"] }
+          }
+        }
+        """;
+        const string csv = "CYPMD_ID,SURNAME_0,LAESTAB_0\n500001,Smith,8604070\n500002,Jones,8604071\n";
+        var windowId = Guid.NewGuid();
+        var container = await SeedWindowAsync(windowId,
+            ("ingress/previous.csv", csv),
+            ("schema/previous.json", schema));
+
+        IReadOnlyList<IngressDataset> datasets =
+        [
+            new("pupils", "previous.csv", Checksum(csv), "previous.json", Checksum(schema), Included: null)
+        ];
+
+        var progress = await DrainAsync(Processor().ProcessAsync(windowId, CheckingExerciseType.PupilData, datasets));
+
+        Assert.False(progress[^1].IsError, progress[^1].Message);
+        Assert.Equal("Smith", Assert.Single((await ReadPupilsAsync(container, "8604070"))!)["SURNAME_0"]!.ToString());
+        Assert.Equal("Jones", Assert.Single((await ReadPupilsAsync(container, "8604071"))!)["SURNAME_0"]!.ToString());
+    }
+
     private static async Task<List<string>> ListBlobNamesAsync(BlobContainerClient container)
     {
         List<string> names = [];

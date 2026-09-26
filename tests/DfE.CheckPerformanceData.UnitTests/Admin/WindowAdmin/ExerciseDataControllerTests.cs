@@ -140,6 +140,43 @@ public sealed class ExerciseDataControllerTests
         await _service.DidNotReceiveWithAnyArgs().UpdateAsync(default!, default);
     }
 
+    [Fact]
+    public async Task A_pupil_data_file_added_as_a_data_share_does_not_feed_the_journey_and_has_no_inclusion()
+    {
+        // e.g. the 16-19 previously published file: shown on the tab, never merged into the
+        // pupils data the journeys read.
+        var exercise = AddExercise(CheckingExerciseType.PupilData);
+        var model = new AddExerciseDataItem
+            { WindowId = _window.Id, Name = "Previously published", Use = "share", Inclusion = "included" };
+
+        Assert.IsType<RedirectToActionResult>(await _controller.Submit(_window.Id, exercise.Id, model, default));
+
+        var added = Assert.Single(exercise.Datasets);
+        Assert.False(added.FeedsJourney);
+        Assert.Null(added.Included);
+    }
+
+    [Theory]
+    [InlineData(CheckingExerciseType.ResultsEnquiry)]
+    [InlineData(null)]
+    public async Task A_share_choice_posted_to_an_exercise_that_does_not_ask_it_changes_nothing(CheckingExerciseType? type)
+    {
+        var exercise = AddExercise(type);
+        var source = ResultsSources.For(_window.CheckingWindowType).First().Tag;
+        var model = new AddExerciseDataItem { WindowId = _window.Id, Name = "File", Use = "share", SourceFile = source };
+
+        await _controller.Submit(_window.Id, exercise.Id, model, default);
+
+        Assert.Equal(type == CheckingExerciseType.ResultsEnquiry, Assert.Single(exercise.Datasets).FeedsJourney);
+    }
+
+    [Fact]
+    public void The_use_must_be_journey_or_share()
+    {
+        var model = new AddExerciseDataItem { WindowId = _window.Id, Name = "File", Use = "other" };
+        Assert.False(Validator.TryValidateObject(model, new ValidationContext(model), [], true));
+    }
+
     [Theory]
     [InlineData(CheckingExerciseType.ResultsEnquiry)]
     [InlineData(null)]
@@ -232,6 +269,7 @@ public sealed class ExerciseDataControllerTests
             Assert.IsType<ViewResult>(await _controller.New(_window.Id, exercise.Id, default)).Model);
 
         Assert.Equal(asksInclusion, page.AsksInclusion);
+        Assert.Equal(asksInclusion, page.AsksUse);
         Assert.Equal(asksSource, page.AsksSource);
         Assert.Equal(asksSource, page.SourceOptions.Count > 0);
     }

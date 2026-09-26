@@ -329,14 +329,16 @@ public static class WindowDatasets
 
     /// <summary>
     /// Whether a slot an admin adds to an exercise of this type feeds the journey. On pupil data
-    /// checking every file is part of the pupils data the journey reads (one file for KS4, two for
-    /// 16-19), so yes. On a results enquiry a file with a results source is supplier results, so
-    /// yes; a file with no source is display only. A data share has no journey, so no.
+    /// checking a file is part of the pupils data the journey reads (one file for KS4, two for
+    /// 16-19), unless the admin adds it as a data share (e.g. the 16-19 previously published
+    /// file), which schools only view and download. On a results enquiry a file with a results
+    /// source is supplier results, so yes; a file with no source is display only. A data share
+    /// exercise has no journey, so no.
     /// </summary>
-    public static bool AddedSlotFeedsJourney(CheckingExerciseType? exercise, string? sourceFile) =>
+    public static bool AddedSlotFeedsJourney(CheckingExerciseType? exercise, string? sourceFile, bool dataShare) =>
         exercise switch
         {
-            CheckingExerciseType.PupilData => true,
+            CheckingExerciseType.PupilData => !dataShare,
             CheckingExerciseType.ResultsEnquiry => !string.IsNullOrEmpty(sourceFile),
             _ => false
         };

@@ -91,8 +91,60 @@ public static class SeedCheckingWindows
                 FeedsJourney = true, SortOrder = d.SortOrder
             }).ToList();
 
-    /// <summary>The name of the "16 to 19 Oct" pupil data slot for the previously published data.</summary>
+    /// <summary>The name of every 16-19 window's pupil data slot for the previously published data.</summary>
     public const string PreviouslyPublishedDataset = "previously-published";
+
+    /// <summary>The name of every 16-19 window's pupil data slot for the previously published revised
+    /// data. It is empty and not required until the February step fills it.</summary>
+    public const string PreviouslyPublishedRevisedDataset = "previously-published-revised";
+
+    // The previously published student data, shared with schools in the pupil data exercise, and
+    // the revised file that replaces it in February. Both are display only: the slots feed no
+    // journey, so they stay out of the journeys' pupils file. The revised slot waits empty, like
+    // the results enquiry's revised slots, so it is not required: a required empty slot would
+    // stop the October run.
+    private static CheckingWindow WithPreviouslyPublishedSlots(CheckingWindow window)
+    {
+        var datasets = window.CheckingExercises
+            .Single(e => e.ExerciseType == CheckingExerciseType.PupilData)
+            .Datasets;
+        datasets.Add(new CheckingWindowDataset
+        {
+            Name = PreviouslyPublishedDataset, Included = null, FeedsJourney = false, SortOrder = 2
+        });
+        datasets.Add(new CheckingWindowDataset
+        {
+            Name = PreviouslyPublishedRevisedDataset, Included = null, FeedsJourney = false, Required = false,
+            SortOrder = 3
+        });
+        return window;
+    }
+
+    /// <summary>Every 16-19 window's pupil data slots for the value added data, in the order the
+    /// year fills them. Each file replaces the one before it: November's value added, February's
+    /// revised and March's revised with retention.</summary>
+    public static readonly IReadOnlyList<string> ValueAddedDatasets =
+    [
+        "Value Added",
+        "Value Added: revised",
+        "Value Added: revised incl. retention"
+    ];
+
+    // The value added data, shared with schools in the pupil data exercise from November. Like the
+    // previously published slots, the slots are display only and feed no journey. All three wait
+    // empty and are not required: a required empty slot would stop the October run. Each step
+    // fills its slot, makes it required and retires the one before it.
+    private static CheckingWindow WithValueAddedSlots(CheckingWindow window)
+    {
+        var datasets = window.CheckingExercises
+            .Single(e => e.ExerciseType == CheckingExerciseType.PupilData)
+            .Datasets;
+        datasets.AddRange(ValueAddedDatasets.Select((name, index) => new CheckingWindowDataset
+        {
+            Name = name, Included = null, FeedsJourney = false, Required = false, SortOrder = 4 + index
+        }));
+        return window;
+    }
 
     /// <summary>The name of the pupil aims share's one dataset slot.</summary>
     public const string AimsDataset = "aims";
@@ -113,6 +165,83 @@ public static class SeedCheckingWindows
         SortOrder = 2,
         Datasets = [new CheckingWindowDataset { Name = AimsDataset, Included = null, FeedsJourney = false, SortOrder = 0 }]
     };
+
+    /// <summary>The name of the summary share's exercise.</summary>
+    public const string SummaryExercise = "Summary";
+
+    /// <summary>The summary share's slots, in the order the year fills them. Each file replaces
+    /// the one before it: October's summary, November's value added, February's revised value
+    /// added and March's revised value added with retention.</summary>
+    public static readonly IReadOnlyList<string> SummaryDatasets =
+    [
+        "Summary",
+        "Summary with value added",
+        "Summary with value added: revised",
+        // "revised including retention" would not fit: a slot name is at most 50 characters.
+        "Summary with value added: revised incl. retention"
+    ];
+
+    // A display-only data share with no kind, as the aims share, but in every 16-19 window. Each
+    // school has one summary row, so it shows as label/value rows. Only the October slot is
+    // required: the later slots wait empty, because a required empty slot would stop the October
+    // run. Each step fills its slot, makes it required and retires the one before it. Its tab is
+    // first, before Students.
+    private static CheckingExercise SummaryDataShare(DateTime startDate, DateTime endDate) => new()
+    {
+        ExerciseType = null,
+        DisplayOnly = true,
+        Name = SummaryExercise,
+        TabName = "Summary",
+        TabOrder = 100,
+        IsEnabled = true,
+        Layout = ExerciseLayout.Vertical,
+        StartDate = startDate,
+        EndDate = endDate,
+        SortOrder = 3,
+        Datasets = SummaryDatasets.Select((name, index) => new CheckingWindowDataset
+        {
+            Name = name, Included = null, FeedsJourney = false, Required = index == 0, SortOrder = index
+        }).ToList()
+    };
+
+    // Every 16-19 window has the summary share. The October step fills its first slot; each later
+    // step replaces the file before it.
+    private static CheckingWindow WithSummaryDataShare(CheckingWindow window)
+    {
+        var results = window.CheckingExercises.Single(e => e.ExerciseType == CheckingExerciseType.ResultsEnquiry);
+        window.CheckingExercises.Add(SummaryDataShare(results.StartDate, results.EndDate));
+        return window;
+    }
+
+    /// <summary>The name of the pupil campus share's exercise.</summary>
+    public const string PupilCampusExercise = "Pupil campus";
+
+    /// <summary>The name of the pupil campus share's one dataset slot.</summary>
+    public const string PupilCampusDataset = "campus";
+
+    // A display-only data share with no kind, as the aims share, but in every 16-19 window: one
+    // slot that feeds no journey. The October step fills it, and the later steps keep that file.
+    private static CheckingExercise PupilCampusDataShare(DateTime startDate, DateTime endDate) => new()
+    {
+        ExerciseType = null,
+        DisplayOnly = true,
+        Name = PupilCampusExercise,
+        TabName = "Campus",
+        TabOrder = 500,
+        IsEnabled = true,
+        StartDate = startDate,
+        EndDate = endDate,
+        SortOrder = 4,
+        Datasets = [new CheckingWindowDataset { Name = PupilCampusDataset, Included = null, FeedsJourney = false, SortOrder = 0 }]
+    };
+
+    // Every 16-19 window has the pupil campus share, on the results enquiry's dates.
+    private static CheckingWindow WithPupilCampusDataShare(CheckingWindow window)
+    {
+        var results = window.CheckingExercises.Single(e => e.ExerciseType == CheckingExerciseType.ResultsEnquiry);
+        window.CheckingExercises.Add(PupilCampusDataShare(results.StartDate, results.EndDate));
+        return window;
+    }
 
     public static async Task ExecuteSeed(IPortalDbContext dbContext, Guid openKs4WindowId, Guid closedKs4WindowId,
         Guid post16OctoberWindowId, Guid post16NovemberWindowId, Guid post16FebruaryWindowId,
@@ -181,20 +310,11 @@ public static class SeedCheckingWindows
             CheckingExercises = ExercisesFor(CheckingWindowType.Post16, octoberStart, octoberEnd, pupilDataEnd: octoberPupilDataEnd)
         };
 
-        // October's pupil data checking also shares the previously published student data. It is
-        // display only: the slot feeds no journey, so it stays out of the journeys' pupils file.
         // October's late results 2 has not arrived yet, so its results enquiry shows the late
         // results warning. The later windows have it, so theirs do not.
         post16OctoberWindow.CheckingExercises
             .Single(e => e.ExerciseType == CheckingExerciseType.ResultsEnquiry)
             .ShowLateResultsWarning = true;
-
-        post16OctoberWindow.CheckingExercises
-            .Single(e => e.ExerciseType == CheckingExerciseType.PupilData)
-            .Datasets.Add(new CheckingWindowDataset
-            {
-                Name = PreviouslyPublishedDataset, Included = null, FeedsJourney = false, SortOrder = 2
-            });
 
         // "16 to 19 Nov": the same exercises, slots and dates as October. The Web seed does the
         // October import, then adds and validates late results 2 (SeedPost16NovemberSamples).
@@ -213,7 +333,9 @@ public static class SeedCheckingWindows
 
         // "16 to 19 Feb": the same exercises, slots and dates again. The Web seed does the November
         // steps, then adds the revised files, retires the four files they replace and validates
-        // (SeedPost16FebruarySamples): an October, a November and a February release.
+        // (SeedPost16FebruarySamples): an October, a November and a February release. It also fills
+        // the previously published revised slot, makes it required, retires previously published and
+        // validates pupil data.
         var post16FebruaryWindow = new CheckingWindow
         {
             Id = post16FebruaryWindowId,
@@ -250,10 +372,14 @@ public static class SeedCheckingWindows
         await dbContext.CheckingWindows.AddRangeAsync(
             openKs4JuneWindow,
             closedKs4JuneWindow,
-            post16OctoberWindow,
-            post16NovemberWindow,
-            post16FebruaryWindow,
-            post16MarchWindow
+            // Every 16-19 window has both previously published slots, the three value added slots,
+            // the summary share and the pupil campus share. The October step fills the first
+            // previously published slot, the first summary slot and the campus slot; later steps
+            // fill the others. November fills the first value added slot.
+            WithPupilCampusDataShare(WithSummaryDataShare(WithValueAddedSlots(WithPreviouslyPublishedSlots(post16OctoberWindow)))),
+            WithPupilCampusDataShare(WithSummaryDataShare(WithValueAddedSlots(WithPreviouslyPublishedSlots(post16NovemberWindow)))),
+            WithPupilCampusDataShare(WithSummaryDataShare(WithValueAddedSlots(WithPreviouslyPublishedSlots(post16FebruaryWindow)))),
+            WithPupilCampusDataShare(WithSummaryDataShare(WithValueAddedSlots(WithPreviouslyPublishedSlots(post16MarchWindow))))
         );
         
         await dbContext.SaveChangesAsync();

@@ -18,11 +18,12 @@ public sealed class SeedPost16OctoberSamplesTests
     private static readonly IReadOnlyDictionary<string, byte[]> Files = SeedPost16OctoberSamples.Files();
 
     [Fact]
-    public void The_October_files_are_the_student_files_and_three_results_files()
+    public void The_October_files_are_the_student_files_three_results_files_the_campus_file_and_the_summary()
         => Assert.Equal(
             [
                 "results/16to19_INC.csv", "results/16to19_LR1.csv", "results/16to19_NONINC.csv",
-                "students/included.csv", "students/nonincluded.csv", "students/previously-published.csv"
+                "students/campus.csv", "students/included.csv", "students/nonincluded.csv",
+                "students/previously-published.csv", "summary/summary.csv"
             ],
             Files.Keys.Order());
 

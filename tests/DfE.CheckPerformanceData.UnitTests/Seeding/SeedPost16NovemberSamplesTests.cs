@@ -16,15 +16,19 @@ public sealed class SeedPost16NovemberSamplesTests
     private static readonly IReadOnlyDictionary<string, byte[]> Files = SeedPost16NovemberSamples.Files();
 
     [Fact]
-    public void The_only_November_sample_is_the_late_results_2_file()
-        => Assert.Equal(["results/16to19_LR2.csv"], Files.Keys);
+    public void The_November_samples_are_the_late_results_2_file_the_value_added_file_and_the_summary_with_value_added()
+        => Assert.Equal(["results/16to19_LR2.csv", "students/value-added.csv", "summary/summary-value-added.csv"],
+            Files.Keys.Order());
 
-    // The previously published file is not in Import: only the October window has its slot, and
-    // the seed links it there alone.
+    // The previously published file, the summary and the campus file are not in Import: the seed
+    // links each only where the window has its slot.
     [Fact]
-    public void The_seed_imports_every_October_sample_file_but_previously_published()
+    public void The_seed_imports_every_October_sample_file_but_previously_published_the_summary_and_the_campus_file()
         => Assert.Equal(
-            SeedPost16OctoberSamples.Files().Keys.Where(k => k != SeedPost16OctoberSamples.PreviouslyPublishedFile).Order(),
+            SeedPost16OctoberSamples.Files().Keys
+                .Where(k => k != SeedPost16OctoberSamples.PreviouslyPublishedFile && k != SeedPost16Summary.October.File
+                    && k != SeedPost16PupilCampus.File)
+                .Order(),
             SeedPost16OctoberSamples.Import.Select(i => i.File).Order());
 
     [Fact]

@@ -13,7 +13,9 @@ namespace DfE.CheckPerformanceData.Web.Seeding;
 /// seed (<see cref="SeedPost16FebruarySamples"/>), then links the included revised with retention
 /// file, retires the included revised file it replaces and validates the results enquiry again. It
 /// has an October, a November, a February and a March release. It also fills and validates the
-/// window's pupil aims data share, a display-only exercise with no kind.
+/// window's pupil aims data share, a display-only exercise with no kind, and replaces the summary
+/// share's file with the revised summary with value added including retention, and pupil data's value
+/// added with the revised value added including retention.
 /// </summary>
 /// <remarks>
 /// The seed also writes the samples to the ingress storage account, container <see cref="Container"/>.
@@ -26,6 +28,10 @@ namespace DfE.CheckPerformanceData.Web.Seeding;
 /// <item><c>students/aims.csv</c>, in the supplier's pupil aims data file shape →
 /// <c>students-aims_schema.json</c>. Its rows are one or two learning aims for every included
 /// student.</item>
+/// <item><c>summary/summary-value-added-revised-retention.csv</c> → <c>summary-retention_schema.json</c>,
+/// which replaces the summary share's February file (<see cref="SeedPost16Summary"/>).</item>
+/// <item><c>students/value-added-revised-retention.csv</c> → <c>students-value-added-revised-retention_schema.json</c>,
+/// which replaces pupil data's February value added file (<see cref="SeedPost16ValueAdded"/>).</item>
 /// </list>
 /// </remarks>
 public static class SeedPost16MarchSamples
@@ -43,7 +49,11 @@ public static class SeedPost16MarchSamples
     {
         [IncludedRevisedWithRetentionFile] = SeedPost16OctoberSamples.ResultsCsv(
             SeedStudentResults.IncludedRevisedWithRetention, SeedPost16OctoberSamples.KingsmeadStudents()),
-        [AimsFile] = AimsCsv(SeedPupilData.Post16Pupils(DevDataSeeder.Post16MarchCheckingWindowId).Where(p => p.Included))
+        [AimsFile] = AimsCsv(SeedPupilData.Post16Pupils(DevDataSeeder.Post16MarchCheckingWindowId).Where(p => p.Included)),
+        [SeedPost16Summary.March.File] =
+            SeedPost16Summary.Csv(SeedPost16Summary.March, DevDataSeeder.Post16MarchCheckingWindowId),
+        [SeedPost16ValueAdded.March.File] =
+            SeedPost16ValueAdded.Csv(SeedPost16ValueAdded.March, DevDataSeeder.Post16MarchCheckingWindowId)
     };
 
     public static Task ExecuteSeedAsync(
@@ -64,6 +74,8 @@ public static class SeedPost16MarchSamples
                     Files()[IncludedRevisedWithRetentionFile], IncludedRevisedWithRetentionSchema)
             ],
             ResultsFileTags.Post16IncludedRevised);
+        await SeedPost16Summary.AddAsync(dbContext, blobs, ingress, contentRootPath, windowId, SeedPost16Summary.March);
+        await SeedPost16ValueAdded.AddAsync(dbContext, blobs, ingress, contentRootPath, windowId, SeedPost16ValueAdded.March);
 
         var window = await SeedExerciseFixtures.LoadAsync(dbContext, windowId);
         var aims = window.CheckingExercises.Single(e => e.ExerciseType is null && e.Name == "Pupil aims");

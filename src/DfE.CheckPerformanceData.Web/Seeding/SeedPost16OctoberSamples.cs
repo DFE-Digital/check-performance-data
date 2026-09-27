@@ -27,10 +27,14 @@ namespace DfE.CheckPerformanceData.Web.Seeding;
 /// <item><c>students/included.csv</c> → <c>students-included_schema.json</c></item>
 /// <item><c>students/nonincluded.csv</c> → <c>students-non-included_schema.json</c></item>
 /// <item><c>students/previously-published.csv</c>, in the supplier's previously published shape →
-/// <c>students-previously-published_schema.json</c>. Only the October window has its slot.</item>
+/// <c>students-previously-published_schema.json</c>. Every 16-19 window has its slot.</item>
 /// <item><c>results/16to19_INC.csv</c> → <c>results-included_schema.json</c></item>
 /// <item><c>results/16to19_NONINC.csv</c> → <c>results-non-included_schema.json</c></item>
 /// <item><c>results/16to19_LR1.csv</c>, in the supplier's late results shape → <c>results-late_schema.json</c></item>
+/// <item><c>summary/summary.csv</c> → <c>summary-autumn_schema.json</c>, the first file of the
+/// summary data share every 16-19 window has (<see cref="SeedPost16Summary"/>).</item>
+/// <item><c>students/campus.csv</c>, in the supplier's pupil campus shape → <c>students-campus_schema.json</c>,
+/// the file of the pupil campus data share every 16-19 window has (<see cref="SeedPost16PupilCampus"/>).</item>
 /// </list>
 /// <para>
 /// The students come from <see cref="SeedPupilData"/> and the results from
@@ -67,6 +71,9 @@ public static class SeedPost16OctoberSamples
             ["students/nonincluded.csv"] = SeedExerciseFixtures.RecordsCsv(students.Where(p => p.Included != true)),
             [PreviouslyPublishedFile] = PreviouslyPublishedCsv(students.Where(p => p.Included))
         };
+        files[SeedPost16PupilCampus.File] = SeedPost16PupilCampus.Csv(DevDataSeeder.Post16OctoberCheckingWindowId);
+        files[SeedPost16Summary.October.File] =
+            SeedPost16Summary.Csv(SeedPost16Summary.October, DevDataSeeder.Post16OctoberCheckingWindowId);
         foreach (var tag in new[] { ResultsFileTags.Post16Included, ResultsFileTags.Post16NonIncluded })
             files[$"results/{tag}.csv"] = ResultsCsv(SeedStudentResults.All.Where(r => r.SourceFile == tag), byCypmd);
         files[$"results/{ResultsFileTags.Post16LateResults1}.csv"] = LateResultsCsv(
@@ -102,7 +109,7 @@ public static class SeedPost16OctoberSamples
                 schema, await ReadSchemaAsync(contentRootPath, schema));
         }
 
-        // Only the October window has the previously published slot; the later windows do not.
+        // Every seeded 16-19 window has the previously published slot; a test window may not.
         var pupilData = SeedExerciseFixtures.Exercise(window, CheckingExerciseType.PupilData);
         if (pupilData.Datasets.SingleOrDefault(d => d.Name == SeedCheckingWindows.PreviouslyPublishedDataset) is { } previous)
             await SeedExerciseFixtures.LinkAsync(blobs, pupilData, previous, Path.GetFileName(PreviouslyPublishedFile),
@@ -112,6 +119,9 @@ public static class SeedPost16OctoberSamples
 
         foreach (var type in new[] { CheckingExerciseType.PupilData, CheckingExerciseType.ResultsEnquiry })
             await SeedExerciseFixtures.IngestAsync(blobs, ingress, SeedExerciseFixtures.Exercise(window, type));
+
+        await SeedPost16Summary.AddAsync(dbContext, blobs, ingress, contentRootPath, windowId, SeedPost16Summary.October);
+        await SeedPost16PupilCampus.AddAsync(dbContext, blobs, ingress, contentRootPath, windowId);
     }
 
     /// <summary>
@@ -167,10 +177,15 @@ public static class SeedPost16OctoberSamples
     // specification, headed by its field reference, one row per student. Its names end in _0, and
     // it keys a row to a school by LAESTAB_0, not LAESTAB. Every second included student is in it.
     internal static byte[] PreviouslyPublishedCsv(IEnumerable<Post16PupilRecord> students) =>
-        SeedExerciseFixtures.WriteCsv(students.Where((_, index) => index % 2 == 0).Select((student, index) =>
+        PreviouslyPublishedCsv(students.Where((_, index) => index % 2 == 0), firstCandidateNumber: 1000);
+
+    // The same shape for the given students, with candidate numbers from firstCandidateNumber. The
+    // revised file (SeedPost16FebruarySamples) uses it too.
+    internal static byte[] PreviouslyPublishedCsv(IEnumerable<Post16PupilRecord> students, int firstCandidateNumber) =>
+        SeedExerciseFixtures.WriteCsv(students.Select((student, index) =>
             (IReadOnlyDictionary<string, string>)new Dictionary<string, string>
             {
-                ["SCHCNO"] = (1000 + index).ToString(CultureInfo.InvariantCulture),
+                ["SCHCNO"] = (firstCandidateNumber + index).ToString(CultureInfo.InvariantCulture),
                 ["CYPMD_ID"] = student.Cypmd_Id,
                 ["SURNAME_0"] = student.Surname,
                 ["FORENAMES_0"] = student.Firstname,

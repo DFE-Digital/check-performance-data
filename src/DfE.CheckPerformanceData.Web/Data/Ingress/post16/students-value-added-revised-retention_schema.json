@@ -1,23 +1,23 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "students-value-added_schema.json",
-  "title": "Value added",
-  "description": "One row of the 16-19 value added data file, as the data specification defines it (fields 1-17, headed by field reference): one row per student per qualification. The descriptive column heading is the heading of the CSV a school downloads, in column order A-Q. Rows are split by Laestab (x-ingress.institutionKey). The file is display only: it never feeds the journeys' pupil data.",
+  "$id": "students-value-added-revised-retention_schema.json",
+  "title": "Value added revised including retention",
+  "description": "One row of the 16-19 value added revised including retention data file, as the data specification defines it (fields 1-17, headed by field reference): one row per student per qualification. The descriptive column heading is the heading of the CSV a school downloads, in column order A-Q. Rows are split by Laestab (x-ingress.institutionKey). The file is display only: it never feeds the journeys' pupil data.",
   "type": "object",
   "additionalProperties": false,
   "x-ingress": {
-    "collection": "students-value-added",
+    "collection": "students-value-added-revised-retention",
     "pageTab": "students",
     "institutionKey": "Laestab"
   },
   "x-download": {
-    "fileName": "ks5va25.csv",
-    "label": "Value added"
+    "fileName": "ks5va_rev_ret25.csv",
+    "label": "Value added: revised including retention"
   },
   "x-display": {
     "tab": "students",
-    "section": "Value added",
-    "selectorOrder": 4
+    "section": "Value added: revised including retention",
+    "selectorOrder": 6
   },
   "properties": {
     "Forename": {

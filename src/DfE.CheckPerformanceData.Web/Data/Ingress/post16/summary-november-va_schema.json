@@ -1,22 +1,22 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "summary-november-va_schema.json",
-  "title": "Summary (Provisional Value Added and light touch revised data share)",
-  "description": "One row per institution from the 1618 Summary Data worksheet of Post16.ods, in the Column (November VA) layout used by the Provisional Value Added and light touch revised data share exercise.",
+  "title": "Summary (Provisional Value Added)",
+  "description": "One row per institution from the 1618 Summary Data worksheet of Post16.ods, in the Column (November VA) layout used by the Provisional Value Added exercise.",
   "type": "object",
   "additionalProperties": false,
   "x-ingress": {
-    "collection": "summary",
+    "collection": "summary-value-added",
     "pageTab": "summary",
     "institutionKey": "LAESTAB"
   },
   "x-download": {
-    "fileName": "summary.csv",
-    "label": "Summary"
+    "fileName": "summary-value-added.csv",
+    "label": "Summary with value added"
   },
   "x-display": {
     "tab": "summary",
-    "section": "Summary",
+    "section": "Summary with value added",
     "selectorOrder": 0,
     "layout": "vertical"
   },

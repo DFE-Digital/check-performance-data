@@ -16,8 +16,13 @@ public sealed class SeedPost16MarchSamplesTests
     private static byte[] Retention => Files[SeedPost16MarchSamples.IncludedRevisedWithRetentionFile];
 
     [Fact]
-    public void The_March_samples_are_the_included_revised_with_retention_file_and_the_aims_file()
-        => Assert.Equal(["results/16to19_INC_REV_RET.csv", "students/aims.csv"], Files.Keys.Order());
+    public void The_March_samples_are_the_included_revised_with_retention_file_the_aims_file_the_value_added_file_and_the_summary()
+        => Assert.Equal(
+            [
+                "results/16to19_INC_REV_RET.csv", "students/aims.csv", "students/value-added-revised-retention.csv",
+                "summary/summary-value-added-revised-retention.csv"
+            ],
+            Files.Keys.Order());
 
     [Fact]
     public void The_aims_file_has_every_specified_column_in_order_and_its_schema_reads_each_one()

@@ -65,8 +65,9 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
         Assert.Equal("16 to 19 Oct", window.Title);
         Assert.Equal(CheckingWindowType.Post16, window.CheckingWindowType);
         var exercises = window.CheckingExercises.OrderBy(e => e.SortOrder).ToList();
+        // The third and fourth are the summary and pupil campus data shares, which have no kind.
         Assert.Equal(
-            [CheckingExerciseType.PupilData, CheckingExerciseType.ResultsEnquiry],
+            [CheckingExerciseType.PupilData, CheckingExerciseType.ResultsEnquiry, null, null],
             exercises.Select(e => e.ExerciseType));
         Assert.All(exercises, e =>
         {
@@ -80,15 +81,86 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
     }
 
     [Fact]
+    public async Task Every_16_to_19_window_has_both_previously_published_slots_and_the_revised_one_waits()
+    {
+        // The revised slot is empty and not required until the February step fills it.
+        foreach (var windowId in new[] { _october, _november, _february, _march })
+        {
+            var students = (await LoadAsync(windowId)).CheckingExercises
+                .Single(e => e.ExerciseType == CheckingExerciseType.PupilData);
+            Assert.Equal(["included", "nonincluded", "previously-published", "previously-published-revised", .. SeedCheckingWindows.ValueAddedDatasets],
+                students.Datasets.OrderBy(d => d.SortOrder).Select(d => d.Name));
+            var revised = students.Datasets.Single(d => d.Name == "previously-published-revised");
+            Assert.False(revised.Required);
+            Assert.False(revised.FeedsJourney);
+            Assert.Equal(string.Empty, revised.IngressFile);
+        }
+    }
+
+    [Fact]
+    public async Task Every_16_to_19_window_has_the_summary_share_and_only_its_first_slot_is_required()
+    {
+        foreach (var windowId in new[] { _october, _november, _february, _march })
+        {
+            var summary = Summary(await LoadAsync(windowId));
+            Assert.True(summary.DisplayOnly);
+            Assert.True(summary.IsEnabled);
+            Assert.Equal("Summary", summary.TabName);
+            // The Summary tab is first.
+            Assert.Equal(summary.Id, (await LoadAsync(windowId)).CheckingExercises.MinBy(e => e.TabOrder)!.Id);
+            Assert.Equal(DfE.CheckPerformanceData.Application.CheckYourPupilData.ExerciseLayout.Vertical, summary.Layout);
+            var slots = summary.Datasets.OrderBy(d => d.SortOrder).ToList();
+            Assert.Equal(SeedCheckingWindows.SummaryDatasets, slots.Select(d => d.Name));
+            Assert.Equal([true, false, false, false], slots.Select(d => d.Required));
+            Assert.All(slots, d => Assert.False(d.FeedsJourney));
+        }
+    }
+
+    [Fact]
+    public async Task Every_16_to_19_window_has_the_pupil_campus_share()
+    {
+        foreach (var windowId in new[] { _october, _november, _february, _march })
+        {
+            var campus = PupilCampus(await LoadAsync(windowId));
+            Assert.True(campus.DisplayOnly);
+            Assert.True(campus.IsEnabled);
+            Assert.Equal("Campus", campus.TabName);
+            var slot = Assert.Single(campus.Datasets);
+            Assert.Equal(SeedCheckingWindows.PupilCampusDataset, slot.Name);
+            Assert.False(slot.FeedsJourney);
+        }
+    }
+
+    [Fact]
+    public async Task Every_16_to_19_window_has_the_value_added_slots_and_they_wait_empty()
+    {
+        // No value added slot is required until its step fills it: the October run has none.
+        foreach (var windowId in new[] { _october, _november, _february, _march })
+        {
+            var slots = (await LoadAsync(windowId)).CheckingExercises
+                .Single(e => e.ExerciseType == CheckingExerciseType.PupilData)
+                .Datasets.Where(d => SeedCheckingWindows.ValueAddedDatasets.Contains(d.Name)).ToList();
+            Assert.Equal(3, slots.Count);
+            Assert.All(slots, d =>
+            {
+                Assert.False(d.Required);
+                Assert.False(d.FeedsJourney);
+                Assert.Equal(string.Empty, d.IngressFile);
+            });
+        }
+    }
+
+    [Fact]
     public async Task The_window_seed_gives_every_slot_but_no_data()
     {
         // The Web seed imports the files: the window seed alone links nothing and runs nothing.
         var window = await LoadAsync(_october);
 
         var students = window.CheckingExercises.Single(e => e.ExerciseType == CheckingExerciseType.PupilData);
-        Assert.Equal(["included", "nonincluded", "previously-published"], students.Datasets.OrderBy(d => d.SortOrder).Select(d => d.Name));
-        // The previously published data is shown to schools, never read by a journey.
-        Assert.Equal([true, true, false], students.Datasets.OrderBy(d => d.SortOrder).Select(d => d.FeedsJourney));
+        Assert.Equal(["included", "nonincluded", "previously-published", "previously-published-revised", .. SeedCheckingWindows.ValueAddedDatasets],
+            students.Datasets.OrderBy(d => d.SortOrder).Select(d => d.Name));
+        // The previously published and value added data are shown to schools, never read by a journey.
+        Assert.Equal([true, true, false, false, false, false, false], students.Datasets.OrderBy(d => d.SortOrder).Select(d => d.FeedsJourney));
 
         var results = window.CheckingExercises.Single(e => e.ExerciseType == CheckingExerciseType.ResultsEnquiry);
         Assert.Equal(
@@ -139,7 +211,7 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
             await SeedCheckingWindows.ExecuteSeed(ctx, _openKs4, _closedKs4, _october, _november, _february, _march);
         }
 
-        Assert.Equal(2, (await LoadAsync(_october)).CheckingExercises.Count);
+        Assert.Equal(4, (await LoadAsync(_october)).CheckingExercises.Count);
     }
 
     [Fact]
@@ -185,6 +257,10 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
                 seeded.Select(r => r.CompositeKey).Order());
             Assert.Equal(["16to19_INC", "16to19_LR1", "16to19_NONINC"], seeded.Select(r => r.SourceFile).Distinct().Order());
             Assert.True(await AwaitingSecondLateResultsAsync(_october));
+
+            await AssertPupilCampusAsync(_october, october);
+            await AssertSummaryAsync(_october, october, step: 0);
+            await AssertValueAddedAsync(_october, october, step: -1);
         }
         finally
         {
@@ -213,6 +289,10 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
             // A student who held nothing in October now has a result.
             Assert.Contains(seeded, r => r.CypmdId == "500005" && r.SourceFile == "16to19_LR2");
             Assert.False(await AwaitingSecondLateResultsAsync(_november));
+
+            await AssertPupilCampusAsync(_november, november);
+            await AssertSummaryAsync(_november, november, step: 1);
+            await AssertValueAddedAsync(_november, november, step: 0);
         }
         finally
         {
@@ -242,6 +322,28 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
             // The amendment replaced the row it corrected: one English row for Alice, at grade 7.
             Assert.Equal("7", Assert.Single(revised, r => r.CypmdId == "500001" && r.Qan == "60148366").Grade);
             Assert.False(await AwaitingSecondLateResultsAsync(_february));
+
+            // The February step fills the previously published revised slot, makes it required and
+            // retires previously published. With the value added runs (November, then February's
+            // revised file), that is the fourth pupil data release.
+            var students = february.CheckingExercises.Single(e => e.ExerciseType == CheckingExerciseType.PupilData);
+            Assert.Equal(["included", "nonincluded", "previously-published", "previously-published-revised", .. SeedCheckingWindows.ValueAddedDatasets],
+                students.Datasets.OrderBy(d => d.SortOrder).Select(d => d.Name));
+            Assert.Equal(["previously-published", SeedCheckingWindows.ValueAddedDatasets[0]], students.Datasets.Where(d => d.Retired).OrderBy(d => d.SortOrder).Select(d => d.Name));
+            var previous = students.Datasets.Single(d => d.Name == "previously-published-revised");
+            Assert.False(previous.FeedsJourney);
+            Assert.True(previous.Required);
+            Assert.NotEqual(string.Empty, previous.IngressFile);
+            Assert.Equal(4, await ReleaseCountAsync(students));
+            var published = Newtonsoft.Json.Linq.JArray.Parse(System.Text.Encoding.UTF8.GetString(
+                await ReadAsync(_february, DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths
+                    .DatasetBlobName(students.Id, students.CurrentReleaseId!.Value, previous.Id, "860/4070"))));
+            // October's 60, less 6, plus 10.
+            Assert.Equal(64, published.Count);
+
+            await AssertPupilCampusAsync(_february, february);
+            await AssertSummaryAsync(_february, february, step: 2);
+            await AssertValueAddedAsync(_february, february, step: 1);
         }
         finally
         {
@@ -277,7 +379,7 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
             Assert.Equal("4", Assert.Single(seeded, r => r.CypmdId == "500003" && r.Qan == "60146084" && r.Session == "S2024").Grade);
 
             // The pupil aims data share: no kind, display only, validated into its own release.
-            var aims = Assert.Single(march.CheckingExercises, e => e.ExerciseType is null);
+            var aims = Assert.Single(march.CheckingExercises, e => e.ExerciseType is null && e.Name == "Pupil aims");
             Assert.True(aims.DisplayOnly);
             Assert.Equal("Aims", aims.TabName);
             var slot = Assert.Single(aims.Datasets);
@@ -285,6 +387,10 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
             Assert.NotEqual(string.Empty, slot.IngressFile);
             Assert.NotNull(aims.CurrentReleaseId);
             Assert.Equal(1, await ReleaseCountAsync(aims));
+
+            await AssertPupilCampusAsync(_march, march);
+            await AssertSummaryAsync(_march, march, step: 3);
+            await AssertValueAddedAsync(_march, march, step: 2);
         }
         finally
         {
@@ -297,6 +403,70 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
     {
         await using var ctx = CreateContext();
         await seed(ctx, new BlobServiceClient(azurite.ConnectionString), Ingress(ctx), AppContext.BaseDirectory, windowId);
+    }
+
+    private static CheckingExercise PupilCampus(CheckingWindow window) =>
+        window.CheckingExercises.Single(e => e.ExerciseType is null && e.Name == SeedCheckingWindows.PupilCampusExercise);
+
+    // The October step fills the campus slot and validates; the later steps keep that release.
+    // The live file holds a row for each of the school's included students.
+    private async Task AssertPupilCampusAsync(Guid windowId, CheckingWindow window)
+    {
+        var campus = PupilCampus(window);
+        var slot = Assert.Single(campus.Datasets);
+        Assert.NotEqual(string.Empty, slot.IngressFile);
+        Assert.Equal(1, await ReleaseCountAsync(campus));
+
+        var school = Newtonsoft.Json.Linq.JArray.Parse(System.Text.Encoding.UTF8.GetString(
+            await ReadAsync(windowId, DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths
+                .DatasetBlobName(campus.Id, campus.CurrentReleaseId!.Value, slot.Id, "860/4070"))));
+        Assert.NotEmpty(school);
+        Assert.All(school, r => Assert.Equal("8604070", r["LAESTAB"]!.ToString()));
+        Assert.Contains(school, r => r["CampID"]!.ToString() == SeedPost16PupilCampus.SecondCampus("8604070"));
+    }
+
+    private static CheckingExercise Summary(CheckingWindow window) =>
+        window.CheckingExercises.Single(e => e.ExerciseType is null && e.Name == SeedCheckingWindows.SummaryExercise);
+
+    // Each step fills its summary slot, makes it required and retires the slot before it, and each
+    // step's run is a release. The live file holds one row for the school.
+    private async Task AssertSummaryAsync(Guid windowId, CheckingWindow window, int step)
+    {
+        var summary = Summary(window);
+        var slots = summary.Datasets.OrderBy(d => d.SortOrder).ToList();
+        Assert.Equal(SeedCheckingWindows.SummaryDatasets.Take(step + 1), Linked(summary).Order());
+        Assert.Equal(SeedCheckingWindows.SummaryDatasets.Take(step), slots.Where(d => d.Retired).Select(d => d.Name));
+        Assert.True(slots[step].Required);
+        Assert.Equal(step + 1, await ReleaseCountAsync(summary));
+
+        var school = Newtonsoft.Json.Linq.JArray.Parse(System.Text.Encoding.UTF8.GetString(
+            await ReadAsync(windowId, DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths
+                .DatasetBlobName(summary.Id, summary.CurrentReleaseId!.Value, slots[step].Id, "860/4070"))));
+        Assert.Equal("8604070", Assert.Single(school)["LAESTAB"]!.ToString());
+    }
+
+    // Each step from November fills its value added slot in pupil data, makes it required and
+    // retires the slot before it. The live file is split by Laestab and feeds no journey. October
+    // (step -1) has none.
+    private async Task AssertValueAddedAsync(Guid windowId, CheckingWindow window, int step)
+    {
+        var students = window.CheckingExercises.Single(e => e.ExerciseType == CheckingExerciseType.PupilData);
+        var slots = students.Datasets.Where(d => SeedCheckingWindows.ValueAddedDatasets.Contains(d.Name))
+            .OrderBy(d => d.SortOrder).ToList();
+        Assert.Equal(SeedCheckingWindows.ValueAddedDatasets.Take(step + 1),
+            slots.Where(d => d.IngressFile != string.Empty).Select(d => d.Name));
+        Assert.Equal(SeedCheckingWindows.ValueAddedDatasets.Take(Math.Max(step, 0)),
+            slots.Where(d => d.Retired).Select(d => d.Name));
+        if (step < 0)
+            return;
+
+        Assert.True(slots[step].Required);
+        var rows = Newtonsoft.Json.Linq.JArray.Parse(System.Text.Encoding.UTF8.GetString(
+            await ReadAsync(windowId, DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths
+                .DatasetBlobName(students.Id, students.CurrentReleaseId!.Value, slots[step].Id, "860/4070"))));
+        // 120 included students, every third with two qualifications.
+        Assert.Equal(160, rows.Count);
+        Assert.All(rows, r => Assert.Equal("8604070", r["Laestab"]!.ToString()));
     }
 
     private static CheckingExercise Results(CheckingWindow window) =>

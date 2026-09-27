@@ -16,8 +16,53 @@ public sealed class SeedPost16FebruarySamplesTests
     private static readonly IReadOnlyDictionary<string, byte[]> October = SeedPost16OctoberSamples.Files();
 
     [Fact]
-    public void The_February_samples_are_the_two_revised_files()
-        => Assert.Equal(["results/16to19_INC_REV.csv", "results/16to19_NONINC_REV.csv"], Files.Keys.Order());
+    public void The_February_samples_are_the_two_revised_files_the_previously_published_revised_file_the_value_added_file_and_the_summary()
+        => Assert.Equal(
+            [
+                "results/16to19_INC_REV.csv", "results/16to19_NONINC_REV.csv", "students/previously-published-revised.csv",
+                "students/value-added-revised.csv", "summary/summary-value-added-revised.csv"
+            ],
+            Files.Keys.Order());
+
+    [Fact]
+    public void The_previously_published_revised_file_has_the_October_columns_and_its_schema_reads_each_one()
+    {
+        using var doc = Parse(SeedPost16FebruarySamples.PreviouslyPublishedRevisedSchema);
+
+        Assert.Equal(Header(October[SeedPost16OctoberSamples.PreviouslyPublishedFile]),
+            Header(Files[SeedPost16FebruarySamples.PreviouslyPublishedRevisedFile]));
+        Assert.Equal(Header(Files[SeedPost16FebruarySamples.PreviouslyPublishedRevisedFile]),
+            doc.RootElement.GetProperty("properties").EnumerateObject().Select(p => p.Name));
+    }
+
+    [Fact]
+    public void The_previously_published_revised_file_drops_and_adds_students_and_renumbers_them()
+    {
+        var october = Rows(October[SeedPost16OctoberSamples.PreviouslyPublishedFile])
+            .Select(r => (r["LAESTAB_0"], r["CYPMD_ID"])).ToHashSet();
+        var revised = Rows(Files[SeedPost16FebruarySamples.PreviouslyPublishedRevisedFile]);
+        var keys = revised.Select(r => (r["LAESTAB_0"], r["CYPMD_ID"])).ToHashSet();
+
+        Assert.Contains(october, key => !keys.Contains(key));
+        Assert.Contains(keys, key => !october.Contains(key));
+        Assert.Equal("2000", revised[0]["SCHCNO"]);
+        Assert.All(revised, r => Assert.Equal(r["LAESTAB_0"] + r["CYPMD_ID"], r["cypmd_pk"]));
+    }
+
+    [Fact]
+    public void The_previously_published_revised_schema_has_the_October_properties_but_is_its_own_dataset()
+    {
+        using var first = Parse(SeedPost16OctoberSamples.PreviouslyPublishedSchema);
+        using var second = Parse(SeedPost16FebruarySamples.PreviouslyPublishedRevisedSchema);
+
+        Assert.Equal(
+            first.RootElement.GetProperty("properties").GetRawText(),
+            second.RootElement.GetProperty("properties").GetRawText());
+        Assert.Equal(Text(first, "x-ingress", "institutionKey"), Text(second, "x-ingress", "institutionKey"));
+        Assert.NotEqual(Text(first, "x-ingress", "collection"), Text(second, "x-ingress", "collection"));
+        Assert.NotEqual(Text(first, "x-display", "section"), Text(second, "x-display", "section"));
+        Assert.NotEqual(Text(first, "x-download", "fileName"), Text(second, "x-download", "fileName"));
+    }
 
     [Theory]
     [InlineData(SeedPost16FebruarySamples.IncludedRevisedFile, "results/16to19_INC.csv")]

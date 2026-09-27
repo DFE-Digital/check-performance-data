@@ -9,14 +9,19 @@ namespace DfE.CheckPerformanceData.Web.Seeding;
 /// <summary>
 /// Dev-only: the "16 to 19 Nov" window, where the November step is done. The seed does the October
 /// import and validation (<see cref="SeedPost16OctoberSamples"/>), then links the late results 2
-/// sample and validates the results enquiry again, so it has an October and a November release.
+/// sample and validates the results enquiry again, so it has an October and a November release. It
+/// then replaces the summary with the summary with value added, and fills pupil data's first value
+/// added slot and validates pupil data again.
 /// </summary>
 /// <remarks>
 /// The seed also writes the sample to the ingress storage account, container <see cref="Container"/>:
 /// <c>results/16to19_LR2.csv</c>, in the supplier's late results shape. Its schema is
 /// <c>results-late-2_schema.json</c> in <c>src/DfE.CheckPerformanceData.Web/Data/Ingress/post16/</c>.
 /// Its rows are <see cref="SeedStudentResults.LateResults2"/>. Testing guide:
-/// <c>docs/testing-late-results-2.md</c>.
+/// <c>docs/testing-late-results-2.md</c>. The seed also replaces the summary share's file with
+/// <c>summary/summary-value-added.csv</c> → <c>summary-november-va_schema.json</c>
+/// (<see cref="SeedPost16Summary"/>), and adds <c>students/value-added.csv</c> →
+/// <c>students-value-added_schema.json</c> to pupil data (<see cref="SeedPost16ValueAdded"/>).
 /// </remarks>
 public static class SeedPost16NovemberSamples
 {
@@ -30,7 +35,11 @@ public static class SeedPost16NovemberSamples
     {
         // An Amendment is a row an October file already holds (same student, QAN and session).
         [LateResults2File] = SeedPost16OctoberSamples.LateResultsCsv(
-            SeedStudentResults.LateResults2, SeedPost16OctoberSamples.KingsmeadStudents(), SeedStudentResults.All)
+            SeedStudentResults.LateResults2, SeedPost16OctoberSamples.KingsmeadStudents(), SeedStudentResults.All),
+        [SeedPost16Summary.November.File] =
+            SeedPost16Summary.Csv(SeedPost16Summary.November, DevDataSeeder.Post16NovemberCheckingWindowId),
+        [SeedPost16ValueAdded.November.File] =
+            SeedPost16ValueAdded.Csv(SeedPost16ValueAdded.November, DevDataSeeder.Post16NovemberCheckingWindowId)
     };
 
     public static Task ExecuteSeedAsync(
@@ -46,6 +55,8 @@ public static class SeedPost16NovemberSamples
         await SeedPost16OctoberSamples.ExecuteSeedAsync(dbContext, blobs, ingress, contentRootPath, windowId);
         await SeedPost16OctoberSamples.AddResultsFilesAsync(dbContext, blobs, ingress, contentRootPath, windowId,
             [(ResultsFileTags.Post16LateResults2, LateResults2File, Files()[LateResults2File], LateResults2Schema)]);
+        await SeedPost16Summary.AddAsync(dbContext, blobs, ingress, contentRootPath, windowId, SeedPost16Summary.November);
+        await SeedPost16ValueAdded.AddAsync(dbContext, blobs, ingress, contentRootPath, windowId, SeedPost16ValueAdded.November);
     }
 
     /// <summary>

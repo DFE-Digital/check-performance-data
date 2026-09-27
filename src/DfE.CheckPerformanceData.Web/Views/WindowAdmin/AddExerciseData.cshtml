@@ -22,7 +22,7 @@
 <p class="govuk-body">Add a CSV and schema pair to this exercise. After saving, choose the incoming CSV and its JSON schema.</p>
 @if (Model.IsResultsEnquiry)
 {
-    <p class="govuk-body">A file with a results source is merged into the results that schools search in a results enquiry, and each result shows the source's name. A file with no source is display only: schools can view and download it on the exercise's tab.</p>
+    <p class="govuk-body">A results file is merged into the results that schools search in a results enquiry, and each result shows this file's name as its source. A data share file is not: schools can view and download it on the exercise's tab, and no journey uses it.</p>
 }
 else if (Model.AsksUse)
 {
@@ -37,23 +37,40 @@ else
     <input type="hidden" asp-for="WindowId" />
     <govuk-input for="Name">
         <govuk-input-label>Data file name</govuk-input-label>
-        <govuk-input-hint>Use a short name such as Included pupils or Late results.</govuk-input-hint>
+        @if (Model.IsResultsEnquiry)
+        {
+            <govuk-input-hint>Schools see this name as the source of each result in this file, for example Late results 3.</govuk-input-hint>
+        }
+        else
+        {
+            <govuk-input-hint>Use a short name such as Included pupils or Late results.</govuk-input-hint>
+        }
         <govuk-input-error-message asp-validation-for="Name" />
     </govuk-input>
     <govuk-checkboxes for="Required">
         <govuk-checkboxes-item value="true" checked="@Model.Required">This file is required before the exercise can be validated</govuk-checkboxes-item>
     </govuk-checkboxes>
-    @* Use and inclusion apply only to pupil data, and a results source only to results. *@
+    @* Use applies to the exercises with a journey, and inclusion only to pupil data. *@
     @if (Model.AsksUse)
     {
         <govuk-radios for="Use">
             <govuk-radios-fieldset>
                 <govuk-radios-fieldset-legend class="govuk-fieldset__legend--m">What is this file for?</govuk-radios-fieldset-legend>
                 <govuk-radios-error-message asp-validation-for="Use" />
-                <govuk-radios-item value="journey" checked="@(Model.Use == "journey")">
-                    Pupil data for the journeys
-                    <govuk-radios-item-hint>Merged into the pupils data that schools check and ask to change.</govuk-radios-item-hint>
-                </govuk-radios-item>
+                @if (Model.IsResultsEnquiry)
+                {
+                    <govuk-radios-item value="journey" checked="@(Model.Use == "journey")">
+                        Results for the enquiry
+                        <govuk-radios-item-hint>Merged into the results that schools search in a results enquiry.</govuk-radios-item-hint>
+                    </govuk-radios-item>
+                }
+                else
+                {
+                    <govuk-radios-item value="journey" checked="@(Model.Use == "journey")">
+                        Pupil data for the journeys
+                        <govuk-radios-item-hint>Merged into the pupils data that schools check and ask to change.</govuk-radios-item-hint>
+                    </govuk-radios-item>
+                }
                 <govuk-radios-item value="share" checked="@(Model.Use == "share")">
                     Data share only
                     <govuk-radios-item-hint>Schools can view and download it. No journey uses it, for example previously published data.</govuk-radios-item-hint>
@@ -73,19 +90,6 @@ else
                 <govuk-radios-item value="excluded" checked="@(Model.Inclusion == "excluded")">All pupils are not included</govuk-radios-item>
             </govuk-radios-fieldset>
         </govuk-radios>
-    }
-    @if (Model.AsksSource)
-    {
-        <govuk-select for="SourceFile">
-            <govuk-select-label>Results source (optional)</govuk-select-label>
-            <govuk-select-hint>Choose the supplier file this is. Its tag is stamped on every record, and schools see its name.</govuk-select-hint>
-            <govuk-select-error-message asp-validation-for="SourceFile" />
-            <govuk-select-item value="">None (display only)</govuk-select-item>
-            @foreach (var source in Model.SourceOptions)
-            {
-                <govuk-select-item value="@source.Tag" selected="@(Model.SourceFile == source.Tag)">@source.Label (@source.Tag)</govuk-select-item>
-            }
-        </govuk-select>
     }
     <govuk-button type="submit">Add data file</govuk-button>
     <a class="govuk-link" href="@Model.CancelUrl">Cancel</a>

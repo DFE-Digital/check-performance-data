@@ -3,20 +3,15 @@ using DfE.CheckPerformanceData.Domain.Enums;
 namespace DfE.CheckPerformanceData.Application.ResultsEnquiry;
 
 /// <summary>One results file of the supplier feed: the tag stamped on its rows and its name for schools.</summary>
-/// <param name="IsSecondLateResults">
-/// The file that corrects nearly all incorrect grades. While its slot is in use and the live release
-/// has not read it, the enquiry journey tells a school to wait for it (<see cref="LateResultsAvailability"/>).
-/// </param>
 /// <param name="IsRequired">
 /// A file the exercise starts with: its slot must hold a file before the exercise can be validated.
 /// The later files land weeks apart and one may never land, so they are optional.
 /// </param>
-public sealed record ResultsSource(string Tag, string Label, bool IsSecondLateResults = false, bool IsRequired = false);
+public sealed record ResultsSource(string Tag, string Label, bool IsRequired = false);
 
 /// <summary>
 /// The results files each window type offers, in the order they arrive, and the label schools see
-/// for each tag. This is the only list of results files: the default slots, the admin's source
-/// dropdown, the late-results check and every label read it. A new supplier file is one row here.
+/// for each tag. This is the only list of results files: the default slots and every label read it.
 /// </summary>
 public static class ResultsSources
 {
@@ -26,7 +21,7 @@ public static class ResultsSources
         new(ResultsFileTags.Post16Included, "Included", IsRequired: true),
         new(ResultsFileTags.Post16NonIncluded, "Non-included", IsRequired: true),
         new(ResultsFileTags.Post16LateResults1, "Late results 1", IsRequired: true),
-        new(ResultsFileTags.Post16LateResults2, "Late results 2", IsSecondLateResults: true),
+        new(ResultsFileTags.Post16LateResults2, "Late results 2"),
         new(ResultsFileTags.Post16IncludedRevised, "Included revised"),
         new(ResultsFileTags.Post16NonIncludedRevised, "Non-included revised"),
         new(ResultsFileTags.Post16IncludedRevisedWithRetention, "Included revised with retention")
@@ -36,7 +31,7 @@ public static class ResultsSources
     [
         new(ResultsFileTags.Ks4Main, "Main results", IsRequired: true),
         new(ResultsFileTags.Ks4LateResults1, "Late results 1"),
-        new(ResultsFileTags.Ks4LateResults2, "Late results 2", IsSecondLateResults: true),
+        new(ResultsFileTags.Ks4LateResults2, "Late results 2"),
         new(ResultsFileTags.Ks4Revised, "Revised results")
     ];
 
@@ -62,7 +57,4 @@ public static class ResultsSources
     /// <summary>The label for a tag. An unknown tag is shown as it is, rather than hidden.</summary>
     public static string LabelFor(string? tag) =>
         tag is not null && ByTag.TryGetValue(tag, out var source) ? source.Label : tag ?? string.Empty;
-
-    public static bool IsSecondLateResults(string? tag) =>
-        tag is not null && ByTag.TryGetValue(tag, out var source) && source.IsSecondLateResults;
 }

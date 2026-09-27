@@ -15,8 +15,8 @@ namespace DfE.CheckPerformanceData.Web.Seeding;
 /// holds no results.
 ///
 /// <see cref="All"/> holds no <see cref="ResultsFileTags.Post16LateResults2"/> row: it arrives in
-/// November, so after the October import its slot is empty, <c>ILateResultsAvailability</c> reports
-/// the file as awaited and the "check your second late results file" interstitial shows. The
+/// November, so after the October import its slot is empty, which is why the October window's results
+/// enquiry is seeded with "Show late results warning" on. The
 /// November file is <see cref="LateResults2"/>, kept apart for the same reason, and so are the
 /// February and March files.
 /// </summary>

@@ -39,14 +39,6 @@ public class ResultsSourcesTests
     [Fact]
     public void KS2_has_no_results_sources()
         => Assert.Empty(ResultsSources.For(CheckingWindowType.KS2));
-
-    [Theory]
-    [InlineData(ResultsFileTags.Post16LateResults2, true)]
-    [InlineData(ResultsFileTags.Ks4LateResults2, true)]
-    [InlineData(ResultsFileTags.Post16LateResults1, false)]
-    [InlineData(null, false)]
-    public void Only_the_second_late_file_is_the_awaited_late_file(string? tag, bool expected)
-        => Assert.Equal(expected, ResultsSources.IsSecondLateResults(tag));
 }
 
 public class RetiredDatasetTests

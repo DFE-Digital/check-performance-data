@@ -103,6 +103,8 @@ Do this on the **October** window. The November window already has the result of
 7. Make sure that the Results enquiry shows the **Validated** tag again.
 8. On the exercise edit page, in **Data releases**, make sure that there is a new release and that
    it is the live release. The October release is still in the list.
+9. On the same page, clear **Show late results warning** and save. The guidance no longer follows
+   the files: the admin turns it off when the late results have arrived.
 
 ## Test 4: schools see late results 2
 
@@ -128,15 +130,18 @@ Do this on the November window, or on the October window after Test 3.
 
 1. As an admin, on the November window's Results enquiry edit page, in **Data releases**, choose **Make live** on the
    October release.
-2. As an editor, make sure that the Results tab has no Late results 2 section, that Edward Smith is
-   not in the search, and that the late results guidance shows again.
+2. As an editor, make sure that the Results tab has no Late results 2 section and that Edward Smith is
+   not in the search. The late results guidance does not come back: it follows the **Show late
+   results warning** box, not the release.
 3. Make the November release live again.
 
 ## Automated cover
 
 - `SeededCheckingExerciseTests.The_October_window_has_the_October_files_validated` runs the October
-  seed and checks its release, its results and that the late results guidance shows.
+  seed and checks its release, its results and that the late results guidance shows (the October
+  results enquiry is seeded with the box ticked).
 - `SeededCheckingExerciseTests.The_November_window_has_late_results_2_validated_after_the_October_files`
-  runs the November seed and checks the two releases, the results and that the guidance does not show.
+  runs the November seed and checks the two releases, the results and that the guidance does not show
+  (the November results enquiry is seeded with the box clear).
 - `SeedPost16NovemberSamplesTests` pins the LR2 sample: its columns, its Amendment/New marks, its
   students, and that its schema is a separate dataset from late results 1.

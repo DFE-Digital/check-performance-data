@@ -88,6 +88,7 @@ public sealed class CheckYourPupilDataRepository(
                         ReplacesCheckingExerciseId = e.ReplacesCheckingExerciseId,
                         CurrentReleaseId = e.CurrentReleaseId,
                         Layout = e.Layout,
+                        ShowLateResultsWarning = e.ShowLateResultsWarning,
                         // Oldest first. The school-facing display reads its schemas from the current release, and
                         // the admin exercise page lists every release so an earlier one can be made live again.
                         Releases = e.Releases

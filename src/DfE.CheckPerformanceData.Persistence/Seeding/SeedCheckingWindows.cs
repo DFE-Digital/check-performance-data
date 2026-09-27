@@ -183,6 +183,12 @@ public static class SeedCheckingWindows
 
         // October's pupil data checking also shares the previously published student data. It is
         // display only: the slot feeds no journey, so it stays out of the journeys' pupils file.
+        // October's late results 2 has not arrived yet, so its results enquiry shows the late
+        // results warning. The later windows have it, so theirs do not.
+        post16OctoberWindow.CheckingExercises
+            .Single(e => e.ExerciseType == CheckingExerciseType.ResultsEnquiry)
+            .ShowLateResultsWarning = true;
+
         post16OctoberWindow.CheckingExercises
             .Single(e => e.ExerciseType == CheckingExerciseType.PupilData)
             .Datasets.Add(new CheckingWindowDataset

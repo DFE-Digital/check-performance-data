@@ -74,16 +74,15 @@ public sealed class ExerciseDataControllerTests
     }
 
     [Fact]
-    public async Task Duplicate_names_and_unknown_sources_do_not_save()
+    public async Task Duplicate_names_do_not_save()
     {
-        // A results source is asked only on a results enquiry.
+        // The name is the source stamped on a results file's rows, so it must be unique.
         var owner = AddExercise(CheckingExerciseType.ResultsEnquiry);
         owner.Datasets.Add(new() { Name = "existing" });
-        var model = new AddExerciseDataItem { WindowId = _window.Id, Name = "existing", SourceFile = "unknown" };
+        var model = new AddExerciseDataItem { WindowId = _window.Id, Name = "existing" };
         var result = Assert.IsType<ViewResult>(await _controller.Submit(_window.Id, owner.Id, model, default));
         Assert.Same(model, result.Model);
         Assert.Contains("Name", _controller.ModelState.Keys);
-        Assert.Contains("SourceFile", _controller.ModelState.Keys);
         Assert.Equal("/exercise", model.CancelUrl);
         await _service.DidNotReceiveWithAnyArgs().UpdateAsync(default!, default);
     }
@@ -156,18 +155,17 @@ public sealed class ExerciseDataControllerTests
         Assert.Null(added.Included);
     }
 
-    [Theory]
-    [InlineData(CheckingExerciseType.ResultsEnquiry)]
-    [InlineData(null)]
-    public async Task A_share_choice_posted_to_an_exercise_that_does_not_ask_it_changes_nothing(CheckingExerciseType? type)
+    [Fact]
+    public async Task A_share_choice_posted_to_a_data_share_exercise_changes_nothing()
     {
-        var exercise = AddExercise(type);
-        var source = ResultsSources.For(_window.CheckingWindowType).First().Tag;
-        var model = new AddExerciseDataItem { WindowId = _window.Id, Name = "File", Use = "share", SourceFile = source };
+        var exercise = AddExercise(null);
+        var model = new AddExerciseDataItem { WindowId = _window.Id, Name = "File", Use = "journey" };
 
         await _controller.Submit(_window.Id, exercise.Id, model, default);
 
-        Assert.Equal(type == CheckingExerciseType.ResultsEnquiry, Assert.Single(exercise.Datasets).FeedsJourney);
+        var added = Assert.Single(exercise.Datasets);
+        Assert.False(added.FeedsJourney);
+        Assert.Null(added.SourceFile);
     }
 
     [Fact]
@@ -177,39 +175,33 @@ public sealed class ExerciseDataControllerTests
         Assert.False(Validator.TryValidateObject(model, new ValidationContext(model), [], true));
     }
 
-    [Theory]
-    [InlineData(CheckingExerciseType.ResultsEnquiry)]
-    [InlineData(null)]
-    public async Task A_file_with_no_results_source_added_to_a_results_enquiry_or_a_data_share_is_display_only(CheckingExerciseType? type)
+    [Fact]
+    public async Task A_results_file_added_as_a_data_share_is_display_only_and_stamps_no_source()
     {
-        var exercise = new CheckingExerciseDto
-        {
-            Id = Guid.NewGuid(), ExerciseType = type, DisplayOnly = type is null,
-            StartDate = _window.Exercises[0].StartDate, EndDate = _window.Exercises[0].EndDate
-        };
-        _window.Exercises.Add(exercise);
-        var model = new AddExerciseDataItem { WindowId = _window.Id, Name = "extra-share", Inclusion = "file" };
+        var exercise = AddExercise(CheckingExerciseType.ResultsEnquiry);
+        var model = new AddExerciseDataItem { WindowId = _window.Id, Name = "extra-share", Use = "share" };
 
         await _controller.Submit(_window.Id, exercise.Id, model, default);
 
-        Assert.False(Assert.Single(exercise.Datasets).FeedsJourney);
+        var added = Assert.Single(exercise.Datasets);
+        Assert.False(added.FeedsJourney);
+        Assert.Null(added.SourceFile);
     }
 
     [Fact]
-    public async Task A_results_file_with_a_source_feeds_the_journey()
+    public async Task A_results_file_for_the_enquiry_feeds_the_journey_and_stamps_its_own_name()
     {
-        // A new supplier results file (a revised file, say) must reach the enquiry search.
+        // A supplier file nobody has seen before must reach the enquiry search with no code
+        // change: its rows are stamped with the name the admin gave it, and schools see that name.
         var exercise = AddExercise(CheckingExerciseType.ResultsEnquiry);
-        var model = new AddExerciseDataItem
-        {
-            WindowId = _window.Id, Name = "Included revised 2", SourceFile = ResultsFileTags.Post16IncludedRevised, Required = false
-        };
+        var model = new AddExerciseDataItem { WindowId = _window.Id, Name = " Potatoes ", Use = "journey", Required = false };
 
         Assert.IsType<RedirectToActionResult>(await _controller.Submit(_window.Id, exercise.Id, model, default));
 
         var added = Assert.Single(exercise.Datasets);
         Assert.True(added.FeedsJourney);
-        Assert.Equal(ResultsFileTags.Post16IncludedRevised, added.SourceFile);
+        Assert.Equal("Potatoes", added.SourceFile);
+        Assert.Equal("Potatoes", ResultsSources.LabelFor(added.SourceFile));
     }
 
     [Fact]
@@ -257,11 +249,11 @@ public sealed class ExerciseDataControllerTests
     }
 
     [Theory]
-    [InlineData(CheckingExerciseType.PupilData, true, false)]
+    [InlineData(CheckingExerciseType.PupilData, true, true)]
     [InlineData(CheckingExerciseType.ResultsEnquiry, false, true)]
     [InlineData(null, false, false)]
     public async Task Each_question_is_asked_only_on_the_exercise_it_applies_to(
-        CheckingExerciseType? type, bool asksInclusion, bool asksSource)
+        CheckingExerciseType? type, bool asksInclusion, bool asksUse)
     {
         var exercise = AddExercise(type);
 
@@ -269,28 +261,22 @@ public sealed class ExerciseDataControllerTests
             Assert.IsType<ViewResult>(await _controller.New(_window.Id, exercise.Id, default)).Model);
 
         Assert.Equal(asksInclusion, page.AsksInclusion);
-        Assert.Equal(asksInclusion, page.AsksUse);
-        Assert.Equal(asksSource, page.AsksSource);
-        Assert.Equal(asksSource, page.SourceOptions.Count > 0);
+        Assert.Equal(asksUse, page.AsksUse);
     }
 
     [Theory]
-    [InlineData(CheckingExerciseType.PupilData, true, false)]
-    [InlineData(CheckingExerciseType.ResultsEnquiry, false, true)]
-    [InlineData(null, false, false)]
-    public async Task A_value_for_a_question_not_asked_is_not_stored(
-        CheckingExerciseType? type, bool storesInclusion, bool storesSource)
+    [InlineData(CheckingExerciseType.PupilData, true)]
+    [InlineData(CheckingExerciseType.ResultsEnquiry, false)]
+    [InlineData(null, false)]
+    public async Task A_value_for_a_question_not_asked_is_not_stored(CheckingExerciseType? type, bool storesInclusion)
     {
         var exercise = AddExercise(type);
-        var source = ResultsSources.For(_window.CheckingWindowType).First().Tag;
-        // A hand-made post can send both.
-        var model = new AddExerciseDataItem { WindowId = _window.Id, Name = "File", Inclusion = "included", SourceFile = source };
+        // A hand-made post can send it.
+        var model = new AddExerciseDataItem { WindowId = _window.Id, Name = "File", Inclusion = "included" };
 
         Assert.IsType<RedirectToActionResult>(await _controller.Submit(_window.Id, exercise.Id, model, default));
 
-        var added = Assert.Single(exercise.Datasets);
-        Assert.Equal(storesInclusion ? true : null, added.Included);
-        Assert.Equal(storesSource ? source : null, added.SourceFile);
+        Assert.Equal(storesInclusion ? true : null, Assert.Single(exercise.Datasets).Included);
     }
 
     private CheckingExerciseDto AddExercise(CheckingExerciseType? type)

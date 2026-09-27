@@ -51,6 +51,12 @@ public sealed class CheckingExercise
     /// <summary>The school may look at this data and download it, and do nothing else.</summary>
     public bool DisplayOnly { get; set; }
 
+    /// <summary>
+    /// A results enquiry shows its late results guidance before an incorrect-grade enquiry. Set by
+    /// the admin, and read by nothing else.
+    /// </summary>
+    public bool ShowLateResultsWarning { get; set; }
+
     /// <summary>When the tab appears and disappears. Null at either end means no bound.</summary>
     public DateTime? VisibleFrom { get; set; }
     public DateTime? VisibleUntil { get; set; }

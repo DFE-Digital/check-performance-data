@@ -122,6 +122,14 @@ public sealed class CheckingExerciseDto
     public ExerciseLayout Layout { get; init; } = ExerciseLayout.Table;
 
     /// <summary>
+    /// A results enquiry tells a school, before an incorrect-grade enquiry, that late results may
+    /// still correct the grade (<see cref="ResultsEnquiry.LateResultsWarning"/>). The admin sets it
+    /// on the exercise page and clears it when the late results have arrived. It names no file, so
+    /// it still means something for a results enquiry whose late results come another way.
+    /// </summary>
+    public bool ShowLateResultsWarning { get; init; }
+
+    /// <summary>
     /// The release schools see. Null means the exercise has no release yet: its output (if any) is
     /// at the unversioned <see cref="CheckingExerciseBlobPaths.DataPrefix(Guid, Guid?)"/>, which is
     /// where every run before releases existed, and every seeder, wrote it.
@@ -329,19 +337,12 @@ public static class WindowDatasets
 
     /// <summary>
     /// Whether a slot an admin adds to an exercise of this type feeds the journey. On pupil data
-    /// checking a file is part of the pupils data the journey reads (one file for KS4, two for
-    /// 16-19), unless the admin adds it as a data share (e.g. the 16-19 previously published
-    /// file), which schools only view and download. On a results enquiry a file with a results
-    /// source is supplier results, so yes; a file with no source is display only. A data share
+    /// checking and on a results enquiry it does, unless the admin adds it as a data share (e.g.
+    /// the 16-19 previously published file), which schools only view and download. A data share
     /// exercise has no journey, so no.
     /// </summary>
-    public static bool AddedSlotFeedsJourney(CheckingExerciseType? exercise, string? sourceFile, bool dataShare) =>
-        exercise switch
-        {
-            CheckingExerciseType.PupilData => !dataShare,
-            CheckingExerciseType.ResultsEnquiry => !string.IsNullOrEmpty(sourceFile),
-            _ => false
-        };
+    public static bool AddedSlotFeedsJourney(CheckingExerciseType? exercise, bool dataShare) =>
+        (exercise is CheckingExerciseType.PupilData or CheckingExerciseType.ResultsEnquiry) && !dataShare;
 
     /// <summary>
     /// A supplier slot that belongs to another window type, left behind when the window's type

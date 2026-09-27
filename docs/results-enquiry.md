@@ -59,14 +59,18 @@ Because the flow's `firstPageId` is `cohort-scope`, the controller **seeds `Ques
 `check-late-results`** when that is the entry point. Without it the journey engine's out-of-sequence
 guard bounces the user straight past the guidance and the AC silently never happens.
 
-Availability is derived, never configured. `ILateResultsAvailability.IsAwaitingSecondLateResultsAsync`
-says the file is awaited while the results exercise has a slot for it that is **not retired** and the
-**live release has not read** that slot. October: awaited. November, once the file is run: not.
-February, when the slot is retired with the files the revised ones replace: not, so the guidance
-stops (decision, 2026-09-25). Which tag is "the second late file" comes from `ResultsSources`
-(`IsSecondLateResults`), not from a literal. The answer is per file, not per school: it used to be
-"does this school hold any LR2 row", which told a school with no late results to wait for a file that
-had already arrived. That is the only place the service decides this.
+**The admin decides when the guidance shows.** The results enquiry exercise has a **Show late results
+warning** checkbox on its edit page (`CheckingExercise.ShowLateResultsWarning`), and
+`ILateResultsWarning.ShowAsync` reads it from the window's live results enquiry. A new results
+enquiry starts ticked (`WindowExercises.ShowsLateResultsWarningByDefault`); the admin clears it when
+the late results have arrived. That is the only place the service decides this.
+
+It used to be derived: shown while the second late results slot was in use and the live release had
+not read it. That tied the guidance to one file of one supplier feed, so a results enquiry whose late
+results arrive another way, or a file the service has never seen, could not use it. The checkbox
+names no file. The migration that added it ticked it wherever the old rule showed the guidance, so
+no journey changed when it shipped. Before that, it was "does this school hold any LR2 row", which
+told a school with no late results to wait for a file that had already arrived.
 
 ## Data seams
 
@@ -92,9 +96,9 @@ needed and one exercise's sweep cannot destroy another's output. Pupil-data chec
 ### The results files over the year
 
 `ResultsSources` (Application) is the one list of results files: per window type, the tags in the
-order they arrive, the label schools see, and which is the second late file. The default slots, the
-admin's source dropdown, the late-results check and every label read it. A new supplier file is one
-row there.
+order they arrive and the label schools see. The default slots and every label read it. A file the
+admin adds to a results enquiry needs no row: its rows are stamped with the file's own name, and
+schools see that name as the source.
 
 | Month | 16-19 file | Tag | Label |
 |---|---|---|---|

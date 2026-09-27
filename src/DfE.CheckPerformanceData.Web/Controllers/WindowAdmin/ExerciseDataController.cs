@@ -1,4 +1,3 @@
-using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Admin;
@@ -37,27 +36,27 @@ public sealed class ExerciseDataController(IWindowService windows) : Controller
 
         if (exercise.Datasets.Any(d => string.Equals(d.Name, model.Name?.Trim(), StringComparison.OrdinalIgnoreCase)))
             ModelState.AddModelError(nameof(model.Name), "This exercise already has a data file with this name");
-        if (model.AsksSource && !string.IsNullOrEmpty(model.SourceFile) && model.SourceOptions.All(o => o.Tag != model.SourceFile))
-            ModelState.AddModelError(nameof(model.SourceFile), "Select a source from the list");
         if (!ModelState.IsValid) return View(PageView, model);
 
-        var sourceFile = model.AsksSource && !string.IsNullOrEmpty(model.SourceFile) ? model.SourceFile : null;
+        var name = model.Name!.Trim();
         var dataShare = model.AsksUse && model.Use == "share";
+        var feedsJourney = WindowDatasets.AddedSlotFeedsJourney(exercise.ExerciseType, dataShare);
         exercise.Datasets.Add(new CheckingWindowDatasetDto
         {
-            Name = model.Name!.Trim(),
+            Name = name,
             Required = model.Required,
             // Each is asked only on the exercise it applies to, so a value posted anywhere else
             // is ignored. Inclusion is about the journey's pupils, so a data share has none.
             Included = model.AsksInclusion && !dataShare
                 ? model.Inclusion switch { "included" => true, "excluded" => false, _ => null }
                 : null,
-            SourceFile = sourceFile,
-            // On pupil data checking a file is merged into the pupils data the journey reads,
-            // unless the admin adds it as a data share. On a results enquiry a file with a results
-            // source is supplier results and feeds the journey; one with no source is display
-            // only. A data share exercise has no journey.
-            FeedsJourney = WindowDatasets.AddedSlotFeedsJourney(exercise.ExerciseType, sourceFile, dataShare),
+            // A results file's rows are stamped with the name the admin gave it, and schools see that
+            // name as the result's source. The name is unique within the exercise, so a supplier
+            // file nobody has seen before needs no code change. A data share has no results rows.
+            SourceFile = exercise.ExerciseType == CheckingExerciseType.ResultsEnquiry && feedsJourney ? name : null,
+            // On pupil data checking and on a results enquiry a file feeds the journey, unless the
+            // admin adds it as a data share. A data share exercise has no journey.
+            FeedsJourney = feedsJourney,
             SortOrder = exercise.Datasets.Count == 0 ? 0 : exercise.Datasets.Max(d => d.SortOrder) + 1
         });
         // Adding a required input changes completeness even before it has received a file.
@@ -133,14 +132,10 @@ public sealed class ExerciseDataController(IWindowService windows) : Controller
     {
         model.ExerciseName = exercise.Name ?? ExerciseLabels.For(exercise.ExerciseType);
         model.IsResultsEnquiry = exercise.ExerciseType == CheckingExerciseType.ResultsEnquiry;
-        model.FeedsJourney = WindowDatasets.AddedSlotFeedsJourney(exercise.ExerciseType, sourceFile: null, dataShare: false);
-        // Pupil inclusion and the journey-or-share choice apply only to pupil data, and a results
-        // source only to results. A data share exercise holds none of them.
+        // Pupil inclusion applies only to pupil data, and the journey-or-share choice to the
+        // exercises with a journey. A data share exercise holds neither.
         model.AsksInclusion = exercise.ExerciseType == CheckingExerciseType.PupilData;
-        model.AsksUse = model.AsksInclusion;
-        model.SourceOptions = model.IsResultsEnquiry ? ResultsSources.For(window.CheckingWindowType) : [];
-        // A window type with no results feed (KS2) has no sources to offer.
-        model.AsksSource = model.SourceOptions.Count > 0;
+        model.AsksUse = model.AsksInclusion || model.IsResultsEnquiry;
         model.PostUrl = Url.Action("Submit", "ExerciseData", new { id = window.Id, exerciseId = exercise.Id });
         model.CancelUrl = Url.Action("Edit", "EditCheckingExercise", new { id = window.Id, exerciseId = exercise.Id }, null, null, ExerciseLinks.DataTab);
     }

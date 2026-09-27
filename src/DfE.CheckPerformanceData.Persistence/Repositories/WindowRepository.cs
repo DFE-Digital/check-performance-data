@@ -45,6 +45,7 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                         ReplacesCheckingExerciseId = e.ReplacesCheckingExerciseId,
                         CurrentReleaseId = e.CurrentReleaseId,
                         Layout = e.Layout,
+                        ShowLateResultsWarning = e.ShowLateResultsWarning,
                         // Oldest first. The school-facing display reads its schemas from the current release, and
                         // the admin exercise page lists every release so an earlier one can be made live again.
                         Releases = e.Releases
@@ -148,6 +149,7 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                         ReplacesCheckingExerciseId = e.ReplacesCheckingExerciseId,
                         CurrentReleaseId = e.CurrentReleaseId,
                         Layout = e.Layout,
+                        ShowLateResultsWarning = e.ShowLateResultsWarning,
                         // Oldest first. The school-facing display reads its schemas from the current release, and
                         // the admin exercise page lists every release so an earlier one can be made live again.
                         Releases = e.Releases
@@ -295,6 +297,7 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
             existing.IsEnabled = dto.IsEnabled;
             existing.DisplayOnly = dto.DisplayOnly;
             existing.Layout = dto.Layout;
+            existing.ShowLateResultsWarning = dto.ShowLateResultsWarning;
             existing.VisibleFrom = dto.VisibleFrom;
             existing.VisibleUntil = dto.VisibleUntil;
             existing.ReplacesCheckingExerciseId = dto.ReplacesCheckingExerciseId;
@@ -419,6 +422,7 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                 IsEnabled = dto.IsEnabled,
                 DisplayOnly = dto.DisplayOnly,
                 Layout = dto.Layout,
+                ShowLateResultsWarning = dto.ShowLateResultsWarning,
                 VisibleFrom = dto.VisibleFrom,
                 VisibleUntil = dto.VisibleUntil,
                 ReplacesCheckingExerciseId = dto.ReplacesCheckingExerciseId,
@@ -466,6 +470,7 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                     ReplacesCheckingExerciseId = e.ReplacesCheckingExerciseId,
                     CurrentReleaseId = e.CurrentReleaseId,
                     Layout = e.Layout,
+                    ShowLateResultsWarning = e.ShowLateResultsWarning,
                     // Oldest first. The school-facing display reads its schemas from the current release, and
                     // the admin exercise page lists every release so an earlier one can be made live again.
                     Releases = e.Releases

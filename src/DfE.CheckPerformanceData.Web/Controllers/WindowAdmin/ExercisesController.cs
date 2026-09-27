@@ -134,6 +134,7 @@ public sealed class ExercisesController(IWindowService windowService) : Controll
                 ExerciseType = type,
                 // Disabled, like a wizard exercise: schools see it once an admin enables it.
                 TabName = WindowExercises.DefaultTabName(window.CheckingWindowType, type),
+                ShowLateResultsWarning = WindowExercises.ShowsLateResultsWarningByDefault(type),
                 StartDate = window.StartDate,
                 EndDate = window.EndDate,
                 SortOrder = WindowExercises.SortOrderFor(type)

@@ -40,4 +40,11 @@ public class WindowExercisesDefaultsTests
 
         Assert.Equal(orders.Count, orders.Distinct().Count());
     }
+
+    [Theory]
+    [InlineData(CheckingExerciseType.ResultsEnquiry, true)]
+    [InlineData(CheckingExerciseType.PupilData, false)]
+    [InlineData(null, false)]
+    public void Only_a_results_enquiry_starts_with_the_late_results_warning_on(CheckingExerciseType? type, bool expected)
+        => Assert.Equal(expected, WindowExercises.ShowsLateResultsWarningByDefault(type));
 }

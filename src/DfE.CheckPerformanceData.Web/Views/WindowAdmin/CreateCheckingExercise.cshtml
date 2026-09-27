@@ -86,6 +86,15 @@
         <govuk-checkboxes-item value="true" checked="@Model.DisplayOnly">Display data only</govuk-checkboxes-item>
     </govuk-checkboxes>
 
+    @* Edit only: a new results enquiry starts ticked (WindowExercises.ShowsLateResultsWarningByDefault). *@
+    @if (Model.IsEditing && Model.ExerciseType == CheckingExerciseType.ResultsEnquiry)
+    {
+        <govuk-checkboxes for="ShowLateResultsWarning">
+            <govuk-checkboxes-hint>Before an incorrect grade enquiry, schools are told that late results may still correct the grade. Clear this when the late results have arrived.</govuk-checkboxes-hint>
+            <govuk-checkboxes-item value="true" checked="@Model.ShowLateResultsWarning">Show late results warning</govuk-checkboxes-item>
+        </govuk-checkboxes>
+    }
+
     @* The exercise sets the layout for all of its data files. A schema's own x-display.layout is
        ignored, so two files of one exercise can never be shown two different ways. *@
     <div class="govuk-form-group">

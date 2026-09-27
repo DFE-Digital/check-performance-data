@@ -57,6 +57,8 @@ public sealed class CreateCheckingExerciseController(IWindowService windowServic
             IsEnabled = model.IsEnabled,
             DisplayOnly = model.DisplayOnly,
             Layout = model.Layout,
+            // The box is on the edit page only: a new results enquiry starts ticked.
+            ShowLateResultsWarning = WindowExercises.ShowsLateResultsWarningByDefault(model.ExerciseType),
             VisibleFrom = model.VisibleFrom,
             VisibleUntil = model.VisibleUntil,
             ReplacesCheckingExerciseId = model.ReplacesCheckingExerciseId,

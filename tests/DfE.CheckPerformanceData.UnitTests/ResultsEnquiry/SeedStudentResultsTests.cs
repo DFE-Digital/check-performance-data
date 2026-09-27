@@ -109,8 +109,8 @@ public sealed class SeedStudentResultsTests
     [Fact]
     public void No_second_late_results_row_is_seeded()
     {
-        // ILateResultsAvailability reads this: with an LR2 row present the "check your second late
-        // results file" interstitial would drop off the local happy path.
+        // The October window shows the late results warning because LR2 has not arrived; an LR2 row
+        // here would contradict it.
         Assert.DoesNotContain(Seeded(), r => r.SourceFile == ResultsFileTags.Post16LateResults2);
     }
 

@@ -81,7 +81,7 @@ public static class DependencyManager
         services.AddScoped<AdminRequests.IAdminRequestsService, AdminRequests.AdminRequestsService>();
         services.AddScoped<WindowManagement.ICloseExerciseService, WindowManagement.CloseExerciseService>();
         // AB#296648: the single derivation of "the second late results file has landed".
-        services.AddScoped<ResultsEnquiry.ILateResultsAvailability, ResultsEnquiry.LateResultsAvailability>();
+        services.AddScoped<ResultsEnquiry.ILateResultsWarning, ResultsEnquiry.LateResultsWarning>();
 
         services.AddSingleton<Observability.IHealthEvaluator, Observability.HealthEvaluator>();
         services.AddSingleton<Observability.StatusSentenceBuilder>();

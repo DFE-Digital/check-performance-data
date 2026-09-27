@@ -1,5 +1,4 @@
 using System.ComponentModel.DataAnnotations;
-using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
@@ -20,20 +19,15 @@ public sealed class AddExerciseDataItem : AdminPage
     [RegularExpression("file|included|excluded", ErrorMessage = "Select how pupil inclusion is supplied")]
     public string Inclusion { get; set; } = "file";
 
-    public string? SourceFile { get; set; }
-
-    /// <summary>On pupil data checking: "journey" merges the file into the pupils data the
-    /// journeys read; "share" makes it a data share that schools only view and download.</summary>
+    /// <summary>On pupil data checking and a results enquiry: "journey" merges the file into the
+    /// data the journey reads; "share" makes it a data share that schools only view and download.</summary>
     [RegularExpression("journey|share", ErrorMessage = "Select what this file is for")]
     public string Use { get; set; } = "journey";
 
     [BindNever]
     public string ExerciseName { get; set; } = string.Empty;
 
-    [BindNever]
-    public IReadOnlyList<ResultsSource> SourceOptions { get; set; } = [];
-
-    /// <summary>True on a results enquiry. Whether a file there feeds the journey depends on its source.</summary>
+    /// <summary>True on a results enquiry, where a journey file's name is shown to schools as each result's source.</summary>
     [BindNever]
     public bool IsResultsEnquiry { get; set; }
 
@@ -41,16 +35,8 @@ public sealed class AddExerciseDataItem : AdminPage
     [BindNever]
     public bool AsksInclusion { get; set; }
 
-    /// <summary>True on pupil data checking, the only exercise where a file may or may not feed the
-    /// journey by the admin's choice.</summary>
+    /// <summary>True on pupil data checking and a results enquiry, the exercises where a file may or
+    /// may not feed the journey by the admin's choice.</summary>
     [BindNever]
     public bool AsksUse { get; set; }
-
-    /// <summary>True on a results enquiry, the only exercise whose files hold supplier results.</summary>
-    [BindNever]
-    public bool AsksSource { get; set; }
-
-    /// <summary>True when a file added here is merged into the data the journey reads.</summary>
-    [BindNever]
-    public bool FeedsJourney { get; set; }
 }

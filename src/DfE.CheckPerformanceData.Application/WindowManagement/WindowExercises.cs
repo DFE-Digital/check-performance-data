@@ -39,6 +39,14 @@ public static class WindowExercises
                 "No default tab name is defined for this checking exercise type.")
         };
 
+    /// <summary>
+    /// Whether a new exercise starts with "Show late results warning" ticked. A results enquiry
+    /// opens before its late results have all arrived, so it starts ticked; the admin clears it on
+    /// the exercise's edit page when they have.
+    /// </summary>
+    public static bool ShowsLateResultsWarningByDefault(CheckingExerciseType? exercise) =>
+        exercise == CheckingExerciseType.ResultsEnquiry;
+
     /// <summary>Display order, and the SortOrder written to each row. Enum order.</summary>
     public static int SortOrderFor(CheckingExerciseType exercise) => (int)exercise;
 }

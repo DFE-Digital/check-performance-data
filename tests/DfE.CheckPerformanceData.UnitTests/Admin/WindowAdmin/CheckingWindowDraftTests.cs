@@ -139,6 +139,15 @@ public class CheckingWindowDraftTests
         Assert.All(dtos, d => Assert.False(d.IsEnabled));
     }
 
+    [Fact]
+    public void A_wizard_results_enquiry_starts_with_the_late_results_warning_on()
+    {
+        List<CheckingExerciseDto> dtos = Complete().ToExerciseDtos();
+
+        Assert.True(dtos.Single(d => d.ExerciseType == CheckingExerciseType.ResultsEnquiry).ShowLateResultsWarning);
+        Assert.False(dtos.Single(d => d.ExerciseType == CheckingExerciseType.PupilData).ShowLateResultsWarning);
+    }
+
     private static CheckingWindowDraft Complete() => new()
     {
         Title = "16 to 19 2027",

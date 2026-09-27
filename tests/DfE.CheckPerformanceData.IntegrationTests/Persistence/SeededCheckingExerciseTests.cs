@@ -325,9 +325,9 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
     private async Task<bool> AwaitingSecondLateResultsAsync(Guid windowId)
     {
         await using var ctx = CreateContext();
-        return await new DfE.CheckPerformanceData.Application.ResultsEnquiry.LateResultsAvailability(
+        return await new DfE.CheckPerformanceData.Application.ResultsEnquiry.LateResultsWarning(
             new DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseStorageResolver(
-                new WindowRepository(ctx), TimeProvider.System)).IsAwaitingSecondLateResultsAsync(windowId);
+                new WindowRepository(ctx), TimeProvider.System)).ShowAsync(windowId);
     }
 
     private Task DeleteBlobsAsync(Guid windowId) =>

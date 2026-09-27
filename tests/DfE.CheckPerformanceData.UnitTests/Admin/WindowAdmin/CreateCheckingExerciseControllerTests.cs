@@ -218,6 +218,20 @@ public sealed class CreateCheckingExerciseControllerTests
         }
     };
 
+    [Theory]
+    [InlineData(CheckingExerciseType.ResultsEnquiry, true)]
+    [InlineData(CheckingExerciseType.PupilData, false)]
+    public async Task A_new_results_enquiry_starts_with_the_late_results_warning_on(CheckingExerciseType type, bool expected)
+    {
+        var model = Valid();
+        model.ExerciseType = type;
+        Validate(model);
+
+        Assert.IsType<RedirectToActionResult>(await _controller.Submit(_window.Id, model, default));
+
+        Assert.Equal(expected, Assert.Single(_window.Exercises, e => e.Name == "Revised students").ShowLateResultsWarning);
+    }
+
     [Fact]
     public async Task A_second_live_exercise_of_one_kind_is_rejected()
     {

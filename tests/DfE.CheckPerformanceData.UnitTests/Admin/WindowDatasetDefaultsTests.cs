@@ -29,18 +29,16 @@ public class WindowDatasetDefaultsTests
     }
 
     [Theory]
-    [InlineData(CheckingExerciseType.PupilData, null, false, true)]
-    [InlineData(CheckingExerciseType.PupilData, null, true, false)]
-    [InlineData(CheckingExerciseType.ResultsEnquiry, null, false, false)]
-    [InlineData(CheckingExerciseType.ResultsEnquiry, ResultsFileTags.Post16LateResults1, false, true)]
-    [InlineData(null, null, false, false)]
-    [InlineData(null, ResultsFileTags.Post16LateResults1, false, false)]
-    public void An_added_file_feeds_the_journey_on_pupil_data_unless_shared_or_as_a_results_source(
-        CheckingExerciseType? type, string? source, bool dataShare, bool feeds)
-        // A pupil data file added as a data share (previously published data) is only shown. A
-        // results file with a source is supplier results, so the journey reads it. A results file
-        // with no source is display only, and a data share exercise has no journey.
-        => Assert.Equal(feeds, WindowDatasets.AddedSlotFeedsJourney(type, source, dataShare));
+    [InlineData(CheckingExerciseType.PupilData, false, true)]
+    [InlineData(CheckingExerciseType.PupilData, true, false)]
+    [InlineData(CheckingExerciseType.ResultsEnquiry, false, true)]
+    [InlineData(CheckingExerciseType.ResultsEnquiry, true, false)]
+    [InlineData(null, false, false)]
+    public void An_added_file_feeds_the_journey_unless_it_is_a_data_share(
+        CheckingExerciseType? type, bool dataShare, bool feeds)
+        // A file added as a data share (previously published data) is only shown. A data share
+        // exercise has no journey.
+        => Assert.Equal(feeds, WindowDatasets.AddedSlotFeedsJourney(type, dataShare));
 
     [Fact]
     public void A_KS4_results_tag_is_stale_on_a_16_to_19_window_but_an_admin_slot_never_is()

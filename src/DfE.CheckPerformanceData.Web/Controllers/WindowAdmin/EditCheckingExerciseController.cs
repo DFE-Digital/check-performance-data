@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Application.WindowManagement;
+using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
@@ -29,6 +30,7 @@ public sealed class EditCheckingExerciseController(IWindowService windowService)
             IsEnabled = exercise.IsEnabled,
             DisplayOnly = exercise.DisplayOnly,
             Layout = exercise.Layout,
+            ShowLateResultsWarning = exercise.ShowLateResultsWarning,
             VisibleFrom = exercise.VisibleFrom,
             VisibleUntil = exercise.VisibleUntil,
             ReplacesCheckingExerciseId = exercise.ReplacesCheckingExerciseId,
@@ -88,6 +90,7 @@ public sealed class EditCheckingExerciseController(IWindowService windowService)
             IsEnabled = model.IsEnabled,
             DisplayOnly = model.DisplayOnly,
             Layout = model.Layout,
+            ShowLateResultsWarning = model.ExerciseType == CheckingExerciseType.ResultsEnquiry && model.ShowLateResultsWarning,
             VisibleFrom = model.VisibleFrom,
             VisibleUntil = model.VisibleUntil,
             ReplacesCheckingExerciseId = model.ReplacesCheckingExerciseId,

@@ -41,6 +41,9 @@ public sealed class CreateCheckingExerciseItem : AdminPage, IValidatableObject
     public bool IsEnabled { get; set; }
     public bool DisplayOnly { get; set; }
 
+    /// <summary>On a results enquiry: show the late results guidance before an incorrect-grade enquiry.</summary>
+    public bool ShowLateResultsWarning { get; set; }
+
     [EnumDataType(typeof(ExerciseLayout), ErrorMessage = "Select how schools see the data")]
     public ExerciseLayout Layout { get; set; } = ExerciseLayout.Table;
     public DateTime? VisibleFrom { get; set; }

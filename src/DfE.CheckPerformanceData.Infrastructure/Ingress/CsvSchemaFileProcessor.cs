@@ -241,7 +241,7 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
                     // the file was uploaded to. Stamped BEFORE validation for the same reason
                     // (AllowAdditionalProperties is false), and guarded by the schema check so a
                     // pupil-data schema is untouched. StudentResultRecord.SourceFile, the result
-                    // picker's file column and ILateResultsAvailability all read this.
+                    // picker's file column reads this.
                     if (dataset.SourceFile is { Length: > 0 } sourceFile && schema.Properties.ContainsKey("SOURCE"))
                     {
                         record["SOURCE"] = sourceFile;

@@ -90,6 +90,7 @@ public sealed class CheckingWindowDraft : AdminPage
                 ExerciseType = e.ExerciseType,
                 TabName = WindowExercises.DefaultTabName(CheckingWindowType!.Value, e.ExerciseType),
                 IsEnabled = false,
+                ShowLateResultsWarning = WindowExercises.ShowsLateResultsWarningByDefault(e.ExerciseType),
                 StartDate = e.StartDate!.Value,
                 EndDate = e.EndDate!.Value,
                 SortOrder = e.SortOrder

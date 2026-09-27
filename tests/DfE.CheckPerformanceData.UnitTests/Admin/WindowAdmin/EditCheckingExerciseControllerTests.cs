@@ -313,4 +313,36 @@ public sealed class EditCheckingExerciseControllerTests
         Assert.True(_window.Exercises[0].DisplayOnly);
     }
 
+    [Fact]
+    public async Task The_late_results_warning_can_be_turned_off_and_on_for_a_results_enquiry()
+    {
+        _window.Exercises[0] = new CheckingExerciseDto
+        {
+            Id = _window.Exercises[0].Id, ExerciseType = CheckingExerciseType.ResultsEnquiry, Name = "Results",
+            TabName = "Results", StartDate = _window.Exercises[0].StartDate, EndDate = _window.Exercises[0].EndDate,
+            UsesExerciseStorage = true, ShowLateResultsWarning = true
+        };
+        var model = await Model();
+        Assert.True(model.ShowLateResultsWarning);
+
+        model.ShowLateResultsWarning = false;
+        Assert.IsType<RedirectToActionResult>(await _controller.Update(_window.Id, _window.Exercises[0].Id, model, default));
+        Assert.False(_window.Exercises[0].ShowLateResultsWarning);
+
+        model = await Model();
+        model.ShowLateResultsWarning = true;
+        Assert.IsType<RedirectToActionResult>(await _controller.Update(_window.Id, _window.Exercises[0].Id, model, default));
+        Assert.True(_window.Exercises[0].ShowLateResultsWarning);
+    }
+
+    [Fact]
+    public async Task A_late_results_warning_posted_for_another_kind_is_not_stored()
+    {
+        var model = await Model();
+        model.ShowLateResultsWarning = true;
+
+        Assert.IsType<RedirectToActionResult>(await _controller.Update(_window.Id, _window.Exercises[0].Id, model, default));
+
+        Assert.False(_window.Exercises[0].ShowLateResultsWarning);
+    }
 }

@@ -37,7 +37,7 @@ public sealed class ResultIssueControllerTests
 
     private readonly ICheckYourPupilDataService _service = Substitute.For<ICheckYourPupilDataService>();
     private readonly IQuestionFlowService _flowService = Substitute.For<IQuestionFlowService>();
-    private readonly ILateResultsAvailability _lateResults = Substitute.For<ILateResultsAvailability>();
+    private readonly ILateResultsWarning _lateResults = Substitute.For<ILateResultsWarning>();
     private readonly IAnalyticsService _analytics = Substitute.For<IAnalyticsService>();
     private readonly FakeSession _session = new();
     private readonly ICheckingExerciseService _checkingExercises = OpenCheckingExercises.AlwaysOpen();
@@ -75,7 +75,7 @@ public sealed class ResultIssueControllerTests
 
     // "Available" is the file no longer being awaited: run into the live release, or retired.
     private void SecondLateResultsAvailable(bool available) =>
-        _lateResults.IsAwaitingSecondLateResultsAsync(WindowId, Arg.Any<CancellationToken>())
+        _lateResults.ShowAsync(WindowId, Arg.Any<CancellationToken>())
             .Returns(!available);
 
     private static RedirectToActionResult AssertJourneyRedirect(IActionResult result, string pageId)
@@ -187,7 +187,7 @@ public sealed class ResultIssueControllerTests
         var state = _session.GetRequestState(WindowId);
         Assert.Equal(WhatToChange.MissingQualification, state.SelectedWhatToChange);
         Assert.Empty(state.QuestionHistory);
-        await _lateResults.DidNotReceiveWithAnyArgs().IsAwaitingSecondLateResultsAsync(default, default);
+        await _lateResults.DidNotReceiveWithAnyArgs().ShowAsync(default, default);
     }
 
     [Fact]
@@ -209,7 +209,7 @@ public sealed class ResultIssueControllerTests
         var state = _session.GetRequestState(WindowId);
         Assert.Equal(WhatToChange.ResultDoesNotBelong, state.SelectedWhatToChange);
         Assert.Empty(state.QuestionHistory);
-        await _lateResults.DidNotReceiveWithAnyArgs().IsAwaitingSecondLateResultsAsync(default, default);
+        await _lateResults.DidNotReceiveWithAnyArgs().ShowAsync(default, default);
     }
 
     // ── POST: the late-results branch ────────────────────────────────────────
@@ -321,7 +321,7 @@ public sealed class ResultIssueControllerTests
         await _sut.Confirm(WindowId, ValidPost());
 
         await _lateResults.Received(1)
-            .IsAwaitingSecondLateResultsAsync(WindowId, Arg.Any<CancellationToken>());
+            .ShowAsync(WindowId, Arg.Any<CancellationToken>());
     }
 
     [Fact]

@@ -25,8 +25,8 @@ public sealed class AnalyticsRequestFilterTests
         Assert.False(AnalyticsRequestFilter.ShouldTrack(new PathString(path)));
 
     // /feedback-link (AB#286387 R20) emits its own feedback_clicked event and then
-    // redirects to /contact; without this exclusion the redirect hop would double-count
-    // the click as a web_request page view too.
+    // redirects to the external feedback survey; without this exclusion the tracking hop
+    // would double-count the click as a web_request page view too.
     [Fact]
     public void Excludes_the_feedback_link_tracking_redirect() =>
         Assert.False(AnalyticsRequestFilter.ShouldTrack(new PathString("/feedback-link")));

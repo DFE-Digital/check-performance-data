@@ -88,7 +88,9 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
         {
             var students = (await LoadAsync(windowId)).CheckingExercises
                 .Single(e => e.ExerciseType == CheckingExerciseType.PupilData);
-            Assert.Equal(["included", "nonincluded", "previously-published", "previously-published-revised", .. SeedCheckingWindows.ValueAddedDatasets],
+            // Only the March window has the aims slot.
+            string[] aims = windowId == _march ? [SeedCheckingWindows.AimsDataset] : [];
+            Assert.Equal(["included", "nonincluded", "previously-published", "previously-published-revised", .. SeedCheckingWindows.ValueAddedDatasets, .. aims],
                 students.Datasets.OrderBy(d => d.SortOrder).Select(d => d.Name));
             var revised = students.Datasets.Single(d => d.Name == "previously-published-revised");
             Assert.False(revised.Required);
@@ -378,15 +380,16 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
             // The grade only the retention file changes: Charlie Smith's Maths, 3 → 4.
             Assert.Equal("4", Assert.Single(seeded, r => r.CypmdId == "500003" && r.Qan == "60146084" && r.Session == "S2024").Grade);
 
-            // The pupil aims data share: no kind, display only, validated into its own release.
-            var aims = Assert.Single(march.CheckingExercises, e => e.ExerciseType is null && e.Name == "Pupil aims");
-            Assert.True(aims.DisplayOnly);
-            Assert.Equal("Aims", aims.TabName);
-            var slot = Assert.Single(aims.Datasets);
-            Assert.False(slot.FeedsJourney);
-            Assert.NotEqual(string.Empty, slot.IngressFile);
-            Assert.NotNull(aims.CurrentReleaseId);
-            Assert.Equal(1, await ReleaseCountAsync(aims));
+            // Pupil aims is a slot in pupil data, not an exercise of its own: display only, filled
+            // and required, and in pupil data's March release with the value added file.
+            Assert.DoesNotContain(march.CheckingExercises, e => e.Name == "Pupil aims");
+            var marchStudents = march.CheckingExercises.Single(e => e.ExerciseType == CheckingExerciseType.PupilData);
+            var aims = Assert.Single(marchStudents.Datasets, d => d.Name == SeedCheckingWindows.AimsDataset);
+            Assert.False(aims.FeedsJourney);
+            Assert.True(aims.Required);
+            Assert.NotEqual(string.Empty, aims.IngressFile);
+            Assert.NotEmpty(await ReadAsync(_march, DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths
+                .DatasetBlobName(marchStudents.Id, marchStudents.CurrentReleaseId!.Value, aims.Id, "860/4070")));
 
             await AssertPupilCampusAsync(_march, march);
             await AssertSummaryAsync(_march, march, step: 3);

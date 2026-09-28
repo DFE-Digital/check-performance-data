@@ -64,7 +64,7 @@ Each file has one row per included student per qualification; every third studen
 
 `students-aims_schema.json` is the 16-19 pupil aims data file as the data specification defines it: fields 1-15, headed by field reference, one row per student per learning aim. The descriptive column heading is the heading of the CSV a school downloads, in column order A-N. `cypmd_pk` has no column and is not exported. Like the results schemas, it sets no `maxLength`. Ingress splits the rows by `LAESTAB`, the student's institution; `AimLAESTAB` is where the aim was recorded, and it can be a different provider. The table shows surname and forename (searchable), qualification number, subject, aim type and where the aim was recorded.
 
-The "16 to 19 Mar" dev window has a "Pupil aims" data share (tab "Aims"): a display-only exercise with no kind and one slot, `aims`, that feeds no journey. `SeedPost16MarchSamples` validates `students/aims.csv` (ingress container `16-to-19-mar`) with this schema: one or two aims for every included student, with every tenth aim recorded at another provider.
+The "16 to 19 Mar" dev window's pupil data exercise has an "Aims" slot that feeds no journey (a data share, like the value added slots). It waits empty and is not required until the March step. `SeedPost16MarchSamples` links `students/aims.csv` (ingress container `16-to-19-mar`) to it with this schema, makes it required, and pupil data is validated with the March value added file: one or two aims for every included student, with every tenth aim recorded at another provider. Schools see the section "Aims".
 
 ## Pupil campus schema
 

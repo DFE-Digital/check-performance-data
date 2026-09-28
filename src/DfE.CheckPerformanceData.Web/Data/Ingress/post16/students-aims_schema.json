@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "students-aims_schema.json",
-  "title": "Pupil aims",
+  "title": "Aims",
   "description": "One row of the 16-19 pupil aims data file, as the data specification defines it (fields 1-15, headed by field reference): one row per student per learning aim. The descriptive column heading is the heading of the CSV a school downloads, in column order A-N. cypmd_pk has no column and is not exported. Rows are split by LAESTAB, the student's institution; AimLAESTAB is where the aim was recorded and may differ.",
   "type": "object",
   "additionalProperties": false,
@@ -12,11 +12,11 @@
   },
   "x-download": {
     "fileName": "ks5aim25.csv",
-    "label": "Pupil aims"
+    "label": "Aims"
   },
   "x-display": {
     "tab": "students",
-    "section": "Pupil aims",
+    "section": "Aims",
     "selectorOrder": 4
   },
   "properties": {

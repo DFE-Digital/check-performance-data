@@ -146,25 +146,24 @@ public static class SeedCheckingWindows
         return window;
     }
 
-    /// <summary>The name of the pupil aims share's one dataset slot.</summary>
-    public const string AimsDataset = "aims";
+    /// <summary>The name of the "16 to 19 Mar" window's pupil data slot for the pupil aims data.</summary>
+    public const string AimsDataset = "Aims";
 
-    // A display-only data share, as an admin adds one through CreateCheckingExerciseController: no
-    // kind, so no journey, and one slot that feeds no journey. It runs on the results enquiry's
-    // dates, so the window's outer dates do not change.
-    private static CheckingExercise AimsDataShare(DateTime startDate, DateTime endDate) => new()
+    // The pupil aims data, shared with schools in the pupil data exercise of the "16 to 19 Mar"
+    // window only. Like the value added slots, the slot is display only and feeds no journey. It
+    // waits empty and is not required, because the earlier steps the March seed does first run
+    // pupil data before the aims file arrives. The March step fills it and makes it required.
+    private static CheckingWindow WithAimsSlot(CheckingWindow window)
     {
-        ExerciseType = null,
-        DisplayOnly = true,
-        Name = "Pupil aims",
-        TabName = "Aims",
-        TabOrder = 400,
-        IsEnabled = true,
-        StartDate = startDate,
-        EndDate = endDate,
-        SortOrder = 2,
-        Datasets = [new CheckingWindowDataset { Name = AimsDataset, Included = null, FeedsJourney = false, SortOrder = 0 }]
-    };
+        window.CheckingExercises
+            .Single(e => e.ExerciseType == CheckingExerciseType.PupilData)
+            .Datasets.Add(new CheckingWindowDataset
+            {
+                Name = AimsDataset, Included = null, FeedsJourney = false, Required = false,
+                SortOrder = 4 + ValueAddedDatasets.Count
+            });
+        return window;
+    }
 
     /// <summary>The name of the summary share's exercise.</summary>
     public const string SummaryExercise = "Summary";
@@ -181,7 +180,7 @@ public static class SeedCheckingWindows
         "Summary with value added: revised incl. retention"
     ];
 
-    // A display-only data share with no kind, as the aims share, but in every 16-19 window. Each
+    // A display-only data share with no kind, in every 16-19 window. Each
     // school has one summary row, so it shows as label/value rows. Only the October slot is
     // required: the later slots wait empty, because a required empty slot would stop the October
     // run. Each step fills its slot, makes it required and retires the one before it. Its tab is
@@ -219,7 +218,7 @@ public static class SeedCheckingWindows
     /// <summary>The name of the pupil campus share's one dataset slot.</summary>
     public const string PupilCampusDataset = "campus";
 
-    // A display-only data share with no kind, as the aims share, but in every 16-19 window: one
+    // A display-only data share with no kind, in every 16-19 window: one
     // slot that feeds no journey. The October step fills it, and the later steps keep that file.
     private static CheckingExercise PupilCampusDataShare(DateTime startDate, DateTime endDate) => new()
     {
@@ -349,9 +348,9 @@ public static class SeedCheckingWindows
             CheckingExercises = ExercisesFor(CheckingWindowType.Post16, octoberStart, octoberEnd, pupilDataEnd: octoberPupilDataEnd)
         };
 
-        // "16 to 19 Mar": the same again, plus the pupil aims data share. The Web seed does the
+        // "16 to 19 Mar": the same again, plus pupil data's aims slot. The Web seed does the
         // February steps, then adds included revised with retention, retires included revised and
-        // validates, and fills and validates the aims share (SeedPost16MarchSamples).
+        // validates, and fills the aims slot and validates pupil data (SeedPost16MarchSamples).
         var post16MarchWindow = new CheckingWindow
         {
             Id = post16MarchWindowId,
@@ -362,11 +361,7 @@ public static class SeedCheckingWindows
             Title = "16 to 19 Mar",
             TurnaroundCommitment = "updated in the Spring",
             NextOpportunity = new DateTime(DateTime.Now.Year + 1, 10, 1),
-            CheckingExercises =
-            [
-                .. ExercisesFor(CheckingWindowType.Post16, octoberStart, octoberEnd, pupilDataEnd: octoberPupilDataEnd),
-                AimsDataShare(octoberStart, octoberEnd)
-            ]
+            CheckingExercises = ExercisesFor(CheckingWindowType.Post16, octoberStart, octoberEnd, pupilDataEnd: octoberPupilDataEnd)
         };
 
         await dbContext.CheckingWindows.AddRangeAsync(
@@ -379,7 +374,7 @@ public static class SeedCheckingWindows
             WithPupilCampusDataShare(WithSummaryDataShare(WithValueAddedSlots(WithPreviouslyPublishedSlots(post16OctoberWindow)))),
             WithPupilCampusDataShare(WithSummaryDataShare(WithValueAddedSlots(WithPreviouslyPublishedSlots(post16NovemberWindow)))),
             WithPupilCampusDataShare(WithSummaryDataShare(WithValueAddedSlots(WithPreviouslyPublishedSlots(post16FebruaryWindow)))),
-            WithPupilCampusDataShare(WithSummaryDataShare(WithValueAddedSlots(WithPreviouslyPublishedSlots(post16MarchWindow))))
+            WithAimsSlot(WithPupilCampusDataShare(WithSummaryDataShare(WithValueAddedSlots(WithPreviouslyPublishedSlots(post16MarchWindow)))))
         );
         
         await dbContext.SaveChangesAsync();

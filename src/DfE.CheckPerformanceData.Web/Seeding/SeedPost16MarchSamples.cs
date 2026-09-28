@@ -2,6 +2,7 @@ using System.Globalization;
 using Azure.Storage.Blobs;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
+using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Infrastructure.Ingress;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Seeding;
@@ -12,10 +13,10 @@ namespace DfE.CheckPerformanceData.Web.Seeding;
 /// Dev-only: the "16 to 19 Mar" window, where the March step is done. The seed does the February
 /// seed (<see cref="SeedPost16FebruarySamples"/>), then links the included revised with retention
 /// file, retires the included revised file it replaces and validates the results enquiry again. It
-/// has an October, a November, a February and a March release. It also fills and validates the
-/// window's pupil aims data share, a display-only exercise with no kind, and replaces the summary
-/// share's file with the revised summary with value added including retention, and pupil data's value
-/// added with the revised value added including retention.
+/// has an October, a November, a February and a March release. It also fills pupil data's aims slot,
+/// a data share that feeds no journey, and replaces the summary share's file with the revised summary
+/// with value added including retention, and pupil data's value added with the revised value added
+/// including retention.
 /// </summary>
 /// <remarks>
 /// The seed also writes the samples to the ingress storage account, container <see cref="Container"/>.
@@ -75,16 +76,27 @@ public static class SeedPost16MarchSamples
             ],
             ResultsFileTags.Post16IncludedRevised);
         await SeedPost16Summary.AddAsync(dbContext, blobs, ingress, contentRootPath, windowId, SeedPost16Summary.March);
+        await LinkAimsAsync(dbContext, blobs, contentRootPath, windowId);
+        // Validates pupil data, so the aims file goes into the same release as the value added file.
         await SeedPost16ValueAdded.AddAsync(dbContext, blobs, ingress, contentRootPath, windowId, SeedPost16ValueAdded.March);
+    }
 
+    // Links the aims file to pupil data's aims slot and makes the slot required. It does not
+    // validate: the value added step that follows does. A window without the slot (a test window)
+    // has nothing to fill.
+    private static async Task LinkAimsAsync(
+        IPortalDbContext dbContext, BlobServiceClient blobs, string contentRootPath, Guid windowId)
+    {
         var window = await SeedExerciseFixtures.LoadAsync(dbContext, windowId);
-        var aims = window.CheckingExercises.Single(e => e.ExerciseType is null && e.Name == "Pupil aims");
-        await SeedExerciseFixtures.LinkAsync(blobs, aims,
-            aims.Datasets.Single(d => d.Name == SeedCheckingWindows.AimsDataset), Path.GetFileName(AimsFile),
+        var pupilData = SeedExerciseFixtures.Exercise(window, CheckingExerciseType.PupilData);
+        if (pupilData.Datasets.SingleOrDefault(d => d.Name == SeedCheckingWindows.AimsDataset) is not { } dataset)
+            return;
+
+        await SeedExerciseFixtures.LinkAsync(blobs, pupilData, dataset, Path.GetFileName(AimsFile),
             Files()[AimsFile], AimsSchema,
             await File.ReadAllTextAsync(Path.Combine(contentRootPath, "Data", "Ingress", "post16", AimsSchema)));
+        dataset.Required = true;
         await dbContext.SaveChangesAsync();
-        await SeedExerciseFixtures.IngestAsync(blobs, ingress, aims);
     }
 
     /// <summary>

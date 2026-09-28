@@ -81,6 +81,32 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
     }
 
     [Fact]
+    public async Task The_later_16_to_19_windows_have_pupil_data_checking_shut_but_still_on_view()
+    {
+        var now = DateTime.Now;
+        foreach (var windowId in new[] { _november, _february, _march })
+        {
+            var window = await LoadAsync(windowId);
+            var exercises = window.CheckingExercises.OrderBy(e => e.SortOrder).ToList();
+
+            // Pupil data checking has shut, but the exercise is still live, so the Students tab
+            // still shows its data while no school can act on it.
+            var pupilData = exercises[0];
+            Assert.Equal(CheckingExerciseType.PupilData, pupilData.ExerciseType);
+            Assert.True(pupilData.EndDate < now, $"{window.Title}: pupil data checking is not shut");
+            Assert.True(pupilData.IsEnabled);
+            Assert.False(pupilData.DisplayOnly);
+            Assert.Null(pupilData.VisibleUntil);
+
+            // Everything else is still open, and the outer dates are the union of the exercises.
+            Assert.All(exercises.Skip(1), e =>
+                Assert.True(e.StartDate <= now && e.EndDate > now, $"{window.Title}: {e.Name} is not open"));
+            Assert.Equal(exercises.Min(e => e.StartDate), window.StartDate);
+            Assert.Equal(exercises.Max(e => e.EndDate), window.EndDate);
+        }
+    }
+
+    [Fact]
     public async Task Every_16_to_19_window_has_both_previously_published_slots_and_the_revised_one_waits()
     {
         // The revised slot is empty and not required until the February step fills it.

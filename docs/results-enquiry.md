@@ -570,9 +570,12 @@ Validation failures flow through the existing `validation_error` event; `GradeSe
 ## Local development
 
 There are four seeded 16-19 windows, one for each step of the results enquiry year. All have the
-same exercises, slots and dates: pupil data checking open for the fortnight, the results enquiry to
-31 March, both exercises enabled. Each seed does the step before it, then its own step, and
-validates, so each step makes a release. Each window's sample files also go to the ingress storage
+same exercises and slots, both exercises enabled, and the results enquiry to 31 March. In October,
+pupil data checking opens today for a fortnight. In November, February and March it opened three
+weeks ago and has shut: the Students tab still shows its data, but a school cannot request a change
+or confirm. This shows how an admin keeps pupil data on view after checking shuts: set the
+exercise's end date, keep it enabled, and leave **Visible until** empty. Each seed does the step
+before it, then its own step, and validates, so each step makes a release. Each window's sample files also go to the ingress storage
 account, so an admin can do a step again by hand. The schemas are in
 `src/DfE.CheckPerformanceData.Web/Data/Ingress/post16/`.
 

@@ -27,45 +27,49 @@
     or <a class="govuk-link" data-confirm-trigger="app-logs-clear-modal" href="#">clear the entire table</a>.
 </p>
 
-<form method="get" action="/admin/system-administration/logs" class="govuk-form-group">
+<form method="get" action="/admin/system-administration/logs" class="govuk-!-margin-bottom-6">
+    @* Stacked, not side by side, to match the other admin filter forms. Four one-quarter columns
+       squashed the long category names. *@
     <div class="govuk-grid-row">
-        <div class="govuk-grid-column-one-quarter">
-            <label class="govuk-label" for="level">Level</label>
-            <select class="govuk-select" id="level" name="level">
-                <option value="">Any</option>
-                @foreach (var lvl in Model.Levels)
-                {
-                    <option value="@lvl" selected="@(Model.Level == lvl)">@lvl</option>
-                }
-            </select>
+        <div class="govuk-grid-column-two-thirds">
+            <div class="govuk-form-group">
+                <label class="govuk-label" for="level">Level</label>
+                <select class="govuk-select govuk-!-width-full" id="level" name="level">
+                    <option value="">Any</option>
+                    @foreach (var lvl in Model.Levels)
+                    {
+                        <option value="@lvl" selected="@(Model.Level == lvl)">@lvl</option>
+                    }
+                </select>
+            </div>
+            <div class="govuk-form-group">
+                <label class="govuk-label" for="category">Category</label>
+                <select class="govuk-select govuk-!-width-full" id="category" name="category">
+                    <option value="">Any</option>
+                    @foreach (var cat in Model.Categories)
+                    {
+                        <option value="@cat" selected="@(Model.Category == cat)">@cat</option>
+                    }
+                </select>
+            </div>
+            <div class="govuk-form-group">
+                <label class="govuk-label" for="from">From (UTC)</label>
+                <input class="govuk-input govuk-input--width-10" id="from" name="from" type="date" value="@Model.From" />
+            </div>
+            <div class="govuk-form-group">
+                <label class="govuk-label" for="to">To (UTC)</label>
+                <input class="govuk-input govuk-input--width-10" id="to" name="to" type="date" value="@Model.To" />
+            </div>
+            <div class="govuk-form-group">
+                <label class="govuk-label" for="search">Search (message + exception, case-insensitive)</label>
+                <input class="govuk-input" id="search" name="search" type="search"
+                       value="@Model.Search" placeholder="e.g. content-staging, InvalidOperationException" />
+            </div>
+            <div class="govuk-button-group">
+                <button class="govuk-button" data-module="govuk-button" type="submit">Apply filters</button>
+                <a class="govuk-link" href="/admin/system-administration/logs">Reset</a>
+            </div>
         </div>
-        <div class="govuk-grid-column-one-quarter">
-            <label class="govuk-label" for="category">Category</label>
-            <select class="govuk-select" id="category" name="category">
-                <option value="">Any</option>
-                @foreach (var cat in Model.Categories)
-                {
-                    <option value="@cat" selected="@(Model.Category == cat)">@cat</option>
-                }
-            </select>
-        </div>
-        <div class="govuk-grid-column-one-quarter">
-            <label class="govuk-label" for="from">From (UTC)</label>
-            <input class="govuk-input" id="from" name="from" type="date" value="@Model.From" />
-        </div>
-        <div class="govuk-grid-column-one-quarter">
-            <label class="govuk-label" for="to">To (UTC)</label>
-            <input class="govuk-input" id="to" name="to" type="date" value="@Model.To" />
-        </div>
-    </div>
-    <div class="govuk-form-group govuk-!-margin-top-4">
-        <label class="govuk-label" for="search">Search (message + exception, case-insensitive)</label>
-        <input class="govuk-input" id="search" name="search" type="search"
-               value="@Model.Search" placeholder="e.g. content-staging, InvalidOperationException" />
-    </div>
-    <div class="govuk-button-group">
-        <button class="govuk-button" data-module="govuk-button" type="submit">Apply filters</button>
-        <a class="govuk-link" href="/admin/system-administration/logs">Reset</a>
     </div>
 </form>
 

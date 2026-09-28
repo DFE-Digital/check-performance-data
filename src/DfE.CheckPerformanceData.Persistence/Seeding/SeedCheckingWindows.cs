@@ -242,8 +242,7 @@ public static class SeedCheckingWindows
         return window;
     }
 
-    public static async Task ExecuteSeed(IPortalDbContext dbContext, Guid openKs4WindowId, Guid closedKs4WindowId,
-        Guid post16OctoberWindowId, Guid post16NovemberWindowId, Guid post16FebruaryWindowId,
+    public static async Task ExecuteSeed(IPortalDbContext dbContext, Guid openKs4WindowId, Guid post16OctoberWindowId, Guid post16NovemberWindowId, Guid post16FebruaryWindowId,
         Guid post16MarchWindowId)
     {
         // Egress runs first: egress_runs → CheckingWindows is a RESTRICT foreign key (an egress
@@ -268,21 +267,6 @@ public static class SeedCheckingWindows
             Title = "Key Stage 4 June",
             TurnaroundCommitment = "updated in the Autumn",
             CheckingExercises = ExercisesFor(CheckingWindowType.KS4June, openKs4Start, openKs4End)
-        };
-
-        var closedKs4Start = DateTime.Now.AddYears(-1).AddDays(-1);
-        var closedKs4End = DateTime.Now.AddYears(-1).AddDays(+13).Date.AddHours(17);
-
-        var closedKs4JuneWindow = new CheckingWindow
-        {
-            Id = closedKs4WindowId,
-            StartDate = closedKs4Start,
-            EndDate = closedKs4End,
-            KeyStage = KeyStages.KS4,
-            CheckingWindowType = CheckingWindowType.KS4June,
-            Title = "KS4 June",
-            TurnaroundCommitment = "updated in the Autumn",
-            CheckingExercises = ExercisesFor(CheckingWindowType.KS4June, closedKs4Start, closedKs4End)
         };
 
         // "16 to 19 Oct": the start of the 16-19 results enquiry. It opens today with pupil data
@@ -376,7 +360,6 @@ public static class SeedCheckingWindows
 
         await dbContext.CheckingWindows.AddRangeAsync(
             openKs4JuneWindow,
-            closedKs4JuneWindow,
             // Every 16-19 window has both previously published slots, the three value added slots,
             // the summary share and the pupil campus share. The October step fills the first
             // previously published slot, the first summary slot and the campus slot; later steps

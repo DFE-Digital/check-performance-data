@@ -17,7 +17,7 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Persistence;
 // none of #315-#320 can be developed or demoed locally. It also has to obey the rule that holds the
 // model together: a window's outer dates are the union of its exercises' dates. The four 16-19
 // windows are one step of the results enquiry year each ("16 to 19 Oct", "Nov", "Feb" and "Mar"),
-// and each Web seed does the steps before its own; the KS4 windows are fixtures, ingested by the seed.
+// and each Web seed does the steps before its own; the KS4 window is a fixture, ingested by the seed.
 [Collection(nameof(AzuriteCollection))]
 public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsyncLifetime
 {
@@ -26,7 +26,6 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
         .Build();
 
     private readonly Guid _openKs4 = Guid.NewGuid();
-    private readonly Guid _closedKs4 = Guid.NewGuid();
     private readonly Guid _october = Guid.NewGuid();
     private readonly Guid _november = Guid.NewGuid();
     private readonly Guid _february = Guid.NewGuid();
@@ -37,7 +36,7 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
         await _postgres.StartAsync();
         await using var ctx = CreateContext();
         await ctx.Database.MigrateAsync();
-        await SeedCheckingWindows.ExecuteSeed(ctx, _openKs4, _closedKs4, _october, _november, _february, _march);
+        await SeedCheckingWindows.ExecuteSeed(ctx, _openKs4, _october, _november, _february, _march);
     }
 
     public Task DisposeAsync() => _postgres.DisposeAsync().AsTask();
@@ -203,12 +202,10 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
         });
     }
 
-    [Theory]
-    [InlineData(0)] // open KS4 June
-    [InlineData(1)] // closed KS4 June
-    public async Task A_single_activity_window_gets_one_pupil_data_exercise_on_its_own_dates(int which)
+    [Fact]
+    public async Task A_single_activity_window_gets_one_pupil_data_exercise_on_its_own_dates()
     {
-        var window = await LoadAsync(which == 0 ? _openKs4 : _closedKs4);
+        var window = await LoadAsync(_openKs4);
 
         var exercise = Assert.Single(window.CheckingExercises);
         Assert.Equal(CheckingExerciseType.PupilData, exercise.ExerciseType);
@@ -219,7 +216,7 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
     [Fact]
     public async Task Every_seeded_windows_outer_dates_equal_the_union_of_its_exercises()
     {
-        foreach (var windowId in new[] { _openKs4, _closedKs4, _october, _november, _february, _march })
+        foreach (var windowId in new[] { _openKs4, _october, _november, _february, _march })
         {
             var window = await LoadAsync(windowId);
 
@@ -236,7 +233,7 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
         for (var start = 0; start < 2; start++)
         {
             await using var ctx = CreateContext();
-            await SeedCheckingWindows.ExecuteSeed(ctx, _openKs4, _closedKs4, _october, _november, _february, _march);
+            await SeedCheckingWindows.ExecuteSeed(ctx, _openKs4, _october, _november, _february, _march);
         }
 
         Assert.Equal(4, (await LoadAsync(_october)).CheckingExercises.Count);
@@ -554,21 +551,17 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
                     new CsvSchemaFileProcessor(NullLogger<CsvSchemaFileProcessor>.Instance,
                         new Dictionary<string, BlobServiceClient> { ["app"] = blobs }), TimeProvider.System);
                 await SeedExerciseFixtures.ExecuteSeedAsync(ctx, blobs, ingress, AppContext.BaseDirectory,
-                    [_openKs4, _closedKs4]);
+                    [_openKs4]);
             }
 
-            foreach (var windowId in new[] { _openKs4, _closedKs4 })
+            Assert.All((await LoadAsync(_openKs4)).CheckingExercises, e =>
             {
-                var window = await LoadAsync(windowId);
-                Assert.All(window.CheckingExercises, e =>
-                {
-                    Assert.True(e.IsEnabled, $"{e.Name} is not enabled");
-                    Assert.False(string.IsNullOrWhiteSpace(e.TabName), $"{e.Name} has no tab");
-                    Assert.NotNull(e.CurrentReleaseId);
-                    Assert.NotNull(e.Validated);
-                    Assert.All(e.Datasets, d => Assert.False(string.IsNullOrEmpty(d.SchemaFile)));
-                });
-            }
+                Assert.True(e.IsEnabled, $"{e.Name} is not enabled");
+                Assert.False(string.IsNullOrWhiteSpace(e.TabName), $"{e.Name} has no tab");
+                Assert.NotNull(e.CurrentReleaseId);
+                Assert.NotNull(e.Validated);
+                Assert.All(e.Datasets, d => Assert.False(string.IsNullOrEmpty(d.SchemaFile)));
+            });
 
             // KS4: Alice Smith, whom the E2E suite drives by UPN, keeps a real Id.
             var ks4 = (await LoadAsync(_openKs4)).CheckingExercises.Single();
@@ -583,8 +576,7 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
         }
         finally
         {
-            foreach (var windowId in new[] { _openKs4, _closedKs4 })
-                await blobs.GetBlobContainerClient(windowId.ToString()).DeleteIfExistsAsync();
+            await blobs.GetBlobContainerClient(_openKs4.ToString()).DeleteIfExistsAsync();
         }
 
         async Task<byte[]> ReadAsync(Guid windowId, string blobName) =>

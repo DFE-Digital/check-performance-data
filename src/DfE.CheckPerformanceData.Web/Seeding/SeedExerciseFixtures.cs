@@ -20,7 +20,7 @@ using Microsoft.EntityFrameworkCore;
 namespace DfE.CheckPerformanceData.Web.Seeding;
 
 /// <summary>
-/// Seeds the E2E fixture windows (both KS4 June windows) the way an admin would: each dataset gets a CSV and a schema, and each exercise is run through ingress.
+/// Seeds the E2E fixture window (Key Stage 4 June) the way an admin would: each dataset gets a CSV and a schema, and each exercise is run through ingress.
 /// Every fixture window therefore has a release, and the Check Your Pupil Data page draws its tabs
 /// from the schemas — a table with a CSV download, the same as the ingressed windows.
 /// </summary>
@@ -31,8 +31,7 @@ namespace DfE.CheckPerformanceData.Web.Seeding;
 /// </remarks>
 public static class SeedExerciseFixtures
 {
-    private static readonly Guid[] Ks4WindowIds =
-        [DevDataSeeder.KeyStage4JuneCheckingWindowId, DevDataSeeder.ClosedKeyStage4JuneCheckingWindowId];
+    private static readonly Guid[] Ks4WindowIds = [DevDataSeeder.KeyStage4JuneCheckingWindowId];
 
     public static Task ExecuteSeedAsync(
         IPortalDbContext dbContext, BlobServiceClient blobs, ICheckingExerciseIngress ingress, string contentRootPath) =>

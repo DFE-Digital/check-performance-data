@@ -92,8 +92,6 @@ The groups are:
 - **Audit log**: a record of administrative activity.
 - **Danger zone**: actions that permanently delete data, and the blob storage browser.
 
-You only see the groups and screens your role has been given.
-
 ### The side menu and the Messages badge
 
 Every admin page has the same menu on the left. It shows the same groups as the Administration page. The page you are on is highlighted. Select the plus or minus button next to a group to open or close it. Select the arrow button above the menu to hide or show the whole menu.
@@ -107,8 +105,7 @@ The **Messages** badge in the header counts 2 things added together: search feed
 
 ### Conventions used in this guide
 
-- You **select** links and buttons. The guide writes their names in bold, exactly as they appear on screen.
-- Screen names and page titles are in italics.
+- You **select** links and buttons. The guide writes their names in bold, exactly as they appear on screen. Screen names and page titles are in italics.
 - A **Warning** box marks an action that cannot be undone.
 - Times are in UTC unless the screen says otherwise. UTC is the same as Greenwich Mean Time, and is one hour behind British Summer Time.
 
@@ -126,7 +123,7 @@ The dashboard lists open checking windows only. To see another window:
 1. Choose a window from **Checking window**.
 2. Select **View**.
 
-The page shows when the figures were last refreshed. They refresh by themselves every 15 minutes. To stop this, select **Stop automatic refresh**. Automatic refresh needs JavaScript. Without it, reload the page to see new figures.
+The page shows when the figures were last refreshed. They refresh by themselves every 15 minutes. To stop this, select **Stop automatic refresh**. The page then says *Automatic refresh is off. Reload the page to see newer figures.* Automatic refresh needs JavaScript. Without it, reload the page to see new figures.
 
 The dashboard has 9 tiles:
 
@@ -201,17 +198,17 @@ On the **Content** tab you build the page from regions and widgets:
 - A region sets the layout. The layouts are Single, Halves, Thirds, Quarters, OneThirdTwoThirds and TwoThirdsOneThird.
 - A widget holds the content. The widgets are Card, Divider, Heading, Page navigation, Published callout, Rich text, Search, Search results and Summary list.
 
-To add content, select **Add content here**, then choose a region or a widget. Each item has buttons to move it up or down and to delete it.
+To add content, select **Add content here**. Choose a region layout and select **Add region**, or choose a widget and select **Add widget**. Widgets go inside a region. Each item has buttons to move it up or down and to delete it.
 
 The buttons under the content are:
 
 | Button | What it does |
 |---|---|
 | **Save** | Saves your changes as a draft. The live page does not change. |
-| **Publish draft** | Makes the draft live. |
+| **Publish draft** | Makes the draft live. The tag above the tabs changes from *Draft* to *Published*. |
 | **Unpublish** | Takes the live page offline. This button shows only while the page is published. |
 
-On the **Properties** tab you can change the Title, Subtitle, Page name, URL segment, Show in menu, Appear in search and Search keywords. Select **Save details** to save them. Changing the URL segment changes the address of the page and of every page below it. The service asks you to confirm with *Change page URL?*, and warns that existing links and bookmarks will stop working.
+On the **Properties** tab you can change the Title, Subtitle, Page name, URL segment, Show in menu, Appear in search and Search keywords. Select **Save details** to save them. The service confirms with a *Page details* message that says *Saved.* Changing the URL segment changes the address of the page and of every page below it. The service asks you to confirm with *Change page URL?*, and warns that existing links and bookmarks will stop working.
 
 The **Versions** tab lists every saved version with its status, when it was changed and who changed it.
 
@@ -246,11 +243,11 @@ Each row shows the block key, the page it appears on, its type, its content, and
 
 To edit a block:
 
-1. Select **Edit** on the block's row.
-2. Change the content.
-3. Select **Save**.
+1. Select **Edit** on the block's row. The edit form opens for that block.
+2. Change the **Value**. You can also change **Appear in search**, which controls whether the block shows in help search results, and **Search keywords**.
+3. Select **Save**, or select **Cancel** to leave the block as it was.
 
-Each block keeps a version history. You can revert to an earlier version. The service asks you to confirm: *Are you sure you want to revert to version…?* It warns that this replaces the current published content, and adds the current version to the history.
+Each block keeps a version history. Select **Version history** in the block's edit form to see it. The *Content block versions* screen lists each version with its date, and previews the content when you select one. You can revert to an earlier version. The service asks you to confirm: *Are you sure you want to revert to version…?* It warns that this replaces the current published content, and adds the current version to the history.
 
 ### Deleted pages
 
@@ -464,7 +461,7 @@ To add a branch to an outcome:
 
 1. Open the outcome, then select **Add branch**.
 2. Choose the **Decision**: AutoApproved, AutoRejected or Scrutiny.
-3. Build the **Condition**. Under **Match**, choose how conditions combine: *All of these*, *Any of these* or *Not (one condition)*. Select **Add condition** to add a test. Select **Add group** to nest a group of conditions.
+3. Build the **Condition**. Under **Match**, choose how conditions combine: *All of these*, *Any of these* or *Not (one condition)*. Select **Add condition** to add a test. For each test, choose a **Field**, which is one of the answers the school gives, then an **Operator** and a **Value**. The operators are *equals*, *does not equal*, *is one of*, *is known and certain* and *official language is*. If you change the field, select **Update field** so the operators match it. Select **Remove condition** to take a test out. Select **Add group** to nest a group of conditions.
 4. Select **Save branch**.
 
 To change a branch, select its edit icon. To reorder branches, use the up and down icons. To remove a branch, select its remove icon. The service then asks *Remove branch?* Select **Remove branch** to confirm. It records a new version, and you can roll it back.
@@ -494,7 +491,7 @@ To change a branch, select its edit icon. To reorder branches, use the up and do
 
 Every change to the decision rules is saved as a new version. Select **Version history** on the *Rules Engine configuration* screen to see them.
 
-![The Version history screen for the decision rules, listing two saved versions](admin/images/rules-history.png)
+![The Version history screen for the decision rules, listing four saved versions](admin/images/rules-history.png)
 *The version history for the decision rules.*
 
 Each version shows when it was saved and by whom. Select **View JSON** to see exactly what was saved. To go back to a version:
@@ -554,7 +551,7 @@ The grid has one row for each admin section and one column for each role. The se
 To change what a role can see:
 
 1. Tick the box for each section the role should have. Clear the box for each section it should not have.
-2. Select **Save role access**.
+2. Select **Save role access**. The service confirms with *Role access saved.*
 
 The `cypmd_admin` column is fixed. Administrators always have every section.
 
@@ -589,7 +586,7 @@ The list shows 20 messages a page. Each row shows when the message was sent, the
 
 Select a message to open it. The message screen shows what the person was looking for and what they got. It also shows their last search on the site, how many results came back and what they were. Under *Message details* it shows when it was sent, the session, their email address (or that they did not want to be contacted) and the status.
 
-- Select **Mark as read** when you have dealt with the message. Opening a message does not mark it as read.
+- Select **Mark as read** when you have dealt with the message. The status changes to *Read*, and the screen shows who marked it. Opening a message does not mark it as read.
 - Select **View this session's searches** to see everything else that person searched for.
 
 The Messages badge in the header counts messages that are still *New*.
@@ -698,6 +695,8 @@ Select **Edit** on a window in *Manage windows* to open its summary. This is whe
 *The summary page for a window with one exercise, Pupil data checking.*
 
 The first section, *Window details*, lists the title, whether the window is published and open, its start and end dates, its window type, its checking exercises, its turnaround commitment and its next opportunity. Select **Change** beside a row to edit it. The start and end dates have no **Change** link, because they come from the exercises. *Is Published* and *Is Open* have none either.
+
+When you change an exercise's dates, the service checks them. It rejects an opening date in the past, with the message *Start date can not occur in the past.* It also rejects a closing date before the opening date, with *End date can not occur before the start date.* The first check applies even if you only want to change the closing date of an exercise that has already opened. The service cannot save changes to the dates of an exercise that has already opened. If you need to move the closing date of an open exercise, ask the development team.
 
 *Is Published* and *Is Open* can differ from the *Published* and *Status* columns on *Manage windows*. For example, a window that *Manage windows* shows as open can show *False* here. If they disagree, ask the development team which is right.
 
@@ -906,7 +905,7 @@ To find a file:
 
 1. Select **Browse** beside an account.
 2. Select **Browse** beside a container. The screen says how many containers the account holds.
-3. Select **Open** on a folder to go into it. Files show **Preview**, **Download** and **Delete** buttons.
+3. Select **Open** on a folder to go into it. Select **Up to container root** to come back out. Files show **Preview**, **Download** and **Delete** buttons. The preview screen also has a **Download this blob** link.
 
 To upload files, use the *Upload files* section at the top of a container. Choose one or more files. To put them in a new sub-folder, type its name in **Folder (optional)**. Leave it blank to upload into the folder you are looking at. Then select **Upload**.
 

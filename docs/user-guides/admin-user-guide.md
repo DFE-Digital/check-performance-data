@@ -616,3 +616,166 @@ To open a message, select its ID. The detail screen shows the reason, the number
 > **Warning** Select **Purge** to delete a message from the dead-letter queue for good. To delete several, tick them and select **Purge selected**. The service asks you to confirm with *Purge this message?* This cannot be undone. The service keeps a record in the audit log that you purged it. Do not purge a message until you know that the request it carries has been dealt with another way.
 
 The dead-letter queue also sends an email alert when it holds too many messages, and deletes old messages after a set number of days. Both are system settings (see Appendix C).
+
+## 7. Window administration
+
+A checking window is a period when schools can check their data and ask for changes. Window administration is where you set windows up, load the data schools check, and close them when the period ends.
+
+### Windows, checking exercises and datasets
+
+A **window** has:
+
+- a **name**, such as *Key Stage 4 June*
+- a **window type**: Key Stage 4 June, Key Stage 2, Post 16 or Key Stage 4 Autumn
+- a **key stage**: Key stage 2, Key stage 4 or Post 16
+- a **turnaround commitment**: a short sentence that tells schools when to expect changes, such as *updated in the Autumn*
+- a **next opportunity**: an optional month and year. Once the window's pupil data checking has closed, schools see when they can next review their data. They see the month and year only, for example *October 2027*.
+
+A window runs one or 2 **checking exercises**:
+
+- **Pupil data checking**: schools check their pupil data and ask for changes.
+- **Results enquiry**: schools ask about results.
+
+Each exercise has its own opening and closing date and time. The window's overall dates are worked out from its exercises, so you do not enter them.
+
+Each exercise also has one or more **datasets**: the data the school checks. Each dataset needs 2 files:
+
+- an **ingress file**: the data itself. You choose it from the ingress storage area. You do not upload it from your own computer. The service copies it into the window's own storage and records a checksum, which lets it tell later if the file has changed.
+- a **schema file**: a JSON file that describes what the data should look like. You do upload this from your computer.
+
+Some datasets are marked *(optional)*. The supplier may send those later, or not at all. You can validate without them.
+
+When both files are in place, you **validate** the exercise. Validation reads every record and checks it against the schema. When the exercise ends, you **close** it. Closing sends the requests schools have submitted for processing.
+
+### Manage windows
+
+Use *Manage windows* to see every window and open one.
+
+![The Manage windows screen, titled Window Admin, listing five windows with their status, exercises, published state and Edit and Requests links](admin/images/windows-list.png)
+*The Manage windows screen. The screen title is Window Admin.*
+
+The screen opens in the public layout of the service, without the admin side menu. Select **Back** to return.
+
+The table has these columns:
+
+| Column | What it shows |
+|---|---|
+| Name | The window name. |
+| Status | *Open* or *Closed*. |
+| Checking exercises | Each exercise with its own status tag: *Upcoming* (not open yet), *Open* or *Closed*, worked out from the exercise's dates. A red *Missing journeys* tag replaces these when the service has no request form set up for this type of window. The line beneath it lists which types of request are affected, for example *Missing: Include, Add*. Tell the development team if you see it. |
+| Published | *True*. At present this column says *True* for every window, so it does not tell you anything. |
+| Actions | **Edit** opens the window summary. **Requests** opens the list of requests for the window. |
+
+### Creating a new window
+
+Use *Create new window* to start a new window. The service takes you through 6 pages, one question at a time. It only creates the window on the last page.
+
+![The first page of the create wizard, headed Edit title for New window, with a name field and the Save and continue button](admin/images/window-create-title.png)
+*The first page of Create new window.*
+
+1. **Edit title for New window.** Enter the name for the window. It starts as *New window*. Select **Save and continue**.
+2. **Select the window type.** Choose Key Stage 4 June, Key Stage 2, Post 16 or Key Stage 4 Autumn. Select **Save and continue**.
+3. **Select the key stage.** Choose Key stage 2, Key stage 4 or Post 16. Select **Save and continue**.
+4. **Which checking exercises does this window run?** Tick *Pupil data checking*, *Results enquiry* or both. Select **Save and continue**.
+5. **Dates.** For each exercise you ticked, the service asks for that exercise's dates. Enter **When does it open?** as a day, month and year. Enter **What time does it open?** as an hour and minute on the 24-hour clock, such as 09 30 or 17 00. Then do the same for **When does it close?** Select **Save and continue**.
+6. **Check your answers.** The page lists every answer. Select **Change** beside an answer to correct it. When everything is right, select **Save and continue**.
+
+Selecting **Save and continue** on the last page creates the window and its storage. The service then opens the window summary page.
+
+The service does not ask for a turnaround commitment or a next opportunity in these pages. Add them afterwards from the window summary.
+
+#### Leaving the wizard part-way
+
+The service keeps your answers for the rest of your session. If you leave and come back, the first page shows the name you entered. The window is not created until you complete the last page, so leaving does not affect any existing window.
+
+> **Warning** The Cancel links in this wizard do not work as you would expect at present. On the first page, **Cancel** takes you to the Administration page if you have not saved any answers yet. If you have, it opens the *Do you want to delete this window?* page described below. On the later pages, **Cancel** shows a *Page not found* screen. On the *Check your answers* page, **Cancel** does nothing. That page is at `/admin/windows/cancel-creation`. It shows your answers, with **Continue** and **Delete** buttons. Both show *Page not found*, and **Delete** does not discard your answers. To leave, use the side menu or the header. To start again, change each answer.
+
+### The window summary page
+
+Select **Edit** on a window in *Manage windows* to open its summary. This is where you manage the window from day to day.
+
+![The summary page for the Key Stage 4 June window, showing the window details and the Pupil data checking section](admin/images/window-summary.png)
+*The summary page for a window with one exercise, Pupil data checking.*
+
+The first section, *Window details*, lists the title, whether the window is published and open, its start and end dates, its window type, its checking exercises, its turnaround commitment and its next opportunity. Select **Change** beside a row to edit it. The start and end dates have no **Change** link, because they come from the exercises. *Is Published* and *Is Open* have none either.
+
+*Is Published* and *Is Open* can differ from the *Published* and *Status* columns on *Manage windows*. For example, a window that *Manage windows* shows as open can show *False* here. If they disagree, ask the development team which is right.
+
+Below that, each exercise has its own section. It shows:
+
+- **Start Date** and **End Date**, with **Change** links.
+- **Validated**: *Yes* with the date and time, *No*, or *Not since the files changed*. The last one means the exercise was validated once, but someone has since replaced a file. Validate again.
+- One line for each dataset's **ingress file** and **schema file**, each with a **Change** link. A missing file shows *Not supplied*.
+- Two buttons named after the exercise, such as **Validate Pupil data checking** and **Close Pupil data checking**.
+
+#### Choosing an ingress file
+
+1. Select **Change** beside a dataset's ingress file.
+2. On *Browse ingress files*, choose a storage container from the list.
+3. Open folders until you find the file. Select **Back to Containers** to start again.
+4. Under **Select a file**, choose the file.
+5. Select **Use selected file**.
+
+The service copies the file into the window's own storage and records its checksum. Then it returns you to the summary page. Nothing is uploaded from your computer.
+
+The screen says *No ingress containers were found* if the ingress storage area is empty. The file has to be placed there by whoever supplies the data first.
+
+#### Uploading a schema file
+
+1. Select **Change** beside a dataset's schema file.
+2. On *Upload a JSON schema file*, choose the file from your computer.
+3. Select **Save and continue**.
+
+#### Validating an exercise
+
+Validation checks every record against the schema. The validate button is greyed out until the exercise has all the files it needs.
+
+1. Select the validate button for the exercise, such as **Validate Pupil data checking**.
+2. On the validation page, select **Run validation**.
+3. Watch the progress. The page counts *Records read*, *Records processed*, *Files written* and *Errors* as it goes.
+4. When it finishes, read the result. *Validation complete* means no errors. *Validation failed* means at least one error, and the page describes what was wrong.
+5. The page lists *Records processed per LAESTAB*: one row for each school, with the number of records checked.
+
+If validation fails, fix the data at source, put the corrected file in the ingress storage area, choose it again as the ingress file, and validate again.
+
+Without JavaScript the page works differently. There is no live progress. The result appears once validation has finished.
+
+#### Closing an exercise
+
+1. Select the close button for the exercise, such as **Close Pupil data checking**.
+2. Read the confirmation page. It says how many *Requests to send for processing* and how many *Drafts to cancel*.
+3. Select the close button again to confirm, or select **Cancel** to go back.
+
+> **Warning** You cannot undo closing an exercise. The service sends every request schools have submitted for processing. Submitted requests cannot be changed afterwards. Drafts that a school has not submitted are cancelled, and cannot be resumed. The close button is never greyed out, and it ignores the exercise's dates. Check the counts on the confirmation page before you confirm.
+
+After it closes, the summary page shows a *Success* banner, for example *Pupil data checking closed. 1 request sent for processing and 10 drafts cancelled.*
+
+### Requests for a window
+
+Select **Requests** on a window in *Manage windows* to see every request made in that window. The page is read-only. Use it to check what schools have asked for, and what happened to each request.
+
+![The top of the Requests screen for the Key Stage 4 June window, with an exercise filter and the first rows of the table](admin/images/window-requests.png)
+*The top of the Requests screen. The table continues below and is wider than the screen.*
+
+To show one exercise only, choose it under **Checking exercise** and select **Apply filter**. Results enquiries appear here under the Results enquiry exercise.
+
+Each row shows:
+
+- **Reference**, **Organisation URN**, **Pupil** and **Request type**
+- **Checking exercise** (or *Not recorded* if the request has none)
+- **Status**, such as InProgress, ReadyToSubmit, SubmittedUnCommitted or SubmittedCommitted
+- **Submitted by** and **Submitted**
+- **Outcome**: *Auto approved*, *Auto rejected* or *Scrutiny*, or *Not yet processed*
+- **Matched Rule**: the rule that decided the outcome
+- **Zendesk Id**: the ticket, once one exists
+
+For a request the rules engine has decided, select **Decision trace** under the row to see how the engine reached its decision. The trace lists each condition the engine checked and whether it was true, ending with the rule that decided.
+
+### Who can do what
+
+Two sections control window administration, and you give them to a role separately:
+
+- **new-window** lets a role start the Create new window pages.
+- **manage-window** lets a role use Manage windows, the window summary, the requests list, and the pages for changing a window.
+
+The Create new window wizard uses pages from both sections. A role that has only one of them gets a *Page not found* screen part-way through. Give both sections together. Chapter 5 explains how to change what a role can see, under Role settings.

@@ -779,3 +779,262 @@ Two sections control window administration, and you give them to a role separate
 - **manage-window** lets a role use Manage windows, the window summary, the requests list, and the pages for changing a window.
 
 The Create new window wizard uses pages from both sections. A role that has only one of them gets a *Page not found* screen part-way through. Give both sections together. Chapter 5 explains how to change what a role can see, under Role settings.
+
+## 8. Data egress
+
+### What an egress run is
+
+An egress run takes the decisions that caseworkers have made in Zendesk for one checking window, prepares them to the Learning Data Service (LDS) specification, checks the files, and sends them to LDS.
+
+A run works with one or 2 **output types**:
+
+- **New learners**: requests to add a pupil.
+- **Remove learners**: requests to remove a pupil.
+
+Only one run can be active for a checking window and an output type at any time. If a colleague already has one, the service tells you who and since when. Once an output type has been sent to LDS for a window, it cannot be sent again. A run that failed, or that someone abandoned, does not block a new one.
+
+### Starting a run
+
+Use *Start a new egress* to begin.
+
+![The Data egress screen, with a checking window picker, output type tick boxes, a Pull data from Zendesk button and a list of completed runs](admin/images/egress-start.png)
+*The Data egress screen.*
+
+1. Under **1. Select a checking window**, choose the window.
+2. Under **2. Select data to pull from Zendesk**, tick **New learners**, **Remove learners** or both.
+3. Select **Pull data from Zendesk**.
+
+The service saves the run as soon as the pull finishes. The same screen lists *Saved runs* that are still in progress, each with a **Resume** button, and *Completed runs*, with a **View** link.
+
+If the service refuses to start the run, it says why. There are 2 common reasons:
+
+- *{Output type} for this checking window is already being processed by {name}, started {date} at {time} UTC. Wait for that run to finish or be abandoned.*
+- *{Output type} for this checking window has already been transferred to LDS by {name} on {date} at {time} UTC. It cannot be sent again.*
+
+### Reviewing the pulled data, preprocessing and transferring
+
+A run has 5 screens. You move through them in order.
+
+**1. Data pulled from Zendesk.** The screen lists every request for the output types you chose, whatever its decision, with one tab for each output type. Each row shows the ticket ID, reference, decision, reason and the pupil details. Only approved and auto-approved requests go forward.
+
+The buttons are **Proceed to preprocessing**, **Save and exit** and **Abandon run**.
+
+**2. Preprocessing data.** Select **Run preprocessing**. The service prepares the records in 8 steps and shows progress as it goes: Filter records, Derive correction codes, Split DfE establishment number, Standardise dates, Build LDS records, Trim values, Validate against LDS spec and Save to database. Do not leave the page while it runs. If you do, the run goes back to the pulled data and nothing is saved. When it finishes, the service takes you to the next screen.
+
+**3. Preprocessing failed.** You only see this screen if a record has a problem. The service says how many problems it found. One failing record fails the whole batch, so nothing is saved and nothing is sent. The *Records that failed* list shows the **Ticket ID**, **Reference**, **Step**, **Field** and **Problem** for each one. Correct the source data in Zendesk, then select **Start a new egress**. Select **View the pulled data** to look at the records again. You cannot retry a failed run. You always start a new one.
+
+**4. Confirm transfer to LDS.** The screen shows the checking window, when the data was preprocessed and the target container. Under *Files to be transferred* it lists each file with its record count. Select **preview** beside a file name to look at it, and **Download** to save a copy. When you are sure, select **Confirm and transfer**.
+
+**5. Transfer complete.** The screen shows what was sent: the files, the number of records in each, and a checksum for each. It also shows who transferred them, when, and the status *Success*. Select **Start a new egress** to begin another run.
+
+If the transfer fails, the service removes any file it had already written. The run shows as failed. You can try the transfer again from the *Confirm transfer to LDS* screen.
+
+Every screen from *Preprocessing data* onwards has **Save and exit** and **Abandon run**. **Save and exit** only leaves the page. You do not need to save, because the service saved the run when the pull finished. Select **Resume** on the *Data egress* screen to go back to where you were.
+
+> **Warning** **Abandon run** does not ask you to confirm. It ends the run straight away. If the run was in the middle of a transfer, the service also removes any files it had already written to LDS storage. The run can never be resumed. You need to start a new one.
+
+### Egress runs
+
+Use *Egress runs* to see the history of every run.
+
+![The Egress runs screen, listing a completed run for the Key Stage 4 June window](admin/images/egress-runs.png)
+*The Egress runs screen.*
+
+You can filter by **checking window** and by **status**, then select **Apply filters**. The statuses are:
+
+- **Success**: the files were sent to LDS.
+- **Failed**: preprocessing or the transfer failed.
+- **Draft**: the run is still in progress.
+- **Abandoned**: someone abandoned it.
+
+Each row shows the checking window, the output types, the number of records, who ran it and when it started. The **Records** figure is what LDS received. It is 0 for any run that was not sent. Select **View** to open a finished run. For a run in progress, the link is **Resume**.
+
+## 9. Audit log
+
+Use the *Audit log* to see a record of administrative activity in the service, including every data egress run.
+
+![The Audit log screen, filtered to data egress, showing a run that started and a transfer that succeeded](admin/images/audit-log.png)
+*The Audit log, filtered to Data egress.*
+
+The list shows the newest entries first, 20 to a page. The columns are **User**, **Activity**, **Checking window**, **Time** and **Status**.
+
+- For data egress, the Activity is a *Data egress* tag. A pull shows *Run started*. A transfer shows a *Success* or *Failed* status.
+- For everything else, the Activity is the type of item that changed, with the action beneath it: Insert, Update or Delete.
+- Actions the service takes for itself show *System* as the user.
+
+By default the log shows all activity. Most of it is routine application log entries, marked *App log*, which can hide the entries you want. To find something, use the filters:
+
+- **Filter by activity**: choose the type of item, such as *Data egress*, *Dead letter* or *Role access*.
+- **Filter by window**: choose a checking window.
+- **Filter by status**: *Success* or *Failed*, for data egress transfers.
+
+Select **Apply filters**. The filters work together.
+
+Select **Export log as CSV** to download every entry that matches your filters.
+
+You cannot edit or delete audit log entries from the service.
+
+## 10. Danger zone
+
+This group holds actions that permanently delete or change data. Use them with care.
+
+### Reset seed data
+
+Use *Reset seed data* to put a test environment back to its starting state.
+
+![The Reset seed data screen, with a warning and a Reset seed data button](admin/images/reset-seed-data.png)
+*The Reset seed data screen.*
+
+The screen is available in every environment except production. Testers use it on development, QA and preproduction.
+
+> **Warning** This permanently deletes all change requests and checking windows. It then puts the database, pupil data and question flows back to the default seeded state. Any data testers created is lost. This cannot be undone. The screen is the only confirmation. When you select **Reset seed data**, it happens straight away. Select **Cancel** to leave.
+
+### Blob storage browser
+
+Use the *Blob storage browser* to look at files in the service's storage, and to upload, download and delete them.
+
+![The Blob storage screen, listing three storage accounts, each with a Browse link](admin/images/storage-browser.png)
+*The Blob storage screen.*
+
+There are 3 storage accounts:
+
+- **App Storage**: the service's own files. It holds one container for each checking window, with the pupil data for that window.
+- **Ingress Storage**: the files that suppliers send in, which you choose from when you set up a window.
+- **egress**: the files prepared for LDS.
+
+To find a file:
+
+1. Select **Browse** beside an account.
+2. Select **Browse** beside a container. The screen says how many containers the account holds.
+3. Select **Open** on a folder to go into it. Files show **Preview**, **Download** and **Delete** buttons.
+
+To upload files, use the *Upload files* section at the top of a container. Choose one or more files. To put them in a new sub-folder, type its name in **Folder (optional)**. Leave it blank to upload into the folder you are looking at. Then select **Upload**.
+
+Storage can hold pupil data. Only open, download or preview files that you need to. Look after any file you download.
+
+> **Warning** Select **Delete** on a file to delete it from storage. The only check is a message from your browser that asks *Delete {file name}?* Once you confirm, the file is gone and cannot be recovered. Do not delete the files a window or an egress run depends on.
+
+## Appendix A: Actions that cannot be undone
+
+This table lists the actions in the admin area that change or delete data. It says whether the service asks you to confirm first.
+
+| Screen | Action | What it does | Does it ask you to confirm? |
+|---|---|---|---|
+| Window summary | Close an exercise | Sends submitted requests for processing and cancels drafts. Cannot be undone. | Yes. A confirmation page shows the counts. |
+| Data egress | Confirm and transfer | Sends the files to LDS. The same output type cannot be sent again for that window. | No. The screen warns you that this cannot be undone. |
+| Data egress | Abandon run | Ends the run for good. Removes any files a transfer had already written. | No. |
+| Dead-letter queue | Purge | Deletes a message for good. The audit log keeps a record of the purge. | Yes. A dialog asks *Purge this message?* |
+| Dead-letter queue | Redrive | Sends a message back to its queue. May create a ticket. | Yes. A dialog asks *Requeue this message?* |
+| View logs | Clear all logs | Deletes every log entry. | Yes. A dialog asks *Clear all application logs?* |
+| Search analytics | Delete this session's data | Deletes every search event and message from one session. | Yes. A dialog asks *Delete this session's data?* |
+| Share links | Revoke | Switches a share link off for good. | No. |
+| Rules Engine configuration | Delete an outcome | Removes an outcome and its branches. Can be rolled back. | Yes. You type the outcome key. |
+| Rules Engine configuration | Remove a branch | Removes one branch. Can be rolled back. | Yes. A confirmation page. |
+| Rules Engine configuration | Remove a country | Removes a country from the language list. Can be rolled back. | No. |
+| Rules Engine configuration | Roll back | Saves an earlier version as a new version. | Yes. A confirmation page. |
+| Pages | Delete a page | Moves the page to Deleted pages, where it can be restored. The screen says it cannot be undone. | Yes. A confirmation page. |
+| Content blocks | Revert to an earlier version | Replaces the published content with an earlier version. | Yes. A dialog. |
+| Content staging import/export | Import with Overwrite | Replaces content that already exists. | Yes. The *Review import* screen. |
+| Content staging import/export | Clear all CMS content | Deletes every page and content block. Development environments only. | Yes. A dialog asks *Clear all CMS content?* |
+| Blob storage browser | Delete a file | Deletes the file from storage. | Only a browser message. |
+| Danger zone | Reset seed data | Deletes all change requests and windows, then reseeds. Not in production. | The Reset seed data screen is the only confirmation. |
+
+## Appendix B: Admin sections a role can be granted
+
+*Role settings* lists 30 sections. This table shows what each one unlocks, grouped in the order of the Administration page.
+
+| Group | Section | What it unlocks |
+|---|---|---|
+| Dashboard | `dashboard` | Dashboard |
+| CMS administration | `content-pages` | Pages |
+| CMS administration | `content-blocks` | Content blocks |
+| CMS administration | `deleted-pages` | Deleted pages |
+| CMS administration | `content-staging` | Content staging import/export |
+| CMS administration | `search-analytics` | Search analytics and its drill-down screens |
+| System administration | `observability` | Pipeline dashboard |
+| System administration | `transactions` | Transactions |
+| System administration | `replay-submissions` | Replay |
+| System administration | `share-admin` | Share links, which has no menu entry |
+| System administration | `rules-engine` | Queues |
+| System administration | `rules-engine-queue` | Rules Engine Queue |
+| System administration | `zendesk-queue` | Zendesk Queue |
+| System administration | `rules-config` | Rules Engine configuration |
+| System administration | `system-settings` | System settings |
+| System administration | `app-logs` | View logs |
+| System administration | `role-settings` | Role settings |
+| System administration | `test-data-group` | The Test data heading |
+| System administration | `seed-sample-pages` | Seed sample CMS pages |
+| System administration | `seed-sample-search-data` | Seed sample search data |
+| Messages | `messages-inbox` | Search feedback |
+| Messages | `dead-letter-queue` | Dead Letter Queue |
+| Window administration | `window-admin` | The Window administration heading |
+| Window administration | `new-window` | Create new window |
+| Window administration | `manage-window` | Manage windows, the window summary and the requests list |
+| Data egress | `egress` | Start a new egress and every screen of a run |
+| Data egress | `egress-runs` | Egress runs |
+| Audit log | `audit-log` | Audit log |
+| Danger zone | `reset-seed-data` | Reset seed data |
+| Danger zone | `storage-browser` | Blob storage browser |
+
+## Appendix C: System settings reference
+
+This appendix explains every setting on the *System settings* screen. The setting names are the ones the screen shows. Chapter 5 explains how to change them.
+
+### CMS
+
+| Setting | What it does | Default |
+|---|---|---|
+| `CMS:PageLength` | The number of rows shown on each page of a list. | 20 |
+| `CMS:SearchDebugOn` | When on, the service records why each page did or did not appear in a search, for people fixing search problems. | Off |
+| `CMS:ShowDeleteAllButton` | When on, the Content staging screen offers the Clear all CMS content button. It never appears in production, QA or preproduction, whatever this says. | Off |
+
+### Dead-letter queue
+
+| Setting | What it does | Default |
+|---|---|---|
+| `Dlq:AlertRecipients` | The email addresses to tell when the dead-letter queue is too long. Separate addresses with commas. | Empty |
+| `Dlq:AlertThreshold` | The number of messages in the dead-letter queue at which the service sends an email alert. | 10 |
+| `Dlq:FullPayloadEnabled` | When on, administrators can see the full contents of a dead-lettered message, including pupil details. Every view is recorded in the audit log. | Off |
+| `Dlq:RetentionDays` | How many days a dead-lettered message is kept before it is deleted. The audit log entries are kept separately. | 90 |
+
+### Pipeline health thresholds
+
+These settings decide when the health strip on the Pipeline dashboard changes colour.
+
+| Setting | What it does | Default |
+|---|---|---|
+| `Health:DepthAmber` | The number of messages waiting in a queue at which the strip turns amber. | 25 |
+| `Health:DepthRed` | The number of messages waiting in a queue at which the strip turns red. | 100 |
+| `Health:DlqRateRed` | The number of messages in the dead-letter queue at which the strip turns red. | 5 |
+| `Health:OldestAgeAmberSeconds` | How old, in seconds, the oldest waiting message must be for the strip to turn amber. | 120 |
+| `Health:OldestAgeRedSeconds` | How old, in seconds, the oldest waiting message must be for the strip to turn red. | 600 |
+
+### Queue metrics
+
+| Setting | What it does | Default |
+|---|---|---|
+| `Metrics:RetentionDays` | How many days the service keeps the queue figures behind the Pipeline dashboard charts. | 30 |
+| `Metrics:RetentionIntervalMinutes` | How often, in minutes, the service deletes old queue figures. | 60 |
+
+### Notifications
+
+| Setting | What it does | Default |
+|---|---|---|
+| `Notify:UseFake` | When on, the service does not send real emails. It writes them to a log instead. Turn this off in an environment where emails need to go out, such as the dead-letter queue alerts. | On |
+
+### Search analytics
+
+| Setting | What it does | Default |
+|---|---|---|
+| `SearchAnalytics:MessageRetentionDays` | How many days a feedback message is kept. The most it can be set to is 730. | 365 |
+| `SearchAnalytics:RetentionDays` | How many days search events are kept. The most it can be set to is 365. | 90 |
+| `SearchAnalytics:RetentionIntervalMinutes` | How often, in minutes, the service deletes old search data. | 60 |
+| `SearchAnalytics:SeedSecondsPerEvent` | An estimate, in seconds, of how long each event takes when seeding sample search data. The service adjusts it as it learns. You should not need to change it. | 0.1 |
+| `SearchAnalytics:SessionAbsoluteHours` | The longest a search session can last, however active the person is. The most it can be set to is 168, which is one week. | 24 |
+| `SearchAnalytics:ShowSessionComment` | When on, every page includes a hidden comment with the session ID, so that support staff can trace a problem. Only turn this off where visible session IDs are not acceptable. | On |
+
+## Appendix D: Getting help
+
+If something in the admin area does not work as this guide describes, or you need an access change that you cannot make yourself, contact the development team through the service's usual support route.
+
+The source of this guide is the file `docs/user-guides/admin-user-guide.md` in the `DFE-Digital/check-performance-data` repository. It is kept up to date with the service. Anyone who can change the repository can suggest a correction.

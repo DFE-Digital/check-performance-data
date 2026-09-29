@@ -517,3 +517,5 @@ tests/DfE.CheckPerformanceData.E2ETests/Snapshots/failures/
 .spec-context.json
 /.ai-codex
 /AGENTS.md
+
+docs/user-guides/admin-user-guide.html

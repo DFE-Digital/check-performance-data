@@ -1,0 +1,23 @@
+@page { size: A4; }
+html { font-family: Arial, "Helvetica Neue", Helvetica, sans-serif; font-size: 11pt; line-height: 1.5; color: #0b0c0c; }
+body { margin: 0; }
+h1 { font-size: 26pt; line-height: 1.1; margin: 0 0 12pt; }
+h2 { font-size: 19pt; margin: 28pt 0 8pt; page-break-before: always; break-before: page; }
+h1 + p + h2, h2:first-of-type { page-break-before: auto; break-before: auto; }
+h3 { font-size: 14pt; margin: 18pt 0 6pt; }
+h4 { font-size: 12pt; margin: 14pt 0 4pt; }
+h2, h3, h4 { page-break-after: avoid; break-after: avoid; }
+p, li { max-width: 75ch; }
+ul, ol { padding-left: 20pt; }
+table { border-collapse: collapse; width: 100%; margin: 8pt 0 14pt; font-size: 10pt; page-break-inside: auto; }
+th, td { text-align: left; vertical-align: top; padding: 5pt 8pt; border-bottom: 1px solid #b1b4b6; }
+th { border-bottom: 2px solid #0b0c0c; }
+tr { page-break-inside: avoid; break-inside: avoid; }
+img { max-width: 100%; height: auto; border: 1px solid #b1b4b6; margin: 6pt 0 4pt; page-break-inside: avoid; break-inside: avoid; }
+img + em, p > em:only-child { display: block; font-size: 9.5pt; color: #505a5f; margin-bottom: 12pt; }
+blockquote { margin: 10pt 0; padding: 6pt 12pt; border-left: 6pt solid #1d70b8; background: #f3f2f1; }
+blockquote.warning, blockquote:has(> p > strong:first-child) { border-left-color: #d4351c; }
+code { font-family: Consolas, "Courier New", monospace; font-size: 9.5pt; background: #f3f2f1; padding: 0 3pt; }
+a { color: #1d70b8; }
+hr { border: 0; border-top: 1px solid #b1b4b6; margin: 16pt 0; }
+.toc ul { list-style: none; padding-left: 0; }

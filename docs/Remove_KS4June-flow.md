@@ -96,7 +96,7 @@ Pupil admitted following a permanent exclusion elsewhere.
 
 | Question | Type | Notes |
 |---|---|---|
-| `permanent-exclusion-dfe-number` | FreeText | DfE number of the school which excluded the pupil. Includes help text linking to Get Information About Schools. |
+| `permanent-exclusion-dfe-number` | FreeText | DfE number of the school which permanently excluded the pupil (issue-496 design copy). Blank and malformed answers share one message: "Enter the 7 digit DfE number of the school which permanently excluded the pupil". Only this page's DfE-number question uses that wording; the four sibling DfE-number questions keep theirs. Includes help text linking to Get Information About Schools. |
 | `date-pupil-excluded` | Date | When the pupil was excluded. |
 
 ---

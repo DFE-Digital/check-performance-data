@@ -375,11 +375,11 @@
         {
           "id": "permanent-exclusion-dfe-number",
           "type": "FreeText",
-          "title": "What is the DfE number of the school which excluded {pupilName}?",
+          "title": "What is the DfE number of the school which permanently excluded {pupilName}?",
           "summaryTitle": "DfE number of the excluding school",
           "hint" : "For example, 123/4567 or 1234567",
-          "validator": "DfeNumber",
-          "validationFailure": "Enter the DfE number of the school which excluded {pupilName}",
+          "validator": "PermanentExclusionDfeNumber",
+          "validationFailure": "Enter the 7 digit DfE number of the school which permanently excluded the pupil",
           "questionHelpTitle" : "How can I find a DfE number?",
           "questionHelpText" : "<p>To find the DfE number, search the school or college name on <a href=\"https://get-information-schools.service.gov.uk/?utm_source=cypmd&amp;utm_medium=referral&amp;utm_campaign=help_guidance\" target=\"_blank\">Get Information About Schools (opens in new window)</a></p>"
         },

@@ -264,6 +264,84 @@ public sealed class QuestionFlowValidatorAlignmentTests
             validationFailure);
     }
 
+    /// <summary>
+    /// Pins the issue-496 label wording on the KS4 Remove "permanent-exclusion" page. The
+    /// question's <c>title</c> substitutes the pupil's name at render time; the design copy adds
+    /// "permanently" and must NOT gain a "the" before the name (the Figma note: ignore the word
+    /// "the" before the student name). Hint and help copy are unchanged by design.
+    /// </summary>
+    [Fact]
+    public void PermanentExclusion_DfeNumberTitle_IsThePinnedWording()
+    {
+        var page = AllFlowPages().Single(p => p.Page.Id == "permanent-exclusion");
+
+        var question = page.Page.Questions.Single(q => q.Id == "permanent-exclusion-dfe-number");
+
+        Assert.Equal(
+            "What is the DfE number of the school which permanently excluded {pupilName}?",
+            question.Title);
+        Assert.DoesNotContain("the {pupilName}", question.Title);
+        Assert.Equal("For example, 123/4567 or 1234567", question.Hint);
+        Assert.Equal("How can I find a DfE number?", question.QuestionHelpTitle);
+    }
+
+    /// <summary>
+    /// Pins the issue-496 error wording (FR-004) on the same question. Every failure — blank or
+    /// malformed — must surface this one message: the config's <c>validationFailure</c> covers the
+    /// blank case and the <c>PermanentExclusionDfeNumber</c> validator's
+    /// <see cref="IFormatValidator.FailureMessage"/> the malformed case, so both must read
+    /// identically to this pinned copy (see WholeNumberFormatValidator's doc comment for the rule).
+    /// </summary>
+    [Fact]
+    public void PermanentExclusion_DfeNumberValidationFailure_IsThePinnedWording()
+    {
+        var page = AllFlowPages().Single(p => p.Page.Id == "permanent-exclusion");
+
+        var question = page.Page.Questions.Single(q => q.Id == "permanent-exclusion-dfe-number");
+
+        Assert.Equal("PermanentExclusionDfeNumber", question.Validator);
+        Assert.Equal(
+            "Enter the 7 digit DfE number of the school which permanently excluded the pupil",
+            question.ValidationFailure);
+    }
+
+    /// <summary>
+    /// Pins the other four DfE-number questions byte-for-byte (FR-008): the issue-496 wording names
+    /// the school that excluded the pupil, which is TRUE ONLY of the permanent-exclusion page, so
+    /// none of its four siblings in the KS4 Remove flow change. Their copy (and their DfeNumber
+    /// validator and required-message) is pinned here so a future edit to the permanent-exclusion
+    /// question cannot be Copy-Paste'd onto a sibling by mistake.
+    /// </summary>
+    [Fact]
+    public void OtherDfeNumberQuestions_KeepTheirExistingWording()
+    {
+        (string PageId, string QuestionId, string Title, string? ValidationFailure, bool Optional)[] pinned =
+        [
+            ("permanently-excluded", "permanently-excluded-dfe-number",
+                "What is the DfE number of the school {pupilName} went to?", null, true),
+            ("dual-registered-moved", "dual-registered-moved-dfe-number",
+                "What is the DfE number of the school {pupilName}'s exam results should be transferred to?",
+                "Enter the DfE number of the school {pupilName}'s exam results should be transferred to", false),
+            ("completed-ks4-elsewhere", "completed-ks4-elsewhere-dfe-number",
+                "What is the DfE number of the school or college where {pupilName} completed KS4?",
+                "Enter the DfE number of the school or college where {pupilName} completed KS4", false),
+            ("year-group-change-higher", "year-group-higher-dfe-number",
+                "What is the DfE number of the school {pupilName} was previously reported at the year of KS4?",
+                "Enter the DfE number of the school {pupilName} was previously reported at in the year of KS4", false)
+        ];
+
+        foreach (var (pageId, questionId, title, validationFailure, optional) in pinned)
+        {
+            var page = AllFlowPages().Single(p => p.Page.Id == pageId);
+            var question = page.Page.Questions.Single(q => q.Id == questionId);
+
+            Assert.Equal(title, question.Title);
+            Assert.Equal("DfeNumber", question.Validator);
+            Assert.Equal(validationFailure, question.ValidationFailure);
+            Assert.Equal(optional, question.Optional);
+        }
+    }
+
     private static IEnumerable<string> ReferencedConditionNames(Question question)
     {
         foreach (var name in question.OptionalWhen ?? [])

@@ -306,6 +306,27 @@ public class JourneyValidationServiceTests
         Assert.Null(sut.ValidateAnswer(question, answer, "My question"));
     }
 
+    // ── ValidateAnswer — permanent-exclusion DfE number (issue 496, FR-004) ──
+
+    [Fact]
+    public void ValidateAnswer_PermanentExclusionDfeNumber_BlankAndMalformed_ReturnTheSameSingleMessage()
+    {
+        // FR-004: every failure of the permanent-exclusion DfE-number question surfaces the same
+        // message, the pinned design copy. The blank case comes from resolvedValidationFailure
+        // (the config's validationFailure), the malformed case from the validator's
+        // FailureMessage — the JourneyValidationService is the last place a second message can
+        // leak through, so pin the parity here as well as at the config layer.
+        const string message =
+            "Enter the 7 digit DfE number of the school which permanently excluded the pupil";
+
+        var sut = new JourneyValidationService([new PermanentExclusionDfeNumberFormatValidator()]);
+        var question = MakeQuestion(QuestionType.FreeText, validator: "PermanentExclusionDfeNumber");
+
+        Assert.Equal(message, sut.ValidateAnswer(question, new QuestionAnswer { TextValue = "" }, "My question", message));
+        Assert.Equal(message, sut.ValidateAnswer(question, new QuestionAnswer { TextValue = "1 2 3" }, "My question", message));
+        Assert.Null(sut.ValidateAnswer(question, new QuestionAnswer { TextValue = "1234567" }, "My question", message));
+    }
+
     // ── IsAnswered ──────────────────────────────────────────────────────────
 
     [Fact]

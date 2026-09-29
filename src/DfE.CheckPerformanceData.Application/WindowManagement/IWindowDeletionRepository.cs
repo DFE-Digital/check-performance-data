@@ -26,4 +26,12 @@ public interface IWindowBlobStorage
     /// submitted request documents and evidence uploads. No error when there is no container.
     /// </summary>
     Task DeleteWindowContainerAsync(Guid windowId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Deletes every blob in the window's container under one exercise's own prefixes
+    /// (<see cref="CheckingExerciseBlobPaths.OwnedPrefixes"/>): its uploads, outputs, releases and
+    /// logs. Only for an exercise on the exercise-id storage; an older exercise shares its
+    /// prefixes with nothing that says which blobs are its own.
+    /// </summary>
+    Task DeleteExerciseBlobsAsync(Guid windowId, Guid exerciseId, CancellationToken cancellationToken);
 }

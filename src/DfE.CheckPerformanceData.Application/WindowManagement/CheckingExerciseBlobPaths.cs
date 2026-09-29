@@ -47,6 +47,13 @@ public static class CheckingExerciseBlobPaths
             ? DefinitionFile(exerciseId, definitionId, filename)
             : $"ingress/{exerciseId}/{definitionId}/{checksum[..Math.Min(16, checksum.Length)].ToLowerInvariant()}/{filename.Split('/', '\\')[^1]}";
 
+    /// <summary>
+    /// Every prefix that holds only this exercise's blobs: its uploads and everything a run writes.
+    /// Deleting the exercise deletes these and nothing else in the container.
+    /// </summary>
+    public static IReadOnlyList<string> OwnedPrefixes(Guid exerciseId)
+        => [$"ingress/{exerciseId}/", $"exercises/{exerciseId}/"];
+
     // A dataset row stores a complete blob name once it has been uploaded through the new screens.
     // Rows written before that store a path relative to the separate ingress/ and schema/ roots.
     // Both are read without moving anything.

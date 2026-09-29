@@ -1,0 +1,145 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin.DeleteExerciseViewModel
+
+@{
+    // Matches the <h1> below.
+    ViewBag.Title = $"Delete {Model.ExerciseName}";
+    var preview = Model.Preview;
+    string Plural(int count, string noun) => count == 1 ? $"1 {noun}" : $"{count} {noun}s";
+}
+
+<govuk-back-link href="@Model.CancelLink" />
+
+@if (!ViewData.ModelState.IsValid)
+{
+    <govuk-error-summary>
+        <govuk-error-summary-title>There is a problem</govuk-error-summary-title>
+        @foreach (var entry in ViewData.ModelState.Where(e => e.Value?.Errors.Count > 0))
+        {
+            @foreach (var error in entry.Value!.Errors)
+            {
+                <govuk-error-summary-item href="#@entry.Key">@error.ErrorMessage</govuk-error-summary-item>
+            }
+        }
+    </govuk-error-summary>
+}
+
+<span class="govuk-caption-l">@Model.WindowTitle</span>
+<h1 class="govuk-heading-l">Delete @Model.ExerciseName</h1>
+
+<govuk-warning-text icon-fallback-text="Warning">
+    You cannot undo this.
+</govuk-warning-text>
+
+@if (Model.IsVisibleToSchools)
+{
+    <govuk-warning-text icon-fallback-text="Warning">
+        Schools can see this exercise now. Its tab is removed as soon as you delete it.
+    </govuk-warning-text>
+}
+
+<p class="govuk-body">
+    This permanently deletes the @Model.KindLabel.ToLowerInvariant() exercise, its
+    @Plural(Model.DatasetCount, "data file slot") and @Plural(Model.ReleaseCount, "release").
+    The window and its other checking exercises stay.
+</p>
+
+@if (Model.UsesExerciseStorage)
+{
+    <p class="govuk-body">Every file uploaded to this exercise, and all data made from them, is also deleted.</p>
+}
+else
+{
+    <p class="govuk-body">
+        This exercise was set up before exercises had their own storage. Its files are not deleted,
+        because they are stored where a new exercise of the same kind could read them.
+    </p>
+}
+
+@if (Model.IsLastExercise)
+{
+    <p class="govuk-body">
+        This is the last checking exercise in the window. After you delete it, schools will not see
+        the window until you add another exercise and enable it.
+    </p>
+}
+
+@if (Model.ReplacedBy.Count > 0)
+{
+    <p class="govuk-body">
+        @string.Join(", ", Model.ReplacedBy) @(Model.ReplacedBy.Count == 1 ? "replaces" : "replace")
+        this exercise. @(Model.ReplacedBy.Count == 1 ? "It stays" : "They stay"), but will no longer
+        replace anything.
+    </p>
+}
+
+<h2 class="govuk-heading-m">Change requests</h2>
+
+@if (preview.HasRequests)
+{
+    <govuk-warning-text icon-fallback-text="Warning">
+        @Plural(preview.TotalRequests, "change request") @(preview.TotalRequests == 1 ? "has" : "have") been
+        made through this exercise. Deleting the exercise also deletes
+        @(preview.TotalRequests == 1 ? "it" : "them").
+    </govuk-warning-text>
+
+    <govuk-summary-list>
+        <govuk-summary-list-row>
+            <govuk-summary-list-row-key>Submitted, not yet sent for processing</govuk-summary-list-row-key>
+            <govuk-summary-list-row-value>@preview.SubmittedNotSent</govuk-summary-list-row-value>
+        </govuk-summary-list-row>
+        <govuk-summary-list-row>
+            <govuk-summary-list-row-key>Sent for processing</govuk-summary-list-row-key>
+            <govuk-summary-list-row-value>@preview.SentForProcessing</govuk-summary-list-row-value>
+        </govuk-summary-list-row>
+        <govuk-summary-list-row>
+            <govuk-summary-list-row-key>Drafts</govuk-summary-list-row-key>
+            <govuk-summary-list-row-value>@preview.Drafts</govuk-summary-list-row-value>
+        </govuk-summary-list-row>
+        <govuk-summary-list-row>
+            <govuk-summary-list-row-key>Withdrawn or cancelled</govuk-summary-list-row-key>
+            <govuk-summary-list-row-value>@preview.WithdrawnOrCancelled</govuk-summary-list-row-value>
+        </govuk-summary-list-row>
+    </govuk-summary-list>
+
+    @if (preview.SubmittedNotSent > 0)
+    {
+        <p class="govuk-body">
+            Submitted requests that have not been sent for processing are lost.
+            @if (Model.CloseLink is { } closeLink)
+            {
+                @:To send them first, <a class="govuk-link" href="@closeLink">close this exercise</a> before you delete it.
+            }
+        </p>
+    }
+    @if (preview.SentForProcessing > 0)
+    {
+        <p class="govuk-body">
+            Requests already sent for processing stay in Zendesk, but this service no longer holds
+            them, and schools can no longer view them.
+        </p>
+    }
+}
+else
+{
+    <p class="govuk-body">No change requests have been made through this exercise.</p>
+}
+
+<form method="post" action="@Model.FormAction" novalidate>
+    @Html.AntiForgeryToken()
+
+    @if (preview.HasRequests)
+    {
+        <govuk-checkboxes for="ConfirmRequestsDeleted">
+            <govuk-checkboxes-item value="true" checked="@Model.ConfirmRequestsDeleted">
+                I understand that @Plural(preview.TotalRequests, "change request") will be permanently deleted
+            </govuk-checkboxes-item>
+        </govuk-checkboxes>
+    }
+
+    <div class="govuk-button-group">
+        <govuk-button type="submit" class="govuk-button--warning">
+            Delete exercise
+        </govuk-button>
+        <a class="govuk-link" href="@Model.CancelLink">Cancel</a>
+    </div>
+</form>

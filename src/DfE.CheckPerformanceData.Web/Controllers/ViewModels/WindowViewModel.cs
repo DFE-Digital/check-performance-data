@@ -125,6 +125,9 @@ public sealed class ExerciseSummarySection
     /// single Edit link per section rather than a Change link per field.</summary>
     public string EditLink => $"/admin/windows/{WindowId}/exercises/{Id}/edit";
 
+    /// <summary>The "are you sure" page of <see cref="Controllers.WindowAdmin.DeleteExerciseController"/>.</summary>
+    public string DeleteLink => $"/admin/windows/{WindowId}/exercises/{Id}/delete";
+
     /// <summary>Exercise-id addressed (#466 slice 2/3): the only route a display-only exercise can
     /// use to validate, since it has no kind to name in the kind-addressed route.</summary>
     public string ValidateLink => $"/admin/windows/{WindowId}/exercises/{Id}/validate";

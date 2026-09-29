@@ -33,14 +33,6 @@
       <action href="@Model.TitleLink" visually-hidden-text="Title">Change</action>
     </row-actions>
   </row>
-  <row>
-    <key>Is Published</key>
-    <value>@Model.IsPublished</value>
-  </row>
-  <row>
-    <key>Is Open</key>
-    <value>@Model.IsOpen</value>
-  </row>
   @* #319: the window's own dates are the union of its exercises' dates and are never typed, so
      there is no Change link here. Move an exercise's dates to move the window's. *@
   <row>
@@ -107,14 +99,10 @@
     </div>
     <div class="govuk-summary-card__content">
       <p class="govuk-body">
-        @if (exercise.IsEnabled)
-        {
-          <strong class="govuk-tag govuk-tag--green">Visible to schools</strong>
-        }
-        else
-        {
-          <strong class="govuk-tag govuk-tag--grey">Hidden from schools</strong>
-        }
+        @* One tag for what schools can see and do now. Replaces the window-level "Is Published"
+           and "Is Open" rows, which described the whole window and so said little about any one
+           exercise. The rule is ICheckingExerciseService.StatusOf. *@
+        <partial name="~/Views/WindowAdmin/_ExerciseStatusTag.cshtml" model="exercise.Status" />
         @if (exercise.IsValidated)
         {
           <strong class="govuk-tag govuk-tag--green">Validated</strong>

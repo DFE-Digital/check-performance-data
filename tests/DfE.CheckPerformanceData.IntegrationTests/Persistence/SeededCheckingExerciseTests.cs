@@ -63,10 +63,11 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
 
         Assert.Equal("16 to 19 Oct", window.Title);
         Assert.Equal(CheckingWindowType.Post16, window.CheckingWindowType);
-        var exercises = window.CheckingExercises.OrderBy(e => e.SortOrder).ToList();
-        // The third and fourth are the summary and pupil campus data shares, which have no kind.
+        var exercises = window.CheckingExercises.OrderBy(e => e.TabOrder).ToList();
+        // In tab order: the summary share (the first tab), then pupil data, results enquiry and
+        // the pupil campus share. The two shares have no kind.
         Assert.Equal(
-            [CheckingExerciseType.PupilData, CheckingExerciseType.ResultsEnquiry, null, null],
+            [null, CheckingExerciseType.PupilData, CheckingExerciseType.ResultsEnquiry, null],
             exercises.Select(e => e.ExerciseType));
         Assert.All(exercises, e =>
         {
@@ -74,8 +75,8 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
             Assert.True(e.StartDate <= now && e.EndDate > now, $"{e.Name} is not open");
         });
         // The results enquiry runs to the end of March, long after pupil data checking shuts.
-        Assert.Equal((3, 31), (exercises[1].EndDate.Month, exercises[1].EndDate.Day));
-        Assert.True(exercises[1].EndDate > exercises[0].EndDate.AddMonths(3));
+        Assert.Equal((3, 31), (exercises[2].EndDate.Month, exercises[2].EndDate.Day));
+        Assert.True(exercises[2].EndDate > exercises[1].EndDate.AddMonths(3));
         Assert.Equal(new DateTime(now.Year + 1, 10, 1), window.NextOpportunity);
     }
 
@@ -86,19 +87,18 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
         foreach (var windowId in new[] { _november, _february, _march })
         {
             var window = await LoadAsync(windowId);
-            var exercises = window.CheckingExercises.OrderBy(e => e.SortOrder).ToList();
+            var exercises = window.CheckingExercises.OrderBy(e => e.TabOrder).ToList();
 
             // Pupil data checking has shut, but the exercise is still live, so the Students tab
             // still shows its data while no school can act on it.
-            var pupilData = exercises[0];
-            Assert.Equal(CheckingExerciseType.PupilData, pupilData.ExerciseType);
+            var pupilData = exercises.Single(e => e.ExerciseType == CheckingExerciseType.PupilData);
             Assert.True(pupilData.EndDate < now, $"{window.Title}: pupil data checking is not shut");
             Assert.True(pupilData.IsEnabled);
             Assert.False(pupilData.DisplayOnly);
             Assert.Null(pupilData.VisibleUntil);
 
             // Everything else is still open, and the outer dates are the union of the exercises.
-            Assert.All(exercises.Skip(1), e =>
+            Assert.All(exercises.Where(e => e != pupilData), e =>
                 Assert.True(e.StartDate <= now && e.EndDate > now, $"{window.Title}: {e.Name} is not open"));
             Assert.Equal(exercises.Min(e => e.StartDate), window.StartDate);
             Assert.Equal(exercises.Max(e => e.EndDate), window.EndDate);

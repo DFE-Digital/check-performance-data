@@ -38,14 +38,14 @@ public sealed class LandingPageRepository(
                 // #315: the landing page cannot tell whether a Post16 window's results enquiry is
                 // running from the window's own dates — only the exercise rows say that.
                 Exercises = w.CheckingExercises
-                    .OrderBy(e => e.SortOrder)
+                    .OrderBy(e => e.TabOrder).ThenBy(e => e.Id)
                     .Select(e => new CheckingExerciseDto
                     {
                         Id = e.Id,
                         ExerciseType = e.ExerciseType,
                         StartDate = e.StartDate,
                         EndDate = e.EndDate,
-                        SortOrder = e.SortOrder,
+                        TabOrder = e.TabOrder,
                         // The service decides from these whether the window is shown at all, and
                         // where to look for the school's files.
                         TabName = e.TabName,

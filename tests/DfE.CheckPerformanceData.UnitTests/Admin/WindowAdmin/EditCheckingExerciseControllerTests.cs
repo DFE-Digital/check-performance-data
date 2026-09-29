@@ -74,7 +74,6 @@ public sealed class EditCheckingExerciseControllerTests
         model.Name = " Updated name ";
         model.TabName = " Students ";
         model.TabOrder = 4;
-        model.SortOrder = 5;
         model.IsEnabled = true;
         model.VisibleFrom = original.StartDate.AddHours(9);
         model.VisibleUntil = original.EndDate.AddHours(17);
@@ -89,7 +88,6 @@ public sealed class EditCheckingExerciseControllerTests
         Assert.Equal("Updated name", updated.Name);
         Assert.Equal("Students", updated.TabName);
         Assert.Equal(4, updated.TabOrder);
-        Assert.Equal(5, updated.SortOrder);
         Assert.True(updated.IsEnabled);
         Assert.Equal(model.VisibleFrom, updated.VisibleFrom);
         Assert.Equal(model.VisibleUntil, updated.VisibleUntil);
@@ -238,7 +236,7 @@ public sealed class EditCheckingExerciseControllerTests
         var second = new CheckingExerciseDto
         {
             Id = Guid.NewGuid(), Name = "Revised", ExerciseType = CheckingExerciseType.PupilData,
-            TabName = "Revised", StartDate = live.StartDate, EndDate = live.EndDate, SortOrder = 1
+            TabName = "Revised", StartDate = live.StartDate, EndDate = live.EndDate, TabOrder = 1
         };
         _window.Exercises.Add(second);
 

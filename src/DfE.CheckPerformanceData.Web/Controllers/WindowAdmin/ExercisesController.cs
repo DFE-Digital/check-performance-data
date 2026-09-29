@@ -32,7 +32,7 @@ public sealed class ExercisesController(IWindowService windowService) : Controll
         // Pre-ticked from the type on the first visit; on a revisit the admin's own choice wins,
         // otherwise coming back to change one box would silently reset the others.
         List<CheckingExerciseType> selected = draft.Exercises.Count > 0
-            ? draft.Exercises.OrderBy(e => e.SortOrder).Select(e => e.ExerciseType).ToList()
+            ? draft.Exercises.OrderBy(e => e.TabOrder).Select(e => e.ExerciseType).ToList()
             : DefaultsFor(draft.CheckingWindowType);
 
         return View(PageView, new ExercisesItem
@@ -65,12 +65,12 @@ public sealed class ExercisesController(IWindowService windowService) : Controll
         // list does not send the admin back through date pages they have already filled in.
         draft.Exercises = model.Selected
             .Distinct()
-            .OrderBy(WindowExercises.SortOrderFor)
+            .OrderBy(WindowExercises.DefaultTabOrder)
             .Select(type => draft.Exercises.SingleOrDefault(e => e.ExerciseType == type)
                             ?? new ExerciseDraft { ExerciseType = type })
             .Select(e =>
             {
-                e.SortOrder = WindowExercises.SortOrderFor(e.ExerciseType);
+                e.TabOrder = WindowExercises.DefaultTabOrder(e.ExerciseType);
                 return e;
             })
             .ToList();
@@ -97,7 +97,7 @@ public sealed class ExercisesController(IWindowService windowService) : Controll
             WindowId = id,
             All = AllExercises,
             Selected = window.Exercises.Where(e => e.ExerciseType is not null)
-                .OrderBy(e => e.SortOrder).Select(e => e.ExerciseType.Value).ToList(),
+                .InTabOrder().Select(e => e.ExerciseType.Value).ToList(),
             WithFiles = window.Exercises.Where(e => e.ExerciseType is not null && e.Datasets.Any(d => d.IsComplete))
                 .Select(e => e.ExerciseType.Value).ToList(),
             PostUrl = Url.Action("Update", "Exercises", new { id }),
@@ -123,7 +123,7 @@ public sealed class ExercisesController(IWindowService windowService) : Controll
                 Url.Action("Index", "Summary", new { id }), id, window));
         }
 
-        List<CheckingExerciseType> wanted = model.Selected.Distinct().OrderBy(WindowExercises.SortOrderFor).ToList();
+        List<CheckingExerciseType> wanted = model.Selected.Distinct().OrderBy(WindowExercises.DefaultTabOrder).ToList();
 
         // A newly ticked exercise starts on the window's own dates. That is a placeholder the admin
         // then edits, not an answer — but it means the window is never left holding an exercise with
@@ -137,7 +137,7 @@ public sealed class ExercisesController(IWindowService windowService) : Controll
                 ShowLateResultsWarning = WindowExercises.ShowsLateResultsWarningByDefault(type),
                 StartDate = window.StartDate,
                 EndDate = window.EndDate,
-                SortOrder = WindowExercises.SortOrderFor(type)
+                TabOrder = WindowExercises.DefaultTabOrder(type)
             })
             .ToList();
 
@@ -147,7 +147,7 @@ public sealed class ExercisesController(IWindowService windowService) : Controll
     }
 
     private static IReadOnlyList<CheckingExerciseType> AllExercises =>
-        Enum.GetValues<CheckingExerciseType>().OrderBy(WindowExercises.SortOrderFor).ToList();
+        Enum.GetValues<CheckingExerciseType>().OrderBy(WindowExercises.DefaultTabOrder).ToList();
 
     private static List<CheckingExerciseType> DefaultsFor(CheckingWindowType? type) =>
         type is null ? [] : WindowExercises.DefaultsFor(type.Value).ToList();

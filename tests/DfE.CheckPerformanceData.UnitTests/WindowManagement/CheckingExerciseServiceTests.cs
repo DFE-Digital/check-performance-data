@@ -26,7 +26,7 @@ public sealed class CheckingExerciseServiceTests
             ExerciseType = type,
             StartDate = start,
             EndDate = end,
-            SortOrder = sortOrder
+            TabOrder = sortOrder
         };
 
     // A display-only row of a real kind: the shape a pupil-data exercise takes once it is showing
@@ -39,7 +39,7 @@ public sealed class CheckingExerciseServiceTests
             ExerciseType = type,
             StartDate = start,
             EndDate = end,
-            SortOrder = sortOrder,
+            TabOrder = sortOrder,
             DisplayOnly = true
         };
 
@@ -199,7 +199,7 @@ public sealed class CheckingExerciseServiceTests
             ExerciseType = CheckingExerciseType.PupilData,
             StartDate = new DateTime(2026, 10, 5),
             EndDate = new DateTime(2026, 10, 16, 17, 0, 0),
-            SortOrder = 0
+            TabOrder = 0
         };
 
         Assert.Equal(new DateTime(2026, 10, 5), Sut().StartDateFor([pupilData], CheckingExerciseType.PupilData));
@@ -321,5 +321,82 @@ public sealed class CheckingExerciseServiceTests
         var exercises = new[] { DisplayOnly(CheckingExerciseType.PupilData, Yesterday, Tomorrow) };
 
         Assert.False(Sut().HasClosed(exercises, CheckingExerciseType.PupilData));
+    }
+
+    // The admin summary's one tag per exercise: what schools can see and do with it now.
+    private static CheckingExerciseDto Live(
+        CheckingExerciseType? type, DateTime start, DateTime end, bool displayOnly = false) =>
+        new()
+        {
+            Id = Guid.NewGuid(), ExerciseType = type, StartDate = start, EndDate = end,
+            IsEnabled = true, DisplayOnly = displayOnly
+        };
+
+    [Fact]
+    public void StatusOf_is_visible_for_a_live_exercise_inside_its_dates()
+    {
+        var exercise = Live(CheckingExerciseType.PupilData, Yesterday, Tomorrow);
+
+        Assert.Equal(ExerciseSchoolStatus.Visible, Sut().StatusOf([exercise], exercise));
+    }
+
+    [Fact]
+    public void StatusOf_is_hidden_for_a_disabled_exercise_inside_its_dates()
+    {
+        var exercise = Exercise(CheckingExerciseType.PupilData, Yesterday, Tomorrow);
+
+        Assert.Equal(ExerciseSchoolStatus.Hidden, Sut().StatusOf([exercise], exercise));
+    }
+
+    [Fact]
+    public void StatusOf_is_hidden_outside_its_visibility_dates()
+    {
+        var exercise = new CheckingExerciseDto
+        {
+            Id = Guid.NewGuid(), ExerciseType = CheckingExerciseType.PupilData,
+            StartDate = Yesterday, EndDate = Tomorrow, IsEnabled = true,
+            VisibleUntil = Now.DateTime.AddHours(-1)
+        };
+
+        Assert.Equal(ExerciseSchoolStatus.Hidden, Sut().StatusOf([exercise], exercise));
+    }
+
+    [Fact]
+    public void StatusOf_is_hidden_when_the_window_itself_is_outside_its_dates()
+    {
+        // One exercise, so the window's dates are its dates: before the start schools see nothing.
+        var exercise = Live(CheckingExerciseType.PupilData, Tomorrow, NextMonth);
+
+        Assert.Equal(ExerciseSchoolStatus.Hidden, Sut().StatusOf([exercise], exercise));
+    }
+
+    [Fact]
+    public void StatusOf_is_visible_closed_before_its_start_while_another_exercise_keeps_the_window_shown()
+    {
+        var pupilData = Live(CheckingExerciseType.PupilData, LastMonth, Tomorrow);
+        var enquiry = Live(CheckingExerciseType.ResultsEnquiry, Tomorrow, NextMonth);
+
+        Assert.Equal(ExerciseSchoolStatus.VisibleClosed, Sut().StatusOf([pupilData, enquiry], enquiry));
+    }
+
+    [Fact]
+    public void StatusOf_is_visible_closed_after_its_end_while_another_exercise_keeps_the_window_shown()
+    {
+        var pupilData = Live(CheckingExerciseType.PupilData, LastMonth, Yesterday);
+        var enquiry = Live(CheckingExerciseType.ResultsEnquiry, LastMonth, NextMonth);
+
+        Assert.Equal(ExerciseSchoolStatus.VisibleClosed, Sut().StatusOf([pupilData, enquiry], pupilData));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData(CheckingExerciseType.PupilData)]
+    public void StatusOf_a_display_only_exercise_is_never_visible_closed(CheckingExerciseType? type)
+    {
+        // No journey, so there are no changes to close: outside its dates it is simply visible.
+        var pupilData = Live(CheckingExerciseType.PupilData, LastMonth, NextMonth);
+        var share = Live(type, LastMonth, Yesterday, displayOnly: true);
+
+        Assert.Equal(ExerciseSchoolStatus.Visible, Sut().StatusOf([pupilData, share], share));
     }
 }

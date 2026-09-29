@@ -251,13 +251,13 @@ public class WindowExercisesTests
             TabName = "Tab",
             StartDate = new DateTime(2027, 1, 1),
             EndDate = new DateTime(2027, 1, 14),
-            SortOrder = sortOrder,
+            TabOrder = sortOrder,
             Datasets = datasets
         };
 
     private static CheckingExerciseDto Dated(
         CheckingExerciseType type, DateTime start, DateTime end, int sortOrder) =>
-        new() { ExerciseType = type, TabName = "Tab", StartDate = start, EndDate = end, SortOrder = sortOrder };
+        new() { ExerciseType = type, TabName = "Tab", StartDate = start, EndDate = end, TabOrder = sortOrder };
 
     private static CheckingWindowDatasetDto Dataset(string name, int sortOrder) =>
         new() { Name = name, SortOrder = sortOrder };

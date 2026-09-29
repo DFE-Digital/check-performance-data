@@ -53,7 +53,6 @@ public sealed class CreateCheckingExerciseController(IWindowService windowServic
             Name = model.Name!.Trim(),
             TabName = model.TabName!.Trim(),
             TabOrder = model.TabOrder!.Value,
-            SortOrder = model.SortOrder!.Value,
             IsEnabled = model.IsEnabled,
             DisplayOnly = model.DisplayOnly,
             Layout = model.Layout,
@@ -81,7 +80,7 @@ public sealed class CreateCheckingExerciseController(IWindowService windowServic
     private void Decorate(CreateCheckingExerciseItem model, CheckingWindowDto window)
     {
         model.WindowTitle = window.Title;
-        model.ReplacementOptions = window.Exercises.OrderBy(e => e.SortOrder).ThenBy(e => e.Id).ToList();
+        model.ReplacementOptions = window.Exercises.InTabOrder().ToList();
         model.PostUrl = Url.Action("Submit", "CreateCheckingExercise", new { id = window.Id });
         model.CancelUrl = Url.Action("Index", "Summary", new { id = window.Id });
     }

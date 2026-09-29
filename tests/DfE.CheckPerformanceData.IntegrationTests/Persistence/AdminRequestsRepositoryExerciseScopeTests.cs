@@ -47,7 +47,7 @@ public sealed class AdminRequestsRepositoryExerciseScopeTests(PostgresFixture fi
                 ExerciseType = type,
                 StartDate = window.StartDate,
                 EndDate = window.EndDate,
-                SortOrder = order++
+                TabOrder = order++
             });
         }
 

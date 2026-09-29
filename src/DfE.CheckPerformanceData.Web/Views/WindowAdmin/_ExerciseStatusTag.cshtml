@@ -1,0 +1,16 @@
+@using DfE.CheckPerformanceData.Application.WindowManagement
+@model ExerciseSchoolStatus
+@* What schools can see and do with one exercise now (ICheckingExerciseService.StatusOf). Shared by
+   the windows list and the window summary so the two pages cannot word it differently. *@
+@switch (Model)
+{
+  case ExerciseSchoolStatus.Visible:
+    <strong class="govuk-tag govuk-tag--green">Visible</strong>
+    break;
+  case ExerciseSchoolStatus.VisibleClosed:
+    <strong class="govuk-tag govuk-tag--yellow">Visible – closed</strong>
+    break;
+  default:
+    <strong class="govuk-tag govuk-tag--grey">Hidden</strong>
+    break;
+}

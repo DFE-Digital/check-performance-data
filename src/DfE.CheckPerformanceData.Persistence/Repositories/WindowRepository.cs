@@ -13,6 +13,8 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
             // Datasets and Releases are sibling collections. In one query each release file would
             // repeat every dataset row; split queries load each collection once.
             .AsSplitQuery()
+            // Newest first. Without an order PostgreSQL returns rows in whatever order it reads them.
+            .OrderByDescending(w => w.StartDate).ThenBy(w => w.Title).ThenBy(w => w.Id)
             .Select(w => new CheckingWindowDto
             {
                 StartDate = w.StartDate,
@@ -28,7 +30,7 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                 SchemaFile = w.SchemaFile,
                 SchemaFileChecksum = w.SchemaFileChecksum,
                 Exercises = w.CheckingExercises
-                    .OrderBy(e => e.SortOrder)
+                    .OrderBy(e => e.TabOrder).ThenBy(e => e.Id)
                     .Select(e => new CheckingExerciseDto
                     {
                         Id = e.Id,
@@ -78,7 +80,6 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                         ExerciseType = e.ExerciseType,
                         StartDate = e.StartDate,
                         EndDate = e.EndDate,
-                        SortOrder = e.SortOrder,
                         // #319: the validation stamp lives on the exercise now. The checksums say
                         // which files it was taken over, so a stamp left behind by a since-replaced
                         // ingress file reads as stale rather than as validated.
@@ -132,7 +133,7 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                 SchemaFile = w.SchemaFile,
                 SchemaFileChecksum = w.SchemaFileChecksum,
                 Exercises = w.CheckingExercises
-                    .OrderBy(e => e.SortOrder)
+                    .OrderBy(e => e.TabOrder).ThenBy(e => e.Id)
                     .Select(e => new CheckingExerciseDto
                     {
                         Id = e.Id,
@@ -182,7 +183,6 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                         ExerciseType = e.ExerciseType,
                         StartDate = e.StartDate,
                         EndDate = e.EndDate,
-                        SortOrder = e.SortOrder,
                         // #319: the validation stamp lives on the exercise now. The checksums say
                         // which files it was taken over, so a stamp left behind by a since-replaced
                         // ingress file reads as stale rather than as validated.
@@ -271,8 +271,7 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                     UsesExerciseStorage = true,
                     ExerciseType = dto.ExerciseType,
                     StartDate = dto.StartDate,
-                    EndDate = dto.EndDate,
-                    SortOrder = dto.SortOrder
+                    EndDate = dto.EndDate
                 };
                 dbContext.Set<CheckingExercise>().Add(existing);
                 entity.CheckingExercises.Add(existing);
@@ -286,8 +285,7 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                 {
                     dto.ExerciseType,
                     dto.StartDate,
-                    dto.EndDate,
-                    dto.SortOrder
+                    dto.EndDate
                 });
             }
 
@@ -410,7 +408,7 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
 
         // A window is born with its exercises, each holding the dataset slots its type requires.
         // WindowService supplies a pupil-data exercise when the caller names none.
-        foreach (CheckingExerciseDto dto in window.Exercises.OrderBy(e => e.SortOrder))
+        foreach (CheckingExerciseDto dto in window.Exercises.OrderBy(e => e.TabOrder).ThenBy(e => e.Id))
         {
             entity.CheckingExercises.Add(new CheckingExercise
             {
@@ -429,7 +427,6 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                 ExerciseType = dto.ExerciseType,
                 StartDate = dto.StartDate,
                 EndDate = dto.EndDate,
-                SortOrder = dto.SortOrder,
                 Datasets = dto.Datasets.Select(d => NewDataset(entity, d)).ToList(),
                 Validated = StampFor(dto)
             });
@@ -453,7 +450,7 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
             SchemaFile = entity.SchemaFile,
             SchemaFileChecksum = entity.SchemaFileChecksum,
             Exercises = entity.CheckingExercises
-                .OrderBy(e => e.SortOrder)
+                .OrderBy(e => e.TabOrder).ThenBy(e => e.Id)
                 .Select(e => new CheckingExerciseDto
                 {
                     Id = e.Id,
@@ -503,7 +500,6 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                     ExerciseType = e.ExerciseType,
                     StartDate = e.StartDate,
                     EndDate = e.EndDate,
-                    SortOrder = e.SortOrder,
                     Datasets = e.Datasets
                         .OrderBy(d => d.SortOrder)
                         .Select(d => new CheckingWindowDatasetDto

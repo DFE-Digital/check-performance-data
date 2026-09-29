@@ -39,7 +39,10 @@ public sealed class CheckingExercise
     /// <summary>The tab label on Check Your Pupil Data. Required: every exercise draws a tab.</summary>
     public string TabName { get; set; } = string.Empty;
 
-    /// <summary>Left-to-right order of the tabs.</summary>
+    /// <summary>
+    /// Left-to-right order of the tabs, and the order of the exercises everywhere else: the admin
+    /// pages, the next steps and the deadlines. There is no separate admin order.
+    /// </summary>
     public int TabOrder { get; set; }
 
     /// <summary>False hides the exercise without deleting it, and without losing its files.</summary>
@@ -71,9 +74,6 @@ public sealed class CheckingExercise
     // to be able to take new ones. Before that nothing could change them once written.
     public DateTime StartDate { get; set; }
     public DateTime EndDate { get; set; }
-
-    /// <summary>Display order in the admin wizard and on any per-exercise list.</summary>
-    public int SortOrder { get; set; }
 
     /// <summary>
     /// The CSV + schema pairs this exercise ingests, in sort order. Any number, including none —

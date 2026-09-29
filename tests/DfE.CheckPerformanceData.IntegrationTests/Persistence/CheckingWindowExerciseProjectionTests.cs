@@ -48,14 +48,14 @@ public sealed class CheckingWindowExerciseProjectionTests : IAsyncLifetime
                     ExerciseType = CheckingExerciseType.PupilData,
                     StartDate = new DateTime(2026, 8, 1),
                     EndDate = new DateTime(2026, 8, 31),
-                    SortOrder = 0
+                    TabOrder = 0
                 },
                 new CheckingExercise
                 {
                     ExerciseType = CheckingExerciseType.ResultsEnquiry,
                     StartDate = new DateTime(2026, 10, 1),
                     EndDate = new DateTime(2026, 10, 31),
-                    SortOrder = 1
+                    TabOrder = 1
                 }
             ]
         });
@@ -173,7 +173,7 @@ public sealed class CheckingWindowExerciseProjectionTests : IAsyncLifetime
                     IsEnabled = true,
                     StartDate = new DateTime(2027, 8, 1),
                     EndDate = new DateTime(2027, 8, 31),
-                    SortOrder = 0,
+                    TabOrder = 0,
                     Datasets =
                     [
                         new CheckingWindowDataset

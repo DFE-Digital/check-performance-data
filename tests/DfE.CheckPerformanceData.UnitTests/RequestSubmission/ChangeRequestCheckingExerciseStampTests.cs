@@ -58,7 +58,7 @@ public sealed class ChangeRequestCheckingExerciseStampTests
             ExerciseType = CheckingExerciseType.PupilData,
             StartDate = new DateTime(2026, 10, 1),
             EndDate = new DateTime(2026, 11, 30),
-            SortOrder = 0
+            TabOrder = 0
         },
         new()
         {
@@ -66,7 +66,7 @@ public sealed class ChangeRequestCheckingExerciseStampTests
             ExerciseType = CheckingExerciseType.ResultsEnquiry,
             StartDate = new DateTime(2027, 1, 1),
             EndDate = new DateTime(2027, 3, 31),
-            SortOrder = 1
+            TabOrder = 1
         }
     ];
 
@@ -191,7 +191,7 @@ public sealed class ChangeRequestCheckingExerciseStampTests
                 ExerciseType = CheckingExerciseType.PupilData,
                 StartDate = new DateTime(2020, 1, 1),
                 EndDate = new DateTime(2020, 2, 1),
-                SortOrder = 0
+                TabOrder = 0
             }
         ];
         ChangeRequestData? captured = null;

@@ -26,7 +26,6 @@ public sealed class EditCheckingExerciseController(IWindowService windowService)
             ExerciseType = exercise.ExerciseType,
             TabName = exercise.TabName,
             TabOrder = exercise.TabOrder,
-            SortOrder = exercise.SortOrder,
             IsEnabled = exercise.IsEnabled,
             DisplayOnly = exercise.DisplayOnly,
             Layout = exercise.Layout,
@@ -86,7 +85,6 @@ public sealed class EditCheckingExerciseController(IWindowService windowService)
             Name = model.Name!.Trim(),
             TabName = model.TabName!.Trim(),
             TabOrder = model.TabOrder!.Value,
-            SortOrder = model.SortOrder!.Value,
             IsEnabled = model.IsEnabled,
             DisplayOnly = model.DisplayOnly,
             Layout = model.Layout,
@@ -121,7 +119,7 @@ public sealed class EditCheckingExerciseController(IWindowService windowService)
         model.WindowTitle = window.Title;
         model.ReplacementOptions = window.Exercises
             .Where(e => !WouldCreateCycle(window, exercise.Id, e.Id))
-            .OrderBy(e => e.SortOrder).ThenBy(e => e.Id).ToList();
+            .InTabOrder().ToList();
         model.PostUrl = Url.Action("Update", "EditCheckingExercise", new { id = window.Id, exerciseId = exercise.Id });
         model.CancelUrl = Url.Action("Index", "Summary", new { id = window.Id });
     }

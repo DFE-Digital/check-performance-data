@@ -32,7 +32,7 @@ public class CloseExerciseControllerTests
             ExerciseType = e,
             StartDate = new DateTime(2026, 6, 1),
             EndDate = new DateTime(2026, 6, 30),
-            SortOrder = i
+            TabOrder = i
         }).ToList()
     };
 

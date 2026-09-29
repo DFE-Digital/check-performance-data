@@ -42,7 +42,7 @@ public sealed class CheckingWindowDraft : AdminPage
 
     /// <summary>The first exercise still missing its dates, or null when all are complete.</summary>
     public ExerciseDraft? FirstUndatedExercise =>
-        Exercises.OrderBy(e => e.SortOrder).FirstOrDefault(e => !e.IsDated);
+        Exercises.OrderBy(e => e.TabOrder).FirstOrDefault(e => !e.IsDated);
 
     public bool IsValid
     {
@@ -84,7 +84,7 @@ public sealed class CheckingWindowDraft : AdminPage
     /// </summary>
     public List<CheckingExerciseDto> ToExerciseDtos() =>
         Exercises
-            .OrderBy(e => e.SortOrder)
+            .OrderBy(e => e.TabOrder)
             .Select(e => new CheckingExerciseDto
             {
                 ExerciseType = e.ExerciseType,
@@ -93,7 +93,7 @@ public sealed class CheckingWindowDraft : AdminPage
                 ShowLateResultsWarning = WindowExercises.ShowsLateResultsWarningByDefault(e.ExerciseType),
                 StartDate = e.StartDate!.Value,
                 EndDate = e.EndDate!.Value,
-                SortOrder = e.SortOrder
+                TabOrder = e.TabOrder
             })
             .ToList();
 }
@@ -104,7 +104,7 @@ public sealed class ExerciseDraft
     public CheckingExerciseType ExerciseType { get; set; }
     public DateTime? StartDate { get; set; }
     public DateTime? EndDate { get; set; }
-    public int SortOrder { get; set; }
+    public int TabOrder { get; set; }
 
     public bool IsDated => StartDate.HasValue && EndDate.HasValue;
 }

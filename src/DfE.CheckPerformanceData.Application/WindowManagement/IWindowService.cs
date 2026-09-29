@@ -88,7 +88,6 @@ public sealed class CheckingExerciseDto
     public required CheckingExerciseType? ExerciseType { get; init; }
     public required DateTime StartDate { get; set; }
     public required DateTime EndDate { get; set; }
-    public int SortOrder { get; init; }
 
     /// <summary>True for a row on the exercise-id blob layout (#466).</summary>
     public bool UsesExerciseStorage { get; init; } = true;

@@ -71,7 +71,7 @@ public sealed class CheckYourPupilDataRepository(
                 // all, and Datasets is what lets it read the schema that shapes one. Mirrors the
                 // projection WindowRepository already carries for the admin summary page.
                 Exercises = w.CheckingExercises
-                    .OrderBy(e => e.SortOrder)
+                    .OrderBy(e => e.TabOrder).ThenBy(e => e.Id)
                     .Select(e => new CheckingExerciseDto
                     {
                         Id = e.Id,
@@ -121,7 +121,6 @@ public sealed class CheckYourPupilDataRepository(
                         ExerciseType = e.ExerciseType,
                         StartDate = e.StartDate,
                         EndDate = e.EndDate,
-                        SortOrder = e.SortOrder,
                         Datasets = e.Datasets
                             .OrderBy(d => d.SortOrder)
                             .Select(d => new CheckingWindowDatasetDto

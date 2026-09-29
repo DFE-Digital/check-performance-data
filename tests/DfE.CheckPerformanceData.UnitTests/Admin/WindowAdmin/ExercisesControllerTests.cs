@@ -58,7 +58,7 @@ public class ExercisesControllerTests
     {
         // Coming back to change one box must not silently reset the others to the type's defaults.
         CheckingWindowDraft draft = Draft(CheckingWindowType.Post16);
-        draft.Exercises = [new ExerciseDraft { ExerciseType = CheckingExerciseType.ResultsEnquiry, SortOrder = 1 }];
+        draft.Exercises = [new ExerciseDraft { ExerciseType = CheckingExerciseType.ResultsEnquiry, TabOrder = 1 }];
 
         ExercisesItem model = NewModel(draft);
 
@@ -173,7 +173,7 @@ public class ExercisesControllerTests
             ExerciseType = CheckingExerciseType.ResultsEnquiry,
             StartDate = window.StartDate,
             EndDate = window.EndDate,
-            SortOrder = 1
+            TabOrder = 1
         });
         windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(window);
 
@@ -268,7 +268,7 @@ public class ExercisesControllerTests
                 ExerciseType = CheckingExerciseType.PupilData,
                 StartDate = new DateTime(2027, 1, 1),
                 EndDate = new DateTime(2027, 1, 15, 17, 0, 0),
-                SortOrder = 0,
+                TabOrder = 0,
                 Datasets =
                 [
                     new CheckingWindowDatasetDto

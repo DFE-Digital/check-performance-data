@@ -35,7 +35,7 @@ public class WindowExercisesDefaultsTests
         // The order drives the wizard's date pages and every per-exercise list, so two types must
         // never share a position.
         var orders = Enum.GetValues<CheckingExerciseType>()
-            .Select(WindowExercises.SortOrderFor)
+            .Select(WindowExercises.DefaultTabOrder)
             .ToList();
 
         Assert.Equal(orders.Count, orders.Distinct().Count());

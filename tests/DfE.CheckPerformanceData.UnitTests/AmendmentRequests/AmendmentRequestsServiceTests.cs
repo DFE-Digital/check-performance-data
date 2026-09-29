@@ -418,7 +418,7 @@ public class AmendmentRequestsServiceTests
         ExerciseType = type,
         StartDate = endDate.AddMonths(-3),
         EndDate = endDate,
-        SortOrder = sortOrder
+        TabOrder = sortOrder
     };
 
     private static AmendmentRequestData RequestData(

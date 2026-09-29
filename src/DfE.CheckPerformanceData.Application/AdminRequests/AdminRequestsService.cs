@@ -17,7 +17,7 @@ public sealed class AdminRequestsService(
         // A display-only exercise has no kind to filter by, so it is not offered as a filter option
         // (it has no ChangeRequest rows stamped with a kind either).
         var exercises = window.Exercises
-            .OrderBy(e => e.SortOrder)
+            .InTabOrder()
             .Select(e => e.ExerciseType)
             .OfType<CheckingExerciseType>()
             .ToList();

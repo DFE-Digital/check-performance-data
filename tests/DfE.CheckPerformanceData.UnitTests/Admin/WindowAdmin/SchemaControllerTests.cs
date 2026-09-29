@@ -149,7 +149,7 @@ public class SchemaControllerTests
                     ExerciseType = CheckingExerciseType.PupilData,
                     StartDate = new DateTime(2027, 1, 1),
                     EndDate = new DateTime(2027, 2, 1),
-                    SortOrder = 0,
+                    TabOrder = 0,
                     Datasets = [new CheckingWindowDatasetDto { Name = Dataset, SortOrder = 0 }]
                 }
             ]
@@ -214,7 +214,7 @@ public class SchemaControllerTests
                     ExerciseType = CheckingExerciseType.PupilData,
                     StartDate = new DateTime(2027, 1, 1),
                     EndDate = new DateTime(2027, 2, 1),
-                    SortOrder = 0,
+                    TabOrder = 0,
                     Datasets = [new CheckingWindowDatasetDto { Id = datasetId, Name = Dataset, SortOrder = 0 }]
                 }
             ]

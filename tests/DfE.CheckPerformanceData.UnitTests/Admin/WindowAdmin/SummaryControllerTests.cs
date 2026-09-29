@@ -21,7 +21,9 @@ public sealed class SummaryControllerTests
 
     private readonly IWindowService _windowService = Substitute.For<IWindowService>();
 
-    private SummaryController Controller() => new(_windowService, TimeProvider.System);
+    private readonly ICheckingExerciseService _checkingExercises = Substitute.For<ICheckingExerciseService>();
+
+    private SummaryController Controller() => new(_windowService, _checkingExercises);
 
     private static WindowEditItem Model(IActionResult result) =>
         Assert.IsType<WindowEditItem>(Assert.IsType<ViewResult>(result).Model);
@@ -37,9 +39,10 @@ public sealed class SummaryControllerTests
     };
 
     private static CheckingExerciseDto Exercise(
-        string name, bool enabled = true, CheckingExerciseType? type = CheckingExerciseType.PupilData) => new()
+        string name, bool enabled = true, CheckingExerciseType? type = CheckingExerciseType.PupilData,
+        int tabOrder = 0) => new()
     {
-        Id = Guid.NewGuid(), Name = name, ExerciseType = type,
+        Id = Guid.NewGuid(), Name = name, ExerciseType = type, TabOrder = tabOrder,
         StartDate = Start, EndDate = End, IsEnabled = enabled
     };
 
@@ -54,21 +57,25 @@ public sealed class SummaryControllerTests
 
         var model = Model(await Controller().Index(WindowId, CancellationToken.None));
 
-        Assert.Equal(["Autumn release", "Withdrawn release"], model.Exercises.Select(e => e.Name));
+        Assert.Equal(["Autumn release", "Withdrawn release"], model.Exercises.Select(e => e.Name).Order());
     }
 
-    [Theory]
-    [InlineData(true, true)]
-    [InlineData(false, false)]
-    public async Task IsPublishedOnlyWhileAnExerciseIsLive(bool enabled, bool published)
+    [Fact]
+    public async Task TakesEachExerciseStatusFromTheCheckingExerciseService()
     {
-        // No visibility dates, so the exercise is live exactly when it is enabled.
-        _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(Window(
-            Exercise("Autumn release", enabled: enabled)));
+        // The rule itself is pinned in CheckingExerciseServiceTests; the controller only passes
+        // each exercise, with its whole window, through to it.
+        var shown = Exercise("Autumn release", tabOrder: 1);
+        var hidden = Exercise("Withdrawn release", enabled: false, tabOrder: 2);
+        var window = Window(shown, hidden);
+        _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(window);
+        _checkingExercises.StatusOf(window.Exercises, shown).Returns(ExerciseSchoolStatus.VisibleClosed);
+        _checkingExercises.StatusOf(window.Exercises, hidden).Returns(ExerciseSchoolStatus.Hidden);
 
         var model = Model(await Controller().Index(WindowId, CancellationToken.None));
 
-        Assert.Equal(published, model.IsPublished);
+        Assert.Equal([ExerciseSchoolStatus.VisibleClosed, ExerciseSchoolStatus.Hidden],
+            model.Exercises.Select(e => e.Status));
     }
 
     [Fact]
@@ -152,7 +159,7 @@ public sealed class SummaryControllerTests
             Id = Guid.NewGuid(), Name = "Revised students", TabName = "Students",
             IsEnabled = true,
             ExerciseType = CheckingExerciseType.PupilData, StartDate = first.StartDate, EndDate = first.EndDate,
-            SortOrder = -1
+            TabOrder = -1
         });
         _windowService.GetByIdAsync(first.Id, Arg.Any<CancellationToken>()).Returns(first);
         _windowService.GetByIdAsync(second.Id, Arg.Any<CancellationToken>()).Returns(second);

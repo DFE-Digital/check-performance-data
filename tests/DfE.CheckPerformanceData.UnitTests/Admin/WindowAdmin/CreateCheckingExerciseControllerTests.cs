@@ -83,7 +83,6 @@ public sealed class CreateCheckingExerciseControllerTests
         Assert.Equal("Students", created.TabName);
         Assert.Equal(previous.Id, created.ReplacesCheckingExerciseId);
         Assert.Equal(2, created.TabOrder);
-        Assert.Equal(3, created.SortOrder);
         Assert.True(created.IsEnabled);
         Assert.True(created.DisplayOnly);
         Assert.True(created.UsesExerciseStorage);
@@ -103,7 +102,6 @@ public sealed class CreateCheckingExerciseControllerTests
     [InlineData("ExerciseType")]
     [InlineData("TabName")]
     [InlineData("TabOrder")]
-    [InlineData("SortOrder")]
     [InlineData("Dates.StartDate")]
     [InlineData("Dates.EndDate")]
     public async Task Missing_required_field_redisplays_without_saving(string field)
@@ -115,7 +113,6 @@ public sealed class CreateCheckingExerciseControllerTests
             case "ExerciseType": model.ExerciseType = null; model.DisplayOnly = false; break;
             case "TabName": model.TabName = " "; break;
             case "TabOrder": model.TabOrder = null; break;
-            case "SortOrder": model.SortOrder = null; break;
             case "Dates.StartDate": model.Dates.StartDate = null; break;
             case "Dates.EndDate": model.Dates.EndDate = null; break;
         }
@@ -132,7 +129,6 @@ public sealed class CreateCheckingExerciseControllerTests
     [InlineData("TabName")]
     [InlineData("ExerciseType")]
     [InlineData("TabOrder")]
-    [InlineData("SortOrder")]
     [InlineData("Dates.StartHour")]
     [InlineData("Dates.EndMinute")]
     [InlineData("Dates.EndDate")]
@@ -146,7 +142,6 @@ public sealed class CreateCheckingExerciseControllerTests
             case "TabName": model.TabName = new string('a', 101); break;
             case "ExerciseType": model.ExerciseType = (CheckingExerciseType)999; break;
             case "TabOrder": model.TabOrder = -1; break;
-            case "SortOrder": model.SortOrder = -1; break;
             case "Dates.StartHour": model.Dates.StartHour = 24; break;
             case "Dates.EndMinute": model.Dates.EndMinute = 60; break;
             case "Dates.EndDate": model.Dates.EndDate = Today; break;
@@ -209,7 +204,7 @@ public sealed class CreateCheckingExerciseControllerTests
     {
         WindowId = _window.Id, Name = "  Revised students  ",
         ExerciseType = CheckingExerciseType.PupilData,
-        TabName = " Students ", TabOrder = 2, SortOrder = 3, IsEnabled = true, DisplayOnly = true,
+        TabName = " Students ", TabOrder = 2, IsEnabled = true, DisplayOnly = true,
         VisibleFrom = Today, VisibleUntil = Today.AddMonths(2),
         Dates = new ExerciseDatesItem
         {
@@ -260,7 +255,7 @@ public sealed class CreateCheckingExerciseControllerTests
     {
         Id = e.Id, Name = e.Name, ExerciseType = e.ExerciseType, TabName = e.TabName, IsEnabled = true,
         VisibleFrom = from, VisibleUntil = until,
-        StartDate = e.StartDate, EndDate = e.EndDate, SortOrder = e.SortOrder
+        StartDate = e.StartDate, EndDate = e.EndDate, TabOrder = e.TabOrder
     };
 
     [Fact]
@@ -305,7 +300,7 @@ public sealed class CreateCheckingExerciseControllerTests
         Exercises = [new CheckingExerciseDto
         {
             Id = Guid.NewGuid(), Name = "Provisional students", ExerciseType = CheckingExerciseType.PupilData,
-            TabName = "Provisional", StartDate = Today, EndDate = Today.AddDays(5), SortOrder = 0
+            TabName = "Provisional", StartDate = Today, EndDate = Today.AddDays(5), TabOrder = 0
         }]
     };
 

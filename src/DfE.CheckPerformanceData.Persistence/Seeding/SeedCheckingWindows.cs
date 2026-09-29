@@ -46,7 +46,6 @@ public static class SeedCheckingWindows
                     // A fortnight from the start unless the caller sets it. Results enquiry
                     // then carries on to the window's own end.
                     EndDate = pupilDataEnd ?? startDate.AddDays(14).Date.AddHours(17),
-                    SortOrder = 0,
                     Datasets = DatasetsFor(CheckingWindowType.Post16)
                 },
                 new CheckingExercise
@@ -58,7 +57,6 @@ public static class SeedCheckingWindows
                     IsEnabled = true,
                     StartDate = startDate,
                     EndDate = endDate,
-                    SortOrder = 1,
                     Datasets = ResultsDatasets()
                 }
             ]
@@ -76,7 +74,6 @@ public static class SeedCheckingWindows
                     Layout = ExerciseLayout.InclusionTabs,
                     StartDate = startDate,
                     EndDate = endDate,
-                    SortOrder = 0,
                     Datasets = DatasetsFor(type)
                 }
             ];
@@ -196,7 +193,6 @@ public static class SeedCheckingWindows
         Layout = ExerciseLayout.Vertical,
         StartDate = startDate,
         EndDate = endDate,
-        SortOrder = 3,
         Datasets = SummaryDatasets.Select((name, index) => new CheckingWindowDataset
         {
             Name = name, Included = null, FeedsJourney = false, Required = index == 0, SortOrder = index
@@ -230,7 +226,6 @@ public static class SeedCheckingWindows
         IsEnabled = true,
         StartDate = startDate,
         EndDate = endDate,
-        SortOrder = 4,
         Datasets = [new CheckingWindowDataset { Name = PupilCampusDataset, Included = null, FeedsJourney = false, SortOrder = 0 }]
     };
 

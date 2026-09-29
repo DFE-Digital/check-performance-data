@@ -289,7 +289,7 @@ public class WindowServiceTests
     private static CheckingExerciseDto Enabled(CheckingExerciseDto e) => new()
     {
         Id = Guid.NewGuid(), ExerciseType = e.ExerciseType, TabName = e.TabName, IsEnabled = true,
-        StartDate = e.StartDate, EndDate = e.EndDate, SortOrder = e.SortOrder
+        StartDate = e.StartDate, EndDate = e.EndDate, TabOrder = e.TabOrder
     };
 
     private static CheckingExerciseDto Exercise(CheckingExerciseType type) =>
@@ -299,7 +299,7 @@ public class WindowServiceTests
             TabName = "Tab",
             StartDate = new DateTime(2027, 1, 1),
             EndDate = new DateTime(2027, 2, 1),
-            SortOrder = WindowExercises.SortOrderFor(type)
+            TabOrder = WindowExercises.DefaultTabOrder(type)
         };
 
     private static CheckingWindowDto Window(DateTime startDate, DateTime endDate) =>

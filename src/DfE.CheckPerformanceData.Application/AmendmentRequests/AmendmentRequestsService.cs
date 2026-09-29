@@ -72,7 +72,7 @@ public sealed class AmendmentRequestsService(
             // A display-only exercise has no kind, and this deadline row is keyed and labelled by
             // kind (ExerciseLabels.For), so it is left out here — same as every other kind lookup.
             Deadlines = window.Exercises
-                .OrderBy(e => e.SortOrder)
+                .InTabOrder()
                 .Where(e => e.ExerciseType is not null)
                 .Select(e => new ExerciseDeadlineDto
                 {

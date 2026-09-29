@@ -88,7 +88,7 @@ public class WindowService(IWindowRepository windowRepository, TimeProvider time
                 TabName = WindowExercises.DefaultTabName(window.CheckingWindowType, CheckingExerciseType.PupilData),
                 StartDate = window.StartDate,
                 EndDate = window.EndDate,
-                SortOrder = WindowExercises.SortOrderFor(CheckingExerciseType.PupilData)
+                TabOrder = WindowExercises.DefaultTabOrder(CheckingExerciseType.PupilData)
             });
         }
 

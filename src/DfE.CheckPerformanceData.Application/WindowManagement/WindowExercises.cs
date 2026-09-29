@@ -47,6 +47,9 @@ public static class WindowExercises
     public static bool ShowsLateResultsWarningByDefault(CheckingExerciseType? exercise) =>
         exercise == CheckingExerciseType.ResultsEnquiry;
 
-    /// <summary>Display order, and the SortOrder written to each row. Enum order.</summary>
-    public static int SortOrderFor(CheckingExerciseType exercise) => (int)exercise;
+    /// <summary>
+    /// The tab order a new exercise of this kind starts with: enum order, in steps of 100 so an
+    /// admin can put a data share between two kinds without renumbering them.
+    /// </summary>
+    public static int DefaultTabOrder(CheckingExerciseType exercise) => ((int)exercise + 1) * 100;
 }

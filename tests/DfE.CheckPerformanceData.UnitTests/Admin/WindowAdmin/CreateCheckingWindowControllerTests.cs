@@ -74,7 +74,7 @@ public class CreateCheckingWindowControllerTests
                 ExerciseType = CheckingExerciseType.PupilData,
                 StartDate = DateTime.UtcNow.Date.AddDays(1),
                 EndDate = DateTime.UtcNow.Date.AddDays(30),
-                SortOrder = 0
+                TabOrder = 0
             }
         ]
     };

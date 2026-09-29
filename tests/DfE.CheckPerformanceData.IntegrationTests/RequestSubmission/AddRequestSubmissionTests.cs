@@ -364,7 +364,7 @@ public sealed class AddRequestSubmissionTests(PostgresFixture fixture)
         ExerciseType = CheckingExerciseType.PupilData,
         StartDate = DateTime.SpecifyKind(DateTime.UtcNow.Date.AddDays(-10), DateTimeKind.Unspecified),
         EndDate = DateTime.SpecifyKind(DateTime.UtcNow.Date.AddDays(20), DateTimeKind.Unspecified),
-        SortOrder = 0
+        TabOrder = 0
     };
 
     private async Task<Guid> SeedKs4JuneWindowAsync()
@@ -389,7 +389,7 @@ public sealed class AddRequestSubmissionTests(PostgresFixture fixture)
             ExerciseType = CheckingExerciseType.PupilData,
             StartDate = window.StartDate,
             EndDate = window.EndDate,
-            SortOrder = 0
+            TabOrder = 0
         });
 
         ctx.CheckingWindows.Add(window);

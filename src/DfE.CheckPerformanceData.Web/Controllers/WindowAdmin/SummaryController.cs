@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 
 [RequireAdminSection(AdminNavKeys.ManageWindow)]
-public sealed class SummaryController(IWindowService windowService, TimeProvider timeProvider): Controller
+public sealed class SummaryController(IWindowService windowService, ICheckingExerciseService checkingExercises): Controller
 {
    
     [HttpGet("admin/windows/summary/{id:guid}")]
@@ -30,15 +30,15 @@ public sealed class SummaryController(IWindowService windowService, TimeProvider
             EndDate = w.EndDate,
             KeyStage = w.KeyStage,
             CheckingWindowType = w.CheckingWindowType,
-            IsPublished = w.HasLiveExerciseAt(timeProvider.GetLocalNow().DateTime),
             // #319/#466: one section per checking exercise, each with its own dates, files and
             // validation state. There is no window-level validate button any more — an exercise
             // validates on its own, and a window is usable while another is still unvalidated.
             // A display-only exercise (null ExerciseType, #466) is no longer filtered out: every
             // link on its section is addressed by exercise id, which it always has, rather than by
             // kind, which it never has — so it is no longer a dead-link risk to show it.
+            // Same order as the tabs schools see (ExerciseTabBuilder), so admin has no separate order.
             Exercises = w.Exercises
-                .OrderBy(e => e.SortOrder)
+                .OrderBy(e => e.TabOrder).ThenBy(e => e.Id)
                 .Select(e => new ExerciseSummarySection
                 {
                     WindowId = w.Id,
@@ -48,6 +48,7 @@ public sealed class SummaryController(IWindowService windowService, TimeProvider
                     KindLabel = ExerciseLabels.For(e.ExerciseType),
                     TabName = e.TabName,
                     IsEnabled = e.IsEnabled,
+                    Status = checkingExercises.StatusOf(w.Exercises, e),
                     StartDate = e.StartDate,
                     EndDate = e.EndDate,
                     IsValidated = e.IsValidated,

@@ -44,7 +44,7 @@
     </row>
     @* #319: the window's own dates are the union of these and are never typed, so they get no row
        of their own here — only the exercises that produce them. *@
-    @foreach (var exercise in Model.Exercises.OrderBy(e => e.SortOrder))
+    @foreach (var exercise in Model.Exercises.OrderBy(e => e.TabOrder))
     {
         <row>
             <key>@ExerciseLabels.For(exercise.ExerciseType) dates</key>

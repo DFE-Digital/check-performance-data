@@ -159,14 +159,14 @@ public class CheckingWindowDraftTests
                 ExerciseType = CheckingExerciseType.PupilData,
                 StartDate = new DateTime(2027, 1, 1),
                 EndDate = new DateTime(2027, 1, 14, 17, 0, 0),
-                SortOrder = 0
+                TabOrder = 0
             },
             new ExerciseDraft
             {
                 ExerciseType = CheckingExerciseType.ResultsEnquiry,
                 StartDate = new DateTime(2027, 1, 1),
                 EndDate = new DateTime(2027, 6, 30, 17, 0, 0),
-                SortOrder = 1
+                TabOrder = 1
             }
         ]
     };

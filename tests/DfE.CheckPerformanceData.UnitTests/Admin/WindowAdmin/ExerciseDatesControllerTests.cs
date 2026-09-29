@@ -227,7 +227,7 @@ public class ExerciseDatesControllerTests
         Title = "Autumn 2026 checking window",
         CheckingWindowType = CheckingWindowType.KS4Autumn,
         Exercises = exercises
-            .Select(e => new ExerciseDraft { ExerciseType = e, SortOrder = WindowExercises.SortOrderFor(e) })
+            .Select(e => new ExerciseDraft { ExerciseType = e, TabOrder = WindowExercises.DefaultTabOrder(e) })
             .ToList()
     };
 
@@ -267,7 +267,7 @@ public class ExerciseDatesControllerTests
                 ExerciseType = CheckingExerciseType.PupilData,
                 StartDate = new DateTime(2027, 1, 1),
                 EndDate = new DateTime(2027, 1, 15, 17, 0, 0),
-                SortOrder = 0
+                TabOrder = 0
             }
         ]
     };

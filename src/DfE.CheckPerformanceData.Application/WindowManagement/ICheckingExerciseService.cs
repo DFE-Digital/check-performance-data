@@ -31,7 +31,7 @@ public interface ICheckingExerciseService
     bool HasClosed(IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise);
 
     /// <summary>
-    /// Every exercise a school may act on right now, in SortOrder. Empty is a valid answer.
+    /// Every exercise a school may act on right now, in tab order. Empty is a valid answer.
     /// Display-only rows are left out for the same reason as in <see cref="IsOpen"/>.
     /// </summary>
     IReadOnlyList<CheckingExerciseType> OpenCheckingExercises(
@@ -56,6 +56,14 @@ public interface ICheckingExerciseService
     /// exactly as <see cref="EndDateFor"/> returns a lapsed end date.
     /// </remarks>
     Guid? IdFor(IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise);
+
+    /// <summary>
+    /// What schools can see and do with <paramref name="exercise"/> now, for the admin summary.
+    /// <paramref name="exercises"/> is the whole window: its outer dates (the union of every
+    /// exercise's dates) decide whether schools see the window at all. A display-only exercise has
+    /// no journey, so it is never <see cref="ExerciseSchoolStatus.VisibleClosed"/>.
+    /// </summary>
+    ExerciseSchoolStatus StatusOf(IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseDto exercise);
 }
 
 /// <inheritdoc />
@@ -89,7 +97,7 @@ public sealed class CheckingExerciseService(TimeProvider timeProvider) : IChecki
         // have a kind but is display-only is dropped by Actionable: it is shown, never acted on.
         return exercises
             .Where(e => Actionable(e, now))
-            .OrderBy(e => e.SortOrder)
+            .InTabOrder()
             .Select(e => e.ExerciseType)
             .OfType<CheckingExerciseType>()
             .ToList();
@@ -105,6 +113,20 @@ public sealed class CheckingExerciseService(TimeProvider timeProvider) : IChecki
 
     public Guid? IdFor(IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise) =>
         exercises.FirstOrDefault(e => e.ExerciseType == exercise)?.Id;
+
+    public ExerciseSchoolStatus StatusOf(
+        IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseDto exercise)
+    {
+        var now = Now();
+        // The landing page shows a window only inside its outer dates, the union of its exercises'.
+        var windowShown = exercises.Count > 0
+            && exercises.Min(e => e.StartDate) <= now && exercises.Max(e => e.EndDate) >= now;
+        if (!windowShown || !exercise.IsLiveAt(now)) return ExerciseSchoolStatus.Hidden;
+
+        return exercise.ExerciseType is null || exercise.DisplayOnly || Brackets(exercise, now)
+            ? ExerciseSchoolStatus.Visible
+            : ExerciseSchoolStatus.VisibleClosed;
+    }
 
     private DateTime Now() => timeProvider.GetLocalNow().DateTime;
 

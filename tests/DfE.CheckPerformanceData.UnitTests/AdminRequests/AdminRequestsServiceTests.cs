@@ -50,7 +50,7 @@ public class AdminRequestsServiceTests
         ExerciseType = type,
         StartDate = new DateTime(2026, 6, 1),
         EndDate = new DateTime(2026, 7, 1),
-        SortOrder = sortOrder
+        TabOrder = sortOrder
     };
 
     // A 16-19 shaped window, whose two exercises are deliberately declared out of SortOrder so the

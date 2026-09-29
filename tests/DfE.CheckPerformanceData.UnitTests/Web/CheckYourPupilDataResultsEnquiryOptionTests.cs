@@ -77,7 +77,7 @@ public sealed class CheckYourPupilDataResultsEnquiryOptionTests
 
     private static CheckingExerciseDto Exercise(
         CheckingExerciseType type, DateTime start, DateTime end, int sortOrder) =>
-        new() { ExerciseType = type, StartDate = start, EndDate = end, SortOrder = sortOrder };
+        new() { ExerciseType = type, StartDate = start, EndDate = end, TabOrder = sortOrder };
 
     private static CheckingExerciseDto Open(CheckingExerciseType type, int sortOrder = 0) =>
         Exercise(type, Yesterday, Tomorrow, sortOrder);

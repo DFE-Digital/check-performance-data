@@ -34,10 +34,6 @@ public sealed class CreateCheckingExerciseItem : AdminPage, IValidatableObject
     [Range(0, int.MaxValue, ErrorMessage = "Tab order must be 0 or more")]
     public int? TabOrder { get; set; } = 0;
 
-    [Required(ErrorMessage = "Enter a display order")]
-    [Range(0, int.MaxValue, ErrorMessage = "Display order must be 0 or more")]
-    public int? SortOrder { get; set; } = 0;
-
     public bool IsEnabled { get; set; }
     public bool DisplayOnly { get; set; }
 

@@ -50,7 +50,7 @@ public sealed class LandingPageControllerTests
     }
 
     private static CheckingExerciseDto Exercise(CheckingExerciseType type, DateTime start, DateTime end, int sortOrder) =>
-        new() { ExerciseType = type, StartDate = start, EndDate = end, SortOrder = sortOrder };
+        new() { ExerciseType = type, StartDate = start, EndDate = end, TabOrder = sortOrder };
 
     private static CheckingWindowDto Post16(DateTime pupilDataEnd, DateTime? nextOpportunity, bool enquiryOpen = true) => new()
     {

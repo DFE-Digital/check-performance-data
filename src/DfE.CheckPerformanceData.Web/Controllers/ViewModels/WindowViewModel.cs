@@ -16,21 +16,18 @@ public class WindowListItem
     public IReadOnlyList<CheckingExerciseListItem> Exercises { get; init; } = [];
     public Guid Id { get; init; }
     public string Name { get; init; } = string.Empty;
-    public bool IsOpen { get; init; } = false;
-    public bool IsPublished { get; init; } = false;
 }
 
 public sealed class CheckingExerciseListItem
 {
+    /// <summary>The admin's own name for this exercise, else its kind label.</summary>
     public required string Name { get; init; }
-    public required string Status { get; init; }
-    public IReadOnlyList<string> MissingJourneys { get; init; } = [];
-    public string TagColour => Status switch
-    {
-        "Missing journeys" => "red",
-        "Closed" => "grey",
-        _ => "green"
-    };
+
+    /// <summary>The exercise's kind, or "Data share" when it has none.</summary>
+    public required string KindLabel { get; init; }
+
+    /// <summary>What schools can see and do with this exercise now.</summary>
+    public required Application.WindowManagement.ExerciseSchoolStatus Status { get; init; }
 }
 
 public class WindowEditItem : AdminPage
@@ -54,7 +51,6 @@ public class WindowEditItem : AdminPage
         get => $"{BaseEditUrl}/next-opportunity";
     }
 
-    public bool IsOpen { get; set; } = false;
     // #319: derived from the exercises as their union, so there is no Change link — the outer pair
     // is never typed. To move a window's dates, move an exercise's.
     public required DateTime StartDate { get; set; }
@@ -82,7 +78,6 @@ public class WindowEditItem : AdminPage
     public string DeleteLink => $"{BaseEditUrl}/delete";
 
     public string? OutputPath { get; set; }
-    public bool IsPublished { get; set; } = false;
     public Guid? PublishedId { get; set; }
 }
 
@@ -107,6 +102,10 @@ public sealed class ExerciseSummarySection
 
     public required string TabName { get; init; }
     public bool IsEnabled { get; init; }
+
+    /// <summary>What schools can see and do with this exercise now. Enabled alone does not make it
+    /// visible: its visibility dates and the window's dates count too.</summary>
+    public Application.WindowManagement.ExerciseSchoolStatus Status { get; init; }
     public required DateTime StartDate { get; init; }
     public required DateTime EndDate { get; init; }
 

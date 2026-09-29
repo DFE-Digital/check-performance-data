@@ -27,13 +27,13 @@ public sealed class NextStepsServiceTests
     private static readonly DateTime NextMonth = new(2026, 9, 30);
 
     private static CheckingExerciseDto Open(CheckingExerciseType type, int sortOrder = 0) =>
-        new() { ExerciseType = type, StartDate = Yesterday, EndDate = Tomorrow, SortOrder = sortOrder };
+        new() { ExerciseType = type, StartDate = Yesterday, EndDate = Tomorrow, TabOrder = sortOrder };
 
     private static CheckingExerciseDto Closed(CheckingExerciseType type, int sortOrder = 0) =>
-        new() { ExerciseType = type, StartDate = LastMonth, EndDate = Yesterday, SortOrder = sortOrder };
+        new() { ExerciseType = type, StartDate = LastMonth, EndDate = Yesterday, TabOrder = sortOrder };
 
     private static CheckingExerciseDto NotYetOpen(CheckingExerciseType type, int sortOrder = 0) =>
-        new() { ExerciseType = type, StartDate = Tomorrow, EndDate = NextMonth, SortOrder = sortOrder };
+        new() { ExerciseType = type, StartDate = Tomorrow, EndDate = NextMonth, TabOrder = sortOrder };
 
     [Fact]
     public void An_open_pupil_data_exercise_offers_amend_and_confirm()
@@ -122,7 +122,7 @@ public sealed class NextStepsServiceTests
             ExerciseType = (CheckingExerciseType)999,
             StartDate = Yesterday,
             EndDate = Tomorrow,
-            SortOrder = 0
+            TabOrder = 0
         };
 
         Assert.Empty(Sut().GetAvailableSteps([unmapped]));

@@ -78,6 +78,9 @@ public class WindowEditItem : AdminPage
     /// window id — <see cref="Controllers.WindowAdmin.CreateCheckingExerciseController.New"/>.</summary>
     public string AddExerciseLink => $"{BaseEditUrl}/exercises/new";
 
+    /// <summary>The "are you sure" page of <see cref="Controllers.WindowAdmin.DeleteWindowController"/>.</summary>
+    public string DeleteLink => $"{BaseEditUrl}/delete";
+
     public string? OutputPath { get; set; }
     public bool IsPublished { get; set; } = false;
     public Guid? PublishedId { get; set; }

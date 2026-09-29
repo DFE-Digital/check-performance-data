@@ -9,6 +9,20 @@
 
 <h1 class="govuk-heading-xl">@ViewData["Title"]</h1>
 
+@* Outcome of a delete, stashed by DeleteWindowController. *@
+@if (TempData[DfE.CheckPerformanceData.Web.Controllers.WindowAdmin.DeleteWindowController.TempDataKey] is string deleteOutcome)
+{
+    <div class="govuk-notification-banner govuk-notification-banner--success" role="alert"
+         aria-labelledby="delete-outcome-title" data-module="govuk-notification-banner">
+        <div class="govuk-notification-banner__header">
+            <h2 class="govuk-notification-banner__title" id="delete-outcome-title">Success</h2>
+        </div>
+        <div class="govuk-notification-banner__content">
+            <p class="govuk-notification-banner__heading">@deleteOutcome</p>
+        </div>
+    </div>
+}
+
 @if (Model.CanCreateWindow)
 {
     <a href="@Url.Action("Start", "Title")" role="button" draggable="false" class="govuk-button" data-module="govuk-button">New window</a>

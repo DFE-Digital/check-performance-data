@@ -53,6 +53,7 @@ public static class DependencyManager
                            ContentStaging.ContentStagingSessionStore>();
         services.AddScoped<ILandingPageRepository, LandingPageRepository>();
         services.AddScoped<IWindowRepository, WindowRepository>();
+        services.AddScoped<IWindowDeletionRepository, WindowDeletionRepository>();
         services.AddScoped<ICheckingDataCatalogue, CheckingDataCatalogue>();
         services.AddScoped<ICheckingExerciseDefinitionRepository, CheckingExerciseDefinitionRepository>();
         services.AddScoped<ICheckingExerciseStorageResolver, CheckingExerciseStorageResolver>();

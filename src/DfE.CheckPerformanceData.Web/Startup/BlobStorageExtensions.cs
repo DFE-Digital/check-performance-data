@@ -71,6 +71,7 @@ public static class BlobStorageExtensions
         services.AddScoped<IRequestBlobClient, RequestBlobClient>();
         services.AddScoped<IRequestStateBlobClient, RequestStateBlobClient>();
         services.AddScoped<IPupilDataBlobClient, PupilDataBlobClient>();
+        services.AddScoped<Application.WindowManagement.IWindowBlobStorage, WindowBlobStorage>();
         // AB#296648: the 16-19 exam results the incorrect-grade enquiry journey reads. Registered
         // here as well as in the Infrastructure DependencyManager because the web host builds its
         // blob-client set from this seam and never calls AddInfrastructureDependencies.

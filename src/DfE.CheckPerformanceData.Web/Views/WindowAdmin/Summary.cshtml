@@ -221,3 +221,12 @@
 }
 
 <govuk-button-link href="@Model.AddExerciseLink">Add checking exercise</govuk-button-link>
+
+<h2 class="govuk-heading-m">Delete this window</h2>
+<p class="govuk-body">
+  Deletes the window, its checking exercises and their files, and every change request made through it.
+  The next page shows what will be deleted before anything is.
+</p>
+<govuk-button-link class="govuk-button--warning" href="@Model.DeleteLink">
+  Delete window<span class="govuk-visually-hidden"> @Model.Title</span>
+</govuk-button-link>

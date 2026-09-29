@@ -80,6 +80,7 @@ public static class DependencyManager
         services.AddScoped<IEditAdviceService, EditAdviceService>();
         services.AddScoped<AdminRequests.IAdminRequestsService, AdminRequests.AdminRequestsService>();
         services.AddScoped<WindowManagement.ICloseExerciseService, WindowManagement.CloseExerciseService>();
+        services.AddScoped<WindowManagement.IDeleteWindowService, WindowManagement.DeleteWindowService>();
         // AB#296648: the single derivation of "the second late results file has landed".
         services.AddScoped<ResultsEnquiry.ILateResultsWarning, ResultsEnquiry.LateResultsWarning>();
 

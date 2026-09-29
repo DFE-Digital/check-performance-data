@@ -72,6 +72,10 @@ public static class DependencyManager
         // AB#298201: the missing-qualification enquiry's optional NCN field. Same load-bearing
         // registration reason as WholeNumberFormatValidator above.
         services.AddScoped<IFormatValidator, NcnValidator>();
+        // Issue 496: the permanent-exclusion DfE-number question's own message. Same load-bearing
+        // registration reason as WholeNumberFormatValidator above; a missing line here would
+        // silently skip the format check and let a malformed DfE number through.
+        services.AddScoped<IFormatValidator, PermanentExclusionDfeNumberFormatValidator>();
         services.AddScoped<IAmendmentRequestsService, AmendmentRequestsService>();
         services.AddScoped<IUrnAmendmentRequestsService, UrnAmendmentRequestsService>();
         services.AddScoped<IWindowStatusService, WindowStatusService>();

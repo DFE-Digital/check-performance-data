@@ -1,0 +1,14 @@
+{
+  "name": "cpd-admin-user-guide-tools",
+  "private": true,
+  "type": "module",
+  "description": "Captures admin screenshots from the local stack and renders docs/user-guides/admin-user-guide.md to PDF.",
+  "scripts": {
+    "capture": "node capture.mjs",
+    "build": "node build-pdf.mjs"
+  },
+  "devDependencies": {
+    "marked": "15.0.12",
+    "playwright": "1.62.0"
+  }
+}

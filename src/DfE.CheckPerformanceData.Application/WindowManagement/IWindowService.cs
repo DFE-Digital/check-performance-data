@@ -176,6 +176,14 @@ public sealed class CheckingExerciseDto
     private IEnumerable<CheckingWindowDatasetDto> InUse => Datasets.Where(d => !d.Retired);
 
     /// <summary>
+    /// The slots in use whose records the journey reads, in sort order. A new journey file is merged
+    /// with these, so the add-file page asks the admin to confirm when there are any. A retired slot
+    /// is left out: no run reads it.
+    /// </summary>
+    public IReadOnlyList<CheckingWindowDatasetDto> JourneyDatasetsInUse =>
+        [.. InUse.Where(d => d.FeedsJourney).OrderBy(d => d.SortOrder)];
+
+    /// <summary>
     /// The datasets a run actually reads, in sort order — the complete ones. An empty optional slot
     /// is a file that has not arrived, not a file to fail on, and a run rewrites the exercise's
     /// whole output, so the same exercise is simply re-run when the next file lands. A retired slot

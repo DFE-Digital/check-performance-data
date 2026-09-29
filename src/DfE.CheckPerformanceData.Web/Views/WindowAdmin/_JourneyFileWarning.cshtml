@@ -1,0 +1,21 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin.AddExerciseDataItem
+@* Shown inside the journey option on AddExerciseData when journey files are already in use. The
+   controller refuses the add until ConfirmJourney is ticked, so this also holds without JavaScript. *@
+<div class="govuk-warning-text">
+    <span class="govuk-warning-text__icon" aria-hidden="true">!</span>
+    <strong class="govuk-warning-text__text">
+        <span class="govuk-visually-hidden">Warning</span>
+        This exercise already has files that feed the journey. This file will be merged with them, and schools will see the records from all of them.
+    </strong>
+</div>
+<ul class="govuk-list govuk-list--bullet">
+    @foreach (var file in Model.ExistingJourneyFiles)
+    {
+        <li>@file</li>
+    }
+</ul>
+<p class="govuk-body">If this file replaces one of them, retire the old file after you add this one.</p>
+<govuk-checkboxes for="ConfirmJourney">
+    <govuk-checkboxes-error-message asp-validation-for="ConfirmJourney" />
+    <govuk-checkboxes-item value="true" checked="@Model.ConfirmJourney">Yes, add this file to the journey data</govuk-checkboxes-item>
+</govuk-checkboxes>

@@ -233,15 +233,17 @@ public sealed class AccessibilityAuditViewTests
 	}
 
 	[Fact]
-	public void SummaryPage_ShowsDatasetFileNames_NotFullBlobPaths()
+	public void SummaryPage_TagsEachDataFilesPurposeAndStatus_NotItsFiles()
 	{
-		// An upload stores a complete blob name (ingress/{exerciseId}/{datasetId}/main.csv);
-		// showing that path verbatim would be meaningless to an admin, so the summary must print
-		// the bare filename via Path.GetFileName, exactly like CreateCheckingExercise.cshtml does.
+		// The summary is an overview for admins who are not technical. It tags each data file as
+		// Journey or Data share and shows if it is supplied; the file names are on the Data tab.
 		var view = ReadView("Views", "WindowAdmin", "Summary.cshtml");
 
-		Assert.Contains("System.IO.Path.GetFileName(dataset.IngressFile)", view);
-		Assert.Contains("System.IO.Path.GetFileName(dataset.SchemaFile)", view);
+		Assert.Contains("govuk-tag--blue\">Journey</strong>", view);
+		Assert.Contains("govuk-tag--purple\">Data share</strong>", view);
+		Assert.Contains("DatasetStatusTags.Label(dataset.Status)", view);
+		Assert.DoesNotContain("dataset.IngressFile", view);
+		Assert.DoesNotContain("dataset.SchemaFile", view);
 	}
 
 	[Fact]
@@ -274,6 +276,22 @@ public sealed class AccessibilityAuditViewTests
 		Assert.Contains("ViewBag.Title", view);
 		Assert.Equal(1, CountOccurrences(view, "<h1"));
 		Assert.DoesNotContain("href=\"#\"", view);
+	}
+
+	[Fact]
+	public void AddExerciseData_AsksInclusionOnlyUnderTheJourneyAnswer()
+	{
+		var view = ReadView("Views", "WindowAdmin", "AddExerciseData.cshtml");
+
+		// A data share has no inclusion, so the question is revealed only by "Pupil data for the journeys".
+		var journey = view.IndexOf("Pupil data for the journeys", StringComparison.Ordinal);
+		var conditional = view.IndexOf("<govuk-radios-item-conditional>", journey, StringComparison.Ordinal);
+		var inclusion = view.IndexOf("<govuk-radios for=\"Inclusion\">", StringComparison.Ordinal);
+		var conditionalEnd = view.IndexOf("</govuk-radios-item-conditional>", journey, StringComparison.Ordinal);
+		var share = view.IndexOf("Data share only", StringComparison.Ordinal);
+
+		Assert.Equal(1, CountOccurrences(view, "<govuk-radios for=\"Inclusion\">"));
+		Assert.True(journey < conditional && conditional < inclusion && inclusion < conditionalEnd && conditionalEnd < share);
 	}
 
 	// ── #466 Task 23: the exercise tabs on Check Your Pupil Data ──────────────────────

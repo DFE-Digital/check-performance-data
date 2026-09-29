@@ -1,4 +1,5 @@
 @model DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowEditItem
+@using DfE.CheckPerformanceData.Web.Controllers.WindowAdmin
 
 @{
     // Matches the <h1> below.
@@ -48,13 +49,6 @@
     <value>@Model.CheckingWindowType</value>
     <row-actions>
       <action href="@Model.CheckingWindowTypeLink" visually-hidden-text="Window Type">Change</action>
-    </row-actions>
-  </row>
-  <row>
-    <key>Checking exercises</key>
-    <value>@(Model.Exercises.Count == 0 ? "None" : string.Join(", ", Model.Exercises.Select(e => e.Name)))</value>
-    <row-actions>
-      <action href="@Model.ExercisesLink" visually-hidden-text="Checking exercises">Change</action>
     </row-actions>
   </row>
   <row>
@@ -159,16 +153,16 @@
       {
         @* An optional slot is a file the supplier may deliver later, or not at all — the results
            feed's late, revised and retention files. Saying so is what stops an admin waiting for a
-           file that is not coming before validating the ones that have arrived. Bare filenames —
-           an upload stores a complete blob name (ingress/{exerciseId}/{datasetId}/main.csv), and
-           showing that path verbatim would be meaningless to an admin. *@
+           file that is not coming before validating the ones that have arrived. The ingress and
+           schema file names are left to the exercise's Data tab: this page is an overview for
+           admins who do not need them. *@
         <table class="govuk-table">
           <caption class="govuk-table__caption govuk-table__caption--s">Data files<span class="govuk-visually-hidden"> for @exercise.Name</span></caption>
           <thead class="govuk-table__head">
             <tr class="govuk-table__row">
-              <th scope="col" class="govuk-table__header">Dataset</th>
-              <th scope="col" class="govuk-table__header">Ingress file</th>
-              <th scope="col" class="govuk-table__header">Schema file</th>
+              <th scope="col" class="govuk-table__header">Data file</th>
+              <th scope="col" class="govuk-table__header">Used for</th>
+              <th scope="col" class="govuk-table__header">Status</th>
             </tr>
           </thead>
           <tbody class="govuk-table__body">
@@ -182,8 +176,20 @@
                     <span class="govuk-hint govuk-!-display-inline govuk-!-font-weight-regular">(optional)</span>
                   }
                 </th>
-                <td class="govuk-table__cell">@(string.IsNullOrWhiteSpace(dataset.IngressFile) ? "Not supplied" : System.IO.Path.GetFileName(dataset.IngressFile))</td>
-                <td class="govuk-table__cell">@(string.IsNullOrWhiteSpace(dataset.SchemaFile) ? "Not supplied" : System.IO.Path.GetFileName(dataset.SchemaFile))</td>
+                @* Blue and purple: colours the status tags do not use, so purpose never reads as status. *@
+                <td class="govuk-table__cell">
+                  @if (dataset.FeedsJourney)
+                  {
+                    <strong class="govuk-tag govuk-tag--blue">Journey</strong>
+                  }
+                  else
+                  {
+                    <strong class="govuk-tag govuk-tag--purple">Data share</strong>
+                  }
+                </td>
+                <td class="govuk-table__cell">
+                  <strong class="govuk-tag @DatasetStatusTags.CssClass(dataset.Status)">@DatasetStatusTags.Label(dataset.Status)</strong>
+                </td>
               </tr>
             }
           </tbody>

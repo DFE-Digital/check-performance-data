@@ -24,8 +24,17 @@ public sealed class AddExerciseDataItem : AdminPage
     [RegularExpression("journey|share", ErrorMessage = "Select what this file is for")]
     public string Use { get; set; } = "journey";
 
+    /// <summary>The admin confirms that a journey file is merged with the exercise's other journey
+    /// files. Asked only when there are any.</summary>
+    public bool ConfirmJourney { get; set; }
+
     [BindNever]
     public string ExerciseName { get; set; } = string.Empty;
+
+    /// <summary>The labels of the files in use that already feed the journey. A new journey file is
+    /// merged with them.</summary>
+    [BindNever]
+    public IReadOnlyList<string> ExistingJourneyFiles { get; set; } = [];
 
     /// <summary>True on a results enquiry, where a journey file's name is shown to schools as each result's source.</summary>
     [BindNever]

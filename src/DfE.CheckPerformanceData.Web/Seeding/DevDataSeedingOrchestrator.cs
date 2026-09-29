@@ -20,15 +20,9 @@ namespace DfE.CheckPerformanceData.Web.Seeding;
 // API-version mismatch in Development only, exactly as before.
 public sealed class DevDataSeedingOrchestrator(
     DevDataSeeder devDataSeeder,
-    IPortalDbContext dbContext,
+    IServiceScopeFactory scopeFactory,
     BlobServiceClient blobServiceClient,
     IReadOnlyDictionary<string, BlobServiceClient> blobClients,
-    IPupilDataBlobClient pupilDataBlobClient,
-    IRequestRepository requestRepository,
-    IRequestStateBlobClient requestStateBlobClient,
-    ICheckYourPupilDataService checkYourPupilDataService,
-    ICheckingExerciseService checkingExerciseService,
-    ICheckingExerciseIngress checkingExerciseIngress,
     RulesConfigSeeder rulesConfigSeeder,
     QualificationReferenceBlobClient qualificationReferenceBlobClient,
     IHostEnvironment environment,
@@ -39,26 +33,48 @@ public sealed class DevDataSeedingOrchestrator(
         await devDataSeeder.SeedAsync();
 
         // The KS4 fixture windows' pupils, ingested from generated CSVs so each has schemas and a
-        // release.
-        await SeedExerciseFixtures.ExecuteSeedAsync(dbContext, blobServiceClient, checkingExerciseIngress, environment.ContentRootPath);
-
-        // The 16-19 windows, one for each step of the results enquiry year. Each seed does the
-        // step before it, then its own: Oct imports and validates the October files, Nov adds late
-        // results 2, Feb adds the revised files and retires the four they replace, and Mar adds
-        // included revised with retention and retires included revised. Each window's sample files
-        // also go to ingress storage, so an admin can do a step again by hand.
-        await SeedPost16OctoberSamples.ExecuteSeedAsync(dbContext, blobServiceClient, checkingExerciseIngress, environment.ContentRootPath);
-        await SeedPost16OctoberSamples.WriteSamplesAsync(blobClients, logger);
-        await SeedPost16NovemberSamples.ExecuteSeedAsync(dbContext, blobServiceClient, checkingExerciseIngress, environment.ContentRootPath);
-        await SeedPost16NovemberSamples.WriteSamplesAsync(blobClients, logger);
-        await SeedPost16FebruarySamples.ExecuteSeedAsync(dbContext, blobServiceClient, checkingExerciseIngress, environment.ContentRootPath);
-        await SeedPost16FebruarySamples.WriteSamplesAsync(blobClients, logger);
-        await SeedPost16MarchSamples.ExecuteSeedAsync(dbContext, blobServiceClient, checkingExerciseIngress, environment.ContentRootPath);
-        await SeedPost16MarchSamples.WriteSamplesAsync(blobClients, logger);
+        // release, and the 16-19 windows, one for each step of the results enquiry year. Each
+        // 16-19 seed does the step before it, then its own: Oct imports and validates the October
+        // files, Nov adds late results 2, Feb adds the revised files and retires the four they
+        // replace, and Mar adds included revised with retention and retires included revised. Each
+        // window's sample files also go to ingress storage, so an admin can do a step again by hand.
+        //
+        // The windows share no rows and no blobs, so they seed in parallel: in sequence they are
+        // about 40 ingress runs and most of the startup time. Each window gets its own scope,
+        // because a DbContext (and the scoped ingress that shares it) is not thread-safe.
+        await Task.WhenAll(
+            InOwnScopeAsync((db, ingress) =>
+                SeedExerciseFixtures.ExecuteSeedAsync(db, blobServiceClient, ingress, environment.ContentRootPath)),
+            InOwnScopeAsync(async (db, ingress) =>
+            {
+                await SeedPost16OctoberSamples.ExecuteSeedAsync(db, blobServiceClient, ingress, environment.ContentRootPath);
+                await SeedPost16OctoberSamples.WriteSamplesAsync(blobClients, logger);
+            }),
+            InOwnScopeAsync(async (db, ingress) =>
+            {
+                await SeedPost16NovemberSamples.ExecuteSeedAsync(db, blobServiceClient, ingress, environment.ContentRootPath);
+                await SeedPost16NovemberSamples.WriteSamplesAsync(blobClients, logger);
+            }),
+            InOwnScopeAsync(async (db, ingress) =>
+            {
+                await SeedPost16FebruarySamples.ExecuteSeedAsync(db, blobServiceClient, ingress, environment.ContentRootPath);
+                await SeedPost16FebruarySamples.WriteSamplesAsync(blobClients, logger);
+            }),
+            InOwnScopeAsync(async (db, ingress) =>
+            {
+                await SeedPost16MarchSamples.ExecuteSeedAsync(db, blobServiceClient, ingress, environment.ContentRootPath);
+                await SeedPost16MarchSamples.WriteSamplesAsync(blobClients, logger);
+            }));
 
         try
         {
-            await SeedChangeRequests.ExecuteSeedAsync(pupilDataBlobClient, requestRepository, requestStateBlobClient, checkYourPupilDataService, checkingExerciseService);
+            // A new scope: the window seeds wrote through their own contexts, so this scope's
+            // context would still hold the windows as SeedCheckingWindows left them.
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var services = scope.ServiceProvider;
+            await SeedChangeRequests.ExecuteSeedAsync(services.GetRequiredService<IPupilDataBlobClient>(),
+                services.GetRequiredService<IRequestRepository>(), services.GetRequiredService<IRequestStateBlobClient>(),
+                services.GetRequiredService<ICheckYourPupilDataService>(), services.GetRequiredService<ICheckingExerciseService>());
         }
         catch (Azure.RequestFailedException ex) when (environment.IsDevelopment())
         {
@@ -75,5 +91,12 @@ public sealed class DevDataSeedingOrchestrator(
         // container so the admin "Reset seed data" action restores it if the blob was deleted
         // (seed-if-missing, so a no-op whenever it is already there).
         await SeedQualificationReference.ExecuteSeedAsync(qualificationReferenceBlobClient, environment.ContentRootPath);
+    }
+
+    private async Task InOwnScopeAsync(Func<IPortalDbContext, ICheckingExerciseIngress, Task> seed)
+    {
+        await using var scope = scopeFactory.CreateAsyncScope();
+        await seed(scope.ServiceProvider.GetRequiredService<IPortalDbContext>(),
+            scope.ServiceProvider.GetRequiredService<ICheckingExerciseIngress>());
     }
 }

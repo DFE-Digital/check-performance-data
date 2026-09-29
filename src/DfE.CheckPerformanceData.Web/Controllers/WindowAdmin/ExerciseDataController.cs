@@ -36,10 +36,15 @@ public sealed class ExerciseDataController(IWindowService windows) : Controller
 
         if (exercise.Datasets.Any(d => string.Equals(d.Name, model.Name?.Trim(), StringComparison.OrdinalIgnoreCase)))
             ModelState.AddModelError(nameof(model.Name), "This exercise already has a data file with this name");
+        var dataShare = model.AsksUse && model.Use == "share";
+        // A journey file is merged with the journey files already in use, so schools see the records
+        // of all of them. The admin must confirm that, because a replacement file belongs in its own
+        // slot with the old one retired, not merged beside it.
+        if (model.AsksUse && !dataShare && model.ExistingJourneyFiles.Count > 0 && !model.ConfirmJourney)
+            ModelState.AddModelError(nameof(model.ConfirmJourney), "Confirm that you want to add this file to the journey data");
         if (!ModelState.IsValid) return View(PageView, model);
 
         var name = model.Name!.Trim();
-        var dataShare = model.AsksUse && model.Use == "share";
         var feedsJourney = WindowDatasets.AddedSlotFeedsJourney(exercise.ExerciseType, dataShare);
         exercise.Datasets.Add(new CheckingWindowDatasetDto
         {
@@ -136,6 +141,9 @@ public sealed class ExerciseDataController(IWindowService windows) : Controller
         // exercises with a journey. A data share exercise holds neither.
         model.AsksInclusion = exercise.ExerciseType == CheckingExerciseType.PupilData;
         model.AsksUse = model.AsksInclusion || model.IsResultsEnquiry;
+        model.ExistingJourneyFiles = model.AsksUse
+            ? [.. exercise.JourneyDatasetsInUse.Select(d => DatasetLabels.For(d.Name))]
+            : [];
         model.PostUrl = Url.Action("Submit", "ExerciseData", new { id = window.Id, exerciseId = exercise.Id });
         model.CancelUrl = Url.Action("Edit", "EditCheckingExercise", new { id = window.Id, exerciseId = exercise.Id }, null, null, ExerciseLinks.DataTab);
     }

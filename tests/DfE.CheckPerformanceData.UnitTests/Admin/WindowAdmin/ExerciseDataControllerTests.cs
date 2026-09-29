@@ -279,6 +279,70 @@ public sealed class ExerciseDataControllerTests
         Assert.Equal(storesInclusion ? true : null, Assert.Single(exercise.Datasets).Included);
     }
 
+    [Theory]
+    [InlineData(CheckingExerciseType.PupilData)]
+    [InlineData(CheckingExerciseType.ResultsEnquiry)]
+    public async Task A_journey_file_beside_another_journey_file_needs_confirmation(CheckingExerciseType type)
+    {
+        var exercise = AddExercise(type);
+        exercise.Datasets.Add(new() { Id = Guid.NewGuid(), Name = "Existing", FeedsJourney = true });
+        var model = new AddExerciseDataItem { WindowId = _window.Id, Name = "Another", Use = "journey" };
+
+        var view = Assert.IsType<ViewResult>(await _controller.Submit(_window.Id, exercise.Id, model, default));
+
+        Assert.True(_controller.ModelState.ContainsKey(nameof(AddExerciseDataItem.ConfirmJourney)));
+        Assert.Equal(["Existing"], Assert.IsType<AddExerciseDataItem>(view.Model).ExistingJourneyFiles);
+        Assert.Single(exercise.Datasets);
+        await _service.DidNotReceive().UpdateAsync(Arg.Any<CheckingWindowDto>(), Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData(CheckingExerciseType.PupilData)]
+    [InlineData(CheckingExerciseType.ResultsEnquiry)]
+    public async Task A_confirmed_journey_file_beside_another_journey_file_is_added(CheckingExerciseType type)
+    {
+        var exercise = AddExercise(type);
+        exercise.Datasets.Add(new() { Id = Guid.NewGuid(), Name = "Existing", FeedsJourney = true });
+        var model = new AddExerciseDataItem { WindowId = _window.Id, Name = "Another", Use = "journey", ConfirmJourney = true };
+
+        Assert.IsType<RedirectToActionResult>(await _controller.Submit(_window.Id, exercise.Id, model, default));
+
+        Assert.True(Assert.Single(exercise.Datasets, d => d.Name == "Another").FeedsJourney);
+    }
+
+    [Theory]
+    // A data share is not merged with anything, so there is nothing to confirm.
+    [InlineData("share", true, false)]
+    // A retired file is read by no run, so the new file is not merged with it.
+    [InlineData("journey", true, true)]
+    // A file that is itself a data share is not journey data.
+    [InlineData("journey", false, false)]
+    public async Task No_confirmation_is_needed_when_nothing_in_the_journey_is_merged_with(
+        string use, bool existingFeedsJourney, bool existingRetired)
+    {
+        var exercise = AddExercise(CheckingExerciseType.PupilData);
+        exercise.Datasets.Add(new()
+            { Id = Guid.NewGuid(), Name = "Existing", FeedsJourney = existingFeedsJourney, Retired = existingRetired });
+        var model = new AddExerciseDataItem { WindowId = _window.Id, Name = "Another", Use = use };
+
+        Assert.IsType<RedirectToActionResult>(await _controller.Submit(_window.Id, exercise.Id, model, default));
+        Assert.Equal(2, exercise.Datasets.Count);
+    }
+
+    [Fact]
+    public async Task The_page_names_the_journey_files_in_use()
+    {
+        var exercise = AddExercise(CheckingExerciseType.ResultsEnquiry);
+        exercise.Datasets.Add(new() { Id = Guid.NewGuid(), Name = "Second", FeedsJourney = true, SortOrder = 2 });
+        exercise.Datasets.Add(new() { Id = Guid.NewGuid(), Name = "First", FeedsJourney = true, SortOrder = 1 });
+        exercise.Datasets.Add(new() { Id = Guid.NewGuid(), Name = "Share", FeedsJourney = false });
+        exercise.Datasets.Add(new() { Id = Guid.NewGuid(), Name = "Old", FeedsJourney = true, Retired = true });
+
+        var view = Assert.IsType<ViewResult>(await _controller.New(_window.Id, exercise.Id, default));
+
+        Assert.Equal(["First", "Second"], Assert.IsType<AddExerciseDataItem>(view.Model).ExistingJourneyFiles);
+    }
+
     private CheckingExerciseDto AddExercise(CheckingExerciseType? type)
     {
         var exercise = new CheckingExerciseDto

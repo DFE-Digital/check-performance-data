@@ -67,7 +67,9 @@ public sealed class SummaryController(IWindowService windowService, ICheckingExe
                             Label = DatasetLabels.For(d.Name),
                             IngressFile = d.IngressFile,
                             SchemaFile = d.SchemaFile,
-                            Required = d.Required
+                            Required = d.Required,
+                            FeedsJourney = d.FeedsJourney,
+                            Status = e.StatusOf(d)
                         })
                         .ToList()
                 })

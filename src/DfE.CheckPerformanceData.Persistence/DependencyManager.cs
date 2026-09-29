@@ -27,9 +27,18 @@ public static class DependencyManager
                 .UseNpgsql(connectionString, sqlOptions =>
                 {
                     sqlOptions.EnableRetryOnFailure();
+                    // SingleQuery is EF's default. Setting it explicitly only stops the
+                    // MultipleCollectionIncludeWarning on every startup. Queries that need a split
+                    // query ask for it with AsSplitQuery().
+                    sqlOptions.UseQuerySplittingBehavior(QuerySplittingBehavior.SingleQuery);
                 })
                 .ConfigureWarnings(w => w.Ignore(
-                    Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+                    Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning,
+                    // PageNode has a soft-delete filter and PageNodeVersion does not, on purpose:
+                    // the repository reads the versions of a deleted page (restore, import). A
+                    // matching filter would hide them.
+                    Microsoft.EntityFrameworkCore.Diagnostics.CoreEventId
+                        .PossibleIncorrectRequiredNavigationWithQueryFilterInteractionWarning));
         });
 
         // Registered unconditionally: the DevDataSeedingOrchestrator (and the admin Danger

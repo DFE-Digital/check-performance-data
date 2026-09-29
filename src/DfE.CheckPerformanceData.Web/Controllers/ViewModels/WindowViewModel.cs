@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
 
@@ -67,8 +68,6 @@ public class WindowEditItem : AdminPage
     /// schema files, and its own validation state — a window is no longer validated as a whole.
     /// </summary>
     public IReadOnlyList<ExerciseSummarySection> Exercises { get; set; } = [];
-
-    public string ExercisesLink => $"{BaseEditUrl}/exercises";
 
     /// <summary>Every section's Add checking exercise link (#466 slice 3) goes here, keyed by
     /// window id — <see cref="Controllers.WindowAdmin.CreateCheckingExerciseController.New"/>.</summary>
@@ -171,6 +170,12 @@ public sealed class DatasetSummaryRow
 
     /// <summary>The exercise cannot be validated until this slot holds both files (#324).</summary>
     public bool Required { get; init; } = true;
+
+    /// <summary>The slot's rows reach the change-request journey; otherwise it is a data share.</summary>
+    public bool FeedsJourney { get; init; }
+
+    /// <summary>The same status the exercise's Data tab shows for this slot.</summary>
+    public DatasetStatus Status { get; init; }
 
     // Exercise-id addressed, same reason as ExerciseSummarySection.ValidateLink: a display-only
     // exercise has no kind, so the kind-addressed route would not exist for it.

@@ -4,9 +4,9 @@
   "captures": [
     { "name": "admin-landing", "url": "/admin" },
     { "name": "admin-sidebar-messages-badge", "url": "/admin/Messages", "fullPage": false },
-    { "name": "dashboard", "url": "/admin/dashboard" },
+    { "name": "dashboard", "url": "/admin/dashboard?windowId=f34d285b-8660-4d12-9c30-787328deaa0a" },
     { "name": "cms-pages", "url": "/admin/pages" },
-    { "name": "cms-page-edit", "url": "/admin/pages", "clickFirst": "a[title='Edit'], a:has-text('Edit')", "waitFor": "text=Content" },
+    { "name": "cms-page-edit", "url": "/admin/pages/00000000-cd94-4a01-8f01-00000000000f/edit", "waitFor": "text=Content" },
     { "name": "cms-content-blocks", "url": "/admin/content-blocks" },
     { "name": "cms-deleted-pages", "url": "/admin/pages/deleted" },
     { "name": "cms-content-staging", "url": "/admin/content-staging" },
@@ -18,7 +18,7 @@
     { "name": "queue-rules-engine", "url": "/admin/queues/list/rules-engine" },
     { "name": "rules-config", "url": "/admin/rules" },
     { "name": "rules-outcomes", "url": "/admin/rules/outcomes" },
-    { "name": "rules-outcome-branches", "url": "/admin/rules/outcomes", "clickFirst": "main a[href^='/admin/rules/outcomes/']" },
+    { "name": "rules-outcome-branches", "url": "/admin/rules/outcomes/Inclusion" },
     { "name": "rules-lookups", "url": "/admin/rules/lookups" },
     { "name": "rules-history", "url": "/admin/rules/history/rules" },
     { "name": "system-settings", "url": "/admin/settings" },
@@ -32,7 +32,7 @@
     { "name": "window-requests", "url": "/admin/windows/F34D285B-8660-4D12-9C30-787328DEAA0A/requests" },
     { "name": "egress-start", "url": "/admin/egress" },
     { "name": "egress-runs", "url": "/admin/egress/runs" },
-    { "name": "audit-log", "url": "/admin/audit-log" },
+    { "name": "audit-log", "url": "/admin/audit-log?activity=EgressRun" },
     { "name": "storage-browser", "url": "/admin/storage" },
     { "name": "reset-seed-data", "url": "/admin/danger-zone/reset-seed-data" }
   ]

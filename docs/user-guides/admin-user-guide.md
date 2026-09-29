@@ -283,7 +283,7 @@ Importing has 2 steps. The first step changes nothing.
     - **Default for new items**: **Include** adds them. **Skip** leaves them out.
     - **Default for items already in this environment**: **Skip** keeps what is there. **Overwrite** replaces it. **Fail** stops the import.
     - Each item also has its own choice, with **Use default** as the starting point. Use it to override the default for one item.
-5. Select **Confirm import**. To leave without importing, select **Cancel**.
+5. Select **Confirm import**. To leave without importing, select **Cancel**. When the import finishes, the service shows a summary such as *Import complete. Pages: 1 added, 11 updated, 0 skipped. Content blocks: 0 added, 0 updated, 0 skipped.*
 
 Some items cannot be imported. The service lists them under *These items cannot be imported*. This happens when an item's parent page is not in this environment or in the file. The service skips these items, and does not create a blank parent for them.
 
@@ -828,7 +828,7 @@ The buttons are **Proceed to preprocessing**, **Save and exit** and **Abandon ru
 
 If the transfer fails, the service removes any file it had already written. The run shows as failed. You can try the transfer again from the *Confirm transfer to LDS* screen.
 
-Every screen from *Preprocessing data* onwards has **Save and exit** and **Abandon run**. **Save and exit** only leaves the page. You do not need to save, because the service saved the run when the pull finished. Select **Resume** on the *Data egress* screen to go back to where you were.
+The *Data pulled from Zendesk*, *Preprocessing data* and *Confirm transfer to LDS* screens all have **Save and exit** and **Abandon run**. **Save and exit** only leaves the page. You do not need to save, because the service saved the run when the pull finished. Select **Resume** on the *Data egress* screen to go back to where you were.
 
 > **Warning** **Abandon run** does not ask you to confirm. It ends the run straight away. If the run was in the middle of a transfer, the service also removes any files it had already written to LDS storage. The run can never be resumed. You need to start a new one.
 

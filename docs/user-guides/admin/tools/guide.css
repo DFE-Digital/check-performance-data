@@ -13,8 +13,8 @@ table { border-collapse: collapse; width: 100%; margin: 8pt 0 14pt; font-size: 1
 th, td { text-align: left; vertical-align: top; padding: 5pt 8pt; border-bottom: 1px solid #b1b4b6; }
 th { border-bottom: 2px solid #0b0c0c; }
 tr { page-break-inside: avoid; break-inside: avoid; }
-img { max-width: 100%; height: auto; border: 1px solid #b1b4b6; margin: 6pt 0 4pt; page-break-inside: avoid; break-inside: avoid; }
-img + em, p > em:only-child { display: block; font-size: 9.5pt; color: #505a5f; margin-bottom: 12pt; }
+img { display: block; max-width: 100%; max-height: 235mm; width: auto; height: auto; border: 1px solid #b1b4b6; margin: 6pt 0 4pt; page-break-inside: avoid; break-inside: avoid; }
+img + em { display: block; font-size: 9.5pt; color: #505a5f; margin-bottom: 12pt; }
 blockquote { margin: 10pt 0; padding: 6pt 12pt; border-left: 6pt solid #1d70b8; background: #f3f2f1; }
 blockquote.warning, blockquote:has(> p > strong:first-child) { border-left-color: #d4351c; }
 code { font-family: Consolas, "Courier New", monospace; font-size: 9.5pt; background: #f3f2f1; padding: 0 3pt; }

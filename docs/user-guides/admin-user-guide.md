@@ -329,3 +329,290 @@ Each list has a link to a full screen, such as **View all top queries** and **Vi
 A session screen shows every search one visitor made, with the time, query, scope, number of results and how long each search took. The session screen also lets you delete that visitor's data.
 
 > **Warning** Select **Delete this session's data** to permanently delete every search event and support message from that session. The service asks you to confirm with *Delete this session's data?* This cannot be undone. The deletion is recorded in the audit log.
+
+
+## 5. System administration
+
+This group holds the tools that keep the service running: the rules engine, system settings, logs and role settings.
+
+### Rules Engine: what it does
+
+When a school submits a change request, the rules engine decides what should happen to it. It gives each request one of 3 outcomes:
+
+- **Auto-approved**: the request clearly meets the conditions to be accepted.
+- **Auto-rejected**: the request clearly does not qualify.
+- **Scrutiny**: the request goes to a caseworker for a decision.
+
+The engine takes routine, clear-cut requests off caseworkers' desks. If it has any doubt, it chooses Scrutiny. A missing answer, an unreadable value, a reason it does not recognise or an unexpected error all lead to Scrutiny. The engine never approves or rejects a request when it is unsure.
+
+After the engine decides, the service creates a Zendesk ticket for the request. The Department controls the rules the engine follows. You can view and change them in *Rules Engine configuration*, later in this chapter.
+
+### Pipeline dashboard
+
+Use the *Pipeline dashboard* to see whether requests are moving through the service, and how quickly.
+
+![The Pipeline dashboard, showing a health strip, three summary figures, a live board of the pipeline stages and charts](admin/images/pipeline-dashboard.png)
+*The Pipeline dashboard, after 5 test requests had gone through the rules engine.*
+
+The screen shows:
+
+- **A health strip** with 3 indicators: *Overall*, *Rules engine queue* and *Zendesk queue*. Each says whether messages are flowing, or whether a queue is backing up or stalled. The thresholds for amber and red are system settings (see Appendix C).
+- **A status sentence**, such as *All systems healthy*, with how many requests have been processed today and how long a typical request takes to reach Zendesk.
+- **3 figures**: Processed today, Average end-to-end and Current depths (all queues).
+- **The live board**, a picture of the pipeline. Requests move from Submit to Rules-queue, to Rules engine, to Zendesk-queue and to Zendesk ticket. Below them are the 3 outcomes and the dead-letter queue. Select **Pause** to freeze the moving requests while you read the board. Select **Resume** to start them again.
+- **Pipeline state** and **Recent transitions**: how many messages are waiting at each stage, and the latest steps taken by recent requests.
+- **Charts**: Throughput, Decision mix, Decision mix over time and Time at each stage. Choose a **Time range** (Last hour, Last 6 hours, Last 24 hours or Last 7 days) and a **Granularity**, then select **Update charts**. Each chart has a link to view its data as a table.
+
+Select **Export this view (CSV)** to download the figures. Select **Print or save as PDF** to print the page.
+
+Outside production, a **Demo** panel is also available. It lets testers send test requests through the pipeline. It does not appear in production.
+
+#### Transactions
+
+*Transactions* lists every message recorded passing through the queues, newest first.
+
+![The Transactions screen, listing pipeline steps with time, reference, stage, queue, decision and latency](admin/images/pipeline-transactions.png)
+*The Transactions screen.*
+
+To find a request:
+
+1. Enter the start of its reference in **Search by reference**. The search matches the start of the reference and ignores capital letters.
+2. If you want, enter **From (UTC)** and **To (UTC)** dates and times.
+3. Select **Search**.
+
+Each row shows the time, reference, stage, queue, decision and latency in milliseconds. Select a reference to see the journey that request took through the pipeline. The journey page shows the time of each stage and how long the request waited at it.
+
+#### Replay
+
+*Replay* lets you watch recent submissions move through the pipeline stages one step at a time. Use it to see how a request travelled, or to explain the process to someone.
+
+1. Optionally, enter **From (UTC)** and **To (UTC)** and select **Filter**. Select **Reset to recent** to go back to the latest submissions.
+2. Tick one or more submissions. Select **Select all on this page** to tick them all.
+3. Select **Play selected**.
+
+Replay only shows what the service has already recorded. It does not send anything again.
+
+#### Share links and the wallboard
+
+Share links let you show the pipeline to someone without them signing in. *Share links* has no entry in the menu. Open it by adding `/admin/share` to the address of the service. You need the *share-admin* section for your role (see Appendix B).
+
+1. Enter a **Label** so you can recognise the link later.
+2. Choose the **Surface**: *Share link* for a read-only overview of the pipeline, or *Wallboard* for a display for a wall screen.
+3. Select **Generate link**.
+4. Copy the link straight away. The service says *Copy this link now — it is shown once and cannot be retrieved again.*
+
+The link shows totals only. It contains no pupil information. Anyone who has the link can open it without signing in. The *Issued links* list shows each link's label, surface, when it was created and whether it is live.
+
+> **Warning** Select **Revoke** to switch a link off. The service does not ask you to confirm. Anyone who then uses the link sees a *Page not found* screen. You cannot switch a revoked link back on. Generate a new one instead.
+
+### Queues
+
+Use *Queues* to see how many messages are waiting to be processed.
+
+![The Queues screen, showing the rules engine queue, the Zendesk queue and the dead-letter queue](admin/images/queues.png)
+*The Queues screen.*
+
+The screen has a section for each queue: *Rules engine queue*, *Zendesk queue* and *Dead-letter queue*. For the first two it shows the number of messages waiting, the age of the oldest message and the 5 oldest messages. The figures are taken when the page loads. Select **Refresh** to update them.
+
+Select **View all messages** to open the full list for a queue. The list shows the messages waiting, oldest first.
+
+![The Rules engine queue screen, showing that no messages are waiting](admin/images/queue-rules-engine.png)
+*The Rules engine queue screen when no messages are waiting.*
+
+Select a message to inspect it. The screen hides pupil identifiers. For the dead-letter queue, select **View dead-letter queue**. Chapter 6 explains it.
+
+### Rules Engine configuration
+
+Use *Rules Engine configuration* to view and change the decision rules the engine follows, and the country language list it uses.
+
+![The Rules engine configuration screen, showing the Decision rules and Country languages cards](admin/images/rules-config.png)
+*The Rules engine configuration screen.*
+
+The screen has 2 cards:
+
+- **Decision rules** shows the rules version, the number of outcomes, and when and by whom they were last saved. Select **View outcomes** to change the rules. Select **Version history** to see earlier versions.
+- **Country languages** shows the number of countries in the list. Select **View languages** to change the list.
+
+Changes you publish here become the live rules. The rules engine picks them up about every 5 minutes.
+
+An **Upload** link appears on a card only while that configuration is empty. It lets you publish a first version from a file. Once a configuration holds data, you change it on the screens described below.
+
+#### Decision outcomes and branches
+
+An outcome is a reason a school gives for a change, such as *Deceased* or *Not on roll*. Each outcome has one or more branches. A branch is a rule with a decision.
+
+![The Decision outcomes screen, listing each outcome with its key and number of branches](admin/images/rules-outcomes.png)
+*The Decision outcomes screen.*
+
+Select an outcome to see its branches.
+
+![The Inclusion outcome, showing three branches with their decisions and conditions](admin/images/rules-outcome-branches.png)
+*An outcome with 3 branches. The engine checks branches from top to bottom.*
+
+The engine checks the branches from top to bottom. The first branch whose condition is true decides the outcome. The last branch, *Otherwise*, always matches and always sends the request to Scrutiny.
+
+To add an outcome:
+
+1. Select **Add outcome**.
+2. Enter an **Outcome key**. Use letters and numbers only, and start with a letter. The key is used in the rules and on tickets.
+3. Optionally, enter a **Label**. This is the name shown in admin. It defaults to the key.
+4. Select **Create outcome**.
+
+The service adds a catch-all Scrutiny branch for you. The request form does not use a new outcome until the development team connects its key to the form. Until then, the outcome exists in the rules, but no request can use it.
+
+To add a branch to an outcome:
+
+1. Open the outcome, then select **Add branch**.
+2. Choose the **Decision**: AutoApproved, AutoRejected or Scrutiny.
+3. Build the **Condition**. Under **Match**, choose how conditions combine: *All of these*, *Any of these* or *Not (one condition)*. Select **Add condition** to add a test. Select **Add group** to nest a group of conditions.
+4. Select **Save branch**.
+
+To change a branch, select its edit icon. To reorder branches, use the up and down icons. To remove a branch, select its remove icon. The service then asks *Remove branch?* Select **Remove branch** to confirm. It records a new version, and you can roll it back.
+
+#### Deleting an outcome
+
+1. Open the outcome, then select **Delete this outcome**.
+2. Type the outcome key in the box to confirm.
+3. Select **Delete outcome**.
+
+> **Warning** Deleting an outcome removes it and all its branches from the rules. The service records a new version, so you can roll the change back from the version history. You cannot delete an outcome while the request form still routes to it. The outcome screen tells you when that is the case.
+
+#### Country languages
+
+*Country languages* maps each country to its official languages. One of the rule conditions uses it to check a pupil's first language.
+
+![The Country languages screen, listing countries with their code and official languages](admin/images/rules-lookups.png)
+*The top of the Country languages screen. The list continues below.*
+
+- To add a country, select **Add country**. Enter the **Country code** and one or more **Official languages**, using **Add language** for each extra one. Select **Save**.
+- To change a country, select its edit icon. Change the languages, then select **Save**.
+- To remove a country, select its remove icon.
+
+> **Warning** The remove icon removes the country straight away. The service does not ask you to confirm. To bring it back, roll back to an earlier version.
+
+#### Version history and rollback
+
+Every change to the decision rules is saved as a new version. Select **Version history** on the *Rules Engine configuration* screen to see them.
+
+![The Version history screen for the decision rules, listing two saved versions](admin/images/rules-history.png)
+*The version history for the decision rules.*
+
+Each version shows when it was saved and by whom. Select **View JSON** to see exactly what was saved. To go back to a version:
+
+1. Open the version.
+2. Select **Roll back to this version**.
+3. On the confirmation screen, read what will happen, then select **Roll back**.
+
+A rollback does not erase anything. It saves a new version with the older content, so you can roll forward again.
+
+#### If someone else changed the rules first
+
+If someone else saved a change while you were editing, the service saves nothing. It shows a message such as *The rules were changed by someone else. Nothing was saved — reload and try again.* Reload the page, check what has changed, and make your change again.
+
+### System settings
+
+Use *System settings* to change how the service behaves without a new release.
+
+![The top of the System settings screen, showing a filter box and the first settings with their values and Save buttons](admin/images/system-settings.png)
+*The top of the System settings screen. The list continues below.*
+
+The screen lists every setting with a description, its default and its current value. Enter words in **Filter settings** to find one by its name or value.
+
+To change a setting:
+
+1. Change its value. A tick box switches a setting on or off.
+2. Select **Save** beside that setting.
+
+Each setting saves on its own. To go back to the default, clear the value and select **Save**.
+
+Appendix C explains every setting in plain English.
+
+### View logs
+
+Use *View logs* to see what the service has recorded about its own activity, and to download it. This is mainly for the development team when something has gone wrong.
+
+![The top of the View logs screen, showing the filters for level, category, dates and search text](admin/images/app-logs.png)
+*The top of the View logs screen. The list of log entries continues below.*
+
+The list shows the newest entries first, 20 to a page. Each entry has a timestamp, a level, a category, a message and the request that caused it.
+
+To narrow the list, use the filters: **Level**, **Category**, **From (UTC)**, **To (UTC)** and **Search**. Search looks in the message and any error text, and ignores capital letters. Select **Apply filters**, or select **Reset** to clear them.
+
+Select **Download CSV** to download the entries that match your filters.
+
+> **Warning** Select **Clear all logs** to delete every log entry. The service asks you to confirm with *Clear all application logs?* This cannot be undone. New entries are recorded as normal afterwards.
+
+### Role settings
+
+Use *Role settings* to choose which admin sections each role can see. Chapter 1 explains roles.
+
+![The Role settings screen, showing a grid of sections down the side and roles across the top, with tick boxes](admin/images/role-settings.png)
+*The Role settings screen.*
+
+The grid has one row for each admin section and one column for each role. The section names are short codes, such as `content-pages`. Appendix B explains what each one unlocks.
+
+To change what a role can see:
+
+1. Tick the box for each section the role should have. Clear the box for each section it should not have.
+2. Select **Save role access**.
+
+The `cypmd_admin` column is fixed. Administrators always have every section.
+
+To add a role, type its name in **Register a new role**, exactly as it appears in DfE Sign-In. The role gets its own column with no boxes ticked. Tick the sections it needs, then select **Save role access**.
+
+A change takes effect straight away on the server you saved it on. On other servers it takes effect within about a minute.
+
+### Test data
+
+The *Test data* group has 2 tools for filling an environment with sample content. Use them to test or demonstrate the service.
+
+- **Seed sample CMS pages** adds a set of published sample pages under Wiki, Help, Support and Guidance. It also restores the pages used for testing. It is available in every environment except production.
+- **Seed sample search data** adds made-up search events and feedback messages, so that Search analytics has something to show. You choose how far back the data goes: the last 24 hours, week, month, quarter or year. It is available in development, review and QA environments only.
+
+> **Warning** Sample data looks like real data. Search events and feedback messages you seed appear in Search analytics and in the Search feedback inbox, and cannot be told apart from real ones. Do not seed sample data in an environment where you need to see real figures.
+
+## 6. Messages
+
+This group holds what the service sends to you: feedback from people who used the search, and requests that could not be processed.
+
+### Search feedback
+
+*Search feedback* lists messages people sent from the search results page, using the link that asks whether the results were what they expected.
+
+![The Search feedback screen, listing messages with when they were sent, the session, and a preview of the message](admin/images/messages-inbox.png)
+*The Search feedback screen.*
+
+The list shows 20 messages a page. Each row shows when the message was sent, the session it came from, an *Email* tag if the person gave an email address, whether it is *New* or *Read*, and the start of the message.
+
+- To find messages, enter words in **Filter by first-line preview** and select **Apply filter**. The filter matches anywhere in the message and ignores capital letters. Select **Reset** to clear it.
+- To sort, select **Submitted** or **Read** in the column headings.
+
+Select a message to open it. The message screen shows what the person was looking for and what they got. It also shows their last search on the site, how many results came back and what they were. Under *Message details* it shows when it was sent, the session, their email address (or that they did not want to be contacted) and the status.
+
+- Select **Mark as read** when you have dealt with the message. Opening a message does not mark it as read.
+- Select **View this session's searches** to see everything else that person searched for.
+
+The Messages badge in the header counts messages that are still *New*.
+
+### Dead Letter Queue
+
+A dead-lettered message is a request that the pipeline could not process, even after several attempts. The service moves it to the dead-letter queue so that it is not lost. Someone then decides whether to try it again or to delete it.
+
+![The Dead-letter queue screen, listing three messages with Redrive and Purge buttons on each row](admin/images/dead-letter-queue.png)
+*The Dead-letter queue screen.*
+
+Each row shows the message ID, the queue it came from, its reference, how many attempts were made, the reason it failed and when it was dead-lettered.
+
+To try a message again:
+
+1. Select **Redrive** on its row. To try several, tick them and select **Redrive selected**.
+2. Read the confirmation. The service asks *Requeue this message?* and warns that trying again may create a downstream effect, such as a support ticket.
+3. Select **Yes, requeue**.
+
+The message goes back to the queue it came from for another attempt.
+
+To open a message, select its ID. The detail screen shows the reason, the number of attempts and the payload, with a **Redrive** button. The payload hides pupil identifiers. An administrator can allow the full payload to be shown by turning on the *Dlq:FullPayloadEnabled* setting in System settings. Every time someone views a full payload, the service records it in the audit log.
+
+> **Warning** Select **Purge** to delete a message from the dead-letter queue for good. To delete several, tick them and select **Purge selected**. The service asks you to confirm with *Purge this message?* This cannot be undone. The service keeps a record in the audit log that you purged it. Do not purge a message until you know that the request it carries has been dealt with another way.
+
+The dead-letter queue also sends an email alert when it holds too many messages, and deletes old messages after a set number of days. Both are system settings (see Appendix C).

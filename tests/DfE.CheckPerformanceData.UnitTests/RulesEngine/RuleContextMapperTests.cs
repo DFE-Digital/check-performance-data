@@ -93,6 +93,38 @@ public sealed class RuleContextMapperTests
         Assert.Equal(new FieldValue.Date(new DateOnly(2025, 2, 15)), ctx.GetField(field));
     }
 
+    // AB#304117: the child-missing-education page's why-removed radio is copied verbatim into
+    // childMissingEducationGround so the seed's PMIE-OTHER-REJ branch can auto-reject "other".
+    // Plain copy of the option *value* (never the label), like removalReasonAtSchool.
+    [Theory]
+    [InlineData("not-returned-after-agreed-leave")]
+    [InlineData("no-agreed-leave-or-reason")]
+    [InlineData("other")]
+    public void Maps_WhyRemovedAnswer_ToChildMissingEducationGround(string optionValue)
+    {
+        var msg = NewMessage("Remove - child-missing-education", answers: new[]
+        {
+            Answer("why-removed", optionValue)
+        });
+
+        var ctx = _sut.Map(msg);
+
+        Assert.Equal(new FieldValue.Str(optionValue), ctx.GetField("childMissingEducationGround"));
+    }
+
+    [Fact]
+    public void ChildMissingEducationGround_IsUnknown_WhenWhyRemovedIsNotAnswered()
+    {
+        var msg = NewMessage("Remove - child-missing-education", answers: new[]
+        {
+            Answer("date-removed-from-roll", "2025-02-15")
+        });
+
+        var ctx = _sut.Map(msg);
+
+        Assert.Equal(FieldValue.Unknown.Instance, ctx.GetField("childMissingEducationGround"));
+    }
+
     [Fact]
     public void Maps_CountryAnswer_ToCountryOfOrigin()
     {

@@ -81,13 +81,15 @@ public static class AnswerFieldMap
                 ("hadRecentPoliceInvolvement",   "police-involvement"),
                 ("hasBeenDetainedInPrison",      "detained-in-prison"),
             ],
+            // #513: the journey asks 3 categories, the rules keep 5 fields. A category that
+            // covers two fields sets both, so saved rules need no change.
             ["life-limiting-illness-health-issue"] =
             [
-                ("hasTerminalIllness",             "life-limiting"),
-                ("hasCriticalIllness12mPlus",      "twelve-months-critically-ill"),
-                ("hasRecentLifeChangingDiagnosis", "life-changing-illness"),
-                ("hasRecentLifeChangingInjury",    "life-changing-injury"),
-                ("underInvestigation12mPlus",      "investigated"),
+                ("hasTerminalIllness",             "terminal-illness"),
+                ("hasRecentLifeChangingDiagnosis", "recent-life-changing-illness-or-injury"),
+                ("hasRecentLifeChangingInjury",    "recent-life-changing-illness-or-injury"),
+                ("hasCriticalIllness12mPlus",      "critical-illness-12-months"),
+                ("underInvestigation12mPlus",      "critical-illness-12-months"),
             ],
         };
 

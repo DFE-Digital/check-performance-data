@@ -209,7 +209,7 @@ type id `11` — see [conditional visibility](#notes)).
 
 | Question | Type | Notes |
 |---|---|---|
-| `life-limiting-illness-health-issue` | Radio | Life-limiting diagnosis / critically ill ≥12 months / life-changing illness / life-changing injury / investigated for serious injury ≥12 months. |
+| `life-limiting-illness-health-issue` | Radio | Terminal illness diagnosis, including some life-limiting conditions / Recent and life changing illness or injury / Critical illness, injury or condition, diagnosed or under investigation for 12 months or more (#513). `contentKey`: each category has its own evidence requirements block on the next page. |
 | `sat-exams` | Radio | Has the pupil sat any exams as a year 11 pupil? (Yes / No) |
 
 ---

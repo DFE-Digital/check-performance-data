@@ -165,7 +165,9 @@ public sealed class LayoutRenderTests
 		Assert.DoesNotContain(">Help</a>", view);
 
 		Assert.Contains("href=\"/guidance\"", view);
-		Assert.Contains(">Guidance</a>", view);
+		// AB#306103: the link opens in a new tab and says so; GuidanceLinksViewSourceTests pins
+		// the attributes, this fact keeps the retired /help target from creeping back.
+		Assert.Contains(">Guidance (opens in new tab)</a>", view);
 	}
 
 	[Fact]

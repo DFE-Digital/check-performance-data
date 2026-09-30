@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Views;
 
@@ -26,10 +27,16 @@ public sealed class GuidanceLinksViewSourceTests
         {
             var href = view.IndexOf("href=\"/guidance\"", from, StringComparison.Ordinal);
             if (href < 0) break;
-            var start = view.LastIndexOf("<a ", href, StringComparison.Ordinal);
+            var starts = Regex.Matches(view[..href], @"<a\s");
+            var start = starts.Count == 0 ? -1 : starts[^1].Index;
             var end = view.IndexOf("</a>", href, StringComparison.Ordinal);
             Assert.True(start >= 0 && end > href, "a /guidance anchor is not delimited by <a … </a>");
-            anchors.Add(view[start..(end + "</a>".Length)]);
+            // The footer anchors are written over three lines in the GOV.UK style, so whitespace
+            // inside the tag and around the text is collapsed before asserting.
+            var anchor = Regex.Replace(view[start..(end + "</a>".Length)], @"\s+", " ")
+                .Replace("> ", ">", StringComparison.Ordinal)
+                .Replace(" </a>", "</a>", StringComparison.Ordinal);
+            anchors.Add(anchor);
             from = end;
         }
         return anchors;

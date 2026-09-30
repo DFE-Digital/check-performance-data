@@ -144,6 +144,8 @@ The id list is built conditionally on what the view actually emits, per the rule
 
 `rel` is `noopener` alone, not the `noreferrer noopener` the GOV.UK guidance shows. `noopener` is what closes the `window.opener` hole; `noreferrer` would also strip the Referer header, which DfE Analytics records on every page view (`RequestReferer`) and which `RefererPagePath` reads for the feedback link's `page_path`. On a same-origin target there is nothing for the Referer to leak to, so it stays. Use `noreferrer` only for a link to another site whose owner should not see where the click came from.
 
+Two older link sets do not yet follow this rule and are follow-up candidates: `Views/Journey/DuplicateCheck.cshtml` and `Common/DuplicateRequestMessages.cs` put `rel="noreferrer noopener"` on the same-origin "View submitted request" link, and the four Get Information About Schools links in `Data/QuestionFlows/Remove_KS4June.json` carry `target="_blank"` with no `rel` and say "(opens in new window)".
+
 ## Testing
 
 The reusable pieces are unit tested — `PageTitleTests`, `PaginationWindowTests`, `QuestionPartialModelDescribedByTests`. Anything new that encodes an accessibility rule in C# should get the same treatment rather than being verified by eye alone.

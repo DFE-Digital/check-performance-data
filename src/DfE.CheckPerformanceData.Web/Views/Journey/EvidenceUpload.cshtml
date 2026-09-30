@@ -24,21 +24,15 @@
     </div>
 }
 
-<details class="govuk-details">
-    <summary class="govuk-details__summary">
-        <span class="govuk-details__summary-text">
-            @(Model.Page.DetailsSummary ?? "What evidence do I need?")
-        </span>
-    </summary>
-    <div class="govuk-details__text">
-        @await Component.InvokeAsync("EditableContent", new {
-            key = Model.ContentKey+"-evidence",
-            defaultHtml = Model.Page.Content ?? @"<p class=""govuk-body"">
-                    PLACEHOLDER EVIDENCE REQUIREMENTS COPY
-                    </p>"
-        })
-    </div>
-</details>
+@* #514: the evidence requirements show by default. They were behind a details component,
+   so a school could submit without ever opening it. Do not put them back in one. *@
+<h2 class="govuk-heading-m">@(Model.Page.DetailsSummary ?? "What evidence do I need?")</h2>
+@await Component.InvokeAsync("EditableContent", new {
+    key = Model.ContentKey+"-evidence",
+    defaultHtml = Model.Page.Content ?? @"<p class=""govuk-body"">
+            PLACEHOLDER EVIDENCE REQUIREMENTS COPY
+            </p>"
+})
 
 @* One multipart form for the whole page so the file upload/remove buttons carry the text
    fields too — otherwise text typed before an upload/remove is lost. The upload and remove

@@ -22,8 +22,9 @@ public sealed class JourneyPage
     public string? Subheading { get; init; }
     public string? Content { get; init; }
 
-    /// <summary>Custom summary text for the evidence details component. When set, overrides the
-    /// default "What evidence do I need?" summary on the <c>EvidenceUpload</c> page.</summary>
+    /// <summary>Custom heading for the evidence requirements on the <c>EvidenceUpload</c> page.
+    /// When set, overrides the default "What evidence do I need?" heading. The requirements
+    /// always show; they are not in a details component (#514).</summary>
     public string? DetailsSummary { get; init; }
     public bool RequireAtLeastOne { get; init; }
 

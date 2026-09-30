@@ -138,6 +138,14 @@ Moving it out of `<main>` broke three CSS rules that keyed off its old position 
 
 The id list is built conditionally on what the view actually emits, per the rule below — an option with no `SubLabel` gets no `aria-describedby` at all rather than a dangling one. `_Radio` also carries `data-module="govuk-radios"`, which is what GOV.UK Frontend's radios JS binds to.
 
+## Links that open a new tab
+
+**A link that opens a new tab says "(opens in new tab)" in its visible link text and carries `target="_blank" rel="noopener"`.** The words are visible, not in a `govuk-visually-hidden` span, so sighted users get the same warning as screen-reader users (GOV.UK Design System links guidance; WCAG 3.2.5). Two link sets follow it: the phase banner's feedback link (AB#301012) and the three links to the guidance — service navigation, footer and the home page card (AB#306103), pinned together by `GuidanceLinksViewSourceTests`.
+
+`rel` is `noopener` alone, not the `noreferrer noopener` the GOV.UK guidance shows. `noopener` is what closes the `window.opener` hole; `noreferrer` would also strip the Referer header, which DfE Analytics records on every page view (`RequestReferer`) and which `RefererPagePath` reads for the feedback link's `page_path`. On a same-origin target there is nothing for the Referer to leak to, so it stays. Use `noreferrer` only for a link to another site whose owner should not see where the click came from.
+
+Two older link sets do not yet follow this rule and are follow-up candidates: `Views/Journey/DuplicateCheck.cshtml` and `Common/DuplicateRequestMessages.cs` put `rel="noreferrer noopener"` on the same-origin "View submitted request" link, and the four Get Information About Schools links in `Data/QuestionFlows/Remove_KS4June.json` carry `target="_blank"` with no `rel` and say "(opens in new window)".
+
 ## Testing
 
 The reusable pieces are unit tested — `PageTitleTests`, `PaginationWindowTests`, `QuestionPartialModelDescribedByTests`. Anything new that encodes an accessibility rule in C# should get the same treatment rather than being verified by eye alone.

@@ -111,7 +111,10 @@
                             var navLearnerNoun = Context.Session.GetSelectedWindowLearnerNoun();
                         }
                         <li class="govuk-service-navigation__item">
-                            <a class="govuk-service-navigation__link" href="/guidance">Guidance</a>
+                            @* AB#306103: the guidance opens beside the service, not in place of it.
+                               rel="noopener" only — "noreferrer" would blank the Referer that
+                               DfE Analytics records on the guidance page view. *@
+                            <a class="govuk-service-navigation__link" href="/guidance" target="_blank" rel="noopener">Guidance (opens in new tab)</a>
                         </li>
                         @if (User.Identity is { IsAuthenticated: true } && selectedWindowId is not null)
                         {
@@ -248,8 +251,8 @@
                             </a>
                         </li>
                         <li class="govuk-footer__inline-list-item">
-                            <a class="govuk-footer__link" href="/guidance">
-                                Guidance
+                            <a class="govuk-footer__link" href="/guidance" target="_blank" rel="noopener">
+                                Guidance (opens in new tab)
                             </a>
                         </li>
                     </ul>

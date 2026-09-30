@@ -81,7 +81,7 @@ public sealed class DevImpersonationControllerTests
 	{
 		var sut = CreateSut("Development", referrer: "/help/some-page");
 
-		var result = sut.User();
+		var result = sut.AsUser();
 
 		var redirect = Assert.IsType<RedirectResult>(result);
 		Assert.Equal("/help/some-page", redirect.Url);
@@ -175,7 +175,7 @@ public sealed class DevImpersonationControllerTests
 	{
 		var sut = CreateSut(Environments.Production);
 
-		var result = sut.User();
+		var result = sut.AsUser();
 
 		Assert.IsType<NotFoundResult>(result);
 		Assert.Null(GetSetCookieHeader(sut));

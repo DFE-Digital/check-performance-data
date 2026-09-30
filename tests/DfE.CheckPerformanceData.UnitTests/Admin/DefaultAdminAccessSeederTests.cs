@@ -140,4 +140,26 @@ public sealed class DefaultAdminAccessSeederTests
         Assert.DoesNotContain("uncommitted-requests", DefaultAdminAccessSeeder.AllSections);
         Assert.DoesNotContain("amendment-requests-admin", DefaultAdminAccessSeeder.AllSections);
     }
+
+    [Fact]
+    public void AllSections_ContainsSiteAssets()
+    {
+        Assert.Equal("site-assets", AdminNavKeys.SiteAssets);
+        Assert.Contains(AdminNavKeys.SiteAssets, DefaultAdminAccessSeeder.AllSections);
+    }
+
+    // Script and stylesheet control over every public page is an administrator's call; editors
+    // are not granted it by default.
+    [Fact]
+    public async Task SeedIfEmpty_GivesSiteAssetsToAdminsOnly()
+    {
+        var repository = NSubstitute.Substitute.For<IAdminSectionAccessRepository>();
+        IReadOnlyList<RoleSectionAccessGrant>? seeded = null;
+        await repository.SeedAsync(NSubstitute.Arg.Do<IReadOnlyList<RoleSectionAccessGrant>>(g => seeded = g), NSubstitute.Arg.Any<string?>());
+
+        await new DefaultAdminAccessSeeder(repository).SeedIfEmptyAsync();
+
+        Assert.Contains(seeded!, g => g.RoleName == DefaultAdminAccessSeeder.AdminRole && g.SectionKey == "site-assets");
+        Assert.DoesNotContain(seeded!, g => g.RoleName == DefaultAdminAccessSeeder.EditorRole && g.SectionKey == "site-assets");
+    }
 }

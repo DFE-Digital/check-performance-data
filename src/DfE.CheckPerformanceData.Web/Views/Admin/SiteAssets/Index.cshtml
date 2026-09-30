@@ -1,0 +1,95 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.AdminSiteAssetsViewModel
+@{
+    ViewData["Title"] = "Site CSS and JavaScript";
+}
+
+<h1 class="govuk-heading-xl">Site CSS and JavaScript</h1>
+<p class="govuk-body-l">
+    Add custom CSS and JavaScript that applies to every public page of the service.
+</p>
+
+@if (TempData["SiteAssetsResult"] is string saved)
+{
+    <div class="govuk-notification-banner govuk-notification-banner--success" role="alert"
+         aria-labelledby="site-assets-banner-title" data-module="govuk-notification-banner">
+        <div class="govuk-notification-banner__header">
+            <h2 class="govuk-notification-banner__title" id="site-assets-banner-title">Success</h2>
+        </div>
+        <div class="govuk-notification-banner__content">
+            <p class="govuk-notification-banner__heading">@saved</p>
+        </div>
+    </div>
+}
+
+@if (Model.Error is not null)
+{
+    <div class="govuk-error-summary" data-module="govuk-error-summary">
+        <div role="alert">
+            <h2 class="govuk-error-summary__title">There is a problem</h2>
+            <div class="govuk-error-summary__body">
+                <p class="govuk-body">@Model.Error</p>
+            </div>
+        </div>
+    </div>
+}
+
+<div class="govuk-warning-text">
+    <span class="govuk-warning-text__icon" aria-hidden="true">!</span>
+    <strong class="govuk-warning-text__text">
+        <span class="govuk-visually-hidden">Warning</span>
+        JavaScript added here runs on every public page for every visitor. Changes take effect within about 30 seconds.
+    </strong>
+</div>
+
+<div class="govuk-inset-text">
+    The admin area never loads this CSS or JavaScript, so a faulty script cannot stop you reaching this page.
+    To look at a public page without it, add <code>?siteAssets=off</code> to the address, for example
+    <a class="govuk-link" href="/guidance?siteAssets=off">/guidance?siteAssets=off</a>.
+    To see it with the assets applied, open <a class="govuk-link" href="/guidance">/guidance</a>.
+</div>
+
+<form action="/admin/site-assets" method="post" novalidate>
+    @Html.AntiForgeryToken()
+
+    <div class="govuk-form-group">
+        <h2 class="govuk-label-wrapper">
+            <label class="govuk-label govuk-label--m" for="css">Custom CSS</label>
+        </h2>
+        <div id="css-hint" class="govuk-hint">
+            Served as a stylesheet after the service styles, so these rules can override them. Up to @Model.MaxLength.ToString("N0") characters.
+        </div>
+        <textarea class="govuk-textarea admin-code-textarea" id="css" name="Css" rows="14"
+                  spellcheck="false" autocomplete="off" aria-describedby="css-hint">@Model.Css</textarea>
+    </div>
+    <div class="govuk-form-group">
+        <div class="govuk-checkboxes govuk-checkboxes--small" data-module="govuk-checkboxes">
+            <div class="govuk-checkboxes__item">
+                <input class="govuk-checkboxes__input" id="css-enabled" name="CssEnabled" type="checkbox" value="true" @(Model.CssEnabled ? "checked" : "") />
+                <label class="govuk-label govuk-checkboxes__label" for="css-enabled">Apply the custom CSS to the public site</label>
+            </div>
+        </div>
+    </div>
+
+    <div class="govuk-form-group">
+        <h2 class="govuk-label-wrapper">
+            <label class="govuk-label govuk-label--m" for="js">Custom JavaScript</label>
+        </h2>
+        <div id="js-hint" class="govuk-hint">
+            Served as a deferred script file, so it runs once the page has loaded. Up to @Model.MaxLength.ToString("N0") characters.
+        </div>
+        <textarea class="govuk-textarea admin-code-textarea" id="js" name="Js" rows="14"
+                  spellcheck="false" autocomplete="off" aria-describedby="js-hint">@Model.Js</textarea>
+    </div>
+    <div class="govuk-form-group">
+        <div class="govuk-checkboxes govuk-checkboxes--small" data-module="govuk-checkboxes">
+            <div class="govuk-checkboxes__item">
+                <input class="govuk-checkboxes__input" id="js-enabled" name="JsEnabled" type="checkbox" value="true" @(Model.JsEnabled ? "checked" : "") />
+                <label class="govuk-label govuk-checkboxes__label" for="js-enabled">Apply the custom JavaScript to the public site</label>
+            </div>
+        </div>
+    </div>
+
+    <button type="submit" class="govuk-button" data-module="govuk-button" data-prevent-double-click="true">
+        Save
+    </button>
+</form>

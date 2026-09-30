@@ -295,7 +295,7 @@ public sealed class RuleContextMapperTests
     {
         var msg = NewMessage("Remove - life-limiting-illness", answers: new[]
         {
-            Answer("life-limiting-illness-health-issue", "life-limiting")
+            Answer("life-limiting-illness-health-issue", "terminal-illness")
         });
 
         var ctx = _sut.Map(msg);
@@ -307,6 +307,25 @@ public sealed class RuleContextMapperTests
         Assert.Equal(new FieldValue.Bool(false), ctx.GetField("underInvestigation12mPlus"));
         // No journey question collects this — stays Unknown so rules defer to Scrutiny.
         Assert.IsType<FieldValue.Unknown>(ctx.GetField("illnessHasSevereProfoundEffect"));
+    }
+
+    [Theory]
+    [InlineData("recent-life-changing-illness-or-injury", "hasRecentLifeChangingDiagnosis", "hasRecentLifeChangingInjury")]
+    [InlineData("critical-illness-12-months", "hasCriticalIllness12mPlus", "underInvestigation12mPlus")]
+    public void LifeLimitingIllnessHealthIssue_MergedCategory_SetsBothOfItsFields(
+        string category, string firstField, string secondField)
+    {
+        // #513: 3 journey categories cover the 5 rule fields.
+        var msg = NewMessage("Remove - life-limiting-illness", answers: new[]
+        {
+            Answer("life-limiting-illness-health-issue", category)
+        });
+
+        var ctx = _sut.Map(msg);
+
+        Assert.Equal(new FieldValue.Bool(true),  ctx.GetField(firstField));
+        Assert.Equal(new FieldValue.Bool(true),  ctx.GetField(secondField));
+        Assert.Equal(new FieldValue.Bool(false), ctx.GetField("hasTerminalIllness"));
     }
 
     [Fact]

@@ -10,4 +10,12 @@ public static class DevImpersonationConstants
     public const string EditorValue = "editor";
     public const string UserValue = "user";
     public const string AdminValue = "admin";
+
+    /// <summary>
+    /// Same privilege as <see cref="EditorValue"/> but a GIAS establishment type of "11"
+    /// (independent school). Exists so the two independent-related journey conditions — which
+    /// gate removal reasons in opposite polarities — can be driven in a browser; every other
+    /// value is a type "1" school. Dev-only, like the whole scheme.
+    /// </summary>
+    public const string IndependentUserValue = "independent";
 }

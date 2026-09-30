@@ -61,8 +61,41 @@ public sealed class QuestionFlowValidatorAlignmentTests
         foreach (var (file, name, questionId) in referenced)
         {
             Assert.True(implementedNames.Contains(name),
-                $"{file}: question '{questionId}' references journey condition '{name}', but no " +
-                $"IJourneyCondition implements it — the condition silently fails closed.");
+$"{file}: question '{questionId}' references journey condition '{name}', but no " +
+                $"IJourneyCondition implements it - the condition silently fails closed.");
+        }
+    }
+
+    /// <summary>
+    /// The guard above only proves a condition TYPE exists - it scans the assembly. It cannot tell
+    /// the difference between "the condition was written" and "the running app has it", because
+    /// <see cref="OptionVisibilityService"/> and <see cref="QuestionOptionalityService"/> resolve
+    /// conditions from the container.
+    ///
+    /// So a condition class added without its DependencyManager line leaves every other test green
+    /// while the app sees an unregistered name and fails CLOSED: the gated option silently
+    /// disappears for every school, and the gated mandatory rule silently stays on. That is a
+    /// worse outcome than the bug the condition was written to fix, and nothing else in the suite
+    /// observes it.
+    /// </summary>
+    [Fact]
+    public void EveryImplementedCondition_IsRegisteredInTheContainer()
+    {
+        var services = new ServiceCollection();
+        services.AddApplicationDependencies();
+
+        using var provider = services.BuildServiceProvider();
+
+        var registered = provider.GetServices<IJourneyCondition>()
+            .Select(c => c.Name)
+            .ToHashSet(StringComparer.Ordinal);
+
+        foreach (var name in ImplementedConditionNames())
+        {
+            Assert.True(registered.Contains(name),
+                $"IJourneyCondition '{name}' exists in the assembly but is not registered in " +
+                "DependencyManager - the app resolves no condition for the name, so anything " +
+"gated on it fails closed.");
         }
     }
 

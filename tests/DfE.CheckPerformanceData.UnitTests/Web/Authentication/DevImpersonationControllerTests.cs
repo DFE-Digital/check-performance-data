@@ -91,6 +91,45 @@ public sealed class DevImpersonationControllerTests
 		Assert.Contains($"{DevImpersonationConstants.CookieName}={DevImpersonationConstants.UserValue}", setCookie);
 	}
 
+	// --- Independent sets the cookie to "independent" and redirects ---
+
+	[Fact]
+	public void Independent_SetsCookieToIndependent_AndRedirectsToReferrer()
+	{
+		var sut = CreateSut("Development", referrer: "/help");
+
+		var result = sut.Independent();
+
+		var redirect = Assert.IsType<RedirectResult>(result);
+		Assert.Equal("/help", redirect.Url);
+
+		var setCookie = GetSetCookieHeader(sut);
+		Assert.NotNull(setCookie);
+		Assert.Contains($"{DevImpersonationConstants.CookieName}={DevImpersonationConstants.IndependentUserValue}", setCookie);
+	}
+
+	// --- The independent value is gated exactly like its siblings ---
+
+	[Fact]
+	public void Independent_Returns404_InProductionEnvironment()
+	{
+		var sut = CreateSut(Environments.Production);
+
+		var result = sut.Independent();
+
+		Assert.IsType<NotFoundResult>(result);
+	}
+
+	[Fact]
+	public void Independent_Returns404_WhenDevToolsDisabled()
+	{
+		var sut = CreateSut("Development", devToolsEnabled: false);
+
+		var result = sut.Independent();
+
+		Assert.IsType<NotFoundResult>(result);
+	}
+
 	// --- Falls back to "/" when no Referer header is present ---
 
 	[Fact]

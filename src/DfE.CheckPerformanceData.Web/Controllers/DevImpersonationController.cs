@@ -52,6 +52,19 @@ public sealed class DevImpersonationController(IConfiguration configuration, IHo
         return RedirectToReferrer();
     }
 
+    // Same editor role as /editor, but a GIAS establishment type of "11" (independent school).
+    // Journey conditions read organisation_type_id through CurrentUserService, and the two
+    // independent-related removal reasons are gated on it in opposite polarities — so without
+    // this, neither can be exercised in a browser. Dev-only, gated exactly like its siblings.
+    [HttpGet("dev/impersonate/independent")]
+    [HttpPost("dev/impersonate/independent")]
+    public IActionResult Independent()
+    {
+        if (!IsAllowed) return NotFound();
+        SetCookie(DevImpersonationConstants.IndependentUserValue);
+        return RedirectToReferrer();
+    }
+
     // Fully clears the dev-impersonation cookie so there's no synthetic principal at
     // all on the next request. Distinct from /user (which keeps the synthetic
     // principal but drops the editor role) because the UI sign-out should make the

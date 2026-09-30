@@ -208,11 +208,14 @@ On each `PagePost`:
 
 ### Conditional option visibility
 
-A `Radio` option may carry `"visibleWhen": "<ConditionName>"`. The option is rendered only when a registered `IJourneyCondition` with that `Name` evaluates `true` for the current user/journey. This lets one config show different options to different schools — e.g. the **Not on roll** removal reason appears only for independent schools.
+A `Radio` option may carry `"visibleWhen": "<ConditionName>"`, or `"visibleWhen": ["<ConditionName>", ...]` for several names with AND semantics. The option is rendered only when every named, registered `IJourneyCondition` evaluates `true` for the current user/journey. This lets one config show different options to different schools — e.g. the **Not on roll** removal reason appears only for independent schools, while **Admitted following permanent exclusion** appears only for schools that are *not* independent.
 
 - `JourneyController.BuildPageVm` assembles a `JourneyConditionContext` from the session `RequestState` plus a `JourneyUserContext` snapshot taken from `ICurrentUserService` (so the Application layer never touches `HttpContext`).
 - `IOptionVisibilityService.GetVisibleOptions(question, ctx)` filters the options in order. Options with no `visibleWhen` always show; an option naming an **unregistered** condition is hidden (fail closed). The result is exposed as `QuestionPartialModel.VisibleOptions`, which `_Radio.cshtml` iterates instead of the raw config options.
-- Conditions are pure-logic classes in `Application/Journey/Conditions/`, registered as `IJourneyCondition` in the Application `DependencyManager`. Current condition: `SchoolIsIndependentCondition` — true when the GIAS establishment type id (`organisation_type_id` claim, sourced from the DfE Sign-in `$.type.id` field) is `"11"` (Other Independent School; type 10 is deliberately excluded).
+- Conditions are pure-logic classes in `Application/Journey/Conditions/`, registered as `IJourneyCondition` in the Application `DependencyManager`. Registration is load-bearing, because these services treat an unregistered name as `false`; `QuestionFlowValidatorAlignmentTests` asserts both halves (every name a flow references has an implementation, and every implementation is registered in the container).
+  - `SchoolIsIndependentCondition` — true when the GIAS establishment type id (`organisation_type_id` claim, sourced from the DfE Sign-in `$.type.id` field) is `"11"` (Other Independent School; type 10 is deliberately excluded). Gates the **Not on roll** reason.
+  - `SchoolIsNotIndependentCondition` — the exact negation of the above, gating **Admitted following permanent exclusion** on the opposite polarity. It delegates to `SchoolIsIndependentCondition` rather than restating the `"11"` test, so the type id stays defined once and the two polarities cannot disagree.
+  - Also registered: `PupilIsAddBack`, `PupilIsNotAddBack`, `EalWouldBeAutoRejected`, `NotOnRollReasonIsOther`.
 
 ### Conditional question optionality (optionalWhen)
 

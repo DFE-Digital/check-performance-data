@@ -55,7 +55,12 @@ public static class DependencyManager
         services.AddScoped<ICountryService, CountryService>();
         services.AddScoped<IOptionVisibilityService, OptionVisibilityService>();
         services.AddScoped<IQuestionOptionalityService, QuestionOptionalityService>();
+        // Registration is load-bearing: OptionVisibilityService and QuestionOptionalityService
+        // resolve conditions from the container and treat an unregistered name as false, so a
+        // condition named in a flow's visibleWhen without a line here silently hides that option
+        // for EVERY school. Guarded by EveryImplementedCondition_IsRegisteredInTheContainer.
         services.AddScoped<IJourneyCondition, SchoolIsIndependentCondition>();
+        services.AddScoped<IJourneyCondition, SchoolIsNotIndependentCondition>();
         services.AddScoped<IJourneyCondition, PupilIsAddBackCondition>();
         services.AddScoped<IJourneyCondition, PupilIsNotAddBackCondition>();
         services.AddScoped<IJourneyCondition, EalWouldBeAutoRejectedCondition>();

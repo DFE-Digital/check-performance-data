@@ -5,7 +5,10 @@
     ViewData["Title"] = string.IsNullOrEmpty(Model.Query)
         ? "Search"
         : $"Search results for “{Model.Query}”";
-    var scopeSuffix = string.IsNullOrEmpty(Model.Scope) ? string.Empty : $" in /{Model.Scope}";
+    var scopedPages = SearchScope.Parse(Model.Scope);
+    var scopeSuffix = scopedPages.Count == 0
+        ? string.Empty
+        : " in " + string.Join(", ", scopedPages.Select(p => "/" + p));
     var formAction = "/search";
 
     // Preserves q + scope + pageSize on every pager link so the paginator survives a query

@@ -1,7 +1,21 @@
 # Base runtime stage — targeted by Visual Studio Container Tools for fast-mode
 # debugging. Keep the FROM image and EXPOSE in sync with the compose `web`
 # service (HTTP on 8080).
+#
+# Stages: CI and compose build `runtime` (see the `target:` in
+# .github/workflows/build-and-deploy.yml and docker-compose.yaml); only the
+# docker-compose.vscode.yml override builds `debug-runtime`. Keep it that way:
+# the debug stage ships a debugger and download tooling that must not reach a
+# deployed environment.
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
+# Apply Ubuntu security updates on top of the base image. Microsoft rebuilds
+# the aspnet image on its own cadence, so between rebuilds it can ship packages
+# with published fixes outstanding (e.g. libssl3t64 3.0.13-0ubuntu3.15 against
+# CVE-2026-84782), and the Snyk gate in CI then fails every build. Upgrading at
+# build time keeps the shipped image at the current noble-security level.
+RUN apt-get update \
+    && apt-get upgrade -y --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 EXPOSE 8080
 
@@ -40,8 +54,8 @@ ENV NUGET_CERT_REVOCATION_MODE=offline
 RUN dotnet publish DfE.CheckPerformanceData.Web/DfE.CheckPerformanceData.Web.csproj \
     -c Debug -o /app/publish /p:UseAppHost=false
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS debug-runtime
-WORKDIR /app
+# Derives from `base` so it carries the same OS security updates.
+FROM base AS debug-runtime
 
 # Install vsdbg — the .NET debugger used by VS Code Docker/C# Dev Kit
 RUN apt-get update && apt-get install -y --no-install-recommends unzip wget && \

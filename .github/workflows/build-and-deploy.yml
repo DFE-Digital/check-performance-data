@@ -64,6 +64,9 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           context: ./src
           dockerfile-path: ./src/DfE.CheckPerformanceData.Web/Dockerfile
+          # Without a target Docker builds the last stage, which is the VS Code
+          # debug image (vsdbg, wget, unzip). Deploy the plain runtime stage.
+          target: runtime
           docker-repository: ${{ env.DOCKER_REPOSITORY }}
           max-cache: true
           reuse-cache: true
@@ -76,6 +79,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           context: ./src
           dockerfile-path: ./src/DfE.CheckPerformanceData.RulesEngineWorker/Dockerfile
+          target: final
           docker-repository: ${{ env.WORKER_DOCKER_REPOSITORY }}
           max-cache: true
           reuse-cache: true

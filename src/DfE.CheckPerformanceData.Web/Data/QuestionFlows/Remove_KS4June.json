@@ -67,7 +67,7 @@
               "value": "not-on-roll",
               "label": "Not on roll",
               "nextPageId": "not-on-roll",
-              "visibleWhen": ["SchoolIsIndependent", "PupilIsNotAddBack"]
+              "visibleWhen": ["SchoolCanRecordNotOnRoll", "PupilIsNotAddBack"]
             },
             {
               "value": "permanently-excluded",

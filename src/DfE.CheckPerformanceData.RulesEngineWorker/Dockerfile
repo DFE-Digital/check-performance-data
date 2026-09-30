@@ -1,6 +1,9 @@
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
+# `apt-get upgrade` applies Ubuntu security updates the base image has not yet
+# been rebuilt with (see the Web Dockerfile for the CVE-2026-84782 example).
 # curl is used by the container orchestrator's exec probe to query the HTTP health surface.
 RUN apt-get update \
+    && apt-get upgrade -y --no-install-recommends \
     && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 ENV ASPNETCORE_HTTP_PORTS=8080

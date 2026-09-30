@@ -6,7 +6,7 @@ public sealed class SettingService(ISettingRepository repository) : ISettingServ
     {
         var stored = await repository.GetAllAsync();
 
-        return SettingDefinitions.All.Select(d =>
+        return SettingDefinitions.All.Where(d => !d.ManagedElsewhere).Select(d =>
         {
             var hasStored = stored.TryGetValue(d.Key, out var value) && !string.IsNullOrWhiteSpace(value);
             return new SettingViewItem(

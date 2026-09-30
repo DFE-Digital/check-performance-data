@@ -15,7 +15,8 @@ public static class JourneyConditionContextFactory
             OrganisationUrn = currentUser.OrganisationUrn,
             OrganisationId = currentUser.OrganisationId,
             OrganisationName = currentUser.OrganisationName,
-            OrganisationTypeId = currentUser.OrganisationTypeId
+            OrganisationTypeId = currentUser.OrganisationTypeId,
+            OrganisationLaestab = currentUser.OrganisationLaestab
         }
     };
 }

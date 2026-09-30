@@ -56,6 +56,9 @@ public static class DependencyManager
         services.AddScoped<IOptionVisibilityService, OptionVisibilityService>();
         services.AddScoped<IQuestionOptionalityService, QuestionOptionalityService>();
         services.AddScoped<IJourneyCondition, SchoolIsIndependentCondition>();
+        // AB#304119: needs INotOnRollCollegeListProvider, which the web host registers with the
+        // blob clients (AddCpdBlobStorage), beside the hosted service that loads the list.
+        services.AddScoped<IJourneyCondition, SchoolCanRecordNotOnRollCondition>();
         services.AddScoped<IJourneyCondition, PupilIsAddBackCondition>();
         services.AddScoped<IJourneyCondition, PupilIsNotAddBackCondition>();
         services.AddScoped<IJourneyCondition, EalWouldBeAutoRejectedCondition>();

@@ -9,6 +9,28 @@ namespace DfE.CheckPerformanceData.Web.Startup;
 
 public static class RequestPipelineExtensions
 {
+    // Sits immediately after UseSession() so it can call Session.LoadAsync(); its
+    // SetString on first access is what commits the session cookie (framework
+    // lazy-writes on first store mutation). Downstream consumers therefore see a
+    // stable Session.Id across requests. Also enforces the server-side absolute
+    // lifetime cap that Cookie.MaxAge (a browser-side hint only) cannot.
+    //
+    // The site CSS/JS endpoints are left out of it: a session on those requests makes the
+    // framework send no-store and a cookie, which would defeat the long cache on their
+    // versioned URLs. Nothing else on those requests needs a session.
+    public static IApplicationBuilder UseCpdSession(this IApplicationBuilder app) =>
+        app.UseWhen(
+            context => !IsSiteAsset(context.Request.Path),
+            branch =>
+            {
+                branch.UseSession();
+                branch.UseMiddleware<SessionAbsoluteLifetimeMiddleware>();
+            });
+
+    private static bool IsSiteAsset(PathString path) =>
+        path.Equals("/cms/site.css", StringComparison.OrdinalIgnoreCase)
+        || path.Equals("/cms/site.js", StringComparison.OrdinalIgnoreCase);
+
     // ORDER IS LOAD-BEARING throughout this method — every placement comment moved from
     // Program.cs documents a real constraint. Do not reorder without reading them.
     public static WebApplication UseCpdRequestPipeline(this WebApplication app)
@@ -42,14 +64,7 @@ public static class RequestPipelineExtensions
 
         app.UseMiddleware<SecurityHeadersMiddleware>();
 
-        app.UseSession();
-
-        // Sits immediately after UseSession() so it can call Session.LoadAsync(); its
-        // SetString on first access is what commits the session cookie (framework
-        // lazy-writes on first store mutation). Downstream consumers therefore see a
-        // stable Session.Id across requests. Also enforces the server-side absolute
-        // lifetime cap that Cookie.MaxAge (a browser-side hint only) cannot.
-        app.UseMiddleware<SessionAbsoluteLifetimeMiddleware>();
+        app.UseCpdSession();
 
         app.UseRouting();
 

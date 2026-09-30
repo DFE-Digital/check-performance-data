@@ -6,7 +6,7 @@
 @inject ISettingService SettingService
 @{
     // --- Editor-configured props ---
-    var widgetScope = (Model.GetString("scope") ?? string.Empty).Trim().Trim('/');
+    var widgetScope = SearchScope.Normalise(Model.GetString("scope")) ?? string.Empty;
     var emptyText   = Model.GetString("emptyText") ?? "No results found.";
 
     // --- URL params ---
@@ -15,7 +15,7 @@
     // shape so no page-index conversion is needed at the call site.
     var query = ViewContext.HttpContext.Request.Query;
     var q         = query.TryGetValue("q", out var qv)      ? qv.ToString().Trim() : string.Empty;
-    var urlScope  = query.TryGetValue("scope", out var sv)  ? sv.ToString().Trim().Trim('/') : string.Empty;
+    var urlScope  = query.TryGetValue("scope", out var sv)  ? SearchScope.Normalise(sv.ToString()) ?? string.Empty : string.Empty;
     var pageOneIx = query.TryGetValue("page", out var pv) && int.TryParse(pv, out var pp) && pp >= 1
         ? pp : 1;
 

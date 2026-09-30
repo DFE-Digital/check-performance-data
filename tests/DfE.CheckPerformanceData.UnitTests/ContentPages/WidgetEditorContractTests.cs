@@ -11,13 +11,6 @@ public sealed class WidgetEditorContractTests
     // ----- Results widget -----
 
     [Fact]
-    public void Results_EditorExposesScopeField()
-    {
-        // Manual step 3, 17-18.
-        Assert.Contains("props[scope]", ResultsBranch());
-    }
-
-    [Fact]
     public void Results_EditorExposesEmptyTextField()
     {
         // Manual step 3, 12.
@@ -47,13 +40,6 @@ public sealed class WidgetEditorContractTests
     }
 
     // ----- Search widget (companion) -----
-
-    [Fact]
-    public void Search_EditorExposesScopeField()
-    {
-        // Manual step 26 + 23: the previously JSON-only scope prop is now editable.
-        Assert.Contains("props[scope]", SearchBranch());
-    }
 
     [Fact]
     public void Search_EditorExposesAction_Label_Placeholder_Button()
@@ -98,6 +84,38 @@ public sealed class WidgetEditorContractTests
         var b = SearchBranch();
         Assert.Contains("props[action]", b);
         Assert.Contains("props[buttonText]", b);
+    }
+
+    // ----- Page picker (search + results scope) -----
+
+    [Fact]
+    public void Search_EditorPicksScopePagesWithACheckboxPerPage()
+    {
+        // The picker posts every ticked page under one repeated field; the controller joins them.
+        var b = SearchBranch();
+        Assert.Contains("_PageScopePicker", b);
+        Assert.DoesNotContain("name=\"props[scope]\"", b);
+    }
+
+    [Fact]
+    public void Results_EditorUsesTheSamePagePicker()
+    {
+        var b = ResultsBranch();
+        Assert.Contains("_PageScopePicker", b);
+        Assert.DoesNotContain("name=\"props[scope]\"", b);
+    }
+
+    [Fact]
+    public void PagePicker_PostsTicksAsScopePagesCheckboxes_OfTheSitePageTree()
+    {
+        var picker = File.ReadAllText(Path.Combine(
+            FindSolutionRoot(AppContext.BaseDirectory),
+            "src", "DfE.CheckPerformanceData.Web", "Views", "Shared", "ContentPages", "_PageScopePicker.cshtml"));
+
+        Assert.Contains("name=\"scopePages\"", picker);
+        Assert.Contains("type=\"checkbox\"", picker);
+        Assert.Contains("govuk-checkboxes", picker);
+        Assert.Contains("SearchScope.Parse(", picker);
     }
 
     // ----- PageNav widget -----

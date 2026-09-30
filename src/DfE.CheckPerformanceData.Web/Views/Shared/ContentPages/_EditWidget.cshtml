@@ -192,17 +192,15 @@
                                     <select class="govuk-select" id="si-@Model.Path" name="props[searchIn]"
                                             data-cpb-search-in>
                                         <option value="site" selected="@(sIn == "site" ? "selected" : null)">The whole site</option>
-                                        <option value="path" selected="@(sIn == "path" ? "selected" : null)">A section of the site</option>
+                                        <option value="path" selected="@(sIn == "path" ? "selected" : null)">Chosen pages</option>
                                         <option value="page" selected="@(sIn == "page" ? "selected" : null)">This page</option>
                                     </select>
                                 </div>
                                 @* Section-only field — shown when Search in = a section of the site. *@
-                                <div class="govuk-form-group cpb-search__path-field" data-cpb-search-pathfield @(sIn == "path" ? null : Html.Raw("hidden"))>
-                                    <label class="govuk-label" for="ss-@Model.Path">Scope path</label>
-                                    <div class="govuk-hint">
-                                        Restrict results to this path and everything under it (e.g. <code>help</code>).
-                                    </div>
-                                    <input class="govuk-input" id="ss-@Model.Path" name="props[scope]" value="@w.GetString("scope")" />
+                                <div class="cpb-search__path-field" data-cpb-search-pathfield @(sIn == "path" ? null : Html.Raw("hidden"))>
+                                    @await Html.PartialAsync("ContentPages/_PageScopePicker", new PageScopePickerField(
+                                        $"ss-{Model.Path}", w.GetString("scope"), "Pages to search",
+                                        "Tick the pages to limit the search to. Each ticked page includes every page beneath it, so tick several to search a group of sections together."))
                                 </div>
                                 <div class="govuk-form-group">
                                     <div class="govuk-checkboxes__item">
@@ -248,14 +246,9 @@
                             break;
 
                         case "results":
-                            <div class="govuk-form-group">
-                                <label class="govuk-label" for="rs-@Model.Path">Scope path (optional)</label>
-                                <div class="govuk-hint">
-                                    Restrict results to descendants of this path (e.g. <code>help</code>).
-                                    Overridden by <code>?scope=</code> on the URL if present.
-                                </div>
-                                <input class="govuk-input" id="rs-@Model.Path" name="props[scope]" value="@w.GetString("scope")" />
-                            </div>
+                            @await Html.PartialAsync("ContentPages/_PageScopePicker", new PageScopePickerField(
+                                $"rs-{Model.Path}", w.GetString("scope"), "Pages to show results from (optional)",
+                                "Tick the pages to limit results to, each including every page beneath it. Leave all unticked to show results from the whole site. Overridden by ?scope= on the URL if present."))
                             <div class="govuk-form-group">
                                 <label class="govuk-label" for="re-@Model.Path">Empty-state text</label>
                                 <input class="govuk-input" id="re-@Model.Path" name="props[emptyText]" value="@w.GetString("emptyText")" />

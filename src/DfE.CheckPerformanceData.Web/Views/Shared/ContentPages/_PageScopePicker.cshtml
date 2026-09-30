@@ -1,0 +1,44 @@
+@using DfE.CheckPerformanceData.Application.Search
+@using DfE.CheckPerformanceData.Web.Models.Guidance
+@model PageScopePickerField
+@{
+    var options = (ViewData[PageScopePickerModel.ViewDataKey] as PageScopePickerModel ?? PageScopePickerModel.Empty).Options;
+    var selected = SearchScope.Parse(Model.Scope);
+    // A path already saved on the widget that no longer matches a page stays visible and ticked,
+    // so saving the form can't silently drop it and the editor can see it is stale.
+    var stale = selected
+        .Where(s => !options.Any(o => string.Equals(o.Path, s, StringComparison.OrdinalIgnoreCase)))
+        .ToList();
+    var i = 0;
+}
+<div class="govuk-form-group">
+    <fieldset class="govuk-fieldset" aria-describedby="@Model.IdPrefix-hint">
+        <legend class="govuk-fieldset__legend">@Model.Legend</legend>
+        <div id="@Model.IdPrefix-hint" class="govuk-hint">@Model.Hint</div>
+        <div class="govuk-checkboxes govuk-checkboxes--small cpb-scope-picker" data-module="govuk-checkboxes">
+            @foreach (var option in options)
+            {
+                var id = $"{Model.IdPrefix}-{i++}";
+                var isSelected = selected.Contains(option.Path, StringComparer.OrdinalIgnoreCase);
+                <div class="govuk-checkboxes__item cpb-scope-picker__item" style="margin-left: @(option.Depth * 24)px">
+                    <input class="govuk-checkboxes__input" id="@id" name="scopePages" type="checkbox"
+                           value="@option.Path" @(isSelected ? "checked" : null) />
+                    <label class="govuk-label govuk-checkboxes__label" for="@id">
+                        @option.Label <span class="govuk-hint govuk-!-display-inline cpb-scope-picker__path">/@option.Path</span>
+                    </label>
+                </div>
+            }
+            @foreach (var path in stale)
+            {
+                var id = $"{Model.IdPrefix}-{i++}";
+                <div class="govuk-checkboxes__item cpb-scope-picker__item">
+                    <input class="govuk-checkboxes__input" id="@id" name="scopePages" type="checkbox"
+                           value="@path" checked />
+                    <label class="govuk-label govuk-checkboxes__label" for="@id">
+                        /@path <span class="govuk-hint govuk-!-display-inline">(no page at this path)</span>
+                    </label>
+                </div>
+            }
+        </div>
+    </fieldset>
+</div>

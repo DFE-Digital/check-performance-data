@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.Common;
 using DfE.CheckPerformanceData.Application.ContentPages;
+using DfE.CheckPerformanceData.Application.Search;
 using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Web.Admin;
@@ -577,12 +578,21 @@ public sealed class PageTreeAdminController(
 
     [HttpPost("/admin/pages/{id:guid}/content/widget")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> ContentWidget(Guid id, string path, string type, [FromForm] Dictionary<string, string?>? props)
+    public async Task<IActionResult> ContentWidget(
+        Guid id, string path, string type,
+        [FromForm] Dictionary<string, string?>? props,
+        [FromForm] string[]? scopePages = null)
     {
         // M-01: guard against fabricated GUIDs reaching the content editor
         if (await pageNodeService.GetNodeByIdAsync(id) is null) return NotFound();
 
-        var built = WidgetPropsBuilder.Build(type, props ?? new Dictionary<string, string?>());
+        var fields = new Dictionary<string, string?>(props ?? new Dictionary<string, string?>());
+        // The page picker posts one checkbox per ticked page; together they are the widget's
+        // scope. A form without the picker (or with nothing ticked) leaves the scope empty.
+        if (type is "search" or "results")
+            fields["scope"] = SearchScope.Normalise(string.Join(',', scopePages ?? []));
+
+        var built = WidgetPropsBuilder.Build(type, fields);
         await nodeContentEditor.UpdateWidgetAsync(id, TreePath.Parse(path), built, User?.Identity?.Name);
         return Redirect($"/admin/pages/{id}/edit");
     }
@@ -614,6 +624,8 @@ public sealed class PageTreeAdminController(
         var tree = ContentPageJson.Deserialize(json) ?? [];
         var isPublished = await pageNodeService.IsPublishedAsync(id);
         var versions = await pageNodeService.GetVersionsAsync(id);
+        // Every widget's editor can offer the site's pages, e.g. to limit a search to some of them.
+        ViewData[PageScopePickerModel.ViewDataKey] = PageScopePickerModel.From(await pageNodeService.GetTreeAsync());
         return View("~/Views/ContentPage/Edit.cshtml", new ContentPageEditViewModel
         {
             ActionBase        = $"/admin/pages/{id}/content",

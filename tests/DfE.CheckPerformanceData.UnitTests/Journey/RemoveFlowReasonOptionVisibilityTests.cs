@@ -2,6 +2,8 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Journey;
+using DfE.CheckPerformanceData.Application.Journey.NotOnRoll;
+using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 
@@ -41,8 +43,39 @@ public class RemoveFlowReasonOptionVisibilityTests
         typeof(IJourneyCondition).Assembly.GetTypes()
             .Where(t => t is { IsAbstract: false, IsInterface: false }
                 && typeof(IJourneyCondition).IsAssignableFrom(t))
-            .Select(t => (IJourneyCondition)Activator.CreateInstance(t)!)
+            .Select(t => (IJourneyCondition)CreateWithStubbedServices(t))
             .ToList();
+
+    /// <summary>
+    /// Builds a condition the way the composition test needs to call it - with Evaluate usable -
+    /// even when its constructor takes services. Activator.CreateInstance is not enough: a
+    /// condition with a dependency has no parameterless constructor, and a substituted collection
+    /// property returns null, which the condition then enumerates and throws on.
+    ///
+    /// Only the college list needs a real value. Its own behaviour is covered by
+    /// SchoolCanRecordNotOnRollConditionTests; here an empty list is the right stub, because this
+    /// test is about which options the school type gate hides, not about which colleges are listed.
+    /// </summary>
+    private static object CreateWithStubbedServices(Type type)
+    {
+        var constructor = type.GetConstructors().OrderByDescending(c => c.GetParameters().Length).First();
+
+        if (constructor.GetParameters().Length == 0)
+            return Activator.CreateInstance(type)!;
+
+        var arguments = constructor.GetParameters().Select(p => p.ParameterType switch
+        {
+            var t when t == typeof(INotOnRollCollegeListProvider) => new NoColleges(),
+            _ => Substitute.For([p.ParameterType], []),
+        }).ToArray();
+
+        return constructor.Invoke(arguments);
+    }
+
+    private sealed class NoColleges : INotOnRollCollegeListProvider
+    {
+        public NotOnRollCollegeList Current => NotOnRollCollegeList.Empty;
+    }
 
     private static Question TheReasonQuestion()
     {

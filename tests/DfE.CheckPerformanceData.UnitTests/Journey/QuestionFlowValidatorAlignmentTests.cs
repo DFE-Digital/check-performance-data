@@ -4,6 +4,7 @@ using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.Journey.DateRules;
 using DfE.CheckPerformanceData.Application.Journey.Validators;
 using DfE.CheckPerformanceData.Domain.Enums;
+using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 
@@ -81,21 +82,26 @@ $"{file}: question '{questionId}' references journey condition '{name}', but no 
     [Fact]
     public void EveryImplementedCondition_IsRegisteredInTheContainer()
     {
-        var services = new ServiceCollection();
+var services = new ServiceCollection();
         services.AddApplicationDependencies();
 
-        using var provider = services.BuildServiceProvider();
+        // Read the service descriptors instead of calling GetServices. Resolving would CONSTRUCT
+        // every condition, and a condition is entitled to take services the Application layer does
+        // not register - the not-on-roll college list is registered by the web host alongside the
+        // blob clients. Registration is a claim about which types are wired, so compare types and
+        // leave construction to the host that actually owns those dependencies.
+        var registered = services
+            .Where(d => d.ServiceType == typeof(IJourneyCondition))
+            .Select(d => d.ImplementationType)
+            .OfType<Type>()
+            .ToHashSet();
 
-        var registered = provider.GetServices<IJourneyCondition>()
-            .Select(c => c.Name)
-            .ToHashSet(StringComparer.Ordinal);
-
-        foreach (var name in ImplementedConditionNames())
+        foreach (var conditionType in ImplementedConditionTypes())
         {
-            Assert.True(registered.Contains(name),
-                $"IJourneyCondition '{name}' exists in the assembly but is not registered in " +
-                "DependencyManager - the app resolves no condition for the name, so anything " +
-"gated on it fails closed.");
+            Assert.True(registered.Contains(conditionType),
+                $"IJourneyCondition '{conditionType.Name}' exists in the assembly but is not " +
+                "registered in DependencyManager - the app resolves no condition for the name, so " +
+                "anything gated on it fails closed.");
         }
     }
 
@@ -385,15 +391,27 @@ $"{file}: question '{questionId}' references journey condition '{name}', but no 
             yield return name;
     }
 
-    private static HashSet<string> ImplementedConditionNames()
-    {
-        var conditionTypes = typeof(IJourneyCondition).Assembly.GetTypes()
+    private static IEnumerable<Type> ImplementedConditionTypes()
+        => typeof(IJourneyCondition).Assembly.GetTypes()
             .Where(t => t is { IsAbstract: false, IsInterface: false }
                 && typeof(IJourneyCondition).IsAssignableFrom(t));
 
-        return conditionTypes
-            .Select(t => ((IJourneyCondition)Activator.CreateInstance(t)!).Name)
+    private static HashSet<string> ImplementedConditionNames()
+    {
+        return ImplementedConditionTypes()
+            .Select(t => CreateWithSubstitutes<IJourneyCondition>(t).Name)
             .ToHashSet(StringComparer.Ordinal);
+    }
+
+    // A condition may take services (SchoolCanRecordNotOnRoll reads the college list), so each
+    // constructor parameter gets a substitute. Name must not depend on them.
+    private static T CreateWithSubstitutes<T>(Type type)
+    {
+        var constructor = type.GetConstructors().OrderByDescending(c => c.GetParameters().Length).First();
+        var arguments = constructor.GetParameters()
+            .Select(p => Substitute.For([p.ParameterType], []))
+            .ToArray();
+        return (T)constructor.Invoke(arguments);
     }
 
     private static HashSet<string> ImplementedValidatorNames()

@@ -4,6 +4,7 @@ using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.Journey.DateRules;
 using DfE.CheckPerformanceData.Application.Journey.Validators;
 using DfE.CheckPerformanceData.Domain.Enums;
+using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 
@@ -395,8 +396,19 @@ public sealed class QuestionFlowValidatorAlignmentTests
                 && typeof(IJourneyCondition).IsAssignableFrom(t));
 
         return conditionTypes
-            .Select(t => ((IJourneyCondition)Activator.CreateInstance(t)!).Name)
+            .Select(t => CreateWithSubstitutes<IJourneyCondition>(t).Name)
             .ToHashSet(StringComparer.Ordinal);
+    }
+
+    // A condition may take services (SchoolCanRecordNotOnRoll reads the college list), so each
+    // constructor parameter gets a substitute. Name must not depend on them.
+    private static T CreateWithSubstitutes<T>(Type type)
+    {
+        var constructor = type.GetConstructors().OrderByDescending(c => c.GetParameters().Length).First();
+        var arguments = constructor.GetParameters()
+            .Select(p => Substitute.For([p.ParameterType], []))
+            .ToArray();
+        return (T)constructor.Invoke(arguments);
     }
 
     private static HashSet<string> ImplementedValidatorNames()

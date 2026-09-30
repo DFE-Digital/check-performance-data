@@ -82,7 +82,7 @@ Single `Radio` question driving the whole flow. `useAsRequestType: true` and
 | `pupil-died` | Pupil has died | `pupil-died` |
 | `dual-registered-moved` | Dual registered or moved school | `dual-registered-moved` |
 | `elective-home-education` | Elective home education | `elective-home-education` |
-| `not-on-roll` | Not on roll — **only shown when `visibleWhen: SchoolIsIndependent`** (GIAS type id `11`) | `not-on-roll` |
+| `not-on-roll` | Not on roll — **only shown when `visibleWhen: SchoolCanRecordNotOnRoll`** (GIAS type id `11`, or a listed FE college) | `not-on-roll` |
 | `permanently-excluded` | Permanently excluded from current school | `permanently-excluded` |
 | `permanently-left-england` | Permanently left England | `permanently-left-england-questions` |
 | `social-care-involvement` | Social care involvement - including police or prison | `social-care` |
@@ -209,7 +209,7 @@ type id `11` — see [conditional visibility](#notes)).
 
 | Question | Type | Notes |
 |---|---|---|
-| `life-limiting-illness-health-issue` | Radio | Life-limiting diagnosis / critically ill ≥12 months / life-changing illness / life-changing injury / investigated for serious injury ≥12 months. |
+| `life-limiting-illness-health-issue` | Radio | Terminal illness diagnosis, including some life-limiting conditions / Recent and life changing illness or injury / Critical illness, injury or condition, diagnosed or under investigation for 12 months or more (#513). `contentKey`: each category has its own evidence requirements block on the next page. |
 | `sat-exams` | Radio | Has the pupil sat any exams as a year 11 pupil? (Yes / No) |
 
 ---
@@ -265,9 +265,11 @@ Shared `EvidenceUpload` page reached by most reasons. Both questions are
   so at least one of the two must be provided. Each is used only by its
   respective branch.
 - **Conditional option.** The `not-on-roll` reason carries
-  `"visibleWhen": "SchoolIsIndependent"`, so it is rendered only for independent
-  schools (GIAS establishment type id `11`). The gate is evaluated server-side
-  by `IOptionVisibilityService` / `SchoolIsIndependentCondition`; see
+  `"visibleWhen": ["SchoolCanRecordNotOnRoll", "PupilIsNotAddBack"]`, so it is
+  rendered only for independent schools (GIAS establishment type id `11`) and for
+  the FE colleges in `Web/Data/NotOnRollColleges/not-on-roll-colleges.json`,
+  matched on LAESTAB (AB#304119). The gate is evaluated server-side by
+  `IOptionVisibilityService` / `SchoolCanRecordNotOnRollCondition`; see
   [request-journey.md → Conditional option visibility](./request-journey.md#conditional-option-visibility).
 - **Three reasons skip evidence entirely** and end after a single page:
   `pupil-died`, `dual-registered-moved`, and `elective-home-education`.

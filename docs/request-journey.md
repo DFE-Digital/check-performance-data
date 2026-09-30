@@ -208,11 +208,15 @@ On each `PagePost`:
 
 ### Conditional option visibility
 
-A `Radio` option may carry `"visibleWhen": "<ConditionName>"`. The option is rendered only when a registered `IJourneyCondition` with that `Name` evaluates `true` for the current user/journey. This lets one config show different options to different schools — e.g. the **Not on roll** removal reason appears only for independent schools.
+A `Radio` option may carry `"visibleWhen": "<ConditionName>"`. The option is rendered only when a registered `IJourneyCondition` with that `Name` evaluates `true` for the current user/journey. This lets one config show different options to different schools — e.g. the **Not on roll** removal reason appears only for independent schools and a listed set of FE colleges.
 
 - `JourneyController.BuildPageVm` assembles a `JourneyConditionContext` from the session `RequestState` plus a `JourneyUserContext` snapshot taken from `ICurrentUserService` (so the Application layer never touches `HttpContext`).
 - `IOptionVisibilityService.GetVisibleOptions(question, ctx)` filters the options in order. Options with no `visibleWhen` always show; an option naming an **unregistered** condition is hidden (fail closed). The result is exposed as `QuestionPartialModel.VisibleOptions`, which `_Radio.cshtml` iterates instead of the raw config options.
 - Conditions are pure-logic classes in `Application/Journey/Conditions/`, registered as `IJourneyCondition` in the Application `DependencyManager`. Current condition: `SchoolIsIndependentCondition` — true when the GIAS establishment type id (`organisation_type_id` claim, sourced from the DfE Sign-in `$.type.id` field) is `"11"` (Other Independent School; type 10 is deliberately excluded).
+- `SchoolCanRecordNotOnRollCondition` (AB#304119) gates the KS4 June **Not on roll** reason. It is true for an independent school (the rule above) **or** for an FE college whose LAESTAB (`organisation_laestab` claim, reduced to digits) is in the college list. It is one condition because `visibleWhen` ANDs its names. The list:
+  - **Source of truth:** `Web/Data/NotOnRollColleges/not-on-roll-colleges.json` in the release image. Only `laestab` is read; URN, UKPRN and name are for people. To change the list, edit this file and deploy.
+  - **Storage:** on web startup `NotOnRollCollegeListService` copies it to `not-on-roll-colleges.json` in the `rules-config` container and **replaces the blob when it differs**, so a hand edit to the blob lasts only until the next restart.
+  - **Cache:** `NotOnRollCollegeListStore` (a singleton, `INotOnRollCollegeListProvider`) holds the list in memory, because conditions are synchronous. It starts with the bundled list, then reads the blob on startup and every five minutes. A missing, unreadable or malformed blob keeps the list already loaded.
 
 ### Conditional question optionality (optionalWhen)
 

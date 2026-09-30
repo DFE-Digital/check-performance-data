@@ -205,7 +205,7 @@ public sealed class RulesEngineEndToEndTests
             DecisionStatus.AutoRejected, "SCI-KS4-REJ");
 
         yield return new("TerminalCriticalIllness-TerminalIsScrutiny", "Remove - life-limiting-illness", "KS4June",
-            Answers: [("life-limiting-illness-health-issue", "life-limiting")],
+            Answers: [("life-limiting-illness-health-issue", "terminal-illness")],
             DecisionStatus.Scrutiny, "TCI-TERM-SCR");
 
         yield return new("YearGroupChange-Lower", "Remove - year-group-change", "KS4June",

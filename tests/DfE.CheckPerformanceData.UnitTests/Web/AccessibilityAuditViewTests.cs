@@ -226,8 +226,8 @@ public sealed class AccessibilityAuditViewTests
 		// Every page sets ViewData/ViewBag Title and it matches the <h1>, same words, sentence case.
 		var view = ReadView("Views", "WindowAdmin", "Close.cshtml");
 
-		Assert.Contains("ViewBag.Title = $\"Close {Model.ExerciseLabel}\";", view);
-		Assert.Contains("<h1 class=\"govuk-heading-l\">Close @Model.ExerciseLabel</h1>", view);
+		Assert.Contains("ViewBag.Title = $\"Close {Model.ExerciseLabel} early?\";", view);
+		Assert.Contains("<h1 class=\"govuk-heading-l\">Close @Model.ExerciseLabel early?</h1>", view);
 	}
 
 	[Fact]

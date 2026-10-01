@@ -1,5 +1,7 @@
+using System.Globalization;
 using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Web.Admin.Nav;
+using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
@@ -8,65 +10,115 @@ using Microsoft.AspNetCore.Mvc;
 namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 
 /// <summary>
-/// Closes one checking exercise from the window details page.
+/// Closes one OPEN checking exercise before its scheduled end, from the window details page
+/// (AB#301022).
 /// </summary>
 /// <remarks>
-/// Replaces the disabled "Process Close Window" button that used to sit on the Amendment Requests
-/// page. That button drove a sweep of every OPEN window at once, which no per-window page could
-/// honestly offer; closing is now scoped to the window and exercise named in the route.
+/// Closing does two things, in this order:
+/// <list type="number">
+/// <item>ends the exercise now (<see cref="IExerciseEarlyClosureService"/>), which is what stops
+/// schools acting on it and what writes the audit row;</item>
+/// <item>hands its requests over (<see cref="ICloseExerciseService"/>): submitted requests go for
+/// processing and leftover drafts are cancelled — what "Close" has done since #437.</item>
+/// </list>
+/// The order matters. Sweeping first would commit requests while schools could still add more
+/// behind the sweep. If the sweep then fails, the exercise is already closed and recorded, and the
+/// sweep can be run again from <see cref="SendExerciseRequestsController"/>.
 ///
-/// A GET confirmation step before the POST, matching <see cref="ValidateWindowController"/> on the
-/// same page: the sweep is irreversible and dispatches to an external system, so the admin sees
-/// what it will touch first.
+/// The confirmation is typing the window's name: closing cannot be undone, and one press on a
+/// button is too easy to give by accident. Who may close is the class-level gate's concern.
 /// </remarks>
 [RequireAdminSection(AdminNavKeys.ManageWindow)]
 public sealed class CloseExerciseController(
     ICloseExerciseService closeService,
-    IWindowService windowService) : Controller
+    IExerciseEarlyClosureService earlyClosure,
+    IWindowService windowService,
+    ICheckingExerciseService checkingExercises,
+    ICurrentUserService currentUser) : Controller
 {
-    /// <summary>Carries the outcome sentence to the notification banner on the summary page.</summary>
+    /// <summary>Carries the outcome sentence to the success banner on the summary page.</summary>
     public const string TempDataKey = "CloseExerciseOutcome";
+
+    // FLAGGED copy (AB#301022).
+    public const string NameRequiredError = "Enter the window name";
+    public const string NameMismatchError = "The window name you entered does not match";
+
+    private const string PageView = "~/Views/WindowAdmin/Close.cshtml";
 
     [HttpGet("admin/windows/{id:guid}/{exercise}/close")]
     public async Task<IActionResult> Confirm(
         Guid id, CheckingExerciseType exercise, CancellationToken cancellationToken)
     {
         var window = await windowService.GetByIdAsync(id, cancellationToken);
-        if (window?.FindExercise(exercise) is null)
+        if (window?.FindExercise(exercise) is not { } row)
             return NotFound();
 
-        var preview = await closeService.PreviewAsync(id, exercise, cancellationToken);
+        // The summary page offers Close only while the exercise is open, but a bookmarked URL or a
+        // tab left open across the end date still arrives here.
+        if (!checkingExercises.IsOpen(window.Exercises, exercise))
+            return RefuseNotOpen(id, exercise);
 
-        return View("~/Views/WindowAdmin/Close.cshtml", new CloseExerciseViewModel
-        {
-            WindowId = id,
-            WindowTitle = window.Title,
-            ExerciseType = exercise,
-            ExerciseLabel = ExerciseLabels.For(exercise),
-            RequestsToClose = preview.RequestsToClose,
-            DraftsToCancel = preview.DraftsToCancel
-        });
+        return View(PageView, Page(window, row, typed: null, error: null));
     }
 
     [HttpPost("admin/windows/{id:guid}/{exercise}/close")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Close(
-        Guid id, CheckingExerciseType exercise, CancellationToken cancellationToken)
+        Guid id, CheckingExerciseType exercise, string? confirmWindowName, CancellationToken cancellationToken)
     {
         // Re-checked on the POST, not only on the GET: the confirmation page is not what authorises
-        // the sweep, the route is.
+        // the close, the route is.
         var window = await windowService.GetByIdAsync(id, cancellationToken);
-        if (window?.FindExercise(exercise) is null)
+        if (window?.FindExercise(exercise) is not { } row)
             return NotFound();
 
-        var result = await closeService.CloseAsync(id, exercise, cancellationToken);
+        if (!checkingExercises.IsOpen(window.Exercises, exercise))
+            return RefuseNotOpen(id, exercise);
 
-        // Quotes the RESULT, never the preview — rows can change between the two.
+        // "Exactly" is case-sensitive. White space either side is trimmed from both: it is what a
+        // copy and paste adds, and no admin could see it to correct it.
+        var typed = confirmWindowName?.Trim() ?? string.Empty;
+        if (typed.Length == 0)
+            return View(PageView, Page(window, row, confirmWindowName, NameRequiredError));
+        if (!string.Equals(typed, window.Title.Trim(), StringComparison.Ordinal))
+            return View(PageView, Page(window, row, confirmWindowName, NameMismatchError));
+
+        var closure = await earlyClosure.CloseEarlyAsync(
+            id, exercise, new EarlyClosureActor(currentUser.UserId, currentUser.DisplayName), cancellationToken);
+        if (closure.Status != EarlyClosureStatus.Closed)
+            return RefuseNotOpen(id, exercise);
+
+        var sweep = await closeService.CloseAsync(id, exercise, cancellationToken);
+
+        // Quotes the RESULTS, never a prediction: when the close took effect and what the sweep
+        // actually did. The time is the local wall clock, like every exercise date on the page.
         TempData[TempDataKey] =
-            $"{ExerciseLabels.For(exercise)} closed. " +
-            $"{Pluralise(result.Enqueued, "request")} sent for processing and " +
-            $"{Pluralise(result.DraftsCancelled, "draft")} cancelled.";
+            $"{ExerciseLabels.For(exercise)} was closed early on " +
+            $"{closure.ClosedAt.ToString("dd/MM/yyyy, HH:mm", CultureInfo.InvariantCulture)} by {currentUser.DisplayName}. " +
+            $"{Pluralise(sweep.Enqueued, "request")} sent for processing and " +
+            $"{Pluralise(sweep.DraftsCancelled, "draft")} cancelled.";
 
+        return Redirect($"/admin/windows/summary/{id}");
+    }
+
+    private static CloseExerciseViewModel Page(
+        CheckingWindowDto window, CheckingExerciseDto row, string? typed, string? error) => new()
+    {
+        WindowId = window.Id,
+        WindowTitle = window.Title,
+        ExerciseType = row.ExerciseType,
+        ExerciseLabel = ExerciseLabels.For(row.ExerciseType),
+        ScheduledEnd = row.EndDate,
+        ConfirmWindowName = typed,
+        Error = error
+    };
+
+    // Not an error page: the admin did nothing wrong, the exercise simply is not open any more (or
+    // not yet). They go back to the summary, which shows its status and what can be done instead.
+    private RedirectResult RefuseNotOpen(Guid id, CheckingExerciseType exercise)
+    {
+        TempData[SendExerciseRequestsController.RefusedTempDataKey] =
+            $"{ExerciseLabels.For(exercise)} is not open, so it was not closed.";
         return Redirect($"/admin/windows/summary/{id}");
     }
 

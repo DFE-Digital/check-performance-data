@@ -20,14 +20,42 @@ public sealed class SearchIndexViewTests
 
 	private static string ReadSearchIndexView() => ReadWebView("Search", "Index.cshtml");
 
-	// A scope naming several pages must read as a list of pages, not one long comma-joined path.
+	// The heading reads the same whether or not the search is scoped: it is the page title, so a
+	// scoped search shows "Search results for “term”" rather than a list of page paths.
 	[Fact]
-	public void SearchIndex_NamesEachScopedPageSeparately_InTheHeadingSuffix()
+	public void SearchIndex_Heading_IsThePageTitle_AndDoesNotListTheScopedPages()
+	{
+		var view = ReadSearchIndexView();
+
+		Assert.Contains("<h1 class=\"govuk-heading-xl\">@ViewData[\"Title\"]</h1>", view);
+		Assert.DoesNotContain("Search@(scopeSuffix)", view);
+	}
+
+	// The scoped pages still appear in the page source, as an HTML comment straight after the
+	// heading, built from the sanitised comment form of the scope rather than the raw query value.
+	[Fact]
+	public void SearchIndex_ScopeComment_FollowsTheHeading_AndUsesTheSanitisedScope()
+	{
+		var view = ReadSearchIndexView();
+
+		Assert.Contains("SearchScope.ForHtmlComment(Model.Scope)", view);
+		var heading = view.IndexOf("<h1 class=\"govuk-heading-xl\">", StringComparison.Ordinal);
+		var comment = view.IndexOf("<!-- search scope: @scopeComment -->", StringComparison.Ordinal);
+		var form = view.IndexOf("<form", StringComparison.Ordinal);
+		Assert.True(heading >= 0 && comment > heading && comment < form,
+			"The scope comment must sit between the heading and the search form.");
+		Assert.DoesNotContain("<!-- search scope: @Model.Scope", view);
+	}
+
+	// Only the heading stopped naming the pages; the results-count and no-results lines still do.
+	[Fact]
+	public void SearchIndex_CountAndNoResultsLines_StillNameTheScopedPages()
 	{
 		var view = ReadSearchIndexView();
 
 		Assert.Contains("SearchScope.Parse(Model.Scope)", view);
-		Assert.DoesNotContain("$\" in /{Model.Scope}\"", view);
+		Assert.Contains("No results found for <strong>@Model.Query</strong>@(scopeSuffix).", view);
+		Assert.Contains("<strong>@Model.Query</strong>@(scopeSuffix).", view);
 	}
 
 	// --- SearchIndex_InjectsSearchDebugOptions_AtViewLevel ---

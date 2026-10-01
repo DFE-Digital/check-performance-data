@@ -343,6 +343,42 @@ public sealed class QuestionFlowValidatorAlignmentTests
         }
     }
 
+    /// <summary>
+    /// AB#304117: the KS4 Remove "Child missing education" page offers exactly Ground H, Ground I
+    /// and Other, in that order. The option *values* are what the rules engine reads
+    /// (AnswerFieldMap copies <c>why-removed</c> into <c>childMissingEducationGround</c>, and the
+    /// seed's <c>PMIE-OTHER-REJ</c> branch compares against "other"), so a renamed value would
+    /// silently route every Other request to Scrutiny instead of auto-rejecting it. The two
+    /// Ground options are pinned byte-for-byte because only Other may auto-reject.
+    /// </summary>
+    [Fact]
+    public void ChildMissingEducation_WhyRemoved_OffersGroundHGroundIAndOther()
+    {
+        var page = AllFlowPages().Single(p => p.Page.Id == "child-missing-education");
+        Assert.Equal("Remove_KS4June.json", page.File);
+
+        var question = page.Page.Questions.Single(q => q.Id == "why-removed");
+        Assert.Equal(QuestionType.Radio, question.Type);
+        Assert.NotNull(question.Options);
+
+        Assert.Equal(
+            ["not-returned-after-agreed-leave", "no-agreed-leave-or-reason", "other"],
+            question.Options!.Select(o => o.Value).ToArray());
+
+        var groundH = question.Options[0];
+        Assert.Equal("Not come back after an agreed period of leave", groundH.Label);
+        Assert.Equal("Ground H of the School Attendance Regulations 2024", groundH.SubLabel);
+
+        var groundI = question.Options[1];
+        Assert.Equal("Been absent for a long time with no agreed leave and no clear reason", groundI.Label);
+        Assert.Equal("Ground I of the School Attendance Regulations 2024", groundI.SubLabel);
+
+        var other = question.Options[2];
+        Assert.Equal("Other", other.Label);
+        Assert.Null(other.SubLabel);
+        Assert.Null(other.NextPageId); // the page's own nextPageId ("evidence") applies to every option
+    }
+
     private static IEnumerable<string> ReferencedConditionNames(Question question)
     {
         foreach (var name in question.OptionalWhen ?? [])

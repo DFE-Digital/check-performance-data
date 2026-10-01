@@ -58,6 +58,12 @@ public static class AnswerFieldMap
             ["date-permanently-excluded"]              = "dateOfPermanentExclusion",
             ["date-removed-from-roll"]                 = "dateOfRemoval",
 
+            // Child missing education (Remove - child-missing-education). The radio's option
+            // value is copied as-is; the seed's PMIE-OTHER-REJ branch compares it against
+            // "other" (AB#304117). RuleLiteralOptionValueAlignmentTests pins that literal to
+            // the flow's option values.
+            ["why-removed"]                            = "childMissingEducationGround",
+
             // Provisional ids for flows not yet authored (KS2 / Post16) — revisit
             // when those configs exist; the alignment test allowlists them.
             ["date-added-to-roll"]                     = "dateAddedToRoll",

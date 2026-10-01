@@ -272,6 +272,10 @@
               "value": "no-agreed-leave-or-reason",
               "label": "Been absent for a long time with no agreed leave and no clear reason",
               "subLabel": "Ground I of the School Attendance Regulations 2024"
+            },
+            {
+              "value": "other",
+              "label": "Other"
             }
           ]
         },

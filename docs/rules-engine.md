@@ -206,7 +206,7 @@ The mapper (`RuleContextMapper`) turns a submitted `RequestDocument` into the ty
 
 Two fields come straight from the message **envelope** rather than an answer: `checkingWindowType` (normalised — see below) and `requestType` (the raw reason code). Other fields are calculated from the pupil record on the message, with a deliberate fail-safe guard: `pupilAge` (only when `Age > 0`), `inclusionFlag` and `isAddBack` (only when the inclusion code `Pincl > 0`). A missing or zero value is left `Unknown` rather than read as `0`.
 
-A few fields referenced by rules have **no producer at all** yet (e.g. `whereaboutsKnown`, `locatedAfterReasonableEfforts`, `illnessHasSevereProfoundEffect`). They are always `Unknown`, so any rule depending on them defers to Scrutiny — which is the intended safe behaviour until the question exists.
+A few fields referenced by rules have **no producer at all** yet (e.g. `whereaboutsKnown`, `locatedAfterReasonableEfforts`, `illnessHasSevereProfoundEffect`). They are always `Unknown`, so any rule depending on them defers to Scrutiny — which is the intended safe behaviour until the question exists. The `PupilMissingInEducation` outcome is decided instead by `childMissingEducationGround`, a plain copy of the KS4 Remove flow's `why-removed` radio: `other` is auto-rejected by `PMIE-OTHER-REJ` (AB#304117), while Ground H and Ground I fall through to `PMIE-DEF` (Scrutiny).
 
 **`CheckingWindowType`** is the field that drives most window-specific rules. Its canonical values are `KS2`, `KS4June`, `KS4Autumn`, and `Post16` (it replaced the older `keyStage` field). Legacy phrasings like `"16 to 18"` are normalised to `Post16`; anything unrecognised passes through, matches no rule, and lands in Scrutiny.
 

@@ -133,7 +133,7 @@ First of two pages for the "admitted from abroad" reason.
 
 | Question | Type | Notes |
 |---|---|---|
-| `why-removed` | Radio | Ground H (not returned after agreed leave) / Ground I (long absence, no agreed leave or clear reason) of the School Attendance Regulations 2024. |
+| `why-removed` | Radio | Ground H (not returned after agreed leave) / Ground I (long absence, no agreed leave or clear reason) of the School Attendance Regulations 2024 / Other (AB#304117). The value is copied into the rules field `childMissingEducationGround`: `other` is auto-rejected by seed rule `PMIE-OTHER-REJ`; Ground H and Ground I fall to `PMIE-DEF` (Scrutiny). |
 | `date-removed-from-roll` | Date | When the pupil was removed from the school roll. |
 
 ---

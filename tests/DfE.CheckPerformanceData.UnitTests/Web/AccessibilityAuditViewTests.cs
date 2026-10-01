@@ -229,4 +229,14 @@ public sealed class AccessibilityAuditViewTests
 		Assert.Contains("ViewBag.Title = $\"Close {Model.ExerciseLabel}\";", view);
 		Assert.Contains("<h1 class=\"govuk-heading-l\">Close @Model.ExerciseLabel</h1>", view);
 	}
+
+	[Fact]
+	public void SendRequestsPage_TitleMatchesItsHeading()
+	{
+		// AB#301022: same rule as the Close page — the title and the <h1> are the same words.
+		var view = ReadView("Views", "WindowAdmin", "SendRequests.cshtml");
+
+		Assert.Contains("ViewBag.Title = $\"Send {Model.ExerciseLabel} requests for processing\";", view);
+		Assert.Contains("<h1 class=\"govuk-heading-l\">Send @Model.ExerciseLabel requests for processing</h1>", view);
+	}
 }

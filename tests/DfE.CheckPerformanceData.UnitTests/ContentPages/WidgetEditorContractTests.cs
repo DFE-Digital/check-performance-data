@@ -118,6 +118,16 @@ public sealed class WidgetEditorContractTests
         Assert.Contains("SearchScope.Parse(", picker);
     }
 
+    [Fact]
+    public void PagePicker_PostsAMarker_SoTheSaveKnowsTheTicksAreTheScope()
+    {
+        var picker = File.ReadAllText(Path.Combine(
+            FindSolutionRoot(AppContext.BaseDirectory),
+            "src", "DfE.CheckPerformanceData.Web", "Views", "Shared", "ContentPages", "_PageScopePicker.cshtml"));
+
+        Assert.Contains("<input type=\"hidden\" name=\"scopePicker\" value=\"true\" />", picker);
+    }
+
     // ----- PageNav widget -----
 
     [Fact]

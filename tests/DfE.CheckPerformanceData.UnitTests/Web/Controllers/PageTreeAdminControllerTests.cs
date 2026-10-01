@@ -1035,7 +1035,8 @@ public sealed class PageTreeAdminControllerTests
         await Sut().ContentWidget(
             id, "0.0", "search",
             new Dictionary<string, string?> { ["searchIn"] = "path", ["label"] = "Search" },
-            ["/guidance/16-to-19/", "guidance/results-enquiries"]);
+            ["/guidance/16-to-19/", "guidance/results-enquiries"],
+            scopePicker: true);
 
         await _contentEditor.Received(1).UpdateWidgetAsync(
             id,
@@ -1054,13 +1055,35 @@ public sealed class PageTreeAdminControllerTests
 
         await Sut().ContentWidget(
             id, "0.0", "search",
-            new Dictionary<string, string?> { ["searchIn"] = "site" },
-            null);
+            new Dictionary<string, string?> { ["searchIn"] = "site", ["scope"] = "guidance" },
+            null,
+            scopePicker: true);
 
         await _contentEditor.Received(1).UpdateWidgetAsync(
             id,
             Arg.Any<IReadOnlyList<TreeStep>>(),
             Arg.Is<System.Text.Json.Nodes.JsonObject>(p => (string)p["scope"]! == ""),
+            Arg.Any<string?>());
+    }
+
+    [Theory]
+    [InlineData("search")]
+    [InlineData("results")]
+    public async Task ContentWidget_WithoutThePagePicker_KeepsThePostedScope(string type)
+    {
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
+            { Id = id, Segment = "p", Path = "p", Title = "P", PageType = "content" });
+
+        await Sut().ContentWidget(
+            id, "0.0", type,
+            new Dictionary<string, string?> { ["scope"] = "/help/, guidance" },
+            null);
+
+        await _contentEditor.Received(1).UpdateWidgetAsync(
+            id,
+            Arg.Any<IReadOnlyList<TreeStep>>(),
+            Arg.Is<System.Text.Json.Nodes.JsonObject>(p => (string)p["scope"]! == "help,guidance"),
             Arg.Any<string?>());
     }
 

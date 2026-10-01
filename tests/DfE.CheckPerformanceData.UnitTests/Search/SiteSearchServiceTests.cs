@@ -55,6 +55,45 @@ public class SiteSearchServiceTests
         await _pageRepo.Received(1).SearchPagesAsync("ks4", null, Arg.Any<int>());
     }
 
+    // A widget scoped to several pages carries them comma-separated; the service canonicalises the
+    // list and hands it on as one scope expression.
+    [Fact]
+    public async Task SearchAsync_WithSeveralScopePaths_NormalisesEachBeforeCallingRepository()
+    {
+        await _sut.SearchAsync(new SiteSearchQuery(
+            Query: "ks4",
+            ScopePath: "/guidance/ks4/, guidance/results-enquiries/",
+            IncludePages: true,
+            IncludeContentBlocks: false));
+
+        await _pageRepo.Received(1).SearchPagesAsync(
+            "ks4", "guidance/ks4,guidance/results-enquiries", Arg.Any<int>());
+    }
+
+    [Fact]
+    [Trait("search-case", "scope-filter")]
+    public async Task SearchAsync_WithSeveralScopePaths_KeepsContentBlocksUnderAnyOfThem()
+    {
+        _blockSearch.SearchAsync("ks4", Arg.Any<int>()).Returns(new ContentBlockSearchOutcome(
+            new List<ContentBlockSearchResultDto>
+            {
+                new() { Key = "a", Url = "/guidance/ks4/dates", PageTitle = "A", SnippetHtml = "" },
+                new() { Key = "b", Url = "/guidance/results-enquiries", PageTitle = "B", SnippetHtml = "" },
+                new() { Key = "c", Url = "/guidance/16-to-19/dates", PageTitle = "C", SnippetHtml = "" }
+            },
+            []));
+
+        var result = await _sut.SearchAsync(new SiteSearchQuery(
+            Query: "ks4",
+            ScopePath: "guidance/ks4,guidance/results-enquiries",
+            IncludePages: false,
+            IncludeContentBlocks: true));
+
+        Assert.Equal(
+            ["/guidance/ks4/dates", "/guidance/results-enquiries"],
+            result.Hits.Select(h => h.Url).OrderBy(u => u).ToList());
+    }
+
     // Below-minimum queries return an InvalidReason without touching either search backend.
     [Fact]
     [Trait("search-case", "very-short")]

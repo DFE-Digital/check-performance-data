@@ -8,7 +8,8 @@ public interface IPageNodeRepository
     /// <summary>
     /// Case-insensitive contains-search across Title, Subtitle and BodyPlainText of the
     /// currently-live version of each non-deleted node. Optional <paramref name="scopePath"/>
-    /// (no leading slash) restricts hits to that path or a descendant. Returns raw hits;
+    /// (no leading slash) restricts hits to that path or a descendant; several paths may be given
+    /// comma-separated (see <see cref="Search.SearchScope"/>) to search under any of them. Returns raw hits;
     /// snippet building lives in the service layer.
     /// </summary>
     Task<List<Search.PageSearchHitRaw>> SearchPagesAsync(string term, string? scopePath, int max);

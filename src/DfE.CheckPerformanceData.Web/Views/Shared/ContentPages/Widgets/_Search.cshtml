@@ -1,12 +1,14 @@
 @using DfE.CheckPerformanceData.Application.ContentPages
+@using DfE.CheckPerformanceData.Application.Search
 @model WidgetNode
 @{
     var label       = Model.GetString("label")       ?? "Search";
     var placeholder = Model.GetString("placeholder") ?? string.Empty;
     var action      = Model.GetString("action")      ?? string.Empty;
     var buttonText  = Model.GetString("buttonText")  ?? "Search";
-    // Optional scope: narrows results to pages under a path prefix (matches /search's ?scope=).
-    var scopeProp   = (Model.GetString("scope") ?? string.Empty).Trim().Trim('/');
+    // Optional scope: narrows results to the pages under one or more path prefixes, comma-separated
+    // (matches /search's ?scope=).
+    var scopeProp   = SearchScope.Normalise(Model.GetString("scope")) ?? string.Empty;
 
     // Where the widget searches: the whole site, one section of it, or the page it sits on.
     var searchIn = (Model.GetString("searchIn") ?? string.Empty).Trim().ToLowerInvariant();

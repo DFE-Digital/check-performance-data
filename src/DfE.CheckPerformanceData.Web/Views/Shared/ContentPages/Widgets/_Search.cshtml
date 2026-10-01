@@ -6,15 +6,19 @@
     var placeholder = Model.GetString("placeholder") ?? string.Empty;
     var action      = Model.GetString("action")      ?? string.Empty;
     var buttonText  = Model.GetString("buttonText")  ?? "Search";
-    // Optional scope: narrows results to the pages under one or more path prefixes, comma-separated
-    // (matches /search's ?scope=).
+    // Optional pages to search, each with everything beneath it. The widget stores them by id and
+    // sends them as short tokens (/search?pages=), so the URL stays short and the widget keeps its
+    // pages when they are renamed or moved. A widget saved before ids were stored holds paths
+    // instead (/search?scope=), which still work; one holding both sends both, and the search
+    // covers the pages named by either.
+    var pagesProp   = ScopePageIds.ToPageTokens(Model.GetString("scopePageIds")) ?? string.Empty;
     var scopeProp   = SearchScope.Normalise(Model.GetString("scope")) ?? string.Empty;
 
     // Where the widget searches: the whole site, one section of it, or the page it sits on.
     var searchIn = (Model.GetString("searchIn") ?? string.Empty).Trim().ToLowerInvariant();
     // Widgets placed before this prop existed carry only a scope, so a scope they already set still
     // means a section and an empty one still means the whole site. Nothing needs migrating.
-    if (searchIn.Length == 0) searchIn = scopeProp.Length > 0 ? "path" : "site";
+    if (searchIn.Length == 0) searchIn = scopeProp.Length > 0 || pagesProp.Length > 0 ? "path" : "site";
     // An unrecognised value searches the whole site rather than rendering a box that does nothing.
     if (searchIn != "path" && searchIn != "page") searchIn = "site";
 
@@ -27,6 +31,7 @@
         "page" => currentPath,
         _      => string.Empty
     };
+    var pages = searchIn == "path" ? pagesProp : string.Empty;
 
     // Instant search is an enhancement over the form below, never a replacement for it: the markup
     // is identical either way, and the script only binds when the marker attribute is present.
@@ -52,6 +57,7 @@
       data-cypmd-instant-search="@(instant ? "true" : null)"
       data-search-in="@(instant ? searchIn : null)"
       data-scope="@(instant ? scope : null)"
+      data-pages="@(instant ? pages : null)"
       data-no-results="@(instant ? noResultsText : null)">
     <div class="govuk-form-group">
         <label class="govuk-label govuk-label--s" for="@inputId">@label</label>
@@ -66,6 +72,10 @@
             }
         </div>
     </div>
+    @if (!string.IsNullOrEmpty(pages))
+    {
+        <input type="hidden" name="pages" value="@pages" />
+    }
     @if (!string.IsNullOrEmpty(scope))
     {
         <input type="hidden" name="scope" value="@scope" />

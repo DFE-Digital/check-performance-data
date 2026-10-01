@@ -131,6 +131,14 @@ public sealed class WidgetEditorContractTests
         Assert.DoesNotContain("name=\"props[scope]\"", b);
     }
 
+    // Both pickers are given the pages the widget stores by id as well as any old path scope.
+    [Fact]
+    public void Pickers_AreGivenTheStoredPageIdsAndPathScope()
+    {
+        Assert.Contains("w.GetString(\"scope\"), w.GetString(\"scopePageIds\")", SearchBranch());
+        Assert.Contains("w.GetString(\"scope\"), w.GetString(\"scopePageIds\")", ResultsBranch());
+    }
+
     [Fact]
     public void PagePicker_PostsTicksAsScopePagesCheckboxes_OfTheSitePageTree()
     {
@@ -141,7 +149,7 @@ public sealed class WidgetEditorContractTests
         Assert.Contains("name=\"scopePages\"", picker);
         Assert.Contains("type=\"checkbox\"", picker);
         Assert.Contains("govuk-checkboxes", picker);
-        Assert.Contains("SearchScope.Parse(", picker);
+        Assert.Contains(".ItemsFor(Model.PageIds, Model.Scope)", picker);
     }
 
     [Fact]

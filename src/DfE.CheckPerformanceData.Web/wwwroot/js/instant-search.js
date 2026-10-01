@@ -95,6 +95,7 @@
                 Surface: config.surface,
                 Q: pending.query,
                 Scope: config.scope || null,
+                Pages: config.pages || null,
                 HostPath: config.hostPath || null,
                 Shown: JSON.stringify(pending.shown),
                 SelectedKey: selectedKey || null,
@@ -271,7 +272,8 @@
         };
     }
 
-    function remoteSource(scope) {
+    // scope names pages by path, pages by token; the server searches the pages named by either.
+    function remoteSource(scope, pages) {
         var timer = null;
         var latest = 0;
 
@@ -285,7 +287,8 @@
             var mine = ++latest;
             timer = window.setTimeout(function () {
                 var url = SUGGESTIONS_URL + '?q=' + encodeURIComponent(q)
-                    + (scope ? '&scope=' + encodeURIComponent(scope) : '');
+                    + (scope ? '&scope=' + encodeURIComponent(scope) : '')
+                    + (pages ? '&pages=' + encodeURIComponent(pages) : '');
                 window.fetch(url)
                     .then(function (r) { return r.ok ? r.json() : []; })
                     .then(function (data) {
@@ -325,6 +328,7 @@
 
         var searchIn = form.getAttribute('data-search-in') || 'site';
         var scope = form.getAttribute('data-scope') || '';
+        var pages = form.getAttribute('data-pages') || '';
         var noResults = form.getAttribute('data-no-results') || 'No results found';
 
         var sections = null;
@@ -337,11 +341,12 @@
 
         var lastQuery = '';
         var lastShown = [];
-        var source = searchIn === 'page' ? pageSource(sections) : remoteSource(scope);
+        var source = searchIn === 'page' ? pageSource(sections) : remoteSource(scope, pages);
 
         var report = tracker({
             surface: searchIn === 'page' ? 'instant-page' : 'instant',
             scope: searchIn === 'page' ? '' : scope,
+            pages: searchIn === 'page' ? '' : pages,
             hostPath: searchIn === 'page' ? window.location.pathname : ''
         });
 

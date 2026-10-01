@@ -185,7 +185,9 @@
                                 // Widgets placed before searchIn existed carry only a scope, so a set
                                 // scope still selects "a section of the site" in the editor.
                                 var sIn = (w.GetString("searchIn") ?? string.Empty).Trim();
-                                if (sIn.Length == 0) sIn = string.IsNullOrWhiteSpace(w.GetString("scope")) ? "site" : "path";
+                                if (sIn.Length == 0)
+                                    sIn = string.IsNullOrWhiteSpace(w.GetString("scope")) && string.IsNullOrWhiteSpace(w.GetString("scopePageIds"))
+                                        ? "site" : "path";
                                 var sInstant = w.GetBool("instant") ?? false;
                                 // No stored value means a widget saved before the option existed,
                                 // which shows the button, so the box starts ticked.
@@ -202,7 +204,7 @@
                                 @* Section-only field — shown when Search in = a section of the site. *@
                                 <div class="cpb-search__path-field" data-cpb-search-pathfield @(sIn == "path" ? null : Html.Raw("hidden"))>
                                     @await Html.PartialAsync("ContentPages/_PageScopePicker", new PageScopePickerField(
-                                        $"ss-{Model.Path}", w.GetString("scope"), "Pages to search",
+                                        $"ss-{Model.Path}", w.GetString("scope"), w.GetString("scopePageIds"), "Pages to search",
                                         "Tick the pages to limit the search to. Each ticked page includes every page beneath it, so tick several to search a group of sections together."))
                                 </div>
                                 <div class="govuk-form-group">
@@ -270,8 +272,8 @@
 
                         case "results":
                             @await Html.PartialAsync("ContentPages/_PageScopePicker", new PageScopePickerField(
-                                $"rs-{Model.Path}", w.GetString("scope"), "Pages to show results from (optional)",
-                                "Tick the pages to limit results to, each including every page beneath it. Leave all unticked to show results from the whole site. Overridden by ?scope= on the URL if present."))
+                                $"rs-{Model.Path}", w.GetString("scope"), w.GetString("scopePageIds"), "Pages to show results from (optional)",
+                                "Tick the pages to limit results to, each including every page beneath it. Leave all unticked to show results from the whole site. Overridden by ?pages= or ?scope= on the URL if present."))
                             <div class="govuk-form-group">
                                 <label class="govuk-label" for="re-@Model.Path">Empty-state text</label>
                                 <input class="govuk-input" id="re-@Model.Path" name="props[emptyText]" value="@w.GetString("emptyText")" />

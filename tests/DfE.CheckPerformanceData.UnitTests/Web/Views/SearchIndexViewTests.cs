@@ -20,6 +20,21 @@ public sealed class SearchIndexViewTests
 
 	private static string ReadSearchIndexView() => ReadWebView("Search", "Index.cshtml");
 
+	// Model.Scope is the resolved page paths, for display only. The pager and the refine form
+	// carry the scope and page tokens the request arrived with, so a ?pages= search stays short
+	// from page to page instead of turning into a long list of paths.
+	[Fact]
+	public void SearchIndex_PagerAndForm_KeepTheRequestsScopeAndPageTokens()
+	{
+		var view = ReadSearchIndexView();
+
+		Assert.Contains("scope = Model.QueryScope,", view);
+		Assert.Contains("pages = Model.QueryPages,", view);
+		Assert.Contains("<input type=\"hidden\" name=\"scope\" value=\"@Model.QueryScope\" />", view);
+		Assert.Contains("<input type=\"hidden\" name=\"pages\" value=\"@Model.QueryPages\" />", view);
+		Assert.DoesNotContain("scope = Model.Scope,", view);
+	}
+
 	// The heading reads the same whether or not the search is scoped: it is the page title, so a
 	// scoped search shows "Search results for “term”" rather than a list of page paths.
 	[Fact]

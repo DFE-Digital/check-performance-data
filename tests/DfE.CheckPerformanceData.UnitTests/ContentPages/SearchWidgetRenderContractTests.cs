@@ -29,6 +29,16 @@ public sealed class SearchWidgetRenderContractTests
         Assert.Contains("if (!string.IsNullOrEmpty(scope))", View);
     }
 
+    // Pages stored by id travel on the form as their short tokens (?pages=), so the search URL
+    // stays short however long the pages' paths are.
+    [Fact]
+    public void EmitsHiddenPagesInput_FromTheStoredPageIds()
+    {
+        Assert.Contains("ScopePageIds.ToPageTokens(Model.GetString(\"scopePageIds\"))", View);
+        Assert.Contains("<input type=\"hidden\" name=\"pages\" value=\"@pages\" />", View);
+        Assert.Contains("data-pages=\"@(instant ? pages : null)\"", View);
+    }
+
     [Fact]
     public void ReadsScopeFromProps_AndNormalisesSlashes()
     {

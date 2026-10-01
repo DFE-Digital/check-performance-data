@@ -588,13 +588,31 @@ public sealed class PageTreeAdminController(
         if (await pageNodeService.GetNodeByIdAsync(id) is null) return NotFound();
 
         var fields = new Dictionary<string, string?>(props ?? new Dictionary<string, string?>());
-        // The page picker posts one checkbox per ticked page; together they are the widget's
-        // scope, and nothing ticked means the whole site. The picker also posts a marker, because
-        // without it an unticked picker and a save that never showed one look the same — and a
-        // save without the picker (a seed script, a scripted edit) must keep the scope it posts.
+        // The page picker posts one checkbox per ticked page, valued with the page's id; together
+        // they are the widget's pages, and nothing ticked means the whole site. Ids are stored
+        // (scopePageIds) so the widget keeps its pages when they are renamed or moved. A ticked
+        // value that is not an id is a path an older widget held that matches no page; it stays
+        // in the path scope rather than being dropped. Any other path scope the widget held is
+        // replaced by the ticks, so saving a widget from before ids were stored moves it to ids.
+        //
+        // The picker also posts a marker, because without it an unticked picker and a save that
+        // never showed one look the same, and a save without the picker (a seed script, a
+        // scripted edit) must keep the pages it posts, by id or by path.
         if (type is "search" or "results")
-            fields["scope"] = SearchScope.Normalise(
-                scopePicker ? string.Join(',', scopePages ?? []) : fields.GetValueOrDefault("scope") ?? "");
+        {
+            if (scopePicker)
+            {
+                var ticked = scopePages ?? [];
+                var ids = ticked.Where(v => Guid.TryParse(v, out _));
+                fields["scopePageIds"] = ScopePageIds.Normalise(string.Join(',', ids)) ?? "";
+                fields["scope"] = SearchScope.Normalise(string.Join(',', ticked.Except(ids))) ?? "";
+            }
+            else
+            {
+                fields["scopePageIds"] = ScopePageIds.Normalise(fields.GetValueOrDefault("scopePageIds")) ?? "";
+                fields["scope"] = SearchScope.Normalise(fields.GetValueOrDefault("scope")) ?? "";
+            }
+        }
 
         var built = WidgetPropsBuilder.Build(type, fields);
         await nodeContentEditor.UpdateWidgetAsync(id, TreePath.Parse(path), built, User?.Identity?.Name);

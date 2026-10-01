@@ -23,6 +23,13 @@ public static class RequestPipelineExtensions
                 diagnosticContext.Set("StatusCode", httpContext.Response.StatusCode);
                 diagnosticContext.Set("RequestMethod", httpContext.Request.Method);
                 diagnosticContext.Set("UserAgent", httpContext.Request.Headers.UserAgent.ToString());
+                // Runs once the response is complete, so HttpContext.User is whatever
+                // authentication decided. IsAuthenticated false on a 302 marks a sign-in challenge.
+                diagnosticContext.Set("IsAuthenticated", httpContext.User.Identity?.IsAuthenticated == true);
+                if (RequestLogEnrichment.UserId(httpContext) is { } userId)
+                    diagnosticContext.Set("UserId", userId);
+                if (RequestLogEnrichment.RedirectTarget(httpContext.Response) is { } redirect)
+                    diagnosticContext.Set("RedirectTarget", redirect);
             };
         });
 

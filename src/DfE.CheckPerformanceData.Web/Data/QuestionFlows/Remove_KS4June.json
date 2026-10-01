@@ -27,7 +27,7 @@
               "value": "permanent-exclusion",
               "label": "Admitted following permanent exclusion (not registered independent schools)",
               "nextPageId": "permanent-exclusion",
-              "visibleWhen": "PupilIsNotAddBack"
+              "visibleWhen": ["PupilIsNotAddBack", "SchoolIsNotIndependent"]
             },
             {
               "value": "english-not-first-language",

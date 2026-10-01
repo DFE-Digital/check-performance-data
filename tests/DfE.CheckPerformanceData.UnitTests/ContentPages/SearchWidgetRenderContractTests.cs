@@ -35,7 +35,7 @@ public sealed class SearchWidgetRenderContractTests
         // Widget's `scope` prop is trimmed and stripped of surrounding slashes so
         // "help" and "/help/" resolve to the same value.
         Assert.Contains("GetString(\"scope\")", View);
-        Assert.Contains(".Trim().Trim('/')", View);
+        Assert.Contains("SearchScope.Normalise(", View);
     }
 
     // ----- Search target: whole site / a section / this page -----

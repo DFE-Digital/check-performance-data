@@ -55,7 +55,12 @@ public static class DependencyManager
         services.AddScoped<ICountryService, CountryService>();
         services.AddScoped<IOptionVisibilityService, OptionVisibilityService>();
         services.AddScoped<IQuestionOptionalityService, QuestionOptionalityService>();
+        // Registration is load-bearing: OptionVisibilityService and QuestionOptionalityService
+        // resolve conditions from the container and treat an unregistered name as false, so a
+        // condition named in a flow's visibleWhen without a line here silently hides that option
+        // for EVERY school. Guarded by EveryImplementedCondition_IsRegisteredInTheContainer.
         services.AddScoped<IJourneyCondition, SchoolIsIndependentCondition>();
+services.AddScoped<IJourneyCondition, SchoolIsNotIndependentCondition>();
         // AB#304119: needs INotOnRollCollegeListProvider, which the web host registers with the
         // blob clients (AddCpdBlobStorage), beside the hosted service that loads the list.
         services.AddScoped<IJourneyCondition, SchoolCanRecordNotOnRollCondition>();

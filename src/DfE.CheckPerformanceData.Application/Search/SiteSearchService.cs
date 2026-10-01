@@ -27,7 +27,7 @@ public sealed class SiteSearchService(
         var rawTerm = (query.Query ?? string.Empty);
         if (rawTerm.IndexOf('\0') >= 0) rawTerm = rawTerm.Replace("\0", string.Empty);
         var term = rawTerm.Trim();
-        var scope = string.IsNullOrWhiteSpace(query.ScopePath) ? null : query.ScopePath.Trim().Trim('/');
+        var scope = SearchScope.Normalise(query.ScopePath);
         var pageOneIx = Math.Max(1, query.Page);
         var pageSize = Math.Max(1, query.PageSize);
 
@@ -126,7 +126,7 @@ public sealed class SiteSearchService(
         var rawTerm = query.Query ?? string.Empty;
         if (rawTerm.IndexOf('\0') >= 0) rawTerm = rawTerm.Replace("\0", string.Empty);
         var term = rawTerm.Trim();
-        var scope = string.IsNullOrWhiteSpace(query.ScopePath) ? null : query.ScopePath.Trim().Trim('/');
+        var scope = SearchScope.Normalise(query.ScopePath);
         var limit = Math.Clamp(query.Limit, 1, SuggestMaxLimit);
 
         try
@@ -393,12 +393,8 @@ public sealed class SiteSearchService(
         var outcome = await contentBlockSearch.SearchAsync(term, max);
         if (scope is null) return (outcome.Hits, outcome.Exclusions);
 
-        var scopePrefix = "/" + scope;
-        var scopeSubtree = scopePrefix + "/";
-        var scoped = outcome.Hits
-            .Where(h => h.Url.Equals(scopePrefix, StringComparison.OrdinalIgnoreCase)
-                     || h.Url.StartsWith(scopeSubtree, StringComparison.OrdinalIgnoreCase))
-            .ToList();
+        var paths = SearchScope.Parse(scope);
+        var scoped = outcome.Hits.Where(h => SearchScope.Covers(paths, h.Url)).ToList();
         return (scoped, outcome.Exclusions);
     }
 

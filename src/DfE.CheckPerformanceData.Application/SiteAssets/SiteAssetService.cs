@@ -60,6 +60,10 @@ public sealed class SiteAssetService(
 
     public async Task<SiteAssetSaveResult> SaveAsync(SiteAssetContent content)
     {
+        // The settings store trims what it saves (all-whitespace becomes empty), so trim here too:
+        // otherwise a textarea's trailing newline would look like a change on every save.
+        content = content with { Css = content.Css.Trim(), Js = content.Js.Trim() };
+
         if (content.Css.Length > MaxLength)
             return new SiteAssetSaveResult(false, $"The CSS must be {MaxLength:N0} characters or fewer.");
         if (content.Js.Length > MaxLength)

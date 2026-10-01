@@ -115,6 +115,24 @@ public sealed class SiteAssetsTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task Save_UnchangedContentWithATrailingNewline_KeepsTheVersion_ButARealEditMovesIt()
+    {
+        await TruncateSettingsAsync();
+        SiteAssetService At(int year) => new(new SettingService(new SettingRepository(fixture.CreateContext())),
+            new MemoryCache(new MemoryCacheOptions()), new FixedClock(new DateTimeOffset(year, 1, 1, 0, 0, 0, TimeSpan.Zero)));
+
+        await At(2030).SaveAsync(new SiteAssetContent("body{}", "", true, true));
+        await At(2031).SaveAsync(new SiteAssetContent("body{}\n", "", true, true));
+        var unchanged = await NewService().GetAsync();
+        await At(2032).SaveAsync(new SiteAssetContent("body{margin:0}\n", "", true, true));
+        var edited = await NewService().GetAsync();
+
+        Assert.Equal("20300101000000", unchanged.CssVersion);
+        Assert.Equal("body{margin:0}", edited.Css);
+        Assert.Equal("20320101000000", edited.CssVersion);
+    }
+
+    [Fact]
     public async Task Save_LargeContent_IsStoredWhole()
     {
         await TruncateSettingsAsync();

@@ -101,6 +101,34 @@ public sealed class SiteAssetServiceTests
         Assert.Equal("20260930153012", Saved()[SettingKeys.SiteJsSavedAt]);
     }
 
+    // The store trims what it saves, so a textarea's trailing newline is not a change.
+    [Fact]
+    public async Task Save_SameContentWithSurroundingWhitespace_IsNotAChange()
+    {
+        _settings.GetValueAsync(SettingKeys.SiteCss).Returns("body{}");
+        _settings.GetValueAsync(SettingKeys.SiteCssSavedAt).Returns("20200101000000");
+
+        await _sut.SaveAsync(new SiteAssetContent("body{}\r\n", "  \n", true, true));
+
+        var saved = Saved();
+        Assert.False(saved.ContainsKey(SettingKeys.SiteCssSavedAt));
+        Assert.False(saved.ContainsKey(SettingKeys.SiteJsSavedAt));
+        Assert.Equal("body{}", saved[SettingKeys.SiteCss]);
+        Assert.Equal("", saved[SettingKeys.SiteJs]);
+    }
+
+    [Fact]
+    public async Task Save_RealChangeWithATrailingNewline_IsRestamped()
+    {
+        _settings.GetValueAsync(SettingKeys.SiteCss).Returns("body{}");
+        _settings.GetValueAsync(SettingKeys.SiteCssSavedAt).Returns("20200101000000");
+
+        await _sut.SaveAsync(new SiteAssetContent("body{color:red}\n", "", true, true));
+
+        Assert.Equal("20260930153012", Saved()[SettingKeys.SiteCssSavedAt]);
+        Assert.Equal("body{color:red}", Saved()[SettingKeys.SiteCss]);
+    }
+
     [Fact]
     public async Task Save_TogglingAnAssetOff_RestampsIt()
     {

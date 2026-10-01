@@ -5,6 +5,8 @@
     ViewData["Title"] = "Edit — " + Model.NodeTitle;
 }
 
+@await Html.PartialAsync("_PublishWindowErrorSummary")
+
 <h1 class="govuk-heading-l">Edit: @Model.NodeTitle</h1>
 
 <p class="govuk-body">

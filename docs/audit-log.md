@@ -27,22 +27,31 @@ cumulative filters, 20 rows a page, and a CSV export of the filtered set.
   `outcome`, `windowId`, `outputTypes` and `transferredBy`; success adds the files, hashes,
   container and time; failure adds the `reason`. A run that failed in preprocessing or was
   abandoned never left the service and is not an audit row — the runs history shows those.
+- **Early closure of a checking exercise (AB#301022).** `WindowRepository.CloseExerciseEarlyAsync`
+  writes one `WindowAdmin`/`ClosedEarly` row **inside the same transaction as the guarded end-date
+  move**, so an exercise closed early always has exactly one row and a close that lost its race has
+  none. `EntityId` is the window id, `UserId` the admin's subject, `Timestamp` the UTC instant of
+  the close. The payload (`NewValues`, camelCase JSON) carries `windowId`, `windowTitle`,
+  `exerciseType`, `scheduledEnd` (the end date it had), `newEndDate`, `closedEarly`, `closedBy` and
+  `closedAtUtc`. The end-date move itself is an `ExecuteUpdate`, so the generic capture writes no
+  `CheckingExercise`/`Update` row for it — this row is the record.
 
 ## The screen
 
-| Column | Egress row | Any other row |
-|---|---|---|
-| User | `transferredBy` from the payload (the subject id for a pull row) | the `UserId` subject (there is no user directory) |
-| Activity | turquoise **Data egress** tag ("Run started" beneath for a pull row) | grey tag with the entity type's label, the action beneath |
-| Checking window | the run's window title, output types beneath | the window title for a `CheckingWindow` row; otherwise empty |
-| Time | `d MMM yyyy` and `HH:mm:ss UTC` | same |
-| Status | green **Success** / red **Failed** | none |
+| Column | Egress row | Window admin row | Any other row |
+|---|---|---|---|
+| User | `transferredBy` from the payload (the subject id for a pull row) | `closedBy` from the payload | the `UserId` subject (there is no user directory) |
+| Activity | turquoise **Data egress** tag ("Run started" beneath for a pull row) | orange **Window admin** tag | grey tag with the entity type's label, the action beneath |
+| Checking window | the run's window title, output types beneath | the window title, "{exercise} closed early, before scheduled end" beneath | the window title for a `CheckingWindow` row; otherwise empty |
+| Time | `d MMM yyyy` and `HH:mm:ss UTC` | same | same |
+| Status | green **Success** / red **Failed** | green **Success** | none |
 
 Filters (a plain GET form, no script): **activity** = the row's `EntityType` (options are the
 distinct types present, plus `EgressRun` always; `?activity=EgressRun` isolates egress); **checking
 window** = egress rows whose run belongs to the window (resolved through `egress_runs`, so it never
-parses JSON in SQL) or `CheckingWindow` rows whose id is the window; **status** = egress rows whose
-action is `Transfer` (Success) or `TransferFailed` (Failed). Filters AND together; an unknown value
+parses JSON in SQL) or `CheckingWindow` and `WindowAdmin` rows whose id is the window; **status** =
+egress rows whose action is `Transfer` (Success) or `TransferFailed` (Failed), plus
+`WindowAdmin`/`ClosedEarly` rows (Success only). Filters AND together; an unknown value
 is no filter. Page links and the export carry every filter.
 
 ## Export
@@ -59,7 +68,9 @@ Entity id,Checking window,Output types,Status`. No cap; rows stream straight to 
 - Nothing purges `AuditEntries`; there is no retention job for them.
 - `OldValues`/`NewValues`/`ChangedColumns` are **never rendered or exported**: the generic capture
   stores pupil-bearing entities (`ChangeRequest`) in them. The query projects `NewValues` only for
-  `EgressRun` rows, and `AuditLogRow` has no payload member.
+  `EgressRun` and `WindowAdmin` rows (two hand-written payloads with no pupil data), and
+  `AuditLogRow` has no payload member. The export shows a window-admin row's exercise in the
+  Action column, as `ClosedEarly (PupilData)`.
 
 ## Known limits
 

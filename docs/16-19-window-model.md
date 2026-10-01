@@ -453,3 +453,39 @@ result?" (Yes → the issue chooser, No → sign out). Both name the window's `N
 (admin Summary → "Next opportunity", shown as month + year) when it is set. Nothing about the
 enquiry journeys changes. A fully-ended window (results enquiry closed too) still drops its card and
 shows nothing — deliberately out of scope.
+
+## Closing an exercise early (AB#301022)
+
+An admin can close an open exercise before its scheduled end from the window summary page. There
+is no "closed" flag. The close moves the exercise's `EndDate` to one second before the moment of
+the close, in a compare-and-set on the end date the admin was shown
+(`WindowRepository.CloseExerciseEarlyAsync`), re-derives the window's own end date as the latest
+exercise end, and writes a `WindowAdmin`/`ClosedEarly` audit row in the same transaction. One
+second before, because `IsOpen` keeps an exercise's last instant open.
+
+Because the state is only a date, every gate above — which already asks `ICheckingExerciseService`
+— shuts with no rule of its own, and a manual close lands in exactly the state a scheduled close
+does: the deadline sentences turn to the past tense, the landing page shows the closed banner, and
+a window whose last exercise is closed drops its card. The scheduled end survives only in the audit
+row's payload.
+
+One gate needed help. A journey keeps a snapshot of its window, exercise dates included, from the
+moment it started (session, and the draft blob). A scheduled end is in that snapshot; an early
+close is not. `JourneyController.OnActionExecutionAsync` therefore re-reads the window before every
+journey action and replaces the snapshot, so `IsSessionReady` sees the close on the school's next
+click.
+
+**Close and the hand-over.** `CloseExerciseController` (`admin/windows/{id}/{exercise}/close`) is
+offered only while the exercise is open. After the admin types the window's name it calls
+`IExerciseEarlyClosureService` (the date move and the audit row) and then `ICloseExerciseService`
+(the #437 sweep: submitted requests onto the Zendesk queue, leftover drafts cancelled) — in that
+order, so no school can add a request behind the sweep. The sweep is still date-blind and still the
+only way a pupil-data amendment reaches Zendesk, and nothing runs it at a scheduled end, so once an
+exercise has closed the summary offers it on its own: `SendExerciseRequestsController`
+(`admin/windows/{id}/{exercise}/send-requests`).
+
+**Not changed, and worth knowing.** `BulkSubmissionService.SubmitAsync` has no open-exercise check
+of its own; after an early close the sweep has already cancelled the drafts it would submit, but
+the same gap exists after a scheduled end. `AmendmentRequestsController.Edit` gates a resumed draft
+on the draft's own snapshot, so after an early close the school is turned away one click later, by
+the journey refresh, rather than on the resume itself.

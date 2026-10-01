@@ -1,6 +1,7 @@
 using DfE.CheckPerformance.Persistence.Entities;
 using DfE.CheckPerformanceData.Application.Audit;
 using DfE.CheckPerformanceData.Application.Egress;
+using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Persistence.Entities;
@@ -74,6 +75,47 @@ public sealed class AuditLogRepositoryTests(PostgresFixture fixture)
         db.AuditEntries.Add(new AuditEntry { EntityType = probe, EntityId = "second", Action = "Update", Timestamp = at, UserId = "probe-user" });
         await db.SaveChangesAsync();
     }
+
+    // AB#301022: a window with one open exercise, closed early through the real repository so the
+    // audit row and its payload are production's.
+    private async Task<Guid> SeedEarlyClosureAsync()
+    {
+        var windowId = Guid.NewGuid();
+        var scheduledEnd = new DateTime(2026, 6, 30, 17, 0, 0);
+        await using (var db = fixture.CreateContext())
+        {
+            db.CheckingWindows.Add(new CheckingWindow
+            {
+                Id = windowId, Title = "Early closure window", KeyStage = KeyStages.KS4, CheckingWindowType = CheckingWindowType.KS4June,
+                StartDate = new DateTime(2026, 6, 1), EndDate = scheduledEnd,
+                CheckingExercises =
+                [
+                    new CheckingExercise
+                    {
+                        CheckingWindowId = windowId, ExerciseType = CheckingExerciseType.PupilData,
+                        StartDate = new DateTime(2026, 6, 1), EndDate = scheduledEnd, SortOrder = 0
+                    }
+                ]
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var closed = await new WindowRepository(fixture.CreateContext()).CloseExerciseEarlyAsync(new ExerciseEarlyClosure
+        {
+            WindowId = windowId,
+            Exercise = CheckingExerciseType.PupilData,
+            ScheduledEnd = scheduledEnd,
+            NewEndDate = new DateTime(2026, 6, 10, 9, 59, 59),
+            ClosedAtUtc = new DateTime(2026, 6, 10, 9, 0, 0, DateTimeKind.Utc),
+            UserId = UserId.ToString(),
+            ClosedByName = "Ops One"
+        }, CancellationToken.None);
+        Assert.True(closed);
+        return windowId;
+    }
+
+    private async Task<IReadOnlyList<AuditLogRow>> RowsAsync(AuditLogFilter filter) =>
+        (await Repository().ListAsync(filter, 1, 20, CancellationToken.None)).Rows;
 
     [Fact]
     public async Task The_window_filter_returns_that_windows_egress_rows_and_its_own_row_newest_first()
@@ -278,5 +320,46 @@ public sealed class AuditLogRepositoryTests(PostgresFixture fixture)
         // The generic capture stores pupil-bearing entities' values in OldValues/NewValues; the
         // audit log must not be able to render them even by accident.
         Assert.DoesNotContain(typeof(AuditLogRow).GetProperties(), p => p.Name.Contains("Values", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task An_early_closure_lists_under_its_window_named_and_successful()
+    {
+        var windowId = await SeedEarlyClosureAsync();
+
+        var row = Assert.Single(await RowsAsync(new AuditLogFilter(null, windowId, null)), r => r.EntityType == AuditActivities.WindowAdmin);
+
+        Assert.Equal(AuditActivities.ClosedEarlyAction, row.Action);
+        Assert.Equal(windowId.ToString(), row.EntityId);
+        Assert.Equal(windowId, row.WindowId);
+        Assert.Equal("Early closure window", row.WindowTitle);
+        Assert.Equal("Ops One", row.UserName);
+        Assert.Equal(UserId.ToString(), row.UserId);
+        Assert.Equal("PupilData", row.ExerciseType);
+        Assert.Equal(AuditOutcome.Success, row.Outcome);
+        Assert.Equal(new DateTime(2026, 6, 10, 9, 0, 0, DateTimeKind.Utc), row.TimestampUtc);
+    }
+
+    [Fact]
+    public async Task The_success_filter_includes_an_early_closure_and_the_failed_filter_does_not()
+    {
+        var windowId = await SeedEarlyClosureAsync();
+
+        var success = await RowsAsync(new AuditLogFilter(null, windowId, AuditOutcome.Success));
+        var failed = await RowsAsync(new AuditLogFilter(null, windowId, AuditOutcome.Failed));
+
+        Assert.Equal(AuditActivities.WindowAdmin, Assert.Single(success).EntityType);
+        Assert.Empty(failed);
+    }
+
+    [Fact]
+    public async Task The_window_admin_activity_filter_isolates_the_early_closure()
+    {
+        var windowId = await SeedEarlyClosureAsync();
+
+        var rows = await RowsAsync(new AuditLogFilter(AuditActivities.WindowAdmin, windowId, null));
+
+        Assert.Equal(AuditActivities.ClosedEarlyAction, Assert.Single(rows).Action);
+        Assert.Contains(AuditActivities.WindowAdmin, await Repository().ListActivitiesAsync(CancellationToken.None));
     }
 }

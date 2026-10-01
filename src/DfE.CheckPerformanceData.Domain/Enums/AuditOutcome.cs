@@ -1,8 +1,9 @@
 namespace DfE.CheckPerformanceData.Domain.Enums;
 
 /// <summary>
-/// The two outcomes the audit log can show for a data-egress transfer (AB#294592). Only egress
-/// audit rows carry one; every other audited activity has no outcome.
+/// The outcomes the audit log can show (AB#294592). Only a data-egress transfer (either outcome)
+/// and an early closure of a checking exercise (AB#301022, always Success) carry one; every other
+/// audited activity has no outcome.
 /// </summary>
 public enum AuditOutcome
 {

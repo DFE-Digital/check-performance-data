@@ -5,7 +5,7 @@ namespace DfE.CheckPerformanceData.Application.Audit;
 
 /// <summary>
 /// The one mapping from an audit row's EntityType/Action to what the audit log shows (AB#294592).
-/// "Activity" on the page IS the row's EntityType; egress rows are the only ones with an outcome.
+/// "Activity" on the page IS the row's EntityType; egress transfers and early closures (AB#301022) are the only rows with an outcome.
 /// Labels are FLAGGED copy. An unmapped type is humanised ("PageNodeVersion" → "Page node
 /// version") rather than shown raw, because the generic capture names every entity the app has.
 /// </summary>
@@ -29,6 +29,7 @@ public static class AuditActivities
     {
         [Egress] = "Data egress",
         [CheckingWindow] = "Checking window",
+        [WindowAdmin] = "Window admin",
         ["CheckingExercise"] = "Checking exercise",
         ["CheckingWindowDataset"] = "Checking window dataset",
         ["ChangeRequest"] = "Amendment request",
@@ -57,13 +58,14 @@ public static class AuditActivities
     public static string Label(string entityType) =>
         Labels.TryGetValue(entityType, out var label) ? label : Humanise(entityType);
 
-    public static AuditOutcome? OutcomeOf(string entityType, string action) =>
-        entityType != Egress ? null : action switch
-        {
-            TransferAction => AuditOutcome.Success,
-            TransferFailedAction => AuditOutcome.Failed,
-            _ => null
-        };
+    public static AuditOutcome? OutcomeOf(string entityType, string action) => (entityType, action) switch
+    {
+        (Egress, TransferAction) => AuditOutcome.Success,
+        (Egress, TransferFailedAction) => AuditOutcome.Failed,
+        // AB#301022: written only once the exercise has closed, so it has no failed twin.
+        (WindowAdmin, ClosedEarlyAction) => AuditOutcome.Success,
+        _ => null
+    };
 
     public static string OutcomeLabel(AuditOutcome outcome) => outcome switch
     {

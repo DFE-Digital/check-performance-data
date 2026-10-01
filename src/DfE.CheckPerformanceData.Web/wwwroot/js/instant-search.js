@@ -433,6 +433,21 @@
         document.addEventListener('visibilitychange', function () {
             if (document.visibilityState === 'hidden') report.settle();
         });
+        // A widget can leave out the button, making Enter the only way to a full search. The
+        // autocomplete swallows Enter while its menu is open, so with no button the form submits
+        // itself when Enter is pressed in the box. A suggestion reached with the arrow keys has focus
+        // instead of the box, so choosing one is still left to the autocomplete.
+        if (!form.querySelector('button[type="submit"], input[type="submit"]')) {
+            form.addEventListener('keydown', function (event) {
+                if (event.key !== 'Enter') return;
+                var field = form.querySelector('input[name="' + options.name + '"]');
+                if (!field || event.target !== field) return;
+                event.preventDefault();
+                if (typeof form.requestSubmit === 'function') form.requestSubmit();
+                else form.submit();
+            });
+        }
+
         window.addEventListener('pagehide', function () { report.settle(); });
         form.addEventListener('submit', function () { report.settle(); });
 

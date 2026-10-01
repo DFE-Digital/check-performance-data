@@ -84,7 +84,8 @@ public sealed class InstantSearchWidgetE2ETests(PlaywrightFixture fixture) : See
     }
 
     private static Dictionary<string, string> SearchProps(
-        string searchIn, bool instant, string scope = "", string noResults = "Nothing on this page")
+        string searchIn, bool instant, string scope = "", string noResults = "Nothing on this page",
+        string? showButton = null)
     {
         var props = new Dictionary<string, string>
         {
@@ -98,6 +99,7 @@ public sealed class InstantSearchWidgetE2ETests(PlaywrightFixture fixture) : See
         };
         // An unticked checkbox posts no field at all, which is how the widget reads "off".
         if (instant) props["instant"] = "true";
+        if (showButton is not null) props["showButton"] = showButton;
         return props;
     }
 
@@ -357,6 +359,53 @@ public sealed class InstantSearchWidgetE2ETests(PlaywrightFixture fixture) : See
 
         await page.WaitForURLAsync(new Regex(@"/search\?"));
         Assert.Contains("scope=", page.Url, StringComparison.Ordinal);
+    }
+
+    // ============================================================
+    // 6a. The search button is optional with instant search. Without it the box keeps its label
+    //     and Enter still runs a full search, even while suggestions are showing.
+    // ============================================================
+    private ILocator WidgetForm =>
+        Page.Locator("form.cypmd-search:has(label:text-is('Search this page'))");
+
+    [Fact]
+    public async Task InstantSearch_WithTheButtonTurnedOff_HasNoButton_AndEnterStillSearches()
+    {
+        var (url, _) = await SeedPageWithSectionsAsync(SearchProps("site", instant: true, showButton: "false"));
+
+        await Page.GotoAsync($"{Fixture.BaseUrl}{url}");
+        await Expect(Page.Locator("input.autocomplete__input")).ToBeVisibleAsync();
+
+        await Expect(WidgetForm.Locator("button")).ToHaveCountAsync(0);
+        var inputId = await Page.Locator("input.autocomplete__input").GetAttributeAsync("id");
+        await Expect(WidgetForm.Locator($"label[for='{inputId}']")).ToHaveTextAsync("Search this page");
+
+        await TypeAsync("evidence");
+        await Expect(Menu).ToBeVisibleAsync();
+        await Page.Locator("input.autocomplete__input").PressAsync("Enter");
+
+        await Page.WaitForURLAsync(new Regex(@"/search\?q=evidence"));
+    }
+
+    [Fact]
+    public async Task InstantSearch_WithNoButtonChoiceSaved_KeepsTheButton()
+    {
+        var (url, _) = await SeedPageWithSectionsAsync(SearchProps("site", instant: true));
+
+        await Page.GotoAsync($"{Fixture.BaseUrl}{url}");
+        await Expect(Page.Locator("input.autocomplete__input")).ToBeVisibleAsync();
+
+        await Expect(WidgetForm.Locator("button[type='submit']")).ToHaveCountAsync(1);
+    }
+
+    [Fact]
+    public async Task WithoutInstantSearch_TheButtonIsAlwaysShown()
+    {
+        var (url, _) = await SeedPageWithSectionsAsync(SearchProps("site", instant: false, showButton: "false"));
+
+        await Page.GotoAsync($"{Fixture.BaseUrl}{url}");
+
+        await Expect(WidgetForm.Locator("button[type='submit']")).ToHaveCountAsync(1);
     }
 
     // ============================================================

@@ -78,7 +78,7 @@ public sealed class SearchWidgetRenderContractTests
     // ----- Instant search is an enhancement, never a replacement -----
 
     [Fact]
-    public void QueryInputAndSubmitAreEmittedUnconditionally()
+    public void QueryInputAndSubmitAreEmittedAheadOfTheInstantBranch()
     {
         // The no-JS contract: the plain GET form exists in every combination of the two axes,
         // ahead of anything instant search adds.
@@ -135,6 +135,39 @@ public sealed class SearchWidgetRenderContractTests
         // off this, so a second search widget sharing the id would aim a screen reader at the
         // first widget's menu.
         Assert.Contains("cypmd-search-widget-seq", View);
+    }
+
+    // ----- Optional search button -----
+
+    // Instant search can drop the button; without instant search it is always shown, and a widget
+    // with no stored value (saved before the option existed) keeps it.
+    [Fact]
+    public void ShowsTheButtonUnlessInstantSearchTurnsItOff()
+    {
+        Assert.Contains("var showButton = !instant || (Model.GetBool(\"showButton\") ?? true);", View);
+    }
+
+    [Fact]
+    public void TheSubmitButtonIsRenderedOnlyWhenShown()
+    {
+        var view = View;
+        var guard = view.IndexOf("@if (showButton)", StringComparison.Ordinal);
+        var submit = view.IndexOf("type=\"submit\"", StringComparison.Ordinal);
+
+        Assert.True(guard >= 0, "Search view does not guard the button on showButton.");
+        Assert.True(submit > guard, "The submit button must sit inside the showButton guard.");
+    }
+
+    // Without a button the label and the form's action are what keep the box usable: the label
+    // still names the input, and Enter submits the form to its action.
+    [Fact]
+    public void TheLabelAndActionDoNotDependOnTheButton()
+    {
+        var view = View;
+        var guard = view.IndexOf("@if (showButton)", StringComparison.Ordinal);
+
+        Assert.InRange(view.IndexOf("for=\"@inputId\"", StringComparison.Ordinal), 0, guard);
+        Assert.InRange(view.IndexOf("action=\"@action\"", StringComparison.Ordinal), 0, guard);
     }
 
     private static string ReadSearchView()

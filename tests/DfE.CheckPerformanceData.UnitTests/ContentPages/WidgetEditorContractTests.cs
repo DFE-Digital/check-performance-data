@@ -70,6 +70,32 @@ public sealed class WidgetEditorContractTests
         Assert.Contains("type=\"checkbox\"", b);
     }
 
+    // "Show search button" only means something with instant search, so it sits in the block the
+    // instant tick box reveals. An unticked box posts nothing, so a hidden "false" follows the label:
+    // the browser posts in DOM order and the first value wins.
+    [Fact]
+    public void Search_EditorRevealsShowSearchButton_UnderInstantSearch()
+    {
+        var b = SearchBranch();
+        var reveal = b.IndexOf("data-cpb-search-instantfields", StringComparison.Ordinal);
+        var checkbox = b.IndexOf("name=\"props[showButton]\" type=\"checkbox\"", StringComparison.Ordinal);
+        var label = b.IndexOf("Show search button", StringComparison.Ordinal);
+        var hidden = b.IndexOf("<input type=\"hidden\" name=\"props[showButton]\" value=\"false\" />", StringComparison.Ordinal);
+
+        Assert.True(reveal >= 0, "Search editor has no instant-search reveal.");
+        Assert.True(checkbox > reveal, "Show search button must sit inside the instant-search reveal.");
+        Assert.True(label > checkbox, "Show search button has no label after its checkbox.");
+        Assert.True(hidden > label, "Unticking Show search button would post nothing without a hidden false after the label.");
+    }
+
+    // A widget saved before the option existed has no stored value and shows the button, so the
+    // box starts ticked unless "false" is stored.
+    [Fact]
+    public void Search_EditorTicksShowSearchButton_UnlessStoredFalse()
+    {
+        Assert.Contains("GetBool(\"showButton\") ?? true", SearchBranch());
+    }
+
     [Fact]
     public void Search_EditorExposesNoResultsCopy()
     {

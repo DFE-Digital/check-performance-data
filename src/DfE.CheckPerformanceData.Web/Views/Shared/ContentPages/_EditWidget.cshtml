@@ -187,6 +187,9 @@
                                 var sIn = (w.GetString("searchIn") ?? string.Empty).Trim();
                                 if (sIn.Length == 0) sIn = string.IsNullOrWhiteSpace(w.GetString("scope")) ? "site" : "path";
                                 var sInstant = w.GetBool("instant") ?? false;
+                                // No stored value means a widget saved before the option existed,
+                                // which shows the button, so the box starts ticked.
+                                var sShowButton = w.GetBool("showButton") ?? true;
                                 <div class="govuk-form-group">
                                     <label class="govuk-label" for="si-@Model.Path">Search in</label>
                                     <select class="govuk-select" id="si-@Model.Path" name="props[searchIn]"
@@ -217,10 +220,30 @@
                                         the page found.
                                     </div>
                                 </div>
-                                @* Instant-only copy. *@
-                                <div class="govuk-form-group cpb-search__instant-fields" data-cpb-search-instantfields @(sInstant ? null : Html.Raw("hidden"))>
-                                    <label class="govuk-label" for="sn-@Model.Path">No-results text</label>
-                                    <input class="govuk-input" id="sn-@Model.Path" name="props[noResultsText]" value="@w.GetString("noResultsText")" />
+                                @* Instant-only fields, revealed while the instant tick box is ticked. *@
+                                <div class="govuk-checkboxes__conditional cpb-search__instant-fields" data-cpb-search-instantfields @(sInstant ? null : Html.Raw("hidden"))>
+                                    <div class="govuk-form-group">
+                                        <div class="govuk-checkboxes__item">
+                                            <input class="govuk-checkboxes__input" id="ssb-@Model.Path" name="props[showButton]" type="checkbox"
+                                                   value="true" aria-describedby="ssb-@Model.Path-hint"
+                                                   @(sShowButton ? "checked" : null) />
+                                            <label class="govuk-label govuk-checkboxes__label" for="ssb-@Model.Path">
+                                                Show search button
+                                            </label>
+                                            @* An unticked box posts nothing and the props builder would keep the
+                                               default of "true", so this hidden "false" is what makes unticking
+                                               stick. It follows the label: the browser posts in DOM order and the
+                                               first value wins. *@
+                                            <input type="hidden" name="props[showButton]" value="false" />
+                                        </div>
+                                        <div class="govuk-hint" id="ssb-@Model.Path-hint">
+                                            Without the button, visitors press Enter to see all results.
+                                        </div>
+                                    </div>
+                                    <div class="govuk-form-group">
+                                        <label class="govuk-label" for="sn-@Model.Path">No-results text</label>
+                                        <input class="govuk-input" id="sn-@Model.Path" name="props[noResultsText]" value="@w.GetString("noResultsText")" />
+                                    </div>
                                 </div>
                                 <div class="govuk-form-group">
                                     <label class="govuk-label" for="sl-@Model.Path">Label</label>

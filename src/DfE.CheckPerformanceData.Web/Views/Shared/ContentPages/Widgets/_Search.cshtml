@@ -32,6 +32,10 @@
     // is identical either way, and the script only binds when the marker attribute is present.
     var instant       = Model.GetBool("instant") ?? false;
     var noResultsText = Model.GetString("noResultsText") ?? "No results found";
+    // Instant search can do without the button, since Enter still submits the form; without instant
+    // search the button is always shown. A widget saved before the option existed has no value and
+    // keeps its button.
+    var showButton = !instant || (Model.GetBool("showButton") ?? true);
     // Two search widgets on one page must not share an input id: the label's `for` keys off it,
     // and so do the listbox and status ids accessible-autocomplete derives from it — duplicates
     // would point a screen reader at the wrong menu. Counted per request; the first widget keeps
@@ -54,9 +58,12 @@
         <div class="cypmd-search__row">
             <input class="govuk-input cypmd-search__input" id="@inputId" name="q" type="search"
                    placeholder="@placeholder" autocomplete="off" />
-            <button class="govuk-button cypmd-search__button" data-module="govuk-button" type="submit">
-                @buttonText
-            </button>
+            @if (showButton)
+            {
+                <button class="govuk-button cypmd-search__button" data-module="govuk-button" type="submit">
+                    @buttonText
+                </button>
+            }
         </div>
     </div>
     @if (!string.IsNullOrEmpty(scope))

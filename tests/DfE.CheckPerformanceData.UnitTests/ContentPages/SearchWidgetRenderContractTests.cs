@@ -36,7 +36,7 @@ public sealed class SearchWidgetRenderContractTests
     {
         Assert.Contains("ScopePageIds.ToPageTokens(Model.GetString(\"scopePageIds\"))", View);
         Assert.Contains("<input type=\"hidden\" name=\"pages\" value=\"@pages\" />", View);
-        Assert.Contains("data-pages=\"@(instant ? pages : null)\"", View);
+        Assert.Contains("data-pages=\\\"{enc.Encode(pages)}\\\"", View);
     }
 
     [Fact]
@@ -116,9 +116,9 @@ public sealed class SearchWidgetRenderContractTests
     [Fact]
     public void InstantSearchAttributesAreOmittedWhenItIsOff()
     {
-        // Razor drops an attribute whose value expression is null, so the marker never appears
-        // on a non-instant widget and the script never binds to it.
-        Assert.Contains("instant ?", View);
+        // The marker is written only when instant search is on; the rendered output is checked in
+        // the view render tests.
+        Assert.Contains("var instantAttributes = instant", View);
     }
 
     [Fact]

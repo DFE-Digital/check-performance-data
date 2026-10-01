@@ -6,8 +6,14 @@ namespace DfE.CheckPerformanceData.Application.WindowManagement;
 /// <remarks>
 /// The clock is read here only to STAMP the close. Whether the exercise is open is asked of
 /// <see cref="ICheckingExerciseService"/>, which stays the one place that compares an exercise's
-/// dates with now. Both read the same <see cref="TimeProvider"/> the same way (local wall clock),
-/// because exercise dates are stored as local wall-clock values.
+/// dates with now. Both read the same <see cref="TimeProvider"/> the same way
+/// (<c>GetLocalNow</c>), so the stamp and the comparison can never disagree.
+///
+/// "Local" is the server's zone. The containers set no time zone, so today that is UTC, not UK
+/// time: during British Summer Time the stamp reads an hour behind a UK clock, exactly as every
+/// exercise opens and closes an hour late. That is one defect with one fix (the clock), and it
+/// must not be patched here alone — a UK-time stamp compared against a UTC clock would leave the
+/// exercise open for another hour.
 /// </remarks>
 public sealed class ExerciseEarlyClosureService(
     IWindowRepository windows,

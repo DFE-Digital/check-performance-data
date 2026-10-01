@@ -755,6 +755,10 @@ If the name you type does not match, the exercise stays open. The page shows *Th
 
 After it closes, the summary page shows a *Success* banner, for example *Pupil data checking was closed early on 03/09/2026, 10:39 by Sam Taylor. 1 request sent for processing and 10 drafts cancelled.* The exercise's **End Date** becomes the time you closed it, its **Status** becomes *Closed*, and the close button is no longer shown. The close is recorded in the audit log.
 
+The banner and the end date use the service's own clock. During British Summer Time that clock is one hour behind UK time, so a close at 13:33 shows as 12:33.
+
+If the service closes the exercise but cannot send its requests for processing, the summary page shows an *Important* banner instead. It says the exercise was closed and that its requests could not be sent. The exercise is closed. Select **Send Pupil data checking requests for processing** to try again.
+
 #### Sending requests for processing after an exercise has closed
 
 When an exercise reaches its scheduled end, the service does not send its requests for processing by itself. Someone must do it.

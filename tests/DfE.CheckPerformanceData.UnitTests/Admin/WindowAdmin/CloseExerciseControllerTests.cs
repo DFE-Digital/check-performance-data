@@ -68,7 +68,8 @@ public class CloseExerciseControllerTests
     {
         var controller = new CloseExerciseController(
             _closeService, _earlyClosure, _windowService,
-            checkingExercises ?? OpenCheckingExercises.AlwaysOpen(), _currentUser)
+            checkingExercises ?? OpenCheckingExercises.AlwaysOpen(), _currentUser,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<CloseExerciseController>.Instance)
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
         };
@@ -278,5 +279,46 @@ public class CloseExerciseControllerTests
             controller.TempData[SendExerciseRequestsController.RefusedTempDataKey]);
         Assert.Null(controller.TempData[CloseExerciseController.TempDataKey]);
         await _closeService.DidNotReceiveWithAnyArgs().CloseAsync(default, default, default);
+    }
+
+    // ── POST: the sweep fails after the close has been saved ─────────────────
+
+    [Fact]
+    public async Task Close_post_says_the_exercise_closed_when_the_sweep_then_fails()
+    {
+        // The close and its audit row are already committed when the sweep runs, and the sweep
+        // reads a blob and writes a queue row per request. If it throws, an error page would leave
+        // the admin not knowing the exercise had closed. They are told it did, and where to retry.
+        TheWindowRuns(Exercise);
+        _earlyClosure.CloseEarlyAsync(WindowId, Exercise, Arg.Any<EarlyClosureActor>(), Arg.Any<CancellationToken>())
+            .Returns(EarlyClosureResult.Closed(ClosedAt, ScheduledEnd));
+        _closeService.CloseAsync(WindowId, Exercise, Arg.Any<CancellationToken>())
+            .Returns(Task.FromException<CloseExerciseResult>(new InvalidOperationException("queue unavailable")));
+
+        var controller = Build();
+        var result = await controller.Close(WindowId, Exercise, WindowTitle, CancellationToken.None);
+
+        var redirect = Assert.IsType<RedirectResult>(result);
+        Assert.Equal($"/admin/windows/summary/{WindowId}", redirect.Url);
+        Assert.Equal(
+            "Pupil data checking was closed early on 10/06/2026, 10:39 by Banks Jamgbadi. " +
+            "Its requests could not be sent for processing. " +
+            "Select Send Pupil data checking requests for processing to try again.",
+            controller.TempData[SendExerciseRequestsController.RefusedTempDataKey]);
+        // Not the success banner: only half of what Close does has happened.
+        Assert.Null(controller.TempData[CloseExerciseController.TempDataKey]);
+    }
+
+    [Fact]
+    public async Task Close_post_does_not_swallow_a_cancelled_request()
+    {
+        TheWindowRuns(Exercise);
+        _earlyClosure.CloseEarlyAsync(WindowId, Exercise, Arg.Any<EarlyClosureActor>(), Arg.Any<CancellationToken>())
+            .Returns(EarlyClosureResult.Closed(ClosedAt, ScheduledEnd));
+        _closeService.CloseAsync(WindowId, Exercise, Arg.Any<CancellationToken>())
+            .Returns(Task.FromException<CloseExerciseResult>(new OperationCanceledException()));
+
+        await Assert.ThrowsAsync<OperationCanceledException>(
+            () => Build().Close(WindowId, Exercise, WindowTitle, CancellationToken.None));
     }
 }

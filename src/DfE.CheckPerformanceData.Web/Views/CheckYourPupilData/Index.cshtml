@@ -28,9 +28,10 @@
     // #317: the deadline is the pupil-data exercise's own end date, never the outer window's — on a
     // multi-exercise window the outer date is months later and would promise slack the school does
     // not have. Checking-window dates are UK wall-clock values rather than UTC instants, so they
-    // are formatted as they stand and never routed through LondonTime.
+    // are formatted as they stand and never routed through LondonTime. DeadlineTime shows the
+    // minutes when the end date has some.
     var pupilDataDeadline = Model.PupilDataEndDate is { } end
-        ? $"{end:htt}".ToLowerInvariant() + $" on {end:dddd d MMMM yyyy}"
+        ? DfE.CheckPerformanceData.Application.WindowManagement.DeadlineTime.Format(end) + $" on {end:dddd d MMMM yyyy}"
         : null;
 }
 

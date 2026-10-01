@@ -13,10 +13,21 @@ public interface IWindowRepository
     /// AB#301022: moves one exercise's end date to <see cref="ExerciseEarlyClosure.NewEndDate"/>,
     /// re-derives the window's own end date, and writes the WindowAdmin / ClosedEarly audit row,
     /// in one transaction. A compare-and-set: nothing is written unless the exercise still holds
-    /// <see cref="ExerciseEarlyClosure.ScheduledEnd"/>, the end date the admin was shown. Returns
-    /// whether it wrote. Whether the exercise is open is not decided here — the caller asks
+    /// <see cref="ExerciseEarlyClosure.ScheduledEnd"/>, the end date the caller read a moment
+    /// before when it confirmed the exercise was open. Returns whether it wrote. Whether the
+    /// exercise is open is not decided here — the caller asks
     /// <see cref="ICheckingExerciseService"/> first; this only refuses to act on a row that changed.
     /// </summary>
+    /// <remarks>
+    /// The guard covers the gap between that read and this write (a second admin, a second press).
+    /// It does not cover a date edit made while the confirmation page was on screen: the close
+    /// then goes ahead against the edited end date, which is what "close it now" means.
+    ///
+    /// One false negative is possible: if the commit succeeds but its acknowledgement is lost, the
+    /// execution strategy runs the delegate again, the guard no longer matches, and this returns
+    /// false for a close that happened. The caller then reports "not open" and skips the
+    /// hand-over; the summary page shows the exercise closed and offers the hand-over on its own.
+    /// </remarks>
     Task<bool> CloseExerciseEarlyAsync(ExerciseEarlyClosure closure, CancellationToken cancellationToken);
 }
 
@@ -26,7 +37,7 @@ public sealed record ExerciseEarlyClosure
     public required Guid WindowId { get; init; }
     public required CheckingExerciseType Exercise { get; init; }
 
-    /// <summary>The end date the exercise had when the admin confirmed. The write's guard.</summary>
+    /// <summary>The end date the exercise had when the close was confirmed (read on the POST, not when the page was rendered). The write's guard.</summary>
     public required DateTime ScheduledEnd { get; init; }
 
     /// <summary>The exercise's new end date: a local wall-clock value, like every exercise date.</summary>

@@ -458,10 +458,24 @@ shows nothing — deliberately out of scope.
 
 An admin can close an open exercise before its scheduled end from the window summary page. There
 is no "closed" flag. The close moves the exercise's `EndDate` to one second before the moment of
-the close, in a compare-and-set on the end date the admin was shown
+the close, in a compare-and-set on the end date read when the close was confirmed
 (`WindowRepository.CloseExerciseEarlyAsync`), re-derives the window's own end date as the latest
 exercise end, and writes a `WindowAdmin`/`ClosedEarly` audit row in the same transaction. One
-second before, because `IsOpen` keeps an exercise's last instant open.
+second before, because `IsOpen` keeps an exercise's last instant open. The guard stops a second
+press or a second admin closing twice; it does not detect a date edit made while the confirmation
+page was on screen, and the close then goes ahead against the edited date.
+
+**The clock is the server's, and today that is UTC.** The new end date, the success banner's time
+and every "is it open" comparison read `TimeProvider.GetLocalNow()`. No container sets a time zone,
+so "local" is UTC in every environment: during British Summer Time the banner and the new end date
+read one hour behind a UK clock, and every exercise opens and closes an hour late in UK terms. The
+second half is older than this ticket; the first half is how it became visible. The fix belongs to
+the clock itself (a time zone on the containers, or an explicit Europe/London conversion wherever
+`GetLocalNow` is read) and must be made in one go — stamping UK time here while the comparison
+stayed on UTC would leave a closed exercise open for another hour.
+
+Because an early close does not end on the hour, deadline sentences show the minutes when there are
+some (`DeadlineTime`): "passed at 12:34pm", not "passed at 12pm".
 
 Because the state is only a date, every gate above — which already asks `ICheckingExerciseService`
 — shuts with no rule of its own, and a manual close lands in exactly the state a scheduled close
@@ -482,10 +496,21 @@ offered only while the exercise is open. After the admin types the window's name
 order, so no school can add a request behind the sweep. The sweep is still date-blind and still the
 only way a pupil-data amendment reaches Zendesk, and nothing runs it at a scheduled end, so once an
 exercise has closed the summary offers it on its own: `SendExerciseRequestsController`
-(`admin/windows/{id}/{exercise}/send-requests`).
+(`admin/windows/{id}/{exercise}/send-requests`). The sweep is not transactional (a blob read and a
+queue write per request). If it fails after the close has committed, the admin is sent back to the
+summary with a notice that the exercise closed and that its requests still need sending, rather
+than to an error page.
 
-**Not changed, and worth knowing.** `BulkSubmissionService.SubmitAsync` has no open-exercise check
-of its own; after an early close the sweep has already cancelled the drafts it would submit, but
-the same gap exists after a scheduled end. `AmendmentRequestsController.Edit` gates a resumed draft
-on the draft's own snapshot, so after an early close the school is turned away one click later, by
-the journey refresh, rather than on the resume itself.
+**Bulk submit.** `BulkSubmissionService.SubmitAsync` had no open-exercise check, so a review page
+left open across a close could still post — after an early close until the sweep had cancelled the
+drafts, and after a scheduled end until someone ran the sweep. It now reads the window fresh and
+skips any draft whose own exercise (derived from its change type) is not open; when that leaves
+nothing submitted, the school is sent back to Check your pupil data with the closed message.
+
+**Not changed, and worth knowing.** `AmendmentRequestsController.Edit` gates a resumed draft on the
+draft's own snapshot, so after an early close the school is turned away one click later, by the
+journey refresh, rather than on the resume itself. The Zendesk worker only creates a ticket for a
+request the rules engine has already processed, while the sweep marks every swept request as sent;
+a request swept before the rules engine reached it (and every Add-pupil request, which never goes
+to the rules engine) is retried, dead-lettered and not picked up again. That defect is older than
+this ticket, but Close now runs the sweep as a matter of course.

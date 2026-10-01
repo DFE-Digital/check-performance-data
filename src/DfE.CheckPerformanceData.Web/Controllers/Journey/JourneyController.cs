@@ -1548,7 +1548,8 @@ public sealed class JourneyController(
         {
             WindowId = windowId,
             ReferenceNumber = journey.ReferenceNumber,
-            WindowCloseLabel = $"{journey.CheckingWindow.EndDate:htt} on {journey.CheckingWindow.EndDate:dddd d MMMM yyyy}"
+            // DeadlineTime.Pattern: the minutes show when the end date has some.
+            WindowCloseLabel = $"{journey.CheckingWindow.EndDate.ToString(DeadlineTime.Pattern(journey.CheckingWindow.EndDate))} on {journey.CheckingWindow.EndDate:dddd d MMMM yyyy}"
         };
 
         return View(model);

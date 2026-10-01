@@ -12,4 +12,7 @@ public sealed record JourneyUserContext
 
     /// <summary>GIAS establishment type id (e.g. "11" = Other Independent School).</summary>
     public string? OrganisationTypeId { get; init; }
+
+    /// <summary>The organisation's LAESTAB, in whatever format sign-in sent it.</summary>
+    public string? OrganisationLaestab { get; init; }
 }

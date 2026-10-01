@@ -1,6 +1,6 @@
 {
-  "version": "2026.09.02-01",
-  "updatedAt": "2026-09-02T12:00:00Z",
+  "version": "2026.09.30-01",
+  "updatedAt": "2026-09-30T12:00:00Z",
   "outcomes": [
 
     {
@@ -272,6 +272,8 @@
       "key": "PupilMissingInEducation",
       "label": "Pupil missing in Education",
       "rules": [
+        { "id": "PMIE-OTHER-REJ", "status": "AutoRejected",
+          "when": { "field": "childMissingEducationGround", "eq": "other" } },
         { "id": "PMIE-REJ", "status": "AutoRejected",
           "when": { "all": [
             { "field": "whereaboutsKnown",              "eq": false },

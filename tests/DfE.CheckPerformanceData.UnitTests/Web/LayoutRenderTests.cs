@@ -158,14 +158,17 @@ public sealed class LayoutRenderTests
 		// The old service-nav link pointed at /help with the text "Help"; the CMS-migrated
 		// help content lives under /guidance now, so the header link is updated to match.
 		// Pins BOTH the retired href/text (so a regression can't quietly re-introduce it)
-		// AND the new /guidance href + "Guidance" text.
+		// AND the new href="/guidance" target and "Guidance (opens in new tab)" text. The new-tab
+		// attributes are pinned in GuidanceLinksViewSourceTests.
 		var view = ReadLayout();
 
 		Assert.DoesNotContain("href=\"/help\"", view);
 		Assert.DoesNotContain(">Help</a>", view);
 
 		Assert.Contains("href=\"/guidance\"", view);
-		Assert.Contains(">Guidance</a>", view);
+		// AB#306103: the link opens in a new tab and says so; GuidanceLinksViewSourceTests pins
+		// the attributes, this fact keeps the retired /help target from creeping back.
+		Assert.Contains(">Guidance (opens in new tab)</a>", view);
 	}
 
 	[Fact]

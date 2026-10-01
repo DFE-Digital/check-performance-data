@@ -100,6 +100,41 @@ public sealed class PageNodeRepositorySearchTests(PostgresFixture fixture)
         Assert.Equal(mergePage.Id, hits[0].PageId);
     }
 
+    // A scope may name several pages; a hit under any of them counts, one outside all of them does
+    // not — the mechanism behind "16 to 19 also searches results enquiries".
+    [Fact]
+    [Trait("search-case", "scope-multi-path")]
+    public async Task SearchPagesAsync_WithSeveralScopePaths_ReturnsHitsUnderAnyOfThemOnly()
+    {
+        await TruncateAsync();
+        var sixteen = BuildPage("guidance/16-to-19/dates", "Dates for the sixteen guidance");
+        var ks4 = BuildPage("guidance/ks4/dates", "Dates for the ks4 guidance");
+        var results = BuildPage("guidance/results-enquiries/dates", "Dates for the results guidance");
+        var lookalike = BuildPage("guidance/ks4-archive/dates", "Dates for the archive guidance");
+        await SeedAsync((sixteen, "x"), (ks4, "x"), (results, "x"), (lookalike, "x"));
+
+        var hits = await Repo().SearchPagesAsync(
+            "dates", "guidance/16-to-19,guidance/results-enquiries", 10);
+
+        Assert.Equal(
+            new[] { sixteen.Id, results.Id }.OrderBy(i => i),
+            hits.Select(h => h.PageId).OrderBy(i => i));
+    }
+
+    [Fact]
+    [Trait("search-case", "scope-multi-path")]
+    public async Task SearchPagesAsync_WithAScopedPathThatIsAPageItself_IncludesThatPage()
+    {
+        await TruncateAsync();
+        var root = BuildPage("guidance/results-enquiries", "Dates overview");
+        var other = BuildPage("guidance/ks4", "Dates overview too");
+        await SeedAsync((root, "x"), (other, "x"));
+
+        var hits = await Repo().SearchPagesAsync("dates", "guidance/results-enquiries,guidance/nothing", 10);
+
+        Assert.Equal(root.Id, Assert.Single(hits).PageId);
+    }
+
     [Fact]
     [Trait("search-case", "multi-word-or")]
     public async Task SearchPagesAsync_MultiWordBareQuery_ReturnsUnionOfWordMatches()

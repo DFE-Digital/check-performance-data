@@ -27,7 +27,7 @@
               "value": "permanent-exclusion",
               "label": "Admitted following permanent exclusion (not registered independent schools)",
               "nextPageId": "permanent-exclusion",
-              "visibleWhen": "PupilIsNotAddBack"
+              "visibleWhen": ["PupilIsNotAddBack", "SchoolIsNotIndependent"]
             },
             {
               "value": "english-not-first-language",
@@ -67,7 +67,7 @@
               "value": "not-on-roll",
               "label": "Not on roll",
               "nextPageId": "not-on-roll",
-              "visibleWhen": ["SchoolIsIndependent", "PupilIsNotAddBack"]
+              "visibleWhen": ["SchoolCanRecordNotOnRoll", "PupilIsNotAddBack"]
             },
             {
               "value": "permanently-excluded",
@@ -272,6 +272,10 @@
               "value": "no-agreed-leave-or-reason",
               "label": "Been absent for a long time with no agreed leave and no clear reason",
               "subLabel": "Ground I of the School Attendance Regulations 2024"
+            },
+            {
+              "value": "other",
+              "label": "Other"
             }
           ]
         },
@@ -426,30 +430,23 @@
       "questions": [
         {
           "id": "life-limiting-illness-health-issue",
+          "contentKey": true,
           "type": "Radio",
           "title": "Which severe health issue has had a profound effect on {pupilName} and their ability to access education?",
           "summaryTitle": "Health issue",
           "validationFailure": "Select the severe health issue that has had a profound effect on {pupilName}",
           "options": [
             {
-              "value": "life-limiting",
-              "label": "Received a life-limiting illness diagnosis"
+              "value": "terminal-illness",
+              "label": "Terminal illness diagnosis, including some life-limiting conditions"
             },
             {
-              "value": "twelve-months-critically-ill",
-              "label": "Been critically ill for 12 months or more"
+              "value": "recent-life-changing-illness-or-injury",
+              "label": "Recent and life changing illness or injury"
             },
             {
-              "value": "life-changing-illness",
-              "label": "Been diagnosed with a life changing illness"
-            },
-            {
-              "value": "life-changing-injury",
-              "label": "Experienced a life changing injury"
-            },
-            {
-              "value": "investigated",
-              "label": "Been investigated for a serious or life changing injury for 12 months or more"
+              "value": "critical-illness-12-months",
+              "label": "Critical illness, injury or condition, diagnosed or under investigation for 12 months or more"
             }
           ]
         },

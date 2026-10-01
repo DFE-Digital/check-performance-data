@@ -91,6 +91,8 @@ public class BlobStorageExtensionsTests
     [InlineData(typeof(IRequestBlobClient))]
     [InlineData(typeof(IRequestStateBlobClient))]
     [InlineData(typeof(IQuestionFlowConfigSource))]
+    // AB#304119: the journey condition takes the provider, so the web host must register it.
+    [InlineData(typeof(Application.Journey.NotOnRoll.INotOnRollCollegeListProvider))]
     public void Every_blob_client_the_web_host_needs_resolves(Type serviceType)
     {
         using var provider = BuildWebBlobServices();
@@ -109,6 +111,21 @@ public class BlobStorageExtensionsTests
         Assert.DoesNotContain(
             provider.GetServices<IHostedService>(),
             s => s.GetType().Name == "GradeReferenceSeedingService");
+    }
+
+    [Fact]
+    public void The_not_on_roll_college_list_is_one_instance_loaded_by_a_hosted_service()
+    {
+        // AB#304119: the hosted service fills the store the condition reads. Two instances would
+        // leave the condition reading an empty list for the life of the app.
+        using var provider = BuildWebBlobServices();
+
+        Assert.Same(
+            provider.GetRequiredService<NotOnRollCollegeListStore>(),
+            provider.GetRequiredService<Application.Journey.NotOnRoll.INotOnRollCollegeListProvider>());
+        Assert.Contains(
+            provider.GetServices<IHostedService>(),
+            s => s.GetType().Name == "NotOnRollCollegeListService");
     }
 
     /// <summary>

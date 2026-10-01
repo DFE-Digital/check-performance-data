@@ -16,10 +16,10 @@ the Key Stage 4 (June) performance data.
 
 ```mermaid
 flowchart TD
-    reason["reason<br/>(Radio · 12 options, 1 conditional)"]
+    reason["reason<br/>(Radio · 12 options, 2 school-type conditional)"]
 
     %% --- branches off the reason question ---
-    reason -->|Admitted following permanent exclusion| permanent-exclusion
+    reason -->|Admitted following permanent exclusion?" non-independent schools only| permanent-exclusion
     reason -->|Admitted from abroad, English not first language| english-not-first-language
     reason -->|Child missing education| child-missing-education
     reason -->|Pupil has died| pupil-died
@@ -76,13 +76,13 @@ Single `Radio` question driving the whole flow. `useAsRequestType: true` and
 
 | Option value | Label | Goes to |
 |---|---|---|
-| `permanent-exclusion` | Admitted following permanent exclusion (not registered independent schools) | `permanent-exclusion` |
+| `permanent-exclusion` | Admitted following permanent exclusion (not registered independent schools) — **only shown when `visibleWhen: [PupilIsNotAddBack, SchoolIsNotIndependent]`** (GIAS type id not `11`) | `permanent-exclusion` |
 | `english-not-first-language` | Admitted from abroad with English not first language | `english-not-first-language` |
 | `child-missing-education` | Child missing education | `child-missing-education` |
 | `pupil-died` | Pupil has died | `pupil-died` |
 | `dual-registered-moved` | Dual registered or moved school | `dual-registered-moved` |
 | `elective-home-education` | Elective home education | `elective-home-education` |
-| `not-on-roll` | Not on roll — **only shown when `visibleWhen: SchoolIsIndependent`** (GIAS type id `11`) | `not-on-roll` |
+| `not-on-roll` | Not on roll — **only shown when `visibleWhen: [SchoolCanRecordNotOnRoll, PupilIsNotAddBack]`** (GIAS type id `11`, or a listed FE college) | `not-on-roll` |
 | `permanently-excluded` | Permanently excluded from current school | `permanently-excluded` |
 | `permanently-left-england` | Permanently left England | `permanently-left-england-questions` |
 | `social-care-involvement` | Social care involvement - including police or prison | `social-care` |
@@ -133,7 +133,7 @@ First of two pages for the "admitted from abroad" reason.
 
 | Question | Type | Notes |
 |---|---|---|
-| `why-removed` | Radio | Ground H (not returned after agreed leave) / Ground I (long absence, no agreed leave or clear reason) of the School Attendance Regulations 2024. |
+| `why-removed` | Radio | Ground H (not returned after agreed leave) / Ground I (long absence, no agreed leave or clear reason) of the School Attendance Regulations 2024 / Other (AB#304117). The value is copied into the rules field `childMissingEducationGround`: `other` is auto-rejected by seed rule `PMIE-OTHER-REJ`; Ground H and Ground I fall to `PMIE-DEF` (Scrutiny). |
 | `date-removed-from-roll` | Date | When the pupil was removed from the school roll. |
 
 ---
@@ -209,7 +209,7 @@ type id `11` — see [conditional visibility](#notes)).
 
 | Question | Type | Notes |
 |---|---|---|
-| `life-limiting-illness-health-issue` | Radio | Life-limiting diagnosis / critically ill ≥12 months / life-changing illness / life-changing injury / investigated for serious injury ≥12 months. |
+| `life-limiting-illness-health-issue` | Radio | Terminal illness diagnosis, including some life-limiting conditions / Recent and life changing illness or injury / Critical illness, injury or condition, diagnosed or under investigation for 12 months or more (#513). `contentKey`: each category has its own evidence requirements block on the next page. |
 | `sat-exams` | Radio | Has the pupil sat any exams as a year 11 pupil? (Yes / No) |
 
 ---
@@ -264,10 +264,24 @@ Shared `EvidenceUpload` page reached by most reasons. Both questions are
   `not-on-roll-evidence` makes both optional but sets `requireAtLeastOne: true`,
   so at least one of the two must be provided. Each is used only by its
   respective branch.
-- **Conditional option.** The `not-on-roll` reason carries
-  `"visibleWhen": "SchoolIsIndependent"`, so it is rendered only for independent
-  schools (GIAS establishment type id `11`). The gate is evaluated server-side
-  by `IOptionVisibilityService` / `SchoolIsIndependentCondition`; see
+- **Conditional options.** Two reasons are gated on the school's type, in opposite
+  polarities.
+  - `not-on-roll` carries
+    `"visibleWhen": ["SchoolCanRecordNotOnRoll", "PupilIsNotAddBack"]`, so it is
+    rendered only for independent schools (GIAS establishment type id `11`) and for
+    the FE colleges in `Web/Data/NotOnRollColleges/not-on-roll-colleges.json`,
+    matched on LAESTAB (AB#304119).
+  - `permanent-exclusion` carries
+    `"visibleWhen": ["PupilIsNotAddBack", "SchoolIsNotIndependent"]`, so it is
+    rendered only for schools that are **not** independent — an independent school
+    cannot have been permanently excluded by a school and cannot action the request.
+    Type `10` (Other Independent Special School) is deliberately treated as *not*
+    independent (ticket 281165), so it keeps `permanent-exclusion`.
+    `SchoolIsNotIndependentCondition` negates `SchoolIsIndependentCondition` rather
+    than restating the type test, so the string `11` stays defined once and the two
+    polarities cannot disagree.
+  - Both gates are evaluated server-side by `IOptionVisibilityService`, which refuses
+    a posted value for a hidden option as well as omitting it from the render; see
   [request-journey.md → Conditional option visibility](./request-journey.md#conditional-option-visibility).
 - **Three reasons skip evidence entirely** and end after a single page:
   `pupil-died`, `dual-registered-moved`, and `elective-home-education`.

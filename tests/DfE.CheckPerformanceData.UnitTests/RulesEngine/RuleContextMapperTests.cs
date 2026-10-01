@@ -93,6 +93,38 @@ public sealed class RuleContextMapperTests
         Assert.Equal(new FieldValue.Date(new DateOnly(2025, 2, 15)), ctx.GetField(field));
     }
 
+    // AB#304117: the child-missing-education page's why-removed radio is copied verbatim into
+    // childMissingEducationGround so the seed's PMIE-OTHER-REJ branch can auto-reject "other".
+    // Plain copy of the option *value* (never the label), like removalReasonAtSchool.
+    [Theory]
+    [InlineData("not-returned-after-agreed-leave")]
+    [InlineData("no-agreed-leave-or-reason")]
+    [InlineData("other")]
+    public void Maps_WhyRemovedAnswer_ToChildMissingEducationGround(string optionValue)
+    {
+        var msg = NewMessage("Remove - child-missing-education", answers: new[]
+        {
+            Answer("why-removed", optionValue)
+        });
+
+        var ctx = _sut.Map(msg);
+
+        Assert.Equal(new FieldValue.Str(optionValue), ctx.GetField("childMissingEducationGround"));
+    }
+
+    [Fact]
+    public void ChildMissingEducationGround_IsUnknown_WhenWhyRemovedIsNotAnswered()
+    {
+        var msg = NewMessage("Remove - child-missing-education", answers: new[]
+        {
+            Answer("date-removed-from-roll", "2025-02-15")
+        });
+
+        var ctx = _sut.Map(msg);
+
+        Assert.Equal(FieldValue.Unknown.Instance, ctx.GetField("childMissingEducationGround"));
+    }
+
     [Fact]
     public void Maps_CountryAnswer_ToCountryOfOrigin()
     {
@@ -295,7 +327,7 @@ public sealed class RuleContextMapperTests
     {
         var msg = NewMessage("Remove - life-limiting-illness", answers: new[]
         {
-            Answer("life-limiting-illness-health-issue", "life-limiting")
+            Answer("life-limiting-illness-health-issue", "terminal-illness")
         });
 
         var ctx = _sut.Map(msg);
@@ -307,6 +339,25 @@ public sealed class RuleContextMapperTests
         Assert.Equal(new FieldValue.Bool(false), ctx.GetField("underInvestigation12mPlus"));
         // No journey question collects this — stays Unknown so rules defer to Scrutiny.
         Assert.IsType<FieldValue.Unknown>(ctx.GetField("illnessHasSevereProfoundEffect"));
+    }
+
+    [Theory]
+    [InlineData("recent-life-changing-illness-or-injury", "hasRecentLifeChangingDiagnosis", "hasRecentLifeChangingInjury")]
+    [InlineData("critical-illness-12-months", "hasCriticalIllness12mPlus", "underInvestigation12mPlus")]
+    public void LifeLimitingIllnessHealthIssue_MergedCategory_SetsBothOfItsFields(
+        string category, string firstField, string secondField)
+    {
+        // #513: 3 journey categories cover the 5 rule fields.
+        var msg = NewMessage("Remove - life-limiting-illness", answers: new[]
+        {
+            Answer("life-limiting-illness-health-issue", category)
+        });
+
+        var ctx = _sut.Map(msg);
+
+        Assert.Equal(new FieldValue.Bool(true),  ctx.GetField(firstField));
+        Assert.Equal(new FieldValue.Bool(true),  ctx.GetField(secondField));
+        Assert.Equal(new FieldValue.Bool(false), ctx.GetField("hasTerminalIllness"));
     }
 
     [Fact]

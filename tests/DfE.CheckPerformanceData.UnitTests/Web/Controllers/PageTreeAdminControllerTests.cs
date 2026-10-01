@@ -36,6 +36,7 @@ public sealed class PageTreeAdminControllerTests
 
     public PageTreeAdminControllerTests()
     {
+        _service.GetTreeAsync().Returns([]);
         StubImport(_sampleStaging, new ContentImportResult());
         StubImport(_fixtureStaging, new ContentImportResult());
 
@@ -1022,6 +1023,68 @@ public sealed class PageTreeAdminControllerTests
             Arg.Is<System.Text.Json.Nodes.JsonObject>(p => (string)p["text"]! == "KS4 dates"),
             Arg.Any<string?>());
         Assert.Equal($"/admin/pages/{id}/edit", Assert.IsType<RedirectResult>(result).Url);
+    }
+
+    [Fact]
+    public async Task ContentWidget_PagePickerSelections_BecomeTheCommaSeparatedScope()
+    {
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
+            { Id = id, Segment = "p", Path = "p", Title = "P", PageType = "content" });
+
+        await Sut().ContentWidget(
+            id, "0.0", "search",
+            new Dictionary<string, string?> { ["searchIn"] = "path", ["label"] = "Search" },
+            ["/guidance/16-to-19/", "guidance/results-enquiries"],
+            scopePicker: true);
+
+        await _contentEditor.Received(1).UpdateWidgetAsync(
+            id,
+            Arg.Any<IReadOnlyList<TreeStep>>(),
+            Arg.Is<System.Text.Json.Nodes.JsonObject>(p =>
+                (string)p["scope"]! == "guidance/16-to-19,guidance/results-enquiries"),
+            Arg.Any<string?>());
+    }
+
+    [Fact]
+    public async Task ContentWidget_NoPagePickerSelections_ClearsTheScope()
+    {
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
+            { Id = id, Segment = "p", Path = "p", Title = "P", PageType = "content" });
+
+        await Sut().ContentWidget(
+            id, "0.0", "search",
+            new Dictionary<string, string?> { ["searchIn"] = "site", ["scope"] = "guidance" },
+            null,
+            scopePicker: true);
+
+        await _contentEditor.Received(1).UpdateWidgetAsync(
+            id,
+            Arg.Any<IReadOnlyList<TreeStep>>(),
+            Arg.Is<System.Text.Json.Nodes.JsonObject>(p => (string)p["scope"]! == ""),
+            Arg.Any<string?>());
+    }
+
+    [Theory]
+    [InlineData("search")]
+    [InlineData("results")]
+    public async Task ContentWidget_WithoutThePagePicker_KeepsThePostedScope(string type)
+    {
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
+            { Id = id, Segment = "p", Path = "p", Title = "P", PageType = "content" });
+
+        await Sut().ContentWidget(
+            id, "0.0", type,
+            new Dictionary<string, string?> { ["scope"] = "/help/, guidance" },
+            null);
+
+        await _contentEditor.Received(1).UpdateWidgetAsync(
+            id,
+            Arg.Any<IReadOnlyList<TreeStep>>(),
+            Arg.Is<System.Text.Json.Nodes.JsonObject>(p => (string)p["scope"]! == "help,guidance"),
+            Arg.Any<string?>());
     }
 
     // ── GET /admin/pages/{id}/delete ─────────────────────────────────────────

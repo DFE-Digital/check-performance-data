@@ -28,6 +28,7 @@ jobs:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         context: ./src
         dockerfile-path: ./src/DfE.CheckPerformanceData.Web/Dockerfile
+        target: runtime
         docker-repository: ${{ env.DOCKER_REPOSITORY }}
         max-cache: true
         reuse-cache: false

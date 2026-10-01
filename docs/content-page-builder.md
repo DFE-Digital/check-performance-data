@@ -61,7 +61,7 @@ This document is the dev-onboarding overview. Feature docs that predate this bra
 
 ### Footer content block
 
-- The `Support and guidance` section in `_Layout.cshtml` — heading, intro paragraph, and the Privacy / Cookies / Accessibility / Guidance link row — is now a single `EditableContent` block keyed `footer-support-and-guidance`. Editors update all four labels + the intro text from `/admin/content-blocks` without a redeploy.
+- The `Support and guidance` section in `_Layout.cshtml` — heading and contact prose — is an `EditableContent` block keyed `footer-support-and-guidance-v2`, which editors update from `/admin/content-blocks` without a redeploy. The Privacy / Cookies / Accessibility / Guidance link row is not part of that block: `_Layout.cshtml` renders it as static markup.
 
 ---
 

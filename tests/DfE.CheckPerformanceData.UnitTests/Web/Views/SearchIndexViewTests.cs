@@ -20,6 +20,16 @@ public sealed class SearchIndexViewTests
 
 	private static string ReadSearchIndexView() => ReadWebView("Search", "Index.cshtml");
 
+	// A scope naming several pages must read as a list of pages, not one long comma-joined path.
+	[Fact]
+	public void SearchIndex_NamesEachScopedPageSeparately_InTheHeadingSuffix()
+	{
+		var view = ReadSearchIndexView();
+
+		Assert.Contains("SearchScope.Parse(Model.Scope)", view);
+		Assert.DoesNotContain("$\" in /{Model.Scope}\"", view);
+	}
+
 	// --- SearchIndex_InjectsSearchDebugOptions_AtViewLevel ---
 
 	[Fact]

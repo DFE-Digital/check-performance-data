@@ -207,6 +207,23 @@ public static class DependencyManager
                     options.RequireHttpsMetadata = false;
                 }
                 
+                // A POST challenged after the sign-in expired would otherwise come back to its own
+                // POST-only URL as a GET and land on "Page not found" — see PostChallengeReturnUrl.
+                // Only the handler's default return address is replaced (the challenged URL); a
+                // challenge that chose its own RedirectUri keeps it. The event runs before the
+                // handler protects the properties into the state parameter, so the change carries.
+                options.Events.OnRedirectToIdentityProvider = ctx =>
+                {
+                    var request = ctx.HttpContext.Request;
+                    var challengedUrl = request.PathBase + request.Path + request.QueryString;
+                    if (ctx.Properties.RedirectUri == challengedUrl
+                        && PostChallengeReturnUrl.For(request) is { } returnUrl)
+                    {
+                        ctx.Properties.RedirectUri = returnUrl;
+                    }
+                    return Task.CompletedTask;
+                };
+
                 options.Events.OnTokenResponseReceived = ctx
                     => Task.CompletedTask;
 

@@ -1,0 +1,19 @@
+{
+  "_comment": "FE colleges that may choose 'Not on roll' as a KS4 June removal reason, beside independent schools (AB#304119). A college matches on LAESTAB only; URN, UKPRN and name are for people. The web app copies this file to the rules-config container on startup and replaces the blob when it differs, so change the list here, not in storage.",
+  "colleges": [
+    { "urn": "130418", "ukprn": "10006963", "laestab": "2118066", "name": "New City College" },
+    { "urn": "130447", "ukprn": "10007434", "laestab": "3138001", "name": "West Thames College" },
+    { "urn": "130458", "ukprn": "10005859", "laestab": "3208601", "name": "Sir George Monoux College" },
+    { "urn": "130461", "ukprn": "10005967", "laestab": "3308006", "name": "South and City College Birmingham" },
+    { "urn": "130524", "ukprn": "10000536", "laestab": "3708001", "name": "Barnsley College" },
+    { "urn": "130579", "ukprn": "10003200", "laestab": "8108001", "name": "Hull College" },
+    { "urn": "130585", "ukprn": "10007938", "laestab": "8128005", "name": "TEC Partnership" },
+    { "urn": "130648", "ukprn": "10005977", "laestab": "8808003", "name": "South Devon College" },
+    { "urn": "130657", "ukprn": "10000720", "laestab": "8408002", "name": "Bishop Auckland College" },
+    { "urn": "130728", "ukprn": "10006570", "laestab": "8868018", "name": "EKC Group" },
+    { "urn": "130822", "ukprn": "10004686", "laestab": "9368001", "name": "North East Surrey College of Technology" },
+    { "urn": "131859", "ukprn": "10002111", "laestab": "8408008", "name": "East Durham College" },
+    { "urn": "135771", "ukprn": "10024962", "laestab": "3838025", "name": "Luminate Education Group" },
+    { "urn": "139238", "ukprn": "10036143", "laestab": "8038000", "name": "South Gloucestershire and Stroud College" }
+  ]
+}

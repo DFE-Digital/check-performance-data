@@ -58,6 +58,12 @@ public static class AnswerFieldMap
             ["date-permanently-excluded"]              = "dateOfPermanentExclusion",
             ["date-removed-from-roll"]                 = "dateOfRemoval",
 
+            // Child missing education (Remove - child-missing-education). The radio's option
+            // value is copied as-is; the seed's PMIE-OTHER-REJ branch compares it against
+            // "other" (AB#304117). RuleLiteralOptionValueAlignmentTests pins that literal to
+            // the flow's option values.
+            ["why-removed"]                            = "childMissingEducationGround",
+
             // Provisional ids for flows not yet authored (KS2 / Post16) — revisit
             // when those configs exist; the alignment test allowlists them.
             ["date-added-to-roll"]                     = "dateAddedToRoll",
@@ -81,13 +87,15 @@ public static class AnswerFieldMap
                 ("hadRecentPoliceInvolvement",   "police-involvement"),
                 ("hasBeenDetainedInPrison",      "detained-in-prison"),
             ],
+            // #513: the journey asks 3 categories, the rules keep 5 fields. A category that
+            // covers two fields sets both, so saved rules need no change.
             ["life-limiting-illness-health-issue"] =
             [
-                ("hasTerminalIllness",             "life-limiting"),
-                ("hasCriticalIllness12mPlus",      "twelve-months-critically-ill"),
-                ("hasRecentLifeChangingDiagnosis", "life-changing-illness"),
-                ("hasRecentLifeChangingInjury",    "life-changing-injury"),
-                ("underInvestigation12mPlus",      "investigated"),
+                ("hasTerminalIllness",             "terminal-illness"),
+                ("hasRecentLifeChangingDiagnosis", "recent-life-changing-illness-or-injury"),
+                ("hasRecentLifeChangingInjury",    "recent-life-changing-illness-or-injury"),
+                ("hasCriticalIllness12mPlus",      "critical-illness-12-months"),
+                ("underInvestigation12mPlus",      "critical-illness-12-months"),
             ],
         };
 

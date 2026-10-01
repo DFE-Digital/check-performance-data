@@ -205,7 +205,7 @@ public sealed class RulesEngineEndToEndTests
             DecisionStatus.AutoRejected, "SCI-KS4-REJ");
 
         yield return new("TerminalCriticalIllness-TerminalIsScrutiny", "Remove - life-limiting-illness", "KS4June",
-            Answers: [("life-limiting-illness-health-issue", "life-limiting")],
+            Answers: [("life-limiting-illness-health-issue", "terminal-illness")],
             DecisionStatus.Scrutiny, "TCI-TERM-SCR");
 
         yield return new("YearGroupChange-Lower", "Remove - year-group-change", "KS4June",
@@ -247,10 +247,20 @@ public sealed class RulesEngineEndToEndTests
             Answers: [("date-removed-from-roll", "2025-06-01")],
             DecisionStatus.AutoRejected, "PLE-KS4");
 
-        // The authored flow asks why-removed + date, not the whereabouts questions
-        // the PMIE-REJ rule reads, so journey submissions always land in Scrutiny.
-        yield return new("PupilMissingInEducation-DefaultsToScrutiny", "Remove - child-missing-education", "KS4June",
-            Answers: [("why-removed", "no-agreed-leave-or-reason")],
+        // AB#304117: the why-removed radio is copied into childMissingEducationGround.
+        // Other is auto-rejected by PMIE-OTHER-REJ; Ground H and Ground I fall to PMIE-DEF
+        // (Scrutiny). PMIE-REJ still reads whereabouts fields no question fills, so it
+        // never fires from journey data.
+        yield return new("PupilMissingInEducation-OtherIsAutoRejected", "Remove - child-missing-education", "KS4June",
+            Answers: [("why-removed", "other"), ("date-removed-from-roll", "2025-09-01")],
+            DecisionStatus.AutoRejected, "PMIE-OTHER-REJ");
+
+        yield return new("PupilMissingInEducation-GroundHIsScrutiny", "Remove - child-missing-education", "KS4June",
+            Answers: [("why-removed", "not-returned-after-agreed-leave"), ("date-removed-from-roll", "2025-09-01")],
+            DecisionStatus.Scrutiny, "PMIE-DEF");
+
+        yield return new("PupilMissingInEducation-GroundIIsScrutiny", "Remove - child-missing-education", "KS4June",
+            Answers: [("why-removed", "no-agreed-leave-or-reason"), ("date-removed-from-roll", "2025-09-01")],
             DecisionStatus.Scrutiny, "PMIE-DEF");
 
         // Per the "always Scrutiny on doubt" policy: a reason the AnswerFieldMap

@@ -37,14 +37,15 @@
     <span class="govuk-warning-text__icon" aria-hidden="true">!</span>
     <strong class="govuk-warning-text__text">
         <span class="govuk-visually-hidden">Warning</span>
-        JavaScript added here runs on every page for every visitor, administrators included. A save takes effect straight away on the server you saved on, and on any other within about 30 seconds.
+        JavaScript added here runs on every page except this one, for every visitor, administrators included. A save takes effect straight away on the server you saved on, and on any other within about 30 seconds.
     </strong>
 </div>
 
 <div class="govuk-inset-text">
-    If a script or rule breaks a page, add <code>?siteAssets=off</code> to the address to load that page without them,
-    for example <a class="govuk-link" href="/admin/site-assets?siteAssets=off">/admin/site-assets?siteAssets=off</a>,
-    then fix or switch off the asset here. To see a page with them applied, open it without that suffix.
+    This page never loads the custom CSS or JavaScript, so a faulty script cannot stop you reaching it.
+    If a script or rule breaks another page, add <code>?siteAssets=off</code> to its address to load it without them,
+    for example <a class="govuk-link" href="/admin?siteAssets=off">/admin?siteAssets=off</a>,
+    then fix or switch off the asset here.
 </div>
 
 <form action="/admin/site-assets" method="post" novalidate>

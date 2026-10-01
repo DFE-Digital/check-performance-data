@@ -9,10 +9,16 @@ public sealed record SiteAssetLinks(string? CssUrl, string? JsUrl)
 {
     public static readonly SiteAssetLinks None = new(null, null);
 
-    // ?siteAssets=off is the recovery switch, on every page including the admin area, so an
-    // administrator can always reach the page that turns a broken asset off.
+    // The page that edits the assets never loads them, so a broken script or rule cannot stop an
+    // administrator reaching the page that fixes it. Anywhere else, ?siteAssets=off loads the page
+    // without them for that request.
+    public const string EditorPath = "/admin/site-assets";
+
     public static SiteAssetLinks For(SiteAssetContent content, PathString path, QueryString query)
     {
+        if (path.StartsWithSegments(EditorPath, StringComparison.OrdinalIgnoreCase))
+            return None;
+
         if (Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(query.Value).TryGetValue("siteAssets", out var mode)
             && string.Equals(mode.ToString(), "off", StringComparison.OrdinalIgnoreCase))
             return None;

@@ -8,7 +8,9 @@ using Microsoft.AspNetCore.Mvc;
 namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 
 [RequireAdminSection(AdminNavKeys.ManageWindow)]
-public sealed class SummaryController(IWindowService windowService): Controller
+public sealed class SummaryController(
+    IWindowService windowService,
+    ICheckingExerciseService checkingExercises) : Controller
 {
    
     [HttpGet("admin/windows/summary/{id:guid}")]
@@ -42,6 +44,10 @@ public sealed class SummaryController(IWindowService windowService): Controller
                     Label = ExerciseLabels.For(e.ExerciseType),
                     StartDate = e.StartDate,
                     EndDate = e.EndDate,
+                    // AB#301022: asked of the one clock, never worked out here. These two decide
+                    // which of Close and "Send requests for processing" the page offers.
+                    IsOpen = checkingExercises.IsOpen(w.Exercises, e.ExerciseType),
+                    HasClosed = checkingExercises.HasClosed(w.Exercises, e.ExerciseType),
                     IsValidated = e.IsValidated,
                     ValidatedAt = e.ValidatedAt,
                     IsStale = e.ValidatedAt is not null && !e.IsValidated,

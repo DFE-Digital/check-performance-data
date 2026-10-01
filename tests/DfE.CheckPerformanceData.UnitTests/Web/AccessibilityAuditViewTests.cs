@@ -221,6 +221,17 @@ public sealed class AccessibilityAuditViewTests
 	}
 
 	[Fact]
+	public void SummaryPage_SendRequestsButton_NamesItsExerciseInVisibleText()
+	{
+		// AB#301022: like Close, this button repeats once per closed exercise down the page, so
+		// the exercise label must stay in its visible text.
+		var view = ReadView("Views", "WindowAdmin", "Summary.cshtml");
+
+		Assert.Contains("Send @exercise.Label requests for processing", view);
+		Assert.Contains("@exercise.SendRequestsLink", view);
+	}
+
+	[Fact]
 	public void ClosePage_TitleMatchesItsHeading()
 	{
 		// Every page sets ViewData/ViewBag Title and it matches the <h1>, same words, sentence case.

@@ -9,14 +9,10 @@ public sealed record SiteAssetLinks(string? CssUrl, string? JsUrl)
 {
     public static readonly SiteAssetLinks None = new(null, null);
 
-    // The admin area never gets the assets: a broken script there could stop an administrator
-    // reaching the very page that switches it off. ?siteAssets=off is a safe mode for any public
-    // page, so an administrator can see a page without the assets while diagnosing a problem.
+    // ?siteAssets=off is the recovery switch, on every page including the admin area, so an
+    // administrator can always reach the page that turns a broken asset off.
     public static SiteAssetLinks For(SiteAssetContent content, PathString path, QueryString query)
     {
-        if (path.StartsWithSegments("/admin", StringComparison.OrdinalIgnoreCase))
-            return None;
-
         if (Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(query.Value).TryGetValue("siteAssets", out var mode)
             && string.Equals(mode.ToString(), "off", StringComparison.OrdinalIgnoreCase))
             return None;

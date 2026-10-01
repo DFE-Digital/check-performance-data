@@ -24,21 +24,12 @@ public sealed class SiteAssetLinksTests
     [InlineData("/admin")]
     [InlineData("/admin/settings")]
     [InlineData("/Admin/pages/5/edit")]
-    [InlineData("/ADMIN/site-assets")]
-    public void AdminPages_NeverGetTheAssets_SoABadScriptCannotLockAdminsOut(string path)
+    public void AdminPages_GetTheAssetsToo(string path)
     {
         var links = SiteAssetLinks.For(Both, new PathString(path), Query());
 
-        Assert.Null(links.CssUrl);
-        Assert.Null(links.JsUrl);
-    }
-
-    [Fact]
-    public void PathMerelyStartingWithAdmin_IsStillAPublicPage()
-    {
-        var links = SiteAssetLinks.For(Both, new PathString("/administration-guidance"), Query());
-
         Assert.NotNull(links.CssUrl);
+        Assert.NotNull(links.JsUrl);
     }
 
     [Theory]
@@ -46,7 +37,7 @@ public sealed class SiteAssetLinksTests
     [InlineData("?x=1&siteAssets=OFF")]
     public void SafeMode_SuppressesBoth_ForThatRequestOnly(string query)
     {
-        var links = SiteAssetLinks.For(Both, new PathString("/guidance"), Query(query));
+        var links = SiteAssetLinks.For(Both, new PathString("/admin/site-assets"), Query(query));
 
         Assert.Null(links.CssUrl);
         Assert.Null(links.JsUrl);
@@ -73,14 +64,29 @@ public sealed class SiteAssetLinksTests
         Assert.Equal("/cms/site.js", links.JsUrl);
     }
 
-    [Fact]
-    public void PublicLayout_InvokesTheComponent_AndTheAdminLayoutDoesNot()
+    // The site CSS link must come after ~/css/site.css so it can override anything in it.
+    [Theory]
+    [InlineData("_Layout.cshtml")]
+    [InlineData("_AdminLayout.cshtml")]
+    [InlineData("_ShareLayout.cshtml")]
+    public void EveryMasterLayout_EmitsTheSiteAssetsComponent_AfterTheAppStylesheet(string layout)
     {
-        var views = Path.Combine(RepoRoot(), "src", "DfE.CheckPerformanceData.Web", "Views", "Shared");
+        var src = File.ReadAllText(Path.Combine(RepoRoot(), "src", "DfE.CheckPerformanceData.Web", "Views", "Shared", layout));
 
-        Assert.Contains("Component.InvokeAsync(\"SiteAssets\")", File.ReadAllText(Path.Combine(views, "_Layout.cshtml")));
-        Assert.DoesNotContain("SiteAssets", File.ReadAllText(Path.Combine(views, "_AdminLayout.cshtml")));
-        Assert.DoesNotContain("SiteAssets", File.ReadAllText(Path.Combine(views, "_AdminWideLayout.cshtml")));
+        var appCss = src.IndexOf("~/css/site.css", StringComparison.Ordinal);
+        var custom = src.IndexOf("Component.InvokeAsync(\"SiteAssets\")", StringComparison.Ordinal);
+
+        Assert.True(appCss >= 0, "layout must load ~/css/site.css");
+        Assert.True(custom > appCss, "site assets must be emitted after ~/css/site.css");
+        Assert.DoesNotContain("<link rel=\"stylesheet\"", src[custom..], StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AdminWideLayout_InheritsTheAdminLayout()
+    {
+        var src = File.ReadAllText(Path.Combine(RepoRoot(), "src", "DfE.CheckPerformanceData.Web", "Views", "Shared", "_AdminWideLayout.cshtml"));
+
+        Assert.Contains("Layout = \"_AdminLayout\"", src);
     }
 
     private static string RepoRoot([System.Runtime.CompilerServices.CallerFilePath] string path = "") =>

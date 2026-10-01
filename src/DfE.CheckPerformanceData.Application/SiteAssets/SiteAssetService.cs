@@ -30,7 +30,7 @@ public interface ISiteAssetService
 
 // Reads and writes the site assets through the settings store, so every change goes through the
 // same audited write path as any other setting. Reads are cached briefly because the layout asks
-// on every public page view; a save drops the cache on this instance and other instances catch
+// on every page view; a save drops the cache on this instance and other instances catch
 // up when the entry expires.
 public sealed class SiteAssetService(ISettingService settings, IMemoryCache cache, TimeProvider? clock = null) : ISiteAssetService
 {

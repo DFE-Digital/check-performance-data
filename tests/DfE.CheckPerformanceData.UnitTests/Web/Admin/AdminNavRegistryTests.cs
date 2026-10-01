@@ -104,12 +104,13 @@ public sealed class AdminNavRegistryTests
 		// CMS admin loses the messages-inbox tile (moved to the Messages group) AND the
 		// seed-sample-pages tile (moved to the new Test data sub-group under System admin),
 		// leaving five children.
-		Assert.Equal(new[] { 10, 20, 30, 40, 60, 70 }, cmsOrders);
-		// System administration now has five direct children: the Rules Engine sub-group (10),
-		// System settings (20), Application logs (25), Role settings (30), Test data (40).
+		Assert.Equal(new[] { 10, 20, 30, 40, 60 }, cmsOrders);
+		// System administration now has six direct children: the Rules Engine sub-group (10),
+		// System settings (20), Application logs (25), Site CSS and JavaScript (27),
+		// Role settings (30), Test data (40).
 		// The pipeline tiles nest one level deeper under Rules Engine; the seed-sample-*
 		// tiles nest one level deeper under Test data.
-		Assert.Equal(new[] { 10, 20, 25, 30, 40 }, systemOrders);
+		Assert.Equal(new[] { 10, 20, 25, 27, 30, 40 }, systemOrders);
 
 		var rulesEngineGroupOrders = entries
 			.Where(e => e.ParentKey == "rules-engine-group")

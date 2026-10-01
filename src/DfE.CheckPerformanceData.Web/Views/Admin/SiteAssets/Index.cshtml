@@ -5,7 +5,7 @@
 
 <h1 class="govuk-heading-xl">Site CSS and JavaScript</h1>
 <p class="govuk-body-l">
-    Add custom CSS and JavaScript that applies to every public page of the service.
+    Add custom CSS and JavaScript that applies to every page of the service, including the admin area.
 </p>
 
 @if (TempData["SiteAssetsResult"] is string saved)
@@ -37,15 +37,14 @@
     <span class="govuk-warning-text__icon" aria-hidden="true">!</span>
     <strong class="govuk-warning-text__text">
         <span class="govuk-visually-hidden">Warning</span>
-        JavaScript added here runs on every public page for every visitor. Changes take effect within about 30 seconds.
+        JavaScript added here runs on every page for every visitor, administrators included. A save takes effect straight away on the server you saved on, and on any other within about 30 seconds.
     </strong>
 </div>
 
 <div class="govuk-inset-text">
-    The admin area never loads this CSS or JavaScript, so a faulty script cannot stop you reaching this page.
-    To look at a public page without it, add <code>?siteAssets=off</code> to the address, for example
-    <a class="govuk-link" href="/guidance?siteAssets=off">/guidance?siteAssets=off</a>.
-    To see it with the assets applied, open <a class="govuk-link" href="/guidance">/guidance</a>.
+    If a script or rule breaks a page, add <code>?siteAssets=off</code> to the address to load that page without them,
+    for example <a class="govuk-link" href="/admin/site-assets?siteAssets=off">/admin/site-assets?siteAssets=off</a>,
+    then fix or switch off the asset here. To see a page with them applied, open it without that suffix.
 </div>
 
 <form action="/admin/site-assets" method="post" novalidate>
@@ -56,7 +55,7 @@
             <label class="govuk-label govuk-label--m" for="css">Custom CSS</label>
         </h2>
         <div id="css-hint" class="govuk-hint">
-            Served as a stylesheet after the service styles, so these rules can override them. Up to @Model.MaxLength.ToString("N0") characters.
+            Linked as the last stylesheet on every page, so these rules can override the service styles. Up to @Model.MaxLength.ToString("N0") characters.
         </div>
         <textarea class="govuk-textarea admin-code-textarea" id="css" name="Css" rows="14"
                   spellcheck="false" autocomplete="off" aria-describedby="css-hint">@Model.Css</textarea>
@@ -65,7 +64,7 @@
         <div class="govuk-checkboxes govuk-checkboxes--small" data-module="govuk-checkboxes">
             <div class="govuk-checkboxes__item">
                 <input class="govuk-checkboxes__input" id="css-enabled" name="CssEnabled" type="checkbox" value="true" @(Model.CssEnabled ? "checked" : "") />
-                <label class="govuk-label govuk-checkboxes__label" for="css-enabled">Apply the custom CSS to the public site</label>
+                <label class="govuk-label govuk-checkboxes__label" for="css-enabled">Apply the custom CSS to the site</label>
             </div>
         </div>
     </div>
@@ -75,7 +74,7 @@
             <label class="govuk-label govuk-label--m" for="js">Custom JavaScript</label>
         </h2>
         <div id="js-hint" class="govuk-hint">
-            Served as a deferred script file, so it runs once the page has loaded. Up to @Model.MaxLength.ToString("N0") characters.
+            Linked as a deferred script file, so it runs once the page has loaded. Up to @Model.MaxLength.ToString("N0") characters.
         </div>
         <textarea class="govuk-textarea admin-code-textarea" id="js" name="Js" rows="14"
                   spellcheck="false" autocomplete="off" aria-describedby="js-hint">@Model.Js</textarea>
@@ -84,7 +83,7 @@
         <div class="govuk-checkboxes govuk-checkboxes--small" data-module="govuk-checkboxes">
             <div class="govuk-checkboxes__item">
                 <input class="govuk-checkboxes__input" id="js-enabled" name="JsEnabled" type="checkbox" value="true" @(Model.JsEnabled ? "checked" : "") />
-                <label class="govuk-label govuk-checkboxes__label" for="js-enabled">Apply the custom JavaScript to the public site</label>
+                <label class="govuk-label govuk-checkboxes__label" for="js-enabled">Apply the custom JavaScript to the site</label>
             </div>
         </div>
     </div>

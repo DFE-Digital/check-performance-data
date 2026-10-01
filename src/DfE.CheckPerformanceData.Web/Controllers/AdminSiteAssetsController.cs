@@ -7,11 +7,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-// Where a CMS administrator edits the site-wide CSS and JavaScript. Doubly gated: the section
+// Where an administrator edits the site-wide CSS and JavaScript. Doubly gated: the section
 // grant puts it in the role-access grid like every other admin page, and the administrator role
-// is required regardless of the grid, because a script here runs on every public page and so is
-// not something to hand to editors by ticking a box. Views live under Views/Admin/SiteAssets so
-// they inherit the admin layout, which never carries the assets it edits.
+// is required regardless of the grid, because a script here runs on every page for every user and
+// so is not something to hand to editors by ticking a box. Views live under Views/Admin/SiteAssets
+// so they inherit the admin layout.
 [RequireAdminSection(AdminNavKeys.SiteAssets)]
 [Authorize(Roles = WikiConstants.AdminRole)]
 public sealed class AdminSiteAssetsController(ISiteAssetService assets, ILogger<AdminSiteAssetsController> logger) : Controller

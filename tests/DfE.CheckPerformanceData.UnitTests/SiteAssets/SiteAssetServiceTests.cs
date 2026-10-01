@@ -86,7 +86,7 @@ public sealed class SiteAssetServiceTests
     {
         await _sut.SaveAsync(new SiteAssetContent("h1{}", "", true, true));
 
-        await _settings.Received(1).SaveAsync(SettingKeys.SiteCssSavedAt, "20260930153012");
+        Assert.Equal("20260930153012", Saved()[SettingKeys.SiteCssSavedAt]);
     }
 
     [Fact]
@@ -97,8 +97,8 @@ public sealed class SiteAssetServiceTests
 
         await _sut.SaveAsync(new SiteAssetContent("h1{}", "var a=1;", true, true));
 
-        await _settings.DidNotReceive().SaveAsync(SettingKeys.SiteCssSavedAt, Arg.Any<string?>());
-        await _settings.Received(1).SaveAsync(SettingKeys.SiteJsSavedAt, "20260930153012");
+        Assert.False(Saved().ContainsKey(SettingKeys.SiteCssSavedAt));
+        Assert.Equal("20260930153012", Saved()[SettingKeys.SiteJsSavedAt]);
     }
 
     [Fact]
@@ -108,7 +108,7 @@ public sealed class SiteAssetServiceTests
 
         await _sut.SaveAsync(new SiteAssetContent("h1{}", "", false, true));
 
-        await _settings.Received(1).SaveAsync(SettingKeys.SiteCssSavedAt, "20260930153012");
+        Assert.Equal("20260930153012", Saved()[SettingKeys.SiteCssSavedAt]);
     }
 
     [Fact]
@@ -137,7 +137,7 @@ public sealed class SiteAssetServiceTests
 
         await _sut.SaveAsync(new SiteAssetContent("h1{}", "", true, true));
 
-        await _settings.Received(1).SaveAsync(SettingKeys.SiteCssSavedAt, "20260930153012");
+        Assert.Equal("20260930153012", Saved()[SettingKeys.SiteCssSavedAt]);
     }
 
     [Fact]
@@ -157,10 +157,12 @@ public sealed class SiteAssetServiceTests
         var result = await _sut.SaveAsync(new SiteAssetContent("h1{}", "var a=1;", true, false));
 
         Assert.True(result.Succeeded);
-        await _settings.Received(1).SaveAsync(SettingKeys.SiteCss, "h1{}");
-        await _settings.Received(1).SaveAsync(SettingKeys.SiteJs, "var a=1;");
-        await _settings.Received(1).SaveAsync(SettingKeys.SiteCssEnabled, "true");
-        await _settings.Received(1).SaveAsync(SettingKeys.SiteJsEnabled, "false");
+        var saved = Saved();
+        Assert.Equal("h1{}", saved[SettingKeys.SiteCss]);
+        Assert.Equal("var a=1;", saved[SettingKeys.SiteJs]);
+        Assert.Equal("true", saved[SettingKeys.SiteCssEnabled]);
+        Assert.Equal("false", saved[SettingKeys.SiteJsEnabled]);
+        await _settings.DidNotReceiveWithAnyArgs().SaveAsync(default!, default);
 
         _settings.ClearReceivedCalls();
         await _sut.GetAsync();
@@ -176,7 +178,35 @@ public sealed class SiteAssetServiceTests
 
         Assert.False(result.Succeeded);
         Assert.Contains("CSS", result.Error);
-        await _settings.DidNotReceiveWithAnyArgs().SaveAsync(default!, default);
+        await _settings.DidNotReceiveWithAnyArgs().SaveManyAsync(default!);
+    }
+
+    // Content, switches and versions go to the store as one write. If part of it fails, nothing is
+    // left half-saved and the editor is told, rather than the page failing.
+    [Fact]
+    public async Task Save_WhenTheStoreFails_ReportsItAndDoesNotThrow()
+    {
+        _settings.SaveManyAsync(Arg.Any<IReadOnlyDictionary<string, string?>>())
+            .Returns(Task.FromException(new InvalidOperationException("database unavailable")));
+
+        var result = await _sut.SaveAsync(new SiteAssetContent("h1{}", "", true, true));
+
+        Assert.False(result.Succeeded);
+        Assert.Contains("could not be saved", result.Error);
+    }
+
+    [Fact]
+    public async Task Save_WhenTheStoreFails_TheNextReadGoesBackToTheStore()
+    {
+        await _sut.GetAsync();
+        _settings.SaveManyAsync(Arg.Any<IReadOnlyDictionary<string, string?>>())
+            .Returns(Task.FromException(new InvalidOperationException("database unavailable")));
+
+        await _sut.SaveAsync(new SiteAssetContent("h1{}", "", true, true));
+        _settings.ClearReceivedCalls();
+        await _sut.GetAsync();
+
+        await _settings.Received(1).GetValueAsync(SettingKeys.SiteCss);
     }
 
     [Fact]
@@ -201,6 +231,13 @@ public sealed class SiteAssetServiceTests
 
         Assert.DoesNotContain(all, s => s.Key.StartsWith("SiteAssets:"));
         Assert.Contains(all, s => s.Key == SettingKeys.CmsPageLength);
+    }
+
+    // The single batch of settings the last save handed to the store.
+    private IReadOnlyDictionary<string, string?> Saved()
+    {
+        var call = Assert.Single(_settings.ReceivedCalls(), c => c.GetMethodInfo().Name == nameof(ISettingService.SaveManyAsync));
+        return (IReadOnlyDictionary<string, string?>)call.GetArguments()[0]!;
     }
 
     private sealed class FixedClock(DateTimeOffset now) : TimeProvider

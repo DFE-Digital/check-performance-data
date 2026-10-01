@@ -70,7 +70,25 @@ public sealed class SettingService(ISettingRepository repository) : ISettingServ
     public async Task SaveAsync(string key, string? value)
     {
         _ = Require(key); // reject unknown keys before touching the store
+        await WriteAsync(key, value);
+    }
 
+    // Saves several settings as one unit: every value is written or, if any write fails, none is.
+    // Each value is treated exactly as SaveAsync treats it.
+    public async Task SaveManyAsync(IReadOnlyDictionary<string, string?> values)
+    {
+        foreach (var key in values.Keys)
+            _ = Require(key); // reject unknown keys before touching the store
+
+        await repository.ExecuteInTransactionAsync(async () =>
+        {
+            foreach (var (key, value) in values)
+                await WriteAsync(key, value);
+        });
+    }
+
+    private async Task WriteAsync(string key, string? value)
+    {
         if (string.IsNullOrWhiteSpace(value))
             await repository.DeleteAsync(key); // clearing reverts to the code-declared default
         else

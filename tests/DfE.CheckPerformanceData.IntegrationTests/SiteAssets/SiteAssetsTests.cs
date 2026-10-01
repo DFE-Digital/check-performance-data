@@ -69,6 +69,51 @@ public sealed class SiteAssetsTests(PostgresFixture fixture)
         Assert.Equal("", read.JsVersion);
     }
 
+    // The content, switches and versions are written together. If the store fails part-way, nothing
+    // is kept: new content must never be served under the version of the old content, which browsers
+    // may already hold for a year.
+    [Fact]
+    public async Task Save_WhenALaterWriteFails_NothingIsWritten()
+    {
+        await TruncateSettingsAsync();
+        await NewService().SaveAsync(new SiteAssetContent("h1{color:red}", "", true, true));
+        var before = await NewService().GetAsync();
+
+        var failing = new FailingSettingRepository(new SettingRepository(fixture.CreateContext()), SettingKeys.SiteCssSavedAt);
+        var result = await new SiteAssetService(new SettingService(failing), new MemoryCache(new MemoryCacheOptions()),
+            new FixedClock(new DateTimeOffset(2099, 1, 1, 0, 0, 0, TimeSpan.Zero)))
+            .SaveAsync(new SiteAssetContent("h1{color:blue}", "", true, true));
+        var after = await NewService().GetAsync();
+
+        Assert.False(result.Succeeded);
+        Assert.True(failing.Failed);
+        Assert.Equal("h1{color:red}", after.Css);
+        Assert.Equal(before.CssVersion, after.CssVersion);
+    }
+
+    // A failed save leaves nothing that makes the retry look like "no change", so the retry stamps a
+    // new version. The retry reuses the same context, as a resubmitted form might.
+    [Fact]
+    public async Task Save_RetriedAfterAFailure_WritesTheContentAndANewVersion()
+    {
+        await TruncateSettingsAsync();
+        await NewService().SaveAsync(new SiteAssetContent("h1{color:red}", "", true, true));
+        var before = await NewService().GetAsync();
+
+        var failing = new FailingSettingRepository(new SettingRepository(fixture.CreateContext()), SettingKeys.SiteCssSavedAt);
+        var service = new SiteAssetService(new SettingService(failing), new MemoryCache(new MemoryCacheOptions()),
+            new FixedClock(new DateTimeOffset(2099, 1, 1, 0, 0, 0, TimeSpan.Zero)));
+        var first = await service.SaveAsync(new SiteAssetContent("h1{color:blue}", "", true, true));
+        var retry = await service.SaveAsync(new SiteAssetContent("h1{color:blue}", "", true, true));
+        var after = await NewService().GetAsync();
+
+        Assert.False(first.Succeeded);
+        Assert.True(retry.Succeeded);
+        Assert.Equal("h1{color:blue}", after.Css);
+        Assert.Equal("20990101000000", after.CssVersion);
+        Assert.NotEqual(before.CssVersion, after.CssVersion);
+    }
+
     [Fact]
     public async Task Save_LargeContent_IsStoredWhole()
     {
@@ -133,5 +178,40 @@ public sealed class SiteAssetsTests(PostgresFixture fixture)
         Assert.Equal(HttpStatusCode.OK, js.StatusCode);
         Assert.Equal("text/javascript", js.Content.Headers.ContentType!.MediaType);
         Assert.Equal("window.siteJs=1;", await js.Content.ReadAsStringAsync());
+    }
+
+    // Passes everything to the real repository, except that the first write of one key fails, as a
+    // dropped connection or a timeout would part-way through a save.
+    private sealed class FailingSettingRepository(ISettingRepository inner, string failOnKey) : ISettingRepository
+    {
+        public bool Failed { get; private set; }
+
+        public Task<Dictionary<string, string>> GetAllAsync() => inner.GetAllAsync();
+        public Task<string?> GetValueAsync(string key) => inner.GetValueAsync(key);
+        public Task ExecuteInTransactionAsync(Func<Task> work) => inner.ExecuteInTransactionAsync(work);
+
+        public Task UpsertAsync(string key, string value)
+        {
+            FailOnce(key);
+            return inner.UpsertAsync(key, value);
+        }
+
+        public Task DeleteAsync(string key)
+        {
+            FailOnce(key);
+            return inner.DeleteAsync(key);
+        }
+
+        private void FailOnce(string key)
+        {
+            if (key != failOnKey || Failed) return;
+            Failed = true;
+            throw new InvalidOperationException("Simulated store failure.");
+        }
+    }
+
+    private sealed class FixedClock(DateTimeOffset now) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => now;
     }
 }

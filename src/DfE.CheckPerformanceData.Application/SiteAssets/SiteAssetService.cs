@@ -1,5 +1,7 @@
 using DfE.CheckPerformanceData.Application.Settings;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace DfE.CheckPerformanceData.Application.SiteAssets;
 
@@ -32,7 +34,8 @@ public interface ISiteAssetService
 // same audited write path as any other setting. Reads are cached briefly because the layout asks
 // on every page view; a save drops the cache on this instance and other instances catch
 // up when the entry expires.
-public sealed class SiteAssetService(ISettingService settings, IMemoryCache cache, TimeProvider? clock = null) : ISiteAssetService
+public sealed class SiteAssetService(
+    ISettingService settings, IMemoryCache cache, TimeProvider? clock = null, ILogger<SiteAssetService>? logger = null) : ISiteAssetService
 {
     public const int MaxLength = 200_000;
     private const string CacheKey = "site-assets";
@@ -69,16 +72,35 @@ public sealed class SiteAssetService(ISettingService settings, IMemoryCache cach
         var current = await GetAsync();
         var stamp = (clock ?? TimeProvider.System).GetUtcNow().UtcDateTime.ToString(SiteAssetContent.VersionFormat, System.Globalization.CultureInfo.InvariantCulture);
 
-        await settings.SaveAsync(SettingKeys.SiteCss, content.Css);
-        await settings.SaveAsync(SettingKeys.SiteJs, content.Js);
-        await settings.SaveAsync(SettingKeys.SiteCssEnabled, content.CssEnabled ? "true" : "false");
-        await settings.SaveAsync(SettingKeys.SiteJsEnabled, content.JsEnabled ? "true" : "false");
+        var values = new Dictionary<string, string?>
+        {
+            [SettingKeys.SiteCss] = content.Css,
+            [SettingKeys.SiteJs] = content.Js,
+            [SettingKeys.SiteCssEnabled] = content.CssEnabled ? "true" : "false",
+            [SettingKeys.SiteJsEnabled] = content.JsEnabled ? "true" : "false",
+        };
         if (content.Css != current.Css || content.CssEnabled != current.CssEnabled)
-            await settings.SaveAsync(SettingKeys.SiteCssSavedAt, stamp);
+            values[SettingKeys.SiteCssSavedAt] = stamp;
         if (content.Js != current.Js || content.JsEnabled != current.JsEnabled)
-            await settings.SaveAsync(SettingKeys.SiteJsSavedAt, stamp);
+            values[SettingKeys.SiteJsSavedAt] = stamp;
 
-        cache.Remove(CacheKey);
+        // Written as one unit. Were the content saved without its new version, it would be served
+        // under the old version's URL, which browsers cache for a year, and a retry would find
+        // nothing changed and never restamp it.
+        try
+        {
+            await settings.SaveManyAsync(values);
+        }
+        catch (Exception ex)
+        {
+            (logger ?? NullLogger<SiteAssetService>.Instance).LogError(ex, "Saving the site CSS and JavaScript failed; nothing was changed");
+            return new SiteAssetSaveResult(false, "The site CSS and JavaScript could not be saved. Nothing was changed. Try again.");
+        }
+        finally
+        {
+            cache.Remove(CacheKey);
+        }
+
         return new SiteAssetSaveResult(true);
     }
 }

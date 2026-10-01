@@ -17,6 +17,13 @@ public static class AuditActivities
     public const string CheckingWindow = "CheckingWindow";
     public const string TransferAction = "Transfer";
     public const string TransferFailedAction = "TransferFailed";
+    /// <summary>
+    /// EntityType of the hand-written rows window administration writes (AB#301022). Its EntityId
+    /// is the window id, so the window filter matches it without reading the payload.
+    /// </summary>
+    public const string WindowAdmin = "WindowAdmin";
+    /// <summary>An admin closed a checking exercise before its scheduled end.</summary>
+    public const string ClosedEarlyAction = "ClosedEarly";
 
     private static readonly IReadOnlyDictionary<string, string> Labels = new Dictionary<string, string>(StringComparer.Ordinal)
     {

@@ -36,7 +36,12 @@ public sealed class PermanentExclusionIndependentSchoolTests(PlaywrightFixture f
     // Drop the independent-school cookie onto this test's own context. SeedingPageTest has already
     // mirrored the fixture-wide editor cookie in, so this overwrites it by name. Nothing shared is
     // mutated, so the rest of the [Collection("E2E")] run still sees the editor session.
-    public new async Task InitializeAsync()
+    //
+    // Must be `sealed override`, not `new`: xUnit dispatches IAsyncLifetime through the interface
+    // map established at SeedingPageTest, so a hidden `new` method here is never called and the
+    // independent cookie silently never lands — the tests then run as the fixture editor and report
+    // permanent-exclusion as still being offered.
+    public sealed override async Task InitializeAsync()
     {
         await base.InitializeAsync();
 
@@ -70,7 +75,7 @@ public sealed class PermanentExclusionIndependentSchoolTests(PlaywrightFixture f
     public async Task IndependentSchool_ReasonPage_StillOffersNotOnRoll()
     {
         // Proves the independent session really took effect and the page is otherwise intact:
-        // "Not on roll" is gated on the OPPOSITE condition (SchoolIsIndependent), so an
+        // "Not on roll" is offered to independent schools (SchoolCanRecordNotOnRoll), so an
         // all-reasons-missing render would fail here.
         await SeedHelpers.CleanupDevRequestsAsync(Fixture.SeedClient);
         await NavigateToReasonPageAsync();

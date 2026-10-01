@@ -31,10 +31,10 @@ public sealed class SiteAssetsController(ISiteAssetService assets) : Controller
         return Content(content.ServesJs ? content.Js : "/* no custom JavaScript */", "text/javascript; charset=utf-8");
     }
 
-    // A request that names the current content hash can be cached for good, because a change to
-    // the content changes the hash and so the URL. Anything else must be revalidated, and so must
+    // A request that names the time the asset was last saved can be cached for good, because a save
+    // changes that time and so the URL. Anything else must be revalidated, and so must
     // an asset that is switched off, so that turning it off takes effect straight away.
     private void SetCaching(string? requestedVersion, string currentVersion, bool serving) =>
         Response.Headers[HeaderNames.CacheControl] =
-            serving && string.Equals(requestedVersion, currentVersion, StringComparison.Ordinal) ? LongCache : "no-cache";
+            serving && currentVersion.Length > 0 && string.Equals(requestedVersion, currentVersion, StringComparison.Ordinal) ? LongCache : "no-cache";
 }

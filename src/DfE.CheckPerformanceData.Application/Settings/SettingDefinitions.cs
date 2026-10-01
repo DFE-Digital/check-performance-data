@@ -41,6 +41,8 @@ public static class SettingKeys
     public const string SiteJs = "SiteAssets:Js";
     public const string SiteCssEnabled = "SiteAssets:CssEnabled";
     public const string SiteJsEnabled = "SiteAssets:JsEnabled";
+    public const string SiteCssSavedAt = "SiteAssets:CssSavedAt";
+    public const string SiteJsSavedAt = "SiteAssets:JsSavedAt";
 }
 
 // The data type of a setting's value, used by the settings editor to choose how to render
@@ -179,6 +181,16 @@ public static class SettingDefinitions
             "Whether the custom JavaScript is served. Edited under Site CSS and JavaScript.",
             "true",
             SettingKind.Bool,
+            ManagedElsewhere: true),
+        new(SettingKeys.SiteCssSavedAt,
+            "When the custom CSS was last saved (UTC, yyyyMMddHHmmss). Set automatically.",
+            "",
+            SettingKind.String,
+            ManagedElsewhere: true),
+        new(SettingKeys.SiteJsSavedAt,
+            "When the custom JavaScript was last saved (UTC, yyyyMMddHHmmss). Set automatically.",
+            "",
+            SettingKind.String,
             ManagedElsewhere: true)
     ];
 

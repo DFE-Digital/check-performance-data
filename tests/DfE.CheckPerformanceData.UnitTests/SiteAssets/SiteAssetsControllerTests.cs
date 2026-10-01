@@ -21,7 +21,9 @@ public sealed class SiteAssetsControllerTests
     }
 
     private void Stored(string css = "", string js = "", bool cssOn = true, bool jsOn = true) =>
-        _assets.GetAsync().Returns(new SiteAssetContent(css, js, cssOn, jsOn));
+        _assets.GetAsync().Returns(new SiteAssetContent(css, js, cssOn, jsOn, SavedAt, SavedAt));
+
+    private const string SavedAt = "20260930153012";
 
     [Fact]
     public async Task Css_ReturnsTheStoredCss_AsTextCss()
@@ -69,7 +71,7 @@ public sealed class SiteAssetsControllerTests
     public async Task Css_WithTheCurrentVersion_IsCachedForAYear()
     {
         Stored(css: "a{}");
-        var version = new SiteAssetContent("a{}", "", true, true).CssVersion;
+        var version = SavedAt;
 
         await _sut.Css(version);
 
@@ -83,7 +85,7 @@ public sealed class SiteAssetsControllerTests
     {
         Stored(css: "a{}");
 
-        await _sut.Css("0123456789ab");
+        await _sut.Css("20250101000000");
 
         Assert.Equal("no-cache", _sut.Response.Headers[HeaderNames.CacheControl].ToString());
     }
@@ -92,7 +94,7 @@ public sealed class SiteAssetsControllerTests
     public async Task Css_SwitchedOff_IsNeverCached_EvenForTheVersionThatWasOnceServed()
     {
         Stored(css: "a{}", cssOn: false);
-        var version = new SiteAssetContent("a{}", "", true, true).CssVersion;
+        var version = SavedAt;
 
         await _sut.Css(version);
 
@@ -103,11 +105,21 @@ public sealed class SiteAssetsControllerTests
     public async Task Js_WithTheCurrentVersion_IsCachedForAYear()
     {
         Stored(js: "x=1");
-        var version = new SiteAssetContent("", "x=1", true, true).JsVersion;
+        var version = SavedAt;
 
         await _sut.Js(version);
 
         Assert.Contains("max-age=31536000", _sut.Response.Headers[HeaderNames.CacheControl].ToString());
+    }
+
+    [Fact]
+    public async Task NeverSavedAsset_IsNotCachedLong_EvenWhenTheRequestNamesNoVersion()
+    {
+        _assets.GetAsync().Returns(new SiteAssetContent("a{}", "", true, true));
+
+        await _sut.Css("");
+
+        Assert.Equal("no-cache", _sut.Response.Headers[HeaderNames.CacheControl].ToString());
     }
 
     [Fact]

@@ -6,17 +6,18 @@ namespace DfE.CheckPerformanceData.UnitTests.Web.ViewComponents;
 
 public sealed class SiteAssetLinksTests
 {
-    private static readonly SiteAssetContent Both = new("h1{color:red}", "console.log(1)", true, true);
+    private static readonly SiteAssetContent Both =
+        new("h1{color:red}", "console.log(1)", true, true, "20260930153012", "20260101090000");
 
     private static QueryString Query(string q = "") => new(q);
 
     [Fact]
-    public void PublicPage_GetsBothLinks_WithVersionedUrls()
+    public void PublicPage_GetsBothLinks_VersionedWithTheSaveTimestamp()
     {
         var links = SiteAssetLinks.For(Both, new PathString("/guidance/x"), Query());
 
-        Assert.Equal($"/cms/site.css?v={Both.CssVersion}", links.CssUrl);
-        Assert.Equal($"/cms/site.js?v={Both.JsVersion}", links.JsUrl);
+        Assert.Equal("/cms/site.css?v=20260930153012", links.CssUrl);
+        Assert.Equal("/cms/site.js?v=20260101090000", links.JsUrl);
     }
 
     [Theory]
@@ -54,13 +55,22 @@ public sealed class SiteAssetLinksTests
     [Fact]
     public void SwitchedOffOrEmptyAssets_AreNotLinked()
     {
-        var links = SiteAssetLinks.For(new SiteAssetContent("h1{}", "", true, true), new PathString("/"), Query());
+        var links = SiteAssetLinks.For(new SiteAssetContent("h1{}", "", true, true, "20260930153012", ""), new PathString("/"), Query());
         Assert.NotNull(links.CssUrl);
         Assert.Null(links.JsUrl);
 
         var off = SiteAssetLinks.For(new SiteAssetContent("h1{}", "x", false, false), new PathString("/"), Query());
         Assert.Null(off.CssUrl);
         Assert.Null(off.JsUrl);
+    }
+
+    [Fact]
+    public void ContentSavedBeforeTimestampsExisted_IsLinkedWithoutAVersion()
+    {
+        var links = SiteAssetLinks.For(new SiteAssetContent("h1{}", "x", true, true), new PathString("/"), Query());
+
+        Assert.Equal("/cms/site.css", links.CssUrl);
+        Assert.Equal("/cms/site.js", links.JsUrl);
     }
 
     [Fact]

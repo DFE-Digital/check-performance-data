@@ -17,7 +17,7 @@ public sealed class SiteAssetCachingTests
 {
     private const string LongCache = "public, max-age=31536000, immutable";
 
-    private static readonly SiteAssetContent Content = new("a{}", "1;", true, true);
+    private static readonly SiteAssetContent Content = new("a{}", "1;", true, true, "20260930153012", "20260930153012");
 
     public static TheoryData<string> VersionedUrls => new()
     {

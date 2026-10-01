@@ -22,9 +22,14 @@ public sealed record SiteAssetLinks(string? CssUrl, string? JsUrl)
             return None;
 
         return new SiteAssetLinks(
-            content.ServesCss ? $"/cms/site.css?v={content.CssVersion}" : null,
-            content.ServesJs ? $"/cms/site.js?v={content.JsVersion}" : null);
+            content.ServesCss ? Url("/cms/site.css", content.CssVersion) : null,
+            content.ServesJs ? Url("/cms/site.js", content.JsVersion) : null);
     }
+
+    // Content saved before save times were kept has no version, so it is linked without one and
+    // always revalidated until its next save.
+    private static string Url(string path, string version) =>
+        version.Length == 0 ? path : $"{path}?v={version}";
 }
 
 public sealed class SiteAssetsViewComponent(ISiteAssetService assets) : ViewComponent

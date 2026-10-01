@@ -55,6 +55,21 @@ public sealed class SiteAssetsTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task Save_StampsTheVersionAsAUtcTimestamp_ThatSurvivesTheDatabase()
+    {
+        await TruncateSettingsAsync();
+        var before = DateTime.UtcNow.AddSeconds(-1);
+
+        await NewService().SaveAsync(new SiteAssetContent("h1{}", "", true, true));
+        var read = await NewService().GetAsync();
+
+        Assert.Matches("^[0-9]{14}$", read.CssVersion);
+        var stamped = DateTime.ParseExact(read.CssVersion, "yyyyMMddHHmmss", null, System.Globalization.DateTimeStyles.AssumeUniversal | System.Globalization.DateTimeStyles.AdjustToUniversal);
+        Assert.InRange(stamped, before, DateTime.UtcNow.AddSeconds(1));
+        Assert.Equal("", read.JsVersion);
+    }
+
+    [Fact]
     public async Task Save_LargeContent_IsStoredWhole()
     {
         await TruncateSettingsAsync();

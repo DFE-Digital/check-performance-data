@@ -489,7 +489,7 @@
     function init() {
         if (typeof accessibleAutocomplete === 'undefined') return;
         Array.prototype.forEach.call(
-            document.querySelectorAll('form[data-cypmd-instant-search]'),
+            document.querySelectorAll('form[data-cypmd-instant-search="true"]'),
             enhance);
     }
 

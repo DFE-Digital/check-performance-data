@@ -49,6 +49,9 @@ public static class DependencyManager
         services.AddScoped<IContentBlockRepository, ContentBlockRepository>();
         services.AddScoped<Application.ContentStaging.IContentStagingLock,
                            ContentStaging.PostgresContentStagingLock>();
+        // AB#302158: only one web pod at a time runs the automatic exercise hand-over.
+        services.AddScoped<Application.WindowManagement.IExerciseHandOverLock,
+                           Locking.PostgresExerciseHandOverLock>();
         services.AddScoped<Application.ContentStaging.IContentStagingSessionStore,
                            ContentStaging.ContentStagingSessionStore>();
         services.AddScoped<ILandingPageRepository, LandingPageRepository>();

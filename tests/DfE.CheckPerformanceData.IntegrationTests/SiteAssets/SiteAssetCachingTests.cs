@@ -21,8 +21,8 @@ public sealed class SiteAssetCachingTests
 
     public static TheoryData<string> VersionedUrls => new()
     {
-        $"/cms/site.css?v={Content.CssVersion}",
-        $"/cms/site.js?v={Content.JsVersion}",
+        $"/cms/custom.css?v={Content.CssVersion}",
+        $"/cms/custom.js?v={Content.JsVersion}",
     };
 
     [Theory]
@@ -39,9 +39,9 @@ public sealed class SiteAssetCachingTests
     }
 
     [Theory]
-    [InlineData("/cms/site.css")]
-    [InlineData("/cms/site.css?v=stale")]
-    [InlineData("/cms/site.js?v=stale")]
+    [InlineData("/cms/custom.css")]
+    [InlineData("/cms/custom.css?v=stale")]
+    [InlineData("/cms/custom.js?v=stale")]
     public async Task UnversionedOrStaleRequest_IsNotCachedLong(string url)
     {
         using var host = await BuildHostAsync();

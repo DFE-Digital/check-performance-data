@@ -128,7 +128,7 @@ public sealed class SiteAssetsControllerTests
         var type = typeof(SiteAssetsController);
 
         Assert.NotNull(type.GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AllowAnonymousAttribute), true).FirstOrDefault());
-        Assert.Equal("cms/site.css", type.GetMethod(nameof(SiteAssetsController.Css))!.GetCustomAttributes(typeof(HttpGetAttribute), false).Cast<HttpGetAttribute>().Single().Template);
-        Assert.Equal("cms/site.js", type.GetMethod(nameof(SiteAssetsController.Js))!.GetCustomAttributes(typeof(HttpGetAttribute), false).Cast<HttpGetAttribute>().Single().Template);
+        Assert.Equal("cms/custom.css", type.GetMethod(nameof(SiteAssetsController.Css))!.GetCustomAttributes(typeof(HttpGetAttribute), false).Cast<HttpGetAttribute>().Single().Template);
+        Assert.Equal("cms/custom.js", type.GetMethod(nameof(SiteAssetsController.Js))!.GetCustomAttributes(typeof(HttpGetAttribute), false).Cast<HttpGetAttribute>().Single().Template);
     }
 }

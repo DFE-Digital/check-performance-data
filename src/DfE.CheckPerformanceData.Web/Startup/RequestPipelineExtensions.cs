@@ -28,8 +28,8 @@ public static class RequestPipelineExtensions
             });
 
     private static bool IsSiteAsset(PathString path) =>
-        path.Equals("/cms/site.css", StringComparison.OrdinalIgnoreCase)
-        || path.Equals("/cms/site.js", StringComparison.OrdinalIgnoreCase);
+        path.Equals("/cms/custom.css", StringComparison.OrdinalIgnoreCase)
+        || path.Equals("/cms/custom.js", StringComparison.OrdinalIgnoreCase);
 
     // ORDER IS LOAD-BEARING throughout this method — every placement comment moved from
     // Program.cs documents a real constraint. Do not reorder without reading them.

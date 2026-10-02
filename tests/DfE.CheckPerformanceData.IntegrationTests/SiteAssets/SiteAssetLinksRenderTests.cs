@@ -28,8 +28,8 @@ public sealed class SiteAssetLinksRenderTests
     {
         var html = await RenderAtAsync(path);
 
-        Assert.DoesNotContain("/cms/site.css", html);
-        Assert.DoesNotContain("/cms/site.js", html);
+        Assert.DoesNotContain("/cms/custom.css", html);
+        Assert.DoesNotContain("/cms/custom.js", html);
     }
 
     [Theory]
@@ -42,8 +42,8 @@ public sealed class SiteAssetLinksRenderTests
     {
         var html = await RenderAtAsync(path);
 
-        Assert.Contains("<link rel=\"stylesheet\" href=\"/cms/site.css?v=20260930153012\" />", html);
-        Assert.Contains("<script src=\"/cms/site.js?v=20260930153012\" defer></script>", html);
+        Assert.Contains("<link rel=\"stylesheet\" href=\"/cms/custom.css?v=20260930153012\" />", html);
+        Assert.Contains("<script src=\"/cms/custom.js?v=20260930153012\" defer></script>", html);
     }
 
     private static async Task<string> RenderAtAsync(string path)

@@ -15,7 +15,7 @@ public sealed class SiteAssetsController(ISiteAssetService assets) : Controller
 {
     private const string LongCache = "public, max-age=31536000, immutable";
 
-    [HttpGet("cms/site.css")]
+    [HttpGet("cms/custom.css")]
     public async Task<IActionResult> Css(string? v)
     {
         var content = await assets.GetAsync();
@@ -23,7 +23,7 @@ public sealed class SiteAssetsController(ISiteAssetService assets) : Controller
         return Content(content.ServesCss ? content.Css : "/* no custom CSS */", "text/css; charset=utf-8");
     }
 
-    [HttpGet("cms/site.js")]
+    [HttpGet("cms/custom.js")]
     public async Task<IActionResult> Js(string? v)
     {
         var content = await assets.GetAsync();

@@ -16,8 +16,8 @@ public sealed class SiteAssetLinksTests
     {
         var links = SiteAssetLinks.For(Both, new PathString("/guidance/x"), Query());
 
-        Assert.Equal("/cms/site.css?v=20260930153012", links.CssUrl);
-        Assert.Equal("/cms/site.js?v=20260101090000", links.JsUrl);
+        Assert.Equal("/cms/custom.css?v=20260930153012", links.CssUrl);
+        Assert.Equal("/cms/custom.js?v=20260101090000", links.JsUrl);
     }
 
     [Theory]
@@ -60,8 +60,8 @@ public sealed class SiteAssetLinksTests
     {
         var links = SiteAssetLinks.For(new SiteAssetContent("h1{}", "x", true, true), new PathString("/"), Query());
 
-        Assert.Equal("/cms/site.css", links.CssUrl);
-        Assert.Equal("/cms/site.js", links.JsUrl);
+        Assert.Equal("/cms/custom.css", links.CssUrl);
+        Assert.Equal("/cms/custom.js", links.JsUrl);
     }
 
     // The site CSS link must come after ~/css/site.css so it can override anything in it.

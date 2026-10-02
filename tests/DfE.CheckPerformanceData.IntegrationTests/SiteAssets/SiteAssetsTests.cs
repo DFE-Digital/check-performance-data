@@ -187,8 +187,8 @@ public sealed class SiteAssetsTests(PostgresFixture fixture)
         }).StartAsync();
         var client = host.GetTestClient();
 
-        using var css = await client.GetAsync("/cms/site.css");
-        using var js = await client.GetAsync("/cms/site.js");
+        using var css = await client.GetAsync("/cms/custom.css");
+        using var js = await client.GetAsync("/cms/custom.js");
 
         Assert.Equal(HttpStatusCode.OK, css.StatusCode);
         Assert.Equal("text/css", css.Content.Headers.ContentType!.MediaType);

@@ -85,7 +85,7 @@ The groups are:
 
 - **Dashboard**: figures on school engagement and amendment requests.
 - **CMS administration**: pages, content blocks, deleted pages, content staging and search analytics.
-- **System administration**: the rules engine, system settings, logs, role settings and test data.
+- **System administration**: the rules engine, system settings, logs, site CSS and JavaScript, role settings and test data.
 - **Messages**: search feedback and the dead-letter queue.
 - **Window administration**: creating and managing checking windows.
 - **Data egress**: pulling approved decisions and sending them to the Learning Data Service (LDS).
@@ -330,7 +330,7 @@ A session screen shows every search one visitor made, with the time, query, scop
 
 ## 5. System administration
 
-This group holds the tools that keep the service running: the rules engine, system settings, logs and role settings.
+This group holds the tools that keep the service running: the rules engine, system settings, logs, site CSS and JavaScript, and role settings.
 
 ### Rules Engine: what it does
 
@@ -538,6 +538,28 @@ To narrow the list, use the filters: **Level**, **Category**, **From (UTC)**, **
 Select **Download CSV** to download the entries that match your filters.
 
 > **Warning** Select **Clear all logs** to delete every log entry. The service asks you to confirm with *Clear all application logs?* This cannot be undone. New entries are recorded as normal afterwards.
+
+### Site CSS and JavaScript
+
+Use *Site CSS and JavaScript* to add your own CSS and JavaScript to every page of the service, including the admin area and shared pages. Only administrators can use this screen, even if another role is given the `site-assets` section.
+
+The screen has a box for the CSS and a box for the JavaScript. Each has a tick box that switches it on or off, so you can stop using it without deleting it. Each box holds up to 200,000 characters.
+
+To change the CSS or JavaScript:
+
+1. Change the text in the box.
+2. Tick or clear **Apply the custom CSS to the site** or **Apply the custom JavaScript to the site**.
+3. Select **Save**. The service confirms with *Site CSS and JavaScript saved.*
+
+The CSS is added after the service's own styles, so its rules can override them. The JavaScript runs once each page has loaded.
+
+> **Warning** JavaScript added here runs for every user, administrators included. Test it carefully before you switch it on.
+
+A save takes effect straight away on the server you saved it on. On other servers it takes effect within about 30 seconds.
+
+If a rule or script breaks a page, add `?siteAssets=off` to the end of that page's address to see it without them. The *Site CSS and JavaScript* screen itself never loads them, so you can always reach it to fix or switch off the problem.
+
+Every save is recorded in the audit log.
 
 ### Role settings
 
@@ -964,7 +986,7 @@ This table lists the actions in the admin area that change or delete data. It sa
 
 ## Appendix B: Admin sections a role can be granted
 
-*Role settings* lists 30 sections. This table shows what each one unlocks, grouped in the order of the Administration page.
+*Role settings* lists 31 sections. This table shows what each one unlocks, grouped in the order of the Administration page.
 
 | Group | Section | What it unlocks |
 |---|---|---|
@@ -984,6 +1006,7 @@ This table lists the actions in the admin area that change or delete data. It sa
 | System administration | `rules-config` | Rules Engine configuration |
 | System administration | `system-settings` | System settings |
 | System administration | `app-logs` | View logs |
+| System administration | `site-assets` | Site CSS and JavaScript (administrators only) |
 | System administration | `role-settings` | Role settings |
 | System administration | `test-data-group` | The Test data heading |
 | System administration | `seed-sample-pages` | Seed sample CMS pages |

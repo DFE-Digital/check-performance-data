@@ -761,7 +761,9 @@ If the service closes the exercise but cannot send its requests for processing, 
 
 #### Sending requests for processing after an exercise has closed
 
-When an exercise reaches its scheduled end, the service does not send its requests for processing by itself. Someone must do it.
+When an exercise reaches its end, the service sends its requests for processing by itself, two hours later. It also cancels drafts that schools have not submitted. You do not need to do anything.
+
+Use the button if you want the requests sent before the two hours are up, or if you think some were missed.
 
 1. Select **Send Pupil data checking requests for processing** in the exercise's section. The button appears once the exercise has closed.
 2. Read the confirmation page. It says how many *Requests to send for processing* and how many *Drafts to cancel*.
@@ -770,6 +772,8 @@ When an exercise reaches its scheduled end, the service does not send its reques
 > **Warning** You cannot undo this. Submitted requests are sent for processing and cannot be changed afterwards. Drafts that a school has not submitted are cancelled, and cannot be resumed.
 
 You do not need to do this after closing an exercise early, because closing it early also sends its requests. If there is nothing left to send, the confirmation page says so.
+
+The service's own clock decides when two hours have passed. During British Summer Time that clock is one hour behind UK time, so the requests are sent three hours after the end time you see on a UK clock.
 
 ### Requests for a window
 
@@ -881,6 +885,7 @@ The list shows the newest entries first, 20 to a page. The columns are **User**,
 
 - For data egress, the Activity is a *Data egress* tag. A pull shows *Run started*. A transfer shows a *Success* or *Failed* status.
 - When someone closes an exercise early, the Activity is a *Window admin* tag. The Checking window column names the window, with the exercise and *closed early, before scheduled end* beneath. The User column shows who closed it, and the Status is *Success*.
+- When the service sends an exercise's requests for processing by itself, the Activity is also a *Window admin* tag. The Checking window column names the window, with the exercise and how many requests were sent and drafts cancelled beneath. The User column shows *System*, and the Status is *Success*.
 - For everything else, the Activity is the type of item that changed, with the action beneath it: Insert, Update or Delete.
 - Actions the service takes for itself show *System* as the user.
 
@@ -888,7 +893,7 @@ By default the log shows all activity. Most of it is routine application log ent
 
 - **Filter by activity**: choose the type of item, such as *Data egress*, *Dead letter* or *Role access*.
 - **Filter by window**: choose a checking window.
-- **Filter by status**: *Success* or *Failed*. Data egress transfers have either. An exercise closed early is always *Success*.
+- **Filter by status**: *Success* or *Failed*. Data egress transfers have either. An exercise closed early, or one whose requests the service sent by itself, is always *Success*.
 
 Select **Apply filters**. The filters work together.
 

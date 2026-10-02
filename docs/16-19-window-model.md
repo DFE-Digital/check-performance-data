@@ -504,9 +504,10 @@ than to an error page.
 
 **Bulk submit.** `BulkSubmissionService.SubmitAsync` had no open-exercise check, so a review page
 left open across a close could still post — after an early close until the sweep had cancelled the
-drafts, and after a scheduled end until someone ran the sweep. It now reads the window fresh and
-skips any draft whose own exercise (derived from its change type) is not open; when that leaves
-nothing submitted, the school is sent back to Check your pupil data with the closed message.
+drafts, and after a scheduled end until the sweep ran (at the time that needed an admin; since
+AB#302158 the service runs it two hours after the end). It now reads the window fresh and skips any
+draft whose own exercise (derived from its change type) is not open; when that leaves nothing
+submitted, the school is sent back to Check your pupil data with the closed message.
 
 **Not changed, and worth knowing.** `AmendmentRequestsController.Edit` gates a resumed draft on the
 draft's own snapshot, so after an early close the school is turned away one click later, by the

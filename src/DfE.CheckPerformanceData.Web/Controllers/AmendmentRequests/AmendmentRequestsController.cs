@@ -151,6 +151,16 @@ public sealed class AmendmentRequestsController(
     {
         var result = await bulkService.SubmitAsync(windowId, references ?? []);
         HttpContext.Session.ClearBulkSelection(windowId);
+
+        // AB#301022: the review page can be left open across a close. The service refuses a draft
+        // whose checking exercise has shut; when that left nothing to confirm, say why — the same
+        // message every other closed-exercise rejection gives — instead of an empty confirmation.
+        if (result.Submitted.Count == 0 && result.ClosedExercise is { } closedExercise)
+        {
+            var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
+            return this.RedirectExerciseClosed(windowId, closedExercise, LearnerNoun.For(window.CheckingWindowType));
+        }
+
         // Reference numbers are server-generated and never contain commas, so join/split is safe.
         TempData[BulkSubmittedRefsKey] = string.Join(",", result.Submitted);
         return RedirectToAction(nameof(BulkConfirmation), new { windowId });
@@ -179,7 +189,7 @@ public sealed class AmendmentRequestsController(
             ReferenceNumbers = references,
             WindowCloseLabel = deadline is null
                 ? null
-                : $"{deadline.Value.ToString("htt").ToLower()} on {deadline.Value:dddd d MMMM yyyy}"
+                : $"{DeadlineTime.Format(deadline.Value)} on {deadline.Value:dddd d MMMM yyyy}"
         });
     }
 

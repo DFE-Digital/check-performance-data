@@ -89,6 +89,9 @@ services.AddScoped<IJourneyCondition, SchoolIsNotIndependentCondition>();
         services.AddScoped<IEditAdviceService, EditAdviceService>();
         services.AddScoped<AdminRequests.IAdminRequestsService, AdminRequests.AdminRequestsService>();
         services.AddScoped<WindowManagement.ICloseExerciseService, WindowManagement.CloseExerciseService>();
+        // AB#301022: ends an open exercise before its scheduled end. The admin Close action runs
+        // this, then ICloseExerciseService above.
+        services.AddScoped<WindowManagement.IExerciseEarlyClosureService, WindowManagement.ExerciseEarlyClosureService>();
         // AB#296648: the single derivation of "the second late results file has landed".
         services.AddScoped<ResultsEnquiry.ILateResultsAvailability, ResultsEnquiry.LateResultsAvailability>();
 

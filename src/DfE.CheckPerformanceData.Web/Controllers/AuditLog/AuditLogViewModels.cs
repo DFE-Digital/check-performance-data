@@ -2,6 +2,7 @@ using DfE.CheckPerformanceData.Application.Audit;
 using DfE.CheckPerformanceData.Application.Egress;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.Egress;
+using DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.AuditLog;
 
@@ -45,7 +46,7 @@ public sealed class AuditLogViewModel
 /// One table row. Egress transfer rows: the person from the payload, a turquoise "Data egress" tag,
 /// the output types under the window, and a Success/Failed tag. An egress row with no outcome (the
 /// generic capture's record of the pull, Action "Insert") keeps the turquoise tag with "Run started"
-/// beneath and no status. Every other row: the sign-in subject id (there is no user directory to
+/// beneath and no status. A window-admin row (AB#301022): the person from the payload, an orange "Window admin" tag, "{exercise} closed early, before scheduled end" under the window, and a Success tag. Every other row: the sign-in subject id (there is no user directory to
 /// name it), a grey activity tag with the action beneath, no status.
 /// </summary>
 public sealed record AuditLogRowViewModel(
@@ -70,6 +71,7 @@ public sealed record AuditLogRowViewModel(
     public static AuditLogRowViewModel From(AuditLogRow row)
     {
         var isEgress = row.EntityType == AuditActivities.Egress;
+        var isClosedEarly = row.EntityType == AuditActivities.WindowAdmin && row.Action == AuditActivities.ClosedEarlyAction;
         var carriesWindow = isEgress || row.WindowId is not null;
         return new AuditLogRowViewModel(
             row.Id,
@@ -78,10 +80,12 @@ public sealed record AuditLogRowViewModel(
             row.Action,
             row.UserName ?? row.UserId ?? "System",
             AuditActivities.Label(row.EntityType),
-            isEgress ? "govuk-tag--turquoise" : "govuk-tag--grey",
-            isEgress ? (row.Outcome is null ? EgressActionLabel(row.Action) : null) : row.Action,
+            isEgress ? "govuk-tag--turquoise" : row.EntityType == AuditActivities.WindowAdmin ? "govuk-tag--orange" : "govuk-tag--grey",
+            isEgress ? (row.Outcome is null ? EgressActionLabel(row.Action) : null) : isClosedEarly ? null : row.Action,
             row.WindowTitle ?? (carriesWindow ? UnknownWindow : string.Empty),
-            isEgress && row.OutputTypes.Count > 0 ? string.Join(", ", row.OutputTypes.Select(LabelOutputType)) : null,
+            isEgress && row.OutputTypes.Count > 0 ? string.Join(", ", row.OutputTypes.Select(LabelOutputType))
+                : isClosedEarly ? $"{LabelExercise(row.ExerciseType)} closed early, before scheduled end"
+                : null,
             row.TimestampUtc,
             row.Outcome is { } outcome ? AuditActivities.OutcomeLabel(outcome) : null,
             row.Outcome switch
@@ -91,6 +95,10 @@ public sealed record AuditLogRowViewModel(
                 _ => null
             });
     }
+
+    // FLAGGED copy (AB#301022). A payload that cannot be read still says what happened.
+    private static string LabelExercise(string? raw) =>
+        Enum.TryParse<CheckingExerciseType>(raw, ignoreCase: true, out var type) && Enum.IsDefined(type) ? ExerciseLabels.For(type) : "Exercise";
 
     private static string LabelOutputType(string raw) =>
         Enum.TryParse<EgressOutputType>(raw, ignoreCase: true, out var type) && Enum.IsDefined(type) ? EgressOutputTypes.Label(type) : raw;

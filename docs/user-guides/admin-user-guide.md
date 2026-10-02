@@ -705,7 +705,8 @@ Below that, each exercise has its own section. It shows:
 - **Start Date** and **End Date**, with **Change** links.
 - **Validated**: *Yes* with the date and time, *No*, or *Not since the files changed*. The last one means the exercise was validated once, but someone has since replaced a file. Validate again.
 - One line for each dataset's **ingress file** and **schema file**, each with a **Change** link. A missing file shows *Not supplied*.
-- Two buttons named after the exercise, such as **Validate Pupil data checking** and **Close Pupil data checking**.
+- **Status**: *Open*, *Closed* or *Upcoming*. An exercise is open between its start and end dates.
+- Buttons named after the exercise. **Validate Pupil data checking** is always shown for an exercise that has files to load. **Close Pupil data checking** is shown only while the exercise is open. **Send Pupil data checking requests for processing** is shown only once the exercise has closed.
 
 #### Choosing an ingress file
 
@@ -739,15 +740,36 @@ If validation fails, fix the data at source, put the corrected file in the ingre
 
 Without JavaScript the page works differently. There is no live progress. The result appears once validation has finished.
 
-#### Closing an exercise
+#### Closing an exercise early
+
+Use this to stop schools using an exercise before its scheduled end. You can only close an exercise that is open.
 
 1. Select the close button for the exercise, such as **Close Pupil data checking**.
+2. Read the confirmation page. It shows the window, the exercise and its scheduled end.
+3. Under **To confirm, type the window name**, type the window's name exactly as the page shows it. Capital letters matter.
+4. Select the close button again to confirm, or select **Cancel** to go back.
+
+If the name you type does not match, the exercise stays open. The page shows *The window name you entered does not match*. Correct the name and try again.
+
+> **Warning** You cannot undo closing an exercise. From that moment schools cannot make new requests for it, and any school part-way through a request is stopped on its next page. The service also sends every request schools have submitted for processing, and cancels drafts that a school has not submitted. Submitted requests cannot be changed afterwards. Cancelled drafts cannot be resumed.
+
+After it closes, the summary page shows a *Success* banner, for example *Pupil data checking was closed early on 03/09/2026, 10:39 by Sam Taylor. 1 request sent for processing and 10 drafts cancelled.* The exercise's **End Date** becomes the time you closed it, its **Status** becomes *Closed*, and the close button is no longer shown. The close is recorded in the audit log.
+
+The banner and the end date use the service's own clock. During British Summer Time that clock is one hour behind UK time, so a close at 13:33 shows as 12:33.
+
+If the service closes the exercise but cannot send its requests for processing, the summary page shows an *Important* banner instead. It says the exercise was closed and that its requests could not be sent. The exercise is closed. Select **Send Pupil data checking requests for processing** to try again.
+
+#### Sending requests for processing after an exercise has closed
+
+When an exercise reaches its scheduled end, the service does not send its requests for processing by itself. Someone must do it.
+
+1. Select **Send Pupil data checking requests for processing** in the exercise's section. The button appears once the exercise has closed.
 2. Read the confirmation page. It says how many *Requests to send for processing* and how many *Drafts to cancel*.
-3. Select the close button again to confirm, or select **Cancel** to go back.
+3. Select **Send requests for processing** to confirm, or select **Cancel** to go back.
 
-> **Warning** You cannot undo closing an exercise. The service sends every request schools have submitted for processing. Submitted requests cannot be changed afterwards. Drafts that a school has not submitted are cancelled, and cannot be resumed. The close button is never greyed out, and it ignores the exercise's dates. Check the counts on the confirmation page before you confirm.
+> **Warning** You cannot undo this. Submitted requests are sent for processing and cannot be changed afterwards. Drafts that a school has not submitted are cancelled, and cannot be resumed.
 
-After it closes, the summary page shows a *Success* banner, for example *Pupil data checking closed. 1 request sent for processing and 10 drafts cancelled.*
+You do not need to do this after closing an exercise early, because closing it early also sends its requests. If there is nothing left to send, the confirmation page says so.
 
 ### Requests for a window
 
@@ -858,6 +880,7 @@ Use the *Audit log* to see a record of administrative activity in the service, i
 The list shows the newest entries first, 20 to a page. The columns are **User**, **Activity**, **Checking window**, **Time** and **Status**.
 
 - For data egress, the Activity is a *Data egress* tag. A pull shows *Run started*. A transfer shows a *Success* or *Failed* status.
+- When someone closes an exercise early, the Activity is a *Window admin* tag. The Checking window column names the window, with the exercise and *closed early, before scheduled end* beneath. The User column shows who closed it, and the Status is *Success*.
 - For everything else, the Activity is the type of item that changed, with the action beneath it: Insert, Update or Delete.
 - Actions the service takes for itself show *System* as the user.
 
@@ -865,7 +888,7 @@ By default the log shows all activity. Most of it is routine application log ent
 
 - **Filter by activity**: choose the type of item, such as *Data egress*, *Dead letter* or *Role access*.
 - **Filter by window**: choose a checking window.
-- **Filter by status**: *Success* or *Failed*, for data egress transfers.
+- **Filter by status**: *Success* or *Failed*. Data egress transfers have either. An exercise closed early is always *Success*.
 
 Select **Apply filters**. The filters work together.
 
@@ -919,7 +942,8 @@ This table lists the actions in the admin area that change or delete data. It sa
 
 | Screen | Action | What it does | Does it ask you to confirm? |
 |---|---|---|---|
-| Window summary | Close an exercise | Sends submitted requests for processing and cancels drafts. Cannot be undone. | Yes. A confirmation page shows the counts. |
+| Window summary | Close an exercise early | Ends the exercise for schools straight away, sends submitted requests for processing and cancels drafts. Cannot be undone. | Yes. You must type the window's name. |
+| Window summary | Send requests for processing | For an exercise that has closed: sends submitted requests for processing and cancels drafts. Cannot be undone. | Yes. A confirmation page shows the counts. |
 | Data egress | Confirm and transfer | Sends the files to LDS. The same output type cannot be sent again for that window. | No. The screen warns you that this cannot be undone. |
 | Data egress | Abandon run | Ends the run for good. Removes any files a transfer had already written. | No. |
 | Dead-letter queue | Purge | Deletes a message for good. The audit log keeps a record of the purge. | Yes. A dialog asks *Purge this message?* |

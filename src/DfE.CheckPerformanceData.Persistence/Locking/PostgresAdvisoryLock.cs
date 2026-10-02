@@ -77,8 +77,11 @@ internal sealed class PostgresAdvisoryLock(IPortalDbContext dbContext, long key)
         }
         finally
         {
-            // Closing the session drops the lock even if the unlock itself failed, so this is
-            // the belt to the unlock's braces rather than merely tidying up.
+            // Disposing hands the connection back to Npgsql's pool; it does not necessarily end
+            // the session. If the unlock above failed on a connection that is still healthy, the
+            // lock therefore lingers until the pool resets that connection on its next use
+            // (DISCARD ALL runs pg_advisory_unlock_all) or prunes it as idle — minutes, not for
+            // good. A broken connection is closed outright, which drops the lock at once.
             await connection.DisposeAsync();
         }
     }

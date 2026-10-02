@@ -49,6 +49,7 @@ public sealed class WindowAdminAuditWriterTests(PostgresFixture fixture)
         Assert.Equal(windowId, root.GetProperty("windowId").GetGuid());
         Assert.Equal("Key Stage 4 June", root.GetProperty("windowTitle").GetString());
         Assert.Equal("PupilData", root.GetProperty("exerciseType").GetString());
+        Assert.Equal(new DateTime(2026, 11, 2, 17, 0, 0), root.GetProperty("exerciseEnd").GetDateTime());
         Assert.Equal(3, root.GetProperty("requestsSent").GetInt32());
         Assert.Equal(2, root.GetProperty("draftsCancelled").GetInt32());
         Assert.True(root.GetProperty("automatic").GetBoolean());

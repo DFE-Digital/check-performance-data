@@ -69,6 +69,8 @@ public sealed class AutomaticExerciseHandOver(
 
         try
         {
+            // Deliberately not the caller's token: the hand-over has already happened and cannot
+            // be undone, so its record must not be abandoned because the host is stopping.
             await audit.RecordAutomaticHandOverAsync(new AutomaticHandOverAudit
             {
                 WindowId = due.WindowId,
@@ -78,9 +80,9 @@ public sealed class AutomaticExerciseHandOver(
                 RequestsSent = result.Enqueued,
                 DraftsCancelled = result.DraftsCancelled,
                 RanAtUtc = timeProvider.GetUtcNow().UtcDateTime
-            }, cancellationToken);
+            }, CancellationToken.None);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex)
         {
             // The hand-over has happened and cannot be undone, so this is not reported as a
             // failed hand-over. The information line above is then the only record of it.

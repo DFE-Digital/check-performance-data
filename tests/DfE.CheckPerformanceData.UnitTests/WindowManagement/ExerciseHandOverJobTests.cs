@@ -22,7 +22,10 @@ public sealed class ExerciseHandOverJobTests
     private readonly IExerciseHandOverLock _lock = Substitute.For<IExerciseHandOverLock>();
     private readonly IAutomaticExerciseHandOver _handOver = Substitute.For<IAutomaticExerciseHandOver>();
 
-    private ExerciseHandOverJob Job(ExerciseHandOverSettings? settings = null)
+    private ExerciseHandOverJob Job(ExerciseHandOverSettings? settings = null) =>
+        Job(Options.Create(settings ?? new ExerciseHandOverSettings()));
+
+    private ExerciseHandOverJob Job(IOptions<ExerciseHandOverSettings> options)
     {
         var services = new ServiceCollection();
         services.AddScoped(_ => _lock);
@@ -31,7 +34,7 @@ public sealed class ExerciseHandOverJobTests
 
         return new ExerciseHandOverJob(
             provider.GetRequiredService<IServiceScopeFactory>(),
-            Options.Create(settings ?? new ExerciseHandOverSettings()),
+            options,
             NullLogger<ExerciseHandOverJob>.Instance);
     }
 
@@ -63,10 +66,73 @@ public sealed class ExerciseHandOverJobTests
         {
             _lock.TryAcquireAsync(Arg.Any<CancellationToken>());
             _handOver.FindDueAsync(Arg.Any<CancellationToken>());
-            _handOver.HandOverAsync(PupilData, Arg.Any<CancellationToken>());
-            _handOver.HandOverAsync(Enquiry, Arg.Any<CancellationToken>());
+            _handOver.HandOverAsync(PupilData, CancellationToken.None);
+            _handOver.HandOverAsync(Enquiry, CancellationToken.None);
             _lock.ReleaseAsync(Arg.Any<CancellationToken>());
         });
+    }
+
+    [Fact]
+    public async Task A_stop_request_lets_the_hand_over_in_progress_finish_and_starts_no_other()
+    {
+        LockIs(free: true);
+        DueAre(PupilData, Enquiry);
+        using var stopping = new CancellationTokenSource();
+        // The host asks the job to stop while the first exercise is being handed over.
+        _handOver.HandOverAsync(PupilData, Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                stopping.Cancel();
+                return new AutomaticHandOverOutcome(PupilData.WindowId, PupilData.Exercise, 1, 0, Failed: false);
+            });
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Job().RunOnceAsync(stopping.Token));
+
+        // The one in hand was not given the stop token, so it could not be cut short...
+        await _handOver.Received(1).HandOverAsync(PupilData, CancellationToken.None);
+        // ...the next one never started...
+        await _handOver.DidNotReceive().HandOverAsync(Enquiry, Arg.Any<CancellationToken>());
+        // ...and the lock still came back.
+        await _lock.Received(1).ReleaseAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Settings_that_cannot_be_read_switch_the_job_off_instead_of_stopping_the_host()
+    {
+        LockIs(free: true);
+        var options = Substitute.For<IOptions<ExerciseHandOverSettings>>();
+        options.Value.Returns(_ => throw new InvalidOperationException("Failed to convert configuration value"));
+        var job = Job(options);
+
+        await job.StartAsync(CancellationToken.None);
+        await job.ExecuteTask!;
+        await job.StopAsync(CancellationToken.None);
+
+        await _lock.DidNotReceiveWithAnyArgs().TryAcquireAsync(default);
+    }
+
+    [Fact]
+    public async Task A_tick_that_throws_does_not_end_the_job()
+    {
+        LockIs(free: true);
+        var secondTick = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var calls = 0;
+        _handOver.FindDueAsync(Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                if (Interlocked.Increment(ref calls) == 1)
+                {
+                    throw new InvalidOperationException("database is down");
+                }
+
+                secondTick.TrySetResult();
+                return Task.FromResult<IReadOnlyList<DueExercise>>([]);
+            });
+        var job = Job(new ExerciseHandOverSettings { PollInterval = TimeSpan.FromMilliseconds(10) });
+
+        await job.StartAsync(CancellationToken.None);
+        await secondTick.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        await job.StopAsync(CancellationToken.None);
     }
 
     [Fact]

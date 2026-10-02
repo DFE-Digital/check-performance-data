@@ -175,6 +175,22 @@ public sealed class AutomaticExerciseHandOverTests
     }
 
     [Fact]
+    public async Task The_audit_row_is_written_even_when_the_host_is_stopping()
+    {
+        // A deploy fires the stop token. The sweep has already sent the requests by the time the
+        // audit row is written, so the row must not be abandoned with it: no later run would
+        // write it, because a later run finds nothing left to do.
+        SweepDoes(sent: 3, cancelled: 2);
+        using var stopping = new CancellationTokenSource();
+        stopping.Cancel();
+
+        await Sut().HandOverAsync(Due, stopping.Token);
+
+        await _audit.Received(1).RecordAutomaticHandOverAsync(
+            Arg.Any<AutomaticHandOverAudit>(), CancellationToken.None);
+    }
+
+    [Fact]
     public async Task Cancellation_is_not_swallowed()
     {
         // The host is shutting down: the job must stop, not log a failure and carry on.

@@ -27,7 +27,20 @@ public sealed class ExerciseHandOverJob(
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var settings = options.Value;
+        ExerciseHandOverSettings settings;
+        try
+        {
+            settings = options.Value;
+        }
+        catch (Exception ex)
+        {
+            // An exception escaping ExecuteAsync stops the whole web host, so one mistyped
+            // setting would take the site down. Fail safe, and loudly: the job is off, the site up.
+            logger.LogError(ex,
+                "The ExerciseHandOver settings could not be read, so automatic exercise hand-over is not running. Correct the configuration and restart.");
+            return;
+        }
+
         if (!settings.Enabled)
         {
             logger.LogInformation(
@@ -85,9 +98,14 @@ public sealed class ExerciseHandOverJob(
                 cancellationToken.ThrowIfCancellationRequested();
 
                 await using var exerciseScope = scopeFactory.CreateAsyncScope();
+                // Not the tick's token: a hand-over is a run of queue writes and row updates with
+                // no transaction around it, so stopping it part-way leaves requests queued whose
+                // rows still read unsent. It is quicker and safer to let the exercise in hand
+                // finish and start no other. If the sweep outlasts the host's shutdown timeout
+                // the process is killed anyway, which is no worse than before.
                 await exerciseScope.ServiceProvider
                     .GetRequiredService<IAutomaticExerciseHandOver>()
-                    .HandOverAsync(exercise, cancellationToken);
+                    .HandOverAsync(exercise, CancellationToken.None);
             }
         }
         finally

@@ -16,9 +16,9 @@ namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 /// service runs by itself two hours after any exercise ends (AB#302158, ExerciseHandOverJob). It
 /// is still offered on its own, for an admin who wants the requests sent sooner than that, or
 /// again — it is the only way a pupil-data amendment reaches Zendesk, and the automatic run stops
-/// trying a day after the exercise ends. While an exercise is still open the sweep belongs to
-/// Close, which ends the exercise first; sweeping an open exercise would commit requests while
-/// schools could still add more.
+/// trying a day after its first attempt (26 hours after the exercise ends). While an exercise is
+/// still open the sweep belongs to Close, which ends the exercise first; sweeping an open
+/// exercise would commit requests while schools could still add more.
 ///
 /// A GET confirmation step before the POST, as on <see cref="CloseExerciseController"/>: the sweep
 /// is irreversible and dispatches to an external system, so the admin sees what it will touch.

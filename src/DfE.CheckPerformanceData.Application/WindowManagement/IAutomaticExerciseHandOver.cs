@@ -24,7 +24,9 @@ public interface IAutomaticExerciseHandOver
     /// <summary>
     /// Runs the hand-over for one exercise and, if it sent or cancelled anything, records it in
     /// the audit log. A failure is logged and reported in the outcome, never thrown — the next
-    /// tick tries again — except cancellation, which is.
+    /// tick tries again — except cancellation of the sweep, which is. The audit row is written
+    /// even if the token is cancelled, because the hand-over has already happened and its record
+    /// must not be abandoned because the host is stopping.
     /// </summary>
     Task<AutomaticHandOverOutcome> HandOverAsync(DueExercise due, CancellationToken cancellationToken);
 }

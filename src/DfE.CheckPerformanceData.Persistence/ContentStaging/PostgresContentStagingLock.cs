@@ -16,10 +16,10 @@ public sealed class PostgresContentStagingLock(IPortalDbContext dbContext) : ICo
     //   select * from pg_locks where locktype = 'advisory' and classid = 1129270868;
     // finds it, and so the release is doable by hand if a pod dies holding the lock:
     //   select pg_terminate_backend(pid) from pg_locks
-    //    where locktype = 'advisory' and classid = 1129270868 and objid = 1314820941;
+    //    where locktype = 'advisory' and classid = 1129270868 and objid = 1314146637;
     private const long LockKey = 0x434F_4E54_4E54_494DL;
     public const int LockKeyClassId = 0x434F_4E54;   // 1129270868
-    public const int LockKeyObjId = 0x4E54_494D;     // 1314820941
+    public const int LockKeyObjId = 0x4E54_494D;     // 1314146637
 
     private readonly PostgresAdvisoryLock _lock = new(dbContext, LockKey);
 

@@ -551,13 +551,17 @@ around the close, this is what picks it up.
 **Two web pods.** Every pod runs the job. Each tick first takes a Postgres advisory lock
 (`PostgresExerciseHandOverLock`, on a connection of its own for the reasons written up on
 `PostgresAdvisoryLock`); the pod that does not get it skips the tick. Each exercise is handed over
-in a dependency scope of its own, so one failure cannot affect the next.
+in a dependency scope of its own, so one failure cannot affect the next. A pod that is told to
+stop (every deploy does this) lets the exercise it is handing over finish and starts no other; the
+next tick, on whichever pod, carries on.
 
 **The record.** A run that sent or cancelled anything writes one audit row,
 `WindowAdmin` / `RequestsSentAutomatically`, with no user (see `docs/audit-log.md`). A run that
 did nothing writes none. The row is written after the sweep, not in one transaction with it — the
-sweep is a blob read and a queue write per request and has no transaction to join — so if that
-write fails, the hand-over has still happened and the application log line is the record.
+sweep is a blob read and a queue write per request and has no transaction to join — and it is
+written even if the pod is stopping. If that write fails, the hand-over has still happened and the
+application log line is the record. A sweep that fails part-way writes no row for the requests it
+did send; the run that finishes the job records only what it sent.
 
 **Settings** (`ExerciseHandOver` section; defaults in code, nothing in `appsettings.json`):
 
@@ -569,7 +573,8 @@ write fails, the hand-over has still happened and the application log line is th
 | `ExerciseHandOver__PollInterval` | `00:05:00` | How often the job looks. |
 
 A value that makes no sense (a negative delay, a zero window or interval) falls back to the
-default.
+default. A value that cannot be read at all (for example `5m` where `00:05:00` is meant) switches
+the job off and logs an error; the site still starts.
 
 **The clock is the server's, and today that is UTC** (issue #535). "Two hours after the end" is
 measured on the clock every exercise gate reads, so during British Summer Time the first run is

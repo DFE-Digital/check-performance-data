@@ -91,11 +91,14 @@ public sealed class AutomaticExerciseHandOverTests(PostgresFixture fixture) : IA
         await ctx.SaveChangesAsync();
     }
 
-    // The audit rows stay (the table refuses DELETE); every assertion is keyed on this test's own
-    // window id and references.
+    // The queue message this class enqueued goes too, by its unique reference. The audit rows stay
+    // (the table refuses DELETE); every assertion is keyed on this test's own window id and
+    // references.
     public async Task DisposeAsync()
     {
+        var submittedRef = SubmittedRef;
         await using var ctx = fixture.CreateContext();
+        await ctx.QueueMessages.Where(m => m.Payload.Contains(submittedRef)).ExecuteDeleteAsync();
         await ctx.ChangeRequests.Where(r => r.WindowId == _windowId).ExecuteDeleteAsync();
         await ctx.CheckingWindows.Where(w => w.Id == _windowId).ExecuteDeleteAsync();
     }

@@ -21,6 +21,10 @@ public sealed class PupilSearchViewModel
     /// <summary>Ask the suggestions endpoint for students who hold results only. See
     /// <see cref="Application.Journey.JourneyPage.RequireResults"/>.</summary>
     public bool RequireResults { get; set; }
+
+    /// <summary>Which pupil fields this page's query is matched against. See
+    /// <see cref="Application.Journey.JourneyPage.PupilSearchField"/>.</summary>
+    public PupilSearchField SearchField { get; set; } = PupilSearchField.All;
     public string? SelectedPupilId { get; set; }
     public string? SelectedPupilLabel { get; set; }
     public string? Hint { get; set; }

@@ -31,9 +31,14 @@ public interface ICheckYourPupilDataService
     /// <paramref name="requireResults"/> limits the search to students the school holds a result
     /// for — a results enquiry has nothing to correct otherwise. It costs a read of the school's
     /// (cached) results file, so it is opt-in rather than the default.
+    ///
+    /// <paramref name="searchField"/> narrows what a query is compared against. It is opt-in per
+    /// page for the same reason: a page whose label names a specific identifier should not also match
+    /// on names (see <see cref="PupilSearchField"/>).
     /// </summary>
     Task<IReadOnlyList<PupilSuggestionDto>> GetPupilSuggestionsAsync(Guid windowId, string query,
-        PupilFilter filter, Guid? excludeId = null, bool requireResults = false);
+        PupilFilter filter, Guid? excludeId = null, bool requireResults = false,
+        PupilSearchField searchField = PupilSearchField.All);
 
     Task<PupilDto> GetPupilAsync(Guid windowId, Guid pupilId);
 

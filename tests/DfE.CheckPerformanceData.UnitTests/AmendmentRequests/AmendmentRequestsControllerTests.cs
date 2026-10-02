@@ -121,6 +121,29 @@ public class AmendmentRequestsControllerTests
         Assert.Equal("5pm on Friday 26 June 2026", Assert.Single(vm.Deadlines).DeadlineText);
     }
 
+    [Fact]
+    public async Task Index_AnExerciseClosedEarly_SaysWhenToTheMinute()
+    {
+        // AB#301022: an early close stores an end date that is not on the hour. The sentence used
+        // to print the hour only, so a 12:35 close read "passed at 12pm".
+        _service.GetAmendmentRequestsAsync(WindowId).Returns(new AmendmentRequestsResult
+        { LearnerNoun = LearnerNoun.Pupil,
+            Deadlines = [Deadline(new DateTime(2026, 10, 1, 12, 34, 59), isOpen: false)],
+            WindowTitle = "Key stage 4",
+            Rows = [],
+            SubmittedRows = [],
+            IssueRows = [],
+            HasResultsEnquiry = true
+        });
+
+        var result = await _sut.Index(WindowId);
+
+        var vm = Assert.IsType<AmendmentRequestsViewModel>(((ViewResult)result).Model);
+        Assert.Equal(
+            "The deadline for pupil data checking requests passed at 12:34pm on Thursday 1 October 2026",
+            Assert.Single(vm.Deadlines).Sentence);
+    }
+
     // #320: one deadline line per checking exercise, each on its own dates. Before this the page
     // printed the outer window's end once, which on a 16-19 window is the results-enquiry close —
     // months after pupil data shuts, so it told a school it still had time it did not have.
@@ -658,6 +681,49 @@ public class AmendmentRequestsControllerTests
         await _sut.BulkSubmit(WindowId, new[] { "R1", "R2" });
 
         Assert.Empty(_session.GetBulkSelection(WindowId));
+    }
+
+    // ── AB#301022: bulk submit after the exercise has closed ─────────────────
+
+    [Fact]
+    public async Task BulkSubmit_WhenNothingWentBecauseTheExerciseHasClosed_RedirectsWithTheClosedMessage()
+    {
+        // The review page can be left open across a close. The service refuses each draft whose
+        // exercise has shut; the school is told why rather than landing on an empty confirmation.
+        _bulkService.SubmitAsync(WindowId, Arg.Any<IReadOnlyList<string>>()).Returns(new BulkSubmissionResult
+        {
+            Submitted = Array.Empty<string>(),
+            Skipped = new[] { "R1", "R2" },
+            ClosedExercise = CheckingExerciseType.PupilData
+        });
+        _checkYourPupilData.GetCheckingWindowAsync(WindowId).Returns(SampleWindow());
+
+        var result = await _sut.BulkSubmit(WindowId, new[] { "R1", "R2" });
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Index", redirect.ActionName);
+        Assert.Equal("CheckYourPupilData", redirect.ControllerName);
+        Assert.Equal(
+            ClosedExerciseGuard.MessageFor(CheckingExerciseType.PupilData, LearnerNoun.Pupil),
+            _sut.TempData[ClosedExerciseGuard.TempDataKey]);
+        Assert.Null(_sut.TempData["BulkSubmittedRefs"]);
+    }
+
+    [Fact]
+    public async Task BulkSubmit_WhenSomeWentAndOthersWereClosed_StillConfirmsTheOnesThatWent()
+    {
+        _bulkService.SubmitAsync(WindowId, Arg.Any<IReadOnlyList<string>>()).Returns(new BulkSubmissionResult
+        {
+            Submitted = new[] { "R1" },
+            Skipped = new[] { "R2" },
+            ClosedExercise = CheckingExerciseType.ResultsEnquiry
+        });
+
+        var result = await _sut.BulkSubmit(WindowId, new[] { "R1", "R2" });
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(AmendmentRequestsController.BulkConfirmation), redirect.ActionName);
+        Assert.Equal("R1", _sut.TempData["BulkSubmittedRefs"]);
     }
 
     [Fact]

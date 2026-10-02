@@ -34,6 +34,22 @@ public sealed class AuditLogCsvTests
         Assert.Equal("2026-06-08T14:38:02Z,sub-2,System setting,Update,Setting,CMS:PageLength,,,", AuditLogCsv.Line(row));
     }
 
+    [Fact]
+    public void An_early_closure_row_names_the_exercise_beside_the_action()
+    {
+        // AB#301022: the page shows the exercise under the window title; the export has no such
+        // cell, so it rides in the Action column rather than widening a header other tools read.
+        var row = new AuditLogRow(3, At, "sub-1", "Ops One", "WindowAdmin", "11111111-1111-1111-1111-111111111111", "ClosedEarly",
+            Guid.Parse("11111111-1111-1111-1111-111111111111"), "KS4 June 2026", [], AuditOutcome.Success)
+        {
+            ExerciseType = "PupilData"
+        };
+
+        Assert.Equal(
+            "2026-06-08T14:38:02Z,Ops One,Window admin,ClosedEarly (PupilData),WindowAdmin,11111111-1111-1111-1111-111111111111,KS4 June 2026,,Success",
+            AuditLogCsv.Line(row));
+    }
+
     [Theory]
     [InlineData("plain", "plain")]
     [InlineData("", "")]

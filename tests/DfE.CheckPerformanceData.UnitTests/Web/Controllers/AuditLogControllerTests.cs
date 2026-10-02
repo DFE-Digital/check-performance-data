@@ -54,6 +54,13 @@ public sealed class AuditLogControllerTests
     // The generic capture's record of a run's creation (the pull): egress activity, no outcome.
     private static AuditLogRow Pulled() => new(4, At, "sub-1", "Ops One", "EgressRun", "44444444-4444-4444-4444-444444444444", "Insert", WindowId, "KS4 June 2026", [], null);
 
+    // AB#301022: an admin closed one of the window's exercises before its scheduled end.
+    private static AuditLogRow ClosedEarly(string? exerciseType = "ResultsEnquiry") => new(
+        5, At, "sub-1", "Ops One", "WindowAdmin", WindowId.ToString(), "ClosedEarly", WindowId, "KS4 June 2026", [], AuditOutcome.Success)
+    {
+        ExerciseType = exerciseType
+    };
+
     private static async Task<AuditLogViewModel> ModelOf(AuditLogController controller, string? activity = null, Guid? windowId = null, string? status = null, int page = 1)
     {
         var view = Assert.IsType<ViewResult>(await controller.Index(activity, windowId, status, page, CancellationToken.None));
@@ -169,6 +176,31 @@ public sealed class AuditLogControllerTests
         Assert.Equal("system", plain.UserLabel);
         Assert.Equal("System setting", plain.ActivityLabel);
         Assert.Equal(string.Empty, plain.WindowTitle);   // no window at all: nothing, not "Unknown window"
+    }
+
+    [Fact]
+    public async Task An_early_closure_row_names_the_person_the_window_and_the_exercise_and_is_a_success()
+    {
+        var row = Assert.Single((await ModelOf(Build(ClosedEarly()))).Rows);
+
+        Assert.Equal("Ops One", row.UserLabel);
+        Assert.Equal("Window admin", row.ActivityLabel);
+        Assert.Equal("govuk-tag--orange", row.ActivityTagClass);
+        Assert.Null(row.ActivityDetail);                    // the detail sits under the window, as the design has it
+        Assert.Equal("KS4 June 2026", row.WindowTitle);
+        Assert.Equal("Results enquiry closed early, before scheduled end", row.WindowDetail);
+        Assert.Equal("Success", row.OutcomeLabel);
+        Assert.Equal("govuk-tag--green", row.OutcomeTagClass);
+        Assert.Equal("WindowAdmin", row.EntityType);
+        Assert.Equal("ClosedEarly", row.Action);
+    }
+
+    [Fact]
+    public async Task An_early_closure_row_whose_exercise_cannot_be_read_still_says_closed_early()
+    {
+        var row = Assert.Single((await ModelOf(Build(ClosedEarly(exerciseType: null)))).Rows);
+
+        Assert.Equal("Exercise closed early, before scheduled end", row.WindowDetail);
     }
 
     [Fact]

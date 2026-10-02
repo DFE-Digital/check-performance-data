@@ -4,6 +4,10 @@ using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Notify;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Domain.Enums;
+// Aliases, not a namespace import: WindowManagement also declares a CheckingWindowDto, and the
+// window read below is the LandingPage one.
+using ICheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.ICheckingExerciseService;
+using WhatToChangeCheckingExerciseMap = DfE.CheckPerformanceData.Application.WindowManagement.WhatToChangeCheckingExerciseMap;
 
 namespace DfE.CheckPerformanceData.Application.AmendmentRequests;
 
@@ -13,7 +17,8 @@ public sealed class BulkSubmissionService(
     IRequestNotificationService requestNotificationService,
     ICheckYourPupilDataService checkYourPupilDataService,
     ICurrentUserService currentUserService,
-    IAnalyticsService analytics) : IBulkSubmissionService
+    IAnalyticsService analytics,
+    ICheckingExerciseService checkingExercises) : IBulkSubmissionService
 {
     private const string AlreadySubmittedReason = "A request for this pupil has already been submitted.";
     private const string SelectedMoreThanOnceReason = "You selected more than one request for this pupil.";
@@ -76,11 +81,34 @@ public sealed class BulkSubmissionService(
 
         var submitted = new List<string>();
         var skipped = new List<string>();
+        CheckingExerciseType? closedExercise = null;
+
+        // AB#301022: read once, and fresh. A draft carries the exercise dates from when it was
+        // saved, and an exercise closed early since then is still open in that snapshot — so the
+        // window as it is now is what gets asked, never the draft's own copy.
+        var window = toSubmit.Count > 0
+            ? await checkYourPupilDataService.GetCheckingWindowAsync(windowId)
+            : null;
 
         foreach (var reference in toSubmit)
         {
             var journey = await requestService.ResumeDraftAsync(windowId, reference);
             if (journey is null) { skipped.Add(reference); continue; }
+
+            // A draft whose checking exercise has closed is not submitted, whether the exercise
+            // ran to its end or was closed early. Before this, bulk submit was the one path with
+            // no such check: the review page could be left open across a close and still post.
+            // The exercise is derived from the draft's change type, as every other gate does.
+            if (window is not null && journey.SelectedWhatToChange is { } change)
+            {
+                var exercise = WhatToChangeCheckingExerciseMap.CheckingExerciseFor(change);
+                if (!checkingExercises.IsOpen(window.Exercises, exercise))
+                {
+                    skipped.Add(reference);
+                    closedExercise ??= exercise;
+                    continue;
+                }
+            }
 
             try
             {
@@ -99,13 +127,12 @@ public sealed class BulkSubmissionService(
             }
         }
 
-        if (submitted.Count > 0)
+        if (submitted.Count > 0 && window is not null)
         {
-            var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
             await requestNotificationService.NotifyBulkSubmissionConfirmedAsync(
                 windowId, window.EndDate, submitted, EmailSubstitutions.From(window));
         }
 
-        return new BulkSubmissionResult { Submitted = submitted, Skipped = skipped };
+        return new BulkSubmissionResult { Submitted = submitted, Skipped = skipped, ClosedExercise = closedExercise };
     }
 }

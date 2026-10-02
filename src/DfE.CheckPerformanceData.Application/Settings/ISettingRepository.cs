@@ -9,4 +9,6 @@ public interface ISettingRepository
     Task<string?> GetValueAsync(string key);
     Task UpsertAsync(string key, string value);
     Task DeleteAsync(string key);
+    // Runs the work in one database transaction, so its writes commit together or not at all.
+    Task ExecuteInTransactionAsync(Func<Task> work);
 }

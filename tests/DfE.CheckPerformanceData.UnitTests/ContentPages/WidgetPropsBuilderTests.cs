@@ -113,4 +113,49 @@ public class WidgetPropsBuilderTests
 
         Assert.Equal("elsewhere", (string)props["searchIn"]!);
     }
+
+    // ----- Search: "Show search button", offered only with instant search -----
+
+    // Search widgets saved before the option existed have no stored value, and a missing value must
+    // keep the button, so the default is "true".
+    [Fact]
+    public void Build_Search_ShowButtonDefaultsToTrue_WhenNotPosted()
+    {
+        var props = WidgetPropsBuilder.Build("search",
+            new Dictionary<string, string?> { ["instant"] = "true" });
+
+        Assert.Equal("true", (string)props["showButton"]!);
+    }
+
+    // Ticked, the checkbox posts "true" ahead of its hidden "false", and the first value wins.
+    [Fact]
+    public void Build_Search_TickedShowButton_IsStoredAsTrue()
+    {
+        var props = WidgetPropsBuilder.Build("search",
+            new Dictionary<string, string?> { ["instant"] = "true", ["showButton"] = "true" });
+
+        Assert.Equal("true", (string)props["showButton"]!);
+    }
+
+    // Unticked, only the hidden field posts, so unticking really turns the button off.
+    [Fact]
+    public void Build_Search_UntickedShowButton_IsStoredAsFalse()
+    {
+        var props = WidgetPropsBuilder.Build("search",
+            new Dictionary<string, string?> { ["instant"] = "true", ["showButton"] = "false" });
+
+        Assert.Equal("false", (string)props["showButton"]!);
+    }
+
+    // With instant search off the option is still stored as posted, but the widget ignores it and
+    // always shows the button.
+    [Fact]
+    public void Build_Search_InstantOff_StoresShowButtonAsPosted_AndInstantStaysOff()
+    {
+        var props = WidgetPropsBuilder.Build("search",
+            new Dictionary<string, string?> { ["showButton"] = "false" });
+
+        Assert.Equal("false", (string)props["instant"]!);
+        Assert.Equal("false", (string)props["showButton"]!);
+    }
 }

@@ -18,8 +18,10 @@ public interface ISiteSearchService
 }
 
 // A typeahead request. Limit is the number of rows the caller can display; the service clamps
-// it so a hand-crafted request cannot ask for the whole corpus.
-public sealed record SiteSearchSuggestQuery(string? Query, string? ScopePath = null, int Limit = 10);
+// it so a hand-crafted request cannot ask for the whole corpus. ScopePath and PageTokens name the
+// pages to search in the same two ways SiteSearchQuery does.
+public sealed record SiteSearchSuggestQuery(
+    string? Query, string? ScopePath = null, int Limit = 10, string? PageTokens = null);
 
 // One row in a suggestion menu. Label is what the visitor reads, Url where choosing it takes
 // them — the menu navigates rather than filling a hidden field, which is why this carries a URL
@@ -32,16 +34,21 @@ public sealed record SiteSearchSuggestion(string Label, string Url);
 //   Page       — one-indexed at the API boundary (matches the widget's ?page=N URL convention);
 //                1 = first page.
 //   PageSize   — default 20; controllers clamp [10, 50] before constructing this record.
+// PageTokens names pages by token (see PageToken) as an alternative to ScopePath's page paths;
+// when both are given the search covers the pages named by either.
 public sealed record SiteSearchQuery(
     string? Query,
     string? ScopePath = null,
     bool IncludePages = true,
     bool IncludeContentBlocks = true,
-    int MaxPerType = 500, int Page = 1, int PageSize = 20);
+    int MaxPerType = 500, int Page = 1, int PageSize = 20,
+    string? PageTokens = null);
 
 public sealed class SiteSearchPagedResult
 {
     public required string CurrentQuery { get; init; }
+    // The page paths the search was limited to, after any page tokens were looked up, or null for
+    // the whole site.
     public required string? ScopePath { get; init; }
     public required SearchInvalidReason? InvalidReason { get; init; }
     // Single canonical hit list, one row per URL. Any block that resolves to a URL

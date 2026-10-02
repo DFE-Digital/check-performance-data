@@ -16,7 +16,8 @@ public static class AuditLogCsv
         Field(row.TimestampUtc.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture)),
         Field(row.UserName ?? row.UserId),
         Field(AuditActivities.Label(row.EntityType)),
-        Field(row.Action),
+        // AB#301022: a window-admin row names its exercise here; every other row has none.
+        Field(row.ExerciseType is { } exercise ? $"{row.Action} ({exercise})" : row.Action),
         Field(row.EntityType),
         Field(row.EntityId),
         Field(row.WindowTitle),

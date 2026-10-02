@@ -84,7 +84,8 @@ public sealed class InstantSearchWidgetE2ETests(PlaywrightFixture fixture) : See
     }
 
     private static Dictionary<string, string> SearchProps(
-        string searchIn, bool instant, string scope = "", string noResults = "Nothing on this page")
+        string searchIn, bool instant, string scope = "", string noResults = "Nothing on this page",
+        string? showButton = null)
     {
         var props = new Dictionary<string, string>
         {
@@ -98,6 +99,7 @@ public sealed class InstantSearchWidgetE2ETests(PlaywrightFixture fixture) : See
         };
         // An unticked checkbox posts no field at all, which is how the widget reads "off".
         if (instant) props["instant"] = "true";
+        if (showButton is not null) props["showButton"] = showButton;
         return props;
     }
 
@@ -325,6 +327,51 @@ public sealed class InstantSearchWidgetE2ETests(PlaywrightFixture fixture) : See
     }
 
     // ============================================================
+    // 5b. Two search widgets on one page: only the one with instant search switched on is
+    //     enhanced. The other stays a plain form, so typing in it suggests nothing.
+    // ============================================================
+    [Fact]
+    public async Task OnlyTheInstantWidget_OnAPageWithTwoSearchWidgets_SuggestsAsYouType()
+    {
+        var segment = $"e2e-instant-mixed-{Guid.NewGuid():N}";
+        var id = await CmsSeedHelpers.CreatePageNodeAsync(
+            Fixture.SeedClient,
+            parentId: FixtureContent.RootId,
+            pageType: "content",
+            segment: segment,
+            title: "E2E mixed search widgets");
+        _createdPages.Add(id);
+
+        var plain = SearchProps("page", instant: false);
+        plain["label"] = "Plain search";
+        var instant = SearchProps("page", instant: true);
+        instant["label"] = "Instant search";
+
+        await AddAndSetAsync(id, "0.0", "search", plain);
+        await AddAndSetAsync(id, "0.1", "search", instant);
+        await AddAndSetAsync(id, "0.2", "heading",
+            new Dictionary<string, string> { ["level"] = "2", ["text"] = "Providing evidence" });
+        await CmsSeedHelpers.PublishDraftAsync(Fixture.SeedClient, id);
+
+        await Page.GotoAsync($"{Fixture.BaseUrl}{FixtureContent.RootPath}/{segment}");
+
+        var plainForm = Page.Locator("form.cypmd-search", new() { HasText = "Plain search" });
+        var instantForm = Page.Locator("form.cypmd-search", new() { HasText = "Instant search" });
+
+        // The instant widget is enhanced; wait for that so the plain one has had its chance too.
+        await Expect(instantForm.Locator("input.autocomplete__input")).ToBeVisibleAsync();
+        await Expect(plainForm.Locator("input.autocomplete__input")).ToHaveCountAsync(0);
+        await Expect(plainForm).Not.ToHaveAttributeAsync("data-cypmd-instant-search", new Regex(".*"));
+
+        await plainForm.Locator("input[name='q']").ClickAsync();
+        await plainForm.Locator("input[name='q']").FillAsync("evidence");
+        await Expect(plainForm.Locator("li.autocomplete__option")).ToHaveCountAsync(0);
+
+        await instantForm.Locator("input.autocomplete__input").FillAsync("evidence");
+        await Expect(instantForm.Locator("li.autocomplete__option").First).ToContainTextAsync("Providing evidence");
+    }
+
+    // ============================================================
     // 6. No JavaScript: the form is still there and still works, in the flavour that
     //    depends on JavaScript the most.
     // ============================================================
@@ -357,6 +404,53 @@ public sealed class InstantSearchWidgetE2ETests(PlaywrightFixture fixture) : See
 
         await page.WaitForURLAsync(new Regex(@"/search\?"));
         Assert.Contains("scope=", page.Url, StringComparison.Ordinal);
+    }
+
+    // ============================================================
+    // 6a. The search button is optional with instant search. Without it the box keeps its label
+    //     and Enter still runs a full search, even while suggestions are showing.
+    // ============================================================
+    private ILocator WidgetForm =>
+        Page.Locator("form.cypmd-search:has(label:text-is('Search this page'))");
+
+    [Fact]
+    public async Task InstantSearch_WithTheButtonTurnedOff_HasNoButton_AndEnterStillSearches()
+    {
+        var (url, _) = await SeedPageWithSectionsAsync(SearchProps("site", instant: true, showButton: "false"));
+
+        await Page.GotoAsync($"{Fixture.BaseUrl}{url}");
+        await Expect(Page.Locator("input.autocomplete__input")).ToBeVisibleAsync();
+
+        await Expect(WidgetForm.Locator("button")).ToHaveCountAsync(0);
+        var inputId = await Page.Locator("input.autocomplete__input").GetAttributeAsync("id");
+        await Expect(WidgetForm.Locator($"label[for='{inputId}']")).ToHaveTextAsync("Search this page");
+
+        await TypeAsync("evidence");
+        await Expect(Menu).ToBeVisibleAsync();
+        await Page.Locator("input.autocomplete__input").PressAsync("Enter");
+
+        await Page.WaitForURLAsync(new Regex(@"/search\?q=evidence"));
+    }
+
+    [Fact]
+    public async Task InstantSearch_WithNoButtonChoiceSaved_KeepsTheButton()
+    {
+        var (url, _) = await SeedPageWithSectionsAsync(SearchProps("site", instant: true));
+
+        await Page.GotoAsync($"{Fixture.BaseUrl}{url}");
+        await Expect(Page.Locator("input.autocomplete__input")).ToBeVisibleAsync();
+
+        await Expect(WidgetForm.Locator("button[type='submit']")).ToHaveCountAsync(1);
+    }
+
+    [Fact]
+    public async Task WithoutInstantSearch_TheButtonIsAlwaysShown()
+    {
+        var (url, _) = await SeedPageWithSectionsAsync(SearchProps("site", instant: false, showButton: "false"));
+
+        await Page.GotoAsync($"{Fixture.BaseUrl}{url}");
+
+        await Expect(WidgetForm.Locator("button[type='submit']")).ToHaveCountAsync(1);
     }
 
     // ============================================================

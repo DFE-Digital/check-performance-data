@@ -27,13 +27,18 @@ public sealed class SiteSearchService(
         var rawTerm = (query.Query ?? string.Empty);
         if (rawTerm.IndexOf('\0') >= 0) rawTerm = rawTerm.Replace("\0", string.Empty);
         var term = rawTerm.Trim();
-        var scope = string.IsNullOrWhiteSpace(query.ScopePath) ? null : query.ScopePath.Trim().Trim('/');
+        var scope = SearchScope.Normalise(query.ScopePath);
         var pageOneIx = Math.Max(1, query.Page);
         var pageSize = Math.Max(1, query.PageSize);
 
         try
         {
-            var (primaryResult, primaryEvent) = await SearchOnceAsync(query, term, scope, pageOneIx, pageSize);
+            // Pages named by token are looked up to their current paths here, so everything below
+            // (the database-side path filter, the block filter, telemetry) sees one path scope.
+            var resolved = await pageRepository.ResolveSearchScopeAsync(query.ScopePath, query.PageTokens);
+            scope = resolved.Paths;
+
+            var (primaryResult, primaryEvent) = await SearchOnceAsync(query, term, resolved, pageOneIx, pageSize);
 
             // Zero-result queries that contain a hyphen and are not operator-only trigger a
             // single retry with hyphens replaced by spaces — closes the URL-slug matching gap
@@ -49,7 +54,7 @@ public sealed class SiteSearchService(
             if (shouldFallback)
             {
                 var replacedTerm = term.Replace('-', ' ');
-                var (fallbackResult, fallbackEvent) = await SearchOnceAsync(query, replacedTerm, scope, pageOneIx, pageSize);
+                var (fallbackResult, fallbackEvent) = await SearchOnceAsync(query, replacedTerm, resolved, pageOneIx, pageSize);
 
                 if (fallbackResult.Hits.Count > 0)
                 {
@@ -126,17 +131,20 @@ public sealed class SiteSearchService(
         var rawTerm = query.Query ?? string.Empty;
         if (rawTerm.IndexOf('\0') >= 0) rawTerm = rawTerm.Replace("\0", string.Empty);
         var term = rawTerm.Trim();
-        var scope = string.IsNullOrWhiteSpace(query.ScopePath) ? null : query.ScopePath.Trim().Trim('/');
+        var scope = SearchScope.Normalise(query.ScopePath);
         var limit = Math.Clamp(query.Limit, 1, SuggestMaxLimit);
 
         try
         {
+            var resolved = await pageRepository.ResolveSearchScopeAsync(query.ScopePath, query.PageTokens);
+            scope = resolved.Paths;
+
             // Same pass the real search runs, so scope handling, the silent filters and URL
             // canonicalisation cannot drift between what is suggested and what /search returns.
             var (result, _) = await SearchOnceAsync(
                 new SiteSearchQuery(term, scope, MaxPerType: SuggestFetchCap, Page: 1, PageSize: limit),
                 term,
-                scope,
+                resolved,
                 1,
                 limit);
 
@@ -173,10 +181,11 @@ public sealed class SiteSearchService(
     private async Task<(SiteSearchPagedResult Result, SearchTelemetryEvent? Event)> SearchOnceAsync(
         SiteSearchQuery query,
         string term,
-        string? scope,
+        ResolvedSearchScope resolvedScope,
         int oneIndexedPage,
         int pageSize)
     {
+        var scope = resolvedScope.Paths;
         var safePage = Math.Max(1, oneIndexedPage);
         var safeSize = Math.Max(1, pageSize);
 
@@ -211,7 +220,9 @@ public sealed class SiteSearchService(
         IReadOnlyList<PageSearchHitDto> pageHits = [];
         IReadOnlyList<FilterExclusion> pageExclusions = [];
         long? pageMs = null;
-        if (query.IncludePages)
+        // A request that named only pages which no longer exist searches nothing, and neither
+        // corpus is asked; the search still counts as run, with zero results.
+        if (query.IncludePages && !resolvedScope.NamesNothing)
         {
             var swPages = Stopwatch.StartNew();
             (pageHits, pageExclusions) = await BuildPageHitsAsync(term, scope, query.MaxPerType);
@@ -222,7 +233,7 @@ public sealed class SiteSearchService(
         IReadOnlyList<ContentBlockSearchResultDto> blockHits = [];
         IReadOnlyList<FilterExclusion> blockExclusions = [];
         long? blockMs = null;
-        if (query.IncludeContentBlocks)
+        if (query.IncludeContentBlocks && !resolvedScope.NamesNothing)
         {
             var swBlocks = Stopwatch.StartNew();
             (blockHits, blockExclusions) = await BuildBlockHitsAsync(term, scope, query.MaxPerType);
@@ -393,12 +404,8 @@ public sealed class SiteSearchService(
         var outcome = await contentBlockSearch.SearchAsync(term, max);
         if (scope is null) return (outcome.Hits, outcome.Exclusions);
 
-        var scopePrefix = "/" + scope;
-        var scopeSubtree = scopePrefix + "/";
-        var scoped = outcome.Hits
-            .Where(h => h.Url.Equals(scopePrefix, StringComparison.OrdinalIgnoreCase)
-                     || h.Url.StartsWith(scopeSubtree, StringComparison.OrdinalIgnoreCase))
-            .ToList();
+        var paths = SearchScope.Parse(scope);
+        var scoped = outcome.Hits.Where(h => SearchScope.Covers(paths, h.Url)).ToList();
         return (scoped, outcome.Exclusions);
     }
 

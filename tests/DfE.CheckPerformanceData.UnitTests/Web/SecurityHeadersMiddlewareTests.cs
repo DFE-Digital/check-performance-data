@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Web.Middleware;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using NSubstitute;
 
@@ -20,16 +21,28 @@ public sealed class SecurityHeadersMiddlewareTests
 
     private static readonly IHostEnvironment Production = Env(Environments.Production);
 
+    private const string ProductionMetadata =
+        "https://oidc.signin.education.gov.uk/.well-known/openid-configuration";
+
+    private static IConfiguration Config(string? metadataAddress = ProductionMetadata) =>
+        new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["DfeSignIn:MetadataAddress"] = metadataAddress
+            })
+            .Build();
+
     private static async Task<HttpContext> Run(
         string method = "GET",
         Action<HttpContext>? arrange = null,
-        IHostEnvironment? env = null)
+        IHostEnvironment? env = null,
+        IConfiguration? config = null)
     {
         var context = new DefaultHttpContext();
         context.Request.Method = method;
         arrange?.Invoke(context);
 
-        var sut = new SecurityHeadersMiddleware(_ => Task.CompletedTask, env ?? Production);
+        var sut = new SecurityHeadersMiddleware(_ => Task.CompletedTask, env ?? Production, config ?? Config());
         await sut.InvokeAsync(context);
         return context;
     }
@@ -84,7 +97,7 @@ public sealed class SecurityHeadersMiddlewareTests
         context.Request.Method = "TRACE";
         var reached = false;
 
-        var sut = new SecurityHeadersMiddleware(_ => { reached = true; return Task.CompletedTask; }, Production);
+        var sut = new SecurityHeadersMiddleware(_ => { reached = true; return Task.CompletedTask; }, Production, Config());
         await sut.InvokeAsync(context);
 
         Assert.False(reached);
@@ -100,7 +113,7 @@ public sealed class SecurityHeadersMiddlewareTests
         context.Request.Method = method;
         var reached = false;
 
-        var sut = new SecurityHeadersMiddleware(_ => { reached = true; return Task.CompletedTask; }, Production);
+        var sut = new SecurityHeadersMiddleware(_ => { reached = true; return Task.CompletedTask; }, Production, Config());
         await sut.InvokeAsync(context);
 
         Assert.True(reached);
@@ -118,6 +131,45 @@ public sealed class SecurityHeadersMiddlewareTests
         Assert.Contains("default-src 'self'", csp);
         Assert.Contains("object-src 'none'", csp);
         Assert.Contains("form-action 'self'", csp);
+    }
+
+    // A POST made after the sign-in has expired is answered with a 302 to DfE Sign-in. Chrome
+    // applies form-action to every redirect a form submission follows, so with 'self' alone the
+    // browser cancelled that navigation and the page simply did nothing — on every form in the
+    // service. A PROD tester on Check your student data hit exactly this.
+    [Fact]
+    public async Task FormAction_AllowsTheDfeSignInOrigin()
+    {
+        var context = await Run();
+
+        var csp = context.Response.Headers["Content-Security-Policy"].ToString();
+        Assert.Contains("form-action 'self' https://oidc.signin.education.gov.uk", csp);
+    }
+
+    // Only the origin is allowed, never the metadata document's path: form-action matches the
+    // authorize endpoint, which is another path on the same host.
+    [Fact]
+    public async Task FormAction_UsesTheOriginOfTheMetadataAddressOnly()
+    {
+        var context = await Run(config: Config("https://test-oidc.signin.education.gov.uk/.well-known/openid-configuration"));
+
+        var csp = context.Response.Headers["Content-Security-Policy"].ToString();
+        Assert.EndsWith("form-action 'self' https://test-oidc.signin.education.gov.uk", csp);
+    }
+
+    // Missing or unusable configuration must narrow the policy back to 'self', never widen it.
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("not a url")]
+    [InlineData("/relative/openid-configuration")]
+    [InlineData("ftp://oidc.example/openid-configuration")]
+    public async Task FormAction_WithoutAUsableMetadataAddress_IsSelfOnly(string? metadataAddress)
+    {
+        var context = await Run(config: Config(metadataAddress));
+
+        var csp = context.Response.Headers["Content-Security-Policy"].ToString();
+        Assert.EndsWith("form-action 'self'", csp);
     }
 
     // Setting a header twice produces two of it. Something upstream may already have supplied

@@ -97,13 +97,31 @@ public sealed class ExerciseSummarySection
     /// <summary>Validated once, but not against the files it holds now — a stale stamp.</summary>
     public bool IsStale { get; init; }
 
+    /// <summary>
+    /// Open to schools right now, from <c>ICheckingExerciseService.IsOpen</c> (AB#301022). The
+    /// page offers Close only while this is true.
+    /// </summary>
+    public bool IsOpen { get; init; }
+
+    /// <summary>
+    /// Past its end date, from <c>ICheckingExerciseService.HasClosed</c> — whether it ran to its
+    /// scheduled end or was closed early. Not the same as <c>!IsOpen</c>: an exercise that has not
+    /// started is neither. The page offers "Send requests for processing" only while this is true.
+    /// </summary>
+    public bool HasClosed { get; init; }
+
+    // The same three words the windows list uses for an exercise (WindowAdminController).
+    public string StatusLabel => IsOpen ? "Open" : HasClosed ? "Closed" : "Upcoming";
+    public string StatusTagClass => IsOpen ? "govuk-tag--green" : HasClosed ? "govuk-tag--grey" : "govuk-tag--blue";
+
     public string DatesLink => $"/admin/windows/{WindowId}/exercises/{ExerciseType}/dates";
     public string ValidateLink => $"/admin/windows/{WindowId}/{ExerciseType}/validate";
 
-    // No IsValidatable-style gate beside this one: closing works regardless of the exercise's dates
-    // and regardless of whether its files ever validated. It is an admin decision, not a
-    // consequence of the clock — see ICloseExerciseService.
+    // Closing does not depend on the exercise's files or on whether they ever validated: it is an
+    // admin decision about an exercise schools can currently use.
     public string CloseLink => $"/admin/windows/{WindowId}/{ExerciseType}/close";
+
+    public string SendRequestsLink => $"/admin/windows/{WindowId}/{ExerciseType}/send-requests";
 
     // Every REQUIRED dataset must have both files — a Post16 pupil-data exercise is not validatable
     // until both the included and non-included CSV/schema pairs are chosen, because they ingest in

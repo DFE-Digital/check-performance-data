@@ -102,6 +102,7 @@ public sealed class RequestNotificationServiceTests
     [Theory]
     [InlineData(0, 0, "12am on Friday 26 June 2026")]
     [InlineData(12, 0, "12pm on Friday 26 June 2026")]
+    [InlineData(17, 30, "5:30pm on Friday 26 June 2026")]   // an end typed with minutes must not read "5pm"
     public async Task NotifySubmissionConfirmedAsync_HandlesDeadlineEdgeCases(int hour, int minute, string expected)
     {
         await _sut.NotifySubmissionConfirmedAsync(

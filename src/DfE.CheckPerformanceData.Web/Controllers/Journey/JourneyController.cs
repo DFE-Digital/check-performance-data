@@ -13,6 +13,7 @@ using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.FileStorage;
 using DfE.CheckPerformanceData.Web.Session;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Filters;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.Journey;
 
@@ -1547,7 +1548,8 @@ public sealed class JourneyController(
         {
             WindowId = windowId,
             ReferenceNumber = journey.ReferenceNumber,
-            WindowCloseLabel = $"{journey.CheckingWindow.EndDate:htt} on {journey.CheckingWindow.EndDate:dddd d MMMM yyyy}"
+            // DeadlineTime.Pattern: the minutes show when the end date has some.
+            WindowCloseLabel = $"{journey.CheckingWindow.EndDate.ToString(DeadlineTime.Pattern(journey.CheckingWindow.EndDate))} on {journey.CheckingWindow.EndDate:dddd d MMMM yyyy}"
         };
 
         return View(model);
@@ -2005,6 +2007,42 @@ public sealed class JourneyController(
     }
 
 
+
+    /// <summary>
+    /// AB#301022: runs before every journey action. The journey carries a snapshot of its window —
+    /// exercise dates included — taken when it started, and <see cref="IsSessionReady"/> gates on
+    /// that snapshot. A scheduled end is in the snapshot from the start; an admin closing the
+    /// exercise early is not, so without this a school part-way through a journey could carry on
+    /// and submit after the close. Refreshing here, in one place, means none of the gates below
+    /// had to change.
+    /// </summary>
+    public override async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
+    {
+        // Every journey route carries {windowId}.
+        if (context.RouteData.Values.TryGetValue("windowId", out var raw)
+            && Guid.TryParse(raw?.ToString(), out var windowId))
+        {
+            await RefreshCheckingWindowAsync(windowId);
+        }
+
+        await next();
+    }
+
+    /// <summary>
+    /// Replaces the journey's window snapshot with the window as it is now. The same read, and so
+    /// the same shape, as the one that took the snapshot when the journey started.
+    /// </summary>
+    [NonAction]
+    public async Task RefreshCheckingWindowAsync(Guid windowId)
+    {
+        var journey = HttpContext.Session.GetRequestState(windowId);
+
+        // No journey under way: nothing to refresh, and no query for a stray URL.
+        if (journey.CheckingWindow is null) return;
+
+        var current = await pupilDataService.GetCheckingWindowAsync(windowId);
+        HttpContext.Session.SaveRequestState(windowId, s => s.CheckingWindow = current);
+    }
 
     /// <summary>
     /// #318: the one gate every journey action already runs. It now also requires the journey's

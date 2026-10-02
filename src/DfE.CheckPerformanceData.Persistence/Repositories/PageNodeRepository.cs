@@ -2,6 +2,7 @@ using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.Application.Search;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Entities;
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 
 namespace DfE.CheckPerformanceData.Persistence.Repositories;
@@ -80,6 +81,29 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
         return primary;
     }
 
+    private static readonly System.Reflection.MethodInfo StartsWithMethod =
+        typeof(string).GetMethod(nameof(string.StartsWith), [typeof(string)])!;
+
+    // A page is in scope when its path is one of the scoped paths or sits beneath one. No scoped
+    // path means everything is in scope. Built as an expression so the whole OR runs in the
+    // database rather than after the ranked window has been fetched.
+    private static Expression<Func<PageNode, bool>> InScope(IReadOnlyList<string> scopedPaths)
+    {
+        var node = Expression.Parameter(typeof(PageNode), "n");
+        if (scopedPaths.Count == 0) return Expression.Lambda<Func<PageNode, bool>>(Expression.Constant(true), node);
+
+        var path = Expression.Property(node, nameof(PageNode.Path));
+        Expression? any = null;
+        foreach (var scoped in scopedPaths)
+        {
+            var match = Expression.OrElse(
+                Expression.Equal(path, Expression.Constant(scoped)),
+                Expression.Call(path, StartsWithMethod, Expression.Constant(scoped + "/")));
+            any = any is null ? match : Expression.OrElse(any, match);
+        }
+        return Expression.Lambda<Func<PageNode, bool>>(any!, node);
+    }
+
     private Task<List<PageSearchHitRaw>> SearchPagesOnceAsync(string term, string? scopePath, int max)
     {
         // Full-text ranked search across two vectors — PageNode.SearchVector (Keywords A, Title
@@ -113,14 +137,14 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
         // version — the projection substitutes null / empty-string so downstream code
         // never NREs.
         var normalisedTerm = SearchTermNormalizer.OrJoinWhitespace(term);
-        var scopePrefix = string.IsNullOrEmpty(scopePath) ? null : scopePath + "/";
+        var scopedPaths = SearchScope.Parse(scopePath);
 
         var widened = context.PageNodes
             .AsNoTracking()
             .Where(n => n.DeletedDate == null)
             // Folder pages are containers only — nothing to render, nothing to link to.
             .Where(n => n.PageType != "folder")
-            .Where(n => scopePath == null || n.Path == scopePath || n.Path.StartsWith(scopePrefix!))
+            .Where(InScope(scopedPaths))
             .Select(n => new
             {
                 Node = n,

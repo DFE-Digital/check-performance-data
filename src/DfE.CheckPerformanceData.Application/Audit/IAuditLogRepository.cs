@@ -11,7 +11,7 @@ public sealed record AuditLogFilter(string? Activity, Guid? WindowId, AuditOutco
 /// <summary>
 /// One audit log row. Deliberately carries no OldValues/NewValues/ChangedColumns: the generic
 /// capture stores pupil-bearing entities' values there and the log must never render them.
-/// UserName is known only for egress rows (the payload's transferredBy); WindowTitle is null when
+/// UserName is known only for egress rows (the payload's transferredBy) and window-admin rows (closedBy); WindowTitle is null when
 /// the row has no window or the window cannot be named; OutputTypes are the raw enum names.
 /// </summary>
 public sealed record AuditLogRow(
@@ -25,7 +25,14 @@ public sealed record AuditLogRow(
     Guid? WindowId,
     string? WindowTitle,
     IReadOnlyList<string> OutputTypes,
-    AuditOutcome? Outcome);
+    AuditOutcome? Outcome)
+{
+    /// <summary>
+    /// AB#301022: the checking exercise a WindowAdmin row is about, as the raw enum name from its
+    /// payload. Null on every other row, and on a WindowAdmin row whose payload cannot be read.
+    /// </summary>
+    public string? ExerciseType { get; init; }
+}
 
 /// <summary>One page of the log. Page is 1-based and already clamped to [1, TotalPages].</summary>
 public sealed record AuditLogPage(IReadOnlyList<AuditLogRow> Rows, int TotalCount, int Page, int PageSize)

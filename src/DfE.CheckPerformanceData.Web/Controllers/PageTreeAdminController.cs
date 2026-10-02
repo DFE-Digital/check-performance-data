@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.Common;
 using DfE.CheckPerformanceData.Application.ContentPages;
+using DfE.CheckPerformanceData.Application.Search;
 using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Web.Admin;
@@ -578,12 +579,43 @@ public sealed class PageTreeAdminController(
 
     [HttpPost("/admin/pages/{id:guid}/content/widget")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> ContentWidget(Guid id, string path, string type, [FromForm] Dictionary<string, string?>? props)
+    public async Task<IActionResult> ContentWidget(
+        Guid id, string path, string type,
+        [FromForm] Dictionary<string, string?>? props,
+        [FromForm] string[]? scopePages = null,
+        [FromForm] bool scopePicker = false)
     {
         // M-01: guard against fabricated GUIDs reaching the content editor
         if (await pageNodeService.GetNodeByIdAsync(id) is null) return NotFound();
 
-        var built = WidgetPropsBuilder.Build(type, props ?? new Dictionary<string, string?>());
+        var fields = new Dictionary<string, string?>(props ?? new Dictionary<string, string?>());
+        // The page picker posts one checkbox per ticked page, valued with the page's id; together
+        // they are the widget's pages, and nothing ticked means the whole site. Ids are stored
+        // (scopePageIds) so the widget keeps its pages when they are renamed or moved. A ticked
+        // value that is not an id is a path an older widget held that matches no page; it stays
+        // in the path scope rather than being dropped. Any other path scope the widget held is
+        // replaced by the ticks, so saving a widget from before ids were stored moves it to ids.
+        //
+        // The picker also posts a marker, because without it an unticked picker and a save that
+        // never showed one look the same, and a save without the picker (a seed script, a
+        // scripted edit) must keep the pages it posts, by id or by path.
+        if (type is "search" or "results")
+        {
+            if (scopePicker)
+            {
+                var ticked = scopePages ?? [];
+                var ids = ticked.Where(v => Guid.TryParse(v, out _));
+                fields["scopePageIds"] = ScopePageIds.Normalise(string.Join(',', ids)) ?? "";
+                fields["scope"] = SearchScope.Normalise(string.Join(',', ticked.Except(ids))) ?? "";
+            }
+            else
+            {
+                fields["scopePageIds"] = ScopePageIds.Normalise(fields.GetValueOrDefault("scopePageIds")) ?? "";
+                fields["scope"] = SearchScope.Normalise(fields.GetValueOrDefault("scope")) ?? "";
+            }
+        }
+
+        var built = WidgetPropsBuilder.Build(type, fields);
         await nodeContentEditor.UpdateWidgetAsync(id, TreePath.Parse(path), built, User?.Identity?.Name);
         return Redirect($"/admin/pages/{id}/edit");
     }
@@ -615,6 +647,8 @@ public sealed class PageTreeAdminController(
         var tree = ContentPageJson.Deserialize(json) ?? [];
         var isPublished = await pageNodeService.IsPublishedAsync(id);
         var versions = await pageNodeService.GetVersionsAsync(id);
+        // Every widget's editor can offer the site's pages, e.g. to limit a search to some of them.
+        ViewData[PageScopePickerModel.ViewDataKey] = PageScopePickerModel.From(await pageNodeService.GetTreeAsync());
         return View("~/Views/ContentPage/Edit.cshtml", new ContentPageEditViewModel
         {
             ActionBase        = $"/admin/pages/{id}/content",

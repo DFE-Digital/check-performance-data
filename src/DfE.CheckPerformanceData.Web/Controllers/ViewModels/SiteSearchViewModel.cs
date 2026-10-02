@@ -5,7 +5,13 @@ namespace DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 public sealed class SiteSearchViewModel
 {
     public required string Query { get; init; }
+    // The page paths the search was limited to, after any page tokens were looked up. Shown in
+    // the results lines and the scope comment; never echoed back into a URL.
     public required string? Scope { get; init; }
+    // The ?scope= and ?pages= values the request arrived with, normalised, for the pager and the
+    // refine form.
+    public string? QueryScope { get; init; }
+    public string? QueryPages { get; init; }
     public required SearchInvalidReason? InvalidReason { get; init; }
     // Single URL-canonicalised hit list. The old PageHits + ContentBlockHits split is gone;
     // dedup + aggregation live in the canonicaliser and the view renders one merged list.

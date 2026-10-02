@@ -11,7 +11,8 @@ namespace DfE.CheckPerformanceData.Persistence.Repositories;
 /// The audit log's read side (AB#294592). Filters, counts, orders and pages in SQL. Two rules:
 /// (1) no JSON and no Guid.ToString() in SQL — the window filter materialises the window's run ids
 /// in C# and compares EntityId against a string[] (= ANY); (2) NewValues is projected only for
-/// EgressRun rows, so no other entity's payload is ever read out of the table.
+/// EgressRun and WindowAdmin rows — the two hand-written payloads that hold no pupil data — so no
+/// captured entity's values are ever read out of the table.
 /// </summary>
 public sealed class AuditLogRepository(IPortalDbContext db) : IAuditLogRepository
 {
@@ -23,7 +24,7 @@ public sealed class AuditLogRepository(IPortalDbContext db) : IAuditLogRepositor
         public string EntityType { get; init; } = string.Empty;
         public string EntityId { get; init; } = string.Empty;
         public string Action { get; init; } = string.Empty;
-        public string? EgressPayload { get; init; }
+        public string? Payload { get; init; }
     }
 
     public async Task<AuditLogPage> ListAsync(AuditLogFilter filter, int page, int pageSize, CancellationToken ct)
@@ -64,8 +65,13 @@ public sealed class AuditLogRepository(IPortalDbContext db) : IAuditLogRepositor
             query = query.Where(a => a.EntityType == activity);
         if (filter.Outcome is { } outcome)
         {
-            var action = outcome == AuditOutcome.Success ? AuditActivities.TransferAction : AuditActivities.TransferFailedAction;
-            query = query.Where(a => a.EntityType == AuditActivities.Egress && a.Action == action);
+            // Mirrors AuditActivities.OutcomeOf: a transfer succeeds or fails; an early closure
+            // (AB#301022) is only written once it has happened, so it is only ever a success.
+            query = outcome == AuditOutcome.Success
+                ? query.Where(a =>
+                    (a.EntityType == AuditActivities.Egress && a.Action == AuditActivities.TransferAction) ||
+                    (a.EntityType == AuditActivities.WindowAdmin && a.Action == AuditActivities.ClosedEarlyAction))
+                : query.Where(a => a.EntityType == AuditActivities.Egress && a.Action == AuditActivities.TransferFailedAction);
         }
         if (filter.WindowId is { } windowId)
         {
@@ -73,9 +79,11 @@ public sealed class AuditLogRepository(IPortalDbContext db) : IAuditLogRepositor
             var runIds = (await db.EgressRuns.AsNoTracking().Where(r => r.WindowId == windowId).Select(r => r.Id).ToListAsync(ct))
                 .Select(id => id.ToString()).ToArray();
             var windowText = windowId.ToString();
+            // A WindowAdmin row is keyed on the window id for exactly this: no JSON in SQL.
             query = query.Where(a =>
                 (a.EntityType == AuditActivities.Egress && runIds.Contains(a.EntityId)) ||
-                (a.EntityType == AuditActivities.CheckingWindow && a.EntityId == windowText));
+                (a.EntityType == AuditActivities.CheckingWindow && a.EntityId == windowText) ||
+                (a.EntityType == AuditActivities.WindowAdmin && a.EntityId == windowText));
         }
         return query;
     }
@@ -91,7 +99,7 @@ public sealed class AuditLogRepository(IPortalDbContext db) : IAuditLogRepositor
         EntityType = a.EntityType,
         EntityId = a.EntityId,
         Action = a.Action,
-        EgressPayload = a.EntityType == AuditActivities.Egress ? a.NewValues : null
+        Payload = a.EntityType == AuditActivities.Egress || a.EntityType == AuditActivities.WindowAdmin ? a.NewValues : null
     });
 
     private async Task<IReadOnlyDictionary<Guid, string>> TitlesAsync(CancellationToken ct) =>
@@ -101,14 +109,24 @@ public sealed class AuditLogRepository(IPortalDbContext db) : IAuditLogRepositor
     {
         Guid? windowId = null;
         string? userName = null;
+        string? exerciseType = null;
         IReadOnlyList<string> outputTypes = [];
 
         if (raw.EntityType == AuditActivities.Egress)
         {
-            var payload = EgressAuditPayload.TryParse(raw.EgressPayload);
+            var payload = EgressAuditPayload.TryParse(raw.Payload);
             windowId = payload?.WindowId;
             userName = payload?.TransferredBy ?? payload?.StartedByName;   // a transfer names the transferrer; a pull, the starter
             outputTypes = payload?.OutputTypes ?? [];
+        }
+        else if (raw.EntityType == AuditActivities.WindowAdmin)
+        {
+            // AB#301022: the window comes from the row's own id; the payload only adds the
+            // admin's name and which of the window's exercises was closed.
+            if (Guid.TryParse(raw.EntityId, out var id)) windowId = id;
+            var payload = WindowAdminAuditPayload.TryParse(raw.Payload);
+            userName = payload?.ClosedBy;
+            exerciseType = payload?.ExerciseType;
         }
         else if (raw.EntityType == AuditActivities.CheckingWindow && Guid.TryParse(raw.EntityId, out var id))
         {
@@ -117,6 +135,9 @@ public sealed class AuditLogRepository(IPortalDbContext db) : IAuditLogRepositor
 
         var title = windowId is { } w && titles.TryGetValue(w, out var t) ? t : null;
         return new AuditLogRow(raw.Id, DateTime.SpecifyKind(raw.Timestamp, DateTimeKind.Utc), raw.UserId, userName,
-            raw.EntityType, raw.EntityId, raw.Action, windowId, title, outputTypes, AuditActivities.OutcomeOf(raw.EntityType, raw.Action));
+            raw.EntityType, raw.EntityId, raw.Action, windowId, title, outputTypes, AuditActivities.OutcomeOf(raw.EntityType, raw.Action))
+        {
+            ExerciseType = exerciseType
+        };
     }
 }

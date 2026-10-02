@@ -11,13 +11,6 @@ public sealed class WidgetEditorContractTests
     // ----- Results widget -----
 
     [Fact]
-    public void Results_EditorExposesScopeField()
-    {
-        // Manual step 3, 17-18.
-        Assert.Contains("props[scope]", ResultsBranch());
-    }
-
-    [Fact]
     public void Results_EditorExposesEmptyTextField()
     {
         // Manual step 3, 12.
@@ -49,13 +42,6 @@ public sealed class WidgetEditorContractTests
     // ----- Search widget (companion) -----
 
     [Fact]
-    public void Search_EditorExposesScopeField()
-    {
-        // Manual step 26 + 23: the previously JSON-only scope prop is now editable.
-        Assert.Contains("props[scope]", SearchBranch());
-    }
-
-    [Fact]
     public void Search_EditorExposesAction_Label_Placeholder_Button()
     {
         // Existing fields must still be present.
@@ -84,6 +70,32 @@ public sealed class WidgetEditorContractTests
         Assert.Contains("type=\"checkbox\"", b);
     }
 
+    // "Show search button" only means something with instant search, so it sits in the block the
+    // instant tick box reveals. An unticked box posts nothing, so a hidden "false" follows the label:
+    // the browser posts in DOM order and the first value wins.
+    [Fact]
+    public void Search_EditorRevealsShowSearchButton_UnderInstantSearch()
+    {
+        var b = SearchBranch();
+        var reveal = b.IndexOf("data-cpb-search-instantfields", StringComparison.Ordinal);
+        var checkbox = b.IndexOf("name=\"props[showButton]\" type=\"checkbox\"", StringComparison.Ordinal);
+        var label = b.IndexOf("Show search button", StringComparison.Ordinal);
+        var hidden = b.IndexOf("<input type=\"hidden\" name=\"props[showButton]\" value=\"false\" />", StringComparison.Ordinal);
+
+        Assert.True(reveal >= 0, "Search editor has no instant-search reveal.");
+        Assert.True(checkbox > reveal, "Show search button must sit inside the instant-search reveal.");
+        Assert.True(label > checkbox, "Show search button has no label after its checkbox.");
+        Assert.True(hidden > label, "Unticking Show search button would post nothing without a hidden false after the label.");
+    }
+
+    // A widget saved before the option existed has no stored value and shows the button, so the
+    // box starts ticked unless "false" is stored.
+    [Fact]
+    public void Search_EditorTicksShowSearchButton_UnlessStoredFalse()
+    {
+        Assert.Contains("GetBool(\"showButton\") ?? true", SearchBranch());
+    }
+
     [Fact]
     public void Search_EditorExposesNoResultsCopy()
     {
@@ -98,6 +110,56 @@ public sealed class WidgetEditorContractTests
         var b = SearchBranch();
         Assert.Contains("props[action]", b);
         Assert.Contains("props[buttonText]", b);
+    }
+
+    // ----- Page picker (search + results scope) -----
+
+    [Fact]
+    public void Search_EditorPicksScopePagesWithACheckboxPerPage()
+    {
+        // The picker posts every ticked page under one repeated field; the controller joins them.
+        var b = SearchBranch();
+        Assert.Contains("_PageScopePicker", b);
+        Assert.DoesNotContain("name=\"props[scope]\"", b);
+    }
+
+    [Fact]
+    public void Results_EditorUsesTheSamePagePicker()
+    {
+        var b = ResultsBranch();
+        Assert.Contains("_PageScopePicker", b);
+        Assert.DoesNotContain("name=\"props[scope]\"", b);
+    }
+
+    // Both pickers are given the pages the widget stores by id as well as any old path scope.
+    [Fact]
+    public void Pickers_AreGivenTheStoredPageIdsAndPathScope()
+    {
+        Assert.Contains("w.GetString(\"scope\"), w.GetString(\"scopePageIds\")", SearchBranch());
+        Assert.Contains("w.GetString(\"scope\"), w.GetString(\"scopePageIds\")", ResultsBranch());
+    }
+
+    [Fact]
+    public void PagePicker_PostsTicksAsScopePagesCheckboxes_OfTheSitePageTree()
+    {
+        var picker = File.ReadAllText(Path.Combine(
+            FindSolutionRoot(AppContext.BaseDirectory),
+            "src", "DfE.CheckPerformanceData.Web", "Views", "Shared", "ContentPages", "_PageScopePicker.cshtml"));
+
+        Assert.Contains("name=\"scopePages\"", picker);
+        Assert.Contains("type=\"checkbox\"", picker);
+        Assert.Contains("govuk-checkboxes", picker);
+        Assert.Contains(".ItemsFor(Model.PageIds, Model.Scope)", picker);
+    }
+
+    [Fact]
+    public void PagePicker_PostsAMarker_SoTheSaveKnowsTheTicksAreTheScope()
+    {
+        var picker = File.ReadAllText(Path.Combine(
+            FindSolutionRoot(AppContext.BaseDirectory),
+            "src", "DfE.CheckPerformanceData.Web", "Views", "Shared", "ContentPages", "_PageScopePicker.cshtml"));
+
+        Assert.Contains("<input type=\"hidden\" name=\"scopePicker\" value=\"true\" />", picker);
     }
 
     // ----- PageNav widget -----

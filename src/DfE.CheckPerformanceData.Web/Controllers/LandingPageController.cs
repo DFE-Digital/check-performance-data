@@ -3,6 +3,7 @@ using DfE.CheckPerformanceData.Application.LandingPage;
 // LandingPage one ambiguous here.
 using ICheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.ICheckingExerciseService;
 using LearnerNoun = DfE.CheckPerformanceData.Application.WindowManagement.LearnerNoun;
+using DeadlineTime = DfE.CheckPerformanceData.Application.WindowManagement.DeadlineTime;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Authentication;
 using DfE.CheckPerformanceData.Web.Common;
@@ -82,7 +83,7 @@ public sealed class LandingPageController(
             HasPupilData = window.HasPupilData,
             LearnerNoun = LearnerNoun.For(window.CheckingWindowType),
             IsPupilDataOpen = checkingExercises.IsOpen(window.Exercises, CheckingExerciseType.PupilData),
-            PupilDataEndTime = pupilDataEnd?.ToString("htt").ToLowerInvariant(),
+            PupilDataEndTime = pupilDataEnd is { } end ? DeadlineTime.Format(end) : null,
             PupilDataEndDate = pupilDataEnd?.ToString("dddd d MMMM yyyy"),
             PupilDataRangeStart = pupilDataStart?.ToString("d MMMM"),
             PupilDataRangeEnd = pupilDataEnd?.ToString("d MMMM yyyy"),

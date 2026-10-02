@@ -14,6 +14,7 @@ public sealed class AuditActivitiesTests
     [InlineData("ContentBundle", "Content import")]
     [InlineData("DlqMessage", "Dead letter queue")]
     [InlineData("Setting", "System setting")]
+    [InlineData("WindowAdmin", "Window admin")]
     public void Known_entity_types_have_a_plain_english_label(string entityType, string expected)
         => Assert.Equal(expected, AuditActivities.Label(entityType));
 
@@ -31,6 +32,15 @@ public sealed class AuditActivitiesTests
         Assert.Equal(AuditOutcome.Failed, AuditActivities.OutcomeOf("EgressRun", "TransferFailed"));
         Assert.Null(AuditActivities.OutcomeOf("EgressRun", "Insert"));
         Assert.Null(AuditActivities.OutcomeOf("CheckingWindow", "Transfer"));
+    }
+
+    [Fact]
+    public void An_early_closure_is_a_success()
+    {
+        // AB#301022: the row is only ever written once the exercise has closed, so it has one outcome.
+        Assert.Equal(AuditOutcome.Success, AuditActivities.OutcomeOf("WindowAdmin", "ClosedEarly"));
+        Assert.Null(AuditActivities.OutcomeOf("WindowAdmin", "Update"));
+        Assert.Null(AuditActivities.OutcomeOf("CheckingExercise", "ClosedEarly"));
     }
 
     [Theory]

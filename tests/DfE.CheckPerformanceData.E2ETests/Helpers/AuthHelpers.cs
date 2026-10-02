@@ -31,6 +31,15 @@ public static class AuthHelpers
         return cookie;
     }
 
+    // Returns the independent-school impersonation cookie WITHOUT publishing it to the shared
+    // TestHttpClients.ImpersonationCookieHeader, unlike its siblings above. The caller drops it
+    // onto its own Playwright context instead: this cookie expresses a different organisation
+    // type, and rewriting the shared static would retarget every other test in the [Collection("E2E")]
+    // run, which shares one fixture and may execute concurrently. Seed calls therefore keep
+    // running as the fixture-wide editor.
+    public static Task<string?> ImpersonateAsIndependentAsync(PlaywrightFixture fixture)
+        => CallEndpointAsync(fixture, "/dev/impersonate/independent");
+
     // Hits the dev-only clear endpoint that deletes the impersonation cookie entirely,
     // restoring true-anonymous state. Distinct from ImpersonateAsUnprivilegedUserAsync
     // (which keeps a synthetic "user" principal). Powers the UI sign-out from the

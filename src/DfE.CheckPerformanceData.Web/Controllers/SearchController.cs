@@ -10,7 +10,10 @@ namespace DfE.CheckPerformanceData.Web.Controllers;
 
 // Unified site-search endpoint. Reachable at:
 //   /search              — global search (all pages + all content blocks)
-//   /{scope}/search      — scoped search, where {scope} is a page path prefix (e.g. "guidance").
+//   /search?scope=a,b    — search limited to pages by path (each with everything beneath it).
+//   /search?pages=t1,t2  — the same, naming the pages by token (see PageToken), which keeps the
+//                          URL short and survives the pages being renamed or moved. A URL with
+//                          both searches the pages named by either.
 // Everything lands on the same view so results are always in one place, regardless of which
 // search widget or PageNav search box submitted the query.
 //
@@ -31,12 +34,14 @@ public sealed class SearchController(
         bool? includeContentBlocks,
         int? page = null,
         int? pageSize = null,
+        string? pages = null,
         CancellationToken ct = default)
-        => RenderAsync(q, scope, includePages, includeContentBlocks, page, pageSize, ct);
+        => RenderAsync(q, scope, pages, includePages, includeContentBlocks, page, pageSize, ct);
 
     private async Task<IActionResult> RenderAsync(
         string? q,
         string? scope,
+        string? pages,
         bool? includePages,
         bool? includeContentBlocks,
         int? page,
@@ -84,7 +89,13 @@ public sealed class SearchController(
             IncludePages: includePagesResolved,
             IncludeContentBlocks: includeContentBlocksResolved,
             Page: oneIndexedPage,
-            PageSize: effectivePageSize);
+            PageSize: effectivePageSize,
+            PageTokens: pages);
+
+        // The pager and the refine form carry the scope and tokens the request arrived with, so a
+        // ?pages= search stays short; the resolved paths are only shown.
+        var queryScope = SearchScope.Normalise(scope);
+        var queryPages = PageToken.Normalise(pages);
 
         var result = await searchService.SearchAsync(query);
 
@@ -96,7 +107,9 @@ public sealed class SearchController(
             return View("Unavailable", new SiteSearchViewModel
             {
                 Query = q ?? string.Empty,
-                Scope = scope,
+                Scope = queryScope,
+                QueryScope = queryScope,
+                QueryPages = queryPages,
                 InvalidReason = SearchInvalidReason.DataStoreUnavailable,
                 Hits = Array.Empty<CanonicalSearchHit>(),
                 IncludePages = includePagesResolved,
@@ -117,7 +130,8 @@ public sealed class SearchController(
             await analytics.TrackSafeAsync(new SearchResultCountEvent
             {
                 ResultCount = result.TotalCount,
-                Scope = scope,
+                // The readable paths searched, whichever way the request named them.
+                Scope = result.ScopePath,
             }, HttpContext.RequestAborted);
         }
 
@@ -131,6 +145,8 @@ public sealed class SearchController(
         {
             Query = result.CurrentQuery,
             Scope = result.ScopePath,
+            QueryScope = queryScope,
+            QueryPages = queryPages,
             InvalidReason = result.InvalidReason,
             Hits = result.Hits,
             IncludePages = includePagesResolved,

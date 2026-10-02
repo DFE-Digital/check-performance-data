@@ -22,7 +22,7 @@ public sealed class SearchSuggestionsController(ISiteSearchService searchService
     private const int MaxSuggestions = 10;
 
     [HttpGet("/search/suggestions")]
-    public async Task<IActionResult> Suggestions(string? q, string? scope)
+    public async Task<IActionResult> Suggestions(string? q, string? scope, string? pages = null)
     {
         var term = (q ?? string.Empty).Trim();
         if (term.Length > MaxQueryLength) term = term[..MaxQueryLength];
@@ -33,7 +33,7 @@ public sealed class SearchSuggestionsController(ISiteSearchService searchService
         }
 
         var suggestions = await searchService.SuggestAsync(
-            new SiteSearchSuggestQuery(term, scope, MaxSuggestions));
+            new SiteSearchSuggestQuery(term, scope, MaxSuggestions, PageTokens: pages));
 
         return Json(suggestions);
     }

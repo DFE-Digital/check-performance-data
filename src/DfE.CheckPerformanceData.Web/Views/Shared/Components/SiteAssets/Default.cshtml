@@ -1,0 +1,9 @@
+@model DfE.CheckPerformanceData.Web.ViewComponents.SiteAssetLinks
+@if (Model.CssUrl is not null)
+{
+    <link rel="stylesheet" href="@Model.CssUrl" />
+}
+@if (Model.JsUrl is not null)
+{
+    <script src="@Model.JsUrl" defer></script>
+}

@@ -79,6 +79,18 @@ public sealed class SearchSuggestionsControllerTests
     }
 
     [Fact]
+    [Trait("search-case", "scope-filter")]
+    public async Task PageTokens_ArePassedThroughToTheService()
+    {
+        var sut = CreateSut();
+
+        await sut.Suggestions("merge", scope: "help", pages: "fiSE59QT,QxpbTxwJ");
+
+        await _searchService.Received(1).SuggestAsync(Arg.Is<SiteSearchSuggestQuery>(q =>
+            q.ScopePath == "help" && q.PageTokens == "fiSE59QT,QxpbTxwJ"));
+    }
+
+    [Fact]
     public async Task TheNumberOfSuggestionsAskedFor_IsCapped()
     {
         var sut = CreateSut();

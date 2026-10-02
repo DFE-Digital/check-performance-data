@@ -34,9 +34,12 @@ public sealed class DevImpersonationController(IConfiguration configuration, IHo
         return RedirectToReferrer();
     }
 
+    // Named AsUser, not User: a `User()` action would hide ControllerBase.User (the
+    // ClaimsPrincipal) and any `new`-qualified call sites would get the action, not the
+    // principal. The route above is attribute-routed, so the URL is unaffected.
     [HttpGet("dev/impersonate/user")]
     [HttpPost("dev/impersonate/user")]
-    public IActionResult User()
+    public IActionResult AsUser()
     {
         if (!IsAllowed) return NotFound();
         SetCookie(DevImpersonationConstants.UserValue);
@@ -49,6 +52,19 @@ public sealed class DevImpersonationController(IConfiguration configuration, IHo
     {
         if (!IsAllowed) return NotFound();
         SetCookie(DevImpersonationConstants.AdminValue);
+        return RedirectToReferrer();
+    }
+
+    // Same editor role as /editor, but a GIAS establishment type of "11" (independent school).
+    // Journey conditions read organisation_type_id through CurrentUserService, and the two
+    // independent-related removal reasons are gated on it in opposite polarities — so without
+    // this, neither can be exercised in a browser. Dev-only, gated exactly like its siblings.
+    [HttpGet("dev/impersonate/independent")]
+    [HttpPost("dev/impersonate/independent")]
+    public IActionResult Independent()
+    {
+        if (!IsAllowed) return NotFound();
+        SetCookie(DevImpersonationConstants.IndependentUserValue);
         return RedirectToReferrer();
     }
 

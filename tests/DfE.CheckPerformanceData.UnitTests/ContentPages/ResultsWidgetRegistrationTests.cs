@@ -17,6 +17,17 @@ public sealed class ResultsWidgetRegistrationTests
         Assert.Equal("Search results", def!.PaletteLabel);
     }
 
+    // Both widgets store their chosen pages by id, next to the older path scope.
+    [Theory]
+    [InlineData("search")]
+    [InlineData("results")]
+    public void Registry_SearchWidgets_StoreTheirPagesById(string type)
+    {
+        var props = WidgetRegistry.CreateDefaultProps(type);
+        Assert.Equal("", (string)props!["scopePageIds"]!);
+        Assert.Equal("", (string)props["scope"]!);
+    }
+
     [Fact]
     public void Registry_ResultsWidget_HasScopeAndEmptyTextOnly()
     {

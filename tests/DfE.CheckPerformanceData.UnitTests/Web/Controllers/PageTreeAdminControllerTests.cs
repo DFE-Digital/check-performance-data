@@ -36,6 +36,7 @@ public sealed class PageTreeAdminControllerTests
 
     public PageTreeAdminControllerTests()
     {
+        _service.GetTreeAsync().Returns([]);
         StubImport(_sampleStaging, new ContentImportResult());
         StubImport(_fixtureStaging, new ContentImportResult());
 
@@ -1077,6 +1078,142 @@ public sealed class PageTreeAdminControllerTests
             Arg.Is<System.Text.Json.Nodes.JsonObject>(p => (string)p["text"]! == "KS4 dates"),
             Arg.Any<string?>());
         Assert.Equal($"/admin/pages/{id}/edit", Assert.IsType<RedirectResult>(result).Url);
+    }
+
+    [Fact]
+    public async Task ContentWidget_PagePickerSelections_BecomeTheCommaSeparatedScope()
+    {
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
+            { Id = id, Segment = "p", Path = "p", Title = "P", PageType = "content" });
+
+        await Sut().ContentWidget(
+            id, "0.0", "search",
+            new Dictionary<string, string?> { ["searchIn"] = "path", ["label"] = "Search" },
+            ["/guidance/16-to-19/", "guidance/results-enquiries"],
+            scopePicker: true);
+
+        await _contentEditor.Received(1).UpdateWidgetAsync(
+            id,
+            Arg.Any<IReadOnlyList<TreeStep>>(),
+            Arg.Is<System.Text.Json.Nodes.JsonObject>(p =>
+                (string)p["scope"]! == "guidance/16-to-19,guidance/results-enquiries"),
+            Arg.Any<string?>());
+    }
+
+    // The picker posts page ids. They are stored as the widget's page ids, so the widget keeps its
+    // pages when they are renamed or moved, and the old path scope is cleared.
+    [Theory]
+    [InlineData("search")]
+    [InlineData("results")]
+    public async Task ContentWidget_PagePickerTicks_AreStoredAsPageIds_AndClearThePathScope(string type)
+    {
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
+            { Id = id, Segment = "p", Path = "p", Title = "P", PageType = "content" });
+        const string a = "00000000-cd94-4a01-8f01-000000000003";
+        const string b = "00000000-cd94-4a01-8f01-000000000004";
+
+        await Sut().ContentWidget(
+            id, "0.0", type,
+            new Dictionary<string, string?> { ["searchIn"] = "path", ["scope"] = "guidance/old" },
+            [b.ToUpperInvariant(), a, b],
+            scopePicker: true);
+
+        await _contentEditor.Received(1).UpdateWidgetAsync(
+            id,
+            Arg.Any<IReadOnlyList<TreeStep>>(),
+            Arg.Is<System.Text.Json.Nodes.JsonObject>(p =>
+                (string)p["scopePageIds"]! == $"{b},{a}" && (string)p["scope"]! == ""),
+            Arg.Any<string?>());
+    }
+
+    // A widget saved before pages were stored by id can hold a path that matches no page. The
+    // picker shows it ticked; saving keeps it as a path rather than dropping it silently.
+    [Fact]
+    public async Task ContentWidget_AStalePathTickedInThePicker_StaysInThePathScope()
+    {
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
+            { Id = id, Segment = "p", Path = "p", Title = "P", PageType = "content" });
+        const string a = "00000000-cd94-4a01-8f01-000000000003";
+
+        await Sut().ContentWidget(
+            id, "0.0", "search",
+            new Dictionary<string, string?> { ["searchIn"] = "path" },
+            [a, "/guidance/gone/"],
+            scopePicker: true);
+
+        await _contentEditor.Received(1).UpdateWidgetAsync(
+            id,
+            Arg.Any<IReadOnlyList<TreeStep>>(),
+            Arg.Is<System.Text.Json.Nodes.JsonObject>(p =>
+                (string)p["scopePageIds"]! == a && (string)p["scope"]! == "guidance/gone"),
+            Arg.Any<string?>());
+    }
+
+    [Theory]
+    [InlineData("search")]
+    [InlineData("results")]
+    public async Task ContentWidget_WithoutThePagePicker_KeepsThePostedPageIds(string type)
+    {
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
+            { Id = id, Segment = "p", Path = "p", Title = "P", PageType = "content" });
+        const string a = "00000000-cd94-4a01-8f01-000000000003";
+
+        await Sut().ContentWidget(
+            id, "0.0", type,
+            new Dictionary<string, string?> { ["scopePageIds"] = $" {a.ToUpperInvariant()} ,junk", ["scope"] = "help" },
+            null);
+
+        await _contentEditor.Received(1).UpdateWidgetAsync(
+            id,
+            Arg.Any<IReadOnlyList<TreeStep>>(),
+            Arg.Is<System.Text.Json.Nodes.JsonObject>(p =>
+                (string)p["scopePageIds"]! == a && (string)p["scope"]! == "help"),
+            Arg.Any<string?>());
+    }
+
+    [Fact]
+    public async Task ContentWidget_NoPagePickerSelections_ClearsTheScope()
+    {
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
+            { Id = id, Segment = "p", Path = "p", Title = "P", PageType = "content" });
+
+        await Sut().ContentWidget(
+            id, "0.0", "search",
+            new Dictionary<string, string?> { ["searchIn"] = "site", ["scope"] = "guidance" },
+            null,
+            scopePicker: true);
+
+        await _contentEditor.Received(1).UpdateWidgetAsync(
+            id,
+            Arg.Any<IReadOnlyList<TreeStep>>(),
+            Arg.Is<System.Text.Json.Nodes.JsonObject>(p => (string)p["scope"]! == ""),
+            Arg.Any<string?>());
+    }
+
+    [Theory]
+    [InlineData("search")]
+    [InlineData("results")]
+    public async Task ContentWidget_WithoutThePagePicker_KeepsThePostedScope(string type)
+    {
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
+            { Id = id, Segment = "p", Path = "p", Title = "P", PageType = "content" });
+
+        await Sut().ContentWidget(
+            id, "0.0", type,
+            new Dictionary<string, string?> { ["scope"] = "/help/, guidance" },
+            null);
+
+        await _contentEditor.Received(1).UpdateWidgetAsync(
+            id,
+            Arg.Any<IReadOnlyList<TreeStep>>(),
+            Arg.Is<System.Text.Json.Nodes.JsonObject>(p => (string)p["scope"]! == "help,guidance"),
+            Arg.Any<string?>());
     }
 
     // ── GET /admin/pages/{id}/delete ─────────────────────────────────────────

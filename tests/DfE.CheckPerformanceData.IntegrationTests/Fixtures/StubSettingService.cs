@@ -43,6 +43,12 @@ public sealed class StubSettingService : ISettingService
         return Task.CompletedTask;
     }
 
+    public async Task SaveManyAsync(IReadOnlyDictionary<string, string?> values)
+    {
+        foreach (var (key, value) in values)
+            await SaveAsync(key, value);
+    }
+
     private string Resolve(string key) =>
         _values.TryGetValue(key, out var v) && !string.IsNullOrWhiteSpace(v) ? v : DefaultFor(key);
 

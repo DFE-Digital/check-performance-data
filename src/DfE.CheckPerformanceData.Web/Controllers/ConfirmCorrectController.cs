@@ -30,7 +30,7 @@ public sealed class ConfirmCorrectController(
         if (!checkingExercises.IsOpen(window.Exercises, Exercise))
             return this.RedirectExerciseClosed(windowId, Exercise, LearnerNoun.For(window.CheckingWindowType));
 
-        var confirmVw = new ConfirmCorrectViewModel(windowId, window.EndDate.ToString("htt 'on' dddd d MMMM"));
+        var confirmVw = new ConfirmCorrectViewModel(windowId, DeadlineLabel(window.EndDate));
         return View(confirmVw);
     }
 
@@ -50,7 +50,12 @@ public sealed class ConfirmCorrectController(
             CheckingWindowType = window.CheckingWindowType.ToString(),
         });
 
-        var confirmedVw = new ConfirmedCorrectViewModel(window.EndDate.ToString("htt 'on' dddd d MMMM"), reference);
+        var confirmedVw = new ConfirmedCorrectViewModel(DeadlineLabel(window.EndDate), reference);
         return View(confirmedVw);
     }
+
+    // The time shows its minutes when the end date has some (DeadlineTime); the date and the
+    // letter case are as this page has always printed them.
+    private static string DeadlineLabel(DateTime endDate) =>
+        endDate.ToString($"{DeadlineTime.Pattern(endDate)} 'on' dddd d MMMM");
 }

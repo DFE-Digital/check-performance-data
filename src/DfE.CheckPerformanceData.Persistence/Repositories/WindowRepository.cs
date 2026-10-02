@@ -1,3 +1,6 @@
+using System.Text.Json;
+using DfE.CheckPerformance.Persistence.Entities;
+using DfE.CheckPerformanceData.Application.Audit;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Entities;
@@ -7,6 +10,9 @@ namespace DfE.CheckPerformanceData.Persistence.Repositories;
 
 public sealed class WindowRepository(PortalDbContext dbContext) : IWindowRepository
 {
+    // The audit payload is read back by WindowAdminAuditPayload with the same (camelCase) options.
+    private static readonly JsonSerializerOptions AuditJson = new(JsonSerializerDefaults.Web);
+
     public async Task<List<CheckingWindowDto>> GetAllWindowsAsync(CancellationToken cancellationToken) =>
         await dbContext.CheckingWindows
             .AsNoTracking()
@@ -262,6 +268,69 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
             Required = dto.Required,
             SortOrder = dto.SortOrder
         };
+
+    public async Task<bool> CloseExerciseEarlyAsync(
+        ExerciseEarlyClosure closure, CancellationToken cancellationToken) =>
+        await dbContext.ExecuteInTransactionAsync(async () =>
+        {
+            // The execution strategy may run this delegate again after a transient failure; an
+            // AuditEntry still tracked from the failed attempt would then be saved twice.
+            dbContext.ChangeTracker.Clear();
+
+            // Compare-and-set on the end date the admin was shown. A second press, a second admin,
+            // or a date edit in between all leave it false, and then nothing below runs — so an
+            // exercise is closed early at most once and the audit row can never describe a close
+            // that did not happen.
+            int moved = await dbContext.CheckingExercises
+                .Where(e => e.CheckingWindowId == closure.WindowId
+                            && e.ExerciseType == closure.Exercise
+                            && e.EndDate == closure.ScheduledEnd)
+                .ExecuteUpdateAsync(
+                    s => s.SetProperty(e => e.EndDate, closure.NewEndDate), cancellationToken);
+            if (moved == 0)
+            {
+                return false;
+            }
+
+            // The window's own end date is the latest exercise end (#319) and is never typed, so
+            // it is re-derived here exactly as WindowService.UpdateAsync derives it on an edit.
+            DateTime latestEnd = await dbContext.CheckingExercises
+                .Where(e => e.CheckingWindowId == closure.WindowId)
+                .MaxAsync(e => e.EndDate, cancellationToken);
+            await dbContext.CheckingWindows
+                .Where(w => w.Id == closure.WindowId)
+                .ExecuteUpdateAsync(s => s.SetProperty(w => w.EndDate, latestEnd), cancellationToken);
+
+            string title = await dbContext.CheckingWindows
+                .Where(w => w.Id == closure.WindowId)
+                .Select(w => w.Title)
+                .SingleAsync(cancellationToken);
+
+            // Written by hand because ExecuteUpdate bypasses the change tracker, and because the
+            // generic capture could only say "EndDate changed" — not that this was an early close,
+            // nor who by name.
+            dbContext.AuditEntries.Add(new AuditEntry
+            {
+                EntityType = AuditActivities.WindowAdmin,
+                EntityId = closure.WindowId.ToString(),
+                Action = AuditActivities.ClosedEarlyAction,
+                Timestamp = closure.ClosedAtUtc,
+                UserId = closure.UserId,
+                NewValues = JsonSerializer.Serialize(new
+                {
+                    closure.WindowId,
+                    WindowTitle = title,
+                    ExerciseType = closure.Exercise.ToString(),
+                    closure.ScheduledEnd,
+                    closure.NewEndDate,
+                    ClosedEarly = true,
+                    ClosedBy = closure.ClosedByName,
+                    closure.ClosedAtUtc
+                }, AuditJson)
+            });
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return true;
+        }, cancellationToken);
 
     public async Task<CheckingWindowDto> CreateAsync(CheckingWindowDto window, CancellationToken cancellationToken)
     {

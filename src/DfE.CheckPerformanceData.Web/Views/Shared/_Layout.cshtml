@@ -78,6 +78,8 @@
 }
 @section BodyStart {
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    @* Site-wide custom CSS and JavaScript, last so the CSS can override the service styles. *@
+    @await Component.InvokeAsync("SiteAssets")
     @await Html.PartialAsync("_CookieBanner")
     @await Html.PartialAsync("_GtmBody")
 }

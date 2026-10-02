@@ -62,8 +62,46 @@ public sealed class QuestionFlowValidatorAlignmentTests
         foreach (var (file, name, questionId) in referenced)
         {
             Assert.True(implementedNames.Contains(name),
-                $"{file}: question '{questionId}' references journey condition '{name}', but no " +
-                $"IJourneyCondition implements it — the condition silently fails closed.");
+$"{file}: question '{questionId}' references journey condition '{name}', but no " +
+                $"IJourneyCondition implements it - the condition silently fails closed.");
+        }
+    }
+
+    /// <summary>
+    /// The guard above only proves a condition TYPE exists - it scans the assembly. It cannot tell
+    /// the difference between "the condition was written" and "the running app has it", because
+    /// <see cref="OptionVisibilityService"/> and <see cref="QuestionOptionalityService"/> resolve
+    /// conditions from the container.
+    ///
+    /// So a condition class added without its DependencyManager line leaves every other test green
+    /// while the app sees an unregistered name and fails CLOSED: the gated option silently
+    /// disappears for every school, and the gated mandatory rule silently stays on. That is a
+    /// worse outcome than the bug the condition was written to fix, and nothing else in the suite
+    /// observes it.
+    /// </summary>
+    [Fact]
+    public void EveryImplementedCondition_IsRegisteredInTheContainer()
+    {
+var services = new ServiceCollection();
+        services.AddApplicationDependencies();
+
+        // Read the service descriptors instead of calling GetServices. Resolving would CONSTRUCT
+        // every condition, and a condition is entitled to take services the Application layer does
+        // not register - the not-on-roll college list is registered by the web host alongside the
+        // blob clients. Registration is a claim about which types are wired, so compare types and
+        // leave construction to the host that actually owns those dependencies.
+        var registered = services
+            .Where(d => d.ServiceType == typeof(IJourneyCondition))
+            .Select(d => d.ImplementationType)
+            .OfType<Type>()
+            .ToHashSet();
+
+        foreach (var conditionType in ImplementedConditionTypes())
+        {
+            Assert.True(registered.Contains(conditionType),
+                $"IJourneyCondition '{conditionType.Name}' exists in the assembly but is not " +
+                "registered in DependencyManager - the app resolves no condition for the name, so " +
+                "anything gated on it fails closed.");
         }
     }
 
@@ -389,13 +427,14 @@ public sealed class QuestionFlowValidatorAlignmentTests
             yield return name;
     }
 
-    private static HashSet<string> ImplementedConditionNames()
-    {
-        var conditionTypes = typeof(IJourneyCondition).Assembly.GetTypes()
+    private static IEnumerable<Type> ImplementedConditionTypes()
+        => typeof(IJourneyCondition).Assembly.GetTypes()
             .Where(t => t is { IsAbstract: false, IsInterface: false }
                 && typeof(IJourneyCondition).IsAssignableFrom(t));
 
-        return conditionTypes
+    private static HashSet<string> ImplementedConditionNames()
+    {
+        return ImplementedConditionTypes()
             .Select(t => CreateWithSubstitutes<IJourneyCondition>(t).Name)
             .ToHashSet(StringComparer.Ordinal);
     }

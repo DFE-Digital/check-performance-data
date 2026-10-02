@@ -136,8 +136,11 @@ public sealed class ResultsWidgetRenderContractTests
         Assert.Contains("widgetScope", View);
         Assert.Contains("urlScope", View);
         Assert.Contains("effectiveScope", View);
-        // The 'effective' assignment picks urlScope first, widgetScope only if urlScope empty.
-        Assert.Matches("!string\\.IsNullOrEmpty\\(urlScope\\)\\s*\\?\\s*urlScope\\s*:\\s*widgetScope", View);
+        // Pages named on the URL, by ?scope= or ?pages=, replace the widget's own; the widget's
+        // pages are used only when the URL names none.
+        Assert.Contains("var urlNamesPages  = !string.IsNullOrEmpty(urlScope) || !string.IsNullOrEmpty(urlPages);", View);
+        Assert.Matches("urlNamesPages\\s*\\?\\s*urlScope\\s*:\\s*widgetScope", View);
+        Assert.Matches("urlNamesPages\\s*\\?\\s*urlPages\\s*:\\s*widgetPages", View);
     }
 
     // ----- Injected services -----
@@ -150,6 +153,17 @@ public sealed class ResultsWidgetRenderContractTests
     }
 
     // ----- helpers -----
+
+    // The widget's own pages come from the ids it stores, as tokens; a ?pages= or ?scope= on
+    // the URL overrides them, and the pager keeps whichever the URL carried.
+    [Fact]
+    public void SearchesTheStoredPagesByToken_AndHonoursPagesOnTheUrl()
+    {
+        Assert.Contains("ScopePageIds.ToPageTokens(Model.GetString(\"scopePageIds\"))", View);
+        Assert.Contains("query.TryGetValue(\"pages\"", View);
+        Assert.Contains("PageTokens: string.IsNullOrEmpty(effectivePages) ? null : effectivePages", View);
+        Assert.Contains("parts.Add($\"pages={Uri.EscapeDataString(urlPages)}\")", View);
+    }
 
     private static string ReadResultsView()
     {

@@ -22,14 +22,23 @@ public static class DevImpersonationTicketBuilder
     private const string SyntheticOrganisationLaestab = "860/4070";
     private const string SyntheticOrganisationTypeId = "1";
 
+    // GIAS establishment type "11" (Other Independent School). Journey conditions read this claim
+    // through CurrentUserService, and the two independent-related removal reasons are gated on it
+    // in opposite polarities — so a dev session that cannot express an independent school cannot
+    // exercise either one. Only the IndependentUserValue cookie claims it.
+    private const string IndependentOrganisationTypeId = "11";
+
     public static AuthenticationTicket? TryBuild(string cookieValue)
     {
         if (cookieValue != DevImpersonationConstants.EditorValue
             && cookieValue != DevImpersonationConstants.UserValue
-            && cookieValue != DevImpersonationConstants.AdminValue)
+            && cookieValue != DevImpersonationConstants.AdminValue
+            && cookieValue != DevImpersonationConstants.IndependentUserValue)
         {
             return null;
         }
+
+        var isIndependent = cookieValue == DevImpersonationConstants.IndependentUserValue;
 
         var claims = new List<Claim>
         {
@@ -40,10 +49,13 @@ public static class DevImpersonationTicketBuilder
             new("organisation_name", SyntheticOrganisationName),
             new("organisation_urn", SyntheticOrganisationUrn),
             new("organisation_laestab", SyntheticOrganisationLaestab),
-            new("organisation_type_id", SyntheticOrganisationTypeId)
+            new("organisation_type_id",
+                isIndependent ? IndependentOrganisationTypeId : SyntheticOrganisationTypeId)
         };
 
-        if (cookieValue == DevImpersonationConstants.EditorValue)
+        // Same role as EditorValue: this value varies the organisation type only, so it grants no
+        // capability the editor value does not already grant.
+        if (cookieValue == DevImpersonationConstants.EditorValue || isIndependent)
         {
             claims.Add(new Claim(ClaimTypes.Role, WikiConstants.EditorRole));
         }

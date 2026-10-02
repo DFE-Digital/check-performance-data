@@ -144,6 +144,46 @@ public sealed class SettingServiceTests
     }
 
     [Fact]
+    public async Task SaveManyAsync_WritesEveryValue_InsideOneTransaction()
+    {
+        var inTransaction = false;
+        var writtenInTransaction = new List<string>();
+        _repository.ExecuteInTransactionAsync(Arg.Any<Func<Task>>()).Returns(async ci =>
+        {
+            inTransaction = true;
+            await ci.Arg<Func<Task>>()();
+            inTransaction = false;
+        });
+        _repository.UpsertAsync(Arg.Any<string>(), Arg.Any<string>())
+            .Returns(ci => { if (inTransaction) writtenInTransaction.Add(ci.ArgAt<string>(0)); return Task.CompletedTask; });
+        _repository.DeleteAsync(Arg.Any<string>())
+            .Returns(ci => { if (inTransaction) writtenInTransaction.Add(ci.ArgAt<string>(0)); return Task.CompletedTask; });
+
+        await _sut.SaveManyAsync(new Dictionary<string, string?>
+        {
+            [SettingKeys.CmsPageLength] = "  50 ",
+            [SettingKeys.SiteCss] = "  ",
+        });
+
+        await _repository.Received(1).UpsertAsync(SettingKeys.CmsPageLength, "50");
+        await _repository.Received(1).DeleteAsync(SettingKeys.SiteCss);
+        Assert.Equal(new[] { SettingKeys.CmsPageLength, SettingKeys.SiteCss }, writtenInTransaction);
+    }
+
+    [Fact]
+    public async Task SaveManyAsync_UnknownKey_IsRejectedBeforeAnythingIsWritten()
+    {
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _sut.SaveManyAsync(new Dictionary<string, string?>
+        {
+            [SettingKeys.CmsPageLength] = "50",
+            ["Bogus:Key"] = "x",
+        }));
+
+        await _repository.DidNotReceiveWithAnyArgs().ExecuteInTransactionAsync(default!);
+        await _repository.DidNotReceiveWithAnyArgs().UpsertAsync(default!, default!);
+    }
+
+    [Fact]
     public async Task GetAllWithValuesAsync_ReturnsKnownSettings_WithDefaultFlag()
     {
         _repository.GetAllAsync().Returns(new Dictionary<string, string>());

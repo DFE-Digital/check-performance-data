@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Notify;
+using DfE.CheckPerformanceData.Application.WindowManagement;
 using Microsoft.Extensions.Options;
 
 namespace DfE.CheckPerformanceData.Infrastructure.Notify;
@@ -156,8 +157,9 @@ public sealed class RequestNotificationService(
         });
     }
 
+    // The same clock-time rule the web pages use: minutes only when the end date has some.
     private static string FormatDeadline(DateTime endDate)
     {
-        return $"{endDate.ToString("htt").ToLower()} on {endDate:dddd d MMMM yyyy}";
+        return $"{DeadlineTime.Format(endDate)} on {endDate:dddd d MMMM yyyy}";
     }
 }

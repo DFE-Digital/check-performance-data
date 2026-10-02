@@ -55,9 +55,10 @@ public sealed class ExerciseDeadlineViewModel
     public string ExerciseLabel => ExerciseLabels.For(Exercise, LearnerNoun);
 
     // Checking-window dates are UK wall-clock values rather than UTC instants, so they are
-    // formatted as they stand and never routed through LondonTime.
+    // formatted as they stand and never routed through LondonTime. DeadlineTime shows the minutes
+    // when there are some: an exercise closed early (AB#301022) does not end on the hour.
     public string DeadlineText =>
-        $"{EndDate.ToString("htt").ToLowerInvariant()} on {EndDate:dddd d MMMM yyyy}";
+        $"{DeadlineTime.Format(EndDate)} on {EndDate:dddd d MMMM yyyy}";
 
     /// <summary>Past tense once the exercise has closed, matching the check-your-pupil-data page.</summary>
     public string Sentence => IsOpen

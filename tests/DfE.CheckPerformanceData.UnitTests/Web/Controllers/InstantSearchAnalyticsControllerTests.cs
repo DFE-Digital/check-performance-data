@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Application.Analytics;
+using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.Application.Search;
 using DfE.CheckPerformanceData.Web.Controllers;
 using Microsoft.AspNetCore.Http;
@@ -17,12 +18,13 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Controllers;
 public sealed class InstantSearchAnalyticsControllerTests
 {
     private readonly ISearchTelemetry _telemetry = Substitute.For<ISearchTelemetry>();
+    private readonly IPageNodeRepository _pages = Substitute.For<IPageNodeRepository>();
 
     private InstantSearchAnalyticsController CreateSut()
     {
         var http = new DefaultHttpContext();
         http.Session = new StubSession();
-        return new InstantSearchAnalyticsController(_telemetry)
+        return new InstantSearchAnalyticsController(_telemetry, _pages)
         {
             ControllerContext = new ControllerContext { HttpContext = http },
         };
@@ -187,6 +189,41 @@ public sealed class InstantSearchAnalyticsControllerTests
 
     // Minimal ISession so the controller can establish a session identity without a real
     // session store; DefaultHttpContext does not supply one.
+    // A widget limited to pages by id sends their tokens. The report records the pages' readable
+    // paths, the same form a ?scope= search records, so the dashboard reads the same either way.
+    [Fact]
+    [Trait("search-case", "scope-filter")]
+    public async Task PageTokens_AreRecordedAsThePathsOfTheirPages()
+    {
+        var help = new Guid("00000000-cd94-4a01-8f01-000000000003");
+        var post16 = new Guid("00000000-cd94-4a01-8f01-0000000000a1");
+        _pages.GetTreeAsync().Returns(
+        [
+            new PageNodeTreeItemDto { Id = help, Segment = "help", Path = "help", Title = "Help", PageType = "content" },
+            new PageNodeTreeItemDto { Id = post16, Segment = "post-16", Path = "guidance/post-16", Title = "Post-16", PageType = "content" },
+        ]);
+        var report = Report(surface: SearchSurfaces.Instant, hostPath: null);
+        report.Pages = $"{PageToken.For(post16)},zzzzzzzz,{PageToken.For(help)}";
+
+        await CreateSut().Record(report, CancellationToken.None);
+
+        _telemetry.Received(1).RecordInstantSearch(Arg.Is<InstantSearchTelemetryEvent>(e =>
+            e.Scope == "guidance/post-16,help"));
+    }
+
+    [Fact]
+    [Trait("search-case", "scope-filter")]
+    public async Task APathScope_IsRecordedAsBefore_WithoutLookingUpPages()
+    {
+        var report = Report(surface: SearchSurfaces.Instant, hostPath: null);
+        report.Scope = "help";
+
+        await CreateSut().Record(report, CancellationToken.None);
+
+        _telemetry.Received(1).RecordInstantSearch(Arg.Is<InstantSearchTelemetryEvent>(e => e.Scope == "help"));
+        await _pages.DidNotReceive().GetTreeAsync();
+    }
+
     private sealed class StubSession : ISession
     {
         private readonly Dictionary<string, byte[]> _store = new(StringComparer.Ordinal);

@@ -25,6 +25,7 @@ public sealed class DefaultAdminAccessSeeder(IAdminSectionAccessRepository repos
         "seed-sample-pages",
         "content-staging",
         "system-settings",
+        "site-assets",
         "role-settings",
         "app-logs",
         "rules-config",

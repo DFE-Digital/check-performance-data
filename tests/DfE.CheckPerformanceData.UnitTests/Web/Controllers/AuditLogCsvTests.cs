@@ -50,6 +50,24 @@ public sealed class AuditLogCsvTests
             AuditLogCsv.Line(row));
     }
 
+    [Fact]
+    public void An_automatic_hand_over_row_has_no_user_and_names_the_exercise_beside_the_action()
+    {
+        // AB#302158: the export needs no new column — the exercise rides in the Action column as
+        // it does for an early closure, and the User cell is empty because nobody did this.
+        var row = new AuditLogRow(4, At, null, null, "WindowAdmin", "11111111-1111-1111-1111-111111111111", "RequestsSentAutomatically",
+            Guid.Parse("11111111-1111-1111-1111-111111111111"), "KS4 June 2026", [], AuditOutcome.Success)
+        {
+            ExerciseType = "PupilData",
+            RequestsSent = 3,
+            DraftsCancelled = 2
+        };
+
+        Assert.Equal(
+            "2026-06-08T14:38:02Z,,Window admin,RequestsSentAutomatically (PupilData),WindowAdmin,11111111-1111-1111-1111-111111111111,KS4 June 2026,,Success",
+            AuditLogCsv.Line(row));
+    }
+
     [Theory]
     [InlineData("plain", "plain")]
     [InlineData("", "")]

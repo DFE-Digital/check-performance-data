@@ -185,8 +185,13 @@
                                 // Widgets placed before searchIn existed carry only a scope, so a set
                                 // scope still selects "a section of the site" in the editor.
                                 var sIn = (w.GetString("searchIn") ?? string.Empty).Trim();
-                                if (sIn.Length == 0) sIn = string.IsNullOrWhiteSpace(w.GetString("scope")) ? "site" : "path";
+                                if (sIn.Length == 0)
+                                    sIn = string.IsNullOrWhiteSpace(w.GetString("scope")) && string.IsNullOrWhiteSpace(w.GetString("scopePageIds"))
+                                        ? "site" : "path";
                                 var sInstant = w.GetBool("instant") ?? false;
+                                // No stored value means a widget saved before the option existed,
+                                // which shows the button, so the box starts ticked.
+                                var sShowButton = w.GetBool("showButton") ?? true;
                                 <div class="govuk-form-group">
                                     <label class="govuk-label" for="si-@Model.Path">Search in</label>
                                     <select class="govuk-select" id="si-@Model.Path" name="props[searchIn]"
@@ -199,7 +204,7 @@
                                 @* Section-only field — shown when Search in = a section of the site. *@
                                 <div class="cpb-search__path-field" data-cpb-search-pathfield @(sIn == "path" ? null : Html.Raw("hidden"))>
                                     @await Html.PartialAsync("ContentPages/_PageScopePicker", new PageScopePickerField(
-                                        $"ss-{Model.Path}", w.GetString("scope"), "Pages to search",
+                                        $"ss-{Model.Path}", w.GetString("scope"), w.GetString("scopePageIds"), "Pages to search",
                                         "Tick the pages to limit the search to. Each ticked page includes every page beneath it, so tick several to search a group of sections together."))
                                 </div>
                                 <div class="govuk-form-group">
@@ -217,10 +222,30 @@
                                         the page found.
                                     </div>
                                 </div>
-                                @* Instant-only copy. *@
-                                <div class="govuk-form-group cpb-search__instant-fields" data-cpb-search-instantfields @(sInstant ? null : Html.Raw("hidden"))>
-                                    <label class="govuk-label" for="sn-@Model.Path">No-results text</label>
-                                    <input class="govuk-input" id="sn-@Model.Path" name="props[noResultsText]" value="@w.GetString("noResultsText")" />
+                                @* Instant-only fields, revealed while the instant tick box is ticked. *@
+                                <div class="govuk-checkboxes__conditional cpb-search__instant-fields" data-cpb-search-instantfields @(sInstant ? null : Html.Raw("hidden"))>
+                                    <div class="govuk-form-group">
+                                        <div class="govuk-checkboxes__item">
+                                            <input class="govuk-checkboxes__input" id="ssb-@Model.Path" name="props[showButton]" type="checkbox"
+                                                   value="true" aria-describedby="ssb-@Model.Path-hint"
+                                                   @(sShowButton ? "checked" : null) />
+                                            <label class="govuk-label govuk-checkboxes__label" for="ssb-@Model.Path">
+                                                Show search button
+                                            </label>
+                                            @* An unticked box posts nothing and the props builder would keep the
+                                               default of "true", so this hidden "false" is what makes unticking
+                                               stick. It follows the label: the browser posts in DOM order and the
+                                               first value wins. *@
+                                            <input type="hidden" name="props[showButton]" value="false" />
+                                        </div>
+                                        <div class="govuk-hint" id="ssb-@Model.Path-hint">
+                                            Without the button, visitors press Enter to see all results.
+                                        </div>
+                                    </div>
+                                    <div class="govuk-form-group">
+                                        <label class="govuk-label" for="sn-@Model.Path">No-results text</label>
+                                        <input class="govuk-input" id="sn-@Model.Path" name="props[noResultsText]" value="@w.GetString("noResultsText")" />
+                                    </div>
                                 </div>
                                 <div class="govuk-form-group">
                                     <label class="govuk-label" for="sl-@Model.Path">Label</label>
@@ -247,8 +272,8 @@
 
                         case "results":
                             @await Html.PartialAsync("ContentPages/_PageScopePicker", new PageScopePickerField(
-                                $"rs-{Model.Path}", w.GetString("scope"), "Pages to show results from (optional)",
-                                "Tick the pages to limit results to, each including every page beneath it. Leave all unticked to show results from the whole site. Overridden by ?scope= on the URL if present."))
+                                $"rs-{Model.Path}", w.GetString("scope"), w.GetString("scopePageIds"), "Pages to show results from (optional)",
+                                "Tick the pages to limit results to, each including every page beneath it. Leave all unticked to show results from the whole site. Overridden by ?pages= or ?scope= on the URL if present."))
                             <div class="govuk-form-group">
                                 <label class="govuk-label" for="re-@Model.Path">Empty-state text</label>
                                 <input class="govuk-input" id="re-@Model.Path" name="props[emptyText]" value="@w.GetString("emptyText")" />

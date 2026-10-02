@@ -62,4 +62,48 @@ public class SearchScopeTests
     {
         Assert.True(SearchScope.Covers(SearchScope.Parse(null), "/anything"));
     }
+
+    // The search page names its scope in an HTML comment for anyone reading the source. The scope
+    // comes from the query string, so the comment text must never be able to end the comment early
+    // or open markup of its own.
+    [Fact]
+    public void ForHtmlComment_ListsTheScopedPagesAsCsv()
+    {
+        Assert.Equal("guidance/16-to-19,guidance/results-enquiries",
+            SearchScope.ForHtmlComment("/guidance/16-to-19/, guidance/results-enquiries"));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData(" , ")]
+    public void ForHtmlComment_NoScope_ReturnsNull(string? raw)
+    {
+        Assert.Null(SearchScope.ForHtmlComment(raw));
+    }
+
+    [Theory]
+    [InlineData("--><script>alert(1)</script>")]
+    [InlineData("guidance--->x")]
+    [InlineData("<!--a-->")]
+    [InlineData("a&amp;b\"c'd")]
+    [InlineData("--!>")]
+    public void ForHtmlComment_HostileScope_CannotCloseOrBreakTheComment(string raw)
+    {
+        var text = SearchScope.ForHtmlComment(raw) ?? string.Empty;
+
+        Assert.DoesNotContain("--", text);
+        Assert.DoesNotContain(">", text);
+        Assert.DoesNotContain("<", text);
+        Assert.DoesNotContain("&", text);
+        Assert.DoesNotContain("!", text);
+        Assert.DoesNotContain("\"", text);
+        Assert.False(text.EndsWith('-'), "Comment text must not end in a hyphen that could join the closing -->.");
+    }
+
+    [Fact]
+    public void ForHtmlComment_HostileScope_KeepsOnlyPathCharacters()
+    {
+        Assert.Equal("scriptalert1/script", SearchScope.ForHtmlComment("--><script>alert(1)</script>"));
+    }
 }

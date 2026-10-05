@@ -6,15 +6,19 @@
     var placeholder = Model.GetString("placeholder") ?? string.Empty;
     var action      = Model.GetString("action")      ?? string.Empty;
     var buttonText  = Model.GetString("buttonText")  ?? "Search";
-    // Optional scope: narrows results to the pages under one or more path prefixes, comma-separated
-    // (matches /search's ?scope=).
+    // Optional pages to search, each with everything beneath it. The widget stores them by id and
+    // sends them as short tokens (/search?pages=), so the URL stays short and the widget keeps its
+    // pages when they are renamed or moved. A widget saved before ids were stored holds paths
+    // instead (/search?scope=), which still work; one holding both sends both, and the search
+    // covers the pages named by either.
+    var pagesProp   = ScopePageIds.ToPageTokens(Model.GetString("scopePageIds")) ?? string.Empty;
     var scopeProp   = SearchScope.Normalise(Model.GetString("scope")) ?? string.Empty;
 
     // Where the widget searches: the whole site, one section of it, or the page it sits on.
     var searchIn = (Model.GetString("searchIn") ?? string.Empty).Trim().ToLowerInvariant();
     // Widgets placed before this prop existed carry only a scope, so a scope they already set still
     // means a section and an empty one still means the whole site. Nothing needs migrating.
-    if (searchIn.Length == 0) searchIn = scopeProp.Length > 0 ? "path" : "site";
+    if (searchIn.Length == 0) searchIn = scopeProp.Length > 0 || pagesProp.Length > 0 ? "path" : "site";
     // An unrecognised value searches the whole site rather than rendering a box that does nothing.
     if (searchIn != "path" && searchIn != "page") searchIn = "site";
 
@@ -27,11 +31,16 @@
         "page" => currentPath,
         _      => string.Empty
     };
+    var pages = searchIn == "path" ? pagesProp : string.Empty;
 
     // Instant search is an enhancement over the form below, never a replacement for it: the markup
     // is identical either way, and the script only binds when the marker attribute is present.
     var instant       = Model.GetBool("instant") ?? false;
     var noResultsText = Model.GetString("noResultsText") ?? "No results found";
+    // Instant search can do without the button, since Enter still submits the form; without instant
+    // search the button is always shown. A widget saved before the option existed has no value and
+    // keeps its button.
+    var showButton = !instant || (Model.GetBool("showButton") ?? true);
     // Two search widgets on one page must not share an input id: the label's `for` keys off it,
     // and so do the listbox and status ids accessible-autocomplete derives from it — duplicates
     // would point a screen reader at the wrong menu. Counted per request; the first widget keeps
@@ -42,28 +51,42 @@
         : widgetSeq == 0 ? "search"
         : $"search-{widgetSeq + 1}";
 }
-@* Razor omits an attribute whose value expression is null, so a non-instant widget carries no
-   marker, so the enhancement script never binds to it. *@
-<form class="cypmd-search" role="search" method="get" action="@action"
-      data-cypmd-instant-search="@(instant ? "true" : null)"
-      data-search-in="@(instant ? searchIn : null)"
-      data-scope="@(instant ? scope : null)"
-      data-no-results="@(instant ? noResultsText : null)">
+@* Only an instant widget carries the marker and its settings. An attribute written with a null
+   value still renders, empty, and the script binds to the marker's presence, so the attributes are
+   written out only when instant search is on. The form opts out of the form tag helper, which
+   does not allow C# in the attribute area. *@
+@{
+    var enc = System.Text.Encodings.Web.HtmlEncoder.Default;
+    var instantAttributes = instant
+        ? new Microsoft.AspNetCore.Html.HtmlString(
+            $" data-cypmd-instant-search=\"true\" data-search-in=\"{enc.Encode(searchIn)}\""
+            + $" data-scope=\"{enc.Encode(scope)}\" data-pages=\"{enc.Encode(pages)}\""
+            + $" data-no-results=\"{enc.Encode(noResultsText)}\"")
+        : Microsoft.AspNetCore.Html.HtmlString.Empty;
+}
+<!form class="cypmd-search" role="search" method="get" action="@action"@instantAttributes>
     <div class="govuk-form-group">
         <label class="govuk-label govuk-label--s" for="@inputId">@label</label>
         <div class="cypmd-search__row">
             <input class="govuk-input cypmd-search__input" id="@inputId" name="q" type="search"
                    placeholder="@placeholder" autocomplete="off" />
-            <button class="govuk-button cypmd-search__button" data-module="govuk-button" type="submit">
-                @buttonText
-            </button>
+            @if (showButton)
+            {
+                <button class="govuk-button cypmd-search__button" data-module="govuk-button" type="submit">
+                    @buttonText
+                </button>
+            }
         </div>
     </div>
+    @if (!string.IsNullOrEmpty(pages))
+    {
+        <input type="hidden" name="pages" value="@pages" />
+    }
     @if (!string.IsNullOrEmpty(scope))
     {
         <input type="hidden" name="scope" value="@scope" />
     }
-</form>
+</!form>
 @if (instant)
 {
     <script src="~/js/instant-search.js" asp-append-version="true"></script>

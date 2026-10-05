@@ -1,5 +1,6 @@
 using System.Text.Json;
 using DfE.CheckPerformanceData.Application.Analytics;
+using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.Application.Search;
 using DfE.CheckPerformanceData.Web.Session;
 using Microsoft.AspNetCore.Authorization;
@@ -27,7 +28,9 @@ namespace DfE.CheckPerformanceData.Web.Controllers;
 // Load: the reports land on the same bounded channel as every other analytics event, which
 // sheds and counts drops when full. A flood costs dropped rows and a warn line, not the app.
 [AllowAnonymous]
-public sealed class InstantSearchAnalyticsController(ISearchTelemetry telemetry) : Controller
+public sealed class InstantSearchAnalyticsController(
+    ISearchTelemetry telemetry,
+    IPageNodeRepository pageRepository) : Controller
 {
     private const int MaxQueryLength = 100;
     private const int MinQueryLength = 2;
@@ -73,6 +76,11 @@ public sealed class InstantSearchAnalyticsController(ISearchTelemetry telemetry)
 
         var selectedKey = Trim(report.SelectedKey, MaxKeyLength);
 
+        // A widget limited to pages by id reports their tokens. They are recorded as the pages'
+        // readable paths, the same form a ?scope= search records, so a report reads the same
+        // whichever way the widget named its pages.
+        var scope = (await pageRepository.ResolveSearchScopeAsync(report.Scope, report.Pages)).Paths;
+
         await HttpContext.Session.LoadAsync(ct);
         CpdSessionIdentity.Ensure(HttpContext.Session);
 
@@ -81,7 +89,7 @@ public sealed class InstantSearchAnalyticsController(ISearchTelemetry telemetry)
             UtcTimestamp: DateTime.UtcNow,
             QueryRaw: query,
             QueryNormalised: SearchTermNormalizer.OrJoinWhitespace(query),
-            Scope: Trim(report.Scope, MaxKeyLength),
+            Scope: Trim(scope, MaxKeyLength),
             Surface: report.Surface!,
             // A host page only means something for an on-page search. Ignoring it elsewhere
             // keeps the single-page section of the dashboard from filling with site searches.
@@ -166,6 +174,8 @@ public sealed class InstantSearchReport
     public string? Surface { get; set; }
     public string? Q { get; set; }
     public string? Scope { get; set; }
+    // Page tokens (see PageToken), sent by a widget that stores its pages by id.
+    public string? Pages { get; set; }
     public string? HostPath { get; set; }
 
     // JSON array of {kind, key, label}, in the order the person saw them.

@@ -57,9 +57,12 @@ public sealed class Ks4MergeJourneyTests(PlaywrightFixture fixture) : SeedingPag
             .ToContainTextAsync("Summary of amendment request");
         var summary = await Page.Locator(".govuk-summary-list").InnerTextAsync();
         Assert.Contains("Merge", summary);
-        Assert.Contains($"{SharedSurname}, {SharedName}", summary);
-        Assert.Contains(FirstRecordCypmdId, summary);
-        Assert.Contains(SecondRecordCypmdId, summary);
+
+        var firstRecord = Page.Locator(".govuk-summary-list__row", new() { HasText = "First record to merge" });
+        await Expect(firstRecord).ToContainTextAsync($"{SharedName} {SharedSurname}");
+        var secondRecord = Page.Locator(".govuk-summary-list__row", new() { HasText = "Second record to merge" });
+        await Expect(secondRecord).ToContainTextAsync($"{SharedName} {SharedSurname}");
+        await Expect(secondRecord).ToContainTextAsync($"({SecondRecordCypmdId})");
 
         await Page.GetByRole(AriaRole.Button, new() { Name = "Submit request" }).ClickAsync();
 

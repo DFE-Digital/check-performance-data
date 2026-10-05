@@ -1,7 +1,6 @@
 using System.Text.Json;
 using DfE.CheckPerformanceData.Application.Audit;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
-using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.WindowManagement;
@@ -14,14 +13,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
-// Two unrelated classes are named CheckingWindowDto; a journey's RequestState holds the LandingPage one.
-using JourneyWindowDto = DfE.CheckPerformanceData.Application.LandingPage.CheckingWindowDto;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.Persistence;
 
 // AB#302158: the automatic hand-over against a real Postgres — the real window read, the real
-// sweep over real request rows, the real queue table and the real audit row. Only the journey
-// blob and the flow file are stand-ins (the sweep's own tests cover those).
+// sweep over real request rows, the real queue table and the real audit row. Only the saved
+// request document is a stand-in (the sweep's own tests cover that).
 //
 // The design keeps no record that a hand-over ran; it relies on a second run finding nothing.
 // The first fact is that claim, proven.
@@ -33,12 +30,6 @@ public sealed class AutomaticExerciseHandOverTests(PostgresFixture fixture) : IA
     private static readonly DateTime Start = new(2026, 10, 1, 9, 0, 0);
     private static readonly DateTime PupilDataEnd = new(2026, 11, 2, 17, 0, 0);
     private static readonly DateTime EnquiryEnd = new(2027, 3, 31, 17, 0, 0);
-
-    private static readonly QuestionFlowConfig Flow = new()
-    {
-        FirstPageId = "page-1",
-        Pages = [new JourneyPage { Id = "page-1" }]
-    };
 
     private readonly Guid _windowId = Guid.NewGuid();
     private readonly Guid _pupilDataId = Guid.NewGuid();
@@ -83,7 +74,8 @@ public sealed class AutomaticExerciseHandOverTests(PostgresFixture fixture) : IA
         ctx.CheckingWindows.Add(window);
 
         ctx.ChangeRequests.AddRange(
-            Request(_pupilDataId, SubmittedRef, RequestStatus.SubmittedUnCommitted),
+            // Decided by the Rules Engine: the only submitted amendments the sweep sends (#536).
+            Request(_pupilDataId, SubmittedRef, RequestStatus.Submitted, ProcessingStatus.Decided),
             Request(_pupilDataId, DraftRef, RequestStatus.InProgress),
             // Belongs to the exercise that is still open: this run must leave it alone.
             Request(_enquiryId, EnquiryDraftRef, RequestStatus.InProgress));
@@ -103,7 +95,8 @@ public sealed class AutomaticExerciseHandOverTests(PostgresFixture fixture) : IA
         await ctx.CheckingWindows.Where(w => w.Id == _windowId).ExecuteDeleteAsync();
     }
 
-    private ChangeRequest Request(Guid exerciseId, string reference, RequestStatus status) => new()
+    private ChangeRequest Request(
+        Guid exerciseId, string reference, RequestStatus status, ProcessingStatus? processingStatus = null) => new()
     {
         Id = Guid.NewGuid(),
         WindowId = _windowId,
@@ -113,44 +106,39 @@ public sealed class AutomaticExerciseHandOverTests(PostgresFixture fixture) : IA
         SubmittedById = Guid.Parse("99999999-9999-9999-9999-999999999999"),
         SubmittedByName = "Ada Editor",
         Status = status,
+        ProcessingStatus = processingStatus,
         ReferenceNumber = reference,
         RequestType = RequestType.Amendment,
         RequestTypeDescription = "Remove",
         AmendmentType = WhatToChange.Remove
     };
 
-    private RequestState Journey() => new()
+    private RequestDocument Document() => new()
     {
-        SelectedWhatToChange = WhatToChange.Remove,
-        CheckingWindow = new JourneyWindowDto
+        ChangeRequestId = Guid.NewGuid(),
+        ReferenceNumber = SubmittedRef,
+        SubmittedBy = new UserDetails { UserId = "u1", DisplayName = "Ada Editor" },
+        CheckingWindowId = _windowId,
+        CheckingWindowType = "KS4June",
+        RequestTypeCode = "Remove",
+        School = new SchoolDetails { Urn = "142313", Name = "Kingsmead School" },
+        Pupil = new PupilDetails
         {
-            Id = _windowId,
-            Title = "Automatic hand-over",
-            KeyStage = KeyStages.KS4,
-            CheckingWindowType = CheckingWindowType.KS4June,
-            StartDate = Start,
-            EndDate = EnquiryEnd
+            Id = "p1", CypmdId = "", Firstname = "Alice", Surname = "Smith",
+            DateOfBirth = "01/09/2010", Sex = "F", Age = 15, Upn = "A86040700001B"
         },
-        SelectedPupil = new PupilDto
-        {
-            Id = Guid.NewGuid(), Firstname = "Alice", Surname = "Smith", Sex = "F",
-            DateOfBirth = "01/09/2010", Age = 15, Cypmd_Id = "", Identifier = "A86040700001B"
-        },
-        QuestionAnswers = [],
-        QuestionHistory = ["page-1"]
+        Answers = []
     };
 
     private AutomaticExerciseHandOver Sut(DateTimeOffset? nowUtc = null)
     {
         var ctx = fixture.CreateContext();
 
-        var blob = Substitute.For<IRequestStateBlobClient>();
-        blob.GetAsync(_windowId, SubmittedRef).Returns(Journey());
-        var flows = Substitute.For<IQuestionFlowService>();
-        flows.GetConfigAsync(Arg.Any<WhatToChange>(), Arg.Any<CheckingWindowType>()).Returns(Flow);
+        var documents = Substitute.For<IRequestBlobClient>();
+        documents.GetRequestAsync(_windowId, SubmittedRef).Returns(Document());
 
         var sweep = new CloseExerciseService(
-            new AdminRequestsRepository(ctx), blob, flows, new PostgresQueueService(ctx));
+            new AdminRequestsRepository(ctx), documents, new PostgresQueueService(ctx));
 
         return new AutomaticExerciseHandOver(
             new WindowRepository(ctx),
@@ -159,6 +147,13 @@ public sealed class AutomaticExerciseHandOverTests(PostgresFixture fixture) : IA
             new FixedTimeProvider(nowUtc ?? NowUtc),
             Options.Create(new ExerciseHandOverSettings()),
             NullLogger<AutomaticExerciseHandOver>.Instance);
+    }
+
+    private async Task<ProcessingStatus?> ProcessingStatusOfAsync(string reference)
+    {
+        await using var ctx = fixture.CreateContext();
+        return await ctx.ChangeRequests.AsNoTracking()
+            .Where(r => r.ReferenceNumber == reference).Select(r => r.ProcessingStatus).SingleAsync();
     }
 
     private async Task<RequestStatus> StatusOfAsync(string reference)
@@ -183,7 +178,8 @@ public sealed class AutomaticExerciseHandOverTests(PostgresFixture fixture) : IA
         Assert.Equal(new AutomaticHandOverOutcome(_windowId, CheckingExerciseType.PupilData, 1, 1, Failed: false), first);
         Assert.Equal(new AutomaticHandOverOutcome(_windowId, CheckingExerciseType.PupilData, 0, 0, Failed: false), second);
 
-        Assert.Equal(RequestStatus.SubmittedCommitted, await StatusOfAsync(SubmittedRef));
+        Assert.Equal(RequestStatus.Submitted, await StatusOfAsync(SubmittedRef));
+        Assert.Equal(ProcessingStatus.TicketQueued, await ProcessingStatusOfAsync(SubmittedRef));
         Assert.Equal(RequestStatus.NotSubmitted, await StatusOfAsync(DraftRef));
         Assert.Equal(RequestStatus.InProgress, await StatusOfAsync(EnquiryDraftRef));
 

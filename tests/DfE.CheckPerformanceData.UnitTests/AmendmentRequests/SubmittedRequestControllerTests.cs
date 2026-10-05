@@ -66,7 +66,7 @@ public class SubmittedRequestControllerTests
         _service.GetAsync(WindowId, Reference).Returns(new SubmittedRequestView
         { LearnerNoun = LearnerNoun.Pupil,
             WhatToChange = WhatToChange.Remove,
-            Status = RequestStatus.SubmittedUnCommitted,
+            Status = RequestStatus.Submitted,
             PupilName = "Jane Smith",
             Rows = [new SubmittedRequestAnswerRow { Title = "Why?", DisplayValue = "Left England" }],
             Files = [],
@@ -104,7 +104,7 @@ public class SubmittedRequestControllerTests
         var submittedAt = new DateTime(2026, 6, 16, 9, 30, 0);
         _service.GetConfirmDataCorrectAsync(WindowId, Reference).Returns(new ConfirmDataCorrectView
         {
-            Status = RequestStatus.SubmittedUnCommitted,
+            Status = RequestStatus.Submitted,
             SubmittedByEmail = "submitter@education.gov.uk",
             SubmittedAt = submittedAt,
             ReferenceNumber = Reference
@@ -135,7 +135,7 @@ public class SubmittedRequestControllerTests
         _service.GetAsync(WindowId, Reference).Returns(new SubmittedRequestView
         { LearnerNoun = LearnerNoun.Pupil,
             WhatToChange = WhatToChange.Remove,
-            Status = RequestStatus.SubmittedUnCommitted,
+            Status = RequestStatus.Submitted,
             PupilName = "Jane Smith",
             Rows = [],
             Files = [],
@@ -154,7 +154,7 @@ public class SubmittedRequestControllerTests
         _service.GetAsync(WindowId, Reference).Returns(new SubmittedRequestView
         { LearnerNoun = LearnerNoun.Pupil,
             WhatToChange = WhatToChange.Remove,
-            Status = RequestStatus.SubmittedUnCommitted,
+            Status = RequestStatus.Submitted,
             PupilName = "Jane Smith",
             Rows = [],
             Files =
@@ -184,7 +184,7 @@ public class SubmittedRequestControllerTests
         _service.GetAsync(WindowId, Reference).Returns(new SubmittedRequestView
         { LearnerNoun = LearnerNoun.Pupil,
             WhatToChange = WhatToChange.Remove,
-            Status = RequestStatus.SubmittedUnCommitted,
+            Status = RequestStatus.Submitted,
             PupilName = "Jane Smith",
             Rows = [],
             Files = [],
@@ -204,7 +204,7 @@ public class SubmittedRequestControllerTests
     {
         _service.GetConfirmDataCorrectAsync(WindowId, Reference).Returns(new ConfirmDataCorrectView
         {
-            Status = RequestStatus.SubmittedUnCommitted,
+            Status = RequestStatus.Submitted,
             SubmittedByEmail = "submitter@education.gov.uk",
             SubmittedAt = new DateTime(2026, 6, 16, 9, 30, 0),
             ReferenceNumber = Reference
@@ -282,7 +282,7 @@ public class SubmittedRequestControllerTests
 
     [Theory]
     [InlineData(RequestStatus.Withdrawn, "Withdrawn by")]
-    [InlineData(RequestStatus.SubmittedUnCommitted, "Submitted by")]
+    [InlineData(RequestStatus.Submitted, "Submitted by")]
     [InlineData(RequestStatus.InProgress, "Last saved by")]
     [InlineData(RequestStatus.ReadyToSubmit, "Last saved by")]
     public void ConfirmDataCorrectViewModel_ByLineTitle_ReturnsExpectedText(RequestStatus status, string expected)
@@ -302,7 +302,7 @@ public class SubmittedRequestControllerTests
     [InlineData(RequestStatus.NotSubmitted, "Saved by")]
     [InlineData(RequestStatus.InProgress, "Last saved by")]
     [InlineData(RequestStatus.ReadyToSubmit, "Last saved by")]
-    [InlineData(RequestStatus.SubmittedUnCommitted, "Submitted by")]
+    [InlineData(RequestStatus.Submitted, "Submitted by")]
     public void SubmittedRequestViewModel_ByLineTitle_ReturnsExpectedText(RequestStatus status, string expected)
     {
         var vm = new SubmittedRequestViewModel
@@ -377,8 +377,7 @@ public class SubmittedRequestControllerTests
     [InlineData(RequestStatus.NotSubmitted, "Saved by")]
     [InlineData(RequestStatus.InProgress, "Last saved by")]
     [InlineData(RequestStatus.ReadyToSubmit, "Last saved by")]
-    [InlineData(RequestStatus.SubmittedUnCommitted, "Submitted by")]
-    [InlineData(RequestStatus.SubmittedCommitted, "Submitted by")]
+    [InlineData(RequestStatus.Submitted, "Submitted by")]
     public void ByLineTitle_ReturnsCorrectTitleForStatus(RequestStatus status, string expected)
     {
         var view = SubmittedRequestViewModelForStatus(status);
@@ -419,17 +418,9 @@ public class SubmittedRequestControllerTests
     }
 
     [Fact]
-    public void ShowReferenceNumber_ShowsForSubmittedUnCommitted()
+    public void ShowReferenceNumber_ShowsForSubmitted()
     {
-        var view = SubmittedRequestViewModelForStatus(RequestStatus.SubmittedUnCommitted);
-
-        Assert.True(view.ShowReferenceNumber);
-    }
-
-    [Fact]
-    public void ShowReferenceNumber_ShowsForSubmittedCommitted()
-    {
-        var view = SubmittedRequestViewModelForStatus(RequestStatus.SubmittedCommitted);
+        var view = SubmittedRequestViewModelForStatus(RequestStatus.Submitted);
 
         Assert.True(view.ShowReferenceNumber);
     }
@@ -438,7 +429,7 @@ public class SubmittedRequestControllerTests
     public void SubmittedAtText_UsesLondonTime_Format()
     {
         var submittedAt = new DateTime(2026, 6, 16, 9, 30, 0);
-        var view = SubmittedRequestViewModelForStatus(RequestStatus.SubmittedCommitted, false, submittedAt);
+        var view = SubmittedRequestViewModelForStatus(RequestStatus.Submitted, false, submittedAt);
 
         Assert.Equal(LondonTime.ToSubmittedAtText(submittedAt), view.SubmittedAtText);
     }
@@ -470,8 +461,7 @@ public class SubmittedRequestControllerTests
     [InlineData(RequestStatus.Withdrawn, "Withdrawn by")]
     [InlineData(RequestStatus.InProgress, "Last saved by")]
     [InlineData(RequestStatus.ReadyToSubmit, "Last saved by")]
-    [InlineData(RequestStatus.SubmittedUnCommitted, "Submitted by")]
-    [InlineData(RequestStatus.SubmittedCommitted, "Submitted by")]
+    [InlineData(RequestStatus.Submitted, "Submitted by")]
     public void ConfirmDataCorrect_ByLineTitle_ReturnsCorrectTitleForStatus(RequestStatus status, string expected)
     {
         var vm = ConfirmDataCorrectViewModelForStatus(status);
@@ -498,23 +488,15 @@ public class SubmittedRequestControllerTests
     [Fact]
     public void ConfirmDataCorrect_ShowReferenceNumber_HidesForConfirmingDelete()
     {
-        var vm = ConfirmDataCorrectViewModelForStatus(RequestStatus.SubmittedUnCommitted, true);
+        var vm = ConfirmDataCorrectViewModelForStatus(RequestStatus.Submitted, true);
 
         Assert.False(vm.ShowReferenceNumber);
     }
 
     [Fact]
-    public void ConfirmDataCorrect_ShowReferenceNumber_ShowsForSubmittedUnCommitted()
+    public void ConfirmDataCorrect_ShowReferenceNumber_ShowsForSubmitted()
     {
-        var vm = ConfirmDataCorrectViewModelForStatus(RequestStatus.SubmittedUnCommitted, false);
-
-        Assert.True(vm.ShowReferenceNumber);
-    }
-
-    [Fact]
-    public void ConfirmDataCorrect_ShowReferenceNumber_ShowsForSubmittedCommitted()
-    {
-        var vm = ConfirmDataCorrectViewModelForStatus(RequestStatus.SubmittedCommitted, false);
+        var vm = ConfirmDataCorrectViewModelForStatus(RequestStatus.Submitted, false);
 
         Assert.True(vm.ShowReferenceNumber);
     }
@@ -531,7 +513,7 @@ public class SubmittedRequestControllerTests
     public void ConfirmDataCorrect_SubmittedAtText_UsesLondonTime_Format()
     {
         var submittedAt = new DateTime(2026, 6, 16, 9, 30, 0);
-        var vm = ConfirmDataCorrectViewModelForStatus(RequestStatus.SubmittedCommitted, false, submittedAt);
+        var vm = ConfirmDataCorrectViewModelForStatus(RequestStatus.Submitted, false, submittedAt);
 
         Assert.Equal(LondonTime.ToSubmittedAtText(submittedAt), vm.SubmittedAtText);
     }
@@ -545,9 +527,9 @@ public class SubmittedRequestControllerTests
     }
 
     [Fact]
-    public void ConfirmDataCorrect_ShowDeleteButton_ShowsForSubmittedUnCommitted()
+    public void ConfirmDataCorrect_ShowDeleteButton_ShowsForSubmitted()
     {
-        var vm = ConfirmDataCorrectViewModelForStatus(RequestStatus.SubmittedUnCommitted);
+        var vm = ConfirmDataCorrectViewModelForStatus(RequestStatus.Submitted);
 
         Assert.True(vm.ShowDeleteButton);
     }

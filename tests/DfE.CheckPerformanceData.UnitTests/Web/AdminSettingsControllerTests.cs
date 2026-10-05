@@ -22,6 +22,19 @@ public sealed class AdminSettingsControllerTests
         };
     }
 
+    [Theory]
+    [InlineData(SettingKeys.SiteCss)]
+    [InlineData(SettingKeys.SiteJs)]
+    [InlineData(SettingKeys.SiteCssEnabled)]
+    [InlineData(SettingKeys.SiteJsEnabled)]
+    public async Task Save_SettingManagedOnItsOwnPage_IsRefused(string key)
+    {
+        await _sut.Save(key, value: "body{display:none}", boolValue: null);
+
+        await _settings.DidNotReceiveWithAnyArgs().SaveAsync(default!, default);
+        Assert.NotNull(_sut.TempData["SettingsError"]);
+    }
+
     [Fact]
     public async Task Save_BoolSetting_Checked_PersistsTrue()
     {

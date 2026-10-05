@@ -119,7 +119,7 @@ internal sealed class ChangeRequestConfiguration : IEntityTypeConfiguration<Chan
 
         builder.HasIndex(x => x.Status);
         
-        builder.Property(x => x.WorkerStatus)
+        builder.Property(x => x.ProcessingStatus)
             .HasConversion<string>();
     }
 }

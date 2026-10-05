@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Application.RequestSubmission;
@@ -30,4 +31,14 @@ public sealed class ChangeRequestData
 
     /// <summary>The school's LAESTAB from the DfE Sign-In claim; null when the claim is empty (AB#294553).</summary>
     public string? OrganisationLaestab { get; init; }
+
+    /// <summary>
+    /// Shows how far the request is on its way to Zendesk. Null for a draft and for an amendment;
+    /// the Rules Engine sets it later. A results enquiry is written as
+    /// <see cref="ProcessingStatus.TicketQueued"/>, because it is queued for its ticket at submit (#536).
+    /// </summary>
+    public ProcessingStatus? ProcessingStatus { get; init; }
+
+    /// <summary>The decision, when it is known at write time (Scrutiny for a results enquiry).</summary>
+    public DecisionStatus? Outcome { get; init; }
 }

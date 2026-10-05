@@ -35,7 +35,7 @@ public sealed class ConcurrentConflictIntegrationTests(PostgresFixture fixture)
             var repo = new RequestRepository(ctx);
             try
             {
-                var id = await repo.UpsertAsync(Data(windowId, "REF-CONCUR-A", RequestStatus.SubmittedUnCommitted, pupilId: pupilId, submittedById: userA));
+                var id = await repo.UpsertAsync(Data(windowId, "REF-CONCUR-A", RequestStatus.Submitted, pupilId: pupilId, submittedById: userA));
                 results.Add(("REF-CONCUR-A", id, null));
             }
             catch (Exception ex)
@@ -50,7 +50,7 @@ public sealed class ConcurrentConflictIntegrationTests(PostgresFixture fixture)
             var repo = new RequestRepository(ctx);
             try
             {
-                var id = await repo.UpsertAsync(Data(windowId, "REF-CONCUR-B", RequestStatus.SubmittedUnCommitted, pupilId: pupilId, submittedById: userB));
+                var id = await repo.UpsertAsync(Data(windowId, "REF-CONCUR-B", RequestStatus.Submitted, pupilId: pupilId, submittedById: userB));
                 results.Add(("REF-CONCUR-B", id, null));
             }
             catch (Exception ex)
@@ -70,7 +70,7 @@ public sealed class ConcurrentConflictIntegrationTests(PostgresFixture fixture)
 
         await using var verify = _fixture.CreateContext();
         var rows = await verify.ChangeRequests
-            .Where(r => r.PupilId == pupilId && r.Status == RequestStatus.SubmittedUnCommitted)
+            .Where(r => r.PupilId == pupilId && r.Status == RequestStatus.Submitted)
             .ToListAsync();
         Assert.Single(rows);
     }
@@ -87,11 +87,11 @@ public sealed class ConcurrentConflictIntegrationTests(PostgresFixture fixture)
         await new RequestRepository(_fixture.CreateContext())
             .UpsertAsync(Data(windowId, "REF-DRAFT-A", RequestStatus.InProgress, pupilId: pupilId, submittedById: userA));
         await new RequestRepository(_fixture.CreateContext())
-            .UpsertAsync(Data(windowId, "REF-SUBMIT-B", RequestStatus.SubmittedUnCommitted, pupilId: pupilId, submittedById: userB));
+            .UpsertAsync(Data(windowId, "REF-SUBMIT-B", RequestStatus.Submitted, pupilId: pupilId, submittedById: userB));
 
         var ex = await Assert.ThrowsAsync<DuplicateRequestException>(() =>
             new RequestRepository(_fixture.CreateContext())
-                .UpsertAsync(Data(windowId, "REF-DRAFT-A", RequestStatus.SubmittedUnCommitted, pupilId: pupilId, submittedById: userA)));
+                .UpsertAsync(Data(windowId, "REF-DRAFT-A", RequestStatus.Submitted, pupilId: pupilId, submittedById: userA)));
 
         Assert.Equal(ConflictType.OtherSubmitted, ex.ConflictType);
         Assert.Equal("Test User", ex.ConflictingUserName);
@@ -109,13 +109,13 @@ public sealed class ConcurrentConflictIntegrationTests(PostgresFixture fixture)
             .UpsertAsync(Data(windowId, "REF-SELF-DRAFT", RequestStatus.InProgress, pupilId: pupilId, submittedById: userId));
 
         var submitId = await new RequestRepository(_fixture.CreateContext())
-            .UpsertAsync(Data(windowId, "REF-SELF-DRAFT", RequestStatus.SubmittedUnCommitted, pupilId: pupilId, submittedById: userId));
+            .UpsertAsync(Data(windowId, "REF-SELF-DRAFT", RequestStatus.Submitted, pupilId: pupilId, submittedById: userId));
 
         Assert.Equal(draftId, submitId);
 
         await using var ctx = _fixture.CreateContext();
         var row = await ctx.ChangeRequests.SingleAsync(r => r.ReferenceNumber == "REF-SELF-DRAFT");
-        Assert.Equal(RequestStatus.SubmittedUnCommitted, row.Status);
+        Assert.Equal(RequestStatus.Submitted, row.Status);
     }
 
     [Fact]
@@ -135,7 +135,7 @@ public sealed class ConcurrentConflictIntegrationTests(PostgresFixture fixture)
             var repo = new RequestRepository(ctx);
             try
             {
-                var id = await repo.UpsertAsync(Data(windowId, "REF-INS-A", RequestStatus.SubmittedUnCommitted, pupilId: pupilId, submittedById: userA));
+                var id = await repo.UpsertAsync(Data(windowId, "REF-INS-A", RequestStatus.Submitted, pupilId: pupilId, submittedById: userA));
                 results.Add(("REF-INS-A", id, null));
             }
             catch (Exception ex)
@@ -150,7 +150,7 @@ public sealed class ConcurrentConflictIntegrationTests(PostgresFixture fixture)
             var repo = new RequestRepository(ctx);
             try
             {
-                var id = await repo.UpsertAsync(Data(windowId, "REF-INS-B", RequestStatus.SubmittedUnCommitted, pupilId: pupilId, submittedById: userB));
+                var id = await repo.UpsertAsync(Data(windowId, "REF-INS-B", RequestStatus.Submitted, pupilId: pupilId, submittedById: userB));
                 results.Add(("REF-INS-B", id, null));
             }
             catch (Exception ex)
@@ -188,7 +188,7 @@ public sealed class ConcurrentConflictIntegrationTests(PostgresFixture fixture)
             .UpsertAsync(Data(windowId, "REF-BULK-C", RequestStatus.ReadyToSubmit, pupilId: pupilC, submittedById: userA));
 
         await new RequestRepository(_fixture.CreateContext())
-            .UpsertAsync(Data(windowId, "REF-CONFLICT-B", RequestStatus.SubmittedUnCommitted, pupilId: pupilB, submittedById: userB));
+            .UpsertAsync(Data(windowId, "REF-CONFLICT-B", RequestStatus.Submitted, pupilId: pupilB, submittedById: userB));
 
         var submittedPupilIds = await new RequestRepository(_fixture.CreateContext())
             .GetSubmittedPupilIdsAsync(windowId, 100000);
@@ -198,14 +198,14 @@ public sealed class ConcurrentConflictIntegrationTests(PostgresFixture fixture)
         Assert.DoesNotContain(pupilC, submittedPupilIds);
 
         var resultA = await new RequestRepository(_fixture.CreateContext())
-            .UpsertAsync(Data(windowId, "REF-BULK-A", RequestStatus.SubmittedUnCommitted, pupilId: pupilA, submittedById: userA));
+            .UpsertAsync(Data(windowId, "REF-BULK-A", RequestStatus.Submitted, pupilId: pupilA, submittedById: userA));
 
         var exB = await Assert.ThrowsAsync<DuplicateRequestException>(() =>
             new RequestRepository(_fixture.CreateContext())
-                .UpsertAsync(Data(windowId, "REF-BULK-B", RequestStatus.SubmittedUnCommitted, pupilId: pupilB, submittedById: userA)));
+                .UpsertAsync(Data(windowId, "REF-BULK-B", RequestStatus.Submitted, pupilId: pupilB, submittedById: userA)));
 
         var resultC = await new RequestRepository(_fixture.CreateContext())
-            .UpsertAsync(Data(windowId, "REF-BULK-C", RequestStatus.SubmittedUnCommitted, pupilId: pupilC, submittedById: userA));
+            .UpsertAsync(Data(windowId, "REF-BULK-C", RequestStatus.Submitted, pupilId: pupilC, submittedById: userA));
 
         Assert.NotEqual(Guid.Empty, resultA);
         Assert.Equal(ConflictType.OtherSubmitted, exB.ConflictType);
@@ -213,7 +213,7 @@ public sealed class ConcurrentConflictIntegrationTests(PostgresFixture fixture)
 
         await using var ctx = _fixture.CreateContext();
         var submitted = await ctx.ChangeRequests
-            .Where(r => r.Status == RequestStatus.SubmittedUnCommitted && r.WindowId == windowId)
+            .Where(r => r.Status == RequestStatus.Submitted && r.WindowId == windowId)
             .ToListAsync();
         Assert.Equal(3, submitted.Count);
     }
@@ -234,21 +234,21 @@ public sealed class ConcurrentConflictIntegrationTests(PostgresFixture fixture)
             .UpsertAsync(Data(windowId, "REF-BULK-B", RequestStatus.ReadyToSubmit, pupilId: pupilB, submittedById: userA));
 
         await new RequestRepository(_fixture.CreateContext())
-            .UpsertAsync(Data(windowId, "REF-CONFLICT-A", RequestStatus.SubmittedUnCommitted, pupilId: pupilA, submittedById: userB));
+            .UpsertAsync(Data(windowId, "REF-CONFLICT-A", RequestStatus.Submitted, pupilId: pupilA, submittedById: userB));
 
         var exA = await Assert.ThrowsAsync<DuplicateRequestException>(() =>
             new RequestRepository(_fixture.CreateContext())
-                .UpsertAsync(Data(windowId, "REF-BULK-A", RequestStatus.SubmittedUnCommitted, pupilId: pupilA, submittedById: userA)));
+                .UpsertAsync(Data(windowId, "REF-BULK-A", RequestStatus.Submitted, pupilId: pupilA, submittedById: userA)));
 
         var resultB = await new RequestRepository(_fixture.CreateContext())
-            .UpsertAsync(Data(windowId, "REF-BULK-B", RequestStatus.SubmittedUnCommitted, pupilId: pupilB, submittedById: userA));
+            .UpsertAsync(Data(windowId, "REF-BULK-B", RequestStatus.Submitted, pupilId: pupilB, submittedById: userA));
 
         Assert.Equal(ConflictType.OtherSubmitted, exA.ConflictType);
         Assert.NotEqual(Guid.Empty, resultB);
     }
 
     private static ChangeRequestData Data(
-        Guid windowId, string referenceNumber, RequestStatus status = RequestStatus.SubmittedUnCommitted,
+        Guid windowId, string referenceNumber, RequestStatus status = RequestStatus.Submitted,
         long organisationUrn = 100000, Guid? pupilId = null, string? pupilUpn = "UPN1", Guid? submittedById = null) =>
         new()
         {

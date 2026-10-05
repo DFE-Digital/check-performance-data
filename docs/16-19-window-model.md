@@ -492,8 +492,8 @@ click.
 **Close and the hand-over.** `CloseExerciseController` (`admin/windows/{id}/{exercise}/close`) is
 offered only while the exercise is open. After the admin types the window's name it calls
 `IExerciseEarlyClosureService` (the date move and the audit row) and then `ICloseExerciseService`
-(the #437 sweep: submitted requests onto the Zendesk queue, leftover drafts cancelled) — in that
-order, so no school can add a request behind the sweep. The sweep is still date-blind and still the
+(the sweep: decided requests onto the Zendesk queue, undecided ones reported as waiting, leftover
+drafts cancelled) — in that order, so no school can add a request behind the sweep. The sweep is still date-blind and still the
 only way a pupil-data amendment reaches Zendesk, and since AB#302158 the service runs it by itself
 two hours after an exercise ends (next section). Once an exercise has closed the summary still
 offers it on its own, for an admin who wants it sooner or again: `SendExerciseRequestsController`
@@ -509,13 +509,13 @@ AB#302158 the service runs it two hours after the end). It now reads the window 
 draft whose own exercise (derived from its change type) is not open; when that leaves nothing
 submitted, the school is sent back to Check your pupil data with the closed message.
 
-**Not changed, and worth knowing.** `AmendmentRequestsController.Edit` gates a resumed draft on the
+**Also worth knowing.** `AmendmentRequestsController.Edit` gates a resumed draft on the
 draft's own snapshot, so after an early close the school is turned away one click later, by the
-journey refresh, rather than on the resume itself. The Zendesk worker only creates a ticket for a
-request the rules engine has already processed, while the sweep marks every swept request as sent;
-a request swept before the rules engine reached it (and every Add-pupil request, which never goes
-to the rules engine) is retried, dead-lettered and not picked up again. That defect is older than
-this ticket, but Close now runs the sweep as a matter of course.
+journey refresh, rather than on the resume itself.
+
+The sweep sends only requests the Rules Engine has decided (`ProcessingStatus = Decided`). It
+reports the rest as waiting. **Send … requests for processing** sends them once they are decided.
+Add-pupil requests go through the Rules Engine like any amendment (#536).
 
 ## Automatic hand-over two hours after an exercise ends (AB#302158)
 
@@ -526,7 +526,7 @@ for processing". The service now does that by itself.
 **When.** An exercise is due while `EndDate + 2 hours <= now < EndDate + 2 hours + 24 hours`
 (`ExerciseHandOverSchedule`). The web app's `ExerciseHandOverJob` looks every five minutes and, for
 each due exercise, runs the same sweep the button runs (`ICloseExerciseService.CloseAsync`):
-submitted requests onto the Zendesk queue, leftover drafts cancelled. This is about the
+decided requests onto the Zendesk queue, leftover drafts cancelled. This is about the
 *exercise's* end, never the window's — a window whose pupil-data checking has ended is usually
 still open for results enquiries, and each exercise is judged on its own end date.
 
@@ -538,8 +538,8 @@ nothing to reset. One consequence: when this first deployed, exercises that had 
 26 hours earlier were left alone, and still need the button.
 
 **Two hours, and why.** The gap gives the rules engine time to decide the requests that schools
-submitted in the last minutes of the exercise, because the Zendesk worker only tickets a request
-the rules engine has processed (issue #536).
+submitted in the last minutes of the exercise, because the sweep only sends a request the rules
+engine has decided (#536). One that is still undecided is left waiting, and a later tick sends it.
 
 **Both exercise types.** A results-enquiry exercise sends nothing here — enquiries go to Zendesk
 when they are submitted, and the sweep skips them — but its leftover drafts are cancelled.
@@ -558,7 +558,7 @@ next tick, on whichever pod, carries on.
 **The record.** A run that sent or cancelled anything writes one audit row,
 `WindowAdmin` / `RequestsSentAutomatically`, with no user (see `docs/audit-log.md`). A run that
 did nothing writes none. The row is written after the sweep, not in one transaction with it — the
-sweep is a blob read and a queue write per request and has no transaction to join — and it is
+sweep commits request by request (#536) and has no single transaction to join — and it is
 written even if the pod is stopping. If that write fails, the hand-over has still happened and the
 application log line is the record. A sweep that fails part-way writes no row for the requests it
 did send; the run that finishes the job records only what it sent.

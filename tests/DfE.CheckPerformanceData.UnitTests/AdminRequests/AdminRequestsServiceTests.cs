@@ -143,7 +143,7 @@ public class AdminRequestsServiceTests
                 PupilFirstname = "Ada",
                 PupilSurname = "Lovelace",
                 RequestTypeDescription = "Remove pupil",
-                Status = RequestStatus.SubmittedUnCommitted,
+                Status = RequestStatus.Submitted,
                 SubmittedByName = "Head Teacher",
                 Submitted = new DateTime(2026, 6, 18, 14, 0, 0),
                 Outcome = DecisionStatus.Scrutiny,

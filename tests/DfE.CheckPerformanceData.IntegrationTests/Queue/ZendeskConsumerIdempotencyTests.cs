@@ -77,7 +77,7 @@ public sealed class ZendeskConsumerIdempotencyTests
         await using var verify = _fixture.CreateContext();
         var saved = await verify.ChangeRequests.SingleAsync(r => r.ReferenceNumber == Reference);
         Assert.False(string.IsNullOrEmpty(saved.CrmId));
-        Assert.Equal(WorkerStatus.ZendeskTicketCreated, saved.WorkerStatus);
+        Assert.Equal(ProcessingStatus.TicketCreated, saved.ProcessingStatus);
     }
 
     [Fact]
@@ -126,12 +126,12 @@ public sealed class ZendeskConsumerIdempotencyTests
         await using var verify = _fixture.CreateContext();
         var saved = await verify.ChangeRequests.SingleAsync(r => r.ReferenceNumber == Reference);
         Assert.False(string.IsNullOrEmpty(saved.CrmId));
-        Assert.Equal(WorkerStatus.ZendeskTicketCreated, saved.WorkerStatus);
+        Assert.Equal(ProcessingStatus.TicketCreated, saved.ProcessingStatus);
     }
 
-    // The retry path. Attempt 1 claims the row (RulesProcessed -> ZendeskTicketCreating) and then
+    // The retry path. Attempt 1 claims the row (TicketQueued -> TicketCreating) and then
     // Zendesk fails. The redelivery must re-claim and create the ticket. It did not: the claim
-    // insisted on RulesProcessed, so attempt 2 matched no row, returned as if handled, and the
+    // insisted on a status the failed attempt had already left, so attempt 2 matched no row, returned as if handled, and the
     // message was acked away — 120 preprod requests vanished this way with nothing dead-lettered.
     [Fact]
     public async Task RedeliveryAfterFailedCreate_ReclaimsAndCreatesTheTicket()
@@ -153,6 +153,12 @@ public sealed class ZendeskConsumerIdempotencyTests
                 () => consumer.ProcessMessageBodyAsync(Message, CancellationToken.None));
         }
 
+        await using (var check = _fixture.CreateContext())
+        {
+            var released = await check.ChangeRequests.SingleAsync(r => r.ReferenceNumber == Reference);
+            Assert.Equal(ProcessingStatus.TicketQueued, released.ProcessingStatus);
+        }
+
         await using (var ctx2 = _fixture.CreateContext())
         {
             var consumer = new ZendeskConsumer(Substitute.For<DfE.CheckPerformanceData.Application.Queue.IQueueService>(), zendesk, ctx2);
@@ -164,43 +170,19 @@ public sealed class ZendeskConsumerIdempotencyTests
         await using var verify = _fixture.CreateContext();
         var saved = await verify.ChangeRequests.SingleAsync(r => r.ReferenceNumber == Reference);
         Assert.Equal("7100", saved.CrmId);
-        Assert.Equal(WorkerStatus.ZendeskTicketCreated, saved.WorkerStatus);
+        Assert.Equal(ProcessingStatus.TicketCreated, saved.ProcessingStatus);
     }
 
-    // A results enquiry never passes the rules engine, so its WorkerStatus is null by design. It
-    // must be ticketed, with DeriveDecision's Scrutiny fallback, rather than dropped by the claim.
-    [Fact]
-    public async Task EnquiryRowWithNoRulesDecision_IsStillTicketed()
+    // #536: only a TicketQueued row is claimable. Undecided (null) and Decided rows have not been
+    // handed over, so ticketing them would skip the close sweep. The message must not be acked
+    // away either: throwing sends it to the DLQ with a reason.
+    [Theory]
+    [InlineData(null)]
+    [InlineData(ProcessingStatus.Decided)]
+    public async Task A_row_that_is_not_queued_is_not_claimed(ProcessingStatus? status)
     {
         await ResetChangeRequestsAsync();
-        await SeedChangeRequestAsync(workerStatus: null, requestType: RequestType.ResultsEnquiry);
-
-        var zendesk = Substitute.For<IZendeskService>();
-        zendesk.CreateTicketAsync(Arg.Any<CreateTicketRequestDto>())
-            .Returns(new CreateTicketResponseDto { Ticket = new TicketDto { Id = 7200 } });
-
-        await using (var ctx = _fixture.CreateContext())
-        {
-            var consumer = new ZendeskConsumer(Substitute.For<DfE.CheckPerformanceData.Application.Queue.IQueueService>(), zendesk, ctx);
-            await consumer.ProcessMessageBodyAsync(Message, CancellationToken.None);
-        }
-
-        await zendesk.Received(1).CreateTicketAsync(Arg.Any<CreateTicketRequestDto>());
-
-        await using var verify = _fixture.CreateContext();
-        var saved = await verify.ChangeRequests.SingleAsync(r => r.ReferenceNumber == Reference);
-        Assert.Equal("7200", saved.CrmId);
-        Assert.Equal(WorkerStatus.ZendeskTicketCreated, saved.WorkerStatus);
-    }
-
-    // An AMENDMENT with no rules decision is not claimable (SC-005): its decision was never
-    // recorded, so it must not be ticketed under a guess. But it must not be acked away either —
-    // throwing sends it to the DLQ with a reason an admin can act on.
-    [Fact]
-    public async Task AmendmentRowWithNoRulesDecision_ThrowsSoTheMessageIsRetriedNotAcked()
-    {
-        await ResetChangeRequestsAsync();
-        await SeedChangeRequestAsync(workerStatus: null, requestType: RequestType.Amendment);
+        await SeedChangeRequestAsync(processingStatus: status);
 
         var zendesk = Substitute.For<IZendeskService>();
 
@@ -212,7 +194,7 @@ public sealed class ZendeskConsumerIdempotencyTests
         await zendesk.DidNotReceive().CreateTicketAsync(Arg.Any<CreateTicketRequestDto>());
     }
 
-    // A row stuck in ZendeskTicketCreating with no ticket id is an earlier attempt that died
+    // A row stuck in TicketCreating with no ticket id is an earlier attempt that died
     // mid-call (or another worker still in flight). Returning quietly acks the message and
     // loses the request; throwing makes the queue retry and, if the row stays stuck, dead-letter
     // it with a reason an admin can see.
@@ -220,7 +202,7 @@ public sealed class ZendeskConsumerIdempotencyTests
     public async Task RowStuckInCreating_ThrowsSoTheMessageIsRetriedNotAcked()
     {
         await ResetChangeRequestsAsync();
-        await SeedChangeRequestAsync(workerStatus: WorkerStatus.ZendeskTicketCreating);
+        await SeedChangeRequestAsync(processingStatus: ProcessingStatus.TicketCreating);
 
         var zendesk = Substitute.For<IZendeskService>();
 
@@ -233,7 +215,7 @@ public sealed class ZendeskConsumerIdempotencyTests
     }
 
     private async Task<Guid> SeedChangeRequestAsync(
-        WorkerStatus? workerStatus = WorkerStatus.RulesProcessed,
+        ProcessingStatus? processingStatus = ProcessingStatus.TicketQueued,
         RequestType requestType = RequestType.Amendment)
     {
         await using var ctx = _fixture.CreateContext();
@@ -256,8 +238,8 @@ public sealed class ZendeskConsumerIdempotencyTests
             Submitted = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
             SubmittedById = Guid.NewGuid(),
             SubmittedByName = "Test User",
-            WorkerStatus = workerStatus,
-            Status = RequestStatus.SubmittedCommitted,
+            ProcessingStatus = processingStatus,
+            Status = RequestStatus.Submitted,
             ReferenceNumber = Reference,
             RequestType = requestType,
             RequestTypeDescription = "Not on roll",

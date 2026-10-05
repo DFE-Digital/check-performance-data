@@ -83,7 +83,7 @@ public sealed class RequestRepositoryGetSubmittedResultsEnquiriesTests(PostgresF
             Timestamp = timestamp ?? DateTime.UtcNow,
             SubmittedById = Guid.NewGuid(),
             SubmittedByName = "Test User",
-            Status = RequestStatus.SubmittedUnCommitted,
+            Status = RequestStatus.Submitted,
             RequestType = requestType,
             RequestTypeDescription = requestType.ToString()
         };

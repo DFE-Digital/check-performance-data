@@ -596,6 +596,9 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<string>("ProcessingStatus")
+                        .HasColumnType("text");
+
                     b.Property<string>("PupilFirstname")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
@@ -656,9 +659,6 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("WithdrawnByEmail")
-                        .HasColumnType("text");
-
-                    b.Property<string>("WorkerStatus")
                         .HasColumnType("text");
 
                     b.HasKey("Id");

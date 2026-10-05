@@ -34,6 +34,15 @@ public static class SettingKeys
     public const string ZendeskUseFake = "Zendesk:UseFake";
     public const string EgressUseDevOutbox = "Egress:UseDevOutbox";
     public const string NotifyUseFake = "Notify:UseFake";
+
+    // Site-wide CSS and JavaScript for the public pages. Edited on their own admin page rather
+    // than the general settings list, because the values are large and need their own permission.
+    public const string SiteCss = "SiteAssets:Css";
+    public const string SiteJs = "SiteAssets:Js";
+    public const string SiteCssEnabled = "SiteAssets:CssEnabled";
+    public const string SiteJsEnabled = "SiteAssets:JsEnabled";
+    public const string SiteCssSavedAt = "SiteAssets:CssSavedAt";
+    public const string SiteJsSavedAt = "SiteAssets:JsSavedAt";
 }
 
 // The data type of a setting's value, used by the settings editor to choose how to render
@@ -48,12 +57,14 @@ public enum SettingKind
 // A setting the application understands: its key, an editor-facing description, the value
 // used when nothing is stored, and its value kind. Defaults live in code so a fresh
 // environment behaves correctly before anyone visits the settings page. Kind defaults to
-// String so existing call sites stay valid.
+// String so existing call sites stay valid. ManagedElsewhere marks a setting that has its own
+// admin page and is therefore left off the general settings list (and refused by its save).
 public sealed record SettingDefinition(
     string Key,
     string Description,
     string DefaultValue,
-    SettingKind Kind = SettingKind.String);
+    SettingKind Kind = SettingKind.String,
+    bool ManagedElsewhere = false);
 
 // The single source of truth for which settings exist and their defaults.
 public static class SettingDefinitions
@@ -150,7 +161,37 @@ public static class SettingDefinitions
         new(SettingKeys.SearchAnalyticsSeedSecondsPerEvent,
             "Per-event throughput estimate (seconds) used to render the initial ETA on the dev-only Seed sample search data modal. Updated with an EMA blend after each non-cancelled seed so it converges on the actual host's throughput. Default is deliberately high so first-run estimates look conservative rather than optimistic.",
             "0.1",
-            SettingKind.String)
+            SettingKind.String),
+        new(SettingKeys.SiteCss,
+            "Custom CSS served to every public page. Edited under Site CSS and JavaScript.",
+            "",
+            SettingKind.String,
+            ManagedElsewhere: true),
+        new(SettingKeys.SiteJs,
+            "Custom JavaScript served to every public page. Edited under Site CSS and JavaScript.",
+            "",
+            SettingKind.String,
+            ManagedElsewhere: true),
+        new(SettingKeys.SiteCssEnabled,
+            "Whether the custom CSS is served. Edited under Site CSS and JavaScript.",
+            "true",
+            SettingKind.Bool,
+            ManagedElsewhere: true),
+        new(SettingKeys.SiteJsEnabled,
+            "Whether the custom JavaScript is served. Edited under Site CSS and JavaScript.",
+            "true",
+            SettingKind.Bool,
+            ManagedElsewhere: true),
+        new(SettingKeys.SiteCssSavedAt,
+            "When the custom CSS was last saved (UTC, yyyyMMddHHmmss). Set automatically.",
+            "",
+            SettingKind.String,
+            ManagedElsewhere: true),
+        new(SettingKeys.SiteJsSavedAt,
+            "When the custom JavaScript was last saved (UTC, yyyyMMddHHmmss). Set automatically.",
+            "",
+            SettingKind.String,
+            ManagedElsewhere: true)
     ];
 
     public static SettingDefinition? Find(string key) =>
@@ -165,4 +206,5 @@ public sealed record SettingViewItem(
     string Value,
     string DefaultValue,
     bool IsDefault,
-    SettingKind Kind = SettingKind.String);
+    SettingKind Kind = SettingKind.String,
+    bool ManagedElsewhere = false);

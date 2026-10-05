@@ -40,6 +40,7 @@ public static class DependencyManager
         services.AddScoped<ContentStaging.ContentBundleSanitiser>();
         services.AddScoped<IHtmlRenderingService, HtmlRenderingService>();
         services.AddScoped<Settings.ISettingService, Settings.SettingService>();
+        services.AddScoped<SiteAssets.ISiteAssetService, SiteAssets.SiteAssetService>();
         services.AddScoped<ILandingPageService, LandingPageService>();
         services.AddScoped<IWindowService, WindowService>();
         // #315: the single place that compares an exercise's dates against the clock. Nothing else

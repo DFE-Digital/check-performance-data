@@ -595,6 +595,54 @@ var services = new ServiceCollection();
     private static IEnumerable<(string File, Question Question)> AllFlowQuestions() =>
         AllFlowPages().SelectMany(p => p.Page.Questions.Select(q => (p.File, q)));
 
+    /// <summary>
+    /// The KS4 merge journey's second-record page labels itself as a CYPMD-ID search
+    /// ("What is the CYPMD ID of the second duplicate record to be merged?" / "Start typing ID to
+    /// search records"), so the config has to narrow its matching to that field. Asserted against
+    /// the shipped file rather than an in-memory config because nothing sets
+    /// <c>UnmappedMemberHandling</c> on the deserialiser — a misspelt key is dropped silently, so
+    /// only a test that reads the real file catches it.
+    /// </summary>
+    [Fact]
+    public void MergeKs4June_MatchPage_NarrowsTheSearchToTheCypmdId()
+    {
+        var page = AllFlowPages().Single(p => p.File == "Merge_KS4June.json" && p.Page.Id == "select-match-pupil").Page;
+
+        Assert.Equal(PupilSearchField.CypmdId, page.PupilSearchField);
+    }
+
+    /// <summary>
+    /// The narrowing is a property of one page, so nothing else may set it — least of all the
+    /// 16-19 merge journey, whose second-record page carries the same shape and the same copy and is
+    /// explicitly out of scope (#510). This is the test that stops the follow-up happening by
+    /// accident: when it is done, this is the assertion that has to change.
+    /// </summary>
+    [Fact]
+    public void NoPageOtherThanTheKs4MergeMatchPage_ConfiguresASearchField()
+    {
+        var configured = AllFlowPages()
+            .Where(p => p.Page.PupilSearchField is not null)
+            .Select(p => $"{p.File}:{p.Page.Id}")
+            .ToList();
+
+        Assert.Equal(["Merge_KS4June.json:select-match-pupil"], configured);
+    }
+
+    /// <summary>
+    /// AB#304118 / FR-003. The copy is what made this page's behaviour a defect rather than a
+    /// design: the label and hint already named the CYPMD ID while the search matched names. They
+    /// are pinned verbatim so a later "improvement" cannot quietly reword the page the fix was
+    /// built to match.
+    /// </summary>
+    [Fact]
+    public void MergeKs4June_MatchPage_KeepsItsCyPmdIdCopyVerbatim()
+    {
+        var page = AllFlowPages().Single(p => p.File == "Merge_KS4June.json" && p.Page.Id == "select-match-pupil").Page;
+
+        Assert.Equal("What is the CYPMD ID of the second duplicate record to be merged?", page.Title);
+        Assert.Equal("Start typing ID to search records", page.Subheading);
+    }
+
     private static IEnumerable<(string File, JourneyPage Page)> AllFlowPages()
     {
         foreach (var file in Directory.GetFiles(LocateFlowsDirectory(), "*.json").Order())

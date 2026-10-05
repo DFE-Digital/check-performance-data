@@ -29,7 +29,7 @@ public interface ICheckYourPupilDataRepository
     /// restriction (every other journey); an empty set correctly matches nobody. It is applied
     /// before the cap, so a student who does hold results is never crowded out by ten who do not.
     /// </summary>
-    Task<IReadOnlyList<PupilSuggestionDto>> SearchPupilsAsync(Guid windowId, string laestab, string urn, string query, PupilFilter filter, Guid? excludeId = null, IReadOnlySet<string>? cypmdIdAllowList = null);
+    Task<IReadOnlyList<PupilSuggestionDto>> SearchPupilsAsync(Guid windowId, string laestab, string urn, string query, PupilFilter filter, Guid? excludeId = null, IReadOnlySet<string>? cypmdIdAllowList = null, PupilSearchField searchField = PupilSearchField.All);
 
     Task<PupilDto> GetPupilAsync(Guid windowId, string laestab, Guid pupilId);
 }

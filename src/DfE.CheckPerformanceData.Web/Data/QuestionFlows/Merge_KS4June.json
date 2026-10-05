@@ -18,6 +18,7 @@
       "subHeading": "Start typing ID to search records",
       "pupilFilter": "All",
       "pupilKey": "match",
+      "pupilSearchField": "CypmdId",
       "validationFailure": "Enter the CYPMD ID for the second duplicate record to be merged. CYPMD ID for second duplicate record must be different to first record."
     },
     {

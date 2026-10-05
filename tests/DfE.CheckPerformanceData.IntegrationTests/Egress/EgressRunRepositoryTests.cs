@@ -404,10 +404,10 @@ public sealed class EgressRunRepositoryTests(PostgresFixture fixture)
                 RequestTypeDescription = type.ToString(), AmendmentType = type, CrmId = crm
             };
             db.ChangeRequests.AddRange(
-                Row("C-REMOVE-COMMITTED", WhatToChange.Remove, RequestStatus.SubmittedCommitted, "2001"),
-                Row("C-REMOVE-UNCOMMITTED", WhatToChange.Remove, RequestStatus.SubmittedUnCommitted, null),
+                Row("C-REMOVE-COMMITTED", WhatToChange.Remove, RequestStatus.Submitted, "2001"),
+                Row("C-REMOVE-UNCOMMITTED", WhatToChange.Remove, RequestStatus.Submitted, null),
                 Row("C-REMOVE-WITHDRAWN", WhatToChange.Remove, RequestStatus.Withdrawn, null),
-                Row("C-ADD", WhatToChange.Add, RequestStatus.SubmittedCommitted, "2002"));
+                Row("C-ADD", WhatToChange.Add, RequestStatus.Submitted, "2002"));
             await db.SaveChangesAsync();
         }
 

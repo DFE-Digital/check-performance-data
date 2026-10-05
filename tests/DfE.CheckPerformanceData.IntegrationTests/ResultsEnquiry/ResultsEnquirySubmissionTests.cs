@@ -79,6 +79,7 @@ public sealed class ResultsEnquirySubmissionTests(PostgresFixture fixture)
         var service = new RequestService(
             flowService,
             blob,
+            Substitute.For<IRequestBlobClient>(),
             new RequestRepository(_fixture.CreateContext()),
             currentUser,
             NullLogger<RequestService>.Instance,
@@ -136,7 +137,7 @@ public sealed class ResultsEnquirySubmissionTests(PostgresFixture fixture)
         var row = await ctx.ChangeRequests.SingleAsync(r => r.ReferenceNumber == reference);
         Assert.Equal(RequestType.ResultsEnquiry, row.RequestType);
         Assert.Equal(WhatToChange.IncorrectGrade, row.AmendmentType);
-        Assert.Equal(RequestStatus.SubmittedUnCommitted, row.Status);
+        Assert.Equal(RequestStatus.Submitted, row.Status);
         Assert.Equal("Results enquiry - Incorrect grade", row.RequestTypeDescription);
         Assert.Equal(PupilId, row.PupilId);
         Assert.Equal("Billy", row.PupilFirstname);
@@ -247,7 +248,7 @@ public sealed class ResultsEnquirySubmissionTests(PostgresFixture fixture)
             Timestamp = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
             SubmittedById = UserId,
             SubmittedByName = "Ada Editor",
-            Status = RequestStatus.SubmittedUnCommitted,
+            Status = RequestStatus.Submitted,
             RequestType = RequestType.Amendment,
             RequestTypeDescription = "Remove - not-on-roll",
             AmendmentType = WhatToChange.Remove
@@ -275,7 +276,7 @@ public sealed class ResultsEnquirySubmissionTests(PostgresFixture fixture)
             Timestamp = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
             SubmittedById = UserId,
             SubmittedByName = "Ada Editor",
-            Status = RequestStatus.SubmittedUnCommitted,
+            Status = RequestStatus.Submitted,
             RequestType = RequestType.Amendment,
             RequestTypeDescription = "Remove - not-on-roll",
             AmendmentType = WhatToChange.Remove
@@ -306,7 +307,7 @@ public sealed class ResultsEnquirySubmissionTests(PostgresFixture fixture)
             Timestamp = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
             SubmittedById = UserId,
             SubmittedByName = "Ada Editor",
-            Status = RequestStatus.SubmittedUnCommitted,
+            Status = RequestStatus.Submitted,
             RequestType = RequestType.Amendment,
             RequestTypeDescription = "Remove - not-on-roll",
             AmendmentType = WhatToChange.Remove
@@ -395,7 +396,7 @@ public sealed class ResultsEnquirySubmissionTests(PostgresFixture fixture)
         var row = await ctx.ChangeRequests.SingleAsync(r => r.ReferenceNumber == reference);
         Assert.Equal(RequestType.ResultsEnquiry, row.RequestType);
         Assert.Equal(WhatToChange.ResultDoesNotBelong, row.AmendmentType);
-        Assert.Equal(RequestStatus.SubmittedUnCommitted, row.Status);
+        Assert.Equal(RequestStatus.Submitted, row.Status);
         Assert.Equal("Results enquiry - Result does not belong to student", row.RequestTypeDescription);
 
         await using var conn = new NpgsqlConnection(_fixture.ConnectionString);

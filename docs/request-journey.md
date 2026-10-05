@@ -320,7 +320,7 @@ From the Summary, the user can:
 
 ### What happens
 
-1. **Duplicate-request check** — `HasSubmittedRequestAsync` (called from `PupilSearchPost`) / `CheckForConflictAsync` (called from `ConfirmRequestAsync`) queries `ChangeRequests` for an existing `SubmittedUnCommitted` row matching `WindowId + PupilId + OrganisationUrn` (excluding the current `ReferenceNumber` when one exists). Returns a `DuplicateCheckResult` discriminated record:
+1. **Duplicate-request check** — `HasSubmittedRequestAsync` (called from `PupilSearchPost`) / `CheckForConflictAsync` (called from `ConfirmRequestAsync`) queries `ChangeRequests` for an existing `Submitted` row matching `WindowId + PupilId + OrganisationUrn` (excluding the current `ReferenceNumber` when one exists). Returns a `DuplicateCheckResult` discriminated record:
 
    - `NoConflict` — no conflicting request exists, proceed
    - `SelfSubmitted(ReferenceNumber, ConflictingReasonType, ConflictingRequestCategory, ConflictingUserName)` — the current user already has a submitted request

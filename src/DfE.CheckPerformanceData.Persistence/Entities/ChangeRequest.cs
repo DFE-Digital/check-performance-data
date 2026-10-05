@@ -59,7 +59,7 @@ public class ChangeRequest
     public string? MatchedRuleId { get; set; }
     public string? RulesVersion { get; set; }
     public DateTime? DecidedAtUtc { get; set; }
-    public WorkerStatus? WorkerStatus { get; set; }
+    public ProcessingStatus? ProcessingStatus { get; set; }
 
     // The winning rule branch's evaluation trace, newline-joined exactly as the engine
     // rendered it. Admin-only: it is shown on the admin requests page

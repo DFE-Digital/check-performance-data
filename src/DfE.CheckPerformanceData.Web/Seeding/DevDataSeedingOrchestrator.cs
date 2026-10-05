@@ -26,6 +26,7 @@ public sealed class DevDataSeedingOrchestrator(
     IStudentResultsClient studentResultsClient,
     IRequestRepository requestRepository,
     IRequestStateBlobClient requestStateBlobClient,
+    IRequestBlobClient requestBlobClient,
     ICheckYourPupilDataService checkYourPupilDataService,
     ICheckingExerciseService checkingExerciseService,
     RulesConfigSeeder rulesConfigSeeder,
@@ -56,7 +57,7 @@ public sealed class DevDataSeedingOrchestrator(
 
         try
         {
-            await SeedChangeRequests.ExecuteSeedAsync(pupilDataBlobClient, requestRepository, requestStateBlobClient, checkYourPupilDataService, checkingExerciseService);
+            await SeedChangeRequests.ExecuteSeedAsync(pupilDataBlobClient, requestRepository, requestStateBlobClient, requestBlobClient, checkYourPupilDataService, checkingExerciseService);
         }
         catch (Azure.RequestFailedException ex) when (environment.IsDevelopment())
         {

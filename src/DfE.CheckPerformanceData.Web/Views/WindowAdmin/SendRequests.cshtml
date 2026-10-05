@@ -22,6 +22,16 @@
         have no effect.
     </p>
 }
+else if (Model.OnlyWaiting)
+{
+    @* #536: every submitted request is still waiting for the Rules Engine. Nothing is lost; the
+       admin comes back once the Rules Engine has decided them. *@
+    <p class="govuk-body">
+        There is nothing to send yet. @Model.RequestsWaiting
+        @(Model.RequestsWaiting == 1 ? "request is" : "requests are") waiting for the Rules Engine.
+        Try again later.
+    </p>
+}
 else
 {
     <govuk-warning-text icon-fallback-text="Warning">
@@ -34,14 +44,19 @@ else
             <govuk-summary-list-row-value>@Model.RequestsToSend</govuk-summary-list-row-value>
         </govuk-summary-list-row>
         <govuk-summary-list-row>
+            <govuk-summary-list-row-key>Requests waiting for the Rules Engine</govuk-summary-list-row-key>
+            <govuk-summary-list-row-value>@Model.RequestsWaiting</govuk-summary-list-row-value>
+        </govuk-summary-list-row>
+        <govuk-summary-list-row>
             <govuk-summary-list-row-key>Drafts to cancel</govuk-summary-list-row-key>
             <govuk-summary-list-row-value>@Model.DraftsToCancel</govuk-summary-list-row-value>
         </govuk-summary-list-row>
     </govuk-summary-list>
 
     <p class="govuk-body">
-        Submitted requests are sent for processing and cannot be changed afterwards. Drafts a school
-        has not submitted are cancelled and cannot be resumed.
+        Submitted requests are sent for processing and cannot be changed afterwards. Requests
+        waiting for the Rules Engine are not sent now; send requests for processing again later
+        to send them. Drafts a school has not submitted are cancelled and cannot be resumed.
     </p>
 }
 

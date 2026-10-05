@@ -16,7 +16,7 @@ substance (no metric data is reachable) but deliberately not rendered as a visib
 | Not logged in | Eligible schools minus Logged in |
 | Submitted amendments | Distinct eligible schools (by laestab) whose URN has a submitted request; the URN→laestab mapping comes from the window's own login rows |
 | Logged in (not submitted) | Logged in minus Submitted amendments |
-| Total individual pupil amendment requests | Requests with status SubmittedUnCommitted or SubmittedCommitted (drafts, withdrawn and not-submitted excluded) |
+| Total individual pupil amendment requests | Requests with status Submitted (drafts, withdrawn and not-submitted excluded) |
 | Auto-approved / Auto-rejected / Requests requiring scrutiny | Submitted requests by rules-engine `Outcome`; undecided requests count only in the total |
 
 All five engagement tiles count the same population (eligible schools) by the same key

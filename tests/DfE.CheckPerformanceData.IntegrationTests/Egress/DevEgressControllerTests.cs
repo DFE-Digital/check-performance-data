@@ -63,7 +63,7 @@ public sealed class DevEgressControllerTests(PostgresFixture fixture)
         await using var db = fixture.CreateContext();
         var requests = await db.ChangeRequests.Where(r => r.WindowId == WindowId).ToListAsync();
         Assert.Equal(2, requests.Count);
-        Assert.All(requests, r => Assert.Equal(RequestStatus.SubmittedCommitted, r.Status));
+        Assert.All(requests, r => Assert.Equal(RequestStatus.Submitted, r.Status));
         Assert.All(requests, r => Assert.NotNull(r.CrmId));
         var references = requests.Select(r => r.ReferenceNumber).ToList();
         var tickets = await db.DevZendeskTickets.Where(t => references.Contains(t.ReferenceNumber)).ToListAsync();

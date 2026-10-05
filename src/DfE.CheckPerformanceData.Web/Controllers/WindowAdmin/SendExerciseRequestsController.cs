@@ -34,6 +34,18 @@ public sealed class SendExerciseRequestsController(
     /// </summary>
     public const string RefusedTempDataKey = "CloseExerciseRefused";
 
+    /// <summary>
+    /// The banner's sentence for requests the sweep left because the Rules Engine had not decided
+    /// them (#536), with a leading space; empty when there are none. Shared with
+    /// <see cref="CloseExerciseController"/>, whose sweep leaves them the same way.
+    /// </summary>
+    public static string WaitingSentence(int waiting) => waiting switch
+    {
+        0 => string.Empty,
+        1 => " 1 request is waiting for the Rules Engine. Send requests for processing again later.",
+        _ => $" {waiting} requests are waiting for the Rules Engine. Send requests for processing again later."
+    };
+
     private const string PageView = "~/Views/WindowAdmin/SendRequests.cshtml";
 
     [HttpGet("admin/windows/{id:guid}/{exercise}/send-requests")]
@@ -56,7 +68,8 @@ public sealed class SendExerciseRequestsController(
             ExerciseType = exercise,
             ExerciseLabel = ExerciseLabels.For(exercise),
             RequestsToSend = preview.RequestsToClose,
-            DraftsToCancel = preview.DraftsToCancel
+            DraftsToCancel = preview.DraftsToCancel,
+            RequestsWaiting = preview.RequestsWaiting
         });
     }
 
@@ -79,7 +92,8 @@ public sealed class SendExerciseRequestsController(
         // Quotes the RESULT, never the preview — rows can change between the two.
         TempData[CloseExerciseController.TempDataKey] =
             $"{Pluralise(result.Enqueued, "request")} sent for processing and " +
-            $"{Pluralise(result.DraftsCancelled, "draft")} cancelled for {ExerciseLabels.For(exercise)}.";
+            $"{Pluralise(result.DraftsCancelled, "draft")} cancelled for {ExerciseLabels.For(exercise)}." +
+            WaitingSentence(result.Waiting);
 
         return Redirect($"/admin/windows/summary/{id}");
     }

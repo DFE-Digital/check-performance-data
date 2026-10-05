@@ -29,9 +29,9 @@ namespace DfE.CheckPerformanceData.IntegrationTests.RequestSubmission;
 // AB#297310: submitting an Add-a-pupil request against a real Postgres.
 //
 // The unit tests (RequestServiceAddTests) pin what the service ASKS its collaborators to do;
-// these pin what actually lands in the database — in particular that the row persists with zero
-// rows landing on the real rules-engine queue table, and that the window-close replay leaves the
-// row untouched. Mirrors ResultsEnquirySubmissionTests' fixture wiring.
+// these pin what actually lands in the database — in particular that the row persists and (#536)
+// one message lands on the real rules-engine queue table, as for every other amendment. Mirrors
+// ResultsEnquirySubmissionTests' fixture wiring.
 [Collection(nameof(PostgresCollection))]
 public sealed class AddRequestSubmissionTests(PostgresFixture fixture)
 {
@@ -64,6 +64,21 @@ public sealed class AddRequestSubmissionTests(PostgresFixture fixture)
             Saved.Remove((windowId, referenceNumber));
             return Task.CompletedTask;
         }
+    }
+
+    // Keeps the RequestDocument saved at submit so the close sweep can send it (#536).
+    private sealed class InMemoryRequestBlobClient : IRequestBlobClient
+    {
+        private readonly Dictionary<(Guid, string), RequestDocument> _saved = [];
+
+        public Task SaveRequestAsync(Guid windowId, RequestDocument document)
+        {
+            _saved[(windowId, document.ReferenceNumber)] = document;
+            return Task.CompletedTask;
+        }
+
+        public Task<RequestDocument?> GetRequestAsync(Guid windowId, string referenceNumber) =>
+            Task.FromResult(_saved.TryGetValue((windowId, referenceNumber), out var d) ? d : null);
     }
 
     private static QuestionFlowConfig LoadAddKs4JuneConfig() => LoadFlowConfig("Add_KS4June.json");
@@ -119,7 +134,7 @@ public sealed class AddRequestSubmissionTests(PostgresFixture fixture)
         return fileName;
     }
 
-    private (RequestService Service, InMemoryRequestStateBlobClient Blob, IQuestionFlowService Flows) BuildService(
+    private (RequestService Service, InMemoryRequestBlobClient Documents) BuildService(
         QuestionFlowConfig addConfig)
     {
         var currentUser = Substitute.For<ICurrentUserService>();
@@ -129,12 +144,12 @@ public sealed class AddRequestSubmissionTests(PostgresFixture fixture)
         currentUser.DisplayName.Returns("Ada Editor");
         currentUser.Email.Returns("ada@school.test");
 
-        var blob = new InMemoryRequestStateBlobClient();
-        var flowService = BuildFlowService(addConfig);
+        var documents = new InMemoryRequestBlobClient();
 
         var service = new RequestService(
-            flowService,
-            blob,
+            BuildFlowService(addConfig),
+            new InMemoryRequestStateBlobClient(),
+            documents,
             new RequestRepository(_fixture.CreateContext()),
             currentUser,
             NullLogger<RequestService>.Instance,
@@ -143,7 +158,7 @@ public sealed class AddRequestSubmissionTests(PostgresFixture fixture)
             Substitute.For<ICheckYourPupilDataService>(),
             new CheckingExerciseService(TimeProvider.System));
 
-        return (service, blob, flowService);
+        return (service, documents);
     }
 
     // Mints the synthetic pupil the same way JourneyController.PagePost does, from a
@@ -186,11 +201,11 @@ public sealed class AddRequestSubmissionTests(PostgresFixture fixture)
     }
 
     [Fact]
-    public async Task SubmitAdd_WritesAmendmentRow_WithAddType_AndNoQueueMessage()
+    public async Task SubmitAdd_WritesAmendmentRow_WithAddType_AndOneRulesEngineMessage()
     {
         await TruncateAsync();
         var windowId = await SeedKs4JuneWindowAsync();
-        var (service, _, _) = BuildService(LoadAddKs4JuneConfig());
+        var (service, _) = BuildService(LoadAddKs4JuneConfig());
         var journey = AddJourney(windowId, "CYPMD_KS4June_ADD0001");
 
         await service.SubmitRequestAsync(windowId, journey);
@@ -199,13 +214,15 @@ public sealed class AddRequestSubmissionTests(PostgresFixture fixture)
         var row = await ctx.ChangeRequests.SingleAsync(r => r.ReferenceNumber == "CYPMD_KS4June_ADD0001");
         Assert.Equal(RequestType.Amendment, row.RequestType);
         Assert.Equal(WhatToChange.Add, row.AmendmentType);
-        Assert.Equal(RequestStatus.SubmittedUnCommitted, row.Status);
+        Assert.Equal(RequestStatus.Submitted, row.Status);
         Assert.Equal(journey.SelectedPupil!.Id, row.PupilId);
         Assert.Equal("Alice", row.PupilFirstname);
         Assert.Equal("Newpupil", row.PupilSurname);
 
+        // #536: Add goes through the Rules Engine like every other amendment (it has a single
+        // Scrutiny rule until Add rules are written).
         var queueCount = await ctx.QueueMessages.CountAsync(m => m.QueueName == QueueOptions.RulesEngineQueue);
-        Assert.Equal(0, queueCount);
+        Assert.Equal(1, queueCount);
     }
 
     [Fact]
@@ -213,7 +230,7 @@ public sealed class AddRequestSubmissionTests(PostgresFixture fixture)
     {
         await TruncateAsync();
         var windowId = await SeedKs4JuneWindowAsync();
-        var (service, _, _) = BuildService(LoadAddKs4JuneConfig());
+        var (service, _) = BuildService(LoadAddKs4JuneConfig());
 
         var first = AddJourney(windowId, "CYPMD_KS4June_ADD0002");
         var second = AddJourney(windowId, "CYPMD_KS4June_ADD0003");
@@ -233,55 +250,68 @@ public sealed class AddRequestSubmissionTests(PostgresFixture fixture)
         Assert.Equal(2, rows.Select(r => r.PupilId).Distinct().Count());
     }
 
-    // Closing the pupil-data exercise sweeps an Add row exactly like the Remove row beside it.
-    //
-    // This INVERTS the assertion this test shipped with, which pinned the parked AB#297310 guard
-    // skipping Adds. That guard assumed an Add's downstream is the LDS egress rather than Zendesk;
-    // the egress is not designed, so there is no contract to protect and no way to know what
-    // "closed" means for an Add. AB#297310 inherits the decision.
-    //
-    // The Remove row stays in the batch as the control: it proves the sweep is running the real
-    // QuestionFlowService over the shipped configs and processing every row, not short-circuiting.
+    // Closing the pupil-data exercise sends a decided Add exactly like the decided Remove beside it
+    // (#536). Neither is sent before the Rules Engine decides it: the sweep reports both as
+    // waiting first. The Remove row is the control: it proves the sweep treats every decided
+    // amendment the same, Add included.
     [Fact]
-    public async Task ClosingPupilData_CommitsBothTheAddAndTheRemoveRow()
+    public async Task ClosingPupilData_SendsBothTheAddAndTheRemoveRow_OnceDecided()
     {
         await TruncateAsync();
         var windowId = await SeedKs4JuneWindowAsync();
-        var (service, blob, _) = BuildService(LoadAddKs4JuneConfig());
+        var (service, documents) = BuildService(LoadAddKs4JuneConfig());
 
         await service.SubmitRequestAsync(windowId, AddJourney(windowId, "CYPMD_KS4June_ADD0004"));
         await service.SubmitRequestAsync(windowId, RemoveJourney(windowId, "CYPMD_KS4June_RMV0004"));
 
-        // Baseline: the Remove submission enqueued to the rules engine, the Add one did not.
+        // Baseline: both submissions enqueued to the rules engine (#536), neither to Zendesk.
         await using (var seeded = _fixture.CreateContext())
         {
-            Assert.Equal(1, await seeded.QueueMessages.CountAsync(m => m.QueueName == QueueOptions.RulesEngineQueue));
+            Assert.Equal(2, await seeded.QueueMessages.CountAsync(m => m.QueueName == QueueOptions.RulesEngineQueue));
             Assert.Equal(0, await seeded.QueueMessages.CountAsync(m => m.QueueName == QueueOptions.ZendeskQueue));
         }
 
         var closeService = new CloseExerciseService(
             new AdminRequestsRepository(_fixture.CreateContext()),
-            blob,
-            BuildFlowService(LoadAddKs4JuneConfig()),
+            documents,
             new PostgresQueueService(_fixture.CreateContext()));
+
+        // Undecided: the sweep would send nothing and says both are waiting.
+        var waiting = await closeService.PreviewAsync(
+            windowId, CheckingExerciseType.PupilData, CancellationToken.None);
+        Assert.Equal(0, waiting.RequestsToClose);
+        Assert.Equal(2, waiting.RequestsWaiting);
+
+        // The Rules Engine decides both (what RulesConsumer writes).
+        await using (var decide = _fixture.CreateContext())
+        {
+            await decide.ChangeRequests
+                .Where(r => r.ReferenceNumber == "CYPMD_KS4June_ADD0004" || r.ReferenceNumber == "CYPMD_KS4June_RMV0004")
+                .ExecuteUpdateAsync(u => u.SetProperty(r => r.ProcessingStatus, ProcessingStatus.Decided));
+        }
 
         var preview = await closeService.PreviewAsync(
             windowId, CheckingExerciseType.PupilData, CancellationToken.None);
         Assert.Equal(2, preview.RequestsToClose);
+        Assert.Equal(0, preview.RequestsWaiting);
 
         var result = await closeService.CloseAsync(
             windowId, CheckingExerciseType.PupilData, CancellationToken.None);
 
         Assert.Equal(2, result.Enqueued);
+        Assert.Equal(0, result.Waiting);
 
         await using var ctx = _fixture.CreateContext();
         var addRow = await ctx.ChangeRequests.SingleAsync(r => r.ReferenceNumber == "CYPMD_KS4June_ADD0004");
         var removeRow = await ctx.ChangeRequests.SingleAsync(r => r.ReferenceNumber == "CYPMD_KS4June_RMV0004");
 
-        Assert.Equal(RequestStatus.SubmittedCommitted, addRow.Status);
-        Assert.Equal(RequestStatus.SubmittedCommitted, removeRow.Status);
+        // The sweep moves ProcessingStatus only; Status still says what the school did.
+        Assert.Equal(ProcessingStatus.TicketQueued, addRow.ProcessingStatus);
+        Assert.Equal(ProcessingStatus.TicketQueued, removeRow.ProcessingStatus);
+        Assert.Equal(RequestStatus.Submitted, addRow.Status);
+        Assert.Equal(RequestStatus.Submitted, removeRow.Status);
 
-        // Both references reach Zendesk, one document each.
+        // Both references reach Zendesk, one saved document each.
         var zendesk = await ctx.QueueMessages
             .Where(m => m.QueueName == QueueOptions.ZendeskQueue)
             .Select(m => m.Payload)
@@ -289,6 +319,11 @@ public sealed class AddRequestSubmissionTests(PostgresFixture fixture)
         Assert.Equal(2, zendesk.Count);
         Assert.Contains(zendesk, p => p.Contains("CYPMD_KS4June_ADD0004"));
         Assert.Contains(zendesk, p => p.Contains("CYPMD_KS4June_RMV0004"));
+
+        // A second run finds nothing left to send.
+        var again = await closeService.CloseAsync(
+            windowId, CheckingExerciseType.PupilData, CancellationToken.None);
+        Assert.Equal(0, again.Enqueued);
     }
 
     // A roll pupil going through the Remove journey — the ordinary amendment the replay is built

@@ -39,10 +39,19 @@ public sealed class CloseExerciseService(
                 ?? throw new InvalidOperationException(
                     $"No saved request document for Reference={row.ReferenceNumber}; it cannot be sent for processing.");
 
-            await queueService.EnqueueAsync(QueueOptions.ZendeskQueue, document, cancellationToken);
+            // Decided -> TicketQueued and the message, in one transaction. The mark comes first: false
+            // means another run queued it first (and counted it), so no second message is sent. The
+            // ticket maker cannot see the message before the row says TicketQueued, and a failure
+            // leaves the row Decided for the next run.
+            var queued = false;
+            await repository.ExecuteInTransactionAsync(async () =>
+            {
+                queued = await repository.MarkTicketQueuedAsync(row.ChangeRequestId, cancellationToken);
+                if (queued)
+                    await queueService.EnqueueAsync(QueueOptions.ZendeskQueue, document, cancellationToken);
+            }, cancellationToken);
 
-            // Decided -> TicketQueued. False means another run queued it first; that run counted it.
-            if (await repository.MarkTicketQueuedAsync(row.ChangeRequestId, cancellationToken))
+            if (queued)
                 enqueued++;
         }
 

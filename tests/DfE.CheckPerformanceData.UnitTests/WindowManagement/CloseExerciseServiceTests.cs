@@ -24,6 +24,8 @@ public sealed class CloseExerciseServiceTests
     public CloseExerciseServiceTests()
     {
         _repository.MarkTicketQueuedAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(true);
+        _repository.ExecuteInTransactionAsync(Arg.Any<Func<Task>>(), Arg.Any<CancellationToken>())
+            .Returns(c => c.Arg<Func<Task>>()());
         _sut = new CloseExerciseService(_repository, _documents, _queue);
     }
 
@@ -109,6 +111,46 @@ public sealed class CloseExerciseServiceTests
         var result = await _sut.CloseAsync(WindowId, Exercise, CancellationToken.None);
 
         Assert.Equal(0, result.Enqueued);
+        // The other run sent its message; a second one would only fail its claim.
+        await _queue.DidNotReceiveWithAnyArgs().EnqueueAsync<object>(default!, default!, default);
+    }
+
+    [Fact]
+    public async Task The_row_is_marked_queued_before_its_message_is_sent_in_one_transaction()
+    {
+        // The ticket maker claims only TicketQueued rows. If the message were on the queue first,
+        // it could be taken while the row still said Decided, fail its claim and be retried.
+        var row = Row("CYPMD_KS4June_AAAAAA1");
+        Decided(row);
+        var insideTransaction = false;
+        var steps = new List<string>();
+        _repository.ExecuteInTransactionAsync(Arg.Any<Func<Task>>(), Arg.Any<CancellationToken>())
+            .Returns(async c =>
+            {
+                insideTransaction = true;
+                await c.Arg<Func<Task>>()();
+                insideTransaction = false;
+            });
+        _repository.MarkTicketQueuedAsync(row.ChangeRequestId, Arg.Any<CancellationToken>())
+            .Returns(_ => { steps.Add($"mark:{insideTransaction}"); return true; });
+        _queue.EnqueueAsync(QueueOptions.ZendeskQueue, Arg.Any<RequestDocument>(), Arg.Any<CancellationToken>())
+            .Returns(_ => { steps.Add($"enqueue:{insideTransaction}"); return Guid.NewGuid(); });
+
+        await _sut.CloseAsync(WindowId, Exercise, CancellationToken.None);
+
+        Assert.Equal(["mark:True", "enqueue:True"], steps);
+    }
+
+    [Fact]
+    public async Task A_failed_send_fails_the_sweep()
+    {
+        // The transaction rolls the mark back, so the row stays Decided for the next run.
+        Decided(Row("CYPMD_KS4June_AAAAAA1"));
+        _queue.EnqueueAsync(QueueOptions.ZendeskQueue, Arg.Any<RequestDocument>(), Arg.Any<CancellationToken>())
+            .Returns<Guid>(_ => throw new InvalidOperationException("queue down"));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _sut.CloseAsync(WindowId, Exercise, CancellationToken.None));
     }
 
     [Fact]

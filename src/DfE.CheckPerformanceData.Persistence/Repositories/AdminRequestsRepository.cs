@@ -106,6 +106,23 @@ public sealed class AdminRequestsRepository(IPortalDbContext db) : IAdminRequest
             .ExecuteUpdateAsync(s => s.SetProperty(r => r.ProcessingStatus, ProcessingStatus.TicketQueued),
                 cancellationToken) == 1;
 
+    public Task ExecuteInTransactionAsync(Func<Task> work, CancellationToken cancellationToken) =>
+        db.ExecuteInTransactionAsync(async () =>
+        {
+            // A queue message added in a failed attempt stays tracked as Added. Forget it, or the
+            // retry strategy's next attempt would insert it a second time.
+            db.ChangeTracker.Clear();
+            try
+            {
+                await work();
+            }
+            catch
+            {
+                db.ChangeTracker.Clear();
+                throw;
+            }
+        }, cancellationToken);
+
     // One predicate for what the sweep sends and what it reports as waiting, so the two can never
     // describe different populations.
     private IQueryable<Entities.ChangeRequest> SubmittedAmendmentsForExercise(Guid windowId, Guid? exerciseId) =>

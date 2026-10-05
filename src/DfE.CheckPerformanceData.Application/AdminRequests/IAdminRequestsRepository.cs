@@ -45,6 +45,12 @@ public interface IAdminRequestsRepository
     Task<bool> MarkTicketQueuedAsync(Guid changeRequestId, CancellationToken cancellationToken);
 
     /// <summary>
+    /// Runs <paramref name="work"/> in one database transaction. The queue is in the same database,
+    /// so the sweep marks a row TicketQueued and puts its message on the queue together, or not at all.
+    /// </summary>
+    Task ExecuteInTransactionAsync(Func<Task> work, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Moves every InProgress / ReadyToSubmit draft belonging to one checking exercise to
     /// NotSubmitted. Returns the number of rows changed. Same exercise scoping as
     /// <see cref="GetDecidedRequestsForExerciseAsync"/>.

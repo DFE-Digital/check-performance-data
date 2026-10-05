@@ -197,6 +197,32 @@ public sealed class AdminRequestsRepositoryExerciseScopeTests(PostgresFixture fi
     }
 
     [Fact]
+    public async Task A_failed_send_rolls_back_both_the_mark_and_the_message()
+    {
+        // The close sweep marks a row TicketQueued and puts its message on the queue in one
+        // transaction. A failure after both must leave the row Decided, for the next run to send,
+        // and no message on the queue.
+        await SeedSweepStatesAsync();
+        await using var ctx = fixture.CreateContext();
+        var repository = new AdminRequestsRepository(ctx);
+        var queue = new Infrastructure.Queue.PostgresQueueService(ctx);
+        var id = (await ctx.ChangeRequests.AsNoTracking().SingleAsync(r => r.ReferenceNumber == "DECIDED")).Id;
+        const string payload = "rollback-probe-DECIDED";
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => repository.ExecuteInTransactionAsync(async () =>
+        {
+            Assert.True(await repository.MarkTicketQueuedAsync(id, CancellationToken.None));
+            await queue.EnqueueAsync(Application.Queue.QueueOptions.ZendeskQueue, payload);
+            throw new InvalidOperationException("fails after both writes");
+        }, CancellationToken.None));
+
+        await using var verify = fixture.CreateContext();
+        Assert.Equal(ProcessingStatus.Decided,
+            (await verify.ChangeRequests.SingleAsync(r => r.ReferenceNumber == "DECIDED")).ProcessingStatus);
+        Assert.False(await verify.QueueMessages.AnyAsync(m => m.Payload == payload));
+    }
+
+    [Fact]
     public async Task CountDrafts_counts_only_this_windows_drafts_for_this_exercise()
     {
         await SeedAsync();

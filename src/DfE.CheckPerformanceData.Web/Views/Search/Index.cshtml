@@ -9,9 +9,13 @@
     var scopeSuffix = scopedPages.Count == 0
         ? string.Empty
         : " in " + string.Join(", ", scopedPages.Select(p => "/" + p));
+    // The heading stays the same for a scoped search; the scoped pages are named in a comment
+    // after it for anyone reading the page source. Built from the comment-safe form of the scope,
+    // since the scope comes from the query string.
+    var scopeComment = SearchScope.ForHtmlComment(Model.Scope);
     var formAction = "/search";
 
-    // Preserves q + scope + pageSize on every pager link so the paginator survives a query
+    // Preserves q + scope + pages + pageSize on every pager link so the paginator survives a query
     // refinement or a per-page-size change without dropping the user's context. Url.Action
     // is used so a future route rename does not strand pagination URLs.
     //
@@ -23,7 +27,8 @@
     string PageUrl(int oneIndexed) => Url.Action("Index", "Search", new
     {
         q = Model.Query,
-        scope = Model.Scope,
+        scope = Model.QueryScope,
+        pages = Model.QueryPages,
         pageSize = hasExplicitPageSize ? (int?)Model.PageSize : null,
         page = oneIndexed > 1 ? (int?)oneIndexed : null,
     }) ?? "/search";
@@ -31,7 +36,11 @@
 
 <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
-        <h1 class="govuk-heading-xl">Search@(scopeSuffix)</h1>
+        <h1 class="govuk-heading-xl">@ViewData["Title"]</h1>
+        @if (scopeComment is not null)
+        {
+            @:<!-- search scope: @scopeComment -->
+        }
 
         <form class="cypmd-search" role="search" method="get" action="@formAction">
             <div class="govuk-form-group">
@@ -43,9 +52,13 @@
                 </div>
             </div>
 
-            @if (!string.IsNullOrEmpty(Model.Scope))
+            @if (!string.IsNullOrEmpty(Model.QueryPages))
             {
-                <input type="hidden" name="scope" value="@Model.Scope" />
+                <input type="hidden" name="pages" value="@Model.QueryPages" />
+            }
+            @if (!string.IsNullOrEmpty(Model.QueryScope))
+            {
+                <input type="hidden" name="scope" value="@Model.QueryScope" />
             }
         </form>
 

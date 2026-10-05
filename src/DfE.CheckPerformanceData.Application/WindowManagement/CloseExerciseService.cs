@@ -14,9 +14,9 @@ public sealed class CloseExerciseService(
     IQueueService queueService) : ICloseExerciseService
 {
     public async Task<CloseExercisePreview> PreviewAsync(
-        Guid windowId, CheckingExerciseType exercise, CancellationToken cancellationToken)
+        Guid windowId, Guid exerciseId, CancellationToken cancellationToken)
     {
-        var rows = await repository.GetRequestsForExerciseAsync(windowId, exercise, cancellationToken);
+        var rows = await repository.GetRequestsForExerciseAsync(windowId, exerciseId, cancellationToken);
 
         // Counted over the rows the sweep would ASK for, not over the rows it would succeed on: a
         // request whose journey blob has gone missing is still a request the admin is closing, and
@@ -25,14 +25,14 @@ public sealed class CloseExerciseService(
         return new CloseExercisePreview
         {
             RequestsToClose = rows.Count,
-            DraftsToCancel = await repository.CountDraftsForExerciseAsync(windowId, exercise, cancellationToken)
+            DraftsToCancel = await repository.CountDraftsForExerciseAsync(windowId, exerciseId, cancellationToken)
         };
     }
 
     public async Task<CloseExerciseResult> CloseAsync(
-        Guid windowId, CheckingExerciseType exercise, CancellationToken cancellationToken)
+        Guid windowId, Guid exerciseId, CancellationToken cancellationToken)
     {
-        var rows = await repository.GetRequestsForExerciseAsync(windowId, exercise, cancellationToken);
+        var rows = await repository.GetRequestsForExerciseAsync(windowId, exerciseId, cancellationToken);
 
         var enqueued = 0;
         foreach (var row in rows)
@@ -65,7 +65,7 @@ public sealed class CloseExerciseService(
 
         // Drafts for this exercise were never submitted: InProgress / ReadyToSubmit -> NotSubmitted.
         var draftsCancelled = await repository.MarkDraftsNotSubmittedForExerciseAsync(
-            windowId, exercise, cancellationToken);
+            windowId, exerciseId, cancellationToken);
 
         return new CloseExerciseResult { Enqueued = enqueued, DraftsCancelled = draftsCancelled };
     }

@@ -40,10 +40,20 @@ public sealed class DeleteExerciseViewModel
 
     public string CancelLink => $"/admin/windows/summary/{WindowId}";
 
+    /// <summary>Open to schools now, so Close is the way to send its requests (AB#301022).</summary>
+    public bool IsOpen { get; init; }
+
+    /// <summary>Past its end date, so "Send requests for processing" is the way (AB#301022).</summary>
+    public bool HasClosed { get; init; }
+
     /// <summary>
     /// Closing sends the exercise's submitted requests for processing, so the page offers it before
-    /// they are lost. Kind-addressed, as on the summary page: a data share has no Close.
+    /// they are lost: Close while it is open, "Send requests for processing" once it has closed,
+    /// nothing before it starts. A data share has no kind and so no requests.
     /// </summary>
-    public string? CloseLink => ExerciseType is { } type ? $"/admin/windows/{WindowId}/{type}/close" : null;
+    public string? CloseLink => ExerciseType is null ? null
+        : IsOpen ? $"/admin/windows/{WindowId}/exercises/{ExerciseId}/close"
+        : HasClosed ? $"/admin/windows/{WindowId}/exercises/{ExerciseId}/send-requests"
+        : null;
     public string FormAction => $"/admin/windows/{WindowId}/exercises/{ExerciseId}/delete";
 }

@@ -31,6 +31,19 @@ public interface ICheckingExerciseService
     bool HasClosed(IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise);
 
     /// <summary>
+    /// <see cref="IsOpen(IReadOnlyList{CheckingExerciseDto}, CheckingExerciseType)"/> for one row.
+    /// A window may hold several releases of one kind (#466), so an admin page that acts on one
+    /// exercise asks about that row, never about "any row of its kind".
+    /// </summary>
+    bool IsOpen(CheckingExerciseDto exercise);
+
+    /// <summary>
+    /// <see cref="HasClosed(IReadOnlyList{CheckingExerciseDto}, CheckingExerciseType)"/> for one
+    /// row, for the same reason as <see cref="IsOpen(CheckingExerciseDto)"/>.
+    /// </summary>
+    bool HasClosed(CheckingExerciseDto exercise);
+
+    /// <summary>
     /// Every exercise a school may act on right now, in tab order. Empty is a valid answer.
     /// Display-only rows are left out for the same reason as in <see cref="IsOpen"/>.
     /// </summary>
@@ -87,6 +100,11 @@ public sealed class CheckingExerciseService(TimeProvider timeProvider) : IChecki
         // Strictly before: Brackets() keeps the last instant open, so this must not also call it closed.
         return exercises.Any(e => e.ExerciseType == exercise && e.EndDate < now);
     }
+
+    public bool IsOpen(CheckingExerciseDto exercise) => Actionable(exercise, Now());
+
+    // Strictly before, as in the kind overload above.
+    public bool HasClosed(CheckingExerciseDto exercise) => exercise.EndDate < Now();
 
     public IReadOnlyList<CheckingExerciseType> OpenCheckingExercises(
         IReadOnlyList<CheckingExerciseDto> exercises)

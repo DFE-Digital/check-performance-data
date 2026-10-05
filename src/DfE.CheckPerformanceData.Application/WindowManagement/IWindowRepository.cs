@@ -8,6 +8,54 @@ public interface IWindowRepository
     Task<CheckingWindowDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
     Task UpdateAsync(CheckingWindowDto window, CancellationToken cancellationToken);
     Task<CheckingWindowDto> CreateAsync(CheckingWindowDto window, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// AB#301022: moves one exercise's end date to <see cref="ExerciseEarlyClosure.NewEndDate"/>,
+    /// re-derives the window's own end date, and writes the WindowAdmin / ClosedEarly audit row,
+    /// in one transaction. A compare-and-set: nothing is written unless the exercise still holds
+    /// <see cref="ExerciseEarlyClosure.ScheduledEnd"/>, the end date the caller read a moment
+    /// before when it confirmed the exercise was open. Returns whether it wrote. Whether the
+    /// exercise is open is not decided here — the caller asks
+    /// <see cref="ICheckingExerciseService"/> first; this only refuses to act on a row that changed.
+    /// </summary>
+    /// <remarks>
+    /// The guard covers the gap between that read and this write (a second admin, a second press).
+    /// It does not cover a date edit made while the confirmation page was on screen: the close
+    /// then goes ahead against the edited end date, which is what "close it now" means.
+    ///
+    /// One false negative is possible: if the commit succeeds but its acknowledgement is lost, the
+    /// execution strategy runs the delegate again, the guard no longer matches, and this returns
+    /// false for a close that happened. The caller then reports "not open" and skips the
+    /// hand-over; the summary page shows the exercise closed and offers the hand-over on its own.
+    /// </remarks>
+    Task<bool> CloseExerciseEarlyAsync(ExerciseEarlyClosure closure, CancellationToken cancellationToken);
+}
+
+/// <summary>One early closure, as the repository writes it (AB#301022).</summary>
+public sealed record ExerciseEarlyClosure
+{
+    public required Guid WindowId { get; init; }
+
+    /// <summary>The row to move. A window may hold several releases of one kind (#466).</summary>
+    public required Guid ExerciseId { get; init; }
+
+    /// <summary>The row's kind, for the audit row only.</summary>
+    public required CheckingExerciseType Exercise { get; init; }
+
+    /// <summary>The end date the exercise had when the close was confirmed (read on the POST, not when the page was rendered). The write's guard.</summary>
+    public required DateTime ScheduledEnd { get; init; }
+
+    /// <summary>The exercise's new end date: a local wall-clock value, like every exercise date.</summary>
+    public required DateTime NewEndDate { get; init; }
+
+    /// <summary>The instant of the close in UTC — the audit row's Timestamp.</summary>
+    public required DateTime ClosedAtUtc { get; init; }
+
+    /// <summary>The sign-in subject of the admin who closed it.</summary>
+    public required string UserId { get; init; }
+
+    /// <summary>Their display name. The audit log has no user directory to look a subject up in.</summary>
+    public required string ClosedByName { get; init; }
 }
 
 public class WindowDto

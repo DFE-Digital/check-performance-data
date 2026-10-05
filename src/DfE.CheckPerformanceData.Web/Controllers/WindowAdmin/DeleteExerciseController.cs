@@ -77,6 +77,8 @@ public sealed class DeleteExerciseController(
             ExerciseName = NameOf(exercise),
             KindLabel = ExerciseLabels.For(exercise.ExerciseType),
             ExerciseType = exercise.ExerciseType,
+            IsOpen = checkingExercises.IsOpen(exercise),
+            HasClosed = checkingExercises.HasClosed(exercise),
             IsVisibleToSchools =
                 checkingExercises.StatusOf(window.Exercises, exercise) != ExerciseSchoolStatus.Hidden,
             UsesExerciseStorage = exercise.UsesExerciseStorage,

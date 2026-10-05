@@ -1,5 +1,3 @@
-using DfE.CheckPerformanceData.Domain.Enums;
-
 namespace DfE.CheckPerformanceData.Application.WindowManagement;
 
 /// <summary>
@@ -10,8 +8,9 @@ namespace DfE.CheckPerformanceData.Application.WindowManagement;
 /// Replaces <c>AdminRequestsService.ProcessCloseWindowEvent</c>, which swept every OPEN window at
 /// once and so could not be driven from a per-window admin page. Two rules hold here:
 /// <list type="bullet">
-/// <item>The sweep is scoped to one window AND one exercise. A press on Pupil Data cannot reach
-/// another window's rows, another exercise's rows, or a row belonging to no exercise.</item>
+/// <item>The sweep is scoped to one window AND one exercise row, named by its id. A window may hold
+/// several releases of one kind (#466), so a type would not say which. A press cannot reach another
+/// window's rows, another exercise's rows, or a row belonging to no exercise.</item>
 /// <item>It ignores the exercise's dates. There is deliberately no <c>TimeProvider</c> — an admin
 /// may close an exercise whose end date has not passed.</item>
 /// </list>
@@ -25,13 +24,13 @@ public interface ICloseExerciseService
     /// banner reports what the close actually did rather than what this predicted.
     /// </summary>
     Task<CloseExercisePreview> PreviewAsync(
-        Guid windowId, CheckingExerciseType exercise, CancellationToken cancellationToken);
+        Guid windowId, Guid exerciseId, CancellationToken cancellationToken);
 
     /// <summary>
     /// Performs the close. Irreversible: it dispatches to an external system and commits rows.
     /// </summary>
     Task<CloseExerciseResult> CloseAsync(
-        Guid windowId, CheckingExerciseType exercise, CancellationToken cancellationToken);
+        Guid windowId, Guid exerciseId, CancellationToken cancellationToken);
 }
 
 /// <summary>Counts only — nothing is written to produce this.</summary>

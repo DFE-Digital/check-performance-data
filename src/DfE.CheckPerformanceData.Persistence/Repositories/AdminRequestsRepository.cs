@@ -54,25 +54,9 @@ public sealed class AdminRequestsRepository(IPortalDbContext db) : IAdminRequest
             .ToListAsync(cancellationToken);
     }
 
-    // Resolves a checking exercise TYPE to this window's own exercise ROW id. Two windows running
-    // the same exercise are still two different exercises, so the id is what the ChangeRequests
-    // rows are stamped with. A window with no row of that type yields null, and every query below
-    // then matches nothing — the correct empty answer.
-    private Task<Guid?> ExerciseIdAsync(
-        Guid windowId, CheckingExerciseType exercise, CancellationToken cancellationToken) =>
-        db.CheckingExercises
-            .AsNoTracking()
-            .Where(e => e.CheckingWindowId == windowId && e.ExerciseType == exercise)
-            .Select(e => (Guid?)e.Id)
-            .FirstOrDefaultAsync(cancellationToken);
-
     public async Task<IReadOnlyList<ReplayRequestRow>> GetRequestsForExerciseAsync(
-        Guid windowId, CheckingExerciseType exercise, CancellationToken cancellationToken)
+        Guid windowId, Guid exerciseId, CancellationToken cancellationToken)
     {
-        var exerciseId = await ExerciseIdAsync(windowId, exercise, cancellationToken);
-        if (exerciseId is null)
-            return [];
-
         return await db.ChangeRequests
             .AsNoTracking()
             .Where(r => r.WindowId == windowId
@@ -97,29 +81,21 @@ public sealed class AdminRequestsRepository(IPortalDbContext db) : IAdminRequest
             .ExecuteUpdateAsync(s => s.SetProperty(r => r.Status, status), cancellationToken);
 
     public async Task<int> MarkDraftsNotSubmittedForExerciseAsync(
-        Guid windowId, CheckingExerciseType exercise, CancellationToken cancellationToken)
+        Guid windowId, Guid exerciseId, CancellationToken cancellationToken)
     {
-        var exerciseId = await ExerciseIdAsync(windowId, exercise, cancellationToken);
-        if (exerciseId is null)
-            return 0;
-
         return await DraftsForExercise(windowId, exerciseId)
             .ExecuteUpdateAsync(s => s.SetProperty(r => r.Status, RequestStatus.NotSubmitted), cancellationToken);
     }
 
     public async Task<int> CountDraftsForExerciseAsync(
-        Guid windowId, CheckingExerciseType exercise, CancellationToken cancellationToken)
+        Guid windowId, Guid exerciseId, CancellationToken cancellationToken)
     {
-        var exerciseId = await ExerciseIdAsync(windowId, exercise, cancellationToken);
-        if (exerciseId is null)
-            return 0;
-
         return await DraftsForExercise(windowId, exerciseId).CountAsync(cancellationToken);
     }
 
     // One predicate for the count and the update, so the confirmation page cannot promise a
     // different number of drafts from the one the close actually cancels.
-    private IQueryable<Entities.ChangeRequest> DraftsForExercise(Guid windowId, Guid? exerciseId) =>
+    private IQueryable<Entities.ChangeRequest> DraftsForExercise(Guid windowId, Guid exerciseId) =>
         db.ChangeRequests
             .Where(r => r.WindowId == windowId
                 && r.CheckingExerciseId != null

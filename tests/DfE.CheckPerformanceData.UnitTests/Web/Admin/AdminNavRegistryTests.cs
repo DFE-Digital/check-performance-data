@@ -23,14 +23,15 @@ public sealed class AdminNavRegistryTests
 		// zone group and that browser are registered unconditionally, Reset seed data is not
 		// (includeResetSeedData defaults to false) — plus the Data egress group and its
 		// Start a new egress tile (AB#294553) and its Egress runs tile (AB#294590) — plus the
-		// Audit log root tile (AB#294592). The Create new window tile went too: a new window starts
+		// Audit log root tile (AB#294592) and the Site assets tile (#429). The Create new window tile went: a new window starts
 		// from the button on Manage windows. That left Manage windows alone in Window
 		// administration, so the group went as well.
-		Assert.Equal(32, entries.Count);
+		Assert.Equal(33, entries.Count);
 
 		var titles = entries.Select(e => e.Title).ToList();
 		Assert.Contains("Dashboard", titles);
 		Assert.Contains("Audit log", titles);
+		Assert.Contains("Site CSS and JavaScript", titles);
 		Assert.DoesNotContain("Version retention", titles);
 		Assert.Contains("Content staging import/export", titles);
 		Assert.Contains("Pages", titles);
@@ -105,11 +106,12 @@ public sealed class AdminNavRegistryTests
 		// seed-sample-pages tile (moved to the new Test data sub-group under System admin),
 		// leaving five children.
 		Assert.Equal(new[] { 10, 20, 30, 40, 60 }, cmsOrders);
-		// System administration now has five direct children: the Rules Engine sub-group (10),
-		// System settings (20), Application logs (25), Role settings (30), Test data (40).
+		// System administration now has six direct children: the Rules Engine sub-group (10),
+		// System settings (20), Application logs (25), Site CSS and JavaScript (27),
+		// Role settings (30), Test data (40).
 		// The pipeline tiles nest one level deeper under Rules Engine; the seed-sample-*
 		// tiles nest one level deeper under Test data.
-		Assert.Equal(new[] { 10, 20, 25, 30, 40 }, systemOrders);
+		Assert.Equal(new[] { 10, 20, 25, 27, 30, 40 }, systemOrders);
 
 		var rulesEngineGroupOrders = entries
 			.Where(e => e.ParentKey == "rules-engine-group")

@@ -2128,3 +2128,13 @@ dialog.seed-progress-modal {
   color: #0b0c0c;
   white-space: pre;
 }
+
+/* Monospace editor for the site CSS and JavaScript admin page. */
+.admin-code-textarea {
+  font-family: Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 16px;
+  tab-size: 2;
+  white-space: pre;
+  overflow-wrap: normal;
+  overflow-x: auto;
+}

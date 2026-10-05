@@ -364,6 +364,74 @@ public class SiteSearchServiceTests
         Assert.Empty(result.Hits);
     }
 
+    // ----- Pages named by token (?pages=) -----
+
+    private static readonly Guid Post16Id = new("00000000-cd94-4a01-8f01-0000000000a1");
+    private static readonly Guid HelpId = new("00000000-cd94-4a01-8f01-000000000003");
+
+    private void GivenLivePages() => _pageRepo.GetTreeAsync().Returns(
+    [
+        new PageNodeTreeItemDto { Id = Post16Id, Segment = "post-16", Path = "guidance/post-16", Title = "Post-16", PageType = "content" },
+        new PageNodeTreeItemDto { Id = HelpId, Segment = "help", Path = "help", Title = "Help", PageType = "content" },
+    ]);
+
+    // Tokens are looked up to the pages' current paths, and the path scope is what reaches the
+    // database, so the filtering still runs there exactly as it does for ?scope=.
+    [Fact]
+    public async Task SearchAsync_WithPageTokens_SearchesThePathsOfThosePages()
+    {
+        GivenLivePages();
+
+        var result = await _sut.SearchAsync(new SiteSearchQuery(
+            Query: "ks4",
+            IncludeContentBlocks: false,
+            PageTokens: $"{PageToken.For(Post16Id)},{PageToken.For(HelpId)}"));
+
+        await _pageRepo.Received(1).SearchPagesAsync("ks4", "guidance/post-16,help", Arg.Any<int>());
+        Assert.Equal("guidance/post-16,help", result.ScopePath);
+        Assert.Equal("guidance/post-16,help", _telemetry.LastEvent.Scope);
+    }
+
+    [Fact]
+    public async Task SearchAsync_WithPageTokensAndAScope_SearchesBoth()
+    {
+        GivenLivePages();
+
+        await _sut.SearchAsync(new SiteSearchQuery(
+            Query: "ks4",
+            ScopePath: "guidance/ks4",
+            IncludeContentBlocks: false,
+            PageTokens: PageToken.For(HelpId)));
+
+        await _pageRepo.Received(1).SearchPagesAsync("ks4", "guidance/ks4,help", Arg.Any<int>());
+    }
+
+    // Every named page has gone: the search finds nothing rather than widening to the whole site.
+    [Fact]
+    public async Task SearchAsync_WhenNoPageTokenMatchesAPage_FindsNothing()
+    {
+        GivenLivePages();
+        _blockSearch.SearchAsync("ks4", Arg.Any<int>()).Returns(new ContentBlockSearchOutcome(
+            [Block("a", "/help/dates", "A")], []));
+
+        var result = await _sut.SearchAsync(new SiteSearchQuery(Query: "ks4", PageTokens: "zzzzzzzz"));
+
+        Assert.Empty(result.Hits);
+        Assert.Equal(0, result.TotalCount);
+        Assert.Null(result.InvalidReason);
+        await _pageRepo.DidNotReceive().SearchPagesAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<int>());
+    }
+
+    [Fact]
+    public async Task SuggestAsync_WithPageTokens_SearchesThePathsOfThosePages()
+    {
+        GivenLivePages();
+
+        await _sut.SuggestAsync(new SiteSearchSuggestQuery("ks4", PageTokens: PageToken.For(Post16Id)));
+
+        await _pageRepo.Received(1).SearchPagesAsync("ks4", "guidance/post-16", Arg.Any<int>());
+    }
+
     private static PageSearchHitRaw Page(Guid id, string path, string title) => new()
     {
         PageId = id,

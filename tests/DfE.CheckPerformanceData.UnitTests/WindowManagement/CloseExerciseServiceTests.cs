@@ -22,7 +22,8 @@ public sealed class CloseExerciseServiceTests
 {
     private static readonly Guid WindowId = Guid.Parse("F34D285B-8660-4D12-9C30-787328DEAA0A");
     private static readonly Guid RowId = Guid.Parse("11111111-1111-1111-1111-111111111111");
-    private const CheckingExerciseType Exercise = CheckingExerciseType.PupilData;
+    // The sweep is addressed by the exercise's row id (#466).
+    private static readonly Guid ExerciseId = Guid.Parse("33333333-3333-3333-3333-333333333333");
 
     private readonly IAdminRequestsRepository _repository = Substitute.For<IAdminRequestsRepository>();
     private readonly IRequestStateBlobClient _stateBlob = Substitute.For<IRequestStateBlobClient>();
@@ -78,7 +79,7 @@ public sealed class CloseExerciseServiceTests
 
     private void Seed(params (ReplayRequestRow Row, WhatToChange Change)[] rows)
     {
-        _repository.GetRequestsForExerciseAsync(WindowId, Exercise, Arg.Any<CancellationToken>())
+        _repository.GetRequestsForExerciseAsync(WindowId, ExerciseId, Arg.Any<CancellationToken>())
             .Returns(rows.Select(r => r.Row).ToList());
         foreach (var (row, change) in rows)
             _stateBlob.GetAsync(WindowId, row.ReferenceNumber).Returns(Journey(change));
@@ -89,7 +90,7 @@ public sealed class CloseExerciseServiceTests
     {
         Seed((Row(RowId, "CYPMD_KS4June_AAAAAA1"), WhatToChange.Remove));
 
-        var result = await _sut.CloseAsync(WindowId, Exercise, CancellationToken.None);
+        var result = await _sut.CloseAsync(WindowId, ExerciseId, CancellationToken.None);
 
         Assert.Equal(1, result.Enqueued);
         await _queueService.Received(1).EnqueueAsync(
@@ -105,12 +106,12 @@ public sealed class CloseExerciseServiceTests
         // or another exercise's rows in this window.
         Seed();
 
-        await _sut.CloseAsync(WindowId, Exercise, CancellationToken.None);
+        await _sut.CloseAsync(WindowId, ExerciseId, CancellationToken.None);
 
         await _repository.Received(1).GetRequestsForExerciseAsync(
-            WindowId, Exercise, Arg.Any<CancellationToken>());
+            WindowId, ExerciseId, Arg.Any<CancellationToken>());
         await _repository.Received(1).MarkDraftsNotSubmittedForExerciseAsync(
-            WindowId, Exercise, Arg.Any<CancellationToken>());
+            WindowId, ExerciseId, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -118,9 +119,9 @@ public sealed class CloseExerciseServiceTests
     {
         Seed();
         _repository.MarkDraftsNotSubmittedForExerciseAsync(
-            WindowId, Exercise, Arg.Any<CancellationToken>()).Returns(3);
+            WindowId, ExerciseId, Arg.Any<CancellationToken>()).Returns(3);
 
-        var result = await _sut.CloseAsync(WindowId, Exercise, CancellationToken.None);
+        var result = await _sut.CloseAsync(WindowId, ExerciseId, CancellationToken.None);
 
         Assert.Equal(3, result.DraftsCancelled);
     }
@@ -129,12 +130,12 @@ public sealed class CloseExerciseServiceTests
     public async Task A_row_with_no_request_state_blob_is_skipped_without_stopping_the_sweep()
     {
         var orphanId = Guid.Parse("44444444-4444-4444-4444-444444444444");
-        _repository.GetRequestsForExerciseAsync(WindowId, Exercise, Arg.Any<CancellationToken>())
+        _repository.GetRequestsForExerciseAsync(WindowId, ExerciseId, Arg.Any<CancellationToken>())
             .Returns([Row(orphanId, "CYPMD_KS4June_MISSING"), Row(RowId, "CYPMD_KS4June_AAAAAA1")]);
         _stateBlob.GetAsync(WindowId, "CYPMD_KS4June_MISSING").Returns((RequestState?)null);
         _stateBlob.GetAsync(WindowId, "CYPMD_KS4June_AAAAAA1").Returns(Journey(WhatToChange.Remove));
 
-        var result = await _sut.CloseAsync(WindowId, Exercise, CancellationToken.None);
+        var result = await _sut.CloseAsync(WindowId, ExerciseId, CancellationToken.None);
 
         Assert.Equal(1, result.Enqueued);
         await _repository.DidNotReceive().SetStatusAsync(
@@ -149,7 +150,7 @@ public sealed class CloseExerciseServiceTests
         // back in, this window (open until 2026-06-30) would stop being swept.
         Seed((Row(RowId, "CYPMD_KS4June_AAAAAA1"), WhatToChange.Remove));
 
-        var result = await _sut.CloseAsync(WindowId, Exercise, CancellationToken.None);
+        var result = await _sut.CloseAsync(WindowId, ExerciseId, CancellationToken.None);
 
         Assert.Equal(1, result.Enqueued);
     }
@@ -160,9 +161,9 @@ public sealed class CloseExerciseServiceTests
         Seed(
             (Row(RowId, "CYPMD_KS4June_AAAAAA1"), WhatToChange.Remove),
             (Row(Guid.NewGuid(), "CYPMD_KS4June_AAAAAA2"), WhatToChange.Include));
-        _repository.CountDraftsForExerciseAsync(WindowId, Exercise, Arg.Any<CancellationToken>()).Returns(2);
+        _repository.CountDraftsForExerciseAsync(WindowId, ExerciseId, Arg.Any<CancellationToken>()).Returns(2);
 
-        var preview = await _sut.PreviewAsync(WindowId, Exercise, CancellationToken.None);
+        var preview = await _sut.PreviewAsync(WindowId, ExerciseId, CancellationToken.None);
 
         Assert.Equal(2, preview.RequestsToClose);
         Assert.Equal(2, preview.DraftsToCancel);

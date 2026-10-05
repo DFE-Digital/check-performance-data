@@ -107,7 +107,7 @@ else
             Submitted requests that have not been sent for processing are lost.
             @if (Model.CloseLink is { } closeLink)
             {
-                @:To send them first, <a class="govuk-link" href="@closeLink">close this exercise</a> before you delete it.
+                @:To send them first, <a class="govuk-link" href="@closeLink">@(Model.IsOpen ? "close this exercise" : "send its requests for processing")</a> before you delete it.
             }
         </p>
     }

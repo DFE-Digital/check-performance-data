@@ -46,6 +46,13 @@ public sealed class AdminSettingsController(ISettingService settings) : Controll
             // Boolean settings render as a checkbox, which only posts a value when ticked.
             // An absent boolValue therefore means unticked, which must persist "false".
             var definition = SettingDefinitions.Find(key);
+            if (definition?.ManagedElsewhere == true)
+            {
+                // Has its own admin page and its own permission; this form must not be a way round it.
+                TempData["SettingsError"] = $"'{key}' is edited on its own page.";
+                return Redirect("/admin/settings");
+            }
+
             var effectiveValue = definition?.Kind == SettingKind.Bool
                 ? (string.Equals(boolValue, "true", StringComparison.OrdinalIgnoreCase) ? "true" : "false")
                 : value;

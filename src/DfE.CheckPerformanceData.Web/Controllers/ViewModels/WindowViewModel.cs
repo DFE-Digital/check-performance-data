@@ -132,14 +132,30 @@ public sealed class ExerciseSummarySection
     /// use to validate, since it has no kind to name in the kind-addressed route.</summary>
     public string ValidateLink => $"/admin/windows/{WindowId}/exercises/{Id}/validate";
 
-    // No IsValidatable-style gate beside this one: closing works regardless of the exercise's dates
-    // and regardless of whether its files ever validated. It is an admin decision, not a
-    // consequence of the clock — see ICloseExerciseService.
+    /// <summary>
+    /// Open to schools right now, from <c>ICheckingExerciseService.IsOpen</c> for this row
+    /// (AB#301022). The page offers Close only while this is true.
+    /// </summary>
+    public bool IsOpen { get; init; }
+
+    /// <summary>
+    /// Past its end date, from <c>ICheckingExerciseService.HasClosed</c> for this row — whether it
+    /// ran to its scheduled end or was closed early. Not the same as <c>!IsOpen</c>: an exercise
+    /// that has not started is neither. The page offers "Send requests for processing" only while
+    /// this is true.
+    /// </summary>
+    public bool HasClosed { get; init; }
+
+    // Closing does not depend on the exercise's files or on whether they ever validated: it is an
+    // admin decision about an exercise schools can currently use.
     //
-    // Kind-addressed still: closing replays ChangeRequests, which are only ever routed to a kind
-    // via WhatToChangeCheckingExerciseMap, so a display-only exercise (no kind) can hold none to
-    // close. The view renders this action only when ExerciseType is not null.
-    public string CloseLink => $"/admin/windows/{WindowId}/{ExerciseType}/close";
+    // Both are addressed by exercise id, as Validate is: a window may hold several releases of one
+    // kind (#466). The view still renders them only when ExerciseType is not null: a change request
+    // only reaches an exercise through WhatToChangeCheckingExerciseMap, which maps kinds, so a
+    // display-only exercise (no kind) can hold none to send.
+    public string CloseLink => $"/admin/windows/{WindowId}/exercises/{Id}/close";
+
+    public string SendRequestsLink => $"/admin/windows/{WindowId}/exercises/{Id}/send-requests";
 
     // Every REQUIRED dataset must have both files — a Post16 pupil-data exercise is not validatable
     // until both the included and non-included CSV/schema pairs are chosen, because they ingest in

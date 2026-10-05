@@ -92,6 +92,7 @@ public class DeleteExerciseControllerTests
         GivenTheWindow(submitted: 3);
         _checkingExercises.StatusOf(Arg.Any<IReadOnlyList<CheckingExerciseDto>>(), Arg.Any<CheckingExerciseDto>())
             .Returns(ExerciseSchoolStatus.Visible);
+        _checkingExercises.IsOpen(Arg.Any<CheckingExerciseDto>()).Returns(true);
 
         var view = Assert.IsType<ViewResult>(await Build().Confirm(WindowId, PupilDataId, CancellationToken.None));
         var model = Assert.IsType<DeleteExerciseViewModel>(view.Model);
@@ -101,8 +102,32 @@ public class DeleteExerciseControllerTests
         Assert.True(model.IsVisibleToSchools);
         Assert.False(model.IsLastExercise);
         Assert.Equal(["Summary"], model.ReplacedBy);
-        Assert.Equal($"/admin/windows/{WindowId}/PupilData/close", model.CloseLink);
+        Assert.Equal($"/admin/windows/{WindowId}/exercises/{PupilDataId}/close", model.CloseLink);
         await _deleteService.DidNotReceiveWithAnyArgs().DeleteAsync(default, default, default);
+    }
+
+    [Fact]
+    public async Task A_closed_exercise_offers_to_send_its_requests_instead_of_close()
+    {
+        // AB#301022: Close only acts on an open exercise. Once it has closed, the requests are
+        // sent from their own page.
+        GivenTheWindow(submitted: 3);
+        _checkingExercises.HasClosed(Arg.Any<CheckingExerciseDto>()).Returns(true);
+
+        var view = Assert.IsType<ViewResult>(await Build().Confirm(WindowId, PupilDataId, CancellationToken.None));
+
+        Assert.Equal($"/admin/windows/{WindowId}/exercises/{PupilDataId}/send-requests",
+            Assert.IsType<DeleteExerciseViewModel>(view.Model).CloseLink);
+    }
+
+    [Fact]
+    public async Task An_exercise_that_has_not_started_offers_neither()
+    {
+        GivenTheWindow();
+
+        var view = Assert.IsType<ViewResult>(await Build().Confirm(WindowId, PupilDataId, CancellationToken.None));
+
+        Assert.Null(Assert.IsType<DeleteExerciseViewModel>(view.Model).CloseLink);
     }
 
     [Fact]

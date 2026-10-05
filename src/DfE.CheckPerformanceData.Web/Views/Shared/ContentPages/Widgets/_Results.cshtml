@@ -6,7 +6,10 @@
 @inject ISettingService SettingService
 @{
     // --- Editor-configured props ---
+    // The pages the widget is limited to: stored by id and searched by token, plus any paths a
+    // widget saved before ids were stored still holds.
     var widgetScope = SearchScope.Normalise(Model.GetString("scope")) ?? string.Empty;
+    var widgetPages = ScopePageIds.ToPageTokens(Model.GetString("scopePageIds")) ?? string.Empty;
     var emptyText   = Model.GetString("emptyText") ?? "No results found.";
 
     // --- URL params ---
@@ -16,6 +19,7 @@
     var query = ViewContext.HttpContext.Request.Query;
     var q         = query.TryGetValue("q", out var qv)      ? qv.ToString().Trim() : string.Empty;
     var urlScope  = query.TryGetValue("scope", out var sv)  ? SearchScope.Normalise(sv.ToString()) ?? string.Empty : string.Empty;
+    var urlPages  = query.TryGetValue("pages", out var tv)  ? PageToken.Normalise(tv.ToString()) ?? string.Empty : string.Empty;
     var pageOneIx = query.TryGetValue("page", out var pv) && int.TryParse(pv, out var pp) && pp >= 1
         ? pp : 1;
 
@@ -27,9 +31,12 @@
         if (q.Length > 100) q = q[..100];
     }
 
-    // URL scope wins over widget-configured scope so a site-wide entry point can override
-    // a section widget; the widget's own scope is authoritative for direct visits.
-    var effectiveScope = !string.IsNullOrEmpty(urlScope) ? urlScope : widgetScope;
+    // Pages named on the URL (?pages= or ?scope=, or both) win over the widget's own pages so a
+    // site-wide entry point can override a section widget; the widget's own pages are
+    // authoritative for direct visits.
+    var urlNamesPages  = !string.IsNullOrEmpty(urlScope) || !string.IsNullOrEmpty(urlPages);
+    var effectiveScope = urlNamesPages ? urlScope : widgetScope;
+    var effectivePages = urlNamesPages ? urlPages : widgetPages;
 
     // --- Page size resolution ---
     // ?pageSize on the URL is untrusted per-request input and clamped to [10, 50] as an
@@ -57,16 +64,18 @@
                 q,
                 ScopePath: string.IsNullOrEmpty(effectiveScope) ? null : effectiveScope,
                 Page: pageOneIx,
-                PageSize: pageSize));
+                PageSize: pageSize,
+                PageTokens: string.IsNullOrEmpty(effectivePages) ? null : effectivePages));
     }
 
-    // --- Pagination URL builder: preserves q + urlScope + pageSize, sets ?page=N. ---
+    // --- Pagination URL builder: preserves q + urlScope + urlPages + pageSize, sets ?page=N. ---
     string PageUrl(int oneIndexed)
     {
         var path = ViewContext.HttpContext.Request.Path.Value ?? "/";
         var parts = new List<string>();
         if (!string.IsNullOrEmpty(q))         parts.Add($"q={Uri.EscapeDataString(q)}");
         if (!string.IsNullOrEmpty(urlScope))  parts.Add($"scope={Uri.EscapeDataString(urlScope)}");
+        if (!string.IsNullOrEmpty(urlPages))  parts.Add($"pages={Uri.EscapeDataString(urlPages)}");
         if (pageSizeOverride is not null)     parts.Add($"pageSize={pageSize}");
         if (oneIndexed > 1)                    parts.Add($"page={oneIndexed}");
         return parts.Count == 0 ? path : $"{path}?{string.Join("&", parts)}";

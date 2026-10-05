@@ -40,6 +40,7 @@ public static class DependencyManager
         services.AddScoped<ContentStaging.ContentBundleSanitiser>();
         services.AddScoped<IHtmlRenderingService, HtmlRenderingService>();
         services.AddScoped<Settings.ISettingService, Settings.SettingService>();
+        services.AddScoped<SiteAssets.ISiteAssetService, SiteAssets.SiteAssetService>();
         services.AddScoped<ILandingPageService, LandingPageService>();
         services.AddScoped<IWindowService, WindowService>();
         // #315: the single place that compares an exercise's dates against the clock. Nothing else
@@ -94,6 +95,9 @@ services.AddScoped<IJourneyCondition, SchoolIsNotIndependentCondition>();
         services.AddScoped<WindowManagement.ICloseExerciseService, WindowManagement.CloseExerciseService>();
         services.AddScoped<WindowManagement.IDeleteWindowService, WindowManagement.DeleteWindowService>();
         services.AddScoped<WindowManagement.IDeleteExerciseService, WindowManagement.DeleteExerciseService>();
+        // AB#301022: ends an open exercise before its scheduled end. The admin Close action runs
+        // this, then ICloseExerciseService above.
+        services.AddScoped<WindowManagement.IExerciseEarlyClosureService, WindowManagement.ExerciseEarlyClosureService>();
         // AB#296648: the single derivation of "the second late results file has landed".
         services.AddScoped<ResultsEnquiry.ILateResultsWarning, ResultsEnquiry.LateResultsWarning>();
 

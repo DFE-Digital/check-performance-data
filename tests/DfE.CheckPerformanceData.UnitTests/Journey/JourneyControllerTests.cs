@@ -15,7 +15,10 @@ using DfE.CheckPerformanceData.Web.Session;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Primitives;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Abstractions;
+using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
+using Microsoft.AspNetCore.Routing;
 using NSubstitute;
 using DfE.CheckPerformanceData.Application.UnitTests.WindowManagement;
 // Alias, not a namespace import: WindowManagement also declares a CheckingWindowDto and this
@@ -2406,6 +2409,128 @@ public class JourneyControllerTests
     private sealed class TestSessionFeature(ISession session) : ISessionFeature
     {
         public ISession Session { get; set; } = session;
+    }
+
+    // ── AB#301022: an early close reaches a journey already under way ────────
+
+    // What the database holds once an admin has closed pupil data checking early: the exercise's
+    // end date is in the past, where the journey's own snapshot (ValidSession) still has it open.
+    private static readonly DateTime ClosedEarlyAt = new(2026, 9, 3, 10, 38, 59);
+
+    private void TheWindowIsNowClosedEarly() =>
+        _pupilDataService.GetCheckingWindowAsync(WindowId).Returns(new CheckingWindowDto
+        {
+            Title = "Test Window",
+            KeyStage = KeyStages.KS4,
+            CheckingWindowType = CheckingWindowType.KS4June,
+            StartDate = new DateTime(2026, 7, 19),
+            EndDate = ClosedEarlyAt,
+            Exercises =
+            [
+                new DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseDto
+                {
+                    ExerciseType = CheckingExerciseType.PupilData,
+                    StartDate = new DateTime(2026, 7, 19),
+                    EndDate = ClosedEarlyAt,
+                    TabOrder = 0
+                }
+            ]
+        });
+
+    [Fact]
+    public async Task RefreshCheckingWindow_ReplacesTheJourneysSnapshotWithTheWindowAsItIsNow()
+    {
+        SetupSession(ValidSession(history: ["page-1"]));
+        TheWindowIsNowClosedEarly();
+
+        await _sut.RefreshCheckingWindowAsync(WindowId);
+
+        var journey = _session.GetRequestState(WindowId);
+        Assert.Equal(ClosedEarlyAt, journey.CheckingWindow!.EndDate);
+        Assert.Equal(ClosedEarlyAt, Assert.Single(journey.CheckingWindow.Exercises).EndDate);
+        // Nothing else about the journey is touched.
+        Assert.Equal(WhatToChange.Remove, journey.SelectedWhatToChange);
+        Assert.Equal(new[] { "page-1" }, journey.QuestionHistory);
+    }
+
+    [Fact]
+    public async Task RefreshCheckingWindow_WhenNoJourneyHasStarted_ReadsNothing()
+    {
+        // No snapshot to refresh, so no query: a stray journey URL costs the database nothing.
+        SetupSession(new RequestState());
+
+        await _sut.RefreshCheckingWindowAsync(WindowId);
+
+        await _pupilDataService.DidNotReceiveWithAnyArgs().GetCheckingWindowAsync(default);
+        Assert.Null(_session.GetRequestState(WindowId).CheckingWindow);
+    }
+
+    [Fact]
+    public async Task OnActionExecution_RefreshesTheSnapshotBeforeTheActionRuns()
+    {
+        // Every journey route carries {windowId}; the refresh happens ahead of the action, so the
+        // action's own gate reads the refreshed dates.
+        SetupSession(ValidSession(history: ["page-1"]));
+        TheWindowIsNowClosedEarly();
+
+        var actionContext = new ActionContext(_httpContext, new RouteData(), new ActionDescriptor());
+        actionContext.RouteData.Values["windowId"] = WindowId.ToString();
+        var executing = new ActionExecutingContext(
+            actionContext, new List<IFilterMetadata>(), new Dictionary<string, object?>(), _sut);
+
+        DateTime? endDateSeenByTheAction = null;
+        await _sut.OnActionExecutionAsync(executing, () =>
+        {
+            endDateSeenByTheAction = _session.GetRequestState(WindowId).CheckingWindow!.EndDate;
+            return Task.FromResult(new ActionExecutedContext(actionContext, new List<IFilterMetadata>(), _sut));
+        });
+
+        Assert.Equal(ClosedEarlyAt, endDateSeenByTheAction);
+    }
+
+    [Fact]
+    public async Task Page_AfterAnEarlyClose_IsRejectedOnceTheSnapshotIsRefreshed()
+    {
+        // AC6, the two halves together. The exercise service here answers from the rows it is
+        // GIVEN, as the real one does: open while an exercise's end date is still ahead.
+        var now = new DateTime(2026, 9, 3, 10, 39, 0);
+        _checkingExercises.IsOpen(default!, default).ReturnsForAnyArgs(ci =>
+            ci.ArgAt<IReadOnlyList<DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseDto>>(0)
+                .Any(e => e.ExerciseType == ci.ArgAt<CheckingExerciseType>(1) && e.EndDate >= now));
+
+        var stillOpenInTheSnapshot = ValidSession(history: ["page-1"]);
+        stillOpenInTheSnapshot.CheckingWindow = new CheckingWindowDto
+        {
+            Title = "Test Window",
+            KeyStage = KeyStages.KS4,
+            CheckingWindowType = CheckingWindowType.KS4June,
+            StartDate = new DateTime(2026, 7, 19),
+            EndDate = new DateTime(2027, 8, 2, 17, 0, 0),
+            Exercises =
+            [
+                new DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseDto
+                {
+                    ExerciseType = CheckingExerciseType.PupilData,
+                    StartDate = new DateTime(2026, 7, 19),
+                    EndDate = new DateTime(2027, 8, 2, 17, 0, 0),
+                    TabOrder = 0
+                }
+            ]
+        };
+        SetupSession(stillOpenInTheSnapshot);
+        TheWindowIsNowClosedEarly();
+
+        // Before the refresh the stale snapshot lets the journey through...
+        Assert.IsNotType<RedirectToActionResult>(await _sut.Page(WindowId, "page-1"));
+
+        await _sut.RefreshCheckingWindowAsync(WindowId);
+
+        // ...and after it the same request is turned away with the closed-exercise message.
+        var redirect = Assert.IsType<RedirectToActionResult>(await _sut.Page(WindowId, "page-1"));
+        Assert.Equal("CheckYourPupilData", redirect.ControllerName);
+        Assert.Equal(
+            ClosedExerciseGuard.MessageFor(CheckingExerciseType.PupilData, LearnerNoun.Pupil),
+            _sut.TempData[ClosedExerciseGuard.TempDataKey]);
     }
 
     // ── #318: the closed-exercise gate ───────────────────────────────────────

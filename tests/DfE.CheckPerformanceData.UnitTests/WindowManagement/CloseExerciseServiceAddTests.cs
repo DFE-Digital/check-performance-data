@@ -27,7 +27,8 @@ public sealed class CloseExerciseServiceAddTests
     private static readonly Guid WindowId = Guid.Parse("F34D285B-8660-4D12-9C30-787328DEAA0A");
     private static readonly Guid AmendmentRowId = Guid.Parse("11111111-1111-1111-1111-111111111111");
     private static readonly Guid AddRowId = Guid.Parse("22222222-2222-2222-2222-222222222222");
-    private const CheckingExerciseType Exercise = CheckingExerciseType.PupilData;
+    // The sweep is addressed by the exercise's row id (#466).
+    private static readonly Guid ExerciseId = Guid.Parse("33333333-3333-3333-3333-333333333333");
 
     private readonly IAdminRequestsRepository _repository = Substitute.For<IAdminRequestsRepository>();
     private readonly IRequestStateBlobClient _stateBlob = Substitute.For<IRequestStateBlobClient>();
@@ -83,7 +84,7 @@ public sealed class CloseExerciseServiceAddTests
 
     private void Seed(params (ReplayRequestRow Row, WhatToChange Change)[] rows)
     {
-        _repository.GetRequestsForExerciseAsync(WindowId, Exercise, Arg.Any<CancellationToken>())
+        _repository.GetRequestsForExerciseAsync(WindowId, ExerciseId, Arg.Any<CancellationToken>())
             .Returns(rows.Select(r => r.Row).ToList());
         foreach (var (row, change) in rows)
             _stateBlob.GetAsync(WindowId, row.ReferenceNumber).Returns(Journey(change));
@@ -94,7 +95,7 @@ public sealed class CloseExerciseServiceAddTests
     {
         Seed((Row(AddRowId, "CYPMD_KS4June_BBBBBB2"), WhatToChange.Add));
 
-        var result = await _sut.CloseAsync(WindowId, Exercise, CancellationToken.None);
+        var result = await _sut.CloseAsync(WindowId, ExerciseId, CancellationToken.None);
 
         Assert.Equal(1, result.Enqueued);
         await _queueService.Received(1).EnqueueAsync(
@@ -106,7 +107,7 @@ public sealed class CloseExerciseServiceAddTests
     {
         Seed((Row(AddRowId, "CYPMD_KS4June_BBBBBB2"), WhatToChange.Add));
 
-        await _sut.CloseAsync(WindowId, Exercise, CancellationToken.None);
+        await _sut.CloseAsync(WindowId, ExerciseId, CancellationToken.None);
 
         await _repository.Received(1).SetStatusAsync(
             AddRowId, RequestStatus.SubmittedCommitted, Arg.Any<CancellationToken>());
@@ -119,7 +120,7 @@ public sealed class CloseExerciseServiceAddTests
             (Row(AmendmentRowId, "CYPMD_KS4June_AAAAAA1"), WhatToChange.Remove),
             (Row(AddRowId, "CYPMD_KS4June_BBBBBB2"), WhatToChange.Add));
 
-        var result = await _sut.CloseAsync(WindowId, Exercise, CancellationToken.None);
+        var result = await _sut.CloseAsync(WindowId, ExerciseId, CancellationToken.None);
 
         Assert.Equal(2, result.Enqueued);
         await _repository.Received(1).SetStatusAsync(

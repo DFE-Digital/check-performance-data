@@ -10,7 +10,8 @@
 
 <h1 class="govuk-heading-xl">@Model.Title</h1>
 
-@* Outcome of a close, stashed by CloseExerciseController. Quotes what the sweep actually did. *@
+@* Outcome of a close or of a hand-over, stashed by CloseExerciseController or
+   SendExerciseRequestsController. Quotes what actually happened. *@
 @if (TempData[DfE.CheckPerformanceData.Web.Controllers.WindowAdmin.CloseExerciseController.TempDataKey] is string closeOutcome)
 {
   <div class="govuk-notification-banner govuk-notification-banner--success" role="alert"
@@ -34,6 +35,21 @@
     </div>
     <div class="govuk-notification-banner__content">
       <p class="govuk-notification-banner__heading">@deleteOutcome</p>
+    </div>
+  </div>
+}
+
+@* AB#301022: a close or hand-over that was refused — the exercise was not in the state the action
+   needs. Neutral, not an error: nothing the admin typed was wrong. *@
+@if (TempData[DfE.CheckPerformanceData.Web.Controllers.WindowAdmin.SendExerciseRequestsController.RefusedTempDataKey] is string closeRefused)
+{
+  <div class="govuk-notification-banner" role="region"
+       aria-labelledby="close-refused-title" data-module="govuk-notification-banner">
+    <div class="govuk-notification-banner__header">
+      <h2 class="govuk-notification-banner__title" id="close-refused-title">Important</h2>
+    </div>
+    <div class="govuk-notification-banner__content">
+      <p class="govuk-notification-banner__heading">@closeRefused</p>
     </div>
   </div>
 }
@@ -219,12 +235,23 @@
           Validate<span class="govuk-visually-hidden"> @exercise.Name</span>
         </govuk-button-link>
 
-        @* Kind-addressed, so only shown when this exercise has a kind: closing replays ChangeRequests,
-           which are only ever routed to a kind, so a display-only exercise can hold none to close. *@
-        @if (exercise.ExerciseType is not null)
+        @* Only for an exercise with a kind: a change request only reaches an exercise through
+           WhatToChangeCheckingExerciseMap, which maps kinds, so a data share has none to send.
+           AB#301022: Close is offered only while schools can still use the exercise, and it does
+           not depend on the exercise having ingress files. *@
+        @if (exercise.ExerciseType is not null && exercise.IsOpen)
         {
           <govuk-button-link class="govuk-button--warning" href="@exercise.CloseLink">
             Close<span class="govuk-visually-hidden"> @exercise.Name</span>
+          </govuk-button-link>
+        }
+
+        @* Once an exercise has closed — early or on schedule — its requests can still be handed
+           over. Nothing does that automatically at a scheduled end. *@
+        @if (exercise.ExerciseType is not null && exercise.HasClosed)
+        {
+          <govuk-button-link class="govuk-button--warning" href="@exercise.SendRequestsLink">
+            Send requests for processing<span class="govuk-visually-hidden"> for @exercise.Name</span>
           </govuk-button-link>
         }
       </div>

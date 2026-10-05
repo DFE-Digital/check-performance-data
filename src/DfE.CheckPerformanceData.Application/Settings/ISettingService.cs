@@ -11,4 +11,6 @@ public interface ISettingService
     Task<double> GetDoubleAsync(string key);
     Task<bool> GetBoolAsync(string key);
     Task SaveAsync(string key, string? value);
+    // Writes all of the values or none of them.
+    Task SaveManyAsync(IReadOnlyDictionary<string, string?> values);
 }

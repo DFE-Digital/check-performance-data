@@ -266,11 +266,11 @@ public sealed class AddRequestSubmissionTests(PostgresFixture fixture)
             new PostgresQueueService(_fixture.CreateContext()));
 
         var preview = await closeService.PreviewAsync(
-            windowId, CheckingExerciseType.PupilData, CancellationToken.None);
+            windowId, PupilDataExerciseId(windowId), CancellationToken.None);
         Assert.Equal(2, preview.RequestsToClose);
 
         var result = await closeService.CloseAsync(
-            windowId, CheckingExerciseType.PupilData, CancellationToken.None);
+            windowId, PupilDataExerciseId(windowId), CancellationToken.None);
 
         Assert.Equal(2, result.Enqueued);
 

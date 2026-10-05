@@ -32,6 +32,10 @@ public sealed class CloseExerciseServiceEnquiryGuardTests
     private static readonly Guid AmendmentRowId = Guid.Parse("11111111-1111-1111-1111-111111111111");
     private static readonly Guid EnquiryRowId = Guid.Parse("22222222-2222-2222-2222-222222222222");
 
+    // The sweep is addressed by the exercise's row id (#466); these name the window's two rows.
+    private static readonly Guid PupilDataExerciseId = Guid.Parse("33333333-3333-3333-3333-333333333333");
+    private static readonly Guid EnquiryExerciseId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+
     private readonly IAdminRequestsRepository _repository = Substitute.For<IAdminRequestsRepository>();
     private readonly IRequestStateBlobClient _stateBlob = Substitute.For<IRequestStateBlobClient>();
     private readonly IQuestionFlowService _flowService = Substitute.For<IQuestionFlowService>();
@@ -107,7 +111,7 @@ public sealed class CloseExerciseServiceEnquiryGuardTests
         QuestionHistory = ["page-1"]
     };
 
-    private void Seed(CheckingExerciseType exercise, params (ReplayRequestRow Row, WhatToChange Change)[] rows)
+    private void Seed(Guid exercise, params (ReplayRequestRow Row, WhatToChange Change)[] rows)
     {
         _repository.GetRequestsForExerciseAsync(WindowId, exercise, Arg.Any<CancellationToken>())
             .Returns(rows.Select(r => r.Row).ToList());
@@ -119,10 +123,10 @@ public sealed class CloseExerciseServiceEnquiryGuardTests
     [MemberData(nameof(EnquiryKinds))]
     public async Task Closing_the_results_enquiry_exercise_enqueues_nothing(WhatToChange enquiry)
     {
-        Seed(CheckingExerciseType.ResultsEnquiry, (Row(EnquiryRowId, "CYPMD_16to19_RE_BBBBBB2"), enquiry));
+        Seed(EnquiryExerciseId, (Row(EnquiryRowId, "CYPMD_16to19_RE_BBBBBB2"), enquiry));
 
         var result = await _sut.CloseAsync(
-            WindowId, CheckingExerciseType.ResultsEnquiry, CancellationToken.None);
+            WindowId, EnquiryExerciseId, CancellationToken.None);
 
         Assert.Equal(0, result.Enqueued);
         await _queueService.DidNotReceiveWithAnyArgs()
@@ -135,9 +139,9 @@ public sealed class CloseExerciseServiceEnquiryGuardTests
     {
         // The important half: committing it would hide the enquiry from the dispatch that is
         // supposed to send it.
-        Seed(CheckingExerciseType.ResultsEnquiry, (Row(EnquiryRowId, "CYPMD_16to19_RE_BBBBBB2"), enquiry));
+        Seed(EnquiryExerciseId, (Row(EnquiryRowId, "CYPMD_16to19_RE_BBBBBB2"), enquiry));
 
-        await _sut.CloseAsync(WindowId, CheckingExerciseType.ResultsEnquiry, CancellationToken.None);
+        await _sut.CloseAsync(WindowId, EnquiryExerciseId, CancellationToken.None);
 
         await _repository.DidNotReceive().SetStatusAsync(
             EnquiryRowId, Arg.Any<RequestStatus>(), Arg.Any<CancellationToken>());
@@ -148,13 +152,13 @@ public sealed class CloseExerciseServiceEnquiryGuardTests
     {
         // The guard skips the replay, not the rest of the close. A school's abandoned enquiry draft
         // must not survive the exercise it belongs to.
-        Seed(CheckingExerciseType.ResultsEnquiry,
+        Seed(EnquiryExerciseId,
             (Row(EnquiryRowId, "CYPMD_16to19_RE_BBBBBB2"), WhatToChange.IncorrectGrade));
 
-        await _sut.CloseAsync(WindowId, CheckingExerciseType.ResultsEnquiry, CancellationToken.None);
+        await _sut.CloseAsync(WindowId, EnquiryExerciseId, CancellationToken.None);
 
         await _repository.Received(1).MarkDraftsNotSubmittedForExerciseAsync(
-            WindowId, CheckingExerciseType.ResultsEnquiry, Arg.Any<CancellationToken>());
+            WindowId, EnquiryExerciseId, Arg.Any<CancellationToken>());
     }
 
     [Theory]
@@ -164,11 +168,11 @@ public sealed class CloseExerciseServiceEnquiryGuardTests
         // Belt and braces. Rows are filtered by exercise, so this should not arise — but the guard
         // keys on the journey's own WhatToChange, so a mis-stamped row cannot produce a malformed
         // ticket even if the CheckingExerciseId is wrong.
-        Seed(CheckingExerciseType.PupilData,
+        Seed(PupilDataExerciseId,
             (Row(AmendmentRowId, "CYPMD_Post16_AAAAAA1"), WhatToChange.Remove),
             (Row(EnquiryRowId, "CYPMD_16to19_RE_BBBBBB2"), enquiry));
 
-        var result = await _sut.CloseAsync(WindowId, CheckingExerciseType.PupilData, CancellationToken.None);
+        var result = await _sut.CloseAsync(WindowId, PupilDataExerciseId, CancellationToken.None);
 
         Assert.Equal(1, result.Enqueued);
         await _repository.Received(1).SetStatusAsync(
@@ -182,11 +186,11 @@ public sealed class CloseExerciseServiceEnquiryGuardTests
     {
         // Ordering matters: a `continue` skips one row, but a `return`/`break` would silently drop
         // every amendment queued behind an enquiry.
-        Seed(CheckingExerciseType.PupilData,
+        Seed(PupilDataExerciseId,
             (Row(EnquiryRowId, "CYPMD_16to19_RE_BBBBBB2"), WhatToChange.IncorrectGrade),
             (Row(AmendmentRowId, "CYPMD_Post16_AAAAAA1"), WhatToChange.Remove));
 
-        var result = await _sut.CloseAsync(WindowId, CheckingExerciseType.PupilData, CancellationToken.None);
+        var result = await _sut.CloseAsync(WindowId, PupilDataExerciseId, CancellationToken.None);
 
         Assert.Equal(1, result.Enqueued);
         await _repository.Received(1).SetStatusAsync(

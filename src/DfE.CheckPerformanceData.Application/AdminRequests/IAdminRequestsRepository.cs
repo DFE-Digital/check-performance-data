@@ -19,7 +19,9 @@ public interface IAdminRequestsRepository
     /// window, used to rebuild RequestDocuments when that exercise is closed.
     /// </summary>
     /// <remarks>
-    /// Scoped by the exercise's row id, resolved from the window id + type. A row whose
+    /// Scoped by the exercise's row id. A window may hold several releases of one kind (#466), so
+    /// the caller names the row; a type would not say which one. The window id is matched too, so
+    /// an id from another window finds nothing. A row whose
     /// CheckingExerciseId is null therefore matches nothing and is left alone — deliberate: such a
     /// row was orphaned (the FK is onDelete: SetNull) or belongs to a window that never ran the
     /// mapped exercise, so committing it under this exercise would be a guess. It stays
@@ -28,7 +30,7 @@ public interface IAdminRequestsRepository
     /// There is no date parameter. Closing is an admin decision, not a consequence of the clock.
     /// </remarks>
     Task<IReadOnlyList<ReplayRequestRow>> GetRequestsForExerciseAsync(
-        Guid windowId, CheckingExerciseType exercise, CancellationToken cancellationToken);
+        Guid windowId, Guid exerciseId, CancellationToken cancellationToken);
 
     // Sets a single ChangeRequest row's status by its Id.
     Task SetStatusAsync(Guid changeRequestId, RequestStatus status, CancellationToken cancellationToken);
@@ -39,12 +41,12 @@ public interface IAdminRequestsRepository
     /// <see cref="GetRequestsForExerciseAsync"/>.
     /// </summary>
     Task<int> MarkDraftsNotSubmittedForExerciseAsync(
-        Guid windowId, CheckingExerciseType exercise, CancellationToken cancellationToken);
+        Guid windowId, Guid exerciseId, CancellationToken cancellationToken);
 
     /// <summary>
     /// How many drafts <see cref="MarkDraftsNotSubmittedForExerciseAsync"/> would move, without
     /// moving them. Feeds the close confirmation page.
     /// </summary>
     Task<int> CountDraftsForExerciseAsync(
-        Guid windowId, CheckingExerciseType exercise, CancellationToken cancellationToken);
+        Guid windowId, Guid exerciseId, CancellationToken cancellationToken);
 }

@@ -78,9 +78,9 @@ public sealed class AdminNavRegistryGroupingTests
 		// Danger zone, which this overload registers along with the browser but without the
 		// gated Reset seed data tile — plus the Data egress group and its Start a new egress
 		// tile (AB#294553) and its Egress runs tile (AB#294590) and the Audit log root tile (AB#294592).
-		// The Create new window tile went too: a new window starts from the button on Manage windows.
+		// The Site assets tile (#429) is new. The Create new window tile went: a new window starts from the button on Manage windows.
 		// That left Manage windows alone in Window administration, so the group went as well.
-		Assert.Equal(32, keys.Count);
+		Assert.Equal(33, keys.Count);
 		Assert.Equal(keys.Count, keys.Distinct().Count());
 	}
 

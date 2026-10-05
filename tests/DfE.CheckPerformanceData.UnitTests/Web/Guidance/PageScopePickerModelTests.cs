@@ -47,4 +47,65 @@ public sealed class PageScopePickerModelTests
 
         Assert.Equal("Results enquiries", Assert.Single(options).Label);
     }
+
+    // ----- What the picker shows ticked -----
+
+    private static readonly Guid Guidance = new("00000000-cd94-4a01-8f01-000000000004");
+    private static readonly Guid Post16 = new("00000000-cd94-4a01-8f01-0000000000a1");
+    private static readonly Guid Help = new("00000000-cd94-4a01-8f01-000000000003");
+
+    private static PageScopePickerModel Site() => PageScopePickerModel.From(
+    [
+        Node(Guidance, null, "guidance", "Guidance", sort: 1),
+        Node(Post16, Guidance, "guidance/post-16", "Post-16"),
+        Node(Help, null, "help", "Help", sort: 2),
+    ]);
+
+    // Each page's checkbox posts its id, and pages are ticked by the ids the widget stores.
+    [Fact]
+    public void ItemsFor_TicksThePagesWhoseIdsTheWidgetStores()
+    {
+        var items = Site().ItemsFor(pageIds: $"{Help},{Post16}", scopePaths: null);
+
+        Assert.Equal([Guidance.ToString(), Post16.ToString(), Help.ToString()], items.Select(i => i.Value).ToList());
+        Assert.Equal([false, true, true], items.Select(i => i.Ticked).ToList());
+        Assert.All(items, i => Assert.Null(i.Note));
+        Assert.Equal("guidance/post-16", items[1].Path);
+        Assert.Equal(1, items[1].Depth);
+    }
+
+    // A widget saved when pages were stored by path still shows its pages ticked.
+    [Fact]
+    public void ItemsFor_AWidgetWithOnlyAPathScope_TicksThePagesAtThosePaths()
+    {
+        var items = Site().ItemsFor(pageIds: null, scopePaths: "/Guidance/post-16/,help");
+
+        Assert.Equal([false, true, true], items.Select(i => i.Ticked).ToList());
+        Assert.Equal(3, items.Count);
+    }
+
+    // A stored id whose page has gone stays visible and ticked, so saving cannot silently drop it.
+    [Fact]
+    public void ItemsFor_AStoredIdWithNoPage_IsListedTicked_AsAPageThatNoLongerExists()
+    {
+        var gone = new Guid("00000000-cd94-4a01-8f01-0000000000ff");
+
+        var item = Site().ItemsFor(pageIds: $"{Help},{gone}", scopePaths: null).Last();
+
+        Assert.Equal(gone.ToString(), item.Value);
+        Assert.True(item.Ticked);
+        Assert.Null(item.Path);
+        Assert.Equal("page no longer exists", item.Note);
+    }
+
+    [Fact]
+    public void ItemsFor_AStoredPathWithNoPage_IsListedTicked_AsBefore()
+    {
+        var item = Site().ItemsFor(pageIds: null, scopePaths: "help,guidance/gone").Last();
+
+        Assert.Equal("guidance/gone", item.Value);
+        Assert.Equal("/guidance/gone", item.Label);
+        Assert.True(item.Ticked);
+        Assert.Equal("no page at this path", item.Note);
+    }
 }

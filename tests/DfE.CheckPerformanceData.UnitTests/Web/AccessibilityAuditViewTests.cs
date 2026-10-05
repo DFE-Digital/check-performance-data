@@ -247,13 +247,34 @@ public sealed class AccessibilityAuditViewTests
 	}
 
 	[Fact]
+	public void SummaryPage_SendRequestsButton_NamesItsExercise()
+	{
+		// AB#301022: like Close, this button repeats once per closed exercise down the page, so
+		// it names its exercise in a visually hidden suffix, as Close, Edit and Validate do.
+		var view = ReadView("Views", "WindowAdmin", "Summary.cshtml");
+
+		Assert.Contains("Send requests for processing<span class=\"govuk-visually-hidden\"> for @exercise.Name</span>", view);
+		Assert.Contains("@exercise.SendRequestsLink", view);
+	}
+
+	[Fact]
 	public void ClosePage_TitleMatchesItsHeading()
 	{
 		// Every page sets ViewData/ViewBag Title and it matches the <h1>, same words, sentence case.
 		var view = ReadView("Views", "WindowAdmin", "Close.cshtml");
 
-		Assert.Contains("ViewBag.Title = $\"Close {Model.ExerciseLabel}\";", view);
-		Assert.Contains("<h1 class=\"govuk-heading-l\">Close @Model.ExerciseLabel</h1>", view);
+		Assert.Contains("ViewBag.Title = $\"Close {Model.ExerciseLabel} early?\";", view);
+		Assert.Contains("<h1 class=\"govuk-heading-l\">Close @Model.ExerciseLabel early?</h1>", view);
+	}
+
+	[Fact]
+	public void SendRequestsPage_TitleMatchesItsHeading()
+	{
+		// AB#301022: same rule as the Close page — the title and the <h1> are the same words.
+		var view = ReadView("Views", "WindowAdmin", "SendRequests.cshtml");
+
+		Assert.Contains("ViewBag.Title = $\"Send {Model.ExerciseLabel} requests for processing\";", view);
+		Assert.Contains("<h1 class=\"govuk-heading-l\">Send @Model.ExerciseLabel requests for processing</h1>", view);
 	}
 
 	// ── Create checking exercise (#466 slice 3) ─────────────────────────────────────────

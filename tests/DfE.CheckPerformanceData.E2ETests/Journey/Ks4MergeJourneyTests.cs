@@ -69,7 +69,8 @@ public sealed class Ks4MergeJourneyTests(PlaywrightFixture fixture) : SeedingPag
         await Page.WaitForURLAsync($"**/Journey/{WindowId}/confirmation");
         await Expect(Page.Locator(".govuk-panel")).ToBeVisibleAsync();
         var panel = await Page.Locator(".govuk-panel").InnerTextAsync();
-        Assert.Contains("Merge", panel);
+        var reference = System.Text.RegularExpressions.Regex.Match(panel, @"CYPMD_KS4June_[0-9A-F]{7}");
+        Assert.True(reference.Success, $"No reference number in the confirmation panel: {panel}");
     }
 
     // ── The second-record page searches by ID and offers nothing else ────────

@@ -10,6 +10,13 @@ public interface IExerciseDeletionRepository
         Guid exerciseId, CancellationToken cancellationToken);
 
     /// <summary>
+    /// The submitted requests on the exercise that are already on their way to Zendesk: queued for
+    /// a ticket or holding one (#536). They are counted under Submitted by
+    /// <see cref="CountRequestsByStatusAsync"/> too.
+    /// </summary>
+    Task<int> CountSentForProcessingAsync(Guid exerciseId, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Deletes the exercise and every row that belongs to it, in one transaction, and sets the
     /// window's dates again from the exercises that are left. Null when the window has no exercise
     /// with that id.

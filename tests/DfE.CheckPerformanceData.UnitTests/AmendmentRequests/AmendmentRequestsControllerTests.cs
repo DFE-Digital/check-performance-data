@@ -251,7 +251,7 @@ public class AmendmentRequestsControllerTests
                     RequestType = RequestType.Amendment,
                     RequestTypeDescription = "Remove - Permanently left England",
                     ReferenceNumber = "REF010",
-                    Status = RequestStatus.SubmittedUnCommitted,
+                    Status = RequestStatus.Submitted,
                     Submitted = submitted
                 }
             ],

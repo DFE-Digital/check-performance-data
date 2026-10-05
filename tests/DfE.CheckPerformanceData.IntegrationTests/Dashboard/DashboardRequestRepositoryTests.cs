@@ -18,14 +18,14 @@ public sealed class DashboardRequestRepositoryTests(PostgresFixture fixture)
         // In-window: 2 submitted from URN 111 (one approved, one undecided),
         // 1 submitted from URN 222 (rejected), 1 scrutiny from URN 111,
         // plus one InProgress and one Withdrawn which must NOT count.
-        await SeedRequestAsync(windowId, urn: 111, RequestStatus.SubmittedUnCommitted, DecisionStatus.AutoApproved);
-        await SeedRequestAsync(windowId, urn: 111, RequestStatus.SubmittedCommitted, outcome: null);
-        await SeedRequestAsync(windowId, urn: 222, RequestStatus.SubmittedUnCommitted, DecisionStatus.AutoRejected);
-        await SeedRequestAsync(windowId, urn: 111, RequestStatus.SubmittedUnCommitted, DecisionStatus.Scrutiny);
+        await SeedRequestAsync(windowId, urn: 111, RequestStatus.Submitted, DecisionStatus.AutoApproved);
+        await SeedRequestAsync(windowId, urn: 111, RequestStatus.Submitted, outcome: null);
+        await SeedRequestAsync(windowId, urn: 222, RequestStatus.Submitted, DecisionStatus.AutoRejected);
+        await SeedRequestAsync(windowId, urn: 111, RequestStatus.Submitted, DecisionStatus.Scrutiny);
         await SeedRequestAsync(windowId, urn: 333, RequestStatus.InProgress, outcome: null);
         await SeedRequestAsync(windowId, urn: 444, RequestStatus.Withdrawn, outcome: null);
         // Different window: must not count at all.
-        await SeedRequestAsync(otherWindowId, urn: 555, RequestStatus.SubmittedUnCommitted, DecisionStatus.AutoApproved);
+        await SeedRequestAsync(otherWindowId, urn: 555, RequestStatus.Submitted, DecisionStatus.AutoApproved);
 
         await using var context = fixture.CreateContext();
         var result = await new DashboardRequestRepository(context).GetRequestAggregatesAsync(windowId);
@@ -66,7 +66,7 @@ public sealed class DashboardRequestRepositoryTests(PostgresFixture fixture)
             Submitted = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
             SubmittedById = Guid.NewGuid(),
             SubmittedByName = "Test User",
-            WorkerStatus = WorkerStatus.RulesProcessed,
+            ProcessingStatus = ProcessingStatus.Decided,
             Status = status,
             ReferenceNumber = Guid.NewGuid().ToString("N"),
             RequestType = RequestType.Amendment,

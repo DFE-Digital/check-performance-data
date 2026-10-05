@@ -50,11 +50,14 @@ sequenceDiagram
     Eng-->>RC: Decision (status + matched rule id + trace)
     RC->>DB: record Outcome, OutcomeKey, MatchedRuleId, RulesVersion, DecidedAtUtc
     RC->>An: emit request_decision (best-effort)
+    RC->>DB: set ProcessingStatus = Decided
+    Note over DB,ZQ: Admin closes the exercise, or sends its requests for processing
+    DB->>ZQ: sweep puts the saved RequestDocument on the queue (ProcessingStatus = TicketQueued)
     ZC->>ZQ: dequeue ticket message
+    ZC->>DB: claim TicketQueued row (ProcessingStatus = TicketCreating)
     ZC->>DB: read the persisted decision
     ZC->>Z: create ticket (priority/fields by decision) + evidence
-    ZC->>DB: record CrmId, status = ZendeskTicketCreated
-    Note over RC,ZQ: The rules→Zendesk hand-off is not yet wired — see "Current state".
+    ZC->>DB: record CrmId, ProcessingStatus = TicketCreated
 ```
 
 The two stages are decoupled through the database: the `RulesConsumer` writes the decision onto the request's `ChangeRequest` row, and the `ZendeskConsumer` reads it back when it builds the ticket (so ticket creation never re-evaluates the rules). Ticket creation is idempotent — it claims the row before calling Zendesk, so a redelivery never opens a duplicate.
@@ -236,7 +239,20 @@ These three states map to the health check as `Healthy` → healthy, `StaleLastK
 
 The queue path is **live**. On submit, `RequestService.ConfirmRequestAsync` enqueues the `RequestDocument` onto the Postgres-backed rules-engine queue; the worker's `RulesConsumer` dequeues it, evaluates it, and writes the decision (`Outcome`, `OutcomeKey`, `MatchedRuleId`, `RulesVersion`, `DecidedAtUtc`) back to the request's `ChangeRequest` row. The legacy `RequestSubmission:WriteToBlobInsteadOfQueue` flag still appears in [`Web/appsettings.json`](../src/DfE.CheckPerformanceData.Web/appsettings.json) but is **no longer read by any code** — it is dead configuration left over from the paused-path era.
 
-One gap remains downstream. The worker ships a fully-built `ZendeskConsumer` that turns a persisted decision into a Zendesk ticket (priority, status and custom fields set from the decision, plus the school's uploaded evidence as attachments), claiming the row first so a redelivery cannot double-create. But the hand-off into it — transitioning the request to `RulesProcessed` and enqueuing the Zendesk message — is not present in the current code. So today requests are evaluated and their decisions are persisted, but tickets are **not** yet created automatically.
+**From decision to ticket (#536).** The `RulesConsumer` stores the decision and sets
+`ProcessingStatus = Decided`, only on a row that has no processing status yet. It never enqueues a
+ticket. When an admin closes the checking exercise, or presses **Send … requests for processing**
+after it has closed, `CloseExerciseService` sends each decided amendment's saved `RequestDocument`
+(`IRequestBlobClient`, blob `request_{reference}.json`, written at submit) to the `zendesk` queue
+and sets `TicketQueued`. `ZendeskConsumer` claims only `TicketQueued` rows, so a request the Rules
+Engine has not decided is never ticketed under a guess: the sweep reports it as waiting and a later
+run sends it. Add-pupil requests take the same route, with the `AddPupil` outcome (one Scrutiny
+rule until Add rules are written). Results enquiries skip the Rules Engine: they are written
+`TicketQueued` with a Scrutiny decision and queued at submit.
+
+| `Status` (what the school did) | `ProcessingStatus` (on the way to a ticket) |
+|---|---|
+| `InProgress`, `ReadyToSubmit`, `Submitted`, `Withdrawn`, `NotSubmitted` | null → `Decided` → `TicketQueued` → `TicketCreating` → `TicketCreated` (+ `CrmId`) |
 
 ---
 

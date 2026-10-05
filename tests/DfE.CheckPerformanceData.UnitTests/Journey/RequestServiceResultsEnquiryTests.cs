@@ -8,6 +8,7 @@ using DfE.CheckPerformanceData.Application.Notify;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
+using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Domain.Enums;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
@@ -51,7 +52,7 @@ public sealed class RequestServiceResultsEnquiryTests
             .Returns(new QuestionFlowConfig { FirstPageId = "cohort-scope", Pages = [] });
 
         _sut = new RequestService(
-            _flowService, _stateBlob, _repository, _currentUser,
+            _flowService, _stateBlob, Substitute.For<IRequestBlobClient>(), _repository, _currentUser,
             NullLogger<RequestService>.Instance, _queue, _notifications, _pupilData,
             new CheckingExerciseService(TimeProvider.System));
     }
@@ -133,7 +134,25 @@ public sealed class RequestServiceResultsEnquiryTests
             d.ReferenceNumber == "CYPMD_16to19_RE_4F9C2A1" &&
             d.RequestType == RequestType.ResultsEnquiry &&
             d.AmendmentType == WhatToChange.IncorrectGrade &&
-            d.Status == RequestStatus.SubmittedUnCommitted));
+            d.Status == RequestStatus.Submitted));
+    }
+
+    // #536: an enquiry is queued for its ticket at submit and never passes the Rules Engine, so
+    // its row is written TicketQueued with a Scrutiny decision in the same write that creates it —
+    // before the enqueue, so a worker that takes the message at once can claim the row.
+    [Fact]
+    public async Task Submitting_writes_the_row_queued_with_scrutiny_before_it_enqueues()
+    {
+        await _sut.SubmitResultsEnquiryAsync(WindowId, Journey());
+
+        Received.InOrder(() =>
+        {
+            _repository.UpsertAsync(Arg.Is<ChangeRequestData>(d =>
+                d.RequestType == RequestType.ResultsEnquiry &&
+                d.ProcessingStatus == ProcessingStatus.TicketQueued &&
+                d.Outcome == DecisionStatus.Scrutiny));
+            _queue.EnqueueAsync(QueueOptions.ZendeskQueue, Arg.Any<RequestDocument>(), Arg.Any<CancellationToken>());
+        });
     }
 
     [Fact]
@@ -315,7 +334,7 @@ public sealed class RequestServiceResultsEnquiryTests
         await _repository.Received(1).UpsertAsync(Arg.Is<ChangeRequestData>(d =>
             d.AmendmentType == WhatToChange.MissingQualification &&
             d.RequestTypeDescription == "Results enquiry - Missing qualification" &&
-            d.Status == RequestStatus.SubmittedUnCommitted &&
+            d.Status == RequestStatus.Submitted &&
             d.RequestType == RequestType.ResultsEnquiry));
     }
 
@@ -419,7 +438,7 @@ public sealed class RequestServiceResultsEnquiryTests
             d.RequestType == RequestType.ResultsEnquiry &&
             d.RequestTypeDescription == "Results enquiry - Result does not belong to student" &&
             d.AmendmentType == WhatToChange.ResultDoesNotBelong &&
-            d.Status == RequestStatus.SubmittedUnCommitted));
+            d.Status == RequestStatus.Submitted));
     }
 
     [Fact]

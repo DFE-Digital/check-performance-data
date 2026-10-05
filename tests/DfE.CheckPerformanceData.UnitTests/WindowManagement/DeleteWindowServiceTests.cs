@@ -21,11 +21,12 @@ public class DeleteWindowServiceTests
             {
                 [RequestStatus.InProgress] = 1,
                 [RequestStatus.ReadyToSubmit] = 2,
-                [RequestStatus.SubmittedUnCommitted] = 3,
-                [RequestStatus.SubmittedCommitted] = 4,
+                [RequestStatus.Submitted] = 7,
                 [RequestStatus.Withdrawn] = 5,
                 [RequestStatus.NotSubmitted] = 6
             });
+        // Four of the seven submitted requests are already on their way to Zendesk (#536).
+        _repository.CountSentForProcessingAsync(WindowId, Arg.Any<CancellationToken>()).Returns(4);
         _repository.CountEgressRunsAsync(WindowId, Arg.Any<CancellationToken>()).Returns(7);
 
         var preview = await Build().PreviewAsync(WindowId, CancellationToken.None);

@@ -22,11 +22,12 @@ public class DeleteExerciseServiceTests
             {
                 [RequestStatus.InProgress] = 1,
                 [RequestStatus.ReadyToSubmit] = 2,
-                [RequestStatus.SubmittedUnCommitted] = 3,
-                [RequestStatus.SubmittedCommitted] = 4,
+                [RequestStatus.Submitted] = 7,
                 [RequestStatus.Withdrawn] = 5,
                 [RequestStatus.NotSubmitted] = 6
             });
+        // Four of the seven submitted requests are already on their way to Zendesk (#536).
+        _repository.CountSentForProcessingAsync(ExerciseId, Arg.Any<CancellationToken>()).Returns(4);
 
         var preview = await Build().PreviewAsync(ExerciseId, CancellationToken.None);
 

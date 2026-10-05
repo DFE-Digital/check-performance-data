@@ -74,7 +74,8 @@ public sealed class DevDataSeedingOrchestrator(
             var services = scope.ServiceProvider;
             await SeedChangeRequests.ExecuteSeedAsync(services.GetRequiredService<IPupilDataBlobClient>(),
                 services.GetRequiredService<IRequestRepository>(), services.GetRequiredService<IRequestStateBlobClient>(),
-                services.GetRequiredService<ICheckYourPupilDataService>(), services.GetRequiredService<ICheckingExerciseService>());
+                services.GetRequiredService<IRequestBlobClient>(), services.GetRequiredService<ICheckYourPupilDataService>(),
+                services.GetRequiredService<ICheckingExerciseService>());
         }
         catch (Azure.RequestFailedException ex) when (environment.IsDevelopment())
         {

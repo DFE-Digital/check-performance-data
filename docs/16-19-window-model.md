@@ -496,8 +496,8 @@ window may hold several releases of one kind (#466), so "open" is asked of the r
 and the sweep matches change requests on that row's id. A data share has no kind, so it has no
 change requests and neither page serves it. After the admin types the window's name it calls
 `IExerciseEarlyClosureService` (the date move and the audit row) and then `ICloseExerciseService`
-(the #437 sweep: submitted requests onto the Zendesk queue, leftover drafts cancelled) — in that
-order, so no school can add a request behind the sweep. The sweep is still date-blind and still the
+(the sweep: decided requests onto the Zendesk queue, undecided ones reported as waiting, leftover
+drafts cancelled) — in that order, so no school can add a request behind the sweep. The sweep is still date-blind and still the
 only way a pupil-data amendment reaches Zendesk, and nothing runs it at a scheduled end, so once an
 exercise has closed the summary offers it on its own: `SendExerciseRequestsController`
 (`admin/windows/{id}/exercises/{exerciseId}/send-requests`). The sweep is not transactional (a blob read and a
@@ -511,10 +511,10 @@ drafts, and after a scheduled end until someone ran the sweep. It now reads the 
 skips any draft whose own exercise (derived from its change type) is not open; when that leaves
 nothing submitted, the school is sent back to Check your pupil data with the closed message.
 
-**Not changed, and worth knowing.** `AmendmentRequestsController.Edit` gates a resumed draft on the
+**Also worth knowing.** `AmendmentRequestsController.Edit` gates a resumed draft on the
 draft's own snapshot, so after an early close the school is turned away one click later, by the
-journey refresh, rather than on the resume itself. The Zendesk worker only creates a ticket for a
-request the rules engine has already processed, while the sweep marks every swept request as sent;
-a request swept before the rules engine reached it (and every Add-pupil request, which never goes
-to the rules engine) is retried, dead-lettered and not picked up again. That defect is older than
-this ticket, but Close now runs the sweep as a matter of course.
+journey refresh, rather than on the resume itself.
+
+The sweep sends only requests the Rules Engine has decided (`ProcessingStatus = Decided`). It
+reports the rest as waiting. **Send … requests for processing** sends them once they are decided.
+Add-pupil requests go through the Rules Engine like any amendment (#536).

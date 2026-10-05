@@ -31,7 +31,7 @@ public sealed class SubmittedRequestViewModelTests
         LearnerNoun = LearnerNoun.Pupil,
         WindowId = Guid.NewGuid(),
         WhatToChange = whatToChange,
-        Status = RequestStatus.SubmittedUnCommitted,
+        Status = RequestStatus.Submitted,
         PupilName = "Alice Newpupil",
         Rows = [],
         Files = [],

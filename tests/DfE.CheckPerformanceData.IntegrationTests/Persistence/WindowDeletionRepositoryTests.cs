@@ -17,7 +17,7 @@ public sealed class WindowDeletionRepositoryTests(PostgresFixture fixture)
     public async Task Delete_removes_the_window_and_everything_that_belongs_to_it()
     {
         var doomed = await SeedWindowAsync("Doomed");
-        await SeedRequestAsync(doomed.WindowId, doomed.PupilDataId, RequestStatus.SubmittedUnCommitted);
+        await SeedRequestAsync(doomed.WindowId, doomed.PupilDataId, RequestStatus.Submitted);
         await SeedRequestAsync(doomed.WindowId, doomed.PupilDataId, RequestStatus.InProgress);
         await SeedEgressRunAsync(doomed.WindowId);
 
@@ -38,7 +38,7 @@ public sealed class WindowDeletionRepositoryTests(PostgresFixture fixture)
     {
         var doomed = await SeedWindowAsync("Doomed");
         var kept = await SeedWindowAsync("Kept");
-        await SeedRequestAsync(kept.WindowId, kept.PupilDataId, RequestStatus.SubmittedUnCommitted);
+        await SeedRequestAsync(kept.WindowId, kept.PupilDataId, RequestStatus.Submitted);
         await SeedEgressRunAsync(kept.WindowId);
 
         await Repository().DeleteAsync(doomed.WindowId, CancellationToken.None);
@@ -74,19 +74,36 @@ public sealed class WindowDeletionRepositoryTests(PostgresFixture fixture)
     {
         var a = await SeedWindowAsync("A");
         var b = await SeedWindowAsync("B");
-        await SeedRequestAsync(a.WindowId, a.PupilDataId, RequestStatus.SubmittedUnCommitted);
-        await SeedRequestAsync(a.WindowId, a.PupilDataId, RequestStatus.SubmittedUnCommitted);
+        await SeedRequestAsync(a.WindowId, a.PupilDataId, RequestStatus.Submitted);
+        await SeedRequestAsync(a.WindowId, a.PupilDataId, RequestStatus.Submitted);
         await SeedRequestAsync(a.WindowId, a.PupilDataId, RequestStatus.InProgress);
-        await SeedRequestAsync(b.WindowId, b.PupilDataId, RequestStatus.SubmittedUnCommitted);
+        await SeedRequestAsync(b.WindowId, b.PupilDataId, RequestStatus.Submitted);
         await SeedEgressRunAsync(a.WindowId);
 
         var counts = await Repository().CountRequestsByStatusAsync(a.WindowId, CancellationToken.None);
 
-        Assert.Equal(2, counts[RequestStatus.SubmittedUnCommitted]);
+        Assert.Equal(2, counts[RequestStatus.Submitted]);
         Assert.Equal(1, counts[RequestStatus.InProgress]);
         Assert.Equal(2, counts.Count);
         Assert.Equal(1, await Repository().CountEgressRunsAsync(a.WindowId, CancellationToken.None));
         Assert.Equal(0, await Repository().CountEgressRunsAsync(b.WindowId, CancellationToken.None));
+    }
+
+    // #536: a submitted request has gone to Zendesk once it is TicketQueued or later. Decided and
+    // undecided rows are still only here, so a delete loses them outright.
+    [Fact]
+    public async Task Sent_for_processing_counts_submitted_requests_queued_for_a_ticket_or_holding_one()
+    {
+        var a = await SeedWindowAsync("A");
+        var b = await SeedWindowAsync("B");
+        await SeedRequestAsync(a.WindowId, a.PupilDataId, RequestStatus.Submitted);
+        await SeedRequestAsync(a.WindowId, a.PupilDataId, RequestStatus.Submitted, ProcessingStatus.Decided);
+        await SeedRequestAsync(a.WindowId, a.PupilDataId, RequestStatus.Submitted, ProcessingStatus.TicketQueued);
+        await SeedRequestAsync(a.WindowId, a.PupilDataId, RequestStatus.Submitted, ProcessingStatus.TicketCreating);
+        await SeedRequestAsync(a.WindowId, a.PupilDataId, RequestStatus.Submitted, ProcessingStatus.TicketCreated);
+        await SeedRequestAsync(b.WindowId, b.PupilDataId, RequestStatus.Submitted, ProcessingStatus.TicketQueued);
+
+        Assert.Equal(3, await Repository().CountSentForProcessingAsync(a.WindowId, CancellationToken.None));
     }
 
     private WindowDeletionRepository Repository() => new(fixture.CreateContext());
@@ -148,7 +165,8 @@ public sealed class WindowDeletionRepositoryTests(PostgresFixture fixture)
         };
     }
 
-    private Task SeedRequestAsync(Guid windowId, Guid exerciseId, RequestStatus status) =>
+    private Task SeedRequestAsync(Guid windowId, Guid exerciseId, RequestStatus status,
+        ProcessingStatus? processingStatus = null) =>
         new RequestRepository(fixture.CreateContext()).UpsertAsync(new ChangeRequestData
         {
             WindowId = windowId,
@@ -163,7 +181,8 @@ public sealed class WindowDeletionRepositoryTests(PostgresFixture fixture)
             SubmittedByName = "Test User",
             Status = status,
             RequestType = RequestType.Amendment,
-            RequestTypeDescription = "Remove"
+            RequestTypeDescription = "Remove",
+            ProcessingStatus = processingStatus
         });
 
     private async Task SeedEgressRunAsync(Guid windowId)

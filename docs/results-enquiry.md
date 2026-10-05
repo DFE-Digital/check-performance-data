@@ -290,7 +290,7 @@ remove it.
 `RequestService.SubmitResultsEnquiryAsync` makes the same two writes a pupil change request does:
 
 1. a `ChangeRequests` row — `RequestType.ResultsEnquiry`, `AmendmentType = IncorrectGrade`,
-   `Status = SubmittedUnCommitted`, description `Results enquiry - Incorrect grade`
+   `Status = Submitted`, `ProcessingStatus = TicketQueued`, description `Results enquiry - Incorrect grade`
 2. the journey JSON via `IRequestStateBlobClient`
 
 Both enum columns are `HasConversion<string>()` capped at 20 characters; `ResultsEnquiry` (14) and
@@ -323,30 +323,27 @@ the student, so it now keeps answers from pages earlier in the history and disca
 along with `SelectedResult` (a result belongs to one student). Wiping them lost the cohort scope and
 count, and the summary silently presented a cohort-wide enquiry as a single-student one.
 
-## Downstream processing — a separate story
+## Downstream processing — Zendesk at submit
 
-**Decision (BA, 2026-08-17):** an enquiry drops into `ChangeRequests` and saves its journey JSON, and
-is **not enqueued**. It *is* ultimately bound for Zendesk, but how it gets there is a separate ticket.
+**Decision (AB#301974, #536):** an enquiry goes to Zendesk when the school submits it. It does not
+go through the Rules Engine and it does not wait for the close sweep.
 
-How a school sees its own enquiries in the meantime **is** designed: AB#298325 added an Issues tab
+`SubmitResultsEnquiryAsync` writes the `ChangeRequests` row with `ProcessingStatus = TicketQueued`
+and a Scrutiny decision. It saves the journey JSON. It builds the `RequestDocument` and puts it on
+the Zendesk queue once. The `ZendeskConsumer` claims only `TicketQueued` rows, so it picks the
+enquiry up. This method is the only place that queues an enquiry.
+
+How a school sees its own enquiries is designed: AB#298325 added an Issues tab
 beside Requests on the Amendment request summary page (`AmendmentRequestsService.GetAmendmentRequestsAsync`,
 `GetSubmittedResultsEnquiriesAsync`), listing submitted enquiries with pupil-name search, enriched from
 each row's journey blob for CYPMD id and qualification text.
 
-Two consequences, both deliberate and both commented in code:
+Two consequences, both commented in code:
 
-- `SubmitResultsEnquiryAsync` does not enqueue. When the dispatch story lands, the enqueue belongs
-  **there and nowhere else**.
-- `AdminRequestsService.ProcessCloseWindowEvent` skips **every** results-enquiry journey. That replay
-  builds a *pupil-amendment* ticket, and an enquiry's QAN, syllabus code, session, current and revised
-  grade have no place in that shape. Replaying one would create a malformed ticket **and** flip the row
-  to `SubmittedCommitted`, so the real dispatch could never find it again.
-
-  The guard asks `WhatToChangeCheckingExerciseMap` whether the journey belongs to the ResultsEnquiry
-  exercise rather than naming enum members. It originally tested `IncorrectGrade` alone, and the
-  missing-qualification journey (AB#297848) walked straight through it — the map keeps the next
-  sibling right by construction. `AdminRequestsServiceEnquiryGuardTests` drives its cases from the
-  same map, so a new enquiry kind is covered the moment it is mapped.
+- The close sweep (`CloseExerciseService`) sends only `Decided` amendments. An enquiry is never
+  `Decided`, so the sweep cannot send it a second time. The sweep still cancels the exercise's drafts.
+  The sweep would build a pupil-amendment ticket, and an enquiry's QAN, syllabus code, session,
+  current grade and revised grade have no place in that shape.
 - `QuestionFlowOutcomeKeyAlignmentTests` lists `IncorrectGrade`, `MissingQualification` and
   `ResultDoesNotBelong` in `FlowPrefixesThatDoNotRouteToTheRulesEngine` and asserts each has **no**
   outcome key, so nobody can quietly bind one to rules-engine routing. That list going empty is the
@@ -452,8 +449,7 @@ UK-today and no earlier than 1 September 2023 (the 2023/24 and 2024/25 academic 
 `RequestService.SubmitResultsEnquiryAsync` serves all three enquiry kinds. A missing-qualification row
 persists with `AmendmentType = WhatToChange.MissingQualification`,
 `RequestTypeDescription = "Results enquiry - Missing qualification"`, same `RequestType.ResultsEnquiry`
-/ `Status.SubmittedUnCommitted` shape, same **no enqueue** (Zendesk dispatch is parked for every
-enquiry kind), same `QuestionFlowOutcomeKeyAlignmentTests` exclusion from rules-engine routing.
+/ `Status.Submitted` shape, same dispatch at submit (see "Downstream processing"), same `QuestionFlowOutcomeKeyAlignmentTests` exclusion from rules-engine routing.
 `MissingQualificationSummary` supplies its own check-answers row set (AO and QAN change through the
 qualification-search page; syllabus code, award date, grade and NCN each change through the details
 page).
@@ -493,7 +489,7 @@ hard prerequisite (additional info is optional), found via `PageType.ResultSearc
 Shares `SubmitResultsEnquiryAsync` with the other two kinds. A row persists with
 `AmendmentType = WhatToChange.ResultDoesNotBelong`,
 `RequestTypeDescription = "Results enquiry - Result does not belong to student"`, same
-`RequestType.ResultsEnquiry` / `Status.SubmittedUnCommitted` shape, same **no enqueue**, same
+`RequestType.ResultsEnquiry` / `Status.Submitted` shape, same dispatch at submit (see "Downstream processing"), same
 `QuestionFlowOutcomeKeyAlignmentTests` exclusion from rules-engine routing. The guard that used to list
 the two live enquiry members by name (`is IncorrectGrade or MissingQualification`) is now
 `WhatToChangeCheckingExerciseMap.IsResultsEnquiry(WhatToChange?)` — the AB#298229 "guard names one enum

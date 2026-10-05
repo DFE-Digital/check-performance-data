@@ -9,6 +9,13 @@ public interface IWindowDeletionRepository
     Task<IReadOnlyDictionary<RequestStatus, int>> CountRequestsByStatusAsync(
         Guid windowId, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// The submitted requests on the window that are already on their way to Zendesk: queued for
+    /// a ticket or holding one (#536). They are counted under Submitted by
+    /// <see cref="CountRequestsByStatusAsync"/> too.
+    /// </summary>
+    Task<int> CountSentForProcessingAsync(Guid windowId, CancellationToken cancellationToken);
+
     Task<int> CountEgressRunsAsync(Guid windowId, CancellationToken cancellationToken);
 
     /// <summary>

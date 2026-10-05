@@ -1,8 +1,8 @@
 namespace DfE.CheckPerformanceData.Application.WindowManagement;
 
 /// <summary>
-/// Closes one checking exercise: replays that exercise's submitted-but-uncommitted requests onto
-/// the Zendesk queue, commits those rows, and cancels the exercise's leftover drafts.
+/// Closes one checking exercise: sends that exercise's decided amendments to the Zendesk queue,
+/// and cancels its leftover drafts. Undecided amendments are left for a later run (#536).
 /// </summary>
 /// <remarks>
 /// Replaces <c>AdminRequestsService.ProcessCloseWindowEvent</c>, which swept every OPEN window at
@@ -27,7 +27,8 @@ public interface ICloseExerciseService
         Guid windowId, Guid exerciseId, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Performs the close. Irreversible: it dispatches to an external system and commits rows.
+    /// Performs the close. Irreversible: it dispatches to an external system and marks the sent
+    /// rows TicketQueued.
     /// </summary>
     Task<CloseExerciseResult> CloseAsync(
         Guid windowId, Guid exerciseId, CancellationToken cancellationToken);
@@ -39,8 +40,11 @@ public sealed record CloseExercisePreview
     public required int RequestsToClose { get; init; }
     public required int DraftsToCancel { get; init; }
 
+    /// <summary>Submitted amendments the Rules Engine has not decided yet; the sweep leaves them.</summary>
+    public int RequestsWaiting { get; init; }
+
     /// <summary>Closing an already-swept exercise is harmless; the page says so rather than erroring.</summary>
-    public bool HasNothingToDo => RequestsToClose == 0 && DraftsToCancel == 0;
+    public bool HasNothingToDo => RequestsToClose == 0 && DraftsToCancel == 0 && RequestsWaiting == 0;
 }
 
 /// <summary>What the close actually did.</summary>
@@ -48,4 +52,7 @@ public sealed record CloseExerciseResult
 {
     public required int Enqueued { get; init; }
     public required int DraftsCancelled { get; init; }
+
+    /// <summary>Submitted amendments left for a later run because the Rules Engine had not decided them.</summary>
+    public int Waiting { get; init; }
 }

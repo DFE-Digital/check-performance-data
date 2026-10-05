@@ -16,6 +16,13 @@ public sealed class ExerciseDeletionRepository(PortalDbContext dbContext) : IExe
             .Select(g => new { Status = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.Status, x => x.Count, cancellationToken);
 
+    public Task<int> CountSentForProcessingAsync(Guid exerciseId, CancellationToken cancellationToken) =>
+        dbContext.ChangeRequests.CountAsync(r => r.CheckingExerciseId == exerciseId
+            && r.Status == RequestStatus.Submitted
+            && (r.ProcessingStatus == ProcessingStatus.TicketQueued
+                || r.ProcessingStatus == ProcessingStatus.TicketCreating
+                || r.ProcessingStatus == ProcessingStatus.TicketCreated), cancellationToken);
+
     public Task<DeletedExercise?> DeleteAsync(Guid windowId, Guid exerciseId, CancellationToken cancellationToken) =>
         dbContext.ExecuteInTransactionAsync(async () =>
         {

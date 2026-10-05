@@ -16,6 +16,13 @@ public sealed class WindowDeletionRepository(PortalDbContext dbContext) : IWindo
             .Select(g => new { Status = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.Status, x => x.Count, cancellationToken);
 
+    public Task<int> CountSentForProcessingAsync(Guid windowId, CancellationToken cancellationToken) =>
+        dbContext.ChangeRequests.CountAsync(r => r.WindowId == windowId
+            && r.Status == RequestStatus.Submitted
+            && (r.ProcessingStatus == ProcessingStatus.TicketQueued
+                || r.ProcessingStatus == ProcessingStatus.TicketCreating
+                || r.ProcessingStatus == ProcessingStatus.TicketCreated), cancellationToken);
+
     public Task<int> CountEgressRunsAsync(Guid windowId, CancellationToken cancellationToken) =>
         dbContext.EgressRuns.CountAsync(r => r.WindowId == windowId, cancellationToken);
 

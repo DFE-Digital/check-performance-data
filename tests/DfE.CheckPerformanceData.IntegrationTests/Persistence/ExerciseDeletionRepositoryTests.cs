@@ -22,7 +22,7 @@ public sealed class ExerciseDeletionRepositoryTests(PostgresFixture fixture)
     public async Task Delete_removes_the_exercise_its_rows_and_its_requests()
     {
         var seeded = await SeedWindowAsync();
-        await SeedRequestAsync(seeded.WindowId, seeded.FirstId, RequestStatus.SubmittedUnCommitted);
+        await SeedRequestAsync(seeded.WindowId, seeded.FirstId, RequestStatus.Submitted);
         await SeedRequestAsync(seeded.WindowId, seeded.FirstId, RequestStatus.InProgress);
 
         var deleted = await Repository().DeleteAsync(seeded.WindowId, seeded.FirstId, CancellationToken.None);
@@ -40,7 +40,7 @@ public sealed class ExerciseDeletionRepositoryTests(PostgresFixture fixture)
     public async Task Delete_keeps_the_window_the_other_exercise_and_its_requests()
     {
         var seeded = await SeedWindowAsync();
-        await SeedRequestAsync(seeded.WindowId, seeded.SecondId, RequestStatus.SubmittedUnCommitted);
+        await SeedRequestAsync(seeded.WindowId, seeded.SecondId, RequestStatus.Submitted);
 
         await Repository().DeleteAsync(seeded.WindowId, seeded.FirstId, CancellationToken.None);
 
@@ -108,13 +108,13 @@ public sealed class ExerciseDeletionRepositoryTests(PostgresFixture fixture)
     public async Task Counts_are_scoped_to_the_exercise()
     {
         var seeded = await SeedWindowAsync();
-        await SeedRequestAsync(seeded.WindowId, seeded.FirstId, RequestStatus.SubmittedUnCommitted);
+        await SeedRequestAsync(seeded.WindowId, seeded.FirstId, RequestStatus.Submitted);
         await SeedRequestAsync(seeded.WindowId, seeded.FirstId, RequestStatus.InProgress);
-        await SeedRequestAsync(seeded.WindowId, seeded.SecondId, RequestStatus.SubmittedUnCommitted);
+        await SeedRequestAsync(seeded.WindowId, seeded.SecondId, RequestStatus.Submitted);
 
         var counts = await Repository().CountRequestsByStatusAsync(seeded.FirstId, CancellationToken.None);
 
-        Assert.Equal(1, counts[RequestStatus.SubmittedUnCommitted]);
+        Assert.Equal(1, counts[RequestStatus.Submitted]);
         Assert.Equal(1, counts[RequestStatus.InProgress]);
         Assert.Equal(2, counts.Count);
     }

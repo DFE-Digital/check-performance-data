@@ -104,7 +104,7 @@ public class SendExerciseRequestsControllerTests
     {
         _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(Window(Exercise));
         _closeService.PreviewAsync(WindowId, ExerciseId, Arg.Any<CancellationToken>())
-            .Returns(new CloseExercisePreview { RequestsToClose = 4, DraftsToCancel = 2 });
+            .Returns(new CloseExercisePreview { RequestsToClose = 4, DraftsToCancel = 2, RequestsWaiting = 5 });
 
         var result = await Build().Confirm(WindowId, ExerciseId, CancellationToken.None);
 
@@ -113,10 +113,51 @@ public class SendExerciseRequestsControllerTests
         var vm = Assert.IsType<SendRequestsViewModel>(view.Model);
         Assert.Equal(4, vm.RequestsToSend);
         Assert.Equal(2, vm.DraftsToCancel);
+        Assert.Equal(5, vm.RequestsWaiting);
         Assert.Equal("KS4 June 2026", vm.WindowTitle);
         Assert.Equal("Pupil data checking", vm.ExerciseLabel);
         Assert.Equal($"/admin/windows/{WindowId}/exercises/{ExerciseId}/send-requests", vm.PostUrl);
         Assert.Equal($"/admin/windows/summary/{WindowId}", vm.CancelLink);
+    }
+
+    [Fact]
+    public async Task Confirm_get_has_something_to_say_when_only_waiting_requests_are_left()
+    {
+        _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(Window(Exercise));
+        _closeService.PreviewAsync(WindowId, ExerciseId, Arg.Any<CancellationToken>())
+            .Returns(new CloseExercisePreview { RequestsToClose = 0, DraftsToCancel = 0, RequestsWaiting = 2 });
+
+        var result = await Build().Confirm(WindowId, ExerciseId, CancellationToken.None);
+
+        var vm = Assert.IsType<SendRequestsViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.False(vm.HasNothingToDo);
+        Assert.True(vm.OnlyWaiting);
+    }
+
+    [Fact]
+    public async Task Send_post_says_how_many_requests_are_waiting()
+    {
+        // #536: a waiting request was not sent, and the banner must not imply it was.
+        _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(Window(Exercise));
+        _closeService.CloseAsync(WindowId, ExerciseId, Arg.Any<CancellationToken>())
+            .Returns(new CloseExerciseResult { Enqueued = 3, DraftsCancelled = 1, Waiting = 2 });
+
+        var controller = Build();
+        await controller.Send(WindowId, ExerciseId, CancellationToken.None);
+
+        Assert.Equal(
+            "3 requests sent for processing and 1 draft cancelled for Pupil data checking. " +
+            "2 requests are waiting for the Rules Engine. Send requests for processing again later.",
+            controller.TempData[CloseExerciseController.TempDataKey]);
+    }
+
+    [Fact]
+    public void The_waiting_sentence_is_singular_for_one_and_absent_for_none()
+    {
+        Assert.Equal(
+            " 1 request is waiting for the Rules Engine. Send requests for processing again later.",
+            SendExerciseRequestsController.WaitingSentence(1));
+        Assert.Equal(string.Empty, SendExerciseRequestsController.WaitingSentence(0));
     }
 
     [Fact]

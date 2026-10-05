@@ -49,36 +49,69 @@ public sealed class AdminRequestsRepository(IPortalDbContext db) : IAdminRequest
                 MatchedRule = r.MatchedRuleId,
                 DecidedAtUtc = r.DecidedAtUtc,
                 CrmId = r.CrmId,
+                ProcessingStatus = r.ProcessingStatus,
                 DecisionTrace = r.DecisionTrace
             })
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyList<ReplayRequestRow>> GetRequestsForExerciseAsync(
+    public async Task<IReadOnlyList<ReplayRequestRow>> GetDecidedRequestsForExerciseAsync(
         Guid windowId, Guid exerciseId, CancellationToken cancellationToken)
     {
-        return await db.ChangeRequests
+        return await SubmittedAmendmentsForExercise(windowId, exerciseId)
             .AsNoTracking()
-            .Where(r => r.WindowId == windowId
-                && r.CheckingExerciseId != null
-                && r.CheckingExerciseId == exerciseId
-                && r.Status == RequestStatus.SubmittedUnCommitted)
+            .Where(r => r.ProcessingStatus == ProcessingStatus.Decided && r.CrmId == null)
+            // First come, first sent. Id breaks a tie so the order is stable.
+            .OrderBy(r => r.Submitted)
+            .ThenBy(r => r.Id)
             .Select(r => new ReplayRequestRow
             {
                 ChangeRequestId = r.Id,
                 WindowId = r.WindowId,
-                ReferenceNumber = r.ReferenceNumber,
-                OrganisationUrn = r.OrganisationUrn,
-                SubmittedById = r.SubmittedById,
-                SubmittedByName = r.SubmittedByName
+                ReferenceNumber = r.ReferenceNumber
             })
             .ToListAsync(cancellationToken);
     }
 
-    public Task SetStatusAsync(Guid changeRequestId, RequestStatus status, CancellationToken cancellationToken) =>
+    public async Task<int> CountWaitingRequestsForExerciseAsync(
+        Guid windowId, Guid exerciseId, CancellationToken cancellationToken)
+    {
+        return await SubmittedAmendmentsForExercise(windowId, exerciseId)
+            .CountAsync(r => r.ProcessingStatus == null, cancellationToken);
+    }
+
+    public async Task<bool> MarkTicketQueuedAsync(Guid changeRequestId, CancellationToken cancellationToken) =>
+        await db.ChangeRequests
+            .Where(r => r.Id == changeRequestId && r.ProcessingStatus == ProcessingStatus.Decided)
+            .ExecuteUpdateAsync(s => s.SetProperty(r => r.ProcessingStatus, ProcessingStatus.TicketQueued),
+                cancellationToken) == 1;
+
+    public Task ExecuteInTransactionAsync(Func<Task> work, CancellationToken cancellationToken) =>
+        db.ExecuteInTransactionAsync(async () =>
+        {
+            // A queue message added in a failed attempt stays tracked as Added. Forget it, or the
+            // retry strategy's next attempt would insert it a second time.
+            db.ChangeTracker.Clear();
+            try
+            {
+                await work();
+            }
+            catch
+            {
+                db.ChangeTracker.Clear();
+                throw;
+            }
+        }, cancellationToken);
+
+    // One predicate for what the sweep sends and what it reports as waiting, so the two can never
+    // describe different populations.
+    private IQueryable<Entities.ChangeRequest> SubmittedAmendmentsForExercise(Guid windowId, Guid exerciseId) =>
         db.ChangeRequests
-            .Where(r => r.Id == changeRequestId)
-            .ExecuteUpdateAsync(s => s.SetProperty(r => r.Status, status), cancellationToken);
+            .Where(r => r.WindowId == windowId
+                && r.CheckingExerciseId != null
+                && r.CheckingExerciseId == exerciseId
+                && r.RequestType == RequestType.Amendment
+                && r.Status == RequestStatus.Submitted);
 
     public async Task<int> MarkDraftsNotSubmittedForExerciseAsync(
         Guid windowId, Guid exerciseId, CancellationToken cancellationToken)

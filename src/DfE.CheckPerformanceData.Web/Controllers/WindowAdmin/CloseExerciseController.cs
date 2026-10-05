@@ -127,7 +127,8 @@ public sealed class CloseExerciseController(
         TempData[TempDataKey] =
             $"{closed} " +
             $"{Pluralise(sweep.Enqueued, "request")} sent for processing and " +
-            $"{Pluralise(sweep.DraftsCancelled, "draft")} cancelled.";
+            $"{Pluralise(sweep.DraftsCancelled, "draft")} cancelled." +
+            SendExerciseRequestsController.WaitingSentence(sweep.Waiting);
 
         return Redirect($"/admin/windows/summary/{id}");
     }

@@ -92,7 +92,7 @@ public sealed class ChangeRequestCheckingExerciseBackfillTests : IAsyncLifetime
                 ("Id", "WindowId", "OrganisationUrn", "Submitted", "SubmittedById", "SubmittedByName",
                  "Status", "ReferenceNumber", "RequestType", "RequestTypeDescription", "AmendmentType")
             VALUES (gen_random_uuid(), '{windowId}', 142313, '2026-10-15 09:00:00',
-                    '11111111-1111-1111-1111-111111111111', 'Ada Editor', 'SubmittedUnCommitted',
+                    '11111111-1111-1111-1111-111111111111', 'Ada Editor', 'Submitted',
                     '{referenceNumber}', '{requestType}', 'seeded', {amendment});
             """);
     }

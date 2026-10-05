@@ -35,7 +35,8 @@ public sealed class ChangeRequestReleaseStampTests
     }
 
     private RequestService Service(ICheckingExerciseStorageResolver? resolver) => new(
-        Substitute.For<IQuestionFlowService>(), Substitute.For<IRequestStateBlobClient>(), _repository, _currentUser,
+        Substitute.For<IQuestionFlowService>(), Substitute.For<IRequestStateBlobClient>(), Substitute.For<IRequestBlobClient>(),
+        _repository, _currentUser,
         NullLogger<RequestService>.Instance, Substitute.For<IQueueService>(),
         Substitute.For<IRequestNotificationService>(), Substitute.For<ICheckYourPupilDataService>(),
         new CheckingExerciseService(TimeProvider.System), resolver);

@@ -34,7 +34,7 @@ public sealed class EgressRunRepository(IPortalDbContext db) : IEgressRunReposit
             .Where(r => r.WindowId == windowId
                 && r.RequestType == RequestType.Amendment
                 && r.AmendmentType == amendmentType
-                && (r.Status == RequestStatus.SubmittedCommitted || r.Status == RequestStatus.SubmittedUnCommitted))
+                && r.Status == RequestStatus.Submitted)
             .OrderBy(r => r.Submitted)
             .Select(r => new EgressCandidateRequest(r.Id, r.ReferenceNumber, r.CrmId, r.OrganisationUrn, r.OrganisationLaestab,
                 DateTime.SpecifyKind(r.Submitted, DateTimeKind.Utc), r.Status))

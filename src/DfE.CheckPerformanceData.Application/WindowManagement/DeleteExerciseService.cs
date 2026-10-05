@@ -11,11 +11,14 @@ public sealed class DeleteExerciseService(
     {
         var byStatus = await repository.CountRequestsByStatusAsync(exerciseId, cancellationToken);
         int Count(params RequestStatus[] statuses) => statuses.Sum(s => byStatus.GetValueOrDefault(s));
+        // #536: a submitted request's Status stays Submitted; whether it has gone to Zendesk is its
+        // ProcessingStatus, which the repository counts separately.
+        var sent = await repository.CountSentForProcessingAsync(exerciseId, cancellationToken);
 
         return new DeleteExercisePreview
         {
-            SubmittedNotSent = Count(RequestStatus.SubmittedUnCommitted),
-            SentForProcessing = Count(RequestStatus.SubmittedCommitted),
+            SubmittedNotSent = Count(RequestStatus.Submitted) - sent,
+            SentForProcessing = sent,
             Drafts = Count(RequestStatus.InProgress, RequestStatus.ReadyToSubmit),
             WithdrawnOrCancelled = Count(RequestStatus.Withdrawn, RequestStatus.NotSubmitted)
         };

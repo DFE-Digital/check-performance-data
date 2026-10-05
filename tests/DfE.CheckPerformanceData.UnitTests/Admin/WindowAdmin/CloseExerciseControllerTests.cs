@@ -68,6 +68,24 @@ public class CloseExerciseControllerTests
             .Returns(new CloseExerciseResult { Enqueued = 3, DraftsCancelled = 1 });
     }
 
+    [Fact]
+    public async Task Close_post_says_how_many_requests_are_waiting()
+    {
+        TheWindowRuns(Exercise);
+        TheCloseSucceeds();
+        _closeService.CloseAsync(WindowId, ExerciseId, Arg.Any<CancellationToken>())
+            .Returns(new CloseExerciseResult { Enqueued = 3, DraftsCancelled = 1, Waiting = 1 });
+
+        var controller = Build();
+        await controller.Close(WindowId, ExerciseId, WindowTitle, CancellationToken.None);
+
+        Assert.Equal(
+            "Pupil data checking was closed early on 10/06/2026, 10:39 by Banks Jamgbadi. " +
+            "3 requests sent for processing and 1 draft cancelled. " +
+            "1 request is waiting for the Rules Engine. Send requests for processing again later.",
+            controller.TempData[CloseExerciseController.TempDataKey]);
+    }
+
     // Open unless a test says otherwise.
     private CloseExerciseController Build(ICheckingExerciseService? checkingExercises = null)
     {

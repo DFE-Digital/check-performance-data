@@ -1,6 +1,7 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
+using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Persistence.Contexts;
@@ -84,6 +85,7 @@ public static class SeedChangeRequests
         IPupilDataBlobClient pupilClient,
         IRequestRepository requestRepository,
         IRequestStateBlobClient requestStateBlobClient,
+        IRequestBlobClient requestBlobClient,
         ICheckYourPupilDataService checkYourPupilDataService,
         ICheckingExerciseService checkingExerciseService)
     {
@@ -115,7 +117,7 @@ public static class SeedChangeRequests
             (Reference: Reference(5), Status: RequestStatus.ReadyToSubmit, Pupil: p[4]),
             (Reference: Reference(6), Status: RequestStatus.ReadyToSubmit, Pupil: p[5]),
             (Reference: Reference(7), Status: RequestStatus.ReadyToSubmit, Pupil: p[5]), // duplicate of Reference(6)
-            (Reference: Reference(8), Status: RequestStatus.SubmittedUnCommitted, Pupil: p[6]),
+            (Reference: Reference(8), Status: RequestStatus.Submitted, Pupil: p[6]),
             (Reference: Reference(9), Status: RequestStatus.ReadyToSubmit, Pupil: p[6]), // duplicate of already-submitted Reference(8)
             (Reference: Reference(10), Status: RequestStatus.InProgress, Pupil: p[7]),
             (Reference: Reference(11), Status: RequestStatus.InProgress, Pupil: p[8])
@@ -123,7 +125,9 @@ public static class SeedChangeRequests
 
         foreach (var scenario in scenarios)
         {
-            await requestRepository.UpsertAsync(new ChangeRequestData
+            var submitted = scenario.Status == RequestStatus.Submitted;
+
+            var changeRequestId = await requestRepository.UpsertAsync(new ChangeRequestData
             {
                 WindowId = windowId,
                 CheckingExerciseId = checkingExerciseService.IdFor(
@@ -142,7 +146,12 @@ public static class SeedChangeRequests
                 Status = scenario.Status,
                 RequestType = RequestType.Amendment,
                 RequestTypeDescription = RequestTypeDescription,
-                AmendmentType = WhatToChange.Remove
+                AmendmentType = WhatToChange.Remove,
+                // #536: a seeded submitted request is one the Rules Engine has already decided, so
+                // closing pupil data in dev sends it to the dev Zendesk outbox. "Dual registered or
+                // moved school" has no auto rule, so Scrutiny is what the engine would decide.
+                ProcessingStatus = submitted ? ProcessingStatus.Decided : null,
+                Outcome = submitted ? DecisionStatus.Scrutiny : null
             });
 
             var state = new RequestState
@@ -162,6 +171,42 @@ public static class SeedChangeRequests
             };
 
             await requestStateBlobClient.SaveAsync(windowId, scenario.Reference, state);
+
+            // The document the close sweep sends. Built here rather than through RequestService,
+            // which would enqueue it to the Rules Engine; the row above is already decided.
+            if (submitted)
+            {
+                await requestBlobClient.SaveRequestAsync(windowId, new RequestDocument
+                {
+                    ChangeRequestId = changeRequestId,
+                    ReferenceNumber = scenario.Reference,
+                    SubmittedAt = DateTime.UtcNow,
+                    SubmittedBy = new UserDetails { UserId = SubmittedById.ToString(), DisplayName = SubmittedByName },
+                    CheckingWindowId = windowId,
+                    CheckingWindowType = CheckingWindowType.KS4June.ToString(),
+                    RequestTypeCode = $"Remove - {ReasonValue}",
+                    School = new SchoolDetails { Urn = Urn.ToString(), Name = "Kingsmead School", Laestab = Laestab.Replace("/", "") },
+                    Pupil = new PupilDetails
+                    {
+                        Id = scenario.Pupil.Id.ToString(),
+                        CypmdId = scenario.Pupil.Cypmd_Id,
+                        Firstname = scenario.Pupil.Firstname,
+                        Surname = scenario.Pupil.Surname,
+                        DateOfBirth = PupilDateFormatter.ToDisplayDate(scenario.Pupil.DateOfBirth),
+                        Sex = scenario.Pupil.Sex,
+                        Age = scenario.Pupil.Age,
+                        Upn = scenario.Pupil.Identifier,
+                        Pincl = scenario.Pupil.Pincl ?? 0,
+                        MatchRef = scenario.Pupil.MatchRef,
+                        EntryDate = scenario.Pupil.EntryDate
+                    },
+                    Answers =
+                    [
+                        new AnswerRecord { QuestionId = "reason", QuestionTitle = "Reason", Type = "Radio", Value = ReasonLabel, RawValue = ReasonValue },
+                        new AnswerRecord { QuestionId = "dual-registered-moved-dfe-number", QuestionTitle = "DfE number", Type = "FreeText", Value = ReasonDfeNumber, RawValue = ReasonDfeNumber }
+                    ]
+                });
+            }
         }
     }
 

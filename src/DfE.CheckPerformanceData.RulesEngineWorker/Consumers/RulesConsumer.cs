@@ -14,8 +14,9 @@ namespace DfE.CheckPerformanceData.RulesEngineWorker.Consumers;
 /// <summary>
 /// Consumes change-request messages: parses the request, evaluates it against the
 /// current rule set, persists the decision and status to the matching
-/// <see cref="Persistence.Entities.ChangeRequest"/> and enqueues a downstream
-/// ticket message — all atomically with the de-queue. It never talks to Zendesk.
+/// <see cref="Persistence.Entities.ChangeRequest"/> (ProcessingStatus = Decided), atomically with
+/// the de-queue. It never talks to Zendesk and never enqueues a ticket message: the close sweep
+/// does that once the checking exercise closes (#536).
 /// A mapping or evaluation failure routes to a synthetic Scrutiny decision that is
 /// still persisted, so a fault never silently auto-approves or auto-rejects.
 /// </summary>
@@ -178,8 +179,11 @@ public sealed class RulesConsumer : ConsumerBase
 
         await dbContext.ExecuteInTransactionAsync(async () =>
         {
+            // Only an undecided row takes the decision (#536). A redelivery that arrives after the
+            // close sweep has queued the request, or after its ticket exists, changes nothing: the
+            // decision on the row is the one the ticket was, or will be, built from.
             await dbContext.ChangeRequests
-                .Where(r => r.ReferenceNumber == parsed.ReferenceNumber)
+                .Where(r => r.ReferenceNumber == parsed.ReferenceNumber && r.ProcessingStatus == null)
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(r => r.Outcome, decision.Status)
                     .SetProperty(r => r.OutcomeKey, decision.OutcomeKey)
@@ -187,12 +191,12 @@ public sealed class RulesConsumer : ConsumerBase
                     .SetProperty(r => r.RulesVersion, rulesVersion)
                     .SetProperty(r => r.DecisionTrace, decisionTrace)
                     .SetProperty(r => r.DecidedAtUtc, DateTime.UtcNow)
-                    .SetProperty(r => r.WorkerStatus, WorkerStatus.RulesProcessed),
+                    .SetProperty(r => r.ProcessingStatus, ProcessingStatus.Decided),
                     cancellationToken);
         }, cancellationToken);
 
-        // Emit the decision-mix analytics event after the decision is durably persisted and
-        // the ticket enqueued — never inside the transaction. Decision metadata only, no PII;
+        // Emit the decision-mix analytics event after the decision is durably persisted —
+        // never inside the transaction. Decision metadata only, no PII;
         // a synthetic (fallback) decision is marked by a '_'-prefixed MatchedRuleId.
         // Best-effort: a sink failure must never fail processing (which would re-queue/poison
         // the message) — the message has already been handled by this point.

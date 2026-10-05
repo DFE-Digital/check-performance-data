@@ -116,7 +116,7 @@ public sealed class DevPipelineRunner
             SubmittedById = resolvedSubmittedById,
             SubmittedByName = "Dev Harness",
             SubmittedByEmail = resolvedUserEmail,
-            Status = RequestStatus.SubmittedUnCommitted,
+            Status = RequestStatus.Submitted,
             ReferenceNumber = reference,
             RequestType = RequestType.Amendment,
             RequestTypeDescription = requestType ?? preset.WhatToChange,

@@ -31,7 +31,7 @@ flowchart LR
 
 | Project | Responsibility | Notes |
 |---|---|---|
-| `DfE.CheckPerformanceData.Domain` | Pure domain types | **Enums only**: `CheckingWindowType {KS4June, KS2, Post16, KS4Autumn}`, `KeyStages {KS2, KS4, Post16}`, `RequestType`, `RequestStatus`, `WorkerStatus`, `CountryKind`. No entity classes. |
+| `DfE.CheckPerformanceData.Domain` | Pure domain types | **Enums only**: `CheckingWindowType {KS4June, KS2, Post16, KS4Autumn}`, `KeyStages {KS2, KS4, Post16}`, `RequestType`, `RequestStatus`, `ProcessingStatus`, `CountryKind`. No entity classes. |
 | `DfE.CheckPerformanceData.Application` | Interfaces, DTOs, use cases | Also hosts the **rules-engine evaluator** (`Application/RulesEngine/RulesEngine.cs`), journey engine types, analytics event records, Notify contracts. |
 | `DfE.CheckPerformanceData.Persistence` | Data layer | `PortalDbContext` (+ `IPortalDbContext`), all entities, **all 40 EF migrations**, repositories, audit interceptor. Owns Npgsql. EF Core lives in this project, **not** in `Infrastructure`. |
 | `DfE.CheckPerformanceData.Infrastructure` | External adapters | Azure Blob clients, `PostgresQueueService`, Zendesk (Refit), GOV.UK Notify, DfE Sign-In OIDC + API client, DfE Analytics adapter, blob rules provider/seeder. No DbContext. |
@@ -94,7 +94,7 @@ The journey is data-driven from JSON flow configs:
 
 ### 4.5 Confirm data is correct
 
-`ConfirmCorrectController`: single-declaration flow (no question engine, no pupil selection). Creates a `ChangeRequest` with `RequestType.ConfirmCorrect`, status `SubmittedUnCommitted`, generates a reference number, fires `CorrectDataConfirmedEvent`, sends a confirmation email. Users can still submit amendments afterwards (the UI says so explicitly), and can view/withdraw the declaration from the amendment-requests page.
+`ConfirmCorrectController`: single-declaration flow (no question engine, no pupil selection). Creates a `ChangeRequest` with `RequestType.ConfirmCorrect`, status `Submitted`, generates a reference number, fires `CorrectDataConfirmedEvent`, sends a confirmation email. Users can still submit amendments afterwards (the UI says so explicitly), and can view/withdraw the declaration from the amendment-requests page.
 
 ### 4.6 Contact, content, and other public surfaces
 
@@ -119,35 +119,35 @@ sequenceDiagram
   participant Z as Zendesk
 
   U->>W: Submit request (Summary)
-  W->>DB: Upsert ChangeRequest (SubmittedUnCommitted)
+  W->>DB: Upsert ChangeRequest (Submitted)
   W->>Q: Enqueue RequestDocument ("rules-engine")
   W->>B: Persist journey JSON (read-only view)
   W-->>U: Confirmation page + email (async)
   RC->>Q: Dequeue (FOR UPDATE SKIP LOCKED)
   RC->>RC: Map RuleContext, Evaluate rules
-  RC->>DB: ExecuteUpdate: Outcome, OutcomeKey, MatchedRuleId,<br/>RulesVersion, DecidedAtUtc, WorkerStatus=RulesProcessed
-  A->>W: POST /admin/uncommitted-requests/send-to-zendesk
-  W->>Q: Enqueue per request ("zendesk") + Status=SubmittedCommitted
+  RC->>DB: ExecuteUpdate: Outcome, OutcomeKey, MatchedRuleId,<br/>RulesVersion, DecidedAtUtc, ProcessingStatus=Decided
+  A->>W: Close exercise / Send requests for processing
+  W->>Q: Enqueue saved RequestDocument per Decided request ("zendesk") + ProcessingStatus=TicketQueued
   ZC->>Q: Dequeue
-  ZC->>DB: Claim (CrmId null AND RulesProcessed → ZendeskTicketCreating)
+  ZC->>DB: Claim (CrmId null AND TicketQueued → TicketCreating)
   ZC->>Z: Create ticket + upload evidence attachments
-  ZC->>DB: CrmId + WorkerStatus=ZendeskTicketCreated
+  ZC->>DB: CrmId + ProcessingStatus=TicketCreated
 ```
 
 Key points (`Application/RequestSubmission/RequestService.cs`, `RulesEngineWorker/Consumers/`):
 
-- The `ChangeRequest` row is written **before** enqueueing so its id can ride in the message. The enqueued `RequestDocument` (full answer snapshot) is not itself retained; the journey JSON blob backs the read-only view.
+- The `ChangeRequest` row is written **before** enqueueing so its id can ride in the message. The `RequestDocument` is saved to blob storage at submit (`request_{reference}.json`); the close sweep sends that copy. The journey JSON blob backs the read-only view.
 - `RulesConsumer` converts **any** mapping/engine exception into a synthetic **Scrutiny** decision (`_mapper_error` / `_engine_error`) — a fault never silently auto-decides. Decision persistence runs in a transaction; the `request_decision` analytics event is emitted after commit, never inside it.
-- **Rules → Zendesk is NOT auto-wired.** The only trigger is the admin "send to Zendesk" POST (explicitly commented as a quick-and-dirty test hook), which rebuilds `RequestDocument`s for every `SubmittedUnCommitted` row in open windows, enqueues them to `zendesk`, flips them to `SubmittedCommitted`, and marks unsubmitted drafts `NotSubmitted`. There is no scheduled window-close job.
+- **Rules → Zendesk is sent by the admin (#536).** Closing a checking exercise, or **Send … requests for processing** after it closed, sends each `Decided` amendment's saved `RequestDocument` to `zendesk` and sets `TicketQueued`. A request the Rules Engine has not decided is reported as waiting and sent by a later run. It also cancels unsubmitted drafts (`NotSubmitted`). Nothing runs it at a scheduled end.
 - `ZendeskConsumer` is idempotent: conditional `ExecuteUpdateAsync` claim + a **partial unique index on `CrmId`** (migration `20260615083842`). Ticket priority/status derive from the decision (Scrutiny → high/new/question; Auto\* → normal/open/task); custom fields carry decision, URN, CYPMD id, pupil identifiers.
 
 **Status enums** (`Domain/Enums/RequestStatus.cs`):
 
 ```
-RequestStatus:  InProgress → ReadyToSubmit → SubmittedUnCommitted → SubmittedCommitted
+RequestStatus:  InProgress → ReadyToSubmit → Submitted
                                            ↘ Withdrawn
                 InProgress/ReadyToSubmit → NotSubmitted   (window closed, never submitted)
-WorkerStatus:   (null) → RulesProcessed → ZendeskTicketCreating → ZendeskTicketCreated
+ProcessingStatus: (null) → Decided → TicketQueued → TicketCreating → TicketCreated
 ```
 
 ## 6. Postgres-backed queue
@@ -183,7 +183,7 @@ Access is gated per section by `[RequireAdminSection]` (`Web/Admin/RequireAdminS
 | Rules editor | `/admin/rules` | Outcomes/branches predicate builder (AJAX + no-JS fallback), lookups, ETag concurrency, history + rollback-as-new-save, bootstrap upload | `rules-config` |
 | Observability | `/admin/observability` | Health strip, throughput/decision-mix/dwell charts, transactions, replay/walkthrough, CSV export, SSE live stream (≤30 s heartbeat for AKS ingress) | `observability` |
 | Queues + DLQ | `/admin/queues` | Depth/latency, listings, DLQ redrive/purge | `rules-engine-queue` |
-| Uncommitted requests | `/admin/uncommitted-requests` | List `SubmittedUnCommitted` + outcomes; **send-to-Zendesk** (the manual "close window") | `uncommitted-requests` |
+| Uncommitted requests | `/admin/uncommitted-requests` | List `Submitted` requests + outcomes | `uncommitted-requests` |
 | Storage browser | `/admin/storage` | Browse/preview/download/upload/delete blobs in app + ingress accounts | `storage-admin` |
 | System settings | `/admin/settings` | Key/value `Setting` editor (page sizes, DLQ options, health thresholds) | `system-settings` |
 | Role settings | `/admin/system/roles` | The grant grid itself; can register new role names | `role-settings` |
@@ -223,7 +223,7 @@ erDiagram
     string OutcomeKey
     string MatchedRuleId
     string RulesVersion
-    string WorkerStatus
+    string ProcessingStatus
     string CrmId
   }
   CHECKING_WINDOW {

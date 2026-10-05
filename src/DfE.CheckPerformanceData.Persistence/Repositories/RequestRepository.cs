@@ -16,7 +16,7 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
                 && r.PupilId == pupilId
                 && r.OrganisationUrn == organisationUrn
                 && r.ReferenceNumber != currentReferenceNumber
-                && r.Status == RequestStatus.SubmittedUnCommitted
+                && r.Status == RequestStatus.Submitted
                 // AB#296648: a results enquiry is not a competing amendment, so it must not raise the
                 // pupil-search duplicate warning. Kept in step with ConflictQuery below — the warning
                 // and the hard block have to agree, or the user is warned about something that then
@@ -42,7 +42,7 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
             .Where(r => r.WindowId == windowId
                 && r.PupilId == pupilId
                 && r.OrganisationUrn == organisationUrn
-                && r.Status == RequestStatus.SubmittedUnCommitted)
+                && r.Status == RequestStatus.Submitted)
             .Select(r => r.ReferenceNumber)
             .FirstOrDefaultAsync();
 
@@ -50,7 +50,7 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
         => await db.ChangeRequests
             .Where(r => r.WindowId == windowId
                 && r.OrganisationUrn == organisationUrn
-                && r.Status == RequestStatus.SubmittedUnCommitted
+                && r.Status == RequestStatus.Submitted
                 && r.PupilId != null)
             .Select(r => r.PupilId!.Value)
             .Distinct()
@@ -60,11 +60,11 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
     {
         var timestamp = DateTime.SpecifyKind(data.Timestamp, DateTimeKind.Local);
 
-        // For SubmittedUnCommitted, check for conflicts atomically within a serializable
+        // For Submitted, check for conflicts atomically within a serializable
         // transaction covering both insert and update paths. This closes the TOCTOU gap
         // between CheckForConflictAsync and UpsertAsync — two concurrent submissions for
         // the same pupil cannot both succeed.
-        if (data.Status == RequestStatus.SubmittedUnCommitted)
+        if (data.Status == RequestStatus.Submitted)
         {
             var strategy = db.Database.CreateExecutionStrategy();
             return await strategy.ExecuteAsync(async () =>
@@ -125,7 +125,9 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
                             .SetProperty(r => r.RequestTypeDescription, data.RequestTypeDescription)
                             .SetProperty(r => r.AmendmentType, data.AmendmentType)
                             .SetProperty(r => r.OrganisationLaestab, data.OrganisationLaestab)
-                            .SetProperty(r => r.CheckingExerciseId, data.CheckingExerciseId));
+                            .SetProperty(r => r.CheckingExerciseId, data.CheckingExerciseId)
+                            .SetProperty(r => r.ProcessingStatus, data.ProcessingStatus)
+                            .SetProperty(r => r.Outcome, data.Outcome));
                 }
                 else
                 {
@@ -149,7 +151,9 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
                         RequestType = data.RequestType,
                         RequestTypeDescription = data.RequestTypeDescription,
                         AmendmentType = data.AmendmentType,
-                        OrganisationLaestab = data.OrganisationLaestab
+                        OrganisationLaestab = data.OrganisationLaestab,
+                        ProcessingStatus = data.ProcessingStatus,
+                        Outcome = data.Outcome
                     });
                     await db.SaveChangesAsync();
                 }
@@ -159,7 +163,7 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
             });
         }
 
-        // Draft save path (non-SubmittedUnCommitted) — no conflict guard needed.
+        // Draft save path (non-Submitted) — no conflict guard needed.
         var draftExistingId = await db.ChangeRequests
             .Where(r => r.ReferenceNumber == data.ReferenceNumber)
             .Select(r => r.Id)
@@ -237,7 +241,7 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
         await db.ChangeRequests
             .Where(r => r.WindowId == windowId
                 && r.OrganisationUrn == organisationUrn
-                && (r.Status == RequestStatus.SubmittedUnCommitted
+                && (r.Status == RequestStatus.Submitted
                     || r.Status == RequestStatus.Withdrawn)
                 // AB#296648 / AB#298325 — enquiry rows are excluded here because they surface on
                 // the Issues tab instead, via GetSubmittedResultsEnquiriesAsync below. The two
@@ -260,9 +264,9 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
         await db.ChangeRequests
             .Where(r => r.WindowId == windowId
                 && r.OrganisationUrn == organisationUrn
-                // Enquiries remain SubmittedUnCommitted: dispatch to Zendesk happens at submit time (AB#301974)
+                // Enquiries remain Submitted: dispatch to Zendesk happens at submit time (AB#301974)
                 // without flipping Status, so one status is the whole population.
-                && r.Status == RequestStatus.SubmittedUnCommitted
+                && r.Status == RequestStatus.Submitted
                 && r.RequestType == RequestType.ResultsEnquiry)
             .OrderByDescending(r => r.Submitted)
             .Select(r => new SubmittedRequestData
@@ -345,7 +349,7 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
             .Where(r => r.WindowId == data.WindowId
                         && r.PupilId == data.PupilId
                         && r.OrganisationUrn == data.OrganisationUrn
-                        && r.Status == RequestStatus.SubmittedUnCommitted
+                        && r.Status == RequestStatus.Submitted
                         && r.RequestType != RequestType.ResultsEnquiry);
 
         // When updating an existing row, exclude the current row from conflict

@@ -1,124 +1,150 @@
 using DfE.CheckPerformanceData.Application.AdminRequests;
-using DfE.CheckPerformanceData.Application.CheckYourPupilData;
-using DfE.CheckPerformanceData.Application.Journey;
-using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using NSubstitute;
-// Two unrelated classes are named CheckingWindowDto; RequestState.CheckingWindow is the LandingPage one.
-using CheckingWindowDto = DfE.CheckPerformanceData.Application.LandingPage.CheckingWindowDto;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.WindowManagement;
 
-// The per-exercise close sweep: enqueue this exercise's SubmittedUnCommitted requests to Zendesk,
-// commit those rows, and cancel the exercise's leftover drafts.
-//
-// Replaces AdminRequestsService.ProcessCloseWindowEvent, which swept every OPEN window at once.
-// Two things changed with the move and are pinned here: the sweep is scoped to one window AND one
-// exercise, and it ignores the exercise's dates entirely.
+// The per-exercise close sweep (#536): send this exercise's decided amendments to Zendesk using
+// the document saved at submit, mark them TicketQueued, report undecided ones as waiting, and
+// cancel leftover drafts. Which rows count as decided or waiting is the repository's query, pinned
+// by AdminRequestsRepositoryExerciseScopeTests; this pins what the sweep does with them.
 public sealed class CloseExerciseServiceTests
 {
     private static readonly Guid WindowId = Guid.Parse("F34D285B-8660-4D12-9C30-787328DEAA0A");
-    private static readonly Guid RowId = Guid.Parse("11111111-1111-1111-1111-111111111111");
     private const CheckingExerciseType Exercise = CheckingExerciseType.PupilData;
 
     private readonly IAdminRequestsRepository _repository = Substitute.For<IAdminRequestsRepository>();
-    private readonly IRequestStateBlobClient _stateBlob = Substitute.For<IRequestStateBlobClient>();
-    private readonly IQuestionFlowService _flowService = Substitute.For<IQuestionFlowService>();
-    private readonly IQueueService _queueService = Substitute.For<IQueueService>();
+    private readonly IRequestBlobClient _documents = Substitute.For<IRequestBlobClient>();
+    private readonly IQueueService _queue = Substitute.For<IQueueService>();
     private readonly CloseExerciseService _sut;
-
-    private static readonly QuestionFlowConfig Flow = new()
-    {
-        FirstPageId = "page-1",
-        Pages = [new JourneyPage { Id = "page-1" }]
-    };
 
     public CloseExerciseServiceTests()
     {
-        _flowService.GetConfigAsync(Arg.Any<WhatToChange>(), Arg.Any<CheckingWindowType>()).Returns(Flow);
-        _flowService.ResolveRequestType(Arg.Any<QuestionFlowConfig>(), Arg.Any<RequestState>()).Returns("Remove");
-
-        _sut = new CloseExerciseService(_repository, _stateBlob, _flowService, _queueService);
+        _repository.MarkTicketQueuedAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(true);
+        _sut = new CloseExerciseService(_repository, _documents, _queue);
     }
 
-    private static ReplayRequestRow Row(Guid id, string reference) => new()
+    private static ReplayRequestRow Row(string reference) => new()
     {
-        ChangeRequestId = id,
-        WindowId = WindowId,
+        ChangeRequestId = Guid.NewGuid(), WindowId = WindowId, ReferenceNumber = reference
+    };
+
+    private static RequestDocument Document(string reference) => new()
+    {
+        ChangeRequestId = Guid.NewGuid(),
         ReferenceNumber = reference,
-        OrganisationUrn = 142313,
-        SubmittedById = Guid.Parse("33333333-3333-3333-3333-333333333333"),
-        SubmittedByName = "Ada Editor"
+        SubmittedBy = new UserDetails { UserId = "u1", DisplayName = "Ada Editor" },
+        CheckingWindowId = WindowId,
+        CheckingWindowType = "KS4June",
+        RequestTypeCode = "Add",
+        School = new SchoolDetails { Urn = "142313", Name = "Kingsmead School" },
+        Pupil = new PupilDetails
+        {
+            Id = "p1", CypmdId = "c1", Firstname = "Alice", Surname = "Newpupil",
+            DateOfBirth = "01/09/2010", Sex = "F", Age = 15, Upn = "A123456789012"
+        },
+        Answers = []
     };
 
-    private static PupilDto Pupil() => new()
+    private void Decided(params ReplayRequestRow[] rows)
     {
-        Id = Guid.NewGuid(), Firstname = "Alice", Surname = "Smith", Sex = "F",
-        DateOfBirth = "01/09/2010", Age = 15, Cypmd_Id = "", Identifier = "A86040700001B"
-    };
-
-    private static CheckingWindowDto Window => new()
-    {
-        Title = "KS4 June 2026", KeyStage = KeyStages.KS4,
-        CheckingWindowType = CheckingWindowType.KS4June,
-        StartDate = new DateTime(2026, 6, 1), EndDate = new DateTime(2026, 6, 30)
-    };
-
-    private static RequestState Journey(WhatToChange change) => new()
-    {
-        SelectedWhatToChange = change,
-        CheckingWindow = Window,
-        SelectedPupil = Pupil(),
-        QuestionAnswers = [],
-        QuestionHistory = ["page-1"]
-    };
-
-    private void Seed(params (ReplayRequestRow Row, WhatToChange Change)[] rows)
-    {
-        _repository.GetRequestsForExerciseAsync(WindowId, Exercise, Arg.Any<CancellationToken>())
-            .Returns(rows.Select(r => r.Row).ToList());
-        foreach (var (row, change) in rows)
-            _stateBlob.GetAsync(WindowId, row.ReferenceNumber).Returns(Journey(change));
+        _repository.GetDecidedRequestsForExerciseAsync(WindowId, Exercise, Arg.Any<CancellationToken>())
+            .Returns(rows);
+        foreach (var row in rows)
+            _documents.GetRequestAsync(WindowId, row.ReferenceNumber).Returns(Document(row.ReferenceNumber));
     }
 
     [Fact]
-    public async Task An_amendment_is_enqueued_and_committed()
+    public async Task A_decided_request_is_sent_with_its_saved_document_and_marked_queued()
     {
-        Seed((Row(RowId, "CYPMD_KS4June_AAAAAA1"), WhatToChange.Remove));
+        var row = Row("CYPMD_KS4June_AAAAAA1");
+        Decided(row);
 
         var result = await _sut.CloseAsync(WindowId, Exercise, CancellationToken.None);
 
         Assert.Equal(1, result.Enqueued);
-        await _queueService.Received(1).EnqueueAsync(
-            QueueOptions.ZendeskQueue, Arg.Any<object>(), Arg.Any<CancellationToken>());
-        await _repository.Received(1).SetStatusAsync(
-            RowId, RequestStatus.SubmittedCommitted, Arg.Any<CancellationToken>());
+        await _queue.Received(1).EnqueueAsync(
+            QueueOptions.ZendeskQueue,
+            Arg.Is<RequestDocument>(d => d.ReferenceNumber == row.ReferenceNumber && d.School.Name == "Kingsmead School"),
+            Arg.Any<CancellationToken>());
+        await _repository.Received(1).MarkTicketQueuedAsync(row.ChangeRequestId, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Waiting_requests_are_counted_and_left_alone()
+    {
+        Decided();
+        _repository.CountWaitingRequestsForExerciseAsync(WindowId, Exercise, Arg.Any<CancellationToken>()).Returns(2);
+
+        var result = await _sut.CloseAsync(WindowId, Exercise, CancellationToken.None);
+
+        Assert.Equal(0, result.Enqueued);
+        Assert.Equal(2, result.Waiting);
+        await _queue.DidNotReceiveWithAnyArgs().EnqueueAsync<object>(default!, default!, default);
+    }
+
+    [Fact]
+    public async Task The_sweep_never_changes_the_schools_status()
+    {
+        // Status says what the school did. The sweep writes only ProcessingStatus (and cancels
+        // drafts), so a submitted request stays Submitted.
+        Decided(Row("CYPMD_KS4June_AAAAAA1"));
+
+        await _sut.CloseAsync(WindowId, Exercise, CancellationToken.None);
+
+        Assert.DoesNotContain(_repository.ReceivedCalls(), c => c.GetMethodInfo().Name.Contains("Status")
+            && c.GetMethodInfo().Name != nameof(IAdminRequestsRepository.MarkTicketQueuedAsync));
+    }
+
+    [Fact]
+    public async Task A_row_another_run_queued_first_is_not_counted()
+    {
+        var row = Row("CYPMD_KS4June_AAAAAA1");
+        Decided(row);
+        _repository.MarkTicketQueuedAsync(row.ChangeRequestId, Arg.Any<CancellationToken>()).Returns(false);
+
+        var result = await _sut.CloseAsync(WindowId, Exercise, CancellationToken.None);
+
+        Assert.Equal(0, result.Enqueued);
+    }
+
+    [Fact]
+    public async Task A_missing_saved_document_fails_naming_the_reference()
+    {
+        // The service is not live, so every submitted amendment has a saved document. A missing
+        // one is a fault to see, not a case to work around.
+        var row = Row("CYPMD_KS4June_MISSING");
+        _repository.GetDecidedRequestsForExerciseAsync(WindowId, Exercise, Arg.Any<CancellationToken>())
+            .Returns([row]);
+        _documents.GetRequestAsync(WindowId, row.ReferenceNumber).Returns((RequestDocument?)null);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _sut.CloseAsync(WindowId, Exercise, CancellationToken.None));
+
+        Assert.Contains("CYPMD_KS4June_MISSING", ex.Message);
+        await _repository.DidNotReceive().MarkTicketQueuedAsync(row.ChangeRequestId, Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task The_sweep_asks_only_for_the_named_window_and_exercise()
     {
-        // The whole point of the move: a press on one exercise cannot reach another window's rows,
-        // or another exercise's rows in this window.
-        Seed();
+        Decided();
 
         await _sut.CloseAsync(WindowId, Exercise, CancellationToken.None);
 
-        await _repository.Received(1).GetRequestsForExerciseAsync(
-            WindowId, Exercise, Arg.Any<CancellationToken>());
-        await _repository.Received(1).MarkDraftsNotSubmittedForExerciseAsync(
-            WindowId, Exercise, Arg.Any<CancellationToken>());
+        await _repository.Received(1).GetDecidedRequestsForExerciseAsync(WindowId, Exercise, Arg.Any<CancellationToken>());
+        await _repository.Received(1).CountWaitingRequestsForExerciseAsync(WindowId, Exercise, Arg.Any<CancellationToken>());
+        await _repository.Received(1).MarkDraftsNotSubmittedForExerciseAsync(WindowId, Exercise, Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Drafts_for_the_exercise_are_cancelled_and_counted()
     {
-        Seed();
-        _repository.MarkDraftsNotSubmittedForExerciseAsync(
-            WindowId, Exercise, Arg.Any<CancellationToken>()).Returns(3);
+        Decided();
+        _repository.MarkDraftsNotSubmittedForExerciseAsync(WindowId, Exercise, Arg.Any<CancellationToken>()).Returns(3);
 
         var result = await _sut.CloseAsync(WindowId, Exercise, CancellationToken.None);
 
@@ -126,48 +152,17 @@ public sealed class CloseExerciseServiceTests
     }
 
     [Fact]
-    public async Task A_row_with_no_request_state_blob_is_skipped_without_stopping_the_sweep()
+    public async Task The_preview_counts_what_the_sweep_would_send_wait_on_and_cancel()
     {
-        var orphanId = Guid.Parse("44444444-4444-4444-4444-444444444444");
-        _repository.GetRequestsForExerciseAsync(WindowId, Exercise, Arg.Any<CancellationToken>())
-            .Returns([Row(orphanId, "CYPMD_KS4June_MISSING"), Row(RowId, "CYPMD_KS4June_AAAAAA1")]);
-        _stateBlob.GetAsync(WindowId, "CYPMD_KS4June_MISSING").Returns((RequestState?)null);
-        _stateBlob.GetAsync(WindowId, "CYPMD_KS4June_AAAAAA1").Returns(Journey(WhatToChange.Remove));
-
-        var result = await _sut.CloseAsync(WindowId, Exercise, CancellationToken.None);
-
-        Assert.Equal(1, result.Enqueued);
-        await _repository.DidNotReceive().SetStatusAsync(
-            orphanId, Arg.Any<RequestStatus>(), Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task Closing_does_not_depend_on_the_exercise_dates()
-    {
-        // Deliberate: the close button works regardless of the exercise's end date, so the service
-        // takes no TimeProvider and asks the repository for no date. If a date filter ever creeps
-        // back in, this window (open until 2026-06-30) would stop being swept.
-        Seed((Row(RowId, "CYPMD_KS4June_AAAAAA1"), WhatToChange.Remove));
-
-        var result = await _sut.CloseAsync(WindowId, Exercise, CancellationToken.None);
-
-        Assert.Equal(1, result.Enqueued);
-    }
-
-    [Fact]
-    public async Task Preview_counts_the_rows_the_sweep_would_take_without_writing_anything()
-    {
-        Seed(
-            (Row(RowId, "CYPMD_KS4June_AAAAAA1"), WhatToChange.Remove),
-            (Row(Guid.NewGuid(), "CYPMD_KS4June_AAAAAA2"), WhatToChange.Include));
-        _repository.CountDraftsForExerciseAsync(WindowId, Exercise, Arg.Any<CancellationToken>()).Returns(2);
+        Decided(Row("A"), Row("B"));
+        _repository.CountWaitingRequestsForExerciseAsync(WindowId, Exercise, Arg.Any<CancellationToken>()).Returns(1);
+        _repository.CountDraftsForExerciseAsync(WindowId, Exercise, Arg.Any<CancellationToken>()).Returns(4);
 
         var preview = await _sut.PreviewAsync(WindowId, Exercise, CancellationToken.None);
 
         Assert.Equal(2, preview.RequestsToClose);
-        Assert.Equal(2, preview.DraftsToCancel);
-        await _queueService.DidNotReceiveWithAnyArgs().EnqueueAsync(default!, default(object)!, default);
-        await _repository.DidNotReceiveWithAnyArgs().SetStatusAsync(default, default, default);
-        await _repository.DidNotReceiveWithAnyArgs().MarkDraftsNotSubmittedForExerciseAsync(default, default, default);
+        Assert.Equal(1, preview.RequestsWaiting);
+        Assert.Equal(4, preview.DraftsToCancel);
+        await _queue.DidNotReceiveWithAnyArgs().EnqueueAsync<object>(default!, default!, default);
     }
 }

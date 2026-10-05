@@ -15,28 +15,39 @@ public interface IAdminRequestsRepository
         Guid windowId, CheckingExerciseType? exercise, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Replay projection of the SubmittedUnCommitted rows belonging to ONE checking exercise of one
-    /// window, used to rebuild RequestDocuments when that exercise is closed.
+    /// The submitted amendments of ONE checking exercise that the Rules Engine has decided and that
+    /// have no ticket: what the close sweep sends to Zendesk (#536). A row the sweep has already
+    /// queued is TicketQueued and is not returned, so the sweep can run again safely.
     /// </summary>
     /// <remarks>
     /// Scoped by the exercise's row id, resolved from the window id + type. A row whose
     /// CheckingExerciseId is null therefore matches nothing and is left alone — deliberate: such a
     /// row was orphaned (the FK is onDelete: SetNull) or belongs to a window that never ran the
-    /// mapped exercise, so committing it under this exercise would be a guess. It stays
-    /// SubmittedUnCommitted and visible on the Requests page instead.
+    /// mapped exercise, so sending it under this exercise would be a guess.
     ///
-    /// There is no date parameter. Closing is an admin decision, not a consequence of the clock.
+    /// Amendments only. A results enquiry is queued at submit, and a ConfirmCorrect declaration
+    /// never goes to Zendesk. There is no date parameter: closing is an admin decision.
     /// </remarks>
-    Task<IReadOnlyList<ReplayRequestRow>> GetRequestsForExerciseAsync(
+    Task<IReadOnlyList<ReplayRequestRow>> GetDecidedRequestsForExerciseAsync(
         Guid windowId, CheckingExerciseType exercise, CancellationToken cancellationToken);
 
-    // Sets a single ChangeRequest row's status by its Id.
-    Task SetStatusAsync(Guid changeRequestId, RequestStatus status, CancellationToken cancellationToken);
+    /// <summary>
+    /// Submitted amendments of the same exercise that the Rules Engine has not decided yet. The
+    /// sweep leaves them; a later run sends them.
+    /// </summary>
+    Task<int> CountWaitingRequestsForExerciseAsync(
+        Guid windowId, CheckingExerciseType exercise, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Decided → TicketQueued for one row. Returns false when the row was not Decided (another run
+    /// queued it first), so the caller does not count it.
+    /// </summary>
+    Task<bool> MarkTicketQueuedAsync(Guid changeRequestId, CancellationToken cancellationToken);
 
     /// <summary>
     /// Moves every InProgress / ReadyToSubmit draft belonging to one checking exercise to
     /// NotSubmitted. Returns the number of rows changed. Same exercise scoping as
-    /// <see cref="GetRequestsForExerciseAsync"/>.
+    /// <see cref="GetDecidedRequestsForExerciseAsync"/>.
     /// </summary>
     Task<int> MarkDraftsNotSubmittedForExerciseAsync(
         Guid windowId, CheckingExerciseType exercise, CancellationToken cancellationToken);

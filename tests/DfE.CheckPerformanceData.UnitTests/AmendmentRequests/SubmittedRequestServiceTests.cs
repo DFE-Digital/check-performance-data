@@ -29,7 +29,7 @@ public class SubmittedRequestServiceTests
     [Fact]
     public async Task GetAsync_WhenNoJourneyStored_ReturnsNull()
     {
-        StubRow(RequestStatus.SubmittedUnCommitted);
+        StubRow(RequestStatus.Submitted);
         _blob.GetAsync(WindowId, Reference).Returns((RequestState?)null);
 
         Assert.Null(await _sut.GetAsync(WindowId, Reference));
@@ -38,7 +38,7 @@ public class SubmittedRequestServiceTests
     [Fact]
     public async Task GetAsync_WhenConfigNotFound_ReturnsNull()
     {
-        StubRow(RequestStatus.SubmittedUnCommitted);
+        StubRow(RequestStatus.Submitted);
         _blob.GetAsync(WindowId, Reference).Returns(Journey());
         _flow.GetConfigAsync(Arg.Any<WhatToChange>(), Arg.Any<CheckingWindowType>())
             .Returns((QuestionFlowConfig?)null);
@@ -78,7 +78,7 @@ public class SubmittedRequestServiceTests
             ]
         };
         Setup(journey, page);
-        StubRow(RequestStatus.SubmittedUnCommitted, "submitter@education.gov.uk", submittedAt);
+        StubRow(RequestStatus.Submitted, "submitter@education.gov.uk", submittedAt);
 
         var result = await _sut.GetAsync(WindowId, Reference);
 
@@ -131,7 +131,7 @@ public class SubmittedRequestServiceTests
     [Fact]
     public async Task GetAsync_SkipsContentAndPupilSearchPages()
     {
-        StubRow(RequestStatus.SubmittedUnCommitted);
+        StubRow(RequestStatus.Submitted);
         var journey = Journey(history: ["intro", "select-pupil", "reason"]);
         journey.QuestionAnswers["q1"] = new QuestionAnswer { TextValue = "left-england" };
         var reasonPage = new JourneyPage
@@ -223,7 +223,7 @@ public class SubmittedRequestServiceTests
         _requestRepo.GetConfirmDataCorrectAsync(WindowId, 100000L, Reference).Returns(new ConfirmDataCorrectData
         {
             RequestType = RequestType.Amendment,
-            Status = RequestStatus.SubmittedUnCommitted,
+            Status = RequestStatus.Submitted,
             SubmittedByEmail = "submitter@education.gov.uk",
             Submitted = DateTime.Now,
             ReferenceNumber = Reference
@@ -290,7 +290,7 @@ public class SubmittedRequestServiceTests
         _flow.GetPage(Arg.Any<QuestionFlowConfig>(), page.Id).Returns(page);
         // Default to an owning row so the org-scoping gate passes; individual tests
         // override via StubRow when they assert on specific row metadata.
-        StubRow(RequestStatus.SubmittedUnCommitted);
+        StubRow(RequestStatus.Submitted);
     }
 
     private static QuestionFlowConfig Config(JourneyPage page) =>

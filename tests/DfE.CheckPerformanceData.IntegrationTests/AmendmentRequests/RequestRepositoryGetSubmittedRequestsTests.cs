@@ -9,7 +9,7 @@ using Npgsql;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.AmendmentRequests;
 
-// AB#296648: a results enquiry is stored as an ordinary SubmittedUnCommitted ChangeRequests row,
+// AB#296648: a results enquiry is stored as an ordinary Submitted ChangeRequests row,
 // but the Amendment Requests "submitted" tab is built for amendments — Delete quietly withdraws
 // an enquiry via an unhandled-type fallback, and View renders a broken details page. How this
 // screen should present a results enquiry is not yet designed, so enquiry rows are hidden here
@@ -65,7 +65,7 @@ public sealed class RequestRepositoryGetSubmittedRequestsTests(PostgresFixture f
             Timestamp = DateTime.UtcNow,
             SubmittedById = Guid.NewGuid(),
             SubmittedByName = "Test User",
-            Status = RequestStatus.SubmittedUnCommitted,
+            Status = RequestStatus.Submitted,
             RequestType = requestType,
             RequestTypeDescription = requestType.ToString()
         };

@@ -99,6 +99,66 @@ public sealed class RulesEngineEndToEndTests
         Assert.NotEqual(string.Empty, persisted.DecisionTrace);
     }
 
+    // #536: the decision is written once. A rules message redelivered after the request has been
+    // queued for (or given) its ticket must not move it back to Decided, or the close sweep would
+    // send it a second time.
+    [Fact]
+    public async Task Redelivery_after_the_ticket_is_queued_does_not_overwrite_the_row()
+    {
+        var scenario = BuildScenarios().First(s => s.Name == "MergePupils-Default");
+        var reference = scenario.ReferenceNumber;
+
+        await using (var seedContext = _fixture.CreateContext())
+        {
+            if (!await seedContext.CheckingWindows.AnyAsync(w => w.Id == WindowId))
+            {
+                seedContext.CheckingWindows.Add(NewCheckingWindow());
+                await seedContext.SaveChangesAsync();
+            }
+
+            seedContext.ChangeRequests.RemoveRange(
+                seedContext.ChangeRequests.Where(r => r.ReferenceNumber == reference));
+            await seedContext.SaveChangesAsync();
+
+            var row = NewChangeRequest(reference);
+            row.ProcessingStatus = ProcessingStatus.TicketQueued;
+            row.Outcome = DecisionStatus.AutoApproved;
+            row.MatchedRuleId = "EARLIER";
+            seedContext.ChangeRequests.Add(row);
+            await seedContext.SaveChangesAsync();
+        }
+
+        await using (var context = _fixture.CreateContext())
+        {
+            var rulesProvider = Substitute.For<IRulesProvider>();
+            rulesProvider.Current.Returns(Snapshot);
+            var sut = new RulesConsumer(
+                new PostgresQueueService(context), rulesProvider,
+                new RulesEngineImpl(), new RuleContextMapper(), context);
+
+            await sut.ProcessMessageBodyAsync(scenario.MessageJson, CancellationToken.None);
+        }
+
+        await using var verify = _fixture.CreateContext();
+        var persisted = await verify.ChangeRequests.AsNoTracking()
+            .SingleAsync(r => r.ReferenceNumber == reference);
+        Assert.Equal(ProcessingStatus.TicketQueued, persisted.ProcessingStatus);
+        Assert.Equal(DecisionStatus.AutoApproved, persisted.Outcome);
+        Assert.Equal("EARLIER", persisted.MatchedRuleId);
+    }
+
+    [Fact]
+    public async Task A_new_decision_marks_the_row_Decided()
+    {
+        var scenario = BuildScenarios().First(s => s.Name == "MergePupils-Default");
+        await Pipeline_RoutesScenarioToExpectedDecision(scenario);
+
+        await using var verify = _fixture.CreateContext();
+        var persisted = await verify.ChangeRequests.AsNoTracking()
+            .SingleAsync(r => r.ReferenceNumber == scenario.ReferenceNumber);
+        Assert.Equal(ProcessingStatus.Decided, persisted.ProcessingStatus);
+    }
+
     // --- A processed message records a metric row carrying the decision status ---
 
     [Fact]
@@ -192,6 +252,12 @@ public sealed class RulesEngineEndToEndTests
         yield return new("MergePupils-Default", "Merge", "KS4June",
             Answers: [],
             DecisionStatus.Scrutiny, "MRG-DEF");
+
+        // #536: an Add-pupil request goes through the Rules Engine like every amendment. There
+        // are no Add rules yet, so its single otherwise-branch sends it for scrutiny.
+        yield return new("AddPupil-Default", "Add", "KS4June",
+            Answers: [],
+            DecisionStatus.Scrutiny, "ADD-DEF");
 
         // The journey collects one social-care reason radio, so the rules' "all three
         // flags false" branch can never fire from journey data; the sat-exams
@@ -333,7 +399,7 @@ public sealed class RulesEngineEndToEndTests
         Submitted = new DateTime(2026, 5, 14, 10, 0, 0, DateTimeKind.Unspecified),
         SubmittedById = Guid.NewGuid(),
         SubmittedByName = "Alice",
-        Status = RequestStatus.SubmittedUnCommitted,
+        Status = RequestStatus.Submitted,
         ReferenceNumber = reference,
         RequestType = RequestType.Amendment, 
         RequestTypeDescription = "Amendment"

@@ -769,6 +769,8 @@ When an exercise reaches its scheduled end, the service does not send its reques
 
 > **Warning** You cannot undo this. Submitted requests are sent for processing and cannot be changed afterwards. Drafts that a school has not submitted are cancelled, and cannot be resumed.
 
+A request a school submitted only moments before the close may still be waiting for the Rules Engine. The page and the message after sending say how many are waiting. They are not lost: select **Send … requests for processing** again later to send them.
+
 You do not need to do this after closing an exercise early, because closing it early also sends its requests. If there is nothing left to send, the confirmation page says so.
 
 ### Requests for a window
@@ -784,7 +786,8 @@ Each row shows:
 
 - **Reference**, **Organisation URN**, **Pupil** and **Request type**
 - **Checking exercise** (or *Not recorded* if the request has none)
-- **Status**, such as InProgress, ReadyToSubmit, SubmittedUnCommitted or SubmittedCommitted
+- **Status**, such as InProgress, ReadyToSubmit, Submitted, Withdrawn or NotSubmitted
+- **Processing**: where a submitted request is on its way to a ticket, or *Waiting for decision*
 - **Submitted by** and **Submitted**
 - **Outcome**: *Auto approved*, *Auto rejected* or *Scrutiny*, or *Not yet processed*
 - **Matched Rule**: the rule that decided the outcome

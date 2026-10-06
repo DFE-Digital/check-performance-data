@@ -3,7 +3,8 @@ namespace DfE.CheckPerformanceData.Application.Analytics;
 /// <summary>
 /// An evidence file upload was attempted. <c>Outcome</c> is <c>success</c> or
 /// <c>failed</c>; <c>FailureReason</c> is a controlled taxonomy
-/// (<c>no_file</c> / <c>too_large</c> / <c>not_a_pdf</c> / <c>page_limit_exceeded</c> / <c>duplicate_name</c>)
+/// (<c>no_file</c> / <c>too_large</c> / <c>not_a_pdf</c> / <c>page_limit_exceeded</c> / <c>duplicate_name</c> /
+/// <c>file_limit_exceeded</c>)
 /// and is null on success. No file name is ever included.
 /// </summary>
 public sealed record EvidenceUploadAttemptedEvent : AnalyticsEvent

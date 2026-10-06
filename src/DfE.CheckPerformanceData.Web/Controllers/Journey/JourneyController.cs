@@ -889,7 +889,7 @@ public sealed class JourneyController(
         // Cross-field date rules (AB#295246). Runs after the loop because it needs every answer
         // on the page, and skips any question that already failed its own format check — the
         // view model renders only the first error per question, so adding a second here would
-        // replace "must be a real date" with a comparison against a date the user never entered.
+        // replace the invalid-date message with a comparison against a date the user never entered.
         //
         // The Add rules (AB#297310) compare date of birth against admission date, which sit on
         // different pages, so the stored answers go in underneath the posted ones — the page's

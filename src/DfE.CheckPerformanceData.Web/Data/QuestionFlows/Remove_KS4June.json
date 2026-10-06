@@ -390,6 +390,7 @@
           "title": "When did {pupilName} arrive in England?",
           "hint": "For example, 27 3 2026",
           "summaryTitle": "Date of arrival in England",
+          "validationFailure": "Enter the date {pupilName} arrived in England",
           "optional": true
         }
       ]

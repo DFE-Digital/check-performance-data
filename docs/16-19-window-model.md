@@ -465,14 +465,19 @@ second before, because `IsOpen` keeps an exercise's last instant open. The guard
 press or a second admin closing twice; it does not detect a date edit made while the confirmation
 page was on screen, and the close then goes ahead against the edited date.
 
-**The clock is the server's, and today that is UTC.** The new end date, the success banner's time
-and every "is it open" comparison read `TimeProvider.GetLocalNow()`. No container sets a time zone,
-so "local" is UTC in every environment: during British Summer Time the banner and the new end date
-read one hour behind a UK clock, and every exercise opens and closes an hour late in UK terms. The
-second half is older than this ticket; the first half is how it became visible. The fix belongs to
-the clock itself (a time zone on the containers, or an explicit Europe/London conversion wherever
-`GetLocalNow` is read) and must be made in one go — stamping UK time here while the comparison
-stayed on UTC would leave a closed exercise open for another hour.
+**The clock is a UK clock** (#535). The new end date, the success banner's time and every "is it
+open" comparison read `TimeProvider.GetLocalNow()`, and both hosts register `UkTimeProvider`
+(`Application/Common`), whose local zone is Europe/London whatever zone the container runs in. No
+reader converts for itself, so the readers cannot disagree and the stamp is on the clock it is
+later compared with. Until #535 the hosts registered the system clock and the containers run on
+UTC, so during British Summer Time every exercise opened and closed an hour late in UK terms and
+the banner read an hour early. An exercise closed early before that fix has an end date an hour
+behind the UK time it was really closed at; its audit row's time is correct.
+
+Exercise dates are wall-clock values, so on the night the clocks go back the hour from 01:00 to
+02:00 happens twice. A start or end inside that hour is passed twice, an hour apart, and an
+exercise closed early during the first pass is open again for the second. The default times
+(00:00 and 17:00) are unaffected.
 
 Because an early close does not end on the hour, deadline sentences show the minutes when there are
 some (`DeadlineTime`): "passed at 12:34pm", not "passed at 12pm".
@@ -576,10 +581,8 @@ A value that makes no sense (a negative delay, a zero window or interval) falls 
 default. A value that cannot be read at all (for example `5m` where `00:05:00` is meant) switches
 the job off and logs an error; the site still starts.
 
-**The clock is the server's, and today that is UTC** (issue #535). "Two hours after the end" is
-measured on the clock every exercise gate reads, so during British Summer Time the first run is
-three hours after the UK end time. This is one more reader of `TimeProvider.GetLocalNow()` for
-#535's fix to cover.
+**The clock is a UK clock** (#535). "Two hours after the end" is measured on the clock every
+exercise gate reads, so the first run is two hours after the UK end time, summer and winter.
 
 **If the job did not run.** A stack that was down for the whole of an exercise's catch-up day
 misses it. The summary page's "Send … requests for processing" button does the same thing by

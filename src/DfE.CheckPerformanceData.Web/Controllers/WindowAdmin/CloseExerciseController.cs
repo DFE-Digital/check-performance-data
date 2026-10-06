@@ -90,8 +90,8 @@ public sealed class CloseExerciseController(
         if (closure.Status != EarlyClosureStatus.Closed)
             return RefuseNotOpen(id, exercise);
 
-        // When the close took effect, on the same clock as every exercise date on the page: the
-        // server's. That is UTC in the containers today, not UK time (see docs/16-19-window-model.md).
+        // When the close took effect, on the same clock as every exercise date on the page: UK
+        // time (#535, see docs/16-19-window-model.md).
         var closed =
             $"{ExerciseLabels.For(exercise)} was closed early on " +
             $"{closure.ClosedAt.ToString("dd/MM/yyyy, HH:mm", CultureInfo.InvariantCulture)} by {currentUser.DisplayName}.";

@@ -9,11 +9,11 @@ namespace DfE.CheckPerformanceData.Application.WindowManagement;
 /// dates with now. Both read the same <see cref="TimeProvider"/> the same way
 /// (<c>GetLocalNow</c>), so the stamp and the comparison can never disagree.
 ///
-/// "Local" is the server's zone. The containers set no time zone, so today that is UTC, not UK
-/// time: during British Summer Time the stamp reads an hour behind a UK clock, exactly as every
-/// exercise opens and closes an hour late. That is one defect with one fix (the clock), and it
-/// must not be patched here alone — a UK-time stamp compared against a UTC clock would leave the
-/// exercise open for another hour.
+/// "Local" is UK time in every environment: the registered <see cref="TimeProvider"/> is
+/// <see cref="DfE.CheckPerformanceData.Application.Common.UkTimeProvider"/> (#535), whatever
+/// zone the container runs in. Do not convert here. The stamp and the comparison must stay on
+/// the one clock — a UK-time stamp compared against another clock would leave the exercise open,
+/// or reopen it.
 /// </remarks>
 public sealed class ExerciseEarlyClosureService(
     IWindowRepository windows,

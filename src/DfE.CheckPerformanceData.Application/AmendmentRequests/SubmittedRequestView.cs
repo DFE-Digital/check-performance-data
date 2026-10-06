@@ -16,6 +16,9 @@ public sealed class SubmittedRequestView
     public required RequestStatus Status { get; init; }
     public required string PupilName { get; init; }
 
+    /// <summary>#545: the selected pupil's CYPMD ID. Empty for an Add request.</summary>
+    public string? PupilCypmdId { get; init; }
+
     /// <summary>
     /// The word the request's window uses for a learner, from the persisted journey state —
     /// "student" on 16-19. A submitted request is read back long after it was made, so the noun

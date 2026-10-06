@@ -754,7 +754,7 @@ PupilFilter = PupilFilter.All,
 
         var view = Assert.IsType<ViewResult>(result);
         var vm = Assert.IsType<SummaryViewModel>(view.Model);
-        Assert.Equal("Jane Smith, 1 January 2010", vm.FirstRecordDisplay);
+        Assert.Equal("Jane Smith 1 January 2010 (CYPMD123)", vm.FirstRecordDisplay);
     }
 
     [Fact]

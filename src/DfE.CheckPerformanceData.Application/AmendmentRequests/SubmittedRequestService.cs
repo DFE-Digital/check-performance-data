@@ -74,6 +74,7 @@ public sealed class SubmittedRequestService(
             WhatToChange = journey.SelectedWhatToChange.Value,
             Status = row.Status,
             PupilName = pupilName,
+            PupilCypmdId = journey.SelectedPupil?.Cypmd_Id,
             LearnerNoun = journey.LearnerNoun,
             FirstRecordDisplay = firstRecord,
             SecondRecordDisplay = secondRecord,

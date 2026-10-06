@@ -46,6 +46,31 @@ public sealed class SummaryViewModelTests
         Assert.True(line.HasChange);
     }
 
+    // #545: the school sees which record the request is about by its CYPMD ID, straight after the
+    // name. It has no Change link: the ID changes only by choosing another pupil, which is the
+    // name row's link.
+    [Fact]
+    public void Lines_ForAJourneyWithAPupilSearchPage_ShowTheCypmdIdAfterThePupilName()
+    {
+        var vm = MakeVm(WhatToChange.Remove, primaryPupilPageId: "select-pupil", pupilCypmdId: "800001");
+
+        var keys = vm.Lines.Select(l => l.Key).ToList();
+        Assert.Equal(keys.IndexOf("Pupil name") + 1, keys.IndexOf("CYPMD ID"));
+        var line = Assert.Single(vm.Lines, l => l.Key == "CYPMD ID");
+        Assert.Equal("800001", line.Value);
+        Assert.False(line.HasChange);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public void Lines_WithNoCypmdId_OmitTheCypmdIdRow(string? cypmdId)
+    {
+        var vm = MakeVm(WhatToChange.Remove, primaryPupilPageId: "select-pupil", pupilCypmdId: cypmdId);
+
+        Assert.DoesNotContain(vm.Lines, l => l.Key == "CYPMD ID");
+    }
+
     // The merge pair replaces the pupil-name row outright, and both of its rows carry links.
     [Fact]
     public void Lines_ForAMergeJourney_KeepBothRecordRowsAndNoPupilNameRow()
@@ -61,15 +86,19 @@ public sealed class SummaryViewModelTests
             PrimaryPupilPageId = "select-pupil",
             MatchedPupilPageId = "select-match",
             FirstRecordDisplay = "Alice Newpupil, 1 September 2010",
-            SecondRecordDisplay = "CY1, Alice Newpupil"
+            SecondRecordDisplay = "CY1, Alice Newpupil",
+            PupilCypmdId = "800001"
         };
 
         Assert.DoesNotContain(vm.Lines, l => l.Key == "Pupil name");
+        // Each record display carries its own ID, so a separate row would name only one of them.
+        Assert.DoesNotContain(vm.Lines, l => l.Key == "CYPMD ID");
         Assert.Contains(vm.Lines, l => l.Key == "First record to merge");
         Assert.Contains(vm.Lines, l => l.Key == "Second record to merge");
     }
 
-    private static SummaryViewModel MakeVm(WhatToChange whatToChange, string? primaryPupilPageId = null) => new()
+    private static SummaryViewModel MakeVm(
+        WhatToChange whatToChange, string? primaryPupilPageId = null, string? pupilCypmdId = null) => new()
     {
         LearnerNoun = LearnerNoun.Pupil,
         WhatToChange = whatToChange,
@@ -78,6 +107,7 @@ public sealed class SummaryViewModelTests
         FileRows = [],
         BackPageId = "learner-details",
         MaxEvidencePages = 0,
-        PrimaryPupilPageId = primaryPupilPageId
+        PrimaryPupilPageId = primaryPupilPageId,
+        PupilCypmdId = pupilCypmdId
     };
 }

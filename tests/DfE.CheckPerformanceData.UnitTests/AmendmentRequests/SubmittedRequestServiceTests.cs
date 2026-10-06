@@ -85,6 +85,7 @@ public class SubmittedRequestServiceTests
         Assert.NotNull(result);
         Assert.Equal(WhatToChange.Remove, result!.WhatToChange);
         Assert.Equal("Jane Smith", result.PupilName);
+        Assert.Equal("CYPMD123", result.PupilCypmdId);
         Assert.Single(result.Rows);
         Assert.Equal("Why are you removing this pupil?", result.Rows[0].Title);
         Assert.Equal("Permanently left England", result.Rows[0].DisplayValue);
@@ -279,7 +280,7 @@ public class SubmittedRequestServiceTests
         var result = await _sut.GetAsync(WindowId, Reference);
 
         Assert.NotNull(result);
-        Assert.Equal("Jane Smith, 1 January 2010", result!.FirstRecordDisplay);
+        Assert.Equal("Jane Smith 1 January 2010 (CYPMD123)", result!.FirstRecordDisplay);
         Assert.Equal("John Doe 2 February 2010 (CYPMD456)", result.SecondRecordDisplay);
     }
 

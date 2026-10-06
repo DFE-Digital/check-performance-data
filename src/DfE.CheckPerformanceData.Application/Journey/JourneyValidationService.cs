@@ -229,6 +229,16 @@ public sealed class JourneyValidationService(
             ? "The file name has already been used. Upload a file with a different name."
             : null;
 
+    // AB#304900. A method of its own for the reason given above ValidateDuplicateFileName: the
+    // controller maps each of these methods to its own analytics reason ("file_limit_exceeded"
+    // here), so folding the count into another check would mislabel the rejection in BigQuery.
+    // ">=" rather than "==" so a draft that already holds more than the limit cannot grow.
+    // FLAGGED copy (AB#304900).
+    public string? ValidateFileCount(IReadOnlyList<FileAnswer> existingFiles) =>
+        existingFiles.Count >= EvidenceUploadLimits.MaxFiles
+            ? $"You can only upload {EvidenceUploadLimits.MaxFiles} files. Remove a file before you upload another."
+            : null;
+
     public string GenerateReference(CheckingWindowType? windowType)
     {
         var type = windowType switch

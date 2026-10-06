@@ -566,6 +566,48 @@ public class JourneyValidationServiceTests
         Assert.Null(_sut.ValidateDuplicateFileName("evidence.pdf", []));
     }
 
+    // ── ValidateFileCount (AB#304900) ───────────────────────────────────────
+    // An upload takes at most six files. The rule is asked BEFORE a file is added, with the
+    // files already there, so "six already" is the first refusal. Nothing about the new file
+    // matters, which is why the method does not take it.
+
+    private const string FileLimitMessage =
+        "You can only upload 6 files. Remove a file before you upload another.";
+
+    private static FileAnswer[] FilesAlreadyAdded(int count) =>
+        Enumerable.Range(1, count)
+            .Select(i => MakeFileAnswer(originalFileName: $"evidence-{i}.pdf"))
+            .ToArray();
+
+    [Fact]
+    public void EvidenceUploadLimits_MaxFiles_IsSix()
+    {
+        Assert.Equal(6, EvidenceUploadLimits.MaxFiles);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(5)]
+    public void ValidateFileCount_WhenFewerThanSixFilesAdded_ReturnsNull(int alreadyAdded)
+    {
+        Assert.Null(_sut.ValidateFileCount(FilesAlreadyAdded(alreadyAdded)));
+    }
+
+    [Fact]
+    public void ValidateFileCount_WhenSixFilesAdded_RefusesASeventhAndSaysWhy()
+    {
+        Assert.Equal(FileLimitMessage, _sut.ValidateFileCount(FilesAlreadyAdded(6)));
+    }
+
+    [Fact]
+    public void ValidateFileCount_WhenADraftAlreadyHoldsMoreThanSix_StillRefuses()
+    {
+        // A draft saved before the limit existed can hold seven or more. It must not be able
+        // to grow, and the same message tells the school what to do about it.
+        Assert.Equal(FileLimitMessage, _sut.ValidateFileCount(FilesAlreadyAdded(7)));
+    }
+
     // ── GenerateReference ───────────────────────────────────────────────────
 
     [Fact]

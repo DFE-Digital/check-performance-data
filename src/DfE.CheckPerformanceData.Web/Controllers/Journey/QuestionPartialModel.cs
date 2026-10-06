@@ -51,6 +51,12 @@ public sealed class QuestionPartialModel
     public int MaxEvidencePages { get; init; }
 
     /// <summary>
+    /// AB#304900: the most files this upload takes, for the "N of 6 files added" line. Read from
+    /// the same constant as the rule that refuses a seventh, so page and rule cannot disagree.
+    /// </summary>
+    public int MaxEvidenceFiles => EvidenceUploadLimits.MaxFiles;
+
+    /// <summary>
     /// Every evidence file name already uploaded anywhere in this request (AB#296081) —
     /// rendered as data-existing-file-names on the file input for the selection-time
     /// duplicate warning. Request-wide, not per-question, to match the server rule.

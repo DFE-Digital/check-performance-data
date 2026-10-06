@@ -261,7 +261,8 @@ A page with `"requireAtLeastOne": true` must have at least one of its questions 
 The evidence page has `type: "EvidenceUpload"` in the JSON and renders a distinct Razor view (`EvidenceUpload.cshtml`). File uploads are handled separately to answer submission:
 
 - Each upload is a separate POST to `/Journey/{windowId}/page/{pageId}/question/{questionId}/upload`
-- The file is read as bytes, validated (must be PDF, ≤ 10 MB, ≤ 6 total pages across all uploads)
+- The upload is refused straight away if it already holds 6 files (`EvidenceUploadLimits.MaxFiles`, AB#304900): "You can only upload 6 files. Remove a file before you upload another."
+- Otherwise the file is checked (name not already used in the request, ≤ 10 MB, a readable PDF) and read as bytes. The old limit of 6 total *pages* is switched off: `JourneyValidationService`'s `maxEvidencePages` defaults to 0 and the registration passes no value.
 - If valid, the bytes are stored via `IFileStorageService` (`EvidenceBlobStorageService`) to:
   ```
   Container: {windowId}

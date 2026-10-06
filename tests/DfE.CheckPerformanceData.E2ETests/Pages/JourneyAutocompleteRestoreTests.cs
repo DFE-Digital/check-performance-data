@@ -2,7 +2,7 @@ using DfE.CheckPerformanceData.E2ETests.Fixtures;
 using DfE.CheckPerformanceData.E2ETests.Helpers;
 using Microsoft.Playwright;
 using Microsoft.Playwright.Xunit;
-using xRetry;
+using DfE.CheckPerformanceData.E2ETests.Retrying;
 
 namespace DfE.CheckPerformanceData.E2ETests.Pages;
 
@@ -41,7 +41,7 @@ public sealed class JourneyAutocompleteRestoreTests(PlaywrightFixture fixture) :
     private const string CountryCodeField = "#q_country_originally_from-code-value";
     private const string DetailsPageId = "english-not-first-language-details";
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task CountrySelection_SurvivesValidationErrorReload_AndBackNavigation()
     {
         // No stale DEV-* conflict requests: a leftover conflict for Alice Smith would

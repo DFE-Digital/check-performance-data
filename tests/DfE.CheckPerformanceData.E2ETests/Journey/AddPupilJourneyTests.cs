@@ -1,6 +1,6 @@
 using DfE.CheckPerformanceData.E2ETests.Fixtures;
 using Microsoft.Playwright;
-using xRetry;
+using DfE.CheckPerformanceData.E2ETests.Retrying;
 
 namespace DfE.CheckPerformanceData.E2ETests.Journey;
 
@@ -22,7 +22,7 @@ public sealed class AddPupilJourneyTests(PlaywrightFixture fixture) : SeedingPag
     // The seeded Post16 window — no Add_Post16.json flow exists, so the option must not appear.
     private static readonly Guid Post16WindowId = Guid.Parse("6C2E1F4A-9B7D-4E38-8A15-3D9C2B4E7F01");
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task HappyPath_SubmitsAndShowsAReference()
     {
         await StartAddJourneyAsync();
@@ -65,7 +65,7 @@ public sealed class AddPupilJourneyTests(PlaywrightFixture fixture) : SeedingPag
         Assert.True(match.Success, $"No reference number in the confirmation panel: {panel}");
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task MissingRequiredFields_ShowTheErrors()
     {
         await StartAddJourneyAsync();
@@ -81,7 +81,7 @@ public sealed class AddPupilJourneyTests(PlaywrightFixture fixture) : SeedingPag
         Assert.DoesNotContain("Unique pupil number", text);
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task FutureDateOfBirth_IsBlocked()
     {
         await StartAddJourneyAsync();
@@ -96,7 +96,7 @@ public sealed class AddPupilJourneyTests(PlaywrightFixture fixture) : SeedingPag
         Assert.Contains("Date of birth must be in the past", text);
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task Post16Window_DoesNotOfferAdd()
     {
         await Page.GotoAsync($"{Fixture.BaseUrl}/WhatToChange/{Post16WindowId}");

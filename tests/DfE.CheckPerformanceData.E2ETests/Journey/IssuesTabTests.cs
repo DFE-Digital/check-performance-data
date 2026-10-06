@@ -1,6 +1,6 @@
 using DfE.CheckPerformanceData.E2ETests.Fixtures;
 using Microsoft.Playwright;
-using xRetry;
+using DfE.CheckPerformanceData.E2ETests.Retrying;
 
 namespace DfE.CheckPerformanceData.E2ETests.Journey;
 
@@ -15,7 +15,7 @@ public sealed class IssuesTabTests(PlaywrightFixture fixture) : SeedingPageTest(
     private const string StudentName = "Alice Smith";
     private const string MathsS2024 = "GCSE (9-1) Mathematics, QAN: 60146084, Session: S2024";
 
-    [RetryFact(1)]
+    [RetryFact]
     public async Task ASubmittedEnquiryAppearsOnTheIssuesTab()
     {
         // Submit a real enquiry through the journey so the row AND its journey blob exist.

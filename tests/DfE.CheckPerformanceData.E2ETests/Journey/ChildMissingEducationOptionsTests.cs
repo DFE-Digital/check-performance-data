@@ -2,7 +2,7 @@ using DfE.CheckPerformanceData.E2ETests.Fixtures;
 using DfE.CheckPerformanceData.E2ETests.Helpers;
 using Microsoft.Playwright;
 using Microsoft.Playwright.Xunit;
-using xRetry;
+using DfE.CheckPerformanceData.E2ETests.Retrying;
 
 namespace DfE.CheckPerformanceData.E2ETests.Journey;
 
@@ -21,7 +21,7 @@ public sealed class ChildMissingEducationOptionsTests(PlaywrightFixture fixture)
     private const string PupilSurname = "Smith";
     private const string PupilFirstName = "Alice";
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task RemoveFlow_ChildMissingEducation_OffersGroundHGroundIAndOther()
     {
         await SeedHelpers.CleanupDevRequestsAsync(Fixture.SeedClient);
@@ -43,7 +43,7 @@ public sealed class ChildMissingEducationOptionsTests(PlaywrightFixture fixture)
         await Expect(Page.Locator("#q_why_removed-other-item-hint")).ToHaveCountAsync(0); // no sub-label on Other
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task RemoveFlow_ChildMissingEducationOther_AdvancesToEvidence()
     {
         await SeedHelpers.CleanupDevRequestsAsync(Fixture.SeedClient);
@@ -57,7 +57,7 @@ public sealed class ChildMissingEducationOptionsTests(PlaywrightFixture fixture)
             .ToContainTextAsync("Provide evidence for the removal of Alice Smith");
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task RemoveFlow_ChildMissingEducationGroundH_StillAdvancesToEvidence()
     {
         await SeedHelpers.CleanupDevRequestsAsync(Fixture.SeedClient);

@@ -1,7 +1,7 @@
 using DfE.CheckPerformanceData.E2ETests.Fixtures;
 using DfE.CheckPerformanceData.E2ETests.Helpers;
 using Microsoft.Playwright;
-using xRetry;
+using DfE.CheckPerformanceData.E2ETests.Retrying;
 
 namespace DfE.CheckPerformanceData.E2ETests.Journey;
 
@@ -31,7 +31,7 @@ public sealed class Post16MergeJourneyTests(PlaywrightFixture fixture) : Seeding
 
     // ── The full merge journey, end to end ──────────────────────────────────
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task HappyPath_SubmitsAndShowsAReference()
     {
         await StartMergeJourneyAsync();
@@ -65,7 +65,7 @@ public sealed class Post16MergeJourneyTests(PlaywrightFixture fixture) : Seeding
 
     // ── First record search: only included students appear ──────────────────
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task FirstRecordSearch_ShowsIncludedStudentsOnly()
     {
         await StartMergeJourneyAsync();
@@ -84,7 +84,7 @@ public sealed class Post16MergeJourneyTests(PlaywrightFixture fixture) : Seeding
 
     // ── What the autocomplete announces ─────────────────────────────────────
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task TheErrorReadToScreenReaders_HasNoDoubleFullStop()
     {
         // This page's error message ends in a full stop, so the text the autocomplete announces

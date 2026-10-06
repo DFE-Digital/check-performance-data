@@ -1,7 +1,7 @@
 using DfE.CheckPerformanceData.E2ETests.Fixtures;
 using DfE.CheckPerformanceData.E2ETests.Helpers;
 using Microsoft.Playwright;
-using xRetry;
+using DfE.CheckPerformanceData.E2ETests.Retrying;
 
 namespace DfE.CheckPerformanceData.E2ETests.Journey;
 
@@ -31,7 +31,7 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
 
     // ── The cohort-wide happy path, end to end ───────────────────────────────
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task CohortWide_HappyPath_SubmitsAndShowsAReference()
     {
         await StartEnquiryAsync();
@@ -66,7 +66,7 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
 
     // ── The single-student branch ────────────────────────────────────────────
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task SingleStudent_Branch_AsksForOneStudentAndSubmits()
     {
         await StartEnquiryAsync();
@@ -94,7 +94,7 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
 
     // ── Nothing carries over into the next enquiry ───────────────────────────
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task AfterSubmitting_ReportingAnotherIssue_StartsClean()
     {
         await StartEnquiryAsync();
@@ -137,7 +137,7 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
 
     // ── Error states ────────────────────────────────────────────────────────
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task ContinuingWithoutChoosingAnIssue_ShowsTheError()
     {
         await Page.GotoAsync($"{Fixture.BaseUrl}/{WindowId}/ResultIssue");
@@ -146,7 +146,7 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
         await AssertErrorAsync("Select what issue with the results you need to report");
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task ContinuingWithoutAnsweringTheCohortQuestion_ShowsTheError()
     {
         await StartEnquiryAsync();
@@ -158,7 +158,7 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
         await AssertErrorAsync("Select if the incorrect grade affects the whole cohort");
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task ANonNumericCohortCount_ShowsTheError()
     {
         await StartEnquiryAsync();
@@ -171,7 +171,7 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
         await AssertErrorAsync("Enter how many students have an incorrect grade for this qualification");
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task ContinuingWithoutChoosingACohortStudent_ShowsTheCohortWordedError()
     {
         // #460: the cohort page asks for "one of the students", and its error must say the same.
@@ -186,7 +186,7 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
         await AssertErrorAsync("Enter the name of one of the students from the affected cohort");
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task TheSearchHintReadToScreenReaders_HasNoDoubleFullStop()
     {
         // This page's hint already ends in a full stop, so the text the autocomplete announces must
@@ -206,7 +206,7 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
         Assert.DoesNotContain("..", assistiveHint);
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task ContinuingWithoutChoosingAResult_ShowsTheTemplatedError()
     {
         await StartEnquiryAsync();
@@ -219,7 +219,7 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
         await AssertErrorAsync($"Enter which of {StudentName}'s results is incorrect");
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task ContinuingWithoutChoosingAGrade_ShowsTheError()
     {
         await NavigateToGradePageAsync();
@@ -229,7 +229,7 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
         await AssertErrorAsync("Select the revised grade");
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task TheCurrentGradeCannotBeChosenFromThePicker()
     {
         // AB#301913 / #407: the result's current grade is 5. It used to be offered (and refused on
@@ -251,7 +251,7 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
         await Expect(currentGradeOption).ToHaveCountAsync(0);
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task TheGradePickerOffersTheQualificationsOwnScaleMinusTheCurrentGrade()
     {
         // The 16-19 reference's scale for this QAN in the reference's own order (AB#301903), with a
@@ -265,7 +265,7 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
         Assert.Equal(["", "1", "2", "3", "4", "6", "7", "8", "9", "Q", "R", "U", "X"], values);
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task TheDetailsPageNamesTheQualificationFromThe1619Reference()
     {
         // AB#301903 / #410: the results file abbreviates the qualification ("GCSE (9-1) Mathematics");
@@ -282,7 +282,7 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
             .ToHaveTextAsync("AQA Level 1/Level 2 GCSE (9-1) in Mathematics");
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task AChosenGradeIsStillRestoredWhenTheUserComesBackToThePage()
     {
         // The AB#295434 restoration contract, on this picker: a Back to this page shows the grade
@@ -321,7 +321,7 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
         await Page.WaitForURLAsync($"**/Journey/{WindowId}/result-search/select-result");
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task ChoosingAResultShowsItsDetailsWithoutLeavingThePage()
     {
         // #409: the details used to render only from the session, i.e. only after the user had
@@ -351,7 +351,7 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
         await Expect(Page.Locator("select[name='selectedResultKey']")).ToHaveValueAsync("60146084|S2023|16to19_MAIN");
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task ClearingTheChoiceHidesTheDetailsUntilAResultIsPickedAgain()
     {
         // Going back to the empty placeholder option must take the details with it — the page must
@@ -370,7 +370,7 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
         await AssertDetailsRowAsync(details, "Session", "S2024");
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task TheChosenResultsDetailsAreStillShownWhenTheUserComesBackToThePage()
     {
         // The guard for the fix: the server-side render of a result the session already holds is
@@ -393,7 +393,7 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
 
     // ── The way in, and the auth gate ───────────────────────────────────────
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task TheCheckYourStudentDataPageOffersTheEnquiryOption()
     {
         await Page.GotoAsync($"{Fixture.BaseUrl}/CheckYourPupilData/{WindowId}");
@@ -409,7 +409,7 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
             .ToContainTextAsync("What issue with the results do you need to report?");
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task AnAnonymousRequestForTheIssuePageIsSentToSignIn()
     {
         // TestHttpClients.NoRedirect has UseCookies=false and no impersonation cookie attached, so

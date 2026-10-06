@@ -1,7 +1,7 @@
 using DfE.CheckPerformanceData.E2ETests.Fixtures;
 using DfE.CheckPerformanceData.E2ETests.Helpers;
 using Microsoft.Playwright;
-using xRetry;
+using DfE.CheckPerformanceData.E2ETests.Retrying;
 
 namespace DfE.CheckPerformanceData.E2ETests.Journey;
 
@@ -36,7 +36,7 @@ public sealed class Ks4MergeJourneyTests(PlaywrightFixture fixture) : SeedingPag
 
     // ── The full merge journey, end to end ──────────────────────────────────
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task HappyPath_FirstRecordByName_SecondRecordByCyPmdId_ShowsBothOnTheConfirmation()
     {
         await StartMergeJourneyAsync();
@@ -76,7 +76,7 @@ public sealed class Ks4MergeJourneyTests(PlaywrightFixture fixture) : SeedingPag
 
     // ── The second-record page searches by ID and offers nothing else ────────
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task SecondRecordPage_TypingTheSharedSurname_OffersNoOptions()
     {
         // The defect, through the UI: this pupil's surname and forename are the pair's shared name,
@@ -95,7 +95,7 @@ public sealed class Ks4MergeJourneyTests(PlaywrightFixture fixture) : SeedingPag
         await ExpectNoSuggestionsAsync();
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task SecondRecordPage_TypingACyPmdIdPrefix_OffersSuggestionsThatShowTheirId()
     {
         await StartMergeJourneyAsync();
@@ -115,7 +115,7 @@ public sealed class Ks4MergeJourneyTests(PlaywrightFixture fixture) : SeedingPag
         await Expect(firstRecord).ToHaveCountAsync(0);
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task FirstRecordPage_StillSearchesByNameAndOffersNoId()
     {
         // The guard for the other half of the feature. This page is in the same journey as the

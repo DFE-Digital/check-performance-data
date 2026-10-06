@@ -4,7 +4,7 @@ using DfE.CheckPerformanceData.E2ETests.Fixtures;
 using DfE.CheckPerformanceData.E2ETests.Helpers;
 using Microsoft.Playwright;
 using Microsoft.Playwright.Xunit;
-using xRetry;
+using DfE.CheckPerformanceData.E2ETests.Retrying;
 
 namespace DfE.CheckPerformanceData.E2ETests.Journey;
 
@@ -30,7 +30,7 @@ public sealed class EvidenceUploadFileLimitTests(PlaywrightFixture fixture) : Se
     private ILocator UploadedFileLinks =>
         Page.GetByRole(AriaRole.Link, new() { NameRegex = new Regex(@"^evidence-\d\.pdf$") });
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task ASeventhFileIsRejectedWithTheReason_AndAcceptedOnceAFileIsRemoved()
     {
         await SeedHelpers.CleanupDevRequestsAsync(Fixture.SeedClient);

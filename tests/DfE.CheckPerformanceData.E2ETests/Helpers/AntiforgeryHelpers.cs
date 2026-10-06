@@ -9,6 +9,9 @@ public static class AntiforgeryHelpers
     private const string AntiforgeryCookiePrefix = ".AspNetCore.Antiforgery.";
     private const string TokenInputSelector = "input[name='__RequestVerificationToken']";
 
+    private const int MaxAttempts = 3;
+    private const int RetryDelayMilliseconds = 1000;
+
     private static readonly HtmlParser Parser = new();
 
     public static async Task<(string Token, string Cookie)> ScrapeAsync(HttpClient client, string formPath)
@@ -19,6 +22,36 @@ public static class AntiforgeryHelpers
                 "AntiforgeryHelpers.ScrapeAsync requires the supplied HttpClient to have a BaseAddress.");
         }
 
+        // One-shot GETs at fixture start-up race an app that is barely request-ready. Each form
+        // POST in the suite depends on this token+cookie pair, so a transient failure here fails
+        // the caller, not the test that would otherwise 400 on the antiforgery validation.
+        // Bounded, short-delay retry; the token is fetched afresh each attempt.
+        Exception? lastError = null;
+        for (var attempt = 1; attempt <= MaxAttempts; attempt++)
+        {
+            try
+            {
+                return await ScrapeOnceAsync(client, formPath);
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException)
+            {
+                lastError = ex;
+                if (attempt == MaxAttempts)
+                {
+                    break;
+                }
+
+                await Task.Delay(RetryDelayMilliseconds);
+            }
+        }
+
+        throw new InvalidOperationException(
+            $"Antiforgery token not obtained from {formPath} after {MaxAttempts} attempts.",
+            lastError);
+    }
+
+    private static async Task<(string Token, string Cookie)> ScrapeOnceAsync(HttpClient client, string formPath)
+    {
         var cookieContainer = new CookieContainer();
 
         // /dev/antiforgery-token only issues the token+cookie pair for editor-role users,

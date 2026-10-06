@@ -2,7 +2,7 @@ using DfE.CheckPerformanceData.E2ETests.Fixtures;
 using DfE.CheckPerformanceData.E2ETests.Helpers;
 using Microsoft.Playwright;
 using Microsoft.Playwright.Xunit;
-using xRetry;
+using DfE.CheckPerformanceData.E2ETests.Retrying;
 
 namespace DfE.CheckPerformanceData.E2ETests.Journey;
 
@@ -61,7 +61,7 @@ public sealed class PermanentExclusionIndependentSchoolTests(PlaywrightFixture f
 
     // ── US1: the reason is not offered to an independent school ──────────────
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task IndependentSchool_ReasonPage_OmitsPermanentExclusion()
     {
         await SeedHelpers.CleanupDevRequestsAsync(Fixture.SeedClient);
@@ -71,7 +71,7 @@ public sealed class PermanentExclusionIndependentSchoolTests(PlaywrightFixture f
             .ToHaveCountAsync(0);
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task IndependentSchool_ReasonPage_StillOffersNotOnRoll()
     {
         // Proves the independent session really took effect and the page is otherwise intact:
@@ -86,7 +86,7 @@ public sealed class PermanentExclusionIndependentSchoolTests(PlaywrightFixture f
 
     // ── US1: a forged submission is refused, not just hidden (FR-006) ─────────
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task IndependentSchool_CraftedPermanentExclusion_IsRefused()
     {
         await SeedHelpers.CleanupDevRequestsAsync(Fixture.SeedClient);

@@ -83,7 +83,8 @@ public sealed class OnPageSearchSectionTests(PlaywrightFixture fixture) : Seedin
             var drillIn = $"{Fixture.BaseUrl}/admin/Search/OnPage?path={Uri.EscapeDataString(hostPath)}&range=24h";
 
             // The sink drains on a timer.
-            for (var attempt = 0; attempt < 30; attempt++)
+            var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(15);
+            while (DateTime.UtcNow < deadline)
             {
                 await Page.GotoAsync(drillIn);
                 if ((await Page.Locator("body").InnerTextAsync()).Contains(term, StringComparison.Ordinal)) break;

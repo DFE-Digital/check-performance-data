@@ -1,6 +1,6 @@
 using DfE.CheckPerformanceData.E2ETests.Fixtures;
 using Microsoft.Playwright;
-using xRetry;
+using DfE.CheckPerformanceData.E2ETests.Retrying;
 
 namespace DfE.CheckPerformanceData.E2ETests.Journey;
 
@@ -25,7 +25,7 @@ public sealed class AddPupilDuplicateCheckTests(PlaywrightFixture fixture) : See
 
     // ── US1: no match continues; a match surfaces the warning page ─────────
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task NoMatch_ContinuesToAdmissionDetails()
     {
         // "Alice Taylor" (born 11/01/2010) is not a seeded name/DOB pair, so the Add journey must
@@ -41,7 +41,7 @@ public sealed class AddPupilDuplicateCheckTests(PlaywrightFixture fixture) : See
             .ToContainTextAsync("details at your school");
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task ExistingMatch_ShowsTheDuplicateWarningPage()
     {
         // Alice Smith (included, born 01/01/2010) already exists on the roll, so the learner-details
@@ -59,7 +59,7 @@ public sealed class AddPupilDuplicateCheckTests(PlaywrightFixture fixture) : See
 
     // ── US2: single non-included match offers Include + Continue ───────────
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task SingleNonIncludedMatch_OfferInclude_StartsTheIncludeJourney()
     {
         // Bob Johnson (non-included, born 02/02/2010) — the reported bug: the Include option was
@@ -80,7 +80,7 @@ public sealed class AddPupilDuplicateCheckTests(PlaywrightFixture fixture) : See
         await Page.WaitForURLAsync($"**/Journey/{Ks4JuneWindowId}/page/evidence");
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task SingleNonIncludedMatch_ContinueAdding_ProceedsWithAdd()
     {
         await StartAddJourneyAsync();
@@ -98,7 +98,7 @@ public sealed class AddPupilDuplicateCheckTests(PlaywrightFixture fixture) : See
 
     // ── US3: an already-included match warns but never offers Include ───────
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task AlreadyIncludedMatch_WarnsAndDoesNotOfferInclude()
     {
         // Alice Smith is already included. The warning must show with Abort + Continue, and
@@ -121,7 +121,7 @@ public sealed class AddPupilDuplicateCheckTests(PlaywrightFixture fixture) : See
 
     // ── US3: multiple matches list both, with per-non-included Switch to Include ─
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task MultipleMatches_ShowTheListWithInclusionStatusAndSwitchToInclude()
     {
         // "Casey Carter" (born 15/03/2010) is seeded twice — once included, once not — so the
@@ -158,7 +158,7 @@ public sealed class AddPupilDuplicateCheckTests(PlaywrightFixture fixture) : See
         await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Abort adding this pupil" })).ToBeVisibleAsync();
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task MultipleMatches_SwitchToInclude_StartsTheIncludeJourney()
     {
         // From the same Multiple list, clicking Switch-to-Include on the non-included row seeds
@@ -183,7 +183,7 @@ public sealed class AddPupilDuplicateCheckTests(PlaywrightFixture fixture) : See
     // seam: a match must branch to the duplicate-check page, a no-match must return to the
     // Summary, and Continue-adding must carry on past it.
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task EditFromSummary_WhenDetailsMatchExistingPupil_ShowsTheDuplicateWarning()
     {
         // Start on a non-matching pair (Alice Taylor 11/01/2010), reach the Summary, then edit the
@@ -201,7 +201,7 @@ public sealed class AddPupilDuplicateCheckTests(PlaywrightFixture fixture) : See
         Assert.Contains("/duplicate-check", Page.Url);
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task EditFromSummary_WhenDetailsMatchNoOne_ReturnsToSummary()
     {
         await CompleteAddJourneyToSummaryAsync();
@@ -219,7 +219,7 @@ public sealed class AddPupilDuplicateCheckTests(PlaywrightFixture fixture) : See
             .ToContainTextAsync("Summary of amendment request");
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task EditFromSummary_WhenMatchWarned_ContinueAdding_ProceedsWithAdd()
     {
         await CompleteAddJourneyToSummaryAsync();

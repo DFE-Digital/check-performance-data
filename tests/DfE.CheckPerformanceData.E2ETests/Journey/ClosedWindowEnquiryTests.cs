@@ -1,6 +1,6 @@
 using DfE.CheckPerformanceData.E2ETests.Fixtures;
 using Microsoft.Playwright;
-using xRetry;
+using DfE.CheckPerformanceData.E2ETests.Retrying;
 
 namespace DfE.CheckPerformanceData.E2ETests.Journey;
 
@@ -24,7 +24,7 @@ public sealed class ClosedWindowEnquiryTests(PlaywrightFixture fixture) : Seedin
 
     private string PageUrl => $"{Fixture.BaseUrl}/CheckYourPupilData/{WindowId}";
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task The_school_is_told_the_window_has_closed_and_asked_only_the_enquiry_question()
     {
         await Page.GotoAsync(PageUrl);
@@ -48,7 +48,7 @@ public sealed class ClosedWindowEnquiryTests(PlaywrightFixture fixture) : Seedin
         await Expect(Page.Locator("input[name='SelectedNextStep'][value='Confirm']")).ToHaveCountAsync(0);
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task Yes_reaches_the_issue_chooser_and_an_enquiry_submits_as_it_does_in_an_open_window()
     {
         await Page.GotoAsync(PageUrl);
@@ -92,7 +92,7 @@ public sealed class ClosedWindowEnquiryTests(PlaywrightFixture fixture) : Seedin
         Assert.Matches(@"CYPMD_16to19_RE_[0-9A-F]{7}", panel);
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task No_signs_the_school_out()
     {
         await Page.GotoAsync(PageUrl);
@@ -106,7 +106,7 @@ public sealed class ClosedWindowEnquiryTests(PlaywrightFixture fixture) : Seedin
         // untouched, so the next test's context re-impersonates as normal.
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task A_forged_amendment_answer_is_rejected_as_unanswered()
     {
         await Page.GotoAsync(PageUrl);

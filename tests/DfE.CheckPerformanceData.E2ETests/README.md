@@ -39,6 +39,7 @@ powershell.exe -ExecutionPolicy Bypass -File tests/DfE.CheckPerformanceData.E2ET
 |---------|---------|---------|
 | `CPD_E2E_BASE_URL` | `http://localhost:8080` | URL the harness drives. |
 | `CPD_E2E_READY_TIMEOUT_SECONDS` | `90` | How long the fixture polls `/healthcheck` before giving up. |
+| `CPD_E2E_RETRY_ATTEMPTS` | `1` | Maximum attempts per test for `[RetryFact]`/`[RetryTheory]` (1 = no retries). Read at test discovery, so set it for the whole run. See `Retrying/RetrySettings.cs`. |
 
 ## Snapshot diffs (visual regression failures)
 
@@ -163,6 +164,10 @@ tests/DfE.CheckPerformanceData.E2ETests/
 │   ├── PageStabilisationExtensions.cs   # IPage.StabiliseAsync() — animations off + fonts.ready + NetworkIdle
 │   ├── PageSnapshotExtensions.cs    # IPage.MatchSnapshotAsync(name, maxDiffPixelRatio) + BuildDiffArtefactsAsync
 │   └── PageSnapshotExtensionsTests.cs   # pure unit tests for the diff-PNG-emission helper
+├── Retrying/
+│   ├── RetrySettings.cs             # read CPD_E2E_RETRY_ATTEMPTS (default 1) into RetrySettings.MaxRetries
+│   ├── RetryFactAttribute.cs + RetryFactDiscoverer.cs       # settings-driven [RetryFact]; reuses xRetry's RetryTestCase
+│   └── RetryTheoryAttribute.cs + RetryTheoryDiscoverer.cs   # settings-driven [RetryTheory]
 ├── Wiki/
 │   ├── WikiNavigationTests.cs
 │   ├── HealthcheckTests.cs

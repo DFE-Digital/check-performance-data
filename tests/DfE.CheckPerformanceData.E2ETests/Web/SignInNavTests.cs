@@ -2,7 +2,7 @@ using DfE.CheckPerformanceData.E2ETests.Fixtures;
 using DfE.CheckPerformanceData.E2ETests.Helpers;
 using Microsoft.Playwright;
 using Microsoft.Playwright.Xunit;
-using xRetry;
+using DfE.CheckPerformanceData.E2ETests.Retrying;
 
 namespace DfE.CheckPerformanceData.E2ETests.Web;
 
@@ -26,7 +26,7 @@ public sealed class SignInNavTests(PlaywrightFixture fixture) : PageTest
     // The app and flow are correct — verified via HTTP and a live browser, where load
     // fires in <200ms — so retry the whole scenario, matching the suite's xRetry
     // convention (see GovUkAssetsTests) rather than masking a product defect.
-    [RetryFact(3)]
+    [RetryFact]
     public async Task SignInCluster_RoundTrips_ThroughImpersonationAndSignOut()
     {
         try

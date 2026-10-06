@@ -1,7 +1,7 @@
 using DfE.CheckPerformanceData.E2ETests.Fixtures;
 using DfE.CheckPerformanceData.E2ETests.Helpers;
 using Microsoft.Playwright;
-using xRetry;
+using DfE.CheckPerformanceData.E2ETests.Retrying;
 
 namespace DfE.CheckPerformanceData.E2ETests.Journey;
 
@@ -46,7 +46,7 @@ public sealed class IncludeHandoffConflictTests(PlaywrightFixture fixture) : See
 
     // ── US1: self-submitted conflict blocks the Include-this-pupil hand-off ──
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task SelfSubmittedConflict_IncludeThisPupil_ReRendersDuplicateCheck()
     {
         await SeedHelpers.CleanupDevRequestsAsync(Fixture.SeedClient);
@@ -90,7 +90,7 @@ public sealed class IncludeHandoffConflictTests(PlaywrightFixture fixture) : See
 
     // ── US2: a colleague's conflict blocks the Switch-to-include hand-off ────
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task OtherSubmittedConflict_SwitchToInclude_ShowsColleagueNameAndBlocksRedirect()
     {
         await SeedHelpers.CleanupDevRequestsAsync(Fixture.SeedClient);

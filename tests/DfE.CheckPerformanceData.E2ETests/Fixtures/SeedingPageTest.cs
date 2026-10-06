@@ -18,6 +18,14 @@ public abstract class SeedingPageTest(PlaywrightFixture fixture) : PageTest, IAs
     {
         await base.InitializeAsync();
 
+        // A freshly deployed review pod is cold — the first handful of navigations can
+        // take tens of seconds while the pipeline JITs and the first EF query runs.
+        // Playwright's 30s navigation default turns a slow-but-healthy first load into
+        // a test failure; give the suite a wider one. The fixture's warm-up above means
+        // steady-state navigations should still be fast, so the README's "investigate
+        // any single test above 30s" rule keeps working.
+        Page.SetDefaultNavigationTimeout(60000);
+
         // Mirror the fixture-level impersonation cookie into the Playwright browser
         // context so Page.GotoAsync(...) requests authenticate as editor. Without this
         // the seed HttpClient is impersonating but the headless Chromium that drives

@@ -592,6 +592,26 @@ var services = new ServiceCollection();
         Assert.Equal(3, question.Options!.Count);
     }
 
+    /// <summary>
+    /// The comments box on a KS4 June evidence page adds brief context to the evidence, not an
+    /// extended explanation, so it takes at most 500 characters (#516). Other windows keep theirs.
+    /// </summary>
+    [Fact]
+    public void Ks4JuneEvidencePages_LimitTheirCommentsTo500Characters()
+    {
+        var textAreas = AllFlowPages()
+            .Where(p => p.File.EndsWith("_KS4June.json") && p.Page.Type == PageType.EvidenceUpload)
+            .SelectMany(p => p.Page.Questions
+                .Where(q => q.Type == QuestionType.TextArea)
+                .Select(q => (p.File, PageId: p.Page.Id, Question: q)))
+            .ToList();
+
+        Assert.NotEmpty(textAreas);
+        foreach (var (file, pageId, question) in textAreas)
+            Assert.True(question.CharacterLimit == 500,
+                $"{file}: '{pageId}/{question.Id}' allows {question.CharacterLimit} characters, not 500.");
+    }
+
     private static IEnumerable<(string File, Question Question)> AllFlowQuestions() =>
         AllFlowPages().SelectMany(p => p.Page.Questions.Select(q => (p.File, q)));
 

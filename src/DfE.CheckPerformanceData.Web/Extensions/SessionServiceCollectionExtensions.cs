@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Application.Settings;
+using DfE.CheckPerformanceData.Application.Common;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
@@ -52,8 +53,9 @@ public static class SessionServiceCollectionExtensions
         });
 
         // SessionAbsoluteLifetimeMiddleware takes its clock from DI. TryAdd so a test host
-        // that registered a controllable clock first keeps it.
-        services.TryAddSingleton(TimeProvider.System);
+        // that registered a controllable clock first keeps it. The UK clock, not the system
+        // one (#535): whichever registration runs first, the host must get the same clock.
+        services.TryAddSingleton<TimeProvider>(UkTimeProvider.Instance);
 
         return services;
     }

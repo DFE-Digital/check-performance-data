@@ -60,6 +60,7 @@ public sealed class Ks4MergeJourneyTests(PlaywrightFixture fixture) : SeedingPag
 
         var firstRecord = Page.Locator(".govuk-summary-list__row", new() { HasText = "First record to merge" });
         await Expect(firstRecord).ToContainTextAsync($"{SharedName} {SharedSurname}");
+        await Expect(firstRecord).ToContainTextAsync($"({FirstRecordCypmdId})");
         var secondRecord = Page.Locator(".govuk-summary-list__row", new() { HasText = "Second record to merge" });
         await Expect(secondRecord).ToContainTextAsync($"{SharedName} {SharedSurname}");
         await Expect(secondRecord).ToContainTextAsync($"({SecondRecordCypmdId})");

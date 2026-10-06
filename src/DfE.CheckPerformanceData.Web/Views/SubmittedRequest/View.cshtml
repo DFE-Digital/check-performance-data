@@ -56,6 +56,13 @@ else if (!Model.AllEst)
             <dd class="govuk-summary-list__value">@Model.PupilName</dd>
         </div>
     }
+    @if (Model.ShowCypmdIdRow)
+    {
+        <div class="govuk-summary-list__row">
+            <dt class="govuk-summary-list__key">CYPMD ID</dt>
+            <dd class="govuk-summary-list__value">@Model.PupilCypmdId</dd>
+        </div>
+    }
     @foreach (var row in Model.Rows)
     {
         <div class="govuk-summary-list__row">

@@ -68,6 +68,7 @@ public class SubmittedRequestControllerTests
             WhatToChange = WhatToChange.Remove,
             Status = RequestStatus.Submitted,
             PupilName = "Jane Smith",
+            PupilCypmdId = "800001",
             Rows = [new SubmittedRequestAnswerRow { Title = "Why?", DisplayValue = "Left England" }],
             Files = [],
             ReferenceNumber = Reference,
@@ -80,6 +81,7 @@ public class SubmittedRequestControllerTests
         var vm = Assert.IsType<SubmittedRequestViewModel>(((ViewResult)result).Model);
         Assert.Equal(WindowId, vm.WindowId);
         Assert.Equal("Jane Smith", vm.PupilName);
+        Assert.Equal("800001", vm.PupilCypmdId);
         Assert.Single(vm.Rows);
         Assert.Equal("submitter@education.gov.uk", vm.SubmittedByEmail);
         Assert.Equal(submittedAt, vm.SubmittedAt);

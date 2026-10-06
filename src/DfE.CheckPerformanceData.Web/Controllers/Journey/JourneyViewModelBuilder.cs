@@ -64,6 +64,7 @@ public sealed class JourneyViewModelBuilder(
             WindowId = windowId,
             WhatToChange = journey.SelectedWhatToChange!.Value,
             PupilName = pupilName,
+            PupilCypmdId = journey.SelectedPupil?.Cypmd_Id,
             LearnerNoun = journey.LearnerNoun,
             Rows = rows,
             FileRows = fileRows,

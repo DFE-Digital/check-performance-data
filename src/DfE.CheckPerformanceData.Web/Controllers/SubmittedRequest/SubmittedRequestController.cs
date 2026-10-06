@@ -50,6 +50,7 @@ public sealed class SubmittedRequestController(
             Status = request.Status,
             ConfirmingDelete = confirmingDelete,
             PupilName = request.PupilName,
+            PupilCypmdId = request.PupilCypmdId,
             LearnerNoun = request.LearnerNoun,
             FirstRecordDisplay = request.FirstRecordDisplay,
             SecondRecordDisplay = request.SecondRecordDisplay,

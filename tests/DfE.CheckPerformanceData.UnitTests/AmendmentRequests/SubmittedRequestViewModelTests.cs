@@ -26,7 +26,37 @@ public sealed class SubmittedRequestViewModelTests
         Assert.Equal("Add a pupil to data", vm.WhatToChangeLabel);
     }
 
-    private static SubmittedRequestViewModel MakeVm(WhatToChange whatToChange) => new()
+    // #545: the submitted view names the pupil's CYPMD ID after the name, as the summary does.
+    [Fact]
+    public void ShowCypmdIdRow_ForASinglePupilRequestWithAnId_IsTrue()
+    {
+        var vm = MakeVm(WhatToChange.Remove, pupilCypmdId: "800001");
+
+        Assert.True(vm.ShowCypmdIdRow);
+    }
+
+    // An Add request names a pupil not yet in the data, so there is no ID to show.
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public void ShowCypmdIdRow_WithNoId_IsFalse(string? cypmdId)
+    {
+        var vm = MakeVm(WhatToChange.Add, pupilCypmdId: cypmdId);
+
+        Assert.False(vm.ShowCypmdIdRow);
+    }
+
+    // Each merge record display carries its own ID.
+    [Fact]
+    public void ShowCypmdIdRow_ForAMerge_IsFalse()
+    {
+        var vm = MakeVm(WhatToChange.Merge, pupilCypmdId: "800001", secondRecordDisplay: "Casey Carter (800002)");
+
+        Assert.False(vm.ShowCypmdIdRow);
+    }
+
+    private static SubmittedRequestViewModel MakeVm(
+        WhatToChange whatToChange, string? pupilCypmdId = null, string? secondRecordDisplay = null) => new()
     {
         LearnerNoun = LearnerNoun.Pupil,
         WindowId = Guid.NewGuid(),
@@ -35,6 +65,8 @@ public sealed class SubmittedRequestViewModelTests
         PupilName = "Alice Newpupil",
         Rows = [],
         Files = [],
-        ReferenceNumber = "CYPMD_KS4June_ABC1234"
+        ReferenceNumber = "CYPMD_KS4June_ABC1234",
+        PupilCypmdId = pupilCypmdId,
+        SecondRecordDisplay = secondRecordDisplay
     };
 }

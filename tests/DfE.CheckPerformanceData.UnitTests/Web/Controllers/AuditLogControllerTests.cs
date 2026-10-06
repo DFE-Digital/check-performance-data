@@ -61,6 +61,15 @@ public sealed class AuditLogControllerTests
         ExerciseType = exerciseType
     };
 
+    // AB#302158: the service handed an exercise's requests over by itself. No user on the row.
+    private static AuditLogRow SentAutomatically(int? sent = 3, int? cancelled = 2) => new(
+        6, At, null, null, "WindowAdmin", WindowId.ToString(), "RequestsSentAutomatically", WindowId, "KS4 June 2026", [], AuditOutcome.Success)
+    {
+        ExerciseType = "PupilData",
+        RequestsSent = sent,
+        DraftsCancelled = cancelled
+    };
+
     private static async Task<AuditLogViewModel> ModelOf(AuditLogController controller, string? activity = null, Guid? windowId = null, string? status = null, int page = 1)
     {
         var view = Assert.IsType<ViewResult>(await controller.Index(activity, windowId, status, page, CancellationToken.None));
@@ -201,6 +210,36 @@ public sealed class AuditLogControllerTests
         var row = Assert.Single((await ModelOf(Build(ClosedEarly(exerciseType: null)))).Rows);
 
         Assert.Equal("Exercise closed early, before scheduled end", row.WindowDetail);
+    }
+
+    [Fact]
+    public async Task An_automatic_hand_over_row_is_the_systems_and_says_what_was_sent_and_cancelled()
+    {
+        var row = Assert.Single((await ModelOf(Build(SentAutomatically()))).Rows);
+
+        Assert.Equal("System", row.UserLabel);
+        Assert.Equal("Window admin", row.ActivityLabel);
+        Assert.Equal("govuk-tag--orange", row.ActivityTagClass);
+        Assert.Null(row.ActivityDetail);                    // the detail sits under the window, as for an early closure
+        Assert.Equal("KS4 June 2026", row.WindowTitle);
+        Assert.Equal(
+            "Pupil data checking requests sent for processing automatically: 3 requests sent, 2 drafts cancelled",
+            row.WindowDetail);
+        Assert.Equal("Success", row.OutcomeLabel);
+        Assert.Equal("govuk-tag--green", row.OutcomeTagClass);
+    }
+
+    [Fact]
+    public async Task An_automatic_hand_over_row_counts_one_in_the_singular_and_survives_an_unreadable_payload()
+    {
+        var one = Assert.Single((await ModelOf(Build(SentAutomatically(sent: 1, cancelled: 1)))).Rows);
+        Assert.Equal(
+            "Pupil data checking requests sent for processing automatically: 1 request sent, 1 draft cancelled",
+            one.WindowDetail);
+
+        var unreadable = SentAutomatically(sent: null, cancelled: null) with { ExerciseType = null };
+        var row = Assert.Single((await ModelOf(Build(unreadable))).Rows);
+        Assert.Equal("Exercise requests sent for processing automatically", row.WindowDetail);
     }
 
     [Fact]

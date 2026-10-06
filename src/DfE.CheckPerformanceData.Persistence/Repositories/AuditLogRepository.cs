@@ -66,11 +66,14 @@ public sealed class AuditLogRepository(IPortalDbContext db) : IAuditLogRepositor
         if (filter.Outcome is { } outcome)
         {
             // Mirrors AuditActivities.OutcomeOf: a transfer succeeds or fails; an early closure
-            // (AB#301022) is only written once it has happened, so it is only ever a success.
+            // (AB#301022) and an automatic hand-over (AB#302158) are only written once they have
+            // happened, so they are only ever a success.
             query = outcome == AuditOutcome.Success
                 ? query.Where(a =>
                     (a.EntityType == AuditActivities.Egress && a.Action == AuditActivities.TransferAction) ||
-                    (a.EntityType == AuditActivities.WindowAdmin && a.Action == AuditActivities.ClosedEarlyAction))
+                    (a.EntityType == AuditActivities.WindowAdmin &&
+                        (a.Action == AuditActivities.ClosedEarlyAction ||
+                         a.Action == AuditActivities.RequestsSentAutomaticallyAction)))
                 : query.Where(a => a.EntityType == AuditActivities.Egress && a.Action == AuditActivities.TransferFailedAction);
         }
         if (filter.WindowId is { } windowId)
@@ -110,6 +113,8 @@ public sealed class AuditLogRepository(IPortalDbContext db) : IAuditLogRepositor
         Guid? windowId = null;
         string? userName = null;
         string? exerciseType = null;
+        int? requestsSent = null;
+        int? draftsCancelled = null;
         IReadOnlyList<string> outputTypes = [];
 
         if (raw.EntityType == AuditActivities.Egress)
@@ -121,12 +126,15 @@ public sealed class AuditLogRepository(IPortalDbContext db) : IAuditLogRepositor
         }
         else if (raw.EntityType == AuditActivities.WindowAdmin)
         {
-            // AB#301022: the window comes from the row's own id; the payload only adds the
-            // admin's name and which of the window's exercises was closed.
+            // AB#301022: the window comes from the row's own id; the payload adds the admin's
+            // name (an early closure) and which of the window's exercises the row is about.
+            // AB#302158: an automatic hand-over has no name, and carries its two counts instead.
             if (Guid.TryParse(raw.EntityId, out var id)) windowId = id;
             var payload = WindowAdminAuditPayload.TryParse(raw.Payload);
             userName = payload?.ClosedBy;
             exerciseType = payload?.ExerciseType;
+            requestsSent = payload?.RequestsSent;
+            draftsCancelled = payload?.DraftsCancelled;
         }
         else if (raw.EntityType == AuditActivities.CheckingWindow && Guid.TryParse(raw.EntityId, out var id))
         {
@@ -137,7 +145,9 @@ public sealed class AuditLogRepository(IPortalDbContext db) : IAuditLogRepositor
         return new AuditLogRow(raw.Id, DateTime.SpecifyKind(raw.Timestamp, DateTimeKind.Utc), raw.UserId, userName,
             raw.EntityType, raw.EntityId, raw.Action, windowId, title, outputTypes, AuditActivities.OutcomeOf(raw.EntityType, raw.Action))
         {
-            ExerciseType = exerciseType
+            ExerciseType = exerciseType,
+            RequestsSent = requestsSent,
+            DraftsCancelled = draftsCancelled
         };
     }
 }

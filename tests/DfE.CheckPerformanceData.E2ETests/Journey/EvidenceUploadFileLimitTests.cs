@@ -49,6 +49,11 @@ public sealed class EvidenceUploadFileLimitTests(PlaywrightFixture fixture) : Se
         await UploadAsync("evidence-7.pdf");
         await Expect(Page.Locator(".govuk-error-summary")).ToContainTextAsync(FileLimitMessage);
         await Expect(Page.Locator("#fileUpload-error")).ToContainTextAsync(FileLimitMessage);
+
+        // The refusal comes back after a redirect; the title must still say there is an error,
+        // and the file input must be described by the "6 of 6 files added." line.
+        await Expect(Page).ToHaveTitleAsync(new Regex("^Error: "));
+        await Expect(Page.Locator("#fileUpload")).ToHaveAttributeAsync("aria-describedby", new Regex(@"\bfileUpload-count\b"));
         await Expect(UploadedFileLinks).ToHaveCountAsync(6);
         await Expect(Page.GetByRole(AriaRole.Link, new() { Name = "evidence-7.pdf", Exact = true })).ToHaveCountAsync(0);
 

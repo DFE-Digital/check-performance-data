@@ -9,10 +9,11 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 // (switched-off) page limit's flag and stays that way.
 public class QuestionPartialModelFileLimitTests
 {
-    private static QuestionPartialModel WithFiles(int count) =>
+    private static QuestionPartialModel WithFiles(int count, int maxEvidencePages = 0) =>
         new()
         {
             PageId = "evidence",
+            MaxEvidencePages = maxEvidencePages,
             Question = new Question { Id = "evidence", Type = QuestionType.FileUpload, Title = "Upload files" },
             ExistingAnswer = new QuestionAnswer
             {
@@ -31,7 +32,8 @@ public class QuestionPartialModelFileLimitTests
     [Fact]
     public void AtLimit_IsNotSetByTheFileCount()
     {
-        var model = WithFiles(EvidenceUploadLimits.MaxFiles);
+        // 100 pages: the page limit is on but not reached by six one-page files.
+        var model = WithFiles(EvidenceUploadLimits.MaxFiles, maxEvidencePages: 100);
 
         Assert.Equal(6, model.UploadedFiles.Count);
         Assert.False(model.AtLimit);

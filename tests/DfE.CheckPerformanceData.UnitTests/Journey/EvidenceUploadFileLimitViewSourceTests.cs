@@ -27,6 +27,29 @@ public sealed class EvidenceUploadFileLimitViewSourceTests
         Assert.Contains("<govuk-error-summary-item href=\"#fileUpload\">@Model.UploadError</govuk-error-summary-item>", source);
     }
 
+    [Fact]
+    public void EvidencePage_TellsTheLayoutAboutErrorsThatLiveOnlyOnItsViewModel()
+    {
+        // A rejected "Upload file" redirects, so on the reload ModelState is valid and the
+        // rejection exists only as PageViewModel.UploadError. The layout adds the GOV.UK
+        // "Error: " title prefix from ModelState or ViewData["HasError"]; without this line the
+        // title would not say there is an error on the very path a refused file takes.
+        var source = ReadWebFile("Views", "Journey", "EvidenceUpload.cshtml");
+
+        Assert.Contains("ViewData[\"HasError\"] = Model.HasErrors;", source);
+    }
+
+    [Fact]
+    public void FileUploadPartial_GivesTheFilesAddedLineTheIdTheInputIsDescribedBy()
+    {
+        // QuestionPartialModel.DescribedBy names "fileUpload-count" so a screen-reader user on
+        // the file input hears how many of the six files are added. An id the view does not
+        // render would be a dangling aria-describedby reference, which announces nothing.
+        var source = ReadWebFile("Views", "Journey", "_FileUpload.cshtml");
+
+        Assert.Contains("id=\"fileUpload-count\"", source);
+    }
+
     // Path.Combine with separate segments, never an embedded backslash: a backslash is a legal
     // file-name character on the Linux runner, so "Views\Journey" would not be found there.
     private static string ReadWebFile(params string[] relativeSegments) =>

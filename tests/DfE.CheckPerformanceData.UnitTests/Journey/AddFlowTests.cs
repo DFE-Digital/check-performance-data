@@ -187,7 +187,8 @@ public sealed class AddFlowTests
         var howEvidenceSupports = Question(flow, "evidence", "how-evidence-supports");
         Assert.Equal(QuestionType.TextArea, howEvidenceSupports.Type);
         Assert.True(howEvidenceSupports.Optional);
-        Assert.Equal(1000, howEvidenceSupports.CharacterLimit);
+        // KS4 June comments are brief context, not an extended explanation (#516).
+        Assert.Equal(flow == Ks4June ? 500 : 1000, howEvidenceSupports.CharacterLimit);
     }
 
     // ── Routing contract ──────────────────────────────────────────────────────

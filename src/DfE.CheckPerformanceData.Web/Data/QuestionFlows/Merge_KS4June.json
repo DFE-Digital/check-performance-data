@@ -41,7 +41,7 @@
           "type": "TextArea",
           "title": "If the records are not similar, please provide supporting explanation",
           "summaryTitle": "How evidence supports merging duplicate records",
-          "characterLimit": 1000,
+          "characterLimit": 500,
           "optional": true
         }
       ]

@@ -151,7 +151,6 @@
           "id": "how-evidence-supports",
           "type": "TextArea",
           "title": "How does the evidence demonstrate why the pupil should be removed?",
-          "hint": "Your request will not be accepted unless you provide the correct evidence",
           "summaryTitle": "How evidence demonstrates removal",
           "characterLimit": 500,
           "optional": true
@@ -597,7 +596,6 @@
           "id": "how-evidence-supports",
           "type": "TextArea",
           "title": "How does the evidence demonstrate why the pupil should be removed?",
-          "hint": "Your request will not be accepted unless you provide the correct evidence",
           "summaryTitle": "How evidence demonstrates removal",
           "characterLimit": 500,
           "optional": true
@@ -669,7 +667,6 @@
           "id": "how-evidence-supports",
           "type": "TextArea",
           "title": "How does the evidence demonstrate why the pupil should be removed?",
-          "hint": "Your request will not be accepted unless you provide the correct evidence",
           "summaryTitle": "How evidence demonstrates removal",
           "characterLimit": 500,
           "validationFailure": "Explain how the evidence supports removing {pupilName}",

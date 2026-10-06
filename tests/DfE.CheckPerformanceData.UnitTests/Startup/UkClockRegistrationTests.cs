@@ -133,8 +133,14 @@ public sealed class UkClockRegistrationTests
             $"{s}Controllers{s}ViewModels{s}"
         ];
 
-        var offenders = SourceFiles("*.cs")
+        var scanned = SourceFiles("*.cs")
             .Where(file => windowAdmin.Any(part => file.Contains(part)))
+            .ToList();
+
+        // A renamed or moved directory must fail here, not pass by scanning nothing.
+        Assert.All(windowAdmin, directory => Assert.Contains(scanned, file => file.Contains(directory)));
+
+        var offenders = scanned
             .Where(file => utcToday.IsMatch(File.ReadAllText(file)))
             .Select(file => Path.GetRelativePath(RepoRoot, file))
             .ToList();

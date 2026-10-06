@@ -471,8 +471,9 @@ open" comparison read `TimeProvider.GetLocalNow()`, and both hosts register `UkT
 reader converts for itself, so the readers cannot disagree and the stamp is on the clock it is
 later compared with. Until #535 the hosts registered the system clock and the containers run on
 UTC, so during British Summer Time every exercise opened and closed an hour late in UK terms and
-the banner read an hour early. An exercise closed early before that fix has an end date an hour
-behind the UK time it was really closed at; its audit row's time is correct.
+the banner read an hour early. An exercise closed early during British Summer Time before that
+fix has an end date an hour behind the UK time it was really closed at; its audit row's time is
+correct.
 
 Exercise dates are wall-clock values, so on the night the clocks go back the hour from 01:00 to
 02:00 happens twice. A start or end inside that hour is passed twice, an hour apart, and an

@@ -52,9 +52,10 @@ public static class SessionServiceCollectionExtensions
             options.Cookie.SecurePolicy = securePolicy;
         });
 
-        // SessionAbsoluteLifetimeMiddleware takes its clock from DI. TryAdd so a test host
-        // that registered a controllable clock first keeps it. The UK clock, not the system
-        // one (#535): whichever registration runs first, the host must get the same clock.
+        // SessionAbsoluteLifetimeMiddleware takes its clock from DI. TryAdd so a host built
+        // without AddApplicationDependencies (a test host that registered a controllable clock
+        // first) keeps its own. In the real web host AddApplicationDependencies has already
+        // pinned the UK clock (#535), and this line does nothing.
         services.TryAddSingleton<TimeProvider>(UkTimeProvider.Instance);
 
         return services;

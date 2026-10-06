@@ -199,6 +199,13 @@ var services = new ServiceCollection();
             RemovalJourneyDateRules.StudentDiedPageId
         ];
 
+        string[] removalDateQuestionIds =
+        [
+            RemovalJourneyDateRules.DatePupilExcluded,
+            RemovalJourneyDateRules.DatePermanentlyExcluded,
+            RemovalJourneyDateRules.DateRemovedFromRoll
+        ];
+
         foreach (var pageId in removalPageIds)
         {
             var page = AllFlowPages().SingleOrDefault(p => p.Page.Id == pageId);
@@ -208,7 +215,7 @@ var services = new ServiceCollection();
 
             var inScopeDateQuestions = page.Page!.Questions
                 .Where(q => q.Type == QuestionType.Date
-                    && RemovalJourneyDateRules.RemovalDateQuestionIds.Contains(q.Id))
+                    && removalDateQuestionIds.Contains(q.Id))
                 .ToList();
 
             Assert.True(inScopeDateQuestions.Count == 1,
@@ -219,7 +226,7 @@ var services = new ServiceCollection();
 
         // The three date question ids must all be covered by the config, so a typo'd constant
         // (or a renamed question) cannot silently leave one rule without a target page.
-        foreach (var questionId in RemovalJourneyDateRules.RemovalDateQuestionIds)
+        foreach (var questionId in removalDateQuestionIds)
         {
             var page = AllFlowPages().FirstOrDefault(p =>
                 p.Page.Questions.Any(q => q.Id == questionId));
@@ -529,6 +536,29 @@ var services = new ServiceCollection();
                 "title, so nothing renders an <h1> — no question is promoted to the heading and the " +
                 "page-level heading needs a title to render. Add 'title'; keep 'pageTitle' for the " +
                 "browser title if it must differ.");
+        }
+    }
+
+    /// <summary>
+    /// #544: a date error states the expected format, in the same words on every journey.
+    /// <c>JourneyValidationService</c> builds it from the question's <c>validationFailure</c>
+    /// followed by "in the format dd mm yyyy", so every date question must carry one (an optional
+    /// one too: a part-filled optional date is still checked), and must not repeat the format
+    /// itself or the error says it twice.
+    /// </summary>
+    [Fact]
+    public void DateQuestions_HaveAValidationFailure_ThatDoesNotSpellOutTheFormat()
+    {
+        foreach (var (file, question) in AllFlowQuestions())
+        {
+            if (question.Type != QuestionType.Date) continue;
+
+            Assert.False(string.IsNullOrWhiteSpace(question.ValidationFailure),
+                $"{file}: date question '{question.Id}' has no validationFailure, so its error " +
+                $"falls back to a generic message that does not name the date.");
+            Assert.False(question.ValidationFailure!.Contains("dd mm yyyy", StringComparison.OrdinalIgnoreCase),
+                $"{file}: date question '{question.Id}' spells out the format in its validationFailure " +
+                $"('{question.ValidationFailure}'). The validator appends it, so this shows it twice.");
         }
     }
 

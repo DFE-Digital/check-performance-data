@@ -97,6 +97,28 @@ public sealed class UkClockRegistrationTests
         Assert.Empty(Offenders(readsHostLocalTime, ["SeedCheckingWindows.cs"], "*.cs", "*.cshtml"));
     }
 
+    [Fact]
+    public void Window_admin_never_takes_today_from_the_UTC_date()
+    {
+        // "Is this start date in the past" is a question about the UK date. Between 00:00 and
+        // 01:00 UK time in summer the UTC date is still yesterday.
+        var utcToday = new Regex(@"UtcNow\.Date\b");
+        char s = Path.DirectorySeparatorChar;
+        string[] windowAdmin =
+        [
+            $"{s}Controllers{s}WindowAdmin{s}",
+            $"{s}Controllers{s}ViewModels{s}"
+        ];
+
+        var offenders = SourceFiles("*.cs")
+            .Where(file => windowAdmin.Any(part => file.Contains(part)))
+            .Where(file => utcToday.IsMatch(File.ReadAllText(file)))
+            .Select(file => Path.GetRelativePath(RepoRoot, file))
+            .ToList();
+
+        Assert.Empty(offenders);
+    }
+
     private static List<string> Offenders(Regex pattern, string[] allowedFileNames, params string[] searchPatterns) =>
         SourceFiles(searchPatterns)
             .Where(file => !allowedFileNames.Contains(Path.GetFileName(file)))

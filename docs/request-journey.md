@@ -192,7 +192,7 @@ POST → saves MatchedPupil
 | `FreeText` | Single-line input | `TextValue` | |
 | `TextArea` | Multi-line textarea | `TextValue` | Optional `charLimit` |
 | `Date` | Day / month / year inputs | `DateValue` (`DateAnswer`) | |
-| `FileUpload` | PDF upload widget | `FileValues` (list of `FileAnswer`) | Handled via separate upload/remove endpoints; max 6 total pages |
+| `FileUpload` | PDF upload widget | `FileValues` (list of `FileAnswer`) | Handled via separate upload/remove endpoints; at most 6 files (AB#304900) |
 | `Autocomplete` | Accessible-autocomplete dropdown | `TextValue` — the selected display name | Requires `dataSource` in JSON (e.g. `"countries"`). Suggestions fetched from `GET /{dataSource}/suggestions?query=`. A `{fieldName}_code` hidden field carries the machine-readable code but is not currently persisted in `QuestionAnswer`. |
 
 ### Navigation guard

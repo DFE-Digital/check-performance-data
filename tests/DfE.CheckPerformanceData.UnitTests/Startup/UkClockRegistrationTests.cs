@@ -1,9 +1,11 @@
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
+using DfE.CheckPerformanceData.Application;
 using DfE.CheckPerformanceData.Application.Common;
 using DfE.CheckPerformanceData.Infrastructure;
 using DfE.CheckPerformanceData.Web.Extensions;
 using DfE.CheckPerformanceData.Web.Startup;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,11 +13,13 @@ using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Startup;
 
-// #535: both hosts must hand out the UK clock. The web host does not call
-// AddInfrastructureDependencies or AddRulesProvider, so its TimeProvider comes from
-// AddCpdBlobStorage and AddCpdSession; the worker's comes from AddRulesProvider. A fourth
-// registration of the system clock anywhere would put that host back on the container's zone,
-// which is what the source guards at the bottom are for.
+// #535: both hosts must hand out the UK clock. In the web host ASP.NET's AddAuthentication()
+// registers the system clock (TryAdd) before any of our own registrations run, so a TryAdd of
+// ours is a no-op there: AddApplicationDependencies replaces whatever is registered, and
+// AddCpdBlobStorage and AddCpdSession keep a TryAdd for hosts built without it. The worker's
+// clock comes from AddRulesProvider. A registration of the system clock anywhere in src would
+// put that host back on the container's zone, which is what the source guards at the bottom
+// are for.
 public sealed class UkClockRegistrationTests
 {
     private static readonly IConfiguration Configuration = new ConfigurationBuilder()
@@ -64,6 +68,25 @@ public sealed class UkClockRegistrationTests
         services.AddRulesProvider(Configuration);
 
         Assert.Same(UkTimeProvider.Instance, RegisteredClock(services));
+    }
+
+    // The order Program.cs registers in: authentication first, our own extensions after it.
+    [Fact]
+    public void The_web_host_resolves_the_UK_clock_although_authentication_registered_a_clock_first()
+    {
+        var services = new ServiceCollection();
+        services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie();
+        // The premise: the framework has already put a clock in the container.
+        Assert.Contains(services, d => d.ServiceType == typeof(TimeProvider));
+
+        services.AddApplicationDependencies();
+        services.AddCpdBlobStorage(Configuration);
+        services.AddCpdSession(Configuration, Development());
+
+        Assert.Same(UkTimeProvider.Instance,
+            Assert.Single(services, d => d.ServiceType == typeof(TimeProvider)).ImplementationInstance);
+        using ServiceProvider provider = services.BuildServiceProvider();
+        Assert.Same(UkTimeProvider.Instance, provider.GetRequiredService<TimeProvider>());
     }
 
     [Fact]

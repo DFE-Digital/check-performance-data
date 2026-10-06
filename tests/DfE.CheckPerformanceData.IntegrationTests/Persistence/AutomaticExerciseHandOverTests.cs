@@ -1,0 +1,220 @@
+using System.Text.Json;
+using DfE.CheckPerformanceData.Application.Audit;
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Application.Queue;
+using DfE.CheckPerformanceData.Application.RequestSubmission;
+using DfE.CheckPerformanceData.Application.WindowManagement;
+using DfE.CheckPerformanceData.Domain.Enums;
+using DfE.CheckPerformanceData.Infrastructure.Queue;
+using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
+using DfE.CheckPerformanceData.Persistence.Entities;
+using DfE.CheckPerformanceData.Persistence.Repositories;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
+using NSubstitute;
+
+namespace DfE.CheckPerformanceData.IntegrationTests.Persistence;
+
+// AB#302158: the automatic hand-over against a real Postgres — the real window read, the real
+// sweep over real request rows, the real queue table and the real audit row. Only the saved
+// request document is a stand-in (the sweep's own tests cover that).
+//
+// The design keeps no record that a hand-over ran; it relies on a second run finding nothing.
+// The first fact is that claim, proven.
+[Collection(nameof(PostgresCollection))]
+public sealed class AutomaticExerciseHandOverTests(PostgresFixture fixture) : IAsyncLifetime
+{
+    // 18:00 UTC is 19:00 on this test's local wall clock: exactly two hours after the 17:00 end.
+    private static readonly DateTimeOffset NowUtc = new(2026, 11, 2, 18, 0, 0, TimeSpan.Zero);
+    private static readonly DateTime Start = new(2026, 10, 1, 9, 0, 0);
+    private static readonly DateTime PupilDataEnd = new(2026, 11, 2, 17, 0, 0);
+    private static readonly DateTime EnquiryEnd = new(2027, 3, 31, 17, 0, 0);
+
+    private readonly Guid _windowId = Guid.NewGuid();
+    private readonly Guid _pupilDataId = Guid.NewGuid();
+    private readonly Guid _enquiryId = Guid.NewGuid();
+    private readonly string _suffix = Guid.NewGuid().ToString("N")[..8];
+
+    private string SubmittedRef => $"AUTO_S_{_suffix}";
+    private string DraftRef => $"AUTO_D_{_suffix}";
+    private string EnquiryDraftRef => $"AUTO_E_{_suffix}";
+
+    private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => now.ToUniversalTime();
+
+        public override TimeZoneInfo LocalTimeZone { get; } =
+            TimeZoneInfo.CreateCustomTimeZone("Test+1", TimeSpan.FromHours(1), "Test+1", "Test+1");
+    }
+
+    public async Task InitializeAsync()
+    {
+        await using var ctx = fixture.CreateContext();
+
+        var window = new CheckingWindow
+        {
+            Id = _windowId,
+            Title = "Automatic hand-over",
+            KeyStage = KeyStages.KS4,
+            CheckingWindowType = CheckingWindowType.KS4June,
+            StartDate = Start,
+            EndDate = EnquiryEnd
+        };
+        window.CheckingExercises.Add(new CheckingExercise
+        {
+            Id = _pupilDataId, ExerciseType = CheckingExerciseType.PupilData,
+            TabName = "Pupils", TabOrder = 100,
+            StartDate = Start, EndDate = PupilDataEnd
+        });
+        window.CheckingExercises.Add(new CheckingExercise
+        {
+            Id = _enquiryId, ExerciseType = CheckingExerciseType.ResultsEnquiry,
+            TabName = "Results", TabOrder = 200,
+            StartDate = Start, EndDate = EnquiryEnd
+        });
+        ctx.CheckingWindows.Add(window);
+
+        ctx.ChangeRequests.AddRange(
+            // Decided by the Rules Engine: the only submitted amendments the sweep sends (#536).
+            Request(_pupilDataId, SubmittedRef, RequestStatus.Submitted, ProcessingStatus.Decided),
+            Request(_pupilDataId, DraftRef, RequestStatus.InProgress),
+            // Belongs to the exercise that is still open: this run must leave it alone.
+            Request(_enquiryId, EnquiryDraftRef, RequestStatus.InProgress));
+
+        await ctx.SaveChangesAsync();
+    }
+
+    // The queue message this class enqueued goes too, by its unique reference. The audit rows stay
+    // (the table refuses DELETE); every assertion is keyed on this test's own window id and
+    // references.
+    public async Task DisposeAsync()
+    {
+        var submittedRef = SubmittedRef;
+        await using var ctx = fixture.CreateContext();
+        await ctx.QueueMessages.Where(m => m.Payload.Contains(submittedRef)).ExecuteDeleteAsync();
+        await ctx.ChangeRequests.Where(r => r.WindowId == _windowId).ExecuteDeleteAsync();
+        await ctx.CheckingWindows.Where(w => w.Id == _windowId).ExecuteDeleteAsync();
+    }
+
+    private ChangeRequest Request(
+        Guid exerciseId, string reference, RequestStatus status, ProcessingStatus? processingStatus = null) => new()
+    {
+        Id = Guid.NewGuid(),
+        WindowId = _windowId,
+        CheckingExerciseId = exerciseId,
+        OrganisationUrn = 142313,
+        Submitted = new DateTime(2026, 11, 1, 9, 0, 0, DateTimeKind.Unspecified),
+        SubmittedById = Guid.Parse("99999999-9999-9999-9999-999999999999"),
+        SubmittedByName = "Ada Editor",
+        Status = status,
+        ProcessingStatus = processingStatus,
+        ReferenceNumber = reference,
+        RequestType = RequestType.Amendment,
+        RequestTypeDescription = "Remove",
+        AmendmentType = WhatToChange.Remove
+    };
+
+    private RequestDocument Document() => new()
+    {
+        ChangeRequestId = Guid.NewGuid(),
+        ReferenceNumber = SubmittedRef,
+        SubmittedBy = new UserDetails { UserId = "u1", DisplayName = "Ada Editor" },
+        CheckingWindowId = _windowId,
+        CheckingWindowType = "KS4June",
+        RequestTypeCode = "Remove",
+        School = new SchoolDetails { Urn = "142313", Name = "Kingsmead School" },
+        Pupil = new PupilDetails
+        {
+            Id = "p1", CypmdId = "", Firstname = "Alice", Surname = "Smith",
+            DateOfBirth = "01/09/2010", Sex = "F", Age = 15, Upn = "A86040700001B"
+        },
+        Answers = []
+    };
+
+    private AutomaticExerciseHandOver Sut(DateTimeOffset? nowUtc = null)
+    {
+        var ctx = fixture.CreateContext();
+
+        var documents = Substitute.For<IRequestBlobClient>();
+        documents.GetRequestAsync(_windowId, SubmittedRef).Returns(Document());
+
+        var sweep = new CloseExerciseService(
+            new AdminRequestsRepository(ctx), documents, new PostgresQueueService(ctx));
+
+        return new AutomaticExerciseHandOver(
+            new WindowRepository(ctx),
+            sweep,
+            new WindowAdminAuditWriter(ctx),
+            new FixedTimeProvider(nowUtc ?? NowUtc),
+            Options.Create(new ExerciseHandOverSettings()),
+            NullLogger<AutomaticExerciseHandOver>.Instance);
+    }
+
+    private async Task<ProcessingStatus?> ProcessingStatusOfAsync(string reference)
+    {
+        await using var ctx = fixture.CreateContext();
+        return await ctx.ChangeRequests.AsNoTracking()
+            .Where(r => r.ReferenceNumber == reference).Select(r => r.ProcessingStatus).SingleAsync();
+    }
+
+    private async Task<RequestStatus> StatusOfAsync(string reference)
+    {
+        await using var ctx = fixture.CreateContext();
+        return await ctx.ChangeRequests.AsNoTracking()
+            .Where(r => r.ReferenceNumber == reference).Select(r => r.Status).SingleAsync();
+    }
+
+    [Fact]
+    public async Task A_due_exercise_is_handed_over_and_audited_once_and_a_second_run_does_nothing()
+    {
+        // The shared database holds other tests' windows; only this one's matter here.
+        var due = Assert.Single(
+            await Sut().FindDueAsync(CancellationToken.None), d => d.WindowId == _windowId);
+        Assert.Equal(_pupilDataId, due.ExerciseId);
+        Assert.Equal(CheckingExerciseType.PupilData, due.Exercise);
+        Assert.Equal(PupilDataEnd, due.ExerciseEnd);
+
+        var first = await Sut().HandOverAsync(due, CancellationToken.None);
+        var second = await Sut().HandOverAsync(due, CancellationToken.None);
+
+        Assert.Equal(new AutomaticHandOverOutcome(_windowId, _pupilDataId, CheckingExerciseType.PupilData, 1, 1, Failed: false), first);
+        Assert.Equal(new AutomaticHandOverOutcome(_windowId, _pupilDataId, CheckingExerciseType.PupilData, 0, 0, Failed: false), second);
+
+        Assert.Equal(RequestStatus.Submitted, await StatusOfAsync(SubmittedRef));
+        Assert.Equal(ProcessingStatus.TicketQueued, await ProcessingStatusOfAsync(SubmittedRef));
+        Assert.Equal(RequestStatus.NotSubmitted, await StatusOfAsync(DraftRef));
+        Assert.Equal(RequestStatus.InProgress, await StatusOfAsync(EnquiryDraftRef));
+
+        await using var ctx = fixture.CreateContext();
+
+        // One message, not two: the second run had nothing left to send.
+        var submittedRef = SubmittedRef;
+        Assert.Equal(1, await ctx.QueueMessages.CountAsync(
+            m => m.QueueName == QueueOptions.ZendeskQueue && m.Payload.Contains(submittedRef)));
+
+        // One audit row, not two: a run that did nothing writes none.
+        var windowText = _windowId.ToString();
+        var audit = Assert.Single(await ctx.AuditEntries.AsNoTracking()
+            .Where(a => a.EntityType == AuditActivities.WindowAdmin && a.EntityId == windowText)
+            .ToListAsync());
+        Assert.Equal(AuditActivities.RequestsSentAutomaticallyAction, audit.Action);
+        Assert.Null(audit.UserId);
+        Assert.Equal(NowUtc.UtcDateTime, audit.Timestamp);
+
+        using var payload = JsonDocument.Parse(audit.NewValues!);
+        Assert.Equal("PupilData", payload.RootElement.GetProperty("exerciseType").GetString());
+        Assert.Equal(1, payload.RootElement.GetProperty("requestsSent").GetInt32());
+        Assert.Equal(1, payload.RootElement.GetProperty("draftsCancelled").GetInt32());
+    }
+
+    [Fact]
+    public async Task The_exercise_is_not_due_a_second_early_nor_once_the_catch_up_day_has_passed()
+    {
+        var oneSecondEarly = await Sut(NowUtc.AddSeconds(-1)).FindDueAsync(CancellationToken.None);
+        var aDayLater = await Sut(NowUtc.AddHours(24)).FindDueAsync(CancellationToken.None);
+
+        Assert.DoesNotContain(oneSecondEarly, d => d.WindowId == _windowId);
+        Assert.DoesNotContain(aDayLater, d => d.WindowId == _windowId);
+    }
+}

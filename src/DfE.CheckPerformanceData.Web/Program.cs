@@ -43,6 +43,7 @@ try
         .AddCpdJourneyAndCmsServices()
         .AddCpdBlobStorage(configuration)
         .AddCpdEgress(configuration, builder.Environment)
+        .AddCpdExerciseHandOver(configuration)
         .AddCpdBigQueryAnalytics(configuration);
 
     builder.AddCpdDevImpersonation();

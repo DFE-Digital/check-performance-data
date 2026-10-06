@@ -5,7 +5,7 @@ namespace DfE.CheckPerformanceData.Application.Audit;
 
 /// <summary>
 /// The one mapping from an audit row's EntityType/Action to what the audit log shows (AB#294592).
-/// "Activity" on the page IS the row's EntityType; egress transfers and early closures (AB#301022) are the only rows with an outcome.
+/// "Activity" on the page IS the row's EntityType; egress transfers, early closures (AB#301022) and automatic hand-overs (AB#302158) are the only rows with an outcome.
 /// Labels are FLAGGED copy. An unmapped type is humanised ("PageNodeVersion" → "Page node
 /// version") rather than shown raw, because the generic capture names every entity the app has.
 /// </summary>
@@ -24,6 +24,11 @@ public static class AuditActivities
     public const string WindowAdmin = "WindowAdmin";
     /// <summary>An admin closed a checking exercise before its scheduled end.</summary>
     public const string ClosedEarlyAction = "ClosedEarly";
+    /// <summary>
+    /// AB#302158: the service handed an exercise's requests over for processing by itself, two
+    /// hours after the exercise ended. Written only for a run that sent or cancelled something.
+    /// </summary>
+    public const string RequestsSentAutomaticallyAction = "RequestsSentAutomatically";
 
     private static readonly IReadOnlyDictionary<string, string> Labels = new Dictionary<string, string>(StringComparer.Ordinal)
     {
@@ -64,6 +69,8 @@ public static class AuditActivities
         (Egress, TransferFailedAction) => AuditOutcome.Failed,
         // AB#301022: written only once the exercise has closed, so it has no failed twin.
         (WindowAdmin, ClosedEarlyAction) => AuditOutcome.Success,
+        // AB#302158: written only for a hand-over that happened; a failed run is retried, not recorded.
+        (WindowAdmin, RequestsSentAutomaticallyAction) => AuditOutcome.Success,
         _ => null
     };
 

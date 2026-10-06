@@ -498,8 +498,9 @@ change requests and neither page serves it. After the admin types the window's n
 `IExerciseEarlyClosureService` (the date move and the audit row) and then `ICloseExerciseService`
 (the sweep: decided requests onto the Zendesk queue, undecided ones reported as waiting, leftover
 drafts cancelled) — in that order, so no school can add a request behind the sweep. The sweep is still date-blind and still the
-only way a pupil-data amendment reaches Zendesk, and nothing runs it at a scheduled end, so once an
-exercise has closed the summary offers it on its own: `SendExerciseRequestsController`
+only way a pupil-data amendment reaches Zendesk, and since AB#302158 the service runs it by itself
+two hours after an exercise ends (next section). Once an exercise has closed the summary still
+offers it on its own, for an admin who wants it sooner or again: `SendExerciseRequestsController`
 (`admin/windows/{id}/exercises/{exerciseId}/send-requests`). The sweep is not transactional (a blob read and a
 queue write per request). If it fails after the close has committed, the admin is sent back to the
 summary with a notice that the exercise closed and that its requests still need sending, rather
@@ -507,9 +508,10 @@ than to an error page.
 
 **Bulk submit.** `BulkSubmissionService.SubmitAsync` had no open-exercise check, so a review page
 left open across a close could still post — after an early close until the sweep had cancelled the
-drafts, and after a scheduled end until someone ran the sweep. It now reads the window fresh and
-skips any draft whose own exercise (derived from its change type) is not open; when that leaves
-nothing submitted, the school is sent back to Check your pupil data with the closed message.
+drafts, and after a scheduled end until the sweep ran (at the time that needed an admin; since
+AB#302158 the service runs it two hours after the end). It now reads the window fresh and skips any
+draft whose own exercise (derived from its change type) is not open; when that leaves nothing
+submitted, the school is sent back to Check your pupil data with the closed message.
 
 **Also worth knowing.** `AmendmentRequestsController.Edit` gates a resumed draft on the
 draft's own snapshot, so after an early close the school is turned away one click later, by the
@@ -518,3 +520,76 @@ journey refresh, rather than on the resume itself.
 The sweep sends only requests the Rules Engine has decided (`ProcessingStatus = Decided`). It
 reports the rest as waiting. **Send … requests for processing** sends them once they are decided.
 Add-pupil requests go through the Rules Engine like any amendment (#536).
+
+## Automatic hand-over two hours after an exercise ends (AB#302158)
+
+Nothing used to hand a scheduled close over: an exercise reached its end date, schools could no
+longer act on it, and its submitted requests sat unsent until an admin pressed "Send … requests
+for processing". The service now does that by itself.
+
+**When.** An exercise is due while `EndDate + 2 hours <= now < EndDate + 2 hours + 24 hours`
+(`ExerciseHandOverSchedule`). The web app's `ExerciseHandOverJob` looks every five minutes and, for
+each due exercise, runs the same sweep the button runs (`ICloseExerciseService.CloseAsync`):
+decided requests onto the Zendesk queue, leftover drafts cancelled. This is about the
+*exercise's* end, never the window's — a window whose pupil-data checking has ended is usually
+still open for results enquiries, and each exercise is judged on its own end date.
+
+**No "done" flag.** The sweep only picks up requests that have not been sent and drafts that are
+still live, so a second run finds nothing. The job therefore simply repeats the sweep on every
+tick for a day, which is also its retry: after a failure, and for any request a run had to leave
+behind. After that day it never looks at the exercise again. There is no column, no migration and
+nothing to reset. One consequence: when this first deployed, exercises that had closed more than
+26 hours earlier were left alone, and still need the button.
+
+**Two hours, and why.** The gap gives the rules engine time to decide the requests that schools
+submitted in the last minutes of the exercise, because the sweep only sends a request the rules
+engine has decided (#536). One that is still undecided is left waiting, and a later tick sends it.
+
+**By exercise id.** The job sweeps by exercise id, as the Close and Send requests buttons do,
+because a window may hold several releases of one kind (#466). It skips a data share (no kind): a
+change request reaches an exercise only through its kind, so a data share never holds one. The
+audit row records the exercise id beside its kind.
+
+**Both exercise types.** A results-enquiry exercise sends nothing here — enquiries go to Zendesk
+when they are submitted, and the sweep skips them — but its leftover drafts are cancelled.
+
+**After an early close.** Close sweeps at once. The job sweeps again from two hours after the new
+end date and normally finds nothing; if the close's own sweep failed, or a request slipped in
+around the close, this is what picks it up.
+
+**Two web pods.** Every pod runs the job. Each tick first takes a Postgres advisory lock
+(`PostgresExerciseHandOverLock`, on a connection of its own for the reasons written up on
+`PostgresAdvisoryLock`); the pod that does not get it skips the tick. Each exercise is handed over
+in a dependency scope of its own, so one failure cannot affect the next. A pod that is told to
+stop (every deploy does this) lets the exercise it is handing over finish and starts no other; the
+next tick, on whichever pod, carries on.
+
+**The record.** A run that sent or cancelled anything writes one audit row,
+`WindowAdmin` / `RequestsSentAutomatically`, with no user (see `docs/audit-log.md`). A run that
+did nothing writes none. The row is written after the sweep, not in one transaction with it — the
+sweep commits request by request (#536) and has no single transaction to join — and it is
+written even if the pod is stopping. If that write fails, the hand-over has still happened and the
+application log line is the record. A sweep that fails part-way writes no row for the requests it
+did send; the run that finishes the job records only what it sent.
+
+**Settings** (`ExerciseHandOver` section; defaults in code, nothing in `appsettings.json`):
+
+| Key | Default | Meaning |
+|---|---|---|
+| `ExerciseHandOver__Enabled` | `true` | `false` switches the job off in that environment. |
+| `ExerciseHandOver__DelayAfterEnd` | `02:00:00` | How long after the end the first run happens. |
+| `ExerciseHandOver__CatchUpWindow` | `1.00:00:00` | How long the runs are repeated. |
+| `ExerciseHandOver__PollInterval` | `00:05:00` | How often the job looks. |
+
+A value that makes no sense (a negative delay, a zero window or interval) falls back to the
+default. A value that cannot be read at all (for example `5m` where `00:05:00` is meant) switches
+the job off and logs an error; the site still starts.
+
+**The clock is the server's, and today that is UTC** (issue #535). "Two hours after the end" is
+measured on the clock every exercise gate reads, so during British Summer Time the first run is
+three hours after the UK end time. This is one more reader of `TimeProvider.GetLocalNow()` for
+#535's fix to cover.
+
+**If the job did not run.** A stack that was down for the whole of an exercise's catch-up day
+misses it. The summary page's "Send … requests for processing" button does the same thing by
+hand, at any time after the exercise has closed.

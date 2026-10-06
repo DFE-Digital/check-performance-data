@@ -25,9 +25,9 @@ public static class SeedChangeRequests
     private const string SubmittedByName = "Dev Seed";
     private const string SubmittedByEmail = "dev-seed@example.com";
 
-    // "Dual registered or moved school": its branch page (dual-registered-moved) has no
-    // page-level nextPageId, so it goes straight to the Summary/end without an evidence
-    // upload page — the simplest complete, coherent Remove journey to seed.
+    // "Dual registered or moved school": its branch page (dual-registered-moved) goes to an
+    // evidence page where the file and the comments are both optional, so the seed can leave
+    // it blank — the simplest complete, coherent Remove journey to seed.
     private const string ReasonValue = "dual-registered-moved";
     private const string ReasonLabel = "Dual registered or moved school";
     private const string ReasonDfeNumber = "123/4567";
@@ -167,7 +167,7 @@ public static class SeedChangeRequests
                     ["reason"] = new() { TextValue = ReasonValue },
                     ["dual-registered-moved-dfe-number"] = new() { TextValue = ReasonDfeNumber }
                 },
-                QuestionHistory = ["select-pupil", "reason", "dual-registered-moved"]
+                QuestionHistory = ["select-pupil", "reason", "dual-registered-moved", "dual-registered-moved-evidence"]
             };
 
             await requestStateBlobClient.SaveAsync(windowId, scenario.Reference, state);

@@ -25,6 +25,26 @@ public sealed class WindowAdminAuditPayloadTests
         Assert.Equal("Banks Jamgbadi", payload.ClosedBy);
     }
 
+    [Fact]
+    public void An_automatic_hand_over_payload_gives_the_exercise_and_the_counts()
+    {
+        // AB#302158: what WindowAdminAuditWriter writes. It has no closedBy and no scheduledEnd.
+        const string json = """
+            {"windowId":"11111111-1111-1111-1111-111111111111","windowTitle":"Key Stage 4 June",
+             "exerciseType":"PupilData","exerciseEnd":"2026-11-02T17:00:00","requestsSent":3,
+             "draftsCancelled":2,"automatic":true,"ranAtUtc":"2026-11-02T18:00:00Z"}
+            """;
+
+        var payload = WindowAdminAuditPayload.TryParse(json);
+
+        Assert.NotNull(payload);
+        Assert.Equal("PupilData", payload!.ExerciseType);
+        Assert.Equal(3, payload.RequestsSent);
+        Assert.Equal(2, payload.DraftsCancelled);
+        Assert.Null(payload.ClosedBy);
+        Assert.Null(payload.ScheduledEnd);
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]

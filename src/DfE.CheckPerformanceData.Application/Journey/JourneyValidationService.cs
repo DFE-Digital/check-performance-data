@@ -146,26 +146,17 @@ public sealed class JourneyValidationService(
 
     public string? ValidateAnswer(Question question, QuestionAnswer answer, string resolvedTitle, string? resolvedValidationFailure = null)
     {
-        // The KS4 and 16-19 removal journeys want the question's own "Enter the date …" wording for every
-        // invalid-date failure, not the generic messages. Scoped to the removal date question
-        // ids so the excluded EAL page and any generic date question keep their messages; the
-        // blank case still honours resolvedValidationFailure as it always has.
-        var scopedDateFailure = resolvedValidationFailure is not null &&
-            RemovalJourneyDateRules.RemovalDateQuestionIds.Contains(question.Id)
-            ? resolvedValidationFailure
-            : null;
-
+        // #544: every date format failure gives the same message, the question's own
+        // validationFailure followed by the format, so the red error says how to fix it and the
+        // wording is the same on every journey. The 4-digit year is required (GOV.UK date input
+        // pattern): "26" would otherwise be accepted as the literal year 0026. It is checked
+        // before IsValidDate, which must only see years DateTime.DaysInMonth accepts (1-9999).
         var baseError = question.Type switch
         {
             QuestionType.Date when answer.DateValue is not { Day: > 0, Month: > 0, Year: > 0 }
-                => scopedDateFailure ?? resolvedValidationFailure ?? $"{resolvedTitle} is required",
-            // A 4-digit year is required (GOV.UK date input pattern): "26" would otherwise be
-            // accepted as the literal year 0026. Checked before IsValidDate, which must only
-            // see years DateTime.DaysInMonth accepts (1-9999).
-            QuestionType.Date when answer.DateValue!.Year is < 1000 or > 9999
-                => scopedDateFailure ?? $"{resolvedTitle} must include a 4-digit year",
-            QuestionType.Date when !IsValidDate(answer.DateValue!)
-                => scopedDateFailure ?? $"{resolvedTitle} must be a real date",
+                    or { Year: < 1000 or > 9999 }
+                    || !IsValidDate(answer.DateValue)
+                => $"{resolvedValidationFailure ?? "Enter a real date"} {DateFormat}",
             QuestionType.TextArea when string.IsNullOrWhiteSpace(answer.TextValue)
                 => resolvedValidationFailure ?? $"{resolvedTitle} is required",
             // Null-conditional, not null-forgiving: TextArea reaches here only after the arm above
@@ -204,6 +195,9 @@ public sealed class JourneyValidationService(
         return validator is not null && !validator.IsValid(textValue) ? validator.FailureMessage : null;
     }
 
+    // Appended to every date format failure; the hint shows an example in the same order.
+    private const string DateFormat = "in the format dd mm yyyy";
+
     private static bool IsValidDate(DateAnswer d) =>
         d.Month is >= 1 and <= 12 &&
         d.Day >= 1 &&
@@ -227,6 +221,16 @@ public sealed class JourneyValidationService(
     public string? ValidateDuplicateFileName(string fileName, IReadOnlyList<FileAnswer> existingFiles) =>
         existingFiles.Any(f => string.Equals(f.OriginalFileName, fileName, StringComparison.OrdinalIgnoreCase))
             ? "The file name has already been used. Upload a file with a different name."
+            : null;
+
+    // AB#304900. A method of its own for the reason given above ValidateDuplicateFileName: the
+    // controller maps each of these methods to its own analytics reason ("file_limit_exceeded"
+    // here), so folding the count into another check would mislabel the rejection in BigQuery.
+    // ">=" rather than "==" so a draft that already holds more than the limit cannot grow.
+    // FLAGGED copy (AB#304900).
+    public string? ValidateFileCount(IReadOnlyList<FileAnswer> existingFiles) =>
+        existingFiles.Count >= EvidenceUploadLimits.MaxFiles
+            ? $"You can only upload {EvidenceUploadLimits.MaxFiles} files. Remove a file before you upload another."
             : null;
 
     public string GenerateReference(CheckingWindowType? windowType)

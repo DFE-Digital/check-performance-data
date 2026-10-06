@@ -11,7 +11,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Journey;
 //   * a future date is blocked with the journey-specific "Date … must be in the past" message
 //     (RemovalJourneyDateRules, run by JourneyValidationService.ValidatePageDates);
 //   * an invalid date (blank/part-filled, non-4-digit year, impossible calendar date) is blocked
-//     with the question's "Enter the date …" message (the scoped ValidateAnswer fallback);
+//     with the question's "Enter the date … in the format dd mm yyyy" message (#544);
 //   * today and any past date are accepted and the journey advances.
 //
 // The date-validation behaviour is what these tests pin; each scenario drives a removal journey
@@ -75,7 +75,7 @@ public sealed class Ks4JourneyTests(PlaywrightFixture fixture) : SeedingPageTest
         await ContinueAsync();
 
         await AssertDateBlockedAsync(
-            "Enter the date Alice Smith was removed from your school roll");
+            "Enter the date Alice Smith was removed from your school roll in the format dd mm yyyy");
     }
 
     // ── US3: today and any past date are accepted and the journey advances ──

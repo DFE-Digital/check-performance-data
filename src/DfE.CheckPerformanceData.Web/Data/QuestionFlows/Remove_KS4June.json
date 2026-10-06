@@ -25,7 +25,7 @@
           "options": [
             {
               "value": "permanent-exclusion",
-              "label": "Admitted following permanent exclusion (not registered independent schools)",
+              "label": "Admitted following permanent exclusion",
               "nextPageId": "permanent-exclusion",
               "visibleWhen": ["PupilIsNotAddBack", "SchoolIsNotIndependent"]
             },
@@ -82,7 +82,7 @@
             },
             {
               "value": "social-care-involvement",
-              "label": "Social care involvement - including police or prison",
+              "label": "Social care involvement - including police/prison",
               "nextPageId": "social-care",
               "visibleWhen": "PupilIsNotAddBack"
             },
@@ -151,9 +151,8 @@
           "id": "how-evidence-supports",
           "type": "TextArea",
           "title": "How does the evidence demonstrate why the pupil should be removed?",
-          "hint": "Your request will not be accepted unless you provide the correct evidence",
           "summaryTitle": "How evidence demonstrates removal",
-          "characterLimit": 1000,
+          "characterLimit": 500,
           "optional": true
         }
       ]
@@ -203,6 +202,7 @@
     {
       "id": "dual-registered-moved",
       "pageTitle": "School DfE number for transfer",
+      "nextPageId": "dual-registered-moved-evidence",
       "questions": [
         {
           "id": "dual-registered-moved-dfe-number",
@@ -214,6 +214,29 @@
           "validationFailure": "Enter the DfE number of the school {pupilName}'s exam results should be transferred to",
           "questionHelpTitle" : "How can I find a DfE number?",
           "questionHelpText" : "<p>To find the DfE number, search the school or college name on <a href=\"https://get-information-schools.service.gov.uk/?utm_source=cypmd&amp;utm_medium=referral&amp;utm_campaign=help_guidance\" target=\"_blank\">Get Information About Schools (opens in new window)</a></p>"
+        }
+      ]
+    },
+    {
+      "id": "dual-registered-moved-evidence",
+      "pageTitle": "Provide evidence for the removal",
+      "type": "EvidenceUpload",
+      "title": "Provide evidence for the removal of {pupilName}",
+      "questions": [
+        {
+          "id": "evidence",
+          "type": "FileUpload",
+          "title": "Upload files",
+          "hint": "Evidence must be in a PDF format",
+          "optional": true
+        },
+        {
+          "id": "additional-comments",
+          "type": "TextArea",
+          "title": "Additional comments",
+          "summaryTitle": "Additional comments",
+          "characterLimit": 500,
+          "optional": true
         }
       ]
     },
@@ -319,7 +342,7 @@
             },
             {
               "value": "chose-not-to-say",
-              "label": "Chose not to say"
+              "label": "Prefer not to say"
             },
             {
               "value": "not-known",
@@ -366,6 +389,7 @@
           "title": "When did {pupilName} arrive in England?",
           "hint": "For example, 27 3 2026",
           "summaryTitle": "Date of arrival in England",
+          "validationFailure": "Enter the date {pupilName} arrived in England",
           "optional": true
         }
       ]
@@ -573,16 +597,15 @@
           "id": "how-evidence-supports",
           "type": "TextArea",
           "title": "How does the evidence demonstrate why the pupil should be removed?",
-          "hint": "Your request will not be accepted unless you provide the correct evidence",
           "summaryTitle": "How evidence demonstrates removal",
-          "characterLimit": 1000,
+          "characterLimit": 500,
           "optional": true
         }
       ]
     },
     {
       "id": "social-care",
-      "title": "Social care",
+      "title": "Social care involvement - including police/prison",
       "pageTitle": "Social care details",
       "nextPageId": "evidence",
       "questions": [
@@ -645,9 +668,8 @@
           "id": "how-evidence-supports",
           "type": "TextArea",
           "title": "How does the evidence demonstrate why the pupil should be removed?",
-          "hint": "Your request will not be accepted unless you provide the correct evidence",
           "summaryTitle": "How evidence demonstrates removal",
-          "characterLimit": 1000,
+          "characterLimit": 500,
           "validationFailure": "Explain how the evidence supports removing {pupilName}",
           "optionalWhen": "EalWouldBeAutoRejected"
         }

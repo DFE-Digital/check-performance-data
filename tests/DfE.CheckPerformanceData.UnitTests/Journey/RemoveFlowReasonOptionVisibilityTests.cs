@@ -22,7 +22,7 @@ public class RemoveFlowReasonOptionVisibilityTests
     private const string PermanentExclusion = "permanent-exclusion";
     private const string NotOnRoll = "not-on-roll";
     private const string ExpectedPermanentExclusionLabel =
-        "Admitted following permanent exclusion (not registered independent schools)";
+        "Admitted following permanent exclusion";
 
     private const int AddBackPincl = 403;
     private const int IncludedPincl = 401;

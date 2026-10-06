@@ -18,11 +18,11 @@ public class MergeRecordDisplaysTests
     };
 
     [Fact]
-    public void First_ParseableDob_RendersNameCommaDate()
+    public void First_ParseableDob_RendersNameDateInParenthesisedId()
     {
         var result = MergeRecordDisplays.First(Pupil());
 
-        Assert.Equal("John Doe, 2 February 2010", result);
+        Assert.Equal("John Doe 2 February 2010 (CYPMD456)", result);
     }
 
     [Fact]
@@ -38,7 +38,7 @@ public class MergeRecordDisplaysTests
     {
         var result = MergeRecordDisplays.First(Pupil(dob: "unknown"));
 
-        Assert.Equal("John Doe, unknown", result);
+        Assert.Equal("John Doe unknown (CYPMD456)", result);
     }
 
     [Fact]

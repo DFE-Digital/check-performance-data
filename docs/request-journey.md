@@ -192,7 +192,7 @@ POST → saves MatchedPupil
 | `FreeText` | Single-line input | `TextValue` | |
 | `TextArea` | Multi-line textarea | `TextValue` | Optional `charLimit` |
 | `Date` | Day / month / year inputs | `DateValue` (`DateAnswer`) | |
-| `FileUpload` | PDF upload widget | `FileValues` (list of `FileAnswer`) | Handled via separate upload/remove endpoints; max 6 total pages |
+| `FileUpload` | PDF upload widget | `FileValues` (list of `FileAnswer`) | Handled via separate upload/remove endpoints; at most 6 files (AB#304900) |
 | `Autocomplete` | Accessible-autocomplete dropdown | `TextValue` — the selected display name | Requires `dataSource` in JSON (e.g. `"countries"`). Suggestions fetched from `GET /{dataSource}/suggestions?query=`. A `{fieldName}_code` hidden field carries the machine-readable code but is not currently persisted in `QuestionAnswer`. |
 
 ### Navigation guard
@@ -261,7 +261,8 @@ A page with `"requireAtLeastOne": true` must have at least one of its questions 
 The evidence page has `type: "EvidenceUpload"` in the JSON and renders a distinct Razor view (`EvidenceUpload.cshtml`). File uploads are handled separately to answer submission:
 
 - Each upload is a separate POST to `/Journey/{windowId}/page/{pageId}/question/{questionId}/upload`
-- The file is read as bytes, validated (must be PDF, ≤ 10 MB, ≤ 6 total pages across all uploads)
+- The upload is refused straight away if it already holds 6 files (`EvidenceUploadLimits.MaxFiles`, AB#304900): "You can only upload 6 files. Remove a file before you upload another."
+- Otherwise the name must not already be used in the request and the file must be ≤ 10 MB; it is then read as bytes and must be a readable PDF. The old limit of 6 total *pages* is switched off: `JourneyValidationService`'s `maxEvidencePages` defaults to 0 and the registration passes no value.
 - If valid, the bytes are stored via `IFileStorageService` (`EvidenceBlobStorageService`) to:
   ```
   Container: {windowId}

@@ -188,7 +188,7 @@ type id `11` — see [conditional visibility](#notes)).
 
 | Question | Type | Notes |
 |---|---|---|
-| `evidence` | FileUpload (optional) | PDF, max 6 pages across all files. |
+| `evidence` | FileUpload (optional) | PDF, up to 6 files, 10 MB each. |
 | `how-evidence-supports` | TextArea (optional) | Explain how the evidence supports removal. 500 char limit. |
 
 ---
@@ -249,7 +249,7 @@ are **optional** here.
 
 | Question | Type | Notes |
 |---|---|---|
-| `evidence` | FileUpload (optional) | PDF, max 6 pages across all files. |
+| `evidence` | FileUpload (optional) | PDF, up to 6 files, 10 MB each. |
 | `how-evidence-supports` | TextArea (optional) | Explain how the evidence supports removal. 500 char limit. |
 
 ---
@@ -260,7 +260,7 @@ Shared `EvidenceUpload` page reached by most reasons. Both questions are
 
 | Question | Type | Notes |
 |---|---|---|
-| `evidence` | FileUpload | PDF, max 6 pages across all files. |
+| `evidence` | FileUpload | PDF, up to 6 files, 10 MB each. |
 | `how-evidence-supports` | TextArea | Explain how the evidence supports removal. 500 char limit. |
 
 ## Notes

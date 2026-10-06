@@ -58,6 +58,13 @@ public interface IJourneyValidationService
     string? ValidateFileUpload(string fileName, int newPageCount, IReadOnlyList<FileAnswer> existingFiles);
 
     /// <summary>
+    /// AB#304900: refuses another file once the upload already holds
+    /// <see cref="EvidenceUploadLimits.MaxFiles"/>. Pass the files the question holds now.
+    /// Returns the user-facing error, or null when one more may be added.
+    /// </summary>
+    string? ValidateFileCount(IReadOnlyList<FileAnswer> existingFiles);
+
+    /// <summary>
     /// Rejects a file whose name is already used by any evidence file in the request
     /// (AB#296081). Case-insensitive on <see cref="FileAnswer.OriginalFileName"/>.
     /// Returns the user-facing error, or null when the name is new.

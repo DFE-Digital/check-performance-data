@@ -166,6 +166,10 @@ variable "gcp_table_deletion_protection" {
   default     = true
 }
 
+variable "pg_airbyte_enabled" {
+  description = "Enable Write ahead logging for Postgres replication for Airbyte."
+  default     = false
+}
 locals {
   azure_storage_account_name = module.storage_private.name
   azure_storage_access_key   = module.storage_private.primary_access_key

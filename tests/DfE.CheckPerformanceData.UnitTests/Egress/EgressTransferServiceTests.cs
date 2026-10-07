@@ -81,14 +81,14 @@ public sealed class EgressTransferServiceTests
         RunIs(EgressRunStatus.Preprocessed, EgressOutputType.NewLearners, EgressOutputType.RemoveLearners);
         _repo.TrySetStatusAsync(RunId, EgressRunStatus.Preprocessed, EgressRunStatus.Transferring, Arg.Any<CancellationToken>()).Returns(true);
         _blobs.UploadAsync("CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv", Arg.Any<byte[]>(), Arg.Any<string>(), RunId, Arg.Any<CancellationToken>())
-            .Returns(Task.FromException(new EgressBlobAlreadyExistsException("CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv")));
+            .Returns(Task.FromException(new InvalidOperationException("upload failed")));
 
         var result = await Sut().TransferAsync(RunId, Actor, CancellationToken.None);
 
         var failed = Assert.IsType<EgressTransferResult.Failed>(result);
-        Assert.Contains("already exists", failed.Reason);
-        await _blobs.Received(1).DeleteIfExistsAsync("CYPMD_LDS_KS4_NewLearners_2026_06_08.csv", Arg.Any<CancellationToken>());
-        await _repo.Received(1).MarkTransferFailedAsync(RunId, EgressRunStatus.Transferring, Arg.Is<string>(r => r.Contains("already exists")), Actor.UserId.ToString(), Actor.DisplayName, Arg.Any<CancellationToken>());
+        Assert.Contains("upload failed", failed.Reason);
+        await _blobs.Received(1).DeleteIfOwnedByRunAsync("CYPMD_LDS_KS4_NewLearners_2026_06_08.csv", RunId, Arg.Any<CancellationToken>());
+        await _repo.Received(1).MarkTransferFailedAsync(RunId, EgressRunStatus.Transferring, Arg.Is<string>(r => r.Contains("upload failed")), Actor.UserId.ToString(), Actor.DisplayName, Arg.Any<CancellationToken>());
         await _repo.DidNotReceiveWithAnyArgs().MarkTransferredAsync(default, default, default!, default, default);
     }
 
@@ -185,7 +185,7 @@ public sealed class EgressTransferServiceTests
         var result = await Sut().TransferAsync(RunId, Actor, CancellationToken.None);
 
         Assert.IsType<EgressTransferResult.Failed>(result);
-        await _blobs.Received(1).DeleteIfExistsAsync("CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv", Arg.Any<CancellationToken>());
+        await _blobs.Received(1).DeleteIfOwnedByRunAsync("CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv", RunId, Arg.Any<CancellationToken>());
         await _repo.Received(1).MarkTransferFailedAsync(RunId, EgressRunStatus.Transferring, Arg.Any<string>(), Actor.UserId.ToString(), Actor.DisplayName, Arg.Any<CancellationToken>());
     }
 
@@ -229,7 +229,7 @@ public sealed class EgressTransferServiceTests
         _blobs.UploadAsync("CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv", Arg.Any<byte[]>(), Arg.Any<string>(), RunId, Arg.Any<CancellationToken>())
             .Returns(_ => { cts.Cancel(); throw new OperationCanceledException("client disconnected"); });
         CancellationToken? deleteToken = null;
-        _blobs.DeleteIfExistsAsync(Arg.Any<string>(), Arg.Do<CancellationToken>(t => deleteToken = t)).Returns(Task.CompletedTask);
+        _blobs.DeleteIfOwnedByRunAsync(Arg.Any<string>(), RunId, Arg.Do<CancellationToken>(t => deleteToken = t)).Returns(true);
         CancellationToken? markFailedToken = null;
         _repo.MarkTransferFailedAsync(Arg.Any<Guid>(), Arg.Any<EgressRunStatus>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Do<CancellationToken>(t => markFailedToken = t))
             .Returns(1);
@@ -237,7 +237,7 @@ public sealed class EgressTransferServiceTests
         var result = await Sut().TransferAsync(RunId, Actor, cts.Token);
 
         Assert.IsType<EgressTransferResult.Failed>(result);
-        await _blobs.Received(1).DeleteIfExistsAsync("CYPMD_LDS_KS4_NewLearners_2026_06_08.csv", Arg.Any<CancellationToken>());
+        await _blobs.Received(1).DeleteIfOwnedByRunAsync("CYPMD_LDS_KS4_NewLearners_2026_06_08.csv", RunId, Arg.Any<CancellationToken>());
         await _repo.Received(1).MarkTransferFailedAsync(RunId, EgressRunStatus.Transferring, Arg.Any<string>(), Actor.UserId.ToString(), Actor.DisplayName, Arg.Any<CancellationToken>());
         Assert.Equal(CancellationToken.None, deleteToken);
         Assert.Equal(CancellationToken.None, markFailedToken);
@@ -256,7 +256,7 @@ public sealed class EgressTransferServiceTests
         var result = await Sut().TransferAsync(RunId, Actor, CancellationToken.None);
 
         Assert.IsType<EgressTransferResult.Failed>(result);
-        await _blobs.Received(1).DeleteIfExistsAsync("CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv", Arg.Any<CancellationToken>());
+        await _blobs.Received(1).DeleteIfOwnedByRunAsync("CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv", RunId, Arg.Any<CancellationToken>());
         await _repo.Received(1).MarkTransferFailedAsync(RunId, EgressRunStatus.Transferring, Arg.Any<string>(), Actor.UserId.ToString(), Actor.DisplayName, Arg.Any<CancellationToken>());
         await _repo.DidNotReceiveWithAnyArgs().TryReactivateAsync(default, default);
     }
@@ -269,9 +269,9 @@ public sealed class EgressTransferServiceTests
         RunIs(EgressRunStatus.Preprocessed, EgressOutputType.NewLearners, EgressOutputType.RemoveLearners);
         _repo.TrySetStatusAsync(RunId, EgressRunStatus.Preprocessed, EgressRunStatus.Transferring, Arg.Any<CancellationToken>()).Returns(true);
         _blobs.UploadAsync("CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv", Arg.Any<byte[]>(), Arg.Any<string>(), RunId, Arg.Any<CancellationToken>())
-            .Returns(Task.FromException(new EgressBlobAlreadyExistsException("CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv")));
-        _blobs.DeleteIfExistsAsync("CYPMD_LDS_KS4_NewLearners_2026_06_08.csv", Arg.Any<CancellationToken>())
-            .Returns(Task.FromException(new InvalidOperationException("network blip")));
+            .Returns(Task.FromException(new InvalidOperationException("upload failed")));
+        _blobs.DeleteIfOwnedByRunAsync("CYPMD_LDS_KS4_NewLearners_2026_06_08.csv", RunId, Arg.Any<CancellationToken>())
+            .Returns(Task.FromException<bool>(new InvalidOperationException("network blip")));
 
         var result = await Sut().TransferAsync(RunId, Actor, CancellationToken.None);
 
@@ -381,143 +381,5 @@ public sealed class EgressTransferServiceTests
         var result = await Sut().AbandonAsync(RunId, CancellationToken.None);
 
         Assert.IsType<EgressAbandonResult.NotFound>(result);
-    }
-
-    private static EgressRunDto OtherRun(Guid id, EgressRunStatus status) =>
-        new(id, Guid.NewGuid(), status, Guid.NewGuid(), "Ops Two", DateTime.UtcNow, DateTime.UtcNow, new DateOnly(2026, 6, 8), null, null, [], null, []);
-
-    private const string RemoveFile = "CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv";
-
-    // Follow-up to R1 (Abandon crash-window orphan): if the process died between writing
-    // `Abandoned` and finishing the blob sweep, a file stamped with that run's id is still in LDS
-    // with no UI path to remove it. The next transfer for the same file name is that path: a
-    // colliding file owned by an ABANDONED run is reclaimed (metadata-checked delete) and the
-    // create-only upload retried once.
-    [Fact]
-    public async Task A_colliding_file_left_by_an_abandoned_run_is_reclaimed_and_the_upload_retried()
-    {
-        RunIs(EgressRunStatus.Preprocessed, EgressOutputType.RemoveLearners);
-        _repo.TrySetStatusAsync(RunId, EgressRunStatus.Preprocessed, EgressRunStatus.Transferring, Arg.Any<CancellationToken>()).Returns(true);
-        var orphanOwner = Guid.NewGuid();
-        _blobs.UploadAsync(RemoveFile, Arg.Any<byte[]>(), Arg.Any<string>(), RunId, Arg.Any<CancellationToken>())
-            .Returns(Task.FromException(new EgressBlobAlreadyExistsException(RemoveFile)), Task.CompletedTask);
-        _blobs.GetOwnerRunIdAsync(RemoveFile, Arg.Any<CancellationToken>()).Returns(orphanOwner);
-        _repo.GetRunAsync(orphanOwner, Arg.Any<CancellationToken>()).Returns(OtherRun(orphanOwner, EgressRunStatus.Abandoned));
-        _blobs.DeleteIfOwnedByRunAsync(RemoveFile, orphanOwner, Arg.Any<CancellationToken>()).Returns(true);
-
-        var result = await Sut().TransferAsync(RunId, Actor, CancellationToken.None);
-
-        Assert.IsType<EgressTransferResult.Transferred>(result);
-        await _blobs.Received(1).DeleteIfOwnedByRunAsync(RemoveFile, orphanOwner, Arg.Any<CancellationToken>());
-        await _blobs.Received(2).UploadAsync(RemoveFile, Arg.Any<byte[]>(), Arg.Any<string>(), RunId, Arg.Any<CancellationToken>());
-        await _repo.DidNotReceiveWithAnyArgs().MarkTransferFailedAsync(default, default, default!, default!, default!, default);
-    }
-
-    // The same path also clears a leftover from THIS run's own earlier attempt — the case where
-    // compensation's delete failed and the reason said "remove it by hand".
-    [Fact]
-    public async Task A_colliding_file_left_by_this_runs_own_earlier_attempt_is_reclaimed()
-    {
-        RunIs(EgressRunStatus.TransferFailed, EgressOutputType.RemoveLearners);
-        _repo.TrySetStatusAsync(RunId, EgressRunStatus.TransferFailed, EgressRunStatus.Transferring, Arg.Any<CancellationToken>()).Returns(true);
-        _blobs.UploadAsync(RemoveFile, Arg.Any<byte[]>(), Arg.Any<string>(), RunId, Arg.Any<CancellationToken>())
-            .Returns(Task.FromException(new EgressBlobAlreadyExistsException(RemoveFile)), Task.CompletedTask);
-        _blobs.GetOwnerRunIdAsync(RemoveFile, Arg.Any<CancellationToken>()).Returns(RunId);
-        _blobs.DeleteIfOwnedByRunAsync(RemoveFile, RunId, Arg.Any<CancellationToken>()).Returns(true);
-
-        var result = await Sut().TransferAsync(RunId, Actor, CancellationToken.None);
-
-        Assert.IsType<EgressTransferResult.Transferred>(result);
-        await _blobs.Received(1).DeleteIfOwnedByRunAsync(RemoveFile, RunId, Arg.Any<CancellationToken>());
-        await _blobs.Received(2).UploadAsync(RemoveFile, Arg.Any<byte[]>(), Arg.Any<string>(), RunId, Arg.Any<CancellationToken>());
-    }
-
-    // A file another run actually TRANSFERRED is the real same-stage/same-day collision and must
-    // never be touched — this is the case the create-only upload exists for.
-    [Theory]
-    [InlineData(EgressRunStatus.Transferred)]
-    [InlineData(EgressRunStatus.Transferring)]
-    public async Task A_colliding_file_owned_by_a_live_run_is_never_reclaimed(EgressRunStatus ownerStatus)
-    {
-        RunIs(EgressRunStatus.Preprocessed, EgressOutputType.RemoveLearners);
-        _repo.TrySetStatusAsync(RunId, EgressRunStatus.Preprocessed, EgressRunStatus.Transferring, Arg.Any<CancellationToken>()).Returns(true);
-        var owner = Guid.NewGuid();
-        _blobs.UploadAsync(RemoveFile, Arg.Any<byte[]>(), Arg.Any<string>(), RunId, Arg.Any<CancellationToken>())
-            .Returns(Task.FromException(new EgressBlobAlreadyExistsException(RemoveFile)));
-        _blobs.GetOwnerRunIdAsync(RemoveFile, Arg.Any<CancellationToken>()).Returns(owner);
-        _repo.GetRunAsync(owner, Arg.Any<CancellationToken>()).Returns(OtherRun(owner, ownerStatus));
-
-        var result = await Sut().TransferAsync(RunId, Actor, CancellationToken.None);
-
-        var failed = Assert.IsType<EgressTransferResult.Failed>(result);
-        Assert.Contains("already exists", failed.Reason);
-        await _blobs.DidNotReceive().DeleteIfOwnedByRunAsync(RemoveFile, owner, Arg.Any<CancellationToken>());
-        await _blobs.Received(1).UploadAsync(RemoveFile, Arg.Any<byte[]>(), Arg.Any<string>(), RunId, Arg.Any<CancellationToken>());
-    }
-
-    // Exactly one reclaim: if the retried upload collides again, something else is writing the
-    // same name and the transfer fails rather than looping.
-    [Fact]
-    public async Task A_reclaimed_file_that_collides_again_on_retry_fails_without_a_second_reclaim()
-    {
-        RunIs(EgressRunStatus.Preprocessed, EgressOutputType.RemoveLearners);
-        _repo.TrySetStatusAsync(RunId, EgressRunStatus.Preprocessed, EgressRunStatus.Transferring, Arg.Any<CancellationToken>()).Returns(true);
-        var orphanOwner = Guid.NewGuid();
-        _blobs.UploadAsync(RemoveFile, Arg.Any<byte[]>(), Arg.Any<string>(), RunId, Arg.Any<CancellationToken>())
-            .Returns(Task.FromException(new EgressBlobAlreadyExistsException(RemoveFile)));
-        _blobs.GetOwnerRunIdAsync(RemoveFile, Arg.Any<CancellationToken>()).Returns(orphanOwner);
-        _repo.GetRunAsync(orphanOwner, Arg.Any<CancellationToken>()).Returns(OtherRun(orphanOwner, EgressRunStatus.Abandoned));
-        _blobs.DeleteIfOwnedByRunAsync(RemoveFile, orphanOwner, Arg.Any<CancellationToken>()).Returns(true);
-
-        var result = await Sut().TransferAsync(RunId, Actor, CancellationToken.None);
-
-        Assert.IsType<EgressTransferResult.Failed>(result);
-        await _blobs.Received(1).DeleteIfOwnedByRunAsync(RemoveFile, orphanOwner, Arg.Any<CancellationToken>());
-        await _blobs.Received(2).UploadAsync(RemoveFile, Arg.Any<byte[]>(), Arg.Any<string>(), RunId, Arg.Any<CancellationToken>());
-        await _repo.Received(1).MarkTransferFailedAsync(RunId, EgressRunStatus.Transferring, Arg.Any<string>(), Actor.UserId.ToString(), Actor.DisplayName, Arg.Any<CancellationToken>());
-    }
-
-    // Same-stage/same-day collision: the file name carries the preprocessing date, so retrying the
-    // SAME run tomorrow reuses today's name and collides again. The recorded reason must say what
-    // actually gets the operator out, not just "already exists".
-    [Fact]
-    public async Task A_collision_with_another_runs_live_file_records_who_wrote_it_and_the_way_out()
-    {
-        RunIs(EgressRunStatus.Preprocessed, EgressOutputType.RemoveLearners);
-        _repo.TrySetStatusAsync(RunId, EgressRunStatus.Preprocessed, EgressRunStatus.Transferring, Arg.Any<CancellationToken>()).Returns(true);
-        var owner = Guid.NewGuid();
-        _blobs.UploadAsync(RemoveFile, Arg.Any<byte[]>(), Arg.Any<string>(), RunId, Arg.Any<CancellationToken>())
-            .Returns(Task.FromException(new EgressBlobAlreadyExistsException("extracts_input/" + RemoveFile)));
-        _blobs.GetOwnerRunIdAsync(RemoveFile, Arg.Any<CancellationToken>()).Returns(owner);
-        _repo.GetRunAsync(owner, Arg.Any<CancellationToken>()).Returns(OtherRun(owner, EgressRunStatus.Transferred));
-
-        var result = await Sut().TransferAsync(RunId, Actor, CancellationToken.None);
-
-        var failed = Assert.IsType<EgressTransferResult.Failed>(result);
-        Assert.Equal("A file named extracts_input/CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv already exists in the LDS container. "
-            + "Another egress run wrote it (its status is Transferred), so it was left in place. "
-            + "Two checking windows of the same key stage cannot transfer on the same day. "
-            + "Abandon this run and start a new one on a later day, or ask LDS to remove the file and then retry.", failed.Reason);
-        await _repo.Received(1).MarkTransferFailedAsync(RunId, EgressRunStatus.Transferring, failed.Reason, Actor.UserId.ToString(), Actor.DisplayName, Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task A_collision_with_a_file_this_service_never_stamped_says_so()
-    {
-        RunIs(EgressRunStatus.Preprocessed, EgressOutputType.RemoveLearners);
-        _repo.TrySetStatusAsync(RunId, EgressRunStatus.Preprocessed, EgressRunStatus.Transferring, Arg.Any<CancellationToken>()).Returns(true);
-        _blobs.UploadAsync(RemoveFile, Arg.Any<byte[]>(), Arg.Any<string>(), RunId, Arg.Any<CancellationToken>())
-            .Returns(Task.FromException(new EgressBlobAlreadyExistsException("extracts_input/" + RemoveFile)));
-        _blobs.GetOwnerRunIdAsync(RemoveFile, Arg.Any<CancellationToken>()).Returns((Guid?)null);
-
-        var result = await Sut().TransferAsync(RunId, Actor, CancellationToken.None);
-
-        var failed = Assert.IsType<EgressTransferResult.Failed>(result);
-        Assert.Equal("A file named extracts_input/CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv already exists in the LDS container. "
-            + "It was not written by this service, so it was left in place. Ask LDS to remove or rename it, then retry.", failed.Reason);
-        // The only ownership-checked delete is S3's "did my own in-flight write land" probe with
-        // THIS run's id; nothing is ever attempted under any other owner.
-        await _blobs.DidNotReceive().DeleteIfOwnedByRunAsync(Arg.Any<string>(), Arg.Is<Guid>(g => g != RunId), Arg.Any<CancellationToken>());
-        await _blobs.DidNotReceiveWithAnyArgs().DeleteIfExistsAsync(default!, default);
     }
 }

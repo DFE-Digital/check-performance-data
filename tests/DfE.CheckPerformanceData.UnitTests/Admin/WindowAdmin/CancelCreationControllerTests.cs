@@ -31,7 +31,8 @@ public class CancelCreationControllerTests
         var session = SessionWithDraft(new CheckingWindowDraft
         {
             Title = "Dave's KS4 June",
-            CheckingWindowType = CheckingWindowType.KS4June
+            CheckingWindowType = CheckingWindowType.KS4June,
+            Exercises = [new ExerciseDraft { ExerciseType = CheckingExerciseType.PupilData, TabOrder = 100 }]
         });
         var controller = Controller(session);
 
@@ -39,7 +40,7 @@ public class CancelCreationControllerTests
 
         session.DidNotReceive().Remove(Arg.Any<string>());
         var redirect = Assert.IsType<RedirectResult>(result);
-        Assert.Equal("/Exercises/New", redirect.Url);
+        Assert.Equal("/ExerciseDates/New", redirect.Url);
     }
 
     [Fact]

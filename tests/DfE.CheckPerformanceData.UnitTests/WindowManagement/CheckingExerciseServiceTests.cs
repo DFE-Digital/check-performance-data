@@ -399,4 +399,78 @@ public sealed class CheckingExerciseServiceTests
 
         Assert.Equal(ExerciseSchoolStatus.Visible, Sut().StatusOf([pupilData, share], share));
     }
+
+    // A window with one exercise (KS4 June) used to vanish the moment that exercise closed,
+    // because the window's dates are the union of its exercises' dates. VisibleUntil keeps it
+    // shown, read only, after the end date.
+    private static CheckingExerciseDto LiveUntil(
+        CheckingExerciseType type, DateTime start, DateTime end, DateTime? visibleUntil) =>
+        new()
+        {
+            Id = Guid.NewGuid(), ExerciseType = type, StartDate = start, EndDate = end,
+            IsEnabled = true, VisibleUntil = visibleUntil
+        };
+
+    [Fact]
+    public void IsWindowShown_inside_the_exercise_dates()
+    {
+        Assert.True(Sut().IsWindowShown([Live(CheckingExerciseType.PupilData, Yesterday, Tomorrow)]));
+    }
+
+    [Fact]
+    public void IsWindowShown_is_false_before_the_first_exercise_starts()
+    {
+        var exercise = LiveUntil(CheckingExerciseType.PupilData, Tomorrow, NextMonth, NextMonth.AddDays(7));
+
+        Assert.False(Sut().IsWindowShown([exercise]));
+    }
+
+    [Fact]
+    public void IsWindowShown_is_false_after_the_end_date_when_no_visible_until_is_set()
+    {
+        Assert.False(Sut().IsWindowShown([Live(CheckingExerciseType.PupilData, LastMonth, Yesterday)]));
+    }
+
+    [Fact]
+    public void IsWindowShown_after_the_end_date_while_visible_until_is_ahead()
+    {
+        var exercise = LiveUntil(CheckingExerciseType.PupilData, LastMonth, Yesterday, NextMonth);
+
+        Assert.True(Sut().IsWindowShown([exercise]));
+    }
+
+    [Fact]
+    public void IsWindowShown_is_false_once_visible_until_has_passed()
+    {
+        // VisibleUntil is exclusive, as in IsLiveAt.
+        var exercise = LiveUntil(CheckingExerciseType.PupilData, LastMonth, Yesterday, Now.DateTime);
+
+        Assert.False(Sut().IsWindowShown([exercise]));
+    }
+
+    [Fact]
+    public void IsWindowShown_ignores_the_visible_until_of_a_disabled_exercise()
+    {
+        var exercise = new CheckingExerciseDto
+        {
+            Id = Guid.NewGuid(), ExerciseType = CheckingExerciseType.PupilData,
+            StartDate = LastMonth, EndDate = Yesterday, IsEnabled = false, VisibleUntil = NextMonth
+        };
+
+        Assert.False(Sut().IsWindowShown([exercise]));
+    }
+
+    [Fact]
+    public void IsWindowShown_is_false_for_a_window_with_no_exercises()
+    {
+        Assert.False(Sut().IsWindowShown([]));
+    }
+
+    [Fact]
+    public void StatusOf_is_visible_closed_after_its_end_while_its_visible_until_keeps_the_window_shown()
+    {
+        var exercise = LiveUntil(CheckingExerciseType.PupilData, LastMonth, Yesterday, NextMonth);
+
+        Assert.Equal(ExerciseSchoolStatus.VisibleClosed, Sut().StatusOf([exercise], exercise));
+    }
 }

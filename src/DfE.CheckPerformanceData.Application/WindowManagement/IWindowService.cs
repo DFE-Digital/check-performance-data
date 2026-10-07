@@ -233,6 +233,32 @@ public sealed class CheckingExerciseDto
     }
 
     /// <summary>
+    /// Whether this exercise has data for schools. A live release decides it, slot by slot through
+    /// <see cref="StatusOf"/>. A legacy exercise (<see cref="UsesExerciseStorage"/> false) makes no
+    /// release: its validation writes the live data, so its validation stamp decides it.
+    /// </summary>
+    public ExerciseDataStatus DataStatus
+    {
+        get
+        {
+            var complete = InUse.Where(d => d.IsComplete).ToList();
+            if (!HasLiveData) return complete.Count > 0 ? ExerciseDataStatus.NotValidated : ExerciseDataStatus.NoFiles;
+            if (CurrentRelease is null) return ExerciseDataStatus.Live;
+            return complete.All(d => StatusOf(d) == DatasetStatus.Live)
+                ? ExerciseDataStatus.Live
+                : ExerciseDataStatus.LiveWithNewFiles;
+        }
+    }
+
+    /// <summary>
+    /// Schools can see data from this exercise: a release is live, or (for a legacy exercise, which
+    /// makes no release) its validation stamp matches the files it holds. An exercise without it is
+    /// not ready, however it is enabled, so the landing page does not show its window.
+    /// </summary>
+    public bool HasLiveData =>
+        CurrentRelease is not null || (!UsesExerciseStorage && IsValidated && InUse.Any(d => d.IsComplete));
+
+    /// <summary>
     /// Validated, and against the files it currently holds. A stamp taken before an ingress file
     /// was swapped is stale, and saying so is the only reason the checksums are stored.
     /// </summary>
@@ -330,10 +356,14 @@ public static class WindowDatasets
         CheckingWindowType type, CheckingExerciseType? exercise) =>
         exercise switch
         {
-            // Pupil data checking and a data share start with no slots. The admin adds the files
-            // this window needs: one for KS4, two (included and non-included) for 16-19, or any
-            // number for a share. A fixed set of slots guessed the files wrongly as soon as a
-            // supplier sent something else, and gave a share a "required" slot it did not need.
+            // KS4 June pupil data starts with the supplier's one pupil file. Each pupil carries their
+            // own P_INCL, so the slot stamps no inclusion.
+            CheckingExerciseType.PupilData when type == CheckingWindowType.KS4June =>
+                [new CheckingWindowDatasetDto { Name = Pupils, Included = null, FeedsJourney = true, SortOrder = 0 }],
+            // Other pupil data checking and a data share start with no slots. The admin adds the
+            // files this window needs: two (included and non-included) for 16-19, or any number
+            // for a share. A fixed set of slots guessed the files wrongly as soon as a supplier
+            // sent something else, and gave a share a "required" slot it did not need.
             CheckingExerciseType.PupilData => [],
             null => [],
             // The results feed is a fixed set of supplier files, each stamped with its own tag, so
@@ -354,10 +384,13 @@ public static class WindowDatasets
     /// <summary>
     /// A supplier slot that belongs to another window type, left behind when the window's type
     /// changed (a KS4 results tag on a window that is now 16-19). Only these are removed when a
-    /// window is saved; a slot an admin added is never removed.
+    /// window is saved; a slot an admin added is never removed. Only a results slot can be stale:
+    /// its name is a supplier tag. The KS4 June "pupils" slot has a plain name that an admin may
+    /// also give a slot on another window type, and that slot must not be removed.
     /// </summary>
     public static bool IsStaleSupplierSlot(CheckingWindowType type, CheckingExerciseType? exercise, string name) =>
-        DefaultsFor(type, exercise).All(d => d.Name != name)
+        exercise == CheckingExerciseType.ResultsEnquiry
+        && DefaultsFor(type, exercise).All(d => d.Name != name)
         && Enum.GetValues<CheckingWindowType>().Any(other => DefaultsFor(other, exercise).Any(d => d.Name == name));
 
     // One slot per source file, every file of the year from the start: the admin fills each slot

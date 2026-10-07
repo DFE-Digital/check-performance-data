@@ -4,6 +4,8 @@ using DfE.CheckPerformanceData.Application.LandingPage;
 // Aliased, not imported: WindowManagement also declares a CheckingWindowDto.
 using CheckingExerciseDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseDto;
 using ICheckingDataReader = DfE.CheckPerformanceData.Application.WindowManagement.ICheckingDataReader;
+using CheckingExerciseReleaseDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseReleaseDto;
+using CheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseService;
 using DfE.CheckPerformanceData.Domain.Enums;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -25,8 +27,9 @@ public class LandingPageServiceTests
     {
         _currentUserService.UserId.Returns("user-1");
         _currentUserService.OrganisationId.Returns("org-1");
-        _sut = new LandingPageService(_repository, new FakeTimeProvider(Now), _dfESignInApiClient, _currentUserService,
-            _reader, Substitute.For<ILogger<LandingPageService>>());
+        var clock = new FakeTimeProvider(Now);
+        _sut = new LandingPageService(_repository, clock, _dfESignInApiClient, _currentUserService,
+            _reader, new CheckingExerciseService(clock), Substitute.For<ILogger<LandingPageService>>());
     }
 
     private sealed class FakeTimeProvider(DateTimeOffset now) : TimeProvider
@@ -70,7 +73,7 @@ public class LandingPageServiceTests
         _dfESignInApiClient.GetOrganisationAsync("user-1", "org-1").Returns(org);
 
         var window = MakeWindow(keyStage: KeyStages.KS2, hasPupilData: true);
-        _repository.GetOpenWindowsAsync(Now.DateTime, org.Laestab, Arg.Any<CancellationToken>())
+        _repository.GetStartedWindowsAsync(Now.DateTime, org.Laestab, Arg.Any<CancellationToken>())
             .Returns([window]);
 
         var result = await _sut.GetLandingPageDataAsync(CancellationToken.None);
@@ -87,7 +90,7 @@ public class LandingPageServiceTests
         _dfESignInApiClient.GetOrganisationAsync("user-1", "org-1").Returns(org);
 
         var window = MakeWindow(title: "KS2 2026", keyStage: KeyStages.KS2, hasPupilData: false);
-        _repository.GetOpenWindowsAsync(Now.DateTime, org.Laestab, Arg.Any<CancellationToken>())
+        _repository.GetStartedWindowsAsync(Now.DateTime, org.Laestab, Arg.Any<CancellationToken>())
             .Returns([window]);
 
         var result = await _sut.GetLandingPageDataAsync(CancellationToken.None);
@@ -105,7 +108,7 @@ public class LandingPageServiceTests
         _dfESignInApiClient.GetOrganisationAsync("user-1", "org-1").Returns(org);
 
         var window = MakeWindow(title: "KS4 2026", keyStage: KeyStages.KS4, hasPupilData: true);
-        _repository.GetOpenWindowsAsync(Now.DateTime, org.Laestab, Arg.Any<CancellationToken>())
+        _repository.GetStartedWindowsAsync(Now.DateTime, org.Laestab, Arg.Any<CancellationToken>())
             .Returns([window]);
 
         var result = await _sut.GetLandingPageDataAsync(CancellationToken.None);
@@ -123,7 +126,7 @@ public class LandingPageServiceTests
         _dfESignInApiClient.GetOrganisationAsync("user-1", "org-1").Returns(org);
 
         var window = MakeWindow(title: "KS4 2026", keyStage: KeyStages.KS4, hasPupilData: false);
-        _repository.GetOpenWindowsAsync(Now.DateTime, org.Laestab, Arg.Any<CancellationToken>())
+        _repository.GetStartedWindowsAsync(Now.DateTime, org.Laestab, Arg.Any<CancellationToken>())
             .Returns([window]);
 
         var result = await _sut.GetLandingPageDataAsync(CancellationToken.None);
@@ -141,7 +144,7 @@ public class LandingPageServiceTests
         _dfESignInApiClient.GetOrganisationAsync("user-1", "org-1").Returns(org);
 
         var window = MakeWindow(keyStage: KeyStages.KS2, hasPupilData: true);
-        _repository.GetOpenWindowsAsync(Now.DateTime, org.Laestab, Arg.Any<CancellationToken>())
+        _repository.GetStartedWindowsAsync(Now.DateTime, org.Laestab, Arg.Any<CancellationToken>())
             .Returns([window]);
 
         var result = await _sut.GetLandingPageDataAsync(CancellationToken.None);
@@ -157,7 +160,7 @@ public class LandingPageServiceTests
         var org = MakeOrganisation(lowAge: 3, highAge: 16, name: "Test School", laestab: "1234567",
             urn: "123456", address: "1 School Lane");
         _dfESignInApiClient.GetOrganisationAsync("user-1", "org-1").Returns(org);
-        _repository.GetOpenWindowsAsync(Now.DateTime, org.Laestab, Arg.Any<CancellationToken>())
+        _repository.GetStartedWindowsAsync(Now.DateTime, org.Laestab, Arg.Any<CancellationToken>())
             .Returns([]);
 
         var result = await _sut.GetLandingPageDataAsync(CancellationToken.None);
@@ -199,7 +202,7 @@ public class LandingPageServiceTests
             windowType: CheckingWindowType.KS4June);
         var post16 = MakeWindow(title: "16 to 19 2026", keyStage: KeyStages.Post16, hasPupilData: false,
             windowType: CheckingWindowType.Post16);
-        _repository.GetOpenWindowsAsync(Now.DateTime, org.Laestab, Arg.Any<CancellationToken>())
+        _repository.GetStartedWindowsAsync(Now.DateTime, org.Laestab, Arg.Any<CancellationToken>())
             .Returns([ks4, post16]);
 
         var result = await _sut.GetLandingPageDataAsync(CancellationToken.None);
@@ -210,6 +213,45 @@ public class LandingPageServiceTests
         // The window type reaches the page, which is what lets each banner pick its own noun.
         Assert.Equal([CheckingWindowType.KS4June, CheckingWindowType.Post16],
             result.NoDataWindows.Select(w => w.CheckingWindowType));
+    }
+
+    // KS4 June has one exercise, so the window's own dates end when it closes. Schools still need
+    // to view and download their data for a while after that, and VisibleUntil says how long.
+    [Fact]
+    public async Task AWindowWhoseOnlyExerciseHasClosed_IsShownWhileItsVisibleUntilIsAhead()
+    {
+        var org = MakeOrganisation(lowAge: 3, highAge: 16);
+        _dfESignInApiClient.GetOrganisationAsync("user-1", "org-1").Returns(org);
+
+        var exercise = Exercise(CheckingExerciseType.PupilData, end: Now.DateTime.AddDays(-1),
+            visibleUntil: Now.DateTime.AddDays(14));
+        var window = MakeWindowWith("KS4 June 2026", KeyStages.KS2, CheckingWindowType.KS4June, (exercise, true));
+        _repository.GetStartedWindowsAsync(Now.DateTime, org.Laestab, Arg.Any<CancellationToken>())
+            .Returns([window]);
+
+        var result = await _sut.GetLandingPageDataAsync(CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Equal(window.Id, Assert.Single(result.OpenWindows).Id);
+    }
+
+    [Fact]
+    public async Task AWindowWhoseOnlyExerciseHasClosed_IsHiddenWhenNoVisibleUntilIsSet()
+    {
+        var org = MakeOrganisation(lowAge: 3, highAge: 16);
+        _dfESignInApiClient.GetOrganisationAsync("user-1", "org-1").Returns(org);
+
+        var exercise = Exercise(CheckingExerciseType.PupilData, end: Now.DateTime.AddDays(-1));
+        var window = MakeWindowWith("KS4 June 2026", KeyStages.KS2, CheckingWindowType.KS4June, (exercise, true));
+        _repository.GetStartedWindowsAsync(Now.DateTime, org.Laestab, Arg.Any<CancellationToken>())
+            .Returns([window]);
+
+        var result = await _sut.GetLandingPageDataAsync(CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Empty(result.OpenWindows);
+        Assert.Empty(result.NoDataWindows);
+        Assert.Empty(result.NotValidWindows);
     }
 
     // One live exercise, with or without a file for the school. Most tests only care about that.
@@ -239,23 +281,32 @@ public class LandingPageServiceTests
         return window;
     }
 
+    // Has a live release unless told otherwise: an exercise with no data is not ready.
     private static CheckingExerciseDto Exercise(CheckingExerciseType? type, bool enabled = true,
-        DateTime? visibleFrom = null) => new()
+        DateTime? visibleFrom = null, DateTime? end = null, DateTime? visibleUntil = null,
+        bool hasLiveData = true)
     {
-        Id = Guid.NewGuid(),
-        ExerciseType = type,
-        TabName = "Tab",
-        IsEnabled = enabled,
-        VisibleFrom = visibleFrom,
-        StartDate = Now.DateTime.AddDays(-1),
-        EndDate = Now.DateTime.AddDays(30)
-    };
+        var releaseId = Guid.NewGuid();
+        return new()
+        {
+            Id = Guid.NewGuid(),
+            CurrentReleaseId = hasLiveData ? releaseId : null,
+            Releases = hasLiveData ? [new CheckingExerciseReleaseDto { Id = releaseId, Number = 1 }] : [],
+            ExerciseType = type,
+            TabName = "Tab",
+            IsEnabled = enabled,
+            VisibleFrom = visibleFrom,
+            VisibleUntil = visibleUntil,
+            StartDate = Now.DateTime.AddDays(-30),
+            EndDate = end ?? Now.DateTime.AddDays(30)
+        };
+    }
 
     private void ArrangeWindows(params CheckingWindowDto[] windows)
     {
         var org = MakeOrganisation(lowAge: 3, highAge: 19);
         _dfESignInApiClient.GetOrganisationAsync("user-1", "org-1").Returns(org);
-        _repository.GetOpenWindowsAsync(Now.DateTime, org.Laestab, Arg.Any<CancellationToken>())
+        _repository.GetStartedWindowsAsync(Now.DateTime, org.Laestab, Arg.Any<CancellationToken>())
             .Returns([.. windows]);
     }
 
@@ -269,6 +320,24 @@ public class LandingPageServiceTests
         var notYetVisible = MakeWindowWith("Not yet", KeyStages.KS4, CheckingWindowType.KS4June,
             (Exercise(CheckingExerciseType.PupilData, visibleFrom: Now.DateTime.AddDays(1)), true));
         ArrangeWindows(disabled, notYetVisible);
+
+        var result = await _sut.GetLandingPageDataAsync(CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Empty(result.OpenWindows);
+        Assert.Empty(result.NoDataWindows);
+        Assert.Empty(result.NotValidWindows);
+        await _reader.DidNotReceiveWithAnyArgs().HasSchoolDataAsync(default, default!, default!, default);
+    }
+
+    // Enabled and visible is not enough: an exercise with no live release has no data ingested,
+    // so its window is not ready either, and must not tell a school it has no data.
+    [Fact]
+    public async Task A_window_whose_live_exercises_have_no_data_is_hidden_completely()
+    {
+        var window = MakeWindowWith("Key Stage 4 June", KeyStages.KS4, CheckingWindowType.KS4June,
+            (Exercise(CheckingExerciseType.PupilData, hasLiveData: false), false));
+        ArrangeWindows(window);
 
         var result = await _sut.GetLandingPageDataAsync(CancellationToken.None);
 

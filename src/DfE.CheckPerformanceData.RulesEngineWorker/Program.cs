@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Application.Analytics;
+using DfE.CheckPerformanceData.Application.ContentStaging;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Observability;
 using DfE.CheckPerformanceData.Application.Queue;
@@ -7,6 +8,7 @@ using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Infrastructure;
 using DfE.CheckPerformanceData.Infrastructure.Queue;
 using DfE.CheckPerformanceData.Persistence.Analytics;
+using DfE.CheckPerformanceData.Persistence.ContentStaging;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Observability;
 using DfE.CheckPerformanceData.Persistence.Repositories;
@@ -48,6 +50,8 @@ try
     // the single source of truth.
     builder.Services.AddScoped<ISearchAnalyticsSink, DbSearchAnalyticsSink>();
     builder.Services.AddScoped<ISearchMessageService, DbSearchMessageService>();
+    // The purge dependency of ContentStagingSessionRetentionJob, registered here for the same reason.
+    builder.Services.AddScoped<IContentStagingSessionStore, ContentStagingSessionStore>();
 
     builder.Services.AddSingleton<ICurrentUserService, WorkerCurrentUserService>();
     builder.Services.AddDbContext<PortalDbContext>(options =>

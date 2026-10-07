@@ -83,7 +83,7 @@ public sealed class CheckingWindowExerciseProjectionTests : IAsyncLifetime
         await using var ctx = CreateContext();
         var sut = new LandingPageRepository(ctx, NullLogger<LandingPageRepository>.Instance);
 
-        var windows = await sut.GetOpenWindowsAsync(Now, Laestab, CancellationToken.None);
+        var windows = await sut.GetStartedWindowsAsync(Now, Laestab, CancellationToken.None);
 
         var window = Assert.Single(windows);
         Assert.Equal(
@@ -97,12 +97,46 @@ public sealed class CheckingWindowExerciseProjectionTests : IAsyncLifetime
         await using var ctx = CreateContext();
         var sut = new LandingPageRepository(ctx, NullLogger<LandingPageRepository>.Instance);
 
-        var windows = await sut.GetOpenWindowsAsync(Now, Laestab, CancellationToken.None);
+        var windows = await sut.GetStartedWindowsAsync(Now, Laestab, CancellationToken.None);
 
         var resultsEnquiry = Assert.Single(windows)
             .Exercises.Single(e => e.ExerciseType == CheckingExerciseType.ResultsEnquiry);
         Assert.Equal(new DateTime(2026, 10, 1), resultsEnquiry.StartDate);
         Assert.Equal(new DateTime(2026, 10, 31), resultsEnquiry.EndDate);
+    }
+
+    // The repository leaves the end of a window to LandingPageService, which keeps a window shown
+    // after its end date while an exercise's VisibleUntil is ahead (KS4 June's read-only period).
+    [Fact]
+    public async Task The_landing_page_read_returns_a_started_window_after_its_end_date_but_not_one_yet_to_start()
+    {
+        var endedId = Guid.NewGuid();
+        var futureId = Guid.NewGuid();
+        await using (var seed = CreateContext())
+        {
+            seed.CheckingWindows.AddRange(
+                new CheckingWindow
+                {
+                    Id = endedId, Title = "KS4 June 2026", KeyStage = KeyStages.KS4,
+                    CheckingWindowType = CheckingWindowType.KS4June,
+                    StartDate = new DateTime(2026, 6, 1), EndDate = new DateTime(2026, 6, 30)
+                },
+                new CheckingWindow
+                {
+                    Id = futureId, Title = "KS4 Autumn 2026", KeyStage = KeyStages.KS4,
+                    CheckingWindowType = CheckingWindowType.KS4Autumn,
+                    StartDate = new DateTime(2026, 9, 1), EndDate = new DateTime(2026, 9, 30)
+                });
+            await seed.SaveChangesAsync();
+        }
+
+        await using var ctx = CreateContext();
+        var sut = new LandingPageRepository(ctx, NullLogger<LandingPageRepository>.Instance);
+
+        var ids = (await sut.GetStartedWindowsAsync(Now, Laestab, CancellationToken.None)).Select(w => w.Id).ToList();
+
+        Assert.Contains(endedId, ids);
+        Assert.DoesNotContain(futureId, ids);
     }
 
     [Fact]
@@ -127,7 +161,7 @@ public sealed class CheckingWindowExerciseProjectionTests : IAsyncLifetime
         await using var ctx = CreateContext();
         var sut = new LandingPageRepository(ctx, NullLogger<LandingPageRepository>.Instance);
 
-        var windows = await sut.GetOpenWindowsAsync(Now, Laestab, CancellationToken.None);
+        var windows = await sut.GetStartedWindowsAsync(Now, Laestab, CancellationToken.None);
 
         Assert.Equal(new DateTime(2027, 10, 1), Assert.Single(windows).NextOpportunity);
     }

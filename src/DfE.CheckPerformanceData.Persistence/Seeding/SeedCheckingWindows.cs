@@ -249,7 +249,7 @@ public static class SeedCheckingWindows
         await dbContext.ChangeRequests.ExecuteDeleteAsync();
         await dbContext.CheckingWindows.ExecuteDeleteAsync();
 
-        var openKs4Start = DateTime.Now.AddDays(-1);
+        var openKs4Start = DateTime.Today;
         var openKs4End = DateTime.Now.AddDays(+13).Date.AddHours(17);
 
         var openKs4JuneWindow = new CheckingWindow
@@ -263,6 +263,13 @@ public static class SeedCheckingWindows
             TurnaroundCommitment = "updated in the Autumn",
             CheckingExercises = ExercisesFor(CheckingWindowType.KS4June, openKs4Start, openKs4End)
         };
+
+        // Schools keep a read-only view of their pupil data for a month after pupil data checking
+        // closes. KS4 June has one exercise, so without VisibleUntil the window leaves the landing
+        // page at the moment the exercise closes.
+        openKs4JuneWindow.CheckingExercises
+            .Single(e => e.ExerciseType == CheckingExerciseType.PupilData)
+            .VisibleUntil = openKs4End.AddMonths(1);
 
         // "16 to 19 Oct": the start of the 16-19 results enquiry. It opens today with pupil data
         // checking for a fortnight (7 to 18 October in the real calendar) and the results enquiry
@@ -291,6 +298,25 @@ public static class SeedCheckingWindows
         // October's late results 2 has not arrived yet, so its results enquiry shows the late
         // results warning. The later windows have it, so theirs do not.
         post16OctoberWindow.CheckingExercises
+            .Single(e => e.ExerciseType == CheckingExerciseType.ResultsEnquiry)
+            .ShowLateResultsWarning = true;
+
+        // TEMPORARY: a copy of the October window that the Web seed ingests with the October files.
+        // It is the only seeded 16-19 window. It borrows the November window's id, because the
+        // November window is not seeded.
+        var post16PostIngressWindow = new CheckingWindow
+        {
+            Id = post16NovemberWindowId,
+            StartDate = octoberStart,
+            EndDate = octoberEnd,
+            KeyStage = KeyStages.Post16,
+            CheckingWindowType = CheckingWindowType.Post16,
+            Title = "16 to 19 Data",
+            TurnaroundCommitment = "updated in the Spring",
+            NextOpportunity = new DateTime(DateTime.Now.Year + 1, 10, 1),
+            CheckingExercises = ExercisesFor(CheckingWindowType.Post16, octoberStart, octoberEnd, pupilDataEnd: octoberPupilDataEnd)
+        };
+        post16PostIngressWindow.CheckingExercises
             .Single(e => e.ExerciseType == CheckingExerciseType.ResultsEnquiry)
             .ShowLateResultsWarning = true;
 
@@ -359,10 +385,13 @@ public static class SeedCheckingWindows
             // the summary share and the pupil campus share. The October step fills the first
             // previously published slot, the first summary slot and the campus slot; later steps
             // fill the others. November fills the first value added slot.
-            WithPupilCampusDataShare(WithSummaryDataShare(WithValueAddedSlots(WithPreviouslyPublishedSlots(post16OctoberWindow)))),
-            WithPupilCampusDataShare(WithSummaryDataShare(WithValueAddedSlots(WithPreviouslyPublishedSlots(post16NovemberWindow)))),
-            WithPupilCampusDataShare(WithSummaryDataShare(WithValueAddedSlots(WithPreviouslyPublishedSlots(post16FebruaryWindow)))),
-            WithAimsSlot(WithPupilCampusDataShare(WithSummaryDataShare(WithValueAddedSlots(WithPreviouslyPublishedSlots(post16MarchWindow)))))
+            WithPupilCampusDataShare(WithSummaryDataShare(WithValueAddedSlots(WithPreviouslyPublishedSlots(post16PostIngressWindow))))
+            // TEMPORARY: only the ingested copy of the October window is seeded. Put these back to
+            // restore the others.
+            // WithPupilCampusDataShare(WithSummaryDataShare(WithValueAddedSlots(WithPreviouslyPublishedSlots(post16OctoberWindow)))),
+            // WithPupilCampusDataShare(WithSummaryDataShare(WithValueAddedSlots(WithPreviouslyPublishedSlots(post16NovemberWindow)))),
+            // WithPupilCampusDataShare(WithSummaryDataShare(WithValueAddedSlots(WithPreviouslyPublishedSlots(post16FebruaryWindow)))),
+            // WithAimsSlot(WithPupilCampusDataShare(WithSummaryDataShare(WithValueAddedSlots(WithPreviouslyPublishedSlots(post16MarchWindow)))))
         );
         
         await dbContext.SaveChangesAsync();

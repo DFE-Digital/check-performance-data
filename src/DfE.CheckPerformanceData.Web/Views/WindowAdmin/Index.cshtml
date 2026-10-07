@@ -42,11 +42,12 @@ else
             <th scope="col" class="govuk-table__header">Checking exercise</th>
             <th scope="col" class="govuk-table__header">Type</th>
             <th scope="col" class="govuk-table__header">State</th>
+            <th scope="col" class="govuk-table__header">Data</th>
             <th scope="col" class="govuk-table__header">Actions</th>
         </tr>
         </thead>
         @* One tbody per window, one row per exercise. The window name and its actions span the
-           window's rows, so each exercise has its own name, type and state cells. *@
+           window's rows, so each exercise has its own name, type, state and data cells. *@
         @foreach (WindowListItem window in Model.Windows)
         {
             var rowSpan = Math.Max(window.Exercises.Count, 1);
@@ -56,11 +57,14 @@ else
                 <tr class="govuk-table__row">
                     @if (i == 0)
                     {
-                        <th scope="rowgroup" rowspan="@rowSpan" class="govuk-table__header">@window.Name</th>
+                        <th scope="rowgroup" rowspan="@rowSpan" class="govuk-table__header">
+                            @window.Name
+                            <span class="govuk-body-s govuk-hint govuk-!-font-weight-regular govuk-!-display-block govuk-!-margin-bottom-0">@window.StartDate.ToString("dd/MM/yyyy")</span>
+                        </th>
                     }
                     @if (window.Exercises.Count == 0)
                     {
-                        <td class="govuk-table__cell" colspan="3">No checking exercises</td>
+                        <td class="govuk-table__cell" colspan="4">No checking exercises</td>
                     }
                     else
                     {
@@ -71,6 +75,9 @@ else
                         </td>
                         <td class="govuk-table__cell">
                             <partial name="~/Views/WindowAdmin/_ExerciseStatusTag.cshtml" model="exercise.Status" />
+                        </td>
+                        <td class="govuk-table__cell">
+                            <partial name="~/Views/WindowAdmin/_ExerciseDataTag.cshtml" model="exercise.DataStatus" />
                         </td>
                     }
                     @if (i == 0)

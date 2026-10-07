@@ -43,28 +43,39 @@ public sealed class DevDataSeedingOrchestrator(
         // about 40 ingress runs and most of the startup time. Each window gets its own scope,
         // because a DbContext (and the scoped ingress that shares it) is not thread-safe.
         await Task.WhenAll(
-            InOwnScopeAsync((db, ingress) =>
-                SeedExerciseFixtures.ExecuteSeedAsync(db, blobServiceClient, ingress, environment.ContentRootPath)),
+            // TEMPORARY: Key Stage 4 June is not seeded, so an admin can upload its files and run
+            // ingress by hand (Data/Ingress/ks4june/). Put this back to restore it. Until then the
+            // E2E suite finds no KS4 June pupils.
+            // InOwnScopeAsync((db, ingress) =>
+            //     SeedExerciseFixtures.ExecuteSeedAsync(db, blobServiceClient, ingress, environment.ContentRootPath)),
+            // TEMPORARY: the October window is not seeded (see SeedCheckingWindows), but its sample
+            // files still go to ingress storage. Put the ExecuteSeedAsync call and the Nov/Feb/Mar
+            // seeds back to restore them.
             InOwnScopeAsync(async (db, ingress) =>
             {
-                await SeedPost16OctoberSamples.ExecuteSeedAsync(db, blobServiceClient, ingress, environment.ContentRootPath);
+                // await SeedPost16OctoberSamples.ExecuteSeedAsync(db, blobServiceClient, ingress, environment.ContentRootPath);
                 await SeedPost16OctoberSamples.WriteSamplesAsync(blobClients, logger);
             }),
-            InOwnScopeAsync(async (db, ingress) =>
-            {
-                await SeedPost16NovemberSamples.ExecuteSeedAsync(db, blobServiceClient, ingress, environment.ContentRootPath);
-                await SeedPost16NovemberSamples.WriteSamplesAsync(blobClients, logger);
-            }),
-            InOwnScopeAsync(async (db, ingress) =>
-            {
-                await SeedPost16FebruarySamples.ExecuteSeedAsync(db, blobServiceClient, ingress, environment.ContentRootPath);
-                await SeedPost16FebruarySamples.WriteSamplesAsync(blobClients, logger);
-            }),
-            InOwnScopeAsync(async (db, ingress) =>
-            {
-                await SeedPost16MarchSamples.ExecuteSeedAsync(db, blobServiceClient, ingress, environment.ContentRootPath);
-                await SeedPost16MarchSamples.WriteSamplesAsync(blobClients, logger);
-            }));
+            // TEMPORARY: "16 to 19 Data", the October window with the October files ingested. It
+            // borrows the November window's id (see SeedCheckingWindows).
+            InOwnScopeAsync((db, ingress) =>
+                SeedPost16OctoberSamples.ExecuteSeedAsync(db, blobServiceClient, ingress, environment.ContentRootPath,
+                    DevDataSeeder.Post16NovemberCheckingWindowId)));
+            // InOwnScopeAsync(async (db, ingress) =>
+            // {
+            //     await SeedPost16NovemberSamples.ExecuteSeedAsync(db, blobServiceClient, ingress, environment.ContentRootPath);
+            //     await SeedPost16NovemberSamples.WriteSamplesAsync(blobClients, logger);
+            // }),
+            // InOwnScopeAsync(async (db, ingress) =>
+            // {
+            //     await SeedPost16FebruarySamples.ExecuteSeedAsync(db, blobServiceClient, ingress, environment.ContentRootPath);
+            //     await SeedPost16FebruarySamples.WriteSamplesAsync(blobClients, logger);
+            // }),
+            // InOwnScopeAsync(async (db, ingress) =>
+            // {
+            //     await SeedPost16MarchSamples.ExecuteSeedAsync(db, blobServiceClient, ingress, environment.ContentRootPath);
+            //     await SeedPost16MarchSamples.WriteSamplesAsync(blobClients, logger);
+            // }));
 
         try
         {

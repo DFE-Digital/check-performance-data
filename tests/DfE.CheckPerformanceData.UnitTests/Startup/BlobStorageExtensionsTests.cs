@@ -4,6 +4,7 @@ using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
+using DfE.CheckPerformanceData.Infrastructure.Egress;
 using DfE.CheckPerformanceData.Infrastructure.QuestionFlow;
 using DfE.CheckPerformanceData.Web.Startup;
 using Microsoft.Extensions.Configuration;
@@ -59,18 +60,23 @@ public class BlobStorageExtensionsTests
         return provider.GetRequiredService<IReadOnlyDictionary<string, BlobServiceClient>>();
     }
 
+    // LDS uploads ingress files to and downloads egress files from one account, so the egress
+    // reads the ingress client and there is no separate EgressStorage connection string.
     [Fact]
-    public void Registers_the_egress_client_only_when_its_connection_string_is_present()
+    public void The_egress_uses_the_ingress_account()
     {
         var with = BuildClients(new Dictionary<string, string?>
         {
             ["ConnectionStrings:AzureStorage"] = "UseDevelopmentStorage=true",
+            ["ConnectionStrings:IngressStorage"] = "UseDevelopmentStorage=true",
             ["ConnectionStrings:EgressStorage"] = "UseDevelopmentStorage=true"
         });
-        Assert.True(with.ContainsKey("egress"));
+        Assert.Equal("ingress", EgressBlobClient.ClientKey);
+        Assert.True(with.ContainsKey(EgressBlobClient.ClientKey));
+        Assert.False(with.ContainsKey("egress"));
 
         var without = BuildClients(new Dictionary<string, string?> { ["ConnectionStrings:AzureStorage"] = "UseDevelopmentStorage=true" });
-        Assert.False(without.ContainsKey("egress"));
+        Assert.False(without.ContainsKey(EgressBlobClient.ClientKey));
     }
 
     private sealed class StubHostEnvironment : IHostEnvironment

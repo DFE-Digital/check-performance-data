@@ -3,13 +3,15 @@ using DfE.CheckPerformanceData.Application.DfESignInApiClient;
 // Aliased, not imported: WindowManagement also declares a CheckingWindowDto.
 using CheckingExerciseDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseDto;
 using ICheckingDataReader = DfE.CheckPerformanceData.Application.WindowManagement.ICheckingDataReader;
+using ICheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.ICheckingExerciseService;
 using Microsoft.Extensions.Logging;
 
 namespace DfE.CheckPerformanceData.Application.LandingPage;
 
 public sealed class LandingPageService(ILandingPageRepository landingPageRepository, TimeProvider timeProvider,
     IDfESignInApiClient dfESignInApiClient, ICurrentUserService currentUserService,
-    ICheckingDataReader checkingDataReader, ILogger<LandingPageService> logger) : ILandingPageService
+    ICheckingDataReader checkingDataReader, ICheckingExerciseService checkingExercises,
+    ILogger<LandingPageService> logger) : ILandingPageService
 {
     public async Task<LandingPageResult?> GetLandingPageDataAsync(CancellationToken cancellationToken)
     {
@@ -41,15 +43,21 @@ public sealed class LandingPageService(ILandingPageRepository landingPageReposit
             organisation.Laestab,
             string.Join(",", organisation.KeyStages.Select(ks => ks.KeyStage)));
 
-        var openWindows = await landingPageRepository.GetOpenWindowsAsync(now.DateTime, organisation.Laestab, cancellationToken);
+        var startedWindows = await landingPageRepository.GetStartedWindowsAsync(now.DateTime, organisation.Laestab, cancellationToken);
 
-        // A window with no live exercise is not set up yet, so schools do not see it at all: no
-        // card, and no "no data" or "not for your school" message that hints at work in progress.
-        // "No data" is kept for a window that is ready but holds no file for this school.
-        var windows = new List<CheckingWindowDto>(openWindows.Count);
-        foreach (var window in openWindows)
+        // A window with no live exercise that has data is not set up yet, so schools do not see it
+        // at all: no card, and no "no data" or "not for your school" message that hints at work in
+        // progress. An exercise that is enabled and visible but has no live release has no data
+        // ingested, so it does not make its window ready. "No data" is kept for a window that is
+        // ready but holds no file for this school.
+        var windows = new List<CheckingWindowDto>(startedWindows.Count);
+        foreach (var window in startedWindows)
         {
-            var live = window.Exercises.Where(e => e.IsLiveAt(now.DateTime)).ToList();
+            // After its last exercise closes, a window stays shown (read only) only while an
+            // exercise's VisibleUntil is ahead.
+            if (!checkingExercises.IsWindowShown(window.Exercises)) continue;
+
+            var live = window.Exercises.Where(e => e.IsLiveAt(now.DateTime) && e.HasLiveData).ToList();
             if (live.Count == 0) continue;
 
             window.HasPupilData = await HasDataInAnyAsync(window.Id, live, organisation.Laestab, cancellationToken);

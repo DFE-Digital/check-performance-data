@@ -38,9 +38,8 @@
                 ? "None"
                 : string.Join(", ", Model.Exercises.Select(e => ExerciseLabels.For(e.ExerciseType))))
         </value>
-        <row-actions>
-            <action href="@Model.ExercisesLink(Url)" visually-hidden-text="Checking exercises">Change</action>
-        </row-actions>
+        @* No Change link: the exercises are the window type's defaults. Change the window type to
+           change them, or add others from the window's summary page after it is created. *@
     </row>
     @* #319: the window's own dates are the union of these and are never typed, so they get no row
        of their own here — only the exercises that produce them. *@

@@ -213,6 +213,16 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
         Assert.Equal(window.EndDate, exercise.EndDate);
     }
 
+    // The window's only exercise ends with the window, so VisibleUntil is what keeps the KS4
+    // window on the landing page, read only, after pupil data checking closes.
+    [Fact]
+    public async Task The_KS4_June_exercise_stays_visible_for_a_month_after_it_closes()
+    {
+        var exercise = Assert.Single((await LoadAsync(_openKs4)).CheckingExercises);
+
+        Assert.Equal(exercise.EndDate.AddMonths(1), exercise.VisibleUntil);
+    }
+
     [Fact]
     public async Task Every_seeded_windows_outer_dates_equal_the_union_of_its_exercises()
     {

@@ -74,8 +74,8 @@ Pulled → Preprocessing → (PreprocessingFailed | Preprocessed) → Transferri
 `Transferring` — the lock has no expiry, so a run stuck there after a pod restart or a crashed
 tab must always be releasable, and every screen from Preprocessing onwards carries an Abandon
 form. Abandoning a `Transferring` run also sweeps any blob it actually wrote (matched by the
-`egressRunId` metadata stamped on upload) before releasing the pair, so a same-named retry never
-collides with an orphaned file; the confirmation banner names what was removed, if anything, or
+`egressRunId` metadata stamped on upload) before releasing the pair, so LDS does not pick up a
+file from a run that was abandoned; the confirmation banner names what was removed, if anything, or
 says nothing was transferred. A run is persisted the moment the pull succeeds
 (`EgressRunService.StartAsync` → `IEgressRunRepository.CreateRunAsync`), so "Save and exit" on any
 screen is just leaving the page — there is no separate save action. Resume
@@ -189,14 +189,16 @@ calendar date at the moment preprocessing finishes (`EgressOutputTypes.FileName`
 count is zero (every record was rejected, undecided, or lost to a misconfigured ticket source) —
 Summary shows a plain message instead of Confirm in that case, so LDS is never sent a header-only
 file for a pair that then locks forever. Otherwise it builds each file's bytes from the
-**persisted rows**, never from the pulled payload, and uploads with `IfNoneMatch: *` (create-only —
-an existing blob is never overwritten).
+**persisted rows**, never from the pulled payload, and uploads them. An upload **replaces** a
+same-named file: a second transfer of the same key stage on the same day, or a retry after a
+failed attempt, writes over the file that is there and stamps it with its own `egressRunId`.
 
 Once the run's status has flipped to `Transferring`, the upload loop, the commit
 (`MarkTransferredAsync`) and all compensation run with `CancellationToken.None`, not the request's
 own token — a browser tab closing mid-upload must not abandon a run with files already in LDS. If
 any file fails to upload, every file already written by that attempt is deleted
-(`IEgressBlobClient.DeleteIfExistsAsync`), and the specific file that was mid-upload when the
+(`IEgressBlobClient.DeleteIfOwnedByRunAsync`, so a file another run has since replaced is left
+alone), and the specific file that was mid-upload when the
 failure happened is *also* checked and removed if it turns out to have landed server-side despite
 the client seeing a failure (matched by the `egressRunId` metadata stamped on upload, so a blob
 belonging to a different run is never touched); the run becomes `TransferFailed` with the reason
@@ -204,17 +206,6 @@ recorded. A post-upload failure in the commit itself (every file uploaded, but m
 `Transferred` throws, or loses a race because the run was abandoned in between) is caught the same
 way and compensated identically — no partial state survives silently. A retry re-activates the
 run's outputs first and is refused if another run has since claimed the pair.
-
-A create-only upload that hits an existing blob (`EgressBlobAlreadyExistsException`) is not
-always a real collision. Before giving up, transfer reads the blob's `egressRunId` stamp
-(`IEgressBlobClient.GetOwnerRunIdAsync`): a file stamped by a run that is now `Abandoned` (a sweep
-the process died in the middle of) or by this very run (an earlier attempt whose compensation
-delete failed) is reclaimed — deleted with the ownership-checked delete and the upload retried
-exactly once. A file stamped by any live run, or carrying no stamp at all, is left untouched and
-the run becomes `TransferFailed` with a reason that names who wrote it and the way out. Note that
-the file name carries the *preprocessing* date, so retrying the same run on a later day reuses
-the same name: the way out of a genuine same-stage/same-day collision is to abandon the run and
-start a new one on a later day, or to have LDS remove the file.
 
 Every terminal write (`MarkPreprocessingFailedAsync`, `SavePreprocessedAsync`,
 `MarkTransferredAsync`, `MarkTransferFailedAsync`) is guarded by the status the caller expects the
@@ -232,7 +223,7 @@ audit row ever claims success for a failed transfer.
 
 | Setting | Purpose |
 |---|---|
-| `ConnectionStrings:EgressStorage` | The LDS storage account. Absent → the Pull page and the Summary show a warning up front (`egress-storage-not-configured`), the app refuses to transfer with a clear "not configured" message rather than failing at startup, and the dev cleanup skips its blob sweep. Pull, preprocess, preview and download still work without it. **`appsettings.json` deliberately carries no default** (pinned by `AppSettingsEgressStorageTests`): a local-Azurite default there made every deployed environment without an account believe it had one at `127.0.0.1:10000` inside the pod, so transfers and cleanups failed after the SDK's retries instead of refusing. Local runs get it from `docker-compose.yaml` and the launch profiles. Review apps get the per-PR `lds` account (`terraform/application/application.tf`, `local.egress_storage_secrets`, gated on `var.config == "review"`) so the E2E transfer facts run end to end; the long-lived environments are still unconfigured until the real LDS account is known — see gaps below. |
+| `ConnectionStrings:IngressStorage` | The LDS storage account. LDS uploads ingress files to this account and downloads egress files from it, so the egress uses the ingress blob client (`EgressBlobClient.ClientKey` is `"ingress"`). There is no separate egress connection string. Absent → the Pull page and the Summary show a warning up front (`egress-storage-not-configured`), the app refuses to transfer with a clear "not configured" message rather than failing at startup, and the dev cleanup skips its blob sweep. Pull, preprocess, preview and download still work without it. Every deployed environment gets it from Terraform (`module.storage_private`, the `lds` account). Local runs use the `ingressaccount` Azurite account from `appsettings.json` or `docker-compose.yaml`. |
 | `EgressStorage:Container` (default `cypmd`) / `EgressStorage:Prefix` (default `extracts_input/`) | Where in the account files land. Bindable only so a test can point at a scratch container — never user-editable. |
 | `Zendesk:UseFake` (default **`false`** in the deployed config, **`true`** in the worker's code default) | Selects the worker's ticket-*write* service: `false` → real Zendesk (`ZendeskService`), `true` → dev outbox (`DevOutboxZendeskService`) so tickets land in `DevZendeskTickets`. Deliberately decoupled from the web's egress *read* choice — see `Egress:UseDevOutbox` below. Local/E2E compose stacks default it to `true` because they have no Zendesk credentials. |
 | `Egress:UseDevOutbox` (default **`false`**) | Selects the web's egress ticket-*read* source: `false` → the real Zendesk client (`ZendeskEgressTicketSource`, via the same `AddZendeskApiClient` the worker uses), `true` → the dev outbox (`DevOutboxEgressTicketSource`, no Zendesk settings needed). Decoupled from `Zendesk:UseFake` so a review app can write real esfa-preprod tickets while still reading egress decisions from the outbox. Local/E2E stacks opt in explicitly (`Egress__UseDevOutbox=true` in `docker-compose.yaml`, `docker-compose.sandbox.yaml`, `terraform/application/config/review.yml`) because the E2E egress facts seed their decisions into the outbox via `/dev/egress/seed` — against real esfa-preprod every seeded id reads back as "Ticket not found". `AddCpdEgress` refuses `true` in Production regardless of configuration, so the dev outbox can never be reached there. |
@@ -243,8 +234,8 @@ audit row ever claims success for a failed transfer.
 
 ## 9. Local development and E2E
 
-Locally the web container gets a third Azurite account (`docker-compose.yaml`,
-`ConnectionStrings__EgressStorage`, alongside the app and ingress accounts), and opts in to the
+Locally the egress writes to the ingress Azurite account (`ingressaccount`, from
+`ConnectionStrings__IngressStorage`), container `cypmd`, folder `extracts_input/`, and opts in to the
 dev outbox explicitly with `Egress__UseDevOutbox=true` (outbox covered by the worker writing
 through `Zendesk__UseFake=true`) — the code/config default is the real Zendesk client, which the
 local web has no read credentials for.
@@ -267,9 +258,9 @@ this class: `docker compose --profile e2e run --rm e2e-tests sh -c 'dotnet test
 tests/DfE.CheckPerformanceData.E2ETests/ --filter "FullyQualifiedName~DataEgressTests"'`.
 
 To inspect what actually landed in the local LDS account, the Storage browser under Danger zone
-covers the **app** account only — the egress account needs a separate client (e.g. Azure Storage
-Explorer, or the Azure CLI, pointed at the `EgressStorage` connection string from
-`docker-compose.yaml` or `Properties/launchSettings.json`), container `cypmd`, prefix `extracts_input/`.
+covers the **app** account only — the ingress account needs a separate client (e.g. Azure Storage
+Explorer, or the Azure CLI, pointed at the `IngressStorage` connection string from
+`docker-compose.yaml` or `appsettings.json`), container `cypmd`, prefix `extracts_input/`.
 
 Two rules keep a dev or review environment recoverable after a failed run:
 
@@ -300,23 +291,19 @@ Two rules keep a dev or review environment recoverable after a failed run:
   no MATCHREF, so `Learner_ID` fails validation for them until the 16-19 pupil file supplies one.
 - **Trailing newline**: files end after the last data row with no trailing line terminator, to
   honour "no additional rows below the final data row" — confirm this reading with LDS.
-- **`ConnectionStrings__EgressStorage` is only in Terraform for review apps** (`terraform/
-  application/application.tf`, `local.egress_storage_secrets`, pointing at the per-PR `lds`
-  account). Development, QA, preproduction and production stay unconfigured — add them once
-  the real LDS account details are known.
+- **The egress uses each environment's ingress account** (`ConnectionStrings__IngressStorage`,
+  the `lds` account in Terraform). Confirm with LDS that they read `cypmd/extracts_input` in the
+  account they upload ingress files to.
 - **Production's `ZendeskTicketFields__DecisionStatusId` is `0`** — the real ticket source refuses
   to pull until an environment configures it.
 - The pre-existing gap that `Controllers/WindowAdmin/*` carries no `[RequireAdminSection]` is a
   separate ticket and was not touched here; the new `EgressController` **is** gated.
 - Every copy string introduced by this feature is FLAGGED for content sign-off — see the PR notes.
-- **Same-stage same-day file-name collision**: two different checking windows of the same stage
-  (KS4 June and KS4 Autumn both map to the `KS4` file token) transferred on the same day produce
-  the same file name, so the second run's transfer fails with "already exists". The file name is
-  fixed at preprocessing, so retrying the *same* run on a later day collides again; the ways out
-  are to abandon the run and start a new one on a later day, or a manual delete in LDS — and the
-  recorded failure reason now says exactly that (§7). A stable fix means a different naming
-  scheme, which is LDS's to agree. Question for LDS: is one-window-per-stage-per-day a real
-  constraint? Tracked as a follow-up.
+- **Same-stage same-day file name**: two different checking windows of the same stage (KS4 June
+  and KS4 Autumn both map to the `KS4` file token) transferred on the same day produce the same
+  file name. The second transfer replaces the first file. If LDS has not picked the first file up
+  yet, it never sees it. A stable fix means a different naming scheme, which is LDS's to agree.
+  Question for LDS: is one-window-per-stage-per-day a real constraint? Tracked as a follow-up.
 - **`PreprocessingStream` is a state-mutating GET** (the accepted `ValidateWindowController`
   pattern) — the JS closes the `EventSource` on a terminal/error event, so the browser's automatic
   reconnect never restarts the server-side pipeline. Left as-is; noted for the next contributor.
@@ -324,17 +311,9 @@ Two rules keep a dev or review environment recoverable after a failed run:
   sweeping the run's blobs (closing a data-loss race — see the R1 commit), which moved the crash
   window rather than removing it: if the process dies after the write commits but before the
   sweep loop finishes, the run ends up `Abandoned` with one or more files still in LDS storage.
-  The recovery is now automatic rather than a manual LDS delete: the next transfer whose file
-  name collides with such a file reclaims it (§7), because it is stamped with an `Abandoned` run's
-  id. Two residual caveats: LDS may already have picked the orphan up before it is reclaimed
-  (true of any orphan, reclaimed or not), and an orphan whose name no later transfer ever reuses
-  stays there until LDS or an operator removes it.
-- Related: `EgressTransferService.FailAsync`'s compensation delete of its own just-uploaded files
-  (the `uploaded` list) calls `blobs.DeleteIfExistsAsync` unconditionally, unlike its
-  `possiblyOrphaned` check, which is ownership-checked via `DeleteIfOwnedByRunAsync`. In the
-  create-only-upload case this is safe today (a successful create-only PUT cannot belong to
-  another run), but it is a related blob-lifecycle-under-overlap gap worth tightening for
-  consistency. Follow-up, not an open production incident.
+  The next transfer with the same file name replaces it. LDS may pick the orphan up before
+  that, and an orphan whose name no later transfer reuses stays there until LDS or an operator
+  removes it.
 - An independent review of the transfer/lock state machine found one Blocker (B1: the web host
   defaulted to the dev Zendesk fake with nothing but QA config overriding it, so Production would
   have read the dev outbox table instead of real Zendesk decisions) and four Must-fixes (M1:

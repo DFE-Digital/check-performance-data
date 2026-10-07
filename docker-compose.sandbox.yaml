@@ -27,7 +27,7 @@ services:
       - Dev__ToolsEnabled=${DEV_TOOLS_ENABLED:-true}
       - ASPNETCORE_URLS=http://+:8080
       - Notify__UseFake=${NOTIFY_USEFAKE:-true}
-      # This stack has no ZendeskSettings and no EgressStorage account; without opting into the
+      # This stack has no ZendeskSettings and no LDS storage account; without opting into the
       # dev outbox fake the app fails to start at all (AB#294553 review B1 made the real Zendesk
       # client the default everywhere, including here).
       - Zendesk__UseFake=true

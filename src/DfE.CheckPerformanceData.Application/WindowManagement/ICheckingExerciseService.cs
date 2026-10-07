@@ -71,10 +71,20 @@ public interface ICheckingExerciseService
     Guid? IdFor(IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise);
 
     /// <summary>
+    /// Schools see the window at all. It must have started (its first exercise's start date), and
+    /// either an exercise's dates still run or an exercise schools can see now has a
+    /// <see cref="CheckingExerciseDto.VisibleUntil"/>. That is what keeps a window shown, read
+    /// only, after its last exercise closes: KS4 June has one exercise, so without it the window
+    /// would vanish at the moment schools lose their actions. With no VisibleUntil set, the window
+    /// ends with its last exercise's end date.
+    /// </summary>
+    bool IsWindowShown(IReadOnlyList<CheckingExerciseDto> exercises);
+
+    /// <summary>
     /// What schools can see and do with <paramref name="exercise"/> now, for the admin summary.
-    /// <paramref name="exercises"/> is the whole window: its outer dates (the union of every
-    /// exercise's dates) decide whether schools see the window at all. A display-only exercise has
-    /// no journey, so it is never <see cref="ExerciseSchoolStatus.VisibleClosed"/>.
+    /// <paramref name="exercises"/> is the whole window: <see cref="IsWindowShown"/> decides
+    /// whether schools see the window at all. A display-only exercise has no journey, so it is
+    /// never <see cref="ExerciseSchoolStatus.VisibleClosed"/>.
     /// </summary>
     ExerciseSchoolStatus StatusOf(IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseDto exercise);
 }
@@ -136,17 +146,23 @@ public sealed class CheckingExerciseService(TimeProvider timeProvider) : IChecki
         IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseDto exercise)
     {
         var now = Now();
-        // The landing page shows a window only inside its outer dates, the union of its exercises'.
-        var windowShown = exercises.Count > 0
-            && exercises.Min(e => e.StartDate) <= now && exercises.Max(e => e.EndDate) >= now;
-        if (!windowShown || !exercise.IsLiveAt(now)) return ExerciseSchoolStatus.Hidden;
+        if (!WindowShown(exercises, now) || !exercise.IsLiveAt(now)) return ExerciseSchoolStatus.Hidden;
 
         return exercise.ExerciseType is null || exercise.DisplayOnly || Brackets(exercise, now)
             ? ExerciseSchoolStatus.Visible
             : ExerciseSchoolStatus.VisibleClosed;
     }
 
+    public bool IsWindowShown(IReadOnlyList<CheckingExerciseDto> exercises) => WindowShown(exercises, Now());
+
     private DateTime Now() => timeProvider.GetLocalNow().DateTime;
+
+    // The end date is inclusive and VisibleUntil exclusive, each as it is everywhere else.
+    private static bool WindowShown(IReadOnlyList<CheckingExerciseDto> exercises, DateTime now) =>
+        exercises.Count > 0
+        && exercises.Min(e => e.StartDate) <= now
+        && (exercises.Max(e => e.EndDate) >= now
+            || exercises.Any(e => e.VisibleUntil is not null && e.IsLiveAt(now)));
 
     // "Open" is two questions, not one: is it running, and is it a thing a school may act on.
     // Keeping them apart is what lets an admin mark an exercise read-only — a pupil-data exercise

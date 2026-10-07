@@ -22,11 +22,13 @@ public sealed class WindowAdminController(
         {
             Id = window.Id,
             Name = window.Title,
+            StartDate = window.StartDate,
             Exercises = window.Exercises.InTabOrder().Select(exercise => new CheckingExerciseListItem
             {
                 Name = exercise.Name ?? ExerciseLabels.For(exercise.ExerciseType),
                 KindLabel = ExerciseLabels.For(exercise.ExerciseType),
-                Status = checkingExercises.StatusOf(window.Exercises, exercise)
+                Status = checkingExercises.StatusOf(window.Exercises, exercise),
+                DataStatus = exercise.DataStatus
             }).ToList()
         }).ToList() ?? [];
 

@@ -73,6 +73,9 @@ public sealed class WindowTypeController(IWindowService windowService) : Control
         }
 
         draft.CheckingWindowType = model.WindowType;
+        // There is no exercise step: the window takes its type's default exercises. The admin adds
+        // others from the window's summary page after it is created.
+        draft.UseDefaultExercises();
         HttpContext.Session.SetObject("CheckingWindowDraft", draft);
 
         return Redirect( draft.NextController(Url));

@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 
@@ -47,4 +48,16 @@ public class WindowExercisesDefaultsTests
     [InlineData(null, false)]
     public void Only_a_results_enquiry_starts_with_the_late_results_warning_on(CheckingExerciseType? type, bool expected)
         => Assert.Equal(expected, WindowExercises.ShowsLateResultsWarningByDefault(type));
+
+    [Theory]
+    [InlineData(CheckingWindowType.KS4June, CheckingExerciseType.PupilData, ExerciseLayout.InclusionTabs)]
+    [InlineData(CheckingWindowType.KS4June, CheckingExerciseType.ResultsEnquiry, ExerciseLayout.Table)]
+    [InlineData(CheckingWindowType.KS4Autumn, CheckingExerciseType.PupilData, ExerciseLayout.Table)]
+    [InlineData(CheckingWindowType.Post16, CheckingExerciseType.PupilData, ExerciseLayout.Table)]
+    [InlineData(CheckingWindowType.KS2, CheckingExerciseType.PupilData, ExerciseLayout.Table)]
+    public void Only_KS4_June_pupil_data_starts_with_included_and_non_included_tabs(
+        CheckingWindowType window, CheckingExerciseType exercise, ExerciseLayout expected)
+        // KS4 June's one pupils file carries each pupil's own P_INCL, so schools see the included
+        // and the non-included pupils on two tabs.
+        => Assert.Equal(expected, WindowExercises.DefaultLayout(window, exercise));
 }

@@ -1,17 +1,18 @@
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Application.WindowManagement;
 
 /// <summary>
-/// Which checking exercises a window type runs by default (#319). The admin wizard pre-ticks these
-/// and the admin may tick or untick any of them, so this is a starting point rather than a rule —
-/// which is how KS4 Autumn can be given a results enquiry without a code change, the gap
-/// docs/16-19-window-model.md opens with.
+/// Which checking exercises a window type runs by default (#319). The create wizard gives a new
+/// window these and asks nothing. The admin may then tick or untick any exercise on the window's
+/// exercises page, so this is a starting point rather than a rule — which is how KS4 Autumn can be
+/// given a results enquiry without a code change, the gap docs/16-19-window-model.md opens with.
 /// </summary>
 /// <remarks>
-/// A new <see cref="CheckingExerciseType"/> appears in the wizard from the enum alone, with no row
-/// here — the wizard lists every member. This table only decides what starts ticked, so an unmapped
-/// window type falling back to pupil data checking is a sensible default rather than a silent
+/// A new <see cref="CheckingExerciseType"/> appears on the exercises page from the enum alone, with
+/// no row here — the page lists every member. This table only decides what a new window starts
+/// with, so an unmapped window type falling back to pupil data checking is a sensible default rather than a silent
 /// failure, and needs no throw.
 /// </remarks>
 public static class WindowExercises
@@ -46,6 +47,17 @@ public static class WindowExercises
     /// </summary>
     public static bool ShowsLateResultsWarningByDefault(CheckingExerciseType? exercise) =>
         exercise == CheckingExerciseType.ResultsEnquiry;
+
+    /// <summary>
+    /// How a new exercise shows its data to schools. KS4 June pupil data has one supplier file in
+    /// which each pupil carries their own P_INCL, so it starts with an included tab and a
+    /// non-included tab. Everything else starts as a table. The admin can change it on the
+    /// exercise's edit page.
+    /// </summary>
+    public static ExerciseLayout DefaultLayout(CheckingWindowType windowType, CheckingExerciseType? exercise) =>
+        windowType == CheckingWindowType.KS4June && exercise == CheckingExerciseType.PupilData
+            ? ExerciseLayout.InclusionTabs
+            : ExerciseLayout.Table;
 
     /// <summary>
     /// The tab order a new exercise of this kind starts with: enum order, in steps of 100 so an

@@ -17,6 +17,9 @@ public class WindowListItem
     public IReadOnlyList<CheckingExerciseListItem> Exercises { get; init; } = [];
     public Guid Id { get; init; }
     public string Name { get; init; } = string.Empty;
+
+    /// <summary>The window's start: the earliest start of its exercises.</summary>
+    public DateTime StartDate { get; init; }
 }
 
 public sealed class CheckingExerciseListItem
@@ -29,6 +32,9 @@ public sealed class CheckingExerciseListItem
 
     /// <summary>What schools can see and do with this exercise now.</summary>
     public required Application.WindowManagement.ExerciseSchoolStatus Status { get; init; }
+
+    /// <summary>Whether this exercise has data for schools. "Visible" alone does not say so.</summary>
+    public required ExerciseDataStatus DataStatus { get; init; }
 }
 
 public class WindowEditItem : AdminPage

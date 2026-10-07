@@ -118,7 +118,6 @@ public sealed class DevEgressControllerTests(PostgresFixture fixture)
 
         Assert.IsType<JsonResult>(result);
         await blobs.Received(1).DeleteIfOwnedByRunAsync(fileName, runId, Arg.Any<CancellationToken>());
-        await blobs.DidNotReceiveWithAnyArgs().DeleteIfExistsAsync(default!, default);
     }
 
     // The blob sweep ran before the row deletes and threw straight out of the action, so on an

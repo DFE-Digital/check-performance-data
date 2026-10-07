@@ -4,20 +4,36 @@ using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Admin;
 
-// Pupil data checking and data shares start with no slots: the admin adds the files. A results
+// Pupil data checking (except KS4 June) and data shares start with no slots: the admin adds the
+// files. KS4 June pupil data starts with its one supplier file. A results
 // enquiry ingests one file per source in the results feed (#324), each slot named by the tag it
 // stamps, so it still starts with those slots.
 public class WindowDatasetDefaultsTests
 {
     [Theory]
     [InlineData(CheckingWindowType.Post16)]
-    [InlineData(CheckingWindowType.KS4June)]
     [InlineData(CheckingWindowType.KS4Autumn)]
     [InlineData(CheckingWindowType.KS2)]
     public void Pupil_data_checking_starts_with_no_slots(CheckingWindowType type)
     {
-        // The admin adds the pupil files: one for KS4, two (included + non-included) for 16-19.
+        // The admin adds the pupil files, for example two (included + non-included) for 16-19.
         Assert.Empty(WindowDatasets.DefaultsFor(type, CheckingExerciseType.PupilData));
+    }
+
+    [Fact]
+    public void KS4_June_pupil_data_checking_starts_with_one_pupils_slot()
+    {
+        // KS4 June has one supplier pupil file. Each pupil carries their own P_INCL, so the slot
+        // stamps no inclusion, and the journey reads it.
+        var dataset = Assert.Single(
+            WindowDatasets.DefaultsFor(CheckingWindowType.KS4June, CheckingExerciseType.PupilData));
+
+        Assert.Equal(WindowDatasets.Pupils, dataset.Name);
+        Assert.Null(dataset.Included);
+        Assert.Null(dataset.SourceFile);
+        Assert.True(dataset.FeedsJourney);
+        Assert.True(dataset.Required);
+        Assert.Equal(0, dataset.SortOrder);
     }
 
     [Fact]
@@ -51,6 +67,17 @@ public class WindowDatasetDefaultsTests
             CheckingWindowType.Post16, CheckingExerciseType.ResultsEnquiry, "revised-summary"));
         Assert.False(WindowDatasets.IsStaleSupplierSlot(
             CheckingWindowType.KS4June, CheckingExerciseType.PupilData, "included"));
+    }
+
+    [Theory]
+    [InlineData(CheckingWindowType.Post16)]
+    [InlineData(CheckingWindowType.KS4Autumn)]
+    [InlineData(CheckingWindowType.KS2)]
+    public void A_pupils_slot_is_never_stale_on_another_window_type(CheckingWindowType type)
+    {
+        // "pupils" is the KS4 June default, but it is a plain name an admin may also give a slot.
+        // Treating it as stale would delete that slot, and its file, when the window is saved.
+        Assert.False(WindowDatasets.IsStaleSupplierSlot(type, CheckingExerciseType.PupilData, WindowDatasets.Pupils));
     }
 
     [Fact]

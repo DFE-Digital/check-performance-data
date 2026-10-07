@@ -38,9 +38,11 @@ namespace DfE.CheckPerformanceData.Application.ZendeskClient
     {
         public long Id { get; init; }
 
-        public string Type { get; init; } = string.Empty;
+        public string? Type { get; init; }
 
-        public string Body { get; init; } = string.Empty;
+        // Null on every event but a comment: Zendesk sends a Change event, with no body, for each
+        // field a comment changes.
+        public string? Body { get; init; }
 
         public List<AttachmentDto>? Attachments { get; init; }
     }

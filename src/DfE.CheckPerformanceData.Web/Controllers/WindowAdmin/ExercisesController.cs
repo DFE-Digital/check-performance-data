@@ -9,76 +9,16 @@ using Microsoft.AspNetCore.Mvc;
 namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 
 /// <summary>
-/// "Which checking exercises does this window run?" (#319). Every <see cref="CheckingExerciseType"/>
-/// is listed, pre-ticked from the window type's defaults, so a new member of the enum surfaces here
-/// with no change to this controller — while a single-exercise window is still one Continue.
+/// "Which checking exercises does this window run?" (#319), for an existing window. Every
+/// <see cref="CheckingExerciseType"/> is listed, so a new member of the enum surfaces here with no
+/// change to this controller. The create wizard has no exercise step: a new window takes its
+/// type's defaults (<see cref="CheckingWindowDraft.UseDefaultExercises"/>).
 /// </summary>
 [RequireAdminSection(AdminNavKeys.ManageWindow)]
 public sealed class ExercisesController(IWindowService windowService) : Controller
 {
     private const string PageView = "~/Views/WindowAdmin/Exercises.cshtml";
     private const string NothingSelected = "Select at least one checking exercise";
-
-    [HttpGet("admin/windows/exercises")]
-    public IActionResult New()
-    {
-        CheckingWindowDraft? draft = HttpContext.Session.GetObject<CheckingWindowDraft>("CheckingWindowDraft");
-
-        if (draft == null)
-        {
-            return BadRequest("No draft data");
-        }
-
-        // Pre-ticked from the type on the first visit; on a revisit the admin's own choice wins,
-        // otherwise coming back to change one box would silently reset the others.
-        List<CheckingExerciseType> selected = draft.Exercises.Count > 0
-            ? draft.Exercises.OrderBy(e => e.TabOrder).Select(e => e.ExerciseType).ToList()
-            : DefaultsFor(draft.CheckingWindowType);
-
-        return View(PageView, new ExercisesItem
-        {
-            All = AllExercises,
-            Selected = selected,
-            PostUrl = Url.Action("Submit", "Exercises"),
-            CancelUrl = Url.Action("Index", "CancelCreation")
-        });
-    }
-
-    [HttpPost("admin/windows/exercises")]
-    [ValidateAntiForgeryToken]
-    public IActionResult Submit(ExercisesItem model)
-    {
-        CheckingWindowDraft? draft = HttpContext.Session.GetObject<CheckingWindowDraft>("CheckingWindowDraft");
-
-        if (draft == null)
-        {
-            return BadRequest("No draft data");
-        }
-
-        if (model.Selected.Count == 0)
-        {
-            ModelState.AddModelError(nameof(ExercisesItem.Selected), NothingSelected);
-            return View(PageView, Redisplay(model, Url.Action("Submit", "Exercises"), Url.Action("Index", "CancelCreation")));
-        }
-
-        // Dates already given for an exercise that is still ticked survive, so changing the tick
-        // list does not send the admin back through date pages they have already filled in.
-        draft.Exercises = model.Selected
-            .Distinct()
-            .OrderBy(WindowExercises.DefaultTabOrder)
-            .Select(type => draft.Exercises.SingleOrDefault(e => e.ExerciseType == type)
-                            ?? new ExerciseDraft { ExerciseType = type })
-            .Select(e =>
-            {
-                e.TabOrder = WindowExercises.DefaultTabOrder(e.ExerciseType);
-                return e;
-            })
-            .ToList();
-
-        HttpContext.Session.SetObject("CheckingWindowDraft", draft);
-
-        return Redirect(draft.NextController(Url));
-    }
 
     [HttpGet("admin/windows/{id:guid}/exercises")]
     public async Task<IActionResult> Edit(Guid id, CancellationToken cancellationToken)
@@ -135,6 +75,7 @@ public sealed class ExercisesController(IWindowService windowService) : Controll
                 // Disabled, like a wizard exercise: schools see it once an admin enables it.
                 TabName = WindowExercises.DefaultTabName(window.CheckingWindowType, type),
                 ShowLateResultsWarning = WindowExercises.ShowsLateResultsWarningByDefault(type),
+                Layout = WindowExercises.DefaultLayout(window.CheckingWindowType, type),
                 StartDate = window.StartDate,
                 EndDate = window.EndDate,
                 TabOrder = WindowExercises.DefaultTabOrder(type)
@@ -148,9 +89,6 @@ public sealed class ExercisesController(IWindowService windowService) : Controll
 
     private static IReadOnlyList<CheckingExerciseType> AllExercises =>
         Enum.GetValues<CheckingExerciseType>().OrderBy(WindowExercises.DefaultTabOrder).ToList();
-
-    private static List<CheckingExerciseType> DefaultsFor(CheckingWindowType? type) =>
-        type is null ? [] : WindowExercises.DefaultsFor(type.Value).ToList();
 
     private static ExercisesItem Redisplay(
         ExercisesItem model, string? postUrl, string? cancelUrl, Guid windowId = default,

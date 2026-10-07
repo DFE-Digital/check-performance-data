@@ -40,13 +40,15 @@
         }
     </ol>
 
+    @* M4: the lock has no expiry, so a run stuck here after a restart must be releasable.
+       The form sits outside the button group so every button is a direct child of the group. *@
+    <form method="post" action="/admin/egress/runs/@Model.Run.Id/abandon" id="egress-abandon-form">
+        @Html.AntiForgeryToken()
+    </form>
+
     <div class="govuk-button-group">
-        <a class="govuk-button govuk-button--secondary" href="/admin/egress" data-testid="egress-save">Save and exit</a>
-        @* M4: the lock has no expiry, so a run stuck here after a restart must be releasable. *@
-        <form method="post" action="/admin/egress/runs/@Model.Run.Id/abandon" class="govuk-!-display-inline">
-            @Html.AntiForgeryToken()
-            <button type="submit" class="govuk-button govuk-button--warning" data-module="govuk-button" data-testid="egress-abandon">Abandon run</button>
-        </form>
+        <a class="govuk-button govuk-button--secondary" href="/admin/egress" role="button" draggable="false" data-module="govuk-button" data-testid="egress-save">Save and exit</a>
+        <button type="submit" form="egress-abandon-form" class="govuk-button govuk-button--warning" data-module="govuk-button" data-testid="egress-abandon">Abandon run</button>
     </div>
 </div>
 

@@ -34,12 +34,7 @@ public sealed class WindowExerciseWizardTests(PlaywrightFixture fixture) : Seedi
 
             await StartWizardAsync(title, windowType: "Post16");
 
-            // Post16 pre-ticks both exercises, so Continue accepts them as they stand.
-            await Expect(Page.Locator("h1")).ToContainTextAsync("Which checking exercises");
-            await Expect(Page.Locator("input[name='Selected'][value='PupilData']")).ToBeCheckedAsync();
-            await Expect(Page.Locator("input[name='Selected'][value='ResultsEnquiry']")).ToBeCheckedAsync();
-            await Page.ClickAsync("button[type='submit']");
-
+            // Post16 takes both exercises by default; there is no exercise step to pass through.
             // Pupil data checking runs for a fortnight...
             DateTime start = DateTime.UtcNow.AddMonths(2).Date;
             await Expect(Page.Locator("h1")).ToContainTextAsync("Pupil data checking dates");
@@ -93,11 +88,7 @@ public sealed class WindowExerciseWizardTests(PlaywrightFixture fixture) : Seedi
 
             await StartWizardAsync(title, windowType: "KS4June");
 
-            // KS4 June pre-ticks pupil data checking only.
-            await Expect(Page.Locator("input[name='Selected'][value='PupilData']")).ToBeCheckedAsync();
-            await Expect(Page.Locator("input[name='Selected'][value='ResultsEnquiry']")).Not.ToBeCheckedAsync();
-            await Page.ClickAsync("button[type='submit']");
-
+            // KS4 June takes pupil data checking only, and goes straight to its dates.
             DateTime start = DateTime.UtcNow.AddMonths(2).Date;
             await Expect(Page.Locator("h1")).ToContainTextAsync("Pupil data checking dates");
             await FillDatesAsync(start, start.AddDays(14));
@@ -133,8 +124,8 @@ public sealed class WindowExerciseWizardTests(PlaywrightFixture fixture) : Seedi
         }]).GetAwaiter().GetResult();
     }
 
-    // Title, then window type — the exercise step comes after the type because the type decides
-    // which exercises start ticked. There is no key stage step: it is derived from the type.
+    // Title, then window type. There is no exercise step: the window takes its type's default
+    // exercises. There is no key stage step: it is derived from the type.
     private async Task StartWizardAsync(string title, string windowType)
     {
         await Page.GotoAsync($"{Fixture.BaseUrl}/admin/windows/new");

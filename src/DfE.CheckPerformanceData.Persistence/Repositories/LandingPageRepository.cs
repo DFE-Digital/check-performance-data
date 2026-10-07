@@ -7,6 +7,7 @@ using DfE.CheckPerformanceData.Persistence.Contexts;
 using CheckingExerciseDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseDto;
 using CheckingExerciseReleaseDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseReleaseDto;
 using CheckingExerciseReleaseFileDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseReleaseFileDto;
+using CheckingWindowDatasetDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingWindowDatasetDto;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -16,7 +17,7 @@ public sealed class LandingPageRepository(
     IPortalDbContext dbContext,
     ILogger<LandingPageRepository> logger) : ILandingPageRepository
 {
-    public async Task<List<CheckingWindowDto>> GetOpenWindowsAsync(DateTime now, string laestab,
+    public async Task<List<CheckingWindowDto>> GetStartedWindowsAsync(DateTime now, string laestab,
         CancellationToken cancellationToken)
     {
         // TEMP DIAGNOSTIC (no-window-cards in preprod): fetch EVERY window (unfiltered) and
@@ -54,6 +55,27 @@ public sealed class LandingPageRepository(
                         VisibleUntil = e.VisibleUntil,
                         UsesExerciseStorage = e.UsesExerciseStorage,
                         CurrentReleaseId = e.CurrentReleaseId,
+                        // HasLiveData reads these for a legacy exercise, which makes no release:
+                        // its validation stamp against the files it holds says whether it has data.
+                        ValidatedAt = e.Validated != null ? e.Validated.ValidatedAt : null,
+                        ValidatedIngressChecksum =
+                            e.Validated != null ? e.Validated.IngressValidationChecksum : string.Empty,
+                        ValidatedSchemaChecksum =
+                            e.Validated != null ? e.Validated.SchemaValidationChecksum : string.Empty,
+                        Datasets = e.Datasets
+                            .OrderBy(d => d.SortOrder)
+                            .Select(d => new CheckingWindowDatasetDto
+                            {
+                                Id = d.Id,
+                                Name = d.Name,
+                                IngressFile = d.IngressFile,
+                                IngressFileChecksum = d.IngressFileChecksum,
+                                SchemaFile = d.SchemaFile,
+                                SchemaFileChecksum = d.SchemaFileChecksum,
+                                Retired = d.Retired,
+                                SortOrder = d.SortOrder
+                            })
+                            .ToList(),
                         // Only the current release: its files name the per-dataset outputs.
                         Releases = e.Releases
                             .Where(r => r.Id == e.CurrentReleaseId)
@@ -86,7 +108,9 @@ public sealed class LandingPageRepository(
                 w.Title, w.Id, w.StartDate, w.EndDate, w.KeyStage, w.StartDate <= now && w.EndDate >= now);
         }
 
-        var windows = allWindows.Where(w => w.StartDate <= now && w.EndDate >= now).ToList();
+        // Started only: LandingPageService decides when a window stops being shown, because an
+        // exercise's VisibleUntil can keep it shown after the window's end date.
+        var windows = allWindows.Where(w => w.StartDate <= now).ToList();
 
         var result = new List<CheckingWindowDto>(windows.Count);
         foreach (var w in windows)

@@ -35,7 +35,7 @@
         <span class="govuk-warning-text__icon" aria-hidden="true">!</span>
         <strong class="govuk-warning-text__text">
             <span class="govuk-visually-hidden">Warning</span>
-            Egress storage is not configured for this environment (ConnectionStrings:EgressStorage). Confirm will be refused until it is set; the prepared files can still be previewed and downloaded.
+            Egress storage is not configured for this environment (ConnectionStrings:IngressStorage). Confirm will be refused until it is set; the prepared files can still be previewed and downloaded.
         </strong>
     </div>
 }
@@ -93,17 +93,23 @@
     <p class="govuk-body" data-testid="egress-nothing-to-transfer">Every record was rejected, undecided or discarded before preprocessing, so there is nothing to transfer to LDS. Abandon this run if it is no longer needed.</p>
 }
 
+@* The forms sit outside the button group and each button names its form, so every button is a
+   direct child of the group and the row lines up. A form wrapper inside the group breaks it. *@
+@if (offerConfirm)
+{
+    <form method="post" action="/admin/egress/runs/@Model.Run.Id/transfer" id="egress-transfer-form">
+        @Html.AntiForgeryToken()
+    </form>
+}
+<form method="post" action="/admin/egress/runs/@Model.Run.Id/abandon" id="egress-abandon-form">
+    @Html.AntiForgeryToken()
+</form>
+
 <div class="govuk-button-group">
     @if (offerConfirm)
     {
-        <form method="post" action="/admin/egress/runs/@Model.Run.Id/transfer" class="govuk-!-display-inline">
-            @Html.AntiForgeryToken()
-            <button type="submit" class="govuk-button" data-module="govuk-button" data-testid="egress-transfer">Confirm and transfer</button>
-        </form>
+        <button type="submit" form="egress-transfer-form" class="govuk-button" data-module="govuk-button" data-testid="egress-transfer">Confirm and transfer</button>
     }
-    <a class="govuk-button govuk-button--secondary" href="/admin/egress" data-testid="egress-save">Save and exit</a>
-    <form method="post" action="/admin/egress/runs/@Model.Run.Id/abandon" class="govuk-!-display-inline">
-        @Html.AntiForgeryToken()
-        <button type="submit" class="govuk-button govuk-button--warning" data-module="govuk-button" data-testid="egress-abandon">Abandon run</button>
-    </form>
+    <a class="govuk-button govuk-button--secondary" href="/admin/egress" role="button" draggable="false" data-module="govuk-button" data-testid="egress-save">Save and exit</a>
+    <button type="submit" form="egress-abandon-form" class="govuk-button govuk-button--warning" data-module="govuk-button" data-testid="egress-abandon">Abandon run</button>
 </div>

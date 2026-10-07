@@ -208,7 +208,7 @@
     {
         <div class="govuk-form-group @(ViewData.ModelState["VisibleUntil"]?.Errors.Count > 0 ? "govuk-form-group--error" : "")">
             <label class="govuk-label" for="VisibleUntil">Visible until (optional)</label>
-            <div class="govuk-hint" id="VisibleUntil-hint">Hidden from this date and time. Leave blank for no end limit.</div>
+            <div class="govuk-hint" id="VisibleUntil-hint">Hidden from this date and time. A date after the exercise closes keeps the window on the school landing page, read only, until then. Leave blank to hide it when the window closes.</div>
             <span class="govuk-error-message" id="VisibleUntil-error" asp-validation-for="VisibleUntil"></span>
             <input class="govuk-input @(ViewData.ModelState["VisibleUntil"]?.Errors.Count > 0 ? "govuk-input--error" : "")" asp-for="VisibleUntil" type="datetime-local" step="1" asp-format="{0:yyyy-MM-ddTHH:mm:ss}" aria-describedby="VisibleUntil-hint VisibleUntil-error" />
         </div>
@@ -218,7 +218,7 @@
     <govuk-date-input for="VisibleUntil">
         <govuk-date-input-fieldset>
             <govuk-date-input-fieldset-legend class="govuk-fieldset__legend--m">Visible until (optional)</govuk-date-input-fieldset-legend>
-            <govuk-date-input-hint>Hidden from midnight on this date. Leave blank for no end limit.</govuk-date-input-hint>
+            <govuk-date-input-hint>Hidden from midnight on this date. A date after the exercise closes keeps the window on the school landing page, read only, until then. Leave blank to hide it when the window closes.</govuk-date-input-hint>
             <govuk-date-input-error-message asp-validation-for="VisibleUntil" />
         </govuk-date-input-fieldset>
     </govuk-date-input>

@@ -27,6 +27,7 @@ public sealed class WindowDatasetsTests
     [Theory]
     [InlineData(CheckingWindowType.Post16, CheckingExerciseType.ResultsEnquiry)]
     [InlineData(CheckingWindowType.KS4Autumn, CheckingExerciseType.ResultsEnquiry)]
+    [InlineData(CheckingWindowType.KS4June, CheckingExerciseType.PupilData)]
     public void EverySupplierSlot_FeedsTheJourney(CheckingWindowType window, CheckingExerciseType exercise)
     {
         // These are the "journey data" files: only a new version of these may change what a

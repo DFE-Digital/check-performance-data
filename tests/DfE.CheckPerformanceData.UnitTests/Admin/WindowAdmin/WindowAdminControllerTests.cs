@@ -48,6 +48,38 @@ public class WindowAdminControllerTests
             exercises.Select(e => e.Status));
     }
 
+    [Fact]
+    public async Task Index_shows_whether_each_exercise_has_data()
+    {
+        // The rule is pinned in ExerciseDataStatusTests; the controller copies it per exercise.
+        var service = Substitute.For<IWindowService>();
+        var empty = new CheckingExerciseDto
+        {
+            ExerciseType = CheckingExerciseType.PupilData, StartDate = DateTime.MinValue, EndDate = DateTime.MaxValue
+        };
+        var uploaded = new CheckingExerciseDto
+        {
+            ExerciseType = CheckingExerciseType.ResultsEnquiry, TabOrder = 1,
+            StartDate = DateTime.MinValue, EndDate = DateTime.MaxValue,
+            Datasets = [new CheckingWindowDatasetDto { Name = "results", IngressFile = "r.csv", SchemaFile = "r.json" }]
+        };
+        var window = new CheckingWindowDto
+        {
+            Title = "Test window", KeyStage = KeyStages.Post16,
+            CheckingWindowType = CheckingWindowType.Post16,
+            StartDate = DateTime.MinValue, EndDate = DateTime.MaxValue,
+            Exercises = [empty, uploaded]
+        };
+        service.GetAllDataAsync(Arg.Any<CancellationToken>()).Returns(new PageResult { Windows = [window] });
+        var controller = Controller(service, Substitute.For<ICheckingExerciseService>(), Substitute.For<IAdminAccessPolicy>());
+
+        var result = Assert.IsType<ViewResult>(await controller.Index(CancellationToken.None));
+        var exercises = Assert.Single(Assert.IsType<WindowViewModel>(result.Model).Windows).Exercises;
+
+        Assert.Equal([ExerciseDataStatus.NoFiles, ExerciseDataStatus.NotValidated],
+            exercises.Select(e => e.DataStatus));
+    }
+
     [Theory]
     [InlineData(true)]
     [InlineData(false)]

@@ -8,9 +8,18 @@ and loses its raw time, the flakiness root causes, and where the fixes landed.
 
 ## Suite shape
 
-- ~237 tests, all in the single `[Collection("E2E")]` → fully serial execution.
-  One shared `PlaywrightFixture` (readiness probe, impersonation, sample-page
-  seed) lives for the whole collection.
+- ~289 tests across two collections:
+  - `[Collection("E2E")]` — browser tests. Serial within the collection
+    (Playwright shares one context) and sharing that collection's own
+    `PlaywrightFixture` (readiness probe, impersonation, sample-page seed).
+  - `[Collection("Http")]` — pure-HTTP tests that never touch Playwright, so
+    they run in parallel with the browser collection (xUnit parallelises across
+    collections by default).
+  xUnit instantiates a DISTINCT `PlaywrightFixture` per collection definition,
+  so each collection gets its own readiness probe, impersonation cookie and
+  seed. That isolation is what makes the overlap safe: one collection's
+  temporary impersonation swaps (admin / unprivileged / cleared) never reach
+  the other's requests.
 - Breakdown: ~148 `[Fact]`, ~84 `[RetryFact]`, ~5 `[Theory]/[RetryTheory]`
   (all `[RetryFact(3)]`/`[RetryTheory(3)]` today).
 - 21 files reference the xRetry attributes.
@@ -67,7 +76,7 @@ retries at 3x, on a single thread.
 | P3 | Replace hard-coded `[RetryFact(3)]`/`[RetryTheory(3)]` with settings-driven retries. New `CPD_E2E_RETRY_ATTEMPTS` env var (default **1** = no retries) is the single knob for the whole suite's failure budget; retries become the default-OFF exception rather than the norm. | `Retrying/` folder (custom attributes + discoverers reusing xRetry's `RetryTestCase`) + 21 test files | ✅ |
 | P4 | Raise default navigation/expect timeouts and warm the app before the first test (e.g. an initial no-op request after the readiness probe). | `Fixtures/SeedingPageTest.cs`, fixture | ✅ |
 | P5 | Convert fixed-count poll loops to time-bounded polling helpers. | `ContentPages/InstantSearchReportingE2ETests.cs`, `Admin/OnPageSearchSectionTests.cs` | ✅ |
-| P6 | Split a second collection for the pure-HTTP tests so browser tests and HTTP tests overlap. Depends on making `Helpers/TestHttpClients.cs` impersonation-cookie state non-global. | `Fixtures/PlaywrightCollection.cs`, helpers |
-| P7 | Wire Playwright tracing into the harness and upload trace artifacts from CI (extend the e2e job's artifact step, currently only `e2e-snapshots`). | harness + `.github/workflows/build-and-deploy.yml` |
+| P6 | Split a second collection for the pure-HTTP tests so browser tests and HTTP tests overlap. Depends on making `Helpers/TestHttpClients.cs` impersonation-cookie state non-global. | `Fixtures/PlaywrightCollection.cs`, helpers | ✅ Static `TestHttpClients` replaced by an instance `TestHttpClient : HttpClient` owned by each fixture's `SeedClient` (no-redirect handler, `SendAsync` shadowed to attach the fixture cookie). 11 pure-HTTP classes retagged `[Collection("Http")]` with the same `PlaywrightFixture` ctor. 289 tests enumerate across both collections; solution build 0 errors. Runtime verification still gated on a running app (`cypd_web`). |
+| P7 | Wire Playwright tracing into the harness and upload trace artifacts from CI (extend the e2e job's artifact step, currently only `e2e-snapshots`). | harness + `.github/workflows/build-and-deploy.yml` | ✅ `SeedingPageTest` starts `Context.Tracing` (screenshots + snapshots) when `CPD_E2E_TRACES_DIR` is set and, in `DisposeAsync` before the base closes the context, stops it with a per-test `{ClassName}.{ordinal}.zip` path **only when the test failed** (`TestOk`, the inherited first-chance-exception flag — passing tests stop with no path and write nothing). CI sets the env var and uploads `e2e-traces/` (`if: failure()`, 14-day retention; `npx playwright show-trace <file>.zip`). Trace-saving is best-effort so a failed save never masks the test's real failure. Caveat: first-chance exceptions are AppDomain-wide, so a handled exception elsewhere (e.g. the parallel Http collection's antiforgery retry) can flag `TestOk=false` for a test that actually passed — the cost is one sparse, harmless trace file. |
 
 Anything not checked in the Status column is still planned.

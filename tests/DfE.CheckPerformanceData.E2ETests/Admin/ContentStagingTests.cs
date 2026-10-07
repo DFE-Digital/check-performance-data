@@ -8,7 +8,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Admin;
 // Content staging + content-blocks admin are gated by the content-editor role, which the
 // fixture impersonates for the whole collection. HTTP-level checks keep these robust against
 // CMS content state (the export endpoint works even on an empty environment).
-[Collection("E2E")]
+[Collection("Http")]
 public sealed class ContentStagingTests(PlaywrightFixture fixture)
 {
     private readonly PlaywrightFixture _fixture = fixture;
@@ -19,7 +19,7 @@ public sealed class ContentStagingTests(PlaywrightFixture fixture)
         using var request = new HttpRequestMessage(
             HttpMethod.Get, $"{_fixture.BaseUrl}/admin/content-staging");
 
-        var response = await TestHttpClients.SendAsync(request);
+        var response = await _fixture.SeedClient.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
@@ -34,7 +34,7 @@ public sealed class ContentStagingTests(PlaywrightFixture fixture)
         using var request = new HttpRequestMessage(
             HttpMethod.Get, $"{_fixture.BaseUrl}/admin/content-staging/select");
 
-        var response = await TestHttpClients.SendAsync(request);
+        var response = await _fixture.SeedClient.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
@@ -45,7 +45,7 @@ public sealed class ContentStagingTests(PlaywrightFixture fixture)
         using var request = new HttpRequestMessage(
             HttpMethod.Get, $"{_fixture.BaseUrl}/admin/content-staging/export");
 
-        var response = await TestHttpClients.SendAsync(request);
+        var response = await _fixture.SeedClient.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("application/zip", response.Content.Headers.ContentType?.MediaType);
@@ -67,7 +67,7 @@ public sealed class ContentStagingTests(PlaywrightFixture fixture)
         using var request = new HttpRequestMessage(
             HttpMethod.Get, $"{_fixture.BaseUrl}/admin/content-blocks");
 
-        var response = await TestHttpClients.SendAsync(request);
+        var response = await _fixture.SeedClient.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
@@ -82,7 +82,7 @@ public sealed class ContentStagingTests(PlaywrightFixture fixture)
             using var request = new HttpRequestMessage(
                 HttpMethod.Get, $"{_fixture.BaseUrl}/admin/content-staging");
 
-            var response = await TestHttpClients.SendAsync(request);
+            var response = await _fixture.SeedClient.SendAsync(request);
 
             Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         }

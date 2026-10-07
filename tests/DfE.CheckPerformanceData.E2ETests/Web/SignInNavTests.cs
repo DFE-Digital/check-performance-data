@@ -77,9 +77,9 @@ public sealed class SignInNavTests(PlaywrightFixture fixture) : PageTest
         {
             // Restore the fixture-level editor cookie so subsequent tests in the
             // collection can still seed. ImpersonateAsEditorAsync overwrites both the
-            // server cookie and the shared TestHttpClients.ImpersonationCookieHeader
-            // that every seed HttpClient request consults. Calling
-            // ClearImpersonationAsync here would null that static and break every
+            // server cookie and the fixture SeedClient's impersonation cookie that
+            // every seed HttpClient request consults. Calling
+            // ClearImpersonationAsync here would null that cookie and break every
             // editor-gated seed call in the rest of the suite.
             await AuthHelpers.ImpersonateAsEditorAsync(_fixture);
         }

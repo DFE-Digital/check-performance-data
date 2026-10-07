@@ -31,7 +31,7 @@ public sealed class AdminLandingGroupedTests(PlaywrightFixture fixture) : Seedin
                 HttpMethod.Get,
                 $"{Fixture.BaseUrl}/admin");
 
-            var response = await TestHttpClients.SendAsync(request);
+            var response = await Fixture.SeedClient.SendAsync(request);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
@@ -59,7 +59,7 @@ public sealed class AdminLandingGroupedTests(PlaywrightFixture fixture) : Seedin
                 HttpMethod.Get,
                 $"{Fixture.BaseUrl}/admin");
 
-            var response = await TestHttpClients.SendAsync(request);
+            var response = await Fixture.SeedClient.SendAsync(request);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
@@ -88,7 +88,7 @@ public sealed class AdminLandingGroupedTests(PlaywrightFixture fixture) : Seedin
                 HttpMethod.Get,
                 $"{Fixture.BaseUrl}/admin");
 
-            var response = await TestHttpClients.SendAsync(request);
+            var response = await Fixture.SeedClient.SendAsync(request);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
@@ -118,7 +118,7 @@ public sealed class AdminLandingGroupedTests(PlaywrightFixture fixture) : Seedin
                 HttpMethod.Get,
                 $"{Fixture.BaseUrl}/admin");
 
-            var response = await TestHttpClients.SendAsync(request);
+            var response = await Fixture.SeedClient.SendAsync(request);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 

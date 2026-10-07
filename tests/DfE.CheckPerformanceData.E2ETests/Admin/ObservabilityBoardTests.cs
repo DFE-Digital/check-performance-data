@@ -9,7 +9,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Admin;
 // skeleton with the five labelled stage nodes and an accessible textual parallel (counts per
 // stage + recent transitions) so the information is available without motion. The export CTA and
 // the board/export scripts are wired into the page. All assertions are DOM-level, not pixel.
-[Collection("E2E")]
+[Collection("Http")]
 public sealed class ObservabilityBoardTests(PlaywrightFixture fixture)
 {
     private readonly PlaywrightFixture _fixture = fixture;
@@ -38,7 +38,7 @@ public sealed class ObservabilityBoardTests(PlaywrightFixture fixture)
                 HttpMethod.Get,
                 $"{_fixture.BaseUrl}{DashboardPath}");
 
-            var response = await TestHttpClients.SendAsync(request);
+            var response = await _fixture.SeedClient.SendAsync(request);
 
             Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         }
@@ -104,7 +104,7 @@ public sealed class ObservabilityBoardTests(PlaywrightFixture fixture)
             using var request = new HttpRequestMessage(
                 HttpMethod.Get,
                 $"{_fixture.BaseUrl}{DashboardPath}");
-            var response = await TestHttpClients.SendAsync(request);
+            var response = await _fixture.SeedClient.SendAsync(request);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             return await response.Content.ReadAsStringAsync();

@@ -4,7 +4,7 @@ using DfE.CheckPerformanceData.E2ETests.Helpers;
 
 namespace DfE.CheckPerformanceData.E2ETests.Admin;
 
-[Collection("E2E")]
+[Collection("Http")]
 public sealed class AdminRulesEditTests(PlaywrightFixture fixture)
 {
     private readonly PlaywrightFixture _fixture = fixture;
@@ -17,7 +17,7 @@ public sealed class AdminRulesEditTests(PlaywrightFixture fixture)
             await AuthHelpers.ImpersonateAsUnprivilegedUserAsync(_fixture);
             using var request = new HttpRequestMessage(HttpMethod.Get,
                 $"{_fixture.BaseUrl}/admin/rules/outcomes/Inclusion/branches/INC-1/edit");
-            var response = await TestHttpClients.SendAsync(request);
+            var response = await _fixture.SeedClient.SendAsync(request);
             // Non-admin users get 404 rather than 302 to AccessDenied — the admin surface
             // is obfuscated from users with no section grant.
             Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
@@ -36,7 +36,7 @@ public sealed class AdminRulesEditTests(PlaywrightFixture fixture)
             // the page also contains the "/admin/rules/outcomes/add" button.)
             using var addReq = new HttpRequestMessage(HttpMethod.Get,
                 $"{_fixture.BaseUrl}/admin/rules/outcomes/Inclusion/branches/add");
-            var addResp = await TestHttpClients.SendAsync(addReq);
+            var addResp = await _fixture.SeedClient.SendAsync(addReq);
 
             Assert.Equal(HttpStatusCode.OK, addResp.StatusCode);
             var body = await addResp.Content.ReadAsStringAsync();
@@ -53,7 +53,7 @@ public sealed class AdminRulesEditTests(PlaywrightFixture fixture)
         {
             await AuthHelpers.ImpersonateAsAdminAsync(_fixture);
             using var request = new HttpRequestMessage(HttpMethod.Get, $"{_fixture.BaseUrl}/admin/rules/lookups/add");
-            var response = await TestHttpClients.SendAsync(request);
+            var response = await _fixture.SeedClient.SendAsync(request);
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             Assert.Contains("Official languages", await response.Content.ReadAsStringAsync());
         }
@@ -71,7 +71,7 @@ public sealed class AdminRulesEditTests(PlaywrightFixture fixture)
             await AuthHelpers.ImpersonateAsAdminAsync(_fixture);
             using var request = new HttpRequestMessage(HttpMethod.Get,
                 $"{_fixture.BaseUrl}/admin/rules/outcomes/Inclusion/branches/INC-REJ/edit");
-            var response = await TestHttpClients.SendAsync(request);
+            var response = await _fixture.SeedClient.SendAsync(request);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var body = await response.Content.ReadAsStringAsync();
@@ -94,7 +94,7 @@ public sealed class AdminRulesEditTests(PlaywrightFixture fixture)
             await AuthHelpers.ImpersonateAsAdminAsync(_fixture);
             using var request = new HttpRequestMessage(HttpMethod.Get,
                 $"{_fixture.BaseUrl}/admin/rules/outcomes/Inclusion/branches/INC-REJ/edit");
-            var response = await TestHttpClients.SendAsync(request);
+            var response = await _fixture.SeedClient.SendAsync(request);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var body = await response.Content.ReadAsStringAsync();
@@ -115,7 +115,7 @@ public sealed class AdminRulesEditTests(PlaywrightFixture fixture)
             await AuthHelpers.ImpersonateAsAdminAsync(_fixture);
             using var request = new HttpRequestMessage(HttpMethod.Get,
                 $"{_fixture.BaseUrl}/admin/rules/outcomes/TerminalCriticalIllness/branches/TCI-KS4-REJ/edit");
-            var response = await TestHttpClients.SendAsync(request);
+            var response = await _fixture.SeedClient.SendAsync(request);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var body = await response.Content.ReadAsStringAsync();
@@ -136,7 +136,7 @@ public sealed class AdminRulesEditTests(PlaywrightFixture fixture)
 
             // "Inclusion" is a stable seeded outcome with branches that render via the partial.
             using var detailReq = new HttpRequestMessage(HttpMethod.Get, $"{_fixture.BaseUrl}/admin/rules/outcomes/Inclusion");
-            var detailResp = await TestHttpClients.SendAsync(detailReq);
+            var detailResp = await _fixture.SeedClient.SendAsync(detailReq);
 
             Assert.Equal(HttpStatusCode.OK, detailResp.StatusCode);
             Assert.Contains("When", await detailResp.Content.ReadAsStringAsync());

@@ -4,7 +4,7 @@ using DfE.CheckPerformanceData.E2ETests.Helpers;
 
 namespace DfE.CheckPerformanceData.E2ETests.Admin;
 
-[Collection("E2E")]
+[Collection("Http")]
 public sealed class AdminAuthTests(PlaywrightFixture fixture)
 {
     private readonly PlaywrightFixture _fixture = fixture;
@@ -22,7 +22,7 @@ public sealed class AdminAuthTests(PlaywrightFixture fixture)
                 HttpMethod.Get,
                 $"{_fixture.BaseUrl}/admin");
 
-            var response = await TestHttpClients.SendAsync(request);
+            var response = await _fixture.SeedClient.SendAsync(request);
 
             Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
             var location = response.Headers.Location?.ToString() ?? string.Empty;
@@ -51,7 +51,7 @@ public sealed class AdminAuthTests(PlaywrightFixture fixture)
                 HttpMethod.Get,
                 $"{_fixture.BaseUrl}/admin");
 
-            var response = await TestHttpClients.SendAsync(request);
+            var response = await _fixture.SeedClient.SendAsync(request);
 
             Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         }
@@ -77,7 +77,7 @@ public sealed class AdminAuthTests(PlaywrightFixture fixture)
                 HttpMethod.Get,
                 $"{_fixture.BaseUrl}/admin");
 
-            var response = await TestHttpClients.SendAsync(request);
+            var response = await _fixture.SeedClient.SendAsync(request);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         }
@@ -100,7 +100,7 @@ public sealed class AdminAuthTests(PlaywrightFixture fixture)
                 HttpMethod.Get,
                 $"{_fixture.BaseUrl}/admin");
 
-            var response = await TestHttpClients.SendAsync(request);
+            var response = await _fixture.SeedClient.SendAsync(request);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 

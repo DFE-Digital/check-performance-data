@@ -101,7 +101,7 @@ public sealed class SearchByPageTokenE2ETests(PlaywrightFixture fixture) : Seedi
             }),
         };
         req.Headers.Add("Cookie", cookie);
-        var response = await TestHttpClients.SendAsync(req);
+        var response = await Fixture.SeedClient.SendAsync(req);
         Assert.True(response.StatusCode is HttpStatusCode.Found or HttpStatusCode.Redirect,
             $"Rename returned {(int)response.StatusCode}");
     }

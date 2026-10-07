@@ -412,12 +412,12 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
     [RetryFact]
     public async Task AnAnonymousRequestForTheIssuePageIsSentToSignIn()
     {
-        // TestHttpClients.NoRedirect has UseCookies=false and no impersonation cookie attached, so
+        // Fixture.SeedClient has UseCookies=false and no impersonation cookie attached, so
         // this request is genuinely anonymous.
         using var request = new HttpRequestMessage(
             HttpMethod.Get, $"{Fixture.BaseUrl}/{WindowId}/ResultIssue");
 
-        var response = await TestHttpClients.NoRedirect.SendAsync(request);
+        var response = await Fixture.SeedClient.SendAsync(request);
 
         Assert.Equal(System.Net.HttpStatusCode.Found, response.StatusCode);
         Assert.Contains("signin.education.gov.uk", response.Headers.Location?.ToString() ?? string.Empty);

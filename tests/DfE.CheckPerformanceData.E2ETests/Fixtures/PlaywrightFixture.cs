@@ -13,7 +13,7 @@ public sealed class PlaywrightFixture : IAsyncLifetime
 
     public string BaseUrl { get; }
 
-    public HttpClient SeedClient { get; }
+    public TestHttpClient SeedClient { get; }
 
     public PlaywrightFixture()
     {
@@ -21,7 +21,7 @@ public sealed class PlaywrightFixture : IAsyncLifetime
         var resolved = string.IsNullOrWhiteSpace(configured) ? "http://localhost:8080" : configured;
         BaseUrl = resolved.TrimEnd('/');
 
-        SeedClient = new HttpClient
+        SeedClient = new TestHttpClient
         {
             BaseAddress = new Uri(BaseUrl)
         };
@@ -62,7 +62,7 @@ public sealed class PlaywrightFixture : IAsyncLifetime
         {
             try
             {
-                using var response = await Helpers.TestHttpClients.SendAsync(
+                using var response = await SeedClient.SendAsync(
                     new HttpRequestMessage(HttpMethod.Get, $"{BaseUrl}{path}"));
             }
             catch (HttpRequestException)
@@ -95,7 +95,7 @@ public sealed class PlaywrightFixture : IAsyncLifetime
                 };
                 request.Headers.Add("Cookie", cookie);
 
-                using var response = await Helpers.TestHttpClients.SendAsync(request);
+                using var response = await SeedClient.SendAsync(request);
                 // SampleSeed always redirects (302) to /admin/pages on success; a 5xx, or an
                 // unauthenticated redirect away from that, means the seed did not run.
                 if ((int)response.StatusCode is >= 200 and < 400)

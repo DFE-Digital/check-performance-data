@@ -14,9 +14,13 @@ public static class AntiforgeryHelpers
 
     private static readonly HtmlParser Parser = new();
 
-    public static async Task<(string Token, string Cookie)> ScrapeAsync(HttpClient client, string formPath)
+    public static Task<(string Token, string Cookie)> ScrapeAsync(TestHttpClient client, string formPath)
+        => ScrapeAsync((HttpClient)client, formPath, client.ImpersonationCookieHeader);
+
+    public static async Task<(string Token, string Cookie)> ScrapeAsync(HttpClient client, string formPath, string? impersonation)
     {
-        if (client.BaseAddress is null)
+        var baseAddress = client.BaseAddress;
+        if (baseAddress is null)
         {
             throw new InvalidOperationException(
                 "AntiforgeryHelpers.ScrapeAsync requires the supplied HttpClient to have a BaseAddress.");
@@ -31,7 +35,7 @@ public static class AntiforgeryHelpers
         {
             try
             {
-                return await ScrapeOnceAsync(client, formPath);
+                return await ScrapeOnceAsync(baseAddress, formPath, impersonation);
             }
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException)
             {
@@ -50,15 +54,14 @@ public static class AntiforgeryHelpers
             lastError);
     }
 
-    private static async Task<(string Token, string Cookie)> ScrapeOnceAsync(HttpClient client, string formPath)
+    private static async Task<(string Token, string Cookie)> ScrapeOnceAsync(Uri baseAddress, string formPath, string? impersonation)
     {
         var cookieContainer = new CookieContainer();
 
         // /dev/antiforgery-token only issues the token+cookie pair for editor-role users,
-        // so seed the dev impersonation cookie (set fixture-wide by AuthHelpers) into the
+        // so seed the fixture's impersonation cookie (set by AuthHelpers) into the
         // container before the GET. Adding a Cookie: header manually doesn't work when
         // UseCookies=true — the handler strips it and substitutes its own container.
-        var impersonation = TestHttpClients.ImpersonationCookieHeader;
         if (!string.IsNullOrEmpty(impersonation))
         {
             var equalsIndex = impersonation.IndexOf('=');
@@ -66,7 +69,7 @@ public static class AntiforgeryHelpers
             {
                 var name = impersonation[..equalsIndex];
                 var value = impersonation[(equalsIndex + 1)..];
-                cookieContainer.Add(client.BaseAddress, new Cookie(name, value) { Path = "/" });
+                cookieContainer.Add(baseAddress, new Cookie(name, value) { Path = "/" });
             }
         }
 
@@ -79,7 +82,7 @@ public static class AntiforgeryHelpers
 
         using var scrapeClient = new HttpClient(handler)
         {
-            BaseAddress = client.BaseAddress
+            BaseAddress = baseAddress
         };
 
         var response = await scrapeClient.GetAsync(formPath);

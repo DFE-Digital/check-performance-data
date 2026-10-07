@@ -9,7 +9,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Admin;
 // aggregate-only view (banner, charts + tables, no admin actions, no pupil data); a missing or
 // invalid token returns 404 — never a redirect into the DfE OIDC challenge. The admin generates
 // tokens from the role-gated /admin/share surface. All assertions are DOM-level.
-[Collection("E2E")]
+[Collection("Http")]
 public sealed class ShareLinkTests(PlaywrightFixture fixture)
 {
     private readonly PlaywrightFixture _fixture = fixture;
@@ -26,7 +26,7 @@ public sealed class ShareLinkTests(PlaywrightFixture fixture)
             HttpMethod.Get,
             $"{_fixture.BaseUrl}/share/this-token-does-not-exist");
 
-        var response = await TestHttpClients.NoRedirect.SendAsync(request);
+        var response = await _fixture.SeedClient.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         // Never a 302/401 that would bounce an uninvited viewer into the sign-in flow.
@@ -43,7 +43,7 @@ public sealed class ShareLinkTests(PlaywrightFixture fixture)
             HttpMethod.Get,
             $"{_fixture.BaseUrl}/wallboard/this-token-does-not-exist");
 
-        var response = await TestHttpClients.NoRedirect.SendAsync(request);
+        var response = await _fixture.SeedClient.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.NotEqual(HttpStatusCode.Redirect, response.StatusCode);
@@ -63,7 +63,7 @@ public sealed class ShareLinkTests(PlaywrightFixture fixture)
                 HttpMethod.Get,
                 $"{_fixture.BaseUrl}/admin/share");
 
-            var response = await TestHttpClients.SendAsync(request);
+            var response = await _fixture.SeedClient.SendAsync(request);
 
             Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         }
@@ -89,7 +89,7 @@ public sealed class ShareLinkTests(PlaywrightFixture fixture)
             using var request = new HttpRequestMessage(
                 HttpMethod.Get,
                 $"{_fixture.BaseUrl}/share/{token}");
-            var response = await TestHttpClients.NoRedirect.SendAsync(request);
+            var response = await _fixture.SeedClient.SendAsync(request);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var body = await response.Content.ReadAsStringAsync();
@@ -134,7 +134,7 @@ public sealed class ShareLinkTests(PlaywrightFixture fixture)
             using var request = new HttpRequestMessage(
                 HttpMethod.Get,
                 $"{_fixture.BaseUrl}/wallboard/{token}");
-            var response = await TestHttpClients.NoRedirect.SendAsync(request);
+            var response = await _fixture.SeedClient.SendAsync(request);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var body = await response.Content.ReadAsStringAsync();
@@ -166,10 +166,10 @@ public sealed class ShareLinkTests(PlaywrightFixture fixture)
             BaseAddress = new Uri(_fixture.BaseUrl),
         };
 
-        var impersonation = TestHttpClients.ImpersonationCookieHeader;
+        var impersonation = _fixture.SeedClient.ImpersonationCookieHeader;
 
         var (antiforgeryToken, antiforgeryCookie) =
-            await AntiforgeryHelpers.ScrapeAsync(client, "/admin/share");
+            await AntiforgeryHelpers.ScrapeAsync(client, "/admin/share", impersonation);
 
         using var post = new HttpRequestMessage(HttpMethod.Post, "/admin/share/generate")
         {

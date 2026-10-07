@@ -3,7 +3,7 @@ using DfE.CheckPerformanceData.E2ETests.Fixtures;
 
 namespace DfE.CheckPerformanceData.E2ETests.Wiki;
 
-[Collection("E2E")]
+[Collection("Http")]
 public sealed class HealthcheckTests(PlaywrightFixture fixture)
 {
     private readonly PlaywrightFixture _fixture = fixture;

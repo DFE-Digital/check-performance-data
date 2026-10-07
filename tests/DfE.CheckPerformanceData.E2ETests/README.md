@@ -134,13 +134,17 @@ No env var, no `--update-snapshots` flag plumbing — delete the file and run tw
 
 ## Debugging a red CI run
 
-On failure the `e2e:` job uploads the `e2e-snapshots` artefact (the entire `Snapshots/` tree, 14-day retention). For visual-regression failures this lets you inspect the divergent PNG directly. For non-visual failures the primary debugging signal is the test output in the failed run's logs — Playwright tracing is not currently wired into the harness.
+On failure the `e2e:` job uploads two artifacts (both 14-day retention):
+- `e2e-snapshots` — the entire `Snapshots/` tree; for visual-regression failures this lets you inspect the divergent PNG directly.
+- `e2e-traces` — a Playwright trace for each failing test, captured by the harness only when the test failed (a green run writes nothing).
 
-To enable trace replay (`playwright show-trace`) for a specific failing test, hook `Context.Tracing.StartAsync` / `StopAsync` around the test body locally, reproduce against `docker compose up`, and inspect the resulting `.zip` with:
+Replay a trace locally with:
 
 ```bash
 pwsh tests/DfE.CheckPerformanceData.E2ETests/bin/Release/net10.0/playwright.ps1 show-trace <path-to-trace.zip>
 ```
+
+Traces are named `{ClassName}.{ordinal}.zip`; open one to see which test it belongs to (its title is the class name). To capture traces in a local run, set `CPD_E2E_TRACES_DIR` to a directory before running the suite — only failing tests write files there.
 
 ## Project boundaries
 
@@ -156,11 +160,11 @@ tests/DfE.CheckPerformanceData.E2ETests/
 ├── .gitignore                      # /Snapshots/diffs/ — never commit failure artefacts
 ├── Dockerfile                      # thin overlay: playwright/dotnet:v1.59.0-noble + .NET 10 SDK
 ├── Fixtures/
-│   ├── PlaywrightFixture.cs         # IAsyncLifetime; readiness probe; antiforgery scrape; seed HttpClient
-│   └── PlaywrightCollection.cs      # [CollectionDefinition("E2E")] + ICollectionFixture<>
+│   ├── PlaywrightFixture.cs         # IAsyncLifetime; readiness probe; antiforgery scrape; owns the SeedClient TestHttpClient
+│   └── PlaywrightCollection.cs      # [CollectionDefinition("E2E")] + [CollectionDefinition("Http")], both over PlaywrightFixture
 ├── Helpers/
 │   ├── SeedHelpers.cs               # SeedWikiPageAsync / SeedContentBlockAsync / SoftDeleteWikiPageAsync
-│   ├── AntiforgeryHelpers.cs        # static ScrapeAsync(HttpClient, formPath) -> (Token, Cookie)
+│   ├── AntiforgeryHelpers.cs        # ScrapeAsync(TestHttpClient, formPath) / (HttpClient, formPath, impersonation) -> (Token, Cookie)
 │   ├── PageStabilisationExtensions.cs   # IPage.StabiliseAsync() — animations off + fonts.ready + NetworkIdle
 │   ├── PageSnapshotExtensions.cs    # IPage.MatchSnapshotAsync(name, maxDiffPixelRatio) + BuildDiffArtefactsAsync
 │   └── PageSnapshotExtensionsTests.cs   # pure unit tests for the diff-PNG-emission helper

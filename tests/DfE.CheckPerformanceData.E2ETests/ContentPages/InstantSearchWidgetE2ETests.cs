@@ -384,7 +384,7 @@ public sealed class InstantSearchWidgetE2ETests(PlaywrightFixture fixture) : See
         {
             JavaScriptEnabled = false,
         });
-        var impersonation = TestHttpClients.ImpersonationCookieHeader;
+        var impersonation = Fixture.SeedClient.ImpersonationCookieHeader;
         if (!string.IsNullOrEmpty(impersonation))
         {
             var equalsIndex = impersonation.IndexOf('=');

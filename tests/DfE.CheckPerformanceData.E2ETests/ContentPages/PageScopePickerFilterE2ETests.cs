@@ -32,7 +32,7 @@ public sealed class PageScopePickerFilterE2ETests(PlaywrightFixture fixture) : S
         return id;
     }
 
-    private async Task<Seeded> SeedAsync()
+    private async Task<Seeded> SeedPickerPagesAsync()
     {
         var n = Guid.NewGuid().ToString("N");
         var wordA = "zebrafa" + n[..8];
@@ -80,7 +80,7 @@ public sealed class PageScopePickerFilterE2ETests(PlaywrightFixture fixture) : S
     [Fact]
     public async Task TypingInTheFilter_HidesPagesThatDoNotMatch_ByTitleOrPath()
     {
-        var s = await SeedAsync();
+        var s = await SeedPickerPagesAsync();
         await OpenEditorAsync(s);
 
         await Filter.FillAsync(s.WordB);
@@ -99,7 +99,7 @@ public sealed class PageScopePickerFilterE2ETests(PlaywrightFixture fixture) : S
     [Fact]
     public async Task TypingAPathWithItsLeadingSlash_MatchesThePage()
     {
-        var s = await SeedAsync();
+        var s = await SeedPickerPagesAsync();
         await OpenEditorAsync(s);
 
         // Type the path exactly as the label shows it, leading slash included.
@@ -117,7 +117,7 @@ public sealed class PageScopePickerFilterE2ETests(PlaywrightFixture fixture) : S
     [Fact]
     public async Task Filter_AnnouncesHowManyPagesMatch_AndHowManyAreSelected()
     {
-        var s = await SeedAsync();
+        var s = await SeedPickerPagesAsync();
         await OpenEditorAsync(s);
 
         var total = await Picker.Locator(".cpb-scope-picker__item").CountAsync();
@@ -133,7 +133,7 @@ public sealed class PageScopePickerFilterE2ETests(PlaywrightFixture fixture) : S
     [Fact]
     public async Task ATickedPageHiddenByTheFilter_IsStillSavedWithTheWidget()
     {
-        var s = await SeedAsync();
+        var s = await SeedPickerPagesAsync();
         await OpenEditorAsync(s);
 
         await Filter.FillAsync(s.WordB);
@@ -152,7 +152,7 @@ public sealed class PageScopePickerFilterE2ETests(PlaywrightFixture fixture) : S
     [Fact]
     public async Task ShowOnlySelected_ListsJustTheTickedPages()
     {
-        var s = await SeedAsync();
+        var s = await SeedPickerPagesAsync();
         await OpenEditorAsync(s);
         await BoxFor(s.WordC).CheckAsync();
 
@@ -167,7 +167,7 @@ public sealed class PageScopePickerFilterE2ETests(PlaywrightFixture fixture) : S
     [Fact]
     public async Task PressingEnterInTheFilter_DoesNotSubmitTheWidgetForm()
     {
-        var s = await SeedAsync();
+        var s = await SeedPickerPagesAsync();
         await OpenEditorAsync(s);
 
         var navigated = false;
@@ -184,7 +184,7 @@ public sealed class PageScopePickerFilterE2ETests(PlaywrightFixture fixture) : S
     [Fact]
     public async Task NoMatches_ShowsTheEmptyMessage()
     {
-        var s = await SeedAsync();
+        var s = await SeedPickerPagesAsync();
         await OpenEditorAsync(s);
         var empty = Picker.Locator("[data-cpb-scope-empty]");
         Assert.False(await empty.IsVisibleAsync());

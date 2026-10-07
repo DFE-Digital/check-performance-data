@@ -28,10 +28,56 @@ internal static class TestHttpClients
     // Drop-in replacement for NoRedirect.SendAsync that auto-attaches the
     // impersonation cookie (if set). Use this from any seed/CRUD call that targets
     // an editor-gated endpoint.
-    public static Task<HttpResponseMessage> SendAsync(HttpRequestMessage request)
+    //
+    // A deployed environment sits behind an ingress that may close a kept-alive connection
+    // just as the next request goes out on it. The handler resends a GET by itself, but not a
+    // request whose body it has already written, so a seed POST surfaces as "The response
+    // ended prematurely". That error means no response bytes arrived at all, so the request is
+    // sent again on a fresh connection, up to MaxSendAttempts times. Should the first send
+    // have reached the app after all, the resend fails loudly on the caller's status check
+    // (a duplicate segment, say) rather than passing quietly.
+    public static async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request)
     {
         AttachImpersonationCookie(request);
-        return NoRedirect.SendAsync(request);
+        // A sent HttpRequestMessage cannot be sent twice, so keep what a copy needs.
+        var body = request.Content is null ? null : await request.Content.ReadAsByteArrayAsync();
+
+        for (var attempt = 1; ; attempt++)
+        {
+            var toSend = attempt == 1 ? request : Copy(request, body);
+            try
+            {
+                return await NoRedirect.SendAsync(toSend);
+            }
+            catch (HttpRequestException ex) when (attempt < MaxSendAttempts && ConnectionClosedUnanswered(ex))
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(200 * attempt));
+            }
+        }
+    }
+
+    public const int MaxSendAttempts = 3;
+
+    private static bool ConnectionClosedUnanswered(HttpRequestException ex) =>
+        ex.HttpRequestError == HttpRequestError.ResponseEnded
+        || ex.InnerException is HttpIOException { HttpRequestError: HttpRequestError.ResponseEnded };
+
+    private static HttpRequestMessage Copy(HttpRequestMessage original, byte[]? body)
+    {
+        var copy = new HttpRequestMessage(original.Method, original.RequestUri) { Version = original.Version };
+        foreach (var header in original.Headers)
+        {
+            copy.Headers.TryAddWithoutValidation(header.Key, header.Value);
+        }
+        if (body is not null && original.Content is not null)
+        {
+            copy.Content = new ByteArrayContent(body);
+            foreach (var header in original.Content.Headers)
+            {
+                copy.Content.Headers.TryAddWithoutValidation(header.Key, header.Value);
+            }
+        }
+        return copy;
     }
 
     public static void AttachImpersonationCookie(HttpRequestMessage request)

@@ -9,6 +9,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Journey;
 //
 // The seeded Post16 window (DevDataSeeder.Post16CheckingWindowId) and the seeded KS4June window
 // (DevDataSeeder.KeyStage4JuneCheckingWindowId) — the same ids AddPupilJourneyTests uses.
+[Trait("Category", "Smoke")]
 [Collection("E2E")]
 public sealed class WhatToChangePost16OptionsTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {

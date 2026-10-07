@@ -11,6 +11,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Journey;
 // then QAN grouped by AO) genuinely work without further help, that the details page's syllabus and
 // grade dropdowns post the value they show, and that the whole journey holds together end to end
 // with no late-results interstitial in the way.
+[Trait("Category", "Smoke")]
 [Collection("E2E")]
 public sealed class MissingQualificationEnquiryTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {

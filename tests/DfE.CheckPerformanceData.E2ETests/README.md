@@ -59,14 +59,28 @@ The thrown `XunitException` message ends with the absolute path to the `Snapshot
 
 | Trait | Filter | Use |
 |-------|--------|-----|
+| `Smoke` | `--filter "Category=Smoke"` | Fast happy-path subset (core journeys, admin/, search, public pages). The PR E2E CI gate runs this by default; apply the `full-regression` PR label to widen it. |
+| `FullRegression` | `--filter "Category=FullRegression"` | Everything not in the smoke subset (and not visual regression). The full suite = `Category=FullRegression` + `Category=Smoke`; the `full-regression` label runs `Category!=VisualRegression`, which covers both. |
 | `VisualRegression` | `--filter "Category=VisualRegression"` | Snapshot-diff tests only — Linux-only, and off unless `CPD_E2E_VISUAL_REGRESSION` is set. |
 | `Slow` | `--filter "Category!=Slow"` | Tests that wait on real timeouts or polling; exclude them for a quicker sweep. |
 
+Test classes carry `Smoke` or `FullRegression` (mutually exclusive) so a PR's E2E
+gate can be either a ~3-minute happy-path smoke run or the full ~15-minute
+regression suite without changing what gets discovered. The `build-and-deploy.yml`
+E2E gate runs `Category=Smoke` by default and `Category!=VisualRegression` once the
+`full-regression` PR label is applied; removing the label returns it to smoke.
+
 Tests are otherwise grouped by folder rather than by trait — `Wiki/`, `Web/`,
-`Admin/`, `Visual/` — so scope a run with `--filter "FullyQualifiedName~Admin"`
+`Admin/`, `Visual/` — so scope a local run with `--filter "FullyQualifiedName~Admin"`
 rather than reaching for a category.
 
-Quick functional sweep (excludes visual regression):
+Quick smoke sweep (what the PR gate runs):
+
+```bash
+dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --configuration Release --filter "Category=Smoke"
+```
+
+Full non-visual regression (what the `full-regression` label runs):
 
 ```bash
 dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --configuration Release --filter "Category!=VisualRegression"
@@ -77,7 +91,7 @@ dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --configuration Release --f
 After a prior `dotnet build --configuration Release` of the solution, skip the rebuild on subsequent runs with `--no-build` — saves ~20s per iteration:
 
 ```bash
-dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --filter "Category!=VisualRegression" --configuration Release --no-build
+dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --filter "Category=Smoke" --configuration Release --no-build
 ```
 
 Just one test class — `~` is a contains-match against `FullyQualifiedName`:

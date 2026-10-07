@@ -16,6 +16,7 @@ namespace DfE.CheckPerformanceData.E2ETests.ContentPages;
 // Reports are captured at the network boundary rather than read back from the dashboard so
 // the trigger semantics are asserted deterministically, without waiting on the background
 // writer's drain. One test does follow a report all the way to the admin dashboard.
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class InstantSearchReportingE2ETests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {

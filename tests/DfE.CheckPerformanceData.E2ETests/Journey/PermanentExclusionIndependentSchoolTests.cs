@@ -15,6 +15,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Journey;
 // prove it end to end, which needs a browser session that IS an independent school: the shared
 // fixture impersonates every test as a type "1" school, so this class re-impersonates as type "11"
 // on its own Playwright context.
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class PermanentExclusionIndependentSchoolTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {

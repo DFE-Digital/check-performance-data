@@ -9,6 +9,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Admin;
 // skeleton with the five labelled stage nodes and an accessible textual parallel (counts per
 // stage + recent transitions) so the information is available without motion. The export CTA and
 // the board/export scripts are wired into the page. All assertions are DOM-level, not pixel.
+[Trait("Category", "FullRegression")]
 [Collection("Http")]
 public sealed class ObservabilityBoardTests(PlaywrightFixture fixture)
 {
@@ -119,6 +120,7 @@ public sealed class ObservabilityBoardTests(PlaywrightFixture fixture)
 // The board's behavioural contract asserted in a real browser: once the live engine has bound to
 // the rendered skeleton, the recent-transitions live region is present and animated tokens are
 // keyboard-focusable. Assertions are DOM/JS-level, not pixel.
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class ObservabilityBoardBrowserTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {

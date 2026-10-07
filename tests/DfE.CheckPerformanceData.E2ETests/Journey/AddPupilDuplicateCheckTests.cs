@@ -16,6 +16,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Journey;
 //   * non-included "Bob Johnson" born 02/02/2010 (index 201), UPN A86040700202B
 //   * a deliberate same-name/DOB pair "Casey Carter" born 15/03/2010 — one included, one not
 //     (SeedPupilData.GenerateDuplicateMatchPair) — which drives the Multiple scenario below
+[Trait("Category", "Smoke")]
 [Collection("E2E")]
 public sealed class AddPupilDuplicateCheckTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {

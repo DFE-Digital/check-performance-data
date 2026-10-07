@@ -19,6 +19,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Journey;
 //   * included "Alice Smith" (index 0)       -> the "already included" case (US2).
 //   * non-included "Bob Johnson" (index 201) -> the "proceeds as normal" case (US1/FR-004a).
 //   * "No Such"                              -> matches nothing on either list -> the "not found" case.
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class IncludeNoResultsPathTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {

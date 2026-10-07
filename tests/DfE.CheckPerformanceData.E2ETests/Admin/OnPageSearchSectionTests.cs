@@ -9,6 +9,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Admin;
 //
 // Pairs with OnPageSearchQueryTests (the SQL behind it) and SearchSurfaceFilterTests (the
 // surface filter). This one proves the route, the gate and the two view states hang together.
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class OnPageSearchSectionTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {

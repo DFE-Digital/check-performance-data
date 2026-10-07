@@ -9,6 +9,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Admin;
 // Success with its window, output types and person; the three filters narrow cumulatively; the
 // CSV export carries the same filters; a school user gets 404. Audit rows can never be deleted, so
 // every assertion is keyed on this walk's own run id.
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class AuditLogTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {

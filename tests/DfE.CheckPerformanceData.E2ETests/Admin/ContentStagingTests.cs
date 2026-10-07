@@ -8,6 +8,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Admin;
 // Content staging + content-blocks admin are gated by the content-editor role, which the
 // fixture impersonates for the whole collection. HTTP-level checks keep these robust against
 // CMS content state (the export endpoint works even on an empty environment).
+[Trait("Category", "FullRegression")]
 [Collection("Http")]
 public sealed class ContentStagingTests(PlaywrightFixture fixture)
 {

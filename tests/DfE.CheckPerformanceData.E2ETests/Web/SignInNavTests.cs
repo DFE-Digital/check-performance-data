@@ -15,6 +15,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Web;
 // dropdown JS doesn't toggle, the /dev/impersonate/clear endpoint doesn't
 // actually delete the cookie, the claims transformer doesn't apply the editor
 // role, or the server-side rendering misreads the cookie value.
+[Trait("Category", "Smoke")]
 [Collection("E2E")]
 public sealed class SignInNavTests(PlaywrightFixture fixture) : PageTest
 {

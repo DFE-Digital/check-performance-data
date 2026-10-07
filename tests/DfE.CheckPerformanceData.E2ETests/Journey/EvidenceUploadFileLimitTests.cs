@@ -13,6 +13,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Journey;
 //   AC2: the user is told why the file was rejected.
 // Walked on the KS4 Remove journey's evidence page; every journey's upload is the same partial
 // and the same controller method.
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class EvidenceUploadFileLimitTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {

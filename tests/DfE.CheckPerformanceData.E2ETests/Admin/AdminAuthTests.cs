@@ -4,6 +4,7 @@ using DfE.CheckPerformanceData.E2ETests.Helpers;
 
 namespace DfE.CheckPerformanceData.E2ETests.Admin;
 
+[Trait("Category", "Smoke")]
 [Collection("Http")]
 public sealed class AdminAuthTests(PlaywrightFixture fixture)
 {

@@ -9,6 +9,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Journey;
 // AB#304117 — the KS4 Remove "Child missing education" page offers Ground H, Ground I and Other.
 // Other is auto-rejected by the rules engine (proven at unit and integration tier against the
 // seed rules); in the browser the page must simply offer it and carry the user on to evidence.
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class ChildMissingEducationOptionsTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {

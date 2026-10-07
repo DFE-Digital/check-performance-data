@@ -22,6 +22,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Pages;
 //   * the hidden label field still carries the answer for the next POST.
 // Then continues past the page and uses the in-page Back link to pin the same contract
 // on a plain GET re-render (bug scenarios 2b/2d share that path).
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class JourneyAutocompleteRestoreTests(PlaywrightFixture fixture) : PageTest
 {

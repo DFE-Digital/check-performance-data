@@ -11,6 +11,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Journey;
 //
 // The landing page is deliberately not exercised here: dev-impersonated users have no organisation
 // claim and are challenged by it. LandingPageControllerTests + LandingPageViewRenderTests pin it.
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class ClosedWindowEnquiryTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {

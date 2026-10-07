@@ -8,6 +8,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Wiki;
 // scoped pages are named only in an HTML comment straight after the heading, for anyone reading
 // the page source. The scope arrives on the query string, so a hostile value must not be able to
 // close that comment early or inject markup.
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class ScopedSearchHeadingTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {

@@ -3,6 +3,7 @@ using DfE.CheckPerformanceData.E2ETests.Fixtures;
 
 namespace DfE.CheckPerformanceData.E2ETests.Wiki;
 
+[Trait("Category", "Smoke")]
 [Collection("Http")]
 public sealed class HealthcheckTests(PlaywrightFixture fixture)
 {
@@ -13,7 +14,7 @@ public sealed class HealthcheckTests(PlaywrightFixture fixture)
     [Fact]
     public async Task AnonymousReceives200_NoAuthChallenge()
     {
-        var response = await _fixture.SeedClient.GetAsync("/healthcheck");
+        var response = await _fixture.AnonymousClient.GetAsync("/healthcheck");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.False(response.Headers.Contains("WWW-Authenticate"),

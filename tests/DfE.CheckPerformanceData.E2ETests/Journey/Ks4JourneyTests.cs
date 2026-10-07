@@ -16,6 +16,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Journey;
 //
 // The date-validation behaviour is what these tests pin; each scenario drives a removal journey
 // to its date page, submits, and asserts either the error summary or advancement.
+[Trait("Category", "Smoke")]
 [Collection("E2E")]
 public sealed class Ks4JourneyTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {

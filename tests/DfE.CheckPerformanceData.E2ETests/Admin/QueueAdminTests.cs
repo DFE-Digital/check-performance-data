@@ -4,6 +4,7 @@ using DfE.CheckPerformanceData.E2ETests.Helpers;
 
 namespace DfE.CheckPerformanceData.E2ETests.Admin;
 
+[Trait("Category", "FullRegression")]
 [Collection("Http")]
 public sealed class QueueAdminTests(PlaywrightFixture fixture)
 {

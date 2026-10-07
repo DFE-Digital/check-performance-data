@@ -12,6 +12,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Admin;
 // spot pins" (rail flex-basis = 280px; group separator border = rgb(177, 180,
 // 182); disabled rail row tabindex absent). The UI-SPEC is the source of truth
 // for those three values.
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class AdminLandingGroupedTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {

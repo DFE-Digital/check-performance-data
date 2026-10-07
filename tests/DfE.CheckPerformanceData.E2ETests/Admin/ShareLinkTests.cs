@@ -9,6 +9,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Admin;
 // aggregate-only view (banner, charts + tables, no admin actions, no pupil data); a missing or
 // invalid token returns 404 — never a redirect into the DfE OIDC challenge. The admin generates
 // tokens from the role-gated /admin/share surface. All assertions are DOM-level.
+[Trait("Category", "FullRegression")]
 [Collection("Http")]
 public sealed class ShareLinkTests(PlaywrightFixture fixture)
 {

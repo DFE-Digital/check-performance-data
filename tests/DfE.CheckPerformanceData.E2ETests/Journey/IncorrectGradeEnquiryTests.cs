@@ -32,6 +32,7 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
     // ── The cohort-wide happy path, end to end ───────────────────────────────
 
     [RetryFact]
+    [Trait("Category", "Smoke")]
     public async Task CohortWide_HappyPath_SubmitsAndShowsAReference()
     {
         await StartEnquiryAsync();
@@ -67,6 +68,7 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
     // ── The single-student branch ────────────────────────────────────────────
 
     [RetryFact]
+    [Trait("Category", "Smoke")]
     public async Task SingleStudent_Branch_AsksForOneStudentAndSubmits()
     {
         await StartEnquiryAsync();
@@ -410,6 +412,7 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
     }
 
     [RetryFact]
+    [Trait("Category", "Smoke")]
     public async Task AnAnonymousRequestForTheIssuePageIsSentToSignIn()
     {
         // Fixture.AnonymousClient has UseCookies=false and never carries the impersonation

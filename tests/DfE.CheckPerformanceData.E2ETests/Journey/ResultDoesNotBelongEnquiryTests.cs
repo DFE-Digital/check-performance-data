@@ -12,6 +12,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Journey;
 // no cohort question and no late-results interstitial in the way, that the result page's inset text
 // and the additional-information page's 1,000-character limit render, and that the summary omits the
 // revised-grade row entirely rather than showing it empty.
+[Trait("Category", "Smoke")]
 [Collection("E2E")]
 public sealed class ResultDoesNotBelongEnquiryTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {

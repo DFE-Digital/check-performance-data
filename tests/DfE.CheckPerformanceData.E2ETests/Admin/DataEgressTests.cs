@@ -10,6 +10,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Admin;
 // AB#294553 acceptance criteria, walked over HTTP (so they run on every platform) with one
 // browser fact for the streamed progress. The seeded KS4 June window is the dev seed's; every run
 // is cleaned up first because a transferred run blocks the pair forever by design.
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class DataEgressTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {

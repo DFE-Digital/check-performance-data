@@ -12,6 +12,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Journey;
 //     (design adds "permanently"; there is deliberately no "the" before the pupil name);
 //   * all failures (blank or malformed) must surface the single "Enter the 7 digit DfE number of
 //     the school which permanently excluded the pupil" message.
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class PermanentExclusionCopyTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {

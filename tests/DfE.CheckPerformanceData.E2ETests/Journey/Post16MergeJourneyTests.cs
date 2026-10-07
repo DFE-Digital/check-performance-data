@@ -15,6 +15,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Journey;
 // The seeded Post16 window (DevDataSeeder.Post16CheckingWindowId) carries Kingsmead School's
 // Post16 pupils: Alice Smith (CYPMD ID 500001, PINCL 501, included) and Bob Smith (CYPMD ID
 // 500002, PINCL 502, included).
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class Post16MergeJourneyTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {

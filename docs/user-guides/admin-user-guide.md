@@ -107,7 +107,7 @@ The **Messages** badge in the header counts 2 things added together: search feed
 
 - You **select** links and buttons. The guide writes their names in bold, exactly as they appear on screen. Screen names and page titles are in italics.
 - A **Warning** box marks an action that cannot be undone.
-- Times are in UTC unless the screen says otherwise. UTC is the same as Greenwich Mean Time, and is one hour behind British Summer Time.
+- Checking window and exercise dates and times are UK time. Other times are in UTC unless the screen says otherwise. UTC is the same as Greenwich Mean Time, and is one hour behind British Summer Time.
 
 ## 3. Dashboard
 
@@ -777,7 +777,7 @@ If the name you type does not match, the exercise stays open. The page shows *Th
 
 After it closes, the summary page shows a *Success* banner, for example *Pupil data checking was closed early on 03/09/2026, 10:39 by Sam Taylor. 1 request sent for processing and 10 drafts cancelled.* The exercise's **End Date** becomes the time you closed it, its **Status** becomes *Closed*, and the close button is no longer shown. The close is recorded in the audit log.
 
-The banner and the end date use the service's own clock. During British Summer Time that clock is one hour behind UK time, so a close at 13:33 shows as 12:33.
+The banner and the end date show UK time.
 
 If the service closes the exercise but cannot send its requests for processing, the summary page shows an *Important* banner instead. It says the exercise was closed and that its requests could not be sent. The exercise is closed. Select **Send Pupil data checking requests for processing** to try again.
 
@@ -797,7 +797,7 @@ A request a school submitted only moments before the close may still be waiting 
 
 You do not need to do this after closing an exercise early, because closing it early also sends its requests. If there is nothing left to send, the confirmation page says so.
 
-The service's own clock decides when two hours have passed. During British Summer Time that clock is one hour behind UK time, so the requests are sent three hours after the end time you see on a UK clock.
+The two hours are counted from the end time shown on the page, which is UK time.
 
 ### Requests for a window
 

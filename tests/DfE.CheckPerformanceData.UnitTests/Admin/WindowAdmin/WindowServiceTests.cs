@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
+using DfE.CheckPerformanceData.Application.UnitTests.WindowManagement;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using NSubstitute;
@@ -151,6 +152,25 @@ public class WindowServiceTests
         PageResult? result = await service.GetAllDataAsync(CancellationToken.None);
 
         Assert.False(result!.Windows.Single().IsOpen);
+    }
+
+    // #535: 16:30 UTC on a summer day is 17:30 in the UK — half an hour after a 17:00 end.
+    [Fact]
+    public async Task GetAllDataAsync_decides_open_on_the_UK_clock()
+    {
+        IWindowRepository repository = Substitute.For<IWindowRepository>();
+        repository.GetAllWindowsAsync(Arg.Any<CancellationToken>())
+            .Returns(new List<CheckingWindowDto>
+            {
+                Window(new DateTime(2026, 7, 1), new DateTime(2026, 7, 15, 17, 0, 0)),
+                Window(new DateTime(2026, 7, 1), new DateTime(2026, 7, 15, 17, 30, 0))
+            });
+
+        WindowService service = new(repository, new UkClockAt("2026-07-15T16:30:00Z"));
+
+        PageResult? result = await service.GetAllDataAsync(CancellationToken.None);
+
+        Assert.Equal(new[] { false, true }, result!.Windows.Select(w => w.IsOpen));
     }
 
     // #324: dataset slots are reconciled for every exercise, not just pupil data. Without this an

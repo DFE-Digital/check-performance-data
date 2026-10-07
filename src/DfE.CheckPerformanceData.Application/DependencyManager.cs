@@ -15,6 +15,7 @@ using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Application.Search;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace DfE.CheckPerformanceData.Application;
 
@@ -22,6 +23,13 @@ public static class DependencyManager
 {
     public static IServiceCollection AddApplicationDependencies(this IServiceCollection services)
     {
+        // The clock every exercise and window gate below reads (#535): UK time, whatever zone the
+        // container runs in. Replaced, not TryAdd-ed: ASP.NET's AddAuthentication() has already
+        // registered the system clock by the time the web host calls this, and a TryAdd after it
+        // does nothing.
+        services.RemoveAll<TimeProvider>();
+        services.AddSingleton<TimeProvider>(UkTimeProvider.Instance);
+
         services.AddScoped<IClaimsEnrichmentService, ClaimsEnrichmentService>();
         services.AddScoped<Dashboard.IOrganisationLoginRecorder, Dashboard.OrganisationLoginRecorder>();
         services.AddScoped<Dashboard.IDashboardService, Dashboard.DashboardService>();

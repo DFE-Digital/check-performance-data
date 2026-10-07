@@ -97,6 +97,24 @@ public sealed class PageScopePickerFilterE2ETests(PlaywrightFixture fixture) : S
     }
 
     [Fact]
+    public async Task TypingAPathWithItsLeadingSlash_MatchesThePage()
+    {
+        var s = await SeedAsync();
+        await OpenEditorAsync(s);
+
+        // Type the path exactly as the label shows it, leading slash included.
+        var shownPath = (await Picker.Locator(".cpb-scope-picker__item", new() { HasText = s.WordB })
+            .Locator(".cpb-scope-picker__path").InnerTextAsync()).Trim();
+        Assert.StartsWith("/", shownPath);
+        Assert.EndsWith(s.SegmentB, shownPath);
+
+        await Filter.FillAsync(shownPath);
+
+        Assert.Equal(1, await VisibleItems.CountAsync());
+        Assert.Contains(s.WordB, await VisibleItems.First.InnerTextAsync());
+    }
+
+    [Fact]
     public async Task Filter_AnnouncesHowManyPagesMatch_AndHowManyAreSelected()
     {
         var s = await SeedAsync();

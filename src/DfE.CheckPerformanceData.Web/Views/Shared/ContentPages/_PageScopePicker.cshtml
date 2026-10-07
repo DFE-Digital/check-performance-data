@@ -7,8 +7,8 @@
     // it is stale.
     var items = picker.ItemsFor(Model.PageIds, Model.Scope);
     var i = 0;
-    // Lowercased label + path (or note) the filter script matches against; Razor HTML-encodes it.
-    string Haystack(PageScopePickerItem item) => $"{item.Label} {item.Path ?? item.Note}".ToLowerInvariant();
+    // Lowercased label + path as displayed, with its leading slash (or the note) that the filter script matches against; Razor HTML-encodes it.
+    string Haystack(PageScopePickerItem item) => (item.Path is not null ? $"{item.Label} /{item.Path}" : $"{item.Label} {item.Note}").ToLowerInvariant();
 }
 <div class="govuk-form-group" data-cpb-scope-picker>
     <input type="hidden" name="scopePicker" value="true" />

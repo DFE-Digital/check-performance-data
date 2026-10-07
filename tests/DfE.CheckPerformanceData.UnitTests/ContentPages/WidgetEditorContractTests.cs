@@ -205,6 +205,12 @@ public sealed class WidgetEditorContractTests
     }
 
     [Fact]
+    public void PagePicker_FilterHaystack_CarriesThePathAsDisplayed()
+    {
+        Assert.Contains("/{item.Path}", PickerPartial());
+    }
+
+    [Fact]
     public void Editor_LoadsThePageScopeFilterScript()
     {
         var edit = File.ReadAllText(Path.Combine(

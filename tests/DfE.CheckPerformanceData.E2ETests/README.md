@@ -160,7 +160,7 @@ tests/DfE.CheckPerformanceData.E2ETests/
 ├── .gitignore                      # /Snapshots/diffs/ — never commit failure artefacts
 ├── Dockerfile                      # thin overlay: playwright/dotnet:v1.59.0-noble + .NET 10 SDK
 ├── Fixtures/
-│   ├── PlaywrightFixture.cs         # IAsyncLifetime; readiness probe; antiforgery scrape; owns the SeedClient TestHttpClient
+│   ├── PlaywrightFixture.cs         # IAsyncLifetime; readiness probe; antiforgery scrape; owns SeedClient (impersonation) + AnonymousClient (no-cookie) TestHttpClients
 │   └── PlaywrightCollection.cs      # [CollectionDefinition("E2E")] + [CollectionDefinition("Http")], both over PlaywrightFixture
 ├── Helpers/
 │   ├── SeedHelpers.cs               # SeedWikiPageAsync / SeedContentBlockAsync / SoftDeleteWikiPageAsync
@@ -199,7 +199,7 @@ tests/DfE.CheckPerformanceData.E2ETests/
 3. Add `[Collection("E2E")]`. Only add a `[Trait("Category", ...)]` if the test needs one of the traits in the table above.
 4. If the test creates wiki pages or content blocks, implement `IAsyncLifetime` with cleanup in `DisposeAsync`.
 5. Use the `e2e-{Guid:N}-` prefix on every slug/key.
-6. Use `_fixture.SeedClient` + `SeedHelpers.*` for HTTP seeding.
+6. Use `_fixture.SeedClient` + `SeedHelpers.*` for HTTP seeding. For requests that must be genuinely anonymous (no impersonation cookie — sign-in redirects, bad-share-token 404s), use `_fixture.AnonymousClient`, which never carries the impersonation cookie.
 7. Use Playwright `Expect(Locator).ToBeVisibleAsync()` / `ToHaveTextAsync(...)` for browser assertions; use `HttpClient` directly for HTTP assertions.
 
 ### Worked example: cookie banner accept/reject

@@ -13,7 +13,16 @@ public sealed class PlaywrightFixture : IAsyncLifetime
 
     public string BaseUrl { get; }
 
+    // The impersonation-carrying client: AuthHelpers writes the dev impersonation cookie
+    // onto SeedClient, and every send auto-attaches it. Seed/CRUD flows that must run as
+    // an authenticated editor go through this one.
     public TestHttpClient SeedClient { get; }
+
+    // A no-redirect client that never carries an impersonation cookie. Some assertions
+    // exercise the app from a genuinely anonymous principal (SignInNavTests, the
+    // anonymous-result-issue redirect, bad share tokens): those must send with no cookie
+    // at all, so they use this client instead of SeedClient.
+    public TestHttpClient AnonymousClient { get; }
 
     public PlaywrightFixture()
     {
@@ -22,6 +31,10 @@ public sealed class PlaywrightFixture : IAsyncLifetime
         BaseUrl = resolved.TrimEnd('/');
 
         SeedClient = new TestHttpClient
+        {
+            BaseAddress = new Uri(BaseUrl)
+        };
+        AnonymousClient = new TestHttpClient
         {
             BaseAddress = new Uri(BaseUrl)
         };
@@ -124,6 +137,7 @@ public sealed class PlaywrightFixture : IAsyncLifetime
     public Task DisposeAsync()
     {
         SeedClient.Dispose();
+        AnonymousClient.Dispose();
         return Task.CompletedTask;
     }
 

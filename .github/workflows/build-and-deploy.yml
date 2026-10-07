@@ -101,7 +101,9 @@ jobs:
       CPD_E2E_BASE_URL: ${{ needs.deploy-review-app.outputs.environment_url }}
       # Failure-gated Playwright traces (SeedingPageTest writes one zip per failing
       # test here; the Upload failure traces step below pulls them into an artifact).
-      CPD_E2E_TRACES_DIR: e2e-traces
+      # Absolute: the testhost resolves a relative value against its own CWD (the
+      # compiled output dir), which would orphan the zips away from the upload step.
+      CPD_E2E_TRACES_DIR: ${{ github.workspace }}/e2e-traces
 
     steps:
       - uses: actions/checkout@v4

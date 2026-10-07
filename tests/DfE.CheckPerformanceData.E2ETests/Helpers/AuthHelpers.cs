@@ -52,14 +52,15 @@ public static class AuthHelpers
 
     private static async Task<string?> CallEndpointAsync(PlaywrightFixture fixture, string path)
     {
-        // Use the no-redirect client so the 302 response (which carries the Set-Cookie
-        // header) doesn't get consumed when the auto-redirect follows to "/". SeedClient
-        // would otherwise return the final-hop response whose headers no longer carry
-        // the impersonation cookie.
+        // Use the no-redirect, no-impersonation client so the 302 response (which carries
+        // the Set-Cookie header) doesn't get consumed when the auto-redirect follows to "/".
+        // SeedClient would otherwise both follow the redirect (unless no-redirect) and attach
+        // whatever impersonation cookie is currently published, muddying which principal the
+        // endpoint sees. AnonymousClient is the impersonation-free half of the fixture.
         using var request = new HttpRequestMessage(
             HttpMethod.Get,
             new Uri(fixture.SeedClient.BaseAddress!, path));
-        using var response = await fixture.SeedClient.SendAsync(request);
+        using var response = await fixture.AnonymousClient.SendAsync(request);
 
         if (response.Headers.TryGetValues("Set-Cookie", out var setCookies))
         {

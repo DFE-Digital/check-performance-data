@@ -26,7 +26,7 @@ public sealed class ShareLinkTests(PlaywrightFixture fixture)
             HttpMethod.Get,
             $"{_fixture.BaseUrl}/share/this-token-does-not-exist");
 
-        var response = await _fixture.SeedClient.SendAsync(request);
+        var response = await _fixture.AnonymousClient.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         // Never a 302/401 that would bounce an uninvited viewer into the sign-in flow.
@@ -43,7 +43,7 @@ public sealed class ShareLinkTests(PlaywrightFixture fixture)
             HttpMethod.Get,
             $"{_fixture.BaseUrl}/wallboard/this-token-does-not-exist");
 
-        var response = await _fixture.SeedClient.SendAsync(request);
+        var response = await _fixture.AnonymousClient.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.NotEqual(HttpStatusCode.Redirect, response.StatusCode);
@@ -89,7 +89,7 @@ public sealed class ShareLinkTests(PlaywrightFixture fixture)
             using var request = new HttpRequestMessage(
                 HttpMethod.Get,
                 $"{_fixture.BaseUrl}/share/{token}");
-            var response = await _fixture.SeedClient.SendAsync(request);
+            var response = await _fixture.AnonymousClient.SendAsync(request);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var body = await response.Content.ReadAsStringAsync();
@@ -134,7 +134,7 @@ public sealed class ShareLinkTests(PlaywrightFixture fixture)
             using var request = new HttpRequestMessage(
                 HttpMethod.Get,
                 $"{_fixture.BaseUrl}/wallboard/{token}");
-            var response = await _fixture.SeedClient.SendAsync(request);
+            var response = await _fixture.AnonymousClient.SendAsync(request);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var body = await response.Content.ReadAsStringAsync();

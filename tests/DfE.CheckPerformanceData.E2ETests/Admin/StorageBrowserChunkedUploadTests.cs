@@ -8,10 +8,19 @@ namespace DfE.CheckPerformanceData.E2ETests.Admin;
 // #568: the storage browser's upload-in-parts enhancement. Linux-only [SkippableFact] like
 // the other Playwright-interaction tests. Runs against the compose stack, where the app
 // account's rules-config container exists.
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class StorageBrowserChunkedUploadTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
     private const string ContainerUrl = "/admin/storage/app/rules-config";
+
+    // ImpersonateAsAdminAsync publishes the admin cookie as the fixture-wide default, which every
+    // test in the collection shares; put the editor back so we do not retarget the others.
+    public override async Task DisposeAsync()
+    {
+        await AuthHelpers.ImpersonateAsEditorAsync(Fixture);
+        await base.DisposeAsync();
+    }
 
     private async Task SignInAsAdminInBrowserAsync()
     {

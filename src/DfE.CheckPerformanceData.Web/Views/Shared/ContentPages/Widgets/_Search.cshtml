@@ -41,6 +41,10 @@
     // search the button is always shown. A widget saved before the option existed has no value and
     // keeps its button.
     var showButton = !instant || (Model.GetBool("showButton") ?? true);
+    // Beside the box by default. In a narrow column that leaves the box too small to type in, so
+    // the author can ask for the button underneath. A widget saved before the option existed has
+    // no value and keeps the button beside the box.
+    var buttonBelow = Model.GetBool("buttonBelow") ?? false;
     // Two search widgets on one page must not share an input id: the label's `for` keys off it,
     // and so do the listbox and status ids accessible-autocomplete derives from it — duplicates
     // would point a screen reader at the wrong menu. Counted per request; the first widget keeps
@@ -67,7 +71,7 @@
 <!form class="cypmd-search" role="search" method="get" action="@action"@instantAttributes>
     <div class="govuk-form-group">
         <label class="govuk-label govuk-label--s" for="@inputId">@label</label>
-        <div class="cypmd-search__row">
+        <div class="cypmd-search__row @(buttonBelow ? "cypmd-search__row--stacked" : null)">
             <input class="govuk-input cypmd-search__input" id="@inputId" name="q" type="search"
                    placeholder="@placeholder" autocomplete="off" />
             @if (showButton)

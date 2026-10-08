@@ -143,3 +143,8 @@ else
         </tbody>
     </table>
 }
+
+@section Scripts {
+    @* #568: upload-in-parts enhancement; no-ops unless the browser can slice a file and fetch. *@
+    <script src="~/js/storage-chunked-upload.js" defer asp-append-version="true"></script>
+}

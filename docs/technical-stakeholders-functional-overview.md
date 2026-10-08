@@ -184,7 +184,7 @@ Access is gated per section by `[RequireAdminSection]` (`Web/Admin/RequireAdminS
 | Observability | `/admin/observability` | Health strip, throughput/decision-mix/dwell charts, transactions, replay/walkthrough, CSV export, SSE live stream (≤30 s heartbeat for AKS ingress) | `observability` |
 | Queues + DLQ | `/admin/queues` | Depth/latency, listings, DLQ redrive/purge | `rules-engine-queue` |
 | Uncommitted requests | `/admin/uncommitted-requests` | List `Submitted` requests + outcomes | `uncommitted-requests` |
-| Storage browser | `/admin/storage` | Browse/preview/download/upload/delete blobs in app + ingress accounts | `storage-admin` |
+| Storage browser | `/admin/storage` | Browse/preview/download/upload/delete blobs in app + ingress accounts; with JavaScript, files up to 2 GiB go in 8 MiB parts (block blobs), every environment | `storage-admin` |
 | System settings | `/admin/settings` | Key/value `Setting` editor (page sizes, DLQ options, health thresholds) | `system-settings` |
 | Role settings | `/admin/system/roles` | The grant grid itself; can register new role names | `role-settings` |
 | Logs viewer | `/admin/system-administration/logs` | Filter/page `AppLogs`, streamed CSV download, clear | `app-logs` |

@@ -962,6 +962,8 @@ To find a file:
 
 To upload files, use the *Upload files* section at the top of a container. Choose one or more files. To put them in a new sub-folder, type its name in **Folder (optional)**. Leave it blank to upload into the folder you are looking at. Then select **Upload**.
 
+With JavaScript on, each file can be up to 2GB. The service sends it in parts and shows progress under the form; you can select **Cancel upload** to stop. When the upload finishes, the page opens the folder the files went into. Without JavaScript, the files you choose must add up to less than 50MB, because the platform refuses larger requests before they reach the service. If an upload is refused, the page says why and what to do.
+
 Storage can hold pupil data. Only open, download or preview files that you need to. Look after any file you download.
 
 > **Warning** Select **Delete** on a file to delete it from storage. The only check is a message from your browser that asks *Delete {file name}?* Once you confirm, the file is gone and cannot be recovered. Do not delete the files a window or an egress run depends on.

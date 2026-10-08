@@ -49,6 +49,29 @@ public sealed class StorageBrowserChunkedUploadTests(PlaywrightFixture fixture) 
         await Expect(Page.Locator("tr", new() { HasText = fileName })).ToHaveCountAsync(0);
     }
 
+    // Runs in a finally block: removes <folder>/<fileName> through the app's own delete form if it
+    // exists, and never throws, so it cannot mask the assertion failure that got us here.
+    private static async Task CleanUpAsync(IBrowserContext context, string baseUrl, string folder)
+    {
+        try
+        {
+            var page = await context.NewPageAsync();
+            page.Dialog += (_, dialog) => dialog.AcceptAsync();
+            await page.GotoAsync($"{baseUrl}{ContainerUrl}?prefix={folder}%2F");
+            for (var rows = page.Locator("tbody tr"); await rows.CountAsync() > 0;)
+            {
+                await rows.First.GetByRole(AriaRole.Button, new() { Name = "Delete" }).ClickAsync();
+                await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+                await page.GotoAsync($"{baseUrl}{ContainerUrl}?prefix={folder}%2F");
+            }
+            await page.CloseAsync();
+        }
+        catch (Exception)
+        {
+            // Best effort only.
+        }
+    }
+
     // 20 MB at 8 MiB parts is three parts: progress is announced, the folder reloads with the file.
     [SkippableFact]
     public async Task ALargeFile_IsUploadedInParts_AndAppearsInTheFolder()
@@ -68,14 +91,21 @@ public sealed class StorageBrowserChunkedUploadTests(PlaywrightFixture fixture) 
             await route.ContinueAsync();
         });
 
-        await ChooseAndUploadAsync(folder, fileName, 20 * 1024 * 1024);
+        try
+        {
+            await ChooseAndUploadAsync(folder, fileName, 20 * 1024 * 1024);
 
-        await Page.WaitForURLAsync($"**{ContainerUrl}?prefix={folder}%2F");
-        await Expect(Page.Locator("tr", new() { HasText = fileName })).ToContainTextAsync("20.0 MB");
-        Assert.Equal(3, parts.Count);
-        Assert.All(parts, q => Assert.Contains("fileName=big.csv", q));
+            await Page.WaitForURLAsync($"**{ContainerUrl}?prefix={folder}%2F");
+            await Expect(Page.Locator("tr", new() { HasText = fileName })).ToContainTextAsync("20.0 MB");
+            Assert.Equal(3, parts.Count);
+            Assert.All(parts, q => Assert.Contains("fileName=big.csv", q));
 
-        await DeleteAsync(fileName);
+            await DeleteAsync(fileName);
+        }
+        finally
+        {
+            await CleanUpAsync(Context, Fixture.BaseUrl, folder);
+        }
     }
 
     [SkippableFact]
@@ -97,16 +127,24 @@ public sealed class StorageBrowserChunkedUploadTests(PlaywrightFixture fixture) 
         // GetByText skips <noscript> content in a JavaScript-disabled context, so assert on the element.
         await Expect(page.Locator("noscript p")).ToContainTextAsync("To upload bigger files, turn on JavaScript in your browser.");
 
-        await page.Locator("#folder").FillAsync(folder);
-        await page.Locator("#files").SetInputFilesAsync(new FilePayload { Name = fileName, MimeType = "text/csv", Buffer = Bytes(1024) });
-        await page.GetByRole(AriaRole.Button, new() { Name = "Upload", Exact = true }).ClickAsync();
+        try
+        {
+            await page.Locator("#folder").FillAsync(folder);
+            await page.Locator("#files").SetInputFilesAsync(new FilePayload { Name = fileName, MimeType = "text/csv", Buffer = Bytes(1024) });
+            await page.GetByRole(AriaRole.Button, new() { Name = "Upload", Exact = true }).ClickAsync();
 
-        await page.WaitForURLAsync($"**{ContainerUrl}");
-        await page.GotoAsync($"{Fixture.BaseUrl}{ContainerUrl}?prefix={folder}%2F");
-        await Expect(page.Locator("tr", new() { HasText = fileName })).ToBeVisibleAsync();
+            await page.WaitForURLAsync($"**{ContainerUrl}");
+            await page.GotoAsync($"{Fixture.BaseUrl}{ContainerUrl}?prefix={folder}%2F");
+            await Expect(page.Locator("tr", new() { HasText = fileName })).ToBeVisibleAsync();
 
-        page.Dialog += (_, dialog) => dialog.AcceptAsync();
-        await page.Locator("tr", new() { HasText = fileName }).GetByRole(AriaRole.Button, new() { Name = "Delete" }).ClickAsync();
+            // No confirm dialog here: the onclick confirm needs JavaScript, which is off.
+            await page.Locator("tr", new() { HasText = fileName }).GetByRole(AriaRole.Button, new() { Name = "Delete" }).ClickAsync();
+            await Expect(page.Locator("tr", new() { HasText = fileName })).ToHaveCountAsync(0);
+        }
+        finally
+        {
+            await CleanUpAsync(context, Fixture.BaseUrl, folder);
+        }
     }
 
     // The ingress controller answers 413 itself in deployed environments; compose has no
@@ -142,9 +180,18 @@ public sealed class StorageBrowserChunkedUploadTests(PlaywrightFixture fixture) 
         var sent = 0;
         await Page.RouteAsync("**/upload/block*", route => { sent++; return route.ContinueAsync(); });
 
-        await ChooseAndUploadAsync($"e2e-{Guid.NewGuid():N}", "huge.csv", 4096);
+        var folder = $"e2e-{Guid.NewGuid():N}";
+        try
+        {
+            await ChooseAndUploadAsync(folder, "huge.csv", 4096);
 
-        await Expect(Page.Locator("#upload-error-summary")).ToContainTextAsync("The selected file must be smaller than");
-        Assert.Equal(0, sent);
+            await Expect(Page.Locator("#upload-error-summary")).ToContainTextAsync("The selected file must be smaller than");
+            await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+            Assert.Equal(0, sent);
+        }
+        finally
+        {
+            await CleanUpAsync(Context, Fixture.BaseUrl, folder);
+        }
     }
 }

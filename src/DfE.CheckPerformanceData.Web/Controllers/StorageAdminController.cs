@@ -19,13 +19,15 @@ public sealed class StorageAdminController(
     ILogger<StorageAdminController> logger) : Controller
 {
     // The keyring and anything else configured as secret. Every route consults this before it
-    // resolves a container, so a protected blob is never opened, written or removed — not opened
+    // resolves a container, so a protected blob is never opened, written or removed â€” not opened
     // and then withheld. Kept in one place because six separate guards drift apart.
     private readonly HashSet<string> _protectedContainers =
         new(browserOptions.Value.ProtectedContainers ?? [], StringComparer.OrdinalIgnoreCase);
 
     // 404 rather than 403, matching what a non-granted admin section returns: a refusal that
     // confirms the container exists is a smaller leak than the contents, but it is still a leak.
+    internal const BlobStates ListedStates = BlobStates.All & ~BlobStates.Uncommitted;
+
     private bool IsProtected(string containerName) => _protectedContainers.Contains(containerName);
 
     private static readonly IReadOnlyDictionary<string, string> DisplayNames = new Dictionary<string, string>
@@ -81,7 +83,10 @@ public sealed class StorageAdminController(
 
         var folders = new List<string>();
         var blobs = new List<StorageBlobItemViewModel>();
-        await foreach (var item in container.GetBlobsByHierarchyAsync(delimiter: "/", prefix: currentPath, states: BlobStates.All, traits: BlobTraits.None, cancellationToken: cancellationToken))
+        // Uncommitted blobs (blocks staged by a chunked upload that was cancelled, failed or is still
+        // running) have no content and cannot be read, previewed or deleted. Azure keeps them for up
+        // to 7 days, so leave them out rather than list a ghost 0 B row.
+        await foreach (var item in container.GetBlobsByHierarchyAsync(delimiter: "/", prefix: currentPath, states: ListedStates, traits: BlobTraits.None, cancellationToken: cancellationToken))
         {
             if (item.IsPrefix)
             {
@@ -241,7 +246,7 @@ public sealed class StorageAdminController(
         return RedirectToContainer(account, containerName, prefix);
     }
 
-    // ── #568 chunked upload ─────────────────────────────────────────────────────────────────
+    // â”€â”€ #568 chunked upload â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // The browser sends each file in parts. Every part is one PUT with a raw body, staged as an
     // uncommitted block; a final POST commits the block list. No server state: the block ids
     // are derived from the upload id and the part index, so a request can only ever touch the

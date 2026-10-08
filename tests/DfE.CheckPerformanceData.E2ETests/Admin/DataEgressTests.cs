@@ -10,12 +10,13 @@ namespace DfE.CheckPerformanceData.E2ETests.Admin;
 // AB#294553 acceptance criteria, walked over HTTP (so they run on every platform) with one
 // browser fact for the streamed progress. The seeded KS4 June window is the dev seed's; every run
 // is cleaned up first because a transferred run blocks the pair forever by design.
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class DataEgressTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
     private static readonly Guid WindowId = Guid.Parse("F34D285B-8660-4D12-9C30-787328DEAA0A");
 
-    private HttpClient Client => Fixture.SeedClient;   // the fixture's BaseAddress-bearing client used by SeedHelpers
+    private TestHttpClient Client => Fixture.SeedClient;   // the fixture's BaseAddress-bearing client used by SeedHelpers
 
     // IEnumerable<KeyValuePair>, not Dictionary: ASP.NET Core model-binds a List<T> from
     // genuinely repeated identical keys (OutputTypes=A&OutputTypes=B), not from a plain key
@@ -30,7 +31,7 @@ public sealed class DataEgressTests(PlaywrightFixture fixture) : SeedingPageTest
             Content = new FormUrlEncodedContent(fields.Append(new KeyValuePair<string, string>("__RequestVerificationToken", token)))
         };
         request.Headers.Add("Cookie", cookie);
-        var response = await TestHttpClients.SendAsync(request);
+        var response = await Fixture.SeedClient.SendAsync(request);
         Assert.Equal(expected, response.StatusCode);
         return response.Headers.Location?.ToString() ?? await response.Content.ReadAsStringAsync();
     }
@@ -38,7 +39,7 @@ public sealed class DataEgressTests(PlaywrightFixture fixture) : SeedingPageTest
     private async Task<string> GetAsync(string path, HttpStatusCode expected = HttpStatusCode.OK)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, path.StartsWith("http") ? path : $"{Fixture.BaseUrl}{path}");
-        var response = await TestHttpClients.SendAsync(request);
+        var response = await Fixture.SeedClient.SendAsync(request);
         Assert.Equal(expected, response.StatusCode);
         return await response.Content.ReadAsStringAsync();
     }
@@ -47,13 +48,13 @@ public sealed class DataEgressTests(PlaywrightFixture fixture) : SeedingPageTest
     {
         using var request = new HttpRequestMessage(HttpMethod.Post,
             $"{Fixture.BaseUrl}/dev/egress/seed?windowId={WindowId}&outputType={outputType}&decision={decision}&count={count}&laestab=860/4070&urn=142313&reason=pupil-died");
-        (await TestHttpClients.SendAsync(request)).EnsureSuccessStatusCode();
+        (await Fixture.SeedClient.SendAsync(request)).EnsureSuccessStatusCode();
     }
 
     private async Task CleanupAsync()
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, $"{Fixture.BaseUrl}/dev/egress/cleanup?windowId={WindowId}");
-        (await TestHttpClients.SendAsync(request)).EnsureSuccessStatusCode();
+        (await Fixture.SeedClient.SendAsync(request)).EnsureSuccessStatusCode();
     }
 
     // S5: the Task 12 duplicate-error-summary fix (moving the output-types error out of the
@@ -165,7 +166,7 @@ public sealed class DataEgressTests(PlaywrightFixture fixture) : SeedingPageTest
             await SeedAsync("RemoveLearners", "approved", 1);
             using (var bad = new HttpRequestMessage(HttpMethod.Post,
                        $"{Fixture.BaseUrl}/dev/egress/seed?windowId={WindowId}&outputType=RemoveLearners&decision=approved&count=1&laestab=860/4070&urn=142313&reason=other"))
-                (await TestHttpClients.SendAsync(bad)).EnsureSuccessStatusCode();
+                (await Fixture.SeedClient.SendAsync(bad)).EnsureSuccessStatusCode();
 
             var resultsUrl = await PostFormAsync("/admin/egress", new Dictionary<string, string> { ["WindowId"] = WindowId.ToString(), ["OutputTypes"] = "RemoveLearners" });
             var runId = Regex.Match(resultsUrl, "runs/([0-9a-f-]{36})").Groups[1].Value;
@@ -260,7 +261,7 @@ public sealed class DataEgressTests(PlaywrightFixture fixture) : SeedingPageTest
             Assert.Contains("Data pulled", index);
 
             using var resumeRequest = new HttpRequestMessage(HttpMethod.Get, $"{Fixture.BaseUrl}/admin/egress/runs/{runId}");
-            var resumeResponse = await TestHttpClients.SendAsync(resumeRequest);
+            var resumeResponse = await Fixture.SeedClient.SendAsync(resumeRequest);
             Assert.Equal(HttpStatusCode.Found, resumeResponse.StatusCode);
             Assert.EndsWith(resultsUrl, resumeResponse.Headers.Location?.ToString());
         }
@@ -372,7 +373,7 @@ public sealed class DataEgressTests(PlaywrightFixture fixture) : SeedingPageTest
 
             // The draft's Resume link reopens it where it was left.
             using var resumeRequest = new HttpRequestMessage(HttpMethod.Get, $"{Fixture.BaseUrl}/admin/egress/runs/{draftId}");
-            var resumeResponse = await TestHttpClients.SendAsync(resumeRequest);
+            var resumeResponse = await Fixture.SeedClient.SendAsync(resumeRequest);
             Assert.Equal(HttpStatusCode.Found, resumeResponse.StatusCode);
             Assert.EndsWith(draftUrl, resumeResponse.Headers.Location?.ToString());
         }

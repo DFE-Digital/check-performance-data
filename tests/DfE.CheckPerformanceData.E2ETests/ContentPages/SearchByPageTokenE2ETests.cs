@@ -15,6 +15,7 @@ namespace DfE.CheckPerformanceData.E2ETests.ContentPages;
 //     group-a/child    beneath a ticked page, so included
 //   group-b            ticked
 //   outside            not ticked, so never in a result
+[Trait("Category", "Smoke")]
 [Collection("E2E")]
 public sealed class SearchByPageTokenE2ETests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
@@ -101,7 +102,7 @@ public sealed class SearchByPageTokenE2ETests(PlaywrightFixture fixture) : Seedi
             }),
         };
         req.Headers.Add("Cookie", cookie);
-        var response = await TestHttpClients.SendAsync(req);
+        var response = await Fixture.SeedClient.SendAsync(req);
         Assert.True(response.StatusCode is HttpStatusCode.Found or HttpStatusCode.Redirect,
             $"Rename returned {(int)response.StatusCode}");
     }

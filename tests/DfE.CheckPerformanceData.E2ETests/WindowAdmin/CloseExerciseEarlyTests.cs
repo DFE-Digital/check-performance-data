@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.RegularExpressions;
 using DfE.CheckPerformanceData.E2ETests.Fixtures;
 using DfE.CheckPerformanceData.E2ETests.Helpers;
@@ -19,6 +20,7 @@ namespace DfE.CheckPerformanceData.E2ETests.WindowAdmin;
 /// exercise's submitted requests for processing and cancels its drafts, which on a seeded window
 /// would pull the data out from under every other class in the collection.
 /// </remarks>
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class CloseExerciseEarlyTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
@@ -84,6 +86,16 @@ public sealed class CloseExerciseEarlyTests(PlaywrightFixture fixture) : Seeding
             .ToContainTextAsync("Pupil data checking was closed early on");
         await Expect(StatusTag()).ToHaveTextAsync("Closed");
 
+        // #535: the banner's time is UK time whatever zone the container runs in. During British
+        // Summer Time a host reading a UTC clock prints a time an hour behind this.
+        string banner = await Page.Locator(".govuk-notification-banner--success").InnerTextAsync();
+        Match closedOn = Regex.Match(banner, @"closed early on (\d{2}/\d{2}/\d{4}, \d{2}:\d{2})");
+        Assert.True(closedOn.Success, banner);
+        DateTime shown = DateTime.ParseExact(
+            closedOn.Groups[1].Value, "dd/MM/yyyy, HH:mm", CultureInfo.InvariantCulture);
+        DateTime ukNow = UkNow();
+        Assert.InRange(shown, ukNow.AddMinutes(-5), ukNow.AddMinutes(1));
+
         // AC2: a closed exercise offers no Close — only the hand-over — and the URL is refused.
         await Expect(Button(CloseButton)).ToHaveCountAsync(0);
         await Expect(Button(SendButton)).ToBeVisibleAsync();
@@ -115,6 +127,9 @@ public sealed class CloseExerciseEarlyTests(PlaywrightFixture fixture) : Seeding
     private ILocator StatusTag() =>
         Page.Locator(".govuk-summary-list__row", new() { HasText = "Status" }).Locator(".govuk-tag");
 
+    private static DateTime UkNow() =>
+        TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("Europe/London")).DateTime;
+
     // A KS4 June window whose only exercise, pupil data checking, opened today and runs for a
     // fortnight — so it is open now. Returns the new window's id, read from the summary URL.
     private async Task<string> CreateOpenKs4WindowAsync(string title)
@@ -133,8 +148,8 @@ public sealed class CloseExerciseEarlyTests(PlaywrightFixture fixture) : Seeding
         await Expect(Page.Locator("input[name='Selected'][value='PupilData']")).ToBeCheckedAsync();
         await Page.ClickAsync("button[type='submit']");
 
-        // The wizard rejects a start date before today (UTC), so today is the earliest it takes.
-        DateTime start = DateTime.UtcNow.Date;
+        // The site rejects a start date before today in the UK (#535), so "today" is the UK date.
+        DateTime start = UkNow().Date;
         DateTime end = start.AddDays(14);
         await Expect(Page.Locator("h1")).ToContainTextAsync("Pupil data checking dates");
         await Page.FillAsync("input[name='StartDate.Day']", start.Day.ToString());

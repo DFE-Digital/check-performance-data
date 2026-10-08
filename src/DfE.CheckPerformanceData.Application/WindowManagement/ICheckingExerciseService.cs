@@ -57,7 +57,9 @@ public interface ICheckingExerciseService
 /// Time comes from the injected <see cref="TimeProvider"/> and is never accepted from a caller —
 /// keeping the clock inside is what stops one caller supplying its own and disagreeing with the
 /// rest. LandingPageService already reads the clock the same way (GetLocalNow), and the exercise
-/// dates are stored as local wall-clock values, so the two comparisons stay in step.
+/// dates are stored as UK wall-clock values, so the two comparisons stay in step. "Local" is UK
+/// time because the hosts register
+/// <see cref="DfE.CheckPerformanceData.Application.Common.UkTimeProvider"/> (#535).
 /// </remarks>
 public sealed class CheckingExerciseService(TimeProvider timeProvider) : ICheckingExerciseService
 {

@@ -2,7 +2,7 @@ using DfE.CheckPerformanceData.E2ETests.Fixtures;
 using DfE.CheckPerformanceData.E2ETests.Helpers;
 using Microsoft.Playwright;
 using Microsoft.Playwright.Xunit;
-using xRetry;
+using DfE.CheckPerformanceData.E2ETests.Retrying;
 
 namespace DfE.CheckPerformanceData.E2ETests.Pages;
 
@@ -22,6 +22,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Pages;
 //   * the hidden label field still carries the answer for the next POST.
 // Then continues past the page and uses the in-page Back link to pin the same contract
 // on a plain GET re-render (bug scenarios 2b/2d share that path).
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class JourneyAutocompleteRestoreTests(PlaywrightFixture fixture) : PageTest
 {
@@ -41,7 +42,7 @@ public sealed class JourneyAutocompleteRestoreTests(PlaywrightFixture fixture) :
     private const string CountryCodeField = "#q_country_originally_from-code-value";
     private const string DetailsPageId = "english-not-first-language-details";
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task CountrySelection_SurvivesValidationErrorReload_AndBackNavigation()
     {
         // No stale DEV-* conflict requests: a leftover conflict for Alice Smith would

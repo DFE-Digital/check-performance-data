@@ -8,10 +8,21 @@ public sealed class PlaywrightFixture : IAsyncLifetime
 {
     private const int DefaultReadyTimeoutSeconds = 90;
     private const int PollIntervalMilliseconds = 2000;
+    private const int SampleSeedAttempts = 3;
+    private const int SampleSeedBackoffMilliseconds = 2000;
 
     public string BaseUrl { get; }
 
-    public HttpClient SeedClient { get; }
+    // The impersonation-carrying client: AuthHelpers writes the dev impersonation cookie
+    // onto SeedClient, and every send auto-attaches it. Seed/CRUD flows that must run as
+    // an authenticated editor go through this one.
+    public TestHttpClient SeedClient { get; }
+
+    // A no-redirect client that never carries an impersonation cookie. Some assertions
+    // exercise the app from a genuinely anonymous principal (SignInNavTests, the
+    // anonymous-result-issue redirect, bad share tokens): those must send with no cookie
+    // at all, so they use this client instead of SeedClient.
+    public TestHttpClient AnonymousClient { get; }
 
     public PlaywrightFixture()
     {
@@ -19,7 +30,11 @@ public sealed class PlaywrightFixture : IAsyncLifetime
         var resolved = string.IsNullOrWhiteSpace(configured) ? "http://localhost:8080" : configured;
         BaseUrl = resolved.TrimEnd('/');
 
-        SeedClient = new HttpClient
+        SeedClient = new TestHttpClient
+        {
+            BaseAddress = new Uri(BaseUrl)
+        };
+        AnonymousClient = new TestHttpClient
         {
             BaseAddress = new Uri(BaseUrl)
         };
@@ -43,36 +58,86 @@ public sealed class PlaywrightFixture : IAsyncLifetime
         // half is what matters here — a fixture whose versions an editor deleted still exists,
         // so a skip-on-collision seed walks past it and the route stays 404.
         await EnsureSamplePagesSeededAsync();
+        await WarmUpRoutesAsync();
+    }
+
+    // The routes most tests land on share the coldest paths in the request pipeline
+    // (DI-graph construction, the first EF query, the feature-flag/sample-pages store
+    // fetch). Paying that cost during the first browser navigation eats into the
+    // test's navigation timeout for no reason — pay it here instead, with the
+    // impersonated editor (warm-up is best-effort: the readiness probe and the hard
+    // seed gate above are the real health signals).
+    private static readonly string[] WarmUpPaths = { "/", "/admin/pages" };
+
+    private async Task WarmUpRoutesAsync()
+    {
+        foreach (var path in WarmUpPaths)
+        {
+            try
+            {
+                using var response = await SeedClient.SendAsync(
+                    new HttpRequestMessage(HttpMethod.Get, $"{BaseUrl}{path}"));
+            }
+            catch (HttpRequestException)
+            {
+                // Ignore — a warm-up failure is not a fixture failure.
+            }
+        }
     }
 
     private async Task EnsureSamplePagesSeededAsync()
     {
-        var (token, cookie) = await Helpers.AntiforgeryHelpers.ScrapeAsync(SeedClient, "/dev/antiforgery-token");
-        using var request = new HttpRequestMessage(HttpMethod.Post, $"{BaseUrl}/admin/pages/sample-seed")
+        // The sample-seed POST happens at fixture start-up, potentially before the app is fully
+        // request-hardened. Bounded retry with a fresh antiforgery token per attempt so a
+        // transient 5xx does not silently leak a missing-sample-page failure into the first
+        // test that navigates to one. This is a hard gate: the seeded fixture pages are a
+        // collection-wide precondition, so a seed that ultimately fails is a fixture failure
+        // with the endpoint named in the message, not a later, worse-diagnosed test failure.
+        Exception? lastError = null;
+        for (var attempt = 1; attempt <= SampleSeedAttempts; attempt++)
         {
-            Content = new FormUrlEncodedContent(new[]
+            try
             {
-                new KeyValuePair<string, string>("__RequestVerificationToken", token),
-            }),
-        };
-        request.Headers.Add("Cookie", cookie);
-        // 302 to /admin/pages on success (SampleSeed redirects); anything else means the
-        // seed didn't run (unauthenticated, missing grant, endpoint moved). Best-effort:
-        // downstream tests that need the seed will surface a specific missing-row failure.
-        try
-        {
-            using var response = await Helpers.TestHttpClients.SendAsync(request);
+                var (token, cookie) = await Helpers.AntiforgeryHelpers.ScrapeAsync(SeedClient, "/dev/antiforgery-token");
+                using var request = new HttpRequestMessage(HttpMethod.Post, $"{BaseUrl}/admin/pages/sample-seed")
+                {
+                    Content = new FormUrlEncodedContent(new[]
+                    {
+                        new KeyValuePair<string, string>("__RequestVerificationToken", token),
+                    }),
+                };
+                request.Headers.Add("Cookie", cookie);
+
+                using var response = await SeedClient.SendAsync(request);
+                // SampleSeed always redirects (302) to /admin/pages on success; a 5xx, or an
+                // unauthenticated redirect away from that, means the seed did not run.
+                if ((int)response.StatusCode is >= 200 and < 400)
+                {
+                    return;
+                }
+
+                lastError = new InvalidOperationException(
+                    $"POST {BaseUrl}/admin/pages/sample-seed returned HTTP {(int)response.StatusCode} " +
+                    $"(attempt {attempt}/{SampleSeedAttempts}).");
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+            {
+                lastError = ex;
+            }
+
+            await Task.Delay(SampleSeedBackoffMilliseconds);
         }
-        catch (HttpRequestException)
-        {
-            // Transport failures at fixture start-up are already surfaced by
-            // WaitForDeploymentReadyAsync above.
-        }
+
+        throw new InvalidOperationException(
+            $"Sample-page seeding failed after {SampleSeedAttempts} attempts. " +
+            "Check POST /admin/pages/sample-seed is reachable (editor-gated) and the app has settled.",
+            lastError);
     }
 
     public Task DisposeAsync()
     {
         SeedClient.Dispose();
+        AnonymousClient.Dispose();
         return Task.CompletedTask;
     }
 

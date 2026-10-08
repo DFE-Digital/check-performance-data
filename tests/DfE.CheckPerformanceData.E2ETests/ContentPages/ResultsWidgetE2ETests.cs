@@ -17,6 +17,7 @@ namespace DfE.CheckPerformanceData.E2ETests.ContentPages;
 //   ResultsWidgetRenderContractTests (source-file tokens)
 //   SiteSearchMergedPagedTests (service math)
 //   WidgetEditorContractTests (editor form fields)
+[Trait("Category", "Smoke")]
 [Collection("E2E")]
 public sealed class ResultsWidgetE2ETests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {

@@ -1,11 +1,7 @@
 using DfE.CheckPerformanceData.E2ETests.Fixtures;
 using DfE.CheckPerformanceData.E2ETests.Helpers;
+using DfE.CheckPerformanceData.E2ETests.Retrying;
 using Microsoft.Playwright;
-// xRetry's RetryFact is only needed as the [RetryFact] attribute here; importing `using xRetry;`
-// would also drag in an Xunit.Skip that collides with SkippableFact's Xunit.Skip (used in the
-// Cancelling test to skip explicitly when the ChangeRequests table is unreachable), so alias just
-// the attribute.
-using RetryFact = xRetry.RetryFactAttribute;
 
 namespace DfE.CheckPerformanceData.E2ETests.Journey;
 
@@ -16,6 +12,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Journey;
 // no cohort question and no late-results interstitial in the way, that the result page's inset text
 // and the additional-information page's 1,000-character limit render, and that the summary omits the
 // revised-grade row entirely rather than showing it empty.
+[Trait("Category", "Smoke")]
 [Collection("E2E")]
 public sealed class ResultDoesNotBelongEnquiryTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
@@ -27,7 +24,7 @@ public sealed class ResultDoesNotBelongEnquiryTests(PlaywrightFixture fixture) :
     private const string StudentName = "Alice Smith";
     private const string MathsS2024 = "GCSE (9-1) Mathematics, QAN: 60146084, Session: S2024";
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task A_school_can_report_a_result_that_does_not_belong_end_to_end()
     {
         await StartEnquiryAsync();
@@ -70,7 +67,7 @@ public sealed class ResultDoesNotBelongEnquiryTests(PlaywrightFixture fixture) :
         Assert.Matches(@"^CYPMD_16to19_RE_[0-9A-F]{7}$", reference);
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task Additional_information_can_be_left_blank()
     {
         // AC: "proceed without entering any" — the row stays but is shown empty.
@@ -87,7 +84,7 @@ public sealed class ResultDoesNotBelongEnquiryTests(PlaywrightFixture fixture) :
         await Expect(row.Locator(".govuk-summary-list__value")).ToHaveTextAsync("");
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task MoreThanOneThousandCharactersIsRejectedOnAForcedPost()
     {
         // The JS character-count component only warns; nothing native stops a script-driven POST
@@ -103,7 +100,7 @@ public sealed class ResultDoesNotBelongEnquiryTests(PlaywrightFixture fixture) :
         await AssertErrorAsync("Additional information must be 1000 characters or less");
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task AfterSubmitting_ReportingAnotherIssue_StartsClean()
     {
         await StartEnquiryAsync();

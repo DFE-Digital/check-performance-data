@@ -216,6 +216,101 @@ public sealed class StorageAdminProtectedContainerTests
         service.DidNotReceive().GetBlobContainerClient(Keyring);
     }
 
+    // #568: a name with a dot segment, separator or control character can never be a real blob,
+    // so every route answers 404 before any client is resolved, the same as a protected container.
+    [Theory]
+    [InlineData("../x.json")]
+    [InlineData("a/../x.json")]
+    [InlineData("/x.json")]
+    [InlineData("a\\x.json")]
+    [InlineData("a\u0000.json")]
+    public async Task Preview_AndDownload_OfAnInvalidName_Are404_AndReadNothing(string blob)
+    {
+        var service = Substitute.For<BlobServiceClient>();
+        var sut = BuildSut(service);
+
+        Assert.IsType<NotFoundResult>(await sut.Preview("app", "my-container", blob));
+        Assert.IsType<NotFoundResult>(await sut.Download("app", "my-container", blob));
+
+        service.DidNotReceiveWithAnyArgs().GetBlobContainerClient(default!);
+    }
+
+    [Theory]
+    [InlineData("../x.json", null)]
+    [InlineData("x.json", "../")]
+    public async Task Delete_WithAnInvalidNameOrPrefix_Is404_AndDeletesNothing(string blobName, string? prefix)
+    {
+        var service = Substitute.For<BlobServiceClient>();
+
+        var result = await BuildSut(service).Delete("app", "my-container", blobName, prefix);
+
+        Assert.IsType<NotFoundResult>(result);
+        service.DidNotReceiveWithAnyArgs().GetBlobContainerClient(default!);
+    }
+
+    [Fact]
+    public async Task Container_WithAnInvalidPrefix_Is404_AndListsNothing()
+    {
+        var service = Substitute.For<BlobServiceClient>();
+
+        var result = await BuildSut(service).Container("app", "my-container", "../");
+
+        Assert.IsType<NotFoundResult>(result);
+        service.DidNotReceiveWithAnyArgs().GetBlobContainerClient(default!);
+    }
+
+    [Theory]
+    [InlineData("../", null, "a.csv")]
+    [InlineData(null, "..", "a.csv")]
+    [InlineData(null, "x/../y", "a.csv")]
+    public async Task Upload_WithAnInvalidPrefixOrFolder_Is404_AndWritesNothing(string? prefix, string? folder, string fileName)
+    {
+        var service = Substitute.For<BlobServiceClient>();
+        var containerClient = Substitute.For<BlobContainerClient>();
+        service.GetBlobContainerClient("my-container").Returns(containerClient);
+        containerClient.ExistsAsync(Arg.Any<CancellationToken>())
+            .Returns(Response.FromValue(true, Substitute.For<Response>()));
+        var file = Substitute.For<IFormFile>();
+        file.FileName.Returns(fileName);
+        file.Length.Returns(3);
+
+        var result = await BuildSut(service).Upload("app", "my-container", [file], prefix, folder);
+
+        Assert.IsType<NotFoundResult>(result);
+        containerClient.DidNotReceiveWithAnyArgs().GetBlobClient(default!);
+    }
+
+    // A file whose name is unsafe is skipped; the others still land. The browser supplies only a
+    // leaf name, so this is belt and braces rather than a user-facing case.
+    [Fact]
+    public async Task Upload_SkipsAFileWithAnUnsafeName_AndUploadsTheRest()
+    {
+        var service = Substitute.For<BlobServiceClient>();
+        var containerClient = Substitute.For<BlobContainerClient>();
+        var blobClient = Substitute.For<BlobClient>();
+        service.GetBlobContainerClient("my-container").Returns(containerClient);
+        containerClient.ExistsAsync(Arg.Any<CancellationToken>())
+            .Returns(Response.FromValue(true, Substitute.For<Response>()));
+        containerClient.GetBlobClient("reports/good.csv").Returns(blobClient);
+        blobClient.UploadAsync(Arg.Any<Stream>(), Arg.Any<BlobUploadOptions>(), Arg.Any<CancellationToken>())
+            .Returns(Response.FromValue(Substitute.For<BlobContentInfo>(), Substitute.For<Response>()));
+
+        var good = Substitute.For<IFormFile>();
+        good.FileName.Returns("good.csv");
+        good.Length.Returns(3);
+        good.OpenReadStream().Returns(new MemoryStream([1, 2, 3]));
+        var bad = Substitute.For<IFormFile>();
+        bad.FileName.Returns("bad\u0000.csv");
+        bad.Length.Returns(3);
+
+        var result = await BuildSut(service).Upload("app", "my-container", [bad, good], "reports/", null);
+
+        var redirect = Assert.IsType<RedirectResult>(result);
+        Assert.Equal("/admin/storage/app/my-container?prefix=reports%2F", redirect.Url);
+        containerClient.Received(1).GetBlobClient("reports/good.csv");
+        containerClient.DidNotReceive().GetBlobClient(Arg.Is<string>(n => n.Contains("bad")));
+    }
+
     [Fact]
     public async Task Container_ForAProtectedContainer_Is404()
     {

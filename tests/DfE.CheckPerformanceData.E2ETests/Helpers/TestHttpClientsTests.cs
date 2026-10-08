@@ -20,7 +20,8 @@ public class TestHttpClientsTests
         };
         request.Headers.Add("Cookie", "antiforgery=abc");
 
-        using var response = await TestHttpClients.SendAsync(request);
+        using var client = new TestHttpClient();
+        using var response = await client.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.Found, response.StatusCode);
         Assert.Equal(2, server.Requests.Count);
@@ -40,8 +41,9 @@ public class TestHttpClientsTests
             Content = new FormUrlEncodedContent(new[] { new KeyValuePair<string, string>("title", "A page") }),
         };
 
-        await Assert.ThrowsAsync<HttpRequestException>(() => TestHttpClients.SendAsync(request));
-        Assert.Equal(TestHttpClients.MaxSendAttempts, server.Requests.Count);
+        using var client = new TestHttpClient();
+        await Assert.ThrowsAsync<HttpRequestException>(() => client.SendAsync(request));
+        Assert.Equal(TestHttpClient.MaxSendAttempts, server.Requests.Count);
     }
 
     // Reads each request in full, then closes the first N connections without a response and

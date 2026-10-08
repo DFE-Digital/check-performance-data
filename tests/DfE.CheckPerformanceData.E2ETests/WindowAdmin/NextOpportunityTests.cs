@@ -9,6 +9,7 @@ namespace DfE.CheckPerformanceData.E2ETests.WindowAdmin;
 /// edited via a GOV.UK date input, persisted, shown as month + year, and clearable. Mirrors
 /// TurnaroundCommitmentTests.
 /// </summary>
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class NextOpportunityTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {

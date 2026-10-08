@@ -16,6 +16,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Admin;
 // deployment reachable at CPD_E2E_BASE_URL. Screenshots for manual review land under
 // tests/DfE.CheckPerformanceData.E2ETests/Snapshots/search-ux/. Linux-only for browser
 // install parity; visual assertions on other OSes drift on font metrics.
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class MessagesGroupAndDetailTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {

@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Application.Settings;
+using DfE.CheckPerformanceData.Application.Common;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
@@ -51,9 +52,11 @@ public static class SessionServiceCollectionExtensions
             options.Cookie.SecurePolicy = securePolicy;
         });
 
-        // SessionAbsoluteLifetimeMiddleware takes its clock from DI. TryAdd so a test host
-        // that registered a controllable clock first keeps it.
-        services.TryAddSingleton(TimeProvider.System);
+        // SessionAbsoluteLifetimeMiddleware takes its clock from DI. TryAdd so a host built
+        // without AddApplicationDependencies (a test host that registered a controllable clock
+        // first) keeps its own. In the real web host AddApplicationDependencies has already
+        // pinned the UK clock (#535), and this line does nothing.
+        services.TryAddSingleton<TimeProvider>(UkTimeProvider.Instance);
 
         return services;
     }

@@ -4,7 +4,7 @@ using DfE.CheckPerformanceData.E2ETests.Fixtures;
 using DfE.CheckPerformanceData.E2ETests.Helpers;
 using Microsoft.Playwright;
 using Microsoft.Playwright.Xunit;
-using xRetry;
+using DfE.CheckPerformanceData.E2ETests.Retrying;
 
 namespace DfE.CheckPerformanceData.E2ETests.Journey;
 
@@ -13,6 +13,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Journey;
 //   AC2: the user is told why the file was rejected.
 // Walked on the KS4 Remove journey's evidence page; every journey's upload is the same partial
 // and the same controller method.
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class EvidenceUploadFileLimitTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
@@ -30,7 +31,7 @@ public sealed class EvidenceUploadFileLimitTests(PlaywrightFixture fixture) : Se
     private ILocator UploadedFileLinks =>
         Page.GetByRole(AriaRole.Link, new() { NameRegex = new Regex(@"^evidence-\d\.pdf$") });
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task ASeventhFileIsRejectedWithTheReason_AndAcceptedOnceAFileIsRemoved()
     {
         await SeedHelpers.CleanupDevRequestsAsync(Fixture.SeedClient);
@@ -54,6 +55,10 @@ public sealed class EvidenceUploadFileLimitTests(PlaywrightFixture fixture) : Se
         // and the file input must be described by the "6 of 6 files added." line.
         await Expect(Page).ToHaveTitleAsync(new Regex("^Error: "));
         await Expect(Page.Locator("#fileUpload")).ToHaveAttributeAsync("aria-describedby", new Regex(@"\bfileUpload-count\b"));
+        // #389: the description must not repeat the visible hint — in our reading of the audit,
+        // Chrome exposes the file input as a button and JAWS would direct the user to press a
+        // key to hear text already on screen.
+        await Expect(Page.Locator("#fileUpload")).Not.ToHaveAttributeAsync("aria-describedby", new Regex(@"\bfileUpload-hint\b"));
         await Expect(UploadedFileLinks).ToHaveCountAsync(6);
         await Expect(Page.GetByRole(AriaRole.Link, new() { Name = "evidence-7.pdf", Exact = true })).ToHaveCountAsync(0);
 

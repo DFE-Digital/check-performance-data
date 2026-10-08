@@ -1,12 +1,13 @@
 using DfE.CheckPerformanceData.E2ETests.Fixtures;
 using Microsoft.Playwright;
-using xRetry;
+using DfE.CheckPerformanceData.E2ETests.Retrying;
 
 namespace DfE.CheckPerformanceData.E2ETests.Journey;
 
 // AB#298325: the Issues tab on the Amendment request summary page. Covers what only a browser
 // can: that a just-submitted enquiry appears in the tab with its blob-enriched cells, that the
 // tab states the results-enquiry deadline, and that enquiries never leak into the Requests tab.
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class IssuesTabTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
@@ -15,7 +16,7 @@ public sealed class IssuesTabTests(PlaywrightFixture fixture) : SeedingPageTest(
     private const string StudentName = "Alice Smith";
     private const string MathsS2024 = "GCSE (9-1) Mathematics, QAN: 60146084, Session: S2024";
 
-    [RetryFact(1)]
+    [RetryFact]
     public async Task ASubmittedEnquiryAppearsOnTheIssuesTab()
     {
         // Submit a real enquiry through the journey so the row AND its journey blob exist.

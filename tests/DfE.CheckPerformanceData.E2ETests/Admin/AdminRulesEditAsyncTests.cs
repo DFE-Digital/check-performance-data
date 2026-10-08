@@ -9,6 +9,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Admin;
 // swap the condition tree in place without a full navigation, and a successful save shows
 // the transient "Saved" toast while staying on the edit page. Linux-only [SkippableFact],
 // matching the repo's Playwright-interaction convention (see AdminLandingGroupedTests).
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class AdminRulesEditAsyncTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {

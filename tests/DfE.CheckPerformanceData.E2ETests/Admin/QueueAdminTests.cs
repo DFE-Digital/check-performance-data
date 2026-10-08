@@ -4,7 +4,8 @@ using DfE.CheckPerformanceData.E2ETests.Helpers;
 
 namespace DfE.CheckPerformanceData.E2ETests.Admin;
 
-[Collection("E2E")]
+[Trait("Category", "FullRegression")]
+[Collection("Http")]
 public sealed class QueueAdminTests(PlaywrightFixture fixture)
 {
     private readonly PlaywrightFixture _fixture = fixture;
@@ -22,7 +23,7 @@ public sealed class QueueAdminTests(PlaywrightFixture fixture)
                 HttpMethod.Get,
                 $"{_fixture.BaseUrl}/admin/queues");
 
-            var response = await TestHttpClients.SendAsync(request);
+            var response = await _fixture.SeedClient.SendAsync(request);
 
             Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         }
@@ -44,7 +45,7 @@ public sealed class QueueAdminTests(PlaywrightFixture fixture)
             using var adminRequest = new HttpRequestMessage(
                 HttpMethod.Get,
                 $"{_fixture.BaseUrl}/admin");
-            var adminResponse = await TestHttpClients.SendAsync(adminRequest);
+            var adminResponse = await _fixture.SeedClient.SendAsync(adminRequest);
             Assert.Equal(HttpStatusCode.OK, adminResponse.StatusCode);
             var adminBody = await adminResponse.Content.ReadAsStringAsync();
             Assert.Contains("System administration", adminBody);
@@ -53,13 +54,13 @@ public sealed class QueueAdminTests(PlaywrightFixture fixture)
             using var queuesRequest = new HttpRequestMessage(
                 HttpMethod.Get,
                 $"{_fixture.BaseUrl}/admin/queues");
-            var queuesResponse = await TestHttpClients.SendAsync(queuesRequest);
+            var queuesResponse = await _fixture.SeedClient.SendAsync(queuesRequest);
             Assert.Equal(HttpStatusCode.OK, queuesResponse.StatusCode);
 
             using var dlqRequest = new HttpRequestMessage(
                 HttpMethod.Get,
                 $"{_fixture.BaseUrl}/admin/queues/dlq");
-            var dlqResponse = await TestHttpClients.SendAsync(dlqRequest);
+            var dlqResponse = await _fixture.SeedClient.SendAsync(dlqRequest);
             Assert.Equal(HttpStatusCode.OK, dlqResponse.StatusCode);
 
             var dlqBody = await dlqResponse.Content.ReadAsStringAsync();
@@ -83,7 +84,7 @@ public sealed class QueueAdminTests(PlaywrightFixture fixture)
             using var request = new HttpRequestMessage(
                 HttpMethod.Get,
                 $"{_fixture.BaseUrl}/admin/queues");
-            var response = await TestHttpClients.SendAsync(request);
+            var response = await _fixture.SeedClient.SendAsync(request);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
@@ -122,9 +123,9 @@ public sealed class QueueAdminTests(PlaywrightFixture fixture)
                     new KeyValuePair<string, string>("__RequestVerificationToken", token)
                 })
             };
-            request.Headers.Add("Cookie", $"{TestHttpClients.ImpersonationCookieHeader}; {cookie}");
+            request.Headers.Add("Cookie", $"{_fixture.SeedClient.ImpersonationCookieHeader}; {cookie}");
 
-            var response = await TestHttpClients.SendAsync(request);
+            var response = await _fixture.SeedClient.SendAsync(request);
 
             Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
             Assert.Contains("/admin/queues/dlq", response.Headers.Location?.ToString() ?? string.Empty);
@@ -161,9 +162,9 @@ public sealed class QueueAdminTests(PlaywrightFixture fixture)
                     new KeyValuePair<string, string>("__RequestVerificationToken", token)
                 })
             };
-            request.Headers.Add("Cookie", $"{TestHttpClients.ImpersonationCookieHeader}; {cookie}");
+            request.Headers.Add("Cookie", $"{_fixture.SeedClient.ImpersonationCookieHeader}; {cookie}");
 
-            var response = await TestHttpClients.SendAsync(request);
+            var response = await _fixture.SeedClient.SendAsync(request);
 
             Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
             Assert.Contains("/admin/queues/dlq", response.Headers.Location?.ToString() ?? string.Empty);
@@ -197,7 +198,7 @@ public sealed class QueueAdminTests(PlaywrightFixture fixture)
                 HttpMethod.Post,
                 $"{_fixture.BaseUrl}/admin/queues/dlq/{id}/purge");
 
-            var response = await TestHttpClients.SendAsync(request);
+            var response = await _fixture.SeedClient.SendAsync(request);
 
             Assert.True(
                 response.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.NotFound,
@@ -213,7 +214,7 @@ public sealed class QueueAdminTests(PlaywrightFixture fixture)
     private async Task<bool> DlqRowVisibleAsync(Guid id)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, $"{_fixture.BaseUrl}/admin/queues/dlq");
-        var response = await TestHttpClients.SendAsync(request);
+        var response = await _fixture.SeedClient.SendAsync(request);
         response.EnsureSuccessStatusCode();
         var body = await response.Content.ReadAsStringAsync();
         return body.Contains(id.ToString(), StringComparison.OrdinalIgnoreCase);

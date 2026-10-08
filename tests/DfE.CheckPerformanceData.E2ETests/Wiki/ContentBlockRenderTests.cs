@@ -4,6 +4,7 @@ using Microsoft.Playwright;
 
 namespace DfE.CheckPerformanceData.E2ETests.Wiki;
 
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class ContentBlockRenderTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {

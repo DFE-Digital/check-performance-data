@@ -32,6 +32,13 @@ public sealed record PageNodeBundleItem
     public bool AppearInSearch { get; init; } = true;
 
     /// <summary>
+    /// Whether the page appears in the site menus. Null when the bundle does not say, as in
+    /// bundles from exporters that did not write it: a new page then gets the default (shown) and
+    /// an existing page keeps whatever it has.
+    /// </summary>
+    public bool? ShowInMenu { get; init; }
+
+    /// <summary>
     /// Free-text search keywords. Nullable — older bundles omit this field and it round-trips
     /// as null (matching the DB default). Weighted highest in the search index at import time.
     /// </summary>

@@ -318,6 +318,45 @@ public class TestFixtureSeedBundleTests
         Assert.False(TestPageFor(label).AppearInSearch);
     }
 
+    // ---- a test page for the regions -------------------------------------------------------
+
+    private static PageNodeBundleItem RegionsPage() =>
+        ShippedContent.Fixtures().PageNodes.Single(p => p.Title == "Regions test page");
+
+    private static IEnumerable<RegionNode> AllRegions(IEnumerable<ContentNode> nodes) =>
+        nodes.OfType<RegionNode>().SelectMany(r => new[] { r }.Concat(r.Columns.SelectMany(c => AllRegions(c))));
+
+    // Beside the folder of widget pages, not in it: a region is not a widget.
+    [Fact]
+    public void TheRegionsTestPage_SitsUnderTheRoot_BesideTheWidgetsFolder()
+    {
+        var page = RegionsPage();
+
+        Assert.Equal(DefaultPageNodeRoots.DevelopmentTestingRootId, page.ParentId);
+        Assert.Equal("regions-test-page", page.Segment);
+        Assert.False(page.AppearInSearch);
+    }
+
+    // The list comes from the layouts themselves, so a new layout fails here until the page has
+    // a region in it.
+    [Fact]
+    public void TheRegionsTestPage_HasARegionInEveryLayout()
+    {
+        var used = AllRegions(TreeOf(RegionsPage())).Select(r => r.Layout).ToHashSet();
+
+        Assert.Equal(Enum.GetValues<RegionLayout>().Order(), used.Order());
+    }
+
+    // A region can go inside a column of another. The page has one, so that is seen too.
+    [Fact]
+    public void TheRegionsTestPage_HasARegionInsideAColumn()
+    {
+        var nested = TreeOf(RegionsPage()).OfType<RegionNode>()
+            .SelectMany(r => r.Columns).SelectMany(c => c).OfType<RegionNode>();
+
+        Assert.NotEmpty(nested);
+    }
+
     private static int BodyLength(ContentBundle bundle, string segment) =>
         bundle.PageNodes.Single(p => p.Segment == segment)
             .Versions.Sum(v => (v.BodyPlainText ?? string.Empty).Length);

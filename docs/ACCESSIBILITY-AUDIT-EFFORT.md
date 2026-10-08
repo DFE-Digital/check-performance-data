@@ -37,13 +37,13 @@ Fixed in code, with `AccessibilityAuditViewTests` pinning each one and the invar
 | 379 | Hidden ` to {window title}` on each landing-page Continue. |
 | 383 | `aria-describedby` on the radios fieldset for its hint and error, per-option hints wired on both `_Radio` and `_Checkbox`, and `data-module="govuk-radios"`. **Still needs confirming on a real Android device** before the ticket closes. |
 | 386 | `aria-hidden="true"` on the decorative visible `<hr>` rules. The footer's own section break is left alone. |
+| 389 | The file input's `aria-describedby` no longer names the visible hint; it names the "N of 6 files added." line and, when there is one, the error. JAWS treats a native file input as a button and directs the user to press a key to hear its description, which was the hint on screen. Pinned by `QuestionPartialModelDescribedByTests` and a `#389` fact in `AccessibilityAuditViewTests`. **Confirm with Zoonou on retest** that this is the text they meant — the count line did not exist when they audited. |
 
 ## Still open
 
 - **376, 382, 387** — need content decisions, not just code: Guidance headings and link groups to
   re-author, and a hunt for literal em dashes that spans the CMS as well as the views.
 - **380, 388** — both likely close with no code. Confirm with Zoonou.
-- **389** — confirm with the auditor which text is actually duplicated before removing anything.
 
 ## Sequencing the work
 

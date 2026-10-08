@@ -54,6 +54,10 @@ public sealed class EvidenceUploadFileLimitTests(PlaywrightFixture fixture) : Se
         // and the file input must be described by the "6 of 6 files added." line.
         await Expect(Page).ToHaveTitleAsync(new Regex("^Error: "));
         await Expect(Page.Locator("#fileUpload")).ToHaveAttributeAsync("aria-describedby", new Regex(@"\bfileUpload-count\b"));
+        // #389: the description must not repeat the visible hint — in our reading of the audit,
+        // Chrome exposes the file input as a button and JAWS would direct the user to press a
+        // key to hear text already on screen.
+        await Expect(Page.Locator("#fileUpload")).Not.ToHaveAttributeAsync("aria-describedby", new Regex(@"\bfileUpload-hint\b"));
         await Expect(UploadedFileLinks).ToHaveCountAsync(6);
         await Expect(Page.GetByRole(AriaRole.Link, new() { Name = "evidence-7.pdf", Exact = true })).ToHaveCountAsync(0);
 

@@ -132,7 +132,8 @@ jobs:
         # the `deploy` label requests a review-app deploy. Removing the label returns
         # the PR to the smoke default (the `unlabeled` trigger above re-runs).
         run: |
-          if [[ "${{ github.event_name }}" == "pull_request" && "${{ contains(github.event.pull_request.labels.*.name, 'full-regression') }}" == "True" ]]; then
+          IS_FULL_REGRESSION="${{ contains(github.event.pull_request.labels.*.name, 'full-regression') || github.event.label.name == 'full-regression' }}"
+          if [[ "${{ github.event_name }}" == "pull_request" && "$IS_FULL_REGRESSION" == "true" ]]; then
             echo "CPD_E2E_FILTER=Category!=VisualRegression" >> "$GITHUB_ENV"
           else
             echo "CPD_E2E_FILTER=Category=Smoke" >> "$GITHUB_ENV"

@@ -2,10 +2,11 @@ using DfE.CheckPerformanceData.E2ETests.Fixtures;
 using DfE.CheckPerformanceData.E2ETests.Helpers;
 using Microsoft.Playwright;
 using Microsoft.Playwright.Xunit;
-using xRetry;
+using DfE.CheckPerformanceData.E2ETests.Retrying;
 
 namespace DfE.CheckPerformanceData.E2ETests.Wiki;
 
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class GovUkAssetsTests(PlaywrightFixture fixture) : PageTest
 {
@@ -13,7 +14,7 @@ public sealed class GovUkAssetsTests(PlaywrightFixture fixture) : PageTest
 
     // --- JsEnabledStylesheetsScripts_Return200 ---
 
-    [RetryFact(2)]
+    [RetryFact]
     public async Task JsEnabledStylesheetsScripts_Return200()
     {
         var govukResponses = new List<IResponse>();

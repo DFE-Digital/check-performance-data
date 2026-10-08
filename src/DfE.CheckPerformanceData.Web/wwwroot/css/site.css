@@ -2159,3 +2159,22 @@ dialog.seed-progress-modal {
   overflow-wrap: normal;
   overflow-x: auto;
 }
+
+/* #568: native progress element for the storage browser upload, visible at a sensible size. */
+/* #568: author rules (.govuk-hint, .govuk-button, .app-upload-progress) set display and beat the
+   browser's own [hidden] rule, so the idle upload controls need a rule that wins. Scoped on purpose. */
+#storage-upload-form [hidden] {
+  display: none !important;
+}
+
+.app-upload-progress-row {
+  display: flex;
+  align-items: center;
+}
+
+.app-upload-progress {
+  display: block;
+  width: 100%;
+  max-width: 30em;
+  height: 1.25rem;
+}

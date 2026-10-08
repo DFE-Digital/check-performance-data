@@ -22,6 +22,7 @@ namespace DfE.CheckPerformanceData.E2ETests.ContentPages;
 //   SearchSuggestionsControllerTests (endpoint input guards)
 //   SiteSearchSuggestTests (service behaviour against real Postgres)
 //   WidgetEditorContractTests (editor form fields)
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class InstantSearchWidgetE2ETests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
@@ -385,7 +386,7 @@ public sealed class InstantSearchWidgetE2ETests(PlaywrightFixture fixture) : See
         {
             JavaScriptEnabled = false,
         });
-        var impersonation = TestHttpClients.ImpersonationCookieHeader;
+        var impersonation = Fixture.SeedClient.ImpersonationCookieHeader;
         if (!string.IsNullOrEmpty(impersonation))
         {
             var equalsIndex = impersonation.IndexOf('=');

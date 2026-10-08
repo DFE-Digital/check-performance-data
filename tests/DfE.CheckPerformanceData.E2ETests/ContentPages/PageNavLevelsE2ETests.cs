@@ -9,6 +9,7 @@ namespace DfE.CheckPerformanceData.E2ETests.ContentPages;
 //
 // Pairs with ContentNavBuilderTests (the nesting rules), NavLevelSelectionTests (props to level
 // set) and WidgetEditorContractTests (the form fields).
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class PageNavLevelsE2ETests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {

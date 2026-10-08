@@ -1,7 +1,7 @@
 using DfE.CheckPerformanceData.E2ETests.Fixtures;
 using DfE.CheckPerformanceData.E2ETests.Helpers;
 using Microsoft.Playwright;
-using xRetry;
+using DfE.CheckPerformanceData.E2ETests.Retrying;
 
 namespace DfE.CheckPerformanceData.E2ETests.Journey;
 
@@ -20,6 +20,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Journey;
 // Each test seeds a conflicting ChangeRequest first (self = the impersonated user for the
 // self-submitted message; a random user for the colleague-named message) and cleans up any
 // stale DEV-* requests so an earlier test's conflict can't poison this one.
+[Trait("Category", "Smoke")]
 [Collection("E2E")]
 public sealed class IncludeHandoffConflictTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
@@ -46,7 +47,7 @@ public sealed class IncludeHandoffConflictTests(PlaywrightFixture fixture) : See
 
     // ── US1: self-submitted conflict blocks the Include-this-pupil hand-off ──
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task SelfSubmittedConflict_IncludeThisPupil_ReRendersDuplicateCheck()
     {
         await SeedHelpers.CleanupDevRequestsAsync(Fixture.SeedClient);
@@ -90,7 +91,7 @@ public sealed class IncludeHandoffConflictTests(PlaywrightFixture fixture) : See
 
     // ── US2: a colleague's conflict blocks the Switch-to-include hand-off ────
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task OtherSubmittedConflict_SwitchToInclude_ShowsColleagueNameAndBlocksRedirect()
     {
         await SeedHelpers.CleanupDevRequestsAsync(Fixture.SeedClient);

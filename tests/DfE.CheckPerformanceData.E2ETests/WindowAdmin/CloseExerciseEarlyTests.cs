@@ -20,6 +20,7 @@ namespace DfE.CheckPerformanceData.E2ETests.WindowAdmin;
 /// exercise's submitted requests for processing and cancels its drafts, which on a seeded window
 /// would pull the data out from under every other class in the collection.
 /// </remarks>
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class CloseExerciseEarlyTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {

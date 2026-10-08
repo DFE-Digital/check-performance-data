@@ -19,6 +19,7 @@
     .cpb-preview { background: #f3f2f1; padding: 8px 12px; }
     /* Page picker (search / results scope): a bordered, scrollable checkbox list of the page tree. */
     .cpb-scope-picker { max-height: 260px; overflow-y: auto; border: 1px solid #b1b4b6; padding: 8px 10px; background: #fff; }
+    .cpb-scope-picker__item[hidden], [data-cpb-scope-empty][hidden], [data-cpb-scope-filter][hidden] { display: none; }
     .cpb-scope-picker__path { font-size: 0.875rem; margin: 0 0 0 6px; }
     .cpb-add { margin-top: 4px; }
     /* Drag handle: pill with a 6-dot grip icon so authors can see exactly where to grab. */
@@ -397,6 +398,7 @@
     })();
 </script>
 <script src="~/js/content-editor-dnd.js"></script>
+<script src="~/js/cms-page-scope-filter.js" asp-append-version="true"></script>
 
 @* Live toggling for the PageNav widget editor: only show the children-only fields when
    mode=children, and only show the search-scope fields when Show search is ticked. *@

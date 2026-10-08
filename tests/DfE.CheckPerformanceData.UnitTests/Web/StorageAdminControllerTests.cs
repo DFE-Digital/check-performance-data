@@ -1,3 +1,4 @@
+using System.Reflection;
 using Azure;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
@@ -7,6 +8,7 @@ using DfE.CheckPerformanceData.Web.Controllers;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 
@@ -30,19 +32,24 @@ public sealed class StorageAdminControllerTests
 {
     private static StorageAdminController BuildSut(
         IReadOnlyDictionary<string, BlobServiceClient> accounts,
-        params string[] protectedContainers) =>
-        new(accounts, Options.Create(new StorageBrowserOptions
-        {
-            ProtectedContainers = protectedContainers.Length > 0
-                ? protectedContainers
-                : new StorageBrowserOptions().ProtectedContainers
-        }))
+        StorageBrowserOptions options) =>
+        new(accounts, Options.Create(options), NullLogger<StorageAdminController>.Instance)
         {
             ControllerContext = new ControllerContext
             {
                 HttpContext = new DefaultHttpContext()
             }
         };
+
+    private static StorageAdminController BuildSut(
+        IReadOnlyDictionary<string, BlobServiceClient> accounts,
+        params string[] protectedContainers) =>
+        BuildSut(accounts, new StorageBrowserOptions
+        {
+            ProtectedContainers = protectedContainers.Length > 0
+                ? protectedContainers
+                : new StorageBrowserOptions().ProtectedContainers
+        });
 
     private static StorageAdminController BuildSut(string account, BlobServiceClient client) =>
         BuildSut(new Dictionary<string, BlobServiceClient> { [account] = client });
@@ -119,17 +126,26 @@ public sealed class StorageAdminProtectedContainerTests
     private const string Keyring = "data-protection-keys";
 
     private static StorageAdminController BuildSut(
+        IReadOnlyDictionary<string, BlobServiceClient> accounts, StorageBrowserOptions options) =>
+        new(accounts, Options.Create(options), NullLogger<StorageAdminController>.Instance)
+        {
+            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
+        };
+
+    private static StorageAdminController BuildSut(
         BlobServiceClient client, params string[] protectedContainers) =>
-        new(new Dictionary<string, BlobServiceClient> { ["app"] = client },
-            Options.Create(new StorageBrowserOptions
+        BuildSut(new Dictionary<string, BlobServiceClient> { ["app"] = client },
+            new StorageBrowserOptions
             {
                 ProtectedContainers = protectedContainers.Length > 0
                     ? protectedContainers
                     : new StorageBrowserOptions().ProtectedContainers
-            }))
-        {
-            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
-        };
+            });
+
+    // Small bounds so the index and length tests stay readable: 8-byte parts, 64-byte maximum,
+    // so MaxBlocks is 8.
+    private static StorageBrowserOptions ChunkedOn(int chunkBytes = 8, long maxBytes = 64) =>
+        new() { ChunkBytes = chunkBytes, MaxUploadBytes = maxBytes };
 
     // The keyring is protected out of the box. An environment that has to add another secret
     // container should not have to discover that the default was empty.
@@ -216,6 +232,121 @@ public sealed class StorageAdminProtectedContainerTests
         service.DidNotReceive().GetBlobContainerClient(Keyring);
     }
 
+    // #568: a name with a dot segment, separator or control character can never be a real blob,
+    // so every route answers 404 before any client is resolved, the same as a protected container.
+    [Theory]
+    [InlineData("../x.json")]
+    [InlineData("a/../x.json")]
+    [InlineData("/x.json")]
+    [InlineData("a\\x.json")]
+    [InlineData("a\u0000.json")]
+    public async Task Preview_AndDownload_OfAnInvalidName_Are404_AndReadNothing(string blob)
+    {
+        var service = Substitute.For<BlobServiceClient>();
+        var sut = BuildSut(service);
+
+        Assert.IsType<NotFoundResult>(await sut.Preview("app", "my-container", blob));
+        Assert.IsType<NotFoundResult>(await sut.Download("app", "my-container", blob));
+
+        service.DidNotReceiveWithAnyArgs().GetBlobContainerClient(default!);
+    }
+
+    [Theory]
+    [InlineData("../x.json", null)]
+    [InlineData("x.json", "../")]
+    public async Task Delete_WithAnInvalidNameOrPrefix_Is404_AndDeletesNothing(string blobName, string? prefix)
+    {
+        var service = Substitute.For<BlobServiceClient>();
+
+        var result = await BuildSut(service).Delete("app", "my-container", blobName, prefix);
+
+        Assert.IsType<NotFoundResult>(result);
+        service.DidNotReceiveWithAnyArgs().GetBlobContainerClient(default!);
+    }
+
+    [Fact]
+    public async Task Container_TellsTheView_TheUploadBounds()
+    {
+        var service = Substitute.For<BlobServiceClient>();
+        var containerClient = Substitute.For<BlobContainerClient>();
+        service.GetBlobContainerClient("c").Returns(containerClient);
+        containerClient.ExistsAsync(Arg.Any<CancellationToken>())
+            .Returns(Response.FromValue(true, Substitute.For<Response>()));
+        containerClient.GetBlobsByHierarchyAsync(
+                Arg.Any<BlobTraits>(), Arg.Any<BlobStates>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(AsyncPageable<BlobHierarchyItem>.FromPages([]));
+        var sut = BuildSut(new Dictionary<string, BlobServiceClient> { ["app"] = service }, ChunkedOn(chunkBytes: 8, maxBytes: 64));
+
+        var result = await sut.Container("app", "c", null);
+
+        var model = Assert.IsType<StorageBlobListViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.Equal(8, model.ChunkBytes);
+        Assert.Equal(64, model.MaxUploadBytes);
+    }
+
+    [Fact]
+    public async Task Container_WithAnInvalidPrefix_Is404_AndListsNothing()
+    {
+        var service = Substitute.For<BlobServiceClient>();
+
+        var result = await BuildSut(service).Container("app", "my-container", "../");
+
+        Assert.IsType<NotFoundResult>(result);
+        service.DidNotReceiveWithAnyArgs().GetBlobContainerClient(default!);
+    }
+
+    [Theory]
+    [InlineData("../", null, "a.csv")]
+    [InlineData(null, "..", "a.csv")]
+    [InlineData(null, "x/../y", "a.csv")]
+    public async Task Upload_WithAnInvalidPrefixOrFolder_Is404_AndWritesNothing(string? prefix, string? folder, string fileName)
+    {
+        var service = Substitute.For<BlobServiceClient>();
+        var containerClient = Substitute.For<BlobContainerClient>();
+        service.GetBlobContainerClient("my-container").Returns(containerClient);
+        containerClient.ExistsAsync(Arg.Any<CancellationToken>())
+            .Returns(Response.FromValue(true, Substitute.For<Response>()));
+        var file = Substitute.For<IFormFile>();
+        file.FileName.Returns(fileName);
+        file.Length.Returns(3);
+
+        var result = await BuildSut(service).Upload("app", "my-container", [file], prefix, folder);
+
+        Assert.IsType<NotFoundResult>(result);
+        containerClient.DidNotReceiveWithAnyArgs().GetBlobClient(default!);
+    }
+
+    // A file whose name is unsafe is skipped; the others still land. The browser supplies only a
+    // leaf name, so this is belt and braces rather than a user-facing case.
+    [Fact]
+    public async Task Upload_SkipsAFileWithAnUnsafeName_AndUploadsTheRest()
+    {
+        var service = Substitute.For<BlobServiceClient>();
+        var containerClient = Substitute.For<BlobContainerClient>();
+        var blobClient = Substitute.For<BlobClient>();
+        service.GetBlobContainerClient("my-container").Returns(containerClient);
+        containerClient.ExistsAsync(Arg.Any<CancellationToken>())
+            .Returns(Response.FromValue(true, Substitute.For<Response>()));
+        containerClient.GetBlobClient("reports/good.csv").Returns(blobClient);
+        blobClient.UploadAsync(Arg.Any<Stream>(), Arg.Any<BlobUploadOptions>(), Arg.Any<CancellationToken>())
+            .Returns(Response.FromValue(Substitute.For<BlobContentInfo>(), Substitute.For<Response>()));
+
+        var good = Substitute.For<IFormFile>();
+        good.FileName.Returns("good.csv");
+        good.Length.Returns(3);
+        good.OpenReadStream().Returns(new MemoryStream([1, 2, 3]));
+        var bad = Substitute.For<IFormFile>();
+        bad.FileName.Returns("bad\u0000.csv");
+        bad.Length.Returns(3);
+
+        var result = await BuildSut(service).Upload("app", "my-container", [bad, good], "reports/", null);
+
+        var redirect = Assert.IsType<RedirectResult>(result);
+        Assert.Equal("/admin/storage/app/my-container?prefix=reports%2F", redirect.Url);
+        containerClient.Received(1).GetBlobClient("reports/good.csv");
+        containerClient.DidNotReceive().GetBlobClient(Arg.Is<string>(n => n.Contains("bad")));
+    }
+
     [Fact]
     public async Task Container_ForAProtectedContainer_Is404()
     {
@@ -266,5 +397,116 @@ public sealed class StorageAdminProtectedContainerTests
         var result = await BuildSut(service).Delete("app", "window-123", "draft.json");
 
         Assert.IsType<RedirectResult>(result);
+    }
+
+    // ── #568 chunked upload ─────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task StageBlock_AndCommit_ToAProtectedContainer_Are404_AndWriteNothing()
+    {
+        var service = Substitute.For<BlobServiceClient>();
+        var sut = BuildSut(new Dictionary<string, BlobServiceClient> { ["app"] = service }, ChunkedOn());
+
+        Assert.IsType<NotFoundResult>(await sut.StageBlock("app", Keyring, null, null, "a.csv", Guid.NewGuid(), 0, CancellationToken.None));
+        Assert.IsType<NotFoundResult>(await sut.CommitUpload("app", Keyring, null, null, "a.csv", Guid.NewGuid(), 1, null, CancellationToken.None));
+        service.DidNotReceiveWithAnyArgs().GetBlobContainerClient(default!);
+    }
+
+    [Theory]
+    [InlineData("../", null, "a.csv")]
+    [InlineData(null, "..", "a.csv")]
+    [InlineData(null, null, "")]
+    [InlineData(null, null, null)]
+    public async Task StageBlock_AndCommit_WithAnUnsafeTarget_Are404(string? prefix, string? folder, string? fileName)
+    {
+        var service = Substitute.For<BlobServiceClient>();
+        var sut = BuildSut(new Dictionary<string, BlobServiceClient> { ["app"] = service }, ChunkedOn());
+
+        Assert.IsType<NotFoundResult>(await sut.StageBlock("app", "c", prefix, folder, fileName, Guid.NewGuid(), 0, CancellationToken.None));
+        Assert.IsType<NotFoundResult>(await sut.CommitUpload("app", "c", prefix, folder, fileName, Guid.NewGuid(), 1, null, CancellationToken.None));
+        service.DidNotReceiveWithAnyArgs().GetBlobContainerClient(default!);
+    }
+
+    // The index is bounded before any block is staged, or a caller could park up to Azure's
+    // 100,000 uncommitted blocks before the commit check ever ran. Max is 64/8 = 8 blocks here.
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(8)]
+    [InlineData(int.MaxValue)]
+    public async Task StageBlock_WithAnIndexOutsideTheBound_Is400_AndStagesNothing(int index)
+    {
+        var service = Substitute.For<BlobServiceClient>();
+        var sut = BuildSut(new Dictionary<string, BlobServiceClient> { ["app"] = service }, ChunkedOn());
+        sut.Request.ContentLength = 8;
+
+        var result = await sut.StageBlock("app", "c", null, null, "a.csv", Guid.NewGuid(), index, CancellationToken.None);
+
+        Assert.IsType<BadRequestObjectResult>(result);
+        service.DidNotReceiveWithAnyArgs().GetBlobContainerClient(default!);
+    }
+
+    [Fact]
+    public async Task StageBlock_WithAnEmptyUploadId_Is400()
+    {
+        var service = Substitute.For<BlobServiceClient>();
+        var sut = BuildSut(new Dictionary<string, BlobServiceClient> { ["app"] = service }, ChunkedOn());
+        sut.Request.ContentLength = 8;
+
+        Assert.IsType<BadRequestObjectResult>(await sut.StageBlock("app", "c", null, null, "a.csv", Guid.Empty, 0, CancellationToken.None));
+        Assert.IsType<BadRequestObjectResult>(await sut.CommitUpload("app", "c", null, null, "a.csv", Guid.Empty, 1, null, CancellationToken.None));
+    }
+
+    // A missing, zero or over-size Content-Length is refused before a byte is read, so the
+    // bounded buffer is only ever allocated for a body the configuration allows.
+    [Theory]
+    [InlineData(null)]
+    [InlineData(0L)]
+    [InlineData(9L)]
+    public async Task StageBlock_WithABodyLengthOutsideTheChunk_Is400(long? contentLength)
+    {
+        var service = Substitute.For<BlobServiceClient>();
+        var sut = BuildSut(new Dictionary<string, BlobServiceClient> { ["app"] = service }, ChunkedOn(chunkBytes: 8));
+        sut.Request.ContentLength = contentLength;
+
+        var result = await sut.StageBlock("app", "c", null, null, "a.csv", Guid.NewGuid(), 0, CancellationToken.None);
+
+        Assert.IsType<BadRequestObjectResult>(result);
+        service.DidNotReceiveWithAnyArgs().GetBlobContainerClient(default!);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(9)]
+    public async Task Commit_WithABlockCountOutsideTheBound_Is400(int blockCount)
+    {
+        var service = Substitute.For<BlobServiceClient>();
+        var sut = BuildSut(new Dictionary<string, BlobServiceClient> { ["app"] = service }, ChunkedOn());
+
+        Assert.IsType<BadRequestObjectResult>(await sut.CommitUpload("app", "c", null, null, "a.csv", Guid.NewGuid(), blockCount, null, CancellationToken.None));
+        service.DidNotReceiveWithAnyArgs().GetBlobContainerClient(default!);
+    }
+
+    // Kestrel's MaxRequestBodySize is disabled application-wide, so every body-reading action
+    // must carry its own ceiling, and the chunk ceiling must admit a configured part.
+    [Fact]
+    public void BodyReadingActions_CarryRequestSizeLimits_AndAntiforgery()
+    {
+        var stage = typeof(StorageAdminController).GetMethod(nameof(StorageAdminController.StageBlock))!;
+        var commit = typeof(StorageAdminController).GetMethod(nameof(StorageAdminController.CommitUpload))!;
+        var upload = typeof(StorageAdminController).GetMethod(nameof(StorageAdminController.Upload))!;
+
+        var stageLimit = stage.GetCustomAttribute<RequestSizeLimitAttribute>();
+        Assert.NotNull(stageLimit);
+        Assert.Equal(StorageBrowserOptions.ChunkRequestCeilingBytes, (long)typeof(RequestSizeLimitAttribute)
+            .GetField("_bytes", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(stageLimit)!);
+        Assert.NotNull(stage.GetCustomAttribute<HttpPutAttribute>());
+        Assert.NotNull(stage.GetCustomAttribute<ValidateAntiForgeryTokenAttribute>());
+
+        Assert.NotNull(commit.GetCustomAttribute<HttpPostAttribute>());
+        Assert.NotNull(commit.GetCustomAttribute<RequestSizeLimitAttribute>());
+        Assert.NotNull(commit.GetCustomAttribute<ValidateAntiForgeryTokenAttribute>());
+
+        Assert.NotNull(upload.GetCustomAttribute<RequestSizeLimitAttribute>());
+        Assert.NotNull(upload.GetCustomAttribute<RequestFormLimitsAttribute>());
     }
 }

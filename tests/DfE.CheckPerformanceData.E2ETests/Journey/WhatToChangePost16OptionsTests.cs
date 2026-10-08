@@ -1,6 +1,6 @@
 using DfE.CheckPerformanceData.E2ETests.Fixtures;
 using Microsoft.Playwright;
-using xRetry;
+using DfE.CheckPerformanceData.E2ETests.Retrying;
 
 namespace DfE.CheckPerformanceData.E2ETests.Journey;
 
@@ -9,6 +9,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Journey;
 //
 // The seeded Post16 window (DevDataSeeder.Post16CheckingWindowId) and the seeded KS4June window
 // (DevDataSeeder.KeyStage4JuneCheckingWindowId) — the same ids AddPupilJourneyTests uses.
+[Trait("Category", "Smoke")]
 [Collection("E2E")]
 public sealed class WhatToChangePost16OptionsTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
@@ -19,7 +20,7 @@ public sealed class WhatToChangePost16OptionsTests(PlaywrightFixture fixture) : 
     // The seeded KS4June window — Include must still be offered (US2).
     private static readonly Guid Ks4JuneWindowId = Guid.Parse("F34D285B-8660-4D12-9C30-787328DEAA0A");
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task Post16Window_ShowsOnlyMergeAndRemove()
     {
         await Page.GotoAsync($"{Fixture.BaseUrl}/WhatToChange/{Post16WindowId}");
@@ -33,7 +34,7 @@ public sealed class WhatToChangePost16OptionsTests(PlaywrightFixture fixture) : 
         Assert.Equal(0, await Page.Locator("input[name='SelectedWhatToChange'][value='Add']").CountAsync());
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task Ks4JuneWindow_StillOffersInclude()
     {
         await Page.GotoAsync($"{Fixture.BaseUrl}/WhatToChange/{Ks4JuneWindowId}");
@@ -51,7 +52,7 @@ public sealed class WhatToChangePost16OptionsTests(PlaywrightFixture fixture) : 
         await Expect(Page.Locator("#pupil-search").First).ToBeVisibleAsync();
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task Post16Window_CraftedIncludeSubmission_IsRefused()
     {
         await Page.GotoAsync($"{Fixture.BaseUrl}/WhatToChange/{Post16WindowId}");

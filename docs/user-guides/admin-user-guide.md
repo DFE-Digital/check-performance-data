@@ -200,6 +200,8 @@ On the **Content** tab you build the page from regions and widgets:
 
 To add content, select **Add content here**. Choose a region layout and select **Add region**, or choose a widget and select **Add widget**. Widgets go inside a region. Each item has buttons to move it up or down and to delete it.
 
+The Search and Search results widgets let you limit a search to chosen pages by ticking them in a list. On a long list, type in the **Filter pages** box to narrow it by page title or path, or tick **Show only selected pages** to check your choices. Ticked pages that the filter hides are still saved.
+
 The buttons under the content are:
 
 | Button | What it does |
@@ -958,9 +960,11 @@ To find a file:
 
 1. Select **Browse** beside an account.
 2. Select **Browse** beside a container. The screen says how many containers the account holds.
-3. Select **Open** on a folder to go into it. Select **Up to container root** to come back out. Files show **Preview**, **Download** and **Delete** buttons. The preview screen also has a **Download this blob** link.
+3. Select **Open** on a folder to go into it. Select **Up to container root** to come back out. Files show **Preview**, **Download** and **Delete** buttons. The preview screen also has a **Download this blob** link. For a large text file, the preview shows only the first 256KB and says so; download the file to see all of it.
 
 To upload files, use the *Upload files* section at the top of a container. Choose one or more files. To put them in a new sub-folder, type its name in **Folder (optional)**. Leave it blank to upload into the folder you are looking at. Then select **Upload**.
+
+With JavaScript on, each file can be up to 2GB. The service sends it in parts and shows progress under the form; you can select **Cancel upload** to stop. When the upload finishes, the page opens the folder the files went into. Without JavaScript, the files you choose must add up to less than 50MB, because the platform refuses larger requests before they reach the service. If an upload does not complete, the page tells you what to do.
 
 Storage can hold pupil data. Only open, download or preview files that you need to. Look after any file you download.
 

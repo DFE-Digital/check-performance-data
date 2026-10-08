@@ -8,4 +8,6 @@ public sealed class StorageBlobPreviewViewModel
     public string BlobName { get; init; } = string.Empty;
     public string? ContentType { get; init; }
     public string? Content { get; init; }
+    // True when Content is only the start of the blob.
+    public bool IsPartial { get; init; }
 }

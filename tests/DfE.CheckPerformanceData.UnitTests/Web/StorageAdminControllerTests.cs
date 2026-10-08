@@ -483,6 +483,7 @@ public sealed class StorageAdminProtectedContainerTests
         Assert.NotNull(stage.GetCustomAttribute<ValidateAntiForgeryTokenAttribute>());
 
         Assert.NotNull(commit.GetCustomAttribute<HttpPostAttribute>());
+        Assert.NotNull(commit.GetCustomAttribute<RequestSizeLimitAttribute>());
         Assert.NotNull(commit.GetCustomAttribute<ValidateAntiForgeryTokenAttribute>());
 
         Assert.NotNull(upload.GetCustomAttribute<RequestSizeLimitAttribute>());

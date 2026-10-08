@@ -293,8 +293,10 @@ public sealed class StorageAdminController(
         return NoContent();
     }
 
+    // Kestrel's limit is off app-wide; the commit form is a handful of short fields.
     [HttpPost("admin/storage/{account}/{containerName}/upload/commit")]
     [ValidateAntiForgeryToken]
+    [RequestSizeLimit(64 * 1024)]
     public async Task<IActionResult> CommitUpload(
         string account, string containerName,
         [FromForm] string? prefix, [FromForm] string? folder, [FromForm] string? fileName,

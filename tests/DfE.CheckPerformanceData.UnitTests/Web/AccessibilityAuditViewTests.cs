@@ -440,4 +440,24 @@ public sealed class AccessibilityAuditViewTests
 		Assert.Contains("ViewBag.Title = $\"Make release {Model.Release.Number} live\";", view);
 		Assert.Contains("<h1 class=\"govuk-heading-l\">Make release @Model.Release.Number live</h1>", view);
 	}
+
+	// ── #389 Redundant hidden instructions on Provide Evidence ────────────────────────
+
+	[Fact]
+	public void FileUploadPartial_KeepsTheHintVisible_ButDoesNotNameItInTheInputsDescription()
+	{
+		// #389: in our reading of the audit (JAWS on Chrome, unconfirmed with the auditor),
+		// Chrome exposes a native file input as a button, and JAWS, rather than reading its
+		// aria-describedby aloud, tells the user to press JAWS key + Alt + R to hear
+		// "descriptive text", which would have been the hint already visible under the heading.
+		// The hint stays on the page; the input's description names the count line and,
+		// when there is one, the error (QuestionPartialModel.DescribedBy, pinned by
+		// QuestionPartialModelDescribedByTests). An id of fileUpload-hint anywhere in the
+		// partial would be the first step to bringing the detour back.
+		var view = ReadView("Views", "Journey", "_FileUpload.cshtml");
+
+		Assert.Contains("@Model.Question.Hint", view);
+		Assert.DoesNotContain("fileUpload-hint", view);
+		Assert.Contains("aria-describedby=\"@Model.DescribedBy\"", view);
+	}
 }

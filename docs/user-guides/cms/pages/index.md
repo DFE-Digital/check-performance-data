@@ -11,6 +11,8 @@ This guide shows you how to create and publish pages, keep them easy to find, an
 { "type": "search", "props": { "label": "Search this guide", "placeholder": "For example, schedule a page", "action": "/search", "buttonText": "Search", "scope": "", "scopePageIds": "a969611f-33ad-518d-9ce5-dcd82a9b2656", "searchIn": "path", "instant": "true", "showButton": "true", "noResultsText": "Nothing in this guide matches" } }
 ```
 
+---
+
 ## Start here
 
 ```cards
@@ -26,6 +28,8 @@ This guide shows you how to create and publish pages, keep them easy to find, an
   { "title": "Words used in this guide", "body": "Region, widget, content block, draft, live and the rest, in plain English.", "href": "glossary.md" }
 ]
 ```
+
+---
 
 ## I want to
 

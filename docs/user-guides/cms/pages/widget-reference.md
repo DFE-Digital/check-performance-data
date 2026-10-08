@@ -34,7 +34,9 @@ Put cards in a *Halves*, *Thirds* or *Quarters* region, one card to a column. Ca
 
 ## Divider
 
-A horizontal line that separates one part of a page from the next. It has no settings. Screen readers ignore it, so never rely on it to carry meaning: use a heading as well.
+A horizontal line that separates one part of a page from the next, with space above and below it. It has no settings. Screen readers ignore it, so never rely on it to carry meaning: use a heading as well.
+
+Inside a column, the line is as wide as the column. For a line across the whole page, put the Divider in a *Single* region of its own. This guide has a Divider before each section.
 
 ## Heading
 
@@ -68,6 +70,8 @@ When you enter a parent path, the list leaves out folders, pages that are not pu
 > If you leave the parent path blank, every page beneath this one is listed by its title, including folders, unpublished pages and pages hidden from menus. To leave those out, enter this page's own path.
 
 Put this widget in the narrow column of a *OneThirdTwoThirds* or *TwoThirdsOneThird* region. The menu on the left of this guide is a Page navigation widget set to **Child pages**.
+
+> For a search box above a menu, a separate Search widget gives you more control than **Show a search box above the list**: it can suggest matches as people type, and it can put its button below the box so that the box stays wide enough to type in.
 
 ## Published callout
 

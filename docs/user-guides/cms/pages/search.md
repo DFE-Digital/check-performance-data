@@ -63,6 +63,7 @@ The other settings:
 | Label | The text above the box. Say what it searches, such as *Search the guidance*. |
 | Placeholder (optional) | Pale example text inside the box. |
 | Button text | The text on the button. |
+| Put the button below the search box | Tick this when the box is in a narrow column. A button beside the box would leave little room to type. |
 | Form action URL | The page that shows the results. Leave it as `/search` unless you have built a results page of your own. |
 
 ## Show matches as people type: instant search
@@ -85,7 +86,7 @@ Two more settings appear when Instant search is ticked.
 
 Instant search needs JavaScript. Without it the box still works as an ordinary search box, so nobody is locked out. A box set to *This page* then searches the page and the pages beneath it.
 
-The search box at the top of this guide is a Search widget set to **Chosen pages**, with this guide ticked and **Instant search** on.
+The search box at the top of this guide is a Search widget set to **Chosen pages**, with this guide ticked and **Instant search** on. The one in the left-hand column of this page is the same, with **Put the button below the search box** ticked.
 
 ![The Search this guide box with the word publish typed in. A list beneath it suggests pages of the guide, starting with Drafts, publishing and versions](../../../../src/DfE.CheckPerformanceData.Web/wwwroot/assets/cms-help/search-guide.png "Instant search of chosen pages: the suggestions are pages.")
 

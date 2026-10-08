@@ -23,6 +23,10 @@
 //   > text                     GOV.UK inset text
 //   ```widget                  any widget, given as JSON: { "type": "search", "props": { ... } }
 //   ```cards                   a row of Card widgets, given as a JSON array of { title, body, href }
+//   ---                        a Divider across the full width of the page. A `##` heading straight
+//                              after it runs the full width too.
+//
+// A Divider is also put before every `##` heading after the first, to space the sections out.
 //
 // Links to other pages are written as links to their Markdown files, and images as paths to the
 // PNG files, so the pages also read properly on GitHub. Both are rewritten for the application.
@@ -163,7 +167,7 @@ function renderer(from) {
     imagesUsed.add(name);
     if (!text || text.length < 10) problems.push(`${from.slug}.md: image ${name} needs alt text that describes it`);
     const src = imageUrl + name;
-    const caption = title ? `<figcaption>${escapeHtml(title)}</figcaption>` : '';
+    const caption = title ? `<figcaption class="govuk-!-margin-top-2">${escapeHtml(title)}</figcaption>` : '';
     return `<figure><a href="${src}"><img alt="${escapeHtml(text)}" src="${src}" loading="lazy"></a>${caption}</figure>`;
   };
   r.table = (token) => {
@@ -219,10 +223,28 @@ function widgetsFor(page) {
     if (run.length) rows.push(run);
     run = [];
   };
-  for (const token of tokens) {
+  const divider = () => widget('divider', {});
+  const heading = (token) => ({ ...widget('heading', { level: 2, text: token.text }), anchor: anchorFor(token.text) });
+  let headings = 0;
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i];
     if (token.type === 'heading' && token.depth === 2) {
       flushText();
-      run.push({ ...widget('heading', { level: 2, text: token.text }), anchor: anchorFor(token.text) });
+      if (headings++ > 0) run.push(divider());
+      run.push(heading(token));
+    } else if (token.type === 'hr') {
+      // A full-width break. A heading straight after it belongs to the break, not to the
+      // column of text that follows, so that it lines up with the left edge of the page.
+      flushRun();
+      const row = [divider()];
+      let next = i + 1;
+      while (tokens[next]?.type === 'space') next++;
+      if (tokens[next]?.type === 'heading' && tokens[next].depth === 2) {
+        row.push(heading(tokens[next]));
+        headings++;
+        i = next;
+      }
+      rows.push(region('single', row));
     } else if (token.type === 'code' && token.lang === 'widget') {
       flushText();
       const spec = JSON.parse(token.text);
@@ -241,21 +263,29 @@ function widgetsFor(page) {
   return rows;
 }
 
-// The left-hand column: where you are in the guide, and a search of the guide alone.
+// The left-hand column: a search of the guide alone, where you are in the guide, and on a long
+// page a list of its sections.
 function sideColumn(page, headingCount) {
   const section = page.isHome || childrenOf(page).length ? page : page.parentPage;
+  const label = (text) => widget('richtext', { html: `<p class="govuk-body govuk-!-font-weight-bold govuk-!-margin-top-6 govuk-!-margin-bottom-1">${text}</p>` });
   return [
+    // The home page has the search box in its main column instead.
+    ...(page.isHome ? [] : [widget('search', {
+      label: 'Search this guide', placeholder: '', action: '/search', buttonText: 'Search',
+      scope: '', scopePageIds: home.id, searchIn: 'path',
+      instant: 'true', showButton: 'true', buttonBelow: 'true', noResultsText: 'Nothing in this guide matches',
+    })]),
     widget('pagenav', {
       mode: 'children', childrenParentPath: section.path,
-      showSearch: !page.isHome, searchPath: guidePath, searchLabel: 'Search this guide',
+      showSearch: false, searchPath: '', searchLabel: 'Search',
       h1: 'false', h2: 'true', h3: 'true', h4: 'false', h5: 'false', h6: 'false',
     }),
     ...(page.isHome ? [] : [widget('richtext', {
-      html: `<p class="govuk-body-s"><a class="govuk-link" href="/${section === page ? home.path : section.path}">Back to ${escapeHtml(section === page ? home.title : section.title)}</a></p>`,
+      html: `<p class="govuk-body-s govuk-!-margin-top-4"><a class="govuk-link" href="/${section === page ? home.path : section.path}">Back to ${escapeHtml(section === page ? home.title : section.title)}</a></p>`,
     })]),
     // A contents list for the page itself, once it is long enough to need one.
     ...(headingCount >= 4 ? [
-      widget('richtext', { html: '<p class="govuk-body govuk-!-font-weight-bold govuk-!-margin-bottom-1">On this page</p>' }),
+      label('On this page'),
       widget('pagenav', {
         mode: 'headings', childrenParentPath: '', showSearch: false, searchPath: '', searchLabel: 'Search',
         h1: 'false', h2: 'true', h3: 'false', h4: 'false', h5: 'false', h6: 'false',
@@ -268,7 +298,7 @@ function contentTree(page) {
   const tree = [];
   let first = true;
   const rows = widgetsFor(page);
-  const headingCount = rows.flat().filter((w) => w.type === 'heading').length;
+  const headingCount = JSON.stringify(rows).split('"type":"heading"').length - 1;
   for (const row of rows) {
     if (!Array.isArray(row)) { tree.push(row); continue; }
     // Only the first run sits beside the menu. Later runs follow a full-width row of cards.

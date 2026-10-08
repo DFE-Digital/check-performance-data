@@ -7,12 +7,13 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 // same branch as the file input, so it is always named, and id="fileUpload-error" only when
 // there is an error. DescribedBy must name exactly the ids that are on the page: an id that
 // isn't rendered is a dangling aria-describedby reference, which resolves to nothing and
-// silently drops the whole description for screen reader users.
+// silently can drop the whole description for screen reader users.
 //
 // The question's hint is rendered — as visible text under the question heading — but is
-// deliberately NOT named (#389). Chrome exposes a native file input as a button, and JAWS
-// does not read a button's description aloud: it directs the user to press a key to hear
-// "descriptive text", which was the hint they could already see. See docs/accessibility.md.
+// deliberately NOT named (#389). In our reading of the audit (JAWS on Chrome, unconfirmed
+// with the auditor), Chrome exposes a native file input as a button and JAWS, rather than
+// reading its description aloud, directs the user to press a key to hear "descriptive text",
+// which would have been the hint they could already see. See docs/accessibility.md.
 public class QuestionPartialModelDescribedByTests
 {
     private static QuestionPartialModel Build(string? hint, string? error = null, string? uploadError = null) =>

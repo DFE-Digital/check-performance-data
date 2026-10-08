@@ -11,11 +11,12 @@ else
     <h2 class="govuk-heading-m">@Model.ResolvedTitle</h2>
 }
 
-@* Visible to everyone, and deliberately NOT the file input's description (#389). Chrome
-   exposes a native file input as a button, and JAWS directs the user to press a key to hear
-   a button's description rather than reading it — which, when this paragraph was named by
-   aria-describedby, was a detour to the sentence already on screen. Do not give it an id
-   that QuestionPartialModel.DescribedBy could name. *@
+@* Visible to everyone, and deliberately NOT the file input's description (#389). In our
+   reading of the audit (JAWS on Chrome, unconfirmed with the auditor), Chrome exposes a
+   native file input as a button and JAWS directs the user to press a key to hear a button's
+   description rather than reading it — which, when this paragraph was named by
+   aria-describedby, would have been a detour to the sentence already on screen. Do not give
+   it an id that QuestionPartialModel.DescribedBy could name. *@
 @if (Model.Question.Hint is not null)
 {
     <p class="govuk-body">@Model.Question.Hint</p>

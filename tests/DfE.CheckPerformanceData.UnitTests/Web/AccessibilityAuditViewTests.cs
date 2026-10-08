@@ -256,9 +256,10 @@ public sealed class AccessibilityAuditViewTests
 	[Fact]
 	public void FileUploadPartial_KeepsTheHintVisible_ButDoesNotNameItInTheInputsDescription()
 	{
-		// #389: Chrome exposes a native file input as a button, and JAWS does not read a
-		// button's aria-describedby aloud — it tells the user to press JAWS key + Alt + R to
-		// hear "descriptive text", which was the hint already visible under the heading.
+		// #389: in our reading of the audit (JAWS on Chrome, unconfirmed with the auditor),
+		// Chrome exposes a native file input as a button, and JAWS, rather than reading its
+		// aria-describedby aloud, tells the user to press JAWS key + Alt + R to hear
+		// "descriptive text", which would have been the hint already visible under the heading.
 		// The hint stays on the page; the input's description names the count line and,
 		// when there is one, the error (QuestionPartialModel.DescribedBy, pinned by
 		// QuestionPartialModelDescribedByTests). An id of fileUpload-hint anywhere in the

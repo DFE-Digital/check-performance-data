@@ -37,7 +37,7 @@ Fixed in code, with `AccessibilityAuditViewTests` pinning each one and the invar
 | 379 | Hidden ` to {window title}` on each landing-page Continue. |
 | 383 | `aria-describedby` on the radios fieldset for its hint and error, per-option hints wired on both `_Radio` and `_Checkbox`, and `data-module="govuk-radios"`. **Still needs confirming on a real Android device** before the ticket closes. |
 | 386 | `aria-hidden="true"` on the decorative visible `<hr>` rules. The footer's own section break is left alone. |
-| 389 | The file input's `aria-describedby` no longer names the visible hint; it names the "N of 6 files added." line and, when there is one, the error. JAWS treats a native file input as a button and directs the user to press a key to hear its description, which was the hint on screen. Pinned by `QuestionPartialModelDescribedByTests` and a `#389` fact in `AccessibilityAuditViewTests`. **Confirm with Zoonou on retest** that this is the text they meant — the count line did not exist when they audited. |
+| 389 | The file input's `aria-describedby` no longer names the visible hint; it names the "N of 6 files added." line and, when there is one, the error. Chrome exposes a native file input as a button and, in our reading of the audit (unconfirmed with Zoonou), JAWS directs the user to press a key to hear its description, which was the hint on screen; the count line is still named, so the prompt itself probably remains — see the question in the PR. Pinned by `QuestionPartialModelDescribedByTests` and a `#389` fact in `AccessibilityAuditViewTests`. **Confirm with Zoonou on retest** that this is the text they meant — the count line did not exist when they audited. |
 
 ## Still open
 

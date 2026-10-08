@@ -1867,6 +1867,16 @@ body:has(.cpb-breadcrumbs) main.govuk-main-wrapper { padding-top: 0 !important; 
   width: 100%;
 }
 
+/* On a content page a column can hold more than one card, or a card with a heading or text above
+   it. As a flex row those sat side by side, squeezed into the width of one column. Stack them.
+   A card still grows to fill its column, so one card per column keeps the equal heights. */
+.cpb-content .govuk-grid-row:has(> [class*="govuk-grid-column"] > .dfe-card) > [class*="govuk-grid-column"] {
+  flex-direction: column;
+}
+.cpb-content .govuk-grid-row > [class*="govuk-grid-column"] > .dfe-card {
+  flex: 1 0 auto;
+}
+
 /* ---- CMS Page Tree Context Menu ----------------------------------------- */
 .cms-context-menu {
   position: absolute;

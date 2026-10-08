@@ -68,7 +68,10 @@
         <input class="govuk-file-upload" id="files" name="files" type="file" multiple aria-describedby="files-hint" />
     </div>
     <div id="upload-status" class="govuk-body" role="status" aria-live="polite"></div>
-    <progress id="upload-progress" class="app-upload-progress govuk-!-margin-bottom-4" max="100" value="0" hidden></progress>
+    <div class="app-upload-progress-row govuk-!-margin-bottom-4">
+        <progress id="upload-progress" class="app-upload-progress" aria-label="Upload progress" max="100" value="0" hidden></progress>
+        <span id="upload-percent" class="govuk-body govuk-!-margin-left-2 govuk-!-margin-bottom-0" aria-hidden="true" hidden>0%</span>
+    </div>
     <div class="govuk-button-group">
         <button type="submit" id="upload-submit" class="govuk-button" data-prevent-double-click="true">Upload</button>
         <button type="button" id="upload-cancel" class="govuk-button govuk-button--secondary" hidden>Cancel upload</button>

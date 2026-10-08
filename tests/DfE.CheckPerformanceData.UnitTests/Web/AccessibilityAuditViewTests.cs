@@ -298,4 +298,28 @@ public sealed class AccessibilityAuditViewTests
 		Assert.Matches("<button type=\"button\" id=\"upload-cancel\"", view);
 		Assert.Contains("To upload bigger files, turn on JavaScript in your browser.", view);
 	}
+
+	[Fact]
+	public void StorageUpload_ProgressElement_HasAnAccessibleName()
+	{
+		var view = ReadView("Views", "StorageAdmin", "Container.cshtml");
+		Assert.Matches("<progress[^>]*id=\"upload-progress\"[^>]*aria-label=\"Upload progress\"", view);
+	}
+
+	// The native progress element is announced by the status line at 25% steps, so the visible
+	// percentage is hidden from assistive technology to avoid a second, noisy announcement.
+	[Fact]
+	public void StorageUpload_VisiblePercentage_IsHiddenFromAssistiveTechnology()
+	{
+		var view = ReadView("Views", "StorageAdmin", "Container.cshtml");
+		Assert.Matches("<span id=\"upload-percent\"[^>]*aria-hidden=\"true\"", view);
+	}
+
+	// Author display rules beat the browser's [hidden] rule, so idle upload controls need their own.
+	[Fact]
+	public void StorageUpload_HiddenControls_AreHiddenByAScopedRule()
+	{
+		var css = ReadCss();
+		Assert.Contains("#storage-upload-form [hidden]", css);
+	}
 }

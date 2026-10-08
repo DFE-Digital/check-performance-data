@@ -19,6 +19,8 @@
     var COMMIT_URL = form.getAttribute('data-commit-url');
     var CONTAINER_URL = form.getAttribute('data-container-url');
     var RETRIES = 3;
+    var SESSION_ENDED = 'Your session has ended. Sign in again and upload the file again.';
+    var GENERIC_FAILURE = 'The upload did not complete. Upload the file again.';
 
     var filesInput = document.getElementById('files');
     var folderInput = document.getElementById('folder');
@@ -26,6 +28,7 @@
     var tokenInput = form.querySelector('input[name="__RequestVerificationToken"]');
     var status = document.getElementById('upload-status');
     var progress = document.getElementById('upload-progress');
+    var percentText = document.getElementById('upload-percent');
     var submit = document.getElementById('upload-submit');
     var cancel = document.getElementById('upload-cancel');
     var hint = document.getElementById('files-hint');
@@ -106,15 +109,36 @@
         filesInput.disabled = busy;
         if (folderInput) { folderInput.disabled = busy; }
         progress.hidden = !busy;
-        if (!busy) { progress.value = 0; }
+        if (percentText) { percentText.hidden = !busy; }
+        if (!busy) { setProgress(0); }
+    }
+
+    function setProgress(percent) {
+        progress.value = percent;
+        if (percentText) { percentText.textContent = percent + '%'; }
+    }
+
+    // The folder the files land in, normalised as the server does: the prefix is empty or ends in
+    // exactly one slash, and the typed folder has no surrounding whitespace or slashes.
+    function targetPrefix() {
+        var prefix = (prefixInput ? prefixInput.value : '').replace(/\/+$/, '');
+        var folder = (folderInput ? folderInput.value : '').trim().replace(/^\/+|\/+$/g, '');
+        var target = prefix ? prefix + '/' : '';
+        return folder ? target + folder + '/' : target;
+    }
+
+    function folderUrl() {
+        var target = targetPrefix();
+        var base = CONTAINER_URL.split('?')[0];
+        return target ? base + '?prefix=' + encodeURIComponent(target) : base;
     }
 
     function headers() {
         return { 'X-XSRF-TOKEN': tokenInput.value };
     }
 
-    // One part, with bounded retries. A redirect means the sign-in session has gone: fetch
-    // follows it silently, so the response is a sign-in page, not our 204.
+    // One part, with bounded retries. The sign-in challenge is a redirect to another origin, so
+    // requests use redirect: 'manual' and an opaque redirect means the session has gone.
     async function putPart(file, uploadId, index, blob) {
         var url = BLOCK_URL +
             '?prefix=' + encodeURIComponent(prefixInput ? prefixInput.value : '') +
@@ -127,23 +151,16 @@
             attempt++;
             var response;
             try {
-                response = await fetch(url, { method: 'PUT', body: blob, headers: headers(), credentials: 'same-origin', signal: controller.signal });
+                response = await fetch(url, { method: 'PUT', body: blob, headers: headers(), credentials: 'same-origin', redirect: 'manual', signal: controller.signal });
             } catch (err) {
                 if (controller.signal.aborted) { throw err; }
                 response = null;
             }
-            if (response && response.redirected) { throw new Error('Your session has ended. Sign in again and upload the file again.'); }
+            if (response && response.type === 'opaqueredirect') { throw new Error(SESSION_ENDED); }
             if (response && response.ok) { return; }
-            if (response && response.status === 400) {
-                var body = await response.json().catch(function () { return {}; });
-                throw new Error(body.error || 'The upload was refused.');
-            }
-            if (response && response.status === 404) { throw new Error('The folder or container could not be found.'); }
-            if (attempt >= RETRIES) {
-                throw new Error(response && response.status === 413
-                    ? 'The upload was refused because a part was too large. Try again later.'
-                    : 'The upload failed. Check your connection and upload the file again.');
-            }
+            // The server refused this part for good: retrying cannot help.
+            if (response && (response.status === 400 || response.status === 404)) { throw new Error(GENERIC_FAILURE); }
+            if (attempt >= RETRIES) { throw new Error(GENERIC_FAILURE); }
             setStatus('Retrying part ' + (index + 1) + ' of ' + file.name + ', attempt ' + (attempt + 1) + ' of ' + RETRIES + '.');
             await new Promise(function (resolve) { setTimeout(resolve, 1000 * attempt); });
         }
@@ -158,11 +175,15 @@
         body.set('blockCount', String(blockCount));
         body.set('contentType', file.type || '');
         body.set('__RequestVerificationToken', tokenInput.value);
-        var response = await fetch(COMMIT_URL, { method: 'POST', body: body, headers: headers(), credentials: 'same-origin', signal: controller.signal });
-        if (response.redirected) { throw new Error('Your session has ended. Sign in again and upload the file again.'); }
-        if (response.ok) { return; }
-        var json = await response.json().catch(function () { return {}; });
-        throw new Error(json.error || 'The upload could not be completed.');
+        var response;
+        try {
+            response = await fetch(COMMIT_URL, { method: 'POST', body: body, headers: headers(), credentials: 'same-origin', redirect: 'manual', signal: controller.signal });
+        } catch (err) {
+            if (controller.signal.aborted) { throw err; }
+            throw new Error(GENERIC_FAILURE);
+        }
+        if (response.type === 'opaqueredirect') { throw new Error(SESSION_ENDED); }
+        if (!response.ok) { throw new Error(GENERIC_FAILURE); }
     }
 
     async function uploadFile(file, fileNumber, fileCount) {
@@ -176,7 +197,7 @@
             var part = file.slice(start, Math.min(file.size, start + CHUNK_BYTES));
             await putPart(file, uploadId, index, part);
             var percent = Math.floor(((index + 1) / blockCount) * 100);
-            progress.value = percent;
+            setProgress(percent);
             // Announce at 25% steps only: a screen reader fed every part would never stop talking.
             var quarter = Math.floor(percent / 25);
             if (quarter > announcedQuarter && percent < 100) {
@@ -190,8 +211,10 @@
 
     form.addEventListener('submit', async function (event) {
         if (inFlight) { event.preventDefault(); return; }
-        var files = Array.prototype.slice.call(filesInput.files || []);
-        if (files.length === 0) { return; }           // let the server answer the empty submit
+        // Zero-byte files are skipped, as the no-JS path does; if nothing is left, let the server
+        // answer as it does for an empty submit.
+        var files = Array.prototype.slice.call(filesInput.files || []).filter(function (f) { return f.size > 0; });
+        if (files.length === 0) { return; }
         event.preventDefault();
         removeErrorSummary();
 
@@ -199,19 +222,21 @@
         var maxBytes = parseInt(form.getAttribute('data-max-bytes'), 10);
         var tooBig = files.filter(function (f) { return f.size > maxBytes; });
         if (tooBig.length) {
-            showError('The selected file must be smaller than ' + MAX_LABEL + '. ' + tooBig[0].name + ' is too large.');
+            showError('The selected file must be smaller than ' + MAX_LABEL + '.');
             return;
         }
 
         controller = new AbortController();
+        var landing = folderUrl();
         setBusy(true);
+        cancel.focus();
         try {
             for (var i = 0; i < files.length; i++) {
                 await uploadFile(files[i], i + 1, files.length);
             }
             setStatus(files.length === 1 ? 'Upload complete. Reloading the folder.' : 'All ' + files.length + ' files uploaded. Reloading the folder.');
             inFlight = false;
-            window.location.assign(CONTAINER_URL);
+            window.location.assign(landing);
         } catch (err) {
             setBusy(false);
             if (controller.signal.aborted) {
@@ -221,7 +246,7 @@
                 return;
             }
             setStatus('');
-            showError(err && err.message ? err.message : 'The upload failed. Upload the file again.');
+            showError(err && err.message === SESSION_ENDED ? SESSION_ENDED : GENERIC_FAILURE);
         }
     });
 

@@ -200,6 +200,8 @@ On the **Content** tab you build the page from regions and widgets:
 
 To add content, select **Add content here**. Choose a region layout and select **Add region**, or choose a widget and select **Add widget**. Widgets go inside a region. Each item has buttons to move it up or down and to delete it.
 
+The Search and Search results widgets let you limit a search to chosen pages by ticking them in a list. On a long list, type in the **Filter pages** box to narrow it by page title or path, or tick **Show only selected pages** to check your choices. Ticked pages that the filter hides are still saved.
+
 The buttons under the content are:
 
 | Button | What it does |

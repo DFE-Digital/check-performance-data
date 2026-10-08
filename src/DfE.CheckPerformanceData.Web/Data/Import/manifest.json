@@ -1,3 +1,9 @@
 {
-  "imports": []
+  "imports": [
+    {
+      "file": "cms-guide.json",
+      "environments": [ "Development", "Review", "QA", "Preproduction", "Production" ],
+      "existing": "replaceOlder"
+    }
+  ]
 }

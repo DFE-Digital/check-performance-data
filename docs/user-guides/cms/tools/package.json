@@ -1,0 +1,15 @@
+{
+  "name": "cpd-cms-guide-tools",
+  "private": true,
+  "type": "module",
+  "description": "Captures CMS screenshots from the local stack and builds the in-app guide 'How to use the CMS' from the Markdown in ../pages.",
+  "scripts": {
+    "capture": "node capture.mjs",
+    "build": "node build-bundle.mjs",
+    "preview": "node preview.mjs"
+  },
+  "devDependencies": {
+    "marked": "15.0.12",
+    "playwright": "1.62.0"
+  }
+}

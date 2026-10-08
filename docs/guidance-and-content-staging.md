@@ -91,3 +91,71 @@ For an example file to import to populate the CMS
 - Unit — guidance section/manifest mapping, content-block search (HTML-encoding + `<mark>` safety), slug generation, content-block service/controller.
 - Integration (Testcontainers Postgres) — content-staging export/import round-trip and both migrations on a real database.
 - E2E — guidance landing + KS4 structure and the content-staging admin pages (export / select / content-blocks), including anonymous-redirect guards.
+
+## Content shipped with the service
+
+Some content has to be in every environment: the service's own help pages, for example. It
+is kept in the repository as content-staging bundles and imported by the application
+itself at start-up, so a deployment puts it in place and nobody has to import it by hand.
+
+The files are in `src/DfE.CheckPerformanceData.Web/Data/Import`:
+
+| File | What it is |
+|---|---|
+| `manifest.json` | The list of bundles to import, in order |
+| `cms-guide.json` | The in-app guide *How to use the CMS*. Generated: see `docs/user-guides/README.md` |
+
+### The manifest
+
+```json
+{
+  "imports": [
+    {
+      "file": "cms-guide.json",
+      "environments": [ "Development", "Review", "QA", "Preproduction", "Production" ],
+      "existing": "replaceOlder"
+    }
+  ]
+}
+```
+
+Each entry names one bundle in the same folder. They are imported from top to bottom, so
+a bundle whose pages hang off pages in another bundle goes after it.
+
+| Property | Values | What it does |
+|---|---|---|
+| `file` | A file name in the folder | The bundle to import. A `.json` bundle, as exported from *Content staging import/export* and unzipped. |
+| `environments` | A list of `Development`, `Review`, `QA`, `Preproduction`, `Production` | The environments to import the file into, matched against `ASPNETCORE_ENVIRONMENT`. A file is imported nowhere it is not named. An entry with no list is reported as an error and skipped. |
+| `existing` | `keep` (the default) | Adds what is missing and leaves everything already there alone. |
+| | `replace` | Overwrites what is there on every start-up. For content nobody edits, which must always be exactly as shipped. |
+| | `replaceOlder` | Overwrites a page only if it was last changed before the bundle's `exportedAtUtc`. A newer bundle replaces older pages. A page edited since is kept until a newer bundle is released. Content blocks are added if missing and otherwise kept. |
+
+### Adding a file
+
+1. Build the content in a local environment and export it from *Content staging
+   import/export*. Unzip the download to get the `.json` bundle.
+2. Put the bundle in `Data/Import`.
+3. Add an entry for it to `manifest.json`, naming the environments it is for. Content
+   that exists for testing, for example, would name `Development` and `Review` only.
+
+A bundle's top-level pages need a parent that exists in every environment. The four
+sections (Support, Wiki, Help and Guidance) are created before the import runs and have the
+same id everywhere, so pages beneath them import cleanly.
+
+### What the import will and will not do
+
+- It runs each time the application starts, and imports each file into the environments
+  its entry names.
+- Each bundle goes through the same importer as an upload, so the same validation and
+  sanitisation apply.
+- A page that someone has deleted stays deleted, along with any pages the bundle would put
+  beneath it. Restore it from *Deleted pages* to get it back.
+- With `replaceOlder`, replacing a page marks it as changed at the time of the import. The
+  next start-up therefore finds nothing to do, and nothing is rewritten on every restart.
+- A file that is missing, cannot be read or fails to import is logged and skipped. The
+  files after it are still imported, and the application still starts. Look for
+  `Content import:` in the application log.
+
+`ShippedContentImportTests` fails the build if the manifest lists a file that is not there,
+if a file in the folder is not listed, if an entry names an environment that does not
+exist, or if two files contain the same page.

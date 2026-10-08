@@ -1790,6 +1790,25 @@ body:has(.cpb-breadcrumbs) main.govuk-main-wrapper { padding-top: 0 !important; 
     padding-top: 30px;
 }
 
+/* Start both columns of a region on the same line.
+   A search form brings 20px of margin above it, and the side navigation 20px of padding plus
+   10px inside its first link, so a column that begins with either started its first words 20
+   to 30px below the text in the column beside it. Take that space away when the widget is the
+   first thing in its column. The link keeps its own padding, so it is as easy to hit as before;
+   the navigation is pulled up by that much instead.
+
+   The navigation rule stands aside for the one layout the rule above already lines up the
+   other way, by padding a caption down to meet the navigation. */
+.cpb-content [class*="govuk-grid-column-"] > .cypmd-search:first-child {
+  margin-top: 0;
+}
+.cpb-content > .govuk-grid-row:not(:has(> .govuk-grid-column-two-thirds > .govuk-body:first-child > .govuk-caption-l:only-child))
+  > [class*="govuk-grid-column-"]
+  > .moj-side-navigation:first-child {
+    padding-top: 0;
+    margin-top: -10px;
+}
+
 /* On-page search: the heading it took you to.
    The heading is given focus so a screen reader moves with the jump, and the browser drew a
    box around it as a side effect — but only when its own :focus-visible heuristic felt like

@@ -1,3 +1,4 @@
+using System.Reflection;
 using Azure;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
@@ -7,6 +8,7 @@ using DfE.CheckPerformanceData.Web.Controllers;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 
@@ -30,19 +32,24 @@ public sealed class StorageAdminControllerTests
 {
     private static StorageAdminController BuildSut(
         IReadOnlyDictionary<string, BlobServiceClient> accounts,
-        params string[] protectedContainers) =>
-        new(accounts, Options.Create(new StorageBrowserOptions
-        {
-            ProtectedContainers = protectedContainers.Length > 0
-                ? protectedContainers
-                : new StorageBrowserOptions().ProtectedContainers
-        }))
+        StorageBrowserOptions options) =>
+        new(accounts, Options.Create(options), NullLogger<StorageAdminController>.Instance)
         {
             ControllerContext = new ControllerContext
             {
                 HttpContext = new DefaultHttpContext()
             }
         };
+
+    private static StorageAdminController BuildSut(
+        IReadOnlyDictionary<string, BlobServiceClient> accounts,
+        params string[] protectedContainers) =>
+        BuildSut(accounts, new StorageBrowserOptions
+        {
+            ProtectedContainers = protectedContainers.Length > 0
+                ? protectedContainers
+                : new StorageBrowserOptions().ProtectedContainers
+        });
 
     private static StorageAdminController BuildSut(string account, BlobServiceClient client) =>
         BuildSut(new Dictionary<string, BlobServiceClient> { [account] = client });
@@ -119,17 +126,26 @@ public sealed class StorageAdminProtectedContainerTests
     private const string Keyring = "data-protection-keys";
 
     private static StorageAdminController BuildSut(
+        IReadOnlyDictionary<string, BlobServiceClient> accounts, StorageBrowserOptions options) =>
+        new(accounts, Options.Create(options), NullLogger<StorageAdminController>.Instance)
+        {
+            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
+        };
+
+    private static StorageAdminController BuildSut(
         BlobServiceClient client, params string[] protectedContainers) =>
-        new(new Dictionary<string, BlobServiceClient> { ["app"] = client },
-            Options.Create(new StorageBrowserOptions
+        BuildSut(new Dictionary<string, BlobServiceClient> { ["app"] = client },
+            new StorageBrowserOptions
             {
                 ProtectedContainers = protectedContainers.Length > 0
                     ? protectedContainers
                     : new StorageBrowserOptions().ProtectedContainers
-            }))
-        {
-            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
-        };
+            });
+
+    // Small bounds so the index and length tests stay readable: 8-byte parts, 64-byte maximum,
+    // so MaxBlocks is 8.
+    private static StorageBrowserOptions ChunkedOn(int chunkBytes = 8, long maxBytes = 64) =>
+        new() { ChunkBytes = chunkBytes, MaxUploadBytes = maxBytes };
 
     // The keyring is protected out of the box. An environment that has to add another secret
     // container should not have to discover that the default was empty.
@@ -361,5 +377,115 @@ public sealed class StorageAdminProtectedContainerTests
         var result = await BuildSut(service).Delete("app", "window-123", "draft.json");
 
         Assert.IsType<RedirectResult>(result);
+    }
+
+    // ── #568 chunked upload ─────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task StageBlock_AndCommit_ToAProtectedContainer_Are404_AndWriteNothing()
+    {
+        var service = Substitute.For<BlobServiceClient>();
+        var sut = BuildSut(new Dictionary<string, BlobServiceClient> { ["app"] = service }, ChunkedOn());
+
+        Assert.IsType<NotFoundResult>(await sut.StageBlock("app", Keyring, null, null, "a.csv", Guid.NewGuid(), 0, CancellationToken.None));
+        Assert.IsType<NotFoundResult>(await sut.CommitUpload("app", Keyring, null, null, "a.csv", Guid.NewGuid(), 1, null, CancellationToken.None));
+        service.DidNotReceiveWithAnyArgs().GetBlobContainerClient(default!);
+    }
+
+    [Theory]
+    [InlineData("../", null, "a.csv")]
+    [InlineData(null, "..", "a.csv")]
+    [InlineData(null, null, "")]
+    [InlineData(null, null, null)]
+    public async Task StageBlock_AndCommit_WithAnUnsafeTarget_Are404(string? prefix, string? folder, string? fileName)
+    {
+        var service = Substitute.For<BlobServiceClient>();
+        var sut = BuildSut(new Dictionary<string, BlobServiceClient> { ["app"] = service }, ChunkedOn());
+
+        Assert.IsType<NotFoundResult>(await sut.StageBlock("app", "c", prefix, folder, fileName, Guid.NewGuid(), 0, CancellationToken.None));
+        Assert.IsType<NotFoundResult>(await sut.CommitUpload("app", "c", prefix, folder, fileName, Guid.NewGuid(), 1, null, CancellationToken.None));
+        service.DidNotReceiveWithAnyArgs().GetBlobContainerClient(default!);
+    }
+
+    // The index is bounded before any block is staged, or a caller could park up to Azure's
+    // 100,000 uncommitted blocks before the commit check ever ran. Max is 64/8 = 8 blocks here.
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(8)]
+    [InlineData(int.MaxValue)]
+    public async Task StageBlock_WithAnIndexOutsideTheBound_Is400_AndStagesNothing(int index)
+    {
+        var service = Substitute.For<BlobServiceClient>();
+        var sut = BuildSut(new Dictionary<string, BlobServiceClient> { ["app"] = service }, ChunkedOn());
+        sut.Request.ContentLength = 8;
+
+        var result = await sut.StageBlock("app", "c", null, null, "a.csv", Guid.NewGuid(), index, CancellationToken.None);
+
+        Assert.IsType<BadRequestObjectResult>(result);
+        service.DidNotReceiveWithAnyArgs().GetBlobContainerClient(default!);
+    }
+
+    [Fact]
+    public async Task StageBlock_WithAnEmptyUploadId_Is400()
+    {
+        var service = Substitute.For<BlobServiceClient>();
+        var sut = BuildSut(new Dictionary<string, BlobServiceClient> { ["app"] = service }, ChunkedOn());
+        sut.Request.ContentLength = 8;
+
+        Assert.IsType<BadRequestObjectResult>(await sut.StageBlock("app", "c", null, null, "a.csv", Guid.Empty, 0, CancellationToken.None));
+        Assert.IsType<BadRequestObjectResult>(await sut.CommitUpload("app", "c", null, null, "a.csv", Guid.Empty, 1, null, CancellationToken.None));
+    }
+
+    // A missing, zero or over-size Content-Length is refused before a byte is read, so the
+    // bounded buffer is only ever allocated for a body the configuration allows.
+    [Theory]
+    [InlineData(null)]
+    [InlineData(0L)]
+    [InlineData(9L)]
+    public async Task StageBlock_WithABodyLengthOutsideTheChunk_Is400(long? contentLength)
+    {
+        var service = Substitute.For<BlobServiceClient>();
+        var sut = BuildSut(new Dictionary<string, BlobServiceClient> { ["app"] = service }, ChunkedOn(chunkBytes: 8));
+        sut.Request.ContentLength = contentLength;
+
+        var result = await sut.StageBlock("app", "c", null, null, "a.csv", Guid.NewGuid(), 0, CancellationToken.None);
+
+        Assert.IsType<BadRequestObjectResult>(result);
+        service.DidNotReceiveWithAnyArgs().GetBlobContainerClient(default!);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(9)]
+    public async Task Commit_WithABlockCountOutsideTheBound_Is400(int blockCount)
+    {
+        var service = Substitute.For<BlobServiceClient>();
+        var sut = BuildSut(new Dictionary<string, BlobServiceClient> { ["app"] = service }, ChunkedOn());
+
+        Assert.IsType<BadRequestObjectResult>(await sut.CommitUpload("app", "c", null, null, "a.csv", Guid.NewGuid(), blockCount, null, CancellationToken.None));
+        service.DidNotReceiveWithAnyArgs().GetBlobContainerClient(default!);
+    }
+
+    // Kestrel's MaxRequestBodySize is disabled application-wide, so every body-reading action
+    // must carry its own ceiling, and the chunk ceiling must admit a configured part.
+    [Fact]
+    public void BodyReadingActions_CarryRequestSizeLimits_AndAntiforgery()
+    {
+        var stage = typeof(StorageAdminController).GetMethod(nameof(StorageAdminController.StageBlock))!;
+        var commit = typeof(StorageAdminController).GetMethod(nameof(StorageAdminController.CommitUpload))!;
+        var upload = typeof(StorageAdminController).GetMethod(nameof(StorageAdminController.Upload))!;
+
+        var stageLimit = stage.GetCustomAttribute<RequestSizeLimitAttribute>();
+        Assert.NotNull(stageLimit);
+        Assert.Equal(StorageBrowserOptions.ChunkRequestCeilingBytes, (long)typeof(RequestSizeLimitAttribute)
+            .GetField("_bytes", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(stageLimit)!);
+        Assert.NotNull(stage.GetCustomAttribute<HttpPutAttribute>());
+        Assert.NotNull(stage.GetCustomAttribute<ValidateAntiForgeryTokenAttribute>());
+
+        Assert.NotNull(commit.GetCustomAttribute<HttpPostAttribute>());
+        Assert.NotNull(commit.GetCustomAttribute<ValidateAntiForgeryTokenAttribute>());
+
+        Assert.NotNull(upload.GetCustomAttribute<RequestSizeLimitAttribute>());
+        Assert.NotNull(upload.GetCustomAttribute<RequestFormLimitsAttribute>());
     }
 }

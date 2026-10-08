@@ -1,10 +1,12 @@
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
+using Azure.Storage.Blobs.Specialized;
 using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using System.Text.RegularExpressions;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
@@ -13,7 +15,8 @@ namespace DfE.CheckPerformanceData.Web.Controllers;
 [RequireAdminSection(AdminNavKeys.StorageBrowser)]
 public sealed class StorageAdminController(
     IReadOnlyDictionary<string, BlobServiceClient> storageAccounts,
-    IOptions<StorageBrowserOptions> browserOptions) : Controller
+    IOptions<StorageBrowserOptions> browserOptions,
+    ILogger<StorageAdminController> logger) : Controller
 {
     // The keyring and anything else configured as secret. Every route consults this before it
     // resolves a container, so a protected blob is never opened, written or removed — not opened
@@ -192,8 +195,13 @@ public sealed class StorageAdminController(
         return RedirectToContainer(account, containerName, prefix);
     }
 
+    // Kestrel's MaxRequestBodySize is disabled app-wide, so the plain form needs its own ceiling.
+    // 128 MB is ASP.NET Core's multipart default made explicit; in deployed environments the
+    // ingress controller refuses anything over 50 MB long before this is reached (#568).
     [HttpPost("admin/storage/{account}/{containerName}/upload")]
     [ValidateAntiForgeryToken]
+    [RequestSizeLimit(128L * 1024 * 1024)]
+    [RequestFormLimits(MultipartBodyLengthLimit = 128L * 1024 * 1024)]
     public async Task<IActionResult> Upload(string account, string containerName, List<IFormFile> files, [FromForm] string? prefix, [FromForm] string? folder)
     {
         if (IsProtected(containerName)) return NotFound();
@@ -230,6 +238,114 @@ public sealed class StorageAdminController(
 
         return RedirectToContainer(account, containerName, prefix);
     }
+
+    // ── #568 chunked upload ─────────────────────────────────────────────────────────────────
+    // The browser sends each file in parts. Every part is one PUT with a raw body, staged as an
+    // uncommitted block; a final POST commits the block list. No server state: the block ids
+    // are derived from the upload id and the part index, so a request can only ever touch the
+    // blocks of the upload it names, and the commit re-derives the same list. Bounds come
+    // from configuration; the request ceiling is an attribute because Kestrel's is off.
+
+    [HttpPut("admin/storage/{account}/{containerName}/upload/block")]
+    [ValidateAntiForgeryToken]
+    [RequestSizeLimit(StorageBrowserOptions.ChunkRequestCeilingBytes)]
+    public async Task<IActionResult> StageBlock(
+        string account, string containerName,
+        [FromQuery] string? prefix, [FromQuery] string? folder, [FromQuery] string? fileName,
+        [FromQuery] Guid uploadId, [FromQuery] int index,
+        CancellationToken cancellationToken)
+    {
+        var options = browserOptions.Value;
+        if (IsProtected(containerName)) return NotFound();
+        var client = GetClient(account);
+        if (client is null) return NotFound();
+        var blobName = StorageBlobNames.ResolveUploadName(prefix, folder, fileName);
+        if (blobName is null) return NotFound();
+
+        if (uploadId == Guid.Empty)
+            return BadRequest(new { error = "The upload id is missing." });
+        if (index < 0 || index >= options.MaxBlocks)
+            return BadRequest(new { error = $"The part number must be between 0 and {options.MaxBlocks - 1}." });
+        var length = Request.ContentLength;
+        if (length is null || length <= 0 || length > options.ChunkBytes)
+            return BadRequest(new { error = $"Each part must be between 1 and {options.ChunkBytes} bytes." });
+
+        var container = client.GetBlobContainerClient(containerName);
+        if (!await container.ExistsAsync(cancellationToken)) return NotFound();
+
+        // Bounded by the length check above, so at most ChunkBytes per in-flight request. Copied
+        // rather than streamed because the SDK cannot rewind a request body to retry a part.
+        using var buffer = new MemoryStream((int)length.Value);
+        await Request.Body.CopyToAsync(buffer, cancellationToken);
+        if (buffer.Length != length.Value)
+            return BadRequest(new { error = "The part was shorter than its declared length." });
+        buffer.Position = 0;
+
+        await StorageChunkedUpload.StageAsync(container.GetBlockBlobClient(blobName), uploadId, index, buffer, cancellationToken);
+
+        if (index == 0)
+        {
+            logger.LogInformation(
+                "Storage browser chunked upload started {UploadId} to {Account}/{Container}/{Blob}",
+                uploadId, account, containerName, blobName);
+        }
+
+        return NoContent();
+    }
+
+    [HttpPost("admin/storage/{account}/{containerName}/upload/commit")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CommitUpload(
+        string account, string containerName,
+        [FromForm] string? prefix, [FromForm] string? folder, [FromForm] string? fileName,
+        [FromForm] Guid uploadId, [FromForm] int blockCount, [FromForm] string? contentType,
+        CancellationToken cancellationToken)
+    {
+        var options = browserOptions.Value;
+        if (IsProtected(containerName)) return NotFound();
+        var client = GetClient(account);
+        if (client is null) return NotFound();
+        var blobName = StorageBlobNames.ResolveUploadName(prefix, folder, fileName);
+        if (blobName is null) return NotFound();
+
+        if (uploadId == Guid.Empty)
+            return BadRequest(new { error = "The upload id is missing." });
+        if (blockCount < 1 || blockCount > options.MaxBlocks)
+            return BadRequest(new { error = $"The part count must be between 1 and {options.MaxBlocks}." });
+
+        var container = client.GetBlobContainerClient(containerName);
+        if (!await container.ExistsAsync(cancellationToken)) return NotFound();
+
+        var outcome = await StorageChunkedUpload.CommitAsync(
+            container.GetBlockBlobClient(blobName), uploadId, blockCount, options.MaxUploadBytes,
+            SafeContentType(contentType), cancellationToken);
+
+        switch (outcome.Status)
+        {
+            case ChunkedCommitStatus.Committed:
+                logger.LogInformation(
+                    "Storage browser chunked upload committed {UploadId} to {Account}/{Container}/{Blob}: {Bytes} bytes in {Blocks} parts",
+                    uploadId, account, containerName, blobName, outcome.Bytes, blockCount);
+                return Ok(new { name = blobName, bytes = outcome.Bytes });
+            case ChunkedCommitStatus.TooLarge:
+                logger.LogWarning(
+                    "Storage browser chunked upload refused {UploadId} to {Account}/{Container}/{Blob}: {Bytes} bytes exceeds {MaxBytes}",
+                    uploadId, account, containerName, blobName, outcome.Bytes, options.MaxUploadBytes);
+                return BadRequest(new { error = $"The selected file must be smaller than {StorageBrowserOptions.FormatSize(options.MaxUploadBytes)}." });
+            default:
+                logger.LogWarning(
+                    "Storage browser chunked upload incomplete {UploadId} to {Account}/{Container}/{Blob}: {Blocks} parts expected",
+                    uploadId, account, containerName, blobName, blockCount);
+                return Conflict(new { error = "The upload did not complete. Upload the file again." });
+        }
+    }
+
+    // A media type for the blob's Content-Type header, or null for octet-stream. Only the simple
+    // type/subtype shape is accepted, so request input cannot smuggle parameters or newlines.
+    private static readonly Regex MediaType = new(@"^[A-Za-z0-9!#$&^_.+-]{1,64}/[A-Za-z0-9!#$&^_.+-]{1,64}$", RegexOptions.Compiled);
+
+    private static string? SafeContentType(string? contentType) =>
+        !string.IsNullOrWhiteSpace(contentType) && MediaType.IsMatch(contentType.Trim()) ? contentType.Trim() : null;
 
     private IActionResult RedirectToContainer(string account, string containerName, string? prefix)
     {

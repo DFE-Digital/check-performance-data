@@ -19,7 +19,7 @@ public sealed class StorageAdminUploadTargetTests(AzuriteFixture fixture)
 
     private StorageAdminController Sut() =>
         new(new Dictionary<string, BlobServiceClient> { ["app"] = _blobs },
-            Options.Create(new StorageBrowserOptions()))
+            Options.Create(new StorageBrowserOptions()), NullLogger<StorageAdminController>.Instance)
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
         };

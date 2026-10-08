@@ -1,3 +1,4 @@
+using Azure;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using Azure.Storage.Blobs.Specialized;
@@ -19,13 +20,30 @@ public sealed class StorageAdminController(
     ILogger<StorageAdminController> logger) : Controller
 {
     // The keyring and anything else configured as secret. Every route consults this before it
-    // resolves a container, so a protected blob is never opened, written or removed â€” not opened
+    // resolves a container, so a protected blob is never opened, written or removed — not opened
     // and then withheld. Kept in one place because six separate guards drift apart.
     private readonly HashSet<string> _protectedContainers =
         new(browserOptions.Value.ProtectedContainers ?? [], StringComparer.OrdinalIgnoreCase);
 
     // 404 rather than 403, matching what a non-granted admin section returns: a refusal that
     // confirms the container exists is a smaller leak than the contents, but it is still a leak.
+    internal const int PreviewMaxBytes = 256 * 1024;
+
+    // Drops a UTF-8 character cut in half by the end of a partial read, so the preview never ends in
+    // a replacement character.
+    internal static int CompleteUtf8Length(ReadOnlySpan<byte> bytes)
+    {
+        var end = bytes.Length;
+        for (var back = 1; back <= 3 && back <= end; back++)
+        {
+            var b = bytes[end - back];
+            if ((b & 0b1100_0000) == 0b1000_0000) continue; // continuation byte, keep looking for its lead
+            var needed = b >= 0xF0 ? 4 : b >= 0xE0 ? 3 : b >= 0xC0 ? 2 : 1;
+            return needed > back ? end - back : end;
+        }
+        return end;
+    }
+
     internal const BlobStates ListedStates = BlobStates.All & ~BlobStates.Uncommitted;
 
     private bool IsProtected(string containerName) => _protectedContainers.Contains(containerName);
@@ -139,11 +157,28 @@ public sealed class StorageAdminController(
         var contentType = props.Value.ContentType;
 
         string? content = null;
+        var isPartial = false;
         if (IsTextContent(contentType, blob))
         {
-            var response = await blobClient.DownloadContentAsync();
-            content = response.Value.Content.ToString();
-            if (IsJson(contentType, blob))
+            // Read only the start: a blob can now be up to 2GB, and turning all of it into a string
+            // would exhaust the pod's memory.
+            var length = props.Value.ContentLength;
+            isPartial = length > PreviewMaxBytes;
+            if (length == 0)
+            {
+                content = string.Empty;
+            }
+            else
+            {
+                var response = await blobClient.DownloadContentAsync(
+                    new BlobDownloadOptions { Range = new HttpRange(0, PreviewMaxBytes) });
+                var bytes = response.Value.Content.ToMemory();
+                if (isPartial) bytes = bytes[..CompleteUtf8Length(bytes.Span)];
+                content = System.Text.Encoding.UTF8.GetString(bytes.Span);
+            }
+
+            // A cut-off document is not valid JSON, so only tidy one that was read whole.
+            if (!isPartial && IsJson(contentType, blob))
             {
                 try
                 {
@@ -162,7 +197,8 @@ public sealed class StorageAdminController(
             ContainerName = containerName,
             BlobName = blob,
             ContentType = contentType,
-            Content = content
+            Content = content,
+            IsPartial = isPartial
         });
     }
 
@@ -246,7 +282,7 @@ public sealed class StorageAdminController(
         return RedirectToContainer(account, containerName, prefix);
     }
 
-    // â”€â”€ #568 chunked upload â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── #568 chunked upload ─────────────────────────────────────────────────────────────────
     // The browser sends each file in parts. Every part is one PUT with a raw body, staged as an
     // uncommitted block; a final POST commits the block list. No server state: the block ids
     // are derived from the upload id and the part index, so a request can only ever touch the

@@ -53,34 +53,25 @@ public sealed class ManifestContentImporter(
 {
     public const string ManifestFileName = "manifest.json";
 
-    private static readonly JsonSerializerOptions ManifestOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        ReadCommentHandling = JsonCommentHandling.Skip,
-        AllowTrailingCommas = true,
-    };
-
     public async Task<ManifestImportSummary> RunAsync(string folder, string environment)
     {
         var summary = new ManifestImportSummary();
 
-        var manifestPath = Path.Combine(folder, ManifestFileName);
-        if (!File.Exists(manifestPath))
-        {
-            logger.LogInformation("Content import: no {Manifest} in {Folder}, nothing to import", ManifestFileName, folder);
-            return summary;
-        }
-
-        ContentImportManifest manifest;
+        ContentImportManifest? manifest;
         try
         {
-            manifest = JsonSerializer.Deserialize<ContentImportManifest>(await File.ReadAllTextAsync(manifestPath), ManifestOptions)
-                ?? new ContentImportManifest();
+            manifest = ContentImportManifest.Read(folder);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Content import: {Manifest} could not be read, nothing was imported", manifestPath);
+            logger.LogError(ex, "Content import: {Manifest} in {Folder} could not be read, nothing was imported", ManifestFileName, folder);
             summary.FilesFailed++;
+            return summary;
+        }
+
+        if (manifest is null)
+        {
+            logger.LogInformation("Content import: no {Manifest} in {Folder}, nothing to import", ManifestFileName, folder);
             return summary;
         }
 
@@ -97,7 +88,7 @@ public sealed class ManifestContentImporter(
                 continue;
             }
 
-            if (!entry.Environments.Contains(environment, StringComparer.OrdinalIgnoreCase))
+            if (!entry.IsFor(environment))
                 continue;
 
             try
@@ -126,12 +117,10 @@ public sealed class ManifestContentImporter(
 
     private async Task<ContentImportResult> ImportAsync(string folder, ContentImportManifestEntry entry)
     {
-        // A file name and nothing else: the manifest decides what reaches production, so it must
-        // not be able to name anything outside its own folder.
-        if (string.IsNullOrWhiteSpace(entry.File) || entry.File != Path.GetFileName(entry.File) || entry.File.Contains(".."))
+        if (!entry.NamesAFileIn(folder))
             throw new InvalidOperationException($"'{entry.File}' is not the name of a file in the import folder.");
 
-        var existing = (entry.Existing ?? "keep").Trim().ToLowerInvariant();
+        var existing = entry.ExistingPolicy;
         if (existing is not ("keep" or "replace" or "replaceolder"))
             throw new InvalidOperationException($"'{entry.Existing}' is not a value of 'existing'. Use keep, replace or replaceOlder.");
 
@@ -193,7 +182,24 @@ public sealed class ManifestContentImporter(
 // manifest.json, as read from the import folder.
 public sealed class ContentImportManifest
 {
+    private static readonly JsonSerializerOptions Options = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        ReadCommentHandling = JsonCommentHandling.Skip,
+        AllowTrailingCommas = true,
+    };
+
     public List<ContentImportManifestEntry> Imports { get; init; } = [];
+
+    /// <summary>The manifest in a folder, or null when the folder has none. Throws if it cannot be read.</summary>
+    public static ContentImportManifest? Read(string folder)
+    {
+        var path = Path.Combine(folder, ManifestContentImporter.ManifestFileName);
+        if (!File.Exists(path))
+            return null;
+
+        return JsonSerializer.Deserialize<ContentImportManifest>(File.ReadAllText(path), Options) ?? new ContentImportManifest();
+    }
 }
 
 public sealed class ContentImportManifestEntry
@@ -203,6 +209,20 @@ public sealed class ContentImportManifestEntry
     public List<string>? Environments { get; init; }
 
     public string? Existing { get; init; }
+
+    /// <summary>The value of <see cref="Existing"/> in lower case, "keep" when it is left out.</summary>
+    public string ExistingPolicy => (Existing ?? "keep").Trim().ToLowerInvariant();
+
+    public bool IsFor(string environment) =>
+        Environments is not null && Environments.Contains(environment, StringComparer.OrdinalIgnoreCase);
+
+    // A file name and nothing else: the manifest decides what reaches production, so it must
+    // not be able to name anything outside its own folder.
+    public bool NamesAFileIn(string folder) =>
+        !string.IsNullOrWhiteSpace(File)
+        && File == Path.GetFileName(File)
+        && !File.Contains("..")
+        && System.IO.File.Exists(Path.Combine(folder, File));
 }
 
 // What a run did, for the log and for tests.

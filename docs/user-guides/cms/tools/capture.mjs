@@ -26,6 +26,7 @@ const only = process.argv.slice(2);
 
 const helpRootId = '00000000-cd94-4a01-8f01-000000000003';
 const guidanceRootId = '00000000-cd94-4a01-8f01-000000000004';
+const guideHomeId = 'a969611f-33ad-518d-9ce5-dcd82a9b2656';
 const editUrl = `/admin/pages/${demoPageId}/edit`;
 
 await mkdir(outDir, { recursive: true });
@@ -210,6 +211,10 @@ const shots = [
   { name: 'editor-overview', run: async () => {
     await go(editUrl);
     await save('editor-overview', { around: ['.govuk-caption-l, h1', page.locator('.govuk-tabs__panel:visible')], maxHeight: 1150 });
+  } },
+  { name: 'editor-imported-warning', run: async () => {
+    await go(`/admin/pages/${guideHomeId}/edit`);
+    await save('editor-imported-warning', { around: ['.govuk-caption-l', '[data-imported-content] + p', '.govuk-tabs__list'] });
   } },
   { name: 'editor-add-content', run: async () => {
     await go(editUrl);

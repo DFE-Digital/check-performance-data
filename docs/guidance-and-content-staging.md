@@ -152,6 +152,9 @@ same id everywhere, so pages beneath them import cleanly.
   beneath it. Restore it from *Deleted pages* to get it back.
 - With `replaceOlder`, replacing a page marks it as changed at the time of the import. The
   next start-up therefore finds nothing to do, and nothing is rewritten on every restart.
+- The page editors show a warning at the top of any page that a `replace` or
+  `replaceOlder` file will overwrite in that environment, so nobody loses work by
+  editing one.
 - A file that is missing, cannot be read or fails to import is logged and skipped. The
   files after it are still imported, and the application still starts. Look for
   `Content import:` in the application log.

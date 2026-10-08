@@ -85,6 +85,12 @@ To fix it, go back to the first environment and export again with the parent tic
 4. Import with **Overwrite** only for the pages you mean to replace. Leave the default as **Skip**.
 5. Check the pages in production.
 
+## Pages the service imports by itself
+
+Some pages are supplied with the service and imported automatically when it starts, with no one using this screen. This guide is one example. A newer release overwrites them, so changes made to them in an environment do not last.
+
+You can tell them apart in the editor: a warning under the page title says *This page is supplied with the service*. To change one for good, ask the development team, so that every environment gets the change.
+
 ## Clear all CMS content
 
 Development environments can show a **Clear all CMS content** button on this screen. It deletes every page and content block and cannot be undone. It is for resetting a test environment.

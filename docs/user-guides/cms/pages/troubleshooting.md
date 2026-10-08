@@ -82,6 +82,12 @@ An earlier version was published with no end date, so it became the live version
 
 Search, menus and the **Versions** tab catch up the next time someone publishes or edits the page. Open the **Versions** tab and select **Publish** on the version that should be live.
 
+## My changes to a page have gone
+
+If the editor shows the warning *This page is supplied with the service* on that page, the service imported a newer version of it and overwrote yours. That is expected for the pages of this guide and any others the service supplies. Ask the development team to make the change in the service.
+
+If there is no warning, an administrator can check the [audit log](viewing-logs.md) for a *Content import*.
+
 ## The page publishes at the wrong time
 
 Publishing dates are in UTC. In summer the UK is one hour ahead, so a page set to 09:00 goes live at 10am UK time. Enter a time one hour earlier. See [Drafts, publishing and versions](managing-versions.md).

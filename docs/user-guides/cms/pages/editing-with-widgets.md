@@ -22,6 +22,8 @@ At the top:
 
 Each widget shows how it will look, with a label saying what kind of widget it is.
 
+> If a warning under the title says *This page is supplied with the service*, the page is one the service imports by itself, such as a page of this guide. Changes you make to it will be overwritten when the service is updated. See [How to use the CMS](index.md).
+
 ## Add a region or a widget
 
 Select **Add content here** at the place you want the new content. The link appears in every empty column and after every item.

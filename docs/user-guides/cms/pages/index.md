@@ -73,4 +73,8 @@ This guide is part of the service. It is created automatically in every environm
 
 It is itself a set of CMS pages, built with the widgets it describes. Open any page of it in the editor to see how it is put together.
 
-> You can edit these pages like any other. Your changes are kept until a release brings a newer version of the guide, which replaces them. If you find a mistake, tell the development team so that the fix reaches every environment.
+> **Warning** Do not edit these pages to change the guide. A release that brings a newer version of the guide overwrites every page of it, and your changes are lost. If you find a mistake, tell the development team so that the fix reaches every environment.
+
+The editor reminds you. Open a page of this guide, or any other page supplied with the service, and a warning at the top says that your changes will be overwritten.
+
+![The top of the editor for the guide's home page. Under the title, a warning reads: This page is supplied with the service. Changes you make here will be overwritten when the service is updated](../../../../src/DfE.CheckPerformanceData.Web/wwwroot/assets/cms-help/editor-imported-warning.png "The warning the editor shows on a page that is supplied with the service.")

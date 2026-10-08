@@ -53,7 +53,7 @@ Build the id list conditionally from what the view emits. `QuestionPartialModel.
 
 **The file input's description does not repeat the visible hint (#389).** Chrome exposes a native `<input type="file">` to assistive technology as a button, and JAWS does not read a button's `aria-describedby` aloud: it tells the user to press JAWS key + Alt + R to hear "descriptive text". When the hint was named, what they then heard was "Evidence must be in a PDF format" — the sentence already on screen under the question heading. The auditor reported that detour as redundant hidden instructions (WCAG 4.1.2, Zoonou issue 8). So the hint paragraph stays visible and carries no id, and the input's description names only the count line and the error.
 
-This departs, for this one control, from the GOV.UK file upload component, whose hint *is* the input's description. The trade: a user who tabs straight to the control hears the count and any error, not the format rule. The picker's `accept=".pdf"` filter and the server's "The file must be a PDF" error cover that. If a later audit asks for the hint back, reverse this section, `DescribedBy`, `_FileUpload.cshtml` and the two tests together — never one side alone.
+This departs, for this one control, from the GOV.UK file upload component, whose hint *is* the input's description. The trade: a user who tabs straight to the control hears the count and any error, not the format rule. The picker's `accept=".pdf"` filter and the server's "Evidence must be in a PDF format." error (`JourneyController`, a non-PDF upload) cover that. If a later audit asks for the hint back, reverse this section, `DescribedBy`, `_FileUpload.cshtml` and the two tests together — never one side alone.
 
 ## accessible-autocomplete
 

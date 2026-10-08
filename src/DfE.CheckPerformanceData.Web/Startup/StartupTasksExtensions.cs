@@ -1,3 +1,5 @@
+using System.IO;
+using DfE.CheckPerformanceData.Application.ContentStaging;
 using System.Threading.Tasks;
 using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.Persistence.Contexts;
@@ -24,6 +26,12 @@ public static class StartupTasksExtensions
             await SeedCountries.ExecuteSeed(scope.ServiceProvider.GetRequiredService<IPortalDbContext>());
 
             await scope.ServiceProvider.GetRequiredService<DefaultPageNodeSeeder>().SeedAsync();
+
+            // Content the service ships with, such as the in-app guide "How to use the CMS". Each
+            // file listed in Data/Import/manifest.json is imported, in order, into the environments
+            // its entry names. It follows the roots because shipped pages hang off them.
+            await scope.ServiceProvider.GetRequiredService<ManifestContentImporter>().RunAsync(
+                Path.Combine(app.Environment.ContentRootPath, "Data", "Import"), app.Environment.EnvironmentName);
             await scope.ServiceProvider
                 .GetRequiredService<DfE.CheckPerformanceData.Application.Admin.DefaultAdminAccessSeeder>()
                 .SeedIfEmptyAsync();

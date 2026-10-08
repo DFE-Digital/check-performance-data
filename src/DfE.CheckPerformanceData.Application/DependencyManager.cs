@@ -43,6 +43,7 @@ public static class DependencyManager
         services.AddScoped<DefaultPageNodeSeeder>();
         services.AddScoped<SamplePageNodeSeeder>();
         services.AddScoped<TestFixturePageNodeSeeder>();
+        services.AddScoped<ContentStaging.ManifestContentImporter>();
         services.AddScoped<Analytics.SampleSearchDataSeeder>();
         services.AddScoped<ContentStaging.IContentStagingService, ContentStaging.ContentStagingService>();
         services.AddScoped<ContentStaging.ContentBundleSanitiser>();

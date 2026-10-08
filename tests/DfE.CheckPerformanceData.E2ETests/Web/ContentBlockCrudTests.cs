@@ -4,7 +4,8 @@ using DfE.CheckPerformanceData.E2ETests.Helpers;
 
 namespace DfE.CheckPerformanceData.E2ETests.Web;
 
-[Collection("E2E")]
+[Trait("Category", "Smoke")]
+[Collection("Http")]
 public sealed class ContentBlockCrudTests(PlaywrightFixture fixture)
 {
     private readonly PlaywrightFixture _fixture = fixture;
@@ -39,7 +40,7 @@ public sealed class ContentBlockCrudTests(PlaywrightFixture fixture)
         request.Headers.Add("X-XSRF-TOKEN", token);
         request.Headers.Add("Cookie", cookie);
 
-        var response = await TestHttpClients.SendAsync(request);
+        var response = await _fixture.SeedClient.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
     }
@@ -76,7 +77,7 @@ public sealed class ContentBlockCrudTests(PlaywrightFixture fixture)
             request.Headers.Add("X-XSRF-TOKEN", token);
             request.Headers.Add("Cookie", cookie);
 
-            var response = await TestHttpClients.SendAsync(request);
+            var response = await _fixture.SeedClient.SendAsync(request);
 
             // Non-editor gets 404 rather than 302 to AccessDenied — content-block edit surface
             // is obfuscated from users with no ContentBlocks section grant.
@@ -113,7 +114,7 @@ public sealed class ContentBlockCrudTests(PlaywrightFixture fixture)
             request.Headers.Add("X-XSRF-TOKEN", token);
             request.Headers.Add("Cookie", cookie);
 
-            var response = await TestHttpClients.SendAsync(request);
+            var response = await _fixture.SeedClient.SendAsync(request);
 
             // Non-editor gets 404 rather than 302 to AccessDenied — content-block edit surface
             // is obfuscated from users with no ContentBlocks section grant.
@@ -143,7 +144,7 @@ public sealed class ContentBlockCrudTests(PlaywrightFixture fixture)
                 HttpMethod.Get,
                 $"{_fixture.BaseUrl}/content-block/versions/{key}");
 
-            var response = await TestHttpClients.SendAsync(request);
+            var response = await _fixture.SeedClient.SendAsync(request);
 
             Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         }

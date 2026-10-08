@@ -17,7 +17,7 @@ public static class CmsSeedHelpers
     // pages than a local stack. Each page's Title contributes to PageNode.SearchVector at
     // weight B. Ids are appended to `createdPages` so the caller's teardown removes them.
     public static async Task<string> SeedSearchableFixturesAsync(
-        HttpClient client, int count, ICollection<Guid> createdPages)
+        TestHttpClient client, int count, ICollection<Guid> createdPages)
     {
         // Lowercase hex chunk: tsvector-safe (no stopword collision) and short enough to
         // keep the test title readable.
@@ -40,7 +40,7 @@ public static class CmsSeedHelpers
     // from the redirect Location. Throws with the response body if the CMS returns
     // 200 instead of the expected 302 (which is how it surfaces validation errors).
     public static async Task<Guid> CreatePageNodeAsync(
-        HttpClient client,
+        TestHttpClient client,
         Guid? parentId,
         string pageType,
         string segment,
@@ -67,7 +67,7 @@ public static class CmsSeedHelpers
         req.Headers.Add("Cookie", cookie);
         req.RequestUri = new Uri(client.BaseAddress!, req.RequestUri!);
 
-        var response = await TestHttpClients.SendAsync(req);
+        var response = await client.SendAsync(req);
         if (response.StatusCode != HttpStatusCode.Found && response.StatusCode != HttpStatusCode.Redirect)
         {
             var body = await response.Content.ReadAsStringAsync();
@@ -89,7 +89,7 @@ public static class CmsSeedHelpers
 
     // Drops a widget of the given type at the given content-tree path (typically "0.0"
     // for the first widget on an empty content page). Uses the widget's default props.
-    public static async Task AddWidgetAsync(HttpClient client, Guid pageId, string path, string widgetType)
+    public static async Task AddWidgetAsync(TestHttpClient client, Guid pageId, string path, string widgetType)
     {
         var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(client, "/dev/antiforgery-token");
 
@@ -105,7 +105,7 @@ public static class CmsSeedHelpers
         req.Headers.Add("Cookie", cookie);
         req.RequestUri = new Uri(client.BaseAddress!, req.RequestUri!);
 
-        var response = await TestHttpClients.SendAsync(req);
+        var response = await client.SendAsync(req);
         if (response.StatusCode != HttpStatusCode.Found && response.StatusCode != HttpStatusCode.Redirect)
         {
             var body = await response.Content.ReadAsStringAsync();
@@ -118,7 +118,7 @@ public static class CmsSeedHelpers
     // Overwrites the props of an existing widget. Only prop keys present in the
     // widget's registry entry survive (WidgetPropsBuilder drops unknowns).
     public static async Task UpdateWidgetAsync(
-        HttpClient client,
+        TestHttpClient client,
         Guid pageId,
         string path,
         string widgetType,
@@ -144,7 +144,7 @@ public static class CmsSeedHelpers
         req.Headers.Add("Cookie", cookie);
         req.RequestUri = new Uri(client.BaseAddress!, req.RequestUri!);
 
-        var response = await TestHttpClients.SendAsync(req);
+        var response = await client.SendAsync(req);
         if (response.StatusCode != HttpStatusCode.Found && response.StatusCode != HttpStatusCode.Redirect)
         {
             var body = await response.Content.ReadAsStringAsync();
@@ -156,7 +156,7 @@ public static class CmsSeedHelpers
 
     // Publishes the working draft immediately (from=UtcNow, open-ended). Idempotent —
     // republishes the same draft if called twice.
-    public static async Task PublishDraftAsync(HttpClient client, Guid pageId)
+    public static async Task PublishDraftAsync(TestHttpClient client, Guid pageId)
     {
         var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(client, "/dev/antiforgery-token");
 
@@ -170,7 +170,7 @@ public static class CmsSeedHelpers
         req.Headers.Add("Cookie", cookie);
         req.RequestUri = new Uri(client.BaseAddress!, req.RequestUri!);
 
-        var response = await TestHttpClients.SendAsync(req);
+        var response = await client.SendAsync(req);
         if (response.StatusCode != HttpStatusCode.Found && response.StatusCode != HttpStatusCode.Redirect)
         {
             var body = await response.Content.ReadAsStringAsync();
@@ -183,7 +183,7 @@ public static class CmsSeedHelpers
     // Best-effort teardown for tests that want to leave the CMS clean. The route
     // rejects nodes with children; leaf test pages are fine. Failure is swallowed so
     // it can't mask the outer test outcome.
-    public static async Task TryDeletePageAsync(HttpClient client, Guid pageId)
+    public static async Task TryDeletePageAsync(TestHttpClient client, Guid pageId)
     {
         try
         {
@@ -198,7 +198,7 @@ public static class CmsSeedHelpers
             };
             req.Headers.Add("Cookie", cookie);
             req.RequestUri = new Uri(client.BaseAddress!, req.RequestUri!);
-            using var _ = await TestHttpClients.SendAsync(req);
+            using var _ = await client.SendAsync(req);
         }
         catch
         {
@@ -231,7 +231,7 @@ public static class CmsSeedHelpers
             req.Headers.Add("Cookie", cookie);
             req.RequestUri = new Uri(fixture.SeedClient.BaseAddress!, req.RequestUri!);
 
-            var response = await TestHttpClients.SendAsync(req);
+            var response = await fixture.SeedClient.SendAsync(req);
             if (response.StatusCode != HttpStatusCode.Found && response.StatusCode != HttpStatusCode.Redirect)
             {
                 var body = await response.Content.ReadAsStringAsync();

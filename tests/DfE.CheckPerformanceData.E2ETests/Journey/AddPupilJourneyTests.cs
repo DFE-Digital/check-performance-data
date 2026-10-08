@@ -1,6 +1,6 @@
 using DfE.CheckPerformanceData.E2ETests.Fixtures;
 using Microsoft.Playwright;
-using xRetry;
+using DfE.CheckPerformanceData.E2ETests.Retrying;
 
 namespace DfE.CheckPerformanceData.E2ETests.Journey;
 
@@ -12,6 +12,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Journey;
 // page chain holds together across redirects with no dataset pupil behind it, that the future-date
 // rules and required-field errors render correctly, and that a Post16 window (no Add flow exists
 // for it) never offers the option.
+[Trait("Category", "Smoke")]
 [Collection("E2E")]
 public sealed class AddPupilJourneyTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
@@ -22,7 +23,7 @@ public sealed class AddPupilJourneyTests(PlaywrightFixture fixture) : SeedingPag
     // The seeded "16 to 19 Oct" window — no Add_Post16.json flow exists, so the option must not appear.
     private static readonly Guid Post16WindowId = Guid.Parse("EC6493B8-9B66-4090-8BE6-9DFC3805751F");
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task HappyPath_SubmitsAndShowsAReference()
     {
         await StartAddJourneyAsync();
@@ -65,7 +66,7 @@ public sealed class AddPupilJourneyTests(PlaywrightFixture fixture) : SeedingPag
         Assert.True(match.Success, $"No reference number in the confirmation panel: {panel}");
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task MissingRequiredFields_ShowTheErrors()
     {
         await StartAddJourneyAsync();
@@ -81,7 +82,7 @@ public sealed class AddPupilJourneyTests(PlaywrightFixture fixture) : SeedingPag
         Assert.DoesNotContain("Unique pupil number", text);
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task FutureDateOfBirth_IsBlocked()
     {
         await StartAddJourneyAsync();
@@ -96,7 +97,7 @@ public sealed class AddPupilJourneyTests(PlaywrightFixture fixture) : SeedingPag
         Assert.Contains("Date of birth must be in the past", text);
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task Post16Window_DoesNotOfferAdd()
     {
         await Page.GotoAsync($"{Fixture.BaseUrl}/WhatToChange/{Post16WindowId}");

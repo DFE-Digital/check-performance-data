@@ -13,6 +13,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Admin;
 public sealed class StorageBrowserChunkedUploadTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
     private const string ContainerUrl = "/admin/storage/app/rules-config";
+    private const float UploadTimeoutMs = 120_000;
 
     // ImpersonateAsAdminAsync publishes the admin cookie as the fixture-wide default, which every
     // test in the collection shares; put the editor back so we do not retarget the others.
@@ -67,7 +68,9 @@ public sealed class StorageBrowserChunkedUploadTests(PlaywrightFixture fixture) 
             var page = await context.NewPageAsync();
             page.Dialog += (_, dialog) => dialog.AcceptAsync();
             await page.GotoAsync($"{baseUrl}{ContainerUrl}?prefix={folder}%2F");
-            for (var rows = page.Locator("tbody tr"); await rows.CountAsync() > 0;)
+            // Capped so a row that cannot be deleted (real storage can keep a ghost) ends the clean-up.
+            var rows = page.Locator("tbody tr");
+            for (var attempt = 0; attempt < 20 && await rows.CountAsync() > 0; attempt++)
             {
                 await rows.First.GetByRole(AriaRole.Button, new() { Name = "Delete" }).ClickAsync();
                 await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
@@ -104,8 +107,9 @@ public sealed class StorageBrowserChunkedUploadTests(PlaywrightFixture fixture) 
         {
             await ChooseAndUploadAsync(folder, fileName, 20 * 1024 * 1024);
 
-            await Page.WaitForURLAsync($"**{ContainerUrl}?prefix={folder}%2F");
-            await Expect(Page.Locator("tr", new() { HasText = fileName })).ToContainTextAsync("20.0 MB");
+            // Generous: in the review app the parts go through the real ingress and Azure storage.
+            await Page.WaitForURLAsync($"**{ContainerUrl}?prefix={folder}%2F", new() { Timeout = UploadTimeoutMs });
+            await Expect(Page.Locator("tr", new() { HasText = fileName })).ToContainTextAsync("20.0 MB", new() { Timeout = UploadTimeoutMs });
             Assert.Equal(3, parts.Count);
             Assert.All(parts, q => Assert.Contains("fileName=big.csv", q));
 

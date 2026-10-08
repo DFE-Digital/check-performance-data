@@ -25,7 +25,7 @@ public sealed class ImportedContentWarningTests(PlaywrightFixture fixture)
         using var request = new HttpRequestMessage(
             HttpMethod.Get, $"{_fixture.BaseUrl}/admin/pages/{pageId}/edit");
 
-        var response = await TestHttpClients.SendAsync(request);
+        var response = await _fixture.SeedClient.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         return await response.Content.ReadAsStringAsync();

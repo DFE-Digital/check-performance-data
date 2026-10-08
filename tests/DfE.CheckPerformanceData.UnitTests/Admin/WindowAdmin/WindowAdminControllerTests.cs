@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using DfE.CheckPerformanceData.Application.Admin;
+using DfE.CheckPerformanceData.Application.UnitTests.WindowManagement;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Admin.Nav;
@@ -46,6 +47,41 @@ public class WindowAdminControllerTests
 
         Assert.Equal([ExerciseSchoolStatus.Visible, ExerciseSchoolStatus.VisibleClosed],
             exercises.Select(e => e.Status));
+    }
+
+    // #535: the list's statuses come from the UK clock. 16:30 UTC on a summer day is 17:30 in the
+    // UK — after a 17:00 end, before an 18:00 end, and before an 18:00 start. VisibleUntil keeps
+    // the window shown after the exercise ends, so a closed exercise reads VisibleClosed, not Hidden.
+    [Theory]
+    [InlineData(9, 17, ExerciseSchoolStatus.VisibleClosed)]
+    [InlineData(9, 18, ExerciseSchoolStatus.Visible)]
+    [InlineData(18, 20, ExerciseSchoolStatus.Hidden)]
+    public async Task Index_reads_exercise_status_on_the_UK_clock(
+        int startHour, int endHour, ExerciseSchoolStatus status)
+    {
+        var day = new DateTime(2026, 7, 15);
+        var service = Substitute.For<IWindowService>();
+        service.GetAllDataAsync(Arg.Any<CancellationToken>()).Returns(new PageResult
+        {
+            Windows = [new CheckingWindowDto
+            {
+                Title = "Test window", KeyStage = KeyStages.KS4,
+                CheckingWindowType = CheckingWindowType.KS4June,
+                StartDate = day, EndDate = day.AddDays(1),
+                Exercises = [new CheckingExerciseDto
+                {
+                    ExerciseType = CheckingExerciseType.PupilData, IsEnabled = true,
+                    StartDate = day.AddHours(startHour), EndDate = day.AddHours(endHour),
+                    VisibleUntil = day.AddDays(1)
+                }]
+            }]
+        });
+        var controller = Controller(service,
+            new CheckingExerciseService(new UkClockAt("2026-07-15T16:30:00Z")), Substitute.For<IAdminAccessPolicy>());
+
+        var result = Assert.IsType<ViewResult>(await controller.Index(CancellationToken.None));
+        var model = Assert.IsType<WindowViewModel>(result.Model);
+        Assert.Equal(status, Assert.Single(Assert.Single(model.Windows).Exercises).Status);
     }
 
     [Fact]

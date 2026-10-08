@@ -95,8 +95,8 @@ public sealed class CloseExerciseController(
 
         var name = NameOf(row);
 
-        // When the close took effect, on the same clock as every exercise date on the page: the
-        // server's. That is UTC in the containers today, not UK time (see docs/16-19-window-model.md).
+        // When the close took effect, on the same clock as every exercise date on the page: UK
+        // time (#535, see docs/16-19-window-model.md).
         var closed =
             $"{name} was closed early on " +
             $"{closure.ClosedAt.ToString("dd/MM/yyyy, HH:mm", CultureInfo.InvariantCulture)} by {currentUser.DisplayName}.";

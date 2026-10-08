@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.Common;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
@@ -70,8 +71,9 @@ public sealed class CheckingWindowDraft : AdminPage
 
             // Each exercise must be a sane range in its own right. The outer pair is their union,
             // so checking the parts is what makes the whole right.
+            DateTime today = UkTimeProvider.Instance.GetLocalNow().Date;
             return Exercises.All(e =>
-                e.StartDate!.Value >= DateTime.UtcNow.Date && e.EndDate!.Value >= e.StartDate!.Value);
+                e.StartDate!.Value >= today && e.EndDate!.Value >= e.StartDate!.Value);
         }
     }
 

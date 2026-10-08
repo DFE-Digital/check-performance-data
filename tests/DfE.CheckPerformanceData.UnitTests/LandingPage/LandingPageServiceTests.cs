@@ -1,6 +1,7 @@
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.DfESignInApiClient;
 using DfE.CheckPerformanceData.Application.LandingPage;
+using DfE.CheckPerformanceData.Application.UnitTests.WindowManagement;
 // Aliased, not imported: WindowManagement also declares a CheckingWindowDto.
 using CheckingExerciseDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseDto;
 using ICheckingDataReader = DfE.CheckPerformanceData.Application.WindowManagement.ICheckingDataReader;
@@ -64,6 +65,25 @@ public class LandingPageServiceTests
         Assert.Null(result);
         await _dfESignInApiClient.DidNotReceive().GetOrganisationAsync(
             Arg.Any<string>(), Arg.Any<string>());
+    }
+
+    // #535: the repository filters windows by the start against the time it is handed, so that time must be the UK
+    // wall clock. 16:30 UTC on a summer day is 17:30 in the UK.
+    [Fact]
+    public async Task The_repository_is_asked_which_windows_are_open_on_the_UK_clock()
+    {
+        var clock = new UkClockAt("2026-07-15T16:30:00Z");
+        var sut = new LandingPageService(_repository, clock, _dfESignInApiClient, _currentUserService,
+            _reader, new CheckingExerciseService(clock), Substitute.For<ILogger<LandingPageService>>());
+        var org = MakeOrganisation(lowAge: 3, highAge: 16);
+        _dfESignInApiClient.GetOrganisationAsync("user-1", "org-1").Returns(org);
+        _repository.GetStartedWindowsAsync(Arg.Any<DateTime>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(new List<CheckingWindowDto>());
+
+        await sut.GetLandingPageDataAsync(CancellationToken.None);
+
+        await _repository.Received(1).GetStartedWindowsAsync(
+            new DateTime(2026, 7, 15, 17, 30, 0), org.Laestab, Arg.Any<CancellationToken>());
     }
 
     [Fact]

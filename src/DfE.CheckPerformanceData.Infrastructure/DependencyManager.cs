@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Text;
 using Azure.Storage.Blobs;
+using DfE.CheckPerformanceData.Application.Common;
 using Dfe.Analytics;
 using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
@@ -118,7 +119,9 @@ public static class DependencyManager
             return new AzureRulesBlobReader(container);
         });
 
-        services.AddSingleton(TimeProvider.System);
+        // The same clock as the web host (#535). The worker reads no exercise dates today; this
+        // keeps it that way safely if one moves here.
+        services.AddSingleton<TimeProvider>(UkTimeProvider.Instance);
 
         // Self-seed the rules-config blobs from the image-bundled JSON when absent. Registered as a
         // hosted service *before* the provider below so it runs first and the provider's initial

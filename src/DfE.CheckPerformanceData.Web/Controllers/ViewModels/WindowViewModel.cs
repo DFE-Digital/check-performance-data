@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.Common;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
@@ -175,7 +176,8 @@ public sealed class ExerciseSummarySection
     {
         get
         {
-            var today = DateTime.UtcNow.Date;
+            // The UK date, like every other exercise check (#535).
+            var today = UkTimeProvider.Instance.GetLocalNow().Date;
 
             return EndDate.Date >= today && EndDate.Date >= StartDate.Date;
         }

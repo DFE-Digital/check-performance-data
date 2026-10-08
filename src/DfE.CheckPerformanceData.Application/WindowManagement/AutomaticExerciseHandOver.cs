@@ -7,10 +7,10 @@ namespace DfE.CheckPerformanceData.Application.WindowManagement;
 /// <inheritdoc cref="IAutomaticExerciseHandOver"/>
 /// <remarks>
 /// The clock is read the way <see cref="CheckingExerciseService"/> reads it
-/// (<c>GetLocalNow</c>), because exercise dates are local wall-clock values. "Local" is the
-/// server's zone, and the containers set none, so today that is UTC: during British Summer Time
-/// "two hours after the end" is three hours after the UK end time (issue #535). That is one
-/// defect with one fix — the clock — and must not be patched here alone.
+/// (<c>GetLocalNow</c>), because exercise dates are UK wall-clock values. "Local" is UK time in
+/// every environment: the registered <see cref="TimeProvider"/> is
+/// <see cref="DfE.CheckPerformanceData.Application.Common.UkTimeProvider"/> (#535), so "two
+/// hours after the end" is two hours after the UK end time, summer and winter.
 ///
 /// The windows are read whole and filtered in memory. There are a handful of them, and it keeps
 /// the due rule in one testable place instead of a second copy in SQL.

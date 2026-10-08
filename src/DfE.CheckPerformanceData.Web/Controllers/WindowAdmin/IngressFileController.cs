@@ -95,10 +95,12 @@ public sealed class IngressFileController(ILogger<IngressFileController> logger,
         List<string> folders = new List<string>();
         List<string> files = new List<string>();
 
+        // Leave out uncommitted blobs (left by a cancelled or failed chunked upload): they have no
+        // content, so offering one in the picker would end in a 404 on Select.
         await foreach (var item in containerClient.GetBlobsByHierarchyAsync(
                            delimiter: "/",
                            prefix: currentPath,
-                           states: BlobStates.All,
+                           states: StorageAdminController.ListedStates,
                            traits: BlobTraits.None,
                            cancellationToken: cancellationToken))
         {

@@ -38,6 +38,10 @@
 @if (Model.Content is not null)
 {
     <h2 class="govuk-heading-m">Content</h2>
+    @if (Model.IsPartial)
+    {
+        <p class="govuk-body">Showing the first 256KB. <a class="govuk-link" href="/admin/storage/@Model.AccountKey/@Model.ContainerName/download?blob=@encodedBlob">Download the file</a> to see all of it.</p>
+    }
     <pre class="govuk-body" style="background:#f3f2f1;padding:1rem;overflow-x:auto;white-space:pre-wrap;word-break:break-all">@Model.Content</pre>
 }
 else

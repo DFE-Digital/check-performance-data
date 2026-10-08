@@ -104,7 +104,7 @@ The files are in `src/DfE.CheckPerformanceData.Web/Data/Import`:
 |---|---|
 | `manifest.json` | The list of bundles to import, in order |
 | `cms-guide.json` | The in-app guide *How to use the CMS*. Generated: see `docs/user-guides/README.md` |
-| `development-testing.json` | The pages the automated browser tests navigate to, and the *Development testing* folder they sit in |
+| `development-testing.json` | The pages the automated browser tests navigate to, and the *Development testing* folder they sit in. It includes a test page for each widget (*Heading test page*, *Search test page* and so on) that shows the widget set up in several ways |
 
 ### The manifest
 

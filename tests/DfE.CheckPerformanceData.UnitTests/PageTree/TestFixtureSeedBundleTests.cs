@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.ContentPages;
 using DfE.CheckPerformanceData.Application.ContentStaging;
 using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.Application.UnitTests.ContentStaging;
@@ -200,6 +201,89 @@ public class TestFixtureSeedBundleTests
         var samples = SampleContentSeedBundle.Load().PageNodes.Select(p => p.Id).ToHashSet();
 
         Assert.Empty(fixtures.Intersect(samples));
+    }
+
+    // ---- a test page for each widget ---------------------------------------------------------
+
+    // Every widget an author can place has a page here that shows it set up in several ways, for
+    // the browser tests to look at and for a developer to check a change against. The list comes
+    // from the registry, so a new widget fails here until it has a page of its own.
+    public static TheoryData<string, string> Widgets()
+    {
+        var data = new TheoryData<string, string>();
+        foreach (var w in WidgetRegistry.All) data.Add(w.Type, w.PaletteLabel);
+        return data;
+    }
+
+    private static PageNodeBundleItem TestPageFor(string label) =>
+        ShippedContent.Fixtures().PageNodes.Single(p => p.Title == $"{label} test page");
+
+    private static IReadOnlyList<ContentNode> TreeOf(PageNodeBundleItem page) =>
+        ContentPageJson.Deserialize(page.Versions.Single().Content)!;
+
+    [Theory]
+    [MemberData(nameof(Widgets))]
+    public void EveryWidget_HasATestPage_NamedAfterIt(string type, string label)
+    {
+        var page = TestPageFor(label);
+
+        Assert.Equal("content", page.PageType);
+        Assert.Equal(label.ToLowerInvariant().Replace(' ', '-') + "-test-page", page.Segment);
+        Assert.Equal(DefaultPageNodeRoots.DevelopmentTestingRootId, page.ParentId);
+        Assert.Contains(ContentTreeWalker.AllWidgets(TreeOf(page)), w => w.Type == type);
+    }
+
+    // "Several ways" is the point of the page: one widget dropped on it once shows nothing a
+    // sample page does not. A way is a different set of options or a different width of column.
+    [Theory]
+    [MemberData(nameof(Widgets))]
+    public void EachTestPage_ShowsItsWidgetAtLeastThreeWays(string type, string label)
+    {
+        var ways = new HashSet<string>();
+        foreach (var region in TreeOf(TestPageFor(label)).OfType<RegionNode>())
+        {
+            foreach (var widget in ContentTreeWalker.AllWidgets([region]).Where(w => w.Type == type))
+                ways.Add($"{region.Layout}:{region.Columns.Count(c => c.Count > 0)}:{widget.Props?.ToJsonString()}");
+        }
+
+        Assert.True(ways.Count >= 3, $"the {label} test page shows the widget {ways.Count} way(s)");
+    }
+
+    // An imported page has not been through the editor, which is what gives a heading its anchor.
+    // Without one the heading has no id, and a Page navigation widget links to nothing.
+    [Theory]
+    [MemberData(nameof(Widgets))]
+    public void EveryHeadingOnATestPage_HasTheAnchorTheEditorWouldGiveIt(string type, string label)
+    {
+        _ = type;
+        var tree = TreeOf(TestPageFor(label));
+        var shipped = ContentTreeWalker.AllWidgets(tree).Where(w => w.Type == "heading").Select(w => w.Anchor).ToList();
+
+        HeadingAnchorizer.Apply(tree);
+        var allocated = ContentTreeWalker.AllWidgets(tree).Where(w => w.Type == "heading").Select(w => w.Anchor).ToList();
+
+        Assert.NotEmpty(shipped);
+        Assert.Equal(allocated, shipped);
+    }
+
+    [Theory]
+    [MemberData(nameof(Widgets))]
+    public void ATestPage_UsesOnlyWidgetsTheRegistryKnows(string type, string label)
+    {
+        _ = type;
+
+        Assert.All(ContentTreeWalker.AllWidgets(TreeOf(TestPageFor(label))), w => Assert.True(WidgetRegistry.IsKnown(w.Type), w.Type));
+    }
+
+    // A search for the search fixture's own word has to match that page and nothing else, and
+    // test scaffolding has no place in anybody's search results.
+    [Theory]
+    [MemberData(nameof(Widgets))]
+    public void ATestPage_IsKeptOutOfSearch(string type, string label)
+    {
+        _ = type;
+
+        Assert.False(TestPageFor(label).AppearInSearch);
     }
 
     private static int BodyLength(ContentBundle bundle, string segment) =>

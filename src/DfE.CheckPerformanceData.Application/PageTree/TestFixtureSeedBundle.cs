@@ -15,6 +15,10 @@ namespace DfE.CheckPerformanceData.Application.PageTree;
 // versions were deleted. A page emptied that way still exists, so an import that keeps what is
 // there would walk straight past it and the route would 404 for good.
 //
+// Alongside the pages individual tests need, there is a test page for each widget an author can
+// place ("Heading test page", "Search test page" and so on), showing the widget set up in several
+// ways. A new widget needs one too.
+//
 // To change a fixture: edit the page through the CMS, export /development-testing from
 // /admin/content-staging, and replace the file.
 public static class TestFixtureSeedBundle

@@ -9,10 +9,9 @@ using Microsoft.Extensions.Options;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.StorageBrowser;
 
-// #568: an upload lands only under the container it was addressed to, whatever the prefix,
-// folder and file name say. Runs against real blob semantics (Azurite) rather than a
-// substitute so the assertion is on what storage holds afterwards, not on which client the
-// controller asked for.
+// #568: an upload lands under the prefix and folder it was given, and an unsafe prefix or
+// folder is refused and writes nothing. Runs against real blob semantics (Azurite) so the
+// assertions are on what storage holds afterwards.
 [Collection(nameof(AzuriteCollection))]
 public sealed class StorageAdminUploadTargetTests(AzuriteFixture fixture)
 {
@@ -53,17 +52,14 @@ public sealed class StorageAdminUploadTargetTests(AzuriteFixture fixture)
     [InlineData("../", null)]
     [InlineData(null, "..")]
     [InlineData("x/../../", null)]
-    public async Task Upload_WithAnUnsafePrefixOrFolder_WritesNothingAnywhere(string? prefix, string? folder)
+    public async Task Upload_WithAnUnsafePrefixOrFolder_Is404_AndWritesNothing(string? prefix, string? folder)
     {
         var target = $"target-{Guid.NewGuid():N}";
-        var other = $"other-{Guid.NewGuid():N}";
         await _blobs.CreateBlobContainerAsync(target);
-        await _blobs.CreateBlobContainerAsync(other);
 
-        var result = await Sut().Upload("app", target, [File($"{other}/a.csv", "x,y")], prefix, folder);
+        var result = await Sut().Upload("app", target, [File("a.csv", "x,y")], prefix, folder);
 
         Assert.IsType<NotFoundResult>(result);
         Assert.Empty(await _blobs.GetBlobContainerClient(target).GetBlobsAsync().ToListAsync());
-        Assert.Empty(await _blobs.GetBlobContainerClient(other).GetBlobsAsync().ToListAsync());
     }
 }

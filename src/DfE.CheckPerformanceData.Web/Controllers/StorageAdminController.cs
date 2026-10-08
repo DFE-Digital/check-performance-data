@@ -65,6 +65,7 @@ public sealed class StorageAdminController(
     public async Task<IActionResult> Container(string account, string containerName, [FromQuery] string? prefix, CancellationToken cancellationToken = default)
     {
         if (IsProtected(containerName)) return NotFound();
+        if (!StorageBlobNames.IsValidPrefix(prefix)) return NotFound();
 
                 var client = GetClient(account);
         if (client is null) return NotFound();
@@ -114,6 +115,7 @@ public sealed class StorageAdminController(
     public async Task<IActionResult> Preview(string account, string containerName, [FromQuery] string blob)
     {
         if (IsProtected(containerName)) return NotFound();
+        if (!StorageBlobNames.IsValidBlobName(blob)) return NotFound();
 
                 var client = GetClient(account);
         if (client is null) return NotFound();
@@ -158,6 +160,7 @@ public sealed class StorageAdminController(
     public async Task<IActionResult> Download(string account, string containerName, [FromQuery] string blob)
     {
         if (IsProtected(containerName)) return NotFound();
+        if (!StorageBlobNames.IsValidBlobName(blob)) return NotFound();
 
                 var client = GetClient(account);
         if (client is null) return NotFound();
@@ -178,6 +181,7 @@ public sealed class StorageAdminController(
     public async Task<IActionResult> Delete(string account, string containerName, string blobName, [FromForm] string? prefix = null)
     {
         if (IsProtected(containerName)) return NotFound();
+        if (!StorageBlobNames.IsValidBlobName(blobName) || !StorageBlobNames.IsValidPrefix(prefix)) return NotFound();
 
                 var client = GetClient(account);
         if (client is null) return NotFound();
@@ -201,19 +205,22 @@ public sealed class StorageAdminController(
         if (!await container.ExistsAsync())
             return NotFound();
 
-        // Files are stored at <current prefix>/<optional new folder>/<file name>.
-        // The folder structure exists purely because a real blob lives at that path;
-        // blob storage has no standalone folders.
-        var targetPrefix = NormalizePrefix(prefix);
+        // Files are stored at <current prefix>/<optional new folder>/<file name>. The folder
+        // structure exists purely because a real blob lives at that path; blob storage has no
+        // standalone folders. The prefix and folder are validated once, before any file is
+        // touched; a file whose own name is unsafe is skipped rather than failing the batch.
+        if (!StorageBlobNames.IsValidPrefix(prefix?.Trim())) return NotFound();
         var subFolder = folder?.Trim().Trim('/');
-        if (!string.IsNullOrEmpty(subFolder) && !subFolder.Contains(".."))
-            targetPrefix += $"{subFolder}/";
+        if (!string.IsNullOrEmpty(subFolder) && !StorageBlobNames.IsValidPrefix(subFolder)) return NotFound();
 
         foreach (var file in files ?? [])
         {
             if (file.Length == 0) continue;
 
-            var blobClient = container.GetBlobClient($"{targetPrefix}{Path.GetFileName(file.FileName)}");
+            var blobName = StorageBlobNames.ResolveUploadName(prefix, folder, file.FileName);
+            if (blobName is null) continue;
+
+            var blobClient = container.GetBlobClient(blobName);
             await using var stream = file.OpenReadStream();
             await blobClient.UploadAsync(stream, new BlobUploadOptions
             {
@@ -230,13 +237,6 @@ public sealed class StorageAdminController(
         if (!string.IsNullOrWhiteSpace(prefix))
             url += $"?prefix={Uri.EscapeDataString(prefix)}";
         return Redirect(url);
-    }
-
-    // Ensures a folder prefix is either empty (root) or ends in exactly one "/".
-    private static string NormalizePrefix(string? prefix)
-    {
-        var trimmed = prefix?.Trim().Trim('/');
-        return string.IsNullOrEmpty(trimmed) ? string.Empty : $"{trimmed}/";
     }
 
     // Given "foo/bar/" returns "foo/"; given "foo/" or null returns null (root).

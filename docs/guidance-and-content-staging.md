@@ -104,6 +104,7 @@ The files are in `src/DfE.CheckPerformanceData.Web/Data/Import`:
 |---|---|
 | `manifest.json` | The list of bundles to import, in order |
 | `cms-guide.json` | The in-app guide *How to use the CMS*. Generated: see `docs/user-guides/README.md` |
+| `development-testing.json` | The pages the automated browser tests navigate to, and the *Development testing* folder they sit in |
 
 ### The manifest
 
@@ -114,6 +115,11 @@ The files are in `src/DfE.CheckPerformanceData.Web/Data/Import`:
       "file": "cms-guide.json",
       "environments": [ "Development", "Review", "QA", "Preproduction", "Production" ],
       "existing": "replaceOlder"
+    },
+    {
+      "file": "development-testing.json",
+      "environments": [ "Development", "Review" ],
+      "existing": "replace"
     }
   ]
 }
@@ -140,7 +146,20 @@ a bundle whose pages hang off pages in another bundle goes after it.
 
 A bundle's top-level pages need a parent that exists in every environment. The four
 sections (Support, Wiki, Help and Guidance) are created before the import runs and have the
-same id everywhere, so pages beneath them import cleanly.
+same id everywhere, so pages beneath them import cleanly. A bundle can also bring a
+top-level page of its own, as `development-testing.json` does: put it first in the file and
+leave out its `parentId`.
+
+A bundle records whether each page is shown in the site menus (`showInMenu`), so a page
+hidden from the menus where it was exported arrives hidden. A bundle written before this
+was recorded says nothing, and importing it leaves menu visibility as it is.
+
+### Importing a file on request
+
+*Seed sample CMS pages*, in the Test data menu, also imports `development-testing.json`
+in any environment except Production, whichever environments its manifest entry names.
+That is for environments such as QA, where the test pages are useful now and then but
+should not arrive by themselves.
 
 ### What the import will and will not do
 

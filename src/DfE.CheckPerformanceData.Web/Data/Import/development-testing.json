@@ -3,6 +3,17 @@
   "schemaVersion": 2,
   "pageNodes": [
     {
+      "id": "00000000-cd94-4a01-8f01-00000000000e",
+      "segment": "development-testing",
+      "title": "Development testing",
+      "subtitle": "Content the automated tests navigate to. Replaced whenever the service starts, so edits here are lost.",
+      "pageType": "folder",
+      "sortOrder": 100,
+      "appearInSearch": false,
+      "showInMenu": false,
+      "versions": []
+    },
+    {
       "id": "00000000-cd94-4a01-8f01-0000000e0001",
       "parentId": "00000000-cd94-4a01-8f01-00000000000e",
       "segment": "long-page",

@@ -1,32 +1,26 @@
-using System.Reflection;
-using DfE.CheckPerformanceData.Application.ContentStaging;
-
 namespace DfE.CheckPerformanceData.Application.PageTree;
 
-// Loads the content the automated browser tests navigate to. Same format and same rationale as
-// SampleContentSeedBundle — a content-staging bundle the CMS exported, rather than pages assembled
-// in C# that can drift from what an editor's output actually looks like.
+// The content the automated browser tests navigate to: a content-staging bundle the CMS exported,
+// rather than pages assembled in C# that can drift from what an editor's output looks like.
 //
-// It is a separate bundle from the sample content because the two have different owners. Sample
-// content is demonstration material: an editor may reasonably edit it, and the sample seed leaves
-// anything already present alone so that pressing the button never destroys their work. Fixtures
-// belong to the test suite. They sit under their own root so they are never mistaken for content,
-// and they are re-imported over the top on every seed — which is the only thing that can bring back
-// a page whose versions were deleted. A page emptied that way still exists, so an import that skips
-// on collision walks straight past it and the route 404s for good.
+// The bundle is a file in the web project's Data/Import folder, listed in the manifest there and
+// imported by ManifestContentImporter like the rest of the content the service ships with. It
+// holds the /development-testing root as well as the pages beneath it, so the file is everything
+// an environment needs. The root is a folder, which keeps it out of search results, and is hidden
+// from the menus, so no ordinary visitor arrives at the fixture tree; an editor browsing the page
+// tree sees one plainly-labelled container rather than test pages interleaved with their own.
 //
-// The root itself is deliberately absent, exactly as the four default roots are absent from the
-// sample bundle: it is created by TestFixturePageNodeSeeder, and parentage here is by its pinned
-// Guid, which is what lets a static file resolve against any environment's database.
+// Fixtures belong to the test suite. The manifest imports them with "existing": "replace", so they
+// are put back as shipped on every start: that is the only thing that brings back a page whose
+// versions were deleted. A page emptied that way still exists, so an import that keeps what is
+// there would walk straight past it and the route would 404 for good.
 //
-// To change a fixture: seed an environment, edit the page through the CMS, export a bundle from
-// /admin/content-staging, strip the root, and replace this file.
+// To change a fixture: edit the page through the CMS, export /development-testing from
+// /admin/content-staging, and replace the file.
 public static class TestFixtureSeedBundle
 {
-    // Suffix rather than the full manifest name, for the same reason as the sample bundle: the
-    // resource name carries the assembly's root namespace and folder path, and pinning the whole
-    // string would turn a folder rename into a runtime error instead of a compile error.
-    private const string ResourceSuffix = "SeedContent.test-fixture-content.json";
+    /// <summary>The bundle's file name in the import folder, as the manifest lists it.</summary>
+    public const string FileName = "development-testing.json";
 
     /// <summary>The long, wiki-typed fixture — the half of the back-to-top contract that scrolls.</summary>
     public const string LongPageSegment = "long-page";
@@ -43,21 +37,4 @@ public static class TestFixtureSeedBundle
     /// contain — the point is that a search for it matches the fixture and only the fixture.
     /// </summary>
     public const string SearchTerm = "testfixture";
-
-    public static ContentBundle Load()
-    {
-        var assembly = typeof(TestFixtureSeedBundle).Assembly;
-        var name = assembly.GetManifestResourceNames().SingleOrDefault(n => n.EndsWith(ResourceSuffix, StringComparison.Ordinal))
-            ?? throw new InvalidOperationException(
-                $"The test-fixture content bundle is missing from {assembly.GetName().Name}. It must be declared as an " +
-                $"EmbeddedResource whose path ends with '{ResourceSuffix}'.");
-
-        using var stream = assembly.GetManifestResourceStream(name)!;
-        using var reader = new StreamReader(stream);
-        var json = reader.ReadToEnd();
-
-        return ContentStagingJson.Deserialize(json)
-            ?? throw new InvalidOperationException(
-                "The test-fixture content bundle is present but could not be parsed as a content-staging bundle.");
-    }
 }

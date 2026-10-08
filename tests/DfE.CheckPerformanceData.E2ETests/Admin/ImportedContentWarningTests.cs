@@ -11,10 +11,14 @@ namespace DfE.CheckPerformanceData.E2ETests.Admin;
 // The guide "How to use the CMS" is imported into every environment, so its home page is a page
 // the warning must appear on wherever this suite runs. /help/not-found is created by the service
 // but belongs to the editors, so it is one the warning must not appear on.
+//
+// The pages this suite navigates to, under /development-testing, are imported too, wherever the
+// suite runs, and are put back as shipped on every start. The warning on those says so.
 [Collection("E2E")]
 public sealed class ImportedContentWarningTests(PlaywrightFixture fixture)
 {
     private const string GuideHomeId = "a969611f-33ad-518d-9ce5-dcd82a9b2656";
+    private const string ShortFixtureId = "00000000-cd94-4a01-8f01-0000000e0002";
     private const string HelpNotFoundId = "00000000-cd94-4a01-8f01-00000000000f";
     private const string Warning = "Changes you make here will be overwritten when the service is updated.";
 
@@ -39,6 +43,15 @@ public sealed class ImportedContentWarningTests(PlaywrightFixture fixture)
         Assert.Contains("This page is supplied with the service.", body);
         Assert.Contains(Warning, body);
         Assert.Contains("cms-guide.json", body);
+    }
+
+    [Fact]
+    public async Task Editor_WarnsThatATestFixtureIsPutBackOnEveryStart()
+    {
+        var body = await EditorAsync(ShortFixtureId);
+
+        Assert.Contains("Changes you make here will be overwritten the next time the service starts.", body);
+        Assert.Contains("development-testing.json", body);
     }
 
     [Fact]

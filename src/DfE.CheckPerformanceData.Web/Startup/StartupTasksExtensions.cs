@@ -27,11 +27,12 @@ public static class StartupTasksExtensions
 
             await scope.ServiceProvider.GetRequiredService<DefaultPageNodeSeeder>().SeedAsync();
 
-            // Content the service ships with, such as the in-app guide "How to use the CMS". Each
-            // file listed in Data/Import/manifest.json is imported, in order, into the environments
-            // its entry names. It follows the roots because shipped pages hang off them.
+            // Content the service ships with: the in-app guide "How to use the CMS", and the pages
+            // the automated browser tests navigate to. Each file listed in
+            // Data/Import/manifest.json is imported, in order, into the environments its entry
+            // names. It follows the roots because shipped pages hang off them.
             await scope.ServiceProvider.GetRequiredService<ManifestContentImporter>().RunAsync(
-                Path.Combine(app.Environment.ContentRootPath, "Data", "Import"), app.Environment.EnvironmentName);
+                ManifestContentImporter.FolderIn(app.Environment.ContentRootPath), app.Environment.EnvironmentName);
             await scope.ServiceProvider
                 .GetRequiredService<DfE.CheckPerformanceData.Application.Admin.DefaultAdminAccessSeeder>()
                 .SeedIfEmptyAsync();
@@ -46,17 +47,6 @@ public static class StartupTasksExtensions
         {
             using var scope = app.Services.CreateScope();
             await scope.ServiceProvider.GetRequiredService<IDevDataSeedingOrchestrator>().RunAsync();
-
-            // Content the automated browser tests navigate to, under its own /development-testing
-            // root. Seeded here as well as behind the admin button so a developer running the stack
-            // — and the ephemeral review app the browser suite runs against — always has it,
-            // without anyone remembering to press anything. Re-imported over the top every time,
-            // which is what brings back a fixture whose versions were deleted; nothing under that
-            // root is anyone's work, so there is nothing to lose.
-            //
-            // The gate is the same SeedDevelopmentData one as the rest of this block, which is set
-            // only on local, the deployed DEV app and the review apps.
-            await scope.ServiceProvider.GetRequiredService<TestFixturePageNodeSeeder>().SeedAsync();
         }
     }
 }

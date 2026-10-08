@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.ContentStaging;
 using DfE.CheckPerformanceData.Application.PageTree;
+using DfE.CheckPerformanceData.Application.UnitTests.ContentStaging;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.PageTree;
 
@@ -10,14 +11,15 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.PageTree;
 // What separates the two bundles is ownership. Sample content is demonstration material an editor
 // may reasonably edit, rename or delete; fixture content belongs to the test suite, lives under
 // its own root so it never sits alongside an editor's work, and is re-imported over the top on
-// every seed so an emptied page comes back. These tests pin the properties the suite relies on —
-// a bundle is data, and nothing in the compiler checks it.
+// every start so an emptied page comes back. The bundle is a file in the web project's Data/Import
+// folder, imported with the rest of the content the service ships with. These tests pin the
+// properties the suite relies on — a bundle is data, and nothing in the compiler checks it.
 public class TestFixtureSeedBundleTests
 {
     [Fact]
-    public void Bundle_IsEmbeddedAndParses()
+    public void Bundle_IsInTheImportFolderAndParses()
     {
-        var bundle = TestFixtureSeedBundle.Load();
+        var bundle = ShippedContent.Fixtures();
 
         Assert.NotNull(bundle);
         Assert.NotEmpty(bundle.PageNodes);
@@ -26,7 +28,7 @@ public class TestFixtureSeedBundleTests
     [Fact]
     public void Bundle_DeclaresTheSchemaVersionTheImporterAccepts()
     {
-        var bundle = TestFixtureSeedBundle.Load();
+        var bundle = ShippedContent.Fixtures();
 
         Assert.Equal(ContentBundle.CurrentSchemaVersion, bundle.SchemaVersion);
     }
@@ -39,14 +41,41 @@ public class TestFixtureSeedBundleTests
     [Fact]
     public void EveryFixturePage_IsParentedToTheDevelopmentTestingRoot()
     {
-        var bundle = TestFixtureSeedBundle.Load();
+        var bundle = ShippedContent.Fixtures();
 
-        foreach (var page in bundle.PageNodes)
+        foreach (var page in bundle.PageNodes.Where(p => p.Id != DefaultPageNodeRoots.DevelopmentTestingRootId))
         {
-            Assert.True(page.ParentId.HasValue,
-                $"fixture '{page.Segment}' has no parent — the root comes from the seeder, not this bundle");
+            Assert.True(page.ParentId.HasValue, $"fixture '{page.Segment}' has no parent");
             Assert.Equal(DefaultPageNodeRoots.DevelopmentTestingRootId, page.ParentId!.Value);
         }
+    }
+
+    // The root travels in the file, so the file is everything an environment needs: nothing else
+    // creates /development-testing. It comes first because the importer creates pages in file
+    // order and never creates an orphan, and it carries the pinned id the fixtures name as their
+    // parent.
+    [Fact]
+    public void TheBundle_BringsItsOwnRoot_AheadOfThePagesBeneathIt()
+    {
+        var root = ShippedContent.Fixtures().PageNodes[0];
+
+        Assert.Equal(DefaultPageNodeRoots.DevelopmentTestingRootId, root.Id);
+        Assert.Null(root.ParentId);
+        Assert.Equal(DefaultPageNodeRoots.DevelopmentTestingSegment, root.Segment);
+    }
+
+    // Folder is what keeps the root out of search results — the search query filters folders
+    // structurally — and hiding it from the menus keeps it out of the site navigation. Between
+    // them there is no route by which an ordinary visitor arrives at the fixture tree.
+    [Fact]
+    public void TheRoot_IsAFolderHiddenFromTheMenusAndFromSearch()
+    {
+        var root = ShippedContent.Fixtures().PageNodes[0];
+
+        Assert.Equal("folder", root.PageType);
+        Assert.False(root.ShowInMenu);
+        Assert.False(root.AppearInSearch);
+        Assert.Empty(root.Versions);
     }
 
     // A draft-only fixture 404s, which is precisely the failure the suite was hitting before the
@@ -54,9 +83,9 @@ public class TestFixtureSeedBundleTests
     [Fact]
     public void EveryFixturePage_HasAPublishedVersion()
     {
-        var bundle = TestFixtureSeedBundle.Load();
+        var bundle = ShippedContent.Fixtures();
 
-        foreach (var page in bundle.PageNodes)
+        foreach (var page in bundle.PageNodes.Where(p => p.PageType != "folder"))
         {
             Assert.True(page.Versions.Any(v => v.PublishFrom is not null),
                 $"fixture '{page.Segment}' has no published version, so it would 404 after seeding");
@@ -69,7 +98,7 @@ public class TestFixtureSeedBundleTests
     [Fact]
     public void Bundle_KeepsAWikiTypedFixture_SoTheWikiRenderPathStaysCovered()
     {
-        var bundle = TestFixtureSeedBundle.Load();
+        var bundle = ShippedContent.Fixtures();
 
         Assert.Contains(bundle.PageNodes, p => p.PageType == "wiki");
     }
@@ -82,7 +111,7 @@ public class TestFixtureSeedBundleTests
     [InlineData(TestFixtureSeedBundle.SearchFixtureSegment)]
     public void Bundle_CarriesTheFixturesTheSuiteNavigatesTo(string segment)
     {
-        var bundle = TestFixtureSeedBundle.Load();
+        var bundle = ShippedContent.Fixtures();
 
         Assert.Contains(bundle.PageNodes, p => p.Segment == segment);
     }
@@ -94,7 +123,7 @@ public class TestFixtureSeedBundleTests
     [Fact]
     public void TheLongFixture_IsSubstantiallyLongerThanTheShortOne()
     {
-        var bundle = TestFixtureSeedBundle.Load();
+        var bundle = ShippedContent.Fixtures();
 
         var longBody = BodyLength(bundle, TestFixtureSeedBundle.LongPageSegment);
         var shortBody = BodyLength(bundle, TestFixtureSeedBundle.ShortPageSegment);
@@ -113,7 +142,7 @@ public class TestFixtureSeedBundleTests
     [Fact]
     public void TheSearchFixture_CarriesTheSearchTerm_AndIsVisibleToSearch()
     {
-        var bundle = TestFixtureSeedBundle.Load();
+        var bundle = ShippedContent.Fixtures();
 
         var page = bundle.PageNodes.Single(p => p.Segment == TestFixtureSeedBundle.SearchFixtureSegment);
 
@@ -128,7 +157,7 @@ public class TestFixtureSeedBundleTests
     [InlineData(TestFixtureSeedBundle.ShortPageSegment)]
     public void TheBackToTopFixtures_AreKeptOutOfSearch(string segment)
     {
-        var bundle = TestFixtureSeedBundle.Load();
+        var bundle = ShippedContent.Fixtures();
 
         var page = bundle.PageNodes.Single(p => p.Segment == segment);
 
@@ -138,7 +167,7 @@ public class TestFixtureSeedBundleTests
     [Fact]
     public void Bundle_HasNoDuplicateSegmentsUnderTheSameParent()
     {
-        var bundle = TestFixtureSeedBundle.Load();
+        var bundle = ShippedContent.Fixtures();
 
         var duplicates = bundle.PageNodes
             .GroupBy(p => (p.ParentId, p.Segment.ToLowerInvariant()))
@@ -155,7 +184,7 @@ public class TestFixtureSeedBundleTests
     [Fact]
     public void EveryFixturePage_HasAStableNonEmptyId()
     {
-        var bundle = TestFixtureSeedBundle.Load();
+        var bundle = ShippedContent.Fixtures();
 
         Assert.All(bundle.PageNodes, p => Assert.NotEqual(Guid.Empty, p.Id));
         Assert.Equal(bundle.PageNodes.Count, bundle.PageNodes.Select(p => p.Id).Distinct().Count());
@@ -167,7 +196,7 @@ public class TestFixtureSeedBundleTests
     [Fact]
     public void FixtureIds_DoNotCollideWithTheSampleContent()
     {
-        var fixtures = TestFixtureSeedBundle.Load().PageNodes.Select(p => p.Id).ToHashSet();
+        var fixtures = ShippedContent.Fixtures().PageNodes.Select(p => p.Id).ToHashSet();
         var samples = SampleContentSeedBundle.Load().PageNodes.Select(p => p.Id).ToHashSet();
 
         Assert.Empty(fixtures.Intersect(samples));

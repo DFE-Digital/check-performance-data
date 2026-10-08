@@ -5,19 +5,30 @@ using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Npgsql;
 
-namespace DfE.CheckPerformanceData.IntegrationTests.PageTree;
+namespace DfE.CheckPerformanceData.IntegrationTests.ContentStaging;
 
-// The fixture seeder exists because a page can be emptied without being deleted: an editor removes
-// the version, the row survives, and the route 404s from then on. The sample seeder cannot repair
-// that — it skips on collision, and the collision test is the page identity, not whether the page
-// has anything to render. Every claim about the repair is about what the importer does to real
-// rows, so it is only worth making against a real database.
+// The pages the browser suite navigates to are a file in the web project's Data/Import folder,
+// imported at start-up with "existing": "replace". They are imported that way because a page can
+// be emptied without being deleted: an editor removes the version, the row survives, and the route
+// 404s from then on. An import that keeps what is there cannot repair that — the collision test is
+// the page identity, not whether the page has anything to render. Every claim about the repair is
+// about what the importer does to real rows, so it is only worth making against a real database,
+// with the real file.
 [Collection(nameof(PostgresCollection))]
-public sealed class TestFixturePageNodeSeederTests(PostgresFixture fixture)
+public sealed class TestFixtureImportTests(PostgresFixture fixture)
 {
     private readonly PostgresFixture _fixture = fixture;
+
+    private static readonly string ImportFolder = Path.GetFullPath(Path.Combine(
+        Path.GetDirectoryName(ThisFilePath())!, "..", "..", "..", "src", "DfE.CheckPerformanceData.Web", "Data", "Import"));
+
+    private static readonly ContentBundle Fixtures = ContentStagingJson.Deserialize(
+        File.ReadAllText(Path.Combine(ImportFolder, TestFixtureSeedBundle.FileName)))!;
+
+    private static string ThisFilePath([System.Runtime.CompilerServices.CallerFilePath] string path = "") => path;
 
     private async Task ResetAsync()
     {
@@ -30,8 +41,19 @@ public sealed class TestFixturePageNodeSeederTests(PostgresFixture fixture)
     {
         await using var ctx = _fixture.CreateContext();
         var repo = new PageNodeRepository(ctx);
-        return await new TestFixturePageNodeSeeder(
-            new PageNodeService(repo), repo, BuildStaging(ctx)).SeedAsync();
+        var result = await new ManifestContentImporter(repo, BuildStaging(ctx), NullLogger<ManifestContentImporter>.Instance)
+            .ImportFileAsync(ImportFolder, TestFixtureSeedBundle.FileName);
+        Assert.Empty(result.Errors);
+        return result.PageNodesCreated + result.PageNodesUpdated;
+    }
+
+    // Start-up, as opposed to the button: every file the manifest lists for the environment.
+    private async Task<ManifestImportSummary> StartUpAsync(string environment)
+    {
+        await using var ctx = _fixture.CreateContext();
+        var repo = new PageNodeRepository(ctx);
+        return await new ManifestContentImporter(repo, BuildStaging(ctx), NullLogger<ManifestContentImporter>.Instance)
+            .RunAsync(ImportFolder, environment);
     }
 
     [Fact]
@@ -41,12 +63,11 @@ public sealed class TestFixturePageNodeSeederTests(PostgresFixture fixture)
 
         var touched = await SeedAsync();
 
-        var expected = TestFixtureSeedBundle.Load().PageNodes.Count;
-        Assert.Equal(expected, touched);
+        Assert.Equal(Fixtures.PageNodes.Count, touched);
 
         await using var conn = await OpenAsync();
 
-        // The root is the seeder's own — nothing else creates it — and it has to be a folder that
+        // The root comes from the file — nothing else creates it — and it has to be a folder that
         // stays out of the menu, or the fixture tree shows up as a site section.
         var root = await SingleRowAsync(conn, @"
             SELECT ""PageType"", ""ShowInMenu""::text, ""AppearInSearch""::text
@@ -54,7 +75,7 @@ public sealed class TestFixturePageNodeSeederTests(PostgresFixture fixture)
         Assert.Equal(["folder", "false", "false"], root);
 
         // Every fixture lands published under that root, at the path the browser suite navigates to.
-        foreach (var page in TestFixtureSeedBundle.Load().PageNodes)
+        foreach (var page in Fixtures.PageNodes.Where(p => p.PageType != "folder"))
         {
             var path = $"{DefaultPageNodeRoots.DevelopmentTestingSegment}/{page.Segment}";
             var published = await ScalarLongAsync(conn, @"
@@ -66,16 +87,17 @@ public sealed class TestFixturePageNodeSeederTests(PostgresFixture fixture)
         }
     }
 
-    // The defect this seeder was written for. Deleting a page's versions leaves the row in place,
-    // so the sample seeder's Skip-on-collision walks past it and the 404 is permanent. Replace
-    // re-imports the versions over the top, which is the only thing that brings the page back.
+    // The defect the fixtures are imported in Replace for. Deleting a page's versions leaves the
+    // row in place, so an import that skips on collision walks past it and the 404 is permanent.
+    // Replace re-imports the versions over the top, which is the only thing that brings the page
+    // back.
     [Fact]
     public async Task SeedAsync_RepairsAFixtureWhoseVersionsWereDeleted()
     {
         await ResetAsync();
         await SeedAsync();
 
-        var longPageId = TestFixtureSeedBundle.Load().PageNodes
+        var longPageId = Fixtures.PageNodes
             .Single(p => p.Segment == TestFixtureSeedBundle.LongPageSegment).Id;
 
         // Exactly the state an editor leaves behind: the page still exists, it just has nothing
@@ -106,8 +128,8 @@ public sealed class TestFixturePageNodeSeederTests(PostgresFixture fixture)
         Assert.True(restored > 0, "re-seeding did not restore the emptied fixture — the route stays 404");
     }
 
-    // Pressing the button twice must not build a second copy of the tree. Replace mode updates in
-    // place, and the root guard stops a second root appearing beside the first.
+    // Importing twice must not build a second copy of the tree. Replace mode updates in place,
+    // the root included.
     [Fact]
     public async Task SeedAsync_IsIdempotent_AndDoesNotDuplicateTheTree()
     {
@@ -123,6 +145,55 @@ public sealed class TestFixturePageNodeSeederTests(PostgresFixture fixture)
         await using var conn2 = await OpenAsync();
         var afterSecond = await ScalarLongAsync(conn2, @"SELECT COUNT(*) FROM ""PageNodes"";");
         Assert.Equal(afterFirst, afterSecond);
+    }
+
+    // An editor who put the root back in the menus gets it hidden again by the next import: the
+    // file says hidden, and Replace means the file wins.
+    [Fact]
+    public async Task SeedAsync_HidesTheRootAgain_WhenSomebodyPutItInTheMenus()
+    {
+        await ResetAsync();
+        await SeedAsync();
+        await using (var ctx = _fixture.CreateContext())
+        {
+            await ctx.Database.ExecuteSqlRawAsync(
+                @"UPDATE ""PageNodes"" SET ""ShowInMenu"" = TRUE WHERE ""Id"" = {0};",
+                DefaultPageNodeRoots.DevelopmentTestingRootId);
+        }
+
+        await SeedAsync();
+
+        await using var conn = await OpenAsync();
+        var root = await SingleRowAsync(conn,
+            @"SELECT ""ShowInMenu""::text FROM ""PageNodes"" WHERE ""Id"" = @id;", DefaultPageNodeRoots.DevelopmentTestingRootId);
+        Assert.Equal(["false"], root);
+    }
+
+    // The manifest is what decides where the fixtures arrive by themselves: where the browser
+    // suite runs, and never in Production.
+    [Theory]
+    [InlineData("Development", true)]
+    [InlineData("Review", true)]
+    [InlineData("QA", false)]
+    [InlineData("Preproduction", false)]
+    [InlineData("Production", false)]
+    public async Task StartUp_ImportsTheFixtures_OnlyWhereTheManifestSaysSo(string environment, bool expected)
+    {
+        await ResetAsync();
+        await using (var ctx = _fixture.CreateContext())
+        {
+            var repo = new PageNodeRepository(ctx);
+            await new DefaultPageNodeSeeder(new PageNodeService(repo), repo).SeedAsync();
+        }
+
+        var summary = await StartUpAsync(environment);
+
+        Assert.Equal(0, summary.FilesFailed);
+        await using var conn = await OpenAsync();
+        var fixtures = await ScalarLongAsync(conn,
+            @"SELECT COUNT(*) FROM ""PageNodes"" WHERE ""Path"" LIKE @p;",
+            ("p", DefaultPageNodeRoots.DevelopmentTestingSegment + "%"));
+        Assert.Equal(expected ? Fixtures.PageNodes.Count : 0, fixtures);
     }
 
     // Fixtures and sample content are separate bundles seeded through the same button, one after

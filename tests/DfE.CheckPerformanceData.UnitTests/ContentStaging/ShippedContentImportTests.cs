@@ -118,6 +118,30 @@ public partial class ShippedContentImportTests
         Assert.Equal(ids.Count, ids.Distinct().Count());
     }
 
+    // ---- the test fixtures -----------------------------------------------------------------
+
+    // Nothing under /development-testing is anyone's work, and the browser suite needs every
+    // page there exactly as shipped. Replacing on every start is also the only thing that brings
+    // back a fixture whose versions were deleted.
+    [Fact]
+    public void TheTestFixtures_ArePutBackAsShippedOnEveryStart()
+    {
+        var entry = Manifest().Imports.Single(e => e.File == TestFixtureSeedBundle.FileName);
+
+        Assert.Equal("replace", entry.Existing);
+    }
+
+    // Where the browser suite runs: a developer's own stack, the deployed development app and the
+    // review apps. Test scaffolding has no business arriving by itself anywhere else, and in
+    // Production least of all.
+    [Fact]
+    public void TheTestFixtures_AreImportedOnlyWhereTheBrowserSuiteRuns()
+    {
+        var entry = Manifest().Imports.Single(e => e.File == TestFixtureSeedBundle.FileName);
+
+        Assert.Equal(["Development", "Review"], entry.Environments!.Order());
+    }
+
     // ---- the guide -------------------------------------------------------------------------
 
     // The guide is the service's own documentation: a release has to be able to update it, and
@@ -212,7 +236,7 @@ public partial class ShippedContentImportTests
     {
         var guide = Guide().PageNodes.Select(p => p.Id).ToHashSet();
         var samples = SampleContentSeedBundle.Load().PageNodes.Select(p => p.Id);
-        var fixtures = TestFixtureSeedBundle.Load().PageNodes.Select(p => p.Id);
+        var fixtures = ShippedContent.Fixtures().PageNodes.Select(p => p.Id);
 
         Assert.Empty(guide.Intersect(samples.Concat(fixtures)));
     }

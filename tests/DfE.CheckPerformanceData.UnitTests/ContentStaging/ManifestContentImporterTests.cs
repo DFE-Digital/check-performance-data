@@ -96,6 +96,38 @@ public sealed class ManifestContentImporterTests : IDisposable
         Assert.Equal(2, summary.FilesImported);
     }
 
+    // ---- one file, on request --------------------------------------------------------------
+
+    // The button an administrator presses. Start-up decides where a file arrives by itself; it
+    // does not decide where the file may be asked for.
+    [Fact]
+    public async Task ImportFile_ImportsTheFile_WhateverEnvironmentsItsEntryNames()
+    {
+        Bundle("a.json", exportedBy: "asked for");
+        Bundle("b.json", exportedBy: "not asked for");
+        Manifest("""{ "imports": [ { "file": "a.json", "environments": ["Development"], "existing": "replace" }, { "file": "b.json", "environments": ["Development"] } ] }""");
+
+        var result = await Importer().ImportFileAsync(_folder, "a.json");
+
+        Assert.Equal(1, result.PageNodesCreated);
+        var import = Assert.Single(_imports);
+        Assert.Equal("asked for", import.Bundle.ExportedBy);
+        Assert.Equal(ContentImportMode.Replace, import.Existing);
+    }
+
+    // The manifest is the list of what the service ships with. A name that is not on it is not
+    // imported, however it was asked for.
+    [Fact]
+    public async Task ImportFile_Refuses_AFileTheManifestDoesNotList()
+    {
+        Bundle("a.json");
+        Bundle("stray.json");
+        Manifest("""{ "imports": [ { "file": "a.json", "environments": ["Development"] } ] }""");
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => Importer().ImportFileAsync(_folder, "stray.json"));
+        Assert.Empty(_imports);
+    }
+
     // A folder with no manifest is an environment with nothing to import, not a fault.
     [Fact]
     public async Task DoesNothing_WhenThereIsNoManifest()

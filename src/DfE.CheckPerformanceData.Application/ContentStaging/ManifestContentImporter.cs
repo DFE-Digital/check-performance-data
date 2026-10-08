@@ -20,7 +20,7 @@ namespace DfE.CheckPerformanceData.Application.ContentStaging;
 //         "environments": [ "Development", "Review", "QA", "Preproduction", "Production" ],
 //         "existing": "replaceOlder"
 //       },
-//       { "file": "test-pages.json", "environments": [ "Development", "Review" ], "existing": "replace" }
+//       { "file": "development-testing.json", "environments": [ "Development", "Review" ], "existing": "replace" }
 //     ]
 //   }
 //
@@ -52,6 +52,30 @@ public sealed class ManifestContentImporter(
     ILogger<ManifestContentImporter> logger)
 {
     public const string ManifestFileName = "manifest.json";
+
+    /// <summary>The import folder of an application whose content root is <paramref name="contentRoot"/>.</summary>
+    public static string FolderIn(string contentRoot) => Path.Combine(contentRoot, "Data", "Import");
+
+    /// <summary>
+    /// Imports one file the manifest lists, now, whichever environments its entry names. For an
+    /// administrator who asks for it by pressing a button: start-up decides where a file arrives
+    /// by itself, not where it may be asked for. Throws if the manifest does not list the file
+    /// or the file cannot be imported.
+    /// </summary>
+    public async Task<ContentImportResult> ImportFileAsync(string folder, string file)
+    {
+        var entry = ContentImportManifest.Read(folder)?.Imports
+            .FirstOrDefault(e => e is not null && string.Equals(e.File, file, StringComparison.OrdinalIgnoreCase))
+            ?? throw new InvalidOperationException($"'{file}' is not listed in {ManifestFileName}.");
+
+        var result = await ImportAsync(folder, entry);
+        foreach (var error in result.Errors)
+            logger.LogWarning("Content import: {File}: {Error}", entry.File, error);
+        logger.LogInformation(
+            "Content import: {File}, on request: {Created} page(s) created, {Updated} replaced, {Skipped} left as they were",
+            entry.File, result.PageNodesCreated, result.PageNodesUpdated, result.PageNodesSkipped);
+        return result;
+    }
 
     public async Task<ManifestImportSummary> RunAsync(string folder, string environment)
     {

@@ -36,7 +36,7 @@ public static class JourneyAndCmsServicesExtensions
         {
             var environment = sp.GetRequiredService<IWebHostEnvironment>();
             return ImportedContentIndex.Load(
-                Path.Combine(environment.ContentRootPath, "Data", "Import"), environment.EnvironmentName);
+                ManifestContentImporter.FolderIn(environment.ContentRootPath), environment.EnvironmentName);
         });
 
         return services;

@@ -17,7 +17,7 @@ namespace DfE.CheckPerformanceData.Application.PageTree;
 //
 // Alongside the pages individual tests need, there is a test page for each widget an author can
 // place ("Heading test page", "Search test page" and so on), showing the widget set up in several
-// ways. A new widget needs one too.
+// ways. They are together in a folder, /development-testing/widgets. A new widget needs one too.
 //
 // To change a fixture: edit the page through the CMS, export /development-testing from
 // /admin/content-staging, and replace the file.
@@ -25,6 +25,9 @@ public static class TestFixtureSeedBundle
 {
     /// <summary>The bundle's file name in the import folder, as the manifest lists it.</summary>
     public const string FileName = "development-testing.json";
+
+    /// <summary>The folder under the root that holds a test page for each widget.</summary>
+    public static readonly Guid WidgetsFolderId = new("00000000-cd94-4a01-8f01-0000000e0100");
 
     /// <summary>The long, wiki-typed fixture — the half of the back-to-top contract that scrolls.</summary>
     public const string LongPageSegment = "long-page";

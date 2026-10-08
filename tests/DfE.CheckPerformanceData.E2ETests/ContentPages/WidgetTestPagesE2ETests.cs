@@ -5,8 +5,8 @@ using Microsoft.Playwright;
 
 namespace DfE.CheckPerformanceData.E2ETests.ContentPages;
 
-// Every widget an author can place has a test page under /development-testing that shows it set
-// up in several ways: "Heading test page", "Search test page" and so on. The pages are shipped
+// Every widget an author can place has a test page in /development-testing/widgets that shows it
+// set up in several ways: "Heading test page", "Search test page" and so on. The pages are shipped
 // with the service and put back as shipped on every start, so they are the same wherever this
 // suite runs, and these tests can say exactly what each one should look like.
 //
@@ -20,7 +20,7 @@ public sealed class WidgetTestPagesE2ETests(PlaywrightFixture fixture) : Seeding
     private ILocator SearchForms => Content.Locator("form.cypmd-search");
 
     private Task OpenAsync(string segment, string query = "") =>
-        Page.GotoAsync($"{Fixture.BaseUrl}{FixtureContent.RootPath}/{segment}{query}");
+        Page.GotoAsync($"{Fixture.BaseUrl}{FixtureContent.WidgetsPath}/{segment}{query}");
 
     private static async Task<LocatorBoundingBoxResult> BoxAsync(ILocator locator)
     {
@@ -390,7 +390,7 @@ public sealed class WidgetTestPagesE2ETests(PlaywrightFixture fixture) : Seeding
         await form.Locator("input[name=q]").FillAsync(FixtureContent.SearchTerm);
         await form.Locator("button[type=submit]").ClickAsync();
 
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/development-testing/search-results-test-page\?q=testfixture&pages="));
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/development-testing/widgets/search-results-test-page\?q=testfixture&pages="));
         await Expect(Content.Locator(".cypmd-search-results").First
             .GetByRole(AriaRole.Link, new() { Name = "Search fixture page" })).ToBeVisibleAsync();
     }
@@ -532,7 +532,7 @@ public sealed class WidgetTestPagesE2ETests(PlaywrightFixture fixture) : Seeding
         await SearchForms.First.Locator("input[name=q]").FillAsync(FixtureContent.SearchTerm);
         await SearchForms.First.Locator("button[type=submit]").ClickAsync();
 
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/development-testing/search-results-test-page\?q=testfixture&pages="));
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/development-testing/widgets/search-results-test-page\?q=testfixture&pages="));
         await Expect(Results.First.GetByRole(AriaRole.Link, new() { Name = "Search fixture page" })).ToBeVisibleAsync();
     }
 
@@ -587,14 +587,14 @@ public sealed class WidgetTestPagesE2ETests(PlaywrightFixture fixture) : Seeding
 
         var links = await LinksAsync(Navigations.Nth(3));
 
-        Assert.Contains(FixtureContent.ShortPagePath, links);
-        Assert.Contains("/development-testing/heading-test-page", links);
-        Assert.Contains("/development-testing/page-navigation-test-page", links);
-        Assert.All(links, link => Assert.StartsWith("/development-testing/", link));
+        Assert.Equal(9, links.Count);
+        Assert.Contains($"{FixtureContent.WidgetsPath}/heading-test-page", links);
+        Assert.Contains($"{FixtureContent.WidgetsPath}/page-navigation-test-page", links);
+        Assert.All(links, link => Assert.StartsWith($"{FixtureContent.WidgetsPath}/", link));
     }
 
     [Fact]
-    public async Task PageNavigation_WithItsOwnSearchBox_SearchesTheFolderItNames()
+    public async Task PageNavigation_WithItsOwnSearchBox_SearchesThePagesItNames()
     {
         await OpenAsync("page-navigation-test-page");
         var form = SearchForms.First;

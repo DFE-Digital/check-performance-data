@@ -23,6 +23,9 @@ public static class FixtureContent
 
     public const string RootPath = "/" + RootSegment;
 
+    /// <summary>The folder that holds a test page for each widget: "Heading test page" and so on.</summary>
+    public const string WidgetsPath = $"{RootPath}/widgets";
+
     /// <summary>Long, wiki-typed page — the half of the back-to-top contract that scrolls.</summary>
     public const string LongPagePath = $"{RootPath}/long-page";
 

@@ -40,15 +40,47 @@ public class TestFixtureSeedBundleTests
     // because the importer resolves parents by Guid — would be dropped as an orphan on a fresh
     // database anyway.
     [Fact]
-    public void EveryFixturePage_IsParentedToTheDevelopmentTestingRoot()
+    public void EveryFixturePage_IsBeneathTheDevelopmentTestingRoot()
     {
         var bundle = ShippedContent.Fixtures();
+        var byId = bundle.PageNodes.ToDictionary(p => p.Id);
 
         foreach (var page in bundle.PageNodes.Where(p => p.Id != DefaultPageNodeRoots.DevelopmentTestingRootId))
         {
-            Assert.True(page.ParentId.HasValue, $"fixture '{page.Segment}' has no parent");
-            Assert.Equal(DefaultPageNodeRoots.DevelopmentTestingRootId, page.ParentId!.Value);
+            var top = page;
+            while (top.ParentId is { } parent && byId.TryGetValue(parent, out var above)) top = above;
+
+            Assert.Equal(DefaultPageNodeRoots.DevelopmentTestingRootId, top.Id);
         }
+    }
+
+    // The importer creates pages in file order and never creates an orphan, so a page listed
+    // ahead of the folder it sits in would be dropped on a fresh database.
+    [Fact]
+    public void EveryFixturePage_ComesAfterItsParentInTheFile()
+    {
+        var seen = new HashSet<Guid>();
+
+        foreach (var page in ShippedContent.Fixtures().PageNodes)
+        {
+            Assert.True(page.ParentId is null || seen.Contains(page.ParentId.Value),
+                $"'{page.Segment}' is listed before its parent");
+            seen.Add(page.Id);
+        }
+    }
+
+    // The widget test pages have a folder of their own, so the pages individual tests rely on
+    // are not lost among them. Like the root, it is a folder kept out of the menus.
+    [Fact]
+    public void TheWidgetTestPages_HaveAFolderOfTheirOwn_UnderTheRoot()
+    {
+        var folder = ShippedContent.Fixtures().PageNodes.Single(p => p.Id == TestFixtureSeedBundle.WidgetsFolderId);
+
+        Assert.Equal(DefaultPageNodeRoots.DevelopmentTestingRootId, folder.ParentId);
+        Assert.Equal("widgets", folder.Segment);
+        Assert.Equal("Widgets", folder.Title);
+        Assert.Equal("folder", folder.PageType);
+        Assert.False(folder.ShowInMenu);
     }
 
     // The root travels in the file, so the file is everything an environment needs: nothing else
@@ -229,7 +261,7 @@ public class TestFixtureSeedBundleTests
 
         Assert.Equal("content", page.PageType);
         Assert.Equal(label.ToLowerInvariant().Replace(' ', '-') + "-test-page", page.Segment);
-        Assert.Equal(DefaultPageNodeRoots.DevelopmentTestingRootId, page.ParentId);
+        Assert.Equal(TestFixtureSeedBundle.WidgetsFolderId, page.ParentId);
         Assert.Contains(ContentTreeWalker.AllWidgets(TreeOf(page)), w => w.Type == type);
     }
 

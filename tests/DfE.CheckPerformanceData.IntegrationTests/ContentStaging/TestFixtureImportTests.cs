@@ -74,15 +74,20 @@ public sealed class TestFixtureImportTests(PostgresFixture fixture)
             FROM ""PageNodes"" WHERE ""Id"" = @id;", DefaultPageNodeRoots.DevelopmentTestingRootId);
         Assert.Equal(["folder", "false", "false"], root);
 
-        // Every fixture lands published under that root, at the path the browser suite navigates to.
+        // Every fixture lands published beneath that root, at the path the browser suite navigates
+        // to: directly under it, or in the folder of widget test pages.
+        var byId = Fixtures.PageNodes.ToDictionary(p => p.Id);
         foreach (var page in Fixtures.PageNodes.Where(p => p.PageType != "folder"))
         {
-            var path = $"{DefaultPageNodeRoots.DevelopmentTestingSegment}/{page.Segment}";
+            var parent = byId[page.ParentId!.Value];
+            var path = parent.ParentId is null
+                ? $"{parent.Segment}/{page.Segment}"
+                : $"{byId[parent.ParentId.Value].Segment}/{parent.Segment}/{page.Segment}";
             var published = await ScalarLongAsync(conn, @"
                 SELECT COUNT(*) FROM ""PageNodes"" n
                 JOIN ""PageNodeVersions"" v ON v.""PageNodeId"" = n.""Id""
-                WHERE n.""Path"" = @p AND n.""ParentId"" = @root AND v.""PublishFrom"" IS NOT NULL;",
-                ("p", path), ("root", DefaultPageNodeRoots.DevelopmentTestingRootId));
+                WHERE n.""Path"" = @p AND n.""ParentId"" = @parent AND v.""PublishFrom"" IS NOT NULL;",
+                ("p", path), ("parent", parent.Id));
             Assert.True(published > 0, $"fixture '{path}' has no published version after seeding");
         }
     }
@@ -217,16 +222,16 @@ public sealed class TestFixtureImportTests(PostgresFixture fixture)
         await using (var conn = await OpenAsync())
             samplesBefore = await ScalarLongAsync(conn, @"
                 SELECT COUNT(*) FROM ""PageNodes""
-                WHERE ""ParentId"" IS NOT NULL AND ""ParentId"" <> @root;",
-                ("root", DefaultPageNodeRoots.DevelopmentTestingRootId));
+                WHERE ""ParentId"" IS NOT NULL AND ""Path"" NOT LIKE @fixtures;",
+                ("fixtures", DefaultPageNodeRoots.DevelopmentTestingSegment + "/%"));
 
         await SeedAsync();
 
         await using var conn2 = await OpenAsync();
         var samplesAfter = await ScalarLongAsync(conn2, @"
             SELECT COUNT(*) FROM ""PageNodes""
-            WHERE ""ParentId"" IS NOT NULL AND ""ParentId"" <> @root;",
-            ("root", DefaultPageNodeRoots.DevelopmentTestingRootId));
+            WHERE ""ParentId"" IS NOT NULL AND ""Path"" NOT LIKE @fixtures;",
+            ("fixtures", DefaultPageNodeRoots.DevelopmentTestingSegment + "/%"));
 
         Assert.Equal(samplesBefore, samplesAfter);
     }

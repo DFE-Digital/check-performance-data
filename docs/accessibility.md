@@ -152,6 +152,10 @@ The id list is built conditionally on what the view actually emits, per the rule
 
 Two older link sets do not yet follow this rule and are follow-up candidates: `Views/Journey/DuplicateCheck.cshtml` and `Common/DuplicateRequestMessages.cs` put `rel="noreferrer noopener"` on the same-origin "View submitted request" link, and the four Get Information About Schools links in `Data/QuestionFlows/Remove_KS4June.json` carry `target="_blank"` with no `rel` and say "(opens in new window)".
 
+## Upload progress and failures (storage browser)
+
+The storage browser's upload-in-parts enhancement (`wwwroot/js/storage-chunked-upload.js`, #568) reports into a `role="status"` region that is in the page, empty, before any script runs, and it writes there only at milestones (start, each 25%, each file done, finish), so a screen reader is not fed one line per part. Progress is a native `<progress>` element (`aria-label="Upload progress"`) with a visible percentage beside it, updated every part and hidden from screen readers, so progress is never shown by colour alone and the status line carries the announcements. A failure builds the GOV.UK error summary (`role="alert"`, `Error:` prefix, and a message that says what to do: "The selected file must be smaller than 2GB.", "Your session has ended. Sign in again and upload the file again." or, for anything else, "The upload did not complete. Upload the file again.") and moves focus to it. Focus moves to the Cancel upload button as soon as an upload starts, so it is not lost when the submit button is disabled, and cancelling returns focus to the status line. The submit button says `Uploading…` while disabled and Cancel is a real button. Without JavaScript the form posts as it always did and the hint states the smaller limit. `AccessibilityAuditViewTests` pins the markup.
+
 ## Testing
 
 The reusable pieces are unit tested — `PageTitleTests`, `PaginationWindowTests`, `QuestionPartialModelDescribedByTests`. Anything new that encodes an accessibility rule in C# should get the same treatment rather than being verified by eye alone.

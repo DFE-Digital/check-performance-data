@@ -16,6 +16,10 @@ public sealed class StorageBlobListViewModel
     public IReadOnlyList<string> Folders { get; init; } = [];
 
     public IReadOnlyList<StorageBlobItemViewModel> Blobs { get; init; } = [];
+
+    /// <summary>#568: the upload-in-parts bounds the script enforces client-side (the server enforces them too).</summary>
+    public int ChunkBytes { get; init; }
+    public long MaxUploadBytes { get; init; }
 }
 
 public sealed class StorageBlobItemViewModel

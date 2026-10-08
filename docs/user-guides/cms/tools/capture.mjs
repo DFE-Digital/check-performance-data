@@ -321,7 +321,7 @@ const shots = [
   // Search
   { name: 'search-results', role: 'user', run: async () => {
     await go('/search?q=checking+exercise');
-    await save('search-results', { around: [main] });
+    await save('search-results', { around: [main], maxHeight: 1000 });
   } },
   { name: 'search-this-page', role: 'user', run: async () => {
     await go(`/${demoPagePath}`);
@@ -345,7 +345,7 @@ const shots = [
     await go('/search?q=timetable');
     await page.getByRole('link', { name: /Send us a note/ }).click();
     await page.waitForLoadState('networkidle');
-    await save('search-feedback', { around: [main] });
+    await save('search-feedback', { around: [main], maxHeight: 1200 });
   } },
 
   // The page tree

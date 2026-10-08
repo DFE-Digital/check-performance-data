@@ -331,7 +331,9 @@ if (ordered.length !== pages.length) throw new Error('some pages are not reachab
 
 const built = ordered.map((page) => {
   const tree = contentTree(page);
-  return { page, content: JSON.stringify(tree), text: plainText(tree) };
+  // The search text is the page's own words. The left-hand column is the same on every page,
+  // and would otherwise turn up in every page's search extract.
+  return { page, content: JSON.stringify(tree), text: plainText(widgetsFor(page)) };
 });
 
 for (const name of imagesUsed) {
@@ -347,7 +349,7 @@ if (problems.length) {
 
 // The issue date tells the application which pages are older than this guide. It moves forward
 // only when the content has changed, so rebuilding an unchanged guide changes nothing.
-const fingerprint = createHash('sha256').update(JSON.stringify(built.map((b) => [b.page.id, b.page.parentId, b.page.title, b.page.subtitle, b.page.order, b.page.keywords, b.content]))).digest('hex');
+const fingerprint = createHash('sha256').update(JSON.stringify(built.map((b) => [b.page.id, b.page.parentId, b.page.title, b.page.subtitle, b.page.order, b.page.keywords, b.content, b.text]))).digest('hex');
 let issued = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
 try {
   const previous = JSON.parse(await readFile(bundlePath, 'utf8'));

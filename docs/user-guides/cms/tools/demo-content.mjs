@@ -60,7 +60,22 @@ const content = (lead) => [
     [widget('card', { title: 'Get help', body: 'Contact the helpline if you cannot find what you need.', href: '/support/contact-helpline' })]),
 ];
 
-const plainText = (tree) => JSON.stringify(tree).replace(/<[^>]+>/g, ' ').replace(/[^A-Za-z0-9 .,']+/g, ' ').replace(/\s+/g, ' ').trim();
+// The words a visitor reads, for the search index: headings, text and the rows of the summary list.
+const plainText = (tree) => {
+  const parts = [];
+  const walk = (node) => {
+    if (Array.isArray(node)) return node.forEach(walk);
+    if (node.kind === 'region') return walk(node.columns);
+    const p = node.props;
+    if (node.type === 'heading') parts.push(p.text);
+    if (node.type === 'richtext') parts.push(p.html.replace(/<[^>]+>/g, ' '));
+    if (node.type === 'card') parts.push(p.title, p.body);
+    if (node.type === 'published') parts.push(p.text);
+    if (node.type === 'summarylist') p.rows.forEach((r) => parts.push(r.key, r.value));
+  };
+  walk(tree);
+  return parts.join(' ').replace(/\s+/g, ' ').trim();
+};
 
 const version = (versionId, lead, publishFrom, publishTo) => {
   const tree = content(lead);

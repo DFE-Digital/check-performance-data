@@ -32,7 +32,7 @@ on:
   pull_request:
     branches:
       - main
-    types: [opened, reopened, synchronize, labeled]
+    types: [opened, reopened, synchronize, labeled, unlabeled]
 
 env:
   TERRAFORM_BASE: terraform/application
@@ -99,6 +99,11 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CPD_E2E_BASE_URL: ${{ needs.deploy-review-app.outputs.environment_url }}
+      # Failure-gated Playwright traces (SeedingPageTest writes one zip per failing
+      # test here; the Upload failure traces step below pulls them into an artifact).
+      # Absolute: the testhost resolves a relative value against its own CWD (the
+      # compiled output dir), which would orphan the zips away from the upload step.
+      CPD_E2E_TRACES_DIR: ${{ github.workspace }}/e2e-traces
 
     steps:
       - uses: actions/checkout@v4
@@ -119,14 +124,28 @@ jobs:
       - name: Install Playwright browsers
         run: pwsh tests/DfE.CheckPerformanceData.E2ETests/bin/Release/net10.0/playwright.ps1 install --with-deps chromium
 
+      - name: Compute E2E test filter
+        id: e2e-filter
+        # Smoke by default (fast happy-path subset, Category=Smoke). Applying the
+        # `full-regression` label to the PR widens the run to the entire non-visual
+        # suite, so release/end-of-sprint verification can be requested the same way
+        # the `deploy` label requests a review-app deploy. Removing the label returns
+        # the PR to the smoke default (the `unlabeled` trigger above re-runs).
+        run: |
+          IS_FULL_REGRESSION="${{ contains(github.event.pull_request.labels.*.name, 'full-regression') || github.event.label.name == 'full-regression' }}"
+          if [[ "${{ github.event_name }}" == "pull_request" && "$IS_FULL_REGRESSION" == "true" ]]; then
+            echo "CPD_E2E_FILTER=Category!=VisualRegression" >> "$GITHUB_ENV"
+          else
+            echo "CPD_E2E_FILTER=Category=Smoke" >> "$GITHUB_ENV"
+          fi
+
       - name: Run E2E tests
-        # Skip visual regression: baselines are captured against the local containerised
-        # Linux-Chromium web. The deployed AKS review app serves a different surface
-        # (fonts, CSP, seed timing) so identical pixels are not expected. The checks are
-        # also gated off by default in code (CPD_E2E_VISUAL_REGRESSION); this filter is
-        # kept so the intent is visible in the pipeline rather than only at the call site.
-        # To run them deliberately: `make test-e2e-visual`.
-        run: dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --configuration Release --no-build --filter "Category!=VisualRegression"
+        # Visual regression is skipped in both modes: baselines are captured against
+        # the local containerised Linux-Chromium web. The deployed AKS review app
+        # serves a different surface (fonts, CSP, seed timing) so identical pixels
+        # are not expected. The checks are also gated off by default in code
+        # (CPD_E2E_VISUAL_REGRESSION). To run them deliberately: `make test-e2e-visual`.
+        run: dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --configuration Release --no-build --filter "$CPD_E2E_FILTER"
 
       # Surface the snapshot tree on failure so the "delete .png + push twice"
       # update workflow can retrieve the regenerated PNG. Snapshots live under the
@@ -137,6 +156,18 @@ jobs:
         with:
           name: e2e-snapshots
           path: tests/DfE.CheckPerformanceData.E2ETests/Snapshots/
+          retention-days: 14
+
+      # Playwright traces for the failing tests only (the harness writes nothing on a
+      # green run). Open them with `npx playwright show-trace <file>.zip` or the trace
+      # viewer in the artifact. Name is obscured to {ClassName}.{ordinal}.zip — open a
+      # trace to see which test it belongs to (its title is set to the class name).
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-traces
+          path: e2e-traces/
+          if-no-files-found: warn
           retention-days: 14
 
   deploy-review-app:

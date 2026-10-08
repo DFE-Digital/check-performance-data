@@ -26,9 +26,9 @@ public sealed class AdminLandingVisualTests(PlaywrightFixture fixture) : Seeding
         {
             // Two-step: capture the admin cookie via the dev impersonation endpoint,
             // then mirror it into the Playwright BrowserContext. SeedingPageTest only
-            // seeds the cookie that was in TestHttpClients.ImpersonationCookieHeader
-            // at InitializeAsync time, which is whatever the prior test left (likely
-            // the fixture-level editor cookie or null on a clean first run). Without
+            // seeds the cookie on the fixture's SeedClient at InitializeAsync time,
+            // which is whatever the prior test left (likely the fixture-level editor
+            // cookie or null on a clean first run). Without
             // this mirror, Page.GotoAsync("/admin") would carry no admin cookie and
             // either 302 to DSI sign-in (clean run) or 302 to AccessDenied (editor
             // cookie present, since admin and editor roles are orthogonal).

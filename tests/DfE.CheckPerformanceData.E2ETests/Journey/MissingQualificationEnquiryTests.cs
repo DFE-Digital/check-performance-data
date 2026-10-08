@@ -1,11 +1,7 @@
 using DfE.CheckPerformanceData.E2ETests.Fixtures;
 using DfE.CheckPerformanceData.E2ETests.Helpers;
+using DfE.CheckPerformanceData.E2ETests.Retrying;
 using Microsoft.Playwright;
-// xRetry's RetryFact is only needed as the [RetryFact] attribute here; importing `using xRetry;`
-// would also drag in an Xunit.Skip that collides with SkippableFact's Xunit.Skip (used in the
-// Cancelling test to skip explicitly when the ChangeRequests table is unreachable), so alias just
-// the attribute.
-using RetryFact = xRetry.RetryFactAttribute;
 
 namespace DfE.CheckPerformanceData.E2ETests.Journey;
 
@@ -15,6 +11,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Journey;
 // then QAN grouped by AO) genuinely work without further help, that the details page's syllabus and
 // grade dropdowns post the value they show, and that the whole journey holds together end to end
 // with no late-results interstitial in the way.
+[Trait("Category", "Smoke")]
 [Collection("E2E")]
 public sealed class MissingQualificationEnquiryTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
@@ -31,7 +28,7 @@ public sealed class MissingQualificationEnquiryTests(PlaywrightFixture fixture) 
     private const string SyllabusCode = "8300H";
     private const string SyllabusLabel = "8300H - Mathematics Higher Tier";
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task A_school_can_report_a_missing_qualification_end_to_end()
     {
         await StartEnquiryAsync();
@@ -58,7 +55,7 @@ public sealed class MissingQualificationEnquiryTests(PlaywrightFixture fixture) 
         Assert.Matches(@"^CYPMD_16to19_RE_[0-9A-F]{7}$", reference);
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task ContinuingWithoutChoosingACohortStudent_ShowsTheCohortWordedError()
     {
         // #460: the cohort page asks for "one of the students", and its error must say the same.
@@ -74,7 +71,7 @@ public sealed class MissingQualificationEnquiryTests(PlaywrightFixture fixture) 
         await AssertErrorAsync("Enter the name of one of the students from the affected cohort");
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task The_syllabus_and_grade_pickers_offer_every_option_with_nothing_preselected()
     {
         // Both pickers are plain <select>s (the type-ahead the grade and result pickers once carried
@@ -100,7 +97,7 @@ public sealed class MissingQualificationEnquiryTests(PlaywrightFixture fixture) 
         await Expect(grade.Locator("option")).ToHaveCountAsync(14);
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task Answered_pickers_are_restored_on_a_validation_redisplay()
     {
         // The route a Back-link fact cannot cover: the page is re-rendered by the POST handler with
@@ -123,7 +120,7 @@ public sealed class MissingQualificationEnquiryTests(PlaywrightFixture fixture) 
         await Expect(Page.Locator("select[name='q_q_missing_grade']")).ToHaveValueAsync("9");
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task An_award_date_before_september_2023_is_rejected_with_the_window_message()
     {
         await StartEnquiryAsync();

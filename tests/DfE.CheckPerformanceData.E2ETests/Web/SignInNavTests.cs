@@ -2,7 +2,7 @@ using DfE.CheckPerformanceData.E2ETests.Fixtures;
 using DfE.CheckPerformanceData.E2ETests.Helpers;
 using Microsoft.Playwright;
 using Microsoft.Playwright.Xunit;
-using xRetry;
+using DfE.CheckPerformanceData.E2ETests.Retrying;
 
 namespace DfE.CheckPerformanceData.E2ETests.Web;
 
@@ -15,6 +15,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Web;
 // dropdown JS doesn't toggle, the /dev/impersonate/clear endpoint doesn't
 // actually delete the cookie, the claims transformer doesn't apply the editor
 // role, or the server-side rendering misreads the cookie value.
+[Trait("Category", "Smoke")]
 [Collection("E2E")]
 public sealed class SignInNavTests(PlaywrightFixture fixture) : PageTest
 {
@@ -26,7 +27,7 @@ public sealed class SignInNavTests(PlaywrightFixture fixture) : PageTest
     // The app and flow are correct — verified via HTTP and a live browser, where load
     // fires in <200ms — so retry the whole scenario, matching the suite's xRetry
     // convention (see GovUkAssetsTests) rather than masking a product defect.
-    [RetryFact(3)]
+    [RetryFact]
     public async Task SignInCluster_RoundTrips_ThroughImpersonationAndSignOut()
     {
         try
@@ -77,9 +78,9 @@ public sealed class SignInNavTests(PlaywrightFixture fixture) : PageTest
         {
             // Restore the fixture-level editor cookie so subsequent tests in the
             // collection can still seed. ImpersonateAsEditorAsync overwrites both the
-            // server cookie and the shared TestHttpClients.ImpersonationCookieHeader
-            // that every seed HttpClient request consults. Calling
-            // ClearImpersonationAsync here would null that static and break every
+            // server cookie and the fixture SeedClient's impersonation cookie that
+            // every seed HttpClient request consults. Calling
+            // ClearImpersonationAsync here would null that cookie and break every
             // editor-gated seed call in the rest of the suite.
             await AuthHelpers.ImpersonateAsEditorAsync(_fixture);
         }

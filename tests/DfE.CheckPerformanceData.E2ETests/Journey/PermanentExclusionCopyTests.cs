@@ -2,7 +2,7 @@ using DfE.CheckPerformanceData.E2ETests.Fixtures;
 using DfE.CheckPerformanceData.E2ETests.Helpers;
 using Microsoft.Playwright;
 using Microsoft.Playwright.Xunit;
-using xRetry;
+using DfE.CheckPerformanceData.E2ETests.Retrying;
 
 namespace DfE.CheckPerformanceData.E2ETests.Journey;
 
@@ -12,6 +12,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Journey;
 //     (design adds "permanently"; there is deliberately no "the" before the pupil name);
 //   * all failures (blank or malformed) must surface the single "Enter the 7 digit DfE number of
 //     the school which permanently excluded the pupil" message.
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class PermanentExclusionCopyTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
@@ -26,7 +27,7 @@ public sealed class PermanentExclusionCopyTests(PlaywrightFixture fixture) : See
 
     // ── US1: the DfE-number label matches design (issue-496 copy) ──
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task RemoveFlow_PermanentExclusionDfeNumberLabel_MatchesDesign()
     {
         await SeedHelpers.CleanupDevRequestsAsync(Fixture.SeedClient);
@@ -42,7 +43,7 @@ public sealed class PermanentExclusionCopyTests(PlaywrightFixture fixture) : See
     private const string DesignErrorMessage =
         "Enter the 7 digit DfE number of the school which permanently excluded the pupil";
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task RemoveFlow_PermanentExclusionDfeNumberBlank_ShowsSingleDesignMessage()
     {
         await SeedHelpers.CleanupDevRequestsAsync(Fixture.SeedClient);
@@ -53,7 +54,7 @@ public sealed class PermanentExclusionCopyTests(PlaywrightFixture fixture) : See
         await AssertDesignErrorMessageAsync();
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task RemoveFlow_PermanentExclusionDfeNumberMalformed_ShowsSingleDesignMessage()
     {
         await SeedHelpers.CleanupDevRequestsAsync(Fixture.SeedClient);
@@ -65,7 +66,7 @@ public sealed class PermanentExclusionCopyTests(PlaywrightFixture fixture) : See
         await AssertDesignErrorMessageAsync();
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task RemoveFlow_PermanentExclusionDfeNumberValid_AdvancesToEvidence()
     {
         await SeedHelpers.CleanupDevRequestsAsync(Fixture.SeedClient);
@@ -81,7 +82,7 @@ public sealed class PermanentExclusionCopyTests(PlaywrightFixture fixture) : See
 
     // ── US3: FR-008 — the four sibling DfE-number questions are untouched ──
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task RemoveFlow_PermanentlyExcludedSibling_DfeNumberLabelUnchanged()
     {
         await SeedHelpers.CleanupDevRequestsAsync(Fixture.SeedClient);

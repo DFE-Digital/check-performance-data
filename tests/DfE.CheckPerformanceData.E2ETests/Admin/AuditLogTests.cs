@@ -9,12 +9,13 @@ namespace DfE.CheckPerformanceData.E2ETests.Admin;
 // Success with its window, output types and person; the three filters narrow cumulatively; the
 // CSV export carries the same filters; a school user gets 404. Audit rows can never be deleted, so
 // every assertion is keyed on this walk's own run id.
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class AuditLogTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
     private static readonly Guid WindowId = Guid.Parse("F34D285B-8660-4D12-9C30-787328DEAA0A");   // the dev seed's KS4 June window
 
-    private HttpClient Client => Fixture.SeedClient;
+    private TestHttpClient Client => Fixture.SeedClient;
 
     private async Task<string> PostFormAsync(string path, IEnumerable<KeyValuePair<string, string>> fields, HttpStatusCode expected = HttpStatusCode.Found)
     {
@@ -24,7 +25,7 @@ public sealed class AuditLogTests(PlaywrightFixture fixture) : SeedingPageTest(f
             Content = new FormUrlEncodedContent(fields.Append(new KeyValuePair<string, string>("__RequestVerificationToken", token)))
         };
         request.Headers.Add("Cookie", cookie);
-        var response = await TestHttpClients.SendAsync(request);
+        var response = await Fixture.SeedClient.SendAsync(request);
         Assert.Equal(expected, response.StatusCode);
         return response.Headers.Location?.ToString() ?? await response.Content.ReadAsStringAsync();
     }
@@ -32,7 +33,7 @@ public sealed class AuditLogTests(PlaywrightFixture fixture) : SeedingPageTest(f
     private async Task<HttpResponseMessage> SendGetAsync(string path)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, $"{Fixture.BaseUrl}{path}");
-        return await TestHttpClients.SendAsync(request);
+        return await Fixture.SeedClient.SendAsync(request);
     }
 
     private async Task<string> GetAsync(string path, HttpStatusCode expected = HttpStatusCode.OK)
@@ -46,13 +47,13 @@ public sealed class AuditLogTests(PlaywrightFixture fixture) : SeedingPageTest(f
     {
         using var request = new HttpRequestMessage(HttpMethod.Post,
             $"{Fixture.BaseUrl}/dev/egress/seed?windowId={WindowId}&outputType={outputType}&decision={decision}&count={count}&laestab=860/4070&urn=142313&reason=pupil-died");
-        (await TestHttpClients.SendAsync(request)).EnsureSuccessStatusCode();
+        (await Fixture.SeedClient.SendAsync(request)).EnsureSuccessStatusCode();
     }
 
     private async Task CleanupAsync()
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, $"{Fixture.BaseUrl}/dev/egress/cleanup?windowId={WindowId}");
-        (await TestHttpClients.SendAsync(request)).EnsureSuccessStatusCode();
+        (await Fixture.SeedClient.SendAsync(request)).EnsureSuccessStatusCode();
     }
 
     // The <tr> … </tr> carrying this entity id AND action, so assertions cannot be satisfied by another

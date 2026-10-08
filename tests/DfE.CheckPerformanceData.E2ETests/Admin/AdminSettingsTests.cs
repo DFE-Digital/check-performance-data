@@ -4,7 +4,8 @@ using DfE.CheckPerformanceData.E2ETests.Helpers;
 
 namespace DfE.CheckPerformanceData.E2ETests.Admin;
 
-[Collection("E2E")]
+[Trait("Category", "FullRegression")]
+[Collection("Http")]
 public sealed class AdminSettingsTests(PlaywrightFixture fixture)
 {
     private readonly PlaywrightFixture _fixture = fixture;
@@ -22,7 +23,7 @@ public sealed class AdminSettingsTests(PlaywrightFixture fixture)
                 HttpMethod.Get,
                 $"{_fixture.BaseUrl}/admin/settings");
 
-            var response = await TestHttpClients.SendAsync(request);
+            var response = await _fixture.SeedClient.SendAsync(request);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
@@ -51,7 +52,7 @@ public sealed class AdminSettingsTests(PlaywrightFixture fixture)
                 HttpMethod.Get,
                 $"{_fixture.BaseUrl}/admin/settings");
 
-            var response = await TestHttpClients.SendAsync(request);
+            var response = await _fixture.SeedClient.SendAsync(request);
 
             Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         }
@@ -74,7 +75,7 @@ public sealed class AdminSettingsTests(PlaywrightFixture fixture)
                 HttpMethod.Post,
                 $"{_fixture.BaseUrl}/admin/settings/save");
 
-            var response = await TestHttpClients.SendAsync(request);
+            var response = await _fixture.SeedClient.SendAsync(request);
 
             Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         }

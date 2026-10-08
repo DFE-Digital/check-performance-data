@@ -8,6 +8,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Web;
 // the page the user was on where it was. Same-origin, so nothing is stubbed — the popup really
 // loads /guidance. The footer and home-card anchors share the same attributes and are pinned at
 // view-source tier (GuidanceLinksViewSourceTests); this fact proves the browser behaviour once.
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class GuidanceLinkTests(PlaywrightFixture fixture) : PageTest
 {

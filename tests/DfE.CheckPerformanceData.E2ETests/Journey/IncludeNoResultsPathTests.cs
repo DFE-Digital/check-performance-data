@@ -1,7 +1,7 @@
 using DfE.CheckPerformanceData.E2ETests.Fixtures;
 using DfE.CheckPerformanceData.E2ETests.Helpers;
 using Microsoft.Playwright;
-using xRetry;
+using DfE.CheckPerformanceData.E2ETests.Retrying;
 
 namespace DfE.CheckPerformanceData.E2ETests.Journey;
 
@@ -19,6 +19,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Journey;
 //   * included "Alice Smith" (index 0)       -> the "already included" case (US2).
 //   * non-included "Bob Johnson" (index 201) -> the "proceeds as normal" case (US1/FR-004a).
 //   * "No Such"                              -> matches nothing on either list -> the "not found" case.
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class IncludeNoResultsPathTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
@@ -39,7 +40,7 @@ public sealed class IncludeNoResultsPathTests(PlaywrightFixture fixture) : Seedi
 
     // ── US1: no match on either list -> "Pupil not found" (T011) ─────────────
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task NeitherListMatch_ShowsPupilNotFound_WithBothActions()
     {
         await StartIncludeJourneyAsync();
@@ -57,7 +58,7 @@ public sealed class IncludeNoResultsPathTests(PlaywrightFixture fixture) : Seedi
             .ToBeVisibleAsync();
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task StartAddingPupil_FromPupilNotFound_LandsOnLearnerDetails()
     {
         await StartIncludeJourneyAsync();
@@ -70,7 +71,7 @@ public sealed class IncludeNoResultsPathTests(PlaywrightFixture fixture) : Seedi
         await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Continue" })).ToBeVisibleAsync();
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task SearchAgain_FromPupilNotFound_ReturnsToIncludeSearch()
     {
         await StartIncludeJourneyAsync();
@@ -84,7 +85,7 @@ public sealed class IncludeNoResultsPathTests(PlaywrightFixture fixture) : Seedi
         await Expect(Page.Locator("#pupil-search").First).ToBeVisibleAsync();
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task BlankEntry_KeepsExistingValidationMessage()
     {
         await StartIncludeJourneyAsync();
@@ -101,7 +102,7 @@ public sealed class IncludeNoResultsPathTests(PlaywrightFixture fixture) : Seedi
 
     // ── US1/FR-004a: a non-included-only match proceeds as normal (T015) ─────
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task NonIncludedMatch_ProceedsAsNormal_NoDecisionPage()
     {
 await StartIncludeJourneyAsync();
@@ -124,7 +125,7 @@ await StartIncludeJourneyAsync();
 
     // ── US2: an included match -> "Already included" warning (T020/T021) ─────
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task IncludedMatch_ShowsAlreadyIncluded_WithAbortOption()
     {
         await StartIncludeJourneyAsync();
@@ -152,7 +153,7 @@ await StartIncludeJourneyAsync();
         await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Abort" })).ToBeVisibleAsync();
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task StartAddingPupil_FromAlreadyIncluded_LandsOnLearnerDetails()
     {
         await StartIncludeJourneyAsync();
@@ -165,7 +166,7 @@ await StartIncludeJourneyAsync();
         await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Continue" })).ToBeVisibleAsync();
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task Abort_FromAlreadyIncluded_ReturnsToCheckYourPupilData()
     {
         await StartIncludeJourneyAsync();

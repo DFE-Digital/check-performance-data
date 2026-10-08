@@ -4,6 +4,7 @@ using Microsoft.Playwright.Xunit;
 
 namespace DfE.CheckPerformanceData.E2ETests;
 
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class HarnessSmokeTests(PlaywrightFixture fixture) : PageTest
 {

@@ -270,4 +270,32 @@ public sealed class AccessibilityAuditViewTests
 		Assert.DoesNotContain("fileUpload-hint", view);
 		Assert.Contains("aria-describedby=\"@Model.DescribedBy\"", view);
 	}
+
+	// ── #568 Storage browser upload in parts ───────────────────────────────────────────
+
+	[Fact]
+	public void StorageUpload_FileInput_IsDescribedByItsHint()
+	{
+		var view = ReadView("Views", "StorageAdmin", "Container.cshtml");
+		Assert.Contains("id=\"files-hint\"", view);
+		Assert.Matches("<input[^>]*id=\"files\"[^>]*aria-describedby=\"files-hint\"", view);
+	}
+
+	// A live region announces reliably only when it is already in the DOM, empty, before the
+	// script writes to it (the same finding as evidence-upload-validation.js).
+	[Fact]
+	public void StorageUpload_StatusRegion_IsPresentAndEmptyAtLoad()
+	{
+		var view = ReadView("Views", "StorageAdmin", "Container.cshtml");
+		Assert.Contains("<div id=\"upload-status\" class=\"govuk-body\" role=\"status\" aria-live=\"polite\"></div>", view);
+	}
+
+	// Cancel is a real button and the no-JS reader is told how to get the bigger limit.
+	[Fact]
+	public void StorageUpload_HasARealCancelButton_AndANoScriptSentence()
+	{
+		var view = ReadView("Views", "StorageAdmin", "Container.cshtml");
+		Assert.Matches("<button type=\"button\" id=\"upload-cancel\"", view);
+		Assert.Contains("To upload bigger files, turn on JavaScript in your browser.", view);
+	}
 }

@@ -265,6 +265,26 @@ public sealed class StorageAdminProtectedContainerTests
     }
 
     [Fact]
+    public async Task Container_TellsTheView_TheUploadBounds()
+    {
+        var service = Substitute.For<BlobServiceClient>();
+        var containerClient = Substitute.For<BlobContainerClient>();
+        service.GetBlobContainerClient("c").Returns(containerClient);
+        containerClient.ExistsAsync(Arg.Any<CancellationToken>())
+            .Returns(Response.FromValue(true, Substitute.For<Response>()));
+        containerClient.GetBlobsByHierarchyAsync(
+                Arg.Any<BlobTraits>(), Arg.Any<BlobStates>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(AsyncPageable<BlobHierarchyItem>.FromPages([]));
+        var sut = BuildSut(new Dictionary<string, BlobServiceClient> { ["app"] = service }, ChunkedOn(chunkBytes: 8, maxBytes: 64));
+
+        var result = await sut.Container("app", "c", null);
+
+        var model = Assert.IsType<StorageBlobListViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.Equal(8, model.ChunkBytes);
+        Assert.Equal(64, model.MaxUploadBytes);
+    }
+
+    [Fact]
     public async Task Container_WithAnInvalidPrefix_Is404_AndListsNothing()
     {
         var service = Substitute.For<BlobServiceClient>();

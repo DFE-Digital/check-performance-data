@@ -111,6 +111,8 @@ public sealed class StorageAdminController(
             ParentPath = GetParentPath(currentPath),
             Folders = folders,
             Blobs = blobs,
+            ChunkBytes = browserOptions.Value.ChunkBytes,
+            MaxUploadBytes = browserOptions.Value.MaxUploadBytes,
         });
     }
 

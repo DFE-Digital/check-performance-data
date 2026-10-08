@@ -68,13 +68,17 @@ public sealed class QuestionPartialModel
     public int TotalPages => UploadedFiles.Sum(f => f.PageCount);
     public bool AtLimit => MaxEvidencePages > 0 && TotalPages >= MaxEvidencePages;
     // Only reference ids that _FileUpload.cshtml actually renders. Naming a missing element
-    // in aria-describedby leaves a dangling reference that resolves to nothing, so a question
-    // with no hint would silently announce no description at all. The count is always named
-    // because it is rendered in the same branch as the input and tells the user the limit
-    // before a file is refused (AB#304900).
+    // in aria-describedby leaves a dangling reference that resolves to nothing — browsers drop
+    // the whole description, not just the missing part. The count is always named because it
+    // is rendered in the same branch as the input and tells the user the limit before a file
+    // is refused (AB#304900).
+    //
+    // The visible hint is deliberately not named (#389). Chrome exposes a native file input
+    // as a button, and JAWS does not read a button's description aloud — it tells the user to
+    // press a key to hear it, and what they then hear is the sentence already on screen under
+    // the question heading. The hint paragraph stays; it is just not the input's description.
     public string DescribedBy => string.Join(" ", new[]
     {
-        Question.Hint is not null ? "fileUpload-hint" : null,
         "fileUpload-count",
         UploadError is not null || Error is not null ? "fileUpload-error" : null
     }.Where(id => id is not null));

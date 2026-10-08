@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using DfE.CheckPerformanceData.E2ETests.Fixtures;
 using DfE.CheckPerformanceData.E2ETests.Helpers;
 using Microsoft.Playwright;
@@ -18,8 +19,12 @@ public sealed class RegionsTestPageE2ETests(PlaywrightFixture fixture) : Seeding
 
     // The row whose first column carries the label, and that row's own columns. The innermost
     // such row, so that a region inside a column is found and not the region around it.
+    // Matched on the whole label, because "Thirds, column 1" is also the end of "One third two
+    // thirds, column 1".
     private ILocator Row(string layout) =>
-        Page.Locator(".cpb-content .govuk-grid-row").Filter(new() { HasTextString = $"{layout}, column 1 of" }).Last;
+        Page.Locator(".cpb-content .govuk-grid-row")
+            .Filter(new() { Has = Page.Locator("strong", new() { HasTextRegex = new Regex($@"^{Regex.Escape(layout)}, column 1 of \d$") }) })
+            .Last;
 
     private static ILocator Columns(ILocator row) => row.Locator("> div");
 

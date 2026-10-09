@@ -9,7 +9,7 @@ namespace DfE.CheckPerformanceData.Infrastructure.Ingress;
 /// <param name="Included">
 /// <c>true</c>/<c>false</c> stamps an <c>INCLUDED</c> marker on every record from this file, so
 /// inclusion is decided by file of origin. <c>null</c> means the record carries its own
-/// inclusion signal (KS4's <c>P_INCL</c>) and nothing is stamped.
+/// inclusion code, and the schema's <c>x-ingress.inclusion</c> rule stamps <c>INCLUDED</c> from it.
 /// </param>
 /// <param name="SourceFile">
 /// Stamps a <c>SOURCE</c> marker on every record from this file, so provenance is decided by file

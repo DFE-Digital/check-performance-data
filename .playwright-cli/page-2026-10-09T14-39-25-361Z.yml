@@ -1,0 +1,123 @@
+- generic [active] [ref=e1]:
+  - link "Skip to main content" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - banner [ref=e3]:
+    - link "GOV.UK" [ref=e7] [cursor=pointer]:
+      - /url: https://gov.uk/
+      - img "GOV.UK" [ref=e8]
+    - region "Service information" [ref=e21]:
+      - generic [ref=e23]:
+        - link "Check Performance Data" [ref=e25] [cursor=pointer]:
+          - /url: /
+        - navigation "Menu" [ref=e26]:
+          - list [ref=e27]:
+            - listitem [ref=e28]:
+              - link "Guidance (opens in new tab)" [ref=e29] [cursor=pointer]:
+                - /url: /guidance
+            - listitem [ref=e30]:
+              - link "Pupils" [ref=e31] [cursor=pointer]:
+                - /url: /CheckYourPupilData/f34d285b-8660-4d12-9c30-787328deaa0a
+            - listitem [ref=e32]:
+              - link "Amendment requests" [ref=e33] [cursor=pointer]:
+                - /url: /f34d285b-8660-4d12-9c30-787328deaa0a/AmendmentRequests
+            - listitem [ref=e34]:
+              - link "Sign in" [ref=e35] [cursor=pointer]:
+                - /url: /LandingPage
+              - button "Show sign in options" [ref=e36] [cursor=pointer]:
+                - img [ref=e37]
+    - paragraph [ref=e40]:
+      - strong [ref=e41]: Beta
+      - generic [ref=e42]:
+        - text: This is a new service - your
+        - link "feedback (opens in new tab)" [ref=e43] [cursor=pointer]:
+          - /url: /feedback-link
+        - text: will help us to improve it.
+  - main [ref=e45]:
+    - link "Back" [ref=e46] [cursor=pointer]:
+      - /url: /LandingPage
+    - heading "Check your pupil data" [level=1] [ref=e48]
+    - paragraph [ref=e49]: Review your pupil data by checking the tables below. You can also download the data as a CSV file. You must request any changes to pupil data before 5pm on Thursday 22 October 2026
+    - paragraph [ref=e50]:
+      - link "Download all CSV files as a ZIP file" [ref=e51] [cursor=pointer]:
+        - /url: /CheckYourPupilData/f34d285b-8660-4d12-9c30-787328deaa0a/download/all
+    - generic [ref=e52]:
+      - tablist [ref=e53]:
+        - tab "Pupils Included" [selected] [ref=e54] [cursor=pointer]
+        - tab "Pupils Non Included" [ref=e55] [cursor=pointer]
+      - tabpanel "Pupils Included" [ref=e56]:
+        - paragraph [ref=e57]:
+          - text: Download
+          - link "pupils included" [ref=e58] [cursor=pointer]:
+            - /url: /CheckYourPupilData/f34d285b-8660-4d12-9c30-787328deaa0a/download/exercise/2b2daefb-1aeb-4992-b699-ed31c35516ce/pupils?tab=exercise-2b2daefb-1aeb-4992-b699-ed31c35516ce-included
+          - text: as a CSV file.
+        - heading "Pupils Included" [level=2] [ref=e59]
+        - generic [ref=e62]:
+          - generic [ref=e63]: Search for a pupil by first or last name
+          - generic [ref=e64]:
+            - searchbox "Search for a pupil by first or last name" [ref=e65]: A86040700081B
+            - button "Search" [ref=e66] [cursor=pointer]
+            - button "Clear" [ref=e67] [cursor=pointer]
+        - region "Pupils Included" [ref=e68]:
+          - table [ref=e69]:
+            - rowgroup [ref=e70]:
+              - row "Last name First name Sex Date of birth Age UPN" [ref=e71]:
+                - columnheader "Last name" [ref=e72]
+                - columnheader "First name" [ref=e73]
+                - columnheader "Sex" [ref=e74]
+                - columnheader "Date of birth" [ref=e75]
+                - columnheader "Age" [ref=e76]
+                - columnheader "UPN" [ref=e77]
+            - rowgroup [ref=e78]:
+              - row "Brown Alice M 25/09/2010 14 A86040700081B" [ref=e79]:
+                - cell "Brown" [ref=e80]
+                - cell "Alice" [ref=e81]
+                - cell "M" [ref=e82]
+                - cell "25/09/2010" [ref=e83]
+                - cell "14" [ref=e84]
+                - cell "A86040700081B" [ref=e85]
+    - generic [ref=e86]:
+      - group "What would you like to do?" [ref=e88]:
+        - generic [ref=e89]: What would you like to do?
+        - generic [ref=e90]: Select one option.
+        - generic [ref=e91]:
+          - generic [ref=e92]:
+            - radio "Request an amendment to pupil data" [ref=e93] [cursor=pointer]
+            - generic [ref=e94] [cursor=pointer]: Request an amendment to pupil data
+          - generic [ref=e95]: or
+          - generic [ref=e96]:
+            - radio "Confirm pupil data is correct" [ref=e97] [cursor=pointer]
+            - generic [ref=e98] [cursor=pointer]: Confirm pupil data is correct
+      - button "Continue" [ref=e99] [cursor=pointer]
+  - contentinfo [ref=e100]:
+    - generic [ref=e101]:
+      - generic [ref=e113]:
+        - heading "Support and guidance" [level=2] [ref=e114]
+        - paragraph [ref=e115]:
+          - text: If you have a question, or you're having a problem using this service, you can
+          - link "send us a message" [ref=e116] [cursor=pointer]:
+            - /url: /contact
+          - text: or call us on 0300 131 2762
+      - generic [ref=e117]:
+        - generic [ref=e118]:
+          - heading "Support links" [level=2] [ref=e119]
+          - list [ref=e120]:
+            - listitem [ref=e121]:
+              - link "Privacy" [ref=e122] [cursor=pointer]:
+                - /url: /privacy
+            - listitem [ref=e123]:
+              - link "Cookies" [ref=e124] [cursor=pointer]:
+                - /url: /cookies
+            - listitem [ref=e125]:
+              - link "Accessibility statement" [ref=e126] [cursor=pointer]:
+                - /url: /accessibility
+            - listitem [ref=e127]:
+              - link "Guidance (opens in new tab)" [ref=e128] [cursor=pointer]:
+                - /url: /guidance
+          - img [ref=e129]
+          - generic [ref=e131]:
+            - text: All content is available under the
+            - link "Open Government Licence v3.0" [ref=e132] [cursor=pointer]:
+              - /url: https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/
+            - text: ", except where otherwise stated"
+        - link "© Crown copyright" [ref=e134] [cursor=pointer]:
+          - /url: https://www.nationalarchives.gov.uk/information-management/re-using-public-sector-information/uk-government-licensing-framework/crown-copyright/

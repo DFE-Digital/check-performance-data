@@ -43,6 +43,7 @@
     <Content Update="Data/Ingress/post16/*.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Update="Data/Ingress/ks4june/*.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Update="Data/Ingress/ks4autumn/*.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Update="Data/Ingress/ks2/*.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
   <!-- Rules-config seed JSON, linked from the rules-engine worker so there is one source of
        truth. RulesConfigSeeder (run from the dev-data seeding orchestrator in dev/E2E) reads

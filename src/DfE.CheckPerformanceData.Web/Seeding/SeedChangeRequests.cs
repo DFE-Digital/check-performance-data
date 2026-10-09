@@ -99,7 +99,7 @@ public static class SeedChangeRequests
         if (pupils is null || pupils.Count == 0) return;
 
         var included = pupils
-            .Where(p => PupilInclusion.IsKs4Included(p.Pincl))
+            .Where(p => p.IsIncluded)
             .DistinctBy(p => p.Id)
             .Take(9)
             .ToList();

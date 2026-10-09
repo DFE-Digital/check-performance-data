@@ -49,13 +49,13 @@ public static class WindowExercises
         exercise == CheckingExerciseType.ResultsEnquiry;
 
     /// <summary>
-    /// How a new exercise shows its data to schools. KS4 June pupil data has one supplier file in
-    /// which each pupil carries their own P_INCL, so it starts with an included tab and a
-    /// non-included tab. Everything else starts as a table. The admin can change it on the
-    /// exercise's edit page.
+    /// How a new exercise shows its data to schools. KS4 June and KS2 pupil data each have one
+    /// supplier file in which each pupil carries their own inclusion code, so they start with an
+    /// included tab and a non-included tab. Everything else starts as a table. The admin can change
+    /// it on the exercise's edit page.
     /// </summary>
     public static ExerciseLayout DefaultLayout(CheckingWindowType windowType, CheckingExerciseType? exercise) =>
-        windowType == CheckingWindowType.KS4June && exercise == CheckingExerciseType.PupilData
+        windowType is CheckingWindowType.KS4June or CheckingWindowType.KS2 && exercise == CheckingExerciseType.PupilData
             ? ExerciseLayout.InclusionTabs
             : ExerciseLayout.Table;
 

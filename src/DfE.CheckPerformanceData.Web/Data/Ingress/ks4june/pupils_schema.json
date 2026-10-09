@@ -8,7 +8,33 @@
   "x-ingress": {
     "collection": "pupils",
     "pageTab": "pupils",
-    "institutionKey": "LAESTAB"
+    "institutionKey": "LAESTAB",
+    "inclusion": {
+      "field": "P_INCL",
+      "included": [
+        "401",
+        "403",
+        "414",
+        "421",
+        "431"
+      ],
+      "descriptionField": "P_INCL_DESC",
+      "descriptions": {
+        "401": "Pupil on roll and included in key stage 4 (both NOR and results).",
+        "403": "Pupil added back. Included in key stage 4 (both NOR and results).",
+        "414": "Year group adjusted to 11. Pupil reported as Year 10 or below last year. Included in key stage 4 NOR and results.",
+        "421": "Pupil assumed to be on your roll. Included in key stage 4 data.",
+        "431": "Year group adjusted to 11. Pupil reported as Year 10 or below last year. Included in key stage 4 NOR and results.",
+        "402": "Pupil not on roll and omitted from all figures to be published.",
+        "404": "Pupil on roll. Pupil is not at the end of key stage 4 and is omitted from key stage 4 data.",
+        "407": "Pupil admitted following permanent exclusion from a maintained school. Omitted from NOR and results data.",
+        "408": "Pupil on roll. Pupil aged 15 admitted following permanent exclusion from a maintained school. Omitted from key stage 4.",
+        "410": "Pupil on roll but dual-registered with another school and is published elsewhere.",
+        "413": "Year group adjusted to 12. Pupil previously reported as end of key stage 4. Omitted from all data.",
+        "422": "Pupil assumed to be on your roll. Pupil is estimated not to be in year 11. Omitted from key stage 4.",
+        "430": "Year group adjusted to 12. Pupil previously reported as end of key stage 4. Omitted from all data."
+      }
+    }
   },
   "x-download": {
     "fileName": "ks4pupils.csv",
@@ -20,6 +46,19 @@
     "selectorOrder": 0
   },
   "properties": {
+    "INCLUDED": {
+      "type": "boolean",
+      "description": "Stamped by ingress from x-ingress.inclusion: true when P_INCL is an included code. Not a supplier column, so not downloaded or shown.",
+      "x-csv": {
+        "columns": {},
+        "heading": "Included"
+      },
+      "x-display": {
+        "label": "Included",
+        "visible": false,
+        "order": 999
+      }
+    },
     "UPN": {
       "type": [
         "string",
@@ -35,8 +74,8 @@
       },
       "x-display": {
         "label": "UPN",
-        "visible": false,
-        "order": 2,
+        "visible": true,
+        "order": 5,
         "searchable": true
       }
     },
@@ -70,8 +109,8 @@
       },
       "x-display": {
         "label": "CYPMD ID",
-        "visible": true,
-        "order": 5
+        "visible": false,
+        "order": 6
       }
     },
     "SURNAME": {
@@ -328,7 +367,7 @@
     },
     "ACTYRGRP": {
       "type": [
-        "string", 
+        "string",
         "null"
       ],
       "maxLength": 2,

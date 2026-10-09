@@ -292,7 +292,7 @@ public sealed class CheckingWindowDatasetDto
     public string SchemaFileChecksum { get; set; } = string.Empty;
 
     /// <summary>Stamped onto every record from this file. Null = the record carries its own
-    /// inclusion signal (KS4's P_INCL).</summary>
+    /// inclusion code, which the schema's x-ingress.inclusion rule reads (KS4, KS2).</summary>
     public bool? Included { get; init; }
 
     /// <summary>

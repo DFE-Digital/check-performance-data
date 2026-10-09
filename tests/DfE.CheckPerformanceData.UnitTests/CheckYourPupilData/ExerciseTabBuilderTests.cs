@@ -205,8 +205,8 @@ public sealed class ExerciseTabBuilderTests
         Assert.Equal(["First", "Second"], tabs.Select(t => t.Exercise.Name));
     }
 
-    // KS4 sends one pupils file, and each record carries its own P_INCL. 401 is an included code,
-    // 402 is not, and a record with no P_INCL is not included.
+    // Ingress stamps INCLUDED on every pupil from the schema's inclusion rule, so the tabs read
+    // only the stamp. A record with no stamp is not included.
     private CheckingExerciseDto AnInclusionTabsExercise()
     {
         var exercise = Exercise(tabName: "Pupils", layout: ExerciseLayout.InclusionTabs);
@@ -220,13 +220,14 @@ public sealed class ExerciseTabBuilderTests
         ];
         _reader.ReadAsync(Arg.Any<CheckingDataExercise>(), "933/4290", Arg.Any<CancellationToken>())
             .Returns(Encoding.UTF8.GetBytes("""
-                [{"SURNAME":"Adams","P_INCL":"401"},{"SURNAME":"Brown","P_INCL":402},
-                 {"SURNAME":"Clark"},{"SURNAME":"Davis","P_INCL":"431"}]
+                [{"SURNAME":"Adams","INCLUDED":true},{"SURNAME":"Brown","INCLUDED":false},
+                 {"SURNAME":"Clark"},{"SURNAME":"Davis","INCLUDED":true}]
                 """));
         _reader.ReadSchemaAsync(Arg.Any<Guid>(), "p.json", Arg.Any<CancellationToken>())
             .Returns(Encoding.UTF8.GetBytes("""
                 {"x-ingress":{"collection":"pupils"},"x-download":{"fileName":"ks4pupils.csv","label":"Pupils"},
-                 "properties":{"SURNAME":{"x-display":{"label":"Surname","searchable":true}}}}
+                 "properties":{"SURNAME":{"x-display":{"label":"Surname","order":0,"searchable":true}},
+                               "FORENAME":{"x-display":{"label":"Forename","order":1}}}}
                 """));
         return exercise;
     }
@@ -267,9 +268,9 @@ public sealed class ExerciseTabBuilderTests
         var exercise = AnInclusionTabsExercise();
         _reader.ReadAsync(Arg.Any<CheckingDataExercise>(), "933/4290", Arg.Any<CancellationToken>())
             .Returns(Encoding.UTF8.GetBytes("""
-                [{"SURNAME":"Smith","FORENAME":"Bob","P_INCL":"401"},
-                 {"SURNAME":"Adams","FORENAME":"Zoe","P_INCL":"401"},
-                 {"SURNAME":"Smith","FORENAME":"Amy","P_INCL":"401"}]
+                [{"SURNAME":"Smith","FORENAME":"Bob","INCLUDED":true},
+                 {"SURNAME":"Adams","FORENAME":"Zoe","INCLUDED":true},
+                 {"SURNAME":"Smith","FORENAME":"Amy","INCLUDED":true}]
                 """));
 
         var tabs = await Builder().BuildAsync(Window(exercise), "933/4290", null, null, null, 0, 10, default);
@@ -281,17 +282,17 @@ public sealed class ExerciseTabBuilderTests
     }
 
     [Fact]
-    public async Task AnIncludedStamp_DecidesInclusionBeforePIncl()
+    public async Task OnlyTheIncludedStamp_DecidesInclusion_NeverAnInclusionCode()
     {
-        // A file stamped by its slot (INCLUDED) was placed by the admin; the stamp wins.
+        // The tabs know no key stage's codes: 401 is a KS4 included code, but the stamp says no.
         var exercise = AnInclusionTabsExercise();
         _reader.ReadAsync(Arg.Any<CheckingDataExercise>(), "933/4290", Arg.Any<CancellationToken>())
-            .Returns(Encoding.UTF8.GetBytes("""[{"SURNAME":"Adams","P_INCL":"402","INCLUDED":true}]"""));
+            .Returns(Encoding.UTF8.GetBytes("""[{"SURNAME":"Adams","P_INCL":"401","INCLUDED":false},{"SURNAME":"Brown","P_INCL":"401"}]"""));
 
         var tabs = await Builder().BuildAsync(Window(exercise), "933/4290", null, null, null, 0, 10, default);
 
-        Assert.Single(tabs[0].Table!.Rows);
-        Assert.Empty(tabs[1].Table!.Rows);
+        Assert.Empty(tabs[0].Table!.Rows);
+        Assert.Equal(2, tabs[1].Table!.Rows.Count);
     }
 
     [Fact]

@@ -147,14 +147,11 @@ public sealed class ExerciseTabBuilder(ICheckingDataReader reader, IExerciseDisp
             {
                 // An inclusion tab holds only its own pupils, and names its datasets for itself, so
                 // its heading, its download and its file in the download-all zip are its own. It
-                // keeps the names and the surname, forename order the pupil CSVs had before
-                // exercises: "pupil-include" and "pupil-non-include". The controller adds the
-                // school and window to the name.
+                // keeps the names the pupil CSVs had before exercises: "pupil-include" and
+                // "pupil-non-include". The controller adds the school and window to the name. The
+                // table sorts the rows (by the schema's visible columns), not this tab.
                 var tabRows = shape.Included is { } included
-                    ? rows.Where(r => PupilInclusion.IsIncluded(r) == included)
-                        .OrderBy(r => r.GetValueOrDefault("SURNAME", ""))
-                        .ThenBy(r => r.GetValueOrDefault("FORENAME", ""))
-                        .ToList()
+                    ? rows.Where(r => PupilInclusion.IsIncluded(r) == included).ToList()
                     : rows;
                 var tabDefinitions = shape.Included is null
                     ? definitions

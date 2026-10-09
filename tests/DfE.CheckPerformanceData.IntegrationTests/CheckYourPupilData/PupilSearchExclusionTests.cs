@@ -58,6 +58,7 @@ public sealed class PupilSearchExclusionTests(PostgresFixture fixture)
         Age = 16,
         FirstLanguage = "English",
         Pincl = pincl,
+        Included = pincl == IncludedPincl,
         NewMobile = false,
         ActualYearGroup = "11",
         Ethnicity = "A1",

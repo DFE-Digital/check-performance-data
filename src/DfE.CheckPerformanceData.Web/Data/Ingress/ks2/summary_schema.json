@@ -1,0 +1,1522 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "summary_schema.json",
+  "title": "KS2 summary",
+  "description": "One row per school of the supplier's KS2 school summary file, transcribed from the KS2 Summary data share specification. One schema serves the September and December files (x-csv.columns 'september' and 'december'): the December file adds the four disadvantaged pupil fields at the end, which are not in the September file. Field references are the CSV headers. Values are strings, because a suppressed value is sent as 'NA' or '+'.",
+  "type": "object",
+  "additionalProperties": false,
+  "x-ingress": {
+    "collection": "summary",
+    "pageTab": "summary",
+    "institutionKey": "LAESTAB"
+  },
+  "x-download": {
+    "fileName": "ks2summary.csv",
+    "label": "Summary"
+  },
+  "x-display": {
+    "tab": "summary",
+    "section": "Summary",
+    "selectorOrder": 0,
+    "layout": "vertical"
+  },
+  "properties": {
+    "LAESTAB": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "7-digit LA/establishment number",
+      "x-csv": {
+        "columns": {
+          "september": "A",
+          "december": "A"
+        },
+        "heading": "DfE Establishment number"
+      },
+      "x-display": {
+        "label": "DfE Establishment number",
+        "visible": true,
+        "order": 1
+      }
+    },
+    "URN": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "6-digit school unique reference number",
+      "x-csv": {
+        "columns": {
+          "september": "B",
+          "december": "B"
+        },
+        "heading": "School Unique Reference Number (URN)"
+      },
+      "x-display": {
+        "label": "School Unique Reference Number (URN)",
+        "visible": true,
+        "order": 2
+      }
+    },
+    "TELIG": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Key stage 2 cohort information. Format: 999.",
+      "x-csv": {
+        "columns": {
+          "september": "C",
+          "december": "C"
+        },
+        "heading": "Number of pupils eligible for KS2 assessment"
+      },
+      "x-display": {
+        "label": "Number of pupils eligible for KS2 assessment",
+        "visible": true,
+        "order": 3
+      }
+    },
+    "BELIG": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Key stage 2 cohort information. Format: 999.",
+      "x-csv": {
+        "columns": {
+          "september": "D",
+          "december": "D"
+        },
+        "heading": "Number of boys"
+      },
+      "x-display": {
+        "label": "Number of boys",
+        "visible": true,
+        "order": 4
+      }
+    },
+    "GELIG": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Key stage 2 cohort information. Format: 999.",
+      "x-csv": {
+        "columns": {
+          "september": "E",
+          "december": "E"
+        },
+        "heading": "Number of girls"
+      },
+      "x-display": {
+        "label": "Number of girls",
+        "visible": true,
+        "order": 5
+      }
+    },
+    "PBELIG": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Key stage 2 cohort information. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "F",
+          "december": "F"
+        },
+        "heading": "Percentage of boys"
+      },
+      "x-display": {
+        "label": "Percentage of boys",
+        "visible": true,
+        "order": 6
+      }
+    },
+    "PGELIG": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Key stage 2 cohort information. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "G",
+          "december": "G"
+        },
+        "heading": "Percentage of girls"
+      },
+      "x-display": {
+        "label": "Percentage of girls",
+        "visible": true,
+        "order": 7
+      }
+    },
+    "TKS1AVERAGE": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Key stage 2 cohort information. Format: 99.9.",
+      "x-csv": {
+        "columns": {
+          "september": "H",
+          "december": "H"
+        },
+        "heading": "Cohort KS1 average points score"
+      },
+      "x-display": {
+        "label": "Cohort KS1 average points score",
+        "visible": true,
+        "order": 8
+      }
+    },
+    "TKS1GROUP_L": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Key stage 2 cohort information. Format: 9999.",
+      "x-csv": {
+        "columns": {
+          "september": "I",
+          "december": "I"
+        },
+        "heading": "Low prior attainment band: number of all eligible pupils"
+      },
+      "x-display": {
+        "label": "Low prior attainment band: number of all eligible pupils",
+        "visible": true,
+        "order": 9
+      }
+    },
+    "PTKS1GROUP_L": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Key stage 2 cohort information. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "J",
+          "december": "J"
+        },
+        "heading": "Low prior attainment band: Percentage of all eligible pupils"
+      },
+      "x-display": {
+        "label": "Low prior attainment band: Percentage of all eligible pupils",
+        "visible": true,
+        "order": 10
+      }
+    },
+    "TKS1GROUP_M": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Key stage 2 cohort information. Format: 9999.",
+      "x-csv": {
+        "columns": {
+          "september": "K",
+          "december": "K"
+        },
+        "heading": "Middle prior attainment band: number of all eligible pupils"
+      },
+      "x-display": {
+        "label": "Middle prior attainment band: number of all eligible pupils",
+        "visible": true,
+        "order": 11
+      }
+    },
+    "PTKS1GROUP_M": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Key stage 2 cohort information. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "L",
+          "december": "L"
+        },
+        "heading": "Middle prior attainment band: Percentage of all eligible pupils"
+      },
+      "x-display": {
+        "label": "Middle prior attainment band: Percentage of all eligible pupils",
+        "visible": true,
+        "order": 12
+      }
+    },
+    "TKS1GROUP_H": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Key stage 2 cohort information. Format: 9999.",
+      "x-csv": {
+        "columns": {
+          "september": "M",
+          "december": "M"
+        },
+        "heading": "High prior attainment band: number of all eligible pupils"
+      },
+      "x-display": {
+        "label": "High prior attainment band: number of all eligible pupils",
+        "visible": true,
+        "order": 13
+      }
+    },
+    "PTKS1GROUP_H": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Key stage 2 cohort information. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "N",
+          "december": "N"
+        },
+        "heading": "High prior attainment band: Percentage of all eligible pupils"
+      },
+      "x-display": {
+        "label": "High prior attainment band: Percentage of all eligible pupils",
+        "visible": true,
+        "order": 14
+      }
+    },
+    "TMOBN": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Key stage 2 cohort information. Format: 9999.",
+      "x-csv": {
+        "columns": {
+          "september": "O",
+          "december": "O"
+        },
+        "heading": "Number of pupils who are non-mobile"
+      },
+      "x-display": {
+        "label": "Number of pupils who are non-mobile",
+        "visible": true,
+        "order": 15
+      }
+    },
+    "PTMOBN": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Key stage 2 cohort information. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "P",
+          "december": "P"
+        },
+        "heading": "Percentage of pupils who are non-mobile"
+      },
+      "x-display": {
+        "label": "Percentage of pupils who are non-mobile",
+        "visible": true,
+        "order": 16
+      }
+    },
+    "TEALGRP2": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Key stage 2 cohort information. Format: 9999.",
+      "x-csv": {
+        "columns": {
+          "september": "Q",
+          "december": "Q"
+        },
+        "heading": "Number of pupils with English as an additional language"
+      },
+      "x-display": {
+        "label": "Number of pupils with English as an additional language",
+        "visible": true,
+        "order": 17
+      }
+    },
+    "PTEALGRP2": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Key stage 2 cohort information. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "R",
+          "december": "R"
+        },
+        "heading": "Percentage of pupils with English as an additional language"
+      },
+      "x-display": {
+        "label": "Percentage of pupils with English as an additional language",
+        "visible": true,
+        "order": 18
+      }
+    },
+    "TSENELE": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Key stage 2 cohort information. Format: 999.",
+      "x-csv": {
+        "columns": {
+          "september": "S",
+          "december": "S"
+        },
+        "heading": "Number of pupils with an EHC plan"
+      },
+      "x-display": {
+        "label": "Number of pupils with an EHC plan",
+        "visible": true,
+        "order": 19
+      }
+    },
+    "PSENELE": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Key stage 2 cohort information. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "T",
+          "december": "T"
+        },
+        "heading": "Percentage of pupils with an EHC plan"
+      },
+      "x-display": {
+        "label": "Percentage of pupils with an EHC plan",
+        "visible": true,
+        "order": 20
+      }
+    },
+    "TSENELK": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Key stage 2 cohort information. Format: 999.",
+      "x-csv": {
+        "columns": {
+          "september": "U",
+          "december": "U"
+        },
+        "heading": "Number of pupils on SEN support"
+      },
+      "x-display": {
+        "label": "Number of pupils on SEN support",
+        "visible": true,
+        "order": 21
+      }
+    },
+    "PSENELK": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Key stage 2 cohort information. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "V",
+          "december": "V"
+        },
+        "heading": "Percentage of pupils on SEN support"
+      },
+      "x-display": {
+        "label": "Percentage of pupils on SEN support",
+        "visible": true,
+        "order": 22
+      }
+    },
+    "PTRWM_EXP": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Reading, writing TA and mathematics - attainment. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "W",
+          "december": "W"
+        },
+        "heading": "Reading, writing TA and mathematics: Percentage of pupils achieving the expected standard"
+      },
+      "x-display": {
+        "label": "Reading, writing TA and mathematics: Percentage of pupils achieving the expected standard",
+        "visible": true,
+        "order": 23
+      }
+    },
+    "PTRWM_HIGH": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Reading, writing TA and mathematics - attainment. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "X",
+          "december": "X"
+        },
+        "heading": "Reading, writing TA and mathematics: Percentage of pupils achieving a high score"
+      },
+      "x-display": {
+        "label": "Reading, writing TA and mathematics: Percentage of pupils achieving a high score",
+        "visible": true,
+        "order": 24
+      }
+    },
+    "READPROG_WEB": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Progress measures: KS1 to KS2. Format: 9.99 (9.99 to 9.99).",
+      "x-csv": {
+        "columns": {
+          "september": "Y",
+          "december": "Y"
+        },
+        "heading": "Reading progress score (confidence interval in brackets)"
+      },
+      "x-display": {
+        "label": "Reading progress score (confidence interval in brackets)",
+        "visible": true,
+        "order": 25
+      }
+    },
+    "READCOV": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Progress measures: KS1 to KS2. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "Z",
+          "december": "Z"
+        },
+        "heading": "Percentage of eligible pupils included in the reading progress measure"
+      },
+      "x-display": {
+        "label": "Percentage of eligible pupils included in the reading progress measure",
+        "visible": true,
+        "order": 26
+      }
+    },
+    "WRITPROG_WEB": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Progress measures: KS1 to KS2. Format: 9.99 (9.99 to 9.99).",
+      "x-csv": {
+        "columns": {
+          "september": "AA",
+          "december": "AA"
+        },
+        "heading": "Writing TA progress score (confidence interval in brackets)"
+      },
+      "x-display": {
+        "label": "Writing TA progress score (confidence interval in brackets)",
+        "visible": true,
+        "order": 27
+      }
+    },
+    "WRITCOV": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Progress measures: KS1 to KS2. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "AB",
+          "december": "AB"
+        },
+        "heading": "Percentage of eligible pupils included in the writing TA progress measure"
+      },
+      "x-display": {
+        "label": "Percentage of eligible pupils included in the writing TA progress measure",
+        "visible": true,
+        "order": 28
+      }
+    },
+    "MATPROG_WEB": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Progress measures: KS1 to KS2. Format: 9.99 (9.99 to 9.99).",
+      "x-csv": {
+        "columns": {
+          "september": "AC",
+          "december": "AC"
+        },
+        "heading": "mathematics progress score (confidence interval in brackets)"
+      },
+      "x-display": {
+        "label": "mathematics progress score (confidence interval in brackets)",
+        "visible": true,
+        "order": 29
+      }
+    },
+    "MATCOV": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Progress measures: KS1 to KS2. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "AD",
+          "december": "AD"
+        },
+        "heading": "Percentage of eligible pupils included in the mathematics progress measure"
+      },
+      "x-display": {
+        "label": "Percentage of eligible pupils included in the mathematics progress measure",
+        "visible": true,
+        "order": 30
+      }
+    },
+    "PTREAD_EXP": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Individual subjects - attainment. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "AE",
+          "december": "AE"
+        },
+        "heading": "Reading: Percentage of pupils achieving expected standard"
+      },
+      "x-display": {
+        "label": "Reading: Percentage of pupils achieving expected standard",
+        "visible": true,
+        "order": 31
+      }
+    },
+    "PTREAD_HIGH": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Individual subjects - attainment. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "AF",
+          "december": "AF"
+        },
+        "heading": "Reading: Percentage of pupils achieving a higher standard"
+      },
+      "x-display": {
+        "label": "Reading: Percentage of pupils achieving a higher standard",
+        "visible": true,
+        "order": 32
+      }
+    },
+    "PTREAD_AT": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Individual subjects - attainment. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "AG",
+          "december": "AG"
+        },
+        "heading": "Reading: percentage of pupils absent or working at the standard of the test but who are unable to access it"
+      },
+      "x-display": {
+        "label": "Reading: percentage of pupils absent or working at the standard of the test but who are unable to access it",
+        "visible": true,
+        "order": 33
+      }
+    },
+    "PTWRITTA_EXP": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Individual subjects - attainment. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "AH",
+          "december": "AH"
+        },
+        "heading": "Writing TA: Percentage of pupils achieving expected standard"
+      },
+      "x-display": {
+        "label": "Writing TA: Percentage of pupils achieving expected standard",
+        "visible": true,
+        "order": 34
+      }
+    },
+    "PTWRITTA_HIGH": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Individual subjects - attainment. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "AI",
+          "december": "AI"
+        },
+        "heading": "Writing TA: Percentage of pupils working at greater depth within expected standard"
+      },
+      "x-display": {
+        "label": "Writing TA: Percentage of pupils working at greater depth within expected standard",
+        "visible": true,
+        "order": 35
+      }
+    },
+    "PTWRITTA_AD": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Individual subjects - attainment. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "AJ",
+          "december": "AJ"
+        },
+        "heading": "Writing TA: Percentage of pupils absent or disapplied"
+      },
+      "x-display": {
+        "label": "Writing TA: Percentage of pupils absent or disapplied",
+        "visible": true,
+        "order": 36
+      }
+    },
+    "PTMAT_EXP": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Individual subjects - attainment. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "AK",
+          "december": "AK"
+        },
+        "heading": "Mathematics: Percentage of pupils achieving expected standard"
+      },
+      "x-display": {
+        "label": "Mathematics: Percentage of pupils achieving expected standard",
+        "visible": true,
+        "order": 37
+      }
+    },
+    "PTMAT_HIGH": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Individual subjects - attainment. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "AL",
+          "december": "AL"
+        },
+        "heading": "Mathematics: Percentage of pupils achieving a higher standard"
+      },
+      "x-display": {
+        "label": "Mathematics: Percentage of pupils achieving a higher standard",
+        "visible": true,
+        "order": 38
+      }
+    },
+    "PTMAT_AT": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Individual subjects - attainment. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "AM",
+          "december": "AM"
+        },
+        "heading": "Mathematics: percentage of pupils absent or working at the standard of the test but who are unable to access it"
+      },
+      "x-display": {
+        "label": "Mathematics: percentage of pupils absent or working at the standard of the test but who are unable to access it",
+        "visible": true,
+        "order": 39
+      }
+    },
+    "PTGPS_EXP": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Individual subjects - attainment. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "AN",
+          "december": "AN"
+        },
+        "heading": "Grammar, punctuation and spelling: Percentage of pupils achieving expected standard"
+      },
+      "x-display": {
+        "label": "Grammar, punctuation and spelling: Percentage of pupils achieving expected standard",
+        "visible": true,
+        "order": 40
+      }
+    },
+    "PTGPS_HIGH": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Individual subjects - attainment. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "AO",
+          "december": "AO"
+        },
+        "heading": "Grammar, punctuation and spelling: Percentage of pupils achieving a higher standard"
+      },
+      "x-display": {
+        "label": "Grammar, punctuation and spelling: Percentage of pupils achieving a higher standard",
+        "visible": true,
+        "order": 41
+      }
+    },
+    "PTGPS_AT": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Individual subjects - attainment. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "AP",
+          "december": "AP"
+        },
+        "heading": "Grammar, punctuation and spelling: Percentage of pupils absent or working at the standard of the test but unable to access it"
+      },
+      "x-display": {
+        "label": "Grammar, punctuation and spelling: Percentage of pupils absent or working at the standard of the test but unable to access it",
+        "visible": true,
+        "order": 42
+      }
+    },
+    "READ_AVERAGE": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Average scaled score per pupil. Format: 999.",
+      "x-csv": {
+        "columns": {
+          "september": "AQ",
+          "december": "AQ"
+        },
+        "heading": "Average scaled score in reading"
+      },
+      "x-display": {
+        "label": "Average scaled score in reading",
+        "visible": true,
+        "order": 43
+      }
+    },
+    "GPS_AVERAGE": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Average scaled score per pupil. Format: 999.",
+      "x-csv": {
+        "columns": {
+          "september": "AR",
+          "december": "AR"
+        },
+        "heading": "Average scaled score in grammar, punctuation and spelling"
+      },
+      "x-display": {
+        "label": "Average scaled score in grammar, punctuation and spelling",
+        "visible": true,
+        "order": 44
+      }
+    },
+    "MAT_AVERAGE": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Average scaled score per pupil. Format: 999.",
+      "x-csv": {
+        "columns": {
+          "september": "AS",
+          "december": "AS"
+        },
+        "heading": "Average scaled score in mathematics"
+      },
+      "x-display": {
+        "label": "Average scaled score in mathematics",
+        "visible": true,
+        "order": 45
+      }
+    },
+    "PTRWM_EXP_L": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Attainment of low/middle/high prior attainers - reading, writing TA and mathematics. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "AT",
+          "december": "AT"
+        },
+        "heading": "Percentage of pupils with low prior attainment reaching the expected standard in reading, writing TA and mathematics"
+      },
+      "x-display": {
+        "label": "Percentage of pupils with low prior attainment reaching the expected standard in reading, writing TA and mathematics",
+        "visible": true,
+        "order": 46
+      }
+    },
+    "PTRWM_HIGH_L": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Attainment of low/middle/high prior attainers - reading, writing TA and mathematics. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "AU",
+          "december": "AU"
+        },
+        "heading": "Percentage of pupils with low prior attainment achieving a higher standard in reading, writing TA and mathematics"
+      },
+      "x-display": {
+        "label": "Percentage of pupils with low prior attainment achieving a higher standard in reading, writing TA and mathematics",
+        "visible": true,
+        "order": 47
+      }
+    },
+    "PTRWM_EXP_M": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Attainment of low/middle/high prior attainers - reading, writing TA and mathematics. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "AV",
+          "december": "AV"
+        },
+        "heading": "Percentage of pupils with medium prior attainment reaching the expected standard in reading, writing TA and mathematics"
+      },
+      "x-display": {
+        "label": "Percentage of pupils with medium prior attainment reaching the expected standard in reading, writing TA and mathematics",
+        "visible": true,
+        "order": 48
+      }
+    },
+    "PTRWM_HIGH_M": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Attainment of low/middle/high prior attainers - reading, writing TA and mathematics. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "AW",
+          "december": "AW"
+        },
+        "heading": "Percentage of pupils with medium prior attainment achieving a higher standard in reading, writing TA and mathematics"
+      },
+      "x-display": {
+        "label": "Percentage of pupils with medium prior attainment achieving a higher standard in reading, writing TA and mathematics",
+        "visible": true,
+        "order": 49
+      }
+    },
+    "PTRWM_EXP_H": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Attainment of low/middle/high prior attainers - reading, writing TA and mathematics. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "AX",
+          "december": "AX"
+        },
+        "heading": "Percentage of pupils with high prior attainment reaching the expected standard in reading, writing TA and mathematics"
+      },
+      "x-display": {
+        "label": "Percentage of pupils with high prior attainment reaching the expected standard in reading, writing TA and mathematics",
+        "visible": true,
+        "order": 50
+      }
+    },
+    "PTRWM_HIGH_H": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Attainment of low/middle/high prior attainers - reading, writing TA and mathematics. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "AY",
+          "december": "AY"
+        },
+        "heading": "Percentage of pupils with high prior attainment achieving a higher standard in reading, writing TA and mathematics"
+      },
+      "x-display": {
+        "label": "Percentage of pupils with high prior attainment achieving a higher standard in reading, writing TA and mathematics",
+        "visible": true,
+        "order": 51
+      }
+    },
+    "PTREAD_EXP_L": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Attainment of low/middle/high prior attainers - reading. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "AZ",
+          "december": "AZ"
+        },
+        "heading": "Percentage of pupils with low prior attainment reaching the expected standard in reading"
+      },
+      "x-display": {
+        "label": "Percentage of pupils with low prior attainment reaching the expected standard in reading",
+        "visible": true,
+        "order": 52
+      }
+    },
+    "PTREAD_HIGH_L": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Attainment of low/middle/high prior attainers - reading. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "BA",
+          "december": "BA"
+        },
+        "heading": "Percentage of pupils with low prior attainment achieving a high score in reading"
+      },
+      "x-display": {
+        "label": "Percentage of pupils with low prior attainment achieving a high score in reading",
+        "visible": true,
+        "order": 53
+      }
+    },
+    "PTREAD_EXP_M": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Attainment of low/middle/high prior attainers - reading. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "BB",
+          "december": "BB"
+        },
+        "heading": "Percentage of pupils with medium prior attainment reaching the expected standard in reading"
+      },
+      "x-display": {
+        "label": "Percentage of pupils with medium prior attainment reaching the expected standard in reading",
+        "visible": true,
+        "order": 54
+      }
+    },
+    "PTREAD_HIGH_M": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Attainment of low/middle/high prior attainers - reading. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "BC",
+          "december": "BC"
+        },
+        "heading": "Percentage of pupils with medium prior attainment achieving a high score in reading"
+      },
+      "x-display": {
+        "label": "Percentage of pupils with medium prior attainment achieving a high score in reading",
+        "visible": true,
+        "order": 55
+      }
+    },
+    "PTREAD_EXP_H": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Attainment of low/middle/high prior attainers - reading. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "BD",
+          "december": "BD"
+        },
+        "heading": "Percentage of pupils with high prior attainment reaching the expected standard in reading"
+      },
+      "x-display": {
+        "label": "Percentage of pupils with high prior attainment reaching the expected standard in reading",
+        "visible": true,
+        "order": 56
+      }
+    },
+    "PTREAD_HIGH_H": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Attainment of low/middle/high prior attainers - reading. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "BE",
+          "december": "BE"
+        },
+        "heading": "Percentage of pupils with high prior attainment achieving a high score in reading"
+      },
+      "x-display": {
+        "label": "Percentage of pupils with high prior attainment achieving a high score in reading",
+        "visible": true,
+        "order": 57
+      }
+    },
+    "PTWRITTA_EXP_L": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Attainment of low/middle/high prior attainers - writing TA. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "BF",
+          "december": "BF"
+        },
+        "heading": "Percentage of pupils with low prior attainment reaching the expected standard in writing TA"
+      },
+      "x-display": {
+        "label": "Percentage of pupils with low prior attainment reaching the expected standard in writing TA",
+        "visible": true,
+        "order": 58
+      }
+    },
+    "PTWRITTA_HIGH_L": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Attainment of low/middle/high prior attainers - writing TA. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "BG",
+          "december": "BG"
+        },
+        "heading": "Percentage of pupils with low prior attainment working at greater depth in writing TA"
+      },
+      "x-display": {
+        "label": "Percentage of pupils with low prior attainment working at greater depth in writing TA",
+        "visible": true,
+        "order": 59
+      }
+    },
+    "PTWRITTA_EXP_M": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Attainment of low/middle/high prior attainers - writing TA. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "BH",
+          "december": "BH"
+        },
+        "heading": "Percentage of pupils with medium prior attainment reaching the expected standard in writing TA"
+      },
+      "x-display": {
+        "label": "Percentage of pupils with medium prior attainment reaching the expected standard in writing TA",
+        "visible": true,
+        "order": 60
+      }
+    },
+    "PTWRITTA_HIGH_M": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Attainment of low/middle/high prior attainers - writing TA. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "BI",
+          "december": "BI"
+        },
+        "heading": "Percentage of pupils with medium prior attainment working at greater depth in writing TA"
+      },
+      "x-display": {
+        "label": "Percentage of pupils with medium prior attainment working at greater depth in writing TA",
+        "visible": true,
+        "order": 61
+      }
+    },
+    "PTWRITTA_EXP_H": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Attainment of low/middle/high prior attainers - writing TA. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "BJ",
+          "december": "BJ"
+        },
+        "heading": "Percentage of pupils with high prior attainment reaching the expected standard in writing TA"
+      },
+      "x-display": {
+        "label": "Percentage of pupils with high prior attainment reaching the expected standard in writing TA",
+        "visible": true,
+        "order": 62
+      }
+    },
+    "PTWRITTA_HIGH_H": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Attainment of low/middle/high prior attainers - writing TA. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "BK",
+          "december": "BK"
+        },
+        "heading": "Percentage of pupils with high prior attainment working at greater depth in writing TA"
+      },
+      "x-display": {
+        "label": "Percentage of pupils with high prior attainment working at greater depth in writing TA",
+        "visible": true,
+        "order": 63
+      }
+    },
+    "PTMAT_EXP_L": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Attainment of low/middle/high prior attainers - mathematics. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "BL",
+          "december": "BL"
+        },
+        "heading": "Percentage of pupils with low prior attainment reaching the expected standard in mathematics"
+      },
+      "x-display": {
+        "label": "Percentage of pupils with low prior attainment reaching the expected standard in mathematics",
+        "visible": true,
+        "order": 64
+      }
+    },
+    "PTMAT_HIGH_L": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Attainment of low/middle/high prior attainers - mathematics. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "BM",
+          "december": "BM"
+        },
+        "heading": "Percentage of pupils with low prior attainment achieving a high score in mathematics"
+      },
+      "x-display": {
+        "label": "Percentage of pupils with low prior attainment achieving a high score in mathematics",
+        "visible": true,
+        "order": 65
+      }
+    },
+    "PTMAT_EXP_M": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Attainment of low/middle/high prior attainers - mathematics. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "BN",
+          "december": "BN"
+        },
+        "heading": "Percentage of pupils with medium prior attainment reaching the expected standard in mathematics"
+      },
+      "x-display": {
+        "label": "Percentage of pupils with medium prior attainment reaching the expected standard in mathematics",
+        "visible": true,
+        "order": 66
+      }
+    },
+    "PTMAT_HIGH_M": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Attainment of low/middle/high prior attainers - mathematics. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "BO",
+          "december": "BO"
+        },
+        "heading": "Percentage of pupils with medium prior attainment achieving a high score in mathematics"
+      },
+      "x-display": {
+        "label": "Percentage of pupils with medium prior attainment achieving a high score in mathematics",
+        "visible": true,
+        "order": 67
+      }
+    },
+    "PTMAT_EXP_H": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Attainment of low/middle/high prior attainers - mathematics. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "BP",
+          "december": "BP"
+        },
+        "heading": "Percentage of pupils with high prior attainment reaching the expected standard in mathematics"
+      },
+      "x-display": {
+        "label": "Percentage of pupils with high prior attainment reaching the expected standard in mathematics",
+        "visible": true,
+        "order": 68
+      }
+    },
+    "PTMAT_HIGH_H": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Attainment of low/middle/high prior attainers - mathematics. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "BQ",
+          "december": "BQ"
+        },
+        "heading": "Percentage of pupils with high prior attainment achieving a high score in mathematics"
+      },
+      "x-display": {
+        "label": "Percentage of pupils with high prior attainment achieving a high score in mathematics",
+        "visible": true,
+        "order": 69
+      }
+    },
+    "PTGPS_EXP_L": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Attainment of low/middle/high prior attainers - grammar, punctuation and spelling. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "BR",
+          "december": "BR"
+        },
+        "heading": "Percentage of pupils with low prior attainment reaching the expected standard in grammar, punctuation and spelling"
+      },
+      "x-display": {
+        "label": "Percentage of pupils with low prior attainment reaching the expected standard in grammar, punctuation and spelling",
+        "visible": true,
+        "order": 70
+      }
+    },
+    "PTGPS_HIGH_L": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Attainment of low/middle/high prior attainers - grammar, punctuation and spelling. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "BS",
+          "december": "BS"
+        },
+        "heading": "Percentage of pupils with low prior attainment achieving a high score in grammar, punctuation and spelling"
+      },
+      "x-display": {
+        "label": "Percentage of pupils with low prior attainment achieving a high score in grammar, punctuation and spelling",
+        "visible": true,
+        "order": 71
+      }
+    },
+    "PTGPS_EXP_M": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Attainment of low/middle/high prior attainers - grammar, punctuation and spelling. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "BT",
+          "december": "BT"
+        },
+        "heading": "Percentage of pupils with medium prior attainment reaching the expected standard in grammar, punctuation and spelling"
+      },
+      "x-display": {
+        "label": "Percentage of pupils with medium prior attainment reaching the expected standard in grammar, punctuation and spelling",
+        "visible": true,
+        "order": 72
+      }
+    },
+    "PTGPS_HIGH_M": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Attainment of low/middle/high prior attainers - grammar, punctuation and spelling. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "BU",
+          "december": "BU"
+        },
+        "heading": "Percentage of pupils with medium prior attainment achieving a high score in grammar, punctuation and spelling"
+      },
+      "x-display": {
+        "label": "Percentage of pupils with medium prior attainment achieving a high score in grammar, punctuation and spelling",
+        "visible": true,
+        "order": 73
+      }
+    },
+    "PTGPS_EXP_H": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Attainment of low/middle/high prior attainers - grammar, punctuation and spelling. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "BV",
+          "december": "BV"
+        },
+        "heading": "Percentage of pupils with high prior attainment reaching the expected standard in grammar, punctuation and spelling"
+      },
+      "x-display": {
+        "label": "Percentage of pupils with high prior attainment reaching the expected standard in grammar, punctuation and spelling",
+        "visible": true,
+        "order": 74
+      }
+    },
+    "PTGPS_HIGH_H": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Attainment of low/middle/high prior attainers - grammar, punctuation and spelling. Format: 999%.",
+      "x-csv": {
+        "columns": {
+          "september": "BW",
+          "december": "BW"
+        },
+        "heading": "Percentage of pupils with high prior attainment achieving a high score in grammar, punctuation and spelling"
+      },
+      "x-display": {
+        "label": "Percentage of pupils with high prior attainment achieving a high score in grammar, punctuation and spelling",
+        "visible": true,
+        "order": 75
+      }
+    },
+    "TFSM6CLA1A": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Attainment of disadvantaged pupils at end of key stage 2 [checked only]. Format: 9999. December file only.",
+      "x-csv": {
+        "columns": {
+          "december": "BX"
+        },
+        "heading": "Number of disadvantaged pupils"
+      },
+      "x-display": {
+        "label": "Number of disadvantaged pupils",
+        "visible": true,
+        "order": 76
+      }
+    },
+    "PTFSM6CLA1A": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Attainment of disadvantaged pupils at end of key stage 2 [checked only]. Format: 999%. December file only.",
+      "x-csv": {
+        "columns": {
+          "december": "BY"
+        },
+        "heading": "Percentage of disadvantaged pupils"
+      },
+      "x-display": {
+        "label": "Percentage of disadvantaged pupils",
+        "visible": true,
+        "order": 77
+      }
+    },
+    "PTRWM_EXP_FSM6CLA1A": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Attainment of disadvantaged pupils at end of key stage 2 [checked only]. Format: 999%. December file only.",
+      "x-csv": {
+        "columns": {
+          "december": "BZ"
+        },
+        "heading": "Percentage of disadvantaged pupils reaching the expected standard in reading, writing TA and mathematics"
+      },
+      "x-display": {
+        "label": "Percentage of disadvantaged pupils reaching the expected standard in reading, writing TA and mathematics",
+        "visible": true,
+        "order": 78
+      }
+    },
+    "PTRWM_HIGH_FSM6CLA1A": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Attainment of disadvantaged pupils at end of key stage 2 [checked only]. Format: 999%. December file only.",
+      "x-csv": {
+        "columns": {
+          "december": "CA"
+        },
+        "heading": "Percentage of disadvantaged pupils achieving a higher standard in reading, writing TA and mathematics"
+      },
+      "x-display": {
+        "label": "Percentage of disadvantaged pupils achieving a higher standard in reading, writing TA and mathematics",
+        "visible": true,
+        "order": 79
+      }
+    }
+  }
+}

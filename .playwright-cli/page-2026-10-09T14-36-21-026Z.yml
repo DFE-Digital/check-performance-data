@@ -1,0 +1,111 @@
+- generic [active] [ref=e1]:
+  - region "Cookies on Check Performance Data" [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e5]:
+        - heading "Cookies on Check Performance Data" [level=2] [ref=e6]
+        - generic [ref=e7]:
+          - paragraph [ref=e8]: We use some essential cookies to make this service work.
+          - paragraph [ref=e9]: We'd also like to use analytics cookies so we can understand how you use the service and make improvements.
+      - generic [ref=e10]:
+        - button "Accept analytics cookies" [ref=e11] [cursor=pointer]
+        - button "Reject analytics cookies" [ref=e12] [cursor=pointer]
+        - link "View cookies" [ref=e13] [cursor=pointer]:
+          - /url: /cookies
+  - link "Skip to main content" [ref=e14] [cursor=pointer]:
+    - /url: "#main-content"
+  - banner [ref=e15]:
+    - link "GOV.UK" [ref=e19] [cursor=pointer]:
+      - /url: https://gov.uk/
+      - img "GOV.UK" [ref=e20]
+    - region "Service information" [ref=e33]:
+      - generic [ref=e35]:
+        - link "Check Performance Data" [ref=e37] [cursor=pointer]:
+          - /url: /
+        - navigation "Menu" [ref=e38]:
+          - list [ref=e39]:
+            - listitem [ref=e40]:
+              - link "Guidance (opens in new tab)" [ref=e41] [cursor=pointer]:
+                - /url: /guidance
+            - listitem [ref=e42]:
+              - link "Sign in" [ref=e43] [cursor=pointer]:
+                - /url: /LandingPage
+              - button "Show sign in options" [ref=e44] [cursor=pointer]:
+                - img [ref=e45]
+    - paragraph [ref=e48]:
+      - strong [ref=e49]: Beta
+      - generic [ref=e50]:
+        - text: This is a new service - your
+        - link "feedback (opens in new tab)" [ref=e51] [cursor=pointer]:
+          - /url: /feedback-link
+        - text: will help us to improve it.
+  - main [ref=e53]:
+    - region "Important" [ref=e54]:
+      - heading "Important" [level=2] [ref=e56]
+      - generic [ref=e57]:
+        - paragraph [ref=e58]: This is a beta version of a new service
+        - paragraph [ref=e59]:
+          - text: "It is not the current site to access the 2026 Autumn Checking Exercises or the Results Enquiries portal. Please go to the CYPMD Help Centre for links to the checking exercise portals:"
+          - link "Check Your Performance Measures Data" [ref=e60] [cursor=pointer]:
+            - /url: https://check-your-performance-measures-data.education.gov.uk/hc/en-gb
+    - generic [ref=e61]:
+      - generic [ref=e62]:
+        - heading "Check your performance measures data" [level=1] [ref=e64]
+        - generic [ref=e66]:
+          - paragraph [ref=e67]: Review and confirm the pupil data that will be used to calculate your school or college's performance measures.
+          - paragraph [ref=e68]: "Use this service to:"
+          - list [ref=e69]:
+            - listitem [ref=e70]: check which pupils are included in your performance data
+            - listitem [ref=e71]: request changes if a pupil should not be counted
+            - listitem [ref=e72]: upload evidence to support removal requests
+            - listitem [ref=e73]: review summary information before it is finalised
+          - paragraph [ref=e74]: This helps make sure your school's published performance data is accurate and up to date.
+          - paragraph [ref=e75]: "You can use this service if you are:"
+          - list [ref=e76]:
+            - listitem [ref=e77]: a school or college with pupils included in performance measures
+            - listitem [ref=e78]: responsible for checking or submitting data (for example, headteacher or data manager)
+        - button "Start now" [ref=e79] [cursor=pointer]:
+          - text: Start now
+          - img [ref=e80]
+        - paragraph [ref=e82]:
+          - text: Sign up to
+          - link "get email notifications" [ref=e83] [cursor=pointer]:
+            - /url: "#"
+          - text: about this service.
+      - generic [ref=e84]:
+        - heading "Guidance" [level=2] [ref=e85]
+        - paragraph [ref=e86]:
+          - link "How to check your performance data (opens in new tab)" [ref=e87] [cursor=pointer]:
+            - /url: /guidance
+  - contentinfo [ref=e88]:
+    - generic [ref=e89]:
+      - generic [ref=e101]:
+        - heading "Support and guidance" [level=2] [ref=e102]
+        - paragraph [ref=e103]:
+          - text: If you have a question, or you're having a problem using this service, you can
+          - link "send us a message" [ref=e104] [cursor=pointer]:
+            - /url: /contact
+          - text: or call us on 0300 131 2762
+      - generic [ref=e105]:
+        - generic [ref=e106]:
+          - heading "Support links" [level=2] [ref=e107]
+          - list [ref=e108]:
+            - listitem [ref=e109]:
+              - link "Privacy" [ref=e110] [cursor=pointer]:
+                - /url: /privacy
+            - listitem [ref=e111]:
+              - link "Cookies" [ref=e112] [cursor=pointer]:
+                - /url: /cookies
+            - listitem [ref=e113]:
+              - link "Accessibility statement" [ref=e114] [cursor=pointer]:
+                - /url: /accessibility
+            - listitem [ref=e115]:
+              - link "Guidance (opens in new tab)" [ref=e116] [cursor=pointer]:
+                - /url: /guidance
+          - img [ref=e117]
+          - generic [ref=e119]:
+            - text: All content is available under the
+            - link "Open Government Licence v3.0" [ref=e120] [cursor=pointer]:
+              - /url: https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/
+            - text: ", except where otherwise stated"
+        - link "© Crown copyright" [ref=e122] [cursor=pointer]:
+          - /url: https://www.nationalarchives.gov.uk/information-management/re-using-public-sector-information/uk-government-licensing-framework/crown-copyright/

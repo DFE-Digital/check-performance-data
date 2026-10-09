@@ -19,6 +19,8 @@ public class PupilColumnSetsTests
         DateOfBirth = "2010-09-01",
         Age = 15,
         Pincl = 401,
+        Included = true,
+        InclusionDescription = "Pupil on roll and included in key stage 4 (both NOR and results).",
         Laestab = "860/4070",
         Urn = 136309,
         EntryDate = "2021-09-01",

@@ -356,10 +356,13 @@ public sealed class AccessibilityAuditViewTests
 	[Fact]
 	public void Post16Students_TakesItsLearnerNounFromTheTab()
 	{
-		// KS4 exercise tabs use this partial too, and a KS4 school says "pupil", not "student".
+		// KS4 exercise tabs use this partial too, and a KS4 school says "pupil", not "student". The
+		// label names the selected dataset's searchable columns, so it never promises less (or
+		// more) than the search matches.
 		var view = ReadView("Views", "CheckYourPupilData", "_Post16Students.cshtml");
 
-		Assert.Contains("Search for a @Model.LearnerNoun.Singular by first or last name", view);
+		Assert.Contains("ExerciseSearchLabel.For(Model.LearnerNoun, table.Selected)", view);
+		Assert.DoesNotContain("by first or last name", view);
 		Assert.DoesNotContain("No students", view);
 	}
 

@@ -115,13 +115,13 @@ public static class SeedPupilData
             };
         });
 
-    private static readonly string[] Firstnames =
+    internal static readonly string[] Firstnames =
     [
         "Alice", "Bob", "Charlie", "Diana", "Edward", "Fiona", "George", "Hannah", "Ian", "Julia",
         "Kevin", "Laura", "Michael", "Nina", "Oscar", "Paula", "Quinn", "Rachel", "Steven", "Tina"
     ];
 
-    private static readonly string[] Surnames =
+    internal static readonly string[] Surnames =
     [
         "Smith", "Jones", "Williams", "Taylor", "Brown", "Davies", "Evans", "Wilson", "Thomas", "Roberts",
         "Johnson", "Lewis", "Walker", "Robinson", "Wood", "Thompson", "White", "Watson", "Jackson", "Harris"

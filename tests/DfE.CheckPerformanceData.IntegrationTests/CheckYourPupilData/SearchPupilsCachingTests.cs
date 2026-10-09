@@ -59,6 +59,7 @@ public sealed class SearchPupilsCachingTests(PostgresFixture fixture)
         Age = 16,
         FirstLanguage = "English",
         Pincl = 401,
+        Included = true,
         NewMobile = false,
         ActualYearGroup = "11",
         Ethnicity = "A1",

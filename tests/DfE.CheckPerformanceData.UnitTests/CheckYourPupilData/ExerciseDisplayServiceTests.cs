@@ -96,9 +96,49 @@ public class ExerciseDisplayServiceTests
     }
 
     [Fact]
+    public void A_table_sorts_its_rows_by_the_visible_columns_in_display_order()
+    {
+        // Last name first (order 0), then the DfE number (order 1). Nothing in the code names a
+        // field: the schema's visible columns decide.
+        var definition = Definition("pupils", true, "Last name", true);
+        var rows = new List<Dictionary<string, string>>
+        {
+            new() { ["SURNAME"] = "smith", ["LAESTAB"] = "2" },
+            new() { ["SURNAME"] = "Adams", ["LAESTAB"] = "9" },
+            new() { ["SURNAME"] = "Smith", ["LAESTAB"] = "1" }
+        };
+
+        var view = Service().BuildTable(rows, [definition], null, null, 0, 10);
+
+        Assert.Equal(["Adams 9", "Smith 1", "smith 2"], view.Rows.Select(r => $"{r["SURNAME"]} {r["LAESTAB"]}"));
+    }
+
+    [Fact]
+    public void A_row_is_placed_by_its_fields_not_by_a_named_column()
+    {
+        // The 16-19 previously published file names its columns with a _0 suffix. Its rows reach
+        // their dataset because they fill that schema's fields, not because the code knows the name.
+        var included = Definition("students-included", true, "Last name", true);
+        using var json = JsonDocument.Parse("""
+            {"x-ingress":{"collection":"prior-file"},
+             "properties":{"SURNAME_0":{"x-display":{"label":"Last name"}},"LAESTAB_0":{}}}
+            """);
+        var prior = Service().ParseDefinition("prior-file", null, json.RootElement);
+        var rows = new List<Dictionary<string, string>>
+        {
+            new() { ["SURNAME_0"] = "Watkins", ["LAESTAB_0"] = "1234567" }
+        };
+
+        var datasets = Service().Define(rows, [included, prior]);
+
+        Assert.Empty(datasets[0].Rows);
+        Assert.Single(datasets[1].Rows);
+    }
+
+    [Fact]
     public void A_row_that_ties_between_two_schemas_is_shown_by_neither()
     {
-        // No DATASET, no SURNAME_0, no INCLUDED marker to break the tie by name or inclusion, and
+        // No DATASET, no INCLUDED marker to break the tie by name or inclusion, and
         // both schemas share the same field names, so both score the row's two populated fields
         // equally. Guessing here would put a pupil's record under the wrong dataset.
         var first = Definition("students-a", true, "Last name", true);

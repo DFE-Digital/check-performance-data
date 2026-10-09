@@ -27,7 +27,7 @@ public sealed class ExerciseDisplayService : IExerciseDisplayService
     public ExerciseTableView BuildTable(IReadOnlyList<Dictionary<string, string>> rows,
         IReadOnlyList<ExerciseDataset> definitions, string? dataset, string? search, int page, int pageSize)
     {
-        var datasets = Define(rows, definitions);
+        var datasets = Define(rows, definitions).Select(Sorted).ToList();
         var selected = datasets.FirstOrDefault(d => d.Key == dataset) ?? datasets[0];
         var searchable = selected.Columns.Where(c => c.Searchable).Select(c => c.Field).ToArray();
         var filtered = string.IsNullOrWhiteSpace(search) ? selected.Rows : selected.Rows
@@ -37,6 +37,19 @@ public sealed class ExerciseDisplayService : IExerciseDisplayService
         page = Math.Clamp(page, 0, Math.Max(0, totalPages - 1));
         return new ExerciseTableView(datasets, selected,
             filtered.Skip(page * pageSize).Take(pageSize).Select(Displayed).ToList(), search, page, totalPages);
+    }
+
+    // A table lists its rows by its visible columns, in the order the schema shows them (the pupil
+    // schemas show last name, then first name), so the code names no field. The page and the CSV
+    // download share the order, because the download is built from the dataset's rows.
+    private static ExerciseDataset Sorted(ExerciseDataset dataset)
+    {
+        if (dataset.Columns.Count == 0 || dataset.Rows.Count < 2) return dataset;
+        IOrderedEnumerable<Dictionary<string, string>> sorted = dataset.Rows
+            .OrderBy(r => r.GetValueOrDefault(dataset.Columns[0].Field, ""), StringComparer.OrdinalIgnoreCase);
+        foreach (var column in dataset.Columns.Skip(1))
+            sorted = sorted.ThenBy(r => r.GetValueOrDefault(column.Field, ""), StringComparer.OrdinalIgnoreCase);
+        return dataset with { Rows = sorted.ToList() };
     }
 
     /// <summary>Pivots a school's single record into label/value rows. A file with more than one
@@ -102,8 +115,6 @@ public sealed class ExerciseDisplayService : IExerciseDisplayService
     {
         if (row.TryGetValue("DATASET", out var dataset))
             return definitions.FirstOrDefault(d => d.Key.Equals(dataset, StringComparison.OrdinalIgnoreCase))?.Key;
-        if (row.ContainsKey("SURNAME_0"))
-            return definitions.FirstOrDefault(d => d.Key.Contains("previously-published", StringComparison.OrdinalIgnoreCase))?.Key;
         if (row.TryGetValue("INCLUDED", out var included))
         {
             var matching = definitions.FirstOrDefault(d => d.Included ==

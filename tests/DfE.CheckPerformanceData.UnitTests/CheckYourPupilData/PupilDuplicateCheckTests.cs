@@ -38,6 +38,7 @@ public sealed class PupilDuplicateCheckTests
         DateOfBirth = dob,
         Age = 15,
         Pincl = included ? 401 : 402,
+        Included = included,
         Laestab = TestLaestab,
         Urn = 136309
     };

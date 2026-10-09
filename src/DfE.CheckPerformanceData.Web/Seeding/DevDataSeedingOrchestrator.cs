@@ -66,6 +66,12 @@ public sealed class DevDataSeedingOrchestrator(
             {
                 await SeedPost16MarchSamples.ExecuteSeedAsync(db, blobServiceClient, ingress, environment.ContentRootPath);
                 await SeedPost16MarchSamples.WriteSamplesAsync(blobClients, logger);
+            }),
+            // One scope for both KS2 seeds, in sequence: they write to the same window.
+            InOwnScopeAsync(async (db, ingress) =>
+            {
+                await SeedKs2Summary.ExecuteSeedAsync(db, blobServiceClient, ingress, environment.ContentRootPath);
+                await SeedKs2PupilData.ExecuteSeedAsync(db, blobServiceClient, ingress, environment.ContentRootPath);
             }));
 
         try

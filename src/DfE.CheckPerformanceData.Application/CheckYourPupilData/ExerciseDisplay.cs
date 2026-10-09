@@ -17,8 +17,9 @@ public enum ExerciseLayout
     /// <summary>One record per school, pivoted to label/value rows. No search, no paging.</summary>
     Vertical,
     /// <summary>
-    /// Two table tabs: included pupils and non-included pupils. For a KS4 pupil-data exercise,
-    /// whose one supplier file carries each pupil's own P_INCL. See <see cref="PupilInclusion.IsIncluded"/>.
+    /// Two table tabs: included pupils and non-included pupils, by the INCLUDED stamp ingress
+    /// writes. For pupil data whose one supplier file carries each pupil's own inclusion code (KS4,
+    /// KS2). See <see cref="PupilInclusion.IsIncluded"/>.
     /// </summary>
     InclusionTabs
 }

@@ -94,7 +94,7 @@ public class CheckYourPupilDataServiceTests
     private static PupilRecord Ks4Pupil() => new()
     {
         Id = Guid.NewGuid(), Upn = "A860407000001B", Cypmd_Id = "000123", Surname = "Smith",
-        Firstname = "Alice", Sex = "F", DateOfBirth = "2010-09-01", Age = 15, Pincl = 401,
+        Firstname = "Alice", Sex = "F", DateOfBirth = "2010-09-01", Age = 15, Pincl = 401, Included = true,
         Laestab = TestLaestab, Urn = 136309, EntryDate = "2021-09-01", SenF = "N",
         FirstLanguage = "ENG", Ethnicity = "WBRI", ActualYearGroup = "11", NewMobile = false
     };

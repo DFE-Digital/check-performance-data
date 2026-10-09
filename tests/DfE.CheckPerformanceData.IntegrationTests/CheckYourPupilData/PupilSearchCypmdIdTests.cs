@@ -65,6 +65,7 @@ public sealed class PupilSearchCypmdIdTests(PostgresFixture fixture)
         Age = 16,
         FirstLanguage = "English",
         Pincl = included ? 401 : 402,
+        Included = included,
         NewMobile = false,
         ActualYearGroup = "11",
         Ethnicity = "A1",

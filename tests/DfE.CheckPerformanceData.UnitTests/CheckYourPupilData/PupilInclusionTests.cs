@@ -9,29 +9,16 @@ public sealed class PupilInclusionTests
         fields.ToDictionary(f => f.Key, f => f.Value, StringComparer.OrdinalIgnoreCase);
 
     [Theory]
-    [InlineData("401", true)]
-    [InlineData("431", true)]
-    [InlineData("402", false)]
-    [InlineData("", false)]
-    [InlineData("not a code", false)]
-    public void PIncl_DecidesInclusion_ByTheKs4Codes(string pincl, bool included) =>
-        Assert.Equal(included, PupilInclusion.IsIncluded(Row(("P_INCL", pincl))));
-
-    [Fact]
-    public void ARowWithNoInclusionSignal_IsNotIncluded() =>
-        Assert.False(PupilInclusion.IsIncluded(Row(("SURNAME", "Smith"))));
+    [InlineData("True", true)]
+    [InlineData("False", false)]
+    [InlineData("not a bool", false)]
+    public void TheIncludedStamp_DecidesInclusion(string stamp, bool included) =>
+        Assert.Equal(included, PupilInclusion.IsIncluded(Row(("INCLUDED", stamp))));
 
     [Theory]
-    [InlineData("True", "402", true)]
-    [InlineData("False", "401", false)]
-    public void AnIncludedStamp_WinsOverPIncl(string stamp, string pincl, bool included) =>
-        Assert.Equal(included, PupilInclusion.IsIncluded(Row(("INCLUDED", stamp), ("P_INCL", pincl))));
-
-    [Theory]
-    [InlineData(401, "Pupil on roll and included in key stage 4 (both NOR and results).")]
-    [InlineData(402, "Pupil not on roll and omitted from all figures to be published.")]
-    [InlineData(999, "")]
-    [InlineData(null, "")]
-    public void Ks4Description_NamesTheCode(int? pincl, string description) =>
-        Assert.Equal(description, PupilInclusion.Ks4Description(pincl));
+    [InlineData("401")]
+    [InlineData("201")]
+    [InlineData("501")]
+    public void AnInclusionCode_WithNoStamp_IsNotIncluded(string pincl) =>
+        Assert.False(PupilInclusion.IsIncluded(Row(("P_INCL", pincl))));
 }

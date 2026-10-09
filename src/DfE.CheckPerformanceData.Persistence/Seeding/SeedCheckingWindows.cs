@@ -239,6 +239,48 @@ public static class SeedCheckingWindows
         return window;
     }
 
+    /// <summary>The name of the KS2 summary share's exercise.</summary>
+    public const string Ks2SummaryExercise = "Summary";
+
+    /// <summary>The name of the KS2 summary share's one dataset slot.</summary>
+    public const string Ks2SummaryDataset = "summary";
+
+    // A display-only data share with no kind, in the KS2 window. Each school has one summary row,
+    // so it shows as label/value rows. The Web seed fills its one slot and validates it.
+    private static CheckingWindow WithKs2SummaryDataShare(CheckingWindow window)
+    {
+        window.CheckingExercises.Add(new CheckingExercise
+        {
+            ExerciseType = null,
+            DisplayOnly = true,
+            Name = Ks2SummaryExercise,
+            TabName = "Summary",
+            TabOrder = 100,
+            IsEnabled = true,
+            Layout = ExerciseLayout.Vertical,
+            StartDate = window.StartDate,
+            EndDate = window.EndDate,
+            Datasets = [new CheckingWindowDataset { Name = Ks2SummaryDataset, Included = null, FeedsJourney = false, SortOrder = 0 }]
+        });
+        return window;
+    }
+
+    /// <summary>The name of the KS2 pupil data exercise's one dataset slot.</summary>
+    public const string Ks2PupilsDataset = "pupils";
+
+    // The KS2 window's pupil data exercise, as an admin leaves it after adding the supplier's pupil
+    // file: one slot that feeds the journey, and enabled. Each pupil carries their own inclusion
+    // code, which the KS2 schema reads, so the slot stamps no inclusion. It comes after the summary
+    // share's tab. The Web seed fills the slot and validates it (SeedKs2PupilData).
+    private static CheckingWindow WithKs2PupilData(CheckingWindow window)
+    {
+        var pupils = window.CheckingExercises.Single(e => e.ExerciseType == CheckingExerciseType.PupilData);
+        pupils.IsEnabled = true;
+        pupils.TabOrder = 200;
+        pupils.Datasets.Add(new CheckingWindowDataset { Name = Ks2PupilsDataset, Included = null, FeedsJourney = true, SortOrder = 0 });
+        return window;
+    }
+
     // A window as the admin wizard leaves it: the window type's default exercises, each with its
     // default tab name, tab order and layout, no files and disabled. Schools see nothing until an
     // admin adds the files and enables an exercise.
@@ -399,10 +441,12 @@ public static class SeedCheckingWindows
             WithPupilCampusDataShare(WithSummaryDataShare(WithValueAddedSlots(WithPreviouslyPublishedSlots(post16NovemberWindow)))),
             WithPupilCampusDataShare(WithSummaryDataShare(WithValueAddedSlots(WithPreviouslyPublishedSlots(post16FebruaryWindow)))),
             WithAimsSlot(WithPupilCampusDataShare(WithSummaryDataShare(WithValueAddedSlots(WithPreviouslyPublishedSlots(post16MarchWindow))))),
-            // Placeholders. Nothing ingests them, and schools see nothing until an admin enables an
-            // exercise.
+            // A placeholder. Nothing ingests its default exercise, and schools see nothing of it
+            // until an admin enables one.
             PlaceholderWindow(ks4AutumnWindowId, CheckingWindowType.KS4Autumn, "Key Stage 4 Autumn", today),
-            PlaceholderWindow(ks2WindowId, CheckingWindowType.KS2, "Key Stage 2", today)
+            // Key Stage 2 starts from the wizard's defaults, then gets the summary share and a
+            // pupil data slot. The Web seed fills both (SeedKs2Summary, SeedKs2PupilData).
+            WithKs2PupilData(WithKs2SummaryDataShare(PlaceholderWindow(ks2WindowId, CheckingWindowType.KS2, "Key Stage 2", today)))
         );
 
 

@@ -190,27 +190,31 @@ public class PupilRecordDeserializationTests
         Assert.Equal(string.Empty, pupil.Ethnicity);
     }
 
+    // Ingress stamps INCLUDED from the schema's inclusion rule; the record reads only the stamp.
     [Theory]
-    [InlineData(401, true)]
-    [InlineData(403, true)]
-    [InlineData(414, true)]
-    [InlineData(421, true)]
-    [InlineData(431, true)]
-    [InlineData(402, false)]
-    [InlineData(404, false)]
-    public void IsIncluded_follows_the_ks4_pincl_codes(int pincl, bool expected)
+    [InlineData("true", 402, true)]
+    [InlineData("false", 401, false)]
+    public void IsIncluded_follows_the_stamp_not_the_pincl_code(string stamp, int pincl, bool expected)
     {
-        var pupil = DeserializeSingle($$"""[ { "P_INCL": {{pincl}} } ]""");
+        var pupil = DeserializeSingle($$"""[ { "INCLUDED": {{stamp}}, "P_INCL": {{pincl}} } ]""");
 
         Assert.Equal(expected, pupil.IsIncluded);
     }
 
     [Fact]
-    public void IsIncluded_is_false_when_pincl_is_absent()
+    public void IsIncluded_is_false_when_the_stamp_is_absent()
     {
-        var pupil = DeserializeSingle("""[ { "SURNAME": "Smith" } ]""");
+        var pupil = DeserializeSingle("""[ { "SURNAME": "Smith", "P_INCL": 401 } ]""");
 
         Assert.False(pupil.IsIncluded);
+    }
+
+    [Fact]
+    public void The_inclusion_description_is_read_from_P_INCL_DESC()
+    {
+        var pupil = (PupilRecord)DeserializeSingle("""[ { "P_INCL_DESC": "Included words" } ]""");
+
+        Assert.Equal("Included words", pupil.InclusionDescription);
     }
 
     [Fact]

@@ -242,13 +242,23 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
         Assert.Equal(501, alice["P_INCL"]!.Value<int>());
     }
 
-    // The KS4 supplier file has no P_INCL_DESC column, but the school's CSV shows it as "Pupil
-    // Inclusion description". Ingress fills it in from P_INCL when the schema declares it.
-    private const string Ks4SchemaWithDescription = """
+    // A pupil file that carries each pupil's own inclusion code (KS4 P_INCL, KS2 PINCL_Flag) names
+    // its rule in the schema: which field, which codes are included, and the words schools see for
+    // each code. Ingress stamps INCLUDED and the description from it, so no reader knows a code.
+    private const string SchemaWithInclusionRule = """
     {
       "type": "object",
       "additionalProperties": false,
+      "x-ingress": {
+        "inclusion": {
+          "field": "P_INCL",
+          "included": ["401"],
+          "descriptionField": "P_INCL_DESC",
+          "descriptions": { "401": "Included words", "402": "Not included words" }
+        }
+      },
       "properties": {
+        "INCLUDED":    { "type": "boolean" },
         "SURNAME":     { "type": ["string", "null"] },
         "LAESTAB":     { "type": ["string", "null"] },
         "P_INCL":      { "type": ["string", "null"] },
@@ -257,51 +267,82 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
     }
     """;
 
-    [Theory]
-    [InlineData("SURNAME,LAESTAB,P_INCL\nSmith,8604070,401\n",
-        "Pupil on roll and included in key stage 4 (both NOR and results).")]
-    [InlineData("SURNAME,LAESTAB,P_INCL\nSmith,8604070,402\n",
-        "Pupil not on roll and omitted from all figures to be published.")]
-    [InlineData("SURNAME,LAESTAB,P_INCL,P_INCL_DESC\nSmith,8604070,401,From the supplier\n",
-        "From the supplier")]
-    public async Task A_ks4_run_stamps_the_inclusion_description_from_P_INCL(string csv, string description)
+    private async Task<(ValidationProgress Last, JObject? Pupil)> RunInclusionRuleAsync(
+        string csv, string schema, bool? slotIncluded = null)
     {
         var windowId = Guid.NewGuid();
         var container = await SeedWindowAsync(windowId,
             ("ingress/pupils.csv", csv),
-            ("schema/ks4.json", Ks4SchemaWithDescription));
+            ("schema/pupils.json", schema));
 
         IReadOnlyList<IngressDataset> datasets =
         [
-            new("pupils", "pupils.csv", Checksum(csv), "ks4.json", Checksum(Ks4SchemaWithDescription), Included: null)
+            new("pupils", "pupils.csv", Checksum(csv), "pupils.json", Checksum(schema), Included: slotIncluded)
         ];
 
         var progress = await DrainAsync(Processor().ProcessAsync(windowId, CheckingExerciseType.PupilData, datasets));
+        var pupils = await ReadPupilsAsync(container, "8604070");
+        return (progress[^1], pupils?.Children<JObject>().Single());
+    }
 
-        Assert.False(progress[^1].IsError);
-        var pupil = Assert.Single((await ReadPupilsAsync(container, "8604070"))!.Children<JObject>());
-        Assert.Equal(description, pupil["P_INCL_DESC"]!.Value<string>());
+    [Theory]
+    [InlineData("SURNAME,LAESTAB,P_INCL\nSmith,8604070,401\n", true, "Included words")]
+    [InlineData("SURNAME,LAESTAB,P_INCL\nSmith,8604070,402\n", false, "Not included words")]
+    [InlineData("SURNAME,LAESTAB,P_INCL\nSmith,8604070, 401 \n", true, "Included words")]
+    [InlineData("SURNAME,LAESTAB,P_INCL,P_INCL_DESC\nSmith,8604070,401,From the supplier\n", true, "From the supplier")]
+    [InlineData("SURNAME,LAESTAB,P_INCL\nSmith,8604070,999\n", false, null)]
+    [InlineData("SURNAME,LAESTAB,P_INCL\nSmith,8604070,\n", false, null)]
+    public async Task The_schemas_inclusion_rule_stamps_INCLUDED_and_the_description(
+        string csv, bool included, string? description)
+    {
+        var (last, pupil) = await RunInclusionRuleAsync(csv, SchemaWithInclusionRule);
+
+        Assert.False(last.IsError, last.Message);
+        Assert.Equal(included, pupil!["INCLUDED"]!.Value<bool>());
+        Assert.Equal(description ?? string.Empty, pupil["P_INCL_DESC"]?.Value<string>() ?? string.Empty);
     }
 
     [Fact]
-    public async Task An_unknown_P_INCL_code_leaves_the_inclusion_description_empty()
+    public async Task The_slots_file_of_origin_stamp_wins_over_the_schemas_rule()
     {
-        const string csv = "SURNAME,LAESTAB,P_INCL\nSmith,8604070,999\n";
-        var windowId = Guid.NewGuid();
-        var container = await SeedWindowAsync(windowId,
-            ("ingress/pupils.csv", csv),
-            ("schema/ks4.json", Ks4SchemaWithDescription));
+        var (last, pupil) = await RunInclusionRuleAsync(
+            "SURNAME,LAESTAB,P_INCL\nSmith,8604070,402\n", SchemaWithInclusionRule, slotIncluded: true);
 
-        IReadOnlyList<IngressDataset> datasets =
-        [
-            new("pupils", "pupils.csv", Checksum(csv), "ks4.json", Checksum(Ks4SchemaWithDescription), Included: null)
-        ];
+        Assert.False(last.IsError, last.Message);
+        Assert.True(pupil!["INCLUDED"]!.Value<bool>());
+    }
 
-        var progress = await DrainAsync(Processor().ProcessAsync(windowId, CheckingExerciseType.PupilData, datasets));
+    [Fact]
+    public async Task A_rule_on_a_schema_that_does_not_declare_INCLUDED_fails_the_run_by_name()
+    {
+        var schema = SchemaWithInclusionRule.Replace("\"INCLUDED\":    { \"type\": \"boolean\" },", string.Empty);
 
-        Assert.False(progress[^1].IsError);
-        var pupil = Assert.Single((await ReadPupilsAsync(container, "8604070"))!.Children<JObject>());
-        Assert.True(string.IsNullOrEmpty(pupil["P_INCL_DESC"]?.Value<string>()));
+        var (last, pupil) = await RunInclusionRuleAsync("SURNAME,LAESTAB,P_INCL\nSmith,8604070,401\n", schema);
+
+        Assert.True(last.IsError);
+        Assert.Contains("INCLUDED", last.Message);
+        Assert.Null(pupil);
+    }
+
+    // The shipped schemas carry the real codes. Each supplier file must land with the inclusion the
+    // spec gives it: KS4 401/403/414/421/431 included; KS2 201 included, 202 and 203 not.
+    [Theory]
+    [InlineData("ks4june", "UPN,CYPMD_ID,SURNAME,FORENAME,P_INCL,LAESTAB\nA1,1,Smith,Al,401,8604070\n", true)]
+    [InlineData("ks4june", "UPN,CYPMD_ID,SURNAME,FORENAME,P_INCL,LAESTAB\nA1,1,Smith,Al,431,8604070\n", true)]
+    [InlineData("ks4june", "UPN,CYPMD_ID,SURNAME,FORENAME,P_INCL,LAESTAB\nA1,1,Smith,Al,402,8604070\n", false)]
+    [InlineData("ks2", "UPN,CYPMD_ID,SURNAME,FORENAME,PINCL_Flag,LAESTAB\nA1,1,Smith,Al,201,8604070\n", true)]
+    [InlineData("ks2", "UPN,CYPMD_ID,SURNAME,FORENAME,PINCL_Flag,LAESTAB\nA1,1,Smith,Al,202,8604070\n", false)]
+    [InlineData("ks2", "UPN,CYPMD_ID,SURNAME,FORENAME,PINCL_Flag,LAESTAB\nA1,1,Smith,Al,203,8604070\n", false)]
+    public async Task A_shipped_pupil_schema_stamps_inclusion_from_its_own_codes(string folder, string csv, bool included)
+    {
+        var schema = await File.ReadAllTextAsync(
+            Path.Combine(AppContext.BaseDirectory, "Data", "Ingress", folder, "pupils_schema.json"));
+
+        var (last, pupil) = await RunInclusionRuleAsync(csv, schema);
+
+        Assert.False(last.IsError, last.Message);
+        Assert.Equal(included, pupil!["INCLUDED"]!.Value<bool>());
+        Assert.False(string.IsNullOrEmpty(pupil["P_INCL_DESC"]?.Value<string>()));
     }
 
     [Fact]

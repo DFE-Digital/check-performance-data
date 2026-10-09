@@ -1,0 +1,203 @@
+- generic [active] [ref=e1]:
+  - link "Skip to main content" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - banner [ref=e3]:
+    - link "GOV.UK" [ref=e7] [cursor=pointer]:
+      - /url: https://gov.uk/
+      - img "GOV.UK" [ref=e8]
+    - region "Service information" [ref=e21]:
+      - generic [ref=e23]:
+        - link "Check Performance Data" [ref=e25] [cursor=pointer]:
+          - /url: /
+        - navigation "Menu" [ref=e26]:
+          - list [ref=e27]:
+            - listitem [ref=e28]:
+              - link "Guidance (opens in new tab)" [ref=e29] [cursor=pointer]:
+                - /url: /guidance
+            - listitem [ref=e30]:
+              - link "Pupils" [ref=e31] [cursor=pointer]:
+                - /url: /CheckYourPupilData/f34d285b-8660-4d12-9c30-787328deaa0a
+            - listitem [ref=e32]:
+              - link "Amendment requests" [ref=e33] [cursor=pointer]:
+                - /url: /f34d285b-8660-4d12-9c30-787328deaa0a/AmendmentRequests
+            - listitem [ref=e34]:
+              - link "Sign in" [ref=e35] [cursor=pointer]:
+                - /url: /LandingPage
+              - button "Show sign in options" [ref=e36] [cursor=pointer]:
+                - img [ref=e37]
+    - paragraph [ref=e40]:
+      - strong [ref=e41]: Beta
+      - generic [ref=e42]:
+        - text: This is a new service - your
+        - link "feedback (opens in new tab)" [ref=e43] [cursor=pointer]:
+          - /url: /feedback-link
+        - text: will help us to improve it.
+  - main [ref=e45]:
+    - link "Back" [ref=e46] [cursor=pointer]:
+      - /url: /LandingPage
+    - heading "Check your pupil data" [level=1] [ref=e48]
+    - paragraph [ref=e49]: Review your pupil data by checking the tables below. You can also download the data as a CSV file. You must request any changes to pupil data before 5pm on Thursday 22 October 2026
+    - paragraph [ref=e50]:
+      - link "Download all CSV files as a ZIP file" [ref=e51] [cursor=pointer]:
+        - /url: /CheckYourPupilData/f34d285b-8660-4d12-9c30-787328deaa0a/download/all
+    - generic [ref=e52]:
+      - tablist [ref=e53]:
+        - tab "Pupils Included" [selected] [ref=e54] [cursor=pointer]
+        - tab "Pupils Non Included" [ref=e55] [cursor=pointer]
+      - tabpanel "Pupils Included" [ref=e56]:
+        - paragraph [ref=e57]:
+          - text: Download
+          - link "pupils included" [ref=e58] [cursor=pointer]:
+            - /url: /CheckYourPupilData/f34d285b-8660-4d12-9c30-787328deaa0a/download/exercise/2b2daefb-1aeb-4992-b699-ed31c35516ce/pupils?tab=exercise-2b2daefb-1aeb-4992-b699-ed31c35516ce-included
+          - text: as a CSV file.
+        - heading "Pupils Included" [level=2] [ref=e59]
+        - generic [ref=e62]:
+          - generic [ref=e63]: Search for a pupil by first or last name
+          - generic [ref=e64]:
+            - searchbox "Search for a pupil by first or last name" [ref=e65]
+            - button "Search" [ref=e66] [cursor=pointer]
+        - region "Pupils Included" [ref=e67]:
+          - table [ref=e68]:
+            - rowgroup [ref=e69]:
+              - row "Last name First name Sex Date of birth Age UPN" [ref=e70]:
+                - columnheader "Last name" [ref=e71]
+                - columnheader "First name" [ref=e72]
+                - columnheader "Sex" [ref=e73]
+                - columnheader "Date of birth" [ref=e74]
+                - columnheader "Age" [ref=e75]
+                - columnheader "UPN" [ref=e76]
+            - rowgroup [ref=e77]:
+              - row "Brown Alice M 25/09/2010 14 A86040700081B" [ref=e78]:
+                - cell "Brown" [ref=e79]
+                - cell "Alice" [ref=e80]
+                - cell "M" [ref=e81]
+                - cell "25/09/2010" [ref=e82]
+                - cell "14" [ref=e83]
+                - cell "A86040700081B" [ref=e84]
+              - row "Brown Bob F 26/10/2010 14 A86040700082B" [ref=e85]:
+                - cell "Brown" [ref=e86]
+                - cell "Bob" [ref=e87]
+                - cell "F" [ref=e88]
+                - cell "26/10/2010" [ref=e89]
+                - cell "14" [ref=e90]
+                - cell "A86040700082B" [ref=e91]
+              - row "Brown Charlie M 27/11/2010 14 A86040700083B" [ref=e92]:
+                - cell "Brown" [ref=e93]
+                - cell "Charlie" [ref=e94]
+                - cell "M" [ref=e95]
+                - cell "27/11/2010" [ref=e96]
+                - cell "14" [ref=e97]
+                - cell "A86040700083B" [ref=e98]
+              - row "Brown Diana F 28/12/2010 14 A86040700084B" [ref=e99]:
+                - cell "Brown" [ref=e100]
+                - cell "Diana" [ref=e101]
+                - cell "F" [ref=e102]
+                - cell "28/12/2010" [ref=e103]
+                - cell "14" [ref=e104]
+                - cell "A86040700084B" [ref=e105]
+              - row "Brown Edward M 01/01/2010 15 A86040700085B" [ref=e106]:
+                - cell "Brown" [ref=e107]
+                - cell "Edward" [ref=e108]
+                - cell "M" [ref=e109]
+                - cell "01/01/2010" [ref=e110]
+                - cell "15" [ref=e111]
+                - cell "A86040700085B" [ref=e112]
+              - row "Brown Fiona F 02/02/2010 15 A86040700086B" [ref=e113]:
+                - cell "Brown" [ref=e114]
+                - cell "Fiona" [ref=e115]
+                - cell "F" [ref=e116]
+                - cell "02/02/2010" [ref=e117]
+                - cell "15" [ref=e118]
+                - cell "A86040700086B" [ref=e119]
+              - row "Brown George M 03/03/2010 15 A86040700087B" [ref=e120]:
+                - cell "Brown" [ref=e121]
+                - cell "George" [ref=e122]
+                - cell "M" [ref=e123]
+                - cell "03/03/2010" [ref=e124]
+                - cell "15" [ref=e125]
+                - cell "A86040700087B" [ref=e126]
+              - row "Brown Hannah F 04/04/2010 15 A86040700088B" [ref=e127]:
+                - cell "Brown" [ref=e128]
+                - cell "Hannah" [ref=e129]
+                - cell "F" [ref=e130]
+                - cell "04/04/2010" [ref=e131]
+                - cell "15" [ref=e132]
+                - cell "A86040700088B" [ref=e133]
+              - row "Brown Ian M 05/05/2010 15 A86040700089B" [ref=e134]:
+                - cell "Brown" [ref=e135]
+                - cell "Ian" [ref=e136]
+                - cell "M" [ref=e137]
+                - cell "05/05/2010" [ref=e138]
+                - cell "15" [ref=e139]
+                - cell "A86040700089B" [ref=e140]
+              - row "Brown Julia F 06/06/2010 15 A86040700090B" [ref=e141]:
+                - cell "Brown" [ref=e142]
+                - cell "Julia" [ref=e143]
+                - cell "F" [ref=e144]
+                - cell "06/06/2010" [ref=e145]
+                - cell "15" [ref=e146]
+                - cell "A86040700090B" [ref=e147]
+        - navigation [ref=e148]:
+          - list [ref=e149]:
+            - listitem [ref=e150]:
+              - link "1" [ref=e151] [cursor=pointer]:
+                - /url: /CheckYourPupilData/f34d285b-8660-4d12-9c30-787328deaa0a?tab=exercise-2b2daefb-1aeb-4992-b699-ed31c35516ce-included&studentDataset=pupils&studentPage=0#exercise-2b2daefb-1aeb-4992-b699-ed31c35516ce-included
+            - listitem [ref=e152]:
+              - link "2" [ref=e153] [cursor=pointer]:
+                - /url: /CheckYourPupilData/f34d285b-8660-4d12-9c30-787328deaa0a?tab=exercise-2b2daefb-1aeb-4992-b699-ed31c35516ce-included&studentDataset=pupils&studentPage=1#exercise-2b2daefb-1aeb-4992-b699-ed31c35516ce-included
+            - listitem [ref=e154]: ⋯
+            - listitem [ref=e155]:
+              - link "13" [ref=e156] [cursor=pointer]:
+                - /url: /CheckYourPupilData/f34d285b-8660-4d12-9c30-787328deaa0a?tab=exercise-2b2daefb-1aeb-4992-b699-ed31c35516ce-included&studentDataset=pupils&studentPage=12#exercise-2b2daefb-1aeb-4992-b699-ed31c35516ce-included
+          - link "Next page" [ref=e158] [cursor=pointer]:
+            - /url: /CheckYourPupilData/f34d285b-8660-4d12-9c30-787328deaa0a?tab=exercise-2b2daefb-1aeb-4992-b699-ed31c35516ce-included&studentDataset=pupils&studentPage=1#exercise-2b2daefb-1aeb-4992-b699-ed31c35516ce-included
+            - generic [ref=e159]:
+              - text: Next
+              - generic [ref=e160]: page
+            - img [ref=e161]
+    - generic [ref=e163]:
+      - group "What would you like to do?" [ref=e165]:
+        - generic [ref=e166]: What would you like to do?
+        - generic [ref=e167]: Select one option.
+        - generic [ref=e168]:
+          - generic [ref=e169]:
+            - radio "Request an amendment to pupil data" [ref=e170] [cursor=pointer]
+            - generic [ref=e171] [cursor=pointer]: Request an amendment to pupil data
+          - generic [ref=e172]: or
+          - generic [ref=e173]:
+            - radio "Confirm pupil data is correct" [ref=e174] [cursor=pointer]
+            - generic [ref=e175] [cursor=pointer]: Confirm pupil data is correct
+      - button "Continue" [ref=e176] [cursor=pointer]
+  - contentinfo [ref=e177]:
+    - generic [ref=e178]:
+      - generic [ref=e190]:
+        - heading "Support and guidance" [level=2] [ref=e191]
+        - paragraph [ref=e192]:
+          - text: If you have a question, or you're having a problem using this service, you can
+          - link "send us a message" [ref=e193] [cursor=pointer]:
+            - /url: /contact
+          - text: or call us on 0300 131 2762
+      - generic [ref=e194]:
+        - generic [ref=e195]:
+          - heading "Support links" [level=2] [ref=e196]
+          - list [ref=e197]:
+            - listitem [ref=e198]:
+              - link "Privacy" [ref=e199] [cursor=pointer]:
+                - /url: /privacy
+            - listitem [ref=e200]:
+              - link "Cookies" [ref=e201] [cursor=pointer]:
+                - /url: /cookies
+            - listitem [ref=e202]:
+              - link "Accessibility statement" [ref=e203] [cursor=pointer]:
+                - /url: /accessibility
+            - listitem [ref=e204]:
+              - link "Guidance (opens in new tab)" [ref=e205] [cursor=pointer]:
+                - /url: /guidance
+          - img [ref=e206]
+          - generic [ref=e208]:
+            - text: All content is available under the
+            - link "Open Government Licence v3.0" [ref=e209] [cursor=pointer]:
+              - /url: https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/
+            - text: ", except where otherwise stated"
+        - link "© Crown copyright" [ref=e211] [cursor=pointer]:
+          - /url: https://www.nationalarchives.gov.uk/information-management/re-using-public-sector-information/uk-government-licensing-framework/crown-copyright/

@@ -151,6 +151,16 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
             // readers expect and the code holds no list of supplier names.
             IReadOnlyList<SourceColumn> sourceColumns = SourceColumns(schema);
 
+            // A pupil file whose rows carry their own inclusion code (KS4 P_INCL, KS2 PINCL_Flag)
+            // names its rule in the schema, so the code here holds no key stage's codes. A rule the
+            // schema cannot honour fails the run by name rather than at every row's validation.
+            InclusionRule? inclusion = InclusionRule.From(schema);
+            if (inclusion?.ErrorFor(schema) is { } inclusionError)
+            {
+                yield return Failed($"Schema '{dataset.SchemaFile}': {inclusionError}");
+                yield break;
+            }
+
             // Read the records and report how many there are.
             List<IDictionary<string, object>> records;
             using (var reader = new StreamReader(new MemoryStream(csvBytes!)))
@@ -227,13 +237,18 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
                         }
                     }
 
-                    // Inclusion by file of origin: the 16-19 non-included file has no P_INCL
-                    // column, so the marker is stamped here. Stamped BEFORE validation because
-                    // AllowAdditionalProperties is false — both 16-19 schemas must declare
-                    // INCLUDED as a boolean. Guarded by the schema check so KS4 is untouched.
+                    // Inclusion is decided here, once, and stamped as INCLUDED, so every reader
+                    // reads the stamp and none knows a code. The slot's file of origin wins (the
+                    // 16-19 non-included file has no P_INCL column); otherwise the schema's rule
+                    // reads the record's own code. Stamped BEFORE validation because
+                    // AllowAdditionalProperties is false, so the schema must declare INCLUDED.
                     if (dataset.Included is bool included && schema.Properties.ContainsKey("INCLUDED"))
                     {
                         record["INCLUDED"] = included;
+                    }
+                    else if (inclusion is not null)
+                    {
+                        record["INCLUDED"] = inclusion.IsIncluded(record);
                     }
 
                     // Provenance by file of origin, the exact analogue of INCLUDED above: the
@@ -247,16 +262,14 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
                         record["SOURCE"] = sourceFile;
                     }
 
-                    // The KS4 supplier file has no P_INCL_DESC column, but the school's CSV has a
-                    // "Pupil Inclusion description" column. Its words come from the P_INCL code.
-                    // A description the supplier did send is kept. Guarded by the schema check,
-                    // for the same reason as INCLUDED and SOURCE above.
-                    if (schema.Properties.ContainsKey("P_INCL_DESC")
-                        && string.IsNullOrWhiteSpace(record["P_INCL_DESC"]?.ToString())
-                        && int.TryParse(record["P_INCL"]?.ToString(), out var pinclCode)
-                        && PupilInclusion.Ks4Description(pinclCode) is { Length: > 0 } pinclDescription)
+                    // The supplier file may not carry the inclusion description that the school's
+                    // CSV shows. Its words come from the schema's rule; a description the supplier
+                    // did send is kept.
+                    if (inclusion is { DescriptionField: { } descriptionField }
+                        && string.IsNullOrWhiteSpace(record[descriptionField]?.ToString())
+                        && inclusion.DescriptionOf(record) is { Length: > 0 } description)
                     {
-                        record["P_INCL_DESC"] = pinclDescription;
+                        record[descriptionField] = description;
                     }
 
                 }
@@ -639,6 +652,44 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
         !string.IsNullOrWhiteSpace(key.Value<string>())
             ? key.Value<string>()!
             : "LAESTAB";
+
+    /// <summary>
+    /// Which pupils a file includes, by their own code: <c>"x-ingress": { "inclusion": { "field":
+    /// "P_INCL", "included": ["201"], "descriptionField": "P_INCL_DESC", "descriptions": { "201":
+    /// "..." } } }</c> at the schema's root. Codes are compared as trimmed text.
+    /// </summary>
+    private sealed record InclusionRule(string Field, IReadOnlySet<string> Included, string? DescriptionField,
+        IReadOnlyDictionary<string, string> Descriptions)
+    {
+        public static InclusionRule? From(JSchema schema)
+        {
+            if (!schema.ExtensionData.TryGetValue("x-ingress", out JToken? ingress) ||
+                ingress["inclusion"] is not JObject rule)
+                return null;
+
+            return new InclusionRule(
+                rule["field"]?.Value<string>() ?? string.Empty,
+                (rule["included"] as JArray ?? []).Select(code => code.ToString().Trim()).ToHashSet(StringComparer.Ordinal),
+                rule["descriptionField"]?.Value<string>(),
+                (rule["descriptions"] as JObject ?? [])
+                    .Properties().ToDictionary(p => p.Name.Trim(), p => p.Value.ToString(), StringComparer.Ordinal));
+        }
+
+        public string? ErrorFor(JSchema schema) =>
+            string.IsNullOrWhiteSpace(Field) ? "x-ingress.inclusion names no field."
+            : !schema.Properties.ContainsKey(Field) ? $"x-ingress.inclusion reads {Field}, which the schema does not declare."
+            : !schema.Properties.ContainsKey("INCLUDED") ? "x-ingress.inclusion needs the schema to declare INCLUDED, the stamp it writes."
+            : DescriptionField is not null && !schema.Properties.ContainsKey(DescriptionField)
+                ? $"x-ingress.inclusion writes {DescriptionField}, which the schema does not declare."
+            : null;
+
+        public bool IsIncluded(JObject record) => Included.Contains(Code(record));
+
+        public string? DescriptionOf(JObject record) => Descriptions.GetValueOrDefault(Code(record));
+
+        private string Code(JObject record) =>
+            record[Field] is { Type: not JTokenType.Null } value ? value.ToString().Trim() : string.Empty;
+    }
 
     private static IReadOnlyList<SourceColumn> SourceColumns(JSchema schema)
     {

@@ -59,7 +59,7 @@ public static class PupilColumnSets
         new("Date of birth", p => PupilDateFormatter.ToDisplayDate(p.DateOfBirth)),
         new("Age", p => p.Age.ToString(CultureInfo.InvariantCulture)),
         new("Pupil Inclusion Status Flag", p => (p.Pincl ?? 0).ToString(CultureInfo.InvariantCulture)),
-        new("Pupil Inclusion description", p => PupilInclusion.Ks4Description(p.Pincl)),
+        new("Pupil Inclusion description", p => Ks4(p).InclusionDescription),
         new("DfE Establishment Number", p => p.Laestab),
         new("School URN", p => Ks4(p).Urn.ToString(CultureInfo.InvariantCulture)),
         new("Admission date", p => PupilDateFormatter.ToDisplayDate(Ks4(p).EntryDate)),

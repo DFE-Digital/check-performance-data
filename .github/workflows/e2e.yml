@@ -1,0 +1,219 @@
+name: E2E Tests
+
+# The whole browser suite, run against a pull request's review app once "Build and Deploy" has
+# deployed it.
+#
+# A run started by workflow_run belongs to the default branch, not to the pull request's
+# commit, so it is not one of the pull request's checks: nothing waits for it and it cannot
+# stop a merge. The result goes in a comment on the pull request.
+#
+# GitHub reads a workflow_run workflow from the default branch, so a change to this file does
+# nothing until it is merged. Try a change with "Run workflow" and a pull request number.
+#
+# There is no concurrency group on purpose. A run is never cancelled or dropped because a
+# newer one started, so a failure stays with the commit that caused it. Cancel one by hand if
+# it is no longer wanted.
+
+on:
+  workflow_run:
+    workflows: ["Build and Deploy"]
+    types: [completed]
+    branches-ignore:
+      - main
+  workflow_dispatch:
+    inputs:
+      pull-request-number:
+        description: "Pull request whose review app to test"
+        required: true
+        type: string
+
+permissions: {}
+
+jobs:
+  e2e:
+    name: E2E tests
+    # Pull requests from this repository only: the run uses the repository's own token.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.event == 'pull_request' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+      deployments: read
+      pull-requests: write
+    env:
+      # The hidden line that marks the result comment, so the same comment is found and
+      # updated on the next run.
+      COMMENT_MARKER: "<!-- e2e-tests-result -->"
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      # Failure-gated Playwright traces: SeedingPageTest writes one zip per failing test here.
+      # Absolute, because the test host resolves a relative value against its own output folder.
+      CPD_E2E_TRACES_DIR: ${{ github.workspace }}/e2e-traces
+
+    steps:
+      - name: Find the pull request and its review app
+        id: target
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          DEPLOY_RUN_ID: ${{ github.event.workflow_run.id }}
+          DEPLOY_SHA: ${{ github.event.workflow_run.head_sha }}
+          DEPLOY_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          PR_INPUT: ${{ inputs.pull-request-number }}
+        run: |
+          stop() { echo "$1 Nothing to test."; echo "found=false" >> "$GITHUB_OUTPUT"; exit 0; }
+
+          if [[ -n "$PR_INPUT" ]]; then
+            [[ "$PR_INPUT" =~ ^[0-9]+$ ]] || { echo "::error::'$PR_INPUT' is not a pull request number"; exit 1; }
+            pr="$PR_INPUT"
+            read -r sha head_repo < <(gh api "repos/$GH_REPO/pulls/$pr" --jq '"\(.head.sha) \(.head.repo.full_name)"')
+            [[ -n "$sha" ]] || { echo "::error::Pull request $pr was not found"; exit 1; }
+            [[ "$head_repo" == "$GH_REPO" ]] || { echo "::error::Pull request $pr is from a fork"; exit 1; }
+          else
+            # A pull request without the deploy label has no review app. Neither has a run that
+            # was cancelled or failed before it deployed.
+            deployed=$(gh api "repos/$GH_REPO/actions/runs/$DEPLOY_RUN_ID/jobs" --paginate \
+              --jq '.jobs[] | select(.name == "Deployment To Review") | .conclusion')
+            [[ "$deployed" == "success" ]] || stop "That run did not deploy a review app."
+            sha="$DEPLOY_SHA"
+            pr=$(gh api "repos/$GH_REPO/commits/$sha/pulls" \
+              --jq "[.[] | select(.state == \"open\" and .head.sha == \"$sha\")][0].number // empty")
+            [[ -n "$pr" ]] || stop "No open pull request has $sha at its head (branch $DEPLOY_BRANCH)."
+          fi
+
+          # The deploy records the review app's address on the commit's deployment.
+          url=""
+          for id in $(gh api "repos/$GH_REPO/deployments?sha=$sha&environment=review" --jq '.[].id'); do
+            url=$(gh api "repos/$GH_REPO/deployments/$id/statuses" \
+              --jq '[.[] | select(.state == "success" and .environment_url != "")][0].environment_url // empty')
+            [[ -n "$url" ]] && break
+          done
+          [[ -n "$url" ]] || stop "Pull request $pr has no review app deployed for $sha."
+
+          echo "Testing pull request $pr at $sha against $url"
+          {
+            echo "found=true"
+            echo "pr=$pr"
+            echo "sha=$sha"
+            echo "url=$url"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Say on the pull request that the tests are running
+        if: steps.target.outputs.found == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ steps.target.outputs.pr }}
+          SHA: ${{ steps.target.outputs.sha }}
+        run: |
+          {
+            echo "$COMMENT_MARKER"
+            echo "### E2E tests running"
+            echo
+            echo "Commit \`${SHA:0:7}\` ([run]($RUN_URL)). The result will replace this comment."
+          } > comment.md
+          id=$(gh api "repos/$GH_REPO/issues/$PR/comments" --paginate \
+            --jq ".[] | select(.body | contains(\"$COMMENT_MARKER\")) | .id" | tail -n 1)
+          if [[ -n "$id" ]]; then
+            gh api --method PATCH "repos/$GH_REPO/issues/comments/$id" -F body=@comment.md --silent
+          else
+            gh api --method POST "repos/$GH_REPO/issues/$PR/comments" -F body=@comment.md --silent
+          fi
+
+      # The review app was built from the pull request merged into main, so test that.
+      - uses: actions/checkout@v4
+        if: steps.target.outputs.found == 'true'
+        with:
+          ref: refs/pull/${{ steps.target.outputs.pr }}/merge
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@v4
+        if: steps.target.outputs.found == 'true'
+        with:
+          dotnet-version: "10.0.x"
+
+      - uses: actions/cache@v4
+        if: steps.target.outputs.found == 'true'
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('src/Directory.Packages.props') }}
+
+      - name: Build E2E test project
+        if: steps.target.outputs.found == 'true'
+        run: dotnet build tests/DfE.CheckPerformanceData.E2ETests/ -c Release
+
+      - name: Install Playwright browsers
+        if: steps.target.outputs.found == 'true'
+        run: pwsh tests/DfE.CheckPerformanceData.E2ETests/bin/Release/net10.0/playwright.ps1 install --with-deps chromium
+
+      - name: Run E2E tests
+        id: tests
+        if: steps.target.outputs.found == 'true'
+        # Everything but visual regression: the baselines are captured against the local
+        # containerised web, and the review app does not render pixel for pixel the same.
+        env:
+          CPD_E2E_BASE_URL: ${{ steps.target.outputs.url }}
+        run: >-
+          dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --configuration Release --no-build
+          --filter "Category!=VisualRegression"
+          --logger "trx;LogFileName=e2e.trx" --results-directory TestResults
+
+      # From here on the steps also run when the tests failed or the run was cancelled, so the
+      # pull request is never left saying "running".
+      - name: Summarise the results
+        id: summary
+        if: always() && steps.target.outputs.found == 'true'
+        env:
+          SHA: ${{ steps.target.outputs.sha }}
+          APP_URL: ${{ steps.target.outputs.url }}
+        run: |
+          pwsh scripts/e2e-summary.ps1 -ResultsFile TestResults/e2e.trx -OutFile summary.md \
+            -Commit "$SHA" -AppUrl "$APP_URL" -RunUrl "$RUN_URL"
+          cat summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Put the results on the pull request
+        if: always() && steps.target.outputs.found == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ steps.target.outputs.pr }}
+        run: |
+          # No summary means the run stopped before the code was checked out.
+          [[ -f summary.md ]] || printf '### E2E tests produced no results\n\nThe run stopped before the tests started ([run](%s)). This is not a pass.\n' "$RUN_URL" > summary.md
+          { echo "$COMMENT_MARKER"; cat summary.md; } > comment.md
+          id=$(gh api "repos/$GH_REPO/issues/$PR/comments" --paginate \
+            --jq ".[] | select(.body | contains(\"$COMMENT_MARKER\")) | .id" | tail -n 1)
+          if [[ -n "$id" ]]; then
+            gh api --method PATCH "repos/$GH_REPO/issues/comments/$id" -F body=@comment.md --silent
+          else
+            gh api --method POST "repos/$GH_REPO/issues/$PR/comments" -F body=@comment.md --silent
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.target.outputs.found == 'true'
+        with:
+          name: e2e-results
+          path: TestResults/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      # The snapshot tree, so a regenerated baseline can be fetched. Snapshots live in the
+      # source tree, not under bin/.
+      - uses: actions/upload-artifact@v4
+        if: failure() && steps.target.outputs.found == 'true'
+        with:
+          name: e2e-snapshots
+          path: tests/DfE.CheckPerformanceData.E2ETests/Snapshots/
+          retention-days: 14
+
+      # Playwright traces for the failing tests only. Open one with
+      # `npx playwright show-trace <file>.zip`.
+      - uses: actions/upload-artifact@v4
+        if: failure() && steps.target.outputs.found == 'true'
+        with:
+          name: e2e-traces
+          path: e2e-traces/
+          if-no-files-found: ignore
+          retention-days: 14

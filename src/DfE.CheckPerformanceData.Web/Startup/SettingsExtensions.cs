@@ -12,7 +12,6 @@ public static class SettingsExtensions
         services.Configure<GtmSettings>(configuration.GetSection("GoogleTagManager"));
         services.Configure<ClaritySettings>(configuration.GetSection("Clarity"));
         services.Configure<GoogleSiteVerificationSettings>(configuration.GetSection("GoogleSiteVerification"));
-        services.Configure<BetaBannerSettings>(configuration.GetSection("BetaBanner"));
         services.Configure<FeedbackSurveySettings>(configuration.GetSection(FeedbackSurveySettings.SectionName));
         services.Configure<DfE.CheckPerformanceData.Application.Dashboard.DashboardSettings>(
             configuration.GetSection("Dashboard"));

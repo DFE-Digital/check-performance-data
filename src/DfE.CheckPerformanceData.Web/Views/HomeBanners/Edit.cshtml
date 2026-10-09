@@ -137,7 +137,17 @@
                 branding: false,
                 promotion: false,
                 license_key: 'gpl',
-                setup: function (editor) { editor.on('change', function () { editor.save(); }); }
+                setup: function (editor) {
+                    editor.on('change', function () { editor.save(); });
+                    // The error summary links to #Body, but TinyMCE hides that textarea, so GOV.UK
+                    // Frontend's focus would land nowhere and leave the user on the summary.
+                    // Send the link to the editor instead.
+                    editor.on('init', function () {
+                        document.querySelectorAll('.govuk-error-summary a[href="#Body"]').forEach(function (link) {
+                            link.addEventListener('click', function () { editor.focus(); });
+                        });
+                    });
+                }
             });
         })();
     </script>

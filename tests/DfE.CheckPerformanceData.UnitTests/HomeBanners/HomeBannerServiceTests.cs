@@ -147,4 +147,25 @@ public sealed class HomeBannerServiceTests
         Assert.False(await _sut.DeleteAsync(1));
         await _repo.DidNotReceive().DeleteAsync(Arg.Any<int>());
     }
+
+    [Fact]
+    public async Task GetByIdAsync_ShowsCreatedAndUpdatedInUkTime()
+    {
+        // The repository stamps UTC; the admin pages say "UK time", so in BST 12:00 UTC must read 13:00.
+        _clock.SetLocalTimeZone(UkZone());
+        var summerUtc = new DateTime(2026, 7, 1, 12, 0, 0, DateTimeKind.Utc);
+        _repo.GetByIdAsync(1).Returns(new HomeBannerDto { Id = 1, Heading = "H", Body = "b", CreatedAt = summerUtc, UpdatedAt = summerUtc });
+
+        var banner = await _sut.GetByIdAsync(1);
+
+        Assert.Equal(new DateTime(2026, 7, 1, 13, 0, 0), banner!.UpdatedAt);
+        Assert.Equal(new DateTime(2026, 7, 1, 13, 0, 0), banner.CreatedAt);
+    }
+
+    // IANA id on Linux (and on Windows with ICU); the Windows id as a fallback.
+    private static TimeZoneInfo UkZone()
+    {
+        try { return TimeZoneInfo.FindSystemTimeZoneById("Europe/London"); }
+        catch (TimeZoneNotFoundException) { return TimeZoneInfo.FindSystemTimeZoneById("GMT Standard Time"); }
+    }
 }

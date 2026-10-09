@@ -111,4 +111,15 @@ public sealed class HomeBannersControllerTests
         _service.RestoreVersionAsync(1, 2).ReturnsNull();
         Assert.IsType<NotFoundResult>(await _sut.Restore(1, 2));
     }
+
+    [Fact]
+    public async Task Create_IgnoresAPostedId()
+    {
+        var model = new HomeBannerFormModel { Id = 5, Heading = "", Body = "b" };
+        _sut.ModelState.AddModelError(nameof(HomeBannerFormModel.Heading), "Enter a heading");
+
+        var view = Assert.IsType<ViewResult>(await _sut.Create(model));
+
+        Assert.Null(Assert.IsType<HomeBannerFormModel>(view.Model).Id);
+    }
 }

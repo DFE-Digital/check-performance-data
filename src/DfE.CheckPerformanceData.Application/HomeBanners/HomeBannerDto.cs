@@ -17,8 +17,10 @@ public sealed class HomeBannerDto
     public int SortOrder { get; init; }
     /// <summary>Computed by the service against the UK clock; Off until the service sets it.</summary>
     public HomeBannerStatus Status { get; init; }
+    /// <summary>UK wall-clock, for display: the service converts the repository's UTC stamp.</summary>
     public DateTime CreatedAt { get; init; }
     public string? CreatedBy { get; init; }
+    /// <summary>UK wall-clock, for display: the service converts the repository's UTC stamp.</summary>
     public DateTime UpdatedAt { get; init; }
     public string? UpdatedBy { get; init; }
 

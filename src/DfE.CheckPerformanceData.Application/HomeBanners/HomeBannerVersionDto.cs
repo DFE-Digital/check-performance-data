@@ -11,6 +11,7 @@ public sealed class HomeBannerVersionDto
     public bool IsEnabled { get; init; }
     public DateTime? ShowFrom { get; init; }
     public DateTime? ShowUntil { get; init; }
+    /// <summary>UK wall-clock, for display: the service converts the repository's UTC stamp.</summary>
     public DateTime CreatedAt { get; init; }
     public string? CreatedBy { get; init; }
 

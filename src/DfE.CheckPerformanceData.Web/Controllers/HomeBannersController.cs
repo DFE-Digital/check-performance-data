@@ -28,6 +28,8 @@ public sealed class HomeBannersController(IHomeBannerService banners, TimeProvid
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(HomeBannerFormModel model)
     {
+        // A posted Id would turn the redisplayed form into an edit of that banner.
+        model.Id = null;
         if (ModelState.IsValid) model.ValidateDates(ModelState);
         if (!ModelState.IsValid) return View("Edit", model);
 

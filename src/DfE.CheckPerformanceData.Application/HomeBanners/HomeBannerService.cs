@@ -10,6 +10,10 @@ public sealed class HomeBannerService(
     // UK wall-clock "now" (#535): the same clock every checking-exercise gate reads.
     private DateTime Now() => timeProvider.GetLocalNow().DateTime;
 
+    // The repository stamps CreatedAt/UpdatedAt in UTC; the admin pages show them beside UK times.
+    private DateTime ToUk(DateTime utc) =>
+        TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), timeProvider.LocalTimeZone);
+
     public async Task<IReadOnlyList<HomeBannerDto>> GetLiveAsync()
     {
         var now = Now();
@@ -86,7 +90,7 @@ public sealed class HomeBannerService(
                 IsEnabled = v.IsEnabled,
                 ShowFrom = v.ShowFrom,
                 ShowUntil = v.ShowUntil,
-                CreatedAt = v.CreatedAt,
+                CreatedAt = ToUk(v.CreatedAt),
                 CreatedBy = v.CreatedBy
             })
             .ToList();
@@ -130,9 +134,9 @@ public sealed class HomeBannerService(
         ShowUntil = b.ShowUntil,
         SortOrder = b.SortOrder,
         Status = HomeBannerRules.StatusOf(b.IsEnabled, b.ShowFrom, b.ShowUntil, now),
-        CreatedAt = b.CreatedAt,
+        CreatedAt = ToUk(b.CreatedAt),
         CreatedBy = b.CreatedBy,
-        UpdatedAt = b.UpdatedAt,
+        UpdatedAt = ToUk(b.UpdatedAt),
         UpdatedBy = b.UpdatedBy
     };
 }

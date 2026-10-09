@@ -1,0 +1,45 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.HomeBanners.HomeBannerVersionsViewModel
+@{
+    ViewData["Title"] = $"Version history: {Model.Banner.Heading}";
+    string Uk(DateTime? d) => d is null ? "No limit" : d.Value.ToString("d MMM yyyy, HH:mm");
+}
+
+<a href="/admin/home-banners" class="govuk-back-link">Back to home page banners</a>
+
+<h1 class="govuk-heading-l">Version history: @Model.Banner.Heading</h1>
+
+<p class="govuk-body">The newest version is the one on the start page. Restoring an older version makes a copy of it the newest.</p>
+
+@foreach (var v in Model.Versions)
+{
+    var isCurrent = v.VersionNumber == Model.Versions[0].VersionNumber;
+    <div class="govuk-summary-card">
+        <div class="govuk-summary-card__title-wrapper">
+            <h2 class="govuk-summary-card__title">
+                Version @v.VersionNumber
+                @if (isCurrent) { <strong class="govuk-tag govuk-!-margin-left-2">Current</strong> }
+            </h2>
+            @if (!isCurrent)
+            {
+                <div class="govuk-summary-card__actions">
+                    <form method="post" action="/admin/home-banners/@Model.Banner.Id/versions/@v.Id/restore">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" data-module="govuk-button">
+                            Restore<span class="govuk-visually-hidden"> version @v.VersionNumber</span>
+                        </button>
+                    </form>
+                </div>
+            }
+        </div>
+        <div class="govuk-summary-card__content">
+            <dl class="govuk-summary-list">
+                <div class="govuk-summary-list__row"><dt class="govuk-summary-list__key">Saved</dt><dd class="govuk-summary-list__value">@v.CreatedAt.ToString("d MMM yyyy, HH:mm") @(string.IsNullOrEmpty(v.CreatedBy) ? "" : $"by {v.CreatedBy}")</dd></div>
+                <div class="govuk-summary-list__row"><dt class="govuk-summary-list__key">Heading</dt><dd class="govuk-summary-list__value">@v.Heading</dd></div>
+                <div class="govuk-summary-list__row"><dt class="govuk-summary-list__key">Banner text</dt><dd class="govuk-summary-list__value wiki-content">@Html.Raw(v.BodyHtml)</dd></div>
+                <div class="govuk-summary-list__row"><dt class="govuk-summary-list__key">Switch</dt><dd class="govuk-summary-list__value">@(v.IsEnabled ? "On" : "Off")</dd></div>
+                <div class="govuk-summary-list__row"><dt class="govuk-summary-list__key">Show from (UK time)</dt><dd class="govuk-summary-list__value">@Uk(v.ShowFrom)</dd></div>
+                <div class="govuk-summary-list__row"><dt class="govuk-summary-list__key">Show until (UK time)</dt><dd class="govuk-summary-list__value">@Uk(v.ShowUntil)</dd></div>
+            </dl>
+        </div>
+    </div>
+}

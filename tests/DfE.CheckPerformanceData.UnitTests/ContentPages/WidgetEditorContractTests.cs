@@ -96,6 +96,23 @@ public sealed class WidgetEditorContractTests
         Assert.Contains("GetBool(\"showButton\") ?? true", SearchBranch());
     }
 
+    // Where the button goes matters with or without instant search, so the option sits outside
+    // the instant-search reveal. As with the other tick boxes, a hidden "false" after the label is
+    // what makes unticking stick.
+    [Fact]
+    public void Search_EditorOffersTheButtonBelowTheBox()
+    {
+        var b = SearchBranch();
+        var checkbox = b.IndexOf("name=\"props[buttonBelow]\" type=\"checkbox\"", StringComparison.Ordinal);
+        var label = b.IndexOf("Put the button below the search box", StringComparison.Ordinal);
+        var hidden = b.IndexOf("<input type=\"hidden\" name=\"props[buttonBelow]\" value=\"false\" />", StringComparison.Ordinal);
+
+        Assert.True(checkbox >= 0, "Search editor has no tick box for the button position.");
+        Assert.True(label > checkbox, "The button position tick box has no label after it.");
+        Assert.True(hidden > label, "Unticking would post nothing without a hidden false after the label.");
+        Assert.Contains("GetBool(\"buttonBelow\") ?? false", b);
+    }
+
     [Fact]
     public void Search_EditorExposesNoResultsCopy()
     {

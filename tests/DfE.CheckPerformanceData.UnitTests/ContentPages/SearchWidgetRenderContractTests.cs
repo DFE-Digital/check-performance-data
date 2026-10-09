@@ -180,6 +180,40 @@ public sealed class SearchWidgetRenderContractTests
         Assert.InRange(view.IndexOf("action=\"@action\"", StringComparison.Ordinal), 0, guard);
     }
 
+    // ----- Button below the box -----
+
+    // In a narrow column a button beside the box leaves the box too small to type in. The author
+    // can ask for the button underneath instead; a widget with no stored value keeps the button
+    // beside the box, where it has always been.
+    [Fact]
+    public void PutsTheButtonBelowTheBox_OnlyWhenAsked()
+    {
+        Assert.Contains("var buttonBelow = Model.GetBool(\"buttonBelow\") ?? false;", View);
+        Assert.Contains("cypmd-search__row--stacked", View);
+    }
+
+    // The stacked layout is a style of the same row: the input still comes before the button in
+    // the markup, so the reading and tab order do not change.
+    [Fact]
+    public void StackingDoesNotReorderTheInputAndTheButton()
+    {
+        var input = View.IndexOf("name=\"q\"", StringComparison.Ordinal);
+        var submit = View.IndexOf("type=\"submit\"", StringComparison.Ordinal);
+
+        Assert.True(input >= 0 && submit > input, "The input must come before the submit button.");
+    }
+
+    [Fact]
+    public void TheStackedRow_PutsTheButtonOnItsOwnLine()
+    {
+        var css = File.ReadAllText(Path.Combine(
+            FindSolutionRoot(AppContext.BaseDirectory), "src", "DfE.CheckPerformanceData.Web", "wwwroot", "css", "site.css"));
+        var rule = css.IndexOf(".cypmd-search__row--stacked {", StringComparison.Ordinal);
+
+        Assert.True(rule >= 0, "site.css has no rule for the stacked search row.");
+        Assert.Contains("flex-direction: column;", css[rule..css.IndexOf('}', rule)]);
+    }
+
     private static string ReadSearchView()
     {
         var solutionRoot = FindSolutionRoot(AppContext.BaseDirectory);

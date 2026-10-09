@@ -86,7 +86,7 @@ public sealed class InstantSearchWidgetE2ETests(PlaywrightFixture fixture) : See
 
     private static Dictionary<string, string> SearchProps(
         string searchIn, bool instant, string scope = "", string noResults = "Nothing on this page",
-        string? showButton = null)
+        string? showButton = null, string? buttonBelow = null)
     {
         var props = new Dictionary<string, string>
         {
@@ -101,6 +101,7 @@ public sealed class InstantSearchWidgetE2ETests(PlaywrightFixture fixture) : See
         // An unticked checkbox posts no field at all, which is how the widget reads "off".
         if (instant) props["instant"] = "true";
         if (showButton is not null) props["showButton"] = showButton;
+        if (buttonBelow is not null) props["buttonBelow"] = buttonBelow;
         return props;
     }
 
@@ -452,6 +453,39 @@ public sealed class InstantSearchWidgetE2ETests(PlaywrightFixture fixture) : See
         await Page.GotoAsync($"{Fixture.BaseUrl}{url}");
 
         await Expect(WidgetForm.Locator("button[type='submit']")).ToHaveCountAsync(1);
+    }
+
+    // ============================================================
+    // 6a. The author can put the button under the box, for a narrow column.
+    // ============================================================
+    [Fact]
+    public async Task ButtonBelow_PutsTheButtonUnderTheBox()
+    {
+        var (url, _) = await SeedPageWithSectionsAsync(SearchProps("site", instant: false, buttonBelow: "true"));
+
+        await Page.GotoAsync($"{Fixture.BaseUrl}{url}");
+
+        var input = await WidgetForm.Locator("input[name='q']").BoundingBoxAsync();
+        var button = await WidgetForm.Locator("button[type='submit']").BoundingBoxAsync();
+        Assert.NotNull(input);
+        Assert.NotNull(button);
+        Assert.True(button.Y >= input.Y + input.Height,
+            $"the button (top {button.Y}) is not below the box (bottom {input.Y + input.Height})");
+        Assert.True(Math.Abs(button.X - input.X) < 2, "the button does not line up with the left of the box");
+    }
+
+    [Fact]
+    public async Task WithoutButtonBelow_TheButtonStaysBesideTheBox()
+    {
+        var (url, _) = await SeedPageWithSectionsAsync(SearchProps("site", instant: false));
+
+        await Page.GotoAsync($"{Fixture.BaseUrl}{url}");
+
+        var input = await WidgetForm.Locator("input[name='q']").BoundingBoxAsync();
+        var button = await WidgetForm.Locator("button[type='submit']").BoundingBoxAsync();
+        Assert.NotNull(input);
+        Assert.NotNull(button);
+        Assert.True(button.X >= input.X + input.Width, "the button is not beside the box");
     }
 
     // ============================================================

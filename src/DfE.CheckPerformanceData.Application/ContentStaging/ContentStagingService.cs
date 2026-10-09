@@ -81,6 +81,7 @@ public sealed class ContentStagingService(
                 PageType = node.PageType,
                 SortOrder = node.SortOrder,
                 AppearInSearch = node.AppearInSearch,
+                ShowInMenu = node.ShowInMenu,
                 Keywords = node.Keywords,
                 Versions = TrimHistory(versions, maxVersionsPerNode)
                     .Select(v => new PageNodeVersionBundleItem
@@ -390,6 +391,8 @@ public sealed class ContentStagingService(
                         await pageNodeRepository.UpdateNodeForStagingAsync(
                             effectiveId, page.Segment, path, page.Title, page.Subtitle, page.PageName, page.SortOrder,
                             page.AppearInSearch, page.Keywords, userId: null);
+                        if (page.ShowInMenu is { } showExisting && showExisting != existing.ShowInMenu)
+                            await pageNodeRepository.SetShowInMenuAsync(effectiveId, showExisting, userId: null);
                         if (page.PageType != "folder")
                             await pageNodeRepository.ReplaceAllVersionsForStagingAsync(
                                 effectiveId, MapVersions(page.Versions), userId: null);
@@ -437,6 +440,9 @@ public sealed class ContentStagingService(
                     var created = await pageNodeRepository.CreateNodeForStagingAsync(
                         page.Id, effectiveParentId, page.Segment, path, page.Title, page.Subtitle, page.PageName, page.PageType, page.SortOrder,
                         page.AppearInSearch, page.Keywords, userId: null);
+                    // A new page is shown in the menus unless the bundle says otherwise.
+                    if (page.ShowInMenu == false)
+                        await pageNodeRepository.SetShowInMenuAsync(created.Id, false, userId: null);
                     if (page.PageType != "folder")
                         await pageNodeRepository.ReplaceAllVersionsForStagingAsync(
                             created.Id, MapVersions(page.Versions), userId: null);

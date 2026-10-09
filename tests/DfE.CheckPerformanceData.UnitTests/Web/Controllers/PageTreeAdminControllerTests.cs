@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging.Abstractions;
+using DfE.CheckPerformanceData.Application.UnitTests.ContentStaging;
 using System.Reflection;
 using DfE.CheckPerformanceData.Application.Common;
 using DfE.CheckPerformanceData.Application.ContentPages;
@@ -31,7 +33,6 @@ public sealed class PageTreeAdminControllerTests
     // asserting on whether that seeder ran.
     private readonly IContentStagingService _sampleStaging = Substitute.For<IContentStagingService>();
     private readonly IContentStagingService _fixtureStaging = Substitute.For<IContentStagingService>();
-    private readonly IPageNodeService _fixturePages = Substitute.For<IPageNodeService>();
     private readonly IPageNodeRepository _fixtureRepository = Substitute.For<IPageNodeRepository>();
 
     public PageTreeAdminControllerTests()
@@ -39,21 +40,7 @@ public sealed class PageTreeAdminControllerTests
         _service.GetTreeAsync().Returns([]);
         StubImport(_sampleStaging, new ContentImportResult());
         StubImport(_fixtureStaging, new ContentImportResult());
-
-        // The fixture seeder creates its root before importing; without a row coming back it would
-        // fail on the returned node's Id rather than on anything these tests are about.
-        _fixtureRepository.CreateNodeForStagingAsync(
-                Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(),
-                Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<int>(),
-                Arg.Any<bool>(), Arg.Any<string?>(), Arg.Any<string?>())
-            .Returns(new PageNodeDto
-            {
-                Id = DefaultPageNodeRoots.DevelopmentTestingRootId,
-                Segment = DefaultPageNodeRoots.DevelopmentTestingSegment,
-                Path = DefaultPageNodeRoots.DevelopmentTestingSegment,
-                Title = "Development testing",
-                PageType = "folder",
-            });
+        _fixtureRepository.GetDeletedAsync().Returns([]);
     }
 
     private static void StubImport(IContentStagingService staging, ContentImportResult result) =>
@@ -68,11 +55,13 @@ public sealed class PageTreeAdminControllerTests
     {
         var environment = Substitute.For<IHostEnvironment>();
         environment.EnvironmentName.Returns(environmentName ?? Environments.Development);
+        // The fixtures are a file the web project ships, so the button is tested against that file.
+        environment.ContentRootPath.Returns(ShippedContent.WebProject);
 
         var controller = new PageTreeAdminController(
             _service, validator ?? OpenValidator(), _renderer, _contentEditor, _settings,
             new SamplePageNodeSeeder(_sampleStaging),
-            new TestFixturePageNodeSeeder(_fixturePages, _fixtureRepository, _fixtureStaging),
+            new ManifestContentImporter(_fixtureRepository, _fixtureStaging, NullLogger<ManifestContentImporter>.Instance),
             environment);
         controller.ControllerContext = new ControllerContext
         {
@@ -1895,6 +1884,22 @@ public sealed class PageTreeAdminControllerTests
         var result = await Sut(environmentName: Environments.Development).SampleSeed();
 
         Assert.IsType<RedirectResult>(result);
+        // Replace, not Skip: a fixture whose versions were deleted still exists, and only an
+        // import that overwrites what is there brings it back.
+        await _fixtureStaging.Received(1).ImportAsync(
+            Arg.Is<ContentBundle>(b => b.PageNodes.Any(p => p.Segment == TestFixtureSeedBundle.LongPageSegment)),
+            ContentImportMode.Replace,
+            Arg.Any<IReadOnlyDictionary<Guid, ContentImportMode>?>(), Arg.Any<ContentImportMode>());
+    }
+
+    // The manifest sends the fixtures to Development and Review by themselves. The button is for
+    // everywhere else that is not Production: a developer reproducing a layout problem on QA needs
+    // the same pages the browser suite uses.
+    [Fact]
+    public async Task SampleSeed_OnQa_SeedsTheTestFixtures_ThoughStartUpDoesNot()
+    {
+        await Sut(environmentName: "QA").SampleSeed();
+
         await _fixtureStaging.Received(1).ImportAsync(
             Arg.Any<ContentBundle>(), Arg.Any<ContentImportMode>(),
             Arg.Any<IReadOnlyDictionary<Guid, ContentImportMode>?>(), Arg.Any<ContentImportMode>());
@@ -1925,7 +1930,7 @@ public sealed class PageTreeAdminControllerTests
         await controller.SampleSeed();
 
         var message = Assert.IsType<string>(controller.TempData["SampleSeedResult"]);
-        Assert.Contains("3 test fixture pages", message);
+        Assert.Contains("Refreshed the test fixture pages", message);
         Assert.Contains(DefaultPageNodeRoots.DevelopmentTestingSegment, message);
     }
 }

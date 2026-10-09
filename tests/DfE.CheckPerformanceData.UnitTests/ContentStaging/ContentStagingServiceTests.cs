@@ -37,7 +37,7 @@ public class ContentStagingServiceTests
 
     private static PageNodeTreeItemDto Node(
         Guid id, Guid? parentId, string segment, string title, string pageType = "content",
-        int sortOrder = 0, bool hasLive = true, string? path = null) =>
+        int sortOrder = 0, bool hasLive = true, string? path = null, bool showInMenu = true) =>
         new()
         {
             Id = id,
@@ -48,6 +48,7 @@ public class ContentStagingServiceTests
             Title = title,
             PageType = pageType,
             HasLiveVersion = hasLive,
+            ShowInMenu = showInMenu,
             CreatedDate = new DateTime(2026, 1, 1)
         };
 
@@ -594,6 +595,79 @@ public class ContentStagingServiceTests
         Assert.Equal(1, result.PageNodesCreated);
         await _pages.DidNotReceive().ReplaceAllVersionsForStagingAsync(
             Arg.Any<Guid>(), Arg.Any<IReadOnlyList<PageNodeVersionDto>>(), Arg.Any<string?>());
+    }
+
+    // ---- menu visibility ---------------------------------------------------------------------
+
+    // A page hidden from the menus in one environment has to arrive hidden in the next, or a
+    // container nobody was meant to see turns up as a section of the site.
+    [Fact]
+    public async Task ExportAsync_CarriesWhetherAPageIsInTheMenus()
+    {
+        _pages.GetTreeAsync().Returns(
+        [
+            Node(GuidA, null, "shown", "Shown", pageType: "folder", sortOrder: 0),
+            Node(GuidB, null, "hidden", "Hidden", pageType: "folder", sortOrder: 1, showInMenu: false),
+        ]);
+
+        var bundle = await _sut.ExportAsync();
+
+        Assert.True(bundle.PageNodes.Single(p => p.Id == GuidA).ShowInMenu);
+        Assert.False(bundle.PageNodes.Single(p => p.Id == GuidB).ShowInMenu);
+    }
+
+    [Fact]
+    public async Task ImportAsync_NewPageTheBundleHides_IsCreatedHiddenFromTheMenus()
+    {
+        _pages.GetByIdAsync(GuidA).ReturnsNull();
+        _pages.CreateNodeForStagingAsync(Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<string>(),
+                Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<bool>(), Arg.Any<string?>(), Arg.Any<string?>())
+            .Returns(new PageNodeDto { Id = GuidA, Segment = "f", Path = "f", Title = "F", PageType = "folder" });
+
+        var bundle = new ContentBundle
+        {
+            PageNodes = [new() { Id = GuidA, Segment = "f", Title = "F", PageType = "folder", ShowInMenu = false }]
+        };
+
+        await _sut.ImportAsync(bundle, ContentImportMode.Fail);
+
+        await _pages.Received(1).SetShowInMenuAsync(GuidA, false, null);
+    }
+
+    [Fact]
+    public async Task ImportAsync_ReplacingAPage_AppliesTheBundlesMenuVisibility()
+    {
+        _pages.GetByIdAsync(GuidA).Returns(new PageNodeDto
+        {
+            Id = GuidA, Segment = "f", Path = "f", Title = "F", PageType = "folder", ShowInMenu = true
+        });
+
+        var bundle = new ContentBundle
+        {
+            PageNodes = [new() { Id = GuidA, Segment = "f", Title = "F", PageType = "folder", ShowInMenu = false }]
+        };
+
+        await _sut.ImportAsync(bundle, ContentImportMode.Replace);
+
+        await _pages.Received(1).SetShowInMenuAsync(GuidA, false, null);
+    }
+
+    // Bundles written before the format carried menu visibility say nothing about it. Importing
+    // one must not put a page an editor hid back into the menus.
+    [Fact]
+    public async Task ImportAsync_BundleThatDoesNotSay_LeavesMenuVisibilityAsItIs()
+    {
+        _pages.GetByIdAsync(GuidA).Returns(new PageNodeDto
+        {
+            Id = GuidA, Segment = "f", Path = "f", Title = "F", PageType = "folder", ShowInMenu = false
+        });
+
+        var bundle = ContentStagingJson.Deserialize(
+            """{ "schemaVersion": 2, "pageNodes": [ { "id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "segment": "f", "title": "F", "pageType": "folder" } ] }""")!;
+
+        await _sut.ImportAsync(bundle, ContentImportMode.Replace);
+
+        await _pages.DidNotReceive().SetShowInMenuAsync(Arg.Any<Guid>(), Arg.Any<bool>(), Arg.Any<string?>());
     }
 
     [Fact]

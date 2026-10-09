@@ -147,6 +147,25 @@ public class WidgetPropsBuilderTests
         Assert.Equal("false", (string)props["showButton"]!);
     }
 
+    // Widgets saved before the option existed have no stored value and keep the button beside
+    // the box, so the default is "false".
+    [Fact]
+    public void Build_Search_ButtonBelowDefaultsToFalse_WhenNotPosted()
+    {
+        var props = WidgetPropsBuilder.Build("search", new Dictionary<string, string?>());
+
+        Assert.Equal("false", (string)props["buttonBelow"]!);
+    }
+
+    [Fact]
+    public void Build_Search_TickedButtonBelow_IsStoredAsTrue()
+    {
+        var props = WidgetPropsBuilder.Build("search",
+            new Dictionary<string, string?> { ["buttonBelow"] = "true" });
+
+        Assert.Equal("true", (string)props["buttonBelow"]!);
+    }
+
     // With instant search off the option is still stored as posted, but the widget ignores it and
     // always shows the button.
     [Fact]

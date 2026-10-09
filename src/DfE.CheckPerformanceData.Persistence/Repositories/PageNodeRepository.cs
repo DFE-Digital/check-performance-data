@@ -779,7 +779,7 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
     // PageNodeVersions and ContentBlockVersions. Postgres-specific; the app is Postgres-only.
     public Task TruncateAllContentAsync() =>
         context.Database.ExecuteSqlRawAsync(
-            @"TRUNCATE ""PageNodes"", ""PageNodeVersions"", ""ContentBlocks"", ""ContentBlockVersions"" RESTART IDENTITY CASCADE;");
+            @"TRUNCATE ""PageNodes"", ""PageNodeVersions"", ""ContentBlocks"", ""ContentBlockVersions"", ""HomeBanners"", ""HomeBannerVersions"" RESTART IDENTITY CASCADE;");
 
     private static PageNodeDto ToNodeDto(PageNode n) => new()
     {

@@ -31,8 +31,8 @@ Project baseline confirmed by the user (D-6).
 
 ## Increments
 
-The impersonation spec is approved. Its implementation plan is being prepared for review.
+The impersonation intent, spec and implementation plan are approved. The increment is ready for implementation.
 
 | Folder | Type | Title | Status |
 |---|---|---|---|
-| 001-feature-admin-establishment-impersonation | feature | Admin establishment impersonation | spec |
+| 001-feature-admin-establishment-impersonation | feature | Admin establishment impersonation | plan |

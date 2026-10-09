@@ -162,4 +162,11 @@ public sealed class DefaultAdminAccessSeederTests
         Assert.Contains(seeded!, g => g.RoleName == DefaultAdminAccessSeeder.AdminRole && g.SectionKey == "site-assets");
         Assert.DoesNotContain(seeded!, g => g.RoleName == DefaultAdminAccessSeeder.EditorRole && g.SectionKey == "site-assets");
     }
+
+    [Fact]
+    public void AllSections_ContainsHomeBanners()
+    {
+        Assert.Contains(AdminNavKeys.HomeBanners, DefaultAdminAccessSeeder.AllSections);
+        Assert.Equal("home-banners", AdminNavKeys.HomeBanners);
+    }
 }

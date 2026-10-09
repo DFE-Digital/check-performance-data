@@ -12,6 +12,9 @@ public static class AdminNavKeys
     public const string ContentStaging = "content-staging";
     public const string ContentPages = "content-pages";
     public const string ContentBlocks = "content-blocks";
+    // Start-page notification banners (#566). Gates HomeBannersController; in
+    // DefaultAdminAccessSeeder.AllSections and in the editor defaults.
+    public const string HomeBanners = "home-banners";
     public const string DeletedPages = "deleted-pages";
     public const string SeedSamplePages = "seed-sample-pages";
     public const string SystemSettings = "system-settings";

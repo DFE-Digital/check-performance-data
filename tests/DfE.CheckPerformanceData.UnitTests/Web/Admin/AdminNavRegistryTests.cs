@@ -23,8 +23,8 @@ public sealed class AdminNavRegistryTests
 		// zone group and that browser are registered unconditionally, Reset seed data is not
 		// (includeResetSeedData defaults to false) — plus the Data egress group and its
 		// Start a new egress tile (AB#294553) and its Egress runs tile (AB#294590) — plus the
-		// Audit log root tile (AB#294592).
-		Assert.Equal(35, entries.Count);
+		// Audit log root tile (AB#294592) and the Home page banners CMS tile (#566).
+		Assert.Equal(36, entries.Count);
 
 		var titles = entries.Select(e => e.Title).ToList();
 		Assert.Contains("Dashboard", titles);
@@ -103,8 +103,8 @@ public sealed class AdminNavRegistryTests
 
 		// CMS admin loses the messages-inbox tile (moved to the Messages group) AND the
 		// seed-sample-pages tile (moved to the new Test data sub-group under System admin),
-		// leaving five children.
-		Assert.Equal(new[] { 10, 20, 30, 40, 60 }, cmsOrders);
+		// leaving five children; the Home page banners tile (#566) adds 25, giving six.
+		Assert.Equal(new[] { 10, 20, 25, 30, 40, 60 }, cmsOrders);
 		// System administration now has six direct children: the Rules Engine sub-group (10),
 		// System settings (20), Application logs (25), Site CSS and JavaScript (27),
 		// Role settings (30), Test data (40).

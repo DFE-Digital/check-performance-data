@@ -75,8 +75,9 @@ public sealed class AdminNavRegistryGroupingTests
 		// together and the Storage administration group went when the blob browser moved under
 		// Danger zone, which this overload registers along with the browser but without the
 		// gated Reset seed data tile — plus the Data egress group and its Start a new egress
-		// tile (AB#294553) and its Egress runs tile (AB#294590) and the Audit log root tile (AB#294592).
-		Assert.Equal(35, keys.Count);
+		// tile (AB#294553) and its Egress runs tile (AB#294590) and the Audit log root tile (AB#294592),
+		// and the Home page banners CMS tile (#566).
+		Assert.Equal(36, keys.Count);
 		Assert.Equal(keys.Count, keys.Distinct().Count());
 	}
 

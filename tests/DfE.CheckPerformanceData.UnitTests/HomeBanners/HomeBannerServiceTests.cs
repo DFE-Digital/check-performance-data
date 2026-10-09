@@ -162,6 +162,30 @@ public sealed class HomeBannerServiceTests
         Assert.Equal(new DateTime(2026, 7, 1, 13, 0, 0), banner.CreatedAt);
     }
 
+    [Fact]
+    public async Task GetLiveAsync_ComparesShowFrom_WithUkTime_InSummer()
+    {
+        // 09:30 UTC on 1 July is 10:30 in the UK (BST). A banner from 10:30 UK is live now; one
+        // from 10:31 is not. Comparing with UTC would wrongly hide the 10:30 banner for an hour.
+        // A fresh clock, because FakeTimeProvider cannot move back from the class's October "now".
+        var clock = new FakeTimeProvider(new DateTimeOffset(2026, 7, 1, 9, 30, 0, TimeSpan.Zero));
+        clock.SetLocalTimeZone(UkZone());
+        var sut = new HomeBannerService(_repo, _html, clock);
+        _repo.GetAllAsync().Returns(
+        [
+            Banner(1, from: new DateTime(2026, 7, 1, 10, 30, 0)),
+            Banner(2, from: new DateTime(2026, 7, 1, 10, 31, 0)),
+        ]);
+
+        var live = await sut.GetLiveAsync();
+
+        var only = Assert.Single(live);
+        Assert.Equal(1, only.Id);
+        Assert.Equal(HomeBannerStatus.Live, only.Status);
+        var all = await sut.GetAllAsync();
+        Assert.Equal(HomeBannerStatus.Scheduled, all.Single(b => b.Id == 2).Status);
+    }
+
     // IANA id on Linux (and on Windows with ICU); the Windows id as a fallback.
     private static TimeZoneInfo UkZone()
     {

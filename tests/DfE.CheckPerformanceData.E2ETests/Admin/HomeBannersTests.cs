@@ -67,6 +67,69 @@ public sealed partial class HomeBannersTests(PlaywrightFixture fixture)
         }
     }
 
+    // Saves dates through the real form binder: the GOV.UK date input posts Day/Month/Year as
+    // separate fields and the time as two numbers. No JavaScript is involved, so this is also
+    // the no-JS path.
+    [Fact]
+    public async Task DatedBanner_SavedThroughTheForm_IsLive_ThenScheduled()
+    {
+        var marker = $"e2e-dated-banner-{Guid.NewGuid():N}";
+        int? id = null;
+        var yesterday = DateTime.UtcNow.AddDays(-1);
+        var tomorrow = DateTime.UtcNow.AddDays(1);
+        try
+        {
+            await AuthHelpers.ImpersonateAsAdminAsync(_fixture);
+            var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(_fixture.SeedClient, "/dev/antiforgery-token");
+
+            // Yesterday 09:00 to tomorrow 17:00 â†’ live now.
+            var create = await PostFormAsync("/admin/home-banners/new", token, cookie,
+                ("Heading", marker), ("Body", $"<p>{marker} body</p>"), ("IsEnabled", "true"),
+                ("ShowFromDate.Day", yesterday.Day.ToString()), ("ShowFromDate.Month", yesterday.Month.ToString()), ("ShowFromDate.Year", yesterday.Year.ToString()),
+                ("ShowFromHour", "9"), ("ShowFromMinute", "0"),
+                ("ShowUntilDate.Day", tomorrow.Day.ToString()), ("ShowUntilDate.Month", tomorrow.Month.ToString()), ("ShowUntilDate.Year", tomorrow.Year.ToString()),
+                ("ShowUntilHour", "17"), ("ShowUntilMinute", "0"));
+            Assert.Equal(HttpStatusCode.Redirect, create.StatusCode);
+
+            var list = await GetAsync(_fixture.SeedClient, "/admin/home-banners");
+            id = IdOfRowContaining(list, marker);
+            Assert.Contains(">Live<", RowContaining(list, marker));
+            Assert.Contains(marker, await GetAsync(_fixture.AnonymousClient, "/"));
+
+            // Show from tomorrow 09:00, no Show until (blank fields, as the browser posts them) â†’ scheduled.
+            var edit = await PostFormAsync($"/admin/home-banners/{id}/edit", token, cookie,
+                ("Heading", marker), ("Body", $"<p>{marker} body</p>"), ("IsEnabled", "true"),
+                ("ShowFromDate.Day", tomorrow.Day.ToString()), ("ShowFromDate.Month", tomorrow.Month.ToString()), ("ShowFromDate.Year", tomorrow.Year.ToString()),
+                ("ShowFromHour", "9"), ("ShowFromMinute", "0"),
+                ("ShowUntilDate.Day", ""), ("ShowUntilDate.Month", ""), ("ShowUntilDate.Year", ""),
+                ("ShowUntilHour", ""), ("ShowUntilMinute", ""));
+            Assert.Equal(HttpStatusCode.Redirect, edit.StatusCode);
+
+            Assert.DoesNotContain(marker, await GetAsync(_fixture.AnonymousClient, "/"));
+            Assert.Contains(">Scheduled<", RowContaining(await GetAsync(_fixture.SeedClient, "/admin/home-banners"), marker));
+        }
+        finally
+        {
+            try
+            {
+                await TryDeleteByMarkerAsync(marker, id);
+            }
+            finally
+            {
+                await AuthHelpers.ImpersonateAsEditorAsync(_fixture);
+            }
+        }
+    }
+
+    // The list row that holds the marker, from the marker to the end of its <tr>.
+    private static string RowContaining(string listHtml, string marker)
+    {
+        var start = listHtml.IndexOf(marker, StringComparison.Ordinal);
+        Assert.True(start >= 0, $"'{marker}' is not in the banner list");
+        var end = listHtml.IndexOf("</tr>", start, StringComparison.Ordinal);
+        return end < 0 ? listHtml[start..] : listHtml[start..end];
+    }
+
     // Removes a banner the test may have created but not finished with. When the id was never
     // captured, the marker in the admin list finds it. Swallows failures so the original
     // exception survives.

@@ -175,10 +175,15 @@ public sealed class ContentStagingRoundTripTests(PostgresFixture fixture)
         Assert.Equal(a.Id, b.Id);
         Assert.Equal(a.Heading, b.Heading);
         Assert.Equal(a.Body, b.Body);
+        Assert.True(a.IsEnabled);
+        Assert.Equal(a.IsEnabled, b.IsEnabled);
         Assert.Equal(a.ShowFrom, b.ShowFrom);
         Assert.Equal(a.ShowUntil, b.ShowUntil);
         Assert.Equal(a.SortOrder, b.SortOrder);
-        Assert.Equal(a.Versions.Select(v => (v.VersionNumber, v.Body)), b.Versions.Select(v => (v.VersionNumber, v.Body)));
+        Assert.Equal(2, a.Versions.Count);
+        Assert.Equal(
+            a.Versions.Select(v => (v.VersionNumber, v.Heading, v.Body, v.IsEnabled, v.ShowFrom, v.ShowUntil)),
+            b.Versions.Select(v => (v.VersionNumber, v.Heading, v.Body, v.IsEnabled, v.ShowFrom, v.ShowUntil)));
     }
 
     // ── assertion helpers ──────────────────────────────────────────────────

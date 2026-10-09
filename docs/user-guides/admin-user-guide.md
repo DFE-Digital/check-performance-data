@@ -85,7 +85,7 @@ Select **Admin** in the header to open the *Administration* page. It shows one s
 The groups are:
 
 - **Dashboard**: figures on school engagement and amendment requests.
-- **CMS administration**: pages, content blocks, deleted pages, content staging and search analytics.
+- **CMS administration**: pages, content blocks, home page banners, deleted pages, content staging and search analytics.
 - **System administration**: the rules engine, system settings, logs, site CSS and JavaScript, role settings and test data.
 - **Messages**: search feedback and the dead-letter queue.
 - **Window administration**: creating and managing checking windows.

@@ -775,8 +775,9 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
             UpdatedBy = v.UpdatedBy
         };
 
-    // TRUNCATE ... CASCADE resets identity sequences and cascades through the FK from
-    // PageNodeVersions and ContentBlockVersions. Postgres-specific; the app is Postgres-only.
+    // TRUNCATE ... CASCADE resets identity sequences and cascades through the FKs from
+    // PageNodeVersions, ContentBlockVersions and HomeBannerVersions, so "clear all content" also
+    // removes the home page banners (#566). Postgres-specific; the app is Postgres-only.
     public Task TruncateAllContentAsync() =>
         context.Database.ExecuteSqlRawAsync(
             @"TRUNCATE ""PageNodes"", ""PageNodeVersions"", ""ContentBlocks"", ""ContentBlockVersions"", ""HomeBanners"", ""HomeBannerVersions"" RESTART IDENTITY CASCADE;");

@@ -21,7 +21,7 @@ Plus supporting work: content-block search, custom SEO slugs, and two additive m
 
 ### Content staging (CMS export/import)
 
-- **Schema-versioned JSON bundle.** `ContentBundle` carries `$schema = "cpd-content-v1"` (`ContentBundle.CurrentSchema`) and `SchemaVersion = 1` (`CurrentSchemaVersion`), plus optional `ExportedAtUtc` / `ExportedBy` metadata and the `WikiPages` / `ContentBlocks` collections. Serialised camelCase, indented (diff-friendly), enums as strings, nulls omitted (`ContentStagingJson.Options`).
+- **Schema-versioned JSON bundle.** `ContentBundle` carries `$schema = "cpd-content-v2"` (`ContentBundle.CurrentSchema`) and `SchemaVersion = 2` (`CurrentSchemaVersion`), plus optional `ExportedAtUtc` / `ExportedBy` metadata and the `WikiPages` / `ContentBlocks` collections. Serialised camelCase, indented (diff-friendly), enums as strings, nulls omitted (`ContentStagingJson.Options`).
 - **Home banners.** Since #566 a bundle also carries the start-page **home banners** (`homeBanners`), each with its versions; the schema stays `cpd-content-v2`, and a bundle without the member imports as before.
 - **GUID identity, decoupled from slug/key.** Every wiki page and content block carries a stable `ContentId` GUID (new columns — see migrations). Import matches **by GUID, never by slug or key**, so a page renamed or re-slugged in one environment still updates the right row in another. An unknown id (or `Guid.Empty`) means "create new".
 - **Selective or whole-environment export.** `GET /admin/content-staging/export` downloads everything; `GET …/select` lists the `ContentCatalog`, and `POST …/export` exports the ticked pages/blocks **plus all ancestor pages** (so a child never exports without its parent chain).

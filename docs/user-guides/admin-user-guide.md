@@ -48,7 +48,7 @@ Your access depends on the role DfE Sign-In gives you. There are 2 admin roles:
 | Role | Who it is for | What it can see by default |
 |---|---|---|
 | `cypmd_admin` | Administrators | Every section. This role always has full access and you cannot reduce it. |
-| `cypmd_content_access_user` | Content editors | Pages, Content blocks, Deleted pages, Seed sample CMS pages and Content staging import/export. |
+| `cypmd_content_access_user` | Content editors | Pages, Content blocks, Home page banners, Deleted pages, Seed sample CMS pages and Content staging import/export. |
 
 You assign roles in DfE Sign-In, not in this service. An administrator can change which sections a role can see. Chapter 5 explains how, under Role settings.
 
@@ -1017,19 +1017,20 @@ This table lists the actions in the admin area that change or delete data. It sa
 | Pages | Delete a page | Moves the page to Deleted pages, where it can be restored. The screen says it cannot be undone. | Yes. A confirmation page. |
 | Content blocks | Revert to an earlier version | Replaces the published content with an earlier version. | Yes. A dialog. |
 | Content staging import/export | Import with Overwrite | Replaces content that already exists. | Yes. The *Review import* screen. |
-| Content staging import/export | Clear all CMS content | Deletes every page and content block. Development environments only. | Yes. A dialog asks *Clear all CMS content?* |
+| Content staging import/export | Clear all CMS content | Deletes every page, content block and home page banner. Development environments only. | Yes. A dialog asks *Clear all CMS content?* |
 | Blob storage browser | Delete a file | Deletes the file from storage. | Only a browser message. |
 | Danger zone | Reset seed data | Deletes all change requests and windows, then reseeds. Not in production. | The Reset seed data screen is the only confirmation. |
 
 ## Appendix B: Admin sections a role can be granted
 
-*Role settings* lists 31 sections. This table shows what each one unlocks, grouped in the order of the Administration page.
+*Role settings* lists 32 sections. This table shows what each one unlocks, grouped in the order of the Administration page.
 
 | Group | Section | What it unlocks |
 |---|---|---|
 | Dashboard | `dashboard` | Dashboard |
 | CMS administration | `content-pages` | Pages |
 | CMS administration | `content-blocks` | Content blocks |
+| CMS administration | `home-banners` | Home page banners |
 | CMS administration | `deleted-pages` | Deleted pages |
 | CMS administration | `content-staging` | Content staging import/export |
 | CMS administration | `search-analytics` | Search analytics and its drill-down screens |

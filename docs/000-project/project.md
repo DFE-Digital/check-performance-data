@@ -31,7 +31,8 @@ Project baseline confirmed by the user (D-6).
 
 ## Increments
 
-No numbered increments have been created yet. The next candidate is **feature: Admin establishment impersonation**, following completion of this project baseline.
+The impersonation intent captures the agreed establishment-level scope and access boundary. Detailed behaviour will be settled in the spec stage.
 
 | Folder | Type | Title | Status |
 |---|---|---|---|
+| 001-feature-admin-establishment-impersonation | feature | Admin establishment impersonation | intent |

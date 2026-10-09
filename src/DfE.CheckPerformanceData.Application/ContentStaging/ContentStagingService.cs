@@ -592,7 +592,8 @@ public sealed class ContentStagingService(
             try
             {
                 var existing = banner.Id != Guid.Empty ? await homeBannerRepository.GetByContentIdAsync(banner.Id) : null;
-                var current = new HomeBannerContent(banner.Heading, banner.Body, banner.IsEnabled, banner.ShowFrom, banner.ShowUntil);
+                var current = new HomeBannerContent(banner.Heading, banner.Body, banner.IsEnabled,
+                    UnspecifiedOrNull(banner.ShowFrom), UnspecifiedOrNull(banner.ShowUntil));
 
                 if (existing is not null)
                 {
@@ -632,7 +633,8 @@ public sealed class ContentStagingService(
                     foreach (var v in versions)
                     {
                         await homeBannerRepository.AddVersionAsync(created.Id,
-                            new HomeBannerContent(v.Heading, v.Body, v.IsEnabled, v.ShowFrom, v.ShowUntil), ++number);
+                            new HomeBannerContent(v.Heading, v.Body, v.IsEnabled,
+                                UnspecifiedOrNull(v.ShowFrom), UnspecifiedOrNull(v.ShowUntil)), ++number);
                     }
                 });
                 result.HomeBannersCreated++;
@@ -739,6 +741,12 @@ public sealed class ContentStagingService(
     // tokens matching between "editor saved this block" and "staging imported this block".
     private string PlainTextOf(string? html) =>
         htmlRenderer.StripTagsToPlainText(htmlRenderer.RenderHtml(html));
+
+    // Banner dates are UK wall-clock values stored as `timestamp without time zone`. A hand-edited
+    // bundle date ending in `Z` deserialises with Kind Utc, which Npgsql refuses for that column,
+    // so the import drops the Kind and keeps the wall-clock value as written.
+    private static DateTime? UnspecifiedOrNull(DateTime? value) =>
+        value is { } v ? DateTime.SpecifyKind(v, DateTimeKind.Unspecified) : null;
 
     private static List<PageNodeVersionDto> MapVersions(IEnumerable<PageNodeVersionBundleItem> versions) =>
         versions

@@ -1005,6 +1005,39 @@ public class ContentStagingServiceTests
     }
 
     [Fact]
+    public async Task Import_NewBanner_WithUtcDates_PassesThemAsUnspecified()
+    {
+        // A hand-edited bundle date ending in Z arrives as Kind Utc; Npgsql refuses that for a
+        // `timestamp without time zone` column, so the import must drop the Kind.
+        _bannerRepo.GetByContentIdAsync(GuidA).ReturnsNull();
+        _bannerRepo.AddAsync(Arg.Any<HomeBannerContent>(), GuidA, 0).Returns(BannerDto(7, GuidA));
+        var from = new DateTime(2026, 7, 1, 9, 0, 0, DateTimeKind.Utc);
+        var until = new DateTime(2026, 7, 2, 17, 0, 0, DateTimeKind.Utc);
+        var bundle = new ContentBundle
+        {
+            HomeBanners =
+            [
+                new HomeBannerBundleItem
+                {
+                    Id = GuidA, Heading = "H", Body = "<p>b</p>", ShowFrom = from, ShowUntil = until,
+                    Versions = [new HomeBannerVersionBundleItem { VersionNumber = 1, Heading = "H", Body = "<p>b</p>", ShowFrom = from }]
+                }
+            ]
+        };
+
+        var result = await _sut.ImportAsync(bundle, ContentImportMode.Skip);
+
+        Assert.Equal(1, result.HomeBannersCreated);
+        await _bannerRepo.Received(1).AddAsync(
+            Arg.Is<HomeBannerContent>(c =>
+                c.ShowFrom!.Value.Kind == DateTimeKind.Unspecified && c.ShowFrom.Value == new DateTime(2026, 7, 1, 9, 0, 0)
+                && c.ShowUntil!.Value.Kind == DateTimeKind.Unspecified),
+            GuidA, 0);
+        await _bannerRepo.Received(1).AddVersionAsync(7,
+            Arg.Is<HomeBannerContent>(c => c.ShowFrom!.Value.Kind == DateTimeKind.Unspecified && c.ShowUntil == null), 1);
+    }
+
+    [Fact]
     public async Task Import_ExistingBanner_Skip_LeavesItAlone()
     {
         _bannerRepo.GetByContentIdAsync(GuidA).Returns(BannerDto(7, GuidA));

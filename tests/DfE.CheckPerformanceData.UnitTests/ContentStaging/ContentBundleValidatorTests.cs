@@ -329,6 +329,55 @@ public sealed class ContentBundleValidatorTests
     }
 
     [Fact]
+    public void BannerVersion_WithOversizedHeading_IsFatal()
+    {
+        var bundle = new ContentBundle
+        {
+            HomeBanners =
+            [
+                new HomeBannerBundleItem
+                {
+                    Id = Guid.NewGuid(), Heading = "H", Body = "<p>b</p>",
+                    Versions = [new HomeBannerVersionBundleItem { VersionNumber = 3, Heading = new string('h', ContentBundleValidator.MaxHomeBannerHeadingLength + 1), Body = "<p>v</p>" }]
+                }
+            ]
+        };
+
+        var issue = Assert.Single(ContentBundleValidator.Validate(bundle));
+        Assert.Equal(ValidationSeverity.Fatal, issue.Severity);
+        Assert.Equal("BANNER_HEADING_TOO_LONG", issue.Code);
+        Assert.Contains("version 3", issue.Message);
+    }
+
+    [Fact]
+    public void BannerVersion_WithShowUntilNotAfterShowFrom_IsFatal()
+    {
+        var bundle = new ContentBundle
+        {
+            HomeBanners =
+            [
+                new HomeBannerBundleItem
+                {
+                    Id = Guid.NewGuid(), Heading = "H", Body = "<p>b</p>",
+                    Versions =
+                    [
+                        new HomeBannerVersionBundleItem
+                        {
+                            VersionNumber = 2, Heading = "H", Body = "<p>v</p>",
+                            ShowFrom = new DateTime(2026, 1, 2), ShowUntil = new DateTime(2026, 1, 1)
+                        }
+                    ]
+                }
+            ]
+        };
+
+        var issue = Assert.Single(ContentBundleValidator.Validate(bundle));
+        Assert.Equal(ValidationSeverity.Fatal, issue.Severity);
+        Assert.Equal("BANNER_DATES_INVALID", issue.Code);
+        Assert.Contains("version 2", issue.Message);
+    }
+
+    [Fact]
     public void TooManyBanners_IsFatal()
     {
         var bundle = new ContentBundle

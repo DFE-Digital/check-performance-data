@@ -219,8 +219,18 @@ public static partial class ContentBundleValidator
         if (banner.ShowFrom is { } from && banner.ShowUntil is { } until && until <= from)
             issues.Add(new ValidationIssue(ValidationSeverity.Fatal, "BANNER_DATES_INVALID", $"Home page banner '{label}' has a Show until that is not after its Show from."));
 
+        // Versions are replayed into the database too, so a bad version must stop the import here
+        // rather than fail at SaveChanges, where it would leave the shared DbContext dirty.
         foreach (var v in banner.Versions)
         {
+            if (string.IsNullOrWhiteSpace(v.Heading))
+                issues.Add(new ValidationIssue(ValidationSeverity.Fatal, "BANNER_HEADING_EMPTY", $"Home page banner '{label}' version {v.VersionNumber} has an empty heading."));
+            else if (v.Heading.Length > MaxHomeBannerHeadingLength)
+                issues.Add(new ValidationIssue(ValidationSeverity.Fatal, "BANNER_HEADING_TOO_LONG", $"Home page banner '{label}' version {v.VersionNumber} has a heading of {v.Heading.Length} characters; the limit is {MaxHomeBannerHeadingLength}."));
+
+            if (v.ShowFrom is { } vFrom && v.ShowUntil is { } vUntil && vUntil <= vFrom)
+                issues.Add(new ValidationIssue(ValidationSeverity.Fatal, "BANNER_DATES_INVALID", $"Home page banner '{label}' version {v.VersionNumber} has a Show until that is not after its Show from."));
+
             if (v.Body.Length > MaxHomeBannerBodyBytes)
                 issues.Add(new ValidationIssue(ValidationSeverity.Fatal, "BANNER_BODY_TOO_LARGE", $"Home page banner '{label}' version {v.VersionNumber} has a body of {v.Body.Length} chars; the limit is {MaxHomeBannerBodyBytes}."));
         }

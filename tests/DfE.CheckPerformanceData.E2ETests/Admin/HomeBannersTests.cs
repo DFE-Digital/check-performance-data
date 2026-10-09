@@ -46,16 +46,50 @@ public sealed partial class HomeBannersTests(PlaywrightFixture fixture)
             Assert.Equal(HttpStatusCode.Redirect, off.StatusCode);
             Assert.DoesNotContain(marker, await GetAsync(_fixture.AnonymousClient, "/"));
             Assert.Contains(marker, await GetAsync(_fixture.SeedClient, "/admin/home-banners"));
+
+            // Delete → gone from the list.
+            var delete = await PostFormAsync($"/admin/home-banners/{id}/delete", token, cookie);
+            Assert.Equal(HttpStatusCode.Redirect, delete.StatusCode);
+            id = null;
+            Assert.DoesNotContain(marker, await GetAsync(_fixture.SeedClient, "/admin/home-banners"));
         }
         finally
         {
-            if (id is int toDelete)
+            try
             {
-                var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(_fixture.SeedClient, "/dev/antiforgery-token");
-                await PostFormAsync($"/admin/home-banners/{toDelete}/delete", token, cookie);
-                Assert.DoesNotContain(marker, await GetAsync(_fixture.SeedClient, "/admin/home-banners"));
+                // Best effort: never masks the real failure.
+                await TryDeleteByMarkerAsync(marker, id);
             }
-            await AuthHelpers.ImpersonateAsEditorAsync(_fixture);
+            finally
+            {
+                await AuthHelpers.ImpersonateAsEditorAsync(_fixture);
+            }
+        }
+    }
+
+    // Removes a banner the test may have created but not finished with. When the id was never
+    // captured, the marker in the admin list finds it. Swallows failures so the original
+    // exception survives.
+    private async Task TryDeleteByMarkerAsync(string marker, int? id)
+    {
+        try
+        {
+            await AuthHelpers.ImpersonateAsAdminAsync(_fixture);
+            if (id is null)
+            {
+                var list = await GetAsync(_fixture.SeedClient, "/admin/home-banners");
+                if (!list.Contains(marker, StringComparison.Ordinal))
+                {
+                    return;
+                }
+                id = IdOfRowContaining(list, marker);
+            }
+            var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(_fixture.SeedClient, "/dev/antiforgery-token");
+            await PostFormAsync($"/admin/home-banners/{id}/delete", token, cookie);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Banner cleanup for '{marker}' failed: {ex}");
         }
     }
 

@@ -2,10 +2,11 @@ using System.Text.Json.Serialization;
 
 namespace DfE.CheckPerformanceData.Application.ContentStaging;
 
-// Schema-versioned export of CMS content (page-tree nodes + content blocks) for moving content
-// between environments. The PageNodes / ContentBlocks collections are the canonical payload;
-// the Schema / SchemaVersion / ExportedAtUtc / ExportedBy header fields are metadata only and
-// are not considered when comparing two bundles for round-trip integrity.
+// Schema-versioned export of CMS content (page-tree nodes, content blocks and home banners) for
+// moving content between environments. The PageNodes / ContentBlocks / HomeBanners collections
+// are the canonical payload; the Schema / SchemaVersion / ExportedAtUtc / ExportedBy header
+// fields are metadata only and are not considered when comparing two bundles for round-trip
+// integrity.
 //
 // v2 is the current shape: every page (folder, content, wiki-typed) is a PageNode, so the
 // whole page tree round-trips through the same shape. Legacy v1 bundles are not accepted.
@@ -40,5 +41,14 @@ public sealed class ContentBundle
     {
         get => _contentBlocks;
         init => _contentBlocks = BundleMemberDefaults.NonNullItems(value);
+    }
+
+    // Start-page banners (#566). Optional and additive: a bundle written before banners existed
+    // deserialises with an empty list, so the schema name and version are unchanged.
+    private readonly List<HomeBannerBundleItem> _homeBanners = [];
+    public List<HomeBannerBundleItem> HomeBanners
+    {
+        get => _homeBanners;
+        init => _homeBanners = BundleMemberDefaults.NonNullItems(value);
     }
 }

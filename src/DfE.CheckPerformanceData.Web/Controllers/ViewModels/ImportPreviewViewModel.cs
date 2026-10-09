@@ -7,7 +7,7 @@ namespace DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 // only the id travels to the browser and back.
 public sealed class ImportPreviewViewModel
 {
-    public ContentImportPreview Preview { get; init; } = new([], []);
+    public ContentImportPreview Preview { get; init; } = new([], [], []);
     public Guid SessionId { get; init; }
 }
 

@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.Common;
 using DfE.CheckPerformanceData.Application.ContentBlocks;
+using DfE.CheckPerformanceData.Application.HomeBanners;
 using DfE.CheckPerformanceData.Application.PageTree;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -18,6 +19,7 @@ namespace DfE.CheckPerformanceData.Application.ContentStaging;
 public sealed class ContentStagingService(
     IPageNodeRepository pageNodeRepository,
     IContentBlockRepository contentBlockRepository,
+    IHomeBannerRepository homeBannerRepository,
     IHtmlRenderingService htmlRenderer,
     ContentBundleSanitiser? sanitiser = null,
     ILogger<ContentStagingService>? logger = null) : IContentStagingService
@@ -103,6 +105,37 @@ public sealed class ContentStagingService(
             .OrderBy(b => b.Key, StringComparer.Ordinal)
             .ToList();
 
+        var bannerItems = new List<HomeBannerBundleItem>();
+        foreach (var banner in await homeBannerRepository.GetAllAsync())
+        {
+            var versions = (await homeBannerRepository.GetVersionsAsync(banner.Id))
+                .OrderBy(v => v.VersionNumber)
+                .ToList();
+            if (maxVersionsPerNode is int cap && versions.Count > cap)
+                versions = versions.Skip(versions.Count - cap).ToList();
+
+            bannerItems.Add(new HomeBannerBundleItem
+            {
+                Id = banner.ContentId,
+                Heading = banner.Heading,
+                Body = banner.Body,
+                IsEnabled = banner.IsEnabled,
+                ShowFrom = banner.ShowFrom,
+                ShowUntil = banner.ShowUntil,
+                SortOrder = banner.SortOrder,
+                Versions = versions.Select(v => new HomeBannerVersionBundleItem
+                {
+                    VersionNumber = v.VersionNumber,
+                    Heading = v.Heading,
+                    Body = v.Body,
+                    IsEnabled = v.IsEnabled,
+                    ShowFrom = v.ShowFrom,
+                    ShowUntil = v.ShowUntil,
+                    CreatedAt = v.CreatedAt
+                }).ToList()
+            });
+        }
+
         // Null id sets mean "no filter" — an export can be whole-environment and still carry a
         // history preference, so the two are decided independently.
         if (selection?.PageNodeIds is { } selectedPages)
@@ -116,11 +149,17 @@ public sealed class ContentStagingService(
             blockItems = blockItems.Where(i => selectedBlocks.Contains(i.Id)).ToList();
         }
 
+        if (selection?.HomeBannerIds is { } selectedBanners)
+        {
+            bannerItems = bannerItems.Where(i => selectedBanners.Contains(i.Id)).ToList();
+        }
+
         return new ContentBundle
         {
             Schema = ContentBundle.CurrentSchema,
             PageNodes = pageItems,
-            ContentBlocks = blockItems
+            ContentBlocks = blockItems,
+            HomeBanners = bannerItems
         };
     }
 
@@ -207,7 +246,12 @@ public sealed class ContentStagingService(
             .Select(b => new CatalogBlock(b.ContentId, b.Key, b.BlockType, b.LastSeenPath, b.CreatedAt, b.UpdatedAt))
             .ToList();
 
-        return new ContentCatalog(catalogPages, catalogBlocks);
+        var banners = await homeBannerRepository.GetAllAsync();
+        var catalogBanners = banners
+            .Select(b => new CatalogBanner(b.ContentId, b.Heading, b.IsEnabled, b.ShowFrom, b.ShowUntil, b.UpdatedAt))
+            .ToList();
+
+        return new ContentCatalog(catalogPages, catalogBlocks, catalogBanners);
     }
 
     public async Task<ContentImportPreview> PreviewAsync(ContentBundle bundle)
@@ -262,7 +306,19 @@ public sealed class ContentStagingService(
             blockItems.Add(new PreviewItem(block.Id, block.Key, block.BlockType, existing is not null, description));
         }
 
-        return new ContentImportPreview(pageItems, blockItems);
+        var bannerPreview = new List<PreviewItem>();
+        foreach (var banner in bundle.HomeBanners)
+        {
+            var existing = banner.Id != Guid.Empty ? await homeBannerRepository.GetByContentIdAsync(banner.Id) : null;
+            var description = existing is null
+                ? null
+                : existing.Heading == banner.Heading
+                    ? "Overwrites the existing banner."
+                    : $"Overwrites the existing banner (currently headed ‘{existing.Heading}’).";
+            bannerPreview.Add(new PreviewItem(banner.Id, banner.Heading, "Home page banner", existing is not null, description));
+        }
+
+        return new ContentImportPreview(pageItems, blockItems, bannerPreview);
     }
 
     public async Task<ContentImportResult> ImportAsync(
@@ -288,8 +344,8 @@ public sealed class ContentStagingService(
         var sanitised = _sanitiser?.SanitiseInPlace(bundle) ?? 0;
 
         _log.LogInformation(
-            "ContentStaging import starting: {PageCount} page(s), {BlockCount} block(s), collisionMode={Mode}, newItemMode={NewMode}, decisions={DecisionCount}",
-            bundle.PageNodes.Count, bundle.ContentBlocks.Count, mode, newItemMode, decisions?.Count ?? 0);
+            "ContentStaging import starting: {PageCount} page(s), {BlockCount} block(s), {BannerCount} banner(s), collisionMode={Mode}, newItemMode={NewMode}, decisions={DecisionCount}",
+            bundle.PageNodes.Count, bundle.ContentBlocks.Count, bundle.HomeBanners.Count, mode, newItemMode, decisions?.Count ?? 0);
 
         // Per-item explicit decision wins; the caller distinguishes "existing item" from "new
         // item" via two separate fallback modes. isExisting is passed by the loops so we can
@@ -303,7 +359,7 @@ public sealed class ContentStagingService(
 
         // Abort up front if any collision is left at the Fail default; a per-item Skip/Overwrite
         // resolves that item and keeps the import going.
-        await GuardFailCollisionsAsync(pages, bundle.ContentBlocks, ModeFor);
+        await GuardFailCollisionsAsync(pages, bundle.ContentBlocks, bundle.HomeBanners, ModeFor);
 
         var result = new ContentImportResult();
 
@@ -531,10 +587,68 @@ public sealed class ContentStagingService(
             }
         }
 
+        foreach (var banner in bundle.HomeBanners)
+        {
+            try
+            {
+                var existing = banner.Id != Guid.Empty ? await homeBannerRepository.GetByContentIdAsync(banner.Id) : null;
+                var current = new HomeBannerContent(banner.Heading, banner.Body, banner.IsEnabled, banner.ShowFrom, banner.ShowUntil);
+
+                if (existing is not null)
+                {
+                    if (ModeFor(banner.Id, isExisting: true) == ContentImportMode.Skip)
+                    {
+                        result.HomeBannersSkipped++;
+                        continue;
+                    }
+
+                    await homeBannerRepository.ExecuteInTransactionAsync(async () =>
+                    {
+                        var maxVersion = await homeBannerRepository.GetMaxVersionNumberAsync(existing.Id);
+                        await homeBannerRepository.UpdateAsync(existing.Id, current);
+                        await homeBannerRepository.SetSortOrdersAsync([(existing.Id, banner.SortOrder)]);
+                        await homeBannerRepository.AddVersionAsync(existing.Id, current, maxVersion + 1);
+                    });
+                    result.HomeBannersUpdated++;
+                    continue;
+                }
+
+                if (ModeFor(banner.Id, isExisting: false) == ContentImportMode.Skip)
+                {
+                    result.HomeBannersSkipped++;
+                    continue;
+                }
+
+                await homeBannerRepository.ExecuteInTransactionAsync(async () =>
+                {
+                    var created = await homeBannerRepository.AddAsync(current, banner.Id, banner.SortOrder);
+                    var versions = banner.Versions.OrderBy(v => v.VersionNumber).ToList();
+                    if (versions.Count == 0)
+                    {
+                        await homeBannerRepository.AddVersionAsync(created.Id, current, 1);
+                        return;
+                    }
+                    var number = 0;
+                    foreach (var v in versions)
+                    {
+                        await homeBannerRepository.AddVersionAsync(created.Id,
+                            new HomeBannerContent(v.Heading, v.Body, v.IsEnabled, v.ShowFrom, v.ShowUntil), ++number);
+                    }
+                });
+                result.HomeBannersCreated++;
+            }
+            catch (Exception ex)
+            {
+                _log.LogError(ex, "ContentStaging: home banner {BannerId} ‘{Heading}’ failed to import", banner.Id, banner.Heading);
+                result.Errors.Add($"Failed to import home page banner ‘{banner.Heading}’: {ex.GetType().Name} — {ex.Message}");
+            }
+        }
+
         _log.LogInformation(
-            "ContentStaging import finished: pages created={PagesCreated} updated={PagesUpdated} skipped={PagesSkipped}; blocks created={BlocksCreated} updated={BlocksUpdated} skipped={BlocksSkipped}; errors={ErrorCount} warnings={WarningCount}",
+            "ContentStaging import finished: pages created={PagesCreated} updated={PagesUpdated} skipped={PagesSkipped}; blocks created={BlocksCreated} updated={BlocksUpdated} skipped={BlocksSkipped}; banners created={BannersCreated} updated={BannersUpdated} skipped={BannersSkipped}; errors={ErrorCount} warnings={WarningCount}",
             result.PageNodesCreated, result.PageNodesUpdated, result.PageNodesSkipped,
             result.ContentBlocksCreated, result.ContentBlocksUpdated, result.ContentBlocksSkipped,
+            result.HomeBannersCreated, result.HomeBannersUpdated, result.HomeBannersSkipped,
             result.Errors.Count, result.Warnings.Count);
 
         return result;
@@ -548,6 +662,7 @@ public sealed class ContentStagingService(
     private async Task GuardFailCollisionsAsync(
         List<PageNodeBundleItem> pages,
         List<ContentBlockBundleItem> blocks,
+        List<HomeBannerBundleItem> banners,
         Func<Guid, bool, ContentImportMode> modeFor)
     {
         foreach (var page in pages)
@@ -566,6 +681,15 @@ public sealed class ContentStagingService(
                 && await contentBlockRepository.GetByContentIdAsync(block.Id) is not null)
                 throw new ContentImportConflictException(
                     $"Import aborted — content block ‘{block.Key}’ already exists in the target environment.");
+        }
+
+        foreach (var banner in banners)
+        {
+            if (modeFor(banner.Id, true) == ContentImportMode.Fail
+                && banner.Id != Guid.Empty
+                && await homeBannerRepository.GetByContentIdAsync(banner.Id) is not null)
+                throw new ContentImportConflictException(
+                    $"Import aborted — home page banner ‘{banner.Heading}’ already exists in the target environment.");
         }
     }
 

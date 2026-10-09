@@ -1,11 +1,14 @@
 using DfE.CheckPerformanceData.Application.Common;
 using DfE.CheckPerformanceData.Application.ContentBlocks;
 using DfE.CheckPerformanceData.Application.ContentStaging;
+using DfE.CheckPerformanceData.Application.CurrentUser;
+using DfE.CheckPerformanceData.Application.HomeBanners;
 using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
+using NSubstitute;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.ContentStaging;
 
@@ -24,14 +27,14 @@ public sealed class ContentStagingRoundTripTests(PostgresFixture fixture)
         ctx = _fixture.CreateContext();
         var pageRepo = new PageNodeRepository(ctx);
         var blockRepo = new ContentBlockRepository(ctx);
-        return new ContentStagingService(pageRepo, blockRepo, new HtmlRenderingService());
+        return new ContentStagingService(pageRepo, blockRepo, new HomeBannerRepository(ctx, Substitute.For<ICurrentUserService>()), new HtmlRenderingService());
     }
 
     private async Task ResetAsync()
     {
         await using var ctx = _fixture.CreateContext();
         await ctx.Database.ExecuteSqlRawAsync(
-            @"TRUNCATE ""PageNodes"", ""PageNodeVersions"", ""ContentBlocks"", ""ContentBlockVersions"" RESTART IDENTITY CASCADE;");
+            @"TRUNCATE ""PageNodes"", ""PageNodeVersions"", ""ContentBlocks"", ""ContentBlockVersions"", ""HomeBanners"", ""HomeBannerVersions"" RESTART IDENTITY CASCADE;");
     }
 
     // Seeds a tiny tree:
@@ -39,7 +42,8 @@ public sealed class ContentStagingRoundTripTests(PostgresFixture fixture)
     //     └─ getting-started (content, 2 versions — first published, working draft on top)
     //   guidance (folder)
     //     └─ ks4-window (content, 1 published version)
-    // Plus two content blocks (banner, footer). All identities are stable across the two exports.
+    // Plus two content blocks (banner, footer) and one home page banner with two versions. All
+    // identities are stable across the two exports.
     private async Task SeedAsync()
     {
         await using var ctx = _fixture.CreateContext();
@@ -67,6 +71,11 @@ public sealed class ContentStagingRoundTripTests(PostgresFixture fixture)
             var footer = await blockRepo.AddBlockAsync("footer", "Content", "© crown", "© crown", Guid.NewGuid());
             await blockRepo.AddVersionAsync(footer.Id, "© crown", 1);
         });
+
+        var bannerRepo = new HomeBannerRepository(ctx, Substitute.For<ICurrentUserService>());
+        var bannerSvc = new HomeBannerService(bannerRepo, new HtmlRenderingService(), TimeProvider.System);
+        var banner = await bannerSvc.CreateAsync(new HomeBannerContent("Round trip", "<p>v1</p>", true, new DateTime(2026, 9, 1, 9, 0, 0), null));
+        await bannerSvc.UpdateAsync(banner.Id, new HomeBannerContent("Round trip", "<p>v2</p>", true, new DateTime(2026, 9, 1, 9, 0, 0), new DateTime(2026, 12, 1, 17, 0, 0)));
     }
 
     [Fact]
@@ -143,6 +152,33 @@ public sealed class ContentStagingRoundTripTests(PostgresFixture fixture)
 
         Assert.Equal(0, result.PageNodesCreated);
         Assert.Equal(4, result.PageNodesSkipped);
+    }
+
+    [Fact]
+    public async Task Banners_RoundTrip_WithVersionsAndDates()
+    {
+        await ResetAsync();
+        await SeedAsync();
+        var first = await NewStaging(out var ctx1).ExportAsync(new ContentExportSelection(MaxVersionsPerNode: null));
+        await ctx1.DisposeAsync();
+
+        await ResetAsync();
+        var importer = NewStaging(out var ctx2);
+        var result = await importer.ImportAsync(first, ContentImportMode.Fail);
+        Assert.Empty(result.Errors);
+        Assert.Equal(1, result.HomeBannersCreated);
+        var second = await importer.ExportAsync(new ContentExportSelection(MaxVersionsPerNode: null));
+        await ctx2.DisposeAsync();
+
+        var a = Assert.Single(first.HomeBanners);
+        var b = Assert.Single(second.HomeBanners);
+        Assert.Equal(a.Id, b.Id);
+        Assert.Equal(a.Heading, b.Heading);
+        Assert.Equal(a.Body, b.Body);
+        Assert.Equal(a.ShowFrom, b.ShowFrom);
+        Assert.Equal(a.ShowUntil, b.ShowUntil);
+        Assert.Equal(a.SortOrder, b.SortOrder);
+        Assert.Equal(a.Versions.Select(v => (v.VersionNumber, v.Body)), b.Versions.Select(v => (v.VersionNumber, v.Body)));
     }
 
     // ── assertion helpers ──────────────────────────────────────────────────

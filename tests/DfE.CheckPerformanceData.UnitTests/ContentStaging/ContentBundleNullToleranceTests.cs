@@ -12,12 +12,13 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.ContentStaging;
 // operator has to get a validation banner rather than a 500.
 public class ContentBundleNullToleranceTests
 {
-    private static string BundleWith(string pagesJson, string blocksJson = "[]") => $$"""
+    private static string BundleWith(string pagesJson, string blocksJson = "[]", string bannersJson = "[]") => $$"""
         {
           "$schema": "cpd-content-v2",
           "schemaVersion": 2,
           "pageNodes": {{pagesJson}},
-          "contentBlocks": {{blocksJson}}
+          "contentBlocks": {{blocksJson}},
+          "homeBanners": {{bannersJson}}
         }
         """;
 
@@ -104,6 +105,9 @@ public class ContentBundleNullToleranceTests
                    "blockType": null, "value": "x" }]
                 """)
         },
+        { "homeBanners null", BundleWith("[]", "[]", "null") },
+        { "null element in homeBanners", BundleWith("[]", "[]", "[null]") },
+        { "banner.versions null", BundleWith("[]", "[]", """[{ "id": "22222222-2222-2222-2222-222222222222", "heading": "H", "body": "b", "versions": null }]""") },
     };
 
     // Parsing must never hand back a bundle whose "non-nullable" members are null.
@@ -139,6 +143,10 @@ public class ContentBundleNullToleranceTests
             Assert.NotNull(block.BlockType);
             Assert.NotNull(block.Value);
         }
+
+        Assert.NotNull(bundle.HomeBanners);
+        Assert.DoesNotContain(bundle.HomeBanners, b => b is null);
+        Assert.All(bundle.HomeBanners, b => Assert.NotNull(b.Versions));
 
         _ = shape;
     }

@@ -1,11 +1,13 @@
 using DfE.CheckPerformanceData.Application.Common;
 using DfE.CheckPerformanceData.Application.ContentStaging;
+using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using NSubstitute;
 using Npgsql;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.ContentStaging;
@@ -37,7 +39,7 @@ public sealed class ShippedContentImportTests(PostgresFixture fixture)
     {
         await using var ctx = _fixture.CreateContext();
         await ctx.Database.ExecuteSqlRawAsync(
-            @"TRUNCATE ""PageNodes"", ""PageNodeVersions"" RESTART IDENTITY CASCADE;");
+            @"TRUNCATE ""PageNodes"", ""PageNodeVersions"", ""HomeBanners"", ""HomeBannerVersions"" RESTART IDENTITY CASCADE;");
         var repo = new PageNodeRepository(ctx);
         await new DefaultPageNodeSeeder(new PageNodeService(repo), repo).SeedAsync();
     }
@@ -46,7 +48,8 @@ public sealed class ShippedContentImportTests(PostgresFixture fixture)
     {
         await using var ctx = _fixture.CreateContext();
         var repo = new PageNodeRepository(ctx);
-        var staging = new ContentStagingService(repo, new ContentBlockRepository(ctx), new HtmlRenderingService());
+        var staging = new ContentStagingService(
+            repo, new ContentBlockRepository(ctx), new HomeBannerRepository(ctx, Substitute.For<ICurrentUserService>()), new HtmlRenderingService());
         var summary = await new ManifestContentImporter(repo, staging, NullLogger<ManifestContentImporter>.Instance)
             .RunAsync(ImportFolder, "Production");
         Assert.Equal(0, summary.FilesFailed);

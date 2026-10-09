@@ -69,6 +69,7 @@ public sealed class PageNavLevelsE2ETests(PlaywrightFixture fixture) : SeedingPa
         await Page.Locator("nav.moj-side-navigation a").AllInnerTextsAsync();
 
     [Fact]
+    [Trait("Category", "Smoke")]
     public async Task ByDefault_TheNavShowsH2AndH3Only()
     {
         var (_, url) = await SeedAsync();

@@ -77,6 +77,7 @@ public sealed class ShareLinkTests(PlaywrightFixture fixture)
     // --- An admin generates a token and the share link renders the aggregate-only view ---
 
     [Fact]
+    [Trait("Category", "Smoke")]
     public async Task Admin_GeneratesToken_AndShareLinkRendersAggregateOnlyView()
     {
         try

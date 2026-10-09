@@ -47,6 +47,7 @@ public sealed class RegionsTestPageE2ETests(PlaywrightFixture fixture) : Seeding
     [InlineData("Quarters", new[] { "govuk-grid-column-one-quarter", "govuk-grid-column-one-quarter", "govuk-grid-column-one-quarter", "govuk-grid-column-one-quarter" })]
     [InlineData("One third two thirds", new[] { "govuk-grid-column-one-third", "govuk-grid-column-two-thirds" })]
     [InlineData("Two thirds one third", new[] { "govuk-grid-column-two-thirds", "govuk-grid-column-one-third" })]
+    [Trait("Category", "Smoke")]
     public async Task EachLayout_IsARowOfTheDesignSystemsColumns(string layout, string[] classes)
     {
         await OpenAsync();

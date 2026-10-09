@@ -17,6 +17,7 @@ public sealed class ScopedSearchHeadingTests(PlaywrightFixture fixture) : Seedin
     private ILocator Heading => Page.Locator("h1.govuk-heading-xl");
 
     [Fact]
+    [Trait("Category", "Smoke")]
     public async Task UnscopedSearch_HeadingNamesTheTerm_AndHasNoScopeComment()
     {
         var response = await Page.GotoAsync($"{Fixture.BaseUrl}/search?q={Term}");

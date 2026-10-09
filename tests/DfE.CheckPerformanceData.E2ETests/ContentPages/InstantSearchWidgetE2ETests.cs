@@ -120,6 +120,7 @@ public sealed class InstantSearchWidgetE2ETests(PlaywrightFixture fixture) : See
     //    both the URL and the reading position to that heading.
     // ============================================================
     [Fact]
+    [Trait("Category", "Smoke")]
     public async Task PageMode_SuggestsSections_AndChoosingOneJumpsAndMovesFocus()
     {
         var (url, _) = await SeedPageWithSectionsAsync(SearchProps("page", instant: true));
@@ -268,6 +269,7 @@ public sealed class InstantSearchWidgetE2ETests(PlaywrightFixture fixture) : See
     //    nothing outside it, and choosing one opens that page.
     // ============================================================
     [Fact]
+    [Trait("Category", "Smoke")]
     public async Task PathMode_SuggestsDocumentsUnderThePath_AndChoosingOneNavigates()
     {
         var token = "cypdscope" + Guid.NewGuid().ToString("N")[..10].ToLowerInvariant();

@@ -11,7 +11,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Journey;
 // then QAN grouped by AO) genuinely work without further help, that the details page's syllabus and
 // grade dropdowns post the value they show, and that the whole journey holds together end to end
 // with no late-results interstitial in the way.
-[Trait("Category", "Smoke")]
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class MissingQualificationEnquiryTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
@@ -29,6 +29,7 @@ public sealed class MissingQualificationEnquiryTests(PlaywrightFixture fixture) 
     private const string SyllabusLabel = "8300H - Mathematics Higher Tier";
 
     [RetryFact]
+    [Trait("Category", "Smoke")]
     public async Task A_school_can_report_a_missing_qualification_end_to_end()
     {
         await StartEnquiryAsync();

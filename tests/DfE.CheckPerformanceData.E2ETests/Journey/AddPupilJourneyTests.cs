@@ -12,7 +12,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Journey;
 // page chain holds together across redirects with no dataset pupil behind it, that the future-date
 // rules and required-field errors render correctly, and that a Post16 window (no Add flow exists
 // for it) never offers the option.
-[Trait("Category", "Smoke")]
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class AddPupilJourneyTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
@@ -24,6 +24,7 @@ public sealed class AddPupilJourneyTests(PlaywrightFixture fixture) : SeedingPag
     private static readonly Guid Post16WindowId = Guid.Parse("6C2E1F4A-9B7D-4E38-8A15-3D9C2B4E7F01");
 
     [RetryFact]
+    [Trait("Category", "Smoke")]
     public async Task HappyPath_SubmitsAndShowsAReference()
     {
         await StartAddJourneyAsync();

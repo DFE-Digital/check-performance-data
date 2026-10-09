@@ -15,7 +15,7 @@ namespace DfE.CheckPerformanceData.E2ETests.ContentPages;
 //     group-a/child    beneath a ticked page, so included
 //   group-b            ticked
 //   outside            not ticked, so never in a result
-[Trait("Category", "Smoke")]
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class SearchByPageTokenE2ETests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
@@ -116,6 +116,7 @@ public sealed class SearchByPageTokenE2ETests(PlaywrightFixture fixture) : Seedi
     //    searches those pages and everything beneath them only.
     // ============================================================
     [Fact]
+    [Trait("Category", "Smoke")]
     public async Task SearchWidget_SubmitsPageTokens_AndFindsOnlyThePickedPagesAndBeneath()
     {
         var g = await SeedGroupAsync();

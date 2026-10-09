@@ -86,6 +86,7 @@ public sealed class StorageBrowserChunkedUploadTests(PlaywrightFixture fixture) 
 
     // 20 MB at 8 MiB parts is three parts: progress is announced, the folder reloads with the file.
     [SkippableFact]
+    [Trait("Category", "Smoke")]
     public async Task ALargeFile_IsUploadedInParts_AndAppearsInTheFolder()
     {
         Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux), "Playwright interaction test Linux-only");

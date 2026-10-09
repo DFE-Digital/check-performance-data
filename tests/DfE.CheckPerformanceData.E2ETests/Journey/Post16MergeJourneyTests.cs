@@ -33,6 +33,7 @@ public sealed class Post16MergeJourneyTests(PlaywrightFixture fixture) : Seeding
     // ── The full merge journey, end to end ──────────────────────────────────
 
     [RetryFact]
+    [Trait("Category", "Smoke")]
     public async Task HappyPath_SubmitsAndShowsAReference()
     {
         await StartMergeJourneyAsync();

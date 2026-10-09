@@ -26,6 +26,7 @@ public sealed class ClosedWindowEnquiryTests(PlaywrightFixture fixture) : Seedin
     private string PageUrl => $"{Fixture.BaseUrl}/CheckYourPupilData/{WindowId}";
 
     [RetryFact]
+    [Trait("Category", "Smoke")]
     public async Task The_school_is_told_the_window_has_closed_and_asked_only_the_enquiry_question()
     {
         await Page.GotoAsync(PageUrl);

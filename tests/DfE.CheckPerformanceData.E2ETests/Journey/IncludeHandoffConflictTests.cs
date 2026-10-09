@@ -20,7 +20,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Journey;
 // Each test seeds a conflicting ChangeRequest first (self = the impersonated user for the
 // self-submitted message; a random user for the colleague-named message) and cleans up any
 // stale DEV-* requests so an earlier test's conflict can't poison this one.
-[Trait("Category", "Smoke")]
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class IncludeHandoffConflictTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {

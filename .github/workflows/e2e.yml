@@ -70,9 +70,12 @@ jobs:
           if [[ -n "$PR_INPUT" ]]; then
             [[ "$PR_INPUT" =~ ^[0-9]+$ ]] || { echo "::error::'$PR_INPUT' is not a pull request number"; exit 1; }
             pr="$PR_INPUT"
-            read -r sha head_repo author < <(gh api "repos/$GH_REPO/pulls/$pr" \
-              --jq '"\(.head.sha) \(.head.repo.full_name) \(.user.login)"')
-            [[ -n "$sha" ]] || { echo "::error::Pull request $pr was not found"; exit 1; }
+            found=$(gh api "repos/$GH_REPO/pulls/$pr" \
+              --jq '"\(.state) \(.head.sha) \(.head.repo.full_name) \(.user.login)"') \
+              || { echo "::error::Pull request $pr was not found"; exit 1; }
+            read -r state sha head_repo author <<< "$found"
+            # A closed pull request has had its review app deleted.
+            [[ "$state" == "open" ]] || { echo "::error::Pull request $pr is $state"; exit 1; }
             [[ "$head_repo" == "$GH_REPO" ]] || { echo "::error::Pull request $pr is from a fork"; exit 1; }
           else
             # A pull request without the deploy label has no review app. Neither has a run that
@@ -81,8 +84,10 @@ jobs:
               --jq '.jobs[] | select(.name == "Deployment To Review") | .conclusion')
             [[ "$deployed" == "success" ]] || stop "That run did not deploy a review app."
             sha="$DEPLOY_SHA"
+            # read fails when it is given nothing, which is what a closed or merged pull
+            # request gives it. That is a reason to stop quietly, not for the step to fail.
             read -r pr author < <(gh api "repos/$GH_REPO/commits/$sha/pulls" \
-              --jq "[.[] | select(.state == \"open\" and .head.sha == \"$sha\")][0] | select(.) | \"\(.number) \(.user.login)\"")
+              --jq "[.[] | select(.state == \"open\" and .head.sha == \"$sha\")][0] | select(.) | \"\(.number) \(.user.login)\"") || true
             [[ -n "$pr" ]] || stop "No open pull request has $sha at its head (branch $DEPLOY_BRANCH)."
           fi
 

@@ -39,9 +39,46 @@ env:
   HEALTHCHECK_CMD: "healthcheck"
 
 jobs:
+  duplicate:
+    name: Check for a later run
+    # Opening a pull request with a label already on it is two events, so two runs for the
+    # same commit. They queue, because of the concurrency group above. The first run leaves
+    # the work to the one waiting behind it: every other job on a pull request needs the
+    # build, so they are all skipped with it. Otherwise the commit is built, deployed and
+    # tested twice, and its author is told twice about a failure.
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+    outputs:
+      superseded: ${{ steps.check.outputs.superseded }}
+    steps:
+      - name: Look for another run of this commit
+        id: check
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          # Only a run for this same pull request counts, and only one that has not started:
+          # two runs that could each see the other would both stand aside and nothing would
+          # be built. If the list cannot be read, carry on and build.
+          waiting=$(gh api --method GET "repos/$GH_REPO/actions/workflows/build-and-deploy.yml/runs" \
+            -f head_sha="$SHA" -f branch="$BRANCH" -f event=pull_request \
+            --jq "[.workflow_runs[] | select(.id != $RUN_ID and .head_repository.full_name == \"$HEAD_REPO\"
+                   and (.status | IN(\"completed\", \"in_progress\") | not))] | length") || waiting=0
+          if (( waiting > 0 )); then
+            echo "Another run for $SHA is waiting. Leaving the build to it."
+            echo "superseded=true" >> "$GITHUB_OUTPUT"
+          fi
+
   build:
     name: Build
-    if: ${{ github.event_name != 'workflow_dispatch' }}
+    if: ${{ github.event_name != 'workflow_dispatch' && needs.duplicate.outputs.superseded != 'true' }}
+    needs: [duplicate]
     env:
       DOCKER_REPOSITORY: ghcr.io/dfe-digital/check-performance-data
       WORKER_DOCKER_REPOSITORY: ghcr.io/dfe-digital/check-performance-data-worker

@@ -29,7 +29,8 @@ public sealed class GuidanceLinkTests(PlaywrightFixture fixture) : PageTest
         var popup = await Page.RunAndWaitForPopupAsync(() => link.ClickAsync());
         await popup.WaitForLoadStateAsync();
 
-        Assert.Equal($"{_fixture.BaseUrl}/guidance", popup.Url);
+        // Broken on purpose for #576, to see a failed whole-suite run reported. Not for merging.
+        Assert.Equal($"{_fixture.BaseUrl}/guidance-broken-on-purpose", popup.Url);
         // The original tab is untouched.
         Assert.Equal($"{_fixture.BaseUrl}/", Page.Url);
     }

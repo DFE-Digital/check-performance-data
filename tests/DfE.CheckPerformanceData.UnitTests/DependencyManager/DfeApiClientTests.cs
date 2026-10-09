@@ -8,7 +8,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 using Refit;
-using System.IdentityModel.Tokens.Jwt;
 using System.Net.Http.Headers;
 
 namespace DfE.CheckPerformanceData.UnitTests;

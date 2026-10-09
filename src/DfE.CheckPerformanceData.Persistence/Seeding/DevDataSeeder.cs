@@ -21,13 +21,18 @@ public sealed class DevDataSeeder(IPortalDbContext dbContext)
     // retired, and validated (SeedPost16MarchSamples).
     public static readonly Guid Post16MarchCheckingWindowId = Guid.Parse("5C8F1E26-7A94-4D3B-B06E-2F9D4A1C7E58");
 
+    // "Key Stage 4 Autumn" and "Key Stage 2": placeholders as the admin wizard leaves a new window,
+    // with no files and every exercise disabled.
+    public static readonly Guid KeyStage4AutumnCheckingWindowId = Guid.Parse("7D2E9A14-5C38-4B6F-A0E1-3F8B6C2D4A97");
+    public static readonly Guid KeyStage2CheckingWindowId = Guid.Parse("B4F61C83-2D7A-4E95-8C30-6A1E9F5B2D48");
+
     public async Task SeedAsync()
     {
         // Countries are seeded unconditionally on startup in every environment (see Program.cs),
         // idempotently via SeedCountries.ExecuteSeed. They are not window-specific, so they are
         // deliberately not part of the destructive dev/reset seed here.
         await SeedCheckingWindows.ExecuteSeed(dbContext, KeyStage4JuneCheckingWindowId, Post16OctoberCheckingWindowId, Post16NovemberCheckingWindowId, Post16FebruaryCheckingWindowId,
-            Post16MarchCheckingWindowId);
+            Post16MarchCheckingWindowId, KeyStage4AutumnCheckingWindowId, KeyStage2CheckingWindowId);
 
         // Pupil data is no longer stored in the database — it is seeded into blob storage
         // as per-school JSON by SeedPupilData (Web), which runs after this seeder.

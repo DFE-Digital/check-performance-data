@@ -30,13 +30,15 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
     private readonly Guid _november = Guid.NewGuid();
     private readonly Guid _february = Guid.NewGuid();
     private readonly Guid _march = Guid.NewGuid();
+    private readonly Guid _ks4Autumn = Guid.NewGuid();
+    private readonly Guid _ks2 = Guid.NewGuid();
 
     public async Task InitializeAsync()
     {
         await _postgres.StartAsync();
         await using var ctx = CreateContext();
         await ctx.Database.MigrateAsync();
-        await SeedCheckingWindows.ExecuteSeed(ctx, _openKs4, _october, _november, _february, _march);
+        await SeedCheckingWindows.ExecuteSeed(ctx, _openKs4, _october, _november, _february, _march, _ks4Autumn, _ks2);
     }
 
     public Task DisposeAsync() => _postgres.DisposeAsync().AsTask();
@@ -226,7 +228,7 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
     [Fact]
     public async Task Every_seeded_windows_outer_dates_equal_the_union_of_its_exercises()
     {
-        foreach (var windowId in new[] { _openKs4, _october, _november, _february, _march })
+        foreach (var windowId in new[] { _openKs4, _october, _november, _february, _march, _ks4Autumn, _ks2 })
         {
             var window = await LoadAsync(windowId);
 
@@ -236,6 +238,25 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
         }
     }
 
+    // The placeholders are what the admin wizard leaves: the window type's default exercise, no
+    // files, and disabled, so schools see nothing.
+    [Theory]
+    [InlineData(CheckingWindowType.KS4Autumn, KeyStages.KS4, "Pupils")]
+    [InlineData(CheckingWindowType.KS2, KeyStages.KS2, "Pupils")]
+    public async Task The_placeholder_windows_have_one_disabled_pupil_data_exercise_and_no_files(
+        CheckingWindowType type, KeyStages keyStage, string tabName)
+    {
+        var window = await LoadAsync(type == CheckingWindowType.KS2 ? _ks2 : _ks4Autumn);
+
+        Assert.Equal(type, window.CheckingWindowType);
+        Assert.Equal(keyStage, window.KeyStage);
+        var exercise = Assert.Single(window.CheckingExercises);
+        Assert.Equal(CheckingExerciseType.PupilData, exercise.ExerciseType);
+        Assert.Equal(tabName, exercise.TabName);
+        Assert.False(exercise.IsEnabled);
+        Assert.Empty(exercise.Datasets);
+    }
+
     [Fact]
     public async Task Window_seed_can_be_repeated()
     {
@@ -243,7 +264,7 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
         for (var start = 0; start < 2; start++)
         {
             await using var ctx = CreateContext();
-            await SeedCheckingWindows.ExecuteSeed(ctx, _openKs4, _october, _november, _february, _march);
+            await SeedCheckingWindows.ExecuteSeed(ctx, _openKs4, _october, _november, _february, _march, _ks4Autumn, _ks2);
         }
 
         Assert.Equal(4, (await LoadAsync(_october)).CheckingExercises.Count);

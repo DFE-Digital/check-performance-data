@@ -56,7 +56,8 @@ public sealed class CheckingWindowSeedWithEgressHistoryTests(PostgresFixture fix
         {
             await SeedCheckingWindows.ExecuteSeed(db,
                 DevDataSeeder.KeyStage4JuneCheckingWindowId, DevDataSeeder.Post16OctoberCheckingWindowId, DevDataSeeder.Post16NovemberCheckingWindowId,
-                DevDataSeeder.Post16FebruaryCheckingWindowId, DevDataSeeder.Post16MarchCheckingWindowId);
+                DevDataSeeder.Post16FebruaryCheckingWindowId, DevDataSeeder.Post16MarchCheckingWindowId,
+                DevDataSeeder.KeyStage4AutumnCheckingWindowId, DevDataSeeder.KeyStage2CheckingWindowId);
         }
 
         await using (var db = fixture.CreateContext())

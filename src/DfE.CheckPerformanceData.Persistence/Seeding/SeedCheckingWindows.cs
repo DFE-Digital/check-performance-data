@@ -237,8 +237,41 @@ public static class SeedCheckingWindows
         return window;
     }
 
+    // A window as the admin wizard leaves it: the window type's default exercises, each with its
+    // default tab name, tab order and layout, no files and disabled. Schools see nothing until an
+    // admin adds the files and enables an exercise.
+    private static CheckingWindow PlaceholderWindow(Guid id, CheckingWindowType type, string title, DateTime startDate)
+    {
+        var endDate = startDate.AddDays(13).Date.AddHours(17);
+        return new CheckingWindow
+        {
+            Id = id,
+            StartDate = startDate,
+            EndDate = endDate,
+            KeyStage = WindowKeyStage.For(type),
+            CheckingWindowType = type,
+            Title = title,
+            CheckingExercises = WindowExercises.DefaultsFor(type).Select(kind => new CheckingExercise
+            {
+                ExerciseType = kind,
+                TabName = WindowExercises.DefaultTabName(type, kind),
+                TabOrder = WindowExercises.DefaultTabOrder(kind),
+                Layout = WindowExercises.DefaultLayout(type, kind),
+                ShowLateResultsWarning = WindowExercises.ShowsLateResultsWarningByDefault(kind),
+                IsEnabled = false,
+                StartDate = startDate,
+                EndDate = endDate,
+                Datasets = WindowDatasets.DefaultsFor(type, kind).Select(d => new CheckingWindowDataset
+                {
+                    Name = d.Name, SourceFile = d.SourceFile, Included = d.Included, Required = d.Required,
+                    FeedsJourney = d.FeedsJourney, SortOrder = d.SortOrder
+                }).ToList()
+            }).ToList()
+        };
+    }
+
     public static async Task ExecuteSeed(IPortalDbContext dbContext, Guid openKs4WindowId, Guid post16OctoberWindowId, Guid post16NovemberWindowId, Guid post16FebruaryWindowId,
-        Guid post16MarchWindowId)
+        Guid post16MarchWindowId, Guid ks4AutumnWindowId, Guid ks2WindowId)
     {
         // Egress runs first: egress_runs → CheckingWindows is a RESTRICT foreign key (an egress
         // is an audit record and must never vanish because a window was deleted), so a run left
@@ -298,25 +331,6 @@ public static class SeedCheckingWindows
         // October's late results 2 has not arrived yet, so its results enquiry shows the late
         // results warning. The later windows have it, so theirs do not.
         post16OctoberWindow.CheckingExercises
-            .Single(e => e.ExerciseType == CheckingExerciseType.ResultsEnquiry)
-            .ShowLateResultsWarning = true;
-
-        // TEMPORARY: a copy of the October window that the Web seed ingests with the October files.
-        // It is the only seeded 16-19 window. It borrows the November window's id, because the
-        // November window is not seeded.
-        var post16PostIngressWindow = new CheckingWindow
-        {
-            Id = post16NovemberWindowId,
-            StartDate = octoberStart,
-            EndDate = octoberEnd,
-            KeyStage = KeyStages.Post16,
-            CheckingWindowType = CheckingWindowType.Post16,
-            Title = "16 to 19 Data",
-            TurnaroundCommitment = "updated in the Spring",
-            NextOpportunity = new DateTime(DateTime.Now.Year + 1, 10, 1),
-            CheckingExercises = ExercisesFor(CheckingWindowType.Post16, octoberStart, octoberEnd, pupilDataEnd: octoberPupilDataEnd)
-        };
-        post16PostIngressWindow.CheckingExercises
             .Single(e => e.ExerciseType == CheckingExerciseType.ResultsEnquiry)
             .ShowLateResultsWarning = true;
 
@@ -385,15 +399,17 @@ public static class SeedCheckingWindows
             // the summary share and the pupil campus share. The October step fills the first
             // previously published slot, the first summary slot and the campus slot; later steps
             // fill the others. November fills the first value added slot.
-            WithPupilCampusDataShare(WithSummaryDataShare(WithValueAddedSlots(WithPreviouslyPublishedSlots(post16PostIngressWindow))))
-            // TEMPORARY: only the ingested copy of the October window is seeded. Put these back to
-            // restore the others.
-            // WithPupilCampusDataShare(WithSummaryDataShare(WithValueAddedSlots(WithPreviouslyPublishedSlots(post16OctoberWindow)))),
-            // WithPupilCampusDataShare(WithSummaryDataShare(WithValueAddedSlots(WithPreviouslyPublishedSlots(post16NovemberWindow)))),
-            // WithPupilCampusDataShare(WithSummaryDataShare(WithValueAddedSlots(WithPreviouslyPublishedSlots(post16FebruaryWindow)))),
-            // WithAimsSlot(WithPupilCampusDataShare(WithSummaryDataShare(WithValueAddedSlots(WithPreviouslyPublishedSlots(post16MarchWindow)))))
+            WithPupilCampusDataShare(WithSummaryDataShare(WithValueAddedSlots(WithPreviouslyPublishedSlots(post16OctoberWindow)))),
+            WithPupilCampusDataShare(WithSummaryDataShare(WithValueAddedSlots(WithPreviouslyPublishedSlots(post16NovemberWindow)))),
+            WithPupilCampusDataShare(WithSummaryDataShare(WithValueAddedSlots(WithPreviouslyPublishedSlots(post16FebruaryWindow)))),
+            WithAimsSlot(WithPupilCampusDataShare(WithSummaryDataShare(WithValueAddedSlots(WithPreviouslyPublishedSlots(post16MarchWindow))))),
+            // Placeholders, opening in four and eight weeks. Nothing ingests them.
+            PlaceholderWindow(ks4AutumnWindowId, CheckingWindowType.KS4Autumn, "Key Stage 4 Autumn",
+                DateTime.Today.AddDays(28)),
+            PlaceholderWindow(ks2WindowId, CheckingWindowType.KS2, "Key Stage 2", DateTime.Today.AddDays(56))
         );
-        
+
+
         await dbContext.SaveChangesAsync();
     }
 }

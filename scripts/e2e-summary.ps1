@@ -4,8 +4,11 @@
 
 .DESCRIPTION
     Reads a .trx file and writes the result, the counts, how long the run took and the names
-    of the failed tests. The E2E workflow puts the summary on the run and in a comment on the
+    of the failed tests. The E2E workflows put the summary on the run and in a comment on the
     pull request.
+
+    When the run did not pass and -Author is given, the summary opens by mentioning that
+    person, so GitHub notifies them.
 
     A run that died before it wrote a results file is reported as such, not as a pass.
 
@@ -18,6 +21,10 @@
 param(
     [Parameter(Mandatory)][string]$ResultsFile,
     [Parameter(Mandatory)][string]$OutFile,
+    # What to call the run in the heading.
+    [string]$Name = 'E2E tests',
+    # The GitHub login of whoever opened the pull request. Mentioned when the run did not pass.
+    [string]$Author,
     # What was tested and where, for the line under the counts. All optional.
     [string]$Commit,
     [string]$AppUrl,
@@ -48,7 +55,7 @@ if (Test-Path -LiteralPath $ResultsFile) {
     # A run that found no tests has not shown anything works.
     $result = if ($failed -gt 0 -or $passed -eq 0) { 'failed' } else { 'passed' }
 
-    $lines.Add("### E2E tests $result")
+    $lines.Add("### $Name $result")
     $lines.Add('')
     $lines.Add("**$passed passed, $failed failed, $skipped skipped** in $(Format-Duration $took)")
 
@@ -58,10 +65,16 @@ if (Test-Path -LiteralPath $ResultsFile) {
         Sort-Object -Unique)
 }
 else {
-    $lines.Add('### E2E tests produced no results')
+    $lines.Add("### $Name produced no results")
     $lines.Add('')
     $lines.Add('The run stopped before it wrote a results file: it was cancelled, or it failed before or during the tests. This is not a pass.')
     $failedNames = @()
+}
+
+# A login ending in [bot] is an app, such as the one that raises dependency updates.
+if ($result -ne 'passed' -and $Author -and $Author -notmatch '\[bot\]$') {
+    $lines.Insert(2, '')
+    $lines.Insert(2, "@$Author this is your pull request: please look at what failed and fix it, or say here why it is not the change.")
 }
 
 $about = @()

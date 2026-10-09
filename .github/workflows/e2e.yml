@@ -5,7 +5,9 @@ name: E2E Tests
 #
 # A run started by workflow_run belongs to the default branch, not to the pull request's
 # commit, so it is not one of the pull request's checks: nothing waits for it and it cannot
-# stop a merge. The result goes in a comment on the pull request.
+# stop a merge. The result goes in a comment on the pull request. When the run does not pass,
+# the comment is a new one that mentions whoever opened the pull request, so that GitHub
+# notifies them, by email unless they have turned that off.
 #
 # GitHub reads a workflow_run workflow from the default branch, so a change to this file does
 # nothing until it is merged. Try a change with "Run workflow" and a pull request number.
@@ -68,7 +70,8 @@ jobs:
           if [[ -n "$PR_INPUT" ]]; then
             [[ "$PR_INPUT" =~ ^[0-9]+$ ]] || { echo "::error::'$PR_INPUT' is not a pull request number"; exit 1; }
             pr="$PR_INPUT"
-            read -r sha head_repo < <(gh api "repos/$GH_REPO/pulls/$pr" --jq '"\(.head.sha) \(.head.repo.full_name)"')
+            read -r sha head_repo author < <(gh api "repos/$GH_REPO/pulls/$pr" \
+              --jq '"\(.head.sha) \(.head.repo.full_name) \(.user.login)"')
             [[ -n "$sha" ]] || { echo "::error::Pull request $pr was not found"; exit 1; }
             [[ "$head_repo" == "$GH_REPO" ]] || { echo "::error::Pull request $pr is from a fork"; exit 1; }
           else
@@ -78,8 +81,8 @@ jobs:
               --jq '.jobs[] | select(.name == "Deployment To Review") | .conclusion')
             [[ "$deployed" == "success" ]] || stop "That run did not deploy a review app."
             sha="$DEPLOY_SHA"
-            pr=$(gh api "repos/$GH_REPO/commits/$sha/pulls" \
-              --jq "[.[] | select(.state == \"open\" and .head.sha == \"$sha\")][0].number // empty")
+            read -r pr author < <(gh api "repos/$GH_REPO/commits/$sha/pulls" \
+              --jq "[.[] | select(.state == \"open\" and .head.sha == \"$sha\")][0] | select(.) | \"\(.number) \(.user.login)\"")
             [[ -n "$pr" ]] || stop "No open pull request has $sha at its head (branch $DEPLOY_BRANCH)."
           fi
 
@@ -98,6 +101,7 @@ jobs:
             echo "pr=$pr"
             echo "sha=$sha"
             echo "url=$url"
+            echo "author=$author"
           } >> "$GITHUB_OUTPUT"
 
       - name: Say on the pull request that the tests are running
@@ -165,9 +169,11 @@ jobs:
         env:
           SHA: ${{ steps.target.outputs.sha }}
           APP_URL: ${{ steps.target.outputs.url }}
+          # Nobody is told to fix a run that someone cancelled.
+          AUTHOR: ${{ job.status != 'cancelled' && steps.target.outputs.author || '' }}
         run: |
           pwsh scripts/e2e-summary.ps1 -ResultsFile TestResults/e2e.trx -OutFile summary.md \
-            -Commit "$SHA" -AppUrl "$APP_URL" -RunUrl "$RUN_URL"
+            -Commit "$SHA" -AppUrl "$APP_URL" -RunUrl "$RUN_URL" -Author "$AUTHOR"
           cat summary.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Put the results on the pull request
@@ -176,15 +182,21 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           PR: ${{ steps.target.outputs.pr }}
+          RESULT: ${{ steps.summary.outputs.result }}
+          JOB_STATUS: ${{ job.status }}
         run: |
           # No summary means the run stopped before the code was checked out.
           [[ -f summary.md ]] || printf '### E2E tests produced no results\n\nThe run stopped before the tests started ([run](%s)). This is not a pass.\n' "$RUN_URL" > summary.md
           { echo "$COMMENT_MARKER"; cat summary.md; } > comment.md
           id=$(gh api "repos/$GH_REPO/issues/$PR/comments" --paginate \
             --jq ".[] | select(.body | contains(\"$COMMENT_MARKER\")) | .id" | tail -n 1)
-          if [[ -n "$id" ]]; then
+          # GitHub notifies people of a new comment, not of an edit to an old one. A pass
+          # edits the comment in place. Anything else replaces it with a new one, so the
+          # person it mentions is told. A cancelled run is nobody's to fix: edit in place.
+          if [[ ("$RESULT" == "passed" || "$JOB_STATUS" == "cancelled") && -n "$id" ]]; then
             gh api --method PATCH "repos/$GH_REPO/issues/comments/$id" -F body=@comment.md --silent
           else
+            [[ -z "$id" ]] || gh api --method DELETE "repos/$GH_REPO/issues/comments/$id" --silent
             gh api --method POST "repos/$GH_REPO/issues/$PR/comments" -F body=@comment.md --silent
           fi
 

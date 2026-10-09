@@ -75,8 +75,12 @@ A pull request with the `deploy` label gets a review app, and two E2E runs again
 
 The whole-suite run is not one of the pull request's checks. Nothing waits for it and it
 cannot stop a merge; it puts one comment on the pull request, "E2E tests running", and
-replaces it with the counts and the names of any failed tests. Read the comment: if it
-says failed, reply on the pull request with whether it was the change or the environment.
+replaces it with the counts and the names of any failed tests.
+
+When either run fails, its comment mentions whoever opened the pull request, and GitHub
+notifies them: by email, unless they have turned email off in their GitHub notification
+settings. A pass sends nothing. If you are told a run failed, fix it, or reply on the pull
+request to say why it was not the change.
 
 A run is never cancelled because a newer one started. Cancel one by hand from the Actions
 tab if it is no longer wanted. To run the suite again, or to try a change to `e2e.yml`

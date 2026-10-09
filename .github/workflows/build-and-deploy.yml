@@ -92,6 +92,9 @@ jobs:
     # afterwards in its own workflow, e2e.yml, which is not one of the pull request's checks
     # and reports in a comment on the pull request.
     #
+    # When the smoke set fails, a comment on the pull request names the failed tests and
+    # mentions whoever opened it, so that GitHub notifies them.
+    #
     # Only runs against the per-PR review app. The main-branch `deploy` job uses a strategy
     # matrix [development, qa, preproduction, production] with max-parallel: 1 and exposes
     # environment_url as a job-level output; that output is overwritten by each matrix entry
@@ -102,6 +105,9 @@ jobs:
     needs: [deploy-review-app]
     if: needs.deploy-review-app.result == 'success'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     env:
       CPD_E2E_BASE_URL: ${{ needs.deploy-review-app.outputs.environment_url }}
       # Failure-gated Playwright traces (SeedingPageTest writes one zip per failing
@@ -130,7 +136,38 @@ jobs:
         run: pwsh tests/DfE.CheckPerformanceData.E2ETests/bin/Release/net10.0/playwright.ps1 install --with-deps chromium
 
       - name: Run E2E smoke tests
-        run: dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --configuration Release --no-build --filter "Category=Smoke"
+        run: >-
+          dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --configuration Release --no-build
+          --filter "Category=Smoke"
+          --logger "trx;LogFileName=e2e-smoke.trx" --results-directory TestResults
+
+      # A failure gets a new comment that mentions the author, because GitHub notifies people
+      # of a new comment and not of an edit. A pass only tidies up: it edits the comment an
+      # earlier failure left, and says nothing if there is none.
+      - name: Tell the author when the smoke tests fail
+        if: success() || failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          COMMENT_MARKER: "<!-- e2e-smoke-tests-result -->"
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          pwsh scripts/e2e-summary.ps1 -ResultsFile TestResults/e2e-smoke.trx -OutFile summary.md \
+            -Name "E2E smoke tests" -Commit "$SHA" -AppUrl "$CPD_E2E_BASE_URL" -RunUrl "$RUN_URL" -Author "$AUTHOR"
+          cat summary.md >> "$GITHUB_STEP_SUMMARY"
+          { echo "$COMMENT_MARKER"; cat summary.md; } > comment.md
+          id=$(gh api "repos/$GH_REPO/issues/$PR/comments" --paginate \
+            --jq ".[] | select(.body | contains(\"$COMMENT_MARKER\")) | .id" | tail -n 1)
+          if [[ "$JOB_STATUS" == "success" ]]; then
+            [[ -z "$id" ]] || gh api --method PATCH "repos/$GH_REPO/issues/comments/$id" -F body=@comment.md --silent
+          else
+            [[ -z "$id" ]] || gh api --method DELETE "repos/$GH_REPO/issues/comments/$id" --silent
+            gh api --method POST "repos/$GH_REPO/issues/$PR/comments" -F body=@comment.md --silent
+          fi
 
       # Surface the snapshot tree on failure so the "delete .png + push twice"
       # update workflow can retrieve the regenerated PNG. Snapshots live under the

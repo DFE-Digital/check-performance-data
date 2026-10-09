@@ -1,0 +1,12 @@
+# Decisions log: Check Performance Data
+
+Append-only. Rows are never edited or deleted. A changed decision gets a new row that says "Supersedes D-<n>" (or "Supersedes <folder>/D-<n>" for another folder).
+
+| ID | Date | Stage | Question | Answer | Reasoning | Status |
+|---|---|---|---|---|---|---|
+| D-1 | 2026-10-09 | project | What platform and project purpose does the existing application establish? | Draft baseline: establishment performance-data checking and amendment requests, with authorised administration; retain the existing C# / ASP.NET Core .NET 10 application and Terraform / AKS deployment platform. | README.md, existing admin documentation and repository structure provide the baseline; user review is pending. | Assumed |
+| D-2 | 2026-10-09 | project | What new increment has the user requested? | Prepare intent, spec and plan for a new admin establishment impersonation feature. Candidate folder: 001-feature-admin-establishment-impersonation. | The user explicitly requested planning for a new admin impersonation feature. Folder naming remains proposed. | Agreed |
+| D-3 | 2026-10-09 | project | What access and behaviour must the candidate impersonation feature provide? | View establishment data with read-only access; block anything that submits changes. | The user explicitly chose read-only access and required submissions of changes to be blocked. These requirements will be carried into the increment's intent and spec. | Agreed |
+| D-4 | 2026-10-09 | project | Who can access the candidate feature, and where do they enter it? | Require both the admin role and the impersonation role; provide an option in the existing admin section. | The user explicitly required both roles and the existing admin entry point. Exact role identifiers are a later spec decision. | Agreed |
+| D-5 | 2026-10-09 | project | How does an admin select and recognise the establishment being viewed? | Initially enter both LAESTAB and URN. While viewing as that establishment, show a prominent red banner at the top containing its LAESTAB and URN. | The user explicitly supplied the selection inputs and visible mode indicator. Validation of the identifier pair remains to be settled in the feature spec. | Agreed |
+| D-6 | 2026-10-09 | project | Does the draft baseline accurately describe the existing project? | Supersedes D-1: confirmed. The user approved the baseline as presented. | The user answered yes when asked to confirm the baseline and its description of establishment and administrator responsibilities. | Agreed |

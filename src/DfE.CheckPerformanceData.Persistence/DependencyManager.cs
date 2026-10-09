@@ -1,6 +1,7 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.ContentBlocks;
 using DfE.CheckPerformanceData.Application.Countries;
+using DfE.CheckPerformanceData.Application.HomeBanners;
 using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.WindowManagement;
@@ -47,6 +48,7 @@ public static class DependencyManager
         services.AddScoped<IPortalDbContext>(sp => sp.GetRequiredService<PortalDbContext>());
         services.AddScoped<Application.Settings.ISettingRepository, Repositories.SettingRepository>();
         services.AddScoped<IContentBlockRepository, ContentBlockRepository>();
+        services.AddScoped<IHomeBannerRepository, HomeBannerRepository>();
         services.AddScoped<Application.ContentStaging.IContentStagingLock,
                            ContentStaging.PostgresContentStagingLock>();
         // AB#302158: only one web pod at a time runs the automatic exercise hand-over.

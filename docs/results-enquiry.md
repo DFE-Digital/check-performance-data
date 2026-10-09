@@ -620,7 +620,7 @@ and retires included revised. It holds the included revised rows and changes one
 file did (Charlie Smith's GCSE Mathematics, 3 → 4). Step-by-step for February and March:
 `docs/testing-revised-results.md`.
 
-`SeededCheckingExerciseTests` runs each seed and checks its slots, retirements, releases and results.
+The seeds are development data and have no automated tests.
 
 No 16-19 E2E journey tests remain. Only the what-to-change option tests use a 16-19 window.
 

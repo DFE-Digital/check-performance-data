@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using Azure.Storage.Blobs;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
@@ -18,6 +19,7 @@ namespace DfE.CheckPerformanceData.Web.Seeding;
 /// field reference, one row per included student. The values are made up but stable. Every school
 /// has two campuses, and every fourth student is at the second.
 /// </remarks>
+[ExcludeFromCodeCoverage(Justification = "Development seed data, not product code.")]
 public static class SeedPost16PupilCampus
 {
     public const string File = "students/campus.csv";

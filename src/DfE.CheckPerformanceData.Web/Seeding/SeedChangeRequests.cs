@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
@@ -15,6 +16,7 @@ namespace DfE.CheckPerformanceData.Web.Seeding;
 // flow (ticking multiple ReadyToSubmit drafts, editing an InProgress draft, hitting the
 // already-submitted/duplicate-pupil warnings). Runs after SeedPupilData, which is where the
 // pupils referenced here come from.
+[ExcludeFromCodeCoverage(Justification = "Development seed data, not product code.")]
 public static class SeedChangeRequests
 {
     private const string Laestab = "860/4070"; // Kingsmead School

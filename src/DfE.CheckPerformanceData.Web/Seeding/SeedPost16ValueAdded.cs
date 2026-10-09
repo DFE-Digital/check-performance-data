@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using Azure.Storage.Blobs;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
@@ -30,6 +31,7 @@ namespace DfE.CheckPerformanceData.Web.Seeding;
 /// added score, of some rows.
 /// </para>
 /// </remarks>
+[ExcludeFromCodeCoverage(Justification = "Development seed data, not product code.")]
 public static class SeedPost16ValueAdded
 {
     /// <summary>One step's value added file: its slot, sample file, schema and revision (0 for November).</summary>

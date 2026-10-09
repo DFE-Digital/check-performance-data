@@ -1,7 +1,9 @@
+using System.Diagnostics.CodeAnalysis;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 
 namespace DfE.CheckPerformanceData.Persistence.Seeding;
 
+[ExcludeFromCodeCoverage(Justification = "Development seed data, not product code.")]
 public sealed class DevDataSeeder(IPortalDbContext dbContext)
 {
     public static readonly Guid KeyStage4JuneCheckingWindowId = Guid.Parse("F34D285B-8660-4D12-9C30-787328DEAA0A");

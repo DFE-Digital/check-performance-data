@@ -213,12 +213,4 @@ Do this on the March window, or on the February window after Test 8.
 
 ## Automated cover
 
-- `SeededCheckingExerciseTests.The_February_window_has_the_revised_files_validated_and_the_four_they_replace_retired`
-  runs the February seed and checks the retired slots, the three releases and that the live release
-  holds only the revised rows.
-- `SeededCheckingExerciseTests.The_March_window_has_included_revised_with_retention_validated_and_included_revised_retired`
-  runs the March seed and checks the retired slots, the four releases and the changed grade.
-- `SeedPost16FebruarySamplesTests` pins the revised samples: their columns, their schemas, one row
-  per earlier result, the amended grades, and that each student is in the file for their inclusion.
-- `SeedPost16MarchSamplesTests` pins the retention sample: its columns, its schema, one row per
-  included revised result and the one changed grade.
+The seed is development data, so it has no automated tests. Use the manual steps above.

@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using Azure.Storage.Blobs;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
@@ -35,6 +36,7 @@ namespace DfE.CheckPerformanceData.Web.Seeding;
 /// which replaces pupil data's February value added file (<see cref="SeedPost16ValueAdded"/>).</item>
 /// </list>
 /// </remarks>
+[ExcludeFromCodeCoverage(Justification = "Development seed data, not product code.")]
 public static class SeedPost16MarchSamples
 {
     public const string Container = "16-to-19-mar";

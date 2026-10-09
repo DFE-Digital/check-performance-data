@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
@@ -42,6 +43,7 @@ namespace DfE.CheckPerformanceData.Web.Seeding;
 /// is no late results 2 file: it arrives in November (<see cref="SeedPost16NovemberSamples"/>).
 /// </para>
 /// </remarks>
+[ExcludeFromCodeCoverage(Justification = "Development seed data, not product code.")]
 public static class SeedPost16OctoberSamples
 {
     public const string Container = "16-to-19-oct";

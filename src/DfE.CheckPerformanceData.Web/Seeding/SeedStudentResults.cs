@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 
 namespace DfE.CheckPerformanceData.Web.Seeding;
@@ -20,6 +21,7 @@ namespace DfE.CheckPerformanceData.Web.Seeding;
 /// November file is <see cref="LateResults2"/>, kept apart for the same reason, and so are the
 /// February and March files.
 /// </summary>
+[ExcludeFromCodeCoverage(Justification = "Development seed data, not product code.")]
 public static class SeedStudentResults
 {
     // Kingsmead School — the Post16 school the change-request seed also uses.

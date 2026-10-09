@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Azure.Storage.Blobs;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
@@ -18,6 +19,7 @@ namespace DfE.CheckPerformanceData.Web.Seeding;
 // blobs, question-flow config blobs, seeded change requests (Kingsmead), then the
 // rules-config blobs. The question-flow and change-request uploads tolerate an Azurite
 // API-version mismatch in Development only, exactly as before.
+[ExcludeFromCodeCoverage(Justification = "Development seed data, not product code.")]
 public sealed class DevDataSeedingOrchestrator(
     DevDataSeeder devDataSeeder,
     IServiceScopeFactory scopeFactory,

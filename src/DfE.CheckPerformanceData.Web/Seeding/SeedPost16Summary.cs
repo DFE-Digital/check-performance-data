@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text.Json;
 using Azure.Storage.Blobs;
@@ -30,6 +31,7 @@ namespace DfE.CheckPerformanceData.Web.Seeding;
 /// October to November, and from February to March. The revised files change it.
 /// </para>
 /// </remarks>
+[ExcludeFromCodeCoverage(Justification = "Development seed data, not product code.")]
 public static class SeedPost16Summary
 {
     /// <summary>One step's summary file: its slot, sample file, schema, and whether the values are revised.</summary>

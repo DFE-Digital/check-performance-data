@@ -137,11 +137,4 @@ Do this on the November window, or on the October window after Test 3.
 
 ## Automated cover
 
-- `SeededCheckingExerciseTests.The_October_window_has_the_October_files_validated` runs the October
-  seed and checks its release, its results and that the late results guidance shows (the October
-  results enquiry is seeded with the box ticked).
-- `SeededCheckingExerciseTests.The_November_window_has_late_results_2_validated_after_the_October_files`
-  runs the November seed and checks the two releases, the results and that the guidance does not show
-  (the November results enquiry is seeded with the box clear).
-- `SeedPost16NovemberSamplesTests` pins the LR2 sample: its columns, its Amendment/New marks, its
-  students, and that its schema is a separate dataset from late results 1.
+The seed is development data, so it has no automated tests. Use the manual steps above.

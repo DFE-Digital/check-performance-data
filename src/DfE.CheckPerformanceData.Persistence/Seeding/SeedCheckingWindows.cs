@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Application.WindowManagement;
@@ -8,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DfE.CheckPerformanceData.Persistence.Seeding;
 
+[ExcludeFromCodeCoverage(Justification = "Development seed data, not product code.")]
 public static class SeedCheckingWindows
 {
     // A KS4-style window ingests one supplier file; a Post16 window ingests two (included +
@@ -282,8 +284,11 @@ public static class SeedCheckingWindows
         await dbContext.ChangeRequests.ExecuteDeleteAsync();
         await dbContext.CheckingWindows.ExecuteDeleteAsync();
 
-        var openKs4Start = DateTime.Today;
-        var openKs4End = DateTime.Now.AddDays(+13).Date.AddHours(17);
+        // Every window opens today, so a developer can test any of them without changing dates.
+        var today = DateTime.Today;
+
+        var openKs4Start = today;
+        var openKs4End = today.AddDays(13).AddHours(17);
 
         var openKs4JuneWindow = new CheckingWindow
         {
@@ -311,21 +316,21 @@ public static class SeedCheckingWindows
         // the year — but no data here: the Web seed imports and validates the October files
         // (students, previously published, included, non-included and late results 1) with
         // SeedPost16OctoberSamples. The outer dates are the union of the exercises.
-        var octoberStart = DateTime.Today;
-        var octoberPupilDataEnd = octoberStart.AddDays(11).AddHours(17);
-        var octoberEnd = new DateTime(octoberStart.Month > 3 ? octoberStart.Year + 1 : octoberStart.Year, 3, 31, 17, 0, 0);
+        var post16Start = today;
+        var post16PupilDataEnd = post16Start.AddDays(11).AddHours(17);
+        var post16End = new DateTime(post16Start.Month > 3 ? post16Start.Year + 1 : post16Start.Year, 3, 31, 17, 0, 0);
 
         var post16OctoberWindow = new CheckingWindow
         {
             Id = post16OctoberWindowId,
-            StartDate = octoberStart,
-            EndDate = octoberEnd,
+            StartDate = post16Start,
+            EndDate = post16End,
             KeyStage = KeyStages.Post16,
             CheckingWindowType = CheckingWindowType.Post16,
             Title = "16 to 19 Oct",
             TurnaroundCommitment = "updated in the Spring",
-            NextOpportunity = new DateTime(DateTime.Now.Year + 1, 10, 1),
-            CheckingExercises = ExercisesFor(CheckingWindowType.Post16, octoberStart, octoberEnd, pupilDataEnd: octoberPupilDataEnd)
+            NextOpportunity = new DateTime(today.Year + 1, 10, 1),
+            CheckingExercises = ExercisesFor(CheckingWindowType.Post16, post16Start, post16End, pupilDataEnd: post16PupilDataEnd)
         };
 
         // October's late results 2 has not arrived yet, so its results enquiry shows the late
@@ -334,29 +339,20 @@ public static class SeedCheckingWindows
             .Single(e => e.ExerciseType == CheckingExerciseType.ResultsEnquiry)
             .ShowLateResultsWarning = true;
 
-        // The later 16-19 windows are past pupil data checking. They opened three weeks ago, pupil
-        // data checking shut ten days ago, and the results enquiry runs to the end of March. The
-        // Students tab still shows its data: the exercise is enabled with no VisibleUntil, so it
-        // stays live, but its dates have passed, so a school cannot request a change or confirm.
-        // This is how an admin keeps pupil data on view after checking shuts: set the exercise's
-        // end date, and do not hide the exercise.
-        var laterStart = octoberStart.AddDays(-21);
-        var laterPupilDataEnd = laterStart.AddDays(11).AddHours(17);
-
-        // "16 to 19 Nov": the same exercises and slots as October, with pupil data checking shut.
+        // "16 to 19 Nov": the same exercises, slots and dates as October.
         // The Web seed does the October import, then adds and validates late results 2
         // (SeedPost16NovemberSamples).
         var post16NovemberWindow = new CheckingWindow
         {
             Id = post16NovemberWindowId,
-            StartDate = laterStart,
-            EndDate = octoberEnd,
+            StartDate = post16Start,
+            EndDate = post16End,
             KeyStage = KeyStages.Post16,
             CheckingWindowType = CheckingWindowType.Post16,
             Title = "16 to 19 Nov",
             TurnaroundCommitment = "updated in the Spring",
-            NextOpportunity = new DateTime(DateTime.Now.Year + 1, 10, 1),
-            CheckingExercises = ExercisesFor(CheckingWindowType.Post16, laterStart, octoberEnd, pupilDataEnd: laterPupilDataEnd)
+            NextOpportunity = new DateTime(today.Year + 1, 10, 1),
+            CheckingExercises = ExercisesFor(CheckingWindowType.Post16, post16Start, post16End, pupilDataEnd: post16PupilDataEnd)
         };
 
         // "16 to 19 Feb": the same exercises, slots and dates as November. The Web seed does the
@@ -367,14 +363,14 @@ public static class SeedCheckingWindows
         var post16FebruaryWindow = new CheckingWindow
         {
             Id = post16FebruaryWindowId,
-            StartDate = laterStart,
-            EndDate = octoberEnd,
+            StartDate = post16Start,
+            EndDate = post16End,
             KeyStage = KeyStages.Post16,
             CheckingWindowType = CheckingWindowType.Post16,
             Title = "16 to 19 Feb",
             TurnaroundCommitment = "updated in the Spring",
-            NextOpportunity = new DateTime(DateTime.Now.Year + 1, 10, 1),
-            CheckingExercises = ExercisesFor(CheckingWindowType.Post16, laterStart, octoberEnd, pupilDataEnd: laterPupilDataEnd)
+            NextOpportunity = new DateTime(today.Year + 1, 10, 1),
+            CheckingExercises = ExercisesFor(CheckingWindowType.Post16, post16Start, post16End, pupilDataEnd: post16PupilDataEnd)
         };
 
         // "16 to 19 Mar": the same again, plus pupil data's aims slot. The Web seed does the
@@ -383,14 +379,14 @@ public static class SeedCheckingWindows
         var post16MarchWindow = new CheckingWindow
         {
             Id = post16MarchWindowId,
-            StartDate = laterStart,
-            EndDate = octoberEnd,
+            StartDate = post16Start,
+            EndDate = post16End,
             KeyStage = KeyStages.Post16,
             CheckingWindowType = CheckingWindowType.Post16,
             Title = "16 to 19 Mar",
             TurnaroundCommitment = "updated in the Spring",
-            NextOpportunity = new DateTime(DateTime.Now.Year + 1, 10, 1),
-            CheckingExercises = ExercisesFor(CheckingWindowType.Post16, laterStart, octoberEnd, pupilDataEnd: laterPupilDataEnd)
+            NextOpportunity = new DateTime(today.Year + 1, 10, 1),
+            CheckingExercises = ExercisesFor(CheckingWindowType.Post16, post16Start, post16End, pupilDataEnd: post16PupilDataEnd)
         };
 
         await dbContext.CheckingWindows.AddRangeAsync(
@@ -403,10 +399,10 @@ public static class SeedCheckingWindows
             WithPupilCampusDataShare(WithSummaryDataShare(WithValueAddedSlots(WithPreviouslyPublishedSlots(post16NovemberWindow)))),
             WithPupilCampusDataShare(WithSummaryDataShare(WithValueAddedSlots(WithPreviouslyPublishedSlots(post16FebruaryWindow)))),
             WithAimsSlot(WithPupilCampusDataShare(WithSummaryDataShare(WithValueAddedSlots(WithPreviouslyPublishedSlots(post16MarchWindow))))),
-            // Placeholders, opening in four and eight weeks. Nothing ingests them.
-            PlaceholderWindow(ks4AutumnWindowId, CheckingWindowType.KS4Autumn, "Key Stage 4 Autumn",
-                DateTime.Today.AddDays(28)),
-            PlaceholderWindow(ks2WindowId, CheckingWindowType.KS2, "Key Stage 2", DateTime.Today.AddDays(56))
+            // Placeholders. Nothing ingests them, and schools see nothing until an admin enables an
+            // exercise.
+            PlaceholderWindow(ks4AutumnWindowId, CheckingWindowType.KS4Autumn, "Key Stage 4 Autumn", today),
+            PlaceholderWindow(ks2WindowId, CheckingWindowType.KS2, "Key Stage 2", today)
         );
 
 

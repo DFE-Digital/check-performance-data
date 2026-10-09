@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
@@ -29,6 +30,7 @@ namespace DfE.CheckPerformanceData.Web.Seeding;
 /// name (Alice Smith, the Kingsmead duplicate pair) are unchanged. The 16-19 window is not a
 /// fixture: it is left for an admin to import (<see cref="SeedPost16OctoberSamples"/>).
 /// </remarks>
+[ExcludeFromCodeCoverage(Justification = "Development seed data, not product code.")]
 public static class SeedExerciseFixtures
 {
     private static readonly Guid[] Ks4WindowIds = [DevDataSeeder.KeyStage4JuneCheckingWindowId];

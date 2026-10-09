@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Persistence.Seeding;
 
@@ -6,6 +7,7 @@ namespace DfE.CheckPerformanceData.Web.Seeding;
 // Dev-only: generates the pupils of the fixture windows. SeedExerciseFixtures writes them as
 // supplier-shaped CSVs and runs them through ingress, so each window gets a schema and a release
 // exactly as an admin upload would.
+[ExcludeFromCodeCoverage(Justification = "Development seed data, not product code.")]
 public static class SeedPupilData
 {
     private sealed record School(string Urn, string Laestab, bool AddIncluded, bool AddNonIncluded);

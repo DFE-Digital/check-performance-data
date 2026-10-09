@@ -261,4 +261,3 @@ the release at the time of the save. It does not name the release at the start o
 | `ExerciseReleaseControllerTests`, `ValidateWindowControllerTests` | Confirm and make live; the kind route on a new row goes through the ingress |
 | `ChangeRequestReleaseStampTests` | A request records the live release |
 | `CheckingExerciseReleaseTests` (integration, Postgres + Azurite) | A full replacement goes live at once through the real results reader and cache; the first release's output and files are kept; make live again with no re-run; a failed run changes nothing; an admin-added slot gets its own file and never reaches the journey's file |
-| `SeededCheckingExerciseTests` | The dev seed's ingress runs publish releases |

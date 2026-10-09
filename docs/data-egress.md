@@ -273,7 +273,7 @@ Two rules keep a dev or review environment recoverable after a failed run:
   throw before the host listened. On a review app that looked like a stalled rollout: the new pod
   never became Ready, the old one kept serving, terraform reported "old replicas are pending
   termination" and a re-run reported "No changes". PR #441's review app served a two-day-old image
-  that way; `CheckingWindowSeedWithEgressHistoryTests` pins the fix.
+  that way.
 
 ## 10. Known gaps and follow-ups
 

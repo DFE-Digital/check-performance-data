@@ -16,7 +16,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Journey;
 //
 // The date-validation behaviour is what these tests pin; each scenario drives a removal journey
 // to its date page, submits, and asserts either the error summary or advancement.
-[Trait("Category", "Smoke")]
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class Ks4JourneyTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
@@ -98,6 +98,7 @@ public sealed class Ks4JourneyTests(PlaywrightFixture fixture) : SeedingPageTest
 
     [RetryTheory]
     [MemberData(nameof(RemovalJourneyCases))]
+    [Trait("Category", "Smoke")]
     public async Task RemoveFlow_PastDate_AdvancesToSummary(JourneyCase journey)
     {
         await SeedHelpers.CleanupDevRequestsAsync(Fixture.SeedClient);

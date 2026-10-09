@@ -88,6 +88,7 @@ public sealed class DataEgressTests(PlaywrightFixture fixture) : SeedingPageTest
     }
 
     [Fact]
+    [Trait("Category", "Smoke")]
     public async Task The_whole_journey_over_plain_http_pull_preprocess_summary_transfer_complete_then_refused()
     {
         try

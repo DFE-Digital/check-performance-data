@@ -81,6 +81,7 @@ public sealed class WindowExerciseWizardTests(PlaywrightFixture fixture) : Seedi
     }
 
     [SkippableFact]
+    [Trait("Category", "Smoke")]
     public async Task A_single_exercise_window_asks_for_one_set_of_dates()
     {
         Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux),

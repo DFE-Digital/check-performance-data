@@ -4,7 +4,7 @@ using Microsoft.Playwright.Xunit;
 
 namespace DfE.CheckPerformanceData.E2ETests.Web;
 
-[Trait("Category", "FullRegression")]
+[Trait("Category", "Smoke")]
 [Collection("E2E")]
 public sealed class NotFoundTests(PlaywrightFixture fixture) : PageTest
 {

@@ -59,28 +59,62 @@ The thrown `XunitException` message ends with the absolute path to the `Snapshot
 
 | Trait | Filter | Use |
 |-------|--------|-----|
-| `Smoke` | `--filter "Category=Smoke"` | Fast happy-path subset (core journeys, admin/, search, public pages). The PR E2E CI gate runs this by default; apply the `full-regression` PR label to widen it. |
-| `FullRegression` | `--filter "Category=FullRegression"` | Everything not in the smoke subset (and not visual regression). The full suite = `Category=FullRegression` + `Category=Smoke`; the `full-regression` label runs `Category!=VisualRegression`, which covers both. |
+| `Smoke` | `--filter "Category=Smoke"` | A few minutes to show that a deployed app is up and that each area and each journey still works. Runs as a check on every pull request that has a review app. See "What belongs in the smoke set" below. |
+| `FullRegression` | `--filter "Category=FullRegression"` | Marks a class whose tests are not all smoke tests. Not used to choose what CI runs: the whole suite is `Category!=VisualRegression`, which also takes in tests with no category. |
 | `VisualRegression` | `--filter "Category=VisualRegression"` | Snapshot-diff tests only — Linux-only, and off unless `CPD_E2E_VISUAL_REGRESSION` is set. |
 | `Slow` | `--filter "Category!=Slow"` | Tests that wait on real timeouts or polling; exclude them for a quicker sweep. |
 
-Test classes carry `Smoke` or `FullRegression` (mutually exclusive) so a PR's E2E
-gate can be either a ~3-minute happy-path smoke run or the full ~15-minute
-regression suite without changing what gets discovered. The `build-and-deploy.yml`
-E2E gate runs `Category=Smoke` by default and `Category!=VisualRegression` once the
-`full-regression` PR label is applied; removing the label returns it to smoke.
+### What CI runs
+
+A pull request with the `deploy` label gets a review app, and two E2E runs against it:
+
+| Run | Where | Filter | Takes | Result |
+|-----|-------|--------|-------|--------|
+| Smoke | `E2E smoke tests` job in `build-and-deploy.yml` | `Category=Smoke` | A few minutes | One of the pull request's checks |
+| Whole suite | `e2e.yml`, started when `build-and-deploy.yml` finishes | `Category!=VisualRegression` | About 15 minutes | A comment on the pull request |
+
+The whole-suite run is not one of the pull request's checks. Nothing waits for it and it
+cannot stop a merge; it puts one comment on the pull request, "E2E tests running", and
+replaces it with the counts and the names of any failed tests.
+
+When either run fails, its comment mentions whoever opened the pull request, and GitHub
+notifies them: by email, unless they have turned email off in their GitHub notification
+settings. A pass sends nothing. If you are told a run failed, fix it, or reply on the pull
+request to say why it was not the change.
+
+A run is never cancelled because a newer one started. Cancel one by hand from the Actions
+tab if it is no longer wanted. To run the suite again, or to try a change to `e2e.yml`
+(which GitHub reads from `main`, so a change does nothing until merged), use
+**Actions > E2E Tests > Run workflow** and give the pull request number.
+
+### What belongs in the smoke set
+
+The smoke set answers one question quickly: is this deployment working? It is wide and
+shallow.
+
+- One test for each area of the service that shows the area is reachable and renders:
+  each admin section, the content pages, search, the public pages.
+- The happy path of each journey a school can take, end to end.
+- Anything that depends on the hosting rather than the code: static assets, sign-in,
+  file uploads through the ingress.
+
+Left out: validation messages, edge cases, variants of a path already covered, and
+anything slow. Those run in the whole suite.
+
+Put `[Trait("Category", "Smoke")]` on the test method, or on the class when every test in
+it qualifies. When you add an area or a journey, add its happy path to the smoke set.
 
 Tests are otherwise grouped by folder rather than by trait — `Wiki/`, `Web/`,
 `Admin/`, `Visual/` — so scope a local run with `--filter "FullyQualifiedName~Admin"`
 rather than reaching for a category.
 
-Quick smoke sweep (what the PR gate runs):
+The smoke set (the pull request check):
 
 ```bash
 dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --configuration Release --filter "Category=Smoke"
 ```
 
-Full non-visual regression (what the `full-regression` label runs):
+The whole suite (the run that comments on the pull request):
 
 ```bash
 dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --configuration Release --filter "Category!=VisualRegression"
@@ -148,7 +182,11 @@ No env var, no `--update-snapshots` flag plumbing — delete the file and run tw
 
 ## Debugging a red CI run
 
-On failure the `e2e:` job uploads two artifacts (both 14-day retention):
+The smoke run is the `E2E smoke tests` job on the pull request. The whole-suite run is
+linked from its comment on the pull request, and is listed under **Actions > E2E Tests**.
+The whole-suite run always uploads `e2e-results`, the `.trx` results file.
+
+On failure either run uploads two artifacts (both 14-day retention):
 - `e2e-snapshots` — the entire `Snapshots/` tree; for visual-regression failures this lets you inspect the divergent PNG directly.
 - `e2e-traces` — a Playwright trace for each failing test, captured by the harness only when the test failed (a green run writes nothing).
 
@@ -210,7 +248,7 @@ tests/DfE.CheckPerformanceData.E2ETests/
 
 1. Pick the appropriate folder (`Wiki/` for browser-driven wiki tests, `Web/` for HTTP and chrome/layout browser tests, `Visual/` for snapshots).
 2. Inherit `PageTest` for browser tests; omit inheritance for HTTP-only tests.
-3. Add `[Collection("E2E")]`. Only add a `[Trait("Category", ...)]` if the test needs one of the traits in the table above.
+3. Add `[Collection("E2E")]`. Only add a `[Trait("Category", ...)]` if the test needs one of the traits in the table above. A test with no category runs in the whole suite; see "What belongs in the smoke set" for the ones that should also be smoke tests.
 4. If the test creates wiki pages or content blocks, implement `IAsyncLifetime` with cleanup in `DisposeAsync`.
 5. Use the `e2e-{Guid:N}-` prefix on every slug/key.
 6. Use `_fixture.SeedClient` + `SeedHelpers.*` for HTTP seeding. For requests that must be genuinely anonymous (no impersonation cookie — sign-in redirects, bad-share-token 404s), use `_fixture.AnonymousClient`, which never carries the impersonation cookie.

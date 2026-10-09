@@ -88,6 +88,7 @@ public sealed class WidgetTestPagesE2ETests(PlaywrightFixture fixture) : Seeding
     // ---- Rich text -------------------------------------------------------------------------
 
     [Fact]
+    [Trait("Category", "Smoke")]
     public async Task RichText_KeepsEmphasisListsTablesAndQuotations()
     {
         await OpenAsync("rich-text-test-page");

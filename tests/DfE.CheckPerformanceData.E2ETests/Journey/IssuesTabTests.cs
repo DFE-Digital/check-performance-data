@@ -7,7 +7,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Journey;
 // AB#298325: the Issues tab on the Amendment request summary page. Covers what only a browser
 // can: that a just-submitted enquiry appears in the tab with its blob-enriched cells, that the
 // tab states the results-enquiry deadline, and that enquiries never leak into the Requests tab.
-[Trait("Category", "FullRegression")]
+[Trait("Category", "Smoke")]
 [Collection("E2E")]
 public sealed class IssuesTabTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {

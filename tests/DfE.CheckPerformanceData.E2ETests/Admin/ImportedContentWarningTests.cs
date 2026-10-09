@@ -36,6 +36,7 @@ public sealed class ImportedContentWarningTests(PlaywrightFixture fixture)
     }
 
     [Fact]
+    [Trait("Category", "Smoke")]
     public async Task Editor_WarnsThatAnImportedPageWillBeOverwritten()
     {
         var body = await EditorAsync(GuideHomeId);

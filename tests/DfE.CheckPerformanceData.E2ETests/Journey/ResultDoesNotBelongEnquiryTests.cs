@@ -12,7 +12,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Journey;
 // no cohort question and no late-results interstitial in the way, that the result page's inset text
 // and the additional-information page's 1,000-character limit render, and that the summary omits the
 // revised-grade row entirely rather than showing it empty.
-[Trait("Category", "Smoke")]
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class ResultDoesNotBelongEnquiryTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
@@ -25,6 +25,7 @@ public sealed class ResultDoesNotBelongEnquiryTests(PlaywrightFixture fixture) :
     private const string MathsS2024 = "GCSE (9-1) Mathematics, QAN: 60146084, Session: S2024";
 
     [RetryFact]
+    [Trait("Category", "Smoke")]
     public async Task A_school_can_report_a_result_that_does_not_belong_end_to_end()
     {
         await StartEnquiryAsync();

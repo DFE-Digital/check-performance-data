@@ -26,6 +26,7 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
     // --- Dashboard: tiles + tooltips + chart axes + bucket selector + stacked cards ---
 
     [SkippableFact]
+    [Trait("Category", "Smoke")]
     public async Task Dashboard_RendersTilesTooltipsChartAxesBucketSelectorAndStackedCards()
     {
         Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux),

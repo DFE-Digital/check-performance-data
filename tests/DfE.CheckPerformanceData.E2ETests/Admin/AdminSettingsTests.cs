@@ -13,6 +13,7 @@ public sealed class AdminSettingsTests(PlaywrightFixture fixture)
     // --- Settings_AsAdmin_Returns_200_WithKnownSettings ---
 
     [Fact]
+    [Trait("Category", "Smoke")]
     public async Task Settings_AsAdmin_Returns_200_WithKnownSettings()
     {
         try

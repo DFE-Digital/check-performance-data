@@ -52,6 +52,7 @@ public sealed class ObservabilityBoardTests(PlaywrightFixture fixture)
     // --- The board skeleton renders the five labelled stage nodes ---
 
     [Fact]
+    [Trait("Category", "Smoke")]
     public async Task Dashboard_RendersBoardSkeleton_WithFiveStageNodes()
     {
         var body = await LoadDashboardAsAdminAsync();

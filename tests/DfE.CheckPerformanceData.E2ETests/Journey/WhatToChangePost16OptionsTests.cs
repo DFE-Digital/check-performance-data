@@ -9,7 +9,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Journey;
 //
 // The seeded Post16 window (DevDataSeeder.Post16CheckingWindowId) and the seeded KS4June window
 // (DevDataSeeder.KeyStage4JuneCheckingWindowId) — the same ids AddPupilJourneyTests uses.
-[Trait("Category", "Smoke")]
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class WhatToChangePost16OptionsTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
@@ -21,6 +21,7 @@ public sealed class WhatToChangePost16OptionsTests(PlaywrightFixture fixture) : 
     private static readonly Guid Ks4JuneWindowId = Guid.Parse("F34D285B-8660-4D12-9C30-787328DEAA0A");
 
     [RetryFact]
+    [Trait("Category", "Smoke")]
     public async Task Post16Window_ShowsOnlyMergeAndRemove()
     {
         await Page.GotoAsync($"{Fixture.BaseUrl}/WhatToChange/{Post16WindowId}");

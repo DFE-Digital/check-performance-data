@@ -56,6 +56,7 @@ public sealed class AdminRulesEditAsyncTests(PlaywrightFixture fixture) : Seedin
     // --- SaveBranch_Shows_Saved_Toast_And_Stays_On_Page ---
 
     [SkippableFact]
+    [Trait("Category", "Smoke")]
     public async Task SaveBranch_Shows_Saved_Toast_And_Stays_On_Page()
     {
         Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux), "Playwright interaction test Linux-only");

@@ -31,8 +31,8 @@ Project baseline confirmed by the user (D-6).
 
 ## Increments
 
-The impersonation intent captures the agreed establishment-level scope and access boundary. Detailed behaviour will be settled in the spec stage.
+The impersonation spec is approved. Its implementation plan is being prepared for review.
 
 | Folder | Type | Title | Status |
 |---|---|---|---|
-| 001-feature-admin-establishment-impersonation | feature | Admin establishment impersonation | intent |
+| 001-feature-admin-establishment-impersonation | feature | Admin establishment impersonation | spec |

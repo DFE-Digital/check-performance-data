@@ -16,7 +16,8 @@ public sealed class HealthcheckTests(PlaywrightFixture fixture)
     {
         var response = await _fixture.AnonymousClient.GetAsync("/healthcheck");
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        // Broken on purpose for #576, to see a failed smoke run reported. Not for merging.
+        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
         Assert.False(response.Headers.Contains("WWW-Authenticate"),
             "anonymous /healthcheck must not issue an auth challenge");
     }

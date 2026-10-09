@@ -39,6 +39,10 @@
       <PackageReference Include="Refit" />
       <PackageReference Include="Refit.HttpClientFactory" />
       <PackageReference Include="Refit.Newtonsoft.Json" />
+      <!-- Refit 16 generates request builders at compile time. IZendeskApi.GetTicketsForView takes a
+           Dictionary query that cannot be flattened then (RF006), so it needs the runtime builder;
+           without this package resolving the client throws NotSupportedException at startup. -->
+      <PackageReference Include="Refit.Reflection" />
       <PackageReference Include="Riok.Mapperly" />
       <PackageReference Include="System.IdentityModel.Tokens.Jwt" />
       <PackageReference Include="System.Security.Cryptography.Xml" />

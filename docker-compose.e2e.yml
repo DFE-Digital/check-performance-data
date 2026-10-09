@@ -17,7 +17,7 @@ services:
     container_name: cypd_e2e_tests
     # Image tag is pinned in tests/DfE.CheckPerformanceData.E2ETests/Dockerfile
     # (FROM line) — must move in lockstep with the Microsoft.Playwright NuGet
-    # version in src/Directory.Packages.props. Drift surfaces via
+    # version in the E2ETests .csproj. Drift surfaces via
     # `bash scripts/check-playwright-pin.sh`.
     build:
       context: .

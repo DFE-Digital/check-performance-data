@@ -116,7 +116,7 @@ jobs:
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('src/Directory.Packages.props') }}
+          key: ${{ runner.os }}-playwright-${{ hashFiles('tests/DfE.CheckPerformanceData.E2ETests/DfE.CheckPerformanceData.E2ETests.csproj') }}
 
       - name: Build E2E test project
         run: dotnet build tests/DfE.CheckPerformanceData.E2ETests/ -c Release

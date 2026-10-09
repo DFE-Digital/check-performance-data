@@ -19,11 +19,11 @@ set -eu
 # Exit 0: pins match.
 # Exit 1: pins drift; message names both versions and the files to fix.
 
-PROPS_FILE="src/Directory.Packages.props"
+CSPROJ_FILE="tests/DfE.CheckPerformanceData.E2ETests/DfE.CheckPerformanceData.E2ETests.csproj"
 DOCKERFILE="tests/DfE.CheckPerformanceData.E2ETests/Dockerfile"
 
-if [ ! -f "$PROPS_FILE" ]; then
-    echo "ERROR: $PROPS_FILE not found. Run this script from the repo root."
+if [ ! -f "$CSPROJ_FILE" ]; then
+    echo "ERROR: $CSPROJ_FILE not found. Run this script from the repo root."
     exit 1
 fi
 if [ ! -f "$DOCKERFILE" ]; then
@@ -31,7 +31,7 @@ if [ ! -f "$DOCKERFILE" ]; then
     exit 1
 fi
 
-NUGET_VER=$(grep -oE 'Microsoft\.Playwright" Version="[0-9.]+' "$PROPS_FILE" \
+NUGET_VER=$(grep -oE 'Microsoft\.Playwright" Version="[0-9.]+' "$CSPROJ_FILE" \
     | head -n1 \
     | sed -E 's/.*Version="//')
 IMAGE_VER=$(grep -oE 'mcr\.microsoft\.com/playwright/dotnet:v[0-9.]+' "$DOCKERFILE" \
@@ -39,7 +39,7 @@ IMAGE_VER=$(grep -oE 'mcr\.microsoft\.com/playwright/dotnet:v[0-9.]+' "$DOCKERFI
     | sed -E 's|.*:v||')
 
 if [ -z "$NUGET_VER" ]; then
-    echo "ERROR: could not extract Microsoft.Playwright version from $PROPS_FILE."
+    echo "ERROR: could not extract Microsoft.Playwright version from $CSPROJ_FILE."
     exit 1
 fi
 if [ -z "$IMAGE_VER" ]; then
@@ -53,7 +53,7 @@ if [ "$NUGET_VER" != "$IMAGE_VER" ]; then
     echo
     echo "These must move in lockstep — Chromium binary protocol mismatch otherwise."
     echo "Update one of:"
-    echo "  $PROPS_FILE        (Microsoft.Playwright + Microsoft.Playwright.Xunit)"
+    echo "  $CSPROJ_FILE        (Microsoft.Playwright + Microsoft.Playwright.Xunit)"
     echo "  $DOCKERFILE        (FROM mcr.microsoft.com/playwright/dotnet:v...)"
     exit 1
 fi

@@ -10,11 +10,11 @@
     // tab key too.
     var table = Model.Table!;
     var anchor = Model.Key;
-    var datasetId = $"studentDataset-{Model.Key}";
-    var searchId = $"studentSearch-{Model.Key}";
+    var datasetId = $"dataset-{Model.Key}";
+    var searchId = $"search-{Model.Key}";
 
     string PageUrl(int page) => Url.Action("Index", "CheckYourPupilData",
-        new { windowId = Model.Exercise.WindowId, tab = Model.Key, studentDataset = table.Selected.Key, studentSearch = table.Search, studentPage = page })! + "#" + anchor;
+        new { windowId = Model.Exercise.WindowId, tab = Model.Key, dataset = table.Selected.Key, search = table.Search, page })! + "#" + anchor;
 }
 
 @if (table.Datasets.Count > 1)
@@ -23,7 +23,7 @@
         <form method="get" action="@Url.Action("Index", "CheckYourPupilData", new { windowId = Model.Exercise.WindowId })#@anchor">
             <input type="hidden" name="tab" value="@Model.Key" />
             <label class="govuk-label govuk-label--s" for="@datasetId">Select the data you want to view</label>
-            <select class="govuk-select" id="@datasetId" name="studentDataset" onchange="this.form.submit()">
+            <select class="govuk-select" id="@datasetId" name="dataset" onchange="this.form.submit()">
                 @foreach (var dataset in table.Datasets)
                 {
                     <option value="@dataset.Key" selected="@(dataset.Key == table.Selected.Key)">@dataset.Label</option>
@@ -50,16 +50,16 @@
 <div class="pupil-search">
     <form method="get" action="@Url.Action("Index", "CheckYourPupilData", new { windowId = Model.Exercise.WindowId })#@anchor">
         <input type="hidden" name="tab" value="@Model.Key" />
-        <input type="hidden" name="studentDataset" value="@table.Selected.Key" />
+        <input type="hidden" name="dataset" value="@table.Selected.Key" />
         <div class="govuk-form-group">
             <label class="govuk-label govuk-label--s" for="@searchId">@ExerciseSearchLabel.For(Model.LearnerNoun, table.Selected)</label>
             <div class="pupil-search__row">
-                <input class="govuk-input" id="@searchId" name="studentSearch" type="search" maxlength="100" value="@table.Search" />
+                <input class="govuk-input" id="@searchId" name="search" type="search" maxlength="100" value="@table.Search" />
                 <button class="govuk-button" data-module="govuk-button" type="submit">Search</button>
                 @if (!string.IsNullOrWhiteSpace(table.Search))
                 {
                     <a role="button" draggable="false" data-module="govuk-button" class="govuk-button govuk-button--secondary"
-                       href="@Url.Action("Index", "CheckYourPupilData", new { windowId = Model.Exercise.WindowId, tab = Model.Key, studentDataset = table.Selected.Key })#@anchor">Clear</a>
+                       href="@Url.Action("Index", "CheckYourPupilData", new { windowId = Model.Exercise.WindowId, tab = Model.Key, dataset = table.Selected.Key })#@anchor">Clear</a>
                 }
             </div>
         </div>

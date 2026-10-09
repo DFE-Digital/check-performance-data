@@ -3,12 +3,12 @@ using System.Text.Json.Serialization;
 namespace DfE.CheckPerformanceData.Application.ResultsEnquiry;
 
 /// <summary>
-/// The 16-19 per-student result read model (AB#296999). One record per result row across the six
-/// input CSVs; <see cref="SourceFile"/> carries the provenance tag so the school can trace which
-/// file a result came from. Unknown JSON fields are ignored so ingestion can add columns without
-/// breaking readers.
+/// The per-learner result read model for a results enquiry, 16-19 and KS4 (AB#296999). One record
+/// per result row across the supplier result files; <see cref="SourceFile"/> carries the provenance
+/// tag so the school can trace which file a result came from. Unknown JSON fields are ignored so
+/// ingestion can add columns without breaking readers.
 /// </summary>
-public sealed class StudentResultRecord
+public sealed class ResultRecord
 {
     [JsonPropertyName("CYPMD_ID")] public string CypmdId { get; init; } = string.Empty;
     [JsonPropertyName("QAN")] public string Qan { get; init; } = string.Empty;

@@ -107,7 +107,7 @@ public sealed class ResultsEnquirySubmissionTests(PostgresFixture fixture)
             Id = PupilId, Firstname = "Billy", Surname = "B", Sex = "M",
             DateOfBirth = "12/03/2007", Age = 19, Cypmd_Id = "1596410810", Identifier = "9900000001"
         },
-        SelectedResult = new StudentResultRecord
+        SelectedResult = new ResultRecord
         {
             CypmdId = "1596410810", Qan = "60180882",
             QualificationName = "GCSE (9-1) Art&Des : Fine Art", SyllabusCode = "1AD0",
@@ -368,7 +368,7 @@ public sealed class ResultsEnquirySubmissionTests(PostgresFixture fixture)
             Id = PupilId, Firstname = "Billy", Surname = "B", Sex = "M",
             DateOfBirth = "12/03/2007", Age = 19, Cypmd_Id = "1596410810", Identifier = "9900000001"
         },
-        SelectedResult = new StudentResultRecord
+        SelectedResult = new ResultRecord
         {
             CypmdId = "1596410810", Qan = "60180882",
             QualificationName = "GCSE (9-1) Art&Des : Fine Art", SyllabusCode = "1AD0",

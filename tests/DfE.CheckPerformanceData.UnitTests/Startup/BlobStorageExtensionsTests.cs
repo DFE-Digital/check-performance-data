@@ -20,7 +20,7 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Startup;
 // AddCpdBlobStorage. So a client registered only in the Infrastructure DependencyManager resolves
 // in the worker and in tests but throws at web startup, and because the container is validated on
 // build the whole app crashloops rather than failing on one page. AB#296648 hit exactly that: the
-// dev-data seeding orchestrator took IStudentResultsClient and the app would not boot. These
+// dev-data seeding orchestrator took IResultsClient and the app would not boot. These
 // assertions turn that class of failure back into a test failure.
 public class BlobStorageExtensionsTests
 {
@@ -90,7 +90,7 @@ public class BlobStorageExtensionsTests
 
     [Theory]
     [InlineData(typeof(IPupilDataBlobClient))]
-    [InlineData(typeof(IStudentResultsClient))]
+    [InlineData(typeof(IResultsClient))]
     // AB#297848: the qualification reference, resolved the same way for the same reason.
     [InlineData(typeof(IQualificationReferenceClient))]
     [InlineData(typeof(QualificationReferenceBlobClient))]

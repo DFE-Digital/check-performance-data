@@ -18,7 +18,7 @@ namespace DfE.CheckPerformanceData.Web.Seeding;
 /// The seed also writes the sample to the ingress storage account, container <see cref="Container"/>:
 /// <c>results/16to19_LR2.csv</c>, in the supplier's late results shape. Its schema is
 /// <c>results-late-2_schema.json</c> in <c>src/DfE.CheckPerformanceData.Web/Data/Ingress/post16/</c>.
-/// Its rows are <see cref="SeedStudentResults.LateResults2"/>. Testing guide:
+/// Its rows are <see cref="SeedResults.LateResults2"/>. Testing guide:
 /// <c>docs/testing-late-results-2.md</c>. The seed also replaces the summary share's file with
 /// <c>summary/summary-value-added.csv</c> → <c>summary-november-va_schema.json</c>
 /// (<see cref="SeedPost16Summary"/>), and adds <c>students/value-added.csv</c> →
@@ -37,7 +37,7 @@ public static class SeedPost16NovemberSamples
     {
         // An Amendment is a row an October file already holds (same student, QAN and session).
         [LateResults2File] = SeedPost16OctoberSamples.LateResultsCsv(
-            SeedStudentResults.LateResults2, SeedPost16OctoberSamples.KingsmeadStudents(), SeedStudentResults.All),
+            SeedResults.LateResults2, SeedPost16OctoberSamples.KingsmeadStudents(), SeedResults.All),
         [SeedPost16Summary.November.File] =
             SeedPost16Summary.Csv(SeedPost16Summary.November, DevDataSeeder.Post16NovemberCheckingWindowId),
         [SeedPost16ValueAdded.November.File] =

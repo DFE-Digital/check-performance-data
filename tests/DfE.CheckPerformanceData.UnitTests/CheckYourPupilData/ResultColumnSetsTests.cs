@@ -25,7 +25,7 @@ public class ResultColumnSetsTests
         Uln = "9900112233"
     };
 
-    private static StudentResultRecord Result() => new()
+    private static ResultRecord Result() => new()
     {
         CypmdId = "500123",
         Qan = "60145642",

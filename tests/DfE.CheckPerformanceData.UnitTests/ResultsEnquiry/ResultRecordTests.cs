@@ -8,7 +8,7 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.ResultsEnquiry;
 // same JsonSerializerOptions production uses, so a schema drift breaks here rather than in a
 // running service. Unknown fields are ignored (ingestion may add columns) and numeric-looking
 // values are tolerated whether the CSV-to-JSON step quoted them or not.
-public sealed class StudentResultRecordTests
+public sealed class ResultRecordTests
 {
     // Record 1 quotes every value; record 2 leaves the numeric-looking ones unquoted and adds an
     // unknown "AWARDING_BODY" column — both must bind.
@@ -36,8 +36,8 @@ public sealed class StudentResultRecordTests
     ]
     """;
 
-    private static IReadOnlyList<StudentResultRecord> Deserialize()
-        => JsonSerializer.Deserialize<List<StudentResultRecord>>(SampleJson, StudentResultsBlobClient.JsonOptions)!;
+    private static IReadOnlyList<ResultRecord> Deserialize()
+        => JsonSerializer.Deserialize<List<ResultRecord>>(SampleJson, ResultsBlobClient.JsonOptions)!;
 
     [Fact]
     public void Binds_every_field_from_the_ingestion_schema()
@@ -77,7 +77,7 @@ public sealed class StudentResultRecordTests
     {
         const string json = """[{ "CYPMD_ID": "1", "QAN": null, "GRADE": null }]""";
 
-        var record = JsonSerializer.Deserialize<List<StudentResultRecord>>(json, StudentResultsBlobClient.JsonOptions)![0];
+        var record = JsonSerializer.Deserialize<List<ResultRecord>>(json, ResultsBlobClient.JsonOptions)![0];
 
         Assert.Equal(string.Empty, record.Qan);
         Assert.Equal(string.Empty, record.Grade);
@@ -86,7 +86,7 @@ public sealed class StudentResultRecordTests
     [Fact]
     public void Malformed_json_throws_so_a_corrupt_file_surfaces()
         => Assert.Throws<JsonException>(() =>
-            JsonSerializer.Deserialize<List<StudentResultRecord>>("{not json", StudentResultsBlobClient.JsonOptions));
+            JsonSerializer.Deserialize<List<ResultRecord>>("{not json", ResultsBlobClient.JsonOptions));
 
     [Fact]
     public void Source_tags_are_verbatim_from_the_ingestion_contract()

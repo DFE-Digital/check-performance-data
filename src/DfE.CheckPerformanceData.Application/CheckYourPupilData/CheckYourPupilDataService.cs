@@ -14,18 +14,18 @@ public sealed class CheckYourPupilDataService : ICheckYourPupilDataService
 {
     private readonly ICheckYourPupilDataRepository _repository;
     private readonly ICurrentUserService _currentUserService;
-    private readonly IStudentResultsClient _studentResultsClient;
+    private readonly IResultsClient _resultsClient;
     private readonly ILogger<CheckYourPupilDataService> _log;
 
     public CheckYourPupilDataService(
         ICheckYourPupilDataRepository repository,
         ICurrentUserService currentUserService,
-        IStudentResultsClient studentResultsClient,
+        IResultsClient resultsClient,
         ILogger<CheckYourPupilDataService>? logger = null)
     {
         _repository = repository;
         _currentUserService = currentUserService;
-        _studentResultsClient = studentResultsClient;
+        _resultsClient = resultsClient;
         _log = logger ?? NullLogger<CheckYourPupilDataService>.Instance;
     }
 
@@ -92,7 +92,7 @@ public sealed class CheckYourPupilDataService : ICheckYourPupilDataService
         if (ResultsSources.For(window.CheckingWindowType).Count == 0)
             return null;
 
-        var results = await _studentResultsClient.GetAllResultsAsync(windowId, laestab);
+        var results = await _resultsClient.GetAllResultsAsync(windowId, laestab);
         var pupils = await _repository.GetAllPupilsForSchoolAsync(windowId, laestab);
 
         // Case-insensitive, matching how the results client compares ids itself.
@@ -120,7 +120,7 @@ public sealed class CheckYourPupilDataService : ICheckYourPupilDataService
         // not a candidate. The set comes from the same cached school file the enquiry itself reads,
         // and is resolved only when asked for — every other journey searches the whole roll.
         var withResults = requireResults
-            ? await _studentResultsClient.GetStudentIdsWithResultsAsync(windowId, laestab)
+            ? await _resultsClient.GetCypmdIdsWithResultsAsync(windowId, laestab)
             : null;
 
         return await _repository.SearchPupilsAsync(windowId, laestab, urn, query, filter, excludeId, withResults, searchField);

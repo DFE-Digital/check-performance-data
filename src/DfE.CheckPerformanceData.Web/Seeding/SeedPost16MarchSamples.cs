@@ -25,7 +25,7 @@ namespace DfE.CheckPerformanceData.Web.Seeding;
 /// <list type="bullet">
 /// <item><c>results/16to19_INC_REV_RET.csv</c>, in the supplier's 16-18 results data file shape →
 /// <c>results-included-revised-retention_schema.json</c>. Its rows are
-/// <see cref="SeedStudentResults.IncludedRevisedWithRetention"/>. Testing guide:
+/// <see cref="SeedResults.IncludedRevisedWithRetention"/>. Testing guide:
 /// <c>docs/testing-revised-results.md</c>.</item>
 /// <item><c>students/aims.csv</c>, in the supplier's pupil aims data file shape →
 /// <c>students-aims_schema.json</c>. Its rows are one or two learning aims for every included
@@ -51,7 +51,7 @@ public static class SeedPost16MarchSamples
     public static IReadOnlyDictionary<string, byte[]> Files() => new Dictionary<string, byte[]>
     {
         [IncludedRevisedWithRetentionFile] = SeedPost16OctoberSamples.ResultsCsv(
-            SeedStudentResults.IncludedRevisedWithRetention, SeedPost16OctoberSamples.KingsmeadStudents()),
+            SeedResults.IncludedRevisedWithRetention, SeedPost16OctoberSamples.KingsmeadStudents()),
         [AimsFile] = AimsCsv(SeedPupilData.Post16Pupils(DevDataSeeder.Post16MarchCheckingWindowId).Where(p => p.Included)),
         [SeedPost16Summary.March.File] =
             SeedPost16Summary.Csv(SeedPost16Summary.March, DevDataSeeder.Post16MarchCheckingWindowId),

@@ -20,6 +20,6 @@ namespace DfE.CheckPerformanceData.Application.ResultsEnquiry;
 /// </summary>
 public static class ResultLabel
 {
-    public static string For(StudentResultRecord result)
+    public static string For(ResultRecord result)
         => $"{result.QualificationName}, QAN: {result.Qan}, Session: {result.Session}, Grade: {result.Grade}, File: {ResultsSources.LabelFor(result.SourceFile)}";
 }

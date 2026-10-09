@@ -80,7 +80,7 @@ public sealed class JourneyViewModelBuilderEnquirySummaryTests
     }
 
     // The Figma fixture from the plan.
-    private static readonly StudentResultRecord ArtAndDesign = new()
+    private static readonly ResultRecord ArtAndDesign = new()
     {
         CypmdId = "1596410810", Qan = "60180882", QualificationName = "GCSE (9-1) Art&Des : Fine Art",
         SyllabusCode = "1AD0", Session = "S2024", Grade = "9", SourceFile = ResultsFileTags.Post16Main

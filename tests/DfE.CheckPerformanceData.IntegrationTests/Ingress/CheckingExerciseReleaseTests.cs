@@ -163,7 +163,7 @@ public sealed class CheckingExerciseReleaseTests(AzuriteFixture azurite) : IAsyn
     private async Task<IReadOnlyList<string>> GradesSchoolsSeeAsync()
     {
         await using var ctx = CreateContext();
-        var client = new StudentResultsBlobClient(_blobs, _cache,
+        var client = new ResultsBlobClient(_blobs, _cache,
             new CheckingExerciseStorageResolver(new WindowRepository(ctx), TimeProvider.System));
         var results = await client.GetResultsAsync(_windowId, Laestab, "500001");
         return [.. results.Select(r => r.Grade).Order()];

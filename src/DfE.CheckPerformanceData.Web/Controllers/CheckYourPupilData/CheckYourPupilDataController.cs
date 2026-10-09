@@ -33,16 +33,16 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         Guid windowId,
         int includedPage = 0, int nonIncludedPage = 0, int resultsPage = 0,
         string? includedSearch = null, string? nonIncludedSearch = null, string? resultsSearch = null,
-        string? studentDataset = null, string? studentSearch = null, int studentPage = 0, string? tab = null)
+        string? dataset = null, string? search = null, int page = 0, string? tab = null)
     {
         if (includedSearch?.Length > MaxSearchLength) includedSearch = null;
         if (nonIncludedSearch?.Length > MaxSearchLength) nonIncludedSearch = null;
         if (resultsSearch?.Length > MaxSearchLength) resultsSearch = null;
-        if (studentSearch?.Length > MaxSearchLength) studentSearch = null;
+        if (search?.Length > MaxSearchLength) search = null;
 
         HttpContext.Session.ClearRequestState(windowId);
         var model = await BuildIndexModelAsync(windowId, includedPage, nonIncludedPage, resultsPage,
-            includedSearch, nonIncludedSearch, resultsSearch, studentDataset, studentSearch, studentPage, tab);
+            includedSearch, nonIncludedSearch, resultsSearch, dataset, search, page, tab);
         return View(model);
     }
 
@@ -245,9 +245,9 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         string? includedSearch,
         string? nonIncludedSearch,
         string? resultsSearch,
-        string? studentDataset = null,
-        string? studentSearch = null,
-        int studentPage = 0,
+        string? dataset = null,
+        string? search = null,
+        int page = 0,
         string? tab = null)
     {
         var (includedTable, includedTotal) = await checkYourPupilDataService.GetPupilTableAsync(windowId, included: true, includedSearch, includedPage, PageSize);
@@ -287,7 +287,7 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
                 KeyStage = window.KeyStage, CheckingWindowType = window.CheckingWindowType,
                 StartDate = window.StartDate, Exercises = window.Exercises
             },
-            currentUserService.OrganisationLaestab, tab, studentDataset, studentSearch, studentPage,
+            currentUserService.OrganisationLaestab, tab, dataset, search, page,
             PageSize, HttpContext.RequestAborted);
 
         List<PupilTableSection> sections =

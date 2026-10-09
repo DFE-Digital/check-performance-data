@@ -39,7 +39,7 @@ namespace DfE.CheckPerformanceData.Web.Seeding;
 /// </list>
 /// <para>
 /// The students come from <see cref="SeedPupilData"/> and the results from
-/// <see cref="SeedStudentResults"/>, so every result names a student in the student files. There
+/// <see cref="SeedResults"/>, so every result names a student in the student files. There
 /// is no late results 2 file: it arrives in November (<see cref="SeedPost16NovemberSamples"/>).
 /// </para>
 /// </remarks>
@@ -77,17 +77,17 @@ public static class SeedPost16OctoberSamples
         files[SeedPost16Summary.October.File] =
             SeedPost16Summary.Csv(SeedPost16Summary.October, DevDataSeeder.Post16OctoberCheckingWindowId);
         foreach (var tag in new[] { ResultsFileTags.Post16Included, ResultsFileTags.Post16NonIncluded })
-            files[$"results/{tag}.csv"] = ResultsCsv(SeedStudentResults.All.Where(r => r.SourceFile == tag), byCypmd);
+            files[$"results/{tag}.csv"] = ResultsCsv(SeedResults.All.Where(r => r.SourceFile == tag), byCypmd);
         files[$"results/{ResultsFileTags.Post16LateResults1}.csv"] = LateResultsCsv(
-            SeedStudentResults.All.Where(r => r.SourceFile == ResultsFileTags.Post16LateResults1), byCypmd,
-            SeedStudentResults.All.Where(r => r.SourceFile is ResultsFileTags.Post16Included or ResultsFileTags.Post16NonIncluded));
+            SeedResults.All.Where(r => r.SourceFile == ResultsFileTags.Post16LateResults1), byCypmd,
+            SeedResults.All.Where(r => r.SourceFile is ResultsFileTags.Post16Included or ResultsFileTags.Post16NonIncluded));
         return files;
     }
 
     /// <summary>Kingsmead's students by CYPMD id, as the sample files name them.</summary>
     internal static IReadOnlyDictionary<string, Post16PupilRecord> KingsmeadStudents() =>
         SeedPupilData.Post16Pupils(DevDataSeeder.Post16OctoberCheckingWindowId)
-            .Where(p => p.Laestab == SeedStudentResults.Laestab.Replace("/", string.Empty))
+            .Where(p => p.Laestab == SeedResults.Laestab.Replace("/", string.Empty))
             .ToDictionary(p => p.Cypmd_Id);
 
     public static Task ExecuteSeedAsync(
@@ -205,7 +205,7 @@ public static class SeedPost16OctoberSamples
     // column: results-included_schema.json and results-non-included_schema.json read them from GNUMBER, Short_Qual_Desc +
     // SubjectDescription, BRDSUBNO and SEASON + EXAMYEAR, as it must for the supplier's real file.
     internal static byte[] ResultsCsv(
-        IEnumerable<StudentResultRecord> results, IReadOnlyDictionary<string, Post16PupilRecord> students) =>
+        IEnumerable<ResultRecord> results, IReadOnlyDictionary<string, Post16PupilRecord> students) =>
         SeedExerciseFixtures.WriteCsv(results.Select((result, index) =>
         {
             var student = students[result.CypmdId];
@@ -252,8 +252,8 @@ public static class SeedPost16OctoberSamples
     // which results-late_schema.json reads into QAN, QUAL_NAME, SYLLABUS and SESSION. A row is an
     // Amendment when an earlier file holds the same student, QAN and session; otherwise it is New.
     internal static byte[] LateResultsCsv(
-        IEnumerable<StudentResultRecord> results, IReadOnlyDictionary<string, Post16PupilRecord> students,
-        IEnumerable<StudentResultRecord> earlierFiles)
+        IEnumerable<ResultRecord> results, IReadOnlyDictionary<string, Post16PupilRecord> students,
+        IEnumerable<ResultRecord> earlierFiles)
     {
         var earlier = earlierFiles
             .Select(r => (r.CypmdId, r.Qan, r.Session))
@@ -284,7 +284,7 @@ public static class SeedPost16OctoberSamples
 
     // The supplier's results file splits a qualification into a short type (at most 12 characters)
     // and a subject; a late file also names the awarding body. One row per QAN in
-    // SeedStudentResults' catalogue.
+    // SeedResults' catalogue.
     private static readonly IReadOnlyDictionary<string, (string Short, string Subject, string AwardingBody)> SupplierQualifications =
         new Dictionary<string, (string, string, string)>
         {

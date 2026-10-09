@@ -335,7 +335,7 @@ public sealed class JourneyViewModelBuilder(
 
     public ResultSearchViewModel BuildResultSearchVm(
         Guid windowId, string pageId, JourneyPage page, RequestState journey, QuestionFlowConfig config,
-        IReadOnlyList<StudentResultRecord> availableResults)
+        IReadOnlyList<ResultRecord> availableResults)
     {
         var pupilName = GetPupilName(journey);
         var (backPageId, backPage) = ResolveBackPage(pageId, journey, config);

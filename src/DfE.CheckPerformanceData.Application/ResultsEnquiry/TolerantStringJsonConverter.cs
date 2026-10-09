@@ -9,7 +9,7 @@ namespace DfE.CheckPerformanceData.Application.ResultsEnquiry;
 /// Reads a JSON string, <c>null</c>, number or boolean into a <see cref="string"/>, mapping
 /// <c>null</c> to <see cref="string.Empty"/>.
 ///
-/// Every field on <see cref="StudentResultRecord"/> is a string because the values are opaque
+/// Every field on <see cref="ResultRecord"/> is a string because the values are opaque
 /// codes (grades such as <c>*2</c> and <c>24F</c>, QANs such as <c>6037116X</c>) that must never be
 /// coerced to a number. But the ingestion step converts supplier CSVs, and CSV-to-JSON converters
 /// routinely emit numeric-looking columns unquoted — <c>"GRADE": 5</c> rather than <c>"GRADE": "5"</c>.

@@ -30,7 +30,7 @@ public sealed class ResultsEnquirySummary
     /// <summary>The answer to "how many students", shown only on the cohort branch.</summary>
     public string? CohortCount { get; init; }
 
-    public StudentResultRecord? Result { get; init; }
+    public ResultRecord? Result { get; init; }
 
     /// <summary>AB#301903: the 16-19 reference entry for <see cref="Result"/>'s QAN, when it
     /// resolved. Supplies the awarding organisation row and the qualification's title; null keeps

@@ -14,7 +14,7 @@ namespace DfE.CheckPerformanceData.Web.Controllers;
 /// endpoint will search.
 /// </summary>
 public sealed class ResultSuggestionsController(
-    IStudentResultsClient results,
+    IResultsClient results,
     ICurrentUserService currentUser) : Controller
 {
     // Matches PupilSuggestionsController: below two characters a search is noise, and an
@@ -47,7 +47,7 @@ public sealed class ResultSuggestionsController(
     // Qualification name matches anywhere (users type a subject, e.g. "French", not a full title);
     // QAN matches on prefix only, since a substring match on an 8-digit code makes almost any
     // numeric query match everything.
-    private static bool Matches(StudentResultRecord result, string query)
+    private static bool Matches(ResultRecord result, string query)
         => result.QualificationName.Contains(query, StringComparison.OrdinalIgnoreCase)
            || result.Qan.StartsWith(query, StringComparison.OrdinalIgnoreCase);
 

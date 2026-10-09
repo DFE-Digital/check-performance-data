@@ -11,7 +11,7 @@ namespace DfE.CheckPerformanceData.IntegrationTests.ResultsEnquiry;
 // results availability, and the caching that keeps a journey from re-downloading the file on
 // every page.
 [Collection(nameof(AzuriteCollection))]
-public sealed class StudentResultsBlobClientTests(AzuriteFixture azurite)
+public sealed class ResultsBlobClientTests(AzuriteFixture azurite)
 {
     private const string Laestab = "8604070";
 
@@ -26,7 +26,7 @@ public sealed class StudentResultsBlobClientTests(AzuriteFixture azurite)
     ]
     """;
 
-    private static StudentResultsBlobClient NewClient(BlobServiceClient service)
+    private static ResultsBlobClient NewClient(BlobServiceClient service)
         => new(service, new MemoryCache(new MemoryCacheOptions()));
 
     private async Task<(Guid WindowId, BlobServiceClient Service)> SeededWindowAsync(string json = ResultsJson)
@@ -172,7 +172,7 @@ public sealed class StudentResultsBlobClientTests(AzuriteFixture azurite)
         // Prime the cache with the empty state, as dev seeding would after a health-check read.
         Assert.Empty(await client.GetResultsAsync(windowId, Laestab, "1606464434"));
 
-        await client.UploadResultsAsync(windowId, Laestab, [new StudentResultRecord
+        await client.UploadResultsAsync(windowId, Laestab, [new ResultRecord
         {
             CypmdId = "1606464434",
             Qan = "6037116X",
@@ -194,13 +194,13 @@ public sealed class StudentResultsBlobClientTests(AzuriteFixture azurite)
     // ── Students with results (AB#296648 follow-up) ──────────────────────────
 
     [Fact]
-    public async Task GetStudentIdsWithResultsAsync_returns_each_student_once()
+    public async Task GetCypmdIdsWithResultsAsync_returns_each_student_once()
     {
         // The pupil search restricts itself to this set, so a student holding two results must not
         // make the set report them twice.
         var (windowId, service) = await SeededWindowAsync();
 
-        var ids = await NewClient(service).GetStudentIdsWithResultsAsync(windowId, Laestab);
+        var ids = await NewClient(service).GetCypmdIdsWithResultsAsync(windowId, Laestab);
 
         Assert.Equal(2, ids.Count);
         Assert.Contains("1606464434", ids);
@@ -208,7 +208,7 @@ public sealed class StudentResultsBlobClientTests(AzuriteFixture azurite)
     }
 
     [Fact]
-    public async Task GetStudentIdsWithResultsAsync_matches_a_student_id_regardless_of_case()
+    public async Task GetCypmdIdsWithResultsAsync_matches_a_student_id_regardless_of_case()
     {
         // GetResultsAsync compares ids case-insensitively, and a set the search filters on must
         // agree with it or a student would be listed and then found to hold nothing.
@@ -216,21 +216,21 @@ public sealed class StudentResultsBlobClientTests(AzuriteFixture azurite)
         [{ "CYPMD_ID": "a1b2", "QAN": "60180882", "SESSION": "S2024", "GRADE": "9", "SOURCE": "16to19_MAIN" }]
         """);
 
-        var ids = await NewClient(service).GetStudentIdsWithResultsAsync(windowId, Laestab);
+        var ids = await NewClient(service).GetCypmdIdsWithResultsAsync(windowId, Laestab);
 
         Assert.Contains("A1B2", ids);
     }
 
     [Fact]
-    public async Task GetStudentIdsWithResultsAsync_missing_blob_returns_empty()
+    public async Task GetCypmdIdsWithResultsAsync_missing_blob_returns_empty()
     {
         var service = new BlobServiceClient(azurite.ConnectionString);
 
-        Assert.Empty(await NewClient(service).GetStudentIdsWithResultsAsync(Guid.NewGuid(), Laestab));
+        Assert.Empty(await NewClient(service).GetCypmdIdsWithResultsAsync(Guid.NewGuid(), Laestab));
     }
 
     [Fact]
-    public async Task GetStudentIdsWithResultsAsync_shares_the_cached_file()
+    public async Task GetCypmdIdsWithResultsAsync_shares_the_cached_file()
     {
         // One autocomplete keystroke must not cost a blob download.
         var (windowId, service) = await SeededWindowAsync();
@@ -241,6 +241,6 @@ public sealed class StudentResultsBlobClientTests(AzuriteFixture azurite)
             .GetBlobClient(ResultsEnquiryBlobPaths.ResultsBlobName(Laestab))
             .UploadAsync(BinaryData.FromString("[]"), overwrite: true);
 
-        Assert.Equal(2, (await client.GetStudentIdsWithResultsAsync(windowId, Laestab)).Count);
+        Assert.Equal(2, (await client.GetCypmdIdsWithResultsAsync(windowId, Laestab)).Count);
     }
 }

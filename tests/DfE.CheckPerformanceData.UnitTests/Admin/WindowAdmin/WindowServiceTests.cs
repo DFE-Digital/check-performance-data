@@ -175,7 +175,7 @@ public class WindowServiceTests
 
     // #324: dataset slots are reconciled for every exercise, not just pupil data. Without this an
     // admin has nowhere to upload the results files, and the enquiry journey has nothing to read on
-    // any environment SeedStudentResults does not run on.
+    // any environment SeedResults does not run on.
     [Fact]
     public async Task UpdateAsync_gives_a_results_enquiry_exercise_a_slot_per_source_file()
     {

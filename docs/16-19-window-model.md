@@ -391,7 +391,7 @@ These do not block the model.
    another amendment and that journey shuts when pupil data shuts; a window with no pupil-data
    exercise drops the banner rather than quoting a date from elsewhere.
 3. **Results-enquiry ingress.** Split out of #319 into #324. ~~Nothing writes `results-enquiry/data/`
-   outside `Web/Seeding/SeedStudentResults.cs`, which is development-only.~~ **Done in #324.** The
+   outside `Web/Seeding/SeedResults.cs`, which is development-only.~~ **Done in #324.** The
    results-enquiry exercise owns one dataset slot per source file, named by the `ResultsFileTags`
    tag it stamps (five for a 16-19 window, four for KS4, none for KS2 — it has no results feed), so
    an admin uploads the supplier's files and validates the exercise exactly as for pupil data. A

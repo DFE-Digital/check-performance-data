@@ -38,7 +38,7 @@ public interface IJourneyViewModelBuilder
     /// </summary>
     ResultSearchViewModel BuildResultSearchVm(
         Guid windowId, string pageId, JourneyPage page, RequestState journey, QuestionFlowConfig config,
-        IReadOnlyList<Application.ResultsEnquiry.StudentResultRecord> availableResults);
+        IReadOnlyList<Application.ResultsEnquiry.ResultRecord> availableResults);
 
     /// <summary>
     /// AB#297848: the "provide the missing qualification details" AO + QAN page. The reference

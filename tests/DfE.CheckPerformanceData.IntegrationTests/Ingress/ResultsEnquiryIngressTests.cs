@@ -15,9 +15,9 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Ingress;
 
 /// <summary>
 /// The results-enquiry slice of ingress (#324): several supplier CSVs -> one merged blob per
-/// school, each row stamped with the tag of the file it came from -> StudentResultsBlobClient, the
+/// school, each row stamped with the tag of the file it came from -> ResultsBlobClient, the
 /// client the enquiry journey itself reads through. Until this existed nothing but the dev-only
-/// SeedStudentResults wrote that blob, so the journey had nothing to show on a deployed
+/// SeedResults wrote that blob, so the journey had nothing to show on a deployed
 /// environment.
 /// </summary>
 [Collection(nameof(AzuriteCollection))]
@@ -99,8 +99,8 @@ public sealed class ResultsEnquiryIngressTests(AzuriteFixture fixture)
         return last!;
     }
 
-    private IStudentResultsClient ResultsClient() =>
-        new StudentResultsBlobClient(_blobs, new MemoryCache(new MemoryCacheOptions()));
+    private IResultsClient ResultsClient() =>
+        new ResultsBlobClient(_blobs, new MemoryCache(new MemoryCacheOptions()));
 
     [Fact]
     public async Task A_clean_run_writes_one_merged_file_the_enquiry_journey_can_read()

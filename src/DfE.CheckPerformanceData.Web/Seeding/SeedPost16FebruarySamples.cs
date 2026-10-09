@@ -25,7 +25,7 @@ namespace DfE.CheckPerformanceData.Web.Seeding;
 /// <c>results-included-revised_schema.json</c> and <c>results/16to19_NONINC_REV.csv</c> →
 /// <c>results-non-included-revised_schema.json</c>, both in the supplier's 16-18 results data file
 /// shape, in <c>src/DfE.CheckPerformanceData.Web/Data/Ingress/post16/</c>. Their rows are
-/// <see cref="SeedStudentResults.Revised"/>. Testing guide: <c>docs/testing-revised-results.md</c>.
+/// <see cref="SeedResults.Revised"/>. Testing guide: <c>docs/testing-revised-results.md</c>.
 /// <c>students/previously-published-revised.csv</c> → <c>students-previously-published-revised_schema.json</c>
 /// is in the supplier's previously published shape, with the same columns as October's file.
 /// <c>summary/summary-value-added-revised.csv</c> → <c>summary-november-va-revised_schema.json</c> replaces
@@ -58,9 +58,9 @@ public static class SeedPost16FebruarySamples
         return new Dictionary<string, byte[]>
         {
             [IncludedRevisedFile] = SeedPost16OctoberSamples.ResultsCsv(
-                SeedStudentResults.Revised.Where(r => r.SourceFile == ResultsFileTags.Post16IncludedRevised), students),
+                SeedResults.Revised.Where(r => r.SourceFile == ResultsFileTags.Post16IncludedRevised), students),
             [NonIncludedRevisedFile] = SeedPost16OctoberSamples.ResultsCsv(
-                SeedStudentResults.Revised.Where(r => r.SourceFile == ResultsFileTags.Post16NonIncludedRevised), students),
+                SeedResults.Revised.Where(r => r.SourceFile == ResultsFileTags.Post16NonIncludedRevised), students),
             [PreviouslyPublishedRevisedFile] = PreviouslyPublishedRevisedCsv(
                 SeedPupilData.Post16Pupils(DevDataSeeder.Post16FebruaryCheckingWindowId).Where(p => p.Included)),
             [SeedPost16Summary.February.File] =

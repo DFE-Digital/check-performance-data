@@ -125,7 +125,7 @@ public sealed class ChangeRequestCheckingExerciseStampTests
         _repository.UpsertAsync(Arg.Do<ChangeRequestData>(d => captured = d)).Returns(Guid.NewGuid());
 
         var journey = Journey(WhatToChange.IncorrectGrade);
-        journey.SelectedResult = new StudentResultRecord
+        journey.SelectedResult = new ResultRecord
         {
             CypmdId = "1596410810",
             Qan = "60180882",

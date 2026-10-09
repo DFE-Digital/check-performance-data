@@ -20,7 +20,7 @@ public sealed class RequestState
     /// <summary>AB#296648: the exam result chosen on a ResultSearch page, re-resolved server-side
     /// from the results blob so a forged posted key cannot put an unheld result into the journey.
     /// Null until one is chosen.</summary>
-    public StudentResultRecord? SelectedResult { get; set; }
+    public ResultRecord? SelectedResult { get; set; }
 
     /// <summary>AB#297848: the qualification a missing-qualification enquiry is about, re-resolved
     /// server-side from the QualList reference so a forged posted QAN cannot enter the journey.

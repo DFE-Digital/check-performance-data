@@ -45,7 +45,7 @@ public sealed class PageViewModel
     /// revised-grade picker so the user can see they are correcting the right one. Null on every
     /// other page type.
     /// </summary>
-    public Application.ResultsEnquiry.StudentResultRecord? SelectedResult { get; init; }
+    public Application.ResultsEnquiry.ResultRecord? SelectedResult { get; init; }
 
     /// <summary>
     /// AB#301903: the 16-19 qualification reference entry for <see cref="SelectedResult"/>, resolved

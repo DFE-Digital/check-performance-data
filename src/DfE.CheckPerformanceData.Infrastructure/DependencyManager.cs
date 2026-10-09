@@ -67,13 +67,13 @@ public static class DependencyManager
         // host that reaches this bundle (including the worker). ICheckingExerciseIngress is
         // deliberately NOT registered here: it also needs ICheckingExerciseDefinitionRepository
         // (Persistence, wired by AddPersistenceDependencies — which the worker opts out of, see
-        // the IStudentResultsClient note below) and ICsvSchemaFileProcessor (registered only in
+        // the IResultsClient note below) and ICsvSchemaFileProcessor (registered only in
         // the Web host's AddCpdBlobStorage). Registering it here would pass validate-on-build for
         // no host, because the web host never calls AddInfrastructureDependencies either — see
         // BlobStorageExtensions.AddCpdBlobStorage, which is where it is registered instead.
         services.AddScoped<ICheckingDataReader, CheckingDataReader>();
 
-        // IStudentResultsClient is deliberately NOT registered here. Its implementation takes an
+        // IResultsClient is deliberately NOT registered here. Its implementation takes an
         // IMemoryCache, which this bundle's only caller — the worker — does not have: AddMemoryCache
         // comes from AddPersistenceDependencies, and the worker opts out of that so its manual
         // DbContext registration stays the single source of truth. Registering it here therefore

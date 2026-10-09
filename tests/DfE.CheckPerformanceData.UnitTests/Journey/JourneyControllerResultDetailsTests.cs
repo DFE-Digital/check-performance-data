@@ -105,7 +105,7 @@ public sealed class JourneyControllerResultDetailsTests
             Substitute.For<IRequestService>(), Substitute.For<ICheckYourPupilDataService>(), builder,
             _analytics, _currentUser, _optionVisibility, _optionality,
             Substitute.For<IOriginCountryLanguageCapture>(),
-            Substitute.For<IStudentResultsClient>(),
+            Substitute.For<IResultsClient>(),
             _qualificationReference, _notifications,
             OpenCheckingExercises.AlwaysOpen(),
             NullLogger<JourneyController>.Instance)
@@ -115,23 +115,23 @@ public sealed class JourneyControllerResultDetailsTests
         };
     }
 
-    private static StudentResultRecord Result(string qan = "60370683", string grade = "M1") => new()
+    private static ResultRecord Result(string qan = "60370683", string grade = "M1") => new()
     {
         CypmdId = CypmdId, Qan = qan, QualificationName = "Pearson BTEC L1/L2 Tech Award in Sport",
         SyllabusCode = "31525H", Session = "S2024", Grade = grade, SourceFile = ResultsFileTags.Post16Main
     };
 
     private void Ready(
-        StudentResultRecord? result = null,
+        ResultRecord? result = null,
         Dictionary<string, QuestionAnswer>? answers = null,
         QualificationReference? qualification = null)
         => ReadyWith(result ?? Result(), answers, qualification ?? Btec);
 
     /// <summary>The QAN-not-in-the-16-19-reference state: a result with no qualification beside it.</summary>
-    private void ReadyUnresolved(StudentResultRecord result) => ReadyWith(result, null, null);
+    private void ReadyUnresolved(ResultRecord result) => ReadyWith(result, null, null);
 
     private void ReadyWith(
-        StudentResultRecord result,
+        ResultRecord result,
         Dictionary<string, QuestionAnswer>? answers,
         QualificationReference? qualification)
         => _session.SetRequestState(WindowId, new RequestState

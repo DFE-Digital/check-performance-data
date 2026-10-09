@@ -74,14 +74,14 @@ told a school with no late results to wait for a file that had already arrived.
 
 ## Data seams
 
-### Student results — `IStudentResultsClient`
+### Student results — `IResultsClient`
 
 Container `{windowId}`, blob `results-enquiry/data/{laestab}_results.json`. One merged array per
 school across the supplier files the live release read, each row stamped with its source tag.
 
 Written by the results-enquiry checking exercise's own ingress run (#324): one dataset slot per
 source file, each stamping its `SOURCE` tag onto every record it contributes, all merged into one
-file per school in a single run. `SeedStudentResults` still writes the same blob in development, so
+file per school in a single run. `SeedResults` still writes the same blob in development, so
 a developer needs no supplier files. The files the exercise starts with are required to validate
 it — on 16-19, included, non-included and late results 1; on KS4, main results
 (`ResultsSource.IsRequired`). The other files are optional slots, because they land weeks apart and one may never land,
@@ -216,7 +216,7 @@ correct, so they are not a candidate, and offering them leads only to a dead end
 
 How it is wired, layer by layer:
 
-1. `IStudentResultsClient.GetStudentIdsWithResultsAsync(windowId, laestab)` returns the school's CYPMD
+1. `IResultsClient.GetCypmdIdsWithResultsAsync(windowId, laestab)` returns the school's CYPMD
    ids, case-insensitively, from the **already cached** results file — an autocomplete keystroke costs
    no download.
 2. `CheckYourPupilDataService.GetPupilSuggestionsAsync(..., requireResults)` resolves that set only
@@ -595,26 +595,26 @@ The October import (the only one that touches pupil data checking):
 There is no late results 2 file in October, so in the October window that slot is empty and the
 late-results interstitial is on the happy path.
 
-The results are `SeedStudentResults`, all for Kingsmead (`860/4070`): included students' rows in the
+The results are `SeedResults`, all for Kingsmead (`860/4070`): included students' rows in the
 included file, non-included students' in the non-included file, some in late results 1, one
 qualification held twice in different sessions, and **no `16to19_LR2` rows**. The late results 1
 sample is in the supplier's late shape (`GNUMBER`, `SYLLABUS_TITLE`, `BRDSUBNO`, `EXAM_YEAR_SEASON`,
 `Late_Result_Type`), and amends student `500002`'s BTEC Sport grade: the included row and the
 amendment both show in the search.
 
-November adds `results/16to19_LR2.csv` (`SeedStudentResults.LateResults2`) with
+November adds `results/16to19_LR2.csv` (`SeedResults.LateResults2`) with
 `results-late-2_schema.json`. That schema has the late results columns but its own collection, so
 late results 1 and 2 are two datasets on the Results tab. The file amends two earlier results, adds
 one, and gives the first result to two students who held none. Step-by-step:
 `docs/testing-late-results-2.md`.
 
 February adds `results/16to19_INC_REV.csv` and `results/16to19_NONINC_REV.csv`
-(`SeedStudentResults.Revised`) with `results-included-revised_schema.json` and
+(`SeedResults.Revised`) with `results-included-revised_schema.json` and
 `results-non-included-revised_schema.json` (the original columns, their own collections), and retires
 the four slots they replace. They hold one row per earlier result, with each late amendment in place
 of the row it corrects, and change one grade no earlier file did.
 
-March adds `results/16to19_INC_REV_RET.csv` (`SeedStudentResults.IncludedRevisedWithRetention`) with
+March adds `results/16to19_INC_REV_RET.csv` (`SeedResults.IncludedRevisedWithRetention`) with
 `results-included-revised-retention_schema.json` (the included revised columns, its own collection),
 and retires included revised. It holds the included revised rows and changes one grade no earlier
 file did (Charlie Smith's GCSE Mathematics, 3 → 4). Step-by-step for February and March:
@@ -628,7 +628,7 @@ Three students (`500001`–`500003`) carry results on real 16-19 QANs (AB#301903
 GCSE fixtures were KS4 QANs the 16-19 reference does not hold): Alice Smith holds AQA GCSE Maths
 `60146084` in two sessions. The CYPMD ids are the ones `SeedPupilData` actually generates — a result
 keyed to Figma's own id would belong to no selectable student and dead-end the journey. Those three
-rows are pinned by `SeedStudentResultsTests`.
+rows are pinned by `SeedResultsTests`.
 
 The rest is generated across both populations (every third included student, every fifth
 non-included), giving roughly a quarter of the school. That is deliberate on both sides: with the

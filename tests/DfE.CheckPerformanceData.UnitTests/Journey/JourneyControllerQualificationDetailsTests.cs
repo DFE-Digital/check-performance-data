@@ -52,7 +52,7 @@ public sealed class JourneyControllerQualificationDetailsTests
     private readonly IOptionVisibilityService _optionVisibility = Substitute.For<IOptionVisibilityService>();
     private readonly IQuestionOptionalityService _optionality = Substitute.For<IQuestionOptionalityService>();
     private readonly IOriginCountryLanguageCapture _originCapture = Substitute.For<IOriginCountryLanguageCapture>();
-    private readonly IStudentResultsClient _results = Substitute.For<IStudentResultsClient>();
+    private readonly IResultsClient _results = Substitute.For<IResultsClient>();
     private readonly IQualificationReferenceClient _qualificationReference = Substitute.For<IQualificationReferenceClient>();
     private readonly DfE.CheckPerformanceData.Application.Notify.IRequestNotificationService _notifications =
         Substitute.For<DfE.CheckPerformanceData.Application.Notify.IRequestNotificationService>();

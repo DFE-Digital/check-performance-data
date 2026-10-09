@@ -318,7 +318,7 @@ public sealed class AccessibilityAuditViewTests
 	// ── #466 Task 23: the exercise tabs on Check Your Pupil Data ──────────────────────
 
 	[Theory]
-	[InlineData("_Post16Students.cshtml")]
+	[InlineData("_ExerciseTable.cshtml")]
 	[InlineData("_VerticalSummary.cshtml")]
 	[InlineData("_RawExerciseTable.cshtml")]
 	public void ExerciseTabPartials_HaveNoPlaceholderLinks(string partial)
@@ -329,7 +329,7 @@ public sealed class AccessibilityAuditViewTests
 	}
 
 	[Theory]
-	[InlineData("_Post16Students.cshtml")]
+	[InlineData("_ExerciseTable.cshtml")]
 	[InlineData("_RawExerciseTable.cshtml")]
 	public void ExerciseTabPartials_ScrollRegionCarriesRoleAndLabel(string partial)
 	{
@@ -345,21 +345,21 @@ public sealed class AccessibilityAuditViewTests
 	}
 
 	[Fact]
-	public void Post16Students_SearchBoxHasARealLabel()
+	public void ExerciseTable_SearchBoxHasARealLabel()
 	{
-		var view = ReadView("Views", "CheckYourPupilData", "_Post16Students.cshtml");
+		var view = ReadView("Views", "CheckYourPupilData", "_ExerciseTable.cshtml");
 
 		Assert.Contains("for=\"@searchId\"", view);
 		Assert.Contains("id=\"@searchId\"", view);
 	}
 
 	[Fact]
-	public void Post16Students_TakesItsLearnerNounFromTheTab()
+	public void ExerciseTable_TakesItsLearnerNounFromTheTab()
 	{
 		// KS4 exercise tabs use this partial too, and a KS4 school says "pupil", not "student". The
 		// label names the selected dataset's searchable columns, so it never promises less (or
 		// more) than the search matches.
-		var view = ReadView("Views", "CheckYourPupilData", "_Post16Students.cshtml");
+		var view = ReadView("Views", "CheckYourPupilData", "_ExerciseTable.cshtml");
 
 		Assert.Contains("ExerciseSearchLabel.For(Model.LearnerNoun, table.Selected)", view);
 		Assert.DoesNotContain("by first or last name", view);
@@ -367,31 +367,31 @@ public sealed class AccessibilityAuditViewTests
 	}
 
 	[Fact]
-	public void Post16Students_ControlIdsCarryTheTabKey()
+	public void ExerciseTable_ControlIdsCarryTheTabKey()
 	{
 		// An exercise split by inclusion renders this partial twice on one page. A fixed id would
 		// be repeated, and a label's for= would then name the first tab's control.
-		var view = ReadView("Views", "CheckYourPupilData", "_Post16Students.cshtml");
+		var view = ReadView("Views", "CheckYourPupilData", "_ExerciseTable.cshtml");
 
-		Assert.Contains("var searchId = $\"studentSearch-{Model.Key}\";", view);
-		Assert.Contains("var datasetId = $\"studentDataset-{Model.Key}\";", view);
+		Assert.Contains("var searchId = $\"search-{Model.Key}\";", view);
+		Assert.Contains("var datasetId = $\"dataset-{Model.Key}\";", view);
 	}
 
 	[Fact]
-	public void Post16Students_DatasetSelectorHasARealLabel()
+	public void ExerciseTable_DatasetSelectorHasARealLabel()
 	{
-		var view = ReadView("Views", "CheckYourPupilData", "_Post16Students.cshtml");
+		var view = ReadView("Views", "CheckYourPupilData", "_ExerciseTable.cshtml");
 
 		Assert.Contains("for=\"@datasetId\"", view);
 		Assert.Contains("id=\"@datasetId\"", view);
 	}
 
 	[Fact]
-	public void Post16Students_PaginatesThroughThePaginationWindow_NotOneLinkPerPage()
+	public void ExerciseTable_PaginatesThroughThePaginationWindow_NotOneLinkPerPage()
 	{
 		// A few hundred students otherwise produce hundreds of tab stops and a screen reader
 		// reads every number (see PaginationWindow's own remarks).
-		var view = ReadView("Views", "CheckYourPupilData", "_Post16Students.cshtml");
+		var view = ReadView("Views", "CheckYourPupilData", "_ExerciseTable.cshtml");
 
 		Assert.Contains("PaginationWindow.Build(table.Page, table.TotalPages)", view);
 		Assert.DoesNotContain("for (var page = 0; page <", view);

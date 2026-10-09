@@ -22,7 +22,7 @@ public sealed class ResultSuggestionsControllerTests
     private const string Laestab = "860/4070";
     private const string CypmdId = "500001";
 
-    private readonly IStudentResultsClient _results = Substitute.For<IStudentResultsClient>();
+    private readonly IResultsClient _results = Substitute.For<IResultsClient>();
     private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
     private readonly FakeSession _session = new();
     private readonly ResultSuggestionsController _sut;
@@ -40,7 +40,7 @@ public sealed class ResultSuggestionsControllerTests
         };
     }
 
-    private static StudentResultRecord Result(
+    private static ResultRecord Result(
         string qan, string qualName, string session = "S2024", string grade = "5",
         string source = ResultsFileTags.Post16Main, string cypmdId = CypmdId) => new()
         {
@@ -53,7 +53,7 @@ public sealed class ResultSuggestionsControllerTests
             SourceFile = source
         };
 
-    private static readonly StudentResultRecord[] BillysResults =
+    private static readonly ResultRecord[] BillysResults =
     [
         Result("6037116X", "GCSE (9-1) Bus. Studs:Single"),
         Result("60181576", "GCSE (9-1) French", source: ResultsFileTags.Post16LateResults1),
@@ -79,7 +79,7 @@ public sealed class ResultSuggestionsControllerTests
             SelectedPupil = Pupil(cypmdId)
         });
 
-    private void HasResults(params StudentResultRecord[] results) =>
+    private void HasResults(params ResultRecord[] results) =>
         _results.GetResultsAsync(WindowId, Laestab, CypmdId, Arg.Any<CancellationToken>())
             .Returns(results);
 

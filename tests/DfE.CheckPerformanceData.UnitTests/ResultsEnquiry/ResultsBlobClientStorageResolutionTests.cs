@@ -7,11 +7,11 @@ using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.ResultsEnquiry;
 
-// #466 slice: StudentResultsBlobClient mirrors PupilDataBlobClient's move to ask
+// #466 slice: ResultsBlobClient mirrors PupilDataBlobClient's move to ask
 // ICheckingExerciseStorageResolver which exercise row owns a window's storage. A null resolver
 // (the constructor default) must reproduce the legacy path exactly, because every window
 // configured before #466 depends on it.
-public sealed class StudentResultsBlobClientStorageResolutionTests
+public sealed class ResultsBlobClientStorageResolutionTests
 {
     private readonly BlobServiceClient _service = Substitute.For<BlobServiceClient>();
     private readonly BlobContainerClient _container = Substitute.For<BlobContainerClient>();
@@ -19,7 +19,7 @@ public sealed class StudentResultsBlobClientStorageResolutionTests
     private readonly ICheckingExerciseStorageResolver _resolver = Substitute.For<ICheckingExerciseStorageResolver>();
     private string? _lastBlobNameRequested;
 
-    private StudentResultsBlobClient Client(bool withResolver = true)
+    private ResultsBlobClient Client(bool withResolver = true)
     {
         _service.GetBlobContainerClient(Arg.Any<string>()).Returns(_container);
         _container.ExistsAsync(Arg.Any<CancellationToken>())
@@ -27,7 +27,7 @@ public sealed class StudentResultsBlobClientStorageResolutionTests
         _container.GetBlobClient(Arg.Do<string>(name => _lastBlobNameRequested = name)).Returns(_blob);
         _blob.ExistsAsync(Arg.Any<CancellationToken>())
             .Returns(Azure.Response.FromValue(false, Substitute.For<Azure.Response>()));
-        return new StudentResultsBlobClient(_service, new MemoryCache(new MemoryCacheOptions()), withResolver ? _resolver : null);
+        return new ResultsBlobClient(_service, new MemoryCache(new MemoryCacheOptions()), withResolver ? _resolver : null);
     }
 
     [Fact]

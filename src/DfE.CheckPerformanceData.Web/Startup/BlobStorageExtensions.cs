@@ -75,7 +75,7 @@ public static class BlobStorageExtensions
         // AB#296648: the 16-19 exam results the incorrect-grade enquiry journey reads. Registered
         // here as well as in the Infrastructure DependencyManager because the web host builds its
         // blob-client set from this seam and never calls AddInfrastructureDependencies.
-        services.AddScoped<Application.ResultsEnquiry.IStudentResultsClient, StudentResultsBlobClient>();
+        services.AddScoped<Application.ResultsEnquiry.IResultsClient, ResultsBlobClient>();
         // AB#297848: the QualList qualification reference, beside rules.json in the rules-config
         // container. The concrete type is registered too, because the startup seeder needs
         // SeedIfMissingAsync (a seeding concern that has no business on the read interface).
@@ -92,7 +92,7 @@ public static class BlobStorageExtensions
         services.AddHostedService<Seeding.NotOnRollCollegeListService>();
         services.AddScoped<ICsvSchemaFileProcessor, CsvSchemaFileProcessor>();
         // ICheckingDataReader is also registered in the Infrastructure DependencyManager (the
-        // worker's bundle); duplicated here for the same reason as IStudentResultsClient above —
+        // worker's bundle); duplicated here for the same reason as IResultsClient above —
         // the web host builds its blob-client set from this seam and never calls
         // AddInfrastructureDependencies. ICheckingExerciseIngress belongs only here: it needs
         // ICheckingExerciseDefinitionRepository (from AddPersistenceDependencies, which the worker

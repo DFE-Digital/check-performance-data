@@ -22,7 +22,7 @@ namespace DfE.CheckPerformanceData.Web.Seeding;
 /// February and March files.
 /// </summary>
 [ExcludeFromCodeCoverage(Justification = "Development seed data, not product code.")]
-public static class SeedStudentResults
+public static class SeedResults
 {
     // Kingsmead School — the Post16 school the change-request seed also uses.
     public const string Laestab = "860/4070";
@@ -34,7 +34,7 @@ public static class SeedStudentResults
     private const string StudentC = "500003";
 
     /// <summary>Every seeded result, all for <see cref="Laestab"/>.</summary>
-    public static IReadOnlyList<StudentResultRecord> All => [.. FigmaResults, .. GeneratedResults()];
+    public static IReadOnlyList<ResultRecord> All => [.. FigmaResults, .. GeneratedResults()];
 
     // Included index 4 (Edward Smith) and non-included index 201 (Bob Johnson) hold no result in
     // any October file: GeneratedResults skips them.
@@ -48,7 +48,7 @@ public static class SeedStudentResults
     /// earlier file, one gives a student with results a new one, and two give a result to a student
     /// who held none, so that student only appears in the results search after the file is run.
     /// </summary>
-    public static IReadOnlyList<StudentResultRecord> LateResults2 =>
+    public static IReadOnlyList<ResultRecord> LateResults2 =>
     [
         // Amends Student A's English Language grade from late results 1 (6 → 7).
         new()
@@ -91,11 +91,11 @@ public static class SeedStudentResults
     /// <see cref="All"/>: <see cref="SeedPost16FebruarySamples"/> validates them into the
     /// "16 to 19 Feb" window after the November files.
     /// </summary>
-    public static IReadOnlyList<StudentResultRecord> Revised =>
+    public static IReadOnlyList<ResultRecord> Revised =>
         [.. All.Concat(LateResults2)
             .GroupBy(r => (r.CypmdId, r.Qan, r.Session))
             .Select(g => g.MaxBy(r => FileOrder(r.SourceFile))!)
-            .Select(r => new StudentResultRecord
+            .Select(r => new ResultRecord
             {
                 CypmdId = r.CypmdId, Qan = r.Qan, QualificationName = r.QualificationName,
                 SyllabusCode = r.SyllabusCode, Session = r.Session,
@@ -119,10 +119,10 @@ public static class SeedStudentResults
     /// (<see cref="RetentionOnlyGrade"/>). <see cref="SeedPost16MarchSamples"/> validates it into the
     /// "16 to 19 Mar" window.
     /// </summary>
-    public static IReadOnlyList<StudentResultRecord> IncludedRevisedWithRetention =>
+    public static IReadOnlyList<ResultRecord> IncludedRevisedWithRetention =>
         [.. Revised
             .Where(r => r.SourceFile == ResultsFileTags.Post16IncludedRevised)
-            .Select(r => new StudentResultRecord
+            .Select(r => new ResultRecord
             {
                 CypmdId = r.CypmdId, Qan = r.Qan, QualificationName = r.QualificationName,
                 SyllabusCode = r.SyllabusCode, Session = r.Session,
@@ -149,7 +149,7 @@ public static class SeedStudentResults
     // non-included ones from index 200 (500201 on).
     private static bool IsIncludedStudent(string cypmdId) => int.Parse(cypmdId[1..]) <= 200;
 
-    private static readonly StudentResultRecord[] FigmaResults =
+    private static readonly ResultRecord[] FigmaResults =
     [
         // Student A holds the same qualification twice, distinguished only by session — the case the
         // ticket calls out as the reason the result search cannot key on QAN alone.
@@ -221,7 +221,7 @@ public static class SeedStudentResults
     // Qualifications come from the 16-19 qualification reference, so the revised-grade picker can
     // always list grades. Sessions and grades vary with the student so two suggestions never read
     // alike.
-    private static IEnumerable<StudentResultRecord> GeneratedResults()
+    private static IEnumerable<ResultRecord> GeneratedResults()
     {
         // SeedPupilData: 120 included students from index 0, then 120 non-included from index 200.
         var students = Enumerable.Range(0, 120).Where(i => i % 3 == 0 && i > 2)
@@ -242,7 +242,7 @@ public static class SeedStudentResults
         }
     }
 
-    private static StudentResultRecord Row(string cypmdId, Qualification qualification, int position, bool included) => new()
+    private static ResultRecord Row(string cypmdId, Qualification qualification, int position, bool included) => new()
     {
         CypmdId = cypmdId,
         Qan = qualification.Qan,

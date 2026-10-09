@@ -15,35 +15,35 @@ namespace DfE.CheckPerformanceData.Infrastructure.BlobStorage;
 /// between this and its callers — the same 30-minute sliding window is used so a school's results
 /// and pupils go stale together.
 /// </summary>
-public sealed class StudentResultsBlobClient(
+public sealed class ResultsBlobClient(
     BlobServiceClient blobServiceClient, IMemoryCache cache, ICheckingExerciseStorageResolver? resolver = null)
-    : IStudentResultsClient
+    : IResultsClient
 {
     private static readonly TimeSpan CacheSlidingExpiry = TimeSpan.FromMinutes(30);
 
     /// <summary>Public so tests bind fixture JSON exactly as production does.</summary>
     public static JsonSerializerOptions JsonOptions => ResultsEnquiryJson.Options;
 
-    public async Task<IReadOnlyList<StudentResultRecord>> GetResultsAsync(
+    public async Task<IReadOnlyList<ResultRecord>> GetResultsAsync(
         Guid windowId, string laestab, string cypmdId, CancellationToken ct = default)
     {
         var all = await GetSchoolResultsAsync(windowId, laestab, ct);
         return all.Where(r => string.Equals(r.CypmdId, cypmdId, StringComparison.OrdinalIgnoreCase)).ToList();
     }
 
-    public async Task<IReadOnlySet<string>> GetStudentIdsWithResultsAsync(
+    public async Task<IReadOnlySet<string>> GetCypmdIdsWithResultsAsync(
         Guid windowId, string laestab, CancellationToken ct = default)
     {
         var all = await GetSchoolResultsAsync(windowId, laestab, ct);
         return all.Select(r => r.CypmdId).ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
 
-    public Task<IReadOnlyList<StudentResultRecord>> GetAllResultsAsync(
+    public Task<IReadOnlyList<ResultRecord>> GetAllResultsAsync(
         Guid windowId, string laestab, CancellationToken ct = default)
         => GetSchoolResultsAsync(windowId, laestab, ct);
 
     public async Task UploadResultsAsync(
-        Guid windowId, string laestab, IReadOnlyList<StudentResultRecord> results, CancellationToken ct = default)
+        Guid windowId, string laestab, IReadOnlyList<ResultRecord> results, CancellationToken ct = default)
     {
         var container = blobServiceClient.GetBlobContainerClient(windowId.ToString());
         await container.CreateIfNotExistsAsync(cancellationToken: ct);
@@ -59,14 +59,14 @@ public sealed class StudentResultsBlobClient(
         cache.Remove(CacheKey(windowId, laestab, path));
     }
 
-    private async Task<IReadOnlyList<StudentResultRecord>> GetSchoolResultsAsync(
+    private async Task<IReadOnlyList<ResultRecord>> GetSchoolResultsAsync(
         Guid windowId, string laestab, CancellationToken ct)
     {
         var path = await OutputPathAsync(windowId, laestab, ct);
         if (path is null) return [];
 
         var key = CacheKey(windowId, laestab, path);
-        if (cache.TryGetValue(key, out IReadOnlyList<StudentResultRecord>? cached) && cached is not null)
+        if (cache.TryGetValue(key, out IReadOnlyList<ResultRecord>? cached) && cached is not null)
             return cached;
 
         var results = await DownloadAsync(windowId, path, ct);
@@ -74,7 +74,7 @@ public sealed class StudentResultsBlobClient(
         return results;
     }
 
-    private async Task<IReadOnlyList<StudentResultRecord>> DownloadAsync(
+    private async Task<IReadOnlyList<ResultRecord>> DownloadAsync(
         Guid windowId, string path, CancellationToken ct)
     {
         var container = blobServiceClient.GetBlobContainerClient(windowId.ToString());
@@ -87,7 +87,7 @@ public sealed class StudentResultsBlobClient(
 
         var response = await blob.DownloadContentAsync(ct);
         // Malformed JSON intentionally throws so corrupt files surface rather than read as empty.
-        return JsonSerializer.Deserialize<List<StudentResultRecord>>(
+        return JsonSerializer.Deserialize<List<ResultRecord>>(
             response.Value.Content.ToMemory().Span, JsonOptions) ?? [];
     }
 

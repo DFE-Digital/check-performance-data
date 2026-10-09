@@ -255,7 +255,7 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
                     // results CSVs carry no SOURCE column, so the tag comes from the dataset slot
                     // the file was uploaded to. Stamped BEFORE validation for the same reason
                     // (AllowAdditionalProperties is false), and guarded by the schema check so a
-                    // pupil-data schema is untouched. StudentResultRecord.SourceFile, the result
+                    // pupil-data schema is untouched. ResultRecord.SourceFile, the result
                     // picker's file column reads this.
                     if (dataset.SourceFile is { Length: > 0 } sourceFile && schema.Properties.ContainsKey("SOURCE"))
                     {

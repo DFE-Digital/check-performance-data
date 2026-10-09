@@ -18,7 +18,7 @@ public sealed class ResultsTableServiceTests
 
     private readonly ICheckYourPupilDataRepository _repository = Substitute.For<ICheckYourPupilDataRepository>();
     private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
-    private readonly IStudentResultsClient _results = Substitute.For<IStudentResultsClient>();
+    private readonly IResultsClient _results = Substitute.For<IResultsClient>();
     private readonly CheckYourPupilDataService _sut;
 
     public ResultsTableServiceTests()
@@ -31,7 +31,7 @@ public sealed class ResultsTableServiceTests
             Pupil("500001", "Smith", "Alice"),
             Pupil("500002", "Jones", "Bob")
         });
-        _results.GetAllResultsAsync(WindowId, Laestab).Returns(new List<StudentResultRecord>
+        _results.GetAllResultsAsync(WindowId, Laestab).Returns(new List<ResultRecord>
         {
             Result("500002", "Maths"),
             Result("500001", "French", ResultsFileTags.Post16LateResults1),
@@ -61,7 +61,7 @@ public sealed class ResultsTableServiceTests
         Sex = "F", DateOfBirth = "2007-09-01", Age = 18, Laestab = Laestab, Urn = "1", Ukprn = "1", Uln = "1"
     };
 
-    private static StudentResultRecord Result(string cypmdId, string subject, string source = ResultsFileTags.Post16Included) => new()
+    private static ResultRecord Result(string cypmdId, string subject, string source = ResultsFileTags.Post16Included) => new()
     {
         CypmdId = cypmdId, Qan = "Q", QualificationName = subject, Session = "S2024", Grade = "5", SourceFile = source
     };
@@ -118,7 +118,7 @@ public sealed class ResultsTableServiceTests
     public async Task Join_is_case_insensitive_on_cypmd_id()
     {
         _results.GetAllResultsAsync(WindowId, Laestab)
-            .Returns(new List<StudentResultRecord> { Result("500001", "Art") });
+            .Returns(new List<ResultRecord> { Result("500001", "Art") });
         _repository.GetAllPupilsForSchoolAsync(WindowId, Laestab)
             .Returns(new List<IPupilRecord> { Pupil("500001".ToUpperInvariant(), "Smith", "Alice") });
 

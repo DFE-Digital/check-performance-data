@@ -8,4 +8,4 @@ namespace DfE.CheckPerformanceData.Application.CheckYourPupilData.Results;
 /// kept with blank demographic cells, because a result that names nobody is something a school
 /// should see rather than have silently dropped.
 /// </summary>
-public sealed record ResultRow(IPupilRecord? Pupil, StudentResultRecord Result);
+public sealed record ResultRow(IPupilRecord? Pupil, ResultRecord Result);

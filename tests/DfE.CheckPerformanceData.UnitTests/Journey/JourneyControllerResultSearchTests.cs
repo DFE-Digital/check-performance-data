@@ -43,7 +43,7 @@ public sealed class JourneyControllerResultSearchTests
     private readonly IOptionVisibilityService _optionVisibility = Substitute.For<IOptionVisibilityService>();
     private readonly IQuestionOptionalityService _optionality = Substitute.For<IQuestionOptionalityService>();
     private readonly IOriginCountryLanguageCapture _originCapture = Substitute.For<IOriginCountryLanguageCapture>();
-    private readonly IStudentResultsClient _results = Substitute.For<IStudentResultsClient>();
+    private readonly IResultsClient _results = Substitute.For<IResultsClient>();
     private readonly IQualificationReferenceClient _qualificationReference = Substitute.For<IQualificationReferenceClient>();
     private readonly DfE.CheckPerformanceData.Application.Notify.IRequestNotificationService _notifications =
         Substitute.For<DfE.CheckPerformanceData.Application.Notify.IRequestNotificationService>();
@@ -75,16 +75,16 @@ public sealed class JourneyControllerResultSearchTests
         Pages = [SelectResultPage, GradeDetailsPage]
     };
 
-    private static StudentResultRecord Result(string qan, string qualName, string session, string source, string grade) => new()
+    private static ResultRecord Result(string qan, string qualName, string session, string source, string grade) => new()
     {
         CypmdId = CypmdId, Qan = qan, QualificationName = qualName,
         SyllabusCode = "1BS0", Session = session, Grade = grade, SourceFile = source
     };
 
-    private static readonly StudentResultRecord BusStuds =
+    private static readonly ResultRecord BusStuds =
         Result("6037116X", "GCSE (9-1) Bus. Studs:Single", "S2024", ResultsFileTags.Post16Main, "5");
 
-    private static readonly StudentResultRecord French =
+    private static readonly ResultRecord French =
         Result("60181576", "GCSE (9-1) French", "S2024", ResultsFileTags.Post16LateResults1, "6");
 
     // The 16-19 qualification reference, as ResultSearchPost resolves it (AB#301903). Holds the

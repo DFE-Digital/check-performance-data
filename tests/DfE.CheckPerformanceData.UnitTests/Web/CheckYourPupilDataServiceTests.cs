@@ -14,14 +14,14 @@ public class CheckYourPupilDataServiceTests
     private const string TestLaestab = "123/4567";
     private readonly ICheckYourPupilDataRepository _repository = Substitute.For<ICheckYourPupilDataRepository>();
     private readonly ICurrentUserService _currentUserService = Substitute.For<ICurrentUserService>();
-    private readonly IStudentResultsClient _studentResults = Substitute.For<IStudentResultsClient>();
+    private readonly IResultsClient _resultsClient = Substitute.For<IResultsClient>();
     private readonly CheckYourPupilDataService _sut;
 
     public CheckYourPupilDataServiceTests()
     {
         _currentUserService.OrganisationUrn.Returns(TestUrn);
         _currentUserService.OrganisationLaestab.Returns(TestLaestab);
-        _sut = new CheckYourPupilDataService(_repository, _currentUserService, _studentResults);
+        _sut = new CheckYourPupilDataService(_repository, _currentUserService, _resultsClient);
     }
 
     [Fact]
@@ -58,7 +58,7 @@ public class CheckYourPupilDataServiceTests
     {
         var windowId = Guid.NewGuid();
         var withResults = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "500001" };
-        _studentResults.GetStudentIdsWithResultsAsync(windowId, TestLaestab).Returns(withResults);
+        _resultsClient.GetCypmdIdsWithResultsAsync(windowId, TestLaestab).Returns(withResults);
 
         await _sut.GetPupilSuggestionsAsync(windowId, "smith", PupilFilter.All, requireResults: true);
 
@@ -74,8 +74,8 @@ public class CheckYourPupilDataServiceTests
 
         await _sut.GetPupilSuggestionsAsync(windowId, "smith", PupilFilter.Included);
 
-        await _studentResults.DidNotReceive()
-            .GetStudentIdsWithResultsAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _resultsClient.DidNotReceive()
+            .GetCypmdIdsWithResultsAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
         await _repository.Received(1).SearchPupilsAsync(
             windowId, TestLaestab, TestUrn, "smith", PupilFilter.Included, null, null);
     }

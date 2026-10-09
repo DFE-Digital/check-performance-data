@@ -178,7 +178,7 @@ A release run needs no clear sweep: the new prefix is always empty. The validate
 | `CheckingDataReader.ReadDatasetAsync` (exercise tabs and their downloads) | `CheckingDataExercise.CurrentReleaseId` + the dataset id |
 | `CheckingDataReader.ReadAsync` (tabs with no release, or a release from before per-dataset files) | `CheckingDataExercise.CurrentReleaseId` |
 | `PupilDataBlobClient` | `ICheckingExerciseStorageResolver` → `CurrentReleaseId` |
-| `StudentResultsBlobClient` (results enquiry journey) | as above |
+| `ResultsBlobClient` (results enquiry journey) | as above |
 | `ExerciseTabBuilder` (titles, columns, layout) | `CheckingExerciseDto.PublishedDatasets`: the schemas of the current release |
 
 **The display reads the schemas of the release, not of the slots.** An admin can upload the revised
@@ -188,7 +188,7 @@ files of the current release, or the complete slots when there is no release.
 
 ### Caches
 
-- `StudentResultsBlobClient` already put the blob path in its cache key. The path now includes the
+- `ResultsBlobClient` already put the blob path in its cache key. The path now includes the
   release, so a new release is a new key.
 - `CheckYourPupilDataRepository` used `pupils:{windowId}:{laestab}`. The key now also has the
   current release of each pupil-data exercise. This costs one small indexed query on each read,

@@ -22,6 +22,7 @@ Plus supporting work: content-block search, custom SEO slugs, and two additive m
 ### Content staging (CMS export/import)
 
 - **Schema-versioned JSON bundle.** `ContentBundle` carries `$schema = "cpd-content-v1"` (`ContentBundle.CurrentSchema`) and `SchemaVersion = 1` (`CurrentSchemaVersion`), plus optional `ExportedAtUtc` / `ExportedBy` metadata and the `WikiPages` / `ContentBlocks` collections. Serialised camelCase, indented (diff-friendly), enums as strings, nulls omitted (`ContentStagingJson.Options`).
+- **Home banners.** Since #566 a bundle also carries the start-page **home banners** (`homeBanners`), each with its versions; the schema stays `cpd-content-v2`, and a bundle without the member imports as before.
 - **GUID identity, decoupled from slug/key.** Every wiki page and content block carries a stable `ContentId` GUID (new columns — see migrations). Import matches **by GUID, never by slug or key**, so a page renamed or re-slugged in one environment still updates the right row in another. An unknown id (or `Guid.Empty`) means "create new".
 - **Selective or whole-environment export.** `GET /admin/content-staging/export` downloads everything; `GET …/select` lists the `ContentCatalog`, and `POST …/export` exports the ticked pages/blocks **plus all ancestor pages** (so a child never exports without its parent chain).
 - **Zipped on the wire.** The download is a single-entry `.zip` (`ContentBundleArchive`) containing `bundle.json`. Bundles are repetitive JSON, so this is roughly an order of magnitude off both the download and the subsequent upload into the target environment. Import sniffs the leading bytes rather than the file extension, so a plain `.json` bundle from an earlier release still imports, and the decompressed size is bounded as it is read so a small hostile archive cannot expand to fill memory.
@@ -134,7 +135,7 @@ a bundle whose pages hang off pages in another bundle goes after it.
 | `environments` | A list of `Development`, `Review`, `QA`, `Preproduction`, `Production` | The environments to import the file into, matched against `ASPNETCORE_ENVIRONMENT`. A file is imported nowhere it is not named. An entry with no list is reported as an error and skipped. |
 | `existing` | `keep` (the default) | Adds what is missing and leaves everything already there alone. |
 | | `replace` | Overwrites what is there on every start-up. For content nobody edits, which must always be exactly as shipped. |
-| | `replaceOlder` | Overwrites a page only if it was last changed before the bundle's `exportedAtUtc`. A newer bundle replaces older pages. A page edited since is kept until a newer bundle is released. Content blocks are added if missing and otherwise kept. |
+| | `replaceOlder` | Overwrites a page only if it was last changed before the bundle's `exportedAtUtc`. A newer bundle replaces older pages. A page edited since is kept until a newer bundle is released. Content blocks and home page banners are added if missing and otherwise kept. |
 
 ### Adding a file
 

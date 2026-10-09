@@ -2,7 +2,7 @@
 title: Search
 subtitle: Add search to a page and make your content easy to find
 parent: for-editors
-order: 6
+order: 7
 keywords: search box instant results scope chosen pages this page find keywords typeahead autocomplete
 ---
 

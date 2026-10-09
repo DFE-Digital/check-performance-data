@@ -35,6 +35,7 @@ Everything you need to write and publish content. If you are new to the CMS, rea
 | [Page properties](page-properties.md) | Title, address, menu and search settings |
 | [Drafts, publishing and versions](managing-versions.md) | Publishing, scheduling, unpublishing and going back |
 | [Content blocks](content-blocks.md) | The text of the home page, contact page and footer |
+| [Home page banners](home-page-banners.md) | Notices at the top of the start page, now or at a set time |
 | [Search](search.md) | Search boxes, results pages and making content easy to find |
 
 ## Before you publish: a checklist

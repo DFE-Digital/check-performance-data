@@ -1,0 +1,18 @@
+@model DfE.CheckPerformanceData.Application.HomeBanners.HomeBannerDto
+@*
+    One GOV.UK notification banner (#566). Several can sit on the start page at once, which the
+    Design System advises against; the team accepts that on purpose. So that each region has its
+    own accessible name, aria-labelledby names the "Important" title AND the banner's own heading,
+    both with ids unique to this banner.
+*@
+<div class="govuk-notification-banner" role="region"
+     aria-labelledby="home-banner-@Model.Id-title home-banner-@Model.Id-heading"
+     data-module="govuk-notification-banner">
+    <div class="govuk-notification-banner__header">
+        <h2 class="govuk-notification-banner__title" id="home-banner-@Model.Id-title">Important</h2>
+    </div>
+    <div class="govuk-notification-banner__content">
+        <p class="govuk-notification-banner__heading" id="home-banner-@Model.Id-heading">@Model.Heading</p>
+        <div class="wiki-content">@Html.Raw(Model.BodyHtml)</div>
+    </div>
+</div>

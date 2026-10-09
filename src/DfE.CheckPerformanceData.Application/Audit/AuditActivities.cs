@@ -43,6 +43,8 @@ public static class AuditActivities
         ["PageNodeVersion"] = "Content page version",
         ["ContentBlock"] = "Content block",
         ["ContentBlockVersion"] = "Content block version",
+        ["HomeBanner"] = "Home page banner",
+        ["HomeBannerVersion"] = "Home page banner version",
         ["ContentStagingSession"] = "Content staging session",
         ["RulesConfigVersion"] = "Rules configuration",
         ["Setting"] = "System setting",

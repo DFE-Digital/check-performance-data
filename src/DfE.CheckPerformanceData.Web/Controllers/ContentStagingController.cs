@@ -99,16 +99,18 @@ public sealed class ContentStagingController(
     [HttpPost("export")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ExportSelected(
-        List<Guid>? pageNodeIds, List<Guid>? contentBlockIds, bool fullHistory = false)
+        List<Guid>? pageNodeIds, List<Guid>? contentBlockIds, List<Guid>? homeBannerIds = null, bool fullHistory = false)
     {
         var selection = new ContentExportSelection(
             pageNodeIds?.ToHashSet() ?? [],
             contentBlockIds?.ToHashSet() ?? [],
-            MaxVersionsFor(fullHistory));
+            MaxVersionsFor(fullHistory),
+            homeBannerIds?.ToHashSet() ?? []);
 
-        if (selection.PageNodeIds!.Count == 0 && selection.ContentBlockIds!.Count == 0)
+        if (selection.PageNodeIds!.Count == 0 && selection.ContentBlockIds!.Count == 0
+            && selection.HomeBannerIds!.Count == 0)
         {
-            TempData["ContentStagingError"] = "Select at least one page or content block to export.";
+            TempData["ContentStagingError"] = "Select at least one page, content block or home page banner to export.";
             return Redirect("/admin/content-staging/select");
         }
 
@@ -125,7 +127,8 @@ public sealed class ContentStagingController(
             ExportedAtUtc = DateTime.UtcNow,
             ExportedBy = currentUser.Email,
             PageNodes = bundle.PageNodes,
-            ContentBlocks = bundle.ContentBlocks
+            ContentBlocks = bundle.ContentBlocks,
+            HomeBanners = bundle.HomeBanners
         };
 
         // Zipped on the wire: bundles are repetitive JSON, so this is roughly an order of
@@ -281,8 +284,9 @@ public sealed class ContentStagingController(
     public IActionResult ImportLanding() => Redirect("/admin/content-staging");
 
     // Destructive: truncates every PageNode / PageNodeVersion / ContentBlock / ContentBlockVersion
-    // row. Used to reset a test environment to empty before replaying an import bundle. Gated by
-    // the same editor role as the rest of the controller and behind a confirm modal on the view.
+    // / HomeBanner / HomeBannerVersion row. Used to reset a test environment to empty before
+    // replaying an import bundle. Gated by the same editor role as the rest of the controller
+    // and behind a confirm modal on the view.
     // Default startup seeders (root nodes, /help/not-found) will re-run and rehydrate a minimal
     // shell on the next request.
     [HttpPost("clear-all")]
@@ -301,7 +305,7 @@ public sealed class ContentStagingController(
 
         await pageNodeRepository.TruncateAllContentAsync();
         TempData["ContentStagingResult"] =
-            "All CMS pages and content blocks were cleared. Default root nodes will regenerate on the next request.";
+            "All CMS pages, content blocks and home page banners were cleared. Default root nodes will regenerate on the next request.";
         return Redirect("/admin/content-staging");
     }
 
@@ -343,8 +347,8 @@ public sealed class ContentStagingController(
             .ToDictionary(g => g.Key, g => g.First().Action!.Value);
 
         logger.LogInformation(
-            "Import controller: bundle={PageCount} pages / {BlockCount} blocks, collisionMode={Mode}, newItemMode={NewMode}, perItemDecisions={DecisionCount}",
-            parsed!.PageNodes.Count, parsed.ContentBlocks.Count, model.GlobalMode, model.GlobalNewMode, decisions.Count);
+            "Import controller: bundle={PageCount} pages / {BlockCount} blocks / {BannerCount} banners, collisionMode={Mode}, newItemMode={NewMode}, perItemDecisions={DecisionCount}",
+            parsed!.PageNodes.Count, parsed.ContentBlocks.Count, parsed.HomeBanners.Count, model.GlobalMode, model.GlobalNewMode, decisions.Count);
 
         // Cross-pod concurrency guard. Two admins hitting Import at the same second — one
         // on each of two pods — would race on individual pages and produce a chaotic mixed
@@ -530,7 +534,8 @@ public sealed class ContentStagingController(
     private static string BuildSummary(ContentImportResult r) =>
         $"Import complete. Pages: {r.PageNodesCreated} added, {r.PageNodesUpdated} updated, " +
         $"{r.PageNodesSkipped} skipped. Content blocks: {r.ContentBlocksCreated} added, " +
-        $"{r.ContentBlocksUpdated} updated, {r.ContentBlocksSkipped} skipped.";
+        $"{r.ContentBlocksUpdated} updated, {r.ContentBlocksSkipped} skipped." +
+        $" Home page banners: {r.HomeBannersCreated} added, {r.HomeBannersUpdated} updated, {r.HomeBannersSkipped} skipped.";
 
     // Records an AuditEntry for a content-staging import, so an incident responder can answer
     // "who imported what, when" without replaying the bundle.
@@ -568,6 +573,9 @@ public sealed class ContentStagingController(
             result.ContentBlocksCreated,
             result.ContentBlocksUpdated,
             result.ContentBlocksSkipped,
+            result.HomeBannersCreated,
+            result.HomeBannersUpdated,
+            result.HomeBannersSkipped,
             WarningCount = result.Warnings.Count,
             ErrorCount = result.Errors.Count,
             BundleJsonBytes = bundleJson.Length,

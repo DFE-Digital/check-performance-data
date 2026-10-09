@@ -4,12 +4,15 @@
     ViewData["Title"] = "Review import";
     var pages = Model.Preview.Pages;
     var blocks = Model.Preview.Blocks;
+    var banners = Model.Preview.Banners;
 
     var blocked = pages.Where(p => p.ParentMissing).ToList();
     var newItems = pages.Where(p => !p.Exists && !p.ParentMissing).Select(p => ("Page", p))
-        .Concat(blocks.Where(b => !b.Exists).Select(b => ("Block", b))).ToList();
+        .Concat(blocks.Where(b => !b.Exists).Select(b => ("Block", b)))
+        .Concat(banners.Where(b => !b.Exists).Select(b => ("Banner", b))).ToList();
     var collisions = pages.Where(p => p.Exists).Select(p => ("Page", p))
-        .Concat(blocks.Where(b => b.Exists).Select(b => ("Block", b))).ToList();
+        .Concat(blocks.Where(b => b.Exists).Select(b => ("Block", b)))
+        .Concat(banners.Where(b => b.Exists).Select(b => ("Banner", b))).ToList();
 
     // Decision inputs are indexed contiguously across both tables so ASP.NET Core's
     // model binder builds a single Decisions list. The controller doesn't care whether

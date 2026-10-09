@@ -2,9 +2,10 @@ namespace DfE.CheckPerformanceData.Application.ContentStaging;
 
 public interface IContentStagingService
 {
-    // Builds a schema-versioned bundle of wiki pages and content blocks (current content only).
-    // A null selection exports everything; otherwise only the selected items (plus ancestors of
-    // selected pages). Header metadata (ExportedAtUtc / ExportedBy) is left for the caller to set.
+    // Builds a schema-versioned bundle of wiki pages, content blocks and home page banners
+    // (current content only). A null selection exports everything; otherwise only the selected
+    // items (plus ancestors of selected pages). Header metadata (ExportedAtUtc / ExportedBy) is
+    // left for the caller to set.
     Task<ContentBundle> ExportAsync(ContentExportSelection? selection = null);
 
     // The catalogue of exportable content (pages + blocks with metadata) for the selection UI.

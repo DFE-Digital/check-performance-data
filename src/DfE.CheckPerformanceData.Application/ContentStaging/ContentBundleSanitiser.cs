@@ -55,6 +55,27 @@ public sealed class ContentBundleSanitiser(IHtmlRenderingService html)
             }
         }
 
+        for (var i = 0; i < bundle.HomeBanners.Count; i++)
+        {
+            var banner = bundle.HomeBanners[i];
+            var versions = banner.Versions;
+            for (var j = 0; j < versions.Count; j++)
+            {
+                var cleanVersion = html.RenderHtml(versions[j].Body) ?? string.Empty;
+                if (!string.Equals(cleanVersion, versions[j].Body, StringComparison.Ordinal))
+                {
+                    versions[j] = versions[j] with { Body = cleanVersion };
+                    changed++;
+                }
+            }
+            var cleanBody = html.RenderHtml(banner.Body) ?? string.Empty;
+            if (!string.Equals(cleanBody, banner.Body, StringComparison.Ordinal))
+            {
+                bundle.HomeBanners[i] = banner with { Body = cleanBody };
+                changed++;
+            }
+        }
+
         return changed;
     }
 }

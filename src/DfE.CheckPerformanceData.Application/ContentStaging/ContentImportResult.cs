@@ -12,6 +12,10 @@ public sealed class ContentImportResult
     public int ContentBlocksUpdated { get; set; }
     public int ContentBlocksSkipped { get; set; }
 
+    public int HomeBannersCreated { get; set; }
+    public int HomeBannersUpdated { get; set; }
+    public int HomeBannersSkipped { get; set; }
+
     // Human-readable notes about items that were skipped.
     public List<string> Warnings { get; } = [];
 

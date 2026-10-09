@@ -226,4 +226,18 @@ public sealed class AdminNavHierarchyTests
             Assert.Contains(entry.ParentKey!, keys);
         }
     }
+
+    // --- HomeBanners_IsATileInTheCmsGroup ---
+
+    [Fact]
+    public void HomeBanners_IsATileInTheCmsGroup()
+    {
+        var entries = ResolveEntries();
+
+        var tile = Assert.Single(entries, e => e.Key == AdminNavKeys.HomeBanners);
+        Assert.Equal(AdminNavKeys.CmsAdmin, tile.ParentKey);
+        Assert.Equal("Home page banners", tile.Title);
+        Assert.Equal("/admin/home-banners", tile.Url);
+        Assert.True(tile.Enabled);
+    }
 }

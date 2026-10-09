@@ -21,6 +21,7 @@ The source of this guide is a Markdown file kept with the service's code, alongs
 - 2. Finding your way around
 - 3. Dashboard
 - 4. CMS administration
+    - Home page banners
 - 5. System administration
 - 6. Messages
 - 7. Window administration
@@ -47,7 +48,7 @@ Your access depends on the role DfE Sign-In gives you. There are 2 admin roles:
 | Role | Who it is for | What it can see by default |
 |---|---|---|
 | `cypmd_admin` | Administrators | Every section. This role always has full access and you cannot reduce it. |
-| `cypmd_content_access_user` | Content editors | Pages, Content blocks, Deleted pages, Seed sample CMS pages and Content staging import/export. |
+| `cypmd_content_access_user` | Content editors | Pages, Content blocks, Home page banners, Deleted pages, Seed sample CMS pages and Content staging import/export. |
 
 You assign roles in DfE Sign-In, not in this service. An administrator can change which sections a role can see. Chapter 5 explains how, under Role settings.
 
@@ -84,7 +85,7 @@ Select **Admin** in the header to open the *Administration* page. It shows one s
 The groups are:
 
 - **Dashboard**: figures on school engagement and amendment requests.
-- **CMS administration**: pages, content blocks, deleted pages, content staging and search analytics.
+- **CMS administration**: pages, content blocks, home page banners, deleted pages, content staging and search analytics.
 - **System administration**: the rules engine, system settings, logs, site CSS and JavaScript, role settings and test data.
 - **Messages**: search feedback and the dead-letter queue.
 - **Window administration**: creating and managing checking windows.
@@ -251,6 +252,30 @@ To edit a block:
 
 Each block keeps a version history. Select **Version history** in the block's edit form to see it. The *Content block versions* screen lists each version with its date, and previews the content when you select one. You can revert to an earlier version. The service asks you to confirm: *Are you sure you want to revert to version…?* It warns that this replaces the current published content, and adds the current version to the history.
 
+### Home page banners
+
+The start page (the page a school sees before signing in) can show one or more blue
+"Important" notification banners: new rules, a known issue, an extension to a deadline.
+Open **CMS administration > Home page banners**.
+
+Each banner has a heading, rich text (links and lists are allowed), an on/off switch and
+optional **Show from** and **Show until** dates and times. All times are UK time. A banner
+shows only while it is on and within its dates; off always hides it. "Show from" includes the
+minute you enter and "Show until" does not, so a banner due to end at 17:00 is gone at 17:00.
+
+The list shows each banner's status: **Live** (on and within its dates), **Scheduled** (on,
+not yet due), **Expired** (on, past its end) or **Off**. Banners appear on the start page in
+the order of the list; use **Move up** and **Move down** to change it.
+
+Every save makes a new version. **Version history** shows them and lets you restore an
+earlier one, which becomes the newest version. **Preview** shows a banner the way schools
+will see it, whatever its status. **Delete** asks you to confirm and cannot be undone; to
+hide a banner for a while, turn it off instead.
+
+Banners are included in content staging export and import, with their versions. Editors
+need the **Home page banners** section on Role settings; on an environment created before
+this feature an administrator has to tick it.
+
 ### Deleted pages
 
 Use *Deleted pages* to bring back a page that someone deleted.
@@ -262,15 +287,15 @@ Each deleted page is listed with its path, type, when it was deleted and who del
 
 ### Content staging import/export
 
-Use *Content staging import/export* to move pages and content blocks from one environment to another. For example, to copy content you have tested in QA to production.
+Use *Content staging import/export* to move pages, content blocks and home page banners from one environment to another. For example, to copy content you have tested in QA to production.
 
 ![The Content staging import/export screen, with an Export section and an Import section](admin/images/cms-content-staging.png)
 *The Content staging import/export screen.*
 
 #### Exporting content
 
-- Select **Export everything** to download every page and content block as a zip file.
-- Select **Choose what to export** to pick items. Tick the pages and content blocks you want, then select **Export selected**. When you pick a page, its parent pages are always included, so the site structure stays intact.
+- Select **Export everything** to download every page, content block and home page banner as a zip file.
+- Select **Choose what to export** to pick items. Tick the pages, content blocks and home page banners you want, then select **Export selected**. When you pick a page, its parent pages are always included, so the site structure stays intact.
 
 Each page is exported with its 5 most recent versions and its live version. Tick **Include full version history** to export every saved version. Only do this when you are moving a whole environment, because it makes the file much larger.
 
@@ -285,13 +310,13 @@ Importing has 2 steps. The first step changes nothing.
     - **Default for new items**: **Include** adds them. **Skip** leaves them out.
     - **Default for items already in this environment**: **Skip** keeps what is there. **Overwrite** replaces it. **Fail** stops the import.
     - Each item also has its own choice, with **Use default** as the starting point. Use it to override the default for one item.
-5. Select **Confirm import**. To leave without importing, select **Cancel**. When the import finishes, the service shows a summary such as *Import complete. Pages: 1 added, 11 updated, 0 skipped. Content blocks: 0 added, 0 updated, 0 skipped.*
+5. Select **Confirm import**. To leave without importing, select **Cancel**. When the import finishes, the service shows a summary such as *Import complete. Pages: 1 added, 11 updated, 0 skipped. Content blocks: 0 added, 0 updated, 0 skipped. Home page banners: 0 added, 0 updated, 0 skipped.*
 
 Some items cannot be imported. The service lists them under *These items cannot be imported*. This happens when an item's parent page is not in this environment or in the file. The service skips these items, and does not create a blank parent for them.
 
 An import applies the normal checks and keeps version history, as if someone had typed the content in. Every import is recorded in the audit log.
 
-> **Warning** In development environments only, and only if the *CMS:ShowDeleteAllButton* system setting is turned on, this screen also shows a **Clear all CMS content** button. The service asks you to confirm with *Clear all CMS content?* It deletes every page and content block in the environment and cannot be undone. Only use it to reset a test environment. It is never available in production, QA or preproduction, whatever the setting says.
+> **Warning** In development environments only, and only if the *CMS:ShowDeleteAllButton* system setting is turned on, this screen also shows a **Clear all CMS content** button. The service asks you to confirm with *Clear all CMS content?* It deletes every page, content block and home page banner in the environment and cannot be undone. Only use it to reset a test environment. It is never available in production, QA or preproduction, whatever the setting says.
 
 ### Search analytics
 
@@ -992,19 +1017,20 @@ This table lists the actions in the admin area that change or delete data. It sa
 | Pages | Delete a page | Moves the page to Deleted pages, where it can be restored. The screen says it cannot be undone. | Yes. A confirmation page. |
 | Content blocks | Revert to an earlier version | Replaces the published content with an earlier version. | Yes. A dialog. |
 | Content staging import/export | Import with Overwrite | Replaces content that already exists. | Yes. The *Review import* screen. |
-| Content staging import/export | Clear all CMS content | Deletes every page and content block. Development environments only. | Yes. A dialog asks *Clear all CMS content?* |
+| Content staging import/export | Clear all CMS content | Deletes every page, content block and home page banner. Development environments only. | Yes. A dialog asks *Clear all CMS content?* |
 | Blob storage browser | Delete a file | Deletes the file from storage. | Only a browser message. |
 | Danger zone | Reset seed data | Deletes all change requests and windows, then reseeds. Not in production. | The Reset seed data screen is the only confirmation. |
 
 ## Appendix B: Admin sections a role can be granted
 
-*Role settings* lists 31 sections. This table shows what each one unlocks, grouped in the order of the Administration page.
+*Role settings* lists 32 sections. This table shows what each one unlocks, grouped in the order of the Administration page.
 
 | Group | Section | What it unlocks |
 |---|---|---|
 | Dashboard | `dashboard` | Dashboard |
 | CMS administration | `content-pages` | Pages |
 | CMS administration | `content-blocks` | Content blocks |
+| CMS administration | `home-banners` | Home page banners |
 | CMS administration | `deleted-pages` | Deleted pages |
 | CMS administration | `content-staging` | Content staging import/export |
 | CMS administration | `search-analytics` | Search analytics and its drill-down screens |

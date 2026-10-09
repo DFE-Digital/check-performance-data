@@ -311,4 +311,26 @@ public sealed class ContentBundleSanitiserTests
         Assert.False(lower.Contains("<base"),
             $"sanitised output contains <base> for input: {original}\noutput: {sanitised}");
     }
+
+    [Fact]
+    public void Banner_BodyAndVersionBodies_AreSanitised()
+    {
+        var bundle = new ContentBundle
+        {
+            HomeBanners =
+            [
+                new HomeBannerBundleItem
+                {
+                    Id = Guid.NewGuid(), Heading = "H", Body = "<p>ok</p><script>alert(1)</script>",
+                    Versions = [new HomeBannerVersionBundleItem { VersionNumber = 1, Heading = "H", Body = "<p>v</p><script>x</script>" }]
+                }
+            ]
+        };
+
+        var changed = new ContentBundleSanitiser(new HtmlRenderingService()).SanitiseInPlace(bundle);
+
+        Assert.Equal(2, changed);
+        Assert.DoesNotContain("<script", bundle.HomeBanners[0].Body);
+        Assert.DoesNotContain("<script", bundle.HomeBanners[0].Versions[0].Body);
+    }
 }

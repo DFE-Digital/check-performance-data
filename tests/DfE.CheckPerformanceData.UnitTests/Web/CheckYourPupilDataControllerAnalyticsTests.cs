@@ -44,6 +44,26 @@ public sealed class CheckYourPupilDataControllerAnalyticsTests
     }
 
     [Fact]
+    public async Task Impersonated_pupil_page_and_download_names_use_target_identifiers()
+    {
+        _currentUser.OrganisationName.Returns("Original establishment");
+        _currentUser.OrganisationUrn.Returns("100001");
+        var view = Substitute.For<DfE.CheckPerformanceData.Application.Impersonation.IEstablishmentViewContext>();
+        view.IsImpersonating.Returns(true);
+        view.OrganisationLaestab.Returns("7654321");
+        view.OrganisationUrn.Returns("100002");
+        var exercises = new CheckingExerciseService(TimeProvider.System);
+        var controller = new CheckYourPupilDataController(_service, _currentUser, _analytics,
+            new NextStepsService(exercises), exercises, view) { ControllerContext = _sut.ControllerContext };
+        var page = Assert.IsType<ViewResult>(await controller.Index(WindowId));
+        Assert.Equal("LAESTAB 7654321, URN 100002", Assert.IsType<CheckYourPupilDataViewModel>(page.Model).OrganisationName);
+        _service.GetPupilCsvAsync(WindowId, true).Returns(PupilTable.Empty);
+        var download = Assert.IsType<FileContentResult>(await controller.DownloadIncluded(WindowId));
+        Assert.Contains("100002", download.FileDownloadName);
+        Assert.DoesNotContain("100001", download.FileDownloadName);
+    }
+
+    [Fact]
     public async Task Index_WithIncludedSearch_EmitsSearchResults()
     {
         _service.GetPupilTableAsync(WindowId, true, "smith", 0, 10)

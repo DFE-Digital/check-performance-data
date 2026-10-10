@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.Impersonation;
 using DfE.CheckPerformanceData.Application.AmendmentRequests;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Domain.Enums;
@@ -7,8 +8,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DfE.CheckPerformanceData.Persistence.Repositories;
 
-public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
+public sealed class RequestRepository(IPortalDbContext db, IEstablishmentViewContext? viewContext = null) : IRequestRepository
 {
+    private IQueryable<ChangeRequest> ReadRequests => viewContext?.IsImpersonating == true
+        ? db.ChangeRequests.Where(r => r.OrganisationLaestab != null
+            && r.OrganisationLaestab.Replace("/", "").Replace(" ", "") == viewContext.OrganisationLaestab.Replace("/", "").Replace(" ", ""))
+        : db.ChangeRequests;
+
     public async Task<DuplicateCheckResult> CheckForConflictAsync(Guid windowId, Guid pupilId, long organisationUrn, string currentReferenceNumber, Guid currentUserId)
     {
         var conflict = await db.ChangeRequests
@@ -58,6 +64,12 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
     
     public async Task<Guid> UpsertAsync(ChangeRequestData data)
     {
+        // Reference numbers cannot transfer a request to another establishment or window.
+        if (await db.ChangeRequests.AnyAsync(r => r.ReferenceNumber == data.ReferenceNumber
+            && (r.WindowId != data.WindowId || r.OrganisationUrn != data.OrganisationUrn
+                || r.OrganisationLaestab != data.OrganisationLaestab)))
+            throw new ImpersonationWriteDeniedException();
+
         var timestamp = DateTime.SpecifyKind(data.Timestamp, DateTimeKind.Local);
 
         // For Submitted, check for conflicts atomically within a serializable
@@ -76,7 +88,7 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
                 // between the lookup and the write — a concurrent transaction that inserts
                 // a row with the same ReferenceNumber will be visible on retry.
                 var existingId = await db.ChangeRequests
-                    .Where(r => r.ReferenceNumber == data.ReferenceNumber)
+                    .Where(r => r.ReferenceNumber == data.ReferenceNumber && r.WindowId == data.WindowId && r.OrganisationUrn == data.OrganisationUrn && r.OrganisationLaestab == data.OrganisationLaestab)
                     .Select(r => r.Id)
                     .FirstOrDefaultAsync();
 
@@ -165,7 +177,7 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
 
         // Draft save path (non-Submitted) — no conflict guard needed.
         var draftExistingId = await db.ChangeRequests
-            .Where(r => r.ReferenceNumber == data.ReferenceNumber)
+            .Where(r => r.ReferenceNumber == data.ReferenceNumber && r.WindowId == data.WindowId && r.OrganisationUrn == data.OrganisationUrn && r.OrganisationLaestab == data.OrganisationLaestab)
             .Select(r => r.Id)
             .FirstOrDefaultAsync();
 
@@ -219,7 +231,7 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
     }
 
     public async Task<IReadOnlyList<AmendmentRequestData>> GetAmendmentRequestsAsync(Guid windowId, long organisationUrn) =>
-        await db.ChangeRequests
+        await ReadRequests
             .Where(r => r.WindowId == windowId
                 && r.OrganisationUrn == organisationUrn
                 && (r.Status == RequestStatus.InProgress || r.Status == RequestStatus.ReadyToSubmit))
@@ -238,7 +250,7 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
             .ToListAsync();
 
     public async Task<IReadOnlyList<SubmittedRequestData>> GetSubmittedRequestsAsync(Guid windowId, long organisationUrn) =>
-        await db.ChangeRequests
+        await ReadRequests
             .Where(r => r.WindowId == windowId
                 && r.OrganisationUrn == organisationUrn
                 && (r.Status == RequestStatus.Submitted
@@ -261,7 +273,7 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
             .ToListAsync();
 
     public async Task<IReadOnlyList<SubmittedRequestData>> GetSubmittedResultsEnquiriesAsync(Guid windowId, long organisationUrn) =>
-        await db.ChangeRequests
+        await ReadRequests
             .Where(r => r.WindowId == windowId
                 && r.OrganisationUrn == organisationUrn
                 // Enquiries remain Submitted: dispatch to Zendesk happens at submit time (AB#301974)
@@ -282,7 +294,7 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
             .ToListAsync();
 
     public async Task<AmendmentRequestData?> GetAmendmentRequestAsync(Guid windowId, long organisationUrn, string referenceNumber) =>
-        await db.ChangeRequests
+        await ReadRequests
             .Where(r => r.WindowId == windowId
                 && r.OrganisationUrn == organisationUrn
                 && r.ReferenceNumber == referenceNumber)
@@ -303,7 +315,7 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
             .FirstOrDefaultAsync();
 
     public Task WithdrawAsync(Guid windowId, long organisationUrn, string referenceNumber, string withdrawnByEmail, DateTime withdrawnAt) =>
-        db.ChangeRequests
+        ReadRequests
             .Where(r => r.WindowId == windowId
                 && r.OrganisationUrn == organisationUrn
                 && r.ReferenceNumber == referenceNumber)
@@ -313,14 +325,14 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
                 .SetProperty(r => r.WithdrawnAt, withdrawnAt));
 
     public Task DeleteAsync(Guid windowId, long organisationUrn, string referenceNumber) =>
-        db.ChangeRequests
+        ReadRequests
             .Where(r => r.WindowId == windowId
                 && r.OrganisationUrn == organisationUrn
                 && r.ReferenceNumber == referenceNumber)
             .ExecuteDeleteAsync();
 
     public async Task<ConfirmDataCorrectData?> GetConfirmDataCorrectAsync(Guid windowId, long organisationUrn, string referenceNumber) =>
-        await db.ChangeRequests
+        await ReadRequests
             .Where(r => r.WindowId == windowId
                 && r.OrganisationUrn == organisationUrn
                 && r.ReferenceNumber == referenceNumber)
@@ -359,7 +371,7 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
 
     public async Task<IReadOnlyList<SubmittedRequestData>> GetAllSubmittedRequestsAsync(
         long organisationUrn) =>
-        await db.ChangeRequests
+        await ReadRequests
             .Where(r => r.OrganisationUrn == organisationUrn)
             .OrderByDescending(r => r.Submitted)
             .Select(r => new SubmittedRequestData

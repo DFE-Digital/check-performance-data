@@ -2188,3 +2188,8 @@ dialog.seed-progress-modal {
   max-width: 30em;
   height: 1.25rem;
 }
+
+.impersonation-banner { background: #b10e1e; color: #fff; padding: 20px 0; border-bottom: 5px solid #0b0c0c; }
+.impersonation-banner .govuk-heading-m, .impersonation-banner .govuk-body { color: #fff; }
+.impersonation-banner form { margin: 0; }
+.impersonation-banner .govuk-button { margin-bottom: 0; }

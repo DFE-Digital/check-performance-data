@@ -171,9 +171,15 @@ public sealed class DistributedCacheTicketStore : ITicketStore
         }
     }
 
-    public Task<AuthenticationTicket?> RetrieveAsync(
-        string key, HttpContext httpContext, CancellationToken cancellationToken) =>
-        RetrieveAsync(key, cancellationToken);
+    public async Task<AuthenticationTicket?> RetrieveAsync(
+        string key, HttpContext httpContext, CancellationToken cancellationToken)
+    {
+        var ticket = await RetrieveAsync(key, cancellationToken);
+        if (ticket is not null)
+            httpContext.Items[AuthenticatedSessionBinding.ItemKey] = Convert.ToHexString(
+                SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(key)));
+        return ticket;
+    }
 
     public Task RemoveAsync(string key) => RemoveAsync(key, CancellationToken.None);
 

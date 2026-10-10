@@ -84,6 +84,7 @@ public static class RequestPipelineExtensions
 
         app.UseAuthentication();
         app.UseAuthorization();
+        app.UseMiddleware<ImpersonationContextMiddleware>();
 
         app.UseCpdBigQueryAnalytics();
 

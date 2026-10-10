@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.Impersonation;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
@@ -21,7 +22,7 @@ public sealed class RequestService(
     IQueueService queueService,
     IRequestNotificationService requestNotificationService,
     ICheckYourPupilDataService checkYourPupilDataService,
-    ICheckingExerciseService checkingExerciseService) : IRequestService
+    ICheckingExerciseService checkingExerciseService, IImpersonationWriteGuard? writeGuard = null) : IRequestService
 {
     private long OrganisationUrnLong => long.Parse(currentUserService.OrganisationUrn);
 
@@ -56,6 +57,7 @@ public sealed class RequestService(
 
     public async Task SubmitRequestAsync(Guid windowId, RequestState journey)
     {
+        if (writeGuard is not null) await writeGuard.EnsureCanWriteAsync(windowId, journey);
         if (journey.SelectedWhatToChange is null || journey.CheckingWindow is null || journey.SelectedPupil is null)
             throw new InvalidOperationException("Session state is incomplete for request submission.");
 
@@ -118,6 +120,7 @@ public sealed class RequestService(
     public async Task<string> SubmitResultsEnquiryAsync(
         Guid windowId, RequestState journey, CancellationToken ct = default)
     {
+        if (writeGuard is not null) await writeGuard.EnsureCanWriteAsync(windowId, journey);
         if (!WhatToChangeCheckingExerciseMap.IsResultsEnquiry(journey.SelectedWhatToChange))
             throw new InvalidOperationException(
                 $"SubmitResultsEnquiryAsync is the results-enquiry path; got {journey.SelectedWhatToChange}. " +
@@ -205,6 +208,7 @@ public sealed class RequestService(
     public async Task ConfirmDataCorrectAsync(
         Guid windowId, string referenceNumber, DateTime endDate, EmailSubstitutions substitutions)
     {
+        if (writeGuard is not null) await writeGuard.EnsureCanWriteAsync(windowId);
         // A declaration has no journey and no AmendmentType, so its exercise cannot be derived from
         // the row later - confirming the data is correct is a pupil-data action by definition
         // (ConfirmCorrectController pins the same constant). Hence the extra read: this is the one
@@ -237,6 +241,7 @@ public sealed class RequestService(
 
     public async Task SaveDraftAsync(Guid windowId, RequestState journey, RequestStatus status)
     {
+        if (writeGuard is not null) await writeGuard.EnsureCanWriteAsync(windowId, journey);
         if (journey.SelectedWhatToChange is null || journey.CheckingWindow is null || journey.SelectedPupil is null
             || journey.ReferenceNumber is null)
             throw new InvalidOperationException("Session state is incomplete for draft submission.");
@@ -261,6 +266,7 @@ public sealed class RequestService(
 
     public async Task<RequestDeletionResult> DeleteAsync(Guid windowId, string referenceNumber)
     {
+        if (writeGuard is not null) await writeGuard.EnsureCanWriteAsync(windowId);
         var urn = OrganisationUrnLong;
         var row = await requestRepository.GetAmendmentRequestAsync(windowId, urn, referenceNumber);
         var pupilName = row is null ? string.Empty : $"{row.PupilFirstname} {row.PupilSurname}".Trim();

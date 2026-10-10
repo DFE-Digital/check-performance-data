@@ -7,6 +7,15 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Infrastructure.Analytic
 
 public sealed class DfeAnalyticsServiceTests
 {
+    [Fact]
+    public async Task Impersonated_views_emit_no_establishment_events()
+    {
+        var view = Substitute.For<DfE.CheckPerformanceData.Application.Impersonation.IEstablishmentViewContext>();
+        view.IsImpersonating.Returns(true);
+        var sender = Substitute.For<IEventSender>();
+        await new DfeAnalyticsService(sender, view).TrackAsync(new SampleEvent());
+        await sender.DidNotReceiveWithAnyArgs().SendEventAsync(default!);
+    }
     /// <summary>A test event exercising plain, hidden, bool and null fields.</summary>
     private sealed record SampleEvent : AnalyticsEvent
     {

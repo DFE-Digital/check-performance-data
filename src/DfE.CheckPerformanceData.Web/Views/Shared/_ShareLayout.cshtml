@@ -18,6 +18,7 @@
    is body content. Defining Head replaces the template's default stylesheet import, so the
    GovUkFrontendStyleImports() call below is what keeps the GOV.UK CSS. *@
 @section Head {
+    @await Html.PartialAsync("_EstablishmentContextScript")
     @Html.GovUkFrontendStyleImports()
     <link rel="stylesheet" href="~/css/dfefrontend-2.0.0.min.css" />
 }
@@ -28,6 +29,7 @@
 }
 
 @section Header {
+    @await Html.PartialAsync("_ImpersonationBanner")
     @* <header role="banner"> so the GOV.UK home link sits in a landmark — the GOV.UK
        Frontend header component itself renders a plain <div> (audit #374). *@
     <header role="banner">

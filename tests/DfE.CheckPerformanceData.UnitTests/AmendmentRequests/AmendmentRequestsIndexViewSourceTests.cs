@@ -94,7 +94,7 @@ public sealed class AmendmentRequestsIndexViewSourceTests
         var beforeIssuesTab = source[..source.IndexOf("<govuk-tabs-item id=\"results-enquiries\"", StringComparison.Ordinal)];
         Assert.DoesNotContain("Model.Deadlines", beforeIssuesTab);
         Assert.Contains("@foreach (var deadline in Model.RequestDeadlines)", beforeIssuesTab);
-        Assert.Contains("@foreach (var deadline in Model.RequestDeadlines.Where(d => d.IsOpen))", beforeIssuesTab);
+        Assert.Contains("@foreach (var deadline in Model.RequestDeadlines.Where(d => d.IsOpen && !Impersonation.IsImpersonating))", beforeIssuesTab);
         Assert.Contains("@if (Model.RequestDeadlines.All(d => !d.IsOpen))", beforeIssuesTab);
     }
 

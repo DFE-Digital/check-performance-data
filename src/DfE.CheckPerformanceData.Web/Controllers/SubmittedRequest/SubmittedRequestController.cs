@@ -23,6 +23,11 @@ public sealed class SubmittedRequestController(
     public Task<IActionResult> View(Guid windowId, string referenceNumber) =>
         RenderAmendment(windowId, referenceNumber, confirmingDelete: false);
 
+    // Display-only projection; does not resume an editing journey or save session state.
+    [HttpGet("/{windowId}/AmendmentRequests/{referenceNumber}/draft")]
+    public Task<IActionResult> DraftDetails(Guid windowId, string referenceNumber) =>
+        RenderAmendment(windowId, referenceNumber, confirmingDelete: false);
+
     [Route("/{windowId}/AmendmentRequests/{referenceNumber}/view-confirmation")]
     public Task<IActionResult> ViewConfirmation(Guid windowId, string referenceNumber) =>
         RenderConfirmation(windowId, referenceNumber, confirmingDelete: false);

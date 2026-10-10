@@ -46,6 +46,16 @@ public sealed class RequireAdminSectionAttribute : Attribute, IAsyncAuthorizatio
             return;
         }
 
+        if (SectionKey == "impersonation")
+        {
+            if (!DfE.CheckPerformanceData.Web.Impersonation.ImpersonationAccessPolicy.CanAccess(user))
+                context.Result = new ForbidResult();
+            return;
+        }
+
+        if (AllowAnyGrantedSection && DfE.CheckPerformanceData.Web.Impersonation.ImpersonationAccessPolicy.CanAccess(user))
+            return;
+
         var policy = context.HttpContext.RequestServices.GetService<IAdminAccessPolicy>();
         if (policy is null)
         {

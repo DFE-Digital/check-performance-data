@@ -21,6 +21,7 @@ public static class JourneyAndCmsServicesExtensions
         services.AddScoped<IDevDataSeedingOrchestrator, DevDataSeedingOrchestrator>();
 
         services.AddScoped<ICurrentUserService, CurrentUserService>();
+        services.AddEstablishmentImpersonation();
         services.AddScoped<IFileStorageService, EvidenceBlobStorageService>();
         services.AddScoped<IJourneyViewModelBuilder, JourneyViewModelBuilder>();
 

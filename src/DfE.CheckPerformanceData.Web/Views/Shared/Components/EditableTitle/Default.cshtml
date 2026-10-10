@@ -35,7 +35,7 @@ else
 {
     <div class="content-block content-block--title" id="block-@Model.Key">
         @Html.Raw($"<{Model.HeadingLevel} class=\"{Html.Encode(Model.CssClass)}\">{Html.Encode(Model.Value)}</{Model.HeadingLevel}>")
-        @if (User.IsInRole(DfE.CheckPerformanceData.Web.Controllers.WikiConstants.EditorRole))
+        @if (ViewData["Impersonating"] is not true && User.IsInRole(DfE.CheckPerformanceData.Web.Controllers.WikiConstants.EditorRole))
         {
             <a href="?edit=@Model.Key#block-@Model.Key" class="content-block__edit-link govuk-link">
                 <svg class="content-block__edit-icon" width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false">

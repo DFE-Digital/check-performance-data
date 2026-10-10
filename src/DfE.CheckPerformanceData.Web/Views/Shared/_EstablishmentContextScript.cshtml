@@ -1,0 +1,10 @@
+@inject DfE.CheckPerformanceData.Web.Impersonation.ImpersonationSessionService SessionContext
+@if (SessionContext.IsImpersonating)
+{
+    <meta name="impersonation-read-only" content="true" />
+}
+@if (SessionContext.CreateStamp() is { } stamp)
+{
+    <meta name="establishment-context" content="@stamp" />
+    <script src="~/js/establishment-context.js" asp-append-version="true"></script>
+}

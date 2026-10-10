@@ -83,7 +83,7 @@ public sealed record AuditLogRowViewModel(
             row.UserName ?? row.UserId ?? "System",
             AuditActivities.Label(row.EntityType),
             isEgress ? "govuk-tag--turquoise" : isWindowAdmin ? "govuk-tag--orange" : "govuk-tag--grey",
-            isEgress ? (row.Outcome is null ? EgressActionLabel(row.Action) : null)
+            row.EntityType == "Impersonation" ? $"{row.Action}: {row.EntityId}" : isEgress ? (row.Outcome is null ? EgressActionLabel(row.Action) : null)
                 : isClosedEarly || isAutomaticHandOver ? null
                 : row.Action,
             row.WindowTitle ?? (carriesWindow ? UnknownWindow : string.Empty),

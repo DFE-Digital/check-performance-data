@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.Impersonation;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.DfESignInApiClient;
 using Microsoft.Extensions.Logging;
@@ -6,7 +7,7 @@ namespace DfE.CheckPerformanceData.Application.LandingPage;
 
 public sealed class LandingPageService(ILandingPageRepository landingPageRepository, TimeProvider timeProvider,
     IDfESignInApiClient dfESignInApiClient, ICurrentUserService currentUserService,
-    ILogger<LandingPageService> logger) : ILandingPageService
+    ILogger<LandingPageService> logger, IEstablishmentViewContext? viewContext = null) : ILandingPageService
 {
     public async Task<LandingPageResult?> GetLandingPageDataAsync(CancellationToken cancellationToken)
     {
@@ -14,13 +15,17 @@ public sealed class LandingPageService(ILandingPageRepository landingPageReposit
         // DfE Sign-In about. Calling the API with an empty id 500s on the upstream side
         // and surfaces as an unhandled exception. Return null so the controller can
         // route to its existing no-data path (sign-out).
-        if (string.IsNullOrWhiteSpace(currentUserService.OrganisationId))
+        if (viewContext?.IsImpersonating != true && string.IsNullOrWhiteSpace(currentUserService.OrganisationId))
         {
             return null;
         }
 
         OrganisationDto? organisation =
-            await dfESignInApiClient.GetOrganisationAsync(currentUserService.UserId, currentUserService.OrganisationId);
+            viewContext?.IsImpersonating == true
+                ? new OrganisationDto { Id = "", Urn = viewContext.OrganisationUrn, Laestab = viewContext.OrganisationLaestab,
+                    Name = $"LAESTAB {viewContext.OrganisationLaestab}, URN {viewContext.OrganisationUrn}",
+                    StatutoryLowAge = viewContext.LowestAge, StatutoryHighAge = viewContext.HighestAge }
+                : await dfESignInApiClient.GetOrganisationAsync(currentUserService.UserId, currentUserService.OrganisationId);
 
         if (organisation == null)
         {

@@ -30,7 +30,7 @@ public sealed class AdminNavRegistryGroupingTests
 		// browser moving under Danger zone, which is itself a root group registered everywhere;
 		// plus the Data egress group (AB#294553); plus the Audit log root tile (AB#294592), a root
 		// with a URL and no children like Dashboard.
-		Assert.Equal(8, groups.Count);
+		Assert.Equal(9, groups.Count);
 		var groupKeys = groups.Select(g => g.Key).ToHashSet();
 		Assert.Contains("dashboard", groupKeys);
 		Assert.Contains("cms-admin", groupKeys);
@@ -76,7 +76,7 @@ public sealed class AdminNavRegistryGroupingTests
 		// Danger zone, which this overload registers along with the browser but without the
 		// gated Reset seed data tile — plus the Data egress group and its Start a new egress
 		// tile (AB#294553) and its Egress runs tile (AB#294590) and the Audit log root tile (AB#294592).
-		Assert.Equal(35, keys.Count);
+		Assert.Equal(36, keys.Count);
 		Assert.Equal(keys.Count, keys.Distinct().Count());
 	}
 

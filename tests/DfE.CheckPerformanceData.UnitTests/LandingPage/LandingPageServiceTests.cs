@@ -11,6 +11,30 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.LandingPage;
 
 public class LandingPageServiceTests
 {
+    [Theory]
+    [InlineData(3, 11, KeyStages.KS2)]
+    [InlineData(14, 16, KeyStages.KS4)]
+    [InlineData(16, 18, KeyStages.Post16)]
+    public async Task Impersonation_uses_manual_ages_and_identifiers_without_the_original_directory_metadata(int low, int high, KeyStages expected)
+    {
+        var view = Substitute.For<DfE.CheckPerformanceData.Application.Impersonation.IEstablishmentViewContext>();
+        view.IsImpersonating.Returns(true);
+        view.OrganisationLaestab.Returns("7654321");
+        view.OrganisationUrn.Returns("100002");
+        view.LowestAge.Returns(low);
+        view.HighestAge.Returns(high);
+        _currentUserService.OrganisationId.Returns("");
+        _repository.GetOpenWindowsAsync(Arg.Any<DateTime>(), "7654321", Arg.Any<CancellationToken>())
+            .Returns(new List<CheckingWindowDto>());
+        var service = new LandingPageService(_repository, new FakeTimeProvider(Now), _dfESignInApiClient,
+            _currentUserService, Substitute.For<ILogger<LandingPageService>>(), view);
+        var result = await service.GetLandingPageDataAsync(default);
+        Assert.NotNull(result);
+        Assert.Equal(expected, Assert.Single(result.KeyStages).KeyStage);
+        Assert.Equal("LAESTAB 7654321, URN 100002", result.OrganisationName);
+        Assert.True(string.IsNullOrEmpty(result.OrganisationAddress));
+        await _dfESignInApiClient.DidNotReceiveWithAnyArgs().GetOrganisationAsync(default!, default!);
+    }
     private readonly ILandingPageRepository _repository = Substitute.For<ILandingPageRepository>();
     private readonly IDfESignInApiClient _dfESignInApiClient = Substitute.For<IDfESignInApiClient>();
     private readonly ICurrentUserService _currentUserService = Substitute.For<ICurrentUserService>();

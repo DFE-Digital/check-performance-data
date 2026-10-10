@@ -88,7 +88,7 @@
         bool CanAccess(string key)
         {
             if (accessCache.TryGetValue(key, out var cached)) return cached;
-            var allowed = AdminAccessPolicy.CanAccessAsync(User, key).GetAwaiter().GetResult();
+            var allowed = key == "impersonation" ? DfE.CheckPerformanceData.Web.Impersonation.ImpersonationAccessPolicy.CanAccess(User) : AdminAccessPolicy.CanAccessAsync(User, key).GetAwaiter().GetResult();
             accessCache[key] = allowed;
             return allowed;
         }
@@ -129,6 +129,7 @@
    is body content. Defining Head replaces the template's default stylesheet import, so the
    GovUkFrontendStyleImports() call below is what keeps the GOV.UK CSS. *@
 @section Head {
+    @await Html.PartialAsync("_EstablishmentContextScript")
     @await Html.PartialAsync("_GtmHead")
     @await Html.PartialAsync("_ClarityHead")
     @Html.GovUkFrontendStyleImports()
@@ -145,6 +146,7 @@
 }
 
 @section Header {
+    @await Html.PartialAsync("_ImpersonationBanner")
     @* <header role="banner"> so the GOV.UK home link sits in a landmark — the GOV.UK
        Frontend header component itself renders a plain <div> (audit #374). *@
     <header role="banner" class="admin-chrome">

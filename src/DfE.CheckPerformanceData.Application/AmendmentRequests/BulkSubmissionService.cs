@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.Impersonation;
 using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.CurrentUser;
@@ -18,7 +19,7 @@ public sealed class BulkSubmissionService(
     ICheckYourPupilDataService checkYourPupilDataService,
     ICurrentUserService currentUserService,
     IAnalyticsService analytics,
-    ICheckingExerciseService checkingExercises) : IBulkSubmissionService
+    ICheckingExerciseService checkingExercises, IImpersonationWriteGuard? writeGuard = null, IEstablishmentViewContext? viewContext = null) : IBulkSubmissionService
 {
     private const string AlreadySubmittedReason = "A request for this pupil has already been submitted.";
     private const string SelectedMoreThanOnceReason = "You selected more than one request for this pupil.";
@@ -28,7 +29,7 @@ public sealed class BulkSubmissionService(
     public async Task<BulkReviewResult> BuildReviewAsync(Guid windowId, IReadOnlyList<string> selectedReferences)
     {
         var selected = new HashSet<string>(selectedReferences, StringComparer.Ordinal);
-        var urn = OrganisationUrn;
+        var urn = long.TryParse(viewContext?.OrganisationUrn ?? currentUserService.OrganisationUrn, out var value) ? value : -1;
 
         var rows = await requestRepository.GetAmendmentRequestsAsync(windowId, urn);
         var kept = rows

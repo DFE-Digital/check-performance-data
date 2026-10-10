@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.Impersonation;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
@@ -9,7 +10,7 @@ public sealed class SubmittedRequestService(
     IRequestStateBlobClient requestStateBlobClient,
     IQuestionFlowService flowService,
     IRequestRepository requestRepository,
-    ICurrentUserService currentUserService) : ISubmittedRequestService
+    ICurrentUserService currentUserService, IEstablishmentViewContext? viewContext = null) : ISubmittedRequestService
 {
     public async Task<SubmittedRequestView?> GetAsync(Guid windowId, string referenceNumber)
     {
@@ -17,7 +18,7 @@ public sealed class SubmittedRequestService(
         // neither of which is secret to the owning school. Verify the caller's organisation
         // owns a ChangeRequests row for this reference *before* touching the blob, so PII for
         // another school's request is never read or returned (fail closed on a missing row).
-        var urn = long.Parse(currentUserService.OrganisationUrn);
+        var urn = long.TryParse(viewContext?.OrganisationUrn ?? currentUserService.OrganisationUrn, out var parsedUrn) ? parsedUrn : -1;
         var row = await requestRepository.GetAmendmentRequestAsync(windowId, urn, referenceNumber);
         if (row is null)
             return null;
@@ -92,7 +93,7 @@ public sealed class SubmittedRequestService(
 
     public async Task<ConfirmDataCorrectView?> GetConfirmDataCorrectAsync(Guid windowId, string referenceNumber)
     {
-        var urn = long.Parse(currentUserService.OrganisationUrn);
+        var urn = long.TryParse(viewContext?.OrganisationUrn ?? currentUserService.OrganisationUrn, out var parsedUrn) ? parsedUrn : -1;
         var row = await requestRepository.GetConfirmDataCorrectAsync(windowId, urn, referenceNumber);
         if (row is null || row.RequestType != RequestType.ConfirmCorrect)
             return null;

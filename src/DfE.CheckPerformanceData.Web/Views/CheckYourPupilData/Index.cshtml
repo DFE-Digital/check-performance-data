@@ -1,3 +1,4 @@
+@inject DfE.CheckPerformanceData.Web.Impersonation.ImpersonationSessionService Impersonation
 @using DfE.CheckPerformanceData.Application.CheckYourPupilData
 @using DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData
 @model DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData.CheckYourPupilDataViewModel
@@ -133,7 +134,7 @@
    the tables, the search and the downloads above are untouched, because a closed exercise removes
    actions, never content. AB#298317: when results enquiry is the only thing left, the page asks
    the designed Yes/No question instead of showing a one-item form. *@
-@if (Model.OffersEnquiryOnly)
+@if (!Impersonation.IsImpersonating && Model.OffersEnquiryOnly)
 {
     <form method="post" action="@Url.Action("NextStep", "CheckYourPupilData", new { windowId = Model.WindowId })">
         @Html.AntiForgeryToken()
@@ -156,7 +157,7 @@
         <govuk-button type="submit">Continue</govuk-button>
     </form>
 }
-else if (Model.AvailableNextSteps.Count == 1)
+else if (!Impersonation.IsImpersonating && Model.AvailableNextSteps.Count == 1)
 {
     @* A radio group with a single choice is a poor pattern and contradicts the "select one option"
        hint, so the one surviving option becomes the button itself. The value still posts through a
@@ -171,7 +172,7 @@ else if (Model.AvailableNextSteps.Count == 1)
         <govuk-button type="submit">@NextStepLabels.For(only, Model.LearnerNoun)</govuk-button>
     </form>
 }
-else if (Model.AvailableNextSteps.Count > 1)
+else if (!Impersonation.IsImpersonating && Model.AvailableNextSteps.Count > 1)
 {
     <form method="post" action="@Url.Action("NextStep", "CheckYourPupilData", new { windowId = Model.WindowId })">
         @Html.AntiForgeryToken()

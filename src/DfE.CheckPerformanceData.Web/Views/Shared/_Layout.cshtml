@@ -7,6 +7,7 @@
 @inject Microsoft.Extensions.Hosting.IHostEnvironment HostEnvironment
 @inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 @inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+@inject DfE.CheckPerformanceData.Web.Impersonation.ImpersonationSessionService Impersonation
 @{
     Layout = "_GovUkPageTemplate";
     // "Real DfE auth" = any authenticated identity that isn't the synthetic dev
@@ -27,7 +28,7 @@
     // CMS editors now reach the admin surface too — they land on the pages tree, blocks,
     // and content-staging screens (gated per-section by the role-access grid). Show the
     // Admin link for both roles so editors don't have to know the URL by heart.
-    var showAdminLink = User.IsInRole(WikiConstants.AdminRole) || User.IsInRole(WikiConstants.EditorRole);
+    var showAdminLink = !Impersonation.IsImpersonating && (User.IsInRole(WikiConstants.AdminRole) || User.IsInRole(WikiConstants.EditorRole));
 
     string? displayName = null;
     if (hasRealDfeAuth)
@@ -64,6 +65,7 @@
    is body content. Defining Head replaces the template's default stylesheet import, so the
    GovUkFrontendStyleImports() call below is what keeps the GOV.UK CSS. *@
 @section Head {
+    @await Html.PartialAsync("_EstablishmentContextScript")
     @* Form-less pages (CMS/guidance) have no __RequestVerificationToken hidden input, so
        expose the antiforgery token here for wwwroot/js/analytics-events.js (and
        test-data-seed.js's existing fallback probe) to read via fetch. *@
@@ -85,6 +87,7 @@
 }
 
 @section Header {
+    @await Html.PartialAsync("_ImpersonationBanner")
     @* The GOV.UK Frontend header component renders a plain <div>, so nothing here is a
        banner landmark on its own. Screen reader users navigating by landmark would miss
        the GOV.UK home link and the phase banner's feedback link entirely (audit #374).

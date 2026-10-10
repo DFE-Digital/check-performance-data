@@ -89,7 +89,8 @@ public static class AnalyticsRequestFilter
     /// <summary>
     /// True when the request should be sent to BigQuery.
     /// </summary>
-    public static bool ShouldTrack(HttpContext context) => ShouldTrack(context.Request.Path);
+    public static bool ShouldTrack(HttpContext context) =>
+        !context.Items.ContainsKey("CPD.Impersonation.ReadOnly") && ShouldTrack(context.Request.Path);
 
     /// <summary>
     /// True when the path should be sent to BigQuery.

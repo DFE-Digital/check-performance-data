@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.Impersonation;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.WindowManagement;
@@ -8,12 +9,12 @@ public class UrnAmendmentRequestsService(
     IRequestRepository requestRepository,
     IWindowRepository windowRepository,
     ICurrentUserService currentUserService,
-    IWindowStatusService windowStatusService) : IUrnAmendmentRequestsService
+    IWindowStatusService windowStatusService, IEstablishmentViewContext? viewContext = null) : IUrnAmendmentRequestsService
 {
     public async Task<UrnAmendmentRequestsResult> GetAllSubmittedAmendmentRequestsAsync(CancellationToken cancellationToken)
     {
 
-        long urn = long.Parse(currentUserService.OrganisationUrn);
+        long urn = long.TryParse(viewContext?.OrganisationUrn ?? currentUserService.OrganisationUrn, out var parsedUrn) ? parsedUrn : -1;
         IReadOnlyList<SubmittedRequestData> submitted = await requestRepository.GetAllSubmittedRequestsAsync(urn);
         List<CheckingWindowDto> allWindows = await windowRepository.GetAllWindowsAsync(cancellationToken);
 

@@ -74,7 +74,7 @@ public sealed class AuditLogRepository(IPortalDbContext db) : IAuditLogRepositor
                     (a.EntityType == AuditActivities.WindowAdmin &&
                         (a.Action == AuditActivities.ClosedEarlyAction ||
                          a.Action == AuditActivities.RequestsSentAutomaticallyAction)))
-                : query.Where(a => a.EntityType == AuditActivities.Egress && a.Action == AuditActivities.TransferFailedAction);
+                : query.Where(a => (a.EntityType == "Impersonation" && a.Action == "BlockedChange") || (a.EntityType == AuditActivities.Egress && a.Action == AuditActivities.TransferFailedAction));
         }
         if (filter.WindowId is { } windowId)
         {

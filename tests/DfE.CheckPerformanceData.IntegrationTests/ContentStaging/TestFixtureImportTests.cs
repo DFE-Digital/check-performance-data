@@ -1,11 +1,13 @@
 using DfE.CheckPerformanceData.Application.Common;
 using DfE.CheckPerformanceData.Application.ContentStaging;
+using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using NSubstitute;
 using Npgsql;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.ContentStaging;
@@ -244,7 +246,8 @@ public sealed class TestFixtureImportTests(PostgresFixture fixture)
     }
 
     private static ContentStagingService BuildStaging(IPortalDbContext ctx) =>
-        new(new PageNodeRepository(ctx), new ContentBlockRepository(ctx), new HtmlRenderingService());
+        new(new PageNodeRepository(ctx), new ContentBlockRepository(ctx), new HomeBannerRepository(ctx, Substitute.For<ICurrentUserService>()),
+            new HtmlRenderingService());
 
     private static async Task<long> ScalarLongAsync(
         NpgsqlConnection conn, string sql, params (string Name, object Value)[] parameters)

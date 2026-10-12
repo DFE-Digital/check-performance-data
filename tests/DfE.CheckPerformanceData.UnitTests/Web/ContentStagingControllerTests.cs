@@ -234,7 +234,7 @@ public sealed class ContentStagingControllerTests
         {
             PageNodes = [new() { Id = Guid.NewGuid(), Title = "Alpha", Segment = "alpha", PageType = "content" }]
         });
-        _staging.PreviewAsync(Arg.Any<ContentBundle>()).Returns(new ContentImportPreview([], []));
+        _staging.PreviewAsync(Arg.Any<ContentBundle>()).Returns(new ContentImportPreview([], [], []));
         var exported = Assert.IsType<FileContentResult>(await _sut.Export());
 
         var result = await _sut.Preview(FileFrom(exported.FileContents));
@@ -247,7 +247,7 @@ public sealed class ContentStagingControllerTests
     [Fact]
     public async Task Preview_StillAcceptsAPlainJsonBundle()
     {
-        _staging.PreviewAsync(Arg.Any<ContentBundle>()).Returns(new ContentImportPreview([], []));
+        _staging.PreviewAsync(Arg.Any<ContentBundle>()).Returns(new ContentImportPreview([], [], []));
 
         var result = await _sut.Preview(FileFrom(ValidBundleJson()));
 
@@ -274,7 +274,8 @@ public sealed class ContentStagingControllerTests
     {
         var catalog = new ContentCatalog(
             [new(Guid.NewGuid(), "Alpha", "alpha", 0, default, default)],
-            [new(Guid.NewGuid(), "footer", "Content", "/home", default, default)]);
+            [new(Guid.NewGuid(), "footer", "Content", "/home", default, default)],
+            []);
         _staging.GetCatalogAsync().Returns(catalog);
 
         var result = await _sut.Select();
@@ -298,6 +299,18 @@ public sealed class ContentStagingControllerTests
         Assert.IsType<FileContentResult>(result);
         await _staging.Received(1).ExportAsync(Arg.Is<ContentExportSelection>(
             s => s.PageNodeIds.Contains(pageId) && s.ContentBlockIds.Contains(blockId)));
+    }
+
+    [Fact]
+    public async Task ExportSelected_WithOnlyBannersTicked_Exports()
+    {
+        var id = Guid.NewGuid();
+        _staging.ExportAsync(Arg.Any<ContentExportSelection>()).Returns(new ContentBundle());
+
+        var result = await _sut.ExportSelected(pageNodeIds: null, contentBlockIds: null, homeBannerIds: [id]);
+
+        Assert.IsType<FileContentResult>(result);
+        await _staging.Received(1).ExportAsync(Arg.Is<ContentExportSelection>(s => s.HomeBannerIds!.Contains(id)));
     }
 
     [Fact]
@@ -403,7 +416,7 @@ public sealed class ContentStagingControllerTests
     public async Task Preview_ValidFile_StoresBundleInSession_AndReturnsOnlyTheSessionId()
     {
         var sessionId = Guid.NewGuid();
-        _staging.PreviewAsync(Arg.Any<ContentBundle>()).Returns(new ContentImportPreview([], []));
+        _staging.PreviewAsync(Arg.Any<ContentBundle>()).Returns(new ContentImportPreview([], [], []));
         _sessions.CreateAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(sessionId);
 
@@ -425,7 +438,7 @@ public sealed class ContentStagingControllerTests
     [Fact]
     public async Task Preview_ValidFile_PurgesExpiredSessions()
     {
-        _staging.PreviewAsync(Arg.Any<ContentBundle>()).Returns(new ContentImportPreview([], []));
+        _staging.PreviewAsync(Arg.Any<ContentBundle>()).Returns(new ContentImportPreview([], [], []));
 
         await _sut.Preview(FileFrom(ValidBundleJson()));
 

@@ -5,11 +5,12 @@ namespace DfE.CheckPerformanceData.Application.ContentStaging;
 // collision), and decide what to do with each collision.
 public sealed record ContentImportPreview(
     IReadOnlyList<PreviewItem> Pages,
-    IReadOnlyList<PreviewItem> Blocks)
+    IReadOnlyList<PreviewItem> Blocks,
+    IReadOnlyList<PreviewItem> Banners)
 {
     // Blocked items (unknown parent) are neither new nor collisions — they cannot be imported.
-    public int NewCount => Pages.Count(p => !p.Exists && !p.ParentMissing) + Blocks.Count(b => !b.Exists);
-    public int CollisionCount => Pages.Count(p => p.Exists) + Blocks.Count(b => b.Exists);
+    public int NewCount => Pages.Count(p => !p.Exists && !p.ParentMissing) + Blocks.Count(b => !b.Exists) + Banners.Count(b => !b.Exists);
+    public int CollisionCount => Pages.Count(p => p.Exists) + Blocks.Count(b => b.Exists) + Banners.Count(b => b.Exists);
     public int BlockedCount => Pages.Count(p => p.ParentMissing);
 }
 

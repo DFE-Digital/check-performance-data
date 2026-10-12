@@ -1,0 +1,93 @@
+@using DfE.CheckPerformanceData.Domain.Enums
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.HomeBanners.HomeBannersIndexViewModel
+@{
+    ViewData["Title"] = "Home page banners";
+    string Uk(DateTime? d) => d is null ? "No limit" : d.Value.ToString("d MMM yyyy, HH:mm");
+    (string Label, string Class) Tag(HomeBannerStatus s) => s switch
+    {
+        HomeBannerStatus.Live => ("Live", "govuk-tag--green"),
+        HomeBannerStatus.Scheduled => ("Scheduled", "govuk-tag--blue"),
+        HomeBannerStatus.Expired => ("Expired", "govuk-tag--grey"),
+        _ => ("Off", "govuk-tag--grey")
+    };
+}
+
+<a href="/admin" class="govuk-back-link">Back to administration</a>
+
+<h1 class="govuk-heading-xl">Home page banners</h1>
+
+<p class="govuk-body">
+    Banners appear at the top of the start page, in this order, while they are on and within their
+    dates. Times are UK time. It is now @Model.Now.ToString("d MMM yyyy, HH:mm") (UK time).
+</p>
+
+<a href="/admin/home-banners/new" role="button" draggable="false" class="govuk-button" data-module="govuk-button">Create a banner</a>
+
+@if (Model.Banners.Count == 0)
+{
+    <p class="govuk-body">There are no banners yet.</p>
+}
+else
+{
+    <table class="govuk-table">
+        <caption class="govuk-table__caption govuk-visually-hidden">Home page banners in display order</caption>
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header">Order</th>
+                <th scope="col" class="govuk-table__header">Heading</th>
+                <th scope="col" class="govuk-table__header">Status</th>
+                <th scope="col" class="govuk-table__header">Show from (UK time)</th>
+                <th scope="col" class="govuk-table__header">Show until (UK time)</th>
+                <th scope="col" class="govuk-table__header">Last updated</th>
+                <th scope="col" class="govuk-table__header"><span class="govuk-visually-hidden">Actions</span></th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            @for (var i = 0; i < Model.Banners.Count; i++)
+            {
+                var b = Model.Banners[i];
+                var tag = Tag(b.Status);
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">
+                        @(i + 1)
+                        <div class="govuk-button-group govuk-!-margin-bottom-0 govuk-!-margin-top-1">
+                            @if (i > 0)
+                            {
+                                <form method="post" action="/admin/home-banners/@b.Id/move" class="govuk-!-display-inline-block">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="direction" value="up" />
+                                    <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" data-module="govuk-button">
+                                        Move up<span class="govuk-visually-hidden"> @b.Heading</span>
+                                    </button>
+                                </form>
+                            }
+                            @if (i < Model.Banners.Count - 1)
+                            {
+                                <form method="post" action="/admin/home-banners/@b.Id/move" class="govuk-!-display-inline-block">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="direction" value="down" />
+                                    <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" data-module="govuk-button">
+                                        Move down<span class="govuk-visually-hidden"> @b.Heading</span>
+                                    </button>
+                                </form>
+                            }
+                        </div>
+                    </td>
+                    <td class="govuk-table__cell">@b.Heading</td>
+                    <td class="govuk-table__cell"><strong class="govuk-tag @tag.Class">@tag.Label</strong></td>
+                    <td class="govuk-table__cell">@Uk(b.ShowFrom)</td>
+                    <td class="govuk-table__cell">@Uk(b.ShowUntil)</td>
+                    <td class="govuk-table__cell">@b.UpdatedAt.ToString("d MMM yyyy, HH:mm")</td>
+                    <td class="govuk-table__cell">
+                        <ul class="govuk-list govuk-!-margin-bottom-0">
+                            <li><a class="govuk-link" href="/admin/home-banners/@b.Id/edit">Edit<span class="govuk-visually-hidden"> @b.Heading</span></a></li>
+                            <li><a class="govuk-link" href="/admin/home-banners/@b.Id/preview">Preview<span class="govuk-visually-hidden"> @b.Heading</span></a></li>
+                            <li><a class="govuk-link" href="/admin/home-banners/@b.Id/versions">Version history<span class="govuk-visually-hidden"> of @b.Heading</span></a></li>
+                            <li><a class="govuk-link" href="/admin/home-banners/@b.Id/delete">Delete<span class="govuk-visually-hidden"> @b.Heading</span></a></li>
+                        </ul>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

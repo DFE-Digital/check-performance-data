@@ -18,6 +18,8 @@ public sealed class PortalDbContext(
     public DbSet<CheckingExercise> CheckingExercises => Set<CheckingExercise>();
     public DbSet<ContentBlock> ContentBlocks => Set<ContentBlock>();
     public DbSet<ContentBlockVersion> ContentBlockVersions => Set<ContentBlockVersion>();
+    public DbSet<HomeBanner> HomeBanners => Set<HomeBanner>();
+    public DbSet<HomeBannerVersion> HomeBannerVersions => Set<HomeBannerVersion>();
     public DbSet<ContentStagingSession> ContentStagingSessions => Set<ContentStagingSession>();
     public DbSet<RulesConfigVersion> RulesConfigVersions => Set<RulesConfigVersion>();
     public DbSet<ChangeRequest> ChangeRequests => Set<ChangeRequest>();
@@ -49,6 +51,8 @@ public sealed class PortalDbContext(
         modelBuilder.ApplyConfiguration(new CheckingExerciseConfiguration());
         modelBuilder.ApplyConfiguration(new ContentBlockConfiguration());
         modelBuilder.ApplyConfiguration(new ContentBlockVersionConfiguration());
+        modelBuilder.ApplyConfiguration(new HomeBannerConfiguration());
+        modelBuilder.ApplyConfiguration(new HomeBannerVersionConfiguration());
         modelBuilder.ApplyConfiguration(new ContentStagingSessionConfiguration());
         modelBuilder.ApplyConfiguration(new RulesConfigVersionConfiguration());
         modelBuilder.ApplyConfiguration(new ChangeRequestConfiguration());

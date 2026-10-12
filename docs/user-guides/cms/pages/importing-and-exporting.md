@@ -1,12 +1,12 @@
 ---
 title: Move content between environments
-subtitle: Export pages and content blocks from one environment and import them into another
+subtitle: Export pages, content blocks and home page banners from one environment and import them into another
 parent: for-administrators
 order: 1
 keywords: content staging import export bundle zip environment qa production overwrite skip
 ---
 
-Content staging copies pages and content blocks from one environment to another. The usual use is to write and check content in a test environment, then bring it into production.
+Content staging copies pages, content blocks and home page banners from one environment to another. The usual use is to write and check content in a test environment, then bring it into production.
 
 You export a file from the first environment and import it into the second. Go to **Admin**, then **Content staging import/export**.
 
@@ -14,9 +14,9 @@ You export a file from the first environment and import it into the second. Go t
 
 ## Export
 
-**Export everything** downloads every page and content block as one zip file.
+**Export everything** downloads every page, content block and home page banner as one zip file.
 
-**Choose what to export** lets you pick. Tick the pages and content blocks you want, then select **Export selected**.
+**Choose what to export** lets you pick. Tick the pages, content blocks and home page banners you want, then select **Export selected**.
 
 ![The Choose content to export screen, with a Filter box holding the word checking and a table of matching pages, each with a tick box](../../../../src/DfE.CheckPerformanceData.Web/wwwroot/assets/cms-help/staging-select.png "Filter the list, then tick what you want.")
 
@@ -55,7 +55,7 @@ Each item in the tables below also has its own choice, which starts as **Use def
 
 3. Select **Confirm import**, or **Cancel** to leave without importing.
 
-![A green Success message reading Import complete, with a count of the pages and content blocks added, updated and skipped](../../../../src/DfE.CheckPerformanceData.Web/wwwroot/assets/cms-help/staging-import-complete.png "The summary after an import.")
+![A green Success message reading Import complete, with a count of the pages, content blocks and home page banners added, updated and skipped](../../../../src/DfE.CheckPerformanceData.Web/wwwroot/assets/cms-help/staging-import-complete.png "The summary after an import.")
 
 > **Warning** **Overwrite** replaces a page's content and its whole version history with what is in the file. Anything written in this environment since the export is lost. If in doubt, export this environment first, so you have a copy to go back to.
 
@@ -93,6 +93,6 @@ You can tell them apart in the editor: a warning under the page title says *This
 
 ## Clear all CMS content
 
-Development environments can show a **Clear all CMS content** button on this screen. It deletes every page and content block and cannot be undone. It is for resetting a test environment.
+Development environments can show a **Clear all CMS content** button on this screen. It deletes every page, content block and home page banner and cannot be undone. It is for resetting a test environment.
 
 It appears only when an administrator has turned on the `CMS:ShowDeleteAllButton` setting, and never in QA, preproduction or production, whatever the setting says.

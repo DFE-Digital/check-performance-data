@@ -35,6 +35,7 @@ public static class DependencyManager
         services.AddScoped<Dashboard.IDashboardService, Dashboard.DashboardService>();
         services.AddScoped<IContentBlockService, ContentBlockService>();
         services.AddScoped<IContentBlockSearchService, ContentBlockSearchService>();
+        services.AddScoped<HomeBanners.IHomeBannerService, HomeBanners.HomeBannerService>();
         services.AddScoped<ISiteSearchService, SiteSearchService>();
         services.AddScoped<IAdminAccessPolicy, AdminAccessPolicy>();
         services.AddScoped<DefaultAdminAccessSeeder>();

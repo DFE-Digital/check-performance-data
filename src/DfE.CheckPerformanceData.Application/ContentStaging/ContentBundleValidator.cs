@@ -40,6 +40,10 @@ public static partial class ContentBundleValidator
     public const int MaxContentPageVersionBytes = 8_388_608;   // 8 MB per content-page version
     public const int MaxContentBlockValueBytes = 262_144;      // 256 KB per Content block
 
+    public const int MaxHomeBanners = 100;
+    public const int MaxHomeBannerHeadingLength = 200;
+    public const int MaxHomeBannerBodyBytes = 262_144;      // 256 KB, as a Content block
+
     private static readonly HashSet<string> ValidPageTypes = new(StringComparer.Ordinal)
     {
         "folder", "content", "wiki"
@@ -89,6 +93,17 @@ public static partial class ContentBundleValidator
         foreach (var block in bundle.ContentBlocks)
         {
             ValidateBlock(block, issues);
+        }
+
+        if (bundle.HomeBanners.Count > MaxHomeBanners)
+        {
+            issues.Add(new ValidationIssue(ValidationSeverity.Fatal, "BUNDLE_TOO_MANY_BANNERS",
+                $"Bundle has {bundle.HomeBanners.Count} home page banners; the limit is {MaxHomeBanners}."));
+        }
+
+        foreach (var banner in bundle.HomeBanners)
+        {
+            ValidateBanner(banner, issues);
         }
 
         return issues;
@@ -186,6 +201,38 @@ public static partial class ContentBundleValidator
                 ValidationSeverity.Fatal,
                 "BLOCK_VALUE_TOO_LARGE",
                 $"Content block '{block.Key}' has Value {block.Value.Length} chars; the limit is {MaxContentBlockValueBytes}."));
+        }
+    }
+
+    private static void ValidateBanner(HomeBannerBundleItem banner, List<ValidationIssue> issues)
+    {
+        var label = string.IsNullOrEmpty(banner.Heading) ? banner.Id.ToString() : banner.Heading;
+
+        if (string.IsNullOrWhiteSpace(banner.Heading))
+            issues.Add(new ValidationIssue(ValidationSeverity.Fatal, "BANNER_HEADING_EMPTY", $"Home page banner {banner.Id} has an empty heading."));
+        else if (banner.Heading.Length > MaxHomeBannerHeadingLength)
+            issues.Add(new ValidationIssue(ValidationSeverity.Fatal, "BANNER_HEADING_TOO_LONG", $"Home page banner '{label}' has a heading of {banner.Heading.Length} characters; the limit is {MaxHomeBannerHeadingLength}."));
+
+        if (banner.Body.Length > MaxHomeBannerBodyBytes)
+            issues.Add(new ValidationIssue(ValidationSeverity.Fatal, "BANNER_BODY_TOO_LARGE", $"Home page banner '{label}' has a body of {banner.Body.Length} chars; the limit is {MaxHomeBannerBodyBytes}."));
+
+        if (banner.ShowFrom is { } from && banner.ShowUntil is { } until && until <= from)
+            issues.Add(new ValidationIssue(ValidationSeverity.Fatal, "BANNER_DATES_INVALID", $"Home page banner '{label}' has a Show until that is not after its Show from."));
+
+        // Versions are replayed into the database too, so a bad version must stop the import here
+        // rather than fail at SaveChanges, where it would leave the shared DbContext dirty.
+        foreach (var v in banner.Versions)
+        {
+            if (string.IsNullOrWhiteSpace(v.Heading))
+                issues.Add(new ValidationIssue(ValidationSeverity.Fatal, "BANNER_HEADING_EMPTY", $"Home page banner '{label}' version {v.VersionNumber} has an empty heading."));
+            else if (v.Heading.Length > MaxHomeBannerHeadingLength)
+                issues.Add(new ValidationIssue(ValidationSeverity.Fatal, "BANNER_HEADING_TOO_LONG", $"Home page banner '{label}' version {v.VersionNumber} has a heading of {v.Heading.Length} characters; the limit is {MaxHomeBannerHeadingLength}."));
+
+            if (v.ShowFrom is { } vFrom && v.ShowUntil is { } vUntil && vUntil <= vFrom)
+                issues.Add(new ValidationIssue(ValidationSeverity.Fatal, "BANNER_DATES_INVALID", $"Home page banner '{label}' version {v.VersionNumber} has a Show until that is not after its Show from."));
+
+            if (v.Body.Length > MaxHomeBannerBodyBytes)
+                issues.Add(new ValidationIssue(ValidationSeverity.Fatal, "BANNER_BODY_TOO_LARGE", $"Home page banner '{label}' version {v.VersionNumber} has a body of {v.Body.Length} chars; the limit is {MaxHomeBannerBodyBytes}."));
         }
     }
 

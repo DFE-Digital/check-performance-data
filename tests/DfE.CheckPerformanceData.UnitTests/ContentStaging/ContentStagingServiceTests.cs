@@ -1,6 +1,7 @@
 using DfE.CheckPerformanceData.Application.Common;
 using DfE.CheckPerformanceData.Application.ContentBlocks;
 using DfE.CheckPerformanceData.Application.ContentStaging;
+using DfE.CheckPerformanceData.Application.HomeBanners;
 using DfE.CheckPerformanceData.Application.PageTree;
 using NSubstitute;
 using NSubstitute.ReturnsExtensions;
@@ -11,6 +12,7 @@ public class ContentStagingServiceTests
 {
     private readonly IPageNodeRepository _pages = Substitute.For<IPageNodeRepository>();
     private readonly IContentBlockRepository _blockRepo = Substitute.For<IContentBlockRepository>();
+    private readonly IHomeBannerRepository _bannerRepo = Substitute.For<IHomeBannerRepository>();
     private readonly IHtmlRenderingService _html = Substitute.For<IHtmlRenderingService>();
     private readonly ContentStagingService _sut;
 
@@ -21,11 +23,15 @@ public class ContentStagingServiceTests
 
     public ContentStagingServiceTests()
     {
-        _sut = new ContentStagingService(_pages, _blockRepo, _html);
+        _sut = new ContentStagingService(_pages, _blockRepo, _bannerRepo, _html);
         _pages.GetTreeAsync().Returns([]);
         _pages.GetVersionsAsync(Arg.Any<Guid>()).Returns([]);
         _blockRepo.GetAllAsync().Returns([]);
         _blockRepo.ExecuteInTransactionAsync(Arg.Any<Func<Task>>())
+            .Returns(ci => ((Func<Task>)ci[0])());
+        _bannerRepo.GetAllAsync().Returns([]);
+        _bannerRepo.GetVersionsAsync(Arg.Any<int>()).Returns([]);
+        _bannerRepo.ExecuteInTransactionAsync(Arg.Any<Func<Task>>())
             .Returns(ci => ((Func<Task>)ci[0])());
         // Page creation runs its node + versions writes inside a transaction, so the substitute
         // has to invoke the delegate or the work inside it silently never happens.
@@ -828,7 +834,7 @@ public class ContentStagingServiceTests
     // ── Validator integration ────────────────────────────────────────────────
 
     private ContentStagingService SutWithSanitiser() =>
-        new(_pages, _blockRepo, new HtmlRenderingService(), new ContentBundleSanitiser(new HtmlRenderingService()));
+        new(_pages, _blockRepo, _bannerRepo, new HtmlRenderingService(), new ContentBundleSanitiser(new HtmlRenderingService()));
 
     [Fact]
     public async Task PreviewAsync_FatalValidatorIssue_Throws_ContentImportValidationException()
@@ -924,5 +930,186 @@ public class ContentStagingServiceTests
         var result = await sut.ImportAsync(bundle, ContentImportMode.Replace);
 
         Assert.DoesNotContain(result.Warnings, w => w.Contains("Sanitised HTML"));
+    }
+
+    // ── Home page banners (#566) ──────────────────────────────────────────────
+
+    private static HomeBannerDto BannerDto(int id, Guid contentId, string heading = "H", int order = 0) =>
+        new() { Id = id, ContentId = contentId, Heading = heading, Body = "<p>b</p>", IsEnabled = true, SortOrder = order };
+
+    [Fact]
+    public async Task Export_CarriesBanners_InOrder_WithTheirVersions()
+    {
+        _bannerRepo.GetAllAsync().Returns([BannerDto(1, GuidA, "First", 0), BannerDto(2, GuidB, "Second", 1)]);
+        _bannerRepo.GetVersionsAsync(1).Returns(
+        [
+            new HomeBannerVersionDto { Id = 11, HomeBannerId = 1, VersionNumber = 2, Heading = "First", Body = "<p>b</p>" },
+            new HomeBannerVersionDto { Id = 10, HomeBannerId = 1, VersionNumber = 1, Heading = "First v1", Body = "<p>a</p>" },
+        ]);
+
+        var bundle = await _sut.ExportAsync();
+
+        Assert.Equal(["First", "Second"], bundle.HomeBanners.Select(b => b.Heading));
+        Assert.Equal(GuidA, bundle.HomeBanners[0].Id);
+        Assert.Equal([1, 2], bundle.HomeBanners[0].Versions.Select(v => v.VersionNumber)); // oldest first
+    }
+
+    [Fact]
+    public async Task Export_FiltersBanners_BySelection()
+    {
+        _bannerRepo.GetAllAsync().Returns([BannerDto(1, GuidA), BannerDto(2, GuidB)]);
+
+        var bundle = await _sut.ExportAsync(new ContentExportSelection(PageNodeIds: null, ContentBlockIds: null, HomeBannerIds: new HashSet<Guid> { GuidB }));
+
+        Assert.Equal([GuidB], bundle.HomeBanners.Select(b => b.Id));
+    }
+
+    [Fact]
+    public async Task Import_NewBanner_CreatesIt_WithItsVersions()
+    {
+        _bannerRepo.GetByContentIdAsync(GuidA).ReturnsNull();
+        _bannerRepo.AddAsync(Arg.Any<HomeBannerContent>(), GuidA, 3).Returns(BannerDto(7, GuidA));
+        var bundle = new ContentBundle
+        {
+            HomeBanners =
+            [
+                new HomeBannerBundleItem
+                {
+                    Id = GuidA, Heading = "H", Body = "<p>b</p>", IsEnabled = true, SortOrder = 3,
+                    Versions =
+                    [
+                        new HomeBannerVersionBundleItem { VersionNumber = 1, Heading = "H1", Body = "<p>1</p>" },
+                        new HomeBannerVersionBundleItem { VersionNumber = 2, Heading = "H", Body = "<p>b</p>" },
+                    ]
+                }
+            ]
+        };
+
+        var result = await _sut.ImportAsync(bundle, ContentImportMode.Skip);
+
+        Assert.Equal(1, result.HomeBannersCreated);
+        await _bannerRepo.Received(1).AddVersionAsync(7, Arg.Is<HomeBannerContent>(c => c.Heading == "H1"), 1);
+        await _bannerRepo.Received(1).AddVersionAsync(7, Arg.Is<HomeBannerContent>(c => c.Heading == "H"), 2);
+    }
+
+    [Fact]
+    public async Task Import_NewBanner_WithoutVersions_RecordsOne()
+    {
+        _bannerRepo.GetByContentIdAsync(GuidA).ReturnsNull();
+        _bannerRepo.AddAsync(Arg.Any<HomeBannerContent>(), GuidA, 0).Returns(BannerDto(7, GuidA));
+        var bundle = new ContentBundle { HomeBanners = [new HomeBannerBundleItem { Id = GuidA, Heading = "H", Body = "<p>b</p>" }] };
+
+        await _sut.ImportAsync(bundle, ContentImportMode.Skip);
+
+        await _bannerRepo.Received(1).AddVersionAsync(7, Arg.Is<HomeBannerContent>(c => c.Heading == "H"), 1);
+    }
+
+    [Fact]
+    public async Task Import_NewBanner_WithUtcDates_PassesThemAsUnspecified()
+    {
+        // A hand-edited bundle date ending in Z arrives as Kind Utc; Npgsql refuses that for a
+        // `timestamp without time zone` column, so the import must drop the Kind.
+        _bannerRepo.GetByContentIdAsync(GuidA).ReturnsNull();
+        _bannerRepo.AddAsync(Arg.Any<HomeBannerContent>(), GuidA, 0).Returns(BannerDto(7, GuidA));
+        var from = new DateTime(2026, 7, 1, 9, 0, 0, DateTimeKind.Utc);
+        var until = new DateTime(2026, 7, 2, 17, 0, 0, DateTimeKind.Utc);
+        var bundle = new ContentBundle
+        {
+            HomeBanners =
+            [
+                new HomeBannerBundleItem
+                {
+                    Id = GuidA, Heading = "H", Body = "<p>b</p>", ShowFrom = from, ShowUntil = until,
+                    Versions = [new HomeBannerVersionBundleItem { VersionNumber = 1, Heading = "H", Body = "<p>b</p>", ShowFrom = from }]
+                }
+            ]
+        };
+
+        var result = await _sut.ImportAsync(bundle, ContentImportMode.Skip);
+
+        Assert.Equal(1, result.HomeBannersCreated);
+        await _bannerRepo.Received(1).AddAsync(
+            Arg.Is<HomeBannerContent>(c =>
+                c.ShowFrom!.Value.Kind == DateTimeKind.Unspecified && c.ShowFrom.Value == new DateTime(2026, 7, 1, 9, 0, 0)
+                && c.ShowUntil!.Value.Kind == DateTimeKind.Unspecified),
+            GuidA, 0);
+        await _bannerRepo.Received(1).AddVersionAsync(7,
+            Arg.Is<HomeBannerContent>(c => c.ShowFrom!.Value.Kind == DateTimeKind.Unspecified && c.ShowUntil == null), 1);
+    }
+
+    [Fact]
+    public async Task Import_ExistingBanner_Skip_LeavesItAlone()
+    {
+        _bannerRepo.GetByContentIdAsync(GuidA).Returns(BannerDto(7, GuidA));
+        var bundle = new ContentBundle { HomeBanners = [new HomeBannerBundleItem { Id = GuidA, Heading = "Changed", Body = "<p>b</p>" }] };
+
+        var result = await _sut.ImportAsync(bundle, ContentImportMode.Skip);
+
+        Assert.Equal(1, result.HomeBannersSkipped);
+        await _bannerRepo.DidNotReceive().UpdateAsync(Arg.Any<int>(), Arg.Any<HomeBannerContent>());
+    }
+
+    [Fact]
+    public async Task Import_ExistingBanner_Replace_OverwritesAndAddsOneVersion()
+    {
+        _bannerRepo.GetByContentIdAsync(GuidA).Returns(BannerDto(7, GuidA));
+        _bannerRepo.GetMaxVersionNumberAsync(7).Returns(4);
+        var bundle = new ContentBundle { HomeBanners = [new HomeBannerBundleItem { Id = GuidA, Heading = "Changed", Body = "<p>b</p>", SortOrder = 2 }] };
+
+        var result = await _sut.ImportAsync(bundle, ContentImportMode.Replace);
+
+        Assert.Equal(1, result.HomeBannersUpdated);
+        await _bannerRepo.Received(1).UpdateAsync(7, Arg.Is<HomeBannerContent>(c => c.Heading == "Changed"));
+        // Arg.Is takes an expression tree, which cannot hold a tuple literal or tuple ==.
+        await _bannerRepo.Received(1).SetSortOrdersAsync(Arg.Is<IReadOnlyList<(int Id, int SortOrder)>>(o => o.Count == 1 && o[0].Id == 7 && o[0].SortOrder == 2));
+        await _bannerRepo.Received(1).AddVersionAsync(7, Arg.Is<HomeBannerContent>(c => c.Heading == "Changed"), 5);
+    }
+
+    [Fact]
+    public async Task Preview_ReportsBanners_AsNewOrExisting()
+    {
+        _bannerRepo.GetByContentIdAsync(GuidA).Returns(BannerDto(7, GuidA, "Old heading"));
+        _bannerRepo.GetByContentIdAsync(GuidB).ReturnsNull();
+        var bundle = new ContentBundle
+        {
+            HomeBanners =
+            [
+                new HomeBannerBundleItem { Id = GuidA, Heading = "New heading", Body = "b" },
+                new HomeBannerBundleItem { Id = GuidB, Heading = "Brand new", Body = "b" },
+            ]
+        };
+
+        var preview = await _sut.PreviewAsync(bundle);
+
+        Assert.Equal(2, preview.Banners.Count);
+        Assert.True(preview.Banners[0].Exists);
+        Assert.Equal("Overwrites the existing banner (currently headed ‘Old heading’).", preview.Banners[0].ExistingDescription);
+        Assert.False(preview.Banners[1].Exists);
+        Assert.Equal(1, preview.NewCount);
+        Assert.Equal(1, preview.CollisionCount);
+    }
+
+    [Fact]
+    public async Task Catalog_ListsBanners()
+    {
+        _bannerRepo.GetAllAsync().Returns([BannerDto(1, GuidA, "First")]);
+        var catalog = await _sut.GetCatalogAsync();
+        var banner = Assert.Single(catalog.Banners);
+        Assert.Equal(GuidA, banner.Id);
+        Assert.Equal("First", banner.Heading);
+    }
+
+    // "Fail" is a global option on the preview page; a banner collision left at it must abort
+    // the import like a page or block collision, not fall through to an overwrite.
+    [Fact]
+    public async Task Import_ExistingBanner_FailMode_ThrowsBeforeAnyWrite()
+    {
+        _bannerRepo.GetByContentIdAsync(GuidA).Returns(BannerDto(7, GuidA));
+        var bundle = new ContentBundle { HomeBanners = [new HomeBannerBundleItem { Id = GuidA, Heading = "Changed", Body = "<p>b</p>" }] };
+
+        await Assert.ThrowsAsync<ContentImportConflictException>(
+            () => _sut.ImportAsync(bundle, ContentImportMode.Fail));
+
+        await _bannerRepo.DidNotReceive().UpdateAsync(Arg.Any<int>(), Arg.Any<HomeBannerContent>());
     }
 }

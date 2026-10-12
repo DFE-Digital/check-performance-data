@@ -1,0 +1,26 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.HomeBanners.HomeBannerDeleteViewModel
+@{
+    ViewData["Title"] = "Delete banner";
+}
+
+<div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+        <h1 class="govuk-heading-l">Delete banner</h1>
+
+        <p class="govuk-body">You are about to delete <strong>@Model.Heading</strong> and its version history.</p>
+
+        <div class="govuk-warning-text">
+            <span class="govuk-warning-text__icon" aria-hidden="true">!</span>
+            <strong class="govuk-warning-text__text">
+                <span class="govuk-visually-hidden">Warning</span>
+                This action cannot be undone. To hide the banner without deleting it, turn it off instead.
+            </strong>
+        </div>
+
+        <form method="post" action="/admin/home-banners/@Model.Id/delete">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="govuk-button govuk-button--warning govuk-!-margin-right-2" data-module="govuk-button">Delete banner</button>
+            <a class="govuk-link" href="/admin/home-banners">Cancel</a>
+        </form>
+    </div>
+</div>

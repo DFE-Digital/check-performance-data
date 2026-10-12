@@ -11,10 +11,13 @@ namespace DfE.CheckPerformanceData.Application.ContentStaging;
 //
 // MaxVersionsPerNode bounds how much version history rides along. Null means "every version",
 // which is what a cross-environment migration wants and almost nothing else does.
+//
+// HomeBannerIds works the same way for banners.
 public sealed record ContentExportSelection(
     IReadOnlySet<Guid>? PageNodeIds = null,
     IReadOnlySet<Guid>? ContentBlockIds = null,
-    int? MaxVersionsPerNode = ContentExportSelection.DefaultMaxVersionsPerNode)
+    int? MaxVersionsPerNode = ContentExportSelection.DefaultMaxVersionsPerNode,
+    IReadOnlySet<Guid>? HomeBannerIds = null)
 {
     /// <summary>
     /// How many versions per page a routine export carries.

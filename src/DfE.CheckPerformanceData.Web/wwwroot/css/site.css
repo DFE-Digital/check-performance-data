@@ -562,6 +562,41 @@
 .wiki-content th, .wiki-content td { border: 1px solid #b1b4b6; padding: 8px 12px; }
 .wiki-content th { background: #f3f2f1; font-weight: 700; }
 
+/* Home page banners (#566). The banner body is editor HTML from TinyMCE, so its links are bare
+   <a> tags without the govuk-notification-banner__link class and would get browser defaults.
+   These rules give them the same look as that class in the GOV.UK Frontend we load (link colour
+   for visited too, the thicker underline on hover, the yellow focus state). The last-child rule
+   is needed because `.wiki-content p` adds a bottom margin that the banner's own
+   `__content > :last-child` rule cannot reach inside the wrapper. */
+.govuk-notification-banner__content .wiki-content a {
+  font-family: "GDS Transport", arial, sans-serif;
+  text-decoration: underline;
+  text-decoration-thickness: max(1px, .0625rem);
+  text-underline-offset: .1578em;
+}
+.govuk-notification-banner__content .wiki-content a:link,
+.govuk-notification-banner__content .wiki-content a:visited {
+  color: var(--govuk-link-colour, #1a65a6);
+}
+.govuk-notification-banner__content .wiki-content a:hover {
+  color: var(--govuk-link-hover-colour, #0f385c);
+  text-decoration-thickness: max(3px, .1875rem, .12em);
+  text-decoration-skip-ink: none;
+}
+.govuk-notification-banner__content .wiki-content a:active {
+  color: var(--govuk-link-active-colour, #0b0c0c);
+}
+.govuk-notification-banner__content .wiki-content a:focus {
+  outline: 3px solid transparent;
+  color: var(--govuk-focus-text-colour, #0b0c0c);
+  background-color: var(--govuk-focus-colour, #ffdd00);
+  box-shadow: 0 -2px var(--govuk-focus-colour, #ffdd00), 0 4px var(--govuk-focus-text-colour, #0b0c0c);
+  text-decoration: none;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.govuk-notification-banner__content .wiki-content > :last-child { margin-bottom: 0; }
+
 /* ==========================================================================
    Content Blocks — inline editable sections
    ========================================================================== */

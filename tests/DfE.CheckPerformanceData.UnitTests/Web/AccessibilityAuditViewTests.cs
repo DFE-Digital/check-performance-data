@@ -322,4 +322,30 @@ public sealed class AccessibilityAuditViewTests
 		var css = ReadCss();
 		Assert.Contains("#storage-upload-form [hidden]", css);
 	}
+
+	// ── #566 Start-page banners: one region per banner, each with its own accessible name ──
+
+	[Fact]
+	public void HomeBanner_IsARegion_LabelledByItsOwnTitleAndHeading()
+	{
+		var partial = ReadView("Views", "Shared", "Components", "HomeBanners", "_Banner.cshtml");
+
+		Assert.Contains("role=\"region\"", partial);
+		Assert.Contains("data-module=\"govuk-notification-banner\"", partial);
+		// Both ids carry the banner's own id, so several banners on one page never share a label.
+		Assert.Contains("aria-labelledby=\"home-banner-@Model.Id-title home-banner-@Model.Id-heading\"", partial);
+		Assert.Contains("<h2 class=\"govuk-notification-banner__title\" id=\"home-banner-@Model.Id-title\">Important</h2>", partial);
+		Assert.Contains("id=\"home-banner-@Model.Id-heading\"", partial);
+	}
+
+	[Fact]
+	public void StartPage_RendersBannersThroughTheComponent_NotTheOldBetaPartial()
+	{
+		var index = ReadView("Views", "Home", "Index.cshtml");
+
+		Assert.Contains("Component.InvokeAsync(\"HomeBanners\")", index);
+		Assert.DoesNotContain("_BetaBanner", index);
+		var repoRoot = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(ThisFilePath())!, "..", "..", ".."));
+		Assert.False(File.Exists(Path.Combine(repoRoot, "src", "DfE.CheckPerformanceData.Web", "Views", "Shared", "_BetaBanner.cshtml")));
+	}
 }

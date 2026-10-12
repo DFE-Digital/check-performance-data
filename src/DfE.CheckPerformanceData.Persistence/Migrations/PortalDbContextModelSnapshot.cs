@@ -18,7 +18,7 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.9")
+                .HasAnnotation("ProductVersion", "10.0.12")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -1417,6 +1417,108 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     b.ToTable("egress_run_outputs", (string)null);
                 });
 
+            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.HomeBanner", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ContentId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Heading")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("ShowFrom")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<DateTime?>("ShowUntil")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContentId")
+                        .IsUnique();
+
+                    b.HasIndex("SortOrder");
+
+                    b.ToTable("HomeBanners");
+                });
+
+            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.HomeBannerVersion", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Heading")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("HomeBannerId")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("ShowFrom")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<DateTime?>("ShowUntil")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<int>("VersionNumber")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HomeBannerId", "VersionNumber")
+                        .IsUnique();
+
+                    b.ToTable("HomeBannerVersions");
+                });
+
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.OrganisationLogin", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1816,6 +1918,17 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.HomeBannerVersion", b =>
+                {
+                    b.HasOne("DfE.CheckPerformanceData.Persistence.Entities.HomeBanner", "HomeBanner")
+                        .WithMany("Versions")
+                        .HasForeignKey("HomeBannerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("HomeBanner");
+                });
+
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.PageNode", b =>
                 {
                     b.HasOne("DfE.CheckPerformanceData.Persistence.Entities.PageNode", null)
@@ -1854,6 +1967,11 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.EgressRun", b =>
                 {
                     b.Navigation("Outputs");
+                });
+
+            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.HomeBanner", b =>
+                {
+                    b.Navigation("Versions");
                 });
 
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.PageNode", b =>

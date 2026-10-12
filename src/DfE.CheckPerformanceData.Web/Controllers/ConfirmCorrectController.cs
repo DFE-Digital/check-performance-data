@@ -24,7 +24,9 @@ public sealed class ConfirmCorrectController(
     // #318: confirming the data is correct is a pupil-data-checking action, so it closes with that
     // exercise even while the outer window (and any other exercise on it) is still running.
     // AB#307773: it closes for the signed-in school, whose extension may run past the exercise's
-    // own end. The deadline label below still quotes the outer window (decision 9, a follow-up).
+    // own end, and the deadline the page and the email quote is that school's too (decision 9):
+    // the outer window's end moves with every extension, so it is only the fallback for a window
+    // with no pupil-data row.
     private const CheckingExerciseType Exercise = CheckingExerciseType.PupilData;
 
     [HttpGet]
@@ -34,7 +36,7 @@ public sealed class ConfirmCorrectController(
         if (!checkingExercises.IsOpen(window.Exercises, Exercise, currentUserService.OrganisationLaestab))
             return this.RedirectExerciseClosed(windowId, Exercise, LearnerNoun.For(window.CheckingWindowType));
 
-        var confirmVw = new ConfirmCorrectViewModel(windowId, DeadlineLabel(window.EndDate));
+        var confirmVw = new ConfirmCorrectViewModel(windowId, DeadlineLabel(Deadline(window.Exercises, window.EndDate)));
         return View(confirmVw);
     }
 
@@ -46,7 +48,8 @@ public sealed class ConfirmCorrectController(
             return this.RedirectExerciseClosed(windowId, Exercise, LearnerNoun.For(window.CheckingWindowType));
 
         var reference = journeyService.GenerateReference(window.CheckingWindowType);
-        await requestService.ConfirmDataCorrectAsync(windowId, reference, window.EndDate, EmailSubstitutions.From(window));
+        var deadline = Deadline(window.Exercises, window.EndDate);
+        await requestService.ConfirmDataCorrectAsync(windowId, reference, deadline, EmailSubstitutions.From(window));
 
         await analytics.TrackSafeAsync(new CorrectDataConfirmedEvent
         {
@@ -54,9 +57,12 @@ public sealed class ConfirmCorrectController(
             CheckingWindowType = window.CheckingWindowType.ToString(),
         });
 
-        var confirmedVw = new ConfirmedCorrectViewModel(DeadlineLabel(window.EndDate), reference);
+        var confirmedVw = new ConfirmedCorrectViewModel(DeadlineLabel(deadline), reference);
         return View(confirmedVw);
     }
+
+    private DateTime Deadline(IReadOnlyList<CheckingExerciseDto> exercises, DateTime outerEnd) =>
+        checkingExercises.EndDateFor(exercises, Exercise, currentUserService.OrganisationLaestab) ?? outerEnd;
 
     // The time shows its minutes when the end date has some (DeadlineTime); the date and the
     // letter case are as this page has always printed them.

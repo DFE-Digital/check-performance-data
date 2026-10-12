@@ -57,6 +57,14 @@ public sealed class RequestService(
     private Task<Guid?> ReleaseIdForAsync(Guid windowId, RequestState journey) =>
         ReleaseIdForAsync(windowId, WhatToChangeCheckingExerciseMap.CheckingExerciseFor(journey.SelectedWhatToChange!.Value));
 
+    // The deadline an email quotes (#320: the exercise's end, not the outer window's). AB#307773:
+    // the signed-in school's end, which its extension may make later. The outer window's end moves
+    // with every extension, so quoting it would give an un-extended school another school's date;
+    // it is only the fallback for a kind the window has no row for.
+    private DateTime DeadlineFor(
+        IReadOnlyList<CheckingExerciseDto> exercises, DateTime outerEnd, CheckingExerciseType exercise) =>
+        checkingExerciseService.EndDateFor(exercises, exercise, currentUserService.OrganisationLaestab) ?? outerEnd;
+
     private string ExtractCurrentReasonType(RequestState journey, QuestionFlowConfig? config)
     {
         if (config is null)
@@ -219,9 +227,12 @@ public sealed class RequestService(
     public async Task ConfirmRequestAsync(Guid windowId, RequestState journey)
     {
         await SubmitRequestAsync(windowId, journey);
+        var window = journey.CheckingWindow!;
+        var deadline = DeadlineFor(window.Exercises, window.EndDate,
+            WhatToChangeCheckingExerciseMap.CheckingExerciseFor(journey.SelectedWhatToChange!.Value));
         await requestNotificationService.NotifySubmissionConfirmedAsync(
-            windowId, journey.CheckingWindow!.EndDate, journey.ReferenceNumber ?? string.Empty,
-            EmailSubstitutions.From(journey.CheckingWindow));
+            windowId, deadline, journey.ReferenceNumber ?? string.Empty,
+            EmailSubstitutions.From(window));
     }
 
     public async Task ConfirmDataCorrectAsync(
@@ -301,7 +312,10 @@ public sealed class RequestService(
         await requestRepository.WithdrawAsync(windowId, urn, referenceNumber, currentUserService.Email, DateTime.UtcNow);
 
         var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
-        var deadline = window.EndDate;
+        // An amendment and a data-correct declaration are both pupil-data actions; only a results
+        // enquiry belongs to the other exercise (it sends no withdrawal email today).
+        var deadline = DeadlineFor(window.Exercises, window.EndDate,
+            row?.RequestType == RequestType.ResultsEnquiry ? CheckingExerciseType.ResultsEnquiry : CheckingExerciseType.PupilData);
 
         if (row?.RequestType == RequestType.Amendment)
         {

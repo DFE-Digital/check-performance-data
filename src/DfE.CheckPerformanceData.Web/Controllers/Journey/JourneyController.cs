@@ -1557,12 +1557,25 @@ public sealed class JourneyController(
         if (string.IsNullOrEmpty(journey?.ReferenceNumber) || journey?.CheckingWindow is null)
             return RedirectToCheckYourData(windowId);
 
+        // #320: the journey's own exercise's end, never the outer window's. AB#307773: the
+        // signed-in school's end, which its extension may make later — the outer end now moves
+        // with every extension, so quoting it would give un-extended schools another school's date.
+        // SummaryConfirm clears the change type before redirecting here, and only an amendment
+        // comes here (an enquiry goes to EnquiryConfirmation), so a cleared one is pupil data. The
+        // outer end is only the fallback for a kind the window has no row for.
+        var exercise = journey.SelectedWhatToChange is { } change
+            ? WhatToChangeCheckingExerciseMap.CheckingExerciseFor(change)
+            : CheckingExerciseType.PupilData;
+        var deadline = checkingExerciseService.EndDateFor(
+            journey.CheckingWindow.Exercises, exercise, currentUserService.OrganisationLaestab)
+            ?? journey.CheckingWindow.EndDate;
+
         var model = new ConfirmationViewModel
         {
             WindowId = windowId,
             ReferenceNumber = journey.ReferenceNumber,
             // DeadlineTime.Pattern: the minutes show when the end date has some.
-            WindowCloseLabel = $"{journey.CheckingWindow.EndDate.ToString(DeadlineTime.Pattern(journey.CheckingWindow.EndDate))} on {journey.CheckingWindow.EndDate:dddd d MMMM yyyy}"
+            WindowCloseLabel = $"{deadline.ToString(DeadlineTime.Pattern(deadline))} on {deadline:dddd d MMMM yyyy}"
         };
 
         return View(model);

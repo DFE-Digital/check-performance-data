@@ -375,4 +375,29 @@ public sealed class BulkSubmissionServiceTests
         Assert.Empty(result.Submitted);
         Assert.Equal(CheckingExerciseType.PupilData, result.ClosedExercise);
     }
+
+    // AB#307773 review C2: the outer end (FarFuture here) moves with every extension, so the email
+    // quotes the signed-in school's pupil-data end: the extension's for the school it names, the
+    // exercise's own for any other.
+    [Theory]
+    [InlineData("933/4290", true)]
+    [InlineData("860/4070", false)]
+    public async Task Submit_EmailQuotesTheSignedInSchoolsPupilDataEnd(string laestab, bool named)
+    {
+        var exerciseEnd = new DateTime(2027, 6, 30, 17, 0, 0);
+        var exercises = PupilDataEnding(exerciseEnd);
+        exercises[0].Extensions.Add(new Application.WindowManagement.CheckingExerciseExtensionDto
+        {
+            Id = Guid.NewGuid(), EndDate = FarFuture, Laestabs = ["9334290"]
+        });
+        OneReadyDraft();
+        _pupilData.GetCheckingWindowAsync(WindowId).Returns(WindowWith(exercises));
+        SetupRemoveDraft("R1");
+        _currentUser.OrganisationLaestab.Returns(laestab);
+
+        await _sut.SubmitAsync(WindowId, new[] { "R1" });
+
+        await _notify.Received(1).NotifyBulkSubmissionConfirmedAsync(
+            WindowId, named ? FarFuture : exerciseEnd, Arg.Any<IReadOnlyList<string>>(), Arg.Any<EmailSubstitutions>());
+    }
 }

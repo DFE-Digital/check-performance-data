@@ -836,6 +836,74 @@ public class RequestServiceTests
         await _requestNotificationService.Received(1).NotifyDataCheckWithdrawnAsync("REF001", new(2026, 6, 26, 17, 0, 0), Substitutions);
     }
 
+    // ── AB#307773 review C2: school-aware email deadlines ───────────────────
+    //
+    // The outer window's end moves with every extension (decision 8), so the emails quote the
+    // signed-in school's end for the request's own exercise: the extension's for the school it
+    // names, the exercise's own for any other.
+
+    private static readonly DateTime ExerciseEnd = new(2026, 6, 26, 17, 0, 0);
+    private static readonly DateTime ExtensionEnd = new(2026, 7, 31, 17, 0, 0);
+
+    private static List<Application.WindowManagement.CheckingExerciseDto> PupilDataWithExtension() =>
+    [
+        new()
+        {
+            Id = Guid.NewGuid(),
+            ExerciseType = CheckingExerciseType.PupilData,
+            StartDate = new DateTime(2026, 6, 1),
+            EndDate = ExerciseEnd,
+            IsEnabled = true,
+            Extensions =
+            [
+                new Application.WindowManagement.CheckingExerciseExtensionDto
+                {
+                    Id = Guid.NewGuid(), EndDate = ExtensionEnd, Laestabs = ["9334290"]
+                }
+            ]
+        }
+    ];
+
+    [Theory]
+    [InlineData("933/4290", true)]
+    [InlineData("860/4070", false)]
+    public async Task ConfirmRequestAsync_EmailQuotesTheSignedInSchoolsExerciseEnd(string laestab, bool named)
+    {
+        _currentUser.OrganisationLaestab.Returns(laestab);
+        var (journey, config) = MakeSubmission();
+        journey.CheckingWindow = new CheckingWindowDto
+        {
+            Id = WindowId, Title = "KS4 June", KeyStage = KeyStages.KS4, CheckingWindowType = CheckingWindowType.KS4June,
+            StartDate = new DateTime(2026, 6, 1), EndDate = ExtensionEnd, Exercises = PupilDataWithExtension()
+        };
+        SetupConfig(config);
+
+        await _sut.ConfirmRequestAsync(WindowId, journey);
+
+        await _requestNotificationService.Received(1).NotifySubmissionConfirmedAsync(
+            WindowId, named ? ExtensionEnd : ExerciseEnd, journey.ReferenceNumber!, Substitutions);
+    }
+
+    [Theory]
+    [InlineData("933/4290", true)]
+    [InlineData("860/4070", false)]
+    public async Task DeleteAsync_WithdrawalEmailQuotesTheSignedInSchoolsPupilDataEnd(string laestab, bool named)
+    {
+        _currentUser.OrganisationLaestab.Returns(laestab);
+        _requestRepository.GetAmendmentRequestAsync(WindowId, 100000L, "REF001")
+            .Returns(AmendmentRow(RequestStatus.Submitted, "Jane", "Smith"));
+        _checkYourPupilDataService.GetCheckingWindowAsync(WindowId).Returns(new CheckingWindowDto
+        {
+            Id = WindowId, Title = "KS4 June", KeyStage = KeyStages.KS4, CheckingWindowType = CheckingWindowType.KS4June,
+            StartDate = new DateTime(2026, 6, 1), EndDate = ExtensionEnd, Exercises = PupilDataWithExtension()
+        });
+
+        await _sut.DeleteAsync(WindowId, "REF001");
+
+        await _requestNotificationService.Received(1).NotifyAmendmentWithdrawnAsync(
+            "REF001", named ? ExtensionEnd : ExerciseEnd, Substitutions);
+    }
+
     // ── Helpers ─────────────────────────────────────────────────────────────
 
     private async Task<RequestDocument> CaptureDocument(RequestState journey, QuestionFlowConfig config)

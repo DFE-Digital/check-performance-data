@@ -130,8 +130,15 @@ public sealed class BulkSubmissionService(
 
         if (submitted.Count > 0 && window is not null)
         {
+            // #320: the pupil-data exercise's end (a bulk submission is amendments), not the outer
+            // window's. AB#307773: the signed-in school's end, which its extension may make later;
+            // the outer end moves with every extension, so it is only the fallback for a window
+            // with no pupil-data row.
+            var deadline = checkingExercises.EndDateFor(
+                window.Exercises, CheckingExerciseType.PupilData, currentUserService.OrganisationLaestab)
+                ?? window.EndDate;
             await requestNotificationService.NotifyBulkSubmissionConfirmedAsync(
-                windowId, window.EndDate, submitted, EmailSubstitutions.From(window));
+                windowId, deadline, submitted, EmailSubstitutions.From(window));
         }
 
         return new BulkSubmissionResult { Submitted = submitted, Skipped = skipped, ClosedExercise = closedExercise };

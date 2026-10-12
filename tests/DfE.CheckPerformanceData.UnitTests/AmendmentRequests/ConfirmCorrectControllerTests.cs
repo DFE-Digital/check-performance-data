@@ -7,6 +7,7 @@ using DfE.CheckPerformanceData.Application.Notify;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers;
+using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 using DfE.CheckPerformanceData.Application.UnitTests.WindowManagement;
@@ -136,5 +137,53 @@ public sealed class ConfirmCorrectControllerTests
 
         await _requestService.Received(named ? 1 : 0)
             .ConfirmDataCorrectAsync(WindowId, Reference, Arg.Any<DateTime>(), Arg.Any<EmailSubstitutions>());
+    }
+
+    // AB#307773 review C2: the outer window's end moves with every extension, so the page and the
+    // email quote the signed-in school's pupil-data end: the extension's for the school it names,
+    // the exercise's own for any other.
+    [Theory]
+    [InlineData("933/4290", 7, "Friday 31 July")]
+    [InlineData("860/4070", 6, "Tuesday 30 June")]
+    public async Task The_deadline_is_the_signed_in_schools_pupil_data_end(string laestab, int month, string label)
+    {
+        var extensionEnd = new DateTime(2026, 7, 31, 17, 0, 0);
+        var exerciseEnd = new DateTime(2026, 6, 30, 17, 0, 0);
+        _currentUser.OrganisationLaestab.Returns(laestab);
+        _service.GetCheckingWindowAsync(WindowId).Returns(new CheckingWindowDto
+        {
+            Id = WindowId,
+            Title = "KS4 June",
+            StartDate = new DateTime(2026, 6, 1),
+            EndDate = extensionEnd,   // decision 8: the outer end includes the extension
+            KeyStage = KeyStages.KS4,
+            CheckingWindowType = CheckingWindowType.KS4June,
+            Exercises =
+            [
+                new Application.WindowManagement.CheckingExerciseDto
+                {
+                    Id = Guid.NewGuid(),
+                    ExerciseType = CheckingExerciseType.PupilData,
+                    StartDate = new DateTime(2026, 6, 1),
+                    EndDate = exerciseEnd,
+                    Extensions =
+                    [
+                        new Application.WindowManagement.CheckingExerciseExtensionDto
+                        {
+                            Id = Guid.NewGuid(), EndDate = extensionEnd, Laestabs = ["9334290"]
+                        }
+                    ]
+                }
+            ]
+        });
+        var expected = month == 7 ? extensionEnd : exerciseEnd;
+
+        var page = Assert.IsType<ConfirmCorrectViewModel>(Assert.IsType<ViewResult>(await _sut.Index(WindowId)).Model);
+        var confirmed = Assert.IsType<ConfirmedCorrectViewModel>(Assert.IsType<ViewResult>(await _sut.Confirm(WindowId)).Model);
+
+        Assert.EndsWith(label, page.EndDate);
+        Assert.EndsWith(label, confirmed.EndDate);
+        await _requestService.Received(1)
+            .ConfirmDataCorrectAsync(WindowId, Reference, expected, Arg.Any<EmailSubstitutions>());
     }
 }

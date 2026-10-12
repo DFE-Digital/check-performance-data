@@ -204,6 +204,51 @@ public class JourneyControllerTests
         AssertRedirectToCheckYourData(result);
     }
 
+    // AB#307773 review C2: the outer window's end moves with every extension, so the page quotes the
+    // signed-in school's pupil-data end. SummaryConfirm has cleared the change type by now, and only
+    // an amendment comes here, so the kind is pupil data.
+    [Theory]
+    [InlineData("933/4290", "31 July 2026")]
+    [InlineData("860/4070", "30 June 2026")]
+    public void Confirmation_QuotesTheSignedInSchoolsPupilDataEnd(string laestab, string date)
+    {
+        _currentUserService.OrganisationLaestab.Returns(laestab);
+        var state = ValidSession();
+        state.SelectedWhatToChange = null;
+        state.CheckingWindow = new CheckingWindowDto
+        {
+            Id = WindowId,
+            Title = "Test Window",
+            KeyStage = KeyStages.KS4,
+            CheckingWindowType = CheckingWindowType.KS4June,
+            StartDate = new DateTime(2026, 6, 1),
+            EndDate = new DateTime(2026, 7, 31, 17, 0, 0),
+            Exercises =
+            [
+                new DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseDto
+                {
+                    Id = Guid.NewGuid(),
+                    ExerciseType = CheckingExerciseType.PupilData,
+                    StartDate = new DateTime(2026, 6, 1),
+                    EndDate = new DateTime(2026, 6, 30, 17, 0, 0),
+                    Extensions =
+                    [
+                        new DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseExtensionDto
+                        {
+                            Id = Guid.NewGuid(), EndDate = new DateTime(2026, 7, 31, 17, 0, 0), Laestabs = ["9334290"]
+                        }
+                    ]
+                }
+            ]
+        };
+        SetupSession(state);
+
+        var view = Assert.IsType<ViewResult>(_sut.Confirmation(WindowId));
+
+        var model = Assert.IsType<DfE.CheckPerformanceData.Web.Controllers.Journey.ConfirmationViewModel>(view.Model);
+        Assert.EndsWith(date, model.WindowCloseLabel);
+    }
+
     // ── Navigation validation ────────────────────────────────────────────────
 
     [Fact]

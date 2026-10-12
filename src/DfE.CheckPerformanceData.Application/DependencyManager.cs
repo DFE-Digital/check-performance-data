@@ -107,6 +107,8 @@ services.AddScoped<IJourneyCondition, SchoolIsNotIndependentCondition>();
         // AB#301022: ends an open exercise before its scheduled end. The admin Close action runs
         // this, then ICloseExerciseService above.
         services.AddScoped<WindowManagement.IExerciseEarlyClosureService, WindowManagement.ExerciseEarlyClosureService>();
+        // AB#307773: adds, edits and closes early the extensions that give named schools more time.
+        services.AddScoped<WindowManagement.Extensions.IExerciseExtensionService, WindowManagement.Extensions.ExerciseExtensionService>();
         // AB#302158: runs ICloseExerciseService by itself two hours after an exercise ends. The
         // web host's ExerciseHandOverJob drives it; nothing in a request path calls it.
         services.AddScoped<WindowManagement.IAutomaticExerciseHandOver, WindowManagement.AutomaticExerciseHandOver>();

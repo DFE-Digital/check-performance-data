@@ -1,12 +1,19 @@
+using DfE.CheckPerformanceData.Application.Audit;
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
+using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Entities;
 using DfE.CheckPerformanceData.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging.Abstractions;
+using NSubstitute;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.Persistence;
 
-// AB#307773: the extension tables and (from Task 4) the guarded writes behind them.
+// AB#307773: the extension tables, the guarded writes behind them and the window end date they move.
 [Collection(nameof(PostgresCollection))]
 public sealed class ExerciseExtensionRepositoryTests(PostgresFixture fixture) : IAsyncLifetime
 {
@@ -92,5 +99,264 @@ public sealed class ExerciseExtensionRepositoryTests(PostgresFixture fixture) : 
         await using var check = fixture.CreateContext();
         Assert.Equal(0, await check.CheckingExerciseExtensions.CountAsync(x => x.CheckingExerciseId == _exerciseId));
         Assert.Equal(0, await check.CheckingExerciseExtensionSchools.CountAsync(x => x.CheckingExerciseId == _exerciseId));
+    }
+
+    private ExerciseExtensionRepository Repository(PortalDbContext ctx) => new(ctx);
+    private static readonly ExtensionActor Ada = new("user-1", "Ada Admin");
+
+    private NewExtension NewExt(params string[] laestabs) => new()
+    {
+        WindowId = _windowId, ExerciseId = _exerciseId, Exercise = CheckingExerciseType.PupilData,
+        EndDate = ExtensionEnd, Laestabs = laestabs, Actor = Ada,
+        CreatedAtUtc = new DateTime(2026, 9, 20, 9, 0, 0, DateTimeKind.Utc)
+    };
+
+    private ExtensionEdit Edit(Guid id, DateTime previous, DateTime newEnd, params string[] laestabs) => new()
+    {
+        WindowId = _windowId, ExerciseId = _exerciseId, Exercise = CheckingExerciseType.PupilData, ExtensionId = id,
+        PreviousEndDate = previous, NewEndDate = newEnd, Laestabs = laestabs, Actor = Ada,
+        EditedAtUtc = new DateTime(2026, 9, 21, 9, 0, 0, DateTimeKind.Utc)
+    };
+
+    [Fact]
+    public async Task Add_writes_the_rows_the_audit_row_and_moves_the_window_end()
+    {
+        Guid id;
+        await using (var ctx = fixture.CreateContext())
+            id = await Repository(ctx).AddAsync(new NewExtension
+            {
+                WindowId = _windowId, ExerciseId = _exerciseId, Exercise = CheckingExerciseType.PupilData,
+                EndDate = ExtensionEnd, Laestabs = ["9334290", "8604070"], Actor = Ada,
+                CreatedAtUtc = new DateTime(2026, 9, 20, 9, 0, 0, DateTimeKind.Utc)
+            }, CancellationToken.None);
+
+        await using var check = fixture.CreateContext();
+        var extension = await check.CheckingExerciseExtensions.Include(x => x.Schools).SingleAsync(x => x.Id == id);
+        Assert.Equal(2, extension.Schools.Count);
+        Assert.All(extension.Schools, s => Assert.Equal(_exerciseId, s.CheckingExerciseId));
+        Assert.Equal(ExtensionEnd, (await check.CheckingWindows.SingleAsync(w => w.Id == _windowId)).EndDate);
+        var audit = await check.AuditEntries.SingleAsync(a => a.EntityType == "WindowAdmin" && a.EntityId == _windowId.ToString() && a.Action == "ExtensionAdded");
+        Assert.Equal("user-1", audit.UserId);
+        Assert.Contains("\"extensionId\":\"" + id, audit.NewValues);
+        Assert.Contains("\"schoolCount\":2", audit.NewValues);
+        Assert.Contains("\"actorName\":\"Ada Admin\"", audit.NewValues);
+    }
+
+    [Fact]
+    public async Task Update_is_a_compare_and_set_on_the_end_date_and_records_the_school_diff()
+    {
+        Guid id;
+        await using (var ctx = fixture.CreateContext())
+            id = await Repository(ctx).AddAsync(NewExt("9334290", "8604070"), CancellationToken.None);
+
+        await using (var ctx = fixture.CreateContext())
+        {
+            var stale = await Repository(ctx).UpdateAsync(Edit(id, previous: ExtensionEnd.AddDays(5), newEnd: ExtensionEnd.AddDays(9), "9334290"), CancellationToken.None);
+            Assert.False(stale);
+            var ok = await Repository(ctx).UpdateAsync(Edit(id, previous: ExtensionEnd, newEnd: ExtensionEnd.AddDays(9), "9334290", "1234567"), CancellationToken.None);
+            Assert.True(ok);
+        }
+
+        await using var check = fixture.CreateContext();
+        var extension = await check.CheckingExerciseExtensions.Include(x => x.Schools).SingleAsync(x => x.Id == id);
+        Assert.Equal(ExtensionEnd.AddDays(9), extension.EndDate);
+        Assert.Equal(["1234567", "9334290"], extension.Schools.Select(s => s.Laestab).OrderBy(l => l));
+        Assert.Equal(ExtensionEnd.AddDays(9), (await check.CheckingWindows.SingleAsync(w => w.Id == _windowId)).EndDate);
+        var audit = await check.AuditEntries.SingleAsync(a => a.Action == "ExtensionEdited" && a.EntityId == _windowId.ToString());
+        Assert.Contains("\"schoolsAdded\":[\"1234567\"]", audit.NewValues);
+        Assert.Contains("\"schoolsRemoved\":[\"8604070\"]", audit.NewValues);
+    }
+
+    [Fact]
+    public async Task Update_keeps_the_ids_of_the_schools_it_does_not_remove()
+    {
+        Guid id;
+        await using (var ctx = fixture.CreateContext())
+            id = await Repository(ctx).AddAsync(NewExt("9334290", "8604070"), CancellationToken.None);
+        Guid kept;
+        await using (var ctx = fixture.CreateContext())
+            kept = (await ctx.CheckingExerciseExtensionSchools.SingleAsync(s => s.CheckingExerciseExtensionId == id && s.Laestab == "9334290")).Id;
+
+        // The end date is unchanged; the guard still holds because it is always written.
+        await using (var ctx = fixture.CreateContext())
+            Assert.True(await Repository(ctx).UpdateAsync(Edit(id, ExtensionEnd, ExtensionEnd, "9334290", "1234567"), CancellationToken.None));
+
+        await using var check = fixture.CreateContext();
+        Assert.Equal(kept, (await check.CheckingExerciseExtensionSchools.SingleAsync(s => s.CheckingExerciseExtensionId == id && s.Laestab == "9334290")).Id);
+        Assert.Equal(_exerciseId, (await check.CheckingExerciseExtensionSchools.SingleAsync(s => s.CheckingExerciseExtensionId == id && s.Laestab == "1234567")).CheckingExerciseId);
+        Assert.False(await check.CheckingExerciseExtensionSchools.AnyAsync(s => s.CheckingExerciseExtensionId == id && s.Laestab == "8604070"));
+    }
+
+    [Fact]
+    public async Task Close_early_moves_the_end_once_and_writes_one_row()
+    {
+        Guid id;
+        await using (var ctx = fixture.CreateContext())
+            id = await Repository(ctx).AddAsync(NewExt("9334290"), CancellationToken.None);
+        // Closed before the exercise's own end (decision 2), so the window falls back to that end.
+        var closure = new ExtensionEarlyClosure
+        {
+            WindowId = _windowId, ExerciseId = _exerciseId, Exercise = CheckingExerciseType.PupilData, ExtensionId = id,
+            ScheduledEnd = ExtensionEnd, NewEndDate = new DateTime(2026, 9, 29, 10, 38, 59), Actor = Ada,
+            ClosedAtUtc = new DateTime(2026, 9, 29, 9, 39, 0, DateTimeKind.Utc)
+        };
+
+        await using (var ctx = fixture.CreateContext())
+        {
+            Assert.True(await Repository(ctx).CloseEarlyAsync(closure, CancellationToken.None));
+            Assert.False(await Repository(ctx).CloseEarlyAsync(closure, CancellationToken.None));
+        }
+
+        await using var check = fixture.CreateContext();
+        Assert.Equal(closure.NewEndDate, (await check.CheckingExerciseExtensions.SingleAsync(x => x.Id == id)).EndDate);
+        // The window's end falls back to the exercise's own end, which is later than the close.
+        Assert.Equal(ExerciseEnd, (await check.CheckingWindows.SingleAsync(w => w.Id == _windowId)).EndDate);
+        Assert.Equal(1, await check.AuditEntries.CountAsync(a => a.Action == "ExtensionClosedEarly" && a.EntityId == _windowId.ToString()));
+    }
+
+    [Fact]
+    public async Task Mark_requests_sent_sets_the_stamp_once()
+    {
+        Guid id;
+        await using (var ctx = fixture.CreateContext())
+            id = await Repository(ctx).AddAsync(NewExt("9334290"), CancellationToken.None);
+
+        await using var ctx2 = fixture.CreateContext();
+        var at = new DateTime(2026, 10, 8, 19, 0, 0, DateTimeKind.Utc);
+        Assert.True(await Repository(ctx2).MarkRequestsSentAsync(id, at, CancellationToken.None));
+        Assert.False(await Repository(ctx2).MarkRequestsSentAsync(id, at.AddHours(1), CancellationToken.None));
+        Assert.Equal(DateTime.SpecifyKind(at, DateTimeKind.Unspecified), (await ctx2.CheckingExerciseExtensions.AsNoTracking().SingleAsync(x => x.Id == id)).RequestsSentAt);
+    }
+
+    // The audit log reads these rows back through WindowAdminAuditPayload, so the payload names
+    // have to match what it parses: a misspelt one would list the row with its detail missing.
+    [Fact]
+    public async Task The_audit_log_lists_the_four_extension_rows_with_their_fields()
+    {
+        var ct = CancellationToken.None;
+        var closedEnd = new DateTime(2026, 10, 5, 10, 38, 59);
+        Guid id;
+        await using (var ctx = fixture.CreateContext())
+            id = await Repository(ctx).AddAsync(NewExt("9334290", "8604070"), ct);
+        await using (var ctx = fixture.CreateContext())
+            Assert.True(await Repository(ctx).UpdateAsync(Edit(id, ExtensionEnd, ExtensionEnd.AddDays(9), "9334290", "1234567"), ct));
+        await using (var ctx = fixture.CreateContext())
+            Assert.True(await Repository(ctx).CloseEarlyAsync(new ExtensionEarlyClosure
+            {
+                WindowId = _windowId, ExerciseId = _exerciseId, Exercise = CheckingExerciseType.PupilData, ExtensionId = id,
+                ScheduledEnd = ExtensionEnd.AddDays(9), NewEndDate = closedEnd, Actor = Ada,
+                ClosedAtUtc = new DateTime(2026, 10, 5, 9, 39, 0, DateTimeKind.Utc)
+            }, ct));
+        await using (var ctx = fixture.CreateContext())
+            await Repository(ctx).RecordRequestsSentAsync(new ExtensionRequestsSent
+            {
+                WindowId = _windowId, ExerciseId = _exerciseId, Exercise = CheckingExerciseType.PupilData, ExtensionId = id,
+                ExtensionEnd = closedEnd, RequestsSent = 3, DraftsCancelled = 1, Actor = Ada,
+                SentAtUtc = new DateTime(2026, 10, 6, 9, 0, 0, DateTimeKind.Utc)
+            }, ct);
+
+        await using var read = fixture.CreateContext();
+        var page = await new AuditLogRepository(read).ListAsync(new AuditLogFilter(null, _windowId, AuditOutcome.Success), 1, 50, ct);
+
+        Assert.Equal(
+            [AuditActivities.ExtensionRequestsSentAction, AuditActivities.ExtensionClosedEarlyAction,
+             AuditActivities.ExtensionEditedAction, AuditActivities.ExtensionAddedAction],
+            page.Rows.Select(r => r.Action));
+        Assert.All(page.Rows, r =>
+        {
+            Assert.Equal(id, r.ExtensionId);
+            Assert.Equal("user-1", r.UserId);
+            Assert.Equal("Ada Admin", r.UserName);
+            Assert.Equal("PupilData", r.ExerciseType);
+            Assert.Equal("KS4 June", r.WindowTitle);
+        });
+
+        var added = page.Rows.Single(r => r.Action == AuditActivities.ExtensionAddedAction);
+        Assert.Equal(ExtensionEnd, added.EndDate);
+        Assert.Equal(2, added.SchoolCount);
+
+        var edited = page.Rows.Single(r => r.Action == AuditActivities.ExtensionEditedAction);
+        Assert.Equal(ExtensionEnd.AddDays(9), edited.EndDate);
+        Assert.Equal(2, edited.SchoolCount);
+        Assert.Equal(["1234567"], edited.SchoolsAdded!);
+        Assert.Equal(["8604070"], edited.SchoolsRemoved!);
+
+        var closed = page.Rows.Single(r => r.Action == AuditActivities.ExtensionClosedEarlyAction);
+        Assert.Equal(closedEnd, closed.EndDate);
+
+        var sent = page.Rows.Single(r => r.Action == AuditActivities.ExtensionRequestsSentAction);
+        Assert.Equal(closedEnd, sent.EndDate);
+        Assert.Equal(3, sent.RequestsSent);
+        Assert.Equal(1, sent.DraftsCancelled);
+    }
+
+    // Decision 8: a window edit writes the DTO's derived end first, so a DTO built without the
+    // extension would otherwise shrink the window back to the exercise's end and hide the window
+    // from the named schools.
+    [Fact]
+    public async Task A_window_update_whose_dto_lacks_the_extension_keeps_the_window_end_at_the_extension_end()
+    {
+        Guid id;
+        await using (var ctx = fixture.CreateContext())
+            id = await Repository(ctx).AddAsync(NewExt("9334290"), CancellationToken.None);
+
+        CheckingWindowDto window;
+        await using (var ctx = fixture.CreateContext())
+            window = (await new WindowRepository(ctx).GetByIdAsync(_windowId, CancellationToken.None))!;
+        window.Exercises.Single().Extensions.Clear();
+        window.DeriveDatesFromExercises();
+        Assert.Equal(ExerciseEnd, window.EndDate);
+
+        await using (var ctx = fixture.CreateContext())
+            await new WindowRepository(ctx).UpdateAsync(window, CancellationToken.None);
+
+        await using var check = fixture.CreateContext();
+        Assert.Equal(ExtensionEnd, (await check.CheckingWindows.SingleAsync(w => w.Id == _windowId)).EndDate);
+        Assert.True(await check.CheckingExerciseExtensions.AnyAsync(x => x.Id == id));
+    }
+
+    [Fact]
+    public async Task The_admin_window_list_carries_the_extension_and_its_schools()
+    {
+        await using (var ctx = fixture.CreateContext())
+            await Repository(ctx).AddAsync(NewExt("9334290", "8604070"), CancellationToken.None);
+
+        await using var read = fixture.CreateContext();
+        var windows = await new WindowRepository(read).GetAllWindowsAsync(CancellationToken.None);
+
+        var extension = Assert.Single(windows.Single(w => w.Id == _windowId).Exercises.Single().Extensions);
+        Assert.Equal(ExtensionEnd, extension.EndDate);
+        Assert.Equal(["8604070", "9334290"], extension.Laestabs);
+    }
+
+    [Fact]
+    public async Task The_landing_page_read_carries_the_extension_and_its_schools()
+    {
+        await using (var ctx = fixture.CreateContext())
+            await Repository(ctx).AddAsync(NewExt("9334290", "8604070"), CancellationToken.None);
+
+        await using var read = fixture.CreateContext();
+        var windows = await new LandingPageRepository(read, NullLogger<LandingPageRepository>.Instance)
+            .GetStartedWindowsAsync(Start.AddDays(1), "933/4290", CancellationToken.None);
+
+        var extension = Assert.Single(windows.Single(w => w.Id == _windowId).Exercises.Single().Extensions);
+        Assert.Equal(ExtensionEnd, extension.EndDate);
+        Assert.Equal(["8604070", "9334290"], extension.Laestabs);
+    }
+
+    [Fact]
+    public async Task The_check_your_pupil_data_window_read_carries_the_extension_and_its_schools()
+    {
+        await using (var ctx = fixture.CreateContext())
+            await Repository(ctx).AddAsync(NewExt("9334290", "8604070"), CancellationToken.None);
+
+        await using var read = fixture.CreateContext();
+        // The window read touches neither the blob client nor the cache.
+        var window = await new CheckYourPupilDataRepository(read, Substitute.For<IPupilDataBlobClient>(),
+            new MemoryCache(new MemoryCacheOptions())).GetCheckingWindowAsync(_windowId);
+
+        var extension = Assert.Single(window.Exercises.Single().Extensions);
+        Assert.Equal(ExtensionEnd, extension.EndDate);
+        Assert.Equal(["8604070", "9334290"], extension.Laestabs);
     }
 }

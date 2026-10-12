@@ -11,9 +11,9 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Persistence;
 
 /// <summary>
 /// AB#301022: the write behind an early closure. One guarded statement moves the exercise's end
-/// date, the window's own end date is re-derived as the latest exercise end, and one WindowAdmin
-/// audit row is written — all or nothing. The guard is a compare-and-set on the end date the admin
-/// was shown, so a second close, or a close racing a date edit, writes nothing at all.
+/// date, the window's own end date is re-derived as the latest exercise or extension end, and
+/// one WindowAdmin audit row is written — all or nothing. The guard is a compare-and-set on the end
+/// date the admin was shown, so a second close, or a close racing a date edit, writes nothing at all.
 /// </summary>
 [Collection(nameof(PostgresCollection))]
 public sealed class WindowRepositoryEarlyClosureTests(PostgresFixture fixture) : IAsyncLifetime
@@ -130,6 +130,29 @@ public sealed class WindowRepositoryEarlyClosureTests(PostgresFixture fixture) :
         var window = await ReloadAsync();
         Assert.Equal(NewEnd, window.FindExercise(CheckingExerciseType.PupilData)!.EndDate);
         Assert.Equal(EnquiryEnd, window.EndDate);
+    }
+
+    // AB#307773 decision 8: closing the exercise does not close its extension, whose schools still
+    // see the window, so the window's own end stays at the extension's.
+    [Fact]
+    public async Task Closing_an_exercise_with_a_later_extension_keeps_the_window_end_at_the_extension_end()
+    {
+        var extensionEnd = EnquiryEnd.AddDays(7);
+        await using (var seed = fixture.CreateContext())
+        {
+            seed.CheckingExerciseExtensions.Add(new CheckingExerciseExtension
+            {
+                CheckingExerciseId = _enquiryId, EndDate = extensionEnd,
+                CreatedAt = new DateTime(2026, 8, 1, 9, 0, 0), CreatedBy = "Ada Admin",
+                Schools = [new CheckingExerciseExtensionSchool { CheckingExerciseId = _enquiryId, Laestab = "9334290" }]
+            });
+            await seed.SaveChangesAsync();
+        }
+
+        Assert.True(await CloseAsync(Closure(CheckingExerciseType.ResultsEnquiry, EnquiryEnd)));
+
+        await using var ctx = fixture.CreateContext();
+        Assert.Equal(extensionEnd, (await ctx.CheckingWindows.SingleAsync(w => w.Id == _windowId)).EndDate);
     }
 
     [Fact]

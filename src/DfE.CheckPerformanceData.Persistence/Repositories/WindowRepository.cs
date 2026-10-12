@@ -271,6 +271,11 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
         SyncExercises(entity, window.Exercises);
 
         await dbContext.SaveChangesAsync(cancellationToken);
+
+        // AB#307773: the DTO's end is derived from the extensions it carries, and a caller that
+        // built it without them would shrink the window below an extension's end and hide the
+        // window from the named schools. The database's answer is the one that holds.
+        await WindowEndDate.RederiveAsync(dbContext, window.Id, cancellationToken);
     }
 
     // Keyed by id since #466. Type is no longer unique within a window, and a typeless share has
@@ -439,14 +444,9 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                 return false;
             }
 
-            // The window's own end date is the latest exercise end (#319) and is never typed, so
-            // it is re-derived here exactly as WindowService.UpdateAsync derives it on an edit.
-            DateTime latestEnd = await dbContext.CheckingExercises
-                .Where(e => e.CheckingWindowId == closure.WindowId)
-                .MaxAsync(e => e.EndDate, cancellationToken);
-            await dbContext.CheckingWindows
-                .Where(w => w.Id == closure.WindowId)
-                .ExecuteUpdateAsync(s => s.SetProperty(w => w.EndDate, latestEnd), cancellationToken);
+            // The window's own end date is never typed (#319); an extension of this exercise may
+            // still hold it later than the close (AB#307773).
+            await WindowEndDate.RederiveAsync(dbContext, closure.WindowId, cancellationToken);
 
             string title = await dbContext.CheckingWindows
                 .Where(w => w.Id == closure.WindowId)

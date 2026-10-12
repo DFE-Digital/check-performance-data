@@ -57,16 +57,20 @@ public sealed class ExerciseDeletionRepository(PortalDbContext dbContext) : IExe
 
             // A window's dates are the union of its exercises' dates
             // (CheckingWindowDto.DeriveDatesFromExercises). With no exercise left there is nothing
-            // to derive from, so the dates stay as they were.
+            // to derive from, so the dates stay as they were. The end also counts the remaining
+            // exercises' extensions (AB#307773), which are not loaded here, so it is re-derived in
+            // SQL once the delete has cascaded.
             var remaining = window.CheckingExercises.Where(e => e.Id != exerciseId).ToList();
             if (remaining.Count > 0)
             {
-                var entry = dbContext.Entry(window);
-                entry.Property(w => w.StartDate).CurrentValue = remaining.Min(e => e.StartDate);
-                entry.Property(w => w.EndDate).CurrentValue = remaining.Max(e => e.EndDate);
+                dbContext.Entry(window).Property(w => w.StartDate).CurrentValue = remaining.Min(e => e.StartDate);
             }
 
             await dbContext.SaveChangesAsync(cancellationToken);
+            if (remaining.Count > 0)
+            {
+                await WindowEndDate.RederiveAsync(dbContext, windowId, cancellationToken);
+            }
             return new DeletedExercise(exercise.UsesExerciseStorage);
         }, cancellationToken);
 }

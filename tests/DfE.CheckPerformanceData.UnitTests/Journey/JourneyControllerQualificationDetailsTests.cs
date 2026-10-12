@@ -96,6 +96,9 @@ public sealed class JourneyControllerQualificationDetailsTests
             .Returns((JourneyNavigation?)null);
         _optionVisibility.GetVisibleOptions(Arg.Any<Question>(), Arg.Any<JourneyConditionContext>())
             .Returns(ci => ci.Arg<Question>().Options ?? (IReadOnlyList<QuestionOption>)[]);
+        // Unstubbed, the substitute returns false and every question would be filtered out (issue #577).
+        _optionVisibility.IsQuestionVisible(Arg.Any<Question>(), Arg.Any<JourneyConditionContext>())
+            .Returns(true);
         _optionality.GetConditionallyOptionalQuestionIds(Arg.Any<JourneyPage>(), Arg.Any<JourneyConditionContext>())
             .Returns(new HashSet<string>());
 

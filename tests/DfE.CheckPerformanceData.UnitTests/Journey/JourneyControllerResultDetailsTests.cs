@@ -92,6 +92,9 @@ public sealed class JourneyControllerResultDetailsTests
             .Returns((JourneyNavigation?)null);
         _optionality.GetConditionallyOptionalQuestionIds(Arg.Any<JourneyPage>(), Arg.Any<JourneyConditionContext>())
             .Returns(new HashSet<string>());
+        // Unstubbed, the substitute returns false and every question would be filtered out (issue #577).
+        _optionVisibility.IsQuestionVisible(Arg.Any<Question>(), Arg.Any<JourneyConditionContext>())
+            .Returns(true);
 
         // The lookup is a sealed class NSubstitute cannot auto-fake, so an unstubbed call would hand
         // the controller a null. Empty is the honest default: nothing resolves unless a fact says so.

@@ -63,6 +63,11 @@ public sealed class ExerciseExtensionItem
     public string Heading => IsEdit ? "Edit extension" : $"Add an extension to {ExerciseLabel}";
     public string ConfirmLabel => IsEdit ? "Save these schools anyway" : "Add these schools anyway";
 
+    /// <summary>The checkbox's error while the warning stands; its verb follows the label's.</summary>
+    public string ConfirmNoDataError => IsEdit
+        ? "Confirm that you want to save these schools, or remove them from the list"
+        : "Confirm that you want to add these schools, or remove them from the list";
+
     // Invariant culture: "/" in a custom format is the culture's date separator.
     public string ExerciseEndText => ExerciseEnd.ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture);
 

@@ -259,7 +259,11 @@ public sealed class ExerciseExtensionControllerTests
         Assert.Equal(["860/4070"], vm.SchoolsWithoutData);
         Assert.False(vm.ExerciseHasNoRelease);
         Assert.True(vm.HasWarning);
-        Assert.Equal(0, controller.ModelState.ErrorCount);  // a warning, not an error
+        // An error on the checkbox, so the page announces that nothing was saved (WCAG 3.3.1).
+        Assert.Equal(
+            ["Confirm that you want to add these schools, or remove them from the list"],
+            Errors(controller, "ConfirmNoData"));
+        Assert.Equal(1, controller.ModelState.ErrorCount);
         await _extensions.Received(1).FindSchoolsWithoutDataAsync(
             WindowId, ExerciseId,
             Arg.Is<IReadOnlyList<string>>(l => l.SequenceEqual(new[] { "9334290", "8604070" })),
@@ -278,6 +282,22 @@ public sealed class ExerciseExtensionControllerTests
         var vm = PageModel<ExerciseExtensionItem>(result);
         Assert.True(vm.ExerciseHasNoRelease);
         Assert.Equal(["933/4290", "860/4070"], vm.SchoolsWithoutData);
+        await NothingWasSaved();
+    }
+
+    [Fact]
+    public async Task Create_post_sent_again_without_the_tick_is_refused_again_with_the_error()
+    {
+        // The second press is the one a screen-reader user is most likely to think saved.
+        _extensions.FindSchoolsWithoutDataAsync(WindowId, ExerciseId, Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(new ExtensionWarnings(["8604070"], ExerciseHasNoRelease: false));
+
+        await Build().Create(WindowId, ExerciseId, Form(confirm: false), CancellationToken.None);
+        var controller = Build();
+        var result = await controller.Create(WindowId, ExerciseId, Form(confirm: false), CancellationToken.None);
+
+        Assert.True(PageModel<ExerciseExtensionItem>(result).HasWarning);
+        Assert.Single(Errors(controller, "ConfirmNoData"));
         await NothingWasSaved();
     }
 
@@ -488,11 +508,15 @@ public sealed class ExerciseExtensionControllerTests
         _extensions.FindSchoolsWithoutDataAsync(WindowId, ExerciseId, Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
             .Returns(new ExtensionWarnings(["8604070"], ExerciseHasNoRelease: false));
 
-        var result = await Build().Update(WindowId, ExerciseId, OpenExtensionId, EditForm(), CancellationToken.None);
+        var controller = Build();
+        var result = await controller.Update(WindowId, ExerciseId, OpenExtensionId, EditForm(), CancellationToken.None);
 
         var vm = PageModel<ExerciseExtensionItem>(result);
         Assert.Equal(["860/4070"], vm.SchoolsWithoutData);
         Assert.Equal("Save these schools anyway", vm.ConfirmLabel);
+        Assert.Equal(
+            ["Confirm that you want to save these schools, or remove them from the list"],
+            Errors(controller, "ConfirmNoData"));
         Assert.Equal(OpenExtensionEnd, vm.PreviousEndDate);  // posted again with the confirmation
         await NothingWasSaved();
     }

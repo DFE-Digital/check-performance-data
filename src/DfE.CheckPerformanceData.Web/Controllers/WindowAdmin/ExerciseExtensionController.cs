@@ -190,6 +190,11 @@ public sealed class ExerciseExtensionController(
 
         model.SchoolsWithoutData = warnings.LaestabsWithoutData.Select(LaestabList.Display).ToList();
         model.ExerciseHasNoRelease = warnings.ExerciseHasNoRelease;
+
+        // An error on the checkbox, not only the warning: without it the page comes back looking
+        // as it was sent, with nothing announced, and a screen-reader user would take the save to
+        // have gone through. As AddExerciseData does for its journey-file warning.
+        ModelState.AddModelError(nameof(ExerciseExtensionItem.ConfirmNoData), model.ConfirmNoDataError);
         return true;
     }
 

@@ -19,7 +19,8 @@ namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 /// The audit row is written after the sweep, in its own transaction: the sweep is not
 /// transactional (a blob read and a queue write per request), and the row records what it did. If
 /// the sweep fails there is nothing to record, and the admin is told to try again rather than shown
-/// an error page.
+/// an error page. If the row cannot be written the send has still happened, so the admin still sees
+/// what it did; the failure is logged, as the automatic hand-over logs its own.
 /// </remarks>
 [RequireAdminSection(AdminNavKeys.ManageWindow)]
 public sealed class SendExtensionRequestsController(
@@ -96,18 +97,32 @@ public sealed class SendExtensionRequestsController(
             return Redirect($"/admin/windows/summary/{id}");
         }
 
-        await extensions.RecordRequestsSentAsync(new ExtensionRequestsSent
+        try
         {
-            WindowId = id,
-            ExerciseId = exerciseId,
-            Exercise = row.ExerciseType!.Value,
-            ExtensionId = extensionId,
-            ExtensionEnd = extension.EndDate,
-            RequestsSent = result.Enqueued,
-            DraftsCancelled = result.DraftsCancelled,
-            Actor = new ExtensionActor(currentUser.UserId, currentUser.DisplayName),
-            SentAtUtc = timeProvider.GetUtcNow().UtcDateTime
-        }, cancellationToken);
+            // Deliberately not the request's token: the requests have been sent and cannot be
+            // recalled, so their record must not be abandoned because the browser went away.
+            await extensions.RecordRequestsSentAsync(new ExtensionRequestsSent
+            {
+                WindowId = id,
+                ExerciseId = exerciseId,
+                Exercise = row.ExerciseType!.Value,
+                ExtensionId = extensionId,
+                ExtensionEnd = extension.EndDate,
+                RequestsSent = result.Enqueued,
+                DraftsCancelled = result.DraftsCancelled,
+                Actor = new ExtensionActor(currentUser.UserId, currentUser.DisplayName),
+                SentAtUtc = timeProvider.GetUtcNow().UtcDateTime
+            }, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            // The send has happened, so the admin is told what it did rather than shown an error
+            // page that would have them send again. The log line is then the only record of it.
+            // Ids only — no pupil data.
+            logger.LogError(ex,
+                "The requests of extension {ExtensionId} of checking exercise {ExerciseId} of window {WindowId} were sent for processing, but the audit row could not be written",
+                extensionId, exerciseId, id);
+        }
 
         // Quotes the RESULT, never the preview — rows can change between the two.
         TempData[CloseExerciseController.TempDataKey] =

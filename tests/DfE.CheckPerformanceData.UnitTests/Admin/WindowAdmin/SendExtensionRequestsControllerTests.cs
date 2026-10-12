@@ -243,6 +243,27 @@ public sealed class SendExtensionRequestsControllerTests
     }
 
     [Fact]
+    public async Task Send_post_still_reports_the_send_when_its_audit_row_cannot_be_written()
+    {
+        // The requests have gone and cannot be recalled: an error page would have the admin send
+        // again. The row is written on its own token, so a closed browser cannot abandon it.
+        _repository.RecordRequestsSentAsync(Arg.Any<ExtensionRequestsSent>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromException(new InvalidOperationException("database unavailable")));
+        using var request = new CancellationTokenSource();
+
+        var controller = Build();
+        var result = await controller.Send(WindowId, ExerciseId, ClosedExtensionId, request.Token);
+
+        var redirect = Assert.IsType<RedirectResult>(result);
+        Assert.Equal($"/admin/windows/summary/{WindowId}", redirect.Url);
+        Assert.Equal(
+            "3 requests sent for processing and 1 draft cancelled for the extension of Autumn pupil data.",
+            controller.TempData[CloseExerciseController.TempDataKey]);
+        Assert.Null(controller.TempData[SendExerciseRequestsController.RefusedTempDataKey]);
+        await _repository.Received(1).RecordRequestsSentAsync(Arg.Any<ExtensionRequestsSent>(), CancellationToken.None);
+    }
+
+    [Fact]
     public async Task Send_post_does_not_swallow_a_cancelled_request()
     {
         _closeService.CloseExtensionAsync(WindowId, ExerciseId, ClosedExtensionId, Arg.Any<CancellationToken>())

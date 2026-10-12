@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Application.WindowManagement;
@@ -20,11 +21,13 @@ public sealed class ResultIssueController(
     IQuestionFlowService flowService,
     ILateResultsWarning lateResults,
     ICheckingExerciseService checkingExercises,
+    ICurrentUserService currentUserService,
     IAnalyticsService analytics) : Controller
 {
     // #318: this is the results-enquiry entry point, so it gates on that exercise rather than on
     // the outer window. A 16-19 window runs results enquiry on its own dates, and was previously
-    // reachable here for as long as the window itself was open.
+    // reachable here for as long as the window itself was open. AB#307773: open for the signed-in
+    // school, whose extension may run past the exercise's own end.
     private const CheckingExerciseType Exercise = CheckingExerciseType.ResultsEnquiry;
 
     /// <summary>
@@ -40,7 +43,7 @@ public sealed class ResultIssueController(
     public async Task<IActionResult> Index(Guid windowId)
     {
         var window = await service.GetCheckingWindowAsync(windowId);
-        if (!checkingExercises.IsOpen(window.Exercises, Exercise))
+        if (!checkingExercises.IsOpen(window.Exercises, Exercise, currentUserService.OrganisationLaestab))
             return this.RedirectExerciseClosed(windowId, Exercise, LearnerNoun.For(window.CheckingWindowType));
 
         // Never pre-selects: the confirmation page's "Report another issue" link lands here, and the
@@ -54,7 +57,7 @@ public sealed class ResultIssueController(
     public async Task<IActionResult> Confirm(Guid windowId, ResultIssueViewModel vm, CancellationToken ct = default)
     {
         var window = await service.GetCheckingWindowAsync(windowId);
-        if (!checkingExercises.IsOpen(window.Exercises, Exercise))
+        if (!checkingExercises.IsOpen(window.Exercises, Exercise, currentUserService.OrganisationLaestab))
             return this.RedirectExerciseClosed(windowId, Exercise, LearnerNoun.For(window.CheckingWindowType));
 
         // Fail closed on anything that is not one of the options this page renders, so a forged or

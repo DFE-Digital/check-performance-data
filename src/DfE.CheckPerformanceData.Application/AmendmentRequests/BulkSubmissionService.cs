@@ -99,10 +99,11 @@ public sealed class BulkSubmissionService(
             // ran to its end or was closed early. Before this, bulk submit was the one path with
             // no such check: the review page could be left open across a close and still post.
             // The exercise is derived from the draft's change type, as every other gate does.
+            // AB#307773: closed for this school, whose extension may outlast the exercise.
             if (window is not null && journey.SelectedWhatToChange is { } change)
             {
                 var exercise = WhatToChangeCheckingExerciseMap.CheckingExerciseFor(change);
-                if (!checkingExercises.IsOpen(window.Exercises, exercise))
+                if (!checkingExercises.IsOpen(window.Exercises, exercise, currentUserService.OrganisationLaestab))
                 {
                     skipped.Add(reference);
                     closedExercise ??= exercise;

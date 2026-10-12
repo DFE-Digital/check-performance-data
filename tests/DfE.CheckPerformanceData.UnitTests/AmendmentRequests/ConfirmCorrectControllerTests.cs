@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Application.Notify;
@@ -29,12 +30,13 @@ public sealed class ConfirmCorrectControllerTests
     private readonly IRequestService _requestService = Substitute.For<IRequestService>();
     private readonly IAnalyticsService _analytics = Substitute.For<IAnalyticsService>();
     private readonly ICheckingExerciseService _checkingExercises = OpenCheckingExercises.AlwaysOpen();
+    private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
     private readonly ConfirmCorrectController _sut;
 
     public ConfirmCorrectControllerTests()
     {
         var httpContext = new DefaultHttpContext();
-        _sut = new ConfirmCorrectController(_service, _journeyService, _requestService, _checkingExercises, _analytics)
+        _sut = new ConfirmCorrectController(_service, _journeyService, _requestService, _checkingExercises, _currentUser, _analytics)
         {
             // #318: the closed-exercise gate stashes its message in TempData before redirecting.
             ControllerContext = new ControllerContext { HttpContext = httpContext },
@@ -104,4 +106,35 @@ public sealed class ConfirmCorrectControllerTests
             .TrackAsync(Arg.Any<CorrectDataConfirmedEvent>(), Arg.Any<CancellationToken>());
     }
 
+    // AB#307773: pupil data has ended, but an open extension names one school. The gate is asked
+    // about the signed-in school, so that school may still confirm and another may not.
+    [Theory]
+    [InlineData("933/4290", true)]
+    [InlineData("860/4070", false)]
+    public async Task Index_WhenOnlyTheSchoolsExtensionIsOpen_ShowsThePageToTheSchoolItNamesOnly(string laestab, bool named)
+    {
+        _currentUser.OrganisationLaestab.Returns(laestab);
+        _checkingExercises.OpenOnlyFor("933/4290");
+
+        var result = await _sut.Index(WindowId);
+
+        if (named)
+            Assert.IsType<ViewResult>(result);
+        else
+            Assert.Equal("CheckYourPupilData", Assert.IsType<RedirectToActionResult>(result).ControllerName);
+    }
+
+    [Theory]
+    [InlineData("933/4290", true)]
+    [InlineData("860/4070", false)]
+    public async Task Confirm_WhenOnlyTheSchoolsExtensionIsOpen_RecordsTheConfirmationForTheSchoolItNamesOnly(string laestab, bool named)
+    {
+        _currentUser.OrganisationLaestab.Returns(laestab);
+        _checkingExercises.OpenOnlyFor("933/4290");
+
+        await _sut.Confirm(WindowId);
+
+        await _requestService.Received(named ? 1 : 0)
+            .ConfirmDataCorrectAsync(WindowId, Reference, Arg.Any<DateTime>(), Arg.Any<EmailSubstitutions>());
+    }
 }

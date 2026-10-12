@@ -2071,13 +2071,15 @@ public sealed class JourneyController(
         !IsExerciseClosed(journey);
 
     // True only when the journey is otherwise complete and its exercise has closed — the one
-    // rejection reason worth explaining to the user.
+    // rejection reason worth explaining to the user. AB#307773: closed for the signed-in school,
+    // whose extension may run past the exercise's own end.
     private bool IsExerciseClosed(RequestState journey) =>
         journey.SelectedWhatToChange is { } change &&
         journey.CheckingWindow is not null &&
         !checkingExerciseService.IsOpen(
             journey.CheckingWindow.Exercises,
-            WhatToChangeCheckingExerciseMap.CheckingExerciseFor(change));
+            WhatToChangeCheckingExerciseMap.CheckingExerciseFor(change),
+            currentUserService.OrganisationLaestab);
 
     /// <summary>
     /// Every bounce out of the journey. A closed exercise is explained on the page the user lands

@@ -3,6 +3,7 @@ using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using CheckingExerciseDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseDto;
+using CheckingExerciseExtensionDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseExtensionDto;
 using CheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseService;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
@@ -81,11 +82,13 @@ public sealed class LandingPageControllerTests
         Exercises = [Exercise(CheckingExerciseType.PupilData, PupilDataStart, PupilDataEndFuture, 0)]
     };
 
-    private void Landing(params CheckingWindowDto[] windows) =>
+    private void Landing(params CheckingWindowDto[] windows) => LandingFor("878/4120", windows);
+
+    private void LandingFor(string laestab, params CheckingWindowDto[] windows) =>
         _service.GetLandingPageDataAsync(Arg.Any<CancellationToken>()).Returns(new LandingPageResult
         {
             OrganisationName = "Teignmouth Community School",
-            OrganisationLaestab = "878/4120",
+            OrganisationLaestab = laestab,
             OrganisationUrn = "136495",
             KeyStages = [],
             OpenWindows = [.. windows]
@@ -261,6 +264,89 @@ public sealed class LandingPageControllerTests
         Assert.Equal("2 November", card.PupilDataRangeStart);
         Assert.Equal("13 November 2026", card.PupilDataRangeEnd);
         Assert.True(card.IsResultsEnquiryOpen);
+    }
+
+    // ── AB#307773: an extension for named schools ────────────────────────────
+
+    // The exercise ended yesterday; an open extension gives one school until Friday.
+    private static readonly DateTime EndedYesterday = new(2026, 10, 19, 17, 0, 0);
+    private static readonly DateTime ExtensionEnd = new(2026, 10, 23, 17, 0, 0);
+    private const string NamedSchool = "933/4290";
+    private const string OtherSchool = "860/4070";
+
+    private static CheckingExerciseDto Extended(CheckingExerciseType type, int sortOrder) => new()
+    {
+        ExerciseType = type,
+        StartDate = PupilDataStart,
+        EndDate = EndedYesterday,
+        TabOrder = sortOrder,
+        Extensions = [new CheckingExerciseExtensionDto { EndDate = ExtensionEnd, Laestabs = ["9334290"] }]
+    };
+
+    private static CheckingWindowDto Post16With(params CheckingExerciseDto[] exercises) => new()
+    {
+        Id = Guid.NewGuid(),
+        Title = "16 to 19",
+        KeyStage = KeyStages.Post16,
+        CheckingWindowType = CheckingWindowType.Post16,
+        HasPupilData = true,
+        StartDate = PupilDataStart,
+        EndDate = EnquiryEnd,
+        NextOpportunity = new DateTime(2027, 10, 1),
+        Exercises = [.. exercises]
+    };
+
+    [Fact]
+    public async Task A_school_named_in_an_open_extension_sees_its_card_open_to_the_extension_end_and_no_closed_banner()
+    {
+        LandingFor(NamedSchool, Post16With(
+            Extended(CheckingExerciseType.PupilData, 0),
+            Exercise(CheckingExerciseType.ResultsEnquiry, PupilDataStart, EnquiryEnd, 1)));
+
+        var model = await Model();
+        var card = Assert.Single(model.OpenWindows);
+
+        Assert.True(card.IsPupilDataOpen);
+        Assert.Equal("5pm", card.PupilDataEndTime);
+        Assert.Equal("Friday 23 October 2026", card.PupilDataEndDate);
+        Assert.Empty(model.ClosedWindows);
+    }
+
+    [Fact]
+    public async Task A_school_no_extension_names_sees_the_exercise_closed_on_its_own_end()
+    {
+        LandingFor(OtherSchool, Post16With(
+            Extended(CheckingExerciseType.PupilData, 0),
+            Exercise(CheckingExerciseType.ResultsEnquiry, PupilDataStart, EnquiryEnd, 1)));
+
+        var model = await Model();
+        var card = Assert.Single(model.OpenWindows);
+
+        Assert.False(card.IsPupilDataOpen);
+        Assert.Equal("19 October 2026", card.PupilDataRangeEnd);
+        Assert.Single(model.ClosedWindows);
+    }
+
+    [Fact]
+    public async Task An_extended_results_enquiry_stays_open_on_the_card_and_the_closed_banner_for_the_named_school_only()
+    {
+        var pupilDataClosed = Exercise(CheckingExerciseType.PupilData, PupilDataStart, EndedYesterday, 0);
+
+        LandingFor(NamedSchool, Post16With(pupilDataClosed, Extended(CheckingExerciseType.ResultsEnquiry, 1)));
+        var named = await Model();
+
+        var namedCard = Assert.Single(named.OpenWindows);
+        Assert.True(namedCard.IsResultsEnquiryOpen);
+        Assert.Equal("23 October 2026", namedCard.ResultsEnquiryEndDate);
+        Assert.True(Assert.Single(named.ClosedWindows).IsResultsEnquiryOpen);
+
+        LandingFor(OtherSchool, Post16With(pupilDataClosed, Extended(CheckingExerciseType.ResultsEnquiry, 1)));
+        var other = await Model();
+
+        var otherCard = Assert.Single(other.OpenWindows);
+        Assert.False(otherCard.IsResultsEnquiryOpen);
+        Assert.Equal("19 October 2026", otherCard.ResultsEnquiryEndDate);
+        Assert.False(Assert.Single(other.ClosedWindows).IsResultsEnquiryOpen);
     }
 
     // ── Session plumbing for the hostless controller ─────────────────────────

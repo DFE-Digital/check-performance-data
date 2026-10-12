@@ -2584,7 +2584,7 @@ public class JourneyControllerTests
         // AC6, the two halves together. The exercise service here answers from the rows it is
         // GIVEN, as the real one does: open while an exercise's end date is still ahead.
         var now = new DateTime(2026, 9, 3, 10, 39, 0);
-        _checkingExercises.IsOpen(default!, default).ReturnsForAnyArgs(ci =>
+        _checkingExercises.IsOpen(default!, default, default).ReturnsForAnyArgs(ci =>
             ci.ArgAt<IReadOnlyList<DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseDto>>(0)
                 .Any(e => e.ExerciseType == ci.ArgAt<CheckingExerciseType>(1) && e.EndDate >= now));
 
@@ -2618,6 +2618,64 @@ public class JourneyControllerTests
         // ...and after it the same request is turned away with the closed-exercise message.
         var redirect = Assert.IsType<RedirectToActionResult>(await _sut.Page(WindowId, "page-1"));
         Assert.Equal("CheckYourPupilData", redirect.ControllerName);
+        Assert.Equal(
+            ClosedExerciseGuard.MessageFor(CheckingExerciseType.PupilData, LearnerNoun.Pupil),
+            _sut.TempData[ClosedExerciseGuard.TempDataKey]);
+    }
+
+    // AB#307773: the journey's exercise ended yesterday, but an open extension names one school.
+    // The gate is asked about the signed-in school, so that school carries on and another is
+    // turned away with the closed-exercise message. The exercise service answers from the rows it
+    // is given, as the real one does: open while the school's end date is still ahead.
+    [Theory]
+    [InlineData("933/4290", true)]
+    [InlineData("860/4070", false)]
+    public async Task Page_WhenOnlyTheSchoolsExtensionIsOpen_LetsTheSchoolItNamesCarryOnOnly(string laestab, bool named)
+    {
+        var now = new DateTime(2026, 9, 3, 10, 39, 0);
+        _checkingExercises.IsOpen(default!, default, default).ReturnsForAnyArgs(ci =>
+            ci.ArgAt<IReadOnlyList<DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseDto>>(0)
+                .Any(e => e.ExerciseType == ci.ArgAt<CheckingExerciseType>(1)
+                    && e.EndDateFor(ci.ArgAt<string?>(2)) >= now));
+        _currentUserService.OrganisationLaestab.Returns(laestab);
+
+        var journey = ValidSession(history: ["page-1"]);
+        journey.CheckingWindow = new CheckingWindowDto
+        {
+            Title = "Test Window",
+            KeyStage = KeyStages.KS4,
+            CheckingWindowType = CheckingWindowType.KS4June,
+            StartDate = new DateTime(2026, 7, 19),
+            EndDate = new DateTime(2026, 9, 10, 17, 0, 0),
+            Exercises =
+            [
+                new DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseDto
+                {
+                    ExerciseType = CheckingExerciseType.PupilData,
+                    StartDate = new DateTime(2026, 7, 19),
+                    EndDate = new DateTime(2026, 9, 2, 17, 0, 0),
+                    TabOrder = 0,
+                    Extensions =
+                    [
+                        new DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseExtensionDto
+                        {
+                            EndDate = new DateTime(2026, 9, 10, 17, 0, 0),
+                            Laestabs = ["9334290"]
+                        }
+                    ]
+                }
+            ]
+        };
+        SetupSession(journey);
+
+        var result = await _sut.Page(WindowId, "page-1");
+
+        if (named)
+        {
+            Assert.IsNotType<RedirectToActionResult>(result);
+            return;
+        }
+        Assert.Equal("CheckYourPupilData", Assert.IsType<RedirectToActionResult>(result).ControllerName);
         Assert.Equal(
             ClosedExerciseGuard.MessageFor(CheckingExerciseType.PupilData, LearnerNoun.Pupil),
             _sut.TempData[ClosedExerciseGuard.TempDataKey]);
@@ -2698,7 +2756,7 @@ public class JourneyControllerTests
         // A pupil-data journey on a window whose results-enquiry exercise is still running. The
         // gate follows the journey's own exercise, derived from SelectedWhatToChange.
         SetupSession(ValidSession(history: ["page-1"]));
-        _checkingExercises.IsOpen(default!, default)
+        _checkingExercises.IsOpen(default!, default, default)
             .ReturnsForAnyArgs(ci => ci.ArgAt<CheckingExerciseType>(1) == CheckingExerciseType.ResultsEnquiry);
 
         var result = await _sut.Page(WindowId, "page-1");

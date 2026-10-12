@@ -595,6 +595,20 @@ public sealed class CheckingExerciseServiceTests
         Assert.True(Sut().IsWindowShown(exercises));
     }
 
+    // A school with no LAESTAB claim is no school at all: it sees the window for as long as the
+    // stored window end (the latest any school sees) says, not the exercises' own dates, so the
+    // two paths that decide whether it sees the window agree.
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void IsWindowShown_treats_an_empty_LAESTAB_as_no_school(string laestab)
+    {
+        var exercises = new[] { Extended(CheckingExerciseType.PupilData, LastMonth, Yesterday, Tomorrow, "9334290") };
+
+        Assert.Equal(Sut().IsWindowShown(exercises, null), Sut().IsWindowShown(exercises, laestab));
+        Assert.True(Sut().IsWindowShown(exercises, laestab));
+    }
+
     [Fact]
     public void An_extension_is_open_until_its_end_and_closed_after()
     {

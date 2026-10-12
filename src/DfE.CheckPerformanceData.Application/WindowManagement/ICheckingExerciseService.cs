@@ -143,8 +143,10 @@ public interface ICheckingExerciseService
     /// <summary>
     /// <see cref="IsWindowShown(IReadOnlyList{CheckingExerciseDto})"/> for one school (AB#307773):
     /// each exercise ends on the school's extension end date when an extension names it, so a
-    /// school no extension names sees the window end with the exercises' own dates. A null LAESTAB
-    /// is the latest end any school sees; an empty one is the exercises' own dates.
+    /// school no extension names sees the window end with the exercises' own dates. A null, empty
+    /// or blank LAESTAB is no school: the latest end any school sees, which is the window's stored
+    /// end, so a school with no LAESTAB claim is not shown the window by one path and hidden by
+    /// the other.
     /// </summary>
     bool IsWindowShown(IReadOnlyList<CheckingExerciseDto> exercises, string? laestab);
 
@@ -270,11 +272,12 @@ public sealed class CheckingExerciseService(TimeProvider timeProvider) : IChecki
 
     // The end date is inclusive and VisibleUntil exclusive, each as it is everywhere else. With no
     // school the end is the latest any school sees, so an extension keeps the window shown for the
-    // schools it names; with a school it is that school's (AB#307773).
+    // schools it names; with a school it is that school's (AB#307773). A blank LAESTAB is no school,
+    // not a school that no extension names.
     private static bool WindowShown(IReadOnlyList<CheckingExerciseDto> exercises, DateTime now, string? laestab) =>
         exercises.Count > 0
         && exercises.Min(e => e.StartDate) <= now
-        && (exercises.Max(e => laestab is null ? e.LatestEndDate : e.EndDateFor(laestab)) >= now
+        && (exercises.Max(e => string.IsNullOrWhiteSpace(laestab) ? e.LatestEndDate : e.EndDateFor(laestab)) >= now
             || exercises.Any(e => e.VisibleUntil is not null && e.IsLiveAt(now)));
 
     // "Open" is two questions, not one: is it running, and is it a thing a school may act on.

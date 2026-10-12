@@ -7,6 +7,7 @@ using CheckingExerciseDto = DfE.CheckPerformanceData.Application.WindowManagemen
 using ICheckingDataReader = DfE.CheckPerformanceData.Application.WindowManagement.ICheckingDataReader;
 using CheckingExerciseReleaseDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseReleaseDto;
 using CheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseService;
+using CheckingExerciseExtensionDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseExtensionDto;
 using DfE.CheckPerformanceData.Domain.Enums;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -272,6 +273,35 @@ public class LandingPageServiceTests
         Assert.Empty(result.OpenWindows);
         Assert.Empty(result.NoDataWindows);
         Assert.Empty(result.NotValidWindows);
+    }
+
+    // AB#307773: the exercise ended yesterday and has no VisibleUntil, so only an extension can keep
+    // the window shown — and only to the schools it names. The window's stored end already includes
+    // the extension, so the repository hands the window to every school; the service decides.
+    [Theory]
+    [InlineData("933/4290", true)]
+    [InlineData("860/4070", false)]
+    public async Task AWindowWhoseExerciseHasClosed_IsShownOnlyToTheSchoolsAnOpenExtensionNames(
+        string laestab, bool shown)
+    {
+        var org = MakeOrganisation(lowAge: 3, highAge: 16, laestab: laestab);
+        _dfESignInApiClient.GetOrganisationAsync("user-1", "org-1").Returns(org);
+
+        var exercise = Exercise(CheckingExerciseType.PupilData, end: Now.DateTime.AddDays(-1));
+        exercise.Extensions.Add(new CheckingExerciseExtensionDto
+        {
+            EndDate = Now.DateTime.AddDays(3),
+            Laestabs = ["9334290"]
+        });
+        var window = MakeWindowWith("KS4 June 2026", KeyStages.KS2, CheckingWindowType.KS4June, (exercise, true));
+        _repository.GetStartedWindowsAsync(Now.DateTime, laestab, Arg.Any<CancellationToken>())
+            .Returns([window]);
+
+        var result = await _sut.GetLandingPageDataAsync(CancellationToken.None);
+
+        Guid[] expected = shown ? [window.Id] : [];
+        Assert.NotNull(result);
+        Assert.Equal(expected, result.OpenWindows.Select(w => w.Id));
     }
 
     // One live exercise, with or without a file for the school. Most tests only care about that.

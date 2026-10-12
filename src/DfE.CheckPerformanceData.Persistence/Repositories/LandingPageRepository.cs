@@ -56,6 +56,9 @@ public sealed class LandingPageRepository(
                         // where to look for the school's files.
                         TabName = e.TabName,
                         IsEnabled = e.IsEnabled,
+                        // AB#307773: the school's end date comes from the live interactive row of a
+                        // kind, so the read must say which rows are display only.
+                        DisplayOnly = e.DisplayOnly,
                         VisibleFrom = e.VisibleFrom,
                         VisibleUntil = e.VisibleUntil,
                         UsesExerciseStorage = e.UsesExerciseStorage,

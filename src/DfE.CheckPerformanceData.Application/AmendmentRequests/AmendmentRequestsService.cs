@@ -19,6 +19,7 @@ public sealed class AmendmentRequestsService(
     public async Task<AmendmentRequestsResult> GetAmendmentRequestsAsync(Guid windowId)
     {
         var urn = long.Parse(currentUserService.OrganisationUrn);
+        var laestab = currentUserService.OrganisationLaestab;
         var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
         var requests = await requestRepository.GetAmendmentRequestsAsync(windowId, urn);
         var submitted = await requestRepository.GetSubmittedRequestsAsync(windowId, urn);
@@ -71,15 +72,17 @@ public sealed class AmendmentRequestsService(
             // before results enquiry does — one date could only ever be right for one of them.
             // A display-only exercise has no kind, and this deadline row is keyed and labelled by
             // kind (ExerciseLabels.For), so it is left out here — same as every other kind lookup.
+            // AB#307773: both are the signed-in school's, whose extension may run past the
+            // exercise's own end.
             Deadlines = window.Exercises
                 .InTabOrder()
                 .Where(e => e.ExerciseType is not null)
                 .Select(e => new ExerciseDeadlineDto
                 {
                     Exercise = e.ExerciseType.Value,
-                    EndDate = e.EndDate,
+                    EndDate = e.EndDateFor(laestab),
                     // The clock lives in one place, so "has this closed" is asked, never computed.
-                    IsOpen = checkingExercises.IsOpen(window.Exercises, e.ExerciseType.Value)
+                    IsOpen = checkingExercises.IsOpen(window.Exercises, e.ExerciseType.Value, laestab)
                 })
                 .ToList(),
             Rows = requests.Select(r => new AmendmentRequestDto

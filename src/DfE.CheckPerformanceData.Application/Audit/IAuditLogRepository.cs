@@ -41,6 +41,18 @@ public sealed record AuditLogRow(
 
     /// <inheritdoc cref="RequestsSent"/>
     public int? DraftsCancelled { get; init; }
+
+    /// <summary>
+    /// AB#307773: the extension a WindowAdmin row is about (an automatic hand-over carries it only
+    /// for an extension's), its end date, and the school count and changes. Null on every other
+    /// row, and when the payload does not hold them. School lists are LAESTABs, not pupil data.
+    /// </summary>
+    public Guid? ExtensionId { get; init; }
+
+    public DateTime? EndDate { get; init; }
+    public int? SchoolCount { get; init; }
+    public IReadOnlyList<string>? SchoolsAdded { get; init; }
+    public IReadOnlyList<string>? SchoolsRemoved { get; init; }
 }
 
 /// <summary>One page of the log. Page is 1-based and already clamped to [1, TotalPages].</summary>

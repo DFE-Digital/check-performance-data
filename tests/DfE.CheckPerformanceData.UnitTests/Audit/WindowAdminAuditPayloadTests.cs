@@ -45,6 +45,31 @@ public sealed class WindowAdminAuditPayloadTests
         Assert.Null(payload.ScheduledEnd);
     }
 
+    [Fact]
+    public void An_extension_payload_gives_the_id_the_actor_the_dates_and_the_school_changes()
+    {
+        // AB#307773: what the extension writers record.
+        const string json = """
+            {"windowId":"11111111-1111-1111-1111-111111111111","exerciseType":"PupilData",
+             "extensionId":"22222222-2222-2222-2222-222222222222","actorName":"Ops One",
+             "endDate":"2026-11-12T17:00:00","previousEndDate":"2026-11-05T17:00:00",
+             "newEndDate":"2026-11-12T17:00:00","schoolsAdded":["9334290"],"schoolsRemoved":[],
+             "schoolCount":4}
+            """;
+
+        var payload = WindowAdminAuditPayload.TryParse(json);
+
+        Assert.NotNull(payload);
+        Assert.Equal(Guid.Parse("22222222-2222-2222-2222-222222222222"), payload!.ExtensionId);
+        Assert.Equal("Ops One", payload.ActorName);
+        Assert.Equal(new DateTime(2026, 11, 12, 17, 0, 0), payload.EndDate);
+        Assert.Equal(new DateTime(2026, 11, 5, 17, 0, 0), payload.PreviousEndDate);
+        Assert.Equal(new DateTime(2026, 11, 12, 17, 0, 0), payload.NewEndDate);
+        Assert.Equal(["9334290"], payload.SchoolsAdded);
+        Assert.Empty(payload.SchoolsRemoved!);
+        Assert.Equal(4, payload.SchoolCount);
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]

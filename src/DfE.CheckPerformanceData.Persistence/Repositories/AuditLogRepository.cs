@@ -73,7 +73,12 @@ public sealed class AuditLogRepository(IPortalDbContext db) : IAuditLogRepositor
                     (a.EntityType == AuditActivities.Egress && a.Action == AuditActivities.TransferAction) ||
                     (a.EntityType == AuditActivities.WindowAdmin &&
                         (a.Action == AuditActivities.ClosedEarlyAction ||
-                         a.Action == AuditActivities.RequestsSentAutomaticallyAction)))
+                         a.Action == AuditActivities.RequestsSentAutomaticallyAction ||
+                         // AB#307773: IsExtensionAction is not translatable, so the four are listed.
+                         a.Action == AuditActivities.ExtensionAddedAction ||
+                         a.Action == AuditActivities.ExtensionEditedAction ||
+                         a.Action == AuditActivities.ExtensionClosedEarlyAction ||
+                         a.Action == AuditActivities.ExtensionRequestsSentAction)))
                 : query.Where(a => a.EntityType == AuditActivities.Egress && a.Action == AuditActivities.TransferFailedAction);
         }
         if (filter.WindowId is { } windowId)
@@ -115,6 +120,11 @@ public sealed class AuditLogRepository(IPortalDbContext db) : IAuditLogRepositor
         string? exerciseType = null;
         int? requestsSent = null;
         int? draftsCancelled = null;
+        Guid? extensionId = null;
+        DateTime? endDate = null;
+        int? schoolCount = null;
+        IReadOnlyList<string>? schoolsAdded = null;
+        IReadOnlyList<string>? schoolsRemoved = null;
         IReadOnlyList<string> outputTypes = [];
 
         if (raw.EntityType == AuditActivities.Egress)
@@ -131,10 +141,16 @@ public sealed class AuditLogRepository(IPortalDbContext db) : IAuditLogRepositor
             // AB#302158: an automatic hand-over has no name, and carries its two counts instead.
             if (Guid.TryParse(raw.EntityId, out var id)) windowId = id;
             var payload = WindowAdminAuditPayload.TryParse(raw.Payload);
-            userName = payload?.ClosedBy;
+            // AB#307773: an extension row names its actor; an early closure names closedBy.
+            userName = payload?.ClosedBy ?? payload?.ActorName;
             exerciseType = payload?.ExerciseType;
             requestsSent = payload?.RequestsSent;
             draftsCancelled = payload?.DraftsCancelled;
+            extensionId = payload?.ExtensionId;
+            endDate = payload?.EndDate;
+            schoolCount = payload?.SchoolCount;
+            schoolsAdded = payload?.SchoolsAdded;
+            schoolsRemoved = payload?.SchoolsRemoved;
         }
         else if (raw.EntityType == AuditActivities.CheckingWindow && Guid.TryParse(raw.EntityId, out var id))
         {
@@ -147,7 +163,12 @@ public sealed class AuditLogRepository(IPortalDbContext db) : IAuditLogRepositor
         {
             ExerciseType = exerciseType,
             RequestsSent = requestsSent,
-            DraftsCancelled = draftsCancelled
+            DraftsCancelled = draftsCancelled,
+            ExtensionId = extensionId,
+            EndDate = endDate,
+            SchoolCount = schoolCount,
+            SchoolsAdded = schoolsAdded,
+            SchoolsRemoved = schoolsRemoved
         };
     }
 }

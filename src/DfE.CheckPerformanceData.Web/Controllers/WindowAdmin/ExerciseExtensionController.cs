@@ -92,7 +92,7 @@ public sealed class ExerciseExtensionController(
 
         var model = new ExerciseExtensionItem
         {
-            PreviousEndDate = extension.EndDate,
+            PreviousEnd = ExerciseExtensionItem.GuardFor(extension.EndDate),
             EndDate = extension.EndDate.Date,
             EndHour = extension.EndDate.Hour,
             EndMinute = extension.EndDate.Minute,
@@ -116,7 +116,7 @@ public sealed class ExerciseExtensionController(
 
         // The page always posts the end date it showed. Without it the save has nothing to compare
         // against, and would overwrite whatever another admin did meanwhile.
-        if (model.PreviousEndDate is not { } previousEnd)
+        if (!model.TryReadPreviousEnd(out var previousEnd))
             return BadRequest();
 
         Decorate(model, id, row, extensionId);

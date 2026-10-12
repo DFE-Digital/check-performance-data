@@ -120,7 +120,7 @@ public sealed class ExerciseExtensionControllerTests
         EndHour = 17,
         EndMinute = 0,
         Schools = schools,
-        PreviousEndDate = OpenExtensionEnd
+        PreviousEnd = ExerciseExtensionItem.GuardFor(OpenExtensionEnd)
     };
 
     private static string[] Errors(Controller controller, string key) =>
@@ -426,7 +426,7 @@ public sealed class ExerciseExtensionControllerTests
         Assert.True(vm.IsEdit);
         Assert.Equal("Edit extension", vm.Heading);
         Assert.Equal("933/4290\n860/4070", vm.Schools);
-        Assert.Equal(OpenExtensionEnd, vm.PreviousEndDate);
+        Assert.Equal(ExerciseExtensionItem.GuardFor(OpenExtensionEnd), vm.PreviousEnd);
         Assert.Equal(OpenExtensionEnd.Date, vm.EndDate);
         Assert.Equal(17, vm.EndHour);
         Assert.Equal(0, vm.EndMinute);
@@ -450,7 +450,7 @@ public sealed class ExerciseExtensionControllerTests
         // Re-checked on the POST: a page left open across the end date still posts here.
         var controller = Build();
         var form = EditForm();
-        form.PreviousEndDate = ClosedExtensionEnd;
+        form.PreviousEnd = ExerciseExtensionItem.GuardFor(ClosedExtensionEnd);
 
         var result = await controller.Update(WindowId, ExerciseId, ClosedExtensionId, form, CancellationToken.None);
 
@@ -517,21 +517,59 @@ public sealed class ExerciseExtensionControllerTests
         Assert.Equal(
             ["Confirm that you want to save these schools, or remove them from the list"],
             Errors(controller, "ConfirmNoData"));
-        Assert.Equal(OpenExtensionEnd, vm.PreviousEndDate);  // posted again with the confirmation
+        Assert.Equal(ExerciseExtensionItem.GuardFor(OpenExtensionEnd), vm.PreviousEnd);  // posted again with the confirmation
         await NothingWasSaved();
     }
 
-    [Fact]
-    public async Task Update_post_without_the_end_date_it_was_shown_is_a_bad_request()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("not a date")]
+    [InlineData("08/10/2026 17:00")]                    // not the round-trip form the page writes
+    [InlineData("2026-10-08T17:00:00.0000000Z")]        // an offset: not a wall-clock value this page wrote
+    public async Task Update_post_without_the_end_date_it_was_shown_is_a_bad_request(string? guard)
     {
         // The page always posts it; without it there is nothing to guard the save with.
         var form = EditForm();
-        form.PreviousEndDate = null;
+        form.PreviousEnd = guard;
 
         var result = await Build().Update(WindowId, ExerciseId, OpenExtensionId, form, CancellationToken.None);
 
         Assert.IsType<BadRequestResult>(result);
         await NothingWasSaved();
+    }
+
+    [Fact]
+    public async Task The_guard_the_edit_page_writes_is_the_end_date_the_post_saves_against()
+    {
+        // The hidden field travels as text because GovUk.Frontend.AspNetCore's date binder takes
+        // over the model's DateTime? members and bound a single posted value as null. Round trip:
+        // what the GET puts in the page is what the POST hands the service, to the tick, as a
+        // wall-clock value.
+        var page = PageModel<ExerciseExtensionItem>(
+            await Build().Edit(WindowId, ExerciseId, OpenExtensionId, CancellationToken.None));
+        var form = EditForm();
+        form.PreviousEnd = page.PreviousEnd;
+
+        await Build().Update(WindowId, ExerciseId, OpenExtensionId, form, CancellationToken.None);
+
+        await _extensions.Received(1).EditAsync(
+            OpenExtensionId,
+            Arg.Is<DateTime>(d => d == OpenExtensionEnd && d.Kind == DateTimeKind.Unspecified),
+            Arg.Any<ExtensionCommand>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public void The_guard_keeps_sub_second_precision()
+    {
+        // The compare-and-set is exact; a stored value with microseconds must come back unchanged.
+        var stored = new DateTime(2026, 10, 8, 17, 0, 0, DateTimeKind.Unspecified).AddTicks(1_234_560);
+
+        var item = new ExerciseExtensionItem { PreviousEnd = ExerciseExtensionItem.GuardFor(stored) };
+
+        Assert.True(item.TryReadPreviousEnd(out var read));
+        Assert.Equal(stored, read);
+        Assert.Equal(DateTimeKind.Unspecified, read.Kind);
     }
 
     [Fact]

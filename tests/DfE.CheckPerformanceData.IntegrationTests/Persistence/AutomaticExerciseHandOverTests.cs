@@ -139,14 +139,16 @@ public sealed class AutomaticExerciseHandOverTests(PostgresFixture fixture) : IA
         var documents = Substitute.For<IRequestBlobClient>();
         documents.GetRequestAsync(_windowId, SubmittedRef).Returns(Document());
 
+        var clock = new FixedTimeProvider(nowUtc ?? NowUtc);
         var sweep = new CloseExerciseService(
-            new AdminRequestsRepository(ctx), documents, new PostgresQueueService(ctx));
+            new AdminRequestsRepository(ctx), documents, new PostgresQueueService(ctx),
+            new WindowRepository(ctx), new CheckingExerciseService(clock), new ExerciseExtensionRepository(ctx), clock);
 
         return new AutomaticExerciseHandOver(
             new WindowRepository(ctx),
             sweep,
             new WindowAdminAuditWriter(ctx),
-            new FixedTimeProvider(nowUtc ?? NowUtc),
+            clock,
             Options.Create(new ExerciseHandOverSettings()),
             NullLogger<AutomaticExerciseHandOver>.Instance);
     }

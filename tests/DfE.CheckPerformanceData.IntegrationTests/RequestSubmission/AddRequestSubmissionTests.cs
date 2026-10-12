@@ -274,7 +274,11 @@ public sealed class AddRequestSubmissionTests(PostgresFixture fixture)
         var closeService = new CloseExerciseService(
             new AdminRequestsRepository(_fixture.CreateContext()),
             documents,
-            new PostgresQueueService(_fixture.CreateContext()));
+            new PostgresQueueService(_fixture.CreateContext()),
+            new WindowRepository(_fixture.CreateContext()),
+            new CheckingExerciseService(TimeProvider.System),
+            new ExerciseExtensionRepository(_fixture.CreateContext()),
+            TimeProvider.System);
 
         // Undecided: the sweep would send nothing and says both are waiting.
         var waiting = await closeService.PreviewAsync(

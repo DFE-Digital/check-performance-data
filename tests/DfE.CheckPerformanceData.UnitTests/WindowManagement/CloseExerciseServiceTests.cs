@@ -20,15 +20,71 @@ public sealed class CloseExerciseServiceTests
     private readonly IAdminRequestsRepository _repository = Substitute.For<IAdminRequestsRepository>();
     private readonly IRequestBlobClient _documents = Substitute.For<IRequestBlobClient>();
     private readonly IQueueService _queue = Substitute.For<IQueueService>();
+    private readonly IWindowRepository _windows = Substitute.For<IWindowRepository>();
+    private readonly IExerciseExtensionRepository _extensions = Substitute.For<IExerciseExtensionRepository>();
     private readonly CloseExerciseService _sut;
+
+    // AB#307773: the exercise ended yesterday. Extension A is still open, B has closed but has not
+    // been swept, and C has closed and been swept.
+    private static readonly DateTimeOffset Now = new(2026, 11, 15, 12, 0, 0, TimeSpan.Zero);
+    private static readonly DateTime Yesterday = new(2026, 11, 14, 23, 59, 59);
+    private static readonly DateTime Tomorrow = new(2026, 11, 16, 23, 59, 59);
+
+    private static readonly CheckingExerciseExtensionDto A = new()
+    {
+        Id = Guid.Parse("AAAAAAAA-0000-0000-0000-000000000001"), EndDate = Tomorrow, Laestabs = ["9334290"]
+    };
+
+    private static readonly CheckingExerciseExtensionDto B = new()
+    {
+        Id = Guid.Parse("BBBBBBBB-0000-0000-0000-000000000002"), EndDate = Yesterday, Laestabs = ["8604070"]
+    };
+
+    private static readonly CheckingExerciseExtensionDto C = new()
+    {
+        Id = Guid.Parse("CCCCCCCC-0000-0000-0000-000000000003"), EndDate = Yesterday, Laestabs = ["1111111"],
+        RequestsSentAt = new DateTime(2026, 11, 15, 2, 0, 0, DateTimeKind.Utc)
+    };
+
+    private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => now.ToUniversalTime();
+        public override TimeZoneInfo LocalTimeZone => TimeZoneInfo.Utc;
+    }
 
     public CloseExerciseServiceTests()
     {
         _repository.MarkTicketQueuedAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(true);
         _repository.ExecuteInTransactionAsync(Arg.Any<Func<Task>>(), Arg.Any<CancellationToken>())
             .Returns(c => c.Arg<Func<Task>>()());
-        _sut = new CloseExerciseService(_repository, _documents, _queue);
+        _windows.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(new CheckingWindowDto
+        {
+            Id = WindowId,
+            Title = "KS4 June",
+            KeyStage = KeyStages.KS4,
+            CheckingWindowType = CheckingWindowType.KS4June,
+            StartDate = new DateTime(2026, 11, 1),
+            EndDate = Tomorrow,
+            Exercises =
+            [
+                new CheckingExerciseDto
+                {
+                    Id = ExerciseId,
+                    ExerciseType = CheckingExerciseType.PupilData,
+                    StartDate = new DateTime(2026, 11, 1),
+                    EndDate = Yesterday,
+                    Extensions = [A, B, C]
+                }
+            ]
+        });
+        var clock = new FixedTimeProvider(Now);
+        _sut = new CloseExerciseService(
+            _repository, _documents, _queue, _windows, new CheckingExerciseService(clock), _extensions, clock);
     }
+
+    // Compares the filter's schools as a set; the order they were named in does not matter.
+    private static bool Is(SchoolFilter schools, SchoolFilterMode mode, params string[] laestabs) =>
+        schools.Mode == mode && schools.Laestabs.Order().SequenceEqual(laestabs.Order());
 
     private static ReplayRequestRow Row(string reference) => new()
     {
@@ -54,7 +110,7 @@ public sealed class CloseExerciseServiceTests
 
     private void Decided(params ReplayRequestRow[] rows)
     {
-        _repository.GetDecidedRequestsForExerciseAsync(WindowId, ExerciseId, Arg.Any<CancellationToken>())
+        _repository.GetDecidedRequestsForExerciseAsync(WindowId, ExerciseId, Arg.Any<SchoolFilter>(), Arg.Any<CancellationToken>())
             .Returns(rows);
         foreach (var row in rows)
             _documents.GetRequestAsync(WindowId, row.ReferenceNumber).Returns(Document(row.ReferenceNumber));
@@ -80,7 +136,7 @@ public sealed class CloseExerciseServiceTests
     public async Task Waiting_requests_are_counted_and_left_alone()
     {
         Decided();
-        _repository.CountWaitingRequestsForExerciseAsync(WindowId, ExerciseId, Arg.Any<CancellationToken>()).Returns(2);
+        _repository.CountWaitingRequestsForExerciseAsync(WindowId, ExerciseId, Arg.Any<SchoolFilter>(), Arg.Any<CancellationToken>()).Returns(2);
 
         var result = await _sut.CloseAsync(WindowId, ExerciseId, CancellationToken.None);
 
@@ -160,7 +216,7 @@ public sealed class CloseExerciseServiceTests
         // The service is not live, so every submitted amendment has a saved document. A missing
         // one is a fault to see, not a case to work around.
         var row = Row("CYPMD_KS4June_MISSING");
-        _repository.GetDecidedRequestsForExerciseAsync(WindowId, ExerciseId, Arg.Any<CancellationToken>())
+        _repository.GetDecidedRequestsForExerciseAsync(WindowId, ExerciseId, Arg.Any<SchoolFilter>(), Arg.Any<CancellationToken>())
             .Returns([row]);
         _documents.GetRequestAsync(WindowId, row.ReferenceNumber).Returns((RequestDocument?)null);
 
@@ -178,16 +234,16 @@ public sealed class CloseExerciseServiceTests
 
         await _sut.CloseAsync(WindowId, ExerciseId, CancellationToken.None);
 
-        await _repository.Received(1).GetDecidedRequestsForExerciseAsync(WindowId, ExerciseId, Arg.Any<CancellationToken>());
-        await _repository.Received(1).CountWaitingRequestsForExerciseAsync(WindowId, ExerciseId, Arg.Any<CancellationToken>());
-        await _repository.Received(1).MarkDraftsNotSubmittedForExerciseAsync(WindowId, ExerciseId, Arg.Any<CancellationToken>());
+        await _repository.Received(1).GetDecidedRequestsForExerciseAsync(WindowId, ExerciseId, Arg.Any<SchoolFilter>(), Arg.Any<CancellationToken>());
+        await _repository.Received(1).CountWaitingRequestsForExerciseAsync(WindowId, ExerciseId, Arg.Any<SchoolFilter>(), Arg.Any<CancellationToken>());
+        await _repository.Received(1).MarkDraftsNotSubmittedForExerciseAsync(WindowId, ExerciseId, Arg.Any<SchoolFilter>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Drafts_for_the_exercise_are_cancelled_and_counted()
     {
         Decided();
-        _repository.MarkDraftsNotSubmittedForExerciseAsync(WindowId, ExerciseId, Arg.Any<CancellationToken>()).Returns(3);
+        _repository.MarkDraftsNotSubmittedForExerciseAsync(WindowId, ExerciseId, Arg.Any<SchoolFilter>(), Arg.Any<CancellationToken>()).Returns(3);
 
         var result = await _sut.CloseAsync(WindowId, ExerciseId, CancellationToken.None);
 
@@ -198,8 +254,8 @@ public sealed class CloseExerciseServiceTests
     public async Task The_preview_counts_what_the_sweep_would_send_wait_on_and_cancel()
     {
         Decided(Row("A"), Row("B"));
-        _repository.CountWaitingRequestsForExerciseAsync(WindowId, ExerciseId, Arg.Any<CancellationToken>()).Returns(1);
-        _repository.CountDraftsForExerciseAsync(WindowId, ExerciseId, Arg.Any<CancellationToken>()).Returns(4);
+        _repository.CountWaitingRequestsForExerciseAsync(WindowId, ExerciseId, Arg.Any<SchoolFilter>(), Arg.Any<CancellationToken>()).Returns(1);
+        _repository.CountDraftsForExerciseAsync(WindowId, ExerciseId, Arg.Any<SchoolFilter>(), Arg.Any<CancellationToken>()).Returns(4);
 
         var preview = await _sut.PreviewAsync(WindowId, ExerciseId, CancellationToken.None);
 
@@ -207,5 +263,87 @@ public sealed class CloseExerciseServiceTests
         Assert.Equal(1, preview.RequestsWaiting);
         Assert.Equal(4, preview.DraftsToCancel);
         await _queue.DidNotReceiveWithAnyArgs().EnqueueAsync<object>(default!, default!, default);
+    }
+
+    [Fact]
+    public async Task The_exercise_sweep_leaves_out_schools_in_open_or_unsent_extensions()
+    {
+        // A is open and B is closed but unsent, so their schools are held back. C has been swept:
+        // its turn is over, and anything of its school left over goes with the exercise.
+        Decided();
+        var ct = CancellationToken.None;
+
+        await _sut.CloseAsync(WindowId, ExerciseId, ct);
+        await _sut.PreviewAsync(WindowId, ExerciseId, ct);
+
+        await _repository.Received(2).GetDecidedRequestsForExerciseAsync(WindowId, ExerciseId,
+            Arg.Is<SchoolFilter>(f => Is(f, SchoolFilterMode.Exclude, "9334290", "8604070")), ct);
+        await _repository.Received(2).CountWaitingRequestsForExerciseAsync(WindowId, ExerciseId,
+            Arg.Is<SchoolFilter>(f => Is(f, SchoolFilterMode.Exclude, "9334290", "8604070")), ct);
+        await _repository.Received(1).MarkDraftsNotSubmittedForExerciseAsync(WindowId, ExerciseId,
+            Arg.Is<SchoolFilter>(f => Is(f, SchoolFilterMode.Exclude, "9334290", "8604070")), ct);
+        await _repository.Received(1).CountDraftsForExerciseAsync(WindowId, ExerciseId,
+            Arg.Is<SchoolFilter>(f => Is(f, SchoolFilterMode.Exclude, "9334290", "8604070")), ct);
+        await _extensions.DidNotReceiveWithAnyArgs().MarkRequestsSentAsync(default, default, default);
+    }
+
+    [Fact]
+    public async Task The_extension_sweep_takes_only_that_extensions_schools_and_stamps_it_sent_once()
+    {
+        Decided();
+        var ct = CancellationToken.None;
+
+        await _sut.CloseExtensionAsync(WindowId, ExerciseId, A.Id, ct);
+
+        await _repository.Received(1).GetDecidedRequestsForExerciseAsync(WindowId, ExerciseId,
+            Arg.Is<SchoolFilter>(f => Is(f, SchoolFilterMode.Only, "9334290")), ct);
+        await _repository.Received(1).CountWaitingRequestsForExerciseAsync(WindowId, ExerciseId,
+            Arg.Is<SchoolFilter>(f => Is(f, SchoolFilterMode.Only, "9334290")), ct);
+        await _repository.Received(1).MarkDraftsNotSubmittedForExerciseAsync(WindowId, ExerciseId,
+            Arg.Is<SchoolFilter>(f => Is(f, SchoolFilterMode.Only, "9334290")), ct);
+        await _extensions.Received(1).MarkRequestsSentAsync(A.Id, Now.UtcDateTime, ct);
+    }
+
+    [Fact]
+    public async Task A_failed_extension_sweep_leaves_it_unsent()
+    {
+        // Unsent keeps the school out of the exercise's sweep, so neither sweep can take its
+        // requests before the extension's own sweep has succeeded.
+        Decided(Row("CYPMD_KS4June_AAAAAA1"));
+        _queue.EnqueueAsync(QueueOptions.ZendeskQueue, Arg.Any<RequestDocument>(), Arg.Any<CancellationToken>())
+            .Returns<Guid>(_ => throw new InvalidOperationException("queue down"));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _sut.CloseExtensionAsync(WindowId, ExerciseId, B.Id, CancellationToken.None));
+
+        await _extensions.DidNotReceiveWithAnyArgs().MarkRequestsSentAsync(default, default, default);
+    }
+
+    [Fact]
+    public async Task An_unknown_extension_throws()
+    {
+        var ct = CancellationToken.None;
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _sut.CloseExtensionAsync(WindowId, ExerciseId, Guid.NewGuid(), ct));
+
+        await _repository.DidNotReceiveWithAnyArgs().GetDecidedRequestsForExerciseAsync(default, default, default!, default);
+    }
+
+    [Fact]
+    public async Task Preview_uses_the_same_filter_as_the_sweep()
+    {
+        Decided();
+        var ct = CancellationToken.None;
+
+        await _sut.PreviewExtensionAsync(WindowId, ExerciseId, A.Id, ct);
+
+        await _repository.Received(1).GetDecidedRequestsForExerciseAsync(WindowId, ExerciseId,
+            Arg.Is<SchoolFilter>(f => Is(f, SchoolFilterMode.Only, "9334290")), ct);
+        await _repository.Received(1).CountWaitingRequestsForExerciseAsync(WindowId, ExerciseId,
+            Arg.Is<SchoolFilter>(f => Is(f, SchoolFilterMode.Only, "9334290")), ct);
+        await _repository.Received(1).CountDraftsForExerciseAsync(WindowId, ExerciseId,
+            Arg.Is<SchoolFilter>(f => Is(f, SchoolFilterMode.Only, "9334290")), ct);
+        await _extensions.DidNotReceiveWithAnyArgs().MarkRequestsSentAsync(default, default, default);
     }
 }

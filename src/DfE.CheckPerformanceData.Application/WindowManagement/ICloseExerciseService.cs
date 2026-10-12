@@ -11,8 +11,12 @@ namespace DfE.CheckPerformanceData.Application.WindowManagement;
 /// <item>The sweep is scoped to one window AND one exercise row, named by its id. A window may hold
 /// several releases of one kind (#466), so a type would not say which. A press cannot reach another
 /// window's rows, another exercise's rows, or a row belonging to no exercise.</item>
-/// <item>It ignores the exercise's dates. There is deliberately no <c>TimeProvider</c> — an admin
-/// may close an exercise whose end date has not passed.</item>
+/// <item>It ignores the exercise's dates — an admin may close an exercise whose end date has not
+/// passed. The only clock read is <see cref="ICheckingExerciseService"/>'s, to tell which
+/// extensions are still open (AB#307773).</item>
+/// <item>It is split by school (AB#307773). The exercise's sweep leaves out the schools in an
+/// extension that is open or has not been swept yet; an extension's sweep takes only its own
+/// schools. A request with no LAESTAB always goes with the exercise.</item>
 /// </list>
 /// </remarks>
 public interface ICloseExerciseService
@@ -32,6 +36,22 @@ public interface ICloseExerciseService
     /// </summary>
     Task<CloseExerciseResult> CloseAsync(
         Guid windowId, Guid exerciseId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// <see cref="PreviewAsync"/> for one extension's schools (AB#307773), counted over the same
+    /// rows <see cref="CloseExtensionAsync"/> would sweep.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The exercise has no such extension.</exception>
+    Task<CloseExercisePreview> PreviewExtensionAsync(
+        Guid windowId, Guid exerciseId, Guid extensionId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// <see cref="CloseAsync"/> for one extension's schools (AB#307773), then stamps the extension
+    /// sent so its schools go back to the exercise's sweep. Not stamped when the sweep fails.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The exercise has no such extension.</exception>
+    Task<CloseExerciseResult> CloseExtensionAsync(
+        Guid windowId, Guid exerciseId, Guid extensionId, CancellationToken cancellationToken);
 }
 
 /// <summary>Counts only — nothing is written to produce this.</summary>

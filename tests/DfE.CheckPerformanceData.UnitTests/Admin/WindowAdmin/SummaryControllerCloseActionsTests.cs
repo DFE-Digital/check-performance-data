@@ -125,4 +125,73 @@ public sealed class SummaryControllerCloseActionsTests
         Assert.True(revisedSection.IsOpen);
         Assert.False(revisedSection.HasClosed);
     }
+
+    // ── AB#307773: extensions ────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Each_extension_answers_for_itself_and_offers_only_what_its_state_allows()
+    {
+        // Edit and Close early while open, Send requests once closed — asked of the one clock for
+        // each extension, whatever the exercise's own state. Listed by end date.
+        var row = Row(CheckingExerciseType.PupilData, LastMonth, Yesterday);
+        var open = new CheckingExerciseExtensionDto { Id = Guid.NewGuid(), EndDate = NextMonth, Laestabs = ["9334290", "8604070"] };
+        var closed = new CheckingExerciseExtensionDto
+        {
+            Id = Guid.NewGuid(), EndDate = Yesterday.AddHours(1), Laestabs = ["1234567"],
+            RequestsSentAt = new DateTime(2026, 9, 2, 20, 0, 0)
+        };
+        row.Extensions.AddRange([open, closed]);
+        TheWindowHolds(row);
+
+        var section = await SectionAsync(row.Id);
+
+        Assert.Equal([closed.Id, open.Id], section.Extensions.Select(x => x.Id));
+        var openRow = section.Extensions[1];
+        Assert.True(openRow.IsOpen);
+        Assert.False(openRow.HasClosed);
+        Assert.False(openRow.RequestsSent);
+        Assert.Equal(2, openRow.SchoolCount);
+        Assert.Equal(NextMonth, openRow.EndDate);
+        Assert.Equal($"/admin/windows/{WindowId}/exercises/{row.Id}/extensions/{open.Id}/edit", openRow.EditLink);
+        Assert.Equal($"/admin/windows/{WindowId}/exercises/{row.Id}/extensions/{open.Id}/close", openRow.CloseLink);
+        var closedRow = section.Extensions[0];
+        Assert.False(closedRow.IsOpen);
+        Assert.True(closedRow.HasClosed);
+        Assert.True(closedRow.RequestsSent);
+        Assert.Equal(1, closedRow.SchoolCount);
+        Assert.Equal(
+            $"/admin/windows/{WindowId}/exercises/{row.Id}/extensions/{closed.Id}/send-requests",
+            closedRow.SendRequestsLink);
+        Assert.Equal($"/admin/windows/{WindowId}/exercises/{row.Id}/extensions/new", section.AddExtensionLink);
+    }
+
+    [Fact]
+    public async Task An_exercise_with_no_extensions_may_still_have_one_added()
+    {
+        // Add is allowed at any time, before the exercise ends or after (decision 3).
+        var row = Row(CheckingExerciseType.ResultsEnquiry, LastMonth, Yesterday);
+        TheWindowHolds(row);
+
+        var section = await SectionAsync(row.Id);
+
+        Assert.Empty(section.Extensions);
+        Assert.Equal($"/admin/windows/{WindowId}/exercises/{row.Id}/extensions/new", section.AddExtensionLink);
+    }
+
+    [Fact]
+    public async Task A_data_share_has_no_extensions_and_no_add_link()
+    {
+        // No kind, so no journey and no time to extend; the view also guards on the kind (E2E).
+        var share = new CheckingExerciseDto
+        {
+            Id = Guid.NewGuid(), ExerciseType = null, DisplayOnly = true,
+            StartDate = LastMonth, EndDate = NextYear
+        };
+        TheWindowHolds(share);
+
+        var section = await SectionAsync(share.Id);
+
+        Assert.Empty(section.Extensions);
+        Assert.Null(section.AddExtensionLink);
+    }
 }

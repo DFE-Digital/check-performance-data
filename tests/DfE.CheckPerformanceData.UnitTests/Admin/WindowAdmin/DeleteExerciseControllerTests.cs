@@ -107,6 +107,24 @@ public class DeleteExerciseControllerTests
     }
 
     [Fact]
+    public async Task Confirm_counts_the_extensions_that_go_with_the_exercise()
+    {
+        // AB#307773: an exercise's extensions are deleted with it, so the page says how many.
+        GivenTheWindow();
+        var window = Window();
+        window.Exercises[0].Extensions.AddRange(
+        [
+            new CheckingExerciseExtensionDto { Id = Guid.NewGuid(), EndDate = new DateTime(2026, 7, 7), Laestabs = ["9334290"] },
+            new CheckingExerciseExtensionDto { Id = Guid.NewGuid(), EndDate = new DateTime(2026, 7, 14), Laestabs = ["8604070"] }
+        ]);
+        _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(window);
+
+        var view = Assert.IsType<ViewResult>(await Build().Confirm(WindowId, PupilDataId, CancellationToken.None));
+
+        Assert.Equal(2, Assert.IsType<DeleteExerciseViewModel>(view.Model).ExtensionCount);
+    }
+
+    [Fact]
     public async Task A_closed_exercise_offers_to_send_its_requests_instead_of_close()
     {
         // AB#301022: Close only acts on an open exercise. Once it has closed, the requests are

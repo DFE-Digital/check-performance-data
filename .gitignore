@@ -519,3 +519,19 @@ tests/DfE.CheckPerformanceData.E2ETests/Snapshots/failures/
 /AGENTS.md
 
 docs/user-guides/admin-user-guide.html
+
+# GovUk.Frontend.AspNetCore 5+ copies the GOV.UK Frontend build into wwwroot on every build
+# (it no longer serves them from the assembly). They come from the NuGet package, so they are
+# not source. The app's own files in wwwroot/assets/images stay tracked.
+src/DfE.CheckPerformanceData.Web/wwwroot/govuk-frontend.min.css
+src/DfE.CheckPerformanceData.Web/wwwroot/govuk-frontend.min.js
+src/DfE.CheckPerformanceData.Web/wwwroot/assets/fonts/
+src/DfE.CheckPerformanceData.Web/wwwroot/assets/manifest.json
+src/DfE.CheckPerformanceData.Web/wwwroot/assets/images/favicon.ico
+src/DfE.CheckPerformanceData.Web/wwwroot/assets/images/favicon.svg
+src/DfE.CheckPerformanceData.Web/wwwroot/assets/images/govuk-crest.svg
+src/DfE.CheckPerformanceData.Web/wwwroot/assets/images/govuk-icon-*.png
+src/DfE.CheckPerformanceData.Web/wwwroot/assets/images/govuk-icon-mask.svg
+src/DfE.CheckPerformanceData.Web/wwwroot/assets/images/govuk-opengraph-image.png
+# The unit-test project uses the Web SDK, so the same copy lands there too.
+tests/DfE.CheckPerformanceData.UnitTests/wwwroot/

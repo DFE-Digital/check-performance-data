@@ -103,6 +103,7 @@ public sealed class IncludeNoResultsPathTests(PlaywrightFixture fixture) : Seedi
     // ── US1/FR-004a: a non-included-only match proceeds as normal (T015) ─────
 
     [RetryFact]
+    [Trait("Category", "Smoke")]
     public async Task NonIncludedMatch_ProceedsAsNormal_NoDecisionPage()
     {
 await StartIncludeJourneyAsync();

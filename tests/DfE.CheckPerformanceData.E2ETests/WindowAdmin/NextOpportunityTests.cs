@@ -51,6 +51,7 @@ public sealed class NextOpportunityTests(PlaywrightFixture fixture) : SeedingPag
     }
 
     [Fact]
+    [Trait("Category", "Smoke")]
     public async Task Save_PersistsTheDate_AndSummaryShowsMonthAndYear()
     {
         await Page.GotoAsync(EditUrl);

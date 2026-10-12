@@ -21,7 +21,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Journey;
 // The seeded KS4June window carries a pair built for this journey (SeedPupilData.GenerateDuplicateMatchPair):
 // Casey Carter, born 15/03/2010, twice — CYPMD ID 800001 and 800002. Identical name AND date of birth,
 // which is exactly why an ID has to be on the row: without it the two options are indistinguishable.
-[Trait("Category", "Smoke")]
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class Ks4MergeJourneyTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
@@ -38,6 +38,7 @@ public sealed class Ks4MergeJourneyTests(PlaywrightFixture fixture) : SeedingPag
     // ── The full merge journey, end to end ──────────────────────────────────
 
     [RetryFact]
+    [Trait("Category", "Smoke")]
     public async Task HappyPath_FirstRecordByName_SecondRecordByCyPmdId_ShowsBothOnTheConfirmation()
     {
         await StartMergeJourneyAsync();

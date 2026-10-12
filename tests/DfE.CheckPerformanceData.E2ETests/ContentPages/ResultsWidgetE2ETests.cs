@@ -17,7 +17,7 @@ namespace DfE.CheckPerformanceData.E2ETests.ContentPages;
 //   ResultsWidgetRenderContractTests (source-file tokens)
 //   SiteSearchMergedPagedTests (service math)
 //   WidgetEditorContractTests (editor form fields)
-[Trait("Category", "Smoke")]
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class ResultsWidgetE2ETests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
@@ -98,6 +98,7 @@ public sealed class ResultsWidgetE2ETests(PlaywrightFixture fixture) : SeedingPa
     // 1. Renders a flat list without per-corpus section headers.
     // ============================================================
     [Fact]
+    [Trait("Category", "Smoke")]
     public async Task RendersFlatList_NoSectionHeaders_ForCommonTerm()
     {
         var (_, url, _) = await SeedResultsPageAsync();
@@ -287,6 +288,7 @@ public sealed class ResultsWidgetE2ETests(PlaywrightFixture fixture) : SeedingPa
     // 7. Input widget submits ?q= (and ?scope=) to the configured action URL.
     // ============================================================
     [Fact]
+    [Trait("Category", "Smoke")]
     public async Task SearchInputWidget_HopsToResultsWidgetPage()
     {
         var (_, resultsUrl, _) = await SeedResultsPageAsync();

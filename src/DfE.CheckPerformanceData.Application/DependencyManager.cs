@@ -35,6 +35,7 @@ public static class DependencyManager
         services.AddScoped<Dashboard.IDashboardService, Dashboard.DashboardService>();
         services.AddScoped<IContentBlockService, ContentBlockService>();
         services.AddScoped<IContentBlockSearchService, ContentBlockSearchService>();
+        services.AddScoped<HomeBanners.IHomeBannerService, HomeBanners.HomeBannerService>();
         services.AddScoped<ISiteSearchService, SiteSearchService>();
         services.AddScoped<IAdminAccessPolicy, AdminAccessPolicy>();
         services.AddScoped<DefaultAdminAccessSeeder>();
@@ -42,7 +43,7 @@ public static class DependencyManager
         services.AddScoped<IPageNodeContentEditor, PageNodeContentEditor>();
         services.AddScoped<DefaultPageNodeSeeder>();
         services.AddScoped<SamplePageNodeSeeder>();
-        services.AddScoped<TestFixturePageNodeSeeder>();
+        services.AddScoped<ContentStaging.ManifestContentImporter>();
         services.AddScoped<Analytics.SampleSearchDataSeeder>();
         services.AddScoped<ContentStaging.IContentStagingService, ContentStaging.ContentStagingService>();
         services.AddScoped<ContentStaging.ContentBundleSanitiser>();

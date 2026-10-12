@@ -4,7 +4,7 @@ using DfE.CheckPerformanceData.E2ETests.Helpers;
 
 namespace DfE.CheckPerformanceData.E2ETests.Web;
 
-[Trait("Category", "Smoke")]
+[Trait("Category", "FullRegression")]
 [Collection("Http")]
 public sealed class ContentBlockCrudTests(PlaywrightFixture fixture)
 {
@@ -13,6 +13,7 @@ public sealed class ContentBlockCrudTests(PlaywrightFixture fixture)
     // --- PostSave_Redirects302 ---
 
     [Fact]
+    [Trait("Category", "Smoke")]
     public async Task PostSave_Redirects302()
     {
         // Content-block leak accepted: no DELETE route on ContentBlockController. UUID-prefixed

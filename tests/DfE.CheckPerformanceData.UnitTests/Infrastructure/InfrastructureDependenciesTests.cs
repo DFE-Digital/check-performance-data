@@ -23,7 +23,7 @@ public class InfrastructureDependenciesTests
         "AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;" +
         "BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;";
 
-    // Mirrors the registrations RulesEngineWorker/Program.cs makes before and after its call to
+    // Mirrors the registrations RulesEngineWorker/WorkerServiceExtensions.cs makes before and after its call to
     // AddInfrastructureDependencies — the collaborators the bundle is entitled to assume. Keep in
     // step with that file: anything the worker stops registering has to come out of here too, or
     // this test vouches for a container the worker does not actually have.

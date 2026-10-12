@@ -36,6 +36,7 @@ public sealed class QueueAdminTests(PlaywrightFixture fixture)
     // --- Admin sees the System administration tile + the queue/DLQ views render (D-06) ---
 
     [Fact]
+    [Trait("Category", "Smoke")]
     public async Task QueueAdmin_AsAdmin_RendersTileQueuesAndDlqView()
     {
         try

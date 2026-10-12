@@ -1,10 +1,12 @@
 using DfE.CheckPerformanceData.Application.Common;
 using DfE.CheckPerformanceData.Application.ContentStaging;
+using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
+using NSubstitute;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.ContentStaging;
 
@@ -26,14 +28,15 @@ public sealed class ContentStagingExportHistoryTests(PostgresFixture fixture)
     {
         await using var ctx = _fixture.CreateContext();
         await ctx.Database.ExecuteSqlRawAsync(
-            @"TRUNCATE ""PageNodes"", ""PageNodeVersions"", ""ContentBlocks"", ""ContentBlockVersions"" RESTART IDENTITY CASCADE;");
+            @"TRUNCATE ""PageNodes"", ""PageNodeVersions"", ""ContentBlocks"", ""ContentBlockVersions"", ""HomeBanners"", ""HomeBannerVersions"" RESTART IDENTITY CASCADE;");
     }
 
     private ContentStagingService NewStaging(out PortalDbContext ctx)
     {
         ctx = _fixture.CreateContext();
         return new ContentStagingService(
-            new PageNodeRepository(ctx), new ContentBlockRepository(ctx), new HtmlRenderingService());
+            new PageNodeRepository(ctx), new ContentBlockRepository(ctx), new HomeBannerRepository(ctx, Substitute.For<ICurrentUserService>()),
+            new HtmlRenderingService());
     }
 
     // Builds one content page carrying `versions` published versions.

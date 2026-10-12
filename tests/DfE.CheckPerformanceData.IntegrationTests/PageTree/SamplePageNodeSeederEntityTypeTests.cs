@@ -1,9 +1,11 @@
 using DfE.CheckPerformanceData.Application.Common;
 using DfE.CheckPerformanceData.Application.ContentStaging;
+using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
+using NSubstitute;
 using Npgsql;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.PageTree;
@@ -128,7 +130,8 @@ public sealed class SamplePageNodeSeederEntityTypeTests
     }
 
     private static ContentStagingService BuildStaging(DfE.CheckPerformanceData.Persistence.Contexts.IPortalDbContext ctx) =>
-        new(new PageNodeRepository(ctx), new ContentBlockRepository(ctx), new HtmlRenderingService());
+        new(new PageNodeRepository(ctx), new ContentBlockRepository(ctx), new HomeBannerRepository(ctx, Substitute.For<ICurrentUserService>()),
+            new HtmlRenderingService());
 
     private static async Task<long> ScalarLongAsync(NpgsqlConnection conn, string sql)
     {

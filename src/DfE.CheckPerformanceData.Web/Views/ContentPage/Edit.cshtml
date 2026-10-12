@@ -90,6 +90,8 @@
         <span class="govuk-caption-l">Content page editor</span>
         <h1 class="govuk-heading-l">@Model.Title</h1>
 
+        @await Html.PartialAsync("_ImportedContentWarning", Model.NodeId)
+
         <p class="govuk-body">
             <a class="govuk-link" href="/@Model.PagePath" target="_blank" rel="noopener">View page (opens in new tab)</a>
         </p>

@@ -15,6 +15,7 @@ public sealed class ContentStagingTests(PlaywrightFixture fixture)
     private readonly PlaywrightFixture _fixture = fixture;
 
     [Fact]
+    [Trait("Category", "Smoke")]
     public async Task ContentStaging_AsEditor_Index_Returns200_WithExportAndImportControls()
     {
         using var request = new HttpRequestMessage(
@@ -41,6 +42,7 @@ public sealed class ContentStagingTests(PlaywrightFixture fixture)
     }
 
     [Fact]
+    [Trait("Category", "Smoke")]
     public async Task ContentStaging_ExportEverything_ReturnsSchemaVersionedZippedBundle()
     {
         using var request = new HttpRequestMessage(

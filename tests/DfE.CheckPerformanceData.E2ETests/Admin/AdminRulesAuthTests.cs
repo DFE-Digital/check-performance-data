@@ -89,6 +89,7 @@ public sealed class AdminRulesAuthTests(PlaywrightFixture fixture)
     // --- Rules_AsAdmin_Returns_200_With_Both_Cards ---
 
     [Fact]
+    [Trait("Category", "Smoke")]
     public async Task Rules_AsAdmin_Returns_200_With_Both_Cards()
     {
         try

@@ -324,7 +324,7 @@ Producer/consumer split so requests never wait on Notify: `RequestNotificationSe
 | `tests/...IntegrationTests` | xUnit + Testcontainers (Postgres + Azurite) + TestHost | ~174 tests: architecture/layering rules, audit, queue, rules config/engine, observability (incl. SSE auth), content staging, persistence | `dotnet test tests/DfE.CheckPerformanceData.IntegrationTests/` (needs Docker) |
 | `tests/...E2ETests` | xUnit + Playwright + ImageSharp visual regression | ~77 tests: real Chromium against a running instance; auth via dev impersonation | `make test-e2e` (Docker, incl. visual baselines in `Snapshots/`) or `make test-e2e-fast` (native, skips visual) |
 
-Notes: **xUnit, not NUnit** (dead NUnit entries linger in `Directory.Packages.props`); Moq is referenced but unused — use NSubstitute. CI runs E2E (non-visual) against review apps only; visual regression is local-only. Test SDK versions drift because central package management doesn't cover `tests/`.
+Notes: **xUnit, not NUnit**; mock with NSubstitute (Moq is no longer referenced). CI runs E2E (non-visual) against review apps only; visual regression is local-only. Test SDK versions drift because central package management doesn't cover `tests/`.
 
 ## 18. Frontend conventions
 

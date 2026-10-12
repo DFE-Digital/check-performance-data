@@ -6,7 +6,7 @@ This doc explains the *shape* of the suite: what it tests, the design choices be
 
 ## Versions
 
-All E2E-facing versions in one place. Source of truth for NuGet pins is `src/Directory.Packages.props` (central package management, `ManagePackageVersionsCentrally=true`); the test project's `.csproj` only lists the package IDs.
+All E2E-facing versions in one place. Source of truth for NuGet pins is the test project's own `.csproj`: `src/Directory.Packages.props` (central package management) only reaches the projects under `src/`.
 
 ### Required on the host (for `make test-e2e-fast` / native runs)
 
@@ -21,24 +21,24 @@ All E2E-facing versions in one place. Source of truth for NuGet pins is `src/Dir
 | Tool | Version | Notes |
 |------|---------|-------|
 | Docker + Compose v2 | any recent | Compose profile `e2e` builds and runs the test image. |
-| Image: `mcr.microsoft.com/playwright/dotnet` | `v1.59.0-noble` | Pinned in `tests/DfE.CheckPerformanceData.E2ETests/Dockerfile`. **Must move in lockstep with the `Microsoft.Playwright` NuGet version.** Drift detection: `bash scripts/check-playwright-pin.sh`. |
-| .NET SDK (inside image) | 10.0.x | Side-installed via `dotnet-install.sh` because the upstream Playwright image ships .NET 8 only as of v1.59.0. |
+| Image: `mcr.microsoft.com/playwright/dotnet` | `v1.63.0-noble` | Pinned in `tests/DfE.CheckPerformanceData.E2ETests/Dockerfile`. **Must move in lockstep with the `Microsoft.Playwright` NuGet version.** Drift detection: `bash scripts/check-playwright-pin.sh`. |
+| .NET SDK (inside image) | 10.0.x | Side-installed via `dotnet-install.sh` because the upstream Playwright image ships .NET 8 only as of v1.62.0. |
 
 ### NuGet packages
 
-Pinned in `src/Directory.Packages.props`; the E2E `.csproj` references them by ID.
+Pinned in `tests/DfE.CheckPerformanceData.E2ETests/DfE.CheckPerformanceData.E2ETests.csproj`.
 
 | Package | Version | Purpose |
 |---------|---------|---------|
-| `Microsoft.Playwright` | 1.59.0 | Browser automation. **Must match the Docker image tag `v1.59.0-noble`** — Chromium binary protocol mismatch otherwise. |
-| `Microsoft.Playwright.Xunit` | 1.59.0 | xUnit `PageTest` base class + browser/page lifecycle. |
+| `Microsoft.Playwright` | 1.63.0 | Browser automation. **Must match the Docker image tag `v1.63.0-noble`** — Chromium binary protocol mismatch otherwise. |
+| `Microsoft.Playwright.Xunit` | 1.63.0 | xUnit `PageTest` base class + browser/page lifecycle. |
 | `xunit` | 2.9.3 | Test framework. |
-| `Xunit.SkippableFact` | 1.5.23 | `Skip.IfNot(...)` for Linux-only visual regression tests. |
-| `xunit.runner.visualstudio` | 3.1.5 | VS / `dotnet test` runner. |
-| `Microsoft.NET.Test.Sdk` | 17.14.0 | Test SDK. |
+| `Xunit.SkippableFact` | 1.5.85 | `Skip.IfNot(...)` for Linux-only visual regression tests. |
+| `xunit.runner.visualstudio` | 4.0.0 | VS / `dotnet test` runner. |
+| `Microsoft.NET.Test.Sdk` | 18.10.1 | Test SDK. |
 | `SixLabors.ImageSharp` | 3.1.12 | Pure-managed image lib used by the snapshot diff helper for per-pixel comparison and red-tint diff PNG generation. |
 | `xRetry` | 1.9.0 | `[RetryFact]` for the rare flaky-by-design test. |
-| `coverlet.collector` | 6.0.4 | Coverage. |
+| `coverlet.collector` | 10.1.0 | Coverage. |
 
 ### Runtime stack the suite drives
 

@@ -11,7 +11,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Admin;
 // which is the WCAG 2.2 SC 2.2.2 mitigation (page auto-reloads when the cache expires, so
 // users must be able to stop it). The button is hidden until the script schedules a
 // reload, then clicking it cancels the reload and announces via the role=status region.
-[Trait("Category", "Smoke")]
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class AdminDashboardTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
@@ -19,6 +19,7 @@ public sealed class AdminDashboardTests(PlaywrightFixture fixture) : SeedingPage
         new() { ViewportSize = new ViewportSize { Width = 1440, Height = 900 } };
 
     [SkippableFact]
+    [Trait("Category", "Smoke")]
     public async Task Dashboard_RendersWindowSelectAndNineNonClickableTiles()
     {
         Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux),

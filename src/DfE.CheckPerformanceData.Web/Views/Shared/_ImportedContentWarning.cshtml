@@ -1,0 +1,29 @@
+@using DfE.CheckPerformanceData.Application.ContentStaging
+@inject ImportedContentIndex ImportedContent
+@model Guid
+@{
+    // Shown at the top of the page editors when the page is one the start-up import overwrites
+    // (see ManifestContentImporter), so nobody finds out by losing their work.
+    var imported = ImportedContent.Find(Model);
+}
+@if (imported is not null)
+{
+    <div class="govuk-warning-text" data-imported-content="@imported.File">
+        <span class="govuk-warning-text__icon" aria-hidden="true">!</span>
+        <strong class="govuk-warning-text__text">
+            <span class="govuk-visually-hidden">Warning</span>
+            @if (imported.ReplacedOnEveryStart)
+            {
+                <text>This page is supplied with the service. Changes you make here will be overwritten the next time the service starts.</text>
+            }
+            else
+            {
+                <text>This page is supplied with the service. Changes you make here will be overwritten when the service is updated.</text>
+            }
+        </strong>
+    </div>
+    <p class="govuk-body">
+        To change this page for good, ask the development team to change it in the service
+        (<code>@imported.File</code>), so that every environment gets the change.
+    </p>
+}

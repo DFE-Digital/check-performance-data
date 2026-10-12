@@ -22,6 +22,7 @@ public sealed class AdminLandingGroupedTests(PlaywrightFixture fixture) : Seedin
     // --- AdminLanding_AsAdmin_Renders_Two_Group_Section_Headers ---
 
     [Fact]
+    [Trait("Category", "Smoke")]
     public async Task AdminLanding_AsAdmin_Renders_Two_Group_Section_Headers()
     {
         try

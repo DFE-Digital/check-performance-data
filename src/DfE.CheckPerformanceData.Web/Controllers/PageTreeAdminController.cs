@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.Common;
 using DfE.CheckPerformanceData.Application.ContentPages;
+using DfE.CheckPerformanceData.Application.ContentStaging;
 using DfE.CheckPerformanceData.Application.Search;
 using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.Application.Settings;
@@ -25,7 +26,7 @@ public sealed class PageTreeAdminController(
     IPageNodeContentEditor nodeContentEditor,
     ISettingService settingService,
     SamplePageNodeSeeder samplePageSeeder,
-    TestFixturePageNodeSeeder testFixtureSeeder,
+    ManifestContentImporter contentImporter,
     IHostEnvironment hostEnvironment) : Controller
 {
     private const int DefaultPageLength = 20;
@@ -312,6 +313,9 @@ public sealed class PageTreeAdminController(
     // they answer the same question — "give me something to look at" — and a developer who wants
     // real pages to work against wants both. They stay separate underneath because their rules
     // differ: sample content is left alone where it already exists, fixture content is replaced.
+    //
+    // The fixtures are a file in Data/Import. Start-up imports it into the environments the
+    // manifest names; the button imports the same file wherever it is pressed.
     [HttpPost("/admin/pages/sample-seed")]
     [ValidateAntiForgeryToken]
     [RequireAdminSection(AdminNavKeys.SeedSamplePages)]
@@ -327,9 +331,12 @@ public sealed class PageTreeAdminController(
 
         if (FixtureSeedingAllowed)
         {
-            var fixtures = await testFixtureSeeder.SeedAsync();
-            if (fixtures > 0)
-                message += $" Refreshed {fixtures} test fixture {(fixtures == 1 ? "page" : "pages")} under /{DefaultPageNodeRoots.DevelopmentTestingSegment}.";
+            // Created or replaced: a run that repaired three emptied fixtures created nothing
+            // and did all of the work.
+            var imported = await contentImporter.ImportFileAsync(
+                ManifestContentImporter.FolderIn(hostEnvironment.ContentRootPath), TestFixtureSeedBundle.FileName);
+            if (imported.PageNodesCreated + imported.PageNodesUpdated > 0)
+                message += $" Refreshed the test fixture pages under /{DefaultPageNodeRoots.DevelopmentTestingSegment}.";
         }
 
         TempData["SampleSeedResult"] = message;

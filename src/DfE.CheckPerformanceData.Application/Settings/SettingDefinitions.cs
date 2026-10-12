@@ -77,7 +77,7 @@ public static class SettingDefinitions
             SettingKind.Int),
         new(SettingKeys.ShowDeleteAllButton,
             "Whether the content-staging page offers the Clear all CMS content button, which deletes " +
-            "every page and content block in this environment. Off by default, and unavailable in " +
+            "every page, content block and home page banner in this environment. Off by default, and unavailable in " +
             "production and on QA and preproduction whatever this is set to.",
             "false",
             SettingKind.Bool),

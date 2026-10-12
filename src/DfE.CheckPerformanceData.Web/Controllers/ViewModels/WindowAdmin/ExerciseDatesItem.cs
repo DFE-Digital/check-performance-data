@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using DfE.CheckPerformanceData.Domain.Enums;
+using GovUk.Frontend.AspNetCore;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
 
@@ -20,6 +21,7 @@ public sealed class ExerciseDatesItem : AdminPage
     public string ExerciseLabel { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "Start date can not be empty")]
+    [DateInput(ErrorMessagePrefix = "Start date")]
     public DateTime? StartDate { get; set; }
 
     [Range(0, 23, ErrorMessage = "Start hour must be between 0 and 23")]
@@ -29,6 +31,7 @@ public sealed class ExerciseDatesItem : AdminPage
     public int StartMinute { get; set; }
 
     [Required(ErrorMessage = "End date can not be empty")]
+    [DateInput(ErrorMessagePrefix = "End date")]
     public DateTime? EndDate { get; set; }
 
     [Range(0, 23, ErrorMessage = "End hour must be between 0 and 23")]

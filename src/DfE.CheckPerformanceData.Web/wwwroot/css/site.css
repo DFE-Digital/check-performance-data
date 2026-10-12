@@ -578,6 +578,41 @@
 .wiki-content th, .wiki-content td { border: 1px solid #b1b4b6; padding: 8px 12px; }
 .wiki-content th { background: #f3f2f1; font-weight: 700; }
 
+/* Home page banners (#566). The banner body is editor HTML from TinyMCE, so its links are bare
+   <a> tags without the govuk-notification-banner__link class and would get browser defaults.
+   These rules give them the same look as that class in the GOV.UK Frontend we load (link colour
+   for visited too, the thicker underline on hover, the yellow focus state). The last-child rule
+   is needed because `.wiki-content p` adds a bottom margin that the banner's own
+   `__content > :last-child` rule cannot reach inside the wrapper. */
+.govuk-notification-banner__content .wiki-content a {
+  font-family: "GDS Transport", arial, sans-serif;
+  text-decoration: underline;
+  text-decoration-thickness: max(1px, .0625rem);
+  text-underline-offset: .1578em;
+}
+.govuk-notification-banner__content .wiki-content a:link,
+.govuk-notification-banner__content .wiki-content a:visited {
+  color: var(--govuk-link-colour, #1a65a6);
+}
+.govuk-notification-banner__content .wiki-content a:hover {
+  color: var(--govuk-link-hover-colour, #0f385c);
+  text-decoration-thickness: max(3px, .1875rem, .12em);
+  text-decoration-skip-ink: none;
+}
+.govuk-notification-banner__content .wiki-content a:active {
+  color: var(--govuk-link-active-colour, #0b0c0c);
+}
+.govuk-notification-banner__content .wiki-content a:focus {
+  outline: 3px solid transparent;
+  color: var(--govuk-focus-text-colour, #0b0c0c);
+  background-color: var(--govuk-focus-colour, #ffdd00);
+  box-shadow: 0 -2px var(--govuk-focus-colour, #ffdd00), 0 4px var(--govuk-focus-text-colour, #0b0c0c);
+  text-decoration: none;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.govuk-notification-banner__content .wiki-content > :last-child { margin-bottom: 0; }
+
 /* ==========================================================================
    Content Blocks — inline editable sections
    ========================================================================== */
@@ -1721,6 +1756,24 @@ body.js-enabled .rules-condition__apply {
 .cypmd-search__row .autocomplete__wrapper { flex: 1 1 auto; min-width: 0; }
 .cypmd-search__button { flex: 0 0 auto; margin: 0; }
 
+/* A Card widget keeps clear of whatever follows it. Without this, a second row of cards sits
+   flush against the first and a heading after the cards touches them. */
+.cpb-card {
+  margin-bottom: 30px;
+}
+
+/* The author's choice of "Put the button below the search box" on a Search widget: the same
+   stacked layout the narrow-viewport rule below gives every search row, at any width. For a
+   search box in a narrow column, where a button beside the box leaves it too small to type in. */
+.cypmd-search__row--stacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+.cypmd-search__row--stacked .cypmd-search__button {
+  align-self: flex-start;
+}
+
 /* On narrow viewports the button's intrinsic width (padding + "Search" text) is
    large enough that flex-shrink can't leave the input more than one character
    wide, so it looks and behaves like a broken field. Stack the row instead:
@@ -1788,6 +1841,25 @@ body:has(.cpb-breadcrumbs) main.govuk-main-wrapper { padding-top: 0 !important; 
     padding-top: 30px;
 }
 
+/* Start both columns of a region on the same line.
+   A search form brings 20px of margin above it, and the side navigation 20px of padding plus
+   10px inside its first link, so a column that begins with either started its first words 20
+   to 30px below the text in the column beside it. Take that space away when the widget is the
+   first thing in its column. The link keeps its own padding, so it is as easy to hit as before;
+   the navigation is pulled up by that much instead.
+
+   The navigation rule stands aside for the one layout the rule above already lines up the
+   other way, by padding a caption down to meet the navigation. */
+.cpb-content [class*="govuk-grid-column-"] > .cypmd-search:first-child {
+  margin-top: 0;
+}
+.cpb-content > .govuk-grid-row:not(:has(> .govuk-grid-column-two-thirds > .govuk-body:first-child > .govuk-caption-l:only-child))
+  > [class*="govuk-grid-column-"]
+  > .moj-side-navigation:first-child {
+    padding-top: 0;
+    margin-top: -10px;
+}
+
 /* On-page search: the heading it took you to.
    The heading is given focus so a screen reader moves with the jump, and the browser drew a
    box around it as a side effect — but only when its own :focus-visible heuristic felt like
@@ -1844,6 +1916,16 @@ body:has(.cpb-breadcrumbs) main.govuk-main-wrapper { padding-top: 0 !important; 
 .cypmd-landing-section .dfe-card,
 .govuk-grid-row > [class*="govuk-grid-column"] > .dfe-card {
   width: 100%;
+}
+
+/* On a content page a column can hold more than one card, or a card with a heading or text above
+   it. As a flex row those sat side by side, squeezed into the width of one column. Stack them.
+   A card still grows to fill its column, so one card per column keeps the equal heights. */
+.cpb-content .govuk-grid-row:has(> [class*="govuk-grid-column"] > .dfe-card) > [class*="govuk-grid-column"] {
+  flex-direction: column;
+}
+.cpb-content .govuk-grid-row > [class*="govuk-grid-column"] > .dfe-card {
+  flex: 1 0 auto;
 }
 
 /* ---- CMS Page Tree Context Menu ----------------------------------------- */

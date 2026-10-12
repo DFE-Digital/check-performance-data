@@ -2,8 +2,8 @@
 
 Findings and fixes for the Playwright/xUnit suite in
 `tests/DfE.CheckPerformanceData.E2ETests/`. The suite runs against a deployed
-review app in CI (`.github/workflows/build-and-deploy.yml`, e2e job) and
-against `docker compose up` locally. This document captures *why* the suite wins
+review app in CI (the smoke set in `.github/workflows/build-and-deploy.yml`, the
+whole suite in `.github/workflows/e2e.yml`) and against `docker compose up` locally. This document captures *why* the suite wins
 and loses its raw time, the flakiness root causes, and where the fixes landed.
 
 ## Suite shape

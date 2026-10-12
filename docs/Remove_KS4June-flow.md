@@ -9,7 +9,7 @@ the Key Stage 4 (June) performance data.
 
 - **First page:** `reason`
 - **Terminal pages** (no `nextPageId`): `evidence`, `year-group-change-evidence`,
-  `not-on-roll-evidence`, `elective-home-education`, `dual-registered-moved`,
+  `not-on-roll-evidence`, `dual-registered-moved-evidence`,
   `pupil-died`
 
 ## Flow diagram
@@ -46,6 +46,7 @@ flowchart TD
     permanently-left-england-questions --> evidence
     life-limiting-illness --> evidence
     social-care --> evidence
+    elective-home-education --> evidence
 
     %% --- year-group change has its own evidence page ---
     year-group-change-higher --> year-group-change-evidence
@@ -56,8 +57,8 @@ flowchart TD
 
     %% --- terminal pages ---
     pupil-died --> done([End / Check answers])
-    dual-registered-moved --> done
-    elective-home-education --> done
+    dual-registered-moved --> dual-registered-moved-evidence
+    dual-registered-moved-evidence --> done
     evidence --> done
     year-group-change-evidence --> done
     not-on-roll-evidence --> done
@@ -65,7 +66,7 @@ flowchart TD
     classDef terminal fill:#d4edda,stroke:#28a745;
     classDef start fill:#cce5ff,stroke:#004085;
     class reason start;
-    class evidence,year-group-change-evidence,not-on-roll-evidence,pupil-died,dual-registered-moved,elective-home-education terminal;
+    class evidence,year-group-change-evidence,not-on-roll-evidence,pupil-died,dual-registered-moved-evidence terminal;
 ```
 
 ## Page-by-page breakdown
@@ -76,7 +77,7 @@ Single `Radio` question driving the whole flow. `useAsRequestType: true` and
 
 | Option value | Label | Goes to |
 |---|---|---|
-| `permanent-exclusion` | Admitted following permanent exclusion (not registered independent schools) — **only shown when `visibleWhen: [PupilIsNotAddBack, SchoolIsNotIndependent]`** (GIAS type id not `11`) | `permanent-exclusion` |
+| `permanent-exclusion` | Admitted following permanent exclusion — **only shown when `visibleWhen: [PupilIsNotAddBack, SchoolIsNotIndependent]`** (GIAS type id not `11`) | `permanent-exclusion` |
 | `english-not-first-language` | Admitted from abroad with English not first language | `english-not-first-language` |
 | `child-missing-education` | Child missing education | `child-missing-education` |
 | `pupil-died` | Pupil has died | `pupil-died` |
@@ -85,7 +86,7 @@ Single `Radio` question driving the whole flow. `useAsRequestType: true` and
 | `not-on-roll` | Not on roll — **only shown when `visibleWhen: [SchoolCanRecordNotOnRoll, PupilIsNotAddBack]`** (GIAS type id `11`, or a listed FE college) | `not-on-roll` |
 | `permanently-excluded` | Permanently excluded from current school | `permanently-excluded` |
 | `permanently-left-england` | Permanently left England | `permanently-left-england-questions` |
-| `social-care-involvement` | Social care involvement - including police or prison | `social-care` |
+| `social-care-involvement` | Social care involvement - including police/prison | `social-care` |
 | `life-limiting-illness` | Life-limiting or critical illness | `life-limiting-illness` |
 | `year-group-change` | Year group change | `year-group-change-higher-lower` |
 
@@ -116,7 +117,7 @@ First of two pages for the "admitted from abroad" reason.
 
 | Question | Type | Notes |
 |---|---|---|
-| `first-language` | Radio | English / Not known but believed English / Other than English / Not known but believed other / Chose not to say / Not known. |
+| `first-language` | Radio | English / Not known but believed English / Other than English / Not known but believed other / Prefer not to say / Not known. |
 
 ### `english-not-first-language-details` → `evidence`
 
@@ -148,23 +149,28 @@ No evidence step.
 
 ---
 
-### `dual-registered-moved` → *end*  (terminal)
+### `dual-registered-moved` → `dual-registered-moved-evidence`
 
 | Question | Type | Notes |
 |---|---|---|
 | `dual-registered-moved-dfe-number` | FreeText | DfE number of the school the pupil's exam results should be transferred to. Includes help text. |
 
-No evidence step.
+### `dual-registered-moved-evidence` → *end*  (terminal, `EvidenceUpload`)
+
+| Question | Type | Notes |
+|---|---|---|
+| `evidence` | FileUpload (optional) | PDF evidence. |
+| `additional-comments` | TextArea (optional) | Additional comments, 500 characters. |
+
+Both questions are optional and the page has no `requireAtLeastOne`, so the school can submit with evidence, comments, both or neither (#546).
 
 ---
 
-### `elective-home-education` → *end*  (terminal)
+### `elective-home-education` → `evidence`
 
 | Question | Type | Notes |
 |---|---|---|
 | `date-removed-from-roll` | Date | When the pupil was removed from the school roll. |
-
-No evidence step.
 
 ---
 
@@ -182,8 +188,8 @@ type id `11` — see [conditional visibility](#notes)).
 
 | Question | Type | Notes |
 |---|---|---|
-| `evidence` | FileUpload (optional) | PDF, max 6 pages across all files. |
-| `how-evidence-supports` | TextArea (optional) | Explain how the evidence supports removal. 1000 char limit. |
+| `evidence` | FileUpload (optional) | PDF, up to 6 files, 10 MB each. |
+| `how-evidence-supports` | TextArea (optional) | Explain how the evidence supports removal. 500 char limit. |
 
 ---
 
@@ -243,8 +249,8 @@ are **optional** here.
 
 | Question | Type | Notes |
 |---|---|---|
-| `evidence` | FileUpload (optional) | PDF, max 6 pages across all files. |
-| `how-evidence-supports` | TextArea (optional) | Explain how the evidence supports removal. 1000 char limit. |
+| `evidence` | FileUpload (optional) | PDF, up to 6 files, 10 MB each. |
+| `how-evidence-supports` | TextArea (optional) | Explain how the evidence supports removal. 500 char limit. |
 
 ---
 
@@ -254,8 +260,8 @@ Shared `EvidenceUpload` page reached by most reasons. Both questions are
 
 | Question | Type | Notes |
 |---|---|---|
-| `evidence` | FileUpload | PDF, max 6 pages across all files. |
-| `how-evidence-supports` | TextArea | Explain how the evidence supports removal. 1000 char limit. |
+| `evidence` | FileUpload | PDF, up to 6 files, 10 MB each. |
+| `how-evidence-supports` | TextArea | Explain how the evidence supports removal. 500 char limit. |
 
 ## Notes
 
@@ -283,8 +289,8 @@ Shared `EvidenceUpload` page reached by most reasons. Both questions are
   - Both gates are evaluated server-side by `IOptionVisibilityService`, which refuses
     a posted value for a hidden option as well as omitting it from the render; see
   [request-journey.md → Conditional option visibility](./request-journey.md#conditional-option-visibility).
-- **Three reasons skip evidence entirely** and end after a single page:
-  `pupil-died`, `dual-registered-moved`, and `elective-home-education`.
+- **`pupil-died` skips evidence entirely** and ends after a single page.
+  `dual-registered-moved` has its own evidence page where everything is optional.
 - **`date-removed-from-roll`** is reused across `elective-home-education`,
   `pupil-died`, and `child-missing-education`. **`permanent-exclusion-dfe-number`**
   and **`sat-exams`** are likewise reused across pages.

@@ -41,7 +41,7 @@ public sealed class DuplicateRequestValidatorTests
         var requestNotificationService = Substitute.For<IRequestNotificationService>();
         var checkYourPupilDataService = Substitute.For<ICheckYourPupilDataService>();
 
-        _sut = new RequestService(_flowService, requestStateBlobClient, _repository, _currentUser,
+        _sut = new RequestService(_flowService, requestStateBlobClient, Substitute.For<IRequestBlobClient>(), _repository, _currentUser,
             logger, queueService, requestNotificationService, checkYourPupilDataService,
             new CheckingExerciseService(TimeProvider.System));
     }

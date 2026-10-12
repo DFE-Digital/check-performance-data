@@ -32,6 +32,15 @@ public sealed record AuditLogRow(
     /// payload. Null on every other row, and on a WindowAdmin row whose payload cannot be read.
     /// </summary>
     public string? ExerciseType { get; init; }
+
+    /// <summary>
+    /// AB#302158: how many requests an automatic hand-over sent for processing, and how many
+    /// drafts it cancelled. Null on every other row, and when the payload cannot be read.
+    /// </summary>
+    public int? RequestsSent { get; init; }
+
+    /// <inheritdoc cref="RequestsSent"/>
+    public int? DraftsCancelled { get; init; }
 }
 
 /// <summary>One page of the log. Page is 1-based and already clamped to [1, TotalPages].</summary>

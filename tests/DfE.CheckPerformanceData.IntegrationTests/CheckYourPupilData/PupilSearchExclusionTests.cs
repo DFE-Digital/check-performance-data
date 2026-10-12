@@ -68,7 +68,7 @@ public sealed class PupilSearchExclusionTests(PostgresFixture fixture)
         Upn = upn,
     };
 
-    private static ChangeRequest NewChangeRequest(Guid windowId, long orgUrn, Guid pupilId, string upn, RequestStatus status = RequestStatus.SubmittedUnCommitted) => new()
+    private static ChangeRequest NewChangeRequest(Guid windowId, long orgUrn, Guid pupilId, string upn, RequestStatus status = RequestStatus.Submitted) => new()
     {
         Id = Guid.NewGuid(),
         WindowId = windowId,
@@ -123,7 +123,7 @@ public sealed class PupilSearchExclusionTests(PostgresFixture fixture)
 
         await SeedWindowsAndRequestsAsync(
             [NewWindow(windowId)],
-            [NewChangeRequest(windowId, TestUrnLong, pupil.Id, pupil.Upn, status: RequestStatus.SubmittedUnCommitted)]);
+            [NewChangeRequest(windowId, TestUrnLong, pupil.Id, pupil.Upn, status: RequestStatus.Submitted)]);
 
         var blobClient = new FakePupilDataBlobClient();
         blobClient.SetPupils(windowId, TestLaestab, [pupil]);

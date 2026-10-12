@@ -5,6 +5,7 @@
     var error = TempData["ContentStagingError"] as string;
     string SortDate(DateTime d) => d.ToString("yyyyMMddHHmmss");
     string ShowDate(DateTime d) => d.ToString("d MMM yyyy, HH:mm");
+    string ShowOptionalDate(DateTime? d) => d is null ? "No limit" : ShowDate(d.Value);
 }
 
 <a href="/admin/content-staging" class="govuk-back-link">Back to content staging</a>
@@ -22,13 +23,13 @@
 }
 
 <p class="govuk-body">
-    Tick the pages and content blocks to include, then export them as a single bundle.
+    Tick the pages, content blocks and home page banners to include, then export them as a single bundle.
     Selecting a page automatically includes its parent pages so the structure stays intact.
 </p>
 
 <div class="govuk-form-group">
     <label class="govuk-label govuk-label--s" for="cs-filter">Filter</label>
-    <div id="cs-filter-hint" class="govuk-hint">Type to filter by title, key or page across both lists.</div>
+    <div id="cs-filter-hint" class="govuk-hint">Type to filter by title, key, page or heading across all the lists.</div>
     <input class="govuk-input govuk-input--width-20" id="cs-filter" type="text" aria-describedby="cs-filter-hint" autocomplete="off">
 </div>
 
@@ -124,6 +125,50 @@
                         </td>
                         <td class="govuk-table__cell">@b.BlockType</td>
                         <td class="govuk-table__cell" data-sort-value="@SortDate(b.CreatedAt)">@ShowDate(b.CreatedAt)</td>
+                        <td class="govuk-table__cell" data-sort-value="@SortDate(b.UpdatedAt)">@ShowDate(b.UpdatedAt)</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+    <h2 class="govuk-heading-l">Home page banners</h2>
+    @if (Model.Banners.Count == 0)
+    {
+        <p class="govuk-body">No home page banners.</p>
+    }
+    else
+    {
+        <table class="govuk-table" id="cs-banners">
+            <thead class="govuk-table__head">
+                <tr class="govuk-table__row">
+                    <th scope="col" class="govuk-table__header">
+                        <div class="govuk-checkboxes__item govuk-checkboxes--small">
+                            <input class="govuk-checkboxes__input" type="checkbox" id="cs-banners-all" data-select-all="cs-banners">
+                            <label class="govuk-label govuk-checkboxes__label" for="cs-banners-all"><span class="govuk-visually-hidden">Select all home page banners</span></label>
+                        </div>
+                    </th>
+                    <th scope="col" class="govuk-table__header" data-sort>Heading</th>
+                    <th scope="col" class="govuk-table__header" data-sort>Switch</th>
+                    <th scope="col" class="govuk-table__header" data-sort>Show from</th>
+                    <th scope="col" class="govuk-table__header" data-sort>Show until</th>
+                    <th scope="col" class="govuk-table__header" aria-sort="ascending" data-sort>Last updated</th>
+                </tr>
+            </thead>
+            <tbody class="govuk-table__body">
+                @foreach (var b in Model.Banners)
+                {
+                    <tr class="govuk-table__row" data-filter="@b.Heading.ToLowerInvariant()">
+                        <td class="govuk-table__cell">
+                            <div class="govuk-checkboxes__item govuk-checkboxes--small">
+                                <input class="govuk-checkboxes__input" type="checkbox" name="homeBannerIds" value="@b.Id" id="cs-banner-@b.Id">
+                                <label class="govuk-label govuk-checkboxes__label" for="cs-banner-@b.Id"><span class="govuk-visually-hidden">Select @b.Heading</span></label>
+                            </div>
+                        </td>
+                        <td class="govuk-table__cell">@b.Heading</td>
+                        <td class="govuk-table__cell">@(b.IsEnabled ? "On" : "Off")</td>
+                        <td class="govuk-table__cell" data-sort-value="@(b.ShowFrom is { } from ? SortDate(from) : "")">@ShowOptionalDate(b.ShowFrom)</td>
+                        <td class="govuk-table__cell" data-sort-value="@(b.ShowUntil is { } until ? SortDate(until) : "")">@ShowOptionalDate(b.ShowUntil)</td>
                         <td class="govuk-table__cell" data-sort-value="@SortDate(b.UpdatedAt)">@ShowDate(b.UpdatedAt)</td>
                     </tr>
                 }

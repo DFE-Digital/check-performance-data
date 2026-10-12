@@ -35,6 +35,15 @@ cumulative filters, 20 rows a page, and a CSV export of the filtered set.
   `exerciseType`, `scheduledEnd` (the end date it had), `newEndDate`, `closedEarly`, `closedBy` and
   `closedAtUtc`. The end-date move itself is an `ExecuteUpdate`, so the generic capture writes no
   `CheckingExercise`/`Update` row for it — this row is the record.
+- **Automatic hand-over of a checking exercise's requests (AB#302158).** `WindowAdminAuditWriter`
+  writes one `WindowAdmin`/`RequestsSentAutomatically` row when the service hands an exercise's
+  requests over by itself, two hours after the exercise ends — but only for a run that sent or
+  cancelled something, so the day of repeat runs that follows leaves no rows. `EntityId` is the
+  window id, `UserId` is null (nobody did it; the screen says "System"), `Timestamp` the UTC
+  instant of the run. The payload carries `windowId`, `windowTitle`, `exerciseType`,
+  `exerciseEnd`, `requestsSent`, `draftsCancelled`, `automatic` and `ranAtUtc`. It is written
+  after the sweep rather than in a transaction with it, so a failed write loses the row, not the
+  hand-over.
 
 ## The screen
 
@@ -46,13 +55,17 @@ cumulative filters, 20 rows a page, and a CSV export of the filtered set.
 | Time | `d MMM yyyy` and `HH:mm:ss UTC` | same | same |
 | Status | green **Success** / red **Failed** | green **Success** | none |
 
+An automatic hand-over is a window-admin row as well: **System** as the user, the orange
+**Window admin** tag, the window title with "{exercise} requests sent for processing
+automatically: N requests sent, M drafts cancelled" beneath, and green **Success**.
+
 Filters (a plain GET form, no script): **activity** = the row's `EntityType` (options are the
 distinct types present, plus `EgressRun` always; `?activity=EgressRun` isolates egress); **checking
 window** = egress rows whose run belongs to the window (resolved through `egress_runs`, so it never
 parses JSON in SQL) or `CheckingWindow` and `WindowAdmin` rows whose id is the window; **status** =
 egress rows whose action is `Transfer` (Success) or `TransferFailed` (Failed), plus
-`WindowAdmin`/`ClosedEarly` rows (Success only). Filters AND together; an unknown value
-is no filter. Page links and the export carry every filter.
+`WindowAdmin`/`ClosedEarly` and `WindowAdmin`/`RequestsSentAutomatically` rows (Success only).
+Filters AND together; an unknown value is no filter. Page links and the export carry every filter.
 
 ## Export
 
@@ -70,7 +83,7 @@ Entity id,Checking window,Output types,Status`. No cap; rows stream straight to 
   stores pupil-bearing entities (`ChangeRequest`) in them. The query projects `NewValues` only for
   `EgressRun` and `WindowAdmin` rows (two hand-written payloads with no pupil data), and
   `AuditLogRow` has no payload member. The export shows a window-admin row's exercise in the
-  Action column, as `ClosedEarly (PupilData)`.
+  Action column, as `ClosedEarly (PupilData)` or `RequestsSentAutomatically (PupilData)`.
 
 ## Known limits
 

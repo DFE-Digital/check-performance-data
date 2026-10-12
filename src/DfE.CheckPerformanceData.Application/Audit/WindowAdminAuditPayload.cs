@@ -3,13 +3,21 @@ using System.Text.Json;
 namespace DfE.CheckPerformanceData.Application.Audit;
 
 /// <summary>
-/// The fields the audit log reads back out of a WindowAdmin audit row's NewValues (AB#301022).
-/// WindowRepository.CloseExerciseEarlyAsync writes camelCase JSON (JsonSerializerDefaults.Web).
-/// Every member is optional and an unreadable payload is null — the row still lists, with the
-/// sign-in subject for a name and no exercise. The payload holds no pupil data: it names a window,
-/// an exercise, two dates and the admin.
+/// The fields the audit log reads back out of a WindowAdmin audit row's NewValues. Two writers
+/// produce such rows, both as camelCase JSON (JsonSerializerDefaults.Web):
+/// WindowRepository.CloseExerciseEarlyAsync (AB#301022 — scheduledEnd, closedBy) and
+/// WindowAdminAuditWriter (AB#302158 — requestsSent, draftsCancelled). Every member is optional
+/// and an unreadable payload is null — the row still lists, with the sign-in subject for a name
+/// and no exercise. The payload holds no pupil data: it names a window, an exercise, dates,
+/// counts and, for an early closure, the admin.
 /// </summary>
-public sealed record WindowAdminAuditPayload(Guid? WindowId, string? ExerciseType, DateTime? ScheduledEnd, string? ClosedBy)
+public sealed record WindowAdminAuditPayload(
+    Guid? WindowId,
+    string? ExerciseType,
+    DateTime? ScheduledEnd,
+    string? ClosedBy,
+    int? RequestsSent = null,
+    int? DraftsCancelled = null)
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 

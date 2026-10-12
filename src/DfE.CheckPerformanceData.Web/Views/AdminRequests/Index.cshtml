@@ -22,7 +22,7 @@
     };
 
     // Must track the header count below: the trace detail row spans the whole table.
-    const int ColumnCount = 11;
+    const int ColumnCount = 12;
 }
 
 <a href="/admin/windows" class="govuk-back-link">Back to windows</a>
@@ -77,6 +77,7 @@ else
                 <th scope="col" class="govuk-table__header">Outcome</th>
                 <th scope="col" class="govuk-table__header">Matched Rule</th>
                 <th scope="col" class="govuk-table__header">Zendesk Id</th>
+                <th scope="col" class="govuk-table__header">Processing</th>
             </tr>
         </thead>
         <tbody class="govuk-table__body">
@@ -112,6 +113,7 @@ else
                     </td>
                     <td class="govuk-table__cell">@(row.MatchedRule ?? "—")</td>
                     <td class="govuk-table__cell">@(row.CrmId ?? "—")</td>
+                    <td class="govuk-table__cell">@(row.Status != RequestStatus.Submitted ? "—" : row.ProcessingStatus?.ToString() ?? "Waiting for decision")</td>
                 </tr>
                 @if (!string.IsNullOrWhiteSpace(row.DecisionTrace))
                 {

@@ -19,6 +19,8 @@ public interface IPortalDbContext
     DbSet<CheckingExercise> CheckingExercises { get; }
     DbSet<ContentBlock> ContentBlocks { get; }
     DbSet<ContentBlockVersion> ContentBlockVersions { get; }
+    DbSet<HomeBanner> HomeBanners { get; }
+    DbSet<HomeBannerVersion> HomeBannerVersions { get; }
     DbSet<ContentStagingSession> ContentStagingSessions { get; }
     DbSet<RulesConfigVersion> RulesConfigVersions { get; }
     DbSet<Setting> Settings { get; }

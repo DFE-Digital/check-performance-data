@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using Newtonsoft.Json;
 using Xunit;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models;
 

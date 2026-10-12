@@ -21,6 +21,7 @@ The source of this guide is a Markdown file kept with the service's code, alongs
 - 2. Finding your way around
 - 3. Dashboard
 - 4. CMS administration
+    - Home page banners
 - 5. System administration
 - 6. Messages
 - 7. Window administration
@@ -47,7 +48,7 @@ Your access depends on the role DfE Sign-In gives you. There are 2 admin roles:
 | Role | Who it is for | What it can see by default |
 |---|---|---|
 | `cypmd_admin` | Administrators | Every section. This role always has full access and you cannot reduce it. |
-| `cypmd_content_access_user` | Content editors | Pages, Content blocks, Deleted pages, Seed sample CMS pages and Content staging import/export. |
+| `cypmd_content_access_user` | Content editors | Pages, Content blocks, Home page banners, Deleted pages, Seed sample CMS pages and Content staging import/export. |
 
 You assign roles in DfE Sign-In, not in this service. An administrator can change which sections a role can see. Chapter 5 explains how, under Role settings.
 
@@ -84,7 +85,7 @@ Select **Admin** in the header to open the *Administration* page. It shows one s
 The groups are:
 
 - **Dashboard**: figures on school engagement and amendment requests.
-- **CMS administration**: pages, content blocks, deleted pages, content staging and search analytics.
+- **CMS administration**: pages, content blocks, home page banners, deleted pages, content staging and search analytics.
 - **System administration**: the rules engine, system settings, logs, site CSS and JavaScript, role settings and test data.
 - **Messages**: search feedback and the dead-letter queue.
 - **Window administration**: creating and managing checking windows.
@@ -107,7 +108,7 @@ The **Messages** badge in the header counts 2 things added together: search feed
 
 - You **select** links and buttons. The guide writes their names in bold, exactly as they appear on screen. Screen names and page titles are in italics.
 - A **Warning** box marks an action that cannot be undone.
-- Times are in UTC unless the screen says otherwise. UTC is the same as Greenwich Mean Time, and is one hour behind British Summer Time.
+- Checking window and exercise dates and times are UK time. Other times are in UTC unless the screen says otherwise. UTC is the same as Greenwich Mean Time, and is one hour behind British Summer Time.
 
 ## 3. Dashboard
 
@@ -200,6 +201,8 @@ On the **Content** tab you build the page from regions and widgets:
 
 To add content, select **Add content here**. Choose a region layout and select **Add region**, or choose a widget and select **Add widget**. Widgets go inside a region. Each item has buttons to move it up or down and to delete it.
 
+The Search and Search results widgets let you limit a search to chosen pages by ticking them in a list. On a long list, type in the **Filter pages** box to narrow it by page title or path, or tick **Show only selected pages** to check your choices. Ticked pages that the filter hides are still saved.
+
 The buttons under the content are:
 
 | Button | What it does |
@@ -249,6 +252,30 @@ To edit a block:
 
 Each block keeps a version history. Select **Version history** in the block's edit form to see it. The *Content block versions* screen lists each version with its date, and previews the content when you select one. You can revert to an earlier version. The service asks you to confirm: *Are you sure you want to revert to version…?* It warns that this replaces the current published content, and adds the current version to the history.
 
+### Home page banners
+
+The start page (the page a school sees before signing in) can show one or more blue
+"Important" notification banners: new rules, a known issue, an extension to a deadline.
+Open **CMS administration > Home page banners**.
+
+Each banner has a heading, rich text (links and lists are allowed), an on/off switch and
+optional **Show from** and **Show until** dates and times. All times are UK time. A banner
+shows only while it is on and within its dates; off always hides it. "Show from" includes the
+minute you enter and "Show until" does not, so a banner due to end at 17:00 is gone at 17:00.
+
+The list shows each banner's status: **Live** (on and within its dates), **Scheduled** (on,
+not yet due), **Expired** (on, past its end) or **Off**. Banners appear on the start page in
+the order of the list; use **Move up** and **Move down** to change it.
+
+Every save makes a new version. **Version history** shows them and lets you restore an
+earlier one, which becomes the newest version. **Preview** shows a banner the way schools
+will see it, whatever its status. **Delete** asks you to confirm and cannot be undone; to
+hide a banner for a while, turn it off instead.
+
+Banners are included in content staging export and import, with their versions. Editors
+need the **Home page banners** section on Role settings; on an environment created before
+this feature an administrator has to tick it.
+
 ### Deleted pages
 
 Use *Deleted pages* to bring back a page that someone deleted.
@@ -260,15 +287,15 @@ Each deleted page is listed with its path, type, when it was deleted and who del
 
 ### Content staging import/export
 
-Use *Content staging import/export* to move pages and content blocks from one environment to another. For example, to copy content you have tested in QA to production.
+Use *Content staging import/export* to move pages, content blocks and home page banners from one environment to another. For example, to copy content you have tested in QA to production.
 
 ![The Content staging import/export screen, with an Export section and an Import section](admin/images/cms-content-staging.png)
 *The Content staging import/export screen.*
 
 #### Exporting content
 
-- Select **Export everything** to download every page and content block as a zip file.
-- Select **Choose what to export** to pick items. Tick the pages and content blocks you want, then select **Export selected**. When you pick a page, its parent pages are always included, so the site structure stays intact.
+- Select **Export everything** to download every page, content block and home page banner as a zip file.
+- Select **Choose what to export** to pick items. Tick the pages, content blocks and home page banners you want, then select **Export selected**. When you pick a page, its parent pages are always included, so the site structure stays intact.
 
 Each page is exported with its 5 most recent versions and its live version. Tick **Include full version history** to export every saved version. Only do this when you are moving a whole environment, because it makes the file much larger.
 
@@ -283,13 +310,13 @@ Importing has 2 steps. The first step changes nothing.
     - **Default for new items**: **Include** adds them. **Skip** leaves them out.
     - **Default for items already in this environment**: **Skip** keeps what is there. **Overwrite** replaces it. **Fail** stops the import.
     - Each item also has its own choice, with **Use default** as the starting point. Use it to override the default for one item.
-5. Select **Confirm import**. To leave without importing, select **Cancel**. When the import finishes, the service shows a summary such as *Import complete. Pages: 1 added, 11 updated, 0 skipped. Content blocks: 0 added, 0 updated, 0 skipped.*
+5. Select **Confirm import**. To leave without importing, select **Cancel**. When the import finishes, the service shows a summary such as *Import complete. Pages: 1 added, 11 updated, 0 skipped. Content blocks: 0 added, 0 updated, 0 skipped. Home page banners: 0 added, 0 updated, 0 skipped.*
 
 Some items cannot be imported. The service lists them under *These items cannot be imported*. This happens when an item's parent page is not in this environment or in the file. The service skips these items, and does not create a blank parent for them.
 
 An import applies the normal checks and keeps version history, as if someone had typed the content in. Every import is recorded in the audit log.
 
-> **Warning** In development environments only, and only if the *CMS:ShowDeleteAllButton* system setting is turned on, this screen also shows a **Clear all CMS content** button. The service asks you to confirm with *Clear all CMS content?* It deletes every page and content block in the environment and cannot be undone. Only use it to reset a test environment. It is never available in production, QA or preproduction, whatever the setting says.
+> **Warning** In development environments only, and only if the *CMS:ShowDeleteAllButton* system setting is turned on, this screen also shows a **Clear all CMS content** button. The service asks you to confirm with *Clear all CMS content?* It deletes every page, content block and home page banner in the environment and cannot be undone. Only use it to reset a test environment. It is never available in production, QA or preproduction, whatever the setting says.
 
 ### Search analytics
 
@@ -777,13 +804,15 @@ If the name you type does not match, the exercise stays open. The page shows *Th
 
 After it closes, the summary page shows a *Success* banner, for example *Pupil data checking was closed early on 03/09/2026, 10:39 by Sam Taylor. 1 request sent for processing and 10 drafts cancelled.* The exercise's **End Date** becomes the time you closed it, its **Status** becomes *Closed*, and the close button is no longer shown. The close is recorded in the audit log.
 
-The banner and the end date use the service's own clock. During British Summer Time that clock is one hour behind UK time, so a close at 13:33 shows as 12:33.
+The banner and the end date show UK time.
 
 If the service closes the exercise but cannot send its requests for processing, the summary page shows an *Important* banner instead. It says the exercise was closed and that its requests could not be sent. The exercise is closed. Select **Send Pupil data checking requests for processing** to try again.
 
 #### Sending requests for processing after an exercise has closed
 
-When an exercise reaches its scheduled end, the service does not send its requests for processing by itself. Someone must do it.
+When an exercise reaches its end, the service sends its requests for processing by itself, two hours later. It also cancels drafts that schools have not submitted. You do not need to do anything.
+
+Use the button if you want the requests sent before the two hours are up, or if you think some were missed.
 
 1. Select **Send Pupil data checking requests for processing** in the exercise's section. The button appears once the exercise has closed.
 2. Read the confirmation page. It says how many *Requests to send for processing* and how many *Drafts to cancel*.
@@ -791,7 +820,11 @@ When an exercise reaches its scheduled end, the service does not send its reques
 
 > **Warning** You cannot undo this. Submitted requests are sent for processing and cannot be changed afterwards. Drafts that a school has not submitted are cancelled, and cannot be resumed.
 
+A request a school submitted only moments before the close may still be waiting for the Rules Engine. The page and the message after sending say how many are waiting. They are not lost: select **Send … requests for processing** again later to send them.
+
 You do not need to do this after closing an exercise early, because closing it early also sends its requests. If there is nothing left to send, the confirmation page says so.
+
+The two hours are counted from the end time shown on the page, which is UK time.
 
 ### Requests for a window
 
@@ -806,7 +839,8 @@ Each row shows:
 
 - **Reference**, **Organisation URN**, **Pupil** and **Request type**
 - **Checking exercise** (or *Not recorded* if the request has none)
-- **Status**, such as InProgress, ReadyToSubmit, SubmittedUnCommitted or SubmittedCommitted
+- **Status**, such as InProgress, ReadyToSubmit, Submitted, Withdrawn or NotSubmitted
+- **Processing**: where a submitted request is on its way to a ticket, or *Waiting for decision*
 - **Submitted by** and **Submitted**
 - **Outcome**: *Auto approved*, *Auto rejected* or *Scrutiny*, or *Not yet processed*
 - **Matched Rule**: the rule that decided the outcome
@@ -903,6 +937,7 @@ The list shows the newest entries first, 20 to a page. The columns are **User**,
 
 - For data egress, the Activity is a *Data egress* tag. A pull shows *Run started*. A transfer shows a *Success* or *Failed* status.
 - When someone closes an exercise early, the Activity is a *Window admin* tag. The Checking window column names the window, with the exercise and *closed early, before scheduled end* beneath. The User column shows who closed it, and the Status is *Success*.
+- When the service sends an exercise's requests for processing by itself, the Activity is also a *Window admin* tag. The Checking window column names the window, with the exercise and how many requests were sent and drafts cancelled beneath. The User column shows *System*, and the Status is *Success*.
 - For everything else, the Activity is the type of item that changed, with the action beneath it: Insert, Update or Delete.
 - Actions the service takes for itself show *System* as the user.
 
@@ -910,7 +945,7 @@ By default the log shows all activity. Most of it is routine application log ent
 
 - **Filter by activity**: choose the type of item, such as *Data egress*, *Dead letter* or *Role access*.
 - **Filter by window**: choose a checking window.
-- **Filter by status**: *Success* or *Failed*. Data egress transfers have either. An exercise closed early is always *Success*.
+- **Filter by status**: *Success* or *Failed*. Data egress transfers have either. An exercise closed early, or one whose requests the service sent by itself, is always *Success*.
 
 Select **Apply filters**. The filters work together.
 
@@ -950,9 +985,11 @@ To find a file:
 
 1. Select **Browse** beside an account.
 2. Select **Browse** beside a container. The screen says how many containers the account holds.
-3. Select **Open** on a folder to go into it. Select **Up to container root** to come back out. Files show **Preview**, **Download** and **Delete** buttons. The preview screen also has a **Download this blob** link.
+3. Select **Open** on a folder to go into it. Select **Up to container root** to come back out. Files show **Preview**, **Download** and **Delete** buttons. The preview screen also has a **Download this blob** link. For a large text file, the preview shows only the first 256KB and says so; download the file to see all of it.
 
 To upload files, use the *Upload files* section at the top of a container. Choose one or more files. To put them in a new sub-folder, type its name in **Folder (optional)**. Leave it blank to upload into the folder you are looking at. Then select **Upload**.
+
+With JavaScript on, each file can be up to 2GB. The service sends it in parts and shows progress under the form; you can select **Cancel upload** to stop. When the upload finishes, the page opens the folder the files went into. Without JavaScript, the files you choose must add up to less than 50MB, because the platform refuses larger requests before they reach the service. If an upload does not complete, the page tells you what to do.
 
 Storage can hold pupil data. Only open, download or preview files that you need to. Look after any file you download.
 
@@ -980,19 +1017,20 @@ This table lists the actions in the admin area that change or delete data. It sa
 | Pages | Delete a page | Moves the page to Deleted pages, where it can be restored. The screen says it cannot be undone. | Yes. A confirmation page. |
 | Content blocks | Revert to an earlier version | Replaces the published content with an earlier version. | Yes. A dialog. |
 | Content staging import/export | Import with Overwrite | Replaces content that already exists. | Yes. The *Review import* screen. |
-| Content staging import/export | Clear all CMS content | Deletes every page and content block. Development environments only. | Yes. A dialog asks *Clear all CMS content?* |
+| Content staging import/export | Clear all CMS content | Deletes every page, content block and home page banner. Development environments only. | Yes. A dialog asks *Clear all CMS content?* |
 | Blob storage browser | Delete a file | Deletes the file from storage. | Only a browser message. |
 | Danger zone | Reset seed data | Deletes all change requests and windows, then reseeds. Not in production. | The Reset seed data screen is the only confirmation. |
 
 ## Appendix B: Admin sections a role can be granted
 
-*Role settings* lists 31 sections. This table shows what each one unlocks, grouped in the order of the Administration page.
+*Role settings* lists 32 sections. This table shows what each one unlocks, grouped in the order of the Administration page.
 
 | Group | Section | What it unlocks |
 |---|---|---|
 | Dashboard | `dashboard` | Dashboard |
 | CMS administration | `content-pages` | Pages |
 | CMS administration | `content-blocks` | Content blocks |
+| CMS administration | `home-banners` | Home page banners |
 | CMS administration | `deleted-pages` | Deleted pages |
 | CMS administration | `content-staging` | Content staging import/export |
 | CMS administration | `search-analytics` | Search analytics and its drill-down screens |

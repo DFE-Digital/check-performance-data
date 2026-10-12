@@ -16,6 +16,7 @@ namespace DfE.CheckPerformanceData.E2ETests.ContentPages;
 // Reports are captured at the network boundary rather than read back from the dashboard so
 // the trigger semantics are asserted deterministically, without waiting on the background
 // writer's drain. One test does follow a report all the way to the admin dashboard.
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class InstantSearchReportingE2ETests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
@@ -114,7 +115,8 @@ public sealed class InstantSearchReportingE2ETests(PlaywrightFixture fixture) : 
 
     private async Task WaitForReportsAsync(int atLeast)
     {
-        for (var i = 0; i < 50; i++)
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
+        while (DateTime.UtcNow < deadline)
         {
             lock (_reports) if (_reports.Count >= atLeast) return;
             await Task.Delay(100);
@@ -205,7 +207,8 @@ public sealed class InstantSearchReportingE2ETests(PlaywrightFixture fixture) : 
             AttachCookieToContext(adminCookie);
 
             var drillIn = $"{Fixture.BaseUrl}/admin/Search/OnPage?path={Uri.EscapeDataString(url)}&range=24h";
-            for (var attempt = 0; attempt < 30; attempt++)
+            var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(15);
+            while (DateTime.UtcNow < deadline)
             {
                 await Page.GotoAsync(drillIn);
                 var body = await Page.Locator("body").InnerTextAsync();
@@ -346,7 +349,8 @@ public sealed class InstantSearchReportingE2ETests(PlaywrightFixture fixture) : 
             AttachCookieToContext(adminCookie);
 
             // The sink drains on a timer, so the row takes a moment to land.
-            for (var attempt = 0; attempt < 30; attempt++)
+            var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(15);
+            while (DateTime.UtcNow < deadline)
             {
                 await Page.GotoAsync($"{Fixture.BaseUrl}/admin/Search/Session/{sessionId}");
                 var body = await Page.Locator("body").InnerTextAsync();

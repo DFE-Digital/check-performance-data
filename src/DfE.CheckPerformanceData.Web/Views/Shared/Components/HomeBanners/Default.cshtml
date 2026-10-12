@@ -1,0 +1,6 @@
+@model IReadOnlyList<DfE.CheckPerformanceData.Application.HomeBanners.HomeBannerDto>
+@* No wrapper when there is nothing to show: an empty container would still be a landmark. *@
+@foreach (var banner in Model)
+{
+    @await Html.PartialAsync("Components/HomeBanners/_Banner", banner)
+}

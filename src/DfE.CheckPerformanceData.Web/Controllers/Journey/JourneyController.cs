@@ -889,7 +889,7 @@ public sealed class JourneyController(
         // Cross-field date rules (AB#295246). Runs after the loop because it needs every answer
         // on the page, and skips any question that already failed its own format check — the
         // view model renders only the first error per question, so adding a second here would
-        // replace "must be a real date" with a comparison against a date the user never entered.
+        // replace the invalid-date message with a comparison against a date the user never entered.
         //
         // The Add rules (AB#297310) compare date of birth against admission date, which sit on
         // different pages, so the stored answers go in underneath the posted ones — the page's
@@ -1106,6 +1106,19 @@ public sealed class JourneyController(
     // Returns null on success, or a user-facing error message on failure. Assumes a non-empty file.
     private async Task<string?> CommitUploadedFileAsync(Guid windowId, string questionId, RequestState journey, IFormFile file)
     {
+        // AB#304900: an upload takes at most six files. Asked first — before the name, the size
+        // and the bytes — because nothing about the file itself can make a seventh acceptable,
+        // and the name check below would otherwise send the user off to rename a file that still
+        // could not be added. Counted for this question only: these are the files in the table
+        // the user is looking at, and the ones Remove can take away.
+        journey.QuestionAnswers.TryGetValue(questionId, out var answerSoFar);
+        var fileCountError = journeyService.ValidateFileCount(answerSoFar?.FileValues ?? []);
+        if (fileCountError is not null)
+        {
+            await analytics.TrackSafeAsync(new EvidenceUploadAttemptedEvent { Outcome = "failed", FailureReason = "file_limit_exceeded", FileSizeBytes = file.Length });
+            return fileCountError;
+        }
+
         // AB#296081: a request must never store two evidence files with the same name.
         // Uniqueness is per amendment request, so gather every question's files, not
         // just this question's.

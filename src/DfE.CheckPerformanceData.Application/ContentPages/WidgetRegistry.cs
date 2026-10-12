@@ -15,7 +15,7 @@ public static class WidgetRegistry
         new("card", "Card", ContributesToNav: false, """{"title":"","body":"","href":""}"""),
         new("summarylist", "Summary list", ContributesToNav: false, """{"rows":[]}"""),
         new("published", "Published callout", ContributesToNav: false, """{"text":""}"""),
-        new("search",    "Search",            ContributesToNav: false, """{"label":"Search","placeholder":"","action":"/search","buttonText":"Search","scope":"","scopePageIds":"","searchIn":"site","instant":"false","showButton":"true","noResultsText":"No results found"}"""),
+        new("search",    "Search",            ContributesToNav: false, """{"label":"Search","placeholder":"","action":"/search","buttonText":"Search","scope":"","scopePageIds":"","searchIn":"site","instant":"false","showButton":"true","buttonBelow":"false","noResultsText":"No results found"}"""),
         new("results",   "Search results",    ContributesToNav: false, """{"scope":"","scopePageIds":"","emptyText":"No results found."}"""),
         new("pagenav",   "Page navigation",   ContributesToNav: false, """{"mode":"headings","childrenParentPath":"","showSearch":false,"searchPath":"","searchLabel":"Search","h1":"false","h2":"true","h3":"true","h4":"false","h5":"false","h6":"false"}""")
     ];

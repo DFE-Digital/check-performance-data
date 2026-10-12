@@ -27,4 +27,17 @@ public sealed class AdminRequestsViewTests
         Assert.DoesNotContain("action=\"/admin/windows/requests\"", view);
         Assert.DoesNotContain("name=\"windowId\"", view);
     }
+
+    // #536: a request stuck on its way to Zendesk (TicketQueued or TicketCreating with no Zendesk
+    // id) must be visible to an admin. Only a submitted request has a processing status to show.
+    [Fact]
+    public void Requests_Table_Shows_The_Processing_Status()
+    {
+        var view = ReadView();
+
+        Assert.Contains("<th scope=\"col\" class=\"govuk-table__header\">Processing</th>", view);
+        Assert.Contains(
+            "@(row.Status != RequestStatus.Submitted ? \"—\" : row.ProcessingStatus?.ToString() ?? \"Waiting for decision\")",
+            view);
+    }
 }

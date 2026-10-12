@@ -54,9 +54,11 @@ public class PupilSearchJourneyTests
         Id = "select-match-pupil",
         Type = PageType.PupilSearch,
         Title = "Which pupil should {pupilName} be merged with?",
-        PupilFilter = PupilFilter.All,
-        PupilKey = JourneyPage.MatchKey
-        // NextPageId intentionally absent → redirects to summary
+PupilFilter = PupilFilter.All,
+        PupilKey = JourneyPage.MatchKey,
+        // Mirrors Merge_KS4June.json's select-match-pupil, whose label names the CYPMD ID.
+        PupilSearchField = Application.Journey.PupilSearchField.CypmdId
+        // NextPageId intentionally absent  redirects to summary
     };
 
     private static readonly JourneyPage QuestionPage = new()
@@ -182,6 +184,37 @@ public class PupilSearchJourneyTests
         var view = Assert.IsType<ViewResult>(result);
         var vm = Assert.IsType<PupilSearchViewModel>(view.Model);
         Assert.Equal(PupilFilter.Included, vm.Filter);
+    }
+
+    [Fact]
+    public async Task PupilSearchPage_WhenMatchPage_BuildsViewModelWithTheConfiguredSearchField()
+    {
+        // The KS4 merge second-record page asks for a CYPMD ID, so the suggestions request must
+        // narrow to it. This covers the builder hop; QuestionFlowServiceTests covers the config
+        // value the shipped JSON actually binds.
+        _flowService.GetConfigAsync(Arg.Any<WhatToChange>(), Arg.Any<CheckingWindowType>()).Returns(MergeConfig);
+
+        SetupSession(SessionWithPupil(history: ["select-pupil"]));
+
+        var result = await _sut.PupilSearchPage(WindowId, "select-match-pupil");
+
+        var view = Assert.IsType<ViewResult>(result);
+        var vm = Assert.IsType<PupilSearchViewModel>(view.Model);
+        Assert.Equal(PupilSearchField.CypmdId, vm.SearchField);
+    }
+
+    [Fact]
+    public async Task PupilSearchPage_WhenPageDoesNotConfigureOne_BuildsViewModelWithAllFields()
+    {
+        // A page that sets nothing keeps the historical matching. PrimarySearchPage sets no
+        // PupilSearchField, so the view model must fall back to All rather than to null.
+        SetupSession(SessionWithoutPupil());
+
+        var result = await _sut.PupilSearchPage(WindowId, "select-pupil");
+
+        var view = Assert.IsType<ViewResult>(result);
+        var vm = Assert.IsType<PupilSearchViewModel>(view.Model);
+        Assert.Equal(PupilSearchField.All, vm.SearchField);
     }
 
     [Fact]
@@ -477,6 +510,24 @@ public class PupilSearchJourneyTests
     }
 
     [Fact]
+    public async Task PupilSearchPost_WhenMatchKey_KeepsTheSelectedSuggestionTextIncludingTheCyPmdId()
+    {
+        // AB#304118: the narrowed page's suggestions read "Surname, Firstname, DOB (Cypmd_Id)", and
+        // that text is what the clerk sees next — on the summary, and on the "already included" page
+        // if they go back. It is stored from the posted hidden field rather than rebuilt, so all this
+        // asserts is that nothing in the POST path truncates it back to the old three-part label.
+        _flowService.GetConfigAsync(Arg.Any<WhatToChange>(), Arg.Any<CheckingWindowType>()).Returns(MergeConfig);
+        SetupSession(SessionWithPupil(history: ["select-pupil"]));
+        _pupilDataService.GetPupilAsync(WindowId, MatchPupilId).Returns(MatchPupil);
+
+        await _sut.PupilSearchPost(
+            WindowId, "select-match-pupil", MatchPupilId.ToString(), "Doe, John, 02/02/2010 (800002)");
+
+        var saved = _session.GetRequestState(WindowId);
+        Assert.Equal("Doe, John, 02/02/2010 (800002)", saved.MatchedPupilLabel);
+    }
+
+    [Fact]
     public async Task PupilSearchPost_WhenMatchKey_DoesNotResetHistoryOrAnswers()
     {
         _flowService.GetConfigAsync(Arg.Any<WhatToChange>(), Arg.Any<CheckingWindowType>()).Returns(MergeConfig);
@@ -703,7 +754,7 @@ public class PupilSearchJourneyTests
 
         var view = Assert.IsType<ViewResult>(result);
         var vm = Assert.IsType<SummaryViewModel>(view.Model);
-        Assert.Equal("Jane Smith, 1 January 2010", vm.FirstRecordDisplay);
+        Assert.Equal("Jane Smith 1 January 2010 (CYPMD123)", vm.FirstRecordDisplay);
     }
 
     [Fact]

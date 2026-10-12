@@ -13,7 +13,7 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Persistence;
 //
 // A row with a NULL CheckingExerciseId is deliberately left alone rather than swept under a guessed
 // exercise. The FK is onDelete: SetNull, so such a row was orphaned by deleting an exercise, or
-// belongs to a window that never ran the mapped one. It stays SubmittedUnCommitted and visible on
+// belongs to a window that never ran the mapped one. It stays Submitted and visible on
 // the Requests page — a data problem stays visible.
 [Collection(nameof(PostgresCollection))]
 public sealed class AdminRequestsRepositoryExerciseScopeTests(PostgresFixture fixture)
@@ -55,7 +55,10 @@ public sealed class AdminRequestsRepositoryExerciseScopeTests(PostgresFixture fi
     }
 
     private static ChangeRequest Request(
-        Guid windowId, Guid? exerciseId, string reference, RequestStatus status) => new()
+        Guid windowId, Guid? exerciseId, string reference, RequestStatus status,
+        ProcessingStatus? processingStatus = null,
+        RequestType requestType = RequestType.Amendment,
+        string? crmId = null) => new()
     {
         Id = Guid.NewGuid(),
         WindowId = windowId,
@@ -66,9 +69,11 @@ public sealed class AdminRequestsRepositoryExerciseScopeTests(PostgresFixture fi
         SubmittedByName = "Ada Editor",
         Status = status,
         ReferenceNumber = reference,
-        RequestType = RequestType.Amendment,
+        RequestType = requestType,
         RequestTypeDescription = "Remove",
-        AmendmentType = WhatToChange.Remove
+        AmendmentType = WhatToChange.Remove,
+        ProcessingStatus = processingStatus,
+        CrmId = crmId
     };
 
     private async Task SeedAsync()
@@ -88,46 +93,133 @@ public sealed class AdminRequestsRepositoryExerciseScopeTests(PostgresFixture fi
 
         ctx.ChangeRequests.AddRange(
             // In scope.
-            Request(TargetWindowId, TargetExerciseId, "IN_SCOPE_SUBMITTED", RequestStatus.SubmittedUnCommitted),
+            Request(TargetWindowId, TargetExerciseId, "IN_SCOPE_SUBMITTED", RequestStatus.Submitted, ProcessingStatus.Decided),
             Request(TargetWindowId, TargetExerciseId, "IN_SCOPE_DRAFT", RequestStatus.InProgress),
             Request(TargetWindowId, TargetExerciseId, "IN_SCOPE_READY", RequestStatus.ReadyToSubmit),
             // Out of scope: another exercise in the same window.
-            Request(TargetWindowId, OtherExerciseId, "OTHER_EXERCISE_SUBMITTED", RequestStatus.SubmittedUnCommitted),
+            Request(TargetWindowId, OtherExerciseId, "OTHER_EXERCISE_SUBMITTED", RequestStatus.Submitted, ProcessingStatus.Decided),
             Request(TargetWindowId, OtherExerciseId, "OTHER_EXERCISE_DRAFT", RequestStatus.InProgress),
             // Out of scope: the same exercise type in a different window.
-            Request(OtherWindowId, OtherWindowExerciseId, "OTHER_WINDOW_SUBMITTED", RequestStatus.SubmittedUnCommitted),
+            Request(OtherWindowId, OtherWindowExerciseId, "OTHER_WINDOW_SUBMITTED", RequestStatus.Submitted, ProcessingStatus.Decided),
             Request(OtherWindowId, OtherWindowExerciseId, "OTHER_WINDOW_DRAFT", RequestStatus.InProgress),
             // Out of scope: belongs to no exercise at all.
-            Request(TargetWindowId, null, "ORPHAN_SUBMITTED", RequestStatus.SubmittedUnCommitted),
+            Request(TargetWindowId, null, "ORPHAN_SUBMITTED", RequestStatus.Submitted, ProcessingStatus.Decided),
             Request(TargetWindowId, null, "ORPHAN_DRAFT", RequestStatus.InProgress),
-            // Out of scope: already committed.
-            Request(TargetWindowId, TargetExerciseId, "ALREADY_COMMITTED", RequestStatus.SubmittedCommitted));
+            // Out of scope: already queued by an earlier run.
+            Request(TargetWindowId, TargetExerciseId, "ALREADY_QUEUED", RequestStatus.Submitted, ProcessingStatus.TicketQueued));
 
         await ctx.SaveChangesAsync();
     }
 
     [Fact]
-    public async Task GetRequestsForExercise_returns_only_this_windows_uncommitted_rows_for_this_exercise()
+    public async Task GetDecidedRequestsForExercise_returns_only_this_windows_decided_rows_for_this_exercise()
     {
         await SeedAsync();
 
-        var rows = await Repository().GetRequestsForExerciseAsync(
+        var rows = await Repository().GetDecidedRequestsForExerciseAsync(
             TargetWindowId, CheckingExerciseType.PupilData, CancellationToken.None);
 
         Assert.Equal(["IN_SCOPE_SUBMITTED"], rows.Select(r => r.ReferenceNumber).Order());
     }
 
     [Fact]
-    public async Task GetRequestsForExercise_returns_nothing_when_the_window_does_not_run_the_exercise()
+    public async Task GetDecidedRequestsForExercise_returns_nothing_when_the_window_does_not_run_the_exercise()
     {
         // The other window has no results-enquiry row, so there is no exercise id to match. An
         // empty answer, never an unfiltered one.
         await SeedAsync();
 
-        var rows = await Repository().GetRequestsForExerciseAsync(
+        var rows = await Repository().GetDecidedRequestsForExerciseAsync(
             OtherWindowId, CheckingExerciseType.ResultsEnquiry, CancellationToken.None);
 
         Assert.Empty(rows);
+    }
+
+    // #536: the sweep sends only decided amendments that have no ticket, and reports undecided
+    // amendments as waiting. A "confirm data correct" row is submitted too but never goes to
+    // Zendesk, so it is neither sent nor waiting. A results enquiry is queued at submit, so it is
+    // neither sent nor waiting either, whatever its processing status.
+    private async Task SeedSweepStatesAsync()
+    {
+        await SeedAsync();
+        await using var ctx = fixture.CreateContext();
+        await ctx.ChangeRequests.ExecuteDeleteAsync();
+
+        ctx.ChangeRequests.AddRange(
+            Request(TargetWindowId, TargetExerciseId, "DECIDED", RequestStatus.Submitted, ProcessingStatus.Decided),
+            Request(TargetWindowId, TargetExerciseId, "WAITING", RequestStatus.Submitted),
+            Request(TargetWindowId, TargetExerciseId, "QUEUED", RequestStatus.Submitted, ProcessingStatus.TicketQueued),
+            Request(TargetWindowId, TargetExerciseId, "TICKETED", RequestStatus.Submitted, ProcessingStatus.Decided, crmId: "1"),
+            Request(TargetWindowId, TargetExerciseId, "CONFIRM", RequestStatus.Submitted, requestType: RequestType.ConfirmCorrect),
+            Request(TargetWindowId, TargetExerciseId, "WITHDRAWN", RequestStatus.Withdrawn, ProcessingStatus.Decided),
+            Request(TargetWindowId, TargetExerciseId, "CREATED", RequestStatus.Submitted, ProcessingStatus.TicketCreated, crmId: "2"),
+            Request(TargetWindowId, TargetExerciseId, "ENQUIRY", RequestStatus.Submitted, ProcessingStatus.TicketQueued, requestType: RequestType.ResultsEnquiry),
+            Request(TargetWindowId, TargetExerciseId, "ENQUIRY_UNSTAMPED", RequestStatus.Submitted, requestType: RequestType.ResultsEnquiry));
+
+        await ctx.SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task The_sweep_query_returns_only_decided_amendments_with_no_ticket()
+    {
+        await SeedSweepStatesAsync();
+
+        var rows = await Repository().GetDecidedRequestsForExerciseAsync(
+            TargetWindowId, CheckingExerciseType.PupilData, CancellationToken.None);
+        var waiting = await Repository().CountWaitingRequestsForExerciseAsync(
+            TargetWindowId, CheckingExerciseType.PupilData, CancellationToken.None);
+
+        // Neither results enquiry is sent or counted: only WAITING is undecided among the amendments.
+        Assert.Equal(["DECIDED"], rows.Select(r => r.ReferenceNumber));
+        Assert.Equal(1, waiting);
+    }
+
+    [Fact]
+    public async Task MarkTicketQueued_moves_only_a_decided_row()
+    {
+        await SeedSweepStatesAsync();
+        Guid IdOf(string reference)
+        {
+            using var ctx = fixture.CreateContext();
+            return ctx.ChangeRequests.Single(r => r.ReferenceNumber == reference).Id;
+        }
+
+        var movedDecided = await Repository().MarkTicketQueuedAsync(IdOf("DECIDED"), CancellationToken.None);
+        var movedCreated = await Repository().MarkTicketQueuedAsync(IdOf("CREATED"), CancellationToken.None);
+
+        Assert.True(movedDecided);
+        Assert.False(movedCreated);
+        await using var verify = fixture.CreateContext();
+        Assert.Equal(ProcessingStatus.TicketQueued,
+            (await verify.ChangeRequests.SingleAsync(r => r.ReferenceNumber == "DECIDED")).ProcessingStatus);
+        Assert.Equal(ProcessingStatus.TicketCreated,
+            (await verify.ChangeRequests.SingleAsync(r => r.ReferenceNumber == "CREATED")).ProcessingStatus);
+    }
+
+    [Fact]
+    public async Task A_failed_send_rolls_back_both_the_mark_and_the_message()
+    {
+        // The close sweep marks a row TicketQueued and puts its message on the queue in one
+        // transaction. A failure after both must leave the row Decided, for the next run to send,
+        // and no message on the queue.
+        await SeedSweepStatesAsync();
+        await using var ctx = fixture.CreateContext();
+        var repository = new AdminRequestsRepository(ctx);
+        var queue = new Infrastructure.Queue.PostgresQueueService(ctx);
+        var id = (await ctx.ChangeRequests.AsNoTracking().SingleAsync(r => r.ReferenceNumber == "DECIDED")).Id;
+        const string payload = "rollback-probe-DECIDED";
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => repository.ExecuteInTransactionAsync(async () =>
+        {
+            Assert.True(await repository.MarkTicketQueuedAsync(id, CancellationToken.None));
+            await queue.EnqueueAsync(Application.Queue.QueueOptions.ZendeskQueue, payload);
+            throw new InvalidOperationException("fails after both writes");
+        }, CancellationToken.None));
+
+        await using var verify = fixture.CreateContext();
+        Assert.Equal(ProcessingStatus.Decided,
+            (await verify.ChangeRequests.SingleAsync(r => r.ReferenceNumber == "DECIDED")).ProcessingStatus);
+        Assert.False(await verify.QueueMessages.AnyAsync(m => m.Payload == payload));
     }
 
     [Fact]
@@ -164,8 +256,8 @@ public sealed class AdminRequestsRepositoryExerciseScopeTests(PostgresFixture fi
         Assert.Equal(RequestStatus.InProgress, statuses["OTHER_EXERCISE_DRAFT"]);
         Assert.Equal(RequestStatus.InProgress, statuses["OTHER_WINDOW_DRAFT"]);
         Assert.Equal(RequestStatus.InProgress, statuses["ORPHAN_DRAFT"]);
-        Assert.Equal(RequestStatus.SubmittedUnCommitted, statuses["ORPHAN_SUBMITTED"]);
-        Assert.Equal(RequestStatus.SubmittedUnCommitted, statuses["IN_SCOPE_SUBMITTED"]);
+        Assert.Equal(RequestStatus.Submitted, statuses["ORPHAN_SUBMITTED"]);
+        Assert.Equal(RequestStatus.Submitted, statuses["IN_SCOPE_SUBMITTED"]);
     }
 
     [Fact]

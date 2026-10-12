@@ -286,4 +286,105 @@ public sealed class ContentBundleValidatorTests
         Assert.Contains("seg bad", ex.Message);
         Assert.Contains("type bad", ex.Message);
     }
+
+    // ── Home page banners (#566) ──────────────────────────────────────────────
+
+    [Fact]
+    public void Banner_WithShowUntilNotAfterShowFrom_IsFatal()
+    {
+        var bundle = new ContentBundle
+        {
+            HomeBanners =
+            [
+                new HomeBannerBundleItem { Id = Guid.NewGuid(), Heading = "H", Body = "<p>b</p>", ShowFrom = new DateTime(2026, 1, 2), ShowUntil = new DateTime(2026, 1, 1) }
+            ]
+        };
+
+        var issue = Assert.Single(ContentBundleValidator.Validate(bundle));
+        Assert.Equal(ValidationSeverity.Fatal, issue.Severity);
+        Assert.Equal("BANNER_DATES_INVALID", issue.Code);
+    }
+
+    [Fact]
+    public void Banner_WithEmptyHeading_IsFatal()
+    {
+        var bundle = new ContentBundle { HomeBanners = [new HomeBannerBundleItem { Id = Guid.NewGuid(), Heading = "", Body = "<p>b</p>" }] };
+        Assert.Contains(ContentBundleValidator.Validate(bundle), i => i.Code == "BANNER_HEADING_EMPTY" && i.Severity == ValidationSeverity.Fatal);
+    }
+
+    [Fact]
+    public void Banner_WithOversizedHeadingOrBody_IsFatal()
+    {
+        var bundle = new ContentBundle
+        {
+            HomeBanners =
+            [
+                new HomeBannerBundleItem { Id = Guid.NewGuid(), Heading = new string('h', 201), Body = "<p>b</p>" },
+                new HomeBannerBundleItem { Id = Guid.NewGuid(), Heading = "H", Body = new string('b', ContentBundleValidator.MaxHomeBannerBodyBytes + 1) }
+            ]
+        };
+        var issues = ContentBundleValidator.Validate(bundle);
+        Assert.Contains(issues, i => i.Code == "BANNER_HEADING_TOO_LONG");
+        Assert.Contains(issues, i => i.Code == "BANNER_BODY_TOO_LARGE");
+    }
+
+    [Fact]
+    public void BannerVersion_WithOversizedHeading_IsFatal()
+    {
+        var bundle = new ContentBundle
+        {
+            HomeBanners =
+            [
+                new HomeBannerBundleItem
+                {
+                    Id = Guid.NewGuid(), Heading = "H", Body = "<p>b</p>",
+                    Versions = [new HomeBannerVersionBundleItem { VersionNumber = 3, Heading = new string('h', ContentBundleValidator.MaxHomeBannerHeadingLength + 1), Body = "<p>v</p>" }]
+                }
+            ]
+        };
+
+        var issue = Assert.Single(ContentBundleValidator.Validate(bundle));
+        Assert.Equal(ValidationSeverity.Fatal, issue.Severity);
+        Assert.Equal("BANNER_HEADING_TOO_LONG", issue.Code);
+        Assert.Contains("version 3", issue.Message);
+    }
+
+    [Fact]
+    public void BannerVersion_WithShowUntilNotAfterShowFrom_IsFatal()
+    {
+        var bundle = new ContentBundle
+        {
+            HomeBanners =
+            [
+                new HomeBannerBundleItem
+                {
+                    Id = Guid.NewGuid(), Heading = "H", Body = "<p>b</p>",
+                    Versions =
+                    [
+                        new HomeBannerVersionBundleItem
+                        {
+                            VersionNumber = 2, Heading = "H", Body = "<p>v</p>",
+                            ShowFrom = new DateTime(2026, 1, 2), ShowUntil = new DateTime(2026, 1, 1)
+                        }
+                    ]
+                }
+            ]
+        };
+
+        var issue = Assert.Single(ContentBundleValidator.Validate(bundle));
+        Assert.Equal(ValidationSeverity.Fatal, issue.Severity);
+        Assert.Equal("BANNER_DATES_INVALID", issue.Code);
+        Assert.Contains("version 2", issue.Message);
+    }
+
+    [Fact]
+    public void TooManyBanners_IsFatal()
+    {
+        var bundle = new ContentBundle
+        {
+            HomeBanners = Enumerable.Range(0, ContentBundleValidator.MaxHomeBanners + 1)
+                .Select(_ => new HomeBannerBundleItem { Id = Guid.NewGuid(), Heading = "H", Body = "b" }).ToList()
+        };
+        Assert.Contains(ContentBundleValidator.Validate(bundle), i => i.Code == "BUNDLE_TOO_MANY_BANNERS");
+    }
 }

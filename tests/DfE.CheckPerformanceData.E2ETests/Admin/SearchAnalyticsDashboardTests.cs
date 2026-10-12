@@ -16,6 +16,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Admin;
 // tests/DfE.CheckPerformanceData.E2ETests/Snapshots/search-ux/ so a reviewer can
 // eyeball them before merging. Linux-only for browser install parity; visual assertions
 // on other OSes drift on font metrics.
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
@@ -25,6 +26,7 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
     // --- Dashboard: tiles + tooltips + chart axes + bucket selector + stacked cards ---
 
     [SkippableFact]
+    [Trait("Category", "Smoke")]
     public async Task Dashboard_RendersTilesTooltipsChartAxesBucketSelectorAndStackedCards()
     {
         Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux),

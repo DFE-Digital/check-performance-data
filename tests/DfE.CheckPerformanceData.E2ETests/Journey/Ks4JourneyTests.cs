@@ -2,7 +2,7 @@ using DfE.CheckPerformanceData.E2ETests.Fixtures;
 using DfE.CheckPerformanceData.E2ETests.Helpers;
 using Microsoft.Playwright;
 using Microsoft.Playwright.Xunit;
-using xRetry;
+using DfE.CheckPerformanceData.E2ETests.Retrying;
 
 namespace DfE.CheckPerformanceData.E2ETests.Journey;
 
@@ -11,11 +11,12 @@ namespace DfE.CheckPerformanceData.E2ETests.Journey;
 //   * a future date is blocked with the journey-specific "Date … must be in the past" message
 //     (RemovalJourneyDateRules, run by JourneyValidationService.ValidatePageDates);
 //   * an invalid date (blank/part-filled, non-4-digit year, impossible calendar date) is blocked
-//     with the question's "Enter the date …" message (the scoped ValidateAnswer fallback);
+//     with the question's "Enter the date … in the format dd mm yyyy" message (#544);
 //   * today and any past date are accepted and the journey advances.
 //
 // The date-validation behaviour is what these tests pin; each scenario drives a removal journey
 // to its date page, submits, and asserts either the error summary or advancement.
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class Ks4JourneyTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
@@ -46,7 +47,7 @@ public sealed class Ks4JourneyTests(PlaywrightFixture fixture) : SeedingPageTest
 
     // ── US1: a future removal date is blocked with the journey's exact message ──
 
-    [RetryTheory(3)]
+    [RetryTheory]
     [MemberData(nameof(RemovalJourneyCases))]
     public async Task RemoveFlow_FutureDate_ShowsMustBeInThePast(JourneyCase journey)
     {
@@ -64,7 +65,7 @@ public sealed class Ks4JourneyTests(PlaywrightFixture fixture) : SeedingPageTest
 
     // ── US2: an invalid calendar date is blocked with the journey's own wording ──
 
-    [RetryTheory(3)]
+    [RetryTheory]
     [MemberData(nameof(RemovalJourneyCases))]
     public async Task RemoveFlow_InvalidDate_ShowsEnterTheDateMessage(JourneyCase journey)
     {
@@ -75,12 +76,12 @@ public sealed class Ks4JourneyTests(PlaywrightFixture fixture) : SeedingPageTest
         await ContinueAsync();
 
         await AssertDateBlockedAsync(
-            "Enter the date Alice Smith was removed from your school roll");
+            "Enter the date Alice Smith was removed from your school roll in the format dd mm yyyy");
     }
 
     // ── US3: today and any past date are accepted and the journey advances ──
 
-    [RetryTheory(3)]
+    [RetryTheory]
     [MemberData(nameof(RemovalJourneyCases))]
     public async Task RemoveFlow_TodaysDate_AdvancesToSummary(JourneyCase journey)
     {
@@ -95,8 +96,9 @@ public sealed class Ks4JourneyTests(PlaywrightFixture fixture) : SeedingPageTest
         await AssertAdvancedPastDatePageAsync(journey);
     }
 
-    [RetryTheory(3)]
+    [RetryTheory]
     [MemberData(nameof(RemovalJourneyCases))]
+    [Trait("Category", "Smoke")]
     public async Task RemoveFlow_PastDate_AdvancesToSummary(JourneyCase journey)
     {
         await SeedHelpers.CleanupDevRequestsAsync(Fixture.SeedClient);

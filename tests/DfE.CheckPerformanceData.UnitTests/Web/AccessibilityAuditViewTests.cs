@@ -250,4 +250,102 @@ public sealed class AccessibilityAuditViewTests
 		Assert.Contains("ViewBag.Title = $\"Send {Model.ExerciseLabel} requests for processing\";", view);
 		Assert.Contains("<h1 class=\"govuk-heading-l\">Send @Model.ExerciseLabel requests for processing</h1>", view);
 	}
+
+	// ── #389 Redundant hidden instructions on Provide Evidence ────────────────────────
+
+	[Fact]
+	public void FileUploadPartial_KeepsTheHintVisible_ButDoesNotNameItInTheInputsDescription()
+	{
+		// #389: in our reading of the audit (JAWS on Chrome, unconfirmed with the auditor),
+		// Chrome exposes a native file input as a button, and JAWS, rather than reading its
+		// aria-describedby aloud, tells the user to press JAWS key + Alt + R to hear
+		// "descriptive text", which would have been the hint already visible under the heading.
+		// The hint stays on the page; the input's description names the count line and,
+		// when there is one, the error (QuestionPartialModel.DescribedBy, pinned by
+		// QuestionPartialModelDescribedByTests). An id of fileUpload-hint anywhere in the
+		// partial would be the first step to bringing the detour back.
+		var view = ReadView("Views", "Journey", "_FileUpload.cshtml");
+
+		Assert.Contains("@Model.Question.Hint", view);
+		Assert.DoesNotContain("fileUpload-hint", view);
+		Assert.Contains("aria-describedby=\"@Model.DescribedBy\"", view);
+	}
+
+	// ── #568 Storage browser upload in parts ───────────────────────────────────────────
+
+	[Fact]
+	public void StorageUpload_FileInput_IsDescribedByItsHint()
+	{
+		var view = ReadView("Views", "StorageAdmin", "Container.cshtml");
+		Assert.Contains("id=\"files-hint\"", view);
+		Assert.Matches("<input[^>]*id=\"files\"[^>]*aria-describedby=\"files-hint\"", view);
+	}
+
+	// A live region announces reliably only when it is already in the DOM, empty, before the
+	// script writes to it (the same finding as evidence-upload-validation.js).
+	[Fact]
+	public void StorageUpload_StatusRegion_IsPresentAndEmptyAtLoad()
+	{
+		var view = ReadView("Views", "StorageAdmin", "Container.cshtml");
+		Assert.Contains("<div id=\"upload-status\" class=\"govuk-body\" role=\"status\" aria-live=\"polite\"></div>", view);
+	}
+
+	// Cancel is a real button and the no-JS reader is told how to get the bigger limit.
+	[Fact]
+	public void StorageUpload_HasARealCancelButton_AndANoScriptSentence()
+	{
+		var view = ReadView("Views", "StorageAdmin", "Container.cshtml");
+		Assert.Matches("<button type=\"button\" id=\"upload-cancel\"", view);
+		Assert.Contains("To upload bigger files, turn on JavaScript in your browser.", view);
+	}
+
+	[Fact]
+	public void StorageUpload_ProgressElement_HasAnAccessibleName()
+	{
+		var view = ReadView("Views", "StorageAdmin", "Container.cshtml");
+		Assert.Matches("<progress[^>]*id=\"upload-progress\"[^>]*aria-label=\"Upload progress\"", view);
+	}
+
+	// The native progress element is announced by the status line at 25% steps, so the visible
+	// percentage is hidden from assistive technology to avoid a second, noisy announcement.
+	[Fact]
+	public void StorageUpload_VisiblePercentage_IsHiddenFromAssistiveTechnology()
+	{
+		var view = ReadView("Views", "StorageAdmin", "Container.cshtml");
+		Assert.Matches("<span id=\"upload-percent\"[^>]*aria-hidden=\"true\"", view);
+	}
+
+	// Author display rules beat the browser's [hidden] rule, so idle upload controls need their own.
+	[Fact]
+	public void StorageUpload_HiddenControls_AreHiddenByAScopedRule()
+	{
+		var css = ReadCss();
+		Assert.Contains("#storage-upload-form [hidden]", css);
+	}
+
+	// ── #566 Start-page banners: one region per banner, each with its own accessible name ──
+
+	[Fact]
+	public void HomeBanner_IsARegion_LabelledByItsOwnTitleAndHeading()
+	{
+		var partial = ReadView("Views", "Shared", "Components", "HomeBanners", "_Banner.cshtml");
+
+		Assert.Contains("role=\"region\"", partial);
+		Assert.Contains("data-module=\"govuk-notification-banner\"", partial);
+		// Both ids carry the banner's own id, so several banners on one page never share a label.
+		Assert.Contains("aria-labelledby=\"home-banner-@Model.Id-title home-banner-@Model.Id-heading\"", partial);
+		Assert.Contains("<h2 class=\"govuk-notification-banner__title\" id=\"home-banner-@Model.Id-title\">Important</h2>", partial);
+		Assert.Contains("id=\"home-banner-@Model.Id-heading\"", partial);
+	}
+
+	[Fact]
+	public void StartPage_RendersBannersThroughTheComponent_NotTheOldBetaPartial()
+	{
+		var index = ReadView("Views", "Home", "Index.cshtml");
+
+		Assert.Contains("Component.InvokeAsync(\"HomeBanners\")", index);
+		Assert.DoesNotContain("_BetaBanner", index);
+		var repoRoot = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(ThisFilePath())!, "..", "..", ".."));
+		Assert.False(File.Exists(Path.Combine(repoRoot, "src", "DfE.CheckPerformanceData.Web", "Views", "Shared", "_BetaBanner.cshtml")));
+	}
 }

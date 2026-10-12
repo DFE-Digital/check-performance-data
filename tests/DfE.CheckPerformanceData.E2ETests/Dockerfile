@@ -3,8 +3,9 @@
 # ships .NET 8 SDK only as of v1.62.0).
 #
 # Base image tag MUST track Microsoft.Playwright NuGet version in
-# src/Directory.Packages.props. Chromium binary protocol mismatch otherwise.
-FROM mcr.microsoft.com/playwright/dotnet:v1.62.0-noble
+# tests/DfE.CheckPerformanceData.E2ETests/DfE.CheckPerformanceData.E2ETests.csproj
+# (the tests/ projects are not centrally managed). Chromium binary protocol mismatch otherwise.
+FROM mcr.microsoft.com/playwright/dotnet:v1.63.0-noble
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG DOTNET_CHANNEL=10.0

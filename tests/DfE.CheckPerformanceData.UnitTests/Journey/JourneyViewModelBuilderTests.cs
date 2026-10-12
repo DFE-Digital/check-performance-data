@@ -105,6 +105,18 @@ public class JourneyViewModelBuilderTests
         Assert.Equal("Jane Smith", vm.PupilName);
     }
 
+    // #545: the summary shows the selected pupil's CYPMD ID beside the name.
+    [Fact]
+    public void BuildSummaryVm_SetsPupilCypmdIdFromSelectedPupil()
+    {
+        var journey = JourneyWithHistory(["select-pupil", "q1"]);
+        journey.SelectedPupil = Pupil;
+
+        var vm = _sut.BuildSummaryVm(WindowId, journey, Config);
+
+        Assert.Equal("CYPMD123", vm.PupilCypmdId);
+    }
+
     [Fact]
     public void BuildSummaryVm_BackPageIdIsLastHistoryEntry()
     {
@@ -165,7 +177,7 @@ public class JourneyViewModelBuilderTests
 
         var vm = _sut.BuildSummaryVm(WindowId, journey, mergeConfig);
 
-        Assert.Equal("Jane Smith, 27 July 2010", vm.FirstRecordDisplay);
+        Assert.Equal("Jane Smith 27 July 2010 (CYPMD123)", vm.FirstRecordDisplay);
         Assert.Equal("John Doe 2 February 2010 (CYPMD456)", vm.SecondRecordDisplay);
     }
 

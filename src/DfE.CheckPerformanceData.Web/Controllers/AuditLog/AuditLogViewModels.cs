@@ -46,7 +46,7 @@ public sealed class AuditLogViewModel
 /// One table row. Egress transfer rows: the person from the payload, a turquoise "Data egress" tag,
 /// the output types under the window, and a Success/Failed tag. An egress row with no outcome (the
 /// generic capture's record of the pull, Action "Insert") keeps the turquoise tag with "Run started"
-/// beneath and no status. A window-admin row (AB#301022): the person from the payload, an orange "Window admin" tag, "{exercise} closed early, before scheduled end" under the window, and a Success tag. Every other row: the sign-in subject id (there is no user directory to
+/// beneath and no status. A window-admin row (AB#301022): the person from the payload, an orange "Window admin" tag, "{exercise} closed early, before scheduled end" under the window, and a Success tag. An automatic hand-over (AB#302158) is a window-admin row too: "System", the same orange tag, "{exercise} requests sent for processing automatically: N requests sent, M drafts cancelled" under the window, and a Success tag. Every other row: the sign-in subject id (there is no user directory to
 /// name it), a grey activity tag with the action beneath, no status.
 /// </summary>
 public sealed record AuditLogRowViewModel(
@@ -71,7 +71,9 @@ public sealed record AuditLogRowViewModel(
     public static AuditLogRowViewModel From(AuditLogRow row)
     {
         var isEgress = row.EntityType == AuditActivities.Egress;
-        var isClosedEarly = row.EntityType == AuditActivities.WindowAdmin && row.Action == AuditActivities.ClosedEarlyAction;
+        var isWindowAdmin = row.EntityType == AuditActivities.WindowAdmin;
+        var isClosedEarly = isWindowAdmin && row.Action == AuditActivities.ClosedEarlyAction;
+        var isAutomaticHandOver = isWindowAdmin && row.Action == AuditActivities.RequestsSentAutomaticallyAction;
         var carriesWindow = isEgress || row.WindowId is not null;
         return new AuditLogRowViewModel(
             row.Id,
@@ -80,11 +82,14 @@ public sealed record AuditLogRowViewModel(
             row.Action,
             row.UserName ?? row.UserId ?? "System",
             AuditActivities.Label(row.EntityType),
-            isEgress ? "govuk-tag--turquoise" : row.EntityType == AuditActivities.WindowAdmin ? "govuk-tag--orange" : "govuk-tag--grey",
-            isEgress ? (row.Outcome is null ? EgressActionLabel(row.Action) : null) : isClosedEarly ? null : row.Action,
+            isEgress ? "govuk-tag--turquoise" : isWindowAdmin ? "govuk-tag--orange" : "govuk-tag--grey",
+            isEgress ? (row.Outcome is null ? EgressActionLabel(row.Action) : null)
+                : isClosedEarly || isAutomaticHandOver ? null
+                : row.Action,
             row.WindowTitle ?? (carriesWindow ? UnknownWindow : string.Empty),
             isEgress && row.OutputTypes.Count > 0 ? string.Join(", ", row.OutputTypes.Select(LabelOutputType))
                 : isClosedEarly ? $"{LabelExercise(row.ExerciseType)} closed early, before scheduled end"
+                : isAutomaticHandOver ? AutomaticHandOverDetail(row)
                 : null,
             row.TimestampUtc,
             row.Outcome is { } outcome ? AuditActivities.OutcomeLabel(outcome) : null,
@@ -95,6 +100,17 @@ public sealed record AuditLogRowViewModel(
                 _ => null
             });
     }
+
+    // FLAGGED copy (AB#302158). A payload that cannot be read still says what happened.
+    private static string AutomaticHandOverDetail(AuditLogRow row)
+    {
+        var lead = $"{LabelExercise(row.ExerciseType)} requests sent for processing automatically";
+        return row.RequestsSent is { } sent && row.DraftsCancelled is { } cancelled
+            ? $"{lead}: {Count(sent, "request")} sent, {Count(cancelled, "draft")} cancelled"
+            : lead;
+    }
+
+    private static string Count(int count, string noun) => count == 1 ? $"1 {noun}" : $"{count} {noun}s";
 
     // FLAGGED copy (AB#301022). A payload that cannot be read still says what happened.
     private static string LabelExercise(string? raw) =>

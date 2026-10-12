@@ -81,14 +81,6 @@ public static class RemovalJourneyDateRules
     /// <summary>The roll-removal date shared by scenarios 002, 003, 004 and 006.</summary>
     public const string DateRemovedFromRoll = "date-removed-from-roll";
 
-    /// <summary>
-    /// The three removal date question ids. Used to scope the invalid-date message
-    /// fallback in <see cref="JourneyValidationService.ValidateAnswer"/> to these
-    /// questions only, so the excluded EAL page keeps its own wording.
-    /// </summary>
-    public static readonly IReadOnlySet<string> RemovalDateQuestionIds = new HashSet<string>(
-        [DatePupilExcluded, DatePermanentlyExcluded, DateRemovedFromRoll],
-        StringComparer.Ordinal);
 
     // ── Future-date message templates (exact spec wording, no leading "The") ──
 

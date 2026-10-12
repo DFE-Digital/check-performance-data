@@ -60,9 +60,10 @@ public sealed class DevEgressController(
                 PupilId = pupilId, PupilUpn = "A860407000011", PupilFirstname = forename, PupilSurname = surname,
                 Submitted = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified), SubmittedById = Guid.NewGuid(),
                 SubmittedByName = "Dev Egress Harness", SubmittedByEmail = "dev.egress@education.gov.uk",
-                Status = RequestStatus.SubmittedCommitted, ReferenceNumber = reference, RequestType = RequestType.Amendment,
+                Status = RequestStatus.Submitted, ReferenceNumber = reference, RequestType = RequestType.Amendment,
                 RequestTypeDescription = type == EgressOutputType.NewLearners ? "Add" : $"Remove - {reason ?? "pupil-died"}",
-                AmendmentType = EgressOutputTypes.WhatToChangeFor(type), CrmId = ticketId?.ToString()
+                AmendmentType = EgressOutputTypes.WhatToChangeFor(type), CrmId = ticketId?.ToString(),
+                ProcessingStatus = ticketId is null ? ProcessingStatus.Decided : ProcessingStatus.TicketCreated
             });
 
             var journey = new RequestState

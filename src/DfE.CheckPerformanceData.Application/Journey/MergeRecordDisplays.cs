@@ -6,17 +6,16 @@ namespace DfE.CheckPerformanceData.Application.Journey;
 /// <summary>
 /// Single source of truth for the two record displays shown when merging duplicate
 /// pupils. Both the in-journey summary and the submitted-request view delegate here so
-/// the format can never drift between surfaces.
+/// the format can never drift between surfaces. Both records read "Name DOB (CYPMD ID)" (#545):
+/// two duplicate records often share a name and date of birth, so the ID is what tells them apart.
 /// </summary>
 public static class MergeRecordDisplays
 {
-    public static string First(PupilDto pupil)
-    {
-        var dob = FormatDob(pupil.DateOfBirth);
-        return $"{pupil.Firstname} {pupil.Surname}, {dob}".Trim();
-    }
+    public static string First(PupilDto pupil) => Format(pupil);
 
-    public static string Second(PupilDto pupil)
+    public static string Second(PupilDto pupil) => Format(pupil);
+
+    private static string Format(PupilDto pupil)
     {
         var dob = FormatDob(pupil.DateOfBirth);
         var name = $"{pupil.Firstname} {pupil.Surname}".Trim();

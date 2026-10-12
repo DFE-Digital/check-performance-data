@@ -7,17 +7,32 @@
     // it is stale.
     var items = picker.ItemsFor(Model.PageIds, Model.Scope);
     var i = 0;
+    // Lowercased label + path as displayed, with its leading slash (or the note) that the filter script matches against; Razor HTML-encodes it.
+    string Haystack(PageScopePickerItem item) => (item.Path is not null ? $"{item.Label} /{item.Path}" : $"{item.Label} {item.Note}").ToLowerInvariant();
 }
-<div class="govuk-form-group">
+<div class="govuk-form-group" data-cpb-scope-picker>
     <input type="hidden" name="scopePicker" value="true" />
     <fieldset class="govuk-fieldset" aria-describedby="@Model.IdPrefix-hint">
         <legend class="govuk-fieldset__legend">@Model.Legend</legend>
         <div id="@Model.IdPrefix-hint" class="govuk-hint">@Model.Hint</div>
+        @* Filter box: rendered hidden and inert; cms-page-scope-filter.js reveals it. Never posted (no name). *@
+        <div class="govuk-!-margin-bottom-3" data-cpb-scope-filter hidden>
+            <label class="govuk-label govuk-label--s" for="@Model.IdPrefix-filter">Filter pages</label>
+            <input class="govuk-input govuk-input--width-20" id="@Model.IdPrefix-filter" type="search" autocomplete="off"
+                   aria-describedby="@Model.IdPrefix-status" />
+            <div class="govuk-checkboxes govuk-checkboxes--small govuk-!-margin-top-2">
+                <div class="govuk-checkboxes__item">
+                    <input class="govuk-checkboxes__input" id="@Model.IdPrefix-selected-only" type="checkbox" data-cpb-scope-selected-only />
+                    <label class="govuk-label govuk-checkboxes__label" for="@Model.IdPrefix-selected-only">Show only selected pages</label>
+                </div>
+            </div>
+            <p class="govuk-body-s govuk-!-margin-top-2 govuk-!-margin-bottom-0" id="@Model.IdPrefix-status" role="status" aria-live="polite" data-cpb-scope-status></p>
+        </div>
         <div class="govuk-checkboxes govuk-checkboxes--small cpb-scope-picker" data-module="govuk-checkboxes">
             @foreach (var item in items)
             {
                 var id = $"{Model.IdPrefix}-{i++}";
-                <div class="govuk-checkboxes__item cpb-scope-picker__item" style="margin-left: @(item.Depth * 24)px">
+                <div class="govuk-checkboxes__item cpb-scope-picker__item" data-filter="@Haystack(item)" style="margin-left: @(item.Depth * 24)px">
                     <input class="govuk-checkboxes__input" id="@id" name="scopePages" type="checkbox"
                            value="@item.Value" @(item.Ticked ? "checked" : null) />
                     <label class="govuk-label govuk-checkboxes__label" for="@id">
@@ -33,5 +48,6 @@
                 </div>
             }
         </div>
+        <p class="govuk-body" data-cpb-scope-empty hidden>No pages match your filter.</p>
     </fieldset>
 </div>

@@ -15,6 +15,7 @@ using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Application.Search;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace DfE.CheckPerformanceData.Application;
 
@@ -22,11 +23,19 @@ public static class DependencyManager
 {
     public static IServiceCollection AddApplicationDependencies(this IServiceCollection services)
     {
+        // The clock every exercise and window gate below reads (#535): UK time, whatever zone the
+        // container runs in. Replaced, not TryAdd-ed: ASP.NET's AddAuthentication() has already
+        // registered the system clock by the time the web host calls this, and a TryAdd after it
+        // does nothing.
+        services.RemoveAll<TimeProvider>();
+        services.AddSingleton<TimeProvider>(UkTimeProvider.Instance);
+
         services.AddScoped<IClaimsEnrichmentService, ClaimsEnrichmentService>();
         services.AddScoped<Dashboard.IOrganisationLoginRecorder, Dashboard.OrganisationLoginRecorder>();
         services.AddScoped<Dashboard.IDashboardService, Dashboard.DashboardService>();
         services.AddScoped<IContentBlockService, ContentBlockService>();
         services.AddScoped<IContentBlockSearchService, ContentBlockSearchService>();
+        services.AddScoped<HomeBanners.IHomeBannerService, HomeBanners.HomeBannerService>();
         services.AddScoped<ISiteSearchService, SiteSearchService>();
         services.AddScoped<IAdminAccessPolicy, AdminAccessPolicy>();
         services.AddScoped<DefaultAdminAccessSeeder>();
@@ -34,7 +43,7 @@ public static class DependencyManager
         services.AddScoped<IPageNodeContentEditor, PageNodeContentEditor>();
         services.AddScoped<DefaultPageNodeSeeder>();
         services.AddScoped<SamplePageNodeSeeder>();
-        services.AddScoped<TestFixturePageNodeSeeder>();
+        services.AddScoped<ContentStaging.ManifestContentImporter>();
         services.AddScoped<Analytics.SampleSearchDataSeeder>();
         services.AddScoped<ContentStaging.IContentStagingService, ContentStaging.ContentStagingService>();
         services.AddScoped<ContentStaging.ContentBundleSanitiser>();
@@ -93,6 +102,9 @@ services.AddScoped<IJourneyCondition, SchoolIsNotIndependentCondition>();
         // AB#301022: ends an open exercise before its scheduled end. The admin Close action runs
         // this, then ICloseExerciseService above.
         services.AddScoped<WindowManagement.IExerciseEarlyClosureService, WindowManagement.ExerciseEarlyClosureService>();
+        // AB#302158: runs ICloseExerciseService by itself two hours after an exercise ends. The
+        // web host's ExerciseHandOverJob drives it; nothing in a request path calls it.
+        services.AddScoped<WindowManagement.IAutomaticExerciseHandOver, WindowManagement.AutomaticExerciseHandOver>();
         // AB#296648: the single derivation of "the second late results file has landed".
         services.AddScoped<ResultsEnquiry.ILateResultsAvailability, ResultsEnquiry.LateResultsAvailability>();
 

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Azure.Storage.Blobs;
+using DfE.CheckPerformanceData.Application.Common;
 using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
@@ -45,7 +46,9 @@ public static class BlobStorageExtensions
         services.Configure<Infrastructure.RulesEngine.BlobRulesProviderOptions>(
             configuration.GetSection(
                 Infrastructure.RulesEngine.BlobRulesProviderOptions.SectionName));
-        services.TryAddSingleton(TimeProvider.System);
+        // The UK clock, not the system one (#535): exercise dates are UK wall-clock values and
+        // the containers run on UTC.
+        services.TryAddSingleton<TimeProvider>(UkTimeProvider.Instance);
         services.AddScoped<
             Application.RulesConfig.IRulesConfigStore,
             Infrastructure.RulesEngine.BlobRulesConfigStore>();

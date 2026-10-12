@@ -199,6 +199,13 @@ var services = new ServiceCollection();
             RemovalJourneyDateRules.StudentDiedPageId
         ];
 
+        string[] removalDateQuestionIds =
+        [
+            RemovalJourneyDateRules.DatePupilExcluded,
+            RemovalJourneyDateRules.DatePermanentlyExcluded,
+            RemovalJourneyDateRules.DateRemovedFromRoll
+        ];
+
         foreach (var pageId in removalPageIds)
         {
             var page = AllFlowPages().SingleOrDefault(p => p.Page.Id == pageId);
@@ -208,7 +215,7 @@ var services = new ServiceCollection();
 
             var inScopeDateQuestions = page.Page!.Questions
                 .Where(q => q.Type == QuestionType.Date
-                    && RemovalJourneyDateRules.RemovalDateQuestionIds.Contains(q.Id))
+                    && removalDateQuestionIds.Contains(q.Id))
                 .ToList();
 
             Assert.True(inScopeDateQuestions.Count == 1,
@@ -219,7 +226,7 @@ var services = new ServiceCollection();
 
         // The three date question ids must all be covered by the config, so a typo'd constant
         // (or a renamed question) cannot silently leave one rule without a target page.
-        foreach (var questionId in RemovalJourneyDateRules.RemovalDateQuestionIds)
+        foreach (var questionId in removalDateQuestionIds)
         {
             var page = AllFlowPages().FirstOrDefault(p =>
                 p.Page.Questions.Any(q => q.Id == questionId));
@@ -533,6 +540,29 @@ var services = new ServiceCollection();
     }
 
     /// <summary>
+    /// #544: a date error states the expected format, in the same words on every journey.
+    /// <c>JourneyValidationService</c> builds it from the question's <c>validationFailure</c>
+    /// followed by "in the format dd mm yyyy", so every date question must carry one (an optional
+    /// one too: a part-filled optional date is still checked), and must not repeat the format
+    /// itself or the error says it twice.
+    /// </summary>
+    [Fact]
+    public void DateQuestions_HaveAValidationFailure_ThatDoesNotSpellOutTheFormat()
+    {
+        foreach (var (file, question) in AllFlowQuestions())
+        {
+            if (question.Type != QuestionType.Date) continue;
+
+            Assert.False(string.IsNullOrWhiteSpace(question.ValidationFailure),
+                $"{file}: date question '{question.Id}' has no validationFailure, so its error " +
+                $"falls back to a generic message that does not name the date.");
+            Assert.False(question.ValidationFailure!.Contains("dd mm yyyy", StringComparison.OrdinalIgnoreCase),
+                $"{file}: date question '{question.Id}' spells out the format in its validationFailure " +
+                $"('{question.ValidationFailure}'). The validator appends it, so this shows it twice.");
+        }
+    }
+
+    /// <summary>
     /// An optional question's title must not spell out "(Optional)" — <c>JourneyViewModelBuilder</c>
     /// appends it, so a title containing it renders "… (Optional) (Optional)".
     /// </summary>
@@ -592,8 +622,76 @@ var services = new ServiceCollection();
         Assert.Equal(3, question.Options!.Count);
     }
 
+    /// <summary>
+    /// The comments box on a KS4 June evidence page adds brief context to the evidence, not an
+    /// extended explanation, so it takes at most 500 characters (#516). Other windows keep theirs.
+    /// </summary>
+    [Fact]
+    public void Ks4JuneEvidencePages_LimitTheirCommentsTo500Characters()
+    {
+        var textAreas = AllFlowPages()
+            .Where(p => p.File.EndsWith("_KS4June.json") && p.Page.Type == PageType.EvidenceUpload)
+            .SelectMany(p => p.Page.Questions
+                .Where(q => q.Type == QuestionType.TextArea)
+                .Select(q => (p.File, PageId: p.Page.Id, Question: q)))
+            .ToList();
+
+        Assert.NotEmpty(textAreas);
+        foreach (var (file, pageId, question) in textAreas)
+            Assert.True(question.CharacterLimit == 500,
+                $"{file}: '{pageId}/{question.Id}' allows {question.CharacterLimit} characters, not 500.");
+    }
+
     private static IEnumerable<(string File, Question Question)> AllFlowQuestions() =>
         AllFlowPages().SelectMany(p => p.Page.Questions.Select(q => (p.File, q)));
+
+    /// <summary>
+    /// The KS4 merge journey's second-record page labels itself as a CYPMD-ID search
+    /// ("What is the CYPMD ID of the second duplicate record to be merged?" / "Start typing ID to
+    /// search records"), so the config has to narrow its matching to that field. Asserted against
+    /// the shipped file rather than an in-memory config because nothing sets
+    /// <c>UnmappedMemberHandling</c> on the deserialiser — a misspelt key is dropped silently, so
+    /// only a test that reads the real file catches it.
+    /// </summary>
+    [Fact]
+    public void MergeKs4June_MatchPage_NarrowsTheSearchToTheCypmdId()
+    {
+        var page = AllFlowPages().Single(p => p.File == "Merge_KS4June.json" && p.Page.Id == "select-match-pupil").Page;
+
+        Assert.Equal(PupilSearchField.CypmdId, page.PupilSearchField);
+    }
+
+    /// <summary>
+    /// The narrowing is a property of one page, so nothing else may set it — least of all the
+    /// 16-19 merge journey, whose second-record page carries the same shape and the same copy and is
+    /// explicitly out of scope (#510). This is the test that stops the follow-up happening by
+    /// accident: when it is done, this is the assertion that has to change.
+    /// </summary>
+    [Fact]
+    public void NoPageOtherThanTheKs4MergeMatchPage_ConfiguresASearchField()
+    {
+        var configured = AllFlowPages()
+            .Where(p => p.Page.PupilSearchField is not null)
+            .Select(p => $"{p.File}:{p.Page.Id}")
+            .ToList();
+
+        Assert.Equal(["Merge_KS4June.json:select-match-pupil"], configured);
+    }
+
+    /// <summary>
+    /// AB#304118 / FR-003. The copy is what made this page's behaviour a defect rather than a
+    /// design: the label and hint already named the CYPMD ID while the search matched names. They
+    /// are pinned verbatim so a later "improvement" cannot quietly reword the page the fix was
+    /// built to match.
+    /// </summary>
+    [Fact]
+    public void MergeKs4June_MatchPage_KeepsItsCyPmdIdCopyVerbatim()
+    {
+        var page = AllFlowPages().Single(p => p.File == "Merge_KS4June.json" && p.Page.Id == "select-match-pupil").Page;
+
+        Assert.Equal("What is the CYPMD ID of the second duplicate record to be merged?", page.Title);
+        Assert.Equal("Start typing ID to search records", page.Subheading);
+    }
 
     private static IEnumerable<(string File, JourneyPage Page)> AllFlowPages()
     {

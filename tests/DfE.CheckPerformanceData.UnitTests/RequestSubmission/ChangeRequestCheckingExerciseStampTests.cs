@@ -43,7 +43,7 @@ public sealed class ChangeRequestCheckingExerciseStampTests
         _currentUser.Email.Returns("ada@school.test");
 
         _sut = new RequestService(
-            _flowService, _stateBlob, _repository, _currentUser,
+            _flowService, _stateBlob, Substitute.For<IRequestBlobClient>(), _repository, _currentUser,
             NullLogger<RequestService>.Instance, Substitute.For<IQueueService>(),
             Substitute.For<IRequestNotificationService>(), _pupilData,
             new CheckingExerciseService(TimeProvider.System));

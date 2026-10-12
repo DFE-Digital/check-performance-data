@@ -256,7 +256,7 @@ public class AmendmentRequestsServiceTests
             PupilFirstname = "Noor", PupilSurname = "Farah",
             RequestType = RequestType.ResultsEnquiry,
             RequestTypeDescription = "Results enquiry - Incorrect grade",
-            ReferenceNumber = "REF-2", Status = RequestStatus.SubmittedUnCommitted, Submitted = DateTime.UtcNow
+            ReferenceNumber = "REF-2", Status = RequestStatus.Submitted, Submitted = DateTime.UtcNow
         };
         _requestRepo.GetSubmittedResultsEnquiriesAsync(WindowId, 100001L).Returns([enquiry]);
         _blobClient.GetAsync(WindowId, "REF-2").Returns(new RequestState
@@ -328,7 +328,7 @@ public class AmendmentRequestsServiceTests
         RequestType = RequestType.ResultsEnquiry,
         RequestTypeDescription = "Results enquiry - Missing qualification",
         ReferenceNumber = reference,
-        Status = RequestStatus.SubmittedUnCommitted,
+        Status = RequestStatus.Submitted,
         Submitted = submitted ?? DateTime.UtcNow
     };
 
@@ -436,7 +436,7 @@ public class AmendmentRequestsServiceTests
     private static SubmittedRequestData SubmittedData(
         string? firstname, string? surname, string requestType,
         string referenceNumber, DateTime submitted,
-        RequestStatus status = RequestStatus.SubmittedUnCommitted) => new()
+        RequestStatus status = RequestStatus.Submitted) => new()
     {
         PupilFirstname = firstname,
         PupilSurname = surname,

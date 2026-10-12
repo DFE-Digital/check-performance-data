@@ -1,5 +1,7 @@
 using System.Text;
 using System.Text.Json;
+using DfE.CheckPerformanceData.Application.Common;
+using DfE.CheckPerformanceData.Application.UnitTests.WindowManagement;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
@@ -123,6 +125,45 @@ public class ExerciseDatesControllerTests
         Assert.True(controller.ModelState.ErrorCount > 0);
     }
 
+    // #535: "today" is the UK date. 23:30 UTC on 14 July is 00:30 on 15 July in the UK, so the
+    // 14th is already yesterday there although UTC is still on it.
+    [Fact]
+    public void New_post_rejects_yesterdays_UK_date_while_UTC_is_still_on_it()
+    {
+        CheckingWindowDraft draft = Draft(CheckingExerciseType.PupilData);
+        ExerciseDatesController controller = Build(Substitute.For<IWindowService>(),
+            new DefaultHttpContext { Session = SessionWithDraft(draft) },
+            new UkClockAt("2026-07-14T23:30:00Z"));
+        controller.Url = _urlHelper;
+
+        IActionResult result = controller.Submit(CheckingExerciseType.PupilData, new ExerciseDatesItem
+        {
+            StartDate = new DateTime(2026, 7, 14),
+            EndDate = new DateTime(2026, 8, 14)
+        });
+
+        Assert.IsType<ViewResult>(result);
+        Assert.True(controller.ModelState.ContainsKey(nameof(ExerciseDatesItem.StartDate)));
+    }
+
+    [Fact]
+    public void New_post_accepts_todays_UK_date_at_that_same_moment()
+    {
+        CheckingWindowDraft draft = Draft(CheckingExerciseType.PupilData);
+        ExerciseDatesController controller = Build(Substitute.For<IWindowService>(),
+            new DefaultHttpContext { Session = SessionWithDraft(draft) },
+            new UkClockAt("2026-07-14T23:30:00Z"));
+        controller.Url = _urlHelper;
+
+        IActionResult result = controller.Submit(CheckingExerciseType.PupilData, new ExerciseDatesItem
+        {
+            StartDate = new DateTime(2026, 7, 15),
+            EndDate = new DateTime(2026, 8, 15)
+        });
+
+        Assert.IsType<RedirectResult>(result);
+    }
+
     [Fact]
     public void New_post_rejects_an_end_date_before_the_start_date()
     {
@@ -216,8 +257,9 @@ public class ExerciseDatesControllerTests
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
-    private static ExerciseDatesController Build(IWindowService windowService, HttpContext httpContext) =>
-        new(windowService)
+    private static ExerciseDatesController Build(
+        IWindowService windowService, HttpContext httpContext, TimeProvider? clock = null) =>
+        new(windowService, clock ?? UkTimeProvider.Instance)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext }
         };

@@ -1,4 +1,3 @@
-using Castle.Core.Logging;
 using DfE.CheckPerformanceData.Application.ZendeskClient;
 using DfE.CheckPerformanceData.Infrastructure.Mappers;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient;
@@ -6,7 +5,6 @@ using DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Microsoft.VisualStudio.TestPlatform.CommunicationUtilities;
 using NSubstitute;
 using NSubstitute.ReturnsExtensions;
 

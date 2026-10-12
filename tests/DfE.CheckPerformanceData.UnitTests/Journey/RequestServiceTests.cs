@@ -50,7 +50,7 @@ public class RequestServiceTests
             EndDate = DateTime.UtcNow.AddDays(20)
         });
 
-        _sut = new RequestService(_flowService, _requestStateBlobClient, _requestRepository, _currentUser, _logger, _queueService, _requestNotificationService, _checkYourPupilDataService,
+        _sut = new RequestService(_flowService, _requestStateBlobClient, Substitute.For<IRequestBlobClient>(), _requestRepository, _currentUser, _logger, _queueService, _requestNotificationService, _checkYourPupilDataService,
             new CheckingExerciseService(TimeProvider.System));
     }
 
@@ -758,7 +758,7 @@ public class RequestServiceTests
     public async Task DeleteAsync_WhenSubmitted_WithdrawsWithoutHardDelete()
     {
         _requestRepository.GetAmendmentRequestAsync(WindowId, 100000L, "REF001")
-            .Returns(AmendmentRow(RequestStatus.SubmittedUnCommitted, "Jane", "Smith"));
+            .Returns(AmendmentRow(RequestStatus.Submitted, "Jane", "Smith"));
         _checkYourPupilDataService.GetCheckingWindowAsync(WindowId)
             .Returns(new CheckingWindowDto { Id = WindowId, Title = "KS4 June", KeyStage = KeyStages.KS4, CheckingWindowType = CheckingWindowType.KS4June, StartDate = DateTime.UtcNow, EndDate = new(2026, 6, 26, 17, 0, 0) });
 
@@ -776,7 +776,7 @@ public class RequestServiceTests
         _currentUser.Email.Returns("withdrew@education.gov.uk");
         var before = DateTime.UtcNow;
         _requestRepository.GetAmendmentRequestAsync(WindowId, 100000L, "REF001")
-            .Returns(AmendmentRow(RequestStatus.SubmittedUnCommitted, "Jane", "Smith"));
+            .Returns(AmendmentRow(RequestStatus.Submitted, "Jane", "Smith"));
         _checkYourPupilDataService.GetCheckingWindowAsync(WindowId)
             .Returns(new CheckingWindowDto { Id = WindowId, Title = "KS4 June", KeyStage = KeyStages.KS4, CheckingWindowType = CheckingWindowType.KS4June, StartDate = DateTime.UtcNow, EndDate = new(2026, 6, 26, 17, 0, 0) });
 
@@ -805,7 +805,7 @@ public class RequestServiceTests
     public async Task DeleteAsync_WhenAmendment_DelegatesAmendmentWithdrawnNotification()
     {
         _requestRepository.GetAmendmentRequestAsync(WindowId, 100000L, "REF001")
-            .Returns(AmendmentRow(RequestStatus.SubmittedUnCommitted, "Jane", "Smith"));
+            .Returns(AmendmentRow(RequestStatus.Submitted, "Jane", "Smith"));
         _checkYourPupilDataService.GetCheckingWindowAsync(WindowId)
             .Returns(new CheckingWindowDto { Id = WindowId, Title = "KS4 June", KeyStage = KeyStages.KS4, CheckingWindowType = CheckingWindowType.KS4June, StartDate = DateTime.UtcNow, EndDate = new(2026, 6, 26, 17, 0, 0) });
 
@@ -823,7 +823,7 @@ public class RequestServiceTests
             PupilSurname = "Smith",
             RequestType = RequestType.ConfirmCorrect,
             RequestTypeDescription = "Confirm Pupil Data Declaration",
-            Status = RequestStatus.SubmittedUnCommitted,
+            Status = RequestStatus.Submitted,
             ReferenceNumber = "REF001"
         };
         _requestRepository.GetAmendmentRequestAsync(WindowId, 100000L, "REF001")

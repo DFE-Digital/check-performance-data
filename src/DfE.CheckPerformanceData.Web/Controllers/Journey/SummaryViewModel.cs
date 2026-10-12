@@ -10,6 +10,9 @@ public sealed class SummaryViewModel
     public required WhatToChange WhatToChange { get; init; }
     public required string PupilName { get; init; }
 
+    /// <summary>#545: the selected pupil's CYPMD ID, shown after the name. Empty on an Add journey.</summary>
+    public string? PupilCypmdId { get; init; }
+
     /// <summary>
     /// The window's word for a learner, from <c>RequestState.LearnerNoun</c> — "student" on 16-19.
     /// Required rather than defaulted: a summary that quietly says "pupil" on a 16-19 request is
@@ -115,6 +118,11 @@ public sealed class SummaryViewModel
                 // actionless duplicate of them adds nothing.
                 lines.Add(new($"{LearnerNoun.SingularCapitalised} name", PupilName, PrimaryPupilPageId,
                     false, $"{LearnerNoun.Singular} name"));
+
+                // No Change link: the ID changes only by choosing another pupil, which is the
+                // name row's link.
+                if (!string.IsNullOrEmpty(PupilCypmdId))
+                    lines.Add(new("CYPMD ID", PupilCypmdId, null, false, null));
             }
 
             foreach (var row in Rows)

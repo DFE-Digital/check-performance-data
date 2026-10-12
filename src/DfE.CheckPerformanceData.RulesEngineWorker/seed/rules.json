@@ -1,6 +1,6 @@
 {
-  "version": "2026.09.30-01",
-  "updatedAt": "2026-09-30T12:00:00Z",
+  "version": "2026.10.02-01",
+  "updatedAt": "2026-10-02T12:00:00Z",
   "outcomes": [
 
     {
@@ -90,6 +90,14 @@
       "label": "Merge pupils",
       "rules": [
         { "id": "MRG-DEF", "status": "Scrutiny", "when": "otherwise" }
+      ]
+    },
+
+    {
+      "key": "AddPupil",
+      "label": "Add a pupil",
+      "rules": [
+        { "id": "ADD-DEF", "status": "Scrutiny", "when": "otherwise" }
       ]
     },
 

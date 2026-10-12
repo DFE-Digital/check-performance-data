@@ -32,16 +32,53 @@ on:
   pull_request:
     branches:
       - main
-    types: [opened, reopened, synchronize, labeled]
+    types: [opened, reopened, synchronize, labeled, unlabeled]
 
 env:
   TERRAFORM_BASE: terraform/application
   HEALTHCHECK_CMD: "healthcheck"
 
 jobs:
+  duplicate:
+    name: Check for a later run
+    # Opening a pull request with a label already on it is two events, so two runs for the
+    # same commit. They queue, because of the concurrency group above. The first run leaves
+    # the work to the one waiting behind it: every other job on a pull request needs the
+    # build, so they are all skipped with it. Otherwise the commit is built, deployed and
+    # tested twice, and its author is told twice about a failure.
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+    outputs:
+      superseded: ${{ steps.check.outputs.superseded }}
+    steps:
+      - name: Look for another run of this commit
+        id: check
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          # Only a run for this same pull request counts, and only one that has not started:
+          # two runs that could each see the other would both stand aside and nothing would
+          # be built. If the list cannot be read, carry on and build.
+          waiting=$(gh api --method GET "repos/$GH_REPO/actions/workflows/build-and-deploy.yml/runs" \
+            -f head_sha="$SHA" -f branch="$BRANCH" -f event=pull_request \
+            --jq "[.workflow_runs[] | select(.id != $RUN_ID and .head_repository.full_name == \"$HEAD_REPO\"
+                   and (.status | IN(\"completed\", \"in_progress\") | not))] | length") || waiting=0
+          if (( waiting > 0 )); then
+            echo "Another run for $SHA is waiting. Leaving the build to it."
+            echo "superseded=true" >> "$GITHUB_OUTPUT"
+          fi
+
   build:
     name: Build
-    if: ${{ github.event_name != 'workflow_dispatch' }}
+    if: ${{ github.event_name != 'workflow_dispatch' && needs.duplicate.outputs.superseded != 'true' }}
+    needs: [duplicate]
     env:
       DOCKER_REPOSITORY: ghcr.io/dfe-digital/check-performance-data
       WORKER_DOCKER_REPOSITORY: ghcr.io/dfe-digital/check-performance-data-worker
@@ -86,7 +123,15 @@ jobs:
           snyk-token: ${{ secrets.SNYK_TOKEN }}
 
   e2e:
-    name: E2E Tests
+    name: E2E smoke tests
+    # The smoke subset only (Category=Smoke): a few minutes to show that the review app is up
+    # and that each area of the service and each journey still works. The whole suite runs
+    # afterwards in its own workflow, e2e.yml, which is not one of the pull request's checks
+    # and reports in a comment on the pull request.
+    #
+    # When the smoke set fails, a comment on the pull request names the failed tests and
+    # mentions whoever opened it, so that GitHub notifies them.
+    #
     # Only runs against the per-PR review app. The main-branch `deploy` job uses a strategy
     # matrix [development, qa, preproduction, production] with max-parallel: 1 and exposes
     # environment_url as a job-level output; that output is overwritten by each matrix entry
@@ -97,8 +142,16 @@ jobs:
     needs: [deploy-review-app]
     if: needs.deploy-review-app.result == 'success'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     env:
       CPD_E2E_BASE_URL: ${{ needs.deploy-review-app.outputs.environment_url }}
+      # Failure-gated Playwright traces (SeedingPageTest writes one zip per failing
+      # test here; the Upload failure traces step below pulls them into an artifact).
+      # Absolute: the testhost resolves a relative value against its own CWD (the
+      # compiled output dir), which would orphan the zips away from the upload step.
+      CPD_E2E_TRACES_DIR: ${{ github.workspace }}/e2e-traces
 
     steps:
       - uses: actions/checkout@v4
@@ -111,7 +164,7 @@ jobs:
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('src/Directory.Packages.props') }}
+          key: ${{ runner.os }}-playwright-${{ hashFiles('tests/DfE.CheckPerformanceData.E2ETests/DfE.CheckPerformanceData.E2ETests.csproj') }}
 
       - name: Build E2E test project
         run: dotnet build tests/DfE.CheckPerformanceData.E2ETests/ -c Release
@@ -119,14 +172,39 @@ jobs:
       - name: Install Playwright browsers
         run: pwsh tests/DfE.CheckPerformanceData.E2ETests/bin/Release/net10.0/playwright.ps1 install --with-deps chromium
 
-      - name: Run E2E tests
-        # Skip visual regression: baselines are captured against the local containerised
-        # Linux-Chromium web. The deployed AKS review app serves a different surface
-        # (fonts, CSP, seed timing) so identical pixels are not expected. The checks are
-        # also gated off by default in code (CPD_E2E_VISUAL_REGRESSION); this filter is
-        # kept so the intent is visible in the pipeline rather than only at the call site.
-        # To run them deliberately: `make test-e2e-visual`.
-        run: dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --configuration Release --no-build --filter "Category!=VisualRegression"
+      - name: Run E2E smoke tests
+        run: >-
+          dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --configuration Release --no-build
+          --filter "Category=Smoke"
+          --logger "trx;LogFileName=e2e-smoke.trx" --results-directory TestResults
+
+      # A failure gets a new comment that mentions the author, because GitHub notifies people
+      # of a new comment and not of an edit. A pass only tidies up: it edits the comment an
+      # earlier failure left, and says nothing if there is none.
+      - name: Tell the author when the smoke tests fail
+        if: success() || failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          COMMENT_MARKER: "<!-- e2e-smoke-tests-result -->"
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          pwsh scripts/e2e-summary.ps1 -ResultsFile TestResults/e2e-smoke.trx -OutFile summary.md \
+            -Name "E2E smoke tests" -Commit "$SHA" -AppUrl "$CPD_E2E_BASE_URL" -RunUrl "$RUN_URL" -Author "$AUTHOR"
+          cat summary.md >> "$GITHUB_STEP_SUMMARY"
+          { echo "$COMMENT_MARKER"; cat summary.md; } > comment.md
+          id=$(gh api "repos/$GH_REPO/issues/$PR/comments" --paginate \
+            --jq ".[] | select(.body | contains(\"$COMMENT_MARKER\")) | .id" | tail -n 1)
+          if [[ "$JOB_STATUS" == "success" ]]; then
+            [[ -z "$id" ]] || gh api --method PATCH "repos/$GH_REPO/issues/comments/$id" -F body=@comment.md --silent
+          else
+            [[ -z "$id" ]] || gh api --method DELETE "repos/$GH_REPO/issues/comments/$id" --silent
+            gh api --method POST "repos/$GH_REPO/issues/$PR/comments" -F body=@comment.md --silent
+          fi
 
       # Surface the snapshot tree on failure so the "delete .png + push twice"
       # update workflow can retrieve the regenerated PNG. Snapshots live under the
@@ -137,6 +215,18 @@ jobs:
         with:
           name: e2e-snapshots
           path: tests/DfE.CheckPerformanceData.E2ETests/Snapshots/
+          retention-days: 14
+
+      # Playwright traces for the failing tests only (the harness writes nothing on a
+      # green run). Open them with `npx playwright show-trace <file>.zip` or the trace
+      # viewer in the artifact. Name is obscured to {ClassName}.{ordinal}.zip — open a
+      # trace to see which test it belongs to (its title is set to the class name).
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-traces
+          path: e2e-traces/
+          if-no-files-found: warn
           retention-days: 14
 
   deploy-review-app:

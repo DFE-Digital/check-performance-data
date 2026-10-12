@@ -18,6 +18,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Admin;
 // deployment reachable at CPD_E2E_BASE_URL. Excluded from CI by the existing E2ETests
 // filter — run it locally against a running deployment when accessibility work touches
 // the admin area.
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class AdminAccessibilityTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
@@ -30,6 +31,7 @@ public sealed class AdminAccessibilityTests(PlaywrightFixture fixture) : Seeding
     [InlineData("/admin/Search/Queries")]
     [InlineData("/admin/Search/ZeroResults")]
     [InlineData("/admin/messages")]
+    [InlineData("/admin/storage/app/rules-config")]
     public async Task AdminPage_HasNoWcagViolations(string path)
     {
         Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux),

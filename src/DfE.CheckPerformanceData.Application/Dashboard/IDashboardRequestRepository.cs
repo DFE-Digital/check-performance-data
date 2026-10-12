@@ -1,7 +1,7 @@
 namespace DfE.CheckPerformanceData.Application.Dashboard;
 
 /// <summary>
-/// Aggregates over submitted change requests (SubmittedUnCommitted + SubmittedCommitted) for
+/// Aggregates over submitted change requests for
 /// one checking window. Outcome counts are by the rules engine's DecisionStatus; requests the
 /// engine has not decided yet count in TotalRequests but in none of the three outcome figures.
 /// </summary>

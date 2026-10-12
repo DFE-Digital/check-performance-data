@@ -51,6 +51,16 @@ public sealed class JourneyPage
     /// <see cref="PupilFilter"/>, which selects the population by inclusion status.
     /// </summary>
     public bool RequireResults { get; init; }
+
+    /// <summary>
+    /// PupilSearch pages only: which pupil fields the query is matched against. Absent ⇒
+    /// <see cref="Application.Journey.PupilSearchField.All"/>, the behaviour every page had before
+    /// this property existed. Independent of <see cref="PupilFilter"/>, which selects the population
+    /// by inclusion status, and of <see cref="RequireResults"/>, which selects students holding a
+    /// result.
+    /// </summary>
+    public PupilSearchField? PupilSearchField { get; init; }
+
     public string? ValidationFailure { get; init; }
 
     /// <summary>

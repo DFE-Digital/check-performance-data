@@ -39,6 +39,7 @@ powershell.exe -ExecutionPolicy Bypass -File tests/DfE.CheckPerformanceData.E2ET
 |---------|---------|---------|
 | `CPD_E2E_BASE_URL` | `http://localhost:8080` | URL the harness drives. |
 | `CPD_E2E_READY_TIMEOUT_SECONDS` | `90` | How long the fixture polls `/healthcheck` before giving up. |
+| `CPD_E2E_RETRY_ATTEMPTS` | `1` | Maximum attempts per test for `[RetryFact]`/`[RetryTheory]` (1 = no retries). Read at test discovery, so set it for the whole run. See `Retrying/RetrySettings.cs`. |
 
 ## Snapshot diffs (visual regression failures)
 
@@ -58,14 +59,62 @@ The thrown `XunitException` message ends with the absolute path to the `Snapshot
 
 | Trait | Filter | Use |
 |-------|--------|-----|
+| `Smoke` | `--filter "Category=Smoke"` | A few minutes to show that a deployed app is up and that each area and each journey still works. Runs as a check on every pull request that has a review app. See "What belongs in the smoke set" below. |
+| `FullRegression` | `--filter "Category=FullRegression"` | Marks a class whose tests are not all smoke tests. Not used to choose what CI runs: the whole suite is `Category!=VisualRegression`, which also takes in tests with no category. |
 | `VisualRegression` | `--filter "Category=VisualRegression"` | Snapshot-diff tests only — Linux-only, and off unless `CPD_E2E_VISUAL_REGRESSION` is set. |
 | `Slow` | `--filter "Category!=Slow"` | Tests that wait on real timeouts or polling; exclude them for a quicker sweep. |
 
+### What CI runs
+
+A pull request with the `deploy` label gets a review app, and two E2E runs against it:
+
+| Run | Where | Filter | Takes | Result |
+|-----|-------|--------|-------|--------|
+| Smoke | `E2E smoke tests` job in `build-and-deploy.yml` | `Category=Smoke` | A few minutes | One of the pull request's checks |
+| Whole suite | `e2e.yml`, started when `build-and-deploy.yml` finishes | `Category!=VisualRegression` | About 15 minutes | A comment on the pull request |
+
+The whole-suite run is not one of the pull request's checks. Nothing waits for it and it
+cannot stop a merge; it puts one comment on the pull request, "E2E tests running", and
+replaces it with the counts and the names of any failed tests.
+
+When either run fails, its comment mentions whoever opened the pull request, and GitHub
+notifies them: by email, unless they have turned email off in their GitHub notification
+settings. A pass sends nothing. If you are told a run failed, fix it, or reply on the pull
+request to say why it was not the change.
+
+A run is never cancelled because a newer one started. Cancel one by hand from the Actions
+tab if it is no longer wanted. To run the suite again, or to try a change to `e2e.yml`
+(which GitHub reads from `main`, so a change does nothing until merged), use
+**Actions > E2E Tests > Run workflow** and give the pull request number.
+
+### What belongs in the smoke set
+
+The smoke set answers one question quickly: is this deployment working? It is wide and
+shallow.
+
+- One test for each area of the service that shows the area is reachable and renders:
+  each admin section, the content pages, search, the public pages.
+- The happy path of each journey a school can take, end to end.
+- Anything that depends on the hosting rather than the code: static assets, sign-in,
+  file uploads through the ingress.
+
+Left out: validation messages, edge cases, variants of a path already covered, and
+anything slow. Those run in the whole suite.
+
+Put `[Trait("Category", "Smoke")]` on the test method, or on the class when every test in
+it qualifies. When you add an area or a journey, add its happy path to the smoke set.
+
 Tests are otherwise grouped by folder rather than by trait — `Wiki/`, `Web/`,
-`Admin/`, `Visual/` — so scope a run with `--filter "FullyQualifiedName~Admin"`
+`Admin/`, `Visual/` — so scope a local run with `--filter "FullyQualifiedName~Admin"`
 rather than reaching for a category.
 
-Quick functional sweep (excludes visual regression):
+The smoke set (the pull request check):
+
+```bash
+dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --configuration Release --filter "Category=Smoke"
+```
+
+The whole suite (the run that comments on the pull request):
 
 ```bash
 dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --configuration Release --filter "Category!=VisualRegression"
@@ -76,7 +125,7 @@ dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --configuration Release --f
 After a prior `dotnet build --configuration Release` of the solution, skip the rebuild on subsequent runs with `--no-build` — saves ~20s per iteration:
 
 ```bash
-dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --filter "Category!=VisualRegression" --configuration Release --no-build
+dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --filter "Category=Smoke" --configuration Release --no-build
 ```
 
 Just one test class — `~` is a contains-match against `FullyQualifiedName`:
@@ -133,13 +182,21 @@ No env var, no `--update-snapshots` flag plumbing — delete the file and run tw
 
 ## Debugging a red CI run
 
-On failure the `e2e:` job uploads the `e2e-snapshots` artefact (the entire `Snapshots/` tree, 14-day retention). For visual-regression failures this lets you inspect the divergent PNG directly. For non-visual failures the primary debugging signal is the test output in the failed run's logs — Playwright tracing is not currently wired into the harness.
+The smoke run is the `E2E smoke tests` job on the pull request. The whole-suite run is
+linked from its comment on the pull request, and is listed under **Actions > E2E Tests**.
+The whole-suite run always uploads `e2e-results`, the `.trx` results file.
 
-To enable trace replay (`playwright show-trace`) for a specific failing test, hook `Context.Tracing.StartAsync` / `StopAsync` around the test body locally, reproduce against `docker compose up`, and inspect the resulting `.zip` with:
+On failure either run uploads two artifacts (both 14-day retention):
+- `e2e-snapshots` — the entire `Snapshots/` tree; for visual-regression failures this lets you inspect the divergent PNG directly.
+- `e2e-traces` — a Playwright trace for each failing test, captured by the harness only when the test failed (a green run writes nothing).
+
+Replay a trace locally with:
 
 ```bash
 pwsh tests/DfE.CheckPerformanceData.E2ETests/bin/Release/net10.0/playwright.ps1 show-trace <path-to-trace.zip>
 ```
+
+Traces are named `{ClassName}.{ordinal}.zip`; open one to see which test it belongs to (its title is the class name). To capture traces in a local run, set `CPD_E2E_TRACES_DIR` to a directory before running the suite — only failing tests write files there.
 
 ## Project boundaries
 
@@ -155,14 +212,18 @@ tests/DfE.CheckPerformanceData.E2ETests/
 ├── .gitignore                      # /Snapshots/diffs/ — never commit failure artefacts
 ├── Dockerfile                      # thin overlay: playwright/dotnet:v1.59.0-noble + .NET 10 SDK
 ├── Fixtures/
-│   ├── PlaywrightFixture.cs         # IAsyncLifetime; readiness probe; antiforgery scrape; seed HttpClient
-│   └── PlaywrightCollection.cs      # [CollectionDefinition("E2E")] + ICollectionFixture<>
+│   ├── PlaywrightFixture.cs         # IAsyncLifetime; readiness probe; antiforgery scrape; owns SeedClient (impersonation) + AnonymousClient (no-cookie) TestHttpClients
+│   └── PlaywrightCollection.cs      # [CollectionDefinition("E2E")] + [CollectionDefinition("Http")], both over PlaywrightFixture
 ├── Helpers/
 │   ├── SeedHelpers.cs               # SeedWikiPageAsync / SeedContentBlockAsync / SoftDeleteWikiPageAsync
-│   ├── AntiforgeryHelpers.cs        # static ScrapeAsync(HttpClient, formPath) -> (Token, Cookie)
+│   ├── AntiforgeryHelpers.cs        # ScrapeAsync(TestHttpClient, formPath) / (HttpClient, formPath, impersonation) -> (Token, Cookie)
 │   ├── PageStabilisationExtensions.cs   # IPage.StabiliseAsync() — animations off + fonts.ready + NetworkIdle
 │   ├── PageSnapshotExtensions.cs    # IPage.MatchSnapshotAsync(name, maxDiffPixelRatio) + BuildDiffArtefactsAsync
 │   └── PageSnapshotExtensionsTests.cs   # pure unit tests for the diff-PNG-emission helper
+├── Retrying/
+│   ├── RetrySettings.cs             # read CPD_E2E_RETRY_ATTEMPTS (default 1) into RetrySettings.MaxRetries
+│   ├── RetryFactAttribute.cs + RetryFactDiscoverer.cs       # settings-driven [RetryFact]; reuses xRetry's RetryTestCase
+│   └── RetryTheoryAttribute.cs + RetryTheoryDiscoverer.cs   # settings-driven [RetryTheory]
 ├── Wiki/
 │   ├── WikiNavigationTests.cs
 │   ├── HealthcheckTests.cs
@@ -187,10 +248,10 @@ tests/DfE.CheckPerformanceData.E2ETests/
 
 1. Pick the appropriate folder (`Wiki/` for browser-driven wiki tests, `Web/` for HTTP and chrome/layout browser tests, `Visual/` for snapshots).
 2. Inherit `PageTest` for browser tests; omit inheritance for HTTP-only tests.
-3. Add `[Collection("E2E")]`. Only add a `[Trait("Category", ...)]` if the test needs one of the traits in the table above.
+3. Add `[Collection("E2E")]`. Only add a `[Trait("Category", ...)]` if the test needs one of the traits in the table above. A test with no category runs in the whole suite; see "What belongs in the smoke set" for the ones that should also be smoke tests.
 4. If the test creates wiki pages or content blocks, implement `IAsyncLifetime` with cleanup in `DisposeAsync`.
 5. Use the `e2e-{Guid:N}-` prefix on every slug/key.
-6. Use `_fixture.SeedClient` + `SeedHelpers.*` for HTTP seeding.
+6. Use `_fixture.SeedClient` + `SeedHelpers.*` for HTTP seeding. For requests that must be genuinely anonymous (no impersonation cookie — sign-in redirects, bad-share-token 404s), use `_fixture.AnonymousClient`, which never carries the impersonation cookie.
 7. Use Playwright `Expect(Locator).ToBeVisibleAsync()` / `ToHaveTextAsync(...)` for browser assertions; use `HttpClient` directly for HTTP assertions.
 
 ### Worked example: cookie banner accept/reject

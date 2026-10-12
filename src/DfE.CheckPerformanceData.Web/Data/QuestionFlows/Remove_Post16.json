@@ -93,7 +93,6 @@
           "id": "how-evidence-supports",
           "type": "TextArea",
           "title": "How does the evidence demonstrate why the student should be removed?",
-          "hint": "Your request will not be accepted unless you provide the correct evidence",
           "summaryTitle": "How evidence demonstrates removal",
           "characterLimit": 1000,
           "optional": true
@@ -166,7 +165,6 @@
           "id": "how-evidence-supports",
           "type": "TextArea",
           "title": "How does the evidence demonstrate why the student should be removed?",
-          "hint": "Your request will not be accepted unless you provide the correct evidence",
           "summaryTitle": "How evidence demonstrates removal",
           "characterLimit": 1000,
           "optional": true

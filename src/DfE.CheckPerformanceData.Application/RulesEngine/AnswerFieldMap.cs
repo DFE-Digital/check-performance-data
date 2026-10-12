@@ -160,6 +160,10 @@ public static class AnswerFieldMap
             ["Merge"]                                  = "MergePupils",
             ["Include"]                                = "Inclusion",
 
+            // #536: Add-pupil requests reach Zendesk through the Rules Engine like every other
+            // amendment. Seeded with a single Scrutiny otherwise-rule until Add rules are written.
+            ["Add"]                                    = "AddPupil",
+
             // Remove flow reason option values. Note the near-miss pair:
             // "permanent-exclusion" = admitted *following* a permanent exclusion
             // elsewhere; "permanently-excluded" = excluded *from the current school*.

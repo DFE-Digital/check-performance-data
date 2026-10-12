@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Journey;
+using DfE.CheckPerformanceData.Application.UnitTests.WindowManagement;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Infrastructure.QuestionFlow;
@@ -58,6 +59,39 @@ public class WindowAdminControllerTests
         Assert.Equal(colour, exercises[1].TagColour);
         Assert.Equal(exists ? [] : new[] { "Missing qualification" }, exercises[1].MissingJourneys);
         await flows.DidNotReceive().GetConfigAsync(Arg.Any<WhatToChange>(), Arg.Any<CheckingWindowType>());
+    }
+
+    // #535: the list's statuses come from the UK clock. 16:30 UTC on a summer day is 17:30 in the
+    // UK — after a 17:00 end, before an 18:00 end, and before an 18:00 start.
+    [Theory]
+    [InlineData(9, 17, "Closed")]
+    [InlineData(9, 18, "Open")]
+    [InlineData(18, 20, "Upcoming")]
+    public async Task Index_reads_exercise_status_on_the_UK_clock(int startHour, int endHour, string status)
+    {
+        var day = new DateTime(2026, 7, 15);
+        var service = Substitute.For<IWindowService>();
+        var flows = Substitute.For<IQuestionFlowConfigSource>();
+        flows.Exists(Arg.Any<WhatToChange>(), Arg.Any<CheckingWindowType>()).Returns(true);
+        service.GetAllDataAsync(Arg.Any<CancellationToken>()).Returns(new PageResult
+        {
+            Windows = [new CheckingWindowDto
+            {
+                Title = "Test window", KeyStage = KeyStages.KS4,
+                CheckingWindowType = CheckingWindowType.KS4June,
+                StartDate = day, EndDate = day.AddDays(1),
+                Exercises = [new CheckingExerciseDto
+                {
+                    ExerciseType = CheckingExerciseType.PupilData,
+                    StartDate = day.AddHours(startHour), EndDate = day.AddHours(endHour)
+                }]
+            }]
+        });
+        var controller = new WindowAdminController(service, flows, new UkClockAt("2026-07-15T16:30:00Z"));
+
+        var result = Assert.IsType<ViewResult>(await controller.Index(CancellationToken.None));
+        var model = Assert.IsType<WindowViewModel>(result.Model);
+        Assert.Equal(status, Assert.Single(Assert.Single(model.Windows).Exercises).Status);
     }
 
     [Fact]

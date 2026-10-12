@@ -111,6 +111,32 @@ public sealed class AdminRequestsRepositoryWindowFilterTests(PostgresFixture fix
 
     private AdminRequestsRepository Repository() => new(_fixture.CreateContext());
 
+    // #536: the page shows where each request is on its way to Zendesk.
+    [Fact]
+    public async Task GetForWindowAsync_CarriesTheProcessingStatus()
+    {
+        await TruncateAsync();
+        var w = await SeedWindowAsync("Window A");
+        await new RequestRepository(_fixture.CreateContext()).UpsertAsync(new ChangeRequestData
+        {
+            WindowId = w.WindowId,
+            CheckingExerciseId = w.ResultsEnquiryId,
+            ReferenceNumber = "REF-QUEUED",
+            OrganisationUrn = 100000,
+            Timestamp = DateTime.UtcNow,
+            SubmittedById = Guid.NewGuid(),
+            SubmittedByName = "Test User",
+            Status = RequestStatus.Submitted,
+            RequestType = RequestType.ResultsEnquiry,
+            RequestTypeDescription = "Results enquiry - Incorrect grade",
+            ProcessingStatus = ProcessingStatus.TicketQueued
+        });
+
+        var rows = await Repository().GetForWindowAsync(w.WindowId, null, CancellationToken.None);
+
+        Assert.Equal(ProcessingStatus.TicketQueued, Assert.Single(rows).ProcessingStatus);
+    }
+
     private async Task<(Guid WindowId, Guid PupilDataId, Guid? ResultsEnquiryId)> SeedWindowAsync(
         string title, bool withResultsEnquiry = true)
     {
@@ -167,7 +193,7 @@ public sealed class AdminRequestsRepositoryWindowFilterTests(PostgresFixture fix
             Timestamp = DateTime.UtcNow,
             SubmittedById = Guid.NewGuid(),
             SubmittedByName = "Test User",
-            Status = RequestStatus.SubmittedUnCommitted,
+            Status = RequestStatus.Submitted,
             RequestType = RequestType.Amendment,
             RequestTypeDescription = "Remove"
         });

@@ -114,6 +114,9 @@ public class JourneyControllerTests
         // NSubstitute returns "" for string by default; null means "no duplicate" (AB#296081).
         _journeyService.ValidateDuplicateFileName(default!, default!).ReturnsForAnyArgs((string?)null);
 
+        // Same trap for the file-count rule: null means "another file may be added" (AB#304900).
+        _journeyService.ValidateFileCount(default!).ReturnsForAnyArgs((string?)null);
+
         _httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(_session));
 
         var viewModelBuilder = new JourneyViewModelBuilder(
@@ -2260,6 +2263,93 @@ public class JourneyControllerTests
         await _sut.UploadFile(WindowId, "evidence-page", "evidence", fromSummary: false, file);
 
         await _fileStorageService.Received(1).SaveAsync(Arg.Any<Guid>(), Arg.Any<byte[]>());
+    }
+
+    // AB#304900: an upload takes at most six files. The check runs first — before the name,
+    // the size and the bytes — because nothing about the file itself can make a seventh
+    // acceptable. Recorded in analytics as file_limit_exceeded (never the file name).
+
+    private const string FileLimitMessage =
+        "You can only upload 6 files. Remove a file before you upload another.";
+
+    private static List<FileAnswer> SixStoredFiles() =>
+        Enumerable.Range(1, 6)
+            .Select(i => new FileAnswer { StoredFileName = $"s{i}", OriginalFileName = $"evidence-{i}.pdf", PageCount = 1, FileSizeBytes = 10 })
+            .ToList();
+
+    [Fact]
+    public async Task UploadFile_WhenTheFileLimitIsReached_SetsErrorAndDoesNotStore()
+    {
+        var answers = new Dictionary<string, QuestionAnswer> { ["evidence"] = new() { FileValues = SixStoredFiles() } };
+        SetupSession(ValidSession(answers: answers));
+        var bytes = MinimalPdf();
+        var file = new FormFile(new MemoryStream(bytes), 0, bytes.Length, "fileUpload", "evidence-7.pdf");
+        _journeyService.ValidateFileCount(Arg.Is<IReadOnlyList<FileAnswer>>(files => files.Count == 6))
+            .Returns(FileLimitMessage);
+
+        var result = await _sut.UploadFile(WindowId, "evidence-page", "evidence", fromSummary: false, file);
+
+        Assert.Equal(FileLimitMessage, _sut.TempData["UploadError"]);
+        await _fileStorageService.DidNotReceive().SaveAsync(Arg.Any<Guid>(), Arg.Any<byte[]>());
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<EvidenceUploadAttemptedEvent>(e => e.Outcome == "failed" && e.FailureReason == "file_limit_exceeded"),
+            Arg.Any<CancellationToken>());
+        // First check, not last: the name is never looked at once the upload is full.
+        _journeyService.DidNotReceive().ValidateDuplicateFileName(Arg.Any<string>(), Arg.Any<IReadOnlyList<FileAnswer>>());
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Page", redirect.ActionName);
+    }
+
+    [Fact]
+    public async Task UploadFile_CountsOnlyTheFilesOfTheQuestionBeingUploadedTo()
+    {
+        // The limit is per upload: the files in the table the user is looking at, which are the
+        // ones Remove can take away. Files held under another question id must not count, or the
+        // user would be refused with nothing on the page to remove.
+        var answers = new Dictionary<string, QuestionAnswer>
+        {
+            ["other-question"] = new() { FileValues = SixStoredFiles() },
+            ["evidence"] = new()
+            {
+                FileValues = [new FileAnswer { StoredFileName = "mine", OriginalFileName = "mine.pdf", PageCount = 1, FileSizeBytes = 10 }]
+            }
+        };
+        SetupSession(ValidSession(answers: answers));
+        var bytes = MinimalPdf();
+        var file = new FormFile(new MemoryStream(bytes), 0, bytes.Length, "fileUpload", "new.pdf");
+
+        await _sut.UploadFile(WindowId, "evidence-page", "evidence", fromSummary: false, file);
+
+        _journeyService.Received(1).ValidateFileCount(
+            Arg.Is<IReadOnlyList<FileAnswer>>(files => files.Count == 1 && files[0].StoredFileName == "mine"));
+    }
+
+    [Fact]
+    public async Task PagePost_WithPendingFileAtTheFileLimit_ReRendersAndDoesNotStore()
+    {
+        // Continue with a file chosen in Browse but not uploaded goes through the same
+        // CommitUploadedFileAsync. This pins that the limit covers that path too, so a later
+        // refactor cannot move the check into UploadFile alone and let Continue add a seventh.
+        var answers = new Dictionary<string, QuestionAnswer> { ["evidence"] = new() { FileValues = SixStoredFiles() } };
+        SetupSession(ValidSession(history: ["evidence-page"], answers: answers));
+        _flowService.GetPage(Config, "evidence-page").Returns(EvidencePage);
+        _journeyService.ValidateFileCount(Arg.Is<IReadOnlyList<FileAnswer>>(files => files.Count == 6))
+            .Returns(FileLimitMessage);
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>());
+
+        var result = await _sut.PagePost(WindowId, "evidence-page", fromSummary: false,
+            fileUpload: FakePdfFile(ValidPdfBytes(), "evidence-7.pdf"));
+
+        await _fileStorageService.DidNotReceive().SaveAsync(Arg.Any<Guid>(), Arg.Any<byte[]>());
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<EvidenceUploadAttemptedEvent>(e => e.Outcome == "failed" && e.FailureReason == "file_limit_exceeded"),
+            Arg.Any<CancellationToken>());
+        var saved = _session.GetRequestState(WindowId).QuestionAnswers["evidence"].FileValues!;
+        Assert.Equal(6, saved.Count);
+        var view = Assert.IsType<ViewResult>(result);
+        Assert.Equal("EvidenceUpload", view.ViewName);
+        var model = Assert.IsType<PageViewModel>(view.Model);
+        Assert.Equal(FileLimitMessage, model.UploadError);
     }
 
     [Fact]

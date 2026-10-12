@@ -43,6 +43,16 @@ public sealed class AuditActivitiesTests
         Assert.Null(AuditActivities.OutcomeOf("CheckingExercise", "ClosedEarly"));
     }
 
+    [Fact]
+    public void An_automatic_hand_over_is_a_success()
+    {
+        // AB#302158: the row is only written for a run that sent or cancelled something, so it
+        // has one outcome. A run that failed writes no row; it is retried on the next tick.
+        Assert.Equal("RequestsSentAutomatically", AuditActivities.RequestsSentAutomaticallyAction);
+        Assert.Equal(AuditOutcome.Success, AuditActivities.OutcomeOf("WindowAdmin", "RequestsSentAutomatically"));
+        Assert.Null(AuditActivities.OutcomeOf("CheckingExercise", "RequestsSentAutomatically"));
+    }
+
     [Theory]
     [InlineData("Success", AuditOutcome.Success)]
     [InlineData("failed", AuditOutcome.Failed)]

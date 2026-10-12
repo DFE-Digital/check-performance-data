@@ -12,6 +12,7 @@ public sealed class SubmittedRequestViewModel
     public required RequestStatus Status { get; init; }
     public bool ConfirmingDelete { get; init; }
     public required string PupilName { get; init; }
+    public string? PupilCypmdId { get; init; }
 
     /// <summary>The window's word for a learner, carried through from the persisted request.</summary>
     public required LearnerNoun LearnerNoun { get; init; }
@@ -45,6 +46,12 @@ public sealed class SubmittedRequestViewModel
     };
 
     public string SubmittedAtText => LondonTime.ToSubmittedAtText(SubmittedAt);
+
+    /// <summary>
+    /// #545: the CYPMD ID row follows the name row. A merge shows each record's ID in its own
+    /// display instead, and an Add request has no ID.
+    /// </summary>
+    public bool ShowCypmdIdRow => SecondRecordDisplay is null && !string.IsNullOrEmpty(PupilCypmdId);
 
     public bool ShowDeleteButton => Status != RequestStatus.Withdrawn;
 

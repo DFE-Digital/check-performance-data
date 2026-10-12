@@ -1,6 +1,7 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.ContentBlocks;
 using DfE.CheckPerformanceData.Application.Countries;
+using DfE.CheckPerformanceData.Application.HomeBanners;
 using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.WindowManagement;
@@ -47,8 +48,12 @@ public static class DependencyManager
         services.AddScoped<IPortalDbContext>(sp => sp.GetRequiredService<PortalDbContext>());
         services.AddScoped<Application.Settings.ISettingRepository, Repositories.SettingRepository>();
         services.AddScoped<IContentBlockRepository, ContentBlockRepository>();
+        services.AddScoped<IHomeBannerRepository, HomeBannerRepository>();
         services.AddScoped<Application.ContentStaging.IContentStagingLock,
                            ContentStaging.PostgresContentStagingLock>();
+        // AB#302158: only one web pod at a time runs the automatic exercise hand-over.
+        services.AddScoped<Application.WindowManagement.IExerciseHandOverLock,
+                           Locking.PostgresExerciseHandOverLock>();
         services.AddScoped<Application.ContentStaging.IContentStagingSessionStore,
                            ContentStaging.ContentStagingSessionStore>();
         services.AddScoped<ILandingPageRepository, LandingPageRepository>();
@@ -59,6 +64,8 @@ public static class DependencyManager
             Repositories.AdminRequestsRepository>();
         services.AddScoped<Application.Egress.IEgressRunRepository, Repositories.EgressRunRepository>();
         services.AddScoped<Application.Audit.IAuditLogRepository, Repositories.AuditLogRepository>();
+        // AB#302158: the audit row for a hand-over the service ran by itself.
+        services.AddScoped<Application.Audit.IWindowAdminAuditWriter, Repositories.WindowAdminAuditWriter>();
         services.AddScoped<ICountryRepository, CountryRepository>();
         services.AddScoped<Application.Dashboard.IOrganisationLoginRepository, Repositories.OrganisationLoginRepository>();
         services.AddScoped<Application.Dashboard.IDashboardRequestRepository, Repositories.DashboardRequestRepository>();

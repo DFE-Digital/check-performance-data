@@ -192,6 +192,9 @@
                                 // No stored value means a widget saved before the option existed,
                                 // which shows the button, so the box starts ticked.
                                 var sShowButton = w.GetBool("showButton") ?? true;
+                                // No stored value means a widget saved before the option existed,
+                                // which has the button beside the box, so the box starts unticked.
+                                var sButtonBelow = w.GetBool("buttonBelow") ?? false;
                                 <div class="govuk-form-group">
                                     <label class="govuk-label" for="si-@Model.Path">Search in</label>
                                     <select class="govuk-select" id="si-@Model.Path" name="props[searchIn]"
@@ -258,6 +261,23 @@
                                 <div class="govuk-form-group">
                                     <label class="govuk-label" for="sb-@Model.Path">Button text</label>
                                     <input class="govuk-input" id="sb-@Model.Path" name="props[buttonText]" value="@w.GetString("buttonText")" />
+                                </div>
+                                <div class="govuk-form-group">
+                                    <div class="govuk-checkboxes__item">
+                                        <input class="govuk-checkboxes__input" id="sbb-@Model.Path" name="props[buttonBelow]" type="checkbox"
+                                               value="true" aria-describedby="sbb-@Model.Path-hint"
+                                               @(sButtonBelow ? "checked" : null) />
+                                        <label class="govuk-label govuk-checkboxes__label" for="sbb-@Model.Path">
+                                            Put the button below the search box
+                                        </label>
+                                        @* An unticked box posts nothing, so this hidden "false" is what makes
+                                           unticking stick. It follows the label: the browser posts in DOM
+                                           order and the first value wins. *@
+                                        <input type="hidden" name="props[buttonBelow]" value="false" />
+                                    </div>
+                                    <div class="govuk-hint" id="sbb-@Model.Path-hint">
+                                        Use this in a narrow column, where a button beside the box leaves little room to type.
+                                    </div>
                                 </div>
                                 <div class="govuk-form-group">
                                     <label class="govuk-label" for="sa-@Model.Path">Form action URL</label>

@@ -162,4 +162,24 @@ public sealed class DefaultAdminAccessSeederTests
         Assert.Contains(seeded!, g => g.RoleName == DefaultAdminAccessSeeder.AdminRole && g.SectionKey == "site-assets");
         Assert.DoesNotContain(seeded!, g => g.RoleName == DefaultAdminAccessSeeder.EditorRole && g.SectionKey == "site-assets");
     }
+
+    // Banners are content, so editors get them on a fresh database as well as admins (#566).
+    [Fact]
+    public async Task SeedIfEmpty_GivesHomeBannersToEditors()
+    {
+        var repository = NSubstitute.Substitute.For<IAdminSectionAccessRepository>();
+        IReadOnlyList<RoleSectionAccessGrant>? seeded = null;
+        await repository.SeedAsync(NSubstitute.Arg.Do<IReadOnlyList<RoleSectionAccessGrant>>(g => seeded = g), NSubstitute.Arg.Any<string?>());
+
+        await new DefaultAdminAccessSeeder(repository).SeedIfEmptyAsync();
+
+        Assert.Contains(seeded!, g => g.RoleName == DefaultAdminAccessSeeder.EditorRole && g.SectionKey == "home-banners");
+    }
+
+    [Fact]
+    public void AllSections_ContainsHomeBanners()
+    {
+        Assert.Contains(AdminNavKeys.HomeBanners, DefaultAdminAccessSeeder.AllSections);
+        Assert.Equal("home-banners", AdminNavKeys.HomeBanners);
+    }
 }

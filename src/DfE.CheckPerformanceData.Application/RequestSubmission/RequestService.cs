@@ -4,6 +4,7 @@ using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Application.Notify;
 using DfE.CheckPerformanceData.Application.Queue;
+using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using Microsoft.Extensions.Logging;
@@ -13,6 +14,7 @@ namespace DfE.CheckPerformanceData.Application.RequestSubmission;
 public sealed class RequestService(
     IQuestionFlowService flowService,
     IRequestStateBlobClient requestStateBlobClient,
+    IRequestBlobClient requestBlobClient,
     IRequestRepository requestRepository,
     ICurrentUserService currentUserService,
     ILogger<RequestService> logger,
@@ -95,25 +97,21 @@ public sealed class RequestService(
         // Upsert first: the document carries the ChangeRequest row's Id so the
         // rules engine worker can write its decision back to that row.
         var changeRequestId = await requestRepository.UpsertAsync(
-            BuildChangeRequestData(windowId, journey, RequestStatus.SubmittedUnCommitted, config));
+            BuildChangeRequestData(windowId, journey, RequestStatus.Submitted, config));
 
-        // PARKED AB#297310: an Add-pupil request has no rules-engine outcomes (ticket B2) — its
-        // downstream is the LDS egress (LDS_CYPMD_Data specification v2.4), a separate story. So
-        // no enqueue: the ChangeRequests row + the journey blob saved below are the record that
-        // egress will read. When the egress story lands, its dispatch goes THERE, not here — and
-        // the matching exclusion in AdminRequestsService.ProcessCloseWindowEvent comes out with it.
-        if (journey.SelectedWhatToChange != WhatToChange.Add)
-        {
-            var document = BuildRequestDocument(context, config, changeRequestId);
+        // Every amendment, Add included, goes to the Rules Engine (#536). The document is saved
+        // first: the close sweep sends this saved copy to Zendesk once the exercise closes, so it
+        // must exist before the Rules Engine can mark the row Decided.
+        var document = BuildRequestDocument(context, config, changeRequestId);
+        await requestBlobClient.SaveRequestAsync(windowId, document);
 
-            // Enqueue onto the Postgres rules-engine queue; the worker's RulesConsumer
-            // picks it up, evaluates it and writes the decision back to the row.
-            await queueService.EnqueueAsync(QueueOptions.RulesEngineQueue, document);
-        }
+        // Enqueue onto the Postgres rules-engine queue; the worker's RulesConsumer
+        // picks it up, evaluates it and writes the decision back to the row.
+        await queueService.EnqueueAsync(QueueOptions.RulesEngineQueue, document);
 
         // Persist the stamped journey so the read-only submitted-request view can
         // rebuild its summary (and "Submitted by" section) from the journey alone —
-        // the enqueued RequestDocument is bound for the queue and not retained.
+        // the saved RequestDocument is for the close sweep, not for this view.
         await requestStateBlobClient.SaveAsync(windowId, journey.ReferenceNumber ?? string.Empty, journey);
     }
 
@@ -146,6 +144,12 @@ public sealed class RequestService(
                 $"No results-enquiry description for {journey.SelectedWhatToChange}.")
         };
 
+        var config = await flowService.GetConfigAsync(
+            journey.SelectedWhatToChange.Value, journey.CheckingWindow.CheckingWindowType);
+        if (config is null)
+            throw new InvalidOperationException(
+                $"No question flow config found for {journey.SelectedWhatToChange}/{journey.CheckingWindow.CheckingWindowType}.");
+
         var changeRequestId = await requestRepository.UpsertAsync(new ChangeRequestData
         {
             WindowId = windowId,
@@ -163,11 +167,16 @@ public sealed class RequestService(
             SubmittedById = Guid.Parse(currentUserService.UserId),
             SubmittedByName = currentUserService.DisplayName,
             SubmittedByEmail = currentUserService.Email,
-            Status = RequestStatus.SubmittedUnCommitted,
+            Status = RequestStatus.Submitted,
             RequestType = RequestType.ResultsEnquiry,
             RequestTypeDescription = requestTypeDescription,
             AmendmentType = journey.SelectedWhatToChange.Value,
-            OrganisationLaestab = OrganisationLaestabOrNull
+            OrganisationLaestab = OrganisationLaestabOrNull,
+            // Queued for its ticket in this same write (#536): an enquiry never passes the Rules
+            // Engine, and the worker claims only TicketQueued rows. Scrutiny is the decision
+            // ZendeskConsumer.DeriveDecision always gave an enquiry.
+            ProcessingStatus = ProcessingStatus.TicketQueued,
+            Outcome = DecisionStatus.Scrutiny
         });
 
         // The journey JSON is the enquiry's full record — it carries the selected result and every
@@ -177,14 +186,8 @@ public sealed class RequestService(
         // Zendesk dispatch happens HERE at submit time (AB#301974), and nowhere else: the enquiry is
         // built into the same RequestDocument the ticket consumer reads and enqueued exactly once
         // onto the Zendesk queue, so a ticket opens as soon as the enquiry is accepted rather than
-        // when the window closes. The Close-window sweep stays excluded for enquiries (permanent
-        // double-dispatch guard) — this method is the single enqueue site.
-        var config = await flowService.GetConfigAsync(
-            journey.SelectedWhatToChange.Value, journey.CheckingWindow.CheckingWindowType);
-        if (config is null)
-            throw new InvalidOperationException(
-                $"No question flow config found for {journey.SelectedWhatToChange}/{journey.CheckingWindow.CheckingWindowType}.");
-
+        // when the window closes. The close sweep sends only Decided rows, so it never sends an
+        // enquiry again — this method is the single enqueue site.
         var document = BuildEnquiryDocument(windowId, journey, config, changeRequestId, requestTypeDescription);
         await queueService.EnqueueAsync(QueueOptions.ZendeskQueue, document, ct);
 
@@ -222,7 +225,7 @@ public sealed class RequestService(
             SubmittedById = Guid.Parse(currentUserService.UserId),
             SubmittedByName = currentUserService.DisplayName,
             SubmittedByEmail = currentUserService.Email,
-            Status = RequestStatus.SubmittedUnCommitted,
+            Status = RequestStatus.Submitted,
             RequestType = RequestType.ConfirmCorrect,
             RequestTypeDescription = "Confirm Pupil Data Declaration",
             OrganisationLaestab = OrganisationLaestabOrNull

@@ -12,10 +12,9 @@ using CheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManag
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 
-// AB#297310: submitting an Add-a-pupil request. Ticket B2 ("No rules engine outcomes") means an
-// Add submission must persist a row and a journey blob exactly like every other amendment, but
-// never enqueue to the rules engine — the LDS egress is a separate story. The "never enqueues"
-// assertion is the guard on that boundary, mirroring RequestServiceResultsEnquiryTests.
+// #536: submitting an Add-a-pupil request. Add goes through the Rules Engine like every other
+// amendment (it has a single Scrutiny rule until Add rules are written), and its document is saved
+// for the close sweep to send.
 public sealed class RequestServiceAddTests
 {
     private static readonly Guid WindowId = Guid.Parse("22222222-2222-2222-2222-222222222222");
@@ -23,6 +22,7 @@ public sealed class RequestServiceAddTests
 
     private readonly IQuestionFlowService _flowService = Substitute.For<IQuestionFlowService>();
     private readonly IRequestStateBlobClient _stateBlob = Substitute.For<IRequestStateBlobClient>();
+    private readonly IRequestBlobClient _requestBlob = Substitute.For<IRequestBlobClient>();
     private readonly IRequestRepository _repository = Substitute.For<IRequestRepository>();
     private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
     private readonly IQueueService _queue = Substitute.For<IQueueService>();
@@ -39,7 +39,7 @@ public sealed class RequestServiceAddTests
         _repository.UpsertAsync(Arg.Any<ChangeRequestData>()).Returns(ChangeRequestId);
 
         _sut = new RequestService(
-            _flowService, _stateBlob, _repository, _currentUser,
+            _flowService, _stateBlob, _requestBlob, _repository, _currentUser,
             NullLogger<RequestService>.Instance, _queue, _notifications, _pupilData,
             new CheckingExerciseService(TimeProvider.System));
     }
@@ -99,13 +99,36 @@ public sealed class RequestServiceAddTests
     }
 
     [Fact]
-    public async Task SubmitRequestAsync_ForAdd_NeverEnqueues()
+    public async Task SubmitRequestAsync_ForAdd_EnqueuesToTheRulesEngine()
     {
         SetupAddConfig();
 
         await _sut.SubmitRequestAsync(WindowId, AddJourney());
 
-        await _queue.DidNotReceiveWithAnyArgs().EnqueueAsync<object>(default!, default!);
+        await _queue.Received(1).EnqueueAsync(
+            QueueOptions.RulesEngineQueue,
+            Arg.Is<RequestDocument>(d => d.RequestTypeCode == "Add" && d.ChangeRequestId == ChangeRequestId),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SubmitRequestAsync_SavesTheDocumentItEnqueues_BeforeEnqueueing()
+    {
+        SetupAddConfig();
+        RequestDocument? saved = null;
+        _requestBlob.SaveRequestAsync(WindowId, Arg.Do<RequestDocument>(d => saved = d)).Returns(Task.CompletedTask);
+        _queue.EnqueueAsync(Arg.Any<string>(), Arg.Any<RequestDocument>(), Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                // The sweep reads this copy later; it must exist before the message can be processed.
+                Assert.NotNull(saved);
+                return Task.FromResult(Guid.NewGuid());
+            });
+
+        await _sut.SubmitRequestAsync(WindowId, AddJourney());
+
+        Assert.Equal("CYPMD_KS4June_ABC1234", saved!.ReferenceNumber);
+        await _queue.Received(1).EnqueueAsync(QueueOptions.RulesEngineQueue, saved, Arg.Any<CancellationToken>());
     }
 
     [Fact]

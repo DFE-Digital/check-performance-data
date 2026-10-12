@@ -2,7 +2,7 @@ using DfE.CheckPerformanceData.E2ETests.Fixtures;
 using DfE.CheckPerformanceData.E2ETests.Helpers;
 using Microsoft.Playwright;
 using Microsoft.Playwright.Xunit;
-using xRetry;
+using DfE.CheckPerformanceData.E2ETests.Retrying;
 
 namespace DfE.CheckPerformanceData.E2ETests.Pages;
 
@@ -27,7 +27,7 @@ public sealed class RequestSubmissionPage(PlaywrightFixture fixture) : PageTest
     // so the autocomplete returns nothing.
     private static readonly Guid SeededWindowId = Guid.Parse("F34D285B-8660-4D12-9C30-787328DEAA0A");
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task SelfSubmittedDuplicate_ShowsYouHaveAlreadySubmittedMessage()
     {
         // Arrange – seed a conflicting ChangeRequest submitted BY the impersonated user.
@@ -60,7 +60,7 @@ public sealed class RequestSubmissionPage(PlaywrightFixture fixture) : PageTest
         }
     }
 
-    [RetryFact(3)]
+    [RetryFact]
     public async Task OtherSubmittedDuplicate_ShowsColleagueName()
     {
         // Arrange – seed a conflicting ChangeRequest submitted by a DIFFERENT user.

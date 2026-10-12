@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
+using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Persistence.Entities;
@@ -37,22 +38,22 @@ public sealed class RequestRepositoryUpsertTests(PostgresFixture fixture)
             .UpsertAsync(Data(windowId, "REF-UPD-1", RequestStatus.InProgress));
 
         var secondId = await new RequestRepository(_fixture.CreateContext())
-            .UpsertAsync(Data(windowId, "REF-UPD-1", RequestStatus.SubmittedUnCommitted));
+            .UpsertAsync(Data(windowId, "REF-UPD-1", RequestStatus.Submitted));
 
         Assert.Equal(firstId, secondId);
         await using var ctx = _fixture.CreateContext();
         var row = await ctx.ChangeRequests.SingleAsync(r => r.ReferenceNumber == "REF-UPD-1");
-        Assert.Equal(RequestStatus.SubmittedUnCommitted, row.Status);
+        Assert.Equal(RequestStatus.Submitted, row.Status);
     }
 
     // AmendmentType has four write sites in UpsertAsync — insert and update on each of the
-    // submitted (SubmittedUnCommitted, transactional) and draft paths. Every one is covered
+    // submitted (Submitted, transactional) and draft paths. Every one is covered
     // because missing any single SetProperty/initialiser leaves the column silently null on
     // that path only, which no other test would notice.
 
     [Theory]
-    [InlineData(RequestStatus.InProgress)]              // draft path, insert
-    [InlineData(RequestStatus.SubmittedUnCommitted)]    // submitted path, insert
+    [InlineData(RequestStatus.InProgress)] // draft path, insert
+    [InlineData(RequestStatus.Submitted)]  // submitted path, insert
     public async Task Upsert_Insert_PersistsAmendmentType(RequestStatus status)
     {
         await TruncateAsync();
@@ -67,8 +68,8 @@ public sealed class RequestRepositoryUpsertTests(PostgresFixture fixture)
     }
 
     [Theory]
-    [InlineData(RequestStatus.InProgress)]              // draft path, update
-    [InlineData(RequestStatus.SubmittedUnCommitted)]    // submitted path, update
+    [InlineData(RequestStatus.InProgress)] // draft path, update
+    [InlineData(RequestStatus.Submitted)]  // submitted path, update
     public async Task Upsert_Update_PersistsChangedAmendmentType(RequestStatus status)
     {
         await TruncateAsync();
@@ -123,10 +124,10 @@ public sealed class RequestRepositoryUpsertTests(PostgresFixture fixture)
         await TruncateAsync();
         var windowId = await SeedWindowAsync();
         await new RequestRepository(_fixture.CreateContext())
-            .UpsertAsync(Data(windowId, "REF-WD-1", RequestStatus.SubmittedUnCommitted));
+            .UpsertAsync(Data(windowId, "REF-WD-1", RequestStatus.Submitted));
         // A different org's row with the same reference must be left untouched.
         await new RequestRepository(_fixture.CreateContext())
-            .UpsertAsync(Data(windowId, "REF-WD-OTHER", RequestStatus.SubmittedUnCommitted, organisationUrn: 999999));
+            .UpsertAsync(Data(windowId, "REF-WD-OTHER", RequestStatus.Submitted, organisationUrn: 999999));
 
         await new RequestRepository(_fixture.CreateContext())
             .WithdrawAsync(windowId, 100000, "REF-WD-1", "withdrew@school.gov.uk", new DateTime(2026, 7, 30, 10, 0, 0, DateTimeKind.Utc));
@@ -137,7 +138,7 @@ public sealed class RequestRepositoryUpsertTests(PostgresFixture fixture)
         Assert.Equal("withdrew@school.gov.uk", withdrawn.WithdrawnByEmail);
         Assert.Equal(new DateTime(2026, 7, 30, 10, 0, 0, DateTimeKind.Utc), withdrawn.WithdrawnAt);
         var other = await ctx.ChangeRequests.SingleAsync(r => r.ReferenceNumber == "REF-WD-OTHER");
-        Assert.Equal(RequestStatus.SubmittedUnCommitted, other.Status);
+        Assert.Equal(RequestStatus.Submitted, other.Status);
     }
 
     [Fact]
@@ -146,7 +147,7 @@ public sealed class RequestRepositoryUpsertTests(PostgresFixture fixture)
         await TruncateAsync();
         var windowId = await SeedWindowAsync();
         await new RequestRepository(_fixture.CreateContext())
-            .UpsertAsync(Data(windowId, "REF-WD-2", RequestStatus.SubmittedUnCommitted));
+            .UpsertAsync(Data(windowId, "REF-WD-2", RequestStatus.Submitted));
 
         // Withdraw scoped to a different org should match nothing.
         await new RequestRepository(_fixture.CreateContext())
@@ -154,7 +155,7 @@ public sealed class RequestRepositoryUpsertTests(PostgresFixture fixture)
 
         await using var ctx = _fixture.CreateContext();
         var row = await ctx.ChangeRequests.SingleAsync(r => r.ReferenceNumber == "REF-WD-2");
-        Assert.Equal(RequestStatus.SubmittedUnCommitted, row.Status);
+        Assert.Equal(RequestStatus.Submitted, row.Status);
     }
 
     [Fact]
@@ -288,7 +289,7 @@ public sealed class RequestRepositoryUpsertTests(PostgresFixture fixture)
     }
 
     [Fact]
-    public async Task CheckForConflict_ReturnsOtherSubmitted_WhenSubmittedUnCommittedRequestExists()
+    public async Task CheckForConflict_ReturnsOtherSubmitted_WhenSubmittedRequestExists()
     {
         await TruncateAsync();
         var windowId = await SeedWindowAsync();
@@ -296,7 +297,7 @@ public sealed class RequestRepositoryUpsertTests(PostgresFixture fixture)
         var submitterUserId = Guid.NewGuid();
         var currentUserId = Guid.NewGuid();
         await new RequestRepository(_fixture.CreateContext())
-            .UpsertAsync(Data(windowId, "REF-CONF-SUBMITTED", RequestStatus.SubmittedUnCommitted, pupilId: pupilId, submittedById: submitterUserId));
+            .UpsertAsync(Data(windowId, "REF-CONF-SUBMITTED", RequestStatus.Submitted, pupilId: pupilId, submittedById: submitterUserId));
 
         var result = await new RequestRepository(_fixture.CreateContext())
             .CheckForConflictAsync(windowId, pupilId, 100000, "REF-CONF-OTHER", currentUserId);
@@ -312,7 +313,7 @@ public sealed class RequestRepositoryUpsertTests(PostgresFixture fixture)
         var pupilId = Guid.NewGuid();
         const string expectedRef = "REF-CONF-REFNUM";
         await new RequestRepository(_fixture.CreateContext())
-            .UpsertAsync(Data(windowId, expectedRef, RequestStatus.SubmittedUnCommitted, pupilId: pupilId));
+            .UpsertAsync(Data(windowId, expectedRef, RequestStatus.Submitted, pupilId: pupilId));
 
         var refNum = await new RequestRepository(_fixture.CreateContext())
             .HasSubmittedRequestAsync(windowId, pupilId, 100000);
@@ -320,8 +321,58 @@ public sealed class RequestRepositoryUpsertTests(PostgresFixture fixture)
         Assert.Equal(expectedRef, refNum);
     }
 
+    // #536: a results enquiry is queued for its ticket in the same write that creates its row, so
+    // the worker can claim it the moment the message arrives. Both submitted-path write sites must
+    // carry the two fields; a draft never sets them.
+    private static ChangeRequestData QueuedEnquiry(Guid windowId, string reference) => new()
+    {
+        WindowId = windowId,
+        ReferenceNumber = reference,
+        OrganisationUrn = 100000,
+        Timestamp = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
+        SubmittedById = Guid.NewGuid(),
+        SubmittedByName = "Ada Editor",
+        Status = RequestStatus.Submitted,
+        RequestType = RequestType.ResultsEnquiry,
+        RequestTypeDescription = "Results enquiry - Incorrect grade",
+        ProcessingStatus = ProcessingStatus.TicketQueued,
+        Outcome = DecisionStatus.Scrutiny
+    };
+
+    [Fact]
+    public async Task Upsert_Insert_PersistsProcessingStatusAndOutcome()
+    {
+        await TruncateAsync();
+        var windowId = await SeedWindowAsync();
+
+        await new RequestRepository(_fixture.CreateContext())
+            .UpsertAsync(QueuedEnquiry(windowId, "REF-PS-INS"));
+
+        await using var ctx = _fixture.CreateContext();
+        var row = await ctx.ChangeRequests.SingleAsync(r => r.ReferenceNumber == "REF-PS-INS");
+        Assert.Equal(ProcessingStatus.TicketQueued, row.ProcessingStatus);
+        Assert.Equal(DecisionStatus.Scrutiny, row.Outcome);
+    }
+
+    [Fact]
+    public async Task Upsert_Update_PersistsProcessingStatusAndOutcome()
+    {
+        await TruncateAsync();
+        var windowId = await SeedWindowAsync();
+        await new RequestRepository(_fixture.CreateContext())
+            .UpsertAsync(Data(windowId, "REF-PS-UPD", RequestStatus.InProgress));
+
+        await new RequestRepository(_fixture.CreateContext())
+            .UpsertAsync(QueuedEnquiry(windowId, "REF-PS-UPD"));
+
+        await using var ctx = _fixture.CreateContext();
+        var row = await ctx.ChangeRequests.SingleAsync(r => r.ReferenceNumber == "REF-PS-UPD");
+        Assert.Equal(ProcessingStatus.TicketQueued, row.ProcessingStatus);
+        Assert.Equal(DecisionStatus.Scrutiny, row.Outcome);
+    }
+
     private static ChangeRequestData Data(
-        Guid windowId, string referenceNumber, RequestStatus status = RequestStatus.SubmittedUnCommitted,
+        Guid windowId, string referenceNumber, RequestStatus status = RequestStatus.Submitted,
         long organisationUrn = 100000, Guid? pupilId = null, string? pupilUpn = "UPN1", Guid? submittedById = null,
         WhatToChange? amendmentType = WhatToChange.Remove) =>
         new()

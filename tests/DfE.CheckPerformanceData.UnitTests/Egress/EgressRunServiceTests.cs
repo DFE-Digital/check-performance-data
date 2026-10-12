@@ -30,7 +30,7 @@ public sealed class EgressRunServiceTests
     };
 
     private static EgressCandidateRequest Candidate(string reference, string? crm) =>
-        new(Guid.NewGuid(), reference, crm, 142313, "860/4070", new DateTime(2026, 6, 5, 9, 0, 0, DateTimeKind.Utc), RequestStatus.SubmittedCommitted);
+        new(Guid.NewGuid(), reference, crm, 142313, "860/4070", new DateTime(2026, 6, 5, 9, 0, 0, DateTimeKind.Utc), RequestStatus.Submitted);
 
     private static RequestState Journey(string reason) => new()
     {

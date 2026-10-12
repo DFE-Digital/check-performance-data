@@ -465,14 +465,20 @@ second before, because `IsOpen` keeps an exercise's last instant open. The guard
 press or a second admin closing twice; it does not detect a date edit made while the confirmation
 page was on screen, and the close then goes ahead against the edited date.
 
-**The clock is the server's, and today that is UTC.** The new end date, the success banner's time
-and every "is it open" comparison read `TimeProvider.GetLocalNow()`. No container sets a time zone,
-so "local" is UTC in every environment: during British Summer Time the banner and the new end date
-read one hour behind a UK clock, and every exercise opens and closes an hour late in UK terms. The
-second half is older than this ticket; the first half is how it became visible. The fix belongs to
-the clock itself (a time zone on the containers, or an explicit Europe/London conversion wherever
-`GetLocalNow` is read) and must be made in one go — stamping UK time here while the comparison
-stayed on UTC would leave a closed exercise open for another hour.
+**The clock is a UK clock** (#535). The new end date, the success banner's time and every "is it
+open" comparison read `TimeProvider.GetLocalNow()`, and both hosts register `UkTimeProvider`
+(`Application/Common`), whose local zone is Europe/London whatever zone the container runs in. No
+reader converts for itself, so the readers cannot disagree and the stamp is on the clock it is
+later compared with. Until #535 the hosts registered the system clock and the containers run on
+UTC, so during British Summer Time every exercise opened and closed an hour late in UK terms and
+the banner read an hour early. An exercise closed early during British Summer Time before that
+fix has an end date an hour behind the UK time it was really closed at; its audit row's time is
+correct.
+
+Exercise dates are wall-clock values, so on the night the clocks go back the hour from 01:00 to
+02:00 happens twice. A start or end inside that hour is passed twice, an hour apart, and an
+exercise closed early during the first pass is open again for the second. The default times
+(00:00 and 17:00) are unaffected.
 
 Because an early close does not end on the hour, deadline sentences show the minutes when there are
 some (`DeadlineTime`): "passed at 12:34pm", not "passed at 12pm".
@@ -492,10 +498,11 @@ click.
 **Close and the hand-over.** `CloseExerciseController` (`admin/windows/{id}/{exercise}/close`) is
 offered only while the exercise is open. After the admin types the window's name it calls
 `IExerciseEarlyClosureService` (the date move and the audit row) and then `ICloseExerciseService`
-(the #437 sweep: submitted requests onto the Zendesk queue, leftover drafts cancelled) — in that
-order, so no school can add a request behind the sweep. The sweep is still date-blind and still the
-only way a pupil-data amendment reaches Zendesk, and nothing runs it at a scheduled end, so once an
-exercise has closed the summary offers it on its own: `SendExerciseRequestsController`
+(the sweep: decided requests onto the Zendesk queue, undecided ones reported as waiting, leftover
+drafts cancelled) — in that order, so no school can add a request behind the sweep. The sweep is still date-blind and still the
+only way a pupil-data amendment reaches Zendesk, and since AB#302158 the service runs it by itself
+two hours after an exercise ends (next section). Once an exercise has closed the summary still
+offers it on its own, for an admin who wants it sooner or again: `SendExerciseRequestsController`
 (`admin/windows/{id}/{exercise}/send-requests`). The sweep is not transactional (a blob read and a
 queue write per request). If it fails after the close has committed, the admin is sent back to the
 summary with a notice that the exercise closed and that its requests still need sending, rather
@@ -503,14 +510,81 @@ than to an error page.
 
 **Bulk submit.** `BulkSubmissionService.SubmitAsync` had no open-exercise check, so a review page
 left open across a close could still post — after an early close until the sweep had cancelled the
-drafts, and after a scheduled end until someone ran the sweep. It now reads the window fresh and
-skips any draft whose own exercise (derived from its change type) is not open; when that leaves
-nothing submitted, the school is sent back to Check your pupil data with the closed message.
+drafts, and after a scheduled end until the sweep ran (at the time that needed an admin; since
+AB#302158 the service runs it two hours after the end). It now reads the window fresh and skips any
+draft whose own exercise (derived from its change type) is not open; when that leaves nothing
+submitted, the school is sent back to Check your pupil data with the closed message.
 
-**Not changed, and worth knowing.** `AmendmentRequestsController.Edit` gates a resumed draft on the
+**Also worth knowing.** `AmendmentRequestsController.Edit` gates a resumed draft on the
 draft's own snapshot, so after an early close the school is turned away one click later, by the
-journey refresh, rather than on the resume itself. The Zendesk worker only creates a ticket for a
-request the rules engine has already processed, while the sweep marks every swept request as sent;
-a request swept before the rules engine reached it (and every Add-pupil request, which never goes
-to the rules engine) is retried, dead-lettered and not picked up again. That defect is older than
-this ticket, but Close now runs the sweep as a matter of course.
+journey refresh, rather than on the resume itself.
+
+The sweep sends only requests the Rules Engine has decided (`ProcessingStatus = Decided`). It
+reports the rest as waiting. **Send … requests for processing** sends them once they are decided.
+Add-pupil requests go through the Rules Engine like any amendment (#536).
+
+## Automatic hand-over two hours after an exercise ends (AB#302158)
+
+Nothing used to hand a scheduled close over: an exercise reached its end date, schools could no
+longer act on it, and its submitted requests sat unsent until an admin pressed "Send … requests
+for processing". The service now does that by itself.
+
+**When.** An exercise is due while `EndDate + 2 hours <= now < EndDate + 2 hours + 24 hours`
+(`ExerciseHandOverSchedule`). The web app's `ExerciseHandOverJob` looks every five minutes and, for
+each due exercise, runs the same sweep the button runs (`ICloseExerciseService.CloseAsync`):
+decided requests onto the Zendesk queue, leftover drafts cancelled. This is about the
+*exercise's* end, never the window's — a window whose pupil-data checking has ended is usually
+still open for results enquiries, and each exercise is judged on its own end date.
+
+**No "done" flag.** The sweep only picks up requests that have not been sent and drafts that are
+still live, so a second run finds nothing. The job therefore simply repeats the sweep on every
+tick for a day, which is also its retry: after a failure, and for any request a run had to leave
+behind. After that day it never looks at the exercise again. There is no column, no migration and
+nothing to reset. One consequence: when this first deployed, exercises that had closed more than
+26 hours earlier were left alone, and still need the button.
+
+**Two hours, and why.** The gap gives the rules engine time to decide the requests that schools
+submitted in the last minutes of the exercise, because the sweep only sends a request the rules
+engine has decided (#536). One that is still undecided is left waiting, and a later tick sends it.
+
+**Both exercise types.** A results-enquiry exercise sends nothing here — enquiries go to Zendesk
+when they are submitted, and the sweep skips them — but its leftover drafts are cancelled.
+
+**After an early close.** Close sweeps at once. The job sweeps again from two hours after the new
+end date and normally finds nothing; if the close's own sweep failed, or a request slipped in
+around the close, this is what picks it up.
+
+**Two web pods.** Every pod runs the job. Each tick first takes a Postgres advisory lock
+(`PostgresExerciseHandOverLock`, on a connection of its own for the reasons written up on
+`PostgresAdvisoryLock`); the pod that does not get it skips the tick. Each exercise is handed over
+in a dependency scope of its own, so one failure cannot affect the next. A pod that is told to
+stop (every deploy does this) lets the exercise it is handing over finish and starts no other; the
+next tick, on whichever pod, carries on.
+
+**The record.** A run that sent or cancelled anything writes one audit row,
+`WindowAdmin` / `RequestsSentAutomatically`, with no user (see `docs/audit-log.md`). A run that
+did nothing writes none. The row is written after the sweep, not in one transaction with it — the
+sweep commits request by request (#536) and has no single transaction to join — and it is
+written even if the pod is stopping. If that write fails, the hand-over has still happened and the
+application log line is the record. A sweep that fails part-way writes no row for the requests it
+did send; the run that finishes the job records only what it sent.
+
+**Settings** (`ExerciseHandOver` section; defaults in code, nothing in `appsettings.json`):
+
+| Key | Default | Meaning |
+|---|---|---|
+| `ExerciseHandOver__Enabled` | `true` | `false` switches the job off in that environment. |
+| `ExerciseHandOver__DelayAfterEnd` | `02:00:00` | How long after the end the first run happens. |
+| `ExerciseHandOver__CatchUpWindow` | `1.00:00:00` | How long the runs are repeated. |
+| `ExerciseHandOver__PollInterval` | `00:05:00` | How often the job looks. |
+
+A value that makes no sense (a negative delay, a zero window or interval) falls back to the
+default. A value that cannot be read at all (for example `5m` where `00:05:00` is meant) switches
+the job off and logs an error; the site still starts.
+
+**The clock is a UK clock** (#535). "Two hours after the end" is measured on the clock every
+exercise gate reads, so the first run is two hours after the UK end time, summer and winter.
+
+**If the job did not run.** A stack that was down for the whole of an exercise's catch-up day
+misses it. The summary page's "Send … requests for processing" button does the same thing by
+hand, at any time after the exercise has closed.

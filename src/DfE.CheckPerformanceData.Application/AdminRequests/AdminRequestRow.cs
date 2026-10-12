@@ -27,6 +27,11 @@ public sealed record AdminRequestRow
     public DateTime? DecidedAtUtc { get; init; }
     public string? CrmId { get; init; }
 
+    // Where the request is on its way to a Zendesk ticket (#536). A row that stays TicketQueued or
+    // TicketCreating with no CrmId is one the ticket maker failed; its message is on the DLQ and a
+    // redrive is claimable.
+    public ProcessingStatus? ProcessingStatus { get; init; }
+
     // The winning branch's evaluation trace, newline-joined. Admin-only - this page is the
     // only place it is shown. Null until the rules engine has run, and on rows decided
     // before the column existed.

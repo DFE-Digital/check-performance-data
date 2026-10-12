@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.CheckYourPupilData;
@@ -23,14 +24,14 @@ public sealed class PupilSuggestionFormatTests
 
     private static PupilRecord Ks4(
         string firstname = "Jane", string surname = "Smith",
-        string upn = "A8604070001B", string dob = "01/01/2010") => new()
+        string upn = "A8604070001B", string dob = "01/01/2010", string cypmdId = "000001") => new()
         {
             Id = Guid.NewGuid(),
             Firstname = firstname,
             Surname = surname,
             Upn = upn,
             DateOfBirth = dob,
-            Cypmd_Id = "000001"
+            Cypmd_Id = cypmdId
         };
 
     // ── Label ────────────────────────────────────────────────────────────────
@@ -72,6 +73,206 @@ public sealed class PupilSuggestionFormatTests
         var label = PupilSuggestionFormat.Label(Ks4(), windowType);
 
         Assert.Equal("Smith, Jane, 01/01/2010", label);
+    }
+
+    // ── Matching — PupilSearchField.CypmdId (AB#304118) ───────────────────────
+    // The KS4 merge journey's second-record page asks for "What is the CYPMD ID of the second
+    // duplicate record to be merged?" and hints "Start typing ID to search records", so on that page
+    // a name must not match. Everything below is one pupil record: any case that returns true is the
+    // CypmdId prefix, and any that returns false is proof the other fields were dropped rather than
+    // merely not exercised.
+
+    private static readonly PupilRecord CypmdIdPupil =
+        Ks4(firstname: "Jane", surname: "Smith", upn: "A8604070001B", dob: "01/01/2010", cypmdId: "800001");
+
+    [Theory]
+    [InlineData("800001")]        // the whole ID
+    [InlineData("8000")]          // a leading partial is enough to find the record
+    [InlineData("80")]
+    [InlineData("8")]
+    public void A_cypmd_id_search_matches_the_typed_prefix(string query)
+    {
+        Assert.True(PupilSuggestionFormat.Matches(
+            CypmdIdPupil, query, CheckingWindowType.KS4June, PupilSearchField.CypmdId));
+    }
+
+    [Theory]
+    [InlineData("a8604070001b")]  // the UPN, lower-cased — a different identifier, not the CYPMD ID
+    [InlineData("A8604070001B")]
+    [InlineData("Smith")]         // surname
+    [InlineData("Jane")]          // forename
+    [InlineData("Jane Smith")]    // split-name query
+    [InlineData("Smith Jane")]
+    [InlineData("01/01/2010")]    // date of birth, in the display format the page would show
+    [InlineData("01/01")]         // a partial date of birth
+    [InlineData("800002")]        // a different record's ID
+    [InlineData("")]              // nothing typed
+    [InlineData("   ")]           // whitespace only
+    public void A_cypmd_id_search_matches_nothing_else(string query)
+    {
+        Assert.False(PupilSuggestionFormat.Matches(
+            CypmdIdPupil, query, CheckingWindowType.KS4June, PupilSearchField.CypmdId));
+    }
+
+    [Theory]
+    [InlineData("800001")]
+    [InlineData("8000")]
+    public void A_cypmd_id_search_ignores_case(string query)
+    {
+        Assert.True(PupilSuggestionFormat.Matches(
+            CypmdIdPupil, query.ToUpperInvariant(), CheckingWindowType.KS4June, PupilSearchField.CypmdId));
+    }
+
+    [Fact]
+    public void A_cypmd_id_search_ignores_leading_and_trailing_whitespace()
+    {
+        Assert.True(PupilSuggestionFormat.Matches(
+            CypmdIdPupil, "  8000  ", CheckingWindowType.KS4June, PupilSearchField.CypmdId));
+    }
+
+    [Fact]
+    public void A_cypmd_id_search_works_the_same_on_a_16_19_window()
+    {
+        // The restriction is a property of the page, not of the window type, so a 16-19 page that
+        // asked for one would get the same rule.
+        Assert.True(PupilSuggestionFormat.Matches(
+            Post16(cypmdId: "500001"), "5000", CheckingWindowType.Post16, PupilSearchField.CypmdId));
+        Assert.False(PupilSuggestionFormat.Matches(
+            Post16(cypmdId: "500001"), "Bil", CheckingWindowType.Post16, PupilSearchField.CypmdId));
+    }
+
+    // ── Labels — PupilSearchField.CypmdId (AB#304118) ──────────────────────────
+    // Why the ID has to be in the text: the KS4 suggestion is "Surname, Firstname, DOB", so when a
+    // clerk searches by ID and two duplicate records were created from the same child they get rows
+    // that read alike. The ID is what they were typing, so it is what has to come back.
+
+    [Fact]
+    public void A_cypmd_id_search_shows_the_id_in_the_suggestion()
+    {
+        var label = PupilSuggestionFormat.Label(
+            CypmdIdPupil, CheckingWindowType.KS4June, PupilSearchField.CypmdId);
+
+        Assert.Equal("Smith, Jane, 01/01/2010 (800001)", label);
+    }
+
+    [Fact]
+    public void A_cypmd_id_search_shows_the_id_after_the_same_text_every_ks4_suggestion_starts_with()
+    {
+        // The existing part of the label is unchanged — the ID is appended, not substituted — so a
+        // clerk who already knows the format still recognises the row.
+        var label = PupilSuggestionFormat.Label(
+            CypmdIdPupil, CheckingWindowType.KS4June, PupilSearchField.CypmdId);
+
+        Assert.StartsWith("Smith, Jane, 01/01/2010", label);
+    }
+
+    [Theory]
+    [InlineData(CheckingWindowType.KS4June)]
+    [InlineData(CheckingWindowType.KS4Autumn)]
+    [InlineData(CheckingWindowType.KS2)]
+    public void The_id_is_shown_on_any_ks4_page_that_asked_for_one(CheckingWindowType windowType)
+    {
+        Assert.Equal("Smith, Jane, 01/01/2010 (800001)", PupilSuggestionFormat.Label(
+            CypmdIdPupil, windowType, PupilSearchField.CypmdId));
+    }
+
+    [Fact]
+    public void An_unnarrowed_ks4_suggestion_does_not_show_the_id()
+    {
+        // Every other KS4 page, including the merge journey's FIRST-record page, keeps its label to
+        // the letter: appending an ID to all of them would change four live journeys for no reason.
+        Assert.Equal("Smith, Jane, 01/01/2010", PupilSuggestionFormat.Label(
+            CypmdIdPupil, CheckingWindowType.KS4June, PupilSearchField.All));
+    }
+
+    [Fact]
+    public void A_16_19_suggestion_is_unchanged_even_when_it_is_narrowed_to_the_id()
+    {
+        // 16-19 already prints "CYPMD ID:..." — a second, differently-bracketed copy would be noise,
+        // and #510 does not cover that journey.
+        Assert.Equal("Billy, B, (CYPMD ID:500001, ULN:9900000001, DOB:12/03/2007, INCLUDED)",
+            PupilSuggestionFormat.Label(
+                Post16(), CheckingWindowType.Post16, PupilSearchField.CypmdId));
+    }
+
+    [Fact]
+    public void The_id_is_shown_on_a_ks4_pupil_whose_id_is_only_the_thing_that_identifies_them()
+    {
+        // The motivating case: two records off one child. Identical name and DOB, so the name part
+        // of the label is no help at all.
+        var original = Ks4(firstname: "Jane", surname: "Smith", dob: "01/01/2010", cypmdId: "800001");
+        var duplicate = Ks4(firstname: "Jane", surname: "Smith", dob: "01/01/2010", cypmdId: "800002");
+
+        var labels = new[] { original, duplicate }
+            .Select(p => PupilSuggestionFormat.Label(p, CheckingWindowType.KS4June, PupilSearchField.CypmdId))
+            .ToList();
+
+        Assert.Equal(2, labels.Distinct().Count());
+    }
+
+    // ── US3 — the pages this ticket does not touch (FR-008, FR-010) ────────────
+    // Restated with the field value spelled out rather than left to the default. The default is
+    // already covered above; passing All explicitly is what pins the value itself, so the CypmdId
+    // branch cannot be reached by accident on a page that never asked for it.
+
+    [Theory]
+    [InlineData("Jane")]            // forename
+    [InlineData("Smith")]           // surname
+    [InlineData("Jane Smith")]      // split query
+    [InlineData("A8604070001B")]    // UPN
+    [InlineData("800001")]          // CYPMD ID — still matchable where the page allows it
+    public void An_unnarrowed_ks4_search_still_matches_everything_it_used_to(string query)
+    {
+        Assert.True(PupilSuggestionFormat.Matches(
+            CypmdIdPupil, query, CheckingWindowType.KS4June, PupilSearchField.All));
+    }
+
+    [Theory]
+    [InlineData("01/01/2010")]
+    [InlineData("01/01")]
+    public void An_unnarrowed_ks4_search_still_ignores_the_date_of_birth(string query)
+    {
+        // Date-of-birth search is 16-19 only, and stays that way.
+        Assert.False(PupilSuggestionFormat.Matches(
+            CypmdIdPupil, query, CheckingWindowType.KS4June, PupilSearchField.All));
+    }
+
+    [Theory]
+    [InlineData(CheckingWindowType.KS4June)]
+    [InlineData(CheckingWindowType.KS4Autumn)]
+    [InlineData(CheckingWindowType.KS2)]
+    public void An_unnarrowed_ks4_suggestion_is_byte_identical_to_the_pre_510_string(CheckingWindowType windowType)
+    {
+        Assert.Equal("Smith, Jane, 01/01/2010", PupilSuggestionFormat.Label(
+            CypmdIdPupil, windowType, PupilSearchField.All));
+    }
+
+    [Theory]
+    [InlineData(PupilSearchField.All)]
+    [InlineData(PupilSearchField.CypmdId)]
+    public void A_16_19_suggestion_is_byte_identical_under_both_field_values(PupilSearchField searchField)
+    {
+        // 16-19 already prints the ID, so neither value may alter its string.
+        Assert.Equal("Billy, B, (CYPMD ID:500001, ULN:9900000001, DOB:12/03/2007, INCLUDED)",
+            PupilSuggestionFormat.Label(Post16(), CheckingWindowType.Post16, searchField));
+    }
+
+    [Fact]
+    public void Omitting_the_field_is_the_same_as_asking_for_everything()
+    {
+        // The default is what every existing caller relies on — the Add journey's duplicate check
+        // reaches these helpers without naming a field. Compared rather than hard-coded so the
+        // assertion tracks the default instead of restating it.
+        const CheckingWindowType windowType = CheckingWindowType.KS4June;
+        foreach (var query in new[] { "Smith", "Jane", "A8604070001B", "800001", "01/01/2010", "" })
+        {
+            Assert.Equal(
+                PupilSuggestionFormat.Matches(CypmdIdPupil, query, windowType, PupilSearchField.All),
+                PupilSuggestionFormat.Matches(CypmdIdPupil, query, windowType));
+            Assert.Equal(
+                PupilSuggestionFormat.Label(CypmdIdPupil, windowType, PupilSearchField.All),
+                PupilSuggestionFormat.Label(CypmdIdPupil, windowType));
+        }
     }
 
     // ── Matching ─────────────────────────────────────────────────────────────

@@ -17,8 +17,8 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Worker;
 
 /// <summary>
 /// Verifies that <see cref="ZendeskConsumer"/> can claim and process a results-enquiry
-/// message immediately on submission (AB#301974), and that the claim predicate only widens
-/// for enquiry rows — amendment semantics are unchanged (SC-005).
+/// message immediately on submission (AB#301974), and that the claim takes only a
+/// <c>TicketQueued</c> row (#536). Submit stamps an enquiry <c>TicketQueued</c>.
 /// </summary>
 public sealed class ZendeskConsumerEnquiryMessageTests
 {
@@ -27,9 +27,9 @@ public sealed class ZendeskConsumerEnquiryMessageTests
     // ── Tests ──────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task Enquiry_row_with_null_WorkerStatus_is_claimed()
+    public async Task Enquiry_row_that_is_queued_is_claimed()
     {
-        var harness = new ConsumerHarness([NewEnquiryRow(Reference)]);
+        var harness = new ConsumerHarness([NewEnquiryRow(Reference, ProcessingStatus.TicketQueued)]);
         harness.StubTicketCreation();
 
         await harness.Consumer.ProcessMessageBodyAsync(
@@ -41,7 +41,7 @@ public sealed class ZendeskConsumerEnquiryMessageTests
     [Fact]
     public async Task Enquiry_ticket_has_Scrutiny_status_and_names_the_QAN()
     {
-        var harness = new ConsumerHarness([NewEnquiryRow(Reference)]);
+        var harness = new ConsumerHarness([NewEnquiryRow(Reference, ProcessingStatus.TicketQueued)]);
         harness.StubTicketCreation();
 
         await harness.Consumer.ProcessMessageBodyAsync(
@@ -63,12 +63,12 @@ public sealed class ZendeskConsumerEnquiryMessageTests
     }
 
     [Fact]
-    public async Task Non_enquiry_row_with_null_WorkerStatus_is_not_claimed()
+    public async Task Enquiry_row_with_null_status_is_not_claimed()
     {
-        // SC-005: the widened claim must not accidentally claim an amendment with null status.
+        // #536: only TicketQueued is claimable, so an enquiry with no status is not ticketed.
         // Not claimed — but not quietly acked away either: the consumer throws so the queue
         // retries and, if the row stays unclaimable, dead-letters it with a reason.
-        var harness = new ConsumerHarness([NewAmendmentRow(Reference)]);
+        var harness = new ConsumerHarness([NewEnquiryRow(Reference)]);
         harness.StubTicketCreation();
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => harness.Consumer.ProcessMessageBodyAsync(
@@ -80,8 +80,8 @@ public sealed class ZendeskConsumerEnquiryMessageTests
     [Fact]
     public async Task Redelivery_with_CrmId_already_set_is_noop()
     {
-        // The check-before-create guard must fire regardless of WorkerStatus.
-        var harness = new ConsumerHarness([NewEnquiryRow(Reference, crmId: "12345")]);
+        // The check-before-create guard must fire regardless of ProcessingStatus.
+        var harness = new ConsumerHarness([NewEnquiryRow(Reference, ProcessingStatus.TicketQueued, crmId: "12345")]);
         harness.StubTicketCreation();
 
         await harness.Consumer.ProcessMessageBodyAsync(
@@ -121,7 +121,7 @@ public sealed class ZendeskConsumerEnquiryMessageTests
         ]
     };
 
-    private static ChangeRequest NewEnquiryRow(string referenceNumber, WorkerStatus? workerStatus = null, string? crmId = null) => new()
+    private static ChangeRequest NewEnquiryRow(string referenceNumber, ProcessingStatus? processingStatus = null, string? crmId = null) => new()
     {
         Id = Guid.NewGuid(),
         WindowId = Guid.NewGuid(),
@@ -129,30 +129,13 @@ public sealed class ZendeskConsumerEnquiryMessageTests
         Submitted = DateTime.UtcNow,
         SubmittedById = Guid.NewGuid(),
         SubmittedByName = "Ada Editor",
-        Status = RequestStatus.SubmittedUnCommitted,
+        Status = RequestStatus.Submitted,
         ReferenceNumber = referenceNumber,
         RequestType = RequestType.ResultsEnquiry,
         RequestTypeDescription = "Results enquiry - Incorrect grade",
         AmendmentType = WhatToChange.IncorrectGrade,
-        WorkerStatus = workerStatus,
+        ProcessingStatus = processingStatus,
         CrmId = crmId
-    };
-
-    private static ChangeRequest NewAmendmentRow(string referenceNumber) => new()
-    {
-        Id = Guid.NewGuid(),
-        WindowId = Guid.NewGuid(),
-        OrganisationUrn = 142313,
-        Submitted = DateTime.UtcNow,
-        SubmittedById = Guid.NewGuid(),
-        SubmittedByName = "Ada Editor",
-        Status = RequestStatus.SubmittedUnCommitted,
-        ReferenceNumber = referenceNumber,
-        RequestType = RequestType.Amendment,
-        RequestTypeDescription = "Remove - pupil-died",
-        AmendmentType = WhatToChange.Remove,
-        WorkerStatus = null,
-        CrmId = null
     };
 
     // ── Harness ────────────────────────────────────────────────────────────
@@ -161,8 +144,8 @@ public sealed class ZendeskConsumerEnquiryMessageTests
     /// Wires a fake <see cref="IAsyncQueryProvider"/> over the seeded rows so that:
     ///   • <c>FirstOrDefaultAsync</c> evaluates the real predicate against the in-memory list.
     ///   • <c>ExecuteUpdateAsync</c> returns the count of rows matching the real WHERE clause.
-    /// This lets the pre-T007 claim predicate (<c>WorkerStatus == RulesProcessed</c>) return 0
-    /// for an enquiry row (red), and post-T007 return 1 (green).
+    /// This lets the claim predicate (<c>ProcessingStatus == TicketQueued</c>) return 1 for a
+    /// queued row and 0 for any other.
     /// </summary>
     private sealed class ConsumerHarness
     {
@@ -221,7 +204,7 @@ public sealed class ZendeskConsumerEnquiryMessageTests
     ///   • <c>FirstOrDefaultAsync(predicate)</c> runs the predicate against the list.
     ///   • <c>Where(...).ExecuteUpdateAsync(...)</c> counts real-matching rows.
     /// No real EF translation occurs — the tests assert on the fake provider's output,
-    /// confirming the claim predicate's branch logic (RulesProcessed vs null-ResultsEnquiry)
+    /// confirming the claim predicate's logic (TicketQueued only)
     /// without requiring a database.
     /// </summary>
     private sealed class AsyncQueryProvider : IAsyncQueryProvider

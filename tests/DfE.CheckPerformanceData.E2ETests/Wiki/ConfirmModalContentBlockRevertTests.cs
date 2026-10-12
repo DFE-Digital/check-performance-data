@@ -93,7 +93,7 @@ public sealed class ConfirmModalContentBlockRevertTests(PlaywrightFixture fixtur
         using var request = new HttpRequestMessage(
             HttpMethod.Get,
             new Uri(Fixture.SeedClient.BaseAddress!, $"/content-block/versions/{_key}"));
-        using var response = await TestHttpClients.SendAsync(request);
+        using var response = await Fixture.SeedClient.SendAsync(request);
         response.EnsureSuccessStatusCode();
         var html = await response.Content.ReadAsStringAsync();
 

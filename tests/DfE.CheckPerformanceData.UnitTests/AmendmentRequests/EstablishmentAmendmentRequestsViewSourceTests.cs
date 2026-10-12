@@ -37,6 +37,20 @@ public sealed class EstablishmentAmendmentRequestsViewSourceTests
         Assert.DoesNotContain(">Pupil name<", source);
     }
 
+    // #545: both submitted-request views show the CYPMD ID row. They are separate files, so pin both.
+    [Theory]
+    [InlineData("AmendmentRequests/EstablishmentAmendmentRequests/UrnAmendmentView.cshtml")]
+    [InlineData("SubmittedRequest/View.cshtml")]
+    public void Submitted_request_views_render_the_cypmd_id_row(string viewPath)
+    {
+        string source = File.ReadAllText(Path.Combine(
+            RepoRoot, "src", "DfE.CheckPerformanceData.Web", "Views", viewPath));
+
+        Assert.Contains("@if (Model.ShowCypmdIdRow)", source);
+        Assert.Contains(">CYPMD ID<", source);
+        Assert.Contains("@Model.PupilCypmdId", source);
+    }
+
     private static string ViewSource(string fileName) =>
         File.ReadAllText(Path.Combine(
             RepoRoot,

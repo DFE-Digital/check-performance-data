@@ -72,7 +72,7 @@ public sealed class EditAdviceService(
     {
         // Only InProgress and ReadyToSubmit requests reach this screen: the Amendment
         // requests table (GetAmendmentRequestsAsync) filters to those two statuses, so a
-        // SubmittedUnCommitted request never gets here (it would fall through as InProgress).
+        // Submitted request never gets here (it would fall through as InProgress).
         if (status == RequestStatus.ReadyToSubmit) return new ContinueToSummary();
 
         return type switch

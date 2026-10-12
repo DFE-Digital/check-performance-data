@@ -96,6 +96,23 @@ public sealed class WidgetEditorContractTests
         Assert.Contains("GetBool(\"showButton\") ?? true", SearchBranch());
     }
 
+    // Where the button goes matters with or without instant search, so the option sits outside
+    // the instant-search reveal. As with the other tick boxes, a hidden "false" after the label is
+    // what makes unticking stick.
+    [Fact]
+    public void Search_EditorOffersTheButtonBelowTheBox()
+    {
+        var b = SearchBranch();
+        var checkbox = b.IndexOf("name=\"props[buttonBelow]\" type=\"checkbox\"", StringComparison.Ordinal);
+        var label = b.IndexOf("Put the button below the search box", StringComparison.Ordinal);
+        var hidden = b.IndexOf("<input type=\"hidden\" name=\"props[buttonBelow]\" value=\"false\" />", StringComparison.Ordinal);
+
+        Assert.True(checkbox >= 0, "Search editor has no tick box for the button position.");
+        Assert.True(label > checkbox, "The button position tick box has no label after it.");
+        Assert.True(hidden > label, "Unticking would post nothing without a hidden false after the label.");
+        Assert.Contains("GetBool(\"buttonBelow\") ?? false", b);
+    }
+
     [Fact]
     public void Search_EditorExposesNoResultsCopy()
     {
@@ -160,6 +177,64 @@ public sealed class WidgetEditorContractTests
             "src", "DfE.CheckPerformanceData.Web", "Views", "Shared", "ContentPages", "_PageScopePicker.cshtml"));
 
         Assert.Contains("<input type=\"hidden\" name=\"scopePicker\" value=\"true\" />", picker);
+    }
+
+    private static string PickerPartial() => File.ReadAllText(Path.Combine(
+        FindSolutionRoot(AppContext.BaseDirectory),
+        "src", "DfE.CheckPerformanceData.Web", "Views", "Shared", "ContentPages", "_PageScopePicker.cshtml"));
+
+    [Fact]
+    public void PagePicker_RendersAFilterBox_HiddenUntilScriptRuns()
+    {
+        var picker = PickerPartial();
+
+        Assert.Matches(@"<div[^>]*data-cpb-scope-filter[^>]*[ ]hidden[ >]", picker);
+    }
+
+    [Fact]
+    public void PagePicker_FilterInput_IsLabelled_AndNeverPosted()
+    {
+        var picker = PickerPartial();
+
+        Assert.Contains("for=\"@Model.IdPrefix-filter\"", picker);
+        Assert.Contains("id=\"@Model.IdPrefix-filter\"", picker);
+        Assert.Contains("type=\"search\"", picker);
+
+        var start = picker.IndexOf("data-cpb-scope-filter", StringComparison.Ordinal);
+        var end = picker.IndexOf("data-cpb-scope-status", StringComparison.Ordinal);
+        Assert.True(start >= 0 && end > start);
+        Assert.DoesNotContain("name=", picker.Substring(start, end - start));
+    }
+
+    [Fact]
+    public void PagePicker_HasAPoliteStatusRegion()
+    {
+        var picker = PickerPartial();
+
+        Assert.Contains("role=\"status\"", picker);
+        Assert.Contains("aria-live=\"polite\"", picker);
+    }
+
+    [Fact]
+    public void PagePicker_ItemsCarryALowercaseFilterHaystack()
+    {
+        Assert.Contains("data-filter=", PickerPartial());
+    }
+
+    [Fact]
+    public void PagePicker_FilterHaystack_CarriesThePathAsDisplayed()
+    {
+        Assert.Contains("/{item.Path}", PickerPartial());
+    }
+
+    [Fact]
+    public void Editor_LoadsThePageScopeFilterScript()
+    {
+        var edit = File.ReadAllText(Path.Combine(
+            FindSolutionRoot(AppContext.BaseDirectory),
+            "src", "DfE.CheckPerformanceData.Web", "Views", "ContentPage", "Edit.cshtml"));
+
+        Assert.Contains("~/js/cms-page-scope-filter.js", edit);
     }
 
     // ----- PageNav widget -----

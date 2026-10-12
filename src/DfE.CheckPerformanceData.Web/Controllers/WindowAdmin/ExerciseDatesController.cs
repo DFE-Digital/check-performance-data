@@ -14,7 +14,7 @@ namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 /// <see cref="CheckingWindowDto.DeriveDatesFromExercises"/>, so the two cannot disagree.
 /// </summary>
 [RequireAdminSection(AdminNavKeys.ManageWindow)]
-public sealed class ExerciseDatesController(IWindowService windowService) : Controller
+public sealed class ExerciseDatesController(IWindowService windowService, TimeProvider timeProvider) : Controller
 {
     private const string PageView = "~/Views/WindowAdmin/ExerciseDates.cshtml";
 
@@ -132,7 +132,8 @@ public sealed class ExerciseDatesController(IWindowService windowService) : Cont
 
     private void Validate(ExerciseDatesItem model)
     {
-        if (model.StartDateTime < DateTime.UtcNow.Date)
+        // "Today" on the clock every exercise gate reads (#535): the UK date, not the server's.
+        if (model.StartDateTime < timeProvider.GetLocalNow().Date)
         {
             ModelState.AddModelError(nameof(ExerciseDatesItem.StartDate), "Start date can not occur in the past.");
         }

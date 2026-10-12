@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Application.CheckYourPupilData;
@@ -15,12 +16,20 @@ namespace DfE.CheckPerformanceData.Application.CheckYourPupilData;
 /// </summary>
 public static class PupilSuggestionFormat
 {
-    public static string Label(IPupilRecord pupil, CheckingWindowType windowType)
+    public static string Label(IPupilRecord pupil, CheckingWindowType windowType, PupilSearchField searchField = PupilSearchField.All)
     {
         var dob = PupilDateFormatter.ToDisplayDate(pupil.DateOfBirth);
 
         if (windowType != CheckingWindowType.Post16)
-            return $"{pupil.Surname}, {pupil.Firstname}, {dob}";
+        {
+            // AB#304118: a page that searched by CYPMD ID needs the ID back in the row. The KS4
+            // suggestion leads with name and date of birth, which are identical across the duplicate
+            // records this journey exists to merge, so the ID the clerk just typed is the only part
+            // that tells two rows apart. Appended, so the part they already recognise is untouched.
+            return searchField == PupilSearchField.CypmdId
+                ? $"{pupil.Surname}, {pupil.Firstname}, {dob} ({pupil.Cypmd_Id})"
+                : $"{pupil.Surname}, {pupil.Firstname}, {dob}";
+        }
 
         // AB#297004 specifies "UPN" here, but 16-19 students have a ULN and no UPN — Identifier is
         // the ULN for Post16. FLAGGED to the BA: the label says ULN because that is what the value is.
@@ -29,10 +38,16 @@ public static class PupilSuggestionFormat
                $"(CYPMD ID:{pupil.Cypmd_Id}, ULN:{pupil.Identifier}, DOB:{dob}, {inclusion})";
     }
 
-    public static bool Matches(IPupilRecord pupil, string query, CheckingWindowType windowType)
+    public static bool Matches(IPupilRecord pupil, string query, CheckingWindowType windowType, PupilSearchField searchField = PupilSearchField.All)
     {
         var trimmed = query.Trim();
         if (trimmed.Length == 0) return false;
+
+        // AB#304118: a page can restrict the search to the CYPMD ID alone — the KS4 merge journey's
+        // second-record page asks for one by name. Returned before every other rule, because a page
+        // that promises an ID search must not also answer to a name, a UPN or a date of birth.
+        if (searchField == PupilSearchField.CypmdId)
+            return pupil.Cypmd_Id.StartsWith(trimmed, StringComparison.OrdinalIgnoreCase);
 
         if (trimmed.Contains(' '))
         {

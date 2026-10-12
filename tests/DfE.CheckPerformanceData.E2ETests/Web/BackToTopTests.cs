@@ -37,6 +37,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Web;
 // test below failed on its first assertion with a 404. Fixtures live under their own
 // root, and the seed re-imports them over the top rather than skipping what already
 // exists, so an emptied one comes back.
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class BackToTopTests(PlaywrightFixture fixture) : PageTest
 {

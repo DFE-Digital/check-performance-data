@@ -4,7 +4,8 @@ namespace DfE.CheckPerformanceData.Application.ContentStaging;
 // what goes into an export. Pages are in tree order with a Depth for indentation.
 public sealed record ContentCatalog(
     IReadOnlyList<CatalogPage> Pages,
-    IReadOnlyList<CatalogBlock> Blocks);
+    IReadOnlyList<CatalogBlock> Blocks,
+    IReadOnlyList<CatalogBanner> Banners);
 
 public sealed record CatalogPage(
     Guid Id,
@@ -20,4 +21,12 @@ public sealed record CatalogBlock(
     string BlockType,
     string? LastSeenPath,
     DateTime CreatedAt,
+    DateTime UpdatedAt);
+
+public sealed record CatalogBanner(
+    Guid Id,
+    string Heading,
+    bool IsEnabled,
+    DateTime? ShowFrom,
+    DateTime? ShowUntil,
     DateTime UpdatedAt);

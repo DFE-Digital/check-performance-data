@@ -9,6 +9,7 @@ namespace DfE.CheckPerformanceData.E2ETests.ContentPages;
 //
 // Pairs with ContentNavBuilderTests (the nesting rules), NavLevelSelectionTests (props to level
 // set) and WidgetEditorContractTests (the form fields).
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class PageNavLevelsE2ETests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
@@ -68,6 +69,7 @@ public sealed class PageNavLevelsE2ETests(PlaywrightFixture fixture) : SeedingPa
         await Page.Locator("nav.moj-side-navigation a").AllInnerTextsAsync();
 
     [Fact]
+    [Trait("Category", "Smoke")]
     public async Task ByDefault_TheNavShowsH2AndH3Only()
     {
         var (_, url) = await SeedAsync();

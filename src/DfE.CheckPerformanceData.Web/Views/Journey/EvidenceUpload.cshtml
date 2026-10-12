@@ -3,6 +3,9 @@
 @{
     ViewBag.Title = Model.PageTitle;
     Layout = "_Layout";
+    // An upload refused by "Upload file" comes back after a redirect, so ModelState is valid and
+    // the error lives only on the view model. This is what gives the title its "Error: " prefix.
+    ViewData["HasError"] = Model.HasErrors;
 }
 
 @await Html.PartialAsync("_JourneyBackLink", Model)

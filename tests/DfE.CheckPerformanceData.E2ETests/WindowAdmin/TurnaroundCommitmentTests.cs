@@ -9,6 +9,7 @@ namespace DfE.CheckPerformanceData.E2ETests.WindowAdmin;
 /// window Summary, editable via a one-field form, persisted back to the database, and an empty
 /// submission is allowed (no required validation).
 /// </summary>
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class TurnaroundCommitmentTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {

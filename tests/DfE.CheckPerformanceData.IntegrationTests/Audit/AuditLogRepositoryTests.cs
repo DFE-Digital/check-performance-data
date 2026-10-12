@@ -114,6 +114,24 @@ public sealed class AuditLogRepositoryTests(PostgresFixture fixture)
         return windowId;
     }
 
+    // AB#302158: an automatic hand-over, written through the real writer so the payload is
+    // production's. NewWindowAsync also leaves the capture's CheckingWindow / Insert row.
+    private async Task<Guid> SeedAutomaticHandOverAsync()
+    {
+        var windowId = await NewWindowAsync("Automatic hand-over window");
+        await new WindowAdminAuditWriter(fixture.CreateContext()).RecordAutomaticHandOverAsync(new AutomaticHandOverAudit
+        {
+            WindowId = windowId,
+            WindowTitle = "Automatic hand-over window",
+            Exercise = CheckingExerciseType.PupilData,
+            ExerciseEnd = new DateTime(2026, 6, 30, 17, 0, 0),
+            RequestsSent = 3,
+            DraftsCancelled = 2,
+            RanAtUtc = new DateTime(2026, 6, 30, 18, 0, 0, DateTimeKind.Utc)
+        }, CancellationToken.None);
+        return windowId;
+    }
+
     private async Task<IReadOnlyList<AuditLogRow>> RowsAsync(AuditLogFilter filter) =>
         (await Repository().ListAsync(filter, 1, 20, CancellationToken.None)).Rows;
 
@@ -361,5 +379,36 @@ public sealed class AuditLogRepositoryTests(PostgresFixture fixture)
 
         Assert.Equal(AuditActivities.ClosedEarlyAction, Assert.Single(rows).Action);
         Assert.Contains(AuditActivities.WindowAdmin, await Repository().ListActivitiesAsync(CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task An_automatic_hand_over_lists_under_its_window_with_no_person_and_its_counts()
+    {
+        var windowId = await SeedAutomaticHandOverAsync();
+
+        var row = Assert.Single(await RowsAsync(new AuditLogFilter(null, windowId, null)), r => r.EntityType == AuditActivities.WindowAdmin);
+
+        Assert.Equal(AuditActivities.RequestsSentAutomaticallyAction, row.Action);
+        Assert.Equal(windowId, row.WindowId);
+        Assert.Equal("Automatic hand-over window", row.WindowTitle);
+        Assert.Null(row.UserId);
+        Assert.Null(row.UserName);
+        Assert.Equal("PupilData", row.ExerciseType);
+        Assert.Equal(3, row.RequestsSent);
+        Assert.Equal(2, row.DraftsCancelled);
+        Assert.Equal(AuditOutcome.Success, row.Outcome);
+        Assert.Equal(new DateTime(2026, 6, 30, 18, 0, 0, DateTimeKind.Utc), row.TimestampUtc);
+    }
+
+    [Fact]
+    public async Task The_success_filter_includes_an_automatic_hand_over_and_the_failed_filter_does_not()
+    {
+        var windowId = await SeedAutomaticHandOverAsync();
+
+        var success = await RowsAsync(new AuditLogFilter(null, windowId, AuditOutcome.Success));
+        var failed = await RowsAsync(new AuditLogFilter(null, windowId, AuditOutcome.Failed));
+
+        Assert.Equal(AuditActivities.RequestsSentAutomaticallyAction, Assert.Single(success).Action);
+        Assert.Empty(failed);
     }
 }

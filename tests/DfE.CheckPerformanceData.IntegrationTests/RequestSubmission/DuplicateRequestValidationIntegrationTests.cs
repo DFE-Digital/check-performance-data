@@ -274,14 +274,14 @@ public sealed class DuplicateRequestValidationIntegrationTests
         var requestNotificationService = Substitute.For<IRequestNotificationService>();
         var checkYourPupilDataService = Substitute.For<ICheckYourPupilDataService>();
 
-        return new RequestService(flowService, requestStateBlobClient, repository, currentUser,
+        return new RequestService(flowService, requestStateBlobClient, Substitute.For<IRequestBlobClient>(), repository, currentUser,
             logger, queueService, requestNotificationService, checkYourPupilDataService,
             new CheckingExerciseService(TimeProvider.System));
     }
 
     private async Task SeedRequestAsync(
         Guid windowId, string referenceNumber, Guid pupilId, Guid submittedById,
-        RequestStatus status = RequestStatus.SubmittedUnCommitted, long organisationUrn = 100000)
+        RequestStatus status = RequestStatus.Submitted, long organisationUrn = 100000)
     {
         await new RequestRepository(_fixture.CreateContext())
             .UpsertAsync(new ChangeRequestData

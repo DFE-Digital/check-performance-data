@@ -15,8 +15,7 @@ public sealed class DashboardRequestRepository(IPortalDbContext context) : IDash
         // that in-memory counting beats four separate round trips.
         var rows = await context.ChangeRequests
             .Where(r => r.WindowId == windowId
-                && (r.Status == RequestStatus.SubmittedUnCommitted
-                    || r.Status == RequestStatus.SubmittedCommitted))
+                && r.Status == RequestStatus.Submitted)
             .Select(r => new { r.OrganisationUrn, r.Outcome })
             .ToListAsync(cancellationToken);
 

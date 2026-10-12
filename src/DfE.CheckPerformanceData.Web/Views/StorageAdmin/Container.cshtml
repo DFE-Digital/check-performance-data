@@ -37,7 +37,21 @@
 
 <p class="govuk-body-l">@Model.Folders.Count folder(s), @Model.Blobs.Count blob(s).</p>
 
-<form method="post" enctype="multipart/form-data" action="/admin/storage/@Model.AccountKey/@Model.ContainerName/upload">
+@{
+    var uploadBase = $"/admin/storage/{Model.AccountKey}/{Model.ContainerName}/upload";
+    var maxLabel = DfE.CheckPerformanceData.Web.Admin.StorageBrowserOptions.FormatSize(Model.MaxUploadBytes);
+    var singleLimit = $"{DfE.CheckPerformanceData.Web.Admin.StorageBrowserOptions.SingleUploadHintMegabytes}MB";
+    // PathUrl already escapes the prefix; every other value is numeric or a fixed string.
+    // Plain attributes, because a form tag helper rejects C# in its attribute area.
+    var containerUrl = PathUrl(Model.Prefix);
+}
+@* #568: the plain multipart POST is the whole feature without JavaScript. With JavaScript,
+   storage-chunked-upload.js takes over submit and sends each file in parts to the block and
+   commit endpoints, in every environment. The ids and data attributes below are that
+   script's contract. *@
+<form id="storage-upload-form" method="post" enctype="multipart/form-data" action="@uploadBase"
+      data-chunk-bytes="@Model.ChunkBytes" data-max-bytes="@Model.MaxUploadBytes" data-max-label="@maxLabel"
+      data-block-url="@uploadBase/block" data-commit-url="@uploadBase/commit" data-container-url="@containerUrl">
     @Html.AntiForgeryToken()
     <input type="hidden" name="prefix" value="@Model.Prefix" />
     <h2 class="govuk-heading-m">Upload files@(string.IsNullOrEmpty(Model.Prefix) ? "" : $" to {Model.Prefix}")</h2>
@@ -48,9 +62,20 @@
     </div>
     <div class="govuk-form-group">
         <label class="govuk-label" for="files">Files</label>
-        <input class="govuk-file-upload" id="files" name="files" type="file" multiple />
+        <div id="files-hint" class="govuk-hint">The files you choose must add up to less than @singleLimit.</div>
+        <p id="files-js-hint" class="govuk-hint" hidden>You can choose more than one file. Each file must be smaller than @maxLabel.</p>
+        <noscript><p class="govuk-body">To upload bigger files, turn on JavaScript in your browser.</p></noscript>
+        <input class="govuk-file-upload" id="files" name="files" type="file" multiple aria-describedby="files-hint" />
     </div>
-    <button type="submit" class="govuk-button" data-prevent-double-click="true">Upload</button>
+    <div id="upload-status" class="govuk-body" role="status" aria-live="polite"></div>
+    <div class="app-upload-progress-row govuk-!-margin-bottom-4">
+        <progress id="upload-progress" class="app-upload-progress" aria-label="Upload progress" max="100" value="0" hidden></progress>
+        <span id="upload-percent" class="govuk-body govuk-!-margin-left-2 govuk-!-margin-bottom-0" aria-hidden="true" hidden>0%</span>
+    </div>
+    <div class="govuk-button-group">
+        <button type="submit" id="upload-submit" class="govuk-button" data-prevent-double-click="true">Upload</button>
+        <button type="button" id="upload-cancel" class="govuk-button govuk-button--secondary" hidden>Cancel upload</button>
+    </div>
 </form>
 
 @if (Model.Folders.Count == 0 && Model.Blobs.Count == 0)
@@ -120,4 +145,9 @@ else
             }
         </tbody>
     </table>
+}
+
+@section Scripts {
+    @* #568: upload-in-parts enhancement; no-ops unless the browser can slice a file and fetch. *@
+    <script src="~/js/storage-chunked-upload.js" defer asp-append-version="true"></script>
 }

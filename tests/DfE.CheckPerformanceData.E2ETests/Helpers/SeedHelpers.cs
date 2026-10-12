@@ -8,7 +8,7 @@ public static class SeedHelpers
     // Saves a new value over an existing content block key (POST /content-block/save),
     // which appends a row to ContentBlockVersions.
     public static async Task EditContentBlockAsync(
-        HttpClient client,
+        TestHttpClient client,
         string key,
         string newValue)
     {
@@ -42,7 +42,7 @@ public static class SeedHelpers
     }
 
     public static async Task<string> SeedContentBlockAsync(
-        HttpClient client,
+        TestHttpClient client,
         string keyPrefix,
         string value)
     {
@@ -82,7 +82,7 @@ public static class SeedHelpers
     // Seeds a single dead-lettered message via the dev-only queue seed endpoint and returns
     // its id so a queue-admin test can act on it (redrive/purge). The endpoint enqueues,
     // dequeues and dead-letters in one hop; it 404s in Production.
-    public static async Task<Guid> SeedDeadLetterAsync(HttpClient client)
+    public static async Task<Guid> SeedDeadLetterAsync(TestHttpClient client)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, "/dev/queues/seed-dlq");
         var response = await SendWithoutFollowingRedirects(client, request);
@@ -119,7 +119,7 @@ public static class SeedHelpers
     /// <param name="organisationUrn">The organisation URN — must match the impersonated user's URN
     ///   (142313 for Kingsmead School) so that CheckForConflictAsync finds the conflict.</param>
     public static async Task<string> SeedConflictRequestAsync(
-        HttpClient client,
+        TestHttpClient client,
         Guid userId,
         string pupilUpn,
         string submittedByName,
@@ -166,14 +166,14 @@ public static class SeedHelpers
 
     // Deletes all ChangeRequests whose reference starts with "DEV-" so duplicate-detection
     // E2E tests don't leave stale conflicts that poison subsequent tests.
-    public static async Task CleanupDevRequestsAsync(HttpClient client)
+    public static async Task CleanupDevRequestsAsync(TestHttpClient client)
     {
         var baseAddress = client.BaseAddress
             ?? throw new InvalidOperationException("SeedClient must have a BaseAddress.");
 
         using var request = new HttpRequestMessage(
             HttpMethod.Post, new Uri(baseAddress, "/dev/queues/cleanup-e2e-requests"));
-        using var response = await TestHttpClients.SendAsync(request);
+        using var response = await client.SendAsync(request);
 
         var body = await response.Content.ReadAsStringAsync();
         if (!response.IsSuccessStatusCode)
@@ -194,17 +194,16 @@ public static class SeedHelpers
         new("\"deleted\"\\s*:\\s*(\\d+)", RegexOptions.Compiled);
 
     private static Task<HttpResponseMessage> SendWithoutFollowingRedirects(
-        HttpClient client,
+        TestHttpClient client,
         HttpRequestMessage request)
     {
-        // TestHttpClients.NoRedirect has no BaseAddress; resolve relative request URIs
-        // against the caller's client so seed POSTs continue to be written as
-        // "/content-block/save" etc.
+        // Resolve relative request URIs against the client's BaseAddress so seed POSTs
+        // continue to be written as "/content-block/save" etc.
         if (request.RequestUri is { IsAbsoluteUri: false } && client.BaseAddress is not null)
         {
             request.RequestUri = new Uri(client.BaseAddress, request.RequestUri);
         }
 
-        return TestHttpClients.SendAsync(request);
+        return client.SendAsync(request);
     }
 }

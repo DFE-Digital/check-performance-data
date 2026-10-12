@@ -28,7 +28,7 @@ public sealed class AmendmentItem
     public string TagClass => Status switch
     {
         RequestStatus.ReadyToSubmit => "govuk-tag--blue",
-        RequestStatus.SubmittedUnCommitted or RequestStatus.SubmittedCommitted => "govuk-tag--green",
+        RequestStatus.Submitted => "govuk-tag--green",
         RequestStatus.Withdrawn or RequestStatus.NotSubmitted => "govuk-tag--grey",
         _ => "govuk-tag--orange"
     };
@@ -37,7 +37,7 @@ public sealed class AmendmentItem
     {
         RequestStatus.InProgress => "In progress",
         RequestStatus.ReadyToSubmit => "Ready to submit",
-        RequestStatus.SubmittedUnCommitted or RequestStatus.SubmittedCommitted => "Submitted",
+        RequestStatus.Submitted => "Submitted",
         RequestStatus.Withdrawn => "Withdrawn",
         RequestStatus.NotSubmitted => "Not submitted",
         _ => Status.ToString()

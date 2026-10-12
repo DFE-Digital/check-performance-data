@@ -8,8 +8,7 @@ public sealed class EstablishmentAmendmentRequestsViewModelTests
     [Theory]
     [InlineData(RequestStatus.InProgress, "In progress", "govuk-tag--orange")]
     [InlineData(RequestStatus.ReadyToSubmit, "Ready to submit", "govuk-tag--blue")]
-    [InlineData(RequestStatus.SubmittedUnCommitted, "Submitted", "govuk-tag--green")]
-    [InlineData(RequestStatus.SubmittedCommitted, "Submitted", "govuk-tag--green")]
+    [InlineData(RequestStatus.Submitted, "Submitted", "govuk-tag--green")]
     [InlineData(RequestStatus.Withdrawn, "Withdrawn", "govuk-tag--grey")]
     [InlineData(RequestStatus.NotSubmitted, "Not submitted", "govuk-tag--grey")]
     public void AmendmentItem_presents_a_friendly_status(

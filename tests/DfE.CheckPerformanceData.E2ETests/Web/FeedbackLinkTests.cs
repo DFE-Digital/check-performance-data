@@ -9,6 +9,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Web;
 // external Microsoft Forms page. The redirect itself is asserted at HTTP level because
 // Playwright route handlers do not see redirected requests, and the popup's navigation is
 // stubbed so the test never depends on the external host.
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class FeedbackLinkTests(PlaywrightFixture fixture) : PageTest
 {

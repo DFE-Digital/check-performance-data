@@ -114,4 +114,34 @@ public class PupilSuggestionsControllerTests
         Assert.Equal(pupilId, type.GetProperty("id")!.GetValue(item));
         Assert.Equal("Smith, Jane, 01/01/2000", type.GetProperty("label")!.GetValue(item));
     }
+
+    [Fact]
+    public async Task Suggestions_WithSearchFieldCypmdId_AsksTheServiceToMatchTheCypmdIdAlone()
+    {
+        // Named argument, so this proves the pass-through but NOT the query-string binding: the
+        // name has to match what PupilSearch.cshtml sends or the restriction never reaches this
+        // method. PupilSearchViewSourceTests covers that half.
+        _service.GetPupilSuggestionsAsync(WindowId, "8000", PupilFilter.All, null, false, PupilSearchField.CypmdId)
+            .Returns([]);
+
+        await _sut.Suggestions(WindowId, "8000", PupilFilter.All, null, pupilSearchField: PupilSearchField.CypmdId);
+
+        await _service.Received(1).GetPupilSuggestionsAsync(
+            WindowId, "8000", PupilFilter.All, null, false, PupilSearchField.CypmdId);
+    }
+
+    [Fact]
+    public async Task Suggestions_DefaultsToMatchingEveryField()
+    {
+        // Absent parameter must not narrow. Every page that does not configure one — the merge first
+        // record, Remove, Include and all of 16-19 — reaches this endpoint without it, and a caller
+        // who omits it gets the historical matching rather than an empty list.
+        _service.GetPupilSuggestionsAsync(WindowId, "Jo", PupilFilter.All, null, false, PupilSearchField.All)
+            .Returns([]);
+
+        await _sut.Suggestions(WindowId, "Jo", PupilFilter.All, null);
+
+        await _service.Received(1).GetPupilSuggestionsAsync(
+            WindowId, "Jo", PupilFilter.All, null, false, PupilSearchField.All);
+    }
 }

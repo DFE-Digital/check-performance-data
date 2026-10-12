@@ -14,6 +14,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Wiki;
 // (the class lives on the ul itself), whereas the widget wraps its ul in
 // <div class="cypmd-search-results">. A descendant selector — ".cypmd-search-results
 // li h3 a" — matches both without needing an intermediate ul.govuk-list step.
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class SearchPaginationTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {

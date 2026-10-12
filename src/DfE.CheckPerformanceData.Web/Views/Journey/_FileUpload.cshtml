@@ -11,11 +11,15 @@ else
     <h2 class="govuk-heading-m">@Model.ResolvedTitle</h2>
 }
 
-@* id is referenced by QuestionPartialModel.DescribedBy — the file input's aria-describedby
-   names it, so the two must stay in step. *@
+@* Visible to everyone, and deliberately NOT the file input's description (#389). In our
+   reading of the audit (JAWS on Chrome, unconfirmed with the auditor), Chrome exposes a
+   native file input as a button and JAWS directs the user to press a key to hear a button's
+   description rather than reading it — which, when this paragraph was named by
+   aria-describedby, would have been a detour to the sentence already on screen. Do not give
+   it an id that QuestionPartialModel.DescribedBy could name. *@
 @if (Model.Question.Hint is not null)
 {
-    <p class="govuk-body" id="fileUpload-hint">@Model.Question.Hint</p>
+    <p class="govuk-body">@Model.Question.Hint</p>
 }
 
 @* ── Uploaded files table ────────────────────────────────────────────── *@
@@ -89,8 +93,12 @@ else
         formaction="@Url.Action("UploadFile", "Journey", new { windowId = Model.WindowId, pageId = Model.PageId, questionId = Model.Question.Id, fromSummary = Model.FromSummary })"
         formnovalidate="formnovalidate">Upload file</govuk-button>
 
-    <p class="govuk-body govuk-!-margin-top-2">
-        @Model.UploadedFiles.Count @(Model.UploadedFiles.Count == 1 ? "file" : "files") added.
+    @* AB#304900: says the limit before the school reaches it. The upload control stays at the
+       limit on purpose: a seventh file is refused by the server with a message, not prevented
+       by taking the control away. FLAGGED copy (AB#304900). The id is named by
+       QuestionPartialModel.DescribedBy, so the two must stay in step. *@
+    <p class="govuk-body govuk-!-margin-top-2" id="fileUpload-count">
+        @Model.UploadedFiles.Count of @Model.MaxEvidenceFiles files added.
     </p>
 }
 else

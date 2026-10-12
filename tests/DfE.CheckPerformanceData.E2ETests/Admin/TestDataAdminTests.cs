@@ -20,6 +20,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Admin;
 // messages + analytics-drill-ins snapshot shots use. Screenshots land under
 // Snapshots/search-ux/seed-admin/ (or seed-progress/ / danger-zone/ depending on the
 // captured surface — see SaveScreenshotAsync below for the routing).
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class TestDataAdminTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {

@@ -131,29 +131,19 @@ journey blob**, and it stores raw `RequestState.QuestionAnswers`:
 | UPN | `upn` | Free text, ≤13 characters, optional |
 | Date of birth / admission date | `date-of-birth` / `admission-date` | Real calendar date, not in the future — persisted in the journey blob as `DateAnswer { Day, Month, Year }`, to be formatted to `YYYY-MM-DD` by the egress story |
 
-## Submission — no rules-engine outcomes
+## Submission — through the Rules Engine (#536)
 
-**Ticket B2: "No rules engine outcomes."** `RequestService.SubmitRequestAsync` makes the same write
-every other amendment makes — a `ChangeRequests` row (`RequestType.Amendment`,
-`AmendmentType = WhatToChange.Add`, `Status = SubmittedUnCommitted`) plus the journey JSON via
-`IRequestStateBlobClient` — but **skips the rules-engine enqueue** for `WhatToChange.Add`
-specifically. The row still appears on the school's amendment grid as **Add**, can be withdrawn,
-and gets the standard confirmation email — it is only the rules-engine dispatch that is skipped.
+`RequestService.SubmitRequestAsync` makes the same writes every other amendment makes — a
+`ChangeRequests` row (`RequestType.Amendment`, `AmendmentType = WhatToChange.Add`,
+`Status = Submitted`), the saved `RequestDocument` and the journey JSON via `IRequestStateBlobClient`
+— and enqueues the document to the Rules Engine. The row appears on the school's amendment grid as
+**Add**, can be withdrawn, and gets the standard confirmation email.
 
-Two places carry a `PARKED AB#297310` comment, both mirroring the AB#296648 ResultsEnquiry
-precedent exactly:
-
-- `RequestService.SubmitRequestAsync` — the enqueue is guarded by
-  `if (journey.SelectedWhatToChange != WhatToChange.Add)`. When the LDS egress story lands, its
-  dispatch goes **here and nowhere else**.
-- `AdminRequestsService.ProcessCloseWindowEvent` — Add rows `continue` past the window-close
-  Zendesk replay. That replay builds a *pupil-amendment* Zendesk ticket, which an Add doesn't fit,
-  and committing the row (`SubmittedUnCommitted` → `SubmittedCommitted`) would hide it from the
-  future egress before that egress exists to read it.
-
-`QuestionFlowOutcomeKeyAlignmentTests` lists `Add` in `FlowPrefixesThatDoNotRouteToTheRulesEngine`
-alongside `IncorrectGrade` and asserts it has **no** outcome key, so nobody can quietly bind it to
-rules-engine routing. That list going empty is the signal every flow routes.
+An Add request used to skip the Rules Engine (`PARKED AB#297310`). It no longer does. It takes the
+`AddPupil` outcome (`AnswerFieldMap`), which `rules.json` binds to one default Scrutiny rule until
+Add rules are written. The `RulesConsumer` sets `ProcessingStatus = Decided`. The close sweep then
+sends the saved document to Zendesk like any other decided amendment. `QuestionFlowOutcomeKeyAlignmentTests`
+no longer lists `Add` as a flow that skips the Rules Engine.
 
 Downstream is the **LDS egress** (`LDS_CYPMD_Data specification v2.4.xlsx`) — a separate story that
 reads the `ChangeRequests` row and journey blob this ticket persists.

@@ -1,10 +1,12 @@
 using DfE.CheckPerformanceData.Application.Common;
 using DfE.CheckPerformanceData.Application.ContentStaging;
+using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
+using NSubstitute;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.ContentStaging;
 
@@ -31,7 +33,7 @@ public sealed class ContentStagingImportFailureTests(PostgresFixture fixture)
     {
         await using var ctx = _fixture.CreateContext();
         await ctx.Database.ExecuteSqlRawAsync(
-            @"TRUNCATE ""PageNodes"", ""PageNodeVersions"", ""ContentBlocks"", ""ContentBlockVersions"" RESTART IDENTITY CASCADE;");
+            @"TRUNCATE ""PageNodes"", ""PageNodeVersions"", ""ContentBlocks"", ""ContentBlockVersions"", ""HomeBanners"", ""HomeBannerVersions"" RESTART IDENTITY CASCADE;");
     }
 
     private ContentStagingService NewStaging(out PortalDbContext ctx)
@@ -39,7 +41,7 @@ public sealed class ContentStagingImportFailureTests(PostgresFixture fixture)
         ctx = _fixture.CreateContext();
         var pageRepo = new PageNodeRepository(ctx);
         var blockRepo = new ContentBlockRepository(ctx);
-        return new ContentStagingService(pageRepo, blockRepo, new HtmlRenderingService());
+        return new ContentStagingService(pageRepo, blockRepo, new HomeBannerRepository(ctx, Substitute.For<ICurrentUserService>()), new HtmlRenderingService());
     }
 
     // Validator-fatal issue → whole-bundle rejection, zero writes.

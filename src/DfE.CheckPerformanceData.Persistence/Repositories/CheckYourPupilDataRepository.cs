@@ -80,7 +80,7 @@ public sealed class CheckYourPupilDataRepository(
         return ToPupilDto(pupils.Single(p => p.Id == pupilId));
     }
 
-    public async Task<IReadOnlyList<PupilSuggestionDto>> SearchPupilsAsync(Guid windowId, string laestab, string urn, string query, PupilFilter filter, Guid? excludeId = null, IReadOnlySet<string>? cypmdIdAllowList = null)
+    public async Task<IReadOnlyList<PupilSuggestionDto>> SearchPupilsAsync(Guid windowId, string laestab, string urn, string query, PupilFilter filter, Guid? excludeId = null, IReadOnlySet<string>? cypmdIdAllowList = null, PupilSearchField searchField = PupilSearchField.All)
     {
         // urn is retained on the signature for callers but is unused: the UPN-based exclusion
         // query it served was removed in 3f9efadf, which moved conflict detection onto pupil Id.
@@ -96,7 +96,7 @@ public sealed class CheckYourPupilDataRepository(
                 PupilFilter.Included => p.IsIncluded,
                 _ => !p.IsIncluded
             })
-            .Where(p => PupilSuggestionFormat.Matches(p, query, windowType));
+            .Where(p => PupilSuggestionFormat.Matches(p, query, windowType, searchField));
 
         if (excludeId.HasValue)
             pupils = pupils.Where(p => p.Id != excludeId.Value);
@@ -112,7 +112,7 @@ public sealed class CheckYourPupilDataRepository(
             .Take(10)
             .Select(p => new PupilSuggestionDto(
                 p.Id,
-                PupilSuggestionFormat.Label(p, windowType),
+                PupilSuggestionFormat.Label(p, windowType, searchField),
                 p.Firstname,
                 p.Surname,
                 PupilDateFormatter.ToDisplayDate(p.DateOfBirth)))

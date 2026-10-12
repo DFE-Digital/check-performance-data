@@ -14,6 +14,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Admin;
 //     the summary shows the union;
 //   * a single-exercise window is no harder than before (one date page instead of the two the old
 //     window-level start/end steps took).
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class WindowExerciseWizardTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
@@ -80,6 +81,7 @@ public sealed class WindowExerciseWizardTests(PlaywrightFixture fixture) : Seedi
     }
 
     [SkippableFact]
+    [Trait("Category", "Smoke")]
     public async Task A_single_exercise_window_asks_for_one_set_of_dates()
     {
         Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux),

@@ -144,36 +144,69 @@ public class JourneyValidationServiceTests
         Assert.Null(_sut.ValidateAnswer(question, answer, "Date of birth"));
     }
 
-    [Fact]
-    public void ValidateAnswer_Date_WhenDayMissing_ReturnsError()
+    // ── ValidateAnswer — date format failures (#544) ─────────────────────────
+    //
+    // Every date question gives one message for every format failure (blank or part-filled,
+    // a year that is not 4 digits, a date that does not exist): its own validationFailure,
+    // followed by the expected format. The red error then tells the user how to fix it,
+    // and the wording is the same on every amendment journey.
+
+    private const string ConfiguredInvalidDateMessage =
+        "Enter the date Alice Smith was removed from your school roll";
+
+    private const string ExpectedInvalidDateMessage =
+        "Enter the date Alice Smith was removed from your school roll in the format dd mm yyyy";
+
+    public static TheoryData<int, int, int> InvalidDates => new()
     {
-        var question = MakeQuestion(QuestionType.Date);
-        var answer = new QuestionAnswer { DateValue = new DateAnswer { Day = 0, Month = 6, Year = 2026 } };
+        { 0, 0, 0 },        // blank
+        { 0, 6, 2026 },     // day missing
+        { 15, 0, 2026 },    // month missing
+        { 15, 6, 0 },       // year missing
+        { 15, 6, 26 },      // "26" typed meaning 2026 — must not be accepted as year 0026
+        { 15, 6, 999 },
+        { 15, 6, 10000 },   // five-digit typo — must error, not throw in DaysInMonth
+        { 31, 2, 2026 },    // not a real date
+        { 15, 13, 2026 },
+    };
 
-        Assert.Equal("Date of birth is required", _sut.ValidateAnswer(question, answer, "Date of birth"));
-    }
-
-    [Fact]
-    public void ValidateAnswer_Date_WhenDateValueNull_ReturnsError()
+    [Theory]
+    [MemberData(nameof(InvalidDates))]
+    public void ValidateAnswer_Date_InvalidDate_ReturnsConfiguredMessageWithFormat(int day, int month, int year)
     {
-        var question = MakeQuestion(QuestionType.Date);
-        var answer = new QuestionAnswer { DateValue = null };
+        var question = MakeDateQuestion("date-of-birth");
+        var answer = new QuestionAnswer { DateValue = new DateAnswer { Day = day, Month = month, Year = year } };
 
-        Assert.Equal("Date of birth is required", _sut.ValidateAnswer(question, answer, "Date of birth"));
+        Assert.Equal(ExpectedInvalidDateMessage,
+            _sut.ValidateAnswer(question, answer, "Date of birth", ConfiguredInvalidDateMessage));
     }
 
     [Theory]
-    [InlineData(26)]    // "26" typed meaning 2026 — must not be accepted as year 0026
-    [InlineData(1)]
-    [InlineData(999)]
-    [InlineData(10000)] // five-digit typo — must error, not throw in DaysInMonth
-    public void ValidateAnswer_Date_WhenYearIsNotFourDigits_ReturnsError(int year)
+    [InlineData(RemovalJourneyDateRules.DatePupilExcluded)]
+    [InlineData(RemovalJourneyDateRules.DatePermanentlyExcluded)]
+    [InlineData(RemovalJourneyDateRules.DateRemovedFromRoll)]
+    [InlineData(PageDateRules.StartedAtSchool)]
+    [InlineData(AddJourneyDateRules.DateOfBirth)]
+    [InlineData(MissingQualificationDateRules.AwardDateQuestionId)]
+    public void ValidateAnswer_Date_EveryQuestion_UsesTheSameWording(string questionId)
+    {
+        var question = MakeDateQuestion(questionId);
+
+        Assert.Equal(ExpectedInvalidDateMessage,
+            _sut.ValidateAnswer(question, new QuestionAnswer { DateValue = null }, "Date", ConfiguredInvalidDateMessage));
+        Assert.Equal(ExpectedInvalidDateMessage,
+            _sut.ValidateAnswer(question,
+                new QuestionAnswer { DateValue = new DateAnswer { Day = 31, Month = 2, Year = 2026 } },
+                "Date", ConfiguredInvalidDateMessage));
+    }
+
+    [Fact]
+    public void ValidateAnswer_Date_WhenDateValueNull_WithNoConfiguredMessage_StillStatesTheFormat()
     {
         var question = MakeQuestion(QuestionType.Date);
-        var answer = new QuestionAnswer { DateValue = new DateAnswer { Day = 15, Month = 6, Year = year } };
 
-        Assert.Equal("Date of birth must include a 4-digit year",
-            _sut.ValidateAnswer(question, answer, "Date of birth"));
+        Assert.Equal("Enter a real date in the format dd mm yyyy",
+            _sut.ValidateAnswer(question, new QuestionAnswer { DateValue = null }, "Date of birth"));
     }
 
     [Theory]
@@ -186,78 +219,6 @@ public class JourneyValidationServiceTests
         var answer = new QuestionAnswer { DateValue = new DateAnswer { Day = 15, Month = 6, Year = year } };
 
         Assert.Null(_sut.ValidateAnswer(question, answer, "Date of birth"));
-    }
-
-    // ── ValidateAnswer — scoped invalid-date fallback (removal journeys) ─────
-    //
-    // The six removal journeys want the question's own "Enter the date …" wording for EVERY
-    // invalid-date failure, not the generic "is required"/"4-digit year"/"real date" messages.
-    // The fallback is scoped to the three removal date question ids so the excluded EAL page
-    // and any generic date question keep their existing messages.
-
-    private const string ConfiguredInvalidDateMessage =
-        "Enter the date Alice Smith was removed from your school roll";
-
-    [Theory]
-    [InlineData(RemovalJourneyDateRules.DatePupilExcluded)]
-    [InlineData(RemovalJourneyDateRules.DatePermanentlyExcluded)]
-    [InlineData(RemovalJourneyDateRules.DateRemovedFromRoll)]
-    public void ValidateAnswer_RemovalDateQuestion_BlankOrPartFilled_ReturnsConfiguredMessage(string questionId)
-    {
-        var question = MakeDateQuestion(questionId);
-
-        Assert.Equal(ConfiguredInvalidDateMessage,
-            _sut.ValidateAnswer(question, new QuestionAnswer { DateValue = null }, "Date of birth", ConfiguredInvalidDateMessage));
-        Assert.Equal(ConfiguredInvalidDateMessage,
-            _sut.ValidateAnswer(question, new QuestionAnswer { DateValue = new DateAnswer { Day = 0, Month = 6, Year = 2026 } }, "Date of birth", ConfiguredInvalidDateMessage));
-    }
-
-    [Theory]
-    [InlineData(RemovalJourneyDateRules.DatePupilExcluded)]
-    [InlineData(RemovalJourneyDateRules.DatePermanentlyExcluded)]
-    [InlineData(RemovalJourneyDateRules.DateRemovedFromRoll)]
-    public void ValidateAnswer_RemovalDateQuestion_NonFourDigitYear_ReturnsConfiguredMessage(string questionId)
-    {
-        var question = MakeDateQuestion(questionId);
-
-        Assert.Equal(ConfiguredInvalidDateMessage,
-            _sut.ValidateAnswer(question,
-                new QuestionAnswer { DateValue = new DateAnswer { Day = 15, Month = 6, Year = 26 } },
-                "Date of birth", ConfiguredInvalidDateMessage));
-    }
-
-    [Theory]
-    [InlineData(RemovalJourneyDateRules.DatePupilExcluded)]
-    [InlineData(RemovalJourneyDateRules.DatePermanentlyExcluded)]
-    [InlineData(RemovalJourneyDateRules.DateRemovedFromRoll)]
-    public void ValidateAnswer_RemovalDateQuestion_ImpossibleCalendarDate_ReturnsConfiguredMessage(string questionId)
-    {
-        var question = MakeDateQuestion(questionId);
-
-        Assert.Equal(ConfiguredInvalidDateMessage,
-            _sut.ValidateAnswer(question,
-                new QuestionAnswer { DateValue = new DateAnswer { Day = 31, Month = 2, Year = 2026 } },
-                "Date of birth", ConfiguredInvalidDateMessage));
-    }
-
-    [Fact]
-    public void ValidateAnswer_NonRemovalDateQuestion_KeepsGenericMessages()
-    {
-        // The excluded EAL page and any generic date question (e.g. date of birth) are NOT in
-        // RemovalDateQuestionIds, so only the blank case honours the configured message (as it
-        // always has); the 4-digit-year and real-date failures stay generic.
-        var question = MakeDateQuestion("date-of-birth");
-
-        Assert.Equal(ConfiguredInvalidDateMessage,
-            _sut.ValidateAnswer(question, new QuestionAnswer { DateValue = null }, "Date of birth", ConfiguredInvalidDateMessage));
-        Assert.Equal("Date of birth must include a 4-digit year",
-            _sut.ValidateAnswer(question,
-                new QuestionAnswer { DateValue = new DateAnswer { Day = 15, Month = 6, Year = 26 } },
-                "Date of birth", ConfiguredInvalidDateMessage));
-        Assert.Equal("Date of birth must be a real date",
-            _sut.ValidateAnswer(question,
-                new QuestionAnswer { DateValue = new DateAnswer { Day = 31, Month = 2, Year = 2026 } },
-                "Date of birth", ConfiguredInvalidDateMessage));
     }
 
     // ── ValidateAnswer with a named format validator ────────────────────────
@@ -564,6 +525,48 @@ public class JourneyValidationServiceTests
     public void ValidateDuplicateFileName_WhenNoFilesYet_ReturnsNull()
     {
         Assert.Null(_sut.ValidateDuplicateFileName("evidence.pdf", []));
+    }
+
+    // ── ValidateFileCount (AB#304900) ───────────────────────────────────────
+    // An upload takes at most six files. The rule is asked BEFORE a file is added, with the
+    // files already there, so "six already" is the first refusal. Nothing about the new file
+    // matters, which is why the method does not take it.
+
+    private const string FileLimitMessage =
+        "You can only upload 6 files. Remove a file before you upload another.";
+
+    private static FileAnswer[] FilesAlreadyAdded(int count) =>
+        Enumerable.Range(1, count)
+            .Select(i => MakeFileAnswer(originalFileName: $"evidence-{i}.pdf"))
+            .ToArray();
+
+    [Fact]
+    public void EvidenceUploadLimits_MaxFiles_IsSix()
+    {
+        Assert.Equal(6, EvidenceUploadLimits.MaxFiles);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(5)]
+    public void ValidateFileCount_WhenFewerThanSixFilesAdded_ReturnsNull(int alreadyAdded)
+    {
+        Assert.Null(_sut.ValidateFileCount(FilesAlreadyAdded(alreadyAdded)));
+    }
+
+    [Fact]
+    public void ValidateFileCount_WhenSixFilesAdded_RefusesASeventhAndSaysWhy()
+    {
+        Assert.Equal(FileLimitMessage, _sut.ValidateFileCount(FilesAlreadyAdded(6)));
+    }
+
+    [Fact]
+    public void ValidateFileCount_WhenADraftAlreadyHoldsMoreThanSix_StillRefuses()
+    {
+        // A draft saved before the limit existed can hold seven or more. It must not be able
+        // to grow, and the same message tells the school what to do about it.
+        Assert.Equal(FileLimitMessage, _sut.ValidateFileCount(FilesAlreadyAdded(7)));
     }
 
     // ── GenerateReference ───────────────────────────────────────────────────

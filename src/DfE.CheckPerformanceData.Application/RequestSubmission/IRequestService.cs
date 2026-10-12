@@ -11,7 +11,7 @@ public interface IRequestService
 
     /// <summary>
     /// Submits a request without sending the confirmation email: conflict check, upsert the
-    /// ChangeRequests row (SubmittedUnCommitted), enqueue the rules-engine document, and persist
+    /// ChangeRequests row (Submitted), enqueue the rules-engine document, and persist
     /// the journey blob. Throws <see cref="DuplicateRequestException"/> on a conflicting request.
     /// The email is the caller's responsibility (single path sends one; bulk path batches).
     /// </summary>

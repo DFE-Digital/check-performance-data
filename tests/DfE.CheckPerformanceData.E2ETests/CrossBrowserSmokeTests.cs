@@ -19,6 +19,7 @@ using Microsoft.Playwright;
 
 namespace DfE.CheckPerformanceData.E2ETests;
 
+[Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class CrossBrowserSmokeTests
 {

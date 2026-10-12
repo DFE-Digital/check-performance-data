@@ -1,0 +1,154 @@
+@using Microsoft.AspNetCore.Mvc.ViewFeatures
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.HomeBanners.HomeBannerFormModel
+@{
+    ViewData["Title"] = Model.PageTitle;
+    var exampleDate = DateTime.UtcNow.AddMonths(1).ToString("dd MM yyyy");
+    var bodyHasError = ViewData.ModelState.TryGetValue(nameof(Model.Body), out var bodyState) && bodyState.Errors.Count > 0;
+}
+
+<a href="/admin/home-banners" class="govuk-back-link">Back to home page banners</a>
+
+<div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+        @* No explicit error summary here, on purpose. GovUk.Frontend.AspNetCore 5 prepends one to
+           <main> once the page has rendered (ErrorSummaryGeneration defaults to PrependToMainElement),
+           listing every field error in page order with the library's own links. A
+           <govuk-error-summary /> at this point would run before the fields below had registered
+           their errors, so it would render nothing; a hand-written one would sit beside the generated
+           one. The banner text is plain markup (TinyMCE wants a bare textarea), so its error is added
+           with Context.AddPageError where the field renders, to keep it in the summary and in order. *@
+
+        <h1 class="govuk-heading-l">@Model.PageTitle</h1>
+
+        <form method="post" action="@Model.PostUrl" novalidate>
+            @Html.AntiForgeryToken()
+
+            <govuk-input for="Heading" input-class="govuk-input--width-30">
+                <govuk-input-label class="govuk-label--m">Heading</govuk-input-label>
+                <govuk-input-hint>Shown in bold at the top of the banner. Plain text, up to 200 characters.</govuk-input-hint>
+                <govuk-input-error-message asp-validation-for="Heading" />
+            </govuk-input>
+
+            <div class="govuk-form-group @(bodyHasError ? "govuk-form-group--error" : "")">
+                <label class="govuk-label govuk-label--m" for="Body">Banner text</label>
+                <div class="govuk-hint" id="Body-hint">Links and lists are allowed. Keep it short: a sentence or two.</div>
+                @if (bodyHasError)
+                {
+                    var bodyError = bodyState!.Errors[0].ErrorMessage;
+                    Context.AddPageError(new StringHtmlContent(bodyError), "#Body");
+                    <p class="govuk-error-message" id="Body-error"><span class="govuk-visually-hidden">Error:</span> @bodyError</p>
+                }
+                <textarea class="govuk-textarea @(bodyHasError ? "govuk-textarea--error" : "")" id="Body" name="Body" rows="8"
+                          aria-describedby="Body-hint@(bodyHasError ? " Body-error" : "")">@Model.Body</textarea>
+            </div>
+
+            <div class="govuk-form-group">
+                <div class="govuk-checkboxes govuk-checkboxes--small" data-module="govuk-checkboxes">
+                    <div class="govuk-checkboxes__item">
+                        @* Hidden AFTER the label (see ContentBlock/Index.cshtml): a hidden input between checkbox and label breaks the GOV.UK tick. *@
+                        <input class="govuk-checkboxes__input" id="IsEnabled" name="IsEnabled" type="checkbox" value="true"
+                               aria-describedby="IsEnabled-hint" @(Model.IsEnabled ? "checked" : null) />
+                        <label class="govuk-label govuk-checkboxes__label" for="IsEnabled">Show this banner</label>
+                        <input type="hidden" name="IsEnabled" value="false" />
+                        <div id="IsEnabled-hint" class="govuk-hint govuk-checkboxes__hint">
+                            Off hides the banner whatever the dates say. Leave it off while you draft.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <h2 class="govuk-heading-m">When to show it (UK time)</h2>
+            <p class="govuk-body">Leave a date blank for no limit. "Show from" includes the minute you enter; "Show until" does not.</p>
+
+            <govuk-date-input for="@Model.ShowFromDate">
+                <govuk-date-input-fieldset>
+                    <govuk-date-input-fieldset-legend class="govuk-fieldset__legend--s">Show from</govuk-date-input-fieldset-legend>
+                    <govuk-date-input-hint>For example, @exampleDate</govuk-date-input-hint>
+                    <govuk-date-input-error-message asp-validation-for="ShowFromDate" />
+                </govuk-date-input-fieldset>
+            </govuk-date-input>
+
+            <govuk-fieldset role="group">
+                <govuk-fieldset-legend class="govuk-fieldset__legend--s">Show from time</govuk-fieldset-legend>
+                <govuk-fieldset-hint>Use the 24-hour clock, for example 09 30. Blank means midnight.</govuk-fieldset-hint>
+                <div class="govuk-date-input">
+                    <div class="govuk-date-input__item">
+                        <govuk-input for="ShowFromHour" inputmode="numeric" input-class="govuk-input--width-2">
+                            <govuk-input-label>Hour</govuk-input-label>
+                            <govuk-input-error-message asp-validation-for="ShowFromHour" />
+                        </govuk-input>
+                    </div>
+                    <div class="govuk-date-input__item">
+                        <govuk-input for="ShowFromMinute" inputmode="numeric" input-class="govuk-input--width-2">
+                            <govuk-input-label>Minute</govuk-input-label>
+                            <govuk-input-error-message asp-validation-for="ShowFromMinute" />
+                        </govuk-input>
+                    </div>
+                </div>
+            </govuk-fieldset>
+
+            <govuk-date-input for="@Model.ShowUntilDate">
+                <govuk-date-input-fieldset>
+                    <govuk-date-input-fieldset-legend class="govuk-fieldset__legend--s">Show until</govuk-date-input-fieldset-legend>
+                    <govuk-date-input-hint>For example, @exampleDate</govuk-date-input-hint>
+                    <govuk-date-input-error-message asp-validation-for="ShowUntilDate" />
+                </govuk-date-input-fieldset>
+            </govuk-date-input>
+
+            <govuk-fieldset role="group">
+                <govuk-fieldset-legend class="govuk-fieldset__legend--s">Show until time</govuk-fieldset-legend>
+                <govuk-fieldset-hint>Use the 24-hour clock, for example 17 00. Blank means midnight.</govuk-fieldset-hint>
+                <div class="govuk-date-input">
+                    <div class="govuk-date-input__item">
+                        <govuk-input for="ShowUntilHour" inputmode="numeric" input-class="govuk-input--width-2">
+                            <govuk-input-label>Hour</govuk-input-label>
+                            <govuk-input-error-message asp-validation-for="ShowUntilHour" />
+                        </govuk-input>
+                    </div>
+                    <div class="govuk-date-input__item">
+                        <govuk-input for="ShowUntilMinute" inputmode="numeric" input-class="govuk-input--width-2">
+                            <govuk-input-label>Minute</govuk-input-label>
+                            <govuk-input-error-message asp-validation-for="ShowUntilMinute" />
+                        </govuk-input>
+                    </div>
+                </div>
+            </govuk-fieldset>
+
+            <div class="govuk-button-group">
+                <button type="submit" class="govuk-button" data-module="govuk-button">Save banner</button>
+                <a class="govuk-link" href="/admin/home-banners">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/lib/tinymce/tinymce.min.js"></script>
+    <script>
+        (function () {
+            'use strict';
+            if (typeof tinymce === 'undefined') return;
+            tinymce.init({
+                selector: '#Body',
+                height: 300,
+                menubar: false,
+                plugins: 'lists link code',
+                toolbar: 'undo redo | bold italic | bullist numlist | link | code',
+                branding: false,
+                promotion: false,
+                license_key: 'gpl',
+                setup: function (editor) {
+                    editor.on('change', function () { editor.save(); });
+                    // The error summary links to #Body, but TinyMCE hides that textarea, so GOV.UK
+                    // Frontend's focus would land nowhere and leave the user on the summary.
+                    // Send the link to the editor instead.
+                    editor.on('init', function () {
+                        document.querySelectorAll('.govuk-error-summary a[href="#Body"]').forEach(function (link) {
+                            link.addEventListener('click', function () { editor.focus(); });
+                        });
+                    });
+                }
+            });
+        })();
+    </script>
+}

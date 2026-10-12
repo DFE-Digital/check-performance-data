@@ -106,4 +106,25 @@ public sealed class ChangeRequestReleaseStampTests
         Assert.Equal(ExerciseId, captured!.CheckingExerciseId);
         Assert.Null(captured.CheckingExerciseReleaseId);
     }
+
+    [Fact]
+    public async Task A_request_is_stamped_with_the_exercise_the_resolver_resolves()
+    {
+        // AB#307773 related fix: since #466 a window may hold several releases of one kind, and the
+        // session's first row of the kind need not be the one the journey's data came from. The
+        // row the data readers resolve is the one the request belongs to.
+        var liveExerciseId = Guid.NewGuid();
+        _resolver.ResolveAsync(WindowId, CheckingExerciseType.PupilData, Arg.Any<CancellationToken>())
+            .Returns(new CheckingExerciseDto
+            {
+                Id = liveExerciseId, ExerciseType = CheckingExerciseType.PupilData,
+                StartDate = new DateTime(2026, 1, 1), EndDate = new DateTime(2026, 12, 31)
+            });
+        ChangeRequestData? captured = null;
+        _repository.UpsertAsync(Arg.Do<ChangeRequestData>(d => captured = d)).Returns(Guid.NewGuid());
+
+        await Service(_resolver).SaveDraftAsync(WindowId, Journey(), RequestStatus.InProgress);
+
+        Assert.Equal(liveExerciseId, captured!.CheckingExerciseId);
+    }
 }

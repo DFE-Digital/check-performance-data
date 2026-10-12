@@ -43,6 +43,19 @@ public sealed class NextStepsServiceTests
             Sut().GetAvailableSteps([Open(CheckingExerciseType.PupilData)]));
     }
 
+    // AB#307773: a school named in an extension keeps its options after the exercise's own end;
+    // every other school, and a caller that names none, sees the exercise closed.
+    [Fact]
+    public void A_school_in_an_extension_keeps_its_options_after_the_exercise_end()
+    {
+        var exercise = Closed(CheckingExerciseType.PupilData);
+        exercise.Extensions.Add(new CheckingExerciseExtensionDto { Id = Guid.NewGuid(), EndDate = Tomorrow, Laestabs = ["9334290"] });
+
+        Assert.Equal([NextSteps.RequestChange, NextSteps.Confirm], Sut().GetAvailableSteps([exercise], "933/4290"));
+        Assert.Empty(Sut().GetAvailableSteps([exercise], "8604070"));
+        Assert.Empty(Sut().GetAvailableSteps([exercise]));
+    }
+
     [Fact]
     public void An_open_results_enquiry_exercise_offers_the_enquiry_option()
     {

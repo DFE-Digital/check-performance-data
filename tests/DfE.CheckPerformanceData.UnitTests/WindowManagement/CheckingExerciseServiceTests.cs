@@ -26,7 +26,10 @@ public sealed class CheckingExerciseServiceTests
             ExerciseType = type,
             StartDate = start,
             EndDate = end,
-            TabOrder = sortOrder
+            TabOrder = sortOrder,
+            // Enabled, as a configured exercise is: IdFor and EndDateFor prefer the live row
+            // (AB#307773), and a disabled row is never live.
+            IsEnabled = true
         };
 
     // A display-only row of a real kind: the shape a pupil-data exercise takes once it is showing
@@ -40,6 +43,7 @@ public sealed class CheckingExerciseServiceTests
             StartDate = start,
             EndDate = end,
             TabOrder = sortOrder,
+            IsEnabled = true,
             DisplayOnly = true
         };
 
@@ -343,7 +347,11 @@ public sealed class CheckingExerciseServiceTests
     [Fact]
     public void StatusOf_is_hidden_for_a_disabled_exercise_inside_its_dates()
     {
-        var exercise = Exercise(CheckingExerciseType.PupilData, Yesterday, Tomorrow);
+        var exercise = new CheckingExerciseDto
+        {
+            Id = Guid.NewGuid(), ExerciseType = CheckingExerciseType.PupilData,
+            StartDate = Yesterday, EndDate = Tomorrow, IsEnabled = false
+        };
 
         Assert.Equal(ExerciseSchoolStatus.Hidden, Sut().StatusOf([exercise], exercise));
     }
@@ -515,5 +523,115 @@ public sealed class CheckingExerciseServiceTests
         window.DeriveDatesFromExercises();
 
         Assert.Equal(NextMonth, window.EndDate);
+    }
+
+    // ── AB#307773: school-aware answers ──────────────────────────────────────
+
+    private static CheckingExerciseDto Extended(CheckingExerciseType type, DateTime start, DateTime end, DateTime extensionEnd, params string[] laestabs)
+    {
+        var exercise = Exercise(type, start, end);
+        exercise.Extensions.Add(Extension(extensionEnd, laestabs));
+        return exercise;
+    }
+
+    [Fact]
+    public void A_named_school_is_open_after_the_exercise_end_until_its_extension_end()
+    {
+        var exercises = new[] { Extended(CheckingExerciseType.PupilData, LastMonth, Yesterday, Tomorrow, "9334290") };
+
+        Assert.True(Sut().IsOpen(exercises, CheckingExerciseType.PupilData, "933/4290"));
+        Assert.False(Sut().HasClosed(exercises, CheckingExerciseType.PupilData, "933/4290"));
+        Assert.Equal(Tomorrow, Sut().EndDateFor(exercises, CheckingExerciseType.PupilData, "933/4290"));
+    }
+
+    [Fact]
+    public void Every_other_school_sees_the_exercise_closed()
+    {
+        var exercises = new[] { Extended(CheckingExerciseType.PupilData, LastMonth, Yesterday, Tomorrow, "9334290") };
+
+        Assert.False(Sut().IsOpen(exercises, CheckingExerciseType.PupilData, "860/4070"));
+        Assert.True(Sut().HasClosed(exercises, CheckingExerciseType.PupilData, "860/4070"));
+        Assert.Equal(Yesterday, Sut().EndDateFor(exercises, CheckingExerciseType.PupilData, "860/4070"));
+        Assert.False(Sut().IsOpen(exercises, CheckingExerciseType.PupilData, null));
+        // The exercise-level answer is unchanged: the exercise's own dates.
+        Assert.False(Sut().IsOpen(exercises, CheckingExerciseType.PupilData));
+        Assert.True(Sut().HasClosed(exercises, CheckingExerciseType.PupilData));
+    }
+
+    [Fact]
+    public void A_named_school_closes_once_its_extension_has_ended()
+    {
+        var exercises = new[] { Extended(CheckingExerciseType.PupilData, LastMonth, LastMonth.AddDays(7), Yesterday, "9334290") };
+
+        Assert.False(Sut().IsOpen(exercises, CheckingExerciseType.PupilData, "9334290"));
+        Assert.True(Sut().HasClosed(exercises, CheckingExerciseType.PupilData, "9334290"));
+    }
+
+    [Fact]
+    public void OpenCheckingExercises_follows_the_school()
+    {
+        var exercises = new[]
+        {
+            Extended(CheckingExerciseType.PupilData, LastMonth, Yesterday, Tomorrow, "9334290"),
+            Exercise(CheckingExerciseType.ResultsEnquiry, LastMonth, NextMonth, sortOrder: 1)
+        };
+
+        Assert.Equal([CheckingExerciseType.PupilData, CheckingExerciseType.ResultsEnquiry],
+            Sut().OpenCheckingExercises(exercises, "9334290"));
+        Assert.Equal([CheckingExerciseType.ResultsEnquiry], Sut().OpenCheckingExercises(exercises, "8604070"));
+        Assert.Equal([CheckingExerciseType.ResultsEnquiry], Sut().OpenCheckingExercises(exercises));
+    }
+
+    [Fact]
+    public void IsWindowShown_stays_true_for_a_named_school_while_its_extension_runs()
+    {
+        var exercises = new[] { Extended(CheckingExerciseType.PupilData, LastMonth, Yesterday, Tomorrow, "9334290") };
+
+        Assert.True(Sut().IsWindowShown(exercises, "9334290"));
+        Assert.False(Sut().IsWindowShown(exercises, "8604070"));
+        // With no school, the outer end includes the extension — that is what the landing page's
+        // date bracket sees in the window's own EndDate.
+        Assert.True(Sut().IsWindowShown(exercises, null));
+        Assert.True(Sut().IsWindowShown(exercises));
+    }
+
+    [Fact]
+    public void An_extension_is_open_until_its_end_and_closed_after()
+    {
+        Assert.True(Sut().IsOpen(Extension(Tomorrow, "9334290")));
+        Assert.False(Sut().HasClosed(Extension(Tomorrow, "9334290")));
+        Assert.False(Sut().IsOpen(Extension(Yesterday, "9334290")));
+        Assert.True(Sut().HasClosed(Extension(Yesterday, "9334290")));
+        // The last instant is open, as for an exercise.
+        Assert.True(Sut().IsOpen(Extension(Now.DateTime, "9334290")));
+    }
+
+    // ── Related fix: IdFor / EndDateFor take the live row of a kind, not the first ────────
+
+    [Fact]
+    public void IdFor_prefers_the_one_live_interactive_row_of_a_kind()
+    {
+        var retired = Exercise(CheckingExerciseType.PupilData, LastMonth, Yesterday);   // IsEnabled false below
+        var live = Exercise(CheckingExerciseType.PupilData, LastMonth, NextMonth, sortOrder: 1);
+        var exercises = new[]
+        {
+            new CheckingExerciseDto { Id = retired.Id, ExerciseType = retired.ExerciseType, StartDate = retired.StartDate, EndDate = retired.EndDate, IsEnabled = false },
+            new CheckingExerciseDto { Id = live.Id, ExerciseType = live.ExerciseType, StartDate = live.StartDate, EndDate = live.EndDate, IsEnabled = true, TabOrder = 1 }
+        };
+
+        Assert.Equal(live.Id, Sut().IdFor(exercises, CheckingExerciseType.PupilData));
+        Assert.Equal(NextMonth, Sut().EndDateFor(exercises, CheckingExerciseType.PupilData));
+    }
+
+    [Fact]
+    public void IdFor_falls_back_to_the_first_row_in_tab_order_when_no_row_is_live()
+    {
+        var exercises = new[]
+        {
+            new CheckingExerciseDto { Id = Guid.NewGuid(), ExerciseType = CheckingExerciseType.PupilData, StartDate = LastMonth, EndDate = Yesterday, IsEnabled = false, TabOrder = 2 },
+            new CheckingExerciseDto { Id = Guid.NewGuid(), ExerciseType = CheckingExerciseType.PupilData, StartDate = LastMonth, EndDate = Yesterday, IsEnabled = false, TabOrder = 1 }
+        };
+
+        Assert.Equal(exercises[1].Id, Sut().IdFor(exercises, CheckingExerciseType.PupilData));
     }
 }

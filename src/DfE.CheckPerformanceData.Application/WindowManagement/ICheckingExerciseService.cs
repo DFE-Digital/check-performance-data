@@ -6,8 +6,9 @@ namespace DfE.CheckPerformanceData.Application.WindowManagement;
 /// The only place in the solution that compares a checking exercise's dates against the clock.
 /// Fails closed: an exercise that is absent, or a window with no exercises at all, is closed.
 /// Closed means "no actions", never "no content" — read-only content stays available for the whole
-/// outer window, so callers must not use an empty <see cref="OpenCheckingExercises"/> to hide a
-/// card or a page. See docs/16-19-window-model.md.
+/// outer window, so callers must not use an empty
+/// <see cref="OpenCheckingExercises(IReadOnlyList{CheckingExerciseDto})"/> to hide a card or a
+/// page. See docs/16-19-window-model.md.
 /// </summary>
 /// <remarks>
 /// The list is the parameter rather than a window DTO because two unrelated classes are named
@@ -23,12 +24,27 @@ public interface ICheckingExerciseService
     bool IsOpen(IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise);
 
     /// <summary>
+    /// <see cref="IsOpen(IReadOnlyList{CheckingExerciseDto}, CheckingExerciseType)"/> for one
+    /// school (AB#307773): the school's extension end date applies when an extension names it, so
+    /// a named school stays open after the exercise's own end. A null or empty LAESTAB is the
+    /// exercise's own dates.
+    /// </summary>
+    bool IsOpen(IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise, string? laestab);
+
+    /// <summary>
     /// True when the exercise exists on the window and its end date has passed (AB#298317 review).
     /// Not the same as <c>!IsOpen</c>: an exercise that has not started yet is not open, but it
     /// has not closed either, and a "has closed" notice about it would be wrong. An absent
     /// exercise has nothing to have closed, so it answers false.
     /// </summary>
     bool HasClosed(IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise);
+
+    /// <summary>
+    /// <see cref="HasClosed(IReadOnlyList{CheckingExerciseDto}, CheckingExerciseType)"/> for one
+    /// school (AB#307773): the school's extension end date applies when an extension names it. A
+    /// null or empty LAESTAB is the exercise's own dates.
+    /// </summary>
+    bool HasClosed(IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise, string? laestab);
 
     /// <summary>
     /// <see cref="IsOpen(IReadOnlyList{CheckingExerciseDto}, CheckingExerciseType)"/> for one row.
@@ -44,17 +60,52 @@ public interface ICheckingExerciseService
     bool HasClosed(CheckingExerciseDto exercise);
 
     /// <summary>
+    /// An extension is open to its last instant, as an exercise is (AB#307773). It has no start of
+    /// its own: an extension added before its exercise ends is open from the moment it is added.
+    /// </summary>
+    bool IsOpen(CheckingExerciseExtensionDto extension);
+
+    /// <summary>
+    /// The extension's end date has passed (AB#307773). From then on it is read only and its
+    /// requests may be sent.
+    /// </summary>
+    bool HasClosed(CheckingExerciseExtensionDto extension);
+
+    /// <summary>
     /// Every exercise a school may act on right now, in tab order. Empty is a valid answer.
-    /// Display-only rows are left out for the same reason as in <see cref="IsOpen"/>.
+    /// Display-only rows are left out for the same reason as in
+    /// <see cref="IsOpen(IReadOnlyList{CheckingExerciseDto}, CheckingExerciseType)"/>.
     /// </summary>
     IReadOnlyList<CheckingExerciseType> OpenCheckingExercises(
         IReadOnlyList<CheckingExerciseDto> exercises);
 
-    /// <summary>The exercise's end date, or null when there is no row for that type.</summary>
+    /// <summary>
+    /// <see cref="OpenCheckingExercises(IReadOnlyList{CheckingExerciseDto})"/> for one school
+    /// (AB#307773): an exercise stays in the list until the school's extension end date when an
+    /// extension names it. A null or empty LAESTAB is the exercises' own dates.
+    /// </summary>
+    IReadOnlyList<CheckingExerciseType> OpenCheckingExercises(
+        IReadOnlyList<CheckingExerciseDto> exercises, string? laestab);
+
+    /// <summary>
+    /// The exercise's end date, or null when there is no row for that type. The row is chosen as
+    /// in <see cref="IdFor"/>.
+    /// </summary>
     DateTime? EndDateFor(
         IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise);
 
-    /// <summary>The exercise's start date, or null when there is no row for that type (AB#298317).</summary>
+    /// <summary>
+    /// <see cref="EndDateFor(IReadOnlyList{CheckingExerciseDto}, CheckingExerciseType)"/> for one
+    /// school (AB#307773): the school's extension end date when an extension names it, never
+    /// earlier than the exercise's own end. A null or empty LAESTAB is the exercise's own end.
+    /// </summary>
+    DateTime? EndDateFor(
+        IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise, string? laestab);
+
+    /// <summary>
+    /// The exercise's start date, or null when there is no row for that type (AB#298317). The row
+    /// is chosen as in <see cref="IdFor"/>.
+    /// </summary>
     DateTime? StartDateFor(
         IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise);
 
@@ -64,9 +115,14 @@ public interface ICheckingExerciseService
     /// comes from <see cref="WhatToChangeCheckingExerciseMap"/>, never from a second hardcoding.
     /// </summary>
     /// <remarks>
-    /// Deliberately date-blind, unlike <see cref="IsOpen"/>: a draft saved on the last day and read
-    /// back the next must still carry its exercise, so the id is returned for a closed exercise
-    /// exactly as <see cref="EndDateFor"/> returns a lapsed end date.
+    /// Deliberately blind to the exercise's dates, unlike
+    /// <see cref="IsOpen(IReadOnlyList{CheckingExerciseDto}, CheckingExerciseType)"/>: a draft saved
+    /// on the last day and read back the next must still carry its exercise, so the id is returned
+    /// for a closed exercise exactly as
+    /// <see cref="EndDateFor(IReadOnlyList{CheckingExerciseDto}, CheckingExerciseType)"/> returns a
+    /// lapsed end date. Since #466 a window may hold several rows of one type, so the one row that
+    /// schools see now and may act on wins (the CheckingExerciseStorageResolver rule); failing
+    /// that, the first of the type in tab order (AB#307773).
     /// </remarks>
     Guid? IdFor(IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise);
 
@@ -78,11 +134,24 @@ public interface ICheckingExerciseService
     /// would vanish at the moment schools lose their actions. With no VisibleUntil set, the window
     /// ends with its last exercise's end date.
     /// </summary>
+    /// <remarks>
+    /// The end is the latest any school sees, extensions included (AB#307773): an extension keeps
+    /// the window shown for the schools it names.
+    /// </remarks>
     bool IsWindowShown(IReadOnlyList<CheckingExerciseDto> exercises);
 
     /// <summary>
+    /// <see cref="IsWindowShown(IReadOnlyList{CheckingExerciseDto})"/> for one school (AB#307773):
+    /// each exercise ends on the school's extension end date when an extension names it, so a
+    /// school no extension names sees the window end with the exercises' own dates. A null LAESTAB
+    /// is the latest end any school sees; an empty one is the exercises' own dates.
+    /// </summary>
+    bool IsWindowShown(IReadOnlyList<CheckingExerciseDto> exercises, string? laestab);
+
+    /// <summary>
     /// What schools can see and do with <paramref name="exercise"/> now, for the admin summary.
-    /// <paramref name="exercises"/> is the whole window: <see cref="IsWindowShown"/> decides
+    /// <paramref name="exercises"/> is the whole window:
+    /// <see cref="IsWindowShown(IReadOnlyList{CheckingExerciseDto})"/> decides
     /// whether schools see the window at all. A display-only exercise has no journey, so it is
     /// never <see cref="ExerciseSchoolStatus.VisibleClosed"/>.
     /// </summary>
@@ -100,33 +169,48 @@ public interface ICheckingExerciseService
 /// </remarks>
 public sealed class CheckingExerciseService(TimeProvider timeProvider) : ICheckingExerciseService
 {
-    public bool IsOpen(IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise)
+    public bool IsOpen(IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise) =>
+        IsOpen(exercises, exercise, laestab: null);
+
+    public bool IsOpen(IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise, string? laestab)
     {
         var now = Now();
-        return exercises.Any(e => e.ExerciseType == exercise && Actionable(e, now));
+        return exercises.Any(e => e.ExerciseType == exercise && Actionable(e, now, laestab));
     }
 
-    public bool HasClosed(IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise)
+    public bool HasClosed(IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise) =>
+        HasClosed(exercises, exercise, laestab: null);
+
+    public bool HasClosed(IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise, string? laestab)
     {
         var now = Now();
         // Strictly before: Brackets() keeps the last instant open, so this must not also call it closed.
-        return exercises.Any(e => e.ExerciseType == exercise && e.EndDate < now);
+        return exercises.Any(e => e.ExerciseType == exercise && e.EndDateFor(laestab) < now);
     }
 
-    public bool IsOpen(CheckingExerciseDto exercise) => Actionable(exercise, Now());
+    public bool IsOpen(CheckingExerciseDto exercise) => Actionable(exercise, Now(), laestab: null);
 
     // Strictly before, as in the kind overload above.
     public bool HasClosed(CheckingExerciseDto exercise) => exercise.EndDate < Now();
 
+    // AB#307773: an extension has no start; it is open to its last instant, as an exercise is.
+    public bool IsOpen(CheckingExerciseExtensionDto extension) => extension.EndDate >= Now();
+
+    public bool HasClosed(CheckingExerciseExtensionDto extension) => extension.EndDate < Now();
+
     public IReadOnlyList<CheckingExerciseType> OpenCheckingExercises(
-        IReadOnlyList<CheckingExerciseDto> exercises)
+        IReadOnlyList<CheckingExerciseDto> exercises) =>
+        OpenCheckingExercises(exercises, laestab: null);
+
+    public IReadOnlyList<CheckingExerciseType> OpenCheckingExercises(
+        IReadOnlyList<CheckingExerciseDto> exercises, string? laestab)
     {
         var now = Now();
         // Two separate reasons a row contributes nothing here. A typeless row has no member to
         // contribute at all, since this list is typed by CheckingExerciseType. A row that does
         // have a kind but is display-only is dropped by Actionable: it is shown, never acted on.
         return exercises
-            .Where(e => Actionable(e, now))
+            .Where(e => Actionable(e, now, laestab))
             .InTabOrder()
             .Select(e => e.ExerciseType)
             .OfType<CheckingExerciseType>()
@@ -135,46 +219,74 @@ public sealed class CheckingExerciseService(TimeProvider timeProvider) : IChecki
 
     public DateTime? EndDateFor(
         IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise) =>
-        exercises.FirstOrDefault(e => e.ExerciseType == exercise)?.EndDate;
+        EndDateFor(exercises, exercise, laestab: null);
+
+    public DateTime? EndDateFor(
+        IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise, string? laestab) =>
+        RowFor(exercises, exercise)?.EndDateFor(laestab);
 
     public DateTime? StartDateFor(
         IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise) =>
-        exercises.FirstOrDefault(e => e.ExerciseType == exercise)?.StartDate;
+        RowFor(exercises, exercise)?.StartDate;
 
     public Guid? IdFor(IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise) =>
-        exercises.FirstOrDefault(e => e.ExerciseType == exercise)?.Id;
+        RowFor(exercises, exercise)?.Id;
 
     public ExerciseSchoolStatus StatusOf(
         IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseDto exercise)
     {
         var now = Now();
-        if (!WindowShown(exercises, now) || !exercise.IsLiveAt(now)) return ExerciseSchoolStatus.Hidden;
+        // No school (AB#307773): the window is shown while any school's time runs, but the tag
+        // reads the exercise's own dates — the admin sees each extension on its own row.
+        if (!WindowShown(exercises, now, laestab: null) || !exercise.IsLiveAt(now)) return ExerciseSchoolStatus.Hidden;
 
-        return exercise.ExerciseType is null || exercise.DisplayOnly || Brackets(exercise, now)
+        return exercise.ExerciseType is null || exercise.DisplayOnly || Brackets(exercise, now, laestab: null)
             ? ExerciseSchoolStatus.Visible
             : ExerciseSchoolStatus.VisibleClosed;
     }
 
-    public bool IsWindowShown(IReadOnlyList<CheckingExerciseDto> exercises) => WindowShown(exercises, Now());
+    public bool IsWindowShown(IReadOnlyList<CheckingExerciseDto> exercises) =>
+        WindowShown(exercises, Now(), laestab: null);
+
+    public bool IsWindowShown(IReadOnlyList<CheckingExerciseDto> exercises, string? laestab) =>
+        WindowShown(exercises, Now(), laestab);
 
     private DateTime Now() => timeProvider.GetLocalNow().DateTime;
 
-    // The end date is inclusive and VisibleUntil exclusive, each as it is everywhere else.
-    private static bool WindowShown(IReadOnlyList<CheckingExerciseDto> exercises, DateTime now) =>
+    // Since #466 a window may hold several releases of one kind, and the journeys read the live
+    // interactive one (CheckingExerciseStorageResolver). The id a request is stamped with, and
+    // the end date a school is shown, must name that same row — but unlike the resolver this
+    // falls back rather than failing closed, because a draft read back after its exercise was
+    // disabled must still carry its exercise (see the IdFor remark on the interface).
+    private CheckingExerciseDto? RowFor(IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise)
+    {
+        var now = Now();
+        var ofKind = exercises.Where(e => e.ExerciseType == exercise).InTabOrder().ToList();
+        var live = ofKind.Where(e => e.IsLiveAt(now)).ToList();
+        var interactive = live.Where(e => !e.DisplayOnly).ToList();
+        if (interactive.Count > 0) live = interactive;
+        return live.Count == 1 ? live[0] : ofKind.FirstOrDefault();
+    }
+
+    // The end date is inclusive and VisibleUntil exclusive, each as it is everywhere else. With no
+    // school the end is the latest any school sees, so an extension keeps the window shown for the
+    // schools it names; with a school it is that school's (AB#307773).
+    private static bool WindowShown(IReadOnlyList<CheckingExerciseDto> exercises, DateTime now, string? laestab) =>
         exercises.Count > 0
         && exercises.Min(e => e.StartDate) <= now
-        && (exercises.Max(e => e.EndDate) >= now
+        && (exercises.Max(e => laestab is null ? e.LatestEndDate : e.EndDateFor(laestab)) >= now
             || exercises.Any(e => e.VisibleUntil is not null && e.IsLiveAt(now)));
 
     // "Open" is two questions, not one: is it running, and is it a thing a school may act on.
     // Keeping them apart is what lets an admin mark an exercise read-only — a pupil-data exercise
     // reissued with refreshed data after its checking window shut — without having to falsify its
     // dates to make the actions go away (#466).
-    private static bool Actionable(CheckingExerciseDto exercise, DateTime now) =>
-        !exercise.DisplayOnly && Brackets(exercise, now);
+    private static bool Actionable(CheckingExerciseDto exercise, DateTime now, string? laestab) =>
+        !exercise.DisplayOnly && Brackets(exercise, now, laestab);
 
     // Inclusive at both ends, matching how the outer window's own dates are compared. Dates only:
     // HasClosed reports a lapsed end date, which is a fact about the dates whatever the row is.
-    private static bool Brackets(CheckingExerciseDto exercise, DateTime now) =>
-        exercise.StartDate <= now && exercise.EndDate >= now;
+    // A named school's end is its extension's, never earlier than the exercise's own (AB#307773).
+    private static bool Brackets(CheckingExerciseDto exercise, DateTime now, string? laestab) =>
+        exercise.StartDate <= now && exercise.EndDateFor(laestab) >= now;
 }

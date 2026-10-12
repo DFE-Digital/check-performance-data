@@ -835,7 +835,7 @@ Each exercise's section on the window summary has an **Extensions** table, or sa
 **Add an extension**
 
 1. Select **Add extension** in the exercise's section. You can add one before, during or after the exercise's end.
-2. Enter the date and time the extension ends. It must be later than the exercise's own end, which the page shows. If it is not, the page says *The extension must end after the exercise ends*.
+2. Enter the date and time the extension ends. It must be later than the exercise's own end, which the page shows. If it is not, the page says *The extension must end after the exercise ends*. It must also be in the future. If it is not, the page says *The extension end date must be in the future*.
 3. Under **Schools**, enter one LAESTAB on each line, as `933/4290` or `9334290`. Both forms work. A school can be in only one extension of an exercise. If you enter a school that is already in another one, the page names it and gives that extension's end date.
 4. Select **Save extension**.
 
@@ -845,7 +845,9 @@ After it saves, the summary page shows a *Success* banner, for example *Extensio
 
 **Edit an extension**
 
-Select **Edit** beside an open extension. You can change the end date and the list of schools. The page shows the schools in the form `933/4290`. Select **Save extension**. The warning about schools with no data file works as it does when you add. If someone else changed the extension while you had it open, the page says so. Check the extension and try again.
+Select **Edit** beside an open extension. You can change the end date and the list of schools. The end date must still be later than the exercise's end and in the future. The page shows the schools in the form `933/4290`. Select **Save extension**. The warning about schools with no data file works as it does when you add, but the tick box is labelled **Save these schools anyway**. If someone else changed the extension while you had it open, the page says so. Check the extension and try again.
+
+If you remove a school after the exercise's requests were sent automatically, use the exercise's Send requests for processing to send that school's requests.
 
 You cannot edit an extension that has closed.
 
@@ -858,19 +860,23 @@ You cannot edit an extension that has closed.
 
 > **Warning** You cannot undo closing an extension. Its schools lose the extra time at once, and any school part-way through a request is stopped on its next page.
 
+If the exercise itself has not ended yet, its schools keep the exercise's own time. An extension never gives a school less time than the exercise. The extension shows as *Closed*, with the words *Ends with the exercise on* and the exercise's end date in place of any links, until the exercise ends.
+
 Closing an extension early does not send its requests for processing. Send them as described next, or leave it to the service.
 
 **Send an extension's requests for processing**
 
-When an extension reaches its end, the service sends its schools' requests for processing by itself, two hours later, and cancels their drafts. You do not need to do anything.
+When an extension's schools reach the end of their time, the service sends their requests for processing by itself, two hours later, and cancels their drafts. You do not need to do anything. Their time ends at the extension's end date, or at the exercise's end date if that is later.
 
-To send them sooner, or if you think some were missed, select **Send requests for processing** beside the closed extension, read the counts on the confirmation page, and select **Send requests for processing** to confirm. This works as it does for an exercise. The warning above about sending requests applies here as well.
+To send them sooner, or if you think some were missed, select **Send requests for processing** beside the closed extension, read the counts on the confirmation page, and select **Send requests for processing** to confirm. The link appears only once both the extension and the exercise have ended. This works as it does for an exercise. The warning above about sending requests applies here as well.
 
-Until an extension's requests have been sent, closing the exercise leaves its schools' requests alone. Only the extension sends them.
+Once an extension's requests have been sent, the table shows *Requests sent* beside *Closed*. The link stays, so you can send again if needed. Sending again does no harm.
+
+Until an extension's requests have been sent, closing the exercise leaves its schools' requests alone. Only the extension sends them. The page for closing the exercise early tells you when an open extension's schools keep their extra time.
 
 **What the schools see**
 
-A named school sees only the new end date, wherever the service shows the exercise's deadline. It is not told that it has an extension. When the extension ends, the school sees the exercise as closed.
+A named school sees only the new end date, wherever the service shows the exercise's deadline, including on confirmation pages and in emails. It is not told that it has an extension. Every other school sees the exercise's own end date. When the extension ends, the school sees the exercise as closed.
 
 **The audit log**
 

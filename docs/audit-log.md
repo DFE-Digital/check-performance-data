@@ -43,9 +43,9 @@ cumulative filters, 20 rows a page, and a CSV export of the filtered set.
   instant of the run. The payload carries `windowId`, `windowTitle`, `exerciseId`, `exerciseType`,
   `extensionId`, `exerciseEnd`, `requestsSent`, `draftsCancelled`, `automatic` and `ranAtUtc`.
   `extensionId` (AB#307773) names the extension handed over and is null for the exercise's own
-  hand-over; `exerciseEnd` is the end of whichever was handed over; the screen prefixes
-  "(extension)". It is written after the sweep rather than in a transaction with it, so a failed
-  write loses the row, not the hand-over.
+  hand-over; `exerciseEnd` is the end it was judged on (for an extension, the later of its own end
+  and the exercise's); the screen prefixes "(extension)". It is written after the sweep rather than
+  in a transaction with it, so a failed write loses the row, not the hand-over.
 - **Extensions (AB#307773).** An extension is extra time on one checking exercise for a named list
   of schools (LAESTABs, no pupil data). Four admin actions each write one `WindowAdmin` row from
   `ExerciseExtensionRepository`. `EntityId` is the window id, `UserId` the admin's subject,

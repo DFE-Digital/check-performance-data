@@ -45,19 +45,31 @@ CheckingWindow
 ## The rules, as built
 
 1. **An extension never shortens a school's time.** A school's effective end is
-   `max(exercise.EndDate, extension.EndDate)` (`CheckingExerciseDto.EndDateFor(laestab)`). The form
-   refuses an extension that ends on or before the exercise's end, so `max` only matters when an
-   extension is closed early before the exercise has ended. The school then falls back to the
-   exercise's own end.
-2. **An extension has no start of its own and two states.** It is *Open* while `EndDate >= now` and
-   *Closed* once `EndDate < now`. The clock is the one `ICheckingExerciseService` reads
-   (`IsOpen(extension)`, `HasClosed(extension)`).
+   `max(exercise.EndDate, extension.EndDate)` (`CheckingExerciseDto.EndDateFor(laestab)`, and
+   `EffectiveEndDateOf(extension)` for the extension as a whole). The form refuses an extension
+   that ends on or before the exercise's end, so `max` only matters when an extension is closed
+   early before the exercise has ended, or the exercise's end is later moved past it. The school
+   then falls back to the exercise's own end.
+2. **An extension has no start of its own, and two ends to ask about.** The clock is the one
+   `ICheckingExerciseService` reads.
+   - Its **own end** (`IsOpen(extension)`, `HasClosed(extension)`): *Open* while
+     `EndDate >= now`. This is the tag on the card and the gate for Edit and Close early.
+   - Its **effective end** (`IsOpen(exercise, extension)`, `HasClosed(exercise, extension)`):
+     `max(exercise.EndDate, extension.EndDate)`. Every sweep, the automatic hand-over and the
+     Send requests gate use it, so an extension closed early (or overtaken by a later exercise
+     end) never sweeps a school that is still inside the exercise's own dates.
 3. **Add before or after the exercise ends.** An admin can add an extension at any time: while the
-   exercise is planned, open or closed.
-4. **Edit until closed.** Edit and Close early are offered only while the extension is Open. Send
-   requests is offered only once it is Closed. A closed extension is read only.
+   exercise is planned, open or closed. The end date must be after the exercise's end **and in the
+   future** (`EndDateNotInFuture`, "The extension end date must be in the future"), on add and on
+   edit. An end already past would save an extension closed from the start, and its schools could
+   not then join another (rule 5).
+4. **Edit until closed.** Edit and Close early are offered only while the extension's own end is
+   ahead. Send requests is offered only once the effective end has passed. A closed extension is
+   read only.
 5. **A school is in one extension of an exercise.** Two extensions of one exercise cannot name the
-   same school, open or closed. The error names the school and the other extension's end.
+   same school, open or closed. The error names the school and the other extension's end. As
+   built, a school whose extension has closed cannot be given more time on that exercise by a
+   second extension.
 6. **LAESTAB forms.** The normal form is **digits only** (`9334290`), as `LaestabNormaliser` and
    every blob name already use. DfE Sign-In gives `LA/ESTAB` with a slash, and
    `ChangeRequest.OrganisationLaestab` stores that claim with the slash. So the form accepts
@@ -79,10 +91,13 @@ CheckingWindow
    nothing was saved.
 9. **The exercise's close leaves out a school that is still held.** See "The sweeps".
 10. **Removing a school after the exercise closed.** An admin can edit an Open extension after the
-    exercise's own end. A school taken out is no longer in the held set, so anything of its that is
-    left goes with the next sweep, exercise or extension. Both are past the deadline by then. The
-    school's own deadline is the exercise's end again, so it sees the exercise as closed on its
-    next click: the journey refreshes its snapshot before every action.
+    exercise's own end. A school taken out is no longer in the held set, and the extension's own
+    sweep (`Only` its schools) no longer takes it either. So anything of its that is left goes with
+    the **exercise's** next sweep. The automatic hand-over runs that sweep only inside the
+    exercise's catch-up window (from two hours to 26 hours after its end, by default). After that
+    window, only the exercise's manual **Send requests for processing** sends that school's
+    requests. The school's own deadline is the exercise's end again, so it sees the exercise as
+    closed on its next click: the journey refreshes its snapshot before every action.
 11. **`WindowEndDate` and the window's outer end.** The window's `EndDate` is the latest of every
     exercise end and every extension end, in the database as well as in the DTO
     (`CheckingWindowDto.DeriveDatesFromExercises`). Every writer that re-derives it in SQL calls
@@ -97,6 +112,11 @@ No page has new markup. Each page already prints what `EndDateFor` and `IsOpen` 
 controllers now pass the school's LAESTAB (`ICurrentUserService.OrganisationLaestab`). A named
 school sees only the new date, with no mention that it is an extension.
 
+**Every school-facing deadline is school-aware.** Rule 11 moves the window's outer end with every
+extension, so a page or email that quoted `window.EndDate` would give every un-extended school the
+latest extension's date. Each site quotes `EndDateFor(exercises, kind, laestab)` for its own kind,
+and falls back to the outer end only when the window has no row of that kind.
+
 | Page or gate | Effect for a named school |
 |---|---|
 | Landing page card and closed banner (`LandingPageController`) | The extension's end, and no closed banner while it runs. |
@@ -105,6 +125,10 @@ school sees only the new date, with no mention that it is an extension.
 | Amendment requests (`AmendmentRequestsService`, `AmendmentRequestsController`) | Both deadline rows and the bulk-confirmation banner quote the extension's end. |
 | Journey gates (`JourneyController`, `WhatToChangeController`, `ConfirmCorrectController`, `ResultIssueController`, `BulkSubmissionService`) | The exercise is open until the school's end. |
 | Next steps (`NextStepsService.GetAvailableSteps(exercises, laestab)`) | Steps follow the school's end. |
+| Journey confirmation page (`JourneyController.Confirmation`) | The school's pupil-data end. Only an amendment lands there, and its change type is cleared before it does. |
+| Submission and withdrawal emails (`RequestService.ConfirmRequestAsync`, `DeleteAsync`) | The school's end for the journey's kind. A withdrawal is pupil data unless the row is a results enquiry. |
+| Bulk-submission email (`BulkSubmissionService`) | The school's pupil-data end. |
+| Confirm-correct page and its email (`ConfirmCorrectController`) | The school's pupil-data end. |
 
 `ClosedExerciseGuard` has no date logic and does not change.
 
@@ -126,7 +150,7 @@ exercise. `Exclude` of an empty set is the `None` instance.
 
 | Sweep | Entry points | Filter |
 |---|---|---|
-| Exercise | `PreviewAsync`, `CloseAsync` | `Exclude` the schools of every extension that is **Open or unsent** (`IsOpen`, or `RequestsSentAt` is null) |
+| Exercise | `PreviewAsync`, `CloseAsync` | `Exclude` the schools of every extension that is **open by its effective end, or unsent** (`IsOpen(exercise, extension)`, or `RequestsSentAt` is null) |
 | Extension | `PreviewExtensionAsync`, `CloseExtensionAsync` | `Only` that extension's schools |
 
 - **"Unsent" is a stamp.** `RequestsSentAt` is set the first time the extension's sweep runs after
@@ -147,20 +171,22 @@ exercise. `Exclude` of an empty set is the `None` instance.
   `CountDraftsForExerciseAsync`, `MarkDraftsNotSubmittedForExerciseAsync`) each take a
   `SchoolFilter`, applied inside `SubmittedAmendmentsForExercise` and `DraftsForExercise`.
 - **The caller gates `CloseExtensionAsync`.** The service does not check that the extension has
-  closed. The admin Send page offers it only once Closed, and the hand-over runs only after the
-  extension's end.
+  closed. The admin Send page offers it only once the effective end has passed, and the hand-over
+  runs only two hours after the effective end.
 - An extension that does not exist, or whose exercise is a data share, throws
   `InvalidOperationException`. The controllers 404 before they call it.
 
 ## The automatic hand-over
 
 `AutomaticExerciseHandOver.FindDueAsync` yields one due item for the exercise and one for each
-extension. Each is judged on its own end by `ExerciseHandOverSchedule.IsDue`: due from two hours
-after that end (`ExerciseHandOver__DelayAfterEnd`), for the catch-up window that follows
-(`ExerciseHandOver__CatchUpWindow`, 24 hours by default).
+extension. The exercise is judged on its own end, and each extension on its **effective end**,
+`max(exercise end, extension end)`, by `ExerciseHandOverSchedule.IsDue`: due from two hours after
+that end (`ExerciseHandOver__DelayAfterEnd`), for the catch-up window that follows
+(`ExerciseHandOver__CatchUpWindow`, 24 hours by default). An extension closed early while its
+exercise runs therefore falls due with the exercise, not two hours after its own end.
 
-- `DueExercise.ExtensionId` is null for the exercise's own item. `ExerciseEnd` is the item's own
-  end: the extension's for an extension item.
+- `DueExercise.ExtensionId` is null for the exercise's own item. `ExerciseEnd` is the end the item
+  was judged on: the effective end for an extension item.
 - `HandOverAsync` calls `CloseAsync`, or `CloseExtensionAsync` when `ExtensionId` is set. The log
   lines name the extension id.
 - The audit row is `RequestsSentAutomatically`, with `extensionId` in the payload (null for the
@@ -216,8 +242,14 @@ sentence "No extensions.". A data share shows neither.
 |---|---|
 | End date | The extension's end, UK time |
 | Schools | The number of schools |
-| Status | **Open** (green) or **Closed** (grey) |
-| Actions | Open: **Edit** and **Close early**. Closed: **Send requests for processing**. Each link has a visually hidden suffix naming the end date. |
+| Status | **Open** (green) or **Closed** (grey), by the extension's own end. Once its requests have been sent, a grey **Requests sent** tag beside it. |
+| Actions | See the three states below. Each link has a visually hidden suffix naming the end date. |
+
+| State | Tag | Actions |
+|---|---|---|
+| Own end ahead | Open | **Edit** and **Close early** |
+| Own end passed, exercise still running | Closed | No links. The hint "Ends with the exercise on {exercise end dd/MM/yyyy HH:mm}" |
+| Effective end passed | Closed | **Send requests for processing**. It stays after a send: sending again is harmless, as for the exercise. |
 
 An **Add extension** secondary button sits in the card's button group. Success banners come from
 `TempData["ExtensionOutcome"]` ("Extension added for 2 schools, ending 12/11/2026 17:00." and its
@@ -229,9 +261,15 @@ The page has the end date and time as `govuk-date-input` and a "Schools" textare
 each line, as 933/4290 or 9334290."). On edit the textarea is pre-filled in slashed form. The POST
 checks in this order: the extension is found, an edit is refused if it has closed, the LAESTAB
 lines are read, the warning step runs (rule 8), then `AddAsync` or `EditAsync` checks `NotFound`,
-`Closed`, `EndDateNotAfterExercise`, `NoSchools` and `SchoolInAnotherExtension`, and writes. A
-failed compare-and-set is `Stale`, shown as "This extension was changed by someone else. Check it
-and try again."
+`Closed`, `EndDateNotAfterExercise`, `EndDateNotInFuture`, `NoSchools` and
+`SchoolInAnotherExtension`, and writes. The future check asks the clock service
+(`IsOpen(new CheckingExerciseExtensionDto { EndDate = … })`); the extension service compares no
+date itself. A school in another extension reads "{933/4290} is already in the extension ending
+{dd/MM/yyyy HH:mm}." A failed compare-and-set is `Stale`, shown as "This extension was changed by
+someone else. Check it and try again."
+
+The warning's label and sentence follow the action: "Add these schools anyway" and "You can still
+add them" on add, "Save these schools anyway" and "You can still save them" on edit.
 
 ### The text guard on edit
 
@@ -252,13 +290,24 @@ is refused, because exercise dates are wall-clock values.
 The page follows `Close.cshtml`: a warning with the scheduled end and the school count, type the
 window name, and a **Close extension** button. It moves the end date to one second before now and
 writes `ExtensionClosedEarly`. It runs **no sweep**. The extension's requests go out by Send
-requests, or by the hand-over two hours later, as the ticket specifies.
+requests, or by the hand-over two hours after the effective end, as the ticket specifies. Closed
+early while the exercise still runs, its schools keep the exercise's time and nothing is sent
+until the exercise ends.
+
+### Closing the exercise
+
+The exercise's own Close page (`Close.cshtml`) adds one sentence after its consequence when an
+extension's own end is still ahead: "Schools in an open extension keep their extra time."
+(`CloseExerciseViewModel.HasOpenExtensions`, set by `CloseExerciseController` from
+`IsOpen(extension)`).
 
 ### Send requests
 
-Offered once the extension has closed. The page shows the counts as `SendRequests.cshtml` does. The
-POST runs `CloseExtensionAsync`, then `RecordRequestsSentAsync`, and quotes the result. A sweep that
-throws shows a refused banner and records nothing.
+Offered once the effective end has passed. The GET and the POST both refuse earlier, with "The
+schools in this extension can still make requests, so no requests were sent." The page shows the
+counts as `SendRequests.cshtml` does. The POST runs `CloseExtensionAsync`, then
+`RecordRequestsSentAsync`, and quotes the result. A sweep that throws shows a refused banner and
+records nothing.
 
 ## The related fix
 
@@ -278,9 +327,6 @@ school's journey uses:
 - **Egress.** It reads by window and `CrmId`. A named school's requests reach it after its
   extension has been sent.
 - **Blobs and releases.** An extension adds no blob and no release.
-- **The confirm-correct page and the Notify email deadlines.** They still quote the outer window
-  end, as they did before (#320). With an extension, that end is the latest extension's end. This
-  is a follow-up.
 - **The establishment-wide amendment page.** It is unlinked and unchanged.
 - **`StatusOf`.** It keeps its meaning: the exercise's own dates, for the admin tag. The
   school-aware answers are new overloads on `ICheckingExerciseService`.
@@ -292,15 +338,16 @@ school's journey uses:
 
 | Class | Pins |
 |---|---|
-| `CheckingExerciseServiceTests` | School-aware overloads, the `max` rule, extension Open/Closed, `IsWindowShown` past the last exercise end, a blank LAESTAB as no school, `RowFor` |
+| `CheckingExerciseServiceTests` | School-aware overloads, the `max` rule, extension Open/Closed on its own end and on its effective end (closed early before the exercise end is still open), `IsWindowShown` past the last exercise end, a blank LAESTAB as no school, `RowFor` |
 | `LaestabListTests` | Both forms, blank lines, duplicates, the line-numbered error |
-| `ExerciseExtensionServiceTests` | Every `ExtensionSaveStatus`, the warnings and the no-release case, close early |
-| `CloseExerciseServiceTests` | The exclude set (open or unsent), `Only` for an extension, the stamp set once and not on failure |
-| `AutomaticExerciseHandOverTests` | Due items for extensions, the audit with the extension id |
-| `ExerciseExtensionControllerTests` | Add and edit, the warning step and its error, the text guard |
-| `CloseExtensionControllerTests`, `SendExtensionRequestsControllerTests` | Gates, banners, the sweep before the audit write, a failed audit write |
-| `SummaryControllerCloseActionsTests`, `DeleteExerciseControllerTests` | The card and the delete count |
-| `LandingPageControllerTests`, `LandingPageServiceTests`, `CheckYourPupilDataResultsEnquiryOptionTests`, `AmendmentRequestsControllerTests`, `AmendmentRequestsServiceTests`, `BulkSubmissionServiceTests`, `WhatToChangeControllerTests`, `ConfirmCorrectControllerTests`, `ResultIssueControllerTests`, `JourneyControllerTests` | A named school sees its extension's end and another school does not |
+| `ExerciseExtensionServiceTests` | Every `ExtensionSaveStatus` (an end already past is `EndDateNotInFuture`), the warnings and the no-release case, close early |
+| `CloseExerciseServiceTests` | The exclude set (open by effective end, or unsent; an extension closed early while the exercise runs stays held), `Only` for an extension, the stamp set once and not on failure |
+| `AutomaticExerciseHandOverTests` | Due items for extensions on the effective end (one closed early is not due until the exercise end plus the delay, then carries the exercise end), the audit with the extension id |
+| `ExerciseExtensionControllerTests` | Add and edit, the warning step and its error, the text guard, the past end date |
+| `CloseExtensionControllerTests`, `SendExtensionRequestsControllerTests` | Gates (Send refused while the effective end is ahead), banners, the sweep before the audit write, a failed audit write |
+| `CloseExerciseControllerTests` | The exercise close page says when an open extension's schools keep their time |
+| `SummaryControllerCloseActionsTests`, `DeleteExerciseControllerTests` | The card's three states and the delete count |
+| `LandingPageControllerTests`, `LandingPageServiceTests`, `CheckYourPupilDataResultsEnquiryOptionTests`, `AmendmentRequestsControllerTests`, `AmendmentRequestsServiceTests`, `BulkSubmissionServiceTests`, `WhatToChangeControllerTests`, `ConfirmCorrectControllerTests`, `ResultIssueControllerTests`, `JourneyControllerTests`, `RequestServiceTests` | A named school sees its extension's end and another school does not, on every gate, page and email deadline |
 | `ChangeRequestReleaseStampTests` | The exercise id a request is stamped with is the resolver's |
 | `AuditActivitiesTests`, `WindowAdminAuditPayloadTests`, `AuditLogControllerTests` | The four actions, their payloads and their screen rows |
 | `AdminRouteGateTests` | The new routes sit behind the section grant |
@@ -310,7 +357,7 @@ school's journey uses:
 | Class | Pins |
 |---|---|
 | `AdminRequestsRepositorySchoolFilterTests` | `Exclude`, `Only` and `None`, a null LAESTAB, slashed and digit forms |
-| `ExerciseExtensionRepositoryTests` | The unique index, the audit row in the same transaction, compare-and-set, the window end re-derived, the stamp, cascade |
+| `ExerciseExtensionRepositoryTests` | The unique index, the audit row in the same transaction (and no generic audit rows for the extension tables), compare-and-set, the window end re-derived, the stamp, cascade |
 | `ExerciseDeletionRepositoryTests`, `WindowRepositoryEarlyClosureTests` | The window end stays at the extension end |
 | `CheckingWindowExerciseProjectionTests` | The landing page read carries `DisplayOnly` |
 
@@ -318,5 +365,7 @@ school's journey uses:
 
 - `An_admin_adds_an_extension_and_sees_it_on_the_summary` (Smoke): a bad line, the warning and the
   tick, the card, the audit row.
-- `An_admin_edits_closes_early_and_sends_requests_for_an_extension` (FullRegression).
+- `An_admin_edits_closes_early_and_sends_requests_for_an_extension` (FullRegression): edit, close
+  the exercise early (its page says the open extension's schools keep their time), close the
+  extension early, send, and the "Requests sent" tag.
 - `A_data_share_offers_no_extension` (FullRegression).

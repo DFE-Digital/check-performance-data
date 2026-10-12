@@ -792,7 +792,7 @@ public sealed class JourneyController(
         var isValid = true;
         var conditionContext = JourneyConditionContextFactory.Create(journey, currentUserService);
         var conditionallyOptional = optionalityService.GetConditionallyOptionalQuestionIds(page, conditionContext);
-        bool IsMandatory(Question q) => !q.Optional && !conditionallyOptional.Contains(q.Id);
+        bool IsMandatory(Question q) => !q.Optional && !conditionallyOptional.Contains(q.Id) && optionVisibilityService.IsQuestionVisible(q, conditionContext);
 
         // Commit a file the user selected in Browse but didn't click "Upload file" for — clicking
         // Continue with a file staged should attach it rather than report "upload a file".
@@ -804,7 +804,7 @@ public sealed class JourneyController(
             if (pendingUploadError is not null) isValid = false;
         }
 
-        foreach (var question in page.Questions)
+        foreach (var question in page.Questions.Where(q => optionVisibilityService.IsQuestionVisible(q, conditionContext)))
         {
             if (question.Type == QuestionType.FileUpload)
             {
@@ -922,7 +922,7 @@ public sealed class JourneyController(
         {
             var codes = new List<string>();
             var fields = new List<string>();
-            foreach (var q in page.Questions)
+            foreach (var q in page.Questions.Where(x => optionVisibilityService.IsQuestionVisible(x, conditionContext)))
             {
                 if (!ModelState.TryGetValue(q.Id, out var entry) || entry.Errors.Count == 0) continue;
                 if (q.Type == QuestionType.FileUpload) { codes.Add(ValidationErrorCoding.FileRequired); fields.Add(q.Id); continue; }

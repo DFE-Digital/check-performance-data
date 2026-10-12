@@ -41,4 +41,13 @@ public sealed class Question
     /// </summary>
     [JsonConverter(typeof(VisibleWhenJsonConverter))]
     public IReadOnlyList<string>? OptionalWhen { get; init; }
+
+    /// <summary>
+    /// Names of the <see cref="IJourneyCondition"/>s that must ALL evaluate true
+    /// for this question to be shown. When null or empty, the question is shown.
+    /// An unregistered name hides the question (fail closed), matching the option
+    /// visibility behaviour. JSON accepts a bare string or an array.
+    /// </summary>
+    [JsonConverter(typeof(VisibleWhenJsonConverter))]
+    public IReadOnlyList<string>? VisibleWhen { get; init; }
 }

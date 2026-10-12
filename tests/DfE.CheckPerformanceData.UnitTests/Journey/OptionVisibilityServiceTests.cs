@@ -136,4 +136,57 @@ public class OptionVisibilityServiceTests
 
         Assert.Empty(result);
     }
+
+    // ── Question-level visibility (issue #577) ───────────────────────────────
+
+    private static Question QuestionWith(params string[] visibleWhen) =>
+        new() { Id = "q", Type = QuestionType.FreeText, Title = "Q", VisibleWhen = [.. visibleWhen] };
+
+    [Fact]
+    public void QuestionWithoutVisibleWhen_IsVisible()
+    {
+        var sut = new OptionVisibilityService([]);
+
+        Assert.True(sut.IsQuestionVisible(QuestionWith(), Ctx));
+    }
+
+    [Fact]
+    public void QuestionWithConditionTrue_IsVisible()
+    {
+        var sut = new OptionVisibilityService([new FakeCondition("Flag", true)]);
+
+        Assert.True(sut.IsQuestionVisible(QuestionWith("Flag"), Ctx));
+    }
+
+    [Fact]
+    public void QuestionWithConditionFalse_IsHidden()
+    {
+        var sut = new OptionVisibilityService([new FakeCondition("Flag", false)]);
+
+        Assert.False(sut.IsQuestionVisible(QuestionWith("Flag"), Ctx));
+    }
+
+    [Fact]
+    public void QuestionWithUnknownCondition_IsHidden()
+    {
+        var sut = new OptionVisibilityService([new FakeCondition("Other", true)]);
+
+        Assert.False(sut.IsQuestionVisible(QuestionWith("Missing"), Ctx));
+    }
+
+    [Fact]
+    public void QuestionMultipleConditions_AllTrue_IsVisible()
+    {
+        var sut = new OptionVisibilityService([new FakeCondition("A", true), new FakeCondition("B", true)]);
+
+        Assert.True(sut.IsQuestionVisible(QuestionWith("A", "B"), Ctx));
+    }
+
+    [Fact]
+    public void QuestionMultipleConditions_OneFalse_IsHidden()
+    {
+        var sut = new OptionVisibilityService([new FakeCondition("A", true), new FakeCondition("B", false)]);
+
+        Assert.False(sut.IsQuestionVisible(QuestionWith("A", "B"), Ctx));
+    }
 }

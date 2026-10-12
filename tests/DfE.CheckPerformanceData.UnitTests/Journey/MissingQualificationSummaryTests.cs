@@ -4,7 +4,7 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 
 public class MissingQualificationSummaryTests
 {
-    private static MissingQualificationSummary Summary(bool isCohortWide) => new()
+    private static MissingQualificationSummary Summary(bool isCohortWide, bool showSyllabusCode = true) => new()
     {
         DfeNumber = "860/4070",
         KeyStageLabel = "16 to 19",
@@ -16,6 +16,7 @@ public class MissingQualificationSummaryTests
         Qan = "60146084",
         QualificationTitle = "AQA Level 1/Level 2 GCSE (9-1) in Mathematics",
         SyllabusCode = "8300H",
+        ShowSyllabusCode = showSyllabusCode,
         AwardDate = "1 June 2025",
         Ncn = "12345",
         GradeAchieved = "2",
@@ -57,6 +58,18 @@ public class MissingQualificationSummaryTests
         Assert.Equal("qualification-details", byKey["Syllabus code"].ChangePageId);
         Assert.Equal("qualification-details", byKey["Grade achieved"].ChangePageId);
         Assert.Equal("additional-info", byKey["Additional information"].ChangePageId);
+    }
+
+    [Fact]
+    public void The_syllabus_code_row_is_omitted_when_the_qualification_has_no_codes()
+    {
+        // Issue #577: the question is hidden for a QAN with no syllabus codes, so the row goes too
+        // while every neighbouring row stays put.
+        var lines = Summary(isCohortWide: false, showSyllabusCode: false).Lines;
+
+        Assert.DoesNotContain(lines, l => l.Key == "Syllabus code");
+        Assert.Contains(lines, l => l.Key == "Qualification name and subject");
+        Assert.Contains(lines, l => l.Key == "Award date");
     }
 
     [Fact]

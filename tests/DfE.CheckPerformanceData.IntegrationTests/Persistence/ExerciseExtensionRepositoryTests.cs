@@ -143,6 +143,25 @@ public sealed class ExerciseExtensionRepositoryTests(PostgresFixture fixture) : 
     }
 
     [Fact]
+    public async Task Add_writes_only_the_window_admin_row_and_no_generic_audit_rows()
+    {
+        // AB#307773 review I4: the hand-written WindowAdmin row is the record. Generic capture would
+        // add one row for the extension and one per school, saying nothing that row does not.
+        Guid id;
+        await using (var ctx = fixture.CreateContext())
+            id = await Repository(ctx).AddAsync(NewExt("9334290", "8604070"), CancellationToken.None);
+
+        await using var check = fixture.CreateContext();
+        var schoolIds = await check.CheckingExerciseExtensionSchools
+            .Where(s => s.CheckingExerciseExtensionId == id).Select(s => s.Id.ToString()).ToListAsync();
+        Assert.Equal(2, schoolIds.Count);
+        var entityIds = schoolIds.Append(id.ToString()).ToList();
+
+        Assert.Equal(1, await check.AuditEntries.CountAsync(a => a.EntityType == "WindowAdmin" && a.EntityId == _windowId.ToString()));
+        Assert.Equal(0, await check.AuditEntries.CountAsync(a => entityIds.Contains(a.EntityId)));
+    }
+
+    [Fact]
     public async Task Update_is_a_compare_and_set_on_the_end_date_and_records_the_school_diff()
     {
         Guid id;

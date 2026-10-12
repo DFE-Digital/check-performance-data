@@ -172,6 +172,11 @@ public sealed class PortalDbContext(
             // sex, UPN, every journey answer for every candidate — for the same reason as the two
             // learner rows above, and because AuditEntries has no retention purge of its own.
             if (entry.Entity is EgressRunOutput) continue;
+            // AB#307773: ExerciseExtensionRepository writes a hand-written WindowAdmin row with every
+            // extension change, in the same transaction; that row is the record, so these would only
+            // add a second, generic one per extension and per school.
+            if (entry.Entity is CheckingExerciseExtension) continue;
+            if (entry.Entity is CheckingExerciseExtensionSchool) continue;
             if (entry.State is EntityState.Detached or EntityState.Unchanged) continue;
 
             var audit = new AuditEntry

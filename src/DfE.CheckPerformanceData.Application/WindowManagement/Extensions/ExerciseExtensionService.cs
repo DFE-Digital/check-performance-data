@@ -70,8 +70,10 @@ public sealed class ExerciseExtensionService(
         var extension = exercise?.Extensions.SingleOrDefault(x => x.Id == extensionId);
         if (exercise is null || extension is null) return new ExtensionSaveResult(ExtensionSaveStatus.NotFound);
 
-        // A closed extension is read only: its schools' time has run out and its requests may
-        // already have been sent. Reopening it would be a new extension.
+        // A closed extension (its own end has passed) is read only: its requests may already have
+        // been sent. Its schools stay named in it, and the conflict check in Refusal counts closed
+        // extensions too, so as built a school whose extension has closed cannot be given more time
+        // on this exercise by another extension either.
         if (checkingExercises.HasClosed(extension)) return new ExtensionSaveResult(ExtensionSaveStatus.Closed);
 
         var digits = Digits(command.Laestabs);
@@ -138,7 +140,7 @@ public sealed class ExerciseExtensionService(
     }
 
     // The add and edit checks after the extension's own, in order; null when the write may go ahead.
-    private static ExtensionSaveResult? Refusal(
+    private ExtensionSaveResult? Refusal(
         CheckingExerciseDto exercise, Guid? extensionId, DateTime endDate, IReadOnlyList<string> laestabs)
     {
         // A school's end is never earlier than the exercise's own, so an end on or before it would
@@ -146,6 +148,14 @@ public sealed class ExerciseExtensionService(
         if (endDate <= exercise.EndDate)
         {
             return new ExtensionSaveResult(ExtensionSaveStatus.EndDateNotAfterExercise, ExerciseEnd: exercise.EndDate);
+        }
+
+        // An end already past would save an extension that is closed the moment it is written: no
+        // school gains time, and its schools are then locked out of any later extension. Asked of
+        // the one clock — an extension with that end is open exactly when the end is still ahead.
+        if (!checkingExercises.IsOpen(new CheckingExerciseExtensionDto { EndDate = endDate }))
+        {
+            return new ExtensionSaveResult(ExtensionSaveStatus.EndDateNotInFuture);
         }
 
         if (laestabs.Count == 0) return new ExtensionSaveResult(ExtensionSaveStatus.NoSchools);

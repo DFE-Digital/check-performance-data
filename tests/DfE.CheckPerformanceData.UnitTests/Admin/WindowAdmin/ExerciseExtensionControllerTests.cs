@@ -354,6 +354,21 @@ public sealed class ExerciseExtensionControllerTests
     }
 
     [Fact]
+    public async Task Create_post_ending_in_the_past_is_a_date_error()
+    {
+        // AB#307773 review I1.
+        _extensions.AddAsync(Arg.Any<ExtensionCommand>(), Arg.Any<CancellationToken>())
+            .Returns(new ExtensionSaveResult(ExtensionSaveStatus.EndDateNotInFuture));
+
+        var controller = Build();
+        var result = await controller.Create(WindowId, ExerciseId, Form(), CancellationToken.None);
+
+        Assert.IsType<ViewResult>(result);
+        Assert.Equal(["The extension end date must be in the future"], Errors(controller, "EndDate"));
+        Assert.Null(controller.TempData[ExerciseExtensionController.TempDataKey]);
+    }
+
+    [Fact]
     public async Task Create_post_naming_a_school_in_another_extension_says_which_and_when_it_ends()
     {
         _extensions.AddAsync(Arg.Any<ExtensionCommand>(), Arg.Any<CancellationToken>())
@@ -367,8 +382,8 @@ public sealed class ExerciseExtensionControllerTests
         Assert.IsType<ViewResult>(result);
         Assert.Equal(
             [
-                "933/4290 is already in the extension ending 08/10/2026 17:00",
-                "860/4070 is already in the extension ending 08/10/2026 17:00"
+                "933/4290 is already in the extension ending 08/10/2026 17:00.",
+                "860/4070 is already in the extension ending 08/10/2026 17:00."
             ],
             Errors(controller, "Schools"));
     }

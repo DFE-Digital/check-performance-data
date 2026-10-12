@@ -84,6 +84,11 @@ public sealed class ExerciseExtensionItem
     public string Heading => IsEdit ? "Edit extension" : $"Add an extension to {ExerciseLabel}";
     public string ConfirmLabel => IsEdit ? "Save these schools anyway" : "Add these schools anyway";
 
+    /// <summary>The warning's second sentence; its verb follows the label's.</summary>
+    public string NoDataWarning => IsEdit
+        ? "These schools have no data file in the current release. You can still save them: they may get their data in a later release."
+        : "These schools have no data file in the current release. You can still add them: they may get their data in a later release.";
+
     /// <summary>The checkbox's error while the warning stands; its verb follows the label's.</summary>
     public string ConfirmNoDataError => IsEdit
         ? "Confirm that you want to save these schools, or remove them from the list"

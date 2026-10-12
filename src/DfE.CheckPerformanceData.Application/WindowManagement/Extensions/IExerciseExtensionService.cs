@@ -57,6 +57,9 @@ public enum ExtensionSaveStatus
     /// <see cref="ExtensionSaveResult.ExerciseEnd"/> says what it must follow.</summary>
     EndDateNotAfterExercise,
 
+    /// <summary>The end date has already passed, so the extension would be closed as it is saved.</summary>
+    EndDateNotInFuture,
+
     /// <summary>No school named. The form refuses this first; this is the backstop.</summary>
     NoSchools,
 

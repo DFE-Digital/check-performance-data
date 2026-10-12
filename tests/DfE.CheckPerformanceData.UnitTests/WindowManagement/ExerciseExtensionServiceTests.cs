@@ -113,6 +113,31 @@ public sealed class ExerciseExtensionServiceTests
         await _extensions.DidNotReceiveWithAnyArgs().AddAsync(default!, default);
     }
 
+    // AB#307773 review I1: after the exercise's end but already past on the local clock, it would
+    // be saved closed — no school gains time, and its schools are locked out of later extensions.
+    [Fact]
+    public async Task An_end_date_already_past_is_refused()
+    {
+        WindowHolds();
+        var thisMorning = new DateTime(2026, 9, 3, 9, 0, 0);   // after the exercise end, before 10:39 local
+
+        var result = await Sut().AddAsync(Command(thisMorning, ["8604070"]), CancellationToken.None);
+
+        Assert.Equal(ExtensionSaveStatus.EndDateNotInFuture, result.Status);
+        await _extensions.DidNotReceiveWithAnyArgs().AddAsync(default!, default);
+    }
+
+    [Fact]
+    public async Task An_end_date_a_second_before_now_is_already_past()
+    {
+        // Asked of the one clock: 10:39:27 is before 10:39:27.450 local.
+        WindowHolds();
+
+        var result = await Sut().AddAsync(Command(LocalNowToTheSecond, ["8604070"]), CancellationToken.None);
+
+        Assert.Equal(ExtensionSaveStatus.EndDateNotInFuture, result.Status);
+    }
+
     [Fact]
     public async Task An_add_naming_no_school_is_refused()
     {
@@ -264,6 +289,18 @@ public sealed class ExerciseExtensionServiceTests
 
         Assert.Equal(ExtensionSaveStatus.EndDateNotAfterExercise, result.Status);
         Assert.Equal(Yesterday, result.ExerciseEnd);
+        await _extensions.DidNotReceiveWithAnyArgs().UpdateAsync(default!, default);
+    }
+
+    [Fact]
+    public async Task An_edit_to_an_end_date_already_past_is_refused()
+    {
+        WindowHolds();
+
+        var result = await Sut().EditAsync(
+            XId, Tomorrow, Command(new DateTime(2026, 9, 3, 9, 0, 0), ["9334290"]), CancellationToken.None);
+
+        Assert.Equal(ExtensionSaveStatus.EndDateNotInFuture, result.Status);
         await _extensions.DidNotReceiveWithAnyArgs().UpdateAsync(default!, default);
     }
 

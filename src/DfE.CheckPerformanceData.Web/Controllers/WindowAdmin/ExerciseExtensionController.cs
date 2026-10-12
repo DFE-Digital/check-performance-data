@@ -42,6 +42,7 @@ public sealed class ExerciseExtensionController(
     public const string TempDataKey = "ExtensionOutcome";
 
     public const string NoSchoolsError = "Enter at least one school";
+    public const string EndDateNotInFutureError = "The extension end date must be in the future";
     public const string ClosedRefusal = "This extension has closed and cannot be changed.";
     public const string StaleRefusal = "This extension was changed by someone else. Check it and try again.";
 
@@ -217,6 +218,10 @@ public sealed class ExerciseExtensionController(
                     $"The extension must end after the exercise ends on {Format(result.ExerciseEnd ?? model.ExerciseEnd)}");
                 return View(PageView, model);
 
+            case ExtensionSaveStatus.EndDateNotInFuture:
+                ModelState.AddModelError(nameof(ExerciseExtensionItem.EndDate), EndDateNotInFutureError);
+                return View(PageView, model);
+
             case ExtensionSaveStatus.NoSchools:
                 ModelState.AddModelError(nameof(ExerciseExtensionItem.Schools), NoSchoolsError);
                 return View(PageView, model);
@@ -225,7 +230,7 @@ public sealed class ExerciseExtensionController(
                 foreach (var conflict in result.Conflicts ?? [])
                 {
                     ModelState.AddModelError(nameof(ExerciseExtensionItem.Schools),
-                        $"{LaestabList.Display(conflict.Laestab)} is already in the extension ending {Format(conflict.OtherExtensionEnd)}");
+                        $"{LaestabList.Display(conflict.Laestab)} is already in the extension ending {Format(conflict.OtherExtensionEnd)}.");
                 }
                 return View(PageView, model);
 

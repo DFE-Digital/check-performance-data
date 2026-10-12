@@ -759,6 +759,65 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingExerciseExtension", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<Guid>("CheckingExerciseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("EndDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<DateTime?>("RequestsSentAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CheckingExerciseId");
+
+                    b.ToTable("CheckingExerciseExtensions", (string)null);
+                });
+
+            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingExerciseExtensionSchool", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<Guid>("CheckingExerciseExtensionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CheckingExerciseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Laestab")
+                        .IsRequired()
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CheckingExerciseExtensionId");
+
+                    b.HasIndex("CheckingExerciseId", "Laestab")
+                        .IsUnique();
+
+                    b.ToTable("CheckingExerciseExtensionSchools", (string)null);
+                });
+
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingExerciseRelease", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2009,6 +2068,24 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     b.Navigation("Validated");
                 });
 
+            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingExerciseExtension", b =>
+                {
+                    b.HasOne("DfE.CheckPerformanceData.Persistence.Entities.CheckingExercise", null)
+                        .WithMany("Extensions")
+                        .HasForeignKey("CheckingExerciseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingExerciseExtensionSchool", b =>
+                {
+                    b.HasOne("DfE.CheckPerformanceData.Persistence.Entities.CheckingExerciseExtension", null)
+                        .WithMany("Schools")
+                        .HasForeignKey("CheckingExerciseExtensionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingExerciseRelease", b =>
                 {
                     b.HasOne("DfE.CheckPerformanceData.Persistence.Entities.CheckingExercise", null)
@@ -2118,7 +2195,14 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                 {
                     b.Navigation("Datasets");
 
+                    b.Navigation("Extensions");
+
                     b.Navigation("Releases");
+                });
+
+            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingExerciseExtension", b =>
+                {
+                    b.Navigation("Schools");
                 });
 
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingExerciseRelease", b =>

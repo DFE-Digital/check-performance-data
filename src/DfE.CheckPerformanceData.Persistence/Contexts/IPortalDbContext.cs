@@ -17,6 +17,8 @@ public interface IPortalDbContext
     DbSet<CheckingWindow> CheckingWindows { get; }
     DbSet<CheckingWindowDataset> CheckingWindowDatasets { get; }
     DbSet<CheckingExercise> CheckingExercises { get; }
+    DbSet<CheckingExerciseExtension> CheckingExerciseExtensions { get; }
+    DbSet<CheckingExerciseExtensionSchool> CheckingExerciseExtensionSchools { get; }
     DbSet<ContentBlock> ContentBlocks { get; }
     DbSet<ContentBlockVersion> ContentBlockVersions { get; }
     DbSet<HomeBanner> HomeBanners { get; }

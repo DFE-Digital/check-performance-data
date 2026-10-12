@@ -72,7 +72,9 @@ public sealed class CheckingWindowDto
         if (Exercises.Count == 0) return;
 
         StartDate = Exercises.Min(e => e.StartDate);
-        EndDate = Exercises.Max(e => e.EndDate);
+        // AB#307773: an open extension keeps the window shown to its schools, so the outer end
+        // includes it. Otherwise IsWindowShown would hide the window from a named school.
+        EndDate = Exercises.Max(e => e.LatestEndDate);
     }
 
     /// <summary>
@@ -137,6 +139,23 @@ public sealed class CheckingExerciseDto
 
     /// <summary>Every release of this exercise, oldest first.</summary>
     public List<CheckingExerciseReleaseDto> Releases { get; init; } = [];
+
+    /// <summary>AB#307773: extra time for named schools, in the order they were added.</summary>
+    public List<CheckingExerciseExtensionDto> Extensions { get; init; } = [];
+
+    /// <summary>The extension naming this school, or null. A school is in at most one.</summary>
+    public CheckingExerciseExtensionDto? ExtensionFor(string? laestab) =>
+        Extensions.FirstOrDefault(x => x.Contains(laestab));
+
+    /// <summary>
+    /// The end date this school sees. An extension only ever adds time: an extension closed early
+    /// before the exercise ended leaves the school on the exercise's own end, never earlier.
+    /// </summary>
+    public DateTime EndDateFor(string? laestab) =>
+        ExtensionFor(laestab) is { } extension && extension.EndDate > EndDate ? extension.EndDate : EndDate;
+
+    /// <summary>The latest end any school sees: the exercise's own, or the latest extension's.</summary>
+    public DateTime LatestEndDate => Extensions.Select(x => x.EndDate).Append(EndDate).Max();
 
     /// <summary>The release that <see cref="CurrentReleaseId"/> names, or null.</summary>
     public CheckingExerciseReleaseDto? CurrentRelease =>

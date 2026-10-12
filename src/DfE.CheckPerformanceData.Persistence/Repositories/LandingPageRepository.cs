@@ -5,6 +5,7 @@ using DfE.CheckPerformanceData.Persistence.Contexts;
 // Aliased, not imported: WindowManagement also declares a CheckingWindowDto, which would make the
 // LandingPage one ambiguous here.
 using CheckingExerciseDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseDto;
+using CheckingExerciseExtensionDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseExtensionDto;
 using CheckingExerciseReleaseDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseReleaseDto;
 using CheckingExerciseReleaseFileDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseReleaseFileDto;
 using CheckingWindowDatasetDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingWindowDatasetDto;
@@ -90,6 +91,18 @@ public sealed class LandingPageRepository(
                                         DatasetName = f.DatasetName
                                     })
                                     .ToList()
+                            })
+                            .ToList(),
+                        Extensions = e.Extensions
+                            .OrderBy(x => x.CreatedAt).ThenBy(x => x.Id)
+                            .Select(x => new CheckingExerciseExtensionDto
+                            {
+                                Id = x.Id,
+                                EndDate = x.EndDate,
+                                CreatedAt = x.CreatedAt,
+                                CreatedBy = x.CreatedBy,
+                                RequestsSentAt = x.RequestsSentAt,
+                                Laestabs = x.Schools.Select(s => s.Laestab).OrderBy(l => l).ToList()
                             })
                             .ToList()
                     })

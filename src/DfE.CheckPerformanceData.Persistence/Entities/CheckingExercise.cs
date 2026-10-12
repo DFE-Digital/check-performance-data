@@ -103,6 +103,9 @@ public sealed class CheckingExercise
 
     /// <summary>Every successful run of this exercise, each with its own output.</summary>
     public List<CheckingExerciseRelease> Releases { get; init; } = [];
+
+    /// <summary>AB#307773: extra time for named schools. Cascades with the exercise.</summary>
+    public List<CheckingExerciseExtension> Extensions { get; init; } = [];
 }
 
 /// <summary>

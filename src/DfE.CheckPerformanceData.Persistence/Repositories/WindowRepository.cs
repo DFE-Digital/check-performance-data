@@ -83,6 +83,18 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                                     .ToList()
                             })
                             .ToList(),
+                        Extensions = e.Extensions
+                            .OrderBy(x => x.CreatedAt).ThenBy(x => x.Id)
+                            .Select(x => new CheckingExerciseExtensionDto
+                            {
+                                Id = x.Id,
+                                EndDate = x.EndDate,
+                                CreatedAt = x.CreatedAt,
+                                CreatedBy = x.CreatedBy,
+                                RequestsSentAt = x.RequestsSentAt,
+                                Laestabs = x.Schools.Select(s => s.Laestab).OrderBy(l => l).ToList()
+                            })
+                            .ToList(),
                         ExerciseType = e.ExerciseType,
                         StartDate = e.StartDate,
                         EndDate = e.EndDate,
@@ -184,6 +196,18 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                                         SortOrder = f.SortOrder
                                     })
                                     .ToList()
+                            })
+                            .ToList(),
+                        Extensions = e.Extensions
+                            .OrderBy(x => x.CreatedAt).ThenBy(x => x.Id)
+                            .Select(x => new CheckingExerciseExtensionDto
+                            {
+                                Id = x.Id,
+                                EndDate = x.EndDate,
+                                CreatedAt = x.CreatedAt,
+                                CreatedBy = x.CreatedBy,
+                                RequestsSentAt = x.RequestsSentAt,
+                                Laestabs = x.Schools.Select(s => s.Laestab).OrderBy(l => l).ToList()
                             })
                             .ToList(),
                         ExerciseType = e.ExerciseType,
@@ -567,6 +591,7 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                                 .ToList()
                         })
                         .ToList(),
+                    Extensions = CheckingExerciseExtensionMapping.ToDtos(e.Extensions),
                     ExerciseType = e.ExerciseType,
                     StartDate = e.StartDate,
                     EndDate = e.EndDate,

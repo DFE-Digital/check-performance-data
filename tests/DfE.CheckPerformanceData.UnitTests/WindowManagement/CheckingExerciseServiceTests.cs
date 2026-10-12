@@ -473,4 +473,47 @@ public sealed class CheckingExerciseServiceTests
 
         Assert.Equal(ExerciseSchoolStatus.VisibleClosed, Sut().StatusOf([exercise], exercise));
     }
+
+    // AB#307773: the extension helpers on the DTO. Pure date arithmetic, no clock: whether an
+    // extension is open is the service's question, asked in a later task.
+    private static CheckingExerciseExtensionDto Extension(DateTime end, params string[] laestabs) =>
+        new() { Id = Guid.NewGuid(), EndDate = end, Laestabs = laestabs };
+
+    [Fact]
+    public void EndDateFor_is_the_extension_end_for_a_named_school_in_either_form()
+    {
+        var exercise = Exercise(CheckingExerciseType.PupilData, LastMonth, Yesterday);
+        exercise.Extensions.Add(Extension(NextMonth, "9334290"));
+
+        Assert.Equal(NextMonth, exercise.EndDateFor("933/4290"));
+        Assert.Equal(NextMonth, exercise.EndDateFor("9334290"));
+        Assert.Equal(Yesterday, exercise.EndDateFor("8604070"));
+        Assert.Equal(Yesterday, exercise.EndDateFor(null));
+        Assert.Equal(Yesterday, exercise.EndDateFor(""));
+    }
+
+    [Fact]
+    public void EndDateFor_never_moves_a_school_earlier_than_the_exercise_end()
+    {
+        var exercise = Exercise(CheckingExerciseType.PupilData, LastMonth, NextMonth);
+        exercise.Extensions.Add(Extension(Yesterday, "9334290"));   // closed early before the exercise ended
+
+        Assert.Equal(NextMonth, exercise.EndDateFor("9334290"));
+    }
+
+    [Fact]
+    public void DeriveDatesFromExercises_includes_the_latest_extension_end()
+    {
+        var exercise = Exercise(CheckingExerciseType.PupilData, LastMonth, Yesterday);
+        exercise.Extensions.Add(Extension(NextMonth, "9334290"));
+        var window = new CheckingWindowDto
+        {
+            Title = "w", KeyStage = KeyStages.KS4, CheckingWindowType = CheckingWindowType.KS4June,
+            StartDate = LastMonth, EndDate = Yesterday, Exercises = [exercise]
+        };
+
+        window.DeriveDatesFromExercises();
+
+        Assert.Equal(NextMonth, window.EndDate);
+    }
 }

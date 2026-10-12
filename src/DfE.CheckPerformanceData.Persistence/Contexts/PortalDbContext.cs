@@ -16,6 +16,8 @@ public sealed class PortalDbContext(
     public DbSet<CheckingWindow> CheckingWindows => Set<CheckingWindow>();
     public DbSet<CheckingWindowDataset> CheckingWindowDatasets => Set<CheckingWindowDataset>();
     public DbSet<CheckingExercise> CheckingExercises => Set<CheckingExercise>();
+    public DbSet<CheckingExerciseExtension> CheckingExerciseExtensions => Set<CheckingExerciseExtension>();
+    public DbSet<CheckingExerciseExtensionSchool> CheckingExerciseExtensionSchools => Set<CheckingExerciseExtensionSchool>();
     public DbSet<ContentBlock> ContentBlocks => Set<ContentBlock>();
     public DbSet<ContentBlockVersion> ContentBlockVersions => Set<ContentBlockVersion>();
     public DbSet<HomeBanner> HomeBanners => Set<HomeBanner>();
@@ -51,6 +53,8 @@ public sealed class PortalDbContext(
         modelBuilder.ApplyConfiguration(new CheckingExerciseConfiguration());
         modelBuilder.ApplyConfiguration(new CheckingExerciseReleaseConfiguration());
         modelBuilder.ApplyConfiguration(new CheckingExerciseReleaseFileConfiguration());
+        modelBuilder.ApplyConfiguration(new CheckingExerciseExtensionConfiguration());
+        modelBuilder.ApplyConfiguration(new CheckingExerciseExtensionSchoolConfiguration());
         modelBuilder.ApplyConfiguration(new ContentBlockConfiguration());
         modelBuilder.ApplyConfiguration(new ContentBlockVersionConfiguration());
         modelBuilder.ApplyConfiguration(new HomeBannerConfiguration());

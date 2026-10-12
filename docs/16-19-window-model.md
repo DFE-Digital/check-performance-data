@@ -578,6 +578,9 @@ written even if the pod is stopping. If that write fails, the hand-over has stil
 application log line is the record. A sweep that fails part-way writes no row for the requests it
 did send; the run that finishes the job records only what it sent.
 
+**Extensions.** An extension of an exercise (AB#307773) is handed over separately, from two hours
+after its own end, and its audit row carries `extensionId`. See `docs/exercise-extensions.md`.
+
 **Settings** (`ExerciseHandOver` section; defaults in code, nothing in `appsettings.json`):
 
 | Key | Default | Meaning |

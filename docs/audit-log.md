@@ -40,21 +40,26 @@ cumulative filters, 20 rows a page, and a CSV export of the filtered set.
   requests over by itself, two hours after the exercise ends — but only for a run that sent or
   cancelled something, so the day of repeat runs that follows leaves no rows. `EntityId` is the
   window id, `UserId` is null (nobody did it; the screen says "System"), `Timestamp` the UTC
-  instant of the run. The payload carries `windowId`, `windowTitle`, `exerciseType`,
-  `exerciseEnd`, `requestsSent`, `draftsCancelled`, `automatic` and `ranAtUtc`, and
-  `extensionId` (AB#307773: the extension handed over, null for the exercise's own hand-over; the
-  screen prefixes "(extension)"). It is written after the sweep rather than in a transaction with
-  it, so a failed write loses the row, not the hand-over.
+  instant of the run. The payload carries `windowId`, `windowTitle`, `exerciseId`, `exerciseType`,
+  `extensionId`, `exerciseEnd`, `requestsSent`, `draftsCancelled`, `automatic` and `ranAtUtc`.
+  `extensionId` (AB#307773) names the extension handed over and is null for the exercise's own
+  hand-over; `exerciseEnd` is the end of whichever was handed over; the screen prefixes
+  "(extension)". It is written after the sweep rather than in a transaction with it, so a failed
+  write loses the row, not the hand-over.
 - **Extensions (AB#307773).** An extension is extra time on one checking exercise for a named list
-  of schools (LAESTABs, no pupil data). Four admin actions each write one `WindowAdmin` row, once
-  the change is committed. `EntityId` is the window id, `UserId` the admin's subject, `Timestamp`
-  the UTC instant of the change. Every payload (camelCase JSON) carries `windowId`, `windowTitle`,
-  `exerciseId`, `exerciseType`, `extensionId`, `endDate` and `actorName`, plus:
-  - `ExtensionAdded`: `schoolCount` and `schools`.
-  - `ExtensionEdited`: `previousEndDate`, `newEndDate`, `schoolsAdded`, `schoolsRemoved` and
-    `schoolCount`.
-  - `ExtensionClosedEarly`: `scheduledEnd`, `newEndDate`, `closedEarly` and `closedBy`.
-  - `ExtensionRequestsSent`: `extensionEnd`, `requestsSent` and `draftsCancelled`.
+  of schools (LAESTABs, no pupil data). Four admin actions each write one `WindowAdmin` row from
+  `ExerciseExtensionRepository`. `EntityId` is the window id, `UserId` the admin's subject,
+  `Timestamp` the UTC instant of the change. Every payload (camelCase JSON) carries `windowId`,
+  `windowTitle`, `exerciseId`, `exerciseType`, `extensionId`, `endDate` and `actorName`. The first
+  three rows are written in the same transaction as the change, so a change that lost its
+  compare-and-set has none. Each row adds:
+  - `ExtensionAdded`: `schoolCount` and `schools` (digits). `endDate` is the extension's end.
+  - `ExtensionEdited`: `previousEndDate`, `newEndDate`, `schoolCount`, `schoolsAdded` and
+    `schoolsRemoved`. `endDate` is the new end.
+  - `ExtensionClosedEarly`: `scheduledEnd`, `newEndDate`, `closedEarly`, `closedBy` and
+    `closedAtUtc`. `endDate` is the new end; `closedBy` and `actorName` are the same name.
+  - `ExtensionRequestsSent`: `extensionEnd`, `requestsSent` and `draftsCancelled`. `endDate` is
+    `extensionEnd`. It is written after the manual Send's sweep, in a transaction of its own.
 
 ## The screen
 

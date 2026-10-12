@@ -1,7 +1,9 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
+using DfE.CheckPerformanceData.Application.Journey.Conditions;
 using DfE.CheckPerformanceData.Application.LandingPage;
+using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.Journey;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
@@ -75,6 +77,11 @@ public class JourneyViewModelBuilderTests
         _optionVisibilityService
             .GetVisibleOptions(Arg.Any<Question>(), Arg.Any<JourneyConditionContext>())
             .Returns(ci => ci.Arg<Question>().Options ?? (IReadOnlyList<QuestionOption>)[]);
+
+        // Unstubbed, the substitute returns false and every question would be filtered out (issue #577).
+        _optionVisibilityService
+            .IsQuestionVisible(Arg.Any<Question>(), Arg.Any<JourneyConditionContext>())
+            .Returns(true);
 
         _sut = new JourneyViewModelBuilder(
             _flowService, _journeyService, _optionVisibilityService, _currentUserService, _optionalityService);
@@ -585,6 +592,62 @@ public class JourneyViewModelBuilderTests
         var vm = _sut.BuildResultSearchVm(WindowId, "select-result", page, journey, Config, []);
 
         Assert.Null(vm.Content);
+    }
+
+    // ── Question-level visibility (issue #577) ───────────────────────────────
+
+    private static readonly JourneyPage SyllabusQuestionPage = new()
+    {
+        Id = "qualification-details",
+        Type = PageType.QualificationDetails,
+        Questions =
+        [
+            new Question
+            {
+                Id = "q-syllabus-code", Type = QuestionType.SyllabusSelect, Title = "Select syllabus code",
+                VisibleWhen = ["HasSyllabusCodesForSelectedQualification"]
+            }
+        ]
+    };
+
+    private JourneyViewModelBuilder BuilderWithRealQuestionVisibility() =>
+        new(_flowService, _journeyService,
+            new OptionVisibilityService([new HasSyllabusCodesForSelectedQualificationCondition()]),
+            _currentUserService, _optionalityService);
+
+    private static RequestState MissingQualificationJourney(QualificationReference? qualification) => new()
+    {
+        SelectedWhatToChange = WhatToChange.MissingQualification,
+        SelectedQualification = qualification
+    };
+
+    [Fact]
+    public void BuildPageVm_ShowsAQuestionWhoseVisibleWhenConditionIsTrue()
+    {
+        var journey = MissingQualificationJourney(new QualificationReference
+        {
+            Qan = "60146084", QualificationTitle = "Maths", AwardingOrganisation = "AQA",
+            SyllabusCodes = [new SyllabusCode { Code = "8300H", Title = "Higher" }]
+        });
+
+        var vm = BuilderWithRealQuestionVisibility().BuildPageVm(
+            WindowId, SyllabusQuestionPage, [], journey, false, new ModelStateDictionary());
+
+        Assert.Contains(vm.QuestionModels, q => q.Question.Id == "q-syllabus-code");
+    }
+
+    [Fact]
+    public void BuildPageVm_HidesAQuestionWhoseVisibleWhenConditionIsFalse()
+    {
+        var journey = MissingQualificationJourney(new QualificationReference
+        {
+            Qan = "60146084", QualificationTitle = "Maths", AwardingOrganisation = "AQA"
+        });
+
+        var vm = BuilderWithRealQuestionVisibility().BuildPageVm(
+            WindowId, SyllabusQuestionPage, [], journey, false, new ModelStateDictionary());
+
+        Assert.DoesNotContain(vm.QuestionModels, q => q.Question.Id == "q-syllabus-code");
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────

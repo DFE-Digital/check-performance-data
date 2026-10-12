@@ -35,7 +35,7 @@ namespace DfE.CheckPerformanceData.Web.Seeding;
 /// <item><c>summary/summary.csv</c> → <c>summary-autumn_schema.json</c>, the first file of the
 /// summary data share every 16-19 window has (<see cref="SeedPost16Summary"/>).</item>
 /// <item><c>students/campus.csv</c>, in the supplier's pupil campus shape → <c>students-campus_schema.json</c>,
-/// the file of the pupil campus data share every 16-19 window has (<see cref="SeedPost16PupilCampus"/>).</item>
+/// the file of the student campus data share every 16-19 window has (<see cref="SeedPost16PupilCampus"/>).</item>
 /// </list>
 /// <para>
 /// The students come from <see cref="SeedPupilData"/> and the results from

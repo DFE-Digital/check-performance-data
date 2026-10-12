@@ -210,10 +210,10 @@ public static class SeedCheckingWindows
         return window;
     }
 
-    /// <summary>The name of the pupil campus share's exercise.</summary>
-    public const string PupilCampusExercise = "Pupil campus";
+    /// <summary>The name of the student campus share's exercise.</summary>
+    public const string PupilCampusExercise = "Student campus";
 
-    /// <summary>The name of the pupil campus share's one dataset slot.</summary>
+    /// <summary>The name of the student campus share's one dataset slot.</summary>
     public const string PupilCampusDataset = "campus";
 
     // A display-only data share with no kind, in every 16-19 window: one
@@ -231,7 +231,7 @@ public static class SeedCheckingWindows
         Datasets = [new CheckingWindowDataset { Name = PupilCampusDataset, Included = null, FeedsJourney = false, SortOrder = 0 }]
     };
 
-    // Every 16-19 window has the pupil campus share, on the results enquiry's dates.
+    // Every 16-19 window has the student campus share, on the results enquiry's dates.
     private static CheckingWindow WithPupilCampusDataShare(CheckingWindow window)
     {
         var results = window.CheckingExercises.Single(e => e.ExerciseType == CheckingExerciseType.ResultsEnquiry);
@@ -434,7 +434,7 @@ public static class SeedCheckingWindows
         await dbContext.CheckingWindows.AddRangeAsync(
             openKs4JuneWindow,
             // Every 16-19 window has both previously published slots, the three value added slots,
-            // the summary share and the pupil campus share. The October step fills the first
+            // the summary share and the student campus share. The October step fills the first
             // previously published slot, the first summary slot and the campus slot; later steps
             // fill the others. November fills the first value added slot.
             WithPupilCampusDataShare(WithSummaryDataShare(WithValueAddedSlots(WithPreviouslyPublishedSlots(post16OctoberWindow)))),

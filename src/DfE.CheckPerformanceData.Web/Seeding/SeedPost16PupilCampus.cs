@@ -9,7 +9,7 @@ using DfE.CheckPerformanceData.Persistence.Seeding;
 namespace DfE.CheckPerformanceData.Web.Seeding;
 
 /// <summary>
-/// Dev-only: the pupil campus data share every 16-19 window has
+/// Dev-only: the student campus data share every 16-19 window has
 /// (<see cref="SeedCheckingWindows.PupilCampusExercise"/>). The October step links
 /// <c>students/campus.csv</c> to its one slot with <c>students-campus_schema.json</c> and validates
 /// the share, so it has one release. The later steps keep that file.

@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "students-campus_schema.json",
-  "title": "Pupil campus",
-  "description": "One row of the 16-19 pupil campus data file, as the data specification defines it, headed by field reference: one row per student, with the campus the student is allocated to and the student's attainment programme entries and point scores. The descriptive column heading is the heading of the CSV a school downloads, in column order A-AI. The same columns are in the provisional, revised and retention files.",
+  "title": "Student campus",
+  "description": "One row of the 16-19 student campus data file, as the data specification defines it, headed by field reference: one row per student, with the campus the student is allocated to and the student's attainment programme entries and point scores. The descriptive column heading is the heading of the CSV a school downloads, in column order A-AI. The same columns are in the provisional, revised and retention files.",
   "type": "object",
   "additionalProperties": false,
   "x-ingress": {
@@ -12,11 +12,11 @@
   },
   "x-download": {
     "fileName": "ks5campus25.csv",
-    "label": "Pupil campus"
+    "label": "Student campus"
   },
   "x-display": {
     "tab": "students",
-    "section": "Pupil campus",
+    "section": "Student campus",
     "selectorOrder": 5
   },
   "properties": {

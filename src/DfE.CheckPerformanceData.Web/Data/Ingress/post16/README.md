@@ -66,11 +66,11 @@ Each file has one row per included student per qualification; every third studen
 
 The "16 to 19 Mar" dev window's pupil data exercise has an "Aims" slot that feeds no journey (a data share, like the value added slots). It waits empty and is not required until the March step. `SeedPost16MarchSamples` links `students/aims.csv` (ingress container `16-to-19-mar`) to it with this schema, makes it required, and pupil data is validated with the March value added file: one or two aims for every included student, with every tenth aim recorded at another provider. Schools see the section "Aims".
 
-## Pupil campus schema
+## Student campus schema
 
 `students-campus_schema.json` is the 16-19 pupil campus data file as the data specification defines it: one row per student, headed by field reference, in column order A-AI. The first column, `CampID`, has no field number in the specification. The file gives the campus a student is allocated to, whether the student was allocated to the provider in each of the last three years, and the student's entries and point scores in each attainment programme (A level, academic, tech level, applied general, technical certificate and T level). The descriptive column heading is the heading of the CSV a school downloads. The provisional, revised and retention files have the same columns, so there is one schema. Like the results schemas, it sets no `maxLength`. Ingress splits the rows by `LAESTAB`. The table shows last name and first name (searchable), sex, date of birth, age and CYPMD ID. The download file name (`ks5campus25.csv`) is a placeholder until the supplier confirms it.
 
-Every 16-19 dev window has a "Pupil campus" data share (tab "Campus"): a display-only exercise with no kind and one slot, `campus`, that feeds no journey. The October step (`SeedPost16PupilCampus`) validates `students/campus.csv` (ingress container `16-to-19-oct`) with this schema, and the later steps keep that release. The file has one row for every included student. Every school has two campuses, `{LAESTAB}1` and `{LAESTAB}2`; every fourth student is at the second.
+Every 16-19 dev window has a "Student campus" data share (tab "Campus"): a display-only exercise with no kind and one slot, `campus`, that feeds no journey. The October step (`SeedPost16PupilCampus`) validates `students/campus.csv` (ingress container `16-to-19-oct`) with this schema, and the later steps keep that release. The file has one row for every included student. Every school has two campuses, `{LAESTAB}1` and `{LAESTAB}2`; every fourth student is at the second.
 
 ## Summary schemas
 

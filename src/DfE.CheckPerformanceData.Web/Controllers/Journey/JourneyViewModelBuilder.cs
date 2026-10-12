@@ -225,7 +225,7 @@ public sealed class JourneyViewModelBuilder(
 
         string? contentKey = null;
         if (page.Type is PageType.Content or PageType.EvidenceUpload && config is not null)
-            contentKey = flowService.BuildContentKey(windowId, page, answers, journey, config);
+            contentKey = flowService.BuildContentKey(page, answers, journey, config);
 
         var conditionContext = BuildConditionContext(journey);
 

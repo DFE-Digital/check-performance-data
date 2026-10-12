@@ -80,8 +80,9 @@ public sealed class SummaryController(
                             Status = e.StatusOf(d)
                         })
                         .ToList(),
-                    // AB#307773: each extension asked of the same clock, for itself — an extension
-                    // may be open after its exercise has closed.
+                    // AB#307773: each extension asked of the same clock. Open is its own end
+                    // (Edit, Close early); Send waits for the effective end, so an extension
+                    // closed early before its exercise ends offers nothing until the exercise ends.
                     Extensions = e.Extensions
                         .OrderBy(x => x.EndDate).ThenBy(x => x.Id)
                         .Select(x => new ExtensionSummaryRow
@@ -91,8 +92,9 @@ public sealed class SummaryController(
                             Id = x.Id,
                             EndDate = x.EndDate,
                             SchoolCount = x.SchoolCount,
+                            ExerciseEndDate = e.EndDate,
                             IsOpen = checkingExercises.IsOpen(x),
-                            HasClosed = checkingExercises.HasClosed(x),
+                            HasClosed = checkingExercises.HasClosed(e, x),
                             RequestsSent = x.RequestsSentAt is not null
                         })
                         .ToList()

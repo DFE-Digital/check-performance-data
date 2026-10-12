@@ -13,8 +13,10 @@ namespace DfE.CheckPerformanceData.E2ETests.WindowAdmin;
 /// <item>Smoke — adding one: a line that is not a LAESTAB is refused with its line number, a
 /// school with no data file is warned of and saved only once confirmed, the exercise's card lists
 /// the extension as Open with Edit and Close early, and the audit log records it.</item>
-/// <item>Editing one (a school removed), closing it early (a wrong window name refused, the exact
-/// name accepted), and sending its requests once closed — each with its banner and audit row.</item>
+/// <item>Editing one (a school removed), closing the exercise early (its page says the extension's
+/// schools keep their time), closing the extension early (a wrong window name refused, the exact
+/// name accepted), and sending its requests once both have ended — each with its banner and audit
+/// row.</item>
 /// <item>A display-only data share has no time to extend, so its card offers no Add extension
 /// while a kind-bearing card on the same window does.</item>
 /// </list>
@@ -106,6 +108,19 @@ public sealed class ExerciseExtensionTests(PlaywrightFixture fixture) : SeedingP
         await Expect(SuccessBanner()).ToContainTextAsync($"Extension updated for 1 school, ending {ending}.");
         await Expect(ExtensionsTable().Locator("tbody tr td").Nth(0)).ToHaveTextAsync("1");
 
+        // Close the EXERCISE early first (CloseExerciseEarlyTests' typed-name flow). Send waits for
+        // the later of the two ends, so without this the extension closed early below would wait
+        // for the exercise's own end and offer no Send. The page says the open extension's schools
+        // keep their time, and the extension stays open on the card.
+        await Button($"Close {Exercise}").ClickAsync();
+        await Expect(Page.Locator("h1")).ToHaveTextAsync($"Close {Exercise} early?");
+        await Expect(Page.Locator("main")).ToContainTextAsync("Schools in an open extension keep their extra time.");
+        await Page.FillAsync("#confirm-window-name", title);
+        await Button($"Close {Exercise}").ClickAsync();
+        await Page.WaitForURLAsync($"**/admin/windows/summary/{windowId}");
+        await Expect(SuccessBanner()).ToContainTextAsync($"{Exercise} was closed early on");
+        await Expect(ExtensionsTable().Locator(".govuk-tag")).ToHaveTextAsync("Open");
+
         // Close early: a wrong window name leaves it open and says why, once.
         await Link($"Close early extension ending {ending}").ClickAsync();
         await Expect(Page.Locator("h1")).ToHaveTextAsync($"Close the {Exercise} extension early?");
@@ -140,7 +155,7 @@ public sealed class ExerciseExtensionTests(PlaywrightFixture fixture) : SeedingP
         Assert.InRange(shown, ukNow.AddMinutes(-5), ukNow.AddMinutes(1));
 
         // Closing early may move the end it shows, so the one row is read, not named by its end: it
-        // is closed, and its only action is the hand-over.
+        // is closed, and — the exercise having ended too — its only action is the hand-over.
         var row = ExtensionsTable().Locator("tbody tr");
         await Expect(row).ToHaveCountAsync(1);
         await Expect(row.Locator(".govuk-tag")).ToHaveTextAsync("Closed");
@@ -158,6 +173,11 @@ public sealed class ExerciseExtensionTests(PlaywrightFixture fixture) : SeedingP
         await Page.WaitForURLAsync($"**/admin/windows/summary/{windowId}");
         await Expect(SuccessBanner()).ToContainTextAsync(
             $"0 requests sent for processing and 0 drafts cancelled for the extension of {Exercise}.");
+
+        // Sent is shown beside Closed; the link stays, as re-sending is harmless.
+        await Expect(ExtensionsTable().Locator("tbody tr .govuk-tag")).ToHaveTextAsync(["Closed", "Requests sent"]);
+        await Expect(ExtensionsTable().GetByRole(AriaRole.Link,
+            new() { NameRegex = new Regex("^Send requests for processing for extension ending ") })).ToHaveCountAsync(1);
 
         // Each step is in the audit log, once.
         await Page.GotoAsync(AuditLogUrl(windowId));
@@ -277,8 +297,7 @@ public sealed class ExerciseExtensionTests(PlaywrightFixture fixture) : SeedingP
 
     // A KS4 June window whose only exercise, pupil data checking, opened today and runs for a
     // fortnight — so it is open now. Returns the new window's id, read from the summary URL.
-    // Adapted from CloseExerciseEarlyTests rather than shared: that copy still walks the wizard as
-    // it was before #466.
+    // The same walk as CloseExerciseEarlyTests' copy.
     private async Task<string> CreateOpenKs4WindowAsync(string title)
     {
         await Page.GotoAsync($"{Fixture.BaseUrl}/admin/windows/title");
@@ -286,8 +305,7 @@ public sealed class ExerciseExtensionTests(PlaywrightFixture fixture) : SeedingP
         await Page.ClickAsync("button[type='submit']");
 
         // Since #466 the type step gives the draft its default exercises (KS4 June: pupil data
-        // checking only), so the wizard goes straight to its dates. CloseExerciseEarlyTests still
-        // expects the old exercise-picking step in between.
+        // checking only), so the wizard goes straight to its dates.
         await Page.CheckAsync("input[name='WindowType'][value='KS4June']");
         await Page.ClickAsync("button[type='submit']");
 

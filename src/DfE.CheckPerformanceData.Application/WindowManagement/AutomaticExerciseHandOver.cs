@@ -37,8 +37,11 @@ public sealed class AutomaticExerciseHandOver(
             .ToList();
     }
 
-    // The exercise first, then its extensions in list order. Each is judged on its own end: an
-    // extension runs past the exercise's end, so it falls due later and separately (#567).
+    // The exercise first, then its extensions in list order. An extension is judged on its
+    // effective end, max(exercise end, extension end) (#567): it usually runs past the exercise's
+    // end and falls due later and separately, but one closed early (or overtaken by a later
+    // exercise end) must wait for the exercise, or its sweep would cancel the drafts of schools
+    // still inside the exercise's own dates.
     private static IEnumerable<DueExercise> DueItems(
         CheckingWindowDto window, CheckingExerciseDto exercise, DateTime now, ExerciseHandOverSettings settings)
     {
@@ -48,10 +51,14 @@ public sealed class AutomaticExerciseHandOver(
                 window.Id, window.Title, exercise.Id, exercise.ExerciseType!.Value, exercise.EndDate);
         }
 
-        foreach (var extension in exercise.Extensions.Where(e => ExerciseHandOverSchedule.IsDue(e.EndDate, now, settings)))
+        foreach (var extension in exercise.Extensions)
         {
-            yield return new DueExercise(
-                window.Id, window.Title, exercise.Id, exercise.ExerciseType!.Value, extension.EndDate, extension.Id);
+            var end = exercise.EffectiveEndDateOf(extension);
+            if (ExerciseHandOverSchedule.IsDue(end, now, settings))
+            {
+                yield return new DueExercise(
+                    window.Id, window.Title, exercise.Id, exercise.ExerciseType!.Value, end, extension.Id);
+            }
         }
     }
 

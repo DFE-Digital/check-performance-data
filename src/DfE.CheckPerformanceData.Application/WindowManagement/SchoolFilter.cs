@@ -37,7 +37,6 @@ public sealed record SchoolFilter(IReadOnlyCollection<string> Laestabs, SchoolFi
     }
 
     /// <summary>Only <paramref name="laestabs"/>; an empty set takes nothing.</summary>
-
     public static SchoolFilter Only(IEnumerable<string> laestabs) =>
         new(laestabs.Distinct().ToArray(), SchoolFilterMode.Only);
 }

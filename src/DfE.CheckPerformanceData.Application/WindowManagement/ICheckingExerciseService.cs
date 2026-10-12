@@ -60,16 +60,34 @@ public interface ICheckingExerciseService
     bool HasClosed(CheckingExerciseDto exercise);
 
     /// <summary>
-    /// An extension is open to its last instant, as an exercise is (AB#307773). It has no start of
-    /// its own: an extension added before its exercise ends is open from the moment it is added.
+    /// The extension's <em>own</em> end date is still ahead (AB#307773): open to its last instant,
+    /// as an exercise is, with no start of its own. This gates Edit and Close early only. It is
+    /// not the school's deadline — a school named in an extension closed early keeps the
+    /// exercise's own end — so the sweeps, the hand-over and Send requests ask
+    /// <see cref="IsOpen(CheckingExerciseDto, CheckingExerciseExtensionDto)"/> instead.
     /// </summary>
     bool IsOpen(CheckingExerciseExtensionDto extension);
 
     /// <summary>
-    /// The extension's end date has passed (AB#307773). From then on it is read only and its
-    /// requests may be sent.
+    /// The extension's <em>own</em> end date has passed (AB#307773): it is read only. Not a licence
+    /// to send its requests; see
+    /// <see cref="HasClosed(CheckingExerciseDto, CheckingExerciseExtensionDto)"/>.
     /// </summary>
     bool HasClosed(CheckingExerciseExtensionDto extension);
+
+    /// <summary>
+    /// The extension's schools are still inside their time (AB#307773): the <em>effective</em> end,
+    /// <c>max(exercise.EndDate, extension.EndDate)</c>, is still ahead. An extension closed early
+    /// before its exercise ends, or overtaken by a later exercise end, stays open by this answer
+    /// until the exercise ends, so nothing sweeps a school still inside the exercise's own dates.
+    /// </summary>
+    bool IsOpen(CheckingExerciseDto exercise, CheckingExerciseExtensionDto extension);
+
+    /// <summary>
+    /// The effective end (see <see cref="IsOpen(CheckingExerciseDto, CheckingExerciseExtensionDto)"/>)
+    /// has passed: the extension's requests may be sent, by hand or by the automatic hand-over.
+    /// </summary>
+    bool HasClosed(CheckingExerciseDto exercise, CheckingExerciseExtensionDto extension);
 
     /// <summary>
     /// Every exercise a school may act on right now, in tab order. Empty is a valid answer.
@@ -199,6 +217,12 @@ public sealed class CheckingExerciseService(TimeProvider timeProvider) : IChecki
     public bool IsOpen(CheckingExerciseExtensionDto extension) => extension.EndDate >= Now();
 
     public bool HasClosed(CheckingExerciseExtensionDto extension) => extension.EndDate < Now();
+
+    public bool IsOpen(CheckingExerciseDto exercise, CheckingExerciseExtensionDto extension) =>
+        exercise.EffectiveEndDateOf(extension) >= Now();
+
+    public bool HasClosed(CheckingExerciseDto exercise, CheckingExerciseExtensionDto extension) =>
+        exercise.EffectiveEndDateOf(extension) < Now();
 
     public IReadOnlyList<CheckingExerciseType> OpenCheckingExercises(
         IReadOnlyList<CheckingExerciseDto> exercises) =>

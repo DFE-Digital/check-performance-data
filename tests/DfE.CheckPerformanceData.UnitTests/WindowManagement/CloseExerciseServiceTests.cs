@@ -288,6 +288,48 @@ public sealed class CloseExerciseServiceTests
     }
 
     [Fact]
+    public async Task An_extension_closed_early_keeps_its_schools_held_while_the_exercise_runs()
+    {
+        // AB#307773 review C1: D's own end has passed and it was even swept once, but the exercise
+        // runs until tomorrow, so its school is still inside the exercise's dates. The held set is
+        // judged on the effective end, max(exercise end, extension end), so D's school stays out.
+        var d = new CheckingExerciseExtensionDto
+        {
+            Id = Guid.Parse("DDDDDDDD-0000-0000-0000-000000000004"), EndDate = Yesterday, Laestabs = ["2222222"],
+            RequestsSentAt = new DateTime(2026, 11, 15, 2, 0, 0, DateTimeKind.Utc)
+        };
+        _windows.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(new CheckingWindowDto
+        {
+            Id = WindowId,
+            Title = "KS4 June",
+            KeyStage = KeyStages.KS4,
+            CheckingWindowType = CheckingWindowType.KS4June,
+            StartDate = new DateTime(2026, 11, 1),
+            EndDate = Tomorrow,
+            Exercises =
+            [
+                new CheckingExerciseDto
+                {
+                    Id = ExerciseId,
+                    ExerciseType = CheckingExerciseType.PupilData,
+                    StartDate = new DateTime(2026, 11, 1),
+                    EndDate = Tomorrow,
+                    Extensions = [d]
+                }
+            ]
+        });
+        Decided();
+        var ct = CancellationToken.None;
+
+        await _sut.CloseAsync(WindowId, ExerciseId, ct);
+
+        await _repository.Received(1).GetDecidedRequestsForExerciseAsync(WindowId, ExerciseId,
+            Arg.Is<SchoolFilter>(f => Is(f, SchoolFilterMode.Exclude, "2222222")), ct);
+        await _repository.Received(1).MarkDraftsNotSubmittedForExerciseAsync(WindowId, ExerciseId,
+            Arg.Is<SchoolFilter>(f => Is(f, SchoolFilterMode.Exclude, "2222222")), ct);
+    }
+
+    [Fact]
     public async Task The_extension_sweep_takes_only_that_extensions_schools_and_stamps_it_sent_once()
     {
         Decided();

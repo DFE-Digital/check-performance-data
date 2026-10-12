@@ -620,6 +620,52 @@ public sealed class CheckingExerciseServiceTests
         Assert.True(Sut().IsOpen(Extension(Now.DateTime, "9334290")));
     }
 
+    // AB#307773 review C1: the sweeps and Send judge an extension on its effective end, the later
+    // of its own and the exercise's, so one closed early never cuts a school's time short.
+    [Fact]
+    public void An_extension_closed_early_before_the_exercise_end_is_still_open_by_its_effective_end()
+    {
+        var exercise = Exercise(CheckingExerciseType.PupilData, LastMonth, Tomorrow);
+        var extension = Extension(Yesterday, "9334290");
+        exercise.Extensions.Add(extension);
+
+        // Its own end has passed: read only, no Edit or Close early.
+        Assert.False(Sut().IsOpen(extension));
+        Assert.True(Sut().HasClosed(extension));
+        // Its schools keep the exercise's time: nothing may be swept or sent yet.
+        Assert.True(Sut().IsOpen(exercise, extension));
+        Assert.False(Sut().HasClosed(exercise, extension));
+        Assert.Equal(Tomorrow, exercise.EffectiveEndDateOf(extension));
+    }
+
+    [Fact]
+    public void The_effective_end_is_the_extension_end_when_it_is_later()
+    {
+        var exercise = Exercise(CheckingExerciseType.PupilData, LastMonth, Yesterday);
+        var running = Extension(Tomorrow, "9334290");
+        var lapsed = Extension(Yesterday.AddHours(-1), "8604070");   // overtaken by the exercise end
+        exercise.Extensions.AddRange([running, lapsed]);
+
+        Assert.Equal(Tomorrow, exercise.EffectiveEndDateOf(running));
+        Assert.True(Sut().IsOpen(exercise, running));
+        Assert.False(Sut().HasClosed(exercise, running));
+
+        Assert.Equal(Yesterday, exercise.EffectiveEndDateOf(lapsed));
+        Assert.False(Sut().IsOpen(exercise, lapsed));
+        Assert.True(Sut().HasClosed(exercise, lapsed));
+    }
+
+    [Fact]
+    public void The_effective_end_keeps_its_last_instant_open()
+    {
+        var exercise = Exercise(CheckingExerciseType.PupilData, LastMonth, Now.DateTime);
+        var extension = Extension(Yesterday, "9334290");
+        exercise.Extensions.Add(extension);
+
+        Assert.True(Sut().IsOpen(exercise, extension));
+        Assert.False(Sut().HasClosed(exercise, extension));
+    }
+
     // ── Related fix: IdFor / EndDateFor take the live row of a kind, not the first ────────
 
     [Fact]

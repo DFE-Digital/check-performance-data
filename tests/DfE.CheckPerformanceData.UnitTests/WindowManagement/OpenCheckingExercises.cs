@@ -15,7 +15,7 @@ public static class OpenCheckingExercises
     public static ICheckingExerciseService AlwaysOpen()
     {
         var service = Substitute.For<ICheckingExerciseService>();
-        service.IsOpen(default!, default).ReturnsForAnyArgs(true);
+        service.IsOpen(default(IReadOnlyList<CheckingExerciseDto>)!, default).ReturnsForAnyArgs(true);
         service.IsOpen(default!, default, default).ReturnsForAnyArgs(true);
         service.IsOpen(default(CheckingExerciseDto)!).ReturnsForAnyArgs(true);
         return service.WithRealEndDates();
@@ -24,7 +24,7 @@ public static class OpenCheckingExercises
     /// <summary>Re-stubs an existing service so every checking exercise now reports closed.</summary>
     public static ICheckingExerciseService Close(this ICheckingExerciseService service)
     {
-        service.IsOpen(default!, default).ReturnsForAnyArgs(false);
+        service.IsOpen(default(IReadOnlyList<CheckingExerciseDto>)!, default).ReturnsForAnyArgs(false);
         service.IsOpen(default!, default, default).ReturnsForAnyArgs(false);
         service.IsOpen(default(CheckingExerciseDto)!).ReturnsForAnyArgs(false);
         return service;
@@ -47,7 +47,7 @@ public static class OpenCheckingExercises
     public static ICheckingExerciseService AlwaysClosed()
     {
         var service = Substitute.For<ICheckingExerciseService>();
-        service.IsOpen(default!, default).ReturnsForAnyArgs(false);
+        service.IsOpen(default(IReadOnlyList<CheckingExerciseDto>)!, default).ReturnsForAnyArgs(false);
         service.IsOpen(default!, default, default).ReturnsForAnyArgs(false);
         service.IsOpen(default(CheckingExerciseDto)!).ReturnsForAnyArgs(false);
         return service.WithRealEndDates();
@@ -57,7 +57,7 @@ public static class OpenCheckingExercises
     public static ICheckingExerciseService Only(CheckingExerciseType open)
     {
         var service = Substitute.For<ICheckingExerciseService>();
-        service.IsOpen(default!, default)
+        service.IsOpen(default(IReadOnlyList<CheckingExerciseDto>)!, default)
             .ReturnsForAnyArgs(ci => ci.ArgAt<CheckingExerciseType>(1) == open);
         service.IsOpen(default!, default, default)
             .ReturnsForAnyArgs(ci => ci.ArgAt<CheckingExerciseType>(1) == open);

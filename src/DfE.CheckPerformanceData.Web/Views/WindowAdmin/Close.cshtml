@@ -30,6 +30,10 @@
 <govuk-warning-text icon-fallback-text="Warning">
     This exercise is due to close on @Model.ScheduledEndDate at @Model.ScheduledEndTime.
     @Model.Consequence
+    @if (Model.HasOpenExtensions)
+    {
+        @:Schools in an open extension keep their extra time.
+    }
     You cannot undo this.
 </govuk-warning-text>
 

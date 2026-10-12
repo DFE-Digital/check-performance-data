@@ -149,6 +149,7 @@ public sealed class SummaryControllerCloseActionsTests
         var openRow = section.Extensions[1];
         Assert.True(openRow.IsOpen);
         Assert.False(openRow.HasClosed);
+        Assert.False(openRow.WaitsForExercise);
         Assert.False(openRow.RequestsSent);
         Assert.Equal(2, openRow.SchoolCount);
         Assert.Equal(NextMonth, openRow.EndDate);
@@ -157,12 +158,44 @@ public sealed class SummaryControllerCloseActionsTests
         var closedRow = section.Extensions[0];
         Assert.False(closedRow.IsOpen);
         Assert.True(closedRow.HasClosed);
+        Assert.False(closedRow.WaitsForExercise);
         Assert.True(closedRow.RequestsSent);
         Assert.Equal(1, closedRow.SchoolCount);
         Assert.Equal(
             $"/admin/windows/{WindowId}/exercises/{row.Id}/extensions/{closed.Id}/send-requests",
             closedRow.SendRequestsLink);
         Assert.Equal($"/admin/windows/{WindowId}/exercises/{row.Id}/extensions/new", section.AddExtensionLink);
+    }
+
+    [Fact]
+    public async Task An_extension_closed_early_while_its_exercise_runs_waits_for_the_exercise()
+    {
+        // AB#307773 review C1, the three card states. Own end ahead: Open (Edit, Close early).
+        // Own end passed but the exercise still runs: Closed, no links, "Ends with the exercise on
+        // …". Both passed: Closed and Send requests.
+        var row = Row(CheckingExerciseType.PupilData, LastMonth, NextMonth);
+        var open = new CheckingExerciseExtensionDto { Id = Guid.NewGuid(), EndDate = NextYear, Laestabs = ["9334290"] };
+        var closedEarly = new CheckingExerciseExtensionDto { Id = Guid.NewGuid(), EndDate = Yesterday, Laestabs = ["1234567"] };
+        row.Extensions.AddRange([open, closedEarly]);
+        var ended = Row(CheckingExerciseType.ResultsEnquiry, LastMonth, Yesterday);
+        var closed = new CheckingExerciseExtensionDto { Id = Guid.NewGuid(), EndDate = Yesterday.AddHours(1), Laestabs = ["8604070"] };
+        ended.Extensions.Add(closed);
+        TheWindowHolds(row, ended);
+
+        var waiting = Assert.Single((await SectionAsync(row.Id)).Extensions, x => x.Id == closedEarly.Id);
+        Assert.False(waiting.IsOpen);
+        Assert.False(waiting.HasClosed);
+        Assert.True(waiting.WaitsForExercise);
+        Assert.Equal("01/10/2026 00:00", waiting.ExerciseEndDateText);
+
+        var stillOpen = Assert.Single((await SectionAsync(row.Id)).Extensions, x => x.Id == open.Id);
+        Assert.True(stillOpen.IsOpen);
+        Assert.False(stillOpen.WaitsForExercise);
+
+        var sendable = Assert.Single((await SectionAsync(ended.Id)).Extensions);
+        Assert.False(sendable.IsOpen);
+        Assert.True(sendable.HasClosed);
+        Assert.False(sendable.WaitsForExercise);
     }
 
     [Fact]

@@ -152,7 +152,15 @@ public sealed class CheckingExerciseDto
     /// before the exercise ended leaves the school on the exercise's own end, never earlier.
     /// </summary>
     public DateTime EndDateFor(string? laestab) =>
-        ExtensionFor(laestab) is { } extension && extension.EndDate > EndDate ? extension.EndDate : EndDate;
+        ExtensionFor(laestab) is { } extension ? EffectiveEndDateOf(extension) : EndDate;
+
+    /// <summary>
+    /// The end date the schools of <paramref name="extension"/> see: the later of the extension's
+    /// own end and this exercise's end (AB#307773). The sweeps and the hand-over judge an extension
+    /// on this, so an extension closed early never cuts a school's time short.
+    /// </summary>
+    public DateTime EffectiveEndDateOf(CheckingExerciseExtensionDto extension) =>
+        extension.EndDate > EndDate ? extension.EndDate : EndDate;
 
     /// <summary>The latest end any school sees: the exercise's own, or the latest extension's.</summary>
     public DateTime LatestEndDate => Extensions.Select(x => x.EndDate).Append(EndDate).Max();

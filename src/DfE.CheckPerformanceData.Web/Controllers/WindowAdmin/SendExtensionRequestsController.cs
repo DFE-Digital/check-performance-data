@@ -9,7 +9,8 @@ namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 
 /// <summary>
 /// AB#307773: sends a CLOSED extension's submitted requests for processing and cancels its schools'
-/// leftover drafts, as <see cref="SendExerciseRequestsController"/> does for an exercise.
+/// leftover drafts, as <see cref="SendExerciseRequestsController"/> does for an exercise. Closed here
+/// is the effective end, the later of the extension's and the exercise's.
 /// </summary>
 /// <remarks>
 /// The sweep takes only the extension's schools, and stamps the extension sent so anything of theirs
@@ -32,7 +33,8 @@ public sealed class SendExtensionRequestsController(
     TimeProvider timeProvider,
     ILogger<SendExtensionRequestsController> logger) : Controller
 {
-    public const string NotClosedRefusal = "This extension has not closed, so no requests were sent.";
+    public const string NotClosedRefusal =
+        "The schools in this extension can still make requests, so no requests were sent.";
 
     public const string SweepFailedRefusal =
         "The extension's requests could not be sent for processing. Select Send requests for processing to try again.";
@@ -47,8 +49,9 @@ public sealed class SendExtensionRequestsController(
         if (ExerciseExtensionController.FindExtension(window, exerciseId, extensionId) is not (var row, var extension))
             return NotFound();
 
-        // While the extension is open its schools could add requests behind the sweep.
-        if (!checkingExercises.HasClosed(extension))
+        // While its schools still have time they could add requests behind the sweep. That is the
+        // effective end: an extension closed early keeps its schools until the exercise ends.
+        if (!checkingExercises.HasClosed(row, extension))
             return RefuseNotClosed(id);
 
         var preview = await closeService.PreviewExtensionAsync(id, exerciseId, extensionId, cancellationToken);
@@ -78,7 +81,7 @@ public sealed class SendExtensionRequestsController(
         if (ExerciseExtensionController.FindExtension(window, exerciseId, extensionId) is not (var row, var extension))
             return NotFound();
 
-        if (!checkingExercises.HasClosed(extension))
+        if (!checkingExercises.HasClosed(row, extension))
             return RefuseNotClosed(id);
 
         CloseExerciseResult result;

@@ -48,17 +48,20 @@ public sealed class CloseExerciseService(
         return result;
     }
 
-    // Schools the exercise's own sweep must leave alone: in an extension still open, or closed but
-    // not yet swept. An extension that was swept has had its turn.
+    // Schools the exercise's own sweep must leave alone: in an extension still open by its
+    // effective end (an extension closed early keeps its schools until the exercise ends), or
+    // closed but not yet swept. An extension that was swept has had its turn.
     private async Task<SchoolFilter> ExerciseFilterAsync(
         Guid windowId, Guid exerciseId, CancellationToken cancellationToken)
     {
         // No row (a missing window or exercise, or a data share) holds no extensions, so the sweep
         // runs as it did before them. The controllers 404 before getting here.
-        var row = await RowAsync(windowId, exerciseId, cancellationToken);
-        var held = row?.Extensions
-            .Where(x => checkingExercises.IsOpen(x) || x.RequestsSentAt is null)
-            .SelectMany(x => x.Laestabs) ?? [];
+        if (await RowAsync(windowId, exerciseId, cancellationToken) is not { } row)
+            return SchoolFilter.None;
+
+        var held = row.Extensions
+            .Where(x => checkingExercises.IsOpen(row, x) || x.RequestsSentAt is null)
+            .SelectMany(x => x.Laestabs);
         return SchoolFilter.Exclude(held);
     }
 

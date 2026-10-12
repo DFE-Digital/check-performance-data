@@ -244,6 +244,33 @@ public sealed class AutomaticExerciseHandOverTests
     }
 
     [Fact]
+    public async Task An_extension_closed_early_is_not_due_until_the_exercise_end_and_the_delay()
+    {
+        // AB#307773 review C1: its own end passed twelve hours ago, but the exercise ends in an hour, so its
+        // schools are still inside the exercise's dates. Judged on max(exercise end, extension end).
+        var extension = new CheckingExerciseExtensionDto { Id = Guid.NewGuid(), EndDate = EndedTwoHoursAgo.AddHours(-10), Laestabs = ["9334290"] };
+        var exercise = Exercise(CheckingExerciseType.PupilData, EndedTwoHoursAgo.AddHours(3), PupilDataId);
+        exercise.Extensions.Add(extension);
+        WindowsAre(Window(WindowId, "Key Stage 4 June", exercise));
+
+        Assert.Empty(await Sut().FindDueAsync(CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task An_extension_closed_early_falls_due_with_the_exercise_and_carries_the_exercise_end()
+    {
+        var extension = new CheckingExerciseExtensionDto { Id = Guid.NewGuid(), EndDate = EndedTwoHoursAgo.AddHours(-10), Laestabs = ["9334290"] };
+        var exercise = Exercise(CheckingExerciseType.PupilData, EndedTwoHoursAgo, PupilDataId);
+        exercise.Extensions.Add(extension);
+        WindowsAre(Window(WindowId, "Key Stage 4 June", exercise));
+
+        var due = await Sut().FindDueAsync(CancellationToken.None);
+
+        Assert.Equal([null, extension.Id], due.Select(d => d.ExtensionId));
+        Assert.All(due, d => Assert.Equal(EndedTwoHoursAgo, d.ExerciseEnd));
+    }
+
+    [Fact]
     public async Task Both_are_due_when_both_ended_two_hours_ago()
     {
         var exercise = Exercise(CheckingExerciseType.PupilData, EndedTwoHoursAgo, PupilDataId);

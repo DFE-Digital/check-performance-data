@@ -246,8 +246,9 @@
       }
 
       @* AB#307773: more time for named schools. Only for an exercise with a kind: a data share has
-         no journey, so no time to extend. Each row is open or closed on its own end date, so an
-         extension can still be open after its exercise has closed. *@
+         no journey, so no time to extend. The tag reads the extension's own end date, so an
+         extension can still be open after its exercise has closed. Send requests waits for the
+         later of the two ends: an extension closed early keeps its schools until the exercise ends. *@
       @if (exercise.ExerciseType is not null)
       {
         if (exercise.Extensions.Count == 0)
@@ -281,12 +282,20 @@
                     {
                       <strong class="govuk-tag govuk-tag--grey">Closed</strong>
                     }
+                    @if (extension.RequestsSent)
+                    {
+                      <strong class="govuk-tag govuk-tag--grey govuk-!-margin-left-1">Requests sent</strong>
+                    }
                   </td>
                   <td class="govuk-table__cell">
                     @if (extension.IsOpen)
                     {
                       <a class="govuk-link govuk-!-margin-right-3" href="@extension.EditLink">Edit<span class="govuk-visually-hidden"> extension ending @extension.EndDateText</span></a>
                       <a class="govuk-link" href="@extension.CloseLink">Close early<span class="govuk-visually-hidden"> extension ending @extension.EndDateText</span></a>
+                    }
+                    @if (extension.WaitsForExercise)
+                    {
+                      <span class="govuk-hint govuk-!-margin-bottom-0">Ends with the exercise on @extension.ExerciseEndDateText</span>
                     }
                     @if (extension.HasClosed)
                     {

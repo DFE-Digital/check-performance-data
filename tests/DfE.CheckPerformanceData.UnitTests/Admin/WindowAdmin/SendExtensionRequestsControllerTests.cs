@@ -48,7 +48,7 @@ public sealed class SendExtensionRequestsControllerTests
             .Returns(new CloseExerciseResult { Enqueued = 3, DraftsCancelled = 1 });
     }
 
-    private static CheckingWindowDto Window() => new()
+    private static CheckingWindowDto Window(DateTime? exerciseEnd = null) => new()
     {
         Id = WindowId,
         Title = "KS4 June 2026",
@@ -64,7 +64,7 @@ public sealed class SendExtensionRequestsControllerTests
                 ExerciseType = CheckingExerciseType.PupilData,
                 Name = "Autumn pupil data",
                 StartDate = new DateTime(2026, 9, 1),
-                EndDate = ExerciseEnd,
+                EndDate = exerciseEnd ?? ExerciseEnd,
                 Extensions =
                 [
                     new CheckingExerciseExtensionDto
@@ -109,8 +109,39 @@ public sealed class SendExtensionRequestsControllerTests
         var redirect = Assert.IsType<RedirectResult>(result);
         Assert.Equal($"/admin/windows/summary/{WindowId}", redirect.Url);
         Assert.Equal(
-            "This extension has not closed, so no requests were sent.",
+            "The schools in this extension can still make requests, so no requests were sent.",
             controller.TempData[SendExerciseRequestsController.RefusedTempDataKey]);
+    }
+
+    // AB#307773 review C1: the closed extension's own end (30 Sept) has passed, but the exercise now
+    // runs to 2 Oct, so its schools are still inside the exercise's dates. Send waits for the
+    // effective end, max(exercise end, extension end).
+    private void ExerciseStillRunning() =>
+        _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>())
+            .Returns(_ => Window(exerciseEnd: new DateTime(2026, 10, 2, 17, 0, 0)));
+
+    [Fact]
+    public async Task Confirm_get_refuses_an_extension_closed_early_while_the_exercise_runs()
+    {
+        ExerciseStillRunning();
+        var controller = Build();
+
+        var result = await controller.Confirm(WindowId, ExerciseId, ClosedExtensionId, CancellationToken.None);
+
+        AssertRefusedNotClosed(controller, result);
+        await _closeService.DidNotReceiveWithAnyArgs().PreviewExtensionAsync(default, default, default, default);
+    }
+
+    [Fact]
+    public async Task Send_post_refuses_an_extension_closed_early_while_the_exercise_runs()
+    {
+        ExerciseStillRunning();
+        var controller = Build();
+
+        var result = await controller.Send(WindowId, ExerciseId, ClosedExtensionId, CancellationToken.None);
+
+        AssertRefusedNotClosed(controller, result);
+        await NothingWasSent();
     }
 
     // ── GET ──────────────────────────────────────────────────────────────────

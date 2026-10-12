@@ -33,8 +33,9 @@ public interface IAutomaticExerciseHandOver
 
 /// <summary>
 /// An exercise, or one of its extensions (#567), that is due for automatic hand-over. There is one
-/// item per exercise and one per extension, each due two hours after its OWN end;
-/// <paramref name="ExerciseEnd"/> is that end (the extension's, for an extension item). The end date
+/// item per exercise and one per extension, each due two hours after its end;
+/// <paramref name="ExerciseEnd"/> is that end. For an extension item it is the effective end,
+/// <c>max(exercise end, extension end)</c>, so an extension closed early waits for the exercise. The end date
 /// is a local wall-clock value. The sweep is keyed by <paramref name="ExerciseId"/>, because a window
 /// may hold several releases of one kind (#466); the kind is carried for the log and the audit row.
 /// When <paramref name="ExtensionId"/> is set, the sweep is keyed by it and touches only that

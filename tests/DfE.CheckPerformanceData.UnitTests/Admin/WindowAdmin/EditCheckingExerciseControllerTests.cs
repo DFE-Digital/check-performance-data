@@ -343,4 +343,29 @@ public sealed class EditCheckingExerciseControllerTests
 
         Assert.False(_window.Exercises[0].ShowLateResultsWarning);
     }
+
+    // AB#307773: the edit rebuilds the exercise DTO, and WindowService.UpdateAsync derives the
+    // window's end from what it is given. An extension left behind here would shorten the window
+    // in the database and hide it from the named schools.
+    [Fact]
+    public async Task Update_passes_the_exercise_extensions_through_to_the_window_service()
+    {
+        var original = _window.Exercises[0];
+        var extensionEnd = _window.EndDate.AddMonths(1);
+        var extension = new CheckingExerciseExtensionDto { Id = Guid.NewGuid(), EndDate = extensionEnd, Laestabs = ["9334290"] };
+        original.Extensions.Add(extension);
+        CheckingWindowDto? received = null;
+        await _service.UpdateAsync(Arg.Do<CheckingWindowDto>(w => received = w), Arg.Any<CancellationToken>());
+        var model = await Model();
+        model.Name = "Renamed";
+        Validate(model);
+
+        Assert.IsType<RedirectToActionResult>(await _controller.Update(_window.Id, original.Id, model, default));
+
+        Assert.NotNull(received);
+        Assert.Same(extension, Assert.Single(received.Exercises[0].Extensions));
+        // The derivation WindowService.UpdateAsync runs before it saves.
+        received.DeriveDatesFromExercises();
+        Assert.Equal(extensionEnd, received.EndDate);
+    }
 }

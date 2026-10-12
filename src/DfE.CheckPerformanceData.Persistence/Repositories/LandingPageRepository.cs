@@ -27,6 +27,10 @@ public sealed class LandingPageRepository(
         // Filtering happens in memory below. Revert to the DB-side date Where() once diagnosed.
         var allWindows = await dbContext.CheckingWindows
             .AsNoTracking()
+            // Datasets, the current release's files and the extension schools are sibling
+            // collections. In one query each would multiply the others' rows; split queries load
+            // each collection once.
+            .AsSplitQuery()
             .Select(w => new
             {
                 w.StartDate,

@@ -69,9 +69,10 @@ public sealed class QuestionFlowService(IQuestionFlowConfigSource configSource, 
         return new RedirectToJourneyPage(expectedNext);
     }
 
-    public string BuildContentKey(Guid windowId, JourneyPage page, Dictionary<string, QuestionAnswer> answers,
+    public string BuildContentKey(JourneyPage page, Dictionary<string, QuestionAnswer> answers,
         RequestState journey, QuestionFlowConfig config)
     {
+        var windowType = journey.CheckingWindow?.CheckingWindowType.ToString().ToLowerInvariant() ?? "unknown";
         var whatToChange = journey.SelectedWhatToChange?.ToString().ToLower() ?? "unknown";
 
         var pageIndex = journey.QuestionHistory.IndexOf(page.Id);
@@ -91,7 +92,7 @@ public sealed class QuestionFlowService(IQuestionFlowConfigSource configSource, 
                     .Select(v => v!);
             });
 
-        return string.Join("-", new[] { "journey", windowId.ToString(), whatToChange }.Concat(radioValues));
+        return string.Join("-", new[] { "journey", windowType, whatToChange }.Concat(radioValues));
     }
 
     public string ResolveRequestType(QuestionFlowConfig config, RequestState journey)

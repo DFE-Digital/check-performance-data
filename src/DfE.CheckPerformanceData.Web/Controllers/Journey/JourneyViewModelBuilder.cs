@@ -165,6 +165,7 @@ public sealed class JourneyViewModelBuilder(
             Qan = journey.SelectedQualification?.Qan,
             QualificationTitle = journey.SelectedQualification?.QualificationTitle,
             SyllabusCode = Answer(SyllabusQuestionId),
+            ShowSyllabusCode = journey.SelectedQualification?.SyllabusCodes.Count > 0,
             AwardDate = awardDate,
             Ncn = Answer(NcnQuestionId),
             GradeAchieved = Answer(MissingGradeQuestionId),
@@ -224,7 +225,7 @@ public sealed class JourneyViewModelBuilder(
 
         string? contentKey = null;
         if (page.Type is PageType.Content or PageType.EvidenceUpload && config is not null)
-            contentKey = flowService.BuildContentKey(windowId, page, answers, journey, config);
+            contentKey = flowService.BuildContentKey(page, answers, journey, config);
 
         var conditionContext = BuildConditionContext(journey);
 
@@ -232,49 +233,51 @@ public sealed class JourneyViewModelBuilder(
         // the "(Optional)" suffix would mislead. The page explains the rule instead.
         var requireAtLeastOne = optionalityService.IsRequireAtLeastOneActive(page, conditionContext);
 
-        var questionModels = page.Questions.Select(q =>
-        {
-            var error = modelState.TryGetValue(q.Id, out var entry)
-                ? entry.Errors.FirstOrDefault()?.ErrorMessage
-                : null;
-            return new QuestionPartialModel
+        var questionModels = page.Questions
+            .Where(q => optionVisibilityService.IsQuestionVisible(q, conditionContext))
+            .Select(q =>
             {
-                WindowId = windowId,
-                PageId = page.Id,
-                Question = q,
-                ExistingAnswer = answers.TryGetValue(q.Id, out var a) ? a : null,
-                FromSummary = fromSummary,
-                IsPageHeading = isSingleQuestion && string.IsNullOrEmpty(page.Title),
-                MaxEvidencePages = journeyService.MaxEvidencePages,
-                Error = error,
-                UploadError = uploadError,
-                ResolvedTitle = JourneyTemplate.Resolve(q.Title, pupilName) + (q.Optional && !requireAtLeastOne ? " (Optional)" : ""),
-                VisibleOptions = q.Type switch
+                var error = modelState.TryGetValue(q.Id, out var entry)
+                    ? entry.Errors.FirstOrDefault()?.ErrorMessage
+                    : null;
+                return new QuestionPartialModel
                 {
-                    QuestionType.Radio or QuestionType.Checkbox =>
-                        optionVisibilityService.GetVisibleOptions(q, conditionContext),
-                    // AB#297130 / AB#301903: grades come from the 16-19 qualification reference entry
-                    // resolved for the selected result (or, on a missing-qualification enquiry, the
-                    // selected qualification), not from the flow config — the config cannot know
-                    // which qualification the user picked. Source order is preserved.
-                    // AB#301913: minus the grade the result already holds — a revision to the same
-                    // grade is not a revision. The missing-qualification picker shares this type but
-                    // has no SelectedResult, so nothing is dropped there.
-                    QuestionType.GradeSelect => GradeOptions(gradeReference, journey.SelectedResult?.Grade),
-                    // AB#297848: syllabus codes come from the selected qualification's QualList
-                    // entry. The posted/validated value is the bare code; the title is display-only
-                    // because sibling codes often differ only by specialism.
-                    QuestionType.SyllabusSelect => journey.SelectedQualification?.SyllabusCodes
-                        .Select(c => new QuestionOption { Value = c.Code, Label = $"{c.Code} - {c.Title}" })
-                        .ToList() ?? [],
-                    _ => q.Options ?? []
-                },
-                // AB#296081: request-wide file names for the selection-time duplicate warning.
-                ExistingFileNames = q.Type == QuestionType.FileUpload
-                    ? answers.Values.SelectMany(qa => qa.FileValues ?? []).Select(f => f.OriginalFileName).ToList()
-                    : []
-            };
-        }).ToList();
+                    WindowId = windowId,
+                    PageId = page.Id,
+                    Question = q,
+                    ExistingAnswer = answers.TryGetValue(q.Id, out var a) ? a : null,
+                    FromSummary = fromSummary,
+                    IsPageHeading = isSingleQuestion && string.IsNullOrEmpty(page.Title),
+                    MaxEvidencePages = journeyService.MaxEvidencePages,
+                    Error = error,
+                    UploadError = uploadError,
+                    ResolvedTitle = JourneyTemplate.Resolve(q.Title, pupilName) + (q.Optional && !requireAtLeastOne ? " (Optional)" : ""),
+                    VisibleOptions = q.Type switch
+                    {
+                        QuestionType.Radio or QuestionType.Checkbox =>
+                            optionVisibilityService.GetVisibleOptions(q, conditionContext),
+                        // AB#297130 / AB#301903: grades come from the 16-19 qualification reference entry
+                        // resolved for the selected result (or, on a missing-qualification enquiry, the
+                        // selected qualification), not from the flow config - the config cannot know
+                        // which qualification the user picked. Source order is preserved.
+                        // AB#301913: minus the grade the result already holds - a revision to the same
+                        // grade is not a revision. The missing-qualification picker shares this type but
+                        // has no SelectedResult, so nothing is dropped there.
+                        QuestionType.GradeSelect => GradeOptions(gradeReference, journey.SelectedResult?.Grade),
+                        // AB#297848: syllabus codes come from the selected qualification's QualList
+                        // entry. The posted/validated value is the bare code; the title is display-only
+                        // because sibling codes often differ only by specialism.
+                        QuestionType.SyllabusSelect => journey.SelectedQualification?.SyllabusCodes
+                            .Select(c => new QuestionOption { Value = c.Code, Label = $"{c.Code} - {c.Title}" })
+                            .ToList() ?? [],
+                        _ => q.Options ?? []
+                    },
+                    // AB#296081: request-wide file names for the selection-time duplicate warning.
+                    ExistingFileNames = q.Type == QuestionType.FileUpload
+                        ? answers.Values.SelectMany(qa => qa.FileValues ?? []).Select(f => f.OriginalFileName).ToList()
+                        : []
+                };
+            }).ToList();
 
         return new PageViewModel
         {

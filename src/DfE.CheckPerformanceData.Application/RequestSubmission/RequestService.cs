@@ -441,12 +441,17 @@ public sealed class RequestService(
         if (journey.SelectedWhatToChange == WhatToChange.MissingQualification)
         {
             var qualification = journey.SelectedQualification!;
+            // Issue #577: the syllabus-code dropdown is hidden when the qualification exposes no
+            // syllabus codes, so the segment is omitted rather than indexing an empty list.
+            var syllabusSegment = qualification.SyllabusCodes.Count > 0
+                ? $", syllabus {qualification.SyllabusCodes[0].Code}"
+                : string.Empty;
             return new AnswerRecord
             {
                 QuestionId = "challenged-qualification",
                 QuestionTitle = "Challenged qualification",
                 Type = "ResultsEnquiry",
-                Value = $"{qualification.QualificationTitle} ({qualification.AwardingOrganisation}) — QAN {qualification.Qan}, syllabus {qualification.SyllabusCodes[0].Code}"
+                Value = $"{qualification.QualificationTitle} ({qualification.AwardingOrganisation}) — QAN {qualification.Qan}{syllabusSegment}"
             };
         }
 

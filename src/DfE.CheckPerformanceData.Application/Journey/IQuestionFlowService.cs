@@ -10,7 +10,11 @@ public interface IQuestionFlowService
     string? GetNextPageId(QuestionFlowConfig config, string pageId, Dictionary<string, QuestionAnswer> answers);
     JourneyPage? GetReachableEvidencePage(QuestionFlowConfig config, Dictionary<string, QuestionAnswer> answers);
     JourneyNavigation? GetNavigationGuard(QuestionFlowConfig config, RequestState journey, string pageId);
-    string BuildContentKey(Guid windowId, JourneyPage page, Dictionary<string, QuestionAnswer> answers, RequestState journey, QuestionFlowConfig config);
+    /// <summary>
+    /// The CMS key for a Content or EvidenceUpload page. It names the window type, never the window
+    /// id, so the guidance can be copied between environments, where the windows have other ids.
+    /// </summary>
+    string BuildContentKey(JourneyPage page, Dictionary<string, QuestionAnswer> answers, RequestState journey, QuestionFlowConfig config);
     string ResolveRequestType(QuestionFlowConfig config, RequestState journey);
     string ResolveRequestTypeValue(QuestionFlowConfig config, RequestState journey);
 }

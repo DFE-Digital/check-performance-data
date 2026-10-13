@@ -332,6 +332,95 @@ public class QuestionFlowServiceTests
         Assert.EndsWith("-social-care", key);
     }
 
+    // ── BuildEvidenceContentBlocks (#591) ─────────────────────────────────────────────
+
+    // The KS4 June social care shape: a contentKey radio, then a contentKey checkbox, then the
+    // evidence page.
+    private static QuestionFlowConfig CheckboxContentKeyConfig() => new()
+    {
+        FirstPageId = "reason",
+        Pages =
+        [
+            new JourneyPage
+            {
+                Id = "reason",
+                Questions = [new Question { Id = "reason", Type = QuestionType.Radio, Title = "Reason",
+                    ContentKey = true,
+                    Options = [new QuestionOption { Value = "social-care-involvement", Label = "Social care" }] }]
+            },
+            new JourneyPage
+            {
+                Id = "social-care",
+                Questions = [new Question { Id = "social-care-reason", Type = QuestionType.Checkbox, Title = "What happened?",
+                    ContentKey = true,
+                    Options =
+                    [
+                        new QuestionOption { Value = "social-care-situation", Label = "Social care situation" },
+                        new QuestionOption { Value = "police-involvement", Label = "Police involvement" },
+                        new QuestionOption { Value = "detained-in-prison", Label = "Detained in prison" }
+                    ] }]
+            },
+            new JourneyPage { Id = "evidence", Type = PageType.EvidenceUpload, Questions = [] }
+        ]
+    };
+
+    private List<string> KeysFor(params string[] ticked) => [.. BlocksFor(ticked).Select(b => b.Key)];
+
+    private List<EvidenceContentBlock> BlocksFor(params string[] ticked)
+    {
+        var config = CheckboxContentKeyConfig();
+        var answers = new Dictionary<string, QuestionAnswer>
+        {
+            ["reason"] = new() { TextValue = "social-care-involvement" },
+            ["social-care-reason"] = new() { SelectedValues = [.. ticked] }
+        };
+        var journey = MakeJourney(history: ["reason", "social-care", "evidence"],
+            whatToChange: WhatToChange.Remove, windowType: CheckingWindowType.KS4June, answers: answers);
+
+        return [.. _sut.BuildEvidenceContentBlocks(config.Pages[2], answers, journey, config)];
+    }
+
+    [Fact]
+    public void BuildEvidenceContentBlocks_OneTickedOption_GivesTheKeyARadioGaveBefore()
+    {
+        // The blocks editors wrote for the radio must keep showing: one tick, same key.
+        Assert.Equal(
+            ["journey-ks4june-remove-social-care-involvement-police-involvement"],
+            KeysFor("police-involvement"));
+    }
+
+    [Fact]
+    public void BuildEvidenceContentBlocks_SeveralTickedOptions_GiveOneKeyEach_InConfigOrder()
+    {
+        Assert.Equal(
+            [
+                "journey-ks4june-remove-social-care-involvement-social-care-situation",
+                "journey-ks4june-remove-social-care-involvement-detained-in-prison"
+            ],
+            KeysFor("detained-in-prison", "social-care-situation"));
+    }
+
+    [Fact]
+    public void BuildEvidenceContentBlocks_NameTheOptionEachBlockIsFor()
+    {
+        // The label goes into a new block's default text, so a guidance writer can tell the
+        // blocks apart.
+        Assert.Equal(
+            ["Social care situation", "Detained in prison"],
+            BlocksFor("detained-in-prison", "social-care-situation").Select(b => b.OptionLabel));
+    }
+
+    [Fact]
+    public void BuildEvidenceContentBlocks_WithNoContentKeyCheckbox_IsTheSingleContentKey_ForNoOption()
+    {
+        var page = new JourneyPage { Id = "info", Type = PageType.EvidenceUpload, Questions = [] };
+        var journey = MakeJourney(whatToChange: WhatToChange.Remove, windowType: CheckingWindowType.KS4June);
+
+        Assert.Equal(
+            [new EvidenceContentBlock(_sut.BuildContentKey(page, new(), journey, _config), null)],
+            _sut.BuildEvidenceContentBlocks(page, new(), journey, _config));
+    }
+
     // ── ResolveRequestType ──────────────────────────────────────────────────
 
     [Fact]

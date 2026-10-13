@@ -18,8 +18,13 @@ public static class DefaultPageNodeRoots
         (new Guid("00000000-cd94-4a01-8f01-000000000001"), "support",  "Support"),
         (new Guid("00000000-cd94-4a01-8f01-000000000002"), "wiki",     "Wiki"),
         (new Guid("00000000-cd94-4a01-8f01-000000000003"), "help",     "Help"),
-        (new Guid("00000000-cd94-4a01-8f01-000000000004"), "guidance", "Guidance"),
+        (new Guid("00000000-cd94-4a01-8f01-000000000004"), GuidanceSegment, "Guidance"),
     ];
+
+    /// <summary>URL segment (and path) of the guidance front page — the one content page, besides
+    /// the start page, that shows the home page banners (#588). Guidance sub-pages have a path with
+    /// a <c>/</c> (<c>guidance/&lt;segment&gt;</c>) and are deliberately excluded.</summary>
+    public const string GuidanceSegment = "guidance";
 
     /// <summary>Stable Guid for the auto-seeded /help/not-found content page.</summary>
     public static readonly Guid HelpNotFoundId = new("00000000-cd94-4a01-8f01-00000000000f");

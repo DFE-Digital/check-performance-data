@@ -203,7 +203,7 @@ The mapper (`RuleContextMapper`) turns a submitted `RequestDocument` into the ty
 | Shape | What it does | Example |
 |---|---|---|
 | **Plain copy** | One question → one field, parsed to the type declared in `FieldCatalogue`. | `date-pupil-started` → `schoolAdmissionDate` (Date) |
-| **Radio fan-out** | One single-choice radio → several independent booleans (chosen one `true`, the rest `false`, all `Unknown` if unanswered). | a "social care reason" radio → `hadSocialCareInvolvement`, `hadRecentPoliceInvolvement`, `hasBeenDetainedInPrison` |
+| **Option fan-out** (`OptionFanOut`) | One radio or checkbox → several independent booleans (each chosen option `true`, the rest `false`, all `Unknown` if unanswered). A checkbox's raw value is its ticked values joined with a comma. | the "social care reason" checkbox → `hadSocialCareInvolvement`, `hadRecentPoliceInvolvement`, `hasBeenDetainedInPrison` |
 | **Vocabulary translation** | Journey answer values mapped to canonical values; a "believed" answer becomes `Uncertain`; anything unlisted becomes `Unknown`. | `first-language: believed-english` → `Uncertain("ENG")` |
 | **Window-resolved** | One question resolves to different fields depending on the checking window. | the SAT-exams question → `hasSatExamsAsYear11` (KS4) or `hasSatExamsAsYear6` (KS2) |
 

@@ -15,7 +15,7 @@ namespace DfE.CheckPerformanceData.Application.RulesEngine;
 ///   <item><c>pupilAge</c> / <c>inclusionFlag</c> / <c>isAddBack</c> from the pupil
 ///         record on the message.</item>
 ///   <item><c>Fields</c> from <c>AnswerRecord[]</c> via the <see cref="AnswerFieldMap"/>
-///         maps (plain copy, radio fan-out, vocabulary translation, window-type-resolved
+///         maps (plain copy, option fan-out, vocabulary translation, window-type-resolved
 ///         sat-exams), parsed against the <see cref="FieldCatalogue"/>'s expected types.
 ///         The engine-facing <c>RawValue</c> is preferred over the display <c>Value</c>.</item>
 /// </list>
@@ -69,14 +69,17 @@ public sealed class RuleContextMapper : IRuleContextMapper
     {
         var raw = (answer.RawValue ?? answer.Value)?.Trim();
 
-        // Single-choice radio modelled as independent booleans by the rules.
-        if (AnswerFieldMap.RadioFanOut.TryGetValue(answer.QuestionId, out var fanOut))
+        // Radio or checkbox options modelled as independent booleans by the rules. A checkbox's
+        // raw value is its ticked values joined with a comma (CheckboxAnswerDisplay.JoinValues);
+        // a radio's has no comma, so it splits to a list of one.
+        if (AnswerFieldMap.OptionFanOut.TryGetValue(answer.QuestionId, out var fanOut))
         {
+            var selected = string.IsNullOrEmpty(raw) ? [] : raw.Split(',', StringSplitOptions.TrimEntries);
             foreach (var (field, trigger) in fanOut)
             {
-                fields[field] = string.IsNullOrEmpty(raw)
+                fields[field] = selected.Length == 0
                     ? FieldValue.Unknown.Instance
-                    : new FieldValue.Bool(string.Equals(raw, trigger, StringComparison.Ordinal));
+                    : new FieldValue.Bool(selected.Contains(trigger, StringComparer.Ordinal));
             }
             return;
         }

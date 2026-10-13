@@ -115,9 +115,15 @@ public sealed class PageController(IPageNodeService pageNodes) : Controller
             Content     = tree,
             Nav         = ContentNavBuilder.Build(tree),
             ChildrenNav = await BuildChildrenNavAsync(result.Node.Id),
-            Breadcrumb  = await BuildBreadcrumbAsync(result.Node)
+            Breadcrumb  = await BuildBreadcrumbAsync(result.Node),
+            ShowHomeBanners = IsGuidancePath(result.Node.Path)
         });
     }
+
+    // The guidance front page (path "guidance") also shows the home page banners (#588).
+    // Guidance sub-pages have a slash in their path and are deliberately excluded.
+    private static bool IsGuidancePath(string? path) =>
+        string.Equals(path, DefaultPageNodeRoots.GuidanceSegment, StringComparison.OrdinalIgnoreCase);
 
     // Direct-children nav for the current node, ordered by SortOrder. Empty when the node
     // has no children. Fed to the pagenav widget through ViewData.
@@ -166,7 +172,8 @@ public sealed class PageController(IPageNodeService pageNodes) : Controller
             Nav         = ContentNavBuilder.Build(tree),
             ChildrenNav = await BuildChildrenNavAsync(node.Id),
             Breadcrumb  = await BuildBreadcrumbAsync(node),
-            IsPreview   = true
+            IsPreview   = true,
+            ShowHomeBanners = IsGuidancePath(node.Path)
         });
     }
 

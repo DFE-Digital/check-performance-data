@@ -127,7 +127,7 @@ public sealed class QuestionFlowOutcomeKeyAlignmentTests
         var flowQuestionIds = AllFlowQuestions().Select(q => q.Question.Id).ToHashSet(StringComparer.Ordinal);
 
         var consumedIds = AnswerFieldMap.QuestionToField.Keys
-            .Concat(AnswerFieldMap.RadioFanOut.Keys)
+            .Concat(AnswerFieldMap.OptionFanOut.Keys)
             .Concat(AnswerFieldMap.TranslatedQuestions.Keys)
             .Append(AnswerFieldMap.SatExamsQuestionId)
             .Except(PendingFlowQuestionIds, StringComparer.Ordinal);
@@ -143,11 +143,11 @@ public sealed class QuestionFlowOutcomeKeyAlignmentTests
     [Fact]
     public void EveryFanOutTriggerValue_ExistsOnItsFlowQuestion()
     {
-        foreach (var (questionId, fanOut) in AnswerFieldMap.RadioFanOut)
+        foreach (var (questionId, fanOut) in AnswerFieldMap.OptionFanOut)
         foreach (var (field, trigger) in fanOut)
         {
             AssertOptionValueExists(questionId, trigger,
-                $"RadioFanOut field '{field}' triggers on '{trigger}'");
+                $"OptionFanOut field '{field}' triggers on '{trigger}'");
         }
     }
 

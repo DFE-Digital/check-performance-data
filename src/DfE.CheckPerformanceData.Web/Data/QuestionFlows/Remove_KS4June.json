@@ -612,10 +612,10 @@
         {
           "id": "social-care-reason",
           "contentKey": true,
-          "type": "Radio",
+          "type": "Checkbox",
           "title": "What happened to {pupilName} that made it very hard for them to go to school or sit exams?",
           "summaryTitle": "Social care reason",
-          "hint": "Select one option",
+          "hint": "Select all that apply",
           "validationFailure": "Select what happened to {pupilName} that made it very hard for them to go to school or sit exams",
           "options": [
             {

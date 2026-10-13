@@ -99,6 +99,21 @@ public sealed class MissingQualificationFlowTests
     }
 
     [Fact]
+    public void Syllabus_code_question_is_shown_only_when_the_qualification_has_codes()
+    {
+        // Issue #577: the whole question is hidden for the 961 QANs with no syllabus codes, so the
+        // user can complete the enquiry without one.
+        Assert.Equal(
+            new[] { "HasSyllabusCodesForSelectedQualification" },
+            Question("qualification-details", "q-syllabus-code").VisibleWhen);
+
+        // No other details question is conditional.
+        Assert.All(
+            Page("qualification-details").Questions.Where(q => q.Id != "q-syllabus-code"),
+            q => Assert.Null(q.VisibleWhen));
+    }
+
+    [Fact]
     public void There_is_no_late_results_interstitial()
         => Assert.DoesNotContain(Flow.Pages, p => p.Id == "check-late-results");
 

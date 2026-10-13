@@ -11,6 +11,17 @@ public sealed class OptionVisibilityService(IEnumerable<IJourneyCondition> condi
         return options.Where(option => IsVisible(option, ctx)).ToList();
     }
 
+    public bool IsQuestionVisible(Question question, JourneyConditionContext ctx)
+    {
+        if (question.VisibleWhen is not { Count: > 0 } names)
+            return true;
+
+        // Every named condition must be registered and evaluate true (AND);
+        // an unregistered name hides the question (fail closed).
+        return names.All(name =>
+            conditions.FirstOrDefault(c => c.Name == name) is { } condition && condition.Evaluate(ctx));
+    }
+
     private bool IsVisible(QuestionOption option, JourneyConditionContext ctx)
     {
         if (option.VisibleWhen is not { Count: > 0 } names)

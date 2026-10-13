@@ -326,6 +326,21 @@ public sealed class RequestServiceResultsEnquiryTests
         QuestionHistory = ["select-qualification", "qualification-details", "additional-info"]
     };
 
+    /// <summary>Issue #577: a QAN with no syllabus codes, whose syllabus question is therefore hidden.</summary>
+    private static RequestState MissingQualificationJourneyWithoutSyllabusCodes()
+    {
+        var journey = MissingQualificationJourney();
+        journey.SelectedQualification = new QualificationReference
+        {
+            Qan = "60146084",
+            QualificationTitle = "AQA Level 1/Level 2 GCSE (9-1) in Mathematics",
+            AwardingOrganisation = "AQA",
+            Grades = ["1", "2", "3"]
+        };
+        journey.QuestionAnswers.Remove("q-syllabus-code");
+        return journey;
+    }
+
     [Fact]
     public async Task A_missing_qualification_enquiry_persists_with_its_own_amendment_type_and_description()
     {
@@ -363,6 +378,25 @@ public sealed class RequestServiceResultsEnquiryTests
         Assert.Contains("60146084", challenged.Value);
         Assert.Contains("AQA", challenged.Value);
         Assert.Contains("8300H", challenged.Value);
+    }
+
+    [Fact]
+    public async Task A_missing_qualification_enquiry_without_syllabus_codes_omits_the_syllabus_segment()
+    {
+        RequestDocument? enqueued = null;
+        _queue.EnqueueAsync<RequestDocument>(
+                QueueOptions.ZendeskQueue,
+                Arg.Do<RequestDocument>(d => enqueued = d),
+                Arg.Any<CancellationToken>())
+            .Returns(Guid.NewGuid());
+
+        await _sut.SubmitResultsEnquiryAsync(WindowId, MissingQualificationJourneyWithoutSyllabusCodes());
+
+        Assert.NotNull(enqueued);
+        var challenged = Assert.Single(enqueued.Answers, a => a.QuestionId == "challenged-qualification");
+        Assert.Contains("AQA Level 1/Level 2 GCSE (9-1) in Mathematics", challenged.Value);
+        Assert.Contains("60146084", challenged.Value);
+        Assert.DoesNotContain("syllabus", challenged.Value);
     }
 
     [Fact]

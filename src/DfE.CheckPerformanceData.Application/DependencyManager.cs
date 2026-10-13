@@ -81,6 +81,7 @@ services.AddScoped<IJourneyCondition, SchoolIsNotIndependentCondition>();
         services.AddScoped<IJourneyCondition, PupilIsNotAddBackCondition>();
         services.AddScoped<IJourneyCondition, EalWouldBeAutoRejectedCondition>();
         services.AddScoped<IJourneyCondition, NotOnRollReasonIsOtherCondition>();
+        services.AddScoped<IJourneyCondition, HasSyllabusCodesForSelectedQualificationCondition>();
         services.AddScoped<IOriginCountryLanguageCapture, OriginCountryLanguageCapture>();
         services.AddScoped<IFormatValidator, DfeNumberFormatValidator>();
         // AB#296648: the cohort-count question. Registration is load-bearing — the journey engine

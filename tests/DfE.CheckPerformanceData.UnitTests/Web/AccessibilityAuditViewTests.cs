@@ -541,4 +541,19 @@ public sealed class AccessibilityAuditViewTests
 		var repoRoot = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(ThisFilePath())!, "..", "..", ".."));
 		Assert.False(File.Exists(Path.Combine(repoRoot, "src", "DfE.CheckPerformanceData.Web", "Views", "Shared", "_BetaBanner.cshtml")));
 	}
+
+	// ── #588 Guidance front page also shows the home page banners ─────────────────────
+
+	[Fact]
+	public void ContentTemplate_RendersHomeBanners_GuardedOnShowHomeBanners()
+	{
+		var view = ReadView("Views", "Page", "Content.cshtml");
+
+		Assert.Contains("Component.InvokeAsync(\"HomeBanners\")", view);
+		Assert.Contains("Model.ShowHomeBanners", view);
+		// The guard sits above the editor preview notice, so banners stay at the top of the page.
+		Assert.True(
+			view.IndexOf("Model.ShowHomeBanners", StringComparison.Ordinal)
+				< view.IndexOf("Model.IsPreview", StringComparison.Ordinal));
+	}
 }

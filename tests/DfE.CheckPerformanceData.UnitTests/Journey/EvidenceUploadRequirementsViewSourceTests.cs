@@ -26,10 +26,31 @@ public sealed class EvidenceUploadRequirementsViewSourceTests
         Assert.Contains(heading, view);
 
         var headingAt = view.IndexOf(heading, StringComparison.Ordinal);
-        var contentAt = view.IndexOf("key = Model.ContentKey+\"-evidence\"", StringComparison.Ordinal);
+        var contentAt = view.IndexOf("key = block.Key+\"-evidence\"", StringComparison.Ordinal);
         var formAt = view.IndexOf("<form", StringComparison.Ordinal);
         Assert.True(headingAt < contentAt, "The requirements must follow their heading.");
         Assert.True(contentAt < formAt, "The requirements must show before the upload form.");
+    }
+
+    [Fact]
+    public void EvidenceRequirements_ShowOneBlockForEachKey_UnderOneHeading()
+    {
+        // #591: a school may tick several options, and each has its own requirements.
+        var view = ReadEvidenceUploadView();
+
+        Assert.Contains("@foreach (var block in Model.EvidenceContentBlocks)", view);
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(view, "<h2 "));
+        Assert.DoesNotContain("Model.ContentKey", view);
+    }
+
+    [Fact]
+    public void AnOptionsBlock_SeedsWithAPlaceholderThatNamesTheOption()
+    {
+        // #591: three blocks with the same placeholder give a guidance writer no way to tell
+        // which option each one is for.
+        var view = ReadEvidenceUploadView();
+
+        Assert.Contains("PLACEHOLDER EVIDENCE REQUIREMENTS COPY FOR: {Html.Encode(block.OptionLabel)}", view);
     }
 
     private static string ReadEvidenceUploadView()

@@ -68,6 +68,10 @@ public sealed class PageViewModel
     public string? CypmdId { get; init; }
     public string PupilName { get; init; } = string.Empty;
     public string? ContentKey { get; init; }
+
+    /// <summary>#591: the CMS blocks an EvidenceUpload page shows its requirements from, one for
+    /// each option the school ticked. Empty on every other page type.</summary>
+    public IReadOnlyList<Application.Journey.EvidenceContentBlock> EvidenceContentBlocks { get; init; } = [];
     public string? UploadError { get; init; }
     public string? AtLeastOneError { get; init; }
 

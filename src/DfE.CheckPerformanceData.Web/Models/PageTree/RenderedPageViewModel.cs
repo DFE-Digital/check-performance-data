@@ -30,6 +30,13 @@ public sealed class RenderedPageViewModel
     public bool IsPreview { get; init; }
 
     /// <summary>
+    /// When true, the shared Content template renders the home page banners (#566) above the page's
+    /// main heading. Set by the controller only for the guidance front page (#588); false (the
+    /// default) for every other content page, so banners never leak onto the wider page tree.
+    /// </summary>
+    public bool ShowHomeBanners { get; init; }
+
+    /// <summary>
     /// GDS breadcrumb items from Home down to the current page's immediate parent, in root-first
     /// order. The current page's title is rendered as the trailing plain-text crumb by the view.
     /// Empty for root nodes; a "Home" crumb pointing at "/" is prepended by the view.

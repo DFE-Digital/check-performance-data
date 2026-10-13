@@ -11,7 +11,7 @@ namespace DfE.CheckPerformanceData.Application.RulesEngine;
 /// This indirection is deliberate — it is an anti-corruption boundary so the rules
 /// (Application) layer never depends on Web journey-authoring ids. The relationship
 /// is not 1:1: <c>sat-exams</c> resolves by checking window type (<see cref="SatExamsFieldFor"/>),
-/// single-choice radios fan out to several booleans (<see cref="RadioFanOut"/>),
+/// radio and checkbox options fan out to several booleans (<see cref="OptionFanOut"/>),
 /// some answers carry journey vocabulary the rules don't use
 /// (<see cref="TranslatedQuestions"/>), and journey-only questions
 /// (<c>reason</c>, <c>evidence</c>, …) are intentionally projected out.
@@ -37,7 +37,7 @@ public static class AnswerFieldMap
     /// <c>Answer.QuestionId</c> on the queue message → canonical field name in
     /// <see cref="FieldCatalogue"/>, for answers whose value is copied as-is and
     /// parsed by the field's type. An entry's presence here (or in
-    /// <see cref="RadioFanOut"/>/<see cref="TranslatedQuestions"/>/<see cref="SatExamsQuestionId"/>)
+    /// <see cref="OptionFanOut"/>/<see cref="TranslatedQuestions"/>/<see cref="SatExamsQuestionId"/>)
     /// is what makes the mapper consider an answer at all; unmapped answers are
     /// silently ignored.
     /// </summary>
@@ -74,11 +74,13 @@ public static class AnswerFieldMap
         };
 
     /// <summary>
-    /// Single-choice radio questions the rules model as independent booleans:
-    /// the selected option's field becomes <c>true</c>, every other listed field
-    /// <c>false</c>. An empty answer leaves all fields <c>Unknown</c>.
+    /// Radio and checkbox questions the rules model as independent booleans:
+    /// each selected option's field becomes <c>true</c>, every other listed field
+    /// <c>false</c>. A checkbox may select several options (#591); its raw value
+    /// is the ticked values joined with a comma. An empty answer leaves all fields
+    /// <c>Unknown</c>.
     /// </summary>
-    public static readonly IReadOnlyDictionary<string, IReadOnlyList<(string Field, string TriggerValue)>> RadioFanOut =
+    public static readonly IReadOnlyDictionary<string, IReadOnlyList<(string Field, string TriggerValue)>> OptionFanOut =
         new Dictionary<string, IReadOnlyList<(string, string)>>(StringComparer.Ordinal)
         {
             ["social-care-reason"] =

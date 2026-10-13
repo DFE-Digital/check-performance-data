@@ -3,7 +3,7 @@ namespace DfE.CheckPerformanceData.Application.Journey;
 /// <summary>
 /// Renders a <see cref="QuestionType.Checkbox"/> answer for the four places that display a
 /// journey answer (the summary page, the request document, the submitted-request view and the
-/// admin requests view). It lives here, rather than being pasted into each of them, because the
+/// admin requests view), and orders it for the evidence page's content keys. It lives here, rather than being pasted into each of them, because the
 /// ordering and fallback rules below are the whole behaviour and must not drift apart.
 /// </summary>
 public static class CheckboxAnswerDisplay
@@ -18,6 +18,10 @@ public static class CheckboxAnswerDisplay
     /// </summary>
     public static string JoinValues(Question question, QuestionAnswer? answer) =>
         string.Join(",", Ordered(question, answer));
+
+    /// <summary>The ticked options' raw values, in the order the other methods show them.</summary>
+    public static IReadOnlyList<string> OrderedValues(Question question, QuestionAnswer? answer) =>
+        Ordered(question, answer).ToList();
 
     // Config order, not post order: the browser posts checkboxes in DOM order today, but that is
     // not a guarantee, and a summary that reorders itself between two visits reads as a change

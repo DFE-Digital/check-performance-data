@@ -4,6 +4,7 @@ using DfE.CheckPerformanceData.Domain.Enums;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using NSubstitute;
+using CheckingWindowDto = DfE.CheckPerformanceData.Application.LandingPage.CheckingWindowDto;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 
@@ -279,21 +280,34 @@ public class QuestionFlowServiceTests
     // ── BuildContentKey ─────────────────────────────────────────────────────
 
     [Fact]
-    public void BuildContentKey_IncludesWindowIdAndWhatToChange()
+    public void BuildContentKey_IncludesWindowTypeAndWhatToChange()
     {
-        var windowId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
         var page = new JourneyPage { Id = "info", Type = PageType.Content, Questions = [] };
-        var journey = MakeJourney(whatToChange: WhatToChange.Remove);
+        var journey = MakeJourney(whatToChange: WhatToChange.Remove, windowType: CheckingWindowType.KS4June);
 
-        var key = _sut.BuildContentKey(windowId, page, new(), journey, _config);
+        var key = _sut.BuildContentKey(page, new(), journey, _config);
 
-        Assert.StartsWith($"journey-{windowId}-remove", key);
+        Assert.StartsWith("journey-ks4june-remove", key);
+    }
+
+    [Fact]
+    public void BuildContentKey_IsTheSameForTwoWindowsOfOneType()
+    {
+        // The guidance is copied between environments, where the windows have other ids. A key
+        // that named the window id would orphan every block on the way.
+        var page = new JourneyPage { Id = "info", Type = PageType.EvidenceUpload, Questions = [] };
+        var first = MakeJourney(windowType: CheckingWindowType.Post16);
+        var second = MakeJourney(windowType: CheckingWindowType.Post16);
+
+        Assert.NotEqual(first.CheckingWindow!.Id, second.CheckingWindow!.Id);
+        Assert.Equal(
+            _sut.BuildContentKey(page, new(), first, _config),
+            _sut.BuildContentKey(page, new(), second, _config));
     }
 
     [Fact]
     public void BuildContentKey_AppendsPrecedingContentKeyRadioAnswers()
     {
-        var windowId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
         // Make "reason" question a ContentKey radio
         var contentKeyConfig = new QuestionFlowConfig
         {
@@ -313,7 +327,7 @@ public class QuestionFlowServiceTests
         var answers = new Dictionary<string, QuestionAnswer> { ["reason"] = new() { TextValue = "social-care" } };
         var journey = MakeJourney(history: ["reason"], whatToChange: WhatToChange.Remove, answers: answers);
 
-        var key = _sut.BuildContentKey(windowId, page, answers, journey, contentKeyConfig);
+        var key = _sut.BuildContentKey(page, answers, journey, contentKeyConfig);
 
         Assert.EndsWith("-social-care", key);
     }
@@ -569,10 +583,20 @@ public class QuestionFlowServiceTests
     private static RequestState MakeJourney(
         List<string>? history = null,
         Dictionary<string, QuestionAnswer>? answers = null,
-        WhatToChange whatToChange = WhatToChange.Remove) =>
+        WhatToChange whatToChange = WhatToChange.Remove,
+        CheckingWindowType windowType = CheckingWindowType.KS4June) =>
         new()
         {
             SelectedWhatToChange = whatToChange,
+            CheckingWindow = new CheckingWindowDto
+            {
+                Id = Guid.NewGuid(),
+                Title = "Test Window",
+                KeyStage = KeyStages.KS4,
+                CheckingWindowType = windowType,
+                StartDate = DateTime.UtcNow.AddDays(-1),
+                EndDate = DateTime.UtcNow.AddDays(13)
+            },
             QuestionHistory = history ?? [],
             QuestionAnswers = answers ?? new()
         };

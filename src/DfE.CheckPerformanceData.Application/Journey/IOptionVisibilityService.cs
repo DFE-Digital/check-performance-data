@@ -14,4 +14,11 @@ public interface IOptionVisibilityService
     /// </para>
     /// </summary>
     IReadOnlyList<QuestionOption> GetVisibleOptions(Question question, JourneyConditionContext ctx);
+
+    /// <summary>
+    /// Returns true if the question should be shown for the given context. Questions with no
+    /// VisibleWhen are always shown; a VisibleWhen naming an unregistered condition hides the
+    /// question (fail closed).
+    /// </summary>
+    bool IsQuestionVisible(Question question, JourneyConditionContext ctx);
 }

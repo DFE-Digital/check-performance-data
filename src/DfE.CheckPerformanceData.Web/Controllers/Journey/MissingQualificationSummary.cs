@@ -29,6 +29,10 @@ public sealed class MissingQualificationSummary
     public string? QualificationTitle { get; init; }
     public string? SyllabusCode { get; init; }
 
+    /// <summary>Issue #577: the syllabus-code question is hidden when the selected qualification
+    /// exposes no syllabus codes, so its summary row is omitted too.</summary>
+    public bool ShowSyllabusCode { get; init; }
+
     /// <summary>Already display-formatted (DateAnswer.ToDisplayString()).</summary>
     public string? AwardDate { get; init; }
 
@@ -68,8 +72,9 @@ public sealed class MissingQualificationSummary
                 QualificationPageId, true, "Qualification number (QAN)"));
             lines.Add(Fixed("Qualification name and subject", QualificationTitle ?? string.Empty));
 
-            lines.Add(new SummaryLine(
-                "Syllabus code", SyllabusCode ?? string.Empty, DetailsPageId, true, "syllabus code"));
+            if (ShowSyllabusCode)
+                lines.Add(new SummaryLine(
+                    "Syllabus code", SyllabusCode ?? string.Empty, DetailsPageId, true, "syllabus code"));
             lines.Add(new SummaryLine(
                 "Award date", AwardDate ?? string.Empty, DetailsPageId, true, "award date"));
             lines.Add(new SummaryLine(

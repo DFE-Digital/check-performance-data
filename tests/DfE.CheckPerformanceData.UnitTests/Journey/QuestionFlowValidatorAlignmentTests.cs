@@ -429,6 +429,10 @@ var services = new ServiceCollection();
         foreach (var name in question.OptionalWhen ?? [])
             yield return name;
 
+        // Question-level visibility (issue #577) — a name here hides the whole question.
+        foreach (var name in question.VisibleWhen ?? [])
+            yield return name;
+
         foreach (var option in question.Options ?? [])
         foreach (var name in option.VisibleWhen ?? [])
             yield return name;

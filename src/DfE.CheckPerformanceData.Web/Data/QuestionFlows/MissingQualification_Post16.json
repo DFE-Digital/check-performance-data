@@ -85,7 +85,8 @@
           "hint": "Also known as specification code, entry code or cash-in code",
           "selectPlaceholder": "Select",
           "validationFailure": "Select the syllabus code",
-          "summaryTitle": "Syllabus code"
+          "summaryTitle": "Syllabus code",
+          "visibleWhen": ["HasSyllabusCodesForSelectedQualification"]
         },
         {
           "id": "q-award-date",

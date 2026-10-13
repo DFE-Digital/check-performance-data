@@ -11,10 +11,10 @@ module "dfe_analytics" {
   namespace             = var.namespace
   service_short         = var.service_short
   environment           = var.environment
-  gcp_keyring           = "cypd-key-ring"
-  gcp_key               = "cypd-key"
-  gcp_taxonomy_id       = "7450003253557751837"
-  gcp_policy_tag_id     = "7087412595261736586"
+  gcp_taxonomy_id       = local.gcp_taxonomy_id
+  gcp_policy_tag_id     = local.gcp_policy_tag_id
+  gcp_keyring           = local.gcp_keyring
+  gcp_key               = local.gcp_key
 
   gcp_table_deletion_protection = var.gcp_table_deletion_protection
 }

@@ -891,6 +891,32 @@ public sealed class ZendeskServiceTests
     // }
 
     [Fact]
+    public async Task CreateTicketAsync_WhenApiThrows_ThrowsZendeskApiException()
+    {
+        // Arrange
+        var request = new CreateTicketRequestDto
+        {
+            Ticket = new CreateTicketDto
+            {
+                Subject = "Test",
+                Description = "Body"
+            }
+        };
+
+        _api.CreateTicket(Arg.Any<CreateTicketRequest>())
+            .Returns<Task<CreateTicketResponse>>(_ =>
+                throw new HttpRequestException("Network failure"));
+
+        // Act
+        var ex = await Assert.ThrowsAsync<ZendeskApiException>(
+            () => CreateSut().CreateTicketAsync(request));
+
+        // Assert
+        Assert.Equal("Failed to create ticket.", ex.Message);
+        Assert.IsType<HttpRequestException>(ex.InnerException);
+    }
+
+    [Fact]
     public async Task CreateTicketAsync_ReturnsMappedDto_WithCreatedTicket()
     {
         var request = new CreateTicketRequestDto
@@ -1051,6 +1077,58 @@ public sealed class ZendeskServiceTests
 
         await _api.Received(1).CreateTicket(
             Arg.Is<CreateTicketRequest>(r => r.Ticket!.Description == "Body with comment"));
+    }
+
+    [Fact]
+    public async Task GetTicketsViewModelAsync_WhenTicketsMappingThrows_WrapsAndLogsException()
+    {
+        // Arrange
+        const long viewId = 123L;
+
+        _api.GetTicketsForView(
+                viewId,
+                Arg.Any<Dictionary<string, object>?>())
+            .Returns((ListViewTicketsResponse)null!);
+
+        _api.GetTicketFields()
+            .Returns(new TicketFieldsResponse());
+
+        // Act
+        var exception = await Assert.ThrowsAsync<ZendeskApiException>(
+            () => CreateSut().GetTicketsViewModelAsync(viewId));
+
+        // Assert
+        Assert.Equal(
+            "Failed to build tickets view model for view 123.",
+            exception.Message);
+
+        _logger.CheckErrorMessage(
+            "Error building tickets view model for view 123");
+    }
+
+    [Fact]
+    public async Task GetTicketViewModelAsync_WhenMappingThrows_WrapsException()
+    {
+        const long ticketId = 123;
+
+        _api.GetTicket(ticketId)
+            .Returns((GetTicketResponse)null!);
+
+        _api.GetTicketFields()
+            .Returns(new TicketFieldsResponse());
+
+        _api.GetTicketComments(ticketId)
+            .Returns(new TicketCommentsResponse());
+
+        var ex = await Assert.ThrowsAsync<ZendeskApiException>(
+            () => CreateSut().GetTicketViewModelAsync(ticketId));
+
+        Assert.Equal(
+            "Failed to build ticket view model for ticket 123.",
+            ex.Message);
+
+        _logger.CheckErrorMessage(
+            "Error building ticket view model for ticket 123");
     }
 
     #endregion

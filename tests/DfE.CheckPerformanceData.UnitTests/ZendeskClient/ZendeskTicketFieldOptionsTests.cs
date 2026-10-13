@@ -10,6 +10,27 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.ZendeskClient;
 public sealed class ZendeskTicketFieldOptionsTests
 {
     [Theory]
+    [InlineData("apprentice", false, "not_on_roll_apprentice")]
+    [InlineData("external-candidate", false, "not_on_roll_external")]
+    [InlineData("international-student", false, "not_on_roll_international_student")]
+    [InlineData("other", true, "not_on_roll_other_with_evidence")]
+    [InlineData("other", false, "not_on_roll_other_evidence_not_required")]
+    public void GetPost16NotOnRollOption_ReturnsExpectedValue(string subReason, bool hasEvidence, string expected)
+    {
+        var result = ZendeskTicketFieldOptions.GetPost16NotOnRollOption(subReason, hasEvidence);
+
+        Assert.Equal(expected, result);
+    }
+
+    [Fact]
+    public void GetPost16NotOnRollOption_ReturnsNull_ForUnknownSubReason()
+    {
+        var result = ZendeskTicketFieldOptions.GetPost16NotOnRollOption( "banana", false);
+
+        Assert.Null(result);
+    }
+
+    [Theory]
     [InlineData("KS2", "ks2")]
     [InlineData("KS4June", "ks4")]
     [InlineData("KS4Autumn", "ks4")]
@@ -158,6 +179,103 @@ public sealed class ZendeskTicketFieldOptionsTests
     public void ReasonForRemoval_GetOptionValue_ReturnsNullForUnmappedRemovalReason(string removalReason)
     {
         var value = ZendeskTicketFieldOptions.GetOptionValue(ZendeskTicketFieldConstants.ReasonForRemovalName, removalReason);
+
+        Assert.Null(value);
+    }
+
+    [Theory]
+    [InlineData("training provider", "training_provider")]
+    [InlineData("employer", "employer")]
+    [InlineData("employer/provider", "employer_/_provider")]
+    [InlineData("employer / provider", "employer_/_provider")]
+    [InlineData("apprenticeship training agency", "apprenticeship_training_agency")]
+    [InlineData("education skills funding agency", "education_skills_funding_agency")]
+    public void TypeOfOrganisation_GetOptionValue_MapsValues(string input, string expected)
+    {
+        var value = ZendeskTicketFieldOptions.GetOptionValue(ZendeskTicketFieldConstants.TypeOfOrganisationName, input);
+
+        Assert.Equal(expected, value);
+    }
+
+    [Theory]
+    [InlineData("school")]
+    [InlineData("provider-trainer")]
+    public void TypeOfOrganisation_GetOptionValue_ReturnsNullForUnmappedValues(string input)
+    {
+        var value = ZendeskTicketFieldOptions.GetOptionValue(ZendeskTicketFieldConstants.TypeOfOrganisationName, input);
+
+        Assert.Null(value);
+    }
+
+    [Theory]
+    [InlineData("scrutiny", "scrutiny")]
+    [InlineData("approved", "approved")]
+    [InlineData("rejected", "rejected")]
+    [InlineData("auto_approved", "auto_approved")]
+    [InlineData("autoApproved", "auto_approved")]
+    [InlineData("auto_rejected", "auto_rejected")]
+    [InlineData("autoRejected", "auto_rejected")]
+    public void DecisionStatus_GetOptionValue_MapsValues(string input, string expected)
+    {
+        var value = ZendeskTicketFieldOptions.GetOptionValue(ZendeskTicketFieldConstants.DecisionStatusName, input);
+
+        Assert.Equal(expected, value);
+    }
+
+    [Theory]
+    [InlineData("unsure")]
+    [InlineData("to-be-checked")]
+    public void DecisionStatus_GetOptionValue_ReturnsNullForUnmappedValues(string input)
+    {
+        var value = ZendeskTicketFieldOptions.GetOptionValue(ZendeskTicketFieldConstants.DecisionStatusName, input);
+
+        Assert.Null(value);
+    }
+
+    [Theory]
+    [InlineData("31_", "31_")]
+    [InlineData("correction 31", "31_")]
+    public void CorrectionType_GetOptionValue_MapsValues(string input, string expected)
+    {
+        var value = ZendeskTicketFieldOptions.GetOptionValue(ZendeskTicketFieldConstants.CorrectionTypeName, input);
+
+        Assert.Equal(expected, value);
+    }
+
+    [Theory]
+    [InlineData("30")]
+    [InlineData("correction")]
+    public void CorrectionType_GetOptionValue_ReturnsNullForUnmappedValues(string input)
+    {
+        var value = ZendeskTicketFieldOptions.GetOptionValue(ZendeskTicketFieldConstants.CorrectionTypeName, input);
+
+        Assert.Null(value);
+    }
+
+    [Theory]
+    [InlineData("male", "m")]
+    [InlineData("female", "f")]
+    [InlineData("m", "m")]
+    [InlineData("f", "f")]
+    public void Sex_GetOptionValue_MapsValues(string input, string expected)
+    {
+        var value = ZendeskTicketFieldOptions.GetOptionValue(ZendeskTicketFieldConstants.SexName, input);
+
+        Assert.Equal(expected, value);
+    }
+
+    [Fact]
+    public void Sex_GetOptionValue_ReturnsNullForUnknownValue()
+    {
+        var value = ZendeskTicketFieldOptions.GetOptionValue(ZendeskTicketFieldConstants.SexName, "Other");
+
+        Assert.Null(value);
+    }
+
+    [Fact]
+    public void GetOptionValue_ReturnsNull_ForUnknownField()
+    {
+        var value = ZendeskTicketFieldOptions.GetOptionValue("UnknownField", "SomeValue");
 
         Assert.Null(value);
     }

@@ -18,7 +18,7 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.RulesEngine;
 /// auto-approved nothing.
 ///
 /// <see cref="QuestionFlowOutcomeKeyAlignmentTests"/> already guards the two mapped
-/// vocabularies (<c>RadioFanOut</c> triggers and <c>TranslatedQuestions</c> raw values);
+/// vocabularies (<c>OptionFanOut</c> triggers and <c>TranslatedQuestions</c> raw values);
 /// this covers the third and last one.
 /// </summary>
 public sealed class RuleLiteralOptionValueAlignmentTests

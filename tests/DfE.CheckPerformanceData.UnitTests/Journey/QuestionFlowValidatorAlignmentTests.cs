@@ -44,6 +44,23 @@ public sealed class QuestionFlowValidatorAlignmentTests
     }
 
     /// <summary>
+    /// #591: a contentKey Checkbox gives the evidence page one guidance block for each ticked
+    /// option. Two in one flow would multiply their lists into a block per pair, which nobody
+    /// writes. Allowing it needs a rule for how the lists combine first.
+    /// </summary>
+    [Fact]
+    public void NoFlowHasMoreThanOneContentKeyCheckbox()
+    {
+        var offenders = AllFlowQuestions()
+            .Where(q => q.Question.Type == QuestionType.Checkbox && q.Question.ContentKey)
+            .GroupBy(q => q.File)
+            .Where(g => g.Count() > 1)
+            .Select(g => $"{g.Key}: {string.Join(", ", g.Select(q => q.Question.Id))}");
+
+        Assert.Empty(offenders);
+    }
+
+    /// <summary>
     /// The same guard for <c>optionalWhen</c> / <c>visibleWhen</c> condition names. These fail
     /// closed rather than open — an unresolved name leaves a question mandatory and an option
     /// hidden — so a typo silently disables the behaviour the config was asking for instead of

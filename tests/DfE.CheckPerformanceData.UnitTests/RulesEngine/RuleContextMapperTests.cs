@@ -305,7 +305,7 @@ public sealed class RuleContextMapperTests
         Assert.Equal(new FieldValue.Str(expected), ctx.GetField("yearGroupChange"));
     }
 
-    // --- Field projection: single-radio fan-out to booleans ---
+    // --- Field projection: option fan-out to booleans ---
 
     [Fact]
     public void SocialCareReason_FansOut_ToThreeBooleans()
@@ -318,6 +318,23 @@ public sealed class RuleContextMapperTests
         var ctx = _sut.Map(msg);
 
         Assert.Equal(new FieldValue.Bool(false), ctx.GetField("hadSocialCareInvolvement"));
+        Assert.Equal(new FieldValue.Bool(true),  ctx.GetField("hadRecentPoliceInvolvement"));
+        Assert.Equal(new FieldValue.Bool(false), ctx.GetField("hasBeenDetainedInPrison"));
+    }
+
+    [Fact]
+    public void SocialCareReason_TwoTickedOptions_SetsBothFieldsTrue()
+    {
+        // #591: the question is a checkbox, so RawValue holds the ticked values joined with a
+        // comma (CheckboxAnswerDisplay.JoinValues). Each ticked value sets its own field.
+        var msg = NewMessage("Remove - social-care-involvement", answers: new[]
+        {
+            Answer("social-care-reason", "social-care-situation,police-involvement")
+        });
+
+        var ctx = _sut.Map(msg);
+
+        Assert.Equal(new FieldValue.Bool(true),  ctx.GetField("hadSocialCareInvolvement"));
         Assert.Equal(new FieldValue.Bool(true),  ctx.GetField("hadRecentPoliceInvolvement"));
         Assert.Equal(new FieldValue.Bool(false), ctx.GetField("hasBeenDetainedInPrison"));
     }

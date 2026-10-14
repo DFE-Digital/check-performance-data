@@ -18,15 +18,15 @@ raised from the Zoonou audit recorded on [#373](https://github.com/DFE-Digital/c
 | 385 | "View"/"Delete" links announced identically | S | Same links and same fix as #378, reported under 4.1.2 instead of 2.4.4. Fix both in one change. |
 | 386 | Separators announced by VoiceOver | S | Likely the visible `govuk-section-break--visible` rules in `_FileUpload.cshtml` and the landing page. Confirm on device, then hide the decorative ones from assistive tech. |
 | 387 | List items announced as "em dash" | M | Find which list items hold a literal em dash. Spans views **and** CMS rich-text content, so the search is wider than it looks. |
-| 388 | "Disclosure triangle" on expandable sections | S | TalkBack's own name for the native `<details>` element, not text we supply. Likely **no action** — confirm with the auditor before touching the markup, since ARIA would be worse here. |
+| 388 | "Disclosure triangle" on expandable sections | S | Assessed 14 Oct 2026: no code. TalkBack's own name for the native `<details>` element — see the Done table. |
 | 389 | Redundant hidden instructions on Provide Evidence | S | The file input's `aria-describedby` names the visible hint, which is the standard GOV.UK pattern. Confirm which text is actually duplicated before removing anything; the id list and markup must change together. |
 
 **Totals:** 10 S, 4 M
 
 ## Done
 
-Fixed in code, with `AccessibilityAuditViewTests` pinning each one and the invariants written up in
-[`accessibility.md`](accessibility.md):
+Fixed in code, or assessed and recorded as correct as it stands, with `AccessibilityAuditViewTests`
+pinning each one and the invariants written up in [`accessibility.md`](accessibility.md):
 
 | # | What changed |
 |---|---|
@@ -38,12 +38,13 @@ Fixed in code, with `AccessibilityAuditViewTests` pinning each one and the invar
 | 383 | `aria-describedby` on the radios fieldset for its hint and error, per-option hints wired on both `_Radio` and `_Checkbox`, and `data-module="govuk-radios"`. **Still needs confirming on a real Android device** before the ticket closes. |
 | 386 | `aria-hidden="true"` on the decorative visible `<hr>` rules. The footer's own section break is left alone. |
 | 389 | The file input's `aria-describedby` no longer names the visible hint; it names the "N of 6 files added." line and, when there is one, the error. Chrome exposes a native file input as a button and, in our reading of the audit (unconfirmed with Zoonou), JAWS directs the user to press a key to hear its description, which was the hint on screen; the count line is still named, so the prompt itself probably remains — see the question in the PR. Pinned by `QuestionPartialModelDescribedByTests` and a `#389` fact in `AccessibilityAuditViewTests`. **Confirm with Zoonou on retest** that this is the text they meant — the count line did not exist when they audited. |
+| 388 | **No markup change.** The expandable sections are the GOV.UK Details component — a native `<details>`/`<summary>` as GOV.UK Frontend 5 ships it. Chromium exposes a `<summary>` with the role DisclosureTriangle, and "disclosure triangle" is TalkBack's name for that role, announced with the expanded or collapsed state and the summary text; name, role and state are all exposed, which is what 4.1.2 asks for. Published tests record the same announcement from Chrome 64 / Android 8 to Chrome 149 / Android 16. Putting `role="button"` on the summary, or replacing the element with a button-and-`aria-expanded` disclosure, would change the announcement for every other screen reader and leave the GOV.UK pattern. Where the sections are: the four "How can I find a DfE number?" help panels in the KS4 Remove flow (`_Question.cshtml`); the evidence pages' "What evidence do I need?" details went with #523, and the guidance pages render none. Evidence (rendered markup, Chromium accessibility tree collapsed and expanded, screenshot, sources) is in the team's `.superpowers/evidence/388/` folder outside the repo. Pinned by the `#388` fact in `AccessibilityAuditViewTests`. **Confirm with Zoonou on retest**; the issue stays open until they do. |
 
 ## Still open
 
 - **376, 382, 387** — need content decisions, not just code: Guidance headings and link groups to
   re-author, and a hunt for literal em dashes that spans the CMS as well as the views.
-- **380, 388** — both likely close with no code. Confirm with Zoonou.
+- **380** — likely closes with no code. Confirm with Zoonou. (388 was assessed on 14 Oct 2026 — see Done.)
 
 ## Sequencing the work
 
@@ -52,4 +53,4 @@ Fixed in code, with `AccessibilityAuditViewTests` pinning each one and the invar
 - **#378 + #385 are the same fix**, and #379 is that fix applied elsewhere. One PR.
 - **#376 and part of #382 are content work, not code.** 
 
-Two tickets may close with no code: **#380** (Dragon) and **#388** (disclosure triangle). Confirm with Zoonou.
+One ticket may still close with no code: **#380** (Dragon). Confirm with Zoonou. **#388** (disclosure triangle) was assessed on 14 Oct 2026 and needs no code — see Done.

@@ -144,6 +144,12 @@ Moving it out of `<main>` broke three CSS rules that keyed off its old position 
 
 The id list is built conditionally on what the view actually emits, per the rule below — an option with no `SubLabel` gets no `aria-describedby` at all rather than a dangling one. `_Radio` also carries `data-module="govuk-radios"`, which is what GOV.UK Frontend's radios JS binds to.
 
+## Expandable sections
+
+**An expandable section is the GOV.UK Details component on a native `<details>`/`<summary>`. Never put `role="button"` on the summary, and never replace the element with a button-and-`aria-expanded` disclosure.** Android TalkBack announces the summary as "disclosure triangle" with the expanded or collapsed state and the summary text (audit #388). That is TalkBack's name for the native role — Chromium exposes a `<summary>` as DisclosureTriangle — not text this service supplies, and it is the correct exposure: name, role and state are all programmatically determinable, which is what WCAG 4.1.2 asks for. Published tests record the same announcement from Chrome 64 on Android 8 to Chrome 149 on Android 16, and that `role="button"` on the summary changes it to "button" — for TalkBack, and for every other screen reader and browser pairing too, each of which would then need re-testing. GOV.UK Frontend 5 ships the component as the native element with no JavaScript module.
+
+The sections a school user meets are the four "How can I find a DfE number?" help panels on the KS4 Remove flow's DfE-number pages (`questionHelpTitle` in `Remove_KS4June.json`, rendered by `Views/Journey/_Question.cshtml`). The "What evidence do I need?" details on the evidence pages was removed by #523 (the requirements show under a heading now), and the CMS guidance pages render no `<details>`. `AccessibilityAuditViewTests.JourneyHelpPanel_IsANativeDetailsElement_WithNoAriaRoleOverride` pins the markup.
+
 ## Links that open a new tab
 
 **A link that opens a new tab says "(opens in new tab)" in its visible link text and carries `target="_blank" rel="noopener"`.** The words are visible, not in a `govuk-visually-hidden` span, so sighted users get the same warning as screen-reader users (GOV.UK Design System links guidance; WCAG 3.2.5). Two link sets follow it: the phase banner's feedback link (AB#301012) and the three links to the guidance — service navigation, footer and the home page card (AB#306103), pinned together by `GuidanceLinksViewSourceTests`.

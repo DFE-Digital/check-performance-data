@@ -22,3 +22,12 @@ variable "block_ip" {
   default     = false
   description = "create a specific IP block rule that is disabled. Makes it easier to add an IP and then enable the rule if required."
 }
+
+# New variable: list of allowed source IPs/CIDRs to be injected at deploy time (sensitive)
+# This should be provided via pipeline secrets or a secure variable store; do NOT check real IPs into git.
+variable "allowed_source_ips" {
+  type        = list(string)
+  default     = []
+  description = "List of IPs/CIDRs to allow through Front Door/WAF. Provide via TF_VAR_allowed_source_ips or secret-managed tfvars."
+  sensitive   = true
+}

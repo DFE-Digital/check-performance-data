@@ -23,31 +23,29 @@ variable "block_ip" {
   description = "create a specific IP block rule that is disabled. Makes it easier to add an IP and then enable the rule if required."
 }
 
-# New variable: list of allowed source IPs/CIDRs to be injected at deploy time (sensitive)
-# This should be provided via pipeline secrets or a secure variable store; do NOT check real IPs into git.
+# GitHub Actions repository secret DEV_ALLOWED_SOURCE_IPS supplies this JSON list
+# through TF_VAR_allowed_source_ips. See README.md for masked format examples.
 variable "allowed_source_ips" {
   type        = list(string)
   default     = []
-  description = "List of IPs/CIDRs to allow through Front Door/WAF. Provide via TF_VAR_allowed_source_ips or secret-managed tfvars."
+  description = "Public source CIDRs for development. Inject through TF_VAR_allowed_source_ips; never commit actual addresses."
   sensitive   = true
+  nullable    = false
+
+  validation {
+    condition     = length(var.allowed_source_ips) <= 17 && alltrue([for cidr in var.allowed_source_ips : can(cidrhost(cidr, 0))])
+    error_message = "Supply at most 17 valid public IPv4/IPv6 CIDRs. Use /32 for individual IPv4 addresses or /128 for IPv6."
+  }
 }
 
-# Custom rate_limit rules - allows the calling repo to declare MatchRule/RateLimitRule entries
-# Example structure matches the terraform-modules environment_domains rate_limit expectation.
-variable "rate_limit" {
-  type = list(object({
-    agent          = optional(string)
-    priority       = optional(number)
-    duration       = optional(number)
-    limit          = optional(number)
-    selector       = optional(string)
-    operator       = optional(string)
-    match_values   = optional(string)
-    match_variable = optional(string)
-    type           = optional(string)
-    action         = optional(string)
-    enabled        = optional(string)
-  }))
-  default = null
-  description = "Custom WAF rules to pass through to the environment_domains module. Use this to declare Allow/Block MatchRule entries."
+variable "restrict_source_ips" {
+  type        = bool
+  default     = false
+  nullable    = false
+  description = "Enable the source CIDR allowlist. Enabled only in development configuration."
+
+  validation {
+    condition     = !var.restrict_source_ips || (length(var.allowed_source_ips) > 0 && !var.allow_aks)
+    error_message = "Source IP restrictions require a nonempty allowlist and allow_aks=false to prevent an AKS bypass."
+  }
 }

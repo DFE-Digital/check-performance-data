@@ -10,10 +10,7 @@ module "domains" {
   host_name           = each.value.origin_hostname
   cached_paths        = try(each.value.cached_paths, [])
   rate_limit_max      = var.rate_limit_max
-  # pass through any custom rate limit / WAF rules provided by the service repo
-  rate_limit          = try(var.rate_limit, null)
+  rate_limit          = local.source_ip_rules
   allow_aks           = var.allow_aks
   block_ip            = var.block_ip
-  # allowed_source_ips remains available as a sensitive injection method if you prefer
-  allowed_source_ips  = var.allowed_source_ips
 }

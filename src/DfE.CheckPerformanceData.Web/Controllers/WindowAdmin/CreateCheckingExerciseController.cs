@@ -66,9 +66,9 @@ public sealed class CreateCheckingExerciseController(IWindowService windowServic
             Datasets = WindowDatasets.DefaultsFor(window.CheckingWindowType, model.ExerciseType).ToList()
         };
 
-        if (LiveExerciseClash.Message(created, window.Exercises) is { } clash)
+        if (ExerciseKindClash.Message(created, window.Exercises) is { } clash)
         {
-            ModelState.AddModelError(nameof(model.IsEnabled), clash);
+            ModelState.AddModelError(nameof(model.ExerciseType), clash);
             return View(PageView, model);
         }
 

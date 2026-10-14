@@ -101,9 +101,9 @@ public sealed class EditCheckingExerciseController(IWindowService windowService)
             ValidatedIngressChecksum = exercise.ValidatedIngressChecksum,
             ValidatedSchemaChecksum = exercise.ValidatedSchemaChecksum
         };
-        if (LiveExerciseClash.Message(updated, window.Exercises) is { } clash)
+        if (ExerciseKindClash.Message(updated, window.Exercises) is { } clash)
         {
-            ModelState.AddModelError(nameof(model.IsEnabled), clash);
+            ModelState.AddModelError(nameof(model.ExerciseType), clash);
             return View(PageView, model);
         }
 

@@ -4,8 +4,9 @@ using DfE.CheckPerformanceData.Domain.Enums;
 namespace DfE.CheckPerformanceData.Application.UnitTests.WindowManagement;
 
 // "Live" is the one rule for whether schools see an exercise: enabled, and inside its visibility
-// dates. A window with no live exercise is not set up yet and is hidden from schools. Two live
-// exercises of one kind must never exist, because the journeys could not tell which one to use.
+// dates. A window with no live exercise is not set up yet and is hidden from schools. Two
+// exercises of one kind must never exist, live or not, because the kind lookups could not tell
+// which one to use.
 public sealed class LiveExercisesTests
 {
     private static readonly DateTime Now = new(2026, 10, 1, 12, 0, 0);
@@ -37,32 +38,39 @@ public sealed class LiveExercisesTests
     }
 
     [Fact]
-    public void Two_enabled_exercises_of_one_kind_with_open_ended_visibility_clash()
+    public void Two_exercises_of_one_kind_clash()
     {
         var first = Exercise();
         var second = Exercise();
 
-        Assert.Same(first, LiveExercises.FindClash(second, [first, second]));
+        Assert.Same(first, OneExercisePerKind.FindClash(second, [first, second]));
     }
 
     [Fact]
-    public void Exercises_of_one_kind_whose_visibility_does_not_overlap_do_not_clash()
+    public void Exercises_of_one_kind_clash_even_when_their_visibility_does_not_overlap()
     {
-        // An autumn results enquiry followed by a revised one: one ends as the other starts.
         var autumn = Exercise(until: Now);
         var revised = Exercise(from: Now);
 
-        Assert.Null(LiveExercises.FindClash(revised, [autumn, revised]));
+        Assert.Same(autumn, OneExercisePerKind.FindClash(revised, [autumn, revised]));
     }
 
     [Fact]
-    public void A_disabled_exercise_never_clashes()
+    public void A_disabled_exercise_still_clashes_with_another_of_its_kind()
     {
         var live = Exercise();
         var disabled = Exercise(enabled: false);
 
-        Assert.Null(LiveExercises.FindClash(disabled, [live, disabled]));
-        Assert.Null(LiveExercises.FindClash(live, [live, disabled]));
+        Assert.Same(live, OneExercisePerKind.FindClash(disabled, [live, disabled]));
+        Assert.Same(disabled, OneExercisePerKind.FindClash(live, [live, disabled]));
+    }
+
+    [Fact]
+    public void An_exercise_does_not_clash_with_itself()
+    {
+        var exercise = Exercise();
+
+        Assert.Null(OneExercisePerKind.FindClash(exercise, [exercise]));
     }
 
     [Fact]
@@ -71,7 +79,7 @@ public sealed class LiveExercisesTests
         var pupils = Exercise(CheckingExerciseType.PupilData);
         var results = Exercise(CheckingExerciseType.ResultsEnquiry);
 
-        Assert.Null(LiveExercises.FindClash(results, [pupils, results]));
+        Assert.Null(OneExercisePerKind.FindClash(results, [pupils, results]));
     }
 
     [Fact]
@@ -80,7 +88,7 @@ public sealed class LiveExercisesTests
         var first = Exercise(type: null);
         var second = Exercise(type: null);
 
-        Assert.Null(LiveExercises.FindClash(second, [first, second]));
+        Assert.Null(OneExercisePerKind.FindClash(second, [first, second]));
     }
 
     [Fact]

@@ -65,11 +65,19 @@ public sealed class ExercisesController(IWindowService windowService) : Controll
 
         List<CheckingExerciseType> wanted = model.Selected.Distinct().OrderBy(WindowExercises.DefaultTabOrder).ToList();
 
+        // The repository disables every row the saved list leaves out. This page only ticks kinds,
+        // so it keeps every row it cannot list (a data share, which has no kind) and every row of a
+        // ticked kind. Only an unticked kind drops out.
+        List<CheckingExerciseDto> kept = window.Exercises
+            .Where(e => e.ExerciseType is not { } type || wanted.Contains(type))
+            .ToList();
+
         // A newly ticked exercise starts on the window's own dates. That is a placeholder the admin
         // then edits, not an answer — but it means the window is never left holding an exercise with
         // no dates at all, which the union that derives the outer pair could not survive.
-        window.Exercises = wanted
-            .Select(type => window.FindExercise(type) ?? new CheckingExerciseDto
+        IEnumerable<CheckingExerciseDto> added = wanted
+            .Where(type => kept.All(e => e.ExerciseType != type))
+            .Select(type => new CheckingExerciseDto
             {
                 ExerciseType = type,
                 // Disabled, like a wizard exercise: schools see it once an admin enables it.
@@ -79,8 +87,9 @@ public sealed class ExercisesController(IWindowService windowService) : Controll
                 StartDate = window.StartDate,
                 EndDate = window.EndDate,
                 TabOrder = WindowExercises.DefaultTabOrder(type)
-            })
-            .ToList();
+            });
+
+        window.Exercises = [.. kept, .. added];
 
         await windowService.UpdateAsync(window, cancellationToken);
 

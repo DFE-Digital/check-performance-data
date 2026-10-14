@@ -87,6 +87,36 @@ public class ExercisesControllerTests
     }
 
     [Fact]
+    public async Task Edit_post_keeps_a_data_share_the_page_does_not_list()
+    {
+        // A data share has no kind, so this page cannot tick it. The repository disables every row
+        // the saved list leaves out, so leaving the share out would hide its tab from schools.
+        IWindowService windowService = Substitute.For<IWindowService>();
+        CheckingWindowDto window = WindowWithFiles();
+        CheckingExerciseDto share = new()
+        {
+            Id = Guid.NewGuid(),
+            ExerciseType = null,
+            Name = "Summary",
+            TabName = "Summary",
+            DisplayOnly = true,
+            IsEnabled = true,
+            StartDate = window.StartDate,
+            EndDate = window.EndDate
+        };
+        window.Exercises.Add(share);
+        windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(window);
+
+        ExercisesController controller = Build(windowService, Substitute.For<ISession>());
+
+        await controller.Update(WindowId,
+            new ExercisesItem { Selected = [CheckingExerciseType.PupilData] }, CancellationToken.None);
+
+        Assert.Contains(share, window.Exercises);
+        Assert.Equal(2, window.Exercises.Count);
+    }
+
+    [Fact]
     public async Task Edit_post_rejects_an_empty_selection_and_saves_nothing()
     {
         IWindowService windowService = Substitute.For<IWindowService>();

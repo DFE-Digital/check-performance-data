@@ -46,7 +46,7 @@ public class WindowService(IWindowRepository windowRepository, TimeProvider time
     /// <summary>
     /// The last guard before a save. The admin pages validate the same rules and show a form error;
     /// this refuses a caller that skipped them. Every exercise has a tab name, and a window never
-    /// has two live exercises of one kind (see <see cref="LiveExercises"/>).
+    /// has two exercises of one kind (see <see cref="OneExercisePerKind"/>).
     /// </summary>
     private static void EnsureExercisesAreValid(CheckingWindowDto window)
     {
@@ -54,10 +54,10 @@ public class WindowService(IWindowRepository windowRepository, TimeProvider time
             throw new InvalidOperationException(
                 $"Checking exercise {unnamed.Id} ({unnamed.ExerciseType}) has no tab name.");
 
-        if (LiveExercises.FindAnyClash(window.Exercises) is var (first, second))
+        if (OneExercisePerKind.FindAnyClash(window.Exercises) is var (first, second))
             throw new InvalidOperationException(
-                $"Checking exercises {first.Id} and {second.Id} are both live {first.ExerciseType} exercises " +
-                "with overlapping visibility.");
+                $"Checking exercises {first.Id} and {second.Id} are both {first.ExerciseType} exercises. " +
+                "A window can have only one exercise of each kind.");
     }
 
     /// <summary>

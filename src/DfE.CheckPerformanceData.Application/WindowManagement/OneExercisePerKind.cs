@@ -3,15 +3,15 @@ using DfE.CheckPerformanceData.Domain.Enums;
 namespace DfE.CheckPerformanceData.Application.WindowManagement;
 
 /// <summary>
-/// A window must never have two live exercises of one kind. The journeys address "this window,
-/// this kind", so with two live candidates they could not tell which exercise's data to use.
+/// A window has at most one exercise of each kind: one pupil data checking, one results enquiry.
+/// Everything that addresses "this window, this kind" (<see cref="CheckingWindowDto.FindExercise"/>,
+/// the kind-keyed admin routes, the journeys) relies on it.
 /// </summary>
 /// <remarks>
-/// Two exercises clash when both are enabled, share a kind, and their visibility ranges overlap.
-/// A null bound is open-ended, and VisibleUntil is exclusive, so one release may end at the
-/// instant the next begins. A data share has no kind and never clashes.
+/// The rule ignores IsEnabled and the visibility dates: a disabled second exercise of a kind still
+/// makes the kind lookups ambiguous. A data share has no kind and never clashes.
 /// </remarks>
-public static class LiveExercises
+public static class OneExercisePerKind
 {
     /// <summary>The first other exercise in <paramref name="exercises"/> that clashes with
     /// <paramref name="exercise"/>, or null.</summary>
@@ -33,8 +33,5 @@ public static class LiveExercises
     }
 
     private static bool Clash(CheckingExerciseDto a, CheckingExerciseDto b) =>
-        a.IsEnabled && b.IsEnabled
-        && a.ExerciseType is CheckingExerciseType kind && b.ExerciseType == kind
-        && (a.VisibleFrom ?? DateTime.MinValue) < (b.VisibleUntil ?? DateTime.MaxValue)
-        && (b.VisibleFrom ?? DateTime.MinValue) < (a.VisibleUntil ?? DateTime.MaxValue);
+        a.ExerciseType is CheckingExerciseType kind && b.ExerciseType == kind;
 }

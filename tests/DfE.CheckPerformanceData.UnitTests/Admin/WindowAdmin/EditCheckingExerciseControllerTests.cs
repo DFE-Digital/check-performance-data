@@ -66,7 +66,7 @@ public sealed class EditCheckingExerciseControllerTests
         original.Datasets = [new() { Id = Guid.NewGuid(), Name = "custom", IngressFile = "file.csv", SchemaFile = "schema.json" }];
         var other = new CheckingExerciseDto
         {
-            Id = Guid.NewGuid(), ExerciseType = original.ExerciseType,
+            Id = Guid.NewGuid(), ExerciseType = null, DisplayOnly = true,
             Name = "Other release", StartDate = original.StartDate, EndDate = original.EndDate
         };
         _window.Exercises.Add(other);
@@ -229,23 +229,24 @@ public sealed class EditCheckingExerciseControllerTests
     }
 
     [Fact]
-    public async Task Enabling_an_exercise_while_another_of_its_kind_is_live_is_rejected()
+    public async Task Giving_an_exercise_a_kind_the_window_already_has_is_rejected()
     {
-        var live = CreateCheckingExerciseControllerTests.Live(_window.Exercises[0], null, null);
-        _window.Exercises[0] = live;
-        var second = new CheckingExerciseDto
+        // A window has one exercise of each kind, whether or not either is enabled.
+        var share = new CheckingExerciseDto
         {
-            Id = Guid.NewGuid(), Name = "Revised", ExerciseType = CheckingExerciseType.PupilData,
-            TabName = "Revised", StartDate = live.StartDate, EndDate = live.EndDate, TabOrder = 1
+            Id = Guid.NewGuid(), Name = "Revised", ExerciseType = null, DisplayOnly = true,
+            TabName = "Revised", StartDate = _window.Exercises[0].StartDate,
+            EndDate = _window.Exercises[0].EndDate, TabOrder = 1
         };
-        _window.Exercises.Add(second);
+        _window.Exercises.Add(share);
 
-        var model = await Model(second.Id);
-        model.IsEnabled = true;
+        var model = await Model(share.Id);
+        model.ExerciseType = CheckingExerciseType.PupilData;
+        model.IsEnabled = false;
         Validate(model);
 
-        Assert.IsType<ViewResult>(await _controller.Update(_window.Id, second.Id, model, default));
-        Assert.True(_controller.ModelState.ContainsKey(nameof(model.IsEnabled)));
+        Assert.IsType<ViewResult>(await _controller.Update(_window.Id, share.Id, model, default));
+        Assert.True(_controller.ModelState.ContainsKey(nameof(model.ExerciseType)));
         await _service.DidNotReceiveWithAnyArgs().UpdateAsync(default!, default);
     }
 

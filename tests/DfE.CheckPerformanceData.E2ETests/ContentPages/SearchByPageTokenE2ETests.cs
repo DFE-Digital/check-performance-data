@@ -263,4 +263,57 @@ public sealed class SearchByPageTokenE2ETests(PlaywrightFixture fixture) : Seedi
         var labels = await options.AllInnerTextsAsync();
         Assert.DoesNotContain(labels, l => l.Contains("Outside"));
     }
+
+    // ============================================================
+    // 8. Choosing a page from a group search lands on that page the way a search of the page
+    //    itself does: at the section holding the word, with the word marked.
+    // ============================================================
+    [Fact]
+    public async Task InstantSearch_ChoosingAPageFromTheGroup_JumpsToTheWordAndMarksIt()
+    {
+        var word = "cypdjump" + Guid.NewGuid().ToString("N")[..10];
+        var segment = $"e2e-tok-jump-{Guid.NewGuid().ToString("N")[..8]}";
+        var target = await CmsSeedHelpers.CreatePageNodeAsync(
+            Fixture.SeedClient, FixtureContent.RootId, "content", segment, "E2E group jump target");
+        _createdPages.Add(target);
+        // Enough copy above the match that landing at the top of the page leaves it out of view.
+        var filler = string.Concat(Enumerable.Repeat("<p>Background reading that does not mention it.</p>", 60));
+        await CmsSeedHelpers.AddWidgetAsync(Fixture.SeedClient, target, "0.0", "richtext");
+        await CmsSeedHelpers.UpdateWidgetAsync(Fixture.SeedClient, target, "0.0", "richtext",
+            new Dictionary<string, string> { ["html"] = filler });
+        await CmsSeedHelpers.AddWidgetAsync(Fixture.SeedClient, target, "0.1", "heading");
+        await CmsSeedHelpers.UpdateWidgetAsync(Fixture.SeedClient, target, "0.1", "heading",
+            new Dictionary<string, string> { ["level"] = "2", ["text"] = "Where it is" });
+        await CmsSeedHelpers.AddWidgetAsync(Fixture.SeedClient, target, "0.2", "richtext");
+        await CmsSeedHelpers.UpdateWidgetAsync(Fixture.SeedClient, target, "0.2", "richtext",
+            new Dictionary<string, string> { ["html"] = $"<p>The word {word} is here.</p>" });
+        await CmsSeedHelpers.PublishDraftAsync(Fixture.SeedClient, target);
+
+        // The group is the usual two pages plus this one; only this one carries the word.
+        var g = await SeedGroupAsync();
+        var props = SearchProps(g, instant: true);
+        props["scopePageIds"] = $"{g.A},{g.B},{target}";
+        var url = await SeedWidgetPageAsync("search", props);
+
+        await Page.GotoAsync($"{Fixture.BaseUrl}{url}");
+        var input = Page.Locator("input.autocomplete__input");
+        await input.ClickAsync();
+        await input.FillAsync(word);
+
+        var option = Page.Locator("li.autocomplete__option").First;
+        await Expect(option).ToContainTextAsync("E2E group jump target");
+        await option.ClickAsync();
+
+        await Page.WaitForURLAsync(new Regex($"{FixtureContent.RootPath}/{Regex.Escape(segment)}"));
+
+        var heading = Page.Locator("h2:has-text('Where it is')").First;
+        await Expect(heading).ToBeFocusedAsync();
+        var anchor = await heading.GetAttributeAsync("id");
+        await Expect(Page).ToHaveURLAsync(new Regex($"#{Regex.Escape(anchor!)}$"));
+
+        var marks = Page.Locator("mark.cypmd-onpage-mark");
+        await Expect(marks).ToHaveCountAsync(1);
+        await Expect(marks.First).ToHaveTextAsync(word);
+        await Expect(marks.First).ToBeInViewportAsync();
+    }
 }

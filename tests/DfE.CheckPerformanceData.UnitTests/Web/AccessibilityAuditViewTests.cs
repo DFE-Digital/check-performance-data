@@ -271,6 +271,36 @@ public sealed class AccessibilityAuditViewTests
 		Assert.Contains("aria-describedby=\"@Model.DescribedBy\"", view);
 	}
 
+	// ── #388 "Disclosure triangle" announced on expandable sections ───────────────────
+
+	[Fact]
+	public void JourneyHelpPanel_IsANativeDetailsElement_WithNoAriaRoleOverride()
+	{
+		// #388: Android TalkBack announces the help panel's summary as "disclosure triangle".
+		// That is TalkBack's name for the native <summary> role (Chromium exposes it as
+		// DisclosureTriangle), announced with the expanded or collapsed state and the summary
+		// text — name, role and state are all exposed, which is what WCAG 4.1.2 asks for.
+		// The panel is the GOV.UK Details component as GOV.UK Frontend 5 ships it, and the
+		// decision recorded in docs/accessibility.md ("Expandable sections") is to keep it:
+		// a role="button" on the summary, or a button-with-aria-expanded in its place, would
+		// change the announcement for every other screen reader and leave the GOV.UK pattern.
+		// This fact goes red if somebody "fixes" the announcement that way.
+		var view = ReadView("Views", "Journey", "_Question.cshtml");
+
+		var detailsStart = view.IndexOf("<details class=\"govuk-details", StringComparison.Ordinal);
+		Assert.True(detailsStart >= 0, "the help panel must be a <details class=\"govuk-details…\"> element");
+		var detailsEnd = view.IndexOf("</details>", detailsStart, StringComparison.Ordinal);
+		Assert.True(detailsEnd > detailsStart, "the help panel's <details> must be closed");
+		var panel = view[detailsStart..detailsEnd];
+
+		Assert.Contains("<summary class=\"govuk-details__summary\">", panel);
+		Assert.Contains("govuk-details__summary-text", panel);
+		Assert.Contains("@Model.Question.QuestionHelpTitle", panel);
+		Assert.DoesNotContain("role=", panel);
+		Assert.DoesNotContain("aria-expanded", panel);
+		Assert.DoesNotContain("<button", panel);
+	}
+
 	// ── #568 Storage browser upload in parts ───────────────────────────────────────────
 
 	[Fact]

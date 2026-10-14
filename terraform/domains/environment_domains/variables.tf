@@ -31,3 +31,23 @@ variable "allowed_source_ips" {
   description = "List of IPs/CIDRs to allow through Front Door/WAF. Provide via TF_VAR_allowed_source_ips or secret-managed tfvars."
   sensitive   = true
 }
+
+# Custom rate_limit rules - allows the calling repo to declare MatchRule/RateLimitRule entries
+# Example structure matches the terraform-modules environment_domains rate_limit expectation.
+variable "rate_limit" {
+  type = list(object({
+    agent          = optional(string)
+    priority       = optional(number)
+    duration       = optional(number)
+    limit          = optional(number)
+    selector       = optional(string)
+    operator       = optional(string)
+    match_values   = optional(string)
+    match_variable = optional(string)
+    type           = optional(string)
+    action         = optional(string)
+    enabled        = optional(string)
+  }))
+  default = null
+  description = "Custom WAF rules to pass through to the environment_domains module. Use this to declare Allow/Block MatchRule entries."
+}

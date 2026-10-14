@@ -10,11 +10,10 @@ module "domains" {
   host_name           = each.value.origin_hostname
   cached_paths        = try(each.value.cached_paths, [])
   rate_limit_max      = var.rate_limit_max
+  # pass through any custom rate limit / WAF rules provided by the service repo
+  rate_limit          = try(var.rate_limit, null)
   allow_aks           = var.allow_aks
   block_ip            = var.block_ip
-  # Pass through the allowlist variable. The vendor/module must be updated to consume this
-  # and translate into a MatchRule allow entry (or alternatively the calling repo can craft
-  # a rate_limit list using the variable and pass it as rate_limit). Provide values via
-  # TF_VAR_allowed_source_ips in CI/pipeline, do NOT commit real IPs to git.
+  # allowed_source_ips remains available as a sensitive injection method if you prefer
   allowed_source_ips  = var.allowed_source_ips
 }

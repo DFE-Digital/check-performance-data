@@ -448,6 +448,10 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
 
     private async Task ChooseCohortScopeAsync(string value)
     {
+        // Wait for the page to load first. The click below is forced, so Playwright does not
+        // wait for the radio to stop moving, and a click made while the page is still being
+        // laid out can miss it ("Clicking the checkbox did not change its state").
+        await Page.WaitForURLAsync($"**/Journey/{WindowId}/page/cohort-scope");
         // By option value, not label, so a copy edit cannot break the test.
         await Page.Locator($"input[name='q_q_cohort_scope'][value='{value}']").CheckAsync(new() { Force = true });
         await ContinueAsync();

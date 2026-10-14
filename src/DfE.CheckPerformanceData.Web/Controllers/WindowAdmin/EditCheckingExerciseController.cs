@@ -66,17 +66,13 @@ public sealed class EditCheckingExerciseController(IWindowService windowService)
             ModelState.AddModelError(nameof(model.ReplacesCheckingExerciseId),
                 "Select another exercise from this window that does not already replace this exercise");
 
-        if (!exercise.UsesExerciseStorage)
-        {
-            // The exercise type identifies historic output paths. Editing descriptive fields must not
-            // move the exercise away from its existing files or collide with another legacy row.
-            if (model.ExerciseType != exercise.ExerciseType)
-                ModelState.AddModelError(nameof(model.ExerciseType), "The type cannot be changed for this existing exercise");
-        }
+        var kindChanged = model.ExerciseType != exercise.ExerciseType;
+        if (kindChanged && KindChangeMessage(await windowService.KindChangeBlockAsync(exercise, cancellationToken))
+                is { } kindBlocked)
+            ModelState.AddModelError(nameof(model.ExerciseType), kindBlocked);
 
         if (!ModelState.IsValid) return View(PageView, model);
 
-        var outputChanged = model.ExerciseType != exercise.ExerciseType;
         var updated = new CheckingExerciseDto
         {
             Id = exercise.Id,
@@ -97,11 +93,13 @@ public sealed class EditCheckingExerciseController(IWindowService windowService)
             WindowStart = exercise.WindowStart,
             WindowEnd = exercise.WindowEnd,
             Datasets = exercise.Datasets,
-            ValidatedAt = outputChanged ? null : exercise.ValidatedAt,
+            ValidatedAt = kindChanged ? null : exercise.ValidatedAt,
             ValidatedIngressChecksum = exercise.ValidatedIngressChecksum,
             ValidatedSchemaChecksum = exercise.ValidatedSchemaChecksum
         };
-        if (ExerciseKindClash.Message(updated, window.Exercises) is { } clash)
+        // Only a new kind can clash. A window saved before the one-per-kind rule may hold two of a
+        // kind already, and each must stay editable so the admin can sort them out.
+        if (kindChanged && ExerciseKindClash.Message(updated, window.Exercises) is { } clash)
         {
             ModelState.AddModelError(nameof(model.ExerciseType), clash);
             return View(PageView, model);
@@ -138,4 +136,15 @@ public sealed class EditCheckingExerciseController(IWindowService windowService)
 
     private static DateTime KeepSeconds(DateTime posted, DateTime original) =>
         posted == original.AddTicks(-(original.Ticks % TimeSpan.TicksPerMinute)) ? original : posted;
+
+    private static string? KindChangeMessage(KindChangeBlock block) => block switch
+    {
+        KindChangeBlock.None => null,
+        KindChangeBlock.LegacyStorage => "The type cannot be changed for this existing exercise",
+        KindChangeBlock.LiveRelease =>
+            "The type cannot be changed once this exercise has live data. Add a new exercise instead",
+        KindChangeBlock.ChangeRequests =>
+            "The type cannot be changed because schools have made requests on this exercise. Add a new exercise instead",
+        _ => throw new ArgumentOutOfRangeException(nameof(block), block, null)
+    };
 }

@@ -49,6 +49,7 @@ public sealed class SummaryControllerCloseActionsTests
     {
         Id = Guid.NewGuid(),
         ExerciseType = type,
+        IsEnabled = true,
         StartDate = start,
         EndDate = end,
         TabOrder = (int)type

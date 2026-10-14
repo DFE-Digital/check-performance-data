@@ -28,7 +28,9 @@ public class WindowService(IWindowRepository windowRepository, TimeProvider time
     public async Task UpdateAsync(CheckingWindowDto window, CancellationToken cancellationToken)
     {
         EnsureDatasetsMatchType(window);
-        EnsureExercisesAreValid(window);
+        CheckingWindowDto? stored = await windowRepository.GetByIdAsync(window.Id, cancellationToken);
+        EnsureExercisesAreValid(window, stored?.Exercises ?? []);
+        await EnsureKindChangesAreAllowedAsync(window, stored, cancellationToken);
         window.DeriveDatesFromExercises();
         window.DeriveKeyStageFromWindowType();
         await windowRepository.UpdateAsync(window, cancellationToken);
@@ -37,10 +39,20 @@ public class WindowService(IWindowRepository windowRepository, TimeProvider time
     public async Task<CheckingWindowDto> CreateAsync(CheckingWindowDto window, CancellationToken cancellationToken)
     {
         EnsureDatasetsMatchType(window);
-        EnsureExercisesAreValid(window);
+        EnsureExercisesAreValid(window, []);
         window.DeriveDatesFromExercises();
         window.DeriveKeyStageFromWindowType();
         return await windowRepository.CreateAsync(window, cancellationToken);
+    }
+
+    public async Task<KindChangeBlock> KindChangeBlockAsync(CheckingExerciseDto stored,
+        CancellationToken cancellationToken)
+    {
+        if (!stored.UsesExerciseStorage) return KindChangeBlock.LegacyStorage;
+        if (stored.CurrentReleaseId is not null) return KindChangeBlock.LiveRelease;
+        if (stored.Id != Guid.Empty && await windowRepository.HasChangeRequestsAsync(stored.Id, cancellationToken))
+            return KindChangeBlock.ChangeRequests;
+        return KindChangeBlock.None;
     }
 
     /// <summary>
@@ -48,16 +60,43 @@ public class WindowService(IWindowRepository windowRepository, TimeProvider time
     /// this refuses a caller that skipped them. Every exercise has a tab name, and a window never
     /// has two exercises of one kind (see <see cref="OneExercisePerKind"/>).
     /// </summary>
-    private static void EnsureExercisesAreValid(CheckingWindowDto window)
+    /// <remarks>
+    /// Only a save that adds an exercise to a kind is refused. A window saved before the rule may
+    /// already hold two of one kind; refusing every save of it would leave the admin no way to fix
+    /// it but deleting one, so such a window may be saved as long as the save adds no more.
+    /// </remarks>
+    private static void EnsureExercisesAreValid(CheckingWindowDto window, IReadOnlyList<CheckingExerciseDto> stored)
     {
         if (window.Exercises.FirstOrDefault(e => string.IsNullOrWhiteSpace(e.TabName)) is { } unnamed)
             throw new InvalidOperationException(
                 $"Checking exercise {unnamed.Id} ({unnamed.ExerciseType}) has no tab name.");
 
-        if (OneExercisePerKind.FindAnyClash(window.Exercises) is var (first, second))
+        var added = window.Exercises
+            .Where(e => e.ExerciseType is not null)
+            .GroupBy(e => e.ExerciseType)
+            .FirstOrDefault(kind => kind.Count() > 1
+                && kind.Count() > stored.Count(e => e.ExerciseType == kind.Key));
+        if (added is not null)
             throw new InvalidOperationException(
-                $"Checking exercises {first.Id} and {second.Id} are both {first.ExerciseType} exercises. " +
+                $"This save gives the window {added.Count()} {added.Key} exercises. " +
                 "A window can have only one exercise of each kind.");
+    }
+
+    // The edit page asks KindChangeBlockAsync first and shows a form error; this refuses any other
+    // caller. A row with no stored match is new and has no kind to change.
+    private async Task EnsureKindChangesAreAllowedAsync(CheckingWindowDto window, CheckingWindowDto? stored,
+        CancellationToken cancellationToken)
+    {
+        if (stored is null) return;
+        foreach (var exercise in window.Exercises)
+        {
+            var before = stored.Exercises.FirstOrDefault(e => e.Id == exercise.Id);
+            if (before is null || before.ExerciseType == exercise.ExerciseType) continue;
+            if (await KindChangeBlockAsync(before, cancellationToken) is var block and not KindChangeBlock.None)
+                throw new InvalidOperationException(
+                    $"Checking exercise {exercise.Id} cannot change from {before.ExerciseType} to " +
+                    $"{exercise.ExerciseType}: {block}.");
+        }
     }
 
     /// <summary>

@@ -237,7 +237,8 @@
 
         @* Only for an exercise with a kind: a change request only reaches an exercise through
            WhatToChangeCheckingExerciseMap, which maps kinds, so a data share has none to send.
-           AB#301022: Close is offered only while schools can still use the exercise, and it does
+           AB#301022: Close is offered while the exercise is running (inside its dates, even if it is
+           disabled, so its requests can still be handed over), and it does
            not depend on the exercise having ingress files. *@
         @if (exercise.ExerciseType is not null && exercise.IsOpen)
         {

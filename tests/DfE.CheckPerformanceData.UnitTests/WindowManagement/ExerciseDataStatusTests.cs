@@ -99,4 +99,38 @@ public sealed class ExerciseDataStatusTests
 
         Assert.Equal(ExerciseDataStatus.Live, exercise.DataStatus);
     }
+
+    [Fact]
+    public void A_legacy_exercise_stays_live_when_a_file_is_replaced_after_its_run()
+    {
+        // A legacy run writes the live output in place. Replacing a file afterwards does not take
+        // that output away, so schools keep seeing the window until the next run.
+        var exercise = new CheckingExerciseDto
+        {
+            ExerciseType = CheckingExerciseType.PupilData, UsesExerciseStorage = false,
+            StartDate = new DateTime(2026, 1, 1), EndDate = new DateTime(2026, 6, 1),
+            Datasets = [Slot()],
+            ValidatedAt = new DateTime(2026, 1, 2),
+            ValidatedIngressChecksum = "a file since replaced",
+            ValidatedSchemaChecksum = "s1"
+        };
+
+        Assert.False(exercise.IsValidated);
+        Assert.True(exercise.HasLiveData);
+        Assert.Equal(ExerciseDataStatus.LiveWithNewFiles, exercise.DataStatus);
+    }
+
+    [Fact]
+    public void A_legacy_exercise_that_never_ran_has_no_live_data()
+    {
+        var exercise = new CheckingExerciseDto
+        {
+            ExerciseType = CheckingExerciseType.PupilData, UsesExerciseStorage = false,
+            StartDate = new DateTime(2026, 1, 1), EndDate = new DateTime(2026, 6, 1),
+            Datasets = [Slot()]
+        };
+
+        Assert.False(exercise.HasLiveData);
+        Assert.Equal(ExerciseDataStatus.NotValidated, exercise.DataStatus);
+    }
 }

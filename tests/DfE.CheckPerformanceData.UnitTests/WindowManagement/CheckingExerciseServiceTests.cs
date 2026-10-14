@@ -18,15 +18,20 @@ public sealed class CheckingExerciseServiceTests
         public override TimeZoneInfo LocalTimeZone => TimeZoneInfo.Utc;
     }
 
+    // Enabled with no visibility dates: an exercise schools can see, so only its dates decide.
     private static CheckingExerciseDto Exercise(
-        CheckingExerciseType type, DateTime start, DateTime end, int sortOrder = 0) =>
+        CheckingExerciseType type, DateTime start, DateTime end, int sortOrder = 0,
+        bool enabled = true, DateTime? visibleFrom = null, DateTime? visibleUntil = null) =>
         new()
         {
             Id = Guid.NewGuid(),
             ExerciseType = type,
             StartDate = start,
             EndDate = end,
-            TabOrder = sortOrder
+            TabOrder = sortOrder,
+            IsEnabled = enabled,
+            VisibleFrom = visibleFrom,
+            VisibleUntil = visibleUntil
         };
 
     // A display-only row of a real kind: the shape a pupil-data exercise takes once it is showing
@@ -40,6 +45,7 @@ public sealed class CheckingExerciseServiceTests
             StartDate = start,
             EndDate = end,
             TabOrder = sortOrder,
+            IsEnabled = true,
             DisplayOnly = true
         };
 
@@ -300,6 +306,42 @@ public sealed class CheckingExerciseServiceTests
             Sut().OpenCheckingExercises(exercises));
     }
 
+    // A wizard-created exercise starts disabled. Until an admin enables it, schools cannot see it,
+    // so they must not be able to act on it either.
+    [Fact]
+    public void IsOpen_is_false_for_a_disabled_exercise_inside_its_dates()
+    {
+        var exercise = Exercise(CheckingExerciseType.PupilData, Yesterday, Tomorrow, enabled: false);
+
+        Assert.False(Sut().IsOpen([exercise], CheckingExerciseType.PupilData));
+        Assert.Empty(Sut().OpenCheckingExercises([exercise]));
+    }
+
+    // The admin's per-row question: a disabled exercise inside its dates is still running, so the
+    // admin can close it early and send its requests.
+    [Fact]
+    public void The_per_row_IsOpen_ignores_whether_schools_can_see_the_exercise()
+    {
+        var disabled = Exercise(CheckingExerciseType.PupilData, Yesterday, Tomorrow, enabled: false);
+        var notYetVisible = Exercise(CheckingExerciseType.PupilData, Yesterday, Tomorrow,
+            visibleFrom: Now.DateTime.AddHours(1));
+
+        Assert.True(Sut().IsOpen(disabled));
+        Assert.True(Sut().IsOpen(notYetVisible));
+    }
+
+    [Fact]
+    public void IsOpen_is_false_outside_the_visibility_dates_even_inside_the_exercise_dates()
+    {
+        var notYet = Exercise(CheckingExerciseType.PupilData, Yesterday, Tomorrow,
+            visibleFrom: Now.DateTime.AddHours(1));
+        var gone = Exercise(CheckingExerciseType.ResultsEnquiry, Yesterday, Tomorrow,
+            visibleUntil: Now.DateTime);
+
+        Assert.False(Sut().IsOpen([notYet], CheckingExerciseType.PupilData));
+        Assert.False(Sut().IsOpen([gone], CheckingExerciseType.ResultsEnquiry));
+    }
+
     // The dates still answer on their own for an ordinary exercise — this rule adds a reason to be
     // closed, it does not replace the date comparison.
     [Fact]
@@ -343,7 +385,7 @@ public sealed class CheckingExerciseServiceTests
     [Fact]
     public void StatusOf_is_hidden_for_a_disabled_exercise_inside_its_dates()
     {
-        var exercise = Exercise(CheckingExerciseType.PupilData, Yesterday, Tomorrow);
+        var exercise = Exercise(CheckingExerciseType.PupilData, Yesterday, Tomorrow, enabled: false);
 
         Assert.Equal(ExerciseSchoolStatus.Hidden, Sut().StatusOf([exercise], exercise));
     }

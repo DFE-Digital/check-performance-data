@@ -77,7 +77,7 @@ public sealed class CheckYourPupilDataResultsEnquiryOptionTests
 
     private static CheckingExerciseDto Exercise(
         CheckingExerciseType type, DateTime start, DateTime end, int sortOrder) =>
-        new() { ExerciseType = type, StartDate = start, EndDate = end, TabOrder = sortOrder };
+        new() { ExerciseType = type, IsEnabled = true, StartDate = start, EndDate = end, TabOrder = sortOrder };
 
     private static CheckingExerciseDto Open(CheckingExerciseType type, int sortOrder = 0) =>
         Exercise(type, Yesterday, Tomorrow, sortOrder);
@@ -242,7 +242,7 @@ public sealed class CheckYourPupilDataResultsEnquiryOptionTests
     [Fact]
     public async Task A_results_enquiry_only_window_whose_enquiry_has_closed_still_says_it_has_closed()
     {
-        // Review: ExercisesController lets an admin tick Results enquiry alone. Once that exercise
+        // Review: an admin can leave a window with Results enquiry alone. Once that exercise
         // ends the page had no closed paragraph (it was gated on a pupil-data end date the window
         // never had) and no form (nothing open) — tables and downloads with no explanation at all.
         Window(CheckingWindowType.Post16, Closed(CheckingExerciseType.ResultsEnquiry, 0));

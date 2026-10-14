@@ -14,12 +14,8 @@ public sealed class CheckingExerciseStorageResolverTests
     private CheckingExerciseStorageResolver Resolver() => new(_windows, _clock);
 
     private void Window(Guid windowId, params CheckingExerciseDto[] exercises) =>
-        _windows.GetByIdAsync(windowId, Arg.Any<CancellationToken>()).Returns(new CheckingWindowDto
-        {
-            Id = windowId, Title = "t", StartDate = Now.AddDays(-1), EndDate = Now.AddDays(1),
-            KeyStage = KeyStages.KS4, CheckingWindowType = CheckingWindowType.KS4June,
-            Exercises = [.. exercises]
-        });
+        _windows.GetExercisesOfKindAsync(windowId, CheckingExerciseType.PupilData, Arg.Any<CancellationToken>())
+            .Returns(exercises);
 
     private static CheckingExerciseDto Exercise(Guid id, string tabName = "Pupils",
         bool enabled = true, bool displayOnly = false, DateTime? until = null) => new()
@@ -52,21 +48,10 @@ public sealed class CheckingExerciseStorageResolverTests
     }
 
     [Fact]
-    public async Task PrefersTheInteractiveReleaseOverADisplayOnlyOne()
+    public async Task An_old_duplicate_pair_that_is_both_live_resolves_to_nothing()
     {
-        var windowId = Guid.NewGuid();
-        var interactive = Guid.NewGuid();
-        Window(windowId, Exercise(Guid.NewGuid(), displayOnly: true), Exercise(interactive));
-
-        var resolved = await Resolver().ResolveAsync(windowId, CheckingExerciseType.PupilData);
-
-        Assert.Equal(interactive, resolved!.Id);
-    }
-
-    [Fact]
-    public async Task TwoEquallyGoodReleases_ResolveToNothing()
-    {
-        // Guessing here would silently serve one release's data under another release's journey.
+        // Saved before the one-per-kind rule. Guessing would serve one exercise's data under the
+        // other's journey.
         var windowId = Guid.NewGuid();
         Window(windowId, Exercise(Guid.NewGuid()), Exercise(Guid.NewGuid()));
 
@@ -88,10 +73,26 @@ public sealed class CheckingExerciseStorageResolverTests
     [Fact]
     public async Task AnUnknownWindow_ResolvesToNothing()
     {
-        _windows.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
-            .Returns((CheckingWindowDto?)null);
+        _windows.GetExercisesOfKindAsync(Arg.Any<Guid>(), Arg.Any<CheckingExerciseType>(), Arg.Any<CancellationToken>())
+            .Returns([]);
 
         Assert.Null(await Resolver().ResolveAsync(Guid.NewGuid(), CheckingExerciseType.PupilData));
+    }
+
+    [Fact]
+    public async Task One_request_asks_the_database_once_per_window_and_kind()
+    {
+        // A results page asks from the results client, the late results warning and the request.
+        var windowId = Guid.NewGuid();
+        Window(windowId, Exercise(Guid.NewGuid()));
+        var resolver = Resolver();
+
+        await resolver.ResolveAsync(windowId, CheckingExerciseType.PupilData);
+        await resolver.ResolveAsync(windowId, CheckingExerciseType.PupilData);
+
+        await _windows.Received(1).GetExercisesOfKindAsync(windowId, CheckingExerciseType.PupilData,
+            Arg.Any<CancellationToken>());
+        await _windows.DidNotReceiveWithAnyArgs().GetByIdAsync(default, default);
     }
 
     private sealed class FakeTimeProvider(DateTimeOffset now) : TimeProvider

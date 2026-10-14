@@ -11,6 +11,28 @@ public interface IWindowService
     Task<CheckingWindowDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
     Task UpdateAsync(CheckingWindowDto window, CancellationToken cancellationToken);
     Task<CheckingWindowDto> CreateAsync(CheckingWindowDto window, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Why this stored exercise's kind cannot change, or <see cref="KindChangeBlock.None"/>.
+    /// <see cref="UpdateAsync"/> refuses the same changes; the edit page asks first to show a form error.
+    /// </summary>
+    Task<KindChangeBlock> KindChangeBlockAsync(CheckingExerciseDto stored, CancellationToken cancellationToken);
+}
+
+/// <summary>Why an exercise's kind cannot change.</summary>
+public enum KindChangeBlock
+{
+    None,
+
+    /// <summary>A legacy exercise: its kind names the blob paths its files already sit under.</summary>
+    LegacyStorage,
+
+    /// <summary>A release is live, and its merged file is named for the kind it ran as.</summary>
+    LiveRelease,
+
+    /// <summary>Schools have made change requests on it. They reach their journey and their
+    /// Close through the kind, so a new kind would strand them.</summary>
+    ChangeRequests
 }
 
 public class PageResult
@@ -243,7 +265,8 @@ public sealed class CheckingExerciseDto
         {
             var complete = InUse.Where(d => d.IsComplete).ToList();
             if (!HasLiveData) return complete.Count > 0 ? ExerciseDataStatus.NotValidated : ExerciseDataStatus.NoFiles;
-            if (CurrentRelease is null) return ExerciseDataStatus.Live;
+            // A legacy exercise: its last run's output is live; a file swapped since is not yet.
+            if (CurrentRelease is null) return IsValidated ? ExerciseDataStatus.Live : ExerciseDataStatus.LiveWithNewFiles;
             return complete.All(d => StatusOf(d) == DatasetStatus.Live)
                 ? ExerciseDataStatus.Live
                 : ExerciseDataStatus.LiveWithNewFiles;
@@ -252,11 +275,13 @@ public sealed class CheckingExerciseDto
 
     /// <summary>
     /// Schools can see data from this exercise: a release is live, or (for a legacy exercise, which
-    /// makes no release) its validation stamp matches the files it holds. An exercise without it is
-    /// not ready, however it is enabled, so the landing page does not show its window.
+    /// makes no release) it has validated at least once. A legacy run writes the live output in
+    /// place, so that output stays live when a file is replaced afterwards: the stamp going stale
+    /// says the new file is not live yet, not that the old output has gone. An exercise without
+    /// live data is not ready, however it is enabled, so the landing page does not show its window.
     /// </summary>
     public bool HasLiveData =>
-        CurrentRelease is not null || (!UsesExerciseStorage && IsValidated && InUse.Any(d => d.IsComplete));
+        CurrentRelease is not null || (!UsesExerciseStorage && ValidatedAt is not null && InUse.Any(d => d.IsComplete));
 
     /// <summary>
     /// Validated, and against the files it currently holds. A stamp taken before an ingress file

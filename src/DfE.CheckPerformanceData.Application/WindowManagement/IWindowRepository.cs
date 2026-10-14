@@ -6,7 +6,18 @@ public interface IWindowRepository
 {
     Task<List<CheckingWindowDto>> GetAllWindowsAsync(CancellationToken cancellationToken);
     Task<CheckingWindowDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The window's exercises of one kind, without their datasets or releases: enough to decide
+    /// which one is live and where its storage is. The journeys ask this on every page, so it must
+    /// not load the window's whole graph. Empty when the window does not exist.
+    /// </summary>
+    Task<IReadOnlyList<CheckingExerciseDto>> GetExercisesOfKindAsync(Guid windowId, CheckingExerciseType type,
+        CancellationToken cancellationToken);
     Task UpdateAsync(CheckingWindowDto window, CancellationToken cancellationToken);
+
+    /// <summary>True when any change request, in any status, is stamped with this exercise.</summary>
+    Task<bool> HasChangeRequestsAsync(Guid exerciseId, CancellationToken cancellationToken);
     Task<CheckingWindowDto> CreateAsync(CheckingWindowDto window, CancellationToken cancellationToken);
 
     /// <summary>

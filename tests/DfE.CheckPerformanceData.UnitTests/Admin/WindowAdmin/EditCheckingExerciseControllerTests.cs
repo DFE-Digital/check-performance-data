@@ -199,6 +199,8 @@ public sealed class EditCheckingExerciseControllerTests
             Id = original.Id, UsesExerciseStorage = false, ExerciseType = original.ExerciseType,
             TabName = "Pupils", StartDate = original.StartDate, EndDate = original.EndDate
         };
+        _service.KindChangeBlockAsync(Arg.Is<CheckingExerciseDto>(e => e.Id == original.Id), Arg.Any<CancellationToken>())
+            .Returns(KindChangeBlock.LegacyStorage);
         var model = await Model();
         if (changeType) model.ExerciseType = CheckingExerciseType.ResultsEnquiry;
         Validate(model);
@@ -226,6 +228,43 @@ public sealed class EditCheckingExerciseControllerTests
         Assert.IsType<ViewResult>(await _controller.Update(_window.Id, _window.Exercises[0].Id, model, default));
         Assert.True(_controller.ModelState.ContainsKey(nameof(model.TabName)));
         await _service.DidNotReceiveWithAnyArgs().UpdateAsync(default!, default);
+    }
+
+    [Theory]
+    [InlineData(KindChangeBlock.LiveRelease)]
+    [InlineData(KindChangeBlock.ChangeRequests)]
+    public async Task A_kind_change_the_service_blocks_is_a_form_error(KindChangeBlock block)
+    {
+        // WindowService decides (a live release's file is named for its kind; change requests reach
+        // their journey through it). The page only words it.
+        var original = _window.Exercises[0];
+        _service.KindChangeBlockAsync(original, Arg.Any<CancellationToken>()).Returns(block);
+        var model = await Model();
+        model.ExerciseType = CheckingExerciseType.ResultsEnquiry;
+        Validate(model);
+
+        Assert.IsType<ViewResult>(await _controller.Update(_window.Id, original.Id, model, default));
+        Assert.True(_controller.ModelState.ContainsKey(nameof(model.ExerciseType)));
+        await _service.DidNotReceiveWithAnyArgs().UpdateAsync(default!, default);
+    }
+
+    [Fact]
+    public async Task An_unchanged_kind_is_not_checked_so_an_old_duplicate_stays_editable()
+    {
+        // A window saved before the one-per-kind rule may hold two of a kind.
+        var duplicate = CreateCheckingExerciseControllerTests.Live(_window.Exercises[0], null, null);
+        _window.Exercises.Add(new CheckingExerciseDto
+        {
+            Id = Guid.NewGuid(), Name = "Old duplicate", ExerciseType = duplicate.ExerciseType, TabName = "Old",
+            StartDate = duplicate.StartDate, EndDate = duplicate.EndDate, TabOrder = 1
+        });
+        var model = await Model();
+        model.Name = "Renamed";
+        Validate(model);
+
+        Assert.IsType<RedirectToActionResult>(
+            await _controller.Update(_window.Id, _window.Exercises[0].Id, model, default));
+        await _service.DidNotReceiveWithAnyArgs().KindChangeBlockAsync(default!, default);
     }
 
     [Fact]

@@ -11,29 +11,39 @@ public interface ICheckingExerciseStorageResolver
 
 /// <summary>
 /// The adapter for the journeys that still address a window and an activity type — pupil data and
-/// results enquiry. Since #466 a window may hold several releases of one activity, so the pair no
-/// longer identifies a row on its own.
+/// results enquiry. A window has at most one exercise of each kind (<see cref="OneExercisePerKind"/>),
+/// and the journey uses it only while schools can see it (enabled, inside its visibility dates).
 /// </summary>
 /// <remarks>
-/// It fails closed. An ambiguous window resolves to null and the journey finds no data, which is
-/// visible and correctable. Taking the first match instead would serve one release's data under
-/// another release's journey, which is neither.
+/// <para>
+/// A window saved before the one-per-kind rule may still hold two of a kind. If both are live the
+/// answer is null and the journey finds no data, which is visible and correctable. Taking the
+/// first instead would serve one exercise's data under the other's journey, which is neither.
+/// </para>
+/// <para>
+/// The returned exercise carries no datasets or releases: callers need only its id, its storage
+/// and its current release. One page asks several times (the results client, the late results
+/// warning, the request), so the answer is kept for the rest of the request (the resolver is
+/// scoped). It is not kept any longer, because a new release must reach schools at once.
+/// </para>
 /// </remarks>
 public sealed class CheckingExerciseStorageResolver(IWindowRepository windows, TimeProvider clock)
     : ICheckingExerciseStorageResolver
 {
+    private readonly Dictionary<(Guid, CheckingExerciseType), CheckingExerciseDto?> _resolved = new();
+
     public async Task<CheckingExerciseDto?> ResolveAsync(Guid windowId, CheckingExerciseType type,
         CancellationToken cancellationToken = default)
     {
-        var window = await windows.GetByIdAsync(windowId, cancellationToken);
+        if (_resolved.TryGetValue((windowId, type), out var known)) return known;
+
         var now = clock.GetLocalNow().DateTime;
+        var live = (await windows.GetExercisesOfKindAsync(windowId, type, cancellationToken))
+            .Where(e => e.IsLiveAt(now))
+            .ToList();
 
-        var candidates = window?.Exercises.Where(e => e.ExerciseType == type && e.IsLiveAt(now)).ToList();
-
-        // A display-only release never owns a journey's storage while an interactive one exists.
-        var interactive = candidates?.Where(e => !e.DisplayOnly).ToList();
-        if (interactive is { Count: > 0 }) candidates = interactive;
-
-        return candidates is { Count: 1 } ? candidates[0] : null;
+        var resolved = live is [var only] ? only : null;
+        _resolved[(windowId, type)] = resolved;
+        return resolved;
     }
 }

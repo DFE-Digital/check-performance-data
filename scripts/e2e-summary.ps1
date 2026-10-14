@@ -12,7 +12,11 @@
 
     A run that died before it wrote a results file is reported as such, not as a pass.
 
-    When run by GitHub Actions, also sets the step output "result" to passed, failed or none.
+    When the run did not pass and -Interrupted is given, the run is reported as interrupted,
+    with that reason, and nobody is mentioned: the failures say nothing about the change.
+
+    When run by GitHub Actions, also sets the step output "result" to passed, failed,
+    interrupted or none.
 
 .EXAMPLE
     ./scripts/e2e-summary.ps1 -ResultsFile TestResults/e2e.trx -OutFile summary.md
@@ -29,6 +33,8 @@ param(
     [string]$Commit,
     [string]$AppUrl,
     [string]$RunUrl,
+    # Why the results cannot be trusted, such as the review app being deleted during the run.
+    [string]$Interrupted,
     # The most failed tests to name. The rest are counted.
     [int]$MaxFailedNames = 50
 )
@@ -71,8 +77,16 @@ else {
     $failedNames = @()
 }
 
+if ($Interrupted -and $result -ne 'passed') {
+    $result = 'interrupted'
+    $lines[0] = "### $Name interrupted"
+    $reason = "$Interrupted This is not a pass, and the failures do not show a fault in the change."
+    if ($lines.Count -gt 2 -and $lines[2].StartsWith('The run stopped')) { $lines[2] = $reason }
+    else { $lines.Insert(2, ''); $lines.Insert(2, $reason) }
+}
+
 # A login ending in [bot] is an app, such as the one that raises dependency updates.
-if ($result -ne 'passed' -and $Author -and $Author -notmatch '\[bot\]$') {
+if ($result -in 'failed', 'none' -and $Author -and $Author -notmatch '\[bot\]$') {
     $lines.Insert(2, '')
     $lines.Insert(2, "@$Author this is your pull request: please look at what failed and fix it, or say here why it is not the change.")
 }

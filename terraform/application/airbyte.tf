@@ -34,6 +34,11 @@ module "airbyte" {
 
   use_azure = var.deploy_azure_backing_services
   gcp_bq_sa = var.airbyte_enabled ? module.infrastructure_secrets.map.AIRBYTE-BQ-SA : null
+
+  is_rails_application         = false
+  is_dotnet_application        = true
+  dotnet_application_directory = "/src/DfE.CheckPerformanceData.Web"
+  airbyte_sync_mode            = "incremental_deduped_history"
 }
 
 ## Airbyte module variables

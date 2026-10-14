@@ -273,8 +273,10 @@ public sealed class AccessibilityAuditViewTests
 
 	// ── #388 "Disclosure triangle" announced on expandable sections ───────────────────
 
-	[Fact]
-	public void JourneyHelpPanel_IsANativeDetailsElement_WithNoAriaRoleOverride()
+	[Theory]
+	[InlineData("Views/Journey/_Question.cshtml")]
+	[InlineData("Views/ResultIssue/Index.cshtml")]
+	public void HelpPanel_IsANativeDetailsElement_WithNoAriaRoleOverride(string relativePath)
 	{
 		// #388: Android TalkBack announces the help panel's summary as "disclosure triangle".
 		// That is TalkBack's name for the native <summary> role (Chromium exposes it as
@@ -282,10 +284,13 @@ public sealed class AccessibilityAuditViewTests
 		// text — name, role and state are all exposed, which is what WCAG 4.1.2 asks for.
 		// The panel is the GOV.UK Details component as GOV.UK Frontend 5 ships it, and the
 		// decision recorded in docs/accessibility.md ("Expandable sections") is to keep it:
-		// a role="button" on the summary, or a button-with-aria-expanded in its place, would
-		// change the announcement for every other screen reader and leave the GOV.UK pattern.
-		// This fact goes red if somebody "fixes" the announcement that way.
-		var view = ReadView("Views", "Journey", "_Question.cshtml");
+		// a role="button" on the summary, or a button-with-aria-expanded in its place, changes
+		// how the element is exposed on every platform (O'Hara found macOS VoiceOver then drops
+		// the state and loses headings nested in the summary) and every screen reader and browser
+		// pairing would need re-testing, and it leaves the GOV.UK pattern.
+		// This theory goes red if somebody "fixes" the announcement that way. It covers both
+		// views that render a help panel: the journey question and the 16-19 results-issue page.
+		var view = ReadView(relativePath.Split('/'));
 
 		var detailsStart = view.IndexOf("<details class=\"govuk-details", StringComparison.Ordinal);
 		Assert.True(detailsStart >= 0, "the help panel must be a <details class=\"govuk-details…\"> element");
@@ -295,7 +300,7 @@ public sealed class AccessibilityAuditViewTests
 
 		Assert.Contains("<summary class=\"govuk-details__summary\">", panel);
 		Assert.Contains("govuk-details__summary-text", panel);
-		Assert.Contains("@Model.Question.QuestionHelpTitle", panel);
+		Assert.Matches(@"govuk-details__summary-text"">\s*\S", panel);
 		Assert.DoesNotContain("role=", panel);
 		Assert.DoesNotContain("aria-expanded", panel);
 		Assert.DoesNotContain("<button", panel);

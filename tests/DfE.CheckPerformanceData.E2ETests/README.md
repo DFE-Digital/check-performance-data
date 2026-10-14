@@ -82,6 +82,11 @@ notifies them: by email, unless they have turned email off in their GitHub notif
 settings. A pass sends nothing. If you are told a run failed, fix it, or reply on the pull
 request to say why it was not the change.
 
+A pull request can be merged while its whole-suite run is still going. Deleting the review
+app waits for the run to finish, for up to 45 minutes. If the app goes anyway, or a newer
+commit is deployed to it during the run, the comment says the run was interrupted and why,
+and mentions nobody: those failures are not the change's.
+
 A run is never cancelled because a newer one started. Cancel one by hand from the Actions
 tab if it is no longer wanted. To run the suite again, or to try a change to `e2e.yml`
 (which GitHub reads from `main`, so a change does nothing until merged), use

@@ -15,6 +15,11 @@ name: E2E Tests
 # There is no concurrency group on purpose. A run is never cancelled or dropped because a
 # newer one started, so a failure stays with the commit that caused it. Cancel one by hand if
 # it is no longer wanted.
+#
+# Delete Review App waits while a run for the same pull request is going, and finds it by the
+# run name below, so keep the two in step.
+
+run-name: E2E Tests for ${{ github.event.workflow_run.head_branch || format('pull request {0}', inputs.pull-request-number) }}
 
 on:
   workflow_run:
@@ -166,6 +171,39 @@ jobs:
           --filter "Category!=VisualRegression"
           --logger "trx;LogFileName=e2e.trx" --results-directory TestResults
 
+      # Failures are only the change's if the review app was there, on this commit, the whole
+      # time. Merging the pull request deletes the app (Delete Review App waits for this run, but
+      # only for so long), and a push redeploys it.
+      - name: Check the review app was there throughout
+        id: app
+        if: always() && steps.tests.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ steps.target.outputs.pr }}
+          SHA: ${{ steps.target.outputs.sha }}
+          APP_URL: ${{ steps.target.outputs.url }}
+        run: |
+          reason=""
+          read -r state head < <(gh api "repos/$GH_REPO/pulls/$PR" --jq '"\(.state) \(.head.sha)"') || true
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$APP_URL/healthcheck") || true
+          if [[ "$code" != "200" ]]; then
+            if [[ "$state" == "closed" ]]; then
+              reason="Pull request $PR was merged or closed during the run, and its review app was deleted."
+            else
+              reason="The review app stopped answering during the run (its health check gave $code)."
+            fi
+          elif [[ -n "$head" && "$head" != "$SHA" ]] &&
+               [[ -n "$(gh api "repos/$GH_REPO/deployments?sha=$head&environment=review" --jq '.[0].id // empty')" ]]; then
+            reason="Commit \`${head:0:7}\` was pushed and deployed to the review app during the run. Its own run will test it."
+          fi
+          if [[ -n "$reason" ]]; then
+            echo "::warning::$reason"
+            echo "interrupted=$reason" >> "$GITHUB_OUTPUT"
+          else
+            echo "The review app was there throughout, so the failures stand."
+          fi
+
       # From here on the steps also run when the tests failed or the run was cancelled, so the
       # pull request is never left saying "running".
       - name: Summarise the results
@@ -176,9 +214,10 @@ jobs:
           APP_URL: ${{ steps.target.outputs.url }}
           # Nobody is told to fix a run that someone cancelled.
           AUTHOR: ${{ job.status != 'cancelled' && steps.target.outputs.author || '' }}
+          INTERRUPTED: ${{ steps.app.outputs.interrupted }}
         run: |
           pwsh scripts/e2e-summary.ps1 -ResultsFile TestResults/e2e.trx -OutFile summary.md \
-            -Commit "$SHA" -AppUrl "$APP_URL" -RunUrl "$RUN_URL" -Author "$AUTHOR"
+            -Commit "$SHA" -AppUrl "$APP_URL" -RunUrl "$RUN_URL" -Author "$AUTHOR" -Interrupted "$INTERRUPTED"
           cat summary.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Put the results on the pull request
@@ -197,8 +236,9 @@ jobs:
             --jq ".[] | select(.body | contains(\"$COMMENT_MARKER\")) | .id" | tail -n 1)
           # GitHub notifies people of a new comment, not of an edit to an old one. A pass
           # edits the comment in place. Anything else replaces it with a new one, so the
-          # person it mentions is told. A cancelled run is nobody's to fix: edit in place.
-          if [[ ("$RESULT" == "passed" || "$JOB_STATUS" == "cancelled") && -n "$id" ]]; then
+          # person it mentions is told. A cancelled or interrupted run is nobody's to fix: edit
+          # in place.
+          if [[ ("$RESULT" == "passed" || "$RESULT" == "interrupted" || "$JOB_STATUS" == "cancelled") && -n "$id" ]]; then
             gh api --method PATCH "repos/$GH_REPO/issues/comments/$id" -F body=@comment.md --silent
           else
             [[ -z "$id" ]] || gh api --method DELETE "repos/$GH_REPO/issues/comments/$id" --silent

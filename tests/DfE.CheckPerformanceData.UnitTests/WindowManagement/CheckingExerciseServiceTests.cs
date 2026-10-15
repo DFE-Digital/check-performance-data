@@ -544,19 +544,23 @@ public sealed class CheckingExerciseServiceTests
     }
 
     [Fact]
-    public void DeriveDatesFromExercises_includes_the_latest_extension_end()
+    public void DeriveDatesFromExercises_leaves_extension_ends_out()
     {
+        // Review finding 1 (15 Oct): the stored window end is read by admin pages, the establishment
+        // page and the deadline fallbacks, none of which is asked for a school. An extension end in
+        // it would be one school's date shown to every school. The school's own end comes from
+        // EndDateFor(laestab) on the exercises, never from the window.
         var exercise = Exercise(CheckingExerciseType.PupilData, LastMonth, Yesterday);
         exercise.Extensions.Add(Extension(NextMonth, "9334290"));
         var window = new CheckingWindowDto
         {
             Title = "w", KeyStage = KeyStages.KS4, CheckingWindowType = CheckingWindowType.KS4June,
-            StartDate = LastMonth, EndDate = Yesterday, Exercises = [exercise]
+            StartDate = LastMonth, EndDate = NextMonth, Exercises = [exercise]
         };
 
         window.DeriveDatesFromExercises();
 
-        Assert.Equal(NextMonth, window.EndDate);
+        Assert.Equal(Yesterday, window.EndDate);
     }
 
     // ── AB#307773: school-aware answers ──────────────────────────────────────

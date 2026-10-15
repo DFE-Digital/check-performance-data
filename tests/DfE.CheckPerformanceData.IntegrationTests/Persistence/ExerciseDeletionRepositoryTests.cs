@@ -80,9 +80,9 @@ public sealed class ExerciseDeletionRepositoryTests(PostgresFixture fixture)
         Assert.Equal(SecondEnd, window.EndDate);
     }
 
-    // AB#307773 decision 8: the window's end includes the extensions of the exercises that are left.
+    // Review finding 1 (15 Oct): the window's end is the surviving exercises' latest end; extension ends stay out.
     [Fact]
-    public async Task Delete_keeps_the_window_end_at_a_surviving_exercises_extension_end()
+    public async Task Delete_leaves_a_surviving_exercises_extension_end_out_of_the_window_end()
     {
         var seeded = await SeedWindowAsync();
         var extensionEnd = FirstEnd.AddDays(14);
@@ -102,7 +102,7 @@ public sealed class ExerciseDeletionRepositoryTests(PostgresFixture fixture)
         await using var ctx = fixture.CreateContext();
         var window = await ctx.CheckingWindows.SingleAsync(w => w.Id == seeded.WindowId);
         Assert.Equal(SecondStart, window.StartDate);
-        Assert.Equal(extensionEnd, window.EndDate);
+        Assert.Equal(SecondEnd, window.EndDate);
     }
 
     [Fact]

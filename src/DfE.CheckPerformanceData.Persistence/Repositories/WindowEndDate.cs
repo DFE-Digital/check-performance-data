@@ -4,9 +4,11 @@ using Microsoft.EntityFrameworkCore;
 namespace DfE.CheckPerformanceData.Persistence.Repositories;
 
 /// <summary>
-/// The window's own end date is the latest end any school sees — the latest exercise end, or a
-/// later extension end (AB#307773) — and is never typed (#319). Every writer that moves an
-/// exercise or extension end re-derives it here, so no two of them can disagree.
+/// The window's own end date is the latest exercise end, never typed (#319). Every writer that
+/// moves an exercise end re-derives it here, so no two of them can disagree. Extension ends are
+/// left out (AB#307773 review, finding 1): the stored end is read by admin pages, the
+/// establishment-wide requests page and the deadline fallbacks, none of which is asked for a
+/// school; a school's own end is CheckingExerciseDto.EndDateFor(laestab).
 /// </summary>
 internal static class WindowEndDate
 {
@@ -15,11 +17,7 @@ internal static class WindowEndDate
         var exerciseEnd = await db.CheckingExercises.Where(e => e.CheckingWindowId == windowId)
             .Select(e => (DateTime?)e.EndDate).MaxAsync(ct);
         if (exerciseEnd is null) return;   // no exercises: nothing to derive from (ExerciseDeletionRepository keeps the dates)
-        var extensionEnd = await db.CheckingExerciseExtensions
-            .Where(x => db.CheckingExercises.Any(e => e.Id == x.CheckingExerciseId && e.CheckingWindowId == windowId))
-            .Select(x => (DateTime?)x.EndDate).MaxAsync(ct);
-        var latest = extensionEnd > exerciseEnd ? extensionEnd.Value : exerciseEnd.Value;
         await db.CheckingWindows.Where(w => w.Id == windowId)
-            .ExecuteUpdateAsync(s => s.SetProperty(w => w.EndDate, latest), ct);
+            .ExecuteUpdateAsync(s => s.SetProperty(w => w.EndDate, exerciseEnd.Value), ct);
     }
 }

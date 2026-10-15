@@ -4,9 +4,9 @@ namespace DfE.CheckPerformanceData.Application.WindowManagement;
 
 /// <summary>
 /// AB#307773: the writes behind an exercise extension. Each one is a single transaction holding
-/// its WindowAdmin audit row, and each one that moves an end date re-derives the window's own end
-/// (the latest exercise or extension end), so a school named in an open extension still sees the
-/// window. Whether an extension may be added, edited or closed is decided by the caller; the
+/// its WindowAdmin audit row, and each one re-derives the window's own end from the exercise ends
+/// (<c>WindowEndDate</c>); extension ends never reach the window row.
+/// Whether an extension may be added, edited or closed is decided by the caller; the
 /// guards here only refuse to act on a row that changed since the caller read it.
 /// </summary>
 public interface IExerciseExtensionRepository

@@ -119,7 +119,7 @@ public sealed class ExerciseExtensionRepositoryTests(PostgresFixture fixture) : 
     };
 
     [Fact]
-    public async Task Add_writes_the_rows_the_audit_row_and_moves_the_window_end()
+    public async Task Add_writes_the_rows_and_the_audit_row_and_leaves_the_window_end()
     {
         Guid id;
         await using (var ctx = fixture.CreateContext())
@@ -134,7 +134,7 @@ public sealed class ExerciseExtensionRepositoryTests(PostgresFixture fixture) : 
         var extension = await check.CheckingExerciseExtensions.Include(x => x.Schools).SingleAsync(x => x.Id == id);
         Assert.Equal(2, extension.Schools.Count);
         Assert.All(extension.Schools, s => Assert.Equal(_exerciseId, s.CheckingExerciseId));
-        Assert.Equal(ExtensionEnd, (await check.CheckingWindows.SingleAsync(w => w.Id == _windowId)).EndDate);
+        Assert.Equal(ExerciseEnd, (await check.CheckingWindows.SingleAsync(w => w.Id == _windowId)).EndDate);
         var audit = await check.AuditEntries.SingleAsync(a => a.EntityType == "WindowAdmin" && a.EntityId == _windowId.ToString() && a.Action == "ExtensionAdded");
         Assert.Equal("user-1", audit.UserId);
         Assert.Contains("\"extensionId\":\"" + id, audit.NewValues);
@@ -180,7 +180,7 @@ public sealed class ExerciseExtensionRepositoryTests(PostgresFixture fixture) : 
         var extension = await check.CheckingExerciseExtensions.Include(x => x.Schools).SingleAsync(x => x.Id == id);
         Assert.Equal(ExtensionEnd.AddDays(9), extension.EndDate);
         Assert.Equal(["1234567", "9334290"], extension.Schools.Select(s => s.Laestab).OrderBy(l => l));
-        Assert.Equal(ExtensionEnd.AddDays(9), (await check.CheckingWindows.SingleAsync(w => w.Id == _windowId)).EndDate);
+        Assert.Equal(ExerciseEnd, (await check.CheckingWindows.SingleAsync(w => w.Id == _windowId)).EndDate);
         var audit = await check.AuditEntries.SingleAsync(a => a.Action == "ExtensionEdited" && a.EntityId == _windowId.ToString());
         Assert.Contains("\"schoolsAdded\":[\"1234567\"]", audit.NewValues);
         Assert.Contains("\"schoolsRemoved\":[\"8604070\"]", audit.NewValues);
@@ -309,29 +309,20 @@ public sealed class ExerciseExtensionRepositoryTests(PostgresFixture fixture) : 
         Assert.Equal(1, sent.DraftsCancelled);
     }
 
-    // Decision 8: a window edit writes the DTO's derived end first, so a DTO built without the
-    // extension would otherwise shrink the window back to the exercise's end and hide the window
-    // from the named schools.
+    // Review finding 1 (15 Oct): the window's stored end is the exercises' own latest end, whatever
+    // extensions exist. The school's end is computed from the extensions on every read.
     [Fact]
-    public async Task A_window_update_whose_dto_lacks_the_extension_keeps_the_window_end_at_the_extension_end()
+    public async Task No_extension_write_moves_the_window_end()
     {
         Guid id;
         await using (var ctx = fixture.CreateContext())
             id = await Repository(ctx).AddAsync(NewExt("9334290"), CancellationToken.None);
-
-        CheckingWindowDto window;
         await using (var ctx = fixture.CreateContext())
-            window = (await new WindowRepository(ctx).GetByIdAsync(_windowId, CancellationToken.None))!;
-        window.Exercises.Single().Extensions.Clear();
-        window.DeriveDatesFromExercises();
-        Assert.Equal(ExerciseEnd, window.EndDate);
-
-        await using (var ctx = fixture.CreateContext())
-            await new WindowRepository(ctx).UpdateAsync(window, CancellationToken.None);
+            await Repository(ctx).UpdateAsync(Edit(id, previous: ExtensionEnd, newEnd: ExtensionEnd.AddDays(9), "9334290"), CancellationToken.None);
 
         await using var check = fixture.CreateContext();
-        Assert.Equal(ExtensionEnd, (await check.CheckingWindows.SingleAsync(w => w.Id == _windowId)).EndDate);
-        Assert.True(await check.CheckingExerciseExtensions.AnyAsync(x => x.Id == id));
+        Assert.Equal(ExerciseEnd, (await check.CheckingWindows.SingleAsync(w => w.Id == _windowId)).EndDate);
+        Assert.Equal(ExtensionEnd.AddDays(9), (await check.CheckingExerciseExtensions.SingleAsync(x => x.Id == id)).EndDate);
     }
 
     [Fact]

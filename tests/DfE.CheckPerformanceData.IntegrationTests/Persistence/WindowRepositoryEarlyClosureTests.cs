@@ -134,10 +134,10 @@ public sealed class WindowRepositoryEarlyClosureTests(PostgresFixture fixture) :
         Assert.Equal(EnquiryEnd, window.EndDate);
     }
 
-    // AB#307773 decision 8: closing the exercise does not close its extension, whose schools still
-    // see the window, so the window's own end stays at the extension's.
+    // Review finding 1 (15 Oct): closing the exercise does not close its extension, but the window's
+    // own end is the exercises' latest end; the extension's schools get theirs from the extension.
     [Fact]
-    public async Task Closing_an_exercise_with_a_later_extension_keeps_the_window_end_at_the_extension_end()
+    public async Task Closing_an_exercise_with_a_later_extension_leaves_the_extension_end_out_of_the_window_end()
     {
         var extensionEnd = EnquiryEnd.AddDays(7);
         await using (var seed = fixture.CreateContext())
@@ -154,7 +154,7 @@ public sealed class WindowRepositoryEarlyClosureTests(PostgresFixture fixture) :
         Assert.True(await CloseAsync(Closure(CheckingExerciseType.ResultsEnquiry, EnquiryEnd)));
 
         await using var ctx = fixture.CreateContext();
-        Assert.Equal(extensionEnd, (await ctx.CheckingWindows.SingleAsync(w => w.Id == _windowId)).EndDate);
+        Assert.Equal(PupilDataEnd, (await ctx.CheckingWindows.SingleAsync(w => w.Id == _windowId)).EndDate);
     }
 
     [Fact]

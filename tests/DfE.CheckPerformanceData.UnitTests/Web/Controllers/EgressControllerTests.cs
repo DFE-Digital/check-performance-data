@@ -175,7 +175,7 @@ public sealed class EgressControllerTests
         Assert.Equal(nameof(EgressController.Resume), redirect.ActionName);
     }
 
-    // Review finding (18 Sep): ConnectionStrings:EgressStorage arrives only from deployment
+    // Review finding (18 Sep): ConnectionStrings:IngressStorage arrives only from deployment
     // configuration, and the only check was at the very last step — an ops user could pull,
     // preprocess and reach Summary before learning the environment had no target account. The
     // Pull page and the Summary now carry the flag so the views can warn up front. Pull and

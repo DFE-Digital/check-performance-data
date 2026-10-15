@@ -507,6 +507,7 @@ docs/superpowers/
 CLAUDE.md
 .claude/
 /.playwright-mcp
+/.playwright-cli
 .specify/
 .clinerules/
 .opencode/

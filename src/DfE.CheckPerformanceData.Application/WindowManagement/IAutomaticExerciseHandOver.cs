@@ -31,9 +31,14 @@ public interface IAutomaticExerciseHandOver
     Task<AutomaticHandOverOutcome> HandOverAsync(DueExercise due, CancellationToken cancellationToken);
 }
 
-/// <summary>An exercise that is due for automatic hand-over. The end date is a local wall-clock value.</summary>
-public sealed record DueExercise(Guid WindowId, string WindowTitle, CheckingExerciseType Exercise, DateTime ExerciseEnd);
+/// <summary>
+/// An exercise that is due for automatic hand-over. The end date is a local wall-clock value.
+/// The sweep is keyed by <paramref name="ExerciseId"/>, because a window may hold several releases
+/// of one kind (#466); the kind is carried for the log and the audit row.
+/// </summary>
+public sealed record DueExercise(
+    Guid WindowId, string WindowTitle, Guid ExerciseId, CheckingExerciseType Exercise, DateTime ExerciseEnd);
 
 /// <summary>What one automatic hand-over did. Both counts are zero when it failed or found nothing.</summary>
 public sealed record AutomaticHandOverOutcome(
-    Guid WindowId, CheckingExerciseType Exercise, int RequestsSent, int DraftsCancelled, bool Failed);
+    Guid WindowId, Guid ExerciseId, CheckingExerciseType Exercise, int RequestsSent, int DraftsCancelled, bool Failed);

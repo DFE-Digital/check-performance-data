@@ -29,7 +29,7 @@ public sealed class JourneyController(
     IOptionVisibilityService optionVisibilityService,
     IQuestionOptionalityService optionalityService,
     IOriginCountryLanguageCapture originCountryLanguageCapture,
-    IStudentResultsClient studentResultsClient,
+    IResultsClient resultsClient,
     IQualificationReferenceClient qualificationReferenceClient,
     IRequestNotificationService requestNotificationService,
     ICheckingExerciseService checkingExerciseService,
@@ -756,13 +756,13 @@ public sealed class JourneyController(
     /// Every result the journey's selected pupil holds at the signed-in school. Empty when no pupil
     /// has been chosen yet — which both renders an empty picker and makes any posted key unresolvable.
     /// </summary>
-    private async Task<IReadOnlyList<StudentResultRecord>> GetPupilResultsAsync(
+    private async Task<IReadOnlyList<ResultRecord>> GetPupilResultsAsync(
         Guid windowId, RequestState journey, CancellationToken ct = default)
     {
         var cypmdId = journey.SelectedPupil?.Cypmd_Id;
         if (string.IsNullOrWhiteSpace(cypmdId)) return [];
 
-        return await studentResultsClient.GetResultsAsync(
+        return await resultsClient.GetResultsAsync(
             windowId, currentUserService.OrganisationLaestab, cypmdId, ct);
     }
 

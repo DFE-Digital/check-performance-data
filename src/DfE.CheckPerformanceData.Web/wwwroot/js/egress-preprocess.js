@@ -2,23 +2,24 @@
     'use strict';
 
     // Enhances the egress Preprocessing page (AB#294553). Without JS the form posts and the server
-    // runs every step before redirecting. With JS the Run button opens a server-sent stream and
-    // each of the eight steps is marked Running / Done / Failed as the server reports it; the
-    // terminal event carries the URL to move on to (summary, or the failure list).
+    // runs every step before redirecting. With JS the Run button posts the same form's antiforgery
+    // token to a server-sent stream (post-event-stream.js; never a GET) and each of the eight steps
+    // is marked Running / Done / Failed as the server reports it; the terminal event carries the
+    // URL to move on to (summary, or the failure list).
 
     function init() {
         var root = document.querySelector('[data-module="egress-preprocess"]');
         if (!root) { return; }
 
         var streamUrl = root.getAttribute('data-stream-url');
-        if (!streamUrl || !('EventSource' in window)) { return; }
+        if (!streamUrl || !window.postEventStream || !window.postEventStream.supported()) { return; }
 
         var form = root.querySelector('[data-egress-form]');
         var startButton = root.querySelector('[data-egress-start]');
         var wrapper = root.querySelector('[data-egress-progress-wrapper]');
         var status = root.querySelector('[data-egress-status]');
         var bar = root.querySelector('[data-egress-progressbar]');
-        if (!startButton) { return; }
+        if (!startButton || !form) { return; }
 
         startButton.addEventListener('click', function (e) {
             e.preventDefault();
@@ -31,20 +32,18 @@
             disableLinks();
             setStatus('Starting…');
 
-            var es = new EventSource(streamUrl);
-            es.addEventListener('progress', function (event) {
-                var data;
-                try { data = JSON.parse(event.data); } catch (err) { return; }
+            var finished = false;
+            window.postEventStream(streamUrl, form, function (type, data) {
+                if (type !== 'progress') { return; }
                 render(data);
                 if (data.isComplete) {
-                    es.close();
+                    finished = true;
                     if (data.nextUrl) { window.location.href = data.nextUrl; }
                 }
-            });
-            es.onerror = function () {
+            }, function () {
+                if (finished) { return; }
                 setStatus('Connection lost. Refresh the page to see where the run got to.');
-                es.close();
-            };
+            });
         }
 
         function render(data) {

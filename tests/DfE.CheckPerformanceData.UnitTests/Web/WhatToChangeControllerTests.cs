@@ -330,7 +330,7 @@ public sealed class WhatToChangeControllerTests
         s.MatchedPupil = StalePupil("Ian", "Smith");
         s.MatchedPupilId = "some-stale-match-id";
         s.MatchedPupilLabel = "Smith, Ian";
-        s.SelectedResult = new StudentResultRecord();
+        s.SelectedResult = new ResultRecord();
         s.SelectedResultQualification = new QualificationReference { Qan = "60146084", QualificationTitle = "Maths" };
         s.QuestionAnswers = new() { ["first-name"] = new QuestionAnswer { TextValue = "Alice" } };
         s.QuestionHistory = ["learner-details", "admission-details", "evidence"];

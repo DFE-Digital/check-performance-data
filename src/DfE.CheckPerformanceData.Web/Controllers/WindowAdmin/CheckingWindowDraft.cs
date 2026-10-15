@@ -12,8 +12,13 @@ public sealed class CheckingWindowDraft : AdminPage
     public string TitleLink(IUrlHelper url) => url.Action("New", "Title")!;
     public CheckingWindowType? CheckingWindowType { get; set; }
     public string CheckingWindowTypeLink(IUrlHelper url) => url.Action("New", "WindowType")!;
-    public KeyStages? KeyStage { get; set; }
-    public string KeyStageLink(IUrlHelper url) => url.Action("New", "KeyStage")!;
+
+    /// <summary>
+    /// Derived from the window type — the wizard has no key stage step. Shown on the check answers
+    /// page; <see cref="IWindowService.CreateAsync"/> derives it again when the window is saved.
+    /// </summary>
+    public KeyStages? KeyStage =>
+        CheckingWindowType is { } type ? WindowKeyStage.For(type) : null;
 
     /// <summary>
     /// The exercises this window will run, each with its own dates (#319). The window's own
@@ -22,7 +27,24 @@ public sealed class CheckingWindowDraft : AdminPage
     /// </summary>
     public List<ExerciseDraft> Exercises { get; set; } = [];
 
-    public string ExercisesLink(IUrlHelper url) => url.Action("New", "Exercises")!;
+    /// <summary>
+    /// Gives the draft the window type's default exercises. The wizard has no exercise step: an
+    /// admin adds other exercises from the window's summary page after it is created. An exercise
+    /// the new type also runs keeps the dates already given for it.
+    /// </summary>
+    public void UseDefaultExercises() =>
+        Exercises = CheckingWindowType is { } type
+            ? WindowExercises.DefaultsFor(type)
+                .OrderBy(WindowExercises.DefaultTabOrder)
+                .Select(kind =>
+                {
+                    ExerciseDraft exercise = Exercises.SingleOrDefault(e => e.ExerciseType == kind)
+                                             ?? new ExerciseDraft { ExerciseType = kind };
+                    exercise.TabOrder = WindowExercises.DefaultTabOrder(kind);
+                    return exercise;
+                })
+                .ToList()
+            : [];
 
     /// <summary>Earliest exercise start. Null until at least one exercise has its dates.</summary>
     public DateTime? StartDate =>
@@ -38,7 +60,7 @@ public sealed class CheckingWindowDraft : AdminPage
 
     /// <summary>The first exercise still missing its dates, or null when all are complete.</summary>
     public ExerciseDraft? FirstUndatedExercise =>
-        Exercises.OrderBy(e => e.SortOrder).FirstOrDefault(e => !e.IsDated);
+        Exercises.OrderBy(e => e.TabOrder).FirstOrDefault(e => !e.IsDated);
 
     public bool IsValid
     {
@@ -56,18 +78,17 @@ public sealed class CheckingWindowDraft : AdminPage
     }
 
     public bool IsEmpty =>
-        Title == null && !CheckingWindowType.HasValue && !KeyStage.HasValue && Exercises.Count == 0;
+        Title == null && !CheckingWindowType.HasValue && Exercises.Count == 0;
 
     /// <summary>
-    /// The next unanswered step. The exercise step comes after the window type, because the type
-    /// decides which exercises start ticked; the per-exercise date pages then follow one at a time.
+    /// The next unanswered step. The window type step gives the draft its default exercises
+    /// (<see cref="UseDefaultExercises"/>), so a draft with a type but no exercises goes back there.
+    /// The per-exercise date pages then follow one at a time.
     /// </summary>
     public string NextController(IUrlHelper url)
     {
         if (Title is null) return url.Action("New", "Title")!;
-        if (!CheckingWindowType.HasValue) return url.Action("New", "WindowType")!;
-        if (!KeyStage.HasValue) return url.Action("New", "KeyStage")!;
-        if (Exercises.Count == 0) return url.Action("New", "Exercises")!;
+        if (!CheckingWindowType.HasValue || Exercises.Count == 0) return url.Action("New", "WindowType")!;
 
         ExerciseDraft? undated = FirstUndatedExercise;
         return undated is null
@@ -75,16 +96,24 @@ public sealed class CheckingWindowDraft : AdminPage
             : url.Action("New", "ExerciseDates", new { exercise = undated.ExerciseType })!;
     }
 
-    /// <summary>The draft's exercises as DTOs, ready for <see cref="IWindowService.CreateAsync"/>.</summary>
+    /// <summary>
+    /// The draft's exercises as DTOs, ready for <see cref="IWindowService.CreateAsync"/>. Each gets
+    /// its kind's default tab name and starts disabled: schools see nothing until an admin has
+    /// loaded the data and enabled the exercise on its edit page.
+    /// </summary>
     public List<CheckingExerciseDto> ToExerciseDtos() =>
         Exercises
-            .OrderBy(e => e.SortOrder)
+            .OrderBy(e => e.TabOrder)
             .Select(e => new CheckingExerciseDto
             {
                 ExerciseType = e.ExerciseType,
+                TabName = WindowExercises.DefaultTabName(CheckingWindowType!.Value, e.ExerciseType),
+                IsEnabled = false,
+                ShowLateResultsWarning = WindowExercises.ShowsLateResultsWarningByDefault(e.ExerciseType),
+                Layout = WindowExercises.DefaultLayout(CheckingWindowType!.Value, e.ExerciseType),
                 StartDate = e.StartDate!.Value,
                 EndDate = e.EndDate!.Value,
-                SortOrder = e.SortOrder
+                TabOrder = e.TabOrder
             })
             .ToList();
 }
@@ -95,7 +124,7 @@ public sealed class ExerciseDraft
     public CheckingExerciseType ExerciseType { get; set; }
     public DateTime? StartDate { get; set; }
     public DateTime? EndDate { get; set; }
-    public int SortOrder { get; set; }
+    public int TabOrder { get; set; }
 
     public bool IsDated => StartDate.HasValue && EndDate.HasValue;
 }

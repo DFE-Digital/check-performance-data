@@ -891,8 +891,8 @@ public class UpdateTicketResponseDtoTests
 
         // Assert
         Assert.Equal(0L, dto.Id);
-        Assert.Equal(string.Empty, dto.Type);
-        Assert.Equal(string.Empty, dto.Body);
+        Assert.Null(dto.Type);
+        Assert.Null(dto.Body);
         Assert.Null(dto.Attachments);
     }
 

@@ -298,7 +298,7 @@ public sealed class BulkSubmissionServiceTests
             ExerciseType = CheckingExerciseType.PupilData,
             StartDate = FarFuture.AddYears(-1),
             EndDate = end,
-            SortOrder = 0
+            TabOrder = 0
         }
     ];
 

@@ -28,10 +28,8 @@
     </row>
     <row>
         <key>Key Stage</key>
+        @* Derived from the window type; change the window type to change it. *@
         <value>@Model.KeyStage?.GetDisplayName()</value>
-        <row-actions>
-            <action href="@Model.KeyStageLink(Url)" visually-hidden-text="Key Stage">Change</action>
-        </row-actions>
     </row>
     <row>
         <key>Checking exercises</key>
@@ -40,13 +38,12 @@
                 ? "None"
                 : string.Join(", ", Model.Exercises.Select(e => ExerciseLabels.For(e.ExerciseType))))
         </value>
-        <row-actions>
-            <action href="@Model.ExercisesLink(Url)" visually-hidden-text="Checking exercises">Change</action>
-        </row-actions>
+        @* No Change link: the exercises are the window type's defaults. Change the window type to
+           change them, or add others from the window's summary page after it is created. *@
     </row>
     @* #319: the window's own dates are the union of these and are never typed, so they get no row
        of their own here — only the exercises that produce them. *@
-    @foreach (var exercise in Model.Exercises.OrderBy(e => e.SortOrder))
+    @foreach (var exercise in Model.Exercises.OrderBy(e => e.TabOrder))
     {
         <row>
             <key>@ExerciseLabels.For(exercise.ExerciseType) dates</key>

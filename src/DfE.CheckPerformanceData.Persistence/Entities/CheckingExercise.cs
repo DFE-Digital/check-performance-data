@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -17,15 +18,62 @@ public sealed class CheckingExercise
 {
     public Guid Id { get; init; }
     public Guid CheckingWindowId { get; set; }
-    public CheckingExerciseType ExerciseType { get; init; }
+
+    /// <summary>
+    /// What a school may *do* with this exercise. Null since #466: a display-only data share is an
+    /// exercise the admin named and gave files to, with no journey behind it. Every kind lookup
+    /// ignores a null row by construction — lifted equality means null matches no member.
+    /// </summary>
+    public CheckingExerciseType? ExerciseType { get; init; }
+
+    /// <summary>
+    /// True for a row on the exercise-id blob layout (#466), which is every row created since.
+    /// False keeps the row on the old type-based paths, so blobs already written are still found
+    /// and no blob migration is needed.
+    /// </summary>
+    public bool UsesExerciseStorage { get; init; } = true;
+
+    /// <summary>The admin's name for this exercise, shown as the tab's heading.</summary>
+    public string? Name { get; set; }
+
+    /// <summary>The tab label on Check Your Pupil Data. Required: every exercise draws a tab.</summary>
+    public string TabName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Left-to-right order of the tabs, and the order of the exercises everywhere else: the admin
+    /// pages, the next steps and the deadlines. There is no separate admin order.
+    /// </summary>
+    public int TabOrder { get; set; }
+
+    /// <summary>False hides the exercise without deleting it, and without losing its files.</summary>
+    public bool IsEnabled { get; set; }
+
+    /// <summary>How the tab shows the data. Set by the admin, never by the schemas.</summary>
+    public ExerciseLayout Layout { get; set; } = ExerciseLayout.Table;
+
+    /// <summary>The school may look at this data and download it, and do nothing else.</summary>
+    public bool DisplayOnly { get; set; }
+
+    /// <summary>
+    /// A results enquiry shows its late results guidance before an incorrect-grade enquiry. Set by
+    /// the admin, and read by nothing else.
+    /// </summary>
+    public bool ShowLateResultsWarning { get; set; }
+
+    /// <summary>When the tab appears and disappears. Null at either end means no bound.</summary>
+    public DateTime? VisibleFrom { get; set; }
+    public DateTime? VisibleUntil { get; set; }
+
+    /// <summary>
+    /// The exercise this one supersedes, when a later release replaces an earlier one. Restricted
+    /// on delete: the row that was replaced must outlive the pointer to it.
+    /// </summary>
+    public Guid? ReplacesCheckingExerciseId { get; set; }
 
     // Settable since #319: the admin wizard captures each exercise's dates, so an existing row has
     // to be able to take new ones. Before that nothing could change them once written.
     public DateTime StartDate { get; set; }
     public DateTime EndDate { get; set; }
-
-    /// <summary>Display order in the admin wizard and on any per-exercise list.</summary>
-    public int SortOrder { get; set; }
 
     /// <summary>
     /// The CSV + schema pairs this exercise ingests, in sort order. Any number, including none —
@@ -40,6 +88,21 @@ public sealed class CheckingExercise
     /// ever describe one of them.
     /// </summary>
     public ExerciseValidated? Validated { get; set; }
+
+    /// <summary>
+    /// The release schools see. Null = no release yet, and the output (if any) is at the
+    /// unversioned <c>exercises/{Id}/data/</c> prefix.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately not a foreign key. A key from here to the release table, plus the key from the
+    /// release table back here, is a cycle that EF cannot order when an exercise is deleted. The
+    /// only code that writes it (<c>CheckingExerciseDefinitionRepository</c>) sets it to a release
+    /// of this exercise.
+    /// </remarks>
+    public Guid? CurrentReleaseId { get; set; }
+
+    /// <summary>Every successful run of this exercise, each with its own output.</summary>
+    public List<CheckingExerciseRelease> Releases { get; init; } = [];
 }
 
 /// <summary>
@@ -63,7 +126,11 @@ public sealed class CheckingExerciseConfiguration : IEntityTypeConfiguration<Che
 {
     public void Configure(EntityTypeBuilder<CheckingExercise> builder)
     {
-        builder.ToTable("CheckingExercises");
+        // A row with no kind is only meaningful as a display-only share on the new storage.
+        // Anything else is a half-configured exercise that the journeys cannot route.
+        builder.ToTable("CheckingExercises", table => table.HasCheckConstraint(
+            "CK_CheckingExercises_TypeOrDisplayOnly",
+            "\"ExerciseType\" IS NOT NULL OR (\"DisplayOnly\" AND \"UsesExerciseStorage\")"));
 
         builder.HasKey(x => x.Id);
 
@@ -71,7 +138,7 @@ public sealed class CheckingExerciseConfiguration : IEntityTypeConfiguration<Che
             .HasDefaultValueSql("gen_random_uuid()");
 
         builder.Property(x => x.ExerciseType)
-            .IsRequired()
+            .IsRequired(false)
             .HasConversion<string>()
             .HasMaxLength(50);
 
@@ -88,9 +155,22 @@ public sealed class CheckingExerciseConfiguration : IEntityTypeConfiguration<Che
             .HasForeignKey(x => x.CheckingWindowId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // One row per exercise type per window: the lookup #315 does. This caps repeats of a type,
-        // never how many types a window may hold.
-        builder.HasIndex(x => new { x.CheckingWindowId, x.ExerciseType }).IsUnique();
+        builder.Property(x => x.Layout)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .HasDefaultValue(ExerciseLayout.Table);
+
+        builder.Property(x => x.Name).HasMaxLength(200);
+        builder.Property(x => x.TabName).HasMaxLength(100).IsRequired();
+        builder.Property(x => x.VisibleFrom).HasColumnType("timestamp without time zone");
+        builder.Property(x => x.VisibleUntil).HasColumnType("timestamp without time zone");
+        builder.HasOne<CheckingExercise>().WithMany()
+            .HasForeignKey(x => x.ReplacesCheckingExerciseId).OnDelete(DeleteBehavior.Restrict);
+
+        // Only the legacy type-addressed rows need this. The new storage deliberately allows
+        // several releases of one activity, and any number of typeless shares, in one window.
+        builder.HasIndex(x => new { x.CheckingWindowId, x.ExerciseType })
+            .IsUnique().HasFilter("\"UsesExerciseStorage\" = false");
 
         builder.OwnsOne(x => x.Validated, validated =>
         {

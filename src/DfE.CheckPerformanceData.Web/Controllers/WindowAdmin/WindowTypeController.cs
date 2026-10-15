@@ -49,6 +49,7 @@ public sealed class WindowTypeController(IWindowService windowService) : Control
             WindowId = id,
             Types = Enum.GetValues<CheckingWindowType>(),
             PostUrl = Url.Action("Update", "WindowType"),
+            CancelUrl = Url.Action("Index", "Summary", new { id }),
             WindowType = window.CheckingWindowType
         };
         
@@ -72,6 +73,9 @@ public sealed class WindowTypeController(IWindowService windowService) : Control
         }
 
         draft.CheckingWindowType = model.WindowType;
+        // There is no exercise step: the window takes its type's default exercises. The admin adds
+        // others from the window's summary page after it is created.
+        draft.UseDefaultExercises();
         HttpContext.Session.SetObject("CheckingWindowDraft", draft);
 
         return Redirect( draft.NextController(Url));
@@ -94,6 +98,10 @@ public sealed class WindowTypeController(IWindowService windowService) : Control
         
         if (ModelState.ErrorCount > 0)
         {
+            // The options and links are not posted back, so the page is built again.
+            model.Types = Enum.GetValues<CheckingWindowType>();
+            model.PostUrl = Url.Action("Update", "WindowType");
+            model.CancelUrl = Url.Action("Index", "Summary", new { id });
             return View(PageView, model);
         }
         

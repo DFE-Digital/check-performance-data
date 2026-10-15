@@ -1,5 +1,3 @@
-using DfE.CheckPerformanceData.Domain.Enums;
-
 namespace DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
 
 /// <summary>
@@ -9,8 +7,10 @@ namespace DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
 public sealed class SendRequestsViewModel
 {
     public required Guid WindowId { get; init; }
+    public required Guid ExerciseId { get; init; }
     public required string WindowTitle { get; init; }
-    public required CheckingExerciseType ExerciseType { get; init; }
+
+    /// <summary>The exercise's name, as on its summary card: several releases may share a kind.</summary>
     public required string ExerciseLabel { get; init; }
 
     public required int RequestsToSend { get; init; }
@@ -28,6 +28,6 @@ public sealed class SendRequestsViewModel
     /// <summary>Only waiting requests are left: nothing can be sent until the Rules Engine decides them.</summary>
     public bool OnlyWaiting => RequestsToSend == 0 && DraftsToCancel == 0 && RequestsWaiting > 0;
 
-    public string PostUrl => $"/admin/windows/{WindowId}/{ExerciseType}/send-requests";
+    public string PostUrl => $"/admin/windows/{WindowId}/exercises/{ExerciseId}/send-requests";
     public string CancelLink => $"/admin/windows/summary/{WindowId}";
 }

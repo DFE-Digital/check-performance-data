@@ -94,6 +94,32 @@ public sealed class ZendeskAttachmentServiceTests : IDisposable
         await _api.Received(1).UploadFile(Arg.Any<string>(), Arg.Any<Stream>());
     }
 
+    // Zendesk's audit holds a Change event for each field the comment changed, and a Change event
+    // has no body. The comment is already on the ticket by then, so mapping the reply must not throw.
+    [Fact]
+    public async Task AddAttachmentAsync_MapsAuditEventsWithNoBodyOrType()
+    {
+        var token = new UploadResponse { Upload = new() { Token = "tok1" } };
+        _api.UploadFile(Arg.Any<string>(), Arg.Any<Stream>()).Returns(token);
+
+        var response = ValidResponse();
+        response.Audit!.Events = new List<TicketAuditEvent>
+        {
+            new() { Id = 1L, Type = "Comment", Body = "Evidence: test.pdf" },
+            new() { Id = 2L, Type = "Change", Body = null },
+            new() { Id = 3L, Type = null, Body = null }
+        };
+        _api.AddCommentWithAttachment(42L, Arg.Any<UpdateTicketRequest>()).Returns(response);
+
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes("fake content"));
+        var result = await CreateSut().AddAttachmentAsync(42, "test.pdf", stream);
+
+        Assert.Equal(3, result.Audit.Events.Count);
+        Assert.Equal("Evidence: test.pdf", result.Audit.Events[0].Body);
+        Assert.Null(result.Audit.Events[1].Body);
+        Assert.Null(result.Audit.Events[2].Type);
+    }
+
     [Fact]
     public async Task AddAttachmentAsync_UsesCorrectFileName_OnUpload()
     {

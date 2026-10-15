@@ -20,6 +20,10 @@ public class CloseExerciseControllerTests
 {
     private static readonly Guid WindowId = Guid.Parse("11111111-1111-1111-1111-111111111111");
     private const CheckingExerciseType Exercise = CheckingExerciseType.PupilData;
+
+    // The row Close is pressed on. Close is addressed by id (#466): a window may hold several
+    // releases of one kind.
+    private static readonly Guid ExerciseId = Guid.Parse("22222222-2222-2222-2222-222222222222");
     private const string WindowTitle = "KS4 June 2026";
     private static readonly DateTime ScheduledEnd = new(2026, 6, 30, 17, 0, 0);
     private static readonly DateTime ClosedAt = new(2026, 6, 10, 10, 39, 27);
@@ -45,10 +49,11 @@ public class CloseExerciseControllerTests
         EndDate = ScheduledEnd,
         Exercises = exercises.Select((e, i) => new CheckingExerciseDto
         {
+            Id = e == Exercise ? ExerciseId : Guid.NewGuid(),
             ExerciseType = e,
             StartDate = new DateTime(2026, 6, 1),
             EndDate = ScheduledEnd,
-            SortOrder = i
+            TabOrder = i
         }).ToList()
     };
 
@@ -57,9 +62,9 @@ public class CloseExerciseControllerTests
 
     private void TheCloseSucceeds()
     {
-        _earlyClosure.CloseEarlyAsync(WindowId, Exercise, Arg.Any<EarlyClosureActor>(), Arg.Any<CancellationToken>())
+        _earlyClosure.CloseEarlyAsync(WindowId, ExerciseId, Arg.Any<EarlyClosureActor>(), Arg.Any<CancellationToken>())
             .Returns(EarlyClosureResult.Closed(ClosedAt, ScheduledEnd));
-        _closeService.CloseAsync(WindowId, Exercise, Arg.Any<CancellationToken>())
+        _closeService.CloseAsync(WindowId, ExerciseId, Arg.Any<CancellationToken>())
             .Returns(new CloseExerciseResult { Enqueued = 3, DraftsCancelled = 1 });
     }
 
@@ -68,11 +73,11 @@ public class CloseExerciseControllerTests
     {
         TheWindowRuns(Exercise);
         TheCloseSucceeds();
-        _closeService.CloseAsync(WindowId, Exercise, Arg.Any<CancellationToken>())
+        _closeService.CloseAsync(WindowId, ExerciseId, Arg.Any<CancellationToken>())
             .Returns(new CloseExerciseResult { Enqueued = 3, DraftsCancelled = 1, Waiting = 1 });
 
         var controller = Build();
-        await controller.Close(WindowId, Exercise, WindowTitle, CancellationToken.None);
+        await controller.Close(WindowId, ExerciseId, WindowTitle, CancellationToken.None);
 
         Assert.Equal(
             "Pupil data checking was closed early on 10/06/2026, 10:39 by Banks Jamgbadi. " +
@@ -110,7 +115,7 @@ public class CloseExerciseControllerTests
         _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>())
             .Returns((CheckingWindowDto?)null);
 
-        var result = await Build().Confirm(WindowId, Exercise, CancellationToken.None);
+        var result = await Build().Confirm(WindowId, ExerciseId, CancellationToken.None);
 
         Assert.IsType<NotFoundResult>(result);
     }
@@ -121,7 +126,7 @@ public class CloseExerciseControllerTests
         // A hand-typed URL must not offer to close an exercise this window never had.
         TheWindowRuns(CheckingExerciseType.ResultsEnquiry);
 
-        var result = await Build().Confirm(WindowId, Exercise, CancellationToken.None);
+        var result = await Build().Confirm(WindowId, ExerciseId, CancellationToken.None);
 
         Assert.IsType<NotFoundResult>(result);
     }
@@ -133,7 +138,7 @@ public class CloseExerciseControllerTests
         TheWindowRuns(Exercise);
 
         var controller = Build(OpenCheckingExercises.AlwaysClosed());
-        var result = await controller.Confirm(WindowId, Exercise, CancellationToken.None);
+        var result = await controller.Confirm(WindowId, ExerciseId, CancellationToken.None);
 
         var redirect = Assert.IsType<RedirectResult>(result);
         Assert.Equal($"/admin/windows/summary/{WindowId}", redirect.Url);
@@ -148,12 +153,13 @@ public class CloseExerciseControllerTests
         // AC3. No preview counts: the ticket struck the "drafts flagged to the closing user" check.
         TheWindowRuns(Exercise);
 
-        var result = await Build().Confirm(WindowId, Exercise, CancellationToken.None);
+        var result = await Build().Confirm(WindowId, ExerciseId, CancellationToken.None);
 
         var view = Assert.IsType<ViewResult>(result);
         Assert.Equal("~/Views/WindowAdmin/Close.cshtml", view.ViewName);
         var vm = Assert.IsType<CloseExerciseViewModel>(view.Model);
         Assert.Equal(WindowId, vm.WindowId);
+        Assert.Equal(ExerciseId, vm.ExerciseId);
         Assert.Equal(WindowTitle, vm.WindowTitle);
         Assert.Equal(Exercise, vm.ExerciseType);
         Assert.Equal("Pupil data checking", vm.ExerciseLabel);
@@ -163,6 +169,43 @@ public class CloseExerciseControllerTests
         await _closeService.DidNotReceiveWithAnyArgs().PreviewAsync(default, default, default);
     }
 
+    [Fact]
+    public async Task Confirm_get_returns_not_found_for_a_data_share()
+    {
+        // A data share has no kind: no journey to shut and no requests to hand over.
+        var window = Window();
+        window.Exercises.Add(new CheckingExerciseDto
+        {
+            Id = ExerciseId, ExerciseType = null, DisplayOnly = true,
+            StartDate = new DateTime(2026, 6, 1), EndDate = ScheduledEnd
+        });
+        _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(window);
+
+        var result = await Build().Confirm(WindowId, ExerciseId, CancellationToken.None);
+
+        Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task Confirm_get_names_the_release_by_its_own_name()
+    {
+        // Two releases of one kind would both read "Pupil data checking". The page uses the name
+        // the summary card shows, so the admin knows which one they are closing.
+        var window = Window();
+        window.Exercises.Add(new CheckingExerciseDto
+        {
+            Id = ExerciseId, ExerciseType = Exercise, Name = "Revised students",
+            StartDate = new DateTime(2026, 6, 1), EndDate = ScheduledEnd
+        });
+        _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(window);
+
+        var result = await Build().Confirm(WindowId, ExerciseId, CancellationToken.None);
+
+        var vm = Assert.IsType<CloseExerciseViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.Equal("Revised students", vm.ExerciseLabel);
+        Assert.Equal($"/admin/windows/{WindowId}/exercises/{ExerciseId}/close", vm.PostUrl);
+    }
+
     // ── POST: refusals ───────────────────────────────────────────────────────
 
     [Fact]
@@ -170,7 +213,7 @@ public class CloseExerciseControllerTests
     {
         TheWindowRuns(CheckingExerciseType.ResultsEnquiry);
 
-        var result = await Build().Close(WindowId, Exercise, WindowTitle, CancellationToken.None);
+        var result = await Build().Close(WindowId, ExerciseId, WindowTitle, CancellationToken.None);
 
         Assert.IsType<NotFoundResult>(result);
         await NothingWasClosedOrSwept();
@@ -182,7 +225,7 @@ public class CloseExerciseControllerTests
         TheWindowRuns(Exercise);
 
         var controller = Build(OpenCheckingExercises.AlwaysClosed());
-        var result = await controller.Close(WindowId, Exercise, WindowTitle, CancellationToken.None);
+        var result = await controller.Close(WindowId, ExerciseId, WindowTitle, CancellationToken.None);
 
         Assert.IsType<RedirectResult>(result);
         Assert.NotNull(controller.TempData[SendExerciseRequestsController.RefusedTempDataKey]);
@@ -197,7 +240,7 @@ public class CloseExerciseControllerTests
     {
         TheWindowRuns(Exercise);
 
-        var result = await Build().Close(WindowId, Exercise, typed, CancellationToken.None);
+        var result = await Build().Close(WindowId, ExerciseId, typed, CancellationToken.None);
 
         var vm = Assert.IsType<CloseExerciseViewModel>(Assert.IsType<ViewResult>(result).Model);
         Assert.Equal("Enter the window name", vm.Error);
@@ -213,7 +256,7 @@ public class CloseExerciseControllerTests
         // AC4: the exercise stays open, the admin is told why, and can try again.
         TheWindowRuns(Exercise);
 
-        var result = await Build().Close(WindowId, Exercise, typed, CancellationToken.None);
+        var result = await Build().Close(WindowId, ExerciseId, typed, CancellationToken.None);
 
         var view = Assert.IsType<ViewResult>(result);
         Assert.Equal("~/Views/WindowAdmin/Close.cshtml", view.ViewName);
@@ -237,15 +280,39 @@ public class CloseExerciseControllerTests
         TheWindowRuns(Exercise);
         TheCloseSucceeds();
 
-        var result = await Build().Close(WindowId, Exercise, typed, CancellationToken.None);
+        var result = await Build().Close(WindowId, ExerciseId, typed, CancellationToken.None);
 
         Received.InOrder(() =>
         {
-            _earlyClosure.CloseEarlyAsync(WindowId, Exercise, Arg.Any<EarlyClosureActor>(), Arg.Any<CancellationToken>());
-            _closeService.CloseAsync(WindowId, Exercise, Arg.Any<CancellationToken>());
+            _earlyClosure.CloseEarlyAsync(WindowId, ExerciseId, Arg.Any<EarlyClosureActor>(), Arg.Any<CancellationToken>());
+            _closeService.CloseAsync(WindowId, ExerciseId, Arg.Any<CancellationToken>());
         });
         var redirect = Assert.IsType<RedirectResult>(result);
         Assert.Equal($"/admin/windows/summary/{WindowId}", redirect.Url);
+    }
+
+    [Fact]
+    public async Task Close_post_closes_the_release_it_names_and_not_another_of_its_kind()
+    {
+        // #466: a window may hold an autumn and a revised release of one kind. Close acts on the
+        // row the admin pressed it on, by id.
+        var window = Window(Exercise);
+        var other = new CheckingExerciseDto
+        {
+            Id = Guid.NewGuid(), ExerciseType = Exercise,
+            StartDate = new DateTime(2026, 6, 1), EndDate = ScheduledEnd, TabOrder = 1
+        };
+        window.Exercises.Add(other);
+        _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(window);
+        TheCloseSucceeds();
+
+        await Build().Close(WindowId, ExerciseId, WindowTitle, CancellationToken.None);
+
+        await _earlyClosure.Received(1).CloseEarlyAsync(
+            WindowId, ExerciseId, Arg.Any<EarlyClosureActor>(), Arg.Any<CancellationToken>());
+        await _closeService.Received(1).CloseAsync(WindowId, ExerciseId, Arg.Any<CancellationToken>());
+        await _earlyClosure.DidNotReceive().CloseEarlyAsync(
+            WindowId, other.Id, Arg.Any<EarlyClosureActor>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -254,10 +321,10 @@ public class CloseExerciseControllerTests
         TheWindowRuns(Exercise);
         TheCloseSucceeds();
 
-        await Build().Close(WindowId, Exercise, WindowTitle, CancellationToken.None);
+        await Build().Close(WindowId, ExerciseId, WindowTitle, CancellationToken.None);
 
         await _earlyClosure.Received(1).CloseEarlyAsync(
-            WindowId, Exercise,
+            WindowId, ExerciseId,
             Arg.Is<EarlyClosureActor>(a => a.UserId == "sub-1" && a.DisplayName == "Banks Jamgbadi"),
             Arg.Any<CancellationToken>());
     }
@@ -270,7 +337,7 @@ public class CloseExerciseControllerTests
         TheCloseSucceeds();
 
         var controller = Build();
-        await controller.Close(WindowId, Exercise, WindowTitle, CancellationToken.None);
+        await controller.Close(WindowId, ExerciseId, WindowTitle, CancellationToken.None);
 
         Assert.Equal(
             "Pupil data checking was closed early on 10/06/2026, 10:39 by Banks Jamgbadi. " +
@@ -285,11 +352,11 @@ public class CloseExerciseControllerTests
         // The service found the exercise no longer open (a second admin, or the scheduled end
         // passing while the page was up). Nothing was closed by this press, so nothing is swept.
         TheWindowRuns(Exercise);
-        _earlyClosure.CloseEarlyAsync(WindowId, Exercise, Arg.Any<EarlyClosureActor>(), Arg.Any<CancellationToken>())
+        _earlyClosure.CloseEarlyAsync(WindowId, ExerciseId, Arg.Any<EarlyClosureActor>(), Arg.Any<CancellationToken>())
             .Returns(EarlyClosureResult.NotOpen);
 
         var controller = Build();
-        var result = await controller.Close(WindowId, Exercise, WindowTitle, CancellationToken.None);
+        var result = await controller.Close(WindowId, ExerciseId, WindowTitle, CancellationToken.None);
 
         Assert.IsType<RedirectResult>(result);
         Assert.Equal(
@@ -308,13 +375,13 @@ public class CloseExerciseControllerTests
         // reads a blob and writes a queue row per request. If it throws, an error page would leave
         // the admin not knowing the exercise had closed. They are told it did, and where to retry.
         TheWindowRuns(Exercise);
-        _earlyClosure.CloseEarlyAsync(WindowId, Exercise, Arg.Any<EarlyClosureActor>(), Arg.Any<CancellationToken>())
+        _earlyClosure.CloseEarlyAsync(WindowId, ExerciseId, Arg.Any<EarlyClosureActor>(), Arg.Any<CancellationToken>())
             .Returns(EarlyClosureResult.Closed(ClosedAt, ScheduledEnd));
-        _closeService.CloseAsync(WindowId, Exercise, Arg.Any<CancellationToken>())
+        _closeService.CloseAsync(WindowId, ExerciseId, Arg.Any<CancellationToken>())
             .Returns(Task.FromException<CloseExerciseResult>(new InvalidOperationException("queue unavailable")));
 
         var controller = Build();
-        var result = await controller.Close(WindowId, Exercise, WindowTitle, CancellationToken.None);
+        var result = await controller.Close(WindowId, ExerciseId, WindowTitle, CancellationToken.None);
 
         var redirect = Assert.IsType<RedirectResult>(result);
         Assert.Equal($"/admin/windows/summary/{WindowId}", redirect.Url);
@@ -331,12 +398,12 @@ public class CloseExerciseControllerTests
     public async Task Close_post_does_not_swallow_a_cancelled_request()
     {
         TheWindowRuns(Exercise);
-        _earlyClosure.CloseEarlyAsync(WindowId, Exercise, Arg.Any<EarlyClosureActor>(), Arg.Any<CancellationToken>())
+        _earlyClosure.CloseEarlyAsync(WindowId, ExerciseId, Arg.Any<EarlyClosureActor>(), Arg.Any<CancellationToken>())
             .Returns(EarlyClosureResult.Closed(ClosedAt, ScheduledEnd));
-        _closeService.CloseAsync(WindowId, Exercise, Arg.Any<CancellationToken>())
+        _closeService.CloseAsync(WindowId, ExerciseId, Arg.Any<CancellationToken>())
             .Returns(Task.FromException<CloseExerciseResult>(new OperationCanceledException()));
 
         await Assert.ThrowsAsync<OperationCanceledException>(
-            () => Build().Close(WindowId, Exercise, WindowTitle, CancellationToken.None));
+            () => Build().Close(WindowId, ExerciseId, WindowTitle, CancellationToken.None));
     }
 }

@@ -4,63 +4,99 @@ using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Admin;
 
-// A Post16 window ingests TWO supplier pupil files (included + non-included) because the
-// non-included file has no P_INCL column; every other window type ingests one. A results enquiry
-// ingests one file per source in the results feed (#324), each slot named by the tag it stamps.
+// Pupil data checking (except KS4 June) and data shares start with no slots: the admin adds the
+// files. KS4 June pupil data starts with its one supplier file. A results
+// enquiry ingests one file per source in the results feed (#324), each slot named by the tag it
+// stamps, so it still starts with those slots.
 public class WindowDatasetDefaultsTests
 {
-    [Fact]
-    public void Post16_defaults_to_an_included_and_a_non_included_dataset()
+    [Theory]
+    [InlineData(CheckingWindowType.Post16)]
+    [InlineData(CheckingWindowType.KS4Autumn)]
+    [InlineData(CheckingWindowType.KS2)]
+    public void Pupil_data_checking_starts_with_no_slots(CheckingWindowType type)
     {
-        var datasets = WindowDatasets.DefaultsFor(CheckingWindowType.Post16, CheckingExerciseType.PupilData);
+        // The admin adds the pupil files, for example two (included + non-included) for 16-19.
+        Assert.Empty(WindowDatasets.DefaultsFor(type, CheckingExerciseType.PupilData));
+    }
 
-        Assert.Equal(2, datasets.Count);
-        Assert.Equal("included", datasets[0].Name);
-        Assert.True(datasets[0].Included);
-        Assert.Equal(0, datasets[0].SortOrder);
-        Assert.Equal("nonincluded", datasets[1].Name);
-        Assert.False(datasets[1].Included);
-        Assert.Equal(1, datasets[1].SortOrder);
+    [Fact]
+    public void KS4_June_pupil_data_checking_starts_with_one_pupils_slot()
+    {
+        // KS4 June has one supplier pupil file. Each pupil carries their own P_INCL, so the slot
+        // stamps no inclusion, and the journey reads it.
+        var dataset = Assert.Single(
+            WindowDatasets.DefaultsFor(CheckingWindowType.KS4June, CheckingExerciseType.PupilData));
+
+        Assert.Equal(WindowDatasets.Pupils, dataset.Name);
+        Assert.Null(dataset.Included);
+        Assert.Null(dataset.SourceFile);
+        Assert.True(dataset.FeedsJourney);
+        Assert.True(dataset.Required);
+        Assert.Equal(0, dataset.SortOrder);
+    }
+
+    [Fact]
+    public void A_data_share_starts_with_no_slots()
+    {
+        // A share has no supplier feed. A default slot was labelled "Pupils" and was required,
+        // though the share needed neither.
+        Assert.Empty(WindowDatasets.DefaultsFor(CheckingWindowType.Post16, null));
     }
 
     [Theory]
-    [InlineData(CheckingWindowType.KS4June)]
+    [InlineData(CheckingExerciseType.PupilData, false, true)]
+    [InlineData(CheckingExerciseType.PupilData, true, false)]
+    [InlineData(CheckingExerciseType.ResultsEnquiry, false, true)]
+    [InlineData(CheckingExerciseType.ResultsEnquiry, true, false)]
+    [InlineData(null, false, false)]
+    public void An_added_file_feeds_the_journey_unless_it_is_a_data_share(
+        CheckingExerciseType? type, bool dataShare, bool feeds)
+        // A file added as a data share (previously published data) is only shown. A data share
+        // exercise has no journey.
+        => Assert.Equal(feeds, WindowDatasets.AddedSlotFeedsJourney(type, dataShare));
+
+    [Fact]
+    public void A_KS4_results_tag_is_stale_on_a_16_to_19_window_but_an_admin_slot_never_is()
+    {
+        Assert.True(WindowDatasets.IsStaleSupplierSlot(
+            CheckingWindowType.Post16, CheckingExerciseType.ResultsEnquiry, ResultsFileTags.Ks4Main));
+        Assert.False(WindowDatasets.IsStaleSupplierSlot(
+            CheckingWindowType.Post16, CheckingExerciseType.ResultsEnquiry, ResultsFileTags.Post16Main));
+        Assert.False(WindowDatasets.IsStaleSupplierSlot(
+            CheckingWindowType.Post16, CheckingExerciseType.ResultsEnquiry, "revised-summary"));
+        Assert.False(WindowDatasets.IsStaleSupplierSlot(
+            CheckingWindowType.KS4June, CheckingExerciseType.PupilData, "included"));
+    }
+
+    [Theory]
+    [InlineData(CheckingWindowType.Post16)]
     [InlineData(CheckingWindowType.KS4Autumn)]
     [InlineData(CheckingWindowType.KS2)]
-    public void Other_window_types_default_to_one_dataset_with_no_stamped_inclusion(CheckingWindowType type)
+    public void A_pupils_slot_is_never_stale_on_another_window_type(CheckingWindowType type)
     {
-        var datasets = WindowDatasets.DefaultsFor(type, CheckingExerciseType.PupilData);
-
-        var only = Assert.Single(datasets);
-        Assert.Equal("pupils", only.Name);
-        Assert.Null(only.Included);
+        // "pupils" is the KS4 June default, but it is a plain name an admin may also give a slot.
+        // Treating it as stale would delete that slot, and its file, when the window is saved.
+        Assert.False(WindowDatasets.IsStaleSupplierSlot(type, CheckingExerciseType.PupilData, WindowDatasets.Pupils));
     }
 
     [Fact]
-    public void No_pupil_dataset_stamps_a_source_file()
+    public void A_16_to_19_results_enquiry_gets_a_slot_per_file_of_the_year()
     {
-        // Provenance is a results concept. A pupil record has no SOURCE column to stamp, and
-        // stamping one would fail validation against a schema that forbids extra properties.
-        foreach (CheckingWindowType type in Enum.GetValues<CheckingWindowType>())
-        {
-            Assert.All(
-                WindowDatasets.DefaultsFor(type, CheckingExerciseType.PupilData),
-                dataset => Assert.Null(dataset.SourceFile));
-        }
-    }
-
-    [Fact]
-    public void A_16_to_19_results_enquiry_gets_a_slot_per_source_file()
-    {
+        // October: included, non-included, late 1. November: late 2. February: the two revised
+        // files replace the first four. March: revised with retention replaces included revised.
+        // The admin retires a slot when its file is replaced, so every slot exists from the start.
         var datasets = WindowDatasets.DefaultsFor(CheckingWindowType.Post16, CheckingExerciseType.ResultsEnquiry);
 
         Assert.Equal(
             [
-                ResultsFileTags.Post16Main,
+                ResultsFileTags.Post16Included,
+                ResultsFileTags.Post16NonIncluded,
                 ResultsFileTags.Post16LateResults1,
                 ResultsFileTags.Post16LateResults2,
-                ResultsFileTags.Post16Revised,
-                ResultsFileTags.Post16Retention
+                ResultsFileTags.Post16IncludedRevised,
+                ResultsFileTags.Post16NonIncludedRevised,
+                ResultsFileTags.Post16IncludedRevisedWithRetention
             ],
             datasets.Select(d => d.Name));
     }
@@ -95,31 +131,30 @@ public class WindowDatasetDefaultsTests
             Assert.Equal(dataset.Name, dataset.SourceFile);
             Assert.Null(dataset.Included);
         });
-        Assert.Equal([0, 1, 2, 3, 4], datasets.Select(d => d.SortOrder));
+        Assert.Equal([0, 1, 2, 3, 4, 5, 6], datasets.Select(d => d.SortOrder));
     }
 
     [Fact]
-    public void Only_the_main_results_file_is_required()
+    public void A_16_to_19_results_enquiry_requires_the_three_files_it_starts_with()
     {
-        // The late, revised and retention files land weeks apart and one may never land. Requiring
-        // them would leave an exercise that can never be validated and a school with no results.
+        // Included, non-included and late results 1 are the minimum the exercise starts with. The
+        // later files land weeks apart and one may never land. Requiring them would leave an
+        // exercise that can never be validated and a school with no results.
         var datasets = WindowDatasets.DefaultsFor(CheckingWindowType.Post16, CheckingExerciseType.ResultsEnquiry);
 
-        Assert.True(datasets[0].Required);
-        Assert.All(datasets.Skip(1), dataset => Assert.False(dataset.Required));
+        Assert.Equal(
+            [ResultsFileTags.Post16Included, ResultsFileTags.Post16NonIncluded, ResultsFileTags.Post16LateResults1],
+            datasets.Where(d => d.Required).Select(d => d.Name));
     }
 
-    [Fact]
-    public void Every_pupil_file_is_required()
+    [Theory]
+    [InlineData(CheckingWindowType.KS4June)]
+    [InlineData(CheckingWindowType.KS4Autumn)]
+    public void A_KS4_results_enquiry_requires_only_the_main_results_file(CheckingWindowType type)
     {
-        // Both 16-19 pupil files ingest in one run and each carries a whole population, so a run
-        // missing one would write a blob missing half the school.
-        foreach (CheckingWindowType type in Enum.GetValues<CheckingWindowType>())
-        {
-            Assert.All(
-                WindowDatasets.DefaultsFor(type, CheckingExerciseType.PupilData),
-                dataset => Assert.True(dataset.Required));
-        }
+        var datasets = WindowDatasets.DefaultsFor(type, CheckingExerciseType.ResultsEnquiry);
+
+        Assert.Equal([ResultsFileTags.Ks4Main], datasets.Where(d => d.Required).Select(d => d.Name));
     }
 
     [Fact]

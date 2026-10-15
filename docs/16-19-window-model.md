@@ -391,7 +391,7 @@ These do not block the model.
    another amendment and that journey shuts when pupil data shuts; a window with no pupil-data
    exercise drops the banner rather than quoting a date from elsewhere.
 3. **Results-enquiry ingress.** Split out of #319 into #324. ~~Nothing writes `results-enquiry/data/`
-   outside `Web/Seeding/SeedStudentResults.cs`, which is development-only.~~ **Done in #324.** The
+   outside `Web/Seeding/SeedResults.cs`, which is development-only.~~ **Done in #324.** The
    results-enquiry exercise owns one dataset slot per source file, named by the `ResultsFileTags`
    tag it stamps (five for a 16-19 window, four for KS4, none for KS2 — it has no results feed), so
    an admin uploads the supplier's files and validates the exercise exactly as for pupil data. A
@@ -495,15 +495,20 @@ close is not. `JourneyController.OnActionExecutionAsync` therefore re-reads the 
 journey action and replaces the snapshot, so `IsSessionReady` sees the close on the school's next
 click.
 
-**Close and the hand-over.** `CloseExerciseController` (`admin/windows/{id}/{exercise}/close`) is
-offered only while the exercise is open. After the admin types the window's name it calls
+**Close and the hand-over.** `CloseExerciseController` (`admin/windows/{id}/exercises/{exerciseId}/close`)
+is offered only while the exercise is open. Both pages are addressed by exercise id, not kind: a
+window has at most one exercise of each kind, but the id is what every exercise has (a data share
+has no kind), so "open" is asked of the row
+(`ICheckingExerciseService.IsOpen(CheckingExerciseDto)`), the guarded write moves only that row,
+and the sweep matches change requests on that row's id. A data share has no kind, so it has no
+change requests and neither page serves it. After the admin types the window's name it calls
 `IExerciseEarlyClosureService` (the date move and the audit row) and then `ICloseExerciseService`
 (the sweep: decided requests onto the Zendesk queue, undecided ones reported as waiting, leftover
 drafts cancelled) — in that order, so no school can add a request behind the sweep. The sweep is still date-blind and still the
 only way a pupil-data amendment reaches Zendesk, and since AB#302158 the service runs it by itself
 two hours after an exercise ends (next section). Once an exercise has closed the summary still
 offers it on its own, for an admin who wants it sooner or again: `SendExerciseRequestsController`
-(`admin/windows/{id}/{exercise}/send-requests`). The sweep is not transactional (a blob read and a
+(`admin/windows/{id}/exercises/{exerciseId}/send-requests`). The sweep is not transactional (a blob read and a
 queue write per request). If it fails after the close has committed, the admin is sent back to the
 summary with a notice that the exercise closed and that its requests still need sending, rather
 than to an error page.
@@ -546,6 +551,11 @@ nothing to reset. One consequence: when this first deployed, exercises that had 
 **Two hours, and why.** The gap gives the rules engine time to decide the requests that schools
 submitted in the last minutes of the exercise, because the sweep only sends a request the rules
 engine has decided (#536). One that is still undecided is left waiting, and a later tick sends it.
+
+**By exercise id.** The job sweeps by exercise id, as the Close and Send requests buttons do,
+because the id is what every exercise has (#466). It skips a data share (no kind): a
+change request reaches an exercise only through its kind, so a data share never holds one. The
+audit row records the exercise id beside its kind.
 
 **Both exercise types.** A results-enquiry exercise sends nothing here — enquiries go to Zendesk
 when they are submitted, and the sweep skips them — but its leftover drafts are cancelled.

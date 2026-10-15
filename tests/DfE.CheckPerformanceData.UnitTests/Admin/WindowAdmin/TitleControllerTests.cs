@@ -43,6 +43,28 @@ public class TitleControllerTests
     }
 
     [Fact]
+    public void Start_discards_a_left_over_draft_and_opens_the_title_step()
+    {
+        var session = SessionWithDraft(new CheckingWindowDraft { Title = "Dave's KS4 June" });
+
+        var controller = new TitleController(Substitute.For<IWindowService>())
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext { Session = session }
+            },
+            Url = StubUrlHelper()
+        };
+
+        var result = controller.Start();
+
+        session.Received(1).Remove("CheckingWindowDraft");
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("New", redirect.ActionName);
+        Assert.Equal("Title", redirect.ControllerName);
+    }
+
+    [Fact]
     public async Task Return_200_on_get_with_existing_session_title()
     {
         var windowService = Substitute.For<IWindowService>();

@@ -139,4 +139,164 @@ public sealed class CheckingExerciseBlobPathsTests
         Assert.Throws<ArgumentOutOfRangeException>(
             () => CheckingExerciseBlobPaths.DataBlobName(unmapped, "933/4070"));
     }
+
+    [Fact]
+    public void DataBlobName_ByExerciseId_NamesTheFileByDataType()
+    {
+        var exerciseId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+
+        var name = CheckingExerciseBlobPaths.DataBlobName(exerciseId, CheckingDataType.Pupil, "933/4290");
+
+        Assert.Equal("exercises/11111111-1111-1111-1111-111111111111/data/9334290_pupils.json", name);
+    }
+
+    [Fact]
+    public void DataBlobName_ByExerciseId_KeepsOtherDataUnderItsOwnSuffix()
+    {
+        var exerciseId = Guid.Parse("22222222-2222-2222-2222-222222222222");
+
+        var name = CheckingExerciseBlobPaths.DataBlobName(exerciseId, CheckingDataType.Other, "933/4290");
+
+        Assert.Equal("exercises/22222222-2222-2222-2222-222222222222/data/9334290_data.json", name);
+    }
+
+    [Fact]
+    public void DataBlobName_ForARelease_IsUnderThatReleasesOwnPrefix()
+    {
+        // A run writes a new release beside the live one, never over it.
+        var exerciseId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var releaseId = Guid.Parse("99999999-9999-9999-9999-999999999999");
+
+        var name = CheckingExerciseBlobPaths.DataBlobName(exerciseId, CheckingDataType.Results, "933/4070", releaseId);
+
+        Assert.Equal(
+            "exercises/11111111-1111-1111-1111-111111111111/releases/99999999-9999-9999-9999-999999999999/data/9334070_results.json",
+            name);
+    }
+
+    [Fact]
+    public void DataPrefix_WithNoRelease_IsTheUnversionedPrefix()
+    {
+        // Output written before releases existed, and by the dev seeders, is still found.
+        var exerciseId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+
+        Assert.Equal("exercises/11111111-1111-1111-1111-111111111111/data/",
+            CheckingExerciseBlobPaths.DataPrefix(exerciseId, null));
+    }
+
+    [Fact]
+    public void TwoReleasePrefixes_NeverContainEachOther()
+    {
+        // A prefix sweep of one release must not reach another, or the unversioned output.
+        var exerciseId = Guid.NewGuid();
+        var first = CheckingExerciseBlobPaths.ReleaseDataPrefix(exerciseId, Guid.NewGuid());
+        var second = CheckingExerciseBlobPaths.ReleaseDataPrefix(exerciseId, Guid.NewGuid());
+        var unversioned = CheckingExerciseBlobPaths.DataPrefix(exerciseId);
+
+        Assert.False(first.StartsWith(second, StringComparison.Ordinal));
+        Assert.False(second.StartsWith(first, StringComparison.Ordinal));
+        Assert.False(first.StartsWith(unversioned, StringComparison.Ordinal));
+        Assert.False(unversioned.StartsWith(first, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void DatasetBlobName_IsUnderTheReleaseButOutsideItsMergedDataPrefix()
+    {
+        // The journeys list the merged data/ prefix. A dataset's own file must never appear there.
+        var exerciseId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var releaseId = Guid.Parse("99999999-9999-9999-9999-999999999999");
+        var datasetId = Guid.Parse("77777777-7777-7777-7777-777777777777");
+
+        var name = CheckingExerciseBlobPaths.DatasetBlobName(exerciseId, releaseId, datasetId, "933/4290");
+
+        Assert.Equal(
+            "exercises/11111111-1111-1111-1111-111111111111/releases/99999999-9999-9999-9999-999999999999/datasets/77777777-7777-7777-7777-777777777777/9334290.json",
+            name);
+        Assert.False(name.StartsWith(CheckingExerciseBlobPaths.ReleaseDataPrefix(exerciseId, releaseId), StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void DefinitionFile_WithAChecksum_KeepsAnEarlierUploadOfTheSameName()
+    {
+        var exerciseId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+        var definitionId = Guid.Parse("55555555-5555-5555-5555-555555555555");
+
+        var first = CheckingExerciseBlobPaths.DefinitionFile(exerciseId, definitionId, "ABCDEF0123456789FFFF", "main.csv");
+        var second = CheckingExerciseBlobPaths.DefinitionFile(exerciseId, definitionId, "0000000000000000FFFF", "main.csv");
+
+        Assert.Equal(
+            "ingress/44444444-4444-4444-4444-444444444444/55555555-5555-5555-5555-555555555555/abcdef0123456789/main.csv",
+            first);
+        Assert.NotEqual(first, second);
+    }
+
+    [Fact]
+    public void DefinitionFile_WithNoChecksum_FallsBackToTheFileName()
+        => Assert.Equal(
+            CheckingExerciseBlobPaths.DefinitionFile(Guid.Empty, Guid.Empty, "main.csv"),
+            CheckingExerciseBlobPaths.DefinitionFile(Guid.Empty, Guid.Empty, "", "main.csv"));
+
+    [Fact]
+    public void LogPrefix_IsScopedToTheExercise()
+    {
+        var exerciseId = Guid.Parse("33333333-3333-3333-3333-333333333333");
+
+        Assert.Equal("exercises/33333333-3333-3333-3333-333333333333/logs/",
+            CheckingExerciseBlobPaths.LogPrefix(exerciseId));
+    }
+
+    [Fact]
+    public void DefinitionFile_KeepsOnlyTheFileName()
+    {
+        var exerciseId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+        var definitionId = Guid.Parse("55555555-5555-5555-5555-555555555555");
+
+        var name = CheckingExerciseBlobPaths.DefinitionFile(exerciseId, definitionId, "c:\\upload\\main.csv");
+
+        Assert.Equal("ingress/44444444-4444-4444-4444-444444444444/55555555-5555-5555-5555-555555555555/main.csv", name);
+    }
+
+    [Theory]
+    [InlineData("main.csv", "ingress/main.csv")]
+    [InlineData("ingress/abc/def/main.csv", "ingress/abc/def/main.csv")]
+    public void IngressBlobName_KeepsLegacyRelativePathsReadable(string stored, string expected)
+        => Assert.Equal(expected, CheckingExerciseBlobPaths.IngressBlobName(stored));
+
+    [Theory]
+    [InlineData("main.json", "schema/main.json")]
+    [InlineData("ingress/abc/def/main.json", "ingress/abc/def/main.json")]
+    public void SchemaBlobName_KeepsLegacyRelativePathsReadable(string stored, string expected)
+        => Assert.Equal(expected, CheckingExerciseBlobPaths.SchemaBlobName(stored));
+
+    [Fact]
+    public void DefaultDataType_HasNoDefaultCase()
+        => Assert.Throws<ArgumentOutOfRangeException>(() =>
+            CheckingExerciseBlobPaths.DefaultDataType((CheckingExerciseType)999));
+
+    [Fact]
+    public void DefaultDataType_MapsAnUntypedExerciseToOther()
+        => Assert.Equal(CheckingDataType.Other, CheckingExerciseBlobPaths.DefaultDataType(null));
+
+    // The data reader caches an upload only when this says its path can never be overwritten. The
+    // rule must follow DefinitionFile: if the layout changes, this fails rather than the cache
+    // silently skipping every schema or, worse, caching one that can be replaced in place.
+    [Theory]
+    [InlineData("0123456789abcdef0123456789abcdef", true)]
+    [InlineData("ABC123", true)]
+    [InlineData("", false)]
+    public void IsChecksumUpload_follows_the_DefinitionFile_layout(string checksum, bool expected)
+    {
+        var path = CheckingExerciseBlobPaths.DefinitionFile(Guid.NewGuid(), Guid.NewGuid(), checksum, "schema.json");
+
+        Assert.Equal(expected, CheckingExerciseBlobPaths.IsChecksumUpload(path));
+    }
+
+    [Theory]
+    [InlineData("schema/students_schema.json")]
+    [InlineData("ingress/students.csv")]
+    [InlineData("exercises/00000000-0000-0000-0000-000000000000/data/9334070_pupils.json")]
+    public void IsChecksumUpload_is_false_for_a_path_that_can_be_overwritten(string path)
+    {
+        Assert.False(CheckingExerciseBlobPaths.IsChecksumUpload(path));
+    }
 }

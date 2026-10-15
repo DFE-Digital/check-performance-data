@@ -22,7 +22,7 @@ public sealed class PupilDuplicateCheckTests
     {
         _currentUserService.OrganisationUrn.Returns("123456");
         _currentUserService.OrganisationLaestab.Returns(TestLaestab);
-        _sut = new CheckYourPupilDataService(_repository, _currentUserService, Substitute.For<IStudentResultsClient>());
+        _sut = new CheckYourPupilDataService(_repository, _currentUserService, Substitute.For<IResultsClient>());
     }
 
     private static PupilRecord Ks4Pupil(
@@ -38,6 +38,7 @@ public sealed class PupilDuplicateCheckTests
         DateOfBirth = dob,
         Age = 15,
         Pincl = included ? 401 : 402,
+        Included = included,
         Laestab = TestLaestab,
         Urn = 136309
     };

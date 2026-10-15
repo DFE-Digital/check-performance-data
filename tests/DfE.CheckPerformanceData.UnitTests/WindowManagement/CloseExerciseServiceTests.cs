@@ -14,7 +14,8 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.WindowManagement;
 public sealed class CloseExerciseServiceTests
 {
     private static readonly Guid WindowId = Guid.Parse("F34D285B-8660-4D12-9C30-787328DEAA0A");
-    private const CheckingExerciseType Exercise = CheckingExerciseType.PupilData;
+    // The sweep is addressed by the exercise's row id (#466).
+    private static readonly Guid ExerciseId = Guid.Parse("33333333-3333-3333-3333-333333333333");
 
     private readonly IAdminRequestsRepository _repository = Substitute.For<IAdminRequestsRepository>();
     private readonly IRequestBlobClient _documents = Substitute.For<IRequestBlobClient>();
@@ -53,7 +54,7 @@ public sealed class CloseExerciseServiceTests
 
     private void Decided(params ReplayRequestRow[] rows)
     {
-        _repository.GetDecidedRequestsForExerciseAsync(WindowId, Exercise, Arg.Any<CancellationToken>())
+        _repository.GetDecidedRequestsForExerciseAsync(WindowId, ExerciseId, Arg.Any<CancellationToken>())
             .Returns(rows);
         foreach (var row in rows)
             _documents.GetRequestAsync(WindowId, row.ReferenceNumber).Returns(Document(row.ReferenceNumber));
@@ -65,7 +66,7 @@ public sealed class CloseExerciseServiceTests
         var row = Row("CYPMD_KS4June_AAAAAA1");
         Decided(row);
 
-        var result = await _sut.CloseAsync(WindowId, Exercise, CancellationToken.None);
+        var result = await _sut.CloseAsync(WindowId, ExerciseId, CancellationToken.None);
 
         Assert.Equal(1, result.Enqueued);
         await _queue.Received(1).EnqueueAsync(
@@ -79,9 +80,9 @@ public sealed class CloseExerciseServiceTests
     public async Task Waiting_requests_are_counted_and_left_alone()
     {
         Decided();
-        _repository.CountWaitingRequestsForExerciseAsync(WindowId, Exercise, Arg.Any<CancellationToken>()).Returns(2);
+        _repository.CountWaitingRequestsForExerciseAsync(WindowId, ExerciseId, Arg.Any<CancellationToken>()).Returns(2);
 
-        var result = await _sut.CloseAsync(WindowId, Exercise, CancellationToken.None);
+        var result = await _sut.CloseAsync(WindowId, ExerciseId, CancellationToken.None);
 
         Assert.Equal(0, result.Enqueued);
         Assert.Equal(2, result.Waiting);
@@ -95,7 +96,7 @@ public sealed class CloseExerciseServiceTests
         // drafts), so a submitted request stays Submitted.
         Decided(Row("CYPMD_KS4June_AAAAAA1"));
 
-        await _sut.CloseAsync(WindowId, Exercise, CancellationToken.None);
+        await _sut.CloseAsync(WindowId, ExerciseId, CancellationToken.None);
 
         Assert.DoesNotContain(_repository.ReceivedCalls(), c => c.GetMethodInfo().Name.Contains("Status")
             && c.GetMethodInfo().Name != nameof(IAdminRequestsRepository.MarkTicketQueuedAsync));
@@ -108,7 +109,7 @@ public sealed class CloseExerciseServiceTests
         Decided(row);
         _repository.MarkTicketQueuedAsync(row.ChangeRequestId, Arg.Any<CancellationToken>()).Returns(false);
 
-        var result = await _sut.CloseAsync(WindowId, Exercise, CancellationToken.None);
+        var result = await _sut.CloseAsync(WindowId, ExerciseId, CancellationToken.None);
 
         Assert.Equal(0, result.Enqueued);
         // The other run sent its message; a second one would only fail its claim.
@@ -136,7 +137,7 @@ public sealed class CloseExerciseServiceTests
         _queue.EnqueueAsync(QueueOptions.ZendeskQueue, Arg.Any<RequestDocument>(), Arg.Any<CancellationToken>())
             .Returns(_ => { steps.Add($"enqueue:{insideTransaction}"); return Guid.NewGuid(); });
 
-        await _sut.CloseAsync(WindowId, Exercise, CancellationToken.None);
+        await _sut.CloseAsync(WindowId, ExerciseId, CancellationToken.None);
 
         Assert.Equal(["mark:True", "enqueue:True"], steps);
     }
@@ -150,7 +151,7 @@ public sealed class CloseExerciseServiceTests
             .Returns<Guid>(_ => throw new InvalidOperationException("queue down"));
 
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _sut.CloseAsync(WindowId, Exercise, CancellationToken.None));
+            () => _sut.CloseAsync(WindowId, ExerciseId, CancellationToken.None));
     }
 
     [Fact]
@@ -159,12 +160,12 @@ public sealed class CloseExerciseServiceTests
         // The service is not live, so every submitted amendment has a saved document. A missing
         // one is a fault to see, not a case to work around.
         var row = Row("CYPMD_KS4June_MISSING");
-        _repository.GetDecidedRequestsForExerciseAsync(WindowId, Exercise, Arg.Any<CancellationToken>())
+        _repository.GetDecidedRequestsForExerciseAsync(WindowId, ExerciseId, Arg.Any<CancellationToken>())
             .Returns([row]);
         _documents.GetRequestAsync(WindowId, row.ReferenceNumber).Returns((RequestDocument?)null);
 
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _sut.CloseAsync(WindowId, Exercise, CancellationToken.None));
+            () => _sut.CloseAsync(WindowId, ExerciseId, CancellationToken.None));
 
         Assert.Contains("CYPMD_KS4June_MISSING", ex.Message);
         await _repository.DidNotReceive().MarkTicketQueuedAsync(row.ChangeRequestId, Arg.Any<CancellationToken>());
@@ -175,20 +176,20 @@ public sealed class CloseExerciseServiceTests
     {
         Decided();
 
-        await _sut.CloseAsync(WindowId, Exercise, CancellationToken.None);
+        await _sut.CloseAsync(WindowId, ExerciseId, CancellationToken.None);
 
-        await _repository.Received(1).GetDecidedRequestsForExerciseAsync(WindowId, Exercise, Arg.Any<CancellationToken>());
-        await _repository.Received(1).CountWaitingRequestsForExerciseAsync(WindowId, Exercise, Arg.Any<CancellationToken>());
-        await _repository.Received(1).MarkDraftsNotSubmittedForExerciseAsync(WindowId, Exercise, Arg.Any<CancellationToken>());
+        await _repository.Received(1).GetDecidedRequestsForExerciseAsync(WindowId, ExerciseId, Arg.Any<CancellationToken>());
+        await _repository.Received(1).CountWaitingRequestsForExerciseAsync(WindowId, ExerciseId, Arg.Any<CancellationToken>());
+        await _repository.Received(1).MarkDraftsNotSubmittedForExerciseAsync(WindowId, ExerciseId, Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Drafts_for_the_exercise_are_cancelled_and_counted()
     {
         Decided();
-        _repository.MarkDraftsNotSubmittedForExerciseAsync(WindowId, Exercise, Arg.Any<CancellationToken>()).Returns(3);
+        _repository.MarkDraftsNotSubmittedForExerciseAsync(WindowId, ExerciseId, Arg.Any<CancellationToken>()).Returns(3);
 
-        var result = await _sut.CloseAsync(WindowId, Exercise, CancellationToken.None);
+        var result = await _sut.CloseAsync(WindowId, ExerciseId, CancellationToken.None);
 
         Assert.Equal(3, result.DraftsCancelled);
     }
@@ -197,10 +198,10 @@ public sealed class CloseExerciseServiceTests
     public async Task The_preview_counts_what_the_sweep_would_send_wait_on_and_cancel()
     {
         Decided(Row("A"), Row("B"));
-        _repository.CountWaitingRequestsForExerciseAsync(WindowId, Exercise, Arg.Any<CancellationToken>()).Returns(1);
-        _repository.CountDraftsForExerciseAsync(WindowId, Exercise, Arg.Any<CancellationToken>()).Returns(4);
+        _repository.CountWaitingRequestsForExerciseAsync(WindowId, ExerciseId, Arg.Any<CancellationToken>()).Returns(1);
+        _repository.CountDraftsForExerciseAsync(WindowId, ExerciseId, Arg.Any<CancellationToken>()).Returns(4);
 
-        var preview = await _sut.PreviewAsync(WindowId, Exercise, CancellationToken.None);
+        var preview = await _sut.PreviewAsync(WindowId, ExerciseId, CancellationToken.None);
 
         Assert.Equal(2, preview.RequestsToClose);
         Assert.Equal(1, preview.RequestsWaiting);

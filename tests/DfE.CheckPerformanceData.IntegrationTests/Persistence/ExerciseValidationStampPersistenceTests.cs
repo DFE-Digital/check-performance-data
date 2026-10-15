@@ -100,6 +100,29 @@ public sealed class ExerciseValidationStampPersistenceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task A_retired_slot_survives_a_round_trip_and_leaves_the_run()
+    {
+        // February: the admin retires a replaced results file. No run may read it afterwards,
+        // and the slot must still be there, because earlier releases name it.
+        Guid id = await CreateWindowAsync();
+
+        await using (var write = CreateContext())
+        {
+            var repository = new WindowRepository(write);
+            CheckingWindowDto window = (await repository.GetByIdAsync(id, default))!;
+            window.FindExercise(CheckingExerciseType.PupilData)!.Datasets[0].Retired = true;
+            await repository.UpdateAsync(window, default);
+        }
+
+        await using var read = CreateContext();
+        CheckingWindowDto reloaded = (await new WindowRepository(read).GetByIdAsync(id, default))!;
+        CheckingExerciseDto exercise = reloaded.FindExercise(CheckingExerciseType.PupilData)!;
+
+        Assert.True(Assert.Single(exercise.Datasets).Retired);
+        Assert.Empty(exercise.DatasetsToIngest);
+    }
+
+    [Fact]
     public async Task An_existing_exercises_dates_can_be_edited()
     {
         Guid id = await CreateWindowAsync();
@@ -138,7 +161,7 @@ public sealed class ExerciseValidationStampPersistenceTests : IAsyncLifetime
                 ExerciseType = CheckingExerciseType.ResultsEnquiry,
                 StartDate = new DateTime(2027, 2, 1),
                 EndDate = new DateTime(2027, 6, 30, 17, 0, 0),
-                SortOrder = 1
+                TabOrder = 1
             });
 
             await repository.UpdateAsync(window, default);
@@ -169,7 +192,7 @@ public sealed class ExerciseValidationStampPersistenceTests : IAsyncLifetime
                     ExerciseType = CheckingExerciseType.PupilData,
                     StartDate = new DateTime(2027, 1, 1),
                     EndDate = new DateTime(2027, 1, 14, 17, 0, 0),
-                    SortOrder = 0,
+                    TabOrder = 0,
                     Datasets =
                     [
                         new CheckingWindowDatasetDto

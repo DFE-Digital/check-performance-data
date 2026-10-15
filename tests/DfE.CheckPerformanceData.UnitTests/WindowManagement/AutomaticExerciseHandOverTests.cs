@@ -14,13 +14,14 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.WindowManagement;
 public sealed class AutomaticExerciseHandOverTests
 {
     private static readonly Guid WindowId = Guid.Parse("22222222-2222-2222-2222-222222222222");
+    private static readonly Guid PupilDataId = Guid.Parse("44444444-4444-4444-4444-444444444444");
 
     private static readonly DateTimeOffset NowUtc = new(2026, 11, 2, 18, 0, 0, TimeSpan.Zero);
     private static readonly DateTime Start = new(2026, 10, 1, 9, 0, 0);
     private static readonly DateTime EndedTwoHoursAgo = new(2026, 11, 2, 17, 0, 0);
 
     private static readonly DueExercise Due =
-        new(WindowId, "Key Stage 4 June", CheckingExerciseType.PupilData, EndedTwoHoursAgo);
+        new(WindowId, "Key Stage 4 June", PupilDataId, CheckingExerciseType.PupilData, EndedTwoHoursAgo);
 
     private readonly IWindowRepository _windows = Substitute.For<IWindowRepository>();
     private readonly ICloseExerciseService _sweep = Substitute.For<ICloseExerciseService>();
@@ -40,13 +41,13 @@ public sealed class AutomaticExerciseHandOverTests
             TimeZoneInfo.CreateCustomTimeZone("Test+1", TimeSpan.FromHours(1), "Test+1", "Test+1");
     }
 
-    private static CheckingExerciseDto Exercise(CheckingExerciseType type, DateTime end) => new()
+    private static CheckingExerciseDto Exercise(CheckingExerciseType? type, DateTime end, Guid? id = null) => new()
     {
-        Id = Guid.NewGuid(),
+        Id = id ?? Guid.NewGuid(),
         ExerciseType = type,
         StartDate = Start,
         EndDate = end,
-        SortOrder = (int)type
+        TabOrder = (int?)type ?? 0
     };
 
     private static CheckingWindowDto Window(Guid id, string title, params CheckingExerciseDto[] exercises) => new()
@@ -64,13 +65,13 @@ public sealed class AutomaticExerciseHandOverTests
         _windows.GetAllWindowsAsync(Arg.Any<CancellationToken>()).Returns([.. windows]);
 
     private void SweepDoes(int sent, int cancelled) =>
-        _sweep.CloseAsync(WindowId, CheckingExerciseType.PupilData, Arg.Any<CancellationToken>())
+        _sweep.CloseAsync(WindowId, PupilDataId, Arg.Any<CancellationToken>())
             .Returns(new CloseExerciseResult { Enqueued = sent, DraftsCancelled = cancelled });
 
     [Fact]
     public async Task An_exercise_two_hours_past_its_end_on_the_local_clock_is_due()
     {
-        WindowsAre(Window(WindowId, "Key Stage 4 June", Exercise(CheckingExerciseType.PupilData, EndedTwoHoursAgo)));
+        WindowsAre(Window(WindowId, "Key Stage 4 June", Exercise(CheckingExerciseType.PupilData, EndedTwoHoursAgo, PupilDataId)));
 
         var due = Assert.Single(await Sut().FindDueAsync(CancellationToken.None));
 
@@ -103,14 +104,39 @@ public sealed class AutomaticExerciseHandOverTests
     }
 
     [Fact]
+    public async Task A_data_share_is_never_due()
+    {
+        // #466: a data share has no kind, and a change request reaches an exercise only through
+        // its kind, so there is never anything to hand over.
+        WindowsAre(Window(WindowId, "Key Stage 4 June", Exercise(type: null, EndedTwoHoursAgo)));
+
+        Assert.Empty(await Sut().FindDueAsync(CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Two_releases_of_one_kind_are_each_due_by_their_own_id()
+    {
+        // #466: a window may hold several releases of one kind, so the sweep is keyed by id.
+        var autumn = Guid.NewGuid();
+        var revised = Guid.NewGuid();
+        WindowsAre(Window(WindowId, "16 to 19",
+            Exercise(CheckingExerciseType.ResultsEnquiry, EndedTwoHoursAgo, autumn),
+            Exercise(CheckingExerciseType.ResultsEnquiry, EndedTwoHoursAgo, revised)));
+
+        var due = await Sut().FindDueAsync(CancellationToken.None);
+
+        Assert.Equal([autumn, revised], due.Select(d => d.ExerciseId));
+    }
+
+    [Fact]
     public async Task Handing_over_runs_the_sweep_for_that_window_and_that_exercise()
     {
         SweepDoes(sent: 3, cancelled: 2);
 
         var outcome = await Sut().HandOverAsync(Due, CancellationToken.None);
 
-        Assert.Equal(new AutomaticHandOverOutcome(WindowId, CheckingExerciseType.PupilData, 3, 2, Failed: false), outcome);
-        await _sweep.Received(1).CloseAsync(WindowId, CheckingExerciseType.PupilData, Arg.Any<CancellationToken>());
+        Assert.Equal(new AutomaticHandOverOutcome(WindowId, PupilDataId, CheckingExerciseType.PupilData, 3, 2, Failed: false), outcome);
+        await _sweep.Received(1).CloseAsync(WindowId, PupilDataId, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -126,6 +152,7 @@ public sealed class AutomaticExerciseHandOverTests
         Assert.NotNull(written);
         Assert.Equal(WindowId, written!.WindowId);
         Assert.Equal("Key Stage 4 June", written.WindowTitle);
+        Assert.Equal(PupilDataId, written.ExerciseId);
         Assert.Equal(CheckingExerciseType.PupilData, written.Exercise);
         Assert.Equal(EndedTwoHoursAgo, written.ExerciseEnd);
         Assert.Equal(3, written.RequestsSent);
@@ -151,12 +178,12 @@ public sealed class AutomaticExerciseHandOverTests
     [Fact]
     public async Task A_sweep_that_fails_is_reported_not_thrown_and_not_audited()
     {
-        _sweep.CloseAsync(WindowId, CheckingExerciseType.PupilData, Arg.Any<CancellationToken>())
+        _sweep.CloseAsync(WindowId, PupilDataId, Arg.Any<CancellationToken>())
             .Returns(Task.FromException<CloseExerciseResult>(new InvalidOperationException("blob storage is down")));
 
         var outcome = await Sut().HandOverAsync(Due, CancellationToken.None);
 
-        Assert.Equal(new AutomaticHandOverOutcome(WindowId, CheckingExerciseType.PupilData, 0, 0, Failed: true), outcome);
+        Assert.Equal(new AutomaticHandOverOutcome(WindowId, PupilDataId, CheckingExerciseType.PupilData, 0, 0, Failed: true), outcome);
         await _audit.DidNotReceiveWithAnyArgs().RecordAutomaticHandOverAsync(default!, default);
     }
 
@@ -171,7 +198,7 @@ public sealed class AutomaticExerciseHandOverTests
 
         var outcome = await Sut().HandOverAsync(Due, CancellationToken.None);
 
-        Assert.Equal(new AutomaticHandOverOutcome(WindowId, CheckingExerciseType.PupilData, 3, 2, Failed: false), outcome);
+        Assert.Equal(new AutomaticHandOverOutcome(WindowId, PupilDataId, CheckingExerciseType.PupilData, 3, 2, Failed: false), outcome);
     }
 
     [Fact]
@@ -194,7 +221,7 @@ public sealed class AutomaticExerciseHandOverTests
     public async Task Cancellation_is_not_swallowed()
     {
         // The host is shutting down: the job must stop, not log a failure and carry on.
-        _sweep.CloseAsync(WindowId, CheckingExerciseType.PupilData, Arg.Any<CancellationToken>())
+        _sweep.CloseAsync(WindowId, PupilDataId, Arg.Any<CancellationToken>())
             .Returns(Task.FromCanceled<CloseExerciseResult>(new CancellationToken(canceled: true)));
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(

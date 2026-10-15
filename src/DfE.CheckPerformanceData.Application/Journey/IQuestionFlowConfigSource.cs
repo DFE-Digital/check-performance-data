@@ -14,8 +14,5 @@ namespace DfE.CheckPerformanceData.Application.Journey;
 /// </summary>
 public interface IQuestionFlowConfigSource
 {
-    /// <summary>Checks file existence without reading or validating the flow.</summary>
-    bool Exists(WhatToChange whatToChange, CheckingWindowType checkingWindowType);
-
     Task<QuestionFlowConfig?> GetConfigAsync(WhatToChange whatToChange, CheckingWindowType checkingWindowType);
 }

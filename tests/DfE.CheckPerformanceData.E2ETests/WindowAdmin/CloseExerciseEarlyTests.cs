@@ -25,7 +25,7 @@ namespace DfE.CheckPerformanceData.E2ETests.WindowAdmin;
 public sealed class CloseExerciseEarlyTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
     private const string CloseButton = "Close Pupil data checking";
-    private const string SendButton = "Send Pupil data checking requests for processing";
+    private const string SendButton = "Send requests for processing for Pupil data checking";
 
     // The summary and close pages are gated on the manage-window section, so the collection's
     // default editor principal 404s on them. Switch to admin for this class and hand the
@@ -48,11 +48,13 @@ public sealed class CloseExerciseEarlyTests(PlaywrightFixture fixture) : Seeding
         string title = $"E2E Close {Guid.NewGuid():N}"[..22];
         string windowId = await CreateOpenKs4WindowAsync(title);
         string summaryUrl = $"{Fixture.BaseUrl}/admin/windows/summary/{windowId}";
-        string closeUrl = $"{Fixture.BaseUrl}/admin/windows/{windowId}/PupilData/close";
 
-        // AC1: an open exercise says so and offers Close — and not the hand-over on its own.
-        await Expect(StatusTag()).ToHaveTextAsync("Open");
+        // AC1: an open exercise offers Close — and not the hand-over on its own. Close is
+        // addressed by the exercise's id (#466), read from the button itself.
         await Expect(Button(SendButton)).ToHaveCountAsync(0);
+        string closeHref = (await Button(CloseButton).GetAttributeAsync("href"))!;
+        Assert.Matches($"^/admin/windows/{windowId}/exercises/[0-9a-fA-F-]{{36}}/close$", closeHref);
+        string closeUrl = $"{Fixture.BaseUrl}{closeHref}";
         await Button(CloseButton).ClickAsync();
 
         // AC3: the window name, the scheduled end, and that it cannot be undone.
@@ -75,7 +77,7 @@ public sealed class CloseExerciseEarlyTests(PlaywrightFixture fixture) : Seeding
         await Expect(Page.Locator("#confirm-window-name")).ToHaveValueAsync("not the window name");
 
         await Page.GotoAsync(summaryUrl);
-        await Expect(StatusTag()).ToHaveTextAsync("Open");
+        await Expect(Button(CloseButton)).ToBeVisibleAsync();
 
         // AC5: the exact name closes it.
         await Page.GotoAsync(closeUrl);
@@ -84,7 +86,6 @@ public sealed class CloseExerciseEarlyTests(PlaywrightFixture fixture) : Seeding
         await Page.WaitForURLAsync($"**/admin/windows/summary/{windowId}");
         await Expect(Page.Locator(".govuk-notification-banner--success"))
             .ToContainTextAsync("Pupil data checking was closed early on");
-        await Expect(StatusTag()).ToHaveTextAsync("Closed");
 
         // #535: the banner's time is UK time whatever zone the container runs in. During British
         // Summer Time a host reading a UTC clock prints a time an hour behind this.
@@ -123,10 +124,6 @@ public sealed class CloseExerciseEarlyTests(PlaywrightFixture fixture) : Seeding
     private ILocator Button(string name) =>
         Page.GetByRole(AriaRole.Button, new() { Name = name, Exact = true });
 
-    // The window built here has one exercise, so one Status row.
-    private ILocator StatusTag() =>
-        Page.Locator(".govuk-summary-list__row", new() { HasText = "Status" }).Locator(".govuk-tag");
-
     private static DateTime UkNow() =>
         TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("Europe/London")).DateTime;
 
@@ -141,13 +138,8 @@ public sealed class CloseExerciseEarlyTests(PlaywrightFixture fixture) : Seeding
         await Page.CheckAsync("input[name='WindowType'][value='KS4June']");
         await Page.ClickAsync("button[type='submit']");
 
-        await Page.CheckAsync("input[name='KeyStage'][value='KS4']");
-        await Page.ClickAsync("button[type='submit']");
-
-        // KS4 June pre-ticks pupil data checking only.
-        await Expect(Page.Locator("input[name='Selected'][value='PupilData']")).ToBeCheckedAsync();
-        await Page.ClickAsync("button[type='submit']");
-
+        // KS4 June takes pupil data checking only. There is no exercise step: the wizard goes
+        // straight to its dates.
         // The site rejects a start date before today in the UK (#535), so "today" is the UK date.
         DateTime start = UkNow().Date;
         DateTime end = start.AddDays(14);

@@ -4,6 +4,7 @@ using DfE.CheckPerformanceData.Application.Audit;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Entities;
+using DfE.CheckPerformanceData.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace DfE.CheckPerformanceData.Persistence.Repositories;
@@ -13,9 +14,43 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
     // The audit payload is read back by WindowAdminAuditPayload with the same (camelCase) options.
     private static readonly JsonSerializerOptions AuditJson = new(JsonSerializerDefaults.Web);
 
+    public Task<bool> HasChangeRequestsAsync(Guid exerciseId, CancellationToken cancellationToken) =>
+        dbContext.ChangeRequests.AnyAsync(r => r.CheckingExerciseId == exerciseId, cancellationToken);
+
+    public async Task<IReadOnlyList<CheckingExerciseDto>> GetExercisesOfKindAsync(Guid windowId,
+        CheckingExerciseType type, CancellationToken cancellationToken) =>
+        await dbContext.Set<CheckingExercise>()
+            .AsNoTracking()
+            .Where(e => e.CheckingWindowId == windowId && e.ExerciseType == type)
+            .OrderBy(e => e.TabOrder).ThenBy(e => e.Id)
+            .Select(e => new CheckingExerciseDto
+            {
+                Id = e.Id,
+                ExerciseType = e.ExerciseType,
+                UsesExerciseStorage = e.UsesExerciseStorage,
+                Name = e.Name,
+                TabName = e.TabName,
+                TabOrder = e.TabOrder,
+                IsEnabled = e.IsEnabled,
+                DisplayOnly = e.DisplayOnly,
+                VisibleFrom = e.VisibleFrom,
+                VisibleUntil = e.VisibleUntil,
+                CurrentReleaseId = e.CurrentReleaseId,
+                Layout = e.Layout,
+                ShowLateResultsWarning = e.ShowLateResultsWarning,
+                StartDate = e.StartDate,
+                EndDate = e.EndDate
+            })
+            .ToListAsync(cancellationToken);
+
     public async Task<List<CheckingWindowDto>> GetAllWindowsAsync(CancellationToken cancellationToken) =>
         await dbContext.CheckingWindows
             .AsNoTracking()
+            // Datasets and Releases are sibling collections. In one query each release file would
+            // repeat every dataset row; split queries load each collection once.
+            .AsSplitQuery()
+            // Newest first. Without an order PostgreSQL returns rows in whatever order it reads them.
+            .OrderByDescending(w => w.StartDate).ThenBy(w => w.Title).ThenBy(w => w.Id)
             .Select(w => new CheckingWindowDto
             {
                 StartDate = w.StartDate,
@@ -31,14 +66,56 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                 SchemaFile = w.SchemaFile,
                 SchemaFileChecksum = w.SchemaFileChecksum,
                 Exercises = w.CheckingExercises
-                    .OrderBy(e => e.SortOrder)
+                    .OrderBy(e => e.TabOrder).ThenBy(e => e.Id)
                     .Select(e => new CheckingExerciseDto
                     {
                         Id = e.Id,
+                        UsesExerciseStorage = e.UsesExerciseStorage,
+                        Name = e.Name,
+                        TabName = e.TabName,
+                        TabOrder = e.TabOrder,
+                        IsEnabled = e.IsEnabled,
+                        DisplayOnly = e.DisplayOnly,
+                        VisibleFrom = e.VisibleFrom,
+                        VisibleUntil = e.VisibleUntil,
+                        WindowStart = w.StartDate,
+                        WindowEnd = w.EndDate,
+                        ReplacesCheckingExerciseId = e.ReplacesCheckingExerciseId,
+                        CurrentReleaseId = e.CurrentReleaseId,
+                        Layout = e.Layout,
+                        ShowLateResultsWarning = e.ShowLateResultsWarning,
+                        // Oldest first. The school-facing display reads its schemas from the current release, and
+                        // the admin exercise page lists every release so an earlier one can be made live again.
+                        Releases = e.Releases
+                            .OrderBy(r => r.Number)
+                            .Select(r => new CheckingExerciseReleaseDto
+                            {
+                                Id = r.Id,
+                                Number = r.Number,
+                                PublishedAt = r.PublishedAt,
+                                PublishedBy = r.PublishedBy,
+                                FilesWritten = r.FilesWritten,
+                                Files = r.Files
+                                    .OrderBy(f => f.SortOrder)
+                                    .Select(f => new CheckingExerciseReleaseFileDto
+                                    {
+                                        DatasetId = f.DatasetId,
+                                        DatasetName = f.DatasetName,
+                                        FeedsJourney = f.FeedsJourney,
+                                        Included = f.Included,
+                                        SourceFile = f.SourceFile,
+                                        IngressFile = f.IngressFile,
+                                        IngressFileChecksum = f.IngressFileChecksum,
+                                        SchemaFile = f.SchemaFile,
+                                        SchemaFileChecksum = f.SchemaFileChecksum,
+                                        SortOrder = f.SortOrder
+                                    })
+                                    .ToList()
+                            })
+                            .ToList(),
                         ExerciseType = e.ExerciseType,
                         StartDate = e.StartDate,
                         EndDate = e.EndDate,
-                        SortOrder = e.SortOrder,
                         // #319: the validation stamp lives on the exercise now. The checksums say
                         // which files it was taken over, so a stamp left behind by a since-replaced
                         // ingress file reads as stale rather than as validated.
@@ -60,6 +137,8 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                                 Included = d.Included,
                                 SourceFile = d.SourceFile,
                                 Required = d.Required,
+                                FeedsJourney = d.FeedsJourney,
+                                Retired = d.Retired,
                                 SortOrder = d.SortOrder
                             })
                             .ToList()
@@ -67,10 +146,13 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                     .ToList()
             })
             .ToListAsync(cancellationToken);
-    
+
     public async Task<CheckingWindowDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
         await dbContext.CheckingWindows
             .AsNoTracking()
+            // Datasets and Releases are sibling collections. In one query each release file would
+            // repeat every dataset row; split queries load each collection once.
+            .AsSplitQuery()
             .Where(w => w.Id == id)
             .Select(w => new CheckingWindowDto
             {
@@ -87,14 +169,56 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                 SchemaFile = w.SchemaFile,
                 SchemaFileChecksum = w.SchemaFileChecksum,
                 Exercises = w.CheckingExercises
-                    .OrderBy(e => e.SortOrder)
+                    .OrderBy(e => e.TabOrder).ThenBy(e => e.Id)
                     .Select(e => new CheckingExerciseDto
                     {
                         Id = e.Id,
+                        UsesExerciseStorage = e.UsesExerciseStorage,
+                        Name = e.Name,
+                        TabName = e.TabName,
+                        TabOrder = e.TabOrder,
+                        IsEnabled = e.IsEnabled,
+                        DisplayOnly = e.DisplayOnly,
+                        VisibleFrom = e.VisibleFrom,
+                        VisibleUntil = e.VisibleUntil,
+                        WindowStart = w.StartDate,
+                        WindowEnd = w.EndDate,
+                        ReplacesCheckingExerciseId = e.ReplacesCheckingExerciseId,
+                        CurrentReleaseId = e.CurrentReleaseId,
+                        Layout = e.Layout,
+                        ShowLateResultsWarning = e.ShowLateResultsWarning,
+                        // Oldest first. The school-facing display reads its schemas from the current release, and
+                        // the admin exercise page lists every release so an earlier one can be made live again.
+                        Releases = e.Releases
+                            .OrderBy(r => r.Number)
+                            .Select(r => new CheckingExerciseReleaseDto
+                            {
+                                Id = r.Id,
+                                Number = r.Number,
+                                PublishedAt = r.PublishedAt,
+                                PublishedBy = r.PublishedBy,
+                                FilesWritten = r.FilesWritten,
+                                Files = r.Files
+                                    .OrderBy(f => f.SortOrder)
+                                    .Select(f => new CheckingExerciseReleaseFileDto
+                                    {
+                                        DatasetId = f.DatasetId,
+                                        DatasetName = f.DatasetName,
+                                        FeedsJourney = f.FeedsJourney,
+                                        Included = f.Included,
+                                        SourceFile = f.SourceFile,
+                                        IngressFile = f.IngressFile,
+                                        IngressFileChecksum = f.IngressFileChecksum,
+                                        SchemaFile = f.SchemaFile,
+                                        SchemaFileChecksum = f.SchemaFileChecksum,
+                                        SortOrder = f.SortOrder
+                                    })
+                                    .ToList()
+                            })
+                            .ToList(),
                         ExerciseType = e.ExerciseType,
                         StartDate = e.StartDate,
                         EndDate = e.EndDate,
-                        SortOrder = e.SortOrder,
                         // #319: the validation stamp lives on the exercise now. The checksums say
                         // which files it was taken over, so a stamp left behind by a since-replaced
                         // ingress file reads as stale rather than as validated.
@@ -116,6 +240,8 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                                 Included = d.Included,
                                 SourceFile = d.SourceFile,
                                 Required = d.Required,
+                                FeedsJourney = d.FeedsJourney,
+                                Retired = d.Retired,
                                 SortOrder = d.SortOrder
                             })
                             .ToList()
@@ -153,9 +279,11 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    // Exercises are keyed by type within a window (the unique index), datasets by name within an
-    // exercise: existing rows are updated in place so their Ids — and any files already uploaded
-    // against them — survive, new ones are added, and rows no longer wanted are removed.
+    // Keyed by id since #466. Type is no longer unique within a window, and a typeless share has
+    // no type to key on at all. An empty id is a row the wizard has just built. Datasets stay
+    // keyed by name within an exercise: existing rows are updated in place so their Ids — and any
+    // files already uploaded against them — survive, new ones are added, and rows no longer
+    // wanted are removed (or, for a configured exercise, disabled — see the sweep below).
     private void SyncExercises(CheckingWindow entity, List<CheckingExerciseDto> wanted)
     {
         if (wanted.Count == 0)
@@ -166,18 +294,22 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
         foreach (CheckingExerciseDto dto in wanted)
         {
             CheckingExercise? existing =
-                entity.CheckingExercises.SingleOrDefault(e => e.ExerciseType == dto.ExerciseType);
+                dto.Id != Guid.Empty
+                    ? entity.CheckingExercises.SingleOrDefault(e => e.Id == dto.Id)
+                    : entity.CheckingExercises.SingleOrDefault(e => e.ExerciseType == dto.ExerciseType);
 
             if (existing is null)
             {
                 existing = new CheckingExercise
                 {
+                    Id = dto.Id == Guid.Empty ? Guid.NewGuid() : dto.Id,
                     CheckingWindowId = entity.Id,
+                    UsesExerciseStorage = true,
                     ExerciseType = dto.ExerciseType,
                     StartDate = dto.StartDate,
-                    EndDate = dto.EndDate,
-                    SortOrder = dto.SortOrder
+                    EndDate = dto.EndDate
                 };
+                dbContext.Set<CheckingExercise>().Add(existing);
                 entity.CheckingExercises.Add(existing);
             }
             else
@@ -187,22 +319,34 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                 // this loop only ever reconciled datasets.
                 dbContext.Entry(existing).CurrentValues.SetValues(new
                 {
+                    dto.ExerciseType,
                     dto.StartDate,
-                    dto.EndDate,
-                    dto.SortOrder
+                    dto.EndDate
                 });
             }
 
+            existing.Name = dto.Name;
+            existing.TabName = dto.TabName;
+            existing.TabOrder = dto.TabOrder;
+            existing.IsEnabled = dto.IsEnabled;
+            existing.DisplayOnly = dto.DisplayOnly;
+            existing.Layout = dto.Layout;
+            existing.ShowLateResultsWarning = dto.ShowLateResultsWarning;
+            existing.VisibleFrom = dto.VisibleFrom;
+            existing.VisibleUntil = dto.VisibleUntil;
+            existing.ReplacesCheckingExerciseId = dto.ReplacesCheckingExerciseId;
             existing.Validated = StampFor(dto);
 
             SyncDatasets(entity, existing, dto.Datasets);
         }
 
         foreach (CheckingExercise stale in entity.CheckingExercises
-                     .Where(e => wanted.All(x => x.ExerciseType != e.ExerciseType))
+                     .Where(e => wanted.All(x => x.Id != e.Id && (x.Id != Guid.Empty || x.ExerciseType != e.ExerciseType)))
                      .ToList())
         {
-            entity.CheckingExercises.Remove(stale);
+            // A release is history: its blobs and its change requests point at this row. Hide it
+            // instead of destroying it.
+            stale.IsEnabled = false;
         }
     }
 
@@ -237,6 +381,11 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                 continue;
             }
 
+            existing.Required = dto.Required;
+            existing.SortOrder = dto.SortOrder;
+            existing.Included = dto.Included;
+            existing.SourceFile = dto.SourceFile;
+            existing.Retired = dto.Retired;
             existing.IngressFile = dto.IngressFile;
             existing.IngressFileChecksum = dto.IngressFileChecksum;
             existing.SchemaFile = dto.SchemaFile;
@@ -266,6 +415,10 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
             Included = dto.Included,
             SourceFile = dto.SourceFile,
             Required = dto.Required,
+            // Set here and nowhere else: whether a slot feeds the journey is decided when it is
+            // created (supplier slot or admin-added), and no update may change it.
+            FeedsJourney = dto.FeedsJourney,
+            Retired = dto.Retired,
             SortOrder = dto.SortOrder
         };
 
@@ -282,8 +435,8 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
             // exercise is closed early at most once and the audit row can never describe a close
             // that did not happen.
             int moved = await dbContext.CheckingExercises
-                .Where(e => e.CheckingWindowId == closure.WindowId
-                            && e.ExerciseType == closure.Exercise
+                .Where(e => e.Id == closure.ExerciseId
+                            && e.CheckingWindowId == closure.WindowId
                             && e.EndDate == closure.ScheduledEnd)
                 .ExecuteUpdateAsync(
                     s => s.SetProperty(e => e.EndDate, closure.NewEndDate), cancellationToken);
@@ -320,6 +473,7 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                 {
                     closure.WindowId,
                     WindowTitle = title,
+                    closure.ExerciseId,
                     ExerciseType = closure.Exercise.ToString(),
                     closure.ScheduledEnd,
                     closure.NewEndDate,
@@ -354,14 +508,25 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
 
         // A window is born with its exercises, each holding the dataset slots its type requires.
         // WindowService supplies a pupil-data exercise when the caller names none.
-        foreach (CheckingExerciseDto dto in window.Exercises.OrderBy(e => e.SortOrder))
+        foreach (CheckingExerciseDto dto in window.Exercises.OrderBy(e => e.TabOrder).ThenBy(e => e.Id))
         {
             entity.CheckingExercises.Add(new CheckingExercise
             {
+                Id = dto.Id == Guid.Empty ? Guid.NewGuid() : dto.Id,
+                UsesExerciseStorage = true,
+                Name = dto.Name,
+                TabName = dto.TabName,
+                TabOrder = dto.TabOrder,
+                IsEnabled = dto.IsEnabled,
+                DisplayOnly = dto.DisplayOnly,
+                Layout = dto.Layout,
+                ShowLateResultsWarning = dto.ShowLateResultsWarning,
+                VisibleFrom = dto.VisibleFrom,
+                VisibleUntil = dto.VisibleUntil,
+                ReplacesCheckingExerciseId = dto.ReplacesCheckingExerciseId,
                 ExerciseType = dto.ExerciseType,
                 StartDate = dto.StartDate,
                 EndDate = dto.EndDate,
-                SortOrder = dto.SortOrder,
                 Datasets = dto.Datasets.Select(d => NewDataset(entity, d)).ToList(),
                 Validated = StampFor(dto)
             });
@@ -385,14 +550,56 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
             SchemaFile = entity.SchemaFile,
             SchemaFileChecksum = entity.SchemaFileChecksum,
             Exercises = entity.CheckingExercises
-                .OrderBy(e => e.SortOrder)
+                .OrderBy(e => e.TabOrder).ThenBy(e => e.Id)
                 .Select(e => new CheckingExerciseDto
                 {
                     Id = e.Id,
+                    UsesExerciseStorage = e.UsesExerciseStorage,
+                    Name = e.Name,
+                    TabName = e.TabName,
+                    TabOrder = e.TabOrder,
+                    IsEnabled = e.IsEnabled,
+                    DisplayOnly = e.DisplayOnly,
+                    VisibleFrom = e.VisibleFrom,
+                    VisibleUntil = e.VisibleUntil,
+                    WindowStart = entity.StartDate,
+                    WindowEnd = entity.EndDate,
+                    ReplacesCheckingExerciseId = e.ReplacesCheckingExerciseId,
+                    CurrentReleaseId = e.CurrentReleaseId,
+                    Layout = e.Layout,
+                    ShowLateResultsWarning = e.ShowLateResultsWarning,
+                    // Oldest first. The school-facing display reads its schemas from the current release, and
+                    // the admin exercise page lists every release so an earlier one can be made live again.
+                    Releases = e.Releases
+                        .OrderBy(r => r.Number)
+                        .Select(r => new CheckingExerciseReleaseDto
+                        {
+                            Id = r.Id,
+                            Number = r.Number,
+                            PublishedAt = r.PublishedAt,
+                            PublishedBy = r.PublishedBy,
+                            FilesWritten = r.FilesWritten,
+                            Files = r.Files
+                                .OrderBy(f => f.SortOrder)
+                                .Select(f => new CheckingExerciseReleaseFileDto
+                                {
+                                    DatasetId = f.DatasetId,
+                                    DatasetName = f.DatasetName,
+                                    FeedsJourney = f.FeedsJourney,
+                                    Included = f.Included,
+                                    SourceFile = f.SourceFile,
+                                    IngressFile = f.IngressFile,
+                                    IngressFileChecksum = f.IngressFileChecksum,
+                                    SchemaFile = f.SchemaFile,
+                                    SchemaFileChecksum = f.SchemaFileChecksum,
+                                    SortOrder = f.SortOrder
+                                })
+                                .ToList()
+                        })
+                        .ToList(),
                     ExerciseType = e.ExerciseType,
                     StartDate = e.StartDate,
                     EndDate = e.EndDate,
-                    SortOrder = e.SortOrder,
                     Datasets = e.Datasets
                         .OrderBy(d => d.SortOrder)
                         .Select(d => new CheckingWindowDatasetDto
@@ -406,6 +613,8 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                             Included = d.Included,
                             SourceFile = d.SourceFile,
                             Required = d.Required,
+                            FeedsJourney = d.FeedsJourney,
+                            Retired = d.Retired,
                             SortOrder = d.SortOrder
                         })
                         .ToList()

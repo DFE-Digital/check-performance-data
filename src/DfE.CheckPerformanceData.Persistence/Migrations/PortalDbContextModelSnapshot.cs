@@ -567,6 +567,9 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     b.Property<Guid?>("CheckingExerciseId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("CheckingExerciseReleaseId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("CrmId")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
@@ -689,26 +692,159 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     b.Property<Guid>("CheckingWindowId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("CurrentReleaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("DisplayOnly")
+                        .HasColumnType("boolean");
+
                     b.Property<DateTime>("EndDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("ExerciseType")
-                        .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("integer");
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Layout")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Table");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid?>("ReplacesCheckingExerciseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("ShowLateResultsWarning")
+                        .HasColumnType("boolean");
 
                     b.Property<DateTime>("StartDate")
                         .HasColumnType("timestamp without time zone");
 
+                    b.Property<string>("TabName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("TabOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("UsesExerciseStorage")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("VisibleFrom")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<DateTime?>("VisibleUntil")
+                        .HasColumnType("timestamp without time zone");
+
                     b.HasKey("Id");
 
+                    b.HasIndex("ReplacesCheckingExerciseId");
+
                     b.HasIndex("CheckingWindowId", "ExerciseType")
+                        .IsUnique()
+                        .HasFilter("\"UsesExerciseStorage\" = false");
+
+                    b.ToTable("CheckingExercises", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_CheckingExercises_TypeOrDisplayOnly", "\"ExerciseType\" IS NOT NULL OR (\"DisplayOnly\" AND \"UsesExerciseStorage\")");
+                        });
+                });
+
+            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingExerciseRelease", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CheckingExerciseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("FilesWritten")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Number")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("PublishedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("PublishedBy")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CheckingExerciseId", "Number")
                         .IsUnique();
 
-                    b.ToTable("CheckingExercises", (string)null);
+                    b.ToTable("CheckingExerciseReleases", (string)null);
+                });
+
+            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingExerciseReleaseFile", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CheckingExerciseReleaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("DatasetId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DatasetName")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<bool>("FeedsJourney")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool?>("Included")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("IngressFile")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("IngressFileChecksum")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("SchemaFile")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("SchemaFileChecksum")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SourceFile")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CheckingExerciseReleaseId");
+
+                    b.ToTable("CheckingExerciseReleaseFiles", (string)null);
                 });
 
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingWindow", b =>
@@ -786,6 +922,9 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     b.Property<Guid>("CheckingWindowId")
                         .HasColumnType("uuid");
 
+                    b.Property<bool>("FeedsJourney")
+                        .HasColumnType("boolean");
+
                     b.Property<bool?>("Included")
                         .HasColumnType("boolean");
 
@@ -808,6 +947,9 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
                         .HasDefaultValue(true);
+
+                    b.Property<bool>("Retired")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("SchemaFile")
                         .IsRequired()
@@ -1832,6 +1974,11 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("DfE.CheckPerformanceData.Persistence.Entities.CheckingExercise", null)
+                        .WithMany()
+                        .HasForeignKey("ReplacesCheckingExerciseId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.OwnsOne("DfE.CheckPerformanceData.Persistence.Entities.ExerciseValidated", "Validated", b1 =>
                         {
                             b1.Property<Guid>("CheckingExerciseId")
@@ -1860,6 +2007,24 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         });
 
                     b.Navigation("Validated");
+                });
+
+            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingExerciseRelease", b =>
+                {
+                    b.HasOne("DfE.CheckPerformanceData.Persistence.Entities.CheckingExercise", null)
+                        .WithMany("Releases")
+                        .HasForeignKey("CheckingExerciseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingExerciseReleaseFile", b =>
+                {
+                    b.HasOne("DfE.CheckPerformanceData.Persistence.Entities.CheckingExerciseRelease", null)
+                        .WithMany("Files")
+                        .HasForeignKey("CheckingExerciseReleaseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingWindowDataset", b =>
@@ -1952,6 +2117,13 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingExercise", b =>
                 {
                     b.Navigation("Datasets");
+
+                    b.Navigation("Releases");
+                });
+
+            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingExerciseRelease", b =>
+                {
+                    b.Navigation("Files");
                 });
 
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingWindow", b =>

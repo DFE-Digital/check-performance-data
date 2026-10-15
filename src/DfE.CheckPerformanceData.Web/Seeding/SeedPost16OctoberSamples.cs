@@ -1,0 +1,298 @@
+using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
+using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Application.ResultsEnquiry;
+using DfE.CheckPerformanceData.Domain.Enums;
+using DfE.CheckPerformanceData.Infrastructure.Ingress;
+using DfE.CheckPerformanceData.Persistence.Contexts;
+using DfE.CheckPerformanceData.Persistence.Seeding;
+
+namespace DfE.CheckPerformanceData.Web.Seeding;
+
+/// <summary>
+/// Dev-only: the "16 to 19 Oct" window, where the October import is done. The seed links the
+/// October sample files to their slots, as an admin would, and validates both exercises, so each has
+/// a release. The late results 2 slot and the later slots are empty. The pupil data exercise also
+/// shares the previously published student data, in a slot that feeds no journey.
+/// </summary>
+/// <remarks>
+/// <para>
+/// The seed also writes the sample files to the ingress storage account, container
+/// <see cref="Container"/>, where the admin's "Choose CSV" page lists them: the two student files
+/// under <c>students/</c> and the three October results files under <c>results/</c>. Their schemas
+/// are in <c>src/DfE.CheckPerformanceData.Web/Data/Ingress/post16/</c> (see <see cref="Import"/>):
+/// </para>
+/// <list type="bullet">
+/// <item><c>students/included.csv</c> → <c>students-included_schema.json</c></item>
+/// <item><c>students/nonincluded.csv</c> → <c>students-non-included_schema.json</c></item>
+/// <item><c>students/previously-published.csv</c>, in the supplier's previously published shape →
+/// <c>students-previously-published_schema.json</c>. Every 16-19 window has its slot.</item>
+/// <item><c>results/16to19_INC.csv</c> → <c>results-included_schema.json</c></item>
+/// <item><c>results/16to19_NONINC.csv</c> → <c>results-non-included_schema.json</c></item>
+/// <item><c>results/16to19_LR1.csv</c>, in the supplier's late results shape → <c>results-late_schema.json</c></item>
+/// <item><c>summary/summary.csv</c> → <c>summary-autumn_schema.json</c>, the first file of the
+/// summary data share every 16-19 window has (<see cref="SeedPost16Summary"/>).</item>
+/// <item><c>students/campus.csv</c>, in the supplier's pupil campus shape → <c>students-campus_schema.json</c>,
+/// the file of the student campus data share every 16-19 window has (<see cref="SeedPost16PupilCampus"/>).</item>
+/// </list>
+/// <para>
+/// The students come from <see cref="SeedPupilData"/> and the results from
+/// <see cref="SeedResults"/>, so every result names a student in the student files. There
+/// is no late results 2 file: it arrives in November (<see cref="SeedPost16NovemberSamples"/>).
+/// </para>
+/// </remarks>
+[ExcludeFromCodeCoverage(Justification = "Development seed data, not product code.")]
+public static class SeedPost16OctoberSamples
+{
+    public const string Container = "16-to-19-oct";
+
+    /// <summary>What the seed imports for the admin: slot, sample file, schema.</summary>
+    public static readonly IReadOnlyList<(CheckingExerciseType Exercise, string Slot, string File, string Schema)> Import =
+    [
+        (CheckingExerciseType.PupilData, "included", "students/included.csv", "students-included_schema.json"),
+        (CheckingExerciseType.PupilData, "nonincluded", "students/nonincluded.csv", "students-non-included_schema.json"),
+        (CheckingExerciseType.ResultsEnquiry, ResultsFileTags.Post16Included, "results/16to19_INC.csv", "results-included_schema.json"),
+        (CheckingExerciseType.ResultsEnquiry, ResultsFileTags.Post16NonIncluded, "results/16to19_NONINC.csv", "results-non-included_schema.json"),
+        (CheckingExerciseType.ResultsEnquiry, ResultsFileTags.Post16LateResults1, "results/16to19_LR1.csv", "results-late_schema.json")
+    ];
+
+    public const string PreviouslyPublishedFile = "students/previously-published.csv";
+    public const string PreviouslyPublishedSchema = "students-previously-published_schema.json";
+
+    /// <summary>The sample files, by their path in <see cref="Container"/>.</summary>
+    public static IReadOnlyDictionary<string, byte[]> Files()
+    {
+        var students = SeedPupilData.Post16Pupils(DevDataSeeder.Post16OctoberCheckingWindowId);
+        var byCypmd = KingsmeadStudents();
+
+        var files = new Dictionary<string, byte[]>
+        {
+            ["students/included.csv"] = SeedExerciseFixtures.RecordsCsv(students.Where(p => p.Included == true)),
+            ["students/nonincluded.csv"] = SeedExerciseFixtures.RecordsCsv(students.Where(p => p.Included != true)),
+            [PreviouslyPublishedFile] = PreviouslyPublishedCsv(students.Where(p => p.Included))
+        };
+        files[SeedPost16PupilCampus.File] = SeedPost16PupilCampus.Csv(DevDataSeeder.Post16OctoberCheckingWindowId);
+        files[SeedPost16Summary.October.File] =
+            SeedPost16Summary.Csv(SeedPost16Summary.October, DevDataSeeder.Post16OctoberCheckingWindowId);
+        foreach (var tag in new[] { ResultsFileTags.Post16Included, ResultsFileTags.Post16NonIncluded })
+            files[$"results/{tag}.csv"] = ResultsCsv(SeedResults.All.Where(r => r.SourceFile == tag), byCypmd);
+        files[$"results/{ResultsFileTags.Post16LateResults1}.csv"] = LateResultsCsv(
+            SeedResults.All.Where(r => r.SourceFile == ResultsFileTags.Post16LateResults1), byCypmd,
+            SeedResults.All.Where(r => r.SourceFile is ResultsFileTags.Post16Included or ResultsFileTags.Post16NonIncluded));
+        return files;
+    }
+
+    /// <summary>Kingsmead's students by CYPMD id, as the sample files name them.</summary>
+    internal static IReadOnlyDictionary<string, Post16PupilRecord> KingsmeadStudents() =>
+        SeedPupilData.Post16Pupils(DevDataSeeder.Post16OctoberCheckingWindowId)
+            .Where(p => p.Laestab == SeedResults.Laestab.Replace("/", string.Empty))
+            .ToDictionary(p => p.Cypmd_Id);
+
+    public static Task ExecuteSeedAsync(
+        IPortalDbContext dbContext, BlobServiceClient blobs, ICheckingExerciseIngress ingress, string contentRootPath) =>
+        ExecuteSeedAsync(dbContext, blobs, ingress, contentRootPath, DevDataSeeder.Post16OctoberCheckingWindowId);
+
+    /// <summary>Imports and validates the October files into the given window, which must already
+    /// exist with the exercises <see cref="SeedCheckingWindows"/> gives a 16-19 window. The id is a
+    /// parameter for the tests, and for the later windows, which start from the October import.</summary>
+    public static async Task ExecuteSeedAsync(IPortalDbContext dbContext, BlobServiceClient blobs,
+        ICheckingExerciseIngress ingress, string contentRootPath, Guid windowId)
+    {
+        var samples = Files();
+        var window = await SeedExerciseFixtures.LoadAsync(dbContext, windowId);
+
+        foreach (var (type, slot, file, schema) in Import)
+        {
+            var exercise = SeedExerciseFixtures.Exercise(window, type);
+            var dataset = exercise.Datasets.Single(d => d.Name == slot);
+            await SeedExerciseFixtures.LinkAsync(blobs, exercise, dataset, Path.GetFileName(file), samples[file],
+                schema, await ReadSchemaAsync(contentRootPath, schema));
+        }
+
+        // Every seeded 16-19 window has the previously published slot; a test window may not.
+        var pupilData = SeedExerciseFixtures.Exercise(window, CheckingExerciseType.PupilData);
+        if (pupilData.Datasets.SingleOrDefault(d => d.Name == SeedCheckingWindows.PreviouslyPublishedDataset) is { } previous)
+            await SeedExerciseFixtures.LinkAsync(blobs, pupilData, previous, Path.GetFileName(PreviouslyPublishedFile),
+                samples[PreviouslyPublishedFile], PreviouslyPublishedSchema,
+                await ReadSchemaAsync(contentRootPath, PreviouslyPublishedSchema));
+        await dbContext.SaveChangesAsync();
+
+        foreach (var type in new[] { CheckingExerciseType.PupilData, CheckingExerciseType.ResultsEnquiry })
+            await SeedExerciseFixtures.IngestAsync(blobs, ingress, SeedExerciseFixtures.Exercise(window, type));
+
+        await SeedPost16Summary.AddAsync(dbContext, blobs, ingress, contentRootPath, windowId, SeedPost16Summary.October);
+        await SeedPost16PupilCampus.AddAsync(dbContext, blobs, ingress, contentRootPath, windowId);
+    }
+
+    /// <summary>
+    /// What an admin does when a later results file lands: links each file to its slot, retires the
+    /// slots it replaces, and validates the results enquiry, which makes a new release.
+    /// </summary>
+    internal static async Task AddResultsFilesAsync(IPortalDbContext dbContext, BlobServiceClient blobs,
+        ICheckingExerciseIngress ingress, string contentRootPath, Guid windowId,
+        IReadOnlyList<(string Slot, string File, byte[] Content, string Schema)> files, params string[] retire)
+    {
+        var window = await SeedExerciseFixtures.LoadAsync(dbContext, windowId);
+        var results = SeedExerciseFixtures.Exercise(window, CheckingExerciseType.ResultsEnquiry);
+
+        foreach (var (slot, file, content, schema) in files)
+            await SeedExerciseFixtures.LinkAsync(blobs, results, results.Datasets.Single(d => d.Name == slot),
+                Path.GetFileName(file), content, schema, await ReadSchemaAsync(contentRootPath, schema));
+        foreach (var slot in retire)
+            results.Datasets.Single(d => d.Name == slot).Retired = true;
+        await dbContext.SaveChangesAsync();
+
+        await SeedExerciseFixtures.IngestAsync(blobs, ingress, results);
+    }
+
+    private static Task<string> ReadSchemaAsync(string contentRootPath, string schema) =>
+        File.ReadAllTextAsync(Path.Combine(contentRootPath, "Data", "Ingress", "post16", schema));
+
+    /// <summary>
+    /// Writes the sample files, replacing any from an earlier seed. Does nothing when no ingress
+    /// storage account is configured.
+    /// </summary>
+    public static Task WriteSamplesAsync(IReadOnlyDictionary<string, BlobServiceClient> blobClients, ILogger logger) =>
+        WriteToIngressAsync(blobClients, Container, Files(), "16 to 19 Oct", logger);
+
+    internal static async Task WriteToIngressAsync(IReadOnlyDictionary<string, BlobServiceClient> blobClients,
+        string containerName, IReadOnlyDictionary<string, byte[]> files, string windowTitle, ILogger logger)
+    {
+        if (!blobClients.TryGetValue("ingress", out var ingress))
+        {
+            logger.LogWarning("No ingress storage account: the {Window} sample files were not written.", windowTitle);
+            return;
+        }
+
+        var container = ingress.GetBlobContainerClient(containerName);
+        await container.CreateIfNotExistsAsync();
+        foreach (var (path, content) in files)
+            await container.GetBlobClient(path).UploadAsync(new BinaryData(content), new BlobUploadOptions
+            {
+                HttpHeaders = new BlobHttpHeaders { ContentType = "text/csv" }
+            });
+    }
+
+    // A previously published data file in the supplier's own shape: every column of the data
+    // specification, headed by its field reference, one row per student. Its names end in _0, and
+    // it keys a row to a school by LAESTAB_0, not LAESTAB. Every second included student is in it.
+    internal static byte[] PreviouslyPublishedCsv(IEnumerable<Post16PupilRecord> students) =>
+        PreviouslyPublishedCsv(students.Where((_, index) => index % 2 == 0), firstCandidateNumber: 1000);
+
+    // The same shape for the given students, with candidate numbers from firstCandidateNumber. The
+    // revised file (SeedPost16FebruarySamples) uses it too.
+    internal static byte[] PreviouslyPublishedCsv(IEnumerable<Post16PupilRecord> students, int firstCandidateNumber) =>
+        SeedExerciseFixtures.WriteCsv(students.Select((student, index) =>
+            (IReadOnlyDictionary<string, string>)new Dictionary<string, string>
+            {
+                ["SCHCNO"] = (firstCandidateNumber + index).ToString(CultureInfo.InvariantCulture),
+                ["CYPMD_ID"] = student.Cypmd_Id,
+                ["SURNAME_0"] = student.Surname,
+                ["FORENAMES_0"] = student.Firstname,
+                ["SEX_0"] = student.Sex,
+                ["DOB_0"] = student.DateOfBirth,
+                ["LAESTAB_0"] = student.Laestab,
+                ["URN_0"] = student.Urn,
+                ["UKPRN"] = student.Ukprn,
+                ["ULN_0"] = student.Uln,
+                ["cypmd_pk"] = $"{student.Laestab}{student.Cypmd_Id}"
+            }));
+
+    // A 16-18 results data file in the supplier's own shape: every column of the data
+    // specification, headed by its field reference. There is no QAN, QUAL_NAME, SYLLABUS or SESSION
+    // column: results-included_schema.json and results-non-included_schema.json read them from GNUMBER, Short_Qual_Desc +
+    // SubjectDescription, BRDSUBNO and SEASON + EXAMYEAR, as it must for the supplier's real file.
+    internal static byte[] ResultsCsv(
+        IEnumerable<ResultRecord> results, IReadOnlyDictionary<string, Post16PupilRecord> students) =>
+        SeedExerciseFixtures.WriteCsv(results.Select((result, index) =>
+        {
+            var student = students[result.CypmdId];
+            var qualification = SupplierQualifications[result.Qan];
+            var year = result.Session[1..];
+            return new Dictionary<string, string>
+            {
+                ["ULN"] = student.Uln,
+                ["CYPMD_ID"] = result.CypmdId,
+                ["SURNAME"] = student.Surname,
+                ["FORENAMES"] = student.Firstname,
+                ["SEX"] = student.Sex,
+                ["DOB"] = student.DateOfBirth,
+                ["AGE"] = student.Age.ToString(CultureInfo.InvariantCulture),
+                ["EXAMNO"] = ((index % 9) + 1).ToString(CultureInfo.InvariantCulture),
+                ["GNUMBER"] = result.Qan,
+                ["AB_Code"] = qualification.AwardingBody,
+                ["EXAMYEAR"] = year,
+                ["SEASON"] = result.Session[..1],
+                ["exam_date"] = $"15/06/{year}",
+                ["Short_Qual_Desc"] = qualification.Short,
+                ["SubjectDescription"] = qualification.Subject,
+                ["GRADE"] = result.Grade,
+                ["POINTS_1618"] = "0.00",
+                ["CAPPED_PTS"] = "0.00",
+                ["ANCN"] = "12345",
+                ["ADFECN"] = student.Laestab,
+                ["BRDSUBNO"] = result.SyllabusCode,
+                ["MAPPING"] = string.Empty,
+                ["Level3QualificationCategory"] = string.Empty,
+                ["EMQualificationCategory"] = string.Empty,
+                ["R_INCL"] = "51",
+                ["R_INCL_EM"] = "58",
+                ["QUAL_KS4"] = "60",
+                ["UKPRN"] = student.Ukprn,
+                ["URN"] = student.Urn,
+                ["LAESTAB"] = student.Laestab,
+                ["cypmd_pk"] = $"{student.Laestab}{result.CypmdId}{result.Qan}{year}"
+            };
+        }));
+
+    // A late results file in the supplier's own shape (data specification, 1618 names): no ULN,
+    // DOB or URN, and the qualification by GNUMBER, SYLLABUS_TITLE, BRDSUBNO and EXAM_YEAR_SEASON,
+    // which results-late_schema.json reads into QAN, QUAL_NAME, SYLLABUS and SESSION. A row is an
+    // Amendment when an earlier file holds the same student, QAN and session; otherwise it is New.
+    internal static byte[] LateResultsCsv(
+        IEnumerable<ResultRecord> results, IReadOnlyDictionary<string, Post16PupilRecord> students,
+        IEnumerable<ResultRecord> earlierFiles)
+    {
+        var earlier = earlierFiles
+            .Select(r => (r.CypmdId, r.Qan, r.Session))
+            .ToHashSet();
+        return SeedExerciseFixtures.WriteCsv(results.Select(result =>
+        {
+            var student = students[result.CypmdId];
+            var qualification = SupplierQualifications[result.Qan];
+            return new Dictionary<string, string>
+            {
+                ["LAESTAB"] = student.Laestab,
+                ["CYPMD_ID"] = result.CypmdId,
+                ["SURNAME"] = student.Surname,
+                ["FORENAMES"] = student.Firstname,
+                ["AB_CODE_NDAQ"] = qualification.AwardingBody,
+                ["Short_Qual_Desc"] = qualification.Short,
+                ["EXAM_YEAR_SEASON"] = result.Session,
+                ["EXAM_DATE"] = $"{result.Session[1..]}0615",
+                ["Discount_Code"] = string.Empty,
+                ["SYLLABUS_TITLE"] = result.QualificationName,
+                ["GNUMBER"] = result.Qan,
+                ["BRDSUBNO"] = result.SyllabusCode,
+                ["GRADE"] = result.Grade,
+                ["Late_Result_Type"] = earlier.Contains((result.CypmdId, result.Qan, result.Session)) ? "Amendment" : "New"
+            };
+        }));
+    }
+
+    // The supplier's results file splits a qualification into a short type (at most 12 characters)
+    // and a subject; a late file also names the awarding body. One row per QAN in
+    // SeedResults' catalogue.
+    private static readonly IReadOnlyDictionary<string, (string Short, string Subject, string AwardingBody)> SupplierQualifications =
+        new Dictionary<string, (string, string, string)>
+        {
+            ["60146084"] = ("GCSE", "Mathematics", "AQA"),
+            ["60148366"] = ("GCSE", "English Language", "Pearson"),
+            ["60149589"] = ("GCE A", "Art and Design", "Pearson"),
+            ["60172186"] = ("BTEC NEC", "Sport", "Pearson"),
+            ["10025480"] = ("FSMQ", "Additional Maths", "OCR"),
+            ["50034157"] = ("IB", "International Baccalaureate", "IBO")
+        };
+}

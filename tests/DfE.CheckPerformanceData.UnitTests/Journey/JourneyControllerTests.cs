@@ -130,7 +130,7 @@ public class JourneyControllerTests
         _sut = new JourneyController(_flowService, _journeyService, _fileStorageService,
             _requestService, _pupilDataService, viewModelBuilder, _analytics, _currentUserService,
             _optionVisibilityService, _optionalityService, _languageCapture,
-            Substitute.For<DfE.CheckPerformanceData.Application.ResultsEnquiry.IStudentResultsClient>(),
+            Substitute.For<DfE.CheckPerformanceData.Application.ResultsEnquiry.IResultsClient>(),
             Substitute.For<DfE.CheckPerformanceData.Application.ResultsEnquiry.IQualificationReferenceClient>(),
             _requestNotificationService,
             _checkingExercises,
@@ -2527,7 +2527,7 @@ public class JourneyControllerTests
                     ExerciseType = CheckingExerciseType.PupilData,
                     StartDate = new DateTime(2026, 7, 19),
                     EndDate = ClosedEarlyAt,
-                    SortOrder = 0
+                    TabOrder = 0
                 }
             ]
         });
@@ -2608,7 +2608,7 @@ public class JourneyControllerTests
                     ExerciseType = CheckingExerciseType.PupilData,
                     StartDate = new DateTime(2026, 7, 19),
                     EndDate = new DateTime(2027, 8, 2, 17, 0, 0),
-                    SortOrder = 0
+                    TabOrder = 0
                 }
             ]
         };

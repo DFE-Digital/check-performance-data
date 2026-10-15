@@ -1,5 +1,7 @@
 @using DfE.CheckPerformanceData.Application.PageTree
+@using DfE.CheckPerformanceData.Web.Extensions
 @using DfE.CheckPerformanceData.Web.Models.PageTree
+@using DfE.CheckPerformanceData.Web.PageTree
 @model PageTreeAdminVersionHistoryModel
 
 <hr class="govuk-section-break govuk-section-break--visible govuk-section-break--l">
@@ -11,6 +13,11 @@
 }
 else
 {
+    var rejected = PublishWindowError.Read(TempData);
+    <p class="govuk-hint" id="publish-window-hint">
+        Publish from and publish to are UK time: the time shown on UK clocks on that date,
+        whether British Summer Time or Greenwich Mean Time applies.
+    </p>
     <table class="govuk-table">
         <thead class="govuk-table__head">
             <tr class="govuk-table__row">
@@ -18,8 +25,8 @@ else
                 <th scope="col" class="govuk-table__header">Modified</th>
                 <th scope="col" class="govuk-table__header">Modified by</th>
                 <th scope="col" class="govuk-table__header">Status</th>
-                <th scope="col" class="govuk-table__header">Publish from</th>
-                <th scope="col" class="govuk-table__header">Publish to</th>
+                <th scope="col" class="govuk-table__header">Publish from (UK time)</th>
+                <th scope="col" class="govuk-table__header">Publish to (UK time)</th>
                 <th scope="col" class="govuk-table__header">Actions</th>
             </tr>
         </thead>
@@ -31,28 +38,53 @@ else
                 // A <form> cannot be a direct child of <tr>, so the per-row form lives in the
                 // Actions cell and the date inputs in the other cells associate with it via form=.
                 var formId = $"version-form-{v.VersionId}";
+                var rowError = rejected?.VersionId == v.VersionId ? rejected : null;
+                var fromValue = rowError is not null ? rowError.From : PublishWindowTime.ToInputValue(v.PublishFrom);
+                var toValue = rowError is not null ? rowError.To : PublishWindowTime.ToInputValue(v.PublishTo);
+                var fromError = rowError?.FromError;
+                var toError = rowError?.ToError;
                 <tr class="govuk-table__row">
                     <td class="govuk-table__cell">@PageVersionNumbering.Label(Model.Versions, v)</td>
-                    <td class="govuk-table__cell">@v.UpdatedDate.ToString("dd MMM yyyy HH:mm")</td>
+                    <td class="govuk-table__cell">@v.UpdatedDate.ToLondonString("dd MMM yyyy HH:mm")</td>
                     <td class="govuk-table__cell">@(v.UpdatedBy ?? "—")</td>
                     <td class="govuk-table__cell">
                         <strong class="govuk-tag @st.TagClass">@st.Label</strong>
                     </td>
                     <td class="govuk-table__cell">
-                        <input class="govuk-input govuk-input--width-20"
-                               type="datetime-local"
-                               form="@formId"
-                               name="from"
-                               aria-label="Publish from"
-                               value="@(v.PublishFrom?.ToString("yyyy-MM-ddTHH:mm"))" />
+                        <div class="govuk-form-group govuk-!-margin-bottom-0 @(fromError is null ? "" : "govuk-form-group--error")">
+                            @if (fromError is not null)
+                            {
+                                <p class="govuk-error-message" id="from-@(v.VersionId)-error">
+                                    <span class="govuk-visually-hidden">Error:</span> @fromError
+                                </p>
+                            }
+                            <input class="govuk-input govuk-input--width-20 @(fromError is null ? "" : "govuk-input--error")"
+                                   type="datetime-local"
+                                   id="from-@v.VersionId"
+                                   form="@formId"
+                                   name="from"
+                                   aria-label="Publish from (UK time)"
+                                   aria-describedby="publish-window-hint@(fromError is null ? "" : $" from-{v.VersionId}-error")"
+                                   value="@fromValue" />
+                        </div>
                     </td>
                     <td class="govuk-table__cell">
-                        <input class="govuk-input govuk-input--width-20"
-                               type="datetime-local"
-                               form="@formId"
-                               name="to"
-                               aria-label="Publish to"
-                               value="@(v.PublishTo?.ToString("yyyy-MM-ddTHH:mm"))" />
+                        <div class="govuk-form-group govuk-!-margin-bottom-0 @(toError is null ? "" : "govuk-form-group--error")">
+                            @if (toError is not null)
+                            {
+                                <p class="govuk-error-message" id="to-@(v.VersionId)-error">
+                                    <span class="govuk-visually-hidden">Error:</span> @toError
+                                </p>
+                            }
+                            <input class="govuk-input govuk-input--width-20 @(toError is null ? "" : "govuk-input--error")"
+                                   type="datetime-local"
+                                   id="to-@v.VersionId"
+                                   form="@formId"
+                                   name="to"
+                                   aria-label="Publish to (UK time)"
+                                   aria-describedby="publish-window-hint@(toError is null ? "" : $" to-{v.VersionId}-error")"
+                                   value="@toValue" />
+                        </div>
                     </td>
                     <td class="govuk-table__cell">
                         <form id="@formId" method="post" action="/admin/pages/@Model.NodeId/publish">

@@ -54,6 +54,40 @@ public static class LondonTime
     }
 
     /// <summary>
+    /// Interprets a wall-clock value the user typed as London local time and resolves it to a
+    /// single UTC instant, settling the two clock-change cases explicitly:
+    /// <list type="bullet">
+    /// <item>A time in the hour skipped when the clocks go forward (late March, 1:00am to
+    /// 1:59am) does not exist in the UK, so the method returns <c>false</c> and the caller asks
+    /// the user for a real time rather than guessing which one they meant.</item>
+    /// <item>A time in the hour repeated when the clocks go back (late October, 1:00am to
+    /// 1:59am) resolves to its first occurrence, which is still British Summer Time.</item>
+    /// </list>
+    /// The kind of <paramref name="wallClock"/> is ignored: it is always read as London time.
+    /// </summary>
+    public static bool TryLondonToUtc(DateTime wallClock, out DateTime utc)
+    {
+        var unspecified = DateTime.SpecifyKind(wallClock, DateTimeKind.Unspecified);
+
+        if (Zone.IsInvalidTime(unspecified))
+        {
+            utc = default;
+            return false;
+        }
+
+        if (Zone.IsAmbiguousTime(unspecified))
+        {
+            // The first occurrence is the one with the larger offset from UTC (BST, UTC+1).
+            var firstOccurrenceOffset = Zone.GetAmbiguousTimeOffsets(unspecified).Max();
+            utc = DateTime.SpecifyKind(unspecified - firstOccurrenceOffset, DateTimeKind.Utc);
+            return true;
+        }
+
+        utc = TimeZoneInfo.ConvertTimeToUtc(unspecified, Zone);
+        return true;
+    }
+
+    /// <summary>
     /// Formats an instant as the "Submitted by → When" display, e.g.
     /// "24 June 2026 at 1:05pm" in London local time. Empty string when null.
     /// </summary>

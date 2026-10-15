@@ -276,4 +276,27 @@ public sealed class CheckingExerciseBlobPathsTests
     [Fact]
     public void DefaultDataType_MapsAnUntypedExerciseToOther()
         => Assert.Equal(CheckingDataType.Other, CheckingExerciseBlobPaths.DefaultDataType(null));
+
+    // The data reader caches an upload only when this says its path can never be overwritten. The
+    // rule must follow DefinitionFile: if the layout changes, this fails rather than the cache
+    // silently skipping every schema or, worse, caching one that can be replaced in place.
+    [Theory]
+    [InlineData("0123456789abcdef0123456789abcdef", true)]
+    [InlineData("ABC123", true)]
+    [InlineData("", false)]
+    public void IsChecksumUpload_follows_the_DefinitionFile_layout(string checksum, bool expected)
+    {
+        var path = CheckingExerciseBlobPaths.DefinitionFile(Guid.NewGuid(), Guid.NewGuid(), checksum, "schema.json");
+
+        Assert.Equal(expected, CheckingExerciseBlobPaths.IsChecksumUpload(path));
+    }
+
+    [Theory]
+    [InlineData("schema/students_schema.json")]
+    [InlineData("ingress/students.csv")]
+    [InlineData("exercises/00000000-0000-0000-0000-000000000000/data/9334070_pupils.json")]
+    public void IsChecksumUpload_is_false_for_a_path_that_can_be_overwritten(string path)
+    {
+        Assert.False(CheckingExerciseBlobPaths.IsChecksumUpload(path));
+    }
 }

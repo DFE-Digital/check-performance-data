@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
+using GovUk.Frontend.AspNetCore;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
@@ -42,7 +43,10 @@ public sealed class CreateCheckingExerciseItem : AdminPage, IValidatableObject
 
     [EnumDataType(typeof(ExerciseLayout), ErrorMessage = "Select how schools see the data")]
     public ExerciseLayout Layout { get; set; } = ExerciseLayout.Table;
+    [DateInput(ErrorMessagePrefix = "Visible from")]
     public DateTime? VisibleFrom { get; set; }
+
+    [DateInput(ErrorMessagePrefix = "Visible until")]
     public DateTime? VisibleUntil { get; set; }
     public Guid? ReplacesCheckingExerciseId { get; set; }
 

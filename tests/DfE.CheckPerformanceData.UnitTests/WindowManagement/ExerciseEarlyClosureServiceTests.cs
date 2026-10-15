@@ -47,6 +47,7 @@ public sealed class ExerciseEarlyClosureServiceTests
     {
         Id = id ?? (type == Exercise ? TargetId : Guid.NewGuid()),
         ExerciseType = type,
+        IsEnabled = true,
         StartDate = start,
         EndDate = end,
         TabOrder = (int)(type ?? 0)

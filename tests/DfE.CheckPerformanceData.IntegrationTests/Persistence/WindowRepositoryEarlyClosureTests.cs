@@ -50,7 +50,8 @@ public sealed class WindowRepositoryEarlyClosureTests(PostgresFixture fixture) :
                     ExerciseType = CheckingExerciseType.PupilData,
                     StartDate = Start,
                     EndDate = PupilDataEnd,
-                    TabOrder = 0
+                    TabOrder = 0,
+                    IsEnabled = true
                 },
                 new CheckingExercise
                 {
@@ -59,7 +60,8 @@ public sealed class WindowRepositoryEarlyClosureTests(PostgresFixture fixture) :
                     ExerciseType = CheckingExerciseType.ResultsEnquiry,
                     StartDate = Start,
                     EndDate = EnquiryEnd,
-                    TabOrder = 1
+                    TabOrder = 1,
+                    IsEnabled = true
                 }
             ]
         });

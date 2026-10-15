@@ -305,7 +305,8 @@ public sealed class InstantSearchWidgetE2ETests(PlaywrightFixture fixture) : See
         Assert.DoesNotContain(labels, l => l.Contains("Outside", StringComparison.Ordinal));
 
         await Options.First.ClickAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex($"{FixtureContent.RootPath}/{Regex.Escape(containerSegment)}/{Regex.Escape(insideSegment)}$"));
+        // The term goes with it, so the page can jump to it.
+        await Expect(Page).ToHaveURLAsync(new Regex($"{FixtureContent.RootPath}/{Regex.Escape(containerSegment)}/{Regex.Escape(insideSegment)}\\?highlight={Regex.Escape(token)}$"));
     }
 
     // ============================================================

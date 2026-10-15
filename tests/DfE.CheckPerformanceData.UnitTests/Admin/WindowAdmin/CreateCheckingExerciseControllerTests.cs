@@ -23,6 +23,9 @@ public sealed class CreateCheckingExerciseControllerTests
 
     public CreateCheckingExerciseControllerTests()
     {
+        // The fixture's existing exercise is a data share here, so the pupil-data exercise these
+        // tests create is the window's only one of its kind.
+        _window.Exercises[0] = Copy(_window.Exercises[0], type: null, enabled: false);
         _service.GetByIdAsync(_window.Id, Arg.Any<CancellationToken>()).Returns(_window);
         var urls = Substitute.For<IUrlHelper>();
         urls.Action(Arg.Any<UrlActionContext>()).Returns(call =>
@@ -228,33 +231,32 @@ public sealed class CreateCheckingExerciseControllerTests
     }
 
     [Fact]
-    public async Task A_second_live_exercise_of_one_kind_is_rejected()
+    public async Task A_second_exercise_of_one_kind_is_rejected_even_when_disabled_or_not_visible_together()
     {
-        _window.Exercises[0] = Live(_window.Exercises[0], from: null, until: null);
+        // A window has one exercise of each kind. A disabled one, or one whose visibility ends
+        // before the new one starts, still makes every "this window, this kind" lookup ambiguous.
+        _window.Exercises[0] = Copy(_window.Exercises[0], CheckingExerciseType.PupilData, enabled: false,
+            until: Today);
         var model = Valid();
+        model.IsEnabled = false;
+        model.VisibleFrom = Today;
         Validate(model);
 
         Assert.IsType<ViewResult>(await _controller.Submit(_window.Id, model, default));
 
-        Assert.True(_controller.ModelState.ContainsKey(nameof(model.IsEnabled)));
+        Assert.True(_controller.ModelState.ContainsKey(nameof(model.ExerciseType)));
         await _service.DidNotReceiveWithAnyArgs().UpdateAsync(default!, default);
     }
 
-    [Fact]
-    public async Task A_release_that_starts_when_the_live_one_ends_is_allowed()
-    {
-        _window.Exercises[0] = Live(_window.Exercises[0], from: null, until: Today);
-        var model = Valid();
-        model.VisibleFrom = Today;
-        Validate(model);
+    internal static CheckingExerciseDto Live(CheckingExerciseDto e, DateTime? from, DateTime? until) =>
+        Copy(e, e.ExerciseType, enabled: true, from, until);
 
-        Assert.IsType<RedirectToActionResult>(await _controller.Submit(_window.Id, model, default));
-    }
-
-    internal static CheckingExerciseDto Live(CheckingExerciseDto e, DateTime? from, DateTime? until) => new()
+    // A data share (no kind) is display only, as the database's check constraint requires.
+    private static CheckingExerciseDto Copy(CheckingExerciseDto e, CheckingExerciseType? type, bool enabled,
+        DateTime? from = null, DateTime? until = null) => new()
     {
-        Id = e.Id, Name = e.Name, ExerciseType = e.ExerciseType, TabName = e.TabName, IsEnabled = true,
-        VisibleFrom = from, VisibleUntil = until,
+        Id = e.Id, Name = e.Name, ExerciseType = type, DisplayOnly = type is null, TabName = e.TabName,
+        IsEnabled = enabled, VisibleFrom = from, VisibleUntil = until,
         StartDate = e.StartDate, EndDate = e.EndDate, TabOrder = e.TabOrder
     };
 

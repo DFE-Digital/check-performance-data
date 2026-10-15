@@ -497,7 +497,8 @@ click.
 
 **Close and the hand-over.** `CloseExerciseController` (`admin/windows/{id}/exercises/{exerciseId}/close`)
 is offered only while the exercise is open. Both pages are addressed by exercise id, not kind: a
-window may hold several releases of one kind (#466), so "open" is asked of the row
+window has at most one exercise of each kind, but the id is what every exercise has (a data share
+has no kind), so "open" is asked of the row
 (`ICheckingExerciseService.IsOpen(CheckingExerciseDto)`), the guarded write moves only that row,
 and the sweep matches change requests on that row's id. A data share has no kind, so it has no
 change requests and neither page serves it. After the admin types the window's name it calls
@@ -552,7 +553,7 @@ submitted in the last minutes of the exercise, because the sweep only sends a re
 engine has decided (#536). One that is still undecided is left waiting, and a later tick sends it.
 
 **By exercise id.** The job sweeps by exercise id, as the Close and Send requests buttons do,
-because a window may hold several releases of one kind (#466). It skips a data share (no kind): a
+because the id is what every exercise has (#466). It skips a data share (no kind): a
 change request reaches an exercise only through its kind, so a data share never holds one. The
 audit row records the exercise id beside its kind.
 

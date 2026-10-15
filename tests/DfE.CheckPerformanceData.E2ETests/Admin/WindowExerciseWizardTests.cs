@@ -60,14 +60,13 @@ public sealed class WindowExerciseWizardTests(PlaywrightFixture fixture) : Seedi
             Assert.Contains("(earliest exercise start)", summary);
             Assert.Contains("(latest exercise end)", summary);
             Assert.Contains(enquiryEnd.ToString("dd/MM/yyyy"), summary);
-            Assert.Contains("Pupil data checking, Results enquiry", summary);
 
-            // Each exercise validates on its own, so each gets its own section and its own state.
+            // Each exercise validates on its own, so each gets its own summary card and its own
+            // state. The card title carries the kind label, whatever name the exercise has.
             Assert.Contains("Validated", summary);
-            Assert.True(
-                await Page.Locator("h2:text('Pupil data checking')").CountAsync() > 0
-                && await Page.Locator("h2:text('Results enquiry')").CountAsync() > 0,
-                "Expected a per-exercise section for each of the window's two exercises.");
+            var cardTitles = Page.Locator(".govuk-summary-card__title");
+            await Expect(cardTitles.Filter(new() { HasText = "Pupil data checking" })).ToHaveCountAsync(1);
+            await Expect(cardTitles.Filter(new() { HasText = "Results enquiry" })).ToHaveCountAsync(1);
         }
         finally
         {

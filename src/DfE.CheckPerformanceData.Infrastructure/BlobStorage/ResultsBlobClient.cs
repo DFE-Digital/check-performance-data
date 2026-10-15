@@ -98,9 +98,12 @@ public sealed class ResultsBlobClient(
     {
         var target = resolver is null ? null : await resolver.ResolveAsync(windowId, CheckingExerciseType.ResultsEnquiry, ct);
         if (resolver is not null && target is null) return null;
+        // The laestab goes in as it is: DataBlobName strips the '/' itself, exactly as it does for
+        // the ingress run that wrote the file. Normalising here as well would name another blob
+        // whenever the supplier's value holds anything but digits and '/'.
         return target is { UsesExerciseStorage: true }
             ? CheckingExerciseBlobPaths.DataBlobName(target.Id, CheckingDataType.Results,
-                LaestabNormaliser.Normalise(laestab), target.CurrentReleaseId)
+                laestab, target.CurrentReleaseId)
             : ResultsEnquiryBlobPaths.ResultsBlobName(laestab);
     }
 

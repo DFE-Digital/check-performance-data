@@ -48,6 +48,21 @@ public static class CheckingExerciseBlobPaths
             : $"ingress/{exerciseId}/{definitionId}/{checksum[..Math.Min(16, checksum.Length)].ToLowerInvariant()}/{filename.Split('/', '\\')[^1]}";
 
     /// <summary>
+    /// True when <paramref name="blobName"/> is a <see cref="DefinitionFile(Guid, Guid, string, string)"/>
+    /// path with a checksum folder. A new upload gets a new folder, so the blob at such a path never
+    /// changes and a reader may cache it. Every other upload path can be overwritten in place.
+    /// </summary>
+    public static bool IsChecksumUpload(string blobName)
+    {
+        var parts = blobName.Split('/');
+        return parts is ["ingress", var exercise, var definition, var checksum, { Length: > 0 }]
+            && Guid.TryParse(exercise, out _)
+            && Guid.TryParse(definition, out _)
+            && checksum.Length is > 0 and <= 16
+            && checksum.All(c => char.IsAsciiHexDigitLower(c) || char.IsAsciiDigit(c));
+    }
+
+    /// <summary>
     /// Every prefix that holds only this exercise's blobs: its uploads and everything a run writes.
     /// Deleting the exercise deletes these and nothing else in the container.
     /// </summary>

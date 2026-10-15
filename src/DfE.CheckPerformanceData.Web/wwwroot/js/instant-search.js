@@ -9,7 +9,8 @@
 //   this page  - sections of the page being read, built from the heading anchors already in the
 //                DOM. Choosing one moves to that section.
 //   site/path  - /search/suggestions, scoped to whatever the widget is configured for. Choosing
-//                one opens that page.
+//                one opens that page with the term in ?highlight=, and the page it opens moves to
+//                and marks the term the same way a search of the page itself does.
 (function () {
     'use strict';
 
@@ -27,6 +28,10 @@
     var NON_CONTENT = 'form.cypmd-search, nav, script, style, template';
 
     var REPORT_URL = '/search/instant-analytics';
+
+    // Content.cshtml loads this script when a page is opened with this parameter, whether or not
+    // the page has an instant search of its own.
+    var HIGHLIGHT_PARAM = 'highlight';
 
     // Reporting an instant search
     // ---------------------------
@@ -302,6 +307,31 @@
         };
     }
 
+    // Heading matches first, then body matches: the section a search of the page would offer first.
+    function bestSection(sections, q) {
+        var match = null;
+        sections.some(function (s) {
+            if (s.label.toLowerCase().indexOf(q) >= 0) { match = s; return true; }
+            return false;
+        });
+        if (!match) {
+            sections.some(function (s) {
+                if (s.haystack.indexOf(q) >= 0) { match = s; return true; }
+                return false;
+            });
+        }
+        return match;
+    }
+
+    // Before any fragment, so the term still reaches the server-rendered page.
+    function withHighlight(url, term) {
+        var hashAt = url.indexOf('#');
+        var path = hashAt >= 0 ? url.slice(0, hashAt) : url;
+        var hash = hashAt >= 0 ? url.slice(hashAt) : '';
+        return path + (path.indexOf('?') >= 0 ? '&' : '?')
+            + HIGHLIGHT_PARAM + '=' + encodeURIComponent(term) + hash;
+    }
+
     function goToSection(section, term) {
         var target = document.getElementById(section.anchor);
         if (!target) return;
@@ -411,7 +441,7 @@
                 report.selected(keyOf(result), position);
 
                 if (searchIn === 'page') goToSection(result, lastQuery);
-                else if (result.url) window.location.assign(result.url);
+                else if (result.url) window.location.assign(withHighlight(result.url, lastQuery));
             }
         };
 
@@ -466,18 +496,7 @@
                 var q = field ? field.value.trim().toLowerCase() : '';
                 if (q.length < MIN_LENGTH) return;
 
-                var match = null;
-                sections.some(function (s) {
-                    if (s.label.toLowerCase().indexOf(q) >= 0) { match = s; return true; }
-                    return false;
-                });
-                if (!match) {
-                    sections.some(function (s) {
-                        if (s.haystack.indexOf(q) >= 0) { match = s; return true; }
-                        return false;
-                    });
-                }
-
+                var match = bestSection(sections, q);
                 if (match) {
                     event.preventDefault();
                     goToSection(match, q);
@@ -486,7 +505,31 @@
         }
     }
 
+    // A page opened from a search of several pages arrives with the term it was found by. A page
+    // can load this script twice, once for its own widget and once for the term, so the jump is
+    // made once.
+    function landOnHighlight() {
+        if (window.cypmdHighlightLanded) return;
+        window.cypmdHighlightLanded = true;
+
+        var term = (new URLSearchParams(window.location.search).get(HIGHLIGHT_PARAM) || '').trim();
+        if (term.length < MIN_LENGTH) return;
+
+        var sections = buildPageIndex();
+        var match = sections && sections.length ? bestSection(sections, term.toLowerCase()) : null;
+        if (match) { goToSection(match, term); return; }
+
+        // Found in copy above the first heading: there is no section to land on, so the word is
+        // marked and brought into view.
+        var root = document.querySelector('.cpb-content');
+        if (!root) return;
+        markTerm(root, term);
+        var first = root.querySelector('mark.' + MARK_CLASS);
+        if (first) first.scrollIntoView({ block: 'center' });
+    }
+
     function init() {
+        landOnHighlight();
         if (typeof accessibleAutocomplete === 'undefined') return;
         Array.prototype.forEach.call(
             document.querySelectorAll('form[data-cypmd-instant-search="true"]'),

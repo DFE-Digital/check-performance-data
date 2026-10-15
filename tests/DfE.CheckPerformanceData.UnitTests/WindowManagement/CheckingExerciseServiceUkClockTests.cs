@@ -13,7 +13,7 @@ public sealed class CheckingExerciseServiceUkClockTests
 
     private static CheckingExerciseDto[] Exercise(DateTime start, DateTime end) =>
     [
-        new() { Id = Guid.NewGuid(), ExerciseType = PupilData, StartDate = start, EndDate = end }
+        new() { Id = Guid.NewGuid(), ExerciseType = PupilData, IsEnabled = true, StartDate = start, EndDate = end }
     ];
 
     private static CheckingExerciseService At(string utcNow) => new(new UkClockAt(utcNow));

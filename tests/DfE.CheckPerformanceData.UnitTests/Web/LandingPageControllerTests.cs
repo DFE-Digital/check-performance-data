@@ -51,7 +51,7 @@ public sealed class LandingPageControllerTests
     }
 
     private static CheckingExerciseDto Exercise(CheckingExerciseType type, DateTime start, DateTime end, int sortOrder) =>
-        new() { ExerciseType = type, StartDate = start, EndDate = end, TabOrder = sortOrder };
+        new() { ExerciseType = type, IsEnabled = true, StartDate = start, EndDate = end, TabOrder = sortOrder };
 
     private static CheckingWindowDto Post16(DateTime pupilDataEnd, DateTime? nextOpportunity, bool enquiryOpen = true) => new()
     {
@@ -203,7 +203,7 @@ public sealed class LandingPageControllerTests
     public async Task A_window_that_runs_no_pupil_data_exercise_gets_no_closed_banner()
     {
         // Review F2: HasClosedPupilData must fail closed for a window with no pupil-data exercise —
-        // ExercisesController.Submit allows an admin to select Results enquiry alone, and
+        // an admin can delete a window's pupil-data exercise and leave Results enquiry alone, and
         // ICheckingExerciseService.IsOpen returns false for a missing exercise, so without the
         // EndDateFor(...) is not null guard this window would wrongly get a "closed" banner for an
         // exercise it never ran.
@@ -277,6 +277,7 @@ public sealed class LandingPageControllerTests
     private static CheckingExerciseDto Extended(CheckingExerciseType type, int sortOrder) => new()
     {
         ExerciseType = type,
+        IsEnabled = true,
         StartDate = PupilDataStart,
         EndDate = EndedYesterday,
         TabOrder = sortOrder,

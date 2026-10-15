@@ -159,6 +159,7 @@ public sealed class EgressViewSourceTests
         Assert.Contains("data-egress-step", view);
         Assert.Contains("aria-live=\"polite\"", view);
         Assert.Contains("role=\"progressbar\"", view);
+        Assert.Contains("post-event-stream.js", view);
         Assert.Contains("egress-preprocess.js", view);
     }
 
@@ -204,11 +205,12 @@ public sealed class EgressViewSourceTests
     }
 
     [Fact]
-    public void The_script_bows_out_without_EventSource_and_follows_the_terminal_next_url()
+    public void The_script_bows_out_without_a_streamed_post_and_follows_the_terminal_next_url()
     {
         var script = Script();
-        Assert.Contains("'EventSource' in window", script);
-        Assert.Contains("addEventListener('progress'", script);
+        Assert.Contains("window.postEventStream.supported()", script);
+        Assert.DoesNotContain("new EventSource", script);
+        Assert.Contains("type !== 'progress'", script);
         Assert.Contains("data.nextUrl", script);
         Assert.DoesNotContain("innerHTML", script);
     }

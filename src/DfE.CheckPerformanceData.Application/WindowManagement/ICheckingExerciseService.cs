@@ -20,6 +20,8 @@ public interface ICheckingExerciseService
     /// <summary>
     /// True when the exercise exists on the window, brackets now, and is one a school may act on.
     /// A display-only row is never open however its dates read (#466): it is there to be looked at.
+    /// Nor is a row schools cannot see (disabled, or outside its visibility dates): a school must
+    /// not act on an exercise it cannot see.
     /// </summary>
     bool IsOpen(IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise);
 
@@ -47,9 +49,9 @@ public interface ICheckingExerciseService
     bool HasClosed(IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise, string? laestab);
 
     /// <summary>
-    /// <see cref="IsOpen(IReadOnlyList{CheckingExerciseDto}, CheckingExerciseType)"/> for one row.
-    /// A window may hold several releases of one kind (#466), so an admin page that acts on one
-    /// exercise asks about that row, never about "any row of its kind".
+    /// Whether one row is running: it brackets now and is not display-only. Admin pages ask this to
+    /// offer Close, so it ignores whether schools can see the row. An admin may disable an exercise,
+    /// or move its visibility, and still has to close it and hand its requests over.
     /// </summary>
     bool IsOpen(CheckingExerciseDto exercise);
 
@@ -208,7 +210,7 @@ public sealed class CheckingExerciseService(TimeProvider timeProvider) : IChecki
         return exercises.Any(e => e.ExerciseType == exercise && e.EndDateFor(laestab) < now);
     }
 
-    public bool IsOpen(CheckingExerciseDto exercise) => Actionable(exercise, Now(), laestab: null);
+    public bool IsOpen(CheckingExerciseDto exercise) => Running(exercise, Now(), laestab: null);
 
     // Strictly before, as in the kind overload above.
     public bool HasClosed(CheckingExerciseDto exercise) => exercise.EndDate < Now();
@@ -307,9 +309,14 @@ public sealed class CheckingExerciseService(TimeProvider timeProvider) : IChecki
     // "Open" is two questions, not one: is it running, and is it a thing a school may act on.
     // Keeping them apart is what lets an admin mark an exercise read-only — a pupil-data exercise
     // reissued with refreshed data after its checking window shut — without having to falsify its
-    // dates to make the actions go away (#466).
-    private static bool Actionable(CheckingExerciseDto exercise, DateTime now, string? laestab) =>
+    // dates to make the actions go away (#466). A school may act only on an exercise it can see
+    // (Actionable). The admin's per-row question (Running) leaves that out, so a disabled
+    // exercise can still be closed and its requests sent.
+    private static bool Running(CheckingExerciseDto exercise, DateTime now, string? laestab) =>
         !exercise.DisplayOnly && Brackets(exercise, now, laestab);
+
+    private static bool Actionable(CheckingExerciseDto exercise, DateTime now, string? laestab) =>
+        Running(exercise, now, laestab) && exercise.IsLiveAt(now);
 
     // Inclusive at both ends, matching how the outer window's own dates are compared. Dates only:
     // HasClosed reports a lapsed end date, which is a fact about the dates whatever the row is.

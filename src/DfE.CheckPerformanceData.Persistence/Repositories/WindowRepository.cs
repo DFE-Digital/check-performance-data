@@ -4,6 +4,7 @@ using DfE.CheckPerformanceData.Application.Audit;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Entities;
+using DfE.CheckPerformanceData.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace DfE.CheckPerformanceData.Persistence.Repositories;
@@ -12,6 +13,35 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
 {
     // The audit payload is read back by WindowAdminAuditPayload with the same (camelCase) options.
     private static readonly JsonSerializerOptions AuditJson = new(JsonSerializerDefaults.Web);
+
+    public Task<bool> HasChangeRequestsAsync(Guid exerciseId, CancellationToken cancellationToken) =>
+        dbContext.ChangeRequests.AnyAsync(r => r.CheckingExerciseId == exerciseId, cancellationToken);
+
+    public async Task<IReadOnlyList<CheckingExerciseDto>> GetExercisesOfKindAsync(Guid windowId,
+        CheckingExerciseType type, CancellationToken cancellationToken) =>
+        await dbContext.Set<CheckingExercise>()
+            .AsNoTracking()
+            .Where(e => e.CheckingWindowId == windowId && e.ExerciseType == type)
+            .OrderBy(e => e.TabOrder).ThenBy(e => e.Id)
+            .Select(e => new CheckingExerciseDto
+            {
+                Id = e.Id,
+                ExerciseType = e.ExerciseType,
+                UsesExerciseStorage = e.UsesExerciseStorage,
+                Name = e.Name,
+                TabName = e.TabName,
+                TabOrder = e.TabOrder,
+                IsEnabled = e.IsEnabled,
+                DisplayOnly = e.DisplayOnly,
+                VisibleFrom = e.VisibleFrom,
+                VisibleUntil = e.VisibleUntil,
+                CurrentReleaseId = e.CurrentReleaseId,
+                Layout = e.Layout,
+                ShowLateResultsWarning = e.ShowLateResultsWarning,
+                StartDate = e.StartDate,
+                EndDate = e.EndDate
+            })
+            .ToListAsync(cancellationToken);
 
     public async Task<List<CheckingWindowDto>> GetAllWindowsAsync(CancellationToken cancellationToken) =>
         await dbContext.CheckingWindows

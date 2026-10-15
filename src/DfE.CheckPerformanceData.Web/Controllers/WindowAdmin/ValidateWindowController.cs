@@ -38,9 +38,11 @@ public class ValidateWindowController(
         return View(PageView, Model(id, exercise));
     }
 
-    // Live progress stream (step 1-7). EventSource can only issue GET, so validation runs here;
-    // the client opens this on demand from the Start button rather than on page load.
-    [HttpGet("admin/windows/{id:guid}/{exercise}/validate/stream")]
+    // Live progress stream (step 1-7). A run publishes data, so the stream is a POST with an
+    // antiforgery token, never a GET: a GET would let a crafted link start a run for a signed-in
+    // admin. The client posts the page form here from the Start button (post-event-stream.js).
+    [HttpPost("admin/windows/{id:guid}/{exercise}/validate/stream")]
+    [ValidateAntiForgeryToken]
     public IResult Stream(Guid id, CheckingExerciseType exercise, CancellationToken cancellationToken)
     {
         return Results.ServerSentEvents(Run(id, exercise, cancellationToken), eventType: "progress");
@@ -82,7 +84,9 @@ public class ValidateWindowController(
         return target is null ? NotFound() : View(PageView, ModelForExercise(id, exerciseId, target.ExerciseType));
     }
 
-    [HttpGet("admin/windows/{id:guid}/exercises/{exerciseId:guid}/validate/stream")]
+    // POST with an antiforgery token for the same reason as Stream: the run makes a release live.
+    [HttpPost("admin/windows/{id:guid}/exercises/{exerciseId:guid}/validate/stream")]
+    [ValidateAntiForgeryToken]
     public async Task<IResult> StreamForExercise(
         Guid id, Guid exerciseId, CancellationToken cancellationToken)
     {

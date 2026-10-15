@@ -1,8 +1,11 @@
 using Azure.Storage.Blobs;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
+using DfE.CheckPerformanceData.Application.WindowManagement;
+using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using Microsoft.Extensions.Caching.Memory;
+using NSubstitute;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.ResultsEnquiry;
 
@@ -189,6 +192,36 @@ public sealed class ResultsBlobClientTests(AzuriteFixture azurite)
         Assert.Equal("6037116X", only.Qan);
         Assert.Equal("5", only.Grade);
         Assert.Equal(ResultsFileTags.Post16Main, only.SourceFile);
+    }
+
+    [Theory]
+    [InlineData("8604070")]
+    [InlineData("860/4070")]
+    [InlineData("8604070 ")]
+    public async Task An_exercise_storage_read_names_the_blob_the_ingress_run_wrote(string laestab)
+    {
+        // Ingress writes DataBlobName(exercise id, ..., the supplier's LAESTAB value), which strips
+        // only the '/'. The reader must name the same blob, or a value holding any other character
+        // makes the school's results vanish.
+        var windowId = Guid.NewGuid();
+        var exercise = new CheckingExerciseDto
+        {
+            Id = Guid.NewGuid(), ExerciseType = CheckingExerciseType.ResultsEnquiry,
+            UsesExerciseStorage = true, StartDate = DateTime.Today, EndDate = DateTime.Today
+        };
+        var resolver = Substitute.For<ICheckingExerciseStorageResolver>();
+        resolver.ResolveAsync(windowId, CheckingExerciseType.ResultsEnquiry, Arg.Any<CancellationToken>())
+            .Returns(exercise);
+        var service = new BlobServiceClient(azurite.ConnectionString);
+        var container = service.GetBlobContainerClient(windowId.ToString());
+        await container.CreateAsync();
+        await container.UploadBlobAsync(
+            CheckingExerciseBlobPaths.DataBlobName(exercise.Id, CheckingDataType.Results, laestab),
+            BinaryData.FromString(ResultsJson));
+
+        var client = new ResultsBlobClient(service, new MemoryCache(new MemoryCacheOptions()), resolver);
+
+        Assert.Equal(3, (await client.GetAllResultsAsync(windowId, laestab)).Count);
     }
 
     // ── Students with results (AB#296648 follow-up) ──────────────────────────

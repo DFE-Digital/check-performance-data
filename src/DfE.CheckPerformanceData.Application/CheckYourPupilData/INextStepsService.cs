@@ -10,10 +10,10 @@ namespace DfE.CheckPerformanceData.Application.CheckYourPupilData;
 /// </summary>
 public interface INextStepsService
 {
-    /// <summary>Next-step options for the exercises open right now, in display order.</summary>
-    IReadOnlyList<NextSteps> GetAvailableSteps(IReadOnlyList<CheckingExerciseDto> exercises);
-
-    /// <summary>AB#307773: the options this school has, which may outlast the exercise's own end.</summary>
+    /// <summary>
+    /// Next-step options for the exercises open right now for this school, in display order
+    /// (AB#307773); a null or empty LAESTAB is the exercises' own dates.
+    /// </summary>
     IReadOnlyList<NextSteps> GetAvailableSteps(IReadOnlyList<CheckingExerciseDto> exercises, string? laestab);
 }
 
@@ -36,9 +36,6 @@ public sealed class NextStepsService(ICheckingExerciseService checkingExercises)
         [CheckingExerciseType.PupilData] = [NextSteps.RequestChange, NextSteps.Confirm],
         [CheckingExerciseType.ResultsEnquiry] = [NextSteps.ResultsEnquiry]
     };
-
-    public IReadOnlyList<NextSteps> GetAvailableSteps(IReadOnlyList<CheckingExerciseDto> exercises) =>
-        GetAvailableSteps(exercises, laestab: null);
 
     public IReadOnlyList<NextSteps> GetAvailableSteps(IReadOnlyList<CheckingExerciseDto> exercises, string? laestab) =>
         checkingExercises.OpenCheckingExercises(exercises, laestab)

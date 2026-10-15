@@ -15,7 +15,6 @@ public static class OpenCheckingExercises
     public static ICheckingExerciseService AlwaysOpen()
     {
         var service = Substitute.For<ICheckingExerciseService>();
-        service.IsOpen(default(IReadOnlyList<CheckingExerciseDto>)!, default).ReturnsForAnyArgs(true);
         service.IsOpen(default!, default, default).ReturnsForAnyArgs(true);
         service.IsOpen(default(CheckingExerciseDto)!).ReturnsForAnyArgs(true);
         return service.WithRealEndDates();
@@ -24,7 +23,6 @@ public static class OpenCheckingExercises
     /// <summary>Re-stubs an existing service so every checking exercise now reports closed.</summary>
     public static ICheckingExerciseService Close(this ICheckingExerciseService service)
     {
-        service.IsOpen(default(IReadOnlyList<CheckingExerciseDto>)!, default).ReturnsForAnyArgs(false);
         service.IsOpen(default!, default, default).ReturnsForAnyArgs(false);
         service.IsOpen(default(CheckingExerciseDto)!).ReturnsForAnyArgs(false);
         return service;
@@ -47,7 +45,6 @@ public static class OpenCheckingExercises
     public static ICheckingExerciseService AlwaysClosed()
     {
         var service = Substitute.For<ICheckingExerciseService>();
-        service.IsOpen(default(IReadOnlyList<CheckingExerciseDto>)!, default).ReturnsForAnyArgs(false);
         service.IsOpen(default!, default, default).ReturnsForAnyArgs(false);
         service.IsOpen(default(CheckingExerciseDto)!).ReturnsForAnyArgs(false);
         return service.WithRealEndDates();
@@ -57,8 +54,6 @@ public static class OpenCheckingExercises
     public static ICheckingExerciseService Only(CheckingExerciseType open)
     {
         var service = Substitute.For<ICheckingExerciseService>();
-        service.IsOpen(default(IReadOnlyList<CheckingExerciseDto>)!, default)
-            .ReturnsForAnyArgs(ci => ci.ArgAt<CheckingExerciseType>(1) == open);
         service.IsOpen(default!, default, default)
             .ReturnsForAnyArgs(ci => ci.ArgAt<CheckingExerciseType>(1) == open);
         service.IsOpen(default(CheckingExerciseDto)!)
@@ -70,13 +65,10 @@ public static class OpenCheckingExercises
     /// Answers EndDateFor from the rows it is given, exactly as the real service does. Only IsOpen
     /// is faked here — a substitute left to return null would make every deadline sentence vanish
     /// and hide the bug #320 fixed, which is that the wrong date was being read. The school's
-    /// overload answers with the school's end (AB#307773), as the row's own EndDateFor does.
+    /// end applies (AB#307773), as the row's own EndDateFor does.
     /// </summary>
     private static ICheckingExerciseService WithRealEndDates(this ICheckingExerciseService service)
     {
-        service.EndDateFor(default!, default).ReturnsForAnyArgs(ci =>
-            ci.ArgAt<IReadOnlyList<CheckingExerciseDto>>(0)
-                .FirstOrDefault(e => e.ExerciseType == ci.ArgAt<CheckingExerciseType>(1))?.EndDate);
         service.EndDateFor(default!, default, default).ReturnsForAnyArgs(ci =>
             ci.ArgAt<IReadOnlyList<CheckingExerciseDto>>(0)
                 .FirstOrDefault(e => e.ExerciseType == ci.ArgAt<CheckingExerciseType>(1))

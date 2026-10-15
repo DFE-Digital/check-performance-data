@@ -263,9 +263,9 @@ public sealed class WindowRepositoryEarlyClosureTests(PostgresFixture fixture) :
         var clock = new CheckingExerciseService(new FixedTimeProvider(
             new DateTimeOffset(NewEnd.AddSeconds(1), TimeSpan.Zero)));
 
-        Assert.False(clock.IsOpen(exercises, CheckingExerciseType.ResultsEnquiry));
-        Assert.True(clock.HasClosed(exercises, CheckingExerciseType.ResultsEnquiry));
-        Assert.True(clock.IsOpen(exercises, CheckingExerciseType.PupilData));
+        Assert.False(clock.IsOpen(exercises, CheckingExerciseType.ResultsEnquiry, laestab: null));
+        Assert.True(clock.HasClosed(exercises, CheckingExerciseType.ResultsEnquiry, laestab: null));
+        Assert.True(clock.IsOpen(exercises, CheckingExerciseType.PupilData, laestab: null));
     }
 
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider

@@ -59,7 +59,7 @@ public sealed class CheckingExerciseServiceTests
     {
         var exercises = new[] { Exercise(CheckingExerciseType.PupilData, Yesterday, Tomorrow) };
 
-        Assert.True(Sut().IsOpen(exercises, CheckingExerciseType.PupilData));
+        Assert.True(Sut().IsOpen(exercises, CheckingExerciseType.PupilData, laestab: null));
     }
 
     [Fact]
@@ -67,7 +67,7 @@ public sealed class CheckingExerciseServiceTests
     {
         var exercises = new[] { Exercise(CheckingExerciseType.PupilData, Tomorrow, NextMonth) };
 
-        Assert.False(Sut().IsOpen(exercises, CheckingExerciseType.PupilData));
+        Assert.False(Sut().IsOpen(exercises, CheckingExerciseType.PupilData, laestab: null));
     }
 
     [Fact]
@@ -75,7 +75,7 @@ public sealed class CheckingExerciseServiceTests
     {
         var exercises = new[] { Exercise(CheckingExerciseType.PupilData, LastMonth, Yesterday) };
 
-        Assert.False(Sut().IsOpen(exercises, CheckingExerciseType.PupilData));
+        Assert.False(Sut().IsOpen(exercises, CheckingExerciseType.PupilData, laestab: null));
     }
 
     [Fact]
@@ -84,13 +84,13 @@ public sealed class CheckingExerciseServiceTests
         // Fail closed: a half-configured window must not open a journey by accident.
         var exercises = new[] { Exercise(CheckingExerciseType.PupilData, Yesterday, Tomorrow) };
 
-        Assert.False(Sut().IsOpen(exercises, CheckingExerciseType.ResultsEnquiry));
+        Assert.False(Sut().IsOpen(exercises, CheckingExerciseType.ResultsEnquiry, laestab: null));
     }
 
     [Fact]
     public void IsOpen_is_false_for_an_empty_exercise_list()
     {
-        Assert.False(Sut().IsOpen([], CheckingExerciseType.PupilData));
+        Assert.False(Sut().IsOpen([], CheckingExerciseType.PupilData, laestab: null));
     }
 
     [Fact]
@@ -104,7 +104,7 @@ public sealed class CheckingExerciseServiceTests
 
         Assert.Equal(
             [CheckingExerciseType.PupilData, CheckingExerciseType.ResultsEnquiry],
-            Sut().OpenCheckingExercises(exercises));
+            Sut().OpenCheckingExercises(exercises, laestab: null));
     }
 
     [Fact]
@@ -117,13 +117,13 @@ public sealed class CheckingExerciseServiceTests
             Exercise(CheckingExerciseType.ResultsEnquiry, Tomorrow, NextMonth, sortOrder: 1)
         };
 
-        Assert.Equal([CheckingExerciseType.PupilData], Sut().OpenCheckingExercises(exercises));
+        Assert.Equal([CheckingExerciseType.PupilData], Sut().OpenCheckingExercises(exercises, laestab: null));
     }
 
     [Fact]
     public void OpenCheckingExercises_is_empty_for_an_empty_exercise_list()
     {
-        Assert.Empty(Sut().OpenCheckingExercises([]));
+        Assert.Empty(Sut().OpenCheckingExercises([], laestab: null));
     }
 
     [Fact]
@@ -135,7 +135,7 @@ public sealed class CheckingExerciseServiceTests
             Exercise(CheckingExerciseType.ResultsEnquiry, Yesterday, NextMonth)
         };
 
-        Assert.Equal(NextMonth, Sut().EndDateFor(exercises, CheckingExerciseType.ResultsEnquiry));
+        Assert.Equal(NextMonth, Sut().EndDateFor(exercises, CheckingExerciseType.ResultsEnquiry, laestab: null));
     }
 
     [Fact]
@@ -144,7 +144,7 @@ public sealed class CheckingExerciseServiceTests
         // "Closed" means no actions, never "no content" — a caller still shows the date it ended.
         var exercises = new[] { Exercise(CheckingExerciseType.PupilData, LastMonth, Yesterday) };
 
-        Assert.Equal(Yesterday, Sut().EndDateFor(exercises, CheckingExerciseType.PupilData));
+        Assert.Equal(Yesterday, Sut().EndDateFor(exercises, CheckingExerciseType.PupilData, laestab: null));
     }
 
     [Fact]
@@ -152,13 +152,13 @@ public sealed class CheckingExerciseServiceTests
     {
         var exercises = new[] { Exercise(CheckingExerciseType.PupilData, Yesterday, Tomorrow) };
 
-        Assert.Null(Sut().EndDateFor(exercises, CheckingExerciseType.ResultsEnquiry));
+        Assert.Null(Sut().EndDateFor(exercises, CheckingExerciseType.ResultsEnquiry, laestab: null));
     }
 
     [Fact]
     public void EndDateFor_is_null_for_an_empty_exercise_list()
     {
-        Assert.Null(Sut().EndDateFor([], CheckingExerciseType.PupilData));
+        Assert.Null(Sut().EndDateFor([], CheckingExerciseType.PupilData, laestab: null));
     }
 
     [Fact]
@@ -220,8 +220,8 @@ public sealed class CheckingExerciseServiceTests
         var startsNow = new[] { Exercise(CheckingExerciseType.PupilData, Now.DateTime, NextMonth) };
         var endsNow = new[] { Exercise(CheckingExerciseType.PupilData, LastMonth, Now.DateTime) };
 
-        Assert.True(Sut().IsOpen(startsNow, CheckingExerciseType.PupilData));
-        Assert.True(Sut().IsOpen(endsNow, CheckingExerciseType.PupilData));
+        Assert.True(Sut().IsOpen(startsNow, CheckingExerciseType.PupilData, laestab: null));
+        Assert.True(Sut().IsOpen(endsNow, CheckingExerciseType.PupilData, laestab: null));
     }
 
     // ── HasClosed (AB#298317 review) ─────────────────────────────────────────
@@ -233,7 +233,7 @@ public sealed class CheckingExerciseServiceTests
     {
         var exercises = new[] { Exercise(CheckingExerciseType.PupilData, LastMonth, Yesterday) };
 
-        Assert.True(Sut().HasClosed(exercises, CheckingExerciseType.PupilData));
+        Assert.True(Sut().HasClosed(exercises, CheckingExerciseType.PupilData, laestab: null));
     }
 
     [Fact]
@@ -241,7 +241,7 @@ public sealed class CheckingExerciseServiceTests
     {
         var exercises = new[] { Exercise(CheckingExerciseType.PupilData, Yesterday, Tomorrow) };
 
-        Assert.False(Sut().HasClosed(exercises, CheckingExerciseType.PupilData));
+        Assert.False(Sut().HasClosed(exercises, CheckingExerciseType.PupilData, laestab: null));
     }
 
     [Fact]
@@ -250,8 +250,8 @@ public sealed class CheckingExerciseServiceTests
         // The whole point of the method: not open, but not closed either.
         var exercises = new[] { Exercise(CheckingExerciseType.PupilData, Tomorrow, NextMonth) };
 
-        Assert.False(Sut().IsOpen(exercises, CheckingExerciseType.PupilData));
-        Assert.False(Sut().HasClosed(exercises, CheckingExerciseType.PupilData));
+        Assert.False(Sut().IsOpen(exercises, CheckingExerciseType.PupilData, laestab: null));
+        Assert.False(Sut().HasClosed(exercises, CheckingExerciseType.PupilData, laestab: null));
     }
 
     [Fact]
@@ -261,13 +261,13 @@ public sealed class CheckingExerciseServiceTests
         // that never ran an exercise has nothing to have closed.
         var exercises = new[] { Exercise(CheckingExerciseType.PupilData, LastMonth, Yesterday) };
 
-        Assert.False(Sut().HasClosed(exercises, CheckingExerciseType.ResultsEnquiry));
+        Assert.False(Sut().HasClosed(exercises, CheckingExerciseType.ResultsEnquiry, laestab: null));
     }
 
     [Fact]
     public void HasClosed_is_false_for_an_empty_exercise_list()
     {
-        Assert.False(Sut().HasClosed([], CheckingExerciseType.PupilData));
+        Assert.False(Sut().HasClosed([], CheckingExerciseType.PupilData, laestab: null));
     }
 
     [Fact]
@@ -277,8 +277,8 @@ public sealed class CheckingExerciseServiceTests
         // must agree, or one instant would be both open and closed.
         var exercises = new[] { Exercise(CheckingExerciseType.PupilData, LastMonth, Now.DateTime) };
 
-        Assert.True(Sut().IsOpen(exercises, CheckingExerciseType.PupilData));
-        Assert.False(Sut().HasClosed(exercises, CheckingExerciseType.PupilData));
+        Assert.True(Sut().IsOpen(exercises, CheckingExerciseType.PupilData, laestab: null));
+        Assert.False(Sut().HasClosed(exercises, CheckingExerciseType.PupilData, laestab: null));
     }
 
     // #466: "open" means a school may act on it, not merely that the dates bracket now. A
@@ -289,7 +289,7 @@ public sealed class CheckingExerciseServiceTests
     {
         var exercises = new[] { DisplayOnly(CheckingExerciseType.PupilData, Yesterday, Tomorrow) };
 
-        Assert.False(Sut().IsOpen(exercises, CheckingExerciseType.PupilData));
+        Assert.False(Sut().IsOpen(exercises, CheckingExerciseType.PupilData, laestab: null));
     }
 
     [Fact]
@@ -303,7 +303,7 @@ public sealed class CheckingExerciseServiceTests
 
         Assert.Equal(
             [CheckingExerciseType.ResultsEnquiry],
-            Sut().OpenCheckingExercises(exercises));
+            Sut().OpenCheckingExercises(exercises, laestab: null));
     }
 
     // A wizard-created exercise starts disabled. Until an admin enables it, schools cannot see it,
@@ -313,8 +313,8 @@ public sealed class CheckingExerciseServiceTests
     {
         var exercise = Exercise(CheckingExerciseType.PupilData, Yesterday, Tomorrow, enabled: false);
 
-        Assert.False(Sut().IsOpen([exercise], CheckingExerciseType.PupilData));
-        Assert.Empty(Sut().OpenCheckingExercises([exercise]));
+        Assert.False(Sut().IsOpen([exercise], CheckingExerciseType.PupilData, laestab: null));
+        Assert.Empty(Sut().OpenCheckingExercises([exercise], laestab: null));
     }
 
     // The admin's per-row question: a disabled exercise inside its dates is still running, so the
@@ -338,8 +338,8 @@ public sealed class CheckingExerciseServiceTests
         var gone = Exercise(CheckingExerciseType.ResultsEnquiry, Yesterday, Tomorrow,
             visibleUntil: Now.DateTime);
 
-        Assert.False(Sut().IsOpen([notYet], CheckingExerciseType.PupilData));
-        Assert.False(Sut().IsOpen([gone], CheckingExerciseType.ResultsEnquiry));
+        Assert.False(Sut().IsOpen([notYet], CheckingExerciseType.PupilData, laestab: null));
+        Assert.False(Sut().IsOpen([gone], CheckingExerciseType.ResultsEnquiry, laestab: null));
     }
 
     // The dates still answer on their own for an ordinary exercise — this rule adds a reason to be
@@ -349,10 +349,10 @@ public sealed class CheckingExerciseServiceTests
     {
         var exercises = new[] { Exercise(CheckingExerciseType.PupilData, Yesterday, Tomorrow) };
 
-        Assert.True(Sut().IsOpen(exercises, CheckingExerciseType.PupilData));
+        Assert.True(Sut().IsOpen(exercises, CheckingExerciseType.PupilData, laestab: null));
         Assert.Equal(
             [CheckingExerciseType.PupilData],
-            Sut().OpenCheckingExercises(exercises));
+            Sut().OpenCheckingExercises(exercises, laestab: null));
     }
 
     // HasClosed is untouched: it reports a lapsed end date, which is a fact about the dates alone.
@@ -362,7 +362,7 @@ public sealed class CheckingExerciseServiceTests
     {
         var exercises = new[] { DisplayOnly(CheckingExerciseType.PupilData, Yesterday, Tomorrow) };
 
-        Assert.False(Sut().HasClosed(exercises, CheckingExerciseType.PupilData));
+        Assert.False(Sut().HasClosed(exercises, CheckingExerciseType.PupilData, laestab: null));
     }
 
     // The admin summary's one tag per exercise: what schools can see and do with it now.
@@ -456,7 +456,7 @@ public sealed class CheckingExerciseServiceTests
     [Fact]
     public void IsWindowShown_inside_the_exercise_dates()
     {
-        Assert.True(Sut().IsWindowShown([Live(CheckingExerciseType.PupilData, Yesterday, Tomorrow)]));
+        Assert.True(Sut().IsWindowShown([Live(CheckingExerciseType.PupilData, Yesterday, Tomorrow)], laestab: null));
     }
 
     [Fact]
@@ -464,13 +464,13 @@ public sealed class CheckingExerciseServiceTests
     {
         var exercise = LiveUntil(CheckingExerciseType.PupilData, Tomorrow, NextMonth, NextMonth.AddDays(7));
 
-        Assert.False(Sut().IsWindowShown([exercise]));
+        Assert.False(Sut().IsWindowShown([exercise], laestab: null));
     }
 
     [Fact]
     public void IsWindowShown_is_false_after_the_end_date_when_no_visible_until_is_set()
     {
-        Assert.False(Sut().IsWindowShown([Live(CheckingExerciseType.PupilData, LastMonth, Yesterday)]));
+        Assert.False(Sut().IsWindowShown([Live(CheckingExerciseType.PupilData, LastMonth, Yesterday)], laestab: null));
     }
 
     [Fact]
@@ -478,7 +478,7 @@ public sealed class CheckingExerciseServiceTests
     {
         var exercise = LiveUntil(CheckingExerciseType.PupilData, LastMonth, Yesterday, NextMonth);
 
-        Assert.True(Sut().IsWindowShown([exercise]));
+        Assert.True(Sut().IsWindowShown([exercise], laestab: null));
     }
 
     [Fact]
@@ -487,7 +487,7 @@ public sealed class CheckingExerciseServiceTests
         // VisibleUntil is exclusive, as in IsLiveAt.
         var exercise = LiveUntil(CheckingExerciseType.PupilData, LastMonth, Yesterday, Now.DateTime);
 
-        Assert.False(Sut().IsWindowShown([exercise]));
+        Assert.False(Sut().IsWindowShown([exercise], laestab: null));
     }
 
     [Fact]
@@ -499,13 +499,13 @@ public sealed class CheckingExerciseServiceTests
             StartDate = LastMonth, EndDate = Yesterday, IsEnabled = false, VisibleUntil = NextMonth
         };
 
-        Assert.False(Sut().IsWindowShown([exercise]));
+        Assert.False(Sut().IsWindowShown([exercise], laestab: null));
     }
 
     [Fact]
     public void IsWindowShown_is_false_for_a_window_with_no_exercises()
     {
-        Assert.False(Sut().IsWindowShown([]));
+        Assert.False(Sut().IsWindowShown([], laestab: null));
     }
 
     [Fact]
@@ -592,8 +592,8 @@ public sealed class CheckingExerciseServiceTests
         Assert.Equal(Yesterday, Sut().EndDateFor(exercises, CheckingExerciseType.PupilData, "860/4070"));
         Assert.False(Sut().IsOpen(exercises, CheckingExerciseType.PupilData, null));
         // The exercise-level answer is unchanged: the exercise's own dates.
-        Assert.False(Sut().IsOpen(exercises, CheckingExerciseType.PupilData));
-        Assert.True(Sut().HasClosed(exercises, CheckingExerciseType.PupilData));
+        Assert.False(Sut().IsOpen(exercises, CheckingExerciseType.PupilData, laestab: null));
+        Assert.True(Sut().HasClosed(exercises, CheckingExerciseType.PupilData, laestab: null));
     }
 
     [Fact]
@@ -617,7 +617,7 @@ public sealed class CheckingExerciseServiceTests
         Assert.Equal([CheckingExerciseType.PupilData, CheckingExerciseType.ResultsEnquiry],
             Sut().OpenCheckingExercises(exercises, "9334290"));
         Assert.Equal([CheckingExerciseType.ResultsEnquiry], Sut().OpenCheckingExercises(exercises, "8604070"));
-        Assert.Equal([CheckingExerciseType.ResultsEnquiry], Sut().OpenCheckingExercises(exercises));
+        Assert.Equal([CheckingExerciseType.ResultsEnquiry], Sut().OpenCheckingExercises(exercises, laestab: null));
     }
 
     [Fact]
@@ -630,7 +630,7 @@ public sealed class CheckingExerciseServiceTests
         // With no school, the outer end includes the extension — that is what the landing page's
         // date bracket sees in the window's own EndDate.
         Assert.True(Sut().IsWindowShown(exercises, null));
-        Assert.True(Sut().IsWindowShown(exercises));
+        Assert.True(Sut().IsWindowShown(exercises, laestab: null));
     }
 
     // A school with no LAESTAB claim is no school at all: it sees the window for as long as the
@@ -718,7 +718,7 @@ public sealed class CheckingExerciseServiceTests
         };
 
         Assert.Equal(live.Id, Sut().IdFor(exercises, CheckingExerciseType.PupilData));
-        Assert.Equal(NextMonth, Sut().EndDateFor(exercises, CheckingExerciseType.PupilData));
+        Assert.Equal(NextMonth, Sut().EndDateFor(exercises, CheckingExerciseType.PupilData, laestab: null));
     }
 
     [Fact]

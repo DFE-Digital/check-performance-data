@@ -634,8 +634,9 @@ public sealed class CheckingExerciseServiceTests
     }
 
     // A school with no LAESTAB claim is no school at all: it sees the window for as long as the
-    // stored window end (the latest any school sees) says, not the exercises' own dates, so the
-    // two paths that decide whether it sees the window agree.
+    // latest end any school sees, extensions included (the exercises' LatestEndDate, not the
+    // stored window end, which leaves extensions out), so the two paths that decide whether it
+    // sees the window agree.
     [Theory]
     [InlineData("")]
     [InlineData("   ")]

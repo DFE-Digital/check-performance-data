@@ -25,8 +25,8 @@ public sealed class ConfirmCorrectController(
     // exercise even while the outer window (and any other exercise on it) is still running.
     // AB#307773: it closes for the signed-in school, whose extension may run past the exercise's
     // own end, and the deadline the page and the email quote is that school's too (decision 9):
-    // the outer window's end moves with every extension, so it is only the fallback for a window
-    // with no pupil-data row.
+    // the outer window's end is the exercises' own latest end and never includes an extension's
+    // (review finding 1), so it is only the fallback for a window with no pupil-data row.
     private const CheckingExerciseType Exercise = CheckingExerciseType.PupilData;
 
     [HttpGet]

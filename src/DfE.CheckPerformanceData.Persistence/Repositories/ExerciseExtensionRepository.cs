@@ -107,9 +107,11 @@ public sealed class ExerciseExtensionRepository(PortalDbContext dbContext) : IEx
         {
             dbContext.ChangeTracker.Clear();
 
-            // As CloseExerciseEarlyAsync: a second press, a second admin or an edit in between
-            // leaves this false and nothing below runs, so the audit row — the only early-closure
-            // stamp (decision 5) — can never describe a close that did not happen.
+            // As CloseExerciseEarlyAsync: a second press, a second admin's close or an edit that
+            // moved the end in between leaves this false (the guard is the end date; a school-only
+            // edit leaves it true, harmlessly, as closing does not depend on the school list) and
+            // nothing below runs, so the audit row — the only early-closure stamp (decision 5) —
+            // can never describe a close that did not happen.
             int moved = await dbContext.CheckingExerciseExtensions
                 .Where(x => x.Id == closure.ExtensionId
                             && x.CheckingExerciseId == closure.ExerciseId

@@ -838,9 +838,9 @@ public class RequestServiceTests
 
     // ── AB#307773 review C2: school-aware email deadlines ───────────────────
     //
-    // The outer window's end moves with every extension (decision 8), so the emails quote the
-    // signed-in school's end for the request's own exercise: the extension's for the school it
-    // names, the exercise's own for any other.
+    // The emails quote the signed-in school's end for the request's own exercise (from the exercise
+    // rows, not the window's end): the extension's for the school it names, the exercise's own for
+    // any other. The fixtures set the window's end explicitly.
 
     private static readonly DateTime ExerciseEnd = new(2026, 6, 26, 17, 0, 0);
     private static readonly DateTime ExtensionEnd = new(2026, 7, 31, 17, 0, 0);

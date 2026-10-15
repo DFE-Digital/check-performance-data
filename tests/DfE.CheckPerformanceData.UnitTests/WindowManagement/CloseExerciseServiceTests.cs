@@ -23,6 +23,7 @@ public sealed class CloseExerciseServiceTests
     private readonly IWindowRepository _windows = Substitute.For<IWindowRepository>();
     private readonly IExerciseExtensionRepository _extensions = Substitute.For<IExerciseExtensionRepository>();
     private readonly CloseExerciseService _sut;
+    private readonly FixedTimeProvider _clock = new(Now);
 
     // AB#307773: the exercise ended yesterday. Extension A is still open, B has closed but has not
     // been swept, and C has closed and been swept.
@@ -48,7 +49,9 @@ public sealed class CloseExerciseServiceTests
 
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
     {
-        public override DateTimeOffset GetUtcNow() => now.ToUniversalTime();
+        // Settable so a fact can move the clock from inside a stubbed sweep.
+        public DateTimeOffset Now { get; set; } = now;
+        public override DateTimeOffset GetUtcNow() => Now.ToUniversalTime();
         public override TimeZoneInfo LocalTimeZone => TimeZoneInfo.Utc;
     }
 
@@ -77,9 +80,8 @@ public sealed class CloseExerciseServiceTests
                 }
             ]
         });
-        var clock = new FixedTimeProvider(Now);
         _sut = new CloseExerciseService(
-            _repository, _documents, _queue, _windows, new CheckingExerciseService(clock), _extensions, clock);
+            _repository, _documents, _queue, _windows, new CheckingExerciseService(_clock), _extensions, _clock);
     }
 
     // Compares the filter's schools as a set; the order they were named in does not matter.
@@ -287,6 +289,29 @@ public sealed class CloseExerciseServiceTests
         await _extensions.Received(1).MarkRequestsSentAsync(B.Id, Now.UtcDateTime, ct);
         await _extensions.DidNotReceive().MarkRequestsSentAsync(A.Id, Arg.Any<DateTime>(), ct);
         await _extensions.DidNotReceive().MarkRequestsSentAsync(C.Id, Arg.Any<DateTime>(), ct);
+    }
+
+    [Fact]
+    public async Task An_extension_held_back_by_the_filter_is_not_stamped_even_if_it_closes_during_the_sweep()
+    {
+        // Final review F1: the held set and the stamp set come from one reading of the clock, taken
+        // before the sweep. A ends (tomorrow 23:59:59) while the sweep runs; its school was left out
+        // of the sweep, so stamping it "Requests sent" would be wrong. B, closed at the start, is
+        // still stamped.
+        Decided();
+        _repository.CountWaitingRequestsForExerciseAsync(WindowId, ExerciseId, Arg.Any<SchoolFilter>(), Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                _clock.Now = new DateTimeOffset(Tomorrow.AddHours(1), TimeSpan.Zero);
+                return 0;
+            });
+
+        await _sut.CloseAsync(WindowId, ExerciseId, CancellationToken.None);
+
+        await _repository.Received(1).MarkDraftsNotSubmittedForExerciseAsync(WindowId, ExerciseId,
+            Arg.Is<SchoolFilter>(f => Is(f, SchoolFilterMode.Exclude, "9334290")), Arg.Any<CancellationToken>());
+        await _extensions.DidNotReceive().MarkRequestsSentAsync(A.Id, Arg.Any<DateTime>(), Arg.Any<CancellationToken>());
+        await _extensions.Received(1).MarkRequestsSentAsync(B.Id, Arg.Any<DateTime>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

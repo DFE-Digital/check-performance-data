@@ -209,8 +209,8 @@ public class JourneyControllerTests
         AssertRedirectToCheckYourData(result);
     }
 
-    // AB#307773 review C2: the outer window's end moves with every extension, so the page quotes the
-    // signed-in school's pupil-data end. SummaryConfirm has cleared the change type by now, and only
+    // AB#307773 review C2: the page quotes the signed-in school's pupil-data end, from the exercise
+    // rows, never the window's end. SummaryConfirm has cleared the change type by now, and only
     // an amendment comes here, so the kind is pupil data.
     [Theory]
     [InlineData("933/4290", "31 July 2026")]

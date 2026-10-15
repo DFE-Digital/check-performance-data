@@ -93,8 +93,9 @@ public sealed class EditCheckingExerciseController(IWindowService windowService)
             WindowStart = exercise.WindowStart,
             WindowEnd = exercise.WindowEnd,
             Datasets = exercise.Datasets,
-            // AB#307773: carried so the window's derived end date keeps the extension ends. The
-            // window update never writes extensions; it only reads their dates.
+            // AB#307773: carried so the window update round-trips the DTO without dropping the
+            // extensions. The update never writes extension rows, and they no longer affect the
+            // window's end.
             Extensions = exercise.Extensions,
             ValidatedAt = kindChanged ? null : exercise.ValidatedAt,
             ValidatedIngressChecksum = exercise.ValidatedIngressChecksum,

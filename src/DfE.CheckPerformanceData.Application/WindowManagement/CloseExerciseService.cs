@@ -9,7 +9,8 @@ namespace DfE.CheckPerformanceData.Application.WindowManagement;
 /// AB#307773: the exercise and each of its extensions are swept separately, by school. Whether an
 /// extension is open is asked of <see cref="ICheckingExerciseService"/>, the one clock. The
 /// <see cref="TimeProvider"/> here never compares a date; it only stamps
-/// <c>RequestsSentAt</c> once an extension's sweep has run.
+/// <c>RequestsSentAt</c> once a sweep has covered an extension's schools: the extension's own, or
+/// the exercise's after the extension closed.
 /// </remarks>
 public sealed class CloseExerciseService(
     IAdminRequestsRepository repository,
@@ -23,19 +24,28 @@ public sealed class CloseExerciseService(
     public async Task<CloseExercisePreview> PreviewAsync(
         Guid windowId, Guid exerciseId, CancellationToken cancellationToken) =>
         await PreviewAsync(windowId, exerciseId,
-            ExerciseFilter(await RowAsync(windowId, exerciseId, cancellationToken)), cancellationToken);
+            HeldFilter(await RowAsync(windowId, exerciseId, cancellationToken)), cancellationToken);
 
     public async Task<CloseExerciseResult> CloseAsync(
         Guid windowId, Guid exerciseId, CancellationToken cancellationToken)
     {
         var row = await RowAsync(windowId, exerciseId, cancellationToken);
-        var result = await SweepAsync(windowId, exerciseId, ExerciseFilter(row), cancellationToken);
 
-        // Every extension that has closed by its effective end was covered by this sweep, so it is
-        // stamped sent (review finding 4): the summary's "Requests sent" tag and the extension's own
-        // Send page then read right, and a later extension sweep sends nothing twice (the rows are
-        // TicketQueued). A sweep that threw never gets here. A no-op for one stamped earlier.
-        foreach (var extension in (row?.Extensions ?? []).Where(x => x.RequestsSentAt is null && checkingExercises.HasClosed(row!, x)))
+        // One reading of the clock decides both sets, before the sweep: an extension is either held
+        // back (open) or covered by this sweep (closed), never both, so one that ends mid-sweep
+        // cannot be stamped for schools the sweep left alone.
+        var open = row is null ? [] : row.Extensions.Where(x => checkingExercises.IsOpen(row, x)).ToList();
+        var covered = row is null
+            ? []
+            : row.Extensions.Where(x => x.RequestsSentAt is null && !open.Contains(x)).ToList();
+
+        var result = await SweepAsync(windowId, exerciseId, HeldFilter(row, open), cancellationToken);
+
+        // Every closed extension was covered by this sweep, so it is stamped sent (review finding 4):
+        // the summary's "Requests sent" tag and the extension's own Send page then read right, and a
+        // later extension sweep sends nothing twice (the rows are TicketQueued). A sweep that threw
+        // never gets here. A no-op for one stamped earlier.
+        foreach (var extension in covered)
             await extensions.MarkRequestsSentAsync(extension.Id, timeProvider.GetUtcNow().UtcDateTime, cancellationToken);
 
         return result;
@@ -52,9 +62,11 @@ public sealed class CloseExerciseService(
         var result = await SweepAsync(windowId, exerciseId,
             await ExtensionFilterAsync(windowId, exerciseId, extensionId, cancellationToken), cancellationToken);
 
-        // First sweep after the close: from here the exercise's own sweep may take anything left.
-        // A sweep that threw never gets here, so its schools stay held until one succeeds. A no-op
-        // when the extension was stamped by an earlier run.
+        // Records that a sweep has covered this extension's schools (the stamp also tells the
+        // summary and the Send page). The exercise's sweep holds these schools only while the
+        // extension is open, so the stamp does not release them. A sweep that threw never gets
+        // here, so the extension is not recorded as sent until one succeeds. A no-op when an
+        // earlier run stamped it.
         await extensions.MarkRequestsSentAsync(extensionId, timeProvider.GetUtcNow().UtcDateTime, cancellationToken);
         return result;
     }
@@ -63,15 +75,16 @@ public sealed class CloseExerciseService(
     // effective end (an extension closed early keeps its schools until the exercise ends). An
     // extension that has closed is swept by whichever sweep runs next, the exercise's or its own,
     // so a hand-over that keeps failing never hides its schools from the manual Send (finding 4).
-    private SchoolFilter ExerciseFilter(CheckingExerciseDto? row)
+    private SchoolFilter HeldFilter(CheckingExerciseDto? row) =>
+        HeldFilter(row, row?.Extensions.Where(x => checkingExercises.IsOpen(row, x)).ToList() ?? []);
+
+    private static SchoolFilter HeldFilter(CheckingExerciseDto? row, IReadOnlyList<CheckingExerciseExtensionDto> open)
     {
         // No row (a missing window or exercise, or a data share) holds no extensions, so the sweep
         // runs as it did before them. The controllers 404 before getting here.
         if (row is null) return SchoolFilter.None;
 
-        return SchoolFilter.Exclude(row.Extensions
-            .Where(x => checkingExercises.IsOpen(row, x))
-            .SelectMany(x => x.Laestabs));
+        return SchoolFilter.Exclude(open.SelectMany(x => x.Laestabs));
     }
 
     private async Task<SchoolFilter> ExtensionFilterAsync(

@@ -135,8 +135,9 @@ public interface ICheckingExerciseService
     /// For one school (AB#307773) each exercise ends on the school's extension end date when an
     /// extension names it, so a school no extension names sees the window end with the exercises'
     /// own dates. A null, empty or blank LAESTAB is no school: the latest end any school sees,
-    /// extensions included, which is the window's stored end, so a school with no LAESTAB claim is
-    /// not shown the window by one path and hidden by the other.
+    /// extensions included, answered from the exercises' <c>LatestEndDate</c> (the window's stored
+    /// end leaves extensions out), so a school with no LAESTAB claim is not shown the window by
+    /// one path and hidden by the other.
     /// </remarks>
     bool IsWindowShown(IReadOnlyList<CheckingExerciseDto> exercises, string? laestab);
 

@@ -627,8 +627,8 @@ public sealed class CheckingExerciseServiceTests
 
         Assert.True(Sut().IsWindowShown(exercises, "9334290"));
         Assert.False(Sut().IsWindowShown(exercises, "8604070"));
-        // With no school, the outer end includes the extension — that is what the landing page's
-        // date bracket sees in the window's own EndDate.
+        // With no school, the latest end any school sees includes the extension: the exercises'
+        // LatestEndDate answers (the window's stored end leaves extensions out).
         Assert.True(Sut().IsWindowShown(exercises, null));
         Assert.True(Sut().IsWindowShown(exercises, laestab: null));
     }

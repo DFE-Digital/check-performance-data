@@ -146,6 +146,11 @@ public sealed class ExerciseExtensionController(
             : null;
 
     /// <summary>"08/10/2026 17:00": how every extension date is quoted, on the same clock as the exercise's.</summary>
+    internal static string Format(DateTime value) => value.ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture);
+
+    internal static string Pluralise(int count, string noun) =>
+        count == 1 ? $"1 {noun}" : $"{count} {noun}s";
+
     // Review finding 2: an edit that removed schools after the exercise's end swept them.
     private static string RemovedSchoolsSentence(ExtensionSaveResult result)
     {
@@ -157,11 +162,6 @@ public sealed class ExerciseExtensionController(
         return $" The exercise has ended for {Pluralise(removed, "removed school")}: " +
                $"{Pluralise(swept.Enqueued, "request")} sent for processing and {Pluralise(swept.DraftsCancelled, "draft")} cancelled.";
     }
-
-    internal static string Format(DateTime value) => value.ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture);
-
-    internal static string Pluralise(int count, string noun) =>
-        count == 1 ? $"1 {noun}" : $"{count} {noun}s";
 
     // The ids come from the route, never the form; the label and the exercise end are not posted,
     // so a redisplayed page has to be given them again.

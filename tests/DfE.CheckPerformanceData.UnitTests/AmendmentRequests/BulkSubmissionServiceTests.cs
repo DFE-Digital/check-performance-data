@@ -376,8 +376,8 @@ public sealed class BulkSubmissionServiceTests
         Assert.Equal(CheckingExerciseType.PupilData, result.ClosedExercise);
     }
 
-    // AB#307773 review C2: the outer end (FarFuture here) moves with every extension, so the email
-    // quotes the signed-in school's pupil-data end: the extension's for the school it names, the
+    // AB#307773 review C2: the email quotes the signed-in school's pupil-data end, not the window's
+    // end (FarFuture here, set explicitly): the extension's for the school it names, the
     // exercise's own for any other.
     [Theory]
     [InlineData("933/4290", true)]

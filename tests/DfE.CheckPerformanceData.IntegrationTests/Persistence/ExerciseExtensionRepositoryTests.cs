@@ -242,7 +242,7 @@ public sealed class ExerciseExtensionRepositoryTests(PostgresFixture fixture) : 
         await using (var ctx = fixture.CreateContext())
             kept = (await ctx.CheckingExerciseExtensionSchools.SingleAsync(s => s.CheckingExerciseExtensionId == id && s.Laestab == "9334290")).Id;
 
-        // The end date is unchanged; the guard still holds because it is always written.
+        // The end date is unchanged; the version guard applies (version 0 matches the stored one).
         await using (var ctx = fixture.CreateContext())
             Assert.True(await Repository(ctx).UpdateAsync(Edit(id, 0, ExtensionEnd, "9334290", "1234567"), CancellationToken.None));
 

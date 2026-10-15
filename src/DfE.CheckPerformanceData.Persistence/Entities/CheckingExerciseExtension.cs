@@ -23,9 +23,10 @@ public sealed class CheckingExerciseExtension
     public string CreatedBy { get; init; } = string.Empty;
 
     /// <summary>
-    /// Set the first time this extension's requests are swept after it closes, by the admin's
-    /// Send requests or by the automatic hand-over. While null (or while the extension is open)
-    /// the exercise's own sweep leaves these schools alone.
+    /// Records that a sweep has covered this extension's schools after it closed: its own (the
+    /// admin's Send requests or the automatic hand-over) or the exercise's. Only an extension
+    /// that is still open by its effective end holds its schools back from the exercise's sweep;
+    /// this stamp does not.
     /// </summary>
     public DateTime? RequestsSentAt { get; set; }
 

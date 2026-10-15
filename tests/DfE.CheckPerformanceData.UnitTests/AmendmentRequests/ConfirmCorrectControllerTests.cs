@@ -139,9 +139,9 @@ public sealed class ConfirmCorrectControllerTests
             .ConfirmDataCorrectAsync(WindowId, Reference, Arg.Any<DateTime>(), Arg.Any<EmailSubstitutions>());
     }
 
-    // AB#307773 review C2: the outer window's end moves with every extension, so the page and the
-    // email quote the signed-in school's pupil-data end: the extension's for the school it names,
-    // the exercise's own for any other.
+    // AB#307773 review C2: the page and the email quote the signed-in school's pupil-data end, not
+    // the window's: the extension's for the school it names, the exercise's own for any other. The
+    // fixture sets the window's end explicitly, so only the school's deadline can supply the date.
     [Theory]
     [InlineData("933/4290", 7, "Friday 31 July")]
     [InlineData("860/4070", 6, "Tuesday 30 June")]
@@ -155,7 +155,7 @@ public sealed class ConfirmCorrectControllerTests
             Id = WindowId,
             Title = "KS4 June",
             StartDate = new DateTime(2026, 6, 1),
-            EndDate = extensionEnd,   // decision 8: the outer end includes the extension
+            EndDate = extensionEnd,   // set explicitly; the school's deadline comes from its extension row
             KeyStage = KeyStages.KS4,
             CheckingWindowType = CheckingWindowType.KS4June,
             Exercises =

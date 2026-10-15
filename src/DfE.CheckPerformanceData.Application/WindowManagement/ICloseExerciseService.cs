@@ -48,7 +48,7 @@ public interface ICloseExerciseService
 
     /// <summary>
     /// <see cref="CloseAsync"/> for one extension's schools (AB#307773), then stamps the extension
-    /// sent so its schools go back to the exercise's sweep. Not stamped when the sweep fails.
+    /// sent, recording that its schools have been swept. Not stamped when the sweep fails.
     /// </summary>
     /// <exception cref="InvalidOperationException">The exercise has no such extension.</exception>
     Task<CloseExerciseResult> CloseExtensionAsync(

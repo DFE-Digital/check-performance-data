@@ -1558,8 +1558,8 @@ public sealed class JourneyController(
             return RedirectToCheckYourData(windowId);
 
         // #320: the journey's own exercise's end, never the outer window's. AB#307773: the
-        // signed-in school's end, which its extension may make later — the outer end now moves
-        // with every extension, so quoting it would give un-extended schools another school's date.
+        // signed-in school's end (EndDateFor, by its LAESTAB), which its extension may make later;
+        // the outer end is the exercises' own latest end and never includes an extension's.
         // SummaryConfirm clears the change type before redirecting here, and only an amendment
         // comes here (an enquiry goes to EnquiryConfirmation), so a cleared one is pupil data. The
         // outer end is only the fallback for a kind the window has no row for.

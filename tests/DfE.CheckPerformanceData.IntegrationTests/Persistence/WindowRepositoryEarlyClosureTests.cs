@@ -11,7 +11,7 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Persistence;
 
 /// <summary>
 /// AB#301022: the write behind an early closure. One guarded statement moves the exercise's end
-/// date, the window's own end date is re-derived as the latest exercise or extension end, and
+/// date, the window's own end date is re-derived as the latest exercise end, and
 /// one WindowAdmin audit row is written — all or nothing. The guard is a compare-and-set on the end
 /// date the admin was shown, so a second close, or a close racing a date edit, writes nothing at all.
 /// </summary>

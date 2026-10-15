@@ -259,7 +259,6 @@ public sealed class ExerciseExtensionServiceTests
         Assert.Equal(NowUtc.UtcDateTime, written.EditedAtUtc);
     }
 
-
     // ---- Removing a school after the exercise has closed (review finding 2) ----
 
     [Fact]

@@ -68,6 +68,23 @@ public sealed class ChangeRequestReleaseStampTests
     };
 
     [Fact]
+    public async Task The_storage_row_is_resolved_once_per_write()
+    {
+        // Review finding 8: the exercise id and the release id come from one resolve, so the two
+        // cannot name different rows and the resolver is asked once.
+        _resolver.ResolveAsync(WindowId, CheckingExerciseType.PupilData, Arg.Any<CancellationToken>())
+            .Returns(Exercise(LiveReleaseId));
+        ChangeRequestData? captured = null;
+        _repository.UpsertAsync(Arg.Do<ChangeRequestData>(d => captured = d)).Returns(Guid.NewGuid());
+
+        await Service(_resolver).SaveDraftAsync(WindowId, Journey(), RequestStatus.InProgress);
+
+        Assert.Equal(ExerciseId, captured!.CheckingExerciseId);
+        Assert.Equal(LiveReleaseId, captured.CheckingExerciseReleaseId);
+        await _resolver.Received(1).ResolveAsync(WindowId, CheckingExerciseType.PupilData, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task A_draft_is_stamped_with_the_release_live_when_it_is_saved()
     {
         // The session's copy of the window is from the start of the journey and says no release.

@@ -32,30 +32,22 @@ public sealed class RequestService(
 
     // The exercise a journey belongs to is derived from its change type, never stored on the
     // session - a stored copy can disagree with the journey's own SelectedWhatToChange. The row is
-    // where it becomes durable, so this is the one place a journey's exercise id is resolved.
-    private Task<Guid?> ExerciseIdForAsync(Guid windowId, RequestState journey) =>
-        ExerciseIdForAsync(windowId, journey.CheckingWindow!.Exercises,
+    // where it becomes durable, so this is the one place a journey's exercise and release are resolved.
+    private Task<(Guid? ExerciseId, Guid? ReleaseId)> StorageForAsync(Guid windowId, RequestState journey) =>
+        StorageForAsync(windowId, journey.CheckingWindow!.Exercises,
             WhatToChangeCheckingExerciseMap.CheckingExerciseFor(journey.SelectedWhatToChange!.Value));
 
-    // Since #466 a window may hold several releases of one kind, so the row is the one the
-    // journey's data readers resolve (AB#307773 related fix); IdFor is the fallback for a caller
-    // with no resolver, and for a draft whose exercise the resolver no longer finds.
-    private async Task<Guid?> ExerciseIdForAsync(
+    // One resolve gives both ids, so the row's exercise and release can never name different rows
+    // (review finding 8). The exercise id is the one the journey's data readers resolve; IdFor is
+    // the fallback for a caller with no resolver, and for a draft whose exercise the resolver no
+    // longer finds. The release is read at write time, not from the session: a draft can be
+    // resumed weeks later, after a new release, and a reviewer needs the data the school saw.
+    private async Task<(Guid? ExerciseId, Guid? ReleaseId)> StorageForAsync(
         Guid windowId, IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise)
     {
         var resolved = storageResolver is null ? null : await storageResolver.ResolveAsync(windowId, exercise);
-        return resolved?.Id ?? checkingExerciseService.IdFor(exercises, exercise);
+        return (resolved?.Id ?? checkingExerciseService.IdFor(exercises, exercise), resolved?.CurrentReleaseId);
     }
-
-    // The release the journey's data came from, read when the row is written rather than taken
-    // from the session: a draft can be resumed weeks later, after a new release. What the school
-    // saw when it saved or submitted is what a reviewer needs. Resolved the same way the journey's
-    // data readers resolve their exercise, so the two cannot name different releases.
-    private async Task<Guid?> ReleaseIdForAsync(Guid windowId, CheckingExerciseType exercise) =>
-        storageResolver is null ? null : (await storageResolver.ResolveAsync(windowId, exercise))?.CurrentReleaseId;
-
-    private Task<Guid?> ReleaseIdForAsync(Guid windowId, RequestState journey) =>
-        ReleaseIdForAsync(windowId, WhatToChangeCheckingExerciseMap.CheckingExerciseFor(journey.SelectedWhatToChange!.Value));
 
     // The deadline an email quotes (#320: the exercise's end, not the outer window's). AB#307773:
     // the signed-in school's end, which its extension may make later. The outer window's end moves
@@ -124,9 +116,9 @@ public sealed class RequestService(
 
         // Upsert first: the document carries the ChangeRequest row's Id so the
         // rules engine worker can write its decision back to that row.
+        var (exerciseId, releaseId) = await StorageForAsync(windowId, journey);
         var changeRequestId = await requestRepository.UpsertAsync(
-            BuildChangeRequestData(windowId, journey, RequestStatus.Submitted, config,
-                await ExerciseIdForAsync(windowId, journey), await ReleaseIdForAsync(windowId, journey)));
+            BuildChangeRequestData(windowId, journey, RequestStatus.Submitted, config, exerciseId, releaseId));
 
         // Every amendment, Add included, goes to the Rules Engine (#536). The document is saved
         // first: the close sweep sends this saved copy to Zendesk once the exercise closes, so it
@@ -179,11 +171,12 @@ public sealed class RequestService(
             throw new InvalidOperationException(
                 $"No question flow config found for {journey.SelectedWhatToChange}/{journey.CheckingWindow.CheckingWindowType}.");
 
+        var (exerciseId, releaseId) = await StorageForAsync(windowId, journey);
         var changeRequestId = await requestRepository.UpsertAsync(new ChangeRequestData
         {
             WindowId = windowId,
-            CheckingExerciseId = await ExerciseIdForAsync(windowId, journey),
-            CheckingExerciseReleaseId = await ReleaseIdForAsync(windowId, journey),
+            CheckingExerciseId = exerciseId,
+            CheckingExerciseReleaseId = releaseId,
             ReferenceNumber = journey.ReferenceNumber,
             OrganisationUrn = OrganisationUrnLong,
             PupilId = journey.SelectedPupil.Id,
@@ -244,12 +237,12 @@ public sealed class RequestService(
         // write site with no window already in hand, and it runs once per school per window.
         var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
 
+        var (exerciseId, releaseId) = await StorageForAsync(windowId, window.Exercises, CheckingExerciseType.PupilData);
         await requestRepository.UpsertAsync(new ChangeRequestData
         {
             WindowId = windowId,
-            CheckingExerciseId =
-                await ExerciseIdForAsync(windowId, window.Exercises, CheckingExerciseType.PupilData),
-            CheckingExerciseReleaseId = await ReleaseIdForAsync(windowId, CheckingExerciseType.PupilData),
+            CheckingExerciseId = exerciseId,
+            CheckingExerciseReleaseId = releaseId,
             ReferenceNumber = referenceNumber,
             OrganisationUrn = OrganisationUrnLong,
             // Stored as UTC and converted to London time at display. The column is
@@ -277,8 +270,8 @@ public sealed class RequestService(
 
         await requestStateBlobClient.SaveAsync(windowId, journey.ReferenceNumber, journey);
         var draftConfig = await flowService.GetConfigAsync(journey.SelectedWhatToChange.Value, journey.CheckingWindow.CheckingWindowType);
-        await requestRepository.UpsertAsync(BuildChangeRequestData(windowId, journey, status, draftConfig,
-            await ExerciseIdForAsync(windowId, journey), await ReleaseIdForAsync(windowId, journey)));
+        var (exerciseId, releaseId) = await StorageForAsync(windowId, journey);
+        await requestRepository.UpsertAsync(BuildChangeRequestData(windowId, journey, status, draftConfig, exerciseId, releaseId));
     }
 
     public async Task<RequestState?> ResumeDraftAsync(Guid windowId, string referenceNumber)

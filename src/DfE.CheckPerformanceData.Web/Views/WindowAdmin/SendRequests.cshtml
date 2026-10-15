@@ -36,6 +36,10 @@ else
 {
     <govuk-warning-text icon-fallback-text="Warning">
         You cannot undo this.
+        @if (Model.HasOpenExtensions)
+        {
+            @:Schools in an open extension keep their extra time, so their requests are not sent now.
+        }
     </govuk-warning-text>
 
     <govuk-summary-list>

@@ -15,8 +15,9 @@ namespace DfE.CheckPerformanceData.Application.WindowManagement;
 /// passed. The only clock read is <see cref="ICheckingExerciseService"/>'s, to tell which
 /// extensions are still open (AB#307773).</item>
 /// <item>It is split by school (AB#307773). The exercise's sweep leaves out the schools in an
-/// extension that is open or has not been swept yet; an extension's sweep takes only its own
-/// schools. A request with no LAESTAB always goes with the exercise.</item>
+/// extension that is still open by its effective end, takes everything else, and stamps every
+/// closed extension it covered; an extension's sweep takes only its own schools. A request with
+/// no LAESTAB always goes with the exercise.</item>
 /// </list>
 /// </remarks>
 public interface ICloseExerciseService

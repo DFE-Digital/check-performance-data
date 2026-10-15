@@ -266,10 +266,12 @@ public sealed class CloseExerciseServiceTests
     }
 
     [Fact]
-    public async Task The_exercise_sweep_leaves_out_schools_in_open_or_unsent_extensions()
+    public async Task The_exercise_sweep_leaves_out_only_schools_in_open_extensions_and_stamps_the_closed_ones()
     {
-        // A is open and B is closed but unsent, so their schools are held back. C has been swept:
-        // its turn is over, and anything of its school left over goes with the exercise.
+        // Review finding 4 (15 Oct): A is open, so its school is held back. B has closed but was
+        // never swept (its hand-over may have failed every tick): the exercise's sweep takes its
+        // school and stamps B, so the summary says its requests went. C was swept already and is
+        // left alone. Sending twice is impossible: MarkTicketQueuedAsync guards every row.
         Decided();
         var ct = CancellationToken.None;
 
@@ -277,13 +279,36 @@ public sealed class CloseExerciseServiceTests
         await _sut.PreviewAsync(WindowId, ExerciseId, ct);
 
         await _repository.Received(2).GetDecidedRequestsForExerciseAsync(WindowId, ExerciseId,
-            Arg.Is<SchoolFilter>(f => Is(f, SchoolFilterMode.Exclude, "9334290", "8604070")), ct);
+            Arg.Is<SchoolFilter>(f => Is(f, SchoolFilterMode.Exclude, "9334290")), ct);
         await _repository.Received(2).CountWaitingRequestsForExerciseAsync(WindowId, ExerciseId,
-            Arg.Is<SchoolFilter>(f => Is(f, SchoolFilterMode.Exclude, "9334290", "8604070")), ct);
+            Arg.Is<SchoolFilter>(f => Is(f, SchoolFilterMode.Exclude, "9334290")), ct);
         await _repository.Received(1).MarkDraftsNotSubmittedForExerciseAsync(WindowId, ExerciseId,
-            Arg.Is<SchoolFilter>(f => Is(f, SchoolFilterMode.Exclude, "9334290", "8604070")), ct);
-        await _repository.Received(1).CountDraftsForExerciseAsync(WindowId, ExerciseId,
-            Arg.Is<SchoolFilter>(f => Is(f, SchoolFilterMode.Exclude, "9334290", "8604070")), ct);
+            Arg.Is<SchoolFilter>(f => Is(f, SchoolFilterMode.Exclude, "9334290")), ct);
+        await _extensions.Received(1).MarkRequestsSentAsync(B.Id, Now.UtcDateTime, ct);
+        await _extensions.DidNotReceive().MarkRequestsSentAsync(A.Id, Arg.Any<DateTime>(), ct);
+        await _extensions.DidNotReceive().MarkRequestsSentAsync(C.Id, Arg.Any<DateTime>(), ct);
+    }
+
+    [Fact]
+    public async Task A_failed_exercise_sweep_stamps_no_extension()
+    {
+        Decided(Row("CYPMD_1"));
+        _queue.EnqueueAsync(QueueOptions.ZendeskQueue, Arg.Any<RequestDocument>(), Arg.Any<CancellationToken>())
+            .Returns<Guid>(_ => throw new InvalidOperationException("queue down"));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _sut.CloseAsync(WindowId, ExerciseId, CancellationToken.None));
+
+        await _extensions.DidNotReceiveWithAnyArgs().MarkRequestsSentAsync(default, default, default);
+    }
+
+    [Fact]
+    public async Task The_preview_stamps_nothing()
+    {
+        Decided();
+
+        await _sut.PreviewAsync(WindowId, ExerciseId, CancellationToken.None);
+
         await _extensions.DidNotReceiveWithAnyArgs().MarkRequestsSentAsync(default, default, default);
     }
 

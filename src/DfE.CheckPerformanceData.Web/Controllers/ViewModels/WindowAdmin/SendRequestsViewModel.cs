@@ -19,6 +19,9 @@ public sealed class SendRequestsViewModel
     /// <summary>Submitted requests the Rules Engine has not decided yet. Sending leaves them (#536).</summary>
     public int RequestsWaiting { get; init; }
 
+    /// <summary>An extension of this exercise is still open, so its schools' requests are not sent now (AB#307773).</summary>
+    public bool HasOpenExtensions { get; init; }
+
     /// <summary>
     /// Sending for an already-swept exercise is harmless, so the page renders normally and says
     /// there is nothing to do rather than treating it as an error.

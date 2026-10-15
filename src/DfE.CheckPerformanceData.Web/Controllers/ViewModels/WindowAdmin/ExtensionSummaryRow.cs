@@ -29,7 +29,7 @@ public sealed class ExtensionSummaryRow
     /// </summary>
     public bool HasClosed { get; init; }
 
-    /// <summary>Its requests have been swept once, by an admin or by the automatic hand-over.</summary>
+    /// <summary>Its requests have been swept once — by its own sweep, by the exercise's sweep after it closed, or by the automatic hand-over.</summary>
     public bool RequestsSent { get; init; }
 
     /// <summary>

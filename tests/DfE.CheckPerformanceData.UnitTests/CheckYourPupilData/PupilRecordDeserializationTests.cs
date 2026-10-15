@@ -166,6 +166,18 @@ public class PupilRecordDeserializationTests
     }
 
     [Fact]
+    public void Binds_null_newmobile_as_false_without_throwing()
+    {
+        // The schema declares NEWMOBILE as ["integer","null"], so ingress writes null for a blank
+        // cell; a null must not fail the whole file.
+        const string json = """[ { "NEWMOBILE": null } ]""";
+
+        var pupil = DeserializeSingle(json);
+
+        Assert.False(pupil.NewMobile);
+    }
+
+    [Fact]
     public void Binds_null_pincl_without_throwing()
     {
         // The schema declares P_INCL as ["string","null"]; a null must not fail the whole file.

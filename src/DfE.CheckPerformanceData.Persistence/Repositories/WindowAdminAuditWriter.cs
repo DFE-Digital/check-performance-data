@@ -26,6 +26,7 @@ public sealed class WindowAdminAuditWriter(IPortalDbContext db) : IWindowAdminAu
             {
                 record.WindowId,
                 record.WindowTitle,
+                record.ExerciseId,
                 ExerciseType = record.Exercise.ToString(),
                 record.ExerciseEnd,
                 record.RequestsSent,

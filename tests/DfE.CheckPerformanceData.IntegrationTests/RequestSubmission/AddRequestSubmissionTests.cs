@@ -278,7 +278,7 @@ public sealed class AddRequestSubmissionTests(PostgresFixture fixture)
 
         // Undecided: the sweep would send nothing and says both are waiting.
         var waiting = await closeService.PreviewAsync(
-            windowId, CheckingExerciseType.PupilData, CancellationToken.None);
+            windowId, PupilDataExerciseId(windowId), CancellationToken.None);
         Assert.Equal(0, waiting.RequestsToClose);
         Assert.Equal(2, waiting.RequestsWaiting);
 
@@ -291,12 +291,12 @@ public sealed class AddRequestSubmissionTests(PostgresFixture fixture)
         }
 
         var preview = await closeService.PreviewAsync(
-            windowId, CheckingExerciseType.PupilData, CancellationToken.None);
+            windowId, PupilDataExerciseId(windowId), CancellationToken.None);
         Assert.Equal(2, preview.RequestsToClose);
         Assert.Equal(0, preview.RequestsWaiting);
 
         var result = await closeService.CloseAsync(
-            windowId, CheckingExerciseType.PupilData, CancellationToken.None);
+            windowId, PupilDataExerciseId(windowId), CancellationToken.None);
 
         Assert.Equal(2, result.Enqueued);
         Assert.Equal(0, result.Waiting);
@@ -322,7 +322,7 @@ public sealed class AddRequestSubmissionTests(PostgresFixture fixture)
 
         // A second run finds nothing left to send.
         var again = await closeService.CloseAsync(
-            windowId, CheckingExerciseType.PupilData, CancellationToken.None);
+            windowId, PupilDataExerciseId(windowId), CancellationToken.None);
         Assert.Equal(0, again.Enqueued);
     }
 
@@ -399,7 +399,7 @@ public sealed class AddRequestSubmissionTests(PostgresFixture fixture)
         ExerciseType = CheckingExerciseType.PupilData,
         StartDate = DateTime.SpecifyKind(DateTime.UtcNow.Date.AddDays(-10), DateTimeKind.Unspecified),
         EndDate = DateTime.SpecifyKind(DateTime.UtcNow.Date.AddDays(20), DateTimeKind.Unspecified),
-        SortOrder = 0
+        TabOrder = 0
     };
 
     private async Task<Guid> SeedKs4JuneWindowAsync()
@@ -424,7 +424,7 @@ public sealed class AddRequestSubmissionTests(PostgresFixture fixture)
             ExerciseType = CheckingExerciseType.PupilData,
             StartDate = window.StartDate,
             EndDate = window.EndDate,
-            SortOrder = 0
+            TabOrder = 0
         });
 
         ctx.CheckingWindows.Add(window);

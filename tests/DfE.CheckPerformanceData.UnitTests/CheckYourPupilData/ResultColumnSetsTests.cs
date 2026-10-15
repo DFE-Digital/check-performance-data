@@ -25,7 +25,7 @@ public class ResultColumnSetsTests
         Uln = "9900112233"
     };
 
-    private static StudentResultRecord Result() => new()
+    private static ResultRecord Result() => new()
     {
         CypmdId = "500123",
         Qan = "60145642",
@@ -58,7 +58,7 @@ public class ResultColumnSetsTests
         var table = ResultTable.Build(ResultColumnSets.Csv(), [new ResultRow(Pupil(), Result())]);
 
         var row = Assert.Single(table.Rows);
-        Assert.Equal(["Jones", "Bob", "M", "01/09/2007", "18", "500123", "GCSE (9-1) Bus. Studs:Single", "60145642", "S2024", "5", ResultsFileTags.Post16Main], row);
+        Assert.Equal(["Jones", "Bob", "M", "01/09/2007", "18", "500123", "GCSE (9-1) Bus. Studs:Single", "60145642", "S2024", "5", "Main results"], row);
     }
 
     [Fact]

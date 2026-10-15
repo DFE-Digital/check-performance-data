@@ -81,6 +81,7 @@ public sealed class AuditLogRepositoryTests(PostgresFixture fixture)
     private async Task<Guid> SeedEarlyClosureAsync()
     {
         var windowId = Guid.NewGuid();
+        var exerciseId = Guid.NewGuid();
         var scheduledEnd = new DateTime(2026, 6, 30, 17, 0, 0);
         await using (var db = fixture.CreateContext())
         {
@@ -92,8 +93,8 @@ public sealed class AuditLogRepositoryTests(PostgresFixture fixture)
                 [
                     new CheckingExercise
                     {
-                        CheckingWindowId = windowId, ExerciseType = CheckingExerciseType.PupilData,
-                        StartDate = new DateTime(2026, 6, 1), EndDate = scheduledEnd, SortOrder = 0
+                        Id = exerciseId, CheckingWindowId = windowId, ExerciseType = CheckingExerciseType.PupilData,
+                        StartDate = new DateTime(2026, 6, 1), EndDate = scheduledEnd, TabOrder = 0
                     }
                 ]
             });
@@ -103,6 +104,7 @@ public sealed class AuditLogRepositoryTests(PostgresFixture fixture)
         var closed = await new WindowRepository(fixture.CreateContext()).CloseExerciseEarlyAsync(new ExerciseEarlyClosure
         {
             WindowId = windowId,
+            ExerciseId = exerciseId,
             Exercise = CheckingExerciseType.PupilData,
             ScheduledEnd = scheduledEnd,
             NewEndDate = new DateTime(2026, 6, 10, 9, 59, 59),
@@ -123,6 +125,7 @@ public sealed class AuditLogRepositoryTests(PostgresFixture fixture)
         {
             WindowId = windowId,
             WindowTitle = "Automatic hand-over window",
+            ExerciseId = Guid.NewGuid(),
             Exercise = CheckingExerciseType.PupilData,
             ExerciseEnd = new DateTime(2026, 6, 30, 17, 0, 0),
             RequestsSent = 3,

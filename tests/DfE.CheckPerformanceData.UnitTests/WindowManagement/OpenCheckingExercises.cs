@@ -16,6 +16,7 @@ public static class OpenCheckingExercises
     {
         var service = Substitute.For<ICheckingExerciseService>();
         service.IsOpen(default!, default).ReturnsForAnyArgs(true);
+        service.IsOpen(default(CheckingExerciseDto)!).ReturnsForAnyArgs(true);
         return service.WithRealEndDates();
     }
 
@@ -23,6 +24,7 @@ public static class OpenCheckingExercises
     public static ICheckingExerciseService Close(this ICheckingExerciseService service)
     {
         service.IsOpen(default!, default).ReturnsForAnyArgs(false);
+        service.IsOpen(default(CheckingExerciseDto)!).ReturnsForAnyArgs(false);
         return service;
     }
 
@@ -31,6 +33,7 @@ public static class OpenCheckingExercises
     {
         var service = Substitute.For<ICheckingExerciseService>();
         service.IsOpen(default!, default).ReturnsForAnyArgs(false);
+        service.IsOpen(default(CheckingExerciseDto)!).ReturnsForAnyArgs(false);
         return service.WithRealEndDates();
     }
 
@@ -40,6 +43,8 @@ public static class OpenCheckingExercises
         var service = Substitute.For<ICheckingExerciseService>();
         service.IsOpen(default!, default)
             .ReturnsForAnyArgs(ci => ci.ArgAt<CheckingExerciseType>(1) == open);
+        service.IsOpen(default(CheckingExerciseDto)!)
+            .ReturnsForAnyArgs(ci => ci.ArgAt<CheckingExerciseDto>(0).ExerciseType == open);
         return service.WithRealEndDates();
     }
 

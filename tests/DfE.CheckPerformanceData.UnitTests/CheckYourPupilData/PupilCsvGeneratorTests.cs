@@ -1,6 +1,6 @@
 using System.Text;
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData.Columns;
-using DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.CheckYourPupilData;
 

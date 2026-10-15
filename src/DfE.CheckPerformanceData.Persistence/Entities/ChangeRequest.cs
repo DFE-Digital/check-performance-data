@@ -18,6 +18,13 @@ public class ChangeRequest
     // is a loss of information that cannot be recovered - AmendmentType still derives the exercise
     // TYPE through WhatToChangeCheckingExerciseMap; only the row identity goes.
     public Guid? CheckingExerciseId { get; init; }
+
+    // The exercise's current release when the request was submitted: the data the school was
+    // looking at. A later release may replace that data, and a reviewer needs the release the
+    // request was made against. Null on rows written before releases existed, and on requests
+    // against an exercise with no release. Not a foreign key, for the same reason as
+    // CheckingExercise.CurrentReleaseId.
+    public Guid? CheckingExerciseReleaseId { get; init; }
     public required long OrganisationUrn { get; init; }
     // Stable pupil identity from the source JSON file (PupilRecord.Id). This — not PupilUpn — is
     // the key used for duplicate-request detection and search exclusion, because a pupil may have

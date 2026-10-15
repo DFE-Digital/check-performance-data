@@ -52,6 +52,7 @@ public sealed class GetPupilTests(PostgresFixture fixture)
         Age = 16,
         FirstLanguage = "English",
         Pincl = IncludedPincl,
+        Included = true,
         NewMobile = false,
         ActualYearGroup = "11",
         Ethnicity = "A1",

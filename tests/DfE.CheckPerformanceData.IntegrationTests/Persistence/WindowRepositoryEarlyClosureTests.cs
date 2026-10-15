@@ -27,6 +27,8 @@ public sealed class WindowRepositoryEarlyClosureTests(PostgresFixture fixture) :
     private static readonly DateTime ClosedAtUtc = new(2026, 9, 3, 9, 39, 0, DateTimeKind.Utc);
 
     private readonly Guid _windowId = Guid.NewGuid();
+    private readonly Guid _pupilDataId = Guid.NewGuid();
+    private readonly Guid _enquiryId = Guid.NewGuid();
 
     public async Task InitializeAsync()
     {
@@ -43,19 +45,23 @@ public sealed class WindowRepositoryEarlyClosureTests(PostgresFixture fixture) :
             [
                 new CheckingExercise
                 {
+                    Id = _pupilDataId,
                     CheckingWindowId = _windowId,
                     ExerciseType = CheckingExerciseType.PupilData,
                     StartDate = Start,
                     EndDate = PupilDataEnd,
-                    SortOrder = 0
+                    TabOrder = 0,
+                    IsEnabled = true
                 },
                 new CheckingExercise
                 {
+                    Id = _enquiryId,
                     CheckingWindowId = _windowId,
                     ExerciseType = CheckingExerciseType.ResultsEnquiry,
                     StartDate = Start,
                     EndDate = EnquiryEnd,
-                    SortOrder = 1
+                    TabOrder = 1,
+                    IsEnabled = true
                 }
             ]
         });
@@ -73,6 +79,7 @@ public sealed class WindowRepositoryEarlyClosureTests(PostgresFixture fixture) :
     private ExerciseEarlyClosure Closure(CheckingExerciseType exercise, DateTime scheduledEnd) => new()
     {
         WindowId = _windowId,
+        ExerciseId = exercise == CheckingExerciseType.PupilData ? _pupilDataId : _enquiryId,
         Exercise = exercise,
         ScheduledEnd = scheduledEnd,
         NewEndDate = NewEnd,
@@ -141,6 +148,7 @@ public sealed class WindowRepositoryEarlyClosureTests(PostgresFixture fixture) :
         var root = payload.RootElement;
         Assert.Equal(_windowId, root.GetProperty("windowId").GetGuid());
         Assert.Equal("Key Stage 4 June", root.GetProperty("windowTitle").GetString());
+        Assert.Equal(_enquiryId, root.GetProperty("exerciseId").GetGuid());
         Assert.Equal("ResultsEnquiry", root.GetProperty("exerciseType").GetString());
         Assert.Equal(EnquiryEnd, root.GetProperty("scheduledEnd").GetDateTime());
         Assert.Equal(NewEnd, root.GetProperty("newEndDate").GetDateTime());
@@ -170,6 +178,46 @@ public sealed class WindowRepositoryEarlyClosureTests(PostgresFixture fixture) :
         Assert.False(await CloseAsync(closure));
 
         Assert.Single(await ClosureAuditRowsAsync());
+    }
+
+    [Fact]
+    public async Task Closing_one_release_leaves_another_of_its_kind_alone()
+    {
+        // #466: a window may hold two releases of one kind, here with the same end date. The
+        // guarded write names the row by id, so it cannot move the other release too.
+        var otherId = Guid.NewGuid();
+        await using (var ctx = fixture.CreateContext())
+        {
+            ctx.CheckingExercises.Add(new CheckingExercise
+            {
+                Id = otherId,
+                CheckingWindowId = _windowId,
+                ExerciseType = CheckingExerciseType.ResultsEnquiry,
+                StartDate = Start,
+                EndDate = EnquiryEnd,
+                TabOrder = 2,
+                UsesExerciseStorage = true,
+                IsEnabled = false
+            });
+            await ctx.SaveChangesAsync();
+        }
+
+        Assert.True(await CloseAsync(Closure(CheckingExerciseType.ResultsEnquiry, EnquiryEnd)));
+
+        var window = await ReloadAsync();
+        Assert.Equal(NewEnd, window.Exercises.Single(e => e.Id == _enquiryId).EndDate);
+        Assert.Equal(EnquiryEnd, window.Exercises.Single(e => e.Id == otherId).EndDate);
+        // The untouched release still ends last, so the window does too.
+        Assert.Equal(EnquiryEnd, window.EndDate);
+    }
+
+    [Fact]
+    public async Task An_exercise_id_from_another_window_writes_nothing()
+    {
+        var closure = Closure(CheckingExerciseType.PupilData, PupilDataEnd) with { ExerciseId = Guid.NewGuid() };
+
+        Assert.False(await CloseAsync(closure));
+        Assert.Empty(await ClosureAuditRowsAsync());
     }
 
     [Fact]

@@ -1,4 +1,5 @@
 @model DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowEditItem
+@using DfE.CheckPerformanceData.Web.Controllers.WindowAdmin
 
 @{
     // Matches the <h1> below.
@@ -20,6 +21,20 @@
     </div>
     <div class="govuk-notification-banner__content">
       <p class="govuk-notification-banner__heading">@closeOutcome</p>
+    </div>
+  </div>
+}
+
+@* Outcome of an exercise delete, stashed by DeleteExerciseController. *@
+@if (TempData[DfE.CheckPerformanceData.Web.Controllers.WindowAdmin.DeleteExerciseController.TempDataKey] is string deleteOutcome)
+{
+  <div class="govuk-notification-banner govuk-notification-banner--success" role="alert"
+       aria-labelledby="delete-exercise-outcome-title" data-module="govuk-notification-banner">
+    <div class="govuk-notification-banner__header">
+      <h2 class="govuk-notification-banner__title" id="delete-exercise-outcome-title">Success</h2>
+    </div>
+    <div class="govuk-notification-banner__content">
+      <p class="govuk-notification-banner__heading">@deleteOutcome</p>
     </div>
   </div>
 }
@@ -49,14 +64,6 @@
       <action href="@Model.TitleLink" visually-hidden-text="Title">Change</action>
     </row-actions>
   </row>
-  <row>
-    <key>Is Published</key>
-    <value>@Model.IsPublished</value>
-  </row>
-  <row>
-    <key>Is Open</key>
-    <value>@Model.IsOpen</value>
-  </row>
   @* #319: the window's own dates are the union of its exercises' dates and are never typed, so
      there is no Change link here. Move an exercise's dates to move the window's. *@
   <row>
@@ -75,13 +82,6 @@
     </row-actions>
   </row>
   <row>
-    <key>Checking exercises</key>
-    <value>@(Model.Exercises.Count == 0 ? "None" : string.Join(", ", Model.Exercises.Select(e => e.Label)))</value>
-    <row-actions>
-      <action href="@Model.ExercisesLink" visually-hidden-text="Checking exercises">Change</action>
-    </row-actions>
-  </row>
-  <row>
     <key>Turnaround commitment</key>
     <value>@(string.IsNullOrWhiteSpace(Model.TurnaroundCommitment) ? "Not set" : Model.TurnaroundCommitment)</value>
     <row-actions>
@@ -97,107 +97,176 @@
   </row>
 </govuk-summary-list>
 
-@* One section per checking exercise. Each validates independently — a window is usable while
-   another of its exercises is still unvalidated. *@
+<h2 class="govuk-heading-m">Checking exercises</h2>
+
+@* One section per checking exercise, including display-only data shares (#466) — every link here
+   is addressed by exercise id, which every exercise has, never by kind, which a data share does
+   not. Each validates independently — a window is usable while another of its exercises is still
+   unvalidated. *@
 @foreach (var exercise in Model.Exercises)
 {
-  <h2 class="govuk-heading-m">@exercise.Label</h2>
-
-  <govuk-summary-list>
-    <row>
-      <key>Start Date</key>
-      <value>@exercise.StartDate.ToString("dd/MM/yyyy HH:mm")</value>
-      <row-actions>
-        <action href="@exercise.DatesLink" visually-hidden-text="@exercise.Label start date">Change</action>
-      </row-actions>
-    </row>
-    <row>
-      <key>End Date</key>
-      <value>@exercise.EndDate.ToString("dd/MM/yyyy HH:mm")</value>
-      <row-actions>
-        <action href="@exercise.DatesLink" visually-hidden-text="@exercise.Label end date">Change</action>
-      </row-actions>
-    </row>
-    <row>
-      <key>Status</key>
-      <value><strong class="govuk-tag @exercise.StatusTagClass">@exercise.StatusLabel</strong></value>
-    </row>
-    <row>
-      <key>Validated</key>
-      <value>
+  @* A GOV.UK summary card per exercise: the border and grey title bar mark where one exercise
+     ends and the next begins. Plain sub-headings and stacked summary lists did not. *@
+  <div class="govuk-summary-card">
+    <div class="govuk-summary-card__title-wrapper">
+      <h3 class="govuk-summary-card__title">
+        @exercise.Name
+        <strong class="govuk-tag govuk-tag--grey govuk-!-margin-left-2">@exercise.KindLabel</strong>
+      </h3>
+      @* Everything in the card is edited on the one page — name, tab, kind, dates, visibility and
+         data files — so there is a single Edit link per card rather than a Change link per field. *@
+      <ul class="govuk-summary-card__actions">
+        <li class="govuk-summary-card__action">
+          <a class="govuk-link" href="@exercise.EditLink">Edit<span class="govuk-visually-hidden"> @exercise.Name</span></a>
+        </li>
+        @* Leads to an "are you sure" page that lists what goes; nothing is deleted from here. *@
+        <li class="govuk-summary-card__action">
+          <a class="govuk-link" href="@exercise.DeleteLink">Delete<span class="govuk-visually-hidden"> @exercise.Name</span></a>
+        </li>
+      </ul>
+    </div>
+    <div class="govuk-summary-card__content">
+      <p class="govuk-body">
+        @* One tag for what schools can see and do now. Replaces the window-level "Is Published"
+           and "Is Open" rows, which described the whole window and so said little about any one
+           exercise. The rule is ICheckingExerciseService.StatusOf. *@
+        <partial name="~/Views/WindowAdmin/_ExerciseStatusTag.cshtml" model="exercise.Status" />
         @if (exercise.IsValidated)
         {
-          @($"Yes, {exercise.ValidatedAt:dd/MM/yyyy HH:mm}")
+          <strong class="govuk-tag govuk-tag--green">Validated</strong>
         }
         else if (exercise.IsStale)
         {
-          @* The stamp's checksums no longer match the files the exercise holds, so it describes
-             data that has since been replaced. Saying "No" would lose that distinction. *@
-          @($"Not since the files changed (last validated {exercise.ValidatedAt:dd/MM/yyyy HH:mm})")
+          <strong class="govuk-tag govuk-tag--yellow">Files changed since validation</strong>
         }
         else
         {
-          @:No
+          <strong class="govuk-tag govuk-tag--red">Not validated</strong>
         }
-      </value>
-    </row>
-  </govuk-summary-list>
+      </p>
 
-  @if (exercise.Datasets.Count == 0)
-  {
-    <p class="govuk-body">This exercise has no ingress files to load.</p>
-  }
-  else
-  {
-    <govuk-summary-list>
-      @foreach (var dataset in exercise.Datasets)
+      <govuk-summary-list>
+        <row>
+          <key>Tab name</key>
+          <value>@exercise.TabName</value>
+        </row>
+        <row>
+          <key>Start Date</key>
+          <value>@exercise.StartDate.ToString("dd/MM/yyyy HH:mm")</value>
+        </row>
+        <row>
+          <key>End Date</key>
+          <value>@exercise.EndDate.ToString("dd/MM/yyyy HH:mm")</value>
+        </row>
+        <row>
+          <key>Validated</key>
+          <value>
+            @if (exercise.IsValidated)
+            {
+              @($"Yes, {exercise.ValidatedAt:dd/MM/yyyy HH:mm}")
+            }
+            else if (exercise.IsStale)
+            {
+              @* The stamp's checksums no longer match the files the exercise holds, so it describes
+                 data that has since been replaced. Saying "No" would lose that distinction. *@
+              @($"Not since the files changed (last validated {exercise.ValidatedAt:dd/MM/yyyy HH:mm})")
+            }
+            else
+            {
+              @:No
+            }
+          </value>
+        </row>
+      </govuk-summary-list>
+
+      @if (exercise.Datasets.Count == 0)
+      {
+        <p class="govuk-body">This exercise has no ingress files to load.</p>
+      }
+      else
       {
         @* An optional slot is a file the supplier may deliver later, or not at all — the results
            feed's late, revised and retention files. Saying so is what stops an admin waiting for a
-           file that is not coming before validating the ones that have arrived. *@
-        <row>
-          <key>@dataset.Label — ingress file@(dataset.Required ? "" : " (optional)")</key>
-          <value>@(string.IsNullOrWhiteSpace(dataset.IngressFile) ? "Not supplied" : dataset.IngressFile)</value>
-          <row-actions>
-            <action href="@dataset.IngressFileLink" visually-hidden-text="@dataset.Label ingress file">Change</action>
-          </row-actions>
-        </row>
-        <row>
-          <key>@dataset.Label — schema file@(dataset.Required ? "" : " (optional)")</key>
-          <value>@(string.IsNullOrWhiteSpace(dataset.SchemaFile) ? "Not supplied" : dataset.SchemaFile)</value>
-          <row-actions>
-            <action href="@dataset.SchemaFileLink" visually-hidden-text="@dataset.Label schema file">Change</action>
-          </row-actions>
-        </row>
+           file that is not coming before validating the ones that have arrived. The ingress and
+           schema file names are left to the exercise's Data tab: this page is an overview for
+           admins who do not need them. *@
+        <table class="govuk-table">
+          <caption class="govuk-table__caption govuk-table__caption--s">Data files<span class="govuk-visually-hidden"> for @exercise.Name</span></caption>
+          <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+              <th scope="col" class="govuk-table__header">Data file</th>
+              <th scope="col" class="govuk-table__header">Used for</th>
+              <th scope="col" class="govuk-table__header">Status</th>
+            </tr>
+          </thead>
+          <tbody class="govuk-table__body">
+            @foreach (var dataset in exercise.Datasets)
+            {
+              <tr class="govuk-table__row">
+                <th scope="row" class="govuk-table__header">
+                  @dataset.Label
+                  @if (!dataset.Required)
+                  {
+                    <span class="govuk-hint govuk-!-display-inline govuk-!-font-weight-regular">(optional)</span>
+                  }
+                </th>
+                @* Blue and purple: colours the status tags do not use, so purpose never reads as status. *@
+                <td class="govuk-table__cell">
+                  @if (dataset.FeedsJourney)
+                  {
+                    <strong class="govuk-tag govuk-tag--blue">Journey</strong>
+                  }
+                  else
+                  {
+                    <strong class="govuk-tag govuk-tag--purple">Data share</strong>
+                  }
+                </td>
+                <td class="govuk-table__cell">
+                  <strong class="govuk-tag @DatasetStatusTags.CssClass(dataset.Status)">@DatasetStatusTags.Label(dataset.Status)</strong>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
       }
-    </govuk-summary-list>
-  }
 
-  <div class="govuk-button-group">
-    @if (exercise.Datasets.Count > 0)
-    {
-      <govuk-button-link disabled="@(!exercise.IsValidatable)" href="@exercise.ValidateLink">
-        Validate @exercise.Label
-      </govuk-button-link>
-    }
+      <div class="govuk-button-group govuk-!-margin-bottom-0">
+        <govuk-button-link disabled="@(!exercise.IsValidatable)" href="@exercise.ValidateLink">
+          Validate<span class="govuk-visually-hidden"> @exercise.Name</span>
+        </govuk-button-link>
 
-    @* AB#301022: Close is offered only while schools can still use the exercise, and it does not
-       depend on the exercise having ingress files. The label is in the VISIBLE text, so the
-       repeated-accessible-name rule needs no govuk-visually-hidden suffix here. *@
-    @if (exercise.IsOpen)
-    {
-      <govuk-button-link class="govuk-button--warning" href="@exercise.CloseLink">
-        Close @exercise.Label
-      </govuk-button-link>
-    }
+        @* Only for an exercise with a kind: a change request only reaches an exercise through
+           WhatToChangeCheckingExerciseMap, which maps kinds, so a data share has none to send.
+           AB#301022: Close is offered while the exercise is running (inside its dates, even if it is
+           disabled, so its requests can still be handed over), and it does
+           not depend on the exercise having ingress files. *@
+        @if (exercise.ExerciseType is not null && exercise.IsOpen)
+        {
+          <govuk-button-link class="govuk-button--warning" href="@exercise.CloseLink">
+            Close<span class="govuk-visually-hidden"> @exercise.Name</span>
+          </govuk-button-link>
+        }
 
-    @* Once an exercise has closed — early or on schedule — its requests can still be handed
-       over. Nothing does that automatically at a scheduled end. *@
-    @if (exercise.HasClosed)
-    {
-      <govuk-button-link class="govuk-button--warning" href="@exercise.SendRequestsLink">
-        Send @exercise.Label requests for processing
-      </govuk-button-link>
-    }
+        @* Once an exercise has closed — early or on schedule — its requests can still be handed
+           over. Nothing does that automatically at a scheduled end. *@
+        @if (exercise.ExerciseType is not null && exercise.HasClosed)
+        {
+          <govuk-button-link class="govuk-button--warning" href="@exercise.SendRequestsLink">
+            Send requests for processing<span class="govuk-visually-hidden"> for @exercise.Name</span>
+          </govuk-button-link>
+        }
+      </div>
+    </div>
   </div>
 }
+
+<govuk-button-link href="@Model.AddExerciseLink">Add checking exercise</govuk-button-link>
+
+<h2 class="govuk-heading-m">Delete this window</h2>
+<p class="govuk-body">
+  Deletes the window, its checking exercises and their files, and every change request made through it.
+  The next page shows what will be deleted before anything is.
+</p>
+<govuk-button-link class="govuk-button--warning" href="@Model.DeleteLink">
+  Delete window<span class="govuk-visually-hidden"> @Model.Title</span>
+</govuk-button-link>

@@ -64,12 +64,14 @@ public sealed class AutomaticExerciseHandOverTests(PostgresFixture fixture) : IA
         window.CheckingExercises.Add(new CheckingExercise
         {
             Id = _pupilDataId, ExerciseType = CheckingExerciseType.PupilData,
-            StartDate = Start, EndDate = PupilDataEnd, SortOrder = 0
+            TabName = "Pupils", TabOrder = 100,
+            StartDate = Start, EndDate = PupilDataEnd
         });
         window.CheckingExercises.Add(new CheckingExercise
         {
             Id = _enquiryId, ExerciseType = CheckingExerciseType.ResultsEnquiry,
-            StartDate = Start, EndDate = EnquiryEnd, SortOrder = 1
+            TabName = "Results", TabOrder = 200,
+            StartDate = Start, EndDate = EnquiryEnd
         });
         ctx.CheckingWindows.Add(window);
 
@@ -169,14 +171,15 @@ public sealed class AutomaticExerciseHandOverTests(PostgresFixture fixture) : IA
         // The shared database holds other tests' windows; only this one's matter here.
         var due = Assert.Single(
             await Sut().FindDueAsync(CancellationToken.None), d => d.WindowId == _windowId);
+        Assert.Equal(_pupilDataId, due.ExerciseId);
         Assert.Equal(CheckingExerciseType.PupilData, due.Exercise);
         Assert.Equal(PupilDataEnd, due.ExerciseEnd);
 
         var first = await Sut().HandOverAsync(due, CancellationToken.None);
         var second = await Sut().HandOverAsync(due, CancellationToken.None);
 
-        Assert.Equal(new AutomaticHandOverOutcome(_windowId, CheckingExerciseType.PupilData, 1, 1, Failed: false), first);
-        Assert.Equal(new AutomaticHandOverOutcome(_windowId, CheckingExerciseType.PupilData, 0, 0, Failed: false), second);
+        Assert.Equal(new AutomaticHandOverOutcome(_windowId, _pupilDataId, CheckingExerciseType.PupilData, 1, 1, Failed: false), first);
+        Assert.Equal(new AutomaticHandOverOutcome(_windowId, _pupilDataId, CheckingExerciseType.PupilData, 0, 0, Failed: false), second);
 
         Assert.Equal(RequestStatus.Submitted, await StatusOfAsync(SubmittedRef));
         Assert.Equal(ProcessingStatus.TicketQueued, await ProcessingStatusOfAsync(SubmittedRef));

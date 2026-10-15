@@ -261,7 +261,7 @@ public class AmendmentRequestsServiceTests
         _requestRepo.GetSubmittedResultsEnquiriesAsync(WindowId, 100001L).Returns([enquiry]);
         _blobClient.GetAsync(WindowId, "REF-2").Returns(new RequestState
         {
-            SelectedResult = new StudentResultRecord { QualificationName = "GCSE (9-1) Bus. Studs:Single" }
+            SelectedResult = new ResultRecord { QualificationName = "GCSE (9-1) Bus. Studs:Single" }
         });
 
         var result = await _sut.GetAmendmentRequestsAsync(WindowId);
@@ -418,7 +418,7 @@ public class AmendmentRequestsServiceTests
         ExerciseType = type,
         StartDate = endDate.AddMonths(-3),
         EndDate = endDate,
-        SortOrder = sortOrder
+        TabOrder = sortOrder
     };
 
     private static AmendmentRequestData RequestData(

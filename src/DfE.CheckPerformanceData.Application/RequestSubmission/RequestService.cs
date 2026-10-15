@@ -21,7 +21,8 @@ public sealed class RequestService(
     IQueueService queueService,
     IRequestNotificationService requestNotificationService,
     ICheckYourPupilDataService checkYourPupilDataService,
-    ICheckingExerciseService checkingExerciseService) : IRequestService
+    ICheckingExerciseService checkingExerciseService,
+    ICheckingExerciseStorageResolver? storageResolver = null) : IRequestService
 {
     private long OrganisationUrnLong => long.Parse(currentUserService.OrganisationUrn);
 
@@ -36,6 +37,16 @@ public sealed class RequestService(
         checkingExerciseService.IdFor(
             journey.CheckingWindow!.Exercises,
             WhatToChangeCheckingExerciseMap.CheckingExerciseFor(journey.SelectedWhatToChange!.Value));
+
+    // The release the journey's data came from, read when the row is written rather than taken
+    // from the session: a draft can be resumed weeks later, after a new release. What the school
+    // saw when it saved or submitted is what a reviewer needs. Resolved the same way the journey's
+    // data readers resolve their exercise, so the two cannot name different releases.
+    private async Task<Guid?> ReleaseIdForAsync(Guid windowId, CheckingExerciseType exercise) =>
+        storageResolver is null ? null : (await storageResolver.ResolveAsync(windowId, exercise))?.CurrentReleaseId;
+
+    private Task<Guid?> ReleaseIdForAsync(Guid windowId, RequestState journey) =>
+        ReleaseIdForAsync(windowId, WhatToChangeCheckingExerciseMap.CheckingExerciseFor(journey.SelectedWhatToChange!.Value));
 
     private string ExtractCurrentReasonType(RequestState journey, QuestionFlowConfig? config)
     {
@@ -97,7 +108,8 @@ public sealed class RequestService(
         // Upsert first: the document carries the ChangeRequest row's Id so the
         // rules engine worker can write its decision back to that row.
         var changeRequestId = await requestRepository.UpsertAsync(
-            BuildChangeRequestData(windowId, journey, RequestStatus.Submitted, config));
+            BuildChangeRequestData(windowId, journey, RequestStatus.Submitted, config,
+                await ReleaseIdForAsync(windowId, journey)));
 
         // Every amendment, Add included, goes to the Rules Engine (#536). The document is saved
         // first: the close sweep sends this saved copy to Zendesk once the exercise closes, so it
@@ -154,6 +166,7 @@ public sealed class RequestService(
         {
             WindowId = windowId,
             CheckingExerciseId = ExerciseIdFor(journey),
+            CheckingExerciseReleaseId = await ReleaseIdForAsync(windowId, journey),
             ReferenceNumber = journey.ReferenceNumber,
             OrganisationUrn = OrganisationUrnLong,
             PupilId = journey.SelectedPupil.Id,
@@ -216,6 +229,7 @@ public sealed class RequestService(
             WindowId = windowId,
             CheckingExerciseId =
                 checkingExerciseService.IdFor(window.Exercises, CheckingExerciseType.PupilData),
+            CheckingExerciseReleaseId = await ReleaseIdForAsync(windowId, CheckingExerciseType.PupilData),
             ReferenceNumber = referenceNumber,
             OrganisationUrn = OrganisationUrnLong,
             // Stored as UTC and converted to London time at display. The column is
@@ -243,7 +257,8 @@ public sealed class RequestService(
 
         await requestStateBlobClient.SaveAsync(windowId, journey.ReferenceNumber, journey);
         var draftConfig = await flowService.GetConfigAsync(journey.SelectedWhatToChange.Value, journey.CheckingWindow.CheckingWindowType);
-        await requestRepository.UpsertAsync(BuildChangeRequestData(windowId, journey, status, draftConfig));
+        await requestRepository.UpsertAsync(BuildChangeRequestData(windowId, journey, status, draftConfig,
+            await ReleaseIdForAsync(windowId, journey)));
     }
 
     public async Task<RequestState?> ResumeDraftAsync(Guid windowId, string referenceNumber)
@@ -316,11 +331,13 @@ public sealed class RequestService(
         return string.IsNullOrEmpty(detail) ? prefix : $"{prefix} - {detail}";
     }
 
-    private ChangeRequestData BuildChangeRequestData(Guid windowId, RequestState journey, RequestStatus status, QuestionFlowConfig? config) =>
+    private ChangeRequestData BuildChangeRequestData(Guid windowId, RequestState journey, RequestStatus status,
+        QuestionFlowConfig? config, Guid? releaseId) =>
         new()
         {
             WindowId = windowId,
             CheckingExerciseId = ExerciseIdFor(journey),
+            CheckingExerciseReleaseId = releaseId,
             ReferenceNumber = journey.ReferenceNumber!,
             OrganisationUrn = OrganisationUrnLong,
             PupilId = journey.SelectedPupil!.Id,

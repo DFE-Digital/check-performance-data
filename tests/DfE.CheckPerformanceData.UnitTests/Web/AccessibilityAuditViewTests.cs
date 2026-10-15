@@ -212,22 +212,48 @@ public sealed class AccessibilityAuditViewTests
 	{
 		// The Close button repeats once per exercise section down the page. Identical accessible
 		// names would leave no way to tell one section's button from the next (#378/#385/#379).
-		// Here the exercise label is in the VISIBLE text, which satisfies the rule without a
-		// govuk-visually-hidden suffix — so the label must not be dropped from the button.
 		var view = ReadView("Views", "WindowAdmin", "Summary.cshtml");
 
-		Assert.Contains("Close @exercise.Label", view);
+		Assert.Contains("Close<span class=\"govuk-visually-hidden\"> @exercise.Name</span>", view);
 		Assert.Contains("@exercise.CloseLink", view);
 	}
 
+	// ── #466 slice 3: the summary lists every exercise, including display-only ────────
+
 	[Fact]
-	public void SummaryPage_SendRequestsButton_NamesItsExerciseInVisibleText()
+	public void SummaryPage_EditAndValidateLinks_NameTheirExercise()
 	{
-		// AB#301022: like Close, this button repeats once per closed exercise down the page, so
-		// the exercise label must stay in its visible text.
+		// Edit and Validate repeat once per exercise section, same rule as Close above (#378/#385/#379).
 		var view = ReadView("Views", "WindowAdmin", "Summary.cshtml");
 
-		Assert.Contains("Send @exercise.Label requests for processing", view);
+		Assert.Contains("Edit<span class=\"govuk-visually-hidden\"> @exercise.Name</span>", view);
+		Assert.Contains("Validate<span class=\"govuk-visually-hidden\"> @exercise.Name</span>", view);
+		Assert.Contains("@exercise.EditLink", view);
+		Assert.Contains("@exercise.ValidateLink", view);
+	}
+
+	[Fact]
+	public void SummaryPage_TagsEachDataFilesPurposeAndStatus_NotItsFiles()
+	{
+		// The summary is an overview for admins who are not technical. It tags each data file as
+		// Journey or Data share and shows if it is supplied; the file names are on the Data tab.
+		var view = ReadView("Views", "WindowAdmin", "Summary.cshtml");
+
+		Assert.Contains("govuk-tag--blue\">Journey</strong>", view);
+		Assert.Contains("govuk-tag--purple\">Data share</strong>", view);
+		Assert.Contains("DatasetStatusTags.Label(dataset.Status)", view);
+		Assert.DoesNotContain("dataset.IngressFile", view);
+		Assert.DoesNotContain("dataset.SchemaFile", view);
+	}
+
+	[Fact]
+	public void SummaryPage_SendRequestsButton_NamesItsExercise()
+	{
+		// AB#301022: like Close, this button repeats once per closed exercise down the page, so
+		// it names its exercise in a visually hidden suffix, as Close, Edit and Validate do.
+		var view = ReadView("Views", "WindowAdmin", "Summary.cshtml");
+
+		Assert.Contains("Send requests for processing<span class=\"govuk-visually-hidden\"> for @exercise.Name</span>", view);
 		Assert.Contains("@exercise.SendRequestsLink", view);
 	}
 
@@ -249,6 +275,173 @@ public sealed class AccessibilityAuditViewTests
 
 		Assert.Contains("ViewBag.Title = $\"Send {Model.ExerciseLabel} requests for processing\";", view);
 		Assert.Contains("<h1 class=\"govuk-heading-l\">Send @Model.ExerciseLabel requests for processing</h1>", view);
+	}
+
+	// ── Create checking exercise (#466 slice 3) ─────────────────────────────────────────
+
+	[Fact]
+	public void CreateCheckingExercise_SetsATitleAndOneHeading()
+	{
+		var view = ReadView("Views", "WindowAdmin", "CreateCheckingExercise.cshtml");
+
+		Assert.Contains("ViewData[\"Title\"]", view);
+		Assert.Equal(1, CountOccurrences(view, "<h1"));
+		Assert.DoesNotContain("href=\"#\"", view);
+	}
+
+	[Fact]
+	public void AddExerciseData_SetsATitleAndOneHeading()
+	{
+		var view = ReadView("Views", "WindowAdmin", "AddExerciseData.cshtml");
+
+		Assert.Contains("ViewBag.Title", view);
+		Assert.Equal(1, CountOccurrences(view, "<h1"));
+		Assert.DoesNotContain("href=\"#\"", view);
+	}
+
+	[Fact]
+	public void AddExerciseData_AsksInclusionOnlyUnderTheJourneyAnswer()
+	{
+		var view = ReadView("Views", "WindowAdmin", "AddExerciseData.cshtml");
+
+		// A data share has no inclusion, so the question is revealed only by "Pupil data for the journeys".
+		var journey = view.IndexOf("Pupil data for the journeys", StringComparison.Ordinal);
+		var conditional = view.IndexOf("<govuk-radios-item-conditional>", journey, StringComparison.Ordinal);
+		var inclusion = view.IndexOf("<govuk-radios for=\"Inclusion\">", StringComparison.Ordinal);
+		var conditionalEnd = view.IndexOf("</govuk-radios-item-conditional>", journey, StringComparison.Ordinal);
+		var share = view.IndexOf("Data share only", StringComparison.Ordinal);
+
+		Assert.Equal(1, CountOccurrences(view, "<govuk-radios for=\"Inclusion\">"));
+		Assert.True(journey < conditional && conditional < inclusion && inclusion < conditionalEnd && conditionalEnd < share);
+	}
+
+	// ── #466 Task 23: the exercise tabs on Check Your Pupil Data ──────────────────────
+
+	[Theory]
+	[InlineData("_ExerciseTable.cshtml")]
+	[InlineData("_VerticalSummary.cshtml")]
+	[InlineData("_RawExerciseTable.cshtml")]
+	public void ExerciseTabPartials_HaveNoPlaceholderLinks(string partial)
+	{
+		var view = ReadView("Views", "CheckYourPupilData", partial);
+
+		Assert.DoesNotContain("href=\"#\"", view);
+	}
+
+	[Theory]
+	[InlineData("_ExerciseTable.cshtml")]
+	[InlineData("_RawExerciseTable.cshtml")]
+	public void ExerciseTabPartials_ScrollRegionCarriesRoleAndLabel(string partial)
+	{
+		// A wide table otherwise pushes the page off-screen on a small viewport; the region has
+		// to be keyboard-scrollable (tabindex) and name what it holds (aria-label), same rule as
+		// the existing inclusion tabs' moj-scrollable-pane.
+		var view = ReadView("Views", "CheckYourPupilData", partial);
+
+		Assert.Contains("moj-scrollable-pane", view);
+		Assert.Contains("role=\"region\"", view);
+		Assert.Contains("tabindex=\"0\"", view);
+		Assert.Contains("aria-label=", view);
+	}
+
+	[Fact]
+	public void ExerciseTable_SearchBoxHasARealLabel()
+	{
+		var view = ReadView("Views", "CheckYourPupilData", "_ExerciseTable.cshtml");
+
+		Assert.Contains("for=\"@searchId\"", view);
+		Assert.Contains("id=\"@searchId\"", view);
+	}
+
+	[Fact]
+	public void ExerciseTable_TakesItsLearnerNounFromTheTab()
+	{
+		// KS4 exercise tabs use this partial too, and a KS4 school says "pupil", not "student". The
+		// label names the selected dataset's searchable columns, so it never promises less (or
+		// more) than the search matches.
+		var view = ReadView("Views", "CheckYourPupilData", "_ExerciseTable.cshtml");
+
+		Assert.Contains("ExerciseSearchLabel.For(Model.LearnerNoun, table.Selected)", view);
+		Assert.DoesNotContain("by first or last name", view);
+		Assert.DoesNotContain("No students", view);
+	}
+
+	[Fact]
+	public void ExerciseTable_ControlIdsCarryTheTabKey()
+	{
+		// An exercise split by inclusion renders this partial twice on one page. A fixed id would
+		// be repeated, and a label's for= would then name the first tab's control.
+		var view = ReadView("Views", "CheckYourPupilData", "_ExerciseTable.cshtml");
+
+		Assert.Contains("var searchId = $\"search-{Model.Key}\";", view);
+		Assert.Contains("var datasetId = $\"dataset-{Model.Key}\";", view);
+	}
+
+	[Fact]
+	public void ExerciseTable_DatasetSelectorHasARealLabel()
+	{
+		var view = ReadView("Views", "CheckYourPupilData", "_ExerciseTable.cshtml");
+
+		Assert.Contains("for=\"@datasetId\"", view);
+		Assert.Contains("id=\"@datasetId\"", view);
+	}
+
+	[Fact]
+	public void ExerciseTable_PaginatesThroughThePaginationWindow_NotOneLinkPerPage()
+	{
+		// A few hundred students otherwise produce hundreds of tab stops and a screen reader
+		// reads every number (see PaginationWindow's own remarks).
+		var view = ReadView("Views", "CheckYourPupilData", "_ExerciseTable.cshtml");
+
+		Assert.Contains("PaginationWindow.Build(table.Page, table.TotalPages)", view);
+		Assert.DoesNotContain("for (var page = 0; page <", view);
+	}
+
+	[Fact]
+	public void Index_BranchesOnExerciseTabs_AndKeepsTheInclusionTabsFallback()
+	{
+		// The single most important rule for #466 Task 23: a window whose exercises draw no
+		// tabs — every KS2 and KS4 window today — must still render the inclusion tabs exactly
+		// as it always has. The fallback branch must not be commented out.
+		var view = ReadView("Views", "CheckYourPupilData", "Index.cshtml");
+
+		Assert.Contains("Model.CheckingExerciseTabs.Count > 0", view);
+		Assert.Contains("_PupilSection", view);
+		Assert.DoesNotContain("@* <govuk-tabs>", view);
+	}
+
+	// ── helpers ──────────────────────────────────────────────────────────────
+
+	private static int CountOccurrences(string text, string value)
+	{
+		int count = 0, index = 0;
+		while ((index = text.IndexOf(value, index, StringComparison.Ordinal)) >= 0)
+		{
+			count++;
+			index += value.Length;
+		}
+		return count;
+	}
+
+	// ── Exercise releases: repeated "Make live" links ──────────────────────────────────
+
+	[Fact]
+	public void ExerciseReleases_MakeLiveLink_NamesItsReleaseForScreenReaders()
+	{
+		// One "Make live" link per earlier release. Identical accessible names leave no way to
+		// tell one row's link from the next (the #378 rule).
+		var view = ReadView("Views", "WindowAdmin", "CreateCheckingExercise.cshtml");
+
+		Assert.Contains("Make live<span class=\"govuk-visually-hidden\"> release @release.Number</span>", view);
+	}
+
+	[Fact]
+	public void MakeReleaseLive_TitleMatchesItsHeading()
+	{
+		var view = ReadView("Views", "WindowAdmin", "MakeReleaseLive.cshtml");
+
+		Assert.Contains("ViewBag.Title = $\"Make release {Model.Release.Number} live\";", view);
+		Assert.Contains("<h1 class=\"govuk-heading-l\">Make release @Model.Release.Number live</h1>", view);
 	}
 
 	// ── #389 Redundant hidden instructions on Provide Evidence ────────────────────────

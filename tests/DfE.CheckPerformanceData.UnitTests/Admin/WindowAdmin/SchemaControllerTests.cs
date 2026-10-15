@@ -1,5 +1,6 @@
 using System.Text;
 using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
@@ -148,7 +149,7 @@ public class SchemaControllerTests
                     ExerciseType = CheckingExerciseType.PupilData,
                     StartDate = new DateTime(2027, 1, 1),
                     EndDate = new DateTime(2027, 2, 1),
-                    SortOrder = 0,
+                    TabOrder = 0,
                     Datasets = [new CheckingWindowDatasetDto { Name = Dataset, SortOrder = 0 }]
                 }
             ]
@@ -185,5 +186,65 @@ public class SchemaControllerTests
         // No "app" blob client is configured, so the upload short-circuits before persisting.
         // The dataset lookup and validation still had to succeed to get that far.
         Assert.IsType<ObjectResult>(result);
+    }
+
+    // #466: an upload is stored at a path unique to its own exercise and dataset, not a name
+    // relative to a shared schema/ root — two exercises can both have a slot called "pupils".
+    [Fact]
+    public async Task AnUploadedSchema_IsStoredUnderItsOwnExerciseAndDataset()
+    {
+        var windowService = Substitute.For<IWindowService>();
+        var id = Guid.NewGuid();
+        var exerciseId = Guid.NewGuid();
+        var datasetId = Guid.NewGuid();
+
+        var window = new CheckingWindowDto
+        {
+            Id = id,
+            Title = "Window",
+            StartDate = new DateTime(2027, 1, 1),
+            EndDate = new DateTime(2027, 2, 1),
+            KeyStage = KeyStages.KS2,
+            CheckingWindowType = CheckingWindowType.KS2,
+            Exercises =
+            [
+                new CheckingExerciseDto
+                {
+                    Id = exerciseId,
+                    ExerciseType = CheckingExerciseType.PupilData,
+                    StartDate = new DateTime(2027, 1, 1),
+                    EndDate = new DateTime(2027, 2, 1),
+                    TabOrder = 0,
+                    Datasets = [new CheckingWindowDatasetDto { Id = datasetId, Name = Dataset, SortOrder = 0 }]
+                }
+            ]
+        };
+        windowService.GetByIdAsync(id, Arg.Any<CancellationToken>()).Returns(window);
+
+        var blobService = Substitute.For<BlobServiceClient>();
+        var container = Substitute.For<BlobContainerClient>();
+        var blob = Substitute.For<BlobClient>();
+        blobService.GetBlobContainerClient(id.ToString()).Returns(container);
+        string? capturedBlobName = null;
+        container.GetBlobClient(Arg.Do<string>(n => capturedBlobName = n)).Returns(blob);
+
+        var blobs = new Dictionary<string, BlobServiceClient> { ["app"] = blobService };
+        var controller = BuildController(windowService, blobs);
+
+        var model = new SchemaItem { WindowId = id, Schema = FileFrom(ValidSchema) };
+        var result = await controller.Submit(id, CheckingExerciseType.PupilData, Dataset, model, CancellationToken.None, exerciseId);
+
+        // Back to the exercise's Data tab, where the next file is chosen.
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("EditCheckingExercise", redirect.ControllerName);
+        Assert.Equal(exerciseId, redirect.RouteValues!["exerciseId"]);
+        Assert.Equal(ExerciseLinks.DataTab, redirect.Fragment);
+        // The checksum folder keeps an earlier schema of the same name: a release names the schema
+        // it was displayed with, so a new upload must not overwrite it.
+        var checksum = window.Exercises[0].Datasets[0].SchemaFileChecksum;
+        Assert.NotEmpty(checksum);
+        var expected = $"ingress/{exerciseId}/{datasetId}/{checksum[..16].ToLowerInvariant()}/schema.json";
+        Assert.Equal(expected, capturedBlobName);
+        Assert.Equal(expected, window.Exercises[0].Datasets[0].SchemaFile);
     }
 }

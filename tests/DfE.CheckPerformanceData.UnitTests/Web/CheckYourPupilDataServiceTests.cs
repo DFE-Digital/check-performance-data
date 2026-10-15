@@ -14,14 +14,14 @@ public class CheckYourPupilDataServiceTests
     private const string TestLaestab = "123/4567";
     private readonly ICheckYourPupilDataRepository _repository = Substitute.For<ICheckYourPupilDataRepository>();
     private readonly ICurrentUserService _currentUserService = Substitute.For<ICurrentUserService>();
-    private readonly IStudentResultsClient _studentResults = Substitute.For<IStudentResultsClient>();
+    private readonly IResultsClient _resultsClient = Substitute.For<IResultsClient>();
     private readonly CheckYourPupilDataService _sut;
 
     public CheckYourPupilDataServiceTests()
     {
         _currentUserService.OrganisationUrn.Returns(TestUrn);
         _currentUserService.OrganisationLaestab.Returns(TestLaestab);
-        _sut = new CheckYourPupilDataService(_repository, _currentUserService, _studentResults);
+        _sut = new CheckYourPupilDataService(_repository, _currentUserService, _resultsClient);
     }
 
     [Fact]
@@ -58,7 +58,7 @@ public class CheckYourPupilDataServiceTests
     {
         var windowId = Guid.NewGuid();
         var withResults = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "500001" };
-        _studentResults.GetStudentIdsWithResultsAsync(windowId, TestLaestab).Returns(withResults);
+        _resultsClient.GetCypmdIdsWithResultsAsync(windowId, TestLaestab).Returns(withResults);
 
         await _sut.GetPupilSuggestionsAsync(windowId, "smith", PupilFilter.All, requireResults: true);
 
@@ -74,8 +74,8 @@ public class CheckYourPupilDataServiceTests
 
         await _sut.GetPupilSuggestionsAsync(windowId, "smith", PupilFilter.Included);
 
-        await _studentResults.DidNotReceive()
-            .GetStudentIdsWithResultsAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _resultsClient.DidNotReceive()
+            .GetCypmdIdsWithResultsAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
         await _repository.Received(1).SearchPupilsAsync(
             windowId, TestLaestab, TestUrn, "smith", PupilFilter.Included, null, null);
     }
@@ -94,7 +94,7 @@ public class CheckYourPupilDataServiceTests
     private static PupilRecord Ks4Pupil() => new()
     {
         Id = Guid.NewGuid(), Upn = "A860407000001B", Cypmd_Id = "000123", Surname = "Smith",
-        Firstname = "Alice", Sex = "F", DateOfBirth = "2010-09-01", Age = 15, Pincl = 401,
+        Firstname = "Alice", Sex = "F", DateOfBirth = "2010-09-01", Age = 15, Pincl = 401, Included = true,
         Laestab = TestLaestab, Urn = 136309, EntryDate = "2021-09-01", SenF = "N",
         FirstLanguage = "ENG", Ethnicity = "WBRI", ActualYearGroup = "11", NewMobile = false
     };

@@ -1,7 +1,6 @@
 using DfE.CheckPerformanceData.Application.AdminRequests;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
-using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Application.WindowManagement;
 
@@ -12,22 +11,22 @@ public sealed class CloseExerciseService(
     IQueueService queueService) : ICloseExerciseService
 {
     public async Task<CloseExercisePreview> PreviewAsync(
-        Guid windowId, CheckingExerciseType exercise, CancellationToken cancellationToken)
+        Guid windowId, Guid exerciseId, CancellationToken cancellationToken)
     {
-        var rows = await repository.GetDecidedRequestsForExerciseAsync(windowId, exercise, cancellationToken);
+        var rows = await repository.GetDecidedRequestsForExerciseAsync(windowId, exerciseId, cancellationToken);
 
         return new CloseExercisePreview
         {
             RequestsToClose = rows.Count,
-            RequestsWaiting = await repository.CountWaitingRequestsForExerciseAsync(windowId, exercise, cancellationToken),
-            DraftsToCancel = await repository.CountDraftsForExerciseAsync(windowId, exercise, cancellationToken)
+            RequestsWaiting = await repository.CountWaitingRequestsForExerciseAsync(windowId, exerciseId, cancellationToken),
+            DraftsToCancel = await repository.CountDraftsForExerciseAsync(windowId, exerciseId, cancellationToken)
         };
     }
 
     public async Task<CloseExerciseResult> CloseAsync(
-        Guid windowId, CheckingExerciseType exercise, CancellationToken cancellationToken)
+        Guid windowId, Guid exerciseId, CancellationToken cancellationToken)
     {
-        var rows = await repository.GetDecidedRequestsForExerciseAsync(windowId, exercise, cancellationToken);
+        var rows = await repository.GetDecidedRequestsForExerciseAsync(windowId, exerciseId, cancellationToken);
 
         var enqueued = 0;
         foreach (var row in rows)
@@ -56,11 +55,11 @@ public sealed class CloseExerciseService(
         }
 
         // Undecided amendments are left as they are; the next run sends them once decided.
-        var waiting = await repository.CountWaitingRequestsForExerciseAsync(windowId, exercise, cancellationToken);
+        var waiting = await repository.CountWaitingRequestsForExerciseAsync(windowId, exerciseId, cancellationToken);
 
         // Drafts for this exercise were never submitted: InProgress / ReadyToSubmit -> NotSubmitted.
         var draftsCancelled = await repository.MarkDraftsNotSubmittedForExerciseAsync(
-            windowId, exercise, cancellationToken);
+            windowId, exerciseId, cancellationToken);
 
         return new CloseExerciseResult { Enqueued = enqueued, Waiting = waiting, DraftsCancelled = draftsCancelled };
     }

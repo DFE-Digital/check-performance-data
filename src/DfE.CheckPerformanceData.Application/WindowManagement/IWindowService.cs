@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Domain.Enums;
 
@@ -10,6 +11,28 @@ public interface IWindowService
     Task<CheckingWindowDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
     Task UpdateAsync(CheckingWindowDto window, CancellationToken cancellationToken);
     Task<CheckingWindowDto> CreateAsync(CheckingWindowDto window, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Why this stored exercise's kind cannot change, or <see cref="KindChangeBlock.None"/>.
+    /// <see cref="UpdateAsync"/> refuses the same changes; the edit page asks first to show a form error.
+    /// </summary>
+    Task<KindChangeBlock> KindChangeBlockAsync(CheckingExerciseDto stored, CancellationToken cancellationToken);
+}
+
+/// <summary>Why an exercise's kind cannot change.</summary>
+public enum KindChangeBlock
+{
+    None,
+
+    /// <summary>A legacy exercise: its kind names the blob paths its files already sit under.</summary>
+    LegacyStorage,
+
+    /// <summary>A release is live, and its merged file is named for the kind it ran as.</summary>
+    LiveRelease,
+
+    /// <summary>Schools have made change requests on it. They reach their journey and their
+    /// Close through the kind, so a new kind would strand them.</summary>
+    ChangeRequests
 }
 
 public class PageResult
@@ -51,9 +74,15 @@ public sealed class CheckingWindowDto
     // only ever right while a single exercise held them all — the admin wizard, the summary page
     // and the validate run are all per-exercise now, and each asks the exercise it means.
 
-    /// <summary>The exercise of this type, or null when the window does not run it.</summary>
-    public CheckingExerciseDto? FindExercise(CheckingExerciseType exercise) =>
-        Exercises.SingleOrDefault(e => e.ExerciseType == exercise);
+    /// <summary>The exercise of this type, or null when the window does not run it. A null type
+    /// finds nothing: a window may hold several typeless shares, so "the typeless one" is not a
+    /// question with an answer.</summary>
+    public CheckingExerciseDto? FindExercise(CheckingExerciseType? exercise) =>
+        exercise is null ? null : Exercises.SingleOrDefault(e => e.ExerciseType == exercise);
+
+    /// <summary>Schools see this window: at least one of its exercises is live at
+    /// <paramref name="now"/>. A window with no live exercise is not set up yet and is hidden.</summary>
+    public bool HasLiveExerciseAt(DateTime now) => Exercises.Any(e => e.IsLiveAt(now));
 
     /// <summary>
     /// The outer pair derived from the exercises: earliest start, latest end. The wizard never asks
@@ -67,15 +96,78 @@ public sealed class CheckingWindowDto
         StartDate = Exercises.Min(e => e.StartDate);
         EndDate = Exercises.Max(e => e.EndDate);
     }
+
+    /// <summary>
+    /// The key stage derived from the window type. The wizard never asks an admin for it, so the
+    /// two can never disagree, and changing the type moves the key stage with it.
+    /// </summary>
+    public void DeriveKeyStageFromWindowType() => KeyStage = WindowKeyStage.For(CheckingWindowType);
 }
 
 public sealed class CheckingExerciseDto
 {
     public Guid Id { get; init; }
-    public required CheckingExerciseType ExerciseType { get; init; }
+    public required CheckingExerciseType? ExerciseType { get; init; }
     public required DateTime StartDate { get; set; }
     public required DateTime EndDate { get; set; }
-    public int SortOrder { get; init; }
+
+    /// <summary>True for a row on the exercise-id blob layout (#466).</summary>
+    public bool UsesExerciseStorage { get; init; } = true;
+
+    /// <summary>The admin's name for this exercise.</summary>
+    public string? Name { get; init; }
+
+    /// <summary>The tab label schools see. Every exercise has one; saving an empty one is refused.</summary>
+    public string TabName { get; set; } = string.Empty;
+    public int TabOrder { get; init; }
+    public bool IsEnabled { get; init; }
+    public bool DisplayOnly { get; init; }
+    public DateTime? VisibleFrom { get; init; }
+    public DateTime? VisibleUntil { get; init; }
+    public Guid? ReplacesCheckingExerciseId { get; init; }
+
+    /// <summary>
+    /// Schools see this exercise: it is enabled and <paramref name="now"/> is inside its visibility
+    /// dates. VisibleUntil is exclusive. A window with no live exercise is not set up yet, and
+    /// schools do not see it at all.
+    /// </summary>
+    public bool IsLiveAt(DateTime now) => IsEnabled
+        && (VisibleFrom is null || VisibleFrom <= now)
+        && (VisibleUntil is null || VisibleUntil > now);
+
+    /// <summary>
+    /// How the tab shows this exercise's data: a table with a dataset selector, or one record per
+    /// school turned on its side. Set by the admin on the exercise, not by the schemas, so every
+    /// dataset of one exercise is shown the same way.
+    /// </summary>
+    public ExerciseLayout Layout { get; init; } = ExerciseLayout.Table;
+
+    /// <summary>
+    /// A results enquiry tells a school, before an incorrect-grade enquiry, that late results may
+    /// still correct the grade (<see cref="ResultsEnquiry.LateResultsWarning"/>). The admin sets it
+    /// on the exercise page and clears it when the late results have arrived. It names no file, so
+    /// it still means something for a results enquiry whose late results come another way.
+    /// </summary>
+    public bool ShowLateResultsWarning { get; init; }
+
+    /// <summary>
+    /// The release schools see. Null means the exercise has no release yet: its output (if any) is
+    /// at the unversioned <see cref="CheckingExerciseBlobPaths.DataPrefix(Guid, Guid?)"/>, which is
+    /// where every run before releases existed, and every seeder, wrote it.
+    /// </summary>
+    public Guid? CurrentReleaseId { get; init; }
+
+    /// <summary>Every release of this exercise, oldest first.</summary>
+    public List<CheckingExerciseReleaseDto> Releases { get; init; } = [];
+
+    /// <summary>The release that <see cref="CurrentReleaseId"/> names, or null.</summary>
+    public CheckingExerciseReleaseDto? CurrentRelease =>
+        CurrentReleaseId is { } id ? Releases.SingleOrDefault(r => r.Id == id) : null;
+
+    /// <summary>The outer window's dates, carried so a caller holding only an exercise can ask
+    /// whether its window is running without loading the window again.</summary>
+    public DateTime? WindowStart { get; init; }
+    public DateTime? WindowEnd { get; init; }
 
     /// <summary>
     /// The CSV + schema pairs this exercise ingests, in sort order. Any number, including none.
@@ -96,18 +188,100 @@ public sealed class CheckingExerciseDto
     /// Every required dataset has both its files, and at least one file pair is present — so the
     /// exercise can be validated. Optional slots may be empty (#324): the results feed's late,
     /// revised and retention files arrive weeks apart and one of them may never arrive at all, so
-    /// waiting for every slot would mean never validating.
+    /// waiting for every slot would mean never validating. A retired slot is left out: its file
+    /// has been replaced, so a required slot stops blocking once it is retired.
     /// </summary>
     public bool HasRequiredFiles =>
-        Datasets.Any(d => d.IsComplete) && Datasets.Where(d => d.Required).All(d => d.IsComplete);
+        InUse.Any(d => d.IsComplete) && InUse.Where(d => d.Required).All(d => d.IsComplete);
+
+    /// <summary>The slots that are not retired.</summary>
+    private IEnumerable<CheckingWindowDatasetDto> InUse => Datasets.Where(d => !d.Retired);
+
+    /// <summary>
+    /// The slots in use whose records the journey reads, in sort order. A new journey file is merged
+    /// with these, so the add-file page asks the admin to confirm when there are any. A retired slot
+    /// is left out: no run reads it.
+    /// </summary>
+    public IReadOnlyList<CheckingWindowDatasetDto> JourneyDatasetsInUse =>
+        [.. InUse.Where(d => d.FeedsJourney).OrderBy(d => d.SortOrder)];
 
     /// <summary>
     /// The datasets a run actually reads, in sort order — the complete ones. An empty optional slot
     /// is a file that has not arrived, not a file to fail on, and a run rewrites the exercise's
-    /// whole output, so the same exercise is simply re-run when the next file lands.
+    /// whole output, so the same exercise is simply re-run when the next file lands. A retired slot
+    /// is never read: its file was replaced (the 16-19 revised files replace the first four).
     /// </summary>
     public IReadOnlyList<CheckingWindowDatasetDto> DatasetsToIngest =>
-        [.. Datasets.Where(d => d.IsComplete).OrderBy(d => d.SortOrder)];
+        [.. InUse.Where(d => d.IsComplete).OrderBy(d => d.SortOrder)];
+
+    /// <summary>
+    /// The datasets as schools see them: the files that the current release read, or the complete
+    /// slots when the exercise has no release. The display reads its schemas from here, not from
+    /// the slots, because a slot can hold a newer file that has not been run yet. Its schema (and
+    /// the title in it) must not reach schools before its data does.
+    /// </summary>
+    public IReadOnlyList<CheckingWindowDatasetDto> PublishedDatasets =>
+        CurrentRelease is { } release
+            ? [.. release.Files.OrderBy(f => f.SortOrder).Select(f => new CheckingWindowDatasetDto
+            {
+                Id = f.DatasetId,
+                Name = f.DatasetName,
+                FeedsJourney = f.FeedsJourney,
+                Included = f.Included,
+                SourceFile = f.SourceFile,
+                IngressFile = f.IngressFile,
+                IngressFileChecksum = f.IngressFileChecksum,
+                SchemaFile = f.SchemaFile,
+                SchemaFileChecksum = f.SchemaFileChecksum,
+                SortOrder = f.SortOrder
+            })]
+            : DatasetsToIngest;
+
+    /// <summary>
+    /// Where one of this exercise's slots stands. Live means the live release read the files the
+    /// slot holds now, matched by checksum: a slot whose file was replaced after the run is not
+    /// live until the next run. An exercise with no release has nothing live.
+    /// </summary>
+    public DatasetStatus StatusOf(CheckingWindowDatasetDto dataset)
+    {
+        if (dataset.Retired) return DatasetStatus.Retired;
+        if (!dataset.IsComplete) return DatasetStatus.NotSupplied;
+        return CurrentRelease?.Files.Any(f =>
+                f.DatasetId == dataset.Id
+                && f.IngressFileChecksum == dataset.IngressFileChecksum
+                && f.SchemaFileChecksum == dataset.SchemaFileChecksum) == true
+            ? DatasetStatus.Live
+            : DatasetStatus.NotValidated;
+    }
+
+    /// <summary>
+    /// Whether this exercise has data for schools. A live release decides it, slot by slot through
+    /// <see cref="StatusOf"/>. A legacy exercise (<see cref="UsesExerciseStorage"/> false) makes no
+    /// release: its validation writes the live data, so its validation stamp decides it.
+    /// </summary>
+    public ExerciseDataStatus DataStatus
+    {
+        get
+        {
+            var complete = InUse.Where(d => d.IsComplete).ToList();
+            if (!HasLiveData) return complete.Count > 0 ? ExerciseDataStatus.NotValidated : ExerciseDataStatus.NoFiles;
+            // A legacy exercise: its last run's output is live; a file swapped since is not yet.
+            if (CurrentRelease is null) return IsValidated ? ExerciseDataStatus.Live : ExerciseDataStatus.LiveWithNewFiles;
+            return complete.All(d => StatusOf(d) == DatasetStatus.Live)
+                ? ExerciseDataStatus.Live
+                : ExerciseDataStatus.LiveWithNewFiles;
+        }
+    }
+
+    /// <summary>
+    /// Schools can see data from this exercise: a release is live, or (for a legacy exercise, which
+    /// makes no release) it has validated at least once. A legacy run writes the live output in
+    /// place, so that output stays live when a file is replaced afterwards: the stamp going stale
+    /// says the new file is not live yet, not that the old output has gone. An exercise without
+    /// live data is not ready, however it is enabled, so the landing page does not show its window.
+    /// </summary>
+    public bool HasLiveData =>
+        CurrentRelease is not null || (!UsesExerciseStorage && ValidatedAt is not null && InUse.Any(d => d.IsComplete));
 
     /// <summary>
     /// Validated, and against the files it currently holds. A stamp taken before an ingress file
@@ -118,11 +292,12 @@ public sealed class CheckingExerciseDto
         && ValidatedIngressChecksum == CurrentIngressChecksum
         && ValidatedSchemaChecksum == CurrentSchemaChecksum;
 
-    /// <summary>The dataset ingress checksums as they stand, in dataset order.</summary>
-    public string CurrentIngressChecksum => Combine(Datasets.OrderBy(d => d.SortOrder).Select(d => d.IngressFileChecksum));
+    /// <summary>The ingress checksums of the slots in use, in dataset order. Retiring a slot
+    /// changes it, so the stamp goes stale until the exercise is run without that file.</summary>
+    public string CurrentIngressChecksum => Combine(InUse.OrderBy(d => d.SortOrder).Select(d => d.IngressFileChecksum));
 
-    /// <summary>The dataset schema checksums as they stand, in dataset order.</summary>
-    public string CurrentSchemaChecksum => Combine(Datasets.OrderBy(d => d.SortOrder).Select(d => d.SchemaFileChecksum));
+    /// <summary>The schema checksums of the slots in use, in dataset order.</summary>
+    public string CurrentSchemaChecksum => Combine(InUse.OrderBy(d => d.SortOrder).Select(d => d.SchemaFileChecksum));
 
     // Hashed rather than joined: each part is 64 hex characters, and an exercise with six datasets
     // (the results-enquiry shape) would overflow the 256-character column on a plain join.
@@ -142,7 +317,7 @@ public sealed class CheckingWindowDatasetDto
     public string SchemaFileChecksum { get; set; } = string.Empty;
 
     /// <summary>Stamped onto every record from this file. Null = the record carries its own
-    /// inclusion signal (KS4's P_INCL).</summary>
+    /// inclusion code, which the schema's x-ingress.inclusion rule reads (KS4, KS2).</summary>
     public bool? Included { get; init; }
 
     /// <summary>
@@ -159,6 +334,23 @@ public sealed class CheckingWindowDatasetDto
     /// </summary>
     public bool Required { get; init; } = true;
 
+    /// <summary>
+    /// The journey reads this slot's records. True only for the supplier slots an exercise is
+    /// created with (<see cref="WindowDatasets.DefaultsFor"/>) on a pupil-data or results enquiry
+    /// exercise. A slot an admin adds later is display only: its records never reach a journey,
+    /// so a data share added to a results exercise can never become results a school can query.
+    /// Set once, when the slot is created.
+    /// </summary>
+    public bool FeedsJourney { get; init; }
+
+    /// <summary>
+    /// The slot's file has been replaced by another slot's, so no run reads it any more. The slot is
+    /// kept, not deleted, because the releases that read it still name it and an admin can put it
+    /// back in use. On a 16-19 results enquiry, February retires included, non-included and both
+    /// late files; March retires included revised.
+    /// </summary>
+    public bool Retired { get; set; }
+
     public int SortOrder { get; init; }
 
     public bool IsComplete =>
@@ -169,7 +361,8 @@ public sealed class CheckingWindowDatasetDto
 /// Which datasets a checking exercise ingests, decided by the window type it sits in and the
 /// exercise itself. Pupil data checking takes the supplier's pupil files — two for Post16, because
 /// the non-included file has no P_INCL column — and a results enquiry takes one file per source in
-/// the six-file results feed, each named by its <see cref="ResultsFileTags"/> tag (#324).
+/// the results feed, each named by its <see cref="ResultsFileTags"/> tag (#324), from
+/// <see cref="ResultsSources"/>.
 /// </summary>
 /// <remarks>
 /// An exercise type with no row here gets no dataset slots rather than a throw: an exercise is
@@ -185,54 +378,64 @@ public static class WindowDatasets
     public const string Pupils = "pupils";
 
     public static IReadOnlyList<CheckingWindowDatasetDto> DefaultsFor(
-        CheckingWindowType type, CheckingExerciseType exercise) =>
+        CheckingWindowType type, CheckingExerciseType? exercise) =>
         exercise switch
         {
-            CheckingExerciseType.PupilData => PupilDataDefaults(type),
+            // KS4 June pupil data starts with the supplier's one pupil file. Each pupil carries their
+            // own P_INCL, so the slot stamps no inclusion.
+            CheckingExerciseType.PupilData when type == CheckingWindowType.KS4June =>
+                [new CheckingWindowDatasetDto { Name = Pupils, Included = null, FeedsJourney = true, SortOrder = 0 }],
+            // Other pupil data checking and a data share start with no slots. The admin adds the
+            // files this window needs: two (included and non-included) for 16-19, or any number
+            // for a share. A fixed set of slots guessed the files wrongly as soon as a supplier
+            // sent something else, and gave a share a "required" slot it did not need.
+            CheckingExerciseType.PupilData => [],
+            null => [],
+            // The results feed is a fixed set of supplier files, each stamped with its own tag, so
+            // a results enquiry still starts with one slot per file.
             CheckingExerciseType.ResultsEnquiry => ResultsEnquiryDefaults(type),
             _ => []
         };
 
-    private static IReadOnlyList<CheckingWindowDatasetDto> PupilDataDefaults(CheckingWindowType type) =>
-        type == CheckingWindowType.Post16
-            ?
-            [
-                new CheckingWindowDatasetDto { Name = Included, Included = true, SortOrder = 0 },
-                new CheckingWindowDatasetDto { Name = NonIncluded, Included = false, SortOrder = 1 }
-            ]
-            : [ new CheckingWindowDatasetDto { Name = Pupils, Included = null, SortOrder = 0 } ];
+    /// <summary>
+    /// Whether a slot an admin adds to an exercise of this type feeds the journey. On pupil data
+    /// checking and on a results enquiry it does, unless the admin adds it as a data share (e.g.
+    /// the 16-19 previously published file), which schools only view and download. A data share
+    /// exercise has no journey, so no.
+    /// </summary>
+    public static bool AddedSlotFeedsJourney(CheckingExerciseType? exercise, bool dataShare) =>
+        (exercise is CheckingExerciseType.PupilData or CheckingExerciseType.ResultsEnquiry) && !dataShare;
 
-    // One slot per source file. The slot is named by the tag it stamps, so the admin uploading the
-    // files sees the supplier's own file names and a dataset can never be given the wrong tag.
-    // KS2 has no results feed, so a results enquiry on a KS2 window gets no slots at all.
+    /// <summary>
+    /// A supplier slot that belongs to another window type, left behind when the window's type
+    /// changed (a KS4 results tag on a window that is now 16-19). Only these are removed when a
+    /// window is saved; a slot an admin added is never removed. Only a results slot can be stale:
+    /// its name is a supplier tag. The KS4 June "pupils" slot has a plain name that an admin may
+    /// also give a slot on another window type, and that slot must not be removed.
+    /// </summary>
+    public static bool IsStaleSupplierSlot(CheckingWindowType type, CheckingExerciseType? exercise, string name) =>
+        exercise == CheckingExerciseType.ResultsEnquiry
+        && DefaultsFor(type, exercise).All(d => d.Name != name)
+        && Enum.GetValues<CheckingWindowType>().Any(other => DefaultsFor(other, exercise).Any(d => d.Name == name));
+
+    // One slot per source file, every file of the year from the start: the admin fills each slot
+    // when its file arrives and retires a slot when its file is replaced. The slot is named by the
+    // tag it stamps, so the admin uploading the files sees the supplier's own file names and a
+    // dataset can never be given the wrong tag. KS2 has no results feed, so a results enquiry on a
+    // KS2 window gets no slots at all.
     private static IReadOnlyList<CheckingWindowDatasetDto> ResultsEnquiryDefaults(CheckingWindowType type) =>
-        type switch
+        [.. ResultsSources.For(type).Select((source, index) => new CheckingWindowDatasetDto
         {
-            CheckingWindowType.Post16 => Slots(
-                ResultsFileTags.Post16Main,
-                ResultsFileTags.Post16LateResults1,
-                ResultsFileTags.Post16LateResults2,
-                ResultsFileTags.Post16Revised,
-                ResultsFileTags.Post16Retention),
-            CheckingWindowType.KS4June or CheckingWindowType.KS4Autumn => Slots(
-                ResultsFileTags.Ks4Main,
-                ResultsFileTags.Ks4LateResults1,
-                ResultsFileTags.Ks4LateResults2,
-                ResultsFileTags.Ks4Revised),
-            _ => []
-        };
-
-    // Only the main file is required. The late, revised and retention files land weeks apart and
-    // one may never land — an exercise that could not be validated until all of them had arrived
-    // would leave a school with no results at all in the meantime.
-    private static IReadOnlyList<CheckingWindowDatasetDto> Slots(params string[] tags) =>
-        [.. tags.Select((tag, index) => new CheckingWindowDatasetDto
-        {
-            Name = tag,
-            SourceFile = tag,
+            Name = source.Tag,
+            FeedsJourney = true,
+            SourceFile = source.Tag,
             // Inclusion is a pupil-data concept: a result row is not included or non-included.
             Included = null,
-            Required = index == 0,
+            // Only the files the exercise starts with are required (16-19: included, non-included
+            // and late results 1; KS4: main). The later files land weeks apart and one may never
+            // land — an exercise that could not be validated until all of them had arrived would
+            // leave a school with no results at all in the meantime.
+            Required = source.IsRequired,
             SortOrder = index
         })];
 }

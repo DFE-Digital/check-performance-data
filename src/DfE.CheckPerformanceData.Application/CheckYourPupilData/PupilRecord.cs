@@ -13,8 +13,12 @@ namespace DfE.CheckPerformanceData.Application.CheckYourPupilData;
 /// whether the supplier sends a JSON number or a quoted string (e.g. <c>401</c> or
 /// <c>"401"</c>). <c>ENTRYDAT</c> and <c>DOB</c> are kept as raw strings because their date
 /// format is supplier-defined; <c>NEWMOBILE</c> is bound via <see cref="NumericBoolJsonConverter"/>
-/// (it arrives as <c>0</c>/<c>1</c>). The supplier's <c>P_INCL_DESC</c> is intentionally not
-/// captured — unknown JSON fields are ignored.
+/// (it arrives as <c>0</c>/<c>1</c>). Unknown JSON fields are ignored.
+///
+/// Serves every window type but 16-19: KS4 and KS2 write the same names (the KS2 schema reads its
+/// supplier columns under these names through <c>x-ingress.source</c>). Inclusion is the
+/// <c>INCLUDED</c> stamp ingress writes from the schema's <c>x-ingress.inclusion</c> rule, so this
+/// record knows no key stage's codes.
 /// </summary>
 [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
 public sealed class PupilRecord : IPupilRecord
@@ -54,6 +58,16 @@ public sealed class PupilRecord : IPupilRecord
     [JsonPropertyName("P_INCL")]
     public int? Pincl { get; init; }
 
+    /// <summary>Stamped by ingress from the schema's inclusion rule — not a supplier column.
+    /// Absent means not included.</summary>
+    [JsonPropertyName("INCLUDED")]
+    public bool Included { get; init; }
+
+    /// <summary>The words schools see for <see cref="Pincl"/>, stamped by ingress from the schema's
+    /// inclusion rule when the supplier file does not carry them.</summary>
+    [JsonPropertyName("P_INCL_DESC")]
+    public string InclusionDescription { get; init; } = string.Empty;
+
     [JsonPropertyName("LAESTAB")]
     public string Laestab { get; init; } = string.Empty;
 
@@ -83,5 +97,5 @@ public sealed class PupilRecord : IPupilRecord
     public string Identifier => Upn;
 
     [JsonIgnore]
-    public bool IsIncluded => PupilInclusion.IsKs4Included(Pincl);
+    public bool IsIncluded => Included;
 }

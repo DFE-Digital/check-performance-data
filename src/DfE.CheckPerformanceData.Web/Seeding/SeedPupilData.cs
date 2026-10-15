@@ -1,11 +1,13 @@
+using System.Diagnostics.CodeAnalysis;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Persistence.Seeding;
 
 namespace DfE.CheckPerformanceData.Web.Seeding;
 
-// Dev-only: writes per-school pupil JSON into blob storage (container {windowId},
-// blob data/{laestab}_pupils.json) so local development has pupil data now that it no
-// longer lives in the database. Mirrors the data the former DB SeedPupils produced.
+// Dev-only: generates the pupils of the fixture windows. SeedExerciseFixtures writes them as
+// supplier-shaped CSVs and runs them through ingress, so each window gets a schema and a release
+// exactly as an admin upload would.
+[ExcludeFromCodeCoverage(Justification = "Development seed data, not product code.")]
 public static class SeedPupilData
 {
     private sealed record School(string Urn, string Laestab, bool AddIncluded, bool AddNonIncluded);
@@ -32,19 +34,13 @@ public static class SeedPupilData
     // whose seed carries the deliberate duplicate below.
     private const string KingsmeadLaestab = "860/4070";
 
-    private static readonly Guid[] WindowIds =
-    [
-        DevDataSeeder.KeyStage4JuneCheckingWindowId,
-        DevDataSeeder.ClosedKeyStage4JuneCheckingWindowId
-    ];
-
-    public static async Task ExecuteSeedAsync(IPupilDataBlobClient client)
+    /// <summary>Every school's pupils for one KS4 window, in one list: the supplier's KS4 file is
+    /// one file for every school, split into one blob per school by its LAESTAB column.</summary>
+    public static IReadOnlyList<PupilRecord> Ks4Pupils(Guid windowId)
     {
-        foreach (var windowId in WindowIds)
+        var pupils = new List<PupilRecord>();
         foreach (var school in Schools)
         {
-            var pupils = new List<PupilRecord>();
-
             if (school.AddIncluded)
                 pupils.AddRange(GeneratePupils(PupilsPerGroup, includedPincl: true, indexOffset: 0, windowId, school));
 
@@ -55,33 +51,27 @@ public static class SeedPupilData
             // not — so the Add journey's duplicate check can be exercised in its Multiple state.
             if (windowId == DevDataSeeder.KeyStage4JuneCheckingWindowId && school.Laestab == KingsmeadLaestab)
                 pupils.AddRange(GenerateDuplicateMatchPair(windowId, school));
-
-            if (pupils.Count > 0)
-                await client.UploadPupilsAsync(windowId, CheckingExerciseType.PupilData, school.Laestab, pupils);
         }
+        return pupils;
     }
 
     /// <summary>
-    /// Seeds a 16-19 window. Both populations go into ONE file per school — exactly what
-    /// ingress produces after merging the supplier's two 16-19 CSVs — so the read path sees the
-    /// same shape locally as it will in a real window.
+    /// Every school's students for one 16-19 window. The supplier sends the included and the
+    /// non-included students as two files; the caller splits this list on
+    /// <see cref="Post16PupilRecord.Included"/> to write them.
     /// </summary>
-    public static async Task ExecutePost16SeedAsync(IPupilDataBlobClient client, Guid windowId)
+    public static IReadOnlyList<Post16PupilRecord> Post16Pupils(Guid windowId)
     {
+        var pupils = new List<Post16PupilRecord>();
         foreach (var school in Schools)
         {
-            var pupils = new List<Post16PupilRecord>();
-
             if (school.AddIncluded)
                 pupils.AddRange(GeneratePost16Pupils(PupilsPerGroup, included: true, indexOffset: 0, windowId, school));
 
             if (school.AddNonIncluded)
                 pupils.AddRange(GeneratePost16Pupils(PupilsPerGroup, included: false, NonIncludedIndexOffset, windowId, school));
-
-            if (pupils.Count > 0)
-                await client.UploadPupilsAsync(
-                    windowId, CheckingExerciseType.PupilData, school.Laestab, pupils);
         }
+        return pupils;
     }
 
     // Codes seen in the supplier's included-file sample. Post16 inclusion is decided by file of
@@ -103,13 +93,15 @@ public static class SeedPupilData
                 Id = Guid.NewGuid(),
                 CheckingWindowId = checkingWindowId,
                 Included = included,
-                Laestab = school.Laestab,
+                // The supplier's 16-19 file writes LAESTAB without the slash, and its schema caps
+                // the column at seven characters.
+                Laestab = school.Laestab.Replace("/", string.Empty),
                 Firstname = Firstnames[n % Firstnames.Length],
                 Surname = Surnames[(n / Firstnames.Length) % Surnames.Length],
                 Sex = Sexes[i % 2],
-                // The 16-19 supplier sends DOB as a timestamp string, so the seed mirrors that
-                // to exercise PupilDateFormatter's timestamp branch.
-                DateOfBirth = dob.ToDateTime(TimeOnly.MinValue).ToString("yyyy-MM-dd HH:mm:ss.fffffff"),
+                // dd/MM/yyyy, as the supplier's 16-19 CSV writes it; its schema caps DOB at ten
+                // characters.
+                DateOfBirth = dob.ToString("dd/MM/yyyy"),
                 Age = age,
                 // The non-included supplier file has no P_INCL column at all.
                 Pincl = included ? Post16PinclCodes[i % Post16PinclCodes.Length] : null,
@@ -123,13 +115,13 @@ public static class SeedPupilData
             };
         });
 
-    private static readonly string[] Firstnames =
+    internal static readonly string[] Firstnames =
     [
         "Alice", "Bob", "Charlie", "Diana", "Edward", "Fiona", "George", "Hannah", "Ian", "Julia",
         "Kevin", "Laura", "Michael", "Nina", "Oscar", "Paula", "Quinn", "Rachel", "Steven", "Tina"
     ];
 
-    private static readonly string[] Surnames =
+    internal static readonly string[] Surnames =
     [
         "Smith", "Jones", "Williams", "Taylor", "Brown", "Davies", "Evans", "Wilson", "Thomas", "Roberts",
         "Johnson", "Lewis", "Walker", "Robinson", "Wood", "Thompson", "White", "Watson", "Jackson", "Harris"
@@ -163,25 +155,25 @@ public static class SeedPupilData
     {
         const string firstname = "Casey";
         const string surname = "Carter";
-        const string dob = "15/03/2010";
+        const string dob = "2010-03-15";
 
         yield return new PupilRecord
         {
             Id = Guid.NewGuid(),
             CheckingWindowId = checkingWindowId,
-            Laestab = school.Laestab,
+            Laestab = SupplierLaestab(school),
             Firstname = firstname,
             Surname = surname,
             Sex = "F",
             DateOfBirth = dob,
-            Age = 16,
+            Age = Ks4AgeAtStartOfYear(new DateOnly(2010, 3, 15)),
             FirstLanguage = "ENG",
             Pincl = PupilInclusion.Ks4IncludedPinclCodes[0],
             NewMobile = false,
             ActualYearGroup = "11",
             Ethnicity = "WOTH",
             SenF = "N",
-            EntryDate = "01/09/2021",
+            EntryDate = "2021-09-01",
             Urn = long.Parse(school.Urn),
             Cypmd_Id = "800001",
             MatchRef = 80001,
@@ -192,24 +184,37 @@ public static class SeedPupilData
         {
             Id = Guid.NewGuid(),
             CheckingWindowId = checkingWindowId,
-            Laestab = school.Laestab,
+            Laestab = SupplierLaestab(school),
             Firstname = firstname,
             Surname = surname,
             Sex = "F",
             DateOfBirth = dob,
-            Age = 16,
+            Age = Ks4AgeAtStartOfYear(new DateOnly(2010, 3, 15)),
             FirstLanguage = "ENG",
             Pincl = NonIncludedPinclCodes[0],
             NewMobile = false,
             ActualYearGroup = "11",
             Ethnicity = "WOTH",
             SenF = "N",
-            EntryDate = "01/09/2021",
+            EntryDate = "2021-09-01",
             Urn = long.Parse(school.Urn),
             Cypmd_Id = "800002",
             MatchRef = 80002,
             Upn = "A8604078002B"
         };
+    }
+
+    // The KS4 records are in the formats of the LDS KS4 June file (Data/Ingress/ks4june/pupils_schema.json): LAESTAB
+    // as seven digits, dates as YYYY-MM-DD, and AGE at the start of the school year. The sample file
+    // Data/Ingress/ks4june/pupils.csv holds the same pupils for the open KS4 June window.
+    private static string SupplierLaestab(School school) => school.Laestab.Replace("/", string.Empty);
+
+    private static readonly DateOnly Ks4StartOfYear = new(2025, 8, 31);
+
+    private static int Ks4AgeAtStartOfYear(DateOnly dob)
+    {
+        var age = Ks4StartOfYear.Year - dob.Year;
+        return dob.AddYears(age) > Ks4StartOfYear ? age - 1 : age;
     }
 
     private static IEnumerable<PupilRecord> GeneratePupils(int count, bool includedPincl, int indexOffset,
@@ -218,30 +223,27 @@ public static class SeedPupilData
         {
             var n = i + indexOffset;
             var dob = new DateOnly(2010, (i % 12) + 1, (i % 28) + 1);
-            var today = DateOnly.FromDateTime(DateTime.UtcNow);
-            var age = today.Year - dob.Year;
-            if (dob.AddYears(age) > today) age--;
             var pinclCodes = includedPincl ? PupilInclusion.Ks4IncludedPinclCodes : NonIncludedPinclCodes;
 
             return new PupilRecord
             {
                 Id = Guid.NewGuid(),
                 CheckingWindowId = checkingWindowId,
-                Laestab = school.Laestab,
+                Laestab = SupplierLaestab(school),
                 // Firstname cycles every 20 while surname advances once per full cycle, so the
                 // name pair stays unique across all 400 combinations rather than repeating every 20.
                 Firstname = Firstnames[n % Firstnames.Length],
                 Surname = Surnames[(n / Firstnames.Length) % Surnames.Length],
                 Sex = Sexes[i % 2],
-                DateOfBirth = dob.ToString("dd/MM/yyyy"),
-                Age = age,
+                DateOfBirth = dob.ToString("yyyy-MM-dd"),
+                Age = Ks4AgeAtStartOfYear(dob),
                 FirstLanguage = FirstLanguages[i % FirstLanguages.Length],
                 Pincl = pinclCodes[i % pinclCodes.Length],
                 NewMobile = i % 5 == 0,
                 ActualYearGroup = YearGroups[i % YearGroups.Length],
                 Ethnicity = EthnicityCodes[n % EthnicityCodes.Length],
                 SenF = SenCodes[i % SenCodes.Length],
-                EntryDate = new DateTime(2021, 9, (i % 20) + 1, 0, 0, 0, DateTimeKind.Utc).ToString("dd/MM/yyyy"),
+                EntryDate = new DateOnly(2021, 9, (i % 20) + 1).ToString("yyyy-MM-dd"),
                 Urn = long.Parse(school.Urn),
                 Cypmd_Id = $"{(n + 1):D6}",
                 MatchRef = 10000 + n,

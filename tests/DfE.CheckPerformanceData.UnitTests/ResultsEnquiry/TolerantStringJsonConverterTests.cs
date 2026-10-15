@@ -87,7 +87,7 @@ public sealed class TolerantStringJsonConverterTests
         ]
         """;
 
-        var records = JsonSerializer.Deserialize<List<StudentResultRecord>>(json, StudentResultsBlobClient.JsonOptions)!;
+        var records = JsonSerializer.Deserialize<List<ResultRecord>>(json, ResultsBlobClient.JsonOptions)!;
         var record = records[0];
 
         Assert.Equal("6037116X", record.Qan);
@@ -115,7 +115,7 @@ public sealed class TolerantStringJsonConverterTests
         ]
         """;
 
-        var record = JsonSerializer.Deserialize<List<StudentResultRecord>>(json, StudentResultsBlobClient.JsonOptions)![0];
+        var record = JsonSerializer.Deserialize<List<ResultRecord>>(json, ResultsBlobClient.JsonOptions)![0];
 
         Assert.Equal("6037116X|S2024|16to19_MAIN", record.CompositeKey);
     }

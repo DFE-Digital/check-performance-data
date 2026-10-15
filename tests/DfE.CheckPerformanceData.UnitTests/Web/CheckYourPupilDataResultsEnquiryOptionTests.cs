@@ -7,6 +7,7 @@ using DfE.CheckPerformanceData.Application.LandingPage;
 // LandingPage one ambiguous here.
 using CheckingExerciseDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseDto;
 using CheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseService;
+using ICheckingDataReader = DfE.CheckPerformanceData.Application.WindowManagement.ICheckingDataReader;
 using LearnerNoun = DfE.CheckPerformanceData.Application.WindowManagement.LearnerNoun;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData;
@@ -57,10 +58,18 @@ public sealed class CheckYourPupilDataResultsEnquiryOptionTests
         // which options the date rules produce, so substituting them would test nothing.
         var clock = new FixedTimeProvider(Now);
         var checkingExercises = new CheckingExerciseService(clock);
+        var tabBuilder = Substitute.For<IExerciseTabBuilder>();
+        // No window here has a tab-drawing exercise: the point of these tests is the next-step
+        // options, which the fallback inclusion tabs leave untouched.
+        tabBuilder.BuildAsync(Arg.Any<Application.WindowManagement.CheckingWindowDto>(),
+                Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<int>(), Arg.Any<int>(),
+                Arg.Any<CancellationToken>())
+            .Returns(new List<ExerciseTab>());
 
         _sut = new CheckYourPupilDataController(
             _service, _currentUser, _analytics,
-            new NextStepsService(checkingExercises), checkingExercises)
+            new NextStepsService(checkingExercises), checkingExercises,
+            tabBuilder, new ExerciseDisplayService())
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext }
         };
@@ -68,7 +77,7 @@ public sealed class CheckYourPupilDataResultsEnquiryOptionTests
 
     private static CheckingExerciseDto Exercise(
         CheckingExerciseType type, DateTime start, DateTime end, int sortOrder) =>
-        new() { ExerciseType = type, StartDate = start, EndDate = end, SortOrder = sortOrder };
+        new() { ExerciseType = type, IsEnabled = true, StartDate = start, EndDate = end, TabOrder = sortOrder };
 
     private static CheckingExerciseDto Open(CheckingExerciseType type, int sortOrder = 0) =>
         Exercise(type, Yesterday, Tomorrow, sortOrder);
@@ -233,7 +242,7 @@ public sealed class CheckYourPupilDataResultsEnquiryOptionTests
     [Fact]
     public async Task A_results_enquiry_only_window_whose_enquiry_has_closed_still_says_it_has_closed()
     {
-        // Review: ExercisesController lets an admin tick Results enquiry alone. Once that exercise
+        // Review: an admin can leave a window with Results enquiry alone. Once that exercise
         // ends the page had no closed paragraph (it was gated on a pupil-data end date the window
         // never had) and no form (nothing open) — tables and downloads with no explanation at all.
         Window(CheckingWindowType.Post16, Closed(CheckingExerciseType.ResultsEnquiry, 0));

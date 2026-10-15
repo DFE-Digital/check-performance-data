@@ -10,8 +10,10 @@ namespace DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
 public sealed class CloseExerciseViewModel
 {
     public required Guid WindowId { get; init; }
+    public required Guid ExerciseId { get; init; }
     public required string WindowTitle { get; init; }
     public required CheckingExerciseType ExerciseType { get; init; }
+    /// <summary>The exercise's name, as on its summary card: several releases may share a kind.</summary>
     public required string ExerciseLabel { get; init; }
 
     /// <summary>The exercise's end date as it stands — a local wall-clock value.</summary>
@@ -44,6 +46,6 @@ public sealed class CloseExerciseViewModel
             nameof(ExerciseType), ExerciseType, "No early-closure wording for this checking exercise.")
     };
 
-    public string PostUrl => $"/admin/windows/{WindowId}/{ExerciseType}/close";
+    public string PostUrl => $"/admin/windows/{WindowId}/exercises/{ExerciseId}/close";
     public string CancelLink => $"/admin/windows/summary/{WindowId}";
 }

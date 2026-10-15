@@ -37,8 +37,13 @@
     <_ContentIncludedByDefault Remove="Views\Shared\Components\SummaryListRow\Default.cshtml" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Data/Ingress/ingress/*.csv" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <!-- One folder per window type, holding its {name}_schema.json files. Every dev seed CSV is
+         generated (SeedExerciseFixtures, SeedPost16OctoberSamples), so only schemas are copied. -->
     <Content Update="Data/Ingress/schema/*.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Update="Data/Ingress/post16/*.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Update="Data/Ingress/ks4june/*.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Update="Data/Ingress/ks4autumn/*.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Update="Data/Ingress/ks2/*.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <!-- Content the service ships with. ManifestContentImporter imports each file listed in
          manifest.json at start-up, in every environment. -->
     <Content Update="Data/Import/*.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />

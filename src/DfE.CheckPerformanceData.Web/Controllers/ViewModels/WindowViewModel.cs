@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Application.Common;
+using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
 
@@ -7,6 +8,9 @@ namespace DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 public class WindowViewModel(IReadOnlyList<WindowListItem> windows)
 {
     public IReadOnlyList<WindowListItem> Windows { get; } = windows;
+
+    /// <summary>The user holds the new-window section, so the page offers the New window button.</summary>
+    public bool CanCreateWindow { get; init; }
 }
 
 public class WindowListItem
@@ -14,21 +18,24 @@ public class WindowListItem
     public IReadOnlyList<CheckingExerciseListItem> Exercises { get; init; } = [];
     public Guid Id { get; init; }
     public string Name { get; init; } = string.Empty;
-    public bool IsOpen { get; init; } = false;
-    public bool IsPublished { get; init; } = false;
+
+    /// <summary>The window's start: the earliest start of its exercises.</summary>
+    public DateTime StartDate { get; init; }
 }
 
 public sealed class CheckingExerciseListItem
 {
+    /// <summary>The admin's own name for this exercise, else its kind label.</summary>
     public required string Name { get; init; }
-    public required string Status { get; init; }
-    public IReadOnlyList<string> MissingJourneys { get; init; } = [];
-    public string TagColour => Status switch
-    {
-        "Missing journeys" => "red",
-        "Closed" => "grey",
-        _ => "green"
-    };
+
+    /// <summary>The exercise's kind, or "Data share" when it has none.</summary>
+    public required string KindLabel { get; init; }
+
+    /// <summary>What schools can see and do with this exercise now.</summary>
+    public required Application.WindowManagement.ExerciseSchoolStatus Status { get; init; }
+
+    /// <summary>Whether this exercise has data for schools. "Visible" alone does not say so.</summary>
+    public required ExerciseDataStatus DataStatus { get; init; }
 }
 
 public class WindowEditItem : AdminPage
@@ -52,7 +59,6 @@ public class WindowEditItem : AdminPage
         get => $"{BaseEditUrl}/next-opportunity";
     }
 
-    public bool IsOpen { get; set; } = false;
     // #319: derived from the exercises as their union, so there is no Change link — the outer pair
     // is never typed. To move a window's dates, move an exercise's.
     public required DateTime StartDate { get; set; }
@@ -61,7 +67,7 @@ public class WindowEditItem : AdminPage
     public required KeyStages KeyStage { get; set; }
     public required CheckingWindowType CheckingWindowType { get; set; }
     public string CheckingWindowTypeLink {
-        get => $"{BaseEditUrl}/checking-window-type";
+        get => $"{BaseEditUrl}/window-type";
     }
 
     /// <summary>
@@ -70,19 +76,42 @@ public class WindowEditItem : AdminPage
     /// </summary>
     public IReadOnlyList<ExerciseSummarySection> Exercises { get; set; } = [];
 
-    public string ExercisesLink => $"{BaseEditUrl}/exercises";
+    /// <summary>Every section's Add checking exercise link (#466 slice 3) goes here, keyed by
+    /// window id — <see cref="Controllers.WindowAdmin.CreateCheckingExerciseController.New"/>.</summary>
+    public string AddExerciseLink => $"{BaseEditUrl}/exercises/new";
+
+    /// <summary>The "are you sure" page of <see cref="Controllers.WindowAdmin.DeleteWindowController"/>.</summary>
+    public string DeleteLink => $"{BaseEditUrl}/delete";
 
     public string? OutputPath { get; set; }
-    public bool IsPublished { get; set; } = false;
     public Guid? PublishedId { get; set; }
 }
 
-/// <summary>One checking exercise on the window summary page.</summary>
+/// <summary>One checking exercise on the window summary page (#466 slice 3). A display-only data
+/// share (null <see cref="ExerciseType"/>) appears here on the same footing as a kind-bearing
+/// exercise — every link is addressed by <see cref="Id"/>, never by kind, because a data share has
+/// no kind to route by.</summary>
 public sealed class ExerciseSummarySection
 {
     public required Guid WindowId { get; init; }
-    public required CheckingExerciseType ExerciseType { get; init; }
-    public required string Label { get; init; }
+    public required Guid Id { get; init; }
+    public required CheckingExerciseType? ExerciseType { get; init; }
+
+    /// <summary>The admin's own name for this exercise, falling back to the generic kind label
+    /// ("Data share") only when it has none — see <c>ExerciseLabels.For(CheckingExerciseType?)</c>
+    /// in <c>SummaryController</c>.</summary>
+    public required string Name { get; init; }
+
+    /// <summary>The exercise's kind, or "Data share" when it has none. Distinct from <see cref="Name"/>,
+    /// which is the admin's own label for this exercise.</summary>
+    public required string KindLabel { get; init; }
+
+    public required string TabName { get; init; }
+    public bool IsEnabled { get; init; }
+
+    /// <summary>What schools can see and do with this exercise now. Enabled alone does not make it
+    /// visible: its visibility dates and the window's dates count too.</summary>
+    public Application.WindowManagement.ExerciseSchoolStatus Status { get; init; }
     public required DateTime StartDate { get; init; }
     public required DateTime EndDate { get; init; }
 
@@ -98,31 +127,42 @@ public sealed class ExerciseSummarySection
     /// <summary>Validated once, but not against the files it holds now — a stale stamp.</summary>
     public bool IsStale { get; init; }
 
+    /// <summary>Everything about this exercise — name, tab, kind, dates, visibility, data files —
+    /// is edited on the one page (<c>EditCheckingExerciseController.Edit</c>), so the summary has a
+    /// single Edit link per section rather than a Change link per field.</summary>
+    public string EditLink => $"/admin/windows/{WindowId}/exercises/{Id}/edit";
+
+    /// <summary>The "are you sure" page of <see cref="Controllers.WindowAdmin.DeleteExerciseController"/>.</summary>
+    public string DeleteLink => $"/admin/windows/{WindowId}/exercises/{Id}/delete";
+
+    /// <summary>Exercise-id addressed (#466 slice 2/3): the only route a display-only exercise can
+    /// use to validate, since it has no kind to name in the kind-addressed route.</summary>
+    public string ValidateLink => $"/admin/windows/{WindowId}/exercises/{Id}/validate";
+
     /// <summary>
-    /// Open to schools right now, from <c>ICheckingExerciseService.IsOpen</c> (AB#301022). The
-    /// page offers Close only while this is true.
+    /// Open to schools right now, from <c>ICheckingExerciseService.IsOpen</c> for this row
+    /// (AB#301022). The page offers Close only while this is true.
     /// </summary>
     public bool IsOpen { get; init; }
 
     /// <summary>
-    /// Past its end date, from <c>ICheckingExerciseService.HasClosed</c> — whether it ran to its
-    /// scheduled end or was closed early. Not the same as <c>!IsOpen</c>: an exercise that has not
-    /// started is neither. The page offers "Send requests for processing" only while this is true.
+    /// Past its end date, from <c>ICheckingExerciseService.HasClosed</c> for this row — whether it
+    /// ran to its scheduled end or was closed early. Not the same as <c>!IsOpen</c>: an exercise
+    /// that has not started is neither. The page offers "Send requests for processing" only while
+    /// this is true.
     /// </summary>
     public bool HasClosed { get; init; }
 
-    // The same three words the windows list uses for an exercise (WindowAdminController).
-    public string StatusLabel => IsOpen ? "Open" : HasClosed ? "Closed" : "Upcoming";
-    public string StatusTagClass => IsOpen ? "govuk-tag--green" : HasClosed ? "govuk-tag--grey" : "govuk-tag--blue";
-
-    public string DatesLink => $"/admin/windows/{WindowId}/exercises/{ExerciseType}/dates";
-    public string ValidateLink => $"/admin/windows/{WindowId}/{ExerciseType}/validate";
-
     // Closing does not depend on the exercise's files or on whether they ever validated: it is an
     // admin decision about an exercise schools can currently use.
-    public string CloseLink => $"/admin/windows/{WindowId}/{ExerciseType}/close";
+    //
+    // Both are addressed by exercise id, as Validate is: a window may hold several releases of one
+    // kind (#466). The view still renders them only when ExerciseType is not null: a change request
+    // only reaches an exercise through WhatToChangeCheckingExerciseMap, which maps kinds, so a
+    // display-only exercise (no kind) can hold none to send.
+    public string CloseLink => $"/admin/windows/{WindowId}/exercises/{Id}/close";
 
-    public string SendRequestsLink => $"/admin/windows/{WindowId}/{ExerciseType}/send-requests";
+    public string SendRequestsLink => $"/admin/windows/{WindowId}/exercises/{Id}/send-requests";
 
     // Every REQUIRED dataset must have both files — a Post16 pupil-data exercise is not validatable
     // until both the included and non-included CSV/schema pairs are chosen, because they ingest in
@@ -149,7 +189,7 @@ public sealed class ExerciseSummarySection
 public sealed class DatasetSummaryRow
 {
     public required Guid WindowId { get; init; }
-    public required CheckingExerciseType Exercise { get; init; }
+    public required Guid ExerciseId { get; init; }
     public required string Name { get; init; }
     public required string Label { get; init; }
     public string? IngressFile { get; init; }
@@ -158,8 +198,16 @@ public sealed class DatasetSummaryRow
     /// <summary>The exercise cannot be validated until this slot holds both files (#324).</summary>
     public bool Required { get; init; } = true;
 
-    public string IngressFileLink => $"/admin/windows/{WindowId}/{Exercise}/ingress-file/{Name}";
-    public string SchemaFileLink => $"/admin/windows/{WindowId}/{Exercise}/schema-file/{Name}";
+    /// <summary>The slot's rows reach the change-request journey; otherwise it is a data share.</summary>
+    public bool FeedsJourney { get; init; }
+
+    /// <summary>The same status the exercise's Data tab shows for this slot.</summary>
+    public DatasetStatus Status { get; init; }
+
+    // Exercise-id addressed, same reason as ExerciseSummarySection.ValidateLink: a display-only
+    // exercise has no kind, so the kind-addressed route would not exist for it.
+    public string IngressFileLink => $"/admin/windows/{WindowId}/exercises/{ExerciseId}/ingress-file/{Name}";
+    public string SchemaFileLink => $"/admin/windows/{WindowId}/exercises/{ExerciseId}/schema-file/{Name}";
 
     public bool IsComplete =>
         !string.IsNullOrWhiteSpace(IngressFile) && !string.IsNullOrWhiteSpace(SchemaFile);

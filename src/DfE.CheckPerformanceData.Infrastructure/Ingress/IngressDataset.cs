@@ -9,12 +9,20 @@ namespace DfE.CheckPerformanceData.Infrastructure.Ingress;
 /// <param name="Included">
 /// <c>true</c>/<c>false</c> stamps an <c>INCLUDED</c> marker on every record from this file, so
 /// inclusion is decided by file of origin. <c>null</c> means the record carries its own
-/// inclusion signal (KS4's <c>P_INCL</c>) and nothing is stamped.
+/// inclusion code, and the schema's <c>x-ingress.inclusion</c> rule stamps <c>INCLUDED</c> from it.
 /// </param>
 /// <param name="SourceFile">
 /// Stamps a <c>SOURCE</c> marker on every record from this file, so provenance is decided by file
 /// of origin — the exact analogue of <paramref name="Included"/>. A results file tag on a
 /// results-enquiry dataset; <c>null</c> on pupil data, where nothing is stamped.
+/// </param>
+/// <param name="DatasetId">
+/// The slot this pair was uploaded to. A release run writes each dataset's output to its own
+/// folder, named by this id, so a release run needs it.
+/// </param>
+/// <param name="FeedsJourney">
+/// On a release run, only these datasets go into the merged file that the journeys read. A run
+/// with no release merges every dataset, as before.
 /// </param>
 public sealed record IngressDataset(
     string Name,
@@ -23,4 +31,6 @@ public sealed record IngressDataset(
     string SchemaFile,
     string SchemaChecksum,
     bool? Included,
-    string? SourceFile = null);
+    string? SourceFile = null,
+    Guid DatasetId = default,
+    bool FeedsJourney = true);

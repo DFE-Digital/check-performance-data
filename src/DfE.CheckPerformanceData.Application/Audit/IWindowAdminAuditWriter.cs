@@ -21,6 +21,7 @@ public sealed record AutomaticHandOverAudit
 {
     public required Guid WindowId { get; init; }
     public required string WindowTitle { get; init; }
+    public required Guid ExerciseId { get; init; }
     public required CheckingExerciseType Exercise { get; init; }
 
     /// <summary>The exercise's end date: a local wall-clock value, like every exercise date.</summary>

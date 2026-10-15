@@ -30,8 +30,12 @@ public sealed class AutomaticExerciseHandOver(
 
         return (await windows.GetAllWindowsAsync(cancellationToken))
             .SelectMany(window => window.Exercises
-                .Where(exercise => ExerciseHandOverSchedule.IsDue(exercise.EndDate, now, settings))
-                .Select(exercise => new DueExercise(window.Id, window.Title, exercise.ExerciseType, exercise.EndDate)))
+                // A data share has no kind, and a change request reaches an exercise only through
+                // its kind (WhatToChangeCheckingExerciseMap), so it never holds one to hand over.
+                .Where(exercise => exercise.ExerciseType is not null
+                    && ExerciseHandOverSchedule.IsDue(exercise.EndDate, now, settings))
+                .Select(exercise => new DueExercise(
+                    window.Id, window.Title, exercise.Id, exercise.ExerciseType!.Value, exercise.EndDate)))
             .ToList();
     }
 
@@ -40,7 +44,7 @@ public sealed class AutomaticExerciseHandOver(
         CloseExerciseResult result;
         try
         {
-            result = await sweep.CloseAsync(due.WindowId, due.Exercise, cancellationToken);
+            result = await sweep.CloseAsync(due.WindowId, due.ExerciseId, cancellationToken);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -48,13 +52,13 @@ public sealed class AutomaticExerciseHandOver(
             // may have sent some requests before it failed. That is safe: those rows are already
             // committed and the next run picks up only what is left. Ids only — no pupil data.
             logger.LogError(ex,
-                "Automatic hand-over of checking exercise {Exercise} of window {WindowId} failed. It is retried on the next run.",
-                due.Exercise, due.WindowId);
-            return new AutomaticHandOverOutcome(due.WindowId, due.Exercise, 0, 0, Failed: true);
+                "Automatic hand-over of checking exercise {ExerciseId} ({Exercise}) of window {WindowId} failed. It is retried on the next run.",
+                due.ExerciseId, due.Exercise, due.WindowId);
+            return new AutomaticHandOverOutcome(due.WindowId, due.ExerciseId, due.Exercise, 0, 0, Failed: true);
         }
 
         var outcome = new AutomaticHandOverOutcome(
-            due.WindowId, due.Exercise, result.Enqueued, result.DraftsCancelled, Failed: false);
+            due.WindowId, due.ExerciseId, due.Exercise, result.Enqueued, result.DraftsCancelled, Failed: false);
 
         // Nothing sent and nothing cancelled is the normal answer on every run after the first.
         // It is not worth an audit row, or the catch-up day would write hundreds.
@@ -64,8 +68,8 @@ public sealed class AutomaticExerciseHandOver(
         }
 
         logger.LogInformation(
-            "Automatic hand-over of checking exercise {Exercise} of window {WindowId}: {RequestsSent} request(s) sent for processing, {DraftsCancelled} draft(s) cancelled.",
-            due.Exercise, due.WindowId, result.Enqueued, result.DraftsCancelled);
+            "Automatic hand-over of checking exercise {ExerciseId} ({Exercise}) of window {WindowId}: {RequestsSent} request(s) sent for processing, {DraftsCancelled} draft(s) cancelled.",
+            due.ExerciseId, due.Exercise, due.WindowId, result.Enqueued, result.DraftsCancelled);
 
         try
         {
@@ -75,6 +79,7 @@ public sealed class AutomaticExerciseHandOver(
             {
                 WindowId = due.WindowId,
                 WindowTitle = due.WindowTitle,
+                ExerciseId = due.ExerciseId,
                 Exercise = due.Exercise,
                 ExerciseEnd = due.ExerciseEnd,
                 RequestsSent = result.Enqueued,
@@ -87,8 +92,8 @@ public sealed class AutomaticExerciseHandOver(
             // The hand-over has happened and cannot be undone, so this is not reported as a
             // failed hand-over. The information line above is then the only record of it.
             logger.LogError(ex,
-                "Automatic hand-over of checking exercise {Exercise} of window {WindowId} happened, but its audit row could not be written.",
-                due.Exercise, due.WindowId);
+                "Automatic hand-over of checking exercise {ExerciseId} ({Exercise}) of window {WindowId} happened, but its audit row could not be written.",
+                due.ExerciseId, due.Exercise, due.WindowId);
         }
 
         return outcome;

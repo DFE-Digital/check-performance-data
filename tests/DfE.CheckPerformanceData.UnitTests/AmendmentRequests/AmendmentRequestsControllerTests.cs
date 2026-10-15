@@ -805,7 +805,7 @@ public class AmendmentRequestsControllerTests
                         ExerciseType = CheckingExerciseType.PupilData,
                         StartDate = endDate.AddMonths(-3),
                         EndDate = endDate,
-                        SortOrder = 0
+                        TabOrder = 0
                     }
                 ]
                 : []

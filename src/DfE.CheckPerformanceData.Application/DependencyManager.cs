@@ -55,10 +55,13 @@ public static class DependencyManager
         // #315: the single place that compares an exercise's dates against the clock. Nothing else
         // in the solution may do that comparison for itself.
         services.AddScoped<ICheckingExerciseService, CheckingExerciseService>();
+        services.AddScoped<ICheckingExerciseReleaseService, CheckingExerciseReleaseService>();
         services.AddScoped<ICheckYourPupilDataService, CheckYourPupilDataService>();
         // #317: which next-step options the check-your-pupil-data page may offer, from the open
         // exercises. The exercise-to-options map is domain knowledge, so it is not in the controller.
         services.AddScoped<INextStepsService, NextStepsService>();
+        services.AddScoped<IExerciseDisplayService, ExerciseDisplayService>();
+        services.AddScoped<IExerciseTabBuilder, ExerciseTabBuilder>();
         services.AddScoped<IJourneyValidationService, JourneyValidationService>();
         services.AddScoped<IRequestService, RequestService>();
         services.AddSingleton<IQuestionFlowService, QuestionFlowService>();
@@ -100,6 +103,8 @@ services.AddScoped<IJourneyCondition, SchoolIsNotIndependentCondition>();
         services.AddScoped<IEditAdviceService, EditAdviceService>();
         services.AddScoped<AdminRequests.IAdminRequestsService, AdminRequests.AdminRequestsService>();
         services.AddScoped<WindowManagement.ICloseExerciseService, WindowManagement.CloseExerciseService>();
+        services.AddScoped<WindowManagement.IDeleteWindowService, WindowManagement.DeleteWindowService>();
+        services.AddScoped<WindowManagement.IDeleteExerciseService, WindowManagement.DeleteExerciseService>();
         // AB#301022: ends an open exercise before its scheduled end. The admin Close action runs
         // this, then ICloseExerciseService above.
         services.AddScoped<WindowManagement.IExerciseEarlyClosureService, WindowManagement.ExerciseEarlyClosureService>();
@@ -107,7 +112,7 @@ services.AddScoped<IJourneyCondition, SchoolIsNotIndependentCondition>();
         // web host's ExerciseHandOverJob drives it; nothing in a request path calls it.
         services.AddScoped<WindowManagement.IAutomaticExerciseHandOver, WindowManagement.AutomaticExerciseHandOver>();
         // AB#296648: the single derivation of "the second late results file has landed".
-        services.AddScoped<ResultsEnquiry.ILateResultsAvailability, ResultsEnquiry.LateResultsAvailability>();
+        services.AddScoped<ResultsEnquiry.ILateResultsWarning, ResultsEnquiry.LateResultsWarning>();
 
         services.AddSingleton<Observability.IHealthEvaluator, Observability.HealthEvaluator>();
         services.AddSingleton<Observability.StatusSentenceBuilder>();

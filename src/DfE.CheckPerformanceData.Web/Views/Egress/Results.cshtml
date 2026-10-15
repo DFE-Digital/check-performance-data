@@ -52,14 +52,16 @@
     }
 </govuk-tabs>
 
+@* The form sits outside the button group so every button is a direct child of the group. *@
+<form method="post" action="/admin/egress/runs/@Model.Run.Id/abandon" id="egress-abandon-form">
+    @Html.AntiForgeryToken()
+</form>
+
 <div class="govuk-button-group">
     @if (total > 0 && Model.Run.Status != EgressRunStatus.PreprocessingFailed)
     {
         <govuk-button-link href="/admin/egress/runs/@Model.Run.Id/preprocessing" data-testid="egress-proceed">Proceed to preprocessing</govuk-button-link>
     }
-    <a class="govuk-button govuk-button--secondary" href="/admin/egress" data-testid="egress-save">Save and exit</a>
-    <form method="post" action="/admin/egress/runs/@Model.Run.Id/abandon" class="govuk-!-display-inline">
-        @Html.AntiForgeryToken()
-        <button type="submit" class="govuk-button govuk-button--warning" data-module="govuk-button" data-testid="egress-abandon">Abandon run</button>
-    </form>
+    <a class="govuk-button govuk-button--secondary" href="/admin/egress" role="button" draggable="false" data-module="govuk-button" data-testid="egress-save">Save and exit</a>
+    <button type="submit" form="egress-abandon-form" class="govuk-button govuk-button--warning" data-module="govuk-button" data-testid="egress-abandon">Abandon run</button>
 </div>

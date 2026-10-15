@@ -35,11 +35,9 @@ public sealed class ExerciseExtensionService(
         // every school is warned of and storage is not asked about each.
         if (exercise.CurrentReleaseId is null) return new ExtensionWarnings(digits, ExerciseHasNoRelease: true);
 
-        var without = new List<string>();
-        foreach (var laestab in digits)
-        {
-            if (!await checkingData.HasSchoolDataAsync(windowId, exercise, laestab, ct)) without.Add(laestab);
-        }
+        // One listing of the release's per-school files answers for every school (finding 7).
+        var withData = await checkingData.ListSchoolsWithDataAsync(windowId, exercise, ct);
+        var without = digits.Where(laestab => !withData.Contains(laestab)).ToList();
 
         return new ExtensionWarnings(without, ExerciseHasNoRelease: false);
     }

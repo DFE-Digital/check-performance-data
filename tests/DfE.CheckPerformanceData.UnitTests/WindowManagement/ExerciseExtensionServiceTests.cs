@@ -425,17 +425,19 @@ public sealed class ExerciseExtensionServiceTests
     // ---- Schools without data ----
 
     [Fact]
-    public async Task A_school_with_no_file_in_what_the_exercise_shows_is_listed()
+    public async Task A_school_with_no_file_in_what_the_exercise_shows_is_listed_from_one_listing()
     {
         var exercise = WindowHolds(currentReleaseId: Guid.NewGuid());
-        _checkingData.HasSchoolDataAsync(WindowId, exercise, "9334290", Arg.Any<CancellationToken>()).Returns(true);
-        _checkingData.HasSchoolDataAsync(WindowId, exercise, "8604070", Arg.Any<CancellationToken>()).Returns(false);
+        _checkingData.ListSchoolsWithDataAsync(WindowId, exercise, Arg.Any<CancellationToken>())
+            .Returns(new HashSet<string> { "9334290" });
 
         var warnings = await Sut().FindSchoolsWithoutDataAsync(
-            WindowId, ExerciseId, ["933/4290", "8604070"], CancellationToken.None);
+            WindowId, ExerciseId, ["933/4290", "8604070", "1234567"], CancellationToken.None);
 
-        Assert.Equal(["8604070"], warnings.LaestabsWithoutData);
+        Assert.Equal(["8604070", "1234567"], warnings.LaestabsWithoutData);
         Assert.False(warnings.ExerciseHasNoRelease);
+        await _checkingData.Received(1).ListSchoolsWithDataAsync(WindowId, exercise, Arg.Any<CancellationToken>());
+        await _checkingData.DidNotReceiveWithAnyArgs().HasSchoolDataAsync(default, default!, default!, default);
     }
 
     [Fact]
@@ -448,7 +450,7 @@ public sealed class ExerciseExtensionServiceTests
 
         Assert.Equal(["9334290", "8604070"], warnings.LaestabsWithoutData);
         Assert.True(warnings.ExerciseHasNoRelease);
-        await _checkingData.DidNotReceiveWithAnyArgs().HasSchoolDataAsync(default, default!, default!, default);
+        await _checkingData.DidNotReceiveWithAnyArgs().ListSchoolsWithDataAsync(default, default!, default);
     }
 
     [Fact]

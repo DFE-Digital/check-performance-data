@@ -1,5 +1,6 @@
 using Azure;
 using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using Microsoft.Extensions.Caching.Memory;
 
@@ -78,6 +79,63 @@ public sealed class CheckingDataReader(BlobServiceClient blobs, IMemoryCache? ca
 
         cache?.Set(key, exists, new MemoryCacheEntryOptions { SlidingExpiration = CacheSlidingExpiry });
         return exists;
+    }
+
+    public async Task<IReadOnlySet<string>> ListSchoolsWithDataAsync(Guid windowId, CheckingExerciseDto exercise,
+        CancellationToken cancellationToken)
+    {
+        var container = blobs.GetBlobContainerClient(windowId.ToString());
+
+        if (!exercise.UsesExerciseStorage)
+        {
+            if (exercise.ExerciseType is not { } kind) return new HashSet<string>();
+            // Legacy layout: {prefix}{laestab}_pupils.json or _results.json, written in place.
+            var legacyPrefix = CheckingExerciseBlobPaths.DataPrefix(kind);
+            return await ListAsync(container, legacyPrefix, name => LaestabBefore(name[legacyPrefix.Length..], '_'), cancellationToken);
+        }
+
+        var dataPrefix = CheckingExerciseBlobPaths.DataPrefix(exercise.Id, exercise.CurrentReleaseId);
+        if (exercise.CurrentReleaseId is not { } releaseId)
+            return await ListAsync(container, dataPrefix, name => LaestabBefore(name[dataPrefix.Length..], '_'), cancellationToken);
+
+        // A release's files never change, so neither does this set.
+        var key = $"checking-data-schools:{windowId}:{exercise.Id}:{releaseId}";
+        if (cache is not null && cache.TryGetValue(key, out IReadOnlySet<string>? known) && known is not null) return known;
+
+        var merged = await ListAsync(container, dataPrefix, name => LaestabBefore(name[dataPrefix.Length..], '_'), cancellationToken);
+        var datasetsPrefix = $"exercises/{exercise.Id}/releases/{releaseId}/datasets/";
+        var perDataset = await ListAsync(container, datasetsPrefix,
+            name => LaestabBefore(name[(name.LastIndexOf('/') + 1)..], '.'), cancellationToken);
+        var schools = new HashSet<string>(merged);
+        schools.UnionWith(perDataset);
+
+        cache?.Set(key, (IReadOnlySet<string>)schools, new MemoryCacheEntryOptions { SlidingExpiration = CacheSlidingExpiry });
+        return schools;
+    }
+
+    // One listing call per 5,000 blobs; a container that does not exist lists nothing.
+    private static async Task<HashSet<string>> ListAsync(BlobContainerClient container, string prefix,
+        Func<string, string?> laestabOf, CancellationToken cancellationToken)
+    {
+        var schools = new HashSet<string>();
+        try
+        {
+            await foreach (var blob in container.GetBlobsAsync(BlobTraits.None, BlobStates.None, prefix, cancellationToken))
+                if (laestabOf(blob.Name) is { Length: > 0 } laestab) schools.Add(laestab);
+        }
+        catch (RequestFailedException e) when (e.Status == 404)
+        {
+        }
+        return schools;
+    }
+
+    // "9334290_pupils.json" -> "9334290"; "9334290.json" -> "9334290". Digits only, or null.
+    private static string? LaestabBefore(string fileName, char separator)
+    {
+        var end = fileName.IndexOf(separator);
+        if (end <= 0) return null;
+        var laestab = fileName[..end];
+        return laestab.All(char.IsAsciiDigit) ? laestab : null;
     }
 
     public Task<byte[]?> ReadSchemaAsync(Guid windowId, string schemaFile, CancellationToken cancellationToken)

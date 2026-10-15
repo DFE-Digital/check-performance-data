@@ -4,27 +4,34 @@ using DfE.CheckPerformanceData.Application.WindowManagement;
 
 namespace DfE.CheckPerformanceData.Application.AmendmentRequests;
 
+/// <remarks>
+/// "Open" and the deadline are the signed-in school's (AB#307773 review, finding 1): an exercise
+/// is open for the school until the school's own end, which an extension may make later, and the
+/// window's stored end date is never read — it is the exercises' own latest end, the same for
+/// every school. The one clock is ICheckingExerciseService's.
+/// </remarks>
 public class UrnAmendmentRequestsService(
     IRequestRepository requestRepository,
     IWindowRepository windowRepository,
     ICurrentUserService currentUserService,
-    IWindowStatusService windowStatusService) : IUrnAmendmentRequestsService
+    ICheckingExerciseService checkingExercises) : IUrnAmendmentRequestsService
 {
     public async Task<UrnAmendmentRequestsResult> GetAllSubmittedAmendmentRequestsAsync(CancellationToken cancellationToken)
     {
-
         long urn = long.Parse(currentUserService.OrganisationUrn);
+        string? laestab = currentUserService.OrganisationLaestab;
         IReadOnlyList<SubmittedRequestData> submitted = await requestRepository.GetAllSubmittedRequestsAsync(urn);
         List<CheckingWindowDto> allWindows = await windowRepository.GetAllWindowsAsync(cancellationToken);
 
-        // This reads the repository directly rather than going through IWindowService, so asking the
-        // status service is the only way to get the same answer the admin pages get.
-        List<OpenWindow> currentOpenWindows = windowStatusService.OpenWindows(allWindows)
+        // A window is open for this school while any of its exercises is; its deadline is the
+        // latest end this school sees across them (coarse, as this page has always been).
+        List<OpenWindow> currentOpenWindows = allWindows
+            .Where(w => checkingExercises.OpenCheckingExercises(w.Exercises, laestab).Count > 0)
             .Select(w => new OpenWindow
             {
                 WindowId = w.Id,
                 WindowName = w.Title,
-                WindowEndDate = w.EndDate
+                WindowEndDate = w.Exercises.Max(e => e.EndDateFor(laestab))
             })
             .ToList();
 

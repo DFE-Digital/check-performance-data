@@ -61,6 +61,16 @@ public sealed class ExerciseExtensionItem
     /// <summary>Ticked on the warning: save even though some schools have no data file.</summary>
     public bool ConfirmNoData { get; set; }
 
+    /// <summary>
+    /// The schools the warning listed when the tick was given, digits, comma-separated, posted
+    /// back in a hidden field. The tick covers those schools only: a school pasted in with the
+    /// tick that also has no data is warned about afresh (review finding 5).
+    /// </summary>
+    public string? ConfirmedSchools { get; set; }
+
+    public IReadOnlySet<string> ConfirmedSet =>
+        (ConfirmedSchools ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToHashSet();
+
     public bool IsEdit => ExtensionId is not null;
     public bool HasWarning => SchoolsWithoutData.Count > 0 || ExerciseHasNoRelease;
 

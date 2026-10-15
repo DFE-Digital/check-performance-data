@@ -189,20 +189,24 @@ public sealed class ExerciseExtensionController(
     }
 
     // A warning, not an error: the admin may extend a school whose data arrives in a later release.
-    // Asked until the admin ticks the box; the tick is only on the page while the warning is.
+    // Asked on every POST; the tick counts only for the schools it was shown for (finding 5).
     private async Task<bool> NeedsConfirmingAsync(
         ExerciseExtensionItem model, IReadOnlyList<string> laestabs, CancellationToken cancellationToken)
     {
-        if (model.ConfirmNoData)
-            return false;
-
         var warnings = await extensions.FindSchoolsWithoutDataAsync(
             model.WindowId, model.ExerciseId, laestabs, cancellationToken);
         if (warnings.LaestabsWithoutData.Count == 0 && !warnings.ExerciseHasNoRelease)
             return false;
 
+        if (model.ConfirmNoData && warnings.LaestabsWithoutData.All(model.ConfirmedSet.Contains))
+            return false;
+
         model.SchoolsWithoutData = warnings.LaestabsWithoutData.Select(LaestabList.Display).ToList();
         model.ExerciseHasNoRelease = warnings.ExerciseHasNoRelease;
+        model.ConfirmedSchools = string.Join(',', warnings.LaestabsWithoutData);
+        // Drop any bound value so the checkbox renders from the model: unticked.
+        ModelState.Remove(nameof(ExerciseExtensionItem.ConfirmNoData));
+        model.ConfirmNoData = false;
 
         // An error on the checkbox, not only the warning: without it the page comes back looking
         // as it was sent, with nothing announced, and a screen-reader user would take the save to

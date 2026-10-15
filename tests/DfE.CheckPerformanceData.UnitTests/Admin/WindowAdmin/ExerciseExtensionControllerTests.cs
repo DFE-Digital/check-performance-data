@@ -304,16 +304,23 @@ public sealed class ExerciseExtensionControllerTests
     [Fact]
     public async Task Create_post_confirmed_saves_the_schools_as_digits_and_says_so()
     {
+        // 860/4070 has no data: the tick was given for it, so the save goes through.
+        _extensions.FindSchoolsWithoutDataAsync(WindowId, ExerciseId, Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(new ExtensionWarnings(["8604070"], ExerciseHasNoRelease: false));
+        var form = Form(confirm: true);
+        form.ConfirmedSchools = "8604070";
+
         var controller = Build();
-        var result = await controller.Create(WindowId, ExerciseId, Form(confirm: true), CancellationToken.None);
+        var result = await controller.Create(WindowId, ExerciseId, form, CancellationToken.None);
 
         var redirect = Assert.IsType<RedirectResult>(result);
         Assert.Equal($"/admin/windows/summary/{WindowId}", redirect.Url);
         Assert.Equal(
             "Extension added for 2 schools, ending 08/10/2026 17:00.",
             controller.TempData[ExerciseExtensionController.TempDataKey]);
-        // Confirmed, so the warning is not asked again.
-        await _extensions.DidNotReceiveWithAnyArgs().FindSchoolsWithoutDataAsync(default, default, default!, default);
+        // Asked on every POST (the tick counts only for the schools it was shown for), and covered here.
+        await _extensions.Received(1).FindSchoolsWithoutDataAsync(
+            WindowId, ExerciseId, Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>());
         await _extensions.Received(1).AddAsync(
             Arg.Is<ExtensionCommand>(c =>
                 c.WindowId == WindowId && c.ExerciseId == ExerciseId
@@ -321,6 +328,54 @@ public sealed class ExerciseExtensionControllerTests
                 && c.Laestabs.SequenceEqual(new[] { "9334290", "8604070" })
                 && c.Actor == new ExtensionActor("sub-1", "Banks Jamgbadi")),
             Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Create_post_confirmed_for_one_school_still_warns_about_a_school_pasted_in_with_the_tick()
+    {
+        // Review finding 5: the tick was given for 860/4070. The resubmit also pastes 1234567, which
+        // has no data either. The tick must not cover it: the page warns again, listing both.
+        _extensions.FindSchoolsWithoutDataAsync(WindowId, ExerciseId, Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(new ExtensionWarnings(["8604070", "1234567"], ExerciseHasNoRelease: false));
+        var form = Form("933/4290\n8604070\n1234567", confirm: true);
+        form.ConfirmedSchools = "8604070";
+
+        var controller = Build();
+        var result = await controller.Create(WindowId, ExerciseId, form, CancellationToken.None);
+
+        var vm = PageModel<ExerciseExtensionItem>(result);
+        Assert.Equal(["860/4070", "123/4567"], vm.SchoolsWithoutData);
+        Assert.Equal("8604070,1234567", vm.ConfirmedSchools);
+        Assert.False(vm.ConfirmNoData);
+        Assert.Equal(["Confirm that you want to add these schools, or remove them from the list"], Errors(controller, "ConfirmNoData"));
+        await NothingWasSaved();
+    }
+
+    [Fact]
+    public async Task Create_post_confirmed_for_every_warned_school_saves()
+    {
+        _extensions.FindSchoolsWithoutDataAsync(WindowId, ExerciseId, Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(new ExtensionWarnings(["8604070"], ExerciseHasNoRelease: false));
+        var form = Form(confirm: true);
+        form.ConfirmedSchools = "8604070";
+
+        var result = await Build().Create(WindowId, ExerciseId, form, CancellationToken.None);
+
+        Assert.IsType<RedirectResult>(result);
+        await _extensions.Received(1).AddAsync(Arg.Any<ExtensionCommand>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Create_post_ticked_but_naming_no_confirmed_schools_warns_again()
+    {
+        _extensions.FindSchoolsWithoutDataAsync(WindowId, ExerciseId, Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(new ExtensionWarnings(["8604070"], ExerciseHasNoRelease: false));
+
+        var result = await Build().Create(WindowId, ExerciseId, Form(confirm: true), CancellationToken.None);
+
+        var vm = PageModel<ExerciseExtensionItem>(result);
+        Assert.Equal(["860/4070"], vm.SchoolsWithoutData);
+        await NothingWasSaved();
     }
 
     [Fact]

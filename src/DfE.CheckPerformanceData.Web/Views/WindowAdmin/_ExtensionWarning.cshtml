@@ -33,6 +33,8 @@
     }
 </ul>
 <div class="govuk-form-group @(confirmHasError ? "govuk-form-group--error" : "")">
+    @* The schools this tick is for. A school added later with no data is warned about again. *@
+    <input type="hidden" name="ConfirmedSchools" value="@Model.ConfirmedSchools" />
     @if (confirmHasError)
     {
         foreach (var error in confirmErrors)

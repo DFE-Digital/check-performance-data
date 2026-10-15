@@ -271,19 +271,25 @@ someone else. Check it and try again."
 The warning's label and sentence follow the action: "Add these schools anyway" and "You can still
 add them" on add, "Save these schools anyway" and "You can still save them" on edit.
 
-### The text guard on edit
+### The version guard on edit
 
-Edit saves against the end date the admin was shown: `ExerciseExtensionRepository.UpdateAsync`
-moves `EndDate` only where it still equals `PreviousEndDate`. The page carries that value in a
-hidden field. It travels as **text** (`PreviousEnd`, written and read by
-`ExerciseExtensionItem.GuardFor` and `TryReadPreviousEnd`, round-trip `O` format), not as a
-`DateTime?`.
+Edit saves against the version the admin was shown. `CheckingExerciseExtension.Version` is an
+integer, 0 when the extension is added, and every edit and every early close adds one.
+`ExerciseExtensionRepository.UpdateAsync` writes only where the stored `Version` still equals
+`ExtensionEdit.ExpectedVersion`, and bumps it in the same statement. `CloseEarlyAsync` bumps it too,
+so an edit page drawn before the close is refused. The page carries the version in a plain hidden
+field (`Version`, an `int?` on `ExerciseExtensionItem`). A version that is missing is a
+`BadRequest`.
 
-The reason: GovUk.Frontend.AspNetCore 5 takes over every `DateTime?` on a model and looks for
-`.Day`, `.Month` and `.Year` parts. A hidden field has none, so the guard bound as null and every
-edit came back as a 404. The unit tests missed it because they never run model binding. The E2E
-class found it. A guard that is missing or does not parse is a `BadRequest`. A value with an offset
-is refused, because exercise dates are wall-clock values.
+The reason it is a version and not the end date: an end date only moves when the admin changes it.
+Two admins who each change only the school list both read the same end date, both pass an end-date
+compare-and-set, and the second save wipes the first. A version moves on every write, so the second
+of the two is `Stale`. The extension's end date is still sent as `PreviousEndDate`, for the audit
+row only.
+
+The model never holds a `DateTime?` for the guard. GovUk.Frontend.AspNetCore 5 takes over every
+`DateTime?` on a model and looks for `.Day`, `.Month` and `.Year` parts, so a date in a hidden field
+bound as null. An `int?` is left to the ordinary binder.
 
 ### Close early
 
@@ -343,7 +349,7 @@ school's journey uses:
 | `ExerciseExtensionServiceTests` | Every `ExtensionSaveStatus` (an end already past is `EndDateNotInFuture`), the warnings and the no-release case, close early |
 | `CloseExerciseServiceTests` | The exclude set (open by effective end, or unsent; an extension closed early while the exercise runs stays held), `Only` for an extension, the stamp set once and not on failure |
 | `AutomaticExerciseHandOverTests` | Due items for extensions on the effective end (one closed early is not due until the exercise end plus the delay, then carries the exercise end), the audit with the extension id |
-| `ExerciseExtensionControllerTests` | Add and edit, the warning step and its error, the text guard, the past end date |
+| `ExerciseExtensionControllerTests` | Add and edit, the warning step and its error, the version guard, the past end date |
 | `CloseExtensionControllerTests`, `SendExtensionRequestsControllerTests` | Gates (Send refused while the effective end is ahead), banners, the sweep before the audit write, a failed audit write |
 | `CloseExerciseControllerTests` | The exercise close page says when an open extension's schools keep their time |
 | `SummaryControllerCloseActionsTests`, `DeleteExerciseControllerTests` | The card's three states and the delete count |
@@ -357,7 +363,7 @@ school's journey uses:
 | Class | Pins |
 |---|---|
 | `AdminRequestsRepositorySchoolFilterTests` | `Exclude`, `Only` and `None`, a null LAESTAB, slashed and digit forms |
-| `ExerciseExtensionRepositoryTests` | The unique index, the audit row in the same transaction (and no generic audit rows for the extension tables), compare-and-set, the window end re-derived, the stamp, cascade |
+| `ExerciseExtensionRepositoryTests` | The unique index, the audit row in the same transaction (and no generic audit rows for the extension tables), compare-and-set, the window end re-derived, the stamp, cascade, the version guard (including two school-only edits and an early close) |
 | `ExerciseDeletionRepositoryTests`, `WindowRepositoryEarlyClosureTests` | The window end stays at the extension end |
 | `CheckingWindowExerciseProjectionTests` | The landing page read carries `DisplayOnly` |
 

@@ -22,6 +22,9 @@ public sealed class CheckingExerciseExtensionDto
     /// <summary>First sweep of this extension's requests after it closed; null until then.</summary>
     public DateTime? RequestsSentAt { get; init; }
 
+    /// <summary>The edit guard: what the edit page shows and posts back. See the entity.</summary>
+    public int Version { get; init; }
+
     public int SchoolCount => Laestabs.Count;
 
     /// <summary>Whether this school is named, in either LAESTAB form. Empty or null is never named.</summary>

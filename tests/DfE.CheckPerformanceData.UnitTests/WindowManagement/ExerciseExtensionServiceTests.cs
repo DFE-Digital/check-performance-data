@@ -239,7 +239,7 @@ public sealed class ExerciseExtensionServiceTests
         _extensions.UpdateAsync(Arg.Do<ExtensionEdit>(e => written = e), Arg.Any<CancellationToken>()).Returns(true);
 
         var result = await Sut().EditAsync(
-            XId, Tomorrow, Command(NextWeek, ["933/4290", "8604070"]), CancellationToken.None);
+            XId, 0, Command(NextWeek, ["933/4290", "8604070"]), CancellationToken.None);
 
         Assert.Equal(new ExtensionSaveResult(ExtensionSaveStatus.Saved, XId), result);
         Assert.NotNull(written);
@@ -261,7 +261,7 @@ public sealed class ExerciseExtensionServiceTests
         WindowHolds(null, X(), other);
 
         var result = await Sut().EditAsync(
-            XId, Tomorrow, Command(NextWeek, ["9334290", "1112222"]), CancellationToken.None);
+            XId, 0, Command(NextWeek, ["9334290", "1112222"]), CancellationToken.None);
 
         Assert.Equal(ExtensionSaveStatus.SchoolInAnotherExtension, result.Status);
         Assert.Equal([new ExtensionConflict("1112222", NextWeek)], result.Conflicts!);
@@ -274,7 +274,7 @@ public sealed class ExerciseExtensionServiceTests
         WindowHolds(null, X(), ClosedExtension());
 
         var result = await Sut().EditAsync(
-            OtherId, Yesterday, Command(NextWeek, ["1112222"]), CancellationToken.None);
+            OtherId, 0, Command(NextWeek, ["1112222"]), CancellationToken.None);
 
         Assert.Equal(ExtensionSaveStatus.Closed, result.Status);
         await _extensions.DidNotReceiveWithAnyArgs().UpdateAsync(default!, default);
@@ -285,7 +285,7 @@ public sealed class ExerciseExtensionServiceTests
     {
         WindowHolds();
 
-        var result = await Sut().EditAsync(XId, Tomorrow, Command(Yesterday, ["9334290"]), CancellationToken.None);
+        var result = await Sut().EditAsync(XId, 0, Command(Yesterday, ["9334290"]), CancellationToken.None);
 
         Assert.Equal(ExtensionSaveStatus.EndDateNotAfterExercise, result.Status);
         Assert.Equal(Yesterday, result.ExerciseEnd);
@@ -298,7 +298,7 @@ public sealed class ExerciseExtensionServiceTests
         WindowHolds();
 
         var result = await Sut().EditAsync(
-            XId, Tomorrow, Command(new DateTime(2026, 9, 3, 9, 0, 0), ["9334290"]), CancellationToken.None);
+            XId, 0, Command(new DateTime(2026, 9, 3, 9, 0, 0), ["9334290"]), CancellationToken.None);
 
         Assert.Equal(ExtensionSaveStatus.EndDateNotInFuture, result.Status);
         await _extensions.DidNotReceiveWithAnyArgs().UpdateAsync(default!, default);
@@ -309,7 +309,7 @@ public sealed class ExerciseExtensionServiceTests
     {
         WindowHolds();
 
-        var result = await Sut().EditAsync(XId, Tomorrow, Command(NextWeek, []), CancellationToken.None);
+        var result = await Sut().EditAsync(XId, 0, Command(NextWeek, []), CancellationToken.None);
 
         Assert.Equal(ExtensionSaveStatus.NoSchools, result.Status);
         await _extensions.DidNotReceiveWithAnyArgs().UpdateAsync(default!, default);
@@ -321,7 +321,7 @@ public sealed class ExerciseExtensionServiceTests
         WindowHolds();
 
         var result = await Sut().EditAsync(
-            Guid.NewGuid(), Tomorrow, Command(NextWeek, ["9334290"]), CancellationToken.None);
+            Guid.NewGuid(), 0, Command(NextWeek, ["9334290"]), CancellationToken.None);
 
         Assert.Equal(ExtensionSaveStatus.NotFound, result.Status);
         await _extensions.DidNotReceiveWithAnyArgs().UpdateAsync(default!, default);
@@ -330,13 +330,26 @@ public sealed class ExerciseExtensionServiceTests
     [Fact]
     public async Task An_edit_that_lost_the_race_is_stale()
     {
-        // The repository's compare-and-set found the end date had moved since the admin read it.
+        // The repository's compare-and-set found the version had moved since the admin read it.
         WindowHolds();
         _extensions.UpdateAsync(Arg.Any<ExtensionEdit>(), Arg.Any<CancellationToken>()).Returns(false);
 
-        var result = await Sut().EditAsync(XId, Tomorrow, Command(NextWeek, ["9334290"]), CancellationToken.None);
+        var result = await Sut().EditAsync(XId, 0, Command(NextWeek, ["9334290"]), CancellationToken.None);
 
         Assert.Equal(ExtensionSaveStatus.Stale, result.Status);
+    }
+
+    [Fact]
+    public async Task An_edit_passes_the_version_it_was_shown_and_the_end_it_replaces()
+    {
+        WindowHolds();
+        _extensions.UpdateAsync(Arg.Any<ExtensionEdit>(), Arg.Any<CancellationToken>()).Returns(true);
+
+        await Sut().EditAsync(XId, 3, Command(NextWeek, ["9334290"]), CancellationToken.None);
+
+        await _extensions.Received(1).UpdateAsync(
+            Arg.Is<ExtensionEdit>(e => e.ExpectedVersion == 3 && e.PreviousEndDate == Tomorrow && e.NewEndDate == NextWeek),
+            Arg.Any<CancellationToken>());
     }
 
     // ---- Schools without data ----

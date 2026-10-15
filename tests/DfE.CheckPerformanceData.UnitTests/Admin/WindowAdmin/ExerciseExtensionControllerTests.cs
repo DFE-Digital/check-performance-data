@@ -73,7 +73,7 @@ public sealed class ExerciseExtensionControllerTests
                 [
                     new CheckingExerciseExtensionDto
                     {
-                        Id = OpenExtensionId, EndDate = OpenExtensionEnd, Laestabs = ["9334290", "8604070"]
+                        Id = OpenExtensionId, EndDate = OpenExtensionEnd, Laestabs = ["9334290", "8604070"], Version = 2
                     },
                     new CheckingExerciseExtensionDto
                     {
@@ -120,7 +120,7 @@ public sealed class ExerciseExtensionControllerTests
         EndHour = 17,
         EndMinute = 0,
         Schools = schools,
-        PreviousEnd = ExerciseExtensionItem.GuardFor(OpenExtensionEnd)
+        Version = 2
     };
 
     private static string[] Errors(Controller controller, string key) =>
@@ -441,7 +441,7 @@ public sealed class ExerciseExtensionControllerTests
         Assert.True(vm.IsEdit);
         Assert.Equal("Edit extension", vm.Heading);
         Assert.Equal("933/4290\n860/4070", vm.Schools);
-        Assert.Equal(ExerciseExtensionItem.GuardFor(OpenExtensionEnd), vm.PreviousEnd);
+        Assert.Equal(2, vm.Version);
         Assert.Equal(OpenExtensionEnd.Date, vm.EndDate);
         Assert.Equal(17, vm.EndHour);
         Assert.Equal(0, vm.EndMinute);
@@ -465,7 +465,6 @@ public sealed class ExerciseExtensionControllerTests
         // Re-checked on the POST: a page left open across the end date still posts here.
         var controller = Build();
         var form = EditForm();
-        form.PreviousEnd = ExerciseExtensionItem.GuardFor(ClosedExtensionEnd);
 
         var result = await controller.Update(WindowId, ExerciseId, ClosedExtensionId, form, CancellationToken.None);
 
@@ -474,7 +473,7 @@ public sealed class ExerciseExtensionControllerTests
     }
 
     [Fact]
-    public async Task Update_post_saves_against_the_end_date_the_page_showed_and_says_so()
+    public async Task Update_post_saves_against_the_version_the_page_showed_and_says_so()
     {
         var controller = Build();
         var result = await controller.Update(WindowId, ExerciseId, OpenExtensionId, EditForm(), CancellationToken.None);
@@ -484,7 +483,7 @@ public sealed class ExerciseExtensionControllerTests
             "Extension updated for 2 schools, ending 09/10/2026 17:00.",
             controller.TempData[ExerciseExtensionController.TempDataKey]);
         await _extensions.Received(1).EditAsync(
-            OpenExtensionId, OpenExtensionEnd,
+            OpenExtensionId, 2,
             Arg.Is<ExtensionCommand>(c =>
                 c.WindowId == WindowId && c.ExerciseId == ExerciseId
                 && c.EndDate == new DateTime(2026, 10, 9, 17, 0, 0)
@@ -495,7 +494,7 @@ public sealed class ExerciseExtensionControllerTests
     [Fact]
     public async Task Update_post_changed_by_someone_else_goes_back_with_a_neutral_banner()
     {
-        _extensions.EditAsync(OpenExtensionId, Arg.Any<DateTime>(), Arg.Any<ExtensionCommand>(), Arg.Any<CancellationToken>())
+        _extensions.EditAsync(OpenExtensionId, Arg.Any<int>(), Arg.Any<ExtensionCommand>(), Arg.Any<CancellationToken>())
             .Returns(new ExtensionSaveResult(ExtensionSaveStatus.Stale));
 
         var controller = Build();
@@ -508,7 +507,7 @@ public sealed class ExerciseExtensionControllerTests
     public async Task Update_post_the_service_finds_closed_goes_back_with_the_closed_banner()
     {
         // It closed between the controller's check and the service's.
-        _extensions.EditAsync(OpenExtensionId, Arg.Any<DateTime>(), Arg.Any<ExtensionCommand>(), Arg.Any<CancellationToken>())
+        _extensions.EditAsync(OpenExtensionId, Arg.Any<int>(), Arg.Any<ExtensionCommand>(), Arg.Any<CancellationToken>())
             .Returns(new ExtensionSaveResult(ExtensionSaveStatus.Closed));
 
         var controller = Build();
@@ -532,21 +531,16 @@ public sealed class ExerciseExtensionControllerTests
         Assert.Equal(
             ["Confirm that you want to save these schools, or remove them from the list"],
             Errors(controller, "ConfirmNoData"));
-        Assert.Equal(ExerciseExtensionItem.GuardFor(OpenExtensionEnd), vm.PreviousEnd);  // posted again with the confirmation
+        Assert.Equal(2, vm.Version);  // posted again with the confirmation
         await NothingWasSaved();
     }
 
-    [Theory]
-    [InlineData(null)]
-    [InlineData("")]
-    [InlineData("not a date")]
-    [InlineData("08/10/2026 17:00")]                    // not the round-trip form the page writes
-    [InlineData("2026-10-08T17:00:00.0000000Z")]        // an offset: not a wall-clock value this page wrote
-    public async Task Update_post_without_the_end_date_it_was_shown_is_a_bad_request(string? guard)
+    [Fact]
+    public async Task Update_post_without_the_version_it_was_shown_is_a_bad_request()
     {
         // The page always posts it; without it there is nothing to guard the save with.
         var form = EditForm();
-        form.PreviousEnd = guard;
+        form.Version = null;
 
         var result = await Build().Update(WindowId, ExerciseId, OpenExtensionId, form, CancellationToken.None);
 
@@ -555,36 +549,11 @@ public sealed class ExerciseExtensionControllerTests
     }
 
     [Fact]
-    public async Task The_guard_the_edit_page_writes_is_the_end_date_the_post_saves_against()
+    public async Task Edit_get_shows_the_extensions_version_for_the_post_to_send_back()
     {
-        // The hidden field travels as text because GovUk.Frontend.AspNetCore's date binder takes
-        // over the model's DateTime? members and bound a single posted value as null. Round trip:
-        // what the GET puts in the page is what the POST hands the service, to the tick, as a
-        // wall-clock value.
-        var page = PageModel<ExerciseExtensionItem>(
-            await Build().Edit(WindowId, ExerciseId, OpenExtensionId, CancellationToken.None));
-        var form = EditForm();
-        form.PreviousEnd = page.PreviousEnd;
+        var result = await Build().Edit(WindowId, ExerciseId, OpenExtensionId, CancellationToken.None);
 
-        await Build().Update(WindowId, ExerciseId, OpenExtensionId, form, CancellationToken.None);
-
-        await _extensions.Received(1).EditAsync(
-            OpenExtensionId,
-            Arg.Is<DateTime>(d => d == OpenExtensionEnd && d.Kind == DateTimeKind.Unspecified),
-            Arg.Any<ExtensionCommand>(), Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public void The_guard_keeps_sub_second_precision()
-    {
-        // The compare-and-set is exact; a stored value with microseconds must come back unchanged.
-        var stored = new DateTime(2026, 10, 8, 17, 0, 0, DateTimeKind.Unspecified).AddTicks(1_234_560);
-
-        var item = new ExerciseExtensionItem { PreviousEnd = ExerciseExtensionItem.GuardFor(stored) };
-
-        Assert.True(item.TryReadPreviousEnd(out var read));
-        Assert.Equal(stored, read);
-        Assert.Equal(DateTimeKind.Unspecified, read.Kind);
+        Assert.Equal(2, PageModel<ExerciseExtensionItem>(result).Version);
     }
 
     [Fact]

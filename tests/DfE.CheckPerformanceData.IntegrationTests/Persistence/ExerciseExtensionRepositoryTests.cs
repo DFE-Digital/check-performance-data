@@ -111,11 +111,17 @@ public sealed class ExerciseExtensionRepositoryTests(PostgresFixture fixture) : 
         CreatedAtUtc = new DateTime(2026, 9, 20, 9, 0, 0, DateTimeKind.Utc)
     };
 
-    private ExtensionEdit Edit(Guid id, DateTime previous, DateTime newEnd, params string[] laestabs) => new()
+    private ExtensionEdit Edit(Guid id, int version, DateTime newEnd, params string[] laestabs) => new()
     {
         WindowId = _windowId, ExerciseId = _exerciseId, Exercise = CheckingExerciseType.PupilData, ExtensionId = id,
-        PreviousEndDate = previous, NewEndDate = newEnd, Laestabs = laestabs, Actor = Ada,
+        ExpectedVersion = version, PreviousEndDate = ExtensionEnd, NewEndDate = newEnd, Laestabs = laestabs, Actor = Ada,
         EditedAtUtc = new DateTime(2026, 9, 21, 9, 0, 0, DateTimeKind.Utc)
+    };
+
+    private ExtensionEarlyClosure Closure(Guid id, DateTime scheduledEnd) => new()
+    {
+        WindowId = _windowId, ExerciseId = _exerciseId, Exercise = CheckingExerciseType.PupilData, ExtensionId = id,
+        ScheduledEnd = scheduledEnd, NewEndDate = scheduledEnd.AddDays(-1), Actor = Ada, ClosedAtUtc = DateTime.UtcNow
     };
 
     [Fact]
@@ -162,7 +168,7 @@ public sealed class ExerciseExtensionRepositoryTests(PostgresFixture fixture) : 
     }
 
     [Fact]
-    public async Task Update_is_a_compare_and_set_on_the_end_date_and_records_the_school_diff()
+    public async Task Update_is_a_compare_and_set_on_the_version_and_records_the_school_diff()
     {
         Guid id;
         await using (var ctx = fixture.CreateContext())
@@ -170,20 +176,60 @@ public sealed class ExerciseExtensionRepositoryTests(PostgresFixture fixture) : 
 
         await using (var ctx = fixture.CreateContext())
         {
-            var stale = await Repository(ctx).UpdateAsync(Edit(id, previous: ExtensionEnd.AddDays(5), newEnd: ExtensionEnd.AddDays(9), "9334290"), CancellationToken.None);
+            var stale = await Repository(ctx).UpdateAsync(Edit(id, version: 7, newEnd: ExtensionEnd.AddDays(9), "9334290"), CancellationToken.None);
             Assert.False(stale);
-            var ok = await Repository(ctx).UpdateAsync(Edit(id, previous: ExtensionEnd, newEnd: ExtensionEnd.AddDays(9), "9334290", "1234567"), CancellationToken.None);
+            var ok = await Repository(ctx).UpdateAsync(Edit(id, version: 0, newEnd: ExtensionEnd.AddDays(9), "9334290", "1234567"), CancellationToken.None);
             Assert.True(ok);
         }
 
         await using var check = fixture.CreateContext();
         var extension = await check.CheckingExerciseExtensions.Include(x => x.Schools).SingleAsync(x => x.Id == id);
+        Assert.Equal(1, extension.Version);
         Assert.Equal(ExtensionEnd.AddDays(9), extension.EndDate);
         Assert.Equal(["1234567", "9334290"], extension.Schools.Select(s => s.Laestab).OrderBy(l => l));
         Assert.Equal(ExerciseEnd, (await check.CheckingWindows.SingleAsync(w => w.Id == _windowId)).EndDate);
         var audit = await check.AuditEntries.SingleAsync(a => a.Action == "ExtensionEdited" && a.EntityId == _windowId.ToString());
         Assert.Contains("\"schoolsAdded\":[\"1234567\"]", audit.NewValues);
         Assert.Contains("\"schoolsRemoved\":[\"8604070\"]", audit.NewValues);
+    }
+
+    [Fact]
+    public async Task Two_edits_that_change_only_the_schools_cannot_both_pass()
+    {
+        // Review finding 3 (15 Oct): both admins read version 0 and change only the list. The
+        // second save must be refused, or it silently undoes the first.
+        Guid id;
+        await using (var ctx = fixture.CreateContext())
+            id = await Repository(ctx).AddAsync(NewExt("9334290"), CancellationToken.None);
+
+        bool first, second;
+        await using (var ctx = fixture.CreateContext())
+            first = await Repository(ctx).UpdateAsync(Edit(id, version: 0, newEnd: ExtensionEnd, "9334290", "8604070"), CancellationToken.None);
+        await using (var ctx = fixture.CreateContext())
+            second = await Repository(ctx).UpdateAsync(Edit(id, version: 0, newEnd: ExtensionEnd, "9334290", "1234567"), CancellationToken.None);
+
+        Assert.True(first);
+        Assert.False(second);
+        await using var check = fixture.CreateContext();
+        var schools = await check.CheckingExerciseExtensionSchools.Where(s => s.CheckingExerciseExtensionId == id).Select(s => s.Laestab).ToListAsync();
+        Assert.Equal(["8604070", "9334290"], schools.OrderBy(l => l));
+        Assert.Equal(1, (await check.CheckingExerciseExtensions.SingleAsync(x => x.Id == id)).Version);
+    }
+
+    [Fact]
+    public async Task Close_early_bumps_the_version_so_a_stale_edit_is_refused()
+    {
+        Guid id;
+        await using (var ctx = fixture.CreateContext())
+            id = await Repository(ctx).AddAsync(NewExt("9334290"), CancellationToken.None);
+
+        await using (var ctx = fixture.CreateContext())
+            Assert.True(await Repository(ctx).CloseEarlyAsync(Closure(id, scheduledEnd: ExtensionEnd), CancellationToken.None));
+        await using (var ctx = fixture.CreateContext())
+            Assert.False(await Repository(ctx).UpdateAsync(Edit(id, version: 0, newEnd: ExtensionEnd.AddDays(9), "9334290"), CancellationToken.None));
+
+        await using var check = fixture.CreateContext();
+        Assert.Equal(1, (await check.CheckingExerciseExtensions.SingleAsync(x => x.Id == id)).Version);
     }
 
     [Fact]
@@ -198,7 +244,7 @@ public sealed class ExerciseExtensionRepositoryTests(PostgresFixture fixture) : 
 
         // The end date is unchanged; the guard still holds because it is always written.
         await using (var ctx = fixture.CreateContext())
-            Assert.True(await Repository(ctx).UpdateAsync(Edit(id, ExtensionEnd, ExtensionEnd, "9334290", "1234567"), CancellationToken.None));
+            Assert.True(await Repository(ctx).UpdateAsync(Edit(id, 0, ExtensionEnd, "9334290", "1234567"), CancellationToken.None));
 
         await using var check = fixture.CreateContext();
         Assert.Equal(kept, (await check.CheckingExerciseExtensionSchools.SingleAsync(s => s.CheckingExerciseExtensionId == id && s.Laestab == "9334290")).Id);
@@ -258,7 +304,7 @@ public sealed class ExerciseExtensionRepositoryTests(PostgresFixture fixture) : 
         await using (var ctx = fixture.CreateContext())
             id = await Repository(ctx).AddAsync(NewExt("9334290", "8604070"), ct);
         await using (var ctx = fixture.CreateContext())
-            Assert.True(await Repository(ctx).UpdateAsync(Edit(id, ExtensionEnd, ExtensionEnd.AddDays(9), "9334290", "1234567"), ct));
+            Assert.True(await Repository(ctx).UpdateAsync(Edit(id, 0, ExtensionEnd.AddDays(9), "9334290", "1234567"), ct));
         await using (var ctx = fixture.CreateContext())
             Assert.True(await Repository(ctx).CloseEarlyAsync(new ExtensionEarlyClosure
             {
@@ -318,7 +364,7 @@ public sealed class ExerciseExtensionRepositoryTests(PostgresFixture fixture) : 
         await using (var ctx = fixture.CreateContext())
             id = await Repository(ctx).AddAsync(NewExt("9334290"), CancellationToken.None);
         await using (var ctx = fixture.CreateContext())
-            await Repository(ctx).UpdateAsync(Edit(id, previous: ExtensionEnd, newEnd: ExtensionEnd.AddDays(9), "9334290"), CancellationToken.None);
+            await Repository(ctx).UpdateAsync(Edit(id, version: 0, newEnd: ExtensionEnd.AddDays(9), "9334290"), CancellationToken.None);
 
         await using var check = fixture.CreateContext();
         Assert.Equal(ExerciseEnd, (await check.CheckingWindows.SingleAsync(w => w.Id == _windowId)).EndDate);

@@ -31,9 +31,9 @@
 
     @if (Model.IsEdit)
     {
-        @* The compare-and-set guard: the save is refused if the end date has moved since this page
-           was drawn. Posted as text: see ExerciseExtensionItem.PreviousEnd. *@
-        <input type="hidden" name="PreviousEnd" value="@Model.PreviousEnd" />
+        @* The compare-and-set guard: the save is refused if the extension changed since this page
+           was drawn. See ExerciseExtensionItem.Version. *@
+        <input type="hidden" name="Version" value="@Model.Version" />
     }
 
     <govuk-date-input for="@Model.EndDate">

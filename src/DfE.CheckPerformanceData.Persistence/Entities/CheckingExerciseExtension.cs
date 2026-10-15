@@ -29,6 +29,13 @@ public sealed class CheckingExerciseExtension
     /// </summary>
     public DateTime? RequestsSentAt { get; set; }
 
+    /// <summary>
+    /// Bumped by every edit and early close. The edit page posts the version it showed and the
+    /// write is a compare-and-set on it, so two admins changing only the school list cannot both
+    /// pass (AB#307773 review, finding 3). Not a concurrency token: the writes are ExecuteUpdate.
+    /// </summary>
+    public int Version { get; set; }
+
     public List<CheckingExerciseExtensionSchool> Schools { get; init; } = [];
 }
 
@@ -56,6 +63,7 @@ public sealed class CheckingExerciseExtensionConfiguration : IEntityTypeConfigur
         builder.Property(x => x.CreatedAt).IsRequired().HasColumnType("timestamp without time zone");
         builder.Property(x => x.CreatedBy).HasMaxLength(200).IsRequired();
         builder.Property(x => x.RequestsSentAt).HasColumnType("timestamp without time zone");
+        builder.Property(x => x.Version).IsRequired().HasDefaultValue(0);
         builder.HasIndex(x => x.CheckingExerciseId);
 
         // The extensions go with their exercise, as its releases do.

@@ -15,9 +15,10 @@ public interface IExerciseExtensionRepository
     Task<Guid> AddAsync(NewExtension extension, CancellationToken ct);
 
     /// <summary>
-    /// A compare-and-set on <see cref="ExtensionEdit.PreviousEndDate"/>: false, and nothing written,
-    /// when the extension no longer holds it (a second admin, a second press, an early close). The
-    /// school rows become <see cref="ExtensionEdit.Laestabs"/>; rows kept keep their ids.
+    /// A compare-and-set on <see cref="ExtensionEdit.ExpectedVersion"/>: false, and nothing written,
+    /// when the stored version differs (a second admin's edit, a second press, an early close) —
+    /// every change bumps it, so a school-list-only edit is guarded too. The school rows become
+    /// <see cref="ExtensionEdit.Laestabs"/>; rows kept keep their ids.
     /// </summary>
     Task<bool> UpdateAsync(ExtensionEdit edit, CancellationToken ct);
 
@@ -70,7 +71,11 @@ public sealed record ExtensionEdit
     public required CheckingExerciseType Exercise { get; init; }
     public required Guid ExtensionId { get; init; }
 
-    /// <summary>The end date the extension had when the edit was confirmed. The write's guard.</summary>
+    /// <summary>The version the admin was shown. The write's guard: a different stored version means
+    /// somebody else edited or closed the extension meanwhile, and nothing is written.</summary>
+    public required int ExpectedVersion { get; init; }
+
+    /// <summary>The end date the admin was shown, for the audit payload only. Not a guard.</summary>
     public required DateTime PreviousEndDate { get; init; }
 
     public required DateTime NewEndDate { get; init; }

@@ -55,15 +55,17 @@ public sealed class ExerciseExtensionRepository(PortalDbContext dbContext) : IEx
         {
             dbContext.ChangeTracker.Clear();
 
-            // Compare-and-set on the end date the admin was shown. The end date is written even
-            // when unchanged so that a school-only edit is guarded too. The window clause keeps the
-            // audit row and the re-derived end on the window the extension really belongs to.
+            // Compare-and-set on the version the admin was shown, and bump it (review finding 3):
+            // an edit that changes only the school list is guarded exactly as a date change is. The
+            // window clause keeps the audit row on the window the extension really belongs to.
             int moved = await dbContext.CheckingExerciseExtensions
                 .Where(x => x.Id == edit.ExtensionId
                             && x.CheckingExerciseId == edit.ExerciseId
-                            && x.EndDate == edit.PreviousEndDate
+                            && x.Version == edit.ExpectedVersion
                             && dbContext.CheckingExercises.Any(e => e.Id == x.CheckingExerciseId && e.CheckingWindowId == edit.WindowId))
-                .ExecuteUpdateAsync(s => s.SetProperty(x => x.EndDate, edit.NewEndDate), ct);
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(x => x.EndDate, edit.NewEndDate)
+                    .SetProperty(x => x.Version, x => x.Version + 1), ct);
             if (moved == 0)
             {
                 return false;
@@ -113,7 +115,10 @@ public sealed class ExerciseExtensionRepository(PortalDbContext dbContext) : IEx
                             && x.CheckingExerciseId == closure.ExerciseId
                             && x.EndDate == closure.ScheduledEnd
                             && dbContext.CheckingExercises.Any(e => e.Id == x.CheckingExerciseId && e.CheckingWindowId == closure.WindowId))
-                .ExecuteUpdateAsync(s => s.SetProperty(x => x.EndDate, closure.NewEndDate), ct);
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(x => x.EndDate, closure.NewEndDate)
+                    // Bumped so an edit page drawn before the close is refused (finding 3).
+                    .SetProperty(x => x.Version, x => x.Version + 1), ct);
             if (moved == 0)
             {
                 return false;

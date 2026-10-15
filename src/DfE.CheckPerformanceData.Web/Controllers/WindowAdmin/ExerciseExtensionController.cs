@@ -93,7 +93,7 @@ public sealed class ExerciseExtensionController(
 
         var model = new ExerciseExtensionItem
         {
-            PreviousEnd = ExerciseExtensionItem.GuardFor(extension.EndDate),
+            Version = extension.Version,
             EndDate = extension.EndDate.Date,
             EndHour = extension.EndDate.Hour,
             EndMinute = extension.EndDate.Minute,
@@ -115,9 +115,9 @@ public sealed class ExerciseExtensionController(
         if (checkingExercises.HasClosed(extension))
             return Refuse(id, ClosedRefusal);
 
-        // The page always posts the end date it showed. Without it the save has nothing to compare
+        // The page always posts the version it showed. Without it the save has nothing to compare
         // against, and would overwrite whatever another admin did meanwhile.
-        if (!model.TryReadPreviousEnd(out var previousEnd))
+        if (model.Version is not { } expectedVersion)
             return BadRequest();
 
         Decorate(model, id, row, extensionId);
@@ -125,7 +125,7 @@ public sealed class ExerciseExtensionController(
         if (Validate(model) is not { } laestabs || await NeedsConfirmingAsync(model, laestabs, cancellationToken))
             return View(PageView, model);
 
-        var result = await extensions.EditAsync(extensionId, previousEnd, Command(model, laestabs), cancellationToken);
+        var result = await extensions.EditAsync(extensionId, expectedVersion, Command(model, laestabs), cancellationToken);
         return Outcome(model, result, laestabs, "updated");
     }
 

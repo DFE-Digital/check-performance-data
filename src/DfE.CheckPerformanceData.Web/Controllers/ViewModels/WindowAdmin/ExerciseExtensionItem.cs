@@ -31,28 +31,11 @@ public sealed class ExerciseExtensionItem
     public DateTime ExerciseEnd { get; set; }
 
     /// <summary>
-    /// Edit only: the end date as the page showed it, in round-trip form, posted back in a hidden
-    /// field. The save is a compare-and-set on it, so an edit never overwrites a change the admin
-    /// did not see.
+    /// Edit only: the extension's version as the page showed it, posted back in a hidden field. The
+    /// save is a compare-and-set on it, so an edit never overwrites a change the admin did not see
+    /// - a school-list change by another admin included (review finding 3).
     /// </summary>
-    /// <remarks>
-    /// Text, not a <see cref="DateTime"/>: GovUk.Frontend.AspNetCore's date binder takes over the
-    /// model's date properties and looks for Day, Month and Year parts, so one hidden value posted
-    /// as a date came back null and every edit was refused. As text no date binder touches it.
-    /// </remarks>
-    public string? PreviousEnd { get; set; }
-
-    /// <summary>The guard's text for an end date: exact to the tick, and readable in any culture.</summary>
-    public static string GuardFor(DateTime endDate) => endDate.ToString("O", CultureInfo.InvariantCulture);
-
-    /// <summary>
-    /// The end date <see cref="PreviousEnd"/> holds; false when it is missing or not what
-    /// <see cref="GuardFor"/> wrote. Exercise dates are wall-clock values (Kind Unspecified), so a
-    /// value carrying an offset is not one this page wrote.
-    /// </summary>
-    public bool TryReadPreviousEnd(out DateTime previousEnd) =>
-        DateTime.TryParseExact(PreviousEnd, "O", CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out previousEnd)
-        && previousEnd.Kind == DateTimeKind.Unspecified;
+    public int? Version { get; set; }
 
     [Required(ErrorMessage = "Enter the extension end date")]
     [DateInput(ErrorMessagePrefix = "Extension end date")]

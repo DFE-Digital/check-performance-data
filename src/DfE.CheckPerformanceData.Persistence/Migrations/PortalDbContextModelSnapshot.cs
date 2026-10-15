@@ -783,6 +783,11 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     b.Property<DateTime?>("RequestsSentAt")
                         .HasColumnType("timestamp without time zone");
 
+                    b.Property<int>("Version")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
                     b.HasKey("Id");
 
                     b.HasIndex("CheckingExerciseId");

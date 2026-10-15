@@ -21,12 +21,12 @@ public interface IExerciseExtensionService
     Task<ExtensionSaveResult> AddAsync(ExtensionCommand command, CancellationToken ct);
 
     /// <summary>
-    /// <paramref name="previousEndDate"/> is the extension's end date as the admin was shown it:
-    /// if it has moved since, nothing is written and the answer is
+    /// <paramref name="expectedVersion"/> is the extension's version as the admin was shown it: if
+    /// it has moved since (another edit, an early close), nothing is written and the answer is
     /// <see cref="ExtensionSaveStatus.Stale"/>.
     /// </summary>
     Task<ExtensionSaveResult> EditAsync(
-        Guid extensionId, DateTime previousEndDate, ExtensionCommand command, CancellationToken ct);
+        Guid extensionId, int expectedVersion, ExtensionCommand command, CancellationToken ct);
 
     /// <summary>
     /// Ends an open extension now, as <see cref="IExerciseEarlyClosureService"/> ends an exercise:

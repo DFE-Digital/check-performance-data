@@ -18,6 +18,7 @@ internal static class CheckingExerciseExtensionMapping
             CreatedAt = x.CreatedAt,
             CreatedBy = x.CreatedBy,
             RequestsSentAt = x.RequestsSentAt,
+            Version = x.Version,
             Laestabs = x.Schools.Select(s => s.Laestab).OrderBy(l => l).ToList()
         };
 

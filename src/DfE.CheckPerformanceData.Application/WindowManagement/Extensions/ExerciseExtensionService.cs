@@ -64,7 +64,7 @@ public sealed class ExerciseExtensionService(
     }
 
     public async Task<ExtensionSaveResult> EditAsync(
-        Guid extensionId, DateTime previousEndDate, ExtensionCommand command, CancellationToken ct)
+        Guid extensionId, int expectedVersion, ExtensionCommand command, CancellationToken ct)
     {
         var (exercise, kind) = await FindExerciseAsync(command.WindowId, command.ExerciseId, ct);
         var extension = exercise?.Extensions.SingleOrDefault(x => x.Id == extensionId);
@@ -85,15 +85,16 @@ public sealed class ExerciseExtensionService(
             ExerciseId = command.ExerciseId,
             Exercise = kind,
             ExtensionId = extensionId,
-            PreviousEndDate = previousEndDate,
+            ExpectedVersion = expectedVersion,
+            PreviousEndDate = extension.EndDate,
             NewEndDate = command.EndDate,
             Laestabs = digits,
             Actor = command.Actor,
             EditedAtUtc = timeProvider.GetUtcNow().UtcDateTime
         }, ct);
 
-        // False means the end date moved after the admin read it: a second admin, a second press,
-        // or an early close. This edit would overwrite what they did not see, so nothing is written.
+        // False means the version moved after the admin read it: another edit, a second press, or
+        // an early close. This edit would overwrite what they did not see, so nothing is written.
         return written
             ? new ExtensionSaveResult(ExtensionSaveStatus.Saved, extensionId)
             : new ExtensionSaveResult(ExtensionSaveStatus.Stale);

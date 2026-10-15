@@ -101,16 +101,9 @@ public sealed class LandingPageRepository(
                             })
                             .ToList(),
                         Extensions = e.Extensions
+                            .AsQueryable()
                             .OrderBy(x => x.CreatedAt).ThenBy(x => x.Id)
-                            .Select(x => new CheckingExerciseExtensionDto
-                            {
-                                Id = x.Id,
-                                EndDate = x.EndDate,
-                                CreatedAt = x.CreatedAt,
-                                CreatedBy = x.CreatedBy,
-                                RequestsSentAt = x.RequestsSentAt,
-                                Laestabs = x.Schools.Select(s => s.Laestab).OrderBy(l => l).ToList()
-                            })
+                            .Select(CheckingExerciseExtensionMapping.Projection)
                             .ToList()
                     })
                     .ToList()

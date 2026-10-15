@@ -82,6 +82,10 @@ jobs:
             # A closed pull request has had its review app deleted.
             [[ "$state" == "open" ]] || { echo "::error::Pull request $pr is $state"; exit 1; }
             [[ "$head_repo" == "$GH_REPO" ]] || { echo "::error::Pull request $pr is from a fork"; exit 1; }
+            # Newest first. A run that stood aside for a duplicate also passes, but deployed nothing.
+            run_ids=$(gh api --method GET "repos/$GH_REPO/actions/workflows/build-and-deploy.yml/runs" \
+              -f head_sha="$sha" -f event=pull_request \
+              --jq '.workflow_runs[] | select(.conclusion == "success") | .id') || true
           else
             # A pull request without the deploy label has no review app. Neither has a run that
             # was cancelled or failed before it deployed.
@@ -89,6 +93,7 @@ jobs:
               --jq '.jobs[] | select(.name == "Deployment To Review") | .conclusion')
             [[ "$deployed" == "success" ]] || stop "That run did not deploy a review app."
             sha="$DEPLOY_SHA"
+            run_ids="$DEPLOY_RUN_ID"
             # read fails when it is given nothing, which is what a closed or merged pull
             # request gives it. That is a reason to stop quietly, not for the step to fail.
             read -r pr author < <(gh api "repos/$GH_REPO/commits/$sha/pulls" \
@@ -105,11 +110,24 @@ jobs:
           done
           [[ -n "$url" ]] || stop "Pull request $pr has no review app deployed for $sha."
 
-          echo "Testing pull request $pr at $sha against $url"
+          # The tests must be the ones the review app was built with. Its build merged the pull
+          # request into main as main stood then, and recorded that commit. The merge ref is
+          # rebuilt whenever main moves, so it is only a fallback, for a deploy that predates the
+          # record.
+          ref="refs/pull/$pr/merge"
+          for id in $run_ids; do
+            gh run download "$id" --name review-app-commit --dir "$RUNNER_TEMP/review-app-commit-$id" 2>/dev/null || continue
+            built=$(tr -d '[:space:]' < "$RUNNER_TEMP/review-app-commit-$id/review-app-commit.txt")
+            [[ "$built" =~ ^[0-9a-f]{40}$ ]] && { ref="$built"; break; }
+          done
+          [[ "$ref" == refs/* ]] && echo "::warning::No record of the commit the review app was built from. Testing $ref."
+
+          echo "Testing pull request $pr at $sha (tests from $ref) against $url"
           {
             echo "found=true"
             echo "pr=$pr"
             echo "sha=$sha"
+            echo "ref=$ref"
             echo "url=$url"
             echo "author=$author"
           } >> "$GITHUB_OUTPUT"
@@ -136,11 +154,11 @@ jobs:
             gh api --method POST "repos/$GH_REPO/issues/$PR/comments" -F body=@comment.md --silent
           fi
 
-      # The review app was built from the pull request merged into main, so test that.
+      # The review app was built from the pull request merged into main, so test that commit.
       - uses: actions/checkout@v4
         if: steps.target.outputs.found == 'true'
         with:
-          ref: refs/pull/${{ steps.target.outputs.pr }}/merge
+          ref: ${{ steps.target.outputs.ref }}
           persist-credentials: false
 
       - uses: actions/setup-dotnet@v4

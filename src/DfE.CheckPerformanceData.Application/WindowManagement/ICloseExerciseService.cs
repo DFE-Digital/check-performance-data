@@ -53,6 +53,15 @@ public interface ICloseExerciseService
     /// <exception cref="InvalidOperationException">The exercise has no such extension.</exception>
     Task<CloseExerciseResult> CloseExtensionAsync(
         Guid windowId, Guid exerciseId, Guid extensionId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// <see cref="CloseAsync"/> for the named schools only (AB#307773 review, finding 2): the edit
+    /// of an extension removes a school after the exercise has closed, and its time is over at
+    /// once. Nothing is stamped. Ignores whether the exercise or any extension is open — the caller
+    /// decides, as for the other sweeps.
+    /// </summary>
+    Task<CloseExerciseResult> SweepSchoolsAsync(
+        Guid windowId, Guid exerciseId, IReadOnlyCollection<string> laestabs, CancellationToken cancellationToken);
 }
 
 /// <summary>Counts only — nothing is written to produce this.</summary>

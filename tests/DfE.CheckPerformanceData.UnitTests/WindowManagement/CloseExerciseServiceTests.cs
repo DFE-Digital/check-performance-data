@@ -413,4 +413,20 @@ public sealed class CloseExerciseServiceTests
             Arg.Is<SchoolFilter>(f => Is(f, SchoolFilterMode.Only, "9334290")), ct);
         await _extensions.DidNotReceiveWithAnyArgs().MarkRequestsSentAsync(default, default, default);
     }
+
+    [Fact]
+    public async Task Sweep_schools_takes_only_the_named_schools_and_stamps_nothing()
+    {
+        // Review finding 2: the extension edit sweeps a school it removed after the exercise closed.
+        Decided();
+        var ct = CancellationToken.None;
+
+        await _sut.SweepSchoolsAsync(WindowId, ExerciseId, ["8604070", "1111111"], ct);
+
+        await _repository.Received(1).GetDecidedRequestsForExerciseAsync(WindowId, ExerciseId,
+            Arg.Is<SchoolFilter>(f => Is(f, SchoolFilterMode.Only, "8604070", "1111111")), ct);
+        await _repository.Received(1).MarkDraftsNotSubmittedForExerciseAsync(WindowId, ExerciseId,
+            Arg.Is<SchoolFilter>(f => Is(f, SchoolFilterMode.Only, "8604070", "1111111")), ct);
+        await _extensions.DidNotReceiveWithAnyArgs().MarkRequestsSentAsync(default, default, default);
+    }
 }

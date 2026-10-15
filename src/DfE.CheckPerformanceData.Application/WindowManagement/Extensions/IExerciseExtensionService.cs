@@ -78,7 +78,14 @@ public sealed record ExtensionSaveResult(
     ExtensionSaveStatus Status,
     Guid? ExtensionId = null,
     DateTime? ExerciseEnd = null,
-    IReadOnlyList<ExtensionConflict>? Conflicts = null);
+    IReadOnlyList<ExtensionConflict>? Conflicts = null,
+    // Edit only: the schools the edit took out, digits. Empty when none.
+    IReadOnlyList<string>? RemovedSchools = null,
+    // What their sweep did, when the exercise had already closed by its own end (finding 2); null
+    // when the exercise still runs, nobody was removed, or the sweep failed.
+    CloseExerciseResult? RemovedSchoolsSwept = null,
+    // The edit is saved but the removed schools' sweep threw; the exercise's Send requests sends them.
+    bool RemovedSchoolsSweepFailed = false);
 
 /// <summary>What the admin is warned of before confirming an extension. Digits, in the order asked.</summary>
 public sealed record ExtensionWarnings(IReadOnlyList<string> LaestabsWithoutData, bool ExerciseHasNoRelease);

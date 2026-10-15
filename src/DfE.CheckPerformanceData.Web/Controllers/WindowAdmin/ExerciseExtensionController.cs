@@ -146,6 +146,18 @@ public sealed class ExerciseExtensionController(
             : null;
 
     /// <summary>"08/10/2026 17:00": how every extension date is quoted, on the same clock as the exercise's.</summary>
+    // Review finding 2: an edit that removed schools after the exercise's end swept them.
+    private static string RemovedSchoolsSentence(ExtensionSaveResult result)
+    {
+        var removed = result.RemovedSchools?.Count ?? 0;
+        if (result.RemovedSchoolsSweepFailed)
+            return $" The requests of {Pluralise(removed, "removed school")} could not be sent for processing: use Send requests for processing for the exercise.";
+        if (result.RemovedSchoolsSwept is not { } swept)
+            return string.Empty;
+        return $" The exercise has ended for {Pluralise(removed, "removed school")}: " +
+               $"{Pluralise(swept.Enqueued, "request")} sent for processing and {Pluralise(swept.DraftsCancelled, "draft")} cancelled.";
+    }
+
     internal static string Format(DateTime value) => value.ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture);
 
     internal static string Pluralise(int count, string noun) =>
@@ -210,7 +222,8 @@ public sealed class ExerciseExtensionController(
         {
             case ExtensionSaveStatus.Saved:
                 TempData[TempDataKey] =
-                    $"Extension {verb} for {Pluralise(laestabs.Count, "school")}, ending {Format(model.EndDateTime!.Value)}.";
+                    $"Extension {verb} for {Pluralise(laestabs.Count, "school")}, ending {Format(model.EndDateTime!.Value)}."
+                    + RemovedSchoolsSentence(result);
                 return Redirect(model.CancelLink);
 
             case ExtensionSaveStatus.EndDateNotAfterExercise:

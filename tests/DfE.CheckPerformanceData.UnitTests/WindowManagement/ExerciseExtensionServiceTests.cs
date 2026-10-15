@@ -1,7 +1,9 @@
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Application.WindowManagement.Extensions;
 using DfE.CheckPerformanceData.Domain.Enums;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.WindowManagement;
 
@@ -32,10 +34,12 @@ public sealed class ExerciseExtensionServiceTests
     private readonly IWindowRepository _windows = Substitute.For<IWindowRepository>();
     private readonly IExerciseExtensionRepository _extensions = Substitute.For<IExerciseExtensionRepository>();
     private readonly ICheckingDataReader _checkingData = Substitute.For<ICheckingDataReader>();
+    private readonly ICloseExerciseService _sweep = Substitute.For<ICloseExerciseService>();
     private readonly FixedTimeProvider _clock = new(NowUtc);
 
     private ExerciseExtensionService Sut() =>
-        new(_windows, _extensions, new CheckingExerciseService(_clock), _checkingData, _clock);
+        new(_windows, _extensions, new CheckingExerciseService(_clock), _checkingData, _sweep, _clock,
+            NullLogger<ExerciseExtensionService>.Instance);
 
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
     {
@@ -241,7 +245,8 @@ public sealed class ExerciseExtensionServiceTests
         var result = await Sut().EditAsync(
             XId, 0, Command(NextWeek, ["933/4290", "8604070"]), CancellationToken.None);
 
-        Assert.Equal(new ExtensionSaveResult(ExtensionSaveStatus.Saved, XId), result);
+        Assert.Equal(ExtensionSaveStatus.Saved, result.Status);
+        Assert.Equal(XId, result.ExtensionId);
         Assert.NotNull(written);
         Assert.Equal(WindowId, written.WindowId);
         Assert.Equal(ExerciseId, written.ExerciseId);
@@ -252,6 +257,71 @@ public sealed class ExerciseExtensionServiceTests
         Assert.Equal(["9334290", "8604070"], written.Laestabs);
         Assert.Equal(Actor, written.Actor);
         Assert.Equal(NowUtc.UtcDateTime, written.EditedAtUtc);
+    }
+
+
+    // ---- Removing a school after the exercise has closed (review finding 2) ----
+
+    [Fact]
+    public async Task A_school_removed_after_the_exercise_closed_is_swept_at_once()
+    {
+        // The exercise ended yesterday. X names 933/4290 and 860/4070; the edit keeps only the first.
+        WindowHolds(null, new CheckingExerciseExtensionDto { Id = XId, EndDate = Tomorrow, Laestabs = ["9334290", "8604070"] });
+        _extensions.UpdateAsync(Arg.Any<ExtensionEdit>(), Arg.Any<CancellationToken>()).Returns(true);
+        var swept = new CloseExerciseResult { Enqueued = 2, DraftsCancelled = 1 };
+        _sweep.SweepSchoolsAsync(WindowId, ExerciseId, Arg.Is<IReadOnlyCollection<string>>(l => l.SequenceEqual(new[] { "8604070" })), Arg.Any<CancellationToken>())
+            .Returns(swept);
+
+        var result = await Sut().EditAsync(XId, 0, Command(Tomorrow, ["933/4290"]), CancellationToken.None);
+
+        Assert.Equal(ExtensionSaveStatus.Saved, result.Status);
+        Assert.Equal(["8604070"], result.RemovedSchools);
+        Assert.Same(swept, result.RemovedSchoolsSwept);
+        Assert.False(result.RemovedSchoolsSweepFailed);
+    }
+
+    [Fact]
+    public async Task A_school_removed_while_the_exercise_still_runs_is_not_swept()
+    {
+        // The exercise's own sweep takes it when the exercise ends; nothing to do now.
+        var exercise = WindowHolds(null, new CheckingExerciseExtensionDto { Id = XId, EndDate = NextWeek, Laestabs = ["9334290", "8604070"] });
+        exercise.EndDate = Tomorrow;
+        _extensions.UpdateAsync(Arg.Any<ExtensionEdit>(), Arg.Any<CancellationToken>()).Returns(true);
+
+        var result = await Sut().EditAsync(XId, 0, Command(NextWeek, ["933/4290"]), CancellationToken.None);
+
+        Assert.Equal(ExtensionSaveStatus.Saved, result.Status);
+        Assert.Equal(["8604070"], result.RemovedSchools);
+        Assert.Null(result.RemovedSchoolsSwept);
+        await _sweep.DidNotReceiveWithAnyArgs().SweepSchoolsAsync(default, default, default!, default);
+    }
+
+    [Fact]
+    public async Task An_edit_that_removes_nobody_sweeps_nobody()
+    {
+        WindowHolds();
+        _extensions.UpdateAsync(Arg.Any<ExtensionEdit>(), Arg.Any<CancellationToken>()).Returns(true);
+
+        var result = await Sut().EditAsync(XId, 0, Command(NextWeek, ["933/4290", "1234567"]), CancellationToken.None);
+
+        Assert.Equal(ExtensionSaveStatus.Saved, result.Status);
+        Assert.Empty(result.RemovedSchools!);
+        await _sweep.DidNotReceiveWithAnyArgs().SweepSchoolsAsync(default, default, default!, default);
+    }
+
+    [Fact]
+    public async Task A_removed_schools_sweep_that_fails_leaves_the_edit_saved_and_says_so()
+    {
+        WindowHolds(null, new CheckingExerciseExtensionDto { Id = XId, EndDate = Tomorrow, Laestabs = ["9334290", "8604070"] });
+        _extensions.UpdateAsync(Arg.Any<ExtensionEdit>(), Arg.Any<CancellationToken>()).Returns(true);
+        _sweep.SweepSchoolsAsync(default, default, default!, default)
+            .ThrowsAsyncForAnyArgs(new InvalidOperationException("queue down"));
+
+        var result = await Sut().EditAsync(XId, 0, Command(Tomorrow, ["933/4290"]), CancellationToken.None);
+
+        Assert.Equal(ExtensionSaveStatus.Saved, result.Status);
+        Assert.True(result.RemovedSchoolsSweepFailed);
+        Assert.Null(result.RemovedSchoolsSwept);
     }
 
     [Fact]

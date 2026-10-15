@@ -492,6 +492,36 @@ public sealed class ExerciseExtensionControllerTests
     }
 
     [Fact]
+    public async Task Update_post_that_swept_removed_schools_says_so_in_the_banner()
+    {
+        _extensions.EditAsync(OpenExtensionId, Arg.Any<int>(), Arg.Any<ExtensionCommand>(), Arg.Any<CancellationToken>())
+            .Returns(new ExtensionSaveResult(ExtensionSaveStatus.Saved, OpenExtensionId,
+                RemovedSchools: ["8604070"], RemovedSchoolsSwept: new CloseExerciseResult { Enqueued = 2, DraftsCancelled = 1 }));
+
+        var controller = Build();
+        await controller.Update(WindowId, ExerciseId, OpenExtensionId, EditForm("933/4290"), CancellationToken.None);
+
+        Assert.Equal(
+            "Extension updated for 1 school, ending 09/10/2026 17:00. The exercise has ended for 1 removed school: 2 requests sent for processing and 1 draft cancelled.",
+            controller.TempData[ExerciseExtensionController.TempDataKey]);
+    }
+
+    [Fact]
+    public async Task Update_post_whose_removed_schools_sweep_failed_says_the_edit_is_saved_and_what_to_press()
+    {
+        _extensions.EditAsync(OpenExtensionId, Arg.Any<int>(), Arg.Any<ExtensionCommand>(), Arg.Any<CancellationToken>())
+            .Returns(new ExtensionSaveResult(ExtensionSaveStatus.Saved, OpenExtensionId,
+                RemovedSchools: ["8604070"], RemovedSchoolsSweepFailed: true));
+
+        var controller = Build();
+        await controller.Update(WindowId, ExerciseId, OpenExtensionId, EditForm("933/4290"), CancellationToken.None);
+
+        Assert.Equal(
+            "Extension updated for 1 school, ending 09/10/2026 17:00. The requests of 1 removed school could not be sent for processing: use Send requests for processing for the exercise.",
+            controller.TempData[ExerciseExtensionController.TempDataKey]);
+    }
+
+    [Fact]
     public async Task Update_post_changed_by_someone_else_goes_back_with_a_neutral_banner()
     {
         _extensions.EditAsync(OpenExtensionId, Arg.Any<int>(), Arg.Any<ExtensionCommand>(), Arg.Any<CancellationToken>())

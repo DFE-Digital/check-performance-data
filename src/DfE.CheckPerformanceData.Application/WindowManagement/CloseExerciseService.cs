@@ -104,6 +104,10 @@ public sealed class CloseExerciseService(
         };
     }
 
+    public Task<CloseExerciseResult> SweepSchoolsAsync(
+        Guid windowId, Guid exerciseId, IReadOnlyCollection<string> laestabs, CancellationToken cancellationToken) =>
+        SweepAsync(windowId, exerciseId, SchoolFilter.Only(laestabs), cancellationToken);
+
     private async Task<CloseExerciseResult> SweepAsync(
         Guid windowId, Guid exerciseId, SchoolFilter schools, CancellationToken cancellationToken)
     {

@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.Dashboard;
 using DfE.CheckPerformanceData.Domain.Enums;
+using Microsoft.Extensions.Logging;
 
 namespace DfE.CheckPerformanceData.Application.WindowManagement.Extensions;
 
@@ -19,7 +20,9 @@ public sealed class ExerciseExtensionService(
     IExerciseExtensionRepository extensions,
     ICheckingExerciseService checkingExercises,
     ICheckingDataReader checkingData,
-    TimeProvider timeProvider) : IExerciseExtensionService
+    ICloseExerciseService sweep,
+    TimeProvider timeProvider,
+    ILogger<ExerciseExtensionService> logger) : IExerciseExtensionService
 {
     public async Task<ExtensionWarnings> FindSchoolsWithoutDataAsync(
         Guid windowId, Guid exerciseId, IReadOnlyList<string> laestabs, CancellationToken ct)
@@ -95,9 +98,29 @@ public sealed class ExerciseExtensionService(
 
         // False means the version moved after the admin read it: another edit, a second press, or
         // an early close. This edit would overwrite what they did not see, so nothing is written.
-        return written
-            ? new ExtensionSaveResult(ExtensionSaveStatus.Saved, extensionId)
-            : new ExtensionSaveResult(ExtensionSaveStatus.Stale);
+        if (!written) return new ExtensionSaveResult(ExtensionSaveStatus.Stale);
+
+        // A school taken out after the exercise's own end has no extra time left: the exercise's
+        // sweep already ran, and after its catch-up day nothing automatic runs again (review
+        // finding 2). So the edit sweeps the removed schools itself. While the exercise still runs,
+        // the exercise's own sweep takes them when it ends.
+        var removed = extension.Laestabs.Except(digits).ToList();
+        if (removed.Count == 0 || !checkingExercises.HasClosed(exercise))
+            return new ExtensionSaveResult(ExtensionSaveStatus.Saved, extensionId, RemovedSchools: removed);
+
+        try
+        {
+            var swept = await sweep.SweepSchoolsAsync(command.WindowId, command.ExerciseId, removed, ct);
+            return new ExtensionSaveResult(ExtensionSaveStatus.Saved, extensionId, RemovedSchools: removed, RemovedSchoolsSwept: swept);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // The edit is committed; the sweep is repeatable from the exercise's Send page. Ids only.
+            logger.LogError(ex,
+                "Sweep of {Count} school(s) removed from extension {ExtensionId} of exercise {ExerciseId} (window {WindowId}) failed.",
+                removed.Count, extensionId, command.ExerciseId, command.WindowId);
+            return new ExtensionSaveResult(ExtensionSaveStatus.Saved, extensionId, RemovedSchools: removed, RemovedSchoolsSweepFailed: true);
+        }
     }
 
     public async Task<EarlyClosureResult> CloseEarlyAsync(

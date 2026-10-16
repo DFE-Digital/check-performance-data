@@ -483,6 +483,32 @@ public sealed class AccessibilityAuditViewTests
 		Assert.Matches("<input[^>]*id=\"fileUpload\"[^>]*name=\"fileUpload\"[^>]*type=\"file\"", view);
 	}
 
+	[Theory]
+	[InlineData("Views/Admin/Rules/Upload.cshtml", "file")]
+	[InlineData("Views/ContentStaging/Index.cshtml", "bundle")]
+	public void AdminFileInputs_UseTheJavaScriptEnhancedFileUpload(string relativePath, string id)
+	{
+		// #380 is "believed to be global": every raw file input gets the same wrapper, and keeps
+		// its label (the module throws without label[for=id]) and its hint description.
+		var view = ReadView(relativePath.Split('/'));
+
+		Assert.Matches(
+			"<div class=\"govuk-file-upload-wrapper\" data-module=\"govuk-file-upload\">\\s*<input class=\"govuk-file-upload\"[^>]*id=\"" + id + "\"",
+			view);
+		Assert.Contains("for=\"" + id + "\"", view);
+	}
+
+	[Fact]
+	public void SchemaUpload_TagHelper_TurnsOnTheJavaScriptEnhancements()
+	{
+		// The tag helper renders the same wrapper when asked; the default is the app-wide
+		// GovUkFrontendOptions.DefaultFileUploadJavaScriptEnhancements, which is left false so a
+		// future tag-helper upload opts in deliberately and gets its scripts checked (see #380).
+		var view = ReadView("Views", "WindowAdmin", "Schema.cshtml");
+
+		Assert.Matches("<govuk-file-upload[^>]*javascript-enhancements=\"true\"", view);
+	}
+
 	// ── #388 "Disclosure triangle" announced on expandable sections ───────────────────
 
 	[Theory]

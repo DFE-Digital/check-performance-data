@@ -29,7 +29,10 @@ public sealed class ExerciseExtensionRepository(PortalDbContext dbContext) : IEx
             return await dbContext.ExecuteInTransactionAsync(async () =>
             {
                 // The execution strategy may run this delegate again after a transient failure; rows
-                // still tracked from the failed attempt would then be saved twice.
+                // still tracked from the failed attempt would then be saved twice. Clearing is safe
+                // because the context is the request's own and every caller holds DTOs, not tracked
+                // entities; a caller that joined these writes to a transaction of its own would lose
+                // its tracked changes here, and none does. The same holds at each Clear() below.
                 dbContext.ChangeTracker.Clear();
 
                 var entity = new CheckingExerciseExtension

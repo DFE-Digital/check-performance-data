@@ -214,6 +214,27 @@ public sealed class ExerciseExtensionTests(PlaywrightFixture fixture) : SeedingP
             .ToBeVisibleAsync();
     }
 
+    [Fact]
+    public async Task The_extension_form_with_errors_has_no_axe_violations()
+    {
+        // The hour and minute inputs are hand-rolled inside a fieldset, and the schools box is plain
+        // markup rather than the tag helper; both carry an error here so the error summary, the
+        // inline messages and their aria-describedby links are all on the page when axe runs.
+        string title = $"E2E Ext {Guid.NewGuid():N}"[..20];
+        await CreateOpenKs4WindowAsync(title);
+
+        await Button(AddExtensionButton).ClickAsync();
+        await Expect(Page.Locator("h1")).ToHaveTextAsync($"Add an extension to {Exercise}");
+
+        await Page.FillAsync("input[name='EndHour']", "25");
+        await Page.FillAsync("#Schools", "abc");
+        await Button("Save extension").ClickAsync();
+        await Expect(Page.Locator("#Schools-error")).ToBeVisibleAsync();
+        await Expect(Page.Locator(".govuk-error-summary")).ToHaveCountAsync(1);
+
+        await AxeChecks.ExpectNoViolationsAsync(Page, "extension form with errors");
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────
 
     // From the new window's summary: a bad line is refused, then two good schools — neither has a

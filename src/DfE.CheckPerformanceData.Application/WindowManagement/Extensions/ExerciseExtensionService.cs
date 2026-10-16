@@ -149,6 +149,9 @@ public sealed class ExerciseExtensionService(
 
         if (!checkingExercises.IsOpen(extension)) return EarlyClosureResult.NotOpen;
 
+        // Local, not UTC: extension dates are UK wall-clock values like the exercise dates, and the
+        // registered TimeProvider is the UK clock (#535), so this is the same clock IsOpen compared
+        // the extension against above. The audit stamp below is UTC, like every audit row.
         DateTime closedAt = ToTheSecond(timeProvider.GetLocalNow().DateTime);
 
         bool written = await extensions.CloseEarlyAsync(new ExtensionEarlyClosure
@@ -169,6 +172,9 @@ public sealed class ExerciseExtensionService(
         // closed or edited it. Either way this press closed nothing.
         return written ? EarlyClosureResult.Closed(closedAt, extension.EndDate) : EarlyClosureResult.NotOpen;
     }
+
+    public Task RecordRequestsSentAsync(ExtensionRequestsSent record, CancellationToken ct) =>
+        extensions.RecordRequestsSentAsync(record, ct);
 
     // The exercise only when the window holds it and it has a kind: a data share has no journey,
     // so there is no time to extend.

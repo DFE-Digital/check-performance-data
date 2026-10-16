@@ -620,4 +620,18 @@ public sealed class ExerciseExtensionServiceTests
 
         Assert.Equal(EarlyClosureStatus.NotOpen, result.Status);
     }
+
+    [Fact]
+    public async Task Recording_a_send_writes_the_row_as_given()
+    {
+        var record = new ExtensionRequestsSent
+        {
+            WindowId = WindowId, ExerciseId = ExerciseId, Exercise = CheckingExerciseType.PupilData, ExtensionId = XId,
+            ExtensionEnd = Tomorrow, RequestsSent = 3, DraftsCancelled = 1, Actor = Actor, SentAtUtc = NowUtc.UtcDateTime
+        };
+
+        await Sut().RecordRequestsSentAsync(record, CancellationToken.None);
+
+        await _extensions.Received(1).RecordRequestsSentAsync(record, Arg.Any<CancellationToken>());
+    }
 }

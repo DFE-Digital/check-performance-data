@@ -1,11 +1,7 @@
 using System.Runtime.InteropServices;
-using System.Text;
-using Deque.AxeCore.Commons;
-using Deque.AxeCore.Playwright;
 using DfE.CheckPerformanceData.E2ETests.Fixtures;
 using DfE.CheckPerformanceData.E2ETests.Helpers;
 using Microsoft.Playwright;
-using Newtonsoft.Json;
 
 namespace DfE.CheckPerformanceData.E2ETests.Admin;
 
@@ -49,41 +45,12 @@ public sealed class AdminAccessibilityTests(PlaywrightFixture fixture) : Seeding
             await Page.Locator("#main-content").First.WaitForAsync(
                 new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
 
-            var results = await Page.RunAxe(new AxeRunOptions
-            {
-                RunOnly = new RunOnlyOptions
-                {
-                    Type = "tag",
-                    Values = new List<string> { "wcag2a", "wcag2aa", "wcag21a", "wcag21aa" },
-                },
-            });
-
-            Assert.True(results.Violations.Length == 0, DescribeViolations(path, results.Violations));
+            await AxeChecks.ExpectNoViolationsAsync(Page, path);
         }
         finally
         {
             await AuthHelpers.ImpersonateAsEditorAsync(Fixture);
         }
-    }
-
-    private static string DescribeViolations(string path, AxeResultItem[] violations)
-    {
-        var sb = new StringBuilder();
-        sb.Append(violations.Length).Append(" axe violation(s) on ").Append(path).Append(':').AppendLine();
-
-        foreach (var violation in violations)
-        {
-            sb.Append("  - ").Append(violation.Id)
-              .Append(" (impact: ").Append(violation.Impact ?? "unknown")
-              .Append(", nodes: ").Append(violation.Nodes.Length).Append(')').AppendLine();
-
-            foreach (var node in violation.Nodes.Take(2))
-            {
-                sb.Append("      target: ").Append(JsonConvert.SerializeObject(node.Target)).AppendLine();
-            }
-        }
-
-        return sb.ToString();
     }
 
     private void AttachCookieToContext(string? cookieHeader)

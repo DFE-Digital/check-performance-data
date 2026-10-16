@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.WindowManagement;
+using DfE.CheckPerformanceData.Application.WindowManagement.Extensions;
 using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
@@ -26,7 +27,7 @@ namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 [RequireAdminSection(AdminNavKeys.ManageWindow)]
 public sealed class SendExtensionRequestsController(
     ICloseExerciseService closeService,
-    IExerciseExtensionRepository extensions,
+    IExerciseExtensionService extensions,
     IWindowService windowService,
     ICheckingExerciseService checkingExercises,
     ICurrentUserService currentUser,

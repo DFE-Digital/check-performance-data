@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.WindowManagement;
+using DfE.CheckPerformanceData.Application.WindowManagement.Extensions;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
 using DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
@@ -27,7 +28,7 @@ public sealed class SendExtensionRequestsControllerTests
     private static readonly DateTime ClosedExtensionEnd = new(2026, 9, 30, 17, 0, 0);
 
     private readonly ICloseExerciseService _closeService = Substitute.For<ICloseExerciseService>();
-    private readonly IExerciseExtensionRepository _repository = Substitute.For<IExerciseExtensionRepository>();
+    private readonly IExerciseExtensionService _extensions = Substitute.For<IExerciseExtensionService>();
     private readonly IWindowService _windowService = Substitute.For<IWindowService>();
     private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
 
@@ -89,7 +90,7 @@ public sealed class SendExtensionRequestsControllerTests
     {
         var clock = new FixedTimeProvider(Now);
         var controller = new SendExtensionRequestsController(
-            _closeService, _repository, _windowService, new CheckingExerciseService(clock), _currentUser, clock,
+            _closeService, _extensions, _windowService, new CheckingExerciseService(clock), _currentUser, clock,
             NullLogger<SendExtensionRequestsController>.Instance)
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
@@ -101,7 +102,7 @@ public sealed class SendExtensionRequestsControllerTests
     private async Task NothingWasSent()
     {
         await _closeService.DidNotReceiveWithAnyArgs().CloseExtensionAsync(default, default, default, default);
-        await _repository.DidNotReceiveWithAnyArgs().RecordRequestsSentAsync(default!, default);
+        await _extensions.DidNotReceiveWithAnyArgs().RecordRequestsSentAsync(default!, default);
     }
 
     private static void AssertRefusedNotClosed(Controller controller, IActionResult result)
@@ -215,9 +216,9 @@ public sealed class SendExtensionRequestsControllerTests
         Received.InOrder(() =>
         {
             _closeService.CloseExtensionAsync(WindowId, ExerciseId, ClosedExtensionId, Arg.Any<CancellationToken>());
-            _repository.RecordRequestsSentAsync(Arg.Any<ExtensionRequestsSent>(), Arg.Any<CancellationToken>());
+            _extensions.RecordRequestsSentAsync(Arg.Any<ExtensionRequestsSent>(), Arg.Any<CancellationToken>());
         });
-        await _repository.Received(1).RecordRequestsSentAsync(
+        await _extensions.Received(1).RecordRequestsSentAsync(
             Arg.Is<ExtensionRequestsSent>(r =>
                 r.WindowId == WindowId && r.ExerciseId == ExerciseId
                 && r.Exercise == CheckingExerciseType.PupilData
@@ -270,7 +271,7 @@ public sealed class SendExtensionRequestsControllerTests
             "The extension's requests could not be sent for processing. Select Send requests for processing to try again.",
             controller.TempData[SendExerciseRequestsController.RefusedTempDataKey]);
         Assert.Null(controller.TempData[CloseExerciseController.TempDataKey]);
-        await _repository.DidNotReceiveWithAnyArgs().RecordRequestsSentAsync(default!, default);
+        await _extensions.DidNotReceiveWithAnyArgs().RecordRequestsSentAsync(default!, default);
     }
 
     [Fact]
@@ -278,7 +279,7 @@ public sealed class SendExtensionRequestsControllerTests
     {
         // The requests have gone and cannot be recalled: an error page would have the admin send
         // again. The row is written on its own token, so a closed browser cannot abandon it.
-        _repository.RecordRequestsSentAsync(Arg.Any<ExtensionRequestsSent>(), Arg.Any<CancellationToken>())
+        _extensions.RecordRequestsSentAsync(Arg.Any<ExtensionRequestsSent>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromException(new InvalidOperationException("database unavailable")));
         using var request = new CancellationTokenSource();
 
@@ -291,7 +292,7 @@ public sealed class SendExtensionRequestsControllerTests
             "3 requests sent for processing and 1 draft cancelled for the extension of Autumn pupil data.",
             controller.TempData[CloseExerciseController.TempDataKey]);
         Assert.Null(controller.TempData[SendExerciseRequestsController.RefusedTempDataKey]);
-        await _repository.Received(1).RecordRequestsSentAsync(Arg.Any<ExtensionRequestsSent>(), CancellationToken.None);
+        await _extensions.Received(1).RecordRequestsSentAsync(Arg.Any<ExtensionRequestsSent>(), CancellationToken.None);
     }
 
     [Fact]

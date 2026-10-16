@@ -35,6 +35,14 @@ public interface IExerciseExtensionService
     /// </summary>
     Task<EarlyClosureResult> CloseEarlyAsync(
         Guid windowId, Guid exerciseId, Guid extensionId, ExtensionActor actor, CancellationToken ct);
+
+    /// <summary>
+    /// Writes the audit row for an admin's Send requests on a closed extension: what the sweep
+    /// sent and cancelled, by whom and when. The sweep itself is <see cref="ICloseExerciseService.CloseExtensionAsync"/>,
+    /// which stamps the extension sent; this row is the record of it. Written after the sweep, in
+    /// its own transaction, so a failure here never undoes a send.
+    /// </summary>
+    Task RecordRequestsSentAsync(ExtensionRequestsSent record, CancellationToken ct);
 }
 
 /// <summary>An add or edit of an extension. <see cref="Laestabs"/> may be in either form; it is stored as digits.</summary>

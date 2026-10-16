@@ -26,7 +26,7 @@ try
     builder.Services
         .AddCpdSettings(configuration)
         .AddDfeApiClient(builder.Configuration)
-        .AddDfeSignInAuthentication(builder.Configuration)
+        .AddDfeSignInAuthentication(builder.Configuration, builder.Environment)
         .AddCpdGovUkFrontend()
         .AddPersistenceDependencies(configuration)
         .AddApplicationDependencies()

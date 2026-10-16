@@ -1,6 +1,7 @@
 using DfE.CheckPerformanceData.Application.ContentStaging;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -14,7 +15,18 @@ public static class CoreWebExtensions
         builder.Services.Configure<ForwardedHeadersOptions>(options =>
         {
             options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
+
+            // The ingress is the only path a request can take to reach a pod, so the framework's
+            // own "is the immediate peer a trusted proxy?" check is not just redundant, it is
+            // wrong here: the ingress is not loopback, so with either trust list left non-empty
+            // the edge's X-Forwarded-Proto and X-Forwarded-Host are discarded and Request.IsHttps
+            // stays false inside the pod. That dropped header is what produced http:// redirect
+            // URIs and cookies without the Secure flag. Trust every peer - which is sound exactly
+            // while the network guarantees the only path in is the edge - and revisit this the
+            // moment pods become directly reachable (e.g. a Service exposing them without the
+            // ingress in front), because then a client could forge the headers.
             options.KnownProxies.Clear();
+            options.KnownNetworks.Clear();
         });
 
         builder.Services.AddHttpContextAccessor();
@@ -22,16 +34,15 @@ public static class CoreWebExtensions
         builder.Services.AddAntiforgery(options =>
         {
             options.HeaderName = "X-XSRF-TOKEN";
-            // Cookie.SecurePolicy is deliberately left at its default. Setting it to Always
-            // outside development looks like the obvious counterpart to the session cookie, but
-            // the antiforgery system does not merely mark the cookie: DefaultAntiforgery
-            // .CheckSSLConfig throws when the policy is Always and the request is not HTTPS, and
-            // _Layout mints a token on every page render. Deployed pods sit behind a
-            // TLS-terminating ingress and receive plain HTTP, and UseForwardedHeaders does not
-            // correct Request.IsHttps here because KnownProxies.Clear() above leaves
-            // KnownNetworks at its loopback default, so the ingress's X-Forwarded-Proto is
-            // dropped. The result is a 500 on every page. Securing this cookie has to wait for
-            // the forwarded-headers trust boundary to be decided.
+
+            // Now that the ingress's X-Forwarded-Proto is trusted (above), Request.IsHttps is
+            // true on a deployed pod, so the antiforgery cookie can carry Secure outside
+            // Development. It stays SameAsRequest in Development, where the local stack runs over
+            // plain HTTP and DefaultAntiforgery.CheckSSLConfig would otherwise reject the token
+            // that every page with a form mints.
+            options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+                ? CookieSecurePolicy.SameAsRequest
+                : CookieSecurePolicy.Always;
         });
 
         // Setting to null to allow controller-level request size limits.

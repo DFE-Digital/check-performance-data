@@ -75,8 +75,9 @@ public enum ExtensionSaveStatus
     /// most one. <see cref="ExtensionSaveResult.Conflicts"/> names each.</summary>
     SchoolInAnotherExtension,
 
-    /// <summary>The extension's end date changed since the admin read it, or the write lost a race to
-    /// the unique index and a fresh read finds nothing to refuse. Nothing was written.</summary>
+    /// <summary>The extension changed since the admin read it (its version moved), or the write
+    /// lost a race to the unique index and a fresh read finds nothing to refuse. Nothing was
+    /// written.</summary>
     Stale
 }
 

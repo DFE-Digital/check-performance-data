@@ -294,7 +294,7 @@ public sealed class CloseExerciseServiceTests
     [Fact]
     public async Task An_extension_held_back_by_the_filter_is_not_stamped_even_if_it_closes_during_the_sweep()
     {
-        // Final review F1: the held set and the stamp set come from one reading of the clock, taken
+        // The held set and the stamp set come from one reading of the clock, taken
         // before the sweep. A ends (tomorrow 23:59:59) while the sweep runs; its school was left out
         // of the sweep, so stamping it "Requests sent" would be wrong. B, closed at the start, is
         // still stamped.

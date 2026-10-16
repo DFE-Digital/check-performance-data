@@ -385,7 +385,8 @@ public sealed class EditCheckingExerciseControllerTests
     }
 
     // AB#307773: the edit rebuilds the exercise DTO, so the extensions must be carried across or
-    // the save would lose them. They stay out of the window's own end, which is the exercises' latest end alone.
+    // the save would lose them. They stay out of the window's own end, which is the exercises'
+    // latest end alone.
     [Fact]
     public async Task Update_passes_the_exercise_extensions_through_to_the_window_service()
     {

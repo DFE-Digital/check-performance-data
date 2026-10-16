@@ -230,6 +230,7 @@ public sealed class ExerciseExtensionTests(PlaywrightFixture fixture) : SeedingP
         await Page.FillAsync("#Schools", "abc");
         await Button("Save extension").ClickAsync();
         await Expect(Page.Locator("#Schools-error")).ToBeVisibleAsync();
+        await Expect(Page.Locator("#EndHour-error")).ToBeVisibleAsync();
         await Expect(Page.Locator(".govuk-error-summary")).ToHaveCountAsync(1);
 
         await AxeChecks.ExpectNoViolationsAsync(Page, "extension form with errors");

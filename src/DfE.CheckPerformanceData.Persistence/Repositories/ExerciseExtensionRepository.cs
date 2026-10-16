@@ -68,6 +68,9 @@ public sealed class ExerciseExtensionRepository(PortalDbContext dbContext) : IEx
         {
             // The transaction has rolled back, so the extension, its schools and its audit row are
             // all gone; the service reads again and tells the admin which school and which extension.
+            // The rows of the failed attempt are dropped from the context too, so nothing of it can
+            // be saved by a later call on this scope.
+            dbContext.ChangeTracker.Clear();
             throw new ExtensionSchoolTakenException(ex);
         }
     }
@@ -131,7 +134,10 @@ public sealed class ExerciseExtensionRepository(PortalDbContext dbContext) : IEx
         {
             // Rolled back with the version bump, so the admin's next attempt posts a version that still
             // matches. The school rows and the audit row are gone too; the service reads again and
-            // tells the admin which school and which extension.
+            // tells the admin which school and which extension. The rows of the failed attempt are
+            // dropped from the context too, so nothing of it can be saved by a later call on this
+            // scope.
+            dbContext.ChangeTracker.Clear();
             throw new ExtensionSchoolTakenException(ex);
         }
     }

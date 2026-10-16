@@ -224,8 +224,9 @@ public sealed class ExerciseExtensionService(
     // The unique index refused the write: another admin's add or edit took one of these schools
     // between this call's read and its write. Read again so the admin is told which school and which
     // extension, exactly as the check before the write would have said. If nothing conflicts any
-    // more (the competing extension has gone again), nothing the admin typed is wrong and nothing was
-    // written, so they go back to the summary as an edit that lost a race does.
+    // more (another admin's edit took the school out again between the failed write and this read),
+    // nothing the admin typed is wrong and nothing was written, so they go back to the summary as
+    // an edit that lost a race does.
     private async Task<ExtensionSaveResult> LostRaceAsync(
         ExtensionCommand command, Guid? extensionId, IReadOnlyList<string> digits, CancellationToken ct)
     {

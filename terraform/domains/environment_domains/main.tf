@@ -13,4 +13,5 @@ module "domains" {
   rate_limit          = local.source_ip_rules
   allow_aks           = var.allow_aks
   block_ip            = var.block_ip
+  dont_block_nonprod  = var.restrict_source_ips
 }

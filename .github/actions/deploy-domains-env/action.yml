@@ -1,0 +1,67 @@
+name: Deploy domains environment
+description: Apply domain configuration with an explicit external health-check switch
+inputs:
+  azure-client-id:
+    required: true
+    description: Azure client ID
+  azure-tenant-id:
+    required: true
+    description: Azure tenant ID
+  azure-subscription-id:
+    required: true
+    description: Azure subscription ID
+  environment:
+    required: true
+    description: Environment to deploy
+  healthcheck:
+    default: healthcheck
+    description: External health-check path
+  skip-healthcheck:
+    default: 'false'
+    description: Skip the public check when runner access is intentionally restricted
+  teams-webhook-url:
+    required: false
+    description: Deployment notification webhook
+  service:
+    required: false
+    description: Service name for notifications
+runs:
+  using: composite
+  steps:
+    - name: Read Terraform version
+      shell: bash
+      run: |
+        terraform_version=$(awk '/{/{f=/^terraform/;next}f' terraform/domains/environment_domains/terraform.tf | grep -o '[0-9\.]\+')
+        echo "TERRAFORM_VERSION=$terraform_version" >> "$GITHUB_ENV"
+    - uses: hashicorp/setup-terraform@v4
+      with:
+        terraform_version: ${{ env.TERRAFORM_VERSION }}
+        terraform_wrapper: false
+    - uses: DFE-Digital/github-actions/set-arm-environment-variables@master
+      with:
+        azure-client-id: ${{ inputs.azure-client-id }}
+        azure-tenant-id: ${{ inputs.azure-tenant-id }}
+        azure-subscription-id: ${{ inputs.azure-subscription-id }}
+    - name: Apply domains
+      shell: bash
+      env:
+        DOMAIN_ENVIRONMENT: ${{ inputs.environment }}
+      run: make ci "$DOMAIN_ENVIRONMENT" domains-apply
+    - name: Check external health
+      if: inputs.skip-healthcheck != 'true'
+      shell: bash
+      env:
+        HEALTHCHECK_PATH: ${{ inputs.healthcheck }}
+      run: |
+        external_urls=$(terraform -chdir=terraform/domains/environment_domains output -json external_urls | jq -r '.[]')
+        for url in $external_urls; do
+          curl --silent --show-error --fail "$url/$HEALTHCHECK_PATH" > /dev/null
+        done
+    - name: Notify on failure
+      if: failure() && inputs.teams-webhook-url != ''
+      uses: DFE-Digital/github-actions/send-to-teams-channel@master
+      with:
+        teams-webhook-url: ${{ inputs.teams-webhook-url }}
+        title: Deploy domains env
+        service: ${{ inputs.service }}
+        message: Failure deploying domains environment to ${{ inputs.environment }}

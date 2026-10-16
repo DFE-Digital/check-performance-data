@@ -33,8 +33,26 @@ variable "allowed_source_ips" {
   nullable    = false
 
   validation {
-    condition     = length(var.allowed_source_ips) <= 17 && alltrue([for cidr in var.allowed_source_ips : can(cidrhost(cidr, 0))])
-    error_message = "Supply at most 17 valid public IPv4/IPv6 CIDRs. Use /32 for individual IPv4 addresses or /128 for IPv6."
+    condition = length(var.allowed_source_ips) <= 17 && alltrue([
+      for cidr in var.allowed_source_ips : try(
+        cidrhost(cidr, 0) == split("/", cidr)[0] &&
+        length(split("/", cidr)) == 2 &&
+        (strcontains(cidr, ":") ? (
+          cidrhost("${split("/", cidr)[0]}/3", 0) == "2000::" &&
+          tonumber(split("/", cidr)[1]) >= 3 &&
+          alltrue([
+            for excluded in local.excluded_source_ipv6_cidrs :
+            cidrhost("${split("/", cidr)[0]}/${min(tonumber(split("/", cidr)[1]), tonumber(split("/", excluded)[1]))}", 0) !=
+            cidrhost("${split("/", excluded)[0]}/${min(tonumber(split("/", cidr)[1]), tonumber(split("/", excluded)[1]))}", 0)
+          ])
+          ) : alltrue([
+            for excluded in local.excluded_source_ipv4_cidrs :
+            cidrhost("${split("/", cidr)[0]}/${min(tonumber(split("/", cidr)[1]), tonumber(split("/", excluded)[1]))}", 0) !=
+            cidrhost("${split("/", excluded)[0]}/${min(tonumber(split("/", cidr)[1]), tonumber(split("/", excluded)[1]))}", 0)
+        ])), false
+      )
+    ])
+    error_message = "Supply at most 17 canonical public-unicast IPv4/IPv6 network CIDRs. Special-purpose ranges are excluded. Use /32 or /128 for individual addresses."
   }
 }
 

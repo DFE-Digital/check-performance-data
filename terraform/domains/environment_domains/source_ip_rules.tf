@@ -1,7 +1,6 @@
 locals {
-  # Built-in priorities: blockIP=5, AKS=10, blockNonUK=20, rate limit=100.
-  # Allowlisted sources must be evaluated before the geographic block.
-  source_ip_priorities = [1, 2, 3, 4, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+  # Preserve the emergency block (5) and rate limit (100). Development's
+  # source restriction replaces the module's nonproduction geographic rule.
 
   # The upstream module expects one scalar match_values value per rule and
   # unconditionally reads duration/limit, even for MatchRule entries.
@@ -10,11 +9,11 @@ locals {
     # shared module uses the rule list length in its resource count expression.
     for index in range(nonsensitive(length(var.allowed_source_ips))) : {
       agent          = "AllowSource${index + 1}"
-      priority       = local.source_ip_priorities[index % length(local.source_ip_priorities)]
+      priority       = 101 + index
       enabled        = true
       type           = "MatchRule"
       action         = "Allow"
-      match_variable = "RemoteAddr"
+      match_variable = "SocketAddr"
       operator       = "IPMatch"
       match_values   = var.allowed_source_ips[index]
       selector       = ""
@@ -28,7 +27,7 @@ locals {
       enabled        = true
       type           = "MatchRule"
       action         = "Block"
-      match_variable = "RemoteAddr"
+      match_variable = "SocketAddr"
       operator       = "IPMatch"
       match_values   = cidr
       selector       = ""

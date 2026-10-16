@@ -125,7 +125,7 @@ public sealed class PageTreeAdminController(
     public async Task<IActionResult> Create(Guid? parentId, string? pageType, string? segment, string? title)
     {
         pageType ??= string.Empty;
-        segment ??= string.Empty;
+        segment = PageSegment.Normalise(segment);
         title ??= string.Empty;
 
         if (pageType is not ("content" or "wiki" or "folder"))
@@ -403,7 +403,7 @@ public sealed class PageTreeAdminController(
         {
             RenameNodeResult.Ok              => "Saved.",
             RenameNodeResult.NotFound        => "Page not found.",
-            RenameNodeResult.InvalidSegment  => "URL segment must not be empty and cannot contain '/'.",
+            RenameNodeResult.InvalidSegment  => "URL segment can only contain lowercase letters, numbers and single hyphens, for example my-page.",
             RenameNodeResult.PathConflict    => "Another page already uses that URL.",
             _                                => null
         };

@@ -25,6 +25,14 @@ public sealed class SendRequestsViewSourceTests
         Assert.Contains("There is nothing to send yet.", view);
     }
 
+    [Fact]
+    public void The_page_says_when_an_open_extension_holds_schools_back()
+    {
+        var view = View();
+        Assert.Contains("@if (Model.HasOpenExtensions)", view);
+        Assert.Contains("Schools in an open extension keep their extra time, so their requests are not sent now.", view);
+    }
+
     private static string RepoRoot => Path.GetFullPath(Path.Combine(
         Path.GetDirectoryName(ThisFilePath())!, "..", "..", "..", ".."));
 

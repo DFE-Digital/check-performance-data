@@ -24,6 +24,9 @@ public sealed class DeleteExerciseViewModel
     public required int DatasetCount { get; init; }
     public required int ReleaseCount { get; init; }
 
+    /// <summary>AB#307773: its extensions go with it.</summary>
+    public required int ExtensionCount { get; init; }
+
     /// <summary>No other exercise is left, so schools will not see the window at all.</summary>
     public required bool IsLastExercise { get; init; }
 

@@ -43,6 +43,29 @@ public sealed class AuditActivitiesTests
         Assert.Null(AuditActivities.OutcomeOf("CheckingExercise", "ClosedEarly"));
     }
 
+    [Theory]
+    [InlineData("ExtensionAdded")]
+    [InlineData("ExtensionEdited")]
+    [InlineData("ExtensionClosedEarly")]
+    [InlineData("ExtensionRequestsSent")]
+    public void An_extension_action_is_a_success(string action)
+    {
+        // AB#307773: written once the change is committed, so each has one outcome.
+        Assert.True(AuditActivities.IsExtensionAction(action));
+        Assert.Equal(AuditOutcome.Success, AuditActivities.OutcomeOf("WindowAdmin", action));
+        Assert.Null(AuditActivities.OutcomeOf("CheckingExercise", action));
+    }
+
+    [Fact]
+    public void The_extension_action_names_are_the_stored_strings()
+    {
+        Assert.Equal("ExtensionAdded", AuditActivities.ExtensionAddedAction);
+        Assert.Equal("ExtensionEdited", AuditActivities.ExtensionEditedAction);
+        Assert.Equal("ExtensionClosedEarly", AuditActivities.ExtensionClosedEarlyAction);
+        Assert.Equal("ExtensionRequestsSent", AuditActivities.ExtensionRequestsSentAction);
+        Assert.False(AuditActivities.IsExtensionAction("ClosedEarly"));
+    }
+
     [Fact]
     public void An_automatic_hand_over_is_a_success()
     {

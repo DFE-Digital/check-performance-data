@@ -54,8 +54,10 @@ public sealed class LandingPageService(ILandingPageRepository landingPageReposit
         foreach (var window in startedWindows)
         {
             // After its last exercise closes, a window stays shown (read only) only while an
-            // exercise's VisibleUntil is ahead.
-            if (!checkingExercises.IsWindowShown(window.Exercises)) continue;
+            // exercise's VisibleUntil is ahead. AB#307773: or while an open extension names this
+            // school. Asked for the school because the answer for no school runs to the latest
+            // extension, which would keep the window on every school's page.
+            if (!checkingExercises.IsWindowShown(window.Exercises, organisation.Laestab)) continue;
 
             var live = window.Exercises.Where(e => e.IsLiveAt(now.DateTime) && e.HasLiveData).ToList();
             if (live.Count == 0) continue;

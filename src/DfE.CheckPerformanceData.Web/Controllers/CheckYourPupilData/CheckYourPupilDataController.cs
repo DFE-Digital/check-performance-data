@@ -202,9 +202,10 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         // #317: the allowed options are re-derived from the window's open exercises here rather
         // than trusted from the post. Not rendering an option is a UI courtesy; a hand-crafted post
         // must not start a journey for an exercise that is shut, or that this window does not run
-        // at all, so it is rejected exactly as an unanswered question would be.
+        // at all, so it is rejected exactly as an unanswered question would be. AB#307773: shut
+        // for this school, whose extension may run past the exercise's own end.
         var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
-        var allowed = nextSteps.GetAvailableSteps(window.Exercises);
+        var allowed = nextSteps.GetAvailableSteps(window.Exercises, currentUserService.OrganisationLaestab);
 
         // AB#298317: "No, I'd like to sign out of this service" is only ever asked when results
         // enquiry is the sole open exercise. Re-derived here, like every other option: a forged
@@ -270,6 +271,7 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         // derived from the window type and woven through this page's wording here, so no view has
         // to look it up.
         var noun = LearnerNoun.For(window.CheckingWindowType);
+        var laestab = currentUserService.OrganisationLaestab;
 
         // Stamp the nav's selected window here, where the type is already in hand: the main nav
         // labels its window-scoped link with this window's noun, so it needs the type as well as
@@ -287,7 +289,7 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
                 KeyStage = window.KeyStage, CheckingWindowType = window.CheckingWindowType,
                 StartDate = window.StartDate, Exercises = window.Exercises
             },
-            currentUserService.OrganisationLaestab, tab, dataset, search, page,
+            laestab, tab, dataset, search, page,
             PageSize, HttpContext.RequestAborted);
 
         List<PupilTableSection> sections =
@@ -360,16 +362,18 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
             // dataset (the other 16-19 import files become sibling tabs later), not inclusion.
             SectionsAsTabs = window.CheckingWindowType != CheckingWindowType.Post16,
             // #317: the options are whatever the open exercises offer, for any number of exercises.
-            AvailableNextSteps = nextSteps.GetAvailableSteps(window.Exercises),
+            // AB#307773: every answer below is for this school, whose extension may run past the
+            // exercise's own end.
+            AvailableNextSteps = nextSteps.GetAvailableSteps(window.Exercises, laestab),
             // The deadline sentence is about pupil data specifically, so it takes that exercise's
             // own dates. On a multi-exercise window the outer EndDate is months later.
-            PupilDataEndDate = checkingExercises.EndDateFor(window.Exercises, CheckingExerciseType.PupilData),
-            IsPupilDataOpen = checkingExercises.IsOpen(window.Exercises, CheckingExerciseType.PupilData),
-            IsResultsEnquiryOpen = checkingExercises.IsOpen(window.Exercises, CheckingExerciseType.ResultsEnquiry),
+            PupilDataEndDate = checkingExercises.EndDateFor(window.Exercises, CheckingExerciseType.PupilData, laestab),
+            IsPupilDataOpen = checkingExercises.IsOpen(window.Exercises, CheckingExerciseType.PupilData, laestab),
+            IsResultsEnquiryOpen = checkingExercises.IsOpen(window.Exercises, CheckingExerciseType.ResultsEnquiry, laestab),
             // AB#298317 review: "closed" is the end date having passed, never !IsOpen — see the
             // view model's HasPupilDataClosed remarks.
-            HasPupilDataClosed = checkingExercises.HasClosed(window.Exercises, CheckingExerciseType.PupilData),
-            HasResultsEnquiryClosed = checkingExercises.HasClosed(window.Exercises, CheckingExerciseType.ResultsEnquiry),
+            HasPupilDataClosed = checkingExercises.HasClosed(window.Exercises, CheckingExerciseType.PupilData, laestab),
+            HasResultsEnquiryClosed = checkingExercises.HasClosed(window.Exercises, CheckingExerciseType.ResultsEnquiry, laestab),
             NextOpportunity = NextOpportunityText.For(window.NextOpportunity),
             OrganisationName = currentUserService.OrganisationName,
             LearnerNoun = noun,

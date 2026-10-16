@@ -74,6 +74,7 @@ public sealed record AuditLogRowViewModel(
         var isWindowAdmin = row.EntityType == AuditActivities.WindowAdmin;
         var isClosedEarly = isWindowAdmin && row.Action == AuditActivities.ClosedEarlyAction;
         var isAutomaticHandOver = isWindowAdmin && row.Action == AuditActivities.RequestsSentAutomaticallyAction;
+        var isExtension = isWindowAdmin && AuditActivities.IsExtensionAction(row.Action);
         var carriesWindow = isEgress || row.WindowId is not null;
         return new AuditLogRowViewModel(
             row.Id,
@@ -84,12 +85,13 @@ public sealed record AuditLogRowViewModel(
             AuditActivities.Label(row.EntityType),
             isEgress ? "govuk-tag--turquoise" : isWindowAdmin ? "govuk-tag--orange" : "govuk-tag--grey",
             isEgress ? (row.Outcome is null ? EgressActionLabel(row.Action) : null)
-                : isClosedEarly || isAutomaticHandOver ? null
+                : isClosedEarly || isAutomaticHandOver || isExtension ? null
                 : row.Action,
             row.WindowTitle ?? (carriesWindow ? UnknownWindow : string.Empty),
             isEgress && row.OutputTypes.Count > 0 ? string.Join(", ", row.OutputTypes.Select(LabelOutputType))
                 : isClosedEarly ? $"{LabelExercise(row.ExerciseType)} closed early, before scheduled end"
                 : isAutomaticHandOver ? AutomaticHandOverDetail(row)
+                : isExtension ? ExtensionDetail(row)
                 : null,
             row.TimestampUtc,
             row.Outcome is { } outcome ? AuditActivities.OutcomeLabel(outcome) : null,
@@ -104,10 +106,30 @@ public sealed record AuditLogRowViewModel(
     // FLAGGED copy (AB#302158). A payload that cannot be read still says what happened.
     private static string AutomaticHandOverDetail(AuditLogRow row)
     {
-        var lead = $"{LabelExercise(row.ExerciseType)} requests sent for processing automatically";
+        var prefix = row.ExtensionId is not null ? "(extension) " : string.Empty;
+        var lead = $"{prefix}{LabelExercise(row.ExerciseType)} requests sent for processing automatically";
         return row.RequestsSent is { } sent && row.DraftsCancelled is { } cancelled
             ? $"{lead}: {Count(sent, "request")} sent, {Count(cancelled, "draft")} cancelled"
             : lead;
+    }
+
+    // FLAGGED copy (AB#307773).
+    private static string ExtensionDetail(AuditLogRow row)
+    {
+        var exercise = LabelExercise(row.ExerciseType);
+        var ending = row.EndDate is { } end ? $", ending {end:dd/MM/yyyy HH:mm}" : string.Empty;
+        return row.Action switch
+        {
+            AuditActivities.ExtensionAddedAction =>
+                $"{exercise} extension added for {Count(row.SchoolCount ?? 0, "school")}{ending}",
+            AuditActivities.ExtensionEditedAction =>
+                $"{exercise} extension edited: {Count(row.SchoolsAdded?.Count ?? 0, "school")} added, {Count(row.SchoolsRemoved?.Count ?? 0, "school")} removed{ending}",
+            AuditActivities.ExtensionClosedEarlyAction => $"{exercise} extension closed early, before its end",
+            AuditActivities.ExtensionRequestsSentAction => row.RequestsSent is { } sent && row.DraftsCancelled is { } cancelled
+                ? $"{exercise} extension requests sent for processing: {Count(sent, "request")} sent, {Count(cancelled, "draft")} cancelled"
+                : $"{exercise} extension requests sent for processing",
+            _ => row.Action
+        };
     }
 
     private static string Count(int count, string noun) => count == 1 ? $"1 {noun}" : $"{count} {noun}s";

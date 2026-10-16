@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Persistence.Entities;
@@ -117,7 +118,7 @@ public sealed class AdminRequestsRepositoryExerciseScopeTests(PostgresFixture fi
         await SeedAsync();
 
         var rows = await Repository().GetDecidedRequestsForExerciseAsync(
-            TargetWindowId, TargetExerciseId, CancellationToken.None);
+            TargetWindowId, TargetExerciseId, SchoolFilter.None, CancellationToken.None);
 
         Assert.Equal(["IN_SCOPE_SUBMITTED"], rows.Select(r => r.ReferenceNumber).Order());
     }
@@ -130,7 +131,7 @@ public sealed class AdminRequestsRepositoryExerciseScopeTests(PostgresFixture fi
         await SeedAsync();
 
         var rows = await Repository().GetDecidedRequestsForExerciseAsync(
-            OtherWindowId, OtherExerciseId, CancellationToken.None);
+            OtherWindowId, OtherExerciseId, SchoolFilter.None, CancellationToken.None);
 
         Assert.Empty(rows);
     }
@@ -165,9 +166,9 @@ public sealed class AdminRequestsRepositoryExerciseScopeTests(PostgresFixture fi
         await SeedSweepStatesAsync();
 
         var rows = await Repository().GetDecidedRequestsForExerciseAsync(
-            TargetWindowId, TargetExerciseId, CancellationToken.None);
+            TargetWindowId, TargetExerciseId, SchoolFilter.None, CancellationToken.None);
         var waiting = await Repository().CountWaitingRequestsForExerciseAsync(
-            TargetWindowId, TargetExerciseId, CancellationToken.None);
+            TargetWindowId, TargetExerciseId, SchoolFilter.None, CancellationToken.None);
 
         // Neither results enquiry is sent or counted: only WAITING is undecided among the amendments.
         Assert.Equal(["DECIDED"], rows.Select(r => r.ReferenceNumber));
@@ -228,7 +229,7 @@ public sealed class AdminRequestsRepositoryExerciseScopeTests(PostgresFixture fi
         await SeedAsync();
 
         var count = await Repository().CountDraftsForExerciseAsync(
-            TargetWindowId, TargetExerciseId, CancellationToken.None);
+            TargetWindowId, TargetExerciseId, SchoolFilter.None, CancellationToken.None);
 
         // IN_SCOPE_DRAFT + IN_SCOPE_READY. Not the other exercise's, the other window's, or the orphan.
         Assert.Equal(2, count);
@@ -240,7 +241,7 @@ public sealed class AdminRequestsRepositoryExerciseScopeTests(PostgresFixture fi
         await SeedAsync();
 
         var changed = await Repository().MarkDraftsNotSubmittedForExerciseAsync(
-            TargetWindowId, TargetExerciseId, CancellationToken.None);
+            TargetWindowId, TargetExerciseId, SchoolFilter.None, CancellationToken.None);
 
         Assert.Equal(2, changed);
 
@@ -267,9 +268,9 @@ public sealed class AdminRequestsRepositoryExerciseScopeTests(PostgresFixture fi
         await SeedAsync();
 
         var counted = await Repository().CountDraftsForExerciseAsync(
-            TargetWindowId, TargetExerciseId, CancellationToken.None);
+            TargetWindowId, TargetExerciseId, SchoolFilter.None, CancellationToken.None);
         var changed = await Repository().MarkDraftsNotSubmittedForExerciseAsync(
-            TargetWindowId, TargetExerciseId, CancellationToken.None);
+            TargetWindowId, TargetExerciseId, SchoolFilter.None, CancellationToken.None);
 
         Assert.Equal(counted, changed);
     }

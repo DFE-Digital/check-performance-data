@@ -45,7 +45,7 @@ public sealed class CheckingExerciseServiceUkClockTests
         DateTime date = DateTime.ParseExact(day, "yyyy-MM-dd", CultureInfo.InvariantCulture);
         CheckingExerciseDto[] exercises = Exercise(date, date.AddHours(17));
 
-        Assert.Equal(open, At(utcNow).IsOpen(exercises, PupilData));
+        Assert.Equal(open, At(utcNow).IsOpen(exercises, PupilData, laestab: null));
     }
 
     [Fact]
@@ -53,7 +53,7 @@ public sealed class CheckingExerciseServiceUkClockTests
     {
         CheckingExerciseDto[] exercises = Exercise(new DateTime(2026, 7, 1), new DateTime(2026, 7, 15, 17, 0, 0));
 
-        Assert.False(At("2026-07-15T16:00:00Z").HasClosed(exercises, PupilData));
-        Assert.True(At("2026-07-15T16:00:01Z").HasClosed(exercises, PupilData));
+        Assert.False(At("2026-07-15T16:00:00Z").HasClosed(exercises, PupilData, laestab: null));
+        Assert.True(At("2026-07-15T16:00:01Z").HasClosed(exercises, PupilData, laestab: null));
     }
 }

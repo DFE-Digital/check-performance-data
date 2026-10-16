@@ -25,6 +25,21 @@
   </div>
 }
 
+@* AB#307773: outcome of an extension add, edit or early close, stashed by
+   ExerciseExtensionController or CloseExtensionController. *@
+@if (TempData[DfE.CheckPerformanceData.Web.Controllers.WindowAdmin.ExerciseExtensionController.TempDataKey] is string extensionOutcome)
+{
+  <div class="govuk-notification-banner govuk-notification-banner--success" role="alert"
+       aria-labelledby="extension-outcome-title" data-module="govuk-notification-banner">
+    <div class="govuk-notification-banner__header">
+      <h2 class="govuk-notification-banner__title" id="extension-outcome-title">Success</h2>
+    </div>
+    <div class="govuk-notification-banner__content">
+      <p class="govuk-notification-banner__heading">@extensionOutcome</p>
+    </div>
+  </div>
+}
+
 @* Outcome of an exercise delete, stashed by DeleteExerciseController. *@
 @if (TempData[DfE.CheckPerformanceData.Web.Controllers.WindowAdmin.DeleteExerciseController.TempDataKey] is string deleteOutcome)
 {
@@ -230,6 +245,70 @@
         </table>
       }
 
+      @* AB#307773: more time for named schools. Only for an exercise with a kind: a data share has
+         no journey, so no time to extend. The tag reads the extension's own end date, so an
+         extension can still be open after its exercise has closed. Send requests waits for the
+         later of the two ends: an extension closed early keeps its schools until the exercise ends. *@
+      @if (exercise.ExerciseType is not null)
+      {
+        if (exercise.Extensions.Count == 0)
+        {
+          <p class="govuk-body">No extensions.</p>
+        }
+        else
+        {
+          <table class="govuk-table">
+            <caption class="govuk-table__caption govuk-table__caption--s">Extensions<span class="govuk-visually-hidden"> for @exercise.Name</span></caption>
+            <thead class="govuk-table__head">
+              <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header">End date</th>
+                <th scope="col" class="govuk-table__header">Schools</th>
+                <th scope="col" class="govuk-table__header">Status</th>
+                <th scope="col" class="govuk-table__header">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="govuk-table__body">
+              @foreach (var extension in exercise.Extensions)
+              {
+                <tr class="govuk-table__row">
+                  <th scope="row" class="govuk-table__header">@extension.EndDateText</th>
+                  <td class="govuk-table__cell">@extension.SchoolCount</td>
+                  <td class="govuk-table__cell">
+                    @if (extension.IsOpen)
+                    {
+                      <strong class="govuk-tag govuk-tag--green">Open</strong>
+                    }
+                    else
+                    {
+                      <strong class="govuk-tag govuk-tag--grey">Closed</strong>
+                    }
+                    @if (extension.RequestsSent)
+                    {
+                      <strong class="govuk-tag govuk-tag--grey govuk-!-margin-left-1">Requests sent</strong>
+                    }
+                  </td>
+                  <td class="govuk-table__cell">
+                    @if (extension.IsOpen)
+                    {
+                      <a class="govuk-link govuk-!-margin-right-3" href="@extension.EditLink">Edit<span class="govuk-visually-hidden"> extension ending @extension.EndDateText</span></a>
+                      <a class="govuk-link" href="@extension.CloseLink">Close early<span class="govuk-visually-hidden"> extension ending @extension.EndDateText</span></a>
+                    }
+                    @if (extension.WaitsForExercise)
+                    {
+                      <span class="govuk-hint govuk-!-margin-bottom-0">Ends with the exercise on @extension.ExerciseEndDateText</span>
+                    }
+                    @if (extension.HasClosed)
+                    {
+                      <a class="govuk-link" href="@extension.SendRequestsLink">Send requests for processing<span class="govuk-visually-hidden"> for extension ending @extension.EndDateText</span></a>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+      }
+
       <div class="govuk-button-group govuk-!-margin-bottom-0">
         <govuk-button-link disabled="@(!exercise.IsValidatable)" href="@exercise.ValidateLink">
           Validate<span class="govuk-visually-hidden"> @exercise.Name</span>
@@ -253,6 +332,15 @@
         {
           <govuk-button-link class="govuk-button--warning" href="@exercise.SendRequestsLink">
             Send requests for processing<span class="govuk-visually-hidden"> for @exercise.Name</span>
+          </govuk-button-link>
+        }
+
+        @* AB#307773: an extension can be added at any time, so this does not depend on the
+           exercise being open or closed. Not for a data share, which has no time to extend. *@
+        @if (exercise.ExerciseType is not null)
+        {
+          <govuk-button-link class="govuk-button--secondary" href="@exercise.AddExtensionLink">
+            Add extension<span class="govuk-visually-hidden"> to @exercise.Name</span>
           </govuk-button-link>
         }
       </div>

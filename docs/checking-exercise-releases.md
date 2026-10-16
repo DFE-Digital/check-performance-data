@@ -219,6 +219,13 @@ does not read it from the session, because a draft can be resumed weeks later, a
 Limit: if a release changes while a school is part of the way through a journey, the stamp names
 the release at the time of the save. It does not name the release at the start of the journey.
 
+`RequestService` stamps `ChangeRequest.CheckingExerciseId` from the same resolver as the release
+id, and falls back to `ICheckingExerciseService.IdFor` when there is no resolver or it no longer
+finds the exercise. Since this change a window can hold several rows of one kind, so `IdFor` alone
+could name a different row from the one whose release the request is stamped with. Resolving both
+from one row keeps the pair consistent (AB#307773, related fix). See
+`docs/exercise-extensions.md`.
+
 ## Rules for later changes
 
 - **Do not write over a release's output.** A run always gets a new release id.

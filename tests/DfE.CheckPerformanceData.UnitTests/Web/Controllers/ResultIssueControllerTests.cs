@@ -41,6 +41,7 @@ public sealed class ResultIssueControllerTests
     private readonly IAnalyticsService _analytics = Substitute.For<IAnalyticsService>();
     private readonly FakeSession _session = new();
     private readonly ICheckingExerciseService _checkingExercises = OpenCheckingExercises.AlwaysOpen();
+    private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
     private readonly ResultIssueController _sut;
 
     private static readonly CheckingWindowDto Post16Window = new()
@@ -66,7 +67,7 @@ public sealed class ResultIssueControllerTests
         var httpContext = new DefaultHttpContext();
         httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(_session));
 
-        _sut = new ResultIssueController(_service, _flowService, _lateResults, _checkingExercises, _analytics)
+        _sut = new ResultIssueController(_service, _flowService, _lateResults, _checkingExercises, _currentUser, _analytics)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext },
             TempData = new TempDataDictionary(httpContext, Substitute.For<ITempDataProvider>())
@@ -670,7 +671,7 @@ public sealed class ResultIssueControllerTests
     {
         // Pupil data checking closes months before results enquiry on a 16-19 window; this entry
         // point must follow its own exercise, not the other one and not the outer window.
-        _checkingExercises.IsOpen(default!, default)
+        _checkingExercises.IsOpen(default!, default, default)
             .ReturnsForAnyArgs(ci => ci.ArgAt<CheckingExerciseType>(1) == CheckingExerciseType.PupilData);
 
         var result = await _sut.Confirm(WindowId,
@@ -680,4 +681,35 @@ public sealed class ResultIssueControllerTests
         Assert.Null(_session.GetRequestState(WindowId).SelectedWhatToChange);
     }
 
+    // AB#307773: results enquiry has ended, but an open extension names one school. The gate is
+    // asked about the signed-in school, so that school may still start an enquiry and another not.
+    [Theory]
+    [InlineData("933/4290", true)]
+    [InlineData("860/4070", false)]
+    public async Task Get_when_only_the_schools_extension_is_open_shows_the_page_to_the_school_it_names_only(string laestab, bool named)
+    {
+        _currentUser.OrganisationLaestab.Returns(laestab);
+        _checkingExercises.OpenOnlyFor("933/4290");
+
+        var result = await _sut.Index(WindowId);
+
+        if (named)
+            Assert.IsType<ViewResult>(result);
+        else
+            Assert.Equal("CheckYourPupilData", Assert.IsType<RedirectToActionResult>(result).ControllerName);
+    }
+
+    [Theory]
+    [InlineData("933/4290", true)]
+    [InlineData("860/4070", false)]
+    public async Task Post_when_only_the_schools_extension_is_open_starts_an_enquiry_for_the_school_it_names_only(string laestab, bool named)
+    {
+        _currentUser.OrganisationLaestab.Returns(laestab);
+        _checkingExercises.OpenOnlyFor("933/4290");
+
+        await _sut.Confirm(WindowId,
+            new ResultIssueViewModel { WindowId = WindowId, IssueType = ResultIssueViewModel.IncorrectGrade });
+
+        Assert.Equal(named ? (WhatToChange?)WhatToChange.IncorrectGrade : null, _session.GetRequestState(WindowId).SelectedWhatToChange);
+    }
 }

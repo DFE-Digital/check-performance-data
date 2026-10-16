@@ -135,11 +135,12 @@ public sealed class CloseExerciseEarlyTests(PlaywrightFixture fixture) : Seeding
         await Page.FillAsync("input[name='Title']", title);
         await Page.ClickAsync("button[type='submit']");
 
+        // Since #466 the type step gives the draft its default exercises (KS4 June: pupil data
+        // checking only), so the wizard goes straight to its dates: there is no exercise-picking
+        // step any more.
         await Page.CheckAsync("input[name='WindowType'][value='KS4June']");
         await Page.ClickAsync("button[type='submit']");
 
-        // KS4 June takes pupil data checking only. There is no exercise step: the wizard goes
-        // straight to its dates.
         // The site rejects a start date before today in the UK (#535), so "today" is the UK date.
         DateTime start = UkNow().Date;
         DateTime end = start.AddDays(14);

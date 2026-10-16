@@ -1,0 +1,68 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin.SendExtensionRequestsViewModel
+
+@{
+    // Matches the <h1> below.
+    ViewBag.Title = $"Send the {Model.ExerciseLabel} extension's requests for processing";
+}
+
+<govuk-back-link href="@Model.CancelLink" />
+
+<h1 class="govuk-heading-l">Send the @Model.ExerciseLabel extension's requests for processing</h1>
+
+<p class="govuk-body">
+    The extension of @Model.ExerciseLabel for <strong>@Model.WindowTitle</strong> closed on
+    @Model.ExtensionEndDate at @Model.ExtensionEndTime. It gave more time to @Model.Schools.
+</p>
+
+@if (Model.HasNothingToDo)
+{
+    @* Sending again is harmless. Say so plainly rather than blocking or erroring. *@
+    <p class="govuk-body">
+        There are no requests to send and no drafts to cancel for these schools. Sending now will
+        have no effect.
+    </p>
+}
+else if (Model.OnlyWaiting)
+{
+    @* #536: every submitted request is still waiting for the Rules Engine. *@
+    <p class="govuk-body">
+        There is nothing to send yet. @Model.RequestsWaiting
+        @(Model.RequestsWaiting == 1 ? "request is" : "requests are") waiting for the Rules Engine.
+        Try again later.
+    </p>
+}
+else
+{
+    <govuk-warning-text icon-fallback-text="Warning">
+        You cannot undo this.
+    </govuk-warning-text>
+
+    <govuk-summary-list>
+        <govuk-summary-list-row>
+            <govuk-summary-list-row-key>Requests to send for processing</govuk-summary-list-row-key>
+            <govuk-summary-list-row-value>@Model.RequestsToSend</govuk-summary-list-row-value>
+        </govuk-summary-list-row>
+        <govuk-summary-list-row>
+            <govuk-summary-list-row-key>Requests waiting for the Rules Engine</govuk-summary-list-row-key>
+            <govuk-summary-list-row-value>@Model.RequestsWaiting</govuk-summary-list-row-value>
+        </govuk-summary-list-row>
+        <govuk-summary-list-row>
+            <govuk-summary-list-row-key>Drafts to cancel</govuk-summary-list-row-key>
+            <govuk-summary-list-row-value>@Model.DraftsToCancel</govuk-summary-list-row-value>
+        </govuk-summary-list-row>
+    </govuk-summary-list>
+
+    <p class="govuk-body">
+        Submitted requests are sent for processing and cannot be changed afterwards. Requests
+        waiting for the Rules Engine are not sent now; send requests for processing again later
+        to send them. Drafts a school has not submitted are cancelled and cannot be resumed.
+    </p>
+}
+
+<form method="post" action="@Model.PostUrl">
+    @Html.AntiForgeryToken()
+    <govuk-button type="submit" class="govuk-button--warning">
+        Send requests for processing
+    </govuk-button>
+    <a class="govuk-link govuk-!-margin-left-3" href="@Model.CancelLink">Cancel</a>
+</form>

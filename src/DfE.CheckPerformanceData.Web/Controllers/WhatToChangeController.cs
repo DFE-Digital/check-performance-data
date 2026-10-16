@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
@@ -15,18 +16,20 @@ public sealed class WhatToChangeController(
     ICheckYourPupilDataService service,
     IQuestionFlowService flowService,
     ICheckingExerciseService checkingExercises,
+    ICurrentUserService currentUserService,
     IAnalyticsService analytics) : Controller
 {
     // #318: every WhatToChange option belongs to pupil data checking, so both actions gate on that
     // one exercise. The option list on Check your pupil data is presentation only — a bookmarked
-    // URL still reaches here after the exercise closes.
+    // URL still reaches here after the exercise closes. AB#307773: "closed" is for the signed-in
+    // school, whose extension may run past the exercise's own end.
     private const CheckingExerciseType Exercise = CheckingExerciseType.PupilData;
 
     [Route("/WhatToChange/{windowId}")]
     public async Task<IActionResult> Index(Guid windowId)
     {
         var window = await service.GetCheckingWindowAsync(windowId);
-        if (!checkingExercises.IsOpen(window.Exercises, Exercise))
+        if (!checkingExercises.IsOpen(window.Exercises, Exercise, currentUserService.OrganisationLaestab))
             return this.RedirectExerciseClosed(windowId, Exercise, LearnerNoun.For(window.CheckingWindowType));
 
         var journey = HttpContext.Session.GetRequestState(windowId);
@@ -45,7 +48,7 @@ public sealed class WhatToChangeController(
     public async Task<IActionResult> Confirm(Guid windowId, WhatToChangeViewModel vm)
     {
         var window = await service.GetCheckingWindowAsync(windowId);
-        if (!checkingExercises.IsOpen(window.Exercises, Exercise))
+        if (!checkingExercises.IsOpen(window.Exercises, Exercise, currentUserService.OrganisationLaestab))
             return this.RedirectExerciseClosed(windowId, Exercise, LearnerNoun.For(window.CheckingWindowType));
 
         if (vm.SelectedWhatToChange == null)

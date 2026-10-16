@@ -222,7 +222,7 @@ public sealed class ExerciseEarlyClosureServiceTests
 
         var after = new[] { Row(Exercise, LastMonth, written()!.NewEndDate) };
         var clock = new CheckingExerciseService(_clock);
-        Assert.False(clock.IsOpen(after, Exercise));
-        Assert.True(clock.HasClosed(after, Exercise));
+        Assert.False(clock.IsOpen(after, Exercise, laestab: null));
+        Assert.True(clock.HasClosed(after, Exercise, laestab: null));
     }
 }

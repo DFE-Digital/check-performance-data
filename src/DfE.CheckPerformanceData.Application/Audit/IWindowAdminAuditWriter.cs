@@ -32,4 +32,7 @@ public sealed record AutomaticHandOverAudit
 
     /// <summary>The instant of the run in UTC — the audit row's Timestamp.</summary>
     public required DateTime RanAtUtc { get; init; }
+
+    /// <summary>AB#307773: the extension handed over; null for the exercise's own hand-over.</summary>
+    public Guid? ExtensionId { get; init; }
 }

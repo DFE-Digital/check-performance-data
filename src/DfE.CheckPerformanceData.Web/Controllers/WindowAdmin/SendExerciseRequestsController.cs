@@ -71,7 +71,8 @@ public sealed class SendExerciseRequestsController(
             ExerciseLabel = CloseExerciseController.NameOf(row),
             RequestsToSend = preview.RequestsToClose,
             DraftsToCancel = preview.DraftsToCancel,
-            RequestsWaiting = preview.RequestsWaiting
+            RequestsWaiting = preview.RequestsWaiting,
+            HasOpenExtensions = row.Extensions.Any(x => checkingExercises.IsOpen(row, x))
         });
     }
 

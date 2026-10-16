@@ -118,6 +118,11 @@ public sealed class CheckYourPupilDataRepository(
                                     .ToList()
                             })
                             .ToList(),
+                        Extensions = e.Extensions
+                            .AsQueryable()
+                            .OrderBy(x => x.CreatedAt).ThenBy(x => x.Id)
+                            .Select(CheckingExerciseExtensionMapping.Projection)
+                            .ToList(),
                         ExerciseType = e.ExerciseType,
                         StartDate = e.StartDate,
                         EndDate = e.EndDate,

@@ -166,7 +166,37 @@ public class CloseExerciseControllerTests
         Assert.Equal(ScheduledEnd, vm.ScheduledEnd);
         Assert.Null(vm.ConfirmWindowName);
         Assert.False(vm.HasError);
+        Assert.False(vm.HasOpenExtensions);
         await _closeService.DidNotReceiveWithAnyArgs().PreviewAsync(default, default, default);
+    }
+
+    private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => now.ToUniversalTime();
+        public override TimeZoneInfo LocalTimeZone => TimeZoneInfo.Utc;
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Confirm_get_says_whether_an_open_extension_keeps_its_schools_time(bool extensionOpen)
+    {
+        // AB#307773 W3: the page adds "Schools in an open extension keep their extra time." when an
+        // extension's own end is still ahead, asked of the one clock. A closed one does not count.
+        var window = Window(Exercise);
+        window.Exercises[0].Extensions.Add(new CheckingExerciseExtensionDto
+        {
+            Id = Guid.NewGuid(),
+            EndDate = extensionOpen ? ScheduledEnd.AddDays(7) : ClosedAt.AddDays(-1),
+            Laestabs = ["9334290"]
+        });
+        _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(window);
+        var clock = new CheckingExerciseService(new FixedTimeProvider(new DateTimeOffset(ClosedAt, TimeSpan.Zero)));
+
+        var result = await Build(clock).Confirm(WindowId, ExerciseId, CancellationToken.None);
+
+        var vm = Assert.IsType<CloseExerciseViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.Equal(extensionOpen, vm.HasOpenExtensions);
     }
 
     [Fact]

@@ -227,4 +227,72 @@ public sealed class AutomaticExerciseHandOverTests
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
             () => Sut().HandOverAsync(Due, CancellationToken.None));
     }
+
+    [Fact]
+    public async Task An_extension_is_due_two_hours_after_its_own_end_and_the_exercise_two_hours_after_its()
+    {
+        var extension = new CheckingExerciseExtensionDto { Id = Guid.NewGuid(), EndDate = EndedTwoHoursAgo, Laestabs = ["9334290"] };
+        var exercise = Exercise(CheckingExerciseType.PupilData, EndedTwoHoursAgo.AddDays(-3), PupilDataId);   // exercise end: 3 days ago, outside the catch-up window
+        exercise.Extensions.Add(extension);
+        WindowsAre(Window(WindowId, "Key Stage 4 June", exercise));
+
+        var due = await Sut().FindDueAsync(CancellationToken.None);
+
+        var item = Assert.Single(due);
+        Assert.Equal(extension.Id, item.ExtensionId);
+        Assert.Equal(EndedTwoHoursAgo, item.ExerciseEnd);
+    }
+
+    [Fact]
+    public async Task An_extension_closed_early_is_not_due_until_the_exercise_end_and_the_delay()
+    {
+        // Its own end passed twelve hours ago, but the exercise ends in an hour, so its
+        // schools are still inside the exercise's dates. Judged on max(exercise end, extension end).
+        var extension = new CheckingExerciseExtensionDto { Id = Guid.NewGuid(), EndDate = EndedTwoHoursAgo.AddHours(-10), Laestabs = ["9334290"] };
+        var exercise = Exercise(CheckingExerciseType.PupilData, EndedTwoHoursAgo.AddHours(3), PupilDataId);
+        exercise.Extensions.Add(extension);
+        WindowsAre(Window(WindowId, "Key Stage 4 June", exercise));
+
+        Assert.Empty(await Sut().FindDueAsync(CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task An_extension_closed_early_falls_due_with_the_exercise_and_carries_the_exercise_end()
+    {
+        var extension = new CheckingExerciseExtensionDto { Id = Guid.NewGuid(), EndDate = EndedTwoHoursAgo.AddHours(-10), Laestabs = ["9334290"] };
+        var exercise = Exercise(CheckingExerciseType.PupilData, EndedTwoHoursAgo, PupilDataId);
+        exercise.Extensions.Add(extension);
+        WindowsAre(Window(WindowId, "Key Stage 4 June", exercise));
+
+        var due = await Sut().FindDueAsync(CancellationToken.None);
+
+        Assert.Equal([null, extension.Id], due.Select(d => d.ExtensionId));
+        Assert.All(due, d => Assert.Equal(EndedTwoHoursAgo, d.ExerciseEnd));
+    }
+
+    [Fact]
+    public async Task Both_are_due_when_both_ended_two_hours_ago()
+    {
+        var exercise = Exercise(CheckingExerciseType.PupilData, EndedTwoHoursAgo, PupilDataId);
+        exercise.Extensions.Add(new CheckingExerciseExtensionDto { Id = Guid.NewGuid(), EndDate = EndedTwoHoursAgo, Laestabs = ["9334290"] });
+        WindowsAre(Window(WindowId, "Key Stage 4 June", exercise));
+
+        var due = await Sut().FindDueAsync(CancellationToken.None);
+
+        Assert.Equal([null, exercise.Extensions[0].Id], due.Select(d => d.ExtensionId));
+    }
+
+    [Fact]
+    public async Task An_extension_hand_over_sweeps_only_that_extension_and_audits_its_id()
+    {
+        var extensionId = Guid.NewGuid();
+        _sweep.CloseExtensionAsync(WindowId, PupilDataId, extensionId, Arg.Any<CancellationToken>())
+            .Returns(new CloseExerciseResult { Enqueued = 2, DraftsCancelled = 1 });
+
+        var outcome = await Sut().HandOverAsync(Due with { ExtensionId = extensionId }, CancellationToken.None);
+
+        Assert.Equal(2, outcome.RequestsSent);
+        await _sweep.DidNotReceive().CloseAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        await _audit.Received(1).RecordAutomaticHandOverAsync(Arg.Is<AutomaticHandOverAudit>(a => a.ExtensionId == extensionId), Arg.Any<CancellationToken>());
+    }
 }

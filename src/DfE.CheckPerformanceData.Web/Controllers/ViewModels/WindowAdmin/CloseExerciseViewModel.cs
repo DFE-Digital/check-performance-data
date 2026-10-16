@@ -19,6 +19,12 @@ public sealed class CloseExerciseViewModel
     /// <summary>The exercise's end date as it stands — a local wall-clock value.</summary>
     public required DateTime ScheduledEnd { get; init; }
 
+    /// <summary>
+    /// AB#307773: the exercise has an extension whose own end is still ahead. Its schools keep
+    /// their time when the exercise closes, and the page says so.
+    /// </summary>
+    public bool HasOpenExtensions { get; init; }
+
     /// <summary>What the admin typed, shown back after a mismatch so it can be corrected.</summary>
     public string? ConfirmWindowName { get; init; }
 

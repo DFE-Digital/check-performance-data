@@ -70,6 +70,20 @@ public sealed class AuditLogControllerTests
         DraftsCancelled = cancelled
     };
 
+    // AB#307773: an admin changed an extension (extra time for named schools).
+    private static AuditLogRow Extension(string action) => new(
+        7, At, "sub-1", "Ops One", "WindowAdmin", WindowId.ToString(), action, WindowId, "KS4 June 2026", [], AuditOutcome.Success)
+    {
+        ExerciseType = "PupilData",
+        ExtensionId = Guid.NewGuid(),
+        EndDate = new DateTime(2026, 11, 12, 17, 0, 0),
+        SchoolCount = 3,
+        SchoolsAdded = ["9334290", "9334291"],
+        SchoolsRemoved = ["9334292"],
+        RequestsSent = 4,
+        DraftsCancelled = 1
+    };
+
     private static async Task<AuditLogViewModel> ModelOf(AuditLogController controller, string? activity = null, Guid? windowId = null, string? status = null, int page = 1)
     {
         var view = Assert.IsType<ViewResult>(await controller.Index(activity, windowId, status, page, CancellationToken.None));
@@ -276,5 +290,33 @@ public sealed class AuditLogControllerTests
             Arg.Any<CancellationToken>());
         Assert.StartsWith("audit-log-", result.FileName);
         Assert.EndsWith(".csv", result.FileName);
+    }
+
+    [Theory]
+    [InlineData("ExtensionAdded", "Pupil data checking extension added for 3 schools, ending 12/11/2026 17:00")]
+    [InlineData("ExtensionEdited", "Pupil data checking extension edited: 2 schools added, 1 school removed, ending 12/11/2026 17:00")]
+    [InlineData("ExtensionClosedEarly", "Pupil data checking extension closed early, before its end")]
+    [InlineData("ExtensionRequestsSent", "Pupil data checking extension requests sent for processing: 4 requests sent, 1 draft cancelled")]
+    public async Task An_extension_row_says_what_the_admin_did_under_the_window_and_is_a_success(string action, string detail)
+    {
+        var row = Assert.Single((await ModelOf(Build(Extension(action)))).Rows);
+
+        Assert.Equal("Ops One", row.UserLabel);
+        Assert.Equal("Window admin", row.ActivityLabel);
+        Assert.Null(row.ActivityDetail);                    // the detail sits under the window, as for an early closure
+        Assert.Equal("KS4 June 2026", row.WindowTitle);
+        Assert.Equal(detail, row.WindowDetail);
+        Assert.Equal("Success", row.OutcomeLabel);
+        Assert.Equal(action, row.Action);
+    }
+
+    [Fact]
+    public async Task An_automatic_hand_over_of_an_extension_says_so()
+    {
+        var row = Assert.Single((await ModelOf(Build(SentAutomatically() with { ExtensionId = Guid.NewGuid() }))).Rows);
+
+        Assert.Equal(
+            "(extension) Pupil data checking requests sent for processing automatically: 3 requests sent, 2 drafts cancelled",
+            row.WindowDetail);
     }
 }

@@ -26,6 +26,10 @@ public sealed class LandingPageRepository(
         // Filtering happens in memory below. Revert to the DB-side date Where() once diagnosed.
         var allWindows = await dbContext.CheckingWindows
             .AsNoTracking()
+            // Datasets, the current release's files and the extension schools are sibling
+            // collections. In one query each would multiply the others' rows; split queries load
+            // each collection once.
+            .AsSplitQuery()
             .Select(w => new
             {
                 w.StartDate,
@@ -51,6 +55,9 @@ public sealed class LandingPageRepository(
                         // where to look for the school's files.
                         TabName = e.TabName,
                         IsEnabled = e.IsEnabled,
+                        // AB#307773: the school's end date comes from the live interactive row of a
+                        // kind, so the read must say which rows are display only.
+                        DisplayOnly = e.DisplayOnly,
                         VisibleFrom = e.VisibleFrom,
                         VisibleUntil = e.VisibleUntil,
                         UsesExerciseStorage = e.UsesExerciseStorage,
@@ -91,6 +98,11 @@ public sealed class LandingPageRepository(
                                     })
                                     .ToList()
                             })
+                            .ToList(),
+                        Extensions = e.Extensions
+                            .AsQueryable()
+                            .OrderBy(x => x.CreatedAt).ThenBy(x => x.Id)
+                            .Select(CheckingExerciseExtensionMapping.Projection)
                             .ToList()
                     })
                     .ToList()

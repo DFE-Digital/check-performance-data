@@ -9,6 +9,11 @@ namespace DfE.CheckPerformanceData.E2ETests.Web;
 // were forced Secure the browser would drop it and every form POST in the suite would fail
 // antiforgery validation with a 400. This pins the Development downgrade end to end, against the
 // running app, rather than only against the options object.
+//
+// Both tests only make sense against that local plain-http stack. Behind the https edge (a
+// deployed review app) the forwarded proto is trusted, IsHttps is true, and the cookies are
+// correctly Secure — so the suite skips them on any https deployment rather than assert the
+// opposite.
 [Collection("E2E")]
 public sealed class CookieSecureFlagLocalHttpTests(PlaywrightFixture fixture)
 {
@@ -18,9 +23,11 @@ public sealed class CookieSecureFlagLocalHttpTests(PlaywrightFixture fixture)
 
     private readonly PlaywrightFixture _fixture = fixture;
 
-    [Fact]
+    [SkippableFact]
     public async Task DevelopmentStack_DoesNotForceSecureOnTheAntiforgeryCookie()
     {
+        SkipUnlessLocalPlainHttpStack();
+
         var setCookie = await AntiforgerySetCookieAsync();
 
         Assert.StartsWith(AntiforgeryCookiePrefix, setCookie, StringComparison.Ordinal);
@@ -71,9 +78,24 @@ public sealed class CookieSecureFlagLocalHttpTests(PlaywrightFixture fixture)
         return setCookies.First(c => c.StartsWith(AntiforgeryCookiePrefix, StringComparison.Ordinal));
     }
 
-    [Fact]
+    private void SkipUnlessLocalPlainHttpStack()
+    {
+        var baseAddress = _fixture.SeedClient.BaseAddress
+            ?? throw new InvalidOperationException("SeedClient has no BaseAddress.");
+
+        // The SameAsRequest Development downgrade only manifests when the app is reached over
+        // plain HTTP (IsHttps=false). Behind the https edge the forwarded proto is trusted, so
+        // IsHttps=true and the cookies are Secure — asserting the opposite there would be wrong
+        // (and did fail the PR-631 review-app run). Skip on any https deployment.
+        Skip.IfNot(string.Equals(baseAddress.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase),
+            "Local plain-http Development stack only; behind the https edge the cookie Secure policy follows the trusted forwarded proto.");
+    }
+
+    [SkippableFact]
     public async Task Challenge_IssuesASecureCorrelationCookieOverLocalHttp()
     {
+        SkipUnlessLocalPlainHttpStack();
+
         // The OIDC correlation cookie is SameSite=None, which browsers reject unless Secure is set.
         // It must therefore stay Secure even over the local http stack (localhost's secure-context
         // exception accepts it). If the Development downgrade were applied to it — as it is to the

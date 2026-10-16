@@ -79,4 +79,47 @@ public sealed class LondonTimeTests
 
         Assert.Equal(wallClock, roundTripped);
     }
+
+    // A typed UK wall-clock time is resolved to a single UTC instant. Fixed dates cover a GMT day,
+    // a BST day and both 2026 changeover days (clocks go forward at 1am GMT on 29 March and back
+    // at 2am BST on 25 October), so the results do not depend on the host's zone or today's date.
+    [Theory]
+    [InlineData("2026-01-15T09:00", "2026-01-15T09:00")] // GMT: UK time equals UTC
+    [InlineData("2026-07-15T09:00", "2026-07-15T08:00")] // BST: UK time is UTC+1
+    [InlineData("2026-03-29T00:59", "2026-03-29T00:59")] // last minute of GMT before the skip
+    [InlineData("2026-03-29T02:00", "2026-03-29T01:00")] // first minute of BST after the skip
+    [InlineData("2026-10-25T00:59", "2026-10-24T23:59")] // BST, before the repeated hour
+    [InlineData("2026-10-25T01:00", "2026-10-25T00:00")] // repeated hour: first occurrence (BST)
+    [InlineData("2026-10-25T01:30", "2026-10-25T00:30")] // repeated hour: first occurrence (BST)
+    [InlineData("2026-10-25T02:00", "2026-10-25T02:00")] // GMT again after the repeated hour
+    public void TryLondonToUtc_ResolvesWallClockToUtc(string wallClock, string expectedUtc)
+    {
+        var typed = DateTime.Parse(wallClock, System.Globalization.CultureInfo.InvariantCulture);
+
+        Assert.True(LondonTime.TryLondonToUtc(typed, out var utc));
+
+        Assert.Equal(DateTimeKind.Utc, utc.Kind);
+        Assert.Equal(DateTime.Parse(expectedUtc, System.Globalization.CultureInfo.InvariantCulture), utc);
+    }
+
+    [Theory]
+    [InlineData("2026-03-29T01:00")]
+    [InlineData("2026-03-29T01:30")]
+    [InlineData("2026-03-29T01:59")]
+    public void TryLondonToUtc_RejectsTimeInTheHourSkippedWhenClocksGoForward(string wallClock)
+    {
+        var typed = DateTime.Parse(wallClock, System.Globalization.CultureInfo.InvariantCulture);
+
+        Assert.False(LondonTime.TryLondonToUtc(typed, out _));
+    }
+
+    [Fact]
+    public void TryLondonToUtc_IgnoresTheKindOfTheTypedValue()
+    {
+        var typed = new DateTime(2026, 7, 15, 9, 0, 0, DateTimeKind.Utc);
+
+        Assert.True(LondonTime.TryLondonToUtc(typed, out var utc));
+
+        Assert.Equal(new DateTime(2026, 7, 15, 8, 0, 0, DateTimeKind.Utc), utc);
+    }
 }

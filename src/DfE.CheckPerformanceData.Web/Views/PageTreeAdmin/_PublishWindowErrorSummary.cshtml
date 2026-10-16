@@ -1,0 +1,24 @@
+@using DfE.CheckPerformanceData.Web.PageTree
+@{
+    var error = PublishWindowError.Read(TempData);
+}
+@if (error is not null)
+{
+    <div class="govuk-error-summary" data-module="govuk-error-summary">
+        <div role="alert">
+            <h2 class="govuk-error-summary__title">There is a problem</h2>
+            <div class="govuk-error-summary__body">
+                <ul class="govuk-list govuk-error-summary__list">
+                    @if (error.FromError is not null)
+                    {
+                        <li><a href="#from-@error.VersionId">@error.FromError</a></li>
+                    }
+                    @if (error.ToError is not null)
+                    {
+                        <li><a href="#to-@error.VersionId">@error.ToError</a></li>
+                    }
+                </ul>
+            </div>
+        </div>
+    </div>
+}

@@ -52,7 +52,7 @@ public sealed class EvidenceUploadFileLimitTests(PlaywrightFixture fixture) : Se
         await Expect(Page.Locator("#fileUpload-error")).ToContainTextAsync(FileLimitMessage);
 
         // The refusal comes back after a redirect; the title must still say there is an error,
-        // and the file input must be described by the "6 of 6 files added." line.
+        // and the upload control (the enhanced button, #380) must be described by the "6 of 6 files added." line.
         await Expect(Page).ToHaveTitleAsync(new Regex("^Error: "));
         await Expect(Page.Locator("#fileUpload")).ToHaveAttributeAsync("aria-describedby", new Regex(@"\bfileUpload-count\b"));
         // #389: the description must not repeat the visible hint — in our reading of the audit,
@@ -77,7 +77,9 @@ public sealed class EvidenceUploadFileLimitTests(PlaywrightFixture fixture) : Se
     // asserts what should appear (a new row, or the error), and that assertion is the wait.
     private async Task UploadAsync(string fileName)
     {
-        await Page.Locator("#fileUpload").SetInputFilesAsync(new FilePayload
+        // #380: #fileUpload is the enhanced control's button; the native input is hidden and
+        // keeps its name. SetInputFilesAsync needs the input and does not need it visible.
+        await Page.Locator("input[name='fileUpload']").SetInputFilesAsync(new FilePayload
         {
             Name = fileName,
             MimeType = "application/pdf",

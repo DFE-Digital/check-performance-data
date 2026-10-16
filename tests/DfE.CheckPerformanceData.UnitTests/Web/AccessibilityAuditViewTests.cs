@@ -464,6 +464,51 @@ public sealed class AccessibilityAuditViewTests
 		Assert.Contains("aria-describedby=\"@Model.DescribedBy\"", view);
 	}
 
+	// ── #380 File upload not operable with Dragon NaturallySpeaking ─────────────────
+
+	[Fact]
+	public void FileUploadPartial_UsesTheJavaScriptEnhancedFileUpload()
+	{
+		// #380: Dragon cannot activate a native <input type="file"> in Chrome (Nuance: "not
+		// supported"; alphagov/reported-bugs#35). GOV.UK Frontend's enhanced File upload
+		// (5.9.0+, bundled here as 6.5.1) replaces it with a real <button> Dragon can name.
+		// Opting in is the wrapper with data-module; initAll() in the layout does the rest.
+		// The input keeps its id, name, accept and aria-describedby — the module reads them.
+		var view = ReadView("Views", "Journey", "_FileUpload.cshtml");
+
+		Assert.Matches(
+			"<div class=\"govuk-file-upload-wrapper\" data-module=\"govuk-file-upload\">\\s*<input class=\"govuk-file-upload",
+			view);
+		Assert.Contains("<label class=\"govuk-label\" for=\"fileUpload\">", view);
+		Assert.Matches("<input[^>]*id=\"fileUpload\"[^>]*name=\"fileUpload\"[^>]*type=\"file\"", view);
+	}
+
+	[Theory]
+	[InlineData("Views/Admin/Rules/Upload.cshtml", "file")]
+	[InlineData("Views/ContentStaging/Index.cshtml", "bundle")]
+	public void AdminFileInputs_UseTheJavaScriptEnhancedFileUpload(string relativePath, string id)
+	{
+		// #380 is "believed to be global": every raw file input gets the same wrapper, and keeps
+		// its label (the module throws without label[for=id]) and its hint description.
+		var view = ReadView(relativePath.Split('/'));
+
+		Assert.Matches(
+			"<div class=\"govuk-file-upload-wrapper\" data-module=\"govuk-file-upload\">\\s*<input class=\"govuk-file-upload\"[^>]*id=\"" + id + "\"",
+			view);
+		Assert.Contains("for=\"" + id + "\"", view);
+	}
+
+	[Fact]
+	public void SchemaUpload_TagHelper_TurnsOnTheJavaScriptEnhancements()
+	{
+		// The tag helper renders the same wrapper when asked; the default is the app-wide
+		// GovUkFrontendOptions.DefaultFileUploadJavaScriptEnhancements, which is left false so a
+		// future tag-helper upload opts in deliberately and gets its scripts checked (see #380).
+		var view = ReadView("Views", "WindowAdmin", "Schema.cshtml");
+
+		Assert.Matches("<govuk-file-upload[^>]*javascript-enhancements=\"true\"", view);
+	}
+
 	// ── #388 "Disclosure triangle" announced on expandable sections ───────────────────
 
 	[Theory]
@@ -507,6 +552,24 @@ public sealed class AccessibilityAuditViewTests
 		var view = ReadView("Views", "StorageAdmin", "Container.cshtml");
 		Assert.Contains("id=\"files-hint\"", view);
 		Assert.Matches("<input[^>]*id=\"files\"[^>]*aria-describedby=\"files-hint\"", view);
+	}
+
+	[Fact]
+	public void StorageUpload_FileInput_UsesTheJavaScriptEnhancedFileUpload()
+	{
+		// #380: Dragon users choose files through GOV.UK's enhanced control here too. The
+		// script reaches the native input by name because the module takes id="files" for its
+		// button, and places its field error above the wrapper, where the GDS error sits.
+		var view = ReadView("Views", "StorageAdmin", "Container.cshtml");
+		// ReadView joins its segments under src/DfE.CheckPerformanceData.Web, so it reads
+		// scripts as readily as views (one segment per directory — never an embedded
+		// backslash, which the Linux runner would treat as part of a file name).
+		var script = ReadView("wwwroot", "js", "storage-chunked-upload.js");
+
+		Assert.Matches("<div class=\"govuk-file-upload-wrapper\" data-module=\"govuk-file-upload\">\\s*<input class=\"govuk-file-upload\" id=\"files\"", view);
+		Assert.Contains("querySelector('input[name=\"files\"]')", script);
+		Assert.DoesNotContain("getElementById('files')", script);
+		Assert.Contains("closest('.govuk-file-upload-wrapper')", script);
 	}
 
 	// A live region announces reliably only when it is already in the DOM, empty, before the

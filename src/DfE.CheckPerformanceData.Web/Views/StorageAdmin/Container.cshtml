@@ -65,7 +65,13 @@
         <div id="files-hint" class="govuk-hint">The files you choose must add up to less than @singleLimit.</div>
         <p id="files-js-hint" class="govuk-hint" hidden>You can choose more than one file. Each file must be smaller than @maxLabel.</p>
         <noscript><p class="govuk-body">To upload bigger files, turn on JavaScript in your browser.</p></noscript>
-        <input class="govuk-file-upload" id="files" name="files" type="file" multiple aria-describedby="files-hint" />
+        @* #380: GOV.UK's JavaScript-enhanced File upload. The module moves id="files" to its
+           button (the error summary's link target) and hides this input as #files-input;
+           storage-chunked-upload.js reaches it by name. The idle-controls [hidden] rule in
+           site.css covers the hidden input too. *@
+        <div class="govuk-file-upload-wrapper" data-module="govuk-file-upload">
+            <input class="govuk-file-upload" id="files" name="files" type="file" multiple aria-describedby="files-hint" />
+        </div>
     </div>
     <div id="upload-status" class="govuk-body" role="status" aria-live="polite"></div>
     <div class="app-upload-progress-row govuk-!-margin-bottom-4">

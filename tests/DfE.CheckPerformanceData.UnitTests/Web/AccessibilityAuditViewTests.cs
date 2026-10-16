@@ -554,6 +554,24 @@ public sealed class AccessibilityAuditViewTests
 		Assert.Matches("<input[^>]*id=\"files\"[^>]*aria-describedby=\"files-hint\"", view);
 	}
 
+	[Fact]
+	public void StorageUpload_FileInput_UsesTheJavaScriptEnhancedFileUpload()
+	{
+		// #380: Dragon users choose files through GOV.UK's enhanced control here too. The
+		// script reaches the native input by name because the module takes id="files" for its
+		// button, and places its field error above the wrapper, where the GDS error sits.
+		var view = ReadView("Views", "StorageAdmin", "Container.cshtml");
+		// ReadView joins its segments under src/DfE.CheckPerformanceData.Web, so it reads
+		// scripts as readily as views (one segment per directory — never an embedded
+		// backslash, which the Linux runner would treat as part of a file name).
+		var script = ReadView("wwwroot", "js", "storage-chunked-upload.js");
+
+		Assert.Matches("<div class=\"govuk-file-upload-wrapper\" data-module=\"govuk-file-upload\">\\s*<input class=\"govuk-file-upload\" id=\"files\"", view);
+		Assert.Contains("querySelector('input[name=\"files\"]')", script);
+		Assert.DoesNotContain("getElementById('files')", script);
+		Assert.Contains("closest('.govuk-file-upload-wrapper')", script);
+	}
+
 	// A live region announces reliably only when it is already in the DOM, empty, before the
 	// script writes to it (the same finding as evidence-upload-validation.js).
 	[Fact]

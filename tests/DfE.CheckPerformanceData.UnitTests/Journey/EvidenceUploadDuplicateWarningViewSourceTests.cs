@@ -54,6 +54,19 @@ public sealed class EvidenceUploadDuplicateWarningViewSourceTests
     }
 
     [Fact]
+    public void Script_PlacesTheWarningAboveTheEnhancedControl_AndDescribesItsButton()
+    {
+        // #380: the input now sits inside GOV.UK's enhanced-upload wrapper, with the module's
+        // button before it. Inserting the warning "before the input" would put it inside the
+        // wrapper, under the button; and the module copies aria-describedby to the button only
+        // once, at init, so the warning's id must be added to the button as well as the input
+        // or a screen reader on the button never hears it.
+        var source = ReadWebFile("wwwroot", "js", "evidence-upload-validation.js");
+        Assert.Contains("closest('.govuk-file-upload-wrapper')", source);
+        Assert.Contains("button.govuk-file-upload-button", source);
+    }
+
+    [Fact]
     public void ServerAndClient_ShareTheExactTicketWording()
     {
         var service = ReadSrcFile("DfE.CheckPerformanceData.Application", "Journey", "JourneyValidationService.cs");

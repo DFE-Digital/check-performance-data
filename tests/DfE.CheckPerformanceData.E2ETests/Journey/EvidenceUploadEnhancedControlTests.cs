@@ -76,6 +76,32 @@ public sealed class EvidenceUploadEnhancedControlTests(PlaywrightFixture fixture
         await Expect(ChooseFileButton).ToContainTextAsync("No file chosen");
     }
 
+    [RetryFact]
+    public async Task ADuplicateFileName_IsWarnedAboveTheButton_AndNamedInItsDescription()
+    {
+        await SeedHelpers.CleanupDevRequestsAsync(Fixture.SeedClient);
+        await NavigateToEvidencePageAsync();
+
+        await NativeInput.SetInputFilesAsync(new FilePayload { Name = "evidence-1.pdf", MimeType = "application/pdf", Buffer = OnePagePdf() });
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Upload file", Exact = true }).ClickAsync();
+        await Expect(Page.GetByRole(AriaRole.Link, new() { Name = "evidence-1.pdf", Exact = true })).ToBeVisibleAsync();
+
+        // Choosing the same name again is warned at selection time (AB#296081), and the
+        // warning must land where the GOV.UK error message sits — above the control, not
+        // inside the wrapper under the button — and be named by the button's description.
+        await NativeInput.SetInputFilesAsync(new FilePayload { Name = "evidence-1.pdf", MimeType = "application/pdf", Buffer = OnePagePdf() });
+        var warning = Page.Locator("#fileUpload-duplicate-error");
+        await Expect(warning).ToContainTextAsync("The file name has already been used.");
+        await Expect(Page.Locator("#fileUpload-duplicate-error + .govuk-file-upload-wrapper")).ToHaveCountAsync(1);
+        await Expect(ChooseFileButton).ToHaveAttributeAsync("aria-describedby", new Regex(@"\bfileUpload-duplicate-error\b"));
+        await Expect(NativeInput).ToHaveAttributeAsync("aria-describedby", new Regex(@"\bfileUpload-duplicate-error\b"));
+
+        // A different name clears it from both.
+        await NativeInput.SetInputFilesAsync(new FilePayload { Name = "evidence-2.pdf", MimeType = "application/pdf", Buffer = OnePagePdf() });
+        await Expect(warning).ToHaveCountAsync(0);
+        await Expect(ChooseFileButton).Not.ToHaveAttributeAsync("aria-describedby", new Regex(@"\bfileUpload-duplicate-error\b"));
+    }
+
     // WhatToChange -> Remove -> pupil search -> "Admitted following permanent exclusion" ->
     // DfE number and date -> the evidence page (the EvidenceUploadFileLimitTests route).
     private async Task NavigateToEvidencePageAsync()

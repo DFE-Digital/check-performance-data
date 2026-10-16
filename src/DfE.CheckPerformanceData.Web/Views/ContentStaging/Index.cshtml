@@ -130,8 +130,11 @@
             Select the <code>.zip</code> bundle exported from another environment. Bundles
             exported as <code>.json</code> by earlier releases still work, zipped or not.
         </div>
-        <input class="govuk-file-upload" id="bundle" name="bundle" type="file"
-               accept="application/zip,.zip,application/json,.json" aria-describedby="bundle-hint">
+        @* #380: GOV.UK's JavaScript-enhanced File upload (see Views/Journey/_FileUpload.cshtml). *@
+        <div class="govuk-file-upload-wrapper" data-module="govuk-file-upload">
+            <input class="govuk-file-upload" id="bundle" name="bundle" type="file"
+                   accept="application/zip,.zip,application/json,.json" aria-describedby="bundle-hint">
+        </div>
     </div>
 
     <button class="govuk-button" data-module="govuk-button" data-prevent-double-click="true" type="submit">

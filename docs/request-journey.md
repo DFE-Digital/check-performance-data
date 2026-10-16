@@ -271,6 +271,8 @@ The evidence page has `type: "EvidenceUpload"` in the JSON and renders a distinc
   The GUID blob name is returned and stored in session as `FileAnswer.StoredFileName`. The original filename and page count are also stored in session but the bytes themselves live only in blob storage.
 - Removing a file (`/remove`) deletes the blob and removes the `FileAnswer` entry from session
 
+The file control is GOV.UK Frontend's JavaScript-enhanced File upload (#380): `_FileUpload.cshtml` wraps the input in `govuk-file-upload-wrapper` with `data-module="govuk-file-upload"`, the module renders a "Choose file" button that takes the id `fileUpload`, and the native input becomes `#fileUpload-input`, hidden, still named `fileUpload`. Scripts reach it by name; see `docs/accessibility.md` → "File inputs are the JavaScript-enhanced GOV.UK File upload".
+
 The text area on the evidence page is submitted via the normal `PagePost` route. An evidence page may set `requireAtLeastOne` so that the file upload and explanation are each `optional` individually but at least one must be provided — see [Require at least one](#require-at-least-one).
 
 ### Content pages

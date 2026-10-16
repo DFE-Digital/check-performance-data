@@ -47,7 +47,8 @@ public sealed class StorageBrowserChunkedUploadTests(PlaywrightFixture fixture) 
     private async Task ChooseAndUploadAsync(string folder, string fileName, int length)
     {
         await Page.Locator("#folder").FillAsync(folder);
-        await Page.Locator("#files").SetInputFilesAsync(new FilePayload { Name = fileName, MimeType = "text/csv", Buffer = Bytes(length) });
+        // #380: #files is the enhanced control's button; the native input is hidden and keeps its name.
+        await Page.Locator("input[name='files']").SetInputFilesAsync(new FilePayload { Name = fileName, MimeType = "text/csv", Buffer = Bytes(length) });
         await Page.GetByRole(AriaRole.Button, new() { Name = "Upload", Exact = true }).ClickAsync();
     }
 
@@ -144,7 +145,7 @@ public sealed class StorageBrowserChunkedUploadTests(PlaywrightFixture fixture) 
         try
         {
             await page.Locator("#folder").FillAsync(folder);
-            await page.Locator("#files").SetInputFilesAsync(new FilePayload { Name = fileName, MimeType = "text/csv", Buffer = Bytes(1024) });
+            await page.Locator("input[name='files']").SetInputFilesAsync(new FilePayload { Name = fileName, MimeType = "text/csv", Buffer = Bytes(1024) });
             await page.GetByRole(AriaRole.Button, new() { Name = "Upload", Exact = true }).ClickAsync();
 
             await page.WaitForURLAsync($"**{ContainerUrl}");

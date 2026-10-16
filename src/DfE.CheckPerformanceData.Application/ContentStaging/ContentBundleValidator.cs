@@ -1,4 +1,4 @@
-using System.Text.RegularExpressions;
+using DfE.CheckPerformanceData.Application.PageTree;
 
 namespace DfE.CheckPerformanceData.Application.ContentStaging;
 
@@ -9,7 +9,7 @@ namespace DfE.CheckPerformanceData.Application.ContentStaging;
 // Fatal issues short-circuit the flow via ContentImportValidationException; warning issues are
 // surfaced to the operator but do not block the import. HTML sanitisation is a separate
 // concern (see ContentBundleSanitiser) — the validator does not inspect Content payloads.
-public static partial class ContentBundleValidator
+public static class ContentBundleValidator
 {
     // Total-collection caps: a legitimate whole-environment export tops out around a few
     // hundred pages + blocks; these are set well above realistic usage so we only reject
@@ -128,7 +128,7 @@ public static partial class ContentBundleValidator
                 "SEGMENT_EMPTY",
                 $"Page '{label}' has an empty Segment."));
         }
-        else if (!SegmentPattern().IsMatch(page.Segment))
+        else if (!PageSegment.IsValid(page.Segment))
         {
             issues.Add(new ValidationIssue(
                 ValidationSeverity.Fatal,
@@ -236,10 +236,6 @@ public static partial class ContentBundleValidator
         }
     }
 
-    // URL-safe kebab-case: lowercase alphanumerics separated by single hyphens.
-    // Deliberately does not allow underscores, uppercase, or trailing/leading hyphens.
-    [GeneratedRegex(@"^[a-z0-9]+(-[a-z0-9]+)*$", RegexOptions.Compiled)]
-    private static partial Regex SegmentPattern();
 }
 
 public enum ValidationSeverity

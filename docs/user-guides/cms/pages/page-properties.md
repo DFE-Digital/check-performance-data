@@ -21,7 +21,7 @@ Make your changes and select **Save details**. A *Page details* message confirms
 | Title | The main heading of the page. Also what search results show, and what menus show unless you give a page name. |
 | Subtitle | An optional line shown above the title in lighter text. Leave it blank to show none. |
 | Page name | A shorter name for menus, used in the admin menu and in Page navigation widgets. Leave it blank to use the title. |
-| URL segment | The last part of the page's address. Lowercase letters, numbers and hyphens. |
+| URL segment | The last part of the page's address. Lowercase letters, numbers and single hyphens. Capital letters are changed to lowercase when you save. |
 | Show in menu | Untick to leave the page out of Page navigation menus that list a named section. The page still works for anyone with the link. A folder's own list of its pages, and the menu beside a wiki page, still show it. |
 | Appear in search | Untick to leave the page out of search results. The page still works for anyone with the link. |
 | Search keywords | Extra words the page should be found for. See below. |
@@ -67,7 +67,7 @@ Search boxes you have limited to chosen pages keep working after a rename or a m
 
 | Message | What it means |
 |---|---|
-| URL segment must not be empty and cannot contain '/'. | Enter a single segment, without slashes. |
+| URL segment can only contain lowercase letters, numbers and single hyphens, for example my-page. | Use only those characters, with no spaces or slashes, and no hyphen at the start or end. |
 | Another page already uses that URL. | A page beside this one already has that segment. |
 
 To move a page to a different part of the site, rather than rename it, see [Organise the page tree](organising-the-page-tree.md).

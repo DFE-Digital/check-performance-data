@@ -386,6 +386,40 @@ public sealed class PageTreeAdminControllerTests
     }
 
     [Fact]
+    public async Task Create_MixedCaseSegment_CreatesThePageInLowerCase()
+    {
+        var nodeId = Guid.NewGuid();
+        _service.GetNodeByPathAsync("my-page").Returns((PageNodeDto?)null);
+        _service.CreatePageAsync(null, "my-page", "My Page", "content", Arg.Any<string?>())
+            .Returns(new PageNodeDto
+            {
+                Id = nodeId, Segment = "my-page", Path = "my-page",
+                Title = "My Page", PageType = "content"
+            });
+
+        var result = await Sut().Create(null, "content", "My-Page", "My Page");
+
+        var redirect = Assert.IsType<RedirectResult>(result);
+        Assert.Equal($"/admin/pages/{nodeId}/edit", redirect.Url);
+        await _service.Received(1).CreatePageAsync(null, "my-page", "My Page", "content", Arg.Any<string?>());
+    }
+
+    [Fact]
+    public async Task Rename_InvalidSegment_TellsTheEditorTheFormattingRules()
+    {
+        var id = Guid.NewGuid();
+        _service.RenameNodeAsync(id, "my page", "Title", Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string?>())
+            .Returns(RenameNodeResult.InvalidSegment);
+        var controller = Sut();
+
+        await controller.Rename(id, "my page", "Title", null, null, null, null, null);
+
+        Assert.Equal(
+            "URL segment can only contain lowercase letters, numbers and single hyphens, for example my-page.",
+            controller.TempData["RenameResult"]);
+    }
+
+    [Fact]
     public async Task Create_ValidWiki_RedirectsToEditUrl()
     {
         var nodeId = Guid.NewGuid();

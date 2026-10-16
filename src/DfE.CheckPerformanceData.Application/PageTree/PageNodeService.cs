@@ -247,10 +247,11 @@ public sealed class PageNodeService(IPageNodeRepository repository) : IPageNodeS
     public async Task<RenameNodeResult> RenameNodeAsync(
         Guid id, string newSegment, string newTitle, string? newSubtitle, string? newPageName, string? userId)
     {
-        newSegment ??= string.Empty;
+        // Capitals are put right without a word; anything else that breaks the rule is refused.
+        newSegment = PageSegment.Normalise(newSegment);
         newTitle ??= string.Empty;
 
-        if (string.IsNullOrWhiteSpace(newSegment) || newSegment.Contains('/'))
+        if (!PageSegment.IsValid(newSegment))
             return RenameNodeResult.InvalidSegment;
 
         var node = await repository.GetByIdAsync(id);

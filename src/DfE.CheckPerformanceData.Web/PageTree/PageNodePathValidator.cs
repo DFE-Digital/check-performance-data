@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using DfE.CheckPerformanceData.Application.PageTree;
 
 namespace DfE.CheckPerformanceData.Web.PageTree;
@@ -16,12 +15,6 @@ namespace DfE.CheckPerformanceData.Web.PageTree;
 /// </summary>
 public sealed class PageNodePathValidator
 {
-    // Lower-case slug pattern: one or more alphanum groups separated by hyphens,
-    // zero or more additional slash-separated segments of the same shape.
-    private static readonly Regex PathPattern =
-        new(@"^[a-z0-9]+(-[a-z0-9]+)*(/[a-z0-9]+(-[a-z0-9]+)*)*$",
-            RegexOptions.Compiled | RegexOptions.CultureInvariant);
-
     private static readonly IReadOnlySet<string> HardReserved =
         new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "admin", "dev", "healthcheck" };
 
@@ -42,7 +35,8 @@ public sealed class PageNodePathValidator
         if (string.IsNullOrWhiteSpace(path))
             return (false, "Path must not be empty.");
 
-        if (!PathPattern.IsMatch(path))
+        // Every segment between the slashes follows the one segment rule.
+        if (!path.Split('/').All(PageSegment.IsValid))
             return (false, "Path may only contain lowercase letters, digits, hyphens, and forward slashes (e.g. 'my-page' or 'section/sub-page').");
 
         var firstSegment = path.Split('/')[0];

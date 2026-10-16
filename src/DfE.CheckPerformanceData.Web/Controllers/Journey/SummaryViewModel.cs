@@ -65,16 +65,7 @@ public sealed class SummaryViewModel
 
     public int TotalPagesUsed => FileRows.Sum(r => r.PageCount);
 
-    // Kept word-for-word in step with the radios on What to change: this row echoes the answer the
-    // school gave there.
-    public string WhatToChangeLabel => WhatToChange switch
-    {
-        WhatToChange.Remove => $"Remove a {LearnerNoun.Singular} from data",
-        WhatToChange.Include => $"Include a {LearnerNoun.Singular} in data",
-        WhatToChange.Merge => $"Merge duplicate {LearnerNoun.Singular} records",
-        WhatToChange.Add => $"Add a {LearnerNoun.Singular} to data",
-        _ => WhatToChange.ToString()
-    };
+    public string WhatToChangeLabel => Journey.WhatToChangeLabel.For(WhatToChange, LearnerNoun);
 
     public string WhatToChangeNoun => WhatToChange switch
     {

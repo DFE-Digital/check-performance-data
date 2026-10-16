@@ -258,34 +258,57 @@ public sealed class ContentStagingService(
     {
         ArgumentNullException.ThrowIfNull(bundle);
 
-        // Validate up front. Fatal issues in the shape or contents of the bundle mean the
+        // Validate up front. Fatal issues in the shape of the bundle as a whole mean the
         // preview can't be produced safely — the operator should get the error banner from
-        // the landing page instead of a broken half-preview.
+        // the landing page instead of a broken half-preview. An item with a problem of its own
+        // is listed as one that cannot be imported, and the rest is previewed.
         var issues = ContentBundleValidator.Validate(bundle);
         if (issues.Any(i => i.Severity == ValidationSeverity.Fatal))
         {
             throw new ContentImportValidationException(issues);
         }
+        var rejected = RejectedItems(issues);
 
         // Sanitise HTML in place before the preview so any bundle-json we round-trip through
         // the hidden form field is already clean. Idempotent — running it again at Import
-        // time (below) is a no-op on already-scrubbed content.
+        // time (below) is a no-op on already-scrubbed content. Segments are left as they are:
+        // the import lowercases them, so that it can say which ones it changed.
         _sanitiser?.SanitiseInPlace(bundle);
 
-        var byId = BundleById(bundle.PageNodes);
-        var resolvable = await ResolveableParentsAsync(bundle.PageNodes, byId);
+        var allById = BundleById(bundle.PageNodes);
+        var importable = bundle.PageNodes.Where(p => !rejected.ContainsKey(p.Id)).ToList();
+        var byId = BundleById(importable);
+        var resolvable = await ResolveableParentsAsync(importable, byId);
 
         var pageItems = new List<PreviewItem>();
         foreach (var page in OrderForImport(bundle.PageNodes))
         {
-            var path = VirtualPath(page, byId);
+            if (rejected.TryGetValue(page.Id, out var problem))
+            {
+                pageItems.Add(new PreviewItem(page.Id, page.Title, VirtualPath(page, allById), false, null, Problem: problem));
+                continue;
+            }
+
+            var path = VirtualPath(page, allById);
             if (!resolvable.Contains(page.Id))
             {
-                pageItems.Add(new PreviewItem(page.Id, page.Title, path, false, null, ParentMissing: true));
+                // Below a page that cannot be imported, say which one, not that it is missing.
+                var parentProblem = SelfAndAncestors(page, p => p.Id, p => BundleParent(p, allById)).Skip(1).FirstOrDefault(a => rejected.ContainsKey(a.Id)) is { } stuck
+                    ? $"Its parent page ‘{stuck.Title}’ cannot be imported."
+                    : null;
+                pageItems.Add(new PreviewItem(page.Id, page.Title, path, false, null, ParentMissing: true, Problem: parentProblem));
                 continue;
             }
 
             var existing = page.Id != Guid.Empty ? await pageNodeRepository.GetByIdAsync(page.Id) : null;
+            // Only a page whose whole chain is in the bundle has its full address here; for the
+            // rest the import checks against the real parent.
+            var rootedInBundle = SelfAndAncestors(page, p => p.Id, p => BundleParent(p, allById)).Last().ParentId is null;
+            if (existing is null && rootedInBundle && await LowercasedOntoAnotherPageAsync(page, path) is { } clash)
+            {
+                pageItems.Add(new PreviewItem(page.Id, page.Title, path, false, null, Problem: clash));
+                continue;
+            }
             var description = existing is null
                 ? null
                 : existing.Title == page.Title
@@ -297,6 +320,12 @@ public sealed class ContentStagingService(
         var blockItems = new List<PreviewItem>();
         foreach (var block in bundle.ContentBlocks)
         {
+            if (rejected.TryGetValue(block.Id, out var problem))
+            {
+                blockItems.Add(new PreviewItem(block.Id, block.Key, block.BlockType, false, null, Problem: problem));
+                continue;
+            }
+
             var existing = block.Id != Guid.Empty ? await contentBlockRepository.GetByContentIdAsync(block.Id) : null;
             var description = existing is null
                 ? null
@@ -309,6 +338,12 @@ public sealed class ContentStagingService(
         var bannerPreview = new List<PreviewItem>();
         foreach (var banner in bundle.HomeBanners)
         {
+            if (rejected.TryGetValue(banner.Id, out var problem))
+            {
+                bannerPreview.Add(new PreviewItem(banner.Id, banner.Heading, "Home page banner", false, null, Problem: problem));
+                continue;
+            }
+
             var existing = banner.Id != Guid.Empty ? await homeBannerRepository.GetByContentIdAsync(banner.Id) : null;
             var description = existing is null
                 ? null
@@ -318,7 +353,12 @@ public sealed class ContentStagingService(
             bannerPreview.Add(new PreviewItem(banner.Id, banner.Heading, "Home page banner", existing is not null, description));
         }
 
-        return new ContentImportPreview(pageItems, blockItems, bannerPreview);
+        // A warning about an item that cannot be imported anyway would only confuse.
+        var blocked = pageItems.Concat(blockItems).Concat(bannerPreview).Where(i => i.Blocked).Select(i => i.Id).ToHashSet();
+        return new ContentImportPreview(pageItems, blockItems, bannerPreview)
+        {
+            Warnings = WarningsFor(issues, blocked)
+        };
     }
 
     public async Task<ContentImportResult> ImportAsync(
@@ -331,12 +371,14 @@ public sealed class ContentStagingService(
 
         // Re-validate at Import time. The bundle is reloaded from its preview session between
         // the two steps — belt-and-braces so a tampered session row can't smuggle a fatal
-        // issue past the earlier check.
+        // issue past the earlier check. An item with a problem of its own is left out and
+        // listed, and the rest is imported.
         var issues = ContentBundleValidator.Validate(bundle);
         if (issues.Any(i => i.Severity == ValidationSeverity.Fatal))
         {
             throw new ContentImportValidationException(issues);
         }
+        var rejected = RejectedItems(issues);
 
         // Sanitise HTML in place. Idempotent — if PreviewAsync already sanitised, this is
         // free. Any items that were still dirty (rare — implies the operator hand-edited
@@ -355,13 +397,28 @@ public sealed class ContentStagingService(
                 ? m
                 : (isExisting ? mode : newItemMode);
 
-        var pages = OrderForImport(bundle.PageNodes);
+        var pages = OrderForImport(bundle.PageNodes.Where(p => !rejected.ContainsKey(p.Id)).ToList());
+        var blocks = bundle.ContentBlocks.Where(b => !rejected.ContainsKey(b.Id)).ToList();
+        var banners = bundle.HomeBanners.Where(b => !rejected.ContainsKey(b.Id)).ToList();
 
         // Abort up front if any collision is left at the Fail default; a per-item Skip/Overwrite
         // resolves that item and keeps the import going.
-        await GuardFailCollisionsAsync(pages, bundle.ContentBlocks, bundle.HomeBanners, ModeFor);
+        await GuardFailCollisionsAsync(pages, blocks, banners, ModeFor);
 
         var result = new ContentImportResult();
+
+        // Bundle page GUID -> title, for every page that does not land, so that a child of one
+        // can say why it did not land either.
+        var leftOut = new Dictionary<Guid, string>();
+        foreach (var page in bundle.PageNodes.Where(p => rejected.ContainsKey(p.Id)))
+        {
+            result.Errors.Add($"Did not import ‘{page.Title}’: {rejected[page.Id]}");
+            leftOut[page.Id] = page.Title;
+        }
+        foreach (var block in bundle.ContentBlocks.Where(b => rejected.ContainsKey(b.Id)))
+            result.Errors.Add($"Did not import ‘{block.Key}’: {rejected[block.Id]}");
+        foreach (var banner in bundle.HomeBanners.Where(b => rejected.ContainsKey(b.Id)))
+            result.Errors.Add($"Did not import ‘{banner.Heading}’: {rejected[banner.Id]}");
 
         // Surface the sanitiser's effect prominently — if the operator uploaded a bundle
         // with unsafe HTML we want them to know that N items were scrubbed on the way in,
@@ -370,14 +427,6 @@ public sealed class ContentStagingService(
         {
             result.Warnings.Add(
                 $"Sanitised HTML in {sanitised} bundle item(s) on import (script tags, event handlers, or javascript: URLs were removed).");
-        }
-
-        // Non-fatal validator issues were computed and then dropped, so anything the validator
-        // could only warn about — a page that will not render, say — reached nobody. They are
-        // the cases where the import proceeds but the operator needs to know what landed.
-        foreach (var issue in issues.Where(i => i.Severity == ValidationSeverity.Warning))
-        {
-            result.Warnings.Add(issue.Message);
         }
 
         // Bundle node GUID -> materialised path, so a child resolves its parent's path without
@@ -405,12 +454,17 @@ public sealed class ContentStagingService(
                             "ContentStaging: skipping page {PageId} ‘{Title}’ — parent {ParentId} not found",
                             page.Id, page.Title, parentGuid);
                         // Unknown parent: never create an orphan under a blank/guessed parent.
-                        result.Errors.Add($"Could not import ‘{page.Title}’ — its parent was not found in the bundle or this environment.");
+                        result.Errors.Add(leftOut.TryGetValue(parentGuid, out var parentTitle)
+                            ? $"Could not import ‘{page.Title}’ — its parent ‘{parentTitle}’ was not imported."
+                            : $"Could not import ‘{page.Title}’ — its parent was not found in the bundle or this environment.");
+                        leftOut[page.Id] = page.Title;
                         continue;
                     }
                 }
 
-                var path = parentPath is null ? page.Segment : $"{parentPath}/{page.Segment}";
+                // The validator has already checked that the lowercased segment keeps the rule.
+                var segment = PageSegment.Normalise(page.Segment);
+                var path = parentPath is null ? segment : $"{parentPath}/{segment}";
 
                 // Primary match: stable GUID identity — the ideal path when the target env has
                 // seen this content before.
@@ -424,6 +478,14 @@ public sealed class ContentStagingService(
                 var pathMatch = existing is null
                     ? await pageNodeRepository.GetByPathAsync(path)
                     : null;
+                // A page whose address only matches once it is lowercased is a different page, so
+                // it is not merged into the one already there.
+                if (pathMatch is not null && segment != page.Segment)
+                {
+                    result.Errors.Add($"Did not import ‘{page.Title}’: {LowercaseClash(page, path, pathMatch)}");
+                    leftOut[page.Id] = page.Title;
+                    continue;
+                }
                 if (pathMatch is not null)
                 {
                     _log.LogInformation(
@@ -437,6 +499,7 @@ public sealed class ContentStagingService(
                     // If the match came from Path (not GUID), use the LOCAL Id everywhere so the
                     // update targets the actual row and children get the right pointer.
                     var effectiveId = existing.Id;
+                    var landedPath = existing.Path;
                     if (ModeFor(page.Id, isExisting: true) == ContentImportMode.Skip)
                     {
                         _log.LogDebug("ContentStaging: page {PageId} ‘{Title}’ exists, mode=Skip", page.Id, page.Title);
@@ -444,8 +507,13 @@ public sealed class ContentStagingService(
                     }
                     else
                     {
+                        // A new segment (renamed, or lowercased) is a new address for the page
+                        // and for every page beneath it here, whether or not those are in the bundle.
+                        if (!string.Equals(path, existing.Path, StringComparison.Ordinal))
+                            await pageNodeRepository.RenameNodeAndCascadeAsync(
+                                effectiveId, segment, path, page.Title, page.Subtitle, page.PageName, userId: null);
                         await pageNodeRepository.UpdateNodeForStagingAsync(
-                            effectiveId, page.Segment, path, page.Title, page.Subtitle, page.PageName, page.SortOrder,
+                            effectiveId, segment, path, page.Title, page.Subtitle, page.PageName, page.SortOrder,
                             page.AppearInSearch, page.Keywords, userId: null);
                         if (page.ShowInMenu is { } showExisting && showExisting != existing.ShowInMenu)
                             await pageNodeRepository.SetShowInMenuAsync(effectiveId, showExisting, userId: null);
@@ -454,14 +522,15 @@ public sealed class ContentStagingService(
                                 effectiveId, MapVersions(page.Versions), userId: null);
                         _log.LogDebug("ContentStaging: page {PageId} ‘{Title}’ updated ({VersionCount} versions)", page.Id, page.Title, page.Versions.Count);
                         result.PageNodesUpdated++;
+                        landedPath = path;
                     }
                     // Children in the bundle reference *this bundle page's* Id, so map both the
-                    // bundle Id and the local Id to the existing path — children can then be
-                    // adopted under whichever pointer they carry.
-                    pathByContentId[page.Id] = existing.Path;
+                    // bundle Id and the local Id to the page's path as it now is — children can
+                    // then be adopted under whichever pointer they carry.
+                    pathByContentId[page.Id] = landedPath;
                     if (effectiveId != page.Id)
                     {
-                        pathByContentId[effectiveId] = existing.Path;
+                        pathByContentId[effectiveId] = landedPath;
                         localIdByBundleId[page.Id] = effectiveId;
                     }
                     continue;
@@ -494,7 +563,7 @@ public sealed class ContentStagingService(
                 await pageNodeRepository.ExecuteInTransactionAsync(async () =>
                 {
                     var created = await pageNodeRepository.CreateNodeForStagingAsync(
-                        page.Id, effectiveParentId, page.Segment, path, page.Title, page.Subtitle, page.PageName, page.PageType, page.SortOrder,
+                        page.Id, effectiveParentId, segment, path, page.Title, page.Subtitle, page.PageName, page.PageType, page.SortOrder,
                         page.AppearInSearch, page.Keywords, userId: null);
                     // A new page is shown in the menus unless the bundle says otherwise.
                     if (page.ShowInMenu == false)
@@ -515,10 +584,11 @@ public sealed class ContentStagingService(
                     "ContentStaging: page {PageId} ‘{Title}’ ({Segment}, pageType={PageType}) failed to import",
                     page.Id, page.Title, page.Segment, page.PageType);
                 result.Errors.Add($"Failed to import ‘{page.Title}’: {ex.GetType().Name} — {ex.Message}");
+                leftOut[page.Id] = page.Title;
             }
         }
 
-        foreach (var block in bundle.ContentBlocks)
+        foreach (var block in blocks)
         {
             try
             {
@@ -587,7 +657,7 @@ public sealed class ContentStagingService(
             }
         }
 
-        foreach (var banner in bundle.HomeBanners)
+        foreach (var banner in banners)
         {
             try
             {
@@ -646,6 +716,10 @@ public sealed class ContentStagingService(
             }
         }
 
+        // Warnings from the validator say what landed and how, such as a segment that was
+        // lowercased, so they are left off for an item that did not land.
+        result.Warnings.AddRange(WarningsFor(issues, leftOut.Keys.ToHashSet()));
+
         _log.LogInformation(
             "ContentStaging import finished: pages created={PagesCreated} updated={PagesUpdated} skipped={PagesSkipped}; blocks created={BlocksCreated} updated={BlocksUpdated} skipped={BlocksSkipped}; banners created={BannersCreated} updated={BannersUpdated} skipped={BannersSkipped}; errors={ErrorCount} warnings={WarningCount}",
             result.PageNodesCreated, result.PageNodesUpdated, result.PageNodesSkipped,
@@ -657,6 +731,31 @@ public sealed class ContentStagingService(
     }
 
     // ---- helpers ---------------------------------------------------------------------------
+
+    // Bundle item GUID -> why the validator leaves it out of the import.
+    private static Dictionary<Guid, string> RejectedItems(IReadOnlyList<ValidationIssue> issues) =>
+        issues
+            .Where(i => i.Severity == ValidationSeverity.Rejected && i.ItemId is not null)
+            .GroupBy(i => i.ItemId!.Value)
+            .ToDictionary(g => g.Key, g => string.Join(" ", g.Select(i => i.Message)));
+
+    private static List<string> WarningsFor(IReadOnlyList<ValidationIssue> issues, IReadOnlySet<Guid> notImported) =>
+        issues
+            .Where(i => i.Severity == ValidationSeverity.Warning
+                && !(i.ItemId is { } id && notImported.Contains(id)))
+            .Select(i => i.Message)
+            .ToList();
+
+    // A page new to this environment whose lowercased address is already another page's.
+    private async Task<string?> LowercasedOntoAnotherPageAsync(PageNodeBundleItem page, string path)
+    {
+        if (PageSegment.Normalise(page.Segment) == page.Segment) return null;
+        var occupant = await pageNodeRepository.GetByPathAsync(path);
+        return occupant is null ? null : LowercaseClash(page, path, occupant);
+    }
+
+    private static string LowercaseClash(PageNodeBundleItem page, string path, PageNodeDto occupant) =>
+        $"Page '{page.Title}' has URL segment '{page.Segment}'. In lowercase its address is /{path}, which page '{occupant.Title}' already uses, so it is not imported.";
 
     // Refuse before making any change if a collision is left at the Fail mode (no per-item
     // Skip/Overwrite decision resolves it). Items with an explicit decision are not blocked.
@@ -789,11 +888,12 @@ public sealed class ContentStagingService(
             .ToList();
     }
 
-    // The materialised path a bundle item would land at, rebuilt from parent segments.
+    // The materialised path a bundle item would land at, rebuilt from parent segments, which the
+    // import lowercases.
     private static string VirtualPath(PageNodeBundleItem page, IReadOnlyDictionary<Guid, PageNodeBundleItem> byId)
     {
         var segments = SelfAndAncestors(page, p => p.Id, p => BundleParent(p, byId))
-            .Select(p => p.Segment)
+            .Select(p => PageSegment.Normalise(p.Segment))
             .Reverse();
         return string.Join("/", segments);
     }

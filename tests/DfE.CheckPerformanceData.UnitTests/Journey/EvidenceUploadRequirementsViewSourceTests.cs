@@ -53,6 +53,15 @@ public sealed class EvidenceUploadRequirementsViewSourceTests
         Assert.Contains("PLACEHOLDER EVIDENCE REQUIREMENTS COPY FOR: {Html.Encode(block.OptionLabel)}", view);
     }
 
+    [Fact]
+    public void ASectionsSharedBlock_SeedsWithAPlaceholderThatNamesTheSection()
+    {
+        // #633: the shared block shows beside the option blocks, so it needs its own name too.
+        var view = ReadEvidenceUploadView();
+
+        Assert.Contains("PLACEHOLDER GENERAL EVIDENCE REQUIREMENTS COPY FOR: {Html.Encode(block.SectionLabel)}", view);
+    }
+
     private static string ReadEvidenceUploadView()
     {
         // Repo root is three levels up from tests/DfE.CheckPerformanceData.UnitTests/Journey/.

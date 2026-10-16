@@ -837,38 +837,192 @@ public class ContentStagingServiceTests
         new(_pages, _blockRepo, _bannerRepo, new HtmlRenderingService(), new ContentBundleSanitiser(new HtmlRenderingService()));
 
     [Fact]
-    public async Task PreviewAsync_FatalValidatorIssue_Throws_ContentImportValidationException()
+    public async Task PreviewAsync_BundleLevelFatalIssue_Throws_ContentImportValidationException()
     {
-        // Invalid PageType — the validator flags it as fatal, PreviewAsync must short-circuit.
         var bundle = new ContentBundle
         {
-            PageNodes =
-            [
-                new() { Id = GuidA, Segment = "help", Title = "Help", PageType = "attacker-injected" }
-            ]
+            PageNodes = Enumerable.Range(0, ContentBundleValidator.MaxPageNodes + 1)
+                .Select(i => new PageNodeBundleItem { Id = Guid.NewGuid(), Segment = $"p-{i}", Title = $"P {i}", PageType = "folder" })
+                .ToList()
         };
 
         var ex = await Assert.ThrowsAsync<ContentImportValidationException>(
             () => _sut.PreviewAsync(bundle));
-        Assert.Contains(ex.Issues, i => i.Code == "PAGE_TYPE_UNKNOWN");
+        Assert.Contains(ex.Issues, i => i.Code == "BUNDLE_TOO_MANY_PAGES");
     }
 
     [Fact]
-    public async Task ImportAsync_FatalValidatorIssue_Throws_And_DoesNotWrite()
+    public async Task PreviewAsync_BrokenPage_IsListedAsAProblem_AndTheRestIsPreviewed()
     {
+        _pages.GetByIdAsync(Arg.Any<Guid>()).ReturnsNull();
         var bundle = new ContentBundle
         {
             PageNodes =
             [
-                new() { Id = GuidA, Segment = "admin", Title = "Reserved", PageType = "folder" }
+                new() { Id = GuidA, Segment = "help", Title = "Help", PageType = "folder" },
+                new() { Id = GuidB, Segment = "bad segment", Title = "Broken", PageType = "folder" },
+                new() { Id = GuidC, ParentId = GuidB, Segment = "child", Title = "Child", PageType = "folder" },
             ]
         };
 
-        await Assert.ThrowsAsync<ContentImportValidationException>(
-            () => _sut.ImportAsync(bundle, ContentImportMode.Replace));
-        await _pages.DidNotReceive().CreateNodeForStagingAsync(
-            Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<string>(), Arg.Any<string>(),
-            Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<bool>(), Arg.Any<string?>(), Arg.Any<string?>());
+        var preview = await _sut.PreviewAsync(bundle);
+
+        Assert.False(preview.Pages.Single(p => p.Id == GuidA).Blocked);
+        var broken = preview.Pages.Single(p => p.Id == GuidB);
+        Assert.True(broken.Blocked);
+        Assert.Contains("invalid Segment 'bad segment'", broken.Problem);
+        // Its child has nowhere to go, as when a parent is missing.
+        var child = preview.Pages.Single(p => p.Id == GuidC);
+        Assert.True(child.ParentMissing);
+        Assert.Equal("Its parent page ‘Broken’ cannot be imported.", child.Problem);
+        Assert.Equal("bad segment/child", child.Detail);
+        Assert.Equal(2, preview.BlockedCount);
+        Assert.Equal(1, preview.NewCount);
+    }
+
+    [Fact]
+    public async Task PreviewAsync_SegmentWithCapitals_IsShownInLowerCase_WithAWarning()
+    {
+        _pages.GetByIdAsync(Arg.Any<Guid>()).ReturnsNull();
+        var bundle = new ContentBundle
+        {
+            PageNodes = [new() { Id = GuidA, Segment = "Guidance-Copy", Title = "Copy", PageType = "folder" }]
+        };
+
+        var preview = await _sut.PreviewAsync(bundle);
+
+        var page = preview.Pages.Single();
+        Assert.False(page.Blocked);
+        Assert.Equal("guidance-copy", page.Detail);
+        Assert.Contains(preview.Warnings, w => w.Contains("it is imported as 'guidance-copy'"));
+        // The import, not the preview, changes the bundle, so the import can say what it changed.
+        Assert.Equal("Guidance-Copy", bundle.PageNodes[0].Segment);
+    }
+
+    [Fact]
+    public async Task PreviewAsync_SegmentWithCapitals_ThatLandsOnAnotherLocalPage_IsAProblem()
+    {
+        _pages.GetByIdAsync(Arg.Any<Guid>()).ReturnsNull();
+        _pages.GetByPathAsync("guidance-copy").Returns(new PageNodeDto { Id = GuidD, Segment = "guidance-copy", Path = "guidance-copy", Title = "Local copy", PageType = "folder" });
+        var bundle = new ContentBundle
+        {
+            PageNodes = [new() { Id = GuidA, Segment = "Guidance-Copy", Title = "Copy", PageType = "folder" }]
+        };
+
+        var preview = await _sut.PreviewAsync(bundle);
+
+        var page = preview.Pages.Single();
+        Assert.True(page.Blocked);
+        Assert.Contains("'Local copy'", page.Problem);
+    }
+
+    [Fact]
+    public async Task PreviewAsync_SegmentWithCapitals_UnderAPageAlreadyHere_IsNotMistakenForAClash()
+    {
+        // The preview only knows the part of the address the bundle carries, here "faq", so it
+        // cannot tell whether /help/faq is taken. The import works it out from the real parent.
+        _pages.GetByIdAsync(Arg.Any<Guid>()).ReturnsNull();
+        _pages.GetByIdAsync(GuidD).Returns(new PageNodeDto { Id = GuidD, Segment = "help", Path = "help", Title = "Help", PageType = "folder" });
+        _pages.GetByPathAsync("faq").Returns(new PageNodeDto { Id = GuidC, Segment = "faq", Path = "faq", Title = "Root FAQ", PageType = "folder" });
+        var bundle = new ContentBundle
+        {
+            PageNodes = [new() { Id = GuidA, ParentId = GuidD, Segment = "FAQ", Title = "FAQ", PageType = "folder" }]
+        };
+
+        var preview = await _sut.PreviewAsync(bundle);
+
+        Assert.False(preview.Pages.Single().Blocked);
+    }
+
+    [Fact]
+    public async Task ImportAsync_BrokenPage_IsLeftOut_TheRestIsImported_AndTheProblemsAreListed()
+    {
+        _pages.GetByIdAsync(Arg.Any<Guid>()).ReturnsNull();
+        _pages.CreateNodeForStagingAsync(
+                Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string?>(),
+                Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<bool>(), Arg.Any<string?>(), Arg.Any<string?>())
+            .Returns(ci => new PageNodeDto { Id = (Guid)ci[0], Segment = (string)ci[2], Path = (string)ci[3], Title = (string)ci[4], PageType = "folder" });
+        var bundle = new ContentBundle
+        {
+            PageNodes =
+            [
+                new() { Id = GuidA, Segment = "help", Title = "Help", PageType = "folder" },
+                new() { Id = GuidB, Segment = "admin", Title = "Reserved", PageType = "folder" },
+                new() { Id = GuidC, ParentId = GuidB, Segment = "child", Title = "Child", PageType = "folder" },
+            ]
+        };
+
+        var result = await _sut.ImportAsync(bundle, ContentImportMode.Replace);
+
+        Assert.Equal(1, result.PageNodesCreated);
+        await _pages.Received(1).CreateNodeForStagingAsync(
+            GuidA, null, "help", "help", "Help", null, null, "folder", 0, true, null, null);
+        Assert.Equal(2, result.Errors.Count);
+        Assert.Contains(result.Errors, e => e.StartsWith("Did not import ‘Reserved’:") && e.Contains("reserved Segment 'admin'"));
+        Assert.Contains("Could not import ‘Child’ — its parent ‘Reserved’ was not imported.", result.Errors);
+    }
+
+    [Fact]
+    public async Task ImportAsync_BrokenBlock_IsLeftOut_AndTheRestIsImported()
+    {
+        _pages.GetByIdAsync(Arg.Any<Guid>()).ReturnsNull();
+        _blockRepo.GetByContentIdAsync(Arg.Any<Guid>()).ReturnsNull();
+        _blockRepo.GetByKeyAsync(Arg.Any<string>()).ReturnsNull();
+        _blockRepo.AddBlockAsync(default!, default!, default!, default!, default, default, default)
+            .ReturnsForAnyArgs(new ContentBlockDto { Id = 1, Key = "good", BlockType = "Content" });
+        var bundle = new ContentBundle
+        {
+            ContentBlocks =
+            [
+                new() { Id = GuidA, Key = "good", BlockType = "Content", Value = "<p>ok</p>" },
+                new() { Id = GuidB, Key = "bad", BlockType = "Nope", Value = "" },
+            ]
+        };
+
+        var result = await _sut.ImportAsync(bundle, ContentImportMode.Replace);
+
+        Assert.Equal(1, result.ContentBlocksCreated);
+        Assert.StartsWith("Did not import ‘bad’:", Assert.Single(result.Errors));
+    }
+
+    [Fact]
+    public async Task ImportAsync_SegmentWithCapitals_IsImportedInLowerCase_WithAWarning()
+    {
+        _pages.GetByIdAsync(Arg.Any<Guid>()).ReturnsNull();
+        _pages.CreateNodeForStagingAsync(
+                Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string?>(),
+                Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<bool>(), Arg.Any<string?>(), Arg.Any<string?>())
+            .Returns(ci => new PageNodeDto { Id = (Guid)ci[0], Segment = (string)ci[2], Path = (string)ci[3], Title = (string)ci[4], PageType = "folder" });
+        var bundle = new ContentBundle
+        {
+            PageNodes = [new() { Id = GuidA, Segment = "guidance-copy-17-Sep", Title = "Copy", PageType = "folder" }]
+        };
+
+        var result = await _sut.ImportAsync(bundle, ContentImportMode.Replace);
+
+        Assert.Empty(result.Errors);
+        Assert.Equal(1, result.PageNodesCreated);
+        await _pages.Received(1).CreateNodeForStagingAsync(
+            GuidA, null, "guidance-copy-17-sep", "guidance-copy-17-sep", "Copy", null, null, "folder", 0, true, null, null);
+        Assert.Contains("Page 'Copy' has URL segment 'guidance-copy-17-Sep', so it is imported as 'guidance-copy-17-sep'.", result.Warnings);
+    }
+
+    [Fact]
+    public async Task ImportAsync_SegmentWithCapitals_ThatLandsOnAnotherLocalPage_IsNotMergedIntoIt()
+    {
+        _pages.GetByIdAsync(Arg.Any<Guid>()).ReturnsNull();
+        _pages.GetByPathAsync("guidance-copy").Returns(new PageNodeDto { Id = GuidD, Segment = "guidance-copy", Path = "guidance-copy", Title = "Local copy", PageType = "folder" });
+        var bundle = new ContentBundle
+        {
+            PageNodes = [new() { Id = GuidA, Segment = "Guidance-Copy", Title = "Copy", PageType = "folder" }]
+        };
+
+        var result = await _sut.ImportAsync(bundle, ContentImportMode.Replace);
+
+        Assert.Equal(0, result.PageNodesUpdated);
+        Assert.Equal(0, result.PageNodesCreated);
+        await _pages.DidNotReceiveWithAnyArgs().UpdateNodeForStagingAsync(default, default!, default!, default!, default, default, default, default, default, default);
+        Assert.Contains(result.Errors, e => e.StartsWith("Did not import ‘Copy’:") && e.Contains("'Local copy'"));
     }
 
     // ── Sanitiser integration ────────────────────────────────────────────────

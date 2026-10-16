@@ -7,7 +7,7 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Views;
 // confirmation screen's CMS-editable "What happens next" block (issue #515 / AB#304140).
 //
 // Both defects live in the one `defaultHtml` literal for block key
-// `journey_confirmation_next_steps`, so a source assertion is exact rather than approximate.
+// `journey_confirmation_next_steps_v2`, so a source assertion is exact rather than approximate.
 // The "no changes" check runs against *extracted visible copy*, not the raw file: the view
 // also carries identifiers such as `asp-controller="WhatToChange"`, and the spec puts
 // non-visible code on the screen out of scope.

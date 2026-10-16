@@ -15,6 +15,10 @@
     @await Html.PartialAsync("_JourneyErrorSummary", Model)
 }
 
+@if (Model.Caption is not null)
+{
+    <span class="govuk-caption-xl">@Model.Caption</span>
+}
 @if (Model.ResolvedTitle is not null)
 {
     <h1 class="govuk-heading-xl">@Model.ResolvedTitle</h1>
@@ -32,7 +36,9 @@
    #591: one block for each option the school ticked, under the one heading. Each block must
    read correctly on its own, because any set of options can show. A block for an option seeds
    with a placeholder that names the option, so a guidance writer can tell the blocks apart. The
-   page's own content cannot say which option it is for, so it seeds only a block for no option. *@
+   page's own content cannot say which option it is for, so it seeds only a block for no option.
+   #633: a checkbox section also has a shared block, below its option blocks, that shows whatever
+   the school ticks. It seeds with a placeholder that names the section. *@
 <h2 class="govuk-heading-m">@(Model.Page.DetailsSummary ?? "What evidence do I need?")</h2>
 @foreach (var block in Model.EvidenceContentBlocks)
 {
@@ -41,6 +47,10 @@
         defaultHtml = block.OptionLabel is not null
             ? $@"<p class=""govuk-body"">
                 PLACEHOLDER EVIDENCE REQUIREMENTS COPY FOR: {Html.Encode(block.OptionLabel)}
+                </p>"
+            : block.SectionLabel is not null
+            ? $@"<p class=""govuk-body"">
+                PLACEHOLDER GENERAL EVIDENCE REQUIREMENTS COPY FOR: {Html.Encode(block.SectionLabel)}
                 </p>"
             : Model.Page.Content ?? @"<p class=""govuk-body"">
                 PLACEHOLDER EVIDENCE REQUIREMENTS COPY

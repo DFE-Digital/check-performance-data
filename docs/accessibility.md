@@ -160,7 +160,7 @@ Two older link sets do not yet follow this rule and are follow-up candidates: `V
 
 ## File inputs are the JavaScript-enhanced GOV.UK File upload (#380)
 
-**Every `<input type="file">` is wrapped in `<div class="govuk-file-upload-wrapper" data-module="govuk-file-upload">`** (or rendered by `<govuk-file-upload javascript-enhancements="true">`). Dragon NaturallySpeaking cannot activate a native file input in Chrome by any voice command — Nuance calls web pages unsupported (alphagov/reported-bugs#35, closed not-planned in 2024), and Zoonou recorded it on Provide Evidence as #380. GOV.UK Frontend 5.9.0 added the enhanced component for exactly this; the app bundles 6.5.1 and `initAll()` runs it.
+**Every `<input type="file">` in a view is wrapped in `<div class="govuk-file-upload-wrapper" data-module="govuk-file-upload">`** (or rendered by `<govuk-file-upload javascript-enhancements="true">`). TinyMCE's image picker (`file_picker_callback` in ContentBlock, ContentPage/Edit and WikiEdit) creates its own temporary file input and clicks it from its own Browse button; it is out of this rule's scope. Dragon NaturallySpeaking cannot activate a native file input in Chrome by any voice command — Nuance calls web pages unsupported (alphagov/reported-bugs#35, closed not-planned in 2024), and Zoonou recorded it on Provide Evidence as #380. GOV.UK Frontend 5.9.0 added the enhanced component for exactly this; the app bundles 6.5.1 and `initAll()` runs it.
 
 What the module does, and what that means for code around it:
 

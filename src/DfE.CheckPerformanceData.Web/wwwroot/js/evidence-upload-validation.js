@@ -100,6 +100,9 @@
         addToDescribedBy(input, ERROR_ID);
     }
 
+    // Capture phase on purpose: GOV.UK's enhanced File upload dispatches a NON-bubbling
+    // CustomEvent('change') on the input when a file is dropped (#380). A bubbling-phase
+    // listener on document would never see a dropped file.
     document.addEventListener('change', function (e) {
         var input = e.target;
         if (!input || input.type !== 'file' || input.name !== 'fileUpload') { return; }

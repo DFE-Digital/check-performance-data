@@ -351,6 +351,7 @@ public class QuestionFlowServiceTests
             new JourneyPage
             {
                 Id = "social-care",
+                Title = "Social care involvement",
                 Questions = [new Question { Id = "social-care-reason", Type = QuestionType.Checkbox, Title = "What happened?",
                     ContentKey = true,
                     Options =
@@ -385,19 +386,35 @@ public class QuestionFlowServiceTests
     {
         // The blocks editors wrote for the radio must keep showing: one tick, same key.
         Assert.Equal(
-            ["journey-ks4june-remove-social-care-involvement-police-involvement"],
-            KeysFor("police-involvement"));
+            "journey-ks4june-remove-social-care-involvement-police-involvement",
+            KeysFor("police-involvement")[0]);
     }
 
     [Fact]
-    public void BuildEvidenceContentBlocks_SeveralTickedOptions_GiveOneKeyEach_InConfigOrder()
+    public void BuildEvidenceContentBlocks_SeveralTickedOptions_GiveOneKeyEach_InConfigOrder_ThenTheSharedKey()
     {
         Assert.Equal(
             [
                 "journey-ks4june-remove-social-care-involvement-social-care-situation",
-                "journey-ks4june-remove-social-care-involvement-detained-in-prison"
+                "journey-ks4june-remove-social-care-involvement-detained-in-prison",
+                "journey-ks4june-remove-social-care-involvement"
             ],
             KeysFor("detained-in-prison", "social-care-situation"));
+    }
+
+    [Theory]
+    [InlineData("social-care-situation")]
+    [InlineData("police-involvement", "detained-in-prison")]
+    [InlineData("social-care-situation", "police-involvement", "detained-in-prison")]
+    public void BuildEvidenceContentBlocks_AContentKeyCheckbox_AlwaysEndsWithItsSharedBlock(params string[] ticked)
+    {
+        // #633: the section has general guidance that shows whatever the school ticks, below
+        // the guidance for each ticked option. Its key is the key before the checkbox.
+        var last = BlocksFor(ticked)[^1];
+
+        Assert.Equal(
+            new EvidenceContentBlock("journey-ks4june-remove-social-care-involvement", null, "Social care involvement"),
+            last);
     }
 
     [Fact]
@@ -406,8 +423,27 @@ public class QuestionFlowServiceTests
         // The label goes into a new block's default text, so a guidance writer can tell the
         // blocks apart.
         Assert.Equal(
-            ["Social care situation", "Detained in prison"],
+            ["Social care situation", "Detained in prison", null],
             BlocksFor("detained-in-prison", "social-care-situation").Select(b => b.OptionLabel));
+    }
+
+    [Fact]
+    public void BuildEvidenceContentBlocks_SharedBlock_FallsBackToTheQuestionTitle_WhenThePageHasNoTitle()
+    {
+        var config = CheckboxContentKeyConfig();
+        var socialCare = config.Pages[1];
+        config.Pages[1] = new JourneyPage { Id = socialCare.Id, Questions = socialCare.Questions };
+        var answers = new Dictionary<string, QuestionAnswer>
+        {
+            ["reason"] = new() { TextValue = "social-care-involvement" },
+            ["social-care-reason"] = new() { SelectedValues = ["police-involvement"] }
+        };
+        var journey = MakeJourney(history: ["reason", "social-care", "evidence"],
+            whatToChange: WhatToChange.Remove, windowType: CheckingWindowType.KS4June, answers: answers);
+
+        var blocks = _sut.BuildEvidenceContentBlocks(config.Pages[2], answers, journey, config);
+
+        Assert.Equal("What happened?", blocks[^1].SectionLabel);
     }
 
     [Fact]

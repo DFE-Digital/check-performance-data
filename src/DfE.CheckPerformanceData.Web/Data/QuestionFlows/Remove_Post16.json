@@ -4,7 +4,8 @@
     {
       "id": "select-pupil",
       "type": "PupilSearch",
-      "title": "Enter the name of the student to be removed",
+      "title": "What is the name of the student to be removed?",
+      "subheading": "Start typing the first name, last name, CYPMD ID, ULN or date of birth (DOB)",
       "pupilFilter": "Included",
       "pupilKey": "primary",
       "nextPageId": "reason"

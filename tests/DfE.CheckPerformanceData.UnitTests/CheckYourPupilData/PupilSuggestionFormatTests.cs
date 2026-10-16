@@ -24,14 +24,16 @@ public sealed class PupilSuggestionFormatTests
 
     private static PupilRecord Ks4(
         string firstname = "Jane", string surname = "Smith",
-        string upn = "A8604070001B", string dob = "01/01/2010", string cypmdId = "000001") => new()
+        string upn = "A8604070001B", string dob = "01/01/2010", string cypmdId = "000001",
+        bool included = true) => new()
         {
             Id = Guid.NewGuid(),
             Firstname = firstname,
             Surname = surname,
             Upn = upn,
             DateOfBirth = dob,
-            Cypmd_Id = cypmdId
+            Cypmd_Id = cypmdId,
+            Included = included
         };
 
     // ── Label ────────────────────────────────────────────────────────────────
@@ -65,14 +67,37 @@ public sealed class PupilSuggestionFormatTests
         Assert.Contains("DOB:12/03/2007", label);
     }
 
+    // #623: the KS4 suggestion carries every identifier the hint says a school can search by,
+    // plus the inclusion status, in the format UCD gave.
+    private const string Ks4Label =
+        "Smith, Jane, (CYPMD ID: 800001, UPN: A8604070001B, DOB: 01/01/2010, Status: INCLUDED)";
+
     [Theory]
     [InlineData(CheckingWindowType.KS4June)]
-    public void Other_window_types_keep_the_existing_label(CheckingWindowType windowType)
+    [InlineData(CheckingWindowType.KS4Autumn)]
+    [InlineData(CheckingWindowType.KS2)]
+    public void The_ks4_label_carries_surname_forename_and_every_identifier(CheckingWindowType windowType)
     {
-        // The KS4 journeys are live; their suggestion text must not change under this ticket.
-        var label = PupilSuggestionFormat.Label(Ks4(), windowType);
+        var label = PupilSuggestionFormat.Label(CypmdIdPupil, windowType);
 
-        Assert.Equal("Smith, Jane, 01/01/2010", label);
+        Assert.Equal(Ks4Label, label);
+    }
+
+    [Fact]
+    public void The_ks4_label_marks_a_pupil_who_is_not_included()
+    {
+        var label = PupilSuggestionFormat.Label(
+            Ks4(cypmdId: "800001", included: false), CheckingWindowType.KS4June);
+
+        Assert.EndsWith("Status: NOT INCLUDED)", label);
+    }
+
+    [Fact]
+    public void The_ks4_label_normalises_an_iso_date_of_birth()
+    {
+        var label = PupilSuggestionFormat.Label(Ks4(dob: "2010-01-01"), CheckingWindowType.KS4June);
+
+        Assert.Contains("DOB: 01/01/2010", label);
     }
 
     // ── Matching — PupilSearchField.CypmdId (AB#304118) ───────────────────────
@@ -142,47 +167,19 @@ public sealed class PupilSuggestionFormatTests
     }
 
     // ── Labels — PupilSearchField.CypmdId (AB#304118) ──────────────────────────
-    // Why the ID has to be in the text: the KS4 suggestion is "Surname, Firstname, DOB", so when a
-    // clerk searches by ID and two duplicate records were created from the same child they get rows
-    // that read alike. The ID is what they were typing, so it is what has to come back.
-
-    [Fact]
-    public void A_cypmd_id_search_shows_the_id_in_the_suggestion()
-    {
-        var label = PupilSuggestionFormat.Label(
-            CypmdIdPupil, CheckingWindowType.KS4June, PupilSearchField.CypmdId);
-
-        Assert.Equal("Smith, Jane, 01/01/2010 (800001)", label);
-    }
-
-    [Fact]
-    public void A_cypmd_id_search_shows_the_id_after_the_same_text_every_ks4_suggestion_starts_with()
-    {
-        // The existing part of the label is unchanged — the ID is appended, not substituted — so a
-        // clerk who already knows the format still recognises the row.
-        var label = PupilSuggestionFormat.Label(
-            CypmdIdPupil, CheckingWindowType.KS4June, PupilSearchField.CypmdId);
-
-        Assert.StartsWith("Smith, Jane, 01/01/2010", label);
-    }
+    // Why the ID has to be in the text: when a clerk searches by ID and two duplicate records were
+    // created from the same child they get rows that read alike. The ID is what they were typing, so
+    // it is what has to come back. Since #623 every KS4 suggestion carries it, so a page narrowed to
+    // the ID shows the same label as every other KS4 page.
 
     [Theory]
     [InlineData(CheckingWindowType.KS4June)]
     [InlineData(CheckingWindowType.KS4Autumn)]
     [InlineData(CheckingWindowType.KS2)]
-    public void The_id_is_shown_on_any_ks4_page_that_asked_for_one(CheckingWindowType windowType)
+    public void A_cypmd_id_search_shows_the_same_label_as_any_ks4_search(CheckingWindowType windowType)
     {
-        Assert.Equal("Smith, Jane, 01/01/2010 (800001)", PupilSuggestionFormat.Label(
+        Assert.Equal(Ks4Label, PupilSuggestionFormat.Label(
             CypmdIdPupil, windowType, PupilSearchField.CypmdId));
-    }
-
-    [Fact]
-    public void An_unnarrowed_ks4_suggestion_does_not_show_the_id()
-    {
-        // Every other KS4 page, including the merge journey's FIRST-record page, keeps its label to
-        // the letter: appending an ID to all of them would change four live journeys for no reason.
-        Assert.Equal("Smith, Jane, 01/01/2010", PupilSuggestionFormat.Label(
-            CypmdIdPupil, CheckingWindowType.KS4June, PupilSearchField.All));
     }
 
     [Fact]
@@ -221,30 +218,12 @@ public sealed class PupilSuggestionFormatTests
     [InlineData("Jane Smith")]      // split query
     [InlineData("A8604070001B")]    // UPN
     [InlineData("800001")]          // CYPMD ID — still matchable where the page allows it
-    public void An_unnarrowed_ks4_search_still_matches_everything_it_used_to(string query)
+    [InlineData("01/01/2010")]      // date of birth (#623)
+    [InlineData("01/01")]           // a partial date of birth
+    public void An_unnarrowed_ks4_search_matches_name_upn_cypmd_id_and_date_of_birth(string query)
     {
         Assert.True(PupilSuggestionFormat.Matches(
             CypmdIdPupil, query, CheckingWindowType.KS4June, PupilSearchField.All));
-    }
-
-    [Theory]
-    [InlineData("01/01/2010")]
-    [InlineData("01/01")]
-    public void An_unnarrowed_ks4_search_still_ignores_the_date_of_birth(string query)
-    {
-        // Date-of-birth search is 16-19 only, and stays that way.
-        Assert.False(PupilSuggestionFormat.Matches(
-            CypmdIdPupil, query, CheckingWindowType.KS4June, PupilSearchField.All));
-    }
-
-    [Theory]
-    [InlineData(CheckingWindowType.KS4June)]
-    [InlineData(CheckingWindowType.KS4Autumn)]
-    [InlineData(CheckingWindowType.KS2)]
-    public void An_unnarrowed_ks4_suggestion_is_byte_identical_to_the_pre_510_string(CheckingWindowType windowType)
-    {
-        Assert.Equal("Smith, Jane, 01/01/2010", PupilSuggestionFormat.Label(
-            CypmdIdPupil, windowType, PupilSearchField.All));
     }
 
     [Theory]
@@ -307,13 +286,25 @@ public sealed class PupilSuggestionFormatTests
         Assert.False(PupilSuggestionFormat.Matches(pupil, "2007-03-12", CheckingWindowType.Post16));
     }
 
-    [Fact]
-    public void Date_of_birth_matching_is_post16_only_so_ks4_search_behaviour_is_unchanged()
+    [Theory]
+    [InlineData(CheckingWindowType.KS4June)]
+    [InlineData(CheckingWindowType.KS4Autumn)]
+    [InlineData(CheckingWindowType.KS2)]
+    public void A_ks4_pupil_is_found_by_date_of_birth_too(CheckingWindowType windowType)
     {
-        // Widening KS4 search is outside this ticket; keeping it out means no live journey changes.
+        // #623: the hint promises date of birth on every key stage, so every key stage searches it.
+        var pupil = Ks4(dob: "2010-01-01");
+
+        Assert.True(PupilSuggestionFormat.Matches(pupil, "01/01/2010", windowType));
+        Assert.True(PupilSuggestionFormat.Matches(pupil, "01/01", windowType));
+        Assert.False(PupilSuggestionFormat.Matches(pupil, "2010-01-01", windowType));
+    }
+
+    [Fact]
+    public void A_ks4_pupil_is_still_found_by_name_upn_and_cypmd_id()
+    {
         var pupil = Ks4(dob: "01/01/2010");
 
-        Assert.False(PupilSuggestionFormat.Matches(pupil, "01/01/2010", CheckingWindowType.KS4June));
         Assert.True(PupilSuggestionFormat.Matches(pupil, "Smi", CheckingWindowType.KS4June));
         Assert.True(PupilSuggestionFormat.Matches(pupil, "A8604070001B", CheckingWindowType.KS4June));
         Assert.True(PupilSuggestionFormat.Matches(pupil, "000001", CheckingWindowType.KS4June));

@@ -112,12 +112,7 @@
                             // noun rather than the word "Pupils" (LearnerNoun).
                             var navLearnerNoun = Context.Session.GetSelectedWindowLearnerNoun();
                         }
-                        <li class="govuk-service-navigation__item">
-                            @* AB#306103: the guidance opens beside the service, not in place of it.
-                               rel="noopener" only — "noreferrer" would blank the Referer that
-                               DfE Analytics records on the guidance page view. *@
-                            <a class="govuk-service-navigation__link" href="/guidance" target="_blank" rel="noopener">Guidance (opens in new tab)</a>
-                        </li>
+                        @* #627: Pupils, then Amendment requests, then Guidance. *@
                         @if (User.Identity is { IsAuthenticated: true } && selectedWindowId is not null)
                         {
                             <li class="govuk-service-navigation__item">
@@ -127,6 +122,12 @@
                                 <a class="govuk-service-navigation__link" href="@Url.Action("Index", "AmendmentRequests", new { windowId = selectedWindowId })">Amendment requests</a>
                             </li>
                         }
+                        <li class="govuk-service-navigation__item">
+                            @* AB#306103: the guidance opens beside the service, not in place of it.
+                               rel="noopener" only — "noreferrer" would blank the Referer that
+                               DfE Analytics records on the guidance page view. *@
+                            <a class="govuk-service-navigation__link" href="/guidance" target="_blank" rel="noopener">Guidance (opens in new tab)</a>
+                        </li>
                         @* Sign in / Sign out cluster.
                            States:
                              - Real DfE auth:                  "Sign out"                            -> DfeSignOut

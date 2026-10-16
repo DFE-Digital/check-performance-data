@@ -98,7 +98,7 @@ public sealed class CheckYourPupilDataViewRenderTests
         // gate is the view model's ShowsClosedNotice, which is "end date passed" (never !IsOpen,
         // which is also true before start) and also covers a window that never ran pupil data.
         var view = ReadView();
-        Assert.Contains("You must request any changes to @Model.LearnerNoun.Singular data before", view);
+        Assert.Contains("You must request any amendments to @Model.LearnerNoun.Singular data before", view);
 
         var closed = Section(view, "@if (Model.ShowsClosedNotice)", "<a asp-action=\"DownloadAll\"");
         Assert.Contains("data checking window has closed.", closed);

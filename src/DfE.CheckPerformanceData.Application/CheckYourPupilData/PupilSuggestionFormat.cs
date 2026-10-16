@@ -11,8 +11,9 @@ namespace DfE.CheckPerformanceData.Application.CheckYourPupilData;
 ///
 /// 16-19 (AB#297004) needs more than KS4: a school identifies a student by ULN, CYPMD ID or date of
 /// birth as readily as by name, and the suggestion has to show those identifiers plus the inclusion
-/// tag so two students with similar names can be told apart. KS4 behaviour is deliberately left
-/// exactly as it was — those journeys are live and are not in this ticket's scope.
+/// tag so two students with similar names can be told apart. #623 gave KS4 the same: date-of-birth
+/// search, and a suggestion that shows CYPMD ID, UPN, date of birth and inclusion status. Matching
+/// no longer depends on the window type; the label still does (ULN on 16-19, UPN elsewhere).
 /// </summary>
 public static class PupilSuggestionFormat
 {
@@ -22,13 +23,12 @@ public static class PupilSuggestionFormat
 
         if (windowType != CheckingWindowType.Post16)
         {
-            // AB#304118: a page that searched by CYPMD ID needs the ID back in the row. The KS4
-            // suggestion leads with name and date of birth, which are identical across the duplicate
-            // records this journey exists to merge, so the ID the clerk just typed is the only part
-            // that tells two rows apart. Appended, so the part they already recognise is untouched.
-            return searchField == PupilSearchField.CypmdId
-                ? $"{pupil.Surname}, {pupil.Firstname}, {dob} ({pupil.Cypmd_Id})"
-                : $"{pupil.Surname}, {pupil.Firstname}, {dob}";
+            // #623: the row shows every identifier the hint says a school can search by, in the
+            // format UCD gave. It carries the CYPMD ID, so a page narrowed to the ID (AB#304118: the
+            // only part that tells two duplicate records apart) needs no label of its own.
+            var status = pupil.IsIncluded ? "INCLUDED" : "NOT INCLUDED";
+            return $"{pupil.Surname}, {pupil.Firstname}, " +
+                   $"(CYPMD ID: {pupil.Cypmd_Id}, UPN: {pupil.Identifier}, DOB: {dob}, Status: {status})";
         }
 
         // AB#297004 specifies "UPN" here, but 16-19 students have a ULN and no UPN — Identifier is
@@ -61,10 +61,10 @@ public static class PupilSuggestionFormat
             pupil.Firstname.StartsWith(trimmed, StringComparison.OrdinalIgnoreCase))
             return true;
 
-        // Date-of-birth search is 16-19 only for now. Matched against the DISPLAYED date, because
-        // that is the form the user reads off the screen and types back — the raw supplier value is
-        // an ISO timestamp nobody would enter.
-        return windowType == CheckingWindowType.Post16 && MatchesDateOfBirth(pupil, trimmed);
+        // Matched against the DISPLAYED date, because that is the form the user reads off the screen
+        // and types back — the raw supplier value is an ISO timestamp nobody would enter. Every key
+        // stage since #623, whose hint names the date of birth.
+        return MatchesDateOfBirth(pupil, trimmed);
     }
 
     /// <summary>

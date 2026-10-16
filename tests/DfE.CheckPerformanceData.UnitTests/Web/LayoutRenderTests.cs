@@ -172,6 +172,21 @@ public sealed class LayoutRenderTests
 	}
 
 	[Fact]
+	public void Layout_ServiceNavigation_ListsPupilsThenAmendmentRequestsThenGuidance()
+	{
+		// #627: UCD asked for "Pupils | Amendment requests | Guidance (opens in new tab)".
+		var view = ReadLayout();
+
+		var pupils = view.IndexOf("\"CheckYourPupilData\"", StringComparison.Ordinal);
+		var amendments = view.IndexOf(">Amendment requests</a>", StringComparison.Ordinal);
+		var guidance = view.IndexOf(">Guidance (opens in new tab)</a>", StringComparison.Ordinal);
+
+		Assert.True(pupils >= 0 && amendments >= 0 && guidance >= 0);
+		Assert.True(pupils < amendments, "Pupils must come before Amendment requests.");
+		Assert.True(amendments < guidance, "Amendment requests must come before Guidance.");
+	}
+
+	[Fact]
 	public void Layout_ServiceNavigation_StillReportsAsGdsServiceNavigation()
 	{
 		// We replaced the <govuk-service-navigation> tag helper with hand-rolled markup

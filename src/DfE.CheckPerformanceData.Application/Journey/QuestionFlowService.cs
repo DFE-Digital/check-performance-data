@@ -73,6 +73,7 @@ public sealed class QuestionFlowService(IQuestionFlowConfigSource configSource, 
         RequestState journey, QuestionFlowConfig config)
     {
         var radioValues = ContentKeyQuestionsBefore(page, journey, config)
+            .Select(pq => pq.Question)
             .Where(q => q.Type == QuestionType.Radio)
             .Select(q => answers.TryGetValue(q.Id, out var a) ? a.TextValue : null)
             .Where(v => v is not null)
@@ -86,9 +87,10 @@ public sealed class QuestionFlowService(IQuestionFlowConfigSource configSource, 
     {
         // A radio adds its one value to every key. A checkbox gives one block for each ticked
         // value, in config order, so each ticked option shows its own block and one tick gives
-        // the key the radio gave before (#591).
+        // the key the radio gave before (#591). After them it keeps the key it was given, as a
+        // shared block for the whole section that shows whatever the school ticks (#633).
         IEnumerable<EvidenceContentBlock> blocks = [new(string.Join("-", ContentKeyPrefix(journey)), null)];
-        foreach (var question in ContentKeyQuestionsBefore(page, journey, config))
+        foreach (var (questionPage, question) in ContentKeyQuestionsBefore(page, journey, config))
         {
             if (!answers.TryGetValue(question.Id, out var answer)) continue;
 
@@ -99,10 +101,12 @@ public sealed class QuestionFlowService(IQuestionFlowConfigSource configSource, 
             else if (question.Type == QuestionType.Checkbox)
             {
                 var ticked = CheckboxAnswerDisplay.OrderedValues(question, answer);
+                var sectionLabel = questionPage.Title ?? question.Title;
                 if (ticked.Count > 0)
                     blocks = blocks.SelectMany(b => ticked.Select(v => new EvidenceContentBlock(
-                        $"{b.Key}-{v}",
-                        question.Options?.FirstOrDefault(o => o.Value == v)?.Label ?? v))).ToList();
+                            $"{b.Key}-{v}",
+                            question.Options?.FirstOrDefault(o => o.Value == v)?.Label ?? v))
+                        .Append(b with { SectionLabel = sectionLabel })).ToList();
             }
         }
 
@@ -116,8 +120,8 @@ public sealed class QuestionFlowService(IQuestionFlowConfigSource configSource, 
         return ["journey", windowType, whatToChange];
     }
 
-    // The contentKey questions on the pages visited before this one, in visit order.
-    private static IEnumerable<Question> ContentKeyQuestionsBefore(JourneyPage page, RequestState journey,
+    // The contentKey questions on the pages visited before this one, in visit order, with their page.
+    private static IEnumerable<(JourneyPage Page, Question Question)> ContentKeyQuestionsBefore(JourneyPage page, RequestState journey,
         QuestionFlowConfig config)
     {
         var pageIndex = journey.QuestionHistory.IndexOf(page.Id);
@@ -128,7 +132,7 @@ public sealed class QuestionFlowService(IQuestionFlowConfigSource configSource, 
         return historyBeforePage
             .Select(pid => config.Pages.FirstOrDefault(p => p.Id == pid))
             .Where(p => p is not null)
-            .SelectMany(p => p!.Questions.Where(q => q.ContentKey));
+            .SelectMany(p => p!.Questions.Where(q => q.ContentKey).Select(q => (p!, q)));
     }
 
     public string ResolveRequestType(QuestionFlowConfig config, RequestState journey)

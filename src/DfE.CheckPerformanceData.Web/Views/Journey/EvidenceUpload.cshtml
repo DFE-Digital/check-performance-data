@@ -15,6 +15,10 @@
     @await Html.PartialAsync("_JourneyErrorSummary", Model)
 }
 
+@if (Model.Caption is not null)
+{
+    <span class="govuk-caption-xl">@Model.Caption</span>
+}
 @if (Model.ResolvedTitle is not null)
 {
     <h1 class="govuk-heading-xl">@Model.ResolvedTitle</h1>

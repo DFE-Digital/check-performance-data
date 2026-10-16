@@ -36,7 +36,7 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Journey;
 [Collection(nameof(PostgresCollection))]
 public sealed class ConfirmationScreenRenderTests(PostgresFixture fixture)
 {
-    private const string BlockKey = "journey_confirmation_next_steps";
+    private const string BlockKey = "journey_confirmation_next_steps_v2";
 
     // What an environment that already holds the block renders — the value an admin editor
     // would have stored. Deliberately unlike the view's default so the two can be told apart.
@@ -56,9 +56,9 @@ public sealed class ConfirmationScreenRenderTests(PostgresFixture fixture)
         Assert.DoesNotContain("changes", html, StringComparison.OrdinalIgnoreCase);
     }
 
-    // Pins the EnsureAsync contract that makes the out-of-band live-block correction
-    // (quickstart §5) necessary: once a row exists, the stored Value renders and the view's
-    // defaultHtml is ignored. Green before and after the copy edit.
+    // Pins the EnsureAsync contract that made #626 move the block to a new key: once a row
+    // exists, the stored Value renders and the view's defaultHtml is ignored, so the corrected
+    // copy under the old key never reached an environment that already held the block.
     [Fact]
     public async Task APreviouslyProvisionedBlockRendersItsStoredValue_notTheDefault()
     {
@@ -177,7 +177,7 @@ public sealed class ConfirmationScreenRenderTests(PostgresFixture fixture)
         await ctx.SaveChangesAsync();
     }
 
-    // The defaultHtml literal of the journey_confirmation_next_steps invocation in
+    // The defaultHtml literal of the journey_confirmation_next_steps_v2 invocation in
     // Views/Journey/Confirmation.cshtml, unescaped back into the HTML it passes to the component.
     private static string DefaultHtmlFromConfirmationView()
     {

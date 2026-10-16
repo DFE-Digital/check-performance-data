@@ -72,6 +72,9 @@ public sealed class PageViewModel
     /// <summary>#591: the CMS blocks an EvidenceUpload page shows its requirements from, one for
     /// each option the school ticked. Empty on every other page type.</summary>
     public IReadOnlyList<Application.Journey.EvidenceContentBlock> EvidenceContentBlocks { get; init; } = [];
+    /// <summary>#625: the caption above an EvidenceUpload page's heading: the removal reason, or
+    /// the change type when the journey has no reason. Null on every other page type.</summary>
+    public string? Caption { get; init; }
     public string? UploadError { get; init; }
     public string? AtLeastOneError { get; init; }
 

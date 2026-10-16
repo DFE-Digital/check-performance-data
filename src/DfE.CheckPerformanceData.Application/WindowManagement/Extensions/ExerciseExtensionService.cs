@@ -37,7 +37,8 @@ public sealed class ExerciseExtensionService(
         // every school is warned of and storage is not asked about each.
         if (exercise.CurrentReleaseId is null) return new ExtensionWarnings(digits, ExerciseHasNoRelease: true);
 
-        // One listing of the release's per-school files answers for every school, instead of a storage call per school.
+        // One listing of the release's per-school files answers for every school, instead of a
+        // storage call per school.
         var withData = await checkingData.ListSchoolsWithDataAsync(windowId, exercise, ct);
         var without = digits.Where(laestab => !withData.Contains(laestab)).ToList();
 
@@ -117,8 +118,9 @@ public sealed class ExerciseExtensionService(
         if (!written) return new ExtensionSaveResult(ExtensionSaveStatus.Stale);
 
         // A school taken out after the exercise's own end has no extra time left: the exercise's
-        // sweep already ran, and after its catch-up day nothing automatic runs again. So the edit sweeps the removed schools itself. While the exercise still runs,
-        // the exercise's own sweep takes them when it ends.
+        // sweep already ran, and after its catch-up day nothing automatic runs again. So the edit
+        // sweeps the removed schools itself. While the exercise still runs, the exercise's own
+        // sweep takes them when it ends.
         var removed = extension.Laestabs.Except(digits).ToList();
         if (removed.Count == 0 || !checkingExercises.HasClosed(exercise))
             return new ExtensionSaveResult(ExtensionSaveStatus.Saved, extensionId, RemovedSchools: removed);

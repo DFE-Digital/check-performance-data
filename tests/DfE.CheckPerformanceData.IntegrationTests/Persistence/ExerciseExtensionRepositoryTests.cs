@@ -298,7 +298,8 @@ public sealed class ExerciseExtensionRepositoryTests(PostgresFixture fixture) : 
         Guid id;
         await using (var ctx = fixture.CreateContext())
             id = await Repository(ctx).AddAsync(NewExt("9334290"), CancellationToken.None);
-        // Closed before the exercise's own end (never shorter than it), so the window falls back to that end.
+        // Closed before the exercise's own end (an extension never shortens the
+        // exercise), so the window falls back to that end.
         var closure = new ExtensionEarlyClosure
         {
             WindowId = _windowId, ExerciseId = _exerciseId, Exercise = CheckingExerciseType.PupilData, ExtensionId = id,

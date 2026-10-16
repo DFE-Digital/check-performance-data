@@ -836,7 +836,7 @@ public class RequestServiceTests
         await _requestNotificationService.Received(1).NotifyDataCheckWithdrawnAsync("REF001", new(2026, 6, 26, 17, 0, 0), Substitutions);
     }
 
-    // ── School-aware email deadlines ───────────────────
+    // ── School-aware email deadlines ────────────────────────────────────────
     //
     // The emails quote the signed-in school's end for the request's own exercise (from the exercise
     // rows, not the window's end): the extension's for the school it names, the exercise's own for

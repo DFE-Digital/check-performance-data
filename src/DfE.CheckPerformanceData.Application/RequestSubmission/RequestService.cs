@@ -52,7 +52,8 @@ public sealed class RequestService(
     // The deadline an email quotes (#320: the exercise's end, not the outer window's). AB#307773:
     // the signed-in school's end (EndDateFor, by its LAESTAB), which its extension may make later.
     // The outer window's end is the exercises' own latest end and never includes an extension's
-    // so it is only the fallback for a kind the window has no row for.
+    // (extension ends never reach the stored window end), so it is only the fallback for a
+    // kind the window has no row for.
     private DateTime DeadlineFor(
         IReadOnlyList<CheckingExerciseDto> exercises, DateTime outerEnd, CheckingExerciseType exercise) =>
         checkingExerciseService.EndDateFor(exercises, exercise, currentUserService.OrganisationLaestab) ?? outerEnd;

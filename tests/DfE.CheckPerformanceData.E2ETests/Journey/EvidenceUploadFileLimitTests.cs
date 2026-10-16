@@ -77,7 +77,9 @@ public sealed class EvidenceUploadFileLimitTests(PlaywrightFixture fixture) : Se
     // asserts what should appear (a new row, or the error), and that assertion is the wait.
     private async Task UploadAsync(string fileName)
     {
-        await Page.Locator("#fileUpload").SetInputFilesAsync(new FilePayload
+        // #380: #fileUpload is the enhanced control's button; the native input is hidden and
+        // keeps its name. SetInputFilesAsync needs the input and does not need it visible.
+        await Page.Locator("input[name='fileUpload']").SetInputFilesAsync(new FilePayload
         {
             Name = fileName,
             MimeType = "application/pdf",

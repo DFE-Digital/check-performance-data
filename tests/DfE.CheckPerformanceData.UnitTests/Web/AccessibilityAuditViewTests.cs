@@ -464,6 +464,25 @@ public sealed class AccessibilityAuditViewTests
 		Assert.Contains("aria-describedby=\"@Model.DescribedBy\"", view);
 	}
 
+	// ── #380 File upload not operable with Dragon NaturallySpeaking ─────────────────
+
+	[Fact]
+	public void FileUploadPartial_UsesTheJavaScriptEnhancedFileUpload()
+	{
+		// #380: Dragon cannot activate a native <input type="file"> in Chrome (Nuance: "not
+		// supported"; alphagov/reported-bugs#35). GOV.UK Frontend's enhanced File upload
+		// (5.9.0+, bundled here as 6.5.1) replaces it with a real <button> Dragon can name.
+		// Opting in is the wrapper with data-module; initAll() in the layout does the rest.
+		// The input keeps its id, name, accept and aria-describedby — the module reads them.
+		var view = ReadView("Views", "Journey", "_FileUpload.cshtml");
+
+		Assert.Matches(
+			"<div class=\"govuk-file-upload-wrapper\" data-module=\"govuk-file-upload\">\\s*<input class=\"govuk-file-upload",
+			view);
+		Assert.Contains("<label class=\"govuk-label\" for=\"fileUpload\">", view);
+		Assert.Matches("<input[^>]*id=\"fileUpload\"[^>]*name=\"fileUpload\"[^>]*type=\"file\"", view);
+	}
+
 	// ── #388 "Disclosure triangle" announced on expandable sections ───────────────────
 
 	[Theory]

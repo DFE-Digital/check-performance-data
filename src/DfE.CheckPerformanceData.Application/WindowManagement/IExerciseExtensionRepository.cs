@@ -11,7 +11,10 @@ namespace DfE.CheckPerformanceData.Application.WindowManagement;
 /// </summary>
 public interface IExerciseExtensionRepository
 {
-    /// <summary>Writes the extension and its schools; returns the new extension's id.</summary>
+    /// <summary>
+    /// Writes the extension and its schools; returns the new extension's id.
+    /// Throws <see cref="ExtensionSchoolTakenException"/> when the unique index on (exercise, LAESTAB) refuses the write.
+    /// </summary>
     Task<Guid> AddAsync(NewExtension extension, CancellationToken ct);
 
     /// <summary>
@@ -19,6 +22,7 @@ public interface IExerciseExtensionRepository
     /// when the stored version differs (a second admin's edit, a second press, an early close) —
     /// every change bumps it, so a school-list-only edit is guarded too. The school rows become
     /// <see cref="ExtensionEdit.Laestabs"/>; rows kept keep their ids.
+    /// Throws <see cref="ExtensionSchoolTakenException"/> when the unique index on (exercise, LAESTAB) refuses the write.
     /// </summary>
     Task<bool> UpdateAsync(ExtensionEdit edit, CancellationToken ct);
 
@@ -121,3 +125,12 @@ public sealed record ExtensionRequestsSent
     public required ExtensionActor Actor { get; init; }
     public required DateTime SentAtUtc { get; init; }
 }
+
+/// <summary>
+/// <see cref="IExerciseExtensionRepository.AddAsync"/> or <see cref="IExerciseExtensionRepository.UpdateAsync"/>
+/// was refused by the database's unique index on (exercise, LAESTAB): between the caller's read and
+/// this write, another extension of the same exercise took one of the schools. Nothing was written.
+/// The caller reads again and refuses as it would have, had it seen that extension.
+/// </summary>
+public sealed class ExtensionSchoolTakenException(Exception inner)
+    : Exception("A school named in the extension is already in another extension of the exercise.", inner);

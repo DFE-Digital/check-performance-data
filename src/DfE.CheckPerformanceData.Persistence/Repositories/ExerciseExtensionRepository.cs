@@ -5,6 +5,7 @@ using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Entities;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace DfE.CheckPerformanceData.Persistence.Repositories;
 
@@ -14,93 +15,123 @@ public sealed class ExerciseExtensionRepository(PortalDbContext dbContext) : IEx
     // The audit payload is read back by WindowAdminAuditPayload with the same (camelCase) options.
     private static readonly JsonSerializerOptions AuditJson = new(JsonSerializerDefaults.Web);
 
-    public Task<Guid> AddAsync(NewExtension extension, CancellationToken ct) =>
-        dbContext.ExecuteInTransactionAsync(async () =>
+    // The one index the service's own conflict check stands in front of. Any other unique violation
+    // is a bug and stays an exception.
+    private const string SchoolIndex = "IX_CheckingExerciseExtensionSchools_CheckingExerciseId_Laestab";
+
+    private static bool IsSchoolTaken(DbUpdateException ex) =>
+        ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: SchoolIndex };
+
+    public async Task<Guid> AddAsync(NewExtension extension, CancellationToken ct)
+    {
+        try
         {
-            // The execution strategy may run this delegate again after a transient failure; rows
-            // still tracked from the failed attempt would then be saved twice.
-            dbContext.ChangeTracker.Clear();
-
-            var entity = new CheckingExerciseExtension
+            return await dbContext.ExecuteInTransactionAsync(async () =>
             {
-                Id = Guid.NewGuid(),
-                CheckingExerciseId = extension.ExerciseId,
-                EndDate = extension.EndDate,
-                // Npgsql refuses a Utc-kind value for a timestamp without time zone.
-                CreatedAt = DateTime.SpecifyKind(extension.CreatedAtUtc, DateTimeKind.Unspecified),
-                CreatedBy = extension.Actor.DisplayName,
-                Schools = extension.Laestabs.Distinct().Select(l => new CheckingExerciseExtensionSchool
-                    { CheckingExerciseId = extension.ExerciseId, Laestab = l }).ToList()
-            };
-            dbContext.CheckingExerciseExtensions.Add(entity);
-            dbContext.AuditEntries.Add(Row(extension.WindowId, AuditActivities.ExtensionAddedAction, extension.CreatedAtUtc, extension.Actor, new
-            {
-                extension.WindowId,
-                WindowTitle = await TitleAsync(extension.WindowId, ct),
-                extension.ExerciseId,
-                ExerciseType = extension.Exercise.ToString(),
-                ExtensionId = entity.Id,
-                extension.EndDate,
-                SchoolCount = entity.Schools.Count,
-                Schools = entity.Schools.Select(s => s.Laestab).ToList(),
-                ActorName = extension.Actor.DisplayName
-            }));
-            await dbContext.SaveChangesAsync(ct);
-            await WindowEndDate.RederiveAsync(dbContext, extension.WindowId, ct);
-            return entity.Id;
-        }, ct);
+                // The execution strategy may run this delegate again after a transient failure; rows
+                // still tracked from the failed attempt would then be saved twice.
+                dbContext.ChangeTracker.Clear();
 
-    public Task<bool> UpdateAsync(ExtensionEdit edit, CancellationToken ct) =>
-        dbContext.ExecuteInTransactionAsync(async () =>
+                var entity = new CheckingExerciseExtension
+                {
+                    Id = Guid.NewGuid(),
+                    CheckingExerciseId = extension.ExerciseId,
+                    EndDate = extension.EndDate,
+                    // Npgsql refuses a Utc-kind value for a timestamp without time zone.
+                    CreatedAt = DateTime.SpecifyKind(extension.CreatedAtUtc, DateTimeKind.Unspecified),
+                    CreatedBy = extension.Actor.DisplayName,
+                    Schools = extension.Laestabs.Distinct().Select(l => new CheckingExerciseExtensionSchool
+                        { CheckingExerciseId = extension.ExerciseId, Laestab = l }).ToList()
+                };
+                dbContext.CheckingExerciseExtensions.Add(entity);
+                dbContext.AuditEntries.Add(Row(extension.WindowId, AuditActivities.ExtensionAddedAction, extension.CreatedAtUtc, extension.Actor, new
+                {
+                    extension.WindowId,
+                    WindowTitle = await TitleAsync(extension.WindowId, ct),
+                    extension.ExerciseId,
+                    ExerciseType = extension.Exercise.ToString(),
+                    ExtensionId = entity.Id,
+                    extension.EndDate,
+                    SchoolCount = entity.Schools.Count,
+                    Schools = entity.Schools.Select(s => s.Laestab).ToList(),
+                    ActorName = extension.Actor.DisplayName
+                }));
+                await dbContext.SaveChangesAsync(ct);
+                await WindowEndDate.RederiveAsync(dbContext, extension.WindowId, ct);
+                return entity.Id;
+            }, ct);
+        }
+        catch (DbUpdateException ex) when (IsSchoolTaken(ex))
         {
-            dbContext.ChangeTracker.Clear();
+            // The transaction has rolled back, so the extension, its schools and its audit row are
+            // all gone; the service reads again and tells the admin which school and which extension.
+            throw new ExtensionSchoolTakenException(ex);
+        }
+    }
 
-            // Compare-and-set on the version the admin was shown, and bump it (review finding 3):
-            // an edit that changes only the school list is guarded exactly as a date change is. The
-            // window clause keeps the audit row on the window the extension really belongs to.
-            int moved = await dbContext.CheckingExerciseExtensions
-                .Where(x => x.Id == edit.ExtensionId
-                            && x.CheckingExerciseId == edit.ExerciseId
-                            && x.Version == edit.ExpectedVersion
-                            && dbContext.CheckingExercises.Any(e => e.Id == x.CheckingExerciseId && e.CheckingWindowId == edit.WindowId))
-                .ExecuteUpdateAsync(s => s
-                    .SetProperty(x => x.EndDate, edit.NewEndDate)
-                    .SetProperty(x => x.Version, x => x.Version + 1), ct);
-            if (moved == 0)
+    public async Task<bool> UpdateAsync(ExtensionEdit edit, CancellationToken ct)
+    {
+        try
+        {
+            return await dbContext.ExecuteInTransactionAsync(async () =>
             {
-                return false;
-            }
+                dbContext.ChangeTracker.Clear();
 
-            // Only the difference is written, so a school that stays keeps its row and id.
-            var existing = await dbContext.CheckingExerciseExtensionSchools
-                .Where(s => s.CheckingExerciseExtensionId == edit.ExtensionId)
-                .ToListAsync(ct);
-            var wanted = edit.Laestabs.Distinct().ToList();
-            var removed = existing.Where(s => !wanted.Contains(s.Laestab)).ToList();
-            var added = wanted.Where(l => existing.All(s => s.Laestab != l)).ToList();
-            dbContext.CheckingExerciseExtensionSchools.RemoveRange(removed);
-            dbContext.CheckingExerciseExtensionSchools.AddRange(added.Select(l => new CheckingExerciseExtensionSchool
-                { CheckingExerciseExtensionId = edit.ExtensionId, CheckingExerciseId = edit.ExerciseId, Laestab = l }));
+                // Compare-and-set on the version the admin was shown, and bump it:
+                // an edit that changes only the school list is guarded exactly as a date change is. The
+                // window clause keeps the audit row on the window the extension really belongs to.
+                int moved = await dbContext.CheckingExerciseExtensions
+                    .Where(x => x.Id == edit.ExtensionId
+                                && x.CheckingExerciseId == edit.ExerciseId
+                                && x.Version == edit.ExpectedVersion
+                                && dbContext.CheckingExercises.Any(e => e.Id == x.CheckingExerciseId && e.CheckingWindowId == edit.WindowId))
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(x => x.EndDate, edit.NewEndDate)
+                        .SetProperty(x => x.Version, x => x.Version + 1), ct);
+                if (moved == 0)
+                {
+                    return false;
+                }
 
-            dbContext.AuditEntries.Add(Row(edit.WindowId, AuditActivities.ExtensionEditedAction, edit.EditedAtUtc, edit.Actor, new
-            {
-                edit.WindowId,
-                WindowTitle = await TitleAsync(edit.WindowId, ct),
-                edit.ExerciseId,
-                ExerciseType = edit.Exercise.ToString(),
-                edit.ExtensionId,
-                EndDate = edit.NewEndDate,
-                edit.PreviousEndDate,
-                edit.NewEndDate,
-                SchoolCount = wanted.Count,
-                SchoolsAdded = added,
-                SchoolsRemoved = removed.Select(s => s.Laestab).ToList(),
-                ActorName = edit.Actor.DisplayName
-            }));
-            await dbContext.SaveChangesAsync(ct);
-            await WindowEndDate.RederiveAsync(dbContext, edit.WindowId, ct);
-            return true;
-        }, ct);
+                // Only the difference is written, so a school that stays keeps its row and id.
+                var existing = await dbContext.CheckingExerciseExtensionSchools
+                    .Where(s => s.CheckingExerciseExtensionId == edit.ExtensionId)
+                    .ToListAsync(ct);
+                var wanted = edit.Laestabs.Distinct().ToList();
+                var removed = existing.Where(s => !wanted.Contains(s.Laestab)).ToList();
+                var added = wanted.Where(l => existing.All(s => s.Laestab != l)).ToList();
+                dbContext.CheckingExerciseExtensionSchools.RemoveRange(removed);
+                dbContext.CheckingExerciseExtensionSchools.AddRange(added.Select(l => new CheckingExerciseExtensionSchool
+                    { CheckingExerciseExtensionId = edit.ExtensionId, CheckingExerciseId = edit.ExerciseId, Laestab = l }));
+
+                dbContext.AuditEntries.Add(Row(edit.WindowId, AuditActivities.ExtensionEditedAction, edit.EditedAtUtc, edit.Actor, new
+                {
+                    edit.WindowId,
+                    WindowTitle = await TitleAsync(edit.WindowId, ct),
+                    edit.ExerciseId,
+                    ExerciseType = edit.Exercise.ToString(),
+                    edit.ExtensionId,
+                    EndDate = edit.NewEndDate,
+                    edit.PreviousEndDate,
+                    edit.NewEndDate,
+                    SchoolCount = wanted.Count,
+                    SchoolsAdded = added,
+                    SchoolsRemoved = removed.Select(s => s.Laestab).ToList(),
+                    ActorName = edit.Actor.DisplayName
+                }));
+                await dbContext.SaveChangesAsync(ct);
+                await WindowEndDate.RederiveAsync(dbContext, edit.WindowId, ct);
+                return true;
+            }, ct);
+        }
+        catch (DbUpdateException ex) when (IsSchoolTaken(ex))
+        {
+            // Rolled back with the version bump, so the admin's next attempt posts a version that still
+            // matches. The school rows and the audit row are gone too; the service reads again and
+            // tells the admin which school and which extension.
+            throw new ExtensionSchoolTakenException(ex);
+        }
+    }
 
     public Task<bool> CloseEarlyAsync(ExtensionEarlyClosure closure, CancellationToken ct) =>
         dbContext.ExecuteInTransactionAsync(async () =>

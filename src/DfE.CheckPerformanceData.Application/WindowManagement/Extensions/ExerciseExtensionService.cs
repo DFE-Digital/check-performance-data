@@ -13,7 +13,9 @@ namespace DfE.CheckPerformanceData.Application.WindowManagement.Extensions;
 ///
 /// The repository does not know which window an exercise is on, nor that a school is in at most
 /// one extension of it; those checks are made here. Its unique index on the school is the
-/// backstop, but this check is what gives the admin a sentence instead of an error page.
+/// backstop, and this check is what gives the admin a sentence instead of an error page. When two
+/// admins race past the check, the repository's <see cref="ExtensionSchoolTakenException"/> is
+/// read again and turned into that same sentence.
 /// </remarks>
 public sealed class ExerciseExtensionService(
     IWindowRepository windows,
@@ -50,16 +52,24 @@ public sealed class ExerciseExtensionService(
         var digits = Digits(command.Laestabs);
         if (Refusal(exercise, extensionId: null, command.EndDate, digits) is { } refused) return refused;
 
-        var id = await extensions.AddAsync(new NewExtension
+        Guid id;
+        try
         {
-            WindowId = command.WindowId,
-            ExerciseId = command.ExerciseId,
-            Exercise = kind,
-            EndDate = command.EndDate,
-            Laestabs = digits,
-            Actor = command.Actor,
-            CreatedAtUtc = timeProvider.GetUtcNow().UtcDateTime
-        }, ct);
+            id = await extensions.AddAsync(new NewExtension
+            {
+                WindowId = command.WindowId,
+                ExerciseId = command.ExerciseId,
+                Exercise = kind,
+                EndDate = command.EndDate,
+                Laestabs = digits,
+                Actor = command.Actor,
+                CreatedAtUtc = timeProvider.GetUtcNow().UtcDateTime
+            }, ct);
+        }
+        catch (ExtensionSchoolTakenException)
+        {
+            return await LostRaceAsync(command, extensionId: null, digits, ct);
+        }
 
         return new ExtensionSaveResult(ExtensionSaveStatus.Saved, id);
     }
@@ -80,19 +90,27 @@ public sealed class ExerciseExtensionService(
         var digits = Digits(command.Laestabs);
         if (Refusal(exercise, extensionId, command.EndDate, digits) is { } refused) return refused;
 
-        var written = await extensions.UpdateAsync(new ExtensionEdit
+        bool written;
+        try
         {
-            WindowId = command.WindowId,
-            ExerciseId = command.ExerciseId,
-            Exercise = kind,
-            ExtensionId = extensionId,
-            ExpectedVersion = expectedVersion,
-            PreviousEndDate = extension.EndDate,
-            NewEndDate = command.EndDate,
-            Laestabs = digits,
-            Actor = command.Actor,
-            EditedAtUtc = timeProvider.GetUtcNow().UtcDateTime
-        }, ct);
+            written = await extensions.UpdateAsync(new ExtensionEdit
+            {
+                WindowId = command.WindowId,
+                ExerciseId = command.ExerciseId,
+                Exercise = kind,
+                ExtensionId = extensionId,
+                ExpectedVersion = expectedVersion,
+                PreviousEndDate = extension.EndDate,
+                NewEndDate = command.EndDate,
+                Laestabs = digits,
+                Actor = command.Actor,
+                EditedAtUtc = timeProvider.GetUtcNow().UtcDateTime
+            }, ct);
+        }
+        catch (ExtensionSchoolTakenException)
+        {
+            return await LostRaceAsync(command, extensionId, digits, ct);
+        }
 
         // False means the version moved after the admin read it: another edit, a second press, or
         // an early close. This edit would overwrite what they did not see, so nothing is written.
@@ -194,6 +212,21 @@ public sealed class ExerciseExtensionService(
         return conflicts.Count > 0
             ? new ExtensionSaveResult(ExtensionSaveStatus.SchoolInAnotherExtension, Conflicts: conflicts)
             : null;
+    }
+
+    // The unique index refused the write: another admin's add or edit took one of these schools
+    // between this call's read and its write. Read again so the admin is told which school and which
+    // extension, exactly as the check before the write would have said. If nothing conflicts any
+    // more (the competing extension has gone again), nothing the admin typed is wrong and nothing was
+    // written, so they go back to the summary as an edit that lost a race does.
+    private async Task<ExtensionSaveResult> LostRaceAsync(
+        ExtensionCommand command, Guid? extensionId, IReadOnlyList<string> digits, CancellationToken ct)
+    {
+        var (exercise, _) = await FindExerciseAsync(command.WindowId, command.ExerciseId, ct);
+        if (exercise is null) return new ExtensionSaveResult(ExtensionSaveStatus.NotFound);
+
+        return Refusal(exercise, extensionId, command.EndDate, digits)
+               ?? new ExtensionSaveResult(ExtensionSaveStatus.Stale);
     }
 
     // Digits only, once each, in the order given: the form the repository stores and every blob

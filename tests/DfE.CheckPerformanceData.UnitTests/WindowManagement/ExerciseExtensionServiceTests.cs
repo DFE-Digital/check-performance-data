@@ -88,6 +88,20 @@ public sealed class ExerciseExtensionServiceTests
         return exercise;
     }
 
+    // The same window WindowHolds configures, around the exercise given - for a test that needs the
+    // repository to answer differently on a second read.
+    private static CheckingWindowDto WindowWith(CheckingExerciseDto exercise) => new()
+    {
+        Id = WindowId,
+        Title = "Key Stage 4 June",
+        KeyStage = KeyStages.KS4,
+        CheckingWindowType = CheckingWindowType.KS4June,
+        StartDate = LastMonth,
+        EndDate = NextWeek,
+        Exercises = [exercise, new CheckingExerciseDto
+            { Id = ShareId, ExerciseType = null, DisplayOnly = true, StartDate = LastMonth, EndDate = NextWeek }]
+    };
+
     private static ExtensionCommand Command(DateTime endDate, IReadOnlyList<string> laestabs, Guid? exerciseId = null) =>
         new(WindowId, exerciseId ?? ExerciseId, endDate, laestabs, Actor);
 
@@ -230,6 +244,60 @@ public sealed class ExerciseExtensionServiceTests
         Assert.Equal(Actor, written.Actor);
         Assert.Equal(NowUtc.UtcDateTime, written.CreatedAtUtc);
         Assert.Equal(DateTimeKind.Utc, written.CreatedAtUtc.Kind);
+    }
+
+    [Fact]
+    public async Task An_add_that_lost_the_race_to_the_index_names_the_school_that_was_taken()
+    {
+        // The read saw only X (933/4290). Between that read and the write another admin saved an
+        // extension naming 860/4070, so the unique index refused this one. Read again and the
+        // admin is told what the check would have said had it seen that extension.
+        var before = WindowHolds();
+        var taken = new CheckingExerciseExtensionDto { Id = OtherId, EndDate = NextWeek, Laestabs = ["8604070"] };
+        var after = WindowHolds(null, X(), taken);
+        _windows.GetByIdAsync(WindowId, Arg.Any<CancellationToken>())
+            .Returns(WindowWith(before), WindowWith(after));
+        _extensions.AddAsync(Arg.Any<NewExtension>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new ExtensionSchoolTakenException(new Exception("23505")));
+
+        var result = await Sut().AddAsync(Command(Tomorrow, ["860/4070"]), CancellationToken.None);
+
+        Assert.Equal(ExtensionSaveStatus.SchoolInAnotherExtension, result.Status);
+        var conflict = Assert.Single(result.Conflicts!);
+        Assert.Equal(("8604070", NextWeek), (conflict.Laestab, conflict.OtherExtensionEnd));
+    }
+
+    [Fact]
+    public async Task An_add_that_lost_the_race_but_conflicts_with_nothing_on_a_fresh_read_is_stale()
+    {
+        // The index refused the write, yet the fresh read shows no other extension naming the school
+        // (the competing extension has already gone again). Nothing was written and nothing the
+        // admin typed is wrong, so they are sent back to the summary as an edit that lost a race is.
+        WindowHolds();
+        _extensions.AddAsync(Arg.Any<NewExtension>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new ExtensionSchoolTakenException(new Exception("23505")));
+
+        var result = await Sut().AddAsync(Command(Tomorrow, ["860/4070"]), CancellationToken.None);
+
+        Assert.Equal(ExtensionSaveStatus.Stale, result.Status);
+    }
+
+    [Fact]
+    public async Task An_edit_that_lost_the_race_to_the_index_names_the_school_that_was_taken()
+    {
+        var before = WindowHolds();
+        var taken = new CheckingExerciseExtensionDto { Id = OtherId, EndDate = NextWeek, Laestabs = ["8604070"] };
+        var after = WindowHolds(null, X(), taken);
+        _windows.GetByIdAsync(WindowId, Arg.Any<CancellationToken>())
+            .Returns(WindowWith(before), WindowWith(after));
+        _extensions.UpdateAsync(Arg.Any<ExtensionEdit>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new ExtensionSchoolTakenException(new Exception("23505")));
+
+        var result = await Sut().EditAsync(XId, 0, Command(Tomorrow, ["933/4290", "860/4070"]), CancellationToken.None);
+
+        Assert.Equal(ExtensionSaveStatus.SchoolInAnotherExtension, result.Status);
+        var conflict = Assert.Single(result.Conflicts!);
+        Assert.Equal(("8604070", NextWeek), (conflict.Laestab, conflict.OtherExtensionEnd));
     }
 
     // ---- Edit ----

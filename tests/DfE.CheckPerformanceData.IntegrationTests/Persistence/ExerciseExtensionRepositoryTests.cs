@@ -85,6 +85,46 @@ public sealed class ExerciseExtensionRepositoryTests(PostgresFixture fixture) : 
     }
 
     [Fact]
+    public async Task An_add_naming_a_school_already_in_another_extension_is_refused_by_the_index_and_writes_nothing()
+    {
+        await using (var first = fixture.CreateContext())
+            await Repository(first).AddAsync(NewExt("9334290"), CancellationToken.None);
+
+        await using var ctx = fixture.CreateContext();
+        await Assert.ThrowsAsync<ExtensionSchoolTakenException>(
+            () => Repository(ctx).AddAsync(NewExt("8604070", "9334290"), CancellationToken.None));
+
+        await using var check = fixture.CreateContext();
+        Assert.Equal(1, await check.CheckingExerciseExtensions.CountAsync(x => x.CheckingExerciseId == _exerciseId));
+        Assert.Equal(0, await check.CheckingExerciseExtensionSchools.CountAsync(s => s.CheckingExerciseId == _exerciseId && s.Laestab == "8604070"));
+        Assert.Equal(1, await check.AuditEntries.CountAsync(a => a.EntityId == _windowId.ToString() && a.Action == AuditActivities.ExtensionAddedAction));
+    }
+
+    [Fact]
+    public async Task An_edit_taking_a_school_from_another_extension_is_refused_by_the_index_and_rolls_back_the_version()
+    {
+        Guid b;
+        await using (var ctx = fixture.CreateContext())
+        {
+            await Repository(ctx).AddAsync(NewExt("9334290"), CancellationToken.None);
+            b = await Repository(ctx).AddAsync(NewExt("8604070"), CancellationToken.None);
+        }
+
+        await using (var ctx = fixture.CreateContext())
+        {
+            await Assert.ThrowsAsync<ExtensionSchoolTakenException>(
+                () => Repository(ctx).UpdateAsync(Edit(b, 0, ExtensionEnd.AddDays(1), "8604070", "9334290"), CancellationToken.None));
+        }
+
+        await using var check = fixture.CreateContext();
+        var row = await check.CheckingExerciseExtensions.SingleAsync(x => x.Id == b);
+        Assert.Equal(0, row.Version);
+        Assert.Equal(ExtensionEnd, row.EndDate);
+        Assert.Equal(["8604070"], await check.CheckingExerciseExtensionSchools.Where(s => s.CheckingExerciseExtensionId == b).Select(s => s.Laestab).ToListAsync());
+        Assert.Equal(0, await check.AuditEntries.CountAsync(x => x.EntityId == _windowId.ToString() && x.Action == AuditActivities.ExtensionEditedAction));
+    }
+
+    [Fact]
     public async Task Deleting_the_exercise_deletes_its_extensions_and_schools()
     {
         await using (var ctx = fixture.CreateContext())

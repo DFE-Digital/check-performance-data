@@ -546,7 +546,7 @@ public sealed class CheckingExerciseServiceTests
     [Fact]
     public void DeriveDatesFromExercises_leaves_extension_ends_out()
     {
-        // Review finding 1 (15 Oct): the stored window end is read by admin pages, the establishment
+        // The stored window end is read by admin pages, the establishment
         // page and the deadline fallbacks, none of which is asked for a school. An extension end in
         // it would be one school's date shown to every school. The school's own end comes from
         // EndDateFor(laestab) on the exercises, never from the window.
@@ -659,7 +659,7 @@ public sealed class CheckingExerciseServiceTests
         Assert.True(Sut().IsOpen(Extension(Now.DateTime, "9334290")));
     }
 
-    // AB#307773 review C1: the sweeps and Send judge an extension on its effective end, the later
+    // The sweeps and Send judge an extension on its effective end, the later
     // of its own and the exercise's, so one closed early never cuts a school's time short.
     [Fact]
     public void An_extension_closed_early_before_the_exercise_end_is_still_open_by_its_effective_end()

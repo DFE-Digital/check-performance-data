@@ -41,7 +41,7 @@ public sealed class CloseExerciseService(
 
         var result = await SweepAsync(windowId, exerciseId, HeldFilter(row, open), cancellationToken);
 
-        // Every closed extension was covered by this sweep, so it is stamped sent (review finding 4):
+        // Every closed extension was covered by this sweep, so it is stamped sent:
         // the summary's "Requests sent" tag and the extension's own Send page then read right, and a
         // later extension sweep sends nothing twice (the rows are TicketQueued). A sweep that threw
         // never gets here. A no-op for one stamped earlier.
@@ -74,7 +74,7 @@ public sealed class CloseExerciseService(
     // Schools the exercise's own sweep must leave alone: in an extension still open by its
     // effective end (an extension closed early keeps its schools until the exercise ends). An
     // extension that has closed is swept by whichever sweep runs next, the exercise's or its own,
-    // so a hand-over that keeps failing never hides its schools from the manual Send (finding 4).
+    // so a hand-over that keeps failing never hides its schools from the manual Send.
     private SchoolFilter HeldFilter(CheckingExerciseDto? row) =>
         HeldFilter(row, row?.Extensions.Where(x => checkingExercises.IsOpen(row, x)).ToList() ?? []);
 

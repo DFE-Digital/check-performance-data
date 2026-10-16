@@ -29,7 +29,7 @@ public interface IExerciseExtensionRepository
     /// <summary>
     /// A compare-and-set on <see cref="ExtensionEarlyClosure.ScheduledEnd"/>, as
     /// <see cref="IWindowRepository.CloseExerciseEarlyAsync"/> is for the exercise. The audit row
-    /// is the early-closure stamp (decision 5); there is no column for it.
+    /// is the early-closure stamp, as with the exercise; there is no column for it.
     /// </summary>
     Task<bool> CloseEarlyAsync(ExtensionEarlyClosure closure, CancellationToken ct);
 
@@ -37,7 +37,8 @@ public interface IExerciseExtensionRepository
     Task RecordRequestsSentAsync(ExtensionRequestsSent record, CancellationToken ct);
 
     /// <summary>
-    /// Sets <c>RequestsSentAt</c> when it is still null (decision 4); true when this call set it.
+    /// Sets <c>RequestsSentAt</c> when it is still null, whichever sweep runs first;
+    /// true when this call set it.
     /// <paramref name="atUtc"/> is stored as the UTC instant, as the add time is.
     /// </summary>
     Task<bool> MarkRequestsSentAsync(Guid extensionId, DateTime atUtc, CancellationToken ct);

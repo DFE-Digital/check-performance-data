@@ -270,7 +270,7 @@ public sealed class CloseExerciseServiceTests
     [Fact]
     public async Task The_exercise_sweep_leaves_out_only_schools_in_open_extensions_and_stamps_the_closed_ones()
     {
-        // Review finding 4 (15 Oct): A is open, so its school is held back. B has closed but was
+        // A is open, so its school is held back. B has closed but was
         // never swept (its hand-over may have failed every tick): the exercise's sweep takes its
         // school and stamps B, so the summary says its requests went. C was swept already and is
         // left alone. Sending twice is impossible: MarkTicketQueuedAsync guards every row.
@@ -340,7 +340,7 @@ public sealed class CloseExerciseServiceTests
     [Fact]
     public async Task An_extension_closed_early_keeps_its_schools_held_while_the_exercise_runs()
     {
-        // AB#307773 review C1: D's own end has passed and it was even swept once, but the exercise
+        // D's own end has passed and it was even swept once, but the exercise
         // runs until tomorrow, so its school is still inside the exercise's dates. The held set is
         // judged on the effective end, max(exercise end, extension end), so D's school stays out.
         var d = new CheckingExerciseExtensionDto
@@ -442,7 +442,7 @@ public sealed class CloseExerciseServiceTests
     [Fact]
     public async Task Sweep_schools_takes_only_the_named_schools_and_stamps_nothing()
     {
-        // Review finding 2: the extension edit sweeps a school it removed after the exercise closed.
+        // The extension edit sweeps a school it removed after the exercise closed.
         Decided();
         var ct = CancellationToken.None;
 

@@ -5,7 +5,7 @@ using DfE.CheckPerformanceData.Application.WindowManagement;
 namespace DfE.CheckPerformanceData.Application.AmendmentRequests;
 
 /// <remarks>
-/// "Open" and the deadline are the signed-in school's (AB#307773 review, finding 1): an exercise
+/// "Open" and the deadline are the signed-in school's: an exercise
 /// is open for the school until the school's own end, which an extension may make later, and the
 /// window's stored end date is never read — it is the exercises' own latest end, the same for
 /// every school. The one clock is ICheckingExerciseService's.

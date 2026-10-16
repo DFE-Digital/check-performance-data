@@ -209,7 +209,7 @@ public class JourneyControllerTests
         AssertRedirectToCheckYourData(result);
     }
 
-    // AB#307773 review C2: the page quotes the signed-in school's pupil-data end, from the exercise
+    // The page quotes the signed-in school's pupil-data end, from the exercise
     // rows, never the window's end. SummaryConfirm has cleared the change type by now, and only
     // an amendment comes here, so the kind is pupil data.
     [Theory]

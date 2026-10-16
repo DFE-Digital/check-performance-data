@@ -134,7 +134,7 @@ public sealed class WindowRepositoryEarlyClosureTests(PostgresFixture fixture) :
         Assert.Equal(EnquiryEnd, window.EndDate);
     }
 
-    // Review finding 1 (15 Oct): closing the exercise does not close its extension, but the window's
+    // Closing the exercise does not close its extension, but the window's
     // own end is the exercises' latest end; the extension's schools get theirs from the extension.
     [Fact]
     public async Task Closing_an_exercise_with_a_later_extension_leaves_the_extension_end_out_of_the_window_end()

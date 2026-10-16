@@ -171,7 +171,7 @@ public sealed class SummaryControllerCloseActionsTests
     [Fact]
     public async Task An_extension_closed_early_while_its_exercise_runs_waits_for_the_exercise()
     {
-        // AB#307773 review C1, the three card states. Own end ahead: Open (Edit, Close early).
+        // The three card states. Own end ahead: Open (Edit, Close early).
         // Own end passed but the exercise still runs: Closed, no links, "Ends with the exercise on
         // …". Both passed: Closed and Send requests.
         var row = Row(CheckingExerciseType.PupilData, LastMonth, NextMonth);
@@ -202,7 +202,7 @@ public sealed class SummaryControllerCloseActionsTests
     [Fact]
     public async Task An_exercise_with_no_extensions_may_still_have_one_added()
     {
-        // Add is allowed at any time, before the exercise ends or after (decision 3).
+        // Add is allowed at any time, before the exercise ends or after.
         var row = Row(CheckingExerciseType.ResultsEnquiry, LastMonth, Yesterday);
         TheWindowHolds(row);
 

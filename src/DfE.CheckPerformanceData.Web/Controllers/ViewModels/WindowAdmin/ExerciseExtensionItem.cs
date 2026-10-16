@@ -33,7 +33,7 @@ public sealed class ExerciseExtensionItem
     /// <summary>
     /// Edit only: the extension's version as the page showed it, posted back in a hidden field. The
     /// save is a compare-and-set on it, so an edit never overwrites a change the admin did not see
-    /// - a school-list change by another admin included (review finding 3).
+    /// - a school-list change by another admin included.
     /// </summary>
     public int? Version { get; set; }
 
@@ -64,7 +64,7 @@ public sealed class ExerciseExtensionItem
     /// <summary>
     /// The schools the warning listed when the tick was given, digits, comma-separated, posted
     /// back in a hidden field. The tick covers those schools only: a school pasted in with the
-    /// tick that also has no data is warned about afresh (review finding 5).
+    /// tick that also has no data is warned about afresh.
     /// </summary>
     public string? ConfirmedSchools { get; set; }
 

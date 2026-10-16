@@ -33,7 +33,7 @@ public sealed class CheckingExerciseExtension
     /// <summary>
     /// Bumped by every edit and early close. The edit page posts the version it showed and the
     /// write is a compare-and-set on it, so two admins changing only the school list cannot both
-    /// pass (AB#307773 review, finding 3). Not a concurrency token: the writes are ExecuteUpdate.
+    /// pass. Not a concurrency token: the writes are ExecuteUpdate.
     /// </summary>
     public int Version { get; set; }
 

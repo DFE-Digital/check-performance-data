@@ -113,7 +113,7 @@ public sealed class SendExtensionRequestsControllerTests
             controller.TempData[SendExerciseRequestsController.RefusedTempDataKey]);
     }
 
-    // AB#307773 review C1: the closed extension's own end (30 Sept) has passed, but the exercise now
+    // The closed extension's own end (30 Sept) has passed, but the exercise now
     // runs to 2 Oct, so its schools are still inside the exercise's dates. Send waits for the
     // effective end, max(exercise end, extension end).
     private void ExerciseStillRunning() =>

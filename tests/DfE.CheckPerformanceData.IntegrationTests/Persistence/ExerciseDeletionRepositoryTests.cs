@@ -80,7 +80,7 @@ public sealed class ExerciseDeletionRepositoryTests(PostgresFixture fixture)
         Assert.Equal(SecondEnd, window.EndDate);
     }
 
-    // Review finding 1 (15 Oct): the window's end is the surviving exercises' latest end; extension ends stay out.
+    // The window's end is the surviving exercises' latest end; extension ends stay out.
     [Fact]
     public async Task Delete_leaves_a_surviving_exercises_extension_end_out_of_the_window_end()
     {

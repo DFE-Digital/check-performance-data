@@ -333,7 +333,7 @@ public sealed class ExerciseExtensionControllerTests
     [Fact]
     public async Task Create_post_confirmed_for_one_school_still_warns_about_a_school_pasted_in_with_the_tick()
     {
-        // Review finding 5: the tick was given for 860/4070. The resubmit also pastes 1234567, which
+        // The tick was given for 860/4070. The resubmit also pastes 1234567, which
         // has no data either. The tick must not cover it: the page warns again, listing both.
         _extensions.FindSchoolsWithoutDataAsync(WindowId, ExerciseId, Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
             .Returns(new ExtensionWarnings(["8604070", "1234567"], ExerciseHasNoRelease: false));
@@ -411,7 +411,7 @@ public sealed class ExerciseExtensionControllerTests
     [Fact]
     public async Task Create_post_ending_in_the_past_is_a_date_error()
     {
-        // AB#307773 review I1.
+        // An end date already past is refused: it would be saved closed and give no school more time.
         _extensions.AddAsync(Arg.Any<ExtensionCommand>(), Arg.Any<CancellationToken>())
             .Returns(new ExtensionSaveResult(ExtensionSaveStatus.EndDateNotInFuture));
 

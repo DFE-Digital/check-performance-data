@@ -7,7 +7,7 @@ using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.AmendmentRequests;
 
-// The establishment-wide requests page (review finding 1, 15 Oct): "open" and the deadline are
+// The establishment-wide requests page: "open" and the deadline are
 // asked of ICheckingExerciseService for the signed-in school, never of the window's stored dates.
 // A school in an extension sees its own later end; every other school sees the exercises' own.
 public sealed class UrnAmendmentRequestsServiceTests

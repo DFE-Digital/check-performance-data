@@ -141,7 +141,7 @@ public sealed class ExerciseExtensionRepository(PortalDbContext dbContext) : IEx
             // As CloseExerciseEarlyAsync: a second press, a second admin's close or an edit that
             // moved the end in between leaves this false (the guard is the end date; a school-only
             // edit leaves it true, harmlessly, as closing does not depend on the school list) and
-            // nothing below runs, so the audit row — the only early-closure stamp (decision 5) —
+            // nothing below runs, so the audit row — the only early-closure stamp, as with the exercise —
             // can never describe a close that did not happen.
             int moved = await dbContext.CheckingExerciseExtensions
                 .Where(x => x.Id == closure.ExtensionId
@@ -150,7 +150,7 @@ public sealed class ExerciseExtensionRepository(PortalDbContext dbContext) : IEx
                             && dbContext.CheckingExercises.Any(e => e.Id == x.CheckingExerciseId && e.CheckingWindowId == closure.WindowId))
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(x => x.EndDate, closure.NewEndDate)
-                    // Bumped so an edit page drawn before the close is refused (finding 3).
+                    // Bumped so an edit page drawn before the close is refused as stale.
                     .SetProperty(x => x.Version, x => x.Version + 1), ct);
             if (moved == 0)
             {

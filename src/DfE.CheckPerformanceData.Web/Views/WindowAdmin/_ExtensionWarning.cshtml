@@ -6,7 +6,7 @@
         : [];
     var confirmHasError = confirmErrors.Count > 0;
 }
-@* AB#307773, decision 10. Shown on the extension form when some schools have no data file in the
+@* AB#307773. Shown on the extension form when some schools have no data file in the
    exercise's current release. The controller saves only once ConfirmNoData is ticked, so this holds
    without JavaScript: the next POST carries the tick. Until then the checkbox carries an error, so
    the page says something went unsaved, in the one error summary, as the Schools errors do.

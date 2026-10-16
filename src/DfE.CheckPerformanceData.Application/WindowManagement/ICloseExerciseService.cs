@@ -55,7 +55,7 @@ public interface ICloseExerciseService
         Guid windowId, Guid exerciseId, Guid extensionId, CancellationToken cancellationToken);
 
     /// <summary>
-    /// <see cref="CloseAsync"/> for the named schools only (AB#307773 review, finding 2): the edit
+    /// <see cref="CloseAsync"/> for the named schools only: the edit
     /// of an extension removes a school after the exercise has closed, and its time is over at
     /// once. Nothing is stamped. Ignores whether the exercise or any extension is open — the caller
     /// decides, as for the other sweeps.

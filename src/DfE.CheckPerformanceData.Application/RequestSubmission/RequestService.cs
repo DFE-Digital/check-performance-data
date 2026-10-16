@@ -37,8 +37,8 @@ public sealed class RequestService(
         StorageForAsync(windowId, journey.CheckingWindow!.Exercises,
             WhatToChangeCheckingExerciseMap.CheckingExerciseFor(journey.SelectedWhatToChange!.Value));
 
-    // One resolve gives both ids, so the row's exercise and release can never name different rows
-    // (review finding 8). The exercise id is the one the journey's data readers resolve; IdFor is
+    // One resolve gives both ids, so the row's exercise and release can never name different rows.
+    // The exercise id is the one the journey's data readers resolve; IdFor is
     // the fallback for a caller with no resolver, and for a draft whose exercise the resolver no
     // longer finds. The release is read at write time, not from the session: a draft can be
     // resumed weeks later, after a new release, and a reviewer needs the data the school saw.
@@ -52,7 +52,7 @@ public sealed class RequestService(
     // The deadline an email quotes (#320: the exercise's end, not the outer window's). AB#307773:
     // the signed-in school's end (EndDateFor, by its LAESTAB), which its extension may make later.
     // The outer window's end is the exercises' own latest end and never includes an extension's
-    // (review finding 1), so it is only the fallback for a kind the window has no row for.
+    // so it is only the fallback for a kind the window has no row for.
     private DateTime DeadlineFor(
         IReadOnlyList<CheckingExerciseDto> exercises, DateTime outerEnd, CheckingExerciseType exercise) =>
         checkingExerciseService.EndDateFor(exercises, exercise, currentUserService.OrganisationLaestab) ?? outerEnd;

@@ -131,7 +131,7 @@ public sealed class ExerciseExtensionServiceTests
         await _extensions.DidNotReceiveWithAnyArgs().AddAsync(default!, default);
     }
 
-    // AB#307773 review I1: after the exercise's end but already past on the local clock, it would
+    // After the exercise's end but already past on the local clock, it would
     // be saved closed — no school gains time, and its schools are locked out of later extensions.
     [Fact]
     public async Task An_end_date_already_past_is_refused()
@@ -327,7 +327,7 @@ public sealed class ExerciseExtensionServiceTests
         Assert.Equal(NowUtc.UtcDateTime, written.EditedAtUtc);
     }
 
-    // ---- Removing a school after the exercise has closed (review finding 2) ----
+    // ---- Removing a school after the exercise has closed ----
 
     [Fact]
     public async Task A_school_removed_after_the_exercise_closed_is_swept_at_once()

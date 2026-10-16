@@ -70,7 +70,7 @@ public sealed class ChangeRequestReleaseStampTests
     [Fact]
     public async Task The_storage_row_is_resolved_once_per_write()
     {
-        // Review finding 8: the exercise id and the release id come from one resolve, so the two
+        // The exercise id and the release id come from one resolve, so the two
         // cannot name different rows and the resolver is asked once.
         _resolver.ResolveAsync(WindowId, CheckingExerciseType.PupilData, Arg.Any<CancellationToken>())
             .Returns(Exercise(LiveReleaseId));

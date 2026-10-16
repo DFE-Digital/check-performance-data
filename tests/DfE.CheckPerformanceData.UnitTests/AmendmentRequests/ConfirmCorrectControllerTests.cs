@@ -139,7 +139,7 @@ public sealed class ConfirmCorrectControllerTests
             .ConfirmDataCorrectAsync(WindowId, Reference, Arg.Any<DateTime>(), Arg.Any<EmailSubstitutions>());
     }
 
-    // AB#307773 review C2: the page and the email quote the signed-in school's pupil-data end, not
+    // The page and the email quote the signed-in school's pupil-data end, not
     // the window's: the extension's for the school it names, the exercise's own for any other. The
     // fixture sets the window's end explicitly, so only the school's deadline can supply the date.
     [Theory]

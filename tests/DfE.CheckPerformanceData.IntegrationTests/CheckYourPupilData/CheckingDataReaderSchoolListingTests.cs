@@ -7,7 +7,7 @@ using Microsoft.Extensions.Caching.Memory;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.CheckYourPupilData;
 
-// AB#307773 review finding 7: the extension form asks which of up to hundreds of schools have a
+// The extension form asks which of up to hundreds of schools have a
 // file, in one listing rather than one existence call each. A release's files never change, so the
 // answer is cached per release; the unversioned and legacy prefixes are read from storage each time.
 [Collection(nameof(AzuriteCollection))]

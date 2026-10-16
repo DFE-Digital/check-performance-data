@@ -6,7 +6,7 @@ namespace DfE.CheckPerformanceData.Persistence.Repositories;
 /// <summary>
 /// The window's own end date is the latest exercise end, never typed (#319). Every writer that
 /// moves an exercise end re-derives it here, so no two of them can disagree. Extension ends are
-/// left out (AB#307773 review, finding 1): the stored end is read by admin pages, the
+/// left out: the stored end is read by admin pages, the
 /// establishment-wide requests page and the deadline fallbacks, none of which is asked for a
 /// school; a school's own end is CheckingExerciseDto.EndDateFor(laestab).
 /// </summary>

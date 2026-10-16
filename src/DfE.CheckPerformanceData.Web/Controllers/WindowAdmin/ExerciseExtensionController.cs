@@ -151,7 +151,7 @@ public sealed class ExerciseExtensionController(
     internal static string Pluralise(int count, string noun) =>
         count == 1 ? $"1 {noun}" : $"{count} {noun}s";
 
-    // Review finding 2: an edit that removed schools after the exercise's end swept them.
+    // An edit that removed schools after the exercise's end swept them; say what that did.
     private static string RemovedSchoolsSentence(ExtensionSaveResult result)
     {
         var removed = result.RemovedSchools?.Count ?? 0;
@@ -189,7 +189,7 @@ public sealed class ExerciseExtensionController(
     }
 
     // A warning, not an error: the admin may extend a school whose data arrives in a later release.
-    // Asked on every POST; the tick counts only for the schools it was shown for (finding 5).
+    // Asked on every POST; the tick counts only for the schools it was shown for.
     private async Task<bool> NeedsConfirmingAsync(
         ExerciseExtensionItem model, IReadOnlyList<string> laestabs, CancellationToken cancellationToken)
     {

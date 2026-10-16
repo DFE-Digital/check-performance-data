@@ -19,8 +19,8 @@ public interface ICheckingDataReader
 
     /// <summary>
     /// Every school with a file in what this exercise shows now — its merged file, or any dataset
-    /// file of its current release — as digits-only LAESTABs, from one listing (AB#307773 review,
-    /// finding 7). Cached per release, because a release's files never change; the unversioned and
+    /// file of its current release — as digits-only LAESTABs, from one listing,
+    /// not a storage call per school. Cached per release, because a release's files never change; the unversioned and
     /// legacy prefixes are listed each time. Empty for a missing container.
     /// </summary>
     Task<IReadOnlySet<string>> ListSchoolsWithDataAsync(Guid windowId, CheckingExerciseDto exercise,

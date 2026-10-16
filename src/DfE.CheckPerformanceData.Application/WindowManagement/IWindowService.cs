@@ -88,7 +88,7 @@ public sealed class CheckingWindowDto
     /// The outer pair derived from the exercises: earliest start, latest end. The wizard never asks
     /// an admin for the window's own dates, so the two can never disagree. A window with no
     /// exercises keeps whatever it has — there is nothing to derive from. Extension ends are left
-    /// out on purpose (AB#307773 review, finding 1): the stored end is read by pages that are not
+    /// out on purpose: the stored end is read by pages that are not
     /// asked for a school, and a school's own end is <see cref="CheckingExerciseDto.EndDateFor"/>.
     /// </summary>
     public void DeriveDatesFromExercises()

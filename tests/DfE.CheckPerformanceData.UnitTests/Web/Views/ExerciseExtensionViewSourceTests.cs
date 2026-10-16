@@ -2,7 +2,7 @@ using System.Runtime.CompilerServices;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Views;
 
-// AB#307773 review finding 5: the no-data tick travels with the schools it was given for.
+// The no-data tick travels with the schools it was given for.
 public sealed class ExerciseExtensionViewSourceTests
 {
     private static string Read(string view) =>

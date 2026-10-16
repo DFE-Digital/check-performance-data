@@ -82,8 +82,9 @@ public sealed record ExtensionSaveResult(
     IReadOnlyList<ExtensionConflict>? Conflicts = null,
     // Edit only: the schools the edit took out, digits. Empty when none.
     IReadOnlyList<string>? RemovedSchools = null,
-    // What their sweep did, when the exercise had already closed by its own end (finding 2); null
-    // when the exercise still runs, nobody was removed, or the sweep failed.
+    // What their sweep did, when the exercise had already closed by its own end (nothing
+    // automatic runs for them after its catch-up day); null when the exercise still runs,
+    // nobody was removed, or the sweep failed.
     CloseExerciseResult? RemovedSchoolsSwept = null,
     // The edit is saved but the removed schools' sweep threw; the exercise's Send requests sends them.
     bool RemovedSchoolsSweepFailed = false);

@@ -133,7 +133,7 @@ public sealed class BulkSubmissionService(
             // #320: the pupil-data exercise's end (a bulk submission is amendments), not the outer
             // window's. AB#307773: the signed-in school's end, which its extension may make later;
             // the outer end is the exercises' own latest end and never includes an extension's
-            // (review finding 1), so it is only the fallback for a window with no pupil-data row.
+            // so it is only the fallback for a window with no pupil-data row.
             var deadline = checkingExercises.EndDateFor(
                 window.Exercises, CheckingExerciseType.PupilData, currentUserService.OrganisationLaestab)
                 ?? window.EndDate;

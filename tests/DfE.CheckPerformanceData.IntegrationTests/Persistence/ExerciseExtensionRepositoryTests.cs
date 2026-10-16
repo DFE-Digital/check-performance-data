@@ -191,7 +191,7 @@ public sealed class ExerciseExtensionRepositoryTests(PostgresFixture fixture) : 
     [Fact]
     public async Task Add_writes_only_the_window_admin_row_and_no_generic_audit_rows()
     {
-        // AB#307773 review I4: the hand-written WindowAdmin row is the record. Generic capture would
+        // The hand-written WindowAdmin row is the record. Generic capture would
         // add one row for the extension and one per school, saying nothing that row does not.
         Guid id;
         await using (var ctx = fixture.CreateContext())
@@ -236,7 +236,7 @@ public sealed class ExerciseExtensionRepositoryTests(PostgresFixture fixture) : 
     [Fact]
     public async Task Two_edits_that_change_only_the_schools_cannot_both_pass()
     {
-        // Review finding 3 (15 Oct): both admins read version 0 and change only the list. The
+        // Both admins read version 0 and change only the list. The
         // second save must be refused, or it silently undoes the first.
         Guid id;
         await using (var ctx = fixture.CreateContext())
@@ -298,7 +298,7 @@ public sealed class ExerciseExtensionRepositoryTests(PostgresFixture fixture) : 
         Guid id;
         await using (var ctx = fixture.CreateContext())
             id = await Repository(ctx).AddAsync(NewExt("9334290"), CancellationToken.None);
-        // Closed before the exercise's own end (decision 2), so the window falls back to that end.
+        // Closed before the exercise's own end (never shorter than it), so the window falls back to that end.
         var closure = new ExtensionEarlyClosure
         {
             WindowId = _windowId, ExerciseId = _exerciseId, Exercise = CheckingExerciseType.PupilData, ExtensionId = id,
@@ -395,7 +395,7 @@ public sealed class ExerciseExtensionRepositoryTests(PostgresFixture fixture) : 
         Assert.Equal(1, sent.DraftsCancelled);
     }
 
-    // Review finding 1 (15 Oct): the window's stored end is the exercises' own latest end, whatever
+    // The window's stored end is the exercises' own latest end, whatever
     // extensions exist. The school's end is computed from the extensions on every read.
     [Fact]
     public async Task No_extension_write_moves_the_window_end()

@@ -151,11 +151,10 @@ public static class DependencyManager
                 "DfeSignIn:Audience and DfeSignIn:ApiClientSecret in appsettings.json " +
                 "or via environment variables (e.g. DfeSignIn__MetadataAddress).");
 
-        // The auth, correlation and nonce cookies all leave the pod, so outside Development they
-        // must carry Secure. Development keeps SameAsRequest because the local stack runs over
-        // plain HTTP and a forced-Secure cookie would never be stored by the browser. Being HTTPS
-        // on a deployed pod depends on trusting the ingress's X-Forwarded-Proto, which
-        // AddCpdCoreWeb now does.
+        // The auth cookie leaves the pod, so outside Development it must carry Secure. Development
+        // keeps SameAsRequest because the local stack runs over plain HTTP and a forced-Secure
+        // cookie would never be stored by the browser. Being HTTPS on a deployed pod depends on
+        // trusting the ingress's X-Forwarded-Proto, which AddCpdCoreWeb now does.
         var securePolicy = environment.IsDevelopment()
             ? CookieSecurePolicy.SameAsRequest
             : CookieSecurePolicy.Always;
@@ -197,8 +196,14 @@ public static class DependencyManager
                 options.CallbackPath = "/auth/callback";
                 options.SignedOutCallbackPath = "/auth/signout-callback";
 
-                options.CorrelationCookie.SecurePolicy = securePolicy;
-                options.NonceCookie.SecurePolicy = securePolicy;
+                // The OIDC correlation and nonce cookies are SameSite=None, which browsers reject
+                // unless Secure is also set — including over local http, where localhost's
+                // secure-context exception lets a Secure cookie through. Downgrading them to
+                // SameAsRequest in Development (as the auth cookie is) drops them on the callback,
+                // so correlation validation fails and sign-in ends on the NoAccess page. Keep them
+                // Always Secure in every environment.
+                options.CorrelationCookie.SecurePolicy = CookieSecurePolicy.Always;
+                options.NonceCookie.SecurePolicy = CookieSecurePolicy.Always;
 
                 options.Scope.Clear();
                 options.Scope.Add("email");

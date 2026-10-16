@@ -10,10 +10,13 @@ using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Infrastructure;
 
-// The auth cookie, the OIDC correlation cookie and the OIDC nonce cookie all leave the pod too,
-// so they take the same non-Development-Secure policy as the antiforgery and session cookies.
-// The environment is supplied by the caller (Program passes builder.Environment) rather than
-// read from a static, so a test can pin both branches without touching process state.
+// The auth cookie leaves the pod, so outside Development it must carry Secure; Development keeps
+// SameAsRequest so the local http stack still works. The OIDC correlation and nonce cookies are
+// different: they are SameSite=None, which browsers reject unless Secure is also set, so they stay
+// Always Secure in every environment (localhost's secure-context exception lets a Secure cookie
+// through over http). The environment is supplied by the caller (Program passes
+// builder.Environment) rather than read from a static, so a test can pin both branches without
+// touching process state.
 public sealed class DfeSignInCookiePolicyTests
 {
     [Theory]
@@ -29,14 +32,17 @@ public sealed class DfeSignInCookiePolicyTests
     }
 
     [Theory]
-    [InlineData("Production", CookieSecurePolicy.Always)]
-    [InlineData("Development", CookieSecurePolicy.SameAsRequest)]
-    public void OidcCorrelationAndNonceCookies_TakeTheSamePolicy(string environmentName, CookieSecurePolicy expected)
+    [InlineData("Production")]
+    [InlineData("Development")]
+    public void OidcCorrelationAndNonceCookies_AreAlwaysSecure(string environmentName)
     {
         var options = OidcOptions(environmentName);
 
-        Assert.Equal(expected, options.CorrelationCookie.SecurePolicy);
-        Assert.Equal(expected, options.NonceCookie.SecurePolicy);
+        // SameSite=None cookies are rejected by browsers unless Secure is set. Downgrading them in
+        // Development (as the auth cookie is) drops them on the OIDC callback, so correlation
+        // validation fails and the handshake ends on the NoAccess page.
+        Assert.Equal(CookieSecurePolicy.Always, options.CorrelationCookie.SecurePolicy);
+        Assert.Equal(CookieSecurePolicy.Always, options.NonceCookie.SecurePolicy);
         Assert.True(options.CorrelationCookie.HttpOnly);
         Assert.True(options.NonceCookie.HttpOnly);
         Assert.Equal(SameSiteMode.None, options.CorrelationCookie.SameSite);

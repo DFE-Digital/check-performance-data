@@ -13,6 +13,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Web;
 public sealed class CookieSecureFlagLocalHttpTests(PlaywrightFixture fixture)
 {
     private const string AntiforgeryCookiePrefix = ".AspNetCore.Antiforgery.";
+    private const string CorrelationCookiePrefix = ".AspNetCore.Correlation.";
     private const string Path = "/dev/antiforgery-token";
 
     private readonly PlaywrightFixture _fixture = fixture;
@@ -68,5 +69,35 @@ public sealed class CookieSecureFlagLocalHttpTests(PlaywrightFixture fixture)
         }
 
         return setCookies.First(c => c.StartsWith(AntiforgeryCookiePrefix, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Challenge_IssuesASecureCorrelationCookieOverLocalHttp()
+    {
+        // The OIDC correlation cookie is SameSite=None, which browsers reject unless Secure is set.
+        // It must therefore stay Secure even over the local http stack (localhost's secure-context
+        // exception accepts it). If the Development downgrade were applied to it — as it is to the
+        // antiforgery cookie above — the browser would drop it, the callback would fail correlation
+        // validation, and sign-in would end on the NoAccess page. This pins the fix end to end.
+        var baseAddress = _fixture.SeedClient.BaseAddress
+            ?? throw new InvalidOperationException("SeedClient has no BaseAddress.");
+
+        using var handler = new HttpClientHandler { UseCookies = false, AllowAutoRedirect = false };
+        using var client = new HttpClient(handler) { BaseAddress = baseAddress };
+
+        // Any authenticated-only route triggers the OIDC challenge and mints the correlation cookie.
+        using var response = await client.GetAsync("/admin");
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+
+        Assert.True(response.Headers.TryGetValues("Set-Cookie", out var setCookies),
+            "The challenge issued no Set-Cookie header.");
+
+        var correlation = setCookies.First(c => c.StartsWith(CorrelationCookiePrefix, StringComparison.Ordinal));
+
+        // Look only at the attributes, not the value, so an incidental substring in the payload
+        // can never make this pass or fail.
+        var attributes = correlation.Split(';').Skip(1).Select(a => a.Trim());
+        Assert.Contains("secure", attributes, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("samesite=none", attributes, StringComparer.OrdinalIgnoreCase);
     }
 }

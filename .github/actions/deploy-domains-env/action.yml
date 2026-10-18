@@ -31,13 +31,13 @@ runs:
     - name: Read Terraform version
       shell: bash
       run: |
-        terraform_version=$(awk '/{/{f=/^terraform/;next}f' terraform/domains/environment_domains/terraform.tf | grep -o '[0-9\.]\+')
+        terraform_version=$(awk '/{/{f=/^terraform/;next}f' terraform/domains/environment_domains/terraform.tf | grep -o '[0-9\.]+')
         echo "TERRAFORM_VERSION=$terraform_version" >> "$GITHUB_ENV"
-    - uses: hashicorp/setup-terraform@v4
+    - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e
       with:
         terraform_version: ${{ env.TERRAFORM_VERSION }}
         terraform_wrapper: false
-    - uses: DFE-Digital/github-actions/set-arm-environment-variables@master
+    - uses: DFE-Digital/github-actions/set-arm-environment-variables@b943d7b436b6835cf9ace92330a38744209803b2
       with:
         azure-client-id: ${{ inputs.azure-client-id }}
         azure-tenant-id: ${{ inputs.azure-tenant-id }}
@@ -59,7 +59,7 @@ runs:
         done
     - name: Notify on failure
       if: failure() && inputs.teams-webhook-url != ''
-      uses: DFE-Digital/github-actions/send-to-teams-channel@master
+      uses: DFE-Digital/github-actions/send-to-teams-channel@b943d7b436b6835cf9ace92330a38744209803b2
       with:
         teams-webhook-url: ${{ inputs.teams-webhook-url }}
         title: Deploy domains env

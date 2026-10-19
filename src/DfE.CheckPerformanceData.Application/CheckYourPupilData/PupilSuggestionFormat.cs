@@ -39,71 +39,45 @@ public static class PupilSuggestionFormat
     }
 
     public static bool Matches(IPupilRecord pupil, string query, CheckingWindowType windowType, PupilSearchField searchField = PupilSearchField.All)
+        => Matcher(query, searchField)(pupil);
+
+    /// <summary>
+    /// The <see cref="Matches"/> rule with the query parsed once, for a caller that tests every
+    /// pupil in a school against the same query.
+    /// </summary>
+    public static Func<IPupilRecord, bool> Matcher(string query, PupilSearchField searchField = PupilSearchField.All)
     {
         var trimmed = query.Trim();
-        if (trimmed.Length == 0) return false;
+        if (trimmed.Length == 0) return _ => false;
 
         // AB#304118: a page can restrict the search to the CYPMD ID alone — the KS4 merge journey's
         // second-record page asks for one by name. Returned before every other rule, because a page
-        // that promises an ID search must not also answer to a name, a UPN or a date of birth.
+        // that promises an ID search must not also answer to a name, a UPN or a date of birth. It
+        // bypasses PupilSearchTerms on purpose: an ID is one word, so splitting into words adds
+        // nothing, and a typed space or comma must not let half an ID match.
         if (searchField == PupilSearchField.CypmdId)
-            return pupil.Cypmd_Id.StartsWith(trimmed, StringComparison.OrdinalIgnoreCase);
+            return pupil => pupil.Cypmd_Id.StartsWith(trimmed, StringComparison.OrdinalIgnoreCase);
 
-        if (trimmed.Contains(' '))
-        {
-            if (NameMatchesSplitQuery(pupil.Firstname, pupil.Surname, trimmed))
-                return true;
-        }
-
-        if (pupil.Identifier.StartsWith(trimmed, StringComparison.OrdinalIgnoreCase) ||
-            pupil.Cypmd_Id.StartsWith(trimmed, StringComparison.OrdinalIgnoreCase) ||
-            pupil.Surname.StartsWith(trimmed, StringComparison.OrdinalIgnoreCase) ||
-            pupil.Firstname.StartsWith(trimmed, StringComparison.OrdinalIgnoreCase))
-            return true;
-
-        // Matched against the DISPLAYED date, because that is the form the user reads off the screen
-        // and types back — the raw supplier value is an ISO timestamp nobody would enter. Every key
-        // stage since #623, whose hint names the date of birth.
-        return MatchesDateOfBirth(pupil, trimmed);
-    }
-
-    /// <summary>
-    /// Autocomplete split-query matching used by <see cref="Matches"/> only (the pupil-search
-    /// dropdown). When the query contains a space the first token is matched against the first
-    /// name and the rest against the surname, both via case-insensitive startsWith — a deliberately
-    /// prefix-only rule. A single token (no space) falls back to matching either name part.
-    ///
-    /// NOT shared with the Add-pupil duplicate check, which needs substring (Contains) matching
-    /// and a dual split — see <see cref="NameMatchesForDuplicateCheck"/>.
-    /// </summary>
-    public static bool NameMatchesSplitQuery(string? firstname, string? surname, string query)
-    {
-        var trimmed = query.Trim();
-        if (trimmed.Length == 0) return false;
-
-        var spaceIndex = trimmed.IndexOf(' ');
-        if (spaceIndex < 0)
-        {
-            return (firstname?.StartsWith(trimmed, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                   (surname?.StartsWith(trimmed, StringComparison.OrdinalIgnoreCase) ?? false);
-        }
-
-        var firstNamePart = trimmed[..spaceIndex];
-        var surnamePart = trimmed[(spaceIndex + 1)..].TrimStart();
-
-        if (firstNamePart.Length == 0 || surnamePart.Length == 0)
-            return (firstname?.StartsWith(trimmed, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                   (surname?.StartsWith(trimmed, StringComparison.OrdinalIgnoreCase) ?? false);
-
-        return (firstname?.StartsWith(firstNamePart, StringComparison.OrdinalIgnoreCase) ?? false) &&
-               (surname?.StartsWith(surnamePart, StringComparison.OrdinalIgnoreCase) ?? false);
+        // Every word must start a word in a name or an identifier, in any order (PupilSearchTerms).
+        // The date of birth is the DISPLAYED date, because that is the form the user reads off the
+        // screen and types back — the raw supplier value is an ISO timestamp nobody would enter.
+        // Every key stage since #623, whose hint names the date of birth.
+        var terms = PupilSearchTerms.Parse(trimmed);
+        return pupil => terms.Matches(
+        [
+            pupil.Firstname,
+            pupil.Surname,
+            pupil.Identifier,
+            pupil.Cypmd_Id,
+            PupilDateFormatter.ToDisplayDate(pupil.DateOfBirth)
+        ]);
     }
 
     /// <summary>
     /// Matcher for the Add-pupil duplicate check (<see cref="CheckYourPupilDataService.DuplicateCheckAsync"/>).
     ///
-    /// Unlike the autocomplete <see cref="Matches"/>, which keeps its deliberate prefix-only
-    /// StartsWith behaviour, this matches on substrings (Contains) so a partial or variant spelling
+    /// Unlike the autocomplete <see cref="Matches"/>, which matches the start of a word only
+    /// (<see cref="PupilSearchTerms"/>), this matches on substrings (Contains) so a partial or variant spelling
     /// still surfaces a duplicate, and it tries BOTH a first-space and a last-space split of the
     /// typed full name so a multi-word first or last name is caught whichever way the clerk grouped
     /// it. The caller also requires the date of birth to match, so a slightly fuzzy name match
@@ -140,11 +114,5 @@ public static class PupilSuggestionFormat
                && firstname.Contains(firstNamePart, StringComparison.OrdinalIgnoreCase)
                && surname is not null
                && surname.Contains(surnamePart, StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool MatchesDateOfBirth(IPupilRecord pupil, string query)
-    {
-        var dob = PupilDateFormatter.ToDisplayDate(pupil.DateOfBirth);
-        return dob.Length > 0 && dob.StartsWith(query, StringComparison.OrdinalIgnoreCase);
     }
 }

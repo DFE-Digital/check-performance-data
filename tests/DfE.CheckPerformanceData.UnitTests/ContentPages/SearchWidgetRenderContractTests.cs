@@ -214,6 +214,37 @@ public sealed class SearchWidgetRenderContractTests
         Assert.Contains("flex-direction: column;", css[rule..css.IndexOf('}', rule)]);
     }
 
+    // ----- Clear button -----
+
+    // Only when the author asks for it; a widget with no stored value has none.
+    [Fact]
+    public void ShowsTheClearButton_OnlyWhenAsked()
+    {
+        var view = View;
+        var guard = view.IndexOf("@if (clearButton)", StringComparison.Ordinal);
+        var clear = view.IndexOf("cypmd-search__clear", guard < 0 ? 0 : guard, StringComparison.Ordinal);
+
+        Assert.Contains("var clearButton = Model.GetBool(\"clearButton\") ?? false;", view);
+        Assert.True(guard >= 0, "Search view does not guard the clear button on clearButton.");
+        Assert.True(clear > guard, "The clear button must sit inside the clearButton guard.");
+    }
+
+    // A reset button empties the box with no JavaScript at all. It comes after the box, so the tab
+    // order is box, clear, search, and it is named for a screen reader rather than by its icon.
+    [Fact]
+    public void TheClearButton_IsAResetButtonAfterTheBox_NamedClearSearch()
+    {
+        var view = View;
+        var input = view.IndexOf("name=\"q\"", StringComparison.Ordinal);
+        var clear = view.IndexOf("cypmd-search__clear", StringComparison.Ordinal);
+        var submit = view.IndexOf("type=\"submit\"", StringComparison.Ordinal);
+        var tag = view[view.LastIndexOf("<button", clear, StringComparison.Ordinal)..view.IndexOf("</button>", clear, StringComparison.Ordinal)];
+
+        Assert.True(input < clear && clear < submit, "The clear button must sit between the box and the search button.");
+        Assert.Contains("type=\"reset\"", tag);
+        Assert.Contains("Clear search", tag);
+    }
+
     private static string ReadSearchView()
     {
         var solutionRoot = FindSolutionRoot(AppContext.BaseDirectory);

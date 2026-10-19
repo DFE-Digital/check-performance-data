@@ -128,11 +128,20 @@ public sealed class ResultsTableServiceTests
     }
 
     [Theory]
-    [InlineData("smi", 2)]      // surname contains
-    [InlineData("BOB", 1)]      // first name contains, case-insensitive
-    [InlineData("5000", 3)]     // CYPMD ID starts with
-    [InlineData("0001", 0)]     // CYPMD ID is StartsWith, not Contains
-    [InlineData("phys", 1)]     // subject contains
+    // The same rule as every other pupil search (PupilSearchTerms): each word must start a word in
+    // the name, the CYPMD ID or the subject, in any order.
+    [InlineData("smi", 2)]              // surname
+    [InlineData("BOB", 1)]              // first name, case-insensitive
+    [InlineData("5000", 3)]             // CYPMD ID starts with
+    [InlineData("0001", 0)]             // inside the CYPMD ID
+    [InlineData("phys", 1)]             // subject
+    [InlineData("Alice Smith", 2)]      // full name
+    [InlineData("Smith Alice", 2)]      // either order
+    [InlineData("Smith, Alice", 2)]
+    [InlineData("Alice Jones", 0)]      // every word must match
+    [InlineData("Smith French", 1)]     // a name and a subject together
+    [InlineData("mith", 0)]             // inside a name
+    [InlineData("rench", 0)]            // inside a subject
     public async Task Search_matches_name_cypmd_id_or_subject(string search, int expected)
     {
         var (_, total) = (await _sut.GetResultsTableAsync(WindowId, search, 0, 10))!.Value;

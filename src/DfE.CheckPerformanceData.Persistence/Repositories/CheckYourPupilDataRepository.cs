@@ -38,9 +38,13 @@ public sealed class CheckYourPupilDataRepository(
         var query = (await GetSchoolPupilsAsync(windowId, laestab))
             .Where(p => p.IsIncluded == included);
 
+        // In memory, over the school's cached pupil file. Keep it that way: PupilSearchTerms cannot be
+        // translated to SQL, so moving this filter onto an EF IQueryable would fail at run time.
         if (!string.IsNullOrWhiteSpace(search))
-            query = query.Where(p => p.Firstname.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                                     p.Surname.Contains(search, StringComparison.OrdinalIgnoreCase));
+        {
+            var terms = PupilSearchTerms.Parse(search);
+            query = query.Where(p => terms.Matches([p.Firstname, p.Surname]));
+        }
 
         return query.OrderBy(p => p.Surname).ThenBy(p => p.Firstname).ToList();
     }
@@ -159,6 +163,7 @@ public sealed class CheckYourPupilDataRepository(
         // too and shows its identifiers), so both live in PupilSuggestionFormat where they can be
         // unit-tested against pinned copy.
         var (pupils0, windowType) = await GetSchoolPupilsWithWindowTypeAsync(windowId, laestab);
+        var matches = PupilSuggestionFormat.Matcher(query, searchField);
         var pupils = pupils0
             .Where(p => filter switch
             {
@@ -166,7 +171,7 @@ public sealed class CheckYourPupilDataRepository(
                 PupilFilter.Included => p.IsIncluded,
                 _ => !p.IsIncluded
             })
-            .Where(p => PupilSuggestionFormat.Matches(p, query, windowType, searchField));
+            .Where(matches);
 
         if (excludeId.HasValue)
             pupils = pupils.Where(p => p.Id != excludeId.Value);

@@ -26,7 +26,7 @@ public static class CoreWebExtensions
             // moment pods become directly reachable (e.g. a Service exposing them without the
             // ingress in front), because then a client could forge the headers.
             options.KnownProxies.Clear();
-            options.KnownNetworks.Clear();
+            options.KnownIPNetworks.Clear();
         });
 
         builder.Services.AddHttpContextAccessor();

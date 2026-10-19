@@ -19,7 +19,7 @@ public sealed class ForwardedHeadersTrustTests
         var options = ResolveOptions();
 
         Assert.Empty(options.KnownProxies);
-        Assert.Empty(options.KnownNetworks);
+        Assert.Empty(options.KnownIPNetworks);
     }
 
     [Fact]

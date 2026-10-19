@@ -314,59 +314,39 @@ public sealed class PupilSuggestionFormatTests
     public void A_pupil_with_no_date_of_birth_does_not_throw()
         => Assert.False(PupilSuggestionFormat.Matches(Post16(dob: string.Empty), "12/03", CheckingWindowType.Post16));
 
-    // ── NameMatchesSplitQuery helper (T001) ──────────────────────────────────
-
-    [Fact]
-    public void NameMatchesSplitQuery_matches_firstname_and_surname_parts()
-    {
-        Assert.True(PupilSuggestionFormat.NameMatchesSplitQuery("John", "Smith", "John Smith"));
-    }
-
-    [Fact]
-    public void NameMatchesSplitQuery_matches_partial_firstname_and_surname()
-    {
-        Assert.True(PupilSuggestionFormat.NameMatchesSplitQuery("Johnny", "Smithson", "john sm"));
-    }
-
-    [Fact]
-    public void NameMatchesSplitQuery_is_case_insensitive()
-    {
-        Assert.True(PupilSuggestionFormat.NameMatchesSplitQuery("John", "Smith", "JOHN smith"));
-    }
-
-    [Fact]
-    public void NameMatchesSplitQuery_rejects_when_surname_part_does_not_match()
-    {
-        Assert.False(PupilSuggestionFormat.NameMatchesSplitQuery("John", "Jones", "John Smith"));
-    }
-
-    [Fact]
-    public void NameMatchesSplitQuery_rejects_when_firstname_part_does_not_match()
-    {
-        Assert.False(PupilSuggestionFormat.NameMatchesSplitQuery("Jane", "Smith", "John Smith"));
-    }
+    // ── Full-name search (every word starts a word in some field) ─────────────
 
     [Theory]
-    [InlineData("John ")]       // trailing space
-    [InlineData(" John Smith")] // leading space
-    [InlineData("John  Smith")] // double space
-    public void NameMatchesSplitQuery_handles_whitespace_variations(string query)
-    {
-        Assert.True(PupilSuggestionFormat.NameMatchesSplitQuery("John", "Smith", query));
-    }
+    [InlineData("John Smith")]
+    [InlineData("Smith John")]       // either order
+    [InlineData("Smith, John")]      // as the KS4 label shows it
+    [InlineData("john sm")]          // partial, any case
+    [InlineData("  John   Smith ")]  // spare whitespace
+    [InlineData("Smith 01/01")]      // a name and a date of birth together
+    public void A_full_name_search_finds_the_pupil(string query)
+        => Assert.True(PupilSuggestionFormat.Matches(
+            Ks4(firstname: "John", surname: "Smith"), query, CheckingWindowType.KS4June));
+
+    [Theory]
+    [InlineData("John Jones")]       // surname does not match
+    [InlineData("Jane Smith")]       // first name does not match
+    [InlineData("ohn")]              // inside a word, not at its start
+    public void A_full_name_search_needs_every_word_to_start_a_field_word(string query)
+        => Assert.False(PupilSuggestionFormat.Matches(
+            Ks4(firstname: "John", surname: "Smith"), query, CheckingWindowType.KS4June));
+
+    [Theory]
+    [InlineData("Berg")]
+    [InlineData("Mary Jane Van Der Berg")]
+    [InlineData("Jane Berg")]
+    public void A_multi_word_name_is_found_by_any_of_its_words(string query)
+        => Assert.True(PupilSuggestionFormat.Matches(
+            Ks4(firstname: "Mary Jane", surname: "Van Der Berg"), query, CheckingWindowType.KS4June));
 
     [Fact]
-    public void NameMatchesSplitQuery_degrades_to_single_term_when_no_space()
-    {
-        Assert.True(PupilSuggestionFormat.NameMatchesSplitQuery("John", "Smith", "John"));
-        Assert.True(PupilSuggestionFormat.NameMatchesSplitQuery("John", "Smith", "Smith"));
-    }
-
-    [Fact]
-    public void NameMatchesSplitQuery_returns_false_for_empty_query()
-    {
-        Assert.False(PupilSuggestionFormat.NameMatchesSplitQuery("John", "Smith", ""));
-    }
+    public void A_full_name_search_works_the_same_on_a_16_19_window()
+        => Assert.True(PupilSuggestionFormat.Matches(
+            Post16(firstname: "Billy", surname: "Bremner"), "Bremner Billy", CheckingWindowType.Post16));
 
     // ── NameMatchesForDuplicateCheck (AB#297780) ─────────────────────────────
 

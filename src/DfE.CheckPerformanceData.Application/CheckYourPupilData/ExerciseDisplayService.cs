@@ -31,8 +31,8 @@ public sealed class ExerciseDisplayService : IExerciseDisplayService
         var selected = datasets.FirstOrDefault(d => d.Key == dataset) ?? datasets[0];
         var searchable = selected.Columns.Where(c => c.Searchable).Select(c => c.Field).ToArray();
         var filtered = string.IsNullOrWhiteSpace(search) ? selected.Rows : selected.Rows
-            .Where(row => searchable.Any(field => row.GetValueOrDefault(field, "")
-                .Contains(search, StringComparison.OrdinalIgnoreCase))).ToList();
+            .Where(row => PupilSearchTerms.MatchesEveryWord(search,
+                searchable.Select(field => row.GetValueOrDefault(field, "")))).ToList();
         var totalPages = (int)Math.Ceiling(filtered.Count / (double)pageSize);
         page = Math.Clamp(page, 0, Math.Max(0, totalPages - 1));
         return new ExerciseTableView(datasets, selected,

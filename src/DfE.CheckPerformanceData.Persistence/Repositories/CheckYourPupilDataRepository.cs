@@ -39,8 +39,7 @@ public sealed class CheckYourPupilDataRepository(
             .Where(p => p.IsIncluded == included);
 
         if (!string.IsNullOrWhiteSpace(search))
-            query = query.Where(p => p.Firstname.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                                     p.Surname.Contains(search, StringComparison.OrdinalIgnoreCase));
+            query = query.Where(p => PupilSearchTerms.MatchesEveryWord(search, [p.Firstname, p.Surname]));
 
         return query.OrderBy(p => p.Surname).ThenBy(p => p.Firstname).ToList();
     }

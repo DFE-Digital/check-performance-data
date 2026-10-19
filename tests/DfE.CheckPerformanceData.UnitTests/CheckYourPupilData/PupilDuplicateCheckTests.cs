@@ -232,7 +232,7 @@ public sealed class PupilDuplicateCheckTests
         Assert.Empty(result.Matches);
     }
 
-    // ── NameMatchesSplitQuery in duplicate-check context (T002) ────────────
+    // ── Split-name matching in duplicate-check context (T002) ──────────────
 
     [Fact]
     public async Task Duplicate_check_matches_firstname_and_surname_via_split_query()

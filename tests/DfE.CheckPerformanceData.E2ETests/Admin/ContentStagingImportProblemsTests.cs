@@ -37,7 +37,9 @@ public sealed class ContentStagingImportProblemsTests(PlaywrightFixture fixture)
         var json = JsonSerializer.Serialize(bundle).Replace("\"schema\":", "\"$schema\":");
 
         await Page.GotoAsync($"{Fixture.BaseUrl}/admin/content-staging");
-        await Page.Locator("#bundle").SetInputFilesAsync(new FilePayload
+        // The enhanced GOV.UK file upload (#632) moves the id onto its button, so reach the native
+        // input by name, as every other SetInputFilesAsync in the suite does.
+        await Page.Locator("input[name='bundle']").SetInputFilesAsync(new FilePayload
         {
             Name = "bundle.json", MimeType = "application/json", Buffer = Encoding.UTF8.GetBytes(json)
         });

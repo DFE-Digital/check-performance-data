@@ -142,6 +142,35 @@ public sealed class PupilSearchTwoPartNameTests(PostgresFixture fixture)
         Assert.Empty(results);
     }
 
+    [Theory]
+    [InlineData("John Smith")]
+    [InlineData("Smith John")]
+    [InlineData("Smith, Jo")]
+    public async Task The_pupil_table_search_finds_a_full_name_in_either_order(string search)
+    {
+        // The Check your pupil data tables use the same rule as the journey autocomplete.
+        var (windowId, repo) = await SeededAsync(
+            NewPupil("John", "Smith", "500001", included: true),
+            NewPupil("Jane", "Smith", "500002", included: true),
+            NewPupil("John", "Jones", "500003", included: true));
+
+        var (items, total) = await repo.GetPupilPageAsync(windowId, TestLaestab, included: true, search, 0, 10);
+
+        Assert.Equal(1, total);
+        Assert.Equal("John", items[0].Firstname);
+        Assert.Equal("Smith", items[0].Surname);
+    }
+
+    [Fact]
+    public async Task The_pupil_table_search_matches_the_start_of_a_name_only()
+    {
+        var (windowId, repo) = await SeededAsync(NewPupil("John", "Smith", "500001", included: true));
+
+        var (_, total) = await repo.GetPupilPageAsync(windowId, TestLaestab, included: true, "mith", 0, 10);
+
+        Assert.Equal(0, total);
+    }
+
     [Fact]
     public async Task Single_term_query_still_works_after_split_implementation()
     {

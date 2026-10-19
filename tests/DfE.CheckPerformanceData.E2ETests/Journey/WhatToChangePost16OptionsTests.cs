@@ -47,7 +47,7 @@ public sealed class WhatToChangePost16OptionsTests(PlaywrightFixture fixture) : 
         await Expect(Page.Locator("input[name='SelectedWhatToChange'][value='Add']")).ToHaveCountAsync(1);
 
         // Selecting Include and continuing still opens the Include journey.
-        await Page.Locator("input[name='SelectedWhatToChange'][value='Include']").CheckAsync(new() { Force = true });
+        await Page.Locator("input[name='SelectedWhatToChange'][value='Include']").CheckAsync();
         await Page.GetByRole(AriaRole.Button, new() { Name = "Continue", Exact = true }).ClickAsync();
         await Page.WaitForURLAsync($"**/Journey/{Ks4JuneWindowId}/pupil-search/select-pupil");
         await Expect(Page.Locator("#pupil-search").First).ToBeVisibleAsync();
@@ -73,7 +73,7 @@ public sealed class WhatToChangePost16OptionsTests(PlaywrightFixture fixture) : 
         // Check it is selected with the form prepared.
         var injected = Page.Locator("input[name='SelectedWhatToChange'][value='Include']");
         await Expect(injected).ToHaveCountAsync(1);
-        await injected.CheckAsync(new() { Force = true });
+        await injected.CheckAsync();
 
         await Page.GetByRole(AriaRole.Button, new() { Name = "Continue", Exact = true }).ClickAsync();
 

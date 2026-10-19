@@ -185,7 +185,7 @@ await StartIncludeJourneyAsync();
     private async Task StartIncludeJourneyAsync()
     {
         await Page.GotoAsync($"{Fixture.BaseUrl}/WhatToChange/{Ks4JuneWindowId}");
-        await Page.Locator("input[name='SelectedWhatToChange'][value='Include']").CheckAsync(new() { Force = true });
+        await Page.Locator("input[name='SelectedWhatToChange'][value='Include']").CheckAsync();
         await ContinueAsync();
         await Page.WaitForURLAsync($"**/Journey/{Ks4JuneWindowId}/pupil-search/select-pupil");
     }

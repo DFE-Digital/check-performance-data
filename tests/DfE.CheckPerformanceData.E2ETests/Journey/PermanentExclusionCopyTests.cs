@@ -125,7 +125,7 @@ public sealed class PermanentExclusionCopyTests(PlaywrightFixture fixture) : See
     private async Task NavigateToReasonPageAsync(string reasonValue)
     {
         await Page.GotoAsync($"{Fixture.BaseUrl}/WhatToChange/{SeededWindowId}");
-        await Page.GetByLabel("Remove").First.CheckAsync(new() { Force = true });
+        await Page.GetByLabel("Remove").First.CheckAsync();
         await Page.GetByRole(AriaRole.Button, new() { Name = "Continue" }).ClickAsync();
         await Page.WaitForURLAsync($"**/Journey/{SeededWindowId}/pupil-search/**");
 
@@ -139,7 +139,7 @@ public sealed class PermanentExclusionCopyTests(PlaywrightFixture fixture) : See
         await Page.WaitForURLAsync($"**/Journey/{SeededWindowId}/page/reason");
 
         await Page.Locator($"input[name='q_reason'][value='{reasonValue}']")
-            .CheckAsync(new() { Force = true });
+            .CheckAsync();
         await Page.GetByRole(AriaRole.Button, new() { Name = "Continue" }).ClickAsync();
         await Page.WaitForURLAsync($"**/Journey/{SeededWindowId}/page/{reasonValue}");
     }

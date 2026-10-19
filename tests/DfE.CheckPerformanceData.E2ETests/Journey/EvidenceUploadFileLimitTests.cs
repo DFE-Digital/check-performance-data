@@ -93,7 +93,7 @@ public sealed class EvidenceUploadFileLimitTests(PlaywrightFixture fixture) : Se
     private async Task NavigateToEvidencePageAsync()
     {
         await Page.GotoAsync($"{Fixture.BaseUrl}/WhatToChange/{SeededWindowId}");
-        await Page.GetByLabel("Remove").First.CheckAsync(new() { Force = true });
+        await Page.GetByLabel("Remove").First.CheckAsync();
         await Page.GetByRole(AriaRole.Button, new() { Name = "Continue" }).ClickAsync();
         await Page.WaitForURLAsync($"**/Journey/{SeededWindowId}/pupil-search/**");
 
@@ -106,7 +106,7 @@ public sealed class EvidenceUploadFileLimitTests(PlaywrightFixture fixture) : Se
         await Page.GetByRole(AriaRole.Button, new() { Name = "Continue" }).ClickAsync();
         await Page.WaitForURLAsync($"**/Journey/{SeededWindowId}/page/reason");
 
-        await Page.Locator("input[name='q_reason'][value='permanent-exclusion']").CheckAsync(new() { Force = true });
+        await Page.Locator("input[name='q_reason'][value='permanent-exclusion']").CheckAsync();
         await Page.GetByRole(AriaRole.Button, new() { Name = "Continue" }).ClickAsync();
         await Page.WaitForURLAsync($"**/Journey/{SeededWindowId}/page/permanent-exclusion");
 

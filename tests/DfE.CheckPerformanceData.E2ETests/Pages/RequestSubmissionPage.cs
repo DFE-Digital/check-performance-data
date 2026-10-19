@@ -144,7 +144,7 @@ public sealed class RequestSubmissionPage(PlaywrightFixture fixture) : PageTest
 
         // Select "Remove" and submit the WhatToChange form.
         var removeRadio = Page.GetByLabel("Remove").First;
-        await removeRadio.CheckAsync(new() { Force = true });
+        await removeRadio.CheckAsync();
         await Page.GetByRole(AriaRole.Button, new() { Name = "Continue" }).ClickAsync();
 
         // Wait for navigation to the pupil search page (/Journey/{windowId}/pupil-search/...).

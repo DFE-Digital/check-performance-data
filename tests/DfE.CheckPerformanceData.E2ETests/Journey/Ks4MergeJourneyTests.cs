@@ -140,7 +140,7 @@ public sealed class Ks4MergeJourneyTests(PlaywrightFixture fixture) : SeedingPag
     {
         await SeedHelpers.CleanupDevRequestsAsync(Fixture.SeedClient);
         await Page.GotoAsync($"{Fixture.BaseUrl}/WhatToChange/{WindowId}");
-        await Page.GetByLabel("Merge").First.CheckAsync(new() { Force = true });
+        await Page.GetByLabel("Merge").First.CheckAsync();
         await ContinueAsync();
     }
 

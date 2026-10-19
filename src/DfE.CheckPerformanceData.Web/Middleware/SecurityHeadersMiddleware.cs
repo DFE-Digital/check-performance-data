@@ -9,8 +9,11 @@ namespace DfE.CheckPerformanceData.Web.Middleware;
 /// Sets the response security headers, and refuses TRACE.
 /// </summary>
 /// <remarks>
-/// The header set was already most of the way there — HSTS, a content-security policy and
-/// X-Frame-Options were in place — with a few gaps. These headers only do anything if they are on
+/// The header set was already most of the way there — HSTS and a content-security policy were
+/// in place — with a few gaps. (An earlier version of this remark said X-Frame-Options was set
+/// too. It never was, by this app, and the policy carried no <c>frame-ancestors</c> either until
+/// #610, so whether a page could be framed depended on whatever sat in front of the app.) These
+/// headers only do anything if they are on
 /// every response, so they belong in one middleware rather than spread across controllers where a
 /// new endpoint silently misses them.
 ///
@@ -49,7 +52,15 @@ public sealed class SecurityHeadersMiddleware(
         "connect-src 'self' https://*.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://*.clarity.ms; " +
         "frame-src 'self' https://*.googletagmanager.com; " +
         "object-src 'none'; " +
-        "base-uri 'self'; ";
+        "base-uri 'self'; " +
+        // Which sites may put this service in a frame: this one only. frame-ancestors replaced
+        // X-Frame-Options in current browsers. Our code has never set X-Frame-Options; the only
+        // one the service sends is the SAMEORIGIN that ASP.NET Core's antiforgery adds to pages
+        // that render a token, which agrees with this directive but leaves every other response
+        // (and anything in front of the app: the AKS ingress, Front Door) uncovered — so without
+        // this directive the clickjacking surface was whatever the platform happened to set
+        // (#610). 'self' rather than 'none' so a same-origin frame stays possible.
+        "frame-ancestors 'self'; ";
 
     // form-action also governs every redirect a form submission follows, not only the form's own
     // URL. A POST made after the sign-in has expired is answered with a 302 to DfE Sign-in; with

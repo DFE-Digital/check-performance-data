@@ -204,7 +204,7 @@ Dev-only tooling (`Dev*Controller`s incl. impersonation used by E2E): `[AllowAno
 - The app is single-organisation-per-session; org selection happens inside DfE Sign-In. LA-Estab is composed as `{localAuthority.code}/{establishmentNumber}`, with a hardcoded `DSI/TEST` override for the DSI sandbox org (URN 990082).
 - **DataProtection** key ring persisted to blob (`data-protection-keys/keys.xml`) so OIDC state cookies survive multi-replica load balancing.
 - Antiforgery header name `X-XSRF-TOKEN` — all `fetch()` POSTs send it (`wwwroot/js/site.js` `getToken()` pattern).
-- Security headers: CSP (script/style/img/connect/frame allow-list for self + GTM/GA/Clarity, `object-src 'none'`, `form-action 'self'`), HSTS outside dev, HTTPS redirect, forwarded headers for the AKS ingress.
+- Security headers: CSP (script/style/img/connect/frame allow-list for self + GTM/GA/Clarity, `object-src 'none'`, `base-uri 'self'`, `frame-ancestors 'self'` so no other site can frame the service (#610), `form-action 'self'` plus the DfE Sign-in origin), HSTS outside dev, HTTPS redirect, forwarded headers for the AKS ingress.
 
 ## 10. Data model
 

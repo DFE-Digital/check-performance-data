@@ -253,8 +253,8 @@ public sealed class AddPupilDuplicateCheckTests(PlaywrightFixture fixture) : See
 
         await Page.WaitForURLAsync($"**/Journey/{Ks4JuneWindowId}/page/admission-details");
         await FillDateAsync("admission-date", "1", "9", "2025");
-        await Page.Locator("input[name='q_year_group'][value='10']").CheckAsync(new() { Force = true });
-        await Page.Locator("input[name='q_sen_status'][value='N']").CheckAsync(new() { Force = true });
+        await Page.Locator("input[name='q_year_group'][value='10']").CheckAsync();
+        await Page.Locator("input[name='q_sen_status'][value='N']").CheckAsync();
         await ContinueAsync();
 
         await Page.WaitForURLAsync($"**/Journey/{Ks4JuneWindowId}/page/evidence");
@@ -277,7 +277,7 @@ public sealed class AddPupilDuplicateCheckTests(PlaywrightFixture fixture) : See
     private async Task StartAddJourneyAsync()
     {
         await Page.GotoAsync($"{Fixture.BaseUrl}/WhatToChange/{Ks4JuneWindowId}");
-        await Page.Locator("input[name='SelectedWhatToChange'][value='Add']").CheckAsync(new() { Force = true });
+        await Page.Locator("input[name='SelectedWhatToChange'][value='Add']").CheckAsync();
         await ContinueAsync();
         await Page.WaitForURLAsync($"**/Journey/{Ks4JuneWindowId}/page/learner-details");
     }
@@ -288,7 +288,7 @@ public sealed class AddPupilDuplicateCheckTests(PlaywrightFixture fixture) : See
         await Page.Locator("#q_first_name").FillAsync(firstName);
         await Page.Locator("#q_last_name").FillAsync(lastName);
         await FillDateAsync("date-of-birth", day, month, year);
-        await Page.Locator($"input[name='q_sex'][value='{sex}']").CheckAsync(new() { Force = true });
+        await Page.Locator($"input[name='q_sex'][value='{sex}']").CheckAsync();
         if (upn.Length > 0)
             await Page.Locator("#q_upn").FillAsync(upn);
         await ContinueAsync();

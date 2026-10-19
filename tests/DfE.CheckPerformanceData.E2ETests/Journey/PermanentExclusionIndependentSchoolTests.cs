@@ -108,7 +108,7 @@ public sealed class PermanentExclusionIndependentSchoolTests(PlaywrightFixture f
 
         var injected = Page.Locator($"input[name='q_reason'][value='{PermanentExclusionReason}']");
         await Expect(injected).ToHaveCountAsync(1);
-        await injected.CheckAsync(new() { Force = true });
+        await injected.CheckAsync();
 
         await Page.GetByRole(AriaRole.Button, new() { Name = "Continue" }).ClickAsync();
 
@@ -125,7 +125,7 @@ public sealed class PermanentExclusionIndependentSchoolTests(PlaywrightFixture f
     private async Task NavigateToReasonPageAsync()
     {
         await Page.GotoAsync($"{Fixture.BaseUrl}/WhatToChange/{SeededWindowId}");
-        await Page.GetByLabel("Remove").First.CheckAsync(new() { Force = true });
+        await Page.GetByLabel("Remove").First.CheckAsync();
         await Page.GetByRole(AriaRole.Button, new() { Name = "Continue" }).ClickAsync();
         await Page.WaitForURLAsync($"**/Journey/{SeededWindowId}/pupil-search/**");
 

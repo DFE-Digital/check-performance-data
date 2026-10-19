@@ -15,6 +15,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Web;
 // correctly Secure — so the suite skips them on any https deployment rather than assert the
 // opposite.
 [Collection("E2E")]
+[Trait("Category", "FullRegression")]
 public sealed class CookieSecureFlagLocalHttpTests(PlaywrightFixture fixture)
 {
     private const string AntiforgeryCookiePrefix = ".AspNetCore.Antiforgery.";

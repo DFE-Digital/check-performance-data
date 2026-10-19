@@ -196,12 +196,12 @@ public static class DependencyManager
                 options.CallbackPath = "/auth/callback";
                 options.SignedOutCallbackPath = "/auth/signout-callback";
 
-                // The OIDC correlation and nonce cookies are SameSite=None, which browsers reject
-                // unless Secure is also set — including over local http, where localhost's
-                // secure-context exception lets a Secure cookie through. Downgrading them to
-                // SameAsRequest in Development (as the auth cookie is) drops them on the callback,
-                // so correlation validation fails and sign-in ends on the NoAccess page. Keep them
-                // Always Secure in every environment.
+                // These already default to Always on the framework options, but the correlation
+                // and nonce cookies are SameSite=None, which browsers reject unless Secure is
+                // also set — so the default is load-bearing, not incidental. Pin it explicitly
+                // so a future edit or framework change cannot silently downgrade it to
+                // SameAsRequest (which would drop the cookie on the callback over plain http and
+                // end sign-in on the NoAccess page).
                 options.CorrelationCookie.SecurePolicy = CookieSecurePolicy.Always;
                 options.NonceCookie.SecurePolicy = CookieSecurePolicy.Always;
 

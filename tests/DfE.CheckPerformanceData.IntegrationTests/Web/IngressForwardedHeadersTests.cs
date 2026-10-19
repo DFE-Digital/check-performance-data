@@ -47,8 +47,8 @@ public sealed class IngressForwardedHeadersTests
         Assert.StartsWith("http|", await response.Content.ReadAsStringAsync());
     }
 
-    // FR-009 / SC-003: the app only emits its own HSTS once it believes the request is HTTPS;
-    // before the trust fix this header was absent in the pod (the dev HSTS came from the edge).
+    // The app only emits its own HSTS once it believes the request is HTTPS; before the trust
+    // fix this header was absent in the pod (the dev HSTS came from the edge).
     [Fact]
     public async Task NonDevelopmentPipeline_EmitsItsOwnHstsForForwardedHttps()
     {

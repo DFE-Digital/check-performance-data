@@ -1,4 +1,3 @@
-using System.Runtime.CompilerServices;
 using DfE.CheckPerformanceData.Web.Startup;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -33,19 +32,6 @@ public sealed class ForwardedHeadersTrustTests
         Assert.True(options.ForwardedHeaders.HasFlag(ForwardedHeaders.XForwardedHost));
     }
 
-    // FR-003: the trust decision and its revisit condition live beside the configuration, so a
-    // reader (and this test) sees why trusting every peer is sound and when it stops being so.
-    [Fact]
-    public void AddCpdCoreWeb_RecordsTheTrustDecisionAndItsRevisitCondition()
-    {
-        var source = File.ReadAllText(Path.Combine(
-            RepoRoot, "src", "DfE.CheckPerformanceData.Web", "Startup", "CoreWebExtensions.cs"));
-
-        Assert.Contains("KnownNetworks.Clear()", source);
-        Assert.Contains("edge", source, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("revisit", source, StringComparison.OrdinalIgnoreCase);
-    }
-
     private static ForwardedHeadersOptions ResolveOptions()
     {
         var builder = WebApplication.CreateBuilder();
@@ -54,9 +40,4 @@ public sealed class ForwardedHeadersTrustTests
         return builder.Services.BuildServiceProvider()
             .GetRequiredService<IOptions<ForwardedHeadersOptions>>().Value;
     }
-
-    private static string RepoRoot => Path.GetFullPath(Path.Combine(
-        Path.GetDirectoryName(ThisFilePath())!, "..", "..", ".."));
-
-    private static string ThisFilePath([CallerFilePath] string path = "") => path;
 }

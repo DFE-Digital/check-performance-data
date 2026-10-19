@@ -54,10 +54,12 @@ public sealed class SecurityHeadersMiddleware(
         "object-src 'none'; " +
         "base-uri 'self'; " +
         // Which sites may put this service in a frame: this one only. frame-ancestors replaced
-        // X-Frame-Options in current browsers, the app has never sent X-Frame-Options, and
-        // nothing in front of it (the AKS ingress, Front Door) is known to add either — so
-        // without this directive the clickjacking surface was whatever the platform happened
-        // to set (#610). 'self' rather than 'none' so a same-origin frame stays possible.
+        // X-Frame-Options in current browsers. Our code has never set X-Frame-Options; the only
+        // one the service sends is the SAMEORIGIN that ASP.NET Core's antiforgery adds to pages
+        // that render a token, which agrees with this directive but leaves every other response
+        // (and anything in front of the app: the AKS ingress, Front Door) uncovered — so without
+        // this directive the clickjacking surface was whatever the platform happened to set
+        // (#610). 'self' rather than 'none' so a same-origin frame stays possible.
         "frame-ancestors 'self'; ";
 
     // form-action also governs every redirect a form submission follows, not only the form's own

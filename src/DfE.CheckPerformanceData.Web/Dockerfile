@@ -18,6 +18,12 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 EXPOSE 8080
+# Run as the image's unprivileged `app` user (least privilege, #609), as the worker image does.
+# $APP_UID is the numeric uid 1654 the aspnet image defines; it must stay numeric because
+# Kubernetes' runAsNonRoot check reads the image's USER and refuses a name. The app writes
+# nothing to disk at run time: data-protection keys persist to blob storage, and the multipart
+# buffering ASP.NET does for large uploads goes to /tmp, which is world-writable.
+USER $APP_UID
 
 # Build
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
@@ -57,6 +63,9 @@ RUN dotnet publish DfE.CheckPerformanceData.Web/DfE.CheckPerformanceData.Web.csp
 # Derives from `base` so it carries the same OS security updates.
 FROM base AS debug-runtime
 
+# `base` runs as the app user; installing the debugger needs root. Handed back below.
+USER root
+
 # Install vsdbg — the .NET debugger used by VS Code Docker/C# Dev Kit
 RUN apt-get update && apt-get install -y --no-install-recommends unzip wget && \
     rm -rf /var/lib/apt/lists/* && \
@@ -64,6 +73,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends unzip wget && \
     ln -s /remote_debugger/vsdbg /usr/local/bin/vsdbg
 
 COPY --from=vscode-debug /app/publish .
+
+# Back to the unprivileged user so the debug image runs the way the deployed one does.
+USER $APP_UID
 
 # Disable debug wait so the app starts immediately; the debugger attaches on demand
 ENV COMPlus_DebugWait=0

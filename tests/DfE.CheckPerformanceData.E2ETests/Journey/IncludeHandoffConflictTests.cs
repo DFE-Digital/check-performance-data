@@ -155,7 +155,7 @@ public sealed class IncludeHandoffConflictTests(PlaywrightFixture fixture) : See
     private async Task StartAddJourneyAsync()
     {
         await Page.GotoAsync($"{Fixture.BaseUrl}/WhatToChange/{Ks4JuneWindowId}");
-        await Page.Locator("input[name='SelectedWhatToChange'][value='Add']").CheckAsync(new() { Force = true });
+        await Page.Locator("input[name='SelectedWhatToChange'][value='Add']").CheckAsync();
         await ContinueAsync();
         await Page.WaitForURLAsync($"**/Journey/{Ks4JuneWindowId}/page/learner-details");
     }
@@ -165,7 +165,7 @@ public sealed class IncludeHandoffConflictTests(PlaywrightFixture fixture) : See
         await Page.Locator("#q_first_name").FillAsync(firstName);
         await Page.Locator("#q_last_name").FillAsync(lastName);
         await FillDateAsync("date-of-birth", day, month, year);
-        await Page.Locator($"input[name='q_sex'][value='{sex}']").CheckAsync(new() { Force = true });
+        await Page.Locator($"input[name='q_sex'][value='{sex}']").CheckAsync();
         await ContinueAsync();
         await Page.WaitForURLAsync($"**/Journey/{Ks4JuneWindowId}/duplicate-check");
     }

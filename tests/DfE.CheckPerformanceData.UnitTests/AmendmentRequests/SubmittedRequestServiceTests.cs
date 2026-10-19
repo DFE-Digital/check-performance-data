@@ -4,8 +4,11 @@ using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
+using DfE.CheckPerformanceData.Application.Logging;
+using DfE.CheckPerformanceData.Application.UnitTests.Common;
 using DfE.CheckPerformanceData.Domain.Enums;
 using NSubstitute;
+using Microsoft.Extensions.Logging;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.AmendmentRequests;
 
@@ -18,12 +21,14 @@ public class SubmittedRequestServiceTests
     private readonly IQuestionFlowService _flow = Substitute.For<IQuestionFlowService>();
     private readonly IRequestRepository _requestRepo = Substitute.For<IRequestRepository>();
     private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
+    private readonly RecordingLogger<SubmittedRequestService> _logger = new();
     private readonly SubmittedRequestService _sut;
 
     public SubmittedRequestServiceTests()
     {
         _currentUser.OrganisationUrn.Returns("100000");
-        _sut = new SubmittedRequestService(_blob, _flow, _requestRepo, _currentUser);
+        _currentUser.UserId.Returns("user-77");
+        _sut = new SubmittedRequestService(_blob, _flow, _requestRepo, _currentUser, _logger);
     }
 
     [Fact]
@@ -55,6 +60,55 @@ public class SubmittedRequestServiceTests
 
         Assert.Null(await _sut.GetAsync(WindowId, Reference));
         await _blob.DidNotReceive().GetAsync(Arg.Any<Guid>(), Arg.Any<string>());
+    }
+
+    // A missing row under the caller's URN is the shape of a school trying another school's
+    // URL, so it is logged under the one access-refusal event (#612). The negative half is the
+    // real pin: the reference is the project's accepted log identifier, the pupil's name is not,
+    // and a template that added it "for debuggability" would land PII in Logit.
+    [Fact]
+    public async Task GetAsync_WhenCallerOrgDoesNotOwnRequest_LogsOneAccessRefusalWithoutPupilData()
+    {
+        _requestRepo.GetAmendmentRequestAsync(WindowId, 100000L, Reference)
+            .Returns((AmendmentRequestData?)null);
+
+        await _sut.GetAsync(WindowId, Reference);
+
+        var entry = Assert.Single(_logger.Entries);
+        Assert.Equal(LogLevel.Warning, entry.Level);
+        Assert.Equal(AccessRefusalLog.AccessRefused, entry.EventId);
+        Assert.Contains("user-77", entry.Message);
+        Assert.Contains("100000", entry.Message);
+        Assert.Contains(Reference, entry.Message);
+        Assert.Contains(WindowId.ToString(), entry.Message);
+        Assert.DoesNotContain("Jane", entry.Message);
+        Assert.DoesNotContain("Smith", entry.Message);
+    }
+
+    // The school owns the row, so nothing is refused — even when the journey blob behind it is
+    // missing and the method still returns null. Only the ownership check is an access decision.
+    [Fact]
+    public async Task GetAsync_WhenRowFound_LogsNoAccessRefusal()
+    {
+        StubRow(RequestStatus.Submitted);
+        _blob.GetAsync(WindowId, Reference).Returns((RequestState?)null);
+
+        await _sut.GetAsync(WindowId, Reference);
+
+        Assert.Empty(_logger.Entries);
+    }
+
+    [Fact]
+    public async Task GetConfirmDataCorrectAsync_WhenRowMissing_LogsOneAccessRefusal()
+    {
+        _requestRepo.GetConfirmDataCorrectAsync(WindowId, 100000L, Reference)
+            .Returns((ConfirmDataCorrectData?)null);
+
+        await _sut.GetConfirmDataCorrectAsync(WindowId, Reference);
+
+        var entry = Assert.Single(_logger.Entries);
+        Assert.Equal(AccessRefusalLog.AccessRefused, entry.EventId);
+        Assert.Contains(Reference, entry.Message);
     }
 
     [Fact]
@@ -231,6 +285,8 @@ public class SubmittedRequestServiceTests
         });
 
         Assert.Null(await _sut.GetConfirmDataCorrectAsync(WindowId, Reference));
+        // The school owns the row; a row of another type is not a refusal.
+        Assert.Empty(_logger.Entries);
     }
 
     [Fact]

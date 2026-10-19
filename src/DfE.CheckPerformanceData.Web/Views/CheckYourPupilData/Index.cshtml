@@ -72,6 +72,86 @@
         CSV files as a ZIP file</a>
 </p>
 
+@* #317: the form offers whatever the open exercises offer. Nothing open means no form at all —
+   the tables, the search and the downloads are untouched, because a closed exercise removes
+   actions, never content. #641: the options sit above the tables, so a school sees what it can do
+   without scrolling past them. AB#298317: when results enquiry is the only thing left, the page asks
+   the designed Yes/No question instead of showing a one-item form. *@
+@if (Model.OffersEnquiryOnly)
+{
+    <form method="post" action="@Url.Action("NextStep", "CheckYourPupilData", new { windowId = Model.WindowId })">
+        @Html.AntiForgeryToken()
+        <govuk-radios for="SelectedNextStep">
+            <govuk-radios-fieldset>
+                @* Not is-page-heading: the EditableTitle above is the page's only h1. *@
+                <govuk-radios-fieldset-legend class="govuk-fieldset__legend--l">
+                    Would you like to report an issue with an exam result?
+                </govuk-radios-fieldset-legend>
+
+                <govuk-radios-hint>
+                    Select one option
+                </govuk-radios-hint>
+
+                <govuk-radios-item value="@NextSteps.ResultsEnquiry">Yes</govuk-radios-item>
+                <govuk-radios-item value="@NextSteps.SignOut">No, I'd like to sign out of this service</govuk-radios-item>
+            </govuk-radios-fieldset>
+        </govuk-radios>
+
+        <govuk-button type="submit">Continue</govuk-button>
+    </form>
+}
+else if (Model.AvailableNextSteps.Count == 1)
+{
+    @* A radio group with a single choice is a poor pattern and contradicts the "select one option"
+       hint, so the one surviving option becomes the button itself. The value still posts through a
+       hidden field, so NextStep re-derives and re-checks it exactly as it does for the radios.
+       Unreachable today (pupil data always offers two options and results enquiry is handled
+       above); kept for a future exercise type that offers exactly one. *@
+    var only = Model.AvailableNextSteps[0];
+
+    <form method="post" action="@Url.Action("NextStep", "CheckYourPupilData", new { windowId = Model.WindowId })">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="@nameof(Model.SelectedNextStep)" value="@only"/>
+        <govuk-button type="submit">@NextStepLabels.For(only, Model.LearnerNoun)</govuk-button>
+    </form>
+}
+else if (Model.AvailableNextSteps.Count > 1)
+{
+    <form method="post" action="@Url.Action("NextStep", "CheckYourPupilData", new { windowId = Model.WindowId })">
+        @Html.AntiForgeryToken()
+        <govuk-radios for="SelectedNextStep">
+            <govuk-radios-fieldset>
+                @* Not is-page-heading: that renders the legend as an <h1>, and this page already
+                   has one (the check-pupil-data-title EditableTitle above). Two <h1>s leave the
+                   document with no single unambiguous title. The legend keeps the --l size so it
+                   looks unchanged. *@
+                <govuk-radios-fieldset-legend class="govuk-fieldset__legend--l">
+                    What would you like to do?
+                </govuk-radios-fieldset-legend>
+
+                <govuk-radios-hint>
+                    Select one option.
+                </govuk-radios-hint>
+
+                @* "Confirm ... data is correct" is the alternative to doing anything, so it reads
+                   last, after the "or" divider — the GDS pattern, and the order this page has always
+                   rendered. Every other option keeps the service's exercise-sort order. *@
+                @foreach (var step in Model.AvailableNextSteps.Where(s => s != NextSteps.Confirm))
+                {
+                    <govuk-radios-item value="@step">@NextStepLabels.For(step, Model.LearnerNoun)</govuk-radios-item>
+                }
+                @if (Model.AvailableNextSteps.Contains(NextSteps.Confirm))
+                {
+                    <govuk-radios-divider>or</govuk-radios-divider>
+                    <govuk-radios-item value="@NextSteps.Confirm">@NextStepLabels.For(NextSteps.Confirm, Model.LearnerNoun)</govuk-radios-item>
+                }
+            </govuk-radios-fieldset>
+        </govuk-radios>
+
+        <govuk-button type="submit">Continue</govuk-button>
+    </form>
+}
+
 @{
     // Every section on the page, so a query string rebuilt from any one tab (search, paging)
     // carries the others' page and search — the Results tab included, when there is one.
@@ -159,83 +239,4 @@ else
             </govuk-tabs-item>
         }
     </govuk-tabs>
-}
-
-@* #317: the form offers whatever the open exercises offer. Nothing open means no form at all —
-   the tables, the search and the downloads above are untouched, because a closed exercise removes
-   actions, never content. AB#298317: when results enquiry is the only thing left, the page asks
-   the designed Yes/No question instead of showing a one-item form. *@
-@if (Model.OffersEnquiryOnly)
-{
-    <form method="post" action="@Url.Action("NextStep", "CheckYourPupilData", new { windowId = Model.WindowId })">
-        @Html.AntiForgeryToken()
-        <govuk-radios for="SelectedNextStep">
-            <govuk-radios-fieldset>
-                @* Not is-page-heading: the EditableTitle above is the page's only h1. *@
-                <govuk-radios-fieldset-legend class="govuk-fieldset__legend--l">
-                    Would you like to report an issue with an exam result?
-                </govuk-radios-fieldset-legend>
-
-                <govuk-radios-hint>
-                    Select one option
-                </govuk-radios-hint>
-
-                <govuk-radios-item value="@NextSteps.ResultsEnquiry">Yes</govuk-radios-item>
-                <govuk-radios-item value="@NextSteps.SignOut">No, I'd like to sign out of this service</govuk-radios-item>
-            </govuk-radios-fieldset>
-        </govuk-radios>
-
-        <govuk-button type="submit">Continue</govuk-button>
-    </form>
-}
-else if (Model.AvailableNextSteps.Count == 1)
-{
-    @* A radio group with a single choice is a poor pattern and contradicts the "select one option"
-       hint, so the one surviving option becomes the button itself. The value still posts through a
-       hidden field, so NextStep re-derives and re-checks it exactly as it does for the radios.
-       Unreachable today (pupil data always offers two options and results enquiry is handled
-       above); kept for a future exercise type that offers exactly one. *@
-    var only = Model.AvailableNextSteps[0];
-
-    <form method="post" action="@Url.Action("NextStep", "CheckYourPupilData", new { windowId = Model.WindowId })">
-        @Html.AntiForgeryToken()
-        <input type="hidden" name="@nameof(Model.SelectedNextStep)" value="@only"/>
-        <govuk-button type="submit">@NextStepLabels.For(only, Model.LearnerNoun)</govuk-button>
-    </form>
-}
-else if (Model.AvailableNextSteps.Count > 1)
-{
-    <form method="post" action="@Url.Action("NextStep", "CheckYourPupilData", new { windowId = Model.WindowId })">
-        @Html.AntiForgeryToken()
-        <govuk-radios for="SelectedNextStep">
-            <govuk-radios-fieldset>
-                @* Not is-page-heading: that renders the legend as an <h1>, and this page already
-                   has one (the check-pupil-data-title EditableTitle above). Two <h1>s leave the
-                   document with no single unambiguous title. The legend keeps the --l size so it
-                   looks unchanged. *@
-                <govuk-radios-fieldset-legend class="govuk-fieldset__legend--l">
-                    What would you like to do?
-                </govuk-radios-fieldset-legend>
-
-                <govuk-radios-hint>
-                    Select one option.
-                </govuk-radios-hint>
-
-                @* "Confirm ... data is correct" is the alternative to doing anything, so it reads
-                   last, after the "or" divider — the GDS pattern, and the order this page has always
-                   rendered. Every other option keeps the service's exercise-sort order. *@
-                @foreach (var step in Model.AvailableNextSteps.Where(s => s != NextSteps.Confirm))
-                {
-                    <govuk-radios-item value="@step">@NextStepLabels.For(step, Model.LearnerNoun)</govuk-radios-item>
-                }
-                @if (Model.AvailableNextSteps.Contains(NextSteps.Confirm))
-                {
-                    <govuk-radios-divider>or</govuk-radios-divider>
-                    <govuk-radios-item value="@NextSteps.Confirm">@NextStepLabels.For(NextSteps.Confirm, Model.LearnerNoun)</govuk-radios-item>
-                }
-            </govuk-radios-fieldset>
-        </govuk-radios>
-
-        <govuk-button type="submit">Continue</govuk-button>
-    </form>
 }

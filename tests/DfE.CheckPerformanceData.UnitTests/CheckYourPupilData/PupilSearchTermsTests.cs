@@ -48,6 +48,46 @@ public sealed class PupilSearchTermsTests
     public void A_word_may_match_the_start_of_any_word_in_a_multi_word_field(string query)
         => Assert.True(Matches(query, "Mary Jane", "Van Der Berg", "Smith-Jones"));
 
+    [Theory]
+    [InlineData("Brien")]           // after a straight apostrophe
+    [InlineData("O'Brien")]
+    [InlineData("Neill")]           // after a typographic apostrophe
+    [InlineData("Ann")]             // after a tab in the field
+    public void Apostrophes_and_tabs_in_a_field_start_a_new_word(string query)
+        => Assert.True(Matches(query, "O'Brien", "O’Neill", "Mary\tAnn"));
+
+    [Theory]
+    [InlineData("A860", true)]          // the start of the UPN
+    [InlineData("8604", false)]         // inside the UPN: no longer matches, by decision
+    [InlineData("12/03", true)]         // the start of the date
+    [InlineData("03/2010", false)]      // inside the date
+    [InlineData("1234", true)]          // the start of a DfE number
+    [InlineData("4567", false)]
+    public void Identifiers_match_from_their_start_only(string query, bool expected)
+        => Assert.Equal(expected, Matches(query, "A8604070001B", "12/03/2010", "1234567"));
+
+    [Fact]
+    public void A_typed_comma_never_matches_a_comma_in_a_field()
+        // The comma separates words, so "Smith,J" is the words "Smith" and "J".
+        => Assert.False(Matches("Smith,Jones", "Smith,Jones-Brown"));
+
+    [Fact]
+    public void A_parsed_query_can_be_reused_for_every_row()
+    {
+        var terms = PupilSearchTerms.Parse("John Smith");
+
+        Assert.True(terms.Matches(["John", "Smith"]));
+        Assert.False(terms.Matches(["Jane", "Smith"]));
+        Assert.True(terms.Matches(["Johnny", "Smithson"]));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData(" , ")]
+    public void A_query_with_no_words_is_empty(string? query)
+        => Assert.True(PupilSearchTerms.Parse(query).IsEmpty);
+
     [Fact]
     public void Two_words_may_match_the_same_field()
         => Assert.True(Matches("Van Berg", "John", "Van Der Berg"));

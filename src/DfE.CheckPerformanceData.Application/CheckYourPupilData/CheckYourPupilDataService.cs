@@ -54,14 +54,10 @@ public sealed class CheckYourPupilDataService : ICheckYourPupilDataService
 
         if (!string.IsNullOrWhiteSpace(search))
         {
-            var term = search.Trim();
-            // Name Contains, CYPMD ID StartsWith, plus subject. Not PupilSearchTerms: a full-name
-            // search is not supported here yet.
-            rows = rows.Where(r =>
-                    (r.Pupil?.Surname.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false)
-                    || (r.Pupil?.Firstname.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false)
-                    || r.Result.CypmdId.StartsWith(term, StringComparison.OrdinalIgnoreCase)
-                    || r.Result.QualificationName.Contains(term, StringComparison.OrdinalIgnoreCase))
+            // The pupil sections' rule (PupilSearchTerms) over the name and CYPMD ID, plus subject.
+            var terms = PupilSearchTerms.Parse(search);
+            rows = rows.Where(r => terms.Matches(
+                    [r.Pupil?.Firstname, r.Pupil?.Surname, r.Result.CypmdId, r.Result.QualificationName]))
                 .ToList();
         }
 

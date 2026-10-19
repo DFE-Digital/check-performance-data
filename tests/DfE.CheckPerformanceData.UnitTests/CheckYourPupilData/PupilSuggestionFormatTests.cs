@@ -343,6 +343,41 @@ public sealed class PupilSuggestionFormatTests
         => Assert.True(PupilSuggestionFormat.Matches(
             Ks4(firstname: "Mary Jane", surname: "Van Der Berg"), query, CheckingWindowType.KS4June));
 
+    [Theory]
+    [InlineData("A860", true)]          // UPN prefix, on the unnarrowed search field
+    [InlineData("a860", true)]
+    [InlineData("8604", false)]         // inside the UPN
+    [InlineData("0000", true)]          // CYPMD ID prefix
+    [InlineData("0001", false)]         // inside the CYPMD ID
+    [InlineData("01/01/2010", true)]    // date of birth alone
+    [InlineData("01/01", true)]         // partial date of birth alone
+    [InlineData("2010", false)]         // inside the date of birth
+    public void An_identifier_or_date_of_birth_alone_matches_from_its_start(string query, bool expected)
+        => Assert.Equal(expected, PupilSuggestionFormat.Matches(
+            Ks4(upn: "A8604070001B", cypmdId: "000001", dob: "01/01/2010"), query,
+            CheckingWindowType.KS4June, PupilSearchField.All));
+
+    [Theory]
+    [InlineData("Jones")]
+    [InlineData("Smith-Jones")]
+    [InlineData("Ann Jones")]
+    public void A_hyphenated_surname_is_found_by_either_part(string query)
+        => Assert.True(PupilSuggestionFormat.Matches(
+            Ks4(firstname: "Ann", surname: "Smith-Jones"), query, CheckingWindowType.KS4June));
+
+    [Fact]
+    public void A_post16_date_of_birth_alone_matches()
+        => Assert.True(PupilSuggestionFormat.Matches(Post16(), "12/03/2007", CheckingWindowType.Post16));
+
+    [Fact]
+    public void The_parsed_matcher_gives_the_same_answer_as_matches()
+    {
+        var matches = PupilSuggestionFormat.Matcher("Smith Jo");
+
+        Assert.True(matches(Ks4(firstname: "John", surname: "Smith")));
+        Assert.False(matches(Ks4(firstname: "Jane", surname: "Smith")));
+    }
+
     [Fact]
     public void A_full_name_search_works_the_same_on_a_16_19_window()
         => Assert.True(PupilSuggestionFormat.Matches(

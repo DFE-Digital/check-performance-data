@@ -65,6 +65,37 @@ public class ExerciseDisplayServiceTests
         Assert.Equal("Smith", row["SURNAME"]);
     }
 
+    [Theory]
+    [InlineData("A860", true)]      // the start of the UPN
+    [InlineData("8604", false)]     // inside the UPN: was a substring match, now start of word only
+    [InlineData("Smi", true)]
+    [InlineData("mith", false)]
+    public void A_search_matches_an_identifier_column_from_its_start_only(string search, bool expected)
+    {
+        // Searchable columns are schema-driven and can hold identifiers. The tabs use the same
+        // start-of-word rule for every column as the journey autocomplete (PupilSearchTerms).
+        using var json = JsonDocument.Parse("""
+            {
+              "x-ingress": { "collection": "pupils" },
+              "properties": {
+                "SURNAME": { "x-display": { "label": "Last name", "visible": true, "order": 0, "searchable": true },
+                             "x-csv": { "columns": { "default": "A" }, "heading": "Surname" } },
+                "UPN": { "x-display": { "label": "UPN", "visible": true, "order": 1, "searchable": true },
+                         "x-csv": { "columns": { "default": "B" }, "heading": "UPN" } }
+              }
+            }
+            """);
+        var definition = Service().ParseDefinition("pupils", null, json.RootElement);
+        var rows = new List<Dictionary<string, string>>
+        {
+            new() { ["SURNAME"] = "Smith", ["UPN"] = "A8604070001B" }
+        };
+
+        var view = Service().BuildTable(rows, [definition], null, search, 0, 10);
+
+        Assert.Equal(expected ? 1 : 0, view.Rows.Count);
+    }
+
     [Fact]
     public void A_search_does_not_reach_a_column_the_schema_does_not_mark_searchable()
     {

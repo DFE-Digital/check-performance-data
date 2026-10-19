@@ -39,21 +39,31 @@ public static class PupilSuggestionFormat
     }
 
     public static bool Matches(IPupilRecord pupil, string query, CheckingWindowType windowType, PupilSearchField searchField = PupilSearchField.All)
+        => Matcher(query, searchField)(pupil);
+
+    /// <summary>
+    /// The <see cref="Matches"/> rule with the query parsed once, for a caller that tests every
+    /// pupil in a school against the same query.
+    /// </summary>
+    public static Func<IPupilRecord, bool> Matcher(string query, PupilSearchField searchField = PupilSearchField.All)
     {
         var trimmed = query.Trim();
-        if (trimmed.Length == 0) return false;
+        if (trimmed.Length == 0) return _ => false;
 
         // AB#304118: a page can restrict the search to the CYPMD ID alone — the KS4 merge journey's
         // second-record page asks for one by name. Returned before every other rule, because a page
-        // that promises an ID search must not also answer to a name, a UPN or a date of birth.
+        // that promises an ID search must not also answer to a name, a UPN or a date of birth. It
+        // bypasses PupilSearchTerms on purpose: an ID is one word, so splitting into words adds
+        // nothing, and a typed space or comma must not let half an ID match.
         if (searchField == PupilSearchField.CypmdId)
-            return pupil.Cypmd_Id.StartsWith(trimmed, StringComparison.OrdinalIgnoreCase);
+            return pupil => pupil.Cypmd_Id.StartsWith(trimmed, StringComparison.OrdinalIgnoreCase);
 
         // Every word must start a word in a name or an identifier, in any order (PupilSearchTerms).
         // The date of birth is the DISPLAYED date, because that is the form the user reads off the
         // screen and types back — the raw supplier value is an ISO timestamp nobody would enter.
         // Every key stage since #623, whose hint names the date of birth.
-        return PupilSearchTerms.MatchesEveryWord(trimmed,
+        var terms = PupilSearchTerms.Parse(trimmed);
+        return pupil => terms.Matches(
         [
             pupil.Firstname,
             pupil.Surname,

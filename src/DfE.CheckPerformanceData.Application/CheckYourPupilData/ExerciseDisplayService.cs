@@ -30,9 +30,15 @@ public sealed class ExerciseDisplayService : IExerciseDisplayService
         var datasets = Define(rows, definitions).Select(Sorted).ToList();
         var selected = datasets.FirstOrDefault(d => d.Key == dataset) ?? datasets[0];
         var searchable = selected.Columns.Where(c => c.Searchable).Select(c => c.Field).ToArray();
-        var filtered = string.IsNullOrWhiteSpace(search) ? selected.Rows : selected.Rows
-            .Where(row => PupilSearchTerms.MatchesEveryWord(search,
-                searchable.Select(field => row.GetValueOrDefault(field, "")))).ToList();
+        var terms = PupilSearchTerms.Parse(search);
+        var values = new string?[searchable.Length];
+        var filtered = terms.IsEmpty ? selected.Rows : selected.Rows
+            .Where(row =>
+            {
+                for (var i = 0; i < searchable.Length; i++)
+                    values[i] = row.GetValueOrDefault(searchable[i], "");
+                return terms.Matches(values);
+            }).ToList();
         var totalPages = (int)Math.Ceiling(filtered.Count / (double)pageSize);
         page = Math.Clamp(page, 0, Math.Max(0, totalPages - 1));
         return new ExerciseTableView(datasets, selected,

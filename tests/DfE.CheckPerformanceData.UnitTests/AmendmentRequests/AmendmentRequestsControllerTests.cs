@@ -3,6 +3,7 @@ using System.Text.Json;
 using DfE.CheckPerformanceData.Application.AmendmentRequests;
 using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
@@ -20,6 +21,7 @@ using DfE.CheckPerformanceData.Application.UnitTests.WindowManagement;
 // file already uses the LandingPage one.
 using ICheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.ICheckingExerciseService;
 using CheckingExerciseDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseDto;
+using CheckingExerciseExtensionDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseExtensionDto;
 using DfE.CheckPerformanceData.Web.Common;
 using LearnerNoun = DfE.CheckPerformanceData.Application.WindowManagement.LearnerNoun;
 
@@ -39,6 +41,7 @@ public class AmendmentRequestsControllerTests
     private readonly IJourneyViewModelBuilder _viewModelBuilder = Substitute.For<IJourneyViewModelBuilder>();
     private readonly FakeSession _session = new();
     private readonly ICheckingExerciseService _checkingExercises = OpenCheckingExercises.AlwaysOpen();
+    private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
     private readonly AmendmentRequestsController _sut;
 
     public AmendmentRequestsControllerTests()
@@ -46,7 +49,7 @@ public class AmendmentRequestsControllerTests
         var httpContext = new DefaultHttpContext();
         httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(_session));
 
-        _sut = new AmendmentRequestsController(_service, _requestService, _adviceService, _analytics, _bulkService, _checkYourPupilData, _flowService, _checkingExercises, _viewModelBuilder)
+        _sut = new AmendmentRequestsController(_service, _requestService, _adviceService, _analytics, _bulkService, _checkYourPupilData, _flowService, _checkingExercises, _currentUser, _viewModelBuilder)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext }
         };
@@ -764,6 +767,29 @@ public class AmendmentRequestsControllerTests
         Assert.Null(vm.WindowCloseLabel);
     }
 
+    // AB#307773: the pupil-data exercise ended on 26 June; an extension gives 933/4290 until
+    // 3 July. The banner invites another amendment, so it quotes the date this school has.
+    [Theory]
+    [InlineData("933/4290", "5pm on Friday 3 July 2026")]
+    [InlineData("860/4070", "5pm on Friday 26 June 2026")]
+    public async Task BulkConfirmation_QuotesTheSignedInSchoolsOwnDeadline(string laestab, string label)
+    {
+        _currentUser.OrganisationLaestab.Returns(laestab);
+        _sut.TempData["BulkSubmittedRefs"] = "R1";
+        var window = SampleWindow();
+        window.Exercises.Single().Extensions.Add(new CheckingExerciseExtensionDto
+        {
+            EndDate = new DateTime(2026, 7, 3, 17, 0, 0),
+            Laestabs = ["9334290"]
+        });
+        _checkYourPupilData.GetCheckingWindowAsync(WindowId).Returns(window);
+
+        var result = await _sut.BulkConfirmation(WindowId);
+
+        var vm = Assert.IsType<BulkConfirmationViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.Equal(label, vm.WindowCloseLabel);
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private static ExerciseDeadlineDto Deadline(
@@ -902,4 +928,23 @@ public class AmendmentRequestsControllerTests
         Assert.Null(_session.GetRequestState(WindowId).SelectedWhatToChange);
     }
 
+    // AB#307773: the exercise has ended, but an open extension names one school. The gate is asked
+    // about the signed-in school, so only that school may reopen its draft.
+    [Theory]
+    [InlineData("933/4290", true)]
+    [InlineData("860/4070", false)]
+    public async Task Edit_WhenOnlyTheSchoolsExtensionIsOpen_ResumesForTheSchoolItNamesOnly(string laestab, bool resumes)
+    {
+        _currentUser.OrganisationLaestab.Returns(laestab);
+        _requestService.ResumeDraftAsync(WindowId, "REF001").Returns(SampleJourney());
+        _adviceService.BuildAsync(WindowId, "REF001", Arg.Any<RequestState>()).Returns(SampleAdvice());
+        _checkingExercises.OpenOnlyFor("933/4290");
+
+        var result = await _sut.Edit(WindowId, "REF001");
+
+        if (resumes)
+            Assert.Equal("EditAdvice", Assert.IsType<ViewResult>(result).ViewName);
+        else
+            Assert.Equal("CheckYourPupilData", Assert.IsType<RedirectToActionResult>(result).ControllerName);
+    }
 }

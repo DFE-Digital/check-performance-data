@@ -105,6 +105,23 @@ public sealed class CheckingWindowExerciseProjectionTests : IAsyncLifetime
         Assert.Equal(new DateTime(2026, 10, 31), resultsEnquiry.EndDate);
     }
 
+    // AB#307773: the row rule behind the school's end date prefers the live interactive row of a
+    // kind, so the landing page read must say which rows are display only.
+    [Fact]
+    public async Task The_landing_page_read_carries_whether_each_exercise_is_display_only()
+    {
+        await using var ctx = CreateContext();
+        var exercise = await ctx.CheckingExercises.SingleAsync(e =>
+            e.CheckingWindowId == WindowId && e.ExerciseType == CheckingExerciseType.PupilData);
+        exercise.DisplayOnly = true;
+        await ctx.SaveChangesAsync();
+        var sut = new LandingPageRepository(ctx, NullLogger<LandingPageRepository>.Instance);
+
+        var windows = await sut.GetStartedWindowsAsync(Now, Laestab, CancellationToken.None);
+
+        Assert.Equal([true, false], Assert.Single(windows).Exercises.Select(e => e.DisplayOnly));
+    }
+
     // The repository leaves the end of a window to LandingPageService, which keeps a window shown
     // after its end date while an exercise's VisibleUntil is ahead (KS4 June's read-only period).
     [Fact]

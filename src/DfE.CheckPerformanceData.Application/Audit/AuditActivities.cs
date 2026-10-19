@@ -30,6 +30,19 @@ public static class AuditActivities
     /// </summary>
     public const string RequestsSentAutomaticallyAction = "RequestsSentAutomatically";
 
+    /// <summary>AB#307773: an admin added, changed, closed early or sent the requests of an
+    /// extension (extra time for named schools). Each is written once the change is committed.</summary>
+    public const string ExtensionAddedAction = "ExtensionAdded";
+    public const string ExtensionEditedAction = "ExtensionEdited";
+    public const string ExtensionClosedEarlyAction = "ExtensionClosedEarly";
+    public const string ExtensionRequestsSentAction = "ExtensionRequestsSent";
+
+    /// <summary>
+    /// Not translatable by EF: AuditLogRepository.FilteredAsync lists the four comparisons itself.
+    /// </summary>
+    public static bool IsExtensionAction(string action) =>
+        action is ExtensionAddedAction or ExtensionEditedAction or ExtensionClosedEarlyAction or ExtensionRequestsSentAction;
+
     private static readonly IReadOnlyDictionary<string, string> Labels = new Dictionary<string, string>(StringComparer.Ordinal)
     {
         [Egress] = "Data egress",
@@ -73,6 +86,8 @@ public static class AuditActivities
         (WindowAdmin, ClosedEarlyAction) => AuditOutcome.Success,
         // AB#302158: written only for a hand-over that happened; a failed run is retried, not recorded.
         (WindowAdmin, RequestsSentAutomaticallyAction) => AuditOutcome.Success,
+        // AB#307773: written once the extension change is committed, so only ever a success.
+        (WindowAdmin, var a) when IsExtensionAction(a) => AuditOutcome.Success,
         _ => null
     };
 

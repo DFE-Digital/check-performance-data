@@ -48,6 +48,26 @@ public class SendExerciseRequestsControllerTests
         }).ToList()
     };
 
+    // The one exercise, with an extension for a named school added to its row.
+    private static CheckingWindowDto WindowWithExtension(CheckingExerciseExtensionDto extension)
+    {
+        var window = Window(Exercise);
+        var exercise = window.Exercises.Single();
+        return new CheckingWindowDto
+        {
+            Id = window.Id, Title = window.Title, KeyStage = window.KeyStage,
+            CheckingWindowType = window.CheckingWindowType, StartDate = window.StartDate, EndDate = window.EndDate,
+            Exercises =
+            [
+                new CheckingExerciseDto
+                {
+                    Id = exercise.Id, ExerciseType = exercise.ExerciseType, StartDate = exercise.StartDate,
+                    EndDate = exercise.EndDate, TabOrder = exercise.TabOrder, Extensions = [extension]
+                }
+            ]
+        };
+    }
+
     private SendExerciseRequestsController Build()
     {
         var controller = new SendExerciseRequestsController(_closeService, _windowService, _checkingExercises)
@@ -118,6 +138,46 @@ public class SendExerciseRequestsControllerTests
         Assert.Equal("Pupil data checking", vm.ExerciseLabel);
         Assert.Equal($"/admin/windows/{WindowId}/exercises/{ExerciseId}/send-requests", vm.PostUrl);
         Assert.Equal($"/admin/windows/summary/{WindowId}", vm.CancelLink);
+    }
+
+    [Fact]
+    public async Task Confirm_says_when_an_open_extension_holds_schools_back()
+    {
+        // The exercise ended before today and holds one extension that is still open.
+        var extension = new CheckingExerciseExtensionDto
+        {
+            Id = Guid.NewGuid(), EndDate = DateTime.UtcNow.AddDays(1), Laestabs = ["9334290"]
+        };
+        var window = WindowWithExtension(extension);
+        var row = window.Exercises.Single();
+        _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(window);
+        _checkingExercises.IsOpen(row, extension).Returns(true);
+        _closeService.PreviewAsync(WindowId, ExerciseId, Arg.Any<CancellationToken>())
+            .Returns(new CloseExercisePreview { RequestsToClose = 1, DraftsToCancel = 0 });
+
+        var result = await Build().Confirm(WindowId, ExerciseId, CancellationToken.None);
+
+        var vm = Assert.IsType<SendRequestsViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.True(vm.HasOpenExtensions);
+    }
+
+    [Fact]
+    public async Task Confirm_does_not_mention_extensions_when_none_is_open()
+    {
+        var extension = new CheckingExerciseExtensionDto
+        {
+            Id = Guid.NewGuid(), EndDate = DateTime.UtcNow.AddDays(-1), Laestabs = ["9334290"]
+        };
+        var window = WindowWithExtension(extension);
+        var row = window.Exercises.Single();
+        _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(window);
+        _checkingExercises.IsOpen(row, extension).Returns(false);
+        _closeService.PreviewAsync(WindowId, ExerciseId, Arg.Any<CancellationToken>())
+            .Returns(new CloseExercisePreview { RequestsToClose = 1, DraftsToCancel = 0 });
+
+        var result = await Build().Confirm(WindowId, ExerciseId, CancellationToken.None);
+
+        Assert.False(Assert.IsType<SendRequestsViewModel>(Assert.IsType<ViewResult>(result).Model).HasOpenExtensions);
     }
 
     [Fact]

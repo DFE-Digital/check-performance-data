@@ -164,6 +164,17 @@ public sealed class ExerciseSummarySection
 
     public string SendRequestsLink => $"/admin/windows/{WindowId}/exercises/{Id}/send-requests";
 
+    /// <summary>AB#307773: more time for named schools, by end date. Always empty for a data share.</summary>
+    public IReadOnlyList<ExtensionSummaryRow> Extensions { get; init; } = [];
+
+    /// <summary>
+    /// AB#307773: offered at any time, before the exercise ends or after. Null for a data share,
+    /// which has no journey and so no time to extend.
+    /// </summary>
+    public string? AddExtensionLink => ExerciseType is null
+        ? null
+        : $"/admin/windows/{WindowId}/exercises/{Id}/extensions/new";
+
     // Every REQUIRED dataset must have both files — a Post16 pupil-data exercise is not validatable
     // until both the included and non-included CSV/schema pairs are chosen, because they ingest in
     // one run. An exercise with no complete dataset at all has nothing to validate. Optional slots

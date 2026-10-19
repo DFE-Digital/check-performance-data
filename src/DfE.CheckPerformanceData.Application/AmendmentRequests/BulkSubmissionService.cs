@@ -99,10 +99,11 @@ public sealed class BulkSubmissionService(
             // ran to its end or was closed early. Before this, bulk submit was the one path with
             // no such check: the review page could be left open across a close and still post.
             // The exercise is derived from the draft's change type, as every other gate does.
+            // AB#307773: closed for this school, whose extension may outlast the exercise.
             if (window is not null && journey.SelectedWhatToChange is { } change)
             {
                 var exercise = WhatToChangeCheckingExerciseMap.CheckingExerciseFor(change);
-                if (!checkingExercises.IsOpen(window.Exercises, exercise))
+                if (!checkingExercises.IsOpen(window.Exercises, exercise, currentUserService.OrganisationLaestab))
                 {
                     skipped.Add(reference);
                     closedExercise ??= exercise;
@@ -129,8 +130,16 @@ public sealed class BulkSubmissionService(
 
         if (submitted.Count > 0 && window is not null)
         {
+            // #320: the pupil-data exercise's end (a bulk submission is amendments), not the outer
+            // window's. AB#307773: the signed-in school's end, which its extension may make later;
+            // the outer end is the exercises' own latest end and never includes an extension's
+            // (extension ends never reach the stored window end), so it is only the fallback for
+            // a window with no pupil-data row.
+            var deadline = checkingExercises.EndDateFor(
+                window.Exercises, CheckingExerciseType.PupilData, currentUserService.OrganisationLaestab)
+                ?? window.EndDate;
             await requestNotificationService.NotifyBulkSubmissionConfirmedAsync(
-                windowId, window.EndDate, submitted, EmailSubstitutions.From(window));
+                windowId, deadline, submitted, EmailSubstitutions.From(window));
         }
 
         return new BulkSubmissionResult { Submitted = submitted, Skipped = skipped, ClosedExercise = closedExercise };

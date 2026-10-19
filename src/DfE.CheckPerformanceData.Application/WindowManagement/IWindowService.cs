@@ -87,7 +87,9 @@ public sealed class CheckingWindowDto
     /// <summary>
     /// The outer pair derived from the exercises: earliest start, latest end. The wizard never asks
     /// an admin for the window's own dates, so the two can never disagree. A window with no
-    /// exercises keeps whatever it has — there is nothing to derive from.
+    /// exercises keeps whatever it has — there is nothing to derive from. Extension ends are left
+    /// out on purpose: the stored end is read by pages that are not
+    /// asked for a school, and a school's own end is <see cref="CheckingExerciseDto.EndDateFor"/>.
     /// </summary>
     public void DeriveDatesFromExercises()
     {
@@ -159,6 +161,31 @@ public sealed class CheckingExerciseDto
 
     /// <summary>Every release of this exercise, oldest first.</summary>
     public List<CheckingExerciseReleaseDto> Releases { get; init; } = [];
+
+    /// <summary>AB#307773: extra time for named schools, in the order they were added.</summary>
+    public List<CheckingExerciseExtensionDto> Extensions { get; init; } = [];
+
+    /// <summary>The extension naming this school, or null. A school is in at most one.</summary>
+    public CheckingExerciseExtensionDto? ExtensionFor(string? laestab) =>
+        Extensions.FirstOrDefault(x => x.Contains(laestab));
+
+    /// <summary>
+    /// The end date this school sees. An extension only ever adds time: an extension closed early
+    /// before the exercise ended leaves the school on the exercise's own end, never earlier.
+    /// </summary>
+    public DateTime EndDateFor(string? laestab) =>
+        ExtensionFor(laestab) is { } extension ? EffectiveEndDateOf(extension) : EndDate;
+
+    /// <summary>
+    /// The end date the schools of <paramref name="extension"/> see: the later of the extension's
+    /// own end and this exercise's end (AB#307773). The sweeps and the hand-over judge an extension
+    /// on this, so an extension closed early never cuts a school's time short.
+    /// </summary>
+    public DateTime EffectiveEndDateOf(CheckingExerciseExtensionDto extension) =>
+        extension.EndDate > EndDate ? extension.EndDate : EndDate;
+
+    /// <summary>The latest end any school sees: the exercise's own, or the latest extension's.</summary>
+    public DateTime LatestEndDate => Extensions.Select(x => x.EndDate).Append(EndDate).Max();
 
     /// <summary>The release that <see cref="CurrentReleaseId"/> names, or null.</summary>
     public CheckingExerciseReleaseDto? CurrentRelease =>

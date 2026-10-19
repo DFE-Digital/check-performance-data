@@ -68,6 +68,23 @@ public sealed class ChangeRequestReleaseStampTests
     };
 
     [Fact]
+    public async Task The_storage_row_is_resolved_once_per_write()
+    {
+        // The exercise id and the release id come from one resolve, so the two
+        // cannot name different rows and the resolver is asked once.
+        _resolver.ResolveAsync(WindowId, CheckingExerciseType.PupilData, Arg.Any<CancellationToken>())
+            .Returns(Exercise(LiveReleaseId));
+        ChangeRequestData? captured = null;
+        _repository.UpsertAsync(Arg.Do<ChangeRequestData>(d => captured = d)).Returns(Guid.NewGuid());
+
+        await Service(_resolver).SaveDraftAsync(WindowId, Journey(), RequestStatus.InProgress);
+
+        Assert.Equal(ExerciseId, captured!.CheckingExerciseId);
+        Assert.Equal(LiveReleaseId, captured.CheckingExerciseReleaseId);
+        await _resolver.Received(1).ResolveAsync(WindowId, CheckingExerciseType.PupilData, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task A_draft_is_stamped_with_the_release_live_when_it_is_saved()
     {
         // The session's copy of the window is from the start of the journey and says no release.
@@ -105,5 +122,26 @@ public sealed class ChangeRequestReleaseStampTests
 
         Assert.Equal(ExerciseId, captured!.CheckingExerciseId);
         Assert.Null(captured.CheckingExerciseReleaseId);
+    }
+
+    [Fact]
+    public async Task A_request_is_stamped_with_the_exercise_the_resolver_resolves()
+    {
+        // AB#307773 related fix: since #466 a window may hold several releases of one kind, and the
+        // session's first row of the kind need not be the one the journey's data came from. The
+        // row the data readers resolve is the one the request belongs to.
+        var liveExerciseId = Guid.NewGuid();
+        _resolver.ResolveAsync(WindowId, CheckingExerciseType.PupilData, Arg.Any<CancellationToken>())
+            .Returns(new CheckingExerciseDto
+            {
+                Id = liveExerciseId, ExerciseType = CheckingExerciseType.PupilData,
+                StartDate = new DateTime(2026, 1, 1), EndDate = new DateTime(2026, 12, 31)
+            });
+        ChangeRequestData? captured = null;
+        _repository.UpsertAsync(Arg.Do<ChangeRequestData>(d => captured = d)).Returns(Guid.NewGuid());
+
+        await Service(_resolver).SaveDraftAsync(WindowId, Journey(), RequestStatus.InProgress);
+
+        Assert.Equal(liveExerciseId, captured!.CheckingExerciseId);
     }
 }

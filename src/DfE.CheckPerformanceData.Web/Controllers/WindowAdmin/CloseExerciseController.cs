@@ -140,7 +140,7 @@ public sealed class CloseExerciseController(
     /// <summary>The name the summary card shows, so the admin reads the same words on both pages.</summary>
     internal static string NameOf(CheckingExerciseDto row) => row.Name ?? ExerciseLabels.For(row.ExerciseType);
 
-    private static CloseExerciseViewModel Page(
+    private CloseExerciseViewModel Page(
         CheckingWindowDto window, CheckingExerciseDto row, string? typed, string? error) => new()
     {
         WindowId = window.Id,
@@ -149,6 +149,9 @@ public sealed class CloseExerciseController(
         ExerciseType = row.ExerciseType!.Value,
         ExerciseLabel = NameOf(row),
         ScheduledEnd = row.EndDate,
+        // AB#307773: the close sweep leaves their schools alone, so the admin is told they keep
+        // their time. Open is the extension's own end, as on the summary card's tag.
+        HasOpenExtensions = row.Extensions.Any(x => checkingExercises.IsOpen(x)),
         ConfirmWindowName = typed,
         Error = error
     };

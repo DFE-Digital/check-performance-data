@@ -1557,12 +1557,25 @@ public sealed class JourneyController(
         if (string.IsNullOrEmpty(journey?.ReferenceNumber) || journey?.CheckingWindow is null)
             return RedirectToCheckYourData(windowId);
 
+        // #320: the journey's own exercise's end, never the outer window's. AB#307773: the
+        // signed-in school's end (EndDateFor, by its LAESTAB), which its extension may make later;
+        // the outer end is the exercises' own latest end and never includes an extension's.
+        // SummaryConfirm clears the change type before redirecting here, and only an amendment
+        // comes here (an enquiry goes to EnquiryConfirmation), so a cleared one is pupil data. The
+        // outer end is only the fallback for a kind the window has no row for.
+        var exercise = journey.SelectedWhatToChange is { } change
+            ? WhatToChangeCheckingExerciseMap.CheckingExerciseFor(change)
+            : CheckingExerciseType.PupilData;
+        var deadline = checkingExerciseService.EndDateFor(
+            journey.CheckingWindow.Exercises, exercise, currentUserService.OrganisationLaestab)
+            ?? journey.CheckingWindow.EndDate;
+
         var model = new ConfirmationViewModel
         {
             WindowId = windowId,
             ReferenceNumber = journey.ReferenceNumber,
             // DeadlineTime.Pattern: the minutes show when the end date has some.
-            WindowCloseLabel = $"{journey.CheckingWindow.EndDate.ToString(DeadlineTime.Pattern(journey.CheckingWindow.EndDate))} on {journey.CheckingWindow.EndDate:dddd d MMMM yyyy}"
+            WindowCloseLabel = $"{deadline.ToString(DeadlineTime.Pattern(deadline))} on {deadline:dddd d MMMM yyyy}"
         };
 
         return View(model);
@@ -2071,13 +2084,15 @@ public sealed class JourneyController(
         !IsExerciseClosed(journey);
 
     // True only when the journey is otherwise complete and its exercise has closed — the one
-    // rejection reason worth explaining to the user.
+    // rejection reason worth explaining to the user. AB#307773: closed for the signed-in school,
+    // whose extension may run past the exercise's own end.
     private bool IsExerciseClosed(RequestState journey) =>
         journey.SelectedWhatToChange is { } change &&
         journey.CheckingWindow is not null &&
         !checkingExerciseService.IsOpen(
             journey.CheckingWindow.Exercises,
-            WhatToChangeCheckingExerciseMap.CheckingExerciseFor(change));
+            WhatToChangeCheckingExerciseMap.CheckingExerciseFor(change),
+            currentUserService.OrganisationLaestab);
 
     /// <summary>
     /// Every bounce out of the journey. A closed exercise is explained on the page the user lands

@@ -3,6 +3,7 @@ using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Web.Common;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
+using DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
@@ -77,6 +78,24 @@ public sealed class SummaryController(
                             Required = d.Required,
                             FeedsJourney = d.FeedsJourney,
                             Status = e.StatusOf(d)
+                        })
+                        .ToList(),
+                    // AB#307773: each extension asked of the same clock. Open is its own end
+                    // (Edit, Close early); Send waits for the effective end, so an extension
+                    // closed early before its exercise ends offers nothing until the exercise ends.
+                    Extensions = e.Extensions
+                        .OrderBy(x => x.EndDate).ThenBy(x => x.Id)
+                        .Select(x => new ExtensionSummaryRow
+                        {
+                            WindowId = w.Id,
+                            ExerciseId = e.Id,
+                            Id = x.Id,
+                            EndDate = x.EndDate,
+                            SchoolCount = x.SchoolCount,
+                            ExerciseEndDate = e.EndDate,
+                            IsOpen = checkingExercises.IsOpen(x),
+                            HasClosed = checkingExercises.HasClosed(e, x),
+                            RequestsSent = x.RequestsSentAt is not null
                         })
                         .ToList()
                 })

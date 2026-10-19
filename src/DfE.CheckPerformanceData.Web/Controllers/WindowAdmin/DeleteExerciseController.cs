@@ -84,6 +84,7 @@ public sealed class DeleteExerciseController(
             UsesExerciseStorage = exercise.UsesExerciseStorage,
             DatasetCount = exercise.Datasets.Count,
             ReleaseCount = exercise.Releases.Count,
+            ExtensionCount = exercise.Extensions.Count,
             IsLastExercise = window.Exercises.Count == 1,
             ReplacedBy = window.Exercises
                 .Where(e => e.ReplacesCheckingExerciseId == exercise.Id)

@@ -34,6 +34,14 @@ jobs:
         reuse-cache: false
         snyk-token: ${{ secrets.SNYK_TOKEN }}
 
+    - name: SBOM for the web image
+      # The weekly rebuild pushes a fresh image under the same sha tag, so it needs its own SBOM.
+      uses: ./.github/actions/image-sbom
+      with:
+        image: ${{ steps.build-image.outputs.image }}
+        name: web
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+
     - name: Notify teams channel on job failure
       uses: DFE-Digital/github-actions/send-to-teams-channel@master
       if: ${{ failure() }}

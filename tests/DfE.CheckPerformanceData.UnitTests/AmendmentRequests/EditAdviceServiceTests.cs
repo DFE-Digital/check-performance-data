@@ -4,8 +4,11 @@ using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
+using DfE.CheckPerformanceData.Application.Logging;
+using DfE.CheckPerformanceData.Application.UnitTests.Common;
 using DfE.CheckPerformanceData.Domain.Enums;
 using NSubstitute;
+using Microsoft.Extensions.Logging;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.AmendmentRequests;
 
@@ -18,16 +21,18 @@ public class EditAdviceServiceTests
     private readonly IJourneyValidationService _validation = Substitute.For<IJourneyValidationService>();
     private readonly ICurrentUserService _user = Substitute.For<ICurrentUserService>();
     private readonly IQuestionOptionalityService _optionalityService = Substitute.For<IQuestionOptionalityService>();
+    private readonly RecordingLogger<EditAdviceService> _logger = new();
     private readonly EditAdviceService _sut;
 
     public EditAdviceServiceTests()
     {
         _user.OrganisationUrn.Returns("123456");
+        _user.UserId.Returns("user-42");
         _flow.GetConfigAsync(Arg.Any<WhatToChange>(), Arg.Any<CheckingWindowType>())
             .Returns(new QuestionFlowConfig { FirstPageId = "select-pupil", Pages = [] });
         _optionalityService.GetConditionallyOptionalQuestionIds(Arg.Any<JourneyPage>(), Arg.Any<JourneyConditionContext>())
             .Returns(new HashSet<string>());
-        _sut = new EditAdviceService(_repo, _flow, _validation, _user, _optionalityService);
+        _sut = new EditAdviceService(_repo, _flow, _validation, _user, _optionalityService, _logger);
     }
 
     private static RequestState Journey(WhatToChange type) => new()
@@ -153,6 +158,37 @@ public class EditAdviceServiceTests
         var advice = await _sut.BuildAsync(WindowId, "REF001", Journey(WhatToChange.Remove));
 
         Assert.Null(advice);
+    }
+
+    // Same access-refusal contract as SubmittedRequestService (#612): a reference the school
+    // does not own is logged once, under the one event, with the user id, URN, window and
+    // reference — and never the pupil's name.
+    [Fact]
+    public async Task Build_WhenRequestNotFound_LogsOneAccessRefusal()
+    {
+        _repo.GetAmendmentRequestAsync(WindowId, 123456, "REF001").Returns((AmendmentRequestData?)null);
+
+        await _sut.BuildAsync(WindowId, "REF001", Journey(WhatToChange.Remove));
+
+        var entry = Assert.Single(_logger.Entries);
+        Assert.Equal(LogLevel.Warning, entry.Level);
+        Assert.Equal(AccessRefusalLog.AccessRefused, entry.EventId);
+        Assert.Contains("user-42", entry.Message);
+        Assert.Contains("123456", entry.Message);
+        Assert.Contains("REF001", entry.Message);
+        Assert.Contains(WindowId.ToString(), entry.Message);
+    }
+
+    // The school owns the row, so nothing is refused. StubStatus is the class's existing helper
+    // that stubs a found AmendmentRequestData for REF001 under URN 123456.
+    [Fact]
+    public async Task Build_WhenRequestFound_LogsNoAccessRefusal()
+    {
+        StubStatus(RequestStatus.Submitted);
+
+        await _sut.BuildAsync(WindowId, "REF001", Journey(WhatToChange.Remove));
+
+        Assert.Empty(_logger.Entries);
     }
 
     [Fact]

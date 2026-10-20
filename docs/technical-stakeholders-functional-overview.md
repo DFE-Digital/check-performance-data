@@ -306,6 +306,7 @@ Producer/consumer split so requests never wait on Notify: `RequestNotificationSe
 
 - **Serilog**: bootstrap logger, then `UseSerilog` (`ReadFrom.Configuration`, console: expression template in dev / compact JSON otherwise), `writeToProviders: true` so the DI `DatabaseLoggerProvider` receives events too. An additional `Serilog.Sinks.PostgreSQL.Alternative` sink writes to a `Logs` table from config.
 - **AppLogs pipeline** (separate from the Serilog sink): bounded channel → `DatabaseLogWriter` hosted service batches to the `AppLogs` table → admin viewer with CSV export. `SkipCategories` prevents self-logging loops.
+- **Access refusals** (#612): a signed-in user refused an admin section by `RequireAdminSection`, and a school asking for a request reference that is not theirs (`SubmittedRequestService`, `EditAdviceService`), are logged at Warning under one named event, `AccessRefused` (id 4001), through `Application/Logging/AccessRefusalLog`. The message starts "Access refused" and carries the user id plus the section key and path, or the URN, window and reference — never a name, email or pupil. Search "Access refused" on the admin App logs page; filter `EventId.Name = AccessRefused` in Logit. The alert on repeated refusals from one user is a follow-up issue under #607.
 - **No Application Insights.** Monitoring = Postgres logs + observability dashboard + StatusCake (Terraform) + AKS Log Analytics.
 - Health: web `/healthcheck` (+ `rules-provider` check); worker `/healthz/live` + `/healthz/ready` probed by exec `curl` in the AKS pod spec.
 

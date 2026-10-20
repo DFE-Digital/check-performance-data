@@ -1,7 +1,10 @@
 using DfE.CheckPerformanceData.Application.Admin;
+using DfE.CheckPerformanceData.Application.Logging;
+using DfE.CheckPerformanceData.Web.Diagnostics;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.Extensions.Logging;
 
 namespace DfE.CheckPerformanceData.Web.Admin;
 
@@ -23,6 +26,8 @@ namespace DfE.CheckPerformanceData.Web.Admin;
 //
 // Non-editor / non-admin roles with zero grants get NotFound so the admin surface is
 // invisible to them (the URL 404s instead of returning 403 → discourages URL discovery).
+//
+// A refused signed-in user is logged under AccessRefusalLog.AccessRefused (#612) — see that class.
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = false)]
 public sealed class RequireAdminSectionAttribute : Attribute, IAsyncAuthorizationFilter
 {
@@ -78,6 +83,18 @@ public sealed class RequireAdminSectionAttribute : Attribute, IAsyncAuthorizatio
 
         if (!allowed)
         {
+            // A signed-in user at an admin URL they are not granted is the shape of someone
+            // probing, so the refusal is logged with who, what and where (#612) — the user id
+            // only, never a name or email. Resolved from the request services like the policy
+            // above, because an attribute has no constructor injection; a container without
+            // logging still refuses, it just says nothing. The query string is left out of the
+            // path on purpose: it can carry search terms.
+            context.HttpContext.RequestServices.GetService<ILogger<RequireAdminSectionAttribute>>()
+                ?.AdminSectionRefused(
+                    RequestLogEnrichment.UserId(context.HttpContext),
+                    AllowAnyGrantedSection ? AccessRefusalLog.AnyGrantedSection : SectionKey!,
+                    context.HttpContext.Request.Path);
+
             // NotFound rather than Forbid — hides the admin surface from users who lack any
             // grant. An admin looking for a routing bug can still see the endpoint in code.
             context.Result = new NotFoundResult();

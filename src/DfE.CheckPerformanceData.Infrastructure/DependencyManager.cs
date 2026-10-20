@@ -26,6 +26,7 @@ using DfE.CheckPerformanceData.Infrastructure.ZendeskClient;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -140,7 +141,8 @@ public static class DependencyManager
         return services;
     }
 
-    public static IServiceCollection AddDfeSignInAuthentication(this IServiceCollection services, IConfiguration config)
+    public static IServiceCollection AddDfeSignInAuthentication(
+        this IServiceCollection services, IConfiguration config, IHostEnvironment environment)
     {
         var settings = config.GetSection(DfeSigninSettings.SectionName).Get<DfeSigninSettings>()
             ?? throw new InvalidOperationException(
@@ -148,6 +150,14 @@ public static class DependencyManager
                 "Set DfeSignIn:MetadataAddress, DfeSignIn:ClientId, DfeSignIn:ClientSecret, " +
                 "DfeSignIn:Audience and DfeSignIn:ApiClientSecret in appsettings.json " +
                 "or via environment variables (e.g. DfeSignIn__MetadataAddress).");
+
+        // The auth cookie leaves the pod, so outside Development it must carry Secure. Development
+        // keeps SameAsRequest because the local stack runs over plain HTTP and a forced-Secure
+        // cookie would never be stored by the browser. Being HTTPS on a deployed pod depends on
+        // trusting the ingress's X-Forwarded-Proto, which AddCpdCoreWeb now does.
+        var securePolicy = environment.IsDevelopment()
+            ? CookieSecurePolicy.SameAsRequest
+            : CookieSecurePolicy.Always;
 
         // The ticket is held server-side and the cookie carries only a key — see
         // DistributedCacheTicketStore for why the cookie's size is an availability concern.
@@ -163,6 +173,7 @@ public static class DependencyManager
             {
                 o.ExpireTimeSpan = TimeSpan.FromMinutes(30);
                 o.SlidingExpiration = true;
+                o.Cookie.SecurePolicy = securePolicy;
                 // o.LogoutPath = "/auth/logout";
                 //
                 // o.Events.OnRedirectToAccessDenied = ctx =>
@@ -184,6 +195,15 @@ public static class DependencyManager
                 options.SaveTokens = true;
                 options.CallbackPath = "/auth/callback";
                 options.SignedOutCallbackPath = "/auth/signout-callback";
+
+                // These already default to Always on the framework options, but the correlation
+                // and nonce cookies are SameSite=None, which browsers reject unless Secure is
+                // also set — so the default is load-bearing, not incidental. Pin it explicitly
+                // so a future edit or framework change cannot silently downgrade it to
+                // SameAsRequest (which would drop the cookie on the callback over plain http and
+                // end sign-in on the NoAccess page).
+                options.CorrelationCookie.SecurePolicy = CookieSecurePolicy.Always;
+                options.NonceCookie.SecurePolicy = CookieSecurePolicy.Always;
 
                 options.Scope.Clear();
                 options.Scope.Add("email");

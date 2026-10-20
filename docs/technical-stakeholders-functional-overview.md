@@ -204,7 +204,7 @@ Dev-only tooling (`Dev*Controller`s incl. impersonation used by E2E): `[AllowAno
 - The app is single-organisation-per-session; org selection happens inside DfE Sign-In. LA-Estab is composed as `{localAuthority.code}/{establishmentNumber}`, with a hardcoded `DSI/TEST` override for the DSI sandbox org (URN 990082).
 - **DataProtection** key ring persisted to blob (`data-protection-keys/keys.xml`) so OIDC state cookies survive multi-replica load balancing.
 - Antiforgery header name `X-XSRF-TOKEN` — all `fetch()` POSTs send it (`wwwroot/js/site.js` `getToken()` pattern).
-- Security headers: CSP (script/style/img/connect/frame allow-list for self + GTM/GA/Clarity, `object-src 'none'`, `form-action 'self'`), HSTS outside dev, HTTPS redirect, forwarded headers for the AKS ingress.
+- Security headers: CSP (script/style/img/connect/frame allow-list for self + GTM/GA/Clarity, `object-src 'none'`, `base-uri 'self'`, `frame-ancestors 'self'` so no other site can frame the service (#610), `form-action 'self'` plus the DfE Sign-in origin), HSTS outside dev, HTTPS redirect, forwarded headers for the AKS ingress.
 
 ## 10. Data model
 
@@ -306,12 +306,13 @@ Producer/consumer split so requests never wait on Notify: `RequestNotificationSe
 
 - **Serilog**: bootstrap logger, then `UseSerilog` (`ReadFrom.Configuration`, console: expression template in dev / compact JSON otherwise), `writeToProviders: true` so the DI `DatabaseLoggerProvider` receives events too. An additional `Serilog.Sinks.PostgreSQL.Alternative` sink writes to a `Logs` table from config.
 - **AppLogs pipeline** (separate from the Serilog sink): bounded channel → `DatabaseLogWriter` hosted service batches to the `AppLogs` table → admin viewer with CSV export. `SkipCategories` prevents self-logging loops.
+- **Access refusals** (#612): a signed-in user refused an admin section by `RequireAdminSection`, and a school asking for a request reference that is not theirs (`SubmittedRequestService`, `EditAdviceService`), are logged at Warning under one named event, `AccessRefused` (id 4001), through `Application/Logging/AccessRefusalLog`. The message starts "Access refused" and carries the user id plus the section key and path, or the URN, window and reference — never a name, email or pupil. Search "Access refused" on the admin App logs page; filter `EventId.Name = AccessRefused` in Logit. The alert on repeated refusals from one user is a follow-up issue under #607.
 - **No Application Insights.** Monitoring = Postgres logs + observability dashboard + StatusCake (Terraform) + AKS Log Analytics.
 - Health: web `/healthcheck` (+ `rules-provider` check); worker `/healthz/live` + `/healthz/ready` probed by exec `curl` in the AKS pod spec.
 
 ## 16. Hosting & deployment
 
-- **Docker**: multi-stage Dockerfiles for Web and Worker (sdk:10.0 → aspnet:10.0, port 8080); pinned Playwright image for E2E; nginx maintenance page (`maintenance_page/`).
+- **Docker**: multi-stage Dockerfiles for Web and Worker (sdk:10.0 → aspnet:10.0, port 8080); both runtime images run as the aspnet image's unprivileged `app` user (uid 1654, `USER $APP_UID`) and the AKS modules enforce `run_as_non_root` (#609); pinned Playwright image for E2E; nginx maintenance page (`maintenance_page/`).
 - **docker-compose**: profiled services — `web`, `rules_engine`, `db` (Postgres 18.1-alpine), `azurite` (+ one-shot `azurite_init` rules seeder), `pgadmin`; `docker-compose.e2e.yml` adds the one-shot `e2e-tests` runner (kept separate so the VS `docker-compose.dcproj` orchestration ignores it). Never add a `docker-compose.override.yml` (breaks `make test-e2e`).
 - **CI/CD** (`.github/workflows/build-and-deploy.yml`): build + push both images to GHCR + Snyk scan → PR review apps (`deploy` label) → E2E (non-visual) against the review app → sequential deploy matrix **development → qa → preproduction → production** on push to `main`, via shared `DFE-Digital/github-actions` actions. Also: DB backup/PTR/restore workflows, maintenance toggle, Terraform validation, review-app teardown.
 - **Terraform** (`terraform/application/`): AKS web app + worker (separate replica counts, exec health probes), Azure Postgres **Flexible Server v17** (note: local compose runs 18.1), two storage accounts (app: `files`, `rules-config`; private LDS ingress account), two Key Vaults, StatusCake, GCP WIF for analytics; `terraform/domains/` for DNS + Front Door. Environments: development, qa, review (per-PR), preproduction, production (`config/*.tfvars.json`).

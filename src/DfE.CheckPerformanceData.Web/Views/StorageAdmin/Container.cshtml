@@ -136,15 +136,15 @@ else
                            href="/admin/storage/@Model.AccountKey/@Model.ContainerName/download?blob=@encodedBlob">Download</a>
                         <form method="post"
                               action="/admin/storage/@Model.AccountKey/@Model.ContainerName/delete"
-                              style="display:inline">
+                              style="display:inline"
+                              data-confirm-message="Delete @blob.Name?">
                             @Html.AntiForgeryToken()
                             <input type="hidden" name="blobName" value="@blob.Name" />
                             <input type="hidden" name="prefix" value="@Model.Prefix" />
                             <button type="submit"
                                     class="govuk-link"
                                     style="background:none;border:none;cursor:pointer;padding:0;color:#d4351c"
-                                    data-prevent-double-click="true"
-                                    onclick="return confirm('Delete @blob.Name?')">Delete</button>
+                                    data-prevent-double-click="true">Delete</button>
                         </form>
                     </td>
                 </tr>

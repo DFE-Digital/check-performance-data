@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Web.Middleware;
 using GovUk.Frontend.AspNetCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -22,7 +23,17 @@ public static class GovUkFrontendExtensions
     /// <c>PageTitle.WithErrorPrefix</c> keys off <c>ModelState</c> plus an explicit
     /// <c>ViewData["HasError"]</c> for pages whose errors are shown some other way (the
     /// journey Summary duplicate-request banner). See docs/accessibility.md.
+    ///
+    /// <c>GetCspNonceForRequest</c> closes the other gap the page template opened (#611): the
+    /// layout's own <c>&lt;script&gt;</c> tags (the <c>js-enabled</c> class, the module import and
+    /// <c>initAll()</c>) are emitted by the compiled <c>_GovUkPageTemplate</c> view, so they never
+    /// pass through our <see cref="TagHelpers.CspNonceTagHelper"/>. The library stamps them for us
+    /// when this delegate returns the request's nonce.
     /// </remarks>
     public static IServiceCollection AddCpdGovUkFrontend(this IServiceCollection services) =>
-        services.AddGovUkFrontend(options => options.PrependErrorToTitle = false);
+        services.AddGovUkFrontend(options =>
+        {
+            options.PrependErrorToTitle = false;
+            options.GetCspNonceForRequest = CspNonce.Get;
+        });
 }

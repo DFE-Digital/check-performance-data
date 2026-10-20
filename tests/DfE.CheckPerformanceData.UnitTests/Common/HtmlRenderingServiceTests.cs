@@ -88,6 +88,16 @@ public sealed class HtmlRenderingServiceTests
         Assert.DoesNotContain("onerror", result);
     }
 
+    // FR-004 for raw HTML: like an event handler, a javascript: URL is removed by the sanitiser,
+    // so CMS content cannot smuggle executable script past the strict CSP.
+    [Fact]
+    public void RenderHtml_SanitisesJavascriptUrl()
+    {
+        var result = _sut.RenderHtml("<a href=\"javascript:alert('xss')\">click</a>");
+
+        Assert.DoesNotContain("javascript:", result);
+    }
+
     [Fact]
     public void RenderHtml_AllowsSafeHtmlElements()
     {

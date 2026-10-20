@@ -23,7 +23,7 @@
         <form method="get" action="@Url.Action("Index", "CheckYourPupilData", new { windowId = Model.Exercise.WindowId })#@anchor">
             <input type="hidden" name="tab" value="@Model.Key" />
             <label class="govuk-label govuk-label--s" for="@datasetId">Select the data you want to view</label>
-            <select class="govuk-select" id="@datasetId" name="dataset" onchange="this.form.submit()">
+            <select class="govuk-select" id="@datasetId" name="dataset" data-auto-submit="true">
                 @foreach (var dataset in table.Datasets)
                 {
                     <option value="@dataset.Key" selected="@(dataset.Key == table.Selected.Key)">@dataset.Label</option>

@@ -90,7 +90,7 @@ public sealed partial class ContentBlockController(
     private static partial Regex SafeAnchor();
 
     [HttpGet("content-block/versions/{key}")]
-    public async Task<IActionResult> Versions(string key)
+    public async Task<IActionResult> Versions(string key, string? returnUrl)
     {
         var block = await contentBlockService.GetByKeyAsync(key);
         if (block == null) return NotFound();
@@ -99,7 +99,8 @@ public sealed partial class ContentBlockController(
         var vm = new ContentBlockVersionsViewModel
         {
             Block = block,
-            Versions = versions
+            Versions = versions,
+            ReturnUrl = LocalUrl.SafeOrNull(returnUrl) ?? "/admin/content-blocks"
         };
 
         return View(vm);

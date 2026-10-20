@@ -13,6 +13,11 @@
 @if (clarity.Enabled && !string.IsNullOrEmpty(clarity.ProjectId))
 {
     <script>
+        // The strict CSP (#611) allows this script only because CspNonceTagHelper stamped the
+        // request's nonce on it. Capture that nonce now: loadClarity may run much later (from
+        // cookies.js after consent), when document.currentScript is null.
+        var clarityNonce = document.currentScript ? document.currentScript.nonce : '';
+
         // Loads the Microsoft Clarity tag. Guarded so it only ever runs once,
         // regardless of whether it is called inline below (returning consented user)
         // or from cookies.js when the user accepts via the banner / preferences page.
@@ -21,7 +26,7 @@
             window.__clarityLoaded = true;
             (function (c, l, a, r, i, t, y) {
                 c[a] = c[a] || function () { (c[a].q = c[a].q || []).push(arguments) };
-                t = l.createElement(r); t.async = 1; t.src = "https://www.clarity.ms/tag/" + i;
+                t = l.createElement(r); t.async = 1; t.nonce = clarityNonce; t.src = "https://www.clarity.ms/tag/" + i;
                 y = l.getElementsByTagName(r)[0]; y.parentNode.insertBefore(t, y);
             })(window, document, "clarity", "script", "@clarity.ProjectId");
         };

@@ -1750,11 +1750,48 @@ body.js-enabled .rules-condition__apply {
 .cypmd-search { margin: 20px 0 30px; }
 .cypmd-search__row { display: flex; gap: 20px; max-width: 45em; }
 .cypmd-search__input { flex: 1 1 auto; margin-bottom: 0; }
+/* The box sits in a wrapper so an optional clear button can sit inside its right-hand end. The
+   wrapper is the flex child, so it takes the sizing the box used to have. */
+.cypmd-search__field { position: relative; flex: 1 1 auto; min-width: 0; }
 /* accessible-autocomplete replaces the input with its own wrapper, so the flex sizing has to
    move to the element that actually becomes the flex child. */
 .cypmd-search__row .cypmd-search__autocomplete,
 .cypmd-search__row .autocomplete__wrapper { flex: 1 1 auto; min-width: 0; }
 .cypmd-search__button { flex: 0 0 auto; margin: 0; }
+
+/* The author's choice of a clear button: a cross inside the end of the box. The box keeps room
+   for it so text does not run underneath, and the browser's own clear cross is hidden so there
+   are never two. */
+.cypmd-search__field:has(.cypmd-search__clear) .cypmd-search__input { padding-right: 40px; }
+.cypmd-search__field:has(.cypmd-search__clear) .cypmd-search__input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+.cypmd-search__clear {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #505a5f;
+  cursor: pointer;
+}
+.cypmd-search__clear[hidden] { display: none; }
+.cypmd-search__clear:hover { color: #0b0c0c; background-color: #f3f2f1; }
+.cypmd-search__clear:focus {
+  outline: 3px solid transparent;
+  color: #0b0c0c;
+  background-color: #ffdd00;
+  box-shadow: inset 0 -4px 0 #0b0c0c;
+}
 
 /* A Card widget keeps clear of whatever follows it. Without this, a second row of cards sits
    flush against the first and a heading after the cards touches them. */

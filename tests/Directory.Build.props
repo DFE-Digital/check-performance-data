@@ -1,0 +1,5 @@
+<Project>
+  <!-- The test projects sit outside src/, so src/Directory.Build.props does not reach them on its
+       own (the same reason src/Directory.Packages.props does not). Import it rather than repeat it. -->
+  <Import Project="../src/Directory.Build.props" />
+</Project>

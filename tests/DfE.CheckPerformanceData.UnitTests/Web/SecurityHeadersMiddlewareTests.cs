@@ -6,8 +6,9 @@ using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web;
 
-// The response-header set was most of a good one — HSTS, a content-security policy and
-// X-Frame-Options were already there — with a few gaps a security assessment picked up. These
+// The response-header set was most of a good one — HSTS and a content-security policy were
+// already there — with a few gaps a security assessment picked up (and, until #610, no
+// frame-ancestors; the app has never sent X-Frame-Options, whatever this comment once said). These
 // are cheap headers that only help if they are on every response, so they are set in one place
 // rather than per-controller, and asserted here rather than left to a scan to notice.
 public sealed class SecurityHeadersMiddlewareTests
@@ -132,6 +133,22 @@ public sealed class SecurityHeadersMiddlewareTests
         Assert.Contains("default-src 'self'", csp);
         Assert.Contains("object-src 'none'", csp);
         Assert.Contains("form-action 'self'", csp);
+    }
+
+    // frame-ancestors is the CSP directive that decides which sites may put this service in a
+    // frame; it replaced X-Frame-Options in every current browser. The policy had none, and the
+    // app has never set X-Frame-Options (the comment at the top of this file used to say it
+    // did), so until #610 whether a page could be framed — the clickjacking surface — depended
+    // on whatever sat in front of the app. Asserted as a whole directive rather than a
+    // substring: "frame-ancestors 'self' https://other.example" would pass a Contains.
+    [Fact]
+    public async Task FrameAncestors_AllowsOnlyThisSite()
+    {
+        var context = await Run();
+
+        var directives = context.Response.Headers["Content-Security-Policy"].ToString()
+            .Split(';', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        Assert.Contains("frame-ancestors 'self'", directives);
     }
 
     // A POST made after the sign-in has expired is answered with a 302 to DfE Sign-in. Chrome

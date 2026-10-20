@@ -113,6 +113,26 @@ public sealed class WidgetEditorContractTests
         Assert.Contains("GetBool(\"buttonBelow\") ?? false", b);
     }
 
+    // A clear button is useful with or without instant search, so the option sits outside the
+    // instant-search reveal too. A widget saved before the option existed has none.
+    [Fact]
+    public void Search_EditorOffersAClearButton()
+    {
+        var b = SearchBranch();
+        var checkbox = b.IndexOf("name=\"props[clearButton]\" type=\"checkbox\"", StringComparison.Ordinal);
+        var label = b.IndexOf("Show a clear button in the search box", StringComparison.Ordinal);
+        var hidden = b.IndexOf("<input type=\"hidden\" name=\"props[clearButton]\" value=\"false\" />", StringComparison.Ordinal);
+        var instantFields = b.IndexOf("data-cpb-search-instantfields", StringComparison.Ordinal);
+        var instantFieldsEnd = b.IndexOf("props[noResultsText]", StringComparison.Ordinal);
+
+        Assert.True(checkbox >= 0, "Search editor has no tick box for the clear button.");
+        Assert.True(label > checkbox, "The clear button tick box has no label after it.");
+        Assert.True(hidden > label, "Unticking would post nothing without a hidden false after the label.");
+        Assert.False(checkbox > instantFields && checkbox < instantFieldsEnd,
+            "The clear button tick box must not be hidden behind instant search.");
+        Assert.Contains("GetBool(\"clearButton\") ?? false", b);
+    }
+
     [Fact]
     public void Search_EditorExposesNoResultsCopy()
     {

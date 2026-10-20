@@ -24,7 +24,21 @@ jobs:
     - name: Restore dependencies
       env:
         NUGET_CERT_REVOCATION_MODE: offline
-      run: dotnet restore src/DfE.CheckPerformanceData.slnx
+      # Locked mode: restore only from the committed packages.lock.json files and fail (NU1004)
+      # when a project's packages no longer match them (#613).
+      run: dotnet restore src/DfE.CheckPerformanceData.slnx --locked-mode
+
+    - name: Check every lock file is committed and current
+      # Locked mode refuses a stale lock file but regenerates a missing one with exit 0, so a new
+      # project without a committed packages.lock.json would pass it. Any modified or untracked
+      # lock file after the restore means a lock file is missing from source control (#613).
+      run: |
+        changed=$(git status --porcelain -- ':(glob)**/packages.lock.json')
+        if [ -n "$changed" ]; then
+          echo "::error::packages.lock.json missing or out of date. Run 'dotnet restore src/DfE.CheckPerformanceData.slnx' and commit the lock files:"
+          echo "$changed"
+          exit 1
+        fi
 
     - name: Build
       run: dotnet build src/DfE.CheckPerformanceData.slnx --no-restore --configuration Release

@@ -35,12 +35,20 @@ WORKDIR /src
 # NU3012 "certificate revoked" chain-building errors during restore.
 ENV NUGET_CERT_REVOCATION_MODE=offline
 
-COPY Directory.Packages.props ./
-COPY DfE.CheckPerformanceData.Web/*.csproj ./
-RUN dotnet restore
+# Restore once, in locked mode, from the committed packages.lock.json files (#613). The project
+# files and lock files of the web project and everything it references come first so this layer
+# is cached until a package changes; the restore needs the whole graph, not a flattened copy.
+COPY Directory.Packages.props Directory.Build.props ./
+COPY DfE.CheckPerformanceData.Domain/DfE.CheckPerformanceData.Domain.csproj DfE.CheckPerformanceData.Domain/packages.lock.json DfE.CheckPerformanceData.Domain/
+COPY DfE.CheckPerformanceData.Application/DfE.CheckPerformanceData.Application.csproj DfE.CheckPerformanceData.Application/packages.lock.json DfE.CheckPerformanceData.Application/
+COPY DfE.CheckPerformanceData.Persistence/DfE.CheckPerformanceData.Persistence.csproj DfE.CheckPerformanceData.Persistence/packages.lock.json DfE.CheckPerformanceData.Persistence/
+COPY DfE.CheckPerformanceData.Infrastructure/DfE.CheckPerformanceData.Infrastructure.csproj DfE.CheckPerformanceData.Infrastructure/packages.lock.json DfE.CheckPerformanceData.Infrastructure/
+COPY DfE.CheckPerformanceData.Web/DfE.CheckPerformanceData.Web.csproj DfE.CheckPerformanceData.Web/packages.lock.json DfE.CheckPerformanceData.Web/
+RUN dotnet restore DfE.CheckPerformanceData.Web/DfE.CheckPerformanceData.Web.csproj --locked-mode
 
 COPY . ./
-RUN dotnet publish DfE.CheckPerformanceData.Web/DfE.CheckPerformanceData.Web.csproj -c Release -o /app/publish /p:UseAppHost=false
+# --no-restore: the locked restore above is the only restore this image does.
+RUN dotnet publish DfE.CheckPerformanceData.Web/DfE.CheckPerformanceData.Web.csproj -c Release -o /app/publish /p:UseAppHost=false --no-restore
 
 # Runtime (final) — derives from `base` so the image VS debugs and the image
 # compose/CI builds share one runtime base. EXPOSE is inherited from `base`.
@@ -58,7 +66,7 @@ FROM build AS vscode-debug
 ENV NUGET_CERT_REVOCATION_MODE=offline
 
 RUN dotnet publish DfE.CheckPerformanceData.Web/DfE.CheckPerformanceData.Web.csproj \
-    -c Debug -o /app/publish /p:UseAppHost=false
+    -c Debug -o /app/publish /p:UseAppHost=false --no-restore
 
 # Derives from `base` so it carries the same OS security updates.
 FROM base AS debug-runtime

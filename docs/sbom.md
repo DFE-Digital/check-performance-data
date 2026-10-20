@@ -20,7 +20,9 @@ and it does not contain the test projects' packages (SixLabors.ImageSharp, Playw
 
 ## Where it is
 
-The image tag is the commit sha, and so is the SBOM's name.
+The image tag is the commit sha. The SBOM file is named after the commit whose build first
+attached it: commits with the same `./src` build the same image, and that image is described
+once, so the file on an image can carry an earlier commit's sha than the tag you looked up.
 
 1. **Workflow artifact** on the `Build and Deploy` (or `Build No Cache`) run:
    `sbom-web-<sha>.cdx.json` and `sbom-worker-<sha>.cdx.json`. Kept 90 days.
@@ -34,24 +36,43 @@ The action that does this is `.github/actions/image-sbom`, called after each ima
 
 ## Finding the SBOM for a deployed environment
 
-1. Find the sha the environment runs: the `Build and Deploy` run that deployed it (the run for
-   the merge commit on `main`), or the image tag on the AKS deployment.
+Go by the image **digest** the running pods report, not by the sha tag: the weekly
+`Build No Cache` run rebuilds the web image and moves the sha tag to the new image without
+redeploying anything, so a running environment can be on an earlier digest than its tag.
+
+1. Read the digest from the pods (the namespace and deployment names are
+   `schoolstandards-development` / `schoolstandards-test` / `schoolstandards-production` and
+   `check-performance-data-<environment>` / `check-performance-data-worker-<environment>`, where
+   `<environment>` is `development`, `qa`, `preproduction`, `production` or `pr-<n>`):
+
+   ```sh
+   kubectl -n schoolstandards-production get pods -l app=check-performance-data-production \
+     -o jsonpath='{.items[*].status.containerStatuses[*].imageID}'
+   ```
+
+   Each value is `ghcr.io/dfe-digital/check-performance-data@sha256:<digest>`.
+
 2. List and fetch the SBOM with [ORAS](https://oras.land) (the packages are public; no login):
 
    ```sh
-   oras discover ghcr.io/dfe-digital/check-performance-data:<sha>
+   oras discover ghcr.io/dfe-digital/check-performance-data@sha256:<digest from step 1>
    oras pull ghcr.io/dfe-digital/check-performance-data@sha256:<digest the discover output lists>
    ```
 
-   The pull writes `sbom-web-<sha>.cdx.json` into the current directory. The worker image is
-   `ghcr.io/dfe-digital/check-performance-data-worker:<sha>`.
+   The pull writes the SBOM (`sbom-web-<sha of the commit that first built this image>.cdx.json`)
+   into the current directory. The worker image is
+   `ghcr.io/dfe-digital/check-performance-data-worker`.
 
    Without ORAS installed, run it from its image (Linux/macOS; on Windows Git Bash prefix the
    command with `MSYS_NO_PATHCONV=1`):
 
    ```sh
-   docker run --rm -v "$PWD:/work" -w /work ghcr.io/oras-project/oras:v1.3.5 discover ghcr.io/dfe-digital/check-performance-data:<sha>
+   docker run --rm -v "$PWD:/work" -w /work ghcr.io/oras-project/oras:v1.3.5 discover ghcr.io/dfe-digital/check-performance-data@sha256:<digest>
    ```
+
+   To look at the image a tag points to *now* (for example the `Build and Deploy` run of a merge
+   commit), use `ghcr.io/dfe-digital/check-performance-data:<sha>` in place of the `@sha256:`
+   reference; ORAS resolves the digest itself.
 
 ## Checking an advisory against it
 
@@ -67,6 +88,7 @@ Or scan the whole SBOM for known vulnerabilities with [grype](https://github.com
 grype sbom:./sbom-web-<sha>.cdx.json
 ```
 
-The weekly `Build No Cache` run rebuilds the web image under the same sha tag with current
-Ubuntu packages and attaches a new SBOM to the new image; `oras discover` by tag always shows
-the SBOM of the image the tag points at now.
+The weekly `Build No Cache` run rebuilds the web image with current Ubuntu packages, pushes it
+under the same sha tag and attaches a new SBOM to the new image; the earlier image keeps its own.
+Running pods stay on the digest they started with until the next deployment, which is why the
+steps above start from the pod's digest rather than the tag.

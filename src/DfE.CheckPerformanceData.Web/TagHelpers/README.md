@@ -2,6 +2,21 @@
 
 Custom Razor TagHelpers used by the Check Performance Data Web project.
 
+## script (nonce)
+
+Stamps the response's Content-Security-Policy nonce onto every `<script>` element (#611).
+`SecurityHeadersMiddleware` mints one nonce per request and publishes it in `script-src`; this
+helper copies it from `HttpContext.Items[CspNonce.ItemKey]` onto all scripts - inline and `src`
+alike, including `asp-append-version` scripts, because it runs last (`Order = int.MaxValue`).
+
+It is registered globally through `Views/_ViewImports.cshtml`
+(`@addTagHelper *, DfE.CheckPerformanceData.Web`), so no view does anything. In particular:
+
+- **Do not** write a `nonce` attribute by hand. Central stamping is what keeps every inline script
+  authorised and is pinned by `CspNonceTagHelperTests` and the source sweep.
+- The helper is fail-closed: with no nonce on the request it leaves the element alone rather than
+  throwing, and the browser blocks the unauthorised script.
+
 ## govuk-confirm-modal
 
 Renders a focus-trapped, GOV.UK Design System-styled confirmation dialog wrapping a real form.

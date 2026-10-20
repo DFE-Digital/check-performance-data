@@ -14,11 +14,16 @@ namespace DfE.CheckPerformanceData.Web.Middleware;
 /// every response, so they belong in one middleware rather than spread across controllers where a
 /// new endpoint silently misses them.
 ///
-/// The content-security policy moved here unchanged. Its <c>'unsafe-inline'</c> and
-/// <c>'unsafe-eval'</c> in <c>script-src</c> are a known weakness, but removing them means
-/// threading a per-request nonce through every inline script and style, including those the
-/// frontend toolkit and the analytics tags emit. That is a change with real regression risk and
-/// deserves its own testing rather than riding along with a header sweep.
+/// The content-security policy lives here. Its <c>script-src</c> now carries a fresh per-request
+/// nonce and neither <c>'unsafe-inline'</c> nor <c>'unsafe-eval'</c> (#611). The nonce is minted
+/// here - before MVC renders - and published in the header; the <see cref="TagHelpers.CspNonceTagHelper"/>
+/// copies it onto every script the service emits. The existing host allow-list is kept as the
+/// fallback for file loads; <c>'strict-dynamic'</c> is deliberately not used, so a script the
+/// stamping helper did not see still loads from <c>'self'</c> rather than being blocked.
+///
+/// <c>Csp:ReportOnly</c> (default false) emits <c>Content-Security-Policy-Report-Only</c> outside
+/// Production so a review app can observe violations before enforcement. It is ignored in
+/// Production, so a bad environment variable cannot leave a deployed site unenforced.
 ///
 /// It also hides every non-production environment from search engines (#444). The QA site was
 /// ranking in the top Google results for the service: the anonymous pages are crawlable on any
@@ -37,19 +42,22 @@ public sealed class SecurityHeadersMiddleware(
     private const string MetadataAddressKey =
         $"{DfeSigninSettings.SectionName}:{nameof(DfeSigninSettings.MetadataAddress)}";
 
-    private readonly string _contentSecurityPolicy =
-        ContentSecurityPolicyBase + FormAction(configuration[MetadataAddressKey]);
+    // The rehearsal switch. Read as a string and parsed so the middleware needs no configuration
+    // binder; a value that will not parse is treated as false (enforcing), the safe direction.
+    private bool ReportOnly =>
+        bool.TryParse(configuration["Csp:ReportOnly"], out var enabled) && enabled;
 
-    private const string ContentSecurityPolicyBase =
+    private string BuildContentSecurityPolicy(string nonce) =>
         "default-src 'self'; " +
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://*.clarity.ms; " +
+        $"script-src 'self' 'nonce-{nonce}' https://*.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://*.clarity.ms; " +
         "style-src 'self' 'unsafe-inline' https://*.googletagmanager.com https://fonts.googleapis.com; " +
         "img-src 'self' data: blob: https://*.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://*.clarity.ms https://fonts.gstatic.com; " +
         "font-src 'self' data: https://fonts.gstatic.com; " +
         "connect-src 'self' https://*.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://*.clarity.ms; " +
         "frame-src 'self' https://*.googletagmanager.com; " +
         "object-src 'none'; " +
-        "base-uri 'self'; ";
+        "base-uri 'self'; " +
+        FormAction(configuration[MetadataAddressKey]);
 
     // form-action also governs every redirect a form submission follows, not only the form's own
     // URL. A POST made after the sign-in has expired is answered with a 302 to DfE Sign-in; with
@@ -78,10 +86,18 @@ public sealed class SecurityHeadersMiddleware(
             return;
         }
 
+        // Minted before MVC renders so the views can read it back, and published in the header the
+        // TagHelper's attributes must match.
+        var nonce = CspNonce.Create();
+        context.Items[CspNonce.ItemKey] = nonce;
+
         // Assignment rather than Append: appending to a header something upstream already set
         // produces two of it, and a browser given two conflicting security headers is entitled to
         // pick the one we did not want.
-        Set(context, "Content-Security-Policy", _contentSecurityPolicy);
+        var cspHeader = ReportOnly && !environment.IsProduction()
+            ? "Content-Security-Policy-Report-Only"
+            : "Content-Security-Policy";
+        Set(context, cspHeader, BuildContentSecurityPolicy(nonce));
         Set(context, "X-Content-Type-Options", "nosniff");
         Set(context, "Referrer-Policy", "strict-origin-when-cross-origin");
         Set(context, "Permissions-Policy", PermissionsPolicy);

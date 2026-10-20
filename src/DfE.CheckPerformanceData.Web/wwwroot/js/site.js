@@ -228,3 +228,31 @@
         }
     });
 })();
+
+// #611: the CSP no longer allows 'unsafe-inline', so inline event handlers no longer run. These
+// two delegated listeners replace the attribute handlers that were lifted out of the views. They
+// live in their own IIFE at the end of the file so they run on every page, including those with
+// no tree view (the IIFE above early-returns without a .tv-root).
+(function () {
+    'use strict';
+
+    // Replaces `onchange="this.form.submit()"` (the exercise dataset selector).
+    document.addEventListener('change', function (e) {
+        var el = e.target.closest('[data-auto-submit]');
+        if (!el || !el.form) return;
+        el.form.submit();
+    });
+
+    // Replaces `onsubmit="return confirm(...)"` / `onclick="return confirm(...)"` (delete actions).
+    // Capture phase so the cancellation still happens if a later bubble-phase handler stops the
+    // event. data-confirm-message carries the wording, so no message is hard-coded here.
+    document.addEventListener('submit', function (e) {
+        var form = e.target;
+        if (!(form instanceof HTMLFormElement)) return;
+        var message = form.getAttribute('data-confirm-message');
+        if (!message) return;
+        if (!window.confirm(message)) {
+            e.preventDefault();
+        }
+    }, true);
+})();

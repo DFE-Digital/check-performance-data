@@ -2,7 +2,7 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Web.PageTree;
 
 // Static Razor-source assertions for the editor UI-polish pass:
 // - _ActionIcon.cshtml partial exists and contains an SVG
-// - _EditColumn.cshtml uses _ActionIcon, icon buttons, onsubmit confirm, region-first order, toolbar delete class
+// - _EditColumn.cshtml uses _ActionIcon, icon buttons, a data-confirm-message delete, region-first order, toolbar delete class
 // - _EditWidget.cshtml edit summary references _ActionIcon with "edit"
 // - Edit.cshtml style block contains the .cpb-region #f3f2f1 rule
 // - _VersionHistoryList.cshtml contains "Modified by" and "UpdatedBy"
@@ -71,11 +71,15 @@ public sealed class EditorRefinementsViewSourceTests
         Assert.Contains("arrow_downward", src);
     }
 
+    // #611: the confirmation is still required, but the strict CSP forbids the inline onsubmit
+    // handler that used to carry it. The wording now travels in data-confirm-message, which the
+    // delegated submit listener in site.js acts on.
     [Fact]
-    public void EditColumn_DeleteForm_HasOnsubmitConfirm()
+    public void EditColumn_DeleteForm_HasDataConfirmMessage()
     {
         var src = ReadSharedContentPages("_EditColumn.cshtml");
-        Assert.Contains("onsubmit=\"return confirm(", src);
+        Assert.Contains("data-confirm-message=\"Delete this content?\"", src);
+        Assert.DoesNotContain("onsubmit=", src);
     }
 
     [Fact]

@@ -16,6 +16,20 @@ public abstract class SeedingPageTest(PlaywrightFixture fixture) : PageTest, IAs
 {
     protected PlaywrightFixture Fixture { get; } = fixture;
 
+    // #611: the strict CSP means an unstamped inline script is blocked silently - the page still
+    // renders, it just loses a behaviour. This records every policy violation on the current
+    // document so DisposeAsync can fail a test that would otherwise pass. It is registered as an
+    // init script, so it runs before any page script and catches violations during load.
+    private const string CspViolationRecorder =
+        "(() => {" +
+        "  window.__cspViolations = [];" +
+        "  document.addEventListener('securitypolicyviolation', (e) => {" +
+        "    window.__cspViolations.push(" +
+        "      (e.violatedDirective || '') + ' ' + (e.blockedURI || '') + ' ' +" +
+        "      (e.sourceFile || '') + ':' + (e.lineNumber || 0));" +
+        "  });" +
+        "})();";
+
     // When CPD_E2E_TRACES_DIR is set, a Playwright trace of the failing test is written
     // there (one {ClassName}.{ordinal}.zip per failed test; passing tests stop tracing
     // without a path and discard). Drives CI's e2e-traces artifact — see E2E-Robustness.
@@ -65,11 +79,37 @@ public abstract class SeedingPageTest(PlaywrightFixture fixture) : PageTest, IAs
             }
         }
 
+        await Context.AddInitScriptAsync(CspViolationRecorder);
+
         await SeedAsync();
     }
 
     public new virtual async Task DisposeAsync()
     {
+        // Report CSP violations only when the test itself passed: on an ordinary failure the
+        // violation is rarely the cause and would hide the real assertion. Best-effort, like the
+        // tracing above - a recorder that could not be read must not turn a green test red.
+        if (TestOk)
+        {
+            try
+            {
+                var violations = await Page.EvaluateAsync<string[]>(
+                    "() => window.__cspViolations || []");
+
+                if (violations.Length > 0)
+                {
+                    throw new InvalidOperationException(
+                        $"[e2e] {GetType().Name}: {violations.Length} CSP violation(s): " +
+                        string.Join(" | ", violations));
+                }
+            }
+            catch (Exception ex) when (ex is PlaywrightException or ObjectDisposedException)
+            {
+                System.Console.WriteLine(
+                    $"[e2e] {GetType().Name}: could not read CSP violations ({ex.GetType().Name})");
+            }
+        }
+
         // Stop tracing BEFORE base.DisposeAsync: on success the base disposes the
         // BrowserContext (so StopAsync would find nothing to read), and on failure the
         // test's trace is the whole point. TestOk distinguishes the two — the inherited

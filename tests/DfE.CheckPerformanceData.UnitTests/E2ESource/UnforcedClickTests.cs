@@ -22,10 +22,8 @@ public sealed partial class UnforcedClickTests
         Assert.NotEmpty(files);
 
         var forced = files
-            .SelectMany(file => File.ReadLines(file)
-                .Select((line, index) => (line, number: index + 1))
-                .Where(x => ForcedOption().IsMatch(x.line))
-                .Select(x => $"{Path.GetRelativePath(folder, file)}:{x.number}"))
+            .SelectMany(file => ForcedLines(File.ReadAllText(file))
+                .Select(line => $"{Path.GetRelativePath(folder, file)}:{line}"))
             .ToList();
 
         Assert.Empty(forced);
@@ -35,14 +33,32 @@ public sealed partial class UnforcedClickTests
     [InlineData("await radio.CheckAsync(new() { Force = true });")]
     [InlineData("await radio.CheckAsync(new() { Force=true });")]
     [InlineData("await button.ClickAsync(new LocatorClickOptions { Force  =  true });")]
-    public void The_guard_finds_a_forced_click_however_it_is_spaced(string line) =>
-        Assert.Matches(ForcedOption(), line);
+    [InlineData("await radio.CheckAsync(new()\n{\n    Force =\n        true\n});")]
+    public void The_guard_finds_a_forced_click_however_it_is_spaced(string code) =>
+        Assert.NotEmpty(ForcedLines(code));
 
     [Theory]
     [InlineData("await radio.CheckAsync(new() { Force = false });")]
-    [InlineData("var reinforce = true;")]
-    public void The_guard_leaves_other_code_alone(string line) =>
-        Assert.DoesNotMatch(ForcedOption(), line);
+    [InlineData("var reForce = true;")]
+    [InlineData("var options = new { Force = trueish };")]
+    public void The_guard_leaves_other_code_alone(string code) =>
+        Assert.Empty(ForcedLines(code));
+
+    // The line reported is the one the option starts on, so a failure points at the right place.
+    [Fact]
+    public void The_guard_reports_the_line_the_option_starts_on()
+    {
+        const string code = "// first line\nawait radio.CheckAsync(new()\n{\n    Force =\n        true\n});";
+
+        Assert.Equal([4], ForcedLines(code));
+    }
+
+    // Line numbers of every forced option in a file's text. The whole text is matched, not one line
+    // at a time, so an option wrapped over several lines is still found. A comment that mentions
+    // the option is reported too, which is the safe side for a guard.
+    private static IEnumerable<int> ForcedLines(string text) =>
+        ForcedOption().Matches(text)
+            .Select(match => text.AsSpan(0, match.Index).Count('\n') + 1);
 
     private static bool IsBuildOutput(string relativePath)
     {

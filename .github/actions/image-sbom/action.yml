@@ -64,9 +64,10 @@ runs:
         # tags. `oras discover <image>` reads the index.
         echo "$GITHUB_TOKEN" | oras login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
         digest=$(oras resolve "$IMAGE")
-        # Identical sources build an identical image: a docs-only pull request, a re-run and the
-        # merge build all resolve to the digest main already deployed. The SBOM describes the
-        # digest, so it is attached once; a second attach would rewrite the referrers index.
+        # The SBOM describes a digest, so it is attached once per digest; a second attach would
+        # rewrite the referrers index. When the layer cache is hit, a docs-only pull request, a
+        # re-run and the merge build resolve to a digest an earlier build already described;
+        # otherwise the image gets a new digest and its own SBOM.
         existing=$(oras discover "$IMAGE" --artifact-type application/vnd.cyclonedx+json --format json | jq '.referrers | length')
         if [ "$existing" -gt 0 ]; then
           echo "$IMAGE ($digest) already has an SBOM attached; not attaching another."

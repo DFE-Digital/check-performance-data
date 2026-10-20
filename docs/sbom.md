@@ -20,9 +20,10 @@ and it does not contain the test projects' packages (SixLabors.ImageSharp, Playw
 
 ## Where it is
 
-The image tag is the commit sha. The SBOM file is named after the commit whose build first
-attached it: commits with the same `./src` build the same image, and that image is described
-once, so the file on an image can carry an earlier commit's sha than the tag you looked up.
+The image tag is the commit sha. Each image digest has one SBOM, named after the commit whose
+build first attached it. When the layer cache is hit, commits with the same `./src` build the
+same image, so the file on an image can carry an earlier commit's sha than the tag you looked
+up; otherwise the image gets a new digest and its own SBOM.
 
 1. **Workflow artifact** on the `Build and Deploy` (or `Build No Cache`) run:
    `sbom-web-<sha>.cdx.json` and `sbom-worker-<sha>.cdx.json`. Kept 90 days.
@@ -59,7 +60,7 @@ redeploying anything, so a running environment can be on an earlier digest than 
    oras pull ghcr.io/dfe-digital/check-performance-data@sha256:<digest the discover output lists>
    ```
 
-   The pull writes the SBOM (`sbom-web-<sha of the commit that first built this image>.cdx.json`)
+   The pull writes the SBOM (`sbom-web-<sha of the commit whose build attached it>.cdx.json`)
    into the current directory. The worker image is
    `ghcr.io/dfe-digital/check-performance-data-worker`.
 

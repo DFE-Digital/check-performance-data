@@ -1,0 +1,6 @@
+# The build context for both application images is this folder, and Docker reads .dockerignore
+# from the context root only - the one at the repository root never applied here. Host build
+# output must not reach the image: the build stage restores and builds on Linux and publishes
+# with --no-restore, so a developer's obj/ (Windows paths) would be built from instead (#613).
+**/bin/
+**/obj/

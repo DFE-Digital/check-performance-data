@@ -1,0 +1,13 @@
+<Project>
+  <PropertyGroup>
+    <!-- Every project writes packages.lock.json beside its .csproj and restores from it, so the
+         whole dependency graph - transitive packages too - is the one in source control (#613).
+         Locally a restore updates the lock file when a package changes; commit it with the change. -->
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <!-- GitHub Actions sets CI=true. Under it a restore may only read the lock file, never rewrite
+         it, so the implicit restore in `dotnet build` and `dotnet test` fails on a stale lock with
+         NU1004 instead of quietly re-resolving. build.yml and the Dockerfiles also restore in
+         locked mode explicitly; the Dockerfiles have no CI variable. -->
+    <RestoreLockedMode Condition="'$(CI)' == 'true'">true</RestoreLockedMode>
+  </PropertyGroup>
+</Project>

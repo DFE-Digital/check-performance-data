@@ -30,7 +30,7 @@ runs:
         echo "file=sbom-${NAME}-${tag}.cdx.json" >> "$GITHUB_OUTPUT"
 
     - name: Generate the SBOM
-      uses: anchore/sbom-action@v0
+      uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
       with:
         # Read from the runner's Docker daemon, where build-docker-image loaded the image
         # under this same tag; syft would pull the (public) tag from GHCR if it were missing.
@@ -43,7 +43,7 @@ runs:
         dependency-snapshot: false
 
     - name: Set up ORAS
-      uses: oras-project/setup-oras@v2
+      uses: oras-project/setup-oras@005458ad77f1c8facd38a094e4af2e69e5607ff4 # v2.0.2
       with:
         # A version the attach and discover behaviour on GHCR was checked with. 1.3.5 was too,
         # but setup-oras@v2 does not offer it yet.

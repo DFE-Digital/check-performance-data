@@ -1,3 +1,5 @@
+# Each base image is pinned by digest, which Dependabot keeps current (docs/dependabot.md#pins).
+
 # Test-runner image: bundles Linux Chromium (from playwright/dotnet) +
 # .NET 10 SDK (side-installed because the upstream playwright/dotnet image
 # ships .NET 8 SDK only as of v1.62.0).
@@ -5,7 +7,7 @@
 # Base image tag MUST track Microsoft.Playwright NuGet version in
 # tests/DfE.CheckPerformanceData.E2ETests/DfE.CheckPerformanceData.E2ETests.csproj
 # (the tests/ projects are not centrally managed). Chromium binary protocol mismatch otherwise.
-FROM mcr.microsoft.com/playwright/dotnet:v1.63.0-noble
+FROM mcr.microsoft.com/playwright/dotnet:v1.63.0-noble@sha256:aa3eaf29a65df8c93fc32ab20cf9359f4d8ecc53e6e89f79378647ace87b46b3
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG DOTNET_CHANNEL=10.0

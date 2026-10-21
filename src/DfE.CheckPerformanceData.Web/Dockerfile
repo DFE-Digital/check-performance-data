@@ -1,3 +1,5 @@
+# Each base image is pinned by digest, which Dependabot keeps current (docs/dependabot.md#pins).
+
 # Base runtime stage — targeted by Visual Studio Container Tools for fast-mode
 # debugging. Keep the FROM image and EXPOSE in sync with the compose `web`
 # service (HTTP on 8080).
@@ -7,7 +9,7 @@
 # docker-compose.vscode.yml override builds `debug-runtime`. Keep it that way:
 # the debug stage ships a debugger and download tooling that must not reach a
 # deployed environment.
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
+FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:d5633778c754e89a386882eddf8dbee6942447a8a4b8267c19cf1e1158d0b0ac AS base
 # Apply Ubuntu security updates on top of the base image. Microsoft rebuilds
 # the aspnet image on its own cadence, so between rebuilds it can ship packages
 # with published fixes outstanding (e.g. libssl3t64 3.0.13-0ubuntu3.15 against
@@ -26,7 +28,7 @@ EXPOSE 8080
 USER $APP_UID
 
 # Build
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0@sha256:0d99ebf1ccad15037b5c98c9fe8979d6b8dbac23812feae2277a0b277b5c5ffa AS build
 ENV NUGET_CERT_REVOCATION_MODE=offline
 WORKDIR /src
 

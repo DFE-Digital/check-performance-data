@@ -72,6 +72,12 @@
         CSV files as a ZIP file</a>
 </p>
 
+@if (Model.OffersEnquiryOnly || Model.AvailableNextSteps.Count > 0)
+{
+    @* Decorative: the legend below carries the structure, so the rule is hidden from assistive tech. *@
+    <hr class="govuk-section-break govuk-section-break--m govuk-section-break--visible" aria-hidden="true">
+}
+
 @* #317: the form offers whatever the open exercises offer. Nothing open means no form at all —
    the tables, the search and the downloads are untouched, because a closed exercise removes
    actions, never content. #641: the options sit above the tables, so a school sees what it can do
@@ -79,7 +85,7 @@
    the designed Yes/No question instead of showing a one-item form. *@
 @if (Model.OffersEnquiryOnly)
 {
-    <form method="post" action="@Url.Action("NextStep", "CheckYourPupilData", new { windowId = Model.WindowId })">
+    <form method="post" action="@Url.Action("NextStep", "CheckYourPupilData", new { windowId = Model.WindowId })" class="govuk-!-margin-bottom-8">
         @Html.AntiForgeryToken()
         <govuk-radios for="SelectedNextStep">
             <govuk-radios-fieldset>
@@ -109,7 +115,7 @@ else if (Model.AvailableNextSteps.Count == 1)
        above); kept for a future exercise type that offers exactly one. *@
     var only = Model.AvailableNextSteps[0];
 
-    <form method="post" action="@Url.Action("NextStep", "CheckYourPupilData", new { windowId = Model.WindowId })">
+    <form method="post" action="@Url.Action("NextStep", "CheckYourPupilData", new { windowId = Model.WindowId })" class="govuk-!-margin-bottom-8">
         @Html.AntiForgeryToken()
         <input type="hidden" name="@nameof(Model.SelectedNextStep)" value="@only"/>
         <govuk-button type="submit">@NextStepLabels.For(only, Model.LearnerNoun)</govuk-button>
@@ -117,7 +123,7 @@ else if (Model.AvailableNextSteps.Count == 1)
 }
 else if (Model.AvailableNextSteps.Count > 1)
 {
-    <form method="post" action="@Url.Action("NextStep", "CheckYourPupilData", new { windowId = Model.WindowId })">
+    <form method="post" action="@Url.Action("NextStep", "CheckYourPupilData", new { windowId = Model.WindowId })" class="govuk-!-margin-bottom-8">
         @Html.AntiForgeryToken()
         <govuk-radios for="SelectedNextStep">
             <govuk-radios-fieldset>

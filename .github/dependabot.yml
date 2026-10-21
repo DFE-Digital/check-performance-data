@@ -1,0 +1,92 @@
+# Version updates for NuGet, Docker and GitHub Actions (#616). Security alerts and security updates
+# are repository settings, not part of this file. See docs/dependabot.md.
+version: 2
+
+updates:
+  - package-ecosystem: nuget
+    # The solution lists every project, the test projects under /tests included. Dependabot updates
+    # their packages.lock.json files too, so the locked restore in build.yml still passes.
+    directory: /src
+    schedule:
+      interval: weekly
+      day: monday
+      time: "07:00"
+      timezone: Europe/London
+    # A new release waits a week before it is proposed, so a compromised or broken version has
+    # time to be found and pulled. Security updates do not wait.
+    cooldown:
+      default-days: 7
+    groups:
+      # The playwright/dotnet image in the E2E Dockerfile must carry the same version, which
+      # build.yml checks. The pull request fails until the FROM line is changed to match, so it
+      # comes on its own rather than holding up the other updates.
+      playwright:
+        patterns:
+          - "Microsoft.Playwright*"
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # These move with the .NET version, which is an upgrade of its own, not a package update.
+      - dependency-name: "Microsoft.AspNetCore.*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "Microsoft.EntityFrameworkCore*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "Microsoft.Extensions.*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "System.Security.Cryptography.Xml"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "Npgsql*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "Serilog.AspNetCore"
+        update-types: ["version-update:semver-major"]
+      # Version 4 fails the build unless a paid Six Labors licence key is supplied.
+      - dependency-name: "SixLabors.ImageSharp"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: docker
+    directories:
+      - /src/DfE.CheckPerformanceData.Web
+      - /src/DfE.CheckPerformanceData.RulesEngineWorker
+      - /tests/DfE.CheckPerformanceData.E2ETests
+      - /maintenance_page
+    schedule:
+      interval: weekly
+      day: monday
+      time: "07:00"
+      timezone: Europe/London
+    cooldown:
+      default-days: 7
+    groups:
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # The .NET images use the 10.0 tag, so every build already gets the latest patch.
+      # Version 11 is a .NET upgrade.
+      - dependency-name: "*dotnet/aspnet"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "*dotnet/sdk"
+        update-types: ["version-update:semver-major"]
+      # This tag follows the Microsoft.Playwright NuGet package (see the playwright group above).
+      - dependency-name: "*playwright/dotnet"
+
+  - package-ecosystem: github-actions
+    # / is the workflows in .github/workflows. Each composite action is listed by its own directory.
+    directories:
+      - /
+      - /.github/actions/image-sbom
+    schedule:
+      interval: weekly
+      day: monday
+      time: "07:00"
+      timezone: Europe/London
+    cooldown:
+      default-days: 7
+    groups:
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch

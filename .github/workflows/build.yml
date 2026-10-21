@@ -21,6 +21,11 @@ jobs:
       with:
         dotnet-version: '10.0.x'
 
+    - name: Check the Playwright package and image versions match
+      # Dependabot raises the Microsoft.Playwright package on its own. This fails its pull request
+      # until the playwright/dotnet image in the E2E Dockerfile is raised to the same version (#616).
+      run: bash scripts/check-playwright-pin.sh
+
     - name: Restore dependencies
       env:
         NUGET_CERT_REVOCATION_MODE: offline

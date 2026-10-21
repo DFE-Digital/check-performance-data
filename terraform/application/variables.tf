@@ -191,14 +191,6 @@ locals {
     DfeAnalytics__CredentialsJson = module.dfe_analytics[0].google_cloud_credentials
   } : {}
 
-  secret_variables = {
-    AIRBYTE_CONFIGURATION = var.airbyte_enabled ? jsonencode({
-      SOURCE_ID      = module.airbyte[0].airbyte_source_id
-      DESTINATION_ID = module.airbyte[0].airbyte_destination_id
-      CONNECTION_ID  = module.airbyte[0].airbyte_connection_id
-    }) : null
-  }
-
   gcp_keyring       = "cypd-key-ring"
   gcp_key           = "cypd-key"
   gcp_taxonomy_id   = "7450003253557751837"

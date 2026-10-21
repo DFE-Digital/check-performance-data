@@ -5,6 +5,7 @@ using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Web.Admin.Nav;
+using DfE.CheckPerformanceData.Web.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 
@@ -244,6 +245,7 @@ public sealed class EgressController(
     [HttpGet("runs/{id:guid}/download/{outputType}")]
     public async Task<IActionResult> Download(Guid id, EgressOutputType outputType, CancellationToken cancellationToken)
     {
+        Response.NoStore();
         var run = await runs.GetAsync(id, cancellationToken);
         var output = run?.Outputs.FirstOrDefault(o => o.OutputType == outputType);
         if (run is null || output?.FileName is null) return NotFound();

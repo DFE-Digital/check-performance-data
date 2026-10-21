@@ -10,6 +10,7 @@ using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
+using DfE.CheckPerformanceData.Web.Extensions;
 using DfE.CheckPerformanceData.Web.FileStorage;
 using DfE.CheckPerformanceData.Web.Session;
 using Microsoft.AspNetCore.Mvc;
@@ -1268,6 +1269,7 @@ public sealed class JourneyController(
     [Route("/Journey/{windowId}/evidence/{storedFileName}")]
     public async Task<IActionResult> DownloadEvidence(Guid windowId, string storedFileName)
     {
+        Response.NoStore();
         if (!Guid.TryParse(storedFileName, out _)) return NotFound();
 
         var journey = HttpContext.Session.GetRequestState(windowId);

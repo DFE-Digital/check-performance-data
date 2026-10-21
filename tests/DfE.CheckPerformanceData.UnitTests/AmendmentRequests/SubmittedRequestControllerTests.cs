@@ -25,6 +25,7 @@ public class SubmittedRequestControllerTests
     private readonly IAnalyticsService _analytics = Substitute.For<IAnalyticsService>();
     private readonly ICheckYourPupilDataService _checkYourPupilData =
         Substitute.For<ICheckYourPupilDataService>();
+    private readonly DefaultHttpContext _httpContext = new();
     private readonly SubmittedRequestController _sut;
 
     public SubmittedRequestControllerTests()
@@ -43,6 +44,7 @@ public class SubmittedRequestControllerTests
         _sut = new SubmittedRequestController(_service, _requestService, _fileStorage, _analytics,
             _checkYourPupilData)
         {
+            ControllerContext = new ControllerContext { HttpContext = _httpContext },
             TempData = new TempDataDictionary(new DefaultHttpContext(), Substitute.For<ITempDataProvider>())
         };
     }
@@ -128,6 +130,7 @@ public class SubmittedRequestControllerTests
         var result = await _sut.DownloadEvidence(WindowId, Reference, "not-a-guid");
 
         Assert.IsType<NotFoundResult>(result);
+        Assert.Equal("no-store", _httpContext.Response.Headers.CacheControl.ToString());
     }
 
     [Fact]
@@ -147,6 +150,7 @@ public class SubmittedRequestControllerTests
         var result = await _sut.DownloadEvidence(WindowId, Reference, fileId);
 
         Assert.IsType<NotFoundResult>(result);
+        Assert.Equal("no-store", _httpContext.Response.Headers.CacheControl.ToString());
     }
 
     [Fact]
@@ -178,6 +182,7 @@ public class SubmittedRequestControllerTests
         var file = Assert.IsType<FileContentResult>(result);
         Assert.Equal("application/pdf", file.ContentType);
         Assert.Equal("evidence.pdf", file.FileDownloadName);
+        Assert.Equal("no-store", _httpContext.Response.Headers.CacheControl.ToString());
     }
 
     [Fact]

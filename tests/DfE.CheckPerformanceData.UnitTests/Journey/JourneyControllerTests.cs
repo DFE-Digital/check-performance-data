@@ -2163,6 +2163,7 @@ public class JourneyControllerTests
         Assert.Equal(bytes, file.FileContents);
         Assert.Equal("application/pdf", file.ContentType);
         Assert.Equal(originalName, file.FileDownloadName);
+        Assert.Equal("no-store", _httpContext.Response.Headers.CacheControl.ToString());
     }
 
     [Fact]
@@ -2173,6 +2174,7 @@ public class JourneyControllerTests
         var result = await _sut.DownloadEvidence(WindowId, "unknown-file");
 
         Assert.IsType<NotFoundResult>(result);
+        Assert.Equal("no-store", _httpContext.Response.Headers.CacheControl.ToString());
         await _fileStorageService.DidNotReceive().GetAsync(Arg.Any<Guid>(), Arg.Any<string>());
     }
 
@@ -2184,6 +2186,7 @@ public class JourneyControllerTests
         var result = await _sut.DownloadEvidence(WindowId, "any-file");
 
         Assert.IsType<NotFoundResult>(result);
+        Assert.Equal("no-store", _httpContext.Response.Headers.CacheControl.ToString());
     }
 
     // ── Evidence analytics ───────────────────────────────────────────────────
@@ -2798,6 +2801,7 @@ public class JourneyControllerTests
 
         var redirect = Assert.IsType<RedirectToActionResult>(result);
         Assert.Equal("CheckYourPupilData", redirect.ControllerName);
+        Assert.Equal("no-store", _httpContext.Response.Headers.CacheControl.ToString());
     }
 
     [Fact]

@@ -5,6 +5,7 @@ using Azure.Storage.Blobs.Specialized;
 using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
+using DfE.CheckPerformanceData.Web.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using System.Text.RegularExpressions;
@@ -205,6 +206,7 @@ public sealed class StorageAdminController(
     [HttpGet("admin/storage/{account}/{containerName}/download")]
     public async Task<IActionResult> Download(string account, string containerName, [FromQuery] string blob)
     {
+        Response.NoStore();
         if (IsProtected(containerName)) return NotFound();
         if (!StorageBlobNames.IsValidBlobName(blob)) return NotFound();
 

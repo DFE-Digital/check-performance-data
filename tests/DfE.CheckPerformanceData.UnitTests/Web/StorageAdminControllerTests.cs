@@ -30,18 +30,23 @@ public sealed class StorageAdminNavEntryTests
 
 public sealed class StorageAdminControllerTests
 {
-    private static StorageAdminController BuildSut(
+    private DefaultHttpContext _httpContext = new();
+
+    private StorageAdminController BuildSut(
         IReadOnlyDictionary<string, BlobServiceClient> accounts,
-        StorageBrowserOptions options) =>
-        new(accounts, Options.Create(options), NullLogger<StorageAdminController>.Instance)
+        StorageBrowserOptions options)
+    {
+        _httpContext = new DefaultHttpContext();
+        return new(accounts, Options.Create(options), NullLogger<StorageAdminController>.Instance)
         {
             ControllerContext = new ControllerContext
             {
-                HttpContext = new DefaultHttpContext()
+                HttpContext = _httpContext
             }
         };
+    }
 
-    private static StorageAdminController BuildSut(
+    private StorageAdminController BuildSut(
         IReadOnlyDictionary<string, BlobServiceClient> accounts,
         params string[] protectedContainers) =>
         BuildSut(accounts, new StorageBrowserOptions
@@ -51,7 +56,7 @@ public sealed class StorageAdminControllerTests
                 : new StorageBrowserOptions().ProtectedContainers
         });
 
-    private static StorageAdminController BuildSut(string account, BlobServiceClient client) =>
+    private StorageAdminController BuildSut(string account, BlobServiceClient client) =>
         BuildSut(new Dictionary<string, BlobServiceClient> { [account] = client });
 
     [Fact]
@@ -125,14 +130,19 @@ public sealed class StorageAdminProtectedContainerTests
 {
     private const string Keyring = "data-protection-keys";
 
-    private static StorageAdminController BuildSut(
-        IReadOnlyDictionary<string, BlobServiceClient> accounts, StorageBrowserOptions options) =>
-        new(accounts, Options.Create(options), NullLogger<StorageAdminController>.Instance)
-        {
-            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
-        };
+    private DefaultHttpContext _httpContext = new();
 
-    private static StorageAdminController BuildSut(
+    private StorageAdminController BuildSut(
+        IReadOnlyDictionary<string, BlobServiceClient> accounts, StorageBrowserOptions options)
+    {
+        _httpContext = new DefaultHttpContext();
+        return new(accounts, Options.Create(options), NullLogger<StorageAdminController>.Instance)
+        {
+            ControllerContext = new ControllerContext { HttpContext = _httpContext }
+        };
+    }
+
+    private StorageAdminController BuildSut(
         BlobServiceClient client, params string[] protectedContainers) =>
         BuildSut(new Dictionary<string, BlobServiceClient> { ["app"] = client },
             new StorageBrowserOptions
@@ -205,6 +215,8 @@ public sealed class StorageAdminProtectedContainerTests
 
         Assert.IsType<NotFoundResult>(result);
         service.DidNotReceive().GetBlobContainerClient(Keyring);
+        // #615: a refused download is never cached either.
+        Assert.Equal("no-store", _httpContext.Response.Headers.CacheControl.ToString());
     }
 
     // Deleting the keyring is not a leak but an outage: every issued cookie and antiforgery token
@@ -247,8 +259,50 @@ public sealed class StorageAdminProtectedContainerTests
 
         Assert.IsType<NotFoundResult>(await sut.Preview("app", "my-container", blob));
         Assert.IsType<NotFoundResult>(await sut.Download("app", "my-container", blob));
+        // #615: the download refusal is never cached either.
+        Assert.Equal("no-store", _httpContext.Response.Headers.CacheControl.ToString());
 
         service.DidNotReceiveWithAnyArgs().GetBlobContainerClient(default!);
+    }
+
+    // BlobDownloadStreamingResult is assembled inside the Azure SDK from wire data — internal
+    // constructor and internal setters — so a test can only reach one through reflection. The
+    // controller needs a non-null Details (it reads Details.ContentType) and a readable Content stream.
+    private static Response<BlobDownloadStreamingResult> StreamingDownload(byte[] content, string contentType)
+    {
+        var details = new BlobDownloadDetails();
+        typeof(BlobDownloadDetails).GetProperty(nameof(BlobDownloadDetails.ContentType))!
+            .SetValue(details, contentType);
+
+        var info = (BlobDownloadStreamingResult)Activator.CreateInstance(typeof(BlobDownloadStreamingResult), nonPublic: true)!;
+        typeof(BlobDownloadStreamingResult).GetProperty(nameof(BlobDownloadStreamingResult.Details))!.SetValue(info, details);
+        typeof(BlobDownloadStreamingResult).GetProperty(nameof(BlobDownloadStreamingResult.Content))!
+            .SetValue(info, new MemoryStream(content));
+
+        return Response.FromValue(info, Substitute.For<Response>());
+    }
+
+    // #615: the blob names people; the streamed file must go out with the no-store header.
+    [Fact]
+    public async Task Download_of_an_existing_blob_streams_it_and_never_caches()
+    {
+        var service = Substitute.For<BlobServiceClient>();
+        var container = Substitute.For<BlobContainerClient>();
+        var blob = Substitute.For<BlobClient>();
+        service.GetBlobContainerClient("window-123").Returns(container);
+        container.GetBlobClient("report.csv").Returns(blob);
+        blob.ExistsAsync(Arg.Any<CancellationToken>())
+            .Returns(Response.FromValue(true, Substitute.For<Response>()));
+        blob.DownloadStreamingAsync(Arg.Any<BlobDownloadOptions>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(StreamingDownload([65, 44, 66], "text/csv")));
+
+        var sut = BuildSut(service);
+
+        var file = Assert.IsType<FileStreamResult>(await sut.Download("app", "window-123", "report.csv"));
+
+        Assert.Equal("text/csv", file.ContentType);
+        Assert.Equal("report.csv", file.FileDownloadName);
+        Assert.Equal("no-store", _httpContext.Response.Headers.CacheControl.ToString());
     }
 
     [Theory]

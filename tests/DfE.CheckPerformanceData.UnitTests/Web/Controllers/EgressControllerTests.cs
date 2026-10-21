@@ -23,6 +23,7 @@ public sealed class EgressControllerTests
     private readonly IEgressBlobClient _blobs = Substitute.For<IEgressBlobClient>();
     private readonly IWindowService _windows = Substitute.For<IWindowService>();
     private readonly ICurrentUserService _user = Substitute.For<ICurrentUserService>();
+    private DefaultHttpContext _httpContext = new();
 
     private EgressController Build()
     {
@@ -32,9 +33,10 @@ public sealed class EgressControllerTests
         _blobs.TargetDescription.Returns("cypmd/extracts_input");
         _windows.GetAllDataAsync(Arg.Any<CancellationToken>()).Returns(new PageResult { Windows = [Window()] });
         _runs.ListAsync(Arg.Any<CancellationToken>()).Returns([]);
+        _httpContext = new DefaultHttpContext();
         var controller = new EgressController(_runs, _preprocessor, _transfer, _blobs, _windows, _user)
         {
-            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
+            ControllerContext = new ControllerContext { HttpContext = _httpContext }
         };
         controller.TempData = new TempDataDictionary(controller.HttpContext, Substitute.For<ITempDataProvider>());
         return controller;
@@ -449,6 +451,21 @@ public sealed class EgressControllerTests
 
         Assert.Equal("text/csv; charset=utf-8", file.ContentType);
         Assert.Equal("CYPMD_LDS_KS4_RemoveLearners_2026_06_08.csv", file.FileDownloadName);
+        // #615: the run's file names people; it must not be retained by any cache.
+        Assert.Equal("no-store", _httpContext.Response.Headers.CacheControl.ToString());
+    }
+
+    // #615: the 404 goes out with the same header, so a refused download is never cached either.
+    [Fact]
+    public async Task Download_of_a_run_that_does_not_exist_is_404_and_never_caches()
+    {
+        _runs.GetAsync(RunId, Arg.Any<CancellationToken>()).Returns((EgressRunDto?)null);
+
+        var controller = Build();
+        var result = await controller.Download(RunId, EgressOutputType.RemoveLearners, CancellationToken.None);
+
+        Assert.IsType<NotFoundResult>(result);
+        Assert.Equal("no-store", _httpContext.Response.Headers.CacheControl.ToString());
     }
 
     // S10: rewritten to assert the banner text the outcome actually produces, not merely that the

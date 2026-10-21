@@ -25,12 +25,12 @@ public sealed class CheckYourPupilDataResultsTabTests
 
     private readonly ICheckYourPupilDataService _service = Substitute.For<ICheckYourPupilDataService>();
     private readonly IAnalyticsService _analytics = Substitute.For<IAnalyticsService>();
+    private readonly DefaultHttpContext _httpContext = new();
     private readonly CheckYourPupilDataController _sut;
 
     public CheckYourPupilDataResultsTabTests()
     {
-        var httpContext = new DefaultHttpContext();
-        httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(new FakeSession()));
+        _httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(new FakeSession()));
 
         _service.GetPupilTableAsync(WindowId, Arg.Any<bool>(), Arg.Any<string?>(), Arg.Any<int>(), Arg.Any<int>())
             .Returns((PupilTable.Empty, 0));
@@ -51,7 +51,7 @@ public sealed class CheckYourPupilDataResultsTabTests
             _service, currentUser, _analytics, new NextStepsService(checkingExercises), checkingExercises,
             tabBuilder, new ExerciseDisplayService())
         {
-            ControllerContext = new ControllerContext { HttpContext = httpContext }
+            ControllerContext = new ControllerContext { HttpContext = _httpContext }
         };
     }
 
@@ -124,6 +124,7 @@ public sealed class CheckYourPupilDataResultsTabTests
         Assert.Equal("text/csv", file.ContentType);
         Assert.StartsWith("results-136309-", file.FileDownloadName);
         Assert.Contains("Smith", System.Text.Encoding.UTF8.GetString(file.FileContents));
+        Assert.Equal("no-store", _httpContext.Response.Headers.CacheControl.ToString());
     }
 
     [Fact]
@@ -132,6 +133,7 @@ public sealed class CheckYourPupilDataResultsTabTests
         var redirect = Assert.IsType<RedirectToActionResult>(await _sut.DownloadResults(WindowId));
 
         Assert.Equal("Index", redirect.ActionName);
+        Assert.Equal("no-store", _httpContext.Response.Headers.CacheControl.ToString());
     }
 
     [Fact]
@@ -147,6 +149,7 @@ public sealed class CheckYourPupilDataResultsTabTests
     private async Task<int> ZipEntryCount()
     {
         var file = Assert.IsType<FileContentResult>(await _sut.DownloadAll(WindowId));
+        Assert.Equal("no-store", _httpContext.Response.Headers.CacheControl.ToString());
         using var zip = new ZipArchive(new MemoryStream(file.FileContents));
         return zip.Entries.Count;
     }

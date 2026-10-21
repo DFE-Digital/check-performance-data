@@ -155,7 +155,7 @@ jobs:
           fi
 
       # The review app was built from the pull request merged into main, so test that commit.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: steps.target.outputs.found == 'true'
         with:
           ref: ${{ steps.target.outputs.ref }}

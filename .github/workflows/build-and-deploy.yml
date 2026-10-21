@@ -91,7 +91,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         name: Checkout
 
       - name: Build and push docker image
@@ -168,7 +168,7 @@ jobs:
       CPD_E2E_TRACES_DIR: ${{ github.workspace }}/e2e-traces
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-dotnet@v4
         with:

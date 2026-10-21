@@ -3,6 +3,7 @@
 @using DfE.CheckPerformanceData.Web.Authentication
 @using DfE.CheckPerformanceData.Web.Common
 @using DfE.CheckPerformanceData.Web.Controllers
+@using DfE.CheckPerformanceData.Web.Middleware
 @using DfE.CheckPerformanceData.Web.Session
 @inject Microsoft.Extensions.Hosting.IHostEnvironment HostEnvironment
 @inject Microsoft.Extensions.Configuration.IConfiguration Configuration
@@ -188,10 +189,13 @@
     @RenderSection("Breadcrumbs", required: false)
 }
 
-@Html.GovUkFrontendJsEnabledScript()
+@* The nonce has to be passed by hand here: _GovUkPageTemplate passes it for us only in the
+   default BodyEnd branch, and this layout defines its own BodyEnd. Without the argument the two
+   module imports and the js-enabled snippet were the scripts the browser blocked (#611). *@
+@Html.GovUkFrontendJsEnabledScript(CspNonce.Get(Context))
 @await Html.PartialAsync("_ContactUsBanner")
 @RenderBody()
-@Html.GovUkFrontendScriptImports()
+@Html.GovUkFrontendScriptImports(CspNonce.Get(Context))
 
 @section Footer {
     <footer class="govuk-footer">

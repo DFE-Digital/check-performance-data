@@ -38,7 +38,7 @@ flowchart LR
 | `DfE.CheckPerformanceData.Web` | ASP.NET Core MVC front end | Controllers, Razor views, GOV.UK/DfE frontend, session-backed journeys, admin area. |
 | `DfE.CheckPerformanceData.RulesEngineWorker` | Background worker | Queue consumers (`RulesConsumer`, `ZendeskConsumer`), rules-config self-seeder, DLQ retention job, health endpoints. |
 
-Service registration is by extension methods / `DependencyManager.cs` in each owning layer. Central package versions: `src/Directory.Packages.props` (note: does **not** reach `tests/`).
+Service registration is by extension methods / `DependencyManager.cs` in each owning layer. Central package versions: `src/Directory.Packages.props` (note: does **not** reach `tests/`). Every project has a committed `packages.lock.json` (`RestorePackagesWithLockFile` in `src/Directory.Build.props`, imported by `tests/Directory.Build.props`), and CI and both Docker builds restore in locked mode (#613) — a package change is committed together with the lock files `dotnet restore` rewrites, or `Build` fails with NU1004.
 
 ## 3. Runtime architecture
 
@@ -312,9 +312,9 @@ Producer/consumer split so requests never wait on Notify: `RequestNotificationSe
 
 ## 16. Hosting & deployment
 
-- **Docker**: multi-stage Dockerfiles for Web and Worker (sdk:10.0 → aspnet:10.0, port 8080); both runtime images run as the aspnet image's unprivileged `app` user (uid 1654, `USER $APP_UID`) and the AKS modules enforce `run_as_non_root` (#609); pinned Playwright image for E2E; nginx maintenance page (`maintenance_page/`).
+- **Docker**: multi-stage Dockerfiles for Web and Worker (sdk:10.0 → aspnet:10.0, port 8080); both runtime images run as the aspnet image's unprivileged `app` user (uid 1654, `USER $APP_UID`) and the AKS modules enforce `run_as_non_root` (#609); both build stages restore once with `--locked-mode` from the committed lock files and build/publish `--no-restore`, and `src/.dockerignore` keeps host `bin/`/`obj/` out of the `./src` context (#613); pinned Playwright image for E2E; nginx maintenance page (`maintenance_page/`).
 - **docker-compose**: profiled services — `web`, `rules_engine`, `db` (Postgres 18.1-alpine), `azurite` (+ one-shot `azurite_init` rules seeder), `pgadmin`; `docker-compose.e2e.yml` adds the one-shot `e2e-tests` runner (kept separate so the VS `docker-compose.dcproj` orchestration ignores it). Never add a `docker-compose.override.yml` (breaks `make test-e2e`).
-- **CI/CD** (`.github/workflows/build-and-deploy.yml`): build + push both images to GHCR + Snyk scan → PR review apps (`deploy` label) → E2E (non-visual) against the review app → sequential deploy matrix **development → qa → preproduction → production** on push to `main`, via shared `DFE-Digital/github-actions` actions. Also: DB backup/PTR/restore workflows, maintenance toggle, Terraform validation, review-app teardown.
+- **CI/CD** (`.github/workflows/build-and-deploy.yml`): build + push both images to GHCR + Snyk scan + CycloneDX SBOM per image (workflow artifact and OCI referrer in GHCR; `docs/sbom.md`, #614) → PR review apps (`deploy` label) → E2E (non-visual) against the review app → sequential deploy matrix **development → qa → preproduction → production** on push to `main`, via shared `DFE-Digital/github-actions` actions. Also: DB backup/PTR/restore workflows, maintenance toggle, Terraform validation, review-app teardown.
 - **Terraform** (`terraform/application/`): AKS web app + worker (separate replica counts, exec health probes), Azure Postgres **Flexible Server v17** (note: local compose runs 18.1), two storage accounts (app: `files`, `rules-config`; private LDS ingress account), two Key Vaults, StatusCake, GCP WIF for analytics; `terraform/domains/` for DNS + Front Door. Environments: development, qa, review (per-PR), preproduction, production (`config/*.tfvars.json`).
 
 ## 17. Testing

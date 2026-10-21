@@ -109,6 +109,13 @@ jobs:
           reuse-cache: true
           snyk-token: ${{ secrets.SNYK_TOKEN }}
 
+      - name: SBOM for the web image
+        uses: ./.github/actions/image-sbom
+        with:
+          image: ${{ steps.build-image.outputs.image }}
+          name: web
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build and push worker docker image
         id: build-worker-image
         uses: DFE-Digital/github-actions/build-docker-image@master
@@ -121,6 +128,13 @@ jobs:
           max-cache: true
           reuse-cache: true
           snyk-token: ${{ secrets.SNYK_TOKEN }}
+
+      - name: SBOM for the worker image
+        uses: ./.github/actions/image-sbom
+        with:
+          image: ${{ steps.build-worker-image.outputs.image }}
+          name: worker
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
   e2e:
     name: E2E smoke tests

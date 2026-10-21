@@ -12,6 +12,13 @@
 @if (gtm.Enabled && !string.IsNullOrEmpty(gtm.ContainerId))
 {
     <script>
+        // The strict CSP (#611) allows this script only because CspNonceTagHelper stamped the
+        // request's nonce on it. Capture that nonce now: loadGtm may run much later (from
+        // cookies.js after consent), when document.currentScript is null. GTM copies the nonce
+        // from its own loader script onto the tags it injects, so setting it here is what keeps
+        // those tags permitted without an inline-script allowance.
+        var gtmNonce = document.currentScript ? document.currentScript.nonce : '';
+
         window.dataLayer = window.dataLayer || [];
         function gtag() { dataLayer.push(arguments); }
 
@@ -34,6 +41,7 @@
                 var f = d.getElementsByTagName(s)[0],
                     j = d.createElement(s), dl = l != 'dataLayer' ? '&l=' + l : '';
                 j.async = true;
+                j.nonce = gtmNonce;
                 j.src = 'https://www.googletagmanager.com/gtm.js?id=' + i + dl +
                     '&gtm_auth=@gtm.AuthKey&gtm_preview=@gtm.PreviewId&gtm_cookies_win=x';
                 f.parentNode.insertBefore(j, f);

@@ -2,6 +2,11 @@
 @{
     ViewData["Title"] = "View logs";
     var flash = TempData["AppLogsResult"] as string;
+
+    // The download carries whatever filters are in the address bar. Built once and used by both
+    // the inline link and the button so they can never diverge.
+    var downloadHref = "/admin/system-administration/logs/download" +
+        (Context.Request.QueryString.HasValue ? "?" + Context.Request.QueryString.Value!.TrimStart('?') : "");
 }
 
 <a href="/admin" class="govuk-back-link">Back to administration</a>
@@ -23,7 +28,7 @@
 
 <p class="govuk-body">
     ILogger events written to Postgres by the app's background sink. Use the filters below to
-    narrow the list, then <a href="#" class="govuk-link" onclick="document.getElementById('app-logs-download').click();return false;">download the current filter as CSV</a>
+    narrow the list, then <a href="@downloadHref" class="govuk-link">download the current filter as CSV</a>
     or <a class="govuk-link" data-confirm-trigger="app-logs-clear-modal" href="#">clear the entire table</a>.
 </p>
 
@@ -74,7 +79,7 @@
 </form>
 
 <a role="button" draggable="false" id="app-logs-download" class="govuk-button govuk-button--secondary" data-module="govuk-button"
-   href="/admin/system-administration/logs/download?@(Context.Request.QueryString.HasValue ? Context.Request.QueryString.Value?.TrimStart('?') : "")">
+   href="@downloadHref">
     Download CSV
 </a>
 <button type="button" class="govuk-button govuk-button--warning" data-module="govuk-button"

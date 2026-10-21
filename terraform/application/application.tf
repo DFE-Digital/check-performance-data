@@ -24,7 +24,15 @@ module "application_configuration" {
     AZURE_STORAGE_ACCOUNT_NAME        = local.azure_storage_account_name
     AZURE_STORAGE_ACCESS_KEY          = local.azure_storage_access_key
     AZURE_STORAGE_CONTAINER           = local.azure_storage_container
-  }, local.federated_auth_secrets, local.egress_storage_secrets)
+    },
+    {
+      AIRBYTE_CONFIGURATION = var.airbyte_enabled ? jsonencode({
+        SOURCE_ID      = module.airbyte[0].airbyte_source_id
+        DESTINATION_ID = module.airbyte[0].airbyte_destination_id
+        CONNECTION_ID  = module.airbyte[0].airbyte_connection_id
+      }) : null
+    }
+  , local.federated_auth_secrets, local.egress_storage_secrets)
 }
 
 # AB#294553: the LDS egress needs an account to transfer into (ConnectionStrings__EgressStorage);

@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+set -euo pipefail
+repo=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
+cd "$repo"
+command -v podman >/dev/null || { echo 'FAIL: Podman is required.' >&2; exit 1; }
+# Never inherit host engine endpoints, Compose overrides or dotenv files.
+unset DOCKER_HOST DOCKER_CONTEXT CONTAINER_HOST CONTAINER_CONNECTION COMPOSE_FILE COMPOSE_PROJECT_NAME COMPOSE_PROFILES
+command -v timeout >/dev/null || { echo 'FAIL: GNU timeout (coreutils) is required.' >&2; exit 1; }
+printf 'Checking rootless Podman (20-second timeout)...\n' >&2
+if rootless=$(timeout --kill-after=5s 20s podman info --format '{{.Host.Security.Rootless}}'); then
+  [[ "$rootless" == true ]] || {
+    echo 'FAIL: Run this wrapper with rootless Podman, without sudo.' >&2; exit 1;
+  }
+else
+  status=$?
+  if [[ "$status" == 124 || "$status" == 137 ]]; then
+    echo 'FAIL: podman info timed out before Compose started. Try: timeout 20s podman --log-level=debug info' >&2
+  else
+    printf 'FAIL: podman info exited with status %s before Compose started.\n' "$status" >&2
+  fi
+  exit "$status"
+fi
+project="repo-agent-$(printf '%s' "$repo" | sha256sum | cut -c1-12)"
+export AGENT_NETWORK_NAMESPACE="$project"
+compose() {
+  podman compose --env-file /dev/null --project-name "$project" \
+    --file "$repo/.agents/compose.yaml" "$@"
+}
+build_images() {
+  printf 'Building agent images using %s/.agents/compose.yaml...\n' "$repo" >&2
+  compose build "$@"
+  printf 'Agent image build completed.\n' >&2
+}
+start_proxy() {
+  build_images
+  compose up -d headroom
+  local proxy_id status attempt
+  proxy_id=$(compose ps -q headroom)
+  for ((attempt=0; attempt<180; attempt++)); do
+    status=$(podman inspect --format '{{.State.Health.Status}}' "$proxy_id")
+    [[ "$status" == healthy ]] && return 0
+    [[ "$status" == unhealthy ]] && break
+    sleep 1
+  done
+  echo 'FAIL: Headroom did not become healthy; inspect ./agent logs.' >&2
+  return 1
+}
+usage() {
+  echo 'Usage: ./agent {codex [args...]|shell [command...]|build|up|down|logs|test-isolation}' >&2
+}
+action=${1:-}
+[[ $# -eq 0 ]] || shift
+case "$action" in
+  build) build_images "$@" ;;
+  up) start_proxy; compose up -d codex ;;
+  down) compose down "$@" ;;
+  logs) compose logs "$@" ;;
+  codex)
+    start_proxy
+    compose run --rm --no-deps codex codex "$@"
+    ;;
+  shell)
+    start_proxy
+    if [[ $# -eq 0 ]]; then set -- bash; fi
+    compose run --rm --no-deps codex "$@"
+    ;;
+  test-isolation)
+    start_proxy
+    compose up -d codex
+    command -v python3 >/dev/null || { echo 'FAIL: host Python 3 is required for mount inspection.' >&2; exit 1; }
+    codex_id=$(compose ps -q codex)
+    headroom_id=$(compose ps -q headroom)
+    podman inspect "$codex_id" "$headroom_id" | \
+      python3 "$repo/.agents/tests/mounts.py" "$repo" "$project"
+    compose exec -T \
+      -e "ISOLATION_HOST_HOME=$HOME" \
+      -e "ISOLATION_HOST_REPO=$repo" \
+      -e "ISOLATION_HOST_PARENT=$(dirname -- "$repo")" \
+      codex bash /workspace/.agents/tests/isolation.sh
+    ;;
+  # Add future harness cases here with their own Compose service/state volume.
+  *) usage; exit 2 ;;
+esac

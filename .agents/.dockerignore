@@ -1,0 +1,5 @@
+*
+!Containerfile
+!codex-entrypoint.sh
+!headroom-entrypoint.sh
+!headroom-dashboard.py

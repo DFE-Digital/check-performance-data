@@ -1,0 +1,66 @@
+services:
+  codex:
+    build:
+      context: .
+      dockerfile: Containerfile
+      target: codex
+    image: localhost/repo-agent-codex:0.159.3
+    working_dir: /workspace
+    userns_mode: keep-id:uid=1000,gid=1000
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=1g
+    environment:
+      HOME: /home/node
+      CODEX_HOME: /home/node/.codex
+      AGENT_ISOLATED: "1"
+      AGENT_HEADROOM_HOST: "${AGENT_NETWORK_NAMESPACE:-manual-agents}-headroom"
+    volumes:
+      - ../:/workspace:rw,z
+      - codex-state:/home/node
+      - proxy-auth:/proxy-auth:ro
+    networks: [agent-net]
+    stdin_open: true
+    tty: true
+    command: [sleep, infinity]
+  headroom:
+    build:
+      context: .
+      dockerfile: Containerfile
+      target: headroom
+    image: localhost/repo-agent-headroom:0.39.1
+    userns_mode: keep-id:uid=1000,gid=1000
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=1g
+    environment:
+      HOME: /home/node
+      HEADROOM_TELEMETRY: "off"
+    # Separate numeric-only dashboard; provider API port 8787 is not published.
+    ports:
+      - "127.0.0.1:18787:8788"
+    volumes:
+      - headroom-state:/home/node
+      - proxy-auth:/proxy-auth
+    networks:
+      agent-net:
+        aliases:
+          - "${AGENT_NETWORK_NAMESPACE:-manual-agents}-headroom"
+    healthcheck:
+      test: [CMD, curl, --fail, --silent, http://127.0.0.1:8787/livez]
+      interval: 5s
+      timeout: 3s
+      retries: 60
+      start_period: 30s
+networks:
+  agent-net:
+    name: agent-net
+    driver: bridge
+volumes:
+  codex-state:
+  headroom-state:
+  proxy-auth:

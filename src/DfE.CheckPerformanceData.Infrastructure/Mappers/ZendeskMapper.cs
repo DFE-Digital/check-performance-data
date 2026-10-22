@@ -1,8 +1,6 @@
 ﻿using DfE.CheckPerformanceData.Application.ZendeskClient;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models;
 using Riok.Mapperly.Abstractions;
-using System;
-using System.Collections.Generic;
 
 namespace DfE.CheckPerformanceData.Infrastructure.Mappers
 {

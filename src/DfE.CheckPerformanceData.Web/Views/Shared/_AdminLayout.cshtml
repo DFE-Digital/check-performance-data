@@ -6,6 +6,7 @@
 @using DfE.CheckPerformanceData.Web.Common
 @using DfE.CheckPerformanceData.Web.Controllers
 @using DfE.CheckPerformanceData.Web.Controllers.ViewModels
+@using DfE.CheckPerformanceData.Web.Middleware
 @using DfE.CheckPerformanceData.Application.ContentBlocks
 @using DfE.CheckPerformanceData.Application.Admin
 @inject Microsoft.Extensions.Hosting.IHostEnvironment HostEnvironment
@@ -189,7 +190,9 @@
     </header>
 }
 
-@Html.GovUkFrontendJsEnabledScript()
+@* The nonce has to be passed by hand: this layout defines its own BodyEnd, so the page
+   template's nonce-aware default branch never runs (#611). *@
+@Html.GovUkFrontendJsEnabledScript(CspNonce.Get(Context))
 @* The nav is collapsible on every admin page. AdminWide only chooses whether the shell is
    edge-to-edge (dashboards, grids) or bounded by govuk-width-container (default). *@
 @if (adminWide)
@@ -226,7 +229,7 @@ else
         </div>
     </div>
 }
-@Html.GovUkFrontendScriptImports()
+@Html.GovUkFrontendScriptImports(CspNonce.Get(Context))
 
 @section Footer {
     <footer class="govuk-footer">

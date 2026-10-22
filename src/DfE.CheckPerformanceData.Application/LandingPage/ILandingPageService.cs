@@ -38,7 +38,11 @@ public sealed class CheckingWindowDto
     public required DateTime EndDate { get; init; }
     public required KeyStages KeyStage { get; init; }
     public required CheckingWindowType CheckingWindowType { get; init; }
-    public bool HasPupilData { get; init; }
+    /// <summary>
+    /// The school has a file in at least one live exercise of this window. Set by
+    /// <see cref="LandingPageService"/>, which also hides a window with no live exercise at all.
+    /// </summary>
+    public bool HasPupilData { get; set; }
     public required DateTime StartDate { get; init; }
 
     /// <summary>
@@ -46,7 +50,8 @@ public sealed class CheckingWindowDto
     /// <see cref="ICheckingExerciseService"/> to ask whether a given exercise is open — the outer
     /// StartDate/EndDate above only say whether the window as a whole is running, and a Post16
     /// window runs pupil data checking and results enquiry on different ranges inside it.
-    /// Only the exercise dates are projected here; the landing page has no use for the datasets.
+    /// The landing page also reads each exercise's live state and current release, to decide
+    /// whether the window is shown and whether the school has data in it.
     /// </summary>
     public List<CheckingExerciseDto> Exercises { get; init; } = [];
     public string TurnaroundCommitment { get; init; } = string.Empty;

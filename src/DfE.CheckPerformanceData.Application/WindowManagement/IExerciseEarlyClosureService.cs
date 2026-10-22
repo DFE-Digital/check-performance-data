@@ -1,5 +1,3 @@
-using DfE.CheckPerformanceData.Domain.Enums;
-
 namespace DfE.CheckPerformanceData.Application.WindowManagement;
 
 /// <summary>
@@ -19,11 +17,13 @@ namespace DfE.CheckPerformanceData.Application.WindowManagement;
 public interface IExerciseEarlyClosureService
 {
     /// <summary>
-    /// Runs the pre-close checks (the window runs the exercise; the exercise is open right now)
-    /// and, if they pass, closes it. The caller's permission is the route's concern, not this one's.
+    /// Runs the pre-close checks (the window holds the exercise; it has a kind; it is open right
+    /// now) and, if they pass, closes it. The caller's permission is the route's concern, not this
+    /// one's. The exercise is named by its row id: a window may hold several releases of one kind
+    /// (#466), and closing must move only the one the admin chose.
     /// </summary>
     Task<EarlyClosureResult> CloseEarlyAsync(
-        Guid windowId, CheckingExerciseType exercise, EarlyClosureActor actor, CancellationToken cancellationToken);
+        Guid windowId, Guid exerciseId, EarlyClosureActor actor, CancellationToken cancellationToken);
 }
 
 /// <summary>Who is closing: the sign-in subject for the audit row's UserId, and the name it shows.</summary>
@@ -37,7 +37,8 @@ public enum EarlyClosureStatus
     /// <summary>Not open — not started, already ended, or changed by someone else in the meantime. Nothing was written.</summary>
     NotOpen,
 
-    /// <summary>No such window, or the window does not run that exercise. Nothing was written.</summary>
+    /// <summary>No such window, no such exercise on it, or a data share (no kind, so nothing to
+    /// close). Nothing was written.</summary>
     NotFound
 }
 

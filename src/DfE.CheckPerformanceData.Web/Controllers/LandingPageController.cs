@@ -17,7 +17,8 @@ namespace DfE.CheckPerformanceData.Web.Controllers;
 
 // AB#298317: this controller now asks ICheckingExerciseService about each window's exercises —
 // the card and the closed banner are about pupil data checking and results enquiry separately,
-// and the outer window dates cannot tell them apart.
+// and the outer window dates cannot tell them apart. AB#307773: every answer is for the signed-in
+// school, whose extension may run past the exercise's own end.
 public sealed class LandingPageController(
     ILogger<LandingPageController> logger,
     ILandingPageService landingPageService,
@@ -50,8 +51,9 @@ public sealed class LandingPageController(
             return RedirectToAction("DfeSignOut", "Account");
         }
 
+        var laestab = result.OrganisationLaestab;
         var landingPageViewModel = new LandingPageViewModel(
-            result.OpenWindows.Select(Card).ToList(),
+            result.OpenWindows.Select(w => Card(w, laestab)).ToList(),
             result.OrganisationName,
             result.OrganisationUrn,
             result.OrganisationLaestab,
@@ -59,7 +61,10 @@ public sealed class LandingPageController(
             result.OrganisationAddress,
             result.NoDataWindows.Select(Banner).ToList(),
             result.NotValidWindows.Select(Banner).ToList(),
-            result.OpenWindows.Where(HasClosedPupilData).Select(ClosedBanner).ToList());
+            result.OpenWindows
+                .Where(w => HasClosedPupilData(w, laestab))
+                .Select(w => ClosedBanner(w, laestab))
+                .ToList());
 
         return View(landingPageViewModel);
     }
@@ -68,11 +73,12 @@ public sealed class LandingPageController(
     private static LandingPageBannerViewModel Banner(CheckingWindowDto window) =>
         new() { Title = window.Title, LearnerNoun = LearnerNoun.For(window.CheckingWindowType) };
 
-    private LandingPageWindowViewModel Card(CheckingWindowDto window)
+    private LandingPageWindowViewModel Card(CheckingWindowDto window, string laestab)
     {
+        // An extension has no start of its own, so only the end is the school's.
         var pupilDataStart = checkingExercises.StartDateFor(window.Exercises, CheckingExerciseType.PupilData);
-        var pupilDataEnd = checkingExercises.EndDateFor(window.Exercises, CheckingExerciseType.PupilData);
-        var enquiryEnd = checkingExercises.EndDateFor(window.Exercises, CheckingExerciseType.ResultsEnquiry);
+        var pupilDataEnd = checkingExercises.EndDateFor(window.Exercises, CheckingExerciseType.PupilData, laestab);
+        var enquiryEnd = checkingExercises.EndDateFor(window.Exercises, CheckingExerciseType.ResultsEnquiry, laestab);
 
         // Checking-window dates are UK wall-clock values, formatted as they stand — the formats are
         // the ones this card has always used.
@@ -82,12 +88,12 @@ public sealed class LandingPageController(
             Id = window.Id,
             HasPupilData = window.HasPupilData,
             LearnerNoun = LearnerNoun.For(window.CheckingWindowType),
-            IsPupilDataOpen = checkingExercises.IsOpen(window.Exercises, CheckingExerciseType.PupilData),
+            IsPupilDataOpen = checkingExercises.IsOpen(window.Exercises, CheckingExerciseType.PupilData, laestab),
             PupilDataEndTime = pupilDataEnd is { } end ? DeadlineTime.Format(end) : null,
             PupilDataEndDate = pupilDataEnd?.ToString("dddd d MMMM yyyy"),
             PupilDataRangeStart = pupilDataStart?.ToString("d MMMM"),
             PupilDataRangeEnd = pupilDataEnd?.ToString("d MMMM yyyy"),
-            IsResultsEnquiryOpen = checkingExercises.IsOpen(window.Exercises, CheckingExerciseType.ResultsEnquiry),
+            IsResultsEnquiryOpen = checkingExercises.IsOpen(window.Exercises, CheckingExerciseType.ResultsEnquiry, laestab),
             ResultsEnquiryEndDate = enquiryEnd?.ToString("d MMMM yyyy")
         };
     }
@@ -95,16 +101,17 @@ public sealed class LandingPageController(
     // A window that runs pupil data checking and has shut it. HasClosed (not !IsOpen) so that an
     // exercise which has not started yet — possible, because exercise dates are validated one
     // exercise at a time — is not announced as closed; and a window with no pupil-data exercise
-    // has nothing to have closed, so it gets no banner either.
-    private bool HasClosedPupilData(CheckingWindowDto window) =>
-        checkingExercises.HasClosed(window.Exercises, CheckingExerciseType.PupilData);
+    // has nothing to have closed, so it gets no banner either. A school in an open extension has
+    // not reached its end yet, so it gets no banner (AB#307773).
+    private bool HasClosedPupilData(CheckingWindowDto window, string laestab) =>
+        checkingExercises.HasClosed(window.Exercises, CheckingExerciseType.PupilData, laestab);
 
-    private LandingPageClosedWindowViewModel ClosedBanner(CheckingWindowDto window) =>
+    private LandingPageClosedWindowViewModel ClosedBanner(CheckingWindowDto window, string laestab) =>
         new()
         {
             Title = window.Title,
             NextOpportunity = NextOpportunityText.For(window.NextOpportunity),
-            IsResultsEnquiryOpen = checkingExercises.IsOpen(window.Exercises, CheckingExerciseType.ResultsEnquiry),
+            IsResultsEnquiryOpen = checkingExercises.IsOpen(window.Exercises, CheckingExerciseType.ResultsEnquiry, laestab),
             LearnerNoun = LearnerNoun.For(window.CheckingWindowType)
         };
 }

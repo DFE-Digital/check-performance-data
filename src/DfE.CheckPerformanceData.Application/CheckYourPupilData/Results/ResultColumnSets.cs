@@ -1,4 +1,5 @@
 using System.Globalization;
+using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 
 namespace DfE.CheckPerformanceData.Application.CheckYourPupilData.Results;
 
@@ -28,6 +29,6 @@ public static class ResultColumnSets
         new("QAN", r => r.Result.Qan),
         new("Session", r => r.Result.Session),
         new("Grade", r => r.Result.Grade),
-        new("Source file", r => r.Result.SourceFile)
+        new("Source file", r => ResultsSources.LabelFor(r.Result.SourceFile))
     ];
 }

@@ -31,9 +31,21 @@ public interface IAutomaticExerciseHandOver
     Task<AutomaticHandOverOutcome> HandOverAsync(DueExercise due, CancellationToken cancellationToken);
 }
 
-/// <summary>An exercise that is due for automatic hand-over. The end date is a local wall-clock value.</summary>
-public sealed record DueExercise(Guid WindowId, string WindowTitle, CheckingExerciseType Exercise, DateTime ExerciseEnd);
+/// <summary>
+/// An exercise, or one of its extensions (#567), that is due for automatic hand-over. There is one
+/// item per exercise and one per extension, each due two hours after its end;
+/// <paramref name="ExerciseEnd"/> is that end. For an extension item it is the effective end,
+/// <c>max(exercise end, extension end)</c>, so an extension closed early waits for the exercise. The end date
+/// is a local wall-clock value. The sweep is keyed by <paramref name="ExerciseId"/>, because a window
+/// may hold several releases of one kind (#466); the kind is carried for the log and the audit row.
+/// When <paramref name="ExtensionId"/> is set, the sweep is keyed by it and touches only that
+/// extension's schools, leaving the exercise's other schools alone.
+/// </summary>
+public sealed record DueExercise(
+    Guid WindowId, string WindowTitle, Guid ExerciseId, CheckingExerciseType Exercise, DateTime ExerciseEnd,
+    Guid? ExtensionId = null);
 
 /// <summary>What one automatic hand-over did. Both counts are zero when it failed or found nothing.</summary>
 public sealed record AutomaticHandOverOutcome(
-    Guid WindowId, CheckingExerciseType Exercise, int RequestsSent, int DraftsCancelled, bool Failed);
+    Guid WindowId, Guid ExerciseId, CheckingExerciseType Exercise, int RequestsSent, int DraftsCancelled, bool Failed,
+    Guid? ExtensionId = null);

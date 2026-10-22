@@ -325,6 +325,76 @@ public sealed class PageControllerTests
         Assert.Equal("/section/wiki-page", model.Nav[1].Href);
     }
 
+    // ── #588 Home page banners on the guidance front page ─────────────────────────────
+
+    [Fact]
+    public async Task Show_ReturnsContentView_WithShowHomeBanners_WhenPathIsGuidance()
+    {
+        const string json = """[{"kind":"widget","type":"heading","anchor":"a","props":{"level":2,"text":"A"}}]""";
+        var guidance = Node("content", "Guidance", "guidance");
+        _pageNodes.GetNodeByPathAsync("guidance").Returns(guidance);
+        _pageNodes.GetLivePageAsync("guidance", Arg.Any<DateTime>())
+            .Returns(new LivePageResult { Node = guidance, Version = new PageNodeVersionDto { Content = json } });
+        _pageNodes.GetTreeAsync().Returns(new List<PageNodeTreeItemDto>());
+
+        var result = await CreateSut().Show("guidance");
+
+        var view = Assert.IsType<ViewResult>(result);
+        var model = Assert.IsType<RenderedPageViewModel>(view.Model);
+        Assert.True(model.ShowHomeBanners);
+    }
+
+    [Fact]
+    public async Task Show_ReturnsContentPreview_WithShowHomeBanners_WhenGuidanceUnpublished_AndUserIsEditor()
+    {
+        var nodeId = Guid.NewGuid();
+        _pageNodes.GetNodeByPathAsync("guidance")
+            .Returns(Node("content", "Guidance", "guidance", id: nodeId));
+        _pageNodes.GetLivePageAsync("guidance", Arg.Any<DateTime>())
+            .Returns((LivePageResult?)null);
+        _pageNodes.GetWorkingOrLatestContentAsync(nodeId).Returns("[]");
+        _pageNodes.GetTreeAsync().Returns(new List<PageNodeTreeItemDto>());
+
+        var result = await CreateSutWithRole(WikiConstants.EditorRole).Show("guidance");
+
+        var view = Assert.IsType<ViewResult>(result);
+        var model = Assert.IsType<RenderedPageViewModel>(view.Model);
+        Assert.True(model.IsPreview);
+        Assert.True(model.ShowHomeBanners);
+    }
+
+    [Fact]
+    public async Task Show_ReturnsContentView_WithShowHomeBannersFalse_ForOtherContentPage()
+    {
+        const string json = """[{"kind":"widget","type":"heading","anchor":"a","props":{"level":2,"text":"A"}}]""";
+        var node = Node("content", "My Page", "my-page");
+        _pageNodes.GetNodeByPathAsync("my-page").Returns(node);
+        _pageNodes.GetLivePageAsync("my-page", Arg.Any<DateTime>())
+            .Returns(new LivePageResult { Node = node, Version = new PageNodeVersionDto { Content = json } });
+        _pageNodes.GetTreeAsync().Returns(new List<PageNodeTreeItemDto>());
+
+        var result = await CreateSut().Show("my-page");
+
+        var model = Assert.IsType<RenderedPageViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.False(model.ShowHomeBanners);
+    }
+
+    [Fact]
+    public async Task Show_ReturnsContentView_WithShowHomeBannersFalse_ForGuidanceSubPage()
+    {
+        const string json = """[{"kind":"widget","type":"heading","anchor":"a","props":{"level":2,"text":"A"}}]""";
+        var node = Node("content", "KS4 test", "guidance/ks4-test");
+        _pageNodes.GetNodeByPathAsync("guidance/ks4-test").Returns(node);
+        _pageNodes.GetLivePageAsync("guidance/ks4-test", Arg.Any<DateTime>())
+            .Returns(new LivePageResult { Node = node, Version = new PageNodeVersionDto { Content = json } });
+        _pageNodes.GetTreeAsync().Returns(new List<PageNodeTreeItemDto>());
+
+        var result = await CreateSut().Show("guidance/ks4-test");
+
+        var model = Assert.IsType<RenderedPageViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.False(model.ShowHomeBanners);
+    }
+
     [Fact]
     public void Show_HttpGetAttribute_HasOrder_EqualTo_IntMaxValue()
     {

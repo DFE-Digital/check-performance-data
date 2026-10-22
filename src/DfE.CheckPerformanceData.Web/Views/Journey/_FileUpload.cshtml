@@ -82,11 +82,22 @@ else
                 <span class="govuk-visually-hidden">Error:</span> @fileError
             </p>
         }
-        <input class="govuk-file-upload @(fileError is not null ? "govuk-file-upload--error" : "")"
-               id="fileUpload" name="fileUpload" type="file"
-               accept=".pdf,application/pdf"
-               aria-describedby="@Model.DescribedBy"
-               data-existing-file-names="@JsonSerializer.Serialize(Model.ExistingFileNames)">
+        @* #380: Dragon NaturallySpeaking cannot activate a native file input in Chrome, so
+           GOV.UK Frontend's JavaScript-enhanced File upload is opted into with this wrapper
+           (data-module is read by initAll() in the layout). The module replaces the input with
+           a real "Choose file" button that takes this input's id — so #fileUpload is the
+           button, the error summary's link focuses it, and the input becomes
+           #fileUpload-input, hidden, still named fileUpload. Scripts must reach the input by
+           name (evidence-upload-validation.js does). Without JavaScript the native input
+           stays, unchanged. Do not add role="link" to the label — the auditor's suggested
+           workaround leaves the GOV.UK pattern. *@
+        <div class="govuk-file-upload-wrapper" data-module="govuk-file-upload">
+            <input class="govuk-file-upload @(fileError is not null ? "govuk-file-upload--error" : "")"
+                   id="fileUpload" name="fileUpload" type="file"
+                   accept=".pdf,application/pdf"
+                   aria-describedby="@Model.DescribedBy"
+                   data-existing-file-names="@JsonSerializer.Serialize(Model.ExistingFileNames)">
+        </div>
     </div>
 
     <govuk-button type="submit" class="govuk-button--secondary"

@@ -1,0 +1,27 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin.RetireDatasetViewModel
+
+@{
+    // Matches the <h1> below.
+    ViewBag.Title = Model.Heading;
+}
+
+<govuk-back-link href="@Model.CancelLink" />
+
+<span class="govuk-caption-l">@Model.WindowTitle: @Model.ExerciseName</span>
+<h1 class="govuk-heading-l">@Model.Heading</h1>
+
+@if (Model.Retire)
+{
+    <p class="govuk-body">Retire a data file when another file replaces it. The next validation makes a release without it. Schools keep the live release until then.</p>
+    <p class="govuk-body">Its files are kept, and the releases that used it do not change. You can put it back in use.</p>
+}
+else
+{
+    <p class="govuk-body">The next validation reads this data file again, if it has a CSV and a schema.</p>
+}
+
+<form method="post" action="@Model.PostUrl">
+    @Html.AntiForgeryToken()
+    <govuk-button type="submit">@(Model.Retire ? "Retire data file" : "Put back in use")</govuk-button>
+    <a class="govuk-link govuk-!-margin-left-3" href="@Model.CancelLink">Cancel</a>
+</form>

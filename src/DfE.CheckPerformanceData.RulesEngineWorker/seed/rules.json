@@ -103,7 +103,7 @@
 
     {
       "key": "SocialCareInvolvement",
-      "label": "Social care involvement - including police/prison",
+      "label": "Social care involvement - including police or prison",
       "rules": [
         { "id": "SCI-KS4-REJ", "status": "AutoRejected",
           "when": { "all": [

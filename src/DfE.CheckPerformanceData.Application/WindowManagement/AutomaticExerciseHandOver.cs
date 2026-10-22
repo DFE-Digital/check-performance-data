@@ -30,9 +30,36 @@ public sealed class AutomaticExerciseHandOver(
 
         return (await windows.GetAllWindowsAsync(cancellationToken))
             .SelectMany(window => window.Exercises
-                .Where(exercise => ExerciseHandOverSchedule.IsDue(exercise.EndDate, now, settings))
-                .Select(exercise => new DueExercise(window.Id, window.Title, exercise.ExerciseType, exercise.EndDate)))
+                // A data share has no kind, and a change request reaches an exercise only through
+                // its kind (WhatToChangeCheckingExerciseMap), so it never holds one to hand over.
+                .Where(exercise => exercise.ExerciseType is not null)
+                .SelectMany(exercise => DueItems(window, exercise, now, settings)))
             .ToList();
+    }
+
+    // The exercise first, then its extensions in list order. An extension is judged on its
+    // effective end, max(exercise end, extension end) (#567): it usually runs past the exercise's
+    // end and falls due later and separately, but one closed early (or overtaken by a later
+    // exercise end) must wait for the exercise, or its sweep would cancel the drafts of schools
+    // still inside the exercise's own dates.
+    private static IEnumerable<DueExercise> DueItems(
+        CheckingWindowDto window, CheckingExerciseDto exercise, DateTime now, ExerciseHandOverSettings settings)
+    {
+        if (ExerciseHandOverSchedule.IsDue(exercise.EndDate, now, settings))
+        {
+            yield return new DueExercise(
+                window.Id, window.Title, exercise.Id, exercise.ExerciseType!.Value, exercise.EndDate);
+        }
+
+        foreach (var extension in exercise.Extensions)
+        {
+            var end = exercise.EffectiveEndDateOf(extension);
+            if (ExerciseHandOverSchedule.IsDue(end, now, settings))
+            {
+                yield return new DueExercise(
+                    window.Id, window.Title, exercise.Id, exercise.ExerciseType!.Value, end, extension.Id);
+            }
+        }
     }
 
     public async Task<AutomaticHandOverOutcome> HandOverAsync(DueExercise due, CancellationToken cancellationToken)
@@ -40,7 +67,9 @@ public sealed class AutomaticExerciseHandOver(
         CloseExerciseResult result;
         try
         {
-            result = await sweep.CloseAsync(due.WindowId, due.Exercise, cancellationToken);
+            result = due.ExtensionId is null
+                ? await sweep.CloseAsync(due.WindowId, due.ExerciseId, cancellationToken)
+                : await sweep.CloseExtensionAsync(due.WindowId, due.ExerciseId, due.ExtensionId.Value, cancellationToken);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -48,13 +77,13 @@ public sealed class AutomaticExerciseHandOver(
             // may have sent some requests before it failed. That is safe: those rows are already
             // committed and the next run picks up only what is left. Ids only — no pupil data.
             logger.LogError(ex,
-                "Automatic hand-over of checking exercise {Exercise} of window {WindowId} failed. It is retried on the next run.",
-                due.Exercise, due.WindowId);
-            return new AutomaticHandOverOutcome(due.WindowId, due.Exercise, 0, 0, Failed: true);
+                "Automatic hand-over of checking exercise {ExerciseId} ({Exercise}){Extension} of window {WindowId} failed. It is retried on the next run.",
+                due.ExerciseId, due.Exercise, ExtensionText(due), due.WindowId);
+            return new AutomaticHandOverOutcome(due.WindowId, due.ExerciseId, due.Exercise, 0, 0, Failed: true, due.ExtensionId);
         }
 
         var outcome = new AutomaticHandOverOutcome(
-            due.WindowId, due.Exercise, result.Enqueued, result.DraftsCancelled, Failed: false);
+            due.WindowId, due.ExerciseId, due.Exercise, result.Enqueued, result.DraftsCancelled, Failed: false, due.ExtensionId);
 
         // Nothing sent and nothing cancelled is the normal answer on every run after the first.
         // It is not worth an audit row, or the catch-up day would write hundreds.
@@ -64,8 +93,8 @@ public sealed class AutomaticExerciseHandOver(
         }
 
         logger.LogInformation(
-            "Automatic hand-over of checking exercise {Exercise} of window {WindowId}: {RequestsSent} request(s) sent for processing, {DraftsCancelled} draft(s) cancelled.",
-            due.Exercise, due.WindowId, result.Enqueued, result.DraftsCancelled);
+            "Automatic hand-over of checking exercise {ExerciseId} ({Exercise}){Extension} of window {WindowId}: {RequestsSent} request(s) sent for processing, {DraftsCancelled} draft(s) cancelled.",
+            due.ExerciseId, due.Exercise, ExtensionText(due), due.WindowId, result.Enqueued, result.DraftsCancelled);
 
         try
         {
@@ -75,7 +104,9 @@ public sealed class AutomaticExerciseHandOver(
             {
                 WindowId = due.WindowId,
                 WindowTitle = due.WindowTitle,
+                ExerciseId = due.ExerciseId,
                 Exercise = due.Exercise,
+                ExtensionId = due.ExtensionId,
                 ExerciseEnd = due.ExerciseEnd,
                 RequestsSent = result.Enqueued,
                 DraftsCancelled = result.DraftsCancelled,
@@ -87,10 +118,14 @@ public sealed class AutomaticExerciseHandOver(
             // The hand-over has happened and cannot be undone, so this is not reported as a
             // failed hand-over. The information line above is then the only record of it.
             logger.LogError(ex,
-                "Automatic hand-over of checking exercise {Exercise} of window {WindowId} happened, but its audit row could not be written.",
-                due.Exercise, due.WindowId);
+                "Automatic hand-over of checking exercise {ExerciseId} ({Exercise}){Extension} of window {WindowId} happened, but its audit row could not be written.",
+                due.ExerciseId, due.Exercise, ExtensionText(due), due.WindowId);
         }
 
         return outcome;
     }
+
+    // Ids only, like the rest of the log lines; empty for the exercise's own hand-over.
+    private static string ExtensionText(DueExercise due) =>
+        due.ExtensionId is null ? "" : $" extension {due.ExtensionId}";
 }

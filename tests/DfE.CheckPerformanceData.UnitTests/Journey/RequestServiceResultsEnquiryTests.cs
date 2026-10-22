@@ -57,7 +57,7 @@ public sealed class RequestServiceResultsEnquiryTests
             new CheckingExerciseService(TimeProvider.System));
     }
 
-    private static StudentResultRecord Result() => new()
+    private static ResultRecord Result() => new()
     {
         CypmdId = "1596410810", Qan = "60180882", QualificationName = "GCSE (9-1) Art&Des : Fine Art",
         SyllabusCode = "1AD0", Session = "S2024", Grade = "9", SourceFile = ResultsFileTags.Post16Main

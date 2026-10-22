@@ -97,11 +97,10 @@ public class Post16PupilRecordDeserializationTests
     [Fact]
     public void IsIncluded_follows_the_stamped_marker_not_the_pincl_code()
     {
-        // 501 is a Post16 code and is NOT in the KS4 included list; inclusion must still be true
-        // because the record came from the included file.
-        var pupil = DeserializeSingle("""[ { "INCLUDED": true, "P_INCL": 501 } ]""");
-
-        Assert.True(pupil.IsIncluded);
+        // 16-19 inclusion is the file of origin only: every student in the included file is
+        // included, every one in the non-included file is not, whatever P_INCL says.
+        Assert.True(DeserializeSingle("""[ { "INCLUDED": true, "P_INCL": 502 } ]""").IsIncluded);
+        Assert.False(DeserializeSingle("""[ { "INCLUDED": false, "P_INCL": 501 } ]""").IsIncluded);
     }
 
     [Fact]

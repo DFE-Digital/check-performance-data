@@ -120,7 +120,7 @@ public sealed class Ks4JourneyTests(PlaywrightFixture fixture) : SeedingPageTest
     private async Task NavigateToRemovalDatePageAsync(JourneyCase journey)
     {
         await Page.GotoAsync($"{Fixture.BaseUrl}/WhatToChange/{SeededWindowId}");
-        await Page.GetByLabel("Remove").First.CheckAsync(new() { Force = true });
+        await Page.GetByLabel("Remove").First.CheckAsync();
         await Page.GetByRole(AriaRole.Button, new() { Name = "Continue" }).ClickAsync();
         await Page.WaitForURLAsync($"**/Journey/{SeededWindowId}/pupil-search/**");
 
@@ -136,7 +136,7 @@ public sealed class Ks4JourneyTests(PlaywrightFixture fixture) : SeedingPageTest
 
         // Select by option value, not label text, so copy edits can't break this.
         await Page.Locator($"input[name='q_reason'][value='{journey.ReasonValue}']")
-            .CheckAsync(new() { Force = true });
+            .CheckAsync();
         await Page.GetByRole(AriaRole.Button, new() { Name = "Continue" }).ClickAsync();
         await Page.WaitForURLAsync($"**/Journey/{SeededWindowId}/page/{journey.PageId}");
     }

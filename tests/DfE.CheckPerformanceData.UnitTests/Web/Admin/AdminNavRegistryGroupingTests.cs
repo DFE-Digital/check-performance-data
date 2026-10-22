@@ -25,11 +25,12 @@ public sealed class AdminNavRegistryGroupingTests
 
 		var groups = entries.Where(e => e.ParentKey is null).ToList();
 
-		// Seven: the Amendment requests group was retired (its per-window requests page is reached
+		// Eight: the Amendment requests group was retired (its per-window requests page is reached
 		// from the windows table now) and the Storage administration group went with the blob
 		// browser moving under Danger zone, which is itself a root group registered everywhere;
 		// plus the Data egress group (AB#294553); plus the Audit log root tile (AB#294592), a root
-		// with a URL and no children like Dashboard.
+		// with a URL and no children like Dashboard. Manage windows is a top-level link: the Window
+		// administration group went when it held that one tile only.
 		Assert.Equal(8, groups.Count);
 		var groupKeys = groups.Select(g => g.Key).ToHashSet();
 		Assert.Contains("dashboard", groupKeys);
@@ -37,7 +38,8 @@ public sealed class AdminNavRegistryGroupingTests
 		Assert.Contains("system-admin", groupKeys);
 		Assert.DoesNotContain("storage-admin", groupKeys);
 		Assert.Contains("danger-zone", groupKeys);
-		Assert.Contains("window-admin", groupKeys);
+		Assert.DoesNotContain("window-admin", groupKeys);
+		Assert.Contains("manage-window", groupKeys);
 		Assert.Contains("messages-group", groupKeys);
 		Assert.Contains("egress-group", groupKeys);
 		Assert.Contains("audit-log", groupKeys);
@@ -71,13 +73,15 @@ public sealed class AdminNavRegistryGroupingTests
 
 		var keys = entries.Select(e => e.Key).ToList();
 
-		// 33: the Amendment requests group and its Uncommitted requests tile were retired
+		// 31: the Amendment requests group and its Uncommitted requests tile were retired
 		// together and the Storage administration group went when the blob browser moved under
 		// Danger zone, which this overload registers along with the browser but without the
 		// gated Reset seed data tile — plus the Data egress group and its Start a new egress
 		// tile (AB#294553) and its Egress runs tile (AB#294590) and the Audit log root tile (AB#294592),
 		// and the Home page banners CMS tile (#566).
-		Assert.Equal(36, keys.Count);
+		// The Site assets tile (#429) is new. The Create new window tile went: a new window starts from the button on Manage windows.
+		// That left Manage windows alone in Window administration, so the group went as well.
+		Assert.Equal(34, keys.Count);
 		Assert.Equal(keys.Count, keys.Distinct().Count());
 	}
 

@@ -1,4 +1,4 @@
-using System.Text.RegularExpressions;
+using DfE.CheckPerformanceData.Application.PageTree;
 
 namespace DfE.CheckPerformanceData.Application.ContentStaging;
 
@@ -6,10 +6,13 @@ namespace DfE.CheckPerformanceData.Application.ContentStaging;
 // bundles that carry malformed identity metadata — the kind of value that would corrupt a URL
 // path, sit in the DB as an unknown enum value, or DoS the parser via oversized collections.
 //
-// Fatal issues short-circuit the flow via ContentImportValidationException; warning issues are
-// surfaced to the operator but do not block the import. HTML sanitisation is a separate
+// Fatal issues are about the bundle as a whole and short-circuit the flow via
+// ContentImportValidationException. A Rejected issue is about one item (ItemId): that item is
+// left out and listed, and the rest still imports, so one broken page in a whole-site export
+// does not stop the others landing. Warning issues are surfaced to the operator but do not
+// block anything. HTML sanitisation is a separate
 // concern (see ContentBundleSanitiser) — the validator does not inspect Content payloads.
-public static partial class ContentBundleValidator
+public static class ContentBundleValidator
 {
     // Total-collection caps: a legitimate whole-environment export tops out around a few
     // hundred pages + blocks; these are set well above realistic usage so we only reject
@@ -90,6 +93,8 @@ public static partial class ContentBundleValidator
             ValidatePage(page, issues);
         }
 
+        FindLowercaseClashes(bundle.PageNodes, issues);
+
         foreach (var block in bundle.ContentBlocks)
         {
             ValidateBlock(block, issues);
@@ -111,36 +116,50 @@ public static partial class ContentBundleValidator
 
     private static void ValidatePage(PageNodeBundleItem page, List<ValidationIssue> issues)
     {
-        var label = string.IsNullOrEmpty(page.Title) ? page.Id.ToString() : page.Title;
+        var label = Label(page);
 
         if (!ValidPageTypes.Contains(page.PageType))
         {
             issues.Add(new ValidationIssue(
-                ValidationSeverity.Fatal,
+                ValidationSeverity.Rejected,
                 "PAGE_TYPE_UNKNOWN",
-                $"Page '{label}' has unknown PageType '{page.PageType}' (expected: folder, content, wiki)."));
+                $"Page '{label}' has unknown PageType '{page.PageType}' (expected: folder, content, wiki).",
+                page.Id));
         }
 
-        if (string.IsNullOrEmpty(page.Segment))
+        // Capitals are the one mistake the import puts right, because the CMS used to save them.
+        var segment = PageSegment.Normalise(page.Segment);
+        if (segment.Length == 0)
         {
             issues.Add(new ValidationIssue(
-                ValidationSeverity.Fatal,
+                ValidationSeverity.Rejected,
                 "SEGMENT_EMPTY",
-                $"Page '{label}' has an empty Segment."));
+                $"Page '{label}' has an empty Segment.",
+                page.Id));
         }
-        else if (!SegmentPattern().IsMatch(page.Segment))
+        else if (!PageSegment.IsValid(segment))
         {
             issues.Add(new ValidationIssue(
-                ValidationSeverity.Fatal,
+                ValidationSeverity.Rejected,
                 "SEGMENT_INVALID",
-                $"Page '{label}' has invalid Segment '{page.Segment}' (must be kebab-case: a-z, 0-9, single hyphens)."));
+                $"Page '{label}' has invalid Segment '{page.Segment}' (must be kebab-case: a-z, 0-9, single hyphens).",
+                page.Id));
         }
-        else if (ReservedSegments.Contains(page.Segment))
+        else if (ReservedSegments.Contains(segment))
         {
             issues.Add(new ValidationIssue(
-                ValidationSeverity.Fatal,
+                ValidationSeverity.Rejected,
                 "SEGMENT_RESERVED",
-                $"Page '{label}' uses reserved Segment '{page.Segment}'."));
+                $"Page '{label}' uses reserved Segment '{page.Segment}'.",
+                page.Id));
+        }
+        else if (segment != page.Segment)
+        {
+            issues.Add(new ValidationIssue(
+                ValidationSeverity.Warning,
+                "SEGMENT_LOWERCASED",
+                $"Page '{label}' has URL segment '{page.Segment}', so it is imported as '{segment}'.",
+                page.Id));
         }
 
         // Creating a content or wiki page always writes an initial version, so a non-folder
@@ -154,7 +173,8 @@ public static partial class ContentBundleValidator
             issues.Add(new ValidationIssue(
                 ValidationSeverity.Warning,
                 "PAGE_HAS_NO_VERSIONS",
-                $"Page '{label}' is a {page.PageType} page with no versions — it will not render until content is added."));
+                $"Page '{label}' is a {page.PageType} page with no versions — it will not render until content is added.",
+                page.Id));
         }
 
         // Wiki pages carry HTML that hits the sanitiser + render pipeline; content pages
@@ -175,9 +195,10 @@ public static partial class ContentBundleValidator
                 if (version.Content.Length > cap)
                 {
                     issues.Add(new ValidationIssue(
-                        ValidationSeverity.Fatal,
+                        ValidationSeverity.Rejected,
                         "PAGE_VERSION_TOO_LARGE",
-                        $"Page '{label}' has a version with Content {version.Content.Length} chars; the limit for {page.PageType} pages is {cap}."));
+                        $"Page '{label}' has a version with Content {version.Content.Length} chars; the limit for {page.PageType} pages is {cap}.",
+                        page.Id));
                 }
             }
         }
@@ -188,9 +209,10 @@ public static partial class ContentBundleValidator
         if (!ValidBlockTypes.Contains(block.BlockType))
         {
             issues.Add(new ValidationIssue(
-                ValidationSeverity.Fatal,
+                ValidationSeverity.Rejected,
                 "BLOCK_TYPE_UNKNOWN",
-                $"Content block '{block.Key}' has unknown BlockType '{block.BlockType}' (expected: Content, Title)."));
+                $"Content block '{block.Key}' has unknown BlockType '{block.BlockType}' (expected: Content, Title).",
+                block.Id));
         }
 
         // Only Content-type blocks pass through the HTML sanitiser + render pipeline;
@@ -198,9 +220,10 @@ public static partial class ContentBundleValidator
         if (block.BlockType == "Content" && block.Value.Length > MaxContentBlockValueBytes)
         {
             issues.Add(new ValidationIssue(
-                ValidationSeverity.Fatal,
+                ValidationSeverity.Rejected,
                 "BLOCK_VALUE_TOO_LARGE",
-                $"Content block '{block.Key}' has Value {block.Value.Length} chars; the limit is {MaxContentBlockValueBytes}."));
+                $"Content block '{block.Key}' has Value {block.Value.Length} chars; the limit is {MaxContentBlockValueBytes}.",
+                block.Id));
         }
     }
 
@@ -209,46 +232,76 @@ public static partial class ContentBundleValidator
         var label = string.IsNullOrEmpty(banner.Heading) ? banner.Id.ToString() : banner.Heading;
 
         if (string.IsNullOrWhiteSpace(banner.Heading))
-            issues.Add(new ValidationIssue(ValidationSeverity.Fatal, "BANNER_HEADING_EMPTY", $"Home page banner {banner.Id} has an empty heading."));
+            issues.Add(Rejected(banner, "BANNER_HEADING_EMPTY", $"Home page banner {banner.Id} has an empty heading."));
         else if (banner.Heading.Length > MaxHomeBannerHeadingLength)
-            issues.Add(new ValidationIssue(ValidationSeverity.Fatal, "BANNER_HEADING_TOO_LONG", $"Home page banner '{label}' has a heading of {banner.Heading.Length} characters; the limit is {MaxHomeBannerHeadingLength}."));
+            issues.Add(Rejected(banner, "BANNER_HEADING_TOO_LONG", $"Home page banner '{label}' has a heading of {banner.Heading.Length} characters; the limit is {MaxHomeBannerHeadingLength}."));
 
         if (banner.Body.Length > MaxHomeBannerBodyBytes)
-            issues.Add(new ValidationIssue(ValidationSeverity.Fatal, "BANNER_BODY_TOO_LARGE", $"Home page banner '{label}' has a body of {banner.Body.Length} chars; the limit is {MaxHomeBannerBodyBytes}."));
+            issues.Add(Rejected(banner, "BANNER_BODY_TOO_LARGE", $"Home page banner '{label}' has a body of {banner.Body.Length} chars; the limit is {MaxHomeBannerBodyBytes}."));
 
         if (banner.ShowFrom is { } from && banner.ShowUntil is { } until && until <= from)
-            issues.Add(new ValidationIssue(ValidationSeverity.Fatal, "BANNER_DATES_INVALID", $"Home page banner '{label}' has a Show until that is not after its Show from."));
+            issues.Add(Rejected(banner, "BANNER_DATES_INVALID", $"Home page banner '{label}' has a Show until that is not after its Show from."));
 
-        // Versions are replayed into the database too, so a bad version must stop the import here
-        // rather than fail at SaveChanges, where it would leave the shared DbContext dirty.
+        // Versions are replayed into the database too, so a bad version must keep the banner out
+        // here rather than fail at SaveChanges, where it would leave the shared DbContext dirty.
         foreach (var v in banner.Versions)
         {
             if (string.IsNullOrWhiteSpace(v.Heading))
-                issues.Add(new ValidationIssue(ValidationSeverity.Fatal, "BANNER_HEADING_EMPTY", $"Home page banner '{label}' version {v.VersionNumber} has an empty heading."));
+                issues.Add(Rejected(banner, "BANNER_HEADING_EMPTY", $"Home page banner '{label}' version {v.VersionNumber} has an empty heading."));
             else if (v.Heading.Length > MaxHomeBannerHeadingLength)
-                issues.Add(new ValidationIssue(ValidationSeverity.Fatal, "BANNER_HEADING_TOO_LONG", $"Home page banner '{label}' version {v.VersionNumber} has a heading of {v.Heading.Length} characters; the limit is {MaxHomeBannerHeadingLength}."));
+                issues.Add(Rejected(banner, "BANNER_HEADING_TOO_LONG", $"Home page banner '{label}' version {v.VersionNumber} has a heading of {v.Heading.Length} characters; the limit is {MaxHomeBannerHeadingLength}."));
 
             if (v.ShowFrom is { } vFrom && v.ShowUntil is { } vUntil && vUntil <= vFrom)
-                issues.Add(new ValidationIssue(ValidationSeverity.Fatal, "BANNER_DATES_INVALID", $"Home page banner '{label}' version {v.VersionNumber} has a Show until that is not after its Show from."));
+                issues.Add(Rejected(banner, "BANNER_DATES_INVALID", $"Home page banner '{label}' version {v.VersionNumber} has a Show until that is not after its Show from."));
 
             if (v.Body.Length > MaxHomeBannerBodyBytes)
-                issues.Add(new ValidationIssue(ValidationSeverity.Fatal, "BANNER_BODY_TOO_LARGE", $"Home page banner '{label}' version {v.VersionNumber} has a body of {v.Body.Length} chars; the limit is {MaxHomeBannerBodyBytes}."));
+                issues.Add(Rejected(banner, "BANNER_BODY_TOO_LARGE", $"Home page banner '{label}' version {v.VersionNumber} has a body of {v.Body.Length} chars; the limit is {MaxHomeBannerBodyBytes}."));
         }
     }
 
-    // URL-safe kebab-case: lowercase alphanumerics separated by single hyphens.
-    // Deliberately does not allow underscores, uppercase, or trailing/leading hyphens.
-    [GeneratedRegex(@"^[a-z0-9]+(-[a-z0-9]+)*$", RegexOptions.Compiled)]
-    private static partial Regex SegmentPattern();
+    private static ValidationIssue Rejected(HomeBannerBundleItem banner, string code, string message) =>
+        new(ValidationSeverity.Rejected, code, message, banner.Id);
+
+    // Two pages under one parent cannot share a segment, and lowercasing a segment with capitals
+    // can make it the same as a sibling's. The lowercased page is left out rather than merged
+    // into the other one.
+    private static void FindLowercaseClashes(IReadOnlyList<PageNodeBundleItem> pages, List<ValidationIssue> issues)
+    {
+        var siblingGroups = pages
+            .Where(p => PageSegment.IsValid(PageSegment.Normalise(p.Segment)))
+            .GroupBy(p => (p.ParentId, Segment: PageSegment.Normalise(p.Segment)))
+            .Where(g => g.Count() > 1);
+
+        foreach (var siblings in siblingGroups)
+        {
+            // The page already in lowercase keeps the segment; failing that, the first one does.
+            var keeper = siblings.FirstOrDefault(p => p.Segment == siblings.Key.Segment) ?? siblings.First();
+            foreach (var page in siblings.Where(p => p != keeper && p.Segment != siblings.Key.Segment))
+            {
+                issues.Add(new ValidationIssue(
+                    ValidationSeverity.Rejected,
+                    "SEGMENT_CLASH",
+                    $"Page '{Label(page)}' has URL segment '{page.Segment}'. In lowercase that is the same as page '{Label(keeper)}' beside it, so it is not imported.",
+                    page.Id));
+            }
+        }
+    }
+
+    private static string Label(PageNodeBundleItem page) =>
+        string.IsNullOrEmpty(page.Title) ? page.Id.ToString() : page.Title;
 }
 
 public enum ValidationSeverity
 {
     Warning,
+    /// <summary>The item named by <see cref="ValidationIssue.ItemId"/> is left out of the import.</summary>
+    Rejected,
+    /// <summary>The whole bundle is refused.</summary>
     Fatal
 }
 
-public sealed record ValidationIssue(ValidationSeverity Severity, string Code, string Message);
+/// <param name="ItemId">The page, block or banner the issue is about, when it is about one.</param>
+public sealed record ValidationIssue(ValidationSeverity Severity, string Code, string Message, Guid? ItemId = null);
 
 public sealed class ContentImportValidationException(IReadOnlyList<ValidationIssue> issues)
     : Exception(BuildMessage(issues))

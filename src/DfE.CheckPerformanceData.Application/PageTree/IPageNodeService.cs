@@ -127,7 +127,7 @@ public enum RenameNodeResult
 {
     Ok,
     NotFound,
-    /// <summary>The segment is empty or otherwise invalid.</summary>
+    /// <summary>The segment breaks the formatting rule in <see cref="PageSegment"/>, even once lowercased.</summary>
     InvalidSegment,
     /// <summary>Another live node already occupies the target path.</summary>
     PathConflict

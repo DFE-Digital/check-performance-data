@@ -65,6 +65,7 @@ public sealed class PupilSearchCypmdIdTests(PostgresFixture fixture)
         Age = 16,
         FirstLanguage = "English",
         Pincl = included ? 401 : 402,
+        Included = included,
         NewMobile = false,
         ActualYearGroup = "11",
         Ethnicity = "A1",
@@ -215,7 +216,7 @@ public sealed class PupilSearchCypmdIdTests(PostgresFixture fixture)
             windowId, TestLaestab, TestUrn, "5000", PupilFilter.All,
             searchField: PupilSearchField.CypmdId);
 
-        Assert.Equal("Smith, John, 01/01/2000 (500001)", Assert.Single(results).Label);
+        Assert.Equal("Smith, John, (CYPMD ID: 500001, UPN: A000000500001, DOB: 01/01/2000, Status: INCLUDED)", Assert.Single(results).Label);
     }
 
     [Fact]
@@ -233,25 +234,24 @@ public sealed class PupilSearchCypmdIdTests(PostgresFixture fixture)
             searchField: PupilSearchField.CypmdId);
 
         Assert.Equal(
-            ["Smith, John, 01/01/2000 (500001)", "Smith, John, 01/01/2000 (500002)"],
+            ["Smith, John, (CYPMD ID: 500001, UPN: A000000500001, DOB: 01/01/2000, Status: INCLUDED)", "Smith, John, (CYPMD ID: 500002, UPN: A000000500002, DOB: 01/01/2000, Status: INCLUDED)"],
             results.Select(r => r.Label).Order());
     }
 
     [Fact]
-    public async Task An_unnarrowed_search_returns_the_same_labels_as_before()
+    public async Task An_unnarrowed_search_returns_the_same_label_as_a_narrowed_one()
     {
-        // The other KS4 pages — the merge journey's first-record page among them — must not grow an
-        // ID they never showed.
+        // #623: every KS4 suggestion carries the ID, so narrowing the search no longer changes it.
         var (windowId, repo) = await SeededAsync(NewPupil("John", "Smith", "500001"));
 
         var results = await repo.SearchPupilsAsync(
             windowId, TestLaestab, TestUrn, "Smith", PupilFilter.All);
 
-        Assert.Equal("Smith, John, 01/01/2000", Assert.Single(results).Label);
+        Assert.Equal("Smith, John, (CYPMD ID: 500001, UPN: A000000500001, DOB: 01/01/2000, Status: INCLUDED)", Assert.Single(results).Label);
     }
 
     [Fact]
-    public async Task The_merge_journeys_first_record_page_still_searches_by_name_and_shows_no_id()
+    public async Task The_merge_journeys_first_record_page_still_searches_by_name()
     {
         // SC-003/SC-006: Merge_KS4June.json's select-pupil sits in the same journey as the narrowed
         // select-match-pupil, so this is where a journey-wide change would show up. It takes no field
@@ -263,8 +263,7 @@ public sealed class PupilSearchCypmdIdTests(PostgresFixture fixture)
         var results = await repo.SearchPupilsAsync(
             windowId, TestLaestab, TestUrn, "Smith", PupilFilter.All);
 
-        Assert.Equal("Smith, John, 01/01/2000", Assert.Single(results).Label);
-        Assert.DoesNotContain("(", Assert.Single(results).Label);
+        Assert.StartsWith("Smith, John, ", Assert.Single(results).Label);
     }
 
     // ── US4 — the guards that stop a pupil being merged with itself (FR-005, FR-006) ──

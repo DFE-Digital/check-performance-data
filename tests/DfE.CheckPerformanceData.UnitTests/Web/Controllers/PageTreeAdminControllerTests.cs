@@ -386,6 +386,40 @@ public sealed class PageTreeAdminControllerTests
     }
 
     [Fact]
+    public async Task Create_MixedCaseSegment_CreatesThePageInLowerCase()
+    {
+        var nodeId = Guid.NewGuid();
+        _service.GetNodeByPathAsync("my-page").Returns((PageNodeDto?)null);
+        _service.CreatePageAsync(null, "my-page", "My Page", "content", Arg.Any<string?>())
+            .Returns(new PageNodeDto
+            {
+                Id = nodeId, Segment = "my-page", Path = "my-page",
+                Title = "My Page", PageType = "content"
+            });
+
+        var result = await Sut().Create(null, "content", "My-Page", "My Page");
+
+        var redirect = Assert.IsType<RedirectResult>(result);
+        Assert.Equal($"/admin/pages/{nodeId}/edit", redirect.Url);
+        await _service.Received(1).CreatePageAsync(null, "my-page", "My Page", "content", Arg.Any<string?>());
+    }
+
+    [Fact]
+    public async Task Rename_InvalidSegment_TellsTheEditorTheFormattingRules()
+    {
+        var id = Guid.NewGuid();
+        _service.RenameNodeAsync(id, "my page", "Title", Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string?>())
+            .Returns(RenameNodeResult.InvalidSegment);
+        var controller = Sut();
+
+        await controller.Rename(id, "my page", "Title", null, null, null, null, null);
+
+        Assert.Equal(
+            "URL segment can only contain lowercase letters, numbers and single hyphens, for example my-page.",
+            controller.TempData["RenameResult"]);
+    }
+
+    [Fact]
     public async Task Create_ValidWiki_RedirectsToEditUrl()
     {
         var nodeId = Guid.NewGuid();
@@ -602,22 +636,77 @@ public sealed class PageTreeAdminControllerTests
 
     // ── POST /admin/pages/{id}/publish ───────────────────────────────────────
 
-    [Fact]
-    public async Task Publish_ValidPost_CallsPublishAsyncAndRedirects()
+    // datetime-local form values arrive as unzoned strings. Editors type UK time, so a value typed
+    // while BST is in force is an hour ahead of the UTC instant that is stored and compared.
+    [Theory]
+    [InlineData("2026-08-01T09:30", 2026, 8, 1, 8, 30)]    // BST
+    [InlineData("2026-01-12T09:30", 2026, 1, 12, 9, 30)]   // GMT
+    [InlineData("2026-10-25T01:30", 2026, 10, 25, 0, 30)]  // repeated hour: first occurrence (BST)
+    public async Task Publish_ValidPost_StoresTheUkTimeAsUtcAndRedirects(
+        string typed, int y, int mo, int d, int h, int mi)
     {
         var id = Guid.NewGuid();
 
-        // datetime-local form values arrive as strings; the action parses them invariantly to UTC.
-        var result = await Sut().Publish(id, 3, "2026-08-01T09:30", null);
+        var result = await Sut().Publish(id, 3, typed, null);
 
         await _service.Received(1).PublishAsync(id, 3,
-            Arg.Is<DateTime?>(d => d.HasValue
-                && d.Value.Kind == DateTimeKind.Utc
-                && d.Value == new DateTime(2026, 8, 1, 9, 30, 0)),
-            Arg.Is<DateTime?>(d => d == null),
+            Arg.Is<DateTime?>(v => v.HasValue
+                && v.Value.Kind == DateTimeKind.Utc
+                && v.Value == new DateTime(y, mo, d, h, mi, 0)),
+            Arg.Is<DateTime?>(v => v == null),
             Arg.Any<string?>());
         var redirect = Assert.IsType<RedirectResult>(result);
         Assert.Equal($"/admin/pages/{id}/edit#versions", redirect.Url);
+    }
+
+    [Fact]
+    public async Task Publish_PublishToIsAlsoUkTime()
+    {
+        var id = Guid.NewGuid();
+
+        await Sut().Publish(id, 3, "2026-07-01T09:00", "2026-11-02T17:00");
+
+        await _service.Received(1).PublishAsync(id, 3,
+            new DateTime(2026, 7, 1, 8, 0, 0, DateTimeKind.Utc),
+            new DateTime(2026, 11, 2, 17, 0, 0, DateTimeKind.Utc),
+            Arg.Any<string?>());
+    }
+
+    [Fact]
+    public async Task Publish_TimeInTheSkippedHour_IsNotSavedAndTheErrorIsShownOnTheEditPage()
+    {
+        var id = Guid.NewGuid();
+        var sut = Sut();
+
+        var result = await sut.Publish(id, 3, "2026-03-29T01:30", "2026-04-30T17:00");
+
+        await _service.DidNotReceiveWithAnyArgs().PublishAsync(default, default, default, default, default);
+        var redirect = Assert.IsType<RedirectResult>(result);
+        Assert.Equal($"/admin/pages/{id}/edit#versions", redirect.Url);
+        var error = PublishWindowError.Read(sut.TempData);
+        Assert.NotNull(error);
+        Assert.Equal(3, error!.VersionId);
+        Assert.Equal("2026-03-29T01:30", error.From);
+        Assert.Equal("2026-04-30T17:00", error.To);
+        Assert.Equal(
+            "Publish from must be a real UK time. On 29 March 2026 the clocks go forward from 1am to 2am, so 1:30am does not exist",
+            error.FromError);
+        Assert.Null(error.ToError);
+    }
+
+    [Fact]
+    public async Task Publish_PublishToInTheSkippedHour_IsReportedAgainstPublishTo()
+    {
+        var id = Guid.NewGuid();
+        var sut = Sut();
+
+        await sut.Publish(id, 3, null, "2026-03-29T01:00");
+
+        await _service.DidNotReceiveWithAnyArgs().PublishAsync(default, default, default, default, default);
+        var error = PublishWindowError.Read(sut.TempData);
+        Assert.NotNull(error);
+        Assert.Null(error!.FromError);
+        Assert.StartsWith("Publish to must be a real UK time.", error.ToError);
     }
 
     [Fact]

@@ -1,0 +1,101 @@
+@using Microsoft.AspNetCore.Mvc.ViewFeatures
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin.ExerciseExtensionItem
+
+@{
+    // Matches the <h1> below.
+    ViewBag.Title = Model.Heading;
+    var exampleDate = Model.ExerciseEnd.AddDays(7).ToString("dd MM yyyy");
+    var schoolErrors = ViewData.ModelState.TryGetValue(nameof(Model.Schools), out var schoolsState)
+        ? schoolsState.Errors.Select(e => e.ErrorMessage).ToList()
+        : [];
+    var schoolsHasError = schoolErrors.Count > 0;
+}
+
+<govuk-back-link href="@Model.CancelLink" />
+
+@* AB#307773. No explicit error summary here, on purpose, as on HomeBanners/Edit.cshtml.
+   GovUk.Frontend.AspNetCore 5 prepends one to <main> once the page has rendered, listing every
+   field error in page order with the library's own links: the date and time fields below
+   register theirs. The schools box is plain markup (one error per bad line, which the textarea
+   tag helper would cut to one), so its errors are added with Context.AddPageError where the field
+   renders, to keep them in that one summary and in order. *@
+
+<h1 class="govuk-heading-l">@Model.Heading</h1>
+
+<div class="govuk-inset-text">
+    This exercise ends on @Model.ExerciseEndText. The extension must end after that.
+</div>
+
+<form method="post" action="@Model.PostUrl" novalidate>
+    @Html.AntiForgeryToken()
+
+    @if (Model.IsEdit)
+    {
+        @* The compare-and-set guard: the save is refused if the extension changed since this page
+           was drawn. See ExerciseExtensionItem.Version. *@
+        <input type="hidden" name="Version" value="@Model.Version" />
+    }
+
+    <govuk-date-input for="@Model.EndDate">
+        <govuk-date-input-fieldset>
+            <govuk-date-input-fieldset-legend class="govuk-fieldset__legend--m">
+                When does the extension end?
+            </govuk-date-input-fieldset-legend>
+            <govuk-date-input-hint>For example, @exampleDate</govuk-date-input-hint>
+            <govuk-date-input-error-message asp-validation-for="EndDate" />
+        </govuk-date-input-fieldset>
+    </govuk-date-input>
+
+    <govuk-fieldset role="group">
+        <govuk-fieldset-legend class="govuk-fieldset__legend--s">What time does it end?</govuk-fieldset-legend>
+        <govuk-fieldset-hint>Use the 24-hour clock, for example 09 30 or 17 00.</govuk-fieldset-hint>
+        <div class="govuk-date-input">
+            <div class="govuk-date-input__item">
+                <govuk-input for="EndHour" inputmode="numeric" input-class="govuk-input--width-2">
+                    <govuk-input-label>Hour</govuk-input-label>
+                    <govuk-input-error-message asp-validation-for="EndHour" />
+                </govuk-input>
+            </div>
+            <div class="govuk-date-input__item">
+                <govuk-input for="EndMinute" inputmode="numeric" input-class="govuk-input--width-2">
+                    <govuk-input-label>Minute</govuk-input-label>
+                    <govuk-input-error-message asp-validation-for="EndMinute" />
+                </govuk-input>
+            </div>
+        </div>
+    </govuk-fieldset>
+
+    <div class="govuk-form-group @(schoolsHasError ? "govuk-form-group--error" : "")">
+        <label class="govuk-label govuk-label--m" for="Schools">Schools</label>
+        <div class="govuk-hint" id="Schools-hint">One LAESTAB on each line, as 933/4290 or 9334290.</div>
+        @if (schoolsHasError)
+        {
+            foreach (var error in schoolErrors)
+            {
+                Context.AddPageError(new StringHtmlContent(error), "#Schools");
+            }
+            <p class="govuk-error-message" id="Schools-error">
+                @for (var i = 0; i < schoolErrors.Count; i++)
+                {
+                    <span class="govuk-visually-hidden">Error:</span> @schoolErrors[i]
+                    @if (i < schoolErrors.Count - 1)
+                    {
+                        <br>
+                    }
+                }
+            </p>
+        }
+        <textarea class="govuk-textarea @(schoolsHasError ? "govuk-textarea--error" : "")" id="Schools" name="Schools" rows="8"
+                  spellcheck="false" aria-describedby="Schools-hint@(schoolsHasError ? " Schools-error" : "")">@Model.Schools</textarea>
+    </div>
+
+    @if (Model.HasWarning)
+    {
+        <partial name="~/Views/WindowAdmin/_ExtensionWarning.cshtml" model="Model" />
+    }
+
+    <div class="govuk-button-group">
+        <govuk-button type="submit">Save extension</govuk-button>
+        <a class="govuk-link" href="@Model.CancelLink">Cancel</a>
+    </div>
+</form>

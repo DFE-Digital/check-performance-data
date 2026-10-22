@@ -226,6 +226,9 @@ public sealed class JourneyViewModelBuilder(
         string? contentKey = null;
         if (page.Type is PageType.Content or PageType.EvidenceUpload && config is not null)
             contentKey = flowService.BuildContentKey(page, answers, journey, config);
+        IReadOnlyList<EvidenceContentBlock> evidenceContentBlocks = page.Type is PageType.EvidenceUpload && config is not null
+            ? flowService.BuildEvidenceContentBlocks(page, answers, journey, config)
+            : [];
 
         var conditionContext = BuildConditionContext(journey);
 
@@ -295,11 +298,29 @@ public sealed class JourneyViewModelBuilder(
             FromSummary = fromSummary,
             PupilName = pupilName,
             ContentKey = contentKey,
+            EvidenceContentBlocks = evidenceContentBlocks,
+            Caption = page.Type is PageType.EvidenceUpload && config is not null
+                ? EvidenceCaption(config, journey)
+                : null,
             UploadError = uploadError,
             AtLeastOneError = atLeastOneError,
             RequireAtLeastOne = requireAtLeastOne,
             QuestionModels = questionModels
         };
+    }
+
+    // #625: the evidence page says what the evidence is for. A removal names the reason the school
+    // chose, because one evidence page serves every reason. A journey with no reason (add, include,
+    // merge) names the change. Only a question flagged useAsRequestType is a reason:
+    // ResolveRequestType falls back to any first answer, which can be a pupil's name.
+    private string? EvidenceCaption(QuestionFlowConfig config, RequestState journey)
+    {
+        if (!string.IsNullOrEmpty(flowService.ResolveRequestTypeValue(config, journey)))
+            return flowService.ResolveRequestType(config, journey);
+
+        return journey.SelectedWhatToChange is { } change
+            ? WhatToChangeLabel.For(change, journey.LearnerNoun)
+            : null;
     }
 
     public PupilSearchViewModel BuildPupilSearchVm(
@@ -338,7 +359,7 @@ public sealed class JourneyViewModelBuilder(
 
     public ResultSearchViewModel BuildResultSearchVm(
         Guid windowId, string pageId, JourneyPage page, RequestState journey, QuestionFlowConfig config,
-        IReadOnlyList<StudentResultRecord> availableResults)
+        IReadOnlyList<ResultRecord> availableResults)
     {
         var pupilName = GetPupilName(journey);
         var (backPageId, backPage) = ResolveBackPage(pageId, journey, config);

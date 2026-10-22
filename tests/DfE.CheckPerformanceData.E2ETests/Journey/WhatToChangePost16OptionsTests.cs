@@ -7,15 +7,15 @@ namespace DfE.CheckPerformanceData.E2ETests.Journey;
 // #439: the Include amendment option is not offered on a 16-19 (Post16) window and a crafted
 // submission of it is refused server-side, while a KS4 window keeps the option exactly as before.
 //
-// The seeded Post16 window (DevDataSeeder.Post16CheckingWindowId) and the seeded KS4June window
+// The seeded "16 to 19 Oct" window (DevDataSeeder.Post16OctoberCheckingWindowId) and the seeded KS4June window
 // (DevDataSeeder.KeyStage4JuneCheckingWindowId) — the same ids AddPupilJourneyTests uses.
 [Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class WhatToChangePost16OptionsTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
-    // The seeded Post16 window — Include must not be offered (US1) and a crafted Include post
+    // The seeded "16 to 19 Oct" window — Include must not be offered (US1) and a crafted Include post
     // must be refused (US3).
-    private static readonly Guid Post16WindowId = Guid.Parse("6C2E1F4A-9B7D-4E38-8A15-3D9C2B4E7F01");
+    private static readonly Guid Post16WindowId = Guid.Parse("EC6493B8-9B66-4090-8BE6-9DFC3805751F");
 
     // The seeded KS4June window — Include must still be offered (US2).
     private static readonly Guid Ks4JuneWindowId = Guid.Parse("F34D285B-8660-4D12-9C30-787328DEAA0A");
@@ -47,7 +47,7 @@ public sealed class WhatToChangePost16OptionsTests(PlaywrightFixture fixture) : 
         await Expect(Page.Locator("input[name='SelectedWhatToChange'][value='Add']")).ToHaveCountAsync(1);
 
         // Selecting Include and continuing still opens the Include journey.
-        await Page.Locator("input[name='SelectedWhatToChange'][value='Include']").CheckAsync(new() { Force = true });
+        await Page.Locator("input[name='SelectedWhatToChange'][value='Include']").CheckAsync();
         await Page.GetByRole(AriaRole.Button, new() { Name = "Continue", Exact = true }).ClickAsync();
         await Page.WaitForURLAsync($"**/Journey/{Ks4JuneWindowId}/pupil-search/select-pupil");
         await Expect(Page.Locator("#pupil-search").First).ToBeVisibleAsync();
@@ -73,7 +73,7 @@ public sealed class WhatToChangePost16OptionsTests(PlaywrightFixture fixture) : 
         // Check it is selected with the form prepared.
         var injected = Page.Locator("input[name='SelectedWhatToChange'][value='Include']");
         await Expect(injected).ToHaveCountAsync(1);
-        await injected.CheckAsync(new() { Force = true });
+        await injected.CheckAsync();
 
         await Page.GetByRole(AriaRole.Button, new() { Name = "Continue", Exact = true }).ClickAsync();
 

@@ -29,21 +29,34 @@ public sealed class CheckingWindowDataset
     public string SchemaFileChecksum { get; set; } = string.Empty;
 
     /// <summary>Null = inclusion comes from the record's own P_INCL (KS4).</summary>
-    public bool? Included { get; init; }
+    public bool? Included { get; set; }
 
     /// <summary>
     /// The SOURCE tag stamped on every record from this file (#324), e.g. "16to19_LR1". Null =
     /// nothing is stamped, which is every pupil-data dataset.
     /// </summary>
-    public string? SourceFile { get; init; }
+    public string? SourceFile { get; set; }
 
     /// <summary>
     /// The exercise cannot be validated until this slot holds both files. False for a slot the
     /// supplier may not deliver at all — every results file after the main one (#324).
     /// </summary>
-    public bool Required { get; init; } = true;
+    public bool Required { get; set; } = true;
 
-    public int SortOrder { get; init; }
+    /// <summary>
+    /// The journey reads this slot's records. True for the supplier slots a pupil-data or results
+    /// enquiry exercise is created with; false for a slot an admin adds later, which is display
+    /// only. Written once, when the slot is created, and never changed by an update.
+    /// </summary>
+    public bool FeedsJourney { get; set; }
+
+    /// <summary>
+    /// The slot's file has been replaced by another slot's, so no run reads it. Kept, not deleted,
+    /// because the releases that read it still name it and an admin can put it back in use.
+    /// </summary>
+    public bool Retired { get; set; }
+
+    public int SortOrder { get; set; }
 }
 
 public sealed class CheckingWindowDatasetConfiguration : IEntityTypeConfiguration<CheckingWindowDataset>

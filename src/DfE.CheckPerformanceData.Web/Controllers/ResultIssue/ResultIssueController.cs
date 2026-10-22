@@ -19,14 +19,15 @@ namespace DfE.CheckPerformanceData.Web.Controllers;
 public sealed class ResultIssueController(
     ICheckYourPupilDataService service,
     IQuestionFlowService flowService,
-    ILateResultsAvailability lateResults,
-    ICurrentUserService currentUser,
+    ILateResultsWarning lateResults,
     ICheckingExerciseService checkingExercises,
+    ICurrentUserService currentUserService,
     IAnalyticsService analytics) : Controller
 {
     // #318: this is the results-enquiry entry point, so it gates on that exercise rather than on
     // the outer window. A 16-19 window runs results enquiry on its own dates, and was previously
-    // reachable here for as long as the window itself was open.
+    // reachable here for as long as the window itself was open. AB#307773: open for the signed-in
+    // school, whose extension may run past the exercise's own end.
     private const CheckingExerciseType Exercise = CheckingExerciseType.ResultsEnquiry;
 
     /// <summary>
@@ -42,7 +43,7 @@ public sealed class ResultIssueController(
     public async Task<IActionResult> Index(Guid windowId)
     {
         var window = await service.GetCheckingWindowAsync(windowId);
-        if (!checkingExercises.IsOpen(window.Exercises, Exercise))
+        if (!checkingExercises.IsOpen(window.Exercises, Exercise, currentUserService.OrganisationLaestab))
             return this.RedirectExerciseClosed(windowId, Exercise, LearnerNoun.For(window.CheckingWindowType));
 
         // Never pre-selects: the confirmation page's "Report another issue" link lands here, and the
@@ -56,7 +57,7 @@ public sealed class ResultIssueController(
     public async Task<IActionResult> Confirm(Guid windowId, ResultIssueViewModel vm, CancellationToken ct = default)
     {
         var window = await service.GetCheckingWindowAsync(windowId);
-        if (!checkingExercises.IsOpen(window.Exercises, Exercise))
+        if (!checkingExercises.IsOpen(window.Exercises, Exercise, currentUserService.OrganisationLaestab))
             return this.RedirectExerciseClosed(windowId, Exercise, LearnerNoun.For(window.CheckingWindowType));
 
         // Fail closed on anything that is not one of the options this page renders, so a forged or
@@ -95,20 +96,19 @@ public sealed class ResultIssueController(
             // the option above is always selectable, and both paths continue into the same journey.
             // The Figma frame that greys the option out ("Incorrect grade option will be available
             // after releasing second late results") was considered and not chosen.
-            var available = await lateResults.IsSecondLateResultsAvailableAsync(
-                windowId, currentUser.OrganisationLaestab, ct);
+            var showWarning = await lateResults.ShowAsync(windowId, ct);
 
             // When the guidance page is the entry point it is seeded into the history. The flow
             // config's firstPageId is cohort-scope, so without this the journey engine's
             // out-of-sequence guard would bounce the user straight past the guidance to cohort-scope
             // and the "tell me to check that file first" acceptance criterion would never be met.
             // Seeding is also the truthful record: this controller has decided the journey starts there.
-            if (!available)
+            if (showWarning)
             {
                 pageId = LateResultsGuidancePageId;
                 history = [LateResultsGuidancePageId];
             }
-            guidanceShown = !available;
+            guidanceShown = showWarning;
         }
 
         // Paired with results_enquiry_submitted to give the start-to-submit funnel. The guidance flag

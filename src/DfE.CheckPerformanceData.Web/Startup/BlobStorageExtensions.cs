@@ -33,14 +33,11 @@ public static class BlobStorageExtensions
             var appConn = configuration.GetConnectionString("AzureStorage");
             if (!string.IsNullOrEmpty(appConn))
                 clients["app"] = new BlobServiceClient(appConn);
+            // The LDS interface account: LDS uploads ingress files here and downloads egress files
+            // (container cypmd, folder extracts_input) from here, so both use this one client.
             var ingressConn = configuration.GetConnectionString("IngressStorage");
             if (!string.IsNullOrEmpty(ingressConn))
                 clients["ingress"] = new BlobServiceClient(ingressConn);
-            // The LDS interface account (AB#294553): container cypmd, folder extracts_input. Absent
-            // locally unless the compose file supplies it; the egress refuses to transfer without it.
-            var egressConn = configuration.GetConnectionString("EgressStorage");
-            if (!string.IsNullOrEmpty(egressConn))
-                clients["egress"] = new BlobServiceClient(egressConn);
             return clients;
         });
         services.Configure<Infrastructure.RulesEngine.BlobRulesProviderOptions>(
@@ -74,10 +71,11 @@ public static class BlobStorageExtensions
         services.AddScoped<IRequestBlobClient, RequestBlobClient>();
         services.AddScoped<IRequestStateBlobClient, RequestStateBlobClient>();
         services.AddScoped<IPupilDataBlobClient, PupilDataBlobClient>();
+        services.AddScoped<Application.WindowManagement.IWindowBlobStorage, WindowBlobStorage>();
         // AB#296648: the 16-19 exam results the incorrect-grade enquiry journey reads. Registered
         // here as well as in the Infrastructure DependencyManager because the web host builds its
         // blob-client set from this seam and never calls AddInfrastructureDependencies.
-        services.AddScoped<Application.ResultsEnquiry.IStudentResultsClient, StudentResultsBlobClient>();
+        services.AddScoped<Application.ResultsEnquiry.IResultsClient, ResultsBlobClient>();
         // AB#297848: the QualList qualification reference, beside rules.json in the rules-config
         // container. The concrete type is registered too, because the startup seeder needs
         // SeedIfMissingAsync (a seeding concern that has no business on the read interface).
@@ -93,6 +91,14 @@ public static class BlobStorageExtensions
             sp => sp.GetRequiredService<NotOnRollCollegeListStore>());
         services.AddHostedService<Seeding.NotOnRollCollegeListService>();
         services.AddScoped<ICsvSchemaFileProcessor, CsvSchemaFileProcessor>();
+        // ICheckingDataReader is also registered in the Infrastructure DependencyManager (the
+        // worker's bundle); duplicated here for the same reason as IResultsClient above —
+        // the web host builds its blob-client set from this seam and never calls
+        // AddInfrastructureDependencies. ICheckingExerciseIngress belongs only here: it needs
+        // ICheckingExerciseDefinitionRepository (from AddPersistenceDependencies, which the worker
+        // opts out of) and ICsvSchemaFileProcessor (registered only in this method).
+        services.AddScoped<Application.WindowManagement.ICheckingDataReader, CheckingDataReader>();
+        services.AddScoped<ICheckingExerciseIngress, CheckingExerciseIngress>();
 
         return services;
     }

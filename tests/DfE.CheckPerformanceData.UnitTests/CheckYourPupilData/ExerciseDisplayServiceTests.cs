@@ -1,0 +1,364 @@
+using System.Text.Json;
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+
+namespace DfE.CheckPerformanceData.UnitTests.CheckYourPupilData;
+
+public class ExerciseDisplayServiceTests
+{
+    private static ExerciseDisplayService Service() => new();
+
+    [Fact]
+    public void Uses_each_uploaded_schema_for_table_search_and_download()
+    {
+        var included = Definition("students-included", true, "Last name", false);
+        var nonIncluded = Definition("students-non-included", false, "Family name", true);
+        var rows = new List<Dictionary<string, string>>
+        {
+            new() { ["INCLUDED"] = "True", ["SURNAME"] = "Watkins", ["LAESTAB"] = "1234567" },
+            new() { ["INCLUDED"] = "False", ["SURNAME"] = "Konsa", ["LAESTAB"] = "7654321" }
+        };
+
+        var view = Service().BuildTable(rows, [included, nonIncluded],
+            "students-non-included", "kon", 0, 10);
+
+        Assert.Equal(["Family name", "DfE number"], view.Selected.Columns.Select(c => c.Label));
+        Assert.Single(view.Rows);
+        Assert.Equal("Konsa", view.Rows[0]["SURNAME"]);
+        var csv = System.Text.Encoding.UTF8.GetString(Service().Csv(view.Selected));
+        Assert.StartsWith("Surname,DfE number", csv);
+        Assert.Contains("Konsa,7654321", csv);
+        Assert.DoesNotContain(included.Columns, c => c.Field == "LAESTAB");
+    }
+
+    [Theory]
+    [InlineData("John Smith", "John")]
+    [InlineData("Smith John", "John")]
+    [InlineData("Smith, Jo", "John")]
+    [InlineData("Jane", "Jane")]
+    public void A_search_matches_every_word_against_the_searchable_columns(string search, string expectedForename)
+    {
+        using var json = JsonDocument.Parse("""
+            {
+              "x-ingress": { "collection": "pupils" },
+              "properties": {
+                "SURNAME": { "x-display": { "label": "Last name", "visible": true, "order": 0, "searchable": true },
+                             "x-csv": { "columns": { "default": "A" }, "heading": "Surname" } },
+                "FORENAME": { "x-display": { "label": "First name", "visible": true, "order": 1, "searchable": true },
+                              "x-csv": { "columns": { "default": "B" }, "heading": "Forename" } },
+                "LAESTAB": { "x-display": { "label": "DfE number", "visible": true, "order": 2 },
+                             "x-csv": { "columns": { "default": "C" }, "heading": "DfE number" } }
+              }
+            }
+            """);
+        var definition = Service().ParseDefinition("pupils", null, json.RootElement);
+        var rows = new List<Dictionary<string, string>>
+        {
+            new() { ["SURNAME"] = "Smith", ["FORENAME"] = "John", ["LAESTAB"] = "1234567" },
+            new() { ["SURNAME"] = "Smith", ["FORENAME"] = "Jane", ["LAESTAB"] = "1234567" },
+            new() { ["SURNAME"] = "Jones", ["FORENAME"] = "John", ["LAESTAB"] = "1234567" }
+        };
+
+        var view = Service().BuildTable(rows, [definition], null, search, 0, 10);
+
+        var row = Assert.Single(view.Rows);
+        Assert.Equal(expectedForename, row["FORENAME"]);
+        Assert.Equal("Smith", row["SURNAME"]);
+    }
+
+    [Theory]
+    [InlineData("A860", true)]      // the start of the UPN
+    [InlineData("8604", false)]     // inside the UPN: was a substring match, now start of word only
+    [InlineData("Smi", true)]
+    [InlineData("mith", false)]
+    public void A_search_matches_an_identifier_column_from_its_start_only(string search, bool expected)
+    {
+        // Searchable columns are schema-driven and can hold identifiers. The tabs use the same
+        // start-of-word rule for every column as the journey autocomplete (PupilSearchTerms).
+        using var json = JsonDocument.Parse("""
+            {
+              "x-ingress": { "collection": "pupils" },
+              "properties": {
+                "SURNAME": { "x-display": { "label": "Last name", "visible": true, "order": 0, "searchable": true },
+                             "x-csv": { "columns": { "default": "A" }, "heading": "Surname" } },
+                "UPN": { "x-display": { "label": "UPN", "visible": true, "order": 1, "searchable": true },
+                         "x-csv": { "columns": { "default": "B" }, "heading": "UPN" } }
+              }
+            }
+            """);
+        var definition = Service().ParseDefinition("pupils", null, json.RootElement);
+        var rows = new List<Dictionary<string, string>>
+        {
+            new() { ["SURNAME"] = "Smith", ["UPN"] = "A8604070001B" }
+        };
+
+        var view = Service().BuildTable(rows, [definition], null, search, 0, 10);
+
+        Assert.Equal(expected ? 1 : 0, view.Rows.Count);
+    }
+
+    [Fact]
+    public void A_search_does_not_reach_a_column_the_schema_does_not_mark_searchable()
+    {
+        var definition = Definition("pupils", true, "Last name", true);
+        var rows = new List<Dictionary<string, string>>
+        {
+            new() { ["INCLUDED"] = "True", ["SURNAME"] = "Smith", ["LAESTAB"] = "1234567" }
+        };
+
+        Assert.Empty(Service().BuildTable(rows, [definition], null, "Smith 1234567", 0, 10).Rows);
+    }
+
+    [Fact]
+    public void Replacing_an_uploaded_schema_changes_the_display_definition()
+    {
+        var oldDefinition = Definition("students-non-included", false, "Last name", false);
+        var newDefinition = Definition("students-non-included", false, "Family name", true);
+
+        Assert.Equal("Last name", oldDefinition.Columns[0].Label);
+        Assert.Equal(["Family name", "DfE number"], newDefinition.Columns.Select(c => c.Label));
+    }
+
+    [Fact]
+    public void Reads_combined_envelope_without_losing_dataset_provenance()
+    {
+        using var json = JsonDocument.Parse("""
+            {"students-included":[{"SURNAME":"Watkins"}],"students-non-included":[{"SURNAME":"Konsa"}],"results-included":[{"SURNAME":"Watkins","GNUMBER":"123"}]}
+            """);
+        var rows = Service().ReadRows(json.RootElement);
+        var definitions = new[]
+        {
+            Definition("students-included", true, "Last name", false),
+            Definition("students-non-included", false, "Last name", false)
+        };
+
+        Assert.Single(Service().BuildTable(rows, definitions, "students-included", null, 0, 10).Rows);
+        Assert.Single(Service().BuildTable(rows, definitions, "students-non-included", null, 0, 10).Rows);
+    }
+
+    [Fact]
+    public void Uses_ingress_inclusion_marker_when_all_schema_fields_are_present()
+    {
+        var rows = new List<Dictionary<string, string>>
+        {
+            new() { ["INCLUDED"] = "True", ["SURNAME"] = "Watkins", ["LAESTAB"] = "123" },
+            new() { ["INCLUDED"] = "False", ["SURNAME"] = "Konsa", ["LAESTAB"] = "123" }
+        };
+        var definitions = new[]
+        {
+            Definition("students-included", true, "Last name", false),
+            Definition("students-non-included", false, "Last name", false)
+        };
+
+        Assert.Single(Service().BuildTable(rows, definitions, "students-included", null, 0, 10).Rows);
+        Assert.Single(Service().BuildTable(rows, definitions, "students-non-included", null, 0, 10).Rows);
+    }
+
+    [Fact]
+    public void Slots_that_share_a_schema_present_as_one_dataset()
+    {
+        // A results enquiry has one slot per supplier file (main, late, revised...) but every file
+        // has the same shape and lands in the same per-school blob, so the page shows one dataset.
+        var main = Definition("results-included", true, "Last name", false);
+        var late = Definition("results-included", true, "Last name", false);
+        var rows = new List<Dictionary<string, string>>
+        {
+            new() { ["SURNAME"] = "Watkins", ["SOURCE"] = "16to19_MAIN" },
+            new() { ["SURNAME"] = "Konsa", ["SOURCE"] = "16to19_LR1" }
+        };
+
+        var view = Service().BuildTable(rows, [main, late], null, null, 0, 10);
+
+        var only = Assert.Single(view.Datasets);
+        Assert.Equal("results-included", only.Key);
+        Assert.Equal(2, view.Rows.Count);
+    }
+
+    [Fact]
+    public void A_table_sorts_its_rows_by_the_visible_columns_in_display_order()
+    {
+        // Last name first (order 0), then the DfE number (order 1). Nothing in the code names a
+        // field: the schema's visible columns decide.
+        var definition = Definition("pupils", true, "Last name", true);
+        var rows = new List<Dictionary<string, string>>
+        {
+            new() { ["SURNAME"] = "smith", ["LAESTAB"] = "2" },
+            new() { ["SURNAME"] = "Adams", ["LAESTAB"] = "9" },
+            new() { ["SURNAME"] = "Smith", ["LAESTAB"] = "1" }
+        };
+
+        var view = Service().BuildTable(rows, [definition], null, null, 0, 10);
+
+        Assert.Equal(["Adams 9", "Smith 1", "smith 2"], view.Rows.Select(r => $"{r["SURNAME"]} {r["LAESTAB"]}"));
+    }
+
+    [Fact]
+    public void A_row_is_placed_by_its_fields_not_by_a_named_column()
+    {
+        // The 16-19 previously published file names its columns with a _0 suffix. Its rows reach
+        // their dataset because they fill that schema's fields, not because the code knows the name.
+        var included = Definition("students-included", true, "Last name", true);
+        using var json = JsonDocument.Parse("""
+            {"x-ingress":{"collection":"prior-file"},
+             "properties":{"SURNAME_0":{"x-display":{"label":"Last name"}},"LAESTAB_0":{}}}
+            """);
+        var prior = Service().ParseDefinition("prior-file", null, json.RootElement);
+        var rows = new List<Dictionary<string, string>>
+        {
+            new() { ["SURNAME_0"] = "Watkins", ["LAESTAB_0"] = "1234567" }
+        };
+
+        var datasets = Service().Define(rows, [included, prior]);
+
+        Assert.Empty(datasets[0].Rows);
+        Assert.Single(datasets[1].Rows);
+    }
+
+    [Fact]
+    public void A_row_that_ties_between_two_schemas_is_shown_by_neither()
+    {
+        // No DATASET, no INCLUDED marker to break the tie by name or inclusion, and
+        // both schemas share the same field names, so both score the row's two populated fields
+        // equally. Guessing here would put a pupil's record under the wrong dataset.
+        var first = Definition("students-a", true, "Last name", true);
+        var second = Definition("students-b", true, "Last name", true);
+        var rows = new List<Dictionary<string, string>>
+        {
+            new() { ["SURNAME"] = "Watkins", ["LAESTAB"] = "1234567" }
+        };
+
+        var datasets = Service().Define(rows, [first, second]);
+
+        Assert.All(datasets, d => Assert.Empty(d.Rows));
+    }
+
+    [Fact]
+    public void Vertical_view_lists_visible_fields_in_order_with_the_records_values()
+    {
+        var definition = SummaryDefinition("vertical");
+        var rows = new List<Dictionary<string, string>>
+        {
+            new() { ["LAESTAB"] = "8412009", ["TALLPUP_1618"] = "48", ["TALEVPUP_1618"] = "" }
+        };
+
+        var view = Service().BuildVertical(rows, definition);
+
+        Assert.Equal("Summary", view.Label);
+        Assert.Equal("summary.csv", view.FileName);
+        Assert.Equal(
+            [("Number of students", "48"), ("A level students", ""), ("Average point score", "")],
+            view.Fields.Select(f => (f.Label, f.Value)));
+    }
+
+    [Fact]
+    public void Vertical_view_uses_the_first_record_when_a_school_has_more_than_one()
+    {
+        var rows = new List<Dictionary<string, string>>
+        {
+            new() { ["TALLPUP_1618"] = "48" },
+            new() { ["TALLPUP_1618"] = "99" }
+        };
+
+        var view = Service().BuildVertical(rows, SummaryDefinition("vertical"));
+
+        Assert.Equal("48", view.Fields[0].Value);
+    }
+
+    [Fact]
+    public void Vertical_view_has_no_fields_when_a_school_has_no_record()
+    {
+        var view = Service().BuildVertical([], SummaryDefinition("vertical"));
+
+        Assert.Empty(view.Fields);
+    }
+
+    [Fact]
+    public void Csv_columns_fall_back_to_the_sheets_own_variant_when_there_is_no_default()
+    {
+        // The students sheets key their columns "provisional-revised"/"retention" with no
+        // "default"; a schema may use any workbook variant names.
+        var definition = SummaryDefinition("vertical");
+        var csv = System.Text.Encoding.UTF8.GetString(Service().Csv(
+            definition with { Rows = [new Dictionary<string, string> { ["LAESTAB"] = "8412009", ["TALLPUP_1618"] = "48" }] }));
+
+        Assert.StartsWith("DfE number,Students", csv);
+        Assert.Contains("8412009,48", csv);
+    }
+
+    [Fact]
+    public void Supplier_dates_are_shown_and_downloaded_as_day_month_year()
+    {
+        // LDS supplies DOB and ENTRYDAT as YYYY-MM-DD; schools read them as DD/MM/YYYY.
+        using var json = JsonDocument.Parse("""
+            {
+              "x-ingress": { "collection": "pupils" },
+              "properties": {
+                "SURNAME": { "x-display": { "label": "Last name", "visible": true, "order": 0, "searchable": true },
+                             "x-csv": { "columns": { "default": "A" }, "heading": "Surname" } },
+                "DOB": { "x-display": { "label": "Date of birth", "visible": true, "order": 1 },
+                         "x-csv": { "columns": { "default": "B" }, "heading": "Date of birth" } },
+                "ENTRYDAT": { "x-display": { "label": "Admission date", "visible": true, "order": 2 },
+                              "x-csv": { "columns": { "default": "C" }, "heading": "Admission date" } }
+              }
+            }
+            """);
+        var definition = Service().ParseDefinition("pupils", null, json.RootElement);
+        var rows = new List<Dictionary<string, string>>
+        {
+            new() { ["SURNAME"] = "Smith", ["DOB"] = "2010-01-31", ["ENTRYDAT"] = "2021-09-01" }
+        };
+
+        var view = Service().BuildTable(rows, [definition], null, null, 0, 10);
+        var csv = System.Text.Encoding.UTF8.GetString(Service().Csv(view.Selected));
+        var vertical = Service().BuildVertical(rows, definition);
+
+        Assert.Equal("31/01/2010", view.Rows[0]["DOB"]);
+        Assert.Equal("01/09/2021", view.Rows[0]["ENTRYDAT"]);
+        Assert.Contains("Smith,31/01/2010,01/09/2021", csv);
+        Assert.Equal(["Smith", "31/01/2010", "01/09/2021"], vertical.Fields.Select(f => f.Value));
+    }
+
+    private static ExerciseDataset SummaryDefinition(string layout)
+    {
+        var schema = $$"""
+            {
+              "x-ingress": { "collection": "summary" },
+              "x-display": { "section": "Summary", "layout": "{{layout}}" },
+              "x-download": { "fileName": "summary.csv" },
+              "properties": {
+                "LAESTAB": { "x-display": { "label": "DfE number", "visible": false },
+                             "x-csv": { "columns": { "autumn": "A" }, "heading": "DfE number" } },
+                "TAPS_1618": { "x-display": { "label": "Average point score", "order": 2 },
+                               "x-csv": { "columns": {} } },
+                "TALLPUP_1618": { "x-display": { "label": "Number of students", "order": 0 },
+                                  "x-csv": { "columns": { "autumn": "B", "retention": "C" }, "heading": "Students" } },
+                "TALEVPUP_1618": { "x-display": { "label": "A level students", "order": 1 } }
+              }
+            }
+            """;
+        using var json = JsonDocument.Parse(schema);
+        return Service().ParseDefinition("summary", null, json.RootElement);
+    }
+
+    private static ExerciseDataset Definition(string key, bool included, string surnameLabel, bool showLaestab)
+    {
+        var schema = $$"""
+            {
+              "x-ingress": { "collection": "{{key}}" },
+              "x-display": { "section": "{{key}}" },
+              "x-download": { "fileName": "{{key}}.csv" },
+              "properties": {
+                "SURNAME": {
+                  "x-display": { "label": "{{surnameLabel}}", "visible": true, "order": 0, "searchable": true },
+                  "x-csv": { "columns": { "default": "A" }, "heading": "Surname" }
+                },
+                "LAESTAB": {
+                  "x-display": { "label": "DfE number", "visible": {{showLaestab.ToString().ToLowerInvariant()}}, "order": 1 },
+                  "x-csv": { "columns": { "default": "B" }, "heading": "DfE number" }
+                }
+              }
+            }
+            """;
+        using var json = JsonDocument.Parse(schema);
+        return Service().ParseDefinition(key, included, json.RootElement);
+    }
+}

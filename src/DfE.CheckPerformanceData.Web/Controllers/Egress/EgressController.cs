@@ -166,8 +166,10 @@ public sealed class EgressController(
         return View("Preprocessing", page with { StreamUrl = Url.Action(nameof(PreprocessingStream), new { id }) });
     }
 
-    // EventSource can only GET, so the pipeline runs here when JS drives it.
-    [HttpGet("runs/{id:guid}/preprocessing/stream")]
+    // The pipeline runs here when JS drives it. A POST with an antiforgery token, never a GET: a
+    // GET would let a crafted link start a run for a signed-in admin (post-event-stream.js).
+    [HttpPost("runs/{id:guid}/preprocessing/stream")]
+    [ValidateAntiForgeryToken]
     public IResult PreprocessingStream(Guid id, CancellationToken cancellationToken) =>
         // Fully qualified: this controller has its own action named Results, which shadows
         // Microsoft.AspNetCore.Http.Results at an unqualified call site.

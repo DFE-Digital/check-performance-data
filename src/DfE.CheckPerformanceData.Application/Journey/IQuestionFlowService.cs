@@ -15,6 +15,13 @@ public interface IQuestionFlowService
     /// id, so the guidance can be copied between environments, where the windows have other ids.
     /// </summary>
     string BuildContentKey(JourneyPage page, Dictionary<string, QuestionAnswer> answers, RequestState journey, QuestionFlowConfig config);
+    /// <summary>
+    /// The CMS blocks for an EvidenceUpload page: one for each ticked option of a contentKey
+    /// Checkbox before the page, in config order, so the page shows the guidance for every option
+    /// the school chose (#591), then one shared block for that Checkbox's section, which shows
+    /// whatever was ticked (#633). With no such Checkbox it is the one <see cref="BuildContentKey"/>.
+    /// </summary>
+    IReadOnlyList<EvidenceContentBlock> BuildEvidenceContentBlocks(JourneyPage page, Dictionary<string, QuestionAnswer> answers, RequestState journey, QuestionFlowConfig config);
     string ResolveRequestType(QuestionFlowConfig config, RequestState journey);
     string ResolveRequestTypeValue(QuestionFlowConfig config, RequestState journey);
 }

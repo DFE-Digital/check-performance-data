@@ -6,7 +6,9 @@ using DfE.CheckPerformanceData.Application.LandingPage;
 // Aliased, not imported: WindowManagement also declares a CheckingWindowDto, which would make the
 // LandingPage one ambiguous here.
 using CheckingExerciseDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseDto;
+using CheckingExerciseExtensionDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseExtensionDto;
 using CheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseService;
+using ICheckingDataReader = DfE.CheckPerformanceData.Application.WindowManagement.ICheckingDataReader;
 using LearnerNoun = DfE.CheckPerformanceData.Application.WindowManagement.LearnerNoun;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData;
@@ -57,10 +59,18 @@ public sealed class CheckYourPupilDataResultsEnquiryOptionTests
         // which options the date rules produce, so substituting them would test nothing.
         var clock = new FixedTimeProvider(Now);
         var checkingExercises = new CheckingExerciseService(clock);
+        var tabBuilder = Substitute.For<IExerciseTabBuilder>();
+        // No window here has a tab-drawing exercise: the point of these tests is the next-step
+        // options, which the fallback inclusion tabs leave untouched.
+        tabBuilder.BuildAsync(Arg.Any<Application.WindowManagement.CheckingWindowDto>(),
+                Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<int>(), Arg.Any<int>(),
+                Arg.Any<CancellationToken>())
+            .Returns(new List<ExerciseTab>());
 
         _sut = new CheckYourPupilDataController(
             _service, _currentUser, _analytics,
-            new NextStepsService(checkingExercises), checkingExercises)
+            new NextStepsService(checkingExercises), checkingExercises,
+            tabBuilder, new ExerciseDisplayService())
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext }
         };
@@ -68,7 +78,7 @@ public sealed class CheckYourPupilDataResultsEnquiryOptionTests
 
     private static CheckingExerciseDto Exercise(
         CheckingExerciseType type, DateTime start, DateTime end, int sortOrder) =>
-        new() { ExerciseType = type, StartDate = start, EndDate = end, SortOrder = sortOrder };
+        new() { ExerciseType = type, IsEnabled = true, StartDate = start, EndDate = end, TabOrder = sortOrder };
 
     private static CheckingExerciseDto Open(CheckingExerciseType type, int sortOrder = 0) =>
         Exercise(type, Yesterday, Tomorrow, sortOrder);
@@ -233,7 +243,7 @@ public sealed class CheckYourPupilDataResultsEnquiryOptionTests
     [Fact]
     public async Task A_results_enquiry_only_window_whose_enquiry_has_closed_still_says_it_has_closed()
     {
-        // Review: ExercisesController lets an admin tick Results enquiry alone. Once that exercise
+        // Review: an admin can leave a window with Results enquiry alone. Once that exercise
         // ends the page had no closed paragraph (it was gated on a pupil-data end date the window
         // never had) and no form (nothing open) — tables and downloads with no explanation at all.
         Window(CheckingWindowType.Post16, Closed(CheckingExerciseType.ResultsEnquiry, 0));
@@ -274,6 +284,66 @@ public sealed class CheckYourPupilDataResultsEnquiryOptionTests
 
         Assert.True(model.OffersEnquiryOnly);
         Assert.False(model.ShowsClosedNotice);
+    }
+
+    // ── AB#307773: an extension for named schools ────────────────────────────
+
+    private static readonly DateTime ExtensionEnd = new(2026, 8, 27, 17, 0, 0);
+
+    // Ended yesterday; an open extension names 933/4290 (stored as digits).
+    private static CheckingExerciseDto Extended(CheckingExerciseType type, int sortOrder = 0)
+    {
+        var exercise = Closed(type, sortOrder);
+        exercise.Extensions.Add(new CheckingExerciseExtensionDto { EndDate = ExtensionEnd, Laestabs = ["9334290"] });
+        return exercise;
+    }
+
+    [Theory]
+    [InlineData("933/4290", true)]
+    [InlineData("860/4070", false)]
+    public async Task Extended_pupil_data_is_open_to_the_extension_end_only_for_the_school_it_names(
+        string laestab, bool named)
+    {
+        _currentUser.OrganisationLaestab.Returns(laestab);
+        Window(CheckingWindowType.Post16, Extended(CheckingExerciseType.PupilData, 0), Open(CheckingExerciseType.ResultsEnquiry, 1));
+
+        var model = await IndexModel();
+
+        Assert.Equal(named ? ExtensionEnd : Yesterday, model.PupilDataEndDate);
+        Assert.Equal(named, model.IsPupilDataOpen);
+        Assert.Equal(!named, model.HasPupilDataClosed);
+        Assert.Equal(named, model.AvailableNextSteps.Contains(NextSteps.RequestChange));
+    }
+
+    [Theory]
+    [InlineData("933/4290", true)]
+    [InlineData("860/4070", false)]
+    public async Task An_extended_results_enquiry_is_open_only_for_the_school_it_names(string laestab, bool named)
+    {
+        _currentUser.OrganisationLaestab.Returns(laestab);
+        Window(CheckingWindowType.Post16, Closed(CheckingExerciseType.PupilData, 0), Extended(CheckingExerciseType.ResultsEnquiry, 1));
+
+        var model = await IndexModel();
+
+        Assert.Equal(named, model.IsResultsEnquiryOpen);
+        Assert.Equal(!named, model.HasResultsEnquiryClosed);
+    }
+
+    [Theory]
+    [InlineData("933/4290", true)]
+    [InlineData("860/4070", false)]
+    public async Task Posting_request_change_in_an_extension_is_accepted_only_from_the_school_it_names(
+        string laestab, bool named)
+    {
+        _currentUser.OrganisationLaestab.Returns(laestab);
+        Window(CheckingWindowType.Post16, Extended(CheckingExerciseType.PupilData, 0), Open(CheckingExerciseType.ResultsEnquiry, 1));
+
+        var result = await _sut.NextStep(WindowId, Posted(NextSteps.RequestChange));
+
+        if (named)
+            Assert.Equal("WhatToChange", Assert.IsType<RedirectToActionResult>(result).ControllerName);
+        else
+            Assert.Equal("Index", Assert.IsType<ViewResult>(result).ViewName);
     }
 
     // ── Routing ──────────────────────────────────────────────────────────────

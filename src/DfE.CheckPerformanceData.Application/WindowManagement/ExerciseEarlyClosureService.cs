@@ -1,5 +1,3 @@
-using DfE.CheckPerformanceData.Domain.Enums;
-
 namespace DfE.CheckPerformanceData.Application.WindowManagement;
 
 /// <inheritdoc cref="IExerciseEarlyClosureService"/>
@@ -21,16 +19,17 @@ public sealed class ExerciseEarlyClosureService(
     TimeProvider timeProvider) : IExerciseEarlyClosureService
 {
     public async Task<EarlyClosureResult> CloseEarlyAsync(
-        Guid windowId, CheckingExerciseType exercise, EarlyClosureActor actor, CancellationToken cancellationToken)
+        Guid windowId, Guid exerciseId, EarlyClosureActor actor, CancellationToken cancellationToken)
     {
         CheckingWindowDto? window = await windows.GetByIdAsync(windowId, cancellationToken);
-        CheckingExerciseDto? row = window?.FindExercise(exercise);
-        if (window is null || row is null)
+        CheckingExerciseDto? row = window?.Exercises.SingleOrDefault(e => e.Id == exerciseId);
+        // A data share has no kind: no journey to shut and no requests to hand over.
+        if (row?.ExerciseType is not { } exercise)
         {
             return EarlyClosureResult.NotFound;
         }
 
-        if (!checkingExercises.IsOpen(window.Exercises, exercise))
+        if (!checkingExercises.IsOpen(row))
         {
             return EarlyClosureResult.NotOpen;
         }
@@ -40,6 +39,7 @@ public sealed class ExerciseEarlyClosureService(
         bool written = await windows.CloseExerciseEarlyAsync(new ExerciseEarlyClosure
         {
             WindowId = windowId,
+            ExerciseId = exerciseId,
             Exercise = exercise,
             ScheduledEnd = row.EndDate,
             // One second before the close, not the close itself: an exercise's last instant is

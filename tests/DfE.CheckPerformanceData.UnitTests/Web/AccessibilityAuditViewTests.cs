@@ -212,22 +212,48 @@ public sealed class AccessibilityAuditViewTests
 	{
 		// The Close button repeats once per exercise section down the page. Identical accessible
 		// names would leave no way to tell one section's button from the next (#378/#385/#379).
-		// Here the exercise label is in the VISIBLE text, which satisfies the rule without a
-		// govuk-visually-hidden suffix — so the label must not be dropped from the button.
 		var view = ReadView("Views", "WindowAdmin", "Summary.cshtml");
 
-		Assert.Contains("Close @exercise.Label", view);
+		Assert.Contains("Close<span class=\"govuk-visually-hidden\"> @exercise.Name</span>", view);
 		Assert.Contains("@exercise.CloseLink", view);
 	}
 
+	// ── #466 slice 3: the summary lists every exercise, including display-only ────────
+
 	[Fact]
-	public void SummaryPage_SendRequestsButton_NamesItsExerciseInVisibleText()
+	public void SummaryPage_EditAndValidateLinks_NameTheirExercise()
 	{
-		// AB#301022: like Close, this button repeats once per closed exercise down the page, so
-		// the exercise label must stay in its visible text.
+		// Edit and Validate repeat once per exercise section, same rule as Close above (#378/#385/#379).
 		var view = ReadView("Views", "WindowAdmin", "Summary.cshtml");
 
-		Assert.Contains("Send @exercise.Label requests for processing", view);
+		Assert.Contains("Edit<span class=\"govuk-visually-hidden\"> @exercise.Name</span>", view);
+		Assert.Contains("Validate<span class=\"govuk-visually-hidden\"> @exercise.Name</span>", view);
+		Assert.Contains("@exercise.EditLink", view);
+		Assert.Contains("@exercise.ValidateLink", view);
+	}
+
+	[Fact]
+	public void SummaryPage_TagsEachDataFilesPurposeAndStatus_NotItsFiles()
+	{
+		// The summary is an overview for admins who are not technical. It tags each data file as
+		// Journey or Data share and shows if it is supplied; the file names are on the Data tab.
+		var view = ReadView("Views", "WindowAdmin", "Summary.cshtml");
+
+		Assert.Contains("govuk-tag--blue\">Journey</strong>", view);
+		Assert.Contains("govuk-tag--purple\">Data share</strong>", view);
+		Assert.Contains("DatasetStatusTags.Label(dataset.Status)", view);
+		Assert.DoesNotContain("dataset.IngressFile", view);
+		Assert.DoesNotContain("dataset.SchemaFile", view);
+	}
+
+	[Fact]
+	public void SummaryPage_SendRequestsButton_NamesItsExercise()
+	{
+		// AB#301022: like Close, this button repeats once per closed exercise down the page, so
+		// it names its exercise in a visually hidden suffix, as Close, Edit and Validate do.
+		var view = ReadView("Views", "WindowAdmin", "Summary.cshtml");
+
+		Assert.Contains("Send requests for processing<span class=\"govuk-visually-hidden\"> for @exercise.Name</span>", view);
 		Assert.Contains("@exercise.SendRequestsLink", view);
 	}
 
@@ -251,6 +277,173 @@ public sealed class AccessibilityAuditViewTests
 		Assert.Contains("<h1 class=\"govuk-heading-l\">Send @Model.ExerciseLabel requests for processing</h1>", view);
 	}
 
+	// ── Create checking exercise (#466 slice 3) ─────────────────────────────────────────
+
+	[Fact]
+	public void CreateCheckingExercise_SetsATitleAndOneHeading()
+	{
+		var view = ReadView("Views", "WindowAdmin", "CreateCheckingExercise.cshtml");
+
+		Assert.Contains("ViewData[\"Title\"]", view);
+		Assert.Equal(1, CountOccurrences(view, "<h1"));
+		Assert.DoesNotContain("href=\"#\"", view);
+	}
+
+	[Fact]
+	public void AddExerciseData_SetsATitleAndOneHeading()
+	{
+		var view = ReadView("Views", "WindowAdmin", "AddExerciseData.cshtml");
+
+		Assert.Contains("ViewBag.Title", view);
+		Assert.Equal(1, CountOccurrences(view, "<h1"));
+		Assert.DoesNotContain("href=\"#\"", view);
+	}
+
+	[Fact]
+	public void AddExerciseData_AsksInclusionOnlyUnderTheJourneyAnswer()
+	{
+		var view = ReadView("Views", "WindowAdmin", "AddExerciseData.cshtml");
+
+		// A data share has no inclusion, so the question is revealed only by "Pupil data for the journeys".
+		var journey = view.IndexOf("Pupil data for the journeys", StringComparison.Ordinal);
+		var conditional = view.IndexOf("<govuk-radios-item-conditional>", journey, StringComparison.Ordinal);
+		var inclusion = view.IndexOf("<govuk-radios for=\"Inclusion\">", StringComparison.Ordinal);
+		var conditionalEnd = view.IndexOf("</govuk-radios-item-conditional>", journey, StringComparison.Ordinal);
+		var share = view.IndexOf("Data share only", StringComparison.Ordinal);
+
+		Assert.Equal(1, CountOccurrences(view, "<govuk-radios for=\"Inclusion\">"));
+		Assert.True(journey < conditional && conditional < inclusion && inclusion < conditionalEnd && conditionalEnd < share);
+	}
+
+	// ── #466 Task 23: the exercise tabs on Check Your Pupil Data ──────────────────────
+
+	[Theory]
+	[InlineData("_ExerciseTable.cshtml")]
+	[InlineData("_VerticalSummary.cshtml")]
+	[InlineData("_RawExerciseTable.cshtml")]
+	public void ExerciseTabPartials_HaveNoPlaceholderLinks(string partial)
+	{
+		var view = ReadView("Views", "CheckYourPupilData", partial);
+
+		Assert.DoesNotContain("href=\"#\"", view);
+	}
+
+	[Theory]
+	[InlineData("_ExerciseTable.cshtml")]
+	[InlineData("_RawExerciseTable.cshtml")]
+	public void ExerciseTabPartials_ScrollRegionCarriesRoleAndLabel(string partial)
+	{
+		// A wide table otherwise pushes the page off-screen on a small viewport; the region has
+		// to be keyboard-scrollable (tabindex) and name what it holds (aria-label), same rule as
+		// the existing inclusion tabs' moj-scrollable-pane.
+		var view = ReadView("Views", "CheckYourPupilData", partial);
+
+		Assert.Contains("moj-scrollable-pane", view);
+		Assert.Contains("role=\"region\"", view);
+		Assert.Contains("tabindex=\"0\"", view);
+		Assert.Contains("aria-label=", view);
+	}
+
+	[Fact]
+	public void ExerciseTable_SearchBoxHasARealLabel()
+	{
+		var view = ReadView("Views", "CheckYourPupilData", "_ExerciseTable.cshtml");
+
+		Assert.Contains("for=\"@searchId\"", view);
+		Assert.Contains("id=\"@searchId\"", view);
+	}
+
+	[Fact]
+	public void ExerciseTable_TakesItsLearnerNounFromTheTab()
+	{
+		// KS4 exercise tabs use this partial too, and a KS4 school says "pupil", not "student". The
+		// label names the selected dataset's searchable columns, so it never promises less (or
+		// more) than the search matches.
+		var view = ReadView("Views", "CheckYourPupilData", "_ExerciseTable.cshtml");
+
+		Assert.Contains("ExerciseSearchLabel.For(Model.LearnerNoun, table.Selected)", view);
+		Assert.DoesNotContain("by first or last name", view);
+		Assert.DoesNotContain("No students", view);
+	}
+
+	[Fact]
+	public void ExerciseTable_ControlIdsCarryTheTabKey()
+	{
+		// An exercise split by inclusion renders this partial twice on one page. A fixed id would
+		// be repeated, and a label's for= would then name the first tab's control.
+		var view = ReadView("Views", "CheckYourPupilData", "_ExerciseTable.cshtml");
+
+		Assert.Contains("var searchId = $\"search-{Model.Key}\";", view);
+		Assert.Contains("var datasetId = $\"dataset-{Model.Key}\";", view);
+	}
+
+	[Fact]
+	public void ExerciseTable_DatasetSelectorHasARealLabel()
+	{
+		var view = ReadView("Views", "CheckYourPupilData", "_ExerciseTable.cshtml");
+
+		Assert.Contains("for=\"@datasetId\"", view);
+		Assert.Contains("id=\"@datasetId\"", view);
+	}
+
+	[Fact]
+	public void ExerciseTable_PaginatesThroughThePaginationWindow_NotOneLinkPerPage()
+	{
+		// A few hundred students otherwise produce hundreds of tab stops and a screen reader
+		// reads every number (see PaginationWindow's own remarks).
+		var view = ReadView("Views", "CheckYourPupilData", "_ExerciseTable.cshtml");
+
+		Assert.Contains("PaginationWindow.Build(table.Page, table.TotalPages)", view);
+		Assert.DoesNotContain("for (var page = 0; page <", view);
+	}
+
+	[Fact]
+	public void Index_BranchesOnExerciseTabs_AndKeepsTheInclusionTabsFallback()
+	{
+		// The single most important rule for #466 Task 23: a window whose exercises draw no
+		// tabs — every KS2 and KS4 window today — must still render the inclusion tabs exactly
+		// as it always has. The fallback branch must not be commented out.
+		var view = ReadView("Views", "CheckYourPupilData", "Index.cshtml");
+
+		Assert.Contains("Model.CheckingExerciseTabs.Count > 0", view);
+		Assert.Contains("_PupilSection", view);
+		Assert.DoesNotContain("@* <govuk-tabs>", view);
+	}
+
+	// ── helpers ──────────────────────────────────────────────────────────────
+
+	private static int CountOccurrences(string text, string value)
+	{
+		int count = 0, index = 0;
+		while ((index = text.IndexOf(value, index, StringComparison.Ordinal)) >= 0)
+		{
+			count++;
+			index += value.Length;
+		}
+		return count;
+	}
+
+	// ── Exercise releases: repeated "Make live" links ──────────────────────────────────
+
+	[Fact]
+	public void ExerciseReleases_MakeLiveLink_NamesItsReleaseForScreenReaders()
+	{
+		// One "Make live" link per earlier release. Identical accessible names leave no way to
+		// tell one row's link from the next (the #378 rule).
+		var view = ReadView("Views", "WindowAdmin", "CreateCheckingExercise.cshtml");
+
+		Assert.Contains("Make live<span class=\"govuk-visually-hidden\"> release @release.Number</span>", view);
+	}
+
+	[Fact]
+	public void MakeReleaseLive_TitleMatchesItsHeading()
+	{
+		var view = ReadView("Views", "WindowAdmin", "MakeReleaseLive.cshtml");
+
+		Assert.Contains("ViewBag.Title = $\"Make release {Model.Release.Number} live\";", view);
+		Assert.Contains("<h1 class=\"govuk-heading-l\">Make release @Model.Release.Number live</h1>", view);
+	}
+
 	// ── #389 Redundant hidden instructions on Provide Evidence ────────────────────────
 
 	[Fact]
@@ -271,6 +464,86 @@ public sealed class AccessibilityAuditViewTests
 		Assert.Contains("aria-describedby=\"@Model.DescribedBy\"", view);
 	}
 
+	// ── #380 File upload not operable with Dragon NaturallySpeaking ─────────────────
+
+	[Fact]
+	public void FileUploadPartial_UsesTheJavaScriptEnhancedFileUpload()
+	{
+		// #380: Dragon cannot activate a native <input type="file"> in Chrome (Nuance: "not
+		// supported"; alphagov/reported-bugs#35). GOV.UK Frontend's enhanced File upload
+		// (5.9.0+, bundled here as 6.5.1) replaces it with a real <button> Dragon can name.
+		// Opting in is the wrapper with data-module; initAll() in the layout does the rest.
+		// The input keeps its id, name, accept and aria-describedby — the module reads them.
+		var view = ReadView("Views", "Journey", "_FileUpload.cshtml");
+
+		Assert.Matches(
+			"<div class=\"govuk-file-upload-wrapper\" data-module=\"govuk-file-upload\">\\s*<input class=\"govuk-file-upload",
+			view);
+		Assert.Contains("<label class=\"govuk-label\" for=\"fileUpload\">", view);
+		Assert.Matches("<input[^>]*id=\"fileUpload\"[^>]*name=\"fileUpload\"[^>]*type=\"file\"", view);
+	}
+
+	[Theory]
+	[InlineData("Views/Admin/Rules/Upload.cshtml", "file")]
+	[InlineData("Views/ContentStaging/Index.cshtml", "bundle")]
+	public void AdminFileInputs_UseTheJavaScriptEnhancedFileUpload(string relativePath, string id)
+	{
+		// #380 is "believed to be global": every raw file input gets the same wrapper, and keeps
+		// its label (the module throws without label[for=id]) and its hint description.
+		var view = ReadView(relativePath.Split('/'));
+
+		Assert.Matches(
+			"<div class=\"govuk-file-upload-wrapper\" data-module=\"govuk-file-upload\">\\s*<input class=\"govuk-file-upload\"[^>]*id=\"" + id + "\"",
+			view);
+		Assert.Contains("for=\"" + id + "\"", view);
+	}
+
+	[Fact]
+	public void SchemaUpload_TagHelper_TurnsOnTheJavaScriptEnhancements()
+	{
+		// The tag helper renders the same wrapper when asked; the default is the app-wide
+		// GovUkFrontendOptions.DefaultFileUploadJavaScriptEnhancements, which is left false so a
+		// future tag-helper upload opts in deliberately and gets its scripts checked (see #380).
+		var view = ReadView("Views", "WindowAdmin", "Schema.cshtml");
+
+		Assert.Matches("<govuk-file-upload[^>]*javascript-enhancements=\"true\"", view);
+	}
+
+	// ── #388 "Disclosure triangle" announced on expandable sections ───────────────────
+
+	[Theory]
+	[InlineData("Views/Journey/_Question.cshtml")]
+	[InlineData("Views/ResultIssue/Index.cshtml")]
+	public void HelpPanel_IsANativeDetailsElement_WithNoAriaRoleOverride(string relativePath)
+	{
+		// #388: Android TalkBack announces the help panel's summary as "disclosure triangle".
+		// That is TalkBack's name for the native <summary> role (Chromium exposes it as
+		// DisclosureTriangle), announced with the expanded or collapsed state and the summary
+		// text — name, role and state are all exposed, which is what WCAG 4.1.2 asks for.
+		// The panel is the GOV.UK Details component as GOV.UK Frontend 5 ships it, and the
+		// decision recorded in docs/accessibility.md ("Expandable sections") is to keep it:
+		// a role="button" on the summary, or a button-with-aria-expanded in its place, changes
+		// how the element is exposed on every platform (O'Hara found macOS VoiceOver then drops
+		// the state and loses headings nested in the summary) and every screen reader and browser
+		// pairing would need re-testing, and it leaves the GOV.UK pattern.
+		// This theory goes red if somebody "fixes" the announcement that way. It covers both
+		// views that render a help panel: the journey question and the 16-19 results-issue page.
+		var view = ReadView(relativePath.Split('/'));
+
+		var detailsStart = view.IndexOf("<details class=\"govuk-details", StringComparison.Ordinal);
+		Assert.True(detailsStart >= 0, "the help panel must be a <details class=\"govuk-details…\"> element");
+		var detailsEnd = view.IndexOf("</details>", detailsStart, StringComparison.Ordinal);
+		Assert.True(detailsEnd > detailsStart, "the help panel's <details> must be closed");
+		var panel = view[detailsStart..detailsEnd];
+
+		Assert.Contains("<summary class=\"govuk-details__summary\">", panel);
+		Assert.Contains("govuk-details__summary-text", panel);
+		Assert.Matches(@"govuk-details__summary-text"">\s*\S", panel);
+		Assert.DoesNotContain("role=", panel);
+		Assert.DoesNotContain("aria-expanded", panel);
+		Assert.DoesNotContain("<button", panel);
+	}
+
 	// ── #568 Storage browser upload in parts ───────────────────────────────────────────
 
 	[Fact]
@@ -279,6 +552,24 @@ public sealed class AccessibilityAuditViewTests
 		var view = ReadView("Views", "StorageAdmin", "Container.cshtml");
 		Assert.Contains("id=\"files-hint\"", view);
 		Assert.Matches("<input[^>]*id=\"files\"[^>]*aria-describedby=\"files-hint\"", view);
+	}
+
+	[Fact]
+	public void StorageUpload_FileInput_UsesTheJavaScriptEnhancedFileUpload()
+	{
+		// #380: Dragon users choose files through GOV.UK's enhanced control here too. The
+		// script reaches the native input by name because the module takes id="files" for its
+		// button, and places its field error above the wrapper, where the GDS error sits.
+		var view = ReadView("Views", "StorageAdmin", "Container.cshtml");
+		// ReadView joins its segments under src/DfE.CheckPerformanceData.Web, so it reads
+		// scripts as readily as views (one segment per directory — never an embedded
+		// backslash, which the Linux runner would treat as part of a file name).
+		var script = ReadView("wwwroot", "js", "storage-chunked-upload.js");
+
+		Assert.Matches("<div class=\"govuk-file-upload-wrapper\" data-module=\"govuk-file-upload\">\\s*<input class=\"govuk-file-upload\" id=\"files\"", view);
+		Assert.Contains("querySelector('input[name=\"files\"]')", script);
+		Assert.DoesNotContain("getElementById('files')", script);
+		Assert.Contains("closest('.govuk-file-upload-wrapper')", script);
 	}
 
 	// A live region announces reliably only when it is already in the DOM, empty, before the
@@ -347,5 +638,20 @@ public sealed class AccessibilityAuditViewTests
 		Assert.DoesNotContain("_BetaBanner", index);
 		var repoRoot = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(ThisFilePath())!, "..", "..", ".."));
 		Assert.False(File.Exists(Path.Combine(repoRoot, "src", "DfE.CheckPerformanceData.Web", "Views", "Shared", "_BetaBanner.cshtml")));
+	}
+
+	// ── #588 Guidance front page also shows the home page banners ─────────────────────
+
+	[Fact]
+	public void ContentTemplate_RendersHomeBanners_GuardedOnShowHomeBanners()
+	{
+		var view = ReadView("Views", "Page", "Content.cshtml");
+
+		Assert.Contains("Component.InvokeAsync(\"HomeBanners\")", view);
+		Assert.Contains("Model.ShowHomeBanners", view);
+		// The guard sits above the editor preview notice, so banners stay at the top of the page.
+		Assert.True(
+			view.IndexOf("Model.ShowHomeBanners", StringComparison.Ordinal)
+				< view.IndexOf("Model.IsPreview", StringComparison.Ordinal));
 	}
 }

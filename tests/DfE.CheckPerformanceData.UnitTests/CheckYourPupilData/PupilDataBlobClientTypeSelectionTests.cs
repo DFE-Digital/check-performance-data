@@ -34,7 +34,7 @@ public class PupilDataBlobClientTypeSelectionTests
     [Fact]
     public void Deserialises_ks4_json_as_ks4_records()
     {
-        const string json = """[ { "P_INCL": 401, "FORENAME": "Alice", "UPN": "A860407000001B" } ]""";
+        const string json = """[ { "INCLUDED": true, "P_INCL": 401, "FORENAME": "Alice", "UPN": "A860407000001B" } ]""";
 
         var pupils = PupilDataBlobClient.Deserialize(
             System.Text.Encoding.UTF8.GetBytes(json), CheckingWindowType.KS4June);

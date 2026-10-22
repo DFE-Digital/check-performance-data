@@ -67,9 +67,14 @@ If nothing matches by identity, the import looks for a page at the same address,
 
 ## Items that cannot be imported
 
-The Review import screen lists these under *These items cannot be imported*. It happens when a page's parent is not in this environment and not in the file. The import skips those pages. It never invents an empty parent for them.
+The Review import screen lists these under *These items cannot be imported*, each with the reason. The rest of the file is still imported. An item cannot be imported when:
 
-To fix it, go back to the first environment and export again with the parent ticked.
+- a page's parent is not in this environment and not in the file. The import never invents an empty parent for it. To fix it, go back to the first environment and export again with the parent ticked.
+- a page, block or banner breaks a rule, such as a URL segment with a space in it. Pages beneath a page that cannot be imported cannot be imported either. To fix it, correct the item in the first environment and export again.
+
+The summary after the import lists the same items again.
+
+A URL segment with capital letters is the one mistake the import puts right. It imports the page with the segment in lowercase, and says so on the Review import screen and in the summary. If the lowercase address is already used by another page, the page is not imported.
 
 ## Safety
 

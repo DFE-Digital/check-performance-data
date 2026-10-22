@@ -22,7 +22,10 @@
     var SESSION_ENDED = 'Your session has ended. Sign in again and upload the file again.';
     var GENERIC_FAILURE = 'The upload did not complete. Upload the file again.';
 
-    var filesInput = document.getElementById('files');
+    // #380: the enhanced File upload gives id="files" to its button; the native input keeps
+    // its name. Everything here that reads .files or sets .disabled wants the input (the
+    // module mirrors disabled onto the button by itself).
+    var filesInput = form.querySelector('input[name="files"]');
     var folderInput = document.getElementById('folder');
     var prefixInput = form.querySelector('input[name="prefix"]');
     var tokenInput = form.querySelector('input[name="__RequestVerificationToken"]');
@@ -54,6 +57,15 @@
         return hex.slice(0, 8) + '-' + hex.slice(8, 12) + '-' + hex.slice(12, 16) + '-' + hex.slice(16, 20) + '-' + hex.slice(20);
     }
 
+    // The module's button carries a copy of the input's aria-describedby taken once at init,
+    // so a description change must reach both; and the field error goes above the wrapper.
+    function filesWrapper() { return filesInput.closest('.govuk-file-upload-wrapper'); }
+    function describedElements() {
+        var wrapper = filesWrapper();
+        var button = wrapper ? wrapper.querySelector('button.govuk-file-upload-button') : null;
+        return button ? [filesInput, button] : [filesInput];
+    }
+
     function removeErrorSummary() {
         var existing = document.getElementById('upload-error-summary');
         if (existing) { existing.remove(); }
@@ -62,8 +74,10 @@
         filesInput.classList.remove('govuk-file-upload--error');
         var fieldError = document.getElementById('files-error');
         if (fieldError) { fieldError.remove(); }
-        var ids = (filesInput.getAttribute('aria-describedby') || '').split(/\s+/).filter(function (id) { return id && id !== 'files-error'; });
-        filesInput.setAttribute('aria-describedby', ids.join(' '));
+        describedElements().forEach(function (el) {
+            var ids = (el.getAttribute('aria-describedby') || '').split(/\s+/).filter(function (id) { return id && id !== 'files-error'; });
+            el.setAttribute('aria-describedby', ids.join(' '));
+        });
     }
 
     // GOV.UK error summary + field error, built empty then filled so the alert is announced.
@@ -87,7 +101,8 @@
         var fieldError = document.createElement('p');
         fieldError.className = 'govuk-error-message';
         fieldError.id = 'files-error';
-        filesInput.parentNode.insertBefore(fieldError, filesInput);
+        var anchor = filesWrapper() || filesInput;
+        anchor.parentNode.insertBefore(fieldError, anchor);
         var prefix = document.createElement('span');
         prefix.className = 'govuk-visually-hidden';
         prefix.textContent = 'Error:';
@@ -96,7 +111,9 @@
         var group = filesInput.closest('.govuk-form-group');
         if (group) { group.classList.add('govuk-form-group--error'); }
         filesInput.classList.add('govuk-file-upload--error');
-        filesInput.setAttribute('aria-describedby', (filesInput.getAttribute('aria-describedby') || '').trim() + ' files-error');
+        describedElements().forEach(function (el) {
+            el.setAttribute('aria-describedby', (el.getAttribute('aria-describedby') || '').trim() + ' files-error');
+        });
 
         summary.focus();
     }

@@ -4,21 +4,24 @@
     // Live validation progress. Enhances the Validate window page: instead of a plain POST that
     // blocks until the whole file is processed, the Run button opens a server-sent stream and the
     // seven processing steps (start checks -> checksums -> record count -> per-file progress ->
-    // summary) are shown as they happen. Without JS (or EventSource) the plain form still posts to
-    // the fallback action and renders the same summary server-side.
+    // summary) are shown as they happen. The stream is a POST that carries the form's antiforgery
+    // token (post-event-stream.js), never a GET. Without JS (or a browser that can read a streamed
+    // body) the plain form still posts to the fallback action and renders the same summary
+    // server-side.
 
     function init() {
         var root = document.querySelector('[data-module="validate-progress"]');
         if (!root) { return; }
 
         var streamUrl = root.getAttribute('data-stream-url');
-        if (!streamUrl || !('EventSource' in window)) { return; }
+        if (!streamUrl || !window.postEventStream || !window.postEventStream.supported()) { return; }
 
         var form = root.querySelector('[data-validate-form]');
         var startButton = root.querySelector('[data-validate-start]');
         var statusWrapper = root.querySelector('[data-validate-status-wrapper]');
         var statusLine = root.querySelector('[data-validate-status]');
         var summary = root.querySelector('[data-validate-summary]');
+        var done = root.querySelector('[data-validate-done]');
 
         var fields = {
             recordsRead: root.querySelector('[data-validate-records-read]'),
@@ -27,7 +30,7 @@
             errorCount: root.querySelector('[data-validate-errors]')
         };
 
-        if (!startButton) { return; }
+        if (!startButton || !form) { return; }
 
         startButton.addEventListener('click', function (e) {
             e.preventDefault();
@@ -42,25 +45,23 @@
             if (statusWrapper) { statusWrapper.classList.remove('govuk-!-display-none'); }
             setStatus('Starting checks…');
 
-            var es = new EventSource(streamUrl);
+            var finished = false;
 
-            es.addEventListener('progress', function (event) {
-                var data;
-                try { data = JSON.parse(event.data); } catch (err) { return; }
+            window.postEventStream(streamUrl, form, function (type, data) {
+                if (type !== 'progress') { return; }
 
                 render(data);
 
                 if (data.isComplete) {
-                    es.close();
+                    finished = true;
                     showSummary(data);
                 }
-            });
-
-            es.onerror = function () {
-                // EventSource retries on its own; only surface a message if we never finished.
+            }, function () {
+                // Only surface a message if we never finished.
+                if (finished) { return; }
                 setStatus('Connection lost. Refresh the page to try again.');
-                es.close();
-            };
+                showDone();
+            });
         }
 
         function render(data) {
@@ -100,6 +101,13 @@
             }
 
             summary.classList.remove('govuk-!-display-none');
+            showDone();
+        }
+
+        // The link back to the window. Shown only when the run has stopped, so an admin does not
+        // leave mid-run.
+        function showDone() {
+            if (done) { done.classList.remove('govuk-!-display-none'); }
         }
 
         // Records-processed-per-LAESTAB table with a totals footer, mirroring the server-rendered

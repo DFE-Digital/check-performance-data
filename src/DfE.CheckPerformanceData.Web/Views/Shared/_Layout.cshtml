@@ -3,6 +3,7 @@
 @using DfE.CheckPerformanceData.Web.Authentication
 @using DfE.CheckPerformanceData.Web.Common
 @using DfE.CheckPerformanceData.Web.Controllers
+@using DfE.CheckPerformanceData.Web.Middleware
 @using DfE.CheckPerformanceData.Web.Session
 @inject Microsoft.Extensions.Hosting.IHostEnvironment HostEnvironment
 @inject Microsoft.Extensions.Configuration.IConfiguration Configuration
@@ -112,12 +113,7 @@
                             // noun rather than the word "Pupils" (LearnerNoun).
                             var navLearnerNoun = Context.Session.GetSelectedWindowLearnerNoun();
                         }
-                        <li class="govuk-service-navigation__item">
-                            @* AB#306103: the guidance opens beside the service, not in place of it.
-                               rel="noopener" only — "noreferrer" would blank the Referer that
-                               DfE Analytics records on the guidance page view. *@
-                            <a class="govuk-service-navigation__link" href="/guidance" target="_blank" rel="noopener">Guidance (opens in new tab)</a>
-                        </li>
+                        @* #627: Pupils, then Amendment requests, then Guidance. *@
                         @if (User.Identity is { IsAuthenticated: true } && selectedWindowId is not null)
                         {
                             <li class="govuk-service-navigation__item">
@@ -127,6 +123,12 @@
                                 <a class="govuk-service-navigation__link" href="@Url.Action("Index", "AmendmentRequests", new { windowId = selectedWindowId })">Amendment requests</a>
                             </li>
                         }
+                        <li class="govuk-service-navigation__item">
+                            @* AB#306103: the guidance opens beside the service, not in place of it.
+                               rel="noopener" only — "noreferrer" would blank the Referer that
+                               DfE Analytics records on the guidance page view. *@
+                            <a class="govuk-service-navigation__link" href="/guidance" target="_blank" rel="noopener">Guidance (opens in new tab)</a>
+                        </li>
                         @* Sign in / Sign out cluster.
                            States:
                              - Real DfE auth:                  "Sign out"                            -> DfeSignOut
@@ -187,10 +189,13 @@
     @RenderSection("Breadcrumbs", required: false)
 }
 
-@Html.GovUkFrontendJsEnabledScript()
+@* The nonce has to be passed by hand here: _GovUkPageTemplate passes it for us only in the
+   default BodyEnd branch, and this layout defines its own BodyEnd. Without the argument the two
+   module imports and the js-enabled snippet were the scripts the browser blocked (#611). *@
+@Html.GovUkFrontendJsEnabledScript(CspNonce.Get(Context))
 @await Html.PartialAsync("_ContactUsBanner")
 @RenderBody()
-@Html.GovUkFrontendScriptImports()
+@Html.GovUkFrontendScriptImports(CspNonce.Get(Context))
 
 @section Footer {
     <footer class="govuk-footer">

@@ -6,7 +6,18 @@ public interface IWindowRepository
 {
     Task<List<CheckingWindowDto>> GetAllWindowsAsync(CancellationToken cancellationToken);
     Task<CheckingWindowDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The window's exercises of one kind, without their datasets or releases: enough to decide
+    /// which one is live and where its storage is. The journeys ask this on every page, so it must
+    /// not load the window's whole graph. Empty when the window does not exist.
+    /// </summary>
+    Task<IReadOnlyList<CheckingExerciseDto>> GetExercisesOfKindAsync(Guid windowId, CheckingExerciseType type,
+        CancellationToken cancellationToken);
     Task UpdateAsync(CheckingWindowDto window, CancellationToken cancellationToken);
+
+    /// <summary>True when any change request, in any status, is stamped with this exercise.</summary>
+    Task<bool> HasChangeRequestsAsync(Guid exerciseId, CancellationToken cancellationToken);
     Task<CheckingWindowDto> CreateAsync(CheckingWindowDto window, CancellationToken cancellationToken);
 
     /// <summary>
@@ -35,6 +46,11 @@ public interface IWindowRepository
 public sealed record ExerciseEarlyClosure
 {
     public required Guid WindowId { get; init; }
+
+    /// <summary>The row to move. A window may hold several releases of one kind (#466).</summary>
+    public required Guid ExerciseId { get; init; }
+
+    /// <summary>The row's kind, for the audit row only.</summary>
     public required CheckingExerciseType Exercise { get; init; }
 
     /// <summary>The end date the exercise had when the close was confirmed (read on the POST, not when the page was rendered). The write's guard.</summary>

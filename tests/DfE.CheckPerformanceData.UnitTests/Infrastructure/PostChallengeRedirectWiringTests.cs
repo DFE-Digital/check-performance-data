@@ -5,9 +5,11 @@ using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Protocols;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Infrastructure;
 
@@ -62,7 +64,7 @@ public sealed class PostChallengeRedirectWiringTests
         services.AddLogging();
         services.AddDataProtection();
         services.AddDistributedMemoryCache();
-        services.AddDfeSignInAuthentication(DfeSignInConfig());
+        services.AddDfeSignInAuthentication(DfeSignInConfig(), Substitute.For<IHostEnvironment>());
         // No metadata fetch: hand the handler its endpoints directly. The handler's own
         // post-configure has already built a fetching manager by now, so replace the manager.
         services.PostConfigure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, o =>

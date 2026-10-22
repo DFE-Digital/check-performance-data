@@ -109,6 +109,13 @@ jobs:
           reuse-cache: true
           snyk-token: ${{ secrets.SNYK_TOKEN }}
 
+      - name: SBOM for the web image
+        uses: ./.github/actions/image-sbom
+        with:
+          image: ${{ steps.build-image.outputs.image }}
+          name: web
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build and push worker docker image
         id: build-worker-image
         uses: DFE-Digital/github-actions/build-docker-image@master
@@ -121,6 +128,13 @@ jobs:
           max-cache: true
           reuse-cache: true
           snyk-token: ${{ secrets.SNYK_TOKEN }}
+
+      - name: SBOM for the worker image
+        uses: ./.github/actions/image-sbom
+        with:
+          image: ${{ steps.build-worker-image.outputs.image }}
+          name: worker
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
   e2e:
     name: E2E smoke tests
@@ -274,6 +288,20 @@ jobs:
           gcp-project-id: ${{ vars.GCP_PROJECT_ID }}
           # db-seed: true
           # smoke-test: true
+
+      # The image was built from the pull request merged into main as main stood when this run
+      # started. E2E Tests runs once this run ends, by when main may have moved on, so it reads
+      # the commit from here and tests that, not the pull request's merge ref as it is then.
+      - name: Record the commit the review app was built from
+        run: echo "$GITHUB_SHA" > review-app-commit.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: review-app-commit
+          path: review-app-commit.txt
+          retention-days: 14
+          # A re-run of this job records the commit again.
+          overwrite: true
   #        gcp-wip: ${{ vars.GCP_WIP }}
   #        gcp-project-id: ${{ vars.GCP_PROJECT_ID }}
 

@@ -21,6 +21,7 @@ public sealed record AutomaticHandOverAudit
 {
     public required Guid WindowId { get; init; }
     public required string WindowTitle { get; init; }
+    public required Guid ExerciseId { get; init; }
     public required CheckingExerciseType Exercise { get; init; }
 
     /// <summary>The exercise's end date: a local wall-clock value, like every exercise date.</summary>
@@ -31,4 +32,7 @@ public sealed record AutomaticHandOverAudit
 
     /// <summary>The instant of the run in UTC — the audit row's Timestamp.</summary>
     public required DateTime RanAtUtc { get; init; }
+
+    /// <summary>AB#307773: the extension handed over; null for the exercise's own hand-over.</summary>
+    public Guid? ExtensionId { get; init; }
 }

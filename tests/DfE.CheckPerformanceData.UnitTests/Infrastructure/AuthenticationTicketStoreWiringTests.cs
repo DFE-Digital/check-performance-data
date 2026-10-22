@@ -4,7 +4,9 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Infrastructure;
 
@@ -17,7 +19,7 @@ public sealed class AuthenticationTicketStoreWiringTests
     public void AddDfeSignInAuthentication_HoldsTheTicketServerSide()
     {
         var options = CookieOptionsFrom(services =>
-            services.AddDfeSignInAuthentication(MinimalDfeSignInConfig()));
+            services.AddDfeSignInAuthentication(MinimalDfeSignInConfig(), Substitute.For<IHostEnvironment>()));
 
         Assert.NotNull(options.SessionStore);
         Assert.IsType<DistributedCacheTicketStore>(options.SessionStore);

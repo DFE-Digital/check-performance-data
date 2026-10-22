@@ -29,7 +29,7 @@ flowchart TD
     reason -->|Permanently excluded from current school| permanently-excluded
     reason -->|Permanently left England| permanently-left-england-questions
     reason -->|Social care involvement| social-care
-    reason -->|Life-limiting or critical illness| life-limiting-illness
+    reason -->|Terminal or critical illness| life-limiting-illness
     reason -->|Year group change| year-group-change-higher-lower
 
     %% --- intermediate / branching pages ---
@@ -86,8 +86,8 @@ Single `Radio` question driving the whole flow. `useAsRequestType: true` and
 | `not-on-roll` | Not on roll — **only shown when `visibleWhen: [SchoolCanRecordNotOnRoll, PupilIsNotAddBack]`** (GIAS type id `11`, or a listed FE college) | `not-on-roll` |
 | `permanently-excluded` | Permanently excluded from current school | `permanently-excluded` |
 | `permanently-left-england` | Permanently left England | `permanently-left-england-questions` |
-| `social-care-involvement` | Social care involvement - including police/prison | `social-care` |
-| `life-limiting-illness` | Life-limiting or critical illness | `life-limiting-illness` |
+| `social-care-involvement` | Social care involvement - including police or prison | `social-care` |
+| `life-limiting-illness` | Terminal or critical illness | `life-limiting-illness` |
 | `year-group-change` | Year group change | `year-group-change-higher-lower` |
 
 ---

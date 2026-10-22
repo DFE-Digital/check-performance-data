@@ -27,14 +27,7 @@ public sealed class SubmittedRequestViewModel
     public string WithdrawnAtText { get; init; } = string.Empty;
     public bool AllEst { get; set; }
 
-    public string WhatToChangeLabel => WhatToChange switch
-    {
-        WhatToChange.Remove => $"Remove a {LearnerNoun.Singular} from data",
-        WhatToChange.Include => $"Include a {LearnerNoun.Singular} in data",
-        WhatToChange.Merge => $"Merge duplicate {LearnerNoun.Singular} records",
-        WhatToChange.Add => $"Add a {LearnerNoun.Singular} to data",
-        _ => WhatToChange.ToString()
-    };
+    public string WhatToChangeLabel => Journey.WhatToChangeLabel.For(WhatToChange, LearnerNoun);
 
     public string WhatToChangeNoun => WhatToChange switch
     {

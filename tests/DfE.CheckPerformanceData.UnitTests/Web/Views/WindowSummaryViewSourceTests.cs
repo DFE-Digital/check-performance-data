@@ -4,7 +4,8 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Views;
 
 // Pins the window summary page's close contracts (AB#301022) at a tier the always-on CI gate runs:
 // each exercise shows its status, Close is offered only while the exercise is open, and the
-// hand-over sweep is offered on its own only once it has closed.
+// hand-over sweep is offered on its own only once it has closed. Neither is offered on a data
+// share (#466), which has no kind and so no requests.
 public sealed class WindowSummaryViewSourceTests
 {
     private static string View() => File.ReadAllText(Path.Combine(
@@ -24,8 +25,8 @@ public sealed class WindowSummaryViewSourceTests
     public void Each_exercise_shows_its_status_as_a_tag()
     {
         var view = View();
-        Assert.Contains("<key>Status</key>", view);
-        Assert.Contains("<value><strong class=\"govuk-tag @exercise.StatusTagClass\">@exercise.StatusLabel</strong></value>", view);
+        // One tag for what schools can see and do now, from ICheckingExerciseService.StatusOf.
+        Assert.Contains("<partial name=\"~/Views/WindowAdmin/_ExerciseStatusTag.cshtml\" model=\"exercise.Status\" />", view);
     }
 
     [Fact]
@@ -34,9 +35,10 @@ public sealed class WindowSummaryViewSourceTests
         // AC1 and AC2. One occurrence of the link, and it sits inside the open branch.
         var view = View();
         Assert.Equal(1, view.Split("@exercise.CloseLink").Length - 1);
-        var openBranch = Between(view, "@if (exercise.IsOpen)", "@if (exercise.HasClosed)");
+        var openBranch = Between(view, "@if (exercise.ExerciseType is not null && exercise.IsOpen)",
+            "@if (exercise.ExerciseType is not null && exercise.HasClosed)");
         Assert.Contains("href=\"@exercise.CloseLink\"", openBranch);
-        Assert.Contains("Close @exercise.Label", openBranch);
+        Assert.Contains("Close<span class=\"govuk-visually-hidden\"> @exercise.Name</span>", openBranch);
         Assert.Contains("govuk-button--warning", openBranch);
     }
 
@@ -45,9 +47,9 @@ public sealed class WindowSummaryViewSourceTests
     {
         var view = View();
         Assert.Equal(1, view.Split("@exercise.SendRequestsLink").Length - 1);
-        var closedBranch = view[view.IndexOf("@if (exercise.HasClosed)", StringComparison.Ordinal)..];
+        var closedBranch = view[view.IndexOf("@if (exercise.ExerciseType is not null && exercise.HasClosed)", StringComparison.Ordinal)..];
         Assert.Contains("href=\"@exercise.SendRequestsLink\"", closedBranch);
-        Assert.Contains("Send @exercise.Label requests for processing", closedBranch);
+        Assert.Contains("Send requests for processing<span class=\"govuk-visually-hidden\"> for @exercise.Name</span>", closedBranch);
     }
 
     [Fact]
@@ -57,10 +59,12 @@ public sealed class WindowSummaryViewSourceTests
         // to schools, so it must still be closable: the buttons sit after the datasets branch.
         var view = View();
         var datasets = view.IndexOf("@if (exercise.Datasets.Count == 0)", StringComparison.Ordinal);
-        var buttons = view.IndexOf("<div class=\"govuk-button-group\">", StringComparison.Ordinal);
-        var close = view.IndexOf("@if (exercise.IsOpen)", StringComparison.Ordinal);
+        const string group = "<div class=\"govuk-button-group govuk-!-margin-bottom-0\">";
+        const string closeBranch = "@if (exercise.ExerciseType is not null && exercise.IsOpen)";
+        var buttons = view.IndexOf(group, StringComparison.Ordinal);
+        var close = view.IndexOf(closeBranch, StringComparison.Ordinal);
         Assert.True(datasets >= 0 && buttons > datasets && close > buttons);
-        Assert.Contains("@if (exercise.Datasets.Count > 0)", Between(view, "<div class=\"govuk-button-group\">", "@if (exercise.IsOpen)"));
+        Assert.DoesNotContain("exercise.Datasets", Between(view, group, closeBranch));
     }
 
     [Fact]

@@ -7,6 +7,9 @@ using DfE.CheckPerformanceData.Persistence.Contexts;
 // Aliased, not imported: WindowManagement also declares a CheckingWindowDto, which would make the
 // LandingPage one ambiguous here.
 using CheckingExerciseDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseDto;
+using CheckingWindowDatasetDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingWindowDatasetDto;
+using CheckingExerciseReleaseDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseReleaseDto;
+using CheckingExerciseReleaseFileDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseReleaseFileDto;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 
@@ -35,9 +38,13 @@ public sealed class CheckYourPupilDataRepository(
         var query = (await GetSchoolPupilsAsync(windowId, laestab))
             .Where(p => p.IsIncluded == included);
 
+        // In memory, over the school's cached pupil file. Keep it that way: PupilSearchTerms cannot be
+        // translated to SQL, so moving this filter onto an EF IQueryable would fail at run time.
         if (!string.IsNullOrWhiteSpace(search))
-            query = query.Where(p => p.Firstname.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                                     p.Surname.Contains(search, StringComparison.OrdinalIgnoreCase));
+        {
+            var terms = PupilSearchTerms.Parse(search);
+            query = query.Where(p => terms.Matches([p.Firstname, p.Surname]));
+        }
 
         return query.OrderBy(p => p.Surname).ThenBy(p => p.Firstname).ToList();
     }
@@ -48,9 +55,13 @@ public sealed class CheckYourPupilDataRepository(
     public async Task<CheckingWindowDto> GetCheckingWindowAsync(Guid windowId)
         => await dbContext.CheckingWindows
             .AsNoTracking()
+            // Datasets and Releases are sibling collections. In one query each release file would
+            // repeat every dataset row; split queries load each collection once.
+            .AsSplitQuery()
             .Where(w => w.Id == windowId)
             .Select(w => new CheckingWindowDto
             {
+                Id = w.Id,
                 EndDate = w.EndDate,
                 Title = w.Title,
                 KeyStage = w.KeyStage,
@@ -59,16 +70,84 @@ public sealed class CheckYourPupilDataRepository(
                 TurnaroundCommitment = w.TurnaroundCommitment,
                 NextOpportunity = w.NextOpportunity,
                 // #315: ICheckingExerciseService answers "is this exercise open" from these rows,
-                // so every read path that reaches Web has to carry them.
+                // so every read path that reaches Web has to carry them. #466: the exercise tab
+                // builder needs the rest — TabName is what decides whether a row draws a tab at
+                // all, and Datasets is what lets it read the schema that shapes one. Mirrors the
+                // projection WindowRepository already carries for the admin summary page.
                 Exercises = w.CheckingExercises
-                    .OrderBy(e => e.SortOrder)
+                    .OrderBy(e => e.TabOrder).ThenBy(e => e.Id)
                     .Select(e => new CheckingExerciseDto
                     {
                         Id = e.Id,
+                        UsesExerciseStorage = e.UsesExerciseStorage,
+                        Name = e.Name,
+                        TabName = e.TabName,
+                        TabOrder = e.TabOrder,
+                        IsEnabled = e.IsEnabled,
+                        DisplayOnly = e.DisplayOnly,
+                        VisibleFrom = e.VisibleFrom,
+                        VisibleUntil = e.VisibleUntil,
+                        WindowStart = w.StartDate,
+                        WindowEnd = w.EndDate,
+                        ReplacesCheckingExerciseId = e.ReplacesCheckingExerciseId,
+                        CurrentReleaseId = e.CurrentReleaseId,
+                        Layout = e.Layout,
+                        ShowLateResultsWarning = e.ShowLateResultsWarning,
+                        // Oldest first. The school-facing display reads its schemas from the current release, and
+                        // the admin exercise page lists every release so an earlier one can be made live again.
+                        Releases = e.Releases
+                            .OrderBy(r => r.Number)
+                            .Select(r => new CheckingExerciseReleaseDto
+                            {
+                                Id = r.Id,
+                                Number = r.Number,
+                                PublishedAt = r.PublishedAt,
+                                PublishedBy = r.PublishedBy,
+                                FilesWritten = r.FilesWritten,
+                                Files = r.Files
+                                    .OrderBy(f => f.SortOrder)
+                                    .Select(f => new CheckingExerciseReleaseFileDto
+                                    {
+                                        DatasetId = f.DatasetId,
+                                        DatasetName = f.DatasetName,
+                                        FeedsJourney = f.FeedsJourney,
+                                        Included = f.Included,
+                                        SourceFile = f.SourceFile,
+                                        IngressFile = f.IngressFile,
+                                        IngressFileChecksum = f.IngressFileChecksum,
+                                        SchemaFile = f.SchemaFile,
+                                        SchemaFileChecksum = f.SchemaFileChecksum,
+                                        SortOrder = f.SortOrder
+                                    })
+                                    .ToList()
+                            })
+                            .ToList(),
+                        Extensions = e.Extensions
+                            .AsQueryable()
+                            .OrderBy(x => x.CreatedAt).ThenBy(x => x.Id)
+                            .Select(CheckingExerciseExtensionMapping.Projection)
+                            .ToList(),
                         ExerciseType = e.ExerciseType,
                         StartDate = e.StartDate,
                         EndDate = e.EndDate,
-                        SortOrder = e.SortOrder
+                        Datasets = e.Datasets
+                            .OrderBy(d => d.SortOrder)
+                            .Select(d => new CheckingWindowDatasetDto
+                            {
+                                Id = d.Id,
+                                Name = d.Name,
+                                IngressFile = d.IngressFile,
+                                IngressFileChecksum = d.IngressFileChecksum,
+                                SchemaFile = d.SchemaFile,
+                                SchemaFileChecksum = d.SchemaFileChecksum,
+                                Included = d.Included,
+                                SourceFile = d.SourceFile,
+                                Required = d.Required,
+                                FeedsJourney = d.FeedsJourney,
+                                Retired = d.Retired,
+                                SortOrder = d.SortOrder
+                            })
+                            .ToList()
                     })
                     .ToList()
             })
@@ -89,6 +168,7 @@ public sealed class CheckYourPupilDataRepository(
         // too and shows its identifiers), so both live in PupilSuggestionFormat where they can be
         // unit-tested against pinned copy.
         var (pupils0, windowType) = await GetSchoolPupilsWithWindowTypeAsync(windowId, laestab);
+        var matches = PupilSuggestionFormat.Matcher(query, searchField);
         var pupils = pupils0
             .Where(p => filter switch
             {
@@ -96,7 +176,7 @@ public sealed class CheckYourPupilDataRepository(
                 PupilFilter.Included => p.IsIncluded,
                 _ => !p.IsIncluded
             })
-            .Where(p => PupilSuggestionFormat.Matches(p, query, windowType, searchField));
+            .Where(matches);
 
         if (excludeId.HasValue)
             pupils = pupils.Where(p => p.Id != excludeId.Value);
@@ -126,7 +206,16 @@ public sealed class CheckYourPupilDataRepository(
 
     private async Task<SchoolPupilsCacheEntry> GetSchoolPupilsWithWindowTypeAsync(Guid windowId, string laestab)
     {
-        var key = $"pupils:{windowId}:{laestab}";
+        // The current release is part of the key. When an admin publishes a new release, or makes
+        // an earlier one live again, the next read misses and loads that release's file, rather
+        // than serving the old one until the 30-minute sliding expiry runs out.
+        var releases = await dbContext.CheckingExercises
+            .AsNoTracking()
+            .Where(e => e.CheckingWindowId == windowId && e.ExerciseType == CheckingExerciseType.PupilData)
+            .OrderBy(e => e.Id)
+            .Select(e => e.CurrentReleaseId)
+            .ToListAsync();
+        var key = $"pupils:{windowId}:{laestab}:{string.Join(",", releases)}";
         if (cache.TryGetValue(key, out SchoolPupilsCacheEntry? cached) && cached is not null)
             return cached;
 

@@ -27,20 +27,33 @@ public sealed class NextStepsServiceTests
     private static readonly DateTime NextMonth = new(2026, 9, 30);
 
     private static CheckingExerciseDto Open(CheckingExerciseType type, int sortOrder = 0) =>
-        new() { ExerciseType = type, StartDate = Yesterday, EndDate = Tomorrow, SortOrder = sortOrder };
+        new() { ExerciseType = type, IsEnabled = true, StartDate = Yesterday, EndDate = Tomorrow, TabOrder = sortOrder };
 
     private static CheckingExerciseDto Closed(CheckingExerciseType type, int sortOrder = 0) =>
-        new() { ExerciseType = type, StartDate = LastMonth, EndDate = Yesterday, SortOrder = sortOrder };
+        new() { ExerciseType = type, IsEnabled = true, StartDate = LastMonth, EndDate = Yesterday, TabOrder = sortOrder };
 
     private static CheckingExerciseDto NotYetOpen(CheckingExerciseType type, int sortOrder = 0) =>
-        new() { ExerciseType = type, StartDate = Tomorrow, EndDate = NextMonth, SortOrder = sortOrder };
+        new() { ExerciseType = type, IsEnabled = true, StartDate = Tomorrow, EndDate = NextMonth, TabOrder = sortOrder };
 
     [Fact]
     public void An_open_pupil_data_exercise_offers_amend_and_confirm()
     {
         Assert.Equal(
             [NextSteps.RequestChange, NextSteps.Confirm],
-            Sut().GetAvailableSteps([Open(CheckingExerciseType.PupilData)]));
+            Sut().GetAvailableSteps([Open(CheckingExerciseType.PupilData)], laestab: null));
+    }
+
+    // AB#307773: a school named in an extension keeps its options after the exercise's own end;
+    // every other school, and a caller that names none, sees the exercise closed.
+    [Fact]
+    public void A_school_in_an_extension_keeps_its_options_after_the_exercise_end()
+    {
+        var exercise = Closed(CheckingExerciseType.PupilData);
+        exercise.Extensions.Add(new CheckingExerciseExtensionDto { Id = Guid.NewGuid(), EndDate = Tomorrow, Laestabs = ["9334290"] });
+
+        Assert.Equal([NextSteps.RequestChange, NextSteps.Confirm], Sut().GetAvailableSteps([exercise], "933/4290"));
+        Assert.Empty(Sut().GetAvailableSteps([exercise], "8604070"));
+        Assert.Empty(Sut().GetAvailableSteps([exercise], laestab: null));
     }
 
     [Fact]
@@ -48,7 +61,7 @@ public sealed class NextStepsServiceTests
     {
         Assert.Equal(
             [NextSteps.ResultsEnquiry],
-            Sut().GetAvailableSteps([Open(CheckingExerciseType.ResultsEnquiry)]));
+            Sut().GetAvailableSteps([Open(CheckingExerciseType.ResultsEnquiry)], laestab: null));
     }
 
     [Fact]
@@ -62,7 +75,7 @@ public sealed class NextStepsServiceTests
 
         Assert.Equal(
             [NextSteps.RequestChange, NextSteps.Confirm, NextSteps.ResultsEnquiry],
-            Sut().GetAvailableSteps(exercises));
+            Sut().GetAvailableSteps(exercises, laestab: null));
     }
 
     [Fact]
@@ -75,7 +88,7 @@ public sealed class NextStepsServiceTests
             Open(CheckingExerciseType.ResultsEnquiry, sortOrder: 1)
         };
 
-        Assert.Equal([NextSteps.ResultsEnquiry], Sut().GetAvailableSteps(exercises));
+        Assert.Equal([NextSteps.ResultsEnquiry], Sut().GetAvailableSteps(exercises, laestab: null));
     }
 
     [Fact]
@@ -89,7 +102,7 @@ public sealed class NextStepsServiceTests
 
         Assert.Equal(
             [NextSteps.RequestChange, NextSteps.Confirm],
-            Sut().GetAvailableSteps(exercises));
+            Sut().GetAvailableSteps(exercises, laestab: null));
     }
 
     [Fact]
@@ -101,7 +114,7 @@ public sealed class NextStepsServiceTests
             Closed(CheckingExerciseType.ResultsEnquiry, sortOrder: 1)
         };
 
-        Assert.Empty(Sut().GetAvailableSteps(exercises));
+        Assert.Empty(Sut().GetAvailableSteps(exercises, laestab: null));
     }
 
     [Fact]
@@ -109,7 +122,7 @@ public sealed class NextStepsServiceTests
     {
         // Fails closed, via ICheckingExerciseService: a half-configured window must not open a
         // journey by accident.
-        Assert.Empty(Sut().GetAvailableSteps([]));
+        Assert.Empty(Sut().GetAvailableSteps([], laestab: null));
     }
 
     [Fact]
@@ -120,12 +133,13 @@ public sealed class NextStepsServiceTests
         var unmapped = new CheckingExerciseDto
         {
             ExerciseType = (CheckingExerciseType)999,
+            IsEnabled = true,
             StartDate = Yesterday,
             EndDate = Tomorrow,
-            SortOrder = 0
+            TabOrder = 0
         };
 
-        Assert.Empty(Sut().GetAvailableSteps([unmapped]));
+        Assert.Empty(Sut().GetAvailableSteps([unmapped], laestab: null));
     }
 
     [Fact]
@@ -135,7 +149,7 @@ public sealed class NextStepsServiceTests
         // would ship as a silently unreachable feature.
         foreach (var type in Enum.GetValues<CheckingExerciseType>())
         {
-            Assert.NotEmpty(Sut().GetAvailableSteps([Open(type)]));
+            Assert.NotEmpty(Sut().GetAvailableSteps([Open(type)], laestab: null));
         }
     }
 
@@ -150,8 +164,8 @@ public sealed class NextStepsServiceTests
             Open(CheckingExerciseType.ResultsEnquiry, 1)
         };
 
-        Assert.DoesNotContain(NextSteps.SignOut, Sut().GetAvailableSteps(everythingOpen));
-        Assert.DoesNotContain(NextSteps.SignOut, Sut().GetAvailableSteps([Open(CheckingExerciseType.ResultsEnquiry)]));
+        Assert.DoesNotContain(NextSteps.SignOut, Sut().GetAvailableSteps(everythingOpen, laestab: null));
+        Assert.DoesNotContain(NextSteps.SignOut, Sut().GetAvailableSteps([Open(CheckingExerciseType.ResultsEnquiry)], laestab: null));
     }
 
     // ── IsResultsEnquiryOnly (AB#298317 review) ──────────────────────────────

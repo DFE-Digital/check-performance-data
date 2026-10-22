@@ -166,6 +166,25 @@ public class WidgetPropsBuilderTests
         Assert.Equal("true", (string)props["buttonBelow"]!);
     }
 
+    // Widgets saved before the option existed have no stored value and no clear button, so the
+    // default is "false".
+    [Fact]
+    public void Build_Search_ClearButtonDefaultsToFalse_WhenNotPosted()
+    {
+        var props = WidgetPropsBuilder.Build("search", new Dictionary<string, string?>());
+
+        Assert.Equal("false", (string)props["clearButton"]!);
+    }
+
+    [Fact]
+    public void Build_Search_TickedClearButton_IsStoredAsTrue()
+    {
+        var props = WidgetPropsBuilder.Build("search",
+            new Dictionary<string, string?> { ["clearButton"] = "true" });
+
+        Assert.Equal("true", (string)props["clearButton"]!);
+    }
+
     // With instant search off the option is still stored as posted, but the widget ignores it and
     // always shows the button.
     [Fact]

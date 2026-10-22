@@ -31,9 +31,11 @@
     cssClass = "govuk-caption-l"
 })
 
+@* #626: _v2 because a block seeds once per key. Environments that already held
+   journey_confirmation_next_steps kept its old copy, which the corrected default never replaced. *@
 @await Component.InvokeAsync("EditableContent", new
 {
-    key = "journey_confirmation_next_steps",
+    key = "journey_confirmation_next_steps_v2",
     defaultHtml = "<p class=\"govuk-body\">After you submit your amendments:</p>\n<ul class=\"govuk-list govuk-list--bullet\">\n    <li>the DfE will review any evidence you provide</li>\n    <li>you'll be able to track the status of your requests in the service</li>\n    <li>your school's performance data will be updated in the Autumn, if the request is approved</li>\n</ul>"
 })
 

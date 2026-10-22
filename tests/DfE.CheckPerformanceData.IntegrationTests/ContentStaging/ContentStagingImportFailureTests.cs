@@ -4,6 +4,7 @@ using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Persistence.Contexts;
+using DfE.CheckPerformanceData.Persistence.Entities;
 using DfE.CheckPerformanceData.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
@@ -15,9 +16,11 @@ namespace DfE.CheckPerformanceData.IntegrationTests.ContentStaging;
 // leaves partial state" so a future refactor can't quietly flip the contract.
 //
 // Current contract (as designed):
-//   * Validator-fatal issues (bad segment, unknown PageType, too-large payload, etc.)
-//     throw ContentImportValidationException BEFORE any mutation, so no partial commit
-//     is possible — the caller sees an exception, the DB is untouched.
+//   * Validator-fatal issues are about the bundle as a whole (too many pages, blocks or
+//     banners). They throw ContentImportValidationException BEFORE any mutation, so no
+//     partial commit is possible — the caller sees an exception, the DB is untouched.
+//   * A validator issue with one item (bad segment, unknown PageType, too-large payload,
+//     etc.) leaves that item out and lists it in result.Errors; the rest is imported.
 //   * Per-page runtime failures (unknown ParentId, seeder collision, etc.) are caught
 //     inside the loop and added to result.Errors; the loop continues so surviving items
 //     still get imported. This is best-effort-per-item, NOT all-or-nothing.
@@ -44,9 +47,9 @@ public sealed class ContentStagingImportFailureTests(PostgresFixture fixture)
         return new ContentStagingService(pageRepo, blockRepo, new HomeBannerRepository(ctx, Substitute.For<ICurrentUserService>()), new HtmlRenderingService());
     }
 
-    // Validator-fatal issue → whole-bundle rejection, zero writes.
+    // A page the validator rejects is left out; its siblings are imported.
     [Fact]
-    public async Task Import_ValidatorFatalIssue_ThrowsAndCommitsNothing()
+    public async Task Import_PageTheValidatorRejects_IsLeftOut_AndItsSiblingsAreImported()
     {
         await ResetAsync();
 
@@ -56,20 +59,22 @@ public sealed class ContentStagingImportFailureTests(PostgresFixture fixture)
             {
                 new() { Id = Guid.NewGuid(), Segment = "help",     Title = "Help",     PageType = "folder" },
                 new() { Id = Guid.NewGuid(), Segment = "faq",      Title = "FAQ",      PageType = "content" },
-                // Uppercase segment fails SEGMENT_INVALID → whole bundle rejected pre-mutation.
-                new() { Id = Guid.NewGuid(), Segment = "BROKEN",   Title = "Broken",   PageType = "content" },
+                // A space breaks the segment rule even in lowercase → SEGMENT_INVALID.
+                new() { Id = Guid.NewGuid(), Segment = "bro ken",  Title = "Broken",   PageType = "content" },
             }
         };
 
         var staging = NewStaging(out var ctx);
         await using var _ = ctx;
 
-        await Assert.ThrowsAsync<ContentImportValidationException>(async () =>
-            await staging.ImportAsync(bundle, ContentImportMode.Fail));
+        var result = await staging.ImportAsync(bundle, ContentImportMode.Fail);
 
-        // No mutation should have happened — the validator throws BEFORE the import loop.
+        var error = Assert.Single(result.Errors);
+        Assert.StartsWith("Did not import ‘Broken’:", error);
         await using var check = _fixture.CreateContext();
-        Assert.Equal(0, await check.PageNodes.CountAsync());
+        Assert.Equal(
+            new[] { "faq", "help" },
+            (await check.PageNodes.Select(p => p.Path).ToListAsync()).Order().ToArray());
     }
 
     // Per-item runtime failure (unknown ParentId) → the failing item is skipped with an
@@ -158,5 +163,45 @@ public sealed class ContentStagingImportFailureTests(PostgresFixture fixture)
         await using var check = _fixture.CreateContext();
         Assert.Equal(1, await check.PageNodes.CountAsync());
         Assert.Equal("committed", (await check.PageNodes.SingleAsync()).Path);
+    }
+
+    // A page that already has a segment with capitals here, imported again from a bundle that
+    // carries the same segment, is lowercased. Its address changes, so every page beneath it
+    // moves with it: the ones in the bundle and the ones only in this environment.
+    [Fact]
+    public async Task Import_LowercasingAnExistingPage_MovesEveryPageBeneathIt()
+    {
+        await ResetAsync();
+        var parentId = Guid.NewGuid();
+        var childId = Guid.NewGuid();
+        var localOnlyId = Guid.NewGuid();
+        await using (var seed = _fixture.CreateContext())
+        {
+            var now = DateTime.UtcNow;
+            seed.PageNodes.Add(new PageNode { Id = parentId, Segment = "guidance-copy-17-Sep", Path = "guidance-copy-17-Sep", Title = "Copy", PageType = "folder", CreatedDate = now, UpdatedDate = now });
+            seed.PageNodes.Add(new PageNode { Id = childId, ParentId = parentId, Segment = "faq", Path = "guidance-copy-17-Sep/faq", Title = "FAQ", PageType = "folder", CreatedDate = now, UpdatedDate = now });
+            seed.PageNodes.Add(new PageNode { Id = localOnlyId, ParentId = childId, Segment = "local", Path = "guidance-copy-17-Sep/faq/local", Title = "Local", PageType = "folder", CreatedDate = now, UpdatedDate = now });
+            await seed.SaveChangesAsync();
+        }
+
+        var bundle = new ContentBundle
+        {
+            PageNodes =
+            {
+                new() { Id = parentId, Segment = "guidance-copy-17-Sep", Title = "Copy", PageType = "folder" },
+                new() { Id = childId, ParentId = parentId, Segment = "faq", Title = "FAQ", PageType = "folder" },
+            }
+        };
+
+        var staging = NewStaging(out var ctx);
+        await using var _ = ctx;
+        var result = await staging.ImportAsync(bundle, ContentImportMode.Replace);
+
+        Assert.Empty(result.Errors);
+        await using var check = _fixture.CreateContext();
+        var paths = await check.PageNodes.ToDictionaryAsync(p => p.Id, p => p.Path);
+        Assert.Equal("guidance-copy-17-sep", paths[parentId]);
+        Assert.Equal("guidance-copy-17-sep/faq", paths[childId]);
+        Assert.Equal("guidance-copy-17-sep/faq/local", paths[localOnlyId]);
     }
 }

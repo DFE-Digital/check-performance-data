@@ -324,6 +324,53 @@ public class JourneyViewModelBuilderTests
             vm.QuestionModels.Select(q => q.ResolvedTitle).ToList());
     }
 
+    // ── BuildPageVm: evidence page caption (#625) ───────────────────────────
+
+    [Fact]
+    public void BuildPageVm_EvidencePage_CaptionIsTheReasonTheSchoolChose()
+    {
+        var journey = JourneyWithHistory(["select-pupil", "q1"]);
+        journey.SelectedWhatToChange = WhatToChange.Remove;
+        _flowService.ResolveRequestTypeValue(Config, journey).Returns("social-care-involvement");
+        _flowService.ResolveRequestType(Config, journey)
+            .Returns("Social care involvement - including police or prison");
+
+        var vm = _sut.BuildPageVm(WindowId, EitherOrEvidencePage, journey.QuestionAnswers, journey,
+            fromSummary: false, modelState: new ModelStateDictionary(), config: Config);
+
+        Assert.Equal("Social care involvement - including police or prison", vm.Caption);
+    }
+
+    [Theory]
+    [InlineData(WhatToChange.Add, "Add a pupil to data")]
+    [InlineData(WhatToChange.Include, "Include a pupil in data")]
+    [InlineData(WhatToChange.Merge, "Merge duplicate pupil records")]
+    public void BuildPageVm_EvidencePage_WithNoReason_CaptionIsTheJourney(WhatToChange change, string expected)
+    {
+        var journey = JourneyWithHistory(["select-pupil"]);
+        journey.SelectedWhatToChange = change;
+        _flowService.ResolveRequestTypeValue(Config, journey).Returns(string.Empty);
+        // The fallback answer label is not a reason, so it must not become the caption.
+        _flowService.ResolveRequestType(Config, journey).Returns("Jane");
+
+        var vm = _sut.BuildPageVm(WindowId, EitherOrEvidencePage, journey.QuestionAnswers, journey,
+            fromSummary: false, modelState: new ModelStateDictionary(), config: Config);
+
+        Assert.Equal(expected, vm.Caption);
+    }
+
+    [Fact]
+    public void BuildPageVm_QuestionPage_HasNoCaption()
+    {
+        var journey = JourneyWithHistory(["select-pupil"]);
+        journey.SelectedWhatToChange = WhatToChange.Remove;
+
+        var vm = _sut.BuildPageVm(WindowId, QuestionPage1, journey.QuestionAnswers, journey,
+            fromSummary: false, modelState: new ModelStateDictionary(), config: Config);
+
+        Assert.Null(vm.Caption);
+    }
+
     [Fact]
     public void BuildPageVm_WhenPageNotInHistory_BackPageIdIsLastHistoryEntry()
     {

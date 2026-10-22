@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
@@ -29,6 +30,7 @@ public sealed class WhatToChangeControllerTests
     private readonly IAnalyticsService _analytics = Substitute.For<IAnalyticsService>();
     private readonly FakeSession _session = new();
     private readonly ICheckingExerciseService _checkingExercises = OpenCheckingExercises.AlwaysOpen();
+    private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
     private readonly WhatToChangeController _sut;
 
     public WhatToChangeControllerTests()
@@ -38,7 +40,7 @@ public sealed class WhatToChangeControllerTests
         // #318: both actions now read the window before anything else, to gate on the pupil-data
         // checking exercise. Stubbed for every test; the exercise service decides open/closed.
         _service.GetCheckingWindowAsync(WindowId).Returns(Window());
-        _sut = new WhatToChangeController(_service, _flowService, _checkingExercises, _analytics)
+        _sut = new WhatToChangeController(_service, _flowService, _checkingExercises, _currentUser, _analytics)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext },
             TempData = new TempDataDictionary(httpContext, Substitute.For<ITempDataProvider>())
@@ -330,7 +332,7 @@ public sealed class WhatToChangeControllerTests
         s.MatchedPupil = StalePupil("Ian", "Smith");
         s.MatchedPupilId = "some-stale-match-id";
         s.MatchedPupilLabel = "Smith, Ian";
-        s.SelectedResult = new StudentResultRecord();
+        s.SelectedResult = new ResultRecord();
         s.SelectedResultQualification = new QualificationReference { Qan = "60146084", QualificationTitle = "Maths" };
         s.QuestionAnswers = new() { ["first-name"] = new QuestionAnswer { TextValue = "Alice" } };
         s.QuestionHistory = ["learner-details", "admission-details", "evidence"];
@@ -412,6 +414,38 @@ public sealed class WhatToChangeControllerTests
             _sut.TempData[ClosedExerciseGuard.TempDataKey]);
     }
 
+    // AB#307773: pupil data has ended, but an open extension names one school. The gate is asked
+    // about the signed-in school, so that school still reaches the page and another does not.
+    [Theory]
+    [InlineData("933/4290", true)]
+    [InlineData("860/4070", false)]
+    public async Task Index_WhenOnlyTheSchoolsExtensionIsOpen_ShowsThePageToTheSchoolItNamesOnly(string laestab, bool named)
+    {
+        _currentUser.OrganisationLaestab.Returns(laestab);
+        _checkingExercises.OpenOnlyFor("933/4290");
+
+        var result = await _sut.Index(WindowId);
+
+        if (named)
+            Assert.IsType<ViewResult>(result);
+        else
+            Assert.Equal("CheckYourPupilData", Assert.IsType<RedirectToActionResult>(result).ControllerName);
+    }
+
+    [Theory]
+    [InlineData("933/4290", true)]
+    [InlineData("860/4070", false)]
+    public async Task Confirm_WhenOnlyTheSchoolsExtensionIsOpen_StartsAJourneyForTheSchoolItNamesOnly(string laestab, bool named)
+    {
+        _currentUser.OrganisationLaestab.Returns(laestab);
+        _checkingExercises.OpenOnlyFor("933/4290");
+
+        await _sut.Confirm(WindowId,
+            new WhatToChangeViewModel { WindowId = WindowId, SelectedWhatToChange = WhatToChange.Remove });
+
+        Assert.Equal(named ? (WhatToChange?)WhatToChange.Remove : null, _session.GetRequestState(WindowId).SelectedWhatToChange);
+    }
+
     [Fact]
     public async Task Confirm_WhenPupilDataExerciseClosed_IsRejectedAndStartsNoJourney()
     {
@@ -433,7 +467,7 @@ public sealed class WhatToChangeControllerTests
     {
         // A 16-19 window runs results enquiry on its own later dates. Pupil data closing must shut
         // this journey even while the window itself is open.
-        _checkingExercises.IsOpen(default!, default)
+        _checkingExercises.IsOpen(default!, default, default)
             .ReturnsForAnyArgs(ci => ci.ArgAt<CheckingExerciseType>(1) == CheckingExerciseType.ResultsEnquiry);
 
         var result = await _sut.Confirm(WindowId,

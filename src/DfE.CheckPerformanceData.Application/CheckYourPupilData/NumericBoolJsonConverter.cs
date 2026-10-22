@@ -8,8 +8,8 @@ namespace DfE.CheckPerformanceData.Application.CheckYourPupilData;
 /// <c>NEWMOBILE</c> as <c>0</c>/<c>1</c>; <see cref="JsonNumberHandling.AllowReadingFromString"/>
 /// does not cover <see cref="bool"/>, and System.Text.Json will not bind a JSON number to a
 /// bool, so this converter bridges the gap. It reads native <c>true</c>/<c>false</c>, the
-/// numbers <c>0</c>/<c>1</c>, and their quoted forms (<c>"0"</c>/<c>"1"</c>/<c>"true"</c>/<c>"false"</c>),
-/// and writes <c>0</c>/<c>1</c> so the dev seeder's output mirrors the supplier.
+/// numbers <c>0</c>/<c>1</c>, their quoted forms (<c>"0"</c>/<c>"1"</c>/<c>"true"</c>/<c>"false"</c>)
+/// and <c>null</c> (as false), and writes <c>0</c>/<c>1</c> so the dev seeder's output mirrors the supplier.
 /// </summary>
 public sealed class NumericBoolJsonConverter : JsonConverter<bool>
 {
@@ -18,6 +18,9 @@ public sealed class NumericBoolJsonConverter : JsonConverter<bool>
         {
             JsonTokenType.True => true,
             JsonTokenType.False => false,
+            // The schema allows null and ingress writes it for a blank cell. Read it as false,
+            // as a null P_INCL reads as not included, so one blank cell cannot fail the file.
+            JsonTokenType.Null => false,
             JsonTokenType.Number => reader.GetInt32() != 0,
             JsonTokenType.String => ParseString(reader.GetString()),
             _ => throw new JsonException($"Cannot convert token '{reader.TokenType}' to a boolean.")

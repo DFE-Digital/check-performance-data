@@ -717,6 +717,50 @@ public class PageNodeServiceTests
     }
 
     [Fact]
+    public async Task Rename_MixedCaseSegment_IsSavedInLowerCase()
+    {
+        var root  = await Sut().CreatePageAsync(null,    "guidance", "Guidance", "content", "u1");
+        var child = await Sut().CreatePageAsync(root.Id, "faq",      "FAQ",      "content", "u1");
+
+        var result = await Sut().RenameNodeAsync(root.Id, "Guidance-Copy-17-Sep", "Guidance", newSubtitle: null, newPageName: null, "u1");
+
+        Assert.Equal(RenameNodeResult.Ok, result);
+        var r = await _repo.GetByIdAsync(root.Id);
+        Assert.Equal("guidance-copy-17-sep", r!.Segment);
+        Assert.Equal("guidance-copy-17-sep", r.Path);
+        Assert.Equal("guidance-copy-17-sep/faq", (await _repo.GetByIdAsync(child.Id))!.Path);
+    }
+
+    [Fact]
+    public async Task Rename_MixedCaseSegment_ThatLowercasesOntoASibling_IsAPathConflict()
+    {
+        await Sut().CreatePageAsync(null, "help", "Help", "content", "u1");
+        var target = await Sut().CreatePageAsync(null, "support", "Support", "content", "u1");
+
+        var result = await Sut().RenameNodeAsync(target.Id, "HELP", "Support", newSubtitle: null, newPageName: null, "u1");
+
+        Assert.Equal(RenameNodeResult.PathConflict, result);
+        Assert.Equal("support", (await _repo.GetByIdAsync(target.Id))!.Segment);
+    }
+
+    [Theory]
+    [InlineData("my page")]
+    [InlineData("my--page")]
+    [InlineData("-my-page")]
+    [InlineData("my-page-")]
+    [InlineData("my_page")]
+    [InlineData("my.page")]
+    public async Task Rename_SegmentThatBreaksTheFormattingRules_IsRejected(string segment)
+    {
+        var node = await Sut().CreatePageAsync(null, "help", "Help", "content", "u1");
+
+        var result = await Sut().RenameNodeAsync(node.Id, segment, "Help", newSubtitle: null, newPageName: null, "u1");
+
+        Assert.Equal(RenameNodeResult.InvalidSegment, result);
+        Assert.Equal("help", (await _repo.GetByIdAsync(node.Id))!.Segment);
+    }
+
+    [Fact]
     public async Task Rename_MissingNode_ReturnsNotFound()
     {
         var result = await Sut().RenameNodeAsync(Guid.NewGuid(), "anything", "Anything", newSubtitle: null, newPageName: null, "u1");

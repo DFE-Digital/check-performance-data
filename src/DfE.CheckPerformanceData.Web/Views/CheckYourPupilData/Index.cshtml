@@ -39,7 +39,7 @@
     Review your @Model.LearnerNoun.Singular data by checking the tables below. You can also download the data as a CSV file.
     @if (pupilDataDeadline is not null && Model.IsPupilDataOpen)
     {
-        @:You must request any changes to @Model.LearnerNoun.Singular data before @pupilDataDeadline
+        @:You must request any amendments to @Model.LearnerNoun.Singular data before @pupilDataDeadline
     }
 </p>
 
@@ -80,54 +80,86 @@
         : [.. Model.Sections, Model.ResultsSection];
 }
 
-@* KS4 tabs by inclusion status; 16-19 stacks both tables in one "Pupils" tab, because there the
-   tab axis is dataset — the other 16-19 import files become sibling tabs later. *@
-<govuk-tabs>
-    @if (Model.SectionsAsTabs)
-    {
-        foreach (var pupilSection in Model.Sections)
+@* #466: one tab per visible exercise, rendered from its own schemas. An empty
+   CheckingExerciseTabs means no exercise is visible now, and the else branch below renders the
+   inclusion tabs. *@
+@if (Model.CheckingExerciseTabs.Count > 0)
+{
+    <govuk-tabs>
+        @foreach (var tab in Model.CheckingExerciseTabs)
         {
-            <govuk-tabs-item id="@pupilSection.Key" label="@pupilSection.TabLabel">
+            <govuk-tabs-item id="@tab.Key" label="@tab.Label">
+                @if (tab.SchemaUnavailable)
+                {
+                    <p class="govuk-body">This data cannot be shown because one of its schemas is unavailable.</p>
+                }
+                else if (tab.Vertical is not null)
+                {
+                    @await Html.PartialAsync("_VerticalSummary", tab)
+                }
+                else if (tab.Table is not null)
+                {
+                    @await Html.PartialAsync("_ExerciseTable", tab)
+                }
+                else
+                {
+                    @await Html.PartialAsync("_RawExerciseTable", tab)
+                }
+            </govuk-tabs-item>
+        }
+    </govuk-tabs>
+}
+else
+{
+    @* KS4 tabs by inclusion status; 16-19 stacks both tables in one "Pupils" tab, because there
+       the tab axis is dataset — the other 16-19 import files become sibling tabs later. *@
+    <govuk-tabs>
+        @if (Model.SectionsAsTabs)
+        {
+            foreach (var pupilSection in Model.Sections)
+            {
+                <govuk-tabs-item id="@pupilSection.Key" label="@pupilSection.TabLabel">
+                    @await Html.PartialAsync("_PupilSection", new PupilSectionViewModel
+                    {
+                        WindowId = Model.WindowId,
+                        Section = pupilSection,
+                        AllSections = allSections,
+                        TabAnchor = pupilSection.Key
+                    })
+                </govuk-tabs-item>
+            }
+        }
+        else
+        {
+            <govuk-tabs-item id="pupils" label="@Model.LearnerNoun.PluralCapitalised">
+                @foreach (var pupilSection in Model.Sections)
+                {
+                    @await Html.PartialAsync("_PupilSection", new PupilSectionViewModel
+                    {
+                        WindowId = Model.WindowId,
+                        Section = pupilSection,
+                        AllSections = allSections,
+                        TabAnchor = "pupils"
+                    })
+                }
+            </govuk-tabs-item>
+        }
+        @* The Results tab is a sibling of the pupil tab(s) in both layouts: its axis is dataset,
+           not inclusion status. Absent when the window has no results enquiry to list. *@
+        @if (Model.ResultsSection is not null)
+        {
+            <govuk-tabs-item id="results" label="Results">
                 @await Html.PartialAsync("_PupilSection", new PupilSectionViewModel
                 {
                     WindowId = Model.WindowId,
-                    Section = pupilSection,
+                    Section = Model.ResultsSection,
                     AllSections = allSections,
-                    TabAnchor = pupilSection.Key
+                    TabAnchor = "results"
                 })
             </govuk-tabs-item>
         }
-    }
-    else
-    {
-        <govuk-tabs-item id="pupils" label="@Model.LearnerNoun.PluralCapitalised">
-            @foreach (var pupilSection in Model.Sections)
-            {
-                @await Html.PartialAsync("_PupilSection", new PupilSectionViewModel
-                {
-                    WindowId = Model.WindowId,
-                    Section = pupilSection,
-                    AllSections = allSections,
-                    TabAnchor = "pupils"
-                })
-            }
-        </govuk-tabs-item>
-    }
-    @* The Results tab is a sibling of the pupil tab(s) in both layouts: its axis is dataset, not
-       inclusion status. Absent when the window has no results enquiry to list. *@
-    @if (Model.ResultsSection is not null)
-    {
-        <govuk-tabs-item id="results" label="Results">
-            @await Html.PartialAsync("_PupilSection", new PupilSectionViewModel
-            {
-                WindowId = Model.WindowId,
-                Section = Model.ResultsSection,
-                AllSections = allSections,
-                TabAnchor = "results"
-            })
-        </govuk-tabs-item>
-    }
-</govuk-tabs>
+    </govuk-tabs>
+}
 
 @* #317: the form offers whatever the open exercises offer. Nothing open means no form at all —
    the tables, the search and the downloads above are untouched, because a closed exercise removes

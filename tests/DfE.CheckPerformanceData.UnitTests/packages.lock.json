@@ -154,19 +154,30 @@
       },
       "DfeAnalytics.AspNetCore": {
         "type": "Transitive",
-        "resolved": "0.6.2",
-        "contentHash": "mn6A8jAuiJ4O1HZure+HGgXReHK7sz0rDX6BhU9fqMcgQH+n68tbbbsPBg/bYLGF0KXFc1mWcKFjB3j2QyK9aA==",
+        "resolved": "0.6.4",
+        "contentHash": "UlWDCeofbwz7FccSjwOxcKvOTQwTJtrrcGtL/49PZDX7QXRfB5RrCzlS9LsIOX+trZ6G133Wv3YrruPvnqw+TA==",
         "dependencies": {
-          "DfeAnalytics.Core": "0.6.2"
+          "DfeAnalytics.Core": "0.6.4"
         }
       },
       "DfeAnalytics.Core": {
         "type": "Transitive",
-        "resolved": "0.6.2",
-        "contentHash": "LIW1zpoLKWPt2017anc4xtmoPrsqV/EifFTJMhwA1/ZT3XJZp/AVj7KTsYcy3FJSCIbvPyAjpdfjFV53tIPd6g==",
+        "resolved": "0.6.4",
+        "contentHash": "LfmZAaetqxonAFkZSeY0M3udvzyc35QGEgDTm5ohXocTQZNOks/iqBs7tOQ7LOEw4B6cXp6aE1MGzbdsWOKIyQ==",
         "dependencies": {
           "Google.Apis.Auth": "1.71.0",
           "Google.Cloud.BigQuery.V2": "[3.0.0, 4.0.0)"
+        }
+      },
+      "DfeAnalytics.EFCore": {
+        "type": "Transitive",
+        "resolved": "0.6.4",
+        "contentHash": "t4Rw5dqWcNNsKm6hTxoTdomrfDskb2SEt70Wo7dhnKixJqkmlmcjSpoueKZcES5fogTpg87cNKLLXLkh51Cqsg==",
+        "dependencies": {
+          "DfeAnalytics.Core": "0.6.4",
+          "Microsoft.EntityFrameworkCore": "10.0.0",
+          "Npgsql.EntityFrameworkCore.PostgreSQL": "10.0.0",
+          "System.CommandLine": "2.0.0"
         }
       },
       "Google.Api.Gax": {
@@ -721,6 +732,11 @@
         "resolved": "7.0.0",
         "contentHash": "GLltyqEsE5/3IE+zYRP5sNa1l44qKl9v+bfdMcwg+M9qnQf47wK3H0SUR/T+3N4JEQXF3vV4CSuuo0rsg+nq2A=="
       },
+      "System.CommandLine": {
+        "type": "Transitive",
+        "resolved": "2.0.0",
+        "contentHash": "Bjklzc5NoxqAGFi7BcGlY2TWAdB06Bq3a5sfRr3ubMRU80Mf98eyq3Y2UgR6xRV0TLznZmfe5T7mUjOunRNcdA=="
+      },
       "System.IdentityModel.Tokens.Jwt": {
         "type": "Transitive",
         "resolved": "8.23.0",
@@ -819,7 +835,7 @@
           "DfE.CheckPerformanceData.Application": "[1.0.0, )",
           "DfE.CheckPerformanceData.Domain": "[1.0.0, )",
           "DfE.CheckPerformanceData.Persistence": "[1.0.0, )",
-          "DfeAnalytics.Core": "[0.6.2, )",
+          "DfeAnalytics.Core": "[0.6.4, )",
           "GovukNotify": "[8.2.0, )",
           "Microsoft.AspNetCore.Authentication.OpenIdConnect": "[10.0.12, )",
           "Microsoft.EntityFrameworkCore": "[10.0.12, )",
@@ -839,6 +855,7 @@
         "dependencies": {
           "DfE.CheckPerformanceData.Application": "[1.0.0, )",
           "DfE.CheckPerformanceData.Domain": "[1.0.0, )",
+          "DfeAnalytics.EFCore": "[0.6.4, )",
           "Microsoft.EntityFrameworkCore": "[10.0.12, )",
           "Microsoft.EntityFrameworkCore.Relational": "[10.0.12, )",
           "Newtonsoft.Json": "[13.0.4, )",
@@ -870,7 +887,7 @@
           "DfE.CheckPerformanceData.Application": "[1.0.0, )",
           "DfE.CheckPerformanceData.Infrastructure": "[1.0.0, )",
           "DfE.CheckPerformanceData.Persistence": "[1.0.0, )",
-          "DfeAnalytics.AspNetCore": "[0.6.2, )",
+          "DfeAnalytics.AspNetCore": "[0.6.4, )",
           "GovUk.Frontend.AspNetCore": "[5.0.0, )",
           "Microsoft.Identity.Web": "[4.16.0, )",
           "Microsoft.VisualStudio.Azure.Containers.Tools.Targets": "[1.23.0, )",

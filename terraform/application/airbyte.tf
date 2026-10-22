@@ -38,7 +38,7 @@ module "airbyte" {
   is_rails_application         = false
   is_dotnet_application        = true
   use_legacy_dotnet_shim       = false
-  dotnet_application_directory = "/src/DfE.CheckPerformanceData.Web"
+  dotnet_application_directory = "/app"
   airbyte_sync_mode            = "incremental_deduped_history"
 }
 

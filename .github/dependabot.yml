@@ -58,13 +58,19 @@ updates:
       timezone: Europe/London
     cooldown:
       default-days: 7
+      # Each FROM pins its tag to a digest (#617). Microsoft republishes the .NET 10.0 tags with
+      # .NET and Ubuntu security fixes, which every build took at once before the pins, so a new
+      # digest for them is not held back a week.
+      exclude:
+        - "*dotnet/aspnet"
+        - "*dotnet/sdk"
     groups:
       minor-and-patch:
         update-types:
           - minor
           - patch
     ignore:
-      # The .NET images use the 10.0 tag, so every build already gets the latest patch.
+      # The .NET images stay on the 10.0 tag, and Dependabot proposes each new digest of it.
       # Version 11 is a .NET upgrade.
       - dependency-name: "*dotnet/aspnet"
         update-types: ["version-update:semver-major"]
@@ -75,6 +81,9 @@ updates:
 
   - package-ecosystem: github-actions
     # / is the workflows in .github/workflows. Each composite action is listed by its own directory.
+    # Official GitHub, verified-publisher and DfE actions stay on a major version or branch. Other
+    # actions are pinned to a commit SHA with the version in a comment, and Dependabot updates both
+    # (#617, docs/dependabot.md#pins). It does not update DFE-Digital/github-actions/*@master.
     directories:
       - /
       - /.github/actions/image-sbom

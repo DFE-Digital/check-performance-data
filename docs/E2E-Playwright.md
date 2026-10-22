@@ -21,7 +21,7 @@ All E2E-facing versions in one place. Source of truth for NuGet pins is the test
 | Tool | Version | Notes |
 |------|---------|-------|
 | Docker + Compose v2 | any recent | Compose profile `e2e` builds and runs the test image. |
-| Image: `mcr.microsoft.com/playwright/dotnet` | `v1.63.0-noble` | Pinned in `tests/DfE.CheckPerformanceData.E2ETests/Dockerfile`. **Must move in lockstep with the `Microsoft.Playwright` NuGet version.** Drift detection: `bash scripts/check-playwright-pin.sh`, which the **Build** workflow runs on every push and pull request. Dependabot raises the NuGet package only, so its pull request fails until this tag is changed to match ([dependabot.md](dependabot.md#playwright)). |
+| Image: `mcr.microsoft.com/playwright/dotnet` | `v1.63.0-noble` | Pinned, with its digest, in `tests/DfE.CheckPerformanceData.E2ETests/Dockerfile` ([dependabot.md](dependabot.md#pins)). **Must move in lockstep with the `Microsoft.Playwright` NuGet version.** Drift detection: `bash scripts/check-playwright-pin.sh`, which the **Build** workflow runs on every push and pull request. Dependabot raises the NuGet package only, so its pull request fails until this tag is changed to match ([dependabot.md](dependabot.md#playwright)). |
 | .NET SDK (inside image) | 10.0.x | Side-installed via `dotnet-install.sh` because the upstream Playwright image ships .NET 8 only as of v1.62.0. |
 
 ### NuGet packages

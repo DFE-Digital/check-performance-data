@@ -26,6 +26,12 @@ jobs:
       # until the playwright/dotnet image in the E2E Dockerfile is raised to the same version (#616).
       run: bash scripts/check-playwright-pin.sh
 
+    - name: Check actions and base images are pinned
+      # A tag or branch can be moved to other code, so third-party actions must be pinned to a
+      # commit SHA and base images to a digest (#617). Official GitHub, verified-publisher and DfE
+      # actions are exempt, as the platform team advises. Dependabot keeps the pins current.
+      run: bash scripts/check-pins.sh
+
     - name: Restore dependencies
       env:
         NUGET_CERT_REVOCATION_MODE: offline

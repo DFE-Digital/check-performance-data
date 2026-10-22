@@ -35,14 +35,16 @@ Each run shows in **Actions** as **Dependabot Updates**, with its log.
 - `Microsoft.Playwright` and `Microsoft.Playwright.Xunit` come together in a pull request of their
   own (`playwright`). See [Playwright](#playwright).
 - A new version is not proposed until it is 7 days old (`cooldown`), so a compromised or broken
-  release has time to be found and withdrawn. This applies to version updates only.
+  release has time to be found and withdrawn. This applies to version updates only, and not to
+  a new digest of the .NET `aspnet` and `sdk` images, which carries .NET and Ubuntu security
+  fixes. See [Pins](#pins).
 
 ### What is not proposed
 
 | Dependency | Not proposed | Why |
 |------------|--------------|-----|
 | `Microsoft.AspNetCore.*`, `Microsoft.EntityFrameworkCore*`, `Microsoft.Extensions.*`, `System.Security.Cryptography.Xml`, `Npgsql*`, `Serilog.AspNetCore` | Major versions | They move with the .NET version. Moving to .NET 11 is an upgrade of its own. Patches still come. |
-| `mcr.microsoft.com/dotnet/aspnet`, `mcr.microsoft.com/dotnet/sdk` | Major versions | The `10.0` tag already gives every build the latest .NET 10 patch. |
+| `mcr.microsoft.com/dotnet/aspnet`, `mcr.microsoft.com/dotnet/sdk` | Major versions | Moving to .NET 11 is an upgrade of its own. Each new digest of the `10.0` tag is still proposed. |
 | `SixLabors.ImageSharp` | Major versions | Version 4 fails the build without a paid Six Labors licence key. |
 | `mcr.microsoft.com/playwright/dotnet` | Any version | Its tag follows the NuGet package. See [Playwright](#playwright). |
 
@@ -58,8 +60,70 @@ Dependabot cannot raise both in one pull request. It raises the package, and the
 runs `scripts/check-playwright-pin.sh`, which fails until they match.
 
 To finish a `playwright` pull request, change the `FROM mcr.microsoft.com/playwright/dotnet:v…`
-line to the new version and push to the Dependabot branch. The image tag is also listed in
-[E2E-Playwright.md](E2E-Playwright.md).
+line to the new version and its digest (see [Pins](#pins)), and push to the Dependabot branch.
+The image tag is also listed in [E2E-Playwright.md](E2E-Playwright.md).
+
+## Pins
+
+A tag or a branch can be moved to point at other code. A commit SHA or an image digest cannot (#617).
+
+### Actions
+
+We follow the DfE platform team's rule, from
+[teacher-services-cloud: GitHub workflows and security](https://github.com/DFE-Digital/teacher-services-cloud/blob/main/documentation/github.md#when-to-apply-sha-pinning).
+
+These stay on a major version (`@v4`) or a branch:
+
+- official GitHub actions (`actions/*`, `github/*`)
+- actions from publishers that GitHub Marketplace shows as a **verified creator**. We use `Azure`
+  (`azure/login`) and `anchore` (`anchore/sbom-action`)
+- the DfE shared actions (`DFE-Digital/github-actions/...@master`), which the platform team
+  maintains
+- local actions (`./.github/actions/...`), which change with this repository
+
+Every other action is pinned to a full commit SHA, with the exact version in a comment:
+
+```yaml
+uses: oras-project/setup-oras@005458ad77f1c8facd38a094e4af2e69e5607ff4 # v2.0.2
+```
+
+Dependabot reads the version in the comment, and its pull requests change the SHA and the comment
+together.
+
+### Base images
+
+Each `FROM` in the Dockerfiles keeps its tag and adds the digest of that tag:
+
+```dockerfile
+FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:d5633778c754e89a386882eddf8dbee6942447a8a4b8267c19cf1e1158d0b0ac AS base
+```
+
+Dependabot's pull requests change the digest, and the tag if there is a newer one, together. The
+.NET images stay on the `10.0` tag, so for them each pull request is a new digest of it: Microsoft
+republishes `10.0` with each .NET patch and Ubuntu security update.
+
+Pinning the .NET images means the runtime patch an image ships changes only when a Dependabot
+pull request is merged, not at every build. `apt-get upgrade` in the Web and worker Dockerfiles
+still applies Ubuntu security updates at every build, and the weekly **Build No Cache** run still
+rebuilds the web image to pick them up.
+
+### The pin check
+
+The **Build** check runs `scripts/check-pins.sh`. It fails on a base image without a digest, and on
+an action that is not in one of the groups above and not pinned to a SHA with a version comment.
+
+To use an action from a new publisher, look at its Marketplace page. If it shows the verified
+creator badge, add the owner to `VERIFIED_OWNERS` in the script. Otherwise pin it.
+
+To find a SHA or a digest:
+
+```bash
+# The commit a tag points at. Put the exact version in the comment, not the major tag.
+gh api repos/oras-project/setup-oras/commits/v2.0.2 --jq .sha
+
+# The digest of an image tag. This is the multi-platform index, which is what to pin.
+docker buildx imagetools inspect mcr.microsoft.com/playwright/dotnet:v1.63.0-noble --format '{{.Manifest.Digest}}'
+```
 
 ## Reviewing a Dependabot pull request
 

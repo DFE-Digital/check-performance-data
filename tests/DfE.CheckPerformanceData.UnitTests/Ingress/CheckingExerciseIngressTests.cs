@@ -19,7 +19,8 @@ public sealed class CheckingExerciseIngressTests
     private readonly ICsvSchemaFileProcessor _processor = Substitute.For<ICsvSchemaFileProcessor>();
     private readonly FakeTimeProvider _clock = new(new DateTimeOffset(new DateTime(2026, 6, 1), TimeSpan.Zero));
 
-    private CheckingExerciseIngress Ingress() => new(_definitions, _processor, _clock);
+    private CheckingExerciseIngress Ingress(IIngressSummaryStore? summaryStore = null) =>
+        new(_definitions, _processor, _clock, summaryStore);
 
     private static CheckingExerciseDto Complete(Guid id) => new()
     {
@@ -68,7 +69,8 @@ public sealed class CheckingExerciseIngressTests
     private void ProcessorReturns(ValidationProgress progress) =>
         _processor.ProcessAsync(Arg.Any<Guid>(), Arg.Any<CheckingExerciseType?>(),
                 Arg.Any<IReadOnlyList<IngressDataset>>(), Arg.Any<bool>(), Arg.Any<bool>(),
-                Arg.Any<CancellationToken>(), Arg.Any<Guid?>(), Arg.Any<CheckingDataType?>(), Arg.Any<Guid?>())
+                Arg.Any<CancellationToken>(), Arg.Any<Guid?>(), Arg.Any<CheckingDataType?>(), Arg.Any<Guid?>(),
+                Arg.Any<IngressSummaryCapture?>())
             .Returns(Progress(progress));
 
     [Fact]
@@ -105,7 +107,8 @@ public sealed class CheckingExerciseIngressTests
         Guid? written = null;
         _processor.ProcessAsync(Arg.Any<Guid>(), Arg.Any<CheckingExerciseType?>(),
                 Arg.Any<IReadOnlyList<IngressDataset>>(), Arg.Any<bool>(), Arg.Any<bool>(),
-                Arg.Any<CancellationToken>(), id, Arg.Any<CheckingDataType?>(), Arg.Do<Guid?>(r => written = r))
+                Arg.Any<CancellationToken>(), id, Arg.Any<CheckingDataType?>(), Arg.Do<Guid?>(r => written = r),
+                Arg.Any<IngressSummaryCapture?>())
             .Returns(Progress(new("Done", "", 1, 1, 1, 0, true, false)));
 
         await Ingress().ProcessAsync(id).ToListAsync();
@@ -125,7 +128,8 @@ public sealed class CheckingExerciseIngressTests
         var releases = new List<Guid?>();
         _processor.ProcessAsync(Arg.Any<Guid>(), Arg.Any<CheckingExerciseType?>(),
                 Arg.Any<IReadOnlyList<IngressDataset>>(), Arg.Any<bool>(), Arg.Any<bool>(),
-                Arg.Any<CancellationToken>(), Arg.Any<Guid?>(), Arg.Any<CheckingDataType?>(), Arg.Do<Guid?>(releases.Add))
+                Arg.Any<CancellationToken>(), Arg.Any<Guid?>(), Arg.Any<CheckingDataType?>(), Arg.Do<Guid?>(releases.Add),
+                Arg.Any<IngressSummaryCapture?>())
             .Returns(_ => Progress(new("Done", "", 1, 1, 1, 0, true, false)));
 
         await Ingress().ProcessAsync(id).ToListAsync();
@@ -150,7 +154,8 @@ public sealed class CheckingExerciseIngressTests
         Guid? written = Guid.Empty;
         _processor.ProcessAsync(Arg.Any<Guid>(), Arg.Any<CheckingExerciseType?>(),
                 Arg.Any<IReadOnlyList<IngressDataset>>(), Arg.Any<bool>(), Arg.Any<bool>(),
-                Arg.Any<CancellationToken>(), Arg.Any<Guid?>(), Arg.Any<CheckingDataType?>(), Arg.Do<Guid?>(r => written = r))
+                Arg.Any<CancellationToken>(), Arg.Any<Guid?>(), Arg.Any<CheckingDataType?>(), Arg.Do<Guid?>(r => written = r),
+                Arg.Any<IngressSummaryCapture?>())
             .Returns(Progress(new("Done", "", 1, 1, 1, 0, true, false)));
 
         await Ingress().ProcessAsync(id).ToListAsync();
@@ -169,7 +174,8 @@ public sealed class CheckingExerciseIngressTests
             .Returns(new CheckingExerciseDefinition(Guid.NewGuid(), Complete(id)));
         _processor.ProcessAsync(Arg.Any<Guid>(), Arg.Any<CheckingExerciseType?>(),
                 Arg.Any<IReadOnlyList<IngressDataset>>(), Arg.Any<bool>(), Arg.Any<bool>(),
-                Arg.Any<CancellationToken>(), Arg.Any<Guid?>(), Arg.Any<CheckingDataType?>(), Arg.Any<Guid?>())
+                Arg.Any<CancellationToken>(), Arg.Any<Guid?>(), Arg.Any<CheckingDataType?>(), Arg.Any<Guid?>(),
+                Arg.Any<IngressSummaryCapture?>())
             .Returns(Progress(new("Failed", "bad row", 1, 0, 1, 1, true, true)));
 
         await Ingress().ProcessAsync(id).ToListAsync();
@@ -203,7 +209,8 @@ public sealed class CheckingExerciseIngressTests
         IReadOnlyList<IngressDataset>? inputs = null;
         _processor.ProcessAsync(Arg.Any<Guid>(), Arg.Any<CheckingExerciseType?>(),
                 Arg.Do<IReadOnlyList<IngressDataset>>(d => inputs = d), Arg.Any<bool>(), Arg.Any<bool>(),
-                Arg.Any<CancellationToken>(), Arg.Any<Guid?>(), Arg.Any<CheckingDataType?>(), Arg.Any<Guid?>())
+                Arg.Any<CancellationToken>(), Arg.Any<Guid?>(), Arg.Any<CheckingDataType?>(), Arg.Any<Guid?>(),
+                Arg.Any<IngressSummaryCapture?>())
             .Returns(Progress(new("Done", "", 1, 1, 1, 0, true, false)));
 
         await Ingress().ProcessAsync(id).ToListAsync();
@@ -214,5 +221,35 @@ public sealed class CheckingExerciseIngressTests
                 r.Files.Select(f => f.DatasetId).SequenceEqual(new[] { journeySlot, shareSlot })
                 && r.Files.Select(f => f.FeedsJourney).SequenceEqual(new[] { true, false })),
             Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ACompletedRun_WritesItsSummaryAndContinuesWhenTheSummaryWriteFails()
+    {
+        var id = Guid.NewGuid();
+        var windowId = Guid.NewGuid();
+        var exercise = Complete(id);
+        _definitions.GetAsync(id, Arg.Any<CancellationToken>())
+            .Returns(new CheckingExerciseDefinition(windowId, exercise));
+
+        var summaryStore = Substitute.For<IIngressSummaryStore>();
+        summaryStore.ArchiveCurrentAsync(windowId, id, Arg.Any<CancellationToken>()).Returns(true);
+        summaryStore.WriteAsync(windowId, id, Arg.Any<IngressSummaryDocument>(), Arg.Any<CancellationToken>())
+            .Returns(false);
+        IngressSummaryCapture? receivedCapture = null;
+        _processor.ProcessAsync(Arg.Any<Guid>(), Arg.Any<CheckingExerciseType?>(),
+                Arg.Any<IReadOnlyList<IngressDataset>>(), Arg.Any<bool>(), Arg.Any<bool>(),
+                Arg.Any<CancellationToken>(), Arg.Any<Guid?>(), Arg.Any<CheckingDataType?>(), Arg.Any<Guid?>(),
+                Arg.Do<IngressSummaryCapture?>(capture => receivedCapture = capture))
+            .Returns(Progress(new("Done", "", 1, 1, 1, 0, true, false)));
+
+        var progress = await Ingress(summaryStore).ProcessAsync(id, publishedBy: "admin@example.gov.uk").ToListAsync();
+
+        Assert.False(progress.Single().IsError);
+        Assert.NotNull(receivedCapture);
+        await summaryStore.Received(1).WriteAsync(windowId, id,
+            Arg.Is<IngressSummaryDocument>(summary => summary.Outcome == "succeeded" &&
+                summary.CheckingExerciseId == id.ToString() && summary.Files.Single().SourceFile == "a.csv"),
+            Arg.Any<CancellationToken>());
     }
 }

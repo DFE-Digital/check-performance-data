@@ -48,6 +48,7 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
     }
 
     [Route("CheckYourPupilData/{windowId}/download/all")]
+    [RequiresNoStore]
     public async Task<IActionResult> DownloadAll(Guid windowId)
     {
         Response.NoStore();
@@ -104,6 +105,7 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
     }
 
     [Route("CheckYourPupilData/{windowId}/download/included")]
+    [RequiresNoStore]
     public async Task<IActionResult> DownloadIncluded(Guid windowId)
     {
         Response.NoStore();
@@ -117,6 +119,7 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
     // from another window (or a dataset this window does not run) reaches nothing. An exercise
     // split by inclusion draws two tabs, so the tab key picks one; with no key, the first.
     [Route("CheckYourPupilData/{windowId}/download/exercise/{exerciseId:guid}/{dataset}")]
+    [RequiresNoStore]
     public async Task<IActionResult> DownloadExerciseDataset(Guid windowId, Guid exerciseId, string dataset,
         string? tab = null)
     {
@@ -137,6 +140,7 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
     // The raw JSON the ingress run wrote, unshaped by any schema. This is the endpoint the POC put
     // on /check-data; that page is not ported, so it lives here with the tabs it belongs to.
     [Route("CheckYourPupilData/{windowId}/download/exercise/{exerciseId:guid}/json")]
+    [RequiresNoStore]
     public async Task<IActionResult> DownloadExerciseJson(Guid windowId, Guid exerciseId,
         CancellationToken cancellationToken)
     {
@@ -178,6 +182,7 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
     }
 
     [Route("CheckYourPupilData/{windowId}/download/non-included")]
+    [RequiresNoStore]
     public async Task<IActionResult> DownloadNonIncluded(Guid windowId)
     {
         Response.NoStore();
@@ -188,6 +193,7 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
     }
 
     [Route("CheckYourPupilData/{windowId}/download/results")]
+    [RequiresNoStore]
     public async Task<IActionResult> DownloadResults(Guid windowId)
     {
         Response.NoStore();

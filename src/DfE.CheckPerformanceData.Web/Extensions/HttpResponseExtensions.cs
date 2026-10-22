@@ -5,10 +5,10 @@ namespace DfE.CheckPerformanceData.Web.Extensions;
 /// <summary>
 /// The single mechanism that marks a response as a personal-data download (OWASP A04, #615).
 ///
-/// Every in-scope download action calls <see cref="NoStore"/> as its first statement, so the header
-/// is present not only on the file but on the redirect / Forbid / NotFound outcomes too. The value
-/// lives in one constant so it can never drift, and no download sets <c>Cache-Control</c> its own
-/// way (the production sweep in NoStoreDownloadSourceGuardTests enforces both).
+/// Every action marked <see cref="RequiresNoStoreAttribute"/> calls <see cref="NoStore"/> before any
+/// early return, so the header is present on the file, the redirect and the NotFound outcomes too.
+/// The value lives in one constant so it can never drift, and no other code writes the literal
+/// (both enforced by NoStoreDownloadSourceGuardTests).
 /// </summary>
 public static class HttpResponseExtensions
 {
@@ -16,11 +16,11 @@ public static class HttpResponseExtensions
     public const string NoStoreValue = "no-store";
 
     /// <summary>
-    /// Guarantees the <c>no-store</c> directive is on the response's <c>Cache-Control</c> header.
-    /// In the live pipeline the OIDC authentication middleware already declares
-    /// <c>no-cache, no-store</c> on dynamic responses, so the on-wire value merges with any
-    /// pre-existing directives (static-asset routes short-circuit before it and keep their own
-    /// caching). In a bare <c>HttpContext</c> (unit tests) the result is exactly <c>no-store</c>.
+    /// Sets <c>Cache-Control: no-store</c>, replacing whatever value was on the response already.
+    /// <c>no-store</c> alone satisfies the requirement, so this deliberately does not add
+    /// <c>no-cache</c> and does not append to existing directives. A later component may re-declare
+    /// the header (the local Docker check observed the final on-wire value <c>no-cache,no-store</c>
+    /// on dynamic responses); that is left alone, because it is stricter, never weaker.
     /// </summary>
     public static void NoStore(this HttpResponse response) => response.Headers.CacheControl = NoStoreValue;
 }

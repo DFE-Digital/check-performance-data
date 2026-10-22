@@ -243,6 +243,7 @@ public sealed class EgressController(
     }
 
     [HttpGet("runs/{id:guid}/download/{outputType}")]
+    [RequiresNoStore]
     public async Task<IActionResult> Download(Guid id, EgressOutputType outputType, CancellationToken cancellationToken)
     {
         Response.NoStore();

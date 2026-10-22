@@ -97,6 +97,7 @@ public sealed class SubmittedRequestController(
     }
 
     [Route("/{windowId}/AmendmentRequests/{referenceNumber}/evidence/{storedFileName}")]
+    [RequiresNoStore]
     public async Task<IActionResult> DownloadEvidence(Guid windowId, string referenceNumber, string storedFileName)
     {
         Response.NoStore();

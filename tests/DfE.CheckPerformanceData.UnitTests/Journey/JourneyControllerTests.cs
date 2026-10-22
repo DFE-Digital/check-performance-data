@@ -2179,11 +2179,43 @@ public class JourneyControllerTests
     }
 
     [Fact]
-    public async Task DownloadEvidence_WhenNoSession_ReturnsNotFound()
+    public async Task DownloadEvidence_WhenTheStoredNameIsNotAGuid_ReturnsNotFound()
     {
         SetupSession(new RequestState());  // empty — no WhatToChange, no window, no pupil
 
         var result = await _sut.DownloadEvidence(WindowId, "any-file");
+
+        Assert.IsType<NotFoundResult>(result);
+        Assert.Equal("no-store", _httpContext.Response.Headers.CacheControl.ToString());
+    }
+
+    // #615: every early return carries the header, not just the successful file. A ready session
+    // with no answer holding this name is the ordinary "someone pasted an old link" case.
+    [Fact]
+    public async Task DownloadEvidence_WhenTheFileIsNotOneOfTheJourneys_ReturnsNotFound()
+    {
+        SetupSession(ValidSession(answers: new Dictionary<string, QuestionAnswer>()));
+
+        var result = await _sut.DownloadEvidence(WindowId, Guid.NewGuid().ToString());
+
+        Assert.IsType<NotFoundResult>(result);
+        Assert.Equal("no-store", _httpContext.Response.Headers.CacheControl.ToString());
+        await _fileStorageService.DidNotReceive().GetAsync(Arg.Any<Guid>(), Arg.Any<string>());
+    }
+
+    // The answer still names the file but storage no longer has it — a second early return after
+    // the first.
+    [Fact]
+    public async Task DownloadEvidence_WhenTheStoredBytesAreGone_ReturnsNotFound()
+    {
+        var storedName = Guid.NewGuid().ToString();
+        SetupSession(ValidSession(answers: new Dictionary<string, QuestionAnswer>
+        {
+            ["q1"] = new() { FileValues = [new FileAnswer { StoredFileName = storedName, OriginalFileName = "evidence.pdf", PageCount = 1, FileSizeBytes = 10 }] }
+        }));
+        _fileStorageService.GetAsync(WindowId, storedName).Returns((byte[]?)null);
+
+        var result = await _sut.DownloadEvidence(WindowId, storedName);
 
         Assert.IsType<NotFoundResult>(result);
         Assert.Equal("no-store", _httpContext.Response.Headers.CacheControl.ToString());

@@ -1267,6 +1267,7 @@ public sealed class JourneyController(
     }
 
     [Route("/Journey/{windowId}/evidence/{storedFileName}")]
+    [RequiresNoStore]
     public async Task<IActionResult> DownloadEvidence(Guid windowId, string storedFileName)
     {
         Response.NoStore();

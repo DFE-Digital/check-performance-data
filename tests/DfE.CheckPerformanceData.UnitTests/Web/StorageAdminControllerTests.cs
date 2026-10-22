@@ -204,6 +204,8 @@ public sealed class StorageAdminProtectedContainerTests
         // The refusal has to come before the blob is touched — a protected blob that is read and
         // then withheld has still been read.
         service.DidNotReceive().GetBlobContainerClient(Keyring);
+        // #615: the refused preview is never cached either.
+        Assert.Equal("no-store", _httpContext.Response.Headers.CacheControl.ToString());
     }
 
     [Fact]
@@ -258,8 +260,10 @@ public sealed class StorageAdminProtectedContainerTests
         var sut = BuildSut(service);
 
         Assert.IsType<NotFoundResult>(await sut.Preview("app", "my-container", blob));
+        // #615: the preview refusal is never cached either.
+        Assert.Equal("no-store", _httpContext.Response.Headers.CacheControl.ToString());
+
         Assert.IsType<NotFoundResult>(await sut.Download("app", "my-container", blob));
-        // #615: the download refusal is never cached either.
         Assert.Equal("no-store", _httpContext.Response.Headers.CacheControl.ToString());
 
         service.DidNotReceiveWithAnyArgs().GetBlobContainerClient(default!);
@@ -281,6 +285,42 @@ public sealed class StorageAdminProtectedContainerTests
 
         return Response.FromValue(info, Substitute.For<Response>());
     }
+
+    // #615: the preview renders the same blob the download serves, so the page goes out with the
+    // no-store header too — a pupil-data file names people whatever form it arrives in.
+    [Fact]
+    public async Task Preview_of_an_existing_text_blob_renders_it_and_never_caches()
+    {
+        var service = Substitute.For<BlobServiceClient>();
+        var container = Substitute.For<BlobContainerClient>();
+        var blob = Substitute.For<BlobClient>();
+        service.GetBlobContainerClient("window-123").Returns(container);
+        container.GetBlobClient("report.csv").Returns(blob);
+        blob.ExistsAsync(Arg.Any<CancellationToken>())
+            .Returns(Response.FromValue(true, Substitute.For<Response>()));
+        blob.GetPropertiesAsync(Arg.Any<BlobRequestConditions>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(BlobPropertiesOf("text/csv", 4)));
+        blob.DownloadContentAsync(Arg.Any<BlobDownloadOptions>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(TextDownload("a,b\n")));
+
+        var result = await BuildSut(service).Preview("app", "window-123", "report.csv");
+
+        var model = Assert.IsType<StorageBlobPreviewViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.Equal("a,b\n", model.Content);
+        Assert.Equal("no-store", _httpContext.Response.Headers.CacheControl.ToString());
+    }
+
+    // These Azure SDK result types have internal setters, so a test can only reach one by
+    // reflection — the same trick StreamingDownload uses below.
+    private static Response<BlobProperties> BlobPropertiesOf(string contentType, long length) =>
+        Response.FromValue(
+            BlobsModelFactory.BlobProperties(contentType: contentType, contentLength: length),
+            Substitute.For<Response>());
+
+    private static Response<BlobDownloadResult> TextDownload(string content) =>
+        Response.FromValue(
+            BlobsModelFactory.BlobDownloadResult(content: BinaryData.FromString(content)),
+            Substitute.For<Response>());
 
     // #615: the blob names people; the streamed file must go out with the no-store header.
     [Fact]

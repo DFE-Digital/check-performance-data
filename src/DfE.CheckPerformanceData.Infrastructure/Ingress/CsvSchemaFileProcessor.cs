@@ -25,7 +25,8 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
         bool validateOnly = false,
         bool clearExistingFiles = false,
         [EnumeratorCancellation] CancellationToken cancellationToken = default,
-        Guid? checkingExerciseId = null, CheckingDataType? dataType = null, Guid? releaseId = null)
+        Guid? checkingExerciseId = null, CheckingDataType? dataType = null, Guid? releaseId = null,
+        IngressSummaryCapture? summaryCapture = null)
     {
         if (releaseId is not null && checkingExerciseId is null)
             throw new ArgumentException("A release belongs to an exercise, so it needs the exercise id.", nameof(releaseId));
@@ -38,12 +39,14 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
 
         if (datasets.Count == 0)
         {
+            summaryCapture?.SetFailure("configuration", "no_datasets");
             yield return Failed("No ingress datasets are configured for this window.");
             yield break;
         }
 
         if (!blobClients.TryGetValue("app", out var sourceBlobClient))
         {
+            summaryCapture?.SetFailure("configuration", "storage_not_configured");
             logger.LogWarning("Ingress storage client is not configured");
             yield return Failed("App storage is not configured.");
             yield break;
@@ -84,8 +87,10 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
                 ? CheckingExerciseBlobPaths.LogPrefix(summaryId) + "summary_"
                 : CheckingExerciseBlobPaths.SummaryPrefix(exercise!.Value, checkingWindowId))}{DateTime.UtcNow:yyyyMMdd_HHmmss_fffffff}.csv";
 
+        var datasetSlot = 0;
         foreach (IngressDataset dataset in datasets)
         {
+            var currentDatasetSlot = datasetSlot++;
             cancellationToken.ThrowIfCancellationRequested();
             string label = multipleDatasets ? $" [{dataset.Name}]" : string.Empty;
 
@@ -94,10 +99,12 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
             string? schemaJson = null;
             string? loadError = null;
             string? checksumError = null;
+            bool readingSchema = false;
             try
             {
                 csvBytes = await DownloadBytesAsync(container,
                     CheckingExerciseBlobPaths.IngressBlobName(dataset.InputCsvFile), cancellationToken);
+                readingSchema = true;
                 byte[] schemaBytes = await DownloadBytesAsync(container,
                     CheckingExerciseBlobPaths.SchemaBlobName(dataset.SchemaFile), cancellationToken);
 
@@ -114,8 +121,15 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
                     schemaJson = Encoding.UTF8.GetString(schemaBytes);
                 }
             }
+            catch (FileNotFoundException ex)
+            {
+                summaryCapture?.SetFailure("input_read", readingSchema ? "schema_not_found" : "input_not_found");
+                logger.LogWarning(ex, "Failed to load ingress input for checking window {CheckingWindowId}", checkingWindowId);
+                loadError = ex.Message;
+            }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
+                summaryCapture?.SetFailure("input_read", readingSchema ? "schema_read_failed" : "input_read_failed");
                 logger.LogWarning(ex, "Failed to load files for checking window {CheckingWindowId}", checkingWindowId);
                 loadError = ex.Message;
             }
@@ -128,13 +142,30 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
 
             if (checksumError is not null)
             {
+                summaryCapture?.SetFailure("checksum", "checksum_mismatch");
                 yield return Failed(checksumError);
                 yield break;
             }
 
             yield return new ValidationProgress("Checksums", $"Checksum passed{label}", recordsRead, recordsValidated, 0, totalErrors, false, false);
 
-            JSchema schema = JSchema.Parse(schemaJson!);
+            JSchema? parsedSchema = null;
+            try
+            {
+                parsedSchema = JSchema.Parse(schemaJson!);
+            }
+            catch (Exception)
+            {
+                summaryCapture?.SetFailure("schema", "schema_invalid");
+            }
+
+            if (parsedSchema is null)
+            {
+                yield return Failed($"Schema '{dataset.SchemaFile}' is invalid.");
+                yield break;
+            }
+
+            JSchema schema = parsedSchema;
             schema.AllowAdditionalProperties = false;
 
             // Newtonsoft.Json.Schema counts licensed validations per call, not per row, and caps an
@@ -157,19 +188,43 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
             InclusionRule? inclusion = InclusionRule.From(schema);
             if (inclusion?.ErrorFor(schema) is { } inclusionError)
             {
+                summaryCapture?.SetFailure("schema", "identifier_mapping_invalid");
                 yield return Failed($"Schema '{dataset.SchemaFile}': {inclusionError}");
                 yield break;
             }
 
-            // Read the records and report how many there are.
-            List<IDictionary<string, object>> records;
-            using (var reader = new StreamReader(new MemoryStream(csvBytes!)))
-            using (var csv = new CsvReader(reader, CultureInfo.InvariantCulture))
+            // Capture each complete source record before any schema transformation. CsvHelper
+            // counts CSV records, so a quoted field containing line breaks remains one row.
+            List<IDictionary<string, object>> records = [];
+            string? parseFailureCode = null;
+            string? parseFailureMessage = null;
+            try
             {
-                records = csv.GetRecords<dynamic>()
-                    .Cast<IDictionary<string, object>>()
-                    .ToList();
+                using var reader = new StreamReader(new MemoryStream(csvBytes!));
+                using var csv = new CsvReader(reader, CultureInfo.InvariantCulture);
+                summaryCapture?.MarkFileStarted(currentDatasetSlot);
+                records = ReadCsvRecords(csv, summaryCapture, currentDatasetSlot,
+                    InstitutionKey(schema), UrnKey(schema));
             }
+            catch (MalformedIngressCsvException ex)
+            {
+                parseFailureCode = ex.Code;
+                parseFailureMessage = ex.Message;
+            }
+            catch (CsvHelperException)
+            {
+                parseFailureCode = "malformed_row";
+                parseFailureMessage = $"Ingress file '{dataset.InputCsvFile}' contains malformed CSV data.";
+            }
+
+            if (parseFailureCode is not null)
+            {
+                summaryCapture?.SetFailure("parsing", parseFailureCode);
+                yield return Failed(parseFailureMessage!);
+                yield break;
+            }
+
+            summaryCapture?.MarkFileRead(currentDatasetSlot);
 
             recordsRead += records.Count;
 
@@ -181,8 +236,10 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
             // LAESTAB_0). A file without it cannot be split at all, so it fails the run by name
             // rather than throwing out of the group-by.
             string institutionKey = InstitutionKey(schema);
-            if (records.Count > 0 && !records[0].ContainsKey(institutionKey))
+            var institutionColumn = records.Count == 0 ? null : FindHeader(records[0].Keys, institutionKey);
+            if (records.Count > 0 && institutionColumn is null)
             {
+                summaryCapture?.SetFailure("schema", "identifier_mapping_invalid");
                 yield return Failed(
                     $"Ingress file '{dataset.InputCsvFile}' has no {institutionKey} column, so its records " +
                     "cannot be grouped by school.");
@@ -190,7 +247,7 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
             }
 
             List<IGrouping<string, IDictionary<string, object>>> groupedSchools = records
-                .GroupBy(r => r.TryGetValue(institutionKey, out object? laestab)
+                .GroupBy(r => institutionColumn is not null && r.TryGetValue(institutionColumn, out object? laestab)
                     ? laestab?.ToString() ?? "UnknownSchool"
                     : "UnknownSchool")
                 .ToList();
@@ -355,6 +412,7 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
 
         if (recordsRead == 0)
         {
+                summaryCapture?.SetFailure("validation", "record_validation_failed");
             yield return new ValidationProgress("Counting", "No records found", 0, 0, 0, 0, true, true);
             yield break;
         }
@@ -364,6 +422,7 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
         // nothing to storage, so its errors come back on the stream only.
         if (totalErrors > 0)
         {
+                summaryCapture?.SetFailure("validation", "record_validation_failed");
             // Even on failure we still persist the summary (record counts per school) so there is
             // always a record of the run. A validate-only run writes nothing to storage.
             if (!validateOnly)
@@ -475,6 +534,7 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
 
         if (writeError is not null)
         {
+                summaryCapture?.SetFailure("data_write", "data_write_failed");
             await CleanUpAsync(container, writtenBlobNames, cancellationToken);
             yield return new ValidationProgress(
                 "Failed",
@@ -646,12 +706,79 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
 
     /// <summary>The CSV column that holds the school's DfE number: <c>"x-ingress": { "institutionKey": "LAESTAB_0" }</c>
     /// at the schema's root, or <c>LAESTAB</c>.</summary>
+    private static List<IDictionary<string, object>> ReadCsvRecords(CsvReader csv,
+        IngressSummaryCapture? summaryCapture, int slotIndex, string institutionKey, string urnKey)
+    {
+        if (!csv.Read())
+            throw new MalformedIngressCsvException("malformed_header", "Ingress CSV has no header row.");
+
+        csv.ReadHeader();
+        var headers = csv.HeaderRecord;
+        if (headers is null || headers.Length == 0)
+            throw new MalformedIngressCsvException("malformed_header", "Ingress CSV has no header row.");
+
+        var normalizedHeaders = headers.ToArray();
+        normalizedHeaders[0] = normalizedHeaders[0].TrimStart('\uFEFF');
+        if (normalizedHeaders.Any(string.IsNullOrWhiteSpace) ||
+            normalizedHeaders.Distinct(StringComparer.OrdinalIgnoreCase).Count() != normalizedHeaders.Length)
+            throw new MalformedIngressCsvException("malformed_header", "Ingress CSV has a blank or duplicate header.");
+
+        var institutionColumn = FindHeader(normalizedHeaders, institutionKey);
+        var urnColumn = FindHeader(normalizedHeaders, urnKey);
+        summaryCapture?.SetUrnColumn(slotIndex, urnColumn is not null);
+
+        var records = new List<IDictionary<string, object>>();
+        while (csv.Read())
+        {
+            if (csv.Parser.Count != normalizedHeaders.Length)
+                throw new MalformedIngressCsvException("malformed_row", "Ingress CSV has a row with the wrong number of columns.");
+
+            var values = Enumerable.Range(0, csv.Parser.Count).Select(index => csv.GetField(index)).ToArray();
+            if (values.Length == 0 || values.All(string.IsNullOrWhiteSpace))
+                throw new MalformedIngressCsvException("malformed_row", "Ingress CSV contains a blank row.");
+
+            var record = new Dictionary<string, object>(StringComparer.Ordinal);
+            for (var column = 0; column < normalizedHeaders.Length; column++)
+                record.Add(normalizedHeaders[column], values[column] ?? string.Empty);
+
+            records.Add(record);
+            summaryCapture?.AddRow(slotIndex,
+                ReadIdentifier(record, institutionColumn), ReadIdentifier(record, urnColumn));
+        }
+
+        return records;
+    }
+
+    private static string? FindHeader(IEnumerable<string> headers, string requested)
+        => headers.FirstOrDefault(header => string.Equals(header, requested, StringComparison.OrdinalIgnoreCase));
+
+    private static string? ReadIdentifier(IDictionary<string, object> record, string? column)
+    {
+        if (column is null || !record.TryGetValue(column, out var value))
+            return null;
+
+        var identifier = value.ToString();
+        return string.IsNullOrWhiteSpace(identifier) ? null : identifier.Trim();
+    }
+
+    private sealed class MalformedIngressCsvException(string code, string message) : Exception(message)
+    {
+        public string Code { get; } = code;
+    }
+
     private static string InstitutionKey(JSchema schema) =>
         schema.ExtensionData.TryGetValue("x-ingress", out JToken? ingress) &&
         ingress["institutionKey"] is JValue { Type: JTokenType.String } key &&
         !string.IsNullOrWhiteSpace(key.Value<string>())
             ? key.Value<string>()!
             : "LAESTAB";
+
+    private static string UrnKey(JSchema schema) =>
+        schema.ExtensionData.TryGetValue("x-ingress", out JToken? ingress) &&
+        ingress["urnKey"] is JValue { Type: JTokenType.String } key &&
+        !string.IsNullOrWhiteSpace(key.Value<string>())
+            ? key.Value<string>()!
+            : "URN";
 
     /// <summary>
     /// Which pupils a file includes, by their own code: <c>"x-ingress": { "inclusion": { "field":

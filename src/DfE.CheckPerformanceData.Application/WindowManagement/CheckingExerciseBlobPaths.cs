@@ -124,6 +124,14 @@ public static class CheckingExerciseBlobPaths
     /// <summary>The exercise's run summaries and error log.</summary>
     public static string LogPrefix(Guid exerciseId) => $"exercises/{exerciseId}/logs/";
 
+    /// <summary>The current ingress attempt summary for an exercise.</summary>
+    public static string IngressSummaryBlobName(Guid exerciseId)
+        => $"{LogPrefix(exerciseId)}ingress_summary.json";
+
+    /// <summary>The archive folder for earlier ingress attempt summaries.</summary>
+    public static string IngressSummaryHistoryPrefix(Guid exerciseId)
+        => $"{LogPrefix(exerciseId)}summaryHistory/";
+
     /// <summary>
     /// The data type an exercise holds when nothing says otherwise.
     /// </summary>

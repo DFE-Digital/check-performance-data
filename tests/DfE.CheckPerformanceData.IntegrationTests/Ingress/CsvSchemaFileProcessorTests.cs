@@ -481,8 +481,10 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
 
         var container = await SeedWindowAsync(windowId,
             ("data/8604070_pupils.json", "[{\"SURNAME\":\"Existing\"}]"),
+            ("data/8604071_pupils.json", "[{\"SURNAME\":\"Other school\"}]"),
             ("ingress/nonincluded.csv", NonIncludedCsv),
             ("schema/strict.json", strictSchema));
+        var originalFiles = await SnapshotAsync(container);
 
         IReadOnlyList<IngressDataset> datasets =
         [
@@ -495,6 +497,108 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
         Assert.True(progress[^1].IsError);
 
         var existingBlobNames = await ListBlobNamesAsync(container);
-        Assert.Contains(existingBlobNames, name => name.StartsWith("data/", StringComparison.Ordinal));
+        Assert.Equal(new[] { "data/8604070_pupils.json", "data/8604071_pupils.json" },
+            existingBlobNames.Where(name => name.StartsWith("data/", StringComparison.Ordinal)).Order());
+        var after = await SnapshotAsync(container);
+        foreach (var (name, content) in originalFiles)
+            Assert.Equal(content, after[name]);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task Pupil_outputs_keep_their_complete_contract_and_existing_csv_summary(bool post16, bool exerciseScoped)
+    {
+        var windowId = Guid.NewGuid();
+        Guid? exerciseId = exerciseScoped ? Guid.NewGuid() : null;
+        var schema = post16 ? IncludedSchema : Ks4Schema;
+        var csv = IncludedCsv + "500003,Green,Chris,8604071,9900000003,402\n";
+        var container = await SeedWindowAsync(windowId,
+            ("ingress/included.csv", csv), ("schema/included.json", schema),
+            ("ingress/nonincluded.csv", NonIncludedCsv), ("schema/nonincluded.json", NonIncludedSchema),
+            ("unrelated/keep.txt", "Existing unrelated content"));
+        var originalFiles = await SnapshotAsync(container);
+        List<IngressDataset> datasets =
+            [new("included", "included.csv", Checksum(csv), "included.json", Checksum(schema), Included: post16 ? true : null)];
+        if (post16)
+            datasets.Add(new("nonincluded", "nonincluded.csv", Checksum(NonIncludedCsv), "nonincluded.json", Checksum(NonIncludedSchema), Included: false));
+
+        var progress = await DrainAsync(Processor().ProcessAsync(windowId, CheckingExerciseType.PupilData,
+            datasets, clearExistingFiles: true, checkingExerciseId: exerciseId));
+
+        Assert.False(progress[^1].IsError, progress[^1].Message);
+        var after = await SnapshotAsync(container);
+        foreach (var (name, content) in originalFiles)
+            Assert.Equal(content, after[name]);
+
+        var prefix = exerciseId is { } id ? $"exercises/{id}/data/" : "data/";
+        Assert.Equal(new[] { prefix + "8604070_pupils.json", prefix + "8604071_pupils.json" },
+            after.Keys.Where(name => name.Contains("/data/", StringComparison.Ordinal) || name.StartsWith("data/", StringComparison.Ordinal)).Order());
+        var ids = new HashSet<Guid>();
+        foreach (var school in new[] { "8604070", "8604071" })
+        {
+            var actual = JArray.Parse(Encoding.UTF8.GetString(after[prefix + school + "_pupils.json"]));
+            foreach (var pupil in actual.Children<JObject>())
+            {
+                var pupilId = Guid.Parse(pupil["Id"]!.Value<string>()!);
+                Assert.NotEqual(Guid.Empty, pupilId);
+                Assert.True(ids.Add(pupilId));
+                pupil.Remove("Id");
+            }
+            var expected = school == "8604070"
+                ? JArray.Parse("""[{"CYPMD_ID":"500001","SURNAME":"Smith","FORENAMES":"Alice","LAESTAB":"8604070","ULN":"9900000001","P_INCL":501}]""")
+                : JArray.Parse("""[{"CYPMD_ID":"500003","SURNAME":"Green","FORENAMES":"Chris","LAESTAB":"8604071","ULN":"9900000003","P_INCL":402}]""");
+            if (post16)
+            {
+                ((JObject)expected[0])["INCLUDED"] = true;
+                if (school == "8604070")
+                    expected.Add(JObject.Parse("""{"CYPMD_ID":"500002","SURNAME":"Jones","FORENAMES":"Bob","LAESTAB":"8604070","ULN":"9900000002","CampID_0":"C0","INCLUDED":false}"""));
+            }
+            Assert.True(JToken.DeepEquals(expected, actual), $"Unexpected pupil output for {school}: {actual}");
+        }
+
+        var summaryPrefix = exerciseId is { } summaryId ? $"exercises/{summaryId}/logs/summary_" : $"{windowId}_summary_";
+        var summary = Assert.Single(after.Keys, name => name.StartsWith(summaryPrefix, StringComparison.Ordinal) && name.EndsWith(".csv", StringComparison.Ordinal));
+        Assert.Equal($"LAESTAB,RecordsProcessed\n8604070,{(post16 ? 2 : 1)}\n8604071,1\n\nTotal LAESTAB,2\nTotal records,{(post16 ? 3 : 2)}\n",
+            Encoding.UTF8.GetString(after[summary]).Replace("\r\n", "\n"));
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task Validation_only_preserves_every_blob_on_success_and_failure(bool invalid, bool exerciseScoped)
+    {
+        var windowId = Guid.NewGuid();
+        Guid? exerciseId = exerciseScoped ? Guid.NewGuid() : null;
+        var prefix = exerciseId is { } id ? $"exercises/{id}/" : "";
+        var csv = invalid ? IncludedCsv.Replace(",501\n", ",not-an-integer\n") : IncludedCsv;
+        var container = await SeedWindowAsync(windowId,
+            ("ingress/pupils.csv", csv), ("schema/ks4.json", Ks4Schema),
+            (prefix + "data/8604070_pupils.json", "[{\"SURNAME\":\"Existing\"}]"),
+            (exerciseScoped ? prefix + "logs/summary_existing.csv" : $"{windowId}_summary_existing.csv", "Existing summary"),
+            (exerciseScoped ? prefix + "logs/error_log.txt" : $"{windowId}_error_log.txt", "Existing errors"));
+        var before = await SnapshotAsync(container);
+
+        var progress = await DrainAsync(Processor().ProcessAsync(windowId, CheckingExerciseType.PupilData,
+            [new("pupils", "pupils.csv", Checksum(csv), "ks4.json", Checksum(Ks4Schema), Included: null)],
+            validateOnly: true, clearExistingFiles: true, checkingExerciseId: exerciseId));
+
+        Assert.Equal(invalid, progress[^1].IsError);
+        var after = await SnapshotAsync(container);
+        Assert.Equal(before.Keys.Order(), after.Keys.Order());
+        foreach (var (name, content) in before)
+            Assert.Equal(content, after[name]);
+    }
+
+    private static async Task<Dictionary<string, byte[]>> SnapshotAsync(BlobContainerClient container)
+    {
+        var snapshot = new Dictionary<string, byte[]>();
+        await foreach (var blob in container.GetBlobsAsync())
+            snapshot.Add(blob.Name, (await container.GetBlobClient(blob.Name).DownloadContentAsync()).Value.Content.ToArray());
+        return snapshot;
     }
 }

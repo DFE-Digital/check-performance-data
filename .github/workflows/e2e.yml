@@ -155,13 +155,13 @@ jobs:
           fi
 
       # The review app was built from the pull request merged into main, so test that commit.
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@v4
         if: steps.target.outputs.found == 'true'
         with:
           ref: ${{ steps.target.outputs.ref }}
           persist-credentials: false
 
-      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+      - uses: actions/setup-dotnet@v4
         if: steps.target.outputs.found == 'true'
         with:
           dotnet-version: "10.0.x"
@@ -263,7 +263,7 @@ jobs:
             gh api --method POST "repos/$GH_REPO/issues/$PR/comments" -F body=@comment.md --silent
           fi
 
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@v4
         if: always() && steps.target.outputs.found == 'true'
         with:
           name: e2e-results
@@ -273,7 +273,7 @@ jobs:
 
       # The snapshot tree, so a regenerated baseline can be fetched. Snapshots live in the
       # source tree, not under bin/.
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@v4
         if: failure() && steps.target.outputs.found == 'true'
         with:
           name: e2e-snapshots
@@ -282,7 +282,7 @@ jobs:
 
       # Playwright traces for the failing tests only. Open one with
       # `npx playwright show-trace <file>.zip`.
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@v4
         if: failure() && steps.target.outputs.found == 'true'
         with:
           name: e2e-traces

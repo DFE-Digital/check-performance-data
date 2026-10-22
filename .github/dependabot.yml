@@ -81,8 +81,9 @@ updates:
 
   - package-ecosystem: github-actions
     # / is the workflows in .github/workflows. Each composite action is listed by its own directory.
-    # Actions are pinned to a commit SHA with the version in a comment (#617); Dependabot updates
-    # both. It cannot update DFE-Digital/github-actions/*@master, which follows a branch.
+    # Official GitHub, verified-publisher and DfE actions stay on a major version or branch. Other
+    # actions are pinned to a commit SHA with the version in a comment, and Dependabot updates both
+    # (#617, docs/dependabot.md#pins). It does not update DFE-Digital/github-actions/*@master.
     directories:
       - /
       - /.github/actions/image-sbom

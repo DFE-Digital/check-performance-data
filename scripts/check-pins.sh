@@ -2,21 +2,28 @@
 
 set -eu
 
-### Check actions are pinned to commit SHAs and base images to digests (#617) ###
+### Check third-party actions are pinned to commit SHAs and base images to digests (#617) ###
 #
 # A tag or a branch can be moved to point at other code. A commit SHA or an
 # image digest cannot. Dependabot keeps the pins current (.github/dependabot.yml).
 #
-# Allowed without a SHA:
+# Actions follow the DfE platform team's rule (teacher-services-cloud
+# documentation/github.md): pin community actions and actions from publishers
+# GitHub has not verified, and leave these on a major version or branch:
 #   - local actions (./...), which change with this repository
-#   - DFE-Digital/github-actions/*@master. The platform team publishes these
-#     from master and its tags are long out of date, so Dependabot could not
-#     keep a SHA pin current. See docs/dependabot.md#pins.
+#   - official GitHub actions (actions/*, github/*)
+#   - first-party DfE actions (DFE-Digital/*)
+#   - verified publishers we use, listed in VERIFIED_OWNERS below
+# See docs/dependabot.md#pins.
 #
 # Run this from the repo root:
 #   bash scripts/check-pins.sh
-# Exit 0: everything is pinned.
+# Exit 0: everything that must be pinned is.
 # Exit 1: each unpinned reference is listed with its file and line.
+
+# Owners shown as a verified creator on GitHub Marketplace. Check the badge on the action's
+# Marketplace page before adding one.
+VERIFIED_OWNERS="Azure anchore"
 
 failed=0
 
@@ -25,10 +32,13 @@ for file in .github/workflows/*.yml .github/actions/*/action.yml; do
         line=${match%%:*}
         text=${match#*:}
         ref=$(printf '%s' "$text" | sed -E 's/^[[:space:]-]*uses:[[:space:]]*//; s/[[:space:]]+#.*$//')
+        owner=${ref%%/*}
         case "$ref" in
-            ./*) continue ;;
-            DFE-Digital/github-actions/*@master) continue ;;
+            ./* | actions/* | github/* | DFE-Digital/*) continue ;;
         esac
+        if printf ' %s ' "$VERIFIED_OWNERS" | grep -qi " $owner "; then
+            continue
+        fi
         if ! printf '%s' "$text" | grep -qE '@[0-9a-f]{40}[[:space:]]+#[[:space:]]*v[0-9]'; then
             echo "$file:$line: $ref is not pinned to a commit SHA with its version in a comment"
             failed=1
@@ -56,9 +66,9 @@ done
 
 if [ "$failed" -ne 0 ]; then
     echo
-    echo "Pin each action as owner/repo@<commit sha> # vX.Y.Z and each base image as"
+    echo "Pin each such action as owner/repo@<commit sha> # vX.Y.Z and each base image as"
     echo "image:tag@sha256:<digest>. docs/dependabot.md#pins says how to find them."
     exit 1
 fi
 
-echo "Pin check OK: every action is pinned to a commit SHA and every base image to a digest"
+echo "Pin check OK: every third-party action is pinned to a commit SHA and every base image to a digest"

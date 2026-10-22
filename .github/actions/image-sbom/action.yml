@@ -30,7 +30,7 @@ runs:
         echo "file=sbom-${NAME}-${tag}.cdx.json" >> "$GITHUB_OUTPUT"
 
     - name: Generate the SBOM
-      uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+      uses: anchore/sbom-action@v0
       with:
         # Read from the runner's Docker daemon, where build-docker-image loaded the image
         # under this same tag; syft would pull the (public) tag from GHCR if it were missing.

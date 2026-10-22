@@ -438,7 +438,7 @@
       },
       "DfeAnalytics.Core": {
         "type": "CentralTransitive",
-        "requested": "[0.6.2, )",
+        "requested": "[0.6.4, )",
         "resolved": "0.6.4",
         "contentHash": "LfmZAaetqxonAFkZSeY0M3udvzyc35QGEgDTm5ohXocTQZNOks/iqBs7tOQ7LOEw4B6cXp6aE1MGzbdsWOKIyQ==",
         "dependencies": {
@@ -448,7 +448,7 @@
       },
       "DfeAnalytics.EFCore": {
         "type": "CentralTransitive",
-        "requested": "[0.6.2, )",
+        "requested": "[0.6.4, )",
         "resolved": "0.6.4",
         "contentHash": "t4Rw5dqWcNNsKm6hTxoTdomrfDskb2SEt70Wo7dhnKixJqkmlmcjSpoueKZcES5fogTpg87cNKLLXLkh51Cqsg==",
         "dependencies": {

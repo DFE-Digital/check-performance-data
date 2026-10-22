@@ -263,7 +263,7 @@ jobs:
             gh api --method POST "repos/$GH_REPO/issues/$PR/comments" -F body=@comment.md --silent
           fi
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always() && steps.target.outputs.found == 'true'
         with:
           name: e2e-results
@@ -273,7 +273,7 @@ jobs:
 
       # The snapshot tree, so a regenerated baseline can be fetched. Snapshots live in the
       # source tree, not under bin/.
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure() && steps.target.outputs.found == 'true'
         with:
           name: e2e-snapshots
@@ -282,7 +282,7 @@ jobs:
 
       # Playwright traces for the failing tests only. Open one with
       # `npx playwright show-trace <file>.zip`.
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure() && steps.target.outputs.found == 'true'
         with:
           name: e2e-traces

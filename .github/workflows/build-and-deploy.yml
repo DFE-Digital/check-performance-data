@@ -224,7 +224,7 @@ jobs:
       # update workflow can retrieve the regenerated PNG. Snapshots live under the
       # source tree (resolved via project marker walk in PageSnapshotExtensions),
       # not under bin/, so the path here points at the source location.
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: e2e-snapshots
@@ -235,7 +235,7 @@ jobs:
       # green run). Open them with `npx playwright show-trace <file>.zip` or the trace
       # viewer in the artifact. Name is obscured to {ClassName}.{ordinal}.zip — open a
       # trace to see which test it belongs to (its title is set to the class name).
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: e2e-traces
@@ -288,7 +288,7 @@ jobs:
       - name: Record the commit the review app was built from
         run: echo "$GITHUB_SHA" > review-app-commit.txt
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: review-app-commit
           path: review-app-commit.txt

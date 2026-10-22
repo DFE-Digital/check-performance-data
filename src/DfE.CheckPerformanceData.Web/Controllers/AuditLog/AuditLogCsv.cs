@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using DfE.CheckPerformanceData.Application.Audit;
+using DfE.CheckPerformanceData.Web.Extensions;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.AuditLog;
@@ -55,7 +56,7 @@ public sealed class AuditLogCsvResult(IAsyncEnumerable<AuditLogRow> rows, string
         var response = context.HttpContext.Response;
         response.ContentType = "text/csv; charset=utf-8";
         response.Headers.Append("Content-Disposition", $"attachment; filename=\"{fileName}\"");
-        response.Headers.CacheControl = "no-store";   // the file names people; never leave it in a shared cache
+        response.NoStore();   // the file names people; never leave it in a shared cache
 
         await using var writer = new StreamWriter(response.Body, Encoding.UTF8, bufferSize: 4096, leaveOpen: true);
         await writer.WriteLineAsync(AuditLogCsv.Header);

@@ -5,6 +5,7 @@ using Azure.Storage.Blobs.Specialized;
 using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
+using DfE.CheckPerformanceData.Web.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using System.Text.RegularExpressions;
@@ -139,13 +140,17 @@ public sealed class StorageAdminController(
         });
     }
 
+    // The preview renders the blob's contents into a page; the blob is the same one Download
+    // serves, and a pupil-data file names people whatever form it arrives in (#615).
     [HttpGet("admin/storage/{account}/{containerName}/preview")]
+    [RequiresNoStore]
     public async Task<IActionResult> Preview(string account, string containerName, [FromQuery] string blob)
     {
+        Response.NoStore();
         if (IsProtected(containerName)) return NotFound();
         if (!StorageBlobNames.IsValidBlobName(blob)) return NotFound();
 
-                var client = GetClient(account);
+        var client = GetClient(account);
         if (client is null) return NotFound();
 
         var container = client.GetBlobContainerClient(containerName);
@@ -203,12 +208,14 @@ public sealed class StorageAdminController(
     }
 
     [HttpGet("admin/storage/{account}/{containerName}/download")]
+    [RequiresNoStore]
     public async Task<IActionResult> Download(string account, string containerName, [FromQuery] string blob)
     {
+        Response.NoStore();
         if (IsProtected(containerName)) return NotFound();
         if (!StorageBlobNames.IsValidBlobName(blob)) return NotFound();
 
-                var client = GetClient(account);
+        var client = GetClient(account);
         if (client is null) return NotFound();
 
         var container = client.GetBlobContainerClient(containerName);

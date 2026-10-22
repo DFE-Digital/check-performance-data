@@ -33,6 +33,7 @@ public sealed class CheckYourPupilDataControllerTabsTests
     private readonly IAnalyticsService _analytics = Substitute.For<IAnalyticsService>();
     private readonly IExerciseTabBuilder _tabBuilder = Substitute.For<IExerciseTabBuilder>();
     private readonly IExerciseDisplayService _display = new ExerciseDisplayService();
+    private DefaultHttpContext _httpContext = null!;
 
     public CheckYourPupilDataControllerTabsTests()
     {
@@ -47,14 +48,14 @@ public sealed class CheckYourPupilDataControllerTabsTests
 
     private CheckYourPupilDataController Controller()
     {
-        var httpContext = new DefaultHttpContext();
-        httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(new FakeSession()));
+        _httpContext = new DefaultHttpContext();
+        _httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(new FakeSession()));
 
         var checkingExercises = new CheckingExerciseService(TimeProvider.System);
         return new CheckYourPupilDataController(_service, _currentUser, _analytics,
             new NextStepsService(checkingExercises), checkingExercises, _tabBuilder, _display)
         {
-            ControllerContext = new ControllerContext { HttpContext = httpContext }
+            ControllerContext = new ControllerContext { HttpContext = _httpContext }
         };
     }
 
@@ -97,6 +98,7 @@ public sealed class CheckYourPupilDataControllerTabsTests
         Assert.Equal("text/csv", result.ContentType);
         // Named as the pupil CSVs always were: {prefix}-{urn}-{window type}-{year}.csv.
         Assert.Equal($"students-included-123456-Post16-{Window().EndDate:yyyy}.csv", result.FileDownloadName);
+        Assert.Equal("no-store", _httpContext.Response.Headers.CacheControl.ToString());
     }
 
     [Fact]
@@ -109,6 +111,7 @@ public sealed class CheckYourPupilDataControllerTabsTests
 
         Assert.IsType<NotFoundResult>(
             await Controller().DownloadExerciseDataset(WindowId, Guid.NewGuid(), "students-included"));
+        Assert.Equal("no-store", _httpContext.Response.Headers.CacheControl.ToString());
     }
 
     [Fact]
@@ -126,6 +129,29 @@ public sealed class CheckYourPupilDataControllerTabsTests
             await Controller().DownloadExerciseJson(WindowId, ExerciseId, CancellationToken.None));
 
         Assert.Equal("application/json", result.ContentType);
+        Assert.Equal("no-store", _httpContext.Response.Headers.CacheControl.ToString());
+    }
+
+    [Fact]
+    public async Task DownloadOfJsonForAnExerciseThisWindowDoesNotRun_IsNotFound()
+    {
+        _tabBuilder.BuildAsync(Arg.Any<CheckingWindowDto>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string?>(),
+                Arg.Any<string?>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns([ATab()]);
+
+        Assert.IsType<NotFoundResult>(
+            await Controller().DownloadExerciseJson(WindowId, Guid.NewGuid(), CancellationToken.None));
+        Assert.Equal("no-store", _httpContext.Response.Headers.CacheControl.ToString());
+    }
+
+    [Fact]
+    public async Task ASignedInUserWithNoSchool_CannotDownloadTheRawJson()
+    {
+        _currentUser.OrganisationLaestab.Returns((string?)null);
+
+        Assert.IsType<ForbidResult>(
+            await Controller().DownloadExerciseJson(WindowId, ExerciseId, CancellationToken.None));
+        Assert.Equal("no-store", _httpContext.Response.Headers.CacheControl.ToString());
     }
 
     [Fact]
@@ -135,6 +161,53 @@ public sealed class CheckYourPupilDataControllerTabsTests
 
         Assert.IsType<ForbidResult>(
             await Controller().DownloadExerciseDataset(WindowId, ExerciseId, "students-included"));
+        Assert.Equal("no-store", _httpContext.Response.Headers.CacheControl.ToString());
+    }
+
+    [Fact]
+    public async Task DownloadAll_WhenTheWindowDrawsExerciseTabs_ZipsOneCsvPerDatasetAndNeverCaches()
+    {
+        _tabBuilder.BuildAsync(Arg.Any<CheckingWindowDto>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string?>(),
+                Arg.Any<string?>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns([ATab()]);
+
+        var result = Assert.IsType<FileContentResult>(await Controller().DownloadAll(WindowId));
+
+        Assert.Equal("application/zip", result.ContentType);
+        Assert.Equal("no-store", _httpContext.Response.Headers.CacheControl.ToString());
+    }
+
+    [Fact]
+    public async Task DownloadAll_WhenNoExerciseDrawsA_ZipsThePupilInclusionCsvsAndNeverCaches()
+    {
+        _service.GetPupilCsvAsync(WindowId, Arg.Any<bool>()).Returns(PupilTable.Empty);
+
+        var result = Assert.IsType<FileContentResult>(await Controller().DownloadAll(WindowId));
+
+        Assert.Equal("application/zip", result.ContentType);
+        Assert.Equal("no-store", _httpContext.Response.Headers.CacheControl.ToString());
+    }
+
+    [Fact]
+    public async Task DownloadIncluded_ReturnsThePupilCsvAndNeverCaches()
+    {
+        _service.GetPupilCsvAsync(WindowId, Arg.Any<bool>()).Returns(PupilTable.Empty);
+
+        var result = Assert.IsType<FileContentResult>(await Controller().DownloadIncluded(WindowId));
+
+        Assert.Equal("text/csv", result.ContentType);
+        Assert.Equal("no-store", _httpContext.Response.Headers.CacheControl.ToString());
+    }
+
+    [Fact]
+    public async Task DownloadNonIncluded_ReturnsThePupilCsvAndNeverCaches()
+    {
+        _service.GetPupilCsvAsync(WindowId, Arg.Any<bool>()).Returns(PupilTable.Empty);
+
+        var result = Assert.IsType<FileContentResult>(await Controller().DownloadNonIncluded(WindowId));
+
+        Assert.Equal("text/csv", result.ContentType);
+        Assert.Equal("no-store", _httpContext.Response.Headers.CacheControl.ToString());
     }
 
     private static CheckYourPupilDataViewModel Model(IActionResult result) =>

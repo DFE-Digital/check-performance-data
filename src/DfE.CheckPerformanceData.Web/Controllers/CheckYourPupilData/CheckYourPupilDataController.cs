@@ -10,6 +10,7 @@ using ExerciseCheckingWindowDto = DfE.CheckPerformanceData.Application.WindowMan
 using LearnerNoun = DfE.CheckPerformanceData.Application.WindowManagement.LearnerNoun;
 using DfE.CheckPerformanceData.Web.Authentication;
 using DfE.CheckPerformanceData.Web.Common;
+using DfE.CheckPerformanceData.Web.Extensions;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Analytics;
 using DfE.CheckPerformanceData.Web.Session;
@@ -47,8 +48,10 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
     }
 
     [Route("CheckYourPupilData/{windowId}/download/all")]
+    [RequiresNoStore]
     public async Task<IActionResult> DownloadAll(Guid windowId)
     {
+        Response.NoStore();
         // The exercise tabs, rebuilt for this school. A window with schema-backed datasets zips
         // one CSV per dataset instead; every KS2 and KS4 window today draws no exercise tabs, so
         // this falls straight through to the pupil-inclusion zip below, exactly as before.
@@ -102,8 +105,10 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
     }
 
     [Route("CheckYourPupilData/{windowId}/download/included")]
+    [RequiresNoStore]
     public async Task<IActionResult> DownloadIncluded(Guid windowId)
     {
+        Response.NoStore();
         var filename = await GenerateCsvFileName(windowId, "pupil-include");
         var pupils = await checkYourPupilDataService.GetPupilCsvAsync(windowId, included: true);
         var bytes = PupilCsvGenerator.Generate(pupils);
@@ -114,9 +119,11 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
     // from another window (or a dataset this window does not run) reaches nothing. An exercise
     // split by inclusion draws two tabs, so the tab key picks one; with no key, the first.
     [Route("CheckYourPupilData/{windowId}/download/exercise/{exerciseId:guid}/{dataset}")]
+    [RequiresNoStore]
     public async Task<IActionResult> DownloadExerciseDataset(Guid windowId, Guid exerciseId, string dataset,
         string? tab = null)
     {
+        Response.NoStore();
         if (string.IsNullOrWhiteSpace(currentUserService.OrganisationLaestab)) return Forbid();
 
         var model = await BuildIndexModelAsync(windowId, 0, 0, 0, null, null, null);
@@ -133,9 +140,11 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
     // The raw JSON the ingress run wrote, unshaped by any schema. This is the endpoint the POC put
     // on /check-data; that page is not ported, so it lives here with the tabs it belongs to.
     [Route("CheckYourPupilData/{windowId}/download/exercise/{exerciseId:guid}/json")]
+    [RequiresNoStore]
     public async Task<IActionResult> DownloadExerciseJson(Guid windowId, Guid exerciseId,
         CancellationToken cancellationToken)
     {
+        Response.NoStore();
         if (string.IsNullOrWhiteSpace(currentUserService.OrganisationLaestab)) return Forbid();
 
         var model = await BuildIndexModelAsync(windowId, 0, 0, 0, null, null, null);
@@ -173,8 +182,10 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
     }
 
     [Route("CheckYourPupilData/{windowId}/download/non-included")]
+    [RequiresNoStore]
     public async Task<IActionResult> DownloadNonIncluded(Guid windowId)
     {
+        Response.NoStore();
         var filename = await GenerateCsvFileName(windowId, "pupil-non-include");
         var pupils = await checkYourPupilDataService.GetPupilCsvAsync(windowId, included: false);
         var bytes = PupilCsvGenerator.Generate(pupils);
@@ -182,8 +193,10 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
     }
 
     [Route("CheckYourPupilData/{windowId}/download/results")]
+    [RequiresNoStore]
     public async Task<IActionResult> DownloadResults(Guid windowId)
     {
+        Response.NoStore();
         // The link is never rendered on a window without a Results tab, so a null here is a
         // hand-typed URL. No gated path on this service returns 404.
         var results = await checkYourPupilDataService.GetResultsCsvAsync(windowId);

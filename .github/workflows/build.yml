@@ -46,7 +46,7 @@ jobs:
         fi
 
     - name: Build
-      run: dotnet build src/DfE.CheckPerformanceData.slnx --no-restore --configuration Release
+      run: dotnet restore src/DfE.CheckPerformanceData.slnx --force-evaluate
 
     - name: Test
       run: dotnet test src/DfE.CheckPerformanceData.slnx --no-build --configuration Release --verbosity normal --filter "FullyQualifiedName!~E2ETests"

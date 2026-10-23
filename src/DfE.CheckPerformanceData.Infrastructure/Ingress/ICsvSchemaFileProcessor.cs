@@ -48,5 +48,6 @@ public interface ICsvSchemaFileProcessor
         bool validateOnly = false,
         bool clearExistingFiles = false,
         CancellationToken cancellationToken = default,
-        Guid? checkingExerciseId = null, CheckingDataType? dataType = null, Guid? releaseId = null);
+        Guid? checkingExerciseId = null, CheckingDataType? dataType = null, Guid? releaseId = null,
+        IngressSummaryCapture? summaryCapture = null);
 }

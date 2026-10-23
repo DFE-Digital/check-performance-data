@@ -91,6 +91,7 @@ public static class BlobStorageExtensions
             sp => sp.GetRequiredService<NotOnRollCollegeListStore>());
         services.AddHostedService<Seeding.NotOnRollCollegeListService>();
         services.AddScoped<ICsvSchemaFileProcessor, CsvSchemaFileProcessor>();
+        services.AddScoped<IIngressSummaryStore, IngressSummaryStore>();
         // ICheckingDataReader is also registered in the Infrastructure DependencyManager (the
         // worker's bundle); duplicated here for the same reason as IResultsClient above —
         // the web host builds its blob-client set from this seam and never calls

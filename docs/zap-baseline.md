@@ -30,7 +30,7 @@ where the unit tests look at what the code sets.
 The job summary on the run page carries the counts and the report: each rule that fired, how many
 URLs, and the URLs. The same report in HTML, Markdown and JSON, with the summary counts, is the
 run's `zap-baseline` artefact (kept 14 days). A rule's documentation is at
-`https://www.zaproxy.org/docs/alerts/<rule id>/`. The report lists the accepted alerts as well; the counts line and the 'New findings' section below it are what the gate reads, and the gate also fails when fewer than 20 URLs were crawled, because an error or maintenance page would scan clean.
+`https://www.zaproxy.org/docs/alerts/<rule id>/`. The report lists the accepted alerts as well; the counts line is what the gate reads; the 'New findings' section names what it failed on, and the gate also fails when fewer than 20 URLs were crawled, because an error or maintenance page would scan clean.
 
 The check is green when every rule that fired is accepted in the plan's rules. It is red when
 something new fired.

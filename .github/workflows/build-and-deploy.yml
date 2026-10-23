@@ -275,6 +275,8 @@ jobs:
         env:
           ZAP_TARGET: ${{ needs.deploy-review-app.outputs.environment_url }}
         run: |
+          # tee would otherwise hide ZAP's exit code; the default shell has no pipefail.
+          set -o pipefail
           mkdir -p zap-out
           docker run --rm --user root -e ZAP_TARGET \
             -v "$GITHUB_WORKSPACE:/zap/wrk:rw" \
@@ -292,12 +294,6 @@ jobs:
             exit 1
           fi
           read -r pass warn fail < <(jq -r '"\(.pass) \(.warn) \(.fail)"' "$summary")
-          # Today's anonymous surface is 35 URLs; an error or maintenance page would scan one or two and look clean.
-          urls=$(grep -oE 'Total of [0-9]+ URLs' zap-out/console.txt | grep -oE '[0-9]+' | tail -n 1)
-          if [[ -z "$urls" || "$urls" -lt 20 ]]; then
-            echo "::error::ZAP crawled only ${urls:-0} URLs (floor 20): the review app did not serve its pages, so a clean result means nothing"
-            exit 1
-          fi
           gate=$([[ "$ZAP_GATE" == "true" ]] && echo on || echo off)
           echo "ZAP: $pass rules passed, $warn warned, $fail failed (gate $gate)"
           {
@@ -309,8 +305,14 @@ jobs:
             echo
             echo "#### New findings (not accepted in .github/zap/plan.yaml)"
             echo
-            grep -E '^(WARN|FAIL)-NEW' zap-out/console.txt || echo "None."
+            grep -E '^(WARN|FAIL)-NEW: .*\[[0-9]+\]' zap-out/console.txt || echo "None."
           } >> "$GITHUB_STEP_SUMMARY"
+          # Today's anonymous surface is 35 URLs; an error or maintenance page would scan one or two and look clean.
+          urls=$(grep -oE 'Total of [0-9]+ URLs' zap-out/console.txt | grep -oE '[0-9]+' | tail -n 1)
+          if [[ -z "$urls" || "$urls" -lt 20 ]]; then
+            echo "::error::ZAP crawled only ${urls:-0} URLs (floor 20): the review app did not serve its pages, so a clean result means nothing"
+            exit 1
+          fi
           if [[ "$ZAP_GATE" == "true" && ( "$warn" != "0" || "$fail" != "0" ) ]]; then
             echo "::error::ZAP found $warn warning(s) and $fail failure(s) that .github/zap/plan.yaml does not accept. docs/zap-baseline.md says how to triage them."
             exit 1

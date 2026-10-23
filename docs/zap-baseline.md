@@ -71,14 +71,14 @@ exclusion.
 
 | Rule | Decision | Reason |
 |---|---|---|
-| 2 | IGNORE | Private IP Disclosure: false positive, 10.02.68.86 is SVG path coordinates in assets/images/favicon.svg, not an address || |
-| 10015 | IGNORE | Re-examine Cache-control Directives: informational on anonymous pages (no-cache, no-store without private/must-revalidate; robots.txt sends none); the personal-data responses carry no-store (#615) || |
-| 10027 | IGNORE | Suspicious Comments: the matched block is the session diagnostic footer, which DiagnosticFooterMiddleware emits only outside Production (env.IsProduction() short-circuit, covered by DiagnosticFooterMiddlewareTests); the other hits are explanatory JS comments in _GtmHead and _ClarityHead. Follow-up #677: switch the footer off on review apps || |
-| 10054 | IGNORE | Cookie with SameSite Attribute None: .AspNetCore.Correlation.* is the OpenID Connect handler's correlation cookie for the DfE Sign-in redirect; ASP.NET Core sets it SameSite=None by default so the cross-site return carries it (the Secure-cookie rule 10011 passed) || |
-| 10055 | IGNORE | CSP: style-src 'unsafe-inline' and the Google wildcard hosts are needed by GOV.UK Frontend and Google Tag Manager; script-src is nonce-only (#611) || |
-| 10096 | IGNORE | Timestamp Disclosure: informational, 1904761905 is a numeric constant in minified GOV.UK Frontend CSS, not a timestamp || |
-| 10109 | IGNORE | Modern Web Application: informational; the matched markup is a GOV.UK placeholder link and the service is server-rendered || |
-| 10112 | IGNORE | Session Management Response Identified: informational; the antiforgery cookie || |
+| 2 | IGNORE | Private IP Disclosure: false positive, 10.02.68.86 is SVG path coordinates in assets/images/favicon.svg, not an address |
+| 10015 | IGNORE | Re-examine Cache-control Directives: informational on anonymous pages (no-cache, no-store without private/must-revalidate; robots.txt sends none); the personal-data responses carry no-store (#615) |
+| 10027 | IGNORE | Suspicious Comments: the matched block is the session diagnostic footer, which DiagnosticFooterMiddleware emits only outside Production (env.IsProduction() short-circuit, covered by DiagnosticFooterMiddlewareTests); the other hits are explanatory JS comments in _GtmHead and _ClarityHead. Follow-up #677: switch the footer off on review apps |
+| 10054 | IGNORE | Cookie with SameSite Attribute None: .AspNetCore.Correlation.* is the OpenID Connect handler's correlation cookie for the DfE Sign-in redirect; ASP.NET Core sets it SameSite=None by default so the cross-site return carries it (the Secure-cookie rule 10011 passed) |
+| 10055 | IGNORE | CSP: style-src 'unsafe-inline' and the Google wildcard hosts are needed by GOV.UK Frontend and Google Tag Manager; script-src is nonce-only (#611) |
+| 10096 | IGNORE | Timestamp Disclosure: informational, 1904761905 is a numeric constant in minified GOV.UK Frontend CSS, not a timestamp |
+| 10109 | IGNORE | Modern Web Application: informational; the matched markup is a GOV.UK placeholder link and the service is server-rendered |
+| 10112 | IGNORE | Session Management Response Identified: informational; the antiforgery cookie |
 
 ## Running it locally
 

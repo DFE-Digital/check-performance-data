@@ -9,7 +9,7 @@ Review". The scan is the automation plan `.github/zap/plan.yaml`.
 
 [OWASP ZAP](https://www.zaproxy.org/) crawls the review app for up to three minutes and runs its
 passive rules over every response: headers, cookies, what is disclosed in the markup. It attacks
-nothing. The check looks at what a browser is actually sent, after the AKS ingress and Front Door,
+nothing. The check looks at what a browser is actually sent, after the AKS ingress (review apps are not behind Front Door; scanning a Front Door hostname is #679),
 where the unit tests look at what the code sets.
 
 ## What it does not do
@@ -29,8 +29,8 @@ where the unit tests look at what the code sets.
 
 The job summary on the run page carries the counts and the report: each rule that fired, how many
 URLs, and the URLs. The same report in HTML, Markdown and JSON, with the summary counts, is the
-run's `zap-baseline` artefact (kept 90 days). A rule's documentation is at
-`https://www.zaproxy.org/docs/alerts/<rule id>/`.
+run's `zap-baseline` artefact (kept 14 days). A rule's documentation is at
+`https://www.zaproxy.org/docs/alerts/<rule id>/`. The report lists the accepted alerts as well; the counts line and the 'New findings' section below it are what the gate reads, and the gate also fails when fewer than 20 URLs were crawled, because an error or maintenance page would scan clean.
 
 The check is green when every rule that fired is accepted in the plan's rules. It is red when
 something new fired.
@@ -73,12 +73,12 @@ exclusion.
 |---|---|---|
 | 2 | IGNORE | Private IP Disclosure: false positive, 10.02.68.86 is SVG path coordinates in assets/images/favicon.svg, not an address |
 | 10015 | IGNORE | Re-examine Cache-control Directives: informational on anonymous pages (no-cache, no-store without private/must-revalidate; robots.txt sends none); the personal-data responses carry no-store (#615) |
-| 10027 | IGNORE | Suspicious Comments: the matched block is the session diagnostic footer, which DiagnosticFooterMiddleware emits only outside Production (env.IsProduction() short-circuit, covered by DiagnosticFooterMiddlewareTests); the other hits are explanatory JS comments in _GtmHead and _ClarityHead. Follow-up #677: switch the footer off on review apps |
+| 10027 | IGNORE | Suspicious Comments: the matched block is the session diagnostic footer, which DiagnosticFooterMiddleware emits only outside Production (env.IsProduction() short-circuit, covered by DiagnosticFooterMiddlewareTests); the other hits are explanatory JS comments in _GtmHead and _ClarityHead. Follow-up #677: switch the footer off on review apps. Rule-wide: a new suspicious comment anywhere is also hidden until #677 removes this IGNORE |
 | 10054 | IGNORE | Cookie with SameSite Attribute None: .AspNetCore.Correlation.* is the OpenID Connect handler's correlation cookie for the DfE Sign-in redirect; ASP.NET Core sets it SameSite=None by default so the cross-site return carries it (the Secure-cookie rule 10011 passed) |
-| 10055 | IGNORE | CSP: style-src 'unsafe-inline' and the Google wildcard hosts are needed by GOV.UK Frontend and Google Tag Manager; script-src is nonce-only (#611) |
-| 10096 | IGNORE | Timestamp Disclosure: informational, 1904761905 is a numeric constant in minified GOV.UK Frontend CSS, not a timestamp |
-| 10109 | IGNORE | Modern Web Application: informational; the matched markup is a GOV.UK placeholder link and the service is server-rendered |
-| 10112 | IGNORE | Session Management Response Identified: informational; the antiforgery cookie |
+| 10055 | IGNORE | CSP: style-src 'unsafe-inline' and the Google wildcard hosts are needed by Google Tag Manager and inline style attributes in our views; script-src is nonce-only, pinned by SecurityHeadersMiddlewareTests (#611). This IGNORE covers every 10055 variant, so those tests are the CSP guard |
+| 10096 | IGNORE | Timestamp Disclosure: informational, the matches are numeric constants in minified GOV.UK Frontend and MOJ Frontend CSS, not timestamps |
+| 10109 | IGNORE | Modern Web Application: informational; the match is the start page's placeholder href="#" for email sign-up (Views/Home/Index.cshtml), pending the notifications work; the service is server-rendered |
+| 10112 | IGNORE | Session Management Response Identified: informational; the antiforgery and ASP.NET Core session cookies (the cookie rules 10010, 10011 and 10054 pass for both) |
 
 ## Running it locally
 
@@ -86,12 +86,11 @@ Start the compose stack (`docker compose up -d db azurite web`), copy the plan i
 work folder with an empty `zap-out` folder beside it, then:
 
 ```bash
-docker run --rm -e ZAP_TARGET=http://host.docker.internal:8080 \
+docker run --rm --user root -e ZAP_TARGET=http://host.docker.internal:8080 \
   -v "<work folder>:/zap/wrk:rw" ghcr.io/zaproxy/zaproxy:stable \
   zap.sh -cmd -autorun /zap/wrk/plan.yaml
 ```
 
-The reports and `summary.json` land in `<work folder>/zap-out`. Under Git Bash on Windows, prefix
+`--user root` so ZAP can write `zap-out` on a Linux host. The reports and `summary.json` land in `<work folder>/zap-out`. Under Git Bash on Windows, prefix
 the command with `MSYS_NO_PATHCONV=1`, or the shell turns `/zap/wrk/plan.yaml` into a Windows path.
-The local web runs as Development, so HSTS and the cookie `Secure` flag would be reported there
-and not on a review app.
+The local target is plain http, so ZAP's HTTPS-only rules (HSTS 10035, cookie Secure 10011) do not run there and the cache-control rule 10015 does not fire on the Development web; only a review app tests them.

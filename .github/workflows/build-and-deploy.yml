@@ -279,11 +279,11 @@ jobs:
           docker run --rm --user root -e ZAP_TARGET \
             -v "$GITHUB_WORKSPACE:/zap/wrk:rw" \
             ghcr.io/zaproxy/zaproxy:stable \
-            zap.sh -cmd -autorun /zap/wrk/.github/zap/plan.yaml
+            zap.sh -cmd -autorun /zap/wrk/.github/zap/plan.yaml | tee zap-out/console.txt
 
       # The counts on the run page, the report below them, and the gate.
       - name: Apply the rules
-        if: always()
+        if: success() || failure()
         run: |
           summary=zap-out/summary.json
           if [[ ! -f "$summary" ]]; then
@@ -292,14 +292,24 @@ jobs:
             exit 1
           fi
           read -r pass warn fail < <(jq -r '"\(.pass) \(.warn) \(.fail)"' "$summary")
+          # Today's anonymous surface is 35 URLs; an error or maintenance page would scan one or two and look clean.
+          urls=$(grep -oE 'Total of [0-9]+ URLs' zap-out/console.txt | grep -oE '[0-9]+' | tail -n 1)
+          if [[ -z "$urls" || "$urls" -lt 20 ]]; then
+            echo "::error::ZAP crawled only ${urls:-0} URLs (floor 20): the review app did not serve its pages, so a clean result means nothing"
+            exit 1
+          fi
           gate=$([[ "$ZAP_GATE" == "true" ]] && echo on || echo off)
           echo "ZAP: $pass rules passed, $warn warned, $fail failed (gate $gate)"
           {
             echo "### ZAP baseline scan"
             echo
-            echo "$pass rules passed, $warn warned, $fail failed. Gate $gate. The full report is the \`zap-baseline\` artefact."
+            echo "$pass rules passed, $warn warned, $fail failed. Gate $gate. The report below lists accepted alerts as well; the counts line is what the gate reads. The full report is the \`zap-baseline\` artefact."
             echo
             cat zap-out/report.md
+            echo
+            echo "#### New findings (not accepted in .github/zap/plan.yaml)"
+            echo
+            grep -E '^(WARN|FAIL)-NEW' zap-out/console.txt || echo "None."
           } >> "$GITHUB_STEP_SUMMARY"
           if [[ "$ZAP_GATE" == "true" && ( "$warn" != "0" || "$fail" != "0" ) ]]; then
             echo "::error::ZAP found $warn warning(s) and $fail failure(s) that .github/zap/plan.yaml does not accept. docs/zap-baseline.md says how to triage them."
@@ -307,11 +317,12 @@ jobs:
           fi
 
       - uses: actions/upload-artifact@v7
-        if: always()
+        if: success() || failure()
         with:
           name: zap-baseline
           path: zap-out/
           if-no-files-found: warn
+          retention-days: 14
 
   deploy-review-app:
     name: Deployment To Review

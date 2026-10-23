@@ -1,8 +1,9 @@
 # OWASP ZAP automation plan for the review-app baseline scan (#618). docs/zap-baseline.md says what
 # the scan covers and how to triage a finding.
 #
-# This is the plan zap-baseline.py generates, with two changes it cannot make: the spider submits
-# no forms, and the dev-tools pages are out of scope. Run by the "ZAP baseline scan" job in
+# This is the plan zap-baseline.py generates, with changes it cannot make: the spider submits
+# no forms, the dev-tools pages are out of scope, the context is named for the app and progress goes
+# to stdout. Run by the "ZAP baseline scan" job in
 # .github/workflows/build-and-deploy.yml, which supplies ZAP_TARGET and mounts the workspace at
 # /zap/wrk.
 env:
@@ -58,22 +59,22 @@ jobs:
         customMessage: "Re-examine Cache-control Directives: informational on anonymous pages (no-cache, no-store without private/must-revalidate; robots.txt sends none); the personal-data responses carry no-store (#615)"
       - id: 10027
         action: IGNORE
-        customMessage: "Suspicious Comments: the matched block is the session diagnostic footer, which DiagnosticFooterMiddleware emits only outside Production (env.IsProduction() short-circuit, covered by DiagnosticFooterMiddlewareTests); the other hits are explanatory JS comments in _GtmHead and _ClarityHead. Follow-up #677: switch the footer off on review apps"
+        customMessage: "Suspicious Comments: the matched block is the session diagnostic footer, which DiagnosticFooterMiddleware emits only outside Production (env.IsProduction() short-circuit, covered by DiagnosticFooterMiddlewareTests); the other hits are explanatory JS comments in _GtmHead and _ClarityHead. Follow-up #677: switch the footer off on review apps. Rule-wide: a new suspicious comment anywhere is also hidden until #677 removes this IGNORE"
       - id: 10054
         action: IGNORE
         customMessage: "Cookie with SameSite Attribute None: .AspNetCore.Correlation.* is the OpenID Connect handler's correlation cookie for the DfE Sign-in redirect; ASP.NET Core sets it SameSite=None by default so the cross-site return carries it (the Secure-cookie rule 10011 passed)"
       - id: 10055
         action: IGNORE
-        customMessage: "CSP: style-src 'unsafe-inline' and the Google wildcard hosts are needed by GOV.UK Frontend and Google Tag Manager; script-src is nonce-only (#611)"
+        customMessage: "CSP: style-src 'unsafe-inline' and the Google wildcard hosts are needed by Google Tag Manager and inline style attributes in our views; script-src is nonce-only, pinned by SecurityHeadersMiddlewareTests (#611). This IGNORE covers every 10055 variant, so those tests are the CSP guard"
       - id: 10096
         action: IGNORE
-        customMessage: "Timestamp Disclosure: informational, 1904761905 is a numeric constant in minified GOV.UK Frontend CSS, not a timestamp"
+        customMessage: "Timestamp Disclosure: informational, the matches are numeric constants in minified GOV.UK Frontend and MOJ Frontend CSS, not timestamps"
       - id: 10109
         action: IGNORE
-        customMessage: "Modern Web Application: informational; the matched markup is a GOV.UK placeholder link and the service is server-rendered"
+        customMessage: "Modern Web Application: informational; the match is the start page's placeholder href=\"#\" for email sign-up (Views/Home/Index.cshtml), pending the notifications work; the service is server-rendered"
       - id: 10112
         action: IGNORE
-        customMessage: "Session Management Response Identified: informational; the antiforgery cookie"
+        customMessage: "Session Management Response Identified: informational; the antiforgery and ASP.NET Core session cookies (the cookie rules 10010, 10011 and 10054 pass for both)"
 
   - type: report
     parameters:

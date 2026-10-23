@@ -199,6 +199,18 @@ var services = new ServiceCollection();
         }
     }
 
+    // Only PageDateRules reads checksCohortStart, and only on the EAL details page. Turned off on
+    // any other page, it does nothing and nothing fails.
+    [Fact]
+    public void ChecksCohortStart_IsTurnedOffOnlyOnTheEalDetailsPage()
+    {
+        var misplaced = AllFlowPages()
+            .Where(p => !p.Page.ChecksCohortStart && p.Page.Id != PageDateRules.EalDetailsPageId)
+            .Select(p => $"{p.File}: {p.Page.Id}");
+
+        Assert.Empty(misplaced);
+    }
+
     /// <summary>
     /// The same guard for the removal journey date rules in
     /// <see cref="RemovalJourneyDateRules"/>. The seven removal page ids and their three date

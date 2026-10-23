@@ -55,8 +55,7 @@ public sealed class JourneyValidationService(
     }
 
     public IReadOnlyList<DateFieldViolation> ValidatePageDates(
-        JourneyPage page, IReadOnlyDictionary<string, QuestionAnswer> answers, string pupilName,
-        CheckingWindowType? windowType)
+        JourneyPage page, IReadOnlyDictionary<string, QuestionAnswer> answers, string pupilName)
     {
         // Each rule set owns a disjoint set of pages: the EAL page has its own cross-field rules
         // (PageDateRules), and the KS4, KS2 and 16-19 removal pages share the future-date rule
@@ -77,7 +76,7 @@ public sealed class JourneyValidationService(
                 Answered(PageDateRules.ArrivedInEngland),
                 UkToday(),
                 pupilName,
-                PageDateRules.ChecksCohortStart(windowType));
+                page.ChecksCohortStart);
         }
 
         if (RemovalJourneyDateRules.AppliesToPage(page.Id))

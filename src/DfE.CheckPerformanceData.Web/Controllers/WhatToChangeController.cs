@@ -60,7 +60,7 @@ public sealed class WhatToChangeController(
             return View("Index", new WhatToChangeViewModel { WindowId = windowId, SelectedWhatToChange = null, LearnerNoun = noun, AvailableChanges = available });
         }
 
-        // KS2 spec decision 1: a change is offered only when its flow file exists for this window
+        // docs/ks2-journeys.md, decision 1: a change is offered only when its flow file exists for this window
         // type. The page shows only those radios, but a posted form (or a forged enum value) still
         // arrives here. Refused before the flow service or the session is touched.
         if (!available.Contains(vm.SelectedWhatToChange.Value))

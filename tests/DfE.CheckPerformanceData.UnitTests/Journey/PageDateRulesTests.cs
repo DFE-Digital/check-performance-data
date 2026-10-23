@@ -1,4 +1,3 @@
-using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Application.Journey.DateRules;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
@@ -244,16 +243,6 @@ public sealed class PageDateRulesTests
         var violations = Evaluate(a: PageDateRules.CohortStart(Today).AddDays(-1), checkCohortStart: false);
 
         Assert.Empty(violations);
-    }
-
-    [Theory]
-    [InlineData(CheckingWindowType.KS4June, true)]
-    [InlineData(CheckingWindowType.KS4Autumn, true)]
-    [InlineData(CheckingWindowType.Post16, true)]
-    [InlineData(CheckingWindowType.KS2, false)]
-    public void ChecksCohortStart_IsOffOnKs2Only(CheckingWindowType windowType, bool expected)
-    {
-        Assert.Equal(expected, PageDateRules.ChecksCohortStart(windowType));
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────

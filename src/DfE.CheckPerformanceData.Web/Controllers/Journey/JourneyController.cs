@@ -900,7 +900,7 @@ public sealed class JourneyController(
             .GroupBy(kv => kv.Key, StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => g.Last().Value, StringComparer.Ordinal);
         var dateRuleQuestionIds = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var violation in journeyService.ValidatePageDates(page, answersInScope, pupilName, journey.CheckingWindow?.CheckingWindowType))
+        foreach (var violation in journeyService.ValidatePageDates(page, answersInScope, pupilName))
         {
             if (ModelState.TryGetValue(violation.QuestionId, out var existing) && existing.Errors.Count > 0)
                 continue;

@@ -143,7 +143,7 @@ public sealed class WhatToChangeControllerTests
         Assert.Equal("Index", redirect.ActionName);
     }
 
-    // KS2 spec decision 1: a change is offered only when its flow file exists for the window
+    // docs/ks2-journeys.md, decision 1: a change is offered only when its flow file exists for the window
     // type, and the POST uses the same rule. A posted form for any other change is refused before
     // the flow service, the session or analytics is touched.
     [Fact]

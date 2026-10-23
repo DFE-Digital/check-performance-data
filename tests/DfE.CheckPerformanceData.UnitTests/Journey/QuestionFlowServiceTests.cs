@@ -726,7 +726,7 @@ public class QuestionFlowServiceTests
             QuestionAnswers = answers ?? new()
         };
 
-    // ── GetPupilDataChangesAsync (KS2 spec, decision 1) ─────────────────────
+    // ── GetPupilDataChangesAsync (docs/ks2-journeys.md, decision 1) ─────────
 
     private static readonly QuestionFlowConfig AnyFlow = new() { FirstPageId = "p", Pages = [] };
 

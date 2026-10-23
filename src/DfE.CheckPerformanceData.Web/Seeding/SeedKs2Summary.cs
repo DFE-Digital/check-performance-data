@@ -32,7 +32,8 @@ public static class SeedKs2Summary
     /// The schools with KS2 data, the LAESTAB as the supplier sends it (no "/"). Five Ways Primary
     /// School, Heath Hayes (Staffordshire), and Kingsmead School. Kingsmead is a secondary school
     /// and would never see a KS2 window, but the dev impersonation signs in as Kingsmead, so it has
-    /// data in every window. It is last, so its disadvantaged percentages are suppressed.
+    /// data in every window. Kingsmead is last on purpose: the seed suppresses the last school's
+    /// disadvantaged percentages ("+"), so a developer can see that form on the Summary tab.
     /// </summary>
     internal static readonly IReadOnlyList<(string Urn, string Laestab)> Schools =
         [("124070", "8602180"), ("142313", "8604070")];

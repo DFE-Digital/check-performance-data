@@ -6,6 +6,7 @@ namespace DfE.CheckPerformanceData.Application.Journey;
 public interface IQuestionFlowService
 {
     Task<QuestionFlowConfig?> GetConfigAsync(WhatToChange whatToChange, CheckingWindowType checkingWindowType);
+
     /// <summary>
     /// The pupil-data changes (Merge, Include, Remove, Add) that have a flow file for this window
     /// type, in the order the What to change page shows them. A change is offered only when

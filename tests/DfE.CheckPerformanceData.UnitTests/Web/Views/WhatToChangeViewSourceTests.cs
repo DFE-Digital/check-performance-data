@@ -3,7 +3,7 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Views;
 // Source-file assertion pattern (mirrors LayoutViewSourceTests): reads
 // Views/WhatToChange/Index.cshtml from disk and asserts static Razor-source facts.
 //
-// KS2 spec decision 1: the radios come from Model.AvailableChanges, which lists the changes that
+// docs/ks2-journeys.md, decision 1: the radios come from Model.AvailableChanges, which lists the changes that
 // have a flow file for the window type. The view must not name a change or a window type itself,
 // or one radio could show where no flow file serves it.
 public sealed class WhatToChangeViewSourceTests

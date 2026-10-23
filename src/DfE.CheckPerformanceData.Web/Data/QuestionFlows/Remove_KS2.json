@@ -137,6 +137,7 @@
       "title": "Admission and arrival dates",
       "pageTitle": "Admission and arrival dates",
       "nextPageId": "evidence",
+      "checksCohortStart": false,
       "questions": [
         {
           "id": "country-originally-from",

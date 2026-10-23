@@ -10,7 +10,7 @@ public sealed class WhatToChangeViewModel
 
     /// <summary>
     /// The pupil-data changes this window offers, in display order: one radio each. A change is in
-    /// the list only when its flow file exists for the window type (KS2 spec, decision 1). Empty on
+    /// the list only when its flow file exists for the window type (docs/ks2-journeys.md, decision 1). Empty on
     /// the POST binding target, where it is not supplied; every render path sets it.
     /// </summary>
     public IReadOnlyList<WhatToChange> AvailableChanges { get; set; } = [];

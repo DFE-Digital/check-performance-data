@@ -22,10 +22,8 @@ public interface IJourneyValidationService
     ///
     /// <paramref name="answers"/> must span the whole journey with the page's posted answers
     /// overlaid: the Add rules compare a date on this page against one entered on another.
-    ///
-    /// <paramref name="windowType"/> is the journey's window type: some rules apply to some window types only.
     /// </summary>
-    IReadOnlyList<DateFieldViolation> ValidatePageDates(JourneyPage page, IReadOnlyDictionary<string, QuestionAnswer> answers, string pupilName, CheckingWindowType? windowType);
+    IReadOnlyList<DateFieldViolation> ValidatePageDates(JourneyPage page, IReadOnlyDictionary<string, QuestionAnswer> answers, string pupilName);
 
     string? ValidateAnswer(Question question, QuestionAnswer answer, string resolvedTitle, string? resolvedValidationFailure = null);
 

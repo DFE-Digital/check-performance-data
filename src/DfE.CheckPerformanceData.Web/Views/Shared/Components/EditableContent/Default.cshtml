@@ -98,7 +98,7 @@ else
         <div class="govuk-body">
             @Html.Raw(Model.ValueHtml)
         </div>
-        @if (User.IsInRole(DfE.CheckPerformanceData.Web.Controllers.WikiConstants.EditorRole))
+        @if (ViewData["Impersonating"] is not true && User.IsInRole(DfE.CheckPerformanceData.Web.Controllers.WikiConstants.EditorRole))
         {
             <a href="?edit=@Model.Key#block-@Model.Key" class="content-block__edit-link govuk-link">
                 <svg class="content-block__edit-icon" width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false">

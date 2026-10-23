@@ -7,12 +7,52 @@ using DfE.CheckPerformanceData.Persistence.Entities;
 using DfE.CheckPerformanceData.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using DfE.CheckPerformanceData.Application.Impersonation;
+using NSubstitute;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.RequestSubmission;
 
 [Collection(nameof(PostgresCollection))]
 public sealed class RequestRepositoryUpsertTests(PostgresFixture fixture)
 {
+    [Theory]
+    [InlineData("urn")]
+    [InlineData("laestab")]
+    [InlineData("window")]
+    public async Task Upsert_cannot_transfer_an_existing_reference_to_another_establishment_or_window(string mismatch)
+    {
+        await TruncateAsync();
+        var window = await SeedWindowAsync();
+        var otherWindow = await SeedWindowAsync();
+        await using var context = _fixture.CreateContext();
+        var repository = new RequestRepository(context);
+        await repository.UpsertAsync(Data(window, "OWNED", RequestStatus.InProgress, organisationLaestab: "1234567"));
+        await Assert.ThrowsAsync<ImpersonationWriteDeniedException>(() => repository.UpsertAsync(
+            Data(mismatch == "window" ? otherWindow : window, "OWNED", RequestStatus.InProgress,
+                organisationUrn: mismatch == "urn" ? 999999 : 100000,
+                organisationLaestab: mismatch == "laestab" ? "7654321" : "1234567")));
+        var saved = await context.ChangeRequests.SingleAsync(r => r.ReferenceNumber == "OWNED");
+        Assert.Equal(window, saved.WindowId);
+        Assert.Equal(100000, saved.OrganisationUrn);
+        Assert.Equal("1234567", saved.OrganisationLaestab);
+    }
+
+    [Fact]
+    public async Task Impersonated_reads_require_both_target_urn_and_laestab()
+    {
+        await TruncateAsync();
+        var window = await SeedWindowAsync();
+        await using var context = _fixture.CreateContext();
+        var repository = new RequestRepository(context);
+        await repository.UpsertAsync(Data(window, "TARGET", RequestStatus.InProgress, organisationLaestab: "123/4567"));
+        await repository.UpsertAsync(Data(window, "OTHER-LAE", RequestStatus.InProgress, organisationLaestab: "7654321"));
+        await repository.UpsertAsync(Data(window, "OTHER-URN", RequestStatus.InProgress, organisationUrn: 999999, organisationLaestab: "1234567"));
+        var view = Substitute.For<IEstablishmentViewContext>();
+        view.IsImpersonating.Returns(true);
+        view.OrganisationLaestab.Returns("1234567");
+        var rows = await new RequestRepository(context, view).GetAmendmentRequestsAsync(window, 100000);
+        Assert.Equal("TARGET", Assert.Single(rows).ReferenceNumber);
+    }
     private readonly PostgresFixture _fixture = fixture;
 
     [Fact]
@@ -374,13 +414,14 @@ public sealed class RequestRepositoryUpsertTests(PostgresFixture fixture)
     private static ChangeRequestData Data(
         Guid windowId, string referenceNumber, RequestStatus status = RequestStatus.Submitted,
         long organisationUrn = 100000, Guid? pupilId = null, string? pupilUpn = "UPN1", Guid? submittedById = null,
-        WhatToChange? amendmentType = WhatToChange.Remove) =>
+        WhatToChange? amendmentType = WhatToChange.Remove, string? organisationLaestab = null) =>
         new()
         {
             AmendmentType = amendmentType,
             WindowId = windowId,
             ReferenceNumber = referenceNumber,
             OrganisationUrn = organisationUrn,
+            OrganisationLaestab = organisationLaestab,
             PupilId = pupilId,
             PupilUpn = pupilUpn,
             PupilFirstname = "Jane",

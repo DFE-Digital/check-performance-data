@@ -1,0 +1,12 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ImpersonationViewModel
+@{ Layout = "_AdminLayout"; ViewData["Title"] = "View as an establishment"; }
+<h1 class="govuk-heading-l">View as an establishment</h1>
+<p class="govuk-body">View establishment data in read-only mode. You cannot save or submit changes. The identifiers are used as entered and are not verified.</p>
+<govuk-error-summary />
+<form asp-action="Start" asp-controller="Impersonation" method="post">
+    <govuk-input for="Laestab"><govuk-input-label>LAESTAB</govuk-input-label></govuk-input>
+    <govuk-input for="Urn"><govuk-input-label>URN</govuk-input-label></govuk-input>
+    <govuk-input for="LowestAge" inputmode="numeric"><govuk-input-label>Lowest age</govuk-input-label></govuk-input>
+    <govuk-input for="HighestAge" inputmode="numeric"><govuk-input-label>Highest age</govuk-input-label></govuk-input>
+    <button class="govuk-button" type="submit">Start read-only impersonation</button>
+</form>

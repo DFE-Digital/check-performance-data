@@ -1,3 +1,4 @@
+@inject DfE.CheckPerformanceData.Web.Impersonation.ImpersonationSessionService Impersonation
 @using DfE.CheckPerformanceData.Domain.Enums
 @model DfE.CheckPerformanceData.Web.Controllers.AmendmentRequests.AmendmentRequestsViewModel
 
@@ -96,7 +97,7 @@
                 {
                     <tr class="govuk-table__row">
                         <td class="govuk-table__cell">
-                            @if (row.Status == RequestStatus.ReadyToSubmit)
+                            @if (row.Status == RequestStatus.ReadyToSubmit && !Impersonation.IsImpersonating)
                             {
                                 <div class="govuk-checkboxes govuk-checkboxes--small" data-module="govuk-checkboxes">
                                     <div class="govuk-checkboxes__item">
@@ -123,15 +124,25 @@
                                indistinguishable to anyone tabbing or listing links (audit #378, #385).
                                The hidden suffix names the pupil and the reference number, which is the
                                only value guaranteed unique when one pupil has two requests. *@
-                            <a class="govuk-link govuk-!-margin-right-2" href="@Url.Action("Edit", "AmendmentRequests", new { windowId = Model.WindowId, referenceNumber = row.ReferenceNumber })">Edit<span class="govuk-visually-hidden"> request @row.ReferenceNumber for @row.PupilName</span></a>
+                            @if (Impersonation.IsImpersonating)
+                                {
+                                    <a class="govuk-link" href="@Url.Action("DraftDetails", "SubmittedRequest", new { windowId = Model.WindowId, referenceNumber = row.ReferenceNumber })">View<span class="govuk-visually-hidden"> request @row.ReferenceNumber @row.PupilName</span></a>
+                                }
+                                else
+                                {
+<a class="govuk-link govuk-!-margin-right-2" href="@Url.Action("Edit", "AmendmentRequests", new { windowId = Model.WindowId, referenceNumber = row.ReferenceNumber })">Edit<span class="govuk-visually-hidden"> request @row.ReferenceNumber for @row.PupilName</span></a>
                             <a class="govuk-link" href="@Url.Action(draftDeleteAction, "SubmittedRequest", new { windowId = Model.WindowId, referenceNumber = row.ReferenceNumber })">Delete<span class="govuk-visually-hidden"> request @row.ReferenceNumber for @row.PupilName</span></a>
-                        </td>
+
+                                }
+</td>
                     </tr>
                 }
             }
         </tbody>
         </table>
     </div>
+    @if (!Impersonation.IsImpersonating)
+    {
     <div class="govuk-button-group">
         @if (Model.Rows.Count > 0)
         {
@@ -139,6 +150,7 @@
         }
         <a role="button" draggable="false" data-module="govuk-button" class="govuk-button govuk-button--secondary" href="@Url.Action("Index", "WhatToChange", new { windowId = Model.WindowId })">Raise a new request</a>
     </div>
+    }
 </form>
 
 @* Decorative rule: the <h2> below marks the section boundary (audit #386). *@
@@ -149,7 +161,7 @@
 <govuk-tabs>
     <govuk-tabs-item id="requests" label="Requests">
         <div class="govuk-inset-text">
-            @foreach (var deadline in Model.RequestDeadlines.Where(d => d.IsOpen))
+            @foreach (var deadline in Model.RequestDeadlines.Where(d => d.IsOpen && !Impersonation.IsImpersonating))
             {
                 <p class="govuk-body">
                     You can edit your @deadline.ExerciseLabel.ToLowerInvariant() requests any time
@@ -200,10 +212,10 @@
                                     var deleteAction = row.RequestType == RequestType.ConfirmCorrect ? "ConfirmDeleteConfirmation" : "ConfirmDelete";
                                 }
                                 <td class="govuk-table__cell">
-                                    <a class="govuk-link govuk-!-margin-right-2" href="@Url.Action(viewAction, "SubmittedRequest", new { windowId = Model.WindowId, referenceNumber = row.ReferenceNumber })">View<span class="govuk-visually-hidden"> request @row.ReferenceNumber for @row.PupilName</span></a>        
+                                    <a class="govuk-link govuk-!-margin-right-2" href="@Url.Action(viewAction, "SubmittedRequest", new { windowId = Model.WindowId, referenceNumber = row.ReferenceNumber })">View<span class="govuk-visually-hidden"> request @row.ReferenceNumber for @row.PupilName</span></a>
                                 </td>
                                 <td class="govuk-table__cell">
-                                    @if (row.ShowDelete)
+                                    @if (row.ShowDelete && !Impersonation.IsImpersonating)
                                     {
                                         <a class="govuk-link" href="@Url.Action(deleteAction, "SubmittedRequest", new { windowId = Model.WindowId, referenceNumber = row.ReferenceNumber })">Delete<span class="govuk-visually-hidden"> request @row.ReferenceNumber for @row.PupilName</span></a>
                                     }
@@ -230,7 +242,7 @@
                    the page header with the pupil-data one. *@
                 <div class="govuk-inset-text">
                     <p class="govuk-body">@enquiryDeadline.Sentence</p>
-                    @if (enquiryDeadline.IsOpen)
+                    @if (enquiryDeadline.IsOpen && !Impersonation.IsImpersonating)
                     {
                         <p class="govuk-body">
                             You can edit your @enquiryDeadline.ExerciseLabel.ToLowerInvariant() requests any time

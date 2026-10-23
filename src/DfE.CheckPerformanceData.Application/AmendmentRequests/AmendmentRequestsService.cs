@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.Impersonation;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
@@ -14,12 +15,12 @@ public sealed class AmendmentRequestsService(
     ICheckingExerciseService checkingExercises,
     ICurrentUserService currentUserService,
     IRequestStateBlobClient requestStateBlobClient,
-    ILogger<AmendmentRequestsService> logger) : IAmendmentRequestsService
+    ILogger<AmendmentRequestsService> logger, IEstablishmentViewContext? viewContext = null) : IAmendmentRequestsService
 {
     public async Task<AmendmentRequestsResult> GetAmendmentRequestsAsync(Guid windowId)
     {
-        var urn = long.Parse(currentUserService.OrganisationUrn);
-        var laestab = currentUserService.OrganisationLaestab;
+ var urn = long.TryParse(viewContext?.OrganisationUrn ?? currentUserService.OrganisationUrn, out var parsedUrn) ? parsedUrn : -1;
+ var laestab = viewContext?.OrganisationLaestab ?? currentUserService.OrganisationLaestab;
         var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
         var requests = await requestRepository.GetAmendmentRequestsAsync(windowId, urn);
         var submitted = await requestRepository.GetSubmittedRequestsAsync(windowId, urn);

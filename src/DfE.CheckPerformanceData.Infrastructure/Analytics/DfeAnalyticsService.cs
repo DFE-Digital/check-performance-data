@@ -12,11 +12,13 @@ namespace DfE.CheckPerformanceData.Infrastructure.Analytics;
 /// Values are stringified because the library's event payload is string-only; null
 /// values are omitted.
 /// </summary>
-public sealed class DfeAnalyticsService(IEventSender eventSender) : IAnalyticsService
+public sealed class DfeAnalyticsService(IEventSender eventSender,
+    DfE.CheckPerformanceData.Application.Impersonation.IEstablishmentViewContext? viewContext = null) : IAnalyticsService
 {
     public Task TrackAsync(AnalyticsEvent analyticsEvent, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(analyticsEvent);
+        if (viewContext?.IsImpersonating == true) return Task.CompletedTask;
 
         var @event = eventSender.CreateEvent(analyticsEvent.EventType);
 

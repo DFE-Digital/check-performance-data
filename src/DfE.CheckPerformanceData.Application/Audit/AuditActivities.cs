@@ -45,7 +45,8 @@ public static class AuditActivities
 
     private static readonly IReadOnlyDictionary<string, string> Labels = new Dictionary<string, string>(StringComparer.Ordinal)
     {
-        [Egress] = "Data egress",
+        ["Impersonation"] = "Establishment impersonation",
+            [Egress] = "Data egress",
         [CheckingWindow] = "Checking window",
         [WindowAdmin] = "Window admin",
         ["CheckingExercise"] = "Checking exercise",
@@ -80,6 +81,8 @@ public static class AuditActivities
 
     public static AuditOutcome? OutcomeOf(string entityType, string action) => (entityType, action) switch
     {
+        ("Impersonation", "Start" or "Exit") => AuditOutcome.Success,
+        ("Impersonation", "BlockedChange") => AuditOutcome.Failed,
         (Egress, TransferAction) => AuditOutcome.Success,
         (Egress, TransferFailedAction) => AuditOutcome.Failed,
         // AB#301022: written only once the exercise has closed, so it has no failed twin.

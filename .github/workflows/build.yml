@@ -37,7 +37,7 @@ jobs:
         NUGET_CERT_REVOCATION_MODE: offline
       # Locked mode: restore only from the committed packages.lock.json files and fail (NU1004)
       # when a project's packages no longer match them (#613).
-      run: dotnet restore src/DfE.CheckPerformanceData.slnx --locked-mode
+      run: dotnet restore src/DfE.CheckPerformanceData.slnx --locked-mode 
 
     - name: Check every lock file is committed and current
       # Locked mode refuses a stale lock file but regenerates a missing one with exit 0, so a new
@@ -52,7 +52,7 @@ jobs:
         fi
 
     - name: Build
-      run: dotnet build src/DfE.CheckPerformanceData.slnx --no-restore --configuration Release
+      run: dotnet build src/DfE.CheckPerformanceData.slnx --no-restore --configuration Release 
 
     - name: Test
       run: dotnet test src/DfE.CheckPerformanceData.slnx --no-build --configuration Release --verbosity normal --filter "FullyQualifiedName!~E2ETests"

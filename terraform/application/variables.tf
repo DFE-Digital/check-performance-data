@@ -88,8 +88,8 @@ variable "replicas" {
 }
 
 variable "max_memory" {
-    type = string
-    default = "4Gi"    
+  type    = string
+  default = "4Gi"
 }
 
 variable "worker_docker_image" {
@@ -170,6 +170,12 @@ variable "pg_airbyte_enabled" {
   description = "Enable Write ahead logging for Postgres replication for Airbyte."
   default     = false
 }
+
+variable "server_version" {
+  description = "Postgres server version"
+  default     = "17"
+}
+
 locals {
   azure_storage_account_name = module.storage_private.name
   azure_storage_access_key   = module.storage_private.primary_access_key
@@ -184,4 +190,9 @@ locals {
   federated_auth_secrets = var.enable_dfe_analytics_federated_auth ? {
     DfeAnalytics__CredentialsJson = module.dfe_analytics[0].google_cloud_credentials
   } : {}
+
+  gcp_keyring       = "cypd-key-ring"
+  gcp_key           = "cypd-key"
+  gcp_taxonomy_id   = "7450003253557751837"
+  gcp_policy_tag_id = "7087412595261736586"
 }

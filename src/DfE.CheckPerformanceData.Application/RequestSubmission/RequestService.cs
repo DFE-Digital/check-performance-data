@@ -524,16 +524,20 @@ public sealed class RequestService(
         {
             QuestionType.Radio when answer?.TextValue is { } v =>
                 question.Options?.FirstOrDefault(o => o.Value == v)?.Label ?? v,
-            QuestionType.Date when answer?.DateValue is { } d =>
-                $"{d.Day:D2}/{d.Month:D2}/{d.Year}",
+            // An optional date left blank is stored as 0/0/0: it has no value, not "00/00/0000".
+            QuestionType.Date => answer?.DateValue is { IsCompleteDate: true } d
+                ? $"{d.Day:D2}/{d.Month:D2}/{d.Year}"
+                : null,
             QuestionType.Checkbox => CheckboxAnswerDisplay.Join(question, answer),
             _ => answer?.TextValue
         };
 
         var rawValue = question.Type switch
         {
-            QuestionType.Date when answer?.DateValue is { } d =>
-                $"{d.Year:D4}-{d.Month:D2}-{d.Day:D2}",
+            // No value, so the Rules Engine reads the field as Unknown and not as "0000-00-00".
+            QuestionType.Date => answer?.DateValue is { IsCompleteDate: true } d
+                ? $"{d.Year:D4}-{d.Month:D2}-{d.Day:D2}"
+                : null,
             QuestionType.Autocomplete => answer?.CodeValue ?? answer?.TextValue,
             // The machine-readable form, the exact analogue of an Autocomplete's CodeValue.
             QuestionType.Checkbox => CheckboxAnswerDisplay.JoinValues(question, answer),

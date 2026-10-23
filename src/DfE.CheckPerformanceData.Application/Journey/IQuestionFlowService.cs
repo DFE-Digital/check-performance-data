@@ -6,6 +6,14 @@ namespace DfE.CheckPerformanceData.Application.Journey;
 public interface IQuestionFlowService
 {
     Task<QuestionFlowConfig?> GetConfigAsync(WhatToChange whatToChange, CheckingWindowType checkingWindowType);
+
+    /// <summary>
+    /// The pupil-data changes (Merge, Include, Remove, Add) that have a flow file for this window
+    /// type, in the order the What to change page shows them. A change is offered only when
+    /// <c>{WhatToChange}_{CheckingWindowType}.json</c> exists. The results changes are never in
+    /// the list: they start from the results-enquiry page.
+    /// </summary>
+    Task<IReadOnlyList<WhatToChange>> GetPupilDataChangesAsync(CheckingWindowType checkingWindowType);
     JourneyPage? GetPage(QuestionFlowConfig config, string pageId);
     string? GetNextPageId(QuestionFlowConfig config, string pageId, Dictionary<string, QuestionAnswer> answers);
     JourneyPage? GetReachableEvidencePage(QuestionFlowConfig config, Dictionary<string, QuestionAnswer> answers);

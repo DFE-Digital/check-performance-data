@@ -1,7 +1,7 @@
 # Add a pupil not found on my DfE pupil roll (simple path)
 
-AB#297310. A school adds a pupil who is missing from their DfE pupil roll, for KS4 June, KS4 Autumn
-and KS2 checking windows. This is the **simple path**: no dataset matching against the roll — the
+AB#297310. A school adds a pupil who is missing from their DfE pupil roll, for KS4 June and KS4 Autumn
+checking windows (KS2 has no Add journey). This is the **simple path**: no dataset matching against the roll — the
 soft-match story (AB#297780) is a separate ticket that will sit in front of this one.
 
 ## The journey
@@ -16,16 +16,18 @@ Then the shared journey summary (`Journey/Summary.cshtml`) and `Journey/Confirma
 both unchanged, reused exactly as every amendment journey uses them.
 
 Flow configs: `src/DfE.CheckPerformanceData.Web/Data/QuestionFlows/Add_KS4June.json`,
-`Add_KS4Autumn.json`, `Add_KS2.json`, resolved by the usual `{WhatToChange}_{CheckingWindowType}`
+`Add_KS4Autumn.json`, resolved by the usual `{WhatToChange}_{CheckingWindowType}`
 key. **Page and question ids are a serialization contract** — they are written into session state
 and into the persisted journey blob, so renaming one after merge orphans stored requests.
 `AddFlowTests` pins them.
 
 ### Getting in
 
-The what-to-change page (`WhatToChangeController`) gains a fourth radio, **Add a pupil to data**
-(`WhatToChange.Add`), shown only when `WhatToChangeViewModel.CheckingWindowType` is `KS4June`,
-`KS4Autumn` or `KS2`. Post16 has no `Add_Post16.json` flow and the option is never offered there.
+The what-to-change page (`WhatToChangeController`) shows **Add a pupil to data**
+(`WhatToChange.Add`) only when an `Add_{CheckingWindowType}.json` flow exists for the window type
+(`IQuestionFlowService.GetPupilDataChangesAsync`). Today that is `KS4June` and `KS4Autumn`. KS2 has
+no Add journey (KS2 September 2027 requirements) and Post16 has none either. The POST uses the same
+rule, so a posted Add for a window with no flow file is refused.
 
 ### Starting clean: the pupil-search-less reset
 
@@ -126,7 +128,6 @@ journey blob**, and it stores raw `RequestState.QuestionAnswers`:
 | Sex | `sex` | `F`, `M`, `U` (labelled Female / Male / Not known) |
 | SEN status | `sen-status` | `E`, `K`, `N` (EHC plan / SEN support / No recorded SEN — in that order) |
 | Year group (KS4) | `year-group` | `10`, `11` |
-| Year group (KS2) | `year-group` | `3`, `4`, `5`, `6` |
 | First/last name | `first-name` / `last-name` | Free text, ≤150 characters |
 | UPN | `upn` | Free text, ≤13 characters, optional |
 | Date of birth / admission date | `date-of-birth` / `admission-date` | Real calendar date, not in the future — persisted in the journey blob as `DateAnswer { Day, Month, Year }`, to be formatted to `YYYY-MM-DD` by the egress story |
@@ -167,9 +168,9 @@ docker compose up -d --build
 #   /WhatToChange/f34d285b-8660-4d12-9c30-787328deaa0a   (the seeded KS4June window)
 ```
 
-The KS2 and KS4 Autumn flows ship but have no seeded checking window in dev yet — they are
-exercised by `AddFlowTests` (flow-config pinning) only, not by a live journey walk, until those
-windows exist.
+The KS4 Autumn flow ships but has no seeded checking window in dev yet — it is
+exercised by `AddFlowTests` (flow-config pinning) only, not by a live journey walk, until that
+window exists.
 
 ## Deliberately out of scope
 
@@ -181,7 +182,7 @@ validation beyond the 13-character cap (the matching story owns it).
 
 | Item | Owner |
 |---|---|
-| Copy sign-off: the radio label "Add a pupil to data"; the sex option `U` labelled "Not known"; the SEN option order E→K→N; every page/question/error string in the three flow configs — none of this reached Figma Epic B1 from this environment, so it was implemented verbatim and pinned by tests | Content designer |
-| KS2 and KS4 Autumn checking windows are not yet seeded in dev — the flows ship but are untested by a live browser walk until a window exists | Dev team |
+| Copy sign-off: the radio label "Add a pupil to data"; the sex option `U` labelled "Not known"; the SEN option order E→K→N; every page/question/error string in the two flow configs — none of this reached Figma Epic B1 from this environment, so it was implemented verbatim and pinned by tests | Content designer |
+| The KS4 Autumn checking window has no Add data in dev — the flow ships but is untested by a live browser walk | Dev team |
 | The two flagged assumptions (future-date rules, character caps) — confirm with the BA; if struck, delete the corresponding validation and the JSON `characterLimit` fields, nothing else changes | BA |
 | AB#297780 soft-match: the interception point is named and commented (`JourneyController.PagePost`, `page.PupilFromAnswers`), but no matching logic exists yet | Dev team (future ticket) |

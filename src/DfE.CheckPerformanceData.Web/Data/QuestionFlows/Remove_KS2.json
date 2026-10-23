@@ -1,0 +1,425 @@
+{
+  "firstPageId": "select-pupil",
+  "pages": [
+    {
+      "id": "select-pupil",
+      "type": "PupilSearch",
+      "title": "What is the name of the pupil to be removed?",
+      "subheading": "Start typing the first name, last name, CYPMD ID, UPN or date of birth (DOB)",
+      "pupilFilter": "Included",
+      "pupilKey": "primary",
+      "nextPageId": "reason"
+    },
+    {
+      "id": "reason",
+      "pageTitle": "Reason for removal",
+      "questions": [
+        {
+          "id": "reason",
+          "contentKey": true,
+          "type": "Radio",
+          "title": "Why are you asking to remove {pupilName} from the performance data?",
+          "summaryTitle": "Reason for removal",
+          "hint": "Select one option",
+          "useAsRequestType": true,
+          "validationFailure": "Select a reason for removing {pupilName} from the performance data",
+          "options": [
+            {
+              "value": "permanent-exclusion",
+              "label": "Admitted following permanent exclusion",
+              "nextPageId": "permanent-exclusion"
+            },
+            {
+              "value": "english-not-first-language",
+              "label": "Admitted from abroad with English not first language",
+              "nextPageId": "english-not-first-language"
+            },
+            {
+              "value": "child-missing-education",
+              "label": "Child missing education",
+              "nextPageId": "child-missing-education"
+            },
+            {
+              "value": "elective-home-education",
+              "label": "Elective home education",
+              "nextPageId": "elective-home-education"
+            },
+            {
+              "value": "assessments-deferred",
+              "label": "One or more end-of-key-stage assessments deferred by a year",
+              "nextPageId": "evidence-with-comments"
+            },
+            {
+              "value": "permanently-excluded",
+              "label": "Permanently excluded from current school",
+              "nextPageId": "permanently-excluded"
+            },
+            {
+              "value": "permanently-left-england",
+              "label": "Permanently left England",
+              "nextPageId": "permanently-left-england-questions"
+            },
+            {
+              "value": "added-after-summer-term",
+              "label": "Pupil added to school roll after start of summer term",
+              "nextPageId": "added-after-summer-term"
+            },
+            {
+              "value": "pupil-died",
+              "label": "Pupil has died",
+              "nextPageId": "pupil-died"
+            },
+            {
+              "value": "social-care-involvement",
+              "label": "Social care involvement - including police",
+              "nextPageId": "social-care"
+            },
+            {
+              "value": "life-limiting-illness",
+              "label": "Terminal or critical illness",
+              "nextPageId": "life-limiting-illness"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "permanent-exclusion",
+      "title": "Permanent exclusion",
+      "pageTitle": "Excluding school details",
+      "nextPageId": "evidence",
+      "questions": [
+        {
+          "id": "permanent-exclusion-dfe-number",
+          "type": "FreeText",
+          "title": "What is the DfE number of the school which permanently excluded {pupilName}?",
+          "summaryTitle": "DfE number of the excluding school",
+          "hint": "For example, 123/4567 or 1234567",
+          "validator": "PermanentExclusionDfeNumber",
+          "validationFailure": "Enter the 7 digit DfE number of the school which permanently excluded the pupil",
+          "questionHelpTitle": "How can I find a DfE number?",
+          "questionHelpText": "<p>To find the DfE number, search the school or college name on <a href=\"https://get-information-schools.service.gov.uk/?utm_source=cypmd&amp;utm_medium=referral&amp;utm_campaign=help_guidance\" target=\"_blank\">Get Information About Schools (opens in new window)</a></p>"
+        },
+        {
+          "id": "date-pupil-excluded",
+          "type": "Date",
+          "title": "When was {pupilName} excluded?",
+          "hint": "For example, 27 3 2027",
+          "summaryTitle": "Date of permanent exclusion",
+          "validationFailure": "Enter the date {pupilName} was excluded"
+        }
+      ]
+    },
+    {
+      "id": "english-not-first-language",
+      "pageTitle": "First language",
+      "nextPageId": "english-not-first-language-details",
+      "questions": [
+        {
+          "id": "first-language",
+          "type": "Radio",
+          "title": "What is {pupilName}'s first language?",
+          "summaryTitle": "First language",
+          "validationFailure": "Select {pupilName}'s first language",
+          "options": [
+            { "value": "english", "label": "English" },
+            { "value": "believed-english", "label": "Not known but believed English" },
+            { "value": "other", "label": "Other than English" },
+            { "value": "believed-other", "label": "Not known but believed other than English" },
+            { "value": "chose-not-to-say", "label": "Prefer not to say" },
+            { "value": "not-known", "label": "Not known" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "english-not-first-language-details",
+      "title": "Admission and arrival dates",
+      "pageTitle": "Admission and arrival dates",
+      "nextPageId": "evidence",
+      "checksCohortStart": false,
+      "questions": [
+        {
+          "id": "country-originally-from",
+          "type": "Autocomplete",
+          "title": "What country is {pupilName} originally from?",
+          "hint": "Start typing to see a list of countries",
+          "summaryTitle": "Country of origin",
+          "validationFailure": "Enter the country {pupilName} is originally from",
+          "dataSource": "countries"
+        },
+        {
+          "id": "date-pupil-started",
+          "type": "Date",
+          "title": "When did {pupilName} start at your school?",
+          "hint": "For example, 27 3 2027",
+          "summaryTitle": "Date started at school",
+          "validationFailure": "Enter the date {pupilName} started at your school"
+        },
+        {
+          "id": "date-pupil-started-school-in-england",
+          "type": "Date",
+          "title": "When did {pupilName} first start at a school in England?",
+          "hint": "For example, 27 3 2027",
+          "summaryTitle": "First date of admission to a school in England",
+          "validationFailure": "Enter the date {pupilName} first started at a school in England"
+        },
+        {
+          "id": "date-pupil-arrived-in-england",
+          "type": "Date",
+          "title": "When did {pupilName} arrive in England?",
+          "hint": "For example, 27 3 2027",
+          "summaryTitle": "Date of arrival in England",
+          "validationFailure": "Enter the date {pupilName} arrived in England",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "id": "child-missing-education",
+      "title": "Child missing education",
+      "pageTitle": "Child missing education details",
+      "nextPageId": "evidence",
+      "questions": [
+        {
+          "id": "why-removed",
+          "type": "Radio",
+          "title": "Why has {pupilName} been removed from your school roll?",
+          "hint": "Select one option",
+          "summaryTitle": "Why has {pupilName} been removed from your school roll",
+          "validationFailure": "Select why {pupilName} has been removed from your school roll",
+          "options": [
+            {
+              "value": "not-returned-after-agreed-leave",
+              "label": "Not come back after an agreed period of leave",
+              "subLabel": "Ground H of the School Attendance Regulations 2024"
+            },
+            {
+              "value": "no-agreed-leave-or-reason",
+              "label": "Been absent for a long time with no agreed leave and no clear reason",
+              "subLabel": "Ground I of the School Attendance Regulations 2024"
+            },
+            {
+              "value": "other",
+              "label": "Other"
+            }
+          ]
+        },
+        {
+          "id": "date-removed-from-roll",
+          "type": "Date",
+          "title": "When was {pupilName} removed from your school roll?",
+          "hint": "For example, 27 3 2027",
+          "summaryTitle": "When was {pupilName} removed from your school roll",
+          "validationFailure": "Enter the date {pupilName} was removed from your school roll"
+        }
+      ]
+    },
+    {
+      "id": "elective-home-education",
+      "pageTitle": "Date removed from school roll",
+      "nextPageId": "evidence",
+      "questions": [
+        {
+          "id": "date-removed-from-roll",
+          "type": "Date",
+          "title": "When was {pupilName} removed from your school roll?",
+          "hint": "For example, 27 3 2027",
+          "summaryTitle": "Date removed from school roll",
+          "validationFailure": "Enter the date {pupilName} was removed from your school roll"
+        }
+      ]
+    },
+    {
+      "id": "permanently-excluded",
+      "title": "Permanently excluded",
+      "pageTitle": "Permanent exclusion details",
+      "nextPageId": "evidence",
+      "questions": [
+        {
+          "id": "date-permanently-excluded",
+          "type": "Date",
+          "title": "When was {pupilName} permanently excluded from your school?",
+          "hint": "For example, 27 3 2027",
+          "summaryTitle": "Date of permanent exclusion",
+          "validationFailure": "Enter the date {pupilName} was permanently excluded from your school"
+        },
+        {
+          "id": "permanently-excluded-dfe-number",
+          "optional": true,
+          "type": "FreeText",
+          "title": "What is the DfE number of the school {pupilName} went to?",
+          "summaryTitle": "School DfE number pupil went to",
+          "hint": "For example, 123/4567 or 1234567",
+          "validator": "DfeNumber",
+          "questionHelpTitle": "How can I find a DfE number?",
+          "questionHelpText": "<p>To find the DfE number, search the school or college name on <a href=\"https://get-information-schools.service.gov.uk/?utm_source=cypmd&amp;utm_medium=referral&amp;utm_campaign=help_guidance\" target=\"_blank\">Get Information About Schools (opens in new window)</a></p>"
+        }
+      ]
+    },
+    {
+      "id": "permanently-left-england-questions",
+      "title": "Permanently left England",
+      "pageTitle": "Permanently left England details",
+      "nextPageId": "evidence",
+      "questions": [
+        {
+          "id": "country-moved-to",
+          "type": "Autocomplete",
+          "title": "What country did {pupilName} move to?",
+          "hint": "Start typing to see a list of countries",
+          "summaryTitle": "Country moved to",
+          "validationFailure": "Enter the country {pupilName} moved to",
+          "dataSource": "countries"
+        },
+        {
+          "id": "date-removed-from-roll",
+          "type": "Date",
+          "title": "When was {pupilName} removed from your roll?",
+          "hint": "For example, 27 3 2027",
+          "summaryTitle": "Date removed from roll",
+          "validationFailure": "Enter the date {pupilName} was removed from your school roll"
+        }
+      ]
+    },
+    {
+      "id": "added-after-summer-term",
+      "pageTitle": "Date arrived at your school",
+      "nextPageId": "evidence-with-comments",
+      "questions": [
+        {
+          "id": "date-added-to-roll",
+          "type": "Date",
+          "title": "When did {pupilName} arrive at your school?",
+          "hint": "For example, 27 3 2027",
+          "summaryTitle": "Date arrived at your school",
+          "validationFailure": "Enter the date {pupilName} arrived at your school"
+        }
+      ]
+    },
+    {
+      "id": "pupil-died",
+      "pageTitle": "Date removed from school roll",
+      "questions": [
+        {
+          "id": "date-removed-from-roll",
+          "type": "Date",
+          "title": "When was {pupilName} removed from your school roll?",
+          "hint": "For example, 27 3 2027",
+          "summaryTitle": "Date removed from school roll",
+          "validationFailure": "Enter the date {pupilName} was removed from your school roll"
+        }
+      ]
+    },
+    {
+      "id": "social-care",
+      "title": "Social care involvement - including police",
+      "pageTitle": "Social care details",
+      "nextPageId": "evidence",
+      "questions": [
+        {
+          "id": "social-care-reason",
+          "contentKey": true,
+          "type": "Checkbox",
+          "title": "What happened to {pupilName} that made it very hard for them to go to school or sit tests?",
+          "summaryTitle": "Social care reason",
+          "hint": "Select all that apply",
+          "validationFailure": "Select what happened to {pupilName} that made it very hard for them to go to school or sit tests",
+          "options": [
+            { "value": "social-care-situation", "label": "Social care situation" },
+            { "value": "police-involvement", "label": "Police involvement" }
+          ]
+        },
+        {
+          "id": "sat-exams",
+          "type": "Radio",
+          "title": "Has {pupilName} sat any tests as a year 6 pupil?",
+          "summaryTitle": "Sat tests as year 6",
+          "validationFailure": "Select yes if {pupilName} has sat any tests as a year 6 pupil",
+          "options": [
+            { "value": "yes", "label": "Yes" },
+            { "value": "no", "label": "No" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "life-limiting-illness",
+      "title": "Terminal or critical illness",
+      "pageTitle": "Health issue details",
+      "nextPageId": "evidence",
+      "questions": [
+        {
+          "id": "life-limiting-illness-health-issue",
+          "contentKey": true,
+          "type": "Radio",
+          "title": "Which severe health issue has had a profound effect on {pupilName} and their ability to access education?",
+          "summaryTitle": "Health issue",
+          "validationFailure": "Select the severe health issue that has had a profound effect on {pupilName}",
+          "options": [
+            { "value": "terminal-illness", "label": "Terminal illness diagnosis, including some life-limiting conditions" },
+            { "value": "recent-life-changing-illness-or-injury", "label": "Recent and life changing illness or injury" },
+            { "value": "critical-illness-12-months", "label": "Critical illness, injury or condition, diagnosed or under investigation for 12 months or more" }
+          ]
+        },
+        {
+          "id": "sat-exams",
+          "type": "Radio",
+          "title": "Has {pupilName} sat any tests as a year 6 pupil?",
+          "summaryTitle": "Sat tests as year 6",
+          "validationFailure": "Select yes if {pupilName} has sat any tests as a year 6 pupil",
+          "options": [
+            { "value": "yes", "label": "Yes" },
+            { "value": "no", "label": "No" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "evidence-with-comments",
+      "pageTitle": "Provide evidence for the removal",
+      "type": "EvidenceUpload",
+      "title": "Provide evidence for the removal of {pupilName}",
+      "questions": [
+        {
+          "id": "evidence",
+          "type": "FileUpload",
+          "title": "Upload files",
+          "hint": "Evidence must be in a PDF format"
+        },
+        {
+          "id": "additional-comments",
+          "type": "TextArea",
+          "title": "Additional comments",
+          "summaryTitle": "Additional comments",
+          "characterLimit": 500,
+          "validationFailure": "Enter additional comments about the removal of {pupilName}"
+        }
+      ]
+    },
+    {
+      "id": "evidence",
+      "pageTitle": "Provide evidence for the removal",
+      "type": "EvidenceUpload",
+      "title": "Provide evidence for the removal of {pupilName}",
+      "questions": [
+        {
+          "id": "evidence",
+          "type": "FileUpload",
+          "title": "Upload files",
+          "hint": "Evidence must be in a PDF format",
+          "optionalWhen": "EalWouldBeAutoRejected"
+        },
+        {
+          "id": "how-evidence-supports",
+          "type": "TextArea",
+          "title": "How does the evidence demonstrate why the pupil should be removed?",
+          "summaryTitle": "How evidence demonstrates removal",
+          "characterLimit": 500,
+          "validationFailure": "Explain how the evidence supports removing {pupilName}",
+          "optionalWhen": "EalWouldBeAutoRejected"
+        }
+      ]
+    }
+  ]
+}

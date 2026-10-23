@@ -70,4 +70,11 @@ public sealed class JourneyPage
     /// journey does not have.
     /// </summary>
     public bool PupilFromAnswers { get; init; }
+
+    /// <summary>
+    /// The EAL details page only (<c>PageDateRules.EalDetailsPageId</c>): whether "started at your
+    /// school" may not predate the cohort (scenario 007). On by default. KS2 sets it false: its
+    /// requirements give no such rule (docs/ks2-journeys.md, assumption 2).
+    /// </summary>
+    public bool ChecksCohortStart { get; init; } = true;
 }

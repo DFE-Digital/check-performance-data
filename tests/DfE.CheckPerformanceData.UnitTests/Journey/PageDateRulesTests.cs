@@ -237,11 +237,19 @@ public sealed class PageDateRulesTests
             violations.Select(v => v.QuestionId));
     }
 
+    [Fact]
+    public void CohortCheck_CanBeTurnedOff()
+    {
+        var violations = Evaluate(a: PageDateRules.CohortStart(Today).AddDays(-1), checkCohortStart: false);
+
+        Assert.Empty(violations);
+    }
+
     // ── Helpers ─────────────────────────────────────────────────────────────
 
     private static IReadOnlyList<DateFieldViolation> Evaluate(
-        DateOnly? a = null, DateOnly? b = null, DateOnly? c = null) =>
-        PageDateRules.Evaluate(a, b, c, Today, Pupil);
+        DateOnly? a = null, DateOnly? b = null, DateOnly? c = null, bool checkCohortStart = true) =>
+        PageDateRules.Evaluate(a, b, c, Today, Pupil, checkCohortStart);
 
     private static string? MessageFor(IReadOnlyList<DateFieldViolation> violations, string questionId) =>
         violations.SingleOrDefault(v => v.QuestionId == questionId)?.Message;

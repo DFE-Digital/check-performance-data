@@ -358,8 +358,6 @@ public sealed class RulesEngineEndToEndTests
     public static TheoryData<string, string, DecisionStatus, string> PendingOutcomeScenarios() => new()
     {
         { "CompletedKs4Elsewhere",   "KS4June",    DecisionStatus.Scrutiny,     "CKS4-DEF" },
-        { "AssessmentsDeferred",     "KS2",    DecisionStatus.AutoRejected, "ASD-REJ"  },
-        { "PupilAddedAfterSummerTerm", "KS4June",  DecisionStatus.AutoRejected, "PAS-REJ"  },
         { "PupilNotOnJuneList",      "KS4June",    DecisionStatus.Scrutiny,     "PNJL-DEF" },
         { "NotAtEndOf16To18Study",   "Post16", DecisionStatus.AutoApproved, "N16-LT18" },
         { "Other",                   "KS4June",    DecisionStatus.Scrutiny,     "OTH-DEF"  },
@@ -373,8 +371,6 @@ public sealed class RulesEngineEndToEndTests
         var ctx = new RuleContext(outcomeKey, checkingWindowType, new Dictionary<string, FieldValue>
         {
             ["checkingWindowType"]    = new FieldValue.Str(checkingWindowType),
-            ["isContinuingKS2Studies"] = new FieldValue.Bool(false),
-            ["dateAddedToRoll"]       = new FieldValue.Date(new DateOnly(2024, 1, 1)),
             ["pupilAge"]              = new FieldValue.Num(16),
         });
 

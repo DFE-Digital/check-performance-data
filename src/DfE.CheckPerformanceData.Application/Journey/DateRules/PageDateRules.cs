@@ -103,7 +103,8 @@ public static class PageDateRules
         DateOnly? firstEnglishSchool,
         DateOnly? arrivedInEngland,
         DateOnly today,
-        string pupilName)
+        string pupilName,
+        bool checkCohortStart)
     {
         var messages = new Dictionary<string, string>(StringComparer.Ordinal);
 
@@ -123,8 +124,9 @@ public static class PageDateRules
         if (firstEnglishSchool > today) Flag(FirstEnglishSchool, FirstEnglishSchoolInFuture);
         if (arrivedInEngland > today) Flag(ArrivedInEngland, ArrivedInFuture);
 
-        // 007: the school start date may not predate the cohort. Field a. only.
-        if (startedAtSchool < CohortStart(today)) Flag(StartedAtSchool, StartedBeforeCohort);
+        // 007: the school start date may not predate the cohort. Field a. only, and only when the
+        // page asks for it (JourneyPage.ChecksCohortStart).
+        if (checkCohortStart && startedAtSchool < CohortStart(today)) Flag(StartedAtSchool, StartedBeforeCohort);
 
         // 001-003: arrival <= first English school <= started at this school. Each failure is
         // reported against both fields involved, phrased from that field's point of view.

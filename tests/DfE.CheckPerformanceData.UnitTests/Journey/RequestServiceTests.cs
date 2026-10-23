@@ -345,6 +345,25 @@ public class RequestServiceTests
         Assert.Equal("05/03/2010", doc.Answers[0].Value);
     }
 
+    // An optional Date question left blank is stored as 0/0/0. It must reach the Rules Engine as
+    // no value (Unknown), not as "0000-00-00", which the mapper cannot parse.
+    [Theory]
+    [InlineData(0, 0, 0)]
+    [InlineData(5, 0, 2010)]
+    public async Task ConfirmRequestAsync_IncompleteDateAnswer_HasNoValue(int day, int month, int year)
+    {
+        var question = MakeQuestion(QuestionType.Date, id: "dob");
+        var config = MakeConfig([new JourneyPage { Id = "dob", Questions = [question] }]);
+        var journey = ValidJourney(
+            history: ["dob"],
+            answers: new() { ["dob"] = new QuestionAnswer { DateValue = new DateAnswer { Day = day, Month = month, Year = year } } });
+
+        var doc = await CaptureDocument(journey, config);
+
+        Assert.Null(doc.Answers[0].RawValue);
+        Assert.Null(doc.Answers[0].Value);
+    }
+
     [Fact]
     public async Task ConfirmRequestAsync_AutocompleteAnswer_RawValueIsCode()
     {

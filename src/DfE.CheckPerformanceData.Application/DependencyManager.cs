@@ -79,7 +79,7 @@ services.AddScoped<IJourneyCondition, SchoolIsNotIndependentCondition>();
         services.AddScoped<IJourneyCondition, SchoolCanRecordNotOnRollCondition>();
         services.AddScoped<IJourneyCondition, PupilIsAddBackCondition>();
         services.AddScoped<IJourneyCondition, PupilIsNotAddBackCondition>();
-        services.AddScoped<IJourneyCondition, EalWouldBeAutoRejectedCondition>();
+        services.AddScoped<IJourneyCondition, EalEvidenceIsOptionalCondition>();
         services.AddScoped<IJourneyCondition, NotOnRollReasonIsOtherCondition>();
         services.AddScoped<IJourneyCondition, HasSyllabusCodesForSelectedQualificationCondition>();
         services.AddScoped<IOriginCountryLanguageCapture, OriginCountryLanguageCapture>();

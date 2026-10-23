@@ -56,9 +56,9 @@ public class VisibleWhenJsonConverterTests
     [Fact]
     public void Question_OptionalWhen_BindsBareString()
     {
-        var json = """{"id":"evidence","type":"FileUpload","title":"Upload files","optionalWhen":"EalWouldBeAutoRejected"}""";
+        var json = """{"id":"evidence","type":"FileUpload","title":"Upload files","optionalWhen":"EalEvidenceIsOptional"}""";
         var question = JsonSerializer.Deserialize<Question>(json, Options)!;
-        Assert.Equal(["EalWouldBeAutoRejected"], question.OptionalWhen);
+        Assert.Equal(["EalEvidenceIsOptional"], question.OptionalWhen);
     }
 
     [Fact]

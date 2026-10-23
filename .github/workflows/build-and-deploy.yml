@@ -259,7 +259,7 @@ jobs:
     env:
       # The gate. true: any WARN or FAIL the plan's rules do not accept fails the job. false:
       # report only, for collecting a fresh baseline; set it back in the same pull request.
-      ZAP_GATE: "false"
+      ZAP_GATE: "true"
 
     steps:
       # For the plan only.

@@ -35,7 +35,7 @@ public sealed class CheckYourPupilDataViewRenderTests
     public void No_available_option_renders_no_form_at_all()
     {
         // AB#298317: the closed statement moved up into the intro paragraph (see
-        // The_closed_window_paragraph_…), so nothing renders below the tables when nothing is open.
+        // The_closed_window_paragraph_…), so no form renders when nothing is open.
         var view = ReadView();
 
         Assert.DoesNotContain("closed for changes", view);
@@ -43,6 +43,21 @@ public sealed class CheckYourPupilDataViewRenderTests
         var firstForm = view.IndexOf("<form", StringComparison.Ordinal);
         var firstBranch = view.IndexOf("@if (Model.OffersEnquiryOnly)", StringComparison.Ordinal);
         Assert.True(firstBranch >= 0 && firstForm > firstBranch, "no form may render before the option branches");
+    }
+
+    [Fact]
+    public void The_options_render_after_the_download_all_link_and_before_the_tabs()
+    {
+        // #641: title, intro, Download all, then the call to action, then the tables.
+        var view = ReadView();
+
+        var downloadAll = view.IndexOf("asp-action=\"DownloadAll\"", StringComparison.Ordinal);
+        var firstBranch = view.IndexOf("@if (Model.OffersEnquiryOnly)", StringComparison.Ordinal);
+        var lastForm = view.LastIndexOf("</form>", StringComparison.Ordinal);
+        var firstTabs = view.IndexOf("<govuk-tabs>", StringComparison.Ordinal);
+
+        Assert.True(downloadAll >= 0 && firstBranch > downloadAll, "the options render after the Download all link");
+        Assert.True(firstTabs >= 0 && lastForm < firstTabs, "every option form renders before the tabs");
     }
 
     [Fact]

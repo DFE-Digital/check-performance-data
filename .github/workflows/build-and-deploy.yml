@@ -399,6 +399,7 @@ jobs:
     concurrency: deploy_domains_${{ matrix.domain_environment }}
     needs: [deploy_domains_infra]
     strategy:
+      fail-fast: false
       max-parallel: 1
       matrix:
         domain_environment: [development, qa, preproduction, production]
@@ -408,13 +409,45 @@ jobs:
       id-token: write
 
     steps:
+      - uses: actions/checkout@v4
+      # Repository secret: JSON array of public CIDRs. Never print its contents.
+      # The domains job uses the production Azure credentials for shared DNS.
+      - name: Mask development source IPs
+        if: matrix.domain_environment == 'development'
+        env:
+          DEV_ALLOWED_SOURCE_IPS: ${{ secrets.DEV_ALLOWED_SOURCE_IPS }}
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+
+          try:
+              sources = json.loads(os.environ["DEV_ALLOWED_SOURCE_IPS"])
+              if not isinstance(sources, list):
+                  raise ValueError()
+              for source in sources:
+                  if not isinstance(source, str):
+                      raise ValueError()
+              for source in sources:
+                  source = source.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+                  print(f"::add-mask::{source}")
+                  print(f"::add-mask::{source.split('/')[0]}")
+          except (ValueError, TypeError, KeyError):
+              sys.exit("DEV_ALLOWED_SOURCE_IPS must be a JSON array of strings; values are hidden.")
+          PY
       - name: Deploy Domains Environment
-        uses: DFE-Digital/github-actions/deploy-domains-env@master
+        uses: ./.github/actions/deploy-domains-env
+        env:
+          TF_VAR_allowed_source_ips: ${{ matrix.domain_environment == 'development' && secrets.DEV_ALLOWED_SOURCE_IPS || '[]' }}
         with:
           azure-client-id: ${{ secrets.AZURE_CLIENT_ID  }}
           azure-tenant-id: ${{ secrets.AZURE_TENANT_ID   }}
           azure-subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID   }}
           environment: ${{ matrix.domain_environment }}
+          # GitHub-hosted runners are outside the development allowlist.
           healthcheck: healthcheck
+          skip-healthcheck: ${{ matrix.domain_environment == 'development' }}
           teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}
           service: ${{ vars.TEAMS_MSG_SERVICE_NAME }}

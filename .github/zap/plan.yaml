@@ -1,0 +1,74 @@
+# OWASP ZAP automation plan for the review-app baseline scan (#618). docs/zap-baseline.md says what
+# the scan covers and how to triage a finding.
+#
+# This is the plan zap-baseline.py generates, with two changes it cannot make: the spider submits
+# no forms, and the dev-tools pages are out of scope. Run by the "ZAP baseline scan" job in
+# .github/workflows/build-and-deploy.yml, which supplies ZAP_TARGET and mounts the workspace at
+# /zap/wrk.
+env:
+  contexts:
+    - name: review-app
+      urls:
+        - "${ZAP_TARGET}"
+      # Review apps run with Dev:ToolsEnabled, and the header links to /dev/impersonate/*. Following
+      # one would sign the spider in as an admin. Everything under /dev/ stays out of scope, so the
+      # scan is of what an anonymous visitor sees.
+      excludePaths:
+        - ".*/dev/.*"
+  parameters:
+    failOnError: true
+    failOnWarning: false
+    progressToStdout: true
+
+jobs:
+  - type: passiveScan-config
+    parameters:
+      enableTags: false
+      maxAlertsPerRule: 10
+
+  - type: spider
+    parameters:
+      context: review-app
+      url: "${ZAP_TARGET}"
+      # Minutes of crawling. The anonymous surface is small; three is ample.
+      maxDuration: 3
+      # Never submit a form: a review app creates real Zendesk tickets, and the contact form is
+      # anonymous. Forms are still parsed, so a GET form (search) is followed.
+      postForm: false
+      processForm: true
+
+  - type: passiveScan-wait
+    parameters:
+      maxDuration: 0
+
+  # The rules (#618). A rule that fires and is not listed here is a WARN, and the job fails on a
+  # WARN once ZAP_GATE is on. IGNORE needs a customMessage naming the control that covers the
+  # risk, or saying "informational". Only rules a report has raised are listed, so a rule that a
+  # new ZAP release adds is noticed. The rules are at https://www.zaproxy.org/docs/alerts/<id>/.
+  - type: outputSummary
+    parameters:
+      format: Long
+      summaryFile: /zap/wrk/zap-out/summary.json
+    rules: []
+
+  - type: report
+    parameters:
+      template: traditional-html
+      reportDir: /zap/wrk/zap-out
+      reportFile: report.html
+      reportTitle: ZAP baseline scan
+      reportDescription: ""
+  - type: report
+    parameters:
+      template: traditional-md
+      reportDir: /zap/wrk/zap-out
+      reportFile: report.md
+      reportTitle: ZAP baseline scan
+      reportDescription: ""
+  - type: report
+    parameters:
+      template: traditional-json
+      reportDir: /zap/wrk/zap-out
+      reportFile: report.json
+      reportTitle: ZAP baseline scan
+      reportDescription: ""

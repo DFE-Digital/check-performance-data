@@ -3,6 +3,8 @@ using DfE.CheckPerformanceData.Application.Journey.Conditions;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 
+// AB#309468: evidence is optional for exactly four first-language answers, regardless of
+// the origin country. "English" and "Not known but believed English" stay mandatory.
 public sealed class EalWouldBeAutoRejectedConditionTests
 {
     private readonly EalWouldBeAutoRejectedCondition _sut = new();
@@ -22,50 +24,28 @@ public sealed class EalWouldBeAutoRejectedConditionTests
 
     [Fact] public void Name_IsStable() => Assert.Equal("EalWouldBeAutoRejected", _sut.Name);
 
-    // AC 001/002: first language English → optional regardless of country
+    // AC 001: these four answers make evidence optional, whatever the origin country is.
     [Theory]
-    [InlineData("english", null)]                       // country languages unknown
-    [InlineData("english", "French")]                   // AC 001: France
-    [InlineData("english", "English")]                  // AC 002: Nigeria
-    public void English_IsTrue(string lang, string? countryLanguage) =>
+    [InlineData("other", null)]
+    [InlineData("other", "English")]
+    [InlineData("other", "French")]
+    [InlineData("believed-other", null)]
+    [InlineData("believed-other", "English")]
+    [InlineData("chose-not-to-say", null)]
+    [InlineData("not-known", "French")]
+    public void OptionalAnswers_AreTrue(string lang, string? countryLanguage) =>
         Assert.True(_sut.Evaluate(Ctx(firstLanguage: lang,
             countryLanguages: countryLanguage is null ? null : [countryLanguage])));
 
-    // believed-* map to Uncertain in the engine, so they never auto-reject (they go to
-    // Scrutiny) — evidence stays mandatory. Scenario 004 was withdrawn (BA decision,
-    // 2026-07-28); the waiver mirrors the engine exactly.
+    // AC 002: English and believed-English keep mandatory evidence.
     [Theory]
+    [InlineData("english", null)]
+    [InlineData("english", "French")]
     [InlineData("believed-english", "English")]
     [InlineData("believed-english", null)]
-    [InlineData("believed-other", "English")]
-    public void BelievedLanguage_IsFalse(string lang, string? countryLanguage) =>
+    public void EnglishAnswers_AreFalse(string lang, string? countryLanguage) =>
         Assert.False(_sut.Evaluate(Ctx(firstLanguage: lang,
             countryLanguages: countryLanguage is null ? null : [countryLanguage])));
-
-    // AC 003 (Canada): other + English official language
-    [Fact]
-    public void Other_WithEnglishOfficialLanguage_IsTrue() =>
-        Assert.True(_sut.Evaluate(Ctx(firstLanguage: "other", countryLanguages: ["English", "French"])));
-
-    [Fact]
-    public void Other_EnglishMatchIsCaseInsensitive() =>
-        Assert.True(_sut.Evaluate(Ctx(firstLanguage: "other", countryLanguages: ["english"])));
-
-    // AC 005 (France) / AC 006 (Switzerland): no English official language
-    [Fact]
-    public void Other_WithoutEnglishOfficialLanguage_IsFalse() =>
-        Assert.False(_sut.Evaluate(Ctx(firstLanguage: "other", countryLanguages: ["German", "French", "Italian", "Romansh"])));
-
-    // Fail-safes: unknown languages / unanswered / declined-to-say → mandatory
-    [Fact]
-    public void Other_WithUnknownCountryLanguages_IsFalse() =>
-        Assert.False(_sut.Evaluate(Ctx(firstLanguage: "other", countryLanguages: null)));
-
-    [Theory]
-    [InlineData("chose-not-to-say")]
-    [InlineData("not-known")]
-    public void UnknownFirstLanguage_IsFalse(string lang) =>
-        Assert.False(_sut.Evaluate(Ctx(firstLanguage: lang, countryLanguages: ["English"])));
 
     [Fact]
     public void MissingFirstLanguageAnswer_IsFalse() =>
@@ -76,5 +56,5 @@ public sealed class EalWouldBeAutoRejectedConditionTests
     [InlineData("permanently-excluded")]
     [InlineData(null)]
     public void NonEalReason_IsFalse(string? reason) =>
-        Assert.False(_sut.Evaluate(Ctx(reason: reason, firstLanguage: "english")));
+        Assert.False(_sut.Evaluate(Ctx(reason: reason, firstLanguage: "other")));
 }

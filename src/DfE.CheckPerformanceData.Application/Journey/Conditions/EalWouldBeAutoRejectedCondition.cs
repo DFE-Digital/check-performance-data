@@ -1,24 +1,25 @@
 namespace DfE.CheckPerformanceData.Application.Journey.Conditions;
 
 /// <summary>
-/// True when an "Admitted from abroad with English not first language" removal would
-/// be auto-rejected by the rules engine's EAL-REJ-ENG / EAL-REJ-OTH-ENGCOUNTRY rules,
-/// approximated journey-side so the evidence page can relax its mandatory fields
-/// (PBI 292266). Mirrors the engine exactly: only the certain answers english / other
-/// can waive evidence. believed-english / believed-other map to Uncertain in the
-/// engine, never fire a reject rule, and go to Scrutiny — a reviewer will read those
-/// requests, so evidence stays mandatory (AC Scenario 004 withdrawn, BA decision
-/// 2026-07-28). chose-not-to-say / not-known and an unresolved country also fail safe
-/// to false (evidence stays mandatory).
+/// True when the shared KS4 June evidence page should be optional for an
+/// "Admitted from abroad with English not first language" removal (AB#309468).
+/// Evidence is optional for exactly four first-language answers — other,
+/// believed-other, chose-not-to-say and not-known — regardless of the origin
+/// country. English and believed-English keep mandatory evidence.
 /// </summary>
 public sealed class EalWouldBeAutoRejectedCondition : IJourneyCondition
 {
     private const string ReasonQuestionId = "reason";
     private const string EalReasonValue = "english-not-first-language";
     private const string FirstLanguageQuestionId = "first-language";
-    private const string English = "English";
-    private const string EnglishFirstLanguage = "english";
-    private const string OtherFirstLanguage = "other";
+
+    private static readonly HashSet<string> OptionalFirstLanguages = new(StringComparer.Ordinal)
+    {
+        "other",
+        "believed-other",
+        "chose-not-to-say",
+        "not-known"
+    };
 
     public string Name => "EalWouldBeAutoRejected";
 
@@ -36,11 +37,6 @@ public sealed class EalWouldBeAutoRejectedCondition : IJourneyCondition
             || firstLanguage.TextValue is not { } language)
             return false;
 
-        if (string.Equals(language, EnglishFirstLanguage, StringComparison.Ordinal))
-            return true;
-
-        return string.Equals(language, OtherFirstLanguage, StringComparison.Ordinal)
-            && ctx.Journey.OriginCountryLanguages?
-                .Any(l => string.Equals(l, English, StringComparison.OrdinalIgnoreCase)) == true;
+        return OptionalFirstLanguages.Contains(language);
     }
 }

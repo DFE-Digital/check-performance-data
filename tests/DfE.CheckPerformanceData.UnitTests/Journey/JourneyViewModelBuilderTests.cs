@@ -69,6 +69,12 @@ public class JourneyViewModelBuilderTests
     {
         _journeyService.MaxEvidencePages.Returns(6);
 
+        // Unstubbed, the substitute returns null and the builder's label composition would throw.
+        // Most tests have no conditionally optional questions, so default to an empty set.
+        _optionalityService
+            .GetConditionallyOptionalQuestionIds(Arg.Any<JourneyPage>(), Arg.Any<JourneyConditionContext>())
+            .Returns(_ => ConditionallyOptional());
+
         _flowService.GetPage(Config, "select-pupil").Returns(PupilSearchPageConfig);
         _flowService.GetPage(Config, "q1").Returns(QuestionPage1);
         _flowService.GetPage(Config, "q2").Returns(QuestionPage2);
@@ -698,6 +704,9 @@ public class JourneyViewModelBuilderTests
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
+
+    private static IReadOnlySet<string> ConditionallyOptional(params string[] ids) =>
+        new HashSet<string>(ids, StringComparer.Ordinal);
 
     private static RequestState JourneyWithHistory(List<string> history) => new()
     {

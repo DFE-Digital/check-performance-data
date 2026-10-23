@@ -29,11 +29,13 @@ public static class SeedKs2Summary
     public const string Schema = "summary_schema.json";
 
     /// <summary>
-    /// The schools with KS2 data, the LAESTAB as the supplier sends it (no "/"). Not the KS4 and
-    /// 16-19 schools of <see cref="SeedPupilData"/>: a secondary school never sees a KS2 window.
-    /// Five Ways Primary School, Heath Hayes (Staffordshire).
+    /// The schools with KS2 data, the LAESTAB as the supplier sends it (no "/"). Five Ways Primary
+    /// School, Heath Hayes (Staffordshire), and Kingsmead School. Kingsmead is a secondary school
+    /// and would never see a KS2 window, but the dev impersonation signs in as Kingsmead, so it has
+    /// data in every window. It is last, so its disadvantaged percentages are suppressed.
     /// </summary>
-    internal static readonly IReadOnlyList<(string Urn, string Laestab)> Schools = [("124070", "8602180")];
+    internal static readonly IReadOnlyList<(string Urn, string Laestab)> Schools =
+        [("124070", "8602180"), ("142313", "8604070")];
 
     public static async Task ExecuteSeedAsync(IPortalDbContext dbContext, BlobServiceClient blobs,
         ICheckingExerciseIngress ingress, string contentRootPath)

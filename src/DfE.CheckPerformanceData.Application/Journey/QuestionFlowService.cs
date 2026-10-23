@@ -22,6 +22,21 @@ public sealed class QuestionFlowService(IQuestionFlowConfigSource configSource, 
         return config;
     }
 
+    // The display order on What to change.
+    private static readonly WhatToChange[] PupilDataChanges =
+        [WhatToChange.Merge, WhatToChange.Include, WhatToChange.Remove, WhatToChange.Add];
+
+    public async Task<IReadOnlyList<WhatToChange>> GetPupilDataChangesAsync(CheckingWindowType checkingWindowType)
+    {
+        var available = new List<WhatToChange>();
+        foreach (var change in PupilDataChanges)
+        {
+            if (await GetConfigAsync(change, checkingWindowType) is not null)
+                available.Add(change);
+        }
+        return available;
+    }
+
     public JourneyPage? GetPage(QuestionFlowConfig config, string pageId) =>
         config.Pages.FirstOrDefault(p => p.Id == pageId);
 

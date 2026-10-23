@@ -1,12 +1,11 @@
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Views;
 
-// Source-file assertion pattern (mirrors LayoutViewSourceTests):
-// reads Views/WhatToChange/Index.cshtml from disk and asserts static Razor-source facts for #439.
+// Source-file assertion pattern (mirrors LayoutViewSourceTests): reads
+// Views/WhatToChange/Index.cshtml from disk and asserts static Razor-source facts.
 //
-// The Include radio must sit inside the same window-type guard the Add radio already uses, so the
-// option cannot be reintroduced outside it. The guard reads IncludeJourney.SupportedWindowTypes —
-// the single source of truth — and the Merge/Remove/Add items and the legend must stay unchanged
-// (FR-001, FR-002, FR-003, FR-006, FR-008).
+// KS2 spec decision 1: the radios come from Model.AvailableChanges, which lists the changes that
+// have a flow file for the window type. The view must not name a change or a window type itself,
+// or one radio could show where no flow file serves it.
 public sealed class WhatToChangeViewSourceTests
 {
     private static string ReadViewSource(string relativePath)
@@ -19,22 +18,29 @@ public sealed class WhatToChangeViewSourceTests
     }
 
     [Fact]
-    public void WhatToChange_guards_the_include_radio_on_window_type()
+    public void WhatToChange_renders_one_radio_per_available_change()
     {
         var source = ReadViewSource("Views/WhatToChange/Index.cshtml");
 
-        // The Include item must be conditional on the window type (FR-002, FR-008).
-        Assert.Contains("IncludeJourney.SupportedWindowTypes.Contains(", source);
+        Assert.Contains("@foreach (var change in Model.AvailableChanges)", source);
+        Assert.Contains("WhatToChangeLabel.For(change, Model.Noun)", source);
     }
 
-    [Fact]
-    public void WhatToChange_keeps_the_merge_remove_and_add_options()
+    [Theory]
+    [InlineData("WhatToChange.Merge")]
+    [InlineData("WhatToChange.Include")]
+    [InlineData("WhatToChange.Remove")]
+    [InlineData("WhatToChange.Add")]
+    [InlineData("SupportedWindowTypes")]
+    [InlineData("CheckingWindowType")]
+    [InlineData("Post16")]
+    [InlineData("KS2")]
+    [InlineData("KS4")]
+    public void WhatToChange_names_no_change_or_window_type(string text)
     {
         var source = ReadViewSource("Views/WhatToChange/Index.cshtml");
 
-        Assert.Contains("value=\"@WhatToChange.Merge\"", source);
-        Assert.Contains("value=\"@WhatToChange.Remove\"", source);
-        Assert.Contains("AddPupilJourney.SupportedWindowTypes.Contains(windowType)", source);
+        Assert.DoesNotContain(text, source);
     }
 
     [Fact]
@@ -45,15 +51,5 @@ public sealed class WhatToChangeViewSourceTests
         Assert.Contains("What @Model.Noun.Singular data would you like to change?", source);
         Assert.Contains("Select one option.", source);
         Assert.Contains("for=\"SelectedWhatToChange\"", source);
-    }
-
-    [Fact]
-    public void WhatToChange_does_not_mention_post16()
-    {
-        var source = ReadViewSource("Views/WhatToChange/Index.cshtml");
-
-        // The gate is a positive whitelist consulted via IncludeJourney.SupportedWindowTypes,
-        // never a `== Post16` literal — a new window type must not silently inherit one behaviour.
-        Assert.DoesNotContain("Post16", source);
     }
 }

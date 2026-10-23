@@ -1,4 +1,5 @@
 using System.Globalization;
+using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Application.Journey.DateRules;
 
@@ -88,6 +89,14 @@ public static class PageDateRules
     public static DateOnly CohortStart(DateOnly today) => new(today.Year - 4, 9, 1);
 
     /// <summary>
+    /// The cohort check (scenario 007) is a KS4 rule. KS2 has none: the KS2 September 2027
+    /// requirements give no such rule, and a KS2 pupil who started at the school before the cohort
+    /// also started in England before the EAL boundary, so the rules engine sends the request to
+    /// Scrutiny with evidence. (KS2 spec, assumption 2.)
+    /// </summary>
+    public static bool ChecksCohortStart(CheckingWindowType? windowType) => windowType != CheckingWindowType.KS2;
+
+    /// <summary>
     /// Applies every scenario to the three dates and returns at most one message per field.
     ///
     /// A null date is one the user left blank, part-filled, or entered as a non-date; it is
@@ -103,7 +112,8 @@ public static class PageDateRules
         DateOnly? firstEnglishSchool,
         DateOnly? arrivedInEngland,
         DateOnly today,
-        string pupilName)
+        string pupilName,
+        bool checkCohortStart)
     {
         var messages = new Dictionary<string, string>(StringComparer.Ordinal);
 
@@ -123,8 +133,9 @@ public static class PageDateRules
         if (firstEnglishSchool > today) Flag(FirstEnglishSchool, FirstEnglishSchoolInFuture);
         if (arrivedInEngland > today) Flag(ArrivedInEngland, ArrivedInFuture);
 
-        // 007: the school start date may not predate the cohort. Field a. only.
-        if (startedAtSchool < CohortStart(today)) Flag(StartedAtSchool, StartedBeforeCohort);
+        // 007: the school start date may not predate the cohort. Field a. only, and not on every
+        // window type (see ChecksCohortStart).
+        if (checkCohortStart && startedAtSchool < CohortStart(today)) Flag(StartedAtSchool, StartedBeforeCohort);
 
         // 001-003: arrival <= first English school <= started at this school. Each failure is
         // reported against both fields involved, phrased from that field's point of view.

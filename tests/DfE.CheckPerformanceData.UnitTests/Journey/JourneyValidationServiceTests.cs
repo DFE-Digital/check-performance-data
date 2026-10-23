@@ -748,7 +748,7 @@ public class JourneyValidationServiceTests
     {
         var page = MakeEvidencePage(requireAtLeastOne: false);
 
-        Assert.Empty(_sut.ValidatePageDates(page, new Dictionary<string, QuestionAnswer>(), "Jane Smith"));
+        Assert.Empty(_sut.ValidatePageDates(page, new Dictionary<string, QuestionAnswer>(), "Jane Smith", CheckingWindowType.KS4June));
     }
 
     [Fact]
@@ -759,11 +759,39 @@ public class JourneyValidationServiceTests
             started: new DateAnswer { Day = 4, Month = 9, Year = 2023 },
             firstEnglishSchool: new DateAnswer { Day = 8, Month = 1, Year = 2024 });
 
-        var violations = sut.ValidatePageDates(MakeEalDetailsPage(), answers, "Jane Smith");
+        var violations = sut.ValidatePageDates(MakeEalDetailsPage(), answers, "Jane Smith", CheckingWindowType.KS4June);
 
         Assert.Equal(2, violations.Count);
         Assert.Contains(violations, v => v.QuestionId == PageDateRules.StartedAtSchool);
         Assert.Contains(violations, v => v.QuestionId == PageDateRules.FirstEnglishSchool);
+    }
+
+    // KS2 spec assumption 2: the cohort check (scenario 007) is a KS4 rule. A KS2 pupil who
+    // started at the school before the cohort started in England before 2024 too, so the
+    // request goes to Scrutiny with evidence. It does not need a hard error.
+    [Fact]
+    public void ValidatePageDates_EalDetailsPage_OnKs2_DoesNotCheckTheCohortStart()
+    {
+        var sut = DateRuleSut("2027-06-15T12:00:00Z");
+        var answers = EalAnswers(
+            started: new DateAnswer { Day = 2, Month = 9, Year = 2020 },
+            firstEnglishSchool: new DateAnswer { Day = 2, Month = 9, Year = 2020 });
+
+        Assert.Empty(sut.ValidatePageDates(MakeEalDetailsPage(), answers, "Jane Smith", CheckingWindowType.KS2));
+    }
+
+    [Fact]
+    public void ValidatePageDates_EalDetailsPage_OnKs4June_StillChecksTheCohortStart()
+    {
+        var sut = DateRuleSut("2027-06-15T12:00:00Z");
+        var answers = EalAnswers(
+            started: new DateAnswer { Day = 2, Month = 9, Year = 2020 },
+            firstEnglishSchool: new DateAnswer { Day = 2, Month = 9, Year = 2020 });
+
+        var violation = Assert.Single(
+            sut.ValidatePageDates(MakeEalDetailsPage(), answers, "Jane Smith", CheckingWindowType.KS4June));
+
+        Assert.Equal(PageDateRules.StartedAtSchool, violation.QuestionId);
     }
 
     [Fact]
@@ -775,7 +803,7 @@ public class JourneyValidationServiceTests
             firstEnglishSchool: new DateAnswer { Day = 4, Month = 9, Year = 2023 },
             arrived: new DateAnswer { Day = 20, Month = 8, Year = 2023 });
 
-        Assert.Empty(sut.ValidatePageDates(MakeEalDetailsPage(), answers, "Jane Smith"));
+        Assert.Empty(sut.ValidatePageDates(MakeEalDetailsPage(), answers, "Jane Smith", CheckingWindowType.KS4June));
     }
 
     [Fact]
@@ -789,7 +817,7 @@ public class JourneyValidationServiceTests
             firstEnglishSchool: new DateAnswer { Day = 4, Month = 9, Year = 2023 },
             arrived: new DateAnswer { Day = 20, Month = 0, Year = 2025 });
 
-        Assert.Empty(sut.ValidatePageDates(MakeEalDetailsPage(), answers, "Jane Smith"));
+        Assert.Empty(sut.ValidatePageDates(MakeEalDetailsPage(), answers, "Jane Smith", CheckingWindowType.KS4June));
     }
 
     [Fact]
@@ -798,7 +826,7 @@ public class JourneyValidationServiceTests
         var sut = DateRuleSut("2026-06-15T12:00:00Z");
         var answers = EalAnswers(started: new DateAnswer { Day = 2, Month = 9, Year = 2024 });
 
-        Assert.Empty(sut.ValidatePageDates(MakeEalDetailsPage(), answers, "Jane Smith"));
+        Assert.Empty(sut.ValidatePageDates(MakeEalDetailsPage(), answers, "Jane Smith", CheckingWindowType.KS4June));
     }
 
     [Fact]
@@ -811,7 +839,7 @@ public class JourneyValidationServiceTests
             started: new DateAnswer { Day = 16, Month = 6, Year = 2026 },
             firstEnglishSchool: new DateAnswer { Day = 16, Month = 6, Year = 2026 });
 
-        Assert.Empty(sut.ValidatePageDates(MakeEalDetailsPage(), answers, "Jane Smith"));
+        Assert.Empty(sut.ValidatePageDates(MakeEalDetailsPage(), answers, "Jane Smith", CheckingWindowType.KS4June));
     }
 
     [Fact]
@@ -822,7 +850,7 @@ public class JourneyValidationServiceTests
             started: new DateAnswer { Day = 16, Month = 6, Year = 2027 },
             firstEnglishSchool: new DateAnswer { Day = 4, Month = 9, Year = 2023 });
 
-        var violation = Assert.Single(sut.ValidatePageDates(MakeEalDetailsPage(), answers, "Jane Smith"));
+        var violation = Assert.Single(sut.ValidatePageDates(MakeEalDetailsPage(), answers, "Jane Smith", CheckingWindowType.KS4June));
 
         Assert.Equal("The date Jane Smith started at your school must be in the past", violation.Message);
         Assert.DoesNotContain("{pupilName}", violation.Message, StringComparison.Ordinal);
@@ -851,7 +879,7 @@ public class JourneyValidationServiceTests
         var sut = DateRuleSut("2026-06-15T12:00:00Z");
         var answers = RemovalAnswers(questionId, new DateAnswer { Day = 16, Month = 6, Year = 2026 });
 
-        var violation = Assert.Single(sut.ValidatePageDates(MakeRemovalPage(pageId, questionId), answers, "Jane Smith"));
+        var violation = Assert.Single(sut.ValidatePageDates(MakeRemovalPage(pageId, questionId), answers, "Jane Smith", CheckingWindowType.KS4June));
 
         Assert.Equal(questionId, violation.QuestionId);
         Assert.Equal(expectedMessage, violation.Message);
@@ -870,7 +898,7 @@ public class JourneyValidationServiceTests
         var sut = DateRuleSut("2026-06-15T12:00:00Z");
         var answers = RemovalAnswers(questionId, new DateAnswer { Day = 15, Month = 6, Year = 2026 });
 
-        Assert.Empty(sut.ValidatePageDates(MakeRemovalPage(pageId, questionId), answers, "Jane Smith"));
+        Assert.Empty(sut.ValidatePageDates(MakeRemovalPage(pageId, questionId), answers, "Jane Smith", CheckingWindowType.KS4June));
     }
 
     [Fact]
@@ -884,7 +912,7 @@ public class JourneyValidationServiceTests
 
         var violations = sut.ValidatePageDates(
             MakeRemovalPage(RemovalJourneyDateRules.PupilDiedPageId, RemovalJourneyDateRules.DateRemovedFromRoll),
-            answers, "Jane Smith");
+            answers, "Jane Smith", CheckingWindowType.KS4June);
 
         var violation = Assert.Single(violations);
         Assert.Equal(

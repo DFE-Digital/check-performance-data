@@ -1,6 +1,5 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.WindowManagement;
-using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
@@ -9,8 +8,12 @@ public sealed class WhatToChangeViewModel
     public Guid WindowId { get; set; }
     public WhatToChange? SelectedWhatToChange { get; set; }
 
-    /// <summary>AB#297310: gates whether the view offers the Add-a-pupil radio.</summary>
-    public CheckingWindowType? CheckingWindowType { get; set; }
+    /// <summary>
+    /// The pupil-data changes this window offers, in display order: one radio each. A change is in
+    /// the list only when its flow file exists for the window type (KS2 spec, decision 1). Empty on
+    /// the POST binding target, where it is not supplied; every render path sets it.
+    /// </summary>
+    public IReadOnlyList<WhatToChange> AvailableChanges { get; set; } = [];
 
     /// <summary>
     /// The word this window uses for a learner — "student" on 16-19, "pupil" everywhere else.

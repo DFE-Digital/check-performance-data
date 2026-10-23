@@ -1364,7 +1364,7 @@ public class JourneyControllerTests
         // error up by it, and anything else means the message renders nowhere at all.
         SetupDatePage();
         _journeyService.ValidatePageDates(Arg.Any<JourneyPage>(),
-                Arg.Any<IReadOnlyDictionary<string, QuestionAnswer>>(), Arg.Any<string>())
+                Arg.Any<IReadOnlyDictionary<string, QuestionAnswer>>(), Arg.Any<string>(), Arg.Any<CheckingWindowType?>())
             .Returns([new DateFieldViolation("date-a", "Dates are the wrong way round")]);
         SetupSession(ValidSession(history: ["date-page"]));
         PostDates(aYear: "2023", bYear: "2024");
@@ -1379,6 +1379,20 @@ public class JourneyControllerTests
     }
 
     [Fact]
+    public async Task PagePost_PassesTheWindowTypeToTheDateRules()
+    {
+        // KS2 spec assumption 2: the EAL cohort check depends on the window type.
+        SetupDatePage();
+        SetupSession(ValidSession(history: ["date-page"]));
+        PostDates(aYear: "2023", bYear: "2024");
+
+        await _sut.PagePost(WindowId, "date-page", fromSummary: false);
+
+        _journeyService.Received().ValidatePageDates(Arg.Any<JourneyPage>(),
+            Arg.Any<IReadOnlyDictionary<string, QuestionAnswer>>(), Arg.Any<string>(), CheckingWindowType.KS4June);
+    }
+
+    [Fact]
     public async Task PagePost_DateRuleViolation_DoesNotDisplaceAFormatError()
     {
         // Only the first error per question is rendered. A comparison against a date the user
@@ -1387,7 +1401,7 @@ public class JourneyControllerTests
         _journeyService.ValidateAnswer(Arg.Any<Question>(), Arg.Any<QuestionAnswer>(), Arg.Any<string>(), Arg.Any<string?>())
             .Returns("Enter a real date");
         _journeyService.ValidatePageDates(Arg.Any<JourneyPage>(),
-                Arg.Any<IReadOnlyDictionary<string, QuestionAnswer>>(), Arg.Any<string>())
+                Arg.Any<IReadOnlyDictionary<string, QuestionAnswer>>(), Arg.Any<string>(), Arg.Any<CheckingWindowType?>())
             .Returns([new DateFieldViolation("date-a", "Dates are the wrong way round")]);
         SetupSession(ValidSession(history: ["date-page"]));
         PostDates(aYear: "2023", bYear: "2024");
@@ -1406,7 +1420,7 @@ public class JourneyControllerTests
         SetupDatePage();
         _journeyService.IsAnswered(Arg.Any<Question>(), Arg.Any<QuestionAnswer>()).Returns(true);
         _journeyService.ValidatePageDates(Arg.Any<JourneyPage>(),
-                Arg.Any<IReadOnlyDictionary<string, QuestionAnswer>>(), Arg.Any<string>())
+                Arg.Any<IReadOnlyDictionary<string, QuestionAnswer>>(), Arg.Any<string>(), Arg.Any<CheckingWindowType?>())
             .Returns([new DateFieldViolation("date-a", "Dates are the wrong way round")]);
         SetupSession(ValidSession(history: ["date-page"]));
         PostDates(aYear: "2023", bYear: "2024");
@@ -1440,7 +1454,7 @@ public class JourneyControllerTests
     {
         SetupRemovalDatePage();
         _journeyService.ValidatePageDates(Arg.Any<JourneyPage>(),
-                Arg.Any<IReadOnlyDictionary<string, QuestionAnswer>>(), Arg.Any<string>())
+                Arg.Any<IReadOnlyDictionary<string, QuestionAnswer>>(), Arg.Any<string>(), Arg.Any<CheckingWindowType?>())
             .Returns([new DateFieldViolation(
                 RemovalJourneyDateRules.DateRemovedFromRoll,
                 "Date Jane Smith was removed from your school roll must be in the past")]);
@@ -1463,7 +1477,7 @@ public class JourneyControllerTests
         _journeyService.ValidateAnswer(Arg.Any<Question>(), Arg.Any<QuestionAnswer>(), Arg.Any<string>(), Arg.Any<string?>())
             .Returns("Enter a real date");
         _journeyService.ValidatePageDates(Arg.Any<JourneyPage>(),
-                Arg.Any<IReadOnlyDictionary<string, QuestionAnswer>>(), Arg.Any<string>())
+                Arg.Any<IReadOnlyDictionary<string, QuestionAnswer>>(), Arg.Any<string>(), Arg.Any<CheckingWindowType?>())
             .Returns([new DateFieldViolation(
                 RemovalJourneyDateRules.DateRemovedFromRoll,
                 "Date Jane Smith was removed from your school roll must be in the past")]);
@@ -1483,7 +1497,7 @@ public class JourneyControllerTests
         SetupRemovalDatePage();
         _journeyService.IsAnswered(Arg.Any<Question>(), Arg.Any<QuestionAnswer>()).Returns(true);
         _journeyService.ValidatePageDates(Arg.Any<JourneyPage>(),
-                Arg.Any<IReadOnlyDictionary<string, QuestionAnswer>>(), Arg.Any<string>())
+                Arg.Any<IReadOnlyDictionary<string, QuestionAnswer>>(), Arg.Any<string>(), Arg.Any<CheckingWindowType?>())
             .Returns([new DateFieldViolation(
                 RemovalJourneyDateRules.DateRemovedFromRoll,
                 "Date Jane Smith was removed from your school roll must be in the past")]);

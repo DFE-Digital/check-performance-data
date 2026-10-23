@@ -1,10 +1,11 @@
 namespace DfE.CheckPerformanceData.Application.Journey.DateRules;
 
 /// <summary>
-/// Date rules for the seven "Remove" journeys: the six KS4 ones (admitted following
+/// Date rules for the eight "Remove" journeys: the six KS4 ones (admitted following
 /// permanent exclusion, child missing education, pupil has died, elective home
-/// education, permanently excluded from current school, permanently left England)
-/// and the 16-19 "student has died" one (AB#298403).
+/// education, permanently excluded from current school, permanently left England),
+/// the 16-19 "student has died" one (AB#298403) and the KS2 "added after the start of
+/// the summer term" one.
 /// The single removal/exclusion date on each page must be a real calendar date no
 /// later than today — a future date is rejected with the journey-specific
 /// "Date … must be in the past" message. Today itself is accepted on every journey:
@@ -29,13 +30,13 @@ namespace DfE.CheckPerformanceData.Application.Journey.DateRules;
 /// The english-not-first-language-details page (AB#295246) is deliberately NOT in
 /// this class — it has its own cross-field rules in <see cref="PageDateRules"/>.
 ///
-/// The page-id set spans two flow configs (Remove_KS4June and Remove_Post16). Page ids
-/// are unique across every shipped config, which QuestionFlowValidatorAlignmentTests
-/// relies on when it resolves each id to a single page.
+/// The page-id set spans three flow configs (Remove_KS4June, Remove_KS2 and Remove_Post16).
+/// Remove_KS2 reuses the KS4 June page ids on purpose, so these rules apply to both.
+/// QuestionFlowValidatorAlignmentTests checks every page with each id.
 /// </summary>
 public static class RemovalJourneyDateRules
 {
-    // ── Page ids (all seven in-scope removal journeys) ───────────────────────
+    // ── Page ids (all eight in-scope removal journeys) ───────────────────────
 
     /// <summary>Scenario 001: admitted following permanent exclusion.</summary>
     public const string PermanentExclusionPageId = "permanent-exclusion";
@@ -58,6 +59,9 @@ public static class RemovalJourneyDateRules
     /// <summary>AB#298403: the 16-19 "student has died" page (Remove_Post16).</summary>
     public const string StudentDiedPageId = "student-died";
 
+    /// <summary>KS2 September 2027: pupil added to school roll after the start of the summer term.</summary>
+    public const string AddedAfterSummerTermPageId = "added-after-summer-term";
+
     public static readonly IReadOnlySet<string> RemovalPageIds = new HashSet<string>(
         [
             PermanentExclusionPageId,
@@ -66,7 +70,8 @@ public static class RemovalJourneyDateRules
             ElectiveHomeEducationPageId,
             PermanentlyExcludedPageId,
             PermanentlyLeftEnglandPageId,
-            StudentDiedPageId
+            StudentDiedPageId,
+            AddedAfterSummerTermPageId
         ],
         StringComparer.Ordinal);
 
@@ -81,6 +86,9 @@ public static class RemovalJourneyDateRules
     /// <summary>The roll-removal date shared by scenarios 002, 003, 004 and 006.</summary>
     public const string DateRemovedFromRoll = "date-removed-from-roll";
 
+    /// <summary>The arrival date on the KS2 added-after-summer-term page.</summary>
+    public const string DateAddedToRoll = "date-added-to-roll";
+
 
     // ── Future-date message templates (exact spec wording, no leading "The") ──
 
@@ -92,6 +100,9 @@ public static class RemovalJourneyDateRules
 
     private const string DateRemovedFromRollInFuture =
         "Date {pupilName} was removed from your school roll must be in the past";
+
+    private const string DateAddedToRollInFuture =
+        "Date {pupilName} arrived at your school must be in the past";
 
     /// <summary>
     /// AB#298403: the 16-19 student-died page asks about the "school or college roll", so its
@@ -106,7 +117,8 @@ public static class RemovalJourneyDateRules
         {
             [DatePupilExcluded] = DatePupilExcludedInFuture,
             [DatePermanentlyExcluded] = DatePermanentlyExcludedInFuture,
-            [DateRemovedFromRoll] = DateRemovedFromRollInFuture
+            [DateRemovedFromRoll] = DateRemovedFromRollInFuture,
+            [DateAddedToRoll] = DateAddedToRollInFuture
         };
 
     /// <summary>
@@ -123,7 +135,7 @@ public static class RemovalJourneyDateRules
     private static string TemplateKey(string pageId, string questionId) => $"{pageId}\u0000{questionId}";
 
     /// <summary>
-    /// True when <paramref name="pageId"/> is one of the seven in-scope removal pages,
+    /// True when <paramref name="pageId"/> is one of the in-scope removal pages,
     /// i.e. its date questions should be checked for future dates. Used by
     /// <see cref="JourneyValidationService.ValidatePageDates"/> to dispatch.
     /// </summary>

@@ -4,9 +4,8 @@ using DfE.CheckPerformanceData.Application.WindowManagement;
 namespace DfE.CheckPerformanceData.Web.Controllers.Journey;
 
 /// <summary>
-/// The words for each change type. Kept word-for-word in step with the radios on What to change,
-/// because the summary row, the submitted-request view and the evidence page caption (#625) all
-/// echo the answer the school gave there.
+/// The words for each change type. The radios on What to change render them, and the summary row,
+/// the submitted-request view and the evidence page caption (#625) echo the same answer.
 /// </summary>
 public static class WhatToChangeLabel
 {

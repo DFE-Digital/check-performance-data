@@ -33,6 +33,9 @@ public sealed class WhatToChangeControllerTests
     private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
     private readonly WhatToChangeController _sut;
 
+    private static readonly IReadOnlyList<WhatToChange> AllPupilDataChanges =
+        [WhatToChange.Merge, WhatToChange.Include, WhatToChange.Remove, WhatToChange.Add];
+
     public WhatToChangeControllerTests()
     {
         var httpContext = new DefaultHttpContext();
@@ -40,6 +43,8 @@ public sealed class WhatToChangeControllerTests
         // #318: both actions now read the window before anything else, to gate on the pupil-data
         // checking exercise. Stubbed for every test; the exercise service decides open/closed.
         _service.GetCheckingWindowAsync(WindowId).Returns(Window());
+        // Every pupil-data change has a flow file unless a test says otherwise.
+        _flowService.GetPupilDataChangesAsync(Arg.Any<CheckingWindowType>()).Returns(AllPupilDataChanges);
         _sut = new WhatToChangeController(_service, _flowService, _checkingExercises, _currentUser, _analytics)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext },
@@ -98,39 +103,37 @@ public sealed class WhatToChangeControllerTests
     // ── AB#297310: CheckingWindowType feeds the Add-radio gate ───────────────
 
     [Fact]
-    public async Task Index_PopulatesCheckingWindowType()
+    public async Task Index_OffersOnlyTheChangesThatHaveAFlowFile()
     {
         _service.GetCheckingWindowAsync(WindowId).Returns(Ks4JuneWindow());
+        _flowService.GetPupilDataChangesAsync(CheckingWindowType.KS4June).Returns([WhatToChange.Remove]);
 
         var result = await _sut.Index(WindowId);
 
-        var view = Assert.IsType<ViewResult>(result);
-        var vm = Assert.IsType<WhatToChangeViewModel>(view.Model);
-        Assert.Equal(CheckingWindowType.KS4June, vm.CheckingWindowType);
+        var vm = Assert.IsType<WhatToChangeViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.Equal([WhatToChange.Remove], vm.AvailableChanges);
     }
 
     [Fact]
-    public async Task Confirm_WithNoSelection_RetainsCheckingWindowType()
+    public async Task Confirm_WithNoSelection_StillOffersTheSameChanges()
     {
         _service.GetCheckingWindowAsync(WindowId).Returns(Ks4JuneWindow());
+        _flowService.GetPupilDataChangesAsync(CheckingWindowType.KS4June).Returns([WhatToChange.Remove]);
 
         var result = await _sut.Confirm(WindowId,
             new WhatToChangeViewModel { WindowId = WindowId, SelectedWhatToChange = null });
 
-        var view = Assert.IsType<ViewResult>(result);
-        var vm = Assert.IsType<WhatToChangeViewModel>(view.Model);
-        Assert.Equal(CheckingWindowType.KS4June, vm.CheckingWindowType);
+        var vm = Assert.IsType<WhatToChangeViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.Equal([WhatToChange.Remove], vm.AvailableChanges);
     }
 
-    // The unknown-flow case: no Add_Post16.json in blob, so the flow service has nothing to
-    // return. Pins the redirect only — the window-type rule is pinned by the test below, which
-    // stubs a config so this path cannot be what sends the user back.
+    // Post16 has no Add_Post16.json, so Add is not offered and a posted Add is refused.
     [Fact]
     public async Task Confirm_AddOnPost16_WithNoAddFlow_RedirectsToCheckYourPupilData()
     {
         _service.GetCheckingWindowAsync(WindowId).Returns(Post16Window());
-        _flowService.GetConfigAsync(WhatToChange.Add, CheckingWindowType.Post16)
-            .Returns((QuestionFlowConfig?)null);
+        _flowService.GetPupilDataChangesAsync(CheckingWindowType.Post16)
+            .Returns([WhatToChange.Merge, WhatToChange.Remove]);
 
         var result = await _sut.Confirm(WindowId,
             new WhatToChangeViewModel { WindowId = WindowId, SelectedWhatToChange = WhatToChange.Add });
@@ -140,23 +143,26 @@ public sealed class WhatToChangeControllerTests
         Assert.Equal("Index", redirect.ActionName);
     }
 
-    // The window-type rule itself: an Add_Post16.json uploaded to blob must not open the journey
-    // on a window type the Add radio was never offered for.
+    // KS2 spec decision 1: a change is offered only when its flow file exists for the window
+    // type, and the POST uses the same rule. A posted form for any other change is refused before
+    // the flow service, the session or analytics is touched.
     [Fact]
-    public async Task Confirm_AddOnPost16_WithAnAddFlowPresent_StillRedirectsAndLeavesStateAlone()
+    public async Task Confirm_ForAChangeTheWindowDoesNotOffer_RedirectsAndLeavesStateAlone()
     {
-        _service.GetCheckingWindowAsync(WindowId).Returns(Post16Window());
-        _flowService.GetConfigAsync(WhatToChange.Add, CheckingWindowType.Post16)
-            .Returns(FlowWithoutPupilSearch);
+        _service.GetCheckingWindowAsync(WindowId).Returns(Ks4JuneWindow());
+        _flowService.GetPupilDataChangesAsync(CheckingWindowType.KS4June).Returns([WhatToChange.Remove]);
+        _flowService.GetConfigAsync(WhatToChange.Merge, CheckingWindowType.KS4June).Returns(FlowWithPupilSearch);
         _session.SaveRequestState(WindowId, SeedStaleIdentity);
 
         var result = await _sut.Confirm(WindowId,
-            new WhatToChangeViewModel { WindowId = WindowId, SelectedWhatToChange = WhatToChange.Add });
+            new WhatToChangeViewModel { WindowId = WindowId, SelectedWhatToChange = WhatToChange.Merge });
 
         var redirect = Assert.IsType<RedirectToActionResult>(result);
         Assert.Equal("CheckYourPupilData", redirect.ControllerName);
         Assert.Equal("Index", redirect.ActionName);
         AssertStaleIdentityIntact(_session.GetRequestState(WindowId));
+        await _flowService.DidNotReceive().GetConfigAsync(Arg.Any<WhatToChange>(), Arg.Any<CheckingWindowType>());
+        await _analytics.DidNotReceive().TrackAsync(Arg.Any<ChangeTypeSelectedEvent>(), Arg.Any<CancellationToken>());
     }
 
     // An unmapped flow is not an empty flow. Every window type renders Merge/Include/Remove, but
@@ -253,30 +259,7 @@ public sealed class WhatToChangeControllerTests
         AssertStaleIdentityIntact(_session.GetRequestState(WindowId));
     }
 
-    // ── #439: Include is refused on a Post16 window, and untouched on KS4June ──
-
-    // The window-type rule itself: an Include_Post16.json uploaded to blob must not open the
-    // Include journey on a Post16 window, any more than an Add_Post16.json could for Add. The
-    // stubbed config proves the redirect comes from the window-type gate, not the (today absent)
-    // Include_Post16.json producing a null flow.
-    [Fact]
-    public async Task Confirm_IncludeOnPost16_WithAnIncludeFlowPresent_StillRedirectsAndLeavesStateAlone()
-    {
-        _service.GetCheckingWindowAsync(WindowId).Returns(Post16Window());
-        _flowService.GetConfigAsync(WhatToChange.Include, CheckingWindowType.Post16)
-            .Returns(FlowWithoutPupilSearch);
-        _session.SaveRequestState(WindowId, SeedStaleIdentity);
-
-        var result = await _sut.Confirm(WindowId,
-            new WhatToChangeViewModel { WindowId = WindowId, SelectedWhatToChange = WhatToChange.Include });
-
-        var redirect = Assert.IsType<RedirectToActionResult>(result);
-        Assert.Equal("CheckYourPupilData", redirect.ControllerName);
-        Assert.Equal("Index", redirect.ActionName);
-        AssertStaleIdentityIntact(_session.GetRequestState(WindowId));
-        // The refusal happens before analytics is touched — no ChangeTypeSelectedEvent.
-        await _analytics.DidNotReceive().TrackAsync(Arg.Any<ChangeTypeSelectedEvent>(), Arg.Any<CancellationToken>());
-    }
+    // ── Include on KS4June ──
 
     // The Include journey must keep opening on a window type that genuinely supports it — the
     // regression guard for FR-005 (the Post16 refusal must not leak to other key stages).

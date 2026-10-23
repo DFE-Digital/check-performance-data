@@ -115,9 +115,7 @@ public sealed class QuestionFlowOutcomeKeyAlignmentTests
     /// </summary>
     private static readonly string[] PendingFlowQuestionIds =
     [
-        "date-added-to-roll",
         "removal-reason-at-school",
-        "continuing-ks2-studies",
         "pupil-age",
     ];
 

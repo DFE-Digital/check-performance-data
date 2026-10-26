@@ -12,7 +12,7 @@ EXPOSE 8080
 USER $APP_UID
 WORKDIR /app
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0@sha256:747cbade5bfd918a175ac32f8f1d931edec2c7d0d5397a3de72eaef1ac1f66d2 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0@sha256:de4fe90a98845d75910b9769662465c84de1a934665c431279d1382b2bddc02b AS build
 ENV NUGET_CERT_REVOCATION_MODE=offline
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src

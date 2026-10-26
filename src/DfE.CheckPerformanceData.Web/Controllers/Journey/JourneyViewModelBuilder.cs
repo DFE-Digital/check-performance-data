@@ -236,6 +236,10 @@ public sealed class JourneyViewModelBuilder(
         // the "(Optional)" suffix would mislead. The page explains the rule instead.
         var requireAtLeastOne = optionalityService.IsRequireAtLeastOneActive(page, conditionContext);
 
+        // Answer-dependent optionality (e.g. the EAL evidence waiver, AB#309468) is decided by the
+        // same service validation uses, so a question that submits empty is always labelled optional.
+        var conditionallyOptional = optionalityService.GetConditionallyOptionalQuestionIds(page, conditionContext);
+
         var questionModels = page.Questions
             .Where(q => optionVisibilityService.IsQuestionVisible(q, conditionContext))
             .Select(q =>
@@ -243,6 +247,7 @@ public sealed class JourneyViewModelBuilder(
                 var error = modelState.TryGetValue(q.Id, out var entry)
                     ? entry.Errors.FirstOrDefault()?.ErrorMessage
                     : null;
+                var isOptional = (q.Optional || conditionallyOptional.Contains(q.Id)) && !requireAtLeastOne;
                 return new QuestionPartialModel
                 {
                     WindowId = windowId,
@@ -254,7 +259,7 @@ public sealed class JourneyViewModelBuilder(
                     MaxEvidencePages = journeyService.MaxEvidencePages,
                     Error = error,
                     UploadError = uploadError,
-                    ResolvedTitle = JourneyTemplate.Resolve(q.Title, pupilName) + (q.Optional && !requireAtLeastOne ? " (Optional)" : ""),
+                    ResolvedTitle = JourneyTemplate.Resolve(q.Title, pupilName) + (isOptional ? " (Optional)" : ""),
                     VisibleOptions = q.Type switch
                     {
                         QuestionType.Radio or QuestionType.Checkbox =>

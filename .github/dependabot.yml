@@ -41,9 +41,15 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "Serilog.AspNetCore"
         update-types: ["version-update:semver-major"]
-      # Version 4 fails the build unless a paid Six Labors licence key is supplied.
+      # From 3.2.0 the build fails unless a Six Labors licence key is supplied, and a commercial
+      # key is paid for. Held on 3.1.x until there is a licence decision.
       - dependency-name: "SixLabors.ImageSharp"
-        update-types: ["version-update:semver-major"]
+        versions: [">= 3.2.0"]
+      # 4.14.0 bundles axe-core 4.14, which turns on label-content-name-mismatch (WCAG 2.5.3) by
+      # default. It fails the admin accessibility sweep on the GOV.UK Frontend File upload button
+      # (/admin/storage/app/rules-config). Held on 4.13 until that finding is dealt with.
+      - dependency-name: "Deque.AxeCore.Playwright"
+        versions: [">= 4.14.0"]
 
   - package-ecosystem: docker
     directories:

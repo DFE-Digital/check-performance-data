@@ -34,8 +34,13 @@ public sealed class SearchAnalyticsNewDrillInActionsTests
     {
         await TruncateAsync();
 
-        // Monday 2026-07-27 12:30 UTC is ISO weekday 1, hour 12.
-        var monday1230 = new DateTime(2026, 07, 27, 12, 30, 00, DateTimeKind.Utc);
+        // The most recent Monday 12:30 UTC (ISO weekday 1, hour 12) whose surrounding hour is
+        // already over. It has to be relative to the clock: ResolveWindow clamps a custom
+        // window to the last 90 days, so a fixed date fell out of it on 25 October 2026.
+        var now = DateTime.UtcNow;
+        var daysSinceMonday = ((int)now.DayOfWeek + 6) % 7;
+        var monday1230 = now.Date.AddDays(-daysSinceMonday).AddHours(12).AddMinutes(30);
+        if (monday1230.AddHours(1) > now) monday1230 = monday1230.AddDays(-7);
         var from = monday1230.AddHours(-1);
         var to = monday1230.AddHours(1);
 

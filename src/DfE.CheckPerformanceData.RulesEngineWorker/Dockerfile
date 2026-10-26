@@ -1,5 +1,5 @@
 # Each base image is pinned by digest, which Dependabot keeps current (docs/dependabot.md#pins).
-FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:8af87eba5e7cdafb1514d7388be287365da97c132509e84dfe252ffd552398ca AS base
+FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:de0ee358cdd672f7017a003bed21e9ac9ed48a27c922a59b18175b6e82fa7fee AS base
 # `apt-get upgrade` applies Ubuntu security updates the base image has not yet
 # been rebuilt with (see the Web Dockerfile for the CVE-2026-84782 example).
 # curl is used by the container orchestrator's exec probe to query the HTTP health surface.
@@ -12,7 +12,7 @@ EXPOSE 8080
 USER $APP_UID
 WORKDIR /app
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0@sha256:747cbade5bfd918a175ac32f8f1d931edec2c7d0d5397a3de72eaef1ac1f66d2 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0@sha256:de4fe90a98845d75910b9769662465c84de1a934665c431279d1382b2bddc02b AS build
 ENV NUGET_CERT_REVOCATION_MODE=offline
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src

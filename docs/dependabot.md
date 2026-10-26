@@ -45,7 +45,8 @@ Each run shows in **Actions** as **Dependabot Updates**, with its log.
 |------------|--------------|-----|
 | `Microsoft.AspNetCore.*`, `Microsoft.EntityFrameworkCore*`, `Microsoft.Extensions.*`, `System.Security.Cryptography.Xml`, `Npgsql*`, `Serilog.AspNetCore` | Major versions | They move with the .NET version. Moving to .NET 11 is an upgrade of its own. Patches still come. |
 | `mcr.microsoft.com/dotnet/aspnet`, `mcr.microsoft.com/dotnet/sdk` | Major versions | Moving to .NET 11 is an upgrade of its own. Each new digest of the `10.0` tag is still proposed. |
-| `SixLabors.ImageSharp` | Major versions | Version 4 fails the build without a paid Six Labors licence key. |
+| `SixLabors.ImageSharp` | 3.2.0 and later | From 3.2.0 the build fails without a Six Labors licence key, and a commercial key is paid for. Held on 3.1.x until there is a licence decision. |
+| `Deque.AxeCore.Playwright` | 4.14.0 and later | It bundles axe-core 4.14, which turns on the `label-content-name-mismatch` rule (WCAG 2.5.3). The rule fails the admin accessibility sweep on the GOV.UK Frontend File upload button. Held on 4.13 until that is dealt with. |
 | `mcr.microsoft.com/playwright/dotnet` | Any version | Its tag follows the NuGet package. See [Playwright](#playwright). |
 
 To stop a dependency being proposed, add an `ignore` entry to `.github/dependabot.yml` with the

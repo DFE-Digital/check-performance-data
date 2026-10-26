@@ -52,7 +52,7 @@ public sealed class CheckYourPupilDataViewRenderTests
         var view = ReadView();
 
         var downloadAll = view.IndexOf("asp-action=\"DownloadAll\"", StringComparison.Ordinal);
-        var firstBranch = view.IndexOf("@if (Model.OffersEnquiryOnly)", StringComparison.Ordinal);
+    var firstBranch = view.IndexOf("@if (!Impersonation.IsImpersonating && Model.OffersEnquiryOnly)", StringComparison.Ordinal);
         var lastForm = view.LastIndexOf("</form>", StringComparison.Ordinal);
         var firstTabs = view.IndexOf("<govuk-tabs>", StringComparison.Ordinal);
 

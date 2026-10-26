@@ -323,7 +323,7 @@
       "id": "k2ub",
       "name": "RolesAll",
       "documentation": "",
-      "value": "{\n  \"roles\" : [\n    {\n      \"code\" : \"cypmd_user\"\n    }, {\n      \"code\" : \"cypmd_content_access_user\"\n    }, {\n      \"code\" : \"cypmd_admin\"\n    }\n  ]\n}"
+      "value": "{\n  \"roles\" : [\n    {\n      \"code\" : \"cypmd_user\"\n    }, {\n      \"code\" : \"cypmd_content_access_user\"\n    }, {\n      \"code\" : \"cypmd_admin\"\n    }, {\n      \"code\":  \"cypmd_impersonation\"\n    }\n  ]\n}"
     },
     {
       "uuid": "c7619474-cd08-454d-8a57-1d0dec489c14",

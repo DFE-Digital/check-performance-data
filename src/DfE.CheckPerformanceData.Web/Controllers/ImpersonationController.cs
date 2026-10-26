@@ -10,11 +10,22 @@ namespace DfE.CheckPerformanceData.Web.Controllers;
 
 [Authorize]
 [DfE.CheckPerformanceData.Web.Admin.RequireAdminSection("impersonation")]
-public sealed class ImpersonationController(ImpersonationSessionService session, IImpersonationAuditWriter audit, ICurrentUserService original) : Controller
+public sealed class ImpersonationController(
+    ImpersonationSessionService session,
+    IImpersonationAuditWriter audit,
+    ICurrentUserService original,
+    EstablishmentDirectory establishments) : Controller
 {
     [HttpGet("admin/impersonation")]
     public IActionResult Index() => ImpersonationAccessPolicy.CanAccess(User) && session.IsInitialised
         ? View(new ImpersonationViewModel()) : Forbid();
+
+    [HttpGet("admin/impersonation/search")]
+    public IActionResult Search([FromQuery] string? query)
+    {
+        if (!ImpersonationAccessPolicy.CanAccess(User) || !session.IsInitialised) return Forbid();
+        return Json(establishments.Search(query));
+    }
 
     [HttpPost("admin/impersonation")]
     [ValidateAntiForgeryToken]

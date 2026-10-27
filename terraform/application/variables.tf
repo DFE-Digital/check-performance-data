@@ -88,8 +88,8 @@ variable "replicas" {
 }
 
 variable "max_memory" {
-    type = string
-    default = "4Gi"    
+  type    = string
+  default = "4Gi"
 }
 
 variable "worker_docker_image" {
@@ -152,6 +152,12 @@ variable "postgres_flexible_server_sku" {
   default = "B_Standard_B1ms"
 }
 
+variable "server_version" {
+  type        = string
+  description = "Postgres server version"
+  default     = "17"
+}
+
 variable "enable_postgres_high_availability" {
   default = false
 }
@@ -184,4 +190,11 @@ locals {
   federated_auth_secrets = var.enable_dfe_analytics_federated_auth ? {
     DfeAnalytics__CredentialsJson = module.dfe_analytics[0].google_cloud_credentials
   } : {}
+
+  gcp_project_id    = "check-performance-data"
+  gcp_region        = "europe-west2"
+  gcp_keyring       = "cypd-key-ring"
+  gcp_key           = "cypd-key"
+  gcp_taxonomy_id   = "7450003253557751837"
+  gcp_policy_tag_id = "7087412595261736586"
 }

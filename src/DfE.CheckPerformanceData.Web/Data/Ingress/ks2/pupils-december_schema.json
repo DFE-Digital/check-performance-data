@@ -1,0 +1,1113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "pupils-december_schema.json",
+  "title": "KS2 pupils (December)",
+  "description": "One row of the supplier's (LDS) KS2 December pupil file, transcribed from the KS2 field specification. A display-only data share: it does not feed the journeys, which read the September file (pupils_schema.json). It has the September fields plus CLA_PP_1_DAY and FSM6CLA1A after NEWMOBILE, so later columns are two letters along. Field references are the CSV headers, and the download's headings. MATCHREF is in the file but not in the download; nothing reads it here, so it may be blank. The inclusion rule writes P_INCL_DESC, shown in the download. Four supplier columns are read under the same names as in the September file (x-ingress.source).",
+  "type": "object",
+  "additionalProperties": false,
+  "x-ingress": {
+    "collection": "pupils-december",
+    "pageTab": "pupils-december",
+    "institutionKey": "LAESTAB",
+    "inclusion": {
+      "field": "P_INCL",
+      "included": [
+        "201"
+      ],
+      "descriptionField": "P_INCL_DESC",
+      "descriptions": {
+        "201": "Pupil included in KS2 calculations as at the end of KS2.",
+        "202": "Pupil excluded from KS2 calculations as not at the end of KS2.",
+        "203": "Pupil excluded from KS2 calculations at the request of the school."
+      }
+    }
+  },
+  "x-download": {
+    "fileName": "ks2pupils-december.csv",
+    "label": "Pupils (December)"
+  },
+  "x-display": {
+    "tab": "pupils-december",
+    "section": "Pupils (December)",
+    "selectorOrder": 0
+  },
+  "properties": {
+    "INCLUDED": {
+      "type": "boolean",
+      "description": "Stamped by ingress from x-ingress.inclusion: true when P_INCL is an included code. Not a supplier column, so not downloaded or shown.",
+      "x-csv": {
+        "columns": {},
+        "heading": "Included"
+      },
+      "x-display": {
+        "label": "Included",
+        "visible": false,
+        "order": 999
+      }
+    },
+    "LAESTAB": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "7-digit LA/establishment number",
+      "x-csv": {
+        "columns": {
+          "december": "A"
+        },
+        "heading": "LAESTAB"
+      },
+      "x-display": {
+        "label": "DfE Establishment number",
+        "visible": false,
+        "order": 9
+      }
+    },
+    "URN": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "6-digit school unique reference number",
+      "minimum": 0,
+      "maximum": 999999,
+      "x-csv": {
+        "columns": {
+          "december": "B"
+        },
+        "heading": "URN"
+      },
+      "x-display": {
+        "label": "School URN",
+        "visible": false,
+        "order": 10
+      }
+    },
+    "UPN": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Unique Pupil Number. May be incorrect or missing: it is not yet used directly in the calculation of performance data.",
+      "x-csv": {
+        "columns": {
+          "december": "C"
+        },
+        "heading": "UPN"
+      },
+      "x-display": {
+        "label": "UPN",
+        "visible": true,
+        "order": 4,
+        "searchable": true
+      }
+    },
+    "CYPMD_ID": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "CYPMD pupil identifier created by LDS",
+      "x-csv": {
+        "columns": {
+          "december": "D"
+        },
+        "heading": "CYPMD_ID"
+      },
+      "x-display": {
+        "label": "CYPMD ID",
+        "visible": false,
+        "order": 5
+      }
+    },
+    "MATCHREF": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Unique pupil identifier created by LDS (LDS matched pupil ID). Not in the download.",
+      "x-csv": {
+        "columns": {},
+        "heading": "MATCHREF"
+      },
+      "x-display": {
+        "label": "LDS matched pupil ID",
+        "visible": false,
+        "order": 6
+      }
+    },
+    "P_INCL": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Pupil inclusion status flag: 201 = included as at the end of KS2; 202 = excluded, not at the end of KS2; 203 = excluded at the request of the school (December only). Read from the supplier's PINCL_Flag column: the journeys read P_INCL.",
+      "x-ingress": {
+        "source": "PINCL_Flag"
+      },
+      "x-csv": {
+        "columns": {
+          "december": "E"
+        },
+        "heading": "PINCL_Flag"
+      },
+      "x-display": {
+        "label": "Inclusion status",
+        "visible": false,
+        "order": 7
+      }
+    },
+    "P_INCL_DESC": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Pupil inclusion description. The spec gives no field reference (the DCI team populates it); the name is the KS4 pupil schema's.",
+      "x-csv": {
+        "columns": {
+          "december": "F"
+        },
+        "heading": "P_INCL_DESC"
+      },
+      "x-display": {
+        "label": "Inclusion description",
+        "visible": false,
+        "order": 8
+      }
+    },
+    "SURNAME": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Pupil surname",
+      "x-csv": {
+        "columns": {
+          "december": "G"
+        },
+        "heading": "SURNAME"
+      },
+      "x-display": {
+        "label": "Last name",
+        "visible": true,
+        "order": 0,
+        "searchable": true
+      }
+    },
+    "FORENAME": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Pupil forename(s)",
+      "x-csv": {
+        "columns": {
+          "december": "H"
+        },
+        "heading": "FORENAME"
+      },
+      "x-display": {
+        "label": "First name",
+        "visible": true,
+        "order": 1,
+        "searchable": true
+      }
+    },
+    "SEX": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Pupil sex (M = male, F = female). Read from the supplier's Sex column: the journeys read SEX.",
+      "x-ingress": {
+        "source": "Sex"
+      },
+      "x-csv": {
+        "columns": {
+          "december": "I"
+        },
+        "heading": "Sex"
+      },
+      "x-display": {
+        "label": "Sex",
+        "visible": true,
+        "order": 2
+      }
+    },
+    "DOB": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Pupil date of birth (spec: DD/MM/YY)",
+      "x-csv": {
+        "columns": {
+          "december": "J"
+        },
+        "heading": "DOB"
+      },
+      "x-display": {
+        "label": "Date of birth",
+        "visible": true,
+        "order": 3
+      }
+    },
+    "ENTRYDAT": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Admission date (spec: DD/MM/YY)",
+      "x-csv": {
+        "columns": {
+          "december": "K"
+        },
+        "heading": "ENTRYDAT"
+      },
+      "x-display": {
+        "label": "Admission date",
+        "visible": false,
+        "order": 11
+      }
+    },
+    "SENF": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Special educational needs (N = no special provision, K = SEN support, E = EHC plan). Read from the supplier's SEN column: the journeys read SENF.",
+      "x-ingress": {
+        "source": "SEN"
+      },
+      "x-csv": {
+        "columns": {
+          "december": "L"
+        },
+        "heading": "SEN"
+      },
+      "x-display": {
+        "label": "SEN",
+        "visible": false,
+        "order": 12
+      }
+    },
+    "ETHNIC": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Pupil's ethnicity (census categories). Read from the supplier's ETHNICITY column: the journeys read ETHNIC.",
+      "x-ingress": {
+        "source": "ETHNICITY"
+      },
+      "x-csv": {
+        "columns": {
+          "december": "M"
+        },
+        "heading": "ETHNICITY"
+      },
+      "x-display": {
+        "label": "Ethnicity",
+        "visible": false,
+        "order": 14
+      }
+    },
+    "LANG1ST": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "First language (ENG, ENB, OTH, OTB, REF, NOT, ZZZ)",
+      "x-csv": {
+        "columns": {
+          "december": "N"
+        },
+        "heading": "LANG1ST"
+      },
+      "x-display": {
+        "label": "First language",
+        "visible": false,
+        "order": 13
+      }
+    },
+    "EALGRP": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Language group (1 = ENG or ENB, 2 = OTH or OTB, 3 = REF or NOT)",
+      "x-csv": {
+        "columns": {
+          "december": "O"
+        },
+        "heading": "EALGRP"
+      },
+      "x-display": {
+        "label": "Language group",
+        "visible": false,
+        "order": 15
+      }
+    },
+    "FSM": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Eligible for free school meals (1 = yes, 0 = no)",
+      "x-csv": {
+        "columns": {
+          "december": "P"
+        },
+        "heading": "FSM"
+      },
+      "x-display": {
+        "label": "Free school meals",
+        "visible": false,
+        "order": 16
+      }
+    },
+    "FSM6_P": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Eligible for FSM in any period in the last 6 years (1 = yes, 0 = no)",
+      "x-csv": {
+        "columns": {
+          "december": "Q"
+        },
+        "heading": "FSM6_P"
+      },
+      "x-display": {
+        "label": "FSM in last 6 years",
+        "visible": false,
+        "order": 17
+      }
+    },
+    "YOUNGCARER": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Identified as a young carer (1 = yes, 0 = no)",
+      "x-csv": {
+        "columns": {
+          "december": "R"
+        },
+        "heading": "YOUNGCARER"
+      },
+      "x-display": {
+        "label": "Young carer",
+        "visible": false,
+        "order": 18
+      }
+    },
+    "NEWMOBILE": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Pupil is defined as mobile: 0 = No, 1 = Yes",
+      "enum": [
+        0,
+        1,
+        null
+      ],
+      "x-csv": {
+        "columns": {
+          "december": "S"
+        },
+        "heading": "NEWMOBILE"
+      },
+      "x-display": {
+        "label": "Mobile",
+        "visible": false,
+        "order": 19
+      }
+    },
+    "CLA_PP_1_DAY": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Has pupil been looked after for 1 day in the year ending 31/3/2025 and aged 5-15? 1 = Yes, 0 = Otherwise. December file only.",
+      "x-csv": {
+        "columns": {
+          "december": "T"
+        },
+        "heading": "CLA_PP_1_DAY"
+      },
+      "x-display": {
+        "label": "Looked after for 1 day",
+        "visible": false,
+        "order": 56
+      }
+    },
+    "FSM6CLA1A": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Has pupil been eligible for free school meals in the last 6 years or looked after for a day or more or adopted from care? 1 = Yes, 0 = Otherwise. December file only.",
+      "x-csv": {
+        "columns": {
+          "december": "U"
+        },
+        "heading": "FSM6CLA1A"
+      },
+      "x-display": {
+        "label": "Disadvantaged (FSM6, CLA or adopted from care)",
+        "visible": false,
+        "order": 57
+      }
+    },
+    "KS1READ": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "KS1 reading outcome (A, D, M, GDS, EXS, WTS, BLW, PKF, PK1-PK4, Q)",
+      "x-csv": {
+        "columns": {
+          "december": "V"
+        },
+        "heading": "KS1READ"
+      },
+      "x-display": {
+        "label": "KS1 reading",
+        "visible": false,
+        "order": 20
+      }
+    },
+    "KS1WRIT": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "KS1 writing outcome (A, D, M, GDS, EXS, WTS, BLW, PKF, PK1-PK4, Q)",
+      "x-csv": {
+        "columns": {
+          "december": "W"
+        },
+        "heading": "KS1WRIT"
+      },
+      "x-display": {
+        "label": "KS1 writing",
+        "visible": false,
+        "order": 21
+      }
+    },
+    "KS1MAT": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "KS1 mathematics outcome (A, D, M, GDS, EXS, WTS, BLW, PKF, PK1-PK4, Q)",
+      "x-csv": {
+        "columns": {
+          "december": "X"
+        },
+        "heading": "KS1MAT"
+      },
+      "x-display": {
+        "label": "KS1 mathematics",
+        "visible": false,
+        "order": 22
+      }
+    },
+    "KS1AVERAGEPS": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "KS1 average point score (0.25-10)",
+      "x-csv": {
+        "columns": {
+          "december": "Y"
+        },
+        "heading": "KS1AVERAGEPS"
+      },
+      "x-display": {
+        "label": "KS1 average point score",
+        "visible": false,
+        "order": 23
+      }
+    },
+    "KS1GROUP": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "KS1 prior attainment band (1 = low, 2 = medium, 3 = high, 4 = NA)",
+      "x-csv": {
+        "columns": {
+          "december": "Z"
+        },
+        "heading": "KS1GROUP"
+      },
+      "x-display": {
+        "label": "KS1 prior attainment band",
+        "visible": false,
+        "order": 24
+      }
+    },
+    "READOUTCOME": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "KS2 reading outcome (A, B, L, M, F, P, H, Q, S, X, Z, AS, NS, J, U)",
+      "x-csv": {
+        "columns": {
+          "december": "AA"
+        },
+        "heading": "READOUTCOME"
+      },
+      "x-display": {
+        "label": "KS2 reading outcome",
+        "visible": false,
+        "order": 25
+      }
+    },
+    "MATOUTCOME": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "KS2 mathematics outcome (A, B, L, M, F, P, H, Q, S, X, Z, AS, NS, J, U)",
+      "x-csv": {
+        "columns": {
+          "december": "AB"
+        },
+        "heading": "MATOUTCOME"
+      },
+      "x-display": {
+        "label": "KS2 mathematics outcome",
+        "visible": false,
+        "order": 26
+      }
+    },
+    "GPSOUTCOME": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "KS2 grammar, punctuation and spelling outcome (A, B, L, M, F, P, H, Q, S, X, Z, AS, NS, J, U)",
+      "x-csv": {
+        "columns": {
+          "december": "AC"
+        },
+        "heading": "GPSOUTCOME"
+      },
+      "x-display": {
+        "label": "KS2 GPS outcome",
+        "visible": false,
+        "order": 27
+      }
+    },
+    "READSCORE": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "KS2 reading scaled score (80-120, N = no scaled score)",
+      "x-csv": {
+        "columns": {
+          "december": "AD"
+        },
+        "heading": "READSCORE"
+      },
+      "x-display": {
+        "label": "KS2 reading scaled score",
+        "visible": false,
+        "order": 28
+      }
+    },
+    "MATSCORE": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "KS2 mathematics scaled score (80-120, N = no scaled score)",
+      "x-csv": {
+        "columns": {
+          "december": "AE"
+        },
+        "heading": "MATSCORE"
+      },
+      "x-display": {
+        "label": "KS2 mathematics scaled score",
+        "visible": false,
+        "order": 29
+      }
+    },
+    "GPSSCORE": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "KS2 GPS scaled score (80-120, N = no scaled score)",
+      "x-csv": {
+        "columns": {
+          "december": "AF"
+        },
+        "heading": "GPSSCORE"
+      },
+      "x-display": {
+        "label": "KS2 GPS scaled score",
+        "visible": false,
+        "order": 30
+      }
+    },
+    "READMRK": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "KS2 reading mark (0-50 where numeric)",
+      "x-csv": {
+        "columns": {
+          "december": "AG"
+        },
+        "heading": "READMRK"
+      },
+      "x-display": {
+        "label": "KS2 reading mark",
+        "visible": false,
+        "order": 31
+      }
+    },
+    "MATMRK": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "KS2 mathematics mark (0-110 where numeric)",
+      "x-csv": {
+        "columns": {
+          "december": "AH"
+        },
+        "heading": "MATMRK"
+      },
+      "x-display": {
+        "label": "KS2 mathematics mark",
+        "visible": false,
+        "order": 32
+      }
+    },
+    "GPSMRK": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "KS2 GPS mark (0-70 where numeric)",
+      "x-csv": {
+        "columns": {
+          "december": "AI"
+        },
+        "heading": "GPSMRK"
+      },
+      "x-display": {
+        "label": "KS2 GPS mark",
+        "visible": false,
+        "order": 33
+      }
+    },
+    "READSPECCON": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "KS2 reading special consideration (0 = not approved, 1 = approved but test not sat or no mark data yet, 2 = approved, blank = none)",
+      "x-csv": {
+        "columns": {
+          "december": "AJ"
+        },
+        "heading": "READSPECCON"
+      },
+      "x-display": {
+        "label": "KS2 reading special consideration",
+        "visible": false,
+        "order": 34
+      }
+    },
+    "MATSPECCON": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "KS2 mathematics special consideration (0 = not approved, 1 = approved but test not sat or no mark data yet, 2 = approved, blank = none)",
+      "x-csv": {
+        "columns": {
+          "december": "AK"
+        },
+        "heading": "MATSPECCON"
+      },
+      "x-display": {
+        "label": "KS2 mathematics special consideration",
+        "visible": false,
+        "order": 35
+      }
+    },
+    "GPSSPECCON": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "KS2 GPS special consideration (0 = not approved, 1 = approved but test not sat or no mark data yet, 2 = approved, blank = none)",
+      "x-csv": {
+        "columns": {
+          "december": "AL"
+        },
+        "heading": "GPSSPECCON"
+      },
+      "x-display": {
+        "label": "KS2 GPS special consideration",
+        "visible": false,
+        "order": 36
+      }
+    },
+    "ELIGRWM": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Eligible in reading test, writing TA and mathematics test (0 = no, 1 = yes)",
+      "x-csv": {
+        "columns": {
+          "december": "AM"
+        },
+        "heading": "ELIGRWM"
+      },
+      "x-display": {
+        "label": "Eligible for RWM",
+        "visible": false,
+        "order": 37
+      }
+    },
+    "RWMEXP": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Reached the expected standard in reading test, writing TA and mathematics test (0 = no, 1 = yes)",
+      "x-csv": {
+        "columns": {
+          "december": "AN"
+        },
+        "heading": "RWMEXP"
+      },
+      "x-display": {
+        "label": "RWM expected standard",
+        "visible": false,
+        "order": 38
+      }
+    },
+    "WRITTAOUTCOME": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Writing teacher assessment (A, D, Q, L, M, F, P, Z, WTS, GDS, EXS, EM, PK1-PK6)",
+      "x-csv": {
+        "columns": {
+          "december": "AO"
+        },
+        "heading": "WRITTAOUTCOME"
+      },
+      "x-display": {
+        "label": "Writing TA",
+        "visible": false,
+        "order": 39
+      }
+    },
+    "SCITAOUTCOME": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Science teacher assessment (A, D, Q, L, M, F, P, Z, EXS, HNM)",
+      "x-csv": {
+        "columns": {
+          "december": "AP"
+        },
+        "heading": "SCITAOUTCOME"
+      },
+      "x-display": {
+        "label": "Science TA",
+        "visible": false,
+        "order": 40
+      }
+    },
+    "MATTAOUTCOME": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Mathematics teacher assessment (A, D, Q, L, M, F, P, Z, EM, PK1-PK6)",
+      "x-csv": {
+        "columns": {
+          "december": "AQ"
+        },
+        "heading": "MATTAOUTCOME"
+      },
+      "x-display": {
+        "label": "Mathematics TA",
+        "visible": false,
+        "order": 41
+      }
+    },
+    "READTAOUTCOME": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Reading teacher assessment (A, D, Q, L, M, F, P, Z, EM, PK1-PK6)",
+      "x-csv": {
+        "columns": {
+          "december": "AR"
+        },
+        "heading": "READTAOUTCOME"
+      },
+      "x-display": {
+        "label": "Reading TA",
+        "visible": false,
+        "order": 42
+      }
+    },
+    "INREADPROG": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "In the reading progress measure (0 = no, 1 = yes)",
+      "x-csv": {
+        "columns": {
+          "december": "AS"
+        },
+        "heading": "INREADPROG"
+      },
+      "x-display": {
+        "label": "In reading progress",
+        "visible": false,
+        "order": 43
+      }
+    },
+    "INWRITPROG": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "In the writing progress measure (0 = no, 1 = yes)",
+      "x-csv": {
+        "columns": {
+          "december": "AT"
+        },
+        "heading": "INWRITPROG"
+      },
+      "x-display": {
+        "label": "In writing progress",
+        "visible": false,
+        "order": 44
+      }
+    },
+    "INMATPROG": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "In the mathematics progress measure (0 = no, 1 = yes)",
+      "x-csv": {
+        "columns": {
+          "december": "AU"
+        },
+        "heading": "INMATPROG"
+      },
+      "x-display": {
+        "label": "In mathematics progress",
+        "visible": false,
+        "order": 45
+      }
+    },
+    "KS1AVERAGE_GRP_P": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Prior attainment group for progress measures (1-20)",
+      "x-csv": {
+        "columns": {
+          "december": "AV"
+        },
+        "heading": "KS1AVERAGE_GRP_P"
+      },
+      "x-display": {
+        "label": "Prior attainment group",
+        "visible": false,
+        "order": 46
+      }
+    },
+    "KS2READSCORE": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "KS2 reading attainment score for progress measure (60-120)",
+      "x-csv": {
+        "columns": {
+          "december": "AW"
+        },
+        "heading": "KS2READSCORE"
+      },
+      "x-display": {
+        "label": "KS2 reading progress attainment score",
+        "visible": false,
+        "order": 47
+      }
+    },
+    "KS2WRITSCORE": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "KS2 writing attainment score for progress measure (60-120)",
+      "x-csv": {
+        "columns": {
+          "december": "AX"
+        },
+        "heading": "KS2WRITSCORE"
+      },
+      "x-display": {
+        "label": "KS2 writing progress attainment score",
+        "visible": false,
+        "order": 48
+      }
+    },
+    "KS2MATSCORE": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "KS2 mathematics attainment score for progress measure (60-120)",
+      "x-csv": {
+        "columns": {
+          "december": "AY"
+        },
+        "heading": "KS2MATSCORE"
+      },
+      "x-display": {
+        "label": "KS2 mathematics progress attainment score",
+        "visible": false,
+        "order": 49
+      }
+    },
+    "KS2READPRED_EM": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Average reading score for pupils in the same prior attainment group",
+      "x-csv": {
+        "columns": {
+          "december": "AZ"
+        },
+        "heading": "KS2READPRED_EM"
+      },
+      "x-display": {
+        "label": "Predicted KS2 reading score",
+        "visible": false,
+        "order": 50
+      }
+    },
+    "KS2WRITPRED_EM": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Average writing score for pupils in the same prior attainment group",
+      "x-csv": {
+        "columns": {
+          "december": "BA"
+        },
+        "heading": "KS2WRITPRED_EM"
+      },
+      "x-display": {
+        "label": "Predicted KS2 writing score",
+        "visible": false,
+        "order": 51
+      }
+    },
+    "KS2MATPRED_EM": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Average mathematics score for pupils in the same prior attainment group",
+      "x-csv": {
+        "columns": {
+          "december": "BB"
+        },
+        "heading": "KS2MATPRED_EM"
+      },
+      "x-display": {
+        "label": "Predicted KS2 mathematics score",
+        "visible": false,
+        "order": 52
+      }
+    },
+    "READPROGSCORE_EM_ADJUSTED": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "KS2 reading attainment score for progress measure minus predicted KS2 reading score",
+      "x-csv": {
+        "columns": {
+          "december": "BC"
+        },
+        "heading": "READPROGSCORE_EM_ADJUSTED"
+      },
+      "x-display": {
+        "label": "Reading progress score",
+        "visible": false,
+        "order": 53
+      }
+    },
+    "WRITPROGSCORE_EM_ADJUSTED": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "KS2 writing attainment score for progress measure minus predicted KS2 writing score",
+      "x-csv": {
+        "columns": {
+          "december": "BD"
+        },
+        "heading": "WRITPROGSCORE_EM_ADJUSTED"
+      },
+      "x-display": {
+        "label": "Writing progress score",
+        "visible": false,
+        "order": 54
+      }
+    },
+    "MATPROGSCORE_EM_ADJUSTED": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "KS2 mathematics attainment score for progress measure minus predicted KS2 mathematics score",
+      "x-csv": {
+        "columns": {
+          "december": "BE"
+        },
+        "heading": "MATPROGSCORE_EM_ADJUSTED"
+      },
+      "x-display": {
+        "label": "Mathematics progress score",
+        "visible": false,
+        "order": 55
+      }
+    }
+  }
+}

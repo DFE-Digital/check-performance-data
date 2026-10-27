@@ -231,7 +231,7 @@ A question may carry `"optionalWhen": "<ConditionName>"` (a bare string or an ar
 
 - `IQuestionOptionalityService.GetConditionallyOptionalQuestionIds(page, ctx)` returns the set of a page's question IDs that are currently optional. `JourneyController.PagePost` computes this once per page (right after building the `JourneyConditionContext`) and both the file-upload and text mandatory checks consult it via a local `IsMandatory(question)` helper.
 - The same set is threaded into `IJourneyValidationService.ValidateEvidencePage(page, journey, pupilName, conditionallyOptionalQuestionIds)` so drafts (`JourneyController.IsEvidencePageValid` → `DetermineStatus`) and the amendment edit-advice screen (`EditAdviceService.GetEvidenceMessages`) re-validate a saved evidence page consistently with the live journey, rather than falling back to always-mandatory.
-- Registered condition: **`EalEvidenceIsOptional`** (introduced by PBI 292266, revised by AB#309468) — applied to both questions on the shared KS4June `evidence` page (`Remove_KS4June.json`). It evaluates only the `reason` and `first-language` answers, so evidence upload/comments become optional for exactly four first-language answers:
+- Registered condition: **`EalEvidenceIsOptional`** (introduced by PBI 292266, revised by AB#309468) — applied to both questions on the shared `evidence` page of `Remove_KS4June.json` and `Remove_KS2.json`. It evaluates only the `reason` and `first-language` answers, so evidence upload/comments become optional for exactly four first-language answers:
 
   | `first-language` | Evidence |
   |---|---|

@@ -725,4 +725,44 @@ public class QuestionFlowServiceTests
             QuestionHistory = history ?? [],
             QuestionAnswers = answers ?? new()
         };
+
+    // ── GetPupilDataChangesAsync (docs/ks2-journeys.md, decision 1) ─────────
+
+    private static readonly QuestionFlowConfig AnyFlow = new() { FirstPageId = "p", Pages = [] };
+
+    [Fact]
+    public async Task GetPupilDataChangesAsync_ReturnsTheChangesThatHaveAFlowFile_InDisplayOrder()
+    {
+        _blobClient.GetConfigAsync(WhatToChange.Remove, CheckingWindowType.KS4June).Returns(AnyFlow);
+        _blobClient.GetConfigAsync(WhatToChange.Add, CheckingWindowType.KS4June).Returns(AnyFlow);
+        _blobClient.GetConfigAsync(WhatToChange.Merge, CheckingWindowType.KS4June).Returns(AnyFlow);
+        _blobClient.GetConfigAsync(WhatToChange.Include, CheckingWindowType.KS4June).Returns(AnyFlow);
+
+        var changes = await _sut.GetPupilDataChangesAsync(CheckingWindowType.KS4June);
+
+        Assert.Equal([WhatToChange.Merge, WhatToChange.Include, WhatToChange.Remove, WhatToChange.Add], changes);
+    }
+
+    [Fact]
+    public async Task GetPupilDataChangesAsync_LeavesOutAChangeWithNoFlowFile()
+    {
+        _blobClient.GetConfigAsync(WhatToChange.Remove, CheckingWindowType.KS2).Returns(AnyFlow);
+
+        var changes = await _sut.GetPupilDataChangesAsync(CheckingWindowType.KS2);
+
+        Assert.Equal([WhatToChange.Remove], changes);
+    }
+
+    [Fact]
+    public async Task GetPupilDataChangesAsync_NeverOffersAResultsChange()
+    {
+        // The results changes start from the results-enquiry page, not from What to change.
+        _blobClient.GetConfigAsync(WhatToChange.IncorrectGrade, CheckingWindowType.Post16).Returns(AnyFlow);
+        _blobClient.GetConfigAsync(WhatToChange.MissingQualification, CheckingWindowType.Post16).Returns(AnyFlow);
+        _blobClient.GetConfigAsync(WhatToChange.ResultDoesNotBelong, CheckingWindowType.Post16).Returns(AnyFlow);
+
+        var changes = await _sut.GetPupilDataChangesAsync(CheckingWindowType.Post16);
+
+        Assert.Empty(changes);
+    }
 }

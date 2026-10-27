@@ -113,6 +113,18 @@ public sealed class RemovalJourneyDateRulesTests
             violation.Message);
     }
 
+    [Fact]
+    public void Ks2_AddedAfterSummerTerm_FutureDate_FlagsDateAddedToRoll()
+    {
+        var violation = Assert.Single(Evaluate(
+            RemovalJourneyDateRules.AddedAfterSummerTermPageId,
+            RemovalJourneyDateRules.DateAddedToRoll,
+            Today.AddDays(1)));
+
+        Assert.Equal(RemovalJourneyDateRules.DateAddedToRoll, violation.QuestionId);
+        Assert.Equal("Date Alice Smith arrived at your school must be in the past", violation.Message);
+    }
+
     [Theory]
     [InlineData(nameof(RemovalJourneyDateRules.StudentDiedPageId))]
     public void AppliesToPage_IsTrue_For16To19RemovalPages(string pageIdField)
@@ -134,6 +146,7 @@ public sealed class RemovalJourneyDateRulesTests
     [InlineData(nameof(RemovalJourneyDateRules.PermanentlyExcludedPageId), nameof(RemovalJourneyDateRules.DatePermanentlyExcluded))]
     [InlineData(nameof(RemovalJourneyDateRules.PermanentlyLeftEnglandPageId), nameof(RemovalJourneyDateRules.DateRemovedFromRoll))]
     [InlineData(nameof(RemovalJourneyDateRules.StudentDiedPageId), nameof(RemovalJourneyDateRules.DateRemovedFromRoll))]
+    [InlineData(nameof(RemovalJourneyDateRules.AddedAfterSummerTermPageId), nameof(RemovalJourneyDateRules.DateAddedToRoll))]
     public void Today_IsAcceptable_OnEveryRemovalPage(string pageIdField, string questionIdField)
     {
         var pageId = (string)typeof(RemovalJourneyDateRules).GetField(pageIdField)!.GetValue(null)!;
@@ -161,6 +174,7 @@ public sealed class RemovalJourneyDateRulesTests
     [InlineData(nameof(RemovalJourneyDateRules.PermanentlyExcludedPageId), nameof(RemovalJourneyDateRules.DatePermanentlyExcluded))]
     [InlineData(nameof(RemovalJourneyDateRules.PermanentlyLeftEnglandPageId), nameof(RemovalJourneyDateRules.DateRemovedFromRoll))]
     [InlineData(nameof(RemovalJourneyDateRules.StudentDiedPageId), nameof(RemovalJourneyDateRules.DateRemovedFromRoll))]
+    [InlineData(nameof(RemovalJourneyDateRules.AddedAfterSummerTermPageId), nameof(RemovalJourneyDateRules.DateAddedToRoll))]
     public void HistoricallyDistantPastDate_IsAcceptable_OnEveryRemovalPage(string pageIdField, string questionIdField)
     {
         // US3: no lower limit — a removal a decade and a half ago is a legitimate answer.

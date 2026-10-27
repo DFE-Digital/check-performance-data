@@ -77,8 +77,6 @@ public sealed class SeedRulesValidationTests
     /// </summary>
     private static readonly string[] PendingJourneyOutcomeKeys =
     [
-        "AssessmentsDeferred",
-        "PupilAddedAfterSummerTerm",
         "PupilNotOnJuneList",
     ];
 

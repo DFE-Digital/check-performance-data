@@ -116,6 +116,7 @@ public static class SeedKs2PupilData
             // Letter, LAESTAB, year, serial: 13 characters, unique in the school.
             ["UPN"] = $"K{laestab}25{i:D3}",
             ["CYPMD_ID"] = $"2{school:D2}{i:D4}",
+            ["MATCHREF"] = $"5{school:D2}{i:D4}",
             ["P_INCL"] = pincl,
             ["SURNAME"] = SeedPupilData.Surnames[name / SeedPupilData.Firstnames.Length],
             ["FORENAME"] = SeedPupilData.Firstnames[name % SeedPupilData.Firstnames.Length],

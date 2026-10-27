@@ -6,7 +6,6 @@ using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Analytics;
 using DfE.CheckPerformanceData.Web.Common;
-using DfE.CheckPerformanceData.Web.Controllers.Journey;
 using DfE.CheckPerformanceData.Web.Session;
 using Microsoft.AspNetCore.Mvc;
 
@@ -37,8 +36,8 @@ public sealed class WhatToChangeController(
         {
             WindowId = windowId,
             SelectedWhatToChange = journey.SelectedWhatToChange,
-            CheckingWindowType = window.CheckingWindowType,
-            LearnerNoun = LearnerNoun.For(window.CheckingWindowType)
+            LearnerNoun = LearnerNoun.For(window.CheckingWindowType),
+            AvailableChanges = await flowService.GetPupilDataChangesAsync(window.CheckingWindowType)
         });
     }
 
@@ -51,28 +50,20 @@ public sealed class WhatToChangeController(
         if (!checkingExercises.IsOpen(window.Exercises, Exercise, currentUserService.OrganisationLaestab))
             return this.RedirectExerciseClosed(windowId, Exercise, LearnerNoun.For(window.CheckingWindowType));
 
+        var available = await flowService.GetPupilDataChangesAsync(window.CheckingWindowType);
+
         if (vm.SelectedWhatToChange == null)
         {
             var noun = LearnerNoun.For(window.CheckingWindowType);
             ModelState.AddModelError(nameof(WhatToChangeViewModel.SelectedWhatToChange), $"Select what {noun.Singular} data you would like to change");
             await analytics.TrackSafeAsync(new ValidationErrorEvent { ErrorCount = 1, ErrorCodes = [ValidationErrorCoding.NoSelection], ErrorFields = [nameof(WhatToChangeViewModel.SelectedWhatToChange)] });
-            return View("Index", new WhatToChangeViewModel { WindowId = windowId, SelectedWhatToChange = null, CheckingWindowType = window.CheckingWindowType, LearnerNoun = noun });
+            return View("Index", new WhatToChangeViewModel { WindowId = windowId, SelectedWhatToChange = null, LearnerNoun = noun, AvailableChanges = available });
         }
 
-        // #439: the Include journey exists only for the window types that have an Include_*.json.
-        // The radio is hidden elsewhere, but a posted form still arrives here, and a flow file
-        // uploaded to blob for an unsupported window would otherwise open the journey with
-        // nothing failing. Checked before the flow service or the session is touched.
-        if (vm.SelectedWhatToChange == WhatToChange.Include
-            && !IncludeJourney.SupportedWindowTypes.Contains(window.CheckingWindowType))
-            return RedirectToAction("Index", "CheckYourPupilData", new { windowId });
-
-        // AB#297310: the Add journey exists only for the window types that have an Add_*.json.
-        // The radio is hidden elsewhere, but a posted form still arrives here, and a flow file
-        // uploaded to blob for an unsupported window would otherwise open the journey with
-        // nothing failing. Checked before the flow service or the session is touched.
-        if (vm.SelectedWhatToChange == WhatToChange.Add
-            && !AddPupilJourney.SupportedWindowTypes.Contains(window.CheckingWindowType))
+        // docs/ks2-journeys.md, decision 1: a change is offered only when its flow file exists for this window
+        // type. The page shows only those radios, but a posted form (or a forged enum value) still
+        // arrives here. Refused before the flow service or the session is touched.
+        if (!available.Contains(vm.SelectedWhatToChange.Value))
             return RedirectToAction("Index", "CheckYourPupilData", new { windowId });
 
         var config = await flowService.GetConfigAsync(vm.SelectedWhatToChange.Value, window.CheckingWindowType);

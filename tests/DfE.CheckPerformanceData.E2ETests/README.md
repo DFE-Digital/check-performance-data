@@ -14,7 +14,7 @@ There are two ways to run the suite, depending on what you need:
 
 These targets `cd` into the repo from the repo root and assume Docker (for `make test-e2e`) or the .NET 10 host SDK (for `make test-e2e-fast`) is installed. `make help` from the repo root lists every target the Makefile exposes.
 
-First run of `make test-e2e` is slow — it pulls the ~1.5GB Playwright image, builds the thin .NET 10 overlay (per `tests/DfE.CheckPerformanceData.E2ETests/Dockerfile`), and warms the named NuGet cache volume. Allow ~3-5 minutes. Subsequent runs reuse both the image layer cache and the NuGet volume → seconds-to-test-output.
+First run of `make test-e2e` is slow — it pulls the ~1.5GB Playwright image, builds the thin overlay (per `tests/DfE.CheckPerformanceData.E2ETests/Dockerfile`), and warms the named NuGet cache volume. Allow ~3-5 minutes. Subsequent runs reuse both the image layer cache and the NuGet volume → seconds-to-test-output.
 
 Manual fallback (no Make / no Docker):
 
@@ -215,7 +215,7 @@ Traces are named `{ClassName}.{ordinal}.zip`; open one to see which test it belo
 ```
 tests/DfE.CheckPerformanceData.E2ETests/
 ├── .gitignore                      # /Snapshots/diffs/ — never commit failure artefacts
-├── Dockerfile                      # thin overlay: playwright/dotnet:v1.59.0-noble + .NET 10 SDK
+├── Dockerfile                      # thin overlay on playwright/dotnet, which brings Chromium and the .NET 10 SDK
 ├── Fixtures/
 │   ├── PlaywrightFixture.cs         # IAsyncLifetime; readiness probe; antiforgery scrape; owns SeedClient (impersonation) + AnonymousClient (no-cookie) TestHttpClients
 │   └── PlaywrightCollection.cs      # [CollectionDefinition("E2E")] + [CollectionDefinition("Http")], both over PlaywrightFixture

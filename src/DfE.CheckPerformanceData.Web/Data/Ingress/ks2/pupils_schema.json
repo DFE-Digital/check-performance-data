@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "pupils_schema.json",
   "title": "KS2 pupils",
-  "description": "One row of the supplier's (LDS) KS2 pupil file, transcribed from the KS2 field specification. One schema serves the September and December files: they have the same fields in the same order, and only the column letters differ (x-csv.columns 'september' and 'december'). Field references are the CSV headers. Four supplier columns are read under the names the journeys read (x-ingress.source): P_INCL <- PINCL_Flag, SEX <- Sex, SENF <- SEN, ETHNIC <- ETHNICITY.",
+  "description": "One row of the supplier's (LDS) KS2 September pupil file, transcribed from the KS2 field specification. This is the pupil data checking exercise's file: it feeds the journeys. The December file is a separate data share (pupils-december_schema.json). Field references are the CSV headers, and the download's headings. MATCHREF is in the file but not in the download. Four supplier columns are read under the names the journeys read (x-ingress.source): P_INCL <- PINCL_Flag, SEX <- Sex, SENF <- SEN, ETHNIC <- ETHNICITY.",
   "type": "object",
   "additionalProperties": false,
   "x-ingress": {
@@ -53,10 +53,9 @@
       "description": "7-digit LA/establishment number",
       "x-csv": {
         "columns": {
-          "september": "A",
-          "december": "A"
+          "september": "A"
         },
-        "heading": "DfE Establishment number"
+        "heading": "LAESTAB"
       },
       "x-display": {
         "label": "DfE Establishment number",
@@ -74,10 +73,9 @@
       "maximum": 999999,
       "x-csv": {
         "columns": {
-          "september": "B",
-          "december": "B"
+          "september": "B"
         },
-        "heading": "School Unique Reference Number (URN)"
+        "heading": "URN"
       },
       "x-display": {
         "label": "School URN",
@@ -93,10 +91,9 @@
       "description": "Unique Pupil Number. May be incorrect or missing: it is not yet used directly in the calculation of performance data.",
       "x-csv": {
         "columns": {
-          "september": "C",
-          "december": "C"
+          "september": "C"
         },
-        "heading": "Unique Pupil Number (UPN)"
+        "heading": "UPN"
       },
       "x-display": {
         "label": "UPN",
@@ -113,15 +110,27 @@
       "description": "CYPMD pupil identifier created by LDS",
       "x-csv": {
         "columns": {
-          "september": "D",
-          "december": "D"
+          "september": "D"
         },
-        "heading": "CYPMD ID"
+        "heading": "CYPMD_ID"
       },
       "x-display": {
         "label": "CYPMD ID",
         "visible": false,
         "order": 5
+      }
+    },
+    "MATCHREF": {
+      "type": "integer",
+      "description": "Unique pupil identifier created by LDS (LDS matched pupil ID). Required: the journeys and the Zendesk ticket carry it. Not in the download.",
+      "x-csv": {
+        "columns": {},
+        "heading": "MATCHREF"
+      },
+      "x-display": {
+        "label": "LDS matched pupil ID",
+        "visible": false,
+        "order": 6
       }
     },
     "P_INCL": {
@@ -135,10 +144,9 @@
       },
       "x-csv": {
         "columns": {
-          "september": "E",
-          "december": "E"
+          "september": "E"
         },
-        "heading": "Pupil Inclusion Status Flag"
+        "heading": "PINCL_Flag"
       },
       "x-display": {
         "label": "Inclusion status",
@@ -154,10 +162,9 @@
       "description": "Pupil inclusion description. The spec gives no field reference (the DCI team populates it); the name is the KS4 pupil schema's.",
       "x-csv": {
         "columns": {
-          "september": "F",
-          "december": "F"
+          "september": "F"
         },
-        "heading": "Pupil Inclusion description"
+        "heading": "P_INCL_DESC"
       },
       "x-display": {
         "label": "Inclusion description",
@@ -173,10 +180,9 @@
       "description": "Pupil surname",
       "x-csv": {
         "columns": {
-          "september": "G",
-          "december": "G"
+          "september": "G"
         },
-        "heading": "Pupil surname"
+        "heading": "SURNAME"
       },
       "x-display": {
         "label": "Last name",
@@ -193,10 +199,9 @@
       "description": "Pupil forename(s)",
       "x-csv": {
         "columns": {
-          "september": "H",
-          "december": "H"
+          "september": "H"
         },
-        "heading": "Pupil forename(s)"
+        "heading": "FORENAME"
       },
       "x-display": {
         "label": "First name",
@@ -216,10 +221,9 @@
       },
       "x-csv": {
         "columns": {
-          "september": "I",
-          "december": "I"
+          "september": "I"
         },
-        "heading": "Pupil sex"
+        "heading": "Sex"
       },
       "x-display": {
         "label": "Sex",
@@ -235,10 +239,9 @@
       "description": "Pupil date of birth (spec: DD/MM/YY)",
       "x-csv": {
         "columns": {
-          "september": "J",
-          "december": "J"
+          "september": "J"
         },
-        "heading": "Pupil date of birth"
+        "heading": "DOB"
       },
       "x-display": {
         "label": "Date of birth",
@@ -254,10 +257,9 @@
       "description": "Admission date (spec: DD/MM/YY)",
       "x-csv": {
         "columns": {
-          "september": "K",
-          "december": "K"
+          "september": "K"
         },
-        "heading": "Admission date"
+        "heading": "ENTRYDAT"
       },
       "x-display": {
         "label": "Admission date",
@@ -276,8 +278,7 @@
       },
       "x-csv": {
         "columns": {
-          "september": "L",
-          "december": "L"
+          "september": "L"
         },
         "heading": "SEN"
       },
@@ -298,10 +299,9 @@
       },
       "x-csv": {
         "columns": {
-          "september": "M",
-          "december": "M"
+          "september": "M"
         },
-        "heading": "Pupil's ethnicity"
+        "heading": "ETHNICITY"
       },
       "x-display": {
         "label": "Ethnicity",
@@ -317,10 +317,9 @@
       "description": "First language (ENG, ENB, OTH, OTB, REF, NOT, ZZZ)",
       "x-csv": {
         "columns": {
-          "september": "N",
-          "december": "N"
+          "september": "N"
         },
-        "heading": "Pupil's first language"
+        "heading": "LANG1ST"
       },
       "x-display": {
         "label": "First language",
@@ -336,10 +335,9 @@
       "description": "Language group (1 = ENG or ENB, 2 = OTH or OTB, 3 = REF or NOT)",
       "x-csv": {
         "columns": {
-          "september": "O",
-          "december": "O"
+          "september": "O"
         },
-        "heading": "Language group"
+        "heading": "EALGRP"
       },
       "x-display": {
         "label": "Language group",
@@ -355,10 +353,9 @@
       "description": "Eligible for free school meals (1 = yes, 0 = no)",
       "x-csv": {
         "columns": {
-          "september": "P",
-          "december": "P"
+          "september": "P"
         },
-        "heading": "Is the pupil eligible for free school meals?"
+        "heading": "FSM"
       },
       "x-display": {
         "label": "Free school meals",
@@ -374,10 +371,9 @@
       "description": "Eligible for FSM in any period in the last 6 years (1 = yes, 0 = no)",
       "x-csv": {
         "columns": {
-          "september": "Q",
-          "december": "Q"
+          "september": "Q"
         },
-        "heading": "Is pupil known to have been eligible for FSM in any period in the last 6 years?"
+        "heading": "FSM6_P"
       },
       "x-display": {
         "label": "FSM in last 6 years",
@@ -393,10 +389,9 @@
       "description": "Identified as a young carer (1 = yes, 0 = no)",
       "x-csv": {
         "columns": {
-          "september": "R",
-          "december": "R"
+          "september": "R"
         },
-        "heading": "Has pupil been identified as a young carer?"
+        "heading": "YOUNGCARER"
       },
       "x-display": {
         "label": "Young carer",
@@ -417,10 +412,9 @@
       ],
       "x-csv": {
         "columns": {
-          "september": "S",
-          "december": "S"
+          "september": "S"
         },
-        "heading": "Is pupil defined as mobile?"
+        "heading": "NEWMOBILE"
       },
       "x-display": {
         "label": "Mobile",
@@ -436,10 +430,9 @@
       "description": "KS1 reading outcome (A, D, M, GDS, EXS, WTS, BLW, PKF, PK1-PK4, Q)",
       "x-csv": {
         "columns": {
-          "september": "T",
-          "december": "V"
+          "september": "T"
         },
-        "heading": "KS1 reading outcome"
+        "heading": "KS1READ"
       },
       "x-display": {
         "label": "KS1 reading",
@@ -455,10 +448,9 @@
       "description": "KS1 writing outcome (A, D, M, GDS, EXS, WTS, BLW, PKF, PK1-PK4, Q)",
       "x-csv": {
         "columns": {
-          "september": "U",
-          "december": "W"
+          "september": "U"
         },
-        "heading": "KS1 writing outcome"
+        "heading": "KS1WRIT"
       },
       "x-display": {
         "label": "KS1 writing",
@@ -474,10 +466,9 @@
       "description": "KS1 mathematics outcome (A, D, M, GDS, EXS, WTS, BLW, PKF, PK1-PK4, Q)",
       "x-csv": {
         "columns": {
-          "september": "V",
-          "december": "X"
+          "september": "V"
         },
-        "heading": "KS1 mathematics outcome"
+        "heading": "KS1MAT"
       },
       "x-display": {
         "label": "KS1 mathematics",
@@ -493,10 +484,9 @@
       "description": "KS1 average point score (0.25-10)",
       "x-csv": {
         "columns": {
-          "september": "W",
-          "december": "Y"
+          "september": "W"
         },
-        "heading": "KS1 average point score"
+        "heading": "KS1AVERAGEPS"
       },
       "x-display": {
         "label": "KS1 average point score",
@@ -512,10 +502,9 @@
       "description": "KS1 prior attainment band (1 = low, 2 = medium, 3 = high, 4 = NA)",
       "x-csv": {
         "columns": {
-          "september": "X",
-          "december": "Z"
+          "september": "X"
         },
-        "heading": "KS1 prior attainment band"
+        "heading": "KS1GROUP"
       },
       "x-display": {
         "label": "KS1 prior attainment band",
@@ -531,10 +520,9 @@
       "description": "KS2 reading outcome (A, B, L, M, F, P, H, Q, S, X, Z, AS, NS, J, U)",
       "x-csv": {
         "columns": {
-          "september": "Y",
-          "december": "AA"
+          "september": "Y"
         },
-        "heading": "KS2 reading outcome"
+        "heading": "READOUTCOME"
       },
       "x-display": {
         "label": "KS2 reading outcome",
@@ -550,10 +538,9 @@
       "description": "KS2 mathematics outcome (A, B, L, M, F, P, H, Q, S, X, Z, AS, NS, J, U)",
       "x-csv": {
         "columns": {
-          "september": "Z",
-          "december": "AB"
+          "september": "Z"
         },
-        "heading": "KS2 mathematics outcome"
+        "heading": "MATOUTCOME"
       },
       "x-display": {
         "label": "KS2 mathematics outcome",
@@ -569,10 +556,9 @@
       "description": "KS2 grammar, punctuation and spelling outcome (A, B, L, M, F, P, H, Q, S, X, Z, AS, NS, J, U)",
       "x-csv": {
         "columns": {
-          "september": "AA",
-          "december": "AC"
+          "september": "AA"
         },
-        "heading": "KS2 GPS outcome"
+        "heading": "GPSOUTCOME"
       },
       "x-display": {
         "label": "KS2 GPS outcome",
@@ -588,10 +574,9 @@
       "description": "KS2 reading scaled score (80-120, N = no scaled score)",
       "x-csv": {
         "columns": {
-          "september": "AB",
-          "december": "AD"
+          "september": "AB"
         },
-        "heading": "KS2 reading scaled score"
+        "heading": "READSCORE"
       },
       "x-display": {
         "label": "KS2 reading scaled score",
@@ -607,10 +592,9 @@
       "description": "KS2 mathematics scaled score (80-120, N = no scaled score)",
       "x-csv": {
         "columns": {
-          "september": "AC",
-          "december": "AE"
+          "september": "AC"
         },
-        "heading": "KS2 mathematics scaled score"
+        "heading": "MATSCORE"
       },
       "x-display": {
         "label": "KS2 mathematics scaled score",
@@ -626,10 +610,9 @@
       "description": "KS2 GPS scaled score (80-120, N = no scaled score)",
       "x-csv": {
         "columns": {
-          "september": "AD",
-          "december": "AF"
+          "september": "AD"
         },
-        "heading": "KS2 GPS scaled score"
+        "heading": "GPSSCORE"
       },
       "x-display": {
         "label": "KS2 GPS scaled score",
@@ -645,10 +628,9 @@
       "description": "KS2 reading mark (0-50 where numeric)",
       "x-csv": {
         "columns": {
-          "september": "AE",
-          "december": "AG"
+          "september": "AE"
         },
-        "heading": "KS2 reading mark"
+        "heading": "READMRK"
       },
       "x-display": {
         "label": "KS2 reading mark",
@@ -664,10 +646,9 @@
       "description": "KS2 mathematics mark (0-110 where numeric)",
       "x-csv": {
         "columns": {
-          "september": "AF",
-          "december": "AH"
+          "september": "AF"
         },
-        "heading": "KS2 mathematics mark"
+        "heading": "MATMRK"
       },
       "x-display": {
         "label": "KS2 mathematics mark",
@@ -683,10 +664,9 @@
       "description": "KS2 GPS mark (0-70 where numeric)",
       "x-csv": {
         "columns": {
-          "september": "AG",
-          "december": "AI"
+          "september": "AG"
         },
-        "heading": "KS2 GPS mark"
+        "heading": "GPSMRK"
       },
       "x-display": {
         "label": "KS2 GPS mark",
@@ -702,10 +682,9 @@
       "description": "KS2 reading special consideration (0 = not approved, 1 = approved but test not sat or no mark data yet, 2 = approved, blank = none)",
       "x-csv": {
         "columns": {
-          "september": "AH",
-          "december": "AJ"
+          "september": "AH"
         },
-        "heading": "KS2 reading special consideration"
+        "heading": "READSPECCON"
       },
       "x-display": {
         "label": "KS2 reading special consideration",
@@ -721,10 +700,9 @@
       "description": "KS2 mathematics special consideration (0 = not approved, 1 = approved but test not sat or no mark data yet, 2 = approved, blank = none)",
       "x-csv": {
         "columns": {
-          "september": "AI",
-          "december": "AK"
+          "september": "AI"
         },
-        "heading": "KS2 mathematics special consideration"
+        "heading": "MATSPECCON"
       },
       "x-display": {
         "label": "KS2 mathematics special consideration",
@@ -740,10 +718,9 @@
       "description": "KS2 GPS special consideration (0 = not approved, 1 = approved but test not sat or no mark data yet, 2 = approved, blank = none)",
       "x-csv": {
         "columns": {
-          "september": "AJ",
-          "december": "AL"
+          "september": "AJ"
         },
-        "heading": "KS2 GPS special consideration"
+        "heading": "GPSSPECCON"
       },
       "x-display": {
         "label": "KS2 GPS special consideration",
@@ -759,10 +736,9 @@
       "description": "Eligible in reading test, writing TA and mathematics test (0 = no, 1 = yes)",
       "x-csv": {
         "columns": {
-          "september": "AK",
-          "december": "AM"
+          "september": "AK"
         },
-        "heading": "Is pupil eligible in reading test, writing TA and mathematics test?"
+        "heading": "ELIGRWM"
       },
       "x-display": {
         "label": "Eligible for RWM",
@@ -778,10 +754,9 @@
       "description": "Reached the expected standard in reading test, writing TA and mathematics test (0 = no, 1 = yes)",
       "x-csv": {
         "columns": {
-          "september": "AL",
-          "december": "AN"
+          "september": "AL"
         },
-        "heading": "Has pupil reached the expected standard in reading test, writing TA and mathematics test?"
+        "heading": "RWMEXP"
       },
       "x-display": {
         "label": "RWM expected standard",
@@ -797,10 +772,9 @@
       "description": "Writing teacher assessment (A, D, Q, L, M, F, P, Z, WTS, GDS, EXS, EM, PK1-PK6)",
       "x-csv": {
         "columns": {
-          "september": "AM",
-          "december": "AO"
+          "september": "AM"
         },
-        "heading": "Writing teacher assessment"
+        "heading": "WRITTAOUTCOME"
       },
       "x-display": {
         "label": "Writing TA",
@@ -816,10 +790,9 @@
       "description": "Science teacher assessment (A, D, Q, L, M, F, P, Z, EXS, HNM)",
       "x-csv": {
         "columns": {
-          "september": "AN",
-          "december": "AP"
+          "september": "AN"
         },
-        "heading": "Science teacher assessment"
+        "heading": "SCITAOUTCOME"
       },
       "x-display": {
         "label": "Science TA",
@@ -835,10 +808,9 @@
       "description": "Mathematics teacher assessment (A, D, Q, L, M, F, P, Z, EM, PK1-PK6)",
       "x-csv": {
         "columns": {
-          "september": "AO",
-          "december": "AQ"
+          "september": "AO"
         },
-        "heading": "Mathematics teacher assessment"
+        "heading": "MATTAOUTCOME"
       },
       "x-display": {
         "label": "Mathematics TA",
@@ -854,10 +826,9 @@
       "description": "Reading teacher assessment (A, D, Q, L, M, F, P, Z, EM, PK1-PK6)",
       "x-csv": {
         "columns": {
-          "september": "AP",
-          "december": "AR"
+          "september": "AP"
         },
-        "heading": "Reading teacher assessment"
+        "heading": "READTAOUTCOME"
       },
       "x-display": {
         "label": "Reading TA",
@@ -873,10 +844,9 @@
       "description": "In the reading progress measure (0 = no, 1 = yes)",
       "x-csv": {
         "columns": {
-          "september": "AQ",
-          "december": "AS"
+          "september": "AQ"
         },
-        "heading": "Is pupil in the reading progress measure calculation?"
+        "heading": "INREADPROG"
       },
       "x-display": {
         "label": "In reading progress",
@@ -892,10 +862,9 @@
       "description": "In the writing progress measure (0 = no, 1 = yes)",
       "x-csv": {
         "columns": {
-          "september": "AR",
-          "december": "AT"
+          "september": "AR"
         },
-        "heading": "Is pupil in the writing progress measure calculation?"
+        "heading": "INWRITPROG"
       },
       "x-display": {
         "label": "In writing progress",
@@ -911,10 +880,9 @@
       "description": "In the mathematics progress measure (0 = no, 1 = yes)",
       "x-csv": {
         "columns": {
-          "september": "AS",
-          "december": "AU"
+          "september": "AS"
         },
-        "heading": "Is pupil in the mathematics progress measure calculation?"
+        "heading": "INMATPROG"
       },
       "x-display": {
         "label": "In mathematics progress",
@@ -930,10 +898,9 @@
       "description": "Prior attainment group for progress measures (1-20)",
       "x-csv": {
         "columns": {
-          "september": "AT",
-          "december": "AV"
+          "september": "AT"
         },
-        "heading": "Prior attainment group for progress measures"
+        "heading": "KS1AVERAGE_GRP_P"
       },
       "x-display": {
         "label": "Prior attainment group",
@@ -949,10 +916,9 @@
       "description": "KS2 reading attainment score for progress measure (60-120)",
       "x-csv": {
         "columns": {
-          "september": "AU",
-          "december": "AW"
+          "september": "AU"
         },
-        "heading": "KS2 reading attainment score for progress measure"
+        "heading": "KS2READSCORE"
       },
       "x-display": {
         "label": "KS2 reading progress attainment score",
@@ -968,10 +934,9 @@
       "description": "KS2 writing attainment score for progress measure (60-120)",
       "x-csv": {
         "columns": {
-          "september": "AV",
-          "december": "AX"
+          "september": "AV"
         },
-        "heading": "KS2 writing attainment score for progress measure"
+        "heading": "KS2WRITSCORE"
       },
       "x-display": {
         "label": "KS2 writing progress attainment score",
@@ -987,10 +952,9 @@
       "description": "KS2 mathematics attainment score for progress measure (60-120)",
       "x-csv": {
         "columns": {
-          "september": "AW",
-          "december": "AY"
+          "september": "AW"
         },
-        "heading": "KS2 mathematics attainment score for progress measure"
+        "heading": "KS2MATSCORE"
       },
       "x-display": {
         "label": "KS2 mathematics progress attainment score",
@@ -1006,10 +970,9 @@
       "description": "Average reading score for pupils in the same prior attainment group",
       "x-csv": {
         "columns": {
-          "september": "AX",
-          "december": "AZ"
+          "september": "AX"
         },
-        "heading": "Predicted KS2 reading score"
+        "heading": "KS2READPRED_EM"
       },
       "x-display": {
         "label": "Predicted KS2 reading score",
@@ -1025,10 +988,9 @@
       "description": "Average writing score for pupils in the same prior attainment group",
       "x-csv": {
         "columns": {
-          "september": "AY",
-          "december": "BA"
+          "september": "AY"
         },
-        "heading": "Predicted KS2 writing score"
+        "heading": "KS2WRITPRED_EM"
       },
       "x-display": {
         "label": "Predicted KS2 writing score",
@@ -1044,10 +1006,9 @@
       "description": "Average mathematics score for pupils in the same prior attainment group",
       "x-csv": {
         "columns": {
-          "september": "AZ",
-          "december": "BB"
+          "september": "AZ"
         },
-        "heading": "Predicted KS2 mathematics score"
+        "heading": "KS2MATPRED_EM"
       },
       "x-display": {
         "label": "Predicted KS2 mathematics score",
@@ -1063,10 +1024,9 @@
       "description": "KS2 reading attainment score for progress measure minus predicted KS2 reading score",
       "x-csv": {
         "columns": {
-          "september": "BA",
-          "december": "BC"
+          "september": "BA"
         },
-        "heading": "Reading progress score"
+        "heading": "READPROGSCORE_EM_ADJUSTED"
       },
       "x-display": {
         "label": "Reading progress score",
@@ -1082,10 +1042,9 @@
       "description": "KS2 writing attainment score for progress measure minus predicted KS2 writing score",
       "x-csv": {
         "columns": {
-          "september": "BB",
-          "december": "BD"
+          "september": "BB"
         },
-        "heading": "Writing progress score"
+        "heading": "WRITPROGSCORE_EM_ADJUSTED"
       },
       "x-display": {
         "label": "Writing progress score",
@@ -1101,10 +1060,9 @@
       "description": "KS2 mathematics attainment score for progress measure minus predicted KS2 mathematics score",
       "x-csv": {
         "columns": {
-          "september": "BC",
-          "december": "BE"
+          "september": "BC"
         },
-        "heading": "Mathematics progress score"
+        "heading": "MATPROGSCORE_EM_ADJUSTED"
       },
       "x-display": {
         "label": "Mathematics progress score",

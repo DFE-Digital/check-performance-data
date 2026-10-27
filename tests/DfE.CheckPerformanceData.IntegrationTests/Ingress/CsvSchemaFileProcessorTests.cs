@@ -330,9 +330,9 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
     [InlineData("ks4june", "UPN,CYPMD_ID,SURNAME,FORENAME,P_INCL,LAESTAB\nA1,1,Smith,Al,401,8604070\n", true)]
     [InlineData("ks4june", "UPN,CYPMD_ID,SURNAME,FORENAME,P_INCL,LAESTAB\nA1,1,Smith,Al,431,8604070\n", true)]
     [InlineData("ks4june", "UPN,CYPMD_ID,SURNAME,FORENAME,P_INCL,LAESTAB\nA1,1,Smith,Al,402,8604070\n", false)]
-    [InlineData("ks2", "UPN,CYPMD_ID,SURNAME,FORENAME,PINCL_Flag,LAESTAB\nA1,1,Smith,Al,201,8604070\n", true)]
-    [InlineData("ks2", "UPN,CYPMD_ID,SURNAME,FORENAME,PINCL_Flag,LAESTAB\nA1,1,Smith,Al,202,8604070\n", false)]
-    [InlineData("ks2", "UPN,CYPMD_ID,SURNAME,FORENAME,PINCL_Flag,LAESTAB\nA1,1,Smith,Al,203,8604070\n", false)]
+    [InlineData("ks2", "UPN,CYPMD_ID,MATCHREF,SURNAME,FORENAME,PINCL_Flag,LAESTAB\nA1,1,7,Smith,Al,201,8604070\n", true)]
+    [InlineData("ks2", "UPN,CYPMD_ID,MATCHREF,SURNAME,FORENAME,PINCL_Flag,LAESTAB\nA1,1,7,Smith,Al,202,8604070\n", false)]
+    [InlineData("ks2", "UPN,CYPMD_ID,MATCHREF,SURNAME,FORENAME,PINCL_Flag,LAESTAB\nA1,1,7,Smith,Al,203,8604070\n", false)]
     public async Task A_shipped_pupil_schema_stamps_inclusion_from_its_own_codes(string folder, string csv, bool included)
     {
         var schema = await File.ReadAllTextAsync(

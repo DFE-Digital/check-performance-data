@@ -27,7 +27,7 @@
         @if (Model.HasSavedContent)
         {
             <p class="govuk-body-s">
-                <a href="/content-block/versions/@Model.Key" class="govuk-link">Version history</a>
+                <a href="/content-block/versions/@Model.Key?returnUrl=@Uri.EscapeDataString(Model.ReturnUrl ?? string.Empty)" class="govuk-link">Version history</a>
             </p>
         }
     </form>

@@ -3,6 +3,7 @@ using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Web.Common;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
+using DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
@@ -32,36 +33,69 @@ public sealed class SummaryController(
             EndDate = w.EndDate,
             KeyStage = w.KeyStage,
             CheckingWindowType = w.CheckingWindowType,
-            // #319: one section per checking exercise, each with its own dates, files and
+            // #319/#466: one section per checking exercise, each with its own dates, files and
             // validation state. There is no window-level validate button any more — an exercise
             // validates on its own, and a window is usable while another is still unvalidated.
+            // A display-only exercise (null ExerciseType, #466) is no longer filtered out: every
+            // link on its section is addressed by exercise id, which it always has, rather than by
+            // kind, which it never has — so it is no longer a dead-link risk to show it.
+            // Same order as the tabs schools see (ExerciseTabBuilder), so admin has no separate order.
             Exercises = w.Exercises
-                .OrderBy(e => e.SortOrder)
+                .OrderBy(e => e.TabOrder).ThenBy(e => e.Id)
                 .Select(e => new ExerciseSummarySection
                 {
                     WindowId = w.Id,
+                    Id = e.Id,
                     ExerciseType = e.ExerciseType,
-                    Label = ExerciseLabels.For(e.ExerciseType),
+                    Name = e.Name ?? ExerciseLabels.For(e.ExerciseType),
+                    KindLabel = ExerciseLabels.For(e.ExerciseType),
+                    TabName = e.TabName,
+                    IsEnabled = e.IsEnabled,
+                    Status = checkingExercises.StatusOf(w.Exercises, e),
                     StartDate = e.StartDate,
                     EndDate = e.EndDate,
                     // AB#301022: asked of the one clock, never worked out here. These two decide
-                    // which of Close and "Send requests for processing" the page offers.
-                    IsOpen = checkingExercises.IsOpen(w.Exercises, e.ExerciseType),
-                    HasClosed = checkingExercises.HasClosed(w.Exercises, e.ExerciseType),
+                    // which of Close and "Send requests for processing" the page offers. Asked of
+                    // this row, not of its kind: another release of the same kind may be open.
+                    IsOpen = checkingExercises.IsOpen(e),
+                    HasClosed = checkingExercises.HasClosed(e),
                     IsValidated = e.IsValidated,
                     ValidatedAt = e.ValidatedAt,
                     IsStale = e.ValidatedAt is not null && !e.IsValidated,
+                    // A retired slot is left out: no run reads it, so it neither blocks nor
+                    // counts towards validation. The exercise's Data tab still lists it.
                     Datasets = e.Datasets
+                        .Where(d => !d.Retired)
                         .OrderBy(d => d.SortOrder)
                         .Select(d => new DatasetSummaryRow
                         {
                             WindowId = w.Id,
-                            Exercise = e.ExerciseType,
+                            ExerciseId = e.Id,
                             Name = d.Name,
                             Label = DatasetLabels.For(d.Name),
                             IngressFile = d.IngressFile,
                             SchemaFile = d.SchemaFile,
-                            Required = d.Required
+                            Required = d.Required,
+                            FeedsJourney = d.FeedsJourney,
+                            Status = e.StatusOf(d)
+                        })
+                        .ToList(),
+                    // AB#307773: each extension asked of the same clock. Open is its own end
+                    // (Edit, Close early); Send waits for the effective end, so an extension
+                    // closed early before its exercise ends offers nothing until the exercise ends.
+                    Extensions = e.Extensions
+                        .OrderBy(x => x.EndDate).ThenBy(x => x.Id)
+                        .Select(x => new ExtensionSummaryRow
+                        {
+                            WindowId = w.Id,
+                            ExerciseId = e.Id,
+                            Id = x.Id,
+                            EndDate = x.EndDate,
+                            SchoolCount = x.SchoolCount,
+                            ExerciseEndDate = e.EndDate,
+                            IsOpen = checkingExercises.IsOpen(x),
+                            HasClosed = checkingExercises.HasClosed(e, x),
+                            RequestsSent = x.RequestsSentAt is not null
                         })
                         .ToList()
                 })

@@ -1,3 +1,4 @@
+@using DfE.CheckPerformanceData.Web.Middleware
 @*
     Public, chrome-light layout for the anonymised share link. The share surface is
     [AllowAnonymous] and served to external stakeholders, so it must leak nothing about the
@@ -35,13 +36,15 @@
     </header>
 }
 
-@Html.GovUkFrontendJsEnabledScript()
+@* The nonce has to be passed by hand: this layout defines its own BodyEnd, so the page
+   template's nonce-aware default branch never runs (#611). *@
+@Html.GovUkFrontendJsEnabledScript(CspNonce.Get(Context))
 <div class="govuk-width-container">
     <main class="govuk-main-wrapper" id="main-content">
         @RenderBody()
     </main>
 </div>
-@Html.GovUkFrontendScriptImports()
+@Html.GovUkFrontendScriptImports(CspNonce.Get(Context))
 
 @section Footer {
     <footer class="govuk-footer">

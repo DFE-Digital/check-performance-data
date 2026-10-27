@@ -1,0 +1,114 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin.DeleteWindowViewModel
+
+@{
+    // Matches the <h1> below.
+    ViewBag.Title = $"Delete {Model.WindowTitle}";
+    var preview = Model.Preview;
+    string Plural(int count, string noun) => count == 1 ? $"1 {noun}" : $"{count} {noun}s";
+}
+
+<govuk-back-link href="@Model.CancelLink" />
+
+@if (!ViewData.ModelState.IsValid)
+{
+    <govuk-error-summary>
+        <govuk-error-summary-title>There is a problem</govuk-error-summary-title>
+        @foreach (var entry in ViewData.ModelState.Where(e => e.Value?.Errors.Count > 0))
+        {
+            @foreach (var error in entry.Value!.Errors)
+            {
+                <govuk-error-summary-item href="#@entry.Key">@error.ErrorMessage</govuk-error-summary-item>
+            }
+        }
+    </govuk-error-summary>
+}
+
+<h1 class="govuk-heading-l">Delete @Model.WindowTitle</h1>
+
+<govuk-warning-text icon-fallback-text="Warning">
+    You cannot undo this.
+</govuk-warning-text>
+
+<p class="govuk-body">
+    This permanently deletes the window, its @Plural(Model.ExerciseCount, "checking exercise"), and
+    every data file, schema and release they hold. Schools will no longer see this window.
+</p>
+
+<h2 class="govuk-heading-m">Change requests</h2>
+
+@if (preview.HasRequests)
+{
+    <govuk-warning-text icon-fallback-text="Warning">
+        @Plural(preview.TotalRequests, "change request") @(preview.TotalRequests == 1 ? "has" : "have") been
+        made through this window. Deleting the window also deletes
+        @(preview.TotalRequests == 1 ? "it" : "them"), with any evidence schools uploaded.
+    </govuk-warning-text>
+
+    <govuk-summary-list>
+        <govuk-summary-list-row>
+            <govuk-summary-list-row-key>Submitted, not yet sent for processing</govuk-summary-list-row-key>
+            <govuk-summary-list-row-value>@preview.SubmittedNotSent</govuk-summary-list-row-value>
+        </govuk-summary-list-row>
+        <govuk-summary-list-row>
+            <govuk-summary-list-row-key>Sent for processing</govuk-summary-list-row-key>
+            <govuk-summary-list-row-value>@preview.SentForProcessing</govuk-summary-list-row-value>
+        </govuk-summary-list-row>
+        <govuk-summary-list-row>
+            <govuk-summary-list-row-key>Drafts</govuk-summary-list-row-key>
+            <govuk-summary-list-row-value>@preview.Drafts</govuk-summary-list-row-value>
+        </govuk-summary-list-row>
+        <govuk-summary-list-row>
+            <govuk-summary-list-row-key>Withdrawn or cancelled</govuk-summary-list-row-key>
+            <govuk-summary-list-row-value>@preview.WithdrawnOrCancelled</govuk-summary-list-row-value>
+        </govuk-summary-list-row>
+    </govuk-summary-list>
+
+    @if (preview.SubmittedNotSent > 0)
+    {
+        <p class="govuk-body">
+            Submitted requests that have not been sent for processing are lost. To send them first,
+            close each checking exercise and let the requests be processed before you delete the
+            window.
+        </p>
+    }
+    @if (preview.SentForProcessing > 0)
+    {
+        <p class="govuk-body">
+            Requests already sent for processing stay in Zendesk, but this service no longer holds
+            them, and schools can no longer view them.
+        </p>
+    }
+}
+else
+{
+    <p class="govuk-body">No change requests have been made through this window.</p>
+}
+
+@if (preview.EgressRuns > 0)
+{
+    <h2 class="govuk-heading-m">Data egress</h2>
+    <p class="govuk-body">
+        @Plural(preview.EgressRuns, "data egress run") for this window @(preview.EgressRuns == 1 ? "is" : "are")
+        also deleted. Files already transferred are not changed.
+    </p>
+}
+
+<form method="post" action="@Model.FormAction" novalidate>
+    @Html.AntiForgeryToken()
+
+    @if (preview.HasRequests)
+    {
+        <govuk-checkboxes for="ConfirmRequestsDeleted">
+            <govuk-checkboxes-item value="true" checked="@Model.ConfirmRequestsDeleted">
+                I understand that @Plural(preview.TotalRequests, "change request") will be permanently deleted
+            </govuk-checkboxes-item>
+        </govuk-checkboxes>
+    }
+
+    <div class="govuk-button-group">
+        <govuk-button type="submit" class="govuk-button--warning">
+            Delete window
+        </govuk-button>
+        <a class="govuk-link" href="@Model.CancelLink">Cancel</a>
+    </div>
+</form>

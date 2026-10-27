@@ -10,6 +10,7 @@ using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
+using DfE.CheckPerformanceData.Web.Extensions;
 using DfE.CheckPerformanceData.Web.FileStorage;
 using DfE.CheckPerformanceData.Web.Session;
 using Microsoft.AspNetCore.Mvc;
@@ -29,7 +30,7 @@ public sealed class JourneyController(
     IOptionVisibilityService optionVisibilityService,
     IQuestionOptionalityService optionalityService,
     IOriginCountryLanguageCapture originCountryLanguageCapture,
-    IStudentResultsClient studentResultsClient,
+    IResultsClient resultsClient,
     IQualificationReferenceClient qualificationReferenceClient,
     IRequestNotificationService requestNotificationService,
     ICheckingExerciseService checkingExerciseService,
@@ -756,13 +757,13 @@ public sealed class JourneyController(
     /// Every result the journey's selected pupil holds at the signed-in school. Empty when no pupil
     /// has been chosen yet — which both renders an empty picker and makes any posted key unresolvable.
     /// </summary>
-    private async Task<IReadOnlyList<StudentResultRecord>> GetPupilResultsAsync(
+    private async Task<IReadOnlyList<ResultRecord>> GetPupilResultsAsync(
         Guid windowId, RequestState journey, CancellationToken ct = default)
     {
         var cypmdId = journey.SelectedPupil?.Cypmd_Id;
         if (string.IsNullOrWhiteSpace(cypmdId)) return [];
 
-        return await studentResultsClient.GetResultsAsync(
+        return await resultsClient.GetResultsAsync(
             windowId, currentUserService.OrganisationLaestab, cypmdId, ct);
     }
 
@@ -1266,8 +1267,10 @@ public sealed class JourneyController(
     }
 
     [Route("/Journey/{windowId}/evidence/{storedFileName}")]
+    [RequiresNoStore]
     public async Task<IActionResult> DownloadEvidence(Guid windowId, string storedFileName)
     {
+        Response.NoStore();
         if (!Guid.TryParse(storedFileName, out _)) return NotFound();
 
         var journey = HttpContext.Session.GetRequestState(windowId);
@@ -1557,12 +1560,25 @@ public sealed class JourneyController(
         if (string.IsNullOrEmpty(journey?.ReferenceNumber) || journey?.CheckingWindow is null)
             return RedirectToCheckYourData(windowId);
 
+        // #320: the journey's own exercise's end, never the outer window's. AB#307773: the
+        // signed-in school's end (EndDateFor, by its LAESTAB), which its extension may make later;
+        // the outer end is the exercises' own latest end and never includes an extension's.
+        // SummaryConfirm clears the change type before redirecting here, and only an amendment
+        // comes here (an enquiry goes to EnquiryConfirmation), so a cleared one is pupil data. The
+        // outer end is only the fallback for a kind the window has no row for.
+        var exercise = journey.SelectedWhatToChange is { } change
+            ? WhatToChangeCheckingExerciseMap.CheckingExerciseFor(change)
+            : CheckingExerciseType.PupilData;
+        var deadline = checkingExerciseService.EndDateFor(
+            journey.CheckingWindow.Exercises, exercise, currentUserService.OrganisationLaestab)
+            ?? journey.CheckingWindow.EndDate;
+
         var model = new ConfirmationViewModel
         {
             WindowId = windowId,
             ReferenceNumber = journey.ReferenceNumber,
             // DeadlineTime.Pattern: the minutes show when the end date has some.
-            WindowCloseLabel = $"{journey.CheckingWindow.EndDate.ToString(DeadlineTime.Pattern(journey.CheckingWindow.EndDate))} on {journey.CheckingWindow.EndDate:dddd d MMMM yyyy}"
+            WindowCloseLabel = $"{deadline.ToString(DeadlineTime.Pattern(deadline))} on {deadline:dddd d MMMM yyyy}"
         };
 
         return View(model);
@@ -2071,13 +2087,15 @@ public sealed class JourneyController(
         !IsExerciseClosed(journey);
 
     // True only when the journey is otherwise complete and its exercise has closed — the one
-    // rejection reason worth explaining to the user.
+    // rejection reason worth explaining to the user. AB#307773: closed for the signed-in school,
+    // whose extension may run past the exercise's own end.
     private bool IsExerciseClosed(RequestState journey) =>
         journey.SelectedWhatToChange is { } change &&
         journey.CheckingWindow is not null &&
         !checkingExerciseService.IsOpen(
             journey.CheckingWindow.Exercises,
-            WhatToChangeCheckingExerciseMap.CheckingExerciseFor(change));
+            WhatToChangeCheckingExerciseMap.CheckingExerciseFor(change),
+            currentUserService.OrganisationLaestab);
 
     /// <summary>
     /// Every bounce out of the journey. A closed exercise is explained on the page the user lands

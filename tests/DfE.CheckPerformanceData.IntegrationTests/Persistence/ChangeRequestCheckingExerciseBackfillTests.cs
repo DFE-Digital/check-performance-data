@@ -55,8 +55,11 @@ public sealed class ChangeRequestCheckingExerciseBackfillTests : IAsyncLifetime
     }
 
     // A 16-19 shaped window: two exercises, on ranges that do not coincide. This is the only shape
-    // where WindowId alone cannot answer which exercise a request belongs to.
-    private async Task<(Guid WindowId, Guid PupilDataId, Guid ResultsEnquiryId)> InsertWindowAsync()
+    // where WindowId alone cannot answer which exercise a request belongs to. The order column is
+    // SortOrder on the schema these backfills run against; DropExerciseSortOrder later replaced
+    // it with TabOrder.
+    private async Task<(Guid WindowId, Guid PupilDataId, Guid ResultsEnquiryId)> InsertWindowAsync(
+        string orderColumn = "SortOrder")
     {
         var windowId = Guid.NewGuid();
         var pupilDataId = Guid.NewGuid();
@@ -70,7 +73,7 @@ public sealed class ChangeRequestCheckingExerciseBackfillTests : IAsyncLifetime
                     '16 to 19 2026', false, '', '', '', '');
 
             INSERT INTO "CheckingExercises"
-                ("Id", "CheckingWindowId", "ExerciseType", "StartDate", "EndDate", "SortOrder")
+                ("Id", "CheckingWindowId", "ExerciseType", "StartDate", "EndDate", "{orderColumn}")
             VALUES ('{pupilDataId}', '{windowId}', 'PupilData',
                     '2026-10-01 00:00:00', '2026-11-30 17:00:00', 0),
                    ('{enquiryId}', '{windowId}', 'ResultsEnquiry',
@@ -172,7 +175,7 @@ public sealed class ChangeRequestCheckingExerciseBackfillTests : IAsyncLifetime
         await using var ctx = CreateContext();
         await ctx.Database.MigrateAsync();
 
-        var (windowId, pupilDataId, _) = await InsertWindowAsync();
+        var (windowId, pupilDataId, _) = await InsertWindowAsync(orderColumn: "TabOrder");
         await InsertRequestAsync(windowId, "REF-ORPHANED-LATER", "Amendment", "Remove");
         await ExecuteAsync($"""
             UPDATE "ChangeRequests" SET "CheckingExerciseId" = '{pupilDataId}'

@@ -7,8 +7,8 @@ namespace DfE.CheckPerformanceData.Application.Egress;
 
 /// <summary>
 /// The Transfer step (AB#294553). Files are built from the persisted rows — the database is the
-/// source of truth and a retry needs no re-pull. Uploads are create-only; if any file fails, every
-/// file already written is deleted and the run is marked TransferFailed, so LDS never sees a
+/// source of truth and a retry needs no re-pull. An upload replaces a same-named file; if any file
+/// fails, every file this run already wrote is deleted and the run is marked TransferFailed, so LDS never sees a
 /// partial set. Success and failure each write an audit row (repository, same transaction as the
 /// state change); only success is ever recorded as such.
 /// </summary>
@@ -36,7 +36,7 @@ public sealed class EgressTransferService(IEgressRunRepository repository, IEgre
         }
 
         if (!blobs.IsConfigured)
-            return await FailAsync(runId, actor, "Egress storage is not configured for this environment (ConnectionStrings:EgressStorage).", [], null, fromStatus, ct);
+            return await FailAsync(runId, actor, "Egress storage is not configured for this environment (ConnectionStrings:IngressStorage).", [], null, fromStatus, ct);
 
         if (!await repository.TrySetStatusAsync(runId, fromStatus, EgressRunStatus.Transferring, ct))
             return new EgressTransferResult.NotTransferable(EgressRunStatus.Transferring);
@@ -57,7 +57,7 @@ public sealed class EgressTransferService(IEgressRunRepository repository, IEgre
                 var fileName = output.FileName ?? throw new InvalidOperationException($"Run {runId} has no file name for {output.OutputType}.");
                 inFlight = fileName;
                 var sha = Convert.ToHexString(SHA256.HashData(bytes));
-                await UploadReclaimingLeftoversAsync(fileName, bytes, sha, runId, operationCt);
+                await blobs.UploadAsync(fileName, bytes, sha, runId, operationCt);
                 inFlight = null;
                 uploaded.Add(fileName);
                 files[output.OutputType] = (fileName, records, sha);
@@ -93,46 +93,10 @@ public sealed class EgressTransferService(IEgressRunRepository repository, IEgre
         return new EgressTransferResult.Transferred(files.Select(f => (f.Key, f.Value.FileName, f.Value.Records)).ToList(), at);
     }
 
-    // Follow-up to R1 (the Abandon crash window) and to a compensation delete that failed with
-    // "remove it by hand": a same-named file already in the container is reclaimed — deleted and
-    // the create-only upload retried exactly once — only when its egressRunId stamp names an
-    // ABANDONED run (a sweep the process died in the middle of) or this very run (an earlier
-    // attempt). Both are files nobody wants in LDS and neither has any other UI path out. A file
-    // stamped by any live run, or carrying no stamp at all, is a real collision: left untouched,
-    // and the exception propagates to FailAsync — with the reason spelling out who wrote the file
-    // and what actually gets the operator out, because the file name carries the preprocessing
-    // date, so simply retrying this run tomorrow collides on the same name again.
-    private async Task UploadReclaimingLeftoversAsync(string fileName, byte[] bytes, string sha, Guid runId, CancellationToken ct)
-    {
-        try
-        {
-            await blobs.UploadAsync(fileName, bytes, sha, runId, ct);
-            return;
-        }
-        catch (EgressBlobAlreadyExistsException ex)
-        {
-            if (await blobs.GetOwnerRunIdAsync(fileName, ct) is not { } owner)
-                throw new EgressBlobAlreadyExistsException(ex.BlobName,
-                    "It was not written by this service, so it was left in place. Ask LDS to remove or rename it, then retry.");
-            var ownerRun = owner == runId ? null : await repository.GetRunAsync(owner, ct);
-            var reclaimable = owner == runId || ownerRun?.Status == EgressRunStatus.Abandoned;
-            if (!reclaimable)
-                throw new EgressBlobAlreadyExistsException(ex.BlobName,
-                    $"Another egress run wrote it{(ownerRun is null ? "" : $" (its status is {EgressRunStatuses.Label(ownerRun.Status)})")}, so it was left in place. "
-                    + "Two checking windows of the same key stage cannot transfer on the same day. "
-                    + "Abandon this run and start a new one on a later day, or ask LDS to remove the file and then retry.");
-            // Ownership is re-checked at delete time; a false here means the file changed hands
-            // between the two calls, which is the live-collision case again.
-            if (!await blobs.DeleteIfOwnedByRunAsync(fileName, owner, ct)) throw;
-            logger.LogWarning("Egress run {RunId}: reclaimed {File}, a leftover stamped by run {Owner}, before uploading", runId, fileName, owner);
-        }
-        await blobs.UploadAsync(fileName, bytes, sha, runId, ct);
-    }
-
     // possiblyOrphaned (S3): the file that was mid-upload when the exception was thrown, if any —
-    // its PUT may have actually landed server-side with the response lost to the client, so it is
-    // worth a metadata-checked delete attempt distinct from `uploaded` (which this call definitely
-    // wrote, since a create-only PUT that returned success cannot belong to another run).
+    // its PUT may have actually landed server-side with the response lost to the client. Every
+    // delete here is ownership-checked: uploads overwrite, so a file this run wrote may since have
+    // been replaced by another run, and that run's file must stay.
     // expectedStatus (M4): the status MarkTransferFailedAsync's own guard requires — Transferring
     // once the CAS flip has happened, or the run's pre-flip status for the unconfigured-storage
     // refusal, which never flips at all.
@@ -140,7 +104,7 @@ public sealed class EgressTransferService(IEgressRunRepository repository, IEgre
     {
         foreach (var name in uploaded)
         {
-            try { await blobs.DeleteIfExistsAsync(name, ct); }
+            try { await blobs.DeleteIfOwnedByRunAsync(name, runId, ct); }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Egress run {RunId}: could not delete {File} while compensating a failed transfer", runId, name);

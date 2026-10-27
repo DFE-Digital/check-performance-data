@@ -15,6 +15,11 @@ name: E2E Tests
 # There is no concurrency group on purpose. A run is never cancelled or dropped because a
 # newer one started, so a failure stays with the commit that caused it. Cancel one by hand if
 # it is no longer wanted.
+#
+# Delete Review App waits while a run for the same pull request is going, and finds it by the
+# run name below, so keep the two in step.
+
+run-name: E2E Tests for ${{ github.event.workflow_run.head_branch || format('pull request {0}', inputs.pull-request-number) }}
 
 on:
   workflow_run:
@@ -77,6 +82,10 @@ jobs:
             # A closed pull request has had its review app deleted.
             [[ "$state" == "open" ]] || { echo "::error::Pull request $pr is $state"; exit 1; }
             [[ "$head_repo" == "$GH_REPO" ]] || { echo "::error::Pull request $pr is from a fork"; exit 1; }
+            # Newest first. A run that stood aside for a duplicate also passes, but deployed nothing.
+            run_ids=$(gh api --method GET "repos/$GH_REPO/actions/workflows/build-and-deploy.yml/runs" \
+              -f head_sha="$sha" -f event=pull_request \
+              --jq '.workflow_runs[] | select(.conclusion == "success") | .id') || true
           else
             # A pull request without the deploy label has no review app. Neither has a run that
             # was cancelled or failed before it deployed.
@@ -84,6 +93,7 @@ jobs:
               --jq '.jobs[] | select(.name == "Deployment To Review") | .conclusion')
             [[ "$deployed" == "success" ]] || stop "That run did not deploy a review app."
             sha="$DEPLOY_SHA"
+            run_ids="$DEPLOY_RUN_ID"
             # read fails when it is given nothing, which is what a closed or merged pull
             # request gives it. That is a reason to stop quietly, not for the step to fail.
             read -r pr author < <(gh api "repos/$GH_REPO/commits/$sha/pulls" \
@@ -100,11 +110,24 @@ jobs:
           done
           [[ -n "$url" ]] || stop "Pull request $pr has no review app deployed for $sha."
 
-          echo "Testing pull request $pr at $sha against $url"
+          # The tests must be the ones the review app was built with. Its build merged the pull
+          # request into main as main stood then, and recorded that commit. The merge ref is
+          # rebuilt whenever main moves, so it is only a fallback, for a deploy that predates the
+          # record.
+          ref="refs/pull/$pr/merge"
+          for id in $run_ids; do
+            gh run download "$id" --name review-app-commit --dir "$RUNNER_TEMP/review-app-commit-$id" 2>/dev/null || continue
+            built=$(tr -d '[:space:]' < "$RUNNER_TEMP/review-app-commit-$id/review-app-commit.txt")
+            [[ "$built" =~ ^[0-9a-f]{40}$ ]] && { ref="$built"; break; }
+          done
+          [[ "$ref" == refs/* ]] && echo "::warning::No record of the commit the review app was built from. Testing $ref."
+
+          echo "Testing pull request $pr at $sha (tests from $ref) against $url"
           {
             echo "found=true"
             echo "pr=$pr"
             echo "sha=$sha"
+            echo "ref=$ref"
             echo "url=$url"
             echo "author=$author"
           } >> "$GITHUB_OUTPUT"
@@ -131,14 +154,14 @@ jobs:
             gh api --method POST "repos/$GH_REPO/issues/$PR/comments" -F body=@comment.md --silent
           fi
 
-      # The review app was built from the pull request merged into main, so test that.
-      - uses: actions/checkout@v4
+      # The review app was built from the pull request merged into main, so test that commit.
+      - uses: actions/checkout@v7
         if: steps.target.outputs.found == 'true'
         with:
-          ref: refs/pull/${{ steps.target.outputs.pr }}/merge
+          ref: ${{ steps.target.outputs.ref }}
           persist-credentials: false
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         if: steps.target.outputs.found == 'true'
         with:
           dotnet-version: "10.0.x"
@@ -166,6 +189,39 @@ jobs:
           --filter "Category!=VisualRegression"
           --logger "trx;LogFileName=e2e.trx" --results-directory TestResults
 
+      # Failures are only the change's if the review app was there, on this commit, the whole
+      # time. Merging the pull request deletes the app (Delete Review App waits for this run, but
+      # only for so long), and a push redeploys it.
+      - name: Check the review app was there throughout
+        id: app
+        if: always() && steps.tests.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ steps.target.outputs.pr }}
+          SHA: ${{ steps.target.outputs.sha }}
+          APP_URL: ${{ steps.target.outputs.url }}
+        run: |
+          reason=""
+          read -r state head < <(gh api "repos/$GH_REPO/pulls/$PR" --jq '"\(.state) \(.head.sha)"') || true
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$APP_URL/healthcheck") || true
+          if [[ "$code" != "200" ]]; then
+            if [[ "$state" == "closed" ]]; then
+              reason="Pull request $PR was merged or closed during the run, and its review app was deleted."
+            else
+              reason="The review app stopped answering during the run (its health check gave $code)."
+            fi
+          elif [[ -n "$head" && "$head" != "$SHA" ]] &&
+               [[ -n "$(gh api "repos/$GH_REPO/deployments?sha=$head&environment=review" --jq '.[0].id // empty')" ]]; then
+            reason="Commit \`${head:0:7}\` was pushed and deployed to the review app during the run. Its own run will test it."
+          fi
+          if [[ -n "$reason" ]]; then
+            echo "::warning::$reason"
+            echo "interrupted=$reason" >> "$GITHUB_OUTPUT"
+          else
+            echo "The review app was there throughout, so the failures stand."
+          fi
+
       # From here on the steps also run when the tests failed or the run was cancelled, so the
       # pull request is never left saying "running".
       - name: Summarise the results
@@ -176,9 +232,10 @@ jobs:
           APP_URL: ${{ steps.target.outputs.url }}
           # Nobody is told to fix a run that someone cancelled.
           AUTHOR: ${{ job.status != 'cancelled' && steps.target.outputs.author || '' }}
+          INTERRUPTED: ${{ steps.app.outputs.interrupted }}
         run: |
           pwsh scripts/e2e-summary.ps1 -ResultsFile TestResults/e2e.trx -OutFile summary.md \
-            -Commit "$SHA" -AppUrl "$APP_URL" -RunUrl "$RUN_URL" -Author "$AUTHOR"
+            -Commit "$SHA" -AppUrl "$APP_URL" -RunUrl "$RUN_URL" -Author "$AUTHOR" -Interrupted "$INTERRUPTED"
           cat summary.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Put the results on the pull request
@@ -197,15 +254,16 @@ jobs:
             --jq ".[] | select(.body | contains(\"$COMMENT_MARKER\")) | .id" | tail -n 1)
           # GitHub notifies people of a new comment, not of an edit to an old one. A pass
           # edits the comment in place. Anything else replaces it with a new one, so the
-          # person it mentions is told. A cancelled run is nobody's to fix: edit in place.
-          if [[ ("$RESULT" == "passed" || "$JOB_STATUS" == "cancelled") && -n "$id" ]]; then
+          # person it mentions is told. A cancelled or interrupted run is nobody's to fix: edit
+          # in place.
+          if [[ ("$RESULT" == "passed" || "$RESULT" == "interrupted" || "$JOB_STATUS" == "cancelled") && -n "$id" ]]; then
             gh api --method PATCH "repos/$GH_REPO/issues/comments/$id" -F body=@comment.md --silent
           else
             [[ -z "$id" ]] || gh api --method DELETE "repos/$GH_REPO/issues/comments/$id" --silent
             gh api --method POST "repos/$GH_REPO/issues/$PR/comments" -F body=@comment.md --silent
           fi
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always() && steps.target.outputs.found == 'true'
         with:
           name: e2e-results
@@ -215,7 +273,7 @@ jobs:
 
       # The snapshot tree, so a regenerated baseline can be fetched. Snapshots live in the
       # source tree, not under bin/.
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure() && steps.target.outputs.found == 'true'
         with:
           name: e2e-snapshots
@@ -224,7 +282,7 @@ jobs:
 
       # Playwright traces for the failing tests only. Open one with
       # `npx playwright show-trace <file>.zip`.
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure() && steps.target.outputs.found == 'true'
         with:
           name: e2e-traces

@@ -5,6 +5,7 @@ using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
+using DfE.CheckPerformanceData.Web.Extensions;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
@@ -105,6 +106,7 @@ public sealed class AppLogsController(
             var response = context.HttpContext.Response;
             response.ContentType = "text/csv; charset=utf-8";
             response.Headers.Append("Content-Disposition", $"attachment; filename=\"{fileName}\"");
+            response.NoStore();
 
             // leaveOpen: true keeps the response body open for downstream middleware — the dev
             // diagnostic footer middleware wraps every response in a MemoryStream and reads it

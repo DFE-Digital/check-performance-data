@@ -22,7 +22,7 @@ public sealed class ResultSuggestionsControllerTests
     private const string Laestab = "860/4070";
     private const string CypmdId = "500001";
 
-    private readonly IStudentResultsClient _results = Substitute.For<IStudentResultsClient>();
+    private readonly IResultsClient _results = Substitute.For<IResultsClient>();
     private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
     private readonly FakeSession _session = new();
     private readonly ResultSuggestionsController _sut;
@@ -40,7 +40,7 @@ public sealed class ResultSuggestionsControllerTests
         };
     }
 
-    private static StudentResultRecord Result(
+    private static ResultRecord Result(
         string qan, string qualName, string session = "S2024", string grade = "5",
         string source = ResultsFileTags.Post16Main, string cypmdId = CypmdId) => new()
         {
@@ -53,7 +53,7 @@ public sealed class ResultSuggestionsControllerTests
             SourceFile = source
         };
 
-    private static readonly StudentResultRecord[] BillysResults =
+    private static readonly ResultRecord[] BillysResults =
     [
         Result("6037116X", "GCSE (9-1) Bus. Studs:Single"),
         Result("60181576", "GCSE (9-1) French", source: ResultsFileTags.Post16LateResults1),
@@ -79,7 +79,7 @@ public sealed class ResultSuggestionsControllerTests
             SelectedPupil = Pupil(cypmdId)
         });
 
-    private void HasResults(params StudentResultRecord[] results) =>
+    private void HasResults(params ResultRecord[] results) =>
         _results.GetResultsAsync(WindowId, Laestab, CypmdId, Arg.Any<CancellationToken>())
             .Returns(results);
 
@@ -102,8 +102,8 @@ public sealed class ResultSuggestionsControllerTests
 
         Assert.Equal(
             [
-                ("6037116X|S2024|16to19_MAIN", "GCSE (9-1) Bus. Studs:Single, QAN: 6037116X, Session: S2024"),
-                ("60181576|S2024|16to19_LR1", "GCSE (9-1) French, QAN: 60181576, Session: S2024")
+                ("6037116X|S2024|16to19_MAIN", "GCSE (9-1) Bus. Studs:Single, QAN: 6037116X, Session: S2024, Grade: 5, File: Main results"),
+                ("60181576|S2024|16to19_LR1", "GCSE (9-1) French, QAN: 60181576, Session: S2024, Grade: 5, File: Late results 1")
             ],
             payload);
     }
@@ -116,7 +116,7 @@ public sealed class ResultSuggestionsControllerTests
 
         var payload = Payload(await _sut.Suggestions(WindowId, "french", default));
 
-        Assert.Equal([("60181576|S2024|16to19_LR1", "GCSE (9-1) French, QAN: 60181576, Session: S2024")], payload);
+        Assert.Equal([("60181576|S2024|16to19_LR1", "GCSE (9-1) French, QAN: 60181576, Session: S2024, Grade: 5, File: Late results 1")], payload);
     }
 
     [Fact]
@@ -161,8 +161,8 @@ public sealed class ResultSuggestionsControllerTests
             payload.Select(p => p.Value).ToArray());
         Assert.Equal(
             [
-                "GCSE (9-1) Bus. Studs:Single, QAN: 6037116X, Session: S2024",
-                "GCSE (9-1) Bus. Studs:Single, QAN: 6037116X, Session: S2023"
+                "GCSE (9-1) Bus. Studs:Single, QAN: 6037116X, Session: S2024, Grade: 5, File: Main results",
+                "GCSE (9-1) Bus. Studs:Single, QAN: 6037116X, Session: S2023, Grade: 5, File: Main results"
             ],
             payload.Select(p => p.Label).ToArray());
     }

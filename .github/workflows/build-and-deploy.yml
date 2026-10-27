@@ -91,7 +91,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         name: Checkout
 
       - name: Build and push docker image
@@ -109,6 +109,13 @@ jobs:
           reuse-cache: true
           snyk-token: ${{ secrets.SNYK_TOKEN }}
 
+      - name: SBOM for the web image
+        uses: ./.github/actions/image-sbom
+        with:
+          image: ${{ steps.build-image.outputs.image }}
+          name: web
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build and push worker docker image
         id: build-worker-image
         uses: DFE-Digital/github-actions/build-docker-image@master
@@ -121,6 +128,13 @@ jobs:
           max-cache: true
           reuse-cache: true
           snyk-token: ${{ secrets.SNYK_TOKEN }}
+
+      - name: SBOM for the worker image
+        uses: ./.github/actions/image-sbom
+        with:
+          image: ${{ steps.build-worker-image.outputs.image }}
+          name: worker
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
   e2e:
     name: E2E smoke tests
@@ -154,13 +168,13 @@ jobs:
       CPD_E2E_TRACES_DIR: ${{ github.workspace }}/e2e-traces
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: "10.0.x"
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
@@ -210,7 +224,7 @@ jobs:
       # update workflow can retrieve the regenerated PNG. Snapshots live under the
       # source tree (resolved via project marker walk in PageSnapshotExtensions),
       # not under bin/, so the path here points at the source location.
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: e2e-snapshots
@@ -221,11 +235,94 @@ jobs:
       # green run). Open them with `npx playwright show-trace <file>.zip` or the trace
       # viewer in the artifact. Name is obscured to {ClassName}.{ordinal}.zip — open a
       # trace to see which test it belongs to (its title is set to the class name).
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: e2e-traces
           path: e2e-traces/
+          if-no-files-found: warn
+          retention-days: 14
+
+  zap:
+    name: ZAP baseline scan
+    # A passive OWASP ZAP scan of the review app's anonymous pages (#618): what a browser is sent,
+    # not what the code says it sends. The plan in .github/zap/plan.yaml keeps the spider
+    # anonymous (everything under /dev/ is out of scope) and stops it submitting forms, because a
+    # review app creates real Zendesk tickets. Findings are triaged into the plan's rules;
+    # docs/zap-baseline.md says how. Runs beside the smoke tests, not after them: the two do not
+    # disturb each other.
+    needs: [deploy-review-app]
+    if: needs.deploy-review-app.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      # The gate. true: any WARN or FAIL the plan's rules do not accept fails the job. false:
+      # report only, for collecting a fresh baseline; set it back in the same pull request.
+      ZAP_GATE: "true"
+
+    steps:
+      # For the plan only.
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # The stable tag, not a digest: this is a run step, which neither Dependabot nor
+      # scripts/check-pins.sh covers, and a stale scanner is worse than a moving one. A new ZAP
+      # release can add a passive rule, which surfaces as a new finding to triage.
+      # --user root, as the official action does, so ZAP can write under the runner's workspace.
+      - name: Scan the review app
+        env:
+          ZAP_TARGET: ${{ needs.deploy-review-app.outputs.environment_url }}
+        run: |
+          # tee would otherwise hide ZAP's exit code; the default shell has no pipefail.
+          set -o pipefail
+          mkdir -p zap-out
+          docker run --rm --user root -e ZAP_TARGET \
+            -v "$GITHUB_WORKSPACE:/zap/wrk:rw" \
+            ghcr.io/zaproxy/zaproxy:stable \
+            zap.sh -cmd -autorun /zap/wrk/.github/zap/plan.yaml | tee zap-out/console.txt
+
+      # The counts on the run page, the report below them, and the gate.
+      - name: Apply the rules
+        if: success() || failure()
+        run: |
+          summary=zap-out/summary.json
+          if [[ ! -f "$summary" ]]; then
+            echo "::error::ZAP wrote no summary. The scan did not complete; see the step above."
+            echo "### ZAP baseline scan produced no report" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          read -r pass warn fail < <(jq -r '"\(.pass) \(.warn) \(.fail)"' "$summary")
+          gate=$([[ "$ZAP_GATE" == "true" ]] && echo on || echo off)
+          echo "ZAP: $pass rules passed, $warn warned, $fail failed (gate $gate)"
+          {
+            echo "### ZAP baseline scan"
+            echo
+            echo "$pass rules passed, $warn warned, $fail failed. Gate $gate. The report below lists accepted alerts as well; the counts line is what the gate reads. The full report is the \`zap-baseline\` artefact."
+            echo
+            cat zap-out/report.md
+            echo
+            echo "#### New findings (not accepted in .github/zap/plan.yaml)"
+            echo
+            grep -E '^(WARN|FAIL)-NEW: .*\[[0-9]+\]' zap-out/console.txt || echo "None."
+          } >> "$GITHUB_STEP_SUMMARY"
+          # Today's anonymous surface is 35 URLs; an error or maintenance page would scan one or two and look clean.
+          urls=$(grep -oE 'Total of [0-9]+ URLs' zap-out/console.txt | grep -oE '[0-9]+' | tail -n 1)
+          if [[ -z "$urls" || "$urls" -lt 20 ]]; then
+            echo "::error::ZAP crawled only ${urls:-0} URLs (floor 20): the review app did not serve its pages, so a clean result means nothing"
+            exit 1
+          fi
+          if [[ "$ZAP_GATE" == "true" && ( "$warn" != "0" || "$fail" != "0" ) ]]; then
+            echo "::error::ZAP found $warn warning(s) and $fail failure(s) that .github/zap/plan.yaml does not accept. docs/zap-baseline.md says how to triage them."
+            exit 1
+          fi
+
+      - uses: actions/upload-artifact@v7
+        if: success() || failure()
+        with:
+          name: zap-baseline
+          path: zap-out/
           if-no-files-found: warn
           retention-days: 14
 
@@ -274,6 +371,20 @@ jobs:
           gcp-project-id: ${{ vars.GCP_PROJECT_ID }}
           # db-seed: true
           # smoke-test: true
+
+      # The image was built from the pull request merged into main as main stood when this run
+      # started. E2E Tests runs once this run ends, by when main may have moved on, so it reads
+      # the commit from here and tests that, not the pull request's merge ref as it is then.
+      - name: Record the commit the review app was built from
+        run: echo "$GITHUB_SHA" > review-app-commit.txt
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: review-app-commit
+          path: review-app-commit.txt
+          retention-days: 14
+          # A re-run of this job records the commit again.
+          overwrite: true
   #        gcp-wip: ${{ vars.GCP_WIP }}
   #        gcp-project-id: ${{ vars.GCP_PROJECT_ID }}
 

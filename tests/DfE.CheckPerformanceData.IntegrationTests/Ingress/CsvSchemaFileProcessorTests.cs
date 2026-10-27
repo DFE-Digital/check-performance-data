@@ -130,6 +130,38 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
     }
 
     [Fact]
+    public async Task A_pupils_id_is_always_generated_on_ingress_even_when_the_schema_and_file_disagree()
+    {
+        // A pupil's Id is ours, never the supplier's. The supplier's schema does not declare one,
+        // and a file that does carry one must not set it.
+        const string schema = """
+        {
+          "type": "object",
+          "properties": {
+            "CYPMD_ID": { "type": ["string", "null"] },
+            "SURNAME":  { "type": ["string", "null"] },
+            "LAESTAB":  { "type": ["string", "null"] }
+          }
+        }
+        """;
+        const string supplied = "11111111-1111-1111-1111-111111111111";
+        var csv = $"Id,CYPMD_ID,SURNAME,LAESTAB\n{supplied},500001,Smith,8604070\n{supplied},500002,Jones,8604070\n";
+        var windowId = Guid.NewGuid();
+        var container = await SeedWindowAsync(windowId, ("ingress/pupils.csv", csv), ("schema/pupils.json", schema));
+
+        var progress = await DrainAsync(Processor().ProcessAsync(windowId, CheckingExerciseType.PupilData,
+            [new IngressDataset("pupils", "pupils.csv", Checksum(csv), "pupils.json", Checksum(schema), Included: null)]));
+
+        Assert.False(progress[^1].IsError);
+        var ids = (await ReadPupilsAsync(container, "8604070"))!.Children<JObject>()
+            .Select(p => Guid.Parse(p["Id"]!.Value<string>()!)).ToList();
+        Assert.Equal(2, ids.Count);
+        Assert.DoesNotContain(Guid.Empty, ids);
+        Assert.DoesNotContain(Guid.Parse(supplied), ids);
+        Assert.Equal(2, ids.Distinct().Count());
+    }
+
+    [Fact]
     public async Task An_error_in_either_dataset_writes_nothing()
     {
         var windowId = Guid.NewGuid();
@@ -210,6 +242,109 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
         Assert.Equal(501, alice["P_INCL"]!.Value<int>());
     }
 
+    // A pupil file that carries each pupil's own inclusion code (KS4 P_INCL, KS2 PINCL_Flag) names
+    // its rule in the schema: which field, which codes are included, and the words schools see for
+    // each code. Ingress stamps INCLUDED and the description from it, so no reader knows a code.
+    private const string SchemaWithInclusionRule = """
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "x-ingress": {
+        "inclusion": {
+          "field": "P_INCL",
+          "included": ["401"],
+          "descriptionField": "P_INCL_DESC",
+          "descriptions": { "401": "Included words", "402": "Not included words" }
+        }
+      },
+      "properties": {
+        "INCLUDED":    { "type": "boolean" },
+        "SURNAME":     { "type": ["string", "null"] },
+        "LAESTAB":     { "type": ["string", "null"] },
+        "P_INCL":      { "type": ["string", "null"] },
+        "P_INCL_DESC": { "type": ["string", "null"] }
+      }
+    }
+    """;
+
+    private async Task<(ValidationProgress Last, JObject? Pupil)> RunInclusionRuleAsync(
+        string csv, string schema, bool? slotIncluded = null)
+    {
+        var windowId = Guid.NewGuid();
+        var container = await SeedWindowAsync(windowId,
+            ("ingress/pupils.csv", csv),
+            ("schema/pupils.json", schema));
+
+        IReadOnlyList<IngressDataset> datasets =
+        [
+            new("pupils", "pupils.csv", Checksum(csv), "pupils.json", Checksum(schema), Included: slotIncluded)
+        ];
+
+        var progress = await DrainAsync(Processor().ProcessAsync(windowId, CheckingExerciseType.PupilData, datasets));
+        var pupils = await ReadPupilsAsync(container, "8604070");
+        return (progress[^1], pupils?.Children<JObject>().Single());
+    }
+
+    [Theory]
+    [InlineData("SURNAME,LAESTAB,P_INCL\nSmith,8604070,401\n", true, "Included words")]
+    [InlineData("SURNAME,LAESTAB,P_INCL\nSmith,8604070,402\n", false, "Not included words")]
+    [InlineData("SURNAME,LAESTAB,P_INCL\nSmith,8604070, 401 \n", true, "Included words")]
+    [InlineData("SURNAME,LAESTAB,P_INCL,P_INCL_DESC\nSmith,8604070,401,From the supplier\n", true, "From the supplier")]
+    [InlineData("SURNAME,LAESTAB,P_INCL\nSmith,8604070,999\n", false, null)]
+    [InlineData("SURNAME,LAESTAB,P_INCL\nSmith,8604070,\n", false, null)]
+    public async Task The_schemas_inclusion_rule_stamps_INCLUDED_and_the_description(
+        string csv, bool included, string? description)
+    {
+        var (last, pupil) = await RunInclusionRuleAsync(csv, SchemaWithInclusionRule);
+
+        Assert.False(last.IsError, last.Message);
+        Assert.Equal(included, pupil!["INCLUDED"]!.Value<bool>());
+        Assert.Equal(description ?? string.Empty, pupil["P_INCL_DESC"]?.Value<string>() ?? string.Empty);
+    }
+
+    [Fact]
+    public async Task The_slots_file_of_origin_stamp_wins_over_the_schemas_rule()
+    {
+        var (last, pupil) = await RunInclusionRuleAsync(
+            "SURNAME,LAESTAB,P_INCL\nSmith,8604070,402\n", SchemaWithInclusionRule, slotIncluded: true);
+
+        Assert.False(last.IsError, last.Message);
+        Assert.True(pupil!["INCLUDED"]!.Value<bool>());
+    }
+
+    [Fact]
+    public async Task A_rule_on_a_schema_that_does_not_declare_INCLUDED_fails_the_run_by_name()
+    {
+        var schema = SchemaWithInclusionRule.Replace("\"INCLUDED\":    { \"type\": \"boolean\" },", string.Empty);
+
+        var (last, pupil) = await RunInclusionRuleAsync("SURNAME,LAESTAB,P_INCL\nSmith,8604070,401\n", schema);
+
+        Assert.True(last.IsError);
+        Assert.Contains("INCLUDED", last.Message);
+        Assert.Null(pupil);
+    }
+
+    // The shipped schemas carry the real codes. Each supplier file must land with the inclusion the
+    // spec gives it: KS4 401/403/414/421/431 included; KS2 201 included, 202 and 203 not.
+    [Theory]
+    [InlineData("ks4june", "UPN,CYPMD_ID,SURNAME,FORENAME,P_INCL,LAESTAB\nA1,1,Smith,Al,401,8604070\n", true)]
+    [InlineData("ks4june", "UPN,CYPMD_ID,SURNAME,FORENAME,P_INCL,LAESTAB\nA1,1,Smith,Al,431,8604070\n", true)]
+    [InlineData("ks4june", "UPN,CYPMD_ID,SURNAME,FORENAME,P_INCL,LAESTAB\nA1,1,Smith,Al,402,8604070\n", false)]
+    [InlineData("ks2", "UPN,CYPMD_ID,MATCHREF,SURNAME,FORENAME,PINCL_Flag,LAESTAB\nA1,1,7,Smith,Al,201,8604070\n", true)]
+    [InlineData("ks2", "UPN,CYPMD_ID,MATCHREF,SURNAME,FORENAME,PINCL_Flag,LAESTAB\nA1,1,7,Smith,Al,202,8604070\n", false)]
+    [InlineData("ks2", "UPN,CYPMD_ID,MATCHREF,SURNAME,FORENAME,PINCL_Flag,LAESTAB\nA1,1,7,Smith,Al,203,8604070\n", false)]
+    public async Task A_shipped_pupil_schema_stamps_inclusion_from_its_own_codes(string folder, string csv, bool included)
+    {
+        var schema = await File.ReadAllTextAsync(
+            Path.Combine(AppContext.BaseDirectory, "Data", "Ingress", folder, "pupils_schema.json"));
+
+        var (last, pupil) = await RunInclusionRuleAsync(csv, schema);
+
+        Assert.False(last.IsError, last.Message);
+        Assert.Equal(included, pupil!["INCLUDED"]!.Value<bool>());
+        Assert.False(string.IsNullOrEmpty(pupil["P_INCL_DESC"]?.Value<string>()));
+    }
+
     [Fact]
     public async Task A_dataset_with_no_marker_does_not_claim_inclusion_when_the_schema_declares_it()
     {
@@ -230,5 +365,240 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
 
         Assert.True(progress[^1].IsError);
         Assert.Null(await ReadPupilsAsync(container, "8604070"));
+    }
+
+    [Fact]
+    public async Task A_schema_with_an_institution_key_splits_the_file_by_that_column()
+    {
+        // The previously published file has no LAESTAB column: its DfE number is LAESTAB_0.
+        const string schema = """
+        {
+          "type": "object",
+          "x-ingress": { "institutionKey": "LAESTAB_0" },
+          "properties": {
+            "CYPMD_ID":  { "type": ["string", "null"] },
+            "SURNAME_0": { "type": ["string", "null"] },
+            "LAESTAB_0": { "type": ["string", "null"] }
+          }
+        }
+        """;
+        const string csv = "CYPMD_ID,SURNAME_0,LAESTAB_0\n500001,Smith,8604070\n500002,Jones,8604071\n";
+        var windowId = Guid.NewGuid();
+        var container = await SeedWindowAsync(windowId,
+            ("ingress/previous.csv", csv),
+            ("schema/previous.json", schema));
+
+        IReadOnlyList<IngressDataset> datasets =
+        [
+            new("pupils", "previous.csv", Checksum(csv), "previous.json", Checksum(schema), Included: null)
+        ];
+
+        var progress = await DrainAsync(Processor().ProcessAsync(windowId, CheckingExerciseType.PupilData, datasets));
+
+        Assert.False(progress[^1].IsError, progress[^1].Message);
+        Assert.Equal("Smith", Assert.Single((await ReadPupilsAsync(container, "8604070"))!)["SURNAME_0"]!.ToString());
+        Assert.Equal("Jones", Assert.Single((await ReadPupilsAsync(container, "8604071"))!)["SURNAME_0"]!.ToString());
+    }
+
+    private static async Task<List<string>> ListBlobNamesAsync(BlobContainerClient container)
+    {
+        List<string> names = [];
+        await foreach (var blob in container.GetBlobsAsync())
+        {
+            names.Add(blob.Name);
+        }
+        return names;
+    }
+
+    [Fact]
+    public async Task ARunForAnExercise_WritesUnderThatExercisesPrefix()
+    {
+        var windowId = Guid.NewGuid();
+        var exerciseId = Guid.NewGuid();
+        var container = await SeedWindowAsync(windowId,
+            ("ingress/pupils.csv", IncludedCsv),
+            ("schema/ks4.json", Ks4Schema));
+
+        IReadOnlyList<IngressDataset> datasets =
+        [
+            new("pupils", "pupils.csv", Checksum(IncludedCsv), "ks4.json", Checksum(Ks4Schema), Included: null)
+        ];
+
+        var progress = await DrainAsync(Processor().ProcessAsync(
+            windowId, CheckingExerciseType.PupilData, datasets, checkingExerciseId: exerciseId));
+
+        Assert.False(progress[^1].IsError);
+
+        var writtenBlobNames = await ListBlobNamesAsync(container);
+
+        Assert.Contains(writtenBlobNames, name =>
+            name.StartsWith($"exercises/{exerciseId}/data/", StringComparison.Ordinal));
+        Assert.DoesNotContain(writtenBlobNames, name => name.StartsWith("data/", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task ARunWithNoExerciseId_KeepsWritingTheLegacyPaths()
+    {
+        var windowId = Guid.NewGuid();
+        var container = await SeedWindowAsync(windowId,
+            ("ingress/pupils.csv", IncludedCsv),
+            ("schema/ks4.json", Ks4Schema));
+
+        IReadOnlyList<IngressDataset> datasets =
+        [
+            new("pupils", "pupils.csv", Checksum(IncludedCsv), "ks4.json", Checksum(Ks4Schema), Included: null)
+        ];
+
+        var progress = await DrainAsync(Processor().ProcessAsync(
+            windowId, CheckingExerciseType.PupilData, datasets, checkingExerciseId: null));
+
+        Assert.False(progress[^1].IsError);
+
+        var writtenBlobNames = await ListBlobNamesAsync(container);
+
+        Assert.Contains(writtenBlobNames, name => name.StartsWith("data/", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task AFailedRun_LeavesThePreviousOutputInPlace()
+    {
+        // Clearing before validation destroyed a school's good data whenever the new file was bad.
+        var windowId = Guid.NewGuid();
+        const string strictSchema = """
+        {
+          "type": "object",
+          "properties": {
+            "Id":       { "type": ["string", "null"] },
+            "INCLUDED": { "type": "boolean" },
+            "SURNAME":  { "type": ["string", "null"] },
+            "FORENAMES":{ "type": ["string", "null"] },
+            "CYPMD_ID": { "type": ["string", "null"] },
+            "LAESTAB":  { "type": ["string", "null"] },
+            "CampID_0": { "type": "integer" }
+          }
+        }
+        """;
+
+        var container = await SeedWindowAsync(windowId,
+            ("data/8604070_pupils.json", "[{\"SURNAME\":\"Existing\"}]"),
+            ("data/8604071_pupils.json", "[{\"SURNAME\":\"Other school\"}]"),
+            ("ingress/nonincluded.csv", NonIncludedCsv),
+            ("schema/strict.json", strictSchema));
+        var originalFiles = await SnapshotAsync(container);
+
+        IReadOnlyList<IngressDataset> datasets =
+        [
+            new("nonincluded", "nonincluded.csv", Checksum(NonIncludedCsv), "strict.json", Checksum(strictSchema), Included: false)
+        ];
+
+        var progress = await DrainAsync(Processor().ProcessAsync(
+            windowId, CheckingExerciseType.PupilData, datasets, clearExistingFiles: true));
+
+        Assert.True(progress[^1].IsError);
+
+        var existingBlobNames = await ListBlobNamesAsync(container);
+        Assert.Equal(new[] { "data/8604070_pupils.json", "data/8604071_pupils.json" },
+            existingBlobNames.Where(name => name.StartsWith("data/", StringComparison.Ordinal)).Order());
+        var after = await SnapshotAsync(container);
+        foreach (var (name, content) in originalFiles)
+            Assert.Equal(content, after[name]);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task Pupil_outputs_keep_their_complete_contract_and_existing_csv_summary(bool post16, bool exerciseScoped)
+    {
+        var windowId = Guid.NewGuid();
+        Guid? exerciseId = exerciseScoped ? Guid.NewGuid() : null;
+        var schema = post16 ? IncludedSchema : Ks4Schema;
+        var csv = IncludedCsv + "500003,Green,Chris,8604071,9900000003,402\n";
+        var container = await SeedWindowAsync(windowId,
+            ("ingress/included.csv", csv), ("schema/included.json", schema),
+            ("ingress/nonincluded.csv", NonIncludedCsv), ("schema/nonincluded.json", NonIncludedSchema),
+            ("unrelated/keep.txt", "Existing unrelated content"));
+        var originalFiles = await SnapshotAsync(container);
+        List<IngressDataset> datasets =
+            [new("included", "included.csv", Checksum(csv), "included.json", Checksum(schema), Included: post16 ? true : null)];
+        if (post16)
+            datasets.Add(new("nonincluded", "nonincluded.csv", Checksum(NonIncludedCsv), "nonincluded.json", Checksum(NonIncludedSchema), Included: false));
+
+        var progress = await DrainAsync(Processor().ProcessAsync(windowId, CheckingExerciseType.PupilData,
+            datasets, clearExistingFiles: true, checkingExerciseId: exerciseId));
+
+        Assert.False(progress[^1].IsError, progress[^1].Message);
+        var after = await SnapshotAsync(container);
+        foreach (var (name, content) in originalFiles)
+            Assert.Equal(content, after[name]);
+
+        var prefix = exerciseId is { } id ? $"exercises/{id}/data/" : "data/";
+        Assert.Equal(new[] { prefix + "8604070_pupils.json", prefix + "8604071_pupils.json" },
+            after.Keys.Where(name => name.Contains("/data/", StringComparison.Ordinal) || name.StartsWith("data/", StringComparison.Ordinal)).Order());
+        var ids = new HashSet<Guid>();
+        foreach (var school in new[] { "8604070", "8604071" })
+        {
+            var actual = JArray.Parse(Encoding.UTF8.GetString(after[prefix + school + "_pupils.json"]));
+            foreach (var pupil in actual.Children<JObject>())
+            {
+                var pupilId = Guid.Parse(pupil["Id"]!.Value<string>()!);
+                Assert.NotEqual(Guid.Empty, pupilId);
+                Assert.True(ids.Add(pupilId));
+                pupil.Remove("Id");
+            }
+            var expected = school == "8604070"
+                ? JArray.Parse("""[{"CYPMD_ID":"500001","SURNAME":"Smith","FORENAMES":"Alice","LAESTAB":"8604070","ULN":"9900000001","P_INCL":501}]""")
+                : JArray.Parse("""[{"CYPMD_ID":"500003","SURNAME":"Green","FORENAMES":"Chris","LAESTAB":"8604071","ULN":"9900000003","P_INCL":402}]""");
+            if (post16)
+            {
+                ((JObject)expected[0])["INCLUDED"] = true;
+                if (school == "8604070")
+                    expected.Add(JObject.Parse("""{"CYPMD_ID":"500002","SURNAME":"Jones","FORENAMES":"Bob","LAESTAB":"8604070","ULN":"9900000002","CampID_0":"C0","INCLUDED":false}"""));
+            }
+            Assert.True(JToken.DeepEquals(expected, actual), $"Unexpected pupil output for {school}: {actual}");
+        }
+
+        var summaryPrefix = exerciseId is { } summaryId ? $"exercises/{summaryId}/logs/summary_" : $"{windowId}_summary_";
+        var summary = Assert.Single(after.Keys, name => name.StartsWith(summaryPrefix, StringComparison.Ordinal) && name.EndsWith(".csv", StringComparison.Ordinal));
+        Assert.Equal($"LAESTAB,RecordsProcessed\n8604070,{(post16 ? 2 : 1)}\n8604071,1\n\nTotal LAESTAB,2\nTotal records,{(post16 ? 3 : 2)}\n",
+            Encoding.UTF8.GetString(after[summary]).Replace("\r\n", "\n"));
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task Validation_only_preserves_every_blob_on_success_and_failure(bool invalid, bool exerciseScoped)
+    {
+        var windowId = Guid.NewGuid();
+        Guid? exerciseId = exerciseScoped ? Guid.NewGuid() : null;
+        var prefix = exerciseId is { } id ? $"exercises/{id}/" : "";
+        var csv = invalid ? IncludedCsv.Replace(",501\n", ",not-an-integer\n") : IncludedCsv;
+        var container = await SeedWindowAsync(windowId,
+            ("ingress/pupils.csv", csv), ("schema/ks4.json", Ks4Schema),
+            (prefix + "data/8604070_pupils.json", "[{\"SURNAME\":\"Existing\"}]"),
+            (exerciseScoped ? prefix + "logs/summary_existing.csv" : $"{windowId}_summary_existing.csv", "Existing summary"),
+            (exerciseScoped ? prefix + "logs/error_log.txt" : $"{windowId}_error_log.txt", "Existing errors"));
+        var before = await SnapshotAsync(container);
+
+        var progress = await DrainAsync(Processor().ProcessAsync(windowId, CheckingExerciseType.PupilData,
+            [new("pupils", "pupils.csv", Checksum(csv), "ks4.json", Checksum(Ks4Schema), Included: null)],
+            validateOnly: true, clearExistingFiles: true, checkingExerciseId: exerciseId));
+
+        Assert.Equal(invalid, progress[^1].IsError);
+        var after = await SnapshotAsync(container);
+        Assert.Equal(before.Keys.Order(), after.Keys.Order());
+        foreach (var (name, content) in before)
+            Assert.Equal(content, after[name]);
+    }
+
+    private static async Task<Dictionary<string, byte[]>> SnapshotAsync(BlobContainerClient container)
+    {
+        var snapshot = new Dictionary<string, byte[]>();
+        await foreach (var blob in container.GetBlobsAsync())
+            snapshot.Add(blob.Name, (await container.GetBlobClient(blob.Name).DownloadContentAsync()).Value.Content.ToArray());
+        return snapshot;
     }
 }

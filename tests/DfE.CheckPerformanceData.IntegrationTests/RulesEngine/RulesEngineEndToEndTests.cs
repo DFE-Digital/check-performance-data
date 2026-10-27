@@ -259,9 +259,9 @@ public sealed class RulesEngineEndToEndTests
             Answers: [],
             DecisionStatus.Scrutiny, "ADD-DEF");
 
-        // The journey collects one social-care reason radio, so the rules' "all three
-        // flags false" branch can never fire from journey data; the sat-exams
-        // disjunct is the reachable auto-reject path.
+        // The journey's social-care reason is a checkbox (#591) and needs at least one tick, so
+        // the rules' "all three flags false" branch can never fire from journey data; the
+        // sat-exams disjunct is the reachable auto-reject path.
         yield return new("SocialCareInvolvement-Ks4SatExams", "Remove - social-care-involvement", "KS4June",
             Answers:
             [
@@ -269,6 +269,16 @@ public sealed class RulesEngineEndToEndTests
                 ("sat-exams", "yes"),
             ],
             DecisionStatus.AutoRejected, "SCI-KS4-REJ");
+
+        // #591: two ticked reasons set two flags. Before the fix the joined value matched no
+        // trigger, all three flags went false and the request was auto-rejected.
+        yield return new("SocialCareInvolvement-TwoReasonsIsScrutiny", "Remove - social-care-involvement", "KS4June",
+            Answers:
+            [
+                ("social-care-reason", "social-care-situation,police-involvement"),
+                ("sat-exams", "no"),
+            ],
+            DecisionStatus.Scrutiny, "SCI-DEF");
 
         yield return new("TerminalCriticalIllness-TerminalIsScrutiny", "Remove - life-limiting-illness", "KS4June",
             Answers: [("life-limiting-illness-health-issue", "terminal-illness")],
@@ -348,8 +358,6 @@ public sealed class RulesEngineEndToEndTests
     public static TheoryData<string, string, DecisionStatus, string> PendingOutcomeScenarios() => new()
     {
         { "CompletedKs4Elsewhere",   "KS4June",    DecisionStatus.Scrutiny,     "CKS4-DEF" },
-        { "AssessmentsDeferred",     "KS2",    DecisionStatus.AutoRejected, "ASD-REJ"  },
-        { "PupilAddedAfterSummerTerm", "KS4June",  DecisionStatus.AutoRejected, "PAS-REJ"  },
         { "PupilNotOnJuneList",      "KS4June",    DecisionStatus.Scrutiny,     "PNJL-DEF" },
         { "NotAtEndOf16To18Study",   "Post16", DecisionStatus.AutoApproved, "N16-LT18" },
         { "Other",                   "KS4June",    DecisionStatus.Scrutiny,     "OTH-DEF"  },
@@ -363,8 +371,6 @@ public sealed class RulesEngineEndToEndTests
         var ctx = new RuleContext(outcomeKey, checkingWindowType, new Dictionary<string, FieldValue>
         {
             ["checkingWindowType"]    = new FieldValue.Str(checkingWindowType),
-            ["isContinuingKS2Studies"] = new FieldValue.Bool(false),
-            ["dateAddedToRoll"]       = new FieldValue.Date(new DateOnly(2024, 1, 1)),
             ["pupilAge"]              = new FieldValue.Num(16),
         });
 

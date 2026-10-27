@@ -130,7 +130,7 @@ public class JourneyControllerTests
         _sut = new JourneyController(_flowService, _journeyService, _fileStorageService,
             _requestService, _pupilDataService, viewModelBuilder, _analytics, _currentUserService,
             _optionVisibilityService, _optionalityService, _languageCapture,
-            Substitute.For<DfE.CheckPerformanceData.Application.ResultsEnquiry.IStudentResultsClient>(),
+            Substitute.For<DfE.CheckPerformanceData.Application.ResultsEnquiry.IResultsClient>(),
             Substitute.For<DfE.CheckPerformanceData.Application.ResultsEnquiry.IQualificationReferenceClient>(),
             _requestNotificationService,
             _checkingExercises,
@@ -207,6 +207,51 @@ public class JourneyControllerTests
         var result = _sut.Confirmation(WindowId);
 
         AssertRedirectToCheckYourData(result);
+    }
+
+    // The page quotes the signed-in school's pupil-data end, from the exercise
+    // rows, never the window's end. SummaryConfirm has cleared the change type by now, and only
+    // an amendment comes here, so the kind is pupil data.
+    [Theory]
+    [InlineData("933/4290", "31 July 2026")]
+    [InlineData("860/4070", "30 June 2026")]
+    public void Confirmation_QuotesTheSignedInSchoolsPupilDataEnd(string laestab, string date)
+    {
+        _currentUserService.OrganisationLaestab.Returns(laestab);
+        var state = ValidSession();
+        state.SelectedWhatToChange = null;
+        state.CheckingWindow = new CheckingWindowDto
+        {
+            Id = WindowId,
+            Title = "Test Window",
+            KeyStage = KeyStages.KS4,
+            CheckingWindowType = CheckingWindowType.KS4June,
+            StartDate = new DateTime(2026, 6, 1),
+            EndDate = new DateTime(2026, 7, 31, 17, 0, 0),
+            Exercises =
+            [
+                new DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseDto
+                {
+                    Id = Guid.NewGuid(),
+                    ExerciseType = CheckingExerciseType.PupilData,
+                    StartDate = new DateTime(2026, 6, 1),
+                    EndDate = new DateTime(2026, 6, 30, 17, 0, 0),
+                    Extensions =
+                    [
+                        new DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseExtensionDto
+                        {
+                            Id = Guid.NewGuid(), EndDate = new DateTime(2026, 7, 31, 17, 0, 0), Laestabs = ["9334290"]
+                        }
+                    ]
+                }
+            ]
+        };
+        SetupSession(state);
+
+        var view = Assert.IsType<ViewResult>(_sut.Confirmation(WindowId));
+
+        var model = Assert.IsType<DfE.CheckPerformanceData.Web.Controllers.Journey.ConfirmationViewModel>(view.Model);
+        Assert.EndsWith(date, model.WindowCloseLabel);
     }
 
     // ── Navigation validation ────────────────────────────────────────────────
@@ -2038,9 +2083,9 @@ public class JourneyControllerTests
     [Fact]
     public async Task PagePost_EvidenceOptional_WhenConditionallyOptional_ContinuesOnEmpty()
     {
-        // When the EalWouldBeAutoRejected condition (approximated via the mocked
-        // optionality service here) says the request would be auto-rejected, both
-        // evidence questions become optional and an empty submission proceeds.
+        // When the EalEvidenceIsOptional condition (approximated via the mocked
+        // optionality service here) makes both evidence questions optional, an
+        // empty submission proceeds.
         _optionalityService.GetConditionallyOptionalQuestionIds(EvidenceWithTextPage, Arg.Any<JourneyConditionContext>())
             .Returns(new HashSet<string> { "evidence", "explanation" });
         SetupSession(ValidSession(history: ["evidence-with-text"]));
@@ -2118,6 +2163,7 @@ public class JourneyControllerTests
         Assert.Equal(bytes, file.FileContents);
         Assert.Equal("application/pdf", file.ContentType);
         Assert.Equal(originalName, file.FileDownloadName);
+        Assert.Equal("no-store", _httpContext.Response.Headers.CacheControl.ToString());
     }
 
     [Fact]
@@ -2128,17 +2174,51 @@ public class JourneyControllerTests
         var result = await _sut.DownloadEvidence(WindowId, "unknown-file");
 
         Assert.IsType<NotFoundResult>(result);
+        Assert.Equal("no-store", _httpContext.Response.Headers.CacheControl.ToString());
         await _fileStorageService.DidNotReceive().GetAsync(Arg.Any<Guid>(), Arg.Any<string>());
     }
 
     [Fact]
-    public async Task DownloadEvidence_WhenNoSession_ReturnsNotFound()
+    public async Task DownloadEvidence_WhenTheStoredNameIsNotAGuid_ReturnsNotFound()
     {
         SetupSession(new RequestState());  // empty — no WhatToChange, no window, no pupil
 
         var result = await _sut.DownloadEvidence(WindowId, "any-file");
 
         Assert.IsType<NotFoundResult>(result);
+        Assert.Equal("no-store", _httpContext.Response.Headers.CacheControl.ToString());
+    }
+
+    // #615: every early return carries the header, not just the successful file. A ready session
+    // with no answer holding this name is the ordinary "someone pasted an old link" case.
+    [Fact]
+    public async Task DownloadEvidence_WhenTheFileIsNotOneOfTheJourneys_ReturnsNotFound()
+    {
+        SetupSession(ValidSession(answers: new Dictionary<string, QuestionAnswer>()));
+
+        var result = await _sut.DownloadEvidence(WindowId, Guid.NewGuid().ToString());
+
+        Assert.IsType<NotFoundResult>(result);
+        Assert.Equal("no-store", _httpContext.Response.Headers.CacheControl.ToString());
+        await _fileStorageService.DidNotReceive().GetAsync(Arg.Any<Guid>(), Arg.Any<string>());
+    }
+
+    // The answer still names the file but storage no longer has it — a second early return after
+    // the first.
+    [Fact]
+    public async Task DownloadEvidence_WhenTheStoredBytesAreGone_ReturnsNotFound()
+    {
+        var storedName = Guid.NewGuid().ToString();
+        SetupSession(ValidSession(answers: new Dictionary<string, QuestionAnswer>
+        {
+            ["q1"] = new() { FileValues = [new FileAnswer { StoredFileName = storedName, OriginalFileName = "evidence.pdf", PageCount = 1, FileSizeBytes = 10 }] }
+        }));
+        _fileStorageService.GetAsync(WindowId, storedName).Returns((byte[]?)null);
+
+        var result = await _sut.DownloadEvidence(WindowId, storedName);
+
+        Assert.IsType<NotFoundResult>(result);
+        Assert.Equal("no-store", _httpContext.Response.Headers.CacheControl.ToString());
     }
 
     // ── Evidence analytics ───────────────────────────────────────────────────
@@ -2527,7 +2607,7 @@ public class JourneyControllerTests
                     ExerciseType = CheckingExerciseType.PupilData,
                     StartDate = new DateTime(2026, 7, 19),
                     EndDate = ClosedEarlyAt,
-                    SortOrder = 0
+                    TabOrder = 0
                 }
             ]
         });
@@ -2589,7 +2669,7 @@ public class JourneyControllerTests
         // AC6, the two halves together. The exercise service here answers from the rows it is
         // GIVEN, as the real one does: open while an exercise's end date is still ahead.
         var now = new DateTime(2026, 9, 3, 10, 39, 0);
-        _checkingExercises.IsOpen(default!, default).ReturnsForAnyArgs(ci =>
+        _checkingExercises.IsOpen(default!, default, default).ReturnsForAnyArgs(ci =>
             ci.ArgAt<IReadOnlyList<DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseDto>>(0)
                 .Any(e => e.ExerciseType == ci.ArgAt<CheckingExerciseType>(1) && e.EndDate >= now));
 
@@ -2608,7 +2688,7 @@ public class JourneyControllerTests
                     ExerciseType = CheckingExerciseType.PupilData,
                     StartDate = new DateTime(2026, 7, 19),
                     EndDate = new DateTime(2027, 8, 2, 17, 0, 0),
-                    SortOrder = 0
+                    TabOrder = 0
                 }
             ]
         };
@@ -2623,6 +2703,64 @@ public class JourneyControllerTests
         // ...and after it the same request is turned away with the closed-exercise message.
         var redirect = Assert.IsType<RedirectToActionResult>(await _sut.Page(WindowId, "page-1"));
         Assert.Equal("CheckYourPupilData", redirect.ControllerName);
+        Assert.Equal(
+            ClosedExerciseGuard.MessageFor(CheckingExerciseType.PupilData, LearnerNoun.Pupil),
+            _sut.TempData[ClosedExerciseGuard.TempDataKey]);
+    }
+
+    // AB#307773: the journey's exercise ended yesterday, but an open extension names one school.
+    // The gate is asked about the signed-in school, so that school carries on and another is
+    // turned away with the closed-exercise message. The exercise service answers from the rows it
+    // is given, as the real one does: open while the school's end date is still ahead.
+    [Theory]
+    [InlineData("933/4290", true)]
+    [InlineData("860/4070", false)]
+    public async Task Page_WhenOnlyTheSchoolsExtensionIsOpen_LetsTheSchoolItNamesCarryOnOnly(string laestab, bool named)
+    {
+        var now = new DateTime(2026, 9, 3, 10, 39, 0);
+        _checkingExercises.IsOpen(default!, default, default).ReturnsForAnyArgs(ci =>
+            ci.ArgAt<IReadOnlyList<DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseDto>>(0)
+                .Any(e => e.ExerciseType == ci.ArgAt<CheckingExerciseType>(1)
+                    && e.EndDateFor(ci.ArgAt<string?>(2)) >= now));
+        _currentUserService.OrganisationLaestab.Returns(laestab);
+
+        var journey = ValidSession(history: ["page-1"]);
+        journey.CheckingWindow = new CheckingWindowDto
+        {
+            Title = "Test Window",
+            KeyStage = KeyStages.KS4,
+            CheckingWindowType = CheckingWindowType.KS4June,
+            StartDate = new DateTime(2026, 7, 19),
+            EndDate = new DateTime(2026, 9, 10, 17, 0, 0),
+            Exercises =
+            [
+                new DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseDto
+                {
+                    ExerciseType = CheckingExerciseType.PupilData,
+                    StartDate = new DateTime(2026, 7, 19),
+                    EndDate = new DateTime(2026, 9, 2, 17, 0, 0),
+                    TabOrder = 0,
+                    Extensions =
+                    [
+                        new DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseExtensionDto
+                        {
+                            EndDate = new DateTime(2026, 9, 10, 17, 0, 0),
+                            Laestabs = ["9334290"]
+                        }
+                    ]
+                }
+            ]
+        };
+        SetupSession(journey);
+
+        var result = await _sut.Page(WindowId, "page-1");
+
+        if (named)
+        {
+            Assert.IsNotType<RedirectToActionResult>(result);
+            return;
+        }
+        Assert.Equal("CheckYourPupilData", Assert.IsType<RedirectToActionResult>(result).ControllerName);
         Assert.Equal(
             ClosedExerciseGuard.MessageFor(CheckingExerciseType.PupilData, LearnerNoun.Pupil),
             _sut.TempData[ClosedExerciseGuard.TempDataKey]);
@@ -2695,6 +2833,7 @@ public class JourneyControllerTests
 
         var redirect = Assert.IsType<RedirectToActionResult>(result);
         Assert.Equal("CheckYourPupilData", redirect.ControllerName);
+        Assert.Equal("no-store", _httpContext.Response.Headers.CacheControl.ToString());
     }
 
     [Fact]
@@ -2703,7 +2842,7 @@ public class JourneyControllerTests
         // A pupil-data journey on a window whose results-enquiry exercise is still running. The
         // gate follows the journey's own exercise, derived from SelectedWhatToChange.
         SetupSession(ValidSession(history: ["page-1"]));
-        _checkingExercises.IsOpen(default!, default)
+        _checkingExercises.IsOpen(default!, default, default)
             .ReturnsForAnyArgs(ci => ci.ArgAt<CheckingExerciseType>(1) == CheckingExerciseType.ResultsEnquiry);
 
         var result = await _sut.Page(WindowId, "page-1");

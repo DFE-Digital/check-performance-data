@@ -31,8 +31,8 @@ public interface IPupilRecord
     string Identifier { get; }
 
     /// <summary>
-    /// Drives the Included / Non-included split. NOT a Pincl code — the Post16 non-included
-    /// supplier file has no P_INCL column, so its inclusion comes from the file of origin.
+    /// Drives the Included / Non-included split. The <c>INCLUDED</c> stamp ingress writes, never a
+    /// Pincl code: see <see cref="PupilInclusion"/>.
     /// </summary>
     bool IsIncluded { get; }
 

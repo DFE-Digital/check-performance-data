@@ -1,6 +1,7 @@
 using System.Text.Json.Nodes;
 using DfE.CheckPerformanceData.Application.Common;
 using DfE.CheckPerformanceData.Application.ContentPages;
+using DfE.CheckPerformanceData.Application.HomeBanners;
 using DfE.CheckPerformanceData.Web.Controllers;
 using DfE.CheckPerformanceData.Web.Models.PageTree;
 using Microsoft.AspNetCore.Hosting;
@@ -15,6 +16,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using NSubstitute;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.PageTree;
 
@@ -111,9 +113,60 @@ public sealed class ContentTemplateRenderTests
         Assert.DoesNotContain("not published", html);
     }
 
+    // ── #588 Home page banners on the guidance front page ─────────────────────────────
+
+    [Fact]
+    public async Task RendersHomeBanners_WhenShowHomeBannersTrue()
+    {
+        var model = new RenderedPageViewModel
+        {
+            Title           = "Guidance",
+            PageType        = "content",
+            Content         = [],
+            Nav             = [],
+            ShowHomeBanners = true
+        };
+        IReadOnlyList<HomeBannerDto> banners =
+        [
+            new() { Id = 42, Heading = "Apply by 31 October", BodyHtml = "<p>Do it now.</p>", IsEnabled = true }
+        ];
+
+        var html = await RenderContentViewAsync(model, banners);
+
+        Assert.Contains("home-banner-42-heading", html);
+        Assert.Contains("Apply by 31 October", html);
+        // Banners sit above the template-emitted H1.
+        Assert.True(
+            html.IndexOf("home-banner-42-heading", StringComparison.Ordinal)
+                < html.IndexOf("govuk-heading-xl", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task DoesNotRenderHomeBanners_WhenShowHomeBannersFalse()
+    {
+        var model = new RenderedPageViewModel
+        {
+            Title           = "My Page",
+            PageType        = "content",
+            Content         = [],
+            Nav             = [],
+            ShowHomeBanners = false
+        };
+        IReadOnlyList<HomeBannerDto> banners =
+        [
+            new() { Id = 42, Heading = "Apply by 31 October", BodyHtml = "<p>Do it now.</p>", IsEnabled = true }
+        ];
+
+        var html = await RenderContentViewAsync(model, banners);
+
+        Assert.DoesNotContain("home-banner-42-heading", html);
+        Assert.DoesNotContain("Apply by 31 October", html);
+    }
+
     // Spins up a minimal MVC host to obtain a wired view engine, then renders
     // Views/Page/Content.cshtml with isMainPage:false (bypasses _ViewStart / layout lookup).
-    private static async Task<string> RenderContentViewAsync(RenderedPageViewModel model)
+    private static async Task<string> RenderContentViewAsync(
+        RenderedPageViewModel model, IReadOnlyList<HomeBannerDto>? banners = null)
     {
         using var host = await new HostBuilder()
             .ConfigureWebHost(web =>
@@ -125,6 +178,10 @@ public sealed class ContentTemplateRenderTests
                         .AddApplicationPart(typeof(PageController).Assembly);
                     // The rich-text partial injects the sanitiser.
                     services.AddScoped<IHtmlRenderingService, HtmlRenderingService>();
+                    // The HomeBanners view component reads the live set from here.
+                    var bannerService = Substitute.For<IHomeBannerService>();
+                    bannerService.GetLiveAsync().Returns(banners ?? []);
+                    services.AddScoped(_ => bannerService);
                 });
                 web.Configure(_ => { });
             })

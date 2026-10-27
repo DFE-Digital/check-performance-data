@@ -766,6 +766,33 @@ public class JourneyValidationServiceTests
         Assert.Contains(violations, v => v.QuestionId == PageDateRules.FirstEnglishSchool);
     }
 
+    // docs/ks2-journeys.md, assumption 2: a flow can turn the cohort check (scenario 007) off on
+    // its EAL page. KS2 does.
+    [Fact]
+    public void ValidatePageDates_EalDetailsPage_CohortCheckOff_DoesNotCheckTheCohortStart()
+    {
+        var sut = DateRuleSut("2027-06-15T12:00:00Z");
+        var answers = EalAnswers(
+            started: new DateAnswer { Day = 2, Month = 9, Year = 2020 },
+            firstEnglishSchool: new DateAnswer { Day = 2, Month = 9, Year = 2020 });
+
+        Assert.Empty(sut.ValidatePageDates(MakeEalDetailsPage(checksCohortStart: false), answers, "Jane Smith"));
+    }
+
+    [Fact]
+    public void ValidatePageDates_EalDetailsPage_ChecksTheCohortStartByDefault()
+    {
+        var sut = DateRuleSut("2027-06-15T12:00:00Z");
+        var answers = EalAnswers(
+            started: new DateAnswer { Day = 2, Month = 9, Year = 2020 },
+            firstEnglishSchool: new DateAnswer { Day = 2, Month = 9, Year = 2020 });
+
+        var violation = Assert.Single(
+            sut.ValidatePageDates(MakeEalDetailsPage(), answers, "Jane Smith"));
+
+        Assert.Equal(PageDateRules.StartedAtSchool, violation.QuestionId);
+    }
+
     [Fact]
     public void ValidatePageDates_ConsistentAnswers_ReturnsEmpty()
     {
@@ -946,10 +973,11 @@ public class JourneyValidationServiceTests
         return answers;
     }
 
-    private static JourneyPage MakeEalDetailsPage() =>
+    private static JourneyPage MakeEalDetailsPage(bool checksCohortStart = true) =>
         new()
         {
             Id = PageDateRules.EalDetailsPageId,
+            ChecksCohortStart = checksCohortStart,
             Questions =
             [
                 new Question { Id = PageDateRules.StartedAtSchool, Type = QuestionType.Date, Title = "Started" },

@@ -86,7 +86,7 @@ public sealed class InstantSearchWidgetE2ETests(PlaywrightFixture fixture) : See
 
     private static Dictionary<string, string> SearchProps(
         string searchIn, bool instant, string scope = "", string noResults = "Nothing on this page",
-        string? showButton = null, string? buttonBelow = null)
+        string? showButton = null, string? buttonBelow = null, string? clearButton = null)
     {
         var props = new Dictionary<string, string>
         {
@@ -102,6 +102,7 @@ public sealed class InstantSearchWidgetE2ETests(PlaywrightFixture fixture) : See
         if (instant) props["instant"] = "true";
         if (showButton is not null) props["showButton"] = showButton;
         if (buttonBelow is not null) props["buttonBelow"] = buttonBelow;
+        if (clearButton is not null) props["clearButton"] = clearButton;
         return props;
     }
 
@@ -305,7 +306,8 @@ public sealed class InstantSearchWidgetE2ETests(PlaywrightFixture fixture) : See
         Assert.DoesNotContain(labels, l => l.Contains("Outside", StringComparison.Ordinal));
 
         await Options.First.ClickAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex($"{FixtureContent.RootPath}/{Regex.Escape(containerSegment)}/{Regex.Escape(insideSegment)}$"));
+        // The term goes with it, so the page can jump to it.
+        await Expect(Page).ToHaveURLAsync(new Regex($"{FixtureContent.RootPath}/{Regex.Escape(containerSegment)}/{Regex.Escape(insideSegment)}\\?highlight={Regex.Escape(token)}$"));
     }
 
     // ============================================================
@@ -384,7 +386,20 @@ public sealed class InstantSearchWidgetE2ETests(PlaywrightFixture fixture) : See
     {
         var (url, _) = await SeedPageWithSectionsAsync(SearchProps("page", instant: true));
 
-        await using var context = await Browser.NewContextAsync(new BrowserNewContextOptions
+        await using var context = await NewContextWithoutJavaScriptAsync();
+        var page = await context.NewPageAsync();
+        await page.GotoAsync($"{Fixture.BaseUrl}{url}");
+
+        await page.Locator("input[name='q']").FillAsync("evidence");
+        await page.Locator("button[type='submit']").ClickAsync();
+
+        await page.WaitForURLAsync(new Regex(@"/search\?"));
+        Assert.Contains("scope=", page.Url, StringComparison.Ordinal);
+    }
+
+    private async Task<IBrowserContext> NewContextWithoutJavaScriptAsync()
+    {
+        var context = await Browser.NewContextAsync(new BrowserNewContextOptions
         {
             JavaScriptEnabled = false,
         });
@@ -399,15 +414,7 @@ public sealed class InstantSearchWidgetE2ETests(PlaywrightFixture fixture) : See
                 Url = Fixture.BaseUrl,
             }]);
         }
-
-        var page = await context.NewPageAsync();
-        await page.GotoAsync($"{Fixture.BaseUrl}{url}");
-
-        await page.Locator("input[name='q']").FillAsync("evidence");
-        await page.Locator("button[type='submit']").ClickAsync();
-
-        await page.WaitForURLAsync(new Regex(@"/search\?"));
-        Assert.Contains("scope=", page.Url, StringComparison.Ordinal);
+        return context;
     }
 
     // ============================================================
@@ -491,7 +498,102 @@ public sealed class InstantSearchWidgetE2ETests(PlaywrightFixture fixture) : See
     }
 
     // ============================================================
-    // 6b. Two instant widgets on one page each get their own input and their own menu.
+    // 6b. The author can add a clear button at the end of the box. It shows once there is
+    //     something to clear, empties the box and puts the visitor back in it.
+    // ============================================================
+    private ILocator ClearButton =>
+        WidgetForm.GetByRole(AriaRole.Button, new() { Name = "Clear search" });
+
+    [Fact]
+    public async Task ClearButton_EmptiesTheBox_AndPutsTheVisitorBackInIt()
+    {
+        var (url, _) = await SeedPageWithSectionsAsync(SearchProps("site", instant: false, clearButton: "true"));
+
+        await Page.GotoAsync($"{Fixture.BaseUrl}{url}");
+        var box = WidgetForm.Locator("input[name='q']");
+
+        // Nothing to clear yet.
+        await Expect(ClearButton).ToBeHiddenAsync();
+
+        await box.FillAsync("evidence");
+        await Expect(ClearButton).ToBeVisibleAsync();
+
+        // The button sits at the end of the box, inside it.
+        var boxBounds = await box.BoundingBoxAsync();
+        var buttonBounds = await ClearButton.BoundingBoxAsync();
+        Assert.NotNull(boxBounds);
+        Assert.NotNull(buttonBounds);
+        Assert.True(buttonBounds.X + buttonBounds.Width <= boxBounds.X + boxBounds.Width + 1
+            && buttonBounds.X > boxBounds.X + boxBounds.Width / 2,
+            "the clear button is not at the end of the box");
+        Assert.True(buttonBounds.Y >= boxBounds.Y - 1
+            && buttonBounds.Y + buttonBounds.Height <= boxBounds.Y + boxBounds.Height + 1,
+            "the clear button is not inside the box");
+
+        await ClearButton.ClickAsync();
+
+        await Expect(box).ToHaveValueAsync("");
+        await Expect(box).ToBeFocusedAsync();
+        await Expect(ClearButton).ToBeHiddenAsync();
+        // Clearing is not a search.
+        Assert.DoesNotContain("/search", Page.Url, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ClearButton_OnInstantSearch_EmptiesTheBoxAndClosesTheSuggestions()
+    {
+        var (url, _) = await SeedPageWithSectionsAsync(SearchProps("page", instant: true, clearButton: "true"));
+
+        await Page.GotoAsync($"{Fixture.BaseUrl}{url}");
+        await Expect(Page.Locator("input.autocomplete__input")).ToBeVisibleAsync();
+        await Expect(ClearButton).ToBeHiddenAsync();
+
+        await TypeAsync("evidence");
+        await Expect(Options.First).ToBeVisibleAsync();
+        await Expect(ClearButton).ToBeVisibleAsync();
+
+        await ClearButton.ClickAsync();
+
+        var box = Page.Locator("input.autocomplete__input");
+        await Expect(box).ToHaveValueAsync("");
+        await Expect(box).ToBeFocusedAsync();
+        await Expect(Menu).ToBeHiddenAsync();
+        await Expect(ClearButton).ToBeHiddenAsync();
+
+        // The box still searches after it has been cleared.
+        await box.FillAsync("uploading");
+        await Expect(Options.First).ToContainTextAsync("Uploading files");
+    }
+
+    [Fact]
+    public async Task ClearButton_WorksWithoutJavaScript()
+    {
+        var (url, _) = await SeedPageWithSectionsAsync(SearchProps("site", instant: false, clearButton: "true"));
+
+        await using var context = await NewContextWithoutJavaScriptAsync();
+        var page = await context.NewPageAsync();
+        await page.GotoAsync($"{Fixture.BaseUrl}{url}");
+
+        var box = page.Locator("input[name='q']");
+        await box.FillAsync("evidence");
+        await page.GetByRole(AriaRole.Button, new() { Name = "Clear search" }).ClickAsync();
+
+        await Expect(box).ToHaveValueAsync("");
+    }
+
+    [Fact]
+    public async Task WithNoClearButtonChoiceSaved_ThereIsNoClearButton()
+    {
+        var (url, _) = await SeedPageWithSectionsAsync(SearchProps("site", instant: false));
+
+        await Page.GotoAsync($"{Fixture.BaseUrl}{url}");
+        await WidgetForm.Locator("input[name='q']").FillAsync("evidence");
+
+        await Expect(ClearButton).ToHaveCountAsync(0);
+    }
+
+    // ============================================================
+    // 6c. Two instant widgets on one page each get their own input and their own menu.
     // ============================================================
     [Fact]
     public async Task TwoWidgetsOnOnePage_DoNotShareAnInputId()
@@ -527,7 +629,7 @@ public sealed class InstantSearchWidgetE2ETests(PlaywrightFixture fixture) : See
     [Fact]
     public async Task EnhancedWidget_HasNoAxeViolations()
     {
-        var (url, _) = await SeedPageWithSectionsAsync(SearchProps("page", instant: true));
+        var (url, _) = await SeedPageWithSectionsAsync(SearchProps("page", instant: true, clearButton: "true"));
 
         await Page.GotoAsync($"{Fixture.BaseUrl}{url}");
         await Expect(Page.Locator("input.autocomplete__input")).ToBeVisibleAsync();

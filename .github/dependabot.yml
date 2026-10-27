@@ -1,0 +1,107 @@
+# Version updates for NuGet, Docker and GitHub Actions (#616). Security alerts and security updates
+# are repository settings, not part of this file. See docs/dependabot.md.
+version: 2
+
+updates:
+  - package-ecosystem: nuget
+    # The solution lists every project, the test projects under /tests included. Dependabot updates
+    # their packages.lock.json files too, so the locked restore in build.yml still passes.
+    directory: /src
+    schedule:
+      interval: weekly
+      day: monday
+      time: "07:00"
+      timezone: Europe/London
+    # A new release waits a week before it is proposed, so a compromised or broken version has
+    # time to be found and pulled. Security updates do not wait.
+    cooldown:
+      default-days: 7
+    groups:
+      # The playwright/dotnet image in the E2E Dockerfile must carry the same version, which
+      # build.yml checks. The pull request fails until the FROM line is changed to match, so it
+      # comes on its own rather than holding up the other updates.
+      playwright:
+        patterns:
+          - "Microsoft.Playwright*"
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # These move with the .NET version, which is an upgrade of its own, not a package update.
+      - dependency-name: "Microsoft.AspNetCore.*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "Microsoft.EntityFrameworkCore*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "Microsoft.Extensions.*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "System.Security.Cryptography.Xml"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "Npgsql*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "Serilog.AspNetCore"
+        update-types: ["version-update:semver-major"]
+      # From 3.2.0 the build fails unless a Six Labors licence key is supplied, and a commercial
+      # key is paid for. Held on 3.1.x until there is a licence decision.
+      - dependency-name: "SixLabors.ImageSharp"
+        versions: [">= 3.2.0"]
+      # 4.14.0 bundles axe-core 4.14, which turns on label-content-name-mismatch (WCAG 2.5.3) by
+      # default. It fails the admin accessibility sweep on the GOV.UK Frontend File upload button
+      # (/admin/storage/app/rules-config). Held on 4.13 until that finding is dealt with.
+      - dependency-name: "Deque.AxeCore.Playwright"
+        versions: [">= 4.14.0"]
+
+  - package-ecosystem: docker
+    directories:
+      - /src/DfE.CheckPerformanceData.Web
+      - /src/DfE.CheckPerformanceData.RulesEngineWorker
+      - /tests/DfE.CheckPerformanceData.E2ETests
+      - /maintenance_page
+    schedule:
+      interval: weekly
+      day: monday
+      time: "07:00"
+      timezone: Europe/London
+    cooldown:
+      default-days: 7
+      # Each FROM pins its tag to a digest (#617). Microsoft republishes the .NET 10.0 tags with
+      # .NET and Ubuntu security fixes, which every build took at once before the pins, so a new
+      # digest for them is not held back a week.
+      exclude:
+        - "*dotnet/aspnet"
+        - "*dotnet/sdk"
+    groups:
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # The .NET images stay on the 10.0 tag, and Dependabot proposes each new digest of it.
+      # Version 11 is a .NET upgrade.
+      - dependency-name: "*dotnet/aspnet"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "*dotnet/sdk"
+        update-types: ["version-update:semver-major"]
+      # This tag follows the Microsoft.Playwright NuGet package (see the playwright group above).
+      - dependency-name: "*playwright/dotnet"
+
+  - package-ecosystem: github-actions
+    # / is the workflows in .github/workflows. Each composite action is listed by its own directory.
+    # Official GitHub, verified-publisher and DfE actions stay on a major version or branch. Other
+    # actions are pinned to a commit SHA with the version in a comment, and Dependabot updates both
+    # (#617, docs/dependabot.md#pins). It does not update DFE-Digital/github-actions/*@master.
+    directories:
+      - /
+      - /.github/actions/image-sbom
+    schedule:
+      interval: weekly
+      day: monday
+      time: "07:00"
+      timezone: Europe/London
+    cooldown:
+      default-days: 7
+    groups:
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch

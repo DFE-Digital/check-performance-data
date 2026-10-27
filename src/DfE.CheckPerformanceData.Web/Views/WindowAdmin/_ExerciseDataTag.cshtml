@@ -1,0 +1,19 @@
+@using DfE.CheckPerformanceData.Application.WindowManagement
+@model ExerciseDataStatus
+@* Whether one exercise has data for schools (CheckingExerciseDto.DataStatus). An exercise can be
+   Visible with no data at all, so the windows list shows this beside the state tag. *@
+@switch (Model)
+{
+  case ExerciseDataStatus.Live:
+    <strong class="govuk-tag govuk-tag--green">Live</strong>
+    break;
+  case ExerciseDataStatus.LiveWithNewFiles:
+    <strong class="govuk-tag govuk-tag--blue">Live – new files not validated</strong>
+    break;
+  case ExerciseDataStatus.NotValidated:
+    <strong class="govuk-tag govuk-tag--yellow">Not validated</strong>
+    break;
+  default:
+    <strong class="govuk-tag govuk-tag--red">No files</strong>
+    break;
+}

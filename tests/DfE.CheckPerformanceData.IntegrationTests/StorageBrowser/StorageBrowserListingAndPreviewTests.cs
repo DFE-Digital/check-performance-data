@@ -62,10 +62,32 @@ public sealed class StorageBrowserListingAndPreviewTests(AzuriteFixture fixture)
         var container = await NewContainer();
         await StageOnly(container, "ghost.csv");
         await container.GetBlobClient("real.csv").UploadAsync(new BinaryData("a,b"));
+        // Browse finds the exercise and its dataset first and gives 404 when it cannot.
+        var windowId = Guid.NewGuid();
+        var windows = Substitute.For<IWindowService>();
+        windows.GetByIdAsync(windowId, Arg.Any<CancellationToken>()).Returns(new CheckingWindowDto
+        {
+            Id = windowId,
+            Title = "KS4 June",
+            KeyStage = KeyStages.KS4,
+            CheckingWindowType = CheckingWindowType.KS4June,
+            StartDate = new DateTime(2026, 6, 1),
+            EndDate = new DateTime(2026, 6, 30),
+            Exercises =
+            [
+                new CheckingExerciseDto
+                {
+                    ExerciseType = CheckingExerciseType.PupilData,
+                    StartDate = new DateTime(2026, 6, 1),
+                    EndDate = new DateTime(2026, 6, 30),
+                    Datasets = [new CheckingWindowDatasetDto { Name = "ks4" }]
+                }
+            ]
+        });
         var sut = new IngressFileController(NullLogger<IngressFileController>.Instance,
-            Substitute.For<IWindowService>(), new Dictionary<string, BlobServiceClient> { ["ingress"] = _blobs });
+            windows, new Dictionary<string, BlobServiceClient> { ["ingress"] = _blobs });
 
-        var result = await sut.Browse(Guid.NewGuid(), CheckingExerciseType.PupilData, "ks4", container.Name, null, default);
+        var result = await sut.Browse(windowId, CheckingExerciseType.PupilData, "ks4", container.Name, null, default);
 
         var model = Assert.IsType<IngressFolderBrowseViewModel>(Assert.IsType<ViewResult>(result).Model);
         Assert.Equal(["real.csv"], model.Files);

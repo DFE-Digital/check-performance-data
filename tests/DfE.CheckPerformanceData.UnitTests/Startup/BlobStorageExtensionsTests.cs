@@ -4,6 +4,7 @@ using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
+using DfE.CheckPerformanceData.Infrastructure.Egress;
 using DfE.CheckPerformanceData.Infrastructure.QuestionFlow;
 using DfE.CheckPerformanceData.Web.Startup;
 using Microsoft.Extensions.Configuration;
@@ -19,7 +20,7 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Startup;
 // AddCpdBlobStorage. So a client registered only in the Infrastructure DependencyManager resolves
 // in the worker and in tests but throws at web startup, and because the container is validated on
 // build the whole app crashloops rather than failing on one page. AB#296648 hit exactly that: the
-// dev-data seeding orchestrator took IStudentResultsClient and the app would not boot. These
+// dev-data seeding orchestrator took IResultsClient and the app would not boot. These
 // assertions turn that class of failure back into a test failure.
 public class BlobStorageExtensionsTests
 {
@@ -59,18 +60,23 @@ public class BlobStorageExtensionsTests
         return provider.GetRequiredService<IReadOnlyDictionary<string, BlobServiceClient>>();
     }
 
+    // LDS uploads ingress files to and downloads egress files from one account, so the egress
+    // reads the ingress client and there is no separate EgressStorage connection string.
     [Fact]
-    public void Registers_the_egress_client_only_when_its_connection_string_is_present()
+    public void The_egress_uses_the_ingress_account()
     {
         var with = BuildClients(new Dictionary<string, string?>
         {
             ["ConnectionStrings:AzureStorage"] = "UseDevelopmentStorage=true",
+            ["ConnectionStrings:IngressStorage"] = "UseDevelopmentStorage=true",
             ["ConnectionStrings:EgressStorage"] = "UseDevelopmentStorage=true"
         });
-        Assert.True(with.ContainsKey("egress"));
+        Assert.Equal("ingress", EgressBlobClient.ClientKey);
+        Assert.True(with.ContainsKey(EgressBlobClient.ClientKey));
+        Assert.False(with.ContainsKey("egress"));
 
         var without = BuildClients(new Dictionary<string, string?> { ["ConnectionStrings:AzureStorage"] = "UseDevelopmentStorage=true" });
-        Assert.False(without.ContainsKey("egress"));
+        Assert.False(without.ContainsKey(EgressBlobClient.ClientKey));
     }
 
     private sealed class StubHostEnvironment : IHostEnvironment
@@ -84,7 +90,7 @@ public class BlobStorageExtensionsTests
 
     [Theory]
     [InlineData(typeof(IPupilDataBlobClient))]
-    [InlineData(typeof(IStudentResultsClient))]
+    [InlineData(typeof(IResultsClient))]
     // AB#297848: the qualification reference, resolved the same way for the same reason.
     [InlineData(typeof(IQualificationReferenceClient))]
     [InlineData(typeof(QualificationReferenceBlobClient))]

@@ -157,7 +157,7 @@ public sealed class AdminRequestsRepositoryWindowFilterTests(PostgresFixture fix
             ExerciseType = CheckingExerciseType.PupilData,
             StartDate = window.StartDate,
             EndDate = window.EndDate,
-            SortOrder = 0
+            TabOrder = 0
         };
         window.CheckingExercises.Add(pupilData);
 
@@ -170,7 +170,7 @@ public sealed class AdminRequestsRepositoryWindowFilterTests(PostgresFixture fix
                 ExerciseType = CheckingExerciseType.ResultsEnquiry,
                 StartDate = window.StartDate,
                 EndDate = window.EndDate,
-                SortOrder = 1
+                TabOrder = 1
             };
             window.CheckingExercises.Add(enquiry);
         }

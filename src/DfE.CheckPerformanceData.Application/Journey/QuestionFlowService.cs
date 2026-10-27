@@ -22,6 +22,21 @@ public sealed class QuestionFlowService(IQuestionFlowConfigSource configSource, 
         return config;
     }
 
+    // The display order on What to change.
+    private static readonly WhatToChange[] PupilDataChanges =
+        [WhatToChange.Merge, WhatToChange.Include, WhatToChange.Remove, WhatToChange.Add];
+
+    public async Task<IReadOnlyList<WhatToChange>> GetPupilDataChangesAsync(CheckingWindowType checkingWindowType)
+    {
+        var available = new List<WhatToChange>();
+        foreach (var change in PupilDataChanges)
+        {
+            if (await GetConfigAsync(change, checkingWindowType) is not null)
+                available.Add(change);
+        }
+        return available;
+    }
+
     public JourneyPage? GetPage(QuestionFlowConfig config, string pageId) =>
         config.Pages.FirstOrDefault(p => p.Id == pageId);
 
@@ -72,27 +87,67 @@ public sealed class QuestionFlowService(IQuestionFlowConfigSource configSource, 
     public string BuildContentKey(JourneyPage page, Dictionary<string, QuestionAnswer> answers,
         RequestState journey, QuestionFlowConfig config)
     {
+        var radioValues = ContentKeyQuestionsBefore(page, journey, config)
+            .Select(pq => pq.Question)
+            .Where(q => q.Type == QuestionType.Radio)
+            .Select(q => answers.TryGetValue(q.Id, out var a) ? a.TextValue : null)
+            .Where(v => v is not null)
+            .Select(v => v!);
+
+        return string.Join("-", ContentKeyPrefix(journey).Concat(radioValues));
+    }
+
+    public IReadOnlyList<EvidenceContentBlock> BuildEvidenceContentBlocks(JourneyPage page,
+        Dictionary<string, QuestionAnswer> answers, RequestState journey, QuestionFlowConfig config)
+    {
+        // A radio adds its one value to every key. A checkbox gives one block for each ticked
+        // value, in config order, so each ticked option shows its own block and one tick gives
+        // the key the radio gave before (#591). After them it keeps the key it was given, as a
+        // shared block for the whole section that shows whatever the school ticks (#633).
+        IEnumerable<EvidenceContentBlock> blocks = [new(string.Join("-", ContentKeyPrefix(journey)), null)];
+        foreach (var (questionPage, question) in ContentKeyQuestionsBefore(page, journey, config))
+        {
+            if (!answers.TryGetValue(question.Id, out var answer)) continue;
+
+            if (question.Type == QuestionType.Radio && answer.TextValue is { } value)
+            {
+                blocks = blocks.Select(b => b with { Key = $"{b.Key}-{value}" }).ToList();
+            }
+            else if (question.Type == QuestionType.Checkbox)
+            {
+                var ticked = CheckboxAnswerDisplay.OrderedValues(question, answer);
+                var sectionLabel = questionPage.Title ?? question.Title;
+                if (ticked.Count > 0)
+                    blocks = blocks.SelectMany(b => ticked.Select(v => new EvidenceContentBlock(
+                            $"{b.Key}-{v}",
+                            question.Options?.FirstOrDefault(o => o.Value == v)?.Label ?? v))
+                        .Append(b with { SectionLabel = sectionLabel })).ToList();
+            }
+        }
+
+        return blocks.ToList();
+    }
+
+    private static IEnumerable<string> ContentKeyPrefix(RequestState journey)
+    {
         var windowType = journey.CheckingWindow?.CheckingWindowType.ToString().ToLowerInvariant() ?? "unknown";
         var whatToChange = journey.SelectedWhatToChange?.ToString().ToLower() ?? "unknown";
+        return ["journey", windowType, whatToChange];
+    }
 
+    // The contentKey questions on the pages visited before this one, in visit order, with their page.
+    private static IEnumerable<(JourneyPage Page, Question Question)> ContentKeyQuestionsBefore(JourneyPage page, RequestState journey,
+        QuestionFlowConfig config)
+    {
         var pageIndex = journey.QuestionHistory.IndexOf(page.Id);
         IEnumerable<string> historyBeforePage = pageIndex >= 0
             ? journey.QuestionHistory.Take(pageIndex)
             : journey.QuestionHistory;
 
-        var radioValues = historyBeforePage
-            .SelectMany(pid =>
-            {
-                var p = config.Pages.FirstOrDefault(p => p.Id == pid);
-                if (p is null) return Enumerable.Empty<string>();
-                return p.Questions
-                    .Where(q => q.Type == QuestionType.Radio && q.ContentKey)
-                    .Select(q => answers.TryGetValue(q.Id, out var a) ? a.TextValue : null)
-                    .Where(v => v is not null)
-                    .Select(v => v!);
-            });
-
-        return string.Join("-", new[] { "journey", windowType, whatToChange }.Concat(radioValues));
+        return historyBeforePage
+            .Select(pid => config.Pages.FirstOrDefault(p => p.Id == pid))
+            .Where(p => p is not null)
+            .SelectMany(p => p!.Questions.Where(q => q.ContentKey).Select(q => (p!, q)));
     }
 
     public string ResolveRequestType(QuestionFlowConfig config, RequestState journey)

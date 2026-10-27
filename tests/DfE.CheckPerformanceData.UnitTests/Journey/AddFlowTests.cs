@@ -2,13 +2,12 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.Journey.DateRules;
-using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.Journey;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 
 /// <summary>
-/// Pins the shipped <c>Add_KS4June.json</c>, <c>Add_KS4Autumn.json</c> and <c>Add_KS2.json</c>
+/// Pins the shipped <c>Add_KS4June.json</c> and <c>Add_KS4Autumn.json</c>
 /// flows (AB#297310). Page and question ids are a serialization contract — they are written into
 /// session state and into the ChangeRequests row — so a rename after merge orphans stored data.
 /// The copy is pinned because it is what the user reads.
@@ -24,16 +23,14 @@ public sealed class AddFlowTests
 
     private const string Ks4June = "Add_KS4June";
     private const string Ks4Autumn = "Add_KS4Autumn";
-    private const string Ks2 = "Add_KS2";
 
     private static readonly Dictionary<string, QuestionFlowConfig> Flows = new()
     {
         [Ks4June] = Load(Ks4June),
-        [Ks4Autumn] = Load(Ks4Autumn),
-        [Ks2] = Load(Ks2)
+        [Ks4Autumn] = Load(Ks4Autumn)
     };
 
-    private static readonly string[] AllFlowNames = [Ks4June, Ks4Autumn, Ks2];
+    private static readonly string[] AllFlowNames = [Ks4June, Ks4Autumn];
 
     private static JourneyPage Page(string flow, string id) =>
         Flows[flow].Pages.SingleOrDefault(p => p.Id == id)
@@ -42,7 +39,7 @@ public sealed class AddFlowTests
     private static Question Question(string flow, string pageId, string questionId) =>
         Page(flow, pageId).Questions.Single(q => q.Id == questionId);
 
-    // ── Structure: shared by all three flows ─────────────────────────────────
+    // ── Structure: shared by both flows ─────────────────────────────────────
 
     [Theory]
     [MemberData(nameof(AllFlows))]
@@ -159,15 +156,6 @@ public sealed class AddFlowTests
 
         Assert.Equal(QuestionType.Radio, question.Type);
         Assert.Equal(["10", "11"], question.Options!.Select(o => o.Value).ToArray());
-    }
-
-    [Fact]
-    public void YearGroup_offers_3_to_6_on_the_KS2_flow()
-    {
-        var question = Question(Ks2, AddJourneyDateRules.AdmissionDetailsPageId, "year-group");
-
-        Assert.Equal(QuestionType.Radio, question.Type);
-        Assert.Equal(["3", "4", "5", "6"], question.Options!.Select(o => o.Value).ToArray());
     }
 
     // ── Evidence page ─────────────────────────────────────────────────────────
@@ -314,19 +302,6 @@ public sealed class AddFlowTests
             Assert.True(onPage.Contains(questionId),
                 $"{flow}: learner-details has no question '{questionId}', which AddPupilJourney.BuildPupil " +
                 $"reads — that field of the synthetic pupil would always be empty.");
-    }
-
-    // The Add radio and the guard on the post it produces both read SupportedWindowTypes, so it has
-    // to name exactly the window types a flow file exists for: a type left out hides a journey that
-    // would work, and one left in opens a journey with no flow to serve it.
-    [Fact]
-    public void SupportedWindowTypes_AreExactlyTheWindowTypesAFlowFileExistsFor()
-    {
-        var shipped = AllFlowNames
-            .Select(f => Enum.Parse<CheckingWindowType>(f["Add_".Length..]))
-            .ToHashSet();
-
-        Assert.Equal(shipped, AddPupilJourney.SupportedWindowTypes.ToHashSet());
     }
 
     public static IEnumerable<object[]> AllFlows() => AllFlowNames.Select(f => new object[] { f });

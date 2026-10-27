@@ -14,10 +14,10 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.WindowManagement;
 public sealed class ExerciseHandOverJobTests
 {
     private static readonly DueExercise PupilData =
-        new(Guid.Parse("22222222-2222-2222-2222-222222222222"), "Key Stage 4 June", CheckingExerciseType.PupilData, new DateTime(2026, 11, 2, 17, 0, 0));
+        new(Guid.Parse("22222222-2222-2222-2222-222222222222"), "Key Stage 4 June", Guid.Parse("44444444-4444-4444-4444-444444444444"), CheckingExerciseType.PupilData, new DateTime(2026, 11, 2, 17, 0, 0));
 
     private static readonly DueExercise Enquiry =
-        new(Guid.Parse("33333333-3333-3333-3333-333333333333"), "16 to 19", CheckingExerciseType.ResultsEnquiry, new DateTime(2026, 11, 2, 16, 0, 0));
+        new(Guid.Parse("33333333-3333-3333-3333-333333333333"), "16 to 19", Guid.Parse("55555555-5555-5555-5555-555555555555"), CheckingExerciseType.ResultsEnquiry, new DateTime(2026, 11, 2, 16, 0, 0));
 
     private readonly IExerciseHandOverLock _lock = Substitute.For<IExerciseHandOverLock>();
     private readonly IAutomaticExerciseHandOver _handOver = Substitute.For<IAutomaticExerciseHandOver>();
@@ -83,7 +83,7 @@ public sealed class ExerciseHandOverJobTests
             .Returns(_ =>
             {
                 stopping.Cancel();
-                return new AutomaticHandOverOutcome(PupilData.WindowId, PupilData.Exercise, 1, 0, Failed: false);
+                return new AutomaticHandOverOutcome(PupilData.WindowId, PupilData.ExerciseId, PupilData.Exercise, 1, 0, Failed: false);
             });
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Job().RunOnceAsync(stopping.Token));

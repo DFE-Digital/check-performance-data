@@ -35,8 +35,23 @@ public class IngressFolderBrowseViewModel
     /// The checking exercise that consumes this dataset (#319). Part of every link on the page,
     /// because a dataset name is only unique within one exercise.
     /// </summary>
-    public CheckingExerciseType Exercise { get; init; }
+    public CheckingExerciseType? Exercise { get; init; }
+
+    /// <summary>
+    /// The exercise's own id (#466). Every link on this page addresses the exercise by id when one
+    /// is known, because two exercises of the same kind — or a display-only exercise with no kind
+    /// at all — can both hold a dataset with this same name.
+    /// </summary>
+    public Guid? ExerciseId { get; init; }
+
+    /// <summary>The exercise's Data tab, where the admin chose this dataset. Null when the page
+    /// was reached by kind alone.</summary>
+    public string? ExerciseDataUrl => ExerciseId is not null
+        ? $"/admin/windows/{WindowId}/exercises/{ExerciseId}/edit#{Controllers.WindowAdmin.ExerciseLinks.DataTab}"
+        : null;
 
     /// <summary>Route prefix shared by every link and the form action on this page.</summary>
-    public string BaseUrl => $"/admin/windows/{WindowId}/{Exercise}/ingress-file/{Dataset}";
+    public string BaseUrl => ExerciseId is not null
+        ? $"/admin/windows/{WindowId}/exercises/{ExerciseId}/ingress-file/{Uri.EscapeDataString(Dataset)}"
+        : $"/admin/windows/{WindowId}/{Exercise}/ingress-file/{Uri.EscapeDataString(Dataset)}";
 }

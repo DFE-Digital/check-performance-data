@@ -27,7 +27,7 @@ public static class ClosedExerciseGuard
     public static string MessageFor(CheckingExerciseType exercise, LearnerNoun noun) => exercise switch
     {
         CheckingExerciseType.PupilData =>
-            $"The deadline for requesting changes to your {noun.Singular} data has passed. "
+            $"The deadline for requesting amendments to your {noun.Singular} data has passed. "
             + "You can still view and download your data.",
         CheckingExerciseType.ResultsEnquiry =>
             "The deadline for reporting an issue with your results has passed. "

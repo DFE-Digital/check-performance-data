@@ -1,0 +1,56 @@
+@using Microsoft.AspNetCore.Mvc.ViewFeatures
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin.ExerciseExtensionItem
+@{
+    var confirmErrors = ViewData.ModelState.TryGetValue(nameof(Model.ConfirmNoData), out var confirmState)
+        ? confirmState.Errors.Select(e => e.ErrorMessage).ToList()
+        : [];
+    var confirmHasError = confirmErrors.Count > 0;
+}
+@* AB#307773. Shown on the extension form when some schools have no data file in the
+   exercise's current release. The controller saves only once ConfirmNoData is ticked, so this holds
+   without JavaScript: the next POST carries the tick. Until then the checkbox carries an error, so
+   the page says something went unsaved, in the one error summary, as the Schools errors do.
+   Plain checkbox markup, not the library's checkboxes tag helper: that helper renders a second
+   summary of its own. *@
+<div class="govuk-warning-text">
+    <span class="govuk-warning-text__icon" aria-hidden="true">!</span>
+    <strong class="govuk-warning-text__text" id="ConfirmNoData-warning">
+        <span class="govuk-visually-hidden">Warning</span>
+        @if (Model.ExerciseHasNoRelease)
+        {
+            @:This exercise has no release yet, so no school has a data file.
+        }
+        else
+        {
+            @:@Model.NoDataWarning
+        }
+    </strong>
+</div>
+<ul class="govuk-list govuk-list--bullet" id="ConfirmNoData-schools">
+    @foreach (var school in Model.SchoolsWithoutData)
+    {
+        <li>@school</li>
+    }
+</ul>
+<div class="govuk-form-group @(confirmHasError ? "govuk-form-group--error" : "")">
+    @* The schools this tick is for. A school added later with no data is warned about again. *@
+    <input type="hidden" name="ConfirmedSchools" value="@Model.ConfirmedSchools" />
+    @if (confirmHasError)
+    {
+        foreach (var error in confirmErrors)
+        {
+            Context.AddPageError(new StringHtmlContent(error), "#ConfirmNoData");
+        }
+        <p class="govuk-error-message" id="ConfirmNoData-error">
+            <span class="govuk-visually-hidden">Error:</span> @confirmErrors[0]
+        </p>
+    }
+    <div class="govuk-checkboxes" data-module="govuk-checkboxes">
+        <div class="govuk-checkboxes__item">
+            <input class="govuk-checkboxes__input" id="ConfirmNoData" name="ConfirmNoData" type="checkbox" value="true"
+                   aria-describedby="ConfirmNoData-warning ConfirmNoData-schools@(confirmHasError ? " ConfirmNoData-error" : "")"
+                   @(Model.ConfirmNoData ? "checked" : null) />
+            <label class="govuk-label govuk-checkboxes__label" for="ConfirmNoData">@Model.ConfirmLabel</label>
+        </div>
+    </div>
+</div>

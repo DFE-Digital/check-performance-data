@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Application.AdminRequests;
+using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using Microsoft.EntityFrameworkCore;
@@ -55,26 +56,10 @@ public sealed class AdminRequestsRepository(IPortalDbContext db) : IAdminRequest
             .ToListAsync(cancellationToken);
     }
 
-    // Resolves a checking exercise TYPE to this window's own exercise ROW id. Two windows running
-    // the same exercise are still two different exercises, so the id is what the ChangeRequests
-    // rows are stamped with. A window with no row of that type yields null, and every query below
-    // then matches nothing — the correct empty answer.
-    private Task<Guid?> ExerciseIdAsync(
-        Guid windowId, CheckingExerciseType exercise, CancellationToken cancellationToken) =>
-        db.CheckingExercises
-            .AsNoTracking()
-            .Where(e => e.CheckingWindowId == windowId && e.ExerciseType == exercise)
-            .Select(e => (Guid?)e.Id)
-            .FirstOrDefaultAsync(cancellationToken);
-
     public async Task<IReadOnlyList<ReplayRequestRow>> GetDecidedRequestsForExerciseAsync(
-        Guid windowId, CheckingExerciseType exercise, CancellationToken cancellationToken)
+        Guid windowId, Guid exerciseId, SchoolFilter schools, CancellationToken cancellationToken)
     {
-        var exerciseId = await ExerciseIdAsync(windowId, exercise, cancellationToken);
-        if (exerciseId is null)
-            return [];
-
-        return await SubmittedAmendmentsForExercise(windowId, exerciseId)
+        return await SubmittedAmendmentsForExercise(windowId, exerciseId, schools)
             .AsNoTracking()
             .Where(r => r.ProcessingStatus == ProcessingStatus.Decided && r.CrmId == null)
             // First come, first sent. Id breaks a tie so the order is stable.
@@ -90,13 +75,9 @@ public sealed class AdminRequestsRepository(IPortalDbContext db) : IAdminRequest
     }
 
     public async Task<int> CountWaitingRequestsForExerciseAsync(
-        Guid windowId, CheckingExerciseType exercise, CancellationToken cancellationToken)
+        Guid windowId, Guid exerciseId, SchoolFilter schools, CancellationToken cancellationToken)
     {
-        var exerciseId = await ExerciseIdAsync(windowId, exercise, cancellationToken);
-        if (exerciseId is null)
-            return 0;
-
-        return await SubmittedAmendmentsForExercise(windowId, exerciseId)
+        return await SubmittedAmendmentsForExercise(windowId, exerciseId, schools)
             .CountAsync(r => r.ProcessingStatus == null, cancellationToken);
     }
 
@@ -125,41 +106,49 @@ public sealed class AdminRequestsRepository(IPortalDbContext db) : IAdminRequest
 
     // One predicate for what the sweep sends and what it reports as waiting, so the two can never
     // describe different populations.
-    private IQueryable<Entities.ChangeRequest> SubmittedAmendmentsForExercise(Guid windowId, Guid? exerciseId) =>
-        db.ChangeRequests
+    private IQueryable<Entities.ChangeRequest> SubmittedAmendmentsForExercise(
+        Guid windowId, Guid exerciseId, SchoolFilter schools) =>
+        ForSchools(db.ChangeRequests
             .Where(r => r.WindowId == windowId
                 && r.CheckingExerciseId != null
                 && r.CheckingExerciseId == exerciseId
                 && r.RequestType == RequestType.Amendment
-                && r.Status == RequestStatus.Submitted);
+                && r.Status == RequestStatus.Submitted), schools);
 
     public async Task<int> MarkDraftsNotSubmittedForExerciseAsync(
-        Guid windowId, CheckingExerciseType exercise, CancellationToken cancellationToken)
+        Guid windowId, Guid exerciseId, SchoolFilter schools, CancellationToken cancellationToken)
     {
-        var exerciseId = await ExerciseIdAsync(windowId, exercise, cancellationToken);
-        if (exerciseId is null)
-            return 0;
-
-        return await DraftsForExercise(windowId, exerciseId)
+        return await DraftsForExercise(windowId, exerciseId, schools)
             .ExecuteUpdateAsync(s => s.SetProperty(r => r.Status, RequestStatus.NotSubmitted), cancellationToken);
     }
 
     public async Task<int> CountDraftsForExerciseAsync(
-        Guid windowId, CheckingExerciseType exercise, CancellationToken cancellationToken)
+        Guid windowId, Guid exerciseId, SchoolFilter schools, CancellationToken cancellationToken)
     {
-        var exerciseId = await ExerciseIdAsync(windowId, exercise, cancellationToken);
-        if (exerciseId is null)
-            return 0;
-
-        return await DraftsForExercise(windowId, exerciseId).CountAsync(cancellationToken);
+        return await DraftsForExercise(windowId, exerciseId, schools).CountAsync(cancellationToken);
     }
 
     // One predicate for the count and the update, so the confirmation page cannot promise a
     // different number of drafts from the one the close actually cancels.
-    private IQueryable<Entities.ChangeRequest> DraftsForExercise(Guid windowId, Guid? exerciseId) =>
-        db.ChangeRequests
+    private IQueryable<Entities.ChangeRequest> DraftsForExercise(
+        Guid windowId, Guid exerciseId, SchoolFilter schools) =>
+        ForSchools(db.ChangeRequests
             .Where(r => r.WindowId == windowId
                 && r.CheckingExerciseId != null
                 && r.CheckingExerciseId == exerciseId
-                && (r.Status == RequestStatus.InProgress || r.Status == RequestStatus.ReadyToSubmit));
+                && (r.Status == RequestStatus.InProgress || r.Status == RequestStatus.ReadyToSubmit)), schools);
+
+    // Translated to SQL: REPLACE("OrganisationLaestab", '/', '') IN (...). A null LAESTAB is never
+    // extended, so it goes with the exercise and never with an extension.
+    private static IQueryable<Entities.ChangeRequest> ForSchools(
+        IQueryable<Entities.ChangeRequest> rows, SchoolFilter schools)
+    {
+        if (schools.IsNone)
+            return rows;
+
+        var set = schools.Laestabs.ToArray();
+        return schools.Mode == SchoolFilterMode.Only
+            ? rows.Where(r => r.OrganisationLaestab != null && set.Contains(r.OrganisationLaestab.Replace("/", "")))
+            : rows.Where(r => r.OrganisationLaestab == null || !set.Contains(r.OrganisationLaestab.Replace("/", "")));
+    }
 }

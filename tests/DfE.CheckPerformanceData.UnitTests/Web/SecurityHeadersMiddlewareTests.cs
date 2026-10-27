@@ -6,8 +6,9 @@ using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web;
 
-// The response-header set was most of a good one — HSTS, a content-security policy and
-// X-Frame-Options were already there — with a few gaps a security assessment picked up. These
+// The response-header set was most of a good one — HSTS and a content-security policy were
+// already there — with a few gaps a security assessment picked up (and, until #610, no
+// frame-ancestors; the app has never sent X-Frame-Options, whatever this comment once said). These
 // are cheap headers that only help if they are on every response, so they are set in one place
 // rather than per-controller, and asserted here rather than left to a scan to notice.
 public sealed class SecurityHeadersMiddlewareTests
@@ -24,11 +25,12 @@ public sealed class SecurityHeadersMiddlewareTests
     private const string ProductionMetadata =
         "https://oidc.signin.education.gov.uk/.well-known/openid-configuration";
 
-    private static IConfiguration Config(string? metadataAddress = ProductionMetadata) =>
+    private static IConfiguration Config(string? metadataAddress = ProductionMetadata, bool? reportOnly = null) =>
         new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["DfeSignIn:MetadataAddress"] = metadataAddress
+                ["DfeSignIn:MetadataAddress"] = metadataAddress,
+                ["Csp:ReportOnly"] = reportOnly?.ToString()
             })
             .Build();
 
@@ -133,6 +135,22 @@ public sealed class SecurityHeadersMiddlewareTests
         Assert.Contains("form-action 'self'", csp);
     }
 
+    // frame-ancestors is the CSP directive that decides which sites may put this service in a
+    // frame; it replaced X-Frame-Options in every current browser. The policy had none, and the
+    // app has never set X-Frame-Options (the comment at the top of this file used to say it
+    // did), so until #610 whether a page could be framed — the clickjacking surface — depended
+    // on whatever sat in front of the app. Asserted as a whole directive rather than a
+    // substring: "frame-ancestors 'self' https://other.example" would pass a Contains.
+    [Fact]
+    public async Task FrameAncestors_AllowsOnlyThisSite()
+    {
+        var context = await Run();
+
+        var directives = context.Response.Headers["Content-Security-Policy"].ToString()
+            .Split(';', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        Assert.Contains("frame-ancestors 'self'", directives);
+    }
+
     // A POST made after the sign-in has expired is answered with a 302 to DfE Sign-in. Chrome
     // applies form-action to every redirect a form submission follows, so with 'self' alone the
     // browser cancelled that navigation and the page simply did nothing — on every form in the
@@ -215,4 +233,116 @@ public sealed class SecurityHeadersMiddlewareTests
 
         Assert.False(context.Response.Headers.ContainsKey("X-Robots-Tag"));
     }
+
+    // --- #611 strict script-src + per-request nonce ---
+
+    // The whole point of #611: the two allowances that let an injected inline script or an
+    // injected eval string run are gone. This is the guard that fails if either returns.
+    [Fact]
+    public async Task ScriptSrc_CarriesNeitherUnsafeInlineNorUnsafeEval()
+    {
+        var context = await Run();
+
+        var scriptSrc = Directive(context, "script-src");
+        Assert.DoesNotContain("'unsafe-inline'", scriptSrc);
+        Assert.DoesNotContain("'unsafe-eval'", scriptSrc);
+    }
+
+    // The nonce replaces 'unsafe-inline': only scripts the response itself authorised run.
+    [Fact]
+    public async Task ScriptSrc_PublishesANonce()
+    {
+        var context = await Run();
+
+        var scriptSrc = Directive(context, "script-src");
+        Assert.Matches(@"'nonce-[A-Za-z0-9_-]{22}'", scriptSrc);
+    }
+
+    // A nonce that does not change between responses is a static allowance in disguise.
+    [Fact]
+    public async Task ScriptSrc_NonceDiffersBetweenResponses()
+    {
+        var first = NonceHeader(await Run());
+        var second = NonceHeader(await Run());
+
+        Assert.NotEqual(first, second);
+    }
+
+    // The TagHelper reads the nonce from Items; it must be the same value the header published.
+    [Fact]
+    public async Task NonceHeader_MatchesTheValueStoredOnHttpContextItems()
+    {
+        var context = await Run();
+
+        var stored = Assert.IsType<string>(context.Items[CspNonce.ItemKey]);
+        Assert.Contains($"'nonce-{stored}'", context.Response.Headers["Content-Security-Policy"].ToString());
+    }
+
+    // style-src is deliberately out of scope for #611 and keeps its allowance.
+    [Fact]
+    public async Task StyleSrc_StillAllowsUnsafeInline()
+    {
+        var context = await Run();
+
+        Assert.Contains("'unsafe-inline'", Directive(context, "style-src"));
+    }
+
+    // Removing 'unsafe-inline' is not the mechanism for removing the analytics origins; the
+    // tags must still be allowed to load their external files.
+    [Theory]
+    [InlineData("https://*.googletagmanager.com")]
+    [InlineData("https://*.google-analytics.com")]
+    [InlineData("https://*.analytics.google.com")]
+    [InlineData("https://*.clarity.ms")]
+    public async Task ScriptSrc_KeepsTheAnalyticsOrigins(string origin)
+    {
+        var context = await Run();
+
+        Assert.Contains(origin, Directive(context, "script-src"));
+    }
+
+    // The rehearsal switch: report-only outside Production so breakage is observable without
+    // failing pages. The directive contents (including the nonce) are identical.
+    [Fact]
+    public async Task ReportOnly_OutsideProduction_EmitsTheReportOnlyHeader()
+    {
+        var context = await Run(env: Env("Development"), config: Config(reportOnly: true));
+
+        Assert.True(context.Response.Headers.ContainsKey("Content-Security-Policy-Report-Only"));
+        Assert.False(context.Response.Headers.ContainsKey("Content-Security-Policy"));
+        Assert.Contains("'nonce-", context.Response.Headers["Content-Security-Policy-Report-Only"].ToString());
+    }
+
+    // A misconfigured environment variable must never leave a deployed production site
+    // unenforced: Production ignores the switch.
+    [Fact]
+    public async Task ReportOnly_InProduction_StillEmitsTheEnforcingHeader()
+    {
+        var context = await Run(env: Production, config: Config(reportOnly: true));
+
+        Assert.True(context.Response.Headers.ContainsKey("Content-Security-Policy"));
+        Assert.False(context.Response.Headers.ContainsKey("Content-Security-Policy-Report-Only"));
+    }
+
+    [Fact]
+    public async Task ReportOnlyDisabled_EmitsTheEnforcingHeader()
+    {
+        var context = await Run(env: Env("Development"));
+
+        Assert.True(context.Response.Headers.ContainsKey("Content-Security-Policy"));
+    }
+
+    private static string Directive(HttpContext context, string name)
+    {
+        var csp = context.Response.Headers["Content-Security-Policy"].ToString();
+        var start = csp.IndexOf(name + " ", StringComparison.Ordinal);
+        Assert.True(start >= 0, $"{name} must be present in the policy");
+        var end = csp.IndexOf(';', start);
+        return end < 0 ? csp[start..] : csp[start..end];
+    }
+
+    private static string NonceHeader(HttpContext context) =>
+        System.Text.RegularExpressions.Regex.Match(
+            context.Response.Headers["Content-Security-Policy"].ToString(),
+            @"'nonce-([A-Za-z0-9_-]+)'").Groups[1].Value;
 }

@@ -5,6 +5,7 @@ using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Web.Admin.Nav;
+using DfE.CheckPerformanceData.Web.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 
@@ -166,8 +167,10 @@ public sealed class EgressController(
         return View("Preprocessing", page with { StreamUrl = Url.Action(nameof(PreprocessingStream), new { id }) });
     }
 
-    // EventSource can only GET, so the pipeline runs here when JS drives it.
-    [HttpGet("runs/{id:guid}/preprocessing/stream")]
+    // The pipeline runs here when JS drives it. A POST with an antiforgery token, never a GET: a
+    // GET would let a crafted link start a run for a signed-in admin (post-event-stream.js).
+    [HttpPost("runs/{id:guid}/preprocessing/stream")]
+    [ValidateAntiForgeryToken]
     public IResult PreprocessingStream(Guid id, CancellationToken cancellationToken) =>
         // Fully qualified: this controller has its own action named Results, which shadows
         // Microsoft.AspNetCore.Http.Results at an unqualified call site.
@@ -240,8 +243,10 @@ public sealed class EgressController(
     }
 
     [HttpGet("runs/{id:guid}/download/{outputType}")]
+    [RequiresNoStore]
     public async Task<IActionResult> Download(Guid id, EgressOutputType outputType, CancellationToken cancellationToken)
     {
+        Response.NoStore();
         var run = await runs.GetAsync(id, cancellationToken);
         var output = run?.Outputs.FirstOrDefault(o => o.OutputType == outputType);
         if (run is null || output?.FileName is null) return NotFound();

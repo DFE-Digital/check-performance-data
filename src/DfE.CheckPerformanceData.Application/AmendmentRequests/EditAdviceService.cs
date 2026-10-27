@@ -1,8 +1,10 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
+using DfE.CheckPerformanceData.Application.Logging;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Domain.Enums;
+using Microsoft.Extensions.Logging;
 
 namespace DfE.CheckPerformanceData.Application.AmendmentRequests;
 
@@ -11,7 +13,8 @@ public sealed class EditAdviceService(
     IQuestionFlowService flowService,
     IJourneyValidationService validationService,
     ICurrentUserService currentUserService,
-    IQuestionOptionalityService optionalityService) : IEditAdviceService
+    IQuestionOptionalityService optionalityService,
+    ILogger<EditAdviceService> logger) : IEditAdviceService
 {
     public async Task<AmendmentAdvice?> BuildAsync(Guid windowId, string referenceNumber, RequestState journey)
     {
@@ -22,7 +25,13 @@ public sealed class EditAdviceService(
         var urn = long.Parse(currentUserService.OrganisationUrn);
 
         var request = await requestRepository.GetAmendmentRequestAsync(windowId, urn, referenceNumber);
-        if (request is null) return null;
+        if (request is null)
+        {
+            // A reference the school does not own — logged under the one access-refusal event
+            // (#612), as SubmittedRequestService does. The config null below is not a refusal.
+            logger.ScopedReadMissed(currentUserService.UserId, currentUserService.OrganisationUrn, windowId, referenceNumber);
+            return null;
+        }
 
         var config = await flowService.GetConfigAsync(type, journey.CheckingWindow.CheckingWindowType);
         if (config is null) return null;

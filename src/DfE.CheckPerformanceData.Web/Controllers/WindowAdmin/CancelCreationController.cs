@@ -25,14 +25,23 @@ public sealed class CancelCreationController : Controller
     }
     
     [HttpPost("admin/windows/cancel-creation")]
-    public IActionResult Submit(CheckingWindowDraft draft, string action)
+    public IActionResult Submit(string action)
     {
-        if (action == "cancel")
+        // Matches the Delete button's value in CheckingWindow.cshtml.
+        if (action == "delete")
         {
             HttpContext.Session.RemoveObject("CheckingWindowDraft");
             return RedirectToAction("Index", "Admin");
         }
-        
-        return RedirectToAction("New", draft.NextController(Url));
+
+        // Continue: resume from the session draft. The form posts no answers, so the draft must
+        // come from session, not from model binding.
+        CheckingWindowDraft? draft = HttpContext.Session.GetObject<CheckingWindowDraft>("CheckingWindowDraft");
+        if (draft is null)
+        {
+            return RedirectToAction("Index", "Admin");
+        }
+
+        return Redirect(draft.NextController(Url));
     }
 }

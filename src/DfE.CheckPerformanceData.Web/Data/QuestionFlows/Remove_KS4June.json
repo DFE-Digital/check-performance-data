@@ -4,7 +4,8 @@
     {
       "id": "select-pupil",
       "type": "PupilSearch",
-      "title": "Enter the name of the pupil to be removed",
+      "title": "What is the name of the pupil to be removed?",
+      "subheading": "Start typing the first name, last name, CYPMD ID, UPN or date of birth (DOB)",
       "pupilFilter": "Included",
       "pupilKey": "primary",
       "nextPageId": "reason"
@@ -82,13 +83,13 @@
             },
             {
               "value": "social-care-involvement",
-              "label": "Social care involvement - including police/prison",
+              "label": "Social care involvement - including police or prison",
               "nextPageId": "social-care",
               "visibleWhen": "PupilIsNotAddBack"
             },
             {
               "value": "life-limiting-illness",
-              "label": "Life-limiting or critical illness",
+              "label": "Terminal or critical illness",
               "nextPageId": "life-limiting-illness",
               "visibleWhen": "PupilIsNotAddBack"
             },
@@ -448,7 +449,7 @@
     },
     {
       "id": "life-limiting-illness",
-      "title": "Life-limiting or critical illness",
+      "title": "Terminal or critical illness",
       "pageTitle": "Health issue details",
       "nextPageId": "evidence",
       "questions": [
@@ -605,17 +606,17 @@
     },
     {
       "id": "social-care",
-      "title": "Social care involvement - including police/prison",
+      "title": "Social care involvement - including police or prison",
       "pageTitle": "Social care details",
       "nextPageId": "evidence",
       "questions": [
         {
           "id": "social-care-reason",
           "contentKey": true,
-          "type": "Radio",
+          "type": "Checkbox",
           "title": "What happened to {pupilName} that made it very hard for them to go to school or sit exams?",
           "summaryTitle": "Social care reason",
-          "hint": "Select one option",
+          "hint": "Select all that apply",
           "validationFailure": "Select what happened to {pupilName} that made it very hard for them to go to school or sit exams",
           "options": [
             {
@@ -662,7 +663,7 @@
           "type": "FileUpload",
           "title": "Upload files",
           "hint": "Evidence must be in a PDF format",
-          "optionalWhen": "EalWouldBeAutoRejected"
+          "optionalWhen": "EalEvidenceIsOptional"
         },
         {
           "id": "how-evidence-supports",
@@ -671,7 +672,7 @@
           "summaryTitle": "How evidence demonstrates removal",
           "characterLimit": 500,
           "validationFailure": "Explain how the evidence supports removing {pupilName}",
-          "optionalWhen": "EalWouldBeAutoRejected"
+          "optionalWhen": "EalEvidenceIsOptional"
         }
       ]
     }

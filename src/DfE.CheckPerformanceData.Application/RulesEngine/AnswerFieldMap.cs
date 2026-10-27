@@ -11,7 +11,7 @@ namespace DfE.CheckPerformanceData.Application.RulesEngine;
 /// This indirection is deliberate — it is an anti-corruption boundary so the rules
 /// (Application) layer never depends on Web journey-authoring ids. The relationship
 /// is not 1:1: <c>sat-exams</c> resolves by checking window type (<see cref="SatExamsFieldFor"/>),
-/// single-choice radios fan out to several booleans (<see cref="RadioFanOut"/>),
+/// radio and checkbox options fan out to several booleans (<see cref="OptionFanOut"/>),
 /// some answers carry journey vocabulary the rules don't use
 /// (<see cref="TranslatedQuestions"/>), and journey-only questions
 /// (<c>reason</c>, <c>evidence</c>, …) are intentionally projected out.
@@ -37,7 +37,7 @@ public static class AnswerFieldMap
     /// <c>Answer.QuestionId</c> on the queue message → canonical field name in
     /// <see cref="FieldCatalogue"/>, for answers whose value is copied as-is and
     /// parsed by the field's type. An entry's presence here (or in
-    /// <see cref="RadioFanOut"/>/<see cref="TranslatedQuestions"/>/<see cref="SatExamsQuestionId"/>)
+    /// <see cref="OptionFanOut"/>/<see cref="TranslatedQuestions"/>/<see cref="SatExamsQuestionId"/>)
     /// is what makes the mapper consider an answer at all; unmapped answers are
     /// silently ignored.
     /// </summary>
@@ -64,21 +64,23 @@ public static class AnswerFieldMap
             // the flow's option values.
             ["why-removed"]                            = "childMissingEducationGround",
 
-            // Provisional ids for flows not yet authored (KS2 / Post16) — revisit
-            // when those configs exist; the alignment test allowlists them.
+            // date-added-to-roll is asked by the KS2 "added after the start of the summer term"
+            // page. The others are provisional ids for flows not yet authored (Post16); the
+            // alignment test allowlists them.
             ["date-added-to-roll"]                     = "dateAddedToRoll",
             ["removal-reason-at-school"]               = "removalReasonAtSchool",
-            ["continuing-ks2-studies"]                 = "isContinuingKS2Studies",
             ["pupil-age"]                              = "pupilAge",
             ["not-on-roll-reason"]                     = "removalReasonAtSchool"
         };
 
     /// <summary>
-    /// Single-choice radio questions the rules model as independent booleans:
-    /// the selected option's field becomes <c>true</c>, every other listed field
-    /// <c>false</c>. An empty answer leaves all fields <c>Unknown</c>.
+    /// Radio and checkbox questions the rules model as independent booleans:
+    /// each selected option's field becomes <c>true</c>, every other listed field
+    /// <c>false</c>. A checkbox may select several options (#591); its raw value
+    /// is the ticked values joined with a comma. An empty answer leaves all fields
+    /// <c>Unknown</c>.
     /// </summary>
-    public static readonly IReadOnlyDictionary<string, IReadOnlyList<(string Field, string TriggerValue)>> RadioFanOut =
+    public static readonly IReadOnlyDictionary<string, IReadOnlyList<(string Field, string TriggerValue)>> OptionFanOut =
         new Dictionary<string, IReadOnlyList<(string, string)>>(StringComparer.Ordinal)
         {
             ["social-care-reason"] =
@@ -148,11 +150,8 @@ public static class AnswerFieldMap
     /// the flow configs to this map in CI. Lookup is case-insensitive and tolerant of
     /// trailing/leading whitespace.
     ///
-    /// Outcomes with no journey flow yet (<c>AssessmentsDeferred</c>,
-    /// <c>PupilAddedAfterSummerTerm</c>, <c>PupilNotOnJuneList</c>,
-    /// <c>NotAtEndOf16To18Study</c>) have no
-    /// entry here; add one when the KS2/Post16 flows are authored
-    /// (see <c>SeedRulesValidationTests.PendingJourneyOutcomeKeys</c>).
+    /// Outcomes with no journey flow yet (<c>PupilNotOnJuneList</c>) have no entry here; add one
+    /// when its flow is authored (see <c>SeedRulesValidationTests.PendingJourneyOutcomeKeys</c>).
     /// </summary>
     public static readonly IReadOnlyDictionary<string, string> WhatToChangeToOutcomeKey =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -180,6 +179,10 @@ public static class AnswerFieldMap
             ["Remove - social-care-involvement"]       = "SocialCareInvolvement",
             ["Remove - life-limiting-illness"]         = "TerminalCriticalIllness",
             ["Remove - year-group-change"]             = "YearGroupChange",
+
+            // KS2 only (KS2 September 2027).
+            ["Remove - assessments-deferred"]          = "AssessmentsDeferred",
+            ["Remove - added-after-summer-term"]       = "PupilAddedAfterSummerTerm",
 
             // Add-back-exclusive reasons (PBIs 292926/292927) — both outcomes are
             // seeded with a single Scrutiny otherwise-rule ("always sent for scrutiny").

@@ -500,13 +500,15 @@ terraform/domains/infrastructure/vendor
 terraform.tfstate*
 *.lscache
 
-# Claude / superpowers working files — local only, never committed.
-# Superpowers data now lives outside the repo at C:\Repos\DfE\.superpowers
+# Agent working files — local only, never committed.
+# AGENTS.md, CLAUDE.md, .claude/settings.json and .claude/skills/ are shared and tracked.
 .superpowers/
 docs/superpowers/
-CLAUDE.md
-.claude/
+CLAUDE.local.md
+.claude/settings.local.json
+.claude/worktrees/
 /.playwright-mcp
+/.playwright-cli
 .specify/
 .clinerules/
 .opencode/
@@ -516,7 +518,6 @@ specs/
 tests/DfE.CheckPerformanceData.E2ETests/Snapshots/failures/
 .spec-context.json
 /.ai-codex
-/AGENTS.md
 
 docs/user-guides/admin-user-guide.html
 

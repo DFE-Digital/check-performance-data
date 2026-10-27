@@ -17,6 +17,9 @@ public class SendExerciseRequestsControllerTests
     private static readonly Guid WindowId = Guid.Parse("11111111-1111-1111-1111-111111111111");
     private const CheckingExerciseType Exercise = CheckingExerciseType.PupilData;
 
+    // Addressed by id, like Close (#466): a window may hold several releases of one kind.
+    private static readonly Guid ExerciseId = Guid.Parse("22222222-2222-2222-2222-222222222222");
+
     private readonly ICloseExerciseService _closeService = Substitute.For<ICloseExerciseService>();
     private readonly IWindowService _windowService = Substitute.For<IWindowService>();
     private readonly ICheckingExerciseService _checkingExercises = Substitute.For<ICheckingExerciseService>();
@@ -24,7 +27,7 @@ public class SendExerciseRequestsControllerTests
     public SendExerciseRequestsControllerTests()
     {
         // The default for these tests: the exercise has closed.
-        _checkingExercises.HasClosed(default!, default).ReturnsForAnyArgs(true);
+        _checkingExercises.HasClosed(default(CheckingExerciseDto)!).ReturnsForAnyArgs(true);
     }
 
     private static CheckingWindowDto Window(params CheckingExerciseType[] exercises) => new()
@@ -37,12 +40,33 @@ public class SendExerciseRequestsControllerTests
         EndDate = new DateTime(2026, 6, 30),
         Exercises = exercises.Select((e, i) => new CheckingExerciseDto
         {
+            Id = e == Exercise ? ExerciseId : Guid.NewGuid(),
             ExerciseType = e,
             StartDate = new DateTime(2026, 6, 1),
             EndDate = new DateTime(2026, 6, 30),
-            SortOrder = i
+            TabOrder = i
         }).ToList()
     };
+
+    // The one exercise, with an extension for a named school added to its row.
+    private static CheckingWindowDto WindowWithExtension(CheckingExerciseExtensionDto extension)
+    {
+        var window = Window(Exercise);
+        var exercise = window.Exercises.Single();
+        return new CheckingWindowDto
+        {
+            Id = window.Id, Title = window.Title, KeyStage = window.KeyStage,
+            CheckingWindowType = window.CheckingWindowType, StartDate = window.StartDate, EndDate = window.EndDate,
+            Exercises =
+            [
+                new CheckingExerciseDto
+                {
+                    Id = exercise.Id, ExerciseType = exercise.ExerciseType, StartDate = exercise.StartDate,
+                    EndDate = exercise.EndDate, TabOrder = exercise.TabOrder, Extensions = [extension]
+                }
+            ]
+        };
+    }
 
     private SendExerciseRequestsController Build()
     {
@@ -61,7 +85,7 @@ public class SendExerciseRequestsControllerTests
         _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>())
             .Returns((CheckingWindowDto?)null);
 
-        var result = await Build().Confirm(WindowId, Exercise, CancellationToken.None);
+        var result = await Build().Confirm(WindowId, ExerciseId, CancellationToken.None);
 
         Assert.IsType<NotFoundResult>(result);
     }
@@ -72,7 +96,7 @@ public class SendExerciseRequestsControllerTests
         _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>())
             .Returns(Window(CheckingExerciseType.ResultsEnquiry));
 
-        var result = await Build().Confirm(WindowId, Exercise, CancellationToken.None);
+        var result = await Build().Confirm(WindowId, ExerciseId, CancellationToken.None);
 
         Assert.IsType<NotFoundResult>(result);
     }
@@ -82,10 +106,10 @@ public class SendExerciseRequestsControllerTests
     {
         // While an exercise is open the sweep belongs to Close, which ends the exercise first.
         _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(Window(Exercise));
-        _checkingExercises.HasClosed(default!, default).ReturnsForAnyArgs(false);
+        _checkingExercises.HasClosed(default(CheckingExerciseDto)!).ReturnsForAnyArgs(false);
 
         var controller = Build();
-        var result = await controller.Confirm(WindowId, Exercise, CancellationToken.None);
+        var result = await controller.Confirm(WindowId, ExerciseId, CancellationToken.None);
 
         var redirect = Assert.IsType<RedirectResult>(result);
         Assert.Equal($"/admin/windows/summary/{WindowId}", redirect.Url);
@@ -99,10 +123,10 @@ public class SendExerciseRequestsControllerTests
     public async Task Confirm_get_shows_the_preview_counts()
     {
         _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(Window(Exercise));
-        _closeService.PreviewAsync(WindowId, Exercise, Arg.Any<CancellationToken>())
+        _closeService.PreviewAsync(WindowId, ExerciseId, Arg.Any<CancellationToken>())
             .Returns(new CloseExercisePreview { RequestsToClose = 4, DraftsToCancel = 2, RequestsWaiting = 5 });
 
-        var result = await Build().Confirm(WindowId, Exercise, CancellationToken.None);
+        var result = await Build().Confirm(WindowId, ExerciseId, CancellationToken.None);
 
         var view = Assert.IsType<ViewResult>(result);
         Assert.Equal("~/Views/WindowAdmin/SendRequests.cshtml", view.ViewName);
@@ -112,18 +136,58 @@ public class SendExerciseRequestsControllerTests
         Assert.Equal(5, vm.RequestsWaiting);
         Assert.Equal("KS4 June 2026", vm.WindowTitle);
         Assert.Equal("Pupil data checking", vm.ExerciseLabel);
-        Assert.Equal($"/admin/windows/{WindowId}/PupilData/send-requests", vm.PostUrl);
+        Assert.Equal($"/admin/windows/{WindowId}/exercises/{ExerciseId}/send-requests", vm.PostUrl);
         Assert.Equal($"/admin/windows/summary/{WindowId}", vm.CancelLink);
+    }
+
+    [Fact]
+    public async Task Confirm_says_when_an_open_extension_holds_schools_back()
+    {
+        // The exercise ended before today and holds one extension that is still open.
+        var extension = new CheckingExerciseExtensionDto
+        {
+            Id = Guid.NewGuid(), EndDate = DateTime.UtcNow.AddDays(1), Laestabs = ["9334290"]
+        };
+        var window = WindowWithExtension(extension);
+        var row = window.Exercises.Single();
+        _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(window);
+        _checkingExercises.IsOpen(row, extension).Returns(true);
+        _closeService.PreviewAsync(WindowId, ExerciseId, Arg.Any<CancellationToken>())
+            .Returns(new CloseExercisePreview { RequestsToClose = 1, DraftsToCancel = 0 });
+
+        var result = await Build().Confirm(WindowId, ExerciseId, CancellationToken.None);
+
+        var vm = Assert.IsType<SendRequestsViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.True(vm.HasOpenExtensions);
+    }
+
+    [Fact]
+    public async Task Confirm_does_not_mention_extensions_when_none_is_open()
+    {
+        var extension = new CheckingExerciseExtensionDto
+        {
+            Id = Guid.NewGuid(), EndDate = DateTime.UtcNow.AddDays(-1), Laestabs = ["9334290"]
+        };
+        var window = WindowWithExtension(extension);
+        var row = window.Exercises.Single();
+        _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(window);
+        _checkingExercises.IsOpen(row, extension).Returns(false);
+        _closeService.PreviewAsync(WindowId, ExerciseId, Arg.Any<CancellationToken>())
+            .Returns(new CloseExercisePreview { RequestsToClose = 1, DraftsToCancel = 0 });
+
+        var result = await Build().Confirm(WindowId, ExerciseId, CancellationToken.None);
+
+        Assert.False(Assert.IsType<SendRequestsViewModel>(Assert.IsType<ViewResult>(result).Model).HasOpenExtensions);
     }
 
     [Fact]
     public async Task Confirm_get_has_something_to_say_when_only_waiting_requests_are_left()
     {
         _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(Window(Exercise));
-        _closeService.PreviewAsync(WindowId, Exercise, Arg.Any<CancellationToken>())
+        _closeService.PreviewAsync(WindowId, ExerciseId, Arg.Any<CancellationToken>())
             .Returns(new CloseExercisePreview { RequestsToClose = 0, DraftsToCancel = 0, RequestsWaiting = 2 });
 
-        var result = await Build().Confirm(WindowId, Exercise, CancellationToken.None);
+        var result = await Build().Confirm(WindowId, ExerciseId, CancellationToken.None);
 
         var vm = Assert.IsType<SendRequestsViewModel>(Assert.IsType<ViewResult>(result).Model);
         Assert.False(vm.HasNothingToDo);
@@ -135,11 +199,11 @@ public class SendExerciseRequestsControllerTests
     {
         // #536: a waiting request was not sent, and the banner must not imply it was.
         _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(Window(Exercise));
-        _closeService.CloseAsync(WindowId, Exercise, Arg.Any<CancellationToken>())
+        _closeService.CloseAsync(WindowId, ExerciseId, Arg.Any<CancellationToken>())
             .Returns(new CloseExerciseResult { Enqueued = 3, DraftsCancelled = 1, Waiting = 2 });
 
         var controller = Build();
-        await controller.Send(WindowId, Exercise, CancellationToken.None);
+        await controller.Send(WindowId, ExerciseId, CancellationToken.None);
 
         Assert.Equal(
             "3 requests sent for processing and 1 draft cancelled for Pupil data checking. " +
@@ -161,10 +225,10 @@ public class SendExerciseRequestsControllerTests
     {
         // Sending for an already-swept exercise is harmless; the page says so rather than erroring.
         _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(Window(Exercise));
-        _closeService.PreviewAsync(WindowId, Exercise, Arg.Any<CancellationToken>())
+        _closeService.PreviewAsync(WindowId, ExerciseId, Arg.Any<CancellationToken>())
             .Returns(new CloseExercisePreview { RequestsToClose = 0, DraftsToCancel = 0 });
 
-        var result = await Build().Confirm(WindowId, Exercise, CancellationToken.None);
+        var result = await Build().Confirm(WindowId, ExerciseId, CancellationToken.None);
 
         var vm = Assert.IsType<SendRequestsViewModel>(Assert.IsType<ViewResult>(result).Model);
         Assert.True(vm.HasNothingToDo);
@@ -175,13 +239,13 @@ public class SendExerciseRequestsControllerTests
     {
         // The banner quotes the result, never the preview — rows can change in between.
         _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(Window(Exercise));
-        _closeService.CloseAsync(WindowId, Exercise, Arg.Any<CancellationToken>())
+        _closeService.CloseAsync(WindowId, ExerciseId, Arg.Any<CancellationToken>())
             .Returns(new CloseExerciseResult { Enqueued = 3, DraftsCancelled = 1 });
 
         var controller = Build();
-        var result = await controller.Send(WindowId, Exercise, CancellationToken.None);
+        var result = await controller.Send(WindowId, ExerciseId, CancellationToken.None);
 
-        await _closeService.Received(1).CloseAsync(WindowId, Exercise, Arg.Any<CancellationToken>());
+        await _closeService.Received(1).CloseAsync(WindowId, ExerciseId, Arg.Any<CancellationToken>());
         var redirect = Assert.IsType<RedirectResult>(result);
         Assert.Equal($"/admin/windows/summary/{WindowId}", redirect.Url);
         Assert.Equal(
@@ -193,9 +257,9 @@ public class SendExerciseRequestsControllerTests
     public async Task Send_post_does_not_sweep_an_exercise_that_has_not_closed()
     {
         _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(Window(Exercise));
-        _checkingExercises.HasClosed(default!, default).ReturnsForAnyArgs(false);
+        _checkingExercises.HasClosed(default(CheckingExerciseDto)!).ReturnsForAnyArgs(false);
 
-        var result = await Build().Send(WindowId, Exercise, CancellationToken.None);
+        var result = await Build().Send(WindowId, ExerciseId, CancellationToken.None);
 
         Assert.IsType<RedirectResult>(result);
         await _closeService.DidNotReceiveWithAnyArgs().CloseAsync(default, default, default);
@@ -207,7 +271,25 @@ public class SendExerciseRequestsControllerTests
         _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>())
             .Returns(Window(CheckingExerciseType.ResultsEnquiry));
 
-        var result = await Build().Send(WindowId, Exercise, CancellationToken.None);
+        var result = await Build().Send(WindowId, ExerciseId, CancellationToken.None);
+
+        Assert.IsType<NotFoundResult>(result);
+        await _closeService.DidNotReceiveWithAnyArgs().CloseAsync(default, default, default);
+    }
+
+    [Fact]
+    public async Task Send_post_returns_not_found_for_a_data_share()
+    {
+        // A data share has no kind, so no change request can belong to it.
+        var window = Window();
+        window.Exercises.Add(new CheckingExerciseDto
+        {
+            Id = ExerciseId, ExerciseType = null, DisplayOnly = true,
+            StartDate = new DateTime(2026, 6, 1), EndDate = new DateTime(2026, 6, 30)
+        });
+        _windowService.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(window);
+
+        var result = await Build().Send(WindowId, ExerciseId, CancellationToken.None);
 
         Assert.IsType<NotFoundResult>(result);
         await _closeService.DidNotReceiveWithAnyArgs().CloseAsync(default, default, default);

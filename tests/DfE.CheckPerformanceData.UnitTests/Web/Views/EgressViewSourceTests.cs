@@ -58,7 +58,7 @@ public sealed class EgressViewSourceTests
         var view = View("Index.cshtml");
         Assert.Contains("@if (Model.StorageNotConfigured)", view);
         Assert.Contains("data-testid=\"egress-storage-not-configured\"", view);
-        Assert.Contains("ConnectionStrings:EgressStorage", view);
+        Assert.Contains("ConnectionStrings:IngressStorage", view);
     }
 
     [Fact]
@@ -159,6 +159,7 @@ public sealed class EgressViewSourceTests
         Assert.Contains("data-egress-step", view);
         Assert.Contains("aria-live=\"polite\"", view);
         Assert.Contains("role=\"progressbar\"", view);
+        Assert.Contains("post-event-stream.js", view);
         Assert.Contains("egress-preprocess.js", view);
     }
 
@@ -176,6 +177,23 @@ public sealed class EgressViewSourceTests
             "the aria-live region must not be nested inside the role=\"progressbar\" element");
     }
 
+    // A <form> inside .govuk-button-group knocks its button out of line with the others, so the
+    // forms sit before the group and each submit button names its form.
+    [Theory]
+    [InlineData("Results.cshtml")]
+    [InlineData("Preprocessing.cshtml")]
+    [InlineData("Summary.cshtml")]
+    public void Button_groups_hold_no_forms(string viewName)
+    {
+        var view = View(viewName);
+        var group = view.IndexOf("<div class=\"govuk-button-group\">", StringComparison.Ordinal);
+        Assert.True(group >= 0);
+        var groupEnd = view.IndexOf("</div>", group, StringComparison.Ordinal);
+        Assert.DoesNotContain("<form", view[group..groupEnd]);
+        Assert.Contains("form=\"egress-abandon-form\"", view);
+        Assert.Contains("role=\"button\" draggable=\"false\" data-module=\"govuk-button\" data-testid=\"egress-save\"", view);
+    }
+
     // M4: the lock has no expiry, so a run stuck in Preprocessing after a restart must be
     // releasable from this page, not only from Results/Summary.
     [Fact]
@@ -187,11 +205,12 @@ public sealed class EgressViewSourceTests
     }
 
     [Fact]
-    public void The_script_bows_out_without_EventSource_and_follows_the_terminal_next_url()
+    public void The_script_bows_out_without_a_streamed_post_and_follows_the_terminal_next_url()
     {
         var script = Script();
-        Assert.Contains("'EventSource' in window", script);
-        Assert.Contains("addEventListener('progress'", script);
+        Assert.Contains("window.postEventStream.supported()", script);
+        Assert.DoesNotContain("new EventSource", script);
+        Assert.Contains("type !== 'progress'", script);
         Assert.Contains("data.nextUrl", script);
         Assert.DoesNotContain("innerHTML", script);
     }

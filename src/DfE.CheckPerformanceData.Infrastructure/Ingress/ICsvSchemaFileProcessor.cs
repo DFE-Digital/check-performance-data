@@ -32,13 +32,22 @@ public interface ICsvSchemaFileProcessor
     /// </param>
     /// <param name="clearExistingFiles">
     /// When true, output left by a previous run (the per-school data files and the error log) is
-    /// removed before processing starts. Ignored on a validate-only run.
+    /// removed before processing starts. Ignored on a validate-only run, and on a release run:
+    /// a release writes under a prefix no earlier run used, so there is nothing there to clear.
+    /// </param>
+    /// <param name="releaseId">
+    /// Writes the per-school output under the release prefix
+    /// (<c>CheckingExerciseBlobPaths.ReleaseDataPrefix</c>) instead of over the exercise's current
+    /// output. Needs <paramref name="checkingExerciseId"/>. The caller makes the release current
+    /// only after the run finishes clean, so schools never see a half-written release.
     /// </param>
     IAsyncEnumerable<ValidationProgress> ProcessAsync(
         Guid checkingWindowId,
-        CheckingExerciseType exercise,
+        CheckingExerciseType? exercise,
         IReadOnlyList<IngressDataset> datasets,
         bool validateOnly = false,
         bool clearExistingFiles = false,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        Guid? checkingExerciseId = null, CheckingDataType? dataType = null, Guid? releaseId = null,
+        IngressSummaryCapture? summaryCapture = null);
 }

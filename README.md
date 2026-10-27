@@ -26,6 +26,8 @@ Build the C#/.NET solution
 dotnet build
 ```
 
+After adding, removing or changing a package, `dotnet restore` rewrites the affected `packages.lock.json` files; commit them with the change. CI restores in locked mode and fails on a stale or missing lock file.
+
 Confirm tests are passing locally
 ```sh
 dotnet test

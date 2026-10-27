@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Application.AdminRequests;
@@ -20,23 +21,30 @@ public interface IAdminRequestsRepository
     /// queued is TicketQueued and is not returned, so the sweep can run again safely.
     /// </summary>
     /// <remarks>
-    /// Scoped by the exercise's row id, resolved from the window id + type. A row whose
+    /// Scoped by the exercise's row id. A window may hold several releases of one kind (#466), so
+    /// the caller names the row; a type would not say which one. The window id is matched too, so
+    /// an id from another window finds nothing. A row whose
     /// CheckingExerciseId is null therefore matches nothing and is left alone — deliberate: such a
     /// row was orphaned (the FK is onDelete: SetNull) or belongs to a window that never ran the
     /// mapped exercise, so sending it under this exercise would be a guess.
     ///
     /// Amendments only. A results enquiry is queued at submit, and a ConfirmCorrect declaration
     /// never goes to Zendesk. There is no date parameter: closing is an admin decision.
+    ///
+    /// <paramref name="schools"/> splits the exercise by school (AB#307773): the exercise's own
+    /// sweep leaves out schools still held by an extension, and an extension's sweep takes only its
+    /// own. <see cref="SchoolFilter.None"/> adds no condition. The other three exercise-scoped
+    /// methods take the same filter, so a sweep's counts and its writes cover the same schools.
     /// </remarks>
     Task<IReadOnlyList<ReplayRequestRow>> GetDecidedRequestsForExerciseAsync(
-        Guid windowId, CheckingExerciseType exercise, CancellationToken cancellationToken);
+        Guid windowId, Guid exerciseId, SchoolFilter schools, CancellationToken cancellationToken);
 
     /// <summary>
     /// Submitted amendments of the same exercise that the Rules Engine has not decided yet. The
     /// sweep leaves them; a later run sends them.
     /// </summary>
     Task<int> CountWaitingRequestsForExerciseAsync(
-        Guid windowId, CheckingExerciseType exercise, CancellationToken cancellationToken);
+        Guid windowId, Guid exerciseId, SchoolFilter schools, CancellationToken cancellationToken);
 
     /// <summary>
     /// Decided → TicketQueued for one row. Returns false when the row was not Decided (another run
@@ -56,12 +64,12 @@ public interface IAdminRequestsRepository
     /// <see cref="GetDecidedRequestsForExerciseAsync"/>.
     /// </summary>
     Task<int> MarkDraftsNotSubmittedForExerciseAsync(
-        Guid windowId, CheckingExerciseType exercise, CancellationToken cancellationToken);
+        Guid windowId, Guid exerciseId, SchoolFilter schools, CancellationToken cancellationToken);
 
     /// <summary>
     /// How many drafts <see cref="MarkDraftsNotSubmittedForExerciseAsync"/> would move, without
     /// moving them. Feeds the close confirmation page.
     /// </summary>
     Task<int> CountDraftsForExerciseAsync(
-        Guid windowId, CheckingExerciseType exercise, CancellationToken cancellationToken);
+        Guid windowId, Guid exerciseId, SchoolFilter schools, CancellationToken cancellationToken);
 }

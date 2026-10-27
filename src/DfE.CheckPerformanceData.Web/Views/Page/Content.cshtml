@@ -24,6 +24,14 @@
         .Any(w => w.Type == "heading" && w.GetInt("level") == 1);
 }
 
+@* #588 — the guidance front page shows the same banners as the start page. Guarded on
+   ShowHomeBanners so no other content page renders them. Sits at the top of the page,
+   above the page H1 and the editor preview notice. *@
+@if (Model.ShowHomeBanners)
+{
+    @await Component.InvokeAsync("HomeBanners")
+}
+
 @if (Model.IsPreview)
 {
     <div class="govuk-notification-banner govuk-notification-banner--important" role="region" aria-labelledby="preview-notice-title" data-module="govuk-notification-banner">
@@ -101,6 +109,14 @@
 </div>
 
 @await Html.PartialAsync("ContentPages/_BackToTop")
+
+@* A page chosen from an instant search of several pages arrives with ?highlight=. The same
+   script a search of this page uses moves to the term and marks it, so the page needs it even
+   when it has no instant search of its own. *@
+@if (!string.IsNullOrWhiteSpace(Context.Request.Query["highlight"]))
+{
+    <script src="~/js/instant-search.js" asp-append-version="true"></script>
+}
 
 @* Equalise the height of dfe-cards that live as direct grandchildren of a govuk-grid-row.
    Flex-wrap keeps cards in the same VISUAL row equal, but cards that wrap to a new row are

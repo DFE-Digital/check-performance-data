@@ -345,6 +345,25 @@ public class RequestServiceTests
         Assert.Equal("05/03/2010", doc.Answers[0].Value);
     }
 
+    // An optional Date question left blank is stored as 0/0/0. It must reach the Rules Engine as
+    // no value (Unknown), not as "0000-00-00", which the mapper cannot parse.
+    [Theory]
+    [InlineData(0, 0, 0)]
+    [InlineData(5, 0, 2010)]
+    public async Task ConfirmRequestAsync_IncompleteDateAnswer_HasNoValue(int day, int month, int year)
+    {
+        var question = MakeQuestion(QuestionType.Date, id: "dob");
+        var config = MakeConfig([new JourneyPage { Id = "dob", Questions = [question] }]);
+        var journey = ValidJourney(
+            history: ["dob"],
+            answers: new() { ["dob"] = new QuestionAnswer { DateValue = new DateAnswer { Day = day, Month = month, Year = year } } });
+
+        var doc = await CaptureDocument(journey, config);
+
+        Assert.Null(doc.Answers[0].RawValue);
+        Assert.Null(doc.Answers[0].Value);
+    }
+
     [Fact]
     public async Task ConfirmRequestAsync_AutocompleteAnswer_RawValueIsCode()
     {
@@ -834,6 +853,74 @@ public class RequestServiceTests
         await _sut.DeleteAsync(WindowId, "REF001");
 
         await _requestNotificationService.Received(1).NotifyDataCheckWithdrawnAsync("REF001", new(2026, 6, 26, 17, 0, 0), Substitutions);
+    }
+
+    // ── School-aware email deadlines ────────────────────────────────────────
+    //
+    // The emails quote the signed-in school's end for the request's own exercise (from the exercise
+    // rows, not the window's end): the extension's for the school it names, the exercise's own for
+    // any other. The fixtures set the window's end explicitly.
+
+    private static readonly DateTime ExerciseEnd = new(2026, 6, 26, 17, 0, 0);
+    private static readonly DateTime ExtensionEnd = new(2026, 7, 31, 17, 0, 0);
+
+    private static List<Application.WindowManagement.CheckingExerciseDto> PupilDataWithExtension() =>
+    [
+        new()
+        {
+            Id = Guid.NewGuid(),
+            ExerciseType = CheckingExerciseType.PupilData,
+            StartDate = new DateTime(2026, 6, 1),
+            EndDate = ExerciseEnd,
+            IsEnabled = true,
+            Extensions =
+            [
+                new Application.WindowManagement.CheckingExerciseExtensionDto
+                {
+                    Id = Guid.NewGuid(), EndDate = ExtensionEnd, Laestabs = ["9334290"]
+                }
+            ]
+        }
+    ];
+
+    [Theory]
+    [InlineData("933/4290", true)]
+    [InlineData("860/4070", false)]
+    public async Task ConfirmRequestAsync_EmailQuotesTheSignedInSchoolsExerciseEnd(string laestab, bool named)
+    {
+        _currentUser.OrganisationLaestab.Returns(laestab);
+        var (journey, config) = MakeSubmission();
+        journey.CheckingWindow = new CheckingWindowDto
+        {
+            Id = WindowId, Title = "KS4 June", KeyStage = KeyStages.KS4, CheckingWindowType = CheckingWindowType.KS4June,
+            StartDate = new DateTime(2026, 6, 1), EndDate = ExtensionEnd, Exercises = PupilDataWithExtension()
+        };
+        SetupConfig(config);
+
+        await _sut.ConfirmRequestAsync(WindowId, journey);
+
+        await _requestNotificationService.Received(1).NotifySubmissionConfirmedAsync(
+            WindowId, named ? ExtensionEnd : ExerciseEnd, journey.ReferenceNumber!, Substitutions);
+    }
+
+    [Theory]
+    [InlineData("933/4290", true)]
+    [InlineData("860/4070", false)]
+    public async Task DeleteAsync_WithdrawalEmailQuotesTheSignedInSchoolsPupilDataEnd(string laestab, bool named)
+    {
+        _currentUser.OrganisationLaestab.Returns(laestab);
+        _requestRepository.GetAmendmentRequestAsync(WindowId, 100000L, "REF001")
+            .Returns(AmendmentRow(RequestStatus.Submitted, "Jane", "Smith"));
+        _checkYourPupilDataService.GetCheckingWindowAsync(WindowId).Returns(new CheckingWindowDto
+        {
+            Id = WindowId, Title = "KS4 June", KeyStage = KeyStages.KS4, CheckingWindowType = CheckingWindowType.KS4June,
+            StartDate = new DateTime(2026, 6, 1), EndDate = ExtensionEnd, Exercises = PupilDataWithExtension()
+        });
+
+        await _sut.DeleteAsync(WindowId, "REF001");
+
+        await _requestNotificationService.Received(1).NotifyAmendmentWithdrawnAsync(
+            "REF001", named ? ExtensionEnd : ExerciseEnd, Substitutions);
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────

@@ -45,7 +45,7 @@ public sealed class PageViewModel
     /// revised-grade picker so the user can see they are correcting the right one. Null on every
     /// other page type.
     /// </summary>
-    public Application.ResultsEnquiry.StudentResultRecord? SelectedResult { get; init; }
+    public Application.ResultsEnquiry.ResultRecord? SelectedResult { get; init; }
 
     /// <summary>
     /// AB#301903: the 16-19 qualification reference entry for <see cref="SelectedResult"/>, resolved
@@ -68,6 +68,13 @@ public sealed class PageViewModel
     public string? CypmdId { get; init; }
     public string PupilName { get; init; } = string.Empty;
     public string? ContentKey { get; init; }
+
+    /// <summary>#591: the CMS blocks an EvidenceUpload page shows its requirements from, one for
+    /// each option the school ticked. Empty on every other page type.</summary>
+    public IReadOnlyList<Application.Journey.EvidenceContentBlock> EvidenceContentBlocks { get; init; } = [];
+    /// <summary>#625: the caption above an EvidenceUpload page's heading: the removal reason, or
+    /// the change type when the journey has no reason. Null on every other page type.</summary>
+    public string? Caption { get; init; }
     public string? UploadError { get; init; }
     public string? AtLeastOneError { get; init; }
 

@@ -1,5 +1,4 @@
 @model DfE.CheckPerformanceData.Web.Controllers.WhatToChangeViewModel;
-@using DfE.CheckPerformanceData.Domain.Enums
 @using DfE.CheckPerformanceData.Web.Controllers.Journey
 
 @{
@@ -23,17 +22,10 @@
                 Select one option.
             </govuk-radios-hint>
 
-            <govuk-radios-item value="@WhatToChange.Merge">Merge duplicate @Model.Noun.Singular records</govuk-radios-item>
-            @if (Model.CheckingWindowType is { } includeWindowType
-                && IncludeJourney.SupportedWindowTypes.Contains(includeWindowType))
+            @* One radio for each change that has a flow file for this window type. *@
+            @foreach (var change in Model.AvailableChanges)
             {
-                <govuk-radios-item value="@WhatToChange.Include">Include a @Model.Noun.Singular in data</govuk-radios-item>
-            }
-            <govuk-radios-item value="@WhatToChange.Remove">Remove a @Model.Noun.Singular from data</govuk-radios-item>
-            @if (Model.CheckingWindowType is { } windowType
-                && AddPupilJourney.SupportedWindowTypes.Contains(windowType))
-            {
-                <govuk-radios-item value="@WhatToChange.Add">Add a @Model.Noun.Singular to data</govuk-radios-item>
+                <govuk-radios-item value="@change">@WhatToChangeLabel.For(change, Model.Noun)</govuk-radios-item>
             }
         </govuk-radios-fieldset>
     </govuk-radios>

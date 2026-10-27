@@ -16,10 +16,11 @@ public sealed class ContentBundleValidatorTests
     // always writes an initial version, so a non-folder page with an empty history is not a
     // state the product can reach and the validator now says so. Folders never carry versions.
     private static PageNodeBundleItem Page(
-        string segment = "help", string type = "folder", string title = "Help") =>
+        string segment = "help", string type = "folder", string title = "Help", Guid? parentId = null) =>
         new()
         {
             Id = Guid.NewGuid(),
+            ParentId = parentId,
             Segment = segment,
             Title = title,
             PageType = type,
@@ -82,7 +83,7 @@ public sealed class ContentBundleValidatorTests
     {
         var pages = new List<PageNodeBundleItem> { Page(type: type) };
         var issues = ContentBundleValidator.Validate(Bundle(pages));
-        Assert.Contains(issues, i => i.Code == "PAGE_TYPE_UNKNOWN" && i.Severity == ValidationSeverity.Fatal);
+        Assert.Contains(issues, i => i.Code == "PAGE_TYPE_UNKNOWN" && i.Severity == ValidationSeverity.Rejected);
     }
 
     // ── BlockType ─────────────────────────────────────────────────────────────
@@ -104,7 +105,7 @@ public sealed class ContentBundleValidatorTests
     {
         var blocks = new List<ContentBlockBundleItem> { Block(type: type) };
         var issues = ContentBundleValidator.Validate(Bundle(blocks: blocks));
-        Assert.Contains(issues, i => i.Code == "BLOCK_TYPE_UNKNOWN" && i.Severity == ValidationSeverity.Fatal);
+        Assert.Contains(issues, i => i.Code == "BLOCK_TYPE_UNKNOWN" && i.Severity == ValidationSeverity.Rejected);
     }
 
     // ── Segment ───────────────────────────────────────────────────────────────
@@ -125,11 +126,10 @@ public sealed class ContentBundleValidatorTests
     {
         var pages = new List<PageNodeBundleItem> { Page(segment: "") };
         var issues = ContentBundleValidator.Validate(Bundle(pages));
-        Assert.Contains(issues, i => i.Code == "SEGMENT_EMPTY" && i.Severity == ValidationSeverity.Fatal);
+        Assert.Contains(issues, i => i.Code == "SEGMENT_EMPTY" && i.Severity == ValidationSeverity.Rejected);
     }
 
     [Theory]
-    [InlineData("Help")]           // uppercase
     [InlineData("help-")]          // trailing hyphen
     [InlineData("-help")]          // leading hyphen
     [InlineData("help--me")]       // double hyphen
@@ -143,7 +143,7 @@ public sealed class ContentBundleValidatorTests
     {
         var pages = new List<PageNodeBundleItem> { Page(segment: segment) };
         var issues = ContentBundleValidator.Validate(Bundle(pages));
-        Assert.Contains(issues, i => i.Code == "SEGMENT_INVALID" && i.Severity == ValidationSeverity.Fatal);
+        Assert.Contains(issues, i => i.Code == "SEGMENT_INVALID" && i.Severity == ValidationSeverity.Rejected);
     }
 
     [Theory]
@@ -159,7 +159,67 @@ public sealed class ContentBundleValidatorTests
     {
         var pages = new List<PageNodeBundleItem> { Page(segment: segment) };
         var issues = ContentBundleValidator.Validate(Bundle(pages));
-        Assert.Contains(issues, i => i.Code == "SEGMENT_RESERVED" && i.Severity == ValidationSeverity.Fatal);
+        Assert.Contains(issues, i => i.Code == "SEGMENT_RESERVED" && i.Severity == ValidationSeverity.Rejected);
+    }
+
+    [Fact]
+    public void Segment_WithCapitals_IsAWarning_AndThePageIsStillImported()
+    {
+        var page = Page(segment: "guidance-copy-17-Sep", title: "Guidance copy");
+        var issue = Assert.Single(ContentBundleValidator.Validate(Bundle([page])));
+        Assert.Equal(ValidationSeverity.Warning, issue.Severity);
+        Assert.Equal("SEGMENT_LOWERCASED", issue.Code);
+        Assert.Equal(page.Id, issue.ItemId);
+        Assert.Equal(
+            "Page 'Guidance copy' has URL segment 'guidance-copy-17-Sep', so it is imported as 'guidance-copy-17-sep'.",
+            issue.Message);
+    }
+
+    [Fact]
+    public void Segment_WithCapitals_ThatIsReservedOnceLowercased_IsLeftOut()
+    {
+        var issues = ContentBundleValidator.Validate(Bundle([Page(segment: "Admin")]));
+        Assert.Contains(issues, i => i.Code == "SEGMENT_RESERVED" && i.Severity == ValidationSeverity.Rejected);
+    }
+
+    [Fact]
+    public void Segment_WithCapitals_ThatClashesWithASiblingOnceLowercased_IsLeftOut()
+    {
+        var parent = Page(segment: "guidance", title: "Guidance");
+        var lower = Page(segment: "guidance-copy-17-sep", title: "Lower", parentId: parent.Id);
+        var mixed = Page(segment: "guidance-copy-17-Sep", title: "Mixed", parentId: parent.Id);
+
+        var issues = ContentBundleValidator.Validate(Bundle([parent, lower, mixed]));
+
+        var clash = Assert.Single(issues, i => i.Severity == ValidationSeverity.Rejected);
+        Assert.Equal("SEGMENT_CLASH", clash.Code);
+        Assert.Equal(mixed.Id, clash.ItemId);
+        Assert.Equal(
+            "Page 'Mixed' has URL segment 'guidance-copy-17-Sep'. In lowercase that is the same as page 'Lower' beside it, so it is not imported.",
+            clash.Message);
+    }
+
+    [Fact]
+    public void Segment_SameLowercaseUnderDifferentParents_IsNotAClash()
+    {
+        var a = Page(segment: "a", title: "A");
+        var b = Page(segment: "b", title: "B");
+        var underA = Page(segment: "faq", parentId: a.Id);
+        var underB = Page(segment: "FAQ", parentId: b.Id);
+
+        var issues = ContentBundleValidator.Validate(Bundle([a, b, underA, underB]));
+
+        Assert.DoesNotContain(issues, i => i.Severity is ValidationSeverity.Rejected or ValidationSeverity.Fatal);
+    }
+
+    [Fact]
+    public void ARejectedIssue_NamesTheItemItLeavesOut()
+    {
+        var page = Page(segment: "bad segment");
+        var block = Block(type: "Nope");
+        var issues = ContentBundleValidator.Validate(Bundle([page], [block]));
+        Assert.Contains(issues, i => i.Code == "SEGMENT_INVALID" && i.ItemId == page.Id);
+        Assert.Contains(issues, i => i.Code == "BLOCK_TYPE_UNKNOWN" && i.ItemId == block.Id);
     }
 
     // ── Total-collection caps ─────────────────────────────────────────────────
@@ -195,7 +255,7 @@ public sealed class ContentBundleValidatorTests
             Content = new string('a', ContentBundleValidator.MaxWikiPageVersionBytes + 1),
         });
         var issues = ContentBundleValidator.Validate(Bundle(new List<PageNodeBundleItem> { page }));
-        Assert.Contains(issues, i => i.Code == "PAGE_VERSION_TOO_LARGE" && i.Severity == ValidationSeverity.Fatal);
+        Assert.Contains(issues, i => i.Code == "PAGE_VERSION_TOO_LARGE" && i.Severity == ValidationSeverity.Rejected);
     }
 
     [Fact]
@@ -219,7 +279,7 @@ public sealed class ContentBundleValidatorTests
             Content = new string('a', ContentBundleValidator.MaxContentPageVersionBytes + 1),
         });
         var issues = ContentBundleValidator.Validate(Bundle(new List<PageNodeBundleItem> { page }));
-        Assert.Contains(issues, i => i.Code == "PAGE_VERSION_TOO_LARGE" && i.Severity == ValidationSeverity.Fatal);
+        Assert.Contains(issues, i => i.Code == "PAGE_VERSION_TOO_LARGE" && i.Severity == ValidationSeverity.Rejected);
     }
 
     // Content pages carry widget-tree JSON with base64-embedded images and are
@@ -244,7 +304,7 @@ public sealed class ContentBundleValidatorTests
         var block = Block(type: "Content");
         block = block with { Value = new string('a', ContentBundleValidator.MaxContentBlockValueBytes + 1) };
         var issues = ContentBundleValidator.Validate(Bundle(blocks: new List<ContentBlockBundleItem> { block }));
-        Assert.Contains(issues, i => i.Code == "BLOCK_VALUE_TOO_LARGE" && i.Severity == ValidationSeverity.Fatal);
+        Assert.Contains(issues, i => i.Code == "BLOCK_VALUE_TOO_LARGE" && i.Severity == ValidationSeverity.Rejected);
     }
 
     [Fact]
@@ -290,7 +350,7 @@ public sealed class ContentBundleValidatorTests
     // ── Home page banners (#566) ──────────────────────────────────────────────
 
     [Fact]
-    public void Banner_WithShowUntilNotAfterShowFrom_IsFatal()
+    public void Banner_WithShowUntilNotAfterShowFrom_IsLeftOut()
     {
         var bundle = new ContentBundle
         {
@@ -301,19 +361,19 @@ public sealed class ContentBundleValidatorTests
         };
 
         var issue = Assert.Single(ContentBundleValidator.Validate(bundle));
-        Assert.Equal(ValidationSeverity.Fatal, issue.Severity);
+        Assert.Equal(ValidationSeverity.Rejected, issue.Severity);
         Assert.Equal("BANNER_DATES_INVALID", issue.Code);
     }
 
     [Fact]
-    public void Banner_WithEmptyHeading_IsFatal()
+    public void Banner_WithEmptyHeading_IsLeftOut()
     {
         var bundle = new ContentBundle { HomeBanners = [new HomeBannerBundleItem { Id = Guid.NewGuid(), Heading = "", Body = "<p>b</p>" }] };
-        Assert.Contains(ContentBundleValidator.Validate(bundle), i => i.Code == "BANNER_HEADING_EMPTY" && i.Severity == ValidationSeverity.Fatal);
+        Assert.Contains(ContentBundleValidator.Validate(bundle), i => i.Code == "BANNER_HEADING_EMPTY" && i.Severity == ValidationSeverity.Rejected);
     }
 
     [Fact]
-    public void Banner_WithOversizedHeadingOrBody_IsFatal()
+    public void Banner_WithOversizedHeadingOrBody_IsLeftOut()
     {
         var bundle = new ContentBundle
         {
@@ -329,7 +389,7 @@ public sealed class ContentBundleValidatorTests
     }
 
     [Fact]
-    public void BannerVersion_WithOversizedHeading_IsFatal()
+    public void BannerVersion_WithOversizedHeading_IsLeftOut()
     {
         var bundle = new ContentBundle
         {
@@ -344,13 +404,13 @@ public sealed class ContentBundleValidatorTests
         };
 
         var issue = Assert.Single(ContentBundleValidator.Validate(bundle));
-        Assert.Equal(ValidationSeverity.Fatal, issue.Severity);
+        Assert.Equal(ValidationSeverity.Rejected, issue.Severity);
         Assert.Equal("BANNER_HEADING_TOO_LONG", issue.Code);
         Assert.Contains("version 3", issue.Message);
     }
 
     [Fact]
-    public void BannerVersion_WithShowUntilNotAfterShowFrom_IsFatal()
+    public void BannerVersion_WithShowUntilNotAfterShowFrom_IsLeftOut()
     {
         var bundle = new ContentBundle
         {
@@ -372,7 +432,7 @@ public sealed class ContentBundleValidatorTests
         };
 
         var issue = Assert.Single(ContentBundleValidator.Validate(bundle));
-        Assert.Equal(ValidationSeverity.Fatal, issue.Severity);
+        Assert.Equal(ValidationSeverity.Rejected, issue.Severity);
         Assert.Equal("BANNER_DATES_INVALID", issue.Code);
         Assert.Contains("version 2", issue.Message);
     }

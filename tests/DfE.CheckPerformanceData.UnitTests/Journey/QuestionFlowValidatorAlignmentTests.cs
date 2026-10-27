@@ -44,6 +44,23 @@ public sealed class QuestionFlowValidatorAlignmentTests
     }
 
     /// <summary>
+    /// #591: a contentKey Checkbox gives the evidence page one guidance block for each ticked
+    /// option. Two in one flow would multiply their lists into a block per pair, which nobody
+    /// writes. Allowing it needs a rule for how the lists combine first.
+    /// </summary>
+    [Fact]
+    public void NoFlowHasMoreThanOneContentKeyCheckbox()
+    {
+        var offenders = AllFlowQuestions()
+            .Where(q => q.Question.Type == QuestionType.Checkbox && q.Question.ContentKey)
+            .GroupBy(q => q.File)
+            .Where(g => g.Count() > 1)
+            .Select(g => $"{g.Key}: {string.Join(", ", g.Select(q => q.Question.Id))}");
+
+        Assert.Empty(offenders);
+    }
+
+    /// <summary>
     /// The same guard for <c>optionalWhen</c> / <c>visibleWhen</c> condition names. These fail
     /// closed rather than open — an unresolved name leaves a question mandatory and an option
     /// hidden — so a typo silently disables the behaviour the config was asking for instead of
@@ -144,10 +161,11 @@ var services = new ServiceCollection();
     [Fact]
     public void PageDateRules_QuestionIds_MatchTheShippedFlowConfig()
     {
-        var page = AllFlowPages()
-            .SingleOrDefault(p => p.Page.Id == PageDateRules.EalDetailsPageId);
+        var pages = AllFlowPages()
+            .Where(p => p.Page.Id == PageDateRules.EalDetailsPageId)
+            .ToList();
 
-        Assert.True(page.Page is not null,
+        Assert.True(pages.Count > 0,
             $"No flow config contains a page '{PageDateRules.EalDetailsPageId}', which " +
             $"PageDateRules addresses by id — its date rules would never run.");
 
@@ -158,24 +176,39 @@ var services = new ServiceCollection();
             PageDateRules.ArrivedInEngland
         ];
 
-        foreach (var id in ruleIds)
+        foreach (var page in pages)
         {
-            var question = page.Page!.Questions.SingleOrDefault(q => q.Id == id);
-            Assert.True(question is not null,
-                $"{page.File}: page '{page.Page.Id}' has no question '{id}', which PageDateRules " +
-                $"compares — that rule would silently never fire.");
-            Assert.True(question!.Type == QuestionType.Date,
-                $"{page.File}: question '{id}' is {question.Type}, not Date — PageDateRules reads " +
-                $"it as a date answer and would always see it as unanswered.");
-        }
+            foreach (var id in ruleIds)
+            {
+                var question = page.Page.Questions.SingleOrDefault(q => q.Id == id);
+                Assert.True(question is not null,
+                    $"{page.File}: page '{page.Page.Id}' has no question '{id}', which PageDateRules " +
+                    $"compares — that rule would silently never fire.");
+                Assert.True(question!.Type == QuestionType.Date,
+                    $"{page.File}: question '{id}' is {question.Type}, not Date — PageDateRules reads " +
+                    $"it as a date answer and would always see it as unanswered.");
+            }
 
-        // The optionality of the arrival date is load-bearing: three of the seven rules are only
-        // evaluated when it has been filled in.
-        Assert.True(
-            page.Page!.Questions.Single(q => q.Id == PageDateRules.ArrivedInEngland).Optional,
-            $"{page.File}: '{PageDateRules.ArrivedInEngland}' is no longer optional. PageDateRules " +
-            $"treats a blank answer as 'rule not applicable' rather than an error — if the question " +
-            $"is now mandatory, confirm that is still the intended behaviour.");
+            // The optionality of the arrival date is load-bearing: three of the seven rules are only
+            // evaluated when it has been filled in.
+            Assert.True(
+                page.Page.Questions.Single(q => q.Id == PageDateRules.ArrivedInEngland).Optional,
+                $"{page.File}: '{PageDateRules.ArrivedInEngland}' is no longer optional. PageDateRules " +
+                $"treats a blank answer as 'rule not applicable' rather than an error — if the question " +
+                $"is now mandatory, confirm that is still the intended behaviour.");
+        }
+    }
+
+    // Only PageDateRules reads checksCohortStart, and only on the EAL details page. Turned off on
+    // any other page, it does nothing and nothing fails.
+    [Fact]
+    public void ChecksCohortStart_IsTurnedOffOnlyOnTheEalDetailsPage()
+    {
+        var misplaced = AllFlowPages()
+            .Where(p => !p.Page.ChecksCohortStart && p.Page.Id != PageDateRules.EalDetailsPageId)
+            .Select(p => $"{p.File}: {p.Page.Id}");
+
+        Assert.Empty(misplaced);
     }
 
     /// <summary>
@@ -196,32 +229,37 @@ var services = new ServiceCollection();
             RemovalJourneyDateRules.ElectiveHomeEducationPageId,
             RemovalJourneyDateRules.PermanentlyExcludedPageId,
             RemovalJourneyDateRules.PermanentlyLeftEnglandPageId,
-            RemovalJourneyDateRules.StudentDiedPageId
+            RemovalJourneyDateRules.StudentDiedPageId,
+            RemovalJourneyDateRules.AddedAfterSummerTermPageId
         ];
 
         string[] removalDateQuestionIds =
         [
             RemovalJourneyDateRules.DatePupilExcluded,
             RemovalJourneyDateRules.DatePermanentlyExcluded,
-            RemovalJourneyDateRules.DateRemovedFromRoll
+            RemovalJourneyDateRules.DateRemovedFromRoll,
+            RemovalJourneyDateRules.DateAddedToRoll
         ];
 
         foreach (var pageId in removalPageIds)
         {
-            var page = AllFlowPages().SingleOrDefault(p => p.Page.Id == pageId);
-            Assert.True(page.Page is not null,
+            var pages = AllFlowPages().Where(p => p.Page.Id == pageId).ToList();
+            Assert.True(pages.Count > 0,
                 $"No flow config contains a page '{pageId}', which RemovalJourneyDateRules " +
                 $"addresses by id — its future-date rule would never run.");
 
-            var inScopeDateQuestions = page.Page!.Questions
-                .Where(q => q.Type == QuestionType.Date
-                    && removalDateQuestionIds.Contains(q.Id))
-                .ToList();
+            foreach (var page in pages)
+            {
+                var inScopeDateQuestions = page.Page.Questions
+                    .Where(q => q.Type == QuestionType.Date
+                        && removalDateQuestionIds.Contains(q.Id))
+                    .ToList();
 
-            Assert.True(inScopeDateQuestions.Count == 1,
-                $"{page.File}: page '{pageId}' should carry exactly one in-scope Date question " +
-                $"(a single removal/exclusion date compared against today), but found " +
-                $"{inScopeDateQuestions.Count}: {string.Join(", ", inScopeDateQuestions.Select(q => q.Id))}.");
+                Assert.True(inScopeDateQuestions.Count == 1,
+                    $"{page.File}: page '{pageId}' should carry exactly one in-scope Date question " +
+                    $"(a single removal/exclusion date compared against today), but found " +
+                    $"{inScopeDateQuestions.Count}: {string.Join(", ", inScopeDateQuestions.Select(q => q.Id))}.");
+            }
         }
 
         // The three date question ids must all be covered by the config, so a typo'd constant
@@ -299,7 +337,7 @@ var services = new ServiceCollection();
     [Fact]
     public void PermanentlyLeftEngland_RollDateValidationFailure_IsThePinnedWording()
     {
-        var page = AllFlowPages().Single(p => p.Page.Id == RemovalJourneyDateRules.PermanentlyLeftEnglandPageId);
+        var page = AllFlowPages().Single(p => p.File == "Remove_KS4June.json" && p.Page.Id == RemovalJourneyDateRules.PermanentlyLeftEnglandPageId);
 
         var validationFailure = page.Page.Questions
             .Single(q => q.Id == RemovalJourneyDateRules.DateRemovedFromRoll)
@@ -319,7 +357,7 @@ var services = new ServiceCollection();
     [Fact]
     public void PermanentExclusion_DfeNumberTitle_IsThePinnedWording()
     {
-        var page = AllFlowPages().Single(p => p.Page.Id == "permanent-exclusion");
+        var page = AllFlowPages().Single(p => p.File == "Remove_KS4June.json" && p.Page.Id == "permanent-exclusion");
 
         var question = page.Page.Questions.Single(q => q.Id == "permanent-exclusion-dfe-number");
 
@@ -341,7 +379,7 @@ var services = new ServiceCollection();
     [Fact]
     public void PermanentExclusion_DfeNumberValidationFailure_IsThePinnedWording()
     {
-        var page = AllFlowPages().Single(p => p.Page.Id == "permanent-exclusion");
+        var page = AllFlowPages().Single(p => p.File == "Remove_KS4June.json" && p.Page.Id == "permanent-exclusion");
 
         var question = page.Page.Questions.Single(q => q.Id == "permanent-exclusion-dfe-number");
 
@@ -378,7 +416,7 @@ var services = new ServiceCollection();
 
         foreach (var (pageId, questionId, title, validationFailure, optional) in pinned)
         {
-            var page = AllFlowPages().Single(p => p.Page.Id == pageId);
+            var page = AllFlowPages().Single(p => p.File == "Remove_KS4June.json" && p.Page.Id == pageId);
             var question = page.Page.Questions.Single(q => q.Id == questionId);
 
             Assert.Equal(title, question.Title);
@@ -399,8 +437,7 @@ var services = new ServiceCollection();
     [Fact]
     public void ChildMissingEducation_WhyRemoved_OffersGroundHGroundIAndOther()
     {
-        var page = AllFlowPages().Single(p => p.Page.Id == "child-missing-education");
-        Assert.Equal("Remove_KS4June.json", page.File);
+        var page = AllFlowPages().Single(p => p.File == "Remove_KS4June.json" && p.Page.Id == "child-missing-education");
 
         var question = page.Page.Questions.Single(q => q.Id == "why-removed");
         Assert.Equal(QuestionType.Radio, question.Type);

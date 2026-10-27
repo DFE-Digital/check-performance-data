@@ -13,6 +13,10 @@ public sealed class ExerciseEarlyClosureServiceTests
     private static readonly Guid WindowId = Guid.Parse("11111111-1111-1111-1111-111111111111");
     private const CheckingExerciseType Exercise = CheckingExerciseType.ResultsEnquiry;
 
+    // The row being closed. Closing is addressed by id (#466): a window may hold several releases
+    // of one kind.
+    private static readonly Guid TargetId = Guid.Parse("22222222-2222-2222-2222-222222222222");
+
     // 09:39:27.450 UTC is 10:39:27.450 on the local wall clock.
     private static readonly DateTimeOffset NowUtc = new(2026, 9, 3, 9, 39, 27, 450, TimeSpan.Zero);
     private static readonly DateTime LocalNowToTheSecond = new(2026, 9, 3, 10, 39, 27);
@@ -37,13 +41,16 @@ public sealed class ExerciseEarlyClosureServiceTests
             TimeZoneInfo.CreateCustomTimeZone("Test+1", TimeSpan.FromHours(1), "Test+1", "Test+1");
     }
 
-    private static CheckingExerciseDto Row(CheckingExerciseType type, DateTime start, DateTime end) => new()
+    // The Exercise kind's row is the target unless a test says otherwise.
+    private static CheckingExerciseDto Row(
+        CheckingExerciseType? type, DateTime start, DateTime end, Guid? id = null) => new()
     {
-        Id = Guid.NewGuid(),
+        Id = id ?? (type == Exercise ? TargetId : Guid.NewGuid()),
         ExerciseType = type,
+        IsEnabled = true,
         StartDate = start,
         EndDate = end,
-        SortOrder = (int)type
+        TabOrder = (int)(type ?? 0)
     };
 
     private void WindowHolds(params CheckingExerciseDto[] exercises) =>
@@ -73,7 +80,7 @@ public sealed class ExerciseEarlyClosureServiceTests
     {
         _windows.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns((CheckingWindowDto?)null);
 
-        var result = await Sut().CloseEarlyAsync(WindowId, Exercise, Actor, CancellationToken.None);
+        var result = await Sut().CloseEarlyAsync(WindowId, TargetId, Actor, CancellationToken.None);
 
         Assert.Equal(EarlyClosureStatus.NotFound, result.Status);
         await _windows.DidNotReceiveWithAnyArgs().CloseExerciseEarlyAsync(default!, default);
@@ -84,9 +91,50 @@ public sealed class ExerciseEarlyClosureServiceTests
     {
         WindowHolds(Row(CheckingExerciseType.PupilData, LastMonth, ScheduledEnd));
 
-        var result = await Sut().CloseEarlyAsync(WindowId, Exercise, Actor, CancellationToken.None);
+        var result = await Sut().CloseEarlyAsync(WindowId, TargetId, Actor, CancellationToken.None);
 
         Assert.Equal(EarlyClosureStatus.NotFound, result.Status);
+        await _windows.DidNotReceiveWithAnyArgs().CloseExerciseEarlyAsync(default!, default);
+    }
+
+    [Fact]
+    public async Task A_data_share_is_not_found()
+    {
+        // No kind: no journey to shut and no requests to hand over.
+        WindowHolds(new CheckingExerciseDto
+        {
+            Id = TargetId, ExerciseType = null, DisplayOnly = true, StartDate = LastMonth, EndDate = ScheduledEnd
+        });
+
+        var result = await Sut().CloseEarlyAsync(WindowId, TargetId, Actor, CancellationToken.None);
+
+        Assert.Equal(EarlyClosureStatus.NotFound, result.Status);
+        await _windows.DidNotReceiveWithAnyArgs().CloseExerciseEarlyAsync(default!, default);
+    }
+
+    [Fact]
+    public async Task Only_the_named_release_is_closed_when_the_window_holds_two_of_its_kind()
+    {
+        // #466: an autumn and a revised release of one kind. The closure names the row by id, so
+        // the repository's guarded write cannot move the other.
+        WindowHolds(Row(Exercise, LastMonth, ScheduledEnd, Guid.NewGuid()), Row(Exercise, LastMonth, ScheduledEnd));
+        var written = RepositoryWrites();
+
+        var result = await Sut().CloseEarlyAsync(WindowId, TargetId, Actor, CancellationToken.None);
+
+        Assert.Equal(EarlyClosureStatus.Closed, result.Status);
+        Assert.Equal(TargetId, written()!.ExerciseId);
+    }
+
+    [Fact]
+    public async Task A_release_that_has_ended_is_not_open_though_another_of_its_kind_is()
+    {
+        // Asked of the row, not of the kind: the other release being open closes nothing here.
+        WindowHolds(Row(Exercise, LastMonth, ScheduledEnd, Guid.NewGuid()), Row(Exercise, LastMonth, Yesterday));
+
+        var result = await Sut().CloseEarlyAsync(WindowId, TargetId, Actor, CancellationToken.None);
+
+        Assert.Equal(EarlyClosureStatus.NotOpen, result.Status);
         await _windows.DidNotReceiveWithAnyArgs().CloseExerciseEarlyAsync(default!, default);
     }
 
@@ -96,7 +144,7 @@ public sealed class ExerciseEarlyClosureServiceTests
         // "A window that is already closed cannot be closed again."
         WindowHolds(Row(Exercise, LastMonth, Yesterday));
 
-        var result = await Sut().CloseEarlyAsync(WindowId, Exercise, Actor, CancellationToken.None);
+        var result = await Sut().CloseEarlyAsync(WindowId, TargetId, Actor, CancellationToken.None);
 
         Assert.Equal(EarlyClosureStatus.NotOpen, result.Status);
         await _windows.DidNotReceiveWithAnyArgs().CloseExerciseEarlyAsync(default!, default);
@@ -107,7 +155,7 @@ public sealed class ExerciseEarlyClosureServiceTests
     {
         WindowHolds(Row(Exercise, Tomorrow, ScheduledEnd));
 
-        var result = await Sut().CloseEarlyAsync(WindowId, Exercise, Actor, CancellationToken.None);
+        var result = await Sut().CloseEarlyAsync(WindowId, TargetId, Actor, CancellationToken.None);
 
         Assert.Equal(EarlyClosureStatus.NotOpen, result.Status);
         await _windows.DidNotReceiveWithAnyArgs().CloseExerciseEarlyAsync(default!, default);
@@ -119,7 +167,7 @@ public sealed class ExerciseEarlyClosureServiceTests
         WindowHolds(Row(Exercise, LastMonth, ScheduledEnd));
         var written = RepositoryWrites();
 
-        var result = await Sut().CloseEarlyAsync(WindowId, Exercise, Actor, CancellationToken.None);
+        var result = await Sut().CloseEarlyAsync(WindowId, TargetId, Actor, CancellationToken.None);
 
         Assert.Equal(EarlyClosureStatus.Closed, result.Status);
         Assert.Equal(LocalNowToTheSecond, result.ClosedAt);
@@ -138,10 +186,11 @@ public sealed class ExerciseEarlyClosureServiceTests
         WindowHolds(Row(CheckingExerciseType.PupilData, LastMonth, Tomorrow), Row(Exercise, LastMonth, ScheduledEnd));
         var written = RepositoryWrites();
 
-        await Sut().CloseEarlyAsync(WindowId, Exercise, Actor, CancellationToken.None);
+        await Sut().CloseEarlyAsync(WindowId, TargetId, Actor, CancellationToken.None);
 
         var closure = written()!;
         Assert.Equal(WindowId, closure.WindowId);
+        Assert.Equal(TargetId, closure.ExerciseId);
         Assert.Equal(Exercise, closure.Exercise);
         Assert.Equal(ScheduledEnd, closure.ScheduledEnd);
         Assert.Equal("sub-1", closure.UserId);
@@ -155,7 +204,7 @@ public sealed class ExerciseEarlyClosureServiceTests
         WindowHolds(Row(Exercise, LastMonth, ScheduledEnd));
         RepositoryWrites(written: false);
 
-        var result = await Sut().CloseEarlyAsync(WindowId, Exercise, Actor, CancellationToken.None);
+        var result = await Sut().CloseEarlyAsync(WindowId, TargetId, Actor, CancellationToken.None);
 
         Assert.Equal(EarlyClosureStatus.NotOpen, result.Status);
     }
@@ -169,11 +218,11 @@ public sealed class ExerciseEarlyClosureServiceTests
         WindowHolds(Row(Exercise, LastMonth, ScheduledEnd));
         var written = RepositoryWrites();
 
-        await Sut().CloseEarlyAsync(WindowId, Exercise, Actor, CancellationToken.None);
+        await Sut().CloseEarlyAsync(WindowId, TargetId, Actor, CancellationToken.None);
 
         var after = new[] { Row(Exercise, LastMonth, written()!.NewEndDate) };
         var clock = new CheckingExerciseService(_clock);
-        Assert.False(clock.IsOpen(after, Exercise));
-        Assert.True(clock.HasClosed(after, Exercise));
+        Assert.False(clock.IsOpen(after, Exercise, laestab: null));
+        Assert.True(clock.HasClosed(after, Exercise, laestab: null));
     }
 }

@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 
@@ -35,9 +36,30 @@ public class WindowExercisesDefaultsTests
         // The order drives the wizard's date pages and every per-exercise list, so two types must
         // never share a position.
         var orders = Enum.GetValues<CheckingExerciseType>()
-            .Select(WindowExercises.SortOrderFor)
+            .Select(WindowExercises.DefaultTabOrder)
             .ToList();
 
         Assert.Equal(orders.Count, orders.Distinct().Count());
     }
+
+    [Theory]
+    [InlineData(CheckingExerciseType.ResultsEnquiry, true)]
+    [InlineData(CheckingExerciseType.PupilData, false)]
+    [InlineData(null, false)]
+    public void Only_a_results_enquiry_starts_with_the_late_results_warning_on(CheckingExerciseType? type, bool expected)
+        => Assert.Equal(expected, WindowExercises.ShowsLateResultsWarningByDefault(type));
+
+    [Theory]
+    [InlineData(CheckingWindowType.KS4June, CheckingExerciseType.PupilData, ExerciseLayout.InclusionTabs)]
+    [InlineData(CheckingWindowType.KS4June, CheckingExerciseType.ResultsEnquiry, ExerciseLayout.Table)]
+    [InlineData(CheckingWindowType.KS4Autumn, CheckingExerciseType.PupilData, ExerciseLayout.Table)]
+    [InlineData(CheckingWindowType.Post16, CheckingExerciseType.PupilData, ExerciseLayout.Table)]
+    [InlineData(CheckingWindowType.KS2, CheckingExerciseType.PupilData, ExerciseLayout.Table)]
+    [InlineData(CheckingWindowType.KS2, CheckingExerciseType.ResultsEnquiry, ExerciseLayout.Table)]
+    public void Only_KS4_June_pupil_data_starts_with_included_and_non_included_tabs(
+        CheckingWindowType window, CheckingExerciseType exercise, ExerciseLayout expected)
+        // The KS4 June pupils file carries every pupil's own inclusion code, so schools see the
+        // included and the non-included pupils on two tabs. KS2's file does too, but schools see
+        // all its pupils on one tab.
+        => Assert.Equal(expected, WindowExercises.DefaultLayout(window, exercise));
 }

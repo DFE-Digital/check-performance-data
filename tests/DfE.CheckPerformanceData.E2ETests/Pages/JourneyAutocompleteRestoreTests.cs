@@ -168,7 +168,7 @@ public sealed class JourneyAutocompleteRestoreTests(PlaywrightFixture fixture) :
     private async Task NavigateToEalDetailsPageAsync()
     {
         await Page.GotoAsync($"{_fixture.BaseUrl}/WhatToChange/{SeededWindowId}");
-        await Page.GetByLabel("Remove").First.CheckAsync(new() { Force = true });
+        await Page.GetByLabel("Remove").First.CheckAsync();
         await Page.GetByRole(AriaRole.Button, new() { Name = "Continue" }).ClickAsync();
         await Page.WaitForURLAsync($"**/Journey/{SeededWindowId}/pupil-search/**");
 
@@ -184,13 +184,13 @@ public sealed class JourneyAutocompleteRestoreTests(PlaywrightFixture fixture) :
 
         // Reason: EAL. Select by option value, not label text, so copy edits can't break this.
         await Page.Locator("input[name='q_reason'][value='english-not-first-language']")
-            .CheckAsync(new() { Force = true });
+            .CheckAsync();
         await Page.GetByRole(AriaRole.Button, new() { Name = "Continue" }).ClickAsync();
         await Page.WaitForURLAsync($"**/Journey/{SeededWindowId}/page/english-not-first-language");
 
         // First language: any answer reaches the details page (page-level nextPageId).
         await Page.Locator("input[name='q_first_language'][value='other']")
-            .CheckAsync(new() { Force = true });
+            .CheckAsync();
         await Page.GetByRole(AriaRole.Button, new() { Name = "Continue" }).ClickAsync();
         await Page.WaitForURLAsync($"**/Journey/{SeededWindowId}/page/{DetailsPageId}");
     }

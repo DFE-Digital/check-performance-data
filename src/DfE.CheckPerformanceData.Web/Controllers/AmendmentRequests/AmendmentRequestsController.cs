@@ -1,6 +1,7 @@
 using DfE.CheckPerformanceData.Application.AmendmentRequests;
 using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
@@ -21,6 +22,7 @@ public sealed class AmendmentRequestsController(
     ICheckYourPupilDataService checkYourPupilDataService,
     IQuestionFlowService flowService,
     ICheckingExerciseService checkingExercises,
+    ICurrentUserService currentUserService,
     IJourneyViewModelBuilder viewModelBuilder) : Controller
 {
     private const string BulkSubmittedRefsKey = "BulkSubmittedRefs";
@@ -180,8 +182,10 @@ public sealed class AmendmentRequestsController(
         var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
         // #320: the pupil-data exercise's end, never the outer window's. The banner below invites
         // the school to request another amendment, and that journey shuts when pupil data shuts —
-        // on a 16-19 window the outer end is the results-enquiry close, months later.
-        var deadline = checkingExercises.EndDateFor(window.Exercises, CheckingExerciseType.PupilData);
+        // on a 16-19 window the outer end is the results-enquiry close, months later. AB#307773:
+        // the signed-in school's end, which its extension may make later than the exercise's own.
+        var deadline = checkingExercises.EndDateFor(
+            window.Exercises, CheckingExerciseType.PupilData, currentUserService.OrganisationLaestab);
 
         return View("BulkConfirmation", new BulkConfirmationViewModel
         {
@@ -212,10 +216,12 @@ public sealed class AmendmentRequestsController(
         // reopened once it has closed. Blocking the resume rather than the submit keeps the gate in
         // one place and stops a user editing a request that could never be sent. The draft itself
         // stays listed and readable on Amendment Requests — closed removes actions, never content.
+        // AB#307773: closed for the signed-in school, whose extension may outlast the exercise.
         if (journey.SelectedWhatToChange is { } draftChange && journey.CheckingWindow is not null)
         {
             var draftExercise = WhatToChangeCheckingExerciseMap.CheckingExerciseFor(draftChange);
-            if (!checkingExercises.IsOpen(journey.CheckingWindow.Exercises, draftExercise))
+            if (!checkingExercises.IsOpen(
+                    journey.CheckingWindow.Exercises, draftExercise, currentUserService.OrganisationLaestab))
                 return this.RedirectExerciseClosed(windowId, draftExercise, journey.LearnerNoun);
         }
 

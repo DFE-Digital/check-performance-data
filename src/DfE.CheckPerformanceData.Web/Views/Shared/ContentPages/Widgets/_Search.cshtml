@@ -45,6 +45,9 @@
     // the author can ask for the button underneath. A widget saved before the option existed has
     // no value and keeps the button beside the box.
     var buttonBelow = Model.GetBool("buttonBelow") ?? false;
+    // A button at the end of the box that empties it. A widget saved before the option existed has
+    // no value and no clear button.
+    var clearButton = Model.GetBool("clearButton") ?? false;
     // Two search widgets on one page must not share an input id: the label's `for` keys off it,
     // and so do the listbox and status ids accessible-autocomplete derives from it — duplicates
     // would point a screen reader at the wrong menu. Counted per request; the first widget keeps
@@ -72,8 +75,22 @@
     <div class="govuk-form-group">
         <label class="govuk-label govuk-label--s" for="@inputId">@label</label>
         <div class="cypmd-search__row @(buttonBelow ? "cypmd-search__row--stacked" : null)">
-            <input class="govuk-input cypmd-search__input" id="@inputId" name="q" type="search"
-                   placeholder="@placeholder" autocomplete="off" />
+            <div class="cypmd-search__field">
+                <input class="govuk-input cypmd-search__input" id="@inputId" name="q" type="search"
+                       placeholder="@placeholder" autocomplete="off" />
+                @* A reset button empties the box without JavaScript. With it, search-clear.js hides
+                   the button while the box is empty and puts the visitor back in the box. *@
+                @if (clearButton)
+                {
+                    <button class="cypmd-search__clear" type="reset" data-cypmd-search-clear>
+                        <span class="govuk-visually-hidden">Clear search</span>
+                        <svg class="cypmd-search__clear-icon" aria-hidden="true" focusable="false"
+                             width="16" height="16" viewBox="0 0 16 16">
+                            <path d="M2 2 14 14M14 2 2 14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
+                        </svg>
+                    </button>
+                }
+            </div>
             @if (showButton)
             {
                 <button class="govuk-button cypmd-search__button" data-module="govuk-button" type="submit">
@@ -94,4 +111,8 @@
 @if (instant)
 {
     <script src="~/js/instant-search.js" asp-append-version="true"></script>
+}
+@if (clearButton)
+{
+    <script src="~/js/search-clear.js" asp-append-version="true"></script>
 }

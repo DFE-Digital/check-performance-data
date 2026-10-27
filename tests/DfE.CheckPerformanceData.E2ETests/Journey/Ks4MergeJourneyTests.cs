@@ -109,20 +109,22 @@ public sealed class Ks4MergeJourneyTests(PlaywrightFixture fixture) : SeedingPag
 
         // US2 through the endpoint's JSON label: the row has to carry the ID the clerk typed,
         // because both records share a name and a date of birth.
-        var option = Page.Locator("li[role='option']").GetByText($"({SecondRecordCypmdId})");
+        var option = OptionShowingCypmdId(SecondRecordCypmdId);
         await Expect(option.First).ToBeVisibleAsync();
 
         // And the already-chosen first record is never on offer as its own match.
-        var firstRecord = Page.Locator("li[role='option']").GetByText($"({FirstRecordCypmdId})");
+        var firstRecord = OptionShowingCypmdId(FirstRecordCypmdId);
         await Expect(firstRecord).ToHaveCountAsync(0);
     }
 
     [RetryFact]
-    public async Task FirstRecordPage_StillSearchesByNameAndOffersNoId()
+    public async Task FirstRecordPage_StillSearchesByName()
     {
         // The guard for the other half of the feature. This page is in the same journey as the
         // narrowed one, so a change made at journey level rather than page level would break it —
-        // and it would break Remove, Include and every 16-19 search with it.
+        // and it would break Remove, Include and every 16-19 search with it. (Until #623 this fact
+        // also asserted that the row carried no bracketed ID; since #623 every KS4 row shows the
+        // CYPMD ID, so only the by-name search is the page's own behaviour.)
         await StartMergeJourneyAsync();
         await AdvanceToAsync("pupil-search/select-pupil", "choosing Merge");
 
@@ -130,7 +132,6 @@ public sealed class Ks4MergeJourneyTests(PlaywrightFixture fixture) : SeedingPag
 
         var option = Page.Locator("li[role='option']").GetByText($"{SharedSurname}, {SharedName}");
         await Expect(option.First).ToBeVisibleAsync();
-        await ExpectNoBracketedIdAsync();
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────
@@ -139,7 +140,7 @@ public sealed class Ks4MergeJourneyTests(PlaywrightFixture fixture) : SeedingPag
     {
         await SeedHelpers.CleanupDevRequestsAsync(Fixture.SeedClient);
         await Page.GotoAsync($"{Fixture.BaseUrl}/WhatToChange/{WindowId}");
-        await Page.GetByLabel("Merge").First.CheckAsync(new() { Force = true });
+        await Page.GetByLabel("Merge").First.CheckAsync();
         await ContinueAsync();
     }
 
@@ -157,11 +158,17 @@ public sealed class Ks4MergeJourneyTests(PlaywrightFixture fixture) : SeedingPag
     {
         await AdvanceToAsync("pupil-search/select-match-pupil", "choosing the first record");
         await FillSearchAsync(cypmdId);
-        var option = Page.Locator("li[role='option']").GetByText($"({cypmdId})");
+        var option = OptionShowingCypmdId(cypmdId);
         await Expect(option.First).ToBeVisibleAsync();
         await option.First.ClickAsync();
         await ContinueAsync();
     }
+
+    // Since #623 (PR #630) the KS4 suggestion reads
+    // "Surname, Firstname, (CYPMD ID: 800002, UPN: …, DOB: …, Status: …)" — the ID is no longer a
+    // bare "(800002)" at the end. The trailing comma stops "800002" matching a longer ID.
+    private ILocator OptionShowingCypmdId(string cypmdId) =>
+        Page.Locator("li[role='option']").GetByText($"CYPMD ID: {cypmdId},");
 
     private async Task FillSearchAsync(string query)
     {
@@ -182,14 +189,6 @@ public sealed class Ks4MergeJourneyTests(PlaywrightFixture fixture) : SeedingPag
         await Expect(Page.Locator(".autocomplete__option--no-results"))
             .ToBeVisibleAsync(new() { Timeout = 10_000 });
         await Expect(Page.Locator("li[role='option']")).ToHaveCountAsync(0);
-    }
-
-    private async Task ExpectNoBracketedIdAsync()
-    {
-        var options = Page.Locator("li[role='option']");
-        await Expect(options.First).ToBeVisibleAsync();
-        for (var i = 0; i < await options.CountAsync(); i++)
-            Assert.DoesNotContain("(", await options.Nth(i).InnerTextAsync());
     }
 
     private async Task ContinueAsync() =>

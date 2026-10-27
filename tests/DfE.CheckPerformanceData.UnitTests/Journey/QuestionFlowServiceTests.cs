@@ -332,6 +332,131 @@ public class QuestionFlowServiceTests
         Assert.EndsWith("-social-care", key);
     }
 
+    // ── BuildEvidenceContentBlocks (#591) ─────────────────────────────────────────────
+
+    // The KS4 June social care shape: a contentKey radio, then a contentKey checkbox, then the
+    // evidence page.
+    private static QuestionFlowConfig CheckboxContentKeyConfig() => new()
+    {
+        FirstPageId = "reason",
+        Pages =
+        [
+            new JourneyPage
+            {
+                Id = "reason",
+                Questions = [new Question { Id = "reason", Type = QuestionType.Radio, Title = "Reason",
+                    ContentKey = true,
+                    Options = [new QuestionOption { Value = "social-care-involvement", Label = "Social care" }] }]
+            },
+            new JourneyPage
+            {
+                Id = "social-care",
+                Title = "Social care involvement",
+                Questions = [new Question { Id = "social-care-reason", Type = QuestionType.Checkbox, Title = "What happened?",
+                    ContentKey = true,
+                    Options =
+                    [
+                        new QuestionOption { Value = "social-care-situation", Label = "Social care situation" },
+                        new QuestionOption { Value = "police-involvement", Label = "Police involvement" },
+                        new QuestionOption { Value = "detained-in-prison", Label = "Detained in prison" }
+                    ] }]
+            },
+            new JourneyPage { Id = "evidence", Type = PageType.EvidenceUpload, Questions = [] }
+        ]
+    };
+
+    private List<string> KeysFor(params string[] ticked) => [.. BlocksFor(ticked).Select(b => b.Key)];
+
+    private List<EvidenceContentBlock> BlocksFor(params string[] ticked)
+    {
+        var config = CheckboxContentKeyConfig();
+        var answers = new Dictionary<string, QuestionAnswer>
+        {
+            ["reason"] = new() { TextValue = "social-care-involvement" },
+            ["social-care-reason"] = new() { SelectedValues = [.. ticked] }
+        };
+        var journey = MakeJourney(history: ["reason", "social-care", "evidence"],
+            whatToChange: WhatToChange.Remove, windowType: CheckingWindowType.KS4June, answers: answers);
+
+        return [.. _sut.BuildEvidenceContentBlocks(config.Pages[2], answers, journey, config)];
+    }
+
+    [Fact]
+    public void BuildEvidenceContentBlocks_OneTickedOption_GivesTheKeyARadioGaveBefore()
+    {
+        // The blocks editors wrote for the radio must keep showing: one tick, same key.
+        Assert.Equal(
+            "journey-ks4june-remove-social-care-involvement-police-involvement",
+            KeysFor("police-involvement")[0]);
+    }
+
+    [Fact]
+    public void BuildEvidenceContentBlocks_SeveralTickedOptions_GiveOneKeyEach_InConfigOrder_ThenTheSharedKey()
+    {
+        Assert.Equal(
+            [
+                "journey-ks4june-remove-social-care-involvement-social-care-situation",
+                "journey-ks4june-remove-social-care-involvement-detained-in-prison",
+                "journey-ks4june-remove-social-care-involvement"
+            ],
+            KeysFor("detained-in-prison", "social-care-situation"));
+    }
+
+    [Theory]
+    [InlineData("social-care-situation")]
+    [InlineData("police-involvement", "detained-in-prison")]
+    [InlineData("social-care-situation", "police-involvement", "detained-in-prison")]
+    public void BuildEvidenceContentBlocks_AContentKeyCheckbox_AlwaysEndsWithItsSharedBlock(params string[] ticked)
+    {
+        // #633: the section has general guidance that shows whatever the school ticks, below
+        // the guidance for each ticked option. Its key is the key before the checkbox.
+        var last = BlocksFor(ticked)[^1];
+
+        Assert.Equal(
+            new EvidenceContentBlock("journey-ks4june-remove-social-care-involvement", null, "Social care involvement"),
+            last);
+    }
+
+    [Fact]
+    public void BuildEvidenceContentBlocks_NameTheOptionEachBlockIsFor()
+    {
+        // The label goes into a new block's default text, so a guidance writer can tell the
+        // blocks apart.
+        Assert.Equal(
+            ["Social care situation", "Detained in prison", null],
+            BlocksFor("detained-in-prison", "social-care-situation").Select(b => b.OptionLabel));
+    }
+
+    [Fact]
+    public void BuildEvidenceContentBlocks_SharedBlock_FallsBackToTheQuestionTitle_WhenThePageHasNoTitle()
+    {
+        var config = CheckboxContentKeyConfig();
+        var socialCare = config.Pages[1];
+        config.Pages[1] = new JourneyPage { Id = socialCare.Id, Questions = socialCare.Questions };
+        var answers = new Dictionary<string, QuestionAnswer>
+        {
+            ["reason"] = new() { TextValue = "social-care-involvement" },
+            ["social-care-reason"] = new() { SelectedValues = ["police-involvement"] }
+        };
+        var journey = MakeJourney(history: ["reason", "social-care", "evidence"],
+            whatToChange: WhatToChange.Remove, windowType: CheckingWindowType.KS4June, answers: answers);
+
+        var blocks = _sut.BuildEvidenceContentBlocks(config.Pages[2], answers, journey, config);
+
+        Assert.Equal("What happened?", blocks[^1].SectionLabel);
+    }
+
+    [Fact]
+    public void BuildEvidenceContentBlocks_WithNoContentKeyCheckbox_IsTheSingleContentKey_ForNoOption()
+    {
+        var page = new JourneyPage { Id = "info", Type = PageType.EvidenceUpload, Questions = [] };
+        var journey = MakeJourney(whatToChange: WhatToChange.Remove, windowType: CheckingWindowType.KS4June);
+
+        Assert.Equal(
+            [new EvidenceContentBlock(_sut.BuildContentKey(page, new(), journey, _config), null)],
+            _sut.BuildEvidenceContentBlocks(page, new(), journey, _config));
+    }
+
     // ── ResolveRequestType ──────────────────────────────────────────────────
 
     [Fact]
@@ -600,4 +725,44 @@ public class QuestionFlowServiceTests
             QuestionHistory = history ?? [],
             QuestionAnswers = answers ?? new()
         };
+
+    // ── GetPupilDataChangesAsync (docs/ks2-journeys.md, decision 1) ─────────
+
+    private static readonly QuestionFlowConfig AnyFlow = new() { FirstPageId = "p", Pages = [] };
+
+    [Fact]
+    public async Task GetPupilDataChangesAsync_ReturnsTheChangesThatHaveAFlowFile_InDisplayOrder()
+    {
+        _blobClient.GetConfigAsync(WhatToChange.Remove, CheckingWindowType.KS4June).Returns(AnyFlow);
+        _blobClient.GetConfigAsync(WhatToChange.Add, CheckingWindowType.KS4June).Returns(AnyFlow);
+        _blobClient.GetConfigAsync(WhatToChange.Merge, CheckingWindowType.KS4June).Returns(AnyFlow);
+        _blobClient.GetConfigAsync(WhatToChange.Include, CheckingWindowType.KS4June).Returns(AnyFlow);
+
+        var changes = await _sut.GetPupilDataChangesAsync(CheckingWindowType.KS4June);
+
+        Assert.Equal([WhatToChange.Merge, WhatToChange.Include, WhatToChange.Remove, WhatToChange.Add], changes);
+    }
+
+    [Fact]
+    public async Task GetPupilDataChangesAsync_LeavesOutAChangeWithNoFlowFile()
+    {
+        _blobClient.GetConfigAsync(WhatToChange.Remove, CheckingWindowType.KS2).Returns(AnyFlow);
+
+        var changes = await _sut.GetPupilDataChangesAsync(CheckingWindowType.KS2);
+
+        Assert.Equal([WhatToChange.Remove], changes);
+    }
+
+    [Fact]
+    public async Task GetPupilDataChangesAsync_NeverOffersAResultsChange()
+    {
+        // The results changes start from the results-enquiry page, not from What to change.
+        _blobClient.GetConfigAsync(WhatToChange.IncorrectGrade, CheckingWindowType.Post16).Returns(AnyFlow);
+        _blobClient.GetConfigAsync(WhatToChange.MissingQualification, CheckingWindowType.Post16).Returns(AnyFlow);
+        _blobClient.GetConfigAsync(WhatToChange.ResultDoesNotBelong, CheckingWindowType.Post16).Returns(AnyFlow);
+
+        var changes = await _sut.GetPupilDataChangesAsync(CheckingWindowType.Post16);
+
+        Assert.Empty(changes);
+    }
 }

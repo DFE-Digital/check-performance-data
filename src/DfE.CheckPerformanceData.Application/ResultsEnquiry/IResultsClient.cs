@@ -1,0 +1,38 @@
+namespace DfE.CheckPerformanceData.Application.ResultsEnquiry;
+
+/// <summary>
+/// Reads (and, for dev seeding, writes) the per-school exam results held in blob storage at
+/// container <c>{windowId}</c>, blob <c>results-enquiry/data/{laestab}_results.json</c> — see
+/// <see cref="ResultsEnquiryBlobPaths"/>. The file is one merged array across the supplier
+/// input files the live release read, each row stamped with its <see cref="ResultsFileTags"/> source tag by ingestion.
+/// </summary>
+public interface IResultsClient
+{
+    /// <summary>
+    /// The results held for one student. Empty when the container, the blob or the student is
+    /// absent — a school with no results is a normal state, not an error. Malformed JSON throws so
+    /// a corrupt file surfaces rather than reading as "this student has no results".
+    /// </summary>
+    Task<IReadOnlyList<ResultRecord>> GetResultsAsync(Guid windowId, string laestab, string cypmdId, CancellationToken ct = default);
+
+    /// <summary>
+    /// The CYPMD ids of every student the school holds a result for. The pupil search restricts
+    /// itself to this set on a results enquiry, so that a school cannot start an incorrect-grade
+    /// enquiry for a student who has no grade to correct. Served from the same cached school file
+    /// as <see cref="GetResultsAsync"/>, so an autocomplete keystroke costs no download.
+    ///
+    /// The set is case-insensitive, matching how <see cref="GetResultsAsync"/> compares ids —
+    /// otherwise a student could be offered by the search and then be found to hold nothing.
+    /// </summary>
+    Task<IReadOnlySet<string>> GetCypmdIdsWithResultsAsync(Guid windowId, string laestab, CancellationToken ct = default);
+
+    /// <summary>
+    /// Every result the school holds, across all students and every source file the live release
+    /// read — what the Results tab lists. Empty when the container or the blob is absent. Served
+    /// from the same cached school file as <see cref="GetResultsAsync"/>.
+    /// </summary>
+    Task<IReadOnlyList<ResultRecord>> GetAllResultsAsync(Guid windowId, string laestab, CancellationToken ct = default);
+
+    /// <summary>Writes a school's results file. Used only by development data seeding.</summary>
+    Task UploadResultsAsync(Guid windowId, string laestab, IReadOnlyList<ResultRecord> results, CancellationToken ct = default);
+}

@@ -9,6 +9,7 @@ public sealed class CloseExerciseViewModelTests
     private static CloseExerciseViewModel Model(CheckingExerciseType exercise) => new()
     {
         WindowId = Guid.Parse("11111111-1111-1111-1111-111111111111"),
+        ExerciseId = Guid.Parse("22222222-2222-2222-2222-222222222222"),
         WindowTitle = "Key Stage 4 June",
         ExerciseType = exercise,
         ExerciseLabel = "Label",
@@ -44,7 +45,7 @@ public sealed class CloseExerciseViewModelTests
     {
         var model = Model(CheckingExerciseType.ResultsEnquiry);
 
-        Assert.Equal("/admin/windows/11111111-1111-1111-1111-111111111111/ResultsEnquiry/close", model.PostUrl);
+        Assert.Equal("/admin/windows/11111111-1111-1111-1111-111111111111/exercises/22222222-2222-2222-2222-222222222222/close", model.PostUrl);
         Assert.Equal("/admin/windows/summary/11111111-1111-1111-1111-111111111111", model.CancelLink);
     }
 }

@@ -14,17 +14,42 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@v4
+      uses: actions/setup-dotnet@v6
       with:
         dotnet-version: '10.0.x'
+
+    - name: Check the Playwright package and image versions match
+      # Dependabot raises the Microsoft.Playwright package on its own. This fails its pull request
+      # until the playwright/dotnet image in the E2E Dockerfile is raised to the same version (#616).
+      run: bash scripts/check-playwright-pin.sh
+
+    - name: Check actions and base images are pinned
+      # A tag or branch can be moved to other code, so third-party actions must be pinned to a
+      # commit SHA and base images to a digest (#617). Official GitHub, verified-publisher and DfE
+      # actions are exempt, as the platform team advises. Dependabot keeps the pins current.
+      run: bash scripts/check-pins.sh
 
     - name: Restore dependencies
       env:
         NUGET_CERT_REVOCATION_MODE: offline
-      run: dotnet restore src/DfE.CheckPerformanceData.slnx
+      # Locked mode: restore only from the committed packages.lock.json files and fail (NU1004)
+      # when a project's packages no longer match them (#613).
+      run: dotnet restore src/DfE.CheckPerformanceData.slnx --locked-mode
+
+    - name: Check every lock file is committed and current
+      # Locked mode refuses a stale lock file but regenerates a missing one with exit 0, so a new
+      # project without a committed packages.lock.json would pass it. Any modified or untracked
+      # lock file after the restore means a lock file is missing from source control (#613).
+      run: |
+        changed=$(git status --porcelain -- ':(glob)**/packages.lock.json')
+        if [ -n "$changed" ]; then
+          echo "::error::packages.lock.json missing or out of date. Run 'dotnet restore src/DfE.CheckPerformanceData.slnx' and commit the lock files:"
+          echo "$changed"
+          exit 1
+        fi
 
     - name: Build
       run: dotnet build src/DfE.CheckPerformanceData.slnx --no-restore --configuration Release

@@ -61,10 +61,26 @@ public sealed class ExerciseScopedIngressTests(AzuriteFixture fixture)
 
     private async Task RunAsync(Guid windowId, CheckingExerciseType exercise)
     {
+        var container = _blobs.GetBlobContainerClient(windowId.ToString());
+        var protectedFiles = new Dictionary<string, byte[]>();
+        await foreach (var blob in container.GetBlobsAsync())
+        {
+            var belongsToOtherExercise = exercise == CheckingExerciseType.PupilData
+                ? blob.Name.StartsWith("results-enquiry/", StringComparison.Ordinal)
+                : blob.Name.StartsWith("data/", StringComparison.Ordinal) || blob.Name.StartsWith($"{windowId}_", StringComparison.Ordinal);
+            if (belongsToOtherExercise || blob.Name.StartsWith("ingress/", StringComparison.Ordinal) || blob.Name.StartsWith("schema/", StringComparison.Ordinal))
+                protectedFiles.Add(blob.Name, (await container.GetBlobClient(blob.Name).DownloadContentAsync()).Value.Content.ToArray());
+        }
+        ValidationProgress? last = null;
         await foreach (var _ in Processor().ProcessAsync(
                            windowId, exercise, Datasets(), clearExistingFiles: true))
         {
+            last = _;
         }
+        Assert.NotNull(last);
+        Assert.False(last.IsError, last.Message);
+        foreach (var (name, content) in protectedFiles)
+            Assert.Equal(content, (await container.GetBlobClient(name).DownloadContentAsync()).Value.Content.ToArray());
     }
 
     private static Task<bool> ExistsAsync(BlobContainerClient container, string name)

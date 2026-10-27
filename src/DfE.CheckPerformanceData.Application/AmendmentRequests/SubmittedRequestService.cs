@@ -1,7 +1,9 @@
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
+using DfE.CheckPerformanceData.Application.Logging;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Domain.Enums;
+using Microsoft.Extensions.Logging;
 
 namespace DfE.CheckPerformanceData.Application.AmendmentRequests;
 
@@ -9,7 +11,8 @@ public sealed class SubmittedRequestService(
     IRequestStateBlobClient requestStateBlobClient,
     IQuestionFlowService flowService,
     IRequestRepository requestRepository,
-    ICurrentUserService currentUserService) : ISubmittedRequestService
+    ICurrentUserService currentUserService,
+    ILogger<SubmittedRequestService> logger) : ISubmittedRequestService
 {
     public async Task<SubmittedRequestView?> GetAsync(Guid windowId, string referenceNumber)
     {
@@ -20,7 +23,13 @@ public sealed class SubmittedRequestService(
         var urn = long.Parse(currentUserService.OrganisationUrn);
         var row = await requestRepository.GetAmendmentRequestAsync(windowId, urn, referenceNumber);
         if (row is null)
+        {
+            // Logged under the one access-refusal event (#612): a reference the school does not
+            // own is how a user would try another school's URL. The later nulls below are not
+            // refusals — the school owns the row and the data behind it is incomplete.
+            logger.ScopedReadMissed(currentUserService.UserId, currentUserService.OrganisationUrn, windowId, referenceNumber);
             return null;
+        }
 
         var journey = await requestStateBlobClient.GetAsync(windowId, referenceNumber);
         if (journey?.SelectedWhatToChange is null || journey.CheckingWindow is null)
@@ -94,7 +103,14 @@ public sealed class SubmittedRequestService(
     {
         var urn = long.Parse(currentUserService.OrganisationUrn);
         var row = await requestRepository.GetConfirmDataCorrectAsync(windowId, urn, referenceNumber);
-        if (row is null || row.RequestType != RequestType.ConfirmCorrect)
+        if (row is null)
+        {
+            // Same access-refusal log as GetAsync (#612). A row of another request type, below,
+            // belongs to the school and is not one.
+            logger.ScopedReadMissed(currentUserService.UserId, currentUserService.OrganisationUrn, windowId, referenceNumber);
+            return null;
+        }
+        if (row.RequestType != RequestType.ConfirmCorrect)
             return null;
 
         return new ConfirmDataCorrectView

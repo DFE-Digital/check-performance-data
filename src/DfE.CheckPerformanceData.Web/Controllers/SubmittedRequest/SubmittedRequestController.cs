@@ -97,8 +97,10 @@ public sealed class SubmittedRequestController(
     }
 
     [Route("/{windowId}/AmendmentRequests/{referenceNumber}/evidence/{storedFileName}")]
+    [RequiresNoStore]
     public async Task<IActionResult> DownloadEvidence(Guid windowId, string referenceNumber, string storedFileName)
     {
+        Response.NoStore();
         if (!Guid.TryParse(storedFileName, out _)) return NotFound();
 
         var request = await service.GetAsync(windowId, referenceNumber);

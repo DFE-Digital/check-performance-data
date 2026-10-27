@@ -13,6 +13,7 @@ using NSubstitute;
 // already uses the LandingPage one.
 using ICheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.ICheckingExerciseService;
 using CheckingExerciseDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseDto;
+using CheckingExerciseExtensionDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseExtensionDto;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.AmendmentRequests;
 
@@ -85,13 +86,36 @@ public class AmendmentRequestsServiceTests
                 Exercise(CheckingExerciseType.PupilData, endDate, sortOrder: 0),
                 Exercise(CheckingExerciseType.ResultsEnquiry, endDate, sortOrder: 1)));
         _requestRepo.GetAmendmentRequestsAsync(WindowId, 100001L).Returns([]);
-        _checkingExercises.IsOpen(default!, default)
+        _checkingExercises.IsOpen(default!, default, default)
             .ReturnsForAnyArgs(ci => ci.ArgAt<CheckingExerciseType>(1) == CheckingExerciseType.PupilData);
 
         var result = await _sut.GetAmendmentRequestsAsync(WindowId);
 
         Assert.True(result.Deadlines[0].IsOpen);
         Assert.False(result.Deadlines[1].IsOpen);
+    }
+
+    // AB#307773: pupil data ended yesterday, and an open extension gives 933/4290 until Friday. The
+    // deadline row is the signed-in school's: its end date and whether it may still act.
+    [Theory]
+    [InlineData("933/4290", true)]
+    [InlineData("860/4070", false)]
+    public async Task GetAmendmentRequestsAsync_TheDeadlineIsTheSignedInSchoolsExtensionWhenOneNamesIt(
+        string laestab, bool named)
+    {
+        var endedYesterday = new DateTime(2026, 10, 11, 17, 0, 0);
+        var extensionEnd = new DateTime(2026, 10, 16, 17, 0, 0);
+        var pupilData = Exercise(CheckingExerciseType.PupilData, endedYesterday, sortOrder: 0);
+        pupilData.Extensions.Add(new CheckingExerciseExtensionDto { EndDate = extensionEnd, Laestabs = ["9334290"] });
+        _windowService.GetCheckingWindowAsync(WindowId).Returns(Window(endedYesterday, pupilData));
+        _requestRepo.GetAmendmentRequestsAsync(WindowId, 100001L).Returns([]);
+        _currentUser.OrganisationLaestab.Returns(laestab);
+        _checkingExercises.OpenOnlyFor("933/4290");
+
+        var deadline = Assert.Single((await _sut.GetAmendmentRequestsAsync(WindowId)).Deadlines);
+
+        Assert.Equal(named ? extensionEnd : endedYesterday, deadline.EndDate);
+        Assert.Equal(named, deadline.IsOpen);
     }
 
     // A window with no exercise rows shows no deadline at all. Inventing one from the window's own
@@ -261,7 +285,7 @@ public class AmendmentRequestsServiceTests
         _requestRepo.GetSubmittedResultsEnquiriesAsync(WindowId, 100001L).Returns([enquiry]);
         _blobClient.GetAsync(WindowId, "REF-2").Returns(new RequestState
         {
-            SelectedResult = new StudentResultRecord { QualificationName = "GCSE (9-1) Bus. Studs:Single" }
+            SelectedResult = new ResultRecord { QualificationName = "GCSE (9-1) Bus. Studs:Single" }
         });
 
         var result = await _sut.GetAmendmentRequestsAsync(WindowId);
@@ -418,7 +442,7 @@ public class AmendmentRequestsServiceTests
         ExerciseType = type,
         StartDate = endDate.AddMonths(-3),
         EndDate = endDate,
-        SortOrder = sortOrder
+        TabOrder = sortOrder
     };
 
     private static AmendmentRequestData RequestData(

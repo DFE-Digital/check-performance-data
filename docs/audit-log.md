@@ -40,20 +40,41 @@ cumulative filters, 20 rows a page, and a CSV export of the filtered set.
   requests over by itself, two hours after the exercise ends — but only for a run that sent or
   cancelled something, so the day of repeat runs that follows leaves no rows. `EntityId` is the
   window id, `UserId` is null (nobody did it; the screen says "System"), `Timestamp` the UTC
-  instant of the run. The payload carries `windowId`, `windowTitle`, `exerciseType`,
-  `exerciseEnd`, `requestsSent`, `draftsCancelled`, `automatic` and `ranAtUtc`. It is written
-  after the sweep rather than in a transaction with it, so a failed write loses the row, not the
-  hand-over.
+  instant of the run. The payload carries `windowId`, `windowTitle`, `exerciseId`, `exerciseType`,
+  `extensionId`, `exerciseEnd`, `requestsSent`, `draftsCancelled`, `automatic` and `ranAtUtc`.
+  `extensionId` (AB#307773) names the extension handed over and is null for the exercise's own
+  hand-over; `exerciseEnd` is the end it was judged on (for an extension, the later of its own end
+  and the exercise's); the screen prefixes "(extension)". It is written after the sweep rather than
+  in a transaction with it, so a failed write loses the row, not the hand-over.
+- **Extensions (AB#307773).** An extension is extra time on one checking exercise for a named list
+  of schools (LAESTABs, no pupil data). Four admin actions each write one `WindowAdmin` row from
+  `ExerciseExtensionRepository`. `EntityId` is the window id, `UserId` the admin's subject,
+  `Timestamp` the UTC instant of the change. Every payload (camelCase JSON) carries `windowId`,
+  `windowTitle`, `exerciseId`, `exerciseType`, `extensionId`, `endDate` and `actorName`. The first
+  three rows are written in the same transaction as the change, so a change that lost its
+  compare-and-set has none. Each row adds:
+  - `ExtensionAdded`: `schoolCount` and `schools` (digits). `endDate` is the extension's end.
+  - `ExtensionEdited`: `previousEndDate`, `newEndDate`, `schoolCount`, `schoolsAdded` and
+    `schoolsRemoved`. `endDate` is the new end.
+  - `ExtensionClosedEarly`: `scheduledEnd`, `newEndDate`, `closedEarly`, `closedBy` and
+    `closedAtUtc`. `endDate` is the new end; `closedBy` and `actorName` are the same name.
+  - `ExtensionRequestsSent`: `extensionEnd`, `requestsSent` and `draftsCancelled`. `endDate` is
+    `extensionEnd`. It is written after the manual Send's sweep, in a transaction of its own.
 
 ## The screen
 
 | Column | Egress row | Window admin row | Any other row |
 |---|---|---|---|
-| User | `transferredBy` from the payload (the subject id for a pull row) | `closedBy` from the payload | the `UserId` subject (there is no user directory) |
+| User | `transferredBy` from the payload (the subject id for a pull row) | `closedBy`, else `actorName`, from the payload | the `UserId` subject (there is no user directory) |
 | Activity | turquoise **Data egress** tag ("Run started" beneath for a pull row) | orange **Window admin** tag | grey tag with the entity type's label, the action beneath |
 | Checking window | the run's window title, output types beneath | the window title, "{exercise} closed early, before scheduled end" beneath | the window title for a `CheckingWindow` row; otherwise empty |
 | Time | `d MMM yyyy` and `HH:mm:ss UTC` | same | same |
 | Status | green **Success** / red **Failed** | green **Success** | none |
+
+An extension row is a window-admin row too: the actor's name, the orange **Window admin** tag, the
+window title with one sentence beneath ("{exercise} extension added for 3 schools, ending
+12/11/2026 17:00", "edited: N schools added, M removed", "closed early, before its end", "requests
+sent for processing: N requests sent, M drafts cancelled"), and green **Success**.
 
 An automatic hand-over is a window-admin row as well: **System** as the user, the orange
 **Window admin** tag, the window title with "{exercise} requests sent for processing
@@ -64,7 +85,8 @@ distinct types present, plus `EgressRun` always; `?activity=EgressRun` isolates 
 window** = egress rows whose run belongs to the window (resolved through `egress_runs`, so it never
 parses JSON in SQL) or `CheckingWindow` and `WindowAdmin` rows whose id is the window; **status** =
 egress rows whose action is `Transfer` (Success) or `TransferFailed` (Failed), plus
-`WindowAdmin`/`ClosedEarly` and `WindowAdmin`/`RequestsSentAutomatically` rows (Success only).
+`WindowAdmin` rows whose action is `ClosedEarly`, `RequestsSentAutomatically`, `ExtensionAdded`,
+`ExtensionEdited`, `ExtensionClosedEarly` or `ExtensionRequestsSent` (Success only).
 Filters AND together; an unknown value is no filter. Page links and the export carry every filter.
 
 ## Export
@@ -83,7 +105,8 @@ Entity id,Checking window,Output types,Status`. No cap; rows stream straight to 
   stores pupil-bearing entities (`ChangeRequest`) in them. The query projects `NewValues` only for
   `EgressRun` and `WindowAdmin` rows (two hand-written payloads with no pupil data), and
   `AuditLogRow` has no payload member. The export shows a window-admin row's exercise in the
-  Action column, as `ClosedEarly (PupilData)` or `RequestsSentAutomatically (PupilData)`.
+  Action column, as `ClosedEarly (PupilData)` or `RequestsSentAutomatically (PupilData)`, and the extension
+  actions the same way.
 
 ## Known limits
 

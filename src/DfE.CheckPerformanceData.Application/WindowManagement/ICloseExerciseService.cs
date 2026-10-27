@@ -1,5 +1,3 @@
-using DfE.CheckPerformanceData.Domain.Enums;
-
 namespace DfE.CheckPerformanceData.Application.WindowManagement;
 
 /// <summary>
@@ -10,10 +8,16 @@ namespace DfE.CheckPerformanceData.Application.WindowManagement;
 /// Replaces <c>AdminRequestsService.ProcessCloseWindowEvent</c>, which swept every OPEN window at
 /// once and so could not be driven from a per-window admin page. Two rules hold here:
 /// <list type="bullet">
-/// <item>The sweep is scoped to one window AND one exercise. A press on Pupil Data cannot reach
-/// another window's rows, another exercise's rows, or a row belonging to no exercise.</item>
-/// <item>It ignores the exercise's dates. There is deliberately no <c>TimeProvider</c> — an admin
-/// may close an exercise whose end date has not passed.</item>
+/// <item>The sweep is scoped to one window AND one exercise row, named by its id. A window may hold
+/// several releases of one kind (#466), so a type would not say which. A press cannot reach another
+/// window's rows, another exercise's rows, or a row belonging to no exercise.</item>
+/// <item>It ignores the exercise's dates — an admin may close an exercise whose end date has not
+/// passed. The only clock read is <see cref="ICheckingExerciseService"/>'s, to tell which
+/// extensions are still open (AB#307773).</item>
+/// <item>It is split by school (AB#307773). The exercise's sweep leaves out the schools in an
+/// extension that is still open by its effective end, takes everything else, and stamps every
+/// closed extension it covered; an extension's sweep takes only its own schools. A request with
+/// no LAESTAB always goes with the exercise.</item>
 /// </list>
 /// </remarks>
 public interface ICloseExerciseService
@@ -25,14 +29,39 @@ public interface ICloseExerciseService
     /// banner reports what the close actually did rather than what this predicted.
     /// </summary>
     Task<CloseExercisePreview> PreviewAsync(
-        Guid windowId, CheckingExerciseType exercise, CancellationToken cancellationToken);
+        Guid windowId, Guid exerciseId, CancellationToken cancellationToken);
 
     /// <summary>
     /// Performs the close. Irreversible: it dispatches to an external system and marks the sent
     /// rows TicketQueued.
     /// </summary>
     Task<CloseExerciseResult> CloseAsync(
-        Guid windowId, CheckingExerciseType exercise, CancellationToken cancellationToken);
+        Guid windowId, Guid exerciseId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// <see cref="PreviewAsync"/> for one extension's schools (AB#307773), counted over the same
+    /// rows <see cref="CloseExtensionAsync"/> would sweep.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The exercise has no such extension.</exception>
+    Task<CloseExercisePreview> PreviewExtensionAsync(
+        Guid windowId, Guid exerciseId, Guid extensionId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// <see cref="CloseAsync"/> for one extension's schools (AB#307773), then stamps the extension
+    /// sent, recording that its schools have been swept. Not stamped when the sweep fails.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The exercise has no such extension.</exception>
+    Task<CloseExerciseResult> CloseExtensionAsync(
+        Guid windowId, Guid exerciseId, Guid extensionId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// <see cref="CloseAsync"/> for the named schools only: the edit
+    /// of an extension removes a school after the exercise has closed, and its time is over at
+    /// once. Nothing is stamped. Ignores whether the exercise or any extension is open — the caller
+    /// decides, as for the other sweeps.
+    /// </summary>
+    Task<CloseExerciseResult> SweepSchoolsAsync(
+        Guid windowId, Guid exerciseId, IReadOnlyCollection<string> laestabs, CancellationToken cancellationToken);
 }
 
 /// <summary>Counts only — nothing is written to produce this.</summary>

@@ -11,9 +11,9 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Persistence;
 
 /// <summary>
 /// AB#301022: the write behind an early closure. One guarded statement moves the exercise's end
-/// date, the window's own end date is re-derived as the latest exercise end, and one WindowAdmin
-/// audit row is written — all or nothing. The guard is a compare-and-set on the end date the admin
-/// was shown, so a second close, or a close racing a date edit, writes nothing at all.
+/// date, the window's own end date is re-derived as the latest exercise end, and
+/// one WindowAdmin audit row is written — all or nothing. The guard is a compare-and-set on the end
+/// date the admin was shown, so a second close, or a close racing a date edit, writes nothing at all.
 /// </summary>
 [Collection(nameof(PostgresCollection))]
 public sealed class WindowRepositoryEarlyClosureTests(PostgresFixture fixture) : IAsyncLifetime
@@ -27,6 +27,8 @@ public sealed class WindowRepositoryEarlyClosureTests(PostgresFixture fixture) :
     private static readonly DateTime ClosedAtUtc = new(2026, 9, 3, 9, 39, 0, DateTimeKind.Utc);
 
     private readonly Guid _windowId = Guid.NewGuid();
+    private readonly Guid _pupilDataId = Guid.NewGuid();
+    private readonly Guid _enquiryId = Guid.NewGuid();
 
     public async Task InitializeAsync()
     {
@@ -43,19 +45,23 @@ public sealed class WindowRepositoryEarlyClosureTests(PostgresFixture fixture) :
             [
                 new CheckingExercise
                 {
+                    Id = _pupilDataId,
                     CheckingWindowId = _windowId,
                     ExerciseType = CheckingExerciseType.PupilData,
                     StartDate = Start,
                     EndDate = PupilDataEnd,
-                    SortOrder = 0
+                    TabOrder = 0,
+                    IsEnabled = true
                 },
                 new CheckingExercise
                 {
+                    Id = _enquiryId,
                     CheckingWindowId = _windowId,
                     ExerciseType = CheckingExerciseType.ResultsEnquiry,
                     StartDate = Start,
                     EndDate = EnquiryEnd,
-                    SortOrder = 1
+                    TabOrder = 1,
+                    IsEnabled = true
                 }
             ]
         });
@@ -73,6 +79,7 @@ public sealed class WindowRepositoryEarlyClosureTests(PostgresFixture fixture) :
     private ExerciseEarlyClosure Closure(CheckingExerciseType exercise, DateTime scheduledEnd) => new()
     {
         WindowId = _windowId,
+        ExerciseId = exercise == CheckingExerciseType.PupilData ? _pupilDataId : _enquiryId,
         Exercise = exercise,
         ScheduledEnd = scheduledEnd,
         NewEndDate = NewEnd,
@@ -127,6 +134,29 @@ public sealed class WindowRepositoryEarlyClosureTests(PostgresFixture fixture) :
         Assert.Equal(EnquiryEnd, window.EndDate);
     }
 
+    // Closing the exercise does not close its extension, but the window's
+    // own end is the exercises' latest end; the extension's schools get theirs from the extension.
+    [Fact]
+    public async Task Closing_an_exercise_with_a_later_extension_leaves_the_extension_end_out_of_the_window_end()
+    {
+        var extensionEnd = EnquiryEnd.AddDays(7);
+        await using (var seed = fixture.CreateContext())
+        {
+            seed.CheckingExerciseExtensions.Add(new CheckingExerciseExtension
+            {
+                CheckingExerciseId = _enquiryId, EndDate = extensionEnd,
+                CreatedAt = new DateTime(2026, 8, 1, 9, 0, 0), CreatedBy = "Ada Admin",
+                Schools = [new CheckingExerciseExtensionSchool { CheckingExerciseId = _enquiryId, Laestab = "9334290" }]
+            });
+            await seed.SaveChangesAsync();
+        }
+
+        Assert.True(await CloseAsync(Closure(CheckingExerciseType.ResultsEnquiry, EnquiryEnd)));
+
+        await using var ctx = fixture.CreateContext();
+        Assert.Equal(PupilDataEnd, (await ctx.CheckingWindows.SingleAsync(w => w.Id == _windowId)).EndDate);
+    }
+
     [Fact]
     public async Task Closing_writes_one_window_admin_audit_row_saying_who_which_and_when()
     {
@@ -141,6 +171,7 @@ public sealed class WindowRepositoryEarlyClosureTests(PostgresFixture fixture) :
         var root = payload.RootElement;
         Assert.Equal(_windowId, root.GetProperty("windowId").GetGuid());
         Assert.Equal("Key Stage 4 June", root.GetProperty("windowTitle").GetString());
+        Assert.Equal(_enquiryId, root.GetProperty("exerciseId").GetGuid());
         Assert.Equal("ResultsEnquiry", root.GetProperty("exerciseType").GetString());
         Assert.Equal(EnquiryEnd, root.GetProperty("scheduledEnd").GetDateTime());
         Assert.Equal(NewEnd, root.GetProperty("newEndDate").GetDateTime());
@@ -173,6 +204,46 @@ public sealed class WindowRepositoryEarlyClosureTests(PostgresFixture fixture) :
     }
 
     [Fact]
+    public async Task Closing_one_release_leaves_another_of_its_kind_alone()
+    {
+        // #466: a window may hold two releases of one kind, here with the same end date. The
+        // guarded write names the row by id, so it cannot move the other release too.
+        var otherId = Guid.NewGuid();
+        await using (var ctx = fixture.CreateContext())
+        {
+            ctx.CheckingExercises.Add(new CheckingExercise
+            {
+                Id = otherId,
+                CheckingWindowId = _windowId,
+                ExerciseType = CheckingExerciseType.ResultsEnquiry,
+                StartDate = Start,
+                EndDate = EnquiryEnd,
+                TabOrder = 2,
+                UsesExerciseStorage = true,
+                IsEnabled = false
+            });
+            await ctx.SaveChangesAsync();
+        }
+
+        Assert.True(await CloseAsync(Closure(CheckingExerciseType.ResultsEnquiry, EnquiryEnd)));
+
+        var window = await ReloadAsync();
+        Assert.Equal(NewEnd, window.Exercises.Single(e => e.Id == _enquiryId).EndDate);
+        Assert.Equal(EnquiryEnd, window.Exercises.Single(e => e.Id == otherId).EndDate);
+        // The untouched release still ends last, so the window does too.
+        Assert.Equal(EnquiryEnd, window.EndDate);
+    }
+
+    [Fact]
+    public async Task An_exercise_id_from_another_window_writes_nothing()
+    {
+        var closure = Closure(CheckingExerciseType.PupilData, PupilDataEnd) with { ExerciseId = Guid.NewGuid() };
+
+        Assert.False(await CloseAsync(closure));
+        Assert.Empty(await ClosureAuditRowsAsync());
+    }
+
+    [Fact]
     public async Task An_unknown_window_writes_nothing()
     {
         var closure = Closure(CheckingExerciseType.PupilData, PupilDataEnd) with { WindowId = Guid.NewGuid() };
@@ -192,9 +263,9 @@ public sealed class WindowRepositoryEarlyClosureTests(PostgresFixture fixture) :
         var clock = new CheckingExerciseService(new FixedTimeProvider(
             new DateTimeOffset(NewEnd.AddSeconds(1), TimeSpan.Zero)));
 
-        Assert.False(clock.IsOpen(exercises, CheckingExerciseType.ResultsEnquiry));
-        Assert.True(clock.HasClosed(exercises, CheckingExerciseType.ResultsEnquiry));
-        Assert.True(clock.IsOpen(exercises, CheckingExerciseType.PupilData));
+        Assert.False(clock.IsOpen(exercises, CheckingExerciseType.ResultsEnquiry, laestab: null));
+        Assert.True(clock.HasClosed(exercises, CheckingExerciseType.ResultsEnquiry, laestab: null));
+        Assert.True(clock.IsOpen(exercises, CheckingExerciseType.PupilData, laestab: null));
     }
 
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider

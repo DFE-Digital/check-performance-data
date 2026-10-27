@@ -10,8 +10,11 @@ namespace DfE.CheckPerformanceData.Application.CheckYourPupilData;
 /// </summary>
 public interface INextStepsService
 {
-    /// <summary>Next-step options for the exercises open right now, in display order.</summary>
-    IReadOnlyList<NextSteps> GetAvailableSteps(IReadOnlyList<CheckingExerciseDto> exercises);
+    /// <summary>
+    /// Next-step options for the exercises open right now for this school, in display order
+    /// (AB#307773); a null or empty LAESTAB is the exercises' own dates.
+    /// </summary>
+    IReadOnlyList<NextSteps> GetAvailableSteps(IReadOnlyList<CheckingExerciseDto> exercises, string? laestab);
 }
 
 /// <inheritdoc />
@@ -34,8 +37,8 @@ public sealed class NextStepsService(ICheckingExerciseService checkingExercises)
         [CheckingExerciseType.ResultsEnquiry] = [NextSteps.ResultsEnquiry]
     };
 
-    public IReadOnlyList<NextSteps> GetAvailableSteps(IReadOnlyList<CheckingExerciseDto> exercises) =>
-        checkingExercises.OpenCheckingExercises(exercises)
+    public IReadOnlyList<NextSteps> GetAvailableSteps(IReadOnlyList<CheckingExerciseDto> exercises, string? laestab) =>
+        checkingExercises.OpenCheckingExercises(exercises, laestab)
             // An exercise with no mapping contributes nothing. Fail closed rather than throw: it
             // must not offer a journey with nothing behind it, but nor should one unmapped row take
             // the whole page down. NextStepsServiceTests pins that every type that exists is mapped.

@@ -1,6 +1,5 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData.Columns;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData.Results;
-using WindowDatasets = DfE.CheckPerformanceData.Application.WindowManagement.WindowDatasets;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
@@ -15,18 +14,18 @@ public sealed class CheckYourPupilDataService : ICheckYourPupilDataService
 {
     private readonly ICheckYourPupilDataRepository _repository;
     private readonly ICurrentUserService _currentUserService;
-    private readonly IStudentResultsClient _studentResultsClient;
+    private readonly IResultsClient _resultsClient;
     private readonly ILogger<CheckYourPupilDataService> _log;
 
     public CheckYourPupilDataService(
         ICheckYourPupilDataRepository repository,
         ICurrentUserService currentUserService,
-        IStudentResultsClient studentResultsClient,
+        IResultsClient resultsClient,
         ILogger<CheckYourPupilDataService>? logger = null)
     {
         _repository = repository;
         _currentUserService = currentUserService;
-        _studentResultsClient = studentResultsClient;
+        _resultsClient = resultsClient;
         _log = logger ?? NullLogger<CheckYourPupilDataService>.Instance;
     }
 
@@ -55,13 +54,10 @@ public sealed class CheckYourPupilDataService : ICheckYourPupilDataService
 
         if (!string.IsNullOrWhiteSpace(search))
         {
-            var term = search.Trim();
-            // The pupil sections' rules — name Contains, CYPMD ID StartsWith — plus subject.
-            rows = rows.Where(r =>
-                    (r.Pupil?.Surname.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false)
-                    || (r.Pupil?.Firstname.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false)
-                    || r.Result.CypmdId.StartsWith(term, StringComparison.OrdinalIgnoreCase)
-                    || r.Result.QualificationName.Contains(term, StringComparison.OrdinalIgnoreCase))
+            // The pupil sections' rule (PupilSearchTerms) over the name and CYPMD ID, plus subject.
+            var terms = PupilSearchTerms.Parse(search);
+            rows = rows.Where(r => terms.Matches(
+                    [r.Pupil?.Firstname, r.Pupil?.Surname, r.Result.CypmdId, r.Result.QualificationName]))
                 .ToList();
         }
 
@@ -76,8 +72,8 @@ public sealed class CheckYourPupilDataService : ICheckYourPupilDataService
     }
 
     /// <summary>
-    /// Every main-file result for the school, joined and sorted. Null when there is no Results
-    /// tab for this window.
+    /// Every result for the school, from every file the live release read, joined and sorted. Null
+    /// when there is no Results tab for this window.
     /// </summary>
     private async Task<List<ResultRow>?> GetResultRowsAsync(Guid windowId)
     {
@@ -87,14 +83,13 @@ public sealed class CheckYourPupilDataService : ICheckYourPupilDataService
         if (window.Exercises.All(e => e.ExerciseType != CheckingExerciseType.ResultsEnquiry))
             return null;
 
-        // The main file is the exercise's one required slot (#324). KS2 has no slots at all, so a
-        // results enquiry on a KS2 window has nothing to list. No key-stage test lives here.
-        var mainTag = WindowDatasets.DefaultsFor(window.CheckingWindowType, CheckingExerciseType.ResultsEnquiry)
-            .SingleOrDefault(d => d.Required)?.SourceFile;
-        if (mainTag is null)
+        // KS2 has no results feed, so a results enquiry on a KS2 window has nothing to list. No
+        // key-stage test lives here. The tab lists every file the release read, not one file: the
+        // 16-19 feed has no single main file (in February the revised files replace the first two).
+        if (ResultsSources.For(window.CheckingWindowType).Count == 0)
             return null;
 
-        var results = await _studentResultsClient.GetResultsForSourceAsync(windowId, laestab, mainTag);
+        var results = await _resultsClient.GetAllResultsAsync(windowId, laestab);
         var pupils = await _repository.GetAllPupilsForSchoolAsync(windowId, laestab);
 
         // Case-insensitive, matching how the results client compares ids itself.
@@ -122,7 +117,7 @@ public sealed class CheckYourPupilDataService : ICheckYourPupilDataService
         // not a candidate. The set comes from the same cached school file the enquiry itself reads,
         // and is resolved only when asked for — every other journey searches the whole roll.
         var withResults = requireResults
-            ? await _studentResultsClient.GetStudentIdsWithResultsAsync(windowId, laestab)
+            ? await _resultsClient.GetCypmdIdsWithResultsAsync(windowId, laestab)
             : null;
 
         return await _repository.SearchPupilsAsync(windowId, laestab, urn, query, filter, excludeId, withResults, searchField);

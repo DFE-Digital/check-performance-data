@@ -11,7 +11,6 @@ using DfE.CheckPerformanceData.Web.Models.PageTree;
 using DfE.CheckPerformanceData.Web.PageTree;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Hosting;
-using System.Globalization;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
@@ -126,7 +125,7 @@ public sealed class PageTreeAdminController(
     public async Task<IActionResult> Create(Guid? parentId, string? pageType, string? segment, string? title)
     {
         pageType ??= string.Empty;
-        segment ??= string.Empty;
+        segment = PageSegment.Normalise(segment);
         title ??= string.Empty;
 
         if (pageType is not ("content" or "wiki" or "folder"))
@@ -196,18 +195,20 @@ public sealed class PageTreeAdminController(
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Publish(Guid id, int versionId, string? from, string? to)
     {
-        await pageNodeService.PublishAsync(id, versionId, ParseWindowUtc(from), ParseWindowUtc(to), User?.Identity?.Name);
+        // datetime-local fields post an unzoned wall-clock value (e.g. "2027-01-01T09:00") that the
+        // editor typed in UK time. It is converted to UTC here because the scheduling code compares
+        // against the UTC clock and the column is timestamptz, which requires UTC kind.
+        var fromOk = PublishWindowTime.TryParse(from, "Publish from", out var fromUtc, out var fromError);
+        var toOk = PublishWindowTime.TryParse(to, "Publish to", out var toUtc, out var toError);
+        if (!fromOk || !toOk)
+        {
+            new PublishWindowError(versionId, from, to, fromError, toError).Save(TempData);
+            return Redirect($"/admin/pages/{id}/edit#versions");
+        }
+
+        await pageNodeService.PublishAsync(id, versionId, fromUtc, toUtc, User?.Identity?.Name);
         return Redirect($"/admin/pages/{id}/edit#versions");
     }
-
-    // datetime-local form fields post an unzoned string (e.g. "2027-01-01T09:00"). The default
-    // model binder does not bind these to DateTime? in this app, so parse them explicitly with the
-    // invariant culture and treat the wall-clock value as UTC (the rest of the scheduling code
-    // compares against DateTime.UtcNow and persists to a timestamptz column that requires UTC kind).
-    private static DateTime? ParseWindowUtc(string? value) =>
-        DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt)
-            ? DateTime.SpecifyKind(dt, DateTimeKind.Utc)
-            : null;
 
     // ── Publish draft / Unpublish ─────────────────────────────────────────────
 
@@ -402,7 +403,7 @@ public sealed class PageTreeAdminController(
         {
             RenameNodeResult.Ok              => "Saved.",
             RenameNodeResult.NotFound        => "Page not found.",
-            RenameNodeResult.InvalidSegment  => "URL segment must not be empty and cannot contain '/'.",
+            RenameNodeResult.InvalidSegment  => "URL segment can only contain lowercase letters, numbers and single hyphens, for example my-page.",
             RenameNodeResult.PathConflict    => "Another page already uses that URL.",
             _                                => null
         };

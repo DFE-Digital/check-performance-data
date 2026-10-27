@@ -13,6 +13,13 @@ public static class ExerciseLabels
 {
     public static string For(CheckingExerciseType exercise) => exercise.GetDisplayName();
 
+    /// <summary>A display-only data share (#466) has no kind to label from the enum, so it falls
+    /// back to a generic label here. The admin's own name for the exercise is projected separately
+    /// (<see cref="Application.WindowManagement.CheckingExerciseDto.Name"/>) and is not this method's
+    /// concern.</summary>
+    public static string For(CheckingExerciseType? exercise) =>
+        exercise is { } type ? For(type) : "Data share";
+
     /// <summary>
     /// The school-facing label, which names a learner on the pupil-data exercise and so takes the
     /// window's noun — "Student data checking" on 16-19. The parameterless overload above keeps the

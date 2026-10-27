@@ -1,7 +1,6 @@
 using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Application.WindowManagement;
-using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
 using Microsoft.AspNetCore.Mvc;
 
@@ -22,6 +21,8 @@ namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 ///
 /// A GET confirmation step before the POST, as on <see cref="CloseExerciseController"/>: the sweep
 /// is irreversible and dispatches to an external system, so the admin sees what it will touch.
+///
+/// Addressed by exercise id, like Close (#466); a data share's id is not found here.
 /// </remarks>
 [RequireAdminSection(AdminNavKeys.ManageWindow)]
 public sealed class SendExerciseRequestsController(
@@ -49,59 +50,60 @@ public sealed class SendExerciseRequestsController(
 
     private const string PageView = "~/Views/WindowAdmin/SendRequests.cshtml";
 
-    [HttpGet("admin/windows/{id:guid}/{exercise}/send-requests")]
+    [HttpGet("admin/windows/{id:guid}/exercises/{exerciseId:guid}/send-requests")]
     public async Task<IActionResult> Confirm(
-        Guid id, CheckingExerciseType exercise, CancellationToken cancellationToken)
+        Guid id, Guid exerciseId, CancellationToken cancellationToken)
     {
         var window = await windowService.GetByIdAsync(id, cancellationToken);
-        if (window?.FindExercise(exercise) is null)
+        if (window?.Exercises.SingleOrDefault(e => e.Id == exerciseId && e.ExerciseType is not null) is not { } row)
             return NotFound();
 
-        if (!checkingExercises.HasClosed(window.Exercises, exercise))
-            return RefuseNotClosed(id, exercise);
+        if (!checkingExercises.HasClosed(row))
+            return RefuseNotClosed(id, row);
 
-        var preview = await closeService.PreviewAsync(id, exercise, cancellationToken);
+        var preview = await closeService.PreviewAsync(id, exerciseId, cancellationToken);
 
         return View(PageView, new SendRequestsViewModel
         {
             WindowId = id,
+            ExerciseId = exerciseId,
             WindowTitle = window.Title,
-            ExerciseType = exercise,
-            ExerciseLabel = ExerciseLabels.For(exercise),
+            ExerciseLabel = CloseExerciseController.NameOf(row),
             RequestsToSend = preview.RequestsToClose,
             DraftsToCancel = preview.DraftsToCancel,
-            RequestsWaiting = preview.RequestsWaiting
+            RequestsWaiting = preview.RequestsWaiting,
+            HasOpenExtensions = row.Extensions.Any(x => checkingExercises.IsOpen(row, x))
         });
     }
 
-    [HttpPost("admin/windows/{id:guid}/{exercise}/send-requests")]
+    [HttpPost("admin/windows/{id:guid}/exercises/{exerciseId:guid}/send-requests")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Send(
-        Guid id, CheckingExerciseType exercise, CancellationToken cancellationToken)
+        Guid id, Guid exerciseId, CancellationToken cancellationToken)
     {
         // Re-checked on the POST, not only on the GET: the confirmation page is not what authorises
         // the sweep, the route is.
         var window = await windowService.GetByIdAsync(id, cancellationToken);
-        if (window?.FindExercise(exercise) is null)
+        if (window?.Exercises.SingleOrDefault(e => e.Id == exerciseId && e.ExerciseType is not null) is not { } row)
             return NotFound();
 
-        if (!checkingExercises.HasClosed(window.Exercises, exercise))
-            return RefuseNotClosed(id, exercise);
+        if (!checkingExercises.HasClosed(row))
+            return RefuseNotClosed(id, row);
 
-        var result = await closeService.CloseAsync(id, exercise, cancellationToken);
+        var result = await closeService.CloseAsync(id, exerciseId, cancellationToken);
 
         // Quotes the RESULT, never the preview — rows can change between the two.
         TempData[CloseExerciseController.TempDataKey] =
             $"{Pluralise(result.Enqueued, "request")} sent for processing and " +
-            $"{Pluralise(result.DraftsCancelled, "draft")} cancelled for {ExerciseLabels.For(exercise)}." +
+            $"{Pluralise(result.DraftsCancelled, "draft")} cancelled for {CloseExerciseController.NameOf(row)}." +
             WaitingSentence(result.Waiting);
 
         return Redirect($"/admin/windows/summary/{id}");
     }
 
-    private RedirectResult RefuseNotClosed(Guid id, CheckingExerciseType exercise)
+    private RedirectResult RefuseNotClosed(Guid id, CheckingExerciseDto row)
     {
-        TempData[RefusedTempDataKey] = $"{ExerciseLabels.For(exercise)} has not closed, so no requests were sent.";
+        TempData[RefusedTempDataKey] = $"{CloseExerciseController.NameOf(row)} has not closed, so no requests were sent.";
         return Redirect($"/admin/windows/summary/{id}");
     }
 

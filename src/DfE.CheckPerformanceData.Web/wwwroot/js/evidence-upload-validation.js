@@ -20,11 +20,37 @@
         }
     }
 
+    // #380: with GOV.UK's enhanced File upload the input sits inside a wrapper, after the
+    // module's "Choose file" button, which carries the user-facing id and a COPY of the
+    // input's aria-describedby taken once at init. So the warning goes before the wrapper
+    // (above the button, where the GDS error message sits) and every description change is
+    // applied to the input and the button alike. On a page without the enhancement — JavaScript
+    // on but the module missing — the wrapper is absent and the input is its own anchor.
+    function wrapperOf(input) {
+        return input.closest('.govuk-file-upload-wrapper');
+    }
+
+    function describedElements(input) {
+        var wrapper = wrapperOf(input);
+        var button = wrapper ? wrapper.querySelector('button.govuk-file-upload-button') : null;
+        return button ? [input, button] : [input];
+    }
+
     function removeFromDescribedBy(input, id) {
-        var ids = (input.getAttribute('aria-describedby') || '')
-            .split(/\s+/).filter(function (existing) { return existing && existing !== id; });
-        if (ids.length) { input.setAttribute('aria-describedby', ids.join(' ')); }
-        else { input.removeAttribute('aria-describedby'); }
+        describedElements(input).forEach(function (el) {
+            var ids = (el.getAttribute('aria-describedby') || '')
+                .split(/\s+/).filter(function (existing) { return existing && existing !== id; });
+            if (ids.length) { el.setAttribute('aria-describedby', ids.join(' ')); }
+            else { el.removeAttribute('aria-describedby'); }
+        });
+    }
+
+    function addToDescribedBy(input, id) {
+        describedElements(input).forEach(function (el) {
+            var ids = (el.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean);
+            if (ids.indexOf(id) === -1) { ids.push(id); }
+            el.setAttribute('aria-describedby', ids.join(' '));
+        });
     }
 
     function clearWarning(input) {
@@ -61,7 +87,8 @@
         // Insert the region EMPTY and populate it afterwards: assistive technologies
         // reliably announce content added to a live region already in the DOM, but are
         // inconsistent about a region that arrives pre-populated (review finding).
-        input.parentNode.insertBefore(p, input);
+        var anchor = wrapperOf(input) || input;
+        anchor.parentNode.insertBefore(p, anchor);
         var prefix = document.createElement('span');
         prefix.className = 'govuk-visually-hidden';
         prefix.textContent = 'Error:';
@@ -70,11 +97,12 @@
         var group = input.closest('.govuk-form-group');
         if (group) { group.classList.add('govuk-form-group--error'); }
         input.classList.add('govuk-file-upload--error');
-        var ids = (input.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean);
-        ids.push(ERROR_ID);
-        input.setAttribute('aria-describedby', ids.join(' '));
+        addToDescribedBy(input, ERROR_ID);
     }
 
+    // Capture phase on purpose: GOV.UK's enhanced File upload dispatches a NON-bubbling
+    // CustomEvent('change') on the input when a file is dropped (#380). A bubbling-phase
+    // listener on document would never see a dropped file.
     document.addEventListener('change', function (e) {
         var input = e.target;
         if (!input || input.type !== 'file' || input.name !== 'fileUpload') { return; }

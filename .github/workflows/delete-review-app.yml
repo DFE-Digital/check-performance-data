@@ -19,13 +19,14 @@ jobs:
     if: contains(github.event.pull_request.labels.*.name, 'deploy') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
+      actions: "read"
       contents: "read"
       id-token: "write"
       pull-requests: write
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: set PR_NUMBER
         id: config
@@ -37,6 +38,33 @@ jobs:
           fi
           echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
           echo "ENVIRONMENT=pr-${PR_NUMBER}" >> $GITHUB_ENV
+
+      # The whole E2E suite is not one of the pull request's checks, so a pull request can be
+      # merged while it is still running against the review app. Deleting the app then fails
+      # every test left. Wait for the run to finish, but not for ever: the run reports itself
+      # as interrupted if the app goes from under it.
+      - name: Wait for the pull request's E2E run to finish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+          MAX_WAIT_MINUTES: 45
+        run: |
+          [[ -n "$BRANCH" ]] || BRANCH=$(gh api "repos/$GH_REPO/pulls/$PR_NUMBER" --jq .head.ref) || BRANCH=""
+          # E2E Tests names each run after the branch, or the pull request when run by hand.
+          names=$(jq -cn --arg branch "E2E Tests for $BRANCH" --arg pr "E2E Tests for pull request $PR_NUMBER" '[$branch, $pr]')
+          for (( waited = 0; ; waited++ )); do
+            running=$(gh api "repos/$GH_REPO/actions/workflows/e2e.yml/runs?per_page=100" \
+              --jq "[.workflow_runs[] | select(.status != \"completed\" and (.display_title | IN($names[])))] | length") \
+              || running=0
+            (( running == 0 )) && break
+            if (( waited >= MAX_WAIT_MINUTES * 2 )); then
+              echo "::warning::An E2E run for pull request $PR_NUMBER is still going after $MAX_WAIT_MINUTES minutes. Deleting the review app anyway."
+              break
+            fi
+            echo "An E2E run for pull request $PR_NUMBER is still going. Checking again in 30 seconds."
+            sleep 30
+          done
 
       - name: Set environment variables
         shell: bash

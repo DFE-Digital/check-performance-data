@@ -34,15 +34,14 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Controllers;
 public sealed class ResultIssueControllerTests
 {
     private static readonly Guid WindowId = Guid.Parse("6C2E1F4A-9B7D-4E38-8A15-3D9C2B4E7F01");
-    private const string Laestab = "860/4070";
 
     private readonly ICheckYourPupilDataService _service = Substitute.For<ICheckYourPupilDataService>();
     private readonly IQuestionFlowService _flowService = Substitute.For<IQuestionFlowService>();
-    private readonly ILateResultsAvailability _lateResults = Substitute.For<ILateResultsAvailability>();
-    private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
+    private readonly ILateResultsWarning _lateResults = Substitute.For<ILateResultsWarning>();
     private readonly IAnalyticsService _analytics = Substitute.For<IAnalyticsService>();
     private readonly FakeSession _session = new();
     private readonly ICheckingExerciseService _checkingExercises = OpenCheckingExercises.AlwaysOpen();
+    private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
     private readonly ResultIssueController _sut;
 
     private static readonly CheckingWindowDto Post16Window = new()
@@ -62,23 +61,23 @@ public sealed class ResultIssueControllerTests
 
     public ResultIssueControllerTests()
     {
-        _currentUser.OrganisationLaestab.Returns(Laestab);
         _service.GetCheckingWindowAsync(WindowId).Returns(Post16Window);
         _flowService.GetConfigAsync(WhatToChange.IncorrectGrade, CheckingWindowType.Post16).Returns(Flow);
 
         var httpContext = new DefaultHttpContext();
         httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(_session));
 
-        _sut = new ResultIssueController(_service, _flowService, _lateResults, _currentUser, _checkingExercises, _analytics)
+        _sut = new ResultIssueController(_service, _flowService, _lateResults, _checkingExercises, _currentUser, _analytics)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext },
             TempData = new TempDataDictionary(httpContext, Substitute.For<ITempDataProvider>())
         };
     }
 
+    // "Available" is the file no longer being awaited: run into the live release, or retired.
     private void SecondLateResultsAvailable(bool available) =>
-        _lateResults.IsSecondLateResultsAvailableAsync(WindowId, Laestab, Arg.Any<CancellationToken>())
-            .Returns(available);
+        _lateResults.ShowAsync(WindowId, Arg.Any<CancellationToken>())
+            .Returns(!available);
 
     private static RedirectToActionResult AssertJourneyRedirect(IActionResult result, string pageId)
     {
@@ -189,7 +188,7 @@ public sealed class ResultIssueControllerTests
         var state = _session.GetRequestState(WindowId);
         Assert.Equal(WhatToChange.MissingQualification, state.SelectedWhatToChange);
         Assert.Empty(state.QuestionHistory);
-        await _lateResults.DidNotReceiveWithAnyArgs().IsSecondLateResultsAvailableAsync(default, default!, default);
+        await _lateResults.DidNotReceiveWithAnyArgs().ShowAsync(default, default);
     }
 
     [Fact]
@@ -211,7 +210,7 @@ public sealed class ResultIssueControllerTests
         var state = _session.GetRequestState(WindowId);
         Assert.Equal(WhatToChange.ResultDoesNotBelong, state.SelectedWhatToChange);
         Assert.Empty(state.QuestionHistory);
-        await _lateResults.DidNotReceiveWithAnyArgs().IsSecondLateResultsAvailableAsync(default, default!, default);
+        await _lateResults.DidNotReceiveWithAnyArgs().ShowAsync(default, default);
     }
 
     // ── POST: the late-results branch ────────────────────────────────────────
@@ -316,14 +315,14 @@ public sealed class ResultIssueControllerTests
     }
 
     [Fact]
-    public async Task Availability_is_asked_for_the_signed_in_school_and_this_window()
+    public async Task Availability_is_asked_for_this_window()
     {
         SecondLateResultsAvailable(true);
 
         await _sut.Confirm(WindowId, ValidPost());
 
         await _lateResults.Received(1)
-            .IsSecondLateResultsAvailableAsync(WindowId, Laestab, Arg.Any<CancellationToken>());
+            .ShowAsync(WindowId, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -367,7 +366,7 @@ public sealed class ResultIssueControllerTests
             SelectedWhatToChange = WhatToChange.Remove,
             SelectedPupilId = Guid.NewGuid().ToString(),
             SelectedPupilLabel = "Smith, Jane",
-            SelectedResult = new StudentResultRecord { Qan = "60181576", Grade = "6" },
+            SelectedResult = new ResultRecord { Qan = "60181576", Grade = "6" },
             ReferenceNumber = "CYPMD_16to19_RE_ABCDEF1",
             OriginCountryCode = "FR",
             QuestionAnswers = { ["q-revised-grade"] = new QuestionAnswer { TextValue = "5" } },
@@ -672,7 +671,7 @@ public sealed class ResultIssueControllerTests
     {
         // Pupil data checking closes months before results enquiry on a 16-19 window; this entry
         // point must follow its own exercise, not the other one and not the outer window.
-        _checkingExercises.IsOpen(default!, default)
+        _checkingExercises.IsOpen(default!, default, default)
             .ReturnsForAnyArgs(ci => ci.ArgAt<CheckingExerciseType>(1) == CheckingExerciseType.PupilData);
 
         var result = await _sut.Confirm(WindowId,
@@ -682,4 +681,35 @@ public sealed class ResultIssueControllerTests
         Assert.Null(_session.GetRequestState(WindowId).SelectedWhatToChange);
     }
 
+    // AB#307773: results enquiry has ended, but an open extension names one school. The gate is
+    // asked about the signed-in school, so that school may still start an enquiry and another not.
+    [Theory]
+    [InlineData("933/4290", true)]
+    [InlineData("860/4070", false)]
+    public async Task Get_when_only_the_schools_extension_is_open_shows_the_page_to_the_school_it_names_only(string laestab, bool named)
+    {
+        _currentUser.OrganisationLaestab.Returns(laestab);
+        _checkingExercises.OpenOnlyFor("933/4290");
+
+        var result = await _sut.Index(WindowId);
+
+        if (named)
+            Assert.IsType<ViewResult>(result);
+        else
+            Assert.Equal("CheckYourPupilData", Assert.IsType<RedirectToActionResult>(result).ControllerName);
+    }
+
+    [Theory]
+    [InlineData("933/4290", true)]
+    [InlineData("860/4070", false)]
+    public async Task Post_when_only_the_schools_extension_is_open_starts_an_enquiry_for_the_school_it_names_only(string laestab, bool named)
+    {
+        _currentUser.OrganisationLaestab.Returns(laestab);
+        _checkingExercises.OpenOnlyFor("933/4290");
+
+        await _sut.Confirm(WindowId,
+            new ResultIssueViewModel { WindowId = WindowId, IssueType = ResultIssueViewModel.IncorrectGrade });
+
+        Assert.Equal(named ? (WhatToChange?)WhatToChange.IncorrectGrade : null, _session.GetRequestState(WindowId).SelectedWhatToChange);
+    }
 }

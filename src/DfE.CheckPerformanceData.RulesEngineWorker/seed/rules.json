@@ -1,6 +1,6 @@
 {
-  "version": "2026.10.02-01",
-  "updatedAt": "2026-10-02T12:00:00Z",
+  "version": "2026.10.22-01",
+  "updatedAt": "2026-10-22T12:00:00Z",
   "outcomes": [
 
     {
@@ -20,7 +20,15 @@
       "label": "Admitted following permanent exclusion",
       "rules": [
         { "id": "AFE-PRE2023", "status": "AutoRejected",
-          "when": { "field": "dateOfPermanentExclusion", "lt": "2024-09-01" } },
+          "when": { "all": [
+            { "field": "checkingWindowType", "eq": "KS4June" },
+            { "field": "dateOfPermanentExclusion", "lt": "2024-09-01" }
+          ] } },
+        { "id": "AFE-KS2", "status": "AutoRejected",
+          "when": { "all": [
+            { "field": "checkingWindowType", "eq": "KS2" },
+            { "field": "dateOfPermanentExclusion", "lt": "2025-09-01" }
+          ] } },
         { "id": "AFE-DEF", "status": "Scrutiny", "when": "otherwise" }
       ]
     },
@@ -39,6 +47,7 @@
 
         { "id": "EAL-ACC-NEWADM-2022-ALL", "status": "AutoApproved",
           "when": { "all": [
+            { "field": "checkingWindowType", "eq": "KS4June" },
             { "field": "isAddBack", "eq": false },
             { "field": "firstLanguage", "eq": "OTH" },
             { "not": { "officialLanguageIs": "English", "countryField": "countryOfOrigin" } },
@@ -47,6 +56,7 @@
           ] } },
         { "id": "EAL-ACC-NEWADM-2022-ARRIVAL", "status": "AutoApproved",
           "when": { "all": [
+            { "field": "checkingWindowType", "eq": "KS4June" },
             { "field": "isAddBack", "eq": false },
             { "field": "firstLanguage", "eq": "OTH" },
             { "not": { "officialLanguageIs": "English", "countryField": "countryOfOrigin" } },
@@ -57,6 +67,7 @@
 
         { "id": "EAL-ACC-ADDBACK-2021-ALL", "status": "AutoApproved",
           "when": { "all": [
+            { "field": "checkingWindowType", "eq": "KS4June" },
             { "field": "isAddBack", "eq": true },
             { "field": "firstLanguage", "eq": "OTH" },
             { "not": { "officialLanguageIs": "English", "countryField": "countryOfOrigin" } },
@@ -65,12 +76,31 @@
           ] } },
         { "id": "EAL-ACC-ADDBACK-2021-ARRIVAL", "status": "AutoApproved",
           "when": { "all": [
+            { "field": "checkingWindowType", "eq": "KS4June" },
             { "field": "isAddBack", "eq": true },
             { "field": "firstLanguage", "eq": "OTH" },
             { "not": { "officialLanguageIs": "English", "countryField": "countryOfOrigin" } },
             { "field": "schoolAdmissionDate", "gte": "2021-09-01" },
             { "isKnownAndCertain": "dateOfArrivalInEngland" },
             { "field": "dateOfArrivalInEngland", "gte": "2021-09-01" }
+          ] } },
+
+        { "id": "EAL-ACC-KS2-ALL", "status": "AutoApproved",
+          "when": { "all": [
+            { "field": "checkingWindowType", "eq": "KS2" },
+            { "field": "firstLanguage", "eq": "OTH" },
+            { "not": { "officialLanguageIs": "English", "countryField": "countryOfOrigin" } },
+            { "field": "schoolAdmissionDate", "gte": "2024-09-01" },
+            { "field": "firstSchoolAdmissionDate", "gte": "2024-09-01" }
+          ] } },
+        { "id": "EAL-ACC-KS2-ARRIVAL", "status": "AutoApproved",
+          "when": { "all": [
+            { "field": "checkingWindowType", "eq": "KS2" },
+            { "field": "firstLanguage", "eq": "OTH" },
+            { "not": { "officialLanguageIs": "English", "countryField": "countryOfOrigin" } },
+            { "field": "schoolAdmissionDate", "gte": "2024-09-01" },
+            { "isKnownAndCertain": "dateOfArrivalInEngland" },
+            { "field": "dateOfArrivalInEngland", "gte": "2024-09-01" }
           ] } },
 
         { "id": "EAL-DEF", "status": "Scrutiny", "when": "otherwise" }
@@ -103,7 +133,7 @@
 
     {
       "key": "SocialCareInvolvement",
-      "label": "Social care involvement - including police/prison",
+      "label": "Social care involvement - including police or prison",
       "rules": [
         { "id": "SCI-KS4-REJ", "status": "AutoRejected",
           "when": { "all": [
@@ -211,7 +241,7 @@
         { "id": "EHE-KS2", "status": "AutoRejected",
           "when": { "all": [
             { "field": "checkingWindowType", "eq": "KS2" },
-            { "field": "dateOfRemoval", "gt": "2025-05-12" }
+            { "field": "dateOfRemoval", "gte": "2027-05-10" }
           ] } },
         { "id": "EHE-DEF", "status": "Scrutiny", "when": "otherwise" }
       ]
@@ -252,7 +282,7 @@
         { "id": "PEX-KS2", "status": "AutoRejected",
           "when": { "all": [
             { "field": "checkingWindowType", "eq": "KS2" },
-            { "field": "dateOfPermanentExclusion", "gt": "2025-05-12" }
+            { "field": "dateOfPermanentExclusion", "gte": "2027-05-10" }
           ] } },
         { "id": "PEX-DEF", "status": "Scrutiny", "when": "otherwise" }
       ]
@@ -270,7 +300,7 @@
         { "id": "PLE-KS2", "status": "AutoRejected",
           "when": { "all": [
             { "field": "checkingWindowType", "eq": "KS2" },
-            { "field": "dateOfRemoval", "gt": "2025-05-12" }
+            { "field": "dateOfRemoval", "gte": "2027-05-10" }
           ] } },
         { "id": "PLE-DEF", "status": "Scrutiny", "when": "otherwise" }
       ]
@@ -295,8 +325,6 @@
       "key": "AssessmentsDeferred",
       "label": "One or more end-of-key stage assessments deferred by a year",
       "rules": [
-        { "id": "ASD-REJ", "status": "AutoRejected",
-          "when": { "field": "isContinuingKS2Studies", "eq": false } },
         { "id": "ASD-DEF", "status": "Scrutiny", "when": "otherwise" }
       ]
     },
@@ -306,7 +334,10 @@
       "label": "Pupil added to school roll after start of summer term",
       "rules": [
         { "id": "PAS-REJ", "status": "AutoRejected",
-          "when": { "field": "dateAddedToRoll", "lt": "2025-04-01" } },
+          "when": { "all": [
+            { "field": "checkingWindowType", "eq": "KS2" },
+            { "field": "dateAddedToRoll", "lt": "2027-04-01" }
+          ] } },
         { "id": "PAS-DEF", "status": "Scrutiny", "when": "otherwise" }
       ]
     },

@@ -66,6 +66,10 @@ module "web_application" {
   enable_logit = var.enable_logit
   web_port     = 8080
 
+  # The image runs as the numeric app user (USER $APP_UID in its Dockerfile); have Kubernetes
+  # refuse to start it as anything else (#609, OWASP least privilege).
+  run_as_non_root = true
+
   send_traffic_to_maintenance_page = var.send_traffic_to_maintenance_page
 
   enable_gcp_wif = var.enable_dfe_analytics_federated_auth
@@ -100,6 +104,9 @@ module "rules_engine_worker" {
 
   docker_image = var.worker_docker_image
   enable_logit = var.enable_logit
+
+  # The worker image has run as the numeric app user all along; enforce it too (#609).
+  run_as_non_root = true
 
   # Gate startup and liveness on readiness so a worker that cannot reach its database
   # or queue is detected and restarted rather than left silently stuck. The liveness

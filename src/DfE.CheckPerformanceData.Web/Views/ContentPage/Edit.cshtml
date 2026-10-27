@@ -87,6 +87,7 @@
 
 <div class="govuk-grid-row" data-cpb-node-id="@Model.NodeId">
     <div class="govuk-grid-column-full">
+        @await Html.PartialAsync("~/Views/PageTreeAdmin/_PublishWindowErrorSummary.cshtml")
         <span class="govuk-caption-l">Content page editor</span>
         <h1 class="govuk-heading-l">@Model.Title</h1>
 

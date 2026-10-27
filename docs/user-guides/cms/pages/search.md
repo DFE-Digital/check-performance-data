@@ -64,6 +64,7 @@ The other settings:
 | Placeholder (optional) | Pale example text inside the box. |
 | Button text | The text on the button. |
 | Put the button below the search box | Tick this when the box is in a narrow column. A button beside the box would leave little room to type. |
+| Show a clear button in the search box | Adds a cross at the end of the box. It appears once the visitor has typed something, and pressing it empties the box so they can start again. |
 | Form action URL | The page that shows the results. Leave it as `/search` unless you have built a results page of your own. |
 
 ## Show matches as people type: instant search

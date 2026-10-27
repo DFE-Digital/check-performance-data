@@ -126,6 +126,7 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
                             .SetProperty(r => r.AmendmentType, data.AmendmentType)
                             .SetProperty(r => r.OrganisationLaestab, data.OrganisationLaestab)
                             .SetProperty(r => r.CheckingExerciseId, data.CheckingExerciseId)
+                            .SetProperty(r => r.CheckingExerciseReleaseId, data.CheckingExerciseReleaseId)
                             .SetProperty(r => r.ProcessingStatus, data.ProcessingStatus)
                             .SetProperty(r => r.Outcome, data.Outcome));
                 }
@@ -137,6 +138,7 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
                         Id = id,
                         WindowId = data.WindowId,
                         CheckingExerciseId = data.CheckingExerciseId,
+                        CheckingExerciseReleaseId = data.CheckingExerciseReleaseId,
                         ReferenceNumber = data.ReferenceNumber,
                         OrganisationUrn = data.OrganisationUrn,
                         PupilId = data.PupilId,
@@ -188,7 +190,8 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
                     .SetProperty(r => r.RequestTypeDescription, data.RequestTypeDescription)
                     .SetProperty(r => r.AmendmentType, data.AmendmentType)
                     .SetProperty(r => r.OrganisationLaestab, data.OrganisationLaestab)
-                    .SetProperty(r => r.CheckingExerciseId, data.CheckingExerciseId));
+                    .SetProperty(r => r.CheckingExerciseId, data.CheckingExerciseId)
+                    .SetProperty(r => r.CheckingExerciseReleaseId, data.CheckingExerciseReleaseId));
             return draftExistingId;
         }
 
@@ -198,6 +201,7 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
             Id = newId,
             WindowId = data.WindowId,
             CheckingExerciseId = data.CheckingExerciseId,
+            CheckingExerciseReleaseId = data.CheckingExerciseReleaseId,
             ReferenceNumber = data.ReferenceNumber,
             OrganisationUrn = data.OrganisationUrn,
             PupilId = data.PupilId,

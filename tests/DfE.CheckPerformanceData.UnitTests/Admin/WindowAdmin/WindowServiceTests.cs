@@ -175,7 +175,7 @@ public class WindowServiceTests
 
     // #324: dataset slots are reconciled for every exercise, not just pupil data. Without this an
     // admin has nowhere to upload the results files, and the enquiry journey has nothing to read on
-    // any environment SeedStudentResults does not run on.
+    // any environment SeedResults does not run on.
     [Fact]
     public async Task UpdateAsync_gives_a_results_enquiry_exercise_a_slot_per_source_file()
     {
@@ -196,13 +196,11 @@ public class WindowServiceTests
         await service.UpdateAsync(window, CancellationToken.None);
 
         CheckingExerciseDto enquiry = persisted!.FindExercise(CheckingExerciseType.ResultsEnquiry)!;
-        Assert.Equal(5, enquiry.Datasets.Count);
+        Assert.Equal(7, enquiry.Datasets.Count);
         Assert.All(enquiry.Datasets, d => Assert.Equal(d.Name, d.SourceFile));
 
-        // The pupil-data exercise keeps its own slots, unaffected.
-        Assert.Equal(
-            ["included", "nonincluded"],
-            persisted.FindExercise(CheckingExerciseType.PupilData)!.Datasets.Select(d => d.Name));
+        // The pupil-data exercise gets no supplier slots: the admin adds its files.
+        Assert.Empty(persisted.FindExercise(CheckingExerciseType.PupilData)!.Datasets);
     }
 
     [Fact]
@@ -239,13 +237,173 @@ public class WindowServiceTests
         Assert.Equal("ABC", main.IngressFileChecksum);
     }
 
+    [Fact]
+    public async Task CreateAsync_derives_the_key_stage_from_the_window_type()
+    {
+        IWindowRepository repository = Substitute.For<IWindowRepository>();
+        repository.CreateAsync(Arg.Any<CheckingWindowDto>(), Arg.Any<CancellationToken>())
+            .Returns(call => call.Arg<CheckingWindowDto>());
+        WindowService service = new(repository, TimeProvider.System);
+
+        CheckingWindowDto window = Window(new DateTime(2027, 1, 1), new DateTime(2027, 2, 1));
+        window.CheckingWindowType = CheckingWindowType.Post16;
+
+        await service.CreateAsync(window, CancellationToken.None);
+
+        await repository.Received(1).CreateAsync(
+            Arg.Is<CheckingWindowDto>(w => w.KeyStage == KeyStages.Post16),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task UpdateAsync_moves_the_key_stage_when_the_window_type_changes()
+    {
+        IWindowRepository repository = Substitute.For<IWindowRepository>();
+        WindowService service = new(repository, TimeProvider.System);
+
+        // Stored as KS2 / KS2; the admin changes the type on the summary page.
+        CheckingWindowDto window = Window(new DateTime(2027, 1, 1), new DateTime(2027, 2, 1));
+        window.CheckingWindowType = CheckingWindowType.KS4Autumn;
+
+        await service.UpdateAsync(window, CancellationToken.None);
+
+        await repository.Received(1).UpdateAsync(
+            Arg.Is<CheckingWindowDto>(w => w.KeyStage == KeyStages.KS4),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Saving_an_exercise_with_no_tab_name_is_refused()
+    {
+        IWindowRepository repository = Substitute.For<IWindowRepository>();
+        WindowService service = new(repository, TimeProvider.System);
+
+        CheckingWindowDto window = Window(new DateTime(2027, 1, 1), new DateTime(2027, 2, 1));
+        CheckingExerciseDto exercise = Exercise(CheckingExerciseType.PupilData);
+        exercise.TabName = " ";
+        window.Exercises = [exercise];
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateAsync(window, CancellationToken.None));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.UpdateAsync(window, CancellationToken.None));
+        await repository.DidNotReceiveWithAnyArgs().CreateAsync(default!, default);
+        await repository.DidNotReceiveWithAnyArgs().UpdateAsync(default!, default);
+    }
+
+    [Fact]
+    public async Task A_save_that_adds_a_second_exercise_of_a_kind_is_refused_even_when_it_is_disabled()
+    {
+        IWindowRepository repository = Substitute.For<IWindowRepository>();
+        WindowService service = new(repository, TimeProvider.System);
+
+        CheckingExerciseDto existing = Enabled(Exercise(CheckingExerciseType.PupilData));
+        CheckingWindowDto window = Window(new DateTime(2027, 1, 1), new DateTime(2027, 2, 1));
+        window.Exercises = [existing, Exercise(CheckingExerciseType.PupilData)];
+        Stored(repository, window, Same(existing));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.UpdateAsync(window, CancellationToken.None));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateAsync(window, CancellationToken.None));
+        await repository.DidNotReceiveWithAnyArgs().UpdateAsync(default!, default);
+    }
+
+    [Fact]
+    public async Task A_window_that_already_holds_two_of_a_kind_can_still_be_saved()
+    {
+        // Saved before the one-per-kind rule. Refusing every save would leave the admin no way to
+        // fix it but deleting one.
+        IWindowRepository repository = Substitute.For<IWindowRepository>();
+        WindowService service = new(repository, TimeProvider.System);
+
+        CheckingExerciseDto first = Enabled(Exercise(CheckingExerciseType.PupilData));
+        CheckingExerciseDto second = Enabled(Exercise(CheckingExerciseType.PupilData));
+        CheckingWindowDto window = Window(new DateTime(2027, 1, 1), new DateTime(2027, 2, 1));
+        window.Exercises = [first, second];
+        Stored(repository, window, Same(first), Same(second));
+
+        await service.UpdateAsync(window, CancellationToken.None);
+
+        await repository.Received(1).UpdateAsync(window, Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData(KindChangeBlock.LegacyStorage)]
+    [InlineData(KindChangeBlock.LiveRelease)]
+    [InlineData(KindChangeBlock.ChangeRequests)]
+    public async Task A_blocked_kind_change_is_refused(KindChangeBlock block)
+    {
+        IWindowRepository repository = Substitute.For<IWindowRepository>();
+        WindowService service = new(repository, TimeProvider.System);
+
+        CheckingExerciseDto before = new()
+        {
+            Id = Guid.NewGuid(), ExerciseType = CheckingExerciseType.PupilData, TabName = "Tab",
+            StartDate = new DateTime(2027, 1, 1), EndDate = new DateTime(2027, 2, 1),
+            UsesExerciseStorage = block != KindChangeBlock.LegacyStorage,
+            CurrentReleaseId = block == KindChangeBlock.LiveRelease ? Guid.NewGuid() : null
+        };
+        repository.HasChangeRequestsAsync(before.Id, Arg.Any<CancellationToken>())
+            .Returns(block == KindChangeBlock.ChangeRequests);
+        CheckingWindowDto window = Window(new DateTime(2027, 1, 1), new DateTime(2027, 2, 1));
+        window.Exercises = [Retyped(before, CheckingExerciseType.ResultsEnquiry)];
+        Stored(repository, window, before);
+
+        Assert.Equal(block, await service.KindChangeBlockAsync(before, CancellationToken.None));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.UpdateAsync(window, CancellationToken.None));
+        await repository.DidNotReceiveWithAnyArgs().UpdateAsync(default!, default);
+    }
+
+    [Fact]
+    public async Task A_kind_change_with_nothing_behind_it_is_allowed()
+    {
+        IWindowRepository repository = Substitute.For<IWindowRepository>();
+        WindowService service = new(repository, TimeProvider.System);
+
+        CheckingExerciseDto before = new()
+        {
+            Id = Guid.NewGuid(), ExerciseType = CheckingExerciseType.PupilData, TabName = "Tab",
+            StartDate = new DateTime(2027, 1, 1), EndDate = new DateTime(2027, 2, 1), UsesExerciseStorage = true
+        };
+        CheckingWindowDto window = Window(new DateTime(2027, 1, 1), new DateTime(2027, 2, 1));
+        window.Exercises = [Retyped(before, CheckingExerciseType.ResultsEnquiry)];
+        Stored(repository, window, before);
+
+        Assert.Equal(KindChangeBlock.None, await service.KindChangeBlockAsync(before, CancellationToken.None));
+        await service.UpdateAsync(window, CancellationToken.None);
+
+        await repository.Received(1).UpdateAsync(window, Arg.Any<CancellationToken>());
+    }
+
+    // The stored copy of the window the save replaces, as the repository returns it.
+    private static void Stored(IWindowRepository repository, CheckingWindowDto window,
+        params CheckingExerciseDto[] exercises) =>
+        repository.GetByIdAsync(window.Id, Arg.Any<CancellationToken>()).Returns(new CheckingWindowDto
+        {
+            Id = window.Id, Title = window.Title, StartDate = window.StartDate, EndDate = window.EndDate,
+            KeyStage = window.KeyStage, CheckingWindowType = window.CheckingWindowType, Exercises = [.. exercises]
+        });
+
+    private static CheckingExerciseDto Same(CheckingExerciseDto e) => Retyped(e, e.ExerciseType);
+
+    private static CheckingExerciseDto Retyped(CheckingExerciseDto e, CheckingExerciseType? type) => new()
+    {
+        Id = e.Id, ExerciseType = type, TabName = e.TabName, IsEnabled = e.IsEnabled,
+        UsesExerciseStorage = e.UsesExerciseStorage, StartDate = e.StartDate, EndDate = e.EndDate,
+        TabOrder = e.TabOrder
+    };
+
+    private static CheckingExerciseDto Enabled(CheckingExerciseDto e) => new()
+    {
+        Id = Guid.NewGuid(), ExerciseType = e.ExerciseType, TabName = e.TabName, IsEnabled = true,
+        StartDate = e.StartDate, EndDate = e.EndDate, TabOrder = e.TabOrder
+    };
+
     private static CheckingExerciseDto Exercise(CheckingExerciseType type) =>
         new()
         {
             ExerciseType = type,
+            TabName = "Tab",
             StartDate = new DateTime(2027, 1, 1),
             EndDate = new DateTime(2027, 2, 1),
-            SortOrder = WindowExercises.SortOrderFor(type)
+            TabOrder = WindowExercises.DefaultTabOrder(type)
         };
 
     private static CheckingWindowDto Window(DateTime startDate, DateTime endDate) =>

@@ -298,7 +298,7 @@ public sealed class BulkSubmissionServiceTests
             ExerciseType = CheckingExerciseType.PupilData,
             StartDate = FarFuture.AddYears(-1),
             EndDate = end,
-            SortOrder = 0
+            TabOrder = 0
         }
     ];
 
@@ -339,6 +339,25 @@ public sealed class BulkSubmissionServiceTests
         Assert.Null(result.ClosedExercise);
     }
 
+    // AB#307773: the exercise has ended, but an open extension names one school. Its drafts are
+    // still submitted; another school's are skipped as before.
+    [Theory]
+    [InlineData("933/4290", true)]
+    [InlineData("860/4070", false)]
+    public async Task Submit_WhenOnlyTheSchoolsExtensionIsOpen_SubmitsForTheSchoolItNamesOnly(string laestab, bool named)
+    {
+        OneReadyDraft();
+        SetupWindowDeadline();
+        SetupRemoveDraft("R1");
+        _currentUser.OrganisationLaestab.Returns(laestab);
+        _checkingExercises.OpenOnlyFor("933/4290");
+
+        var result = await _sut.SubmitAsync(WindowId, new[] { "R1" });
+
+        Assert.Equal(named ? ["R1"] : Array.Empty<string>(), result.Submitted);
+        Assert.Equal(named ? Array.Empty<string>() : ["R1"], result.Skipped);
+    }
+
     [Fact]
     public async Task Submit_AsksAboutTheWindowAsItIsNow_NotTheDraftsOwnSnapshot()
     {
@@ -348,12 +367,37 @@ public sealed class BulkSubmissionServiceTests
         var asItIsNow = PupilDataEnding(new DateTime(2026, 10, 1, 12, 34, 59));
         _pupilData.GetCheckingWindowAsync(WindowId).Returns(WindowWith(asItIsNow));
         SetupRemoveDraft("R1", snapshot: PupilDataEnding(FarFuture));
-        _checkingExercises.IsOpen(default!, default).ReturnsForAnyArgs(ci =>
+        _checkingExercises.IsOpen(default!, default, default).ReturnsForAnyArgs(ci =>
             ci.ArgAt<IReadOnlyList<CheckingExerciseDto>>(0).Any(e => e.EndDate == FarFuture));
 
         var result = await _sut.SubmitAsync(WindowId, new[] { "R1" });
 
         Assert.Empty(result.Submitted);
         Assert.Equal(CheckingExerciseType.PupilData, result.ClosedExercise);
+    }
+
+    // The email quotes the signed-in school's pupil-data end, not the window's
+    // end (FarFuture here, set explicitly): the extension's for the school it names, the
+    // exercise's own for any other.
+    [Theory]
+    [InlineData("933/4290", true)]
+    [InlineData("860/4070", false)]
+    public async Task Submit_EmailQuotesTheSignedInSchoolsPupilDataEnd(string laestab, bool named)
+    {
+        var exerciseEnd = new DateTime(2027, 6, 30, 17, 0, 0);
+        var exercises = PupilDataEnding(exerciseEnd);
+        exercises[0].Extensions.Add(new Application.WindowManagement.CheckingExerciseExtensionDto
+        {
+            Id = Guid.NewGuid(), EndDate = FarFuture, Laestabs = ["9334290"]
+        });
+        OneReadyDraft();
+        _pupilData.GetCheckingWindowAsync(WindowId).Returns(WindowWith(exercises));
+        SetupRemoveDraft("R1");
+        _currentUser.OrganisationLaestab.Returns(laestab);
+
+        await _sut.SubmitAsync(WindowId, new[] { "R1" });
+
+        await _notify.Received(1).NotifyBulkSubmissionConfirmedAsync(
+            WindowId, named ? FarFuture : exerciseEnd, Arg.Any<IReadOnlyList<string>>(), Arg.Any<EmailSubstitutions>());
     }
 }

@@ -49,6 +49,10 @@
     <Content Update="Data/Import/*.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Update="Data/Impersonation/*.csv" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Data/Impersonation/EstablishmentDetails.csv"
+                      LogicalName="DfE.CheckPerformanceData.Web.Data.Impersonation.EstablishmentDetails.csv" />
+  </ItemGroup>
   <!-- Rules-config seed JSON, linked from the rules-engine worker so there is one source of
        truth. RulesConfigSeeder (run from the dev-data seeding orchestrator in dev/E2E) reads
        these from the "seed" folder next to the binary to self-seed the rules-config blobs. -->

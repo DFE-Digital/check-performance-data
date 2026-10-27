@@ -7,12 +7,20 @@ namespace DfE.CheckPerformanceData.Web.Impersonation;
 public sealed class EstablishmentDirectory
 {
     private const int MaximumResults = 25;
-    private readonly EstablishmentDetails[] establishments;
+    private EstablishmentDetails[] establishments = [];
 
-    public EstablishmentDirectory(IWebHostEnvironment environment)
+    public EstablishmentDirectory(IWebHostEnvironment? environment = null)
     {
+        if (environment is null) return;
+
         var path = Path.Combine(environment.ContentRootPath, "Data", "Impersonation", "EstablishmentDetails.csv");
-        using var parser = new TextFieldParser(path);
+        if (File.Exists(path))
+            LoadCsv(File.ReadAllText(path));
+    }
+
+    public void LoadCsv(string csv)
+    {
+        using var parser = new TextFieldParser(new StringReader(csv));
         parser.TextFieldType = FieldType.Delimited;
         parser.SetDelimiters(",");
         parser.HasFieldsEnclosedInQuotes = true;

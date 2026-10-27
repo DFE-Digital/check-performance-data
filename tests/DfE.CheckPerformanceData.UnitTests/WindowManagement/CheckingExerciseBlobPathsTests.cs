@@ -139,4 +139,65 @@ public sealed class CheckingExerciseBlobPathsTests
         Assert.Throws<ArgumentOutOfRangeException>(
             () => CheckingExerciseBlobPaths.DataBlobName(unmapped, "933/4070"));
     }
+
+    [Fact]
+    public void DataBlobName_ByExerciseId_NamesTheFileByDataType()
+    {
+        var exerciseId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+
+        var name = CheckingExerciseBlobPaths.DataBlobName(exerciseId, CheckingDataType.Pupil, "933/4290");
+
+        Assert.Equal("exercises/11111111-1111-1111-1111-111111111111/data/9334290_pupils.json", name);
+    }
+
+    [Fact]
+    public void DataBlobName_ByExerciseId_KeepsOtherDataUnderItsOwnSuffix()
+    {
+        var exerciseId = Guid.Parse("22222222-2222-2222-2222-222222222222");
+
+        var name = CheckingExerciseBlobPaths.DataBlobName(exerciseId, CheckingDataType.Other, "933/4290");
+
+        Assert.Equal("exercises/22222222-2222-2222-2222-222222222222/data/9334290_data.json", name);
+    }
+
+    [Fact]
+    public void LogPrefix_IsScopedToTheExercise()
+    {
+        var exerciseId = Guid.Parse("33333333-3333-3333-3333-333333333333");
+
+        Assert.Equal("exercises/33333333-3333-3333-3333-333333333333/logs/",
+            CheckingExerciseBlobPaths.LogPrefix(exerciseId));
+    }
+
+    [Fact]
+    public void DefinitionFile_KeepsOnlyTheFileName()
+    {
+        var exerciseId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+        var definitionId = Guid.Parse("55555555-5555-5555-5555-555555555555");
+
+        var name = CheckingExerciseBlobPaths.DefinitionFile(exerciseId, definitionId, "c:\\upload\\main.csv");
+
+        Assert.Equal("ingress/44444444-4444-4444-4444-444444444444/55555555-5555-5555-5555-555555555555/main.csv", name);
+    }
+
+    [Theory]
+    [InlineData("main.csv", "ingress/main.csv")]
+    [InlineData("ingress/abc/def/main.csv", "ingress/abc/def/main.csv")]
+    public void IngressBlobName_KeepsLegacyRelativePathsReadable(string stored, string expected)
+        => Assert.Equal(expected, CheckingExerciseBlobPaths.IngressBlobName(stored));
+
+    [Theory]
+    [InlineData("main.json", "schema/main.json")]
+    [InlineData("ingress/abc/def/main.json", "ingress/abc/def/main.json")]
+    public void SchemaBlobName_KeepsLegacyRelativePathsReadable(string stored, string expected)
+        => Assert.Equal(expected, CheckingExerciseBlobPaths.SchemaBlobName(stored));
+
+    [Fact]
+    public void DefaultDataType_HasNoDefaultCase()
+        => Assert.Throws<ArgumentOutOfRangeException>(() =>
+            CheckingExerciseBlobPaths.DefaultDataType((CheckingExerciseType)999));
+
+    [Fact]
+    public void DefaultDataType_MapsAnUntypedExerciseToOther()
+        => Assert.Equal(CheckingDataType.Other, CheckingExerciseBlobPaths.DefaultDataType(null));
 }

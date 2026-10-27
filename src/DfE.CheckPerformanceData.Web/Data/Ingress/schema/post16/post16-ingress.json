@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "post16-ingress.json",
+  "title": "Post-16 checking exercise data",
+  "description": "One institution's combined ingress document. Each source worksheet has its own collection so the records can be exported separately.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "summary": {
+      "type": "array",
+      "items": {
+        "$ref": "summary.json"
+      }
+    },
+    "students-included": {
+      "type": "array",
+      "items": {
+        "$ref": "students-included.json"
+      }
+    },
+    "students-non-included": {
+      "type": "array",
+      "items": {
+        "$ref": "students-non-included.json"
+      }
+    },
+    "students-previously-published": {
+      "type": "array",
+      "items": {
+        "$ref": "students-previously-published.json"
+      }
+    },
+    "results-included": {
+      "type": "array",
+      "items": {
+        "$ref": "results-included.json"
+      }
+    },
+    "results-non-included": {
+      "type": "array",
+      "items": {
+        "$ref": "results-non-included.json"
+      }
+    },
+    "students-value-added": {
+      "type": "array",
+      "items": {
+        "$ref": "students-value-added.json"
+      }
+    },
+    "students-aims": {
+      "type": "array",
+      "items": {
+        "$ref": "students-aims.json"
+      }
+    }
+  }
+}

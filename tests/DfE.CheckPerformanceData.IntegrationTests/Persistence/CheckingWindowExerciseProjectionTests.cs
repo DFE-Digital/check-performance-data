@@ -146,4 +146,63 @@ public sealed class CheckingWindowExerciseProjectionTests : IAsyncLifetime
 
         Assert.Equal(new DateTime(2027, 10, 1), window.NextOpportunity);
     }
+
+    // #466 Task 23: ExerciseTabBuilder needs the window's own id plus each exercise's TabName and
+    // Datasets to decide whether an exercise draws a tab and what to read for it. Before this the
+    // check-your-pupil-data read carried only Id/ExerciseType/dates on each exercise — a window
+    // with exercise tabs configured would silently draw none.
+    [Fact]
+    public async Task The_check_your_pupil_data_window_read_carries_the_windows_own_id_and_each_exercises_tab_details()
+    {
+        var tabbedWindowId = Guid.NewGuid();
+        var exerciseId = Guid.NewGuid();
+        await using var ctx = CreateContext();
+        ctx.CheckingWindows.Add(new CheckingWindow
+        {
+            Id = tabbedWindowId,
+            Title = "Post-16 2027",
+            KeyStage = KeyStages.Post16,
+            CheckingWindowType = CheckingWindowType.Post16,
+            StartDate = new DateTime(2027, 8, 1),
+            EndDate = new DateTime(2027, 10, 31),
+            CheckingExercises =
+            [
+                new CheckingExercise
+                {
+                    Id = exerciseId,
+                    ExerciseType = CheckingExerciseType.PupilData,
+                    Name = "Pupil data",
+                    TabName = "Students",
+                    IsEnabled = true,
+                    StartDate = new DateTime(2027, 8, 1),
+                    EndDate = new DateTime(2027, 8, 31),
+                    SortOrder = 0,
+                    Datasets =
+                    [
+                        new CheckingWindowDataset
+                        {
+                            Name = "included",
+                            IngressFile = "included.csv",
+                            SchemaFile = "included.json",
+                            SortOrder = 0
+                        }
+                    ]
+                }
+            ]
+        });
+        await ctx.SaveChangesAsync();
+
+        var sut = new CheckYourPupilDataRepository(ctx, BlobClientWithPupilData(),
+            new MemoryCache(new MemoryCacheOptions()));
+
+        var window = await sut.GetCheckingWindowAsync(tabbedWindowId);
+        var exercise = Assert.Single(window.Exercises);
+
+        Assert.Equal(tabbedWindowId, window.Id);
+        Assert.Equal("Students", exercise.TabName);
+        Assert.True(exercise.IsEnabled);
+        var dataset = Assert.Single(exercise.Datasets);
+        Assert.Equal("included.csv", dataset.IngressFile);
+        Assert.Equal("included.json", dataset.SchemaFile);
+    }
 }

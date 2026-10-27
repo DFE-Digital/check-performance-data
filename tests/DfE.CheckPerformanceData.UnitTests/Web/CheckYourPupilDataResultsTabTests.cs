@@ -5,6 +5,7 @@ using DfE.CheckPerformanceData.Application.CheckYourPupilData.Columns;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.LandingPage;
 using CheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseService;
+using ICheckingDataReader = DfE.CheckPerformanceData.Application.WindowManagement.ICheckingDataReader;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData;
 using Microsoft.AspNetCore.Http;
@@ -39,8 +40,16 @@ public sealed class CheckYourPupilDataResultsTabTests
         var currentUser = Substitute.For<ICurrentUserService>();
         currentUser.OrganisationUrn.Returns("136309");
         var checkingExercises = new CheckingExerciseService(TimeProvider.System);
+        var tabBuilder = Substitute.For<IExerciseTabBuilder>();
+        // No window here has a tab-drawing exercise: the fallback pupil-inclusion zip/tabs are
+        // what these tests exercise, exactly as before #466.
+        tabBuilder.BuildAsync(Arg.Any<Application.WindowManagement.CheckingWindowDto>(),
+                Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<int>(), Arg.Any<int>(),
+                Arg.Any<CancellationToken>())
+            .Returns(new List<ExerciseTab>());
         _sut = new CheckYourPupilDataController(
-            _service, currentUser, _analytics, new NextStepsService(checkingExercises), checkingExercises)
+            _service, currentUser, _analytics, new NextStepsService(checkingExercises), checkingExercises,
+            tabBuilder, new ExerciseDisplayService(), Substitute.For<ICheckingDataReader>())
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext }
         };

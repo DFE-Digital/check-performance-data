@@ -29,6 +29,20 @@ public sealed class CheckingExerciseServiceTests
             SortOrder = sortOrder
         };
 
+    // A display-only row of a real kind: the shape a pupil-data exercise takes once it is showing
+    // refreshed data that nobody may act on (#466).
+    private static CheckingExerciseDto DisplayOnly(
+        CheckingExerciseType type, DateTime start, DateTime end, int sortOrder = 0) =>
+        new()
+        {
+            Id = Guid.NewGuid(),
+            ExerciseType = type,
+            StartDate = start,
+            EndDate = end,
+            SortOrder = sortOrder,
+            DisplayOnly = true
+        };
+
     private static readonly DateTime Yesterday = new(2026, 8, 18);
     private static readonly DateTime Tomorrow = new(2026, 8, 20);
     private static readonly DateTime LastMonth = new(2026, 7, 1);
@@ -258,6 +272,54 @@ public sealed class CheckingExerciseServiceTests
         var exercises = new[] { Exercise(CheckingExerciseType.PupilData, LastMonth, Now.DateTime) };
 
         Assert.True(Sut().IsOpen(exercises, CheckingExerciseType.PupilData));
+        Assert.False(Sut().HasClosed(exercises, CheckingExerciseType.PupilData));
+    }
+
+    // #466: "open" means a school may act on it, not merely that the dates bracket now. A
+    // display-only exercise is view-only however its dates read, so an admin can mark one
+    // read-only without having to move its dates into the past to make that stick.
+    [Fact]
+    public void IsOpen_is_false_for_a_display_only_exercise_inside_its_dates()
+    {
+        var exercises = new[] { DisplayOnly(CheckingExerciseType.PupilData, Yesterday, Tomorrow) };
+
+        Assert.False(Sut().IsOpen(exercises, CheckingExerciseType.PupilData));
+    }
+
+    [Fact]
+    public void OpenCheckingExercises_leaves_out_a_display_only_exercise_inside_its_dates()
+    {
+        var exercises = new[]
+        {
+            DisplayOnly(CheckingExerciseType.PupilData, Yesterday, Tomorrow),
+            Exercise(CheckingExerciseType.ResultsEnquiry, Yesterday, NextMonth, sortOrder: 1)
+        };
+
+        Assert.Equal(
+            [CheckingExerciseType.ResultsEnquiry],
+            Sut().OpenCheckingExercises(exercises));
+    }
+
+    // The dates still answer on their own for an ordinary exercise — this rule adds a reason to be
+    // closed, it does not replace the date comparison.
+    [Fact]
+    public void An_ordinary_exercise_inside_its_dates_is_still_open()
+    {
+        var exercises = new[] { Exercise(CheckingExerciseType.PupilData, Yesterday, Tomorrow) };
+
+        Assert.True(Sut().IsOpen(exercises, CheckingExerciseType.PupilData));
+        Assert.Equal(
+            [CheckingExerciseType.PupilData],
+            Sut().OpenCheckingExercises(exercises));
+    }
+
+    // HasClosed is untouched: it reports a lapsed end date, which is a fact about the dates alone.
+    // A display-only exercise still inside its dates has not closed — it was never open.
+    [Fact]
+    public void HasClosed_still_answers_from_the_end_date_alone()
+    {
+        var exercises = new[] { DisplayOnly(CheckingExerciseType.PupilData, Yesterday, Tomorrow) };
+
         Assert.False(Sut().HasClosed(exercises, CheckingExerciseType.PupilData));
     }
 }

@@ -17,7 +17,48 @@ public sealed class CheckingExercise
 {
     public Guid Id { get; init; }
     public Guid CheckingWindowId { get; set; }
-    public CheckingExerciseType ExerciseType { get; init; }
+
+    /// <summary>
+    /// What a school may *do* with this exercise. Null since #466: a display-only data share is an
+    /// exercise the admin named and gave files to, with no journey behind it. Every kind lookup
+    /// ignores a null row by construction — lifted equality means null matches no member.
+    /// </summary>
+    public CheckingExerciseType? ExerciseType { get; init; }
+
+    /// <summary>
+    /// True for a row on the exercise-id blob layout (#466), which is every row created since.
+    /// False keeps the row on the old type-based paths, so blobs already written are still found
+    /// and no blob migration is needed.
+    /// </summary>
+    public bool UsesExerciseStorage { get; init; } = true;
+
+    /// <summary>The admin's name for this exercise, shown as the tab's heading.</summary>
+    public string? Name { get; set; }
+
+    /// <summary>
+    /// The tab label on Check Your Pupil Data. Null means the exercise draws no tab, which is what
+    /// keeps every window configured before #466 rendering exactly as it did.
+    /// </summary>
+    public string? TabName { get; set; }
+
+    /// <summary>Left-to-right order of the tabs.</summary>
+    public int TabOrder { get; set; }
+
+    /// <summary>False hides the exercise without deleting it, and without losing its files.</summary>
+    public bool IsEnabled { get; set; }
+
+    /// <summary>The school may look at this data and download it, and do nothing else.</summary>
+    public bool DisplayOnly { get; set; }
+
+    /// <summary>When the tab appears and disappears. Null at either end means no bound.</summary>
+    public DateTime? VisibleFrom { get; set; }
+    public DateTime? VisibleUntil { get; set; }
+
+    /// <summary>
+    /// The exercise this one supersedes, when a later release replaces an earlier one. Restricted
+    /// on delete: the row that was replaced must outlive the pointer to it.
+    /// </summary>
+    public Guid? ReplacesCheckingExerciseId { get; set; }
 
     // Settable since #319: the admin wizard captures each exercise's dates, so an existing row has
     // to be able to take new ones. Before that nothing could change them once written.
@@ -63,7 +104,11 @@ public sealed class CheckingExerciseConfiguration : IEntityTypeConfiguration<Che
 {
     public void Configure(EntityTypeBuilder<CheckingExercise> builder)
     {
-        builder.ToTable("CheckingExercises");
+        // A row with no kind is only meaningful as a display-only share on the new storage.
+        // Anything else is a half-configured exercise that the journeys cannot route.
+        builder.ToTable("CheckingExercises", table => table.HasCheckConstraint(
+            "CK_CheckingExercises_TypeOrDisplayOnly",
+            "\"ExerciseType\" IS NOT NULL OR (\"DisplayOnly\" AND \"UsesExerciseStorage\")"));
 
         builder.HasKey(x => x.Id);
 
@@ -71,7 +116,7 @@ public sealed class CheckingExerciseConfiguration : IEntityTypeConfiguration<Che
             .HasDefaultValueSql("gen_random_uuid()");
 
         builder.Property(x => x.ExerciseType)
-            .IsRequired()
+            .IsRequired(false)
             .HasConversion<string>()
             .HasMaxLength(50);
 
@@ -88,9 +133,17 @@ public sealed class CheckingExerciseConfiguration : IEntityTypeConfiguration<Che
             .HasForeignKey(x => x.CheckingWindowId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // One row per exercise type per window: the lookup #315 does. This caps repeats of a type,
-        // never how many types a window may hold.
-        builder.HasIndex(x => new { x.CheckingWindowId, x.ExerciseType }).IsUnique();
+        builder.Property(x => x.Name).HasMaxLength(200);
+        builder.Property(x => x.TabName).HasMaxLength(100);
+        builder.Property(x => x.VisibleFrom).HasColumnType("timestamp without time zone");
+        builder.Property(x => x.VisibleUntil).HasColumnType("timestamp without time zone");
+        builder.HasOne<CheckingExercise>().WithMany()
+            .HasForeignKey(x => x.ReplacesCheckingExerciseId).OnDelete(DeleteBehavior.Restrict);
+
+        // Only the legacy type-addressed rows need this. The new storage deliberately allows
+        // several releases of one activity, and any number of typeless shares, in one window.
+        builder.HasIndex(x => new { x.CheckingWindowId, x.ExerciseType })
+            .IsUnique().HasFilter("\"UsesExerciseStorage\" = false");
 
         builder.OwnsOne(x => x.Validated, validated =>
         {

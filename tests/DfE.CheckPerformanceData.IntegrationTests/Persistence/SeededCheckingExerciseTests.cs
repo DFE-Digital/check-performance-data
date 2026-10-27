@@ -1,6 +1,9 @@
 using System.Security.Cryptography;
 using Azure.Storage.Blobs;
+using DfE.CheckPerformanceData.Infrastructure.Ingress;
+using DfE.CheckPerformanceData.Persistence.Repositories;
 using DfE.CheckPerformanceData.Web.Seeding;
+using Microsoft.Extensions.Logging.Abstractions;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Persistence.Contexts;
@@ -122,12 +125,20 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
             DevDataSeeder.KeyStage4JuneCheckingWindowId, DevDataSeeder.ClosedKeyStage4JuneCheckingWindowId });
         var blobs = new BlobServiceClient(azurite.ConnectionString);
         var container = blobs.GetBlobContainerClient(id.ToString());
+        // Seed from a trimmed copy of the seed files — every schema, and each CSV cut to the dev
+        // sign-in school's rows — so the test asserts on one known school and still validates
+        // every row the startup seed will ingress for it.
+        var contentRoot = TrimmedContentRoot("8604070");
         try
         {
             await using (var ctx = CreateContext())
             {
-                await SeedPost16Ingress.ExecuteSeedAsync(ctx, blobs, AppContext.BaseDirectory);
-                await SeedPost16Ingress.ExecuteSeedAsync(ctx, blobs, AppContext.BaseDirectory);
+                var ingress = new CheckingExerciseIngress(
+                    new CheckingExerciseDefinitionRepository(ctx, new WindowRepository(ctx)),
+                    new CsvSchemaFileProcessor(NullLogger<CsvSchemaFileProcessor>.Instance,
+                        new Dictionary<string, BlobServiceClient> { ["app"] = blobs }), TimeProvider.System);
+                await SeedPost16Ingress.ExecuteSeedAsync(ctx, blobs, ingress, contentRoot);
+                await SeedPost16Ingress.ExecuteSeedAsync(ctx, blobs, ingress, contentRoot);
             }
 
             var window = await LoadAsync(id);
@@ -135,39 +146,224 @@ public sealed class SeededCheckingExerciseTests(AzuriteFixture azurite) : IAsync
             Assert.Equal(KeyStages.Post16, window.KeyStage);
             Assert.Equal(DateTime.Today, window.StartDate);
             Assert.Equal(window.StartDate.AddMonths(1).AddHours(17), window.EndDate);
-            Assert.Equal(2, window.CheckingExercises.Count);
+            Assert.Equal(6, window.CheckingExercises.Count);
             Assert.All(window.CheckingExercises, e =>
             {
                 Assert.Equal(window.StartDate, e.StartDate);
                 Assert.Equal(window.EndDate, e.EndDate);
             });
+            var tabs = window.CheckingExercises.Where(e => !e.DisplayOnly).OrderBy(e => e.TabOrder).ToList();
+            Assert.Equal(new[] { "Students", "Results" }, tabs.Select(e => e.TabName));
+            Assert.Equal(new[] { 200, 300 }, tabs.Select(e => e.TabOrder));
+            Assert.Equal(new[] { 1, 2 }, tabs.Select(e => e.SortOrder));
+            Assert.All(tabs, e => Assert.True(e.IsEnabled));
+
+            // The Summary tab is four exercises over the year, one visible at a time: each replaces
+            // the one before, and the supplier's file has a different column set for each, so each
+            // dataset carries the schema for its own shape. Only the first is enabled, but all four
+            // are linked and ingressed so an admin can swap the tab by enabling the next.
+            var summaries = SummaryChain(window.CheckingExercises);
+            Assert.Equal(
+                new[] { "Autumn CE", "Provisional value added", "Light touch revised data share", "Retention" },
+                summaries.Select(e => e.Name));
+            Assert.Equal(new[] { true, false, false, false }, summaries.Select(e => e.IsEnabled));
+            Assert.All(summaries, e =>
+            {
+                Assert.Equal("Summary", e.TabName);
+                Assert.Equal(100, e.TabOrder);
+                Assert.Equal(0, e.SortOrder);
+                Assert.Null(e.ExerciseType);
+                Assert.True(e.DisplayOnly);
+                Assert.True(e.UsesExerciseStorage);
+                Assert.NotNull(e.Validated);
+            });
+            var summaryDatasets = summaries.Select(e => Assert.Single(e.Datasets)).ToList();
+            Assert.Equal(
+                new[] { "summary-autumn", "summary-november-va", "summary-november-va", "summary-retention" },
+                summaryDatasets.Select(d => d.Name));
+            foreach (var (exercise, dataset) in summaries.Zip(summaryDatasets))
+            {
+                Assert.True(dataset.Required);
+                Assert.Null(dataset.Included);
+                Assert.Equal(DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DefinitionFile(exercise.Id, dataset.Id, $"{dataset.Name}.csv"), dataset.IngressFile);
+                Assert.Equal(DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DefinitionFile(exercise.Id, dataset.Id, $"{dataset.Name}.json"), dataset.SchemaFile);
+                await AssertFileAsync("ingress", dataset.IngressFile, dataset.IngressFileChecksum, "text/csv");
+                await AssertFileAsync("schema/post16", dataset.SchemaFile, dataset.SchemaFileChecksum, "application/json");
+                Assert.True(await container.GetBlobClient(
+                    DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DataBlobName(
+                        exercise.Id, CheckingDataType.Other, "8604070")).ExistsAsync(), $"{exercise.Name} output missing");
+            }
+            Assert.Equal(CheckingExerciseType.PupilData, tabs[0].ExerciseType);
+            Assert.Equal(CheckingExerciseType.ResultsEnquiry, tabs[1].ExerciseType);
             var datasets = window.CheckingExercises.Single(e => e.ExerciseType == CheckingExerciseType.PupilData)
                 .Datasets.OrderBy(d => d.SortOrder).ToList();
             Assert.Equal(new[] { "included", "nonincluded" }, datasets.Select(d => d.Name));
             Assert.Equal(new bool?[] { true, false }, datasets.Select(d => d.Included));
             foreach (var dataset in datasets)
             {
-                Assert.Equal($"{dataset.Name}.csv", dataset.IngressFile);
-                Assert.Equal($"{dataset.Name}.json", dataset.SchemaFile);
+                Assert.Equal(DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DefinitionFile(dataset.CheckingExerciseId, dataset.Id, $"{dataset.Name}.csv"), dataset.IngressFile);
+                var schemaName = dataset.Name == "included" ? "students-included.json" : "students-non-included.json";
+                Assert.Equal(DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DefinitionFile(dataset.CheckingExerciseId, dataset.Id, schemaName), dataset.SchemaFile);
                 await AssertFileAsync("ingress", dataset.IngressFile, dataset.IngressFileChecksum, "text/csv");
-                await AssertFileAsync("schema", dataset.SchemaFile, dataset.SchemaFileChecksum, "application/json");
+                await AssertFileAsync("schema/post16", dataset.SchemaFile, dataset.SchemaFileChecksum, "application/json");
             }
+            // Staged as the start of the Autumn window: the results enquiry holds the supplier's
+            // main results file, in the workbook's shape, tagged 16to19_MAIN by its slot.
+            var results = Assert.Single(tabs[1].Datasets);
+            Assert.Equal(DfE.CheckPerformanceData.Application.ResultsEnquiry.ResultsFileTags.Post16Main, results.Name);
+            Assert.Equal(DfE.CheckPerformanceData.Application.ResultsEnquiry.ResultsFileTags.Post16Main, results.SourceFile);
+            Assert.True(results.Required);
+            Assert.Equal(DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DefinitionFile(tabs[1].Id, results.Id, "16to19_MAIN.csv"), results.IngressFile);
+            Assert.Equal(DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DefinitionFile(tabs[1].Id, results.Id, "results-included.json"), results.SchemaFile);
+            await AssertFileAsync("ingress", results.IngressFile, results.IngressFileChecksum, "text/csv");
+            await AssertFileAsync("schema/post16", results.SchemaFile, results.SchemaFileChecksum, "application/json");
+            Assert.True(await container.GetBlobClient(
+                DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DataBlobName(
+                    tabs[1].Id, CheckingDataType.Results, "8604070")).ExistsAsync(), "Results output missing");
+            Assert.NotNull(tabs[1].Validated);
             Assert.Equal(datasets[0].IngressFileChecksum, window.IngressFileChecksum);
             Assert.Equal(datasets[0].SchemaFileChecksum, window.SchemaFileChecksum);
+
+            // The seed runs each exercise's ingress, so the landing page's HasPupilData check and
+            // every tab have per-school output from first boot — not only after an admin clicks
+            // Validate. 8604070 is the dev sign-in school (860/4070).
+            Assert.True(await container.GetBlobClient(
+                DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DataBlobName(
+                    tabs[0].Id, CheckingDataType.Pupil, "8604070")).ExistsAsync(), "Students output missing");
+            Assert.NotNull(tabs[0].Validated);
         }
         finally
         {
             await container.DeleteIfExistsAsync();
+            Directory.Delete(contentRoot, recursive: true);
         }
 
         async Task AssertFileAsync(string folder, string filename, string checksum, string contentType)
         {
-            var original = await File.ReadAllBytesAsync(Path.Combine(AppContext.BaseDirectory, "Data", "Ingress", folder, filename));
-            var downloaded = (await container.GetBlobClient($"{folder}/{filename}").DownloadContentAsync()).Value;
+            var original = await File.ReadAllBytesAsync(Path.Combine(contentRoot, "Data", "Ingress", folder, Path.GetFileName(filename)));
+            var downloaded = (await container.GetBlobClient(filename).DownloadContentAsync()).Value;
             Assert.True(original.AsSpan().SequenceEqual(downloaded.Content.ToArray()), "Seed blob must match its source file.");
             Assert.Equal(Convert.ToHexString(SHA256.HashData(original)), checksum);
             Assert.Equal(checksum, downloaded.Details.Metadata["sha256"]);
             Assert.Equal(contentType, downloaded.Details.ContentType);
         }
+    }
+
+    [Fact]
+    public async Task February_window_is_staged_mid_year_with_pupil_data_shut_and_late_results()
+    {
+        var id = DevDataSeeder.Post16FebruaryCheckingWindowId;
+        Assert.NotEqual(DevDataSeeder.Post16IngressCheckingWindowId, id);
+        var blobs = new BlobServiceClient(azurite.ConnectionString);
+        var container = blobs.GetBlobContainerClient(id.ToString());
+        var contentRoot = TrimmedContentRoot("8604070");
+        try
+        {
+            await using (var ctx = CreateContext())
+            {
+                var ingress = new CheckingExerciseIngress(
+                    new CheckingExerciseDefinitionRepository(ctx, new WindowRepository(ctx)),
+                    new CsvSchemaFileProcessor(NullLogger<CsvSchemaFileProcessor>.Instance,
+                        new Dictionary<string, BlobServiceClient> { ["app"] = blobs }), TimeProvider.System);
+                await SeedPost16Ingress.ExecuteSeedAsync(ctx, blobs, ingress, contentRoot);
+            }
+
+            var window = await LoadAsync(id);
+            Assert.Equal(CheckingWindowType.Post16, window.CheckingWindowType);
+            Assert.Equal("16 to 19 February", window.Title);
+            // The window opened in the autumn and runs on past today: results enquiry is open,
+            // pupil data checking shut a fortnight after the start, so the Students tab shows data
+            // with no request or confirm actions.
+            Assert.True(window.StartDate < DateTime.Today.AddMonths(-3));
+            Assert.True(window.EndDate > DateTime.Today.AddMonths(1));
+            var students = window.CheckingExercises.Single(e => e.ExerciseType == CheckingExerciseType.PupilData);
+            var results = window.CheckingExercises.Single(e => e.ExerciseType == CheckingExerciseType.ResultsEnquiry);
+            Assert.Equal(window.StartDate, students.StartDate);
+            Assert.True(students.EndDate < DateTime.Today);
+            Assert.Equal(window.EndDate, results.EndDate);
+            Assert.True(await container.GetBlobClient(
+                DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DataBlobName(
+                    students.Id, CheckingDataType.Pupil, "8604070")).ExistsAsync(), "Students output missing");
+
+            // The February summary is the third exercise in the chain; the two before it have run.
+            var summaries = SummaryChain(window.CheckingExercises);
+            Assert.Equal(new[] { false, false, true, false }, summaries.Select(e => e.IsEnabled));
+            Assert.Equal("Light touch revised data share", summaries[2].Name);
+            Assert.Equal("summary-november-va", Assert.Single(summaries[2].Datasets).Name);
+            Assert.True(await container.GetBlobClient(
+                DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DataBlobName(
+                    summaries[2].Id, CheckingDataType.Other, "8604070")).ExistsAsync(), "Summary output missing");
+
+            // By February the main and first late results files have both landed.
+            var slots = results.Datasets.OrderBy(d => d.SortOrder).ToList();
+            Assert.Equal(
+                new[] { DfE.CheckPerformanceData.Application.ResultsEnquiry.ResultsFileTags.Post16Main,
+                        DfE.CheckPerformanceData.Application.ResultsEnquiry.ResultsFileTags.Post16LateResults1 },
+                slots.Select(d => d.Name));
+            Assert.Equal(slots.Select(d => d.Name), slots.Select(d => d.SourceFile));
+            Assert.Equal(new[] { true, false }, slots.Select(d => d.Required));
+            foreach (var slot in slots)
+            {
+                Assert.Equal(DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DefinitionFile(results.Id, slot.Id, $"{slot.Name}.csv"), slot.IngressFile);
+                Assert.Equal(DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DefinitionFile(results.Id, slot.Id, "results-included.json"), slot.SchemaFile);
+            }
+            var output = (await container.GetBlobClient(
+                DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseBlobPaths.DataBlobName(
+                    results.Id, CheckingDataType.Results, "8604070")).DownloadContentAsync()).Value.Content.ToString();
+            Assert.Contains("\"16to19_MAIN\"", output);
+            Assert.Contains("\"16to19_LR1\"", output);
+            Assert.NotNull(results.Validated);
+        }
+        finally
+        {
+            await container.DeleteIfExistsAsync();
+            Directory.Delete(contentRoot, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task Window_seed_can_be_repeated_over_a_replacement_chain()
+    {
+        // The dev seed deletes every window on each start. The Summary exercises reference each
+        // other through ReplacesCheckingExerciseId, whose FK is ON DELETE RESTRICT, so the cascade
+        // from the window must not trip over the chain.
+        for (var start = 0; start < 2; start++)
+        {
+            await using var ctx = CreateContext();
+            await SeedCheckingWindows.ExecuteSeed(ctx, _openKs4, _closedKs4, _post16, _closedPupilDataPost16);
+        }
+
+        var window = await LoadAsync(DevDataSeeder.Post16IngressCheckingWindowId);
+        Assert.Equal(4, SummaryChain(window.CheckingExercises).Count);
+    }
+
+    /// <summary>The Summary exercises in replacement order: the root first, then whichever names it.</summary>
+    private static List<CheckingExercise> SummaryChain(IEnumerable<CheckingExercise> exercises)
+    {
+        var summaries = exercises.Where(e => e.DisplayOnly && e.TabName == "Summary").ToList();
+        var chain = new List<CheckingExercise> { Assert.Single(summaries, e => e.ReplacesCheckingExerciseId is null) };
+        while (summaries.SingleOrDefault(e => e.ReplacesCheckingExerciseId == chain[^1].Id) is { } next) chain.Add(next);
+        Assert.Equal(summaries.Count, chain.Count);
+        return chain;
+    }
+
+    private static string TrimmedContentRoot(string laestab)
+    {
+        var source = Path.Combine(AppContext.BaseDirectory, "Data", "Ingress");
+        var root = Path.Combine(Path.GetTempPath(), "cpd-seed-" + Guid.NewGuid().ToString("N"));
+        var schemaDir = Path.Combine(root, "Data", "Ingress", "schema", "post16");
+        var ingressDir = Path.Combine(root, "Data", "Ingress", "ingress");
+        Directory.CreateDirectory(schemaDir);
+        Directory.CreateDirectory(ingressDir);
+        foreach (var schema in Directory.GetFiles(Path.Combine(source, "schema", "post16"), "*.json"))
+            File.Copy(schema, Path.Combine(schemaDir, Path.GetFileName(schema)));
+        foreach (var csv in Directory.GetFiles(Path.Combine(source, "ingress"), "*.csv"))
+        {
+            var lines = File.ReadAllLines(csv);
+            var laestabColumn = Array.IndexOf(lines[0].Split(','), "LAESTAB");
+            var rows = lines.Skip(1).Where(l => l.Split(',')[laestabColumn] == laestab);
+            File.WriteAllLines(Path.Combine(ingressDir, Path.GetFileName(csv)), [lines[0], .. rows]);
+        }
+        return root;
     }
 }

@@ -1,0 +1,117 @@
+@using DfE.CheckPerformanceData.Web.Common
+@using DfE.CheckPerformanceData.Application.CheckYourPupilData
+@model ExerciseTab
+
+@{
+    // A table tab: dataset selector, search, paged table. Set by ExerciseTabBuilder whenever the
+    // exercise's schemas ask for the table layout (or a mix, which is logged and falls back here).
+    var table = Model.Table!;
+    var anchor = $"exercise-{Model.Exercise.Id}";
+
+    string PageUrl(int page) => Url.Action("Index", "CheckYourPupilData",
+        new { windowId = Model.Exercise.WindowId, studentDataset = table.Selected.Key, studentSearch = table.Search, studentPage = page })! + "#" + anchor;
+}
+
+@if (table.Datasets.Count > 1)
+{
+    <div class="govuk-form-group">
+        <form method="get" action="@Url.Action("Index", "CheckYourPupilData", new { windowId = Model.Exercise.WindowId })#@anchor">
+            <label class="govuk-label govuk-label--s" for="studentDataset">Select the data you want to view</label>
+            <select class="govuk-select" id="studentDataset" name="studentDataset" onchange="this.form.submit()">
+                @foreach (var dataset in table.Datasets)
+                {
+                    <option value="@dataset.Key" selected="@(dataset.Key == table.Selected.Key)">@dataset.Label</option>
+                }
+            </select>
+            <noscript><button class="govuk-button govuk-button--secondary" type="submit">View data</button></noscript>
+        </form>
+    </div>
+}
+
+@foreach (var dataset in table.Datasets)
+{
+    <p class="govuk-body">
+        Download <a asp-action="DownloadExerciseDataset" asp-controller="CheckYourPupilData"
+                    asp-route-windowId="@Model.Exercise.WindowId"
+                    asp-route-exerciseId="@Model.Exercise.Id"
+                    asp-route-dataset="@dataset.Key">@dataset.Label.ToLowerInvariant()</a> as a CSV file.
+    </p>
+}
+
+<h2 class="govuk-heading-l">@table.Selected.Label</h2>
+
+<div class="pupil-search">
+    <form method="get" action="@Url.Action("Index", "CheckYourPupilData", new { windowId = Model.Exercise.WindowId })#@anchor">
+        <input type="hidden" name="studentDataset" value="@table.Selected.Key" />
+        <div class="govuk-form-group">
+            <label class="govuk-label govuk-label--s" for="studentSearch">Search for a student by first or last name</label>
+            <div class="pupil-search__row">
+                <input class="govuk-input" id="studentSearch" name="studentSearch" type="search" maxlength="100" value="@table.Search" />
+                <button class="govuk-button" data-module="govuk-button" type="submit">Search</button>
+                @if (!string.IsNullOrWhiteSpace(table.Search))
+                {
+                    <a role="button" draggable="false" data-module="govuk-button" class="govuk-button govuk-button--secondary"
+                       href="@Url.Action("Index", "CheckYourPupilData", new { windowId = Model.Exercise.WindowId, studentDataset = table.Selected.Key })#@anchor">Clear</a>
+                }
+            </div>
+        </div>
+    </form>
+</div>
+
+@if (table.Rows.Count == 0)
+{
+    <p class="govuk-body">@(string.IsNullOrWhiteSpace(table.Search) ? "No students available in this dataset." : "No students found. Check the spelling or clear the search.")</p>
+}
+else
+{
+    <div class="moj-scrollable-pane" role="region" tabindex="0" aria-label="@table.Selected.Label">
+        <table class="govuk-table">
+            <thead class="govuk-table__head">
+                <tr class="govuk-table__row">
+                    @foreach (var column in table.Selected.Columns)
+                    {
+                        <th scope="col" class="govuk-table__header">@column.Label</th>
+                    }
+                </tr>
+            </thead>
+            <tbody class="govuk-table__body">
+                @foreach (var row in table.Rows)
+                {
+                    <tr class="govuk-table__row">
+                        @foreach (var column in table.Selected.Columns)
+                        {
+                            <td class="govuk-table__cell">@row.GetValueOrDefault(column.Field)</td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@if (table.TotalPages > 1)
+{
+    <govuk-pagination>
+        @if (table.Page > 0)
+        {
+            <govuk-pagination-previous href="@PageUrl(table.Page - 1)" />
+        }
+        @* First page, last page, and the current page with one either side — see
+           PaginationWindow. A null entry is a skipped run, rendered as an ellipsis. *@
+        @foreach (var page in PaginationWindow.Build(table.Page, table.TotalPages))
+        {
+            if (page is null)
+            {
+                <govuk-pagination-ellipsis />
+            }
+            else
+            {
+                <govuk-pagination-item href="@PageUrl(page.Value)" current="@(page.Value == table.Page)">@(page.Value + 1)</govuk-pagination-item>
+            }
+        }
+        @if (table.Page < table.TotalPages - 1)
+        {
+            <govuk-pagination-next href="@PageUrl(table.Page + 1)" />
+        }
+    </govuk-pagination>
+}

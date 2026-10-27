@@ -51,9 +51,11 @@ public sealed class CheckingWindowDto
     // only ever right while a single exercise held them all — the admin wizard, the summary page
     // and the validate run are all per-exercise now, and each asks the exercise it means.
 
-    /// <summary>The exercise of this type, or null when the window does not run it.</summary>
-    public CheckingExerciseDto? FindExercise(CheckingExerciseType exercise) =>
-        Exercises.SingleOrDefault(e => e.ExerciseType == exercise);
+    /// <summary>The exercise of this type, or null when the window does not run it. A null type
+    /// finds nothing: a window may hold several typeless shares, so "the typeless one" is not a
+    /// question with an answer.</summary>
+    public CheckingExerciseDto? FindExercise(CheckingExerciseType? exercise) =>
+        exercise is null ? null : Exercises.SingleOrDefault(e => e.ExerciseType == exercise);
 
     /// <summary>
     /// The outer pair derived from the exercises: earliest start, latest end. The wizard never asks
@@ -72,10 +74,30 @@ public sealed class CheckingWindowDto
 public sealed class CheckingExerciseDto
 {
     public Guid Id { get; init; }
-    public required CheckingExerciseType ExerciseType { get; init; }
+    public required CheckingExerciseType? ExerciseType { get; init; }
     public required DateTime StartDate { get; set; }
     public required DateTime EndDate { get; set; }
     public int SortOrder { get; init; }
+
+    /// <summary>True for a row on the exercise-id blob layout (#466).</summary>
+    public bool UsesExerciseStorage { get; init; } = true;
+
+    /// <summary>The admin's name for this exercise.</summary>
+    public string? Name { get; init; }
+
+    /// <summary>Null means this exercise draws no tab, which is every window configured before #466.</summary>
+    public string? TabName { get; set; }
+    public int TabOrder { get; init; }
+    public bool IsEnabled { get; init; }
+    public bool DisplayOnly { get; init; }
+    public DateTime? VisibleFrom { get; init; }
+    public DateTime? VisibleUntil { get; init; }
+    public Guid? ReplacesCheckingExerciseId { get; init; }
+
+    /// <summary>The outer window's dates, carried so a caller holding only an exercise can ask
+    /// whether its window is running without loading the window again.</summary>
+    public DateTime? WindowStart { get; init; }
+    public DateTime? WindowEnd { get; init; }
 
     /// <summary>
     /// The CSV + schema pairs this exercise ingests, in sort order. Any number, including none.
@@ -185,11 +207,14 @@ public static class WindowDatasets
     public const string Pupils = "pupils";
 
     public static IReadOnlyList<CheckingWindowDatasetDto> DefaultsFor(
-        CheckingWindowType type, CheckingExerciseType exercise) =>
+        CheckingWindowType type, CheckingExerciseType? exercise) =>
         exercise switch
         {
             CheckingExerciseType.PupilData => PupilDataDefaults(type),
             CheckingExerciseType.ResultsEnquiry => ResultsEnquiryDefaults(type),
+            // A named data share has no supplier feed behind it, so it gets one slot the admin
+            // uploads into rather than none, which would leave the exercise unable to hold a file.
+            null => [new CheckingWindowDatasetDto { Name = "data", SortOrder = 0 }],
             _ => []
         };
 

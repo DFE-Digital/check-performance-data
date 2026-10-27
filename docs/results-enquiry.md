@@ -446,6 +446,18 @@ rather than flow-JSON-declared, for the same reason as `RemovalJourneyDateRules`
 a JSON-declared rule can be silently absent in a deployed environment. It must be no later than
 UK-today and no earlier than 1 September 2023 (the 2023/24 and 2024/25 academic years).
 
+### Summary and completeness gap
+
+Before the summary renders (GET) and again before the enquiry is submitted (POST), the journey
+re-checks its completeness: the selected qualification, the missing-grade answer, and — only when
+the `q-syllabus-code` question is visible for that qualification — the syllabus answer. The syllabus
+check consults the flow's own `visibleWhen` rule (`HasSyllabusCodesForSelectedQualification`, issue
+#577) through the same option-visibility service the details page renders under, so a code-less
+qualification is owed only the qualification and the missing grade, and a stale syllabus answer that
+survived a qualification change has no effect. Issue #653 corrected the loop #577 left behind, when
+the rule still demanded the hidden answer and Continue from the summary bounced back to the details
+page forever.
+
 ### Submission
 
 `RequestService.SubmitResultsEnquiryAsync` serves all three enquiry kinds. A missing-qualification row

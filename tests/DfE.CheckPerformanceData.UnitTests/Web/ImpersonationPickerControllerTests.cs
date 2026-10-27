@@ -3,12 +3,15 @@ using DfE.CheckPerformanceData.Application.Audit;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Impersonation;
+using DfE.CheckPerformanceData.Application.WindowManagement;
+using DfE.CheckPerformanceData.Infrastructure.Ingress;
 using DfE.CheckPerformanceData.Web.Controllers;
 using DfE.CheckPerformanceData.Web.Impersonation;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web;
@@ -58,7 +61,9 @@ public sealed class ImpersonationPickerControllerTests
             await session.InitialiseAsync("test-binding", CancellationToken.None);
 
             var audit = Substitute.For<IImpersonationAuditWriter>();
-            var controller = new ImpersonationController(session, audit, original, directory)
+            var controller = new ImpersonationController(session, audit, original, directory,
+                Substitute.For<IWindowRepository>(), Substitute.For<IIngressSummaryStore>(),
+                Substitute.For<ILogger<ImpersonationController>>())
             {
                 ControllerContext = new ControllerContext
                 {
@@ -82,17 +87,13 @@ public sealed class ImpersonationPickerControllerTests
             });
 
             var redirect = Assert.IsType<RedirectToActionResult>(actionResult);
-            Assert.Equal("Index", redirect.ActionName);
-            Assert.Equal("LandingPage", redirect.ControllerName);
-            Assert.True(session.IsImpersonating);
-            Assert.Equal("1230456", session.OrganisationLaestab);
-            Assert.Equal("876543", session.OrganisationUrn);
-            Assert.Equal(3, session.LowestAge);
-            Assert.Equal(19, session.HighestAge);
-            await audit.Received(1).RecordAsync(
-                Arg.Is<ImpersonationAuditRecord>(record =>
-                    record.UserId == "original-admin" && record.Laestab == "1230456" && record.Urn == "876543"),
-                Arg.Any<CancellationToken>());
+            Assert.Equal("Choices", redirect.ActionName);
+            Assert.False(session.IsImpersonating);
+            Assert.Equal("1230456", session.PendingSelection?.Laestab);
+            Assert.Equal("876543", session.PendingSelection?.Urn);
+            Assert.Equal(3, session.PendingSelection?.LowestAge);
+            Assert.Equal(19, session.PendingSelection?.HighestAge);
+            await audit.DidNotReceive().RecordAsync(Arg.Any<ImpersonationAuditRecord>(), Arg.Any<CancellationToken>());
         }
         finally
         {

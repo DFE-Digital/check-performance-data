@@ -3,13 +3,16 @@ using DfE.CheckPerformanceData.Application.Audit;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Impersonation;
+using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Infrastructure.Authentication;
+using DfE.CheckPerformanceData.Infrastructure.Ingress;
 using DfE.CheckPerformanceData.Web.Controllers;
 using DfE.CheckPerformanceData.Web.Impersonation;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web;
@@ -30,14 +33,12 @@ public sealed class ImpersonationControllerValidationTests
             });
 
             Assert.IsType<RedirectToActionResult>(result);
-            Assert.True(session.IsImpersonating);
-            Assert.Equal("9876543", session.OrganisationLaestab);
-            Assert.Equal("999999", session.OrganisationUrn);
-            Assert.Equal(3, session.LowestAge);
-            Assert.Equal(19, session.HighestAge);
-            await audit.Received(1).RecordAsync(
-                Arg.Is<ImpersonationAuditRecord>(record => record.Laestab == "9876543" && record.Urn == "999999"),
-                Arg.Any<CancellationToken>());
+            Assert.False(session.IsImpersonating);
+            Assert.Equal("9876543", session.PendingSelection?.Laestab);
+            Assert.Equal("999999", session.PendingSelection?.Urn);
+            Assert.Equal(3, session.PendingSelection?.LowestAge);
+            Assert.Equal(19, session.PendingSelection?.HighestAge);
+            await audit.DidNotReceive().RecordAsync(Arg.Any<ImpersonationAuditRecord>(), Arg.Any<CancellationToken>());
         }
         finally { Directory.Delete(contentRoot, recursive: true); }
     }
@@ -56,9 +57,9 @@ public sealed class ImpersonationControllerValidationTests
             });
 
             Assert.IsType<RedirectToActionResult>(result);
-            Assert.True(session.IsImpersonating);
-            Assert.Equal(100, session.LowestAge);
-            Assert.Equal(101, session.HighestAge);
+            Assert.False(session.IsImpersonating);
+            Assert.Equal(100, session.PendingSelection?.LowestAge);
+            Assert.Equal(101, session.PendingSelection?.HighestAge);
         }
         finally { Directory.Delete(contentRoot, recursive: true); }
     }
@@ -67,7 +68,7 @@ public sealed class ImpersonationControllerValidationTests
     public void Start_and_Exit_posts_require_anti_forgery_validation()
     {
         var controller = typeof(ImpersonationController);
-        foreach (var name in new[] { nameof(ImpersonationController.Start), nameof(ImpersonationController.Exit) })
+        foreach (var name in new[] { nameof(ImpersonationController.Start), nameof(ImpersonationController.Begin), nameof(ImpersonationController.Exit) })
         {
             var action = controller.GetMethod(name)!;
             Assert.NotNull(action.GetCustomAttributes(typeof(ValidateAntiForgeryTokenAttribute), inherit: true).SingleOrDefault());
@@ -115,7 +116,9 @@ public sealed class ImpersonationControllerValidationTests
         await session.InitialiseAsync("test-binding", CancellationToken.None);
         var audit = Substitute.For<IImpersonationAuditWriter>();
         http.Items[AuthenticatedSessionBinding.ItemKey] = "test-binding";
-        var controller = new ImpersonationController(session, audit, original, directory)
+        var controller = new ImpersonationController(session, audit, original, directory,
+            Substitute.For<IWindowRepository>(), Substitute.For<IIngressSummaryStore>(),
+            Substitute.For<ILogger<ImpersonationController>>())
         {
             ControllerContext = new ControllerContext { HttpContext = http }
         };

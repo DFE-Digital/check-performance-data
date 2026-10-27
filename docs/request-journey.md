@@ -88,7 +88,7 @@ The journey checks `IsSessionReady` before every action. This requires only `Sel
 
 ### Config
 
-The question flow is defined by a JSON file in `Web/Data/QuestionFlows/{WhatToChange}_{CheckingWindowType}.json` (e.g. `Remove_KS4June.json`, `Merge_KS4June.json`). The file ships inside the release image and is read from there at runtime via `IQuestionFlowConfigSource` — there is no upload step and no blob container (see `docs/question-flow-deployment.md`).
+The question flow is defined by a JSON file in `Web/Data/QuestionFlows/{WhatToChange}_{CheckingWindowType}.json` (e.g. `Remove_KS4June.json`, `Merge_KS4June.json`). The file ships inside the release image and is read from there at runtime via `IQuestionFlowConfigSource` — there is no upload step and no blob container (see `docs/question-flow-deployment.md`). The full file format is in [question-flows.md](question-flows.md).
 
 > For a page-by-page breakdown and branching diagram of the `Remove_KS4June.json` flow, see [Remove (KS4 June) — Question Flow](./Remove_KS4June-flow.md).
 

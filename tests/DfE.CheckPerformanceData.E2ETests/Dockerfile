@@ -1,4 +1,5 @@
-# Each base image is pinned by digest, which Dependabot keeps current (docs/dependabot.md#pins).
+# The base image is pinned by digest (docs/dependabot.md#pins). Dependabot does not update it:
+# its tag follows the Microsoft.Playwright package (docs/dependabot.md#playwright).
 
 # Test-runner image: Linux Chromium and the .NET 10 SDK both come from
 # playwright/dotnet, which is built on mcr.microsoft.com/dotnet/sdk:10.0

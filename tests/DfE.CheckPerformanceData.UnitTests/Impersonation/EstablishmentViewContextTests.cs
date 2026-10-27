@@ -107,10 +107,10 @@ public sealed class EstablishmentViewContextTests
 
     [Theory]
     [InlineData(false, false, false)]
-    [InlineData(true, false, false)]
+    [InlineData(true, false, true)]
     [InlineData(false, true, false)]
     [InlineData(true, true, true)]
-    public void Both_original_roles_are_required(bool admin, bool impersonation, bool allowed)
+    public void Administrator_role_is_required(bool admin, bool impersonation, bool allowed)
     {
         var claims = new List<Claim>();
         if (admin) claims.Add(new(ClaimTypes.Role, "cypmd_admin"));

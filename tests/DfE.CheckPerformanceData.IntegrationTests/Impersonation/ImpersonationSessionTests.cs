@@ -44,6 +44,34 @@ public sealed class ImpersonationSessionTests
         Assert.Equal(HttpStatusCode.Conflict, (await browser.PostAsync("/write", viewing)).StatusCode);
     }
     [Fact]
+    public async Task Missing_stamp_is_a_conflict_and_an_unavailable_window_is_not_found()
+    {
+        await using var app = await BuildAsync();
+        var browser = new Browser(app.GetTestClient());
+        await browser.SendAsync(HttpMethod.Get, "/login");
+        var before = await browser.ReadAsync();
+        await browser.PostAsync("/start", before);
+        var viewing = await browser.ReadAsync();
+        Assert.Equal(HttpStatusCode.Forbidden, (await browser.PostAsync("/write", viewing with { Stamp = null })).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await browser.SendAsync(HttpMethod.Get, "/window/" + Guid.NewGuid())).StatusCode);
+        await browser.PostAsync("/exit", viewing);
+        Assert.Equal(HttpStatusCode.Conflict, (await browser.PostAsync("/write", viewing with { Stamp = null })).StatusCode);
+    }
+    [Fact]
+    public async Task Losing_admin_role_during_impersonation_exits_the_session()
+    {
+        await using var app = await BuildAsync();
+        var browser = new Browser(app.GetTestClient());
+        await browser.SendAsync(HttpMethod.Get, "/login");
+        await browser.PostAsync("/start", await browser.ReadAsync());
+        Assert.True((await browser.ReadAsync()).Active);
+        Assert.Equal(HttpStatusCode.OK, (await browser.SendAsync(HttpMethod.Get, "/lose-role")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await browser.SendAsync(HttpMethod.Get, "/read")).StatusCode);
+        var afterRoleLoss = await browser.SendAsync(HttpMethod.Get, "/read");
+        Assert.Equal(HttpStatusCode.OK, afterRoleLoss.StatusCode);
+        Assert.False((await afterRoleLoss.Content.ReadFromJsonAsync<ReadState>())!.Active);
+    }
+    [Fact]
     public async Task Starting_impersonation_waits_for_an_authorised_original_establishment_write()
     {
         await using var app = await BuildAsync();
@@ -141,15 +169,15 @@ public sealed class ImpersonationSessionTests
     }
 
     [Theory]
-    [InlineData("admin")]
-    [InlineData("impersonation")]
-    [InlineData("neither")]
-    public async Task Either_role_alone_cannot_start(string roles)
+    [InlineData("admin", HttpStatusCode.OK)]
+    [InlineData("impersonation", HttpStatusCode.Forbidden)]
+    [InlineData("neither", HttpStatusCode.Forbidden)]
+    public async Task Only_administrators_can_start(string roles, HttpStatusCode expected)
     {
         await using var app = await BuildAsync();
         var browser = new Browser(app.GetTestClient());
         await browser.SendAsync(HttpMethod.Get, "/login?roles=" + roles);
-        Assert.Equal(HttpStatusCode.Forbidden, (await browser.PostAsync("/start", await browser.ReadAsync())).StatusCode);
+        Assert.Equal(expected, (await browser.PostAsync("/start", await browser.ReadAsync())).StatusCode);
     }
 
     private static async Task<WebApplication> BuildAsync()
@@ -166,6 +194,9 @@ public sealed class ImpersonationSessionTests
         builder.Services.AddAuthentication("Cookies").AddCookie("Cookies", options => { });
         builder.Services.AddOptions<CookieAuthenticationOptions>("Cookies").Configure<DistributedCacheTicketStore>((options, tickets) => options.SessionStore = tickets);
         builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+        var landingPage = Substitute.For<DfE.CheckPerformanceData.Application.LandingPage.ILandingPageService>();
+        landingPage.GetLandingPageDataAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult<DfE.CheckPerformanceData.Application.LandingPage.LandingPageResult?>(null));
+        builder.Services.AddSingleton(landingPage);
         builder.Services.AddScoped<ImpersonationSessionService>();
         builder.Services.AddScoped<IImpersonationSessionStore, DistributedImpersonationSessionStore>();
         builder.Services.AddSingleton<IImpersonationSessionLock, SerialTestGate>();
@@ -192,7 +223,6 @@ public sealed class ImpersonationSessionTests
             var roleSet = context.Request.Query["roles"].ToString();
             var claims = new List<Claim> { new(ClaimTypes.NameIdentifier, "original-admin"), new("organisation_urn", "100001"), new("organisation_laestab", "1234567") };
             if (roleSet is "" or "admin") claims.Add(new(ClaimTypes.Role, "cypmd_admin"));
-            if (roleSet is "" or "impersonation") claims.Add(new(ClaimTypes.Role, "cypmd_impersonation"));
             if (roleSet is "") claims.Add(new(ClaimTypes.Role, "cypmd_editor"));
             await context.SignInAsync("Cookies", new(new ClaimsIdentity(claims, "Cookies")));
             return Results.Ok();
@@ -233,6 +263,13 @@ public sealed class ImpersonationSessionTests
         app.MapGet("/expire-session", (HttpContext context) => { context.Session.Clear(); return Results.Ok(); })
             .WithMetadata(Action("Home", "Index"));
         app.MapGet("/css/test.css", () => Results.Text("body {}"));
+        app.MapGet("/window/{windowId:guid}", () => Results.Ok()).WithMetadata(Action("LandingPage", "Index"));
+        app.MapGet("/lose-role", async (HttpContext context) =>
+        {
+            var claims = context.User.Claims.Where(claim => claim.Type != ClaimTypes.Role || claim.Value != "cypmd_admin");
+            await context.SignInAsync("Cookies", new(new ClaimsIdentity(claims, "Cookies")));
+            return Results.Ok();
+        }).WithMetadata(Action("Home", "Index"));
         app.MapGet("/signout", async (HttpContext context) => { await context.SignOutAsync("Cookies"); return Results.Ok(); })
             .WithMetadata(Action("DfeSignOut", "Index"));
         await app.StartAsync();

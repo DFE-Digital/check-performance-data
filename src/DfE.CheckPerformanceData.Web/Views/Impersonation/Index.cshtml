@@ -1,7 +1,7 @@
 @model DfE.CheckPerformanceData.Web.Controllers.ImpersonationViewModel
 @{ Layout = "_AdminLayout"; ViewData["Title"] = "View as an establishment"; }
 <h1 class="govuk-heading-l">View as an establishment</h1>
-<p class="govuk-body">View establishment data in read-only mode. You cannot save or submit changes. The identifiers are used as entered and are not verified.</p>
+<p class="govuk-body">View establishment data in read-only mode. You cannot save or submit changes. Search for an establishment to fill in its details, or enter the identifiers and age range directly.</p>
 <govuk-error-summary />
 <div class="govuk-form-group" id="establishment-picker" data-search-url="@Url.Action("Search", "Impersonation")">
     <label class="govuk-label" for="establishment-search">Search for an establishment</label>

@@ -67,8 +67,7 @@ public sealed class ImpersonationPickerControllerTests
                         User = new ClaimsPrincipal(new ClaimsIdentity(
                         [
                             new Claim(ClaimTypes.NameIdentifier, "original-admin"),
-                            new Claim(ClaimTypes.Role, ImpersonationAccessPolicy.AdminRole),
-                            new Claim(ClaimTypes.Role, ImpersonationAccessPolicy.ImpersonationRole)
+                            new Claim(ClaimTypes.Role, ImpersonationAccessPolicy.AdminRole)
                         ], "Test"))
                     }
                 }

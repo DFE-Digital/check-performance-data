@@ -169,6 +169,17 @@
           "Google.Cloud.BigQuery.V2": "[3.0.0, 4.0.0)"
         }
       },
+      "DfeAnalytics.EFCore": {
+        "type": "Transitive",
+        "resolved": "0.6.4",
+        "contentHash": "t4Rw5dqWcNNsKm6hTxoTdomrfDskb2SEt70Wo7dhnKixJqkmlmcjSpoueKZcES5fogTpg87cNKLLXLkh51Cqsg==",
+        "dependencies": {
+          "DfeAnalytics.Core": "0.6.4",
+          "Microsoft.EntityFrameworkCore": "10.0.0",
+          "Npgsql.EntityFrameworkCore.PostgreSQL": "10.0.0",
+          "System.CommandLine": "2.0.0"
+        }
+      },
       "Google.Api.Gax": {
         "type": "Transitive",
         "resolved": "4.0.0",
@@ -721,6 +732,11 @@
         "resolved": "7.0.0",
         "contentHash": "GLltyqEsE5/3IE+zYRP5sNa1l44qKl9v+bfdMcwg+M9qnQf47wK3H0SUR/T+3N4JEQXF3vV4CSuuo0rsg+nq2A=="
       },
+      "System.CommandLine": {
+        "type": "Transitive",
+        "resolved": "2.0.0",
+        "contentHash": "Bjklzc5NoxqAGFi7BcGlY2TWAdB06Bq3a5sfRr3ubMRU80Mf98eyq3Y2UgR6xRV0TLznZmfe5T7mUjOunRNcdA=="
+      },
       "System.IdentityModel.Tokens.Jwt": {
         "type": "Transitive",
         "resolved": "8.23.0",
@@ -839,6 +855,7 @@
         "dependencies": {
           "DfE.CheckPerformanceData.Application": "[1.0.0, )",
           "DfE.CheckPerformanceData.Domain": "[1.0.0, )",
+          "DfeAnalytics.EFCore": "[0.6.4, )",
           "Microsoft.EntityFrameworkCore": "[10.0.14, )",
           "Microsoft.EntityFrameworkCore.Relational": "[10.0.14, )",
           "Newtonsoft.Json": "[13.0.4, )",

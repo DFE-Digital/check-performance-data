@@ -64,6 +64,9 @@ To finish a `playwright` pull request, change the `FROM mcr.microsoft.com/playwr
 line to the new version and its digest (see [Pins](#pins)), and push to the Dependabot branch.
 The image tag is also listed in [E2E-Playwright.md](E2E-Playwright.md).
 
+The same image also brings the .NET SDK that the E2E runner builds the tests with, so a new tag
+can move that SDK too. The Dockerfile fails the build if the image does not have a .NET 10 SDK.
+
 ## Pins
 
 A tag or a branch can be moved to point at other code. A commit SHA or an image digest cannot (#617).

@@ -22,7 +22,7 @@ All E2E-facing versions in one place. Source of truth for NuGet pins is the test
 |------|---------|-------|
 | Docker + Compose v2 | any recent | Compose profile `e2e` builds and runs the test image. |
 | Image: `mcr.microsoft.com/playwright/dotnet` | `v1.63.0-noble` | Pinned, with its digest, in `tests/DfE.CheckPerformanceData.E2ETests/Dockerfile` ([dependabot.md](dependabot.md#pins)). **Must move in lockstep with the `Microsoft.Playwright` NuGet version.** Drift detection: `bash scripts/check-playwright-pin.sh`, which the **Build** workflow runs on every push and pull request. Dependabot raises the NuGet package only, so its pull request fails until this tag is changed to match ([dependabot.md](dependabot.md#playwright)). |
-| .NET SDK (inside image) | 10.0.x | Side-installed via `dotnet-install.sh` because the upstream Playwright image ships .NET 8 only as of v1.62.0. |
+| .NET SDK (inside image) | 10.0.x | Comes with the Playwright image, which is built on `mcr.microsoft.com/dotnet/sdk:10.0` (v1.63.0 has SDK 10.0.401). The image digest fixes the version. The Dockerfile fails the build if the image does not have a .NET 10 SDK. |
 
 ### NuGet packages
 
@@ -300,9 +300,9 @@ Visual tests call this before every screenshot. Functional tests call it when as
 
 ## The container test runner
 
-`make test-e2e` is the canonical path. It runs the suite inside a thin .NET 10 overlay on top of the official `mcr.microsoft.com/playwright/dotnet:v1.59.0-noble` image, against the compose stack:
+`make test-e2e` is the canonical path. It runs the suite inside a thin overlay on the official `mcr.microsoft.com/playwright/dotnet` image (tag and digest in the Dockerfile), against the compose stack:
 
-- The overlay (`tests/DfE.CheckPerformanceData.E2ETests/Dockerfile`) layers .NET 10 SDK on top of the Playwright base image, which already has Chromium + system deps installed. No `pwsh playwright.ps1 install` step needed at runtime.
+- The base image already has Chromium, its system dependencies and the .NET 10 SDK. The overlay (`tests/DfE.CheckPerformanceData.E2ETests/Dockerfile`) only sets environment variables and checks the SDK is .NET 10. No `pwsh playwright.ps1 install` step is needed at runtime.
 - A named NuGet cache volume keeps `dotnet restore` warm across runs. Cold first run is ~3-5 min (image pull + cache warm); subsequent runs are seconds-to-output.
 - Compose profile `e2e` makes the runner opt-in — `docker compose up` won't start it, only `docker compose --profile e2e run --rm e2e-tests` does (which is what the Make target does).
 

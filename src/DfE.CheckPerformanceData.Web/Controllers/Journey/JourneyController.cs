@@ -663,7 +663,7 @@ public sealed class JourneyController(
     /// complete. Returns the earliest gap so the user is sent to the first thing they still owe.
     /// Always null for an amendment journey.
     /// </summary>
-    private static string? FirstIncompleteEnquiryPage(RequestState journey, QuestionFlowConfig config) =>
+    private string? FirstIncompleteEnquiryPage(RequestState journey, QuestionFlowConfig config) =>
         journey.SelectedWhatToChange switch
         {
             Application.CheckYourPupilData.WhatToChange.IncorrectGrade => IncorrectGradeGap(journey, config),
@@ -672,7 +672,7 @@ public sealed class JourneyController(
             _ => null
         };
 
-    private static string? IncorrectGradeGap(RequestState journey, QuestionFlowConfig config)
+    private string? IncorrectGradeGap(RequestState journey, QuestionFlowConfig config)
     {
         var resultPage = config.Pages.FirstOrDefault(p => p.Type == PageType.ResultSearch);
         if (journey.SelectedResult is null)
@@ -686,7 +686,7 @@ public sealed class JourneyController(
         return hasGrade ? null : gradePage?.Id;
     }
 
-    private static string? ResultDoesNotBelongGap(RequestState journey, QuestionFlowConfig config) =>
+    private string? ResultDoesNotBelongGap(RequestState journey, QuestionFlowConfig config) =>
         // The selected result is the only hard prerequisite — additional info is optional. Same
         // page-by-type lookup as IncorrectGradeGap so a flow-config id rename cannot orphan this.
         journey.SelectedResult is null
@@ -696,17 +696,29 @@ public sealed class JourneyController(
     /// <summary>
     /// Changing the qualification clears the syllabus and grade answers but the details page stays
     /// in history — so the summary must also check those two answers, not just the qualification.
+    /// Issue #653: the syllabus answer is owed only when its question is visible for the selected
+    /// qualification — #577 hides it when there are no syllabus codes, so requiring the answer
+    /// unconditionally looped the summary back to the details page forever. The check reuses the
+    /// flow's own visibleWhen rule through the same visibility service the page renders under,
+    /// rather than restating the business rule; a flow without the question asks for nothing.
     /// </summary>
-    private static string? MissingQualificationGap(RequestState journey, QuestionFlowConfig config)
+    private string? MissingQualificationGap(RequestState journey, QuestionFlowConfig config)
     {
         if (journey.SelectedQualification is null)
             return config.Pages.FirstOrDefault(p => p.Type == PageType.QualificationSearch)?.Id;
 
         bool Has(string id) => journey.QuestionAnswers.TryGetValue(id, out var a)
             && !string.IsNullOrWhiteSpace(a.TextValue);
-        return Has(SyllabusQuestionId) && Has(MissingGradeQuestionId)
+
+        var detailsPage = config.Pages.FirstOrDefault(p => p.Questions.Any(q => q.Id == MissingGradeQuestionId));
+        var syllabusQuestion = detailsPage?.Questions.FirstOrDefault(q => q.Id == SyllabusQuestionId);
+        var syllabusOwed = syllabusQuestion is not null
+            && optionVisibilityService.IsQuestionVisible(
+                syllabusQuestion, JourneyConditionContextFactory.Create(journey, currentUserService));
+
+        return Has(MissingGradeQuestionId) && (!syllabusOwed || Has(SyllabusQuestionId))
             ? null
-            : config.Pages.FirstOrDefault(p => p.Questions.Any(q => q.Id == MissingGradeQuestionId))?.Id;
+            : detailsPage?.Id;
     }
 
     /// <summary>

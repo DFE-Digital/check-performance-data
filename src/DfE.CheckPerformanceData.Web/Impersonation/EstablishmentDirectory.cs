@@ -77,6 +77,10 @@ public sealed class EstablishmentDirectory
             .ToArray();
     }
 
+    public EstablishmentDetails? Find(string laestab, string urn) => establishments.FirstOrDefault(item =>
+        item.Laestab.Equals(laestab, StringComparison.Ordinal)
+        && item.Urn.Equals(urn, StringComparison.Ordinal));
+
     private static string Value(string[] fields, int index) => index < fields.Length ? fields[index].Trim() : string.Empty;
 
     private static int? Age(string[] fields, int index) =>

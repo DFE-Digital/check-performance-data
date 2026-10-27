@@ -12,7 +12,8 @@ public interface IEstablishmentViewContext
 
 public sealed record EstablishmentSelection(string Laestab, string Urn, int LowestAge, int HighestAge);
 
-public sealed record ImpersonationSessionState(string Generation, EstablishmentSelection? Selection);
+public sealed record ImpersonationSessionState(string Generation, EstablishmentSelection? Selection,
+    EstablishmentSelection? PendingSelection = null);
 
 public interface IImpersonationSessionStore
 {

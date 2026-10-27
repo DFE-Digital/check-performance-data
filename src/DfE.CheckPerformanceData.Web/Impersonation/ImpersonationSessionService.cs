@@ -17,6 +17,7 @@ public sealed class ImpersonationSessionService(
     public ImpersonationSessionState? State { get; private set; }
     public string? Binding { get; private set; }
     public bool IsImpersonating => State?.Selection is not null;
+    public EstablishmentSelection? PendingSelection => State?.PendingSelection;
     public string OrganisationLaestab => State?.Selection?.Laestab ?? original.OrganisationLaestab;
     public string OrganisationUrn => State?.Selection?.Urn ?? original.OrganisationUrn;
     public int? LowestAge => State?.Selection?.LowestAge;
@@ -41,12 +42,19 @@ public sealed class ImpersonationSessionService(
     public async Task SetSelectionAsync(EstablishmentSelection? selection, CancellationToken ct)
     {
         if (Binding is null) throw new ImpersonationWriteDeniedException();
-        State = new(Guid.NewGuid().ToString("N"), selection);
+        State = new(Guid.NewGuid().ToString("N"), selection, null);
         await store.SetAsync(Binding, State, ct);
         var session = accessor.HttpContext!.Session;
         foreach (var key in session.Keys.Where(k => k.StartsWith("request_", StringComparison.Ordinal)
             || k.StartsWith("bulk_", StringComparison.Ordinal) || k.StartsWith("single_", StringComparison.Ordinal)
             || k.StartsWith("SelectedWindow", StringComparison.Ordinal)).ToArray()) session.Remove(key);
+    }
+
+    public async Task SetPendingSelectionAsync(EstablishmentSelection selection, CancellationToken ct)
+    {
+        if (Binding is null || IsImpersonating) throw new ImpersonationWriteDeniedException();
+        State = new(Guid.NewGuid().ToString("N"), null, selection);
+        await store.SetAsync(Binding, State, ct);
     }
 
     public string? CreateStamp() => Binding is null || State is null ? null

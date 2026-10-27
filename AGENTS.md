@@ -43,6 +43,65 @@ Two facts shape every rule below:
 - **Do not weaken an authorisation gate to make something work.** See
   [Admin pages](#admin-pages).
 
+## Security
+
+This service follows the government's
+[Secure by Design](https://www.security.gov.uk/policy-and-guidance/secure-by-design/) principles
+and the [OWASP Top 10 (2025)](https://owasp.org/Top10/). Each rule below applies one of them. Keep the controls that exist, and use them in new code.
+
+### Access control (OWASP A01)
+
+- **Scope every read to the signed-in school.** Get the school from `ICurrentUserService`
+  (`OrganisationLaestab`, `OrganisationUrn`), never from a route, query or form value. A reference number or
+  id from a request is a lookup key, not a permission.
+- **Log a refusal with `AccessRefusalLog`.** This applies to a refused admin section and to a
+  school that asks for another school's request. Log ids, not personal data.
+- Every `admin/` controller has `[RequireAdminSection(...)]` (see [Admin pages](#admin-pages)).
+- Every POST action that a form calls has `[ValidateAntiForgeryToken]`. There is no global
+  filter, so a new action without the attribute has no CSRF protection.
+
+### Injection and output (OWASP A05)
+
+- Use EF Core LINQ or parameters for SQL. Do not build SQL from strings.
+- Render markdown and content-managed HTML only through `HtmlRenderingService`, which sanitises
+  it. Do not use `Html.Raw` on text that a user or an admin typed.
+- **A CSV that contains text someone typed must neutralise formula prefixes** (`=`, `+`, `-`,
+  `@`, tab, CR), as `AuditLogCsv.Field` does.
+
+### Security headers and the browser (OWASP A02)
+
+- `SecurityHeadersMiddleware` sets the headers, including a Content-Security-Policy with a
+  per-request nonce and no `'unsafe-inline'` or `'unsafe-eval'`. Do not loosen the policy.
+- Put scripts in files or give them the nonce (`CspNonceTagHelper` does this). Do not add inline
+  event handlers such as `onclick`.
+- Mark a response that contains personal data `no-store` with `[RequiresNoStore]` or
+  `Response.NoStore()` (OWASP A04).
+
+### Supply chain (OWASP A03, Secure by Design: source secure technology)
+
+- Add a package only when the framework cannot do the job. Choose a maintained package, and
+  add its version in `src/Directory.Packages.props`.
+- Commit the lock files. Do not turn off a Dependabot, Snyk, SBOM or ZAP check to make a build
+  pass. See `docs/dependabot.md`, `docs/sbom.md`, `docs/zap-baseline.md`.
+
+### Logging and monitoring (OWASP A09, Secure by Design: build in detect and respond)
+
+- Record admin actions that change data in the audit log (`docs/audit-log.md`).
+- Log security events with enough to investigate (who, what, where), but no personal data and
+  no secrets or tokens.
+
+### Secure by Design in each change
+
+- **Minimise the attack surface.** Do not add an endpoint, a parameter or a dependency that the
+  change does not need. A `/dev/*` page checks `Dev:ToolsEnabled` and the production guard,
+  like the other `Dev*Controller` classes.
+- **Defend in depth.** Keep a check in the service even when the controller checks too.
+- **Fail closed.** When the code cannot decide, refuse (see [Fail closed](#fail-closed)).
+- **Design usable security.** A refusal tells the user what to do next, and does not show a
+  stack trace or internal detail.
+- **Make changes securely.** If a change touches authentication, authorisation, personal data,
+  file upload or a security control, say so in the pull request description.
+
 ## Commands
 
 ```sh

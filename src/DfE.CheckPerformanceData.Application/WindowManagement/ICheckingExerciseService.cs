@@ -16,10 +16,7 @@ namespace DfE.CheckPerformanceData.Application.WindowManagement;
 /// </remarks>
 public interface ICheckingExerciseService
 {
-    /// <summary>
-    /// True when the exercise exists on the window, brackets now, and is one a school may act on.
-    /// A display-only row is never open however its dates read (#466): it is there to be looked at.
-    /// </summary>
+    /// <summary>True when the exercise exists on the window and brackets now.</summary>
     bool IsOpen(IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise);
 
     /// <summary>
@@ -30,10 +27,7 @@ public interface ICheckingExerciseService
     /// </summary>
     bool HasClosed(IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise);
 
-    /// <summary>
-    /// Every exercise a school may act on right now, in SortOrder. Empty is a valid answer.
-    /// Display-only rows are left out for the same reason as in <see cref="IsOpen"/>.
-    /// </summary>
+    /// <summary>Every exercise open right now, in SortOrder. Empty is a valid answer.</summary>
     IReadOnlyList<CheckingExerciseType> OpenCheckingExercises(
         IReadOnlyList<CheckingExerciseDto> exercises);
 
@@ -72,7 +66,7 @@ public sealed class CheckingExerciseService(TimeProvider timeProvider) : IChecki
     public bool IsOpen(IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise)
     {
         var now = Now();
-        return exercises.Any(e => e.ExerciseType == exercise && Actionable(e, now));
+        return exercises.Any(e => e.ExerciseType == exercise && Brackets(e, now));
     }
 
     public bool HasClosed(IReadOnlyList<CheckingExerciseDto> exercises, CheckingExerciseType exercise)
@@ -86,14 +80,10 @@ public sealed class CheckingExerciseService(TimeProvider timeProvider) : IChecki
         IReadOnlyList<CheckingExerciseDto> exercises)
     {
         var now = Now();
-        // Two separate reasons a row contributes nothing here. A typeless row has no member to
-        // contribute at all, since this list is typed by CheckingExerciseType. A row that does
-        // have a kind but is display-only is dropped by Actionable: it is shown, never acted on.
         return exercises
-            .Where(e => Actionable(e, now))
+            .Where(e => Brackets(e, now))
             .OrderBy(e => e.SortOrder)
             .Select(e => e.ExerciseType)
-            .OfType<CheckingExerciseType>()
             .ToList();
     }
 
@@ -110,15 +100,7 @@ public sealed class CheckingExerciseService(TimeProvider timeProvider) : IChecki
 
     private DateTime Now() => timeProvider.GetLocalNow().DateTime;
 
-    // "Open" is two questions, not one: is it running, and is it a thing a school may act on.
-    // Keeping them apart is what lets an admin mark an exercise read-only — a pupil-data exercise
-    // reissued with refreshed data after its checking window shut — without having to falsify its
-    // dates to make the actions go away (#466).
-    private static bool Actionable(CheckingExerciseDto exercise, DateTime now) =>
-        !exercise.DisplayOnly && Brackets(exercise, now);
-
-    // Inclusive at both ends, matching how the outer window's own dates are compared. Dates only:
-    // HasClosed reports a lapsed end date, which is a fact about the dates whatever the row is.
+    // Inclusive at both ends, matching how the outer window's own dates are compared.
     private static bool Brackets(CheckingExerciseDto exercise, DateTime now) =>
         exercise.StartDate <= now && exercise.EndDate >= now;
 }

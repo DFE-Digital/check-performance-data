@@ -7,7 +7,6 @@ using DfE.CheckPerformanceData.Application.LandingPage;
 // LandingPage one ambiguous here.
 using CheckingExerciseDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseDto;
 using CheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseService;
-using ICheckingDataReader = DfE.CheckPerformanceData.Application.WindowManagement.ICheckingDataReader;
 using LearnerNoun = DfE.CheckPerformanceData.Application.WindowManagement.LearnerNoun;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData;
@@ -58,18 +57,10 @@ public sealed class CheckYourPupilDataResultsEnquiryOptionTests
         // which options the date rules produce, so substituting them would test nothing.
         var clock = new FixedTimeProvider(Now);
         var checkingExercises = new CheckingExerciseService(clock);
-        var tabBuilder = Substitute.For<IExerciseTabBuilder>();
-        // No window here has a tab-drawing exercise: the point of these tests is the next-step
-        // options, which the fallback inclusion tabs leave untouched.
-        tabBuilder.BuildAsync(Arg.Any<Application.WindowManagement.CheckingWindowDto>(),
-                Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<int>(), Arg.Any<int>(),
-                Arg.Any<CancellationToken>())
-            .Returns(new List<ExerciseTab>());
 
         _sut = new CheckYourPupilDataController(
             _service, _currentUser, _analytics,
-            new NextStepsService(checkingExercises), checkingExercises,
-            tabBuilder, new ExerciseDisplayService(), Substitute.For<ICheckingDataReader>())
+            new NextStepsService(checkingExercises), checkingExercises)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext }
         };

@@ -90,16 +90,13 @@ public sealed class ExercisesController(IWindowService windowService) : Controll
             return NotFound();
         }
 
-        // This page ticks and unticks kinds (#319); a display-only exercise (#466) has no kind to
-        // tick and is left off both lists — it is added/removed/edited through its own routes.
         return View(PageView, new ExercisesItem
         {
             WindowId = id,
             All = AllExercises,
-            Selected = window.Exercises.Where(e => e.ExerciseType is not null)
-                .OrderBy(e => e.SortOrder).Select(e => e.ExerciseType.Value).ToList(),
-            WithFiles = window.Exercises.Where(e => e.ExerciseType is not null && e.Datasets.Any(d => d.IsComplete))
-                .Select(e => e.ExerciseType.Value).ToList(),
+            Selected = window.Exercises.OrderBy(e => e.SortOrder).Select(e => e.ExerciseType).ToList(),
+            WithFiles = window.Exercises.Where(e => e.Datasets.Any(d => d.IsComplete))
+                .Select(e => e.ExerciseType).ToList(),
             PostUrl = Url.Action("Update", "Exercises", new { id }),
             CancelUrl = Url.Action("Index", "Summary", new { id })
         });
@@ -158,8 +155,8 @@ public sealed class ExercisesController(IWindowService windowService) : Controll
         Selected = model.Selected,
         WithFiles = window is null
             ? []
-            : window.Exercises.Where(e => e.ExerciseType is not null && e.Datasets.Any(d => d.IsComplete))
-                .Select(e => e.ExerciseType.Value).ToList(),
+            : window.Exercises.Where(e => e.Datasets.Any(d => d.IsComplete))
+                .Select(e => e.ExerciseType).ToList(),
         PostUrl = postUrl,
         CancelUrl = cancelUrl
     };

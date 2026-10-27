@@ -32,23 +32,16 @@ public sealed class SummaryController(
             EndDate = w.EndDate,
             KeyStage = w.KeyStage,
             CheckingWindowType = w.CheckingWindowType,
-            // #319/#466: one section per checking exercise, each with its own dates, files and
+            // #319: one section per checking exercise, each with its own dates, files and
             // validation state. There is no window-level validate button any more — an exercise
             // validates on its own, and a window is usable while another is still unvalidated.
-            // A display-only exercise (null ExerciseType, #466) is no longer filtered out: every
-            // link on its section is addressed by exercise id, which it always has, rather than by
-            // kind, which it never has — so it is no longer a dead-link risk to show it.
             Exercises = w.Exercises
                 .OrderBy(e => e.SortOrder)
                 .Select(e => new ExerciseSummarySection
                 {
                     WindowId = w.Id,
-                    Id = e.Id,
                     ExerciseType = e.ExerciseType,
-                    Name = e.Name ?? ExerciseLabels.For(e.ExerciseType),
-                    KindLabel = ExerciseLabels.For(e.ExerciseType),
-                    TabName = e.TabName,
-                    IsEnabled = e.IsEnabled,
+                    Label = ExerciseLabels.For(e.ExerciseType),
                     StartDate = e.StartDate,
                     EndDate = e.EndDate,
                     // AB#301022: asked of the one clock, never worked out here. These two decide
@@ -63,7 +56,7 @@ public sealed class SummaryController(
                         .Select(d => new DatasetSummaryRow
                         {
                             WindowId = w.Id,
-                            ExerciseId = e.Id,
+                            Exercise = e.ExerciseType,
                             Name = d.Name,
                             Label = DatasetLabels.For(d.Name),
                             IngressFile = d.IngressFile,

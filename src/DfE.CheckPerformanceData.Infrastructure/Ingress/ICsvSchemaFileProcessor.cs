@@ -36,10 +36,9 @@ public interface ICsvSchemaFileProcessor
     /// </param>
     IAsyncEnumerable<ValidationProgress> ProcessAsync(
         Guid checkingWindowId,
-        CheckingExerciseType? exercise,
+        CheckingExerciseType exercise,
         IReadOnlyList<IngressDataset> datasets,
         bool validateOnly = false,
         bool clearExistingFiles = false,
-        CancellationToken cancellationToken = default,
-        Guid? checkingExerciseId = null, CheckingDataType? dataType = null);
+        CancellationToken cancellationToken = default);
 }

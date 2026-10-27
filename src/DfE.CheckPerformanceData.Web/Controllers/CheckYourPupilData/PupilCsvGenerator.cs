@@ -1,7 +1,7 @@
 using System.Text;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData.Columns;
 
-namespace DfE.CheckPerformanceData.Application.CheckYourPupilData;
+namespace DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData;
 
 /// <summary>
 /// Renders an already-projected <see cref="PupilTable"/> as CSV. The column set — and therefore

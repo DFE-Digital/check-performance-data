@@ -3,8 +3,6 @@ using System.Text.Json;
 using Azure.Storage.Blobs;
 using DfE.CheckPerformanceData.Application.Dashboard;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
-using DfE.CheckPerformanceData.Application.WindowManagement;
-using DfE.CheckPerformanceData.Domain.Enums;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace DfE.CheckPerformanceData.Infrastructure.BlobStorage;
@@ -15,9 +13,7 @@ namespace DfE.CheckPerformanceData.Infrastructure.BlobStorage;
 /// between this and its callers — the same 30-minute sliding window is used so a school's results
 /// and pupils go stale together.
 /// </summary>
-public sealed class StudentResultsBlobClient(
-    BlobServiceClient blobServiceClient, IMemoryCache cache, ICheckingExerciseStorageResolver? resolver = null)
-    : IStudentResultsClient
+public sealed class StudentResultsBlobClient(BlobServiceClient blobServiceClient, IMemoryCache cache) : IStudentResultsClient
 {
     private static readonly TimeSpan CacheSlidingExpiry = TimeSpan.FromMinutes(30);
 
@@ -58,40 +54,35 @@ public sealed class StudentResultsBlobClient(
         var container = blobServiceClient.GetBlobContainerClient(windowId.ToString());
         await container.CreateIfNotExistsAsync(cancellationToken: ct);
 
-        var path = await OutputPathAsync(windowId, laestab, ct)
-            ?? throw new InvalidOperationException("No checking exercise owns this upload.");
-        var blob = container.GetBlobClient(path);
+        var blob = container.GetBlobClient(ResultsEnquiryBlobPaths.ResultsBlobName(laestab));
         var json = JsonSerializer.Serialize(results, JsonOptions);
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
         await blob.UploadAsync(stream, overwrite: true, cancellationToken: ct);
 
         // A seeding write must not leave the reader serving the pre-seed value for 30 minutes.
-        cache.Remove(CacheKey(windowId, laestab, path));
+        cache.Remove(CacheKey(windowId, laestab));
     }
 
     private async Task<IReadOnlyList<StudentResultRecord>> GetSchoolResultsAsync(
         Guid windowId, string laestab, CancellationToken ct)
     {
-        var path = await OutputPathAsync(windowId, laestab, ct);
-        if (path is null) return [];
-
-        var key = CacheKey(windowId, laestab, path);
+        var key = CacheKey(windowId, laestab);
         if (cache.TryGetValue(key, out IReadOnlyList<StudentResultRecord>? cached) && cached is not null)
             return cached;
 
-        var results = await DownloadAsync(windowId, path, ct);
+        var results = await DownloadAsync(windowId, laestab, ct);
         cache.Set(key, results, new MemoryCacheEntryOptions { SlidingExpiration = CacheSlidingExpiry });
         return results;
     }
 
     private async Task<IReadOnlyList<StudentResultRecord>> DownloadAsync(
-        Guid windowId, string path, CancellationToken ct)
+        Guid windowId, string laestab, CancellationToken ct)
     {
         var container = blobServiceClient.GetBlobContainerClient(windowId.ToString());
         if (!await container.ExistsAsync(ct))
             return [];
 
-        var blob = container.GetBlobClient(path);
+        var blob = container.GetBlobClient(ResultsEnquiryBlobPaths.ResultsBlobName(laestab));
         if (!await blob.ExistsAsync(ct))
             return [];
 
@@ -101,21 +92,7 @@ public sealed class StudentResultsBlobClient(
             response.Value.Content.ToMemory().Span, JsonOptions) ?? [];
     }
 
-    // Resolves first, exactly like PupilDataBlobClient: a null resolver reproduces the legacy path
-    // exactly (every window configured before #466 depends on it), and a resolver that comes back
-    // ambiguous or unconfigured yields null rather than a guessed path.
-    private async Task<string?> OutputPathAsync(Guid windowId, string laestab, CancellationToken ct)
-    {
-        var target = resolver is null ? null : await resolver.ResolveAsync(windowId, CheckingExerciseType.ResultsEnquiry, ct);
-        if (resolver is not null && target is null) return null;
-        return target is { UsesExerciseStorage: true }
-            ? CheckingExerciseBlobPaths.DataBlobName(target.Id, CheckingDataType.Results, LaestabNormaliser.Normalise(laestab))
-            : ResultsEnquiryBlobPaths.ResultsBlobName(laestab);
-    }
-
     // The laestab is normalised so a claim value of "933/4070" and a blob name of "9334070" agree.
-    // The path is folded in so a resolved exercise's cache entry never collides with another
-    // exercise's — or the legacy path's — entry for the same window and school.
-    private static string CacheKey(Guid windowId, string laestab, string path)
-        => $"results:{windowId}:{LaestabNormaliser.Normalise(laestab)}:{path}";
+    private static string CacheKey(Guid windowId, string laestab)
+        => $"results:{windowId}:{LaestabNormaliser.Normalise(laestab)}";
 }

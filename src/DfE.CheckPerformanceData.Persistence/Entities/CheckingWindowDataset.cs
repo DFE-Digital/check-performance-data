@@ -29,21 +29,21 @@ public sealed class CheckingWindowDataset
     public string SchemaFileChecksum { get; set; } = string.Empty;
 
     /// <summary>Null = inclusion comes from the record's own P_INCL (KS4).</summary>
-    public bool? Included { get; set; }
+    public bool? Included { get; init; }
 
     /// <summary>
     /// The SOURCE tag stamped on every record from this file (#324), e.g. "16to19_LR1". Null =
     /// nothing is stamped, which is every pupil-data dataset.
     /// </summary>
-    public string? SourceFile { get; set; }
+    public string? SourceFile { get; init; }
 
     /// <summary>
     /// The exercise cannot be validated until this slot holds both files. False for a slot the
     /// supplier may not deliver at all — every results file after the main one (#324).
     /// </summary>
-    public bool Required { get; set; } = true;
+    public bool Required { get; init; } = true;
 
-    public int SortOrder { get; set; }
+    public int SortOrder { get; init; }
 }
 
 public sealed class CheckingWindowDatasetConfiguration : IEntityTypeConfiguration<CheckingWindowDataset>

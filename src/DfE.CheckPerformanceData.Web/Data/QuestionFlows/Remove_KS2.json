@@ -408,7 +408,7 @@
           "type": "FileUpload",
           "title": "Upload files",
           "hint": "Evidence must be in a PDF format",
-          "optionalWhen": "EalWouldBeAutoRejected"
+          "optionalWhen": "EalEvidenceIsOptional"
         },
         {
           "id": "how-evidence-supports",
@@ -417,7 +417,7 @@
           "summaryTitle": "How evidence demonstrates removal",
           "characterLimit": 500,
           "validationFailure": "Explain how the evidence supports removing {pupilName}",
-          "optionalWhen": "EalWouldBeAutoRejected"
+          "optionalWhen": "EalEvidenceIsOptional"
         }
       ]
     }

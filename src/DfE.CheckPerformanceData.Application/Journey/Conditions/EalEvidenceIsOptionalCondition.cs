@@ -1,7 +1,7 @@
 namespace DfE.CheckPerformanceData.Application.Journey.Conditions;
 
 /// <summary>
-/// True when the shared KS4 June evidence page should be optional for an
+/// True when the shared KS4 June or KS2 evidence page should be optional for an
 /// "Admitted from abroad with English not first language" removal (AB#309468).
 /// Evidence is optional for exactly four first-language answers — other,
 /// believed-other, chose-not-to-say and not-known — regardless of the origin

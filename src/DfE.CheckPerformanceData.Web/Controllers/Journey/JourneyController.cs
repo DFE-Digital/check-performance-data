@@ -153,10 +153,10 @@ public sealed class JourneyController(
             // AB#027: Include journey no-results path. When the user typed a name on the Include
             // primary search but did not select a suggestion, look the typed entry up against BOTH
             // the included and non-included populations and branch three ways:
-            //  - a match among pupils who cannot be included (NotIncludable — included for good; on
-            //    16-19 the included file's 501 students) → warn "already included" (abort);
-            //  - a match among includable pupils only (#711: not included, or the included file's
-            //    P_INCL 502 students on 16-19) → a valid include candidate, so proceed as normal: fall
+            //  - a match among pupils who cannot be included (NotIncludable — included for good)
+            //    → warn "already included" (abort);
+            //  - a match among includable pupils only (#711: not included, or on 16-19 an included-file
+            //    student the schema's rule names) → a valid include candidate, so proceed as normal: fall
             //    through to the ordinary no-selection flow (re-render the search page with the
             //    candidate's suggestions visible) with no warning and no decision page;
             //  - match on neither → offer "Pupil not found" (start Add where the window type has an
@@ -278,8 +278,8 @@ public sealed class JourneyController(
         // name may already be on the included list, and the select-from-dropdown path would
         // otherwise bypass the included-list guard the typed-entry path (lines 160-239) enforces.
         // The search page's autocomplete filters to Includable, so the *selected* record itself is
-        // includable and can never match this NotIncludable lookup (#711: a 16-19 P_INCL 502 student
-        // is INCLUDED by file but includable by rule, so an Included lookup would find them and block
+        // includable and can never match this NotIncludable lookup (#711: a 16-19 student can be
+        // INCLUDED by file but includable by rule, so an Included lookup would find them and block
         // their own request); the guard looks up the typed label, exactly as the typed path does.
         if (journey.SelectedWhatToChange == WhatToChange.Include && page.PupilKey == JourneyPage.PrimaryKey)
         {

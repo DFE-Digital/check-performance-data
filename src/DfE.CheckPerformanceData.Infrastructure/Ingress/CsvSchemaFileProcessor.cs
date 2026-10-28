@@ -319,7 +319,7 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
                     }
 
                     // #711: who may be asked to be included — not included, or a code the schema's
-                    // x-ingress.includable rule names (the 16-19 included file's P_INCL 502). Derived
+                    // x-ingress.includable rule names (only the 16-19 included file has one). Derived
                     // from INCLUDED, so it is stamped only when INCLUDED was, and only when the schema
                     // declares it (AllowAdditionalProperties is false). Readers read the stamp.
                     if (schema.Properties.ContainsKey("INCLUDABLE") &&
@@ -861,6 +861,9 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
             string.IsNullOrWhiteSpace(Field) ? "x-ingress.includable names no field."
             : !schema.Properties.ContainsKey(Field) ? $"x-ingress.includable reads {Field}, which the schema does not declare."
             : !schema.Properties.ContainsKey("INCLUDABLE") ? "x-ingress.includable needs the schema to declare INCLUDABLE, the stamp it writes."
+            // A rule with no codes adds nobody, and a blank code would match every empty field.
+            : Codes.Count == 0 ? "x-ingress.includable names no codes."
+            : Codes.Contains(string.Empty) ? "x-ingress.includable names a blank code."
             : null;
 
         public bool Matches(JObject record) =>

@@ -99,7 +99,8 @@ public sealed class Post16IncludeJourneyTests(PlaywrightFixture fixture) : Seedi
 
         var input = Page.Locator("#pupil-search").First;
         await input.FillAsync(NoSuchName);
-        await Page.WaitForTimeoutAsync(250);
+        // Wait for the component's empty-state row, not a fixed time, before closing the list.
+        await Expect(Page.Locator(".autocomplete__option--no-results")).ToBeVisibleAsync(new() { Timeout = 10_000 });
         await input.PressAsync("Escape");
         await ContinueAsync();
 

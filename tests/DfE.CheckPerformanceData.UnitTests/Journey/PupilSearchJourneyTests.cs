@@ -697,6 +697,35 @@ PupilFilter = PupilFilter.All,
         Assert.Equal("evidence", redirect.RouteValues!["pageId"]);
     }
 
+    // #711: on 16-19 a student can be included by file and still be includable by the schema's
+    // rule. An Included lookup would find the selected student and block their own request, so the
+    // autocomplete guard must ask NotIncludable and never Included.
+    [Fact]
+    public async Task PupilSearchPost_WhenIncludeJourneyAndSelectedPupilIsIncludedButIncludable_NeverAsksIncluded()
+    {
+        var includableStudent = new PupilDto
+        {
+            Id = PrimaryPupilId, Firstname = "Bob", Surname = "Smith",
+            Sex = "M", DateOfBirth = "01/09/2007", Age = 18,
+            Cypmd_Id = "500002", Identifier = "9900500002"
+        };
+        SetupIncludeJourney();
+        _pupilDataService.GetPupilAsync(WindowId, PrimaryPupilId).Returns(includableStudent);
+        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "Bob Smith", PupilFilter.Included)
+            .Returns([new PupilSuggestionDto(PrimaryPupilId, "Bob, Smith, (INCLUDED)", "Bob", "Smith", "01/09/2007")]);
+        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "Bob Smith", PupilFilter.NotIncludable)
+            .Returns([]);
+
+        var result = await _sut.PupilSearchPost(WindowId, "select-pupil", PrimaryPupilId.ToString(), "Bob, Smith, (INCLUDED)");
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("evidence", redirect.RouteValues!["pageId"]);
+        await _pupilDataService.Received()
+            .GetPupilSuggestionsAsync(WindowId, "Bob Smith", PupilFilter.NotIncludable, Arg.Any<Guid?>(), Arg.Any<bool>(), Arg.Any<PupilSearchField>());
+        await _pupilDataService.DidNotReceive()
+            .GetPupilSuggestionsAsync(Arg.Any<Guid>(), Arg.Any<string>(), PupilFilter.Included, Arg.Any<Guid?>(), Arg.Any<bool>(), Arg.Any<PupilSearchField>());
+    }
+
     [Fact]
     public async Task PupilSearchPost_WhenIncludeJourneyAndIncludedLookupFails_ProceedsNormally()
     {

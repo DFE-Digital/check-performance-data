@@ -11,7 +11,8 @@ namespace DfE.CheckPerformanceData.Application.CheckYourPupilData;
 /// Ingress stamps an <c>INCLUDED</c> boolean from the file of origin, and that alone decides
 /// <see cref="IsIncluded"/>: every student in the included file is included, every one in the
 /// non-included file is not, whatever <c>P_INCL</c> says. A second stamp, <c>INCLUDABLE</c>, says who may be asked to be
-/// included: every non-included student, and included students whose <c>P_INCL</c> is 502 (#711).
+/// included: every non-included student, and included students whose <c>P_INCL</c> is a code the
+/// schema's <c>x-ingress.includable</c> rule names (#711).
 ///
 /// Field names differ from KS4: <c>FORENAMES</c> (plural), and identity is <c>ULN</c> — 16-19
 /// has no UPN. <c>URN</c>/<c>UKPRN</c> are strings here (the supplier declares them varchar and
@@ -35,7 +36,7 @@ public sealed class Post16PupilRecord : IPupilRecord
     public bool Included { get; init; }
 
     /// <summary>Stamped by ingress (#711) from the included file's <c>x-ingress.includable</c>
-    /// rule (P_INCL 502) and, for the non-included file, from <c>INCLUDED</c> being false. Decides
+    /// rule and, for the non-included file, from <c>INCLUDED</c> being false. Decides
     /// who the Include journey can pick; it never changes <see cref="IsIncluded"/>.</summary>
     [JsonPropertyName("INCLUDABLE")]
     public bool Includable { get; init; }

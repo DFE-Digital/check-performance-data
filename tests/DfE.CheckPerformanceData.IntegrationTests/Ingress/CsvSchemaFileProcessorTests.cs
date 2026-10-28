@@ -452,6 +452,24 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
         Assert.Null(pupil);
     }
 
+    // A rule that cannot be honoured fails the run before any row is read, like the inclusion rule.
+    [Theory]
+    [InlineData("{ \"codes\": [\"502\"] }", "names no field")]
+    [InlineData("{ \"field\": \"P_INCL\" }", "names no codes")]
+    [InlineData("{ \"field\": \"P_INCL\", \"codes\": [] }", "names no codes")]
+    [InlineData("{ \"field\": \"P_INCL\", \"codes\": [\"502\", \" \"] }", "names a blank code")]
+    public async Task An_includable_rule_that_cannot_be_honoured_fails_the_run_by_name(string rule, string error)
+    {
+        var schema = SchemaWithIncludableRule.Replace(
+            "\"includable\": { \"field\": \"P_INCL\", \"codes\": [\"502\"] }", $"\"includable\": {rule}");
+
+        var (last, pupil) = await RunInclusionRuleAsync("SURNAME,LAESTAB,P_INCL\nSmith,8604070,502\n", schema, slotIncluded: true);
+
+        Assert.True(last.IsError);
+        Assert.Contains(error, last.Message);
+        Assert.Null(pupil);
+    }
+
     // The shipped schemas: KS4 and KS2 stamp INCLUDABLE as "not included"; the 16-19 included file
     // names 502; the 16-19 non-included file has no rule and every row is includable.
     [Theory]

@@ -47,7 +47,9 @@ validation and guarded by the schema declaring the column (`INCLUDED` / `SOURCE`
 `AllowAdditionalProperties` is false. A third stamp, `INCLUDABLE` (#711), says whether a school may
 ask to include the pupil: true when the record is not included, or when its code is one the
 schema's `x-ingress.includable` rule names (the 16-19 included file names `P_INCL` 502). It is
-derived from `INCLUDED`, so it follows the same guard. The Include journey reads it. A run writes
+derived from `INCLUDED`, so it follows the same guard. The Include journey reads it. A rule with
+no field, an undeclared field, no codes or a blank code fails the run by name before any row is
+read. A run writes
 `CheckingExerciseBlobPaths.DataBlobName(exercise, laestab)` — never `PupilsBlobName` directly: the
 two normalise the laestab differently on purpose. Every feed must carry a `LAESTAB` column, or the column its schema's `x-ingress.institutionKey` names
 (`LAESTAB_0` in the previously published file): it is what splits one supplier file into one blob per school; a file without it fails the run by name.

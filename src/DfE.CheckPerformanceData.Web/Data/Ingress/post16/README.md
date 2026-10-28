@@ -7,6 +7,7 @@ These row schemas transcribe the field references, SQL types, CSV column letters
 Each row schema uses the same extensions:
 
 - `x-ingress.collection` is the key in the combined JSON; `pageTab` groups collections on the page; `institutionKey` identifies the source field used to split incoming records by institution.
+- `x-ingress.includable` (#711), on `students-included_schema.json` only, names the `P_INCL` codes of students a school may ask to include although they are in the included file: `502`, "Student not included in performance measures". Ingress stamps `INCLUDABLE` from it; every row of the non-included file is includable without a rule.
 - `x-download.fileName` and `properties.*.x-csv.columns` identify the separate CSV and its column order. The variant keys distinguish provisional/revised from retention columns where the workbook does.
 - `x-display.section` gives the selector label; `properties.*.x-display` gives the page label, visibility, order and, for names, searchability. Only selected pupil identity fields are marked visible by default. Other fields remain available for a details view.
 

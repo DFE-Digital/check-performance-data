@@ -44,7 +44,10 @@ reach the journey as `QAN`, `SYLLABUS`, `SESSION` and `QUAL_NAME`; in the 16-18 
 schools see. Schools see the label, never the tag. A dataset's `SourceFile` is the exact analogue of its `Included`: `Included` stamps inclusion
 by file of origin, `SourceFile` stamps provenance, and both are stamped by the processor before
 validation and guarded by the schema declaring the column (`INCLUDED` / `SOURCE`), because
-`AllowAdditionalProperties` is false. A run writes
+`AllowAdditionalProperties` is false. A third stamp, `INCLUDABLE` (#711), says whether a school may
+ask to include the pupil: true when the record is not included, or when its code is one the
+schema's `x-ingress.includable` rule names (the 16-19 included file names `P_INCL` 502). It is
+derived from `INCLUDED`, so it follows the same guard. The Include journey reads it. A run writes
 `CheckingExerciseBlobPaths.DataBlobName(exercise, laestab)` — never `PupilsBlobName` directly: the
 two normalise the laestab differently on purpose. Every feed must carry a `LAESTAB` column, or the column its schema's `x-ingress.institutionKey` names
 (`LAESTAB_0` in the previously published file): it is what splits one supplier file into one blob per school; a file without it fails the run by name.

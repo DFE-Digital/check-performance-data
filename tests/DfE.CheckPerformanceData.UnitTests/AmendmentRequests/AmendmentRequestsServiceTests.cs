@@ -250,13 +250,16 @@ public class AmendmentRequestsServiceTests
             .Returns([Enquiry("REF-1", "Alice", "Smith")]);
         _blobClient.GetAsync(WindowId, "REF-1").Returns(new RequestState
         {
+            // #712: the saved record carries the kind and the grade answer the tab shows.
+            SelectedWhatToChange = WhatToChange.MissingQualification,
             SelectedPupil = new PupilDto
             {
                 Firstname = "Alice", Surname = "Smith", Id = Guid.NewGuid(), Sex = "F",
                 DateOfBirth = "2008-01-01", Age = 18, Cypmd_Id = "500001", Identifier = "ULN500001"
             },
             SelectedQualification = new QualificationReference
-                { Qan = "6037116X", QualificationTitle = "ABRSM level 3 certificate in practical music (Grade 8)" }
+                { Qan = "6037116X", QualificationTitle = "ABRSM level 3 certificate in practical music (Grade 8)" },
+            QuestionAnswers = { [EnquiryQuestionIds.MissingGrade] = new QuestionAnswer { TextValue = "8" } }
         });
 
         var result = await _sut.GetAmendmentRequestsAsync(WindowId);
@@ -266,6 +269,7 @@ public class AmendmentRequestsServiceTests
         Assert.Equal("500001", row.CypmdId);
         Assert.Equal("Missing qualification", row.TypeLabel);
         Assert.Equal("ABRSM level 3 certificate in practical music (Grade 8)", row.QualificationText);
+        Assert.Equal("8", row.GradeText);
     }
 
     // Incorrect-grade and result-does-not-belong journeys store SelectedResult, not
@@ -296,6 +300,120 @@ public class AmendmentRequestsServiceTests
         Assert.Equal("", row.CypmdId);
     }
 
+    // #712: an incorrect-grade row's Grade achieved is the revised grade the school chose, not the
+    // held grade of the result — asserting against "A*" rather than "5" is the pin.
+    [Fact]
+    public async Task GetAmendmentRequestsAsync_IssueGradeIsTheRevisedGradeForIncorrectGrade()
+    {
+        _windowService.GetCheckingWindowAsync(WindowId).Returns(Window(DateTime.UtcNow));
+        _requestRepo.GetAmendmentRequestsAsync(WindowId, 100001L).Returns([]);
+        _requestRepo.GetSubmittedResultsEnquiriesAsync(WindowId, 100001L)
+            .Returns([Enquiry("REF-5", "Dara", "Hughes", description: "Results enquiry - Incorrect grade")]);
+        _blobClient.GetAsync(WindowId, "REF-5").Returns(new RequestState
+        {
+            SelectedWhatToChange = WhatToChange.IncorrectGrade,
+            SelectedResult = new ResultRecord { QualificationName = "GCSE (9-1) Bus. Studs:Single", Grade = "5" },
+            QuestionAnswers = { [EnquiryQuestionIds.RevisedGrade] = new QuestionAnswer { TextValue = "A*" } }
+        });
+
+        var result = await _sut.GetAmendmentRequestsAsync(WindowId);
+
+        var row = Assert.Single(result.IssueRows);
+        Assert.Equal("Incorrect grade", row.TypeLabel);
+        Assert.Equal("A*", row.GradeText);
+    }
+
+    // #712: a result-does-not-belong row has no grade step, so Grade achieved is the grade the
+    // DfE holds for the reported result — never a school-submitted grade.
+    [Fact]
+    public async Task GetAmendmentRequestsAsync_IssueGradeIsTheHeldGradeForResultDoesNotBelong()
+    {
+        _windowService.GetCheckingWindowAsync(WindowId).Returns(Window(DateTime.UtcNow));
+        _requestRepo.GetAmendmentRequestsAsync(WindowId, 100001L).Returns([]);
+        _requestRepo.GetSubmittedResultsEnquiriesAsync(WindowId, 100001L)
+            .Returns([Enquiry("REF-6", "Ellie", "Nkemdirim",
+                description: "Results enquiry - Result does not belong to student")]);
+        _blobClient.GetAsync(WindowId, "REF-6").Returns(new RequestState
+        {
+            SelectedWhatToChange = WhatToChange.ResultDoesNotBelong,
+            SelectedResult = new ResultRecord { QualificationName = "GCSE (9-1) Bus. Studs:Single", Grade = "4" }
+        });
+
+        var result = await _sut.GetAmendmentRequestsAsync(WindowId);
+
+        var row = Assert.Single(result.IssueRows);
+        Assert.Equal("Result does not belong to student", row.TypeLabel);
+        Assert.Equal("4", row.GradeText);
+    }
+
+    // #712: the record exists but cannot supply the grade — the cell degrades to empty and the
+    // row's other cells keep their values. A stored value is otherwise shown verbatim.
+    [Fact]
+    public async Task GetAmendmentRequestsAsync_MissingGradeAnswerLeavesTheGradeCellEmpty()
+    {
+        _windowService.GetCheckingWindowAsync(WindowId).Returns(Window(DateTime.UtcNow));
+        _requestRepo.GetAmendmentRequestsAsync(WindowId, 100001L).Returns([]);
+        _requestRepo.GetSubmittedResultsEnquiriesAsync(WindowId, 100001L)
+            .Returns([Enquiry("REF-7", "Freya", "Osei", description: "Results enquiry - Incorrect grade")]);
+        _blobClient.GetAsync(WindowId, "REF-7").Returns(new RequestState
+        {
+            SelectedWhatToChange = WhatToChange.IncorrectGrade,
+            SelectedResult = new ResultRecord { QualificationName = "GCSE (9-1) Bus. Studs:Single", Grade = "5" }
+        });
+
+        var result = await _sut.GetAmendmentRequestsAsync(WindowId);
+
+        var row = Assert.Single(result.IssueRows);
+        Assert.Equal("Freya Osei", row.PupilName);
+        Assert.Equal("GCSE (9-1) Bus. Studs:Single", row.QualificationText);
+        Assert.Equal("", row.GradeText);
+    }
+
+    // A whitespace-only stored value is "blank" by the data-model invariant: it displays as an
+    // empty cell, and the stored string is never otherwise transformed.
+    [Fact]
+    public async Task GetAmendmentRequestsAsync_BlankGradeAnswerLeavesTheGradeCellEmpty()
+    {
+        _windowService.GetCheckingWindowAsync(WindowId).Returns(Window(DateTime.UtcNow));
+        _requestRepo.GetAmendmentRequestsAsync(WindowId, 100001L).Returns([]);
+        _requestRepo.GetSubmittedResultsEnquiriesAsync(WindowId, 100001L)
+            .Returns([Enquiry("REF-8", "Gita", "Patel", description: "Results enquiry - Incorrect grade")]);
+        _blobClient.GetAsync(WindowId, "REF-8").Returns(new RequestState
+        {
+            SelectedWhatToChange = WhatToChange.IncorrectGrade,
+            SelectedResult = new ResultRecord { QualificationName = "GCSE (9-1) Bus. Studs:Single", Grade = "5" },
+            QuestionAnswers = { [EnquiryQuestionIds.RevisedGrade] = new QuestionAnswer { TextValue = "   " } }
+        });
+
+        var result = await _sut.GetAmendmentRequestsAsync(WindowId);
+
+        var row = Assert.Single(result.IssueRows);
+        Assert.Equal("Gita Patel", row.PupilName);
+        Assert.Equal("GCSE (9-1) Bus. Studs:Single", row.QualificationText);
+        Assert.Equal("", row.GradeText);
+    }
+
+    [Fact]
+    public async Task GetAmendmentRequestsAsync_MissingResultLeavesTheGradeCellEmpty()
+    {
+        _windowService.GetCheckingWindowAsync(WindowId).Returns(Window(DateTime.UtcNow));
+        _requestRepo.GetAmendmentRequestsAsync(WindowId, 100001L).Returns([]);
+        _requestRepo.GetSubmittedResultsEnquiriesAsync(WindowId, 100001L)
+            .Returns([Enquiry("REF-9", "Hana", "Quinn",
+                description: "Results enquiry - Result does not belong to student")]);
+        _blobClient.GetAsync(WindowId, "REF-9").Returns(new RequestState
+        {
+            SelectedWhatToChange = WhatToChange.ResultDoesNotBelong
+        });
+
+        var result = await _sut.GetAmendmentRequestsAsync(WindowId);
+
+        var row = Assert.Single(result.IssueRows);
+        Assert.Equal("Hana Quinn", row.PupilName);
+        Assert.Equal("", row.QualificationText);
+        Assert.Equal("", row.GradeText);
+    }
+
     // A missing or unreadable blob must degrade to empty cells, never fail the whole page — the
     // row is the record of truth and the school must still see that the enquiry exists.
     [Fact]
@@ -313,6 +431,7 @@ public class AmendmentRequestsServiceTests
         Assert.Equal("Billy Brown", row.PupilName);
         Assert.Equal("", row.CypmdId);
         Assert.Equal("", row.QualificationText);
+        Assert.Equal("", row.GradeText);
     }
 
     // A blob read that throws (corrupt document, storage outage) must degrade the same way a
@@ -333,6 +452,7 @@ public class AmendmentRequestsServiceTests
         Assert.Equal("Cara Davies", row.PupilName);
         Assert.Equal("", row.CypmdId);
         Assert.Equal("", row.QualificationText);
+        Assert.Equal("", row.GradeText);
         // The negative half is the real pin: adding {PupilName} "for debuggability" would land
         // PII in the Serilog sinks while a contains-reference-only assertion stayed green.
         _logger.Received(1).Log(
@@ -345,12 +465,15 @@ public class AmendmentRequestsServiceTests
             Arg.Any<Func<object, Exception?, string>>());
     }
 
-    private static SubmittedRequestData Enquiry(string reference, string first, string last, DateTime? submitted = null) => new()
+    private static SubmittedRequestData Enquiry(
+        string reference, string first, string last,
+        string description = "Results enquiry - Missing qualification",
+        DateTime? submitted = null) => new()
     {
         PupilFirstname = first,
         PupilSurname = last,
         RequestType = RequestType.ResultsEnquiry,
-        RequestTypeDescription = "Results enquiry - Missing qualification",
+        RequestTypeDescription = description,
         ReferenceNumber = reference,
         Status = RequestStatus.Submitted,
         Submitted = submitted ?? DateTime.UtcNow

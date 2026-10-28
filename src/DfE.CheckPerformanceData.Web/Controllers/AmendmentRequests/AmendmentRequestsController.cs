@@ -68,7 +68,8 @@ public sealed class AmendmentRequestsController(
                 Submitted = r.Submitted,
                 CypmdId = r.CypmdId,
                 TypeLabel = r.TypeLabel,
-                QualificationText = r.QualificationText
+                QualificationText = r.QualificationText,
+                GradeText = r.GradeText
             }).ToList(),
             ShowResultsEnquiries = result.HasResultsEnquiry
         };

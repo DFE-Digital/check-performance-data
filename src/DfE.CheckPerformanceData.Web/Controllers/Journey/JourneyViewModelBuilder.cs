@@ -185,7 +185,7 @@ public sealed class JourneyViewModelBuilder(
     private const string SyllabusQuestionId = "q-syllabus-code";
     private const string AwardDateQuestionId = "q-award-date";
     private const string NcnQuestionId = "q-ncn";
-    private const string MissingGradeQuestionId = "q-missing-grade";
+    private const string MissingGradeQuestionId = EnquiryQuestionIds.MissingGrade;
 
     /// <summary>How a window type is named to a school on the summary.</summary>
     private static string KeyStageLabelFor(Domain.Enums.CheckingWindowType? windowType) => windowType switch

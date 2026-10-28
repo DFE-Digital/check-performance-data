@@ -2,6 +2,7 @@ using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
+using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using Microsoft.Extensions.Logging;
@@ -59,6 +60,7 @@ public sealed class AmendmentRequestsService(
                 QualificationText = state?.SelectedQualification?.QualificationTitle
                     ?? state?.SelectedResult?.QualificationName
                     ?? "",
+                GradeText = GradeAchievedFor(state),
                 ReferenceNumber = enquiry.ReferenceNumber
             });
         }
@@ -106,6 +108,28 @@ public sealed class AmendmentRequestsService(
             HasResultsEnquiry = hasResultsEnquiry
         };
     }
+
+    /// <summary>
+    /// #712: the tab's Grade achieved value. The saved journey record is the only source: the
+    /// revised grade the school chose, the grade it entered for the missing qualification, or the
+    /// grade the DfE holds for the reported result. Undecidable degrades to "" — the row is the
+    /// record of truth and the cell is enrichment. A present value is verbatim; only a missing,
+    /// null or whitespace-only value shows as an empty cell.
+    /// </summary>
+    private static string GradeAchievedFor(RequestState? state)
+    {
+        var value = state?.SelectedWhatToChange switch
+        {
+            WhatToChange.IncorrectGrade => AnswerText(state, EnquiryQuestionIds.RevisedGrade),
+            WhatToChange.MissingQualification => AnswerText(state, EnquiryQuestionIds.MissingGrade),
+            WhatToChange.ResultDoesNotBelong => state?.SelectedResult?.Grade,
+            _ => null
+        };
+        return string.IsNullOrWhiteSpace(value) ? "" : value;
+    }
+
+    private static string? AnswerText(RequestState? state, string questionId) =>
+        state?.QuestionAnswers.GetValueOrDefault(questionId)?.TextValue;
 
     /// <summary>"Results enquiry - Missing qualification" → "Missing qualification". The suffix IS
     /// the user-facing kind label; falling back to the whole string keeps an unexpected format

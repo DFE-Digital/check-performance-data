@@ -28,7 +28,7 @@ KS2 has no Merge, Include or Add journey. The requirements say so.
    | Window | Flow files | Options shown |
    |---|---|---|
    | KS4 June | Add, Include, Merge, Remove | All four (no change) |
-   | Post16 | Merge, Remove | Merge, Remove (no change) |
+   | Post16 | Include, Merge, Remove | Include (since #711), Merge, Remove |
    | KS4 Autumn | Add | Add only. Before, it also showed Merge, Include and Remove, which had no flow file and went nowhere. |
    | KS2 | Remove | Remove only |
 

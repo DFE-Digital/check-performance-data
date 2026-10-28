@@ -1,24 +1,33 @@
 @model DfE.CheckPerformanceData.Web.Controllers.Journey.IncludeNoResultsViewModel
 
 @{
-    ViewBag.Title = "Pupil not found";
+    ViewBag.Title = $"{Model.LearnerNoun.SingularCapitalised} not found";
     Layout = "_Layout";
 }
 
-<h1 class="govuk-heading-l">Pupil not found</h1>
+<h1 class="govuk-heading-l">@Model.LearnerNoun.SingularCapitalised not found</h1>
 
 <p class="govuk-body">
-    No pupil matching "@Model.TypedPupilLabel" was found. This means the pupil is not currently
+    No @Model.LearnerNoun.Singular matching "@Model.TypedPupilLabel" was found. This means the @Model.LearnerNoun.Singular is not currently
     included and is not known to this school's records.
 </p>
-<p class="govuk-body">
-    You can add them as a new pupil or search again with a different name.
-</p>
+@if (Model.CanAdd)
+{
+    <p class="govuk-body">
+        You can add them as a new @Model.LearnerNoun.Singular or search again with a different name.
+    </p>
 
-<form method="post" action="@Url.Action("StartAddingPupil", "Journey", new { windowId = Model.WindowId })">
-    @Html.AntiForgeryToken()
-    <govuk-button type="submit">Start adding this pupil</govuk-button>
-</form>
+    <form method="post" action="@Url.Action("StartAddingPupil", "Journey", new { windowId = Model.WindowId })">
+        @Html.AntiForgeryToken()
+        <govuk-button type="submit">Start adding this @Model.LearnerNoun.Singular</govuk-button>
+    </form>
+}
+else
+{
+    <p class="govuk-body">
+        You can search again with a different name.
+    </p>
+}
 
 <form method="post" action="@Url.Action("PupilSearchAgain", "Journey", new { windowId = Model.WindowId, pageId = Model.PageId })">
     @Html.AntiForgeryToken()

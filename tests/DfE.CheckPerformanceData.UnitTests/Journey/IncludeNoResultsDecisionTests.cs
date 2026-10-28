@@ -250,6 +250,36 @@ public class IncludeNoResultsDecisionTests
         Assert.Null(_session.GetRequestState(WindowId).IncludeMatchedPupils);
     }
 
+    // #711: 16-19 has no Add flow, so the decision pages must not offer "Start adding". CanAdd
+    // comes from the same list What to change renders.
+    [Fact]
+    public async Task AlreadyIncluded_OnAWindowTypeWithNoAddFlow_DoesNotOfferAdd()
+    {
+        SetupSession(SessionForIncludeWith(label: "Bob Smith"));
+        _flowService.GetPupilDataChangesAsync(Arg.Any<CheckingWindowType>())
+            .Returns(Task.FromResult<IReadOnlyList<WhatToChange>>([WhatToChange.Merge, WhatToChange.Remove]));
+
+        var result = await _sut.AlreadyIncluded(WindowId);
+
+        var model = Assert.IsType<IncludeAlreadyIncludedViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.False(model.CanAdd);
+        Assert.Equal("pupil", model.LearnerNoun.Singular);   // the session's window is KS4 June
+    }
+
+    [Fact]
+    public async Task PupilNotFound_OnAWindowTypeWithAnAddFlow_OffersAdd()
+    {
+        SetupSession(SessionForIncludeWith(label: "No Such"));
+        _flowService.GetPupilDataChangesAsync(Arg.Any<CheckingWindowType>())
+            .Returns(Task.FromResult<IReadOnlyList<WhatToChange>>([WhatToChange.Merge, WhatToChange.Include, WhatToChange.Remove, WhatToChange.Add]));
+
+        var result = await _sut.PupilNotFound(WindowId, "select-pupil");
+
+        var model = Assert.IsType<IncludeNoResultsViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.True(model.CanAdd);
+        Assert.Equal("pupil", model.LearnerNoun.Singular);
+    }
+
     // -- AB#297780: when reached from the duplicate-check hand-off, the back link returns to
     // the match list rather than the Include search page --
 

@@ -1926,6 +1926,14 @@ public sealed class JourneyController(
     // ── Include no-results decision flow (AB#027) ────────────────────────────
 
     /// <summary>
+    /// #711: the decision pages offer "Start adding" only when What to change would offer Add —
+    /// the same list, so the two can never disagree. 16-19 has no Add flow.
+    /// </summary>
+    private async Task<bool> CanAddAsync(RequestState journey) =>
+        journey.CheckingWindow?.CheckingWindowType is { } windowType
+        && (await flowService.GetPupilDataChangesAsync(windowType)).Contains(WhatToChange.Add);
+
+    /// <summary>
     /// AB#027 (US1): shown when the Include journey's select-pupil search found no included match
     /// for a freely typed (not-selected) name. Offers "Start adding this pupil" (the Add journey)
     /// or "Search again". The typed label is read from session (see
@@ -1947,7 +1955,9 @@ public sealed class JourneyController(
         {
             WindowId = windowId,
             PageId = pageId,
-            TypedPupilLabel = label
+            TypedPupilLabel = label,
+            LearnerNoun = journey.LearnerNoun,
+            CanAdd = await CanAddAsync(journey)
         });
     }
 
@@ -1979,7 +1989,9 @@ public sealed class JourneyController(
             TypedPupilLabel = label,
             Matches = matches,
             BackPageId = pageId,
-            BackPageAction = backAction ?? nameof(PupilSearchPage)
+            BackPageAction = backAction ?? nameof(PupilSearchPage),
+            LearnerNoun = journey.LearnerNoun,
+            CanAdd = await CanAddAsync(journey)
         });
     }
 

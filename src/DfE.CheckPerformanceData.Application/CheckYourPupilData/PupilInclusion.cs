@@ -5,6 +5,8 @@ namespace DfE.CheckPerformanceData.Application.CheckYourPupilData;
 /// record: from the slot's file of origin (16-19 included and non-included files), or else from the
 /// schema's <c>x-ingress.inclusion</c> rule (KS4 and KS2, whose files carry each pupil's own code).
 /// Readers read only the stamp, so no reader knows any key stage's codes.
+/// A second stamp, <c>INCLUDABLE</c> (#711), says who a school may ask to include: ingress writes it
+/// from the schema's <c>x-ingress.includable</c> rule, or as not-included where there is no rule.
 /// </summary>
 public static class PupilInclusion
 {

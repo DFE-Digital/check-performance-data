@@ -181,6 +181,8 @@ Results enquiries and 16-19 windows: `docs/results-enquiry.md`, `docs/16-19-wind
   `x-ingress.source`. Never put a supplier column name in a C# property name.
 - **Inclusion is the `INCLUDED` stamp.** Ingress decides it once. Code that reads pupils must
   not know a key stage's inclusion codes.
+- **Who may be included is the `INCLUDABLE` stamp.** Ingress writes it from the schema's
+  `x-ingress.includable` rule (#711). The Include journey reads the stamp, never a code.
 - **The service is not live yet.** Do not write fallbacks for data written before a change.
   Treat missing new-format data as an error. (This does not change the migration rule above:
   that rule protects deployed databases.)

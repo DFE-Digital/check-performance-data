@@ -91,7 +91,7 @@ public static class SeedExerciseFixtures
 
     // Ours, not the supplier's: ingress generates a pupil's Id, and nothing reads the window id.
     // INCLUDED and P_INCL_DESC are stamped by ingress from the schema's inclusion rule.
-    private static readonly HashSet<string> NotSupplierColumns = ["Id", "CheckingWindowId", "INCLUDED", "P_INCL_DESC"];
+    private static readonly HashSet<string> NotSupplierColumns = ["Id", "CheckingWindowId", "INCLUDED", "INCLUDABLE", "P_INCL_DESC"];
 
     // One row per record, one column per JSON property, serialised exactly as the read models
     // bind them. Columns the schema does not declare are dropped by ingress.

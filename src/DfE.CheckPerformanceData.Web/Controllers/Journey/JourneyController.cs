@@ -209,7 +209,7 @@ public sealed class JourneyController(
                 try
                 {
                     nonIncludedSuggestions = await pupilDataService.GetPupilSuggestionsAsync(
-                        windowId, selectedPupilLabel, PupilFilter.NonIncluded);
+                        windowId, selectedPupilLabel, PupilFilter.Includable);
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {

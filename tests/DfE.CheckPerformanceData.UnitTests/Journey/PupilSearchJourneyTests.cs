@@ -725,7 +725,7 @@ PupilFilter = PupilFilter.All,
             Pages = [new JourneyPage
             {
                 Id = "select-pupil", Type = PageType.PupilSearch,
-                PupilFilter = PupilFilter.NonIncluded, PupilKey = JourneyPage.PrimaryKey,
+                PupilFilter = PupilFilter.Includable, PupilKey = JourneyPage.PrimaryKey,
                 NextPageId = "evidence"
             }]
         };

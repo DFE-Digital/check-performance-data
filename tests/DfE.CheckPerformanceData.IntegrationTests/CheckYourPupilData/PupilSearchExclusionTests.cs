@@ -59,6 +59,7 @@ public sealed class PupilSearchExclusionTests(PostgresFixture fixture)
         FirstLanguage = "English",
         Pincl = pincl,
         Included = pincl == IncludedPincl,
+        Includable = pincl != IncludedPincl,
         NewMobile = false,
         ActualYearGroup = "11",
         Ethnicity = "A1",
@@ -289,7 +290,7 @@ public sealed class PupilSearchExclusionTests(PostgresFixture fixture)
     }
 
     [Fact]
-    public async Task FilterNonIncluded_ReturnsOnlyNonIncludedPupils()
+    public async Task FilterIncludable_ReturnsOnlyIncludablePupils()
     {
         await ResetAsync();
         var windowId = Guid.NewGuid();
@@ -304,9 +305,31 @@ public sealed class PupilSearchExclusionTests(PostgresFixture fixture)
         ]);
 
         var repo = CreateRepo(blobClient);
-        var results = await repo.SearchPupilsAsync(windowId, TestLaestab, TestUrn, "Wilson", PupilFilter.NonIncluded);
+        var results = await repo.SearchPupilsAsync(windowId, TestLaestab, TestUrn, "Wilson", PupilFilter.Includable);
 
         Assert.Single(results);
+    }
+
+    [Fact]
+    public async Task FilterNotIncludable_ReturnsOnlyPupilsWhoCannotBeIncluded()
+    {
+        await ResetAsync();
+        var windowId = Guid.NewGuid();
+
+        await SeedWindowsAndRequestsAsync([NewWindow(windowId)], []);
+
+        var blobClient = new FakePupilDataBlobClient();
+        blobClient.SetPupils(windowId, TestLaestab,
+        [
+            NewPupil(windowId, "Wilson", "A100000000011", pincl: 401),  // included, so not includable
+            NewPupil(windowId, "Wilson", "A100000000012", pincl: 999),  // not included, so includable
+        ]);
+
+        var repo = CreateRepo(blobClient);
+        var results = await repo.SearchPupilsAsync(windowId, TestLaestab, TestUrn, "Wilson", PupilFilter.NotIncludable);
+
+        var only = Assert.Single(results);
+        Assert.Contains("A100000000011", only.Label);
     }
 
     [Fact]

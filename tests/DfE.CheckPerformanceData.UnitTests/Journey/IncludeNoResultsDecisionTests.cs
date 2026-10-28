@@ -54,7 +54,7 @@ public class IncludeNoResultsDecisionTests
         Id = "select-pupil",
         Type = PageType.PupilSearch,
         Title = "What is the name of the pupil to be included?",
-        PupilFilter = PupilFilter.NonIncluded,
+        PupilFilter = PupilFilter.Includable,
         PupilKey = JourneyPage.PrimaryKey,
         ValidationFailure = "Enter the name of the pupil to be included."
     };
@@ -134,7 +134,7 @@ public class IncludeNoResultsDecisionTests
         SetupSession(SessionForInclude());
         _pupilDataService.GetPupilSuggestionsAsync(WindowId, "No Such", PupilFilter.Included, Arg.Any<Guid?>(), Arg.Any<bool>())
             .Returns(new List<PupilSuggestionDto>());
-        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "No Such", PupilFilter.NonIncluded, Arg.Any<Guid?>(), Arg.Any<bool>())
+        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "No Such", PupilFilter.Includable, Arg.Any<Guid?>(), Arg.Any<bool>())
             .Returns(new List<PupilSuggestionDto>());
 
         var result = await _sut.PupilSearchPost(WindowId, "select-pupil", null, "No Such");
@@ -159,7 +159,7 @@ public class IncludeNoResultsDecisionTests
         // included one (included surnames are Smith..Davies).
         _pupilDataService.GetPupilSuggestionsAsync(WindowId, "Johnson", PupilFilter.Included, Arg.Any<Guid?>(), Arg.Any<bool>())
             .Returns(new List<PupilSuggestionDto>());
-        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "Johnson", PupilFilter.NonIncluded, Arg.Any<Guid?>(), Arg.Any<bool>())
+        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "Johnson", PupilFilter.Includable, Arg.Any<Guid?>(), Arg.Any<bool>())
             .Returns(new List<PupilSuggestionDto> { NonIncludedSuggestion });
 
         var result = await _sut.PupilSearchPost(WindowId, "select-pupil", null, "Johnson");
@@ -172,7 +172,7 @@ public class IncludeNoResultsDecisionTests
         Assert.Equal("Johnson", _session.GetRequestState(WindowId).IncludeSearchLabel);
         // The three-way decision consults the non-included list to discover the valid candidate.
         await _pupilDataService.Received()
-            .GetPupilSuggestionsAsync(WindowId, "Johnson", PupilFilter.NonIncluded, Arg.Any<Guid?>(), Arg.Any<bool>());
+            .GetPupilSuggestionsAsync(WindowId, "Johnson", PupilFilter.Includable, Arg.Any<Guid?>(), Arg.Any<bool>());
     }
 
     // -- T005: non-blank typed text + no selection + included match → "Already included" --
@@ -200,7 +200,7 @@ public class IncludeNoResultsDecisionTests
         Assert.True(_sut.ModelState.IsValid);
         // An included match is conclusive — there is no need to consult the non-included list.
         await _pupilDataService.DidNotReceive()
-            .GetPupilSuggestionsAsync(WindowId, "Smith", PupilFilter.NonIncluded, Arg.Any<Guid?>(), Arg.Any<bool>());
+            .GetPupilSuggestionsAsync(WindowId, "Smith", PupilFilter.Includable, Arg.Any<Guid?>(), Arg.Any<bool>());
     }
 
     // -- The "Already included" GET surfaces the persisted matches and consumes them on arrival --

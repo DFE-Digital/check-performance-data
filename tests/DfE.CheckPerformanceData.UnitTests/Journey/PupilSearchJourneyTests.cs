@@ -607,7 +607,7 @@ PupilFilter = PupilFilter.All,
         };
         SetupIncludeJourney();
         _pupilDataService.GetPupilAsync(WindowId, PrimaryPupilId).Returns(nonIncludedPupil);
-        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "Casey Carter", PupilFilter.Included)
+        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "Casey Carter", PupilFilter.NotIncludable)
             .Returns([new PupilSuggestionDto(Guid.NewGuid(), "Carter, Casey, 01/01/2010", "Casey", "Carter", "01/01/2010")]);
 
         var result = await _sut.PupilSearchPost(WindowId, "select-pupil", PrimaryPupilId.ToString(), "Carter, Casey, 01/01/2010");
@@ -627,7 +627,7 @@ PupilFilter = PupilFilter.All,
         };
         SetupIncludeJourney();
         _pupilDataService.GetPupilAsync(WindowId, PrimaryPupilId).Returns(nonIncludedPupil);
-        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "Casey Carter", PupilFilter.Included)
+        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "Casey Carter", PupilFilter.NotIncludable)
             .Returns([new PupilSuggestionDto(Guid.NewGuid(), "Carter, Casey, 01/01/2010", "Casey", "Carter", "01/01/2010")]);
 
         await _sut.PupilSearchPost(WindowId, "select-pupil", PrimaryPupilId.ToString(), "Carter, Casey, 01/01/2010");
@@ -647,7 +647,7 @@ PupilFilter = PupilFilter.All,
         var includedSuggestion = new PupilSuggestionDto(Guid.NewGuid(), "Carter, Casey, 01/01/2010", "Casey", "Carter", "01/01/2010");
         SetupIncludeJourney();
         _pupilDataService.GetPupilAsync(WindowId, PrimaryPupilId).Returns(nonIncludedPupil);
-        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "Casey Carter", PupilFilter.Included)
+        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "Casey Carter", PupilFilter.NotIncludable)
             .Returns([includedSuggestion]);
 
         await _sut.PupilSearchPost(WindowId, "select-pupil", PrimaryPupilId.ToString(), "Carter, Casey, 01/01/2010");
@@ -688,7 +688,7 @@ PupilFilter = PupilFilter.All,
         };
         SetupIncludeJourney();
         _pupilDataService.GetPupilAsync(WindowId, PrimaryPupilId).Returns(nonIncludedPupil);
-        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "Jane Smith", PupilFilter.Included)
+        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "Jane Smith", PupilFilter.NotIncludable)
             .Returns([]);
 
         var result = await _sut.PupilSearchPost(WindowId, "select-pupil", PrimaryPupilId.ToString(), "Smith, Jane, 01/01/2010");
@@ -708,7 +708,7 @@ PupilFilter = PupilFilter.All,
         };
         SetupIncludeJourney();
         _pupilDataService.GetPupilAsync(WindowId, PrimaryPupilId).Returns(nonIncludedPupil);
-        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "Casey Carter", PupilFilter.Included)
+        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "Casey Carter", PupilFilter.NotIncludable)
             .Returns(Task.FromException<IReadOnlyList<PupilSuggestionDto>>(new TimeoutException()));
 
         var result = await _sut.PupilSearchPost(WindowId, "select-pupil", PrimaryPupilId.ToString(), "Carter, Casey, 01/01/2010");

@@ -23,10 +23,9 @@ public class PupilAddBackConditionTests
     };
 
     [Fact]
-    public void Names_MatchTheJsonContract()
+    public void Name_MatchesTheJsonContract()
     {
-        Assert.Equal("PupilIsAddBack", new PupilIsAddBackCondition().Name);
-        Assert.Equal("PupilIsNotAddBack", new PupilIsNotAddBackCondition().Name);
+        Assert.Equal("pupil.isAddBack", new PupilIsAddBackCondition().Name);
     }
 
     [Fact]
@@ -37,15 +36,5 @@ public class PupilAddBackConditionTests
         Assert.False(sut.Evaluate(ContextWithPincl(401)));
         Assert.False(sut.Evaluate(ContextWithPincl(0)));
         Assert.False(sut.Evaluate(ContextWithPincl(null))); // no pupil picked
-    }
-
-    [Fact]
-    public void NotAddBack_IsTheExactComplement()
-    {
-        var sut = new PupilIsNotAddBackCondition();
-        Assert.False(sut.Evaluate(ContextWithPincl(403)));
-        Assert.True(sut.Evaluate(ContextWithPincl(401)));
-        Assert.True(sut.Evaluate(ContextWithPincl(0)));
-        Assert.True(sut.Evaluate(ContextWithPincl(null)));
     }
 }

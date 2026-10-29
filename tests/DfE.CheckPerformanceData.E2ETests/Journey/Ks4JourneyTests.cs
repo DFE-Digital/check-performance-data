@@ -33,7 +33,7 @@ public sealed class Ks4JourneyTests(PlaywrightFixture fixture) : SeedingPageTest
     private const int FutureYear = 2099;
 
     // The removal journeys whose date page is a single Date question and whose reason option is
-    // always visible (not gated by PupilIsNotAddBack): pupil-died and elective-home-education.
+    // always visible (not gated by pupil.isAddBack): pupil-died and elective-home-education.
     // The other removal pages (permanent-exclusion, child-missing-education, permanently-excluded,
     // permanently-left-england-questions) precede the date with required non-date questions, so
     // they are covered at the unit level (RemovalJourneyDateRulesTests / dispatch theory) instead.

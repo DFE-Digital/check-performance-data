@@ -34,20 +34,20 @@ public sealed class Question
     public string? Validator { get; init; }
 
     /// <summary>
-    /// Names of the <see cref="IJourneyCondition"/>s that must ALL evaluate true
+    /// Conditions (names or answer tests, <see cref="JourneyConditionRef"/>) that must ALL hold
     /// for this question's answer to become optional (overriding <see cref="Optional"/>
-    /// = false). An unregistered name leaves the question mandatory (fail closed).
-    /// JSON accepts a bare string or an array, like <see cref="QuestionOption.VisibleWhen"/>.
+    /// = false). An undecided entry leaves the question mandatory (fail closed).
+    /// JSON accepts one entry or an array, like <see cref="QuestionOption.VisibleWhen"/>.
     /// </summary>
     [JsonConverter(typeof(VisibleWhenJsonConverter))]
-    public IReadOnlyList<string>? OptionalWhen { get; init; }
+    public IReadOnlyList<JourneyConditionRef>? OptionalWhen { get; init; }
 
     /// <summary>
-    /// Names of the <see cref="IJourneyCondition"/>s that must ALL evaluate true
+    /// Conditions (names or answer tests, <see cref="JourneyConditionRef"/>) that must ALL hold
     /// for this question to be shown. When null or empty, the question is shown.
-    /// An unregistered name hides the question (fail closed), matching the option
-    /// visibility behaviour. JSON accepts a bare string or an array.
+    /// An undecided entry hides the question (fail closed), matching the option
+    /// visibility behaviour. JSON accepts one entry or an array.
     /// </summary>
     [JsonConverter(typeof(VisibleWhenJsonConverter))]
-    public IReadOnlyList<string>? VisibleWhen { get; init; }
+    public IReadOnlyList<JourneyConditionRef>? VisibleWhen { get; init; }
 }

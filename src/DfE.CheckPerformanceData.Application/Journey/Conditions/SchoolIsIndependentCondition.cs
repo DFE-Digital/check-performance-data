@@ -13,7 +13,7 @@ public sealed class SchoolIsIndependentCondition : IJourneyCondition
 {
     private const string OtherIndependentSchoolTypeId = "11";
 
-    public string Name => "SchoolIsIndependent";
+    public string Name => "school.isIndependent";
 
     public bool Evaluate(JourneyConditionContext ctx) =>
         ctx.User.OrganisationTypeId == OtherIndependentSchoolTypeId;

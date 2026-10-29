@@ -8,7 +8,7 @@ namespace DfE.CheckPerformanceData.Application.Journey.Conditions;
 /// </summary>
 public sealed class HasSyllabusCodesForSelectedQualificationCondition : IJourneyCondition
 {
-    public string Name => "HasSyllabusCodesForSelectedQualification";
+    public string Name => "qualification.hasSyllabusCodes";
 
     public bool Evaluate(JourneyConditionContext ctx)
     {

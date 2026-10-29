@@ -2,7 +2,7 @@
 
 Date: 2026-10-27
 
-Status: Proposed
+Status: In progress. Steps 1 and 2 are done.
 
 ## Goal
 
@@ -53,8 +53,8 @@ different page. Do not write a condition. The flow engine already handles a chan
 the summary, `PagePost` sees that the next page changed, trims the history and sends the user down
 the new branch.
 
-Use this pattern only when the page order allows it. Use a named C# condition only for a fact that
-is not in the answers: school type, the not-on-roll college list, add-back status.
+Use this pattern only when the page order allows it. Use a fact only for something that is not in
+the answers: school type, the not-on-roll college list, add-back status.
 
 ### 2. One generic answer condition
 
@@ -68,10 +68,25 @@ condition name. All the entries in a list must be true:
 ]
 ```
 
-This replaces `EalEvidenceIsOptionalCondition` and `NotOnRollReasonIsOtherCondition`. A bare string
-stays a condition name.
+This replaced `EalEvidenceIsOptionalCondition` and `NotOnRollReasonIsOtherCondition`.
 
-A missing or blank answer fails closed, the same as an unknown condition name: `visibleWhen` hides,
+A fact test does the same for a fact that is not an answer. Code gives the fact, and the flow file
+gives the logic. `"is": false` replaces a "not" class, and `anyOf` replaces an "or" class:
+
+```json
+"visibleWhen": [
+  { "fact": "pupil.isAddBack", "is": false },
+  { "anyOf": [
+    { "fact": "school.isIndependent", "is": true },
+    { "fact": "school.isOnNotOnRollList", "is": true }
+  ] }
+]
+```
+
+This replaced `PupilIsNotAddBackCondition`, `SchoolIsNotIndependentCondition` and
+`SchoolCanRecordNotOnRollCondition`. A fact test always names its `"is"` value. A plain string is not allowed. The format is in [question-flows.md](question-flows.md#conditions-visiblewhen-optionalwhen-requireatleastonewhen).
+
+A missing or blank answer fails closed, the same as an unknown fact: `visibleWhen` hides,
 `optionalWhen` keeps the question mandatory, and `requireAtLeastOneWhen` keeps the rule on.
 
 The test names a question id, but the id is in the JSON. A generic config test checks that the
@@ -125,14 +140,55 @@ Roles replace most of groups 1 and 4:
 ### 5. Option meanings
 
 Zendesk and egress map option values such as `english-not-first-language` to codes. Give each
-reason option a meaning from a closed list (a `RemovalReason` enum in Domain):
+reason option a meaning:
 
 ```json
 { "value": "english-not-first-language", "label": "...", "meaning": "Removal.EnglishNotFirstLanguage" }
 ```
 
-The code that picks a Zendesk or egress code stays in C#, keyed on the meaning. A fixed code on the
-option does not fit every case: `other` is code 329 with evidence and 330 without.
+The codes for each meaning are in one JSON file, `Data/Integration/removal-reasons.json`. It ships
+in the Web image and in the worker image, as the flow files do. Each row is one meaning:
+
+```json
+{
+  "Removal.EnglishNotFirstLanguage": {
+    "zendeskReasonForRemoval": "admitted_from_abroad_with_english_not_first_language",
+    "correctionReason31": "2_31",
+    "ldsCorrectionCode": "2"
+  },
+  "Removal.Other": {
+    "zendeskReasonForRemoval": {
+      "withEvidence": "other_-_with_evidence",
+      "withoutEvidence": "other_-_evidence_not_required"
+    },
+    "ldsCorrectionCode": { "withEvidence": "329", "withoutEvidence": "330" }
+  },
+  "Removal.NotOnRoll.Apprentice": {
+    "zendeskReasonForRemoval": "not_on_roll_apprentice",
+    "ldsCorrectionCode": "331"
+  }
+}
+```
+
+- **The rows are the closed list.** No `RemovalReason` enum is necessary. A new removal reason is
+  a flow change and a new row, with no C#.
+- **Evidence.** A value is a string, or a `withEvidence` and `withoutEvidence` pair. The code
+  decides "has evidence" once. It does not know which meanings use a pair.
+- **Sub-reasons.** Each Post16 `not-on-roll-reason` option has its own meaning, for example
+  `Removal.NotOnRoll.Apprentice`. The worker uses the most specific meaning on the request.
+- **One meaning for many values.** `pupil-died` and `student-died` both have the meaning
+  `Removal.Deceased`.
+- **Fail closed.** A missing row or a missing target leaves the field out and logs a warning.
+
+These stay in code: the evidence test, the KS4 add-back test on `Pincl` (a fact about the pupil,
+not an answer), and the code that reads the file. The Zendesk field ids are already configuration
+in `ZendeskTicketFieldSettings`.
+
+Generic config tests check that each option `meaning` in a flow has a row, that each row is used
+by a flow, that no value is empty, and that each pair has both sides.
+
+The `DecisionReasonApproved` and `DecisionReasonRejected` maps are keyed on the rules-engine
+outcome, not on a journey option. They are not part of this pattern.
 
 ## Ids are keys in saved data
 
@@ -158,13 +214,26 @@ permitted to name.
 The test does not check option values: values such as `yes`, `other` and `1` occur too often in
 code that has no relation to the flows. Step 5 adds option values to the guard.
 
+## Check each step by hand
+
+Each step must change no behaviour that a user or a downstream system sees. Before a step's pull
+request merges, check by hand in the browser each journey that the step changes:
+
+- each branch that the changed code or flow file controls, to the confirmation page;
+- the error messages on those pages, with an empty submit;
+- the "(Optional)" labels and the summary page rows;
+- the Zendesk ticket in the dev outbox, for a request that the step changes.
+
+Name the journeys that you checked in the pull request description. If a difference is wanted, the
+step is wrong for this plan. Fix the code.
+
 ## Order of work
 
 Steps 2 to 5 each make the baseline smaller. Step 4 does not depend on step 3, so the two can run
 at the same time.
 
-1. **The guard.** Add `FlowIdCouplingTests` and its baseline. It stops new coupling.
-2. **Generic answer condition (pattern 2).** Change the condition lists to hold an answer test.
+1. **Done. The guard.** Add `FlowIdCouplingTests` and its baseline. It stops new coupling.
+2. **Done. Generic answer condition (pattern 2).** Change the condition lists to hold an answer test.
    Move `Remove_KS4June.json`, `Remove_KS2.json` and `Remove_Post16.json` to answer tests. Delete
    the two condition classes. Removes 6 ids in 2 files.
 3. **Question roles (pattern 4).** Five pull requests. Removes 82 ids in 12 files.
@@ -179,9 +248,10 @@ at the same time.
       the worker in the same pull request.
 4. **Date rules on the question (pattern 3).** One generic date validator, and `IDateRule` for
    named rules. Move one class at a time. Removes 22 ids in 4 files.
-5. **Option meanings (pattern 5).** Key `ZendeskTicketFieldOptions`, `CorrectionCodes` and
-   `ZendeskConsumer` on `RemovalReason`. Build `RequestTypeCode` from the meaning, not the option
-   value. Then add option values to the guard. Removes 18 ids in 3 files.
+5. **Option meanings (pattern 5).** Add `meaning` to the reason options. Move the reason maps in
+   `ZendeskTicketFieldOptions`, `CorrectionCodes` and `ZendeskConsumer` to
+   `removal-reasons.json`. Build `RequestTypeCode` from the meaning, not the option value. Then
+   add option values to the guard. Removes 18 ids in 3 files.
 
 The 3 baseline ids that stay are not coupling: guidance anchors and a database column.
 
@@ -192,3 +262,4 @@ The 3 baseline ids that stay are not coupling: guidance anchors and a database c
 | Copy the role onto each saved answer. | 3 | A submitted request does not depend on the flow version. |
 | Change the queue message and `RequestTypeCode` to carry roles and meanings, in one pull request with the worker. | 3 and 5 | The service is not live, so no queued message needs the old form. |
 | Keep the integration maps in code, keyed on roles. | 3 | Keyed on roles, they name no flow id. |
+| Put the removal reason codes in `removal-reasons.json`, keyed on meaning. The rows are the list of meanings. | 5 | A new reason needs no C#. One table holds the Zendesk and LDS codes. |

@@ -152,7 +152,7 @@
       "pageTitle": "Provide evidence for the removal",
       "type": "EvidenceUpload",
       "requireAtLeastOne": true,
-      "requireAtLeastOneWhen": ["NotOnRollReasonIsOther"],
+      "requireAtLeastOneWhen": [{ "answer": "not-on-roll-reason", "in": ["other"] }],
       "title": "Provide evidence for the removal of {pupilName}",
       "questions": [
         {

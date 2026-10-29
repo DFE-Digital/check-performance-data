@@ -45,8 +45,6 @@ public sealed class FlowIdCouplingTests
 
         // ── 3. Single-journey conditions. Replace with branching or a generic answer condition
         //    (patterns 1 and 2).
-        ["src/DfE.CheckPerformanceData.Application/Journey/Conditions/EalEvidenceIsOptionalCondition.cs"] = ["english-not-first-language", "first-language", "other", "reason"],
-        ["src/DfE.CheckPerformanceData.Application/Journey/Conditions/NotOnRollReasonIsOtherCondition.cs"] = ["not-on-roll-reason", "other"],
         ["src/DfE.CheckPerformanceData.Application/Journey/OriginCountryLanguageCapture.cs"] = ["country-originally-from"],
 
         // ── 4. Journey code in the engine and the Web layer. Replace with question roles

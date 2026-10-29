@@ -1,7 +1,6 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
-using DfE.CheckPerformanceData.Application.Journey.Conditions;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.Journey;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
@@ -9,10 +8,10 @@ using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 
-// Issue #634 / AB#309468: the removal evidence page's two questions become optional when
-// EalEvidenceIsOptional is true, but the page labels were built from the static Optional flag
-// only. These tests wire the real optionality service and condition into the view-model builder,
-// so the label and the validation that makes the page submittable cannot drift apart.
+// The removal evidence page's two questions become optional when the reason is "English not first
+// language" and the first language is one of four answers. The flow files say this with two
+// answer tests in optionalWhen. These tests wire the real optionality service into the view-model
+// builder, so the label and the validation that makes the page submittable cannot drift apart.
 public class JourneyViewModelBuilderOptionalLabelTests
 {
     private const string EvidenceTitle = "Upload files";
@@ -48,7 +47,7 @@ public class JourneyViewModelBuilderOptionalLabelTests
             _journeyService,
             _optionVisibilityService,
             _currentUserService,
-            new QuestionOptionalityService([new EalEvidenceIsOptionalCondition()]));
+            new QuestionOptionalityService([]));
     }
 
     // AC 001: every one of the four waived answers produces the suffixed labels.
@@ -114,6 +113,12 @@ public class JourneyViewModelBuilderOptionalLabelTests
         _sut.BuildPageVm(WindowId, page, journey.QuestionAnswers, journey,
             fromSummary: false, modelState: new ModelStateDictionary());
 
+    private static readonly IReadOnlyList<JourneyConditionRef> EalEvidenceIsOptional =
+    [
+        JourneyConditionRef.AnswerIn("reason", "english-not-first-language"),
+        JourneyConditionRef.AnswerIn("first-language", "other", "believed-other", "chose-not-to-say", "not-known")
+    ];
+
     private static JourneyPage EvidencePage(bool requireAtLeastOne = false) => new()
     {
         Id = "evidence",
@@ -127,14 +132,14 @@ public class JourneyViewModelBuilderOptionalLabelTests
                 Id = "evidence",
                 Type = QuestionType.FileUpload,
                 Title = EvidenceTitle,
-                OptionalWhen = ["EalEvidenceIsOptional"]
+                OptionalWhen = EalEvidenceIsOptional
             },
             new Question
             {
                 Id = "how-evidence-supports",
                 Type = QuestionType.TextArea,
                 Title = ExplanationTitle,
-                OptionalWhen = ["EalEvidenceIsOptional"]
+                OptionalWhen = EalEvidenceIsOptional
             }
         ]
     };

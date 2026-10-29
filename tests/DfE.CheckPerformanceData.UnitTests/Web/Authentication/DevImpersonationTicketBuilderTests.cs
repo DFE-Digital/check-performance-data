@@ -57,8 +57,8 @@ public sealed class DevImpersonationTicketBuilderTests
 
 	// --- the independent value exists so journey conditions can be driven in a browser ---
 	//
-	// organisation_type_id "11" is what SchoolIsIndependentCondition / SchoolIsNotIndependentCondition
-	// read, via CurrentUserService. Without a cookie value that produces it, the two independent-
+	// organisation_type_id "11" is what SchoolIsIndependentCondition (school.isIndependent)
+	// reads, via CurrentUserService. Without a cookie value that produces it, the two independent-
 	// related removal reasons (offered to opposite polarities) cannot be exercised end-to-end at
 	// all: every browser session is a type "1" school. Dev-only — the scheme itself is registered
 	// solely under !IsProduction() && Dev:ToolsEnabled.

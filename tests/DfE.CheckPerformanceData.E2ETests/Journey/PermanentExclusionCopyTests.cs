@@ -21,7 +21,7 @@ public sealed class PermanentExclusionCopyTests(PlaywrightFixture fixture) : See
     private static readonly Guid SeededWindowId = Guid.Parse("F34D285B-8660-4D12-9C30-787328DEAA0A");
 
     // Kingsmead School included pupil — first row in SeedPupilData (Pincl 401, not an add-back,
-    // so the PupilIsNotAddBack-gated permanent-exclusion reason option is visible).
+    // so the pupil.isAddBack-gated permanent-exclusion reason option is visible).
     private const string PupilSurname = "Smith";
     private const string PupilFirstName = "Alice";
 

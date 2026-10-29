@@ -2083,9 +2083,9 @@ public class JourneyControllerTests
     [Fact]
     public async Task PagePost_EvidenceOptional_WhenConditionallyOptional_ContinuesOnEmpty()
     {
-        // When the EalEvidenceIsOptional condition (approximated via the mocked
-        // optionality service here) makes both evidence questions optional, an
-        // empty submission proceeds.
+        // When the page's optionalWhen (approximated via the mocked optionality
+        // service here) makes both evidence questions optional, an empty
+        // submission proceeds.
         _optionalityService.GetConditionallyOptionalQuestionIds(EvidenceWithTextPage, Arg.Any<JourneyConditionContext>())
             .Returns(new HashSet<string> { "evidence", "explanation" });
         SetupSession(ValidSession(history: ["evidence-with-text"]));

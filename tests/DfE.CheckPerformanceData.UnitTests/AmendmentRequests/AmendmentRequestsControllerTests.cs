@@ -350,6 +350,7 @@ public class AmendmentRequestsControllerTests
                     CypmdId = "500001",
                     TypeLabel = "Missing qualification",
                     QualificationText = "ABRSM level 3",
+                    GradeText = "A*",
                     ReferenceNumber = "REF-1"
                 }
             ],
@@ -364,6 +365,7 @@ public class AmendmentRequestsControllerTests
         Assert.Equal("500001", row.CypmdId);
         Assert.Equal("Missing qualification", row.TypeLabel);
         Assert.Equal("ABRSM level 3", row.QualificationText);
+        Assert.Equal("A*", row.GradeText);
     }
 
     // GDS style writes dates out; 01/10/2026 would also collide with the US reading. Matches the
@@ -374,7 +376,7 @@ public class AmendmentRequestsControllerTests
         var row = new IssueRowViewModel
         {
             PupilName = "A", Submitted = new DateTime(2026, 10, 1, 9, 0, 0, DateTimeKind.Utc),
-            CypmdId = "", TypeLabel = "", QualificationText = ""
+            CypmdId = "", TypeLabel = "", QualificationText = "", GradeText = ""
         };
         Assert.Equal("1 October 2026", row.DateText);
     }

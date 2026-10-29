@@ -77,13 +77,13 @@ Single `Radio` question driving the whole flow. `useAsRequestType: true` and
 
 | Option value | Label | Goes to |
 |---|---|---|
-| `permanent-exclusion` | Admitted following permanent exclusion — **only shown when `visibleWhen: [PupilIsNotAddBack, SchoolIsNotIndependent]`** (GIAS type id not `11`) | `permanent-exclusion` |
+| `permanent-exclusion` | Admitted following permanent exclusion — **only shown when `pupil.isAddBack` is false and `school.isIndependent` is false** (GIAS type id not `11`) | `permanent-exclusion` |
 | `english-not-first-language` | Admitted from abroad with English not first language | `english-not-first-language` |
 | `child-missing-education` | Child missing education | `child-missing-education` |
 | `pupil-died` | Pupil has died | `pupil-died` |
 | `dual-registered-moved` | Dual registered or moved school | `dual-registered-moved` |
 | `elective-home-education` | Elective home education | `elective-home-education` |
-| `not-on-roll` | Not on roll — **only shown when `visibleWhen: [SchoolCanRecordNotOnRoll, PupilIsNotAddBack]`** (GIAS type id `11`, or a listed FE college) | `not-on-roll` |
+| `not-on-roll` | Not on roll — **only shown when `pupil.isAddBack` is false and any of `school.isIndependent` or `school.isOnNotOnRollList` is true** (GIAS type id `11`, or a listed FE college) | `not-on-roll` |
 | `permanently-excluded` | Permanently excluded from current school | `permanently-excluded` |
 | `permanently-left-england` | Permanently left England | `permanently-left-england-questions` |
 | `social-care-involvement` | Social care involvement - including police or prison | `social-care` |
@@ -272,20 +272,19 @@ Shared `EvidenceUpload` page reached by most reasons. Both questions are
   respective branch.
 - **Conditional options.** Two reasons are gated on the school's type, in opposite
   polarities.
-  - `not-on-roll` carries
-    `"visibleWhen": ["SchoolCanRecordNotOnRoll", "PupilIsNotAddBack"]`, so it is
+  - `not-on-roll` tests `pupil.isAddBack` is false, and an `anyOf` of
+    `school.isIndependent` and `school.isOnNotOnRollList`, so it is
     rendered only for independent schools (GIAS establishment type id `11`) and for
     the FE colleges in `Web/Data/NotOnRollColleges/not-on-roll-colleges.json`,
     matched on LAESTAB (AB#304119).
-  - `permanent-exclusion` carries
-    `"visibleWhen": ["PupilIsNotAddBack", "SchoolIsNotIndependent"]`, so it is
+  - `permanent-exclusion` tests `pupil.isAddBack` is false and
+    `school.isIndependent` is false, so it is
     rendered only for schools that are **not** independent — an independent school
     cannot have been permanently excluded by a school and cannot action the request.
     Type `10` (Other Independent Special School) is deliberately treated as *not*
     independent (ticket 281165), so it keeps `permanent-exclusion`.
-    `SchoolIsNotIndependentCondition` negates `SchoolIsIndependentCondition` rather
-    than restating the type test, so the string `11` stays defined once and the two
-    polarities cannot disagree.
+    Both reasons use the one fact `school.isIndependent`, with `"is": true` or
+    `"is": false`, so the string `11` is in one class only.
   - Both gates are evaluated server-side by `IOptionVisibilityService`, which refuses
     a posted value for a hidden option as well as omitting it from the render; see
   [request-journey.md → Conditional option visibility](./request-journey.md#conditional-option-visibility).

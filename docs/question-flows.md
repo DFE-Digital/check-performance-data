@@ -62,13 +62,59 @@ The journey feature (pupil change requests) is driven by JSON config files that 
 
 **Adding a new `Autocomplete` data source:** create an `I{Source}Service` / `I{Source}Repository` pair in Application, a repository implementation in Persistence querying the relevant table, and a controller in Web with a `GET /{source}/suggestions?query=` endpoint returning `[{id, label}]`. Register both in the respective `DependencyManager.cs`.
 
-### Conditional option visibility (`visibleWhen`)
+### Conditions (`visibleWhen`, `optionalWhen`, `requireAtLeastOneWhen`)
 
-A `Radio` option may carry a `"visibleWhen": "<ConditionName>"` field. The option is only rendered when a registered `IJourneyCondition` with that `Name` evaluates to `true`. This lets a single config show different options to different users (e.g. the "Not on roll" removal reason only appears for independent schools).
+For a plain-English guide with examples of common changes, see [journey-rules.md](journey-rules.md).
 
-- `IJourneyCondition` (Application) — `Name` + `bool Evaluate(JourneyConditionContext ctx)`. Implementations are pure logic and live in `Application/Journey/Conditions/` (no external dependencies), registered as `IJourneyCondition` in the Application `DependencyManager`. Current condition: `SchoolIsIndependentCondition` (`Name = "SchoolIsIndependent"`, true when GIAS establishment type id is `"11"`, Other Independent School). `SchoolCanRecordNotOnRollCondition` (`Name = "SchoolCanRecordNotOnRoll"`, AB#304119) gates KS4 June "Not on roll": independent **or** an FE college whose LAESTAB is in `Web/Data/NotOnRollColleges/not-on-roll-colleges.json`. On startup the web app copies that file to the `rules-config` container (replacing the blob when it differs) and `NotOnRollCollegeListStore` holds the list in memory, refreshed every five minutes, because conditions are synchronous. A condition may take constructor dependencies; `QuestionFlowValidatorAlignmentTests` builds each one with substitutes.
+Three fields take a condition list:
+
+| Field | On | When every entry holds | When an entry is undecided |
+|---|---|---|---|
+| `visibleWhen` | an option or a question | it is shown | it is hidden |
+| `optionalWhen` | a question | it is optional | it stays mandatory |
+| `requireAtLeastOneWhen` | a page with `requireAtLeastOne` | the rule applies | the rule applies |
+
+The value is one entry or an array of entries. Every entry must hold (AND). An entry has one of these forms:
+
+- **A fact test**, for example `{ "fact": "school.isIndependent", "is": false }`. It holds when the registered `IJourneyCondition` with that `Name` gives the `is` value. An unregistered fact is undecided. A fact is something that the answers do not hold. Always write `"is"`, also for `true`. A string is not a condition: the flow file fails to load, and the error shows the object to write.
+- **An answer test**, for example `{ "answer": "first-language", "in": ["other", "not-known"] }`. It holds when the answer to that question is one of the values. A question with no answer, or a blank answer, is undecided. Do not write a class to test an answer.
+- **An any-of test**, for example `{ "anyOf": [ <entry>, <entry> ] }`. It holds when one or more of its entries hold. It needs two or more entries. When no entry holds and one entry is undecided, it is undecided.
+
+These are the facts:
+
+| Fact | True when |
+|---|---|
+| `pupil.isAddBack` | The selected pupil's inclusion flag (Pincl) is 403, "added back". No pupil, or no Pincl, gives false. |
+| `school.isIndependent` | The school's GIAS establishment type id is `"11"` (Other Independent School). Type 10 is not included. |
+| `school.isOnNotOnRollList` | The school's LAESTAB is in the not-on-roll college list (see below). |
+| `qualification.hasSyllabusCodes` | The selected qualification has one or more syllabus codes. |
+
+Do not write a class for "not X" or for "X or Y". Use `"is": false` or `anyOf` in the flow file.
+
+```json
+"optionalWhen": [
+  { "answer": "reason", "in": ["english-not-first-language"] },
+  { "answer": "first-language", "in": ["other", "believed-other", "chose-not-to-say", "not-known"] }
+]
+```
+
+```json
+"visibleWhen": [
+  { "fact": "pupil.isAddBack", "is": false },
+  { "anyOf": [
+    { "fact": "school.isIndependent", "is": true },
+    { "fact": "school.isOnNotOnRollList", "is": true }
+  ] }
+]
+```
+
+`VisibleWhenJsonConverter` reads the three fields into `JourneyConditionRef` lists. It throws on a malformed object, so a bad flow file fails when it loads. `JourneyConditionEvaluator` evaluates a list, and its caller says what an undecided entry gives. `QuestionFlowValidatorAlignmentTests` checks that each fact has a class, and that each answer test names a question in the same flow with one chosen answer (not a `Checkbox`), and only values from its options.
+
+The rest of this section describes `visibleWhen` on options. A `Radio` option with `visibleWhen` is only rendered when its conditions hold. This lets a single config show different options to different users (e.g. the "Not on roll" removal reason only appears for independent schools).
+
+- `IJourneyCondition` (Application) — `Name` + `bool Evaluate(JourneyConditionContext ctx)`. Implementations are pure logic and live in `Application/Journey/Conditions/` (no external dependencies), registered as `IJourneyCondition` in the Application `DependencyManager`. The facts are in the table above. `SchoolIsOnNotOnRollListCondition` (AB#304119) reads the FE colleges in `Web/Data/NotOnRollColleges/not-on-roll-colleges.json`, matched on LAESTAB. On startup the web app copies that file to the `rules-config` container (replacing the blob when it differs) and `NotOnRollCollegeListStore` holds the list in memory, refreshed every five minutes, because conditions are synchronous. A condition may take constructor dependencies; `QuestionFlowValidatorAlignmentTests` builds each one with substitutes.
 - `JourneyConditionContext` carries the `RequestState` (`Journey`) and a `JourneyUserContext` (`User`) — a neutral snapshot of the signed-in user assembled in the Web layer from `ICurrentUserService`, so Application never touches `HttpContext`. `OrganisationTypeId` flows from the DfE Sign-in get-organisations `$.type.id` field → `organisation_type_id` claim (added in `ClaimsEnrichmentService`).
-- `IOptionVisibilityService.GetVisibleOptions(question, ctx)` filters a question's options preserving order. Options with no `visibleWhen` are always shown; a `visibleWhen` naming an **unregistered** condition is hidden (fail closed). The controller computes `VisibleOptions` per `Radio` question for `BuildPageVm`, and `_Radio.cshtml` iterates those rather than the raw config options.
+- `IOptionVisibilityService.GetVisibleOptions(question, ctx)` filters a question's options preserving order. Options with no `visibleWhen` are always shown; an undecided entry hides the option (fail closed). The controller computes `VisibleOptions` per `Radio` question for `BuildPageVm`, and `_Radio.cshtml` iterates those rather than the raw config options.
 
 ### Page-level validation (`requireAtLeastOne`)
 

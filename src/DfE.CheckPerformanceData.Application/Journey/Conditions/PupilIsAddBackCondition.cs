@@ -10,7 +10,7 @@ namespace DfE.CheckPerformanceData.Application.Journey.Conditions;
 /// </summary>
 public sealed class PupilIsAddBackCondition : IJourneyCondition
 {
-    public string Name => "PupilIsAddBack";
+    public string Name => "pupil.isAddBack";
 
     public bool Evaluate(JourneyConditionContext ctx) =>
         ctx.Journey.SelectedPupil?.Pincl == AnswerFieldMap.AddBackPincl;

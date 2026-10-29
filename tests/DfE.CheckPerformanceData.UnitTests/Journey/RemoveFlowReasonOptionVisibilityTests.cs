@@ -14,7 +14,7 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 // depends on — not a substituted service.
 //
 // The fail-closed hazard this file exists to catch: OptionVisibilityService hides any option whose
-// condition name is not registered. So if `SchoolIsNotIndependent` reaches the JSON without reaching
+// condition name is not registered. So if `school.isIndependent` reaches the JSON without reaching
 // DependencyManager, the reason disappears for EVERY school — the opposite of the fix, and silent.
 // The type-1/type-10/null assertions below are the ones that fail in that state.
 public class RemoveFlowReasonOptionVisibilityTests
@@ -53,7 +53,7 @@ public class RemoveFlowReasonOptionVisibilityTests
     /// property returns null, which the condition then enumerates and throws on.
     ///
     /// Only the college list needs a real value. Its own behaviour is covered by
-    /// SchoolCanRecordNotOnRollConditionTests; here an empty list is the right stub, because this
+    /// SchoolIsOnNotOnRollListConditionTests; here an empty list is the right stub, because this
     /// test is about which options the school type gate hides, not about which colleges are listed.
     /// </summary>
     private static object CreateWithStubbedServices(Type type)
@@ -187,7 +187,7 @@ public class RemoveFlowReasonOptionVisibilityTests
     [InlineData("11")]
     public void PermanentExclusion_IsHidden_ForAddBackPupil(string typeId)
     {
-        // Pincl 403 (added back into the school's results) fails PupilIsNotAddBack, so the reason
+        // Pincl 403 (added back into the school's results) fails the pupil.isAddBack-is-false test, so the reason
         // stays hidden regardless of school type. Guards against the new array dropping its
         // first element.
         Assert.DoesNotContain(PermanentExclusion, VisibleValues(typeId, AddBackPincl));
@@ -218,6 +218,8 @@ public class RemoveFlowReasonOptionVisibilityTests
     {
         var option = TheReasonQuestion().Options!.Single(o => o.Value == PermanentExclusion);
 
-        Assert.Equal(["PupilIsNotAddBack", "SchoolIsNotIndependent"], option.VisibleWhen);
+        Assert.Equal(
+            [JourneyConditionRef.Fact("pupil.isAddBack", false), JourneyConditionRef.Fact("school.isIndependent", false)],
+            option.VisibleWhen);
     }
 }

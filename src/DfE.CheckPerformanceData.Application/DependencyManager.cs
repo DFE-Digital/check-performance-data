@@ -73,14 +73,10 @@ public static class DependencyManager
         // condition named in a flow's visibleWhen without a line here silently hides that option
         // for EVERY school. Guarded by EveryImplementedCondition_IsRegisteredInTheContainer.
         services.AddScoped<IJourneyCondition, SchoolIsIndependentCondition>();
-services.AddScoped<IJourneyCondition, SchoolIsNotIndependentCondition>();
         // AB#304119: needs INotOnRollCollegeListProvider, which the web host registers with the
         // blob clients (AddCpdBlobStorage), beside the hosted service that loads the list.
-        services.AddScoped<IJourneyCondition, SchoolCanRecordNotOnRollCondition>();
+        services.AddScoped<IJourneyCondition, SchoolIsOnNotOnRollListCondition>();
         services.AddScoped<IJourneyCondition, PupilIsAddBackCondition>();
-        services.AddScoped<IJourneyCondition, PupilIsNotAddBackCondition>();
-        services.AddScoped<IJourneyCondition, EalEvidenceIsOptionalCondition>();
-        services.AddScoped<IJourneyCondition, NotOnRollReasonIsOtherCondition>();
         services.AddScoped<IJourneyCondition, HasSyllabusCodesForSelectedQualificationCondition>();
         services.AddScoped<IOriginCountryLanguageCapture, OriginCountryLanguageCapture>();
         services.AddScoped<IFormatValidator, DfeNumberFormatValidator>();

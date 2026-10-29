@@ -29,17 +29,17 @@ public sealed class JourneyPage
     public bool RequireAtLeastOne { get; init; }
 
     /// <summary>
-    /// Names of the <see cref="IJourneyCondition"/>s that must ALL evaluate true for
-    /// <see cref="RequireAtLeastOne"/> to apply. Absent (the default) keeps the rule
+    /// Conditions (names or answer tests, <see cref="JourneyConditionRef"/>) that must ALL hold
+    /// for <see cref="RequireAtLeastOne"/> to apply. Absent (the default) keeps the rule
     /// unconditional. Use it when the same evidence page is reached from several answers
     /// but only some of them must be evidenced — e.g. the 16-19 "not on roll" evidence page,
     /// where only the "Other" reason has to carry a file or an explanation.
     ///
-    /// An unregistered name leaves the rule ON (fail closed), matching
-    /// <see cref="Question.OptionalWhen"/>. JSON accepts a bare string or an array.
+    /// An undecided entry (an unregistered name, or a question with no answer) leaves the rule
+    /// ON (fail closed). JSON accepts one entry or an array.
     /// </summary>
     [JsonConverter(typeof(VisibleWhenJsonConverter))]
-    public IReadOnlyList<string>? RequireAtLeastOneWhen { get; init; }
+    public IReadOnlyList<JourneyConditionRef>? RequireAtLeastOneWhen { get; init; }
     public List<Question> Questions { get; init; } = [];
     public string? NextPageId { get; init; }
     public PupilFilter? PupilFilter { get; init; }

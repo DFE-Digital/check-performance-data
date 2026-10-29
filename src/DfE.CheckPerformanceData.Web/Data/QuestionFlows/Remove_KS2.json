@@ -408,7 +408,10 @@
           "type": "FileUpload",
           "title": "Upload files",
           "hint": "Evidence must be in a PDF format",
-          "optionalWhen": "EalEvidenceIsOptional"
+          "optionalWhen": [
+            { "answer": "reason", "in": ["english-not-first-language"] },
+            { "answer": "first-language", "in": ["other", "believed-other", "chose-not-to-say", "not-known"] }
+          ]
         },
         {
           "id": "how-evidence-supports",
@@ -417,7 +420,10 @@
           "summaryTitle": "How evidence demonstrates removal",
           "characterLimit": 500,
           "validationFailure": "Explain how the evidence supports removing {pupilName}",
-          "optionalWhen": "EalEvidenceIsOptional"
+          "optionalWhen": [
+            { "answer": "reason", "in": ["english-not-first-language"] },
+            { "answer": "first-language", "in": ["other", "believed-other", "chose-not-to-say", "not-known"] }
+          ]
         }
       ]
     }

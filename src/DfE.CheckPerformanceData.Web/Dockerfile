@@ -15,6 +15,10 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:de0ee358cdd672f7017a003bed21e9a
 # with published fixes outstanding (e.g. libssl3t64 3.0.13-0ubuntu3.15 against
 # CVE-2026-84782), and the Snyk gate in CI then fails every build. Upgrading at
 # build time keeps the shipped image at the current noble-security level.
+# CI reuses this layer from its build cache, so the upgrade does not run at each build. To get
+# the current Ubuntu packages now, set OS_PACKAGES_DATE to today's date: a new value makes Docker
+# run the layer again (docs/dependabot.md#os-packages).
+ARG OS_PACKAGES_DATE=2026-10-29
 RUN apt-get update \
     && apt-get upgrade -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*

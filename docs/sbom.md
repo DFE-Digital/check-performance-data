@@ -38,8 +38,8 @@ The action that does this is `.github/actions/image-sbom`, called after each ima
 ## Finding the SBOM for a deployed environment
 
 Go by the image **digest** the running pods report, not by the sha tag: the weekly
-`Build No Cache` run rebuilds the web image and moves the sha tag to the new image without
-redeploying anything, so a running environment can be on an earlier digest than its tag.
+`Build No Cache` run rebuilds the web and worker images and moves each sha tag to the new image
+without redeploying anything, so a running environment can be on an earlier digest than its tag.
 
 1. Read the digest from the pods (the namespace and deployment names are
    `schoolstandards-development` / `schoolstandards-test` / `schoolstandards-production` and
@@ -89,7 +89,8 @@ Or scan the whole SBOM for known vulnerabilities with [grype](https://github.com
 grype sbom:./sbom-web-<sha>.cdx.json
 ```
 
-The weekly `Build No Cache` run rebuilds the web image with current Ubuntu packages, pushes it
-under the same sha tag and attaches a new SBOM to the new image; the earlier image keeps its own.
+The weekly `Build No Cache` run rebuilds the web and worker images with current Ubuntu packages,
+pushes each under the same sha tag and attaches a new SBOM to the new image; the earlier image
+keeps its own.
 Running pods stay on the digest they started with until the next deployment, which is why the
 steps above start from the pod's digest rather than the tag.

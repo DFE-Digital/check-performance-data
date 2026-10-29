@@ -38,6 +38,7 @@ public sealed class Post16EndToEndTests(AzuriteFixture azurite, PostgresFixture 
       "properties": {
         "Id":        { "type": ["string", "null"] },
         "INCLUDED":  { "type": "boolean" },
+        "INCLUDABLE": { "type": "boolean" },
         "CYPMD_ID":  { "type": ["string", "null"] },
         "SURNAME":   { "type": ["string", "null"] },
         "FORENAMES": { "type": ["string", "null"] },
@@ -59,6 +60,7 @@ public sealed class Post16EndToEndTests(AzuriteFixture azurite, PostgresFixture 
       "properties": {
         "Id":        { "type": ["string", "null"] },
         "INCLUDED":  { "type": "boolean" },
+        "INCLUDABLE": { "type": "boolean" },
         "CYPMD_ID":  { "type": ["string", "null"] },
         "SURNAME":   { "type": ["string", "null"] },
         "FORENAMES": { "type": ["string", "null"] },

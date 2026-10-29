@@ -49,8 +49,10 @@ ask to include the pupil: true when the record is not included, or when its code
 schema's `x-ingress.includable` rule names (the 16-19 included file names `P_INCL` 502). It is
 derived from `INCLUDED`, so it follows the same guard. The Include journey reads it. A rule with
 no field, an undeclared field, no codes or a blank code fails the run by name before any row is
-read. A pupil blob written before `INCLUDABLE` existed lacks it and reads as nobody includable:
-validate the exercise again to restamp it. A run writes
+read, and so does a schema that declares `INCLUDED` but not `INCLUDABLE`: it would otherwise
+offer nobody for inclusion. A pupil blob written before `INCLUDABLE` existed lacks it, on every
+key stage, and reads as nobody includable: the Include search finds nobody, and the "already
+included" check matches every typed name. Validate the exercise again to restamp it. A run writes
 `CheckingExerciseBlobPaths.DataBlobName(exercise, laestab)` — never `PupilsBlobName` directly: the
 two normalise the laestab differently on purpose. Every feed must carry a `LAESTAB` column, or the column its schema's `x-ingress.institutionKey` names
 (`LAESTAB_0` in the previously published file): it is what splits one supplier file into one blob per school; a file without it fails the run by name.

@@ -203,6 +203,15 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
                 yield break;
             }
 
+            // INCLUDABLE is derived from INCLUDED. A pupil file that declares only INCLUDED would
+            // ingest cleanly and then offer nobody for inclusion, so the pair is required together.
+            if (schema.Properties.ContainsKey("INCLUDED") && !schema.Properties.ContainsKey("INCLUDABLE"))
+            {
+                summaryCapture?.SetFailure("schema", "identifier_mapping_invalid");
+                yield return Failed($"Schema '{dataset.SchemaFile}': it declares INCLUDED but not INCLUDABLE, so it would offer nobody for inclusion.");
+                yield break;
+            }
+
             // Capture each complete source record before any schema transformation. CsvHelper
             // counts CSV records, so a quoted field containing line breaks remains one row.
             List<IDictionary<string, object>> records = [];

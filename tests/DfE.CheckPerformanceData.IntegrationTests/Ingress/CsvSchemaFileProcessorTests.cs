@@ -24,6 +24,7 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
       "properties": {
         "Id":       { "type": ["string", "null"] },
         "INCLUDED": { "type": "boolean" },
+        "INCLUDABLE": { "type": "boolean" },
         "CYPMD_ID": { "type": ["string", "null"] },
         "SURNAME":  { "type": ["string", "null"] },
         "FORENAMES":{ "type": ["string", "null"] },
@@ -40,6 +41,7 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
       "properties": {
         "Id":       { "type": ["string", "null"] },
         "INCLUDED": { "type": "boolean" },
+        "INCLUDABLE": { "type": "boolean" },
         "CYPMD_ID": { "type": ["string", "null"] },
         "SURNAME":  { "type": ["string", "null"] },
         "FORENAMES":{ "type": ["string", "null"] },
@@ -172,6 +174,7 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
           "properties": {
             "Id":       { "type": ["string", "null"] },
             "INCLUDED": { "type": "boolean" },
+            "INCLUDABLE": { "type": "boolean" },
             "SURNAME":  { "type": ["string", "null"] },
             "FORENAMES":{ "type": ["string", "null"] },
             "CYPMD_ID": { "type": ["string", "null"] },
@@ -259,6 +262,7 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
       },
       "properties": {
         "INCLUDED":    { "type": "boolean" },
+        "INCLUDABLE":  { "type": "boolean" },
         "SURNAME":     { "type": ["string", "null"] },
         "LAESTAB":     { "type": ["string", "null"] },
         "P_INCL":      { "type": ["string", "null"] },
@@ -406,26 +410,29 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
     [Fact]
     public async Task A_schema_with_no_includable_rule_stamps_INCLUDABLE_as_not_included()
     {
-        var schema = SchemaWithInclusionRule.Replace(
-            "\"INCLUDED\":    { \"type\": \"boolean\" },",
-            "\"INCLUDED\":    { \"type\": \"boolean\" },\n        \"INCLUDABLE\":  { \"type\": \"boolean\" },");
-
-        var (included, _) = await RunInclusionRuleAsync("SURNAME,LAESTAB,P_INCL\nSmith,8604070,401\n", schema);
-        var (notIncluded, pupil) = await RunInclusionRuleAsync("SURNAME,LAESTAB,P_INCL\nSmith,8604070,402\n", schema);
+        var (included, includedPupil) = await RunInclusionRuleAsync("SURNAME,LAESTAB,P_INCL\nSmith,8604070,401\n", SchemaWithInclusionRule);
+        var (notIncluded, pupil) = await RunInclusionRuleAsync("SURNAME,LAESTAB,P_INCL\nSmith,8604070,402\n", SchemaWithInclusionRule);
 
         Assert.False(included.IsError, included.Message);
         Assert.False(notIncluded.IsError, notIncluded.Message);
+        Assert.False(includedPupil!["INCLUDABLE"]!.Value<bool>());
         Assert.True(pupil!["INCLUDABLE"]!.Value<bool>());
     }
 
-    [Fact]
-    public async Task A_schema_that_does_not_declare_INCLUDABLE_stamps_nothing_for_it()
+    // Without INCLUDABLE a pupil file would offer nobody for inclusion, and nothing would say so.
+    // An uploaded schema can do this as easily as a shipped one, so the run fails by name.
+    [Theory]
+    [InlineData(null)]
+    [InlineData(true)]
+    public async Task A_schema_declaring_INCLUDED_but_not_INCLUDABLE_fails_the_run_by_name(bool? slotIncluded)
     {
-        var (last, pupil) = await RunInclusionRuleAsync(
-            "SURNAME,LAESTAB,P_INCL\nSmith,8604070,402\n", SchemaWithInclusionRule);
+        var schema = SchemaWithInclusionRule.Replace("\"INCLUDABLE\":  { \"type\": \"boolean\" },", string.Empty);
 
-        Assert.False(last.IsError, last.Message);
-        Assert.Null(pupil!["INCLUDABLE"]);
+        var (last, pupil) = await RunInclusionRuleAsync("SURNAME,LAESTAB,P_INCL\nSmith,8604070,402\n", schema, slotIncluded);
+
+        Assert.True(last.IsError);
+        Assert.Contains("declares INCLUDED but not INCLUDABLE", last.Message);
+        Assert.Null(pupil);
     }
 
     [Fact]
@@ -489,6 +496,7 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
     [InlineData("ks4june", "pupils_schema.json", "UPN,CYPMD_ID,SURNAME,FORENAME,P_INCL,LAESTAB\nA1,1,Smith,Al,401,8604070\n", null, false)]
     [InlineData("ks4june", "pupils_schema.json", "UPN,CYPMD_ID,SURNAME,FORENAME,P_INCL,LAESTAB\nA1,1,Smith,Al,402,8604070\n", null, true)]
     [InlineData("ks2", "pupils_schema.json", "UPN,CYPMD_ID,MATCHREF,SURNAME,FORENAME,PINCL_Flag,LAESTAB\nA1,1,7,Smith,Al,201,8604070\n", null, false)]
+    [InlineData("ks2", "pupils-december_schema.json", "UPN,CYPMD_ID,MATCHREF,SURNAME,FORENAME,PINCL_Flag,LAESTAB\nA1,1,7,Smith,Al,202,8604070\n", null, true)]
     [InlineData("post16", "students-included_schema.json", "CYPMD_ID,SURNAME,FORENAMES,P_INCL,LAESTAB\n1,Smith,Al,501,8604070\n", true, false)]
     [InlineData("post16", "students-included_schema.json", "CYPMD_ID,SURNAME,FORENAMES,P_INCL,LAESTAB\n1,Smith,Al,502,8604070\n", true, true)]
     [InlineData("post16", "students-included_schema.json", "CYPMD_ID,SURNAME,FORENAMES,P_INCL,LAESTAB\n1,Smith,Al,505,8604070\n", true, false)]
@@ -607,6 +615,7 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
           "properties": {
             "Id":       { "type": ["string", "null"] },
             "INCLUDED": { "type": "boolean" },
+            "INCLUDABLE": { "type": "boolean" },
             "SURNAME":  { "type": ["string", "null"] },
             "FORENAMES":{ "type": ["string", "null"] },
             "CYPMD_ID": { "type": ["string", "null"] },
@@ -690,8 +699,9 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
             if (post16)
             {
                 ((JObject)expected[0])["INCLUDED"] = true;
+                ((JObject)expected[0])["INCLUDABLE"] = false;
                 if (school == "8604070")
-                    expected.Add(JObject.Parse("""{"CYPMD_ID":"500002","SURNAME":"Jones","FORENAMES":"Bob","LAESTAB":"8604070","ULN":"9900000002","CampID_0":"C0","INCLUDED":false}"""));
+                    expected.Add(JObject.Parse("""{"CYPMD_ID":"500002","SURNAME":"Jones","FORENAMES":"Bob","LAESTAB":"8604070","ULN":"9900000002","CampID_0":"C0","INCLUDED":false,"INCLUDABLE":true}"""));
             }
             Assert.True(JToken.DeepEquals(expected, actual), $"Unexpected pupil output for {school}: {actual}");
         }

@@ -414,6 +414,50 @@ public class AmendmentRequestsServiceTests
         Assert.Equal("", row.GradeText);
     }
 
+    // #712: a saved record with a result but no recorded kind cannot be mapped to a grade
+    // source: the cell stays empty even though the result holds a grade. The kind, not the row's
+    // label, is the lookup.
+    [Fact]
+    public async Task GetAmendmentRequestsAsync_ARecordWithNoKindLeavesTheGradeCellEmpty()
+    {
+        _windowService.GetCheckingWindowAsync(WindowId).Returns(Window(DateTime.UtcNow));
+        _requestRepo.GetAmendmentRequestsAsync(WindowId, 100001L).Returns([]);
+        _requestRepo.GetSubmittedResultsEnquiriesAsync(WindowId, 100001L)
+            .Returns([Enquiry("REF-10", "Ivo", "Kovac", description: "Results enquiry - Incorrect grade")]);
+        _blobClient.GetAsync(WindowId, "REF-10").Returns(new RequestState
+        {
+            SelectedResult = new ResultRecord { QualificationName = "GCSE (9-1) Bus. Studs:Single", Grade = "5" }
+        });
+
+        var result = await _sut.GetAmendmentRequestsAsync(WindowId);
+
+        var row = Assert.Single(result.IssueRows);
+        Assert.Equal("GCSE (9-1) Bus. Studs:Single", row.QualificationText);
+        Assert.Equal("", row.GradeText);
+    }
+
+    // The blank guard applies to the missing-qualification answer too: an empty stored value
+    // displays as an empty cell.
+    [Fact]
+    public async Task GetAmendmentRequestsAsync_EmptyMissingGradeAnswerLeavesTheGradeCellEmpty()
+    {
+        _windowService.GetCheckingWindowAsync(WindowId).Returns(Window(DateTime.UtcNow));
+        _requestRepo.GetAmendmentRequestsAsync(WindowId, 100001L).Returns([]);
+        _requestRepo.GetSubmittedResultsEnquiriesAsync(WindowId, 100001L)
+            .Returns([Enquiry("REF-11", "Jana", "Larsson")]);
+        _blobClient.GetAsync(WindowId, "REF-11").Returns(new RequestState
+        {
+            SelectedWhatToChange = WhatToChange.MissingQualification,
+            QuestionAnswers = { [EnquiryQuestionIds.MissingGrade] = new QuestionAnswer { TextValue = "" } }
+        });
+
+        var result = await _sut.GetAmendmentRequestsAsync(WindowId);
+
+        var row = Assert.Single(result.IssueRows);
+        Assert.Equal("Missing qualification", row.TypeLabel);
+        Assert.Equal("", row.GradeText);
+    }
+
     // A missing or unreadable blob must degrade to empty cells, never fail the whole page — the
     // row is the record of truth and the school must still see that the enquiry exists.
     [Fact]

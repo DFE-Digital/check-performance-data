@@ -168,7 +168,7 @@ public sealed class JourneyViewModelBuilder(
             ShowSyllabusCode = journey.SelectedQualification?.SyllabusCodes.Count > 0,
             AwardDate = awardDate,
             Ncn = Answer(NcnQuestionId),
-            GradeAchieved = Answer(MissingGradeQuestionId),
+            GradeAchieved = Answer(EnquiryQuestionIds.MissingGrade),
             AdditionalInformation = Answer(AdditionalInfoQuestionId),
             QualificationPageId = qualificationPageId,
             DetailsPageId = detailsPageId,
@@ -181,11 +181,11 @@ public sealed class JourneyViewModelBuilder(
     private const string CohortCountQuestionId = "q-cohort-count";
     private const string AdditionalInfoQuestionId = "q-additional-info";
 
-    // Question ids from MissingQualification_Post16.json. AB#297848.
+    // Question ids from MissingQualification_Post16.json. AB#297848. The missing-grade id is
+    // read directly from EnquiryQuestionIds, its single owner (#712).
     private const string SyllabusQuestionId = "q-syllabus-code";
     private const string AwardDateQuestionId = "q-award-date";
     private const string NcnQuestionId = "q-ncn";
-    private const string MissingGradeQuestionId = EnquiryQuestionIds.MissingGrade;
 
     /// <summary>How a window type is named to a school on the summary.</summary>
     private static string KeyStageLabelFor(Domain.Enums.CheckingWindowType? windowType) => windowType switch

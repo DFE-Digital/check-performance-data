@@ -127,6 +127,9 @@ public sealed class IssueRowViewModel
     public required string TypeLabel { get; init; }
     public required string QualificationText { get; init; }
 
+    /// <summary>#712: the row's Grade achieved value; "" when it cannot be determined.</summary>
+    public required string GradeText { get; init; }
+
     // Same conversion and format as SubmittedRequestRowViewModel.SubmittedDateText: the stored
     // instant is UTC, display is London wall clock, GDS-style written-out date.
     public string DateText => LondonTime.ToLondon(Submitted).ToString("d MMMM yyyy");

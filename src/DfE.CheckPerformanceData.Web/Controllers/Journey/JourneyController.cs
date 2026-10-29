@@ -42,12 +42,12 @@ public sealed class JourneyController(
     /// AB#296648: the revised-grade question id from <c>IncorrectGrade_Post16.json</c>. Named here
     /// because changing the selected result has to clear this one answer specifically.
     /// </summary>
-    internal const string RevisedGradeQuestionId = "q-revised-grade";
+    internal const string RevisedGradeQuestionId = EnquiryQuestionIds.RevisedGrade;
 
     /// <summary>AB#297848: the missing-qualification flow's syllabus and grade question ids. Named
     /// here because choosing a different qualification has to clear these two answers specifically.</summary>
     internal const string SyllabusQuestionId = "q-syllabus-code";
-    internal const string MissingGradeQuestionId = "q-missing-grade";
+    internal const string MissingGradeQuestionId = EnquiryQuestionIds.MissingGrade;
 
     private const long MaxUploadBytes = 10 * 1024 * 1024; // 10 MB
 

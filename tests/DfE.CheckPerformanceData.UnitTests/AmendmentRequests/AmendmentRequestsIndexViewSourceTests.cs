@@ -105,6 +105,22 @@ public sealed class AmendmentRequestsIndexViewSourceTests
         Assert.Contains(">CYPMD id</th>", source);
         Assert.Contains(">Type</th>", source);
         Assert.Contains(">Qualification</th>", source);
+        Assert.Contains(">Grade achieved</th>", source);
+    }
+
+    // #712: the Grade achieved column is part of the Issues table — sliced like the row-actions
+    // pin, so the header and cell cannot be satisfied by a copy of the markup elsewhere in the
+    // panel.
+    [Fact]
+    public void TheGradeAchievedColumnSitsInsideTheIssuesTable()
+    {
+        var issuesPanel = ResultsEnquiriesPanel();
+        var tableStart = issuesPanel.IndexOf("<table", StringComparison.Ordinal);
+        Assert.True(tableStart >= 0, "The Issues table markup is missing.");
+        var tableEnd = issuesPanel.IndexOf("</table>", tableStart, StringComparison.Ordinal) + "</table>".Length;
+        var issuesTable = issuesPanel[tableStart..tableEnd];
+        Assert.Contains(">Grade achieved</th>", issuesTable);
+        Assert.Contains("@issue.GradeText", issuesTable);
     }
 
     // AC 4 (separation): the Issues TABLE renders enquiry fields only, with no per-row actions —

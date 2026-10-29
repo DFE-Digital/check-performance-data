@@ -18,5 +18,10 @@ public sealed class ResultsEnquiryIssueDto
     public required string TypeLabel { get; init; }
 
     public required string QualificationText { get; init; }
+
+    /// <summary>#712: the row's Grade achieved value — the revised grade, the entered grade or the
+    /// held grade, per the enquiry kind. "" when it cannot be determined, matching the sibling cells.</summary>
+    public required string GradeText { get; init; }
+
     public required string ReferenceNumber { get; init; }
 }

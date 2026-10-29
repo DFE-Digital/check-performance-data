@@ -336,7 +336,11 @@ enquiry up. This method is the only place that queues an enquiry.
 How a school sees its own enquiries is designed: AB#298325 added an Issues tab
 beside Requests on the Amendment request summary page (`AmendmentRequestsService.GetAmendmentRequestsAsync`,
 `GetSubmittedResultsEnquiriesAsync`), listing submitted enquiries with pupil-name search, enriched from
-each row's journey blob for CYPMD id and qualification text.
+each row's journey blob for CYPMD id, qualification text and the **Grade achieved** value (#712).
+Grade achieved is the saved record's grade, never the live results feed: the revised grade for an
+incorrect-grade enquiry, the grade entered for a missing qualification, and the grade held for the
+reported result for a result-does-not-belong enquiry. A record that cannot supply one shows an
+empty cell.
 
 Two consequences, both commented in code:
 

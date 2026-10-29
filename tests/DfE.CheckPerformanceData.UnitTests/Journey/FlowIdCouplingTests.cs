@@ -50,9 +50,12 @@ public sealed class FlowIdCouplingTests
         // ── 4. Journey code in the engine and the Web layer. Replace with question roles
         //    (pattern 4) and page types.
         ["src/DfE.CheckPerformanceData.Application/AmendmentRequests/EditAdviceService.cs"] = ["evidence", "reason"],
+        //    #712 moved the grade question ids out of JourneyController and JourneyViewModelBuilder
+        //    into this single owner, which the results-enquiries tab also reads. Not new coupling.
+        ["src/DfE.CheckPerformanceData.Application/ResultsEnquiry/EnquiryQuestionIds.cs"] = ["q-missing-grade", "q-revised-grade"],
         ["src/DfE.CheckPerformanceData.Web/Controllers/Journey/AddPupilJourney.cs"] = ["admission-details", "date-of-birth", "first-name", "last-name", "learner-details", "sex", "upn"],
-        ["src/DfE.CheckPerformanceData.Web/Controllers/Journey/JourneyController.cs"] = ["q-cohort-scope", "q-missing-grade", "q-revised-grade", "q-syllabus-code"],
-        ["src/DfE.CheckPerformanceData.Web/Controllers/Journey/JourneyViewModelBuilder.cs"] = ["additional-info", "q-additional-info", "q-award-date", "q-cohort-count", "q-cohort-scope", "q-missing-grade", "q-ncn", "q-syllabus-code", "qualification-details", "select-qualification"],
+        ["src/DfE.CheckPerformanceData.Web/Controllers/Journey/JourneyController.cs"] = ["q-cohort-scope", "q-syllabus-code"],
+        ["src/DfE.CheckPerformanceData.Web/Controllers/Journey/JourneyViewModelBuilder.cs"] = ["additional-info", "q-additional-info", "q-award-date", "q-cohort-count", "q-cohort-scope", "q-ncn", "q-syllabus-code", "qualification-details", "select-qualification"],
         ["src/DfE.CheckPerformanceData.Web/Controllers/ResultIssue/ResultIssueController.cs"] = ["check-late-results"],
         ["src/DfE.CheckPerformanceData.Web/Views/Journey/AlreadyIncluded.cshtml"] = ["select-pupil"],
         ["src/DfE.CheckPerformanceData.Web/Views/Journey/DuplicateCheck.cshtml"] = ["learner-details"],

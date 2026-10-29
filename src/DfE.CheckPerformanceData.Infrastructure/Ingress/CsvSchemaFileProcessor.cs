@@ -207,7 +207,7 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
             // ingest cleanly and then offer nobody for inclusion, so the pair is required together.
             if (schema.Properties.ContainsKey("INCLUDED") && !schema.Properties.ContainsKey("INCLUDABLE"))
             {
-                summaryCapture?.SetFailure("schema", "identifier_mapping_invalid");
+                summaryCapture?.SetFailure("schema", "includable_not_declared");
                 yield return Failed($"Schema '{dataset.SchemaFile}': it declares INCLUDED but not INCLUDABLE, so it would offer nobody for inclusion.");
                 yield break;
             }

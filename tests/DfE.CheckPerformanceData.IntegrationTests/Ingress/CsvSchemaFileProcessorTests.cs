@@ -452,6 +452,19 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
         Assert.Null(pupil);
     }
 
+    // INCLUDABLE is derived from INCLUDED. A slot with no file of origin and a schema with no
+    // inclusion rule stamp neither, so both are left null and the rows fail validation: the run
+    // fails rather than write a file that offers nobody for inclusion.
+    [Fact]
+    public async Task A_schema_declaring_INCLUDABLE_with_nothing_to_stamp_INCLUDED_fails_the_run()
+    {
+        var (last, pupil) = await RunInclusionRuleAsync("SURNAME,LAESTAB,P_INCL\nSmith,8604070,502\n", SchemaWithIncludableRule);
+
+        Assert.True(last.IsError);
+        Assert.Contains("Validation failed", last.Message);
+        Assert.Null(pupil);
+    }
+
     // A rule that cannot be honoured fails the run before any row is read, like the inclusion rule.
     [Theory]
     [InlineData("{ \"codes\": [\"502\"] }", "names no field")]

@@ -381,6 +381,22 @@ public class IncludeNoResultsDecisionTests
         Assert.Equal("learner-details", saved.QuestionHistory.Single());
     }
 
+    // #711: the decision pages hide "Start adding" where there is no Add flow (16-19), and a forged
+    // POST is refused by the action itself, leaving the Include attempt untouched.
+    [Fact]
+    public async Task StartAddingPupil_OnAWindowTypeWithNoAddFlow_RedirectsToCheckYourData()
+    {
+        SetupSession(SessionForIncludeWith(label: "No Such"));
+        _flowService.GetConfigAsync(WhatToChange.Add, CheckingWindowType.KS4June).Returns((QuestionFlowConfig?)null);
+
+        var result = await _sut.StartAddingPupil(WindowId);
+
+        AssertRedirectToCheckYourData(result);
+        var saved = _session.GetRequestState(WindowId);
+        Assert.Equal(WhatToChange.Include, saved.SelectedWhatToChange);
+        Assert.Equal("No Such", saved.IncludeSearchLabel);
+    }
+
     // -- T019: PupilSearchAgain returns to the Include select-pupil search page --
 
     [Fact]

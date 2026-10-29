@@ -126,4 +126,16 @@ public sealed class PupilSearchIncludableFilterTests(PostgresFixture fixture)
         Assert.Equal(2, results.Count);
         Assert.DoesNotContain(results, r => r.Id == aliceNonIncluded.Id);
     }
+
+    // A filter the repository has no rule for fails loudly, so a new PupilFilter value cannot
+    // quietly return the wrong pupils.
+    [Fact]
+    public async Task An_unknown_filter_throws()
+    {
+        var (alice501, bob502, aliceNonIncluded) = Students();
+        var (windowId, repo) = await SeededAsync(alice501, bob502, aliceNonIncluded);
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            repo.SearchPupilsAsync(windowId, TestLaestab, TestUrn, "Smith", (PupilFilter)99));
+    }
 }

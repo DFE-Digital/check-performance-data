@@ -658,7 +658,7 @@ public class JourneyViewModelBuilderTests
             new Question
             {
                 Id = "q-syllabus-code", Type = QuestionType.SyllabusSelect, Title = "Select syllabus code",
-                VisibleWhen = ["HasSyllabusCodesForSelectedQualification"]
+                VisibleWhen = [JourneyConditionRef.Fact("qualification.hasSyllabusCodes", true)]
             }
         ]
     };

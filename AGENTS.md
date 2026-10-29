@@ -212,6 +212,15 @@ When the code cannot decide, it shows nothing and allows no action:
 - Create-flow controllers gate on `NewWindow`. Controllers that read or edit an existing window
   gate on `ManageWindow`.
 
+### Journeys
+
+- **Code must not name a page id, a question id or an option value from a flow file.** Use a
+  pattern in `docs/journey-config-first.md`. `FlowIdCouplingTests` fails for a new id in code. Add
+  an id to its baseline only with a reason, and remove an entry when the code stops using it.
+- **A change to journey code must not change a journey.** Check each changed journey by hand in
+  the browser before the pull request merges. Name the journeys that you checked in the pull
+  request description.
+
 ### Content and configuration
 
 - **A content block is written once per key.** `IContentBlockService.EnsureAsync` writes
@@ -272,7 +281,7 @@ Update documentation in the **same pull request** as the change that makes it tr
 | An entity, a feature or an Application service | `docs/domain-model.md` |
 | Exercises, slots or releases | `docs/checking-exercise-releases.md` |
 | Blob paths | `docs/blob-storage.md` |
-| Question flow format | `docs/question-flows.md` |
+| Question flow format | `docs/question-flows.md`, and `docs/journey-rules.md` for a change to conditions or facts |
 | Dev seed data | `docs/LocalDevelopement/dev-seed-data.md` |
 | A view's accessibility | `docs/accessibility.md` |
 

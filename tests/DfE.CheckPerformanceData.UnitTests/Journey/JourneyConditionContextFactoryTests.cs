@@ -12,7 +12,7 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 /// can reach both halves of option visibility.
 ///
 /// It matters most for <c>OrganisationTypeId</c>, which decides the two independent-related reasons
-/// in opposite polarities (SchoolIsIndependent gates "Not on roll"; SchoolIsNotIndependent gates
+/// in opposite polarities (<c>school.isIndependent</c> is true for "Not on roll" and false for
 /// "Admitted following permanent exclusion"). If it were dropped here, every condition would see a
 /// null type: "Not on roll" would silently vanish for every school AND "Admitted following permanent
 /// exclusion" would silently stay visible for independent schools. Both failures are invisible - no
@@ -59,21 +59,25 @@ public class JourneyConditionContextFactoryTests
     }
 
     [Fact]
-    public void Create_MakesTheIndependentConditionsSeeTheRealType()
+    public void Create_MakesTheIndependentConditionSeeTheRealType()
     {
         var independent = new SchoolIsIndependentCondition();
-        var notIndependent = new SchoolIsNotIndependentCondition();
 
         var forIndependent = JourneyConditionContextFactory.Create(new RequestState(), UserWithType("11"));
-
-        // The shipped behaviour: type 11 sees "Not on roll" and must not see
-        // "Admitted following permanent exclusion".
         Assert.True(independent.Evaluate(forIndependent));
-        Assert.False(notIndependent.Evaluate(forIndependent));
 
         var forMaintained = JourneyConditionContextFactory.Create(new RequestState(), UserWithType("1"));
-
         Assert.False(independent.Evaluate(forMaintained));
-        Assert.True(notIndependent.Evaluate(forMaintained));
+    }
+
+    [Fact]
+    public void Create_CarriesTheLaestab()
+    {
+        var user = UserWithType("1");
+        user.OrganisationLaestab.Returns("211/8066");
+
+        var ctx = JourneyConditionContextFactory.Create(new RequestState(), user);
+
+        Assert.Equal("211/8066", ctx.User.OrganisationLaestab);
     }
 }

@@ -28,7 +28,7 @@
               "value": "permanent-exclusion",
               "label": "Admitted following permanent exclusion",
               "nextPageId": "permanent-exclusion",
-              "visibleWhen": ["PupilIsNotAddBack", "SchoolIsNotIndependent"]
+              "visibleWhen": [{ "fact": "pupil.isAddBack", "is": false }, { "fact": "school.isIndependent", "is": false }]
             },
             {
               "value": "english-not-first-language",
@@ -39,13 +39,13 @@
               "value": "completed-ks4-elsewhere",
               "label": "Completed KS4 studies this academic year in year 11 at another school or college",
               "nextPageId": "completed-ks4-elsewhere",
-              "visibleWhen": "PupilIsAddBack"
+              "visibleWhen": [{ "fact": "pupil.isAddBack", "is": true }]
             },
             {
               "value": "child-missing-education",
               "label": "Child missing education",
               "nextPageId": "child-missing-education",
-              "visibleWhen": "PupilIsNotAddBack"
+              "visibleWhen": [{ "fact": "pupil.isAddBack", "is": false }]
             },
             {
               "value": "pupil-died",
@@ -56,25 +56,31 @@
               "value": "dual-registered-moved",
               "label": "Dual registered or moved school",
               "nextPageId": "dual-registered-moved",
-              "visibleWhen": "PupilIsNotAddBack"
+              "visibleWhen": [{ "fact": "pupil.isAddBack", "is": false }]
             },
             {
               "value": "elective-home-education",
               "label": "Elective home education",
               "nextPageId": "elective-home-education",
-              "visibleWhen": "PupilIsNotAddBack"
+              "visibleWhen": [{ "fact": "pupil.isAddBack", "is": false }]
             },
             {
               "value": "not-on-roll",
               "label": "Not on roll",
               "nextPageId": "not-on-roll",
-              "visibleWhen": ["SchoolCanRecordNotOnRoll", "PupilIsNotAddBack"]
+              "visibleWhen": [
+                { "fact": "pupil.isAddBack", "is": false },
+                { "anyOf": [
+                  { "fact": "school.isIndependent", "is": true },
+                  { "fact": "school.isOnNotOnRollList", "is": true }
+                ] }
+              ]
             },
             {
               "value": "permanently-excluded",
               "label": "Permanently excluded from current school",
               "nextPageId": "permanently-excluded",
-              "visibleWhen": "PupilIsNotAddBack"
+              "visibleWhen": [{ "fact": "pupil.isAddBack", "is": false }]
             },
             {
               "value": "permanently-left-england",
@@ -85,25 +91,25 @@
               "value": "social-care-involvement",
               "label": "Social care involvement - including police or prison",
               "nextPageId": "social-care",
-              "visibleWhen": "PupilIsNotAddBack"
+              "visibleWhen": [{ "fact": "pupil.isAddBack", "is": false }]
             },
             {
               "value": "life-limiting-illness",
               "label": "Terminal or critical illness",
               "nextPageId": "life-limiting-illness",
-              "visibleWhen": "PupilIsNotAddBack"
+              "visibleWhen": [{ "fact": "pupil.isAddBack", "is": false }]
             },
             {
               "value": "year-group-change",
               "label": "Year group change",
               "nextPageId": "year-group-change-higher-lower",
-              "visibleWhen": "PupilIsNotAddBack"
+              "visibleWhen": [{ "fact": "pupil.isAddBack", "is": false }]
             },
             {
               "value": "other",
               "label": "Other",
               "nextPageId": "evidence",
-              "visibleWhen": "PupilIsAddBack"
+              "visibleWhen": [{ "fact": "pupil.isAddBack", "is": true }]
             }
           ]
         }
@@ -663,7 +669,10 @@
           "type": "FileUpload",
           "title": "Upload files",
           "hint": "Evidence must be in a PDF format",
-          "optionalWhen": "EalEvidenceIsOptional"
+          "optionalWhen": [
+            { "answer": "reason", "in": ["english-not-first-language"] },
+            { "answer": "first-language", "in": ["other", "believed-other", "chose-not-to-say", "not-known"] }
+          ]
         },
         {
           "id": "how-evidence-supports",
@@ -672,7 +681,10 @@
           "summaryTitle": "How evidence demonstrates removal",
           "characterLimit": 500,
           "validationFailure": "Explain how the evidence supports removing {pupilName}",
-          "optionalWhen": "EalEvidenceIsOptional"
+          "optionalWhen": [
+            { "answer": "reason", "in": ["english-not-first-language"] },
+            { "answer": "first-language", "in": ["other", "believed-other", "chose-not-to-say", "not-known"] }
+          ]
         }
       ]
     }

@@ -142,12 +142,50 @@ var services = new ServiceCollection();
                 $"{file}: page '{page.Id}' sets requireAtLeastOneWhen but not requireAtLeastOne — " +
                 "the gate has no rule to gate and does nothing.");
 
-            foreach (var name in names)
+            foreach (var name in Names(names))
             {
                 Assert.True(implementedNames.Contains(name),
                     $"{file}: page '{page.Id}' references journey condition '{name}', but no " +
                     "IJourneyCondition implements it — the requireAtLeastOne rule would silently " +
                     "stay on for every branch reaching the page.");
+            }
+        }
+    }
+
+    /// <summary>
+    /// An answer test (<c>{ "answer": "q", "in": [...] }</c>) in <c>visibleWhen</c>,
+    /// <c>optionalWhen</c> or <c>requireAtLeastOneWhen</c> must name a question in the same flow
+    /// file that has options and one answer (not a checkbox list), and each value must be one of
+    /// its options. A wrong id or value is undecided or never true, so the gate silently fails
+    /// closed.
+    /// </summary>
+    [Fact]
+    public void EveryAnswerTest_NamesAChoiceQuestionAndItsValues()
+    {
+        foreach (var flow in AllFlowPages().GroupBy(p => p.File))
+        {
+            var questions = flow.SelectMany(p => p.Page.Questions)
+                .GroupBy(q => q.Id).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+
+            var tests = flow.SelectMany(p =>
+                    Leaves(p.Page.RequireAtLeastOneWhen).Select(t => (Where: $"page '{p.Page.Id}'", Test: t))
+                    .Concat(p.Page.Questions.SelectMany(q =>
+                        Leaves(q.OptionalWhen).Concat(Leaves(q.VisibleWhen))
+                            .Concat((q.Options ?? []).SelectMany(o => Leaves(o.VisibleWhen)))
+                            .Select(t => (Where: $"question '{p.Page.Id}/{q.Id}'", Test: t)))))
+                .Where(t => t.Test.IsAnswerTest);
+
+            foreach (var (where, test) in tests)
+            {
+                Assert.True(questions.TryGetValue(test.Answer!, out var target),
+                    $"{flow.Key}: {where} tests the answer to '{test.Answer}', which is not a question in this flow.");
+                Assert.True(target!.Options is { Count: > 0 } && target.Type != QuestionType.Checkbox,
+                    $"{flow.Key}: {where} tests '{test.Answer}', which is not a question with one chosen option.");
+                foreach (var value in test.In ?? [])
+                {
+                    Assert.True(target.Options!.Any(o => o.Value == value),
+                        $"{flow.Key}: {where} tests '{test.Answer}' for '{value}', which is not one of its options.");
+                }
             }
         }
     }
@@ -461,19 +499,28 @@ var services = new ServiceCollection();
         Assert.Null(other.NextPageId); // the page's own nextPageId ("evidence") applies to every option
     }
 
+    // Answer tests name no class, so only the names are returned.
+    // EveryAnswerTest_NamesAChoiceQuestionAndItsValues checks the answer tests.
     private static IEnumerable<string> ReferencedConditionNames(Question question)
     {
-        foreach (var name in question.OptionalWhen ?? [])
+        foreach (var name in Names(question.OptionalWhen))
             yield return name;
 
         // Question-level visibility (issue #577) — a name here hides the whole question.
-        foreach (var name in question.VisibleWhen ?? [])
+        foreach (var name in Names(question.VisibleWhen))
             yield return name;
 
         foreach (var option in question.Options ?? [])
-        foreach (var name in option.VisibleWhen ?? [])
+        foreach (var name in Names(option.VisibleWhen))
             yield return name;
     }
+
+    private static IEnumerable<string> Names(IReadOnlyList<JourneyConditionRef>? refs)
+        => Leaves(refs).Where(r => !r.IsAnswerTest).Select(r => r.Name!);
+
+    // The fact and answer tests in a list, with each anyOf replaced by its entries.
+    private static IEnumerable<JourneyConditionRef> Leaves(IReadOnlyList<JourneyConditionRef>? refs)
+        => (refs ?? []).SelectMany(r => r.IsAnyOf ? Leaves(r.AnyOf) : [r]);
 
     private static IEnumerable<Type> ImplementedConditionTypes()
         => typeof(IJourneyCondition).Assembly.GetTypes()
@@ -487,7 +534,7 @@ var services = new ServiceCollection();
             .ToHashSet(StringComparer.Ordinal);
     }
 
-    // A condition may take services (SchoolCanRecordNotOnRoll reads the college list), so each
+    // A condition may take services (school.isOnNotOnRollList reads the college list), so each
     // constructor parameter gets a substitute. Name must not depend on them.
     private static T CreateWithSubstitutes<T>(Type type)
     {

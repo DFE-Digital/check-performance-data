@@ -10,10 +10,10 @@ public sealed class QuestionOption
     public string? NextPageId { get; init; }
 
     /// <summary>
-    /// Names of the <see cref="IJourneyCondition"/>s that must ALL evaluate true
-    /// for this option to be shown/selectable. JSON accepts a bare string (legacy
-    /// single-condition form) or an array; see <see cref="VisibleWhenJsonConverter"/>.
+    /// Conditions that must ALL hold for this option to be shown and selectable: condition
+    /// names or answer tests (<see cref="JourneyConditionRef"/>). JSON accepts one entry or an
+    /// array; see <see cref="VisibleWhenJsonConverter"/>. An undecided entry hides the option.
     /// </summary>
     [JsonConverter(typeof(VisibleWhenJsonConverter))]
-    public IReadOnlyList<string>? VisibleWhen { get; init; }
+    public IReadOnlyList<JourneyConditionRef>? VisibleWhen { get; init; }
 }

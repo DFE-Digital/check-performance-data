@@ -24,7 +24,7 @@ public sealed class HasSyllabusCodesForSelectedQualificationConditionTests
 
     [Fact]
     public void Name_IsTheNameTheConfigReferences() =>
-        Assert.Equal("HasSyllabusCodesForSelectedQualification", _sut.Name);
+        Assert.Equal("qualification.hasSyllabusCodes", _sut.Name);
 
     [Fact]
     public void WithSyllabusCodes_IsTrue() =>

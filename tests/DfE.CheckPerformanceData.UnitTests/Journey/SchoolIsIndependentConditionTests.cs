@@ -15,7 +15,7 @@ public class SchoolIsIndependentConditionTests
     public void Name_IsSchoolIsIndependent()
     {
         var sut = new SchoolIsIndependentCondition();
-        Assert.Equal("SchoolIsIndependent", sut.Name);
+        Assert.Equal("school.isIndependent", sut.Name);
     }
 
     [Fact]

@@ -104,7 +104,7 @@ public sealed class MissingQualificationFlowTests
         // Issue #577: the whole question is hidden for the 961 QANs with no syllabus codes, so the
         // user can complete the enquiry without one.
         Assert.Equal(
-            new[] { "HasSyllabusCodesForSelectedQualification" },
+            new[] { JourneyConditionRef.Fact("qualification.hasSyllabusCodes", true) },
             Question("qualification-details", "q-syllabus-code").VisibleWhen);
 
         // No other details question is conditional.

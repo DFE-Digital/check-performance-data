@@ -86,7 +86,7 @@
           "selectPlaceholder": "Select",
           "validationFailure": "Select the syllabus code",
           "summaryTitle": "Syllabus code",
-          "visibleWhen": ["HasSyllabusCodesForSelectedQualification"]
+          "visibleWhen": [{ "fact": "qualification.hasSyllabusCodes", "is": true }]
         },
         {
           "id": "q-award-date",

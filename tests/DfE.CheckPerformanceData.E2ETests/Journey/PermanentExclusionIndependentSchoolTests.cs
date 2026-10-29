@@ -9,7 +9,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Journey;
 // Issue 508 — the KS4 June Remove reason "Admitted following permanent exclusion (not registered
 // independent schools)" was offered to every school, including independent schools, which cannot
 // have been permanently excluded by a school and so cannot action the request. It is now gated on
-// SchoolIsNotIndependent, which the journey hides AND the POST endpoint refuses.
+// school.isIndependent is false, which the journey hides AND the POST endpoint refuses.
 //
 // The unit tests prove the rule over the real flow JSON and the real condition set. These tests
 // prove it end to end, which needs a browser session that IS an independent school: the shared
@@ -76,7 +76,7 @@ public sealed class PermanentExclusionIndependentSchoolTests(PlaywrightFixture f
     public async Task IndependentSchool_ReasonPage_StillOffersNotOnRoll()
     {
         // Proves the independent session really took effect and the page is otherwise intact:
-        // "Not on roll" is offered to independent schools (SchoolCanRecordNotOnRoll), so an
+        // "Not on roll" is offered to independent schools (school.isIndependent), so an
         // all-reasons-missing render would fail here.
         await SeedHelpers.CleanupDevRequestsAsync(Fixture.SeedClient);
         await NavigateToReasonPageAsync();

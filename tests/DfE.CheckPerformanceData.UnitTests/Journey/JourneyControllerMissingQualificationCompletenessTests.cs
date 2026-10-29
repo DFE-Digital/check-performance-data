@@ -100,7 +100,7 @@ public sealed class JourneyControllerMissingQualificationCompletenessTests
                 Type = QuestionType.SyllabusSelect,
                 Title = "Select syllabus code",
                 ValidationFailure = "Select the syllabus code",
-                VisibleWhen = ["HasSyllabusCodesForSelectedQualification"]
+                VisibleWhen = [JourneyConditionRef.Fact("qualification.hasSyllabusCodes", true)]
             },
             new Question { Id = "q-award-date", Type = QuestionType.Date, Title = "Provide award date",
                 ValidationFailure = "Provide the award date" },

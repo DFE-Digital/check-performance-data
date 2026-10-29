@@ -81,10 +81,12 @@ public sealed class AmendmentRequestsService(
                 .Where(e => e.ExerciseType is not null)
                 .Select(e => new ExerciseDeadlineDto
                 {
-                    Exercise = e.ExerciseType.Value,
+                    // The Where above filters out the display-only exercises, so the kind is known
+                    // here; the compiler cannot see across the LINQ chain, hence the suppression.
+                    Exercise = e.ExerciseType!.Value,
                     EndDate = e.EndDateFor(laestab),
                     // The clock lives in one place, so "has this closed" is asked, never computed.
-                    IsOpen = checkingExercises.IsOpen(window.Exercises, e.ExerciseType.Value, laestab)
+                    IsOpen = checkingExercises.IsOpen(window.Exercises, e.ExerciseType!.Value, laestab)
                 })
                 .ToList(),
             Rows = requests.Select(r => new AmendmentRequestDto

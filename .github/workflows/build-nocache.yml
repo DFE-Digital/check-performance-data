@@ -13,6 +13,7 @@ jobs:
       packages: write
     env:
       DOCKER_REPOSITORY: ghcr.io/dfe-digital/check-performance-data
+      WORKER_DOCKER_REPOSITORY: ghcr.io/dfe-digital/check-performance-data-worker
     outputs:
       docker-image-tag: ${{ steps.build-image.outputs.tag }}
     runs-on: ubuntu-latest
@@ -40,6 +41,28 @@ jobs:
       with:
         image: ${{ steps.build-image.outputs.image }}
         name: web
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+
+    # The worker image installs curl, so it gets OS package fixes that the web image does not.
+    # Rebuild it here too, or its cached package layer stays old until its base digest changes.
+    - name: Build without cache and push worker docker image
+      id: build-worker-image
+      uses: DFE-Digital/github-actions/build-docker-image@master
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        context: ./src
+        dockerfile-path: ./src/DfE.CheckPerformanceData.RulesEngineWorker/Dockerfile
+        target: final
+        docker-repository: ${{ env.WORKER_DOCKER_REPOSITORY }}
+        max-cache: true
+        reuse-cache: false
+        snyk-token: ${{ secrets.SNYK_TOKEN }}
+
+    - name: SBOM for the worker image
+      uses: ./.github/actions/image-sbom
+      with:
+        image: ${{ steps.build-worker-image.outputs.image }}
+        name: worker
         github-token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Notify teams channel on job failure

@@ -107,9 +107,31 @@ Dependabot's pull requests change the digest, and the tag if there is a newer on
 republishes `10.0` with each .NET patch and Ubuntu security update.
 
 Pinning the .NET images means the runtime patch an image ships changes only when a Dependabot
-pull request is merged, not at every build. `apt-get upgrade` in the Web and worker Dockerfiles
-still applies Ubuntu security updates at every build, and the weekly **Build No Cache** run still
-rebuilds the web image to pick them up.
+pull request is merged, not at every build. Ubuntu security updates come from `apt-get upgrade`
+in the Web and worker Dockerfiles (see [OS packages](#os-packages)).
+
+### OS packages
+
+The `base` stage of the Web and worker Dockerfiles runs `apt-get upgrade`. The worker also
+installs `curl`. This layer gets the Ubuntu security fixes that the base image does not have yet.
+
+CI reuses this layer from its build cache, so it does not run at each build. It runs again when:
+
+- a Dependabot pull request changes the base image digest;
+- the weekly **Build No Cache** run rebuilds the web and worker images on `main`;
+- the `OS_PACKAGES_DATE` build argument in the Dockerfile changes.
+
+When the Snyk scan in the **Build** job finds a high severity issue in an Ubuntu package, do these
+steps:
+
+1. Read the "Fixed in" version in the Snyk output. Snyk shows the image name after the issue
+   ("Target file").
+2. Make sure that Ubuntu has the fix. Run
+   `docker run --rm --user root <base image> sh -c "apt-get update -qq; apt-cache policy <package>"`.
+3. If Ubuntu has the fix, set `OS_PACKAGES_DATE` to today's date in both Dockerfiles. Merge
+   the change to `main`, then merge `main` into the open pull requests.
+4. If Ubuntu does not have the fix ("Fixed in" is empty), the upgrade cannot help. Wait for a
+   new base image, or ask the team about a Snyk ignore with an end date.
 
 ### The pin check
 

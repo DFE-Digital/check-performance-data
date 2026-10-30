@@ -121,4 +121,51 @@ public class Post16PupilRecordDeserializationTests
         Assert.Equal(18, pupil.Age);
         Assert.Equal(502, pupil.Pincl);
     }
+
+    [Fact]
+    public void Binds_INCLUDABLE_from_the_stamp()
+    {
+        const string json = """
+        [
+          {
+            "Id": "11111111-1111-1111-1111-111111111111",
+            "INCLUDED": true,
+            "INCLUDABLE": true,
+            "CYPMD_ID": "500124",
+            "SURNAME": "Smith",
+            "FORENAMES": "Bob",
+            "P_INCL": 502,
+            "LAESTAB": "860/4070"
+          }
+        ]
+        """;
+
+        var pupil = DeserializeSingle(json);
+
+        Assert.True(pupil.IsIncluded);
+        Assert.True(pupil.IsIncludable);
+    }
+
+    [Fact]
+    public void A_record_with_no_INCLUDABLE_stamp_is_not_includable()
+    {
+        const string json = """
+        [
+          {
+            "Id": "11111111-1111-1111-1111-111111111111",
+            "INCLUDED": false,
+            "CYPMD_ID": "500201",
+            "SURNAME": "Johnson",
+            "FORENAMES": "Alice",
+            "LAESTAB": "860/4070"
+          }
+        ]
+        """;
+
+        var pupil = DeserializeSingle(json);
+
+        // Fail closed: a file ingested before the stamp existed offers nobody for inclusion until
+        // the exercise is validated again. The service is not live, so there is no fallback.
+        Assert.False(pupil.IsIncludable);
+    }
 }

@@ -193,6 +193,25 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
                 yield break;
             }
 
+            // #711: who may be asked to be included. Validated like the inclusion rule, so a schema
+            // that cannot be honoured fails by name before any row is read.
+            IncludableRule? includable = IncludableRule.From(schema);
+            if (includable?.ErrorFor(schema) is { } includableError)
+            {
+                summaryCapture?.SetFailure("schema", "identifier_mapping_invalid");
+                yield return Failed($"Schema '{dataset.SchemaFile}': {includableError}");
+                yield break;
+            }
+
+            // INCLUDABLE is derived from INCLUDED. A pupil file that declares only INCLUDED would
+            // ingest cleanly and then offer nobody for inclusion, so the pair is required together.
+            if (schema.Properties.ContainsKey("INCLUDED") && !schema.Properties.ContainsKey("INCLUDABLE"))
+            {
+                summaryCapture?.SetFailure("schema", "includable_not_declared");
+                yield return Failed($"Schema '{dataset.SchemaFile}': it declares INCLUDED but not INCLUDABLE, so it would offer nobody for inclusion.");
+                yield break;
+            }
+
             // Capture each complete source record before any schema transformation. CsvHelper
             // counts CSV records, so a quoted field containing line breaks remains one row.
             List<IDictionary<string, object>> records = [];
@@ -306,6 +325,16 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
                     else if (inclusion is not null)
                     {
                         record["INCLUDED"] = inclusion.IsIncluded(record);
+                    }
+
+                    // #711: who may be asked to be included — not included, or a code the schema's
+                    // x-ingress.includable rule names (only the 16-19 included file has one). Derived
+                    // from INCLUDED, so it is stamped only when INCLUDED was, and only when the schema
+                    // declares it (AllowAdditionalProperties is false). Readers read the stamp.
+                    if (schema.Properties.ContainsKey("INCLUDABLE") &&
+                        record["INCLUDED"] is { Type: JTokenType.Boolean } stampedIncluded)
+                    {
+                        record["INCLUDABLE"] = !stampedIncluded.Value<bool>() || (includable?.Matches(record) ?? false);
                     }
 
                     // Provenance by file of origin, the exact analogue of INCLUDED above: the
@@ -816,6 +845,38 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
 
         private string Code(JObject record) =>
             record[Field] is { Type: not JTokenType.Null } value ? value.ToString().Trim() : string.Empty;
+    }
+
+    /// <summary>
+    /// Which records a school may ask to include although their file counts them as included:
+    /// <c>"x-ingress": { "includable": { "field": "P_INCL", "codes": ["502"] } }</c> at the
+    /// schema's root. Codes are compared as trimmed text. A record that is not included is
+    /// includable without a rule; the rule only adds to that (#711).
+    /// </summary>
+    private sealed record IncludableRule(string Field, IReadOnlySet<string> Codes)
+    {
+        public static IncludableRule? From(JSchema schema)
+        {
+            if (!schema.ExtensionData.TryGetValue("x-ingress", out JToken? ingress) ||
+                ingress["includable"] is not JObject rule)
+                return null;
+
+            return new IncludableRule(
+                rule["field"]?.Value<string>() ?? string.Empty,
+                (rule["codes"] as JArray ?? []).Select(code => code.ToString().Trim()).ToHashSet(StringComparer.Ordinal));
+        }
+
+        public string? ErrorFor(JSchema schema) =>
+            string.IsNullOrWhiteSpace(Field) ? "x-ingress.includable names no field."
+            : !schema.Properties.ContainsKey(Field) ? $"x-ingress.includable reads {Field}, which the schema does not declare."
+            : !schema.Properties.ContainsKey("INCLUDABLE") ? "x-ingress.includable needs the schema to declare INCLUDABLE, the stamp it writes."
+            // A rule with no codes adds nobody, and a blank code would match every empty field.
+            : Codes.Count == 0 ? "x-ingress.includable names no codes."
+            : Codes.Contains(string.Empty) ? "x-ingress.includable names a blank code."
+            : null;
+
+        public bool Matches(JObject record) =>
+            Codes.Contains(record[Field] is { Type: not JTokenType.Null } value ? value.ToString().Trim() : string.Empty);
     }
 
     private static IReadOnlyList<SourceColumn> SourceColumns(JSchema schema)

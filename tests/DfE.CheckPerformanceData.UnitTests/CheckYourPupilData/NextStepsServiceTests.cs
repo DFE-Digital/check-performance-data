@@ -168,6 +168,118 @@ public sealed class NextStepsServiceTests
         Assert.DoesNotContain(NextSteps.SignOut, Sut().GetAvailableSteps([Open(CheckingExerciseType.ResultsEnquiry)], laestab: null));
     }
 
+    // ── GetConfirmationPageSteps (#713) ──────────────────────────────────────
+    // The submission confirmation pages offer the same open actions, minus Confirm (a
+    // confirmation page is not the data-confirmation journey) and SignOut (the service never
+    // offers it). The open/closed decision stays the single one in ICheckingExerciseService.
+
+    [Fact]
+    public void An_open_pupil_data_exercise_offers_amend_but_not_confirm()
+    {
+        Assert.Equal(
+            [NextSteps.RequestChange],
+            Sut().GetConfirmationPageSteps([Open(CheckingExerciseType.PupilData)], laestab: null));
+    }
+
+    [Fact]
+    public void An_open_results_enquiry_exercise_offers_the_enquiry_option_on_a_confirmation_page()
+    {
+        Assert.Equal(
+            [NextSteps.ResultsEnquiry],
+            Sut().GetConfirmationPageSteps([Open(CheckingExerciseType.ResultsEnquiry)], laestab: null));
+    }
+
+    [Fact]
+    public void Two_open_exercises_offer_both_options_in_exercise_sort_order()
+    {
+        var exercises = new[]
+        {
+            Open(CheckingExerciseType.ResultsEnquiry, sortOrder: 1),
+            Open(CheckingExerciseType.PupilData, sortOrder: 0)
+        };
+
+        Assert.Equal(
+            [NextSteps.RequestChange, NextSteps.ResultsEnquiry],
+            Sut().GetConfirmationPageSteps(exercises, laestab: null));
+    }
+
+    [Fact]
+    public void No_open_exercise_offers_nothing_on_a_confirmation_page()
+    {
+        var exercises = new[]
+        {
+            Closed(CheckingExerciseType.PupilData, sortOrder: 0),
+            Closed(CheckingExerciseType.ResultsEnquiry, sortOrder: 1)
+        };
+
+        Assert.Empty(Sut().GetConfirmationPageSteps(exercises, laestab: null));
+    }
+
+    [Fact]
+    public void An_exercise_that_has_not_started_offers_nothing_yet_on_a_confirmation_page()
+    {
+        Assert.Empty(
+            Sut().GetConfirmationPageSteps([NotYetOpen(CheckingExerciseType.PupilData)], laestab: null));
+    }
+
+    [Fact]
+    public void A_display_only_exercise_offers_nothing_on_a_confirmation_page()
+    {
+        // A display-only data share has no kind, so it can never open a journey.
+        var displayOnly = new CheckingExerciseDto
+        {
+            ExerciseType = null,
+            IsEnabled = true,
+            DisplayOnly = true,
+            StartDate = Yesterday,
+            EndDate = Tomorrow,
+            TabOrder = 0
+        };
+
+        Assert.Empty(Sut().GetConfirmationPageSteps([displayOnly], laestab: null));
+    }
+
+    [Fact]
+    public void A_school_in_an_extension_keeps_its_confirmation_options_after_the_exercise_end()
+    {
+        var exercise = Closed(CheckingExerciseType.PupilData);
+        exercise.Extensions.Add(new CheckingExerciseExtensionDto { Id = Guid.NewGuid(), EndDate = Tomorrow, Laestabs = ["9334290"] });
+
+        Assert.Equal([NextSteps.RequestChange], Sut().GetConfirmationPageSteps([exercise], "933/4290"));
+        Assert.Empty(Sut().GetConfirmationPageSteps([exercise], "8604070"));
+        Assert.Empty(Sut().GetConfirmationPageSteps([exercise], laestab: null));
+    }
+
+    [Fact]
+    public void No_exercise_ever_offers_confirm_or_sign_out_on_a_confirmation_page()
+    {
+        var everythingOpen = new[]
+        {
+            Open(CheckingExerciseType.PupilData, 0),
+            Open(CheckingExerciseType.ResultsEnquiry, 1)
+        };
+
+        var steps = Sut().GetConfirmationPageSteps(everythingOpen, laestab: null);
+
+        Assert.DoesNotContain(NextSteps.Confirm, steps);
+        Assert.DoesNotContain(NextSteps.SignOut, steps);
+    }
+
+    [Fact]
+    public void An_exercise_type_with_no_mapping_contributes_no_options_on_a_confirmation_page()
+    {
+        var unmapped = new CheckingExerciseDto
+        {
+            ExerciseType = (CheckingExerciseType)999,
+            IsEnabled = true,
+            StartDate = Yesterday,
+            EndDate = Tomorrow,
+            TabOrder = 0
+        };
+
+        Assert.Empty(Sut().GetConfirmationPageSteps([unmapped], laestab: null));
+    }
+
     // ── IsResultsEnquiryOnly (AB#298317 review) ──────────────────────────────
     // One definition of the state in which the page asks "Would you like to report an issue with
     // an exam result?" and the POST accepts SignOut — previously spelt out twice, once in each.

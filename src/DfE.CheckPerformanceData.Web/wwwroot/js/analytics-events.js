@@ -2,6 +2,7 @@
 // Fire-and-forget: failures must never affect the page.
 (function () {
     'use strict';
+    if (document.querySelector('meta[name="impersonation-read-only"]')) { return; }
 
     function getToken() {
         var meta = document.querySelector('meta[name="request-verification-token"]');

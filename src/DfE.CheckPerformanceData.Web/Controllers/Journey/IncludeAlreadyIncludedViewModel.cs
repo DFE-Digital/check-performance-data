@@ -1,6 +1,7 @@
 namespace DfE.CheckPerformanceData.Web.Controllers.Journey;
 
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Application.WindowManagement;
 
 /// <summary>
 /// View model for the Include journey's "already included" warning page. Shown when the typed
@@ -27,4 +28,11 @@ public sealed class IncludeAlreadyIncludedViewModel
     /// <summary>The pupils found on the included list matching the typed entry. Display only —
     /// never logged or placed in analytics. Empty when no match details were carried.</summary>
     public IReadOnlyList<PupilSuggestionDto> Matches { get; set; } = [];
+
+    /// <summary>The window's word for a learner: "student" on 16-19, "pupil" elsewhere.</summary>
+    public LearnerNoun LearnerNoun { get; set; } = LearnerNoun.Pupil;
+
+    /// <summary>True when the window type has an Add flow, so "Start adding" leads somewhere.
+    /// 16-19 has none (#711).</summary>
+    public bool CanAdd { get; set; }
 }

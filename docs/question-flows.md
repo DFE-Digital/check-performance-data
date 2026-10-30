@@ -36,13 +36,13 @@ The journey feature (pupil change requests) is driven by JSON config files that 
 
 | Field | Required | Values | Notes |
 |---|---|---|---|
-| `pupilFilter` | yes | `"Included"` / `"All"` | `Included` limits results to pupils stamped `INCLUDED`; `All` returns every pupil for the school |
+| `pupilFilter` | yes | `"Included"` / `"All"` / `"Includable"` / `"NotIncludable"` | `Included` limits results to pupils stamped `INCLUDED`; `All` returns every pupil for the school; `Includable` returns pupils stamped `INCLUDABLE` — the Include journey's search, which on 16-19 adds the included file's P_INCL 502 students to the non-included file (#711); `NotIncludable` is the rest, which the Include journey's "already included" guards look a name up in |
 | `pupilKey` | yes | `"primary"` / `"match"` | `primary` saves to `RequestState.SelectedPupil*` and generates the reference number; `match` saves to `RequestState.MatchedPupil*` |
 | `requireResults` | no | `true` / `false` (default) | Limits the search to students the school holds a 16-19 result for. Independent of `pupilFilter`, which selects by inclusion status. Set on the results-enquiry student search — there is no grade to correct for a student with no result. The page must say so in its `subheading`, because the restriction silently hides students |
 | `nextPageId` | no | page id string | Absent means redirect to Summary after selection |
 | `validationFailure` | no | string (supports `{pupilName}`) | Error shown when no pupil is submitted. Falls back to `"Enter the name of the pupil"` |
 
-**Suggestions endpoint:** `GET /pupils/suggestions?windowId={id}&query={q}&filter=Included|All&excludePupilId={guid}&requireResults=true` (served by `PupilSuggestionsController`). The `match` pupil page automatically passes the primary pupil's ID as `excludePupilId` so it cannot be selected twice. `requireResults` is sent only when the page config sets it; it is a search restriction, never a permission — it can reach no pupil outside the signed-in school's own file. When it is on, the autocomplete's no-match text changes to "No students found with results" so a school can tell a typo from a student who holds nothing.
+**Suggestions endpoint:** `GET /pupils/suggestions?windowId={id}&query={q}&filter=Included|All|Includable|NotIncludable&excludePupilId={guid}&requireResults=true` (served by `PupilSuggestionsController`). The `match` pupil page automatically passes the primary pupil's ID as `excludePupilId` so it cannot be selected twice. `requireResults` is sent only when the page config sets it; it is a search restriction, never a permission — it can reach no pupil outside the signed-in school's own file. When it is on, the autocomplete's no-match text changes to "No students found with results" so a school can tell a typo from a student who holds nothing.
 
 **Navigation:** `JourneyController.Page` (GET) transparently dispatches to `PupilSearchPage` when the requested page has `Type == PupilSearch`, so all navigation (summary redirects, `GetNextPageId`, navigation guard) works uniformly.
 

@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.Impersonation;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData.Columns;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData.Results;
 using DfE.CheckPerformanceData.Domain.Enums;
@@ -14,16 +15,17 @@ public sealed class CheckYourPupilDataService : ICheckYourPupilDataService
 {
     private readonly ICheckYourPupilDataRepository _repository;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IEstablishmentViewContext? _viewContext;
     private readonly IResultsClient _resultsClient;
     private readonly ILogger<CheckYourPupilDataService> _log;
 
     public CheckYourPupilDataService(
         ICheckYourPupilDataRepository repository,
         ICurrentUserService currentUserService,
-        IResultsClient resultsClient,
-        ILogger<CheckYourPupilDataService>? logger = null)
+        IResultsClient resultsClient, ILogger<CheckYourPupilDataService>? logger = null, IEstablishmentViewContext? viewContext = null)
     {
         _repository = repository;
+        _viewContext = viewContext;
         _currentUserService = currentUserService;
         _resultsClient = resultsClient;
         _log = logger ?? NullLogger<CheckYourPupilDataService>.Instance;
@@ -31,7 +33,7 @@ public sealed class CheckYourPupilDataService : ICheckYourPupilDataService
 
     public async Task<(PupilTable Table, int TotalCount)> GetPupilTableAsync(Guid windowId, bool included, string? search, int page, int pageSize)
     {
-        var laestab = _currentUserService.OrganisationLaestab;
+        var laestab = (_viewContext?.OrganisationLaestab ?? _currentUserService.OrganisationLaestab);
         var window = await _repository.GetCheckingWindowAsync(windowId);
         var (items, total) = await _repository.GetPupilPageAsync(windowId, laestab, included, search, page, pageSize);
 
@@ -40,7 +42,7 @@ public sealed class CheckYourPupilDataService : ICheckYourPupilDataService
 
     public async Task<PupilTable> GetPupilCsvAsync(Guid windowId, bool included)
     {
-        var laestab = _currentUserService.OrganisationLaestab;
+        var laestab = (_viewContext?.OrganisationLaestab ?? _currentUserService.OrganisationLaestab);
         var window = await _repository.GetCheckingWindowAsync(windowId);
         var items = await _repository.GetAllPupilsAsync(windowId, laestab, included);
 
@@ -77,7 +79,7 @@ public sealed class CheckYourPupilDataService : ICheckYourPupilDataService
     /// </summary>
     private async Task<List<ResultRow>?> GetResultRowsAsync(Guid windowId)
     {
-        var laestab = _currentUserService.OrganisationLaestab;
+        var laestab = (_viewContext?.OrganisationLaestab ?? _currentUserService.OrganisationLaestab);
         var window = await _repository.GetCheckingWindowAsync(windowId);
 
         if (window.Exercises.All(e => e.ExerciseType != CheckingExerciseType.ResultsEnquiry))
@@ -110,8 +112,8 @@ public sealed class CheckYourPupilDataService : ICheckYourPupilDataService
 
     public async Task<IReadOnlyList<PupilSuggestionDto>> GetPupilSuggestionsAsync(Guid windowId, string query, PupilFilter filter, Guid? excludeId = null, bool requireResults = false, PupilSearchField searchField = PupilSearchField.All)
     {
-        var laestab = _currentUserService.OrganisationLaestab;
-        var urn = _currentUserService.OrganisationUrn;
+        var laestab = (_viewContext?.OrganisationLaestab ?? _currentUserService.OrganisationLaestab);
+        var urn = (_viewContext?.OrganisationUrn ?? _currentUserService.OrganisationUrn);
 
         // A results enquiry names a student whose grade is wrong, so a student with no result is
         // not a candidate. The set comes from the same cached school file the enquiry itself reads,
@@ -125,13 +127,13 @@ public sealed class CheckYourPupilDataService : ICheckYourPupilDataService
 
     public async Task<PupilDto> GetPupilAsync(Guid windowId, Guid pupilId)
     {
-        var laestab = _currentUserService.OrganisationLaestab;
+        var laestab = (_viewContext?.OrganisationLaestab ?? _currentUserService.OrganisationLaestab);
         return await _repository.GetPupilAsync(windowId, laestab, pupilId);
     }
 
     public async Task<PupilDuplicateCheckResult> DuplicateCheckAsync(Guid windowId, string firstname, string surname, string dateOfBirth)
     {
-        var laestab = _currentUserService.OrganisationLaestab;
+        var laestab = (_viewContext?.OrganisationLaestab ?? _currentUserService.OrganisationLaestab);
 
         try
         {

@@ -63,6 +63,11 @@ public sealed class PupilRecord : IPupilRecord
     [JsonPropertyName("INCLUDED")]
     public bool Included { get; init; }
 
+    /// <summary>Stamped by ingress (#711): true when a school may ask to include this pupil. On
+    /// KS4 and KS2 that is "not included". Absent means not includable.</summary>
+    [JsonPropertyName("INCLUDABLE")]
+    public bool Includable { get; init; }
+
     /// <summary>The words schools see for <see cref="Pincl"/>, stamped by ingress from the schema's
     /// inclusion rule when the supplier file does not carry them.</summary>
     [JsonPropertyName("P_INCL_DESC")]
@@ -98,4 +103,7 @@ public sealed class PupilRecord : IPupilRecord
 
     [JsonIgnore]
     public bool IsIncluded => Included;
+
+    [JsonIgnore]
+    public bool IsIncludable => Includable;
 }

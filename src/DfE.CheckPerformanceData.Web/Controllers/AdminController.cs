@@ -27,7 +27,9 @@ public sealed class AdminController(
         // window-administration pages their role does not have.
         var access = new Dictionary<string, bool>(StringComparer.Ordinal);
         foreach (var key in AdminNavNodeViewModel.CollectEntries(roots).Select(e => e.Key).Distinct(StringComparer.Ordinal))
-            access[key] = await accessPolicy.CanAccessAsync(User, key);
+            access[key] = key == "impersonation"
+                ? DfE.CheckPerformanceData.Web.Impersonation.ImpersonationAccessPolicy.CanAccess(User)
+                : await accessPolicy.CanAccessAsync(User, key);
 
         var visible = AdminNavNodeViewModel.FilterByAccess(roots, key => access.TryGetValue(key, out var ok) && ok);
         return View(new AdminLandingViewModel { Roots = visible });

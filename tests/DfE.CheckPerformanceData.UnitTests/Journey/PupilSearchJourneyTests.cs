@@ -131,6 +131,7 @@ PupilFilter = PupilFilter.All,
             Substitute.For<DfE.CheckPerformanceData.Application.ResultsEnquiry.IQualificationReferenceClient>(),
             Substitute.For<DfE.CheckPerformanceData.Application.Notify.IRequestNotificationService>(),
             OpenCheckingExercises.AlwaysOpen(),
+            Substitute.For<DfE.CheckPerformanceData.Application.CheckYourPupilData.INextStepsService>(),
             Microsoft.Extensions.Logging.Abstractions.NullLogger<JourneyController>.Instance)
         {
             ControllerContext = new ControllerContext { HttpContext = _httpContext },
@@ -607,7 +608,7 @@ PupilFilter = PupilFilter.All,
         };
         SetupIncludeJourney();
         _pupilDataService.GetPupilAsync(WindowId, PrimaryPupilId).Returns(nonIncludedPupil);
-        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "Casey Carter", PupilFilter.Included)
+        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "Casey Carter", PupilFilter.NotIncludable)
             .Returns([new PupilSuggestionDto(Guid.NewGuid(), "Carter, Casey, 01/01/2010", "Casey", "Carter", "01/01/2010")]);
 
         var result = await _sut.PupilSearchPost(WindowId, "select-pupil", PrimaryPupilId.ToString(), "Carter, Casey, 01/01/2010");
@@ -627,7 +628,7 @@ PupilFilter = PupilFilter.All,
         };
         SetupIncludeJourney();
         _pupilDataService.GetPupilAsync(WindowId, PrimaryPupilId).Returns(nonIncludedPupil);
-        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "Casey Carter", PupilFilter.Included)
+        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "Casey Carter", PupilFilter.NotIncludable)
             .Returns([new PupilSuggestionDto(Guid.NewGuid(), "Carter, Casey, 01/01/2010", "Casey", "Carter", "01/01/2010")]);
 
         await _sut.PupilSearchPost(WindowId, "select-pupil", PrimaryPupilId.ToString(), "Carter, Casey, 01/01/2010");
@@ -647,7 +648,7 @@ PupilFilter = PupilFilter.All,
         var includedSuggestion = new PupilSuggestionDto(Guid.NewGuid(), "Carter, Casey, 01/01/2010", "Casey", "Carter", "01/01/2010");
         SetupIncludeJourney();
         _pupilDataService.GetPupilAsync(WindowId, PrimaryPupilId).Returns(nonIncludedPupil);
-        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "Casey Carter", PupilFilter.Included)
+        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "Casey Carter", PupilFilter.NotIncludable)
             .Returns([includedSuggestion]);
 
         await _sut.PupilSearchPost(WindowId, "select-pupil", PrimaryPupilId.ToString(), "Carter, Casey, 01/01/2010");
@@ -688,13 +689,42 @@ PupilFilter = PupilFilter.All,
         };
         SetupIncludeJourney();
         _pupilDataService.GetPupilAsync(WindowId, PrimaryPupilId).Returns(nonIncludedPupil);
-        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "Jane Smith", PupilFilter.Included)
+        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "Jane Smith", PupilFilter.NotIncludable)
             .Returns([]);
 
         var result = await _sut.PupilSearchPost(WindowId, "select-pupil", PrimaryPupilId.ToString(), "Smith, Jane, 01/01/2010");
 
         var redirect = Assert.IsType<RedirectToActionResult>(result);
         Assert.Equal("evidence", redirect.RouteValues!["pageId"]);
+    }
+
+    // #711: on 16-19 a student can be included by file and still be includable by the schema's
+    // rule. An Included lookup would find the selected student and block their own request, so the
+    // autocomplete guard must ask NotIncludable and never Included.
+    [Fact]
+    public async Task PupilSearchPost_WhenIncludeJourneyAndSelectedPupilIsIncludedButIncludable_NeverAsksIncluded()
+    {
+        var includableStudent = new PupilDto
+        {
+            Id = PrimaryPupilId, Firstname = "Bob", Surname = "Smith",
+            Sex = "M", DateOfBirth = "01/09/2007", Age = 18,
+            Cypmd_Id = "500002", Identifier = "9900500002"
+        };
+        SetupIncludeJourney();
+        _pupilDataService.GetPupilAsync(WindowId, PrimaryPupilId).Returns(includableStudent);
+        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "Bob Smith", PupilFilter.Included)
+            .Returns([new PupilSuggestionDto(PrimaryPupilId, "Bob, Smith, (INCLUDED)", "Bob", "Smith", "01/09/2007")]);
+        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "Bob Smith", PupilFilter.NotIncludable)
+            .Returns([]);
+
+        var result = await _sut.PupilSearchPost(WindowId, "select-pupil", PrimaryPupilId.ToString(), "Bob, Smith, (INCLUDED)");
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("evidence", redirect.RouteValues!["pageId"]);
+        await _pupilDataService.Received()
+            .GetPupilSuggestionsAsync(WindowId, "Bob Smith", PupilFilter.NotIncludable, Arg.Any<Guid?>(), Arg.Any<bool>(), Arg.Any<PupilSearchField>());
+        await _pupilDataService.DidNotReceive()
+            .GetPupilSuggestionsAsync(Arg.Any<Guid>(), Arg.Any<string>(), PupilFilter.Included, Arg.Any<Guid?>(), Arg.Any<bool>(), Arg.Any<PupilSearchField>());
     }
 
     [Fact]
@@ -708,7 +738,7 @@ PupilFilter = PupilFilter.All,
         };
         SetupIncludeJourney();
         _pupilDataService.GetPupilAsync(WindowId, PrimaryPupilId).Returns(nonIncludedPupil);
-        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "Casey Carter", PupilFilter.Included)
+        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "Casey Carter", PupilFilter.NotIncludable)
             .Returns(Task.FromException<IReadOnlyList<PupilSuggestionDto>>(new TimeoutException()));
 
         var result = await _sut.PupilSearchPost(WindowId, "select-pupil", PrimaryPupilId.ToString(), "Carter, Casey, 01/01/2010");
@@ -725,7 +755,7 @@ PupilFilter = PupilFilter.All,
             Pages = [new JourneyPage
             {
                 Id = "select-pupil", Type = PageType.PupilSearch,
-                PupilFilter = PupilFilter.NonIncluded, PupilKey = JourneyPage.PrimaryKey,
+                PupilFilter = PupilFilter.Includable, PupilKey = JourneyPage.PrimaryKey,
                 NextPageId = "evidence"
             }]
         };

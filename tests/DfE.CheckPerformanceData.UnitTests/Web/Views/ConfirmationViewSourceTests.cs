@@ -98,12 +98,65 @@ public sealed class ConfirmationViewSourceTests
             source);
         Assert.Contains("You still have until", source);
         Assert.Contains("to request any further amendments if you need to.", source);
-        Assert.Contains("Request another amendment", source);
         Assert.Contains("edit an existing request", source);
         Assert.Contains("What happens next", source);
         Assert.Contains("you'll be able to track the status of your requests in the service", source);
         Assert.Contains(
             "your school's performance data will be updated in the Autumn, if the request is approved",
             source);
+    }
+
+    // ── #713 onward links ───────────────────────────────────────────────────
+    // The page offers whatever the window has open, not whatever was submitted. The link words
+    // are the check-your-pupil-data page's words (NextStepLabels), and "Return to check your
+    // data" is always there.
+
+    [Fact]
+    public void the_pupil_data_and_results_links_use_the_shared_labels()
+    {
+        var source = ReadViewSource("Views/Journey/Confirmation.cshtml");
+
+        Assert.Contains("NextStepLabels.For(NextSteps.RequestChange, Model.LearnerNoun)", source);
+        Assert.Contains("NextStepLabels.For(NextSteps.ResultsEnquiry, Model.LearnerNoun)", source);
+        // The old fixed copy is gone: the label now carries the window's learner noun.
+        Assert.DoesNotContain("Request another amendment", source);
+    }
+
+    [Fact]
+    public void the_links_are_shown_when_their_step_is_open()
+    {
+        var source = ReadViewSource("Views/Journey/Confirmation.cshtml");
+
+        Assert.Contains("NextSteps.RequestChange", source);
+        Assert.Contains("NextSteps.ResultsEnquiry", source);
+    }
+
+    [Fact]
+    public void every_onward_link_has_its_destination()
+    {
+        var source = ReadViewSource("Views/Journey/Confirmation.cshtml");
+
+        Assert.Contains("asp-controller=\"WhatToChange\"", source);
+        Assert.Contains("asp-controller=\"AmendmentRequests\"", source);
+        Assert.Contains("asp-controller=\"ResultIssue\"", source);
+        Assert.Contains("asp-controller=\"CheckYourPupilData\"", source);
+    }
+
+    [Fact]
+    public void the_return_link_is_always_offered()
+    {
+        var source = ReadViewSource("Views/Journey/Confirmation.cshtml");
+
+        Assert.Contains("Return to check your data", source);
+    }
+
+    [Fact]
+    public void the_deadline_banner_is_shown_only_when_the_deadline_is_present()
+    {
+        // #713: the controller leaves the deadline null when the pupil data exercise is not open
+        // to the school, and the view follows the bulk confirmation page's pattern.
+        var source = ReadViewSource("Views/Journey/Confirmation.cshtml");
+
+        Assert.Contains("Model.WindowCloseLabel is not null", source);
     }
 }

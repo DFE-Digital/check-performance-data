@@ -34,6 +34,7 @@ public sealed class JourneyController(
     IQualificationReferenceClient qualificationReferenceClient,
     IRequestNotificationService requestNotificationService,
     ICheckingExerciseService checkingExerciseService,
+    INextStepsService nextSteps,
     ILogger<JourneyController> logger) : Controller
 {
     internal static string FieldName(string questionId) => $"q_{questionId.Replace("-", "_")}";
@@ -153,11 +154,14 @@ public sealed class JourneyController(
             // AB#027: Include journey no-results path. When the user typed a name on the Include
             // primary search but did not select a suggestion, look the typed entry up against BOTH
             // the included and non-included populations and branch three ways:
-            //  - included match → warn "already included" (abort);
-            //  - non-included-only match → a valid include candidate, so proceed as normal: fall
+            //  - a match among pupils who cannot be included (NotIncludable — included for good)
+            //    → warn "already included" (abort);
+            //  - a match among includable pupils only (#711: not included, or on 16-19 an included-file
+            //    student the schema's rule names) → a valid include candidate, so proceed as normal: fall
             //    through to the ordinary no-selection flow (re-render the search page with the
             //    candidate's suggestions visible) with no warning and no decision page;
-            //  - match on neither list → offer "Pupil not found" (start Add / search again).
+            //  - match on neither → offer "Pupil not found" (start Add where the window type has an
+            //    Add flow / search again).
             // Blank entry keeps the existing validation, and so does a lookup failure (never a
             // dead end): the decision text above only ever runs for a deliberately typed name.
             if (!string.IsNullOrWhiteSpace(selectedPupilLabel)
@@ -168,19 +172,19 @@ public sealed class JourneyController(
                 // web server or proxy would log it): it is PII.
                 HttpContext.Session.SaveRequestState(windowId, s => s.IncludeSearchLabel = selectedPupilLabel.Trim());
 
-                IReadOnlyList<PupilSuggestionDto>? includedSuggestions = null;
+                IReadOnlyList<PupilSuggestionDto>? notIncludableSuggestions = null;
                 try
                 {
-                    includedSuggestions = await pupilDataService.GetPupilSuggestionsAsync(
-                        windowId, selectedPupilLabel, PupilFilter.Included);
+                    notIncludableSuggestions = await pupilDataService.GetPupilSuggestionsAsync(
+                        windowId, selectedPupilLabel, PupilFilter.NotIncludable);
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
-                    logger.LogError(ex, "Included-pupil lookup failed for Include no-results decision; falling back to validation. windowId={WindowId}", windowId);
-                    includedSuggestions = null;
+                    logger.LogError(ex, "Not-includable lookup failed for Include no-results decision; falling back to validation. windowId={WindowId}", windowId);
+                    notIncludableSuggestions = null;
                 }
 
-                if (includedSuggestions is null)
+                if (notIncludableSuggestions is null)
                 {
                     // Lookup failed/timed out → fall through to the existing validation below
                     // (never a redirect to the decision pages, so never a dead end).
@@ -195,29 +199,29 @@ public sealed class JourneyController(
                     return View("PupilSearch", viewModelBuilder.BuildPupilSearchVm(windowId, pageId, page, journey, config));
                 }
 
-                if (includedSuggestions.Count > 0)
+                if (notIncludableSuggestions.Count > 0)
                 {
                     // Carry the matching included pupils across the post/redirect/get round-trip in
                     // session (not the URL, where a web server or proxy would log them): they are PII.
                     HttpContext.Session.SaveRequestState(windowId, s =>
-                        s.IncludeMatchedPupils = includedSuggestions.ToList());
+                        s.IncludeMatchedPupils = notIncludableSuggestions.ToList());
 
                     return RedirectToAction(nameof(AlreadyIncluded), new { windowId, pageId });
                 }
 
-                IReadOnlyList<PupilSuggestionDto>? nonIncludedSuggestions = null;
+                IReadOnlyList<PupilSuggestionDto>? includableSuggestions = null;
                 try
                 {
-                    nonIncludedSuggestions = await pupilDataService.GetPupilSuggestionsAsync(
-                        windowId, selectedPupilLabel, PupilFilter.NonIncluded);
+                    includableSuggestions = await pupilDataService.GetPupilSuggestionsAsync(
+                        windowId, selectedPupilLabel, PupilFilter.Includable);
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
-                    logger.LogError(ex, "Non-included-pupil lookup failed for Include no-results decision; falling back to validation. windowId={WindowId}", windowId);
-                    nonIncludedSuggestions = null;
+                    logger.LogError(ex, "Includable lookup failed for Include no-results decision; falling back to validation. windowId={WindowId}", windowId);
+                    includableSuggestions = null;
                 }
 
-                if (nonIncludedSuggestions is null)
+                if (includableSuggestions is null)
                 {
                     // Lookup failed/timed out → fall through to the existing validation below
                     // (never a redirect to the decision pages, so never a dead end).
@@ -232,7 +236,7 @@ public sealed class JourneyController(
                     return View("PupilSearch", viewModelBuilder.BuildPupilSearchVm(windowId, pageId, page, journey, config));
                 }
 
-                if (nonIncludedSuggestions.Count == 0)
+                if (includableSuggestions.Count == 0)
                     return RedirectToAction(nameof(PupilNotFound), new { windowId, pageId });
 
                 // A non-included-only match is a valid include candidate: proceed as normal. Fall
@@ -274,29 +278,31 @@ public sealed class JourneyController(
         // check the selected name against the included list too — a different pupil with the same
         // name may already be on the included list, and the select-from-dropdown path would
         // otherwise bypass the included-list guard the typed-entry path (lines 160-239) enforces.
-        // The search page's autocomplete filters to NonIncluded, so the *selected* record itself is
-        // non-included; the guard therefore looks up the typed label, exactly as the typed path does.
+        // The search page's autocomplete filters to Includable, so the *selected* record itself is
+        // includable and can never match this NotIncludable lookup (#711: a 16-19 student can be
+        // INCLUDED by file but includable by rule, so an Included lookup would find them and block
+        // their own request); the guard looks up the typed label, exactly as the typed path does.
         if (journey.SelectedWhatToChange == WhatToChange.Include && page.PupilKey == JourneyPage.PrimaryKey)
         {
-            IReadOnlyList<PupilSuggestionDto>? includedSuggestions = null;
+            IReadOnlyList<PupilSuggestionDto>? notIncludableSuggestions = null;
             try
             {
-                includedSuggestions = await pupilDataService.GetPupilSuggestionsAsync(
-                    windowId, $"{pupil.Firstname} {pupil.Surname}".Trim(), PupilFilter.Included);
+                notIncludableSuggestions = await pupilDataService.GetPupilSuggestionsAsync(
+                    windowId, $"{pupil.Firstname} {pupil.Surname}".Trim(), PupilFilter.NotIncludable);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                logger.LogError(ex, "Included-pupil lookup failed for Include autocomplete guard; proceeding as normal. windowId={WindowId}", windowId);
-                includedSuggestions = null;
+                logger.LogError(ex, "Not-includable lookup failed for Include autocomplete guard; proceeding as normal. windowId={WindowId}", windowId);
+                notIncludableSuggestions = null;
             }
 
-            if (includedSuggestions is not null && includedSuggestions.Count > 0)
+            if (notIncludableSuggestions is not null && notIncludableSuggestions.Count > 0)
             {
                 var displayLabel = selectedPupilLabel ?? $"{pupil.Surname}, {pupil.Firstname}, {pupil.DateOfBirth}";
                 HttpContext.Session.SaveRequestState(windowId, s =>
                 {
                     s.IncludeSearchLabel = displayLabel;
-                    s.IncludeMatchedPupils = includedSuggestions.ToList();
+                    s.IncludeMatchedPupils = notIncludableSuggestions.ToList();
                 });
                 return RedirectToAction(nameof(AlreadyIncluded), new { windowId, pageId });
             }
@@ -1462,7 +1468,11 @@ public sealed class JourneyController(
         return View("EnquiryConfirmation", new EnquiryConfirmationViewModel
         {
             WindowId = windowId,
-            ReferenceNumber = journey.ReferenceNumber
+            ReferenceNumber = journey.ReferenceNumber,
+            // #713: the onward links follow the exercises open now, not the submitted kind.
+            NextSteps = nextSteps.GetConfirmationPageSteps(
+                journey.CheckingWindow.Exercises, currentUserService.OrganisationLaestab),
+            LearnerNoun = journey.LearnerNoun
         });
     }
 
@@ -1585,13 +1595,24 @@ public sealed class JourneyController(
         var deadline = checkingExerciseService.EndDateFor(
             journey.CheckingWindow.Exercises, exercise, currentUserService.OrganisationLaestab)
             ?? journey.CheckingWindow.EndDate;
+        // #713: the banner quotes that deadline, so it shows only while the exercise it belongs
+        // to is still open to the school. Null hides the banner in the view.
+        var exerciseOpen = checkingExerciseService.IsOpen(
+            journey.CheckingWindow.Exercises, exercise, currentUserService.OrganisationLaestab);
 
         var model = new ConfirmationViewModel
         {
             WindowId = windowId,
             ReferenceNumber = journey.ReferenceNumber,
             // DeadlineTime.Pattern: the minutes show when the end date has some.
-            WindowCloseLabel = $"{deadline.ToString(DeadlineTime.Pattern(deadline))} on {deadline:dddd d MMMM yyyy}"
+            WindowCloseLabel = exerciseOpen
+                ? $"{deadline.ToString(DeadlineTime.Pattern(deadline))} on {deadline:dddd d MMMM yyyy}"
+                : null,
+            // #713: the onward links follow the exercises open now, not the submitted kind.
+            // The noun comes from the journey's window, as the journey pages get it.
+            NextSteps = nextSteps.GetConfirmationPageSteps(
+                journey.CheckingWindow.Exercises, currentUserService.OrganisationLaestab),
+            LearnerNoun = journey.LearnerNoun
         };
 
         return View(model);
@@ -1797,25 +1818,25 @@ public sealed class JourneyController(
         // Include flow's own select-pupil search page. The duplicate check may surface a non-included
         // pupil whose name matches a pupil already on the included list, and switching to include must
         // not silently bypass the warning the search page enforces.
-        IReadOnlyList<PupilSuggestionDto>? includedSuggestions = null;
+        IReadOnlyList<PupilSuggestionDto>? notIncludableSuggestions = null;
         try
         {
-            includedSuggestions = await pupilDataService.GetPupilSuggestionsAsync(
-                windowId, $"{pupil.Firstname} {pupil.Surname}".Trim(), PupilFilter.Included);
+            notIncludableSuggestions = await pupilDataService.GetPupilSuggestionsAsync(
+                windowId, $"{pupil.Firstname} {pupil.Surname}".Trim(), PupilFilter.NotIncludable);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            logger.LogError(ex, "Included-pupil lookup failed for Include hand-off guard; proceeding as normal. windowId={WindowId}", windowId);
-            includedSuggestions = null;
+            logger.LogError(ex, "Not-includable lookup failed for Include hand-off guard; proceeding as normal. windowId={WindowId}", windowId);
+            notIncludableSuggestions = null;
         }
 
-        if (includedSuggestions is not null && includedSuggestions.Count > 0)
+        if (notIncludableSuggestions is not null && notIncludableSuggestions.Count > 0)
         {
             // The duplicate-check page already surfaces each match's Included/Not-included status, so a
             // same-name included pupil that was already on screen is not a bypass — only block when the
             // included namesake is new information (e.g. a different-DOB pupil the check did not surface).
             var alreadySurfaced = journey.DuplicateCheck?.Matches.Select(m => m.Id).ToHashSet() ?? [];
-            var hiddenNamesakes = includedSuggestions.Where(s => !alreadySurfaced.Contains(s.Id)).ToList();
+            var hiddenNamesakes = notIncludableSuggestions.Where(s => !alreadySurfaced.Contains(s.Id)).ToList();
             if (hiddenNamesakes.Count > 0)
             {
                 var displayLabel = $"{pupil.Surname}, {pupil.Firstname}, {pupil.DateOfBirth}";
@@ -1856,7 +1877,13 @@ public sealed class JourneyController(
                     DuplicateCheckResult.OtherSubmitted { ConflictingUserName: var un } => un,
                     _ => string.Empty
                 };
-                var currentReasonType = flowService.ResolveRequestType(await GetConfigAsync(journey), journey);
+                // The journey's own flow config (the Include one above would resolve the wrong
+                // reason). A missing config has no reason to compare, so the conflict shows the
+                // generic message rather than a guessed "same reason" one.
+                var currentConfig = await GetConfigAsync(journey);
+                var currentReasonType = currentConfig is null
+                    ? string.Empty
+                    : flowService.ResolveRequestType(currentConfig, journey);
                 var reasonsMatch = !string.IsNullOrEmpty(currentReasonType)
                     && string.Equals(currentReasonType, conflictingReasonType, StringComparison.OrdinalIgnoreCase);
 
@@ -1922,6 +1949,14 @@ public sealed class JourneyController(
     // ── Include no-results decision flow (AB#027) ────────────────────────────
 
     /// <summary>
+    /// #711: the decision pages offer "Start adding" only when What to change would offer Add —
+    /// the same list, so the two can never disagree. 16-19 has no Add flow.
+    /// </summary>
+    private async Task<bool> CanAddAsync(RequestState journey) =>
+        journey.CheckingWindow?.CheckingWindowType is { } windowType
+        && (await flowService.GetPupilDataChangesAsync(windowType)).Contains(WhatToChange.Add);
+
+    /// <summary>
     /// AB#027 (US1): shown when the Include journey's select-pupil search found no included match
     /// for a freely typed (not-selected) name. Offers "Start adding this pupil" (the Add journey)
     /// or "Search again". The typed label is read from session (see
@@ -1943,7 +1978,9 @@ public sealed class JourneyController(
         {
             WindowId = windowId,
             PageId = pageId,
-            TypedPupilLabel = label
+            TypedPupilLabel = label,
+            LearnerNoun = journey.LearnerNoun,
+            CanAdd = await CanAddAsync(journey)
         });
     }
 
@@ -1975,7 +2012,9 @@ public sealed class JourneyController(
             TypedPupilLabel = label,
             Matches = matches,
             BackPageId = pageId,
-            BackPageAction = backAction ?? nameof(PupilSearchPage)
+            BackPageAction = backAction ?? nameof(PupilSearchPage),
+            LearnerNoun = journey.LearnerNoun,
+            CanAdd = await CanAddAsync(journey)
         });
     }
 

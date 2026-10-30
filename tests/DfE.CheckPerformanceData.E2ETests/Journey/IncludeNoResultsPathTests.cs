@@ -108,7 +108,7 @@ public sealed class IncludeNoResultsPathTests(PlaywrightFixture fixture) : Seedi
     {
 await StartIncludeJourneyAsync();
         // Bob Johnson is a non-included pupil — a valid include candidate. The Include search's
-        // autocomplete targets NonIncluded pupils, so typing a single surname token ("Johnson" —
+        // autocomplete targets Includable pupils, so typing a single surname token ("Johnson" —
         // "Johnson" is a non-included surname bucket and matches no included pupil) and continuing
         // without selecting a suggestion must NOT divert to "Pupil not found" or "Already included":
         // the journey proceeds as normal, re-rendering the search page with the candidate's
@@ -130,8 +130,8 @@ await StartIncludeJourneyAsync();
     public async Task IncludedMatch_ShowsAlreadyIncluded_WithAbortOption()
     {
         await StartIncludeJourneyAsync();
-        // Alice Smith is included. The Include search autocomplete targets NonIncluded pupils and
-        // the feature's included-list lookup reuses the single-field name matcher, so we type a
+        // Alice Smith is included. The Include search autocomplete targets Includable pupils and
+        // the guard's NotIncludable lookup reuses the single-field name matcher, so we type a
         // partial surname — "the user typed a partial name" (US2) — that resolves to her, and
         // submit WITHOUT selecting a suggestion.
         await TypePupilWithoutSelectingAsync(IncludedSurname);

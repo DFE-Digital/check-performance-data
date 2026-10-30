@@ -37,7 +37,7 @@ public static class SeedKs2PupilData
     private const int NonIncludedPerSchool = 6;
 
     // Stamped by ingress from the schema's inclusion rule, never sent by the supplier.
-    private static readonly HashSet<string> StampedByIngress = ["INCLUDED", "P_INCL_DESC"];
+    private static readonly HashSet<string> StampedByIngress = ["INCLUDED", "INCLUDABLE", "P_INCL_DESC"];
 
     public static async Task ExecuteSeedAsync(IPortalDbContext dbContext, BlobServiceClient blobs,
         ICheckingExerciseIngress ingress, string contentRootPath)

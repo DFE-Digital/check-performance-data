@@ -11,7 +11,7 @@ namespace DfE.CheckPerformanceData.IntegrationTests.CheckYourPupilData;
 
 // US3: The Include journey's pupil-search step inherits two-part name matching via
 // PupilSuggestionFormat.Matches. These integration tests verify SearchPupilsAsync returns
-// correct results for two-part queries with both Included and NonIncluded filters.
+// correct results for two-part queries with both Included and Includable filters.
 [Collection(nameof(PostgresCollection))]
 public sealed class PupilSearchTwoPartNameTests(PostgresFixture fixture)
 {
@@ -56,6 +56,7 @@ public sealed class PupilSearchTwoPartNameTests(PostgresFixture fixture)
         FirstLanguage = "English",
         Pincl = included ? 401 : 402,
         Included = included,
+        Includable = !included,
         NewMobile = false,
         ActualYearGroup = "11",
         Ethnicity = "A1",
@@ -123,7 +124,7 @@ public sealed class PupilSearchTwoPartNameTests(PostgresFixture fixture)
             NewPupil("Jane", "Smith", "500002", included: false));
 
         var results = await repo.SearchPupilsAsync(
-            windowId, TestLaestab, TestUrn, "John Smith", PupilFilter.NonIncluded);
+            windowId, TestLaestab, TestUrn, "John Smith", PupilFilter.Includable);
 
         Assert.Single(results);
         Assert.Contains("John", results[0].Label);

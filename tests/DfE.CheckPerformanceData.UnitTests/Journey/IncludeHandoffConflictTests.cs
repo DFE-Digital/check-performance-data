@@ -58,7 +58,7 @@ public class IncludeHandoffConflictTests
         Id = "select-pupil",
         Type = PageType.PupilSearch,
         Title = "Which pupil do you want to include?",
-        PupilFilter = PupilFilter.Included,
+        PupilFilter = PupilFilter.Includable,
         PupilKey = JourneyPage.PrimaryKey,
         NextPageId = "evidence"
     };
@@ -166,6 +166,7 @@ public class IncludeHandoffConflictTests
             Substitute.For<DfE.CheckPerformanceData.Application.ResultsEnquiry.IQualificationReferenceClient>(),
             Substitute.For<DfE.CheckPerformanceData.Application.Notify.IRequestNotificationService>(),
             OpenCheckingExercises.AlwaysOpen(),
+            Substitute.For<DfE.CheckPerformanceData.Application.CheckYourPupilData.INextStepsService>(),
             Microsoft.Extensions.Logging.Abstractions.NullLogger<JourneyController>.Instance)
         {
             ControllerContext = new ControllerContext { HttpContext = _httpContext },
@@ -327,7 +328,7 @@ public class IncludeHandoffConflictTests
         SetupSession(AddSessionAwaitingInclude(SingleNonIncludedCheck));
         _flowService.GetConfigAsync(WhatToChange.Include, CheckingWindowType.KS4June).Returns(IncludeConfig);
         _pupilDataService.GetPupilAsync(WindowId, MatchPupilId).Returns(MatchPupil);
-        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "John Doe", PupilFilter.Included)
+        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "John Doe", PupilFilter.NotIncludable)
             .Returns([new PupilSuggestionDto(IncludedPupilId, "Doe, John", "John", "Doe", "02/02/2010")]);
 
         var result = await _sut.IncludeThisPupil(WindowId);
@@ -357,7 +358,7 @@ public class IncludeHandoffConflictTests
         SetupSession(AddSessionAwaitingInclude(MultipleCheck));
         _flowService.GetConfigAsync(WhatToChange.Include, CheckingWindowType.KS4June).Returns(IncludeConfig);
         _pupilDataService.GetPupilAsync(WindowId, MatchPupilId).Returns(MatchPupil);
-        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "John Doe", PupilFilter.Included)
+        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "John Doe", PupilFilter.NotIncludable)
             .Returns([new PupilSuggestionDto(IncludedPupilId, "Doe, John", "John", "Doe", "02/02/2010")]);
 
         var result = await _sut.SwitchToInclude(WindowId, MatchPupilId);
@@ -385,7 +386,7 @@ public class IncludeHandoffConflictTests
         SetupSession(AddSessionAwaitingInclude(MultipleSameNameCheck));
         _flowService.GetConfigAsync(WhatToChange.Include, CheckingWindowType.KS4June).Returns(IncludeConfig);
         _pupilDataService.GetPupilAsync(WindowId, MatchPupilId).Returns(MatchPupil);
-        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "John Doe", PupilFilter.Included)
+        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "John Doe", PupilFilter.NotIncludable)
             .Returns([new PupilSuggestionDto(IncludedNamesakeId, "Doe, John", "John", "Doe", "02/02/2010")]);
 
         var result = await _sut.SwitchToInclude(WindowId, MatchPupilId);
@@ -412,7 +413,7 @@ public class IncludeHandoffConflictTests
         SetupSession(AddSessionAwaitingInclude(MultipleCheck));
         _flowService.GetConfigAsync(WhatToChange.Include, CheckingWindowType.KS4June).Returns(IncludeConfig);
         _pupilDataService.GetPupilAsync(WindowId, MatchPupilId).Returns(MatchPupil);
-        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "John Doe", PupilFilter.Included)
+        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "John Doe", PupilFilter.NotIncludable)
             .Returns([]);
 
         var result = await _sut.SwitchToInclude(WindowId, MatchPupilId);

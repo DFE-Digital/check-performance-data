@@ -34,6 +34,14 @@ There are only four facts:
 | `school.isOnNotOnRollList` | The school is on the not-on-roll college list |
 | `qualification.hasSyllabusCodes` | The selected qualification has syllabus codes |
 
+**Date facts** are different. A date fact gives a date, not true or false. A date rule on a `Date` question compares the answer with it:
+
+```json
+{ "check": "onOrAfter", "fact": "cohort.start", "message": "..." }
+```
+
+The code gives the date, and the flow file holds the rule. If a date fact has no value, the rule is skipped and the app logs a warning. The date rules and the date facts are in [question-flows.md](question-flows.md#date-rules-daterules).
+
 ### 2. An answer test
 
 An answer test asks what the user answered earlier in the journey.
@@ -113,6 +121,8 @@ You need code only for a **new fact**: something about the pupil, school or qual
 3. Add it to the facts table in `docs/question-flows.md`.
 
 Do not write a class for "not X" or "X or Y". Use `"is": false` or `anyOf` in the JSON.
+
+For a new **date fact**, follow the steps in [question-flows.md](question-flows.md#date-rules-daterules).
 
 ## What protects you from mistakes
 

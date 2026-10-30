@@ -176,7 +176,10 @@
           "title": "When was {pupilName} permanently excluded from your school?",
           "hint": "For example, 27 3 2026",
           "summaryTitle": "Date of permanent exclusion",
-          "validationFailure": "Enter the date {pupilName} was permanently excluded from your school"
+          "validationFailure": "Enter the date {pupilName} was permanently excluded from your school",
+          "dateRules": [
+            { "check": "notInFuture", "message": "Date {pupilName} was permanently excluded from your school must be in the past" }
+          ]
         },
         {
           "id": "permanently-excluded-dfe-number",
@@ -202,7 +205,10 @@
           "title": "When was {pupilName} removed from your school roll?",
           "hint": "For example, 27 3 2026",
           "summaryTitle": "Date removed from school roll",
-          "validationFailure": "Enter the date {pupilName} was removed from your school roll"
+          "validationFailure": "Enter the date {pupilName} was removed from your school roll",
+          "dateRules": [
+            { "check": "notInFuture", "message": "Date {pupilName} was removed from your school roll must be in the past" }
+          ]
         }
       ]
     },
@@ -275,7 +281,10 @@
           "title": "When was {pupilName} removed from your school roll?",
           "hint": "For example, 27 3 2026",
           "summaryTitle": "Date removed from school roll",
-          "validationFailure": "Enter the date {pupilName} was removed from your school roll"
+          "validationFailure": "Enter the date {pupilName} was removed from your school roll",
+          "dateRules": [
+            { "check": "notInFuture", "message": "Date {pupilName} was removed from your school roll must be in the past" }
+          ]
         }
       ]
     },
@@ -315,7 +324,10 @@
           "title": "When was {pupilName} removed from your school roll?",
           "hint": "For example, 27 3 2026",
           "summaryTitle": "When was {pupilName} removed from your school roll",
-          "validationFailure": "Enter the date {pupilName} was removed from your school roll"
+          "validationFailure": "Enter the date {pupilName} was removed from your school roll",
+          "dateRules": [
+            { "check": "notInFuture", "message": "Date {pupilName} was removed from your school roll must be in the past" }
+          ]
         }
       ]
     },
@@ -380,7 +392,13 @@
           "title": "When did {pupilName} start at your school?",
           "hint": "For example, 27 3 2026",
           "summaryTitle": "Date started at school",
-          "validationFailure": "Enter the date {pupilName} started at your school"
+          "validationFailure": "Enter the date {pupilName} started at your school",
+          "dateRules": [
+            { "check": "notInFuture", "message": "The date {pupilName} started at your school must be in the past" },
+            { "check": "onOrAfter", "fact": "cohort.start", "message": "The date {pupilName} started at your school cannot be more than 4 years ago when the cohort began" },
+            { "check": "onOrAfter", "question": "date-pupil-started-school-in-england", "message": "The date {pupilName} started at your school must be the same as or after {date} when they first started at a school in England" },
+            { "check": "onOrAfter", "question": "date-pupil-arrived-in-england", "message": "The date {pupilName} started at your school must be the same as or after {date} when they arrived in England" }
+          ]
         },
         {
           "id": "date-pupil-started-school-in-england",
@@ -388,7 +406,12 @@
           "title": "When did {pupilName} first start at a school in England?",
           "hint": "For example, 27 3 2026",
           "summaryTitle": "First date of admission to a school/college in England",
-          "validationFailure": "Enter the date {pupilName} first started at a school in England"
+          "validationFailure": "Enter the date {pupilName} first started at a school in England",
+          "dateRules": [
+            { "check": "notInFuture", "message": "The date {pupilName} first started at a school in England must be in the past" },
+            { "check": "onOrBefore", "question": "date-pupil-started", "message": "The date {pupilName} first started at a school in England must be the same as or before {date} when they started at your school" },
+            { "check": "onOrAfter", "question": "date-pupil-arrived-in-england", "message": "The date {pupilName} first started at a school in England must be the same as or after {date} when they arrived in England" }
+          ]
         },
         {
           "id": "date-pupil-arrived-in-england",
@@ -397,7 +420,12 @@
           "hint": "For example, 27 3 2026",
           "summaryTitle": "Date of arrival in England",
           "validationFailure": "Enter the date {pupilName} arrived in England",
-          "optional": true
+          "optional": true,
+          "dateRules": [
+            { "check": "notInFuture", "message": "The date {pupilName} arrived in England must be in the past" },
+            { "check": "onOrBefore", "question": "date-pupil-started", "message": "The date {pupilName} arrived in England must be the same as or before {date} when they started at your school" },
+            { "check": "onOrBefore", "question": "date-pupil-started-school-in-england", "message": "The date {pupilName} arrived in England must be the same as or before {date} when they first started at a school in England" }
+          ]
         }
       ]
     },
@@ -424,7 +452,10 @@
           "title": "When was {pupilName} excluded?",
           "hint": "For example, 27 3 2026",
           "summaryTitle": "Date of permanent exclusion",
-          "validationFailure": "Enter the date {pupilName} was excluded"
+          "validationFailure": "Enter the date {pupilName} was excluded",
+          "dateRules": [
+            { "check": "notInFuture", "message": "Date {pupilName} was excluded must be in the past" }
+          ]
         }
       ]
     },
@@ -449,7 +480,10 @@
           "title": "When was {pupilName} removed from your roll?",
           "hint": "For example, 27 3 2026",
           "summaryTitle": "Date removed from roll",
-          "validationFailure": "Enter the date {pupilName} was removed from your school roll"
+          "validationFailure": "Enter the date {pupilName} was removed from your school roll",
+          "dateRules": [
+            { "check": "notInFuture", "message": "Date {pupilName} was removed from your school roll must be in the past" }
+          ]
         }
       ]
     },

@@ -30,7 +30,11 @@
           "title": "Date of birth",
           "summaryTitle": "Date of birth",
           "hint": "For example, 27 3 2011",
-          "validationFailure": "Enter the pupil's date of birth"
+          "validationFailure": "Enter the pupil's date of birth",
+          "dateRules": [
+            { "check": "notInFuture", "message": "Date of birth must be in the past" },
+            { "check": "onOrBefore", "question": "admission-date", "message": "Date of birth must be the same as or before the date {pupilName} was admitted to your school" }
+          ]
         },
         {
           "id": "sex",
@@ -68,7 +72,11 @@
           "title": "Admission date",
           "summaryTitle": "Admission date",
           "hint": "The date the pupil was admitted to your school",
-          "validationFailure": "Enter the date {pupilName} was admitted to your school"
+          "validationFailure": "Enter the date {pupilName} was admitted to your school",
+          "dateRules": [
+            { "check": "notInFuture", "message": "Date {pupilName} was admitted to your school must be in the past" },
+            { "check": "onOrAfter", "question": "date-of-birth", "message": "Date {pupilName} was admitted to your school must be the same as or after their date of birth" }
+          ]
         },
         {
           "id": "year-group",

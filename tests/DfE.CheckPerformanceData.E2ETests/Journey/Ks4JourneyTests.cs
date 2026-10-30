@@ -9,7 +9,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Journey;
 // KS4 "Remove" journeys — AB#295246 (removal date validation). The single removal/exclusion
 // date must be a real calendar date no later than today:
 //   * a future date is blocked with the journey-specific "Date … must be in the past" message
-//     (RemovalJourneyDateRules, run by JourneyValidationService.ValidatePageDates);
+//     (the flow file's dateRules hold the rule, run by JourneyValidationService.ValidatePageDates);
 //   * an invalid date (blank/part-filled, non-4-digit year, impossible calendar date) is blocked
 //     with the question's "Enter the date … in the format dd mm yyyy" message (#544);
 //   * today and any past date are accepted and the journey advances.
@@ -36,7 +36,8 @@ public sealed class Ks4JourneyTests(PlaywrightFixture fixture) : SeedingPageTest
     // always visible (not gated by pupil.isAddBack): pupil-died and elective-home-education.
     // The other removal pages (permanent-exclusion, child-missing-education, permanently-excluded,
     // permanently-left-england-questions) precede the date with required non-date questions, so
-    // they are covered at the unit level (RemovalJourneyDateRulesTests / dispatch theory) instead.
+    // they are covered at the unit level instead: the flow file's dateRules hold the rule, and
+    // DateRuleEvaluatorTests covers it.
     public static IEnumerable<object[]> RemovalJourneyCases()
     {
         // Each journey lands on a different page after the date: pupil-died goes straight to the

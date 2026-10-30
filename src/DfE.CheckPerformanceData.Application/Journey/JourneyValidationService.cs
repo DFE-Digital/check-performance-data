@@ -2,6 +2,8 @@ using DfE.CheckPerformanceData.Application.Journey.DateRules;
 using DfE.CheckPerformanceData.Application.Journey.Validators;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Domain.Enums;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace DfE.CheckPerformanceData.Application.Journey;
 
@@ -9,12 +11,17 @@ namespace DfE.CheckPerformanceData.Application.Journey;
 public sealed class JourneyValidationService(
     IEnumerable<IFormatValidator>? formatValidators = null,
     int maxEvidencePages = 0,
-    TimeProvider? timeProvider = null) : IJourneyValidationService
+    TimeProvider? timeProvider = null,
+    IEnumerable<IJourneyDateFact>? dateFacts = null,
+    ILogger<JourneyValidationService>? logger = null) : IJourneyValidationService
 {
     private readonly IReadOnlyList<IFormatValidator> _formatValidators =
         formatValidators?.ToList() ?? [];
 
     private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
+
+    private readonly DateRuleEvaluator _dateRules = new(
+        dateFacts ?? [], (ILogger?)logger ?? NullLogger.Instance);
 
     // Date rules compare against the UK calendar date, not UTC: between midnight and 1am BST the
     // two disagree, and "today" to a school means today in England. Duplicated from
@@ -55,41 +62,8 @@ public sealed class JourneyValidationService(
     }
 
     public IReadOnlyList<DateFieldViolation> ValidatePageDates(
-        JourneyPage page, IReadOnlyDictionary<string, QuestionAnswer> answers, string pupilName)
-    {
-        // Each rule set owns a disjoint set of pages: the EAL page has its own cross-field rules
-        // (PageDateRules), and the KS4, KS2 and 16-19 removal pages share the future-date rule
-        // (RemovalJourneyDateRules). A page can belong to only one, and neither runs on a page
-        // the other owns — the wording (and the whole rule) differ.
-        //
-        // The Add rules are the only ones that compare across pages, so callers must pass every
-        // answer the journey holds, with the page's own posted answers overlaid — see the caller
-        // in JourneyController.Page(POST).
-        if (string.Equals(page.Id, PageDateRules.EalDetailsPageId, StringComparison.Ordinal))
-        {
-            DateOnly? Answered(string questionId) =>
-                answers.TryGetValue(questionId, out var answer) ? answer.DateValue?.ToDateOnly() : null;
-
-            return PageDateRules.Evaluate(
-                Answered(PageDateRules.StartedAtSchool),
-                Answered(PageDateRules.FirstEnglishSchool),
-                Answered(PageDateRules.ArrivedInEngland),
-                UkToday(),
-                pupilName,
-                page.ChecksCohortStart);
-        }
-
-        if (RemovalJourneyDateRules.AppliesToPage(page.Id))
-            return RemovalJourneyDateRules.EvaluateFutureDates(page, answers, UkToday(), pupilName);
-
-        if (AddJourneyDateRules.AppliesToPage(page.Id))
-            return AddJourneyDateRules.Evaluate(page, answers, UkToday(), pupilName);
-
-        if (MissingQualificationDateRules.AppliesToPage(page.Id))
-            return MissingQualificationDateRules.Evaluate(page, answers, UkToday());
-
-        return [];
-    }
+        JourneyPage page, IReadOnlyDictionary<string, QuestionAnswer> answers, JourneyConditionContext ctx, string pupilName) =>
+        _dateRules.Evaluate(page, answers, ctx, UkToday(), pupilName);
 
     private DateOnly UkToday() => DateOnly.FromDateTime(
         TimeZoneInfo.ConvertTimeFromUtc(_timeProvider.GetUtcNow().UtcDateTime, UkZone));

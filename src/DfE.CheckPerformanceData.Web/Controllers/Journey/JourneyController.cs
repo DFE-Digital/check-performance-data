@@ -900,20 +900,21 @@ public sealed class JourneyController(
             }
         }
 
-        // Cross-field date rules (AB#295246). Runs after the loop because it needs every answer
-        // on the page, and skips any question that already failed its own format check — the
-        // view model renders only the first error per question, so adding a second here would
-        // replace the invalid-date message with a comparison against a date the user never entered.
+        // Date rules from the question's dateRules in the flow file (AB#295246). Runs after the
+        // loop because it needs every answer on the page. It skips any question that already
+        // failed its own format check: the view model renders only the first error per question,
+        // so a second error here would replace the invalid-date message with a comparison against
+        // a date the user never entered.
         //
-        // The Add rules (AB#297310) compare date of birth against admission date, which sit on
-        // different pages, so the stored answers go in underneath the posted ones — the page's
-        // own questions are all present in newAnswers, so this page always wins for its fields.
+        // A rule can compare a date with an answer on another page (AB#297310), for example date
+        // of birth against admission date. So the stored answers go in underneath the posted
+        // ones. The page's own questions are all in newAnswers, so this page wins for its fields.
         var answersInScope = journey.QuestionAnswers
             .Concat(newAnswers)
             .GroupBy(kv => kv.Key, StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => g.Last().Value, StringComparer.Ordinal);
         var dateRuleQuestionIds = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var violation in journeyService.ValidatePageDates(page, answersInScope, pupilName))
+        foreach (var violation in journeyService.ValidatePageDates(page, answersInScope, conditionContext, pupilName))
         {
             if (ModelState.TryGetValue(violation.QuestionId, out var existing) && existing.Errors.Count > 0)
                 continue;

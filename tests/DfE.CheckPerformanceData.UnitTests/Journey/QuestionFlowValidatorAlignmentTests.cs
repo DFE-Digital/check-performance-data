@@ -1,7 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using DfE.CheckPerformanceData.Application.Journey;
-using DfE.CheckPerformanceData.Application.Journey.DateRules;
 using DfE.CheckPerformanceData.Application.Journey.Validators;
 using DfE.CheckPerformanceData.Domain.Enums;
 using NSubstitute;
@@ -191,182 +190,6 @@ var services = new ServiceCollection();
     }
 
     /// <summary>
-    /// The same guard for the one rule that runs from code rather than config: the cross-field
-    /// date rules in <see cref="PageDateRules"/> address questions by id, and nothing at runtime
-    /// notices if the page or a question id is renamed in the flow JSON — the rules would simply
-    /// stop matching and the validation would silently stop happening.
-    /// </summary>
-    [Fact]
-    public void PageDateRules_QuestionIds_MatchTheShippedFlowConfig()
-    {
-        var pages = AllFlowPages()
-            .Where(p => p.Page.Id == PageDateRules.EalDetailsPageId)
-            .ToList();
-
-        Assert.True(pages.Count > 0,
-            $"No flow config contains a page '{PageDateRules.EalDetailsPageId}', which " +
-            $"PageDateRules addresses by id — its date rules would never run.");
-
-        string[] ruleIds =
-        [
-            PageDateRules.StartedAtSchool,
-            PageDateRules.FirstEnglishSchool,
-            PageDateRules.ArrivedInEngland
-        ];
-
-        foreach (var page in pages)
-        {
-            foreach (var id in ruleIds)
-            {
-                var question = page.Page.Questions.SingleOrDefault(q => q.Id == id);
-                Assert.True(question is not null,
-                    $"{page.File}: page '{page.Page.Id}' has no question '{id}', which PageDateRules " +
-                    $"compares — that rule would silently never fire.");
-                Assert.True(question!.Type == QuestionType.Date,
-                    $"{page.File}: question '{id}' is {question.Type}, not Date — PageDateRules reads " +
-                    $"it as a date answer and would always see it as unanswered.");
-            }
-
-            // The optionality of the arrival date is load-bearing: three of the seven rules are only
-            // evaluated when it has been filled in.
-            Assert.True(
-                page.Page.Questions.Single(q => q.Id == PageDateRules.ArrivedInEngland).Optional,
-                $"{page.File}: '{PageDateRules.ArrivedInEngland}' is no longer optional. PageDateRules " +
-                $"treats a blank answer as 'rule not applicable' rather than an error — if the question " +
-                $"is now mandatory, confirm that is still the intended behaviour.");
-        }
-    }
-
-    // Only PageDateRules reads checksCohortStart, and only on the EAL details page. Turned off on
-    // any other page, it does nothing and nothing fails.
-    [Fact]
-    public void ChecksCohortStart_IsTurnedOffOnlyOnTheEalDetailsPage()
-    {
-        var misplaced = AllFlowPages()
-            .Where(p => !p.Page.ChecksCohortStart && p.Page.Id != PageDateRules.EalDetailsPageId)
-            .Select(p => $"{p.File}: {p.Page.Id}");
-
-        Assert.Empty(misplaced);
-    }
-
-    /// <summary>
-    /// The same guard for the removal journey date rules in
-    /// <see cref="RemovalJourneyDateRules"/>. The seven removal page ids and their three date
-    /// question ids are addressed by code, and nothing at runtime notices if one is renamed in
-    /// the flow JSON — the future-date check would simply stop matching and the validation would
-    /// silently stop happening.
-    /// </summary>
-    [Fact]
-    public void RemovalJourneyDateRules_PageAndQuestionIds_MatchTheShippedFlowConfig()
-    {
-        string[] removalPageIds =
-        [
-            RemovalJourneyDateRules.PermanentExclusionPageId,
-            RemovalJourneyDateRules.ChildMissingEducationPageId,
-            RemovalJourneyDateRules.PupilDiedPageId,
-            RemovalJourneyDateRules.ElectiveHomeEducationPageId,
-            RemovalJourneyDateRules.PermanentlyExcludedPageId,
-            RemovalJourneyDateRules.PermanentlyLeftEnglandPageId,
-            RemovalJourneyDateRules.StudentDiedPageId,
-            RemovalJourneyDateRules.AddedAfterSummerTermPageId
-        ];
-
-        string[] removalDateQuestionIds =
-        [
-            RemovalJourneyDateRules.DatePupilExcluded,
-            RemovalJourneyDateRules.DatePermanentlyExcluded,
-            RemovalJourneyDateRules.DateRemovedFromRoll,
-            RemovalJourneyDateRules.DateAddedToRoll
-        ];
-
-        foreach (var pageId in removalPageIds)
-        {
-            var pages = AllFlowPages().Where(p => p.Page.Id == pageId).ToList();
-            Assert.True(pages.Count > 0,
-                $"No flow config contains a page '{pageId}', which RemovalJourneyDateRules " +
-                $"addresses by id — its future-date rule would never run.");
-
-            foreach (var page in pages)
-            {
-                var inScopeDateQuestions = page.Page.Questions
-                    .Where(q => q.Type == QuestionType.Date
-                        && removalDateQuestionIds.Contains(q.Id))
-                    .ToList();
-
-                Assert.True(inScopeDateQuestions.Count == 1,
-                    $"{page.File}: page '{pageId}' should carry exactly one in-scope Date question " +
-                    $"(a single removal/exclusion date compared against today), but found " +
-                    $"{inScopeDateQuestions.Count}: {string.Join(", ", inScopeDateQuestions.Select(q => q.Id))}.");
-            }
-        }
-
-        // The three date question ids must all be covered by the config, so a typo'd constant
-        // (or a renamed question) cannot silently leave one rule without a target page.
-        foreach (var questionId in removalDateQuestionIds)
-        {
-            var page = AllFlowPages().FirstOrDefault(p =>
-                p.Page.Questions.Any(q => q.Id == questionId));
-            Assert.True(page.Page is not null,
-                $"No flow config page contains a question '{questionId}', which " +
-                $"RemovalJourneyDateRules evaluates — that rule would silently never fire.");
-        }
-    }
-
-    /// <summary>
-    /// The same guard for the Add-a-pupil journey's date rules (AB#297310) in
-    /// <see cref="AddJourneyDateRules"/>. Its two page ids and their date question ids are
-    /// addressed by code, and nothing at runtime notices if one is renamed in the flow JSON —
-    /// the future-date and admission-not-before-birth checks would simply stop matching and the
-    /// validation would silently stop happening.
-    /// </summary>
-    [Fact]
-    public void AddJourneyDateRules_PageAndQuestionIds_MatchTheShippedFlowConfig()
-    {
-        (string PageId, string QuestionId)[] pairs =
-        [
-            (AddJourneyDateRules.LearnerDetailsPageId, AddJourneyDateRules.DateOfBirth),
-            (AddJourneyDateRules.AdmissionDetailsPageId, AddJourneyDateRules.AdmissionDate)
-        ];
-
-        foreach (var (pageId, questionId) in pairs)
-        {
-            var pages = AllFlowPages().Where(p => p.Page.Id == pageId).ToList();
-            Assert.True(pages.Count > 0,
-                $"No flow config contains a page '{pageId}', which AddJourneyDateRules " +
-                $"addresses by id — its future-date rule would never run.");
-
-            foreach (var page in pages)
-            {
-                var question = page.Page.Questions.SingleOrDefault(q => q.Id == questionId);
-                Assert.True(question is not null,
-                    $"{page.File}: page '{pageId}' has no question '{questionId}', which " +
-                    $"AddJourneyDateRules compares — that rule would silently never fire.");
-                Assert.True(question!.Type == QuestionType.Date,
-                    $"{page.File}: question '{questionId}' is {question.Type}, not Date — " +
-                    $"AddJourneyDateRules reads it as a date answer and would always see it as unanswered.");
-            }
-        }
-    }
-
-    /// <summary>
-    /// The admission-not-before-birth rule compares two dates the user enters on different pages,
-    /// so it only ever fires if both live in the same flow — a flow carrying one page without the
-    /// other would leave the comparison permanently one-sided and silently unenforced.
-    /// </summary>
-    [Fact]
-    public void AddJourneyDateRules_BothDatePages_LiveInTheSameFlow()
-    {
-        var flowsWithLearnerDetails = FlowFilesContaining(AddJourneyDateRules.LearnerDetailsPageId);
-        var flowsWithAdmissionDetails = FlowFilesContaining(AddJourneyDateRules.AdmissionDetailsPageId);
-
-        Assert.NotEmpty(flowsWithLearnerDetails);
-        Assert.Equal(flowsWithLearnerDetails, flowsWithAdmissionDetails);
-    }
-
-    private static SortedSet<string> FlowFilesContaining(string pageId) =>
-        new(AllFlowPages().Where(p => p.Page.Id == pageId).Select(p => p.File), StringComparer.Ordinal);
-
-    /// <summary>
     /// Pins the scenario-006 invalid-date wording. The removal journeys substitute the
     /// question's own <c>validationFailure</c> for every invalid-date failure, so this string
     /// is the message users see — a copy edit here changes what gets shown. The generic EAL
@@ -375,10 +198,10 @@ var services = new ServiceCollection();
     [Fact]
     public void PermanentlyLeftEngland_RollDateValidationFailure_IsThePinnedWording()
     {
-        var page = AllFlowPages().Single(p => p.File == "Remove_KS4June.json" && p.Page.Id == RemovalJourneyDateRules.PermanentlyLeftEnglandPageId);
+        var page = AllFlowPages().Single(p => p.File == "Remove_KS4June.json" && p.Page.Id == "permanently-left-england-questions");
 
         var validationFailure = page.Page.Questions
-            .Single(q => q.Id == RemovalJourneyDateRules.DateRemovedFromRoll)
+            .Single(q => q.Id == "date-removed-from-roll")
             .ValidationFailure;
 
         Assert.Equal(

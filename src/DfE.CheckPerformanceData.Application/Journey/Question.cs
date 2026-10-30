@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using DfE.CheckPerformanceData.Application.Journey.DateRules;
 
 namespace DfE.CheckPerformanceData.Application.Journey;
 
@@ -32,6 +33,12 @@ public sealed class Question
     /// name is ignored.
     /// </summary>
     public string? Validator { get; init; }
+
+    /// <summary>
+    /// <c>Date</c> questions only: the rules that the answer must meet, in the order that they
+    /// run. The first rule that fails gives the message. See docs/question-flows.md.
+    /// </summary>
+    public IReadOnlyList<DateRule>? DateRules { get; init; }
 
     /// <summary>
     /// Conditions (names or answer tests, <see cref="JourneyConditionRef"/>) that must ALL hold

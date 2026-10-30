@@ -94,12 +94,11 @@ the typed name/DOB/UPN against the roll before minting a synthetic pupil. It car
   (`Question.CharacterLimit`/`characterLimit` in the flow JSON). This required extending
   `JourneyValidationService.ValidateAnswer`'s `CharacterLimit` arm from `TextArea`-only to also
   cover `FreeText` — the arm didn't exist for `FreeText` before this ticket.
-- **Future-date rules** (`AddJourneyDateRules`, mirroring `RemovalJourneyDateRules`): date of birth
-  and admission date must not be later than today. Today itself is accepted. Compiled into code
-  rather than the flow JSON, for the same reason as every other date rule in this codebase — a
-  JSON-declared rule can be silently absent if blob seeding hasn't run in an environment; a
-  compiled rule cannot. `QuestionFlowValidatorAlignmentTests.AddJourneyDateRules_PageAndQuestionIds_MatchTheShippedFlowConfig`
-  pins the ids to the shipped flow.
+- **Date rules** (`dateRules` in the flow JSON, see
+  [question-flows.md](question-flows.md#date-rules-daterules)): date of birth and admission date
+  must not be later than today. Today itself is accepted. The date of birth must be on or before
+  the admission date. The two questions are on different pages, so each declares the rule with
+  its own message. `DateRuleConfigTests` checks the rules in every flow file.
 
 Both the character-limit extension and the future-date rules were **flagged assumptions**, not
 directly specified by the ticket's own validation column — confirm with the BA, but cheap and
@@ -184,5 +183,5 @@ validation beyond the 13-character cap (the matching story owns it).
 |---|---|
 | Copy sign-off: the radio label "Add a pupil to data"; the sex option `U` labelled "Not known"; the SEN option order E→K→N; every page/question/error string in the two flow configs — none of this reached Figma Epic B1 from this environment, so it was implemented verbatim and pinned by tests | Content designer |
 | The KS4 Autumn checking window has no Add data in dev — the flow ships but is untested by a live browser walk | Dev team |
-| The two flagged assumptions (future-date rules, character caps) — confirm with the BA; if struck, delete the corresponding validation and the JSON `characterLimit` fields, nothing else changes | BA |
+| The two flagged assumptions (future-date rules, character caps) — confirm with the BA; if struck, delete the JSON `characterLimit` fields. `DateRuleConfigTests` requires a `notInFuture` rule on every `Date` question, so striking the future-date rule also changes that test | BA |
 | AB#297780 soft-match: the interception point is named and commented (`JourneyController.PagePost`, `page.PupilFromAnswers`), but no matching logic exists yet | Dev team (future ticket) |

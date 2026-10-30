@@ -17,13 +17,15 @@ public interface IJourneyValidationService
         bool? requireAtLeastOneActive = null);
 
     /// <summary>
-    /// Cross-field date rules for the page, if it has any. Returns at most one message per
-    /// question. Empty for every page without rules.
+    /// Runs the <c>dateRules</c> of each <c>Date</c> question on the page. Returns at most one
+    /// message for each question, in page order.
     ///
     /// <paramref name="answers"/> must span the whole journey with the page's posted answers
-    /// overlaid: the Add rules compare a date on this page against one entered on another.
+    /// on top: a rule can compare a date on this page with a date on another page.
+    /// <paramref name="ctx"/> is given to the date facts that the rules name.
     /// </summary>
-    IReadOnlyList<DateFieldViolation> ValidatePageDates(JourneyPage page, IReadOnlyDictionary<string, QuestionAnswer> answers, string pupilName);
+    IReadOnlyList<DateFieldViolation> ValidatePageDates(
+        JourneyPage page, IReadOnlyDictionary<string, QuestionAnswer> answers, JourneyConditionContext ctx, string pupilName);
 
     string? ValidateAnswer(Question question, QuestionAnswer answer, string resolvedTitle, string? resolvedValidationFailure = null);
 

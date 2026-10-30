@@ -445,9 +445,8 @@ backstop but is unreachable while the visibility rule holds.
 ### NCN and the award-date window
 
 The optional National Centre Number is format-validated by `NcnValidator` (`Ncn`, ≤ 5 characters,
-AB#298201's exact copy). The award date is validated by `MissingQualificationDateRules` — compiled
-rather than flow-JSON-declared, for the same reason as `RemovalJourneyDateRules`/`AddJourneyDateRules`:
-a JSON-declared rule can be silently absent in a deployed environment. It must be no later than
+AB#298201's exact copy). The award date question (`q-award-date`) has `dateRules` in the flow
+JSON (see [question-flows.md](question-flows.md#date-rules-daterules)). It must be no later than
 UK-today and no earlier than 1 September 2023 (the 2023/24 and 2024/25 academic years).
 
 ### Summary and completeness gap

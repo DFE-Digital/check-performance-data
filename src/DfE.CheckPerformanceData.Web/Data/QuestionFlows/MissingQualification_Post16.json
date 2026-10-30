@@ -94,7 +94,12 @@
           "title": "Provide award date",
           "hint": "For example, 20 8 2026. If you don't know the exact day enter 01.",
           "validationFailure": "Provide the award date",
-          "summaryTitle": "Award date"
+          "summaryTitle": "Award date",
+          "dateRules": [
+            { "check": "notInFuture", "message": "Award date must be today or in the past" },
+            { "check": "onOrAfter", "date": "2023-09-01",
+              "message": "We are only able to allow results enquiries for results awarded during the 2023/24 and 2024/25 academic years" }
+          ]
         },
         {
           "id": "q-missing-grade",

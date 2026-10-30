@@ -19,8 +19,9 @@ somebody had uploaded by hand, if anything, and **a config change did not reach 
 by deploying it**. The storage account also sets `public_network_access_enabled = false`, so a
 pipeline runner could not upload into it either.
 
-That drift was load-bearing in a bad way: it is the stated reason journey date rules
-(`Application/Journey/DateRules/`) are written in C# rather than declared in the flow JSON.
+That drift was load-bearing in a bad way: it was the stated reason that journey date rules were
+written in C#. Now the flow JSON declares them (`dateRules`, see
+[question-flows.md](question-flows.md#date-rules-daterules)).
 
 ## What this costs
 

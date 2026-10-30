@@ -1364,7 +1364,7 @@ public class JourneyControllerTests
         // error up by it, and anything else means the message renders nowhere at all.
         SetupDatePage();
         _journeyService.ValidatePageDates(Arg.Any<JourneyPage>(),
-                Arg.Any<IReadOnlyDictionary<string, QuestionAnswer>>(), Arg.Any<string>())
+                Arg.Any<IReadOnlyDictionary<string, QuestionAnswer>>(), Arg.Any<JourneyConditionContext>(), Arg.Any<string>())
             .Returns([new DateFieldViolation("date-a", "Dates are the wrong way round")]);
         SetupSession(ValidSession(history: ["date-page"]));
         PostDates(aYear: "2023", bYear: "2024");
@@ -1387,7 +1387,7 @@ public class JourneyControllerTests
         _journeyService.ValidateAnswer(Arg.Any<Question>(), Arg.Any<QuestionAnswer>(), Arg.Any<string>(), Arg.Any<string?>())
             .Returns("Enter a real date");
         _journeyService.ValidatePageDates(Arg.Any<JourneyPage>(),
-                Arg.Any<IReadOnlyDictionary<string, QuestionAnswer>>(), Arg.Any<string>())
+                Arg.Any<IReadOnlyDictionary<string, QuestionAnswer>>(), Arg.Any<JourneyConditionContext>(), Arg.Any<string>())
             .Returns([new DateFieldViolation("date-a", "Dates are the wrong way round")]);
         SetupSession(ValidSession(history: ["date-page"]));
         PostDates(aYear: "2023", bYear: "2024");
@@ -1406,7 +1406,7 @@ public class JourneyControllerTests
         SetupDatePage();
         _journeyService.IsAnswered(Arg.Any<Question>(), Arg.Any<QuestionAnswer>()).Returns(true);
         _journeyService.ValidatePageDates(Arg.Any<JourneyPage>(),
-                Arg.Any<IReadOnlyDictionary<string, QuestionAnswer>>(), Arg.Any<string>())
+                Arg.Any<IReadOnlyDictionary<string, QuestionAnswer>>(), Arg.Any<JourneyConditionContext>(), Arg.Any<string>())
             .Returns([new DateFieldViolation("date-a", "Dates are the wrong way round")]);
         SetupSession(ValidSession(history: ["date-page"]));
         PostDates(aYear: "2023", bYear: "2024");
@@ -1440,12 +1440,12 @@ public class JourneyControllerTests
     {
         SetupRemovalDatePage();
         _journeyService.ValidatePageDates(Arg.Any<JourneyPage>(),
-                Arg.Any<IReadOnlyDictionary<string, QuestionAnswer>>(), Arg.Any<string>())
+                Arg.Any<IReadOnlyDictionary<string, QuestionAnswer>>(), Arg.Any<JourneyConditionContext>(), Arg.Any<string>())
             .Returns([new DateFieldViolation(
-                RemovalJourneyDateRules.DateRemovedFromRoll,
+                "date-removed-from-roll",
                 "Date Jane Smith was removed from your school roll must be in the past")]);
         SetupSession(ValidSession(history: ["pupil-died"]));
-        PostSingleDate(RemovalJourneyDateRules.DateRemovedFromRoll, year: "2027");
+        PostSingleDate("date-removed-from-roll", year: "2027");
 
         var result = await _sut.PagePost(WindowId, "pupil-died", fromSummary: false);
 
@@ -1453,7 +1453,7 @@ public class JourneyControllerTests
         Assert.Equal("Page", view.ViewName);
         Assert.False(_sut.ModelState.IsValid);
         Assert.Equal("Date Jane Smith was removed from your school roll must be in the past",
-            _sut.ModelState[RemovalJourneyDateRules.DateRemovedFromRoll]!.Errors.Single().ErrorMessage);
+            _sut.ModelState["date-removed-from-roll"]!.Errors.Single().ErrorMessage);
     }
 
     [Fact]
@@ -1463,18 +1463,18 @@ public class JourneyControllerTests
         _journeyService.ValidateAnswer(Arg.Any<Question>(), Arg.Any<QuestionAnswer>(), Arg.Any<string>(), Arg.Any<string?>())
             .Returns("Enter a real date");
         _journeyService.ValidatePageDates(Arg.Any<JourneyPage>(),
-                Arg.Any<IReadOnlyDictionary<string, QuestionAnswer>>(), Arg.Any<string>())
+                Arg.Any<IReadOnlyDictionary<string, QuestionAnswer>>(), Arg.Any<JourneyConditionContext>(), Arg.Any<string>())
             .Returns([new DateFieldViolation(
-                RemovalJourneyDateRules.DateRemovedFromRoll,
+                "date-removed-from-roll",
                 "Date Jane Smith was removed from your school roll must be in the past")]);
         SetupSession(ValidSession(history: ["pupil-died"]));
-        PostSingleDate(RemovalJourneyDateRules.DateRemovedFromRoll, year: "2027");
+        PostSingleDate("date-removed-from-roll", year: "2027");
 
         var result = await _sut.PagePost(WindowId, "pupil-died", fromSummary: false);
 
         Assert.IsType<ViewResult>(result);
         Assert.Equal("Enter a real date",
-            _sut.ModelState[RemovalJourneyDateRules.DateRemovedFromRoll]!.Errors.Single().ErrorMessage);
+            _sut.ModelState["date-removed-from-roll"]!.Errors.Single().ErrorMessage);
     }
 
     [Fact]
@@ -1483,12 +1483,12 @@ public class JourneyControllerTests
         SetupRemovalDatePage();
         _journeyService.IsAnswered(Arg.Any<Question>(), Arg.Any<QuestionAnswer>()).Returns(true);
         _journeyService.ValidatePageDates(Arg.Any<JourneyPage>(),
-                Arg.Any<IReadOnlyDictionary<string, QuestionAnswer>>(), Arg.Any<string>())
+                Arg.Any<IReadOnlyDictionary<string, QuestionAnswer>>(), Arg.Any<JourneyConditionContext>(), Arg.Any<string>())
             .Returns([new DateFieldViolation(
-                RemovalJourneyDateRules.DateRemovedFromRoll,
+                "date-removed-from-roll",
                 "Date Jane Smith was removed from your school roll must be in the past")]);
         SetupSession(ValidSession(history: ["pupil-died"]));
-        PostSingleDate(RemovalJourneyDateRules.DateRemovedFromRoll, year: "2027");
+        PostSingleDate("date-removed-from-roll", year: "2027");
 
         await _sut.PagePost(WindowId, "pupil-died", fromSummary: false);
 
@@ -1503,7 +1503,7 @@ public class JourneyControllerTests
     {
         SetupRemovalDatePage();
         SetupSession(ValidSession(history: ["pupil-died"]));
-        PostSingleDate(RemovalJourneyDateRules.DateRemovedFromRoll, year: "2026");
+        PostSingleDate("date-removed-from-roll", year: "2026");
 
         var result = await _sut.PagePost(WindowId, "pupil-died", fromSummary: false);
 
@@ -1514,22 +1514,22 @@ public class JourneyControllerTests
     {
         var page = new JourneyPage
         {
-            Id = RemovalJourneyDateRules.PupilDiedPageId,
+            Id = "pupil-died",
             Questions =
             [
                 new Question
                 {
-                    Id = RemovalJourneyDateRules.DateRemovedFromRoll,
+                    Id = "date-removed-from-roll",
                     Type = QuestionType.Date,
                     Title = "Date the pupil was removed from your roll"
                 }
             ],
             NextPageId = "page-2"
         };
-        _flowService.GetPage(Config, RemovalJourneyDateRules.PupilDiedPageId).Returns(page);
+        _flowService.GetPage(Config, "pupil-died").Returns(page);
         _journeyService.ValidateAnswer(Arg.Any<Question>(), Arg.Any<QuestionAnswer>(), Arg.Any<string>(), Arg.Any<string?>())
             .Returns((string?)null);
-        _flowService.GetNextPageId(Config, RemovalJourneyDateRules.PupilDiedPageId, Arg.Any<Dictionary<string, QuestionAnswer>>())
+        _flowService.GetNextPageId(Config, "pupil-died", Arg.Any<Dictionary<string, QuestionAnswer>>())
             .Returns("page-2");
     }
 

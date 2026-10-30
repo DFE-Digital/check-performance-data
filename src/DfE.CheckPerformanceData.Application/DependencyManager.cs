@@ -8,6 +8,7 @@ using DfE.CheckPerformanceData.Application.ContentBlocks;
 using DfE.CheckPerformanceData.Application.Countries;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.Journey.Conditions;
+using DfE.CheckPerformanceData.Application.Journey.DateRules;
 using DfE.CheckPerformanceData.Application.Journey.Validators;
 using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
@@ -78,6 +79,10 @@ public static class DependencyManager
         services.AddScoped<IJourneyCondition, SchoolIsOnNotOnRollListCondition>();
         services.AddScoped<IJourneyCondition, PupilIsAddBackCondition>();
         services.AddScoped<IJourneyCondition, HasSyllabusCodesForSelectedQualificationCondition>();
+        // Date facts for the dateRules in the flow files. An unregistered fact name skips its rule,
+        // so a missing line here turns a date check off. Guarded by
+        // EveryImplementedDateFact_IsRegisteredInTheContainer.
+        services.AddScoped<IJourneyDateFact, CohortStartDateFact>();
         services.AddScoped<IOriginCountryLanguageCapture, OriginCountryLanguageCapture>();
         services.AddScoped<IFormatValidator, DfeNumberFormatValidator>();
         // AB#296648: the cohort-count question. Registration is load-bearing — the journey engine

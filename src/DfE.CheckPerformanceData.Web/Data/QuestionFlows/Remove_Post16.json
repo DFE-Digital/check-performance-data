@@ -110,7 +110,10 @@
           "title": "When was {pupilName} removed from your school or college roll?",
           "hint": "For example, 27 3 2026",
           "summaryTitle": "Date removed from school or college roll",
-          "validationFailure": "Enter the date {pupilName} was removed from your school or college roll"
+          "validationFailure": "Enter the date {pupilName} was removed from your school or college roll",
+          "dateRules": [
+            { "check": "notInFuture", "message": "Date {pupilName} was removed from your school or college roll must be in the past" }
+          ]
         }
       ]
     },

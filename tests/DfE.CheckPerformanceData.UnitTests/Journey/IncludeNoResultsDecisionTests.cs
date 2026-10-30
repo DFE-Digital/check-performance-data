@@ -22,8 +22,8 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 /// <summary>
 /// AB#027: Include journey no-results decision flow. When a user on the Include journey's
 /// select-pupil step types a name, gets no autocomplete result, and clicks Continue without
-/// selecting a pupil, the system looks the typed entry up against BOTH the included and
-/// non-included populations:
+/// selecting a pupil, the system looks the typed entry up among the pupils who cannot be included
+/// (`NotIncludable`) and those who can (`Includable`):
 ///  - included match warns "already included" (abort);
 ///  - non-included-only match is a valid include candidate — the journey proceeds as normal
 ///    (re-renders the search page with the candidate visible, no warning, no decision page);
@@ -54,7 +54,7 @@ public class IncludeNoResultsDecisionTests
         Id = "select-pupil",
         Type = PageType.PupilSearch,
         Title = "What is the name of the pupil to be included?",
-        PupilFilter = PupilFilter.NonIncluded,
+        PupilFilter = PupilFilter.Includable,
         PupilKey = JourneyPage.PrimaryKey,
         ValidationFailure = "Enter the name of the pupil to be included."
     };
@@ -133,9 +133,9 @@ public class IncludeNoResultsDecisionTests
     public async Task PupilSearchPost_NeitherListMatch_ReturnsPupilNotFoundView()
     {
         SetupSession(SessionForInclude());
-        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "No Such", PupilFilter.Included, Arg.Any<Guid?>(), Arg.Any<bool>())
+        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "No Such", PupilFilter.NotIncludable, Arg.Any<Guid?>(), Arg.Any<bool>())
             .Returns(new List<PupilSuggestionDto>());
-        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "No Such", PupilFilter.NonIncluded, Arg.Any<Guid?>(), Arg.Any<bool>())
+        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "No Such", PupilFilter.Includable, Arg.Any<Guid?>(), Arg.Any<bool>())
             .Returns(new List<PupilSuggestionDto>());
 
         var result = await _sut.PupilSearchPost(WindowId, "select-pupil", null, "No Such");
@@ -153,14 +153,14 @@ public class IncludeNoResultsDecisionTests
     //    → a valid include candidate: proceed as normal (no decision page, no "not found" warning) --
 
     [Fact]
-    public async Task PupilSearchPost_NonIncludedOnlyMatch_ProceedsAsNormal_NoDecisionRedirect()
+    public async Task PupilSearchPost_IncludableOnlyMatch_ProceedsAsNormal_NoDecisionRedirect()
     {
         SetupSession(SessionForInclude());
         // "Johnson" is a non-included surname bucket — it matches the non-included pupil but no
         // included one (included surnames are Smith..Davies).
-        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "Johnson", PupilFilter.Included, Arg.Any<Guid?>(), Arg.Any<bool>())
+        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "Johnson", PupilFilter.NotIncludable, Arg.Any<Guid?>(), Arg.Any<bool>())
             .Returns(new List<PupilSuggestionDto>());
-        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "Johnson", PupilFilter.NonIncluded, Arg.Any<Guid?>(), Arg.Any<bool>())
+        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "Johnson", PupilFilter.Includable, Arg.Any<Guid?>(), Arg.Any<bool>())
             .Returns(new List<PupilSuggestionDto> { NonIncludedSuggestion });
 
         var result = await _sut.PupilSearchPost(WindowId, "select-pupil", null, "Johnson");
@@ -173,7 +173,29 @@ public class IncludeNoResultsDecisionTests
         Assert.Equal("Johnson", _session.GetRequestState(WindowId).IncludeSearchLabel);
         // The three-way decision consults the non-included list to discover the valid candidate.
         await _pupilDataService.Received()
-            .GetPupilSuggestionsAsync(WindowId, "Johnson", PupilFilter.NonIncluded, Arg.Any<Guid?>(), Arg.Any<bool>());
+            .GetPupilSuggestionsAsync(WindowId, "Johnson", PupilFilter.Includable, Arg.Any<Guid?>(), Arg.Any<bool>());
+    }
+
+    // #711: on 16-19 a P_INCL 502 student is INCLUDED by file but includable by rule. The guards
+    // ask NotIncludable, so a typed name that matches only includable students is a candidate.
+    [Fact]
+    public async Task PupilSearchPost_IncludableMatchOnly_ProceedsAsNormal_EvenWhenThatPupilIsIncluded()
+    {
+        SetupSession(SessionForInclude());
+        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "Bob Smith", PupilFilter.NotIncludable, Arg.Any<Guid?>(), Arg.Any<bool>())
+            .Returns(new List<PupilSuggestionDto>());
+        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "Bob Smith", PupilFilter.Includable, Arg.Any<Guid?>(), Arg.Any<bool>())
+            .Returns(new List<PupilSuggestionDto>
+            {
+                new(Guid.NewGuid(), "Bob, Smith, (CYPMD ID:500002, ULN:9900000002, DOB:01/09/2007, INCLUDED)", "Bob", "Smith", "01/09/2007")
+            });
+
+        var result = await _sut.PupilSearchPost(WindowId, "select-pupil", null, "Bob Smith");
+
+        var view = Assert.IsType<ViewResult>(result);
+        Assert.Equal("PupilSearch", view.ViewName);
+        await _pupilDataService.DidNotReceive()
+            .GetPupilSuggestionsAsync(Arg.Any<Guid>(), Arg.Any<string>(), PupilFilter.Included, Arg.Any<Guid?>(), Arg.Any<bool>());
     }
 
     // -- T005: non-blank typed text + no selection + included match → "Already included" --
@@ -183,7 +205,7 @@ public class IncludeNoResultsDecisionTests
     {
         SetupSession(SessionForInclude());
         // "Smith" is an included surname bucket — it matches the included pupil Alice Smith.
-        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "Smith", PupilFilter.Included, Arg.Any<Guid?>(), Arg.Any<bool>())
+        _pupilDataService.GetPupilSuggestionsAsync(WindowId, "Smith", PupilFilter.NotIncludable, Arg.Any<Guid?>(), Arg.Any<bool>())
             .Returns(new List<PupilSuggestionDto> { IncludedSuggestion });
 
         var result = await _sut.PupilSearchPost(WindowId, "select-pupil", null, "Smith");
@@ -201,7 +223,7 @@ public class IncludeNoResultsDecisionTests
         Assert.True(_sut.ModelState.IsValid);
         // An included match is conclusive — there is no need to consult the non-included list.
         await _pupilDataService.DidNotReceive()
-            .GetPupilSuggestionsAsync(WindowId, "Smith", PupilFilter.NonIncluded, Arg.Any<Guid?>(), Arg.Any<bool>());
+            .GetPupilSuggestionsAsync(WindowId, "Smith", PupilFilter.Includable, Arg.Any<Guid?>(), Arg.Any<bool>());
     }
 
     // -- The "Already included" GET surfaces the persisted matches and consumes them on arrival --
@@ -227,6 +249,36 @@ public class IncludeNoResultsDecisionTests
         // reused to replay the (PII) decision.
         Assert.Null(_session.GetRequestState(WindowId).IncludeSearchLabel);
         Assert.Null(_session.GetRequestState(WindowId).IncludeMatchedPupils);
+    }
+
+    // #711: 16-19 has no Add flow, so the decision pages must not offer "Start adding". CanAdd
+    // comes from the same list What to change renders.
+    [Fact]
+    public async Task AlreadyIncluded_OnAWindowTypeWithNoAddFlow_DoesNotOfferAdd()
+    {
+        SetupSession(SessionForIncludeWith(label: "Bob Smith"));
+        _flowService.GetPupilDataChangesAsync(Arg.Any<CheckingWindowType>())
+            .Returns(Task.FromResult<IReadOnlyList<WhatToChange>>([WhatToChange.Merge, WhatToChange.Remove]));
+
+        var result = await _sut.AlreadyIncluded(WindowId);
+
+        var model = Assert.IsType<IncludeAlreadyIncludedViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.False(model.CanAdd);
+        Assert.Equal("pupil", model.LearnerNoun.Singular);   // the session's window is KS4 June
+    }
+
+    [Fact]
+    public async Task PupilNotFound_OnAWindowTypeWithAnAddFlow_OffersAdd()
+    {
+        SetupSession(SessionForIncludeWith(label: "No Such"));
+        _flowService.GetPupilDataChangesAsync(Arg.Any<CheckingWindowType>())
+            .Returns(Task.FromResult<IReadOnlyList<WhatToChange>>([WhatToChange.Merge, WhatToChange.Include, WhatToChange.Remove, WhatToChange.Add]));
+
+        var result = await _sut.PupilNotFound(WindowId, "select-pupil");
+
+        var model = Assert.IsType<IncludeNoResultsViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.True(model.CanAdd);
+        Assert.Equal("pupil", model.LearnerNoun.Singular);
     }
 
     // -- AB#297780: when reached from the duplicate-check hand-off, the back link returns to
@@ -262,7 +314,7 @@ public class IncludeNoResultsDecisionTests
         var error = _sut.ModelState["selectedPupilId"]?.Errors.FirstOrDefault()?.ErrorMessage;
         Assert.Equal("Enter the name of the pupil to be included.", error);
         await _pupilDataService.DidNotReceive()
-            .GetPupilSuggestionsAsync(Arg.Any<Guid>(), Arg.Any<string>(), PupilFilter.Included, Arg.Any<Guid?>(), Arg.Any<bool>());
+            .GetPupilSuggestionsAsync(Arg.Any<Guid>(), Arg.Any<string>(), PupilFilter.NotIncludable, Arg.Any<Guid?>(), Arg.Any<bool>());
     }
 
     // -- T007: non-blank typed text + no selection on non-Include journey → unchanged --
@@ -279,7 +331,7 @@ public class IncludeNoResultsDecisionTests
         Assert.Equal("PupilSearch", view.ViewName);
         Assert.True(_sut.ModelState.ContainsKey("selectedPupilId"));
         await _pupilDataService.DidNotReceive()
-            .GetPupilSuggestionsAsync(Arg.Any<Guid>(), Arg.Any<string>(), PupilFilter.Included, Arg.Any<Guid?>(), Arg.Any<bool>());
+            .GetPupilSuggestionsAsync(Arg.Any<Guid>(), Arg.Any<string>(), PupilFilter.NotIncludable, Arg.Any<Guid?>(), Arg.Any<bool>());
     }
 
     // -- T008: lookup failure → falls back to existing validation (fail safe) --
@@ -288,7 +340,7 @@ public class IncludeNoResultsDecisionTests
     public async Task PupilSearchPost_LookupFailure_FallsBackToExistingValidation()
     {
         SetupSession(SessionForInclude());
-        _pupilDataService.GetPupilSuggestionsAsync(Arg.Any<Guid>(), Arg.Any<string>(), PupilFilter.Included, Arg.Any<Guid?>(), Arg.Any<bool>())
+        _pupilDataService.GetPupilSuggestionsAsync(Arg.Any<Guid>(), Arg.Any<string>(), PupilFilter.NotIncludable, Arg.Any<Guid?>(), Arg.Any<bool>())
             .Returns(Task.FromException<IReadOnlyList<PupilSuggestionDto>>(new InvalidOperationException("blob unavailable")));
 
         var result = await _sut.PupilSearchPost(WindowId, "select-pupil", null, "No Such");
@@ -328,6 +380,22 @@ public class IncludeNoResultsDecisionTests
         Assert.Null(saved.IncludeMatchedPupils);
         Assert.Empty(saved.QuestionAnswers);
         Assert.Equal("learner-details", saved.QuestionHistory.Single());
+    }
+
+    // #711: the decision pages hide "Start adding" where there is no Add flow (16-19), and a forged
+    // POST is refused by the action itself, leaving the Include attempt untouched.
+    [Fact]
+    public async Task StartAddingPupil_OnAWindowTypeWithNoAddFlow_RedirectsToCheckYourData()
+    {
+        SetupSession(SessionForIncludeWith(label: "No Such"));
+        _flowService.GetConfigAsync(WhatToChange.Add, CheckingWindowType.KS4June).Returns((QuestionFlowConfig?)null);
+
+        var result = await _sut.StartAddingPupil(WindowId);
+
+        AssertRedirectToCheckYourData(result);
+        var saved = _session.GetRequestState(WindowId);
+        Assert.Equal(WhatToChange.Include, saved.SelectedWhatToChange);
+        Assert.Equal("No Such", saved.IncludeSearchLabel);
     }
 
     // -- T019: PupilSearchAgain returns to the Include select-pupil search page --

@@ -174,7 +174,9 @@ public sealed class CheckYourPupilDataRepository(
             {
                 PupilFilter.All => true,
                 PupilFilter.Included => p.IsIncluded,
-                _ => !p.IsIncluded
+                PupilFilter.Includable => p.IsIncludable,
+                PupilFilter.NotIncludable => !p.IsIncludable,
+                _ => throw new ArgumentOutOfRangeException(nameof(filter), filter, "No search rule for this pupil filter.")
             })
             .Where(matches);
 

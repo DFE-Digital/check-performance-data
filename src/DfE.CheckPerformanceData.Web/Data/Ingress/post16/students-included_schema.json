@@ -8,7 +8,8 @@
   "x-ingress": {
     "collection": "students-included",
     "pageTab": "students",
-    "institutionKey": "LAESTAB"
+    "institutionKey": "LAESTAB",
+    "includable": { "field": "P_INCL", "codes": ["502"] }
   },
   "x-download": {
     "fileName": "ks5pup25.csv",
@@ -25,6 +26,19 @@
       "description": "Whether this row came from the included students file",
       "x-csv": { "columns": {}, "heading": "Included" },
       "x-display": { "label": "Included", "visible": false, "order": 999 }
+    },
+    "INCLUDABLE": {
+      "type": "boolean",
+      "description": "Stamped by ingress: true when a school may ask to include this pupil - not included, or P_INCL is a code x-ingress.includable names. Not a supplier column, so not downloaded or shown.",
+      "x-csv": {
+        "columns": {},
+        "heading": "Includable"
+      },
+      "x-display": {
+        "label": "Includable",
+        "visible": false,
+        "order": 999
+      }
     },
     "CYPMD_ID": {
       "type": [

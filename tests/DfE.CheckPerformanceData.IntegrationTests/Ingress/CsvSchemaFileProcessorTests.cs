@@ -24,6 +24,7 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
       "properties": {
         "Id":       { "type": ["string", "null"] },
         "INCLUDED": { "type": "boolean" },
+        "INCLUDABLE": { "type": "boolean" },
         "CYPMD_ID": { "type": ["string", "null"] },
         "SURNAME":  { "type": ["string", "null"] },
         "FORENAMES":{ "type": ["string", "null"] },
@@ -40,6 +41,7 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
       "properties": {
         "Id":       { "type": ["string", "null"] },
         "INCLUDED": { "type": "boolean" },
+        "INCLUDABLE": { "type": "boolean" },
         "CYPMD_ID": { "type": ["string", "null"] },
         "SURNAME":  { "type": ["string", "null"] },
         "FORENAMES":{ "type": ["string", "null"] },
@@ -172,6 +174,7 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
           "properties": {
             "Id":       { "type": ["string", "null"] },
             "INCLUDED": { "type": "boolean" },
+            "INCLUDABLE": { "type": "boolean" },
             "SURNAME":  { "type": ["string", "null"] },
             "FORENAMES":{ "type": ["string", "null"] },
             "CYPMD_ID": { "type": ["string", "null"] },
@@ -259,6 +262,7 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
       },
       "properties": {
         "INCLUDED":    { "type": "boolean" },
+        "INCLUDABLE":  { "type": "boolean" },
         "SURNAME":     { "type": ["string", "null"] },
         "LAESTAB":     { "type": ["string", "null"] },
         "P_INCL":      { "type": ["string", "null"] },
@@ -367,6 +371,147 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
         Assert.Null(await ReadPupilsAsync(container, "8604070"));
     }
 
+    // #711: who may be asked to be included. A schema names the codes in x-ingress.includable
+    // (16-19 P_INCL 502, a student in the included file who is not in the measures); a record that
+    // is not included is includable without a rule. Readers read INCLUDABLE, never a code.
+    private const string SchemaWithIncludableRule = """
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "x-ingress": {
+        "includable": { "field": "P_INCL", "codes": ["502"] }
+      },
+      "properties": {
+        "INCLUDED":   { "type": "boolean" },
+        "INCLUDABLE": { "type": "boolean" },
+        "SURNAME":    { "type": ["string", "null"] },
+        "LAESTAB":    { "type": ["string", "null"] },
+        "P_INCL":     { "type": ["string", "null"] }
+      }
+    }
+    """;
+
+    [Theory]
+    [InlineData("SURNAME,LAESTAB,P_INCL\nSmith,8604070,502\n", true, true)]
+    [InlineData("SURNAME,LAESTAB,P_INCL\nSmith,8604070, 502 \n", true, true)]
+    [InlineData("SURNAME,LAESTAB,P_INCL\nSmith,8604070,501\n", true, false)]
+    [InlineData("SURNAME,LAESTAB,P_INCL\nSmith,8604070,\n", true, false)]
+    [InlineData("SURNAME,LAESTAB,P_INCL\nSmith,8604070,501\n", false, true)]
+    public async Task The_schemas_includable_rule_stamps_INCLUDABLE_from_the_code_or_from_not_included(
+        string csv, bool slotIncluded, bool includable)
+    {
+        var (last, pupil) = await RunInclusionRuleAsync(csv, SchemaWithIncludableRule, slotIncluded);
+
+        Assert.False(last.IsError, last.Message);
+        Assert.Equal(slotIncluded, pupil!["INCLUDED"]!.Value<bool>());
+        Assert.Equal(includable, pupil["INCLUDABLE"]!.Value<bool>());
+    }
+
+    [Fact]
+    public async Task A_schema_with_no_includable_rule_stamps_INCLUDABLE_as_not_included()
+    {
+        var (included, includedPupil) = await RunInclusionRuleAsync("SURNAME,LAESTAB,P_INCL\nSmith,8604070,401\n", SchemaWithInclusionRule);
+        var (notIncluded, pupil) = await RunInclusionRuleAsync("SURNAME,LAESTAB,P_INCL\nSmith,8604070,402\n", SchemaWithInclusionRule);
+
+        Assert.False(included.IsError, included.Message);
+        Assert.False(notIncluded.IsError, notIncluded.Message);
+        Assert.False(includedPupil!["INCLUDABLE"]!.Value<bool>());
+        Assert.True(pupil!["INCLUDABLE"]!.Value<bool>());
+    }
+
+    // Without INCLUDABLE a pupil file would offer nobody for inclusion, and nothing would say so.
+    // An uploaded schema can do this as easily as a shipped one, so the run fails by name.
+    [Theory]
+    [InlineData(null)]
+    [InlineData(true)]
+    public async Task A_schema_declaring_INCLUDED_but_not_INCLUDABLE_fails_the_run_by_name(bool? slotIncluded)
+    {
+        var schema = SchemaWithInclusionRule.Replace("\"INCLUDABLE\":  { \"type\": \"boolean\" },", string.Empty);
+
+        var (last, pupil) = await RunInclusionRuleAsync("SURNAME,LAESTAB,P_INCL\nSmith,8604070,402\n", schema, slotIncluded);
+
+        Assert.True(last.IsError);
+        Assert.Contains("declares INCLUDED but not INCLUDABLE", last.Message);
+        Assert.Null(pupil);
+    }
+
+    [Fact]
+    public async Task An_includable_rule_on_a_schema_that_does_not_declare_INCLUDABLE_fails_the_run_by_name()
+    {
+        var schema = SchemaWithIncludableRule.Replace("\"INCLUDABLE\": { \"type\": \"boolean\" },", string.Empty);
+
+        var (last, pupil) = await RunInclusionRuleAsync("SURNAME,LAESTAB,P_INCL\nSmith,8604070,502\n", schema, slotIncluded: true);
+
+        Assert.True(last.IsError);
+        Assert.Contains("INCLUDABLE", last.Message);
+        Assert.Null(pupil);
+    }
+
+    [Fact]
+    public async Task An_includable_rule_that_reads_an_undeclared_field_fails_the_run_by_name()
+    {
+        var schema = SchemaWithIncludableRule.Replace("\"field\": \"P_INCL\"", "\"field\": \"P_NOPE\"");
+
+        var (last, pupil) = await RunInclusionRuleAsync("SURNAME,LAESTAB,P_INCL\nSmith,8604070,502\n", schema, slotIncluded: true);
+
+        Assert.True(last.IsError);
+        Assert.Contains("P_NOPE", last.Message);
+        Assert.Null(pupil);
+    }
+
+    // INCLUDABLE is derived from INCLUDED. A slot with no file of origin and a schema with no
+    // inclusion rule stamp neither, so both are left null and the rows fail validation: the run
+    // fails rather than write a file that offers nobody for inclusion.
+    [Fact]
+    public async Task A_schema_declaring_INCLUDABLE_with_nothing_to_stamp_INCLUDED_fails_the_run()
+    {
+        var (last, pupil) = await RunInclusionRuleAsync("SURNAME,LAESTAB,P_INCL\nSmith,8604070,502\n", SchemaWithIncludableRule);
+
+        Assert.True(last.IsError);
+        Assert.Contains("Validation failed", last.Message);
+        Assert.Null(pupil);
+    }
+
+    // A rule that cannot be honoured fails the run before any row is read, like the inclusion rule.
+    [Theory]
+    [InlineData("{ \"codes\": [\"502\"] }", "names no field")]
+    [InlineData("{ \"field\": \"P_INCL\" }", "names no codes")]
+    [InlineData("{ \"field\": \"P_INCL\", \"codes\": [] }", "names no codes")]
+    [InlineData("{ \"field\": \"P_INCL\", \"codes\": [\"502\", \" \"] }", "names a blank code")]
+    public async Task An_includable_rule_that_cannot_be_honoured_fails_the_run_by_name(string rule, string error)
+    {
+        var schema = SchemaWithIncludableRule.Replace(
+            "\"includable\": { \"field\": \"P_INCL\", \"codes\": [\"502\"] }", $"\"includable\": {rule}");
+
+        var (last, pupil) = await RunInclusionRuleAsync("SURNAME,LAESTAB,P_INCL\nSmith,8604070,502\n", schema, slotIncluded: true);
+
+        Assert.True(last.IsError);
+        Assert.Contains(error, last.Message);
+        Assert.Null(pupil);
+    }
+
+    // The shipped schemas: KS4 and KS2 stamp INCLUDABLE as "not included"; the 16-19 included file
+    // names 502; the 16-19 non-included file has no rule and every row is includable.
+    [Theory]
+    [InlineData("ks4june", "pupils_schema.json", "UPN,CYPMD_ID,SURNAME,FORENAME,P_INCL,LAESTAB\nA1,1,Smith,Al,401,8604070\n", null, false)]
+    [InlineData("ks4june", "pupils_schema.json", "UPN,CYPMD_ID,SURNAME,FORENAME,P_INCL,LAESTAB\nA1,1,Smith,Al,402,8604070\n", null, true)]
+    [InlineData("ks2", "pupils_schema.json", "UPN,CYPMD_ID,MATCHREF,SURNAME,FORENAME,PINCL_Flag,LAESTAB\nA1,1,7,Smith,Al,201,8604070\n", null, false)]
+    [InlineData("ks2", "pupils-december_schema.json", "UPN,CYPMD_ID,MATCHREF,SURNAME,FORENAME,PINCL_Flag,LAESTAB\nA1,1,7,Smith,Al,202,8604070\n", null, true)]
+    [InlineData("post16", "students-included_schema.json", "CYPMD_ID,SURNAME,FORENAMES,P_INCL,LAESTAB\n1,Smith,Al,501,8604070\n", true, false)]
+    [InlineData("post16", "students-included_schema.json", "CYPMD_ID,SURNAME,FORENAMES,P_INCL,LAESTAB\n1,Smith,Al,502,8604070\n", true, true)]
+    [InlineData("post16", "students-included_schema.json", "CYPMD_ID,SURNAME,FORENAMES,P_INCL,LAESTAB\n1,Smith,Al,505,8604070\n", true, false)]
+    [InlineData("post16", "students-non-included_schema.json", "CYPMD_ID,SURNAME,FORENAMES,LAESTAB\n1,Smith,Al,8604070\n", false, true)]
+    public async Task A_shipped_pupil_schema_stamps_INCLUDABLE(string folder, string file, string csv, bool? slotIncluded, bool includable)
+    {
+        var schema = await File.ReadAllTextAsync(
+            Path.Combine(AppContext.BaseDirectory, "Data", "Ingress", folder, file));
+
+        var (last, pupil) = await RunInclusionRuleAsync(csv, schema, slotIncluded);
+
+        Assert.False(last.IsError, last.Message);
+        Assert.Equal(includable, pupil!["INCLUDABLE"]!.Value<bool>());
+    }
+
     [Fact]
     public async Task A_schema_with_an_institution_key_splits_the_file_by_that_column()
     {
@@ -470,6 +615,7 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
           "properties": {
             "Id":       { "type": ["string", "null"] },
             "INCLUDED": { "type": "boolean" },
+            "INCLUDABLE": { "type": "boolean" },
             "SURNAME":  { "type": ["string", "null"] },
             "FORENAMES":{ "type": ["string", "null"] },
             "CYPMD_ID": { "type": ["string", "null"] },
@@ -553,8 +699,9 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
             if (post16)
             {
                 ((JObject)expected[0])["INCLUDED"] = true;
+                ((JObject)expected[0])["INCLUDABLE"] = false;
                 if (school == "8604070")
-                    expected.Add(JObject.Parse("""{"CYPMD_ID":"500002","SURNAME":"Jones","FORENAMES":"Bob","LAESTAB":"8604070","ULN":"9900000002","CampID_0":"C0","INCLUDED":false}"""));
+                    expected.Add(JObject.Parse("""{"CYPMD_ID":"500002","SURNAME":"Jones","FORENAMES":"Bob","LAESTAB":"8604070","ULN":"9900000002","CampID_0":"C0","INCLUDED":false,"INCLUDABLE":true}"""));
             }
             Assert.True(JToken.DeepEquals(expected, actual), $"Unexpected pupil output for {school}: {actual}");
         }

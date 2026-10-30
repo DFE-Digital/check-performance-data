@@ -221,6 +221,27 @@ public class PupilRecordDeserializationTests
         Assert.False(pupil.IsIncluded);
     }
 
+    // Ingress stamps INCLUDABLE (#711); on KS4 and KS2 it is "not included". The record reads only the stamp.
+    [Theory]
+    [InlineData("true", true, true)]
+    [InlineData("false", false, false)]
+    public void IsIncludable_follows_the_stamp_not_INCLUDED(string stamp, bool included, bool expected)
+    {
+        var pupil = DeserializeSingle($$"""[ { "INCLUDED": {{(included ? "true" : "false")}}, "INCLUDABLE": {{stamp}} } ]""");
+
+        Assert.Equal(expected, pupil.IsIncludable);
+    }
+
+    [Fact]
+    public void IsIncludable_is_false_when_the_stamp_is_absent()
+    {
+        // A blob written before the stamp existed offers nobody for inclusion until the exercise is
+        // validated again (docs/blob-storage.md).
+        var pupil = DeserializeSingle("""[ { "INCLUDED": false, "SURNAME": "Smith" } ]""");
+
+        Assert.False(pupil.IsIncludable);
+    }
+
     [Fact]
     public void The_inclusion_description_is_read_from_P_INCL_DESC()
     {

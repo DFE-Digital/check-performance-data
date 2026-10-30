@@ -1,0 +1,38 @@
+{
+  "firstPageId": "select-pupil",
+  "pages": [
+    {
+      "id": "select-pupil",
+      "type": "PupilSearch",
+      "title": "What is the name of the student to be included?",
+      "subheading": "Start typing the first name, last name, CYPMD ID, ULN or date of birth (DOB)",
+      "pupilFilter": "Includable",
+      "pupilKey": "primary",
+      "nextPageId": "evidence",
+      "validationFailure": "Enter the name of the student to be included."
+    },
+    {
+      "id": "evidence",
+      "pageTitle": "Provide evidence for the inclusion",
+      "type": "EvidenceUpload",
+      "title": "Provide evidence for the inclusion of {pupilName}",
+      "questions": [
+        {
+          "id": "evidence",
+          "type": "FileUpload",
+          "title": "Upload files",
+          "hint": "Evidence must be in a PDF format",
+          "optional": true
+        },
+        {
+          "id": "how-evidence-supports",
+          "type": "TextArea",
+          "title": "Explain how the evidence supports including this student",
+          "summaryTitle": "How evidence supports student inclusion",
+          "characterLimit": 500,
+          "optional": true
+        }
+      ]
+    }
+  ]
+}

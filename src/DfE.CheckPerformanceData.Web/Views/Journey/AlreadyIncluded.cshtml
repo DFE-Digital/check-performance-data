@@ -1,7 +1,7 @@
 @model DfE.CheckPerformanceData.Web.Controllers.Journey.IncludeAlreadyIncludedViewModel
 
 @{
-    ViewBag.Title = "This pupil is already included";
+    ViewBag.Title = $"This {Model.LearnerNoun.Singular} is already included";
     Layout = "_Layout";
 }
 
@@ -15,22 +15,22 @@
     QuestionModels = []
 })
 
-<h1 class="govuk-heading-l">This pupil is already included</h1>
+<h1 class="govuk-heading-l">This @Model.LearnerNoun.Singular is already included</h1>
 
 <govuk-warning-text icon-fallback-text="Warning">
-    There may already be a pupil matching "@Model.TypedPupilLabel" on the included list.
+    There may already be a @Model.LearnerNoun.Singular matching "@Model.TypedPupilLabel" on the included list.
 </govuk-warning-text>
 
 <p class="govuk-body">
-    No non-included pupils were found. The pupil may already be the subject of an active request on the included list. You do not need to include them again.
+    No @Model.LearnerNoun.Plural who can be included were found. The @Model.LearnerNoun.Singular may already be the subject of an active request on the included list. You do not need to include them again.
 </p>
 
 @if (Model.Matches.Count > 0)
 {
-    <h2 class="govuk-heading-m">Matching pupils on the included list</h2>
+    <h2 class="govuk-heading-m">Matching @Model.LearnerNoun.Plural on the included list</h2>
 
     <table class="govuk-table">
-        <caption class="govuk-table__caption govuk-table__caption--s">Pupils matching "@Model.TypedPupilLabel"</caption>
+        <caption class="govuk-table__caption govuk-table__caption--s">@Model.LearnerNoun.PluralCapitalised matching "@Model.TypedPupilLabel"</caption>
         <thead class="govuk-table__head">
             <tr class="govuk-table__row">
                 <th scope="col" class="govuk-table__header">Name</th>
@@ -53,14 +53,17 @@
     </table>
 }
 
-<p class="govuk-body">
-    If the pupil should still be included, you can add them as a new pupil instead.
-</p>
+@if (Model.CanAdd)
+{
+    <p class="govuk-body">
+        If the @Model.LearnerNoun.Singular should still be included, you can add them as a new @Model.LearnerNoun.Singular instead.
+    </p>
 
-<form method="post" action="@Url.Action("StartAddingPupil", "Journey", new { windowId = Model.WindowId })">
-    @Html.AntiForgeryToken()
-    <govuk-button type="submit">Start adding this pupil</govuk-button>
-</form>
+    <form method="post" action="@Url.Action("StartAddingPupil", "Journey", new { windowId = Model.WindowId })">
+        @Html.AntiForgeryToken()
+        <govuk-button type="submit">Start adding this @Model.LearnerNoun.Singular</govuk-button>
+    </form>
+}
 
 <form method="post" action="@Url.Action("AbortInclude", "Journey", new { windowId = Model.WindowId })">
     @Html.AntiForgeryToken()

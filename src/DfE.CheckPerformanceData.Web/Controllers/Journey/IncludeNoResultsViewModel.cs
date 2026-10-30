@@ -1,3 +1,5 @@
+using DfE.CheckPerformanceData.Application.WindowManagement;
+
 namespace DfE.CheckPerformanceData.Web.Controllers.Journey;
 
 /// <summary>
@@ -15,4 +17,11 @@ public sealed class IncludeNoResultsViewModel
 
     /// <summary>The name the user typed. Display only — never logged or placed in analytics.</summary>
     public string? TypedPupilLabel { get; set; }
+
+    /// <summary>The window's word for a learner: "student" on 16-19, "pupil" elsewhere.</summary>
+    public LearnerNoun LearnerNoun { get; set; } = LearnerNoun.Pupil;
+
+    /// <summary>True when the window type has an Add flow, so "Start adding" leads somewhere.
+    /// 16-19 has none (#711).</summary>
+    public bool CanAdd { get; set; }
 }

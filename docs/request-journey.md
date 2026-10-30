@@ -120,7 +120,7 @@ All flow configs begin with one or more `PupilSearch` pages. These are full-page
 
 | Field | Required | Values | Notes |
 |---|---|---|---|
-| `pupilFilter` | yes | `"Included"` / `"All"` | `Included` limits results to Pincl codes `[401,403,414,421,431]`; `All` returns every pupil for the school |
+| `pupilFilter` | yes | `"Included"` / `"All"` / `"Includable"` / `"NotIncludable"` | `Included` limits results to pupils stamped `INCLUDED`; `All` returns every pupil for the school; `Includable` returns pupils stamped `INCLUDABLE` — the Include journey's search, which on 16-19 adds the included file's P_INCL 502 students to the non-included file (#711); `NotIncludable` is the rest, which the Include journey's "already included" guards look a name up in |
 | `pupilKey` | yes | `"primary"` / `"match"` | Controls which session field is populated (see below) |
 | `requireResults` | no | `true` / `false` (default) | Limits the search to students the school holds a 16-19 result for. Independent of `pupilFilter`, which selects by inclusion status. Used by the results enquiry — there is no grade to correct for a student with no result. A page that sets it must say so in its `subheading`, because the restriction hides students silently |
 | `pupilSearchField` | no | `"All"` / `"CypmdId"` (default `All`) | Which field(s) the query is matched against. `All` (or absent) matches forename, surname, split names, UPN/ULN and CYPMD ID, plus date of birth on 16-19. `CypmdId` matches **only** a trimmed, case-insensitive prefix of `Cypmd_Id` — a name, UPN or date of birth returns nothing. Set on `Merge_KS4June.json`'s `select-match-pupil`, whose `subheading` already reads "Start typing ID to search records"; had it said nothing, narrowing the search would hide records silently and read as a typo |
@@ -129,7 +129,7 @@ All flow configs begin with one or more `PupilSearch` pages. These are full-page
 
 `pupilSearchField` also changes what the suggestion text says. On a `CypmdId` page a KS4 suggestion is `"Surname, Firstname, DOB (Cypmd_Id)"`, because the KS4 suggestion leads with name and date of birth — which are identical across the duplicate records a merge exists to reconcile, so without the ID two rows in the dropdown cannot be told apart. `All` keeps the original `"Surname, Firstname, DOB"`; 16-19 is unchanged either way, as it already prints `CYPMD ID:`. The narrowed value is a property of one page: the merge journey's `select-pupil` page and every other journey keep `All`.
 
-**Suggestions endpoint:** `GET /pupils/suggestions?windowId={id}&query={q}&filter=Included|All&excludePupilId={guid}&requireResults=true&pupilSearchField=All|CypmdId`  
+**Suggestions endpoint:** `GET /pupils/suggestions?windowId={id}&query={q}&filter=Included|All|Includable|NotIncludable&excludePupilId={guid}&requireResults=true&pupilSearchField=All|CypmdId`  
 Served by `PupilSuggestionsController`. Reads the school's pupils from the cached per-school-window blob through `ICheckYourPupilDataService.GetPupilSuggestionsAsync` (`CheckYourPupilDataRepository`); it does **not** query PostgreSQL — the `Pupils` table was dropped when pupil data moved to blob storage. The `match` pupil page automatically passes the primary pupil's ID as `excludePupilId` so the same pupil cannot be selected twice.
 
 `requireResults` is sent only when the page config sets it. The service resolves the school's set of CYPMD ids with results (`IResultsClient.GetCypmdIdsWithResultsAsync`, served from the same cached results file the enquiry itself reads) and passes it to `SearchPupilsAsync` as an allow-list, which applies it **before** the ten-suggestion cap — filtering afterwards would drop the one student who holds results whenever ten who do not sort ahead of them. It is a search restriction, never a permission: it can reach no pupil outside the signed-in school's own file. With it on, the autocomplete's no-match text becomes "No students found with results", so a school can tell a typo from a student who holds nothing.
@@ -163,6 +163,8 @@ GET /Journey/{windowId}/pupil-search/select-match-pupil   ← match (All filter,
 POST → saves MatchedPupil
      → no nextPageId → redirects to Summary
 ```
+
+**Include** uses one `PupilSearch` page with `pupilFilter: "Includable"` (the `INCLUDABLE` stamp: not included, or a code the schema names — 16-19 P_INCL 502), then an evidence page; `Include_KS4June.json` and `Include_Post16.json` (#711).
 
 **Session after primary PupilSearch page:**
 | Field | Value |

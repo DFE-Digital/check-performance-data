@@ -59,6 +59,19 @@
         "order": 999
       }
     },
+    "INCLUDABLE": {
+      "type": "boolean",
+      "description": "Stamped by ingress: true when a school may ask to include this pupil - not included, or P_INCL is a code x-ingress.includable names. Not a supplier column, so not downloaded or shown.",
+      "x-csv": {
+        "columns": {},
+        "heading": "Includable"
+      },
+      "x-display": {
+        "label": "Includable",
+        "visible": false,
+        "order": 999
+      }
+    },
     "UPN": {
       "type": [
         "string",

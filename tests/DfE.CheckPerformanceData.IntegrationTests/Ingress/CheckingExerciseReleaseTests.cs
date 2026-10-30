@@ -51,7 +51,8 @@ public sealed class CheckingExerciseReleaseTests(AzuriteFixture azurite) : IAsyn
         "SESSION":   { "type": ["string", "null"] },
         "GRADE":     { "type": ["string", "null"] },
         "SOURCE":    { "type": "string" },
-        "INCLUDED":  { "type": "boolean" }
+        "INCLUDED":  { "type": "boolean" },
+        "INCLUDABLE": { "type": "boolean" }
       }
     }
     """;

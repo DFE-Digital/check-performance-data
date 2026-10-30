@@ -24,6 +24,7 @@ public sealed class ExerciseScopedIngressTests(AzuriteFixture fixture)
       "properties": {
         "Id":       { "type": ["string", "null"] },
         "INCLUDED": { "type": "boolean" },
+        "INCLUDABLE": { "type": "boolean" },
         "CYPMD_ID": { "type": ["string", "null"] },
         "SURNAME":  { "type": ["string", "null"] },
         "LAESTAB":  { "type": ["string", "null"] }

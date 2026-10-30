@@ -5,7 +5,7 @@
       "id": "select-pupil",
       "type": "PupilSearch",
       "title": "What is the name of the pupil to be included?",
-      "pupilFilter": "NonIncluded",
+      "pupilFilter": "Includable",
       "pupilKey": "primary",
       "nextPageId": "evidence",
       "validationFailure": "Enter the name of the pupil to be included."

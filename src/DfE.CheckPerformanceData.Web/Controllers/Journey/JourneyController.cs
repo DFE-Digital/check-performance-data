@@ -1872,7 +1872,13 @@ public sealed class JourneyController(
                     DuplicateCheckResult.OtherSubmitted { ConflictingUserName: var un } => un,
                     _ => string.Empty
                 };
-                var currentReasonType = flowService.ResolveRequestType(await GetConfigAsync(journey), journey);
+                // The journey's own flow config (the Include one above would resolve the wrong
+                // reason). A missing config has no reason to compare, so the conflict shows the
+                // generic message rather than a guessed "same reason" one.
+                var currentConfig = await GetConfigAsync(journey);
+                var currentReasonType = currentConfig is null
+                    ? string.Empty
+                    : flowService.ResolveRequestType(currentConfig, journey);
                 var reasonsMatch = !string.IsNullOrEmpty(currentReasonType)
                     && string.Equals(currentReasonType, conflictingReasonType, StringComparison.OrdinalIgnoreCase);
 

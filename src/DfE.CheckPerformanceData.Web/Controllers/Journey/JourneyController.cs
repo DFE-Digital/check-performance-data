@@ -34,6 +34,7 @@ public sealed class JourneyController(
     IQualificationReferenceClient qualificationReferenceClient,
     IRequestNotificationService requestNotificationService,
     ICheckingExerciseService checkingExerciseService,
+    INextStepsService nextSteps,
     ILogger<JourneyController> logger) : Controller
 {
     internal static string FieldName(string questionId) => $"q_{questionId.Replace("-", "_")}";
@@ -1461,7 +1462,11 @@ public sealed class JourneyController(
         return View("EnquiryConfirmation", new EnquiryConfirmationViewModel
         {
             WindowId = windowId,
-            ReferenceNumber = journey.ReferenceNumber
+            ReferenceNumber = journey.ReferenceNumber,
+            // #713: the onward links follow the exercises open now, not the submitted kind.
+            NextSteps = nextSteps.GetConfirmationPageSteps(
+                journey.CheckingWindow.Exercises, currentUserService.OrganisationLaestab),
+            LearnerNoun = journey.LearnerNoun
         });
     }
 
@@ -1584,13 +1589,24 @@ public sealed class JourneyController(
         var deadline = checkingExerciseService.EndDateFor(
             journey.CheckingWindow.Exercises, exercise, currentUserService.OrganisationLaestab)
             ?? journey.CheckingWindow.EndDate;
+        // #713: the banner quotes that deadline, so it shows only while the exercise it belongs
+        // to is still open to the school. Null hides the banner in the view.
+        var exerciseOpen = checkingExerciseService.IsOpen(
+            journey.CheckingWindow.Exercises, exercise, currentUserService.OrganisationLaestab);
 
         var model = new ConfirmationViewModel
         {
             WindowId = windowId,
             ReferenceNumber = journey.ReferenceNumber,
             // DeadlineTime.Pattern: the minutes show when the end date has some.
-            WindowCloseLabel = $"{deadline.ToString(DeadlineTime.Pattern(deadline))} on {deadline:dddd d MMMM yyyy}"
+            WindowCloseLabel = exerciseOpen
+                ? $"{deadline.ToString(DeadlineTime.Pattern(deadline))} on {deadline:dddd d MMMM yyyy}"
+                : null,
+            // #713: the onward links follow the exercises open now, not the submitted kind.
+            // The noun comes from the journey's window, as the journey pages get it.
+            NextSteps = nextSteps.GetConfirmationPageSteps(
+                journey.CheckingWindow.Exercises, currentUserService.OrganisationLaestab),
+            LearnerNoun = journey.LearnerNoun
         };
 
         return View(model);

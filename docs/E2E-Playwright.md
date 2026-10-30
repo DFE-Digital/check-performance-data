@@ -21,8 +21,8 @@ All E2E-facing versions in one place. Source of truth for NuGet pins is the test
 | Tool | Version | Notes |
 |------|---------|-------|
 | Docker + Compose v2 | any recent | Compose profile `e2e` builds and runs the test image. |
-| Image: `mcr.microsoft.com/playwright/dotnet` | `v1.63.0-noble` | Pinned, with its digest, in `tests/DfE.CheckPerformanceData.E2ETests/Dockerfile` ([dependabot.md](dependabot.md#pins)). **Must move in lockstep with the `Microsoft.Playwright` NuGet version.** Drift detection: `bash scripts/check-playwright-pin.sh`, which the **Build** workflow runs on every push and pull request. Dependabot raises the NuGet package only, so its pull request fails until this tag is changed to match ([dependabot.md](dependabot.md#playwright)). |
-| .NET SDK (inside image) | 10.0.x | Comes with the Playwright image, which is built on `mcr.microsoft.com/dotnet/sdk:10.0` (v1.63.0 has SDK 10.0.401). The image digest fixes the version. The Dockerfile fails the build if the image does not have a .NET 10 SDK. |
+| Image: `mcr.microsoft.com/playwright/dotnet` | `v1.64.1-noble` | Pinned, with its digest, in `tests/DfE.CheckPerformanceData.E2ETests/Dockerfile` ([dependabot.md](dependabot.md#pins)). **Must move in lockstep with the `Microsoft.Playwright` NuGet version.** Drift detection: `bash scripts/check-playwright-pin.sh`, which the **Build** workflow runs on every push and pull request. Dependabot raises the NuGet package only, so its pull request fails until this tag is changed to match ([dependabot.md](dependabot.md#playwright)). |
+| .NET SDK (inside image) | 10.0.x | Comes with the Playwright image, which is built on `mcr.microsoft.com/dotnet/sdk:10.0` (v1.64.1 has SDK 10.0.402). The image digest fixes the version. The Dockerfile fails the build if the image does not have a .NET 10 SDK. |
 
 ### NuGet packages
 
@@ -30,8 +30,8 @@ Pinned in `tests/DfE.CheckPerformanceData.E2ETests/DfE.CheckPerformanceData.E2ET
 
 | Package | Version | Purpose |
 |---------|---------|---------|
-| `Microsoft.Playwright` | 1.63.0 | Browser automation. **Must match the Docker image tag `v1.63.0-noble`** — Chromium binary protocol mismatch otherwise. |
-| `Microsoft.Playwright.Xunit` | 1.63.0 | xUnit `PageTest` base class + browser/page lifecycle. |
+| `Microsoft.Playwright` | 1.64.1 | Browser automation. **Must match the Docker image tag `v1.64.1-noble`** — Chromium binary protocol mismatch otherwise. |
+| `Microsoft.Playwright.Xunit` | 1.64.1 | xUnit `PageTest` base class + browser/page lifecycle. |
 | `xunit` | 2.9.3 | Test framework. |
 | `Xunit.SkippableFact` | 1.5.85 | `Skip.IfNot(...)` for Linux-only visual regression tests. |
 | `xunit.runner.visualstudio` | 4.0.0 | VS / `dotnet test` runner. |

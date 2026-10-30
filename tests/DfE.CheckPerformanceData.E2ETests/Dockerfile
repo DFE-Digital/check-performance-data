@@ -3,13 +3,13 @@
 
 # Test-runner image: Linux Chromium and the .NET 10 SDK both come from
 # playwright/dotnet, which is built on mcr.microsoft.com/dotnet/sdk:10.0
-# (v1.63.0 carries SDK 10.0.401). The digest below fixes the SDK version, and
+# (v1.64.1 carries SDK 10.0.402). The digest below fixes the SDK version, and
 # it changes only when this line does (#663).
 #
 # Base image tag MUST track Microsoft.Playwright NuGet version in
 # tests/DfE.CheckPerformanceData.E2ETests/DfE.CheckPerformanceData.E2ETests.csproj
 # (the tests/ projects are not centrally managed). Chromium binary protocol mismatch otherwise.
-FROM mcr.microsoft.com/playwright/dotnet:v1.63.0-noble@sha256:aa3eaf29a65df8c93fc32ab20cf9359f4d8ecc53e6e89f79378647ace87b46b3
+FROM mcr.microsoft.com/playwright/dotnet:v1.64.1-noble@sha256:6955861f6e17b2580c00f0970198e446f006cdae6c34fb8f9ad5318aaab50da0
 
 ENV DOTNET_ROOT=/usr/share/dotnet
 ENV PATH=/usr/share/dotnet:${PATH}

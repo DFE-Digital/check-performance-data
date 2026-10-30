@@ -149,7 +149,7 @@ To find a SHA or a digest:
 gh api repos/oras-project/setup-oras/commits/v2.0.2 --jq .sha
 
 # The digest of an image tag. This is the multi-platform index, which is what to pin.
-docker buildx imagetools inspect mcr.microsoft.com/playwright/dotnet:v1.63.0-noble --format '{{.Manifest.Digest}}'
+docker buildx imagetools inspect mcr.microsoft.com/playwright/dotnet:v1.64.1-noble --format '{{.Manifest.Digest}}'
 ```
 
 ## Reviewing a Dependabot pull request

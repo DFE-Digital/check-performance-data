@@ -89,6 +89,7 @@ public sealed class LandingPageController(
             HasPupilData = window.HasPupilData,
             LearnerNoun = LearnerNoun.For(window.CheckingWindowType),
             IsPupilDataOpen = checkingExercises.IsOpen(window.Exercises, CheckingExerciseType.PupilData, laestab),
+            HasPupilDataClosed = HasClosedPupilData(window, laestab),
             PupilDataEndTime = pupilDataEnd is { } end ? DeadlineTime.Format(end) : null,
             PupilDataEndDate = pupilDataEnd?.ToString("dddd d MMMM yyyy"),
             PupilDataRangeStart = pupilDataStart?.ToString("d MMMM"),

@@ -92,6 +92,11 @@
                         {
                             <p><strong>You have until @openWindow.PupilDataEndTime on @openWindow.PupilDataEndDate to review your data.</strong></p>
                         }
+                        else if (openWindow.HasPupilDataClosed)
+                        {
+                            @* AB#310609: a closed exercise must not offer amendments. *@
+                            <p>The window is now closed, but you can still download your school data.</p>
+                        }
                         else
                         {
                             <p>You can request amendments to @openWindow.LearnerNoun.Singular data from @openWindow.PupilDataRangeStart to @openWindow.PupilDataRangeEnd.</p>

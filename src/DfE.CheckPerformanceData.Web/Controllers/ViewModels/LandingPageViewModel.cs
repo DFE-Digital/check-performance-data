@@ -67,6 +67,12 @@ public sealed class LandingPageWindowViewModel
     public required LearnerNoun LearnerNoun { get; init; }
 
     public bool IsPupilDataOpen { get; init; }
+    /// <summary>
+    /// AB#310609: the pupil-data exercise's end date has passed, from
+    /// <c>ICheckingExerciseService.HasClosed</c>. Distinct from <c>!IsPupilDataOpen</c>, which is
+    /// also true before the exercise starts, when the card still shows the amendment range.
+    /// </summary>
+    public bool HasPupilDataClosed { get; init; }
     /// <summary>"5pm" — for the open-state "You have until … on …" sentence.</summary>
     public string? PupilDataEndTime { get; init; }
     /// <summary>"Friday 30 October 2026" — for the open-state sentence.</summary>

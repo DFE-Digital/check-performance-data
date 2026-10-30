@@ -28,7 +28,7 @@ public sealed class LandingPageViewRenderTests
     }
 
     [Fact]
-    public void The_open_deadline_sentence_and_the_closed_range_sentence_are_alternatives()
+    public void The_open_deadline_the_closed_sentence_and_the_upcoming_range_are_alternatives()
     {
         var view = ReadView();
         var pupilData = Section(view, "@if (openWindow.PupilDataEndDate is not null)", "@if (openWindow.IsResultsEnquiryOpen)");
@@ -36,8 +36,13 @@ public sealed class LandingPageViewRenderTests
         var open = Section(pupilData, "if (openWindow.IsPupilDataOpen)", "else");
         Assert.Contains("You have until @openWindow.PupilDataEndTime on @openWindow.PupilDataEndDate to review your data.", open);
 
-        var closed = pupilData[(pupilData.IndexOf("else", StringComparison.Ordinal))..];
-        Assert.Contains("You can request amendments to @openWindow.LearnerNoun.Singular data from @openWindow.PupilDataRangeStart to @openWindow.PupilDataRangeEnd.", closed);
+        // AB#310609: after the exercise closes, the card must not offer amendments.
+        var closed = Section(pupilData, "else if (openWindow.HasPupilDataClosed)", "</p>");
+        Assert.Contains("The window is now closed, but you can still download your school data.", closed);
+        Assert.DoesNotContain("request amendments", closed);
+
+        var upcoming = pupilData[pupilData.LastIndexOf("else", StringComparison.Ordinal)..];
+        Assert.Contains("You can request amendments to @openWindow.LearnerNoun.Singular data from @openWindow.PupilDataRangeStart to @openWindow.PupilDataRangeEnd.", upcoming);
     }
 
     [Fact]

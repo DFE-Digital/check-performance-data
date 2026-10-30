@@ -110,6 +110,7 @@ public sealed class LandingPageControllerTests
         var card = Assert.Single((await Model()).OpenWindows);
 
         Assert.True(card.IsPupilDataOpen);
+        Assert.False(card.HasPupilDataClosed);
         Assert.Equal("5pm", card.PupilDataEndTime);
         Assert.Equal("Friday 30 October 2026", card.PupilDataEndDate);
         Assert.True(card.IsResultsEnquiryOpen);
@@ -118,13 +119,14 @@ public sealed class LandingPageControllerTests
     }
 
     [Fact]
-    public async Task A_closed_pupil_data_exercise_gives_the_card_the_amendment_range()
+    public async Task A_closed_pupil_data_exercise_marks_the_card_closed()
     {
         Landing(Post16(PupilDataEndPast, null));
 
         var card = Assert.Single((await Model()).OpenWindows);
 
         Assert.False(card.IsPupilDataOpen);
+        Assert.True(card.HasPupilDataClosed);
         Assert.Equal("5 October", card.PupilDataRangeStart);
         Assert.Equal("16 October 2026", card.PupilDataRangeEnd);
         Assert.True(card.IsResultsEnquiryOpen);
@@ -261,6 +263,7 @@ public sealed class LandingPageControllerTests
         // The card still states the upcoming amendment range — that sentence reads correctly for a
         // range in the future, so only the banner is withheld.
         Assert.False(card.IsPupilDataOpen);
+        Assert.False(card.HasPupilDataClosed);
         Assert.Equal("2 November", card.PupilDataRangeStart);
         Assert.Equal("13 November 2026", card.PupilDataRangeEnd);
         Assert.True(card.IsResultsEnquiryOpen);

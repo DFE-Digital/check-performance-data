@@ -83,6 +83,7 @@ public static class BlobStorageExtensions
         services.AddScoped<Application.ResultsEnquiry.IQualificationReferenceClient>(
             sp => sp.GetRequiredService<QualificationReferenceBlobClient>());
         services.AddHostedService<Seeding.QualificationReferenceSeedingService>();
+        services.AddHostedService<Seeding.EstablishmentDirectorySeedingService>();
         // AB#304119: the FE colleges that may choose "Not on roll", beside rules.json in the
         // rules-config container. A singleton, because the journey condition reads it on every
         // render without touching storage; the hosted service seeds it and keeps it fresh.

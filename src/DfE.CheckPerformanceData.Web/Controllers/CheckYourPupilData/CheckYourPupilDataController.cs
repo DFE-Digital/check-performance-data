@@ -24,7 +24,7 @@ namespace DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData;
 public sealed class CheckYourPupilDataController(ICheckYourPupilDataService checkYourPupilDataService,
     ICurrentUserService currentUserService, IAnalyticsService analytics,
     INextStepsService nextSteps, ICheckingExerciseService checkingExercises,
-    IExerciseTabBuilder tabBuilder, IExerciseDisplayService display) : Controller
+    IExerciseTabBuilder tabBuilder, IExerciseDisplayService display, DfE.CheckPerformanceData.Application.Impersonation.IEstablishmentViewContext? viewContext = null) : Controller
 {
     private const int PageSize = 10;
     private const int MaxSearchLength = 100;
@@ -168,7 +168,7 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
 
     private string GenerateZipFileName(CheckingWindowDto window)
     {
-        var urn = currentUserService.OrganisationUrn;
+        var urn = viewContext?.OrganisationUrn ?? currentUserService.OrganisationUrn;
         var filename = $"{urn}-{window.CheckingWindowType.ToString()}-{window.EndDate:yyyy}.zip";
         return filename;
     }
@@ -176,7 +176,7 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
     private async Task<string> GenerateCsvFileName(Guid windowId, string prefix, CheckingWindowDto? checkingWindow = null)
     {
         var window = checkingWindow ?? await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
-        var urn = currentUserService.OrganisationUrn;
+        var urn = viewContext?.OrganisationUrn ?? currentUserService.OrganisationUrn;
         var filename = $"{prefix}-{urn}-{window.CheckingWindowType.ToString()}-{window.EndDate:yyyy}.csv";
         return filename;
     }
@@ -388,7 +388,9 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
             HasPupilDataClosed = checkingExercises.HasClosed(window.Exercises, CheckingExerciseType.PupilData, laestab),
             HasResultsEnquiryClosed = checkingExercises.HasClosed(window.Exercises, CheckingExerciseType.ResultsEnquiry, laestab),
             NextOpportunity = NextOpportunityText.For(window.NextOpportunity),
-            OrganisationName = currentUserService.OrganisationName,
+            OrganisationName = viewContext?.IsImpersonating == true
+                ? $"LAESTAB {viewContext.OrganisationLaestab}, URN {viewContext.OrganisationUrn}"
+                : currentUserService.OrganisationName,
             LearnerNoun = noun,
             TitleContentKey = WindowScopedContentKey.For("check-pupil-data-title", window.CheckingWindowType)
         };

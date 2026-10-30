@@ -5,6 +5,15 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Analytics;
 
 public sealed class AnalyticsRequestFilterTests
 {
+    [Fact]
+    public void Impersonated_requests_are_excluded_from_establishment_page_metrics()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Path = "/CheckYourPupilData";
+        Assert.True(AnalyticsRequestFilter.ShouldTrack(context));
+        context.Items["CPD.Impersonation.ReadOnly"] = true;
+        Assert.False(AnalyticsRequestFilter.ShouldTrack(context));
+    }
     // The agreed exclusion list, exactly as supplied: exact matches.
     [Theory]
     [InlineData("/.env")]

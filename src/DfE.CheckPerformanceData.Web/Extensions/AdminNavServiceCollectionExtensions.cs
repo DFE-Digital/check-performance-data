@@ -78,6 +78,7 @@ public static class AdminNavServiceCollectionExtensions
             services.AddSingleton<IAdminNavEntry, ResetSeedDataNavEntry>();
         }
 
+        services.AddSingleton<IAdminNavEntry, ImpersonationNavEntry>();
         return services;
     }
 }

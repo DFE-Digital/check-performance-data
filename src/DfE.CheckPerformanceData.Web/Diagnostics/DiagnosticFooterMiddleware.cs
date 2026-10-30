@@ -26,7 +26,7 @@ public sealed class DiagnosticFooterMiddleware(
 
     public async Task InvokeAsync(HttpContext context)
     {
-        if (!_enabled || !ShouldIntercept(context))
+        if (!_enabled || context.Items.ContainsKey("CPD.Impersonation.ReadOnly") || !ShouldIntercept(context))
         {
             await next(context);
             return;

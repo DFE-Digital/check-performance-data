@@ -4,6 +4,7 @@ using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.FileStorage;
 using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
 using DfE.CheckPerformanceData.Web.Controllers.Journey;
+using DfE.CheckPerformanceData.Web.Impersonation;
 using DfE.CheckPerformanceData.Web.PageTree;
 using DfE.CheckPerformanceData.Web.Seeding;
 using DfE.CheckPerformanceData.Web.Services;
@@ -21,6 +22,8 @@ public static class JourneyAndCmsServicesExtensions
         services.AddScoped<IDevDataSeedingOrchestrator, DevDataSeedingOrchestrator>();
 
         services.AddScoped<ICurrentUserService, CurrentUserService>();
+        services.AddEstablishmentImpersonation();
+        services.AddSingleton<EstablishmentDirectory>();
         services.AddScoped<IFileStorageService, EvidenceBlobStorageService>();
         services.AddScoped<IJourneyViewModelBuilder, JourneyViewModelBuilder>();
 

@@ -23,11 +23,7 @@ public sealed class AdminNavRegistryTests
 		// zone group and that browser are registered unconditionally, Reset seed data is not
 		// (includeResetSeedData defaults to false) — plus the Data egress group and its
 		// Start a new egress tile (AB#294553) and its Egress runs tile (AB#294590) — plus the
-		// Audit log root tile (AB#294592), the Site assets tile (#429) and the Home page banners CMS
-		// tile (#566). The Create new window tile went: a new window starts from the button on
-		// Manage windows. That left Manage windows alone in Window administration, so the group
-		// went as well.
-		Assert.Equal(34, entries.Count);
+		Assert.Equal(35, entries.Count);
 
 		var titles = entries.Select(e => e.Title).ToList();
 		Assert.Contains("Dashboard", titles);

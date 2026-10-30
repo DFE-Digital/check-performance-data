@@ -73,13 +73,8 @@ public sealed class AuditLogRepository(IPortalDbContext db) : IAuditLogRepositor
                     (a.EntityType == AuditActivities.Egress && a.Action == AuditActivities.TransferAction) ||
                     (a.EntityType == AuditActivities.WindowAdmin &&
                         (a.Action == AuditActivities.ClosedEarlyAction ||
-                         a.Action == AuditActivities.RequestsSentAutomaticallyAction ||
-                         // AB#307773: IsExtensionAction is not translatable, so the four are listed.
-                         a.Action == AuditActivities.ExtensionAddedAction ||
-                         a.Action == AuditActivities.ExtensionEditedAction ||
-                         a.Action == AuditActivities.ExtensionClosedEarlyAction ||
-                         a.Action == AuditActivities.ExtensionRequestsSentAction)))
-                : query.Where(a => a.EntityType == AuditActivities.Egress && a.Action == AuditActivities.TransferFailedAction);
+ a.Action == AuditActivities.RequestsSentAutomaticallyAction || // AB#307773: IsExtensionAction is not translatable, so four are listed.
+ a.Action == AuditActivities.ExtensionAddedAction || a.Action == AuditActivities.ExtensionEditedAction || a.Action == AuditActivities.ExtensionClosedEarlyAction || a.Action == AuditActivities.ExtensionRequestsSentAction))) : query.Where(a => a.EntityType == AuditActivities.Egress && a.Action == AuditActivities.TransferFailedAction);
         }
         if (filter.WindowId is { } windowId)
         {

@@ -182,12 +182,12 @@ public class JourneyValidationServiceTests
     }
 
     [Theory]
-    [InlineData(RemovalJourneyDateRules.DatePupilExcluded)]
-    [InlineData(RemovalJourneyDateRules.DatePermanentlyExcluded)]
-    [InlineData(RemovalJourneyDateRules.DateRemovedFromRoll)]
-    [InlineData(PageDateRules.StartedAtSchool)]
-    [InlineData(AddJourneyDateRules.DateOfBirth)]
-    [InlineData(MissingQualificationDateRules.AwardDateQuestionId)]
+    [InlineData("date-pupil-excluded")]
+    [InlineData("date-permanently-excluded")]
+    [InlineData("date-removed-from-roll")]
+    [InlineData("date-pupil-started")]
+    [InlineData("date-of-birth")]
+    [InlineData("q-award-date")]
     public void ValidateAnswer_Date_EveryQuestion_UsesTheSameWording(string questionId)
     {
         var question = MakeDateQuestion(questionId);
@@ -739,184 +739,39 @@ public class JourneyValidationServiceTests
 
     // ── ValidatePageDates ───────────────────────────────────────────────────
     //
-    // The rules themselves are covered by PageDateRulesTests. These cover the wiring: which
-    // pages the rules apply to, how answers are turned into comparable dates, and which
-    // calendar "today" comes from.
+    // These tests cover the wiring: the question's rules run with the UK date and the context.
+    // DateRuleEvaluatorTests covers the rules.
+
+    [Fact]
+    public void ValidatePageDates_RunsTheQuestionsDateRules_AgainstTheUkDate()
+    {
+        // 23:30 UTC on 15 June is 00:30 BST on 16 June. A date of 16 June is today in the UK.
+        var sut = DateRuleSut("2026-06-15T23:30:00Z");
+        var page = new JourneyPage
+        {
+            Id = "page",
+            Questions =
+            [
+                new Question
+                {
+                    Id = "q", Type = QuestionType.Date, Title = "When?",
+                    DateRules = [new DateRule { Check = DateRuleCheck.NotInFuture, Message = "{pupilName} future" }]
+                }
+            ]
+        };
+
+        Assert.Empty(sut.ValidatePageDates(page, DateAnswers(("q", new DateOnly(2026, 6, 16))), Context, "Jane Smith"));
+        var violation = Assert.Single(
+            sut.ValidatePageDates(page, DateAnswers(("q", new DateOnly(2026, 6, 17))), Context, "Jane Smith"));
+        Assert.Equal(new DateFieldViolation("q", "Jane Smith future"), violation);
+    }
 
     [Fact]
     public void ValidatePageDates_PageWithoutDateRules_ReturnsEmpty()
     {
         var page = MakeEvidencePage(requireAtLeastOne: false);
 
-        Assert.Empty(_sut.ValidatePageDates(page, new Dictionary<string, QuestionAnswer>(), "Jane Smith"));
-    }
-
-    [Fact]
-    public void ValidatePageDates_EalDetailsPage_AppliesTheRules()
-    {
-        var sut = DateRuleSut("2026-06-15T12:00:00Z");
-        var answers = EalAnswers(
-            started: new DateAnswer { Day = 4, Month = 9, Year = 2023 },
-            firstEnglishSchool: new DateAnswer { Day = 8, Month = 1, Year = 2024 });
-
-        var violations = sut.ValidatePageDates(MakeEalDetailsPage(), answers, "Jane Smith");
-
-        Assert.Equal(2, violations.Count);
-        Assert.Contains(violations, v => v.QuestionId == PageDateRules.StartedAtSchool);
-        Assert.Contains(violations, v => v.QuestionId == PageDateRules.FirstEnglishSchool);
-    }
-
-    // docs/ks2-journeys.md, assumption 2: a flow can turn the cohort check (scenario 007) off on
-    // its EAL page. KS2 does.
-    [Fact]
-    public void ValidatePageDates_EalDetailsPage_CohortCheckOff_DoesNotCheckTheCohortStart()
-    {
-        var sut = DateRuleSut("2027-06-15T12:00:00Z");
-        var answers = EalAnswers(
-            started: new DateAnswer { Day = 2, Month = 9, Year = 2020 },
-            firstEnglishSchool: new DateAnswer { Day = 2, Month = 9, Year = 2020 });
-
-        Assert.Empty(sut.ValidatePageDates(MakeEalDetailsPage(checksCohortStart: false), answers, "Jane Smith"));
-    }
-
-    [Fact]
-    public void ValidatePageDates_EalDetailsPage_ChecksTheCohortStartByDefault()
-    {
-        var sut = DateRuleSut("2027-06-15T12:00:00Z");
-        var answers = EalAnswers(
-            started: new DateAnswer { Day = 2, Month = 9, Year = 2020 },
-            firstEnglishSchool: new DateAnswer { Day = 2, Month = 9, Year = 2020 });
-
-        var violation = Assert.Single(
-            sut.ValidatePageDates(MakeEalDetailsPage(), answers, "Jane Smith"));
-
-        Assert.Equal(PageDateRules.StartedAtSchool, violation.QuestionId);
-    }
-
-    [Fact]
-    public void ValidatePageDates_ConsistentAnswers_ReturnsEmpty()
-    {
-        var sut = DateRuleSut("2026-06-15T12:00:00Z");
-        var answers = EalAnswers(
-            started: new DateAnswer { Day = 2, Month = 9, Year = 2024 },
-            firstEnglishSchool: new DateAnswer { Day = 4, Month = 9, Year = 2023 },
-            arrived: new DateAnswer { Day = 20, Month = 8, Year = 2023 });
-
-        Assert.Empty(sut.ValidatePageDates(MakeEalDetailsPage(), answers, "Jane Smith"));
-    }
-
-    [Fact]
-    public void ValidatePageDates_IncompleteDate_IsExcludedFromComparisons()
-    {
-        // A part-filled optional date is stored with the missing part as 0. It is not a date the
-        // user can be told to reconcile with anything, so no rule involving it may fire.
-        var sut = DateRuleSut("2026-06-15T12:00:00Z");
-        var answers = EalAnswers(
-            started: new DateAnswer { Day = 2, Month = 9, Year = 2024 },
-            firstEnglishSchool: new DateAnswer { Day = 4, Month = 9, Year = 2023 },
-            arrived: new DateAnswer { Day = 20, Month = 0, Year = 2025 });
-
-        Assert.Empty(sut.ValidatePageDates(MakeEalDetailsPage(), answers, "Jane Smith"));
-    }
-
-    [Fact]
-    public void ValidatePageDates_UnansweredQuestion_IsExcludedFromComparisons()
-    {
-        var sut = DateRuleSut("2026-06-15T12:00:00Z");
-        var answers = EalAnswers(started: new DateAnswer { Day = 2, Month = 9, Year = 2024 });
-
-        Assert.Empty(sut.ValidatePageDates(MakeEalDetailsPage(), answers, "Jane Smith"));
-    }
-
-    [Fact]
-    public void ValidatePageDates_UsesTheUkCalendarDate_NotUtc()
-    {
-        // 23:30 UTC on 15 June is 00:30 BST on the 16th. A school completing the form just after
-        // midnight must be able to enter today's UK date without it being called a future date.
-        var sut = DateRuleSut("2026-06-15T23:30:00Z");
-        var answers = EalAnswers(
-            started: new DateAnswer { Day = 16, Month = 6, Year = 2026 },
-            firstEnglishSchool: new DateAnswer { Day = 16, Month = 6, Year = 2026 });
-
-        Assert.Empty(sut.ValidatePageDates(MakeEalDetailsPage(), answers, "Jane Smith"));
-    }
-
-    [Fact]
-    public void ValidatePageDates_ResolvesThePupilNameInMessages()
-    {
-        var sut = DateRuleSut("2026-06-15T12:00:00Z");
-        var answers = EalAnswers(
-            started: new DateAnswer { Day = 16, Month = 6, Year = 2027 },
-            firstEnglishSchool: new DateAnswer { Day = 4, Month = 9, Year = 2023 });
-
-        var violation = Assert.Single(sut.ValidatePageDates(MakeEalDetailsPage(), answers, "Jane Smith"));
-
-        Assert.Equal("The date Jane Smith started at your school must be in the past", violation.Message);
-        Assert.DoesNotContain("{pupilName}", violation.Message, StringComparison.Ordinal);
-    }
-
-    // Each of the six removal journeys has a single removal/exclusion date that must not be in
-    // the future. These cover the dispatch (which pages route to RemovalJourneyDateRules, and
-    // which wording each carries); the rule itself is covered by RemovalJourneyDateRulesTests.
-
-    [Theory]
-    [InlineData(RemovalJourneyDateRules.PermanentExclusionPageId, RemovalJourneyDateRules.DatePupilExcluded,
-        "Date Jane Smith was excluded must be in the past")]
-    [InlineData(RemovalJourneyDateRules.ChildMissingEducationPageId, RemovalJourneyDateRules.DateRemovedFromRoll,
-        "Date Jane Smith was removed from your school roll must be in the past")]
-    [InlineData(RemovalJourneyDateRules.PupilDiedPageId, RemovalJourneyDateRules.DateRemovedFromRoll,
-        "Date Jane Smith was removed from your school roll must be in the past")]
-    [InlineData(RemovalJourneyDateRules.ElectiveHomeEducationPageId, RemovalJourneyDateRules.DateRemovedFromRoll,
-        "Date Jane Smith was removed from your school roll must be in the past")]
-    [InlineData(RemovalJourneyDateRules.PermanentlyExcludedPageId, RemovalJourneyDateRules.DatePermanentlyExcluded,
-        "Date Jane Smith was permanently excluded from your school must be in the past")]
-    [InlineData(RemovalJourneyDateRules.PermanentlyLeftEnglandPageId, RemovalJourneyDateRules.DateRemovedFromRoll,
-        "Date Jane Smith was removed from your school roll must be in the past")]
-    public void ValidatePageDates_RemovalPages_ApplyTheFutureDateRule(
-        string pageId, string questionId, string expectedMessage)
-    {
-        var sut = DateRuleSut("2026-06-15T12:00:00Z");
-        var answers = RemovalAnswers(questionId, new DateAnswer { Day = 16, Month = 6, Year = 2026 });
-
-        var violation = Assert.Single(sut.ValidatePageDates(MakeRemovalPage(pageId, questionId), answers, "Jane Smith"));
-
-        Assert.Equal(questionId, violation.QuestionId);
-        Assert.Equal(expectedMessage, violation.Message);
-    }
-
-    [Theory]
-    [InlineData(RemovalJourneyDateRules.PermanentExclusionPageId, RemovalJourneyDateRules.DatePupilExcluded)]
-    [InlineData(RemovalJourneyDateRules.ChildMissingEducationPageId, RemovalJourneyDateRules.DateRemovedFromRoll)]
-    [InlineData(RemovalJourneyDateRules.PupilDiedPageId, RemovalJourneyDateRules.DateRemovedFromRoll)]
-    [InlineData(RemovalJourneyDateRules.ElectiveHomeEducationPageId, RemovalJourneyDateRules.DateRemovedFromRoll)]
-    [InlineData(RemovalJourneyDateRules.PermanentlyExcludedPageId, RemovalJourneyDateRules.DatePermanentlyExcluded)]
-    [InlineData(RemovalJourneyDateRules.PermanentlyLeftEnglandPageId, RemovalJourneyDateRules.DateRemovedFromRoll)]
-    public void ValidatePageDates_RemovalPages_TodayIsAcceptable(string pageId, string questionId)
-    {
-        // "Later than today", not "before today" — a pupil removed from the roll today is valid.
-        var sut = DateRuleSut("2026-06-15T12:00:00Z");
-        var answers = RemovalAnswers(questionId, new DateAnswer { Day = 15, Month = 6, Year = 2026 });
-
-        Assert.Empty(sut.ValidatePageDates(MakeRemovalPage(pageId, questionId), answers, "Jane Smith"));
-    }
-
-    [Fact]
-    public void ValidatePageDates_RemovalPages_DoNotRunTheEalCrossFieldRules()
-    {
-        // A removal page must not be mistaken for the EAL page: no cross-field sequence rules
-        // exist there, and the future-date wording differs (no leading "The").
-        var sut = DateRuleSut("2026-06-15T12:00:00Z");
-        var answers = RemovalAnswers(
-            RemovalJourneyDateRules.DateRemovedFromRoll, new DateAnswer { Day = 16, Month = 6, Year = 2026 });
-
-        var violations = sut.ValidatePageDates(
-            MakeRemovalPage(RemovalJourneyDateRules.PupilDiedPageId, RemovalJourneyDateRules.DateRemovedFromRoll),
-            answers, "Jane Smith");
-
-        var violation = Assert.Single(violations);
-        Assert.Equal(
-            "Date Jane Smith was removed from your school roll must be in the past",
-            violation.Message);
+        Assert.Empty(_sut.ValidatePageDates(page, new Dictionary<string, QuestionAnswer>(), Context, "Jane Smith"));
     }
 
     // ── DI activation ───────────────────────────────────────────────────────
@@ -957,44 +812,20 @@ public class JourneyValidationServiceTests
 
     // ── Helpers ─────────────────────────────────────────────────────────────
 
+    private static readonly JourneyConditionContext Context = new()
+    {
+        Journey = new RequestState(),
+        User = new JourneyUserContext()
+    };
+
+    private static Dictionary<string, QuestionAnswer> DateAnswers(params (string Id, DateOnly Date)[] dates) =>
+        dates.ToDictionary(
+            d => d.Id,
+            d => new QuestionAnswer { DateValue = new DateAnswer { Day = d.Date.Day, Month = d.Date.Month, Year = d.Date.Year } },
+            StringComparer.Ordinal);
+
     private static JourneyValidationService DateRuleSut(string utcNow) =>
         new(timeProvider: new FakeTimeProvider(DateTimeOffset.Parse(utcNow)));
-
-    private static Dictionary<string, QuestionAnswer> EalAnswers(
-        DateAnswer? started = null, DateAnswer? firstEnglishSchool = null, DateAnswer? arrived = null)
-    {
-        var answers = new Dictionary<string, QuestionAnswer>();
-        if (started is not null)
-            answers[PageDateRules.StartedAtSchool] = new QuestionAnswer { DateValue = started };
-        if (firstEnglishSchool is not null)
-            answers[PageDateRules.FirstEnglishSchool] = new QuestionAnswer { DateValue = firstEnglishSchool };
-        if (arrived is not null)
-            answers[PageDateRules.ArrivedInEngland] = new QuestionAnswer { DateValue = arrived };
-        return answers;
-    }
-
-    private static JourneyPage MakeEalDetailsPage(bool checksCohortStart = true) =>
-        new()
-        {
-            Id = PageDateRules.EalDetailsPageId,
-            ChecksCohortStart = checksCohortStart,
-            Questions =
-            [
-                new Question { Id = PageDateRules.StartedAtSchool, Type = QuestionType.Date, Title = "Started" },
-                new Question { Id = PageDateRules.FirstEnglishSchool, Type = QuestionType.Date, Title = "First English school" },
-                new Question { Id = PageDateRules.ArrivedInEngland, Type = QuestionType.Date, Title = "Arrived", Optional = true }
-            ]
-        };
-
-    private static Dictionary<string, QuestionAnswer> RemovalAnswers(string questionId, DateAnswer date) =>
-        new() { [questionId] = new QuestionAnswer { DateValue = date } };
-
-    private static JourneyPage MakeRemovalPage(string pageId, string questionId) =>
-        new()
-        {
-            Id = pageId,
-            Questions = [new Question { Id = questionId, Type = QuestionType.Date, Title = "Date" }]
-        };
 
     private sealed class FakeTimeProvider(DateTimeOffset now) : TimeProvider
     {

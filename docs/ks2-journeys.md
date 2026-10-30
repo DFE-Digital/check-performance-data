@@ -50,8 +50,8 @@ KS2 has no Merge, Include or Add journey. The requirements say so.
 ## Removal categories
 
 `Remove_KS2.json` starts from `Remove_KS4June.json` and **uses the same page ids** where the
-page is the same, so the date rules keyed by page id (`RemovalJourneyDateRules`,
-`PageDateRules`) apply to both. "Evidence" means the shared `evidence` page.
+page is the same. Each file holds its own date rules for those pages. "Evidence" means the
+shared `evidence` page.
 
 | # | Category | Option value | Evidence | Rule |
 |---|---|---|---|---|
@@ -103,11 +103,11 @@ business answers differently.
 1. **Elective home education and terminal illness wording.** The requirements say the
    elective home education wording differs from KS4 June but do not give it. Use the KS4 June
    wording, with "tests", "year 6" and 2027 hints.
-2. **No EAL cohort check on KS2.** On KS4, `PageDateRules` rejects a "started at your school"
-   date before the cohort started (scenario 007). The requirements give no such rule for KS2,
-   so `Remove_KS2.json` sets `"checksCohortStart": false` on its `english-not-first-language-details`
-   page (`JourneyPage.ChecksCohortStart`, on by default). The flow file decides, not the window
-   type, as for decision 1. A KS2 pupil who started at
+2. **No EAL cohort check on KS2.** On KS4, the `date-pupil-started` question has an
+   `onOrAfter` `cohort.start` date rule. It rejects a "started at your school" date before the
+   cohort started (scenario 007). The requirements give no such rule for KS2, so
+   `Remove_KS2.json` does not have this rule. The flow file decides, not the window type, as
+   for decision 1. A KS2 pupil who started at
    the school before the cohort also started in England before 2024, so the request goes to
    Scrutiny with evidence. It does not need a hard error.
 3. **Child missing education** uses the current KS4 June page (Ground H, Ground I, other).

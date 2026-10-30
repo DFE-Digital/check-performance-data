@@ -36,13 +36,6 @@ public sealed class FlowIdCouplingTests
         ["src/DfE.CheckPerformanceData.RulesEngineWorker/Consumers/ZendeskConsumer.cs"] = ["not-on-roll", "not-on-roll-reason", "other"],
         ["src/DfE.CheckPerformanceData.Web/Controllers/Egress/EgressViewModels.cs"] = ["admission-date", "date-of-birth", "first-name", "last-name", "reason", "sen-status", "sex", "upn", "year-group"],
 
-        // ── 2. Validation in code. Replace with date rules declared on the question (pattern 3).
-        ["src/DfE.CheckPerformanceData.Application/Journey/DateRules/AddJourneyDateRules.cs"] = ["admission-date", "admission-details", "date-of-birth", "learner-details"],
-        ["src/DfE.CheckPerformanceData.Application/Journey/DateRules/MissingQualificationDateRules.cs"] = ["q-award-date", "qualification-details"],
-        ["src/DfE.CheckPerformanceData.Application/Journey/DateRules/PageDateRules.cs"] = ["date-pupil-arrived-in-england", "date-pupil-started", "date-pupil-started-school-in-england", "english-not-first-language-details"],
-        //    "added-after-summer-term" and "date-added-to-roll" hold the KS2 roll-date rule.
-        ["src/DfE.CheckPerformanceData.Application/Journey/DateRules/RemovalJourneyDateRules.cs"] = ["added-after-summer-term", "child-missing-education", "date-added-to-roll", "date-permanently-excluded", "date-pupil-excluded", "date-removed-from-roll", "elective-home-education", "permanent-exclusion", "permanently-excluded", "permanently-left-england-questions", "pupil-died", "student-died"],
-
         // ── 3. Single-journey conditions. Replace with branching or a generic answer condition
         //    (patterns 1 and 2).
         ["src/DfE.CheckPerformanceData.Application/Journey/OriginCountryLanguageCapture.cs"] = ["country-originally-from"],
@@ -50,8 +43,7 @@ public sealed class FlowIdCouplingTests
         // ── 4. Journey code in the engine and the Web layer. Replace with question roles
         //    (pattern 4) and page types.
         ["src/DfE.CheckPerformanceData.Application/AmendmentRequests/EditAdviceService.cs"] = ["evidence", "reason"],
-        //    #712 moved the grade question ids out of JourneyController and JourneyViewModelBuilder
-        //    into this single owner, which the results-enquiries tab also reads. Not new coupling.
+        //    The grade question ids moved here from JourneyController (#712). Roles replace them.
         ["src/DfE.CheckPerformanceData.Application/ResultsEnquiry/EnquiryQuestionIds.cs"] = ["q-missing-grade", "q-revised-grade"],
         ["src/DfE.CheckPerformanceData.Web/Controllers/Journey/AddPupilJourney.cs"] = ["admission-details", "date-of-birth", "first-name", "last-name", "learner-details", "sex", "upn"],
         ["src/DfE.CheckPerformanceData.Web/Controllers/Journey/JourneyController.cs"] = ["q-cohort-scope", "q-syllabus-code"],

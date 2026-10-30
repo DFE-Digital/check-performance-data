@@ -2,7 +2,7 @@
 
 Date: 2026-10-27
 
-Status: In progress. Steps 1 and 2 are done.
+Status: In progress. Steps 1, 2 and 4 are done.
 
 ## Goal
 
@@ -21,24 +21,23 @@ guard test that stops new coupling, and the order of work.
 The flow engine started as configuration first. Page types, question types, `visibleWhen`,
 `validator` and `nextPageId` are generic, and a new journey needed only a new JSON file.
 
-Since then, more and more code knows about one journey. On 2026-10-27, the baseline in
-`FlowIdCouplingTests` holds 131 ids in 25 files. 20 files are journey code, 3 are dev tools or
+Since then, more and more code knows about one journey. On 2026-10-29, the baseline in
+`FlowIdCouplingTests` holds 102 ids in 20 files. 15 files are journey code, 3 are dev tools or
 seed data, and 2 use the same text with a different meaning.
 
 | Group | Files | Example | Why it is there |
 |---|---|---|---|
 | Integration maps | `AnswerFieldMap`, `EgressRecordBuilder`, `ZendeskTicketFieldOptions`, `CorrectionCodes`, `ZendeskConsumer`, `EgressViewModels` | `["date-removed-from-roll"] = "dateOfRemoval"` | The rules engine, the egress file and Zendesk need to know what an answer means. |
-| Validation in code | `PageDateRules`, `RemovalJourneyDateRules`, `AddJourneyDateRules`, `MissingQualificationDateRules` | `EalDetailsPageId = "english-not-first-language-details"` | Cross-field date rules. The comment in `PageDateRules` says that they are in code because configs once arrived through a seeding step. That reason is gone (`docs/question-flow-deployment.md`). |
-| Single-journey conditions | `EalEvidenceIsOptionalCondition`, `NotOnRollReasonIsOtherCondition`, `OriginCountryLanguageCapture` | `reason == "english-not-first-language" && first-language in {...}` | Each one is "answer X has one of the values Y", written as a class. |
-| Journey code in the engine and Web | `JourneyViewModelBuilder`, `JourneyController`, `AddPupilJourney`, `ResultIssueController`, `EditAdviceService`, two views | `"q-cohort-scope"`, `"q-revised-grade"`, `"learner-details"` | The Web layer needs one answer for a summary, or must clear one answer when the selection changes. |
+| Single-journey conditions | `OriginCountryLanguageCapture` | `"country-originally-from"` | It reads the origin country answer, by id, to find the languages of that country. |
+| Journey code in the engine and Web | `JourneyViewModelBuilder`, `JourneyController`, `AddPupilJourney`, `ResultIssueController`, `EditAdviceService`, `EnquiryQuestionIds`, two views | `"q-cohort-scope"`, `"q-revised-grade"`, `"learner-details"` | The Web layer needs one answer for a summary, or must clear one answer when the selection changes. |
 
 ## The rule
 
 **Code may depend on a closed vocabulary that the engine defines. Code must not depend on a name
 that the author of a journey chooses.**
 
-- Closed vocabulary: page types, question types, condition names, validator names, date rule
-  names, question **roles** and option **meanings**. Each is an enum or a registered name.
+- Closed vocabulary: page types, question types, condition names, validator names, date checks,
+  date fact names, question **roles** and option **meanings**. Each is an enum or a registered name.
 - Names that the author chooses: page ids, question ids, option values, titles.
 
 When code needs to know what a question means, the question declares its role in the JSON. The
@@ -94,23 +93,38 @@ question is in the same flow and that each value is one of its options.
 
 ### 3. Declare date rules on the question
 
-Give `Date` questions declared constraints:
+A `Date` question holds a `dateRules` list. Each rule has a check, a target and its own
+message:
 
 ```json
-{ "id": "date-pupil-started-school-in-england", "type": "Date",
-  "notInFuture": true,
-  "onOrBefore": "date-pupil-started",
-  "onOrAfter": "date-pupil-arrived-in-england" }
+{ "id": "date-pupil-started", "type": "Date",
+  "dateRules": [
+    { "check": "notInFuture", "message": "The date {pupilName} started at your school must be in the past" },
+    { "check": "onOrAfter", "fact": "cohort.start", "message": "..." },
+    { "check": "onOrAfter", "question": "date-pupil-started-school-in-england", "message": "... {date} ..." }
+  ] }
 ```
 
-Rules that need data from outside the journey (for example "no earlier than the start of the
-cohort") become named rules, like validators: `"rule": "NotBeforeCohortStart"`. This replaces the
-four `*DateRules` classes.
+The checks are `notInFuture`, `onOrBefore` and `onOrAfter`. A comparison names one target: another
+`question`, a date `fact`, or a fixed `date`. The rules run in list order, and the first rule that
+fails gives the message.
 
-The classes say that a rule in JSON can be dropped and nothing notices. Generic config tests cover
-that risk: each `Date` question declares `notInFuture` or `"allowFuture": true`, each
-`onOrBefore` and `onOrAfter` names a `Date` question in the same flow, and each named rule is
-registered.
+A date that the answers do not hold (for example the start of the cohort) is a **date fact**. An
+`IJourneyDateFact` gives the date, and the flow file holds the rule. This is the same split as for
+boolean facts in pattern 2.
+
+This replaced the four `*DateRules` classes. The format is in
+[question-flows.md](question-flows.md#date-rules-daterules).
+
+A rule in JSON can be dropped, and nothing at run time notices. Generic config tests
+(`DateRuleConfigTests`) cover that risk:
+
+- each `Date` question has `notInFuture` as its first rule;
+- only `Date` questions have rules, and each rule has a message;
+- `notInFuture` names no target, and a comparison names exactly one;
+- each `question` target is a `Date` question in the same flow;
+- each comparison between two questions has its mirror rule on the other question;
+- each date fact has an implementation, and the implementation is registered.
 
 ### 4. Question roles
 
@@ -229,25 +243,24 @@ step is wrong for this plan. Fix the code.
 
 ## Order of work
 
-Steps 2 to 5 each make the baseline smaller. Step 4 does not depend on step 3, so the two can run
-at the same time.
+Steps 2 to 5 each make the baseline smaller.
 
 1. **Done. The guard.** Add `FlowIdCouplingTests` and its baseline. It stops new coupling.
 2. **Done. Generic answer condition (pattern 2).** Change the condition lists to hold an answer test.
    Move `Remove_KS4June.json`, `Remove_KS2.json` and `Remove_Post16.json` to answer tests. Delete
    the two condition classes. Removes 6 ids in 2 files.
-3. **Question roles (pattern 4).** Five pull requests. Removes 82 ids in 12 files.
+3. **Question roles (pattern 4).** Five pull requests. Removes 81 ids in 15 files.
    1. Infrastructure: `QuestionRole`, `PageRole`, the role copied onto each saved answer, and
       generic config tests (a role occurs at most once in a flow, and each flow has the roles that
       its consumers need).
    2. `AddPupilJourney`, `DuplicateCheck.cshtml`, `AlreadyIncluded.cshtml`, `EditAdviceService`.
-   3. `JourneyController`, `JourneyViewModelBuilder`, `ResultIssueController`.
+   3. `JourneyController`, `JourneyViewModelBuilder`, `EnquiryQuestionIds`, `ResultIssueController`.
    4. `EgressRecordBuilder`, `EgressViewModels`, `DevEgressController`.
    5. `AnswerFieldMap`, `OriginCountryLanguageCapture`, `OutcomePresets`, `SeedChangeRequests`.
       The queue message carries the role, and the worker maps on the role. Change the Web side and
       the worker in the same pull request.
-4. **Date rules on the question (pattern 3).** One generic date validator, and `IDateRule` for
-   named rules. Move one class at a time. Removes 22 ids in 4 files.
+4. **Done. Date rules on the question (pattern 3).** One generic date rule evaluator, and
+   `IJourneyDateFact` for dates from outside the journey. Removed 22 ids in 4 files.
 5. **Option meanings (pattern 5).** Add `meaning` to the reason options. Move the reason maps in
    `ZendeskTicketFieldOptions`, `CorrectionCodes` and `ZendeskConsumer` to
    `removal-reasons.json`. Build `RequestTypeCode` from the meaning, not the option value. Then
@@ -263,3 +276,4 @@ The 3 baseline ids that stay are not coupling: guidance anchors and a database c
 | Change the queue message and `RequestTypeCode` to carry roles and meanings, in one pull request with the worker. | 3 and 5 | The service is not live, so no queued message needs the old form. |
 | Keep the integration maps in code, keyed on roles. | 3 | Keyed on roles, they name no flow id. |
 | Put the removal reason codes in `removal-reasons.json`, keyed on meaning. The rows are the list of meanings. | 5 | A new reason needs no C#. One table holds the Zendesk and LDS codes. |
+| Date facts give a date, and the flow holds the rule. A fact with no value skips the rule and logs a warning. | 4 | The same split as boolean facts. A null fact cannot happen today, and the rules engine checks the same boundary again. |

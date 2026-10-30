@@ -1,7 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using DfE.CheckPerformanceData.Application.Journey;
-using DfE.CheckPerformanceData.Application.Journey.DateRules;
 using DfE.CheckPerformanceData.Web.Controllers.Journey;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
@@ -45,7 +44,7 @@ public sealed class AddFlowTests
     [MemberData(nameof(AllFlows))]
     public void The_journey_starts_at_learner_details(string flow)
     {
-        Assert.Equal(AddJourneyDateRules.LearnerDetailsPageId, Flows[flow].FirstPageId);
+        Assert.Equal(AddPupilJourney.LearnerDetailsPageId, Flows[flow].FirstPageId);
     }
 
     [Theory]
@@ -53,11 +52,11 @@ public sealed class AddFlowTests
     public void The_page_chain_is_learner_details_then_admission_details_then_evidence(string flow)
     {
         Assert.Equal(
-            [AddJourneyDateRules.LearnerDetailsPageId, AddJourneyDateRules.AdmissionDetailsPageId, "evidence"],
+            [AddPupilJourney.LearnerDetailsPageId, AddPupilJourney.AdmissionDetailsPageId, "evidence"],
             Flows[flow].Pages.Select(p => p.Id).ToArray());
 
-        Assert.Equal(AddJourneyDateRules.AdmissionDetailsPageId, Page(flow, AddJourneyDateRules.LearnerDetailsPageId).NextPageId);
-        Assert.Equal("evidence", Page(flow, AddJourneyDateRules.AdmissionDetailsPageId).NextPageId);
+        Assert.Equal(AddPupilJourney.AdmissionDetailsPageId, Page(flow, AddPupilJourney.LearnerDetailsPageId).NextPageId);
+        Assert.Equal("evidence", Page(flow, AddPupilJourney.AdmissionDetailsPageId).NextPageId);
         Assert.Null(Page(flow, "evidence").NextPageId);
     }
 
@@ -65,8 +64,8 @@ public sealed class AddFlowTests
     [MemberData(nameof(AllFlows))]
     public void Only_learner_details_is_flagged_pupilFromAnswers(string flow)
     {
-        Assert.True(Page(flow, AddJourneyDateRules.LearnerDetailsPageId).PupilFromAnswers);
-        Assert.False(Page(flow, AddJourneyDateRules.AdmissionDetailsPageId).PupilFromAnswers);
+        Assert.True(Page(flow, AddPupilJourney.LearnerDetailsPageId).PupilFromAnswers);
+        Assert.False(Page(flow, AddPupilJourney.AdmissionDetailsPageId).PupilFromAnswers);
         Assert.False(Page(flow, "evidence").PupilFromAnswers);
     }
 
@@ -76,8 +75,8 @@ public sealed class AddFlowTests
     [MemberData(nameof(AllFlows))]
     public void FirstName_and_LastName_are_required_freetext_capped_at_150(string flow)
     {
-        var firstName = Question(flow, AddJourneyDateRules.LearnerDetailsPageId, "first-name");
-        var lastName = Question(flow, AddJourneyDateRules.LearnerDetailsPageId, "last-name");
+        var firstName = Question(flow, AddPupilJourney.LearnerDetailsPageId, "first-name");
+        var lastName = Question(flow, AddPupilJourney.LearnerDetailsPageId, "last-name");
 
         Assert.Equal(QuestionType.FreeText, firstName.Type);
         Assert.False(firstName.Optional);
@@ -94,7 +93,7 @@ public sealed class AddFlowTests
     [MemberData(nameof(AllFlows))]
     public void DateOfBirth_is_a_required_date(string flow)
     {
-        var question = Question(flow, AddJourneyDateRules.LearnerDetailsPageId, AddJourneyDateRules.DateOfBirth);
+        var question = Question(flow, AddPupilJourney.LearnerDetailsPageId, "date-of-birth");
 
         Assert.Equal(QuestionType.Date, question.Type);
         Assert.False(question.Optional);
@@ -105,7 +104,7 @@ public sealed class AddFlowTests
     [MemberData(nameof(AllFlows))]
     public void Sex_offers_exactly_the_three_LDS_bound_values(string flow)
     {
-        var question = Question(flow, AddJourneyDateRules.LearnerDetailsPageId, "sex");
+        var question = Question(flow, AddPupilJourney.LearnerDetailsPageId, "sex");
 
         Assert.Equal(QuestionType.Radio, question.Type);
         Assert.False(question.Optional);
@@ -116,7 +115,7 @@ public sealed class AddFlowTests
     [MemberData(nameof(AllFlows))]
     public void Upn_is_optional_freetext_capped_at_13(string flow)
     {
-        var question = Question(flow, AddJourneyDateRules.LearnerDetailsPageId, "upn");
+        var question = Question(flow, AddPupilJourney.LearnerDetailsPageId, "upn");
 
         Assert.Equal(QuestionType.FreeText, question.Type);
         Assert.True(question.Optional);
@@ -129,7 +128,7 @@ public sealed class AddFlowTests
     [MemberData(nameof(AllFlows))]
     public void AdmissionDate_is_a_required_date(string flow)
     {
-        var question = Question(flow, AddJourneyDateRules.AdmissionDetailsPageId, AddJourneyDateRules.AdmissionDate);
+        var question = Question(flow, AddPupilJourney.AdmissionDetailsPageId, "admission-date");
 
         Assert.Equal(QuestionType.Date, question.Type);
         Assert.False(question.Optional);
@@ -140,7 +139,7 @@ public sealed class AddFlowTests
     [MemberData(nameof(AllFlows))]
     public void SenStatus_offers_exactly_the_three_LDS_bound_values_in_E_K_N_order(string flow)
     {
-        var question = Question(flow, AddJourneyDateRules.AdmissionDetailsPageId, "sen-status");
+        var question = Question(flow, AddPupilJourney.AdmissionDetailsPageId, "sen-status");
 
         Assert.Equal(QuestionType.Radio, question.Type);
         Assert.False(question.Optional);
@@ -152,7 +151,7 @@ public sealed class AddFlowTests
     [InlineData(Ks4Autumn)]
     public void YearGroup_offers_10_and_11_on_KS4_flows(string flow)
     {
-        var question = Question(flow, AddJourneyDateRules.AdmissionDetailsPageId, "year-group");
+        var question = Question(flow, AddPupilJourney.AdmissionDetailsPageId, "year-group");
 
         Assert.Equal(QuestionType.Radio, question.Type);
         Assert.Equal(["10", "11"], question.Options!.Select(o => o.Value).ToArray());
@@ -268,17 +267,6 @@ public sealed class AddFlowTests
         Assert.Equal("date-of-birth", AddPupilJourney.DateOfBirthQuestionId);
         Assert.Equal("sex", AddPupilJourney.SexQuestionId);
         Assert.Equal("upn", AddPupilJourney.UpnQuestionId);
-    }
-
-    // The Application layer cannot reference Web, so AddJourneyDateRules keeps its own copies of
-    // the two page ids and its date question ids. Both copies are pinned to the same literals.
-    [Fact]
-    public void AddJourneyDateRules_ConstantsAreTheShippedIds()
-    {
-        Assert.Equal("learner-details", AddJourneyDateRules.LearnerDetailsPageId);
-        Assert.Equal("admission-details", AddJourneyDateRules.AdmissionDetailsPageId);
-        Assert.Equal("date-of-birth", AddJourneyDateRules.DateOfBirth);
-        Assert.Equal("admission-date", AddJourneyDateRules.AdmissionDate);
     }
 
     // BuildPupil reads these five by id off the learner-details answers. One missing from the

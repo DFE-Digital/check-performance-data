@@ -8,7 +8,7 @@ The journey feature (pupil change requests) is driven by JSON config files that 
 
 - **Config files** live in `Web/Data/QuestionFlows/{WhatToChange}_{CheckingWindowType}.json` (e.g. `Remove_KS4June.json`).
 - **They ship in the release image and are served from it in every environment.** `IQuestionFlowConfigSource` (Application) is implemented by `FileSystemQuestionFlowClient` (Infrastructure), reading `{ContentRootPath}/Data/QuestionFlows/`. `IQuestionFlowService` caches the result in `IMemoryCache` with `NeverRemove` priority. The interface is **read-only** — nothing writes a config at runtime.
-- **Two flows may share a page id.** `Remove_KS2.json` reuses the KS4 June page ids on purpose, so the rules keyed by page id (`RemovalJourneyDateRules`, `PageDateRules`) apply to both. A test that looks a page up by id must check every page with that id, or name the file; never call `Single` on the id alone.
+- **Two flows may share a page id.** `Remove_KS2.json` reuses the KS4 June page ids on purpose. Each flow file holds its own rules for those pages. A test that looks a page up by id must check every page with that id, or name the file; never call `Single` on the id alone.
 - **There is no blob container and no seeding step.** Configs used to be read from the `question-flows` blob container, which Terraform provisions empty and which only a Development-gated seeder ever filled, so a config change did not reach QA/preproduction/production by deploying. `docs/question-flow-deployment.md` records the decision and what a storage-backed source would have to do if one is ever wanted again. The container is still declared in Terraform, unused, on purpose.
 
 ### Page types
@@ -127,4 +127,64 @@ A text question may set `"validator": "<Name>"` to enforce a reusable format rul
 - `IFormatValidator` (Application, `Application/Journey/Validators/`) — `Name` + `bool IsValid(string value)` + `FailureMessage`. Pure logic, no external dependencies, registered as `IFormatValidator` in the Application `DependencyManager`. Current validator: `DfeNumberFormatValidator` (`Name = "DfeNumber"`, matches `nnn/nnnn` or seven-digit `nnnnnnn`; validation only — it does not normalise between the two forms).
 - `JourneyValidationService` takes `IEnumerable<IFormatValidator>` and runs the named rule inside `ValidateAnswer`, *after* the required/type-specific checks pass and *only* when the value is non-empty (emptiness is the required rule's concern). An **unregistered** validator name fails **open** (the check is skipped) so a config typo cannot block every submission — `QuestionFlowValidatorAlignmentTests` guards that every referenced name has an implementation.
 - **Adding a new validator:** implement `IFormatValidator` in `Application/Journey/Validators/`, register it in the Application `DependencyManager`, and reference its `Name` from a question's `validator` field.
+
+### Date rules (`dateRules`)
+
+A `Date` question can have a `dateRules` list. Each rule compares the answer with a date. `DateRuleEvaluator` (Application, `Application/Journey/DateRules/`) runs the rules, and `JourneyValidationService.ValidatePageDates` calls it.
+
+```json
+{ "id": "date-pupil-started", "type": "Date",
+  "dateRules": [
+    { "check": "notInFuture", "message": "The date {pupilName} started at your school must be in the past" },
+    { "check": "onOrAfter", "fact": "cohort.start", "message": "The date {pupilName} started at your school cannot be more than 4 years ago when the cohort began" },
+    { "check": "onOrAfter", "question": "date-pupil-started-school-in-england", "message": "The date {pupilName} started at your school must be the same as or after {date} when they first started at a school in England" }
+  ] }
+```
+
+`Remove_KS4June.json` has a full example on the `english-not-first-language-details` page.
+
+Each rule has a `check` and a `message`. There are three checks:
+
+| `check` | Fails when | Target |
+|---|---|---|
+| `notInFuture` | The answer is later than UK today. Today passes. | None |
+| `onOrBefore` | The answer is later than the target. Equal dates pass. | One |
+| `onOrAfter` | The answer is earlier than the target. Equal dates pass. | One |
+
+A comparison (`onOrBefore` or `onOrAfter`) names exactly one target:
+
+- `question`: the id of another `Date` question in the same flow. The target is the answer to that question.
+- `fact`: the name of a date fact (see the table below).
+- `date`: a fixed date, written `yyyy-MM-dd`, for example `"2023-09-01"`.
+
+**Order.** The rules run in list order. The first rule that fails gives the message. Each question gets one message at most. Put `notInFuture` first, because a comparison with a wrong date can mislead the user.
+
+**Message.** `{pupilName}` becomes the pupil name. `{date}` becomes the target date, written `d MMMM yyyy` (for example "1 September 2022").
+
+**When a rule is skipped.**
+
+- A blank or invalid answer takes part in no rule. The format rules report it.
+- A comparison is skipped when its target has no value, for example when the user has not answered the target question.
+- A date fact that is not registered, or that gives null, skips its rule. The evaluator logs a warning with the fact name only.
+
+**Rules between two questions.** Declare a comparison between two questions on both questions. Each question has its own message. For example, `date-of-birth` has `onOrBefore` `admission-date`, and `admission-date` has `onOrAfter` `date-of-birth`. The evaluator checks only the questions on the current page. It compares them with answers from the whole journey. So when the two questions are on different pages, the error shows on the page that the user is on.
+
+These are the date facts:
+
+| Fact | Value |
+|---|---|
+| `cohort.start` | 1 September of the school year four years back (for a 2026 window, 1 September 2022). The rules engine checks the same boundary on `schoolAdmissionDate` in `RulesEngineWorker/seed/rules.json`. If one changes, change the other. |
+
+- `IJourneyDateFact` (Application, `Application/Journey/DateRules/`) has a `Name` and `DateOnly? Value(JourneyConditionContext ctx, DateOnly today)`. Use a date fact only for a date that the answers do not hold. The code gives the date, and the flow file holds the rule.
+- **Adding a new date fact:** implement `IJourneyDateFact` in `Application/Journey/DateRules/`, register it in the Application `DependencyManager`, add it to the table above, and reference its `Name` from a rule's `fact` field.
+
+A bad rule does not throw at run time. `DateRuleConfigTests` checks every flow file instead:
+
+- Every `Date` question has `notInFuture` as its first rule.
+- Only `Date` questions have rules.
+- Each rule has a message.
+- `notInFuture` names no target, and a comparison names exactly one target.
+- Each `question` target is a `Date` question in the same flow.
+- Each comparison between two questions has its mirror rule on the other question (`onOrBefore` against `onOrAfter`).
+- Each fact has an implementation, and each implementation is registered in the container.
 

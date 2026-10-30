@@ -28,14 +28,28 @@ public sealed class EnquiryConfirmationViewSourceTests
             ViewSource());
 
     [Fact]
-    public void The_onward_link_starts_a_fresh_enquiry()
+    public void The_onward_links_use_the_shared_labels()
     {
-        // Routing to ResultIssue is what makes "none of my previous answers are carried over" true —
-        // that controller builds a brand-new RequestState.
+        // #713: the links follow the exercises open now, not the submitted kind, and they carry
+        // the check-your-pupil-data page's words so they cannot drift. Routing to ResultIssue is
+        // what makes "none of my previous answers are carried over" true — that controller builds
+        // a brand-new RequestState.
         var view = ViewSource();
 
-        Assert.Contains("Report another issue with an exam result", view);
+        Assert.Contains("NextStepLabels.For(NextSteps.ResultsEnquiry, Model.LearnerNoun)", view);
+        Assert.Contains("NextStepLabels.For(NextSteps.RequestChange, Model.LearnerNoun)", view);
         Assert.Contains("asp-controller=\"ResultIssue\"", view);
+        Assert.Contains("asp-controller=\"WhatToChange\"", view);
+        Assert.DoesNotContain("Report another issue with an exam result", view);
+    }
+
+    [Fact]
+    public void The_return_link_is_always_offered()
+    {
+        var view = ViewSource();
+
+        Assert.Contains("Return to check your data", view);
+        Assert.Contains("asp-controller=\"CheckYourPupilData\"", view);
     }
 
     [Fact]

@@ -111,6 +111,7 @@ public sealed class JourneyControllerResultDetailsTests
             Substitute.For<IResultsClient>(),
             _qualificationReference, _notifications,
             OpenCheckingExercises.AlwaysOpen(),
+            Substitute.For<DfE.CheckPerformanceData.Application.CheckYourPupilData.INextStepsService>(),
             NullLogger<JourneyController>.Instance)
         {
             ControllerContext = new ControllerContext { HttpContext = _httpContext },

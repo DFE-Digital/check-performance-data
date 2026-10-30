@@ -122,6 +122,7 @@ public sealed class JourneyControllerResultSearchTests
             _flowService, _journeyService, _fileStorage, _requestService, _pupilData, _vmBuilder,
             _analytics, _currentUser, _optionVisibility, _optionality, _originCapture, _results,
             _qualificationReference, _notifications, OpenCheckingExercises.AlwaysOpen(),
+            Substitute.For<DfE.CheckPerformanceData.Application.CheckYourPupilData.INextStepsService>(),
             NullLogger<JourneyController>.Instance)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext }

@@ -45,6 +45,7 @@ public class JourneyControllerTests
     private readonly FakeSession _session = new();
     private readonly DefaultHttpContext _httpContext = new();
     private readonly ICheckingExerciseService _checkingExercises = OpenCheckingExercises.AlwaysOpen();
+    private readonly INextStepsService _nextSteps = Substitute.For<INextStepsService>();
     private readonly JourneyController _sut;
 
     private static readonly Guid WindowId = Guid.Parse("11111111-1111-1111-1111-111111111111");
@@ -134,6 +135,7 @@ public class JourneyControllerTests
             Substitute.For<DfE.CheckPerformanceData.Application.ResultsEnquiry.IQualificationReferenceClient>(),
             _requestNotificationService,
             _checkingExercises,
+            _nextSteps,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<JourneyController>.Instance)
         {
             ControllerContext = new ControllerContext { HttpContext = _httpContext },
@@ -252,6 +254,150 @@ public class JourneyControllerTests
 
         var model = Assert.IsType<DfE.CheckPerformanceData.Web.Controllers.Journey.ConfirmationViewModel>(view.Model);
         Assert.EndsWith(date, model.WindowCloseLabel);
+    }
+
+    // ── Confirmation onward links (#713) ─────────────────────────────────────
+    // The page offers what the window has open right now, as INextStepsService answers it, not
+    // what was just submitted. The controller passes the answer through; the service tests pin
+    // the open/closed decision itself.
+
+    [Theory]
+    [InlineData(new[] { NextSteps.RequestChange, NextSteps.ResultsEnquiry })]
+    [InlineData(new[] { NextSteps.RequestChange })]
+    [InlineData(new[] { NextSteps.ResultsEnquiry })]
+    [InlineData(new NextSteps[0])]
+    public void Confirmation_OffersExactlyTheConfirmationStepsTheServiceAnswers(NextSteps[] steps)
+    {
+        _nextSteps.GetConfirmationPageSteps(
+                Arg.Any<IReadOnlyList<DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseDto>>(),
+                Arg.Any<string?>())
+            .Returns(steps);
+        SetupSession(ValidSession());
+
+        var view = Assert.IsType<ViewResult>(_sut.Confirmation(WindowId));
+
+        var model = Assert.IsType<DfE.CheckPerformanceData.Web.Controllers.Journey.ConfirmationViewModel>(view.Model);
+        Assert.Equal(steps, model.NextSteps);
+        Assert.Equal("pupil", model.LearnerNoun.Singular);
+    }
+
+    // ── Confirmation banner (#713) ───────────────────────────────────────────
+    // The "You still have until …" banner shows only when the pupil data exercise is open to
+    // the school. The date it quotes is the school's own end, which an extension may lengthen
+    // (the existing deadline test pins that part).
+
+    [Fact]
+    public void Confirmation_WhenThePupilDataExerciseIsClosed_HasNoBanner()
+    {
+        _checkingExercises.Close();
+        var state = ValidSession();
+        state.SelectedWhatToChange = null;
+        SetupSession(state);
+
+        var view = Assert.IsType<ViewResult>(_sut.Confirmation(WindowId));
+
+        var model = Assert.IsType<DfE.CheckPerformanceData.Web.Controllers.Journey.ConfirmationViewModel>(view.Model);
+        Assert.Null(model.WindowCloseLabel);
+    }
+
+    [Fact]
+    public void Confirmation_WhenThePupilDataExerciseIsOpen_HasTheBanner()
+    {
+        var state = ValidSession();
+        state.SelectedWhatToChange = null;
+        state.CheckingWindow = new CheckingWindowDto
+        {
+            Id = WindowId,
+            Title = "Test Window",
+            KeyStage = KeyStages.KS4,
+            CheckingWindowType = CheckingWindowType.KS4June,
+            StartDate = new DateTime(2026, 6, 1),
+            EndDate = new DateTime(2026, 7, 31, 17, 0, 0),
+            Exercises =
+            [
+                new DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseDto
+                {
+                    Id = Guid.NewGuid(),
+                    ExerciseType = CheckingExerciseType.PupilData,
+                    StartDate = new DateTime(2026, 6, 1),
+                    EndDate = new DateTime(2026, 7, 31, 17, 0, 0)
+                }
+            ]
+        };
+        SetupSession(state);
+
+        var view = Assert.IsType<ViewResult>(_sut.Confirmation(WindowId));
+
+        var model = Assert.IsType<DfE.CheckPerformanceData.Web.Controllers.Journey.ConfirmationViewModel>(view.Model);
+        Assert.NotNull(model.WindowCloseLabel);
+        Assert.EndsWith("31 July 2026", model.WindowCloseLabel);
+    }
+
+    // ── Confirmation learner noun (#713) ─────────────────────────────────────
+    // 16-19 says "student", every other key stage says "pupil", as the rest of the service does.
+    // The noun is derived from the window in session, never posted.
+
+    [Theory]
+    [InlineData(CheckingWindowType.Post16, KeyStages.Post16, "student")]
+    [InlineData(CheckingWindowType.KS4June, KeyStages.KS4, "pupil")]
+    public void Confirmation_UsesTheWindowLearnerNoun(CheckingWindowType windowType, KeyStages keyStage, string singular)
+    {
+        var state = ValidSession();
+        state.SelectedWhatToChange = null;
+        state.CheckingWindow = Window(windowType, keyStage);
+        SetupSession(state);
+
+        var view = Assert.IsType<ViewResult>(_sut.Confirmation(WindowId));
+
+        var model = Assert.IsType<DfE.CheckPerformanceData.Web.Controllers.Journey.ConfirmationViewModel>(view.Model);
+        Assert.Equal(singular, model.LearnerNoun.Singular);
+    }
+
+    [Theory]
+    [InlineData(CheckingWindowType.Post16, KeyStages.Post16, "student")]
+    [InlineData(CheckingWindowType.KS4June, KeyStages.KS4, "pupil")]
+    public void EnquiryConfirmation_UsesTheWindowLearnerNoun(CheckingWindowType windowType, KeyStages keyStage, string singular)
+    {
+        var state = ValidSession();
+        state.CheckingWindow = Window(windowType, keyStage);
+        SetupSession(state);
+
+        var view = Assert.IsType<ViewResult>(_sut.EnquiryConfirmation(WindowId));
+
+        var model = Assert.IsType<DfE.CheckPerformanceData.Web.Controllers.Journey.EnquiryConfirmationViewModel>(view.Model);
+        Assert.Equal(singular, model.LearnerNoun.Singular);
+    }
+
+    private static CheckingWindowDto Window(CheckingWindowType windowType, KeyStages keyStage) => new()
+    {
+        Id = WindowId,
+        Title = "Test Window",
+        KeyStage = keyStage,
+        CheckingWindowType = windowType,
+        StartDate = new DateTime(2026, 6, 1),
+        EndDate = new DateTime(2026, 7, 31, 17, 0, 0)
+    };
+
+    // ── Enquiry confirmation onward links (#713) ─────────────────────────────
+
+    [Theory]
+    [InlineData(new[] { NextSteps.RequestChange, NextSteps.ResultsEnquiry })]
+    [InlineData(new[] { NextSteps.RequestChange })]
+    [InlineData(new[] { NextSteps.ResultsEnquiry })]
+    [InlineData(new NextSteps[0])]
+    public void EnquiryConfirmation_OffersExactlyTheConfirmationStepsTheServiceAnswers(NextSteps[] steps)
+    {
+        _nextSteps.GetConfirmationPageSteps(
+                Arg.Any<IReadOnlyList<DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseDto>>(),
+                Arg.Any<string?>())
+            .Returns(steps);
+        SetupSession(ValidSession());
+
+        var view = Assert.IsType<ViewResult>(_sut.EnquiryConfirmation(WindowId));
+
+        var model = Assert.IsType<DfE.CheckPerformanceData.Web.Controllers.Journey.EnquiryConfirmationViewModel>(view.Model);
+        Assert.Equal(steps, model.NextSteps);
+        Assert.Equal("pupil", model.LearnerNoun.Singular);
     }
 
     // ── Navigation validation ────────────────────────────────────────────────

@@ -1,3 +1,5 @@
+@using DfE.CheckPerformanceData.Application.CheckYourPupilData
+@using DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData
 @model DfE.CheckPerformanceData.Web.Controllers.Journey.EnquiryConfirmationViewModel
 
 @{
@@ -18,12 +20,21 @@
     We have sent you an email to confirm that you have successfully submitted an enquiry.
 </p>
 
-<p class="govuk-body">
-    @* Lands on the ResultIssue page, which builds a fresh RequestState — so the AC "none of my
-       previous answers are carried over" holds by construction rather than by remembering to clear. *@
-    <a asp-action="Index" asp-controller="ResultIssue" asp-route-windowId="@Model.WindowId"
-       class="govuk-link">Report another issue with an exam result</a>
-</p>
+@* #713: the onward links follow the exercises open in this window now, not the kind of request
+   just submitted. The words are the check-your-pupil-data page's words, so they cannot drift.
+   The results link lands on the ResultIssue page, which builds a fresh RequestState — so "none
+   of my previous answers are carried over" holds by construction. *@
+<ul class="govuk-list govuk-list--bullet">
+    @if (Model.NextSteps.Contains(NextSteps.ResultsEnquiry))
+    {
+        <li><a class="govuk-link" asp-action="Index" asp-controller="ResultIssue" asp-route-windowId="@Model.WindowId">@NextStepLabels.For(NextSteps.ResultsEnquiry, Model.LearnerNoun)</a></li>
+    }
+    @if (Model.NextSteps.Contains(NextSteps.RequestChange))
+    {
+        <li><a class="govuk-link" asp-action="Index" asp-controller="WhatToChange" asp-route-windowId="@Model.WindowId">@NextStepLabels.For(NextSteps.RequestChange, Model.LearnerNoun)</a></li>
+    }
+    <li><a class="govuk-link" asp-action="Index" asp-controller="CheckYourPupilData" asp-route-windowId="@Model.WindowId">Return to check your data</a></li>
+</ul>
 
 <h2 class="govuk-heading-m">What happens next</h2>
 

@@ -119,6 +119,7 @@ public class IncludeNoResultsDecisionTests
             Substitute.For<DfE.CheckPerformanceData.Application.ResultsEnquiry.IQualificationReferenceClient>(),
             Substitute.For<DfE.CheckPerformanceData.Application.Notify.IRequestNotificationService>(),
             OpenCheckingExercises.AlwaysOpen(),
+            Substitute.For<DfE.CheckPerformanceData.Application.CheckYourPupilData.INextStepsService>(),
             Microsoft.Extensions.Logging.Abstractions.NullLogger<JourneyController>.Instance)
         {
             ControllerContext = new ControllerContext { HttpContext = _httpContext },

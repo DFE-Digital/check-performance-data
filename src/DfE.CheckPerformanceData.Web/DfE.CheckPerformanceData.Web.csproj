@@ -25,6 +25,7 @@
     <PackageReference Include="Serilog.Formatting.Compact" />
     <PackageReference Include="Serilog.Sinks.Console" />
     <PackageReference Include="Serilog.Sinks.PostgreSQL.Alternative" />
+    <PackageReference Include="System.Security.Cryptography.Pkcs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\DfE.CheckPerformanceData.Application\DfE.CheckPerformanceData.Application.csproj" />
@@ -50,8 +51,7 @@
     <Content Update="Data/Impersonation/*.csv" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Data/Impersonation/EstablishmentDetails.csv"
-                      LogicalName="DfE.CheckPerformanceData.Web.Data.Impersonation.EstablishmentDetails.csv" />
+    <EmbeddedResource Include="Data/Impersonation/EstablishmentDetails.csv" LogicalName="DfE.CheckPerformanceData.Web.Data.Impersonation.EstablishmentDetails.csv" />
   </ItemGroup>
   <!-- Rules-config seed JSON, linked from the rules-engine worker so there is one source of
        truth. RulesConfigSeeder (run from the dev-data seeding orchestrator in dev/E2E) reads

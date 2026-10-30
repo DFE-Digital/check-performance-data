@@ -7,6 +7,7 @@ using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
 using DfE.CheckPerformanceData.Infrastructure.Egress;
 using DfE.CheckPerformanceData.Infrastructure.QuestionFlow;
 using DfE.CheckPerformanceData.Web.Startup;
+using DfE.CheckPerformanceData.Web.Impersonation;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
@@ -44,6 +45,9 @@ public class BlobStorageExtensionsTests
         // The question-flow source reads the shipped JSON from the content root, so the host
         // environment has to be resolvable here exactly as it is in the real web host.
         services.AddSingleton<IHostEnvironment>(new StubHostEnvironment());
+        // AddCpdBlobStorage hosts the establishment-directory seeder; the web composition root
+        // registers its singleton in AddCpdJourneyAndCmsServices, so include that dependency here.
+        services.AddSingleton<EstablishmentDirectory>();
         services.AddCpdBlobStorage(configuration);
         return services.BuildServiceProvider(validateScopes: true);
     }

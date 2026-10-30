@@ -1,0 +1,13 @@
+@inject DfE.CheckPerformanceData.Web.Impersonation.ImpersonationSessionService Impersonation
+@if (Impersonation.IsImpersonating)
+{
+    <section class="impersonation-banner" aria-label="Read-only impersonation">
+        <div class="govuk-width-container">
+            <h2 class="govuk-heading-m">Read-only impersonation</h2>
+            <p class="govuk-body">Viewing LAESTAB <strong>@Impersonation.OrganisationLaestab</strong>, URN <strong>@Impersonation.OrganisationUrn</strong>. Changes cannot be saved or submitted.</p>
+            <form asp-action="Exit" asp-controller="Impersonation" method="post">
+                <button class="govuk-button govuk-button--secondary" type="submit">Exit impersonation</button>
+            </form>
+        </div>
+    </section>
+}

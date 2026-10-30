@@ -1,0 +1,106 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ImpersonationChoicesViewModel
+@{ Layout = "_AdminLayout"; ViewData["Title"] = "Choose where to start impersonation"; }
+
+<h1 class="govuk-heading-l">Choose where to start impersonation</h1>
+<p class="govuk-body">Review the establishment and choose a checking exercise, or start from its home page. Impersonation is read-only.</p>
+
+<dl class="govuk-summary-list">
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">Establishment</dt>
+        <dd class="govuk-summary-list__value">@Model.EstablishmentName</dd>
+    </div>
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">LAESTAB</dt>
+        <dd class="govuk-summary-list__value">@Model.Selection.Laestab</dd>
+    </div>
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">URN</dt>
+        <dd class="govuk-summary-list__value">@Model.Selection.Urn</dd>
+    </div>
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">Age range</dt>
+        <dd class="govuk-summary-list__value">@Model.Selection.LowestAge to @Model.Selection.HighestAge</dd>
+    </div>
+</dl>
+
+<form asp-action="Begin" asp-controller="Impersonation" method="post" class="govuk-!-margin-bottom-6">
+    <button class="govuk-button" type="submit">Go to establishment home page</button>
+</form>
+
+@if (Model.Warning is not null)
+{
+    <div class="govuk-warning-text" role="alert">
+        <span class="govuk-warning-text__icon" aria-hidden="true">!</span>
+        <strong class="govuk-warning-text__text">@Model.Warning</strong>
+    </div>
+}
+
+@if (Model.HasSummaryReadErrors)
+{
+    <div class="govuk-warning-text" role="status">
+        <span class="govuk-warning-text__icon" aria-hidden="true">!</span>
+        <strong class="govuk-warning-text__text">Some checking exercise summaries could not be checked. The list may be incomplete.</strong>
+    </div>
+}
+
+<h2 class="govuk-heading-m">Checking exercises with establishment data</h2>
+@if (Model.Exercises.Count == 0)
+{
+    <p class="govuk-body">No checking exercise summaries show imported data for this LAESTAB.</p>
+}
+else
+{
+    @foreach (var windowGroup in Model.Exercises.GroupBy(exercise => new { exercise.WindowId, exercise.WindowTitle }))
+    {
+        <section class="govuk-!-margin-bottom-6" aria-labelledby="window-@windowGroup.Key.WindowId">
+            <h3 class="govuk-heading-s" id="window-@windowGroup.Key.WindowId">@windowGroup.Key.WindowTitle</h3>
+            @foreach (var exercise in windowGroup)
+            {
+                <div class="govuk-inset-text">
+                    <h4 class="govuk-heading-s">@exercise.ExerciseName</h4>
+                    @if (exercise.UrnMatched)
+                    {
+                        <strong class="govuk-tag govuk-tag--green">@exercise.UrnStatus</strong>
+                    }
+                    else
+                    {
+                        <strong class="govuk-tag govuk-tag--yellow">@exercise.UrnStatus</strong>
+                        <p class="govuk-body govuk-!-margin-top-2">
+                            @if (exercise.StatsAreLaestabLevel)
+                            {
+                                <text>These counts are for the LAESTAB and could include data associated with a different URN.</text>
+                            }
+                        </p>
+                    }
+                    <table class="govuk-table">
+                        <caption class="govuk-table__caption govuk-table__caption--s">Imported data by dataset</caption>
+                        <thead class="govuk-table__head">
+                            <tr class="govuk-table__row">
+                                <th scope="col" class="govuk-table__header">Dataset</th>
+                                <th scope="col" class="govuk-table__header">Rows read</th>
+                                <th scope="col" class="govuk-table__header">Rows imported</th>
+                            </tr>
+                        </thead>
+                        <tbody class="govuk-table__body">
+                            @foreach (var dataset in exercise.Datasets)
+                            {
+                                <tr class="govuk-table__row">
+                                    <th scope="row" class="govuk-table__header">@dataset.DatasetName</th>
+                                    <td class="govuk-table__cell">@dataset.RowsRead</td>
+                                    <td class="govuk-table__cell">@dataset.RowsImported</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                    <form asp-action="Begin" asp-controller="Impersonation" method="post">
+                        <input type="hidden" name="WindowId" value="@exercise.WindowId" />
+                        <input type="hidden" name="ExerciseId" value="@exercise.ExerciseId" />
+                        <button class="govuk-button govuk-button--secondary" type="submit">View this checking window</button>
+                    </form>
+                </div>
+            }
+        </section>
+    }
+}
+
+<p class="govuk-body"><a class="govuk-link" asp-action="Index" asp-controller="Impersonation">Choose a different establishment</a></p>

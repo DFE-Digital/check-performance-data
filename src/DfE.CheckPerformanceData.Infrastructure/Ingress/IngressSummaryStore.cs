@@ -9,6 +9,20 @@ public sealed class IngressSummaryStore(
     IReadOnlyDictionary<string, BlobServiceClient> blobClients,
     ILogger<IngressSummaryStore> logger) : IIngressSummaryStore
 {
+    public async Task<IngressSummaryDocument?> GetAsync(Guid windowId, Guid exerciseId,
+        CancellationToken cancellationToken)
+    {
+        if (!blobClients.TryGetValue("app", out var blobServiceClient))
+            throw new InvalidOperationException("Ingress summary storage is unavailable.");
+
+        var blob = blobServiceClient.GetBlobContainerClient(windowId.ToString())
+            .GetBlobClient(CheckingExerciseBlobPaths.IngressSummaryBlobName(exerciseId));
+        if (!await blob.ExistsAsync(cancellationToken)) return null;
+
+        var content = await blob.DownloadContentAsync(cancellationToken);
+        return JsonConvert.DeserializeObject<IngressSummaryDocument>(content.Value.Content.ToString());
+    }
+
     public async Task<bool> ArchiveCurrentAsync(Guid windowId, Guid exerciseId, CancellationToken cancellationToken)
     {
         if (!blobClients.TryGetValue("app", out var blobServiceClient))

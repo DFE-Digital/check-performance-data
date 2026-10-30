@@ -41,7 +41,7 @@ public sealed class CheckYourPupilDataViewRenderTests
         Assert.DoesNotContain("closed for changes", view);
         // Every form is inside one of the three option branches; none is unconditional.
         var firstForm = view.IndexOf("<form", StringComparison.Ordinal);
-        var firstBranch = view.IndexOf("@if (Model.OffersEnquiryOnly)", StringComparison.Ordinal);
+        var firstBranch = view.IndexOf("@if (!Impersonation.IsImpersonating && Model.OffersEnquiryOnly)", StringComparison.Ordinal);
         Assert.True(firstBranch >= 0 && firstForm > firstBranch, "no form may render before the option branches");
     }
 
@@ -52,7 +52,7 @@ public sealed class CheckYourPupilDataViewRenderTests
         var view = ReadView();
 
         var downloadAll = view.IndexOf("asp-action=\"DownloadAll\"", StringComparison.Ordinal);
-        var firstBranch = view.IndexOf("@if (Model.OffersEnquiryOnly)", StringComparison.Ordinal);
+    var firstBranch = view.IndexOf("@if (!Impersonation.IsImpersonating && Model.OffersEnquiryOnly)", StringComparison.Ordinal);
         var lastForm = view.LastIndexOf("</form>", StringComparison.Ordinal);
         var firstTabs = view.IndexOf("<govuk-tabs>", StringComparison.Ordinal);
 
@@ -132,7 +132,7 @@ public sealed class CheckYourPupilDataViewRenderTests
     public void The_enquiry_only_state_asks_the_yes_no_question()
     {
         var view = ReadView();
-        var enquiryOnly = Section(view, "@if (Model.OffersEnquiryOnly)", "Model.AvailableNextSteps.Count == 1");
+        var enquiryOnly = Section(view, "@if (!Impersonation.IsImpersonating && Model.OffersEnquiryOnly)", "Model.AvailableNextSteps.Count == 1");
 
         Assert.Contains("<form", enquiryOnly);
         Assert.Contains("govuk-radios", enquiryOnly);

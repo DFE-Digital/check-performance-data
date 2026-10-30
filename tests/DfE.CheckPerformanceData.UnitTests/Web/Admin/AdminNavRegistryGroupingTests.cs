@@ -29,9 +29,8 @@ public sealed class AdminNavRegistryGroupingTests
 		// from the windows table now) and the Storage administration group went with the blob
 		// browser moving under Danger zone, which is itself a root group registered everywhere;
 		// plus the Data egress group (AB#294553); plus the Audit log root tile (AB#294592), a root
-		// with a URL and no children like Dashboard. Manage windows is a top-level link: the Window
-		// administration group went when it held that one tile only.
-		Assert.Equal(8, groups.Count);
+		// Current branch's newer admin tiles plus impersonation.
+		Assert.Equal(9, groups.Count);
 		var groupKeys = groups.Select(g => g.Key).ToHashSet();
 		Assert.Contains("dashboard", groupKeys);
 		Assert.Contains("cms-admin", groupKeys);
@@ -77,11 +76,7 @@ public sealed class AdminNavRegistryGroupingTests
 		// together and the Storage administration group went when the blob browser moved under
 		// Danger zone, which this overload registers along with the browser but without the
 		// gated Reset seed data tile — plus the Data egress group and its Start a new egress
-		// tile (AB#294553) and its Egress runs tile (AB#294590) and the Audit log root tile (AB#294592),
-		// and the Home page banners CMS tile (#566).
-		// The Site assets tile (#429) is new. The Create new window tile went: a new window starts from the button on Manage windows.
-		// That left Manage windows alone in Window administration, so the group went as well.
-		Assert.Equal(34, keys.Count);
+		Assert.Equal(35, keys.Count);
 		Assert.Equal(keys.Count, keys.Distinct().Count());
 	}
 

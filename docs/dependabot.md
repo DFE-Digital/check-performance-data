@@ -47,6 +47,7 @@ Each run shows in **Actions** as **Dependabot Updates**, with its log.
 | `mcr.microsoft.com/dotnet/aspnet`, `mcr.microsoft.com/dotnet/sdk` | Major versions | Moving to .NET 11 is an upgrade of its own. Each new digest of the `10.0` tag is still proposed. |
 | `SixLabors.ImageSharp` | 3.2.0 and later | From 3.2.0 the build fails without a Six Labors licence key, and a commercial key is paid for. Held on 3.1.x until there is a licence decision. |
 | `Deque.AxeCore.Playwright` | 4.14.0 and later | It bundles axe-core 4.14, which turns on the `label-content-name-mismatch` rule (WCAG 2.5.3). The rule fails the admin accessibility sweep on the GOV.UK Frontend File upload button. Held on 4.13 until that is dealt with. |
+| `CsvHelper` | 34.0.0 and later | 34.0.0 is a rewrite with a new API, so the build fails. Its defaults also recover malformed data and guess the separator, where 33 threw. Ingress would then accept broken pupil files. Held on 33.x until the port is done, with tests for the ingress CSV rules. |
 | `mcr.microsoft.com/playwright/dotnet` | Any version | Its tag follows the NuGet package. See [Playwright](#playwright). |
 
 To stop a dependency being proposed, add an `ignore` entry to `.github/dependabot.yml` with the
@@ -148,7 +149,7 @@ To find a SHA or a digest:
 gh api repos/oras-project/setup-oras/commits/v2.0.2 --jq .sha
 
 # The digest of an image tag. This is the multi-platform index, which is what to pin.
-docker buildx imagetools inspect mcr.microsoft.com/playwright/dotnet:v1.63.0-noble --format '{{.Manifest.Digest}}'
+docker buildx imagetools inspect mcr.microsoft.com/playwright/dotnet:v1.64.1-noble --format '{{.Manifest.Digest}}'
 ```
 
 ## Reviewing a Dependabot pull request

@@ -50,6 +50,11 @@ updates:
       # (/admin/storage/app/rules-config). Held on 4.13 until that finding is dealt with.
       - dependency-name: "Deque.AxeCore.Playwright"
         versions: [">= 4.14.0"]
+      # 34.0.0 is a rewrite with a new API. Its defaults recover malformed data and guess the
+      # separator, where 33 threw, so ingress would accept broken pupil files unless the port sets
+      # strict options. Held on 33.x until the port is done with tests for the ingress CSV rules.
+      - dependency-name: "CsvHelper"
+        versions: [">= 34.0.0"]
 
   - package-ecosystem: docker
     directories:

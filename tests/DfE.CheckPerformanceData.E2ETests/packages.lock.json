@@ -4,9 +4,9 @@
     "net10.0": {
       "AngleSharp": {
         "type": "Direct",
-        "requested": "[1.8.5, )",
-        "resolved": "1.8.5",
-        "contentHash": "BUgFIpmkjwMPi6QneHUHaprjUOGSXoWEF/xi/2seHCpnI8XMHACNiC09rn9qL8jbxrP8jWyJ3DnOjsGvXWNGmw=="
+        "requested": "[1.8.6, )",
+        "resolved": "1.8.6",
+        "contentHash": "tdvrWSsHz8iRcb8U2cbFtYF6/1Mvhbe5ZxN/VdhVeIfp5vOvbwz3Bn7OZknnm2QSyGvM9ZaZLNLvfanPzNa61Q=="
       },
       "coverlet.collector": {
         "type": "Direct",
@@ -37,9 +37,9 @@
       },
       "Microsoft.Playwright": {
         "type": "Direct",
-        "requested": "[1.63.0, )",
-        "resolved": "1.63.0",
-        "contentHash": "O9F45Tt5vjauIo7mTTgQtahigL7cfRLvBMpErLJfdvgCnQ14yue5BmRASNnfNBWRBni4Mqp2YiD1eFGIO4nUUw==",
+        "requested": "[1.64.1, )",
+        "resolved": "1.64.1",
+        "contentHash": "DO8plHiCCUS/54XZxhsuzGtxI4RkyJ/5XOlVFoT0A0K1jNYdGhntry36ivkPjcCbv0uz6P/PmJ35gUgnAYGbiw==",
         "dependencies": {
           "Microsoft.Bcl.AsyncInterfaces": "6.0.0",
           "System.ComponentModel.Annotations": "5.0.0"
@@ -47,12 +47,12 @@
       },
       "Microsoft.Playwright.Xunit": {
         "type": "Direct",
-        "requested": "[1.63.0, )",
-        "resolved": "1.63.0",
-        "contentHash": "1GRR+73kyNWoZhOTA4uLT044bhrcCp6awmQ9H91pJWbFzfZ6FSzACOtRFzdPG5ZgCwTMAuRF2PqUUKEcGqrLWA==",
+        "requested": "[1.64.1, )",
+        "resolved": "1.64.1",
+        "contentHash": "moGLHsqDXnC/K8r/mS6LlziNzQwWBKsu51lYtJ+xZN92/WheypF9hFpIC5sX4vPRrG5W0R181JoJvPf27da39A==",
         "dependencies": {
-          "Microsoft.Playwright": "1.63.0",
-          "Microsoft.Playwright.TestAdapter": "1.63.0",
+          "Microsoft.Playwright": "1.64.1",
+          "Microsoft.Playwright.TestAdapter": "1.64.1",
           "xunit.extensibility.core": "2.8.0"
         }
       },
@@ -67,7 +67,7 @@
       },
       "SixLabors.ImageSharp": {
         "type": "Direct",
-        "requested": "[3.1.12, )",
+        "requested": "[3.1.12, 3.1.12]",
         "resolved": "3.1.12",
         "contentHash": "iAg6zifihXEFS/t7fiHhZBGAdCp3FavsF4i2ZIDp0JfeYeDVzvmlbY1CNhhIKimaIzrzSi5M/NBFcWvZT2rB/A=="
       },
@@ -140,10 +140,10 @@
       },
       "Microsoft.Playwright.TestAdapter": {
         "type": "Transitive",
-        "resolved": "1.63.0",
-        "contentHash": "UnQJfSC7w/wWNBs5fIwHV8yUKBz4rTrpNRHRMWK5BxRHG++EE+TufKpjlPkZ1bm/BPaPi470NG1fHMFmWNKjOA==",
+        "resolved": "1.64.1",
+        "contentHash": "gpIcatEV972A2MbsK+DlRI4h60x0f3Lh205Gj3Zo1jj00QXA3uupVYl9rQAU78k+xgKnqmtWGCos1svdSsqlIg==",
         "dependencies": {
-          "Microsoft.Playwright": "1.63.0",
+          "Microsoft.Playwright": "1.64.1",
           "Microsoft.TestPlatform.ObjectModel": "17.3.0"
         }
       },

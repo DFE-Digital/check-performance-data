@@ -11,8 +11,9 @@
     <PackageVersion Include="Azure.Storage.Common" Version="12.29.0" />
     <PackageVersion Include="Community.Microsoft.Extensions.Caching.PostgreSql" Version="6.0.2" />
     <PackageVersion Include="CsvHelper" Version="33.1.0" />
-    <PackageVersion Include="DfeAnalytics.AspNetCore" Version="0.6.2" />
-    <PackageVersion Include="DfeAnalytics.Core" Version="0.6.2" />
+    <PackageVersion Include="DfeAnalytics.AspNetCore" Version="0.6.4" />
+    <PackageVersion Include="DfeAnalytics.Core" Version="0.6.4" />
+    <PackageVersion Include="DfeAnalytics.EFCore" Version="0.6.4" />
     <PackageVersion Include="GovUk.Frontend.AspNetCore" Version="5.0.1" />
     <PackageVersion Include="GovukNotify" Version="8.2.0" />
     <PackageVersion Include="HtmlSanitizer" Version="9.2.1039" />

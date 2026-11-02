@@ -16,7 +16,7 @@ without rebuilding anything (OWASP Top 10 2025, A03 software supply chain failur
 - the files those Ubuntu packages own
 
 It does not contain the SDK or the build tools (they are in the build stage, not the image),
-and it does not contain the test projects' packages (SixLabors.ImageSharp, Playwright, xUnit).
+and it does not contain the test projects' packages (Playwright, xUnit).
 
 ## Where it is
 

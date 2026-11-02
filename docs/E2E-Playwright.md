@@ -33,10 +33,9 @@ Pinned in `tests/DfE.CheckPerformanceData.E2ETests/DfE.CheckPerformanceData.E2ET
 | `Microsoft.Playwright` | 1.64.1 | Browser automation. **Must match the Docker image tag `v1.64.1-noble`** — Chromium binary protocol mismatch otherwise. |
 | `Microsoft.Playwright.Xunit` | 1.64.1 | xUnit `PageTest` base class + browser/page lifecycle. |
 | `xunit` | 2.9.3 | Test framework. |
-| `Xunit.SkippableFact` | 1.5.85 | `Skip.IfNot(...)` for Linux-only visual regression tests. |
+| `Xunit.SkippableFact` | 1.5.85 | `Skip.If(...)` / `Skip.IfNot(...)` for tests that need a precondition. |
 | `xunit.runner.visualstudio` | 4.0.0 | VS / `dotnet test` runner. |
 | `Microsoft.NET.Test.Sdk` | 18.10.1 | Test SDK. |
-| `SixLabors.ImageSharp` | 3.1.12 | Pure-managed image lib used by the snapshot diff helper for per-pixel comparison and red-tint diff PNG generation. |
 | `xRetry` | 1.9.0 | `[RetryFact]` for the rare flaky-by-design test. |
 | `coverlet.collector` | 10.1.0 | Coverage. |
 
@@ -135,10 +134,9 @@ powershell.exe -ExecutionPolicy Bypass `
   -File tests\DfE.CheckPerformanceData.E2ETests\bin\Release\net10.0\playwright.ps1 `
   install chromium
 
-# 3. Run the suite. Skip visual regression on Windows — baselines are Linux-only.
+# 3. Run the suite.
 dotnet test tests/DfE.CheckPerformanceData.E2ETests/ `
-  --configuration Release `
-  --filter "Category!=VisualRegression"
+  --configuration Release
 ```
 
 Useful filter variants:
@@ -149,18 +147,15 @@ dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --filter "FullyQualifiedNam
 
 # Single test by name
 dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --filter "FullyQualifiedName~SoftDeleteWikiPageTests"
-
-# Including visual regression — only meaningful inside the pinned container
-CPD_E2E_VISUAL_REGRESSION=1 dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --configuration Release
 ```
 
-To run the full visual regression sweep from PowerShell — same as `make test-e2e-visual`:
+To run the suite in the Linux Playwright container from PowerShell — same as `make test-e2e`:
 
 ```powershell
-$env:CPD_E2E_VISUAL_REGRESSION=1; docker compose --profile e2e run --rm e2e-tests
+docker compose --profile e2e run --rm e2e-tests
 ```
 
-That builds the runner image (first time only), brings up dependencies, executes the full suite *including* visual regression against the committed baselines, and tears down. Without the variable the same command runs the functional suite and skips the comparisons.
+That builds the runner image (first time only), brings up dependencies, runs the full suite and tears down.
 
 If you alternated between native and container runs and hit `NETSDK1047 'project.assets.json' doesn't have a target for 'net10.0/win-x64'`:
 
@@ -181,7 +176,7 @@ Requires the **C# Dev Kit** extension (`ms-dotnettools.csdevkit`) — it bundles
 4. Open the **Testing** view (flask icon in the sidebar). The `DfE.CheckPerformanceData.E2ETests` tree appears. Click ▶ next to a test, class, or the whole project to run.
 5. To filter by category, run from the integrated terminal instead — Test Explorer doesn't expose `[Trait]` filtering directly:
    ```powershell
-   dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --filter "Category!=VisualRegression"
+   dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --filter "Category=Smoke"
    ```
 
 **Debug a single test:** right-click the test in Test Explorer → "Debug Test". Set breakpoints in the test method or in production code; the debugger will attach to the test runner process. Note: it does *not* attach to the web app under test — that's still the `cypd_web` container. To debug into the web app code, attach a separate debugger to the container or run the web app directly from VS (see below).
@@ -197,11 +192,11 @@ VS speaks `.slnx` natively in 17.12+ (LTSC) / 2026.
    ```
    Or use the **Containers** tool window (View → Other Windows → Containers) to start individual services.
 3. **Test Explorer** (Test menu → Test Explorer or `Ctrl+E, T`) lists every test grouped by project / namespace / class. Right-click a node → "Run" or "Debug".
-4. To exclude visual regression by default on Windows, use the search box at the top of Test Explorer:
+4. To run only the smoke set, use the search box at the top of Test Explorer:
    ```
-   -Trait:"VisualRegression"
+   Trait:"Smoke"
    ```
-   (the `-` prefix excludes; this is a VS Test Explorer filter syntax, not a `dotnet test` filter.)
+   (this is a VS Test Explorer filter syntax, not a `dotnet test` filter.)
 5. **One-time Chromium install** is still required — VS doesn't run `playwright.ps1 install` for you. Build the test project once (Build → Build Selection on the E2ETests project), then in Developer PowerShell:
    ```powershell
    powershell.exe -ExecutionPolicy Bypass `
@@ -233,18 +228,16 @@ VS speaks `.slnx` natively in 17.12+ (LTSC) / 2026.
 
 | You want to… | Use |
 |--------------|-----|
-| Tight inner loop, functional tests only | PowerShell or VS/VSC Test Explorer with `Category!=VisualRegression` |
-| Validate visual regression before push / PR | `make test-e2e-visual` (or `CPD_E2E_VISUAL_REGRESSION=1 docker compose --profile e2e run --rm e2e-tests`) |
+| Tight inner loop, functional tests only | PowerShell or VS/VSC Test Explorer |
 | Step through a single failing test in a debugger | VS Code or VS, "Debug Test" |
-| Reproduce a CI failure exactly | `make test-e2e` — same image, same Linux-Chromium; rebuild the baseline inside the container before comparing |
+| Reproduce a CI failure exactly | `make test-e2e` — same image, same Linux Chromium |
 
 ## What it tests
 
-Three layers, all behind the same fixture:
+Two layers, both behind the same fixture:
 
 - **Browser-driven UI tests** (`Wiki/`, `Web/`) — Playwright loads pages, clicks things, asserts visible state. Covers the help CMS read path, search sidebar, soft-delete flow, warning-text rendering, GOV.UK assets, the wiki/content-block CRUD round trips, the 404 surface, and the sign-in nav cluster round-trip (anonymous → impersonate → sign-out → anonymous, in `Web/SignInNavTests.cs`).
 - **HTTP-only tests** (`Web/`) — `HttpClient` without a browser. Faster, used where the assertion is "controller redirected to X" or "endpoint returned status Y" and the rendered page isn't the point.
-- **Visual regression** (`Visual/`) — full-page Chromium screenshots pixel-diffed against per-environment baselines under `Snapshots/`. Baselines are generated on first run and **never committed** — every environment has its own.
 
 Smoke tests (`HarnessSmokeTests.cs`) prove the harness itself can reach the deployed app and scrape an antiforgery token before any real test runs.
 
@@ -256,47 +249,29 @@ The suite drives the *deployed* app over HTTP — `docker compose up` brings up 
 - **Stack matches production.** Postgres is the real `postgres:18.1-alpine` image, not a SQLite shim. EF query translation, Postgres-specific operators (FTS, etc.), and migrations are exercised end to end.
 - **Same artefact across local + CI.** The container path (`make test-e2e`) builds the test runner against the same compose stack CI uses. No "works on my machine but breaks in CI" failure mode for harness setup.
 
-The trade-off is speed: cold start (compose up + readiness probe + first Playwright launch) is ~30-40s. We accept that. Tight inner-loop runs use `make test-e2e-fast` natively on the host, skipping visual regression.
+The trade-off is speed: cold start (compose up + readiness probe + first Playwright launch) is ~30-40s. We accept that. Tight inner-loop runs use `make test-e2e-fast` natively on the host.
 
 ## Test categories
 
-Tests are grouped by folder — `Wiki/`, `Web/`, `Admin/`, `Visual/` — and scoped
-with `--filter "FullyQualifiedName~..."`. Only two category traits remain, both
-for behaviour rather than grouping:
+Tests are grouped by folder — `Wiki/`, `Web/`, `Admin/` — and scoped
+with `--filter "FullyQualifiedName~..."`. Category traits describe behaviour,
+not grouping:
 
 | Trait | Scope |
 |-------|-------|
-| `VisualRegression` | Snapshot tests. Linux-only, and off unless `CPD_E2E_VISUAL_REGRESSION` is set. |
+| `Smoke` | The pull request check. Shows that a deployed app is up and that each area and journey still works. |
+| `FullRegression` | Marks a class whose tests are not all smoke tests. |
 | `Slow` | Tests that wait on real timeouts or polling. |
-
-`Category!=VisualRegression` is the most-used filter — it gives you the full functional sweep on any host without needing the Linux container for pixel-stable rendering.
-
-## Visual regression — homegrown, not Playwright's
-
-Playwright ships its own `ToHaveScreenshotAsync()` in newer versions, but we don't use it. The C# binding's snapshot story is patchier than the Node story, and we want full control over the diff format. So `Helpers/PageSnapshotExtensions.cs` is hand-rolled:
-
-- **Comparison** uses `SixLabors.ImageSharp` per-pixel with a per-channel tolerance of 3 (anti-aliasing jitter is below this; real visual changes are above it). `maxDiffPixelRatio` defaults to 0.005 (0.5% of pixels allowed to differ).
-- **First run writes the baseline.** Delete a snapshot PNG, run the test once — it writes the file and throws "did not exist — written, run again to verify". Run again — the comparison passes. No `--update-snapshots` flag, no env var to forget, no `update_snapshots: missing` config to misread.
-- **Multi-viewport bootstrapping.** Tests that capture several snapshots (e.g. desktop + tablet + mobile) pass an accumulator into `MatchSnapshotAsync`. First run writes *all* viewport baselines in a single test invocation instead of failing on viewport 1 and never reaching viewports 2 and 3. The test fails at the end if anything was bootstrapped.
-- **Diff PNG trio on failure.** When a comparison exceeds the threshold, the helper writes three PNGs to `Snapshots/diffs/`: `{name}.expected.png` (the baseline currently on disk), `{name}.actual.png` (what we just captured), and `{name}.diff.png` (the actual frame with diverging pixels tinted red). The `XunitException` message includes the absolute path so failure logs point straight at the artefacts.
-
-### Baselines are environmental — never committed
-
-The whole `Snapshots/` tree is gitignored. Baselines, the `diffs/` failure trio, multi-viewport bootstrap output — none of it lives in the repo.
-
-Reason: Chromium rendering varies by environment. Linux vs macOS vs Windows differ in text shaping, sub-pixel positioning, and font hinting; even nominally-identical machines drift enough that a baseline generated on box A is "wrong" on box B. There's no single canonical render to commit. Each environment regenerates its own baselines on first run; CI uploads its set as the `e2e-snapshots` workflow artefact (14-day retention) so failure investigations can pull them down.
-
-Practical consequence: a fresh checkout has no baselines. The first visual-regression run on any new environment (local box, new CI runner, container rebuild) writes baselines and throws; the second run validates against them. After that the loop is stable until something changes.
 
 ## Page stabilisation
 
 `Helpers/PageStabilisationExtensions.cs` exposes `IPage.StabiliseAsync()` — three things, in order:
 
-1. Inject CSS that disables every animation and transition (`* { animation: none !important; transition: none !important; }`). GOV.UK frontend has subtle hover/focus transitions that produce intermittent diff noise without this.
+1. Inject CSS that disables every animation and transition (`* { animation: none !important; transition: none !important; }`). GOV.UK Frontend has hover and focus transitions, so screenshots differ from run to run without this.
 2. `await document.fonts.ready` — fonts load asynchronously, and a screenshot taken before fonts are ready captures fallback metrics that diverge once the real fonts arrive.
 3. `WaitForLoadStateAsync(NetworkIdle)` — last-line defence for late-arriving images or background fetches.
 
-Visual tests call this before every screenshot. Functional tests call it when assertions depend on a settled DOM.
+Tests call this before a screenshot, or when assertions depend on a settled DOM.
 
 ## The container test runner
 
@@ -306,7 +281,7 @@ Visual tests call this before every screenshot. Functional tests call it when as
 - A named NuGet cache volume keeps `dotnet restore` warm across runs. Cold first run is ~3-5 min (image pull + cache warm); subsequent runs are seconds-to-output.
 - Compose profile `e2e` makes the runner opt-in — `docker compose up` won't start it, only `docker compose --profile e2e run --rm e2e-tests` does (which is what the Make target does).
 
-`make test-e2e-fast` is the host path: same `dotnet test` command, RID-native, with `--filter Category!=VisualRegression`. Use it when you're on a non-visual code change and want the inner loop tight.
+`make test-e2e-fast` is the host path: same `dotnet test` command, RID-native. Use it when you want the inner loop tight.
 
 > Switching between the two flows can leave RID-mismatched bin/obj artefacts and produce `NETSDK1047 'project.assets.json' doesn't have a target for 'net10.0/win-x64'` (or `linux-x64`) on the next run. `make clean-test-bin` clears them; the targets are idempotent.
 

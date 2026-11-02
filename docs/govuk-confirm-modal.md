@@ -98,7 +98,7 @@ Covers:
 make test-e2e-fast
 ```
 
-Native E2E suite, no visual regression. The 8 `ConfirmModalTests` `[Fact]`s in `tests/.../E2ETests/Wiki/ConfirmModalTests.cs` cover:
+Native E2E suite. The 8 `ConfirmModalTests` `[Fact]`s in `tests/.../E2ETests/Wiki/ConfirmModalTests.cs` cover:
 
 - Trigger click opens the dialog and focuses Cancel
 - Esc closes, focus returns to trigger
@@ -108,14 +108,6 @@ Native E2E suite, no visual regression. The 8 `ConfirmModalTests` `[Fact]`s in `
 - Tab cycle stays inside the dialog
 - Warning icon has GDS styling
 - Modal chrome (button colour, backdrop dim) matches GDS
-
-### Visual regression (Linux baseline)
-
-```sh
-make test-e2e
-```
-
-Runs the full suite inside `mcr.microsoft.com/playwright/dotnet:v1.59.0-noble`. The single `ConfirmModalVisualTests.OpenDestructiveModal_MatchesSnapshot` `[SkippableFact]` compares the live render against `tests/.../E2ETests/Snapshots/linux-chromium/confirm-modal-open-destructive.png`. Skips on Windows/Mac.
 
 ### Manual
 
@@ -140,4 +132,3 @@ Then `http://localhost:8080/help/{any-page-slug}?edit` → click Delete on a nod
 | `tests/.../UnitTests/Web/TagHelpers/GovukConfirmModalTagHelperTests.cs` | TagHelper rendering + XSS-encoding regression tests |
 | `tests/.../UnitTests/Web/TagHelpers/ConfirmSweepTests.cs` | Sweep regression guard (no inline `confirm()`, every swept site uses the TagHelper) |
 | `tests/.../E2ETests/Wiki/ConfirmModalTests.cs` | Playwright interaction matrix |
-| `tests/.../E2ETests/Visual/ConfirmModalVisualTests.cs` | Linux-Chromium snapshot regression |

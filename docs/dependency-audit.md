@@ -14,7 +14,7 @@
 | `Refit.HttpClientFactory` | 13.1.0 | 15.2.0 | Major version jump (13→15); likely breaking API changes |
 | `Refit.Newtonsoft.Json` | 13.1.0 | 15.2.0 | Major version jump (13→15); likely breaking API changes |
 | `NSubstitute` | 5.3.0 | 6.2.0 | Major version jump (5→6); breaking API changes |
-| `SixLabors.ImageSharp` | 3.1.12 | 4.1.1 | Major version jump (3→4); breaking API changes |
+| `SixLabors.ImageSharp` | 3.1.12 | 4.1.1 | Major version jump (3→4); breaking API changes. Package removed by #742. |
 | `xunit.runner.visualstudio` | 3.1.5 | 4.0.0 | Major version jump (3→4); breaking API changes |
 
 ---

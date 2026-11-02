@@ -222,12 +222,8 @@ scale-worker: get-cluster-credentials
 	kubectl -n ${NAMESPACE} scale deployment/${SERVICE_NAME}${DSUFFIX}-worker --replicas ${REPLICAS}
 
 .PHONY: test-e2e
-test-e2e: ## Run the E2E suite inside the Linux Playwright container (visual regression stays off)
+test-e2e: ## Run the E2E suite inside the Linux Playwright container
 	docker compose --profile e2e run --rm e2e-tests
-
-.PHONY: test-e2e-visual
-test-e2e-visual: ## Run the E2E suite WITH visual regression, in the container the baselines were captured in
-	CPD_E2E_VISUAL_REGRESSION=1 docker compose --profile e2e run --rm e2e-tests
 
 .PHONY: test-e2e-fast
 test-e2e-fast: ## Run E2E suite natively on host SDK (fast TDD inner loop)

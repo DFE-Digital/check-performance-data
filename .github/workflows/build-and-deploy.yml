@@ -220,10 +220,8 @@ jobs:
             gh api --method POST "repos/$GH_REPO/issues/$PR/comments" -F body=@comment.md --silent
           fi
 
-      # Surface the snapshot tree on failure so the "delete .png + push twice"
-      # update workflow can retrieve the regenerated PNG. Snapshots live under the
-      # source tree (resolved via project marker walk in PageSnapshotExtensions),
-      # not under bin/, so the path here points at the source location.
+      # The screenshots that some tests save when they fail, in Snapshots/failures/. The
+      # Snapshots/ folder is in the source tree (Helpers/Snapshots.cs finds it), not under bin/.
       - uses: actions/upload-artifact@v7
         if: failure()
         with:

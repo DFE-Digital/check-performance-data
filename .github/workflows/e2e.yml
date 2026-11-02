@@ -180,13 +180,10 @@ jobs:
       - name: Run E2E tests
         id: tests
         if: steps.target.outputs.found == 'true'
-        # Everything but visual regression: the baselines are captured against the local
-        # containerised web, and the review app does not render pixel for pixel the same.
         env:
           CPD_E2E_BASE_URL: ${{ steps.target.outputs.url }}
         run: >-
           dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --configuration Release --no-build
-          --filter "Category!=VisualRegression"
           --logger "trx;LogFileName=e2e.trx" --results-directory TestResults
 
       # Failures are only the change's if the review app was there, on this commit, the whole
@@ -271,8 +268,8 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
-      # The snapshot tree, so a regenerated baseline can be fetched. Snapshots live in the
-      # source tree, not under bin/.
+      # The screenshots that some tests save when they fail, in Snapshots/failures/. The
+      # Snapshots/ folder is in the source tree, not under bin/.
       - uses: actions/upload-artifact@v7
         if: failure() && steps.target.outputs.found == 'true'
         with:

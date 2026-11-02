@@ -1,17 +1,2 @@
-# Visual-regression baselines under Snapshots/linux-chromium/ ARE committed —
-# the containerized Playwright .NET image unifies the execution environment,
-# so canonical Linux-Chromium baselines apply equally to every dev machine and
-# to CI. Diff/actual PNGs from test runs stay untracked.
-
-# Diff/actual/expected outputs written by PageSnapshotExtensions on failure:
-/Snapshots/**/*.diff.png
-/Snapshots/**/*.actual.png
-/Snapshots/**/*.expected.png
-/Snapshots/diffs/
+# Screenshots that some tests save when they fail (see Helpers/Snapshots.cs).
 /Snapshots/failures/**.png
-
-# Any non-canonical baseline directory (e.g. baselines accidentally generated
-# outside the container on Windows/macOS native) — keep untracked so they
-# can't drift the canonical set:
-/Snapshots/windows-chromium/
-/Snapshots/macos-chromium/

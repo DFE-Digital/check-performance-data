@@ -8,9 +8,8 @@ There are two ways to run the suite, depending on what you need:
 
 | Flow | Command | What it runs | When to pick |
 |------|---------|--------------|--------------|
-| Container (canonical) | `make test-e2e` | Full functional suite inside the Linux Playwright container. Visual regression stays off. | Before commit/push, before opening a PR |
+| Container (canonical) | `make test-e2e` | Full functional suite inside the Linux Playwright container. | Before commit/push, before opening a PR |
 | Host (fast) | `make test-e2e-fast` | Same suite natively on the host SDK | TDD inner loop; quick smoke after a code change |
-| Container + visual | `make test-e2e-visual` | Adds the visual-regression comparisons, in the container the baselines were captured in | Only when deliberately checking or refreshing snapshots |
 
 These targets `cd` into the repo from the repo root and assume Docker (for `make test-e2e`) or the .NET 10 host SDK (for `make test-e2e-fast`) is installed. `make help` from the repo root lists every target the Makefile exposes.
 
@@ -22,7 +21,7 @@ Manual fallback (no Make / no Docker):
 cd check-performance-data
 docker compose up -d                      # starts Web + Postgres
 pwsh tests/DfE.CheckPerformanceData.E2ETests/bin/Release/net10.0/playwright.ps1 install chromium  # one-time
-dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --filter "Category!=VisualRegression" --configuration Release
+dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --configuration Release
 ```
 
 On Windows without `pwsh` (PowerShell Core), the install script runs via Windows PowerShell:
@@ -41,27 +40,12 @@ powershell.exe -ExecutionPolicy Bypass -File tests/DfE.CheckPerformanceData.E2ET
 | `CPD_E2E_READY_TIMEOUT_SECONDS` | `90` | How long the fixture polls `/healthcheck` before giving up. |
 | `CPD_E2E_RETRY_ATTEMPTS` | `1` | Maximum attempts per test for `[RetryFact]`/`[RetryTheory]` (1 = no retries). Read at test discovery, so set it for the whole run. See `Retrying/RetrySettings.cs`. |
 
-## Snapshot diffs (visual regression failures)
-
-When `IPage.MatchSnapshotAsync` detects pixel divergence above the threshold, it writes a three-PNG trio to `tests/DfE.CheckPerformanceData.E2ETests/Snapshots/diffs/` next to the canonical `Snapshots/linux-chromium/` directory:
-
-| File | What it is |
-|------|-----------|
-| `{name}.expected.png` | The committed canonical PNG from `Snapshots/linux-chromium/{name}.png` |
-| `{name}.actual.png` | The screenshot the test just captured |
-| `{name}.diff.png` | A copy of `actual.png` with pixels that differ above the per-channel tolerance tinted red (RGBA 255,0,0,255) |
-
-The thrown `XunitException` message ends with the absolute path to the `Snapshots/diffs/` directory, so failure logs point you straight at the artefacts.
-
-`Snapshots/diffs/` is gitignored at the project level (see `tests/DfE.CheckPerformanceData.E2ETests/.gitignore`) — never committed. CI's existing `e2e:` job uploads the entire `Snapshots/` tree as the `e2e-snapshots` artefact on failure, so the diff trio surfaces in the run's Artifacts panel automatically.
-
 ## Test categories
 
 | Trait | Filter | Use |
 |-------|--------|-----|
 | `Smoke` | `--filter "Category=Smoke"` | A few minutes to show that a deployed app is up and that each area and each journey still works. Runs as a check on every pull request that has a review app. See "What belongs in the smoke set" below. |
-| `FullRegression` | `--filter "Category=FullRegression"` | Marks a class whose tests are not all smoke tests. Not used to choose what CI runs: the whole suite is `Category!=VisualRegression`, which also takes in tests with no category. |
-| `VisualRegression` | `--filter "Category=VisualRegression"` | Snapshot-diff tests only — Linux-only, and off unless `CPD_E2E_VISUAL_REGRESSION` is set. |
+| `FullRegression` | `--filter "Category=FullRegression"` | Marks a class whose tests are not all smoke tests. Not used to choose what CI runs: the whole suite runs every test, with or without a category. |
 | `Slow` | `--filter "Category!=Slow"` | Tests that wait on real timeouts or polling; exclude them for a quicker sweep. |
 
 ### What CI runs
@@ -71,7 +55,7 @@ A pull request with the `deploy` label gets a review app, and two E2E runs again
 | Run | Where | Filter | Takes | Result |
 |-----|-------|--------|-------|--------|
 | Smoke | `E2E smoke tests` job in `build-and-deploy.yml` | `Category=Smoke` | A few minutes | One of the pull request's checks |
-| Whole suite | `e2e.yml`, started when `build-and-deploy.yml` finishes | `Category!=VisualRegression` | About 15 minutes | A comment on the pull request |
+| Whole suite | `e2e.yml`, started when `build-and-deploy.yml` finishes | None (every test) | About 15 minutes | A comment on the pull request |
 
 The whole-suite run is not one of the pull request's checks. Nothing waits for it and it
 cannot stop a merge; it puts one comment on the pull request, "E2E tests running", and
@@ -110,7 +94,7 @@ Put `[Trait("Category", "Smoke")]` on the test method, or on the class when ever
 it qualifies. When you add an area or a journey, add its happy path to the smoke set.
 
 Tests are otherwise grouped by folder rather than by trait — `Wiki/`, `Web/`,
-`Admin/`, `Visual/` — so scope a local run with `--filter "FullyQualifiedName~Admin"`
+`Admin/` — so scope a local run with `--filter "FullyQualifiedName~Admin"`
 rather than reaching for a category.
 
 The smoke set (the pull request check):
@@ -122,7 +106,7 @@ dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --configuration Release --f
 The whole suite (the run that comments on the pull request):
 
 ```bash
-dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --configuration Release --filter "Category!=VisualRegression"
+dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --configuration Release
 ```
 
 ### Narrowing in & TDD inner loop
@@ -151,39 +135,7 @@ Watch mode — re-runs the matched tests whenever a source file under the test p
 dotnet watch test --project tests/DfE.CheckPerformanceData.E2ETests/ -- --filter "FullyQualifiedName~WarningTextRenderTests"
 ```
 
-The `--` separator passes everything after it through to `dotnet test` rather than `dotnet watch`. Visual regression is already off by default, so no extra filter is needed. Watch mode assumes the compose stack (`docker compose --profile e2e up -d web db azurite`) is already up; if it isn't, the fixture's readiness probe will fail every iteration.
-
-## Visual regression
-
-Visual regression tests live under `Visual/` and capture full-page Chromium screenshots which are pixel-diffed against committed `.png` artefacts under `Snapshots/linux-chromium/`. The diff helper is `IPage.MatchSnapshotAsync(name, maxDiffPixelRatio: 0.005)` in `Helpers/PageSnapshotExtensions.cs` — it uses `SixLabors.ImageSharp` for the per-pixel comparison with a small per-channel tolerance so anti-aliasing jitter does not cause false positives below the 0.5% diff threshold.
-
-The comparisons are **off by default everywhere**. Each test calls
-`Skip.IfNot(VisualRegressionSwitch.Enabled, ...)`, so they run only when
-`CPD_E2E_VISUAL_REGRESSION` is set to `1` — which `make test-e2e-visual` does. A
-bare `dotnet test` on the project skips them, which no category filter would have
-achieved.
-
-They are also **Linux-only**: a second `Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux), ...)`
-keeps them off Windows and macOS. Rendered pixels differ between platforms and
-between container and host, so a comparison run anywhere but the pinned Playwright
-container reports differences that say nothing about the code — and rewrites the
-committed baselines as a side effect. Never commit a snapshot generated outside
-that container.
-
-### Update workflow
-
-To intentionally regenerate a snapshot:
-
-1. Make the code change locally.
-2. Delete the snapshot you want to refresh:
-   ```bash
-   rm tests/DfE.CheckPerformanceData.E2ETests/Snapshots/linux-chromium/{name}.png
-   ```
-3. Choose either path:
-   - **Local container path (preferred when Docker is available):** `make test-e2e-visual` (first run writes the new `.png` and fails the test with "did not exist — written, run again to verify"). Inspect the generated PNG, then `make test-e2e-visual` again to confirm the comparison now passes. Commit the regenerated PNG.
-   - **CI path (fallback for devs without Docker):** Push to a branch labelled `deploy` so the CI `e2e:` job runs on Linux. The first CI run writes the new `.png` and fails. Download the `e2e-snapshots` artefact from that run; the regenerated PNG is under `linux-chromium/{name}.png`. Commit it back. Push again — second CI run passes; PR diff surfaces the regenerated PNG for review.
-
-No env var, no `--update-snapshots` flag plumbing — delete the file and run twice.
+The `--` separator passes everything after it through to `dotnet test` rather than `dotnet watch`. Watch mode assumes the compose stack (`docker compose --profile e2e up -d web db azurite`) is already up; if it isn't, the fixture's readiness probe will fail every iteration.
 
 ## Debugging a red CI run
 
@@ -192,7 +144,7 @@ linked from its comment on the pull request, and is listed under **Actions > E2E
 The whole-suite run always uploads `e2e-results`, the `.trx` results file.
 
 On failure either run uploads two artifacts (both 14-day retention):
-- `e2e-snapshots` — the entire `Snapshots/` tree; for visual-regression failures this lets you inspect the divergent PNG directly.
+- `e2e-snapshots` — the `Snapshots/` tree. It holds the screenshots that some tests save when they fail, in `Snapshots/failures/`.
 - `e2e-traces` — a Playwright trace for each failing test, captured by the harness only when the test failed (a green run writes nothing).
 
 Replay a trace locally with:
@@ -214,7 +166,7 @@ Traces are named `{ClassName}.{ordinal}.zip`; open one to see which test it belo
 
 ```
 tests/DfE.CheckPerformanceData.E2ETests/
-├── .gitignore                      # /Snapshots/diffs/ — never commit failure artefacts
+├── .gitignore                      # /Snapshots/failures/ — never commit failure screenshots
 ├── Dockerfile                      # thin overlay on playwright/dotnet, which brings Chromium and the .NET 10 SDK
 ├── Fixtures/
 │   ├── PlaywrightFixture.cs         # IAsyncLifetime; readiness probe; antiforgery scrape; owns SeedClient (impersonation) + AnonymousClient (no-cookie) TestHttpClients
@@ -223,8 +175,7 @@ tests/DfE.CheckPerformanceData.E2ETests/
 │   ├── SeedHelpers.cs               # SeedWikiPageAsync / SeedContentBlockAsync / SoftDeleteWikiPageAsync
 │   ├── AntiforgeryHelpers.cs        # ScrapeAsync(TestHttpClient, formPath) / (HttpClient, formPath, impersonation) -> (Token, Cookie)
 │   ├── PageStabilisationExtensions.cs   # IPage.StabiliseAsync() — animations off + fonts.ready + NetworkIdle
-│   ├── PageSnapshotExtensions.cs    # IPage.MatchSnapshotAsync(name, maxDiffPixelRatio) + BuildDiffArtefactsAsync
-│   └── PageSnapshotExtensionsTests.cs   # pure unit tests for the diff-PNG-emission helper
+│   └── Snapshots.cs                 # Snapshots.FailuresDir — where a test saves a screenshot when it fails
 ├── Retrying/
 │   ├── RetrySettings.cs             # read CPD_E2E_RETRY_ATTEMPTS (default 1) into RetrySettings.MaxRetries
 │   ├── RetryFactAttribute.cs + RetryFactDiscoverer.cs       # settings-driven [RetryFact]; reuses xRetry's RetryTestCase
@@ -241,17 +192,15 @@ tests/DfE.CheckPerformanceData.E2ETests/
 │   ├── NotFoundTests.cs
 │   ├── WikiCrudTests.cs
 │   └── ContentBlockCrudTests.cs
-├── Visual/
-│   └── VisualRegressionTests.cs     # Linux-only via [SkippableFact]
 ├── Snapshots/
-│   ├── linux-chromium/              # canonical .png artefacts (committed)
-│   └── diffs/                       # gitignored; populated only on threshold breach
+│   ├── search-ux/                   # screenshots kept as review evidence (committed)
+│   └── failures/                    # gitignored; screenshots that tests save when they fail
 └── HarnessSmokeTests.cs
 ```
 
 ## Adding a new test
 
-1. Pick the appropriate folder (`Wiki/` for browser-driven wiki tests, `Web/` for HTTP and chrome/layout browser tests, `Visual/` for snapshots).
+1. Pick the appropriate folder (`Wiki/` for browser-driven wiki tests, `Web/` for HTTP and chrome/layout browser tests, `Admin/` for admin pages).
 2. Inherit `PageTest` for browser tests; omit inheritance for HTTP-only tests.
 3. Add `[Collection("E2E")]`. Only add a `[Trait("Category", ...)]` if the test needs one of the traits in the table above. A test with no category runs in the whole suite; see "What belongs in the smoke set" for the ones that should also be smoke tests.
 4. If the test creates wiki pages or content blocks, implement `IAsyncLifetime` with cleanup in `DisposeAsync`.
@@ -355,13 +304,13 @@ When you stop writing test scaffolding and need to seed a real wiki page or cont
   ### 3. Integration tests only (~15s) — needs Docker running (Testcontainers Postgres)
   dotnet test tests/DfE.CheckPerformanceData.IntegrationTests/ -c Release --no-build --nologo
 
-  ### 4. E2E without visual regression (~30s) — fast Playwright sweep, host-native
+  ### 4. E2E on the host (~30s) — fast Playwright sweep
   make test-e2e-fast
   #### Or, equivalently, without make:
-  dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --filter "Category!=VisualRegression" -c Release --no-build --nologo
+  dotnet test tests/DfE.CheckPerformanceData.E2ETests/ -c Release --no-build --nologo
 
-  ### 5. E2E WITH visual regression (~10-15min) — Linux-Chromium container, the canonical baseline
-  make test-e2e-visual
+  ### 5. E2E in the Linux Playwright container (~10-15min) — the same image CI uses
+  make test-e2e
   #### Or, equivalently, without make:
   docker compose --profile e2e run --rm e2e-tests
 
@@ -370,11 +319,8 @@ When you stop writing test scaffolding and need to seed a real wiki page or cont
   ### Everything except E2E (unit + integration in one command)
   dotnet test src/DfE.CheckPerformanceData.slnx --filter "FullyQualifiedName!~E2ETests" -c Release --nologo
 
-  ### Literally everything via dotnet, including E2E + VR (assumes browsers are installed)
+  ### Literally everything via dotnet, including E2E (assumes browsers are installed)
   dotnet test src/DfE.CheckPerformanceData.slnx -c Release --nologo
-
-  The one-shot dotnet command works but the VR tests inside it use the host's Chromium pixels, not the canonical Linux container — so the diff   
-  thresholds are tuned wrong and you'll get false positives on Windows/macOS. Use make test-e2e-visual for the real VR run.
 
   ## Useful filters when narrowing in
 
@@ -384,9 +330,6 @@ When you stop writing test scaffolding and need to seed a real wiki page or cont
   ### Just one named test:
   dotnet test tests/DfE.CheckPerformanceData.UnitTests/ --filter
   "FullyQualifiedName=DfE.CheckPerformanceData.UnitTests.Wiki.WikiServiceTests.MovePageAsync_Reorder" -c Release --no-build
-
-  ### Only VR tests:
-  dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --filter "Category=VisualRegression" -c Release --no-build
 
   ## Watch mode (TDD inner loop)
 
@@ -407,6 +350,6 @@ When you stop writing test scaffolding and need to seed a real wiki page or cont
   1. dotnet build src/DfE.CheckPerformanceData.slnx -c Release --nologo — fast smoke for compile errors
   2. dotnet test src/DfE.CheckPerformanceData.slnx --filter "FullyQualifiedName!~E2ETests" -c Release --no-build --nologo — unit + integration in
   one shot
-  3. make test-e2e-visual — full E2E + VR in the canonical container
+  3. make test-e2e — full E2E in the container
 
   That's the pattern I'd run automatically given more autonomy on this repo. The first two together are ~90 seconds; the third is the long pole.

@@ -1,7 +1,10 @@
+using System.Text.Json;
 using DfE.CheckPerformanceData.Application.Egress;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
+using DfE.CheckPerformanceData.Application.ZendeskClient;
 using DfE.CheckPerformanceData.Domain.Enums;
+using DfE.CheckPerformanceData.Infrastructure.Egress;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Persistence.Entities;
 using DfE.CheckPerformanceData.Web.Controllers;
@@ -21,6 +24,7 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Egress;
 public sealed class DevEgressControllerTests(PostgresFixture fixture)
 {
     private static readonly Guid WindowId = Guid.Parse("A0000000-0000-0000-0000-00000000E603");
+    private static readonly Guid ExerciseId = Guid.Parse("A0000000-0000-0000-0000-00000000E604");
 
     private async Task ResetAsync()
     {
@@ -33,8 +37,20 @@ public sealed class DevEgressControllerTests(PostgresFixture fixture)
                 CheckingWindowType = CheckingWindowType.KS4June,
                 StartDate = new DateTime(2026, 6, 1), EndDate = new DateTime(2026, 6, 30)
             });
-            await db.SaveChangesAsync();
         }
+        if (!await db.CheckingExercises.AnyAsync(e => e.Id == ExerciseId))
+        {
+            db.CheckingExercises.Add(new CheckingExercise
+            {
+                Id = ExerciseId, CheckingWindowId = WindowId, ExerciseType = CheckingExerciseType.PupilData,
+                StartDate = new DateTime(2026, 6, 1), EndDate = new DateTime(2026, 6, 30), TabOrder = 0
+            });
+        }
+        await db.SaveChangesAsync();
+        // DevZendeskTicket has no WindowId; the only link is the request's ReferenceNumber.
+        // Remove this window's tickets before the requests go, so the link is still resolvable.
+        var references = await db.ChangeRequests.Where(r => r.WindowId == WindowId).Select(r => r.ReferenceNumber).ToListAsync();
+        await db.DevZendeskTickets.Where(t => references.Contains(t.ReferenceNumber)).ExecuteDeleteAsync();
         await db.ChangeRequests.Where(r => r.WindowId == WindowId).ExecuteDeleteAsync();
         await db.EgressRuns.Where(r => r.WindowId == WindowId).ExecuteDeleteAsync();
     }
@@ -50,6 +66,14 @@ public sealed class DevEgressControllerTests(PostgresFixture fixture)
         return env;
     }
 
+    // System.Text.Json reads CustomFieldDto.Value (object?) as a JsonElement, whose ToString
+    // keeps the JSON quotes. Normalise to the plain text the assertions compare.
+    private static string? Text(object? value) => value switch
+    {
+        JsonElement element => element.ValueKind == JsonValueKind.String ? element.GetString() : element.GetRawText(),
+        _ => value?.ToString()
+    };
+
     [Fact]
     public async Task Seed_creates_committed_requests_with_dev_zendesk_tickets_when_allowed()
     {
@@ -57,7 +81,7 @@ public sealed class DevEgressControllerTests(PostgresFixture fixture)
         var journeys = Substitute.For<IRequestStateBlobClient>();
         var controller = Build(journeys, Substitute.For<IEgressBlobClient>());
 
-        var result = await controller.Seed(WindowId, "RemoveLearners", "auto_approved", 2, "860/4070", 142313, "pupil-died", CancellationToken.None);
+        var result = await controller.Seed(WindowId, "RemoveLearners", "auto_approved", 2, "860/4070", 142313, "pupil-died", null, CancellationToken.None);
 
         Assert.IsType<JsonResult>(result);
         await using var db = fixture.CreateContext();
@@ -65,10 +89,49 @@ public sealed class DevEgressControllerTests(PostgresFixture fixture)
         Assert.Equal(2, requests.Count);
         Assert.All(requests, r => Assert.Equal(RequestStatus.Submitted, r.Status));
         Assert.All(requests, r => Assert.NotNull(r.CrmId));
+        // #746: stamped with the window's single pupil-data exercise, so the per-exercise
+        // decision pull can see the seeded requests.
+        Assert.All(requests, r => Assert.Equal(ExerciseId, r.CheckingExerciseId));
         var references = requests.Select(r => r.ReferenceNumber).ToList();
         var tickets = await db.DevZendeskTickets.Where(t => references.Contains(t.ReferenceNumber)).ToListAsync();
         Assert.Equal(2, tickets.Count);
         await journeys.Received(2).SaveAsync(WindowId, Arg.Any<string>(), Arg.Any<RequestState>());
+    }
+
+    // #746: a seeded decision reason lands in the ticket's matching reason field, so the dev
+    // outbox source can read it back as-is and the whole pull is walkable locally.
+    [Fact]
+    public async Task Seed_with_a_decision_reason_writes_the_reason_field_with_the_matching_well_known_id()
+    {
+        await ResetAsync();
+        var controller = Build(Substitute.For<IRequestStateBlobClient>(), Substitute.For<IEgressBlobClient>());
+
+        await controller.Seed(WindowId, "RemoveLearners", "auto_rejected", 1, "860/4070", 142313, "pupil-died",
+            "Inclusion criteria not met", CancellationToken.None);
+
+        await using var db = fixture.CreateContext();
+        var reference = await db.ChangeRequests.Where(r => r.WindowId == WindowId).Select(r => r.ReferenceNumber).SingleAsync();
+        var ticket = await db.DevZendeskTickets.Where(t => t.ReferenceNumber == reference).SingleAsync();
+        var raw = JsonSerializer.Deserialize<CreateTicketRequestDto>(ticket.RawJson, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        Assert.Contains(raw!.Ticket.CustomFields, f => f.Id == DevOutboxEgressTicketSource.WellKnownDecisionFieldId && Text(f.Value) == "auto_rejected");
+        Assert.Contains(raw.Ticket.CustomFields, f => f.Id == DevOutboxEgressTicketSource.WellKnownRejectedReasonFieldId && Text(f.Value) == "Inclusion criteria not met");
+    }
+
+    [Fact]
+    public async Task Seed_without_a_decision_reason_writes_no_reason_field()
+    {
+        await ResetAsync();
+        var controller = Build(Substitute.For<IRequestStateBlobClient>(), Substitute.For<IEgressBlobClient>());
+
+        await controller.Seed(WindowId, "RemoveLearners", "auto_approved", 1, "860/4070", 142313, "pupil-died",
+            null, CancellationToken.None);
+
+        await using var db = fixture.CreateContext();
+        var reference = await db.ChangeRequests.Where(r => r.WindowId == WindowId).Select(r => r.ReferenceNumber).SingleAsync();
+        var ticket = await db.DevZendeskTickets.Where(t => t.ReferenceNumber == reference).SingleAsync();
+        var raw = JsonSerializer.Deserialize<CreateTicketRequestDto>(ticket.RawJson, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        Assert.Contains(raw!.Ticket.CustomFields, f => f.Id == DevOutboxEgressTicketSource.WellKnownDecisionFieldId && Text(f.Value) == "auto_approved");
+        Assert.DoesNotContain(raw.Ticket.CustomFields, f => f.Id == DevOutboxEgressTicketSource.WellKnownApprovedReasonFieldId);
     }
 
     [Fact]
@@ -77,7 +140,7 @@ public sealed class DevEgressControllerTests(PostgresFixture fixture)
         await ResetAsync();
         var journeys = Substitute.For<IRequestStateBlobClient>();
         await Build(journeys, Substitute.For<IEgressBlobClient>())
-            .Seed(WindowId, "RemoveLearners", "auto_approved", 1, "860/4070", 142313, "pupil-died", CancellationToken.None);
+            .Seed(WindowId, "RemoveLearners", "auto_approved", 1, "860/4070", 142313, "pupil-died", null, CancellationToken.None);
 
         var result = await Build(journeys, Substitute.For<IEgressBlobClient>()).Cleanup(WindowId, CancellationToken.None);
 

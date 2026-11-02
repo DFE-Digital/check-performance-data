@@ -51,6 +51,45 @@ public sealed class RequestRepositoryGetSubmittedRequestsTests(PostgresFixture f
         Assert.Contains(result, r => r.ReferenceNumber == "REF-CC-1" && r.RequestType == RequestType.ConfirmCorrect);
     }
 
+    [Fact]
+    public async Task GetSubmittedRequestsAsync_ProjectsTheStoredDecisionWhenThereIsOne()
+    {
+        // #746: the Requests tab reads the stored decision straight off the row; a row that was
+        // never pulled (or whose pull was refused) projects null and shows "Submitted" as before.
+        await TruncateAsync();
+        var windowId = await SeedWindowAsync();
+        await new RequestRepository(_fixture.CreateContext())
+            .UpsertAsync(Data(windowId, "REF-AMD-1", RequestType.Amendment, pupilId: Guid.NewGuid()));
+        await new RequestRepository(_fixture.CreateContext())
+            .UpsertAsync(Data(windowId, "REF-AMD-2", RequestType.Amendment, pupilId: Guid.NewGuid()));
+        await using (var ctx = _fixture.CreateContext())
+        {
+            ctx.ChangeRequests.Single(r => r.ReferenceNumber == "REF-AMD-1").ZendeskDecision = ZendeskDecision.Accepted;
+            ctx.ChangeRequests.Single(r => r.ReferenceNumber == "REF-AMD-2").ZendeskDecision = ZendeskDecision.Rejected;
+            await ctx.SaveChangesAsync();
+        }
+
+        var result = await new RequestRepository(_fixture.CreateContext())
+            .GetSubmittedRequestsAsync(windowId, 100000);
+
+        Assert.Equal(ZendeskDecision.Accepted, result.Single(r => r.ReferenceNumber == "REF-AMD-1").Decision);
+        Assert.Equal(ZendeskDecision.Rejected, result.Single(r => r.ReferenceNumber == "REF-AMD-2").Decision);
+    }
+
+    [Fact]
+    public async Task GetSubmittedRequestsAsync_ProjectsNullDecisionForRowsWithoutOne()
+    {
+        await TruncateAsync();
+        var windowId = await SeedWindowAsync();
+        await new RequestRepository(_fixture.CreateContext())
+            .UpsertAsync(Data(windowId, "REF-AMD-1", RequestType.Amendment, pupilId: Guid.NewGuid()));
+
+        var result = await new RequestRepository(_fixture.CreateContext())
+            .GetSubmittedRequestsAsync(windowId, 100000);
+
+        Assert.Null(result.Single(r => r.ReferenceNumber == "REF-AMD-1").Decision);
+    }
+
     private static ChangeRequestData Data(
         Guid windowId, string referenceNumber, RequestType requestType, Guid? pupilId = null) =>
         new()

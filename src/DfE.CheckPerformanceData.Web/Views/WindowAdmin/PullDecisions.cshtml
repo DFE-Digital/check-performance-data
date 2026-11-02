@@ -1,0 +1,40 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin.PullDecisionsViewModel
+
+@{
+    // Matches the <h1> below.
+    ViewBag.Title = $"Pull decisions from Zendesk for {Model.ExerciseLabel}";
+}
+
+<govuk-back-link href="@Model.CancelLink" />
+
+<h1 class="govuk-heading-l">Pull decisions from Zendesk for @Model.ExerciseLabel</h1>
+
+<p class="govuk-body">
+    The @Model.ExerciseLabel exercise for <strong>@Model.WindowTitle</strong> has
+    @Model.SubmittedTotal submitted @(Model.SubmittedTotal == 1 ? "request" : "requests").
+</p>
+
+<govuk-summary-list>
+    <govuk-summary-list-row>
+        <govuk-summary-list-row-key>Submitted requests to check</govuk-summary-list-row-key>
+        <govuk-summary-list-row-value>@Model.SubmittedTotal</govuk-summary-list-row-value>
+    </govuk-summary-list-row>
+    <govuk-summary-list-row>
+        <govuk-summary-list-row-key>With a Zendesk ticket</govuk-summary-list-row-key>
+        <govuk-summary-list-row-value>@Model.WithTicket</govuk-summary-list-row-value>
+    </govuk-summary-list-row>
+</govuk-summary-list>
+
+<p class="govuk-body">
+    @Model.SubmittedTotal submitted requests will be checked, @Model.WithTicket of them
+    have a Zendesk ticket. Decisions Zendesk has already made are stored on the requests.
+    A request Zendesk has not decided yet is left as it is.
+</p>
+
+<form method="post" action="@Model.PostUrl">
+    @Html.AntiForgeryToken()
+    <govuk-button type="submit" class="govuk-button--warning">
+        Pull decisions
+    </govuk-button>
+    <a class="govuk-link govuk-!-margin-left-3" href="@Model.CancelLink">Cancel</a>
+</form>

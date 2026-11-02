@@ -27,7 +27,7 @@ public sealed class DevEgressControllerTests
     public async Task Seed_and_cleanup_are_404_when_not_allowed(bool toolsEnabled, string environment)
     {
         var sut = Build(toolsEnabled, environment);
-        Assert.IsType<NotFoundResult>(await sut.Seed(Guid.NewGuid(), "RemoveLearners", "approved", 1, "860/4070", 142313, "pupil-died", CancellationToken.None));
+        Assert.IsType<NotFoundResult>(await sut.Seed(Guid.NewGuid(), "RemoveLearners", "approved", 1, "860/4070", 142313, "pupil-died", null, CancellationToken.None));
         Assert.IsType<NotFoundResult>(await sut.Cleanup(Guid.NewGuid(), CancellationToken.None));
     }
 }

@@ -30,6 +30,11 @@ public static class AuditActivities
     /// </summary>
     public const string RequestsSentAutomaticallyAction = "RequestsSentAutomatically";
 
+    /// <summary>
+    /// #746: an admin pulled the Zendesk decisions for one checking exercise. Written once per
+    /// completed pull (a refused pull writes nothing), with the bucket counts in the payload.
+    /// </summary>
+    public const string DecisionsPulledAction = "DecisionsPulled";
     /// <summary>AB#307773: an admin added, changed, closed early or sent the requests of an
     /// extension (extra time for named schools). Each is written once the change is committed.</summary>
     public const string ExtensionAddedAction = "ExtensionAdded";
@@ -89,6 +94,8 @@ public static class AuditActivities
         (WindowAdmin, ClosedEarlyAction) => AuditOutcome.Success,
         // AB#302158: written only for a hand-over that happened; a failed run is retried, not recorded.
         (WindowAdmin, RequestsSentAutomaticallyAction) => AuditOutcome.Success,
+        // #746: written only for a pull that completed; a refused pull writes nothing.
+        (WindowAdmin, DecisionsPulledAction) => AuditOutcome.Success,
         // AB#307773: written once the extension change is committed, so only ever a success.
         (WindowAdmin, var a) when IsExtensionAction(a) => AuditOutcome.Success,
         _ => null

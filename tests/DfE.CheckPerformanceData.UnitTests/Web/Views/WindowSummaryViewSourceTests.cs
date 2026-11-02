@@ -68,6 +68,22 @@ public sealed class WindowSummaryViewSourceTests
     }
 
     [Fact]
+    public void Pulling_decisions_is_offered_only_for_an_exercise_with_a_kind()
+    {
+        // The text repeats per exercise, so the link carries a visually hidden suffix naming the
+        // exercise; secondary style, like "Add extension". The button lives in its own
+        // "ExerciseType is not null" branch — the last such branch in the button group — so it is
+        // never offered on a data share.
+        var view = View();
+        Assert.Equal(1, view.Split("@exercise.PullDecisionsLink").Length - 1);
+        var branchStart = view.LastIndexOf("@if (exercise.ExerciseType is not null)", StringComparison.Ordinal);
+        Assert.True(branchStart > 0);
+        var pullBranch = view[branchStart..];
+        Assert.Contains("<govuk-button-link class=\"govuk-button--secondary\" href=\"@exercise.PullDecisionsLink\">", pullBranch);
+        Assert.Contains("Pull decisions<span class=\"govuk-visually-hidden\"> for @exercise.Name</span>", pullBranch);
+    }
+
+    [Fact]
     public void A_refused_close_is_a_neutral_banner_and_a_completed_one_a_success_banner()
     {
         var view = View();

@@ -654,4 +654,43 @@ public sealed class AccessibilityAuditViewTests
 			view.IndexOf("Model.ShowHomeBanners", StringComparison.Ordinal)
 				< view.IndexOf("Model.IsPreview", StringComparison.Ordinal));
 	}
+
+	// ── #746 Decision pull and the Requests tab ─────────────────────────────────────────
+
+	[Fact]
+	public void SummaryPage_PullDecisionsButton_NamesItsExercise()
+	{
+		// #746: the button repeats once per kind-bearing exercise section down the page, so it
+		// names its exercise in a visually hidden suffix, as Close, Send requests and Add
+		// extension do (#378 rule).
+		var view = ReadView("Views", "WindowAdmin", "Summary.cshtml");
+
+		Assert.Contains("Pull decisions<span class=\"govuk-visually-hidden\"> for @exercise.Name</span>", view);
+		Assert.Contains("@exercise.PullDecisionsLink", view);
+	}
+
+	[Fact]
+	public void PullDecisionsPage_SetsATitleThatMatchesItsOneHeading()
+	{
+		// #746: one heading, the same words as the title, and the heading names the exercise.
+		var view = ReadView("Views", "WindowAdmin", "PullDecisions.cshtml");
+
+		Assert.Contains("ViewBag.Title = $\"Pull decisions from Zendesk for {Model.ExerciseLabel}\";", view);
+		// <h1 class=, not <h1: the view's own comment names the <h1> it must match.
+		Assert.Equal(1, CountOccurrences(view, "<h1 class="));
+		Assert.Contains("<h1 class=\"govuk-heading-l\">Pull decisions from Zendesk for @Model.ExerciseLabel</h1>", view);
+		Assert.DoesNotContain("href=\"#\"", view);
+	}
+
+	[Fact]
+	public void AmendmentRequests_ReasonHeader_IsAScopedHeaderAndTheOnlyOneOnThePage()
+	{
+		// #746: the Requests tab's new Reason column. It is the page's only "Reason" header and
+		// a real scoped column header like the table's others, so assistive technology never
+		// reads an unscoped cell as a header or two headers as one.
+		var view = ReadView("Views", "AmendmentRequests", "Index.cshtml");
+
+		Assert.Contains("<th scope=\"col\" class=\"govuk-table__header\">Reason</th>", view);
+		Assert.Equal(1, CountOccurrences(view, ">Reason</th>"));
+	}
 }

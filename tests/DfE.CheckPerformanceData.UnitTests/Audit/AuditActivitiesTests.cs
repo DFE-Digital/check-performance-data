@@ -76,6 +76,16 @@ public sealed class AuditActivitiesTests
         Assert.Null(AuditActivities.OutcomeOf("CheckingExercise", "RequestsSentAutomatically"));
     }
 
+    [Fact]
+    public void A_decisions_pull_is_a_success()
+    {
+        // #746: the row is only written for a pull that completed, so it has one outcome. A
+        // refused pull writes no row.
+        Assert.Equal("DecisionsPulled", AuditActivities.DecisionsPulledAction);
+        Assert.Equal(AuditOutcome.Success, AuditActivities.OutcomeOf("WindowAdmin", "DecisionsPulled"));
+        Assert.Null(AuditActivities.OutcomeOf("CheckingExercise", "DecisionsPulled"));
+    }
+
     [Theory]
     [InlineData("Success", AuditOutcome.Success)]
     [InlineData("failed", AuditOutcome.Failed)]

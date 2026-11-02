@@ -98,6 +98,57 @@ public sealed class AmendmentRequestsIndexViewSourceTests
         Assert.Contains("@if (Model.RequestDeadlines.All(d => !d.IsOpen))", beforeIssuesTab);
     }
 
+    // #746: the Requests table gains a Reason column straight after Status; the stored label is
+    // plain text and a missing reason is an empty cell (no placeholder, spec FR-013).
+    [Fact]
+    public void TheRequestsTableShowsTheReasonColumnDirectlyAfterStatus()
+    {
+        // The page has an earlier draft-requests table with its own Status header, so the search
+        // starts at the Requests tab, not at the top of the file.
+        var requestsPanel = RequestsPanel();
+        var tabStart = requestsPanel.IndexOf("<govuk-tabs-item id=\"requests\"", StringComparison.Ordinal);
+        Assert.True(tabStart >= 0, "The Requests tab is missing.");
+        var requestsTable = requestsPanel[tabStart..];
+        const string statusHeader = ">Status</th>";
+        const string reasonHeader = ">Reason</th>";
+        var statusIndex = requestsTable.IndexOf(statusHeader, StringComparison.Ordinal);
+        Assert.True(statusIndex >= 0, "The Requests table's Status header is missing.");
+        var reasonIndex = requestsTable.IndexOf(reasonHeader, statusIndex, StringComparison.Ordinal);
+        Assert.True(reasonIndex > statusIndex, "The Reason header does not sit after the Status header.");
+        var between = requestsTable[(statusIndex + statusHeader.Length)..reasonIndex];
+        // The search for >Reason</th> consumes the > that closes the opening <th> tag, so the
+        // expected fragment has no trailing >.
+        Assert.Contains("<th scope=\"col\" class=\"govuk-table__header\"", between);
+        Assert.DoesNotContain("</th>", between);
+        Assert.DoesNotContain("<td", between);
+    }
+
+    [Fact]
+    public void TheRequestsTableShowsTheStoredReasonAsPlainText()
+    {
+        var requestsPanel = RequestsPanel();
+        // The exact cell: plain @row rendering, no placeholder markup, no Html.Raw.
+        Assert.Contains("<td class=\"govuk-table__cell\">@row.DecisionReason</td>", requestsPanel);
+        Assert.DoesNotContain("Html.Raw", requestsPanel);
+    }
+
+    [Fact]
+    public void TheRequestsTableEmptyStateSpansTheNewColumnCount()
+    {
+        var requestsPanel = RequestsPanel();
+        var ifIndex = requestsPanel.IndexOf("@if (Model.SubmittedRows.Count == 0)", StringComparison.Ordinal);
+        Assert.True(ifIndex >= 0, "The Requests table's empty-state condition is missing or changed.");
+        var elseIndex = requestsPanel.IndexOf("else", ifIndex, StringComparison.Ordinal);
+        var emptyBranch = requestsPanel[ifIndex..elseIndex];
+        Assert.Contains("colspan=\"7\"", emptyBranch);
+    }
+
+    private static string RequestsPanel()
+    {
+        var source = ViewSource();
+        return source[..source.IndexOf("<govuk-tabs-item id=\"results-enquiries\"", StringComparison.Ordinal)];
+    }
+
     [Fact]
     public void TheIssuesTableHasTheDesignedColumns()
     {

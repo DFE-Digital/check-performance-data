@@ -74,4 +74,14 @@ public class ChangeRequest
     // ZendeskConsumer.DeriveDecision). Null on every row
     // decided before this column existed - the trace cannot be reconstructed after the fact.
     public string? DecisionTrace { get; set; }
+
+    // The decision Zendesk holds for this request, pulled back by the admin per-exercise decision
+    // pull (#746). Only a final value is written - a ticket still under review stores nothing, and
+    // a non-final read never clears a stored decision. Distinct from Outcome, which is what the
+    // rules engine decided before the ticket was created.
+    public ZendeskDecision? ZendeskDecision { get; set; }
+    // The human-readable reason Zendesk carries for that decision (the matching "Decision Reason"
+    // tagger field, label resolved), when it does. Cleared together with the decision when a
+    // later pull overwrites it with one that has no reason.
+    public string? ZendeskDecisionReason { get; set; }
 }

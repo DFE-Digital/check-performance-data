@@ -2,6 +2,7 @@ using System.Text.Json;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Egress;
 using DfE.CheckPerformanceData.Application.Journey;
+using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Application.ZendeskClient;
@@ -35,7 +36,7 @@ public sealed class DevEgressController(
         configuration.GetValue<bool>(SettingKeys.DevToolsEnabled) && hostEnvironment?.IsProduction() != true;
 
     [HttpPost("dev/egress/seed")]
-    public async Task<IActionResult> Seed(Guid windowId, string outputType, string decision, int count, string laestab, long urn, string? reason, CancellationToken cancellationToken)
+    public async Task<IActionResult> Seed(Guid windowId, string outputType, string decision, int count, string laestab, long urn, string? reason, string? decisionReason, CancellationToken cancellationToken)
     {
         if (!IsAllowed) return NotFound();
         if (!Enum.TryParse<EgressOutputType>(outputType, ignoreCase: true, out var type)) return BadRequest("outputType must be NewLearners or RemoveLearners");
@@ -43,6 +44,15 @@ public sealed class DevEgressController(
 
         var window = await dbContext.CheckingWindows.AsNoTracking().FirstOrDefaultAsync(w => w.Id == windowId, cancellationToken);
         if (window is null) return BadRequest("Unknown window");
+
+        // #746: the per-exercise decision pull reads the exercise's submitted rows, so the
+        // seeded requests must carry the exercise stamp. The window's single pupil-data exercise
+        // is the unambiguous pick; zero or several, and the harness refuses to guess (null).
+        var exerciseIds = await dbContext.CheckingExercises.AsNoTracking()
+            .Where(e => e.CheckingWindowId == windowId && e.ExerciseType == CheckingExerciseType.PupilData)
+            .Select(e => e.Id)
+            .ToListAsync(cancellationToken);
+        Guid? exerciseId = exerciseIds.Count == 1 ? exerciseIds[0] : null;
 
         var references = new List<string>();
         var ticketIds = new List<long>();
@@ -63,13 +73,22 @@ public sealed class DevEgressController(
                 Status = RequestStatus.Submitted, ReferenceNumber = reference, RequestType = RequestType.Amendment,
                 RequestTypeDescription = type == EgressOutputType.NewLearners ? "Add" : $"Remove - {reason ?? "pupil-died"}",
                 AmendmentType = EgressOutputTypes.WhatToChangeFor(type), CrmId = ticketId?.ToString(),
+                CheckingExerciseId = exerciseId,
                 ProcessingStatus = ticketId is null ? ProcessingStatus.Decided : ProcessingStatus.TicketCreated
             });
 
+            // #746: the View and Withdraw pages resolve the flow config from the journey's
+            // window, so the blob must carry it or both redirect to the summary.
             var journey = new RequestState
             {
                 SelectedWhatToChange = EgressOutputTypes.WhatToChangeFor(type),
                 ReferenceNumber = reference,
+                CheckingWindow = new CheckingWindowDto
+                {
+                    Id = window.Id, Title = window.Title,
+                    StartDate = window.StartDate, EndDate = window.EndDate,
+                    KeyStage = window.KeyStage, CheckingWindowType = window.CheckingWindowType
+                },
                 SelectedPupil = new PupilDto
                 {
                     Id = pupilId, Firstname = forename, Surname = surname, Sex = "F", DateOfBirth = "07/09/2010", Age = 15,
@@ -106,10 +125,24 @@ public sealed class DevEgressController(
                 };
                 var fieldId = configuration.GetValue<long?>("ZendeskTicketFields:DecisionStatusId") is > 0 and var configured
                     ? configured : DevOutboxEgressTicketSource.WellKnownDecisionFieldId;
+                var customFields = new List<CustomFieldDto> { new() { Id = fieldId, Value = decision } };
+                // #746: a reason only exists for a final decision, on that decision's own field —
+                // the same pairing the pull resolves on the real ticket.
+                if (decisionReason is not null)
+                {
+                    long? reasonFieldId = decision switch
+                    {
+                        "approved" or "auto_approved" => DevOutboxEgressTicketSource.WellKnownApprovedReasonFieldId,
+                        "rejected" or "auto_rejected" => DevOutboxEgressTicketSource.WellKnownRejectedReasonFieldId,
+                        _ => null
+                    };
+                    if (reasonFieldId is not null)
+                        customFields.Add(new CustomFieldDto { Id = reasonFieldId.Value, Value = decisionReason });
+                }
                 var raw = new CreateTicketRequestDto
                 {
                     Ticket = new CreateTicketDto { Subject = subject, Status = "open", Priority = "normal", Type = "task",
-                        CustomFields = [new CustomFieldDto { Id = fieldId, Value = decision }] }
+                        CustomFields = customFields }
                 };
                 dbContext.DevZendeskTickets.Add(new DevZendeskTicket
                 {

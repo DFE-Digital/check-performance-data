@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Application.Egress;
+using DfE.CheckPerformanceData.Application.ExerciseDecisions;
 using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Application.ZendeskClient;
 using DfE.CheckPerformanceData.Infrastructure;
@@ -28,6 +29,9 @@ public static class EgressExtensions
 
         services.AddScoped<IEgressRunRepository, EgressRunRepository>();
         services.AddScoped<IEgressRunService, EgressRunService>();
+        // #746: the admin per-exercise decision pull, on top of the same ticket source the egress
+        // run uses. The source is already registered below (dev outbox or real Zendesk).
+        services.AddScoped<IExerciseDecisionPullService, ExerciseDecisionPullService>();
         services.AddScoped<IEgressPreprocessor, EgressPreprocessor>();
         services.AddScoped<IEgressTransferService, EgressTransferService>();
         services.AddScoped<IEgressBlobClient, EgressBlobClient>();

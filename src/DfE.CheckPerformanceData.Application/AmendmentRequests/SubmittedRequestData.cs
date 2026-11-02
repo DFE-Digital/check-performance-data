@@ -12,4 +12,10 @@ public sealed class SubmittedRequestData
     public required RequestStatus Status { get; init; }
     public required DateTime Submitted { get; init; }
     public Guid WindowId { get; init; }
+
+    /// <summary>#746: the decision the pull stored on the row; null when it was never pulled.</summary>
+    public ZendeskDecision? Decision { get; init; }
+
+    /// <summary>#746: the reason label stored with the decision; null when Zendesk held none.</summary>
+    public string? DecisionReason { get; init; }
 }

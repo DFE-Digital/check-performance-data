@@ -164,6 +164,10 @@ public sealed class ExerciseSummarySection
 
     public string SendRequestsLink => $"/admin/windows/{WindowId}/exercises/{Id}/send-requests";
 
+    /// <summary>#746: the "pull decisions from Zendesk" confirmation page. Offered for any
+    /// exercise with a kind; a data share can hold no change request, so never for it.</summary>
+    public string PullDecisionsLink => $"/admin/windows/{WindowId}/exercises/{Id}/pull-decisions";
+
     /// <summary>AB#307773: more time for named schools, by end date. Always empty for a data share.</summary>
     public IReadOnlyList<ExtensionSummaryRow> Extensions { get; init; } = [];
 

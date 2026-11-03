@@ -213,11 +213,11 @@ public class JourneyControllerTests
 
     // The page quotes the signed-in school's pupil-data end, from the exercise
     // rows, never the window's end. SummaryConfirm has cleared the change type by now, and only
-    // an amendment comes here, so the kind is pupil data.
+    // an amendment comes here, so the kind is pupil data. The time is lowercase (#719).
     [Theory]
-    [InlineData("933/4290", "31 July 2026")]
-    [InlineData("860/4070", "30 June 2026")]
-    public void Confirmation_QuotesTheSignedInSchoolsPupilDataEnd(string laestab, string date)
+    [InlineData("933/4290", "5pm on Friday 31 July 2026")]
+    [InlineData("860/4070", "5pm on Tuesday 30 June 2026")]
+    public void Confirmation_QuotesTheSignedInSchoolsPupilDataEnd(string laestab, string label)
     {
         _currentUserService.OrganisationLaestab.Returns(laestab);
         var state = ValidSession();
@@ -253,7 +253,7 @@ public class JourneyControllerTests
         var view = Assert.IsType<ViewResult>(_sut.Confirmation(WindowId));
 
         var model = Assert.IsType<DfE.CheckPerformanceData.Web.Controllers.Journey.ConfirmationViewModel>(view.Model);
-        Assert.EndsWith(date, model.WindowCloseLabel);
+        Assert.Equal(label, model.WindowCloseLabel);
     }
 
     // ── Confirmation onward links (#713) ─────────────────────────────────────

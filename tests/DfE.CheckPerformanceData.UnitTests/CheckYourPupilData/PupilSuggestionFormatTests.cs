@@ -101,9 +101,7 @@ public sealed class PupilSuggestionFormatTests
     }
 
     // ── Matching — PupilSearchField.CypmdId (AB#304118) ───────────────────────
-    // The KS4 merge journey's second-record page asks for "What is the CYPMD ID of the second
-    // duplicate record to be merged?" and hints "Start typing ID to search records", so on that page
-    // a name must not match. Everything below is one pupil record: any case that returns true is the
+    // A page narrowed to the CYPMD ID must not match a name. Everything below is one pupil record: any case that returns true is the
     // CypmdId prefix, and any that returns false is proof the other fields were dropped rather than
     // merely not exercised.
 

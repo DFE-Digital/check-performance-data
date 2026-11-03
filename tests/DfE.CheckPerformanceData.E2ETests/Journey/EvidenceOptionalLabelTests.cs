@@ -22,9 +22,9 @@ public sealed class EvidenceOptionalLabelTests(PlaywrightFixture fixture) : Seed
     private const string Country = "France";
     private const string CountryInput = "#q_country_originally_from-input";
 
-    private const string EvidenceTitle = "Upload files (Optional)";
+    private const string EvidenceTitle = "Upload files (optional)";
     private const string ExplanationTitle =
-        "How does the evidence demonstrate why the pupil should be removed? (Optional)";
+        "How does the evidence demonstrate why the pupil should be removed? (optional)";
 
     [RetryFact]
     public async Task RemoveFlow_OtherFirstLanguage_ShowsOptionalOnBothEvidenceLabels_AndSubmitsEmpty()

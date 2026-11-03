@@ -9,9 +9,7 @@ using Npgsql;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.CheckYourPupilData;
 
-// AB#304118 / #510: the KS4 merge journey's second-record page asks for "What is the CYPMD ID of the
-// second duplicate record to be merged?" and hints "Start typing ID to search records", so
-// PupilSuggestionFormat.Matches has to restrict that page to the CYPMD ID. These go through
+// AB#304118 / #510: a page narrowed to PupilSearchField.CypmdId matches the CYPMD ID only. These go through
 // SearchPupilsAsync rather than the format class so the query parameter is proved end to end —
 // config → endpoint → service → repository → match and label — and so the page-specificity claim is
 // checked against the same code path every other pupil-search page uses.

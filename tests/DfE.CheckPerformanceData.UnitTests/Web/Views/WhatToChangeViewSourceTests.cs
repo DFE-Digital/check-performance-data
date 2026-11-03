@@ -49,7 +49,7 @@ public sealed class WhatToChangeViewSourceTests
         var source = ReadViewSource("Views/WhatToChange/Index.cshtml");
 
         Assert.Contains("What @Model.Noun.Singular data would you like to change?", source);
-        Assert.Contains("Select one option.", source);
+        Assert.Contains("Select one option", source);
         Assert.Contains("for=\"SelectedWhatToChange\"", source);
     }
 }

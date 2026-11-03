@@ -1604,9 +1604,9 @@ public sealed class JourneyController(
         {
             WindowId = windowId,
             ReferenceNumber = journey.ReferenceNumber,
-            // DeadlineTime.Pattern: the minutes show when the end date has some.
+            // DeadlineTime.Format: lowercase am/pm, and the minutes show when the end date has some.
             WindowCloseLabel = exerciseOpen
-                ? $"{deadline.ToString(DeadlineTime.Pattern(deadline))} on {deadline:dddd d MMMM yyyy}"
+                ? $"{DeadlineTime.Format(deadline)} on {deadline:dddd d MMMM yyyy}"
                 : null,
             // #713: the onward links follow the exercises open now, not the submitted kind.
             // The noun comes from the journey's window, as the journey pages get it.

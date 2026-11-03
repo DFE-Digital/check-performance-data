@@ -62,7 +62,7 @@ public class JourneyViewModelBuilderOptionalLabelTests
 
         var vm = Build(journey, page);
 
-        Assert.Equal([$"{EvidenceTitle} (Optional)", $"{ExplanationTitle} (Optional)"],
+        Assert.Equal([$"{EvidenceTitle} (optional)", $"{ExplanationTitle} (optional)"],
             vm.QuestionModels.Select(q => q.ResolvedTitle).ToList());
     }
 
@@ -76,7 +76,7 @@ public class JourneyViewModelBuilderOptionalLabelTests
 
         journey.QuestionAnswers["first-language"] = new QuestionAnswer { TextValue = "other" };
 
-        Assert.Equal([$"{EvidenceTitle} (Optional)", $"{ExplanationTitle} (Optional)"],
+        Assert.Equal([$"{EvidenceTitle} (optional)", $"{ExplanationTitle} (optional)"],
             Build(journey, page).QuestionModels.Select(q => q.ResolvedTitle).ToList());
     }
 

@@ -8,7 +8,9 @@
     brand-colour band of the GOV.UK Header.
 
     The model is optional. It is the account navigation (the sign in or sign out links),
-    which shows on the right of the band. A layout with no account links passes no model.
+    which shows on the right of the band. A layout with no account links passes model="null".
+    It must not leave the attribute out: a partial with no model attribute inherits the page's
+    model, and that is never an IHtmlContent.
 
     The header renders a plain <div>. Each layout wraps this partial in <header role="banner">.
 *@

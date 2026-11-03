@@ -14,16 +14,21 @@ namespace DfE.CheckPerformanceData.E2ETests.Journey;
 // `label`, and the first record is excluded through the parameter the page sends. These drive the
 // real search box, the real autocomplete and the real confirmation.
 //
-// The seeded KS4June window carries a pair built for this journey (SeedPupilData.GenerateDuplicateMatchPair):
-// Casey Carter, born 15/03/2010, twice — CYPMD ID 800001 and 800002. Identical name AND date of birth,
-// which is exactly why an ID has to be on the row: without it the two options are indistinguishable.
+// #747 (AB#312017): the KS4 Autumn window has the same merge journey (Merge_KS4Autumn.json is a copy
+// of the KS4 June file), so every test runs on both KS4 windows. Both seeded windows carry a pair
+// built for this journey (SeedPupilData.GenerateDuplicateMatchPair, SeedPupilData.Ks4PairWindowIds):
+// Casey Carter, born 15/03/2010, twice — CYPMD ID 800001 and 800002. Identical name AND date of
+// birth, which is exactly why an ID has to be on the row: without it the two options are
+// indistinguishable.
 [Trait("Category", "FullRegression")]
 [Collection("E2E")]
 public sealed class Ks4MergeJourneyTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
-    // Seeded KS4June window (DevDataSeeder.KeyStage4JuneCheckingWindowId) — the window
-    // SeedPupilData writes Kingsmead's duplicate match pair into.
-    private static readonly Guid WindowId = Guid.Parse("F34D285B-8660-4D12-9C30-787328DEAA0A");
+    // Seeded KS4 June window (DevDataSeeder.KeyStage4JuneCheckingWindowId) and seeded KS4 Autumn
+    // window (DevDataSeeder.KeyStage4AutumnCheckingWindowId) — the windows SeedPupilData writes
+    // Kingsmead's duplicate match pair into. Strings, so the theory rows list separately.
+    private const string Ks4JuneWindowId = "F34D285B-8660-4D12-9C30-787328DEAA0A";
+    private const string Ks4AutumnWindowId = "7D2E9A14-5C38-4B6F-A0E1-3F8B6C2D4A97";
 
     private const string SharedName = "Casey";
     private const string SharedSurname = "Carter";
@@ -33,20 +38,24 @@ public sealed class Ks4MergeJourneyTests(PlaywrightFixture fixture) : SeedingPag
 
     // ── The full merge journey, end to end ──────────────────────────────────
 
-    [RetryFact]
+    [RetryTheory]
+    [InlineData(Ks4JuneWindowId, "CYPMD_KS4June_")]
+    [InlineData(Ks4AutumnWindowId, "CYPMD_KS4Autumn_")]
     [Trait("Category", "Smoke")]
-    public async Task HappyPath_FirstRecordByName_SecondRecordByCyPmdId_ShowsBothOnTheConfirmation()
+    public async Task HappyPath_FirstRecordByName_SecondRecordByCyPmdId_ShowsBothOnTheConfirmation(
+        string window, string referencePrefix)
     {
-        await StartMergeJourneyAsync();
+        var windowId = Guid.Parse(window);
+        await StartMergeJourneyAsync(windowId);
 
         // The clerk finds the first record by name.
-        await ChooseFirstRecordByNameAsync();
+        await ChooseFirstRecordByNameAsync(windowId);
 
         // The clerk finds the second record by its CYPMD ID.
-        await ChooseSecondRecordByCyPmdIdAsync(SecondRecordCypmdId);
+        await ChooseSecondRecordByCyPmdIdAsync(windowId, SecondRecordCypmdId);
 
         // Evidence page — both file and text are optional here, so it is skipped straight through.
-        await Page.WaitForURLAsync($"**/Journey/{WindowId}/page/evidence");
+        await Page.WaitForURLAsync($"**/Journey/{windowId}/page/evidence");
         await ContinueAsync();
 
         await Expect(Page.GetByRole(AriaRole.Heading, new() { Level = 1 }))
@@ -63,24 +72,27 @@ public sealed class Ks4MergeJourneyTests(PlaywrightFixture fixture) : SeedingPag
 
         await Page.GetByRole(AriaRole.Button, new() { Name = "Submit request" }).ClickAsync();
 
-        await Page.WaitForURLAsync($"**/Journey/{WindowId}/confirmation");
+        await Page.WaitForURLAsync($"**/Journey/{windowId}/confirmation");
         await Expect(Page.Locator(".govuk-panel")).ToBeVisibleAsync();
         var panel = await Page.Locator(".govuk-panel").InnerTextAsync();
-        var reference = System.Text.RegularExpressions.Regex.Match(panel, @"CYPMD_KS4June_[0-9A-F]{7}");
-        Assert.True(reference.Success, $"No reference number in the confirmation panel: {panel}");
+        var reference = System.Text.RegularExpressions.Regex.Match(panel, referencePrefix + "[0-9A-F]{7}");
+        Assert.True(reference.Success, $"No {referencePrefix} reference number in the confirmation panel: {panel}");
     }
 
     // ── The second-record page searches every field in its hint ─────────────
 
-    [RetryFact]
-    public async Task SecondRecordPage_TypingTheSharedSurname_OffersOnlyTheOtherRecord()
+    [RetryTheory]
+    [InlineData(Ks4JuneWindowId)]
+    [InlineData(Ks4AutumnWindowId)]
+    public async Task SecondRecordPage_TypingTheSharedSurname_OffersOnlyTheOtherRecord(string window)
     {
         // #716: the hint names the first name and last name, so a name finds the second record.
         // Both records share the name, so the row must carry the ID, and the first record is
         // never on offer as its own match.
-        await StartMergeJourneyAsync();
-        await ChooseFirstRecordByNameAsync();
-        await AdvanceToAsync("pupil-search/select-match-pupil", "choosing the first record");
+        var windowId = Guid.Parse(window);
+        await StartMergeJourneyAsync(windowId);
+        await ChooseFirstRecordByNameAsync(windowId);
+        await AdvanceToAsync(windowId, "pupil-search/select-match-pupil", "choosing the first record");
 
         await FillSearchAsync(SharedSurname);
 
@@ -88,12 +100,15 @@ public sealed class Ks4MergeJourneyTests(PlaywrightFixture fixture) : SeedingPag
         await Expect(OptionShowingCypmdId(FirstRecordCypmdId)).ToHaveCountAsync(0);
     }
 
-    [RetryFact]
-    public async Task SecondRecordPage_TypingACyPmdIdPrefix_OffersSuggestionsThatShowTheirId()
+    [RetryTheory]
+    [InlineData(Ks4JuneWindowId)]
+    [InlineData(Ks4AutumnWindowId)]
+    public async Task SecondRecordPage_TypingACyPmdIdPrefix_OffersSuggestionsThatShowTheirId(string window)
     {
-        await StartMergeJourneyAsync();
-        await ChooseFirstRecordByNameAsync();
-        await AdvanceToAsync("pupil-search/select-match-pupil", "choosing the first record");
+        var windowId = Guid.Parse(window);
+        await StartMergeJourneyAsync(windowId);
+        await ChooseFirstRecordByNameAsync(windowId);
+        await AdvanceToAsync(windowId, "pupil-search/select-match-pupil", "choosing the first record");
 
         // A prefix, not the whole ID — "Start typing" means partial typing.
         await FillSearchAsync("8000");
@@ -108,11 +123,14 @@ public sealed class Ks4MergeJourneyTests(PlaywrightFixture fixture) : SeedingPag
         await Expect(firstRecord).ToHaveCountAsync(0);
     }
 
-    [RetryFact]
-    public async Task FirstRecordPage_SearchesByName()
+    [RetryTheory]
+    [InlineData(Ks4JuneWindowId)]
+    [InlineData(Ks4AutumnWindowId)]
+    public async Task FirstRecordPage_SearchesByName(string window)
     {
-        await StartMergeJourneyAsync();
-        await AdvanceToAsync("pupil-search/select-pupil", "choosing Merge");
+        var windowId = Guid.Parse(window);
+        await StartMergeJourneyAsync(windowId);
+        await AdvanceToAsync(windowId, "pupil-search/select-pupil", "choosing Merge");
 
         await FillSearchAsync(SharedSurname);
 
@@ -120,19 +138,53 @@ public sealed class Ks4MergeJourneyTests(PlaywrightFixture fixture) : SeedingPag
         await Expect(option.First).ToBeVisibleAsync();
     }
 
+    // ── #747: the KS4 Autumn selection rules through the real pages ──────────
+
+    // Non-included Kingsmead pupils have the surnames Johnson to Thompson (SeedPupilData: the
+    // non-included index block starts at 200 and the surname is index (n / 20) % 20); no included
+    // pupil has one of those surnames. Alice Johnson, index 200, is CYPMD 000201.
+    private const string NonIncludedOnlySurname = "Johnson";
+    private const string NonIncludedPupilCypmdId = "000201";
+
+    [RetryFact]
+    public async Task Ks4Autumn_FirstRecordPage_OffersNoNonIncludedPupil_ButTheSecondRecordPageDoes()
+    {
+        var windowId = Guid.Parse(Ks4AutumnWindowId);
+        await StartMergeJourneyAsync(windowId);
+        await AdvanceToAsync(windowId, "pupil-search/select-pupil", "choosing Merge");
+
+        // AC: a pupil in the "not included" list is not returned for the first record.
+        await FillSearchAsync(NonIncludedOnlySurname);
+        await ExpectNoSuggestionsAsync();
+
+        // AC: the included copy of the pair is, and only the included copy.
+        await FillSearchAsync(SharedSurname);
+        await Expect(OptionShowingCypmdId(FirstRecordCypmdId).First).ToBeVisibleAsync();
+        await Expect(OptionShowingCypmdId(SecondRecordCypmdId)).ToHaveCountAsync(0);
+        await OptionShowingCypmdId(FirstRecordCypmdId).First.ClickAsync();
+        await ContinueAsync();
+
+        // AC: the second record may be a pupil from the "not included" list.
+        await AdvanceToAsync(windowId, "pupil-search/select-match-pupil", "choosing the first record");
+        await FillSearchAsync(NonIncludedPupilCypmdId);
+        var option = OptionShowingCypmdId(NonIncludedPupilCypmdId);
+        await Expect(option.First).ToBeVisibleAsync();
+        await Expect(option.First).ToContainTextAsync("Status: NOT INCLUDED");
+    }
+
     // ── Helpers ─────────────────────────────────────────────────────────────
 
-    private async Task StartMergeJourneyAsync()
+    private async Task StartMergeJourneyAsync(Guid windowId)
     {
         await SeedHelpers.CleanupDevRequestsAsync(Fixture.SeedClient);
-        await Page.GotoAsync($"{Fixture.BaseUrl}/WhatToChange/{WindowId}");
+        await Page.GotoAsync($"{Fixture.BaseUrl}/WhatToChange/{windowId}");
         await Page.GetByLabel("Merge").First.CheckAsync();
         await ContinueAsync();
     }
 
-    private async Task ChooseFirstRecordByNameAsync()
+    private async Task ChooseFirstRecordByNameAsync(Guid windowId)
     {
-        await AdvanceToAsync("pupil-search/select-pupil", "choosing Merge");
+        await AdvanceToAsync(windowId, "pupil-search/select-pupil", "choosing Merge");
         await FillSearchAsync(SharedSurname);
         var option = Page.Locator("li[role='option']").GetByText($"{SharedSurname}, {SharedName}");
         await Expect(option.First).ToBeVisibleAsync();
@@ -140,9 +192,9 @@ public sealed class Ks4MergeJourneyTests(PlaywrightFixture fixture) : SeedingPag
         await ContinueAsync();
     }
 
-    private async Task ChooseSecondRecordByCyPmdIdAsync(string cypmdId)
+    private async Task ChooseSecondRecordByCyPmdIdAsync(Guid windowId, string cypmdId)
     {
-        await AdvanceToAsync("pupil-search/select-match-pupil", "choosing the first record");
+        await AdvanceToAsync(windowId, "pupil-search/select-match-pupil", "choosing the first record");
         await FillSearchAsync(cypmdId);
         var option = OptionShowingCypmdId(cypmdId);
         await Expect(option.First).ToBeVisibleAsync();
@@ -163,6 +215,21 @@ public sealed class Ks4MergeJourneyTests(PlaywrightFixture fixture) : SeedingPag
         await search.FillAsync(query);
     }
 
+    /// <summary>
+    /// Waits for the autocomplete to settle on having nothing to offer. Asserting
+    /// <c>ToHaveCountAsync(0)</c> straight after filling would pass against a dropdown that had not
+    /// yet had a chance to appear, so this waits for the empty-state row the component renders once a
+    /// response with no options comes back — which is also the "no results" message the clerk reads.
+    /// It carries no <c>role="option"</c>, hence the two assertions. (PR #762 removed this helper
+    /// with the test that used it; #747 needs it again for the first-record rule.)
+    /// </summary>
+    private async Task ExpectNoSuggestionsAsync()
+    {
+        await Expect(Page.Locator(".autocomplete__option--no-results"))
+            .ToBeVisibleAsync(new() { Timeout = 10_000 });
+        await Expect(Page.Locator("li[role='option']")).ToHaveCountAsync(0);
+    }
+
     private async Task ContinueAsync() =>
         await Page.GetByRole(AriaRole.Button, new() { Name = "Continue", Exact = true }).ClickAsync();
 
@@ -171,11 +238,11 @@ public sealed class Ks4MergeJourneyTests(PlaywrightFixture fixture) : SeedingPag
     // A step the server rejects re-renders the page it was already on, so the plain WaitForURLAsync
     // this replaces ran out of time and reported "Timeout 30000ms exceeded" with the reason sitting
     // in the GDS error summary the whole time.
-    private async Task AdvanceToAsync(string expectedPathSuffix, string afterStep)
+    private async Task AdvanceToAsync(Guid windowId, string expectedPathSuffix, string afterStep)
     {
         try
         {
-            await Page.WaitForURLAsync($"**/Journey/{WindowId}/{expectedPathSuffix}");
+            await Page.WaitForURLAsync($"**/Journey/{windowId}/{expectedPathSuffix}");
         }
         catch (TimeoutException)
         {

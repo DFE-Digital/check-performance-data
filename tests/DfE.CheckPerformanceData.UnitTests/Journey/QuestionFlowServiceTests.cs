@@ -1,9 +1,9 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Domain.Enums;
+using DfE.CheckPerformanceData.Infrastructure.QuestionFlow;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
-using DfE.CheckPerformanceData.Infrastructure.QuestionFlow;
 using NSubstitute;
 using CheckingWindowDto = DfE.CheckPerformanceData.Application.LandingPage.CheckingWindowDto;
 

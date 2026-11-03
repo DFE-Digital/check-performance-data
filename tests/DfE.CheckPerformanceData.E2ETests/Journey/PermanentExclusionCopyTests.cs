@@ -92,7 +92,7 @@ public sealed class PermanentExclusionCopyTests(PlaywrightFixture fixture) : See
         await NavigateToReasonPageAsync("permanently-excluded");
 
         await Expect(Page.Locator("label[for='q_permanently_excluded_dfe_number']"))
-            .ToHaveTextAsync("What is the DfE number of the school Alice Smith went to? (Optional)");
+            .ToHaveTextAsync("What is the DfE number of the school Alice Smith went to? (optional)");
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────

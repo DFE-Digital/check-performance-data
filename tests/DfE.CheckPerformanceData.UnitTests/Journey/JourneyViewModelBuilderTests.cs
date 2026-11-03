@@ -326,7 +326,7 @@ public class JourneyViewModelBuilderTests
             fromSummary: false, modelState: new ModelStateDictionary(), config: Config);
 
         Assert.False(vm.RequireAtLeastOne);
-        Assert.Equal(["Upload files (Optional)", "How? (Optional)"],
+        Assert.Equal(["Upload files (optional)", "How? (optional)"],
             vm.QuestionModels.Select(q => q.ResolvedTitle).ToList());
     }
 

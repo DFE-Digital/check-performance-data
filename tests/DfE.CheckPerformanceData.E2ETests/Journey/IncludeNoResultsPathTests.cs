@@ -94,7 +94,8 @@ public sealed class IncludeNoResultsPathTests(PlaywrightFixture fixture) : Seedi
         var summary = Page.Locator(".govuk-error-summary");
         await Expect(summary).ToBeVisibleAsync();
         var text = await summary.InnerTextAsync();
-        Assert.Contains("Enter the name of the pupil to be included.", text);
+        Assert.Contains("Enter the name of the pupil to be included", text);
+        Assert.DoesNotContain("to be included.", text);
         // No redirect to a decision page.
         Assert.DoesNotContain("pupil-not-found", Page.Url);
         Assert.DoesNotContain("already-included", Page.Url);

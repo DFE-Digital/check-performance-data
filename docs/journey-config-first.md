@@ -235,7 +235,7 @@ request merges, check by hand in the browser each journey that the step changes:
 
 - each branch that the changed code or flow file controls, to the confirmation page;
 - the error messages on those pages, with an empty submit;
-- the "(Optional)" labels and the summary page rows;
+- the "(optional)" labels and the summary page rows;
 - the Zendesk ticket in the dev outbox, for a request that the step changes.
 
 Name the journeys that you checked in the pull request description. If a difference is wanted, the

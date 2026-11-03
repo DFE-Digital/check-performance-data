@@ -14,8 +14,10 @@
                     cssClass = "govuk-heading-xl"
                 })
 
+                @* #714: _v2 because a block seeds once per key. Environments that already held
+                   home-content keep its old copy, which a changed default never replaces. *@
                 @await Component.InvokeAsync("EditableContent", new {
-                    key = "home-content",
+                    key = "home-content_v2",
                     defaultHtml = @"<p class=""govuk-body"">
                     Review and confirm the pupil data that will be used to calculate your school or college's performance measures.
                     </p>
@@ -26,7 +28,6 @@
                         <li>check which pupils are included in your performance data</li>
                         <li>request changes if a pupil should not be counted</li>
                         <li>upload evidence to support removal requests</li>
-                        <li>review summary information before it is finalised</li>
                     </ul>
                     <p class=""govuk-body"">
                         This helps make sure your school's published performance data is accurate and up to date.

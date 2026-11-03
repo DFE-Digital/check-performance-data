@@ -79,7 +79,7 @@ public sealed class PageViewModel
     public string? AtLeastOneError { get; init; }
 
     /// <summary>True when the page's requireAtLeastOne rule applies to this user. The page then
-    /// tells the user to give a file or an explanation, and no question shows "(Optional)".</summary>
+    /// tells the user to give a file or an explanation, and no question shows "(optional)".</summary>
     public bool RequireAtLeastOne { get; init; }
 
     public string? ResolvedTitle => string.IsNullOrEmpty(Page.Title) ? null : ResolveTemplate(Page.Title);

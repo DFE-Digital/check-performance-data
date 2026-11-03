@@ -265,8 +265,8 @@ public sealed class IncorrectGradeFlowTests
 
         Assert.Null(page.Title);
         Assert.Equal("Additional information", page.PageTitle);
-        // "(Optional)" is appended by JourneyViewModelBuilder when Optional is true — putting it in
-        // the title too rendered "Additional information (Optional) (Optional)".
+        // "(optional)" is appended by JourneyViewModelBuilder when Optional is true — putting it in
+        // the title too rendered "Additional information (optional) (optional)".
         Assert.Equal("Additional information", question.Title);
         Assert.Null(page.NextPageId); // the last page — Continue goes to the summary
         Assert.Equal(QuestionType.TextArea, question.Type);

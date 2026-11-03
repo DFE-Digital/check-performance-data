@@ -233,7 +233,7 @@ public sealed class JourneyViewModelBuilder(
         var conditionContext = BuildConditionContext(journey);
 
         // When the page needs at least one answer, no single question is optional on its own, so
-        // the "(Optional)" suffix would mislead. The page explains the rule instead.
+        // the "(optional)" suffix would mislead. The page explains the rule instead.
         var requireAtLeastOne = optionalityService.IsRequireAtLeastOneActive(page, conditionContext);
 
         // Answer-dependent optionality (e.g. the EAL evidence waiver, AB#309468) is decided by the
@@ -259,7 +259,7 @@ public sealed class JourneyViewModelBuilder(
                     MaxEvidencePages = journeyService.MaxEvidencePages,
                     Error = error,
                     UploadError = uploadError,
-                    ResolvedTitle = JourneyTemplate.Resolve(q.Title, pupilName) + (isOptional ? " (Optional)" : ""),
+                    ResolvedTitle = JourneyTemplate.Resolve(q.Title, pupilName) + (isOptional ? " (optional)" : ""),
                     VisibleOptions = q.Type switch
                     {
                         QuestionType.Radio or QuestionType.Checkbox =>

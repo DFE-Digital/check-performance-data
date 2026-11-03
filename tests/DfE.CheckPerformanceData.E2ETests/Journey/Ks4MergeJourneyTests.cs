@@ -5,18 +5,14 @@ using DfE.CheckPerformanceData.E2ETests.Retrying;
 
 namespace DfE.CheckPerformanceData.E2ETests.Journey;
 
-// AB#304118 / #510: the KS4 "Merge duplicate pupil records" journey, driven through a real browser.
-// The second-record page's own copy — "What is the CYPMD ID of the second duplicate record to be
-// merged?" and "Start typing ID to search records" — promised an ID-only search while the underlying
-// search matched names, split names, UPNs and dates of birth as well. So the search is now restricted
-// to the CYPMD ID, and because KS4 suggestions read "Surname, Firstname, DOB" with no ID in them, each
-// offered record shows its own.
+// AB#304118 / #510 / #716: the KS4 "Merge duplicate pupil records" journey, driven through a real
+// browser. Both search pages match the first name, last name, CYPMD ID, UPN or date of birth, as
+// their hint says (#716). Each KS4 suggestion shows its CYPMD ID, so two records with the same name
+// and date of birth can be told apart. The second-record page never offers the first record.
 //
-// Only a browser can show this. The restriction is a query-string parameter the page sends, the
-// narrowing happens in the suggestions endpoint the autocomplete calls, and the ID reaches the
-// dropdown through the endpoint's JSON `label` — so unit tests over the format class cannot see
-// whether the page actually sends the parameter or whether the rendered row carries the ID. These
-// drive the real search box, the real autocomplete and the real confirmation.
+// Only a browser can show this. The ID reaches the dropdown through the suggestions endpoint's JSON
+// `label`, and the first record is excluded through the parameter the page sends. These drive the
+// real search box, the real autocomplete and the real confirmation.
 //
 // The seeded KS4June window carries a pair built for this journey (SeedPupilData.GenerateDuplicateMatchPair):
 // Casey Carter, born 15/03/2010, twice — CYPMD ID 800001 and 800002. Identical name AND date of birth,
@@ -43,12 +39,10 @@ public sealed class Ks4MergeJourneyTests(PlaywrightFixture fixture) : SeedingPag
     {
         await StartMergeJourneyAsync();
 
-        // The FIRST record page is untouched by this feature: it still searches by name, so the
-        // clerk finds Casey Carter the way they always have.
+        // The clerk finds the first record by name.
         await ChooseFirstRecordByNameAsync();
 
-        // The SECOND record page is the one that changed. Its copy names the CYPMD ID, so the clerk
-        // types the ID.
+        // The clerk finds the second record by its CYPMD ID.
         await ChooseSecondRecordByCyPmdIdAsync(SecondRecordCypmdId);
 
         // Evidence page — both file and text are optional here, so it is skipped straight through.
@@ -76,25 +70,22 @@ public sealed class Ks4MergeJourneyTests(PlaywrightFixture fixture) : SeedingPag
         Assert.True(reference.Success, $"No reference number in the confirmation panel: {panel}");
     }
 
-    // ── The second-record page searches by ID and offers nothing else ────────
+    // ── The second-record page searches every field in its hint ─────────────
 
     [RetryFact]
-    public async Task SecondRecordPage_TypingTheSharedSurname_OffersNoOptions()
+    public async Task SecondRecordPage_TypingTheSharedSurname_OffersOnlyTheOtherRecord()
     {
-        // The defect, through the UI: this pupil's surname and forename are the pair's shared name,
-        // so before the fix typing either offered the records. The page's own label and hint say to
-        // type an ID, so it must offer nothing.
+        // #716: the hint names the first name and last name, so a name finds the second record.
+        // Both records share the name, so the row must carry the ID, and the first record is
+        // never on offer as its own match.
         await StartMergeJourneyAsync();
         await ChooseFirstRecordByNameAsync();
         await AdvanceToAsync("pupil-search/select-match-pupil", "choosing the first record");
 
         await FillSearchAsync(SharedSurname);
 
-        await ExpectNoSuggestionsAsync();
-        await FillSearchAsync(SharedName);
-        await ExpectNoSuggestionsAsync();
-        await FillSearchAsync($"{SharedName} {SharedSurname}");
-        await ExpectNoSuggestionsAsync();
+        await Expect(OptionShowingCypmdId(SecondRecordCypmdId).First).ToBeVisibleAsync();
+        await Expect(OptionShowingCypmdId(FirstRecordCypmdId)).ToHaveCountAsync(0);
     }
 
     [RetryFact]
@@ -104,7 +95,7 @@ public sealed class Ks4MergeJourneyTests(PlaywrightFixture fixture) : SeedingPag
         await ChooseFirstRecordByNameAsync();
         await AdvanceToAsync("pupil-search/select-match-pupil", "choosing the first record");
 
-        // A prefix, not the whole ID — "Start typing ID to search records" means partial typing.
+        // A prefix, not the whole ID — "Start typing" means partial typing.
         await FillSearchAsync("8000");
 
         // US2 through the endpoint's JSON label: the row has to carry the ID the clerk typed,
@@ -118,13 +109,8 @@ public sealed class Ks4MergeJourneyTests(PlaywrightFixture fixture) : SeedingPag
     }
 
     [RetryFact]
-    public async Task FirstRecordPage_StillSearchesByName()
+    public async Task FirstRecordPage_SearchesByName()
     {
-        // The guard for the other half of the feature. This page is in the same journey as the
-        // narrowed one, so a change made at journey level rather than page level would break it —
-        // and it would break Remove, Include and every 16-19 search with it. (Until #623 this fact
-        // also asserted that the row carried no bracketed ID; since #623 every KS4 row shows the
-        // CYPMD ID, so only the by-name search is the page's own behaviour.)
         await StartMergeJourneyAsync();
         await AdvanceToAsync("pupil-search/select-pupil", "choosing Merge");
 
@@ -175,20 +161,6 @@ public sealed class Ks4MergeJourneyTests(PlaywrightFixture fixture) : SeedingPag
         var search = Page.Locator("#pupil-search").First;
         await Expect(search).ToBeVisibleAsync();
         await search.FillAsync(query);
-    }
-
-    /// <summary>
-    /// Waits for the autocomplete to settle on having nothing to offer. Asserting
-    /// <c>ToHaveCountAsync(0)</c> straight after filling would pass against a dropdown that had not
-    /// yet had a chance to appear, so this waits for the empty-state row the component renders once a
-    /// response with no options comes back — which is also the "no results" message the clerk reads.
-    /// It carries no <c>role="option"</c>, hence the two assertions.
-    /// </summary>
-    private async Task ExpectNoSuggestionsAsync()
-    {
-        await Expect(Page.Locator(".autocomplete__option--no-results"))
-            .ToBeVisibleAsync(new() { Timeout = 10_000 });
-        await Expect(Page.Locator("li[role='option']")).ToHaveCountAsync(0);
     }
 
     private async Task ContinueAsync() =>

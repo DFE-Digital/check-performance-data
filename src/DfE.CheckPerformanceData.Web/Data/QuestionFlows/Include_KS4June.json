@@ -5,10 +5,11 @@
       "id": "select-pupil",
       "type": "PupilSearch",
       "title": "What is the name of the pupil to be included?",
+      "subheading": "Start typing the first name, last name, CYPMD ID, UPN or date of birth (DOB)",
       "pupilFilter": "Includable",
       "pupilKey": "primary",
       "nextPageId": "evidence",
-      "validationFailure": "Enter the name of the pupil to be included."
+      "validationFailure": "Enter the name of the pupil to be included"
     },
     {
       "id": "evidence",

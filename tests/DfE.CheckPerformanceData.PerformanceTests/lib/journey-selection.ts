@@ -42,8 +42,7 @@ export function findJourney(
 }
 
 /**
- * Results Enquiry journeys can be submitted as many
- * times as needed, so they are not cleaned up.
+ * Returns true for a Results Enquiry journey.
  */
 export function isResultsEnquiry(
     journey: JourneyConfig
@@ -52,27 +51,13 @@ export function isResultsEnquiry(
 }
 
 /**
- * Add Pupil creates a pupil record whose surname is
- * generated from RUN_ID and the iteration. It can be
- * submitted as many times as needed, so it is not
- * cleaned up.
+ * Returns true for an Add Pupil journey. Its generated
+ * surname is limited per RUN_ID.
  */
 export function isAddPupil(
     journey: JourneyConfig
 ): boolean {
     return journey.journeyType === "Add";
-}
-
-/**
- * Amendment journeys need cleanup. The application
- * allows only one amendment request per pupil, so each
- * submitted amendment is cleaned up to let the same
- * pupil be amended again.
- */
-export function needsCleanup(
-    journey: JourneyConfig
-): boolean {
-    return !isResultsEnquiry(journey) && !isAddPupil(journey);
 }
 
 /**
@@ -86,10 +71,8 @@ export function windowOf(
 }
 
 /**
- * Default load mix. Gives weight 1 to every amendment
- * journey that needs cleanup and 0 to Add Pupil and
- * Results Enquiry, which are excluded from the default
- * mix.
+ * Default load mix. Gives every journey weight 1, so
+ * each journey runs equally often.
  *
  * PROVISIONAL: a starting point, not an agreed traffic
  * distribution. Override with JOURNEY_WEIGHTS.
@@ -100,8 +83,7 @@ export function defaultLoadWeights():
     const weights: Record<string, number> = {};
 
     for (const journey of journeyRegistry) {
-        weights[journey.id] =
-            needsCleanup(journey) ? 1 : 0;
+        weights[journey.id] = 1;
     }
 
     return weights;

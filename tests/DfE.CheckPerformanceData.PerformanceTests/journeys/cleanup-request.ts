@@ -18,14 +18,11 @@ import type {
 } from "../types/cleanup-request.ts";
 
 /**
- * Cleans up an amendment request created during the test.
+ * Cleans up a request created during the test.
  *
- * Cleanup is needed only so the same pupil can be
- * amended again, because the application allows one
- * amendment request per pupil at a time. Draft requests
- * are deleted; submitted requests are withdrawn by the
- * application. Add Pupil and Results Enquiry journeys
- * are not cleaned up.
+ * Draft requests are deleted. Submitted requests are
+ * withdrawn by the application. This applies to every
+ * journey type.
  */
 export function cleanupRequest({
     baseUrl,

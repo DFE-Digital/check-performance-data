@@ -22,14 +22,8 @@ import {
     findJourney,
     isAddPupil,
     isResultsEnquiry,
-    needsCleanup,
     parseJourneyWeights,
 } from "./journey-selection.ts";
-
-import {
-    getRunId,
-    requiresRunId,
-} from "./run-id.ts";
 
 /*
  * Profiles and their execution model. The profile is
@@ -298,7 +292,6 @@ function durationFrom(name: string): {
  * an exact completion count.
  */
 function thresholdsFor(
-    journeys: JourneyConfig[],
     expectedCompletions: number | undefined
 ): Record<string, string[]> {
     const thresholds: Record<string, string[]> = {
@@ -313,9 +306,7 @@ function thresholdsFor(
         ];
     }
 
-    const transactions = journeys.some(needsCleanup)
-        ? [...SUBMIT_TRANSACTIONS, ...CLEANUP_TRANSACTIONS]
-        : SUBMIT_TRANSACTIONS;
+    const transactions = [...SUBMIT_TRANSACTIONS, ...CLEANUP_TRANSACTIONS];
 
     for (const transaction of transactions) {
         thresholds[
@@ -372,15 +363,72 @@ function assertScenarios(
                 continue;
             }
 
-            if (scenario[key] !== value) {
-                throw new Error(
-                    `The execution model does not match the profile: ` +
-                    `${name}.${key} is ${JSON.stringify(scenario[key])}, ` +
-                    `expected ${JSON.stringify(value)}`
-                );
+            if (DURATION_FIELDS.has(key)) {
+                if (sameDuration(scenario[key], value)) {
+                    continue;
+                }
+            } else if (scenario[key] === value) {
+                continue;
             }
+
+            if (DURATION_FIELDS.has(key)) {
+                if (sameDuration(scenario[key], value)) {
+                    continue;
+                }
+            } else if (scenario[key] === value) {
+                continue;
+            }
+
+            throw new Error(
+                `The execution model does not match the profile: ` +
+                `${name}.${key} is ${JSON.stringify(scenario[key])}, ` +
+                `expected ${JSON.stringify(value)}`
+            );
         }
     }
+}
+
+/*
+ * k6 reports durations in Go form, for example "1m0s" for
+ * "1m". Keys that hold a duration are compared by length.
+ */
+const DURATION_FIELDS = new Set(["timeUnit", "duration"]);
+
+/*
+ * Converts a duration such as "1m", "1m0s", "10m0s" or
+ * "1h2m0.5s" to milliseconds. Returns undefined when the
+ * text is not a duration.
+ */
+function durationMs(text: string): number | undefined {
+    const match =
+        /^(?:(\d+(?:\.\d+)?)h)?(?:(\d+(?:\.\d+)?)m(?!s))?(?:(\d+(?:\.\d+)?)s)?(?:(\d+(?:\.\d+)?)ms)?$/
+            .exec(text);
+
+    if (!match || text === "") {
+        return undefined;
+    }
+
+    const [, hours, minutes, seconds, millis] = match;
+
+    return (
+        Number(hours ?? 0) * 3_600_000 +
+        Number(minutes ?? 0) * 60_000 +
+        Number(seconds ?? 0) * 1_000 +
+        Number(millis ?? 0)
+    );
+}
+
+function sameDuration(actual: unknown, expected: unknown): boolean {
+    if (typeof actual !== "string" || typeof expected !== "string") {
+        return false;
+    }
+
+    const actualMs = durationMs(actual);
+
+    return (
+        actualMs !== undefined &&
+        actualMs === durationMs(expected)
+    );
 }
 
 /**
@@ -391,13 +439,6 @@ function fixedWorkload(
     profile: FixedProfile,
     journeys: JourneyConfig[]
 ): Workload {
-    const runIdRequired =
-        requiresRunId(journeys);
-
-    if (runIdRequired) {
-        getRunId();
-    }
-
     const iterations = journeys.length;
 
     const expectedScenarios: Record<string, ScenarioFields> = {
@@ -418,7 +459,6 @@ function fixedWorkload(
 
         thresholds:
             thresholdsFor(
-                journeys,
                 iterations
             ),
     };
@@ -486,10 +526,6 @@ function sequentialWorkload(): Workload {
         throw new Error(`Add Pupil allows at most ${ADD_PUPIL_ITERATIONS_PER_RUN} iterations per RUN_ID`);
     }
 
-    if (requiresRunId(mix)) {
-        getRunId();
-    }
-
     const expectedScenarios: Record<string, ScenarioFields> = {
         sequential: {
             executor: "shared-iterations",
@@ -504,7 +540,7 @@ function sequentialWorkload(): Workload {
         pauseSeconds,
         options: {
             scenarios: expectedScenarios as unknown as NonNullable<Options["scenarios"]>,
-            thresholds: thresholdsFor(mix, iterations),
+            thresholds: thresholdsFor(iterations),
         },
         journeyFor(iteration) {
             return schedule[iteration % schedule.length]!;
@@ -580,10 +616,6 @@ function loadWorkload(): Workload {
         );
     }
 
-    if (requiresRunId(mix)) {
-        getRunId();
-    }
-
     const expectedScenarios: Record<string, ScenarioFields> = {
         load: {
             executor: "constant-arrival-rate",
@@ -600,7 +632,7 @@ function loadWorkload(): Workload {
             expectedScenarios as unknown as NonNullable<Options["scenarios"]>,
 
         thresholds:
-            thresholdsFor(mix, undefined),
+            thresholdsFor(undefined),
     };
 
     const addPupilShare =

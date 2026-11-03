@@ -35,7 +35,6 @@ import {
 } from "../lib/pupil-selection.ts";
 
 import {
-    needsCleanup,
     windowOf,
 } from "../lib/journey-selection.ts";
 
@@ -43,6 +42,11 @@ import {
     journeyCompletion,
     journeysCompleted,
 } from "../lib/metrics.ts";
+
+import {
+    chooseRunId,
+    setRunId,
+} from "../lib/run-id.ts";
 
 import {
     resolveWorkload,
@@ -80,6 +84,7 @@ export const options = workload.options;
 
 interface TestData {
     pupilsByWindow: Record<WindowKey, Pupil[]>;
+    runId: string;
 }
 
 export function setup(): TestData {
@@ -92,6 +97,15 @@ export function setup(): TestData {
     for (const line of workload.describe()) {
         console.log(line);
     }
+
+    /*
+     * Chosen once here, so every VU uses the same run ID.
+     * Pass -e RUN_ID=<id> to reuse one, for example to
+     * repeat a run. Fails before any request if it is invalid.
+     */
+    const runId = chooseRunId();
+
+    console.log(`Run ID: ${runId}`);
 
     /*
      * setup() needs admin access because the pupil
@@ -134,12 +148,15 @@ export function setup(): TestData {
 
     return {
         pupilsByWindow,
+        runId,
     };
 }
 
 export default function (
     data: TestData
 ): void {
+    setRunId(data.runId);
+
     const iteration =
         exec.scenario.iterationInTest;
 
@@ -276,29 +293,26 @@ export default function (
         );
 
         /*
-         * Amendment journeys are cleaned up after submission
-         * so the same pupil can be amended again. Add Pupil
-         * and Results Enquiry are not cleaned up because
-         * they can be submitted as many times as needed.
+         * Every journey's request is withdrawn after
+         * submission, so repeated runs do not accumulate
+         * requests in the application.
          */
-        if (needsCleanup(config)) {
-            cleanupRequest({
-                baseUrl:
-                    BASE_URL,
+        cleanupRequest({
+            baseUrl:
+                BASE_URL,
 
-                windowId:
-                    profile.windowId,
+            windowId:
+                profile.windowId,
 
-                requestReferenceNumber:
-                    result.referenceNumber,
-            });
+            requestReferenceNumber:
+                result.referenceNumber,
+        });
 
-            cleanedUp = true;
+        cleanedUp = true;
 
-            console.log(
-                `Cleaned up request ${result.referenceNumber}`
-            );
-        }
+        console.log(
+            `Cleaned up request ${result.referenceNumber}`
+        );
 
         journeysCompleted.add(1);
         journeyCompletion.add(true);
@@ -311,8 +325,7 @@ export default function (
          */
         if (
             requestReference !== undefined &&
-            !cleanedUp &&
-            needsCleanup(config)
+            !cleanedUp
         ) {
             try {
                 cleanupRequest({

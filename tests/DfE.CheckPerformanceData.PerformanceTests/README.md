@@ -46,10 +46,10 @@ k6 run -e BASE_URL=http://localhost:8080 -e PROFILE=single -e JOURNEY=remove-pup
 
 ## Run Add Pupil
 
-Add Pupil generates pupil data from `RUN_ID`, so it requires a `RUN_ID`:
+Add Pupil generates pupil data from the run ID. Set `RUN_ID` to reuse a run ID. Leave it unset to generate one, which is printed at the start of the run:
 
 ```bash
-k6 run -e BASE_URL=http://localhost:8080 -e PROFILE=single -e JOURNEY=add-pupil -e RUN_ID=add-01 tests/journey.ts
+k6 run -e BASE_URL=http://localhost:8080 -e PROFILE=single -e JOURNEY=add-pupil tests/journey.ts
 ```
 
 ## Full regression
@@ -60,7 +60,7 @@ The regression profile runs all 25 registered journeys sequentially:
 k6 run -e BASE_URL=http://localhost:8080 -e PROFILE=regression -e RUN_ID=reg-01 tests/journey.ts
 ```
 
-> NOTE: Regression includes Add Pupil and Results Enquiry journeys. Neither is cleaned up, because both can be submitted as many times as needed, so the records they create remain in the environment.
+> NOTE: Regression includes Add Pupil and Results Enquiry journeys. Each one is cleaned up after submission, the same as amendment journeys.
 
 ## Repeat journeys without concurrency
 
@@ -120,17 +120,9 @@ This was reproduced with overlapping submissions.
 
 The performance framework deliberately does not retry the failed submission or otherwise hide this behaviour. If the defect occurs, the performance test reports a failure.
 
-## Results Enquiry and Add Pupil records remain in the environment
+## Request cleanup
 
-Submitted Results Enquiries cannot currently be deleted or withdrawn using the application.
-
-Results Enquiry and Add Pupil journeys are not cleaned up by the framework, because they can be submitted as many times as needed. Every execution of either journey therefore leaves its record behind.
-
-Results Enquiry records must be cleaned up separately using an appropriate database or administrative process where required.
-
-## Amendment cleanup
-
-Amendment requests created by the framework are cleaned up after successful submission. The application allows only one amendment request per pupil, so without cleanup the same pupil could not be amended again.
+Every request created by the framework is cleaned up after successful submission. This applies to all journey types, including Add Pupil and Results Enquiry. The application allows only one amendment request per pupil, so without cleanup the same pupil could not be amended again.
 
 If the cleanup call fails, the framework tries once more when the journey has a reference number. If the journey fails before it gets a reference number, the framework cannot clean up. Find and withdraw that request by hand in the application.
 
@@ -397,7 +389,7 @@ This performs post-test cleanup for amendment requests. Cleanup lets the same pu
 
 Draft requests are deleted. Submitted requests are withdrawn by the application, which leaves them in the `Withdrawn` state.
 
-`tests/journey.ts` performs this cleanup after successful amendment submission. Add Pupil and Results Enquiry journeys are not cleaned up, because they can be submitted as many times as needed.
+`tests/journey.ts` performs this cleanup after every successful submission, for all journey types.
 
 ---
 
@@ -496,12 +488,6 @@ iteration % pupils.length
 Record IDs and result keys are regenerated when the data is seeded, so `CYPMD_ID` is used as the join key and nothing is hard-coded.
 
 > NOTE: The pool follows the results blob of the current release. Changing the release changes the pool.
-
-## Results Enquiry cleanup
-
-Results Enquiries cannot currently be deleted through the application. They can be submitted as many times as needed, so `tests/journey.ts` does not call cleanup for `ResultsEnquiry`.
-
-Each Results Enquiry execution leaves one submitted record behind.
 
 ---
 
@@ -658,7 +644,7 @@ This allows new journeys to reuse the same HTTP and flow implementation where th
 | `BASE_URL` | all | Target URL. Defaults to local application |
 | `PROFILE` | all | `smoke`, `single`, `regression`, `sequential` or `load` |
 | `JOURNEY` | single/regression | Journey ID. `all` is accepted with regression |
-| `RUN_ID` | Add Pupil | Deterministic run identifier |
+| `RUN_ID` | Add Pupil | Optional run identifier. Generated in `setup()` when unset |
 | `SEQUENTIAL_ITERATIONS` | sequential | Required positive whole number of journeys to run |
 | `SEQUENTIAL_PAUSE_SECONDS` | sequential | Required pause after each journey; finite number of at least 0, including fractions |
 | `LOAD_RATE_PER_MINUTE` | load | Iterations started per minute |
@@ -673,7 +659,7 @@ Profile-specific variables are rejected under other profiles. `JOURNEY_WEIGHTS` 
 
 # RUN_ID and Add Pupil
 
-`add-pupil` generates deterministic test data from `RUN_ID`.
+`add-pupil` generates deterministic test data from the run ID. `setup()` uses `RUN_ID` when it is set. Otherwise it generates one, such as `auto-mw0sccon-qw5p`. Every VU in the run uses the same run ID.
 
 The generated surname is:
 
@@ -696,15 +682,13 @@ Properties:
 - `RUN_ID` accepts 1–32 letters, digits, `-` or `_`
 - uncontrolled randomness is not used
 
-A different `RUN_ID` should be used when fresh Add Pupil data is required.
+A different run ID gives fresh Add Pupil data. Leave `RUN_ID` unset for a new run. Set it to repeat a run with the same surnames.
 
-Different `RUN_ID` values can rarely map to the same 5-letter hash code, so use distinct descriptive identifiers.
+Different `RUN_ID` values can rarely map to the same 5-letter hash code. When you set `RUN_ID`, use a distinct descriptive identifier.
 
-`RUN_ID` is mandatory when an execution can include `add-pupil`.
+Missing or invalid configuration fails before application requests are sent. An invalid `RUN_ID` stops `setup()` before any request.
 
-Missing or invalid configuration fails before application requests are sent.
-
-Example:
+Example, to reuse a run ID:
 
 ```bash
 k6 run -e BASE_URL=http://localhost:8080 -e PROFILE=single -e JOURNEY=add-pupil -e RUN_ID=run-01 tests/journey.ts
@@ -747,7 +731,7 @@ Invalid journey IDs or invalid weights cause configuration validation to fail be
 
 The default mix for load and sequential profiles is provisional.
 
-It currently gives weight `1` to each amendment journey that needs cleanup. Add Pupil and Results Enquiry receive weight `0`. Include them with `JOURNEY_WEIGHTS` if required.
+It currently gives weight `1` to every registered journey, so Add Pupil and Results Enquiry run as often as the other journeys. Load and sequential runs generate a run ID when `RUN_ID` is unset. Override the mix with `JOURNEY_WEIGHTS` if required.
 
 These weights do not represent agreed production traffic volumes.
 
@@ -763,7 +747,7 @@ Production-like workload percentages must be agreed before using the profile for
 
 The maximum duration is two hours, including pauses. Choose an iteration count and pause that fit within that limit. The completion threshold requires exactly the configured number of successful journeys; failures or a duration limit that prevents completion cause the test to fail.
 
-The profile uses the same default weights and optional `JOURNEY_WEIGHTS` as load. Add Pupil and Results Enquiry are excluded by default. If Add Pupil is included, `RUN_ID` is required and the iteration count cannot exceed 17,576.
+The profile uses the same default weights and optional `JOURNEY_WEIGHTS` as load. Add Pupil is in the default mix, so the iteration count cannot exceed 17,576 per run ID.
 
 Throughput depends on journey duration plus the pause; there is no fixed arrival rate or queue of scheduled starts. One VU prevents overlapping journeys within this test instance only, not requests from other test processes or application users.
 
@@ -850,7 +834,7 @@ It is not an agreed SLO, SLA or production performance requirement.
 
 Formal response-time targets should be agreed before using these thresholds as acceptance criteria.
 
-Cleanup transaction thresholds are included only when the selected workload contains amendment journeys that need cleanup.
+Cleanup transaction thresholds are always included, because every journey type is cleaned up after submission.
 
 ---
 
@@ -890,11 +874,7 @@ A regression run includes:
 - 16 to 19 Merge
 - 16 to 19 Results Enquiry journeys
 
-Regression requires:
-
-```text
-RUN_ID
-```
+Regression generates a run ID when `RUN_ID` is unset. Set `RUN_ID` to reuse one.
 
 Example:
 
@@ -958,9 +938,9 @@ The expected cleanup behaviour depends on journey type.
 
 | Type | Behaviour |
 | --- | --- |
-| Amendment | Cleaned up after submission. The request becomes `Withdrawn`, so the same pupil can be amended again |
-| Add Pupil | Not cleaned up. Each submission creates a generated pupil record that remains |
-| Results Enquiry | Not cleaned up. Each submission creates a record that remains; no application cleanup mechanism has been identified |
+| Amendment | Cleaned up after submission. The request is withdrawn, so the same pupil can be amended again. Withdrawal sends a Notify email |
+| Add Pupil | Cleaned up after submission. The request is withdrawn, which sends a Notify email. The generated pupil record is not removed |
+| Results Enquiry | Cleaned up after submission. The request is withdrawn. No email is sent |
 
 Use appropriate non-production environments for executions that write test data.
 
@@ -978,10 +958,6 @@ IX_ChangeRequests_ReferenceNumber
 ```
 
 The framework does not retry the failure.
-
-## Results Enquiry accumulation
-
-Submitted Results Enquiry records cannot currently be removed by the test framework through the application.
 
 ## Results Enquiry pupil pool
 
@@ -1011,16 +987,16 @@ The current full sequential regression baseline is:
 
 ```text
 25 journeys
-1714 checks
+1792 checks
 0 failed checks
 0 unexpected failed HTTP requests
 ```
 
-This baseline was established using sequential execution. Two consecutive sequential runs both gave 1714 checks.
+This baseline was established using sequential execution, with one regression run.
 
 It does not demonstrate successful concurrent load behaviour because concurrent execution is currently constrained by the known application duplicate-reference defect.
 
-Changes to the number of configured checks may legitimately change the expected `1714` total. Journey completion and threshold results remain the primary regression criteria.
+Changes to the number of configured checks may legitimately change the expected `1792` total. Journey completion and threshold results remain the primary regression criteria.
 
 ---
 
@@ -1052,3 +1028,15 @@ npx tsc --noEmit -p tsconfig.json
 ```
 
 A clean type check should be maintained alongside successful k6 verification.
+
+---
+
+# TODO
+
+## Add Pupil withdrawal sends an email
+
+Cleanup withdraws each Add Pupil request. The withdrawal sends a Notify email.
+
+The application sends this email because Add Pupil is submitted as an Amendment-type request. `RequestService.DeleteAsync` sends an email for Amendment and ConfirmCorrect requests. Results Enquiry requests send no email.
+
+Check that schools or the target environment can receive these emails. The behaviour is left as it is for now.

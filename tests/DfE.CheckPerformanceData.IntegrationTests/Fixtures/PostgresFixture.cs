@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Testcontainers.PostgreSql;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.Fixtures;
@@ -51,6 +52,21 @@ public sealed class PostgresFixture : IAsyncLifetime
             // integration tests exercise the same strategy production runs rather than the non-retrying
             // default — otherwise the transactional code path here never matches the deployed one.
             .UseNpgsql(ConnectionString, npgsql => npgsql.EnableRetryOnFailure())
+            .Options;
+        return new PortalDbContext(options, new FakeCurrentUserService());
+    }
+
+    /// <summary>
+    /// Same context as <see cref="CreateContext"/>, with one EF interceptor, a 1 ms cap on the
+    /// retry back-off and 3 retries rather than the default 6. Both limits keep a forced-retry
+    /// test fast; the Npgsql retrying strategy and its transient classification match production.
+    /// </summary>
+    public PortalDbContext CreateRetryingContext(IInterceptor interceptor)
+    {
+        var options = new DbContextOptionsBuilder<PortalDbContext>()
+            .UseNpgsql(ConnectionString, npgsql => npgsql.EnableRetryOnFailure(
+                maxRetryCount: 3, maxRetryDelay: TimeSpan.FromMilliseconds(1), errorCodesToAdd: null))
+            .AddInterceptors(interceptor)
             .Options;
         return new PortalDbContext(options, new FakeCurrentUserService());
     }

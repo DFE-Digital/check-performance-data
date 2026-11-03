@@ -81,6 +81,16 @@ public sealed class RequestRepository(IPortalDbContext db, IEstablishmentViewCon
             var strategy = db.Database.CreateExecutionStrategy();
             return await strategy.ExecuteAsync(async () =>
             {
+                // #753: EnableRetryOnFailure re-runs this whole delegate when Postgres cancels the
+                // serializable transaction (40001, which Npgsql treats as transient). A failed
+                // attempt's Add below stays tracked as Added, and so does the audit row
+                // PortalDbContext.SaveChangesAsync queued for it. Without this clear the retry's own
+                // Add is saved alongside them: two rows with one reference number, which
+                // IX_ChangeRequests_ReferenceNumber turns into a 23505 and a 500 for the school.
+                // Same pattern as EgressRunRepository. This also detaches anything a caller tracked
+                // before calling UpsertAsync; no caller does, and none should.
+                db.ChangeTracker.Clear();
+
                 await using var transaction = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
 
                 // ReferenceNumber is unique, so at most one row matches.

@@ -169,6 +169,47 @@ public sealed class ConcurrentConflictIntegrationTests(PostgresFixture fixture)
         Assert.IsType<DuplicateRequestException>(failures[0].Ex);
     }
 
+    // #753: the race the 2-VU performance test hit. Different pupils, so neither submit conflicts
+    // with the other; both must land. Before the fix, the submit Postgres cancelled (40001) was
+    // retried with its first attempt's row still tracked, and the retry failed with 23505.
+    [Fact]
+    public async Task Upsert_Insert_ConcurrentForDifferentPupils_BothSucceed()
+    {
+        await TruncateAsync();
+        var windowId = await SeedWindowAsync();
+        var pupilA = Guid.NewGuid();
+        var pupilB = Guid.NewGuid();
+
+        var results = new System.Collections.Concurrent.ConcurrentBag<(string Ref, Guid? Id, Exception? Ex)>();
+
+        async Task Submit(string reference, Guid pupilId)
+        {
+            await using var ctx = _fixture.CreateContext();
+            var repo = new RequestRepository(ctx);
+            try
+            {
+                var id = await repo.UpsertAsync(Data(windowId, reference, RequestStatus.Submitted, pupilId: pupilId));
+                results.Add((reference, id, null));
+            }
+            catch (Exception ex)
+            {
+                results.Add((reference, null, ex));
+            }
+        }
+
+        await Task.WhenAll(Task.Run(() => Submit("REF-DIFF-A", pupilA)), Task.Run(() => Submit("REF-DIFF-B", pupilB)));
+
+        Assert.Equal(2, results.Count);
+        Assert.All(results, r => Assert.True(r.Ex is null, $"{r.Ref} failed: {r.Ex}"));
+
+        await using var verify = _fixture.CreateContext();
+        var rows = await verify.ChangeRequests
+            .Where(r => r.WindowId == windowId && r.Status == RequestStatus.Submitted)
+            .Select(r => r.ReferenceNumber)
+            .ToListAsync();
+        Assert.Equal(new[] { "REF-DIFF-A", "REF-DIFF-B" }, rows.OrderBy(x => x));
+    }
+
     [Fact]
     public async Task Upsert_BulkSubmissionMixedConflicts_ProcessesNonConflictingPupils()
     {

@@ -370,7 +370,7 @@ From the Summary, the user can:
    Blob:      request_{referenceNumber}.json
    ```
 
-4. **Upsert DB row** — `IRequestRepository.UpsertAsync(data)` with `Status = Submitted`. If a Draft row already exists for this reference number it is updated to Submitted; otherwise a new row is inserted into `ChangeRequests`.
+4. **Upsert DB row** — `IRequestRepository.UpsertAsync(data)` with `Status = Submitted`. If a Draft row already exists for this reference number it is updated to Submitted; otherwise a new row is inserted into `ChangeRequests`. The insert runs in a `Serializable` transaction inside EF's retrying execution strategy. Postgres can cancel one of two concurrent submits with `40001`; EF then re-runs the whole delegate, so the delegate clears the change tracker first. Without that, the retry saved the first attempt's row too and `IX_ChangeRequests_ReferenceNumber` returned a `23505` (#753).
 
 5. **Partial session wipe** — Journey-specific fields are cleared so that back-button resubmit hits `IsSessionReady → false`:
    ```csharp

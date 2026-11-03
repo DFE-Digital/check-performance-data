@@ -53,6 +53,7 @@ public static class ZendeskTicketFieldOptions
         public const string Ks2 = "ks2";
         public const string Ks3 = "ks3";
         public const string Ks4 = "ks4";
+        public const string Ks16To18 = "16-18";
     }
 
     /// <summary>
@@ -295,6 +296,7 @@ public static class ZendeskTicketFieldOptions
             { "ks4", KeyStage.Ks4 },
             { "KS4June", KeyStage.Ks4 },
             { "KS4Autumn", KeyStage.Ks4 },
+            { "Post16", KeyStage.Ks16To18 },
             { "key stage 1", KeyStage.Ks1 },
             { "key stage 2", KeyStage.Ks2 },
             { "key stage 3", KeyStage.Ks3 },

@@ -35,6 +35,7 @@ public sealed class ZendeskTicketFieldOptionsTests
     [InlineData("KS4June", "ks4")]
     [InlineData("KS4Autumn", "ks4")]
     [InlineData("ks4", "ks4")]
+    [InlineData("Post16", "16-18")]
     public void KeyStage_GetOptionValue_MapsCheckingWindowTypes(string windowType, string expected)
     {
         var value = ZendeskTicketFieldOptions.GetOptionValue(ZendeskTicketFieldConstants.KeyStageName, windowType);
@@ -45,7 +46,7 @@ public sealed class ZendeskTicketFieldOptionsTests
     [Fact]
     public void KeyStage_GetOptionValue_ReturnsNullForUnmappedWindowType()
     {
-        var value = ZendeskTicketFieldOptions.GetOptionValue(ZendeskTicketFieldConstants.KeyStageName, "Post16");
+        var value = ZendeskTicketFieldOptions.GetOptionValue(ZendeskTicketFieldConstants.KeyStageName, "banana");
 
         Assert.Null(value);
     }

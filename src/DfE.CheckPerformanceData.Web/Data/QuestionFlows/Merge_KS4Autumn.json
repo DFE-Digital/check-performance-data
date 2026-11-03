@@ -1,0 +1,50 @@
+{
+  "firstPageId": "select-pupil",
+  "pages": [
+    {
+      "id": "select-pupil",
+      "type": "PupilSearch",
+      "title": "What is the name of the pupil for the first duplicate record to be merged?",
+      "subheading": "Start typing the first name, last name, CYPMD ID, UPN or date of birth (DOB)",
+      "pupilFilter": "Included",
+      "pupilKey": "primary",
+      "nextPageId": "select-match-pupil",
+      "validationFailure": "Enter the name of the pupil for the first duplicate record to be merged."
+    },
+    {
+      "id": "select-match-pupil",
+      "nextPageId": "evidence",
+      "type": "PupilSearch",
+      "title": "What is the CYPMD ID of the second duplicate record to be merged?",
+      "subheading": "Start typing the first name, last name, CYPMD ID, UPN or date of birth (DOB)",
+      "pupilFilter": "All",
+      "pupilKey": "match",
+      "validationFailure": "Enter the CYPMD ID for the second duplicate record to be merged. CYPMD ID for second duplicate record must be different to first record."
+    },
+    {
+      "id": "evidence",
+      "pageTitle": "Provide evidence for merging duplicate records",
+      "type": "EvidenceUpload",
+      "title": "Provide evidence for merging duplicate records for {pupilName}",
+      "detailsSummary": "Merge duplicate pupil records",
+      "content": "<p class=\"govuk-body\">If the same pupil appears twice in your performance data and the records need to be combined into a single pupil record.</p><p class=\"govuk-body\"><strong>Information or evidence you must provide</strong></p><ul class=\"govuk-list govuk-list--bullet\"><li>CYPMD ID of the pupil record that should be deleted or merged into the other record</li><li>details explaining why the pupil records should be merged</li></ul>",
+      "questions": [
+        {
+          "id": "evidence",
+          "type": "FileUpload",
+          "title": "Upload files",
+          "hint": "Evidence must be in a PDF format",
+          "optional": true
+        },
+        {
+          "id": "how-evidence-supports",
+          "type": "TextArea",
+          "title": "If the records are not similar, please provide supporting explanation",
+          "summaryTitle": "How evidence supports merging duplicate records (optional)",
+          "characterLimit": 500,
+          "optional": true
+        }
+      ]
+    }
+  ]
+}

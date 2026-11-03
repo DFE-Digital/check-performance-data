@@ -3,6 +3,7 @@ using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Domain.Enums;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
+using DfE.CheckPerformanceData.Infrastructure.QuestionFlow;
 using NSubstitute;
 using CheckingWindowDto = DfE.CheckPerformanceData.Application.LandingPage.CheckingWindowDto;
 
@@ -764,5 +765,42 @@ public class QuestionFlowServiceTests
         var changes = await _sut.GetPupilDataChangesAsync(CheckingWindowType.Post16);
 
         Assert.Empty(changes);
+    }
+
+    // ── The shipped flow files ───────────────────────────────────────────────
+
+    /// <summary>
+    /// A change type appears for a window type only when its flow file ships (AGENTS.md, "Content
+    /// and configuration"). This reads the real files through the real source, so adding, dropping
+    /// or misnaming a file fails here unless the row below changes with it. #747 gave KS4 Autumn
+    /// Merge.
+    /// </summary>
+    [Theory]
+    [InlineData(CheckingWindowType.KS4June, new[] { WhatToChange.Merge, WhatToChange.Include, WhatToChange.Remove, WhatToChange.Add })]
+    [InlineData(CheckingWindowType.KS4Autumn, new[] { WhatToChange.Merge, WhatToChange.Add })]
+    [InlineData(CheckingWindowType.KS2, new[] { WhatToChange.Remove })]
+    [InlineData(CheckingWindowType.Post16, new[] { WhatToChange.Merge, WhatToChange.Include, WhatToChange.Remove })]
+    public async Task The_shipped_flow_files_give_each_window_type_its_changes(
+        CheckingWindowType windowType, WhatToChange[] expected)
+    {
+        var sut = new QuestionFlowService(
+            new FileSystemQuestionFlowClient(LocateWebProject()),
+            new MemoryCache(Options.Create(new MemoryCacheOptions())));
+
+        Assert.Equal(expected, await sut.GetPupilDataChangesAsync(windowType));
+    }
+
+    // The Web project folder is the content root FileSystemQuestionFlowClient reads under.
+    private static string LocateWebProject()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null)
+        {
+            var candidate = Path.Combine(dir.FullName, "src", "DfE.CheckPerformanceData.Web");
+            if (Directory.Exists(Path.Combine(candidate, "Data", "QuestionFlows"))) return candidate;
+            dir = dir.Parent;
+        }
+        throw new DirectoryNotFoundException(
+            "Could not locate src/DfE.CheckPerformanceData.Web from " + AppContext.BaseDirectory);
     }
 }

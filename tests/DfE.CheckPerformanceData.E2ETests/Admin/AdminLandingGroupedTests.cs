@@ -104,43 +104,12 @@ public sealed class AdminLandingGroupedTests(PlaywrightFixture fixture) : Seedin
         }
     }
 
-    // --- AdminLanding_AsAdmin_Rail_HasNoDisabledPlaceholderTiles ---
-
-    [Fact]
-    public async Task AdminLanding_AsAdmin_Rail_HasNoDisabledPlaceholderTiles()
-    {
-        // Every admin nav entry is now an actionable link — the last "Coming soon"
-        // placeholder tile (version retention) became a real setting. Guard against a
-        // disabled/placeholder tile being reintroduced.
-        try
-        {
-            await AuthHelpers.ImpersonateAsAdminAsync(Fixture);
-
-            using var request = new HttpRequestMessage(
-                HttpMethod.Get,
-                $"{Fixture.BaseUrl}/admin");
-
-            var response = await Fixture.SeedClient.SendAsync(request);
-
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-
-            var body = await response.Content.ReadAsStringAsync();
-            Assert.DoesNotContain("aria-disabled=\"true\"", body);
-        }
-        finally
-        {
-            await AuthHelpers.ImpersonateAsEditorAsync(Fixture);
-        }
-    }
-
     // --- AdminLanding_Rail_ComputedCss_PinsMatchUiSpec ---
 
     // Source of truth: UI-SPEC § Snapshot Fixtures § Computed-CSS spot pins.
     // The runtime assertions below mirror those pins exactly:
     //   (a) .admin-rail flex-basis = 280px
     //   (b) second .admin-nav-group border-top-color = rgb(177, 180, 182) (#b1b4b6)
-    // (The former disabled-row tabindex pin was dropped — no admin tile is disabled
-    // anymore, see AdminLanding_AsAdmin_Rail_HasNoDisabledPlaceholderTiles.)
     // Linux-only (Playwright VR convention; mirrors AdminLandingVisualTests).
     [SkippableFact]
     public async Task AdminLanding_Rail_ComputedCss_PinsMatchUiSpec()

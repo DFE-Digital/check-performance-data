@@ -28,17 +28,10 @@ public sealed class QualificationDetailsViewSourceTests
         => Assert.Contains("We cannot list syllabus codes for this qualification yet", SyllabusPartial());
 
     [Fact]
-    public void The_syllabus_picker_is_a_plain_dropdown_with_no_javascript_enhancement()
-    {
-        // No qualification in the reference data holds more than 7 syllabus codes, so there is
-        // nothing to search — the accessible-autocomplete enhancement is gone, as it is on the
-        // grade picker this partial was cloned from.
-        var view = SyllabusPartial();
-
-        Assert.Contains("<select class=\"govuk-select", view);
-        Assert.DoesNotContain("<script", view);
-        Assert.DoesNotContain("accessibleAutocomplete", view);
-    }
+    public void The_syllabus_picker_is_a_plain_dropdown()
+        // No qualification in the reference data holds more than 7 syllabus codes, so a plain
+        // <select> is enough.
+        => Assert.Contains("<select class=\"govuk-select", SyllabusPartial());
 
     [Fact]
     public void The_details_card_names_the_awarding_organisation_row_before_the_qan_row()

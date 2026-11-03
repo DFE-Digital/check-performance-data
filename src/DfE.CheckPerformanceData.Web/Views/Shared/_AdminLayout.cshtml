@@ -1,4 +1,3 @@
-@using System.Security.Claims
 @using DfE.CheckPerformanceData.Application.PageTree
 @using DfE.CheckPerformanceData.Application.Settings
 @using DfE.CheckPerformanceData.Web.Admin.Nav
@@ -9,6 +8,7 @@
 @using DfE.CheckPerformanceData.Web.Middleware
 @using DfE.CheckPerformanceData.Application.ContentBlocks
 @using DfE.CheckPerformanceData.Application.Admin
+@using Microsoft.AspNetCore.Html
 @inject Microsoft.Extensions.Hosting.IHostEnvironment HostEnvironment
 @inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 @inject IEnumerable<IAdminNavEntry> AdminNavEntries
@@ -36,21 +36,11 @@
     // AB#298317: shared with _Layout and Check your pupil data's sign-out answer — see SignOutLink.
     var signOutHref = SignOutLink.For(Context, Url);
 
-    string? displayName = null;
-    if (hasRealDfeAuth)
-    {
-        var given = User.FindFirst(ClaimTypes.GivenName)?.Value;
-        var surname = User.FindFirst(ClaimTypes.Surname)?.Value;
-        displayName = string.Join(" ", new[] { given, surname }
-            .Where(s => !string.IsNullOrWhiteSpace(s)));
-        if (string.IsNullOrWhiteSpace(displayName)) displayName = User.Identity?.Name;
-    }
-
-    var parens = new List<string>();
-    if (!string.IsNullOrWhiteSpace(displayName)) parens.Add(displayName!);
-    if (hasAdminImpersonation) parens.Add("impersonating CMS administrator");
-    else if (hasEditorImpersonation) parens.Add("impersonating CMS editor");
-    var signOutLabel = parens.Count > 0 ? $"Sign out ({string.Join(", ", parens)})" : "Sign out";
+    // The label shows no name. Only a dev impersonation adds a suffix, so a tester can
+    // see which role is in play.
+    var signOutLabel = hasAdminImpersonation ? "Sign out (impersonating CMS administrator)"
+        : hasEditorImpersonation ? "Sign out (impersonating CMS editor)"
+        : "Sign out";
 
     // Only offer the impersonation dropdown where the dev tooling surface is enabled
     // (local dev + PR/review apps), matching the controller and DI gate.
@@ -151,7 +141,36 @@
     @* <header role="banner"> so the GOV.UK home link sits in a landmark — the GOV.UK
        Frontend header component itself renders a plain <div> (audit #374). *@
     <header role="banner" class="admin-chrome">
-        <govuk-header home-page-url="https://gov.uk/"/>
+        @* Sign in / Sign out cluster, on the right of the DfE header band. The states
+           are the same as in _Layout.cshtml. *@
+        @{
+            Func<object?, IHtmlContent> accountNav =
+                @<nav class="app-header__account" aria-label="Account">
+                    <ul class="app-header__account-list">
+                        <li class="app-header__account-item sign-in-nav-item">
+                            @if (showSignOut)
+                            {
+                                <a class="app-header__account-link" href="@signOutHref">@signOutLabel</a>
+                            }
+                            else
+                            {
+                                <a class="app-header__account-link sign-in-nav-item__primary" href="@Url.Action("Index", "LandingPage")">Sign in</a>
+                                @if (showImpersonateDropdown)
+                                {
+                                    <button type="button" class="sign-in-nav-item__toggle" aria-expanded="false" aria-controls="sign-in-dropdown-menu" aria-label="Show sign in options">
+                                        <svg class="sign-in-nav-item__caret" width="10" height="6" viewBox="0 0 10 6" fill="currentColor" aria-hidden="true" focusable="false"><path d="M0 0 L5 6 L10 0 Z"/></svg>
+                                    </button>
+                                    <ul id="sign-in-dropdown-menu" class="sign-in-dropdown-menu" hidden>
+                                        <li><a class="sign-in-dropdown-menu__item" href="/dev/impersonate/editor" title="Take on the CMS editor role for this session.">As CMS Editor</a></li>
+                                        <li><a class="sign-in-dropdown-menu__item" href="/dev/impersonate/admin" title="Take on the admin role for this session.">As CMS Admin</a></li>
+                                    </ul>
+                                }
+                            }
+                        </li>
+                    </ul>
+                </nav>;
+        }
+        <partial name="_DfeHeader" model="accountNav(null)" />
         <section class="govuk-service-navigation admin-service-navigation" data-module="govuk-service-navigation" aria-label="Service information">
             <div class="govuk-width-container">
                 <div class="govuk-service-navigation__container">
@@ -164,26 +183,6 @@
                             {
                                 @await Component.InvokeAsync("MessagesBadge")
                             }
-                            <li class="govuk-service-navigation__item sign-in-nav-item">
-                                @if (showSignOut)
-                                {
-                                    <a class="govuk-service-navigation__link" href="@signOutHref">@signOutLabel</a>
-                                }
-                                else
-                                {
-                                    <a class="govuk-service-navigation__link sign-in-nav-item__primary" href="@Url.Action("Index", "LandingPage")">Sign in</a>
-                                    @if (showImpersonateDropdown)
-                                    {
-                                        <button type="button" class="sign-in-nav-item__toggle" aria-expanded="false" aria-controls="sign-in-dropdown-menu" aria-label="Show sign in options">
-                                            <svg class="sign-in-nav-item__caret" width="10" height="6" viewBox="0 0 10 6" fill="currentColor" aria-hidden="true" focusable="false"><path d="M0 0 L5 6 L10 0 Z"/></svg>
-                                        </button>
-                                        <ul id="sign-in-dropdown-menu" class="sign-in-dropdown-menu" hidden>
-                                            <li><a class="sign-in-dropdown-menu__item" href="/dev/impersonate/editor" title="Take on the CMS editor role for this session.">As CMS Editor</a></li>
-                                            <li><a class="sign-in-dropdown-menu__item" href="/dev/impersonate/admin" title="Take on the admin role for this session.">As CMS Admin</a></li>
-                                        </ul>
-                                    }
-                                }
-                            </li>
                         </ul>
                     </nav>
                 </div>

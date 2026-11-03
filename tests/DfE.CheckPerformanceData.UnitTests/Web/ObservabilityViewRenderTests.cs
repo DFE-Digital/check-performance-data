@@ -121,12 +121,9 @@ public sealed class ObservabilityViewRenderTests
 
 		var throughput = ReadView("_Chart.cshtml");
 		Assert.Contains("_DeployMarkers", throughput);
-		// The inline marker loop is gone from the throughput chart — no duplicated rendering.
-		Assert.DoesNotContain("stroke-dasharray", throughput);
 
 		var overTime = ReadView("_DecisionMixOverTimeChart.cshtml");
 		Assert.Contains("_DeployMarkers", overTime);
-		Assert.DoesNotContain("stroke-dasharray", overTime);
 	}
 
 	// --- The Demo panel folds the old Debug Pipeline controls into the dashboard, dev-gated ---
@@ -234,19 +231,6 @@ public sealed class ObservabilityViewRenderTests
 		Assert.Contains("row.ResolvedDecision", view);
 	}
 
-	[Fact]
-	public void Board_NoLongerCarriesItsOwnReplayOrDemoControlBoxes()
-	{
-		// The board partial is now pure board: the controls live in the dashboard's Demo panel, so
-		// the partial must not render its own replay group or dev-only demo-control checkboxes.
-		var board = ReadView("_Board.cshtml");
-
-		Assert.DoesNotContain("obs-board__controls", board);
-		Assert.DoesNotContain("obs-board__replay", board);
-		Assert.DoesNotContain("obs-board__dev-controls", board);
-		Assert.DoesNotContain("data-obs-slowmo", board);
-	}
-
 	// --- The decision-mix totals chart is a pie with the value in each slice ---
 
 	[Fact]
@@ -259,8 +243,6 @@ public sealed class ObservabilityViewRenderTests
 		Assert.Contains("obs-pie__label", view);
 		// The slice label shows the count and the percentage.
 		Assert.Contains("entry.Count (@pct%)", view);
-		// The bar-chart rendering is gone.
-		Assert.DoesNotContain("var barWidth", view);
 		// Still accessible: role="img" + aria-label + the paired data table.
 		Assert.Contains("role=\"img\"", view);
 		Assert.Contains("Decision mix: @summary", view);

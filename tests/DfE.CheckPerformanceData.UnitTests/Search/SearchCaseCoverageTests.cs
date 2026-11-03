@@ -176,7 +176,7 @@ public sealed class SearchCaseCoverageTests
         $"SearchCaseCoverageTests could not walk up from UnitTests bin dir '{binDir}' to locate the sibling " +
         "IntegrationTests project. Fallback: move the file to IntegrationTests and add a reverse project reference.");
 
-    // Verbatim from tests/DfE.CheckPerformanceData.IntegrationTests/Architecture/AzureQueueCutoverGuardTests.cs.
+    // GetTypes throws when one type cannot load. Keep the types that did load.
     private static IEnumerable<Type> SafeGetTypes(Assembly asm)
     {
         try

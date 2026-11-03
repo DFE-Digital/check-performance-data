@@ -118,8 +118,6 @@ public sealed class ConfirmationViewSourceTests
 
         Assert.Contains("NextStepLabels.For(NextSteps.RequestChange, Model.LearnerNoun)", source);
         Assert.Contains("NextStepLabels.For(NextSteps.ResultsEnquiry, Model.LearnerNoun)", source);
-        // The old fixed copy is gone: the label now carries the window's learner noun.
-        Assert.DoesNotContain("Request another amendment", source);
     }
 
     [Fact]

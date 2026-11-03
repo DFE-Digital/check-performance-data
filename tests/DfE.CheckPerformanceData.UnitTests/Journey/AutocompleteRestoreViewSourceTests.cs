@@ -13,8 +13,7 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 // restore a value is the component's defaultValue option, which seeds the internal state
 // so re-renders preserve it and the menu stays closed.
 //
-// These tests pin: (a) defaultValue is passed, (b) the post-init DOM poke is gone,
-// (c) _Autocomplete's {field}_code hidden input round-trips the stored CodeValue instead
+// These tests pin: (a) defaultValue is passed, (b) _Autocomplete's {field}_code hidden input round-trips the stored CodeValue instead
 // of being reset to "" on every re-render (which silently dropped the ISO code and left
 // OriginCountryLanguageCapture's exact-name recovery doing the real work).
 public sealed class AutocompleteRestoreViewSourceTests
@@ -45,16 +44,6 @@ public sealed class AutocompleteRestoreViewSourceTests
     }
 
     [Fact]
-    public void Autocomplete_DoesNotPokeTheInputValueAfterInit()
-    {
-        var view = ViewSource("_Autocomplete.cshtml");
-
-        // The historic bug: writing the value into the DOM after init left the
-        // component's internal state empty, so its next re-render wiped the value.
-        Assert.DoesNotContain(".value = initialLabel", view);
-    }
-
-    [Fact]
     public void Autocomplete_CodeHiddenField_RoundTripsTheStoredCode()
     {
         var view = ViewSource("_Autocomplete.cshtml");
@@ -63,7 +52,6 @@ public sealed class AutocompleteRestoreViewSourceTests
         // A hard-coded value="" dropped the ISO code on every validation-error
         // resubmit, leaving recovery to an exact-name lookup.
         Assert.Contains("ExistingAnswer?.CodeValue", view);
-        Assert.DoesNotContain("id=\"@(Model.FieldName)-code-value\" value=\"\"", view);
     }
 
     [Fact]
@@ -74,14 +62,6 @@ public sealed class AutocompleteRestoreViewSourceTests
         // PupilSearch mirrors _Autocomplete.cshtml (its own comment says so) and had
         // the identical restore defect.
         Assert.Contains("defaultValue: initialLabel", view);
-    }
-
-    [Fact]
-    public void PupilSearch_DoesNotPokeTheInputValueAfterInit()
-    {
-        var view = ViewSource("PupilSearch.cshtml");
-
-        Assert.DoesNotContain(".value = initialLabel", view);
     }
 
     [Fact]

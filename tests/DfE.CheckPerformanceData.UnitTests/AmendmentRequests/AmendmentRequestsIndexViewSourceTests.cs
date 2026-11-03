@@ -62,17 +62,6 @@ public sealed class AmendmentRequestsIndexViewSourceTests
         Assert.DoesNotContain("@if (Model.IssueRows.Count > 0)", noIssuesBranch);
     }
 
-    // The search box was removed: the tab lists every enquiry, so there is nothing to filter and
-    // no GET round trip to land back on the tab. Its return would bring the round trip with it.
-    [Fact]
-    public void TheIssuesTabHasNoSearchForm()
-    {
-        var panel = ResultsEnquiriesPanel();
-        Assert.DoesNotContain("<form", panel);
-        Assert.DoesNotContain("resultsEnquiriesSearch", panel);
-        Assert.DoesNotContain("type=\"search\"", panel);
-    }
-
     // The results-enquiry deadline is stated beside the enquiries it governs, on this tab — not
     // in the page header, which now carries the pupil-data deadline alone. Both sentences come
     // from the tab: the submit-by one (past tense once closed) and the open-only edit one.

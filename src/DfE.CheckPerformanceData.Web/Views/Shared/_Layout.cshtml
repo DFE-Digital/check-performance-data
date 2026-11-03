@@ -1,10 +1,10 @@
-@using System.Security.Claims
 @using DfE.CheckPerformanceData.Application.Settings
 @using DfE.CheckPerformanceData.Web.Authentication
 @using DfE.CheckPerformanceData.Web.Common
 @using DfE.CheckPerformanceData.Web.Controllers
 @using DfE.CheckPerformanceData.Web.Middleware
 @using DfE.CheckPerformanceData.Web.Session
+@using Microsoft.AspNetCore.Html
 @inject Microsoft.Extensions.Hosting.IHostEnvironment HostEnvironment
 @inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 @inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
@@ -31,21 +31,11 @@
     // Admin link for both roles so editors don't have to know the URL by heart.
     var showAdminLink = !Impersonation.IsImpersonating && (User.IsInRole(WikiConstants.AdminRole) || User.IsInRole(WikiConstants.EditorRole));
 
-    string? displayName = null;
-    if (hasRealDfeAuth)
-    {
-        var given = User.FindFirst(ClaimTypes.GivenName)?.Value;
-        var surname = User.FindFirst(ClaimTypes.Surname)?.Value;
-        displayName = string.Join(" ", new[] { given, surname }
-            .Where(s => !string.IsNullOrWhiteSpace(s)));
-        if (string.IsNullOrWhiteSpace(displayName)) displayName = User.Identity?.Name;
-    }
-
-    var parens = new List<string>();
-    if (!string.IsNullOrWhiteSpace(displayName)) parens.Add(displayName!);
-    if (hasAdminImpersonation) parens.Add("impersonating CMS administrator");
-    else if (hasEditorImpersonation) parens.Add("impersonating CMS editor");
-    var signOutLabel = parens.Count > 0 ? $"Sign out ({string.Join(", ", parens)})" : "Sign out";
+    // The label shows no name. Only a dev impersonation adds a suffix, so a tester can
+    // see which role is in play.
+    var signOutLabel = hasAdminImpersonation ? "Sign out (impersonating CMS administrator)"
+        : hasEditorImpersonation ? "Sign out (impersonating CMS editor)"
+        : "Sign out";
 
     // Only offer the impersonation dropdown where the dev tooling surface is enabled
     // (local dev + PR/review apps), matching the controller and DI gate. Deployed
@@ -95,12 +85,43 @@
        Wrap the whole masthead — logo, service navigation and phase banner — in one
        <header role="banner">, which is what GOV.UK Frontend expects the service to supply. *@
     <header role="banner">
-    <govuk-header home-page-url="https://gov.uk/"/>
-    @* The service navigation is hand-rolled (not <govuk-service-navigation>) because
-       the sign-in cluster needs a split-button structure: a "Sign in" link plus a
-       separate caret <button> that opens a dropdown. The govuk tag helpers reject
-       any custom child markup. Output matches what the tag helpers would emit, plus
-       the extra dropdown markup. *@
+    @* Sign in / Sign out cluster, on the right of the DfE header band.
+       States:
+         - Real DfE auth:                  "Sign out"                            -> DfeSignOut
+         - Real DfE auth + impersonation:  "Sign out (impersonating CMS admin)"  -> DfeSignOut
+         - Synthetic editor impersonation: "Sign out (impersonating CMS admin)"  -> /dev/impersonate/clear (deletes cookie, true anonymous)
+         - Anonymous (or non-editor synthetic): "Sign in" + caret dropdown for "As CMS admin" (non-prod only) *@
+    @{
+        Func<object?, IHtmlContent> accountNav =
+            @<nav class="app-header__account" aria-label="Account">
+                <ul class="app-header__account-list">
+                    <li class="app-header__account-item sign-in-nav-item">
+                        @if (showSignOut)
+                        {
+                            <a class="app-header__account-link" href="@signOutHref">@signOutLabel</a>
+                        }
+                        else
+                        {
+                            <a class="app-header__account-link sign-in-nav-item__primary" href="@Url.Action("Index", "LandingPage")">Sign in</a>
+                            @if (showImpersonateDropdown)
+                            {
+                                <button type="button" class="sign-in-nav-item__toggle" aria-expanded="false" aria-controls="sign-in-dropdown-menu" aria-label="Show sign in options">
+                                    <svg class="sign-in-nav-item__caret" width="10" height="6" viewBox="0 0 10 6" fill="currentColor" aria-hidden="true" focusable="false"><path d="M0 0 L5 6 L10 0 Z"/></svg>
+                                </button>
+                                <ul id="sign-in-dropdown-menu" class="sign-in-dropdown-menu" hidden>
+                                    <li><a class="sign-in-dropdown-menu__item" href="/dev/impersonate/editor" title="Take on the CMS editor role for this session. Useful when your real account doesn't have the editor role assigned, or when browsing anonymously, and you want to test editor-only CMS features.">As CMS Editor</a></li>
+                                    <li><a class="sign-in-dropdown-menu__item" href="/dev/impersonate/admin" title="Take on the admin role for this session. Use this when testing admin-only surfaces.">As CMS Admin</a></li>
+                                </ul>
+                            }
+                        }
+                    </li>
+                </ul>
+            </nav>;
+    }
+    <partial name="_DfeHeader" model="accountNav(null)" />
+    @* The service navigation is hand-rolled (not <govuk-service-navigation>). Its output
+       matches what the tag helpers would emit. The sign-in cluster is in the header
+       band above, not in this row. *@
     <section class="govuk-service-navigation" data-module="govuk-service-navigation" aria-label="Service information">
         <div class="govuk-width-container">
             <div class="govuk-service-navigation__container">
@@ -132,38 +153,12 @@
                                DfE Analytics records on the guidance page view. *@
                             <a class="govuk-service-navigation__link" href="/guidance" target="_blank" rel="noopener">Guidance (opens in new tab)</a>
                         </li>
-                        @* Sign in / Sign out cluster.
-                           States:
-                             - Real DfE auth:                  "Sign out"                            -> DfeSignOut
-                             - Real DfE auth + impersonation:  "Sign out (impersonating CMS admin)"  -> DfeSignOut
-                             - Synthetic editor impersonation: "Sign out (impersonating CMS admin)"  -> /dev/impersonate/clear (deletes cookie, true anonymous)
-                             - Anonymous (or non-editor synthetic): "Sign in" + caret dropdown for "As CMS admin" (non-prod only) *@
                         @if (showAdminLink)
                         {
                             <li class="govuk-service-navigation__item admin-link-nav-item">
                                 <a class="govuk-service-navigation__link" href="/admin">Admin</a>
                             </li>
                         }
-                        <li class="govuk-service-navigation__item sign-in-nav-item">
-                            @if (showSignOut)
-                            {
-                                <a class="govuk-service-navigation__link" href="@signOutHref">@signOutLabel</a>
-                            }
-                            else
-                            {
-                                <a class="govuk-service-navigation__link sign-in-nav-item__primary" href="@Url.Action("Index", "LandingPage")">Sign in</a>
-                                @if (showImpersonateDropdown)
-                                {
-                                    <button type="button" class="sign-in-nav-item__toggle" aria-expanded="false" aria-controls="sign-in-dropdown-menu" aria-label="Show sign in options">
-                                        <svg class="sign-in-nav-item__caret" width="10" height="6" viewBox="0 0 10 6" fill="currentColor" aria-hidden="true" focusable="false"><path d="M0 0 L5 6 L10 0 Z"/></svg>
-                                    </button>
-                                    <ul id="sign-in-dropdown-menu" class="sign-in-dropdown-menu" hidden>
-                                        <li><a class="sign-in-dropdown-menu__item" href="/dev/impersonate/editor" title="Take on the CMS editor role for this session. Useful when your real account doesn't have the editor role assigned, or when browsing anonymously, and you want to test editor-only CMS features.">As CMS Editor</a></li>
-                                        <li><a class="sign-in-dropdown-menu__item" href="/dev/impersonate/admin" title="Take on the admin role for this session. Use this when testing admin-only surfaces.">As CMS Admin</a></li>
-                                    </ul>
-                                }
-                            }
-                        </li>
                     </ul>
                 </nav>
             </div>

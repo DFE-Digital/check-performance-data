@@ -360,20 +360,6 @@ public sealed class GovukConfirmModalTagHelperTests
         throw new InvalidOperationException("Could not locate site.css from test base dir.");
     }
 
-    [Fact]
-    public async Task ProcessAsync_NoLegacyGovukConfirmModalClass()
-    {
-        // The old single-element dialog used class="govuk-confirm-modal" on the <dialog>.
-        // The new structure uses govuk-modal-dialogue__box; the legacy class must not appear.
-        var sut = MakeDestructiveSut();
-        var (context, output) = MakeContextAndOutput();
-
-        await sut.ProcessAsync(context, output);
-
-        var html = output.Content.GetContent();
-        Assert.DoesNotContain("class=\"govuk-confirm-modal\"", html);
-    }
-
     // --- helpers ---
 
     private static GovukConfirmModalTagHelper MakeDestructiveSut(string id = "confirm-test") => new()

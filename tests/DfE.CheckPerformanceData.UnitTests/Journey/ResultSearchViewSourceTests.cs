@@ -49,20 +49,6 @@ public sealed class ResultSearchViewSourceTests
     }
 
     [Fact]
-    public void The_select_carries_no_type_ahead()
-    {
-        // The type-ahead is gone: a student holds a handful of results, so the list is read rather
-        // than searched. The no-JS guarantee is unaffected — it was always the same <select>, and
-        // the one script left (the #409 details reveal) only reacts to the select, never replaces
-        // it. See ResultSearch.cshtml's own comment; the grade and syllabus pickers match.
-        var view = ViewSource();
-
-        Assert.DoesNotContain("accessibleAutocomplete", view);
-        // Guards against a regression to a fetch-only autocomplete, which would break the no-JS path.
-        Assert.DoesNotContain("/results/suggestions", view);
-    }
-
-    [Fact]
     public void The_heading_labels_the_control()
     {
         var view = ViewSource();

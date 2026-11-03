@@ -86,7 +86,8 @@ public sealed class AccessibilityAuditViewTests
 		// The share surface is anonymous. Its header shows the logo only.
 		var view = ReadView("Views", "Shared", "_ShareLayout.cshtml");
 
-		Assert.Contains("<partial name=\"_DfeHeader\" />", view);
+		Assert.Contains("<partial name=\"_DfeHeader\" model=\"null\" />", view);
+		Assert.DoesNotContain("accountNav", view);
 		Assert.DoesNotContain("sign-in-nav-item", view);
 	}
 

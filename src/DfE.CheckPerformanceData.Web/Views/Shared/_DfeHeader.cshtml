@@ -1,0 +1,24 @@
+@model Microsoft.AspNetCore.Html.IHtmlContent?
+@*
+    DfE Header (Rebrand): the GOV.UK Header component with the DfE logo in place of the
+    GOV.UK logotype. See https://design.education.gov.uk/design-system/govuk-rebrand/dfe-header-rebrand
+
+    This is hand-written GOV.UK Frontend header markup. The <govuk-header> tag helper always
+    renders the GOV.UK logotype, and <govuk-generic-header> renders a black band, not the
+    brand-colour band of the GOV.UK Header.
+
+    The model is optional. It is the account navigation (the sign in or sign out links),
+    which shows on the right of the band. A layout with no account links passes no model.
+
+    The header renders a plain <div>. Each layout wraps this partial in <header role="banner">.
+*@
+<div class="govuk-header">
+    <div class="govuk-header__container govuk-width-container app-header__container">
+        <div class="govuk-header__logo">
+            <a href="https://gov.uk/" class="govuk-header__homepage-link">
+                <img src="~/images/department-for-education_white.png" alt="Department for Education" class="govuk-header__logotype">
+            </a>
+        </div>
+        @Model
+    </div>
+</div>

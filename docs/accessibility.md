@@ -119,13 +119,15 @@ Both halves are pinned in `QuestionFlowValidatorAlignmentTests` — `SingleQuest
 
 ## Landmarks
 
-**Every layout wraps its masthead in `<header role="banner">`.** GOV.UK Frontend's header component renders a plain `<div class="govuk-header">`, not a `<header>` element, so nothing in the masthead is a landmark unless the service supplies one. Without the wrapper, the GOV.UK home link and the phase banner's feedback link sit outside every landmark and are unreachable by landmark navigation (audit #374). `_Layout.cshtml`, `_AdminLayout.cshtml` and `_ShareLayout.cshtml` each open the wrapper before `<govuk-header>` and close it after the last masthead element; on `_Layout` that means the phase banner is inside it too.
+**Every layout wraps its masthead in `<header role="banner">`.** The GOV.UK header renders a plain `<div class="govuk-header">`, not a `<header>` element, so nothing in the masthead is a landmark unless the service supplies one. Without the wrapper, the GOV.UK home link and the phase banner's feedback link sit outside every landmark and are unreachable by landmark navigation (audit #374). `_Layout.cshtml`, `_AdminLayout.cshtml` and `_ShareLayout.cshtml` each open the wrapper before the `_DfeHeader` partial and close it after the last masthead element; on `_Layout` that means the phase banner is inside it too.
+
+**The header shows the DfE logo** ([DfE Header (Rebrand)](https://design.education.gov.uk/design-system/govuk-rebrand/dfe-header-rebrand)). `_DfeHeader.cshtml` is hand-written GOV.UK Header markup with an `<img>` of `department-for-education_white.png` in place of the GOV.UK logotype. The `<govuk-header>` tag helper cannot show a different logo. The image is the only content of the home link, so its alt text is "Department for Education". On focus, `site.css` shows the black logo on the yellow focus background. `_Layout` and `_AdminLayout` pass the sign in and sign out links to `_DfeHeader` as its model. The partial shows them on the right of the band, in a `<nav aria-label="Account">`. The label makes this landmark different from the service navigation's "Menu" landmark. `_ShareLayout` passes no model, so it shows no sign-in links.
 
 ## Skip link and breadcrumbs
 
 **Breadcrumbs render before `<main>`, never inside it.** A breadcrumb is a repeated navigation block, so landing on it is exactly what "Skip to main content" exists to avoid (audit #377). `Views/Page/Content.cshtml` puts its breadcrumb in an `@section Breadcrumbs`, which `_Layout.cshtml` renders inside the `Header` section — after the banner landmark closes, before `@RenderBody()`. The section supplies its own `govuk-width-container`, because the layout renders it outside the template's.
 
-Moving it out of `<main>` broke three CSS rules that keyed off its old position (`main:has(.cpb-breadcrumbs)`, and `.cpb-breadcrumbs + .govuk-grid-row` twice). Those now key off `body:has(.cpb-breadcrumbs)` and the `.cpb-content` wrapper that `Content.cshtml` puts around the authored tree. Spacing is unchanged; `AccessibilityAuditViewTests` pins that the old selectors do not come back.
+The content page spacing rules key off `body:has(.cpb-breadcrumbs)` and the `.cpb-content` wrapper that `Content.cshtml` puts around the authored tree. They do not key off the breadcrumb position inside `<main>`. `AccessibilityAuditViewTests` pins these rules.
 
 ## Repeated link and button text
 

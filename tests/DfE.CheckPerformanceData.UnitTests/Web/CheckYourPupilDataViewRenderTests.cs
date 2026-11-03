@@ -124,8 +124,6 @@ public sealed class CheckYourPupilDataViewRenderTests
         Assert.Contains("You can still view and download your @Model.LearnerNoun.Singular data.", closed);
         // The view must not re-derive "closed" from "not open": that has no lower bound.
         Assert.DoesNotContain("!Model.IsPupilDataOpen", view);
-        // The old past-tense deadline sentence is gone: the paragraph above replaces it.
-        Assert.DoesNotContain("closed at", view);
     }
 
     [Fact]

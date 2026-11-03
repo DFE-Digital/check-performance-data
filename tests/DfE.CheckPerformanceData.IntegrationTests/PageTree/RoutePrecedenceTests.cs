@@ -16,8 +16,8 @@ namespace DfE.CheckPerformanceData.IntegrationTests.PageTree;
 //      controllers, confirming that those controllers define explicit route templates
 //      that will win over the catch-all in normal operation.
 //
-// Pattern matches AzureQueueCutoverGuardTests — assembly-level reflection requires no running
-// host and no database, making it fast and unconditional.
+// Assembly-level reflection requires no running host and no database, making it fast and
+// unconditional.
 public sealed class RoutePrecedenceTests
 {
     private static readonly Type[] AllControllers = typeof(PageController).Assembly

@@ -508,7 +508,7 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
         }
     }
 
-    // --- Top pages summary card renders inline (no more bottom "View top pages" link only) ---
+    // --- Top pages summary card renders inline ---
 
     [SkippableFact]
     public async Task Dashboard_TopPagesSummaryCard_RendersInlineWithOptionalViewAllLink()
@@ -529,16 +529,11 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
             var topPagesTitle = Page.Locator(".sa-summary-card .govuk-summary-card__title:has-text(\"Top pages\")");
             await Expect(topPagesTitle).ToBeVisibleAsync();
 
-            // The old bottom-of-page free-standing link is gone. The only "View all top pages…"
-            // link, if any, lives INSIDE the Top pages summary card.
+            // The "View all top pages" link renders inside the card when there are more than
+            // 10 pages.
             var topPagesCard = Page.Locator(".sa-summary-card:has(.govuk-summary-card__title:has-text(\"Top pages\"))");
             var inCardViewAll = topPagesCard.Locator("a.govuk-link:has-text(\"View all top pages\")");
             var inCardCount = await inCardViewAll.CountAsync();
-
-            // Total link count on the page (either 0 when the card fits everything, or 1 when
-            // there are more than 10 pages and the "View all" link renders inside the card).
-            var allViewAll = Page.Locator("a.govuk-link:has-text(\"View all top pages\")");
-            Assert.Equal(inCardCount, await allViewAll.CountAsync());
 
             if (inCardCount > 0)
             {

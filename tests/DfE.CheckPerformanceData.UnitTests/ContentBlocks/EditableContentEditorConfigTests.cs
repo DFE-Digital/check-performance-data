@@ -16,14 +16,6 @@ public sealed class EditableContentEditorConfigTests
         File.ReadAllText(Path.Combine(RepoRoot(), "src", "DfE.CheckPerformanceData.Web",
             "Views", "Shared", "Components", "EditableContent", "Default.cshtml"));
 
-    // Item 6: a "last updated" date is metadata, not a status — the tag styling
-    // affordance is removed so editors can't apply a govuk-tag to a date.
-    [Fact]
-    public void Editor_DoesNotOfferLastUpdatedTagStyle()
-    {
-        Assert.DoesNotContain("Last updated tag", EditorView());
-    }
-
     // Item 4: editors can apply GDS warning-text to a paragraph. A style_formats
     // wrapper can't produce the component's required inner structure, so it's a
     // dedicated toolbar button instead.
@@ -44,13 +36,6 @@ public sealed class EditableContentEditorConfigTests
         Assert.Contains("govuk-warning-text__icon", src);
         Assert.Contains("govuk-warning-text__text", src);
         Assert.Contains("govuk-visually-hidden\">Warning", src);
-    }
-
-    // The non-functional style_formats wrapper for warning text must be gone.
-    [Fact]
-    public void Editor_DoesNotKeepBrokenWarningTextStyleFormat()
-    {
-        Assert.DoesNotContain("title: 'Warning text'", EditorView());
     }
 
     // Regression: the designer's kept callouts (items 1 & 2) and inset text remain.

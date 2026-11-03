@@ -841,23 +841,72 @@ dialog.govuk-modal-dialogue__box::backdrop {
   transition: none !important;
 }
 
-/* Push the Sign in / Sign out cluster to the far right of the service nav row.
+/* Push the Admin link to the far right of the service nav row.
    Selector specificity matches govuk-frontend's own .govuk-service-navigation__item
    rule so margin-left:auto isn't overridden. */
-.govuk-service-navigation__list .govuk-service-navigation__item.sign-in-nav-item {
-  margin-left: auto;
-  position: relative;
-}
-
-/* When the Admin link is present it sits immediately to the left of the
-   sign-out cluster. Pushing the Admin item right with margin-left:auto absorbs
-   the free flex space so both items end up flush to the right edge with default
-   inter-item spacing between them. */
 .govuk-service-navigation__list .govuk-service-navigation__item.admin-link-nav-item {
   margin-left: auto;
 }
-.govuk-service-navigation__list .govuk-service-navigation__item.admin-link-nav-item + .govuk-service-navigation__item.sign-in-nav-item {
-  margin-left: 0;
+
+/* Account navigation (Sign in / Sign out) on the right of the DfE header band.
+   The logo stays on the left. On a narrow screen the links wrap below the logo. */
+.app-header__container {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  column-gap: 20px;
+}
+
+/* govuk-width-container adds a clearfix ::after. In a flex row it is a third item,
+   and space-between then puts the account links in the middle. Flex needs no clearfix. */
+.app-header__container::after {
+  content: none;
+}
+
+.app-header__account-list {
+  display: flex;
+  margin: 0;
+  padding: 0 0 12px;
+  list-style: none;
+}
+
+@media (min-width: 40.0625em) {
+  .app-header__account-list {
+    padding: 0;
+  }
+}
+
+.app-header__account-item {
+  position: relative;
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+@media (min-width: 40.0625em) {
+  .app-header__account-item {
+    font-size: 1.1875rem;
+  }
+}
+
+.app-header__account-link:link,
+.app-header__account-link:visited {
+  color: #ffffff;
+  text-decoration: none;
+}
+
+.app-header__account-link:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 3px;
+  text-underline-offset: 0.1em;
+}
+
+.app-header__account-link:focus {
+  color: #0b0c0c;
+  background-color: #ffdd00;
+  box-shadow: 0 -2px #ffdd00, 0 4px #0b0c0c;
+  outline: 3px solid transparent;
+  text-decoration: none;
 }
 
 /* Caret button sits inline next to the Sign in link, styled as a flat affordance
@@ -873,8 +922,8 @@ dialog.govuk-modal-dialogue__box::backdrop {
   line-height: 1;
 }
 
-.sign-in-nav-item__toggle:hover .sign-in-nav-item__caret {
-  color: #1d70b8;
+.sign-in-nav-item__toggle:hover {
+  box-shadow: inset 0 -3px currentColor;
 }
 
 .sign-in-nav-item__toggle:focus {
@@ -893,11 +942,13 @@ dialog.govuk-modal-dialogue__box::backdrop {
   transition: transform 120ms ease;
 }
 
-/* Dropdown panel anchored to the right edge of the sign-in cluster. */
+/* Dropdown panel. On a narrow screen the sign-in cluster wraps below the logo on the
+   left, so the panel opens from its left edge. From tablet width the cluster is on the
+   right of the header, so the panel opens from its right edge. */
 .sign-in-dropdown-menu {
   position: absolute;
   top: 100%;
-  right: 0;
+  left: 0;
   margin: 0;
   padding: 4px 0;
   min-width: 180px;
@@ -906,6 +957,13 @@ dialog.govuk-modal-dialogue__box::backdrop {
   border: 1px solid #b1b4b6;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
   z-index: 100;
+}
+
+@media (min-width: 40.0625em) {
+  .sign-in-dropdown-menu {
+    left: auto;
+    right: 0;
+  }
 }
 
 .sign-in-dropdown-menu[hidden] {
@@ -979,14 +1037,12 @@ dialog.govuk-modal-dialogue__box::backdrop {
 /* messages-nav-item exists purely to bring the Messages link under this white-on-dark
    override — it deliberately does NOT reuse admin-link-nav-item, which also sets
    margin-left:auto and would shunt Messages to the right-hand edge of the nav band
-   next to Sign out (see the admin-link-nav-item + sign-in-nav-item rule above). */
-.admin-chrome .admin-service-navigation .sign-in-nav-item .govuk-service-navigation__link,
+   (see the admin-link-nav-item rule above). */
 .admin-chrome .admin-service-navigation .admin-link-nav-item .govuk-service-navigation__link,
 .admin-chrome .admin-service-navigation .messages-nav-item .govuk-service-navigation__link {
   color: #ffffff;
 }
 
-.admin-chrome .admin-service-navigation .sign-in-nav-item .govuk-service-navigation__link:hover,
 .admin-chrome .admin-service-navigation .admin-link-nav-item .govuk-service-navigation__link:hover,
 .admin-chrome .admin-service-navigation .messages-nav-item .govuk-service-navigation__link:hover {
   color: #ffffff;
@@ -995,7 +1051,6 @@ dialog.govuk-modal-dialogue__box::backdrop {
   text-underline-offset: 0.1em;
 }
 
-.admin-chrome .admin-service-navigation .sign-in-nav-item .govuk-service-navigation__link:focus,
 .admin-chrome .admin-service-navigation .admin-link-nav-item .govuk-service-navigation__link:focus,
 .admin-chrome .admin-service-navigation .messages-nav-item .govuk-service-navigation__link:focus {
   color: #0b0c0c;
@@ -1003,10 +1058,6 @@ dialog.govuk-modal-dialogue__box::backdrop {
   box-shadow: 0 -2px #ffdd00, 0 4px #0b0c0c;
   outline: 3px solid transparent;
   text-decoration: none;
-}
-
-.admin-chrome .admin-service-navigation .sign-in-nav-item__toggle {
-  color: #ffffff;
 }
 
 /* ==========================================================================
@@ -2281,3 +2332,22 @@ dialog.seed-progress-modal {
 .impersonation-banner .govuk-heading-m, .impersonation-banner .govuk-body { color: #fff; }
 .impersonation-banner form { margin: 0; }
 .impersonation-banner .govuk-button { margin-bottom: 0; }
+
+/* ==========================================================================
+   DfE Header (Rebrand) — the DfE logo in the GOV.UK header
+   https://design.education.gov.uk/design-system/govuk-rebrand/dfe-header-rebrand
+   ========================================================================== */
+
+/* The DfE guidance names .govuk-header__link, the GOV.UK Frontend 5 class.
+   GOV.UK Frontend 6 calls the home link .govuk-header__homepage-link. */
+
+/* The logo is a wide PNG. Set its height so it fits the header. */
+.govuk-header__homepage-link .govuk-header__logotype {
+  height: 30px;
+}
+
+/* The focus state has a yellow background. Show the black logo on it. */
+.govuk-header__homepage-link:focus .govuk-header__logotype {
+  content: url(/images/department-for-education_black.png);
+  height: 30px;
+}

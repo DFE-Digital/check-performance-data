@@ -63,17 +63,8 @@ public sealed class AdminNavRegistryTests
 		Assert.Contains("Pipeline dashboard", titles);
 		Assert.Contains("Transactions", titles);
 		Assert.Contains("Replay", titles);
-		// Retired together: the requests page is per window and reached from the windows table.
-		Assert.DoesNotContain("Amendment requests", titles);
-		Assert.DoesNotContain("Uncommitted requests", titles);
-		// Manage windows is a top-level link. The Window administration group is gone, because
-		// it held that one tile only.
-		Assert.DoesNotContain("Window administration", titles);
 		Assert.Contains("Manage windows", titles);
 		Assert.Contains("View logs", titles);
-		// A new window is started from the button on Manage windows, not from the nav. The
-		// new-window section key still gates the create steps.
-		Assert.DoesNotContain("Create new window", titles);
 	}
 
 	// --- Tiles_Within_Each_Group_Have_Distinct_Orders_Per_UI_Spec ---

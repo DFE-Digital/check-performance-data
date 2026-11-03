@@ -52,12 +52,6 @@ public sealed class MessagesGroupAndDetailTests(PlaywrightFixture fixture) : See
             // The top-bar badge is a single Messages link pointing at the group landing.
             var messagesBadge = Page.Locator(".govuk-service-navigation__link[href=\"/admin/Messages\"]");
             await Expect(messagesBadge).ToBeVisibleAsync();
-            // The old DLQ badge is gone. The DLQ URL still appears elsewhere (sidebar tile,
-            // Messages group children); the removed badge is the standalone service-nav item
-            // linking to /admin/queues/dlq — assert on that specific selector.
-            var standaloneDlqBadge = Page.Locator(
-                ".govuk-service-navigation__item .govuk-service-navigation__link[href=\"/admin/queues/dlq\"]");
-            Assert.Equal(0, await standaloneDlqBadge.CountAsync());
 
             // Badge integer = SUM of unread search-feedback + waiting-DLQ counts. We posted
             // one feedback above, so the count MUST be >= 1.

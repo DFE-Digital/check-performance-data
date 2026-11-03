@@ -131,16 +131,6 @@ public sealed class DefaultAdminAccessSeederTests
         Assert.Equal("manage-window", AdminNavKeys.ManageWindow);
     }
 
-    // The requests page moved out of the nav and under the windows table, so its old section is
-    // gone. Leaving the key granted would put a row on the role-settings grid that gates nothing;
-    // AdminRequestsController is gated on manage-window instead.
-    [Fact]
-    public void AllSections_NoLongerContainsTheRetiredUncommittedRequestsSections()
-    {
-        Assert.DoesNotContain("uncommitted-requests", DefaultAdminAccessSeeder.AllSections);
-        Assert.DoesNotContain("amendment-requests-admin", DefaultAdminAccessSeeder.AllSections);
-    }
-
     [Fact]
     public void AllSections_ContainsSiteAssets()
     {

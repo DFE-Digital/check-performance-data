@@ -31,11 +31,9 @@ public sealed class AdminNavigationViewSourceTests
     {
         var source = ReadWebSource(MessagesBadgeViewPath);
 
-        // Regression guard: admin-link-nav-item also sets margin-left:auto and, via the
-        // "admin-link-nav-item + sign-in-nav-item" sibling rule in site.css, strips the
-        // auto margin off the sign-in item. Messages is the only item ahead of sign-in in
-        // the admin nav, so reusing that class would shunt Messages to the right-hand edge
-        // of the nav band, next to Sign out, instead of leaving it where it renders today.
+        // Regression guard: admin-link-nav-item sets margin-left:auto in site.css. Reusing
+        // that class would shunt Messages to the right-hand edge of the nav band, instead
+        // of leaving it where it renders today.
         Assert.DoesNotContain("admin-link-nav-item", source);
     }
 
@@ -44,9 +42,9 @@ public sealed class AdminNavigationViewSourceTests
     {
         var source = ReadWebSource(SiteCssPath);
 
-        // The base, hover and focus rule groups that already carry sign-in-nav-item and
-        // admin-link-nav-item must also carry messages-nav-item, so the Messages link picks
-        // up the same white-on-#1d1d1d treatment instead of falling through to MoJ
+        // The base, hover and focus rule groups that already carry admin-link-nav-item must
+        // also carry messages-nav-item, so the Messages link picks up the same
+        // white-on-#1d1d1d treatment instead of falling through to MoJ
         // Frontend's --govuk-link-colour. Loose regex matches (rather than a fixed selector
         // order) so ordinary reformatting of the selector list doesn't break this test; the
         // base-rule pattern requires the next character to be "," or "{" so it can't be

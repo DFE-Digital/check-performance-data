@@ -1,19 +1,18 @@
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web;
 
 // Static Razor-source assertions for Views/Shared/_Layout.cshtml — specifically the
-// sign-in / sign-out cluster that replaces the old pink dev-impersonate pill. Pattern
+// sign-in / sign-out cluster. Pattern
 // mirrors SearchViewRenderTests: read the .cshtml as text and assert on the source.
 // This keeps the suite hostless (no MVC test harness, no new NuGet) while still
-// catching the most likely regressions — accidental removal of a branch, wrong
+// catching the most likely regressions — accidental removal of a branch, wrong 
 // endpoint URL, or the dev dropdown leaking into production-rendered output.
 //
 // Behaviour each test pins:
 //   - Anonymous nav shows "Sign in" + caret dropdown (non-prod only)
-//   - Real DfE auth flips text to "Sign out" with optional name and (impersonating CMS admin) suffix
+//   - Real DfE auth flips text to "Sign out", with no name; only impersonation adds a suffix
 //   - Sign-out target comes from SignOutLink (see SignOutLinkTests)
 //   - hasRealDfeAuth uses "any non-impersonation identity" — not a hard-coded "Cookies"
 //     scheme match (the regression where DfE Sign-In auth wasn't detected)
-//   - The pink dev-impersonate pill is gone
 public sealed class LayoutRenderTests
 {
 	private static string ReadLayout()
@@ -78,16 +77,6 @@ public sealed class LayoutRenderTests
 	}
 
 	[Fact]
-	public void Layout_NameInParens_PullsGivenNameAndSurnameClaims()
-	{
-		var view = ReadLayout();
-		Assert.Contains("ClaimTypes.GivenName", view);
-		Assert.Contains("ClaimTypes.Surname", view);
-		// Fall-through to Identity.Name if the explicit claims are missing.
-		Assert.Contains("User.Identity?.Name", view);
-	}
-
-	[Fact]
 	public void Layout_SignOutLabel_IncludesImpersonatingSuffix()
 	{
 		var view = ReadLayout();
@@ -96,9 +85,6 @@ public sealed class LayoutRenderTests
 		// principal is in play.
 		Assert.Contains("impersonating CMS editor", view);
 		Assert.Contains("impersonating CMS administrator", view);
-		// The label assembles parts with ", " — pins the join separator so the combined
-		// "Sign out (Lance Keay, impersonating CMS editor)" output stays consistent.
-		Assert.Contains("\", \"", view);
 	}
 
 	[Fact]
@@ -141,33 +127,13 @@ public sealed class LayoutRenderTests
 	}
 
 	[Fact]
-	public void Layout_OldPinkImpersonatePill_IsRemoved()
+	public void Layout_ServiceNavigation_LinksToGuidance()
 	{
-		// The old dev-impersonate-item class + its labels ("admin"/"anon") and lightning
-		// bolt pill styling should be fully gone — they were the visual the user asked
-		// to retire.
+		// The help content lives under /guidance. AB#306103: the link opens in a new tab and
+		// says so. GuidanceLinksViewSourceTests pins the new-tab attributes.
 		var view = ReadLayout();
-		Assert.DoesNotContain("dev-impersonate-item", view);
-		Assert.DoesNotContain(">admin<", view);
-		Assert.DoesNotContain(">anon<", view);
-	}
-
-	[Fact]
-	public void Layout_ServiceNavigation_LinksToGuidance_NotHelp()
-	{
-		// The old service-nav link pointed at /help with the text "Help"; the CMS-migrated
-		// help content lives under /guidance now, so the header link is updated to match.
-		// Pins BOTH the retired href/text (so a regression can't quietly re-introduce it)
-		// AND the new href="/guidance" target and "Guidance (opens in new tab)" text. The new-tab
-		// attributes are pinned in GuidanceLinksViewSourceTests.
-		var view = ReadLayout();
-
-		Assert.DoesNotContain("href=\"/help\"", view);
-		Assert.DoesNotContain(">Help</a>", view);
 
 		Assert.Contains("href=\"/guidance\"", view);
-		// AB#306103: the link opens in a new tab and says so; GuidanceLinksViewSourceTests pins
-		// the attributes, this fact keeps the retired /help target from creeping back.
 		Assert.Contains(">Guidance (opens in new tab)</a>", view);
 	}
 

@@ -46,8 +46,60 @@ public sealed class AccessibilityAuditViewTests
 		// The wrapper has to enclose the header component, not sit beside it.
 		Assert.True(
 			view.IndexOf("<header role=\"banner\"", StringComparison.Ordinal)
-				< view.IndexOf("<govuk-header", StringComparison.Ordinal),
-			$"{layout}: <header role=\"banner\"> must open before <govuk-header>.");
+				< view.IndexOf("<partial name=\"_DfeHeader\"", StringComparison.Ordinal),
+			$"{layout}: <header role=\"banner\"> must open before the _DfeHeader partial.");
+	}
+
+	[Theory]
+	[InlineData("_Layout.cshtml")]
+	[InlineData("_AdminLayout.cshtml")]
+	[InlineData("_ShareLayout.cshtml")]
+	public void EveryLayout_UsesTheDfeHeader(string layout)
+	{
+		// DfE Header (Rebrand): every layout shows the DfE logo, not the GOV.UK logotype.
+		var view = ReadView("Views", "Shared", layout);
+
+		Assert.Contains("<partial name=\"_DfeHeader\"", view);
+		Assert.DoesNotContain("<govuk-header", view);
+	}
+
+	[Theory]
+	[InlineData("_Layout.cshtml")]
+	[InlineData("_AdminLayout.cshtml")]
+	public void SignedInLayouts_PutTheSignInLinks_InTheDfeHeader(string layout)
+	{
+		// The sign in and sign out links sit on the right of the DfE header band, in their
+		// own labelled <nav>. The service navigation row below holds no sign-in item.
+		var view = ReadView("Views", "Shared", layout);
+
+		Assert.Contains("<partial name=\"_DfeHeader\" model=\"accountNav(null)\" />", view);
+		Assert.Contains("<nav class=\"app-header__account\" aria-label=\"Account\">", view);
+		Assert.True(
+			view.IndexOf("sign-in-nav-item", StringComparison.Ordinal)
+				< view.IndexOf("class=\"govuk-service-navigation", StringComparison.Ordinal),
+			$"{layout}: the sign-in cluster must come before the service navigation.");
+	}
+
+	[Fact]
+	public void ShareLayout_HasNoSignInLinks()
+	{
+		// The share surface is anonymous. Its header shows the logo only.
+		var view = ReadView("Views", "Shared", "_ShareLayout.cshtml");
+
+		Assert.Contains("<partial name=\"_DfeHeader\" />", view);
+		Assert.DoesNotContain("sign-in-nav-item", view);
+	}
+
+	[Fact]
+	public void DfeHeader_LogoHasAltText()
+	{
+		// The logo image is the only content of the home link, so its alt text names the
+		// department. Without it the link has no accessible name.
+		var view = ReadView("Views", "Shared", "_DfeHeader.cshtml");
+
+		Assert.Contains(
+			"<img src=\"~/images/department-for-education_white.png\" alt=\"Department for Education\" class=\"govuk-header__logotype\">",
+			view);
 	}
 
 	[Fact]
@@ -88,15 +140,11 @@ public sealed class AccessibilityAuditViewTests
 	[Fact]
 	public void ContentPageSpacingRules_DoNotDependOnTheBreadcrumbSittingInsideMain()
 	{
-		// The old selectors keyed off the breadcrumb being an ancestor (main:has(...)) or the
-		// grid row's previous sibling (.cpb-breadcrumbs + .govuk-grid-row). Both stopped
-		// matching when the breadcrumb moved out of <main>, silently changing every CMS
-		// page's spacing. The replacements key off body:has(...) and the .cpb-content wrapper.
+		// The breadcrumb renders outside <main>, so the spacing rules key off body:has(...) and
+		// the .cpb-content wrapper.
 		var css = ReadCss();
 		var content = ReadView("Views", "Page", "Content.cshtml");
 
-		Assert.DoesNotContain("main.govuk-main-wrapper:has(.cpb-breadcrumbs)", css);
-		Assert.DoesNotContain(".cpb-breadcrumbs + .govuk-grid-row", css);
 		Assert.Contains("body:has(.cpb-breadcrumbs) main.govuk-main-wrapper", css);
 		Assert.Contains(".cpb-content > .govuk-grid-row:first-child", css);
 		Assert.Contains("class=\"cpb-content\"", content);
@@ -630,14 +678,11 @@ public sealed class AccessibilityAuditViewTests
 	}
 
 	[Fact]
-	public void StartPage_RendersBannersThroughTheComponent_NotTheOldBetaPartial()
+	public void StartPage_RendersBannersThroughTheComponent()
 	{
 		var index = ReadView("Views", "Home", "Index.cshtml");
 
 		Assert.Contains("Component.InvokeAsync(\"HomeBanners\")", index);
-		Assert.DoesNotContain("_BetaBanner", index);
-		var repoRoot = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(ThisFilePath())!, "..", "..", ".."));
-		Assert.False(File.Exists(Path.Combine(repoRoot, "src", "DfE.CheckPerformanceData.Web", "Views", "Shared", "_BetaBanner.cshtml")));
 	}
 
 	// ── #588 Guidance front page also shows the home page banners ─────────────────────

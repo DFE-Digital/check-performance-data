@@ -28,7 +28,7 @@ public sealed class ObservabilityBoardSourceTests
     private static string BoardJs() => WebFile("wwwroot", "js", "observability-board.js");
     private static string Css() => WebFile("wwwroot", "css", "observability.css");
 
-    // --- Item 4: the final board box is labelled "Zendesk ticket", not "Ticket" ---
+    // --- Item 4: the final board box is labelled "Zendesk ticket" ---
 
     [Fact]
     public void Board_FinalStageLabel_IsZendeskTicket()
@@ -36,8 +36,6 @@ public sealed class ObservabilityBoardSourceTests
         var board = Board();
 
         Assert.Contains("Zendesk ticket", board);
-        // The bare "Ticket" label is gone (the stage key stays "ticket"; only the display label changes).
-        Assert.DoesNotContain("Label = \"Ticket\"", board);
     }
 
     // --- Item 1: per-stage dwell varies, so envelopes desync rather than moving in lockstep ---

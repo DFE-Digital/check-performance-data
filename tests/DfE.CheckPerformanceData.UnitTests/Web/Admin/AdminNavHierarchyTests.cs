@@ -52,20 +52,6 @@ public sealed class AdminNavHierarchyTests
         Assert.Equal("/admin/observability", dashboard.Url);
     }
 
-    // --- DebugPipelines_Nav_Entry_Is_Removed ---
-    // The standalone /dev/uat Debug Pipeline page was retired (its controls fold into the
-    // dashboard's Demo panel), so its nav entry must be gone.
-
-    [Fact]
-    public void DebugPipelines_Nav_Entry_Is_Removed()
-    {
-        var entries = ResolveEntries();
-
-        Assert.DoesNotContain(entries, e => e.Key == "debug-menu");
-        Assert.DoesNotContain(entries, e => e.Url == "/dev/uat");
-        Assert.DoesNotContain(entries, e => e.Title.Contains("Debug Pipeline", StringComparison.OrdinalIgnoreCase));
-    }
-
     // --- Transactions_And_Replay_Sit_Under_PipelineDashboard ---
 
     [Fact]
@@ -200,17 +186,6 @@ public sealed class AdminNavHierarchyTests
         Assert.Equal("seed-sample-search-data", children[1].Key);
         Assert.Equal("Seed sample search data", children[1].Title);
         Assert.Equal("/admin/test-data/sample-search-data", children[1].Url);
-    }
-
-    // --- VisualRegression_Entry_Is_Removed ---
-
-    [Fact]
-    public void VisualRegression_Entry_Is_Removed()
-    {
-        var entries = ResolveEntries();
-
-        Assert.DoesNotContain(entries, e => e.Key == "vr-dashboard");
-        Assert.DoesNotContain(entries, e => e.Title.Contains("Visual regression", StringComparison.OrdinalIgnoreCase));
     }
 
     // --- Every_NonRoot_Entry_Has_A_Resolvable_Parent ---

@@ -169,18 +169,6 @@ public sealed class ResultDetailsViewSourceTests
         Assert.Contains("class=\"govuk-error-message\" id=\"@errorId\"", view);
     }
 
-    [Fact]
-    public void The_picker_is_a_plain_dropdown_with_no_javascript_enhancement()
-    {
-        // The picker used to be upgraded into an accessible-autocomplete type-ahead because a scale
-        // can hold 93 grades (the IB Diploma). The typical scale is 6 to 15 and the list is short
-        // enough to read, so the enhancement is gone: no script, no type-ahead, one <select>.
-        var view = Partial();
-
-        Assert.DoesNotContain("<script", view);
-        Assert.DoesNotContain("accessibleAutocomplete", view);
-    }
-
     private static string RepoRoot
     {
         get

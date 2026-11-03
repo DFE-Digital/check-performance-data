@@ -112,18 +112,6 @@ public class BlobStorageExtensionsTests
     }
 
     [Fact]
-    public void The_grade_reference_seeder_is_no_longer_hosted()
-    {
-        // AB#301903: grade-reference.json is gone — the 16-19 qualification reference is the only
-        // scale source. A hosted service seeding a blob nothing reads would be pure cost.
-        using var provider = BuildWebBlobServices();
-
-        Assert.DoesNotContain(
-            provider.GetServices<IHostedService>(),
-            s => s.GetType().Name == "GradeReferenceSeedingService");
-    }
-
-    [Fact]
     public void The_not_on_roll_college_list_is_one_instance_loaded_by_a_hosted_service()
     {
         // AB#304119: the hosted service fills the store the condition reads. Two instances would

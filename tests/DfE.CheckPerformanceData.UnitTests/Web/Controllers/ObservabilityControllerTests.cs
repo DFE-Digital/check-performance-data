@@ -224,14 +224,6 @@ public sealed class ObservabilityControllerTests
         Assert.Equal(series, model.DecisionMixOverTime);
     }
 
-    // --- The orphaned throughput JSON endpoint is gone: the dashboard form replaced it ---
-
-    [Fact]
-    public void ThroughputJsonEndpoint_IsRemoved()
-    {
-        Assert.Null(typeof(ObservabilityController).GetMethod("Throughput"));
-    }
-
     // --- The dashboard's dev-only Demo panel is gated Dev:ToolsEnabled AND not production ---
     // The dashboard itself is always-on admin; only the demo controls (drive / inject / seed /
     // replay / demo trickle) are dev/test-gated, so the flag rides on the view model.

@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using Azure.Storage.Blobs;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Application.Dashboard;
 using DfE.CheckPerformanceData.Application.Observability;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
@@ -732,8 +733,9 @@ public sealed class ZendeskConsumer : ConsumerBase
         }
     }
 
-    // FR-008: DfE Establishment Number from the requesting school's LAESTAB. Empty = not
-    // supplied, so the field is omitted (FR-014).
+    // FR-008: DfE Establishment Number from the requesting school's LAESTAB, as digits only.
+    // The LAESTAB comes from the pupil record (9334070) or the DfE Sign-in claim (933/4070),
+    // so normalise it here for every ticket. Empty = not supplied, so the field is omitted (FR-014).
     private void MapDfeEstablishmentNumberField(CreateTicketRequestDto dto, RequestDocument message)
     {
         if (_ticketFieldService is null)
@@ -742,13 +744,14 @@ public sealed class ZendeskConsumer : ConsumerBase
         }
 
         var fieldId = GetConfiguredFieldId(ZendeskTicketFieldConstants.DfeEstablishmentNumberName);
-        if (fieldId.HasValue && !string.IsNullOrEmpty(message.School.Laestab))
+        var laestab = LaestabNormaliser.Normalise(message.School.Laestab);
+        if (fieldId.HasValue && laestab.Length > 0)
         {
             dto.Ticket.CustomFields ??= new List<CustomFieldDto>();
             dto.Ticket.CustomFields.Add(new CustomFieldDto
             {
                 Id = fieldId.Value,
-                Value = message.School.Laestab,
+                Value = laestab,
             });
         }
     }

@@ -333,7 +333,36 @@ public sealed class ZendeskConsumerTicketCompositionTests
         var ticket = consumer.BuildTicket(msg, decision).Ticket;
 
         Assert.Contains(ticket.CustomFields!, f => f.Id == 30 && (string)f.Value! == "10042");
-        Assert.Contains(ticket.CustomFields!, f => f.Id == 31 && (string)f.Value! == "860/4070");
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 31 && (string)f.Value! == "8604070");
+    }
+
+    [Theory]
+    [InlineData("860/4070")]
+    [InlineData("8604070")]
+    [InlineData(" 860/4070 ")]
+    public void DfeEstablishmentNumber_IsSentAsDigitsOnly(string laestab)
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.DfeEstablishmentNumberName).Returns(31L);
+
+        var consumer = NewConsumer();
+        var decision = new Decision(DecisionStatus.AutoApproved, "Deceased", "DEC-1", Array.Empty<string>());
+
+        var ticket = consumer.BuildTicket(NewMessage("Remove - pupil-died", "KS4", laestab: laestab), decision).Ticket;
+
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 31 && (string)f.Value! == "8604070");
+    }
+
+    [Fact]
+    public void DfeEstablishmentNumber_IsOmittedWhenLaestabHasNoDigits()
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.DfeEstablishmentNumberName).Returns(31L);
+
+        var consumer = NewConsumer();
+        var decision = new Decision(DecisionStatus.AutoApproved, "Deceased", "DEC-1", Array.Empty<string>());
+
+        var ticket = consumer.BuildTicket(NewMessage("Remove - pupil-died", "KS4", laestab: "/"), decision).Ticket;
+
+        Assert.DoesNotContain(ticket.CustomFields ?? new(), f => f.Id == 31);
     }
 
     [Fact]

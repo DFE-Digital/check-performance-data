@@ -39,6 +39,8 @@ public static class ZendeskTicketFieldOptions
     public static class CorrectionType
     {
         public const string Correction10 = "10_";
+        public const string Correction11 = "11_";
+        public const string Correction21 = "21_";
         public const string Correction31 = "31_";
     }
 
@@ -73,6 +75,8 @@ public static class ZendeskTicketFieldOptions
         public const string AdmittedFromAbroadWithEnglishNotFirstLanguage = "admitted_from_abroad_with_english_not_first_language";
         public const string Deceased = "deceased";
         public const string ElectiveHomeEducation = "elective_home_education";
+        public const string Inclusion = "inclusion";
+        public const string MergePupils = "merge_pupils";
         public const string MovedSchoolDualRegistration = "moved_school_dual_registration";
         public const string KeyStageAssessmentsDeferred = "one_or_more_end_of_key_stage_assessments_deferred_by_a_year";
         public const string AddedToRollAfterStartOfSummerTerm = "pupil_added_to_school_roll_after_start_of_summer_term";
@@ -272,6 +276,8 @@ public static class ZendeskTicketFieldOptions
         private static readonly Dictionary<string, string> Map = new(StringComparer.OrdinalIgnoreCase)
         {
             { "10_", CorrectionType.Correction10 },
+            { "11_", CorrectionType.Correction11 },
+            { "21_", CorrectionType.Correction21 },
             { "31_", CorrectionType.Correction31 },
             { "correction 31", CorrectionType.Correction31 }
         };

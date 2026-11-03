@@ -595,7 +595,8 @@ public sealed class ZendeskConsumer : ConsumerBase
     }
 
     // FR-009 / FR-010 / FR-011: correction type (10_ for Add, 31_ for Remove requests), correction
-    // reason (via the removal-reason map, Remove only) and reason for removal ("addition" for Add).
+    // reason (via the removal-reason map, Remove only) and reason for removal (an amendment
+    // category for Add, Merge and Include).
     // Omitted for other requests and when a removal reason maps to no correction code (logged
     // for review, FR-014 edge case).
     private void AddCorrectionFields(CreateTicketRequestDto dto, RequestDocument message)
@@ -605,13 +606,13 @@ public sealed class ZendeskConsumer : ConsumerBase
             return;
         }
 
-        if (string.Equals(message.RequestTypeCode, nameof(WhatToChange.Add), StringComparison.OrdinalIgnoreCase))
+        if (AmendmentCategoryFields.TryGetValue(message.RequestTypeCode, out var category))
         {
-            AddAdditionFields(dto);
+            AddAmendmentCategoryFields(dto, category.CorrectionType, category.ReasonForRemoval);
             return;
         }
 
-        // Only Add and Remove requests carry correction type and reason for removal this phase.
+        // Only the requests above and Remove requests carry these fields this phase.
         if (!message.RequestTypeCode.StartsWith("Remove", StringComparison.OrdinalIgnoreCase))
         {
             return;
@@ -676,9 +677,19 @@ public sealed class ZendeskConsumer : ConsumerBase
         }
     }
 
-    // An Add request is LDS correction type 10 (a new learner). Its "Reason for removal" is the
-    // "Addition" category, which reports and advisor routing use. It has no correction reason.
-    private void AddAdditionFields(CreateTicketRequestDto dto)
+    // Requests that are not removals still need a "Reason for removal": reports count cases by
+    // it, and Arvato gives cases to advisors by it. These requests have no correction reason.
+    // The correction types are the ones the previous system sent for each category: 10 for Add
+    // (a new learner), 21 for Merge and 11 for Include.
+    private static readonly Dictionary<string, (string CorrectionType, string ReasonForRemoval)> AmendmentCategoryFields =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            [nameof(WhatToChange.Add)] = (ZendeskTicketFieldOptions.CorrectionType.Correction10, ZendeskTicketFieldOptions.ReasonForRemoval.Addition),
+            [nameof(WhatToChange.Merge)] = (ZendeskTicketFieldOptions.CorrectionType.Correction21, ZendeskTicketFieldOptions.ReasonForRemoval.MergePupils),
+            [nameof(WhatToChange.Include)] = (ZendeskTicketFieldOptions.CorrectionType.Correction11, ZendeskTicketFieldOptions.ReasonForRemoval.Inclusion),
+        };
+
+    private void AddAmendmentCategoryFields(CreateTicketRequestDto dto, string correctionType, string reasonForRemoval)
     {
         dto.Ticket.CustomFields ??= new List<CustomFieldDto>();
 
@@ -688,7 +699,7 @@ public sealed class ZendeskConsumer : ConsumerBase
             dto.Ticket.CustomFields.Add(new CustomFieldDto
             {
                 Id = correctionTypeId.Value,
-                Value = ZendeskTicketFieldOptions.CorrectionType.Correction10,
+                Value = correctionType,
             });
         }
 
@@ -698,7 +709,7 @@ public sealed class ZendeskConsumer : ConsumerBase
             dto.Ticket.CustomFields.Add(new CustomFieldDto
             {
                 Id = reasonForRemovalId.Value,
-                Value = ZendeskTicketFieldOptions.ReasonForRemoval.Addition,
+                Value = reasonForRemoval,
             });
         }
     }

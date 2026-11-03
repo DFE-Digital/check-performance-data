@@ -261,21 +261,24 @@ public sealed class ZendeskConsumerTicketCompositionTests
         Assert.Contains(ticket.CustomFields!, f => f.Id == 24 && (string)f.Value! == "ks4");
     }
 
-    [Fact]
-    public void IncludeTicket_PopulatesMessageDerivedFields_ButOmitsCorrectionFields()
+    [Theory]
+    [InlineData("Merge", "21_", "merge_pupils")]
+    [InlineData("Include", "11_", "inclusion")]
+    public void MergeAndIncludeTickets_SetCorrectionTypeAndReasonForRemoval_ButNoCorrectionReason(
+        string requestTypeCode, string correctionType, string reasonForRemoval)
     {
         _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CorrectionTypeName).Returns(25L);
         _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CorrectionReason31Name).Returns(26L);
         _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.ReasonForRemovalName).Returns(27L);
 
         var consumer = NewConsumer();
-        var decision = new Decision(DecisionStatus.AutoApproved, "Inclusion", "INC-1", Array.Empty<string>());
+        var decision = new Decision(DecisionStatus.Scrutiny, "Scrutiny", "SCR-1", Array.Empty<string>());
 
-        var ticket = consumer.BuildTicket(NewMessage("Include"), decision).Ticket;
+        var ticket = consumer.BuildTicket(NewMessage(requestTypeCode, "KS4June"), decision).Ticket;
 
-        Assert.DoesNotContain(ticket.CustomFields ?? new(), f => f.Id == 25);
-        Assert.DoesNotContain(ticket.CustomFields ?? new(), f => f.Id == 26);
-        Assert.DoesNotContain(ticket.CustomFields ?? new(), f => f.Id == 27);
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 25 && (string)f.Value! == correctionType);
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 27 && (string)f.Value! == reasonForRemoval);
+        Assert.DoesNotContain(ticket.CustomFields!, f => f.Id == 26);
     }
 
     [Fact]

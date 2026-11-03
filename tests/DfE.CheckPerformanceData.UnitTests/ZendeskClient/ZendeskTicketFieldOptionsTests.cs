@@ -166,6 +166,8 @@ public sealed class ZendeskTicketFieldOptionsTests
     [InlineData("year-group-change", "year_group_change")]
     [InlineData("student-died", "deceased")]
     [InlineData("not-at-end-of-16-19-study", "not_at_end_of_16_to_18_study")]
+    [InlineData("assessments-deferred", "one_or_more_end_of_key_stage_assessments_deferred_by_a_year")]
+    [InlineData("added-after-summer-term", "pupil_added_to_school_roll_after_start_of_summer_term")]
     public void ReasonForRemoval_GetOptionValue_MapsRemovalReasons(string removalReason, string expected)
     {
         var value = ZendeskTicketFieldOptions.GetOptionValue(ZendeskTicketFieldConstants.ReasonForRemovalName, removalReason);

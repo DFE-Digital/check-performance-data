@@ -29,10 +29,12 @@ public sealed class FlowIdCouplingTests
         // ── 1. Integration maps: what an answer means to the rules engine, egress or Zendesk.
         //    Replace with question roles and option codes (patterns 4 and 5).
         //    "date-added-to-roll" maps the KS2 roll date to a rules-engine field.
+        //    "added-after-summer-term" is a KS2 removal reason and also a page id. The Zendesk
+        //    "Reason for removal" map keys on it like the other reasons (#768).
         ["src/DfE.CheckPerformanceData.Application/RulesEngine/AnswerFieldMap.cs"] = ["country-originally-from", "date-added-to-roll", "date-permanently-excluded", "date-pupil-arrived-in-england", "date-pupil-excluded", "date-pupil-started", "date-pupil-started-school-in-england", "date-removed-from-roll", "first-language", "higher-lower", "life-limiting-illness-health-issue", "not-on-roll-reason", "other", "sat-exams", "social-care-reason", "why-removed"],
         ["src/DfE.CheckPerformanceData.Application/Egress/EgressRecordBuilder.cs"] = ["admission-date", "date-of-birth", "first-name", "higher-lower", "last-name", "not-on-roll-reason", "reason", "sex", "upn", "year-group", "year-group-higher-moved-to", "year-group-lower-moved-to", "years-to-remove"],
         ["src/DfE.CheckPerformanceData.Application/Egress/CorrectionCodes.cs"] = ["not-on-roll", "other", "student-died"],
-        ["src/DfE.CheckPerformanceData.Application/ZendeskClient/ZendeskTicketFieldOptions.cs"] = ["child-missing-education", "completed-ks4-elsewhere", "dual-registered-moved", "elective-home-education", "english-not-first-language", "life-limiting-illness", "not-on-roll", "other", "permanent-exclusion", "permanently-excluded", "pupil-died", "student-died"],
+        ["src/DfE.CheckPerformanceData.Application/ZendeskClient/ZendeskTicketFieldOptions.cs"] = ["added-after-summer-term", "child-missing-education", "completed-ks4-elsewhere", "dual-registered-moved", "elective-home-education", "english-not-first-language", "life-limiting-illness", "not-on-roll", "other", "permanent-exclusion", "permanently-excluded", "pupil-died", "student-died"],
         ["src/DfE.CheckPerformanceData.RulesEngineWorker/Consumers/ZendeskConsumer.cs"] = ["not-on-roll", "not-on-roll-reason", "other"],
         ["src/DfE.CheckPerformanceData.Web/Controllers/Egress/EgressViewModels.cs"] = ["admission-date", "date-of-birth", "first-name", "last-name", "reason", "sen-status", "sex", "upn", "year-group"],
 

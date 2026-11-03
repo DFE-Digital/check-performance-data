@@ -72,6 +72,8 @@ public static class ZendeskTicketFieldOptions
         public const string Deceased = "deceased";
         public const string ElectiveHomeEducation = "elective_home_education";
         public const string MovedSchoolDualRegistration = "moved_school_dual_registration";
+        public const string KeyStageAssessmentsDeferred = "one_or_more_end_of_key_stage_assessments_deferred_by_a_year";
+        public const string AddedToRollAfterStartOfSummerTerm = "pupil_added_to_school_roll_after_start_of_summer_term";
         public const string NotAtEndOf16To18Study = "not_at_end_of_16_to_18_study";
         public const string NotOnRoll = "not_on_roll";
         public const string OtherEvidenceNotRequired = "other_-_evidence_not_required";
@@ -316,6 +318,8 @@ public static class ZendeskTicketFieldOptions
             // "other" and "not-on-roll" are answer-aware (evidence / Post16 sub-reason) and
             // are resolved by the worker, not these rows; unmapped reasons are omitted +
             // warning-logged (FR-014).
+            { "added-after-summer-term", ReasonForRemoval.AddedToRollAfterStartOfSummerTerm },
+            { "assessments-deferred", ReasonForRemoval.KeyStageAssessmentsDeferred },
             { "completed-ks4-elsewhere", ReasonForRemoval.AddBackRemoval },
             { "child-missing-education", ReasonForRemoval.PupilMissingInEducation },
             { "dual-registered-moved", ReasonForRemoval.MovedSchoolDualRegistration },

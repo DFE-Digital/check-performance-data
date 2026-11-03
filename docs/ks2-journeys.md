@@ -116,8 +116,12 @@ business answers differently.
 
 ## Open
 
-Two Zendesk fields have no option for `assessments-deferred` or `added-after-summer-term`:
-**Reason for removal** (`ZendeskTicketFieldOptions.ReasonForRemoval`) and **Correction reason
-(31)** (`CorrectionReason31`). The worker leaves out an unmapped field and logs a warning, so
-these tickets are not fully populated. We need the option values and the two CYPMD codes from
-the business.
+**Reason for removal** (`ZendeskTicketFieldOptions.ReasonForRemoval`) maps both KS2 reasons:
+
+| Removal reason | Zendesk "Reason for removal" value |
+| --- | --- |
+| `assessments-deferred` | `one_or_more_end_of_key_stage_assessments_deferred_by_a_year` |
+| `added-after-summer-term` | `pupil_added_to_school_roll_after_start_of_summer_term` |
+
+**Correction reason (31)** (`CorrectionReason31`) has no option for these two reasons. The worker
+leaves out the unmapped field and logs a warning. We need the two CYPMD codes from the business.

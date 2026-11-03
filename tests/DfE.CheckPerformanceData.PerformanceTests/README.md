@@ -132,6 +132,8 @@ Results Enquiry records must be cleaned up separately using an appropriate datab
 
 Amendment requests created by the framework are cleaned up after successful submission. The application allows only one amendment request per pupil, so without cleanup the same pupil could not be amended again.
 
+If the cleanup call fails, the framework tries once more when the journey has a reference number. If the journey fails before it gets a reference number, the framework cannot clean up. Find and withdraw that request by hand in the application.
+
 The implementation lives in:
 
 ```text
@@ -184,7 +186,7 @@ The framework is organised into the following layers:
 - `tests/`: k6 entry point
 
 ```text
-Cypmd.Test.PerformanceTests/
+DfE.CheckPerformanceData.PerformanceTests/
 ├── data/
 │   └── evidence-upload.pdf
 ├── journey-config/
@@ -929,7 +931,7 @@ k6 run <options> tests/journey.ts *> "$env:TEMP\run.txt"
 ## Bash
 
 ```bash
-k6 run <options> tests/journey.ts > run.txt 2>&1
+k6 run <options> tests/journey.ts > "${TMPDIR:-/tmp}/run.txt" 2>&1
 ```
 
 ---
@@ -1009,29 +1011,16 @@ The current full sequential regression baseline is:
 
 ```text
 25 journeys
-1727 checks
+1714 checks
 0 failed checks
 0 unexpected failed HTTP requests
 ```
 
-This baseline was established using sequential execution.
+This baseline was established using sequential execution. Two consecutive sequential runs both gave 1714 checks.
 
 It does not demonstrate successful concurrent load behaviour because concurrent execution is currently constrained by the known application duplicate-reference defect.
 
-Changes to the number of configured checks may legitimately change the expected `1727` total. Journey completion and threshold results remain the primary regression criteria.
-
----
-
-# Security findings outside this project
-
-During development of the performance-test suite, existing security-sensitive values were identified elsewhere in the solution:
-
-- `appsettings.json` contains plaintext credentials
-- `DsiRequests.cs` contains a hard-coded session cookie
-
-These values are not required as part of the performance-test framework changes and have not been modified by this project.
-
-They should be treated separately through the appropriate credential/session rotation and secret-management process.
+Changes to the number of configured checks may legitimately change the expected `1714` total. Journey completion and threshold results remain the primary regression criteria.
 
 ---
 

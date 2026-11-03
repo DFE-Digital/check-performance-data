@@ -239,6 +239,15 @@ export default function (
         );
     }
 
+    /*
+     * Set once runJourney returns a reference. The catch
+     * block uses it to retry cleanup after a failed cleanup
+     * attempt. If runJourney throws before it returns, no
+     * reference is known and nothing is retried.
+     */
+    let requestReference: string | undefined;
+    let cleanedUp = false;
+
     try {
         const result =
             runJourney({
@@ -257,6 +266,9 @@ export default function (
 
                 config,
             });
+
+        requestReference =
+            result.referenceNumber;
 
         console.log(
             `Completed (${result.completion}): ` +
@@ -281,6 +293,8 @@ export default function (
                     result.referenceNumber,
             });
 
+            cleanedUp = true;
+
             console.log(
                 `Cleaned up request ${result.referenceNumber}`
             );
@@ -290,6 +304,38 @@ export default function (
         journeyCompletion.add(true);
     } catch (error) {
         journeyCompletion.add(false);
+
+        /*
+         * Best-effort cleanup. The original error is
+         * rethrown, so a cleanup failure here is only logged.
+         */
+        if (
+            requestReference !== undefined &&
+            !cleanedUp &&
+            needsCleanup(config)
+        ) {
+            try {
+                cleanupRequest({
+                    baseUrl:
+                        BASE_URL,
+
+                    windowId:
+                        profile.windowId,
+
+                    requestReferenceNumber:
+                        requestReference,
+                });
+
+                console.log(
+                    `Cleaned up request ${requestReference} after a failure`
+                );
+            } catch {
+                console.log(
+                    `Cleanup failed for request ${requestReference}; ` +
+                    "remove it by hand in the application"
+                );
+            }
+        }
 
         if (workload.profile === "sequential") {
             sleep(workload.pauseSeconds);

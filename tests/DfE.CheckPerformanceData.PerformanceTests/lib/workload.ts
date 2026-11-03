@@ -335,23 +335,22 @@ function assertScenarios(
 ): void {
     const actual = exec.test.options as unknown as {
         scenarios?: Record<string, ScenarioFields>;
-        vus?: unknown;
-        iterations?: unknown;
-        duration?: unknown;
-        stages?: unknown;
     };
 
-    for (const key of ["vus", "iterations", "duration", "stages"]) {
-        if (actual[key as keyof typeof actual] !== undefined) {
-            throw new Error(
-                `The command line overrides the execution model (${key}). ` +
-                "Remove --vus, --iterations, --duration and --stages; " +
-                "the PROFILE sets them."
-            );
-        }
-    }
-
     const actualScenarios = actual.scenarios ?? {};
+
+    /*
+     * k6 moves --vus, --iterations, --duration and --stages
+     * into a scenario named "default", so that name means
+     * the command line has replaced the profile's scenarios.
+     */
+    if (actualScenarios.default !== undefined) {
+        throw new Error(
+            "The command line overrides the execution model " +
+            "(--vus, --iterations, --duration or --stages). " +
+            "Remove them; the PROFILE sets them."
+        );
+    }
 
     const expectedNames = Object.keys(expected).sort();
     const actualNames = Object.keys(actualScenarios).sort();

@@ -488,7 +488,8 @@ from `{ContentRootPath}/Data/QuestionFlows/` in every environment (see
 ```
 Data/QuestionFlows/
 ├── Remove_KS4June.json                             ← Remove flow config
-└── Merge_KS4June.json                              ← Merge flow config
+├── Merge_KS4June.json                              ← Merge flow config
+└── Merge_KS4Autumn.json                            ← The same merge journey for KS4 Autumn (#747)
 ```
 
 ---

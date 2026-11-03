@@ -35,7 +35,9 @@ public sealed class FlowIdCouplingTests
         ["src/DfE.CheckPerformanceData.Application/Egress/EgressRecordBuilder.cs"] = ["admission-date", "date-of-birth", "first-name", "higher-lower", "last-name", "not-on-roll-reason", "reason", "sex", "upn", "year-group", "year-group-higher-moved-to", "year-group-lower-moved-to", "years-to-remove"],
         ["src/DfE.CheckPerformanceData.Application/Egress/CorrectionCodes.cs"] = ["not-on-roll", "other", "student-died"],
         ["src/DfE.CheckPerformanceData.Application/ZendeskClient/ZendeskTicketFieldOptions.cs"] = ["added-after-summer-term", "child-missing-education", "completed-ks4-elsewhere", "dual-registered-moved", "elective-home-education", "english-not-first-language", "life-limiting-illness", "not-on-roll", "other", "permanent-exclusion", "permanently-excluded", "pupil-died", "student-died"],
-        ["src/DfE.CheckPerformanceData.RulesEngineWorker/Consumers/ZendeskConsumer.cs"] = ["not-on-roll", "not-on-roll-reason", "other"],
+        //    The Zendesk "Admission date" field reads the Add flows' "admission-date" answer, as
+        //    egress does, because an Add request has no pupil record (#769).
+        ["src/DfE.CheckPerformanceData.RulesEngineWorker/Consumers/ZendeskConsumer.cs"] = ["admission-date", "not-on-roll", "not-on-roll-reason", "other"],
         ["src/DfE.CheckPerformanceData.Web/Controllers/Egress/EgressViewModels.cs"] = ["admission-date", "date-of-birth", "first-name", "last-name", "reason", "sen-status", "sex", "upn", "year-group"],
 
         // ── 3. Single-journey conditions. Replace with branching or a generic answer condition

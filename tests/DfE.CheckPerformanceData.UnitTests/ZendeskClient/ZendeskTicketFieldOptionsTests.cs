@@ -235,6 +235,7 @@ public sealed class ZendeskTicketFieldOptionsTests
     }
 
     [Theory]
+    [InlineData("10_", "10_")]
     [InlineData("31_", "31_")]
     [InlineData("correction 31", "31_")]
     public void CorrectionType_GetOptionValue_MapsValues(string input, string expected)

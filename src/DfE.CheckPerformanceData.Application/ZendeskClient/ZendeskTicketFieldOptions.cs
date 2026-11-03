@@ -38,6 +38,7 @@ public static class ZendeskTicketFieldOptions
     /// </summary>
     public static class CorrectionType
     {
+        public const string Correction10 = "10_";
         public const string Correction31 = "31_";
     }
 
@@ -67,6 +68,7 @@ public static class ZendeskTicketFieldOptions
     public static class ReasonForRemoval
     {
         public const string AddBackRemoval = "add_back_removal";
+        public const string Addition = "addition";
         public const string AdmittedFollowingPermanentExclusion = "admitted_following_permanent_exclusion";
         public const string AdmittedFromAbroadWithEnglishNotFirstLanguage = "admitted_from_abroad_with_english_not_first_language";
         public const string Deceased = "deceased";
@@ -269,6 +271,7 @@ public static class ZendeskTicketFieldOptions
     {
         private static readonly Dictionary<string, string> Map = new(StringComparer.OrdinalIgnoreCase)
         {
+            { "10_", CorrectionType.Correction10 },
             { "31_", CorrectionType.Correction31 },
             { "correction 31", CorrectionType.Correction31 }
         };

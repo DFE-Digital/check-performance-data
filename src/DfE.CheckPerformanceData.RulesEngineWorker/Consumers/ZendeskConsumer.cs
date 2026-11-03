@@ -30,6 +30,10 @@ public sealed class ZendeskConsumer : ConsumerBase
     // Matches the folder EvidenceBlobStorageService writes uploads to.
     private const string EvidenceFolder = "evidence-uploads";
 
+    // The Add flows' "Admission date" question (Add_KS4June.json, Add_KS4Autumn.json). Egress
+    // reads the same answer. Question roles (docs/journey-config-first.md, step 3) replace this.
+    private const string AdmissionDateQuestionId = "admission-date";
+
     // Scoped collaborators. In the hosting path they are rebound from the
     // per-message scope before each message is processed (the consumer loop is
     // strictly sequential, so there is no concurrent access); in the unit-test
@@ -498,7 +502,8 @@ public sealed class ZendeskConsumer : ConsumerBase
     }
 
     // FR-002 / FR-003: DCI Ref (CYPMD) from the request reference number; Age (CYPMD) from
-    // the pupil's age. Omitted when the field ID is unset (FR-014).
+    // the pupil's age. Omitted when the field ID is unset (FR-014). Age 0 = not supplied: an Add
+    // request has no pupil record, so it has no age. The field is then omitted, not sent as 0.
     private void AddRequestFields(CreateTicketRequestDto dto, RequestDocument message)
     {
         if (_ticketFieldService is null)
@@ -519,7 +524,7 @@ public sealed class ZendeskConsumer : ConsumerBase
         }
 
         var ageId = GetConfiguredFieldId(ZendeskTicketFieldConstants.AgeCypmdName);
-        if (ageId.HasValue)
+        if (ageId.HasValue && message.Pupil.Age > 0)
         {
             dto.Ticket.CustomFields.Add(new CustomFieldDto
             {
@@ -589,9 +594,10 @@ public sealed class ZendeskConsumer : ConsumerBase
         }
     }
 
-    // FR-009 / FR-010 / FR-011: correction type (31_ for Remove requests), correction reason
-    // (via the removal-reason map) and reason for removal. Omitted for non-Remove requests and
-    // when a removal reason maps to no correction code (logged for review, FR-014 edge case).
+    // FR-009 / FR-010 / FR-011: correction type (10_ for Add, 31_ for Remove requests), correction
+    // reason (via the removal-reason map, Remove only) and reason for removal ("addition" for Add).
+    // Omitted for other requests and when a removal reason maps to no correction code (logged
+    // for review, FR-014 edge case).
     private void AddCorrectionFields(CreateTicketRequestDto dto, RequestDocument message)
     {
         if (_ticketFieldService is null)
@@ -599,7 +605,13 @@ public sealed class ZendeskConsumer : ConsumerBase
             return;
         }
 
-        // Only Remove requests carry correction type/reason and reason for removal this phase.
+        if (string.Equals(message.RequestTypeCode, nameof(WhatToChange.Add), StringComparison.OrdinalIgnoreCase))
+        {
+            AddAdditionFields(dto);
+            return;
+        }
+
+        // Only Add and Remove requests carry correction type and reason for removal this phase.
         if (!message.RequestTypeCode.StartsWith("Remove", StringComparison.OrdinalIgnoreCase))
         {
             return;
@@ -661,6 +673,33 @@ public sealed class ZendeskConsumer : ConsumerBase
             {
                 _logger.LogWarning("No reason for removal option for removal reason '{RemovalReason}', skipping field.", removalReason);
             }
+        }
+    }
+
+    // An Add request is LDS correction type 10 (a new learner). Its "Reason for removal" is the
+    // "Addition" category, which reports and advisor routing use. It has no correction reason.
+    private void AddAdditionFields(CreateTicketRequestDto dto)
+    {
+        dto.Ticket.CustomFields ??= new List<CustomFieldDto>();
+
+        var correctionTypeId = GetConfiguredFieldId(ZendeskTicketFieldConstants.CorrectionTypeName);
+        if (correctionTypeId.HasValue)
+        {
+            dto.Ticket.CustomFields.Add(new CustomFieldDto
+            {
+                Id = correctionTypeId.Value,
+                Value = ZendeskTicketFieldOptions.CorrectionType.Correction10,
+            });
+        }
+
+        var reasonForRemovalId = GetConfiguredFieldId(ZendeskTicketFieldConstants.ReasonForRemovalName);
+        if (reasonForRemovalId.HasValue)
+        {
+            dto.Ticket.CustomFields.Add(new CustomFieldDto
+            {
+                Id = reasonForRemovalId.Value,
+                Value = ZendeskTicketFieldOptions.ReasonForRemoval.Addition,
+            });
         }
     }
 
@@ -758,7 +797,8 @@ public sealed class ZendeskConsumer : ConsumerBase
 
     // FR-012: admission date from the pupil record's ENTRYDAT (the same date the portal shows
     // as its "Admission date" column). ENTRYDAT is supplier-defined format, normalised to ISO
-    // yyyy-MM-dd. Omitted + logged when absent/unparseable (FR-014).
+    // yyyy-MM-dd. Omitted + logged when absent/unparseable (FR-014). An Add request has no pupil
+    // record, so the school's "Admission date" answer (RawValue yyyy-MM-dd) is the source.
     private void MapAdmissionDateField(CreateTicketRequestDto dto, RequestDocument message)
     {
         if (_ticketFieldService is null)
@@ -769,7 +809,10 @@ public sealed class ZendeskConsumer : ConsumerBase
         var fieldId = GetConfiguredFieldId(ZendeskTicketFieldConstants.AdmissionDateName);
         if (fieldId.HasValue)
         {
-            if (PupilDateFormatter.TryToIsoDate(message.Pupil.EntryDate, out var isoDate))
+            var answered = message.Answers
+                .FirstOrDefault(a => a.QuestionId == AdmissionDateQuestionId)?.RawValue;
+            var admissionDate = string.IsNullOrWhiteSpace(answered) ? message.Pupil.EntryDate : answered;
+            if (PupilDateFormatter.TryToIsoDate(admissionDate, out var isoDate))
             {
                 dto.Ticket.CustomFields ??= new List<CustomFieldDto>();
                 dto.Ticket.CustomFields.Add(new CustomFieldDto
@@ -782,7 +825,7 @@ public sealed class ZendeskConsumer : ConsumerBase
             {
                 _logger.LogWarning(
                     "Unable to parse admission date '{EntryDate}' for Reference={Reference}, skipping field.",
-                    message.Pupil.EntryDate, message.ReferenceNumber);
+                    admissionDate, message.ReferenceNumber);
             }
         }
     }

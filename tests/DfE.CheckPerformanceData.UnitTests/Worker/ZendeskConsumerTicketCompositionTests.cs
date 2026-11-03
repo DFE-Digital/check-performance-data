@@ -279,6 +279,36 @@ public sealed class ZendeskConsumerTicketCompositionTests
     }
 
     [Fact]
+    public void AddTicket_SetsCorrectionType10AndAdditionReason_ButNoCorrectionReason()
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CorrectionTypeName).Returns(25L);
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CorrectionReason31Name).Returns(26L);
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.ReasonForRemovalName).Returns(27L);
+
+        var consumer = NewConsumer();
+        var decision = new Decision(DecisionStatus.Scrutiny, "Addition", "ADD-1", Array.Empty<string>());
+
+        var ticket = consumer.BuildTicket(NewMessage("Add", "KS4June", age: 0), decision).Ticket;
+
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 25 && (string)f.Value! == "10_");
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 27 && (string)f.Value! == "addition");
+        Assert.DoesNotContain(ticket.CustomFields!, f => f.Id == 26);
+    }
+
+    [Fact]
+    public void AddTicket_OmitsAge_BecauseANewPupilHasNoPupilRecord()
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.AgeCypmdName).Returns(21L);
+
+        var consumer = NewConsumer();
+        var decision = new Decision(DecisionStatus.Scrutiny, "Addition", "ADD-1", Array.Empty<string>());
+
+        var ticket = consumer.BuildTicket(NewMessage("Add", "KS4June", age: 0), decision).Ticket;
+
+        Assert.DoesNotContain(ticket.CustomFields ?? new(), f => f.Id == 21);
+    }
+
+    [Fact]
     public void RemoveTicket_OmitsCorrectionReason_WhenRemovalReasonUnmapped_AndCreationSucceeds()
     {
         _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CorrectionTypeName).Returns(25L);
@@ -394,6 +424,22 @@ public sealed class ZendeskConsumerTicketCompositionTests
         var ticket = consumer.BuildTicket(msg, decision).Ticket;
 
         // dd/MM/yyyy from the pupil record is normalised to ISO yyyy-MM-dd.
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 40 && (string)f.Value! == "2024-09-01");
+    }
+
+    [Fact]
+    public void AdmissionDate_IsMappedFromTheAdmissionDateAnswer_ForAnAddRequest()
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.AdmissionDateName).Returns(40L);
+
+        var consumer = NewConsumer();
+        var decision = new Decision(DecisionStatus.Scrutiny, "Addition", "ADD-1", Array.Empty<string>());
+        // An Add request has no pupil record, so no ENTRYDAT. The school's answer is the source.
+        var admission = Answer("admission-date", "01/09/2024", rawValue: "2024-09-01");
+        var msg = NewMessage("Add", "KS4June", age: 0, answers: new[] { admission });
+
+        var ticket = consumer.BuildTicket(msg, decision).Ticket;
+
         Assert.Contains(ticket.CustomFields!, f => f.Id == 40 && (string)f.Value! == "2024-09-01");
     }
 
@@ -865,7 +911,7 @@ public sealed class ZendeskConsumerTicketCompositionTests
     private static RequestDocument NewMessage(string whatToChange, params AnswerRecord[] answers) =>
         NewMessage(whatToChange, "KS4", laestab: null, matchRef: 0, entryDate: null, upn: "UPN1", cypmdId: "1001", answers: answers);
 
-    private static RequestDocument NewMessage(string whatToChange, string windowType, string? laestab = null, int matchRef = 0, string? entryDate = null, string? upn = "UPN1", string cypmdId = "1001", int pincl = 0, params AnswerRecord[] answers) => new()
+    private static RequestDocument NewMessage(string whatToChange, string windowType, string? laestab = null, int matchRef = 0, string? entryDate = null, string? upn = "UPN1", string cypmdId = "1001", int pincl = 0, int age = 14, params AnswerRecord[] answers) => new()
     {
         ReferenceNumber = "REF",
         CheckingWindowId = Guid.NewGuid(),
@@ -878,7 +924,7 @@ public sealed class ZendeskConsumerTicketCompositionTests
         Pupil = new PupilDetails
         {
             Id = "p1", CypmdId = cypmdId, Firstname = "Bob", Surname = "Smith",
-            DateOfBirth = "01/01/2010", Sex = "M", Age = 14, Upn = upn, MatchRef = matchRef,
+            DateOfBirth = "01/01/2010", Sex = "M", Age = age, Upn = upn, MatchRef = matchRef,
             EntryDate = entryDate ?? string.Empty, Pincl = pincl,
         },
         Answers = answers.ToList(),

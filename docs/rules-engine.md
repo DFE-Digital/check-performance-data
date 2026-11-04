@@ -276,6 +276,16 @@ system did. Each field ID is a `ZendeskTicketFields__*Id` setting. An ID of 0 le
 | Pupil year group (CYPMD) | `PupilYearGroupCypmdId` | The year group that a KS4 year group change moves the pupil to |
 | Additional comments (CYPMD) | `AdditionalCommentsCypmdId` | Each free-text (`TextArea`) answer, with a blank line between them |
 
+**Add-back and "other" correction reasons (#778).** For these removals, Correction reason (31)
+follows the "Reason for removal" value. These are the codes that the previous system sent. UAT
+confirms them.
+
+| Reason for removal | Correction reason (31) |
+|---|---|
+| `add_back_removal` (an add-back pupil, P_INCL 403, or the reason `completed-ks4-elsewhere`) | `8_31` |
+| `other_-_with_evidence` | `329_31` |
+| `other_-_evidence_not_required` | `330_31` |
+
 ---
 
 ## Going deeper

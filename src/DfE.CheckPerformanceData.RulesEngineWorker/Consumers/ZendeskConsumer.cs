@@ -666,7 +666,7 @@ public sealed class ZendeskConsumer : ConsumerBase
         var correctionReasonId = GetConfiguredFieldId(ZendeskTicketFieldConstants.CorrectionReason31Name);
         if (correctionReasonId.HasValue)
         {
-            var correctionReasonValue = _ticketFieldService.GetOptionValue(ZendeskTicketFieldConstants.CorrectionReason31Name, removalReason);
+            var correctionReasonValue = ResolveCorrectionReason31Value(message, removalReason);
             if (!string.IsNullOrEmpty(correctionReasonValue))
             {
                 dto.Ticket.CustomFields.Add(new CustomFieldDto
@@ -699,6 +699,18 @@ public sealed class ZendeskConsumer : ConsumerBase
             }
         }
     }
+
+    // #778: an add-back pupil and the "other" reason take their code from the resolved "Reason for
+    // removal" value, so both fields use the same add-back and evidence rules. These are the codes
+    // the previous system sent. Every other reason maps on the removal reason.
+    private string? ResolveCorrectionReason31Value(RequestDocument message, string removalReason) =>
+        ResolveReasonForRemovalValue(message, removalReason) switch
+        {
+            ZendeskTicketFieldOptions.ReasonForRemoval.AddBackRemoval => ZendeskTicketFieldOptions.CorrectionReason31.AddBackRemoval,
+            ZendeskTicketFieldOptions.ReasonForRemoval.OtherWithEvidence => ZendeskTicketFieldOptions.CorrectionReason31.OtherWithEvidence,
+            ZendeskTicketFieldOptions.ReasonForRemoval.OtherEvidenceNotRequired => ZendeskTicketFieldOptions.CorrectionReason31.OtherEvidenceNotRequired,
+            _ => _ticketFieldService?.GetOptionValue(ZendeskTicketFieldConstants.CorrectionReason31Name, removalReason),
+        };
 
     // Requests that are not removals still need a "Reason for removal": reports count cases by
     // it, and Arvato gives cases to advisors by it. These requests have no correction reason.

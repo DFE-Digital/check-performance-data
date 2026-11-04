@@ -116,13 +116,16 @@ public static class ZendeskTicketFieldOptions
     /// removal-reason option value (the suffix of <c>RequestTypeCode</c>, e.g.
     /// <c>pupil-died</c>). The option VALUE strings are the CYPMD correction codes
     /// confirmed by the business (2026-08-06) formatted as <c>{code}_31</c>, matching
-    /// the Zendesk field's option list exactly — not synthesised (FR-010). Only the
-    /// top-level removal reasons reachable from the KS4 Remove flow are keyed in the
-    /// helper map; the add-back reasons (<c>completed-ks4-elsewhere</c>, <c>other</c>)
-    /// and the sub-reasons below are intentionally left unmapped this phase.
+    /// the Zendesk field's option list exactly — not synthesised (FR-010). The helper map
+    /// keys the removal reasons that have one code. The add-back and "other" codes below
+    /// follow the resolved "Reason for removal" value instead (#778).
     /// </summary>
     public static class CorrectionReason31
     {
+        // #778: the codes that the previous system sent. UAT confirms them.
+        public const string AddBackRemoval = "8_31";
+        public const string OtherWithEvidence = "329_31";
+        public const string OtherEvidenceNotRequired = "330_31";
         public const string AdmittedFollowingPermanentExclusion = "13_31";
         public const string AdmittedFromAbroadEal = "2_31";
         public const string PupilMissingInEducation = "501_31";
@@ -366,8 +369,8 @@ public static class ZendeskTicketFieldOptions
         // Keyed on the RequestTypeCode removal-reason suffix (e.g. "pupil-died").
         // Authoritative CYPMD correction codes (correction type 31) confirmed by the
         // business 2026-08-06; the value is the code suffixed with "_31". The add-back
-        // removal reasons ("completed-ks4-elsewhere", "other") carry a different
-        // correction type and are deliberately absent -> omitted + warning-logged (FR-014).
+        // removal reasons ("completed-ks4-elsewhere", "other") are absent: the worker sets
+        // their code from the resolved "Reason for removal" value (#778).
         // The 16-19 codes are the ones the previous system sent on 16-18 tickets.
         private static readonly Dictionary<string, string> Map = new(StringComparer.OrdinalIgnoreCase)
         {

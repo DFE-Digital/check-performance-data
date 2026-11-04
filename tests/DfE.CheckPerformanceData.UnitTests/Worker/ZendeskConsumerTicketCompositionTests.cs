@@ -455,19 +455,15 @@ public sealed class ZendeskConsumerTicketCompositionTests
         _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CorrectionTypeName).Returns(25L);
         _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CorrectionReason31Name).Returns(26L);
         _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.ReasonForRemovalName).Returns(27L);
-        // "Remove - other" maps to no correction-reason code (FR-014 edge case). Its
-        // reason-for-removal value is answer-aware (FR-004): this fixture sends no evidence
-        // answer at all, so the documented safe-triage default applies (FR-004: no evidence
-        // answer -> _with_evidence).
+        // A removal reason with no mapping gets no correction-reason code (FR-014 edge case).
 
         var consumer = NewConsumer();
         var decision = new Decision(DecisionStatus.AutoApproved, "Other", "OTH-1", Array.Empty<string>());
 
-        var ticket = consumer.BuildTicket(NewMessage("Remove - other"), decision).Ticket;
+        var ticket = consumer.BuildTicket(NewMessage("Remove - unknown-reason"), decision).Ticket;
 
         Assert.Contains(ticket.CustomFields!, f => f.Id == 25 && (string)f.Value! == "31_");
         Assert.DoesNotContain(ticket.CustomFields!, f => f.Id == 26);
-        Assert.Contains(ticket.CustomFields!, f => f.Id == 27 && (string)f.Value! == "other_-_with_evidence");
     }
 
     [Fact]
@@ -477,12 +473,12 @@ public sealed class ZendeskConsumerTicketCompositionTests
         _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CorrectionTypeName).Returns(25L);
         _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CorrectionReason31Name).Returns(26L);
         // KS4 window has no key-stage option (only ks1-ks3 confirmed) -> omitted (FR-006/FR-014).
-        // "Remove - other" has no correction-reason mapping -> omitted.
+        // A removal reason with no mapping has no correction-reason code -> omitted.
 
         var consumer = NewConsumer();
         var decision = new Decision(DecisionStatus.AutoApproved, "Other", "OTH-1", Array.Empty<string>());
 
-        var ticket = consumer.BuildTicket(NewMessage("Remove - other"), decision).Ticket;
+        var ticket = consumer.BuildTicket(NewMessage("Remove - unknown-reason"), decision).Ticket;
 
         Assert.DoesNotContain(ticket.CustomFields ?? new(), f => f.Id == 24);
         Assert.DoesNotContain(ticket.CustomFields ?? new(), f => f.Id == 26);
@@ -966,6 +962,57 @@ public sealed class ZendeskConsumerTicketCompositionTests
         var ticket = consumer.BuildTicket(NewMessage("Remove - other", windowType, pincl: 0), decision).Ticket;
 
         Assert.Contains(ticket.CustomFields!, f => f.Id == 27 && (string)f.Value! == "other_-_with_evidence");
+    }
+
+    // --- #778: add-back and "other" correction reason codes ---
+
+    [Theory]
+    [InlineData("Remove - pupil-died")]
+    [InlineData("Remove - completed-ks4-elsewhere")]
+    [InlineData("Remove - other")]
+    public void CorrectionReason31_IsAddBackCode_ForEveryAddBackRemoval(string requestTypeCode)
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CorrectionReason31Name).Returns(26L);
+        _ticketFieldService.GetOptionValue(ZendeskTicketFieldConstants.CorrectionReason31Name, "pupil-died").Returns("4_31");
+
+        var decision = new Decision(DecisionStatus.Scrutiny, "Scrutiny", "SCR-1", Array.Empty<string>());
+
+        var ticket = NewConsumer().BuildTicket(NewMessage(requestTypeCode, "KS4June", pincl: 403), decision).Ticket;
+
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 26 && (string)f.Value! == "8_31");
+    }
+
+    [Fact]
+    public void CorrectionReason31_IsAddBackCode_ForCompletedKs4Elsewhere()
+    {
+        // The reason maps to add-back removal whatever the pupil's P_INCL.
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CorrectionReason31Name).Returns(26L);
+        _ticketFieldService.GetOptionValue(ZendeskTicketFieldConstants.ReasonForRemovalName, "completed-ks4-elsewhere")
+            .Returns("add_back_removal");
+
+        var decision = new Decision(DecisionStatus.Scrutiny, "Scrutiny", "SCR-1", Array.Empty<string>());
+
+        var ticket = NewConsumer().BuildTicket(NewMessage("Remove - completed-ks4-elsewhere", "KS4June", pincl: 0), decision).Ticket;
+
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 26 && (string)f.Value! == "8_31");
+    }
+
+    [Theory]
+    [InlineData("KS4June", true, "329_31")]
+    [InlineData("KS4June", false, "330_31")]
+    [InlineData("Post16", true, "329_31")]
+    [InlineData("Post16", false, "330_31")]
+    public void CorrectionReason31_ForOther_FollowsTheEvidence(string windowType, bool hasFiles, string expected)
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CorrectionReason31Name).Returns(26L);
+
+        var decision = new Decision(DecisionStatus.Scrutiny, "Scrutiny", "SCR-1", Array.Empty<string>());
+        var evidence = Answer("evidence", "", files: hasFiles ? AnEvidenceFile() : new List<FileRecord>());
+
+        var ticket = NewConsumer().BuildTicket(
+            NewMessage("Remove - other", windowType, pincl: 0, answers: new[] { evidence }), decision).Ticket;
+
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 26 && (string)f.Value! == expected);
     }
 
     // --- Feature 457: Post16 "not-on-roll" sub-options (US2c / FR-003) ---

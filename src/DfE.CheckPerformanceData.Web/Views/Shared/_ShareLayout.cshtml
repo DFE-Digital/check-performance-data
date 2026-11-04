@@ -34,7 +34,10 @@
     @* <header role="banner"> so the GOV.UK home link sits in a landmark — the GOV.UK
        Frontend header component itself renders a plain <div> (audit #374). *@
     <header role="banner">
-        <partial name="_DfeHeader" />
+        @* No account links on the public share page. The model must still be passed: a
+           <partial> with no model attribute inherits the page's model, which is not an
+           IHtmlContent, and the type check throws. *@
+        <partial name="_DfeHeader" model="null" />
     </header>
 }
 

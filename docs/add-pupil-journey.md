@@ -86,11 +86,21 @@ The `learner-details` page's successful POST — `JourneyController.PagePost`, t
 the typed name/DOB/UPN against the roll before minting a synthetic pupil. It carries a named
 `AB#297780 SEAM` comment. No speculative branching code exists yet.
 
+### The duplicate check's Include hand-off needs an Include flow (#749)
+
+The duplicate-check page (AB#297780) can hand a matched, non-included pupil to the Include
+journey. "Include this pupil" does this for one match. "Switch to include" does it for one row
+of a multiple-match list. The hand-off needs `Include_{CheckingWindowType}.json`. KS4 Autumn has no Include flow.
+`JourneyController` sets `DuplicateCheckViewModel.IncludeJourneyAvailable` from the same list
+What to change renders (`GetPupilDataChangesAsync`). The view renders neither button without it.
+The two POST actions return to the duplicate-check page when the flow is missing. The flag is
+false by default, so a page built without it offers no Include action (fail closed).
+
 ## Validation
 
 - Required-field + valid-date on every mandatory question, exactly as the ticket's validation
   column states.
-- **Character limits**: names capped at 150, UPN at 13
+- **Character limits**: names capped at 150, UPN at 13, the evidence comments at 500 (#516 for KS4 June, #749 for KS4 Autumn)
   (`Question.CharacterLimit`/`characterLimit` in the flow JSON). This required extending
   `JourneyValidationService.ValidateAnswer`'s `CharacterLimit` arm from `TextArea`-only to also
   cover `FreeText` — the arm didn't exist for `FreeText` before this ticket.
@@ -164,12 +174,13 @@ Deliberate, per the plan's design decisions:
 ```
 docker compose up -d --build
 # then, as an impersonated editor:
-#   /WhatToChange/f34d285b-8660-4d12-9c30-787328deaa0a   (the seeded KS4June window)
+#   /WhatToChange/f34d285b-8660-4d12-9c30-787328deaa0a   (the seeded KS4 June window)
+#   /WhatToChange/7d2e9a14-5c38-4b6f-a0e1-3f8b6c2d4a97   (the seeded KS4 Autumn window)
 ```
 
-The KS4 Autumn flow ships but has no seeded checking window in dev yet — it is
-exercised by `AddFlowTests` (flow-config pinning) only, not by a live journey walk, until that
-window exists.
+Both seeded KS4 windows carry the Kingsmead roll and the Casey Carter pair (#747). The Add
+journey and its duplicate check can be walked on either. `AddPupilJourneyTests` and
+`AddPupilDuplicateCheckTests` run on both windows (#749).
 
 ## Deliberately out of scope
 
@@ -182,6 +193,5 @@ validation beyond the 13-character cap (the matching story owns it).
 | Item | Owner |
 |---|---|
 | Copy sign-off: the radio label "Add a pupil to data"; the sex option `U` labelled "Not known"; the SEN option order E→K→N; every page/question/error string in the two flow configs — none of this reached Figma Epic B1 from this environment, so it was implemented verbatim and pinned by tests | Content designer |
-| The KS4 Autumn checking window has no Add data in dev — the flow ships but is untested by a live browser walk | Dev team |
 | The two flagged assumptions (future-date rules, character caps) — confirm with the BA; if struck, delete the JSON `characterLimit` fields. `DateRuleConfigTests` requires a `notInFuture` rule on every `Date` question, so striking the future-date rule also changes that test | BA |
 | AB#297780 soft-match: the interception point is named and commented (`JourneyController.PagePost`, `page.PupilFromAnswers`), but no matching logic exists yet | Dev team (future ticket) |

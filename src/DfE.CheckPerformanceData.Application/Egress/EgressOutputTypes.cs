@@ -1,12 +1,13 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Application.ZendeskClient;
 using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Application.Egress;
 
 /// <summary>
 /// The one place that says what each output type is: which amendment journey feeds it, what it is
-/// called, how its file is named and which LDS correction type it carries. Every switch throws on
-/// an unmapped member so a new EgressOutputType cannot ship half-wired.
+/// called and how its file is named. Every switch throws on an unmapped member so a new
+/// EgressOutputType cannot ship half-wired.
 /// </summary>
 public static class EgressOutputTypes
 {
@@ -34,15 +35,6 @@ public static class EgressOutputTypes
         _ => throw Unmapped(type)
     };
 
-    // LDS correction types (AB#292610): 10 = new learner, 31 = remove learner. The Zendesk field
-    // carries them as "31_" — the trailing underscore never reaches the output.
-    public static string CorrectionType(EgressOutputType type) => type switch
-    {
-        EgressOutputType.NewLearners => "10",
-        EgressOutputType.RemoveLearners => "31",
-        _ => throw Unmapped(type)
-    };
-
     // The "stage" in the file name. 16-19 is KS5 to LDS even though nothing else in this codebase
     // calls it that (CheckingWindowType.Post16, KeyStages.Post16).
     public static string StageToken(CheckingWindowType windowType) => windowType switch
@@ -65,6 +57,16 @@ public static class EgressOutputTypes
         CheckingWindowType.Post16 => "16-19",
         _ => throw new ArgumentOutOfRangeException(nameof(windowType), windowType,
             "This window type has no LDS Key_Stage value. Add it to EgressOutputTypes.KeyStageValue before egressing it.")
+    };
+
+    // The Key_Stage cell from the ticket's "Key stage" option. Zendesk names 16-19 "16-18"; the
+    // LDS cell is "16-19". Null for an option that LDS does not take.
+    public static string? KeyStageValue(string zendeskKeyStage) => zendeskKeyStage.Trim().ToLowerInvariant() switch
+    {
+        ZendeskTicketFieldOptions.KeyStage.Ks2 => "KS2",
+        ZendeskTicketFieldOptions.KeyStage.Ks4 => "KS4",
+        ZendeskTicketFieldOptions.KeyStage.Ks16To18 => "16-19",
+        _ => null
     };
 
     public static string FileName(CheckingWindowType windowType, EgressOutputType type, DateOnly exportDate) =>

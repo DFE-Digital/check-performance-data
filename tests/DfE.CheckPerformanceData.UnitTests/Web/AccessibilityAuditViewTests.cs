@@ -86,7 +86,8 @@ public sealed class AccessibilityAuditViewTests
 		// The share surface is anonymous. Its header shows the logo only.
 		var view = ReadView("Views", "Shared", "_ShareLayout.cshtml");
 
-		Assert.Contains("<partial name=\"_DfeHeader\" />", view);
+		Assert.Contains("<partial name=\"_DfeHeader\" model=\"null\" />", view);
+		Assert.DoesNotContain("accountNav", view);
 		Assert.DoesNotContain("sign-in-nav-item", view);
 	}
 
@@ -168,6 +169,20 @@ public sealed class AccessibilityAuditViewTests
 		// submitted table.
 		var occurrences = view.Split("<span class=\"govuk-visually-hidden\"> request @row.ReferenceNumber for @row.PupilName</span>").Length - 1;
 		Assert.Equal(4, occurrences);
+	}
+
+	// ── #780 Zendesk ticket links on the admin requests page ─────────────────────────
+
+	[Fact]
+	public void AdminRequests_ZendeskLink_OpensSafelyInANewTab_AndNamesItsRequest()
+	{
+		// Every row has a link to a ticket, so each link names its request for screen readers.
+		var view = ReadView("Views", "AdminRequests", "Index.cshtml");
+
+		Assert.Contains("target=\"_blank\" rel=\"noopener noreferrer\"", view);
+		Assert.Contains(
+			"<span class=\"govuk-visually-hidden\">, Zendesk ticket for request @row.ReferenceNumber</span>",
+			view);
 	}
 
 	// ── #379 Repeated "Continue" buttons on the landing page ──────────────────────────

@@ -27,6 +27,10 @@ public sealed record AdminRequestRow
     public DateTime? DecidedAtUtc { get; init; }
     public string? CrmId { get; init; }
 
+    // The ticket's page in Zendesk (#780). Null when there is no real ticket to open: see
+    // IZendeskTicketLinks. The service sets it; the repository does not.
+    public string? ZendeskTicketUrl { get; init; }
+
     // Where the request is on its way to a Zendesk ticket (#536). A row that stays TicketQueued or
     // TicketCreating with no CrmId is one the ticket maker failed; its message is on the DLQ and a
     // redrive is claimable.

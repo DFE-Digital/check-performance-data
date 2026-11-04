@@ -1,15 +1,13 @@
 using System.Globalization;
+using DfE.CheckPerformanceData.Application.ZendeskClient;
 using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Application.Egress;
 
-/// <summary>Mutable per-record state carried through steps 2-7. One instance per pulled record that survived the filter.
-/// Cycle_Year/Cycle_Month are the WINDOW's (spec: the month the exercise takes place), so every row of a run agrees.</summary>
-public sealed class EgressWorkItem(EgressSourceRecord source, string cycleYear, string cycleMonth)
+/// <summary>Mutable per-record state carried through steps 2-7. One instance per pulled record that survived the filter.</summary>
+public sealed class EgressWorkItem(EgressSourceRecord source)
 {
     public EgressSourceRecord Source { get; } = source;
-    public string CycleYear { get; } = cycleYear;
-    public string CycleMonth { get; } = cycleMonth;
     public string? CorrectionType { get; set; }
     public string? CorrectionReason { get; set; }
     public string LocalAuthority { get; set; } = string.Empty;
@@ -30,65 +28,61 @@ public sealed class EgressWorkItem(EgressSourceRecord source, string cycleYear, 
 /// Steps 2-6 of the preprocessing pipeline, one pure-ish function each, so the pipeline can report
 /// them one at a time. A step that finds a problem records it against the field LDS would see and
 /// leaves the item failed; later steps skip a failed item rather than piling on secondary errors.
+/// The Zendesk ticket is the truth. Each LDS column that has a Zendesk field is read from the
+/// ticket, and a missing value fails the record. Egress never works the value out instead. Only
+/// the columns that have no Zendesk field come from CYPMD's data: ULN, a new learner's
+/// Year_Group, Removal_Year_0..2 and Post_Code (always blank).
 /// </summary>
 public static class EgressRecordBuilder
 {
-    public const string StepCodes = "Derive correction codes";
+    public const string StepCodes = "Read correction codes";
     public const string StepSplit = "Split DfE establishment number";
     public const string StepDates = "Standardise dates";
     public const string StepBuild = "Build LDS records";
     public const string StepTrim = "Trim values";
 
-    public static void DeriveCodes(EgressWorkItem item)
+    public static void ReadCodes(EgressWorkItem item)
     {
-        item.CorrectionType = EgressOutputTypes.CorrectionType(item.Source.OutputType);
+        var type = TicketValue(item, StepCodes, "Correction_Type", ZendeskTicketFieldConstants.CorrectionTypeName);
+        item.CorrectionType = type is null ? null : LdsCode(type);
         if (item.Source.OutputType != EgressOutputType.RemoveLearners) return;
 
-        var reason = item.Source.Answer("reason");
-        var notOnRollReason = item.Source.Answer("not-on-roll-reason");
-        var code = CorrectionCodes.RemoveReasonCode(item.Source.WindowType, reason, notOnRollReason);
-        if (code is null)
-        {
-            var detail = notOnRollReason is null ? $"'{reason ?? "(none)"}'" : $"'{reason}' / '{notOnRollReason}'";
-            item.Fail(StepCodes, "Correction_Reason", $"No LDS correction reason code is defined for removal reason {detail}");
-        }
-        item.CorrectionReason = code;
+        var reason = TicketValue(item, StepCodes, "Correction_Reason", ZendeskTicketFieldConstants.CorrectionReason31Name);
+        item.CorrectionReason = reason is null ? null : LdsCode(reason);
     }
 
     // S4: steps 2-4 are independent of one another (a bad correction reason says nothing about
     // whether the LAESTAB is valid), so none of them gates on HasFailed — only Build/Trim/Validate
     // do, once every independent check has had its turn. A record with two unrelated faults lists
     // both instead of ops discovering the second one only on the next run.
-    // The pupil record's LAESTAB first (a real pupil always has one), then the school's from the
-    // request row (the only source for a new learner, whose synthetic pupil has none).
     public static void SplitEstablishment(EgressWorkItem item)
     {
-        var raw = !string.IsNullOrWhiteSpace(item.Source.PupilLaestab) ? item.Source.PupilLaestab : item.Source.OrganisationLaestab;
+        var raw = TicketValue(item, StepSplit, "Establishment_Number", ZendeskTicketFieldConstants.DfeEstablishmentNumberName);
+        if (raw is null) return;
         if (LaestabSplitter.TrySplit(raw, out var la, out var estab))
         {
             item.LocalAuthority = la;
             item.Establishment = estab;
             return;
         }
-        item.Fail(StepSplit, "Establishment_Number",
-            string.IsNullOrWhiteSpace(raw)
-                ? "No 7-digit DfE establishment number is held for this request or its school"
-                : $"DfE establishment number '{raw}' is not 7 digits");
+        item.Fail(StepSplit, "Establishment_Number", $"DfE establishment number '{raw}' is not 7 digits");
     }
 
     public static void StandardiseDates(EgressWorkItem item)
     {
-        var dobRaw = item.Source.OutputType == EgressOutputType.NewLearners
-            ? item.Source.Answer("date-of-birth") ?? item.Source.PupilDateOfBirth
-            : item.Source.PupilDateOfBirth;
-        if (EgressDates.TryToIso(dobRaw, out var dob)) item.DateOfBirthIso = dob;
-        else item.Fail(StepDates, "Date_of_Birth", $"Date of birth '{dobRaw ?? "(none)"}' is not a recognisable date");
+        var dobRaw = TicketValue(item, StepDates, "Date_of_Birth", ZendeskTicketFieldConstants.DateOfBirthCypmdName);
+        if (dobRaw is not null)
+        {
+            if (EgressDates.TryToIso(dobRaw, out var dob)) item.DateOfBirthIso = dob;
+            else item.Fail(StepDates, "Date_of_Birth", $"Date of birth '{dobRaw}' is not a recognisable date");
+        }
 
         if (item.Source.OutputType == EgressOutputType.NewLearners)
         {
-            var admissionRaw = item.Source.Answer("admission-date");
+            var admissionRaw = TicketValue(item, StepDates, "Admission_Date", ZendeskTicketFieldConstants.AdmissionDateName);
+            if (admissionRaw is null) return;
             if (EgressDates.TryToIso(admissionRaw, out var admission)) item.AdmissionDateIso = admission;
-            else item.Fail(StepDates, "Admission_Date", $"Admission date '{admissionRaw ?? "(none)"}' is not a recognisable date");
+            else item.Fail(StepDates, "Admission_Date", $"Admission date '{admissionRaw}' is not a recognisable date");
         }
     }
 
@@ -101,18 +95,32 @@ public static class EgressRecordBuilder
             item.Fail(StepBuild, "Correction_ID", "The request's journey record could not be read, so its values are unknown");
             return;
         }
-        var stage = EgressOutputTypes.KeyStageValue(s.WindowType);
+
+        var keyStageOption = TicketValue(item, StepBuild, "Key_Stage", ZendeskTicketFieldConstants.KeyStageName);
+        var stage = keyStageOption is null ? null : EgressOutputTypes.KeyStageValue(keyStageOption);
+        if (keyStageOption is not null && stage is null)
+            item.Fail(StepBuild, "Key_Stage", $"Key stage '{keyStageOption}' has no LDS Key_Stage value");
+        var cycleYear = TicketValue(item, StepBuild, "Cycle_Year", ZendeskTicketFieldConstants.CycleYearName);
+        var cycleMonth = TicketValue(item, StepBuild, "Cycle_Month", ZendeskTicketFieldConstants.CycleMonthName);
+        var surname = TicketValue(item, StepBuild, "Surname", ZendeskTicketFieldConstants.SurnameCypmdName);
+        var forename = TicketValue(item, StepBuild, "Forename", ZendeskTicketFieldConstants.ForenameCypmdName);
+        var sex = Sex(item);
+        var schoolUrn = s.OutputType == EgressOutputType.NewLearners
+            ? TicketValue(item, StepBuild, "URN", ZendeskTicketFieldConstants.SchoolUrnName)
+            : null;
+        if (item.HasFailed) return;
+
         var ticket = s.TicketId?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+        var learnerId = s.TicketField(ZendeskTicketFieldConstants.LdsMatchedPupilIdName) ?? string.Empty;
 
         if (s.OutputType == EgressOutputType.RemoveLearners)
         {
-            var (year0, year1, year2) = RemovalYears(s, item.CycleYear);
+            var (year0, year1, year2) = RemovalYears(s, cycleYear!);
             item.RemoveRow = new RemoveLearnerRow(
                 CorrectionId: ticket, CorrectionType: item.CorrectionType ?? string.Empty, CorrectionReason: item.CorrectionReason ?? string.Empty,
-                KeyStage: stage, EstablishmentNumber: item.Establishment, Surname: s.PupilSurname ?? string.Empty, Forename: s.PupilFirstname ?? string.Empty,
-                Sex: (s.PupilSex ?? string.Empty).ToUpperInvariant(), DateOfBirth: item.DateOfBirthIso, CycleYear: item.CycleYear, CycleMonth: item.CycleMonth,
-                LocalAuthority: item.LocalAuthority,
-                LearnerId: s.PupilMatchRef > 0 ? s.PupilMatchRef.ToString(CultureInfo.InvariantCulture) : string.Empty,
+                KeyStage: stage!, EstablishmentNumber: item.Establishment, Surname: surname!, Forename: forename!,
+                Sex: sex!, DateOfBirth: item.DateOfBirthIso, CycleYear: cycleYear!, CycleMonth: cycleMonth!,
+                LocalAuthority: item.LocalAuthority, LearnerId: learnerId,
                 ChangeRequestId: s.ChangeRequestId, TicketId: s.TicketId, ReferenceNumber: s.ReferenceNumber)
             {
                 YearGroup = YearGroupMovedTo(s), RemovalYear0 = year0, RemovalYear1 = year1, RemovalYear2 = year2
@@ -120,19 +128,16 @@ public static class EgressRecordBuilder
             return;
         }
 
-        // A new learner's identity comes from the typed journey answers (docs/add-pupil-journey.md);
-        // the synthetic pupil mirrors them but the answers are the record of what the school typed.
+        // ULN and Year_Group have no Zendesk field, so they come from the journey.
         item.NewRow = new NewLearnerRow(
-            CorrectionId: ticket, CorrectionType: item.CorrectionType ?? string.Empty, KeyStage: stage,
+            CorrectionId: ticket, CorrectionType: item.CorrectionType ?? string.Empty, KeyStage: stage!,
             LocalAuthority: item.LocalAuthority, EstablishmentNumber: item.Establishment,
-            Surname: s.Answer("last-name") ?? s.PupilSurname ?? string.Empty,
-            Forename: s.Answer("first-name") ?? s.PupilFirstname ?? string.Empty,
-            Sex: (s.Answer("sex") ?? s.PupilSex ?? string.Empty).ToUpperInvariant(),
+            Surname: surname!, Forename: forename!, Sex: sex!,
             DateOfBirth: item.DateOfBirthIso, AdmissionDate: item.AdmissionDateIso, Postcode: string.Empty,
-            CycleYear: item.CycleYear, CycleMonth: item.CycleMonth, SchoolUrn: s.OrganisationUrn.ToString(CultureInfo.InvariantCulture),
+            CycleYear: cycleYear!, CycleMonth: cycleMonth!, SchoolUrn: schoolUrn!,
             Uln: s.WindowType == CheckingWindowType.Post16 ? s.PupilIdentifier ?? string.Empty : string.Empty,
-            Upn: (s.Answer("upn") ?? string.Empty).ToUpperInvariant(),
-            LearnerId: s.PupilMatchRef > 0 ? s.PupilMatchRef.ToString(CultureInfo.InvariantCulture) : string.Empty,
+            Upn: (s.TicketField(ZendeskTicketFieldConstants.UpnName) ?? string.Empty).ToUpperInvariant(),
+            LearnerId: learnerId,
             YearGroup: s.Answer("year-group") ?? string.Empty,
             ChangeRequestId: s.ChangeRequestId, TicketId: s.TicketId, ReferenceNumber: s.ReferenceNumber);
     }
@@ -162,16 +167,11 @@ public static class EgressRecordBuilder
     }
 
     // v2.4 Remove Learner row 22: KS4 files carry Year_Group "for year group change requests only".
-    // The KS4 Remove journey asks higher-lower, then year-group-higher-moved-to (12/13) or
-    // year-group-lower-moved-to (8/9/10); a stale answer from the other branch can linger in the
-    // blob, so the branch actually chosen decides which one is read.
-    private static string YearGroupMovedTo(EgressSourceRecord s)
-    {
-        if (s.WindowType is not (CheckingWindowType.KS4June or CheckingWindowType.KS4Autumn)) return string.Empty;
-        if (!string.Equals(s.Answer("reason"), "year-group-change", StringComparison.OrdinalIgnoreCase)) return string.Empty;
-        var lower = string.Equals(s.Answer("higher-lower"), "lower", StringComparison.OrdinalIgnoreCase);
-        return (lower ? s.Answer("year-group-lower-moved-to") : s.Answer("year-group-higher-moved-to")) ?? string.Empty;
-    }
+    // The ticket's "Pupil year group (CYPMD)" holds it for a year group change only.
+    private static string YearGroupMovedTo(EgressSourceRecord s) =>
+        s.WindowType is CheckingWindowType.KS4June or CheckingWindowType.KS4Autumn
+            ? s.TicketField(ZendeskTicketFieldConstants.PupilYearGroupCypmdName) ?? string.Empty
+            : string.Empty;
 
     // v2.4 Remove Learner rows 23-25: 16-19 files carry TRUE/FALSE per academic year. The Post16
     // Remove journey's years-to-remove checkbox uses labels "YYYY-YYYY" (EgressAnswers joins them
@@ -186,5 +186,35 @@ public static class EgressRecordBuilder
         var chosen = answer.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToHashSet(StringComparer.Ordinal);
         string Flag(int n) => chosen.Contains($"{end - 1 - n}-{end - n}") ? "TRUE" : "FALSE";
         return (Flag(0), Flag(1), Flag(2));
+    }
+
+    // The Zendesk "Sex" field has only the options m and f. A pupil whose sex is not known has no
+    // value on the ticket, so CYPMD's "U" is the one value egress takes from its own data.
+    private static string? Sex(EgressWorkItem item)
+    {
+        if (item.Source.TicketField(ZendeskTicketFieldConstants.SexName) is { } sex) return sex.Trim().ToUpperInvariant();
+        var cypmd = item.Source.OutputType == EgressOutputType.NewLearners
+            ? item.Source.Answer("sex") ?? item.Source.PupilSex
+            : item.Source.PupilSex;
+        if (string.Equals(cypmd?.Trim(), "U", StringComparison.OrdinalIgnoreCase)) return "U";
+        item.Fail(StepBuild, "Sex", MissingTicketValue(ZendeskTicketFieldConstants.SexName));
+        return null;
+    }
+
+    // Reads one value from the ticket. A missing value fails the record against the LDS column.
+    private static string? TicketValue(EgressWorkItem item, string step, string column, string fieldName)
+    {
+        var value = item.Source.TicketField(fieldName)?.Trim();
+        if (value is null) item.Fail(step, column, MissingTicketValue(fieldName));
+        return value;
+    }
+
+    private static string MissingTicketValue(string fieldName) => $"The Zendesk ticket has no \"{fieldName}\" value";
+
+    // A Zendesk correction option is the LDS code with a suffix: "31_" is type 31, "8_31" is reason 8.
+    private static string LdsCode(string option)
+    {
+        var underscore = option.IndexOf('_');
+        return underscore > 0 ? option[..underscore] : option;
     }
 }

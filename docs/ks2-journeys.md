@@ -29,7 +29,7 @@ KS2 has no Merge, Include or Add journey. The requirements say so.
    |---|---|---|
    | KS4 June | Add, Include, Merge, Remove | All four (no change) |
    | Post16 | Include, Merge, Remove | Include (since #711), Merge, Remove |
-    | KS4 Autumn | Add, Remove | Add, Remove (#748). Before, it showed Add only; Merge, Include and Remove had no flow file and went nowhere. |
+   | KS4 Autumn | Add, Merge, Remove | Add, Merge (since #747) and Remove (since #748). Before #706 it also showed Merge, Include and Remove, which then had no flow file and went nowhere. |
    | KS2 | Remove | Remove only |
 
    To give a window type a journey, add its flow file. Note: the rules engine is keyed by
@@ -114,10 +114,12 @@ business answers differently.
 4. **Terminal illness when tests were sat** goes to Scrutiny (`TCI-TERM-SCR`), as on KS4 June,
    not to auto-accept.
 
-## Open
+## Zendesk fields for the KS2 reasons
 
-Two Zendesk fields have no option for `assessments-deferred` or `added-after-summer-term`:
-**Reason for removal** (`ZendeskTicketFieldOptions.ReasonForRemoval`) and **Correction reason
-(31)** (`CorrectionReason31`). The worker leaves out an unmapped field and logs a warning, so
-these tickets are not fully populated. We need the option values and the two CYPMD codes from
-the business.
+`ZendeskTicketFieldOptions` maps both KS2 reasons. The correction codes come from the LDS CYPMD
+data specification (Remove (No Addback) tab, `Correction_Reason`).
+
+| Removal reason | "Reason for removal" value | "Correction reason (31)" value |
+| --- | --- | --- |
+| `assessments-deferred` | `one_or_more_end_of_key_stage_assessments_deferred_by_a_year` | `41_31` |
+| `added-after-summer-term` | `pupil_added_to_school_roll_after_start_of_summer_term` | `109_31` |

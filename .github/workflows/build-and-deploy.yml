@@ -288,7 +288,15 @@ jobs:
           summary=zap-out/summary.json
           if [[ ! -f "$summary" ]]; then
             echo "::error::ZAP wrote no summary. The scan did not complete; see the step above."
-            echo "### ZAP baseline scan produced no report" >> "$GITHUB_STEP_SUMMARY"
+            {
+              echo "### ZAP baseline scan produced no report"
+              echo
+              echo "ZAP's own failure lines, if it printed any:"
+              echo
+              echo '```'
+              grep -A 5 'Automation plan failures' zap-out/console.txt || echo "(none: ZAP did not reach its summary job)"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
           read -r pass warn fail < <(jq -r '"\(.pass) \(.warn) \(.fail)"' "$summary")
@@ -305,10 +313,12 @@ jobs:
             echo
             grep -E '^(WARN|FAIL)-NEW: .*\[[0-9]+\]' zap-out/console.txt || echo "None."
           } >> "$GITHUB_STEP_SUMMARY"
-          # Today's anonymous surface is 35 URLs; an error or maintenance page would scan one or two and look clean.
-          urls=$(grep -oE 'Total of [0-9]+ URLs' zap-out/console.txt | grep -oE '[0-9]+' | tail -n 1)
+          # The spider finds about 50 URLs on today's anonymous surface; an error or maintenance page
+          # would give a handful and scan clean. The summary's Short format prints no URL total, so
+          # the spider job's own line is the count.
+          urls=$(grep -oE 'Job spider found [0-9]+ URLs' zap-out/console.txt | grep -oE '[0-9]+' | tail -n 1)
           if [[ -z "$urls" || "$urls" -lt 20 ]]; then
-            echo "::error::ZAP crawled only ${urls:-0} URLs (floor 20): the review app did not serve its pages, so a clean result means nothing"
+            echo "::error::ZAP's spider found only ${urls:-0} URLs (floor 20): the review app did not serve its pages, so a clean result means nothing"
             exit 1
           fi
           if [[ "$ZAP_GATE" == "true" && ( "$warn" != "0" || "$fail" != "0" ) ]]; then

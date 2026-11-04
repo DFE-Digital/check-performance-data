@@ -553,6 +553,55 @@ var services = new ServiceCollection();
                 $"{file}: '{pageId}/{question.Id}' allows {question.CharacterLimit} characters, not 500.");
     }
 
+    /// <summary>
+    /// #747: every merge journey has the same selection shape, whatever the window type. The first
+    /// record is an included pupil (<c>primary</c>, <c>Included</c>); the second may be any pupil of
+    /// the school (<c>match</c>, <c>All</c>), and the engine drops the first record from the second
+    /// page's suggestions and refuses a same-record post because the key is <c>match</c>. The two
+    /// pages follow each other, and neither narrows the search: since #716 both find a pupil by
+    /// first name, last name, CYPMD ID, UPN or date of birth, as their hint says. A merge flow that
+    /// breaks the shape would let a school pick a non-included first record, or lose the same-record
+    /// guard, with nothing at run time to say so.
+    /// </summary>
+    [Fact]
+    public void EveryMergeFlow_SelectsAnIncludedFirstRecord_ThenAnyOtherRecordOfTheSchool()
+    {
+        var mergeFlows = Directory.GetFiles(LocateFlowsDirectory(), "Merge_*.json").Order().ToList();
+        Assert.NotEmpty(mergeFlows);
+
+        foreach (var file in mergeFlows)
+        {
+            var name = Path.GetFileName(file);
+            var config = JsonSerializer.Deserialize<QuestionFlowConfig>(File.ReadAllText(file), JsonOptions)!;
+            var searches = config.Pages.Where(p => p.Type == PageType.PupilSearch).ToList();
+
+            Assert.True(searches.Count == 2,
+                $"{name}: a merge flow has two pupil search pages, not {searches.Count}.");
+
+            var first = searches[0];
+            var second = searches[1];
+            Assert.True(config.FirstPageId == first.Id,
+                $"{name}: the journey starts at '{config.FirstPageId}', not at the first record page '{first.Id}'.");
+            Assert.True(first.PupilKey == JourneyPage.PrimaryKey,
+                $"{name}: '{first.Id}' has pupilKey '{first.PupilKey}', not '{JourneyPage.PrimaryKey}'.");
+            Assert.True(first.PupilFilter == PupilFilter.Included,
+                $"{name}: '{first.Id}' searches '{first.PupilFilter}', not Included.");
+            Assert.True(first.NextPageId == second.Id,
+                $"{name}: '{first.Id}' goes to '{first.NextPageId}', not to the second record page '{second.Id}'.");
+            Assert.True(second.PupilKey == JourneyPage.MatchKey,
+                $"{name}: '{second.Id}' has pupilKey '{second.PupilKey}', not '{JourneyPage.MatchKey}'.");
+            Assert.True(second.PupilFilter == PupilFilter.All,
+                $"{name}: '{second.Id}' searches '{second.PupilFilter}', not All.");
+            Assert.False(string.IsNullOrWhiteSpace(second.ValidationFailure),
+                $"{name}: '{second.Id}' has no validationFailure, which is the message the same-record guard shows.");
+
+            foreach (var page in searches)
+                Assert.True(page.PupilSearchField is null or PupilSearchField.All,
+                    $"{name}: '{page.Id}' narrows the search to '{page.PupilSearchField}'. Since #716 a merge " +
+                    "search page finds a pupil by name, CYPMD ID, UPN or date of birth, as its hint says.");
+        }
+    }
+
     private static IEnumerable<(string File, Question Question)> AllFlowQuestions() =>
         AllFlowPages().SelectMany(p => p.Page.Questions.Select(q => (p.File, q)));
 

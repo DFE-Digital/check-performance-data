@@ -35,6 +35,7 @@ public sealed class ZendeskTicketFieldOptionsTests
     [InlineData("KS4June", "ks4")]
     [InlineData("KS4Autumn", "ks4")]
     [InlineData("ks4", "ks4")]
+    [InlineData("Post16", "16-18")]
     public void KeyStage_GetOptionValue_MapsCheckingWindowTypes(string windowType, string expected)
     {
         var value = ZendeskTicketFieldOptions.GetOptionValue(ZendeskTicketFieldConstants.KeyStageName, windowType);
@@ -45,7 +46,7 @@ public sealed class ZendeskTicketFieldOptionsTests
     [Fact]
     public void KeyStage_GetOptionValue_ReturnsNullForUnmappedWindowType()
     {
-        var value = ZendeskTicketFieldOptions.GetOptionValue(ZendeskTicketFieldConstants.KeyStageName, "Post16");
+        var value = ZendeskTicketFieldOptions.GetOptionValue(ZendeskTicketFieldConstants.KeyStageName, "banana");
 
         Assert.Null(value);
     }
@@ -134,6 +135,10 @@ public sealed class ZendeskTicketFieldOptionsTests
     [InlineData("life-limiting-illness", "503_31")]
     [InlineData("year-group-change", "17_31")]
     [InlineData("not-on-june-list", "120_31")]
+    [InlineData("student-died", "4_31")]
+    [InlineData("not-at-end-of-16-19-study", "325_31")]
+    [InlineData("assessments-deferred", "41_31")]
+    [InlineData("added-after-summer-term", "109_31")]
     public void CorrectionReason31_GetOptionValue_MapsEveryTopLevelRemovalReason(string removalReason, string expected)
     {
         var value = ZendeskTicketFieldOptions.GetOptionValue(ZendeskTicketFieldConstants.CorrectionReason31Name, removalReason);
@@ -167,6 +172,8 @@ public sealed class ZendeskTicketFieldOptionsTests
     [InlineData("year-group-change", "year_group_change")]
     [InlineData("student-died", "deceased")]
     [InlineData("not-at-end-of-16-19-study", "not_at_end_of_16_to_18_study")]
+    [InlineData("assessments-deferred", "one_or_more_end_of_key_stage_assessments_deferred_by_a_year")]
+    [InlineData("added-after-summer-term", "pupil_added_to_school_roll_after_start_of_summer_term")]
     public void ReasonForRemoval_GetOptionValue_MapsRemovalReasons(string removalReason, string expected)
     {
         var value = ZendeskTicketFieldOptions.GetOptionValue(ZendeskTicketFieldConstants.ReasonForRemovalName, removalReason);
@@ -234,6 +241,9 @@ public sealed class ZendeskTicketFieldOptionsTests
     }
 
     [Theory]
+    [InlineData("10_", "10_")]
+    [InlineData("11_", "11_")]
+    [InlineData("21_", "21_")]
     [InlineData("31_", "31_")]
     [InlineData("correction 31", "31_")]
     public void CorrectionType_GetOptionValue_MapsValues(string input, string expected)

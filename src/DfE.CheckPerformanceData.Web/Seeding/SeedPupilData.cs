@@ -34,6 +34,12 @@ public static class SeedPupilData
     // whose seed carries the deliberate duplicate below.
     private const string KingsmeadLaestab = "860/4070";
 
+    // The KS4 windows that carry Kingsmead's duplicate pair: KS4 June (#510) and, since #747, KS4
+    // Autumn, so the merge journey can be walked and tested on both. One blob per window, so the
+    // pair's ids do not collide.
+    private static readonly Guid[] Ks4PairWindowIds =
+        [DevDataSeeder.KeyStage4JuneCheckingWindowId, DevDataSeeder.KeyStage4AutumnCheckingWindowId];
+
     /// <summary>Every school's pupils for one KS4 window, in one list: the supplier's KS4 file is
     /// one file for every school, split into one blob per school by its LAESTAB column.</summary>
     public static IReadOnlyList<PupilRecord> Ks4Pupils(Guid windowId)
@@ -48,8 +54,9 @@ public static class SeedPupilData
                 pupils.AddRange(GeneratePupils(PupilsPerGroup, includedPincl: false, NonIncludedIndexOffset, windowId, school));
 
             // Kingsmead additionally carries a deliberate same-name/DOB pair — one included, one
-            // not — so the Add journey's duplicate check can be exercised in its Multiple state.
-            if (windowId == DevDataSeeder.KeyStage4JuneCheckingWindowId && school.Laestab == KingsmeadLaestab)
+            // not — so the Add journey's duplicate check can be exercised in its Multiple state and
+            // the merge journey has two records worth merging.
+            if (school.Laestab == KingsmeadLaestab && Ks4PairWindowIds.Contains(windowId))
                 pupils.AddRange(GenerateDuplicateMatchPair(windowId, school));
         }
         return pupils;
@@ -143,9 +150,12 @@ public static class SeedPupilData
 
     private static readonly string[] SenCodes = ["N", "N", "N", "K", "E"];
 
+    // The KS4 June schema's x-ingress.inclusion rule includes these codes.
+    private static readonly int[] IncludedPinclCodes = [401, 403, 414, 421, 431];
+
     private static readonly int[] NonIncludedPinclCodes = [402, 404, 407, 408, 410, 413, 422, 430];
 
-    // A name/DOB pair deliberately shared by two pupils for Kingsmead's live KS4June window. The
+    // A name/DOB pair deliberately shared by two pupils for Kingsmead's KS4 June and KS4 Autumn windows. The
     // generator's name pairs are unique by construction (included surnames bucket 0-5, non-included
     // bucket 10-15), so without this the duplicate check could never reach its Multiple state. The
     // name is drawn from outside Firstnames/Surnames so it cannot collide with a generated pupil,
@@ -168,7 +178,7 @@ public static class SeedPupilData
             DateOfBirth = dob,
             Age = Ks4AgeAtStartOfYear(new DateOnly(2010, 3, 15)),
             FirstLanguage = "ENG",
-            Pincl = PupilInclusion.Ks4IncludedPinclCodes[0],
+            Pincl = IncludedPinclCodes[0],
             NewMobile = false,
             ActualYearGroup = "11",
             Ethnicity = "WOTH",
@@ -223,7 +233,7 @@ public static class SeedPupilData
         {
             var n = i + indexOffset;
             var dob = new DateOnly(2010, (i % 12) + 1, (i % 28) + 1);
-            var pinclCodes = includedPincl ? PupilInclusion.Ks4IncludedPinclCodes : NonIncludedPinclCodes;
+            var pinclCodes = includedPincl ? IncludedPinclCodes : NonIncludedPinclCodes;
 
             return new PupilRecord
             {

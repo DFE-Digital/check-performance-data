@@ -253,6 +253,12 @@ public sealed class RulesEngineEndToEndTests
             Answers: [],
             DecisionStatus.Scrutiny, "MRG-DEF");
 
+        // #747: a KS4 Autumn merge goes to scrutiny too. MRG-DEF has no window-type condition,
+        // so the window type must not change the decision.
+        yield return new("MergePupils-Default-KS4Autumn", "Merge", "KS4Autumn",
+            Answers: [],
+            DecisionStatus.Scrutiny, "MRG-DEF");
+
         // #536: an Add-pupil request goes through the Rules Engine like every amendment. There
         // are no Add rules yet, so its single otherwise-branch sends it for scrutiny.
         yield return new("AddPupil-Default", "Add", "KS4June",

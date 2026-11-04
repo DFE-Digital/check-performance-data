@@ -43,6 +43,7 @@ try
         .AddCpdJourneyAndCmsServices()
         .AddCpdBlobStorage(configuration)
         .AddCpdEgress(configuration, builder.Environment)
+        .AddZendeskTicketLinks()
         .AddCpdExerciseHandOver(configuration)
         .AddCpdBigQueryAnalytics(configuration);
 

@@ -487,6 +487,20 @@ public static class DependencyManager
             sp => sp.GetRequiredService<IOptions<ZendeskTicketFieldSettings>>().Value);
         services.AddSingleton<IZendeskTicketFieldService, ZendeskTicketFieldService>();
 
+        // A field ID that is not set causes no error: the worker leaves the field out of each
+        // ticket. Say so at start, so that a local worker with an old settings file is noticed.
+        var ticketFieldSettings = config.GetSection(ZendeskTicketFieldSettings.SectionName).Get<ZendeskTicketFieldSettings>()
+            ?? new ZendeskTicketFieldSettings();
+        var unsetFieldIds = ticketFieldSettings.UnsetFieldIdNames()
+            .Select(name => $"{ZendeskTicketFieldSettings.SectionName}__{name}")
+            .ToList();
+        if (unsetFieldIds.Count > 0 && requireRealClient)
+        {
+            services.AddHostedService(sp => new ZendeskTicketFieldWarning(
+                unsetFieldIds,
+                sp.GetRequiredService<ILogger<ZendeskTicketFieldWarning>>()));
+        }
+
         services.AddOptions<PollySettings>()
             .Bind(config.GetSection(PollySettings.SectionName))
             .ValidateDataAnnotations()

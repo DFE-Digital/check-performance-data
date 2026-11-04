@@ -44,6 +44,17 @@ public sealed class ZendeskTicketFieldSettings
     public bool PopulateDecisionReasonForAutoRejected { get; set; }
 
     /// <summary>
+    /// The names of the field ID settings that are not set. A value of 0 counts as not set,
+    /// because the worker leaves out a field with ID 0 (production.yml uses 0 until the IDs are known).
+    /// </summary>
+    public IReadOnlyList<string> UnsetFieldIdNames() =>
+        typeof(ZendeskTicketFieldSettings).GetProperties()
+            .Where(p => p.PropertyType == typeof(long?))
+            .Where(p => p.GetValue(this) is not long id || id <= 0)
+            .Select(p => p.Name)
+            .ToList();
+
+    /// <summary>
     /// Gets the field ID by field name.
     /// </summary>
     public long? GetFieldIdByName(string fieldName)

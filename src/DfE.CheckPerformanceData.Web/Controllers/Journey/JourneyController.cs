@@ -1631,7 +1631,7 @@ public sealed class JourneyController(
         var journey = HttpContext.Session.GetRequestState(windowId);
         if (!IsSessionReady(journey)) return RedirectToCheckYourData(windowId);
 
-        var vm = BuildDuplicateCheckViewModel(windowId, journey);
+        var vm = await BuildDuplicateCheckViewModelAsync(windowId, journey);
         if (vm is null) return await RedirectAfterLearnerDetailsAsync(windowId);
 
         await analytics.TrackSafeAsync(new DuplicateCheckDecisionEvent
@@ -1647,10 +1647,11 @@ public sealed class JourneyController(
     /// <summary>
     /// Builds the duplicate-check view model from the still-populated session duplicate-check
     /// result. Shared by the <see cref="DuplicateCheck"/> GET and the Include hand-off conflict
-    /// re-render so both present the identical match list and layout (SC-002/SC-003). Null when no
+    /// re-render so both present the identical match list and layout (SC-002/SC-003). It also carries
+    /// whether the window type has an Include flow (#749). Null when no
     /// check has run or it found no matches.
     /// </summary>
-    private DuplicateCheckViewModel? BuildDuplicateCheckViewModel(Guid windowId, RequestState journey)
+    private async Task<DuplicateCheckViewModel?> BuildDuplicateCheckViewModelAsync(Guid windowId, RequestState journey)
     {
         var result = journey.DuplicateCheck;
         if (result is not { } r || r.Scenario == DuplicateScenario.None)
@@ -1663,7 +1664,8 @@ public sealed class JourneyController(
             Scenario = r.Scenario,
             Matches = r.Matches,
             LearnerNameLabel = pupilName,
-            BackPageId = AddPupilJourney.LearnerDetailsPageId
+            BackPageId = AddPupilJourney.LearnerDetailsPageId,
+            IncludeJourneyAvailable = await CanIncludeAsync(journey)
         };
     }
 
@@ -1738,7 +1740,9 @@ public sealed class JourneyController(
         // AB#297780: a conflict re-renders the duplicate-check page, and AB#027 an already-included
         // hand-off redirects to the warning page — never record an include decision for a blocked hand-off.
         if (redirect is ViewResult or RedirectToActionResult { ActionName: nameof(AlreadyIncluded) }) return redirect;
-        if (redirect is null) return RedirectToCheckYourData(windowId);
+        // #749: no Include flow for this window type. The page offers no Include action there, so
+        // this is a stale or forged post; return to the page and keep the match list (fail closed).
+        if (redirect is null) return RedirectToAction(nameof(DuplicateCheck), new { windowId });
 
         await analytics.TrackSafeAsync(new DuplicateCheckDecisionEvent
         {
@@ -1776,7 +1780,9 @@ public sealed class JourneyController(
         // hand-off redirects to the warning page — never record a switch-to-include decision for a
         // blocked hand-off (same conflict surface as PupilSearchPost).
         if (redirect is ViewResult or RedirectToActionResult { ActionName: nameof(AlreadyIncluded) }) return redirect;
-        if (redirect is null) return RedirectToCheckYourData(windowId);
+        // #749: no Include flow for this window type. The page offers no Include action there, so
+        // this is a stale or forged post; return to the page and keep the match list (fail closed).
+        if (redirect is null) return RedirectToAction(nameof(DuplicateCheck), new { windowId });
 
         await analytics.TrackSafeAsync(new DuplicateCheckDecisionEvent
         {
@@ -1799,7 +1805,7 @@ public sealed class JourneyController(
     /// <see cref="PupilSearchPost"/> does. A non-<see cref="DuplicateCheckResult.NoConflict"/>
     /// result blocks the hand-off — no seed, no redirect — and re-renders the duplicate-check page
     /// with the GDS conflict error (banner + summary + field error) via the shared
-    /// <see cref="BuildDuplicateCheckViewModel"/>, so both hand-off entry points and the pupil
+    /// <see cref="BuildDuplicateCheckViewModelAsync"/>, so both hand-off entry points and the pupil
     /// search present an identical conflict surface (SC-002/SC-003). The session's
     /// <see cref="RequestState.DuplicateCheck"/> is kept, so the match list stays visible (FR-006).
     /// </summary>
@@ -1899,7 +1905,7 @@ public sealed class JourneyController(
                     WhatToChange = journey.SelectedWhatToChange?.ToString(),
                 });
                 var pupilName = $"{pupil.Firstname} {pupil.Surname}".Trim();
-                var vm = BuildDuplicateCheckViewModel(windowId, journey)!;
+                var vm = (await BuildDuplicateCheckViewModelAsync(windowId, journey))!;
 
                 var refNum = result switch
                 {
@@ -1955,6 +1961,15 @@ public sealed class JourneyController(
     private async Task<bool> CanAddAsync(RequestState journey) =>
         journey.CheckingWindow?.CheckingWindowType is { } windowType
         && (await flowService.GetPupilDataChangesAsync(windowType)).Contains(WhatToChange.Add);
+
+    /// <summary>
+    /// #749: the duplicate-check page offers "Include this pupil" and "Switch to include" only when
+    /// What to change would offer Include — the same list, so the two can never disagree. KS4
+    /// Autumn has no Include flow.
+    /// </summary>
+    private async Task<bool> CanIncludeAsync(RequestState journey) =>
+        journey.CheckingWindow?.CheckingWindowType is { } windowType
+        && (await flowService.GetPupilDataChangesAsync(windowType)).Contains(WhatToChange.Include);
 
     /// <summary>
     /// AB#027 (US1): shown when the Include journey's select-pupil search found no included match

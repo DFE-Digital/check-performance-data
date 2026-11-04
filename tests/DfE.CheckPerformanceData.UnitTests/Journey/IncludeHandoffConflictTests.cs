@@ -473,6 +473,100 @@ public class IncludeHandoffConflictTests
 
     // ── Helpers ─────────────────────────────────────────────────────────────
 
+    // ── #749: the Include actions need an Include flow for the window type ──
+    //
+    // KS4 Autumn has Add but no Include_KS4Autumn.json. The duplicate-check page reads the same
+    // list What to change renders (GetPupilDataChangesAsync), so it offers "Include this pupil"
+    // and "Switch to include" only where the hand-off can land. A post without the flow returns
+    // to the duplicate-check page (fail closed), never to Check your pupil data.
+
+    [Fact]
+    public async Task DuplicateCheck_WhenTheWindowTypeHasNoIncludeFlow_OffersNoIncludeAction()
+    {
+        SetupSession(AddSessionAwaitingInclude(SingleNonIncludedCheck));
+        _flowService.GetPupilDataChangesAsync(Arg.Any<CheckingWindowType>())
+            .Returns(Task.FromResult<IReadOnlyList<WhatToChange>>([WhatToChange.Merge, WhatToChange.Add]));
+
+        var result = await _sut.DuplicateCheck(WindowId);
+
+        var view = Assert.IsType<ViewResult>(result);
+        var vm = Assert.IsType<DuplicateCheckViewModel>(view.Model);
+        Assert.False(vm.IncludeJourneyAvailable);
+        Assert.False(vm.IncludeActionAvailable);
+        Assert.False(vm.SwitchToIncludeAvailable);
+    }
+
+    [Fact]
+    public async Task DuplicateCheck_WhenTheWindowTypeHasAnIncludeFlow_OffersIncludeForASingleNonIncludedMatch()
+    {
+        SetupSession(AddSessionAwaitingInclude(SingleNonIncludedCheck));
+        _flowService.GetPupilDataChangesAsync(Arg.Any<CheckingWindowType>())
+            .Returns(Task.FromResult<IReadOnlyList<WhatToChange>>(
+                [WhatToChange.Merge, WhatToChange.Include, WhatToChange.Remove, WhatToChange.Add]));
+
+        var result = await _sut.DuplicateCheck(WindowId);
+
+        var view = Assert.IsType<ViewResult>(result);
+        var vm = Assert.IsType<DuplicateCheckViewModel>(view.Model);
+        Assert.True(vm.IncludeJourneyAvailable);
+        Assert.True(vm.IncludeActionAvailable);
+        Assert.False(vm.SwitchToIncludeAvailable); // one match: there is no list to switch from
+    }
+
+    [Fact]
+    public async Task DuplicateCheck_WhenTheWindowTypeHasAnIncludeFlow_OffersSwitchToIncludeForMultipleMatches()
+    {
+        SetupSession(AddSessionAwaitingInclude(MultipleCheck));
+        _flowService.GetPupilDataChangesAsync(Arg.Any<CheckingWindowType>())
+            .Returns(Task.FromResult<IReadOnlyList<WhatToChange>>(
+                [WhatToChange.Merge, WhatToChange.Include, WhatToChange.Remove, WhatToChange.Add]));
+
+        var result = await _sut.DuplicateCheck(WindowId);
+
+        var view = Assert.IsType<ViewResult>(result);
+        var vm = Assert.IsType<DuplicateCheckViewModel>(view.Model);
+        Assert.True(vm.SwitchToIncludeAvailable);
+        Assert.False(vm.IncludeActionAvailable); // a list offers per-row switches, not the single button
+    }
+
+    [Fact]
+    public async Task IncludeThisPupil_WhenTheWindowTypeHasNoIncludeFlow_ReturnsToTheDuplicateCheckPage()
+    {
+        SetupSession(AddSessionAwaitingInclude(SingleNonIncludedCheck));
+        _flowService.GetConfigAsync(WhatToChange.Include, Arg.Any<CheckingWindowType>())
+            .Returns((QuestionFlowConfig?)null);
+
+        var result = await _sut.IncludeThisPupil(WindowId);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(JourneyController.DuplicateCheck), redirect.ActionName);
+
+        var saved = _session.GetRequestState(WindowId);
+        Assert.Equal(WhatToChange.Add, saved.SelectedWhatToChange);   // nothing was seeded
+        Assert.NotNull(saved.DuplicateCheck);                         // the match list is kept
+        await _analytics.DidNotReceive().TrackAsync(
+            Arg.Is<DuplicateCheckDecisionEvent>(e => e.Action == "include"), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SwitchToInclude_WhenTheWindowTypeHasNoIncludeFlow_ReturnsToTheDuplicateCheckPage()
+    {
+        SetupSession(AddSessionAwaitingInclude(MultipleCheck));
+        _flowService.GetConfigAsync(WhatToChange.Include, Arg.Any<CheckingWindowType>())
+            .Returns((QuestionFlowConfig?)null);
+
+        var result = await _sut.SwitchToInclude(WindowId, MatchPupilId);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(JourneyController.DuplicateCheck), redirect.ActionName);
+
+        var saved = _session.GetRequestState(WindowId);
+        Assert.Equal(WhatToChange.Add, saved.SelectedWhatToChange);
+        Assert.NotNull(saved.DuplicateCheck);
+        await _analytics.DidNotReceive().TrackAsync(
+            Arg.Is<DuplicateCheckDecisionEvent>(e => e.Action == "switch-to-include"), Arg.Any<CancellationToken>());
+    }
+
     private DuplicateCheckViewModel AssertConflictReRender(IActionResult result)
     {
         var view = Assert.IsType<ViewResult>(result);

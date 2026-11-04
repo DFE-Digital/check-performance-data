@@ -180,6 +180,9 @@ public class IncludeHandoffConflictTests
     public async Task IncludeThisPupil_SelfSubmitted_ReRendersDuplicateCheckWithConflict()
     {
         SetupSession(AddSessionAwaitingInclude(SingleNonIncludedCheck));
+        _flowService.GetPupilDataChangesAsync(Arg.Any<CheckingWindowType>())
+            .Returns(Task.FromResult<IReadOnlyList<WhatToChange>>(
+                [WhatToChange.Merge, WhatToChange.Include, WhatToChange.Remove, WhatToChange.Add]));
         _flowService.GetConfigAsync(WhatToChange.Include, CheckingWindowType.KS4June).Returns(IncludeConfig);
         _pupilDataService.GetPupilAsync(WindowId, MatchPupilId).Returns(MatchPupil);
         _requestService.HasSubmittedRequestAsync(WindowId, MatchPupilId, 142313)
@@ -188,6 +191,8 @@ public class IncludeHandoffConflictTests
         var result = await _sut.IncludeThisPupil(WindowId);
 
         var vm = AssertConflictReRender(result);
+        // #749 / FR-006: the re-render on a window with an Include flow keeps the Include action.
+        Assert.True(vm.IncludeActionAvailable);
         Assert.Equal("REF001", vm.ConflictErrorReference);
         Assert.Equal($"/{WindowId}/AmendmentRequests/REF001/view", vm.ConflictErrorLink);
         Assert.Equal("John Doe", vm.ConflictPupilName);
@@ -272,6 +277,9 @@ public class IncludeHandoffConflictTests
     public async Task SwitchToInclude_SelfSubmitted_ReRendersDuplicateCheckWithConflict()
     {
         SetupSession(AddSessionAwaitingInclude(MultipleCheck));
+        _flowService.GetPupilDataChangesAsync(Arg.Any<CheckingWindowType>())
+            .Returns(Task.FromResult<IReadOnlyList<WhatToChange>>(
+                [WhatToChange.Merge, WhatToChange.Include, WhatToChange.Remove, WhatToChange.Add]));
         _flowService.GetConfigAsync(WhatToChange.Include, CheckingWindowType.KS4June).Returns(IncludeConfig);
         _pupilDataService.GetPupilAsync(WindowId, MatchPupilId).Returns(MatchPupil);
         _requestService.HasSubmittedRequestAsync(WindowId, MatchPupilId, 142313)
@@ -280,6 +288,8 @@ public class IncludeHandoffConflictTests
         var result = await _sut.SwitchToInclude(WindowId, MatchPupilId);
 
         var vm = AssertConflictReRender(result);
+        // #749 / FR-006: the re-render on a window with an Include flow keeps the per-row switches.
+        Assert.True(vm.SwitchToIncludeAvailable);
         Assert.Equal("REF003", vm.ConflictErrorReference);
         Assert.Equal("John Doe", vm.ConflictPupilName);
         Assert.Equal("Test User", vm.ConflictUserName);
@@ -471,8 +481,6 @@ public class IncludeHandoffConflictTests
         Assert.True(WhatToChangeCheckingExerciseMap.IsResultsEnquiry(WhatToChange.IncorrectGrade));
     }
 
-    // ── Helpers ─────────────────────────────────────────────────────────────
-
     // ── #749: the Include actions need an Include flow for the window type ──
     //
     // KS4 Autumn has Add but no Include_KS4Autumn.json. The duplicate-check page reads the same
@@ -546,6 +554,7 @@ public class IncludeHandoffConflictTests
         Assert.NotNull(saved.DuplicateCheck);                         // the match list is kept
         await _analytics.DidNotReceive().TrackAsync(
             Arg.Is<DuplicateCheckDecisionEvent>(e => e.Action == "include"), Arg.Any<CancellationToken>());
+        await _pupilDataService.DidNotReceive().GetPupilAsync(Arg.Any<Guid>(), Arg.Any<Guid>());
     }
 
     [Fact]
@@ -565,7 +574,10 @@ public class IncludeHandoffConflictTests
         Assert.NotNull(saved.DuplicateCheck);
         await _analytics.DidNotReceive().TrackAsync(
             Arg.Is<DuplicateCheckDecisionEvent>(e => e.Action == "switch-to-include"), Arg.Any<CancellationToken>());
+        await _pupilDataService.DidNotReceive().GetPupilAsync(Arg.Any<Guid>(), Arg.Any<Guid>());
     }
+
+    // ── Helpers ─────────────────────────────────────────────────────────────
 
     private DuplicateCheckViewModel AssertConflictReRender(IActionResult result)
     {

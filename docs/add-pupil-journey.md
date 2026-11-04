@@ -89,8 +89,8 @@ the typed name/DOB/UPN against the roll before minting a synthetic pupil. It car
 ### The duplicate check's Include hand-off needs an Include flow (#749)
 
 The duplicate-check page (AB#297780) can hand a matched, non-included pupil to the Include
-journey: "Include this pupil" for one match, "Switch to include" on a row of a multiple-match
-list. The hand-off needs `Include_{CheckingWindowType}.json`. KS4 Autumn has no Include flow.
+journey. "Include this pupil" does this for one match. "Switch to include" does it for one row
+of a multiple-match list. The hand-off needs `Include_{CheckingWindowType}.json`. KS4 Autumn has no Include flow.
 `JourneyController` sets `DuplicateCheckViewModel.IncludeJourneyAvailable` from the same list
 What to change renders (`GetPupilDataChangesAsync`). The view renders neither button without it.
 The two POST actions return to the duplicate-check page when the flow is missing. The flag is

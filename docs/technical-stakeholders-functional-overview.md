@@ -345,7 +345,7 @@ Notes: **xUnit, not NUnit**; mock with NSubstitute (Moq is no longer referenced)
 - `.env` contains real test secrets (DfE Sign-In, Zendesk, pgAdmin) — git-ignored, but rotate if ever exposed.
 
 **Functional gaps**
-- Not every window type has every journey. KS2 has Remove only. KS4 Autumn has Add (#749) and Merge (#747). Its Add duplicate-check page offers no Include action, because it has no Include flow. 16-19 has Include, Merge and Remove, and no Add. The flow list above is the source of truth.
+- Not every window type has every journey. KS2 has Remove only. KS4 Autumn has Add (the KS4 June Add flow since #749) and Merge (#747). Its Add duplicate-check page offers no Include action, because it has no Include flow. 16-19 has Include, Merge and Remove, and no Add. The flow list above is the source of truth.
 - Window **schema-file upload route is not implemented** (Summary links to `/admin/windows/{id}/schema-file`; no controller handles it); window **validate/publish actions don't exist** — the manage-windows list hard-codes `IsOpen = true, IsPublished = true`.
 - Rules→Zendesk hand-off is manual (admin POST); no scheduled window-close.
 - `/contact` is a persist-nothing placeholder pending a triage decision.

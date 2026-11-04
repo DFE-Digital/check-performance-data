@@ -69,17 +69,17 @@ public sealed class EgressRunService(
     private async Task<IReadOnlyList<EgressSourceRecord>> PullAsync(CheckingWindowDto window, EgressOutputType type, CancellationToken ct)
     {
         var candidates = await repository.GetCandidateRequestsAsync(window.Id, EgressOutputTypes.WhatToChangeFor(type), ct);
-        var ticketIds = candidates.Select(c => TicketId(c.CrmId)).OfType<long>().ToList();
+        var ticketIds = candidates.Select(c => TicketIds.Parse(c.CrmId)).OfType<long>().ToList();
         var decisions = ticketIds.Count == 0
-            ? new Dictionary<long, string>()
-            : await tickets.GetDecisionStatusesAsync(ticketIds, ct);
+            ? new Dictionary<long, EgressTicketDecision>()
+            : await tickets.GetTicketDecisionsAsync(ticketIds, ct);
 
         var records = new List<EgressSourceRecord>(candidates.Count);
         foreach (var candidate in candidates)
         {
-            var ticketId = TicketId(candidate.CrmId);
+            var ticketId = TicketIds.Parse(candidate.CrmId);
             var decision = ticketId is null ? EgressDecisions.NoTicket
-                : decisions.TryGetValue(ticketId.Value, out var d) ? d
+                : decisions.TryGetValue(ticketId.Value, out var d) ? d.Decision
                 : EgressDecisions.NotFound;
 
             RequestState? journey;
@@ -117,9 +117,6 @@ public sealed class EgressRunService(
         }
         return records;
     }
-
-    private static long? TicketId(string? crmId) =>
-        long.TryParse(crmId, out var id) && id > 0 ? id : null;
 
     public Task<EgressRunDto?> GetAsync(Guid runId, CancellationToken ct) => repository.GetRunAsync(runId, ct);
     public Task<IReadOnlyList<EgressRunListItem>> ListAsync(CancellationToken ct) => repository.ListRunsAsync(ct);

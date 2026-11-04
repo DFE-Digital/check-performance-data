@@ -275,6 +275,40 @@ public class AmendmentRequestsControllerTests
     }
 
     [Fact]
+    public async Task Index_WhenSubmittedRowHasADecision_TheRowViewModelCarriesIt()
+    {
+        // #746: the DTO's decision reaches the row view model, which is what the tag matrix reads.
+        _service.GetAmendmentRequestsAsync(WindowId).Returns(new AmendmentRequestsResult
+        { LearnerNoun = LearnerNoun.Pupil,
+            Deadlines = [Deadline(DateTime.UtcNow)],
+            WindowTitle = "Key stage 4",
+            Rows = [],
+            SubmittedRows =
+            [
+                new SubmittedRequestDto
+                {
+                    PupilName = "John Doe",
+                    RequestType = RequestType.Amendment,
+                    RequestTypeDescription = "Remove - Permanently left England",
+                    ReferenceNumber = "REF013",
+                    Status = RequestStatus.Submitted,
+                    Submitted = DateTime.UtcNow,
+                    Decision = ZendeskDecision.Rejected,
+                    DecisionReason = "Inclusion criteria not met"
+                }
+            ],
+            IssueRows = [],
+            HasResultsEnquiry = true
+        });
+
+        var result = await _sut.Index(WindowId);
+
+        var vm = Assert.IsType<AmendmentRequestsViewModel>(((ViewResult)result).Model);
+        Assert.Equal(ZendeskDecision.Rejected, vm.SubmittedRows[0].Decision);
+        Assert.Equal("Inclusion criteria not met", vm.SubmittedRows[0].DecisionReason);
+    }
+
+    [Fact]
     public async Task Index_WhenSubmittedRowWithdrawn_UsesGreyWithdrawnTag()
     {
         _service.GetAmendmentRequestsAsync(WindowId).Returns(new AmendmentRequestsResult

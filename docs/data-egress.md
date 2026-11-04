@@ -45,8 +45,10 @@ run at any non-terminal point.
 
 ## 2. Where the data comes from
 
-Zendesk supplies **only the decision**: the "Decision status" custom field on the ticket id already
-stored on `ChangeRequests.CrmId`, read via `GET /api/v2/tickets/show_many.json` (100 ids per call).
+Zendesk supplies **the decision, and the reason for it when the ticket carries one**: the
+"Decision status" custom field on the ticket id already stored on `ChangeRequests.CrmId`, read via
+`GET /api/v2/tickets/show_many.json` (100 ids per call), and — for a final decision — the matching
+"Decision Reason" tagger field on the same ticket.
 Every other value — pupil details, dates, the school's establishment number, the journey's answers
 — comes from CYPMD's own data: the `ChangeRequests` row and the persisted journey blob
 (`requests/{reference}.json`, `IRequestStateBlobClient`). Production configures no Zendesk custom
@@ -63,6 +65,36 @@ the run's raw JSON (so a resume never re-pulls): identifiers (`ChangeRequestId`,
 `TicketId`), the `Decision` (a Zendesk value, or `EgressDecisions.NoTicket` / `NotFound`), the
 output type and window type, submission metadata, the school's URN/LAESTAB, every pupil field
 CYPMD holds, and the journey's answers flattened by question id (`EgressAnswers.Flatten`).
+
+## Reading the decisions back (#746)
+
+`IEgressTicketSource` is the one seam this service uses to read ticket decisions from Zendesk. It
+now returns `EgressTicketDecision(Decision, Reason)` per ticket id (the method was
+`GetDecisionStatusesAsync` returning a bare decision string). `Decision` is the raw "Decision
+status" value, trimmed and lower-invariant. `Reason` is a human-readable label — never a raw
+option code — for the decision's "Decision Reason" tagger field, or null when the ticket carries
+no reason (scrutiny, a missing field, an unset field id, or an unresolvable code). A ticket Zendesk
+did not return, or returned without a readable decision, is absent from the result; the caller shows
+it as `EgressDecisions.NotFound`, never as approved.
+
+The reason is the best-effort half of the read. The real source (`ZendeskEgressTicketSource`) makes
+one `ticket_fields.json` call per pull, only when a reason field id is configured, and resolves the
+tagger code to its label. A failed call, or an unresolvable code, gives a null reason — never a
+failed pull. The dev outbox (`DevOutboxEgressTicketSource`) reads the same two custom field ids from
+`DevZendeskTickets.RawJson` and returns what the dev seeder wrote, as-is.
+
+The investigation of where a reason comes from (research R2) found the tagger fields: the worker
+tags an auto decision's reason into "Decision Reason - Approved" or "- Rejected" at ticket
+creation, so a read of a final auto decision resolves the tagger code to its label. A decision a
+human caseworker set after scrutiny has no ticket field that carries the caseworker's comment —
+that is the documented follow-up gap. Until Zendesk adds such a field, a human-set final decision
+reads back with a null reason.
+
+Two consumers sit on the seam. The egress pull (§2) reads the decision to filter approved requests
+for LDS. The per-exercise decision pull (`IExerciseDecisionPullService`, see
+`docs/domain-model.md`) reads the decision and reason for every submitted request in one exercise
+and stores the final reads on `ChangeRequest.ZendeskDecision` / `ZendeskDecisionReason`. It stores
+a final read only (scrutiny and blank store nothing) and never clears a stored one.
 
 ## 3. Run lifecycle
 
@@ -228,6 +260,7 @@ audit row ever claims success for a failed transfer.
 | `Zendesk:UseFake` (default **`false`** in the deployed config, **`true`** in the worker's code default) | Selects the worker's ticket-*write* service: `false` → real Zendesk (`ZendeskService`), `true` → dev outbox (`DevOutboxZendeskService`) so tickets land in `DevZendeskTickets`. Deliberately decoupled from the web's egress *read* choice — see `Egress:UseDevOutbox` below. Local/E2E compose stacks default it to `true` because they have no Zendesk credentials. |
 | `Egress:UseDevOutbox` (default **`false`**) | Selects the web's egress ticket-*read* source: `false` → the real Zendesk client (`ZendeskEgressTicketSource`, via the same `AddZendeskApiClient` the worker uses), `true` → the dev outbox (`DevOutboxEgressTicketSource`, no Zendesk settings needed). Decoupled from `Zendesk:UseFake` so a review app can write real esfa-preprod tickets while still reading egress decisions from the outbox. Local/E2E stacks opt in explicitly (`Egress__UseDevOutbox=true` in `docker-compose.yaml`, `docker-compose.sandbox.yaml`, `terraform/application/config/review.yml`) because the E2E egress facts seed their decisions into the outbox via `/dev/egress/seed` — against real esfa-preprod every seeded id reads back as "Ticket not found". `AddCpdEgress` refuses `true` in Production regardless of configuration, so the dev outbox can never be reached there. |
 | `ZendeskTicketFields:DecisionStatusId` | The real ticket source's required field id; `0` in production today, so it refuses to pull until configured. |
+| `ZendeskTicketFields:DecisionReasonApprovedId` / `:DecisionReasonRejectedId` | The "Decision Reason" tagger field ids for an approved and a rejected final decision. Unset (or `0`) → the real source returns a null reason for every ticket rather than failing; the dev outbox falls back to its own well-known field ids, which the dev seeder writes. Set in production only once Zendesk's fields exist. |
 | Admin grant `egress` | `DefaultAdminAccessSeeder.AllSections` — without it a fresh database 404s on `/admin/egress` even for an admin. |
 | Admin grant `egress-runs` | `DefaultAdminAccessSeeder.AllSections` — the runs history's own gate and its sidebar tile's key (AB#294590); the seeder tops the admin role up on every start, so existing databases gain it on deploy. |
 | Admin grant `audit-log` | `DefaultAdminAccessSeeder.AllSections` — the Audit log root tile's own gate (AB#294592); topped up on every start. |
@@ -244,12 +277,19 @@ local web has no read credentials for.
 `DevPipelineController`) stages fixture data with no worker and no real Zendesk:
 
 ```bash
-# Seed 3 approved Remove-learner requests for the KS4 June window
-curl -X POST "http://localhost:8080/dev/egress/seed?windowId=F34D285B-8660-4D12-9C30-787328DEAA0A&outputType=RemoveLearners&decision=auto_approved&count=3&laestab=860/4070&urn=142313&reason=pupil-died"
+# Seed 3 approved Remove-learner requests for the KS4 June window, with the reason the
+# decision pull will read back (any final decision; auto_rejected takes the rejected field)
+curl -X POST "http://localhost:8080/dev/egress/seed?windowId=F34D285B-8660-4D12-9C30-787328DEAA0A&outputType=RemoveLearners&decision=auto_approved&count=3&laestab=860/4070&urn=142313&reason=pupil-died&decisionReason=Inclusion%20criteria%20not%20met"
 
 # Remove everything the harness created for that window (runs, requests, blobs)
 curl -X POST "http://localhost:8080/dev/egress/cleanup?windowId=F34D285B-8660-4D12-9C30-787328DEAA0A"
 ```
+
+`decisionReason` (optional) writes the given text into the seeded ticket's "Decision Reason"
+tagger field — the approved field for `approved`/`auto_approved`, the rejected field for
+`rejected`/`auto_rejected` — so the per-exercise decision pull reads it back verbatim on the dev
+outbox. A non-final decision (e.g. `scrutiny`) takes no reason field. Without the parameter the
+ticket carries no reason field, and the pull stores no reason.
 
 `tests/DfE.CheckPerformanceData.E2ETests/Admin/DataEgressTests.cs` walks the whole journey over
 plain HTTP (pull → results → preprocessing → summary → download → transfer → complete → refused),
@@ -295,7 +335,13 @@ Two rules keep a dev or review environment recoverable after a failed run:
   the `lds` account in Terraform). Confirm with LDS that they read `cypmd/extracts_input` in the
   account they upload ingress files to.
 - **Production's `ZendeskTicketFields__DecisionStatusId` is `0`** — the real ticket source refuses
-  to pull until an environment configures it.
+  to pull until an environment configures it. `DecisionReasonApprovedId` / `DecisionReasonRejectedId`
+  are unset too; a final auto decision then stores with a null reason.
+- **A human-set final decision has no readable reason** (research R2): the worker tags auto
+  decisions' reasons at ticket creation, but a caseworker's scrutiny decision carries its comment
+  only in the ticket's comment stream, which no ticket field exposes. The decision pull stores the
+  decision with a null reason. Follow up with Zendesk for a field that carries the caseworker's
+  reason.
 - The pre-existing gap that `Controllers/WindowAdmin/*` carries no `[RequireAdminSection]` is a
   separate ticket and was not touched here; the new `EgressController` **is** gated.
 - Every copy string introduced by this feature is FLAGGED for content sign-off — see the PR notes.

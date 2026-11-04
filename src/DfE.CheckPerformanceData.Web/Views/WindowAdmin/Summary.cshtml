@@ -69,6 +69,34 @@
   </div>
 }
 
+@* #746: outcome of a decision pull, stashed by PullExerciseDecisionsController. Quotes the
+   result's five bucket counts, or the refusal's reason when Zendesk could not be read. *@
+@if (TempData[DfE.CheckPerformanceData.Web.Controllers.WindowAdmin.PullExerciseDecisionsController.SuccessTempDataKey] is string pullOutcome)
+{
+  <div class="govuk-notification-banner govuk-notification-banner--success" role="alert"
+       aria-labelledby="pull-outcome-title" data-module="govuk-notification-banner">
+    <div class="govuk-notification-banner__header">
+      <h2 class="govuk-notification-banner__title" id="pull-outcome-title">Success</h2>
+    </div>
+    <div class="govuk-notification-banner__content">
+      <p class="govuk-notification-banner__heading">@pullOutcome</p>
+    </div>
+  </div>
+}
+
+@if (TempData[DfE.CheckPerformanceData.Web.Controllers.WindowAdmin.PullExerciseDecisionsController.FailedTempDataKey] is string pullRefused)
+{
+  <div class="govuk-notification-banner" role="region"
+       aria-labelledby="pull-refused-title" data-module="govuk-notification-banner">
+    <div class="govuk-notification-banner__header">
+      <h2 class="govuk-notification-banner__title" id="pull-refused-title">Important</h2>
+    </div>
+    <div class="govuk-notification-banner__content">
+      <p class="govuk-notification-banner__heading">@pullRefused</p>
+    </div>
+  </div>
+}
+
 <h2 class="govuk-heading-m">Window details</h2>
 
 <govuk-summary-list>
@@ -341,6 +369,15 @@
         {
           <govuk-button-link class="govuk-button--secondary" href="@exercise.AddExtensionLink">
             Add extension<span class="govuk-visually-hidden"> to @exercise.Name</span>
+          </govuk-button-link>
+        }
+
+        @* #746: pull the decisions Zendesk holds for this exercise's submitted requests.
+           Not for a data share, which can hold no change request. *@
+        @if (exercise.ExerciseType is not null)
+        {
+          <govuk-button-link class="govuk-button--secondary" href="@exercise.PullDecisionsLink">
+            Pull decisions<span class="govuk-visually-hidden"> for @exercise.Name</span>
           </govuk-button-link>
         }
       </div>

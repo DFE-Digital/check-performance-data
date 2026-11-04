@@ -183,6 +183,8 @@
                         <th scope="col" class="govuk-table__header">Reference number</th>
                         <th scope="col" class="govuk-table__header">Request type</th>
                         <th scope="col" class="govuk-table__header">Status</th>
+                        @* #746: the reason Zendesk gave for the stored decision; blank when there is none. *@
+                        <th scope="col" class="govuk-table__header">Reason</th>
                         <th scope="col" class="govuk-table__header">Date</th>
                         <th scope="col" class="govuk-table__header">Actions</th>
                         <th scope="col" class="govuk-table__header"></th>
@@ -192,7 +194,7 @@
                     @if (Model.SubmittedRows.Count == 0)
                     {
                         <tr class="govuk-table__row">
-                            <td class="govuk-table__cell govuk-!-text-align-centre" colspan="6">There are no submitted amendment requests for @Model.WindowTitle window</td>
+                            <td class="govuk-table__cell govuk-!-text-align-centre" colspan="7">There are no submitted amendment requests for @Model.WindowTitle window</td>
                         </tr>
                     }
                     else
@@ -206,6 +208,8 @@
                                 <td class="govuk-table__cell">
                                     <strong class="govuk-tag @row.TagClass">@row.TagLabel</strong>
                                 </td>
+                                @* #746: the stored label verbatim; an empty cell when Zendesk held none. *@
+                                <td class="govuk-table__cell">@row.DecisionReason</td>
                                 <td class="govuk-table__cell">@row.SubmittedDateText</td>
                                 @{
                                     var viewAction = row.RequestType == RequestType.ConfirmCorrect ? "ViewConfirmation" : "View";

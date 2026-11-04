@@ -116,6 +116,14 @@ on its way to a Zendesk ticket: null (undecided) → `Decided` (RulesConsumer, o
 `TicketCreated` + `CrmId` (ZendeskConsumer, which claims only `TicketQueued`). `CrmId` is the only
 record of which ticket exists. Never mark a request sent anywhere else.
 
+**The stored Zendesk decision (#746).** `ChangeRequest.ZendeskDecision` (`ZendeskDecision` enum:
+`Accepted`, `Rejected`) and `ChangeRequest.ZendeskDecisionReason` (`string?`) hold the final
+decision Zendesk holds for the request's ticket. Only the per-exercise decision pull
+(`IExerciseDecisionPullService`) writes them, and it stores a final read only — a ticket still
+under scrutiny stores nothing. A stored decision is never cleared; a later pull stores the latest
+final read (latest wins, on the decision and its reason together). The columns are display-only:
+no sweep, journey branch or submission path reads them.
+
 Session readiness for the journey requires only `SelectedWhatToChange` and `CheckingWindow` — the pupil is selected via in-journey `PupilSearch` pages and therefore need not be set before the journey begins.
 
 
@@ -209,6 +217,13 @@ The journey's exercise is **derived** from `RequestState.SelectedWhatToChange` t
 
 **Amendment Requests deadlines are per exercise (#320).** `AmendmentRequestsResult.Deadlines` carries one `ExerciseDeadlineDto` per exercise in tab order, each with its own `EndDate` and its own `IsOpen` from `ICheckingExerciseService`. There is no `WindowEndDate` — the outer window's end is the union of its exercises (#319), so on a 16-19 window it is the results-enquiry close months after pupil data shuts, and reading it told a school it still had time to amend. The page prints one sentence per exercise and the Requests tab lists only the open ones. **The grid itself stays unsplit** — both populations share one table, one set of checkboxes and one bulk submit; only the deadline is per exercise. The bulk-submit confirmation banner is the exception that reads a single exercise: it offers *another amendment*, so it quotes `EndDateFor(..., PupilData)` and is dropped entirely (`WindowCloseLabel` null) on a window with no pupil-data exercise.
 
+**The Requests tab shows the stored decision (#746).** The submitted-requests table has a Reason
+column after Status. The Status cell shows the stored `ZendeskDecision` — Accepted or Rejected —
+when the pull stored one, and plain Submitted when it stored none. A Withdrawn row always shows
+Withdrawn, never a decision. The Reason cell prints `ZendeskDecisionReason` verbatim as plain
+text and holds nothing when the pull stored no reason. The view model decides the tag and label;
+the controller and view only render them.
+
 **A journey's config key does not name the exercise.** It stays `{WhatToChange}_{CheckingWindowType}.json`. The trigger to add the exercise as a third axis, and everything that must move with it, is recorded in `docs/16-19-window-model.md` — do not re-run that decision from scratch.
 
 **`ICloseExerciseService`** — close one checking exercise
@@ -239,6 +254,9 @@ then POST), offered only while that exercise is open (AB#301022: it first ends t
 through `IExerciseEarlyClosureService`, then sweeps). Once it has closed, the summary offers
 `SendExerciseRequestsController` (`.../exercises/{exerciseId}/send-requests`) instead. The old disabled "Process Close Window" button on the Amendment
 Requests page is removed.
+
+**`IExerciseDecisionPullService`** — the admin per-exercise decision pull (#746)
+`PreviewAsync(windowId, exerciseId)` counts the exercise's submitted rows (all schools, any request type) and how many of them carry a `CrmId`, for the confirm page. `PullAsync` reads the decision Zendesk holds for each ticketed row through the data-egress seam (`IEgressTicketSource.GetTicketDecisionsAsync`), and stores the final reads on `ChangeRequest.ZendeskDecision` / `ZendeskDecisionReason` through `IExerciseDecisionPullRepository`. Five buckets, one count per row: no ticket id, ticket not found (or no readable decision), still under review, accepted, rejected. The pull is all-or-nothing: when Zendesk cannot be read, `FailureReason` is set and nothing is written. `SaveDecisionsAsync` updates the rows and writes the deliberate `WindowAdmin` / `DecisionsPulled` audit row in one transaction. Driven by `PullExerciseDecisionsController` (`admin/windows/{id}/exercises/{exerciseId}/pull-decisions`, GET confirm then POST), offered from the window summary beside Close and Send requests. See [data-egress](data-egress.md#reading-the-decisions-back-746).
 
 **`ICheckYourPupilDataService`** — pupil data queries (partial)
 `GetPupilSuggestionsAsync(windowId, query, PupilFilter filter, Guid? excludeId, bool requireResults)` returns up to 10 `PupilSuggestionDto(Id, Label)` records. `PupilFilter.Included` restricts to pupils stamped `INCLUDED`; `PupilFilter.All` returns all pupils for the school; `PupilFilter.Includable` restricts to pupils stamped `INCLUDABLE` and `PupilFilter.NotIncludable` to the rest (#711). `excludeId` removes a specific pupil from results (used by the match-pupil page to prevent selecting the primary pupil again). `requireResults` restricts the search to students in `IResultsClient.GetCypmdIdsWithResultsAsync` (the same cached school results file the enquiry itself reads), and is passed down to `SearchPupilsAsync` as a CYPMD id allow-list so it applies **before** the ten-suggestion cap — filtering afterwards would drop the one student who holds results whenever ten who do not sort ahead of them. Served by `PupilSuggestionsController` at `GET /pupils/suggestions`. The `WhatToChange?`-based overload no longer exists — callers must pass an explicit `PupilFilter`.

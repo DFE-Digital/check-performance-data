@@ -1,6 +1,7 @@
 using DfE.CheckPerformance.Persistence.Entities;
 using DfE.CheckPerformanceData.Application.Audit;
 using DfE.CheckPerformanceData.Application.Egress;
+using DfE.CheckPerformanceData.Application.ExerciseDecisions;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
@@ -132,6 +133,28 @@ public sealed class AuditLogRepositoryTests(PostgresFixture fixture)
             DraftsCancelled = 2,
             RanAtUtc = new DateTime(2026, 6, 30, 18, 0, 0, DateTimeKind.Utc)
         }, CancellationToken.None);
+        return windowId;
+    }
+
+    // #746: a per-exercise decision pull, written through the real pull repository so the payload
+    // is production's. NewWindowAsync also leaves the capture's CheckingWindow / Insert row.
+    private async Task<Guid> SeedDecisionsPulledAsync()
+    {
+        var windowId = await NewWindowAsync("Decision pull window");
+        await new ExerciseDecisionPullRepository(fixture.CreateContext()).SaveDecisionsAsync([],
+            new DecisionsPulledAudit
+            {
+                WindowId = windowId,
+                ExerciseId = Guid.NewGuid(),
+                Accepted = 1,
+                Rejected = 2,
+                Unchanged = 3,
+                NoTicket = 0,
+                TicketNotFound = 0,
+                RanAtUtc = new DateTime(2026, 6, 20, 10, 0, 0, DateTimeKind.Utc),
+                UserId = UserId.ToString()
+            },
+            CancellationToken.None);
         return windowId;
     }
 
@@ -412,6 +435,35 @@ public sealed class AuditLogRepositoryTests(PostgresFixture fixture)
         var failed = await RowsAsync(new AuditLogFilter(null, windowId, AuditOutcome.Failed));
 
         Assert.Equal(AuditActivities.RequestsSentAutomaticallyAction, Assert.Single(success).Action);
+        Assert.Empty(failed);
+    }
+
+    [Fact]
+    public async Task A_decisions_pull_lists_under_its_window_named_and_successful()
+    {
+        var windowId = await SeedDecisionsPulledAsync();
+
+        var row = Assert.Single(await RowsAsync(new AuditLogFilter(null, windowId, null)), r => r.EntityType == AuditActivities.WindowAdmin);
+
+        Assert.Equal(AuditActivities.DecisionsPulledAction, row.Action);
+        Assert.Equal(windowId.ToString(), row.EntityId);
+        Assert.Equal(windowId, row.WindowId);
+        Assert.Equal("Decision pull window", row.WindowTitle);
+        Assert.Equal(UserId.ToString(), row.UserId);
+        Assert.Null(row.UserName);
+        Assert.Equal(AuditOutcome.Success, row.Outcome);
+        Assert.Equal(new DateTime(2026, 6, 20, 10, 0, 0, DateTimeKind.Utc), row.TimestampUtc);
+    }
+
+    [Fact]
+    public async Task The_success_filter_includes_a_decisions_pull_and_the_failed_filter_does_not()
+    {
+        var windowId = await SeedDecisionsPulledAsync();
+
+        var success = await RowsAsync(new AuditLogFilter(null, windowId, AuditOutcome.Success));
+        var failed = await RowsAsync(new AuditLogFilter(null, windowId, AuditOutcome.Failed));
+
+        Assert.Equal(AuditActivities.DecisionsPulledAction, Assert.Single(success).Action);
         Assert.Empty(failed);
     }
 }

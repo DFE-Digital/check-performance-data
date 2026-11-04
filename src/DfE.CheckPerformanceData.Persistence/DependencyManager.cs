@@ -78,6 +78,7 @@ public static class DependencyManager
         services.AddScoped<Application.AdminRequests.IAdminRequestsRepository,
             Repositories.AdminRequestsRepository>();
         services.AddScoped<Application.Egress.IEgressRunRepository, Repositories.EgressRunRepository>();
+        services.AddScoped<Application.ExerciseDecisions.IExerciseDecisionPullRepository, Repositories.ExerciseDecisionPullRepository>();
         services.AddScoped<Application.Audit.IAuditLogRepository, Repositories.AuditLogRepository>();
         // AB#302158: the audit row for a hand-over the service ran by itself.
         services.AddScoped<Application.Audit.IWindowAdminAuditWriter, Repositories.WindowAdminAuditWriter>();

@@ -225,6 +225,30 @@ public class AmendmentRequestsServiceTests
     }
 
     [Fact]
+    public async Task GetAmendmentRequestsAsync_PassesTheStoredDecisionThrough()
+    {
+        // #746: the decision the pull stored on the row reaches the DTO untouched; a row without
+        // one stays null.
+        var submitted = new DateTime(2026, 6, 16, 9, 30, 0);
+        _windowService.GetCheckingWindowAsync(WindowId).Returns(Window(DateTime.UtcNow));
+        _requestRepo.GetAmendmentRequestsAsync(WindowId, 100001L).Returns([]);
+        _requestRepo.GetSubmittedRequestsAsync(WindowId, 100001L).Returns(
+        [
+            SubmittedData("Jane", "Smith", "Remove - Permanently left England", "REF010", submitted,
+                RequestStatus.Submitted, ZendeskDecision.Accepted, "Inclusion criteria met"),
+            SubmittedData("John", "Bloggs", "Add a pupil", "REF012", submitted,
+                RequestStatus.Submitted, null, null)
+        ]);
+
+        var result = await _sut.GetAmendmentRequestsAsync(WindowId);
+
+        Assert.Equal(ZendeskDecision.Accepted, result.SubmittedRows.Single(r => r.ReferenceNumber == "REF010").Decision);
+        Assert.Equal("Inclusion criteria met", result.SubmittedRows.Single(r => r.ReferenceNumber == "REF010").DecisionReason);
+        Assert.Null(result.SubmittedRows.Single(r => r.ReferenceNumber == "REF012").Decision);
+        Assert.Null(result.SubmittedRows.Single(r => r.ReferenceNumber == "REF012").DecisionReason);
+    }
+
+    [Fact]
     public async Task GetAmendmentRequestsAsync_WhenSubmittedHasNoPupilDetails_UsesFallbackName()
     {
         _windowService.GetCheckingWindowAsync(WindowId).Returns(Window(DateTime.UtcNow));
@@ -627,7 +651,9 @@ public class AmendmentRequestsServiceTests
     private static SubmittedRequestData SubmittedData(
         string? firstname, string? surname, string requestType,
         string referenceNumber, DateTime submitted,
-        RequestStatus status = RequestStatus.Submitted) => new()
+        RequestStatus status = RequestStatus.Submitted,
+        ZendeskDecision? decision = null,
+        string? decisionReason = null) => new()
     {
         PupilFirstname = firstname,
         PupilSurname = surname,
@@ -635,6 +661,8 @@ public class AmendmentRequestsServiceTests
         RequestTypeDescription = requestType,
         ReferenceNumber = referenceNumber,
         Status = status,
-        Submitted = submitted
+        Submitted = submitted,
+        Decision = decision,
+        DecisionReason = decisionReason
     };
 }

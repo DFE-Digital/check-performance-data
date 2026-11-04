@@ -20,8 +20,9 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient
         [Get("/api/v2/tickets/{ticket_id}")]
         Task<GetTicketResponse> GetTicket(long ticket_id);
 
-        // Bulk read for the LDS egress (AB#294553): up to 100 comma-separated ids per call. Returns
+        // Bulk read for the decision pull (#746): up to 100 ids per call. Returns
         // the same {"tickets":[...]} envelope as a view listing, so the model is reused.
+        // Zendesk's show_many is a GET endpoint with a comma-separated "ids" query param.
         [Get("/api/v2/tickets/show_many.json")]
         Task<ListViewTicketsResponse> ShowManyTickets([Query] string ids);
 

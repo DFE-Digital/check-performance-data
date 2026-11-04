@@ -75,16 +75,33 @@ public sealed class SubmittedRequestRowViewModel
     public required RequestStatus Status { get; init; }
     public required DateTime Submitted { get; init; }
 
+    /// <summary>#746: the decision the pull stored on the row; null when it was never pulled.</summary>
+    public ZendeskDecision? Decision { get; init; }
+
+    /// <summary>#746: the reason label stored with the decision; null when Zendesk held none.</summary>
+    public string? DecisionReason { get; init; }
+
+    // A withdrawn request never shows a decision: the withdrawal is what the school did last,
+    // and the tag says that (spec FR-012).
     public string TagClass => Status switch
     {
         RequestStatus.Withdrawn => "govuk-tag--grey",
-        _ => "govuk-tag--green"
+        _ => Decision switch
+        {
+            ZendeskDecision.Rejected => "govuk-tag--red",
+            _ => "govuk-tag--green"
+        }
     };
 
     public string TagLabel => Status switch
     {
         RequestStatus.Withdrawn => "Withdrawn",
-        _ => "Submitted"
+        _ => Decision switch
+        {
+            ZendeskDecision.Accepted => "Accepted",
+            ZendeskDecision.Rejected => "Rejected",
+            _ => "Submitted"
+        }
     };
 
     public string SubmittedDateText => LondonTime.ToLondon(Submitted).ToString("d MMMM yyyy");

@@ -44,7 +44,7 @@ Dev__ToolsEnabled: true
 # esfa-preprod every seeded id reads back as "Ticket not found". Local/E2E stacks make the same
 # opt-in (docker-compose.yaml / docker-compose.sandbox.yaml).
 Zendesk__UseFake: false
-Egress__UseDevOutbox: true
+Egress__UseDevOutbox: false
 
 # Rules Engine Worker configuration
 RulesEngineOptions__QueueName: change-requests

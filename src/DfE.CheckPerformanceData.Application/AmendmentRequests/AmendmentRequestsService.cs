@@ -105,7 +105,9 @@ public sealed class AmendmentRequestsService(
                 RequestTypeDescription = r.RequestTypeDescription,
                 ReferenceNumber = r.ReferenceNumber,
                 Status = r.Status,
-                Submitted = r.Submitted
+                Submitted = r.Submitted,
+                Decision = r.Decision,
+                DecisionReason = r.DecisionReason
             }).ToList(),
             IssueRows = issueRows,
             HasResultsEnquiry = hasResultsEnquiry

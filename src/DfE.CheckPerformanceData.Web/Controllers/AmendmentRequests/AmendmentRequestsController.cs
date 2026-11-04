@@ -60,7 +60,9 @@ public sealed class AmendmentRequestsController(
                 RequestTypeDescription = r.RequestTypeDescription,
                 ReferenceNumber = r.ReferenceNumber,
                 Status = r.Status,
-                Submitted = r.Submitted
+                Submitted = r.Submitted,
+                Decision = r.Decision,
+                DecisionReason = r.DecisionReason
             }).ToList(),
             IssueRows = result.IssueRows.Select(r => new IssueRowViewModel
             {

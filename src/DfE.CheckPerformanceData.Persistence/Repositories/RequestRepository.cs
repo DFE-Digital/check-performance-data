@@ -282,7 +282,10 @@ public sealed class RequestRepository(IPortalDbContext db, IEstablishmentViewCon
                 RequestTypeDescription = r.RequestTypeDescription,
                 ReferenceNumber = r.ReferenceNumber,
                 Status = r.Status,
-                Submitted = r.Submitted
+                Submitted = r.Submitted,
+                // #746: the decision the pull stored on the row; null when it was never pulled.
+                Decision = r.ZendeskDecision,
+                DecisionReason = r.ZendeskDecisionReason
             })
             .ToListAsync();
 

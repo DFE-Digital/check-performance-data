@@ -58,8 +58,16 @@ cumulative filters, 20 rows a page, and a CSV export of the filtered set.
     `schoolsRemoved`. `endDate` is the new end.
   - `ExtensionClosedEarly`: `scheduledEnd`, `newEndDate`, `closedEarly`, `closedBy` and
     `closedAtUtc`. `endDate` is the new end; `closedBy` and `actorName` are the same name.
-  - `ExtensionRequestsSent`: `extensionEnd`, `requestsSent` and `draftsCancelled`. `endDate` is
-    `extensionEnd`. It is written after the manual Send's sweep, in a transaction of its own.
+   - `ExtensionRequestsSent`: `extensionEnd`, `requestsSent` and `draftsCancelled`. `endDate` is
+     `extensionEnd`. It is written after the manual Send's sweep, in a transaction of its own.
+- **A per-exercise decision pull (#746).** `ExerciseDecisionPullRepository.SaveDecisionsAsync`
+  writes one `WindowAdmin`/`DecisionsPulled` row **inside the same transaction as the decision
+  updates**, so a pull that stored decisions and a pull with nothing to store both have exactly
+  one row, and a failed pull (Zendesk unreadable) has none — it writes nothing at all. `EntityId`
+  is the window id, `UserId` the admin's subject, `Timestamp` the UTC instant of the pull. The
+  payload (`NewValues`, camelCase JSON) carries `windowId`, `windowTitle`, `exerciseId`,
+  `exerciseName`, `accepted`, `rejected`, `unchanged`, `noTicket`, `ticketNotFound` and
+  `ranAtUtc`. It is counts only: no reference numbers, names or other personal data.
 
 ## The screen
 
@@ -80,13 +88,19 @@ An automatic hand-over is a window-admin row as well: **System** as the user, th
 **Window admin** tag, the window title with "{exercise} requests sent for processing
 automatically: N requests sent, M drafts cancelled" beneath, and green **Success**.
 
+A decision-pull row (#746) is a window-admin row too: the admin's sign-in subject id as the user
+(the payload names no person), the orange **Window admin** tag with "DecisionsPulled" beneath,
+the window title with nothing beneath it (the counts stay in the payload, which the screen never
+renders), and green **Success**.
+
 Filters (a plain GET form, no script): **activity** = the row's `EntityType` (options are the
 distinct types present, plus `EgressRun` always; `?activity=EgressRun` isolates egress); **checking
 window** = egress rows whose run belongs to the window (resolved through `egress_runs`, so it never
 parses JSON in SQL) or `CheckingWindow` and `WindowAdmin` rows whose id is the window; **status** =
 egress rows whose action is `Transfer` (Success) or `TransferFailed` (Failed), plus
 `WindowAdmin` rows whose action is `ClosedEarly`, `RequestsSentAutomatically`, `ExtensionAdded`,
-`ExtensionEdited`, `ExtensionClosedEarly` or `ExtensionRequestsSent` (Success only).
+`ExtensionEdited`, `ExtensionClosedEarly`, `ExtensionRequestsSent` or `DecisionsPulled` (Success
+only — each of these actions is written only once its change has happened).
 Filters AND together; an unknown value is no filter. Page links and the export carry every filter.
 
 ## Export

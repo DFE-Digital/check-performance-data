@@ -114,14 +114,12 @@ business answers differently.
 4. **Terminal illness when tests were sat** goes to Scrutiny (`TCI-TERM-SCR`), as on KS4 June,
    not to auto-accept.
 
-## Open
+## Zendesk fields for the KS2 reasons
 
-**Reason for removal** (`ZendeskTicketFieldOptions.ReasonForRemoval`) maps both KS2 reasons:
+`ZendeskTicketFieldOptions` maps both KS2 reasons. The correction codes come from the LDS CYPMD
+data specification (Remove (No Addback) tab, `Correction_Reason`).
 
-| Removal reason | Zendesk "Reason for removal" value |
-| --- | --- |
-| `assessments-deferred` | `one_or_more_end_of_key_stage_assessments_deferred_by_a_year` |
-| `added-after-summer-term` | `pupil_added_to_school_roll_after_start_of_summer_term` |
-
-**Correction reason (31)** (`CorrectionReason31`) has no option for these two reasons. The worker
-leaves out the unmapped field and logs a warning. We need the two CYPMD codes from the business.
+| Removal reason | "Reason for removal" value | "Correction reason (31)" value |
+| --- | --- | --- |
+| `assessments-deferred` | `one_or_more_end_of_key_stage_assessments_deferred_by_a_year` | `41_31` |
+| `added-after-summer-term` | `pupil_added_to_school_roll_after_start_of_summer_term` | `109_31` |

@@ -144,6 +144,9 @@ public static class ZendeskTicketFieldOptions
         public const string SocialCareInvolvement = "502_31";
         public const string TerminalCriticalIllness = "503_31";
         public const string YearGroupChange = "17_31";
+        // KS2 codes from the LDS CYPMD data specification (Remove (No Addback), Correction_Reason).
+        public const string AssessmentsDeferred = "41_31";
+        public const string AddedToRollAfterStartOfSummerTerm = "109_31";
     }
 
     /// <summary>
@@ -392,7 +395,9 @@ public static class ZendeskTicketFieldOptions
             { "permanently-left-england", CorrectionReason31.PermanentlyLeftEngland },
             { "social-care-involvement", CorrectionReason31.SocialCareInvolvement },
             { "life-limiting-illness", CorrectionReason31.TerminalCriticalIllness },
-            { "year-group-change", CorrectionReason31.YearGroupChange }
+            { "year-group-change", CorrectionReason31.YearGroupChange },
+            { "assessments-deferred", CorrectionReason31.AssessmentsDeferred },
+            { "added-after-summer-term", CorrectionReason31.AddedToRollAfterStartOfSummerTerm }
         };
 
         public static string? GetOption(string name) => Map.TryGetValue(name, out var value) ? value : null;

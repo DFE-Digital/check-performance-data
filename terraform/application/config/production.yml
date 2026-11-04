@@ -52,6 +52,7 @@ ZendeskSettings__Domain: zendesk
 # School Checking Exercise Zendesk settings
 SchoolCheckingExercise__TargetViewTitle: School Performance Checks
 SchoolCheckingExercise__GroupId: 0
+SchoolCheckingExercise__ScrutinyGroupId: 0
 SchoolCheckingExercise__BrandId: 0
  
 # Zendesk Ticket Field IDs

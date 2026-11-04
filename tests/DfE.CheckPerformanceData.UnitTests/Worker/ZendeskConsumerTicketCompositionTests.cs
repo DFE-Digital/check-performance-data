@@ -27,6 +27,7 @@ public sealed class ZendeskConsumerTicketCompositionTests
         TargetViewTitle = "School Checking Exercise",
         BrandId = 1234,
         GroupId = 5678,
+        ScrutinyGroupId = 9012,
     };
 
     private ZendeskConsumer NewConsumer() =>
@@ -42,7 +43,7 @@ public sealed class ZendeskConsumerTicketCompositionTests
 
         Assert.Equal("task", ticket.Type);
         Assert.Equal("normal", ticket.Priority);
-        Assert.Equal("open", ticket.Status);
+        Assert.Equal("solved", ticket.Status);
         Assert.Contains("Auto-Approved", ticket.Subject);
         Assert.Contains("Deceased", ticket.Subject);
         Assert.Equal(1234, ticket.BrandId);
@@ -60,6 +61,8 @@ public sealed class ZendeskConsumerTicketCompositionTests
 
         Assert.Equal("task", ticket.Type);
         Assert.Equal("normal", ticket.Priority);
+        Assert.Equal("solved", ticket.Status);
+        Assert.Equal(5678, ticket.GroupId);
         Assert.Contains("Auto-Rejected", ticket.Subject);
         Assert.Contains("ElectiveHomeEducation", ticket.Subject);
     }
@@ -76,7 +79,21 @@ public sealed class ZendeskConsumerTicketCompositionTests
         Assert.Equal("question", ticket.Type);
         Assert.Equal("high", ticket.Priority);
         Assert.Equal("new", ticket.Status);
+        Assert.Equal(9012, ticket.GroupId);
         Assert.Contains("Requires Scrutiny", ticket.Subject);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData(0L)]
+    public void Scrutiny_WithNoScrutinyGroup_GoesToTheMainGroup(long? scrutinyGroupId)
+    {
+        _settings.ScrutinyGroupId = scrutinyGroupId;
+        var decision = new Decision(DecisionStatus.Scrutiny, "YearGroupChange", "YGC-DEF", Array.Empty<string>());
+
+        var ticket = NewConsumer().BuildTicket(NewMessage("Year group change"), decision).Ticket;
+
+        Assert.Equal(5678, ticket.GroupId);
     }
 
     [Fact]

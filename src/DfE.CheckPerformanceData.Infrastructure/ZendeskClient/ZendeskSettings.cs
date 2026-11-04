@@ -74,6 +74,13 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient
         public long? GroupId { get; set; }
 
         /// <summary>
+        /// The Zendesk group ID for Scrutiny tickets. The Zendesk "Scrutiny" view shows only
+        /// tickets in this group. When it is not set or is 0, Scrutiny tickets go to
+        /// <see cref="GroupId"/>.
+        /// </summary>
+        public long? ScrutinyGroupId { get; set; }
+
+        /// <summary>
         /// The Zendesk brand ID for the ticket brand.
         /// This is environment-specific (different IDs per instance).
         /// Null when unconfigured, for the same reason as <see cref="GroupId"/>.

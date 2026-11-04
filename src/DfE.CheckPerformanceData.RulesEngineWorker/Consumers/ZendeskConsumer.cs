@@ -303,8 +303,14 @@ public sealed class ZendeskConsumer : ConsumerBase
         };
 
         var priority = decision.Status == DecisionStatus.Scrutiny ? "high" : "normal";
-        var status = decision.Status == DecisionStatus.Scrutiny ? "new" : "open";
+        // An auto decision needs no agent action, so its ticket is created solved. The Zendesk
+        // "Decision made/solved" view shows only solved and closed tickets.
+        var status = decision.Status == DecisionStatus.Scrutiny ? "new" : "solved";
         var type = decision.Status == DecisionStatus.Scrutiny ? "question" : "task";
+        var groupId = decision.Status == DecisionStatus.Scrutiny
+                      && _checkingExerciseSettings?.ScrutinyGroupId is > 0
+            ? _checkingExerciseSettings.ScrutinyGroupId.Value
+            : _checkingExerciseSettings?.GroupId ?? 0;
 
         var dto = new CreateTicketRequestDto
         {
@@ -316,7 +322,7 @@ public sealed class ZendeskConsumer : ConsumerBase
                 Priority = priority,
                 Type = type,
                 BrandId = _checkingExerciseSettings?.BrandId ?? 0,
-                GroupId = _checkingExerciseSettings?.GroupId ?? 0,
+                GroupId = groupId,
             }
         };
 

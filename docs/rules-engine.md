@@ -254,6 +254,18 @@ rule until Add rules are written). Results enquiries skip the Rules Engine: they
 |---|---|
 | `InProgress`, `ReadyToSubmit`, `Submitted`, `Withdrawn`, `NotSubmitted` | null → `Decided` → `TicketQueued` → `TicketCreating` → `TicketCreated` (+ `CrmId`) |
 
+**Ticket group and status (#776).** The decision sets the Zendesk group and status of the ticket.
+The Zendesk views select tickets by these values. The worker does not change the views.
+
+| Decision | Status | Group | Zendesk view |
+|---|---|---|---|
+| `Scrutiny` | `new` | `SchoolCheckingExercise__ScrutinyGroupId` ("Scrutiny") | Scrutiny |
+| `AutoApproved` | `solved` | `SchoolCheckingExercise__GroupId` | Decision made/solved |
+| `AutoRejected` | `solved` | `SchoolCheckingExercise__GroupId` | Decision made/solved |
+
+If `ScrutinyGroupId` is not set or is 0, Scrutiny tickets go to `GroupId`. Production sets both to 0
+until its Zendesk IDs are confirmed.
+
 ---
 
 ## Going deeper

@@ -92,6 +92,7 @@ services:
       - ZendeskSettings__ClientSecret=${ZendeskSettings_ClientSecret}
       - SchoolCheckingExercise__TargetViewTitle=${SchoolCheckingExercise_TargetViewTitle}
       - SchoolCheckingExercise__GroupId=${SchoolCheckingExercise_GroupId}
+      - SchoolCheckingExercise__ScrutinyGroupId=${SchoolCheckingExercise_ScrutinyGroupId}
       - SchoolCheckingExercise__BrandId=${SchoolCheckingExercise_BrandId}
     depends_on:
       db:

@@ -534,14 +534,16 @@ var services = new ServiceCollection();
     }
 
     /// <summary>
-    /// The comments box on a KS4 June evidence page adds brief context to the evidence, not an
-    /// extended explanation, so it takes at most 500 characters (#516). Other windows keep theirs.
+    /// The comments box on a KS4 evidence page adds brief context to the evidence, not an
+    /// extended explanation, so it takes at most 500 characters (#516 for KS4 June, #749 for KS4
+    /// Autumn). Other windows keep theirs.
     /// </summary>
     [Fact]
-    public void Ks4JuneEvidencePages_LimitTheirCommentsTo500Characters()
+    public void Ks4EvidencePages_LimitTheirCommentsTo500Characters()
     {
         var textAreas = AllFlowPages()
-            .Where(p => p.File.EndsWith("_KS4June.json") && p.Page.Type == PageType.EvidenceUpload)
+            .Where(p => (p.File.EndsWith("_KS4June.json") || p.File.EndsWith("_KS4Autumn.json"))
+                        && p.Page.Type == PageType.EvidenceUpload)
             .SelectMany(p => p.Page.Questions
                 .Where(q => q.Type == QuestionType.TextArea)
                 .Select(q => (p.File, PageId: p.Page.Id, Question: q)))

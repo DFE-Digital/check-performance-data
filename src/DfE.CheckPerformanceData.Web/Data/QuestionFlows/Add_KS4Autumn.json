@@ -123,7 +123,7 @@
           "type": "TextArea",
           "title": "Explain how the evidence supports adding this pupil",
           "summaryTitle": "How evidence supports pupil addition",
-          "characterLimit": 1000,
+          "characterLimit": 500,
           "optional": true
         }
       ]

@@ -88,7 +88,7 @@
                     <td class="govuk-table__cell">@match.Identifier</td>
                     <td class="govuk-table__cell">@(match.IsIncluded ? "Included" : "Not included")</td>
                     <td class="govuk-table__cell">
-                        @if (!match.IsIncluded)
+                        @if (Model.SwitchToIncludeAvailable && !match.IsIncluded)
                         {
                             <form method="post" action="@Url.Action("SwitchToInclude", "Journey", new { windowId = Model.WindowId, pupilId = match.Id })">
                                 @Html.AntiForgeryToken()

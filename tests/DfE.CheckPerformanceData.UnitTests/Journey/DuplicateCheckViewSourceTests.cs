@@ -64,6 +64,17 @@ public sealed class DuplicateCheckViewSourceTests
     }
 
     [Fact]
+    public void The_include_actions_are_gated_on_an_include_flow_for_the_window_type()
+    {
+        // #749: KS4 Autumn has no Include flow, so neither Include action may render there. The
+        // view model owns the rule; the view only asks it.
+        var view = ViewSource();
+
+        Assert.Contains("@if (Model.IncludeActionAvailable)", view);
+        Assert.Contains("@if (Model.SwitchToIncludeAvailable && !match.IsIncluded)", view);
+    }
+
+    [Fact]
     public void Conflict_wording_comes_from_DuplicateRequestMessages()
     {
         var noun = LearnerNoun.For(CheckingWindowType.KS4June);

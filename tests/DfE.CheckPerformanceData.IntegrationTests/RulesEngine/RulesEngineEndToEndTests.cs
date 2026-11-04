@@ -323,6 +323,12 @@ public sealed class RulesEngineEndToEndTests
             Answers: [("date-removed-from-roll", "2025-06-01")],
             DecisionStatus.AutoRejected, "PLE-KS4");
 
+        // #748: the KS4 Autumn remove journey's single reason carries no answers; its only rule
+        // is the otherwise Scrutiny branch (no auto decision exists for this reason).
+        yield return new("PupilNotOnJuneList-Default", "Remove - not-on-june-list", "KS4Autumn",
+            Answers: [],
+            DecisionStatus.Scrutiny, "PNJL-DEF");
+
         // AB#304117: the why-removed radio is copied into childMissingEducationGround.
         // Other is auto-rejected by PMIE-OTHER-REJ; Ground H and Ground I fall to PMIE-DEF
         // (Scrutiny). PMIE-REJ still reads whereabouts fields no question fills, so it
@@ -358,7 +364,6 @@ public sealed class RulesEngineEndToEndTests
     public static TheoryData<string, string, DecisionStatus, string> PendingOutcomeScenarios() => new()
     {
         { "CompletedKs4Elsewhere",   "KS4June",    DecisionStatus.Scrutiny,     "CKS4-DEF" },
-        { "PupilNotOnJuneList",      "KS4June",    DecisionStatus.Scrutiny,     "PNJL-DEF" },
         { "NotAtEndOf16To18Study",   "Post16", DecisionStatus.AutoApproved, "N16-LT18" },
         { "Other",                   "KS4June",    DecisionStatus.Scrutiny,     "OTH-DEF"  },
     };

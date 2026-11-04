@@ -109,6 +109,7 @@ public static class ZendeskTicketFieldOptions
         public const string AdmittedFromAbroadEal = "2_31";
         public const string PupilMissingInEducation = "501_31";
         public const string PupilDied = "4_31";
+        public const string PupilNotOnJuneList = "120_31";
         public const string MovedSchoolDualRegistration = "332_31";
         public const string ElectiveHomeEducation = "27_31";
         public const string NotOnRoll = "6_31";
@@ -349,6 +350,7 @@ public static class ZendeskTicketFieldOptions
             { "english-not-first-language", CorrectionReason31.AdmittedFromAbroadEal },
             { "child-missing-education", CorrectionReason31.PupilMissingInEducation },
             { "pupil-died", CorrectionReason31.PupilDied },
+            { "not-on-june-list", CorrectionReason31.PupilNotOnJuneList },
             { "dual-registered-moved", CorrectionReason31.MovedSchoolDualRegistration },
             { "elective-home-education", CorrectionReason31.ElectiveHomeEducation },
             { "not-on-roll", CorrectionReason31.NotOnRoll },

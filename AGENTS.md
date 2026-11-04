@@ -285,6 +285,7 @@ Update documentation in the **same pull request** as the change that makes it tr
 | Blob paths | `docs/blob-storage.md` |
 | Question flow format | `docs/question-flows.md`, and `docs/journey-rules.md` for a change to conditions or facts |
 | Dev seed data | `docs/LocalDevelopement/dev-seed-data.md` |
+| A Zendesk ticket field or option value | `docs/zendesk-mappings.md` |
 | A view's accessibility | `docs/accessibility.md` |
 
 A significant architecture decision gets an ADR in `docs/adrs/`, with the next number.

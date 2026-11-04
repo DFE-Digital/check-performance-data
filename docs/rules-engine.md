@@ -266,6 +266,8 @@ The Zendesk views select tickets by these values. The worker does not change the
 If `ScrutinyGroupId` is not set or is 0, Scrutiny tickets go to `GroupId`. Production sets both to 0
 until its Zendesk IDs are confirmed.
 
+For each ticket field and option value, see [zendesk-mappings.md](./zendesk-mappings.md).
+
 **Fields that the previous system sent (#781).** The worker sets these fields as the previous
 system did. Each field ID is a `ZendeskTicketFields__*Id` setting. An ID of 0 leaves the field out.
 

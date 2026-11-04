@@ -143,6 +143,9 @@ public static class SeedPupilData
 
     private static readonly string[] SenCodes = ["N", "N", "N", "K", "E"];
 
+    // The KS4 June schema's x-ingress.inclusion rule includes these codes.
+    private static readonly int[] IncludedPinclCodes = [401, 403, 414, 421, 431];
+
     private static readonly int[] NonIncludedPinclCodes = [402, 404, 407, 408, 410, 413, 422, 430];
 
     // A name/DOB pair deliberately shared by two pupils for Kingsmead's live KS4June window. The
@@ -168,7 +171,7 @@ public static class SeedPupilData
             DateOfBirth = dob,
             Age = Ks4AgeAtStartOfYear(new DateOnly(2010, 3, 15)),
             FirstLanguage = "ENG",
-            Pincl = PupilInclusion.Ks4IncludedPinclCodes[0],
+            Pincl = IncludedPinclCodes[0],
             NewMobile = false,
             ActualYearGroup = "11",
             Ethnicity = "WOTH",
@@ -223,7 +226,7 @@ public static class SeedPupilData
         {
             var n = i + indexOffset;
             var dob = new DateOnly(2010, (i % 12) + 1, (i % 28) + 1);
-            var pinclCodes = includedPincl ? PupilInclusion.Ks4IncludedPinclCodes : NonIncludedPinclCodes;
+            var pinclCodes = includedPincl ? IncludedPinclCodes : NonIncludedPinclCodes;
 
             return new PupilRecord
             {

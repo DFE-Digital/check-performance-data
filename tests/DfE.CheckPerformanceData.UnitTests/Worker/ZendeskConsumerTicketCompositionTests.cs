@@ -1,5 +1,4 @@
 using System.Globalization;
-using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.RulesEngine;
@@ -629,32 +628,23 @@ public sealed class ZendeskConsumerTicketCompositionTests
         Assert.Contains($"Matched rule: CKS4-DEF{Environment.NewLine}Pincl: 403", ticket.Description);
     }
 
-    public static IEnumerable<object[]> Ks4IncludedPinclCodes =>
-        PupilInclusion.Ks4IncludedPinclCodes.Select(code => new object[] { code });
-
+    // Only an add-back pupil (P_INCL 403) gets the line. Other included codes do not.
     [Theory]
-    [MemberData(nameof(Ks4IncludedPinclCodes))]
-    public void Description_IncludesPinclLine_ForEveryKs4IncludedCode(int pinclCode)
+    [InlineData(401)]
+    [InlineData(414)]
+    [InlineData(421)]
+    [InlineData(431)]
+    [InlineData(402)]
+    [InlineData(404)]
+    [InlineData(0)]
+    public void Description_ExcludesPinclLine_ForNonAddBackPincl(int pinclCode)
     {
         var consumer = NewConsumer();
         var decision = new Decision(DecisionStatus.AutoApproved, "Deceased", "DEC-1", Array.Empty<string>());
 
         var ticket = consumer.BuildTicket(NewMessage("Remove - pupil-died", "KS4", pincl: pinclCode), decision).Ticket;
 
-        Assert.Contains($"Pincl: {pinclCode}", ticket.Description);
-    }
-
-    [Fact]
-    public void Description_ExcludesPinclLine_ForNonIncludedPincl()
-    {
-        var consumer = NewConsumer();
-        var decision = new Decision(DecisionStatus.AutoApproved, "Deceased", "DEC-1", Array.Empty<string>());
-
-        foreach (var code in new[] { 402, 404, 0 })
-        {
-            var ticket = consumer.BuildTicket(NewMessage("Remove - pupil-died", "KS4", pincl: code), decision).Ticket;
-            Assert.DoesNotContain("Pincl:", ticket.Description);
-        }
+        Assert.DoesNotContain("Pincl:", ticket.Description);
     }
 
     [Fact]
@@ -678,7 +668,7 @@ public sealed class ZendeskConsumerTicketCompositionTests
 
         // A Post16 pupil cannot hold a KS4 included Pincl: Post16 inclusion is ingest-stamped
         // (Post16PupilRecord.Included) and its seeded codes are 501/502/505/506, so the
-        // IsKs4Included gate alone excludes Post16 - no window-type check is needed (FR-003).
+        // add-back test (P_INCL 403) alone excludes Post16 - no window-type check is needed (FR-003).
         foreach (var code in new[] { 501, 0 })
         {
             var ticket = consumer.BuildTicket(NewMessage("Remove - student-died", "Post16", pincl: code), decision).Ticket;
@@ -703,20 +693,39 @@ public sealed class ZendeskConsumerTicketCompositionTests
 
     // --- Feature 457: "Reason for removal" field for all mapped removal reasons (US1 / FR-001) ---
 
-    [Theory]
-    [MemberData(nameof(Ks4IncludedPinclCodes))]
-    public void ReasonForRemovalField_IsAddBackRemoval_ForEveryKs4IncludedCode(int pinclCode)
+    [Fact]
+    public void ReasonForRemovalField_IsAddBackRemoval_ForAddBackPupil()
     {
         _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.ReasonForRemovalName).Returns(27L);
+        _ticketFieldService.GetOptionValue(ZendeskTicketFieldConstants.ReasonForRemovalName, "pupil-died").Returns("deceased");
 
         var consumer = NewConsumer();
-        // year-group-change maps per-reason today -> proves Pincl wins over the reason (FR-001).
-        var decision = new Decision(DecisionStatus.AutoApproved, "YearGroupChange", "YGC-1", Array.Empty<string>());
+        // pupil-died maps to its own value -> proves Pincl wins over the reason (FR-001).
+        var decision = new Decision(DecisionStatus.AutoApproved, "Deceased", "DEC-1", Array.Empty<string>());
 
-        var ticket = consumer.BuildTicket(NewMessage("Remove - year-group-change", "KS4June", pincl: pinclCode), decision).Ticket;
+        var ticket = consumer.BuildTicket(NewMessage("Remove - pupil-died", "KS4June", pincl: 403), decision).Ticket;
 
         Assert.Contains(ticket.CustomFields!, f => f.Id == 27 && (string)f.Value! == "add_back_removal");
-        Assert.Contains($"Pincl: {pinclCode}", ticket.Description);
+        Assert.Contains("Pincl: 403", ticket.Description);
+    }
+
+    // An included pupil that is not an add-back gets the value for the school's removal reason.
+    [Theory]
+    [InlineData(401)]
+    [InlineData(414)]
+    [InlineData(421)]
+    [InlineData(431)]
+    public void ReasonForRemovalField_IsValueForRemovalReason_ForIncludedPupilThatIsNotAddBack(int pinclCode)
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.ReasonForRemovalName).Returns(27L);
+        _ticketFieldService.GetOptionValue(ZendeskTicketFieldConstants.ReasonForRemovalName, "pupil-died").Returns("deceased");
+
+        var consumer = NewConsumer();
+        var decision = new Decision(DecisionStatus.AutoApproved, "Deceased", "DEC-1", Array.Empty<string>());
+
+        var ticket = consumer.BuildTicket(NewMessage("Remove - pupil-died", "KS4June", pincl: pinclCode), decision).Ticket;
+
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 27 && (string)f.Value! == "deceased");
     }
 
     [Theory]
@@ -759,7 +768,7 @@ public sealed class ZendeskConsumerTicketCompositionTests
     public void ReasonForRemovalField_NotAddBack_ForPost16(int pinclCode)
     {
         // A Post16 pupil cannot hold a KS4-included Pincl: Post16 inclusion is ingest-stamped
-        // (seeded codes 501/502/505/506), so IsKs4Included alone excludes Post16 from US1.
+        // (seeded codes 501/502/505/506), so the add-back test (P_INCL 403) alone excludes Post16.
         _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.ReasonForRemovalName).Returns(27L);
 
         var consumer = NewConsumer();

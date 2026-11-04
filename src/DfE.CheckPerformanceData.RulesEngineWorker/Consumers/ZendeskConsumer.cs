@@ -351,7 +351,7 @@ public sealed class ZendeskConsumer : ConsumerBase
         sb.AppendLine($"Decision: {decision.Status}");
         sb.AppendLine($"Matched rule: {decision.MatchedRuleId}");
         if (message.RequestTypeCode.StartsWith("Remove", StringComparison.OrdinalIgnoreCase)
-            && PupilInclusion.IsKs4Included(message.Pupil.Pincl))
+            && IsAddBackPupil(message))
         {
             sb.AppendLine($"Pincl: {message.Pupil.Pincl}");
         }
@@ -715,15 +715,20 @@ public sealed class ZendeskConsumer : ConsumerBase
     }
 
     // FR-001 (feature 457): the "Reason for removal" value for a Remove request.
-    // The KS4 add-back category is decided on Pincl BEFORE the per-reason map, so a KS4-included
-    // pupil never resolves by journey reason. "other" resolves from evidence (FR-004); Post16
+    // The add-back category is decided on Pincl BEFORE the per-reason map, so an add-back pupil
+    // (P_INCL 403) never resolves by journey reason. "other" resolves from evidence (FR-004); Post16
     // "not-on-roll" resolves from its sub-reason answer (FR-003, Phase 4c). Everything else falls
     // through to the static ReasonForRemovalHelpers map; unmapped -> null -> the caller omits the
     // field with a warning log (FR-014).
+    // An add-back pupil has P_INCL 403. The journey condition pupil.isAddBack and the rules engine
+    // fact isAddBack use the same code.
+    private static bool IsAddBackPupil(RequestDocument message) =>
+        message.Pupil.Pincl == AnswerFieldMap.AddBackPincl;
+
     private string? ResolveReasonForRemovalValue(RequestDocument message, string removalReason)
     {
-        // FR-001: KS4 add-back category decided on Pincl BEFORE the per-reason map.
-        if (PupilInclusion.IsKs4Included(message.Pupil.Pincl))
+        // FR-001: add-back category decided on Pincl BEFORE the per-reason map.
+        if (IsAddBackPupil(message))
         {
             return ZendeskTicketFieldOptions.ReasonForRemoval.AddBackRemoval;
         }

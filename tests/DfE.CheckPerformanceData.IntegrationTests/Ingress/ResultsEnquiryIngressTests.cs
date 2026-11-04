@@ -190,6 +190,35 @@ public sealed class ResultsEnquiryIngressTests(AzuriteFixture fixture)
         Assert.Equal(ResultsFileTags.Post16Included, result.SourceFile);
     }
 
+    // The KS4 results data file as the supplier sends it (field references as headers). The
+    // journey's values come from single columns: GNUMBER, QUALIFICATION_DESCRIPTION, BRDSUBNO and
+    // SEASON_AND_YEAR.
+    [Fact]
+    public async Task A_supplier_ks4_results_file_reaches_the_journey_through_its_schemas_source_columns()
+    {
+        var schema = await File.ReadAllTextAsync(
+            Path.Combine(AppContext.BaseDirectory, "Data", "Ingress", "ks4autumn", "results_schema.json"));
+        const string csv =
+            "CANDNO,CYPMD_ID,SURNAME,FORENAME,Sex,DOB,AGE,P_INCL,LAESTAB,URN,UPN,EXAMNO,AB_CODE_NDAQ,QUALIFICATION_TYPE,PTQ_INCLUDE,R_INCL,SEASON_AND_YEAR,FIRST_EXAM_DATE,WOLF_DISC_CODE,WOLF_INCLUDED,QUALIFICATION_DESCRIPTION,GNUMBER,BRDSUBNO,GRADE,SCORE,KS2_SPECIAL_CONSIDERATION,A8POINTS,ANCN,SCHOOL_EXAM,DISC3_EBACC_PTQ_EE,A8DISC,ACADEMIC,EXAM_YR_7_8,First_Entry_Rules,Best_Entry_Rules,Prev_School_Rules,EngPath,SciPath,FvB_Entry_Rules\n" +
+            "0001001,500001,Smith,Alice,F,01/01/2010,15,401,8604070,142313,A86040700001B,1,AQA,GCSE (9-1) Full Course,Y,41,S2025,15062025,2210,2,GCSE (9-1) Mathematics,60146084,8300H,6,,,6.00,12345,Y,,,Y,,,Y,,0,0,\n";
+        var windowId = await SeedWindowAsync(("ingress/main.csv", csv), ("schema/results.json", schema));
+
+        var last = await RunAsync(windowId,
+        [
+            new(ResultsFileTags.Ks4Main, "main.csv", Checksum(csv), "results.json", Checksum(schema),
+                Included: null, SourceFile: ResultsFileTags.Ks4Main)
+        ]);
+        Assert.False(last.IsError, last.Message);
+
+        var result = Assert.Single(await ResultsClient().GetResultsAsync(windowId, Laestab, "500001"));
+        Assert.Equal("60146084", result.Qan);
+        Assert.Equal("GCSE (9-1) Mathematics", result.QualificationName);
+        Assert.Equal("8300H", result.SyllabusCode);
+        Assert.Equal("S2025", result.Session);
+        Assert.Equal("6", result.Grade);
+        Assert.Equal(ResultsFileTags.Ks4Main, result.SourceFile);
+    }
+
     [Fact]
     public async Task A_named_column_is_kept_when_the_csv_already_has_it()
     {

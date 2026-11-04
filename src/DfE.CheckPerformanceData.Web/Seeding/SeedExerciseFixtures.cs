@@ -21,22 +21,20 @@ using Microsoft.EntityFrameworkCore;
 namespace DfE.CheckPerformanceData.Web.Seeding;
 
 /// <summary>
-/// Seeds the KS4 windows (Key Stage 4 June, the E2E fixture window, and Key Stage 4 Autumn) the way an admin would: each dataset gets a CSV and a schema, and each exercise is run through ingress.
-/// Every fixture window therefore has a release, and the Check Your Pupil Data page draws its tabs
+/// Seeds the Key Stage 4 June window, the E2E fixture window, the way an admin would: each dataset gets a CSV and a schema, and each exercise is run through ingress.
+/// The fixture window therefore has a release, and the Check Your Pupil Data page draws its tabs
 /// from the schemas — a table with a CSV download, the same as the ingressed windows.
 /// </summary>
 /// <remarks>
 /// The CSVs are generated from <see cref="SeedPupilData"/>, so the fixtures the E2E suite drives by
-/// name (Alice Smith, the Kingsmead duplicate pair) are unchanged. The 16-19 window is not a
-/// fixture: it is left for an admin to import (<see cref="SeedPost16OctoberSamples"/>).
+/// name (Alice Smith, the Kingsmead duplicate pair) are unchanged. The KS4 Autumn window has its own
+/// schemas and samples (<see cref="SeedKs4AutumnSamples"/>). The 16-19 window is not a fixture: it
+/// is left for an admin to import (<see cref="SeedPost16OctoberSamples"/>).
 /// </remarks>
 [ExcludeFromCodeCoverage(Justification = "Development seed data, not product code.")]
 public static class SeedExerciseFixtures
 {
-    // KS4 Autumn has no pupil schema of its own, so it uses the KS4 June one: the supplier's KS4
-    // pupil file has the same columns.
-    private static readonly Guid[] Ks4WindowIds =
-        [DevDataSeeder.KeyStage4JuneCheckingWindowId, DevDataSeeder.KeyStage4AutumnCheckingWindowId];
+    private static readonly Guid[] Ks4WindowIds = [DevDataSeeder.KeyStage4JuneCheckingWindowId];
 
     public static Task ExecuteSeedAsync(
         IPortalDbContext dbContext, BlobServiceClient blobs, ICheckingExerciseIngress ingress, string contentRootPath) =>

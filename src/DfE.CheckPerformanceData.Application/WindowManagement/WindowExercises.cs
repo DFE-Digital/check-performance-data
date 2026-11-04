@@ -6,8 +6,7 @@ namespace DfE.CheckPerformanceData.Application.WindowManagement;
 /// <summary>
 /// Which checking exercises a window type runs by default (#319). The create wizard gives a new
 /// window these and asks nothing. The admin may then tick or untick any exercise on the window's
-/// exercises page, so this is a starting point rather than a rule — which is how KS4 Autumn can be
-/// given a results enquiry without a code change, the gap docs/16-19-window-model.md opens with.
+/// exercises page, so this is a starting point rather than a rule.
 /// </summary>
 /// <remarks>
 /// A new <see cref="CheckingExerciseType"/> appears on the exercises page from the enum alone, with
@@ -20,9 +19,9 @@ public static class WindowExercises
     public static IReadOnlyList<CheckingExerciseType> DefaultsFor(CheckingWindowType type) =>
         type switch
         {
-            // 16-19 runs pupil data checking and results enquiry on different ranges inside one
-            // window — the case the whole checking-exercise model exists for.
-            CheckingWindowType.Post16 =>
+            // 16-19 and KS4 Autumn run pupil data checking and results enquiry on different
+            // ranges inside one window — the case the whole checking-exercise model exists for.
+            CheckingWindowType.Post16 or CheckingWindowType.KS4Autumn =>
                 [CheckingExerciseType.PupilData, CheckingExerciseType.ResultsEnquiry],
             _ => [CheckingExerciseType.PupilData]
         };

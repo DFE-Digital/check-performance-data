@@ -266,6 +266,16 @@ The Zendesk views select tickets by these values. The worker does not change the
 If `ScrutinyGroupId` is not set or is 0, Scrutiny tickets go to `GroupId`. Production sets both to 0
 until its Zendesk IDs are confirmed.
 
+**Fields that the previous system sent (#781).** The worker sets these fields as the previous
+system did. Each field ID is a `ZendeskTicketFields__*Id` setting. An ID of 0 leaves the field out.
+
+| Field | Setting | Value |
+|---|---|---|
+| Correction reason (21) | `CorrectionReason21Id` | `5_21` on each Merge ticket |
+| LDS matched pupil ID 2 | `LdsMatchedPupilId2Id` | The LDS id of the second pupil on a Merge. LDS matched pupil ID holds the first pupil. |
+| Pupil year group (CYPMD) | `PupilYearGroupCypmdId` | The year group that a KS4 year group change moves the pupil to |
+| Additional comments (CYPMD) | `AdditionalCommentsCypmdId` | Each free-text (`TextArea`) answer, with a blank line between them |
+
 ---
 
 ## Going deeper

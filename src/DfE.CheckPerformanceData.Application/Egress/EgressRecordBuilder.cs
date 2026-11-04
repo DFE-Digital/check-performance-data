@@ -1,4 +1,5 @@
 using System.Globalization;
+using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Application.Egress;
@@ -162,15 +163,10 @@ public static class EgressRecordBuilder
     }
 
     // v2.4 Remove Learner row 22: KS4 files carry Year_Group "for year group change requests only".
-    // The KS4 Remove journey asks higher-lower, then year-group-higher-moved-to (12/13) or
-    // year-group-lower-moved-to (8/9/10); a stale answer from the other branch can linger in the
-    // blob, so the branch actually chosen decides which one is read.
     private static string YearGroupMovedTo(EgressSourceRecord s)
     {
         if (s.WindowType is not (CheckingWindowType.KS4June or CheckingWindowType.KS4Autumn)) return string.Empty;
-        if (!string.Equals(s.Answer("reason"), "year-group-change", StringComparison.OrdinalIgnoreCase)) return string.Empty;
-        var lower = string.Equals(s.Answer("higher-lower"), "lower", StringComparison.OrdinalIgnoreCase);
-        return (lower ? s.Answer("year-group-lower-moved-to") : s.Answer("year-group-higher-moved-to")) ?? string.Empty;
+        return YearGroupChange.MovedTo(s.Answer) ?? string.Empty;
     }
 
     // v2.4 Remove Learner rows 23-25: 16-19 files carry TRUE/FALSE per academic year. The Post16

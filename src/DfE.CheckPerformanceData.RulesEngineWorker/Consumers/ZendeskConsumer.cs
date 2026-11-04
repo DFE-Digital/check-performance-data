@@ -3,6 +3,7 @@ using System.Text;
 using Azure.Storage.Blobs;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Dashboard;
+using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.Observability;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
@@ -333,10 +334,26 @@ public sealed class ZendeskConsumer : ConsumerBase
         MapKeyStageField(dto, message);
         AddCorrectionFields(dto, message);
         MapLdsMatchedPupilIdField(dto, message);
+        AddMergeFields(dto, message);
+        MapPupilYearGroupField(dto, message);
+        MapAdditionalCommentsField(dto, message);
         MapDfeEstablishmentNumberField(dto, message);
         MapAdmissionDateField(dto, message);
         AddDecisionReasonField(dto, decision);
         return dto;
+    }
+
+    // Adds a custom field when its ID is configured and the value is not empty.
+    private void AddConfiguredField(CreateTicketRequestDto dto, string fieldName, string? value)
+    {
+        var fieldId = GetConfiguredFieldId(fieldName);
+        if (!fieldId.HasValue || string.IsNullOrEmpty(value))
+        {
+            return;
+        }
+
+        dto.Ticket.CustomFields ??= new List<CustomFieldDto>();
+        dto.Ticket.CustomFields.Add(new CustomFieldDto { Id = fieldId.Value, Value = value });
     }
 
     // Returns the configured field ID, or null when it is unset or 0. production.yml sets
@@ -772,8 +789,9 @@ public sealed class ZendeskConsumer : ConsumerBase
         return _ticketFieldService?.GetOptionValue(ZendeskTicketFieldConstants.ReasonForRemovalName, removalReason);
     }
 
-    // FR-007: LDS matched pupil ID from the matched record, falling back to the submitted
-    // pupil. 0 = not supplied, so the field is omitted (FR-014).
+    // FR-007: LDS matched pupil ID from the selected pupil. On a Merge, the second pupil's id goes
+    // in "LDS matched pupil ID 2" (AddMergeFields), as the previous system sent it (#781).
+    // 0 = not supplied, so the field is omitted (FR-014).
     private void MapLdsMatchedPupilIdField(CreateTicketRequestDto dto, RequestDocument message)
     {
         if (_ticketFieldService is null)
@@ -781,17 +799,61 @@ public sealed class ZendeskConsumer : ConsumerBase
             return;
         }
 
-        var fieldId = GetConfiguredFieldId(ZendeskTicketFieldConstants.LdsMatchedPupilIdName);
-        var matchRef = (message.MatchedPupil ?? message.Pupil).MatchRef;
-        if (fieldId.HasValue && matchRef > 0)
+        AddConfiguredField(dto, ZendeskTicketFieldConstants.LdsMatchedPupilIdName, LdsId(message.Pupil));
+    }
+
+    // A Merge ticket also carries Correction reason (21) and the LDS id of the second pupil, as the
+    // previous system sent them (#781). Only a Merge request has a matched pupil.
+    private void AddMergeFields(CreateTicketRequestDto dto, RequestDocument message)
+    {
+        if (_ticketFieldService is null
+            || !string.Equals(message.RequestTypeCode, nameof(WhatToChange.Merge), StringComparison.OrdinalIgnoreCase))
         {
-            dto.Ticket.CustomFields ??= new List<CustomFieldDto>();
-            dto.Ticket.CustomFields.Add(new CustomFieldDto
-            {
-                Id = fieldId.Value,
-                Value = matchRef.ToString(CultureInfo.InvariantCulture),
-            });
+            return;
         }
+
+        AddConfiguredField(dto, ZendeskTicketFieldConstants.CorrectionReason21Name,
+            ZendeskTicketFieldOptions.CorrectionReason21.MergePupils);
+        AddConfiguredField(dto, ZendeskTicketFieldConstants.LdsMatchedPupilId2Name,
+            message.MatchedPupil is { } matched ? LdsId(matched) : null);
+    }
+
+    private static string? LdsId(PupilDetails pupil) =>
+        pupil.MatchRef > 0 ? pupil.MatchRef.ToString(CultureInfo.InvariantCulture) : null;
+
+    // "Pupil year group (CYPMD)" is the year group that a year group change moves the pupil to,
+    // as the previous system sent it (#781). The field is an integer, so a value that is not a
+    // number is left out: Zendesk rejects the whole ticket for an invalid integer.
+    private void MapPupilYearGroupField(CreateTicketRequestDto dto, RequestDocument message)
+    {
+        if (_ticketFieldService is null)
+        {
+            return;
+        }
+
+        var yearGroup = YearGroupChange.MovedTo(id => message.Answers.FirstOrDefault(a => a.QuestionId == id)?.RawValue);
+        if (int.TryParse(yearGroup, NumberStyles.None, CultureInfo.InvariantCulture, out var year))
+        {
+            AddConfiguredField(dto, ZendeskTicketFieldConstants.PupilYearGroupCypmdName,
+                year.ToString(CultureInfo.InvariantCulture));
+        }
+    }
+
+    // "Additional comments (CYPMD)" holds the text that the school typed, as the previous system
+    // sent it (#781). This is every free-text (TextArea) answer, so no question id is named.
+    private void MapAdditionalCommentsField(CreateTicketRequestDto dto, RequestDocument message)
+    {
+        if (_ticketFieldService is null)
+        {
+            return;
+        }
+
+        var comments = message.Answers
+            .Where(a => string.Equals(a.Type, nameof(QuestionType.TextArea), StringComparison.Ordinal))
+            .Select(a => a.RawValue?.Trim())
+            .Where(v => !string.IsNullOrEmpty(v));
+        AddConfiguredField(dto, ZendeskTicketFieldConstants.AdditionalCommentsCypmdName,
+            string.Join(Environment.NewLine + Environment.NewLine, comments));
     }
 
     // FR-008: DfE Establishment Number from the requesting school's LAESTAB, as digits only.

@@ -103,6 +103,15 @@ public static class ZendeskTicketFieldOptions
     }
 
     /// <summary>
+    /// Options for "Correction reason (21)" field (ID: 19058760113298). The field has one
+    /// option. The previous system sent it on every Merge ticket.
+    /// </summary>
+    public static class CorrectionReason21
+    {
+        public const string MergePupils = "5_21";
+    }
+
+    /// <summary>
     /// Options for "Correction reason (31)" field (ID: 19058912556690), keyed on the
     /// removal-reason option value (the suffix of <c>RequestTypeCode</c>, e.g.
     /// <c>pupil-died</c>). The option VALUE strings are the CYPMD correction codes

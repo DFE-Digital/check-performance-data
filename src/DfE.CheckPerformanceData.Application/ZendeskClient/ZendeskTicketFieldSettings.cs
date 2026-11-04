@@ -35,6 +35,10 @@ public sealed class ZendeskTicketFieldSettings
     public long? AgeCypmdId { get; set; }
     public long? DecisionReasonApprovedId { get; set; }
     public long? DecisionReasonRejectedId { get; set; }
+    public long? CorrectionReason21Id { get; set; }
+    public long? LdsMatchedPupilId2Id { get; set; }
+    public long? PupilYearGroupCypmdId { get; set; }
+    public long? AdditionalCommentsCypmdId { get; set; }
 
     /// <summary>
     /// When <c>true</c>, AutoRejected decisions populate the "Decision Reason - Rejected"
@@ -83,6 +87,10 @@ public sealed class ZendeskTicketFieldSettings
             ZendeskTicketFieldConstants.AgeCypmdName => AgeCypmdId,
             ZendeskTicketFieldConstants.DecisionReasonApprovedName => DecisionReasonApprovedId,
             ZendeskTicketFieldConstants.DecisionReasonRejectedName => DecisionReasonRejectedId,
+            ZendeskTicketFieldConstants.CorrectionReason21Name => CorrectionReason21Id,
+            ZendeskTicketFieldConstants.LdsMatchedPupilId2Name => LdsMatchedPupilId2Id,
+            ZendeskTicketFieldConstants.PupilYearGroupCypmdName => PupilYearGroupCypmdId,
+            ZendeskTicketFieldConstants.AdditionalCommentsCypmdName => AdditionalCommentsCypmdId,
             _ => null
         };
     }
@@ -115,7 +123,11 @@ public sealed class ZendeskTicketFieldSettings
             (ZendeskTicketFieldConstants.DciRefCypmdName, DciRefCypmdId),
             (ZendeskTicketFieldConstants.AgeCypmdName, AgeCypmdId),
             (ZendeskTicketFieldConstants.DecisionReasonApprovedName, DecisionReasonApprovedId),
-            (ZendeskTicketFieldConstants.DecisionReasonRejectedName, DecisionReasonRejectedId)
+            (ZendeskTicketFieldConstants.DecisionReasonRejectedName, DecisionReasonRejectedId),
+            (ZendeskTicketFieldConstants.CorrectionReason21Name, CorrectionReason21Id),
+            (ZendeskTicketFieldConstants.LdsMatchedPupilId2Name, LdsMatchedPupilId2Id),
+            (ZendeskTicketFieldConstants.PupilYearGroupCypmdName, PupilYearGroupCypmdId),
+            (ZendeskTicketFieldConstants.AdditionalCommentsCypmdName, AdditionalCommentsCypmdId)
         };
     }
 }

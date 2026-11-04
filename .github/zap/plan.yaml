@@ -48,7 +48,12 @@ jobs:
   # new ZAP release adds is noticed. The rules are at https://www.zaproxy.org/docs/alerts/<id>/.
   - type: outputSummary
     parameters:
-      format: Long
+      # Short, not Long. Long prints up to five URLs per rule by reading each alert's HTTP message.
+      # An alert whose message cannot be loaded from the session gives a null, and the job dies
+      # before it writes the summary file (#784, PR #763 run 41838244767). Short prints one
+      # line per rule that fired, with its count and message, which is all the gate reads. The
+      # URLs are in report.md, which the workflow puts on the run page.
+      format: Short
       summaryFile: /zap/wrk/zap-out/summary.json
     rules:
       - id: 2

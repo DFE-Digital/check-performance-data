@@ -345,6 +345,14 @@ public static class DependencyManager
         return services;
     }
 
+    // Links from admin pages to tickets. It needs only the host settings, so it does not need
+    // the API client or its credentials.
+    public static IServiceCollection AddZendeskTicketLinks(this IServiceCollection services)
+    {
+        services.AddSingleton<IZendeskTicketLinks, ZendeskTicketLinks>();
+        return services;
+    }
+
     // Host used when the settings are incomplete and the real client is not the one that will
     // be used. .invalid is reserved by RFC 2606 and can never resolve, so a call that somehow
     // reached it fails immediately and obviously rather than reaching a real host.

@@ -4,6 +4,7 @@ using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Application.AdminRequests;
 using DfE.CheckPerformanceData.Application.WindowManagement;
+using DfE.CheckPerformanceData.Application.ZendeskClient;
 using DfE.CheckPerformanceData.Domain.Enums;
 using NSubstitute;
 
@@ -27,6 +28,8 @@ public class AdminRequestsServiceTests
         Substitute.For<IQueueService>();
     private readonly IWindowService _windowService =
         Substitute.For<IWindowService>();
+    private readonly IZendeskTicketLinks _ticketLinks =
+        Substitute.For<IZendeskTicketLinks>();
     private readonly AdminRequestsService _sut;
 
     public AdminRequestsServiceTests()
@@ -34,8 +37,9 @@ public class AdminRequestsServiceTests
         _repository.GetForWindowAsync(
                 Arg.Any<Guid>(), Arg.Any<CheckingExerciseType?>(), Arg.Any<CancellationToken>())
             .Returns([]);
+        _ticketLinks.TicketUrl(Arg.Any<string?>()).Returns((string?)null);
 
-        _sut = new AdminRequestsService(_repository, _windowService);
+        _sut = new AdminRequestsService(_repository, _windowService, _ticketLinks);
     }
 
     private sealed class FakeTimeProvider(DateTimeOffset now) : TimeProvider
@@ -155,8 +159,32 @@ public class AdminRequestsServiceTests
 
         var result = await _sut.GetForWindowAsync(WindowId, null, CancellationToken.None);
 
-        Assert.Same(rows, result!.Rows);
+        Assert.Equal(rows, result!.Rows);
         Assert.Equal("16 to 19 2026", result.WindowTitle);
         Assert.Equal(WindowId, result.WindowId);
+    }
+
+    [Fact]
+    public async Task GetForWindowAsync_LinksEachRowToItsZendeskTicket()
+    {
+        SetupWindow(Exercise(CheckingExerciseType.PupilData, 0));
+        _repository.GetForWindowAsync(WindowId, null, Arg.Any<CancellationToken>()).Returns(
+        [
+            new AdminRequestRow
+            {
+                ReferenceNumber = "ABC-123",
+                OrganisationUrn = 123456,
+                RequestTypeDescription = "Remove pupil",
+                Status = RequestStatus.Submitted,
+                SubmittedByName = "Head Teacher",
+                Submitted = new DateTime(2026, 6, 18, 14, 0, 0),
+                CrmId = "91568"
+            }
+        ]);
+        _ticketLinks.TicketUrl("91568").Returns("https://esfa.zendesk.com/agent/tickets/91568");
+
+        var result = await _sut.GetForWindowAsync(WindowId, null, CancellationToken.None);
+
+        Assert.Equal("https://esfa.zendesk.com/agent/tickets/91568", Assert.Single(result!.Rows).ZendeskTicketUrl);
     }
 }

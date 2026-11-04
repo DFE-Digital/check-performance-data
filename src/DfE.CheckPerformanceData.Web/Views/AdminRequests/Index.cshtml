@@ -112,7 +112,16 @@ else
                         }
                     </td>
                     <td class="govuk-table__cell">@(row.MatchedRule ?? "—")</td>
-                    <td class="govuk-table__cell">@(row.CrmId ?? "—")</td>
+                    <td class="govuk-table__cell">
+                        @if (row.ZendeskTicketUrl is { } ticketUrl)
+                        {
+                            <a href="@ticketUrl" class="govuk-link" target="_blank" rel="noopener noreferrer">@row.CrmId<span class="govuk-visually-hidden">, Zendesk ticket for request @row.ReferenceNumber</span></a>
+                        }
+                        else
+                        {
+                            @(row.CrmId ?? "—")
+                        }
+                    </td>
                     <td class="govuk-table__cell">@(row.Status != RequestStatus.Submitted ? "—" : row.ProcessingStatus?.ToString() ?? "Waiting for decision")</td>
                 </tr>
                 @if (!string.IsNullOrWhiteSpace(row.DecisionTrace))

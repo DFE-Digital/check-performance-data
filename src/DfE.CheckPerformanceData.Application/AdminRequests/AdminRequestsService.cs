@@ -1,11 +1,13 @@
 using DfE.CheckPerformanceData.Application.WindowManagement;
+using DfE.CheckPerformanceData.Application.ZendeskClient;
 using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Application.AdminRequests;
 
 public sealed class AdminRequestsService(
     IAdminRequestsRepository repository,
-    IWindowService windowService) : IAdminRequestsService
+    IWindowService windowService,
+    IZendeskTicketLinks ticketLinks) : IAdminRequestsService
 {
     public async Task<WindowRequestsResult?> GetForWindowAsync(
         Guid windowId, CheckingExerciseType? exercise, CancellationToken cancellationToken)
@@ -28,13 +30,15 @@ public sealed class AdminRequestsService(
         CheckingExerciseType? selected =
             exercise is { } asked && exercises.Contains(asked) ? asked : null;
 
+        var rows = await repository.GetForWindowAsync(windowId, selected, cancellationToken);
+
         return new WindowRequestsResult
         {
             WindowId = windowId,
             WindowTitle = window.Title,
             Exercises = exercises,
             SelectedExercise = selected,
-            Rows = await repository.GetForWindowAsync(windowId, selected, cancellationToken)
+            Rows = [.. rows.Select(r => r with { ZendeskTicketUrl = ticketLinks.TicketUrl(r.CrmId) })]
         };
     }
 }

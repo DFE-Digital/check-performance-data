@@ -158,6 +158,8 @@ The sections a school user meets are the four "How can I find a DfE number?" hel
 
 `rel` is `noopener` alone, not the `noreferrer noopener` the GOV.UK guidance shows. `noopener` is what closes the `window.opener` hole; `noreferrer` would also strip the Referer header, which DfE Analytics records on every page view (`RequestReferer`) and which `RefererPagePath` reads for the feedback link's `page_path`. On a same-origin target there is nothing for the Referer to leak to, so it stays. Use `noreferrer` only for a link to another site whose owner should not see where the click came from.
 
+One admin link is an exception on purpose. On the admin requests page, the "Zendesk Id" value links to the ticket in Zendesk (#780). The table is already crowded, so the link text does not say "(opens in new tab)". The link has `target="_blank" rel="noopener noreferrer"`, because Zendesk is another site. A visually hidden suffix names the request reference, because each row has a link of this type. `AccessibilityAuditViewTests` checks this markup.
+
 Two older link sets do not yet follow this rule and are follow-up candidates: `Views/Journey/DuplicateCheck.cshtml` and `Common/DuplicateRequestMessages.cs` put `rel="noreferrer noopener"` on the same-origin "View submitted request" link, and the four Get Information About Schools links in `Data/QuestionFlows/Remove_KS4June.json` carry `target="_blank"` with no `rel` and say "(opens in new window)".
 
 ## File inputs are the JavaScript-enhanced GOV.UK File upload (#380)

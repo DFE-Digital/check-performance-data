@@ -220,6 +220,12 @@ undecided ones as waiting, and cancels its `InProgress`/`ReadyToSubmit` drafts;
 could not be driven from a per-window page — `AdminRequestsService` is now only the requests-list
 reader it is named for.
 
+**`IZendeskTicketLinks`** — link from an admin page to a Zendesk ticket (#780)
+`TicketUrl(crmId)` gives `https://{Subdomain}.{Domain}.com/agent/tickets/{CrmId}` from
+`ZendeskSettings`. It gives null when the CrmId is not a ticket id, when `Zendesk:UseFake` is true
+(or not set), or when the host settings are not set. `AdminRequestsService` puts the address on each
+`AdminRequestRow`, and the requests page shows a link only when the address is not null.
+
 Rules the move settled:
 
 - **Scoped to one window AND one exercise row.** Rows match on `ChangeRequest.CheckingExerciseId`

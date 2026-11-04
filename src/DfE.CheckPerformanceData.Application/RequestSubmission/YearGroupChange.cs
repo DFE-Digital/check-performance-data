@@ -1,8 +1,8 @@
 namespace DfE.CheckPerformanceData.Application.RequestSubmission;
 
 /// <summary>
-/// Reads the year group that a KS4 "year group change" removal moves the pupil to. Egress and
-/// the Zendesk ticket both send it.
+/// Reads the year group that a KS4 "year group change" removal moves the pupil to. The worker
+/// sends it in the Zendesk "Pupil year group (CYPMD)" field, and egress reads it from there.
 /// </summary>
 public static class YearGroupChange
 {

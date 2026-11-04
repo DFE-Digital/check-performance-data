@@ -239,8 +239,8 @@ public sealed class ZendeskConsumerTicketCompositionTests
 
         Assert.Contains(ticket.CustomFields!, f => f.Id == 20 && (string)f.Value! == "REF");
         Assert.Contains(ticket.CustomFields!, f => f.Id == 21 && (string)f.Value! == "14");
-        Assert.Contains(ticket.CustomFields!, f => f.Id == 22 && (string)f.Value! == msg.SubmittedAt.Year.ToString(CultureInfo.InvariantCulture));
-        Assert.Contains(ticket.CustomFields!, f => f.Id == 23 && (string)f.Value! == msg.SubmittedAt.Month.ToString(CultureInfo.InvariantCulture));
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 22 && (string)f.Value! == "2026");
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 23 && (string)f.Value! == "6");
         Assert.Contains(ticket.CustomFields!, f => f.Id == 24 && (string)f.Value! == "ks2");
         Assert.Contains(ticket.CustomFields!, f => f.Id == 25 && (string)f.Value! == "31_");
         Assert.Contains(ticket.CustomFields!, f => f.Id == 26 && (string)f.Value! == "4_31");
@@ -1015,6 +1015,85 @@ public sealed class ZendeskConsumerTicketCompositionTests
         Assert.Contains(ticket.CustomFields!, f => f.Id == 26 && (string)f.Value! == expected);
     }
 
+    // LDS wants the month that the exercise takes place. A request submitted after the window
+    // started keeps the window's month. Egress reads both fields from the ticket.
+    [Fact]
+    public void CycleFields_ComeFromTheWindowStart_NotTheSubmissionDate()
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CycleYearName).Returns(22L);
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CycleMonthName).Returns(23L);
+        var decision = new Decision(DecisionStatus.AutoApproved, "Deceased", "DEC-1", Array.Empty<string>());
+        var message = NewMessage("Remove - pupil-died", "KS4June");
+        message = new RequestDocument
+        {
+            ReferenceNumber = message.ReferenceNumber, CheckingWindowId = message.CheckingWindowId,
+            CheckingWindowStartDate = new DateTime(2025, 12, 1), CheckingWindowType = message.CheckingWindowType,
+            ChangeRequestId = message.ChangeRequestId, RequestTypeCode = message.RequestTypeCode,
+            SubmittedAt = new DateTime(2026, 1, 15, 9, 0, 0, DateTimeKind.Utc), SubmittedBy = message.SubmittedBy,
+            School = message.School, Pupil = message.Pupil, Answers = message.Answers,
+        };
+
+        var ticket = NewConsumer().BuildTicket(message, decision).Ticket;
+
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 22 && (string)f.Value! == "2025");
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 23 && (string)f.Value! == "12");
+    }
+
+    [Fact]
+    public void CycleFields_AreOmitted_WhenTheMessageHasNoWindowStart()
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CycleYearName).Returns(22L);
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CycleMonthName).Returns(23L);
+        var decision = new Decision(DecisionStatus.AutoApproved, "Deceased", "DEC-1", Array.Empty<string>());
+        var message = NewMessage("Remove - pupil-died", "KS4June");
+        message = new RequestDocument
+        {
+            ReferenceNumber = message.ReferenceNumber, CheckingWindowId = message.CheckingWindowId,
+            CheckingWindowType = message.CheckingWindowType, ChangeRequestId = message.ChangeRequestId,
+            RequestTypeCode = message.RequestTypeCode, SubmittedAt = message.SubmittedAt, SubmittedBy = message.SubmittedBy,
+            School = message.School, Pupil = message.Pupil, Answers = message.Answers,
+        };
+
+        var ticket = NewConsumer().BuildTicket(message, decision).Ticket;
+
+        Assert.DoesNotContain(ticket.CustomFields ?? [], f => f.Id is 22 or 23);
+    }
+
+    // LDS spec v2.4 K11: a 16-19 not-on-roll removal takes the code of its sub-reason. Egress
+    // reads the code from the ticket.
+    [Theory]
+    [InlineData("international-student", true, "326_31")]
+    [InlineData("external-candidate", true, "328_31")]
+    [InlineData("apprentice", true, "331_31")]
+    [InlineData("other", true, "329_31")]
+    [InlineData("other", false, "330_31")]
+    public void CorrectionReason31_ForPost16NotOnRoll_FollowsTheSubReason(string subReason, bool hasFiles, string expected)
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CorrectionReason31Name).Returns(26L);
+
+        var decision = new Decision(DecisionStatus.Scrutiny, "Scrutiny", "SCR-1", Array.Empty<string>());
+        var subAnswer = Answer("not-on-roll-reason", "A label", rawValue: subReason);
+        var evidence = Answer("evidence", "", files: hasFiles ? AnEvidenceFile() : new List<FileRecord>());
+
+        var ticket = NewConsumer().BuildTicket(
+            NewMessage("Remove - not-on-roll", "Post16", pincl: 0, answers: new[] { subAnswer, evidence }), decision).Ticket;
+
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 26 && (string)f.Value! == expected);
+    }
+
+    [Fact]
+    public void CorrectionReason31_ForKs4NotOnRoll_IsTheSingleCode()
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CorrectionReason31Name).Returns(26L);
+        _ticketFieldService.GetOptionValue(ZendeskTicketFieldConstants.CorrectionReason31Name, "not-on-roll").Returns("6_31");
+
+        var decision = new Decision(DecisionStatus.Scrutiny, "Scrutiny", "SCR-1", Array.Empty<string>());
+
+        var ticket = NewConsumer().BuildTicket(NewMessage("Remove - not-on-roll", "KS4June", pincl: 0), decision).Ticket;
+
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 26 && (string)f.Value! == "6_31");
+    }
+
     // --- Feature 457: Post16 "not-on-roll" sub-options (US2c / FR-003) ---
 
     [Theory]
@@ -1106,6 +1185,8 @@ public sealed class ZendeskConsumerTicketCompositionTests
 
     // --- helpers ---
 
+    private static readonly DateTime WindowStart = new(2026, 6, 1);
+
     private static RequestDocument NewMessage(string whatToChange, params AnswerRecord[] answers) =>
         NewMessage(whatToChange, "KS4", laestab: null, matchRef: 0, entryDate: null, upn: "UPN1", cypmdId: "1001", answers: answers);
 
@@ -1113,6 +1194,7 @@ public sealed class ZendeskConsumerTicketCompositionTests
     {
         ReferenceNumber = "REF",
         CheckingWindowId = Guid.NewGuid(),
+        CheckingWindowStartDate = WindowStart,
         CheckingWindowType = windowType,
         ChangeRequestId = Guid.NewGuid(),
         RequestTypeCode = whatToChange,
@@ -1147,6 +1229,7 @@ public sealed class ZendeskConsumerTicketCompositionTests
         {
             ReferenceNumber = message.ReferenceNumber,
             CheckingWindowId = message.CheckingWindowId,
+            CheckingWindowStartDate = message.CheckingWindowStartDate,
             CheckingWindowType = message.CheckingWindowType,
             ChangeRequestId = message.ChangeRequestId,
             RequestTypeCode = message.RequestTypeCode,

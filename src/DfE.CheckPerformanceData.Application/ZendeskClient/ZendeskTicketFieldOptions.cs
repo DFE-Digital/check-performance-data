@@ -126,6 +126,11 @@ public static class ZendeskTicketFieldOptions
         public const string AddBackRemoval = "8_31";
         public const string OtherWithEvidence = "329_31";
         public const string OtherEvidenceNotRequired = "330_31";
+        // 16-19 not on roll, by sub-reason (LDS spec v2.4 K11). A not-on-roll "other" sub-reason
+        // takes OtherWithEvidence or OtherEvidenceNotRequired.
+        public const string NotOnRollInternationalStudent = "326_31";
+        public const string NotOnRollExternal = "328_31";
+        public const string NotOnRollApprentice = "331_31";
         public const string AdmittedFollowingPermanentExclusion = "13_31";
         public const string AdmittedFromAbroadEal = "2_31";
         public const string PupilMissingInEducation = "501_31";

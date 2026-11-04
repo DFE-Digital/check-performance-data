@@ -9,17 +9,31 @@ using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Egress;
 
-// The real source reads ONE custom field ("Decision status") from tickets fetched by id in
-// batches of 100 — Zendesk's show_many ceiling. Production configures no field ids at all, so an
-// unconfigured id must refuse loudly rather than return "every ticket unknown".
+// The real source reads the "Decision status" field and the egress fields from tickets fetched by
+// id in batches of 100 — Zendesk's show_many ceiling. Production configures 0 for each field id
+// until the ids are known, so an unconfigured id must refuse loudly rather than return "every
+// ticket unknown" or "every value missing".
 public sealed class ZendeskEgressTicketSourceTests
 {
     private const long DecisionFieldId = 19056253670034;
+    private const long SurnameFieldId = 19058409672594;
     private readonly IZendeskApi _api = Substitute.For<IZendeskApi>();
 
-    private ZendeskEgressTicketSource Sut(long? fieldId = DecisionFieldId) => new(
+    // Every egress field gets an id; the two that the tests read have known ids.
+    private static ZendeskTicketFieldSettings Settings(long? decisionFieldId = DecisionFieldId)
+    {
+        var settings = new ZendeskTicketFieldSettings();
+        var next = 1000L;
+        foreach (var property in typeof(ZendeskTicketFieldSettings).GetProperties().Where(p => p.PropertyType == typeof(long?)))
+            property.SetValue(settings, next++);
+        settings.DecisionStatusId = decisionFieldId;
+        settings.SurnameCypmdId = SurnameFieldId;
+        return settings;
+    }
+
+    private ZendeskEgressTicketSource Sut(ZendeskTicketFieldSettings? settings = null) => new(
         _api,
-        Options.Create(new ZendeskTicketFieldSettings { DecisionStatusId = fieldId }),
+        Options.Create(settings ?? Settings()),
         // Polly's RetryStrategyOptions requires MaxRetryAttempts >= 1 (0 fails options validation);
         // 1 keeps retries minimal so a failing-API test still runs fast.
         Options.Create(new PollySettings { MaxRetryAttempts = 1, BaseDelayMilliseconds = 1, JitterMilliseconds = 0 }),
@@ -32,21 +46,28 @@ public sealed class ZendeskEgressTicketSourceTests
     };
 
     [Fact]
-    public async Task Reads_the_decision_field_for_each_ticket_and_omits_tickets_zendesk_did_not_return()
+    public async Task Reads_the_decision_and_the_egress_fields_and_omits_tickets_zendesk_did_not_return()
     {
         // All four requested ids go into one call (batch size 100); Zendesk simply omits ticket 4
         // from its response, which is the "not returned by Zendesk" case this test is pinning.
         _api.ShowManyTickets("1,2,3,4").Returns(new ListViewTicketsResponse
         {
-            Tickets = [TicketWith(1, (DecisionFieldId, "auto_approved")), TicketWith(2, (DecisionFieldId, "Rejected")), TicketWith(3, (999, "x"))]
+            Tickets =
+            [
+                TicketWith(1, (DecisionFieldId, "auto_approved"), (SurnameFieldId, " SMITH ")),
+                TicketWith(2, (DecisionFieldId, "Rejected"), (SurnameFieldId, "")),
+                TicketWith(3, (999, "x"))
+            ]
         });
 
-        var result = await Sut().GetDecisionStatusesAsync([1, 2, 3, 4], CancellationToken.None);
+        var result = await Sut().GetTicketsAsync([1, 2, 3, 4], CancellationToken.None);
 
-        Assert.Equal("auto_approved", result[1]);
-        Assert.Equal("rejected", result[2]);
-        Assert.False(result.ContainsKey(3));   // no decision field on the ticket = unknown, not "approved"
-        Assert.False(result.ContainsKey(4));   // not returned by Zendesk
+        Assert.Equal("auto_approved", result[1].Decision);
+        Assert.Equal("SMITH", result[1].Fields[ZendeskTicketFieldConstants.SurnameCypmdName]);
+        Assert.Equal("rejected", result[2].Decision);
+        Assert.Empty(result[2].Fields);      // a blank value is no value
+        Assert.Null(result[3].Decision);     // no decision field on the ticket = unknown, not "approved"
+        Assert.False(result.ContainsKey(4)); // not returned by Zendesk
     }
 
     [Fact]
@@ -58,7 +79,7 @@ public sealed class ZendeskEgressTicketSourceTests
             Tickets = ci.Arg<string>().Split(',').Select(s => TicketWith(long.Parse(s), (DecisionFieldId, "approved"))).ToList()
         });
 
-        var result = await Sut().GetDecisionStatusesAsync(ids, CancellationToken.None);
+        var result = await Sut().GetTicketsAsync(ids, CancellationToken.None);
 
         Assert.Equal(250, result.Count);
         await _api.Received(3).ShowManyTickets(Arg.Any<string>());
@@ -68,7 +89,7 @@ public sealed class ZendeskEgressTicketSourceTests
     [Fact]
     public async Task No_ids_means_no_call()
     {
-        var result = await Sut().GetDecisionStatusesAsync([], CancellationToken.None);
+        var result = await Sut().GetTicketsAsync([], CancellationToken.None);
         Assert.Empty(result);
         await _api.DidNotReceive().ShowManyTickets(Arg.Any<string>());
     }
@@ -78,8 +99,20 @@ public sealed class ZendeskEgressTicketSourceTests
     [InlineData(0L)]
     public async Task An_unconfigured_decision_field_refuses_to_pull(long? fieldId)
     {
-        var ex = await Assert.ThrowsAsync<EgressTicketSourceException>(() => Sut(fieldId).GetDecisionStatusesAsync([1], CancellationToken.None));
+        var ex = await Assert.ThrowsAsync<EgressTicketSourceException>(() => Sut(Settings(fieldId)).GetTicketsAsync([1], CancellationToken.None));
         Assert.Contains("Decision status", ex.Message);
+        await _api.DidNotReceive().ShowManyTickets(Arg.Any<string>());
+    }
+
+    [Fact]
+    public async Task An_unconfigured_egress_field_refuses_to_pull_and_names_it()
+    {
+        var settings = Settings();
+        settings.CorrectionReason31Id = 0;
+
+        var ex = await Assert.ThrowsAsync<EgressTicketSourceException>(() => Sut(settings).GetTicketsAsync([1], CancellationToken.None));
+
+        Assert.Contains(ZendeskTicketFieldConstants.CorrectionReason31Name, ex.Message);
         await _api.DidNotReceive().ShowManyTickets(Arg.Any<string>());
     }
 
@@ -87,6 +120,6 @@ public sealed class ZendeskEgressTicketSourceTests
     public async Task An_api_failure_surfaces_as_a_ticket_source_exception()
     {
         _api.ShowManyTickets(Arg.Any<string>()).Returns<Task<ListViewTicketsResponse>>(_ => throw new HttpRequestException("boom"));
-        await Assert.ThrowsAsync<EgressTicketSourceException>(() => Sut().GetDecisionStatusesAsync([1], CancellationToken.None));
+        await Assert.ThrowsAsync<EgressTicketSourceException>(() => Sut().GetTicketsAsync([1], CancellationToken.None));
     }
 }

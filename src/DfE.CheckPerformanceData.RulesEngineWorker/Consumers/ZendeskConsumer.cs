@@ -557,7 +557,9 @@ public sealed class ZendeskConsumer : ConsumerBase
         }
     }
 
-    // FR-004 / FR-005: cycle year and month from the submission instant.
+    // FR-004 / FR-005: cycle year and month from the checking window's start date. LDS wants the
+    // month that the exercise takes place, so a late submission keeps the window's month. Egress
+    // reads both fields from the ticket. No start date on the message: both fields are left out.
     private void AddCycleFields(CreateTicketRequestDto dto, RequestDocument message)
     {
         if (_ticketFieldService is null)
@@ -565,27 +567,16 @@ public sealed class ZendeskConsumer : ConsumerBase
             return;
         }
 
-        dto.Ticket.CustomFields ??= new List<CustomFieldDto>();
-
-        var cycleYearId = GetConfiguredFieldId(ZendeskTicketFieldConstants.CycleYearName);
-        if (cycleYearId.HasValue)
+        if (message.CheckingWindowStartDate is not { } start)
         {
-            dto.Ticket.CustomFields.Add(new CustomFieldDto
-            {
-                Id = cycleYearId.Value,
-                Value = message.SubmittedAt.Year.ToString(CultureInfo.InvariantCulture),
-            });
+            _logger.LogWarning(
+                "No checking window start date for Reference={Reference}; omitting the cycle year and month fields.",
+                message.ReferenceNumber);
+            return;
         }
 
-        var cycleMonthId = GetConfiguredFieldId(ZendeskTicketFieldConstants.CycleMonthName);
-        if (cycleMonthId.HasValue)
-        {
-            dto.Ticket.CustomFields.Add(new CustomFieldDto
-            {
-                Id = cycleMonthId.Value,
-                Value = message.SubmittedAt.Month.ToString(CultureInfo.InvariantCulture),
-            });
-        }
+        AddConfiguredField(dto, ZendeskTicketFieldConstants.CycleYearName, start.Year.ToString(CultureInfo.InvariantCulture));
+        AddConfiguredField(dto, ZendeskTicketFieldConstants.CycleMonthName, start.Month.ToString(CultureInfo.InvariantCulture));
     }
 
     // FR-006: key stage from the checking window type via the field's option map. Omitted
@@ -700,15 +691,21 @@ public sealed class ZendeskConsumer : ConsumerBase
         }
     }
 
-    // #778: an add-back pupil and the "other" reason take their code from the resolved "Reason for
-    // removal" value, so both fields use the same add-back and evidence rules. These are the codes
-    // the previous system sent. Every other reason maps on the removal reason.
+    // #778: an add-back pupil, the "other" reason and the 16-19 not-on-roll sub-reasons take their
+    // code from the resolved "Reason for removal" value, so both fields use the same add-back and
+    // evidence rules. The 16-19 not-on-roll codes are LDS spec v2.4 K11. Egress reads this field
+    // from the ticket. Every other reason maps on the removal reason.
     private string? ResolveCorrectionReason31Value(RequestDocument message, string removalReason) =>
         ResolveReasonForRemovalValue(message, removalReason) switch
         {
             ZendeskTicketFieldOptions.ReasonForRemoval.AddBackRemoval => ZendeskTicketFieldOptions.CorrectionReason31.AddBackRemoval,
             ZendeskTicketFieldOptions.ReasonForRemoval.OtherWithEvidence => ZendeskTicketFieldOptions.CorrectionReason31.OtherWithEvidence,
             ZendeskTicketFieldOptions.ReasonForRemoval.OtherEvidenceNotRequired => ZendeskTicketFieldOptions.CorrectionReason31.OtherEvidenceNotRequired,
+            ZendeskTicketFieldOptions.ReasonForRemoval.Post16NotOnRoll.InternationalStudent => ZendeskTicketFieldOptions.CorrectionReason31.NotOnRollInternationalStudent,
+            ZendeskTicketFieldOptions.ReasonForRemoval.Post16NotOnRoll.ExternalCandidate => ZendeskTicketFieldOptions.CorrectionReason31.NotOnRollExternal,
+            ZendeskTicketFieldOptions.ReasonForRemoval.Post16NotOnRoll.Apprentice => ZendeskTicketFieldOptions.CorrectionReason31.NotOnRollApprentice,
+            ZendeskTicketFieldOptions.ReasonForRemoval.Post16NotOnRoll.OtherWithEvidence => ZendeskTicketFieldOptions.CorrectionReason31.OtherWithEvidence,
+            ZendeskTicketFieldOptions.ReasonForRemoval.Post16NotOnRoll.OtherEvidenceNotRequired => ZendeskTicketFieldOptions.CorrectionReason31.OtherEvidenceNotRequired,
             _ => _ticketFieldService?.GetOptionValue(ZendeskTicketFieldConstants.CorrectionReason31Name, removalReason),
         };
 

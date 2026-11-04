@@ -32,10 +32,10 @@ public sealed class FlowIdCouplingTests
         //    "added-after-summer-term" is a KS2 removal reason and also a page id. The Zendesk
         //    "Reason for removal" map keys on it like the other reasons (#768).
         ["src/DfE.CheckPerformanceData.Application/RulesEngine/AnswerFieldMap.cs"] = ["country-originally-from", "date-added-to-roll", "date-permanently-excluded", "date-pupil-arrived-in-england", "date-pupil-excluded", "date-pupil-started", "date-pupil-started-school-in-england", "date-removed-from-roll", "first-language", "higher-lower", "life-limiting-illness-health-issue", "not-on-roll-reason", "other", "sat-exams", "social-care-reason", "why-removed"],
-        ["src/DfE.CheckPerformanceData.Application/Egress/EgressRecordBuilder.cs"] = ["admission-date", "date-of-birth", "first-name", "last-name", "not-on-roll-reason", "reason", "sex", "upn", "year-group", "years-to-remove"],
-        //    Egress and the Zendesk "Pupil year group" field read the KS4 year group change here (#781).
+        //    Egress reads these answers only for the LDS columns that have no Zendesk field.
+        ["src/DfE.CheckPerformanceData.Application/Egress/EgressRecordBuilder.cs"] = ["sex", "year-group", "years-to-remove"],
+        //    The Zendesk "Pupil year group" field reads the KS4 year group change here (#781).
         ["src/DfE.CheckPerformanceData.Application/RequestSubmission/YearGroupChange.cs"] = ["higher-lower", "reason", "year-group-higher-moved-to", "year-group-lower-moved-to"],
-        ["src/DfE.CheckPerformanceData.Application/Egress/CorrectionCodes.cs"] = ["not-on-roll", "other", "student-died"],
         ["src/DfE.CheckPerformanceData.Application/ZendeskClient/ZendeskTicketFieldOptions.cs"] = ["added-after-summer-term", "child-missing-education", "completed-ks4-elsewhere", "dual-registered-moved", "elective-home-education", "english-not-first-language", "life-limiting-illness", "not-on-roll", "other", "permanent-exclusion", "permanently-excluded", "pupil-died", "student-died"],
         //    The Zendesk "Admission date" field reads the Add flows' "admission-date" answer, as
         //    egress does, because an Add request has no pupil record (#769).

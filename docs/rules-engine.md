@@ -276,15 +276,30 @@ system did. Each field ID is a `ZendeskTicketFields__*Id` setting. An ID of 0 le
 | Pupil year group (CYPMD) | `PupilYearGroupCypmdId` | The year group that a KS4 year group change moves the pupil to |
 | Additional comments (CYPMD) | `AdditionalCommentsCypmdId` | Each free-text (`TextArea`) answer, with a blank line between them |
 
-**Add-back and "other" correction reasons (#778).** For these removals, Correction reason (31)
-follows the "Reason for removal" value. These are the codes that the previous system sent. UAT
-confirms them.
+**Add-back, "other" and 16-19 not-on-roll correction reasons (#778).** For these removals,
+Correction reason (31) follows the "Reason for removal" value. The add-back and "other" codes are
+the codes that the previous system sent. The 16-19 not-on-roll codes are LDS spec v2.4 K11.
 
 | Reason for removal | Correction reason (31) |
 |---|---|
 | `add_back_removal` (an add-back pupil, P_INCL 403, or the reason `completed-ks4-elsewhere`) | `8_31` |
 | `other_-_with_evidence` | `329_31` |
 | `other_-_evidence_not_required` | `330_31` |
+| `not_on_roll_international_student` | `326_31` |
+| `not_on_roll_external` | `328_31` |
+| `not_on_roll_apprentice` | `331_31` |
+| `not_on_roll_other_with_evidence` | `329_31` |
+| `not_on_roll_other_evidence_not_required` | `330_31` |
+
+A KS4 not-on-roll removal has no sub-reason, so it takes the single code `6_31`.
+
+**Cycle year and month.** The worker sets "Cycle year" and "Cycle month" from the checking
+window's start date, not from the submission date. LDS wants the month that the exercise takes
+place. A request document with no window start date gets neither field.
+
+**Egress reads the ticket.** The LDS data egress reads each of its columns that has a Zendesk
+field from the ticket, not from CYPMD's data. An agent can change a value on a scrutiny ticket,
+and egress then sends the changed value. See [data-egress.md](./data-egress.md#2-where-the-data-comes-from).
 
 ---
 

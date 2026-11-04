@@ -23,12 +23,27 @@ public sealed class DuplicateCheckViewModel
     public string LearnerNameLabel { get; init; } = string.Empty;
 
     /// <summary>
-    /// True only for a single non-included match (US2): the school may start the Include journey
-    /// for that existing pupil instead of adding a fresh record. Never true for an already-included
-    /// pupil or for a multiple-match list (those use per-row Switch-to-Include in US3).
+    /// #749: true when the window type has an Include flow (<c>Include_{CheckingWindowType}.json</c>),
+    /// read from the same list What to change renders. False by default, so a page built without it
+    /// offers no Include action (fail closed). KS4 Autumn has no Include flow.
+    /// </summary>
+    public bool IncludeJourneyAvailable { get; init; }
+
+    /// <summary>
+    /// True only for a single non-included match (US2) on a window type with an Include flow: the
+    /// school may start the Include journey for that existing pupil instead of adding a fresh record.
+    /// Never true for an already-included pupil or for a multiple-match list (those use per-row
+    /// Switch-to-Include in US3).
     /// </summary>
     public bool IncludeActionAvailable =>
-        Scenario == DuplicateScenario.SingleNonIncluded && Matches.Count == 1;
+        IncludeJourneyAvailable && Scenario == DuplicateScenario.SingleNonIncluded && Matches.Count == 1;
+
+    /// <summary>
+    /// #749: true when the multiple-match list may offer "Switch to include" on its non-included
+    /// rows (US3). The view still checks each row's <see cref="DuplicateMatch.IsIncluded"/>.
+    /// </summary>
+    public bool SwitchToIncludeAvailable =>
+        IncludeJourneyAvailable && Scenario == DuplicateScenario.Multiple;
 
     // AB#297780 conflict state: set only when the Include hand-off found a submitted request for the
     // matched pupil (FR-010). Null on every non-conflict render, so the existing page is unaffected.

@@ -9,6 +9,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Journey;
 // school-window roll (included + non-included). No match → the Add journey continues unchanged.
 // Matches → a GDS warning page offers Abort / Continue-adding, plus — for a single non-included
 // match — "Include this pupil", and for an already-included match a warning with no include option.
+// #749: two facts run the single and multiple branches on the KS4 Autumn window, which has no Include flow.
 //
 // These browser tests pin the seam at the only place it surfaces end-to-end: the redirect after
 // the learner-details post. They use the seeded Kingsmead School pupil blobs:
@@ -23,6 +24,10 @@ public sealed class AddPupilDuplicateCheckTests(PlaywrightFixture fixture) : See
     // The seeded KS4June window (DevDataSeeder.KeyStage4JuneCheckingWindowId), which Kingsmead's
     // pupil blobs are uploaded against.
     private static readonly Guid Ks4JuneWindowId = Guid.Parse("F34D285B-8660-4D12-9C30-787328DEAA0A");
+
+    // The seeded KS4 Autumn window (DevDataSeeder.KeyStage4AutumnCheckingWindowId). Since #747 it
+    // carries the same Kingsmead roll and the Casey Carter pair; it has no Include flow (#749).
+    private static readonly Guid Ks4AutumnWindowId = Guid.Parse("7D2E9A14-5C38-4B6F-A0E1-3F8B6C2D4A97");
 
     // ── US1: no match continues; a match surfaces the warning page ─────────
 
@@ -177,6 +182,53 @@ public sealed class AddPupilDuplicateCheckTests(PlaywrightFixture fixture) : See
         await Page.WaitForURLAsync($"**/Journey/{Ks4JuneWindowId}/page/evidence");
     }
 
+    // ── #749: KS4 Autumn has no Include flow, so the page offers no Include action ──
+
+    [RetryFact]
+    public async Task Ks4Autumn_SingleNonIncludedMatch_WarnsWithoutAnIncludeAction()
+    {
+        // Bob Johnson matches on the KS4 Autumn roll too. No Include_KS4Autumn.json exists, so
+        // "Include this pupil" must not render; Continue adding still carries on with the Add.
+        await StartAddJourneyAsync(Ks4AutumnWindowId);
+
+        await FillLearnerDetailsAsync(
+            firstName: "Bob", lastName: "Johnson", day: "2", month: "2", year: "2010",
+            sex: "M", upn: "");
+
+        await Expect(Page.GetByRole(AriaRole.Heading, new() { Level = 1 }))
+            .ToContainTextAsync("This pupil may already be on the roll");
+        Assert.Equal(0, await Page.GetByRole(AriaRole.Button, new() { Name = "Include this pupil" }).CountAsync());
+        await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Abort adding this pupil" })).ToBeVisibleAsync();
+
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Continue adding" }).ClickAsync();
+        await Page.WaitForURLAsync($"**/Journey/{Ks4AutumnWindowId}/page/admission-details");
+    }
+
+    [RetryFact]
+    public async Task Ks4Autumn_MultipleMatches_ListBothRowsWithoutSwitchToInclude()
+    {
+        // The Casey Carter pair lands on the Multiple branch on KS4 Autumn as on KS4 June: both
+        // rows with their inclusion status, but no Switch-to-Include button on either row.
+        await StartAddJourneyAsync(Ks4AutumnWindowId);
+
+        await FillLearnerDetailsAsync(
+            firstName: "Casey", lastName: "Carter", day: "15", month: "3", year: "2010",
+            sex: "F", upn: "");
+
+        await Expect(Page.GetByRole(AriaRole.Heading, new() { Level = 1 }))
+            .ToContainTextAsync("This pupil may already be on the roll");
+        var rows = Page.Locator("table.govuk-table tbody tr");
+        Assert.Equal(2, await rows.CountAsync());
+        var tableText = await Page.Locator("table.govuk-table").InnerTextAsync();
+        Assert.Contains("Carter, Casey", tableText);
+        Assert.Contains("Included", tableText);
+        Assert.Contains("Not included", tableText);
+        Assert.Equal(0, await Page.GetByRole(AriaRole.Button, new() { Name = "Switch to include" }).CountAsync());
+
+        await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Continue adding" })).ToBeVisibleAsync();
+        await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Abort adding this pupil" })).ToBeVisibleAsync();
+    }
+
     // ── Summary Change-link edits re-run the duplicate check (AB#297780) ────
     //
     // Editing the learner-details answers from the Summary "Change" link re-posts the same page
@@ -274,12 +326,14 @@ public sealed class AddPupilDuplicateCheckTests(PlaywrightFixture fixture) : See
         await Page.WaitForURLAsync($"**/Journey/{Ks4JuneWindowId}/page/learner-details*");
     }
 
-    private async Task StartAddJourneyAsync()
+    private Task StartAddJourneyAsync() => StartAddJourneyAsync(Ks4JuneWindowId);
+
+    private async Task StartAddJourneyAsync(Guid windowId)
     {
-        await Page.GotoAsync($"{Fixture.BaseUrl}/WhatToChange/{Ks4JuneWindowId}");
+        await Page.GotoAsync($"{Fixture.BaseUrl}/WhatToChange/{windowId}");
         await Page.Locator("input[name='SelectedWhatToChange'][value='Add']").CheckAsync();
         await ContinueAsync();
-        await Page.WaitForURLAsync($"**/Journey/{Ks4JuneWindowId}/page/learner-details");
+        await Page.WaitForURLAsync($"**/Journey/{windowId}/page/learner-details");
     }
 
     private async Task FillLearnerDetailsAsync(

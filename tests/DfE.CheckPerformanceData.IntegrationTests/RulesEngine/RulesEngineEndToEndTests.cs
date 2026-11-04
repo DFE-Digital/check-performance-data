@@ -265,6 +265,12 @@ public sealed class RulesEngineEndToEndTests
             Answers: [],
             DecisionStatus.Scrutiny, "ADD-DEF");
 
+        // #749: a KS4 Autumn Add goes to scrutiny too. ADD-DEF has no window-type condition, so
+        // the window type must not change the decision.
+        yield return new("AddPupil-Default-KS4Autumn", "Add", "KS4Autumn",
+            Answers: [],
+            DecisionStatus.Scrutiny, "ADD-DEF");
+
         // The journey's social-care reason is a checkbox (#591) and needs at least one tick, so
         // the rules' "all three flags false" branch can never fire from journey data; the
         // sat-exams disjunct is the reachable auto-reject path.

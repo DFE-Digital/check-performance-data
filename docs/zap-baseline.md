@@ -30,7 +30,19 @@ where the unit tests look at what the code sets.
 The job summary on the run page carries the counts and the report: each rule that fired, how many
 URLs, and the URLs. The same report in HTML, Markdown and JSON, with the summary counts, is the
 run's `zap-baseline` artefact (kept 14 days). A rule's documentation is at
-`https://www.zaproxy.org/docs/alerts/<rule id>/`. The report lists the accepted alerts as well; the counts line is what the gate reads; the 'New findings' section names what it failed on, and the gate also fails when fewer than 20 URLs were crawled, because an error or maintenance page would scan clean.
+`https://www.zaproxy.org/docs/alerts/<rule id>/`. The report lists the accepted alerts as well. The
+counts line is what the gate reads. The 'New findings' section names what it failed on. The gate
+also fails when the spider found fewer than 20 URLs, because an error or maintenance page would
+scan clean.
+
+The console (`console.txt` in the artefact) prints one line per rule that fired: `IGNORE`, `INFO`,
+`WARN-NEW` or `FAIL-NEW`, the count and the custom message. It does not list passing rules or
+URLs. That is the `outputSummary` job's `Short` format. `Long` reads each alert's HTTP message to
+print its URLs. An alert whose message cannot be loaded makes the job fail before it writes the
+summary (#784). The URLs are in the report instead.
+
+When the run page says "ZAP baseline scan produced no report", ZAP stopped before its summary job
+finished. The step summary shows ZAP's own failure lines; `console.txt` in the artefact has the rest.
 
 The check is green when every rule that fired is accepted in the plan's rules. It is red when
 something new fired.

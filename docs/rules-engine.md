@@ -254,6 +254,53 @@ rule until Add rules are written). Results enquiries skip the Rules Engine: they
 |---|---|
 | `InProgress`, `ReadyToSubmit`, `Submitted`, `Withdrawn`, `NotSubmitted` | null → `Decided` → `TicketQueued` → `TicketCreating` → `TicketCreated` (+ `CrmId`) |
 
+**Ticket group and status (#776).** The decision sets the Zendesk group and status of the ticket.
+The Zendesk views select tickets by these values. The worker does not change the views.
+
+| Decision | Status | Group | Zendesk view |
+|---|---|---|---|
+| `Scrutiny` | `new` | `SchoolCheckingExercise__ScrutinyGroupId` ("Scrutiny") | Scrutiny |
+| `AutoApproved` | `solved` | `SchoolCheckingExercise__GroupId` | Decision made/solved |
+| `AutoRejected` | `solved` | `SchoolCheckingExercise__GroupId` | Decision made/solved |
+
+If `ScrutinyGroupId` is not set or is 0, Scrutiny tickets go to `GroupId`. Production sets both to 0
+until its Zendesk IDs are confirmed.
+
+**Fields that the previous system sent (#781).** The worker sets these fields as the previous
+system did. Each field ID is a `ZendeskTicketFields__*Id` setting. An ID of 0 leaves the field out.
+
+| Field | Setting | Value |
+|---|---|---|
+| Correction reason (21) | `CorrectionReason21Id` | `5_21` on each Merge ticket |
+| LDS matched pupil ID 2 | `LdsMatchedPupilId2Id` | The LDS id of the second pupil on a Merge. LDS matched pupil ID holds the first pupil. |
+| Pupil year group (CYPMD) | `PupilYearGroupCypmdId` | The year group that a KS4 year group change moves the pupil to |
+| Additional comments (CYPMD) | `AdditionalCommentsCypmdId` | Each free-text (`TextArea`) answer, with a blank line between them |
+
+**Add-back, "other" and 16-19 not-on-roll correction reasons (#778).** For these removals,
+Correction reason (31) follows the "Reason for removal" value. The add-back and "other" codes are
+the codes that the previous system sent. The 16-19 not-on-roll codes are LDS spec v2.4 K11.
+
+| Reason for removal | Correction reason (31) |
+|---|---|
+| `add_back_removal` (an add-back pupil, P_INCL 403, or the reason `completed-ks4-elsewhere`) | `8_31` |
+| `other_-_with_evidence` | `329_31` |
+| `other_-_evidence_not_required` | `330_31` |
+| `not_on_roll_international_student` | `326_31` |
+| `not_on_roll_external` | `328_31` |
+| `not_on_roll_apprentice` | `331_31` |
+| `not_on_roll_other_with_evidence` | `329_31` |
+| `not_on_roll_other_evidence_not_required` | `330_31` |
+
+A KS4 not-on-roll removal has no sub-reason, so it takes the single code `6_31`.
+
+**Cycle year and month.** The worker sets "Cycle year" and "Cycle month" from the checking
+window's start date, not from the submission date. LDS wants the month that the exercise takes
+place. A request document with no window start date gets neither field.
+
+**Egress reads the ticket.** The LDS data egress reads each of its columns that has a Zendesk
+field from the ticket, not from CYPMD's data. An agent can change a value on a scrutiny ticket,
+and egress then sends the changed value. See [data-egress.md](./data-egress.md#2-where-the-data-comes-from).
+
 ---
 
 ## Going deeper

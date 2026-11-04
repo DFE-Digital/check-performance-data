@@ -13,13 +13,4 @@ public static class PupilInclusion
     /// <summary>Inclusion for one raw record, as the exercise tabs read it. No stamp means not included.</summary>
     public static bool IsIncluded(IReadOnlyDictionary<string, string> row) =>
         row.TryGetValue("INCLUDED", out var stamp) && bool.TryParse(stamp, out var included) && included;
-
-    /// <summary>
-    /// The KS4 <c>P_INCL</c> codes that count as included. Only the Zendesk worker reads them, for
-    /// its KS4 add-back removal reason; that is a ticket-routing rule, not the display's inclusion.
-    /// </summary>
-    public static readonly int[] Ks4IncludedPinclCodes = [401, 403, 414, 421, 431];
-
-    /// <summary>Null / absent P_INCL means the flag was not supplied, treated as not included.</summary>
-    public static bool IsKs4Included(int? pincl) => pincl is int code && Ks4IncludedPinclCodes.Contains(code);
 }

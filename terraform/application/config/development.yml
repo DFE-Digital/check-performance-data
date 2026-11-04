@@ -53,6 +53,7 @@ ZendeskSettings__Domain: zendesk
 # School Checking Exercise Zendesk settings
 SchoolCheckingExercise__TargetViewTitle: Schools checking exercise View
 SchoolCheckingExercise__GroupId: 16886472637330
+SchoolCheckingExercise__ScrutinyGroupId: 19477734979474
 SchoolCheckingExercise__BrandId: 16853215883538
  
 # Zendesk Ticket Field IDs
@@ -99,4 +100,8 @@ ZendeskTicketFields__AgeCypmdId: 28557798992018
  
 ZendeskTicketFields__DecisionReasonApprovedId: 19056477269010
 ZendeskTicketFields__DecisionReasonRejectedId: 19197936168210
+ZendeskTicketFields__CorrectionReason21Id: 19058760113298
+ZendeskTicketFields__LdsMatchedPupilId2Id: 19269521160978
+ZendeskTicketFields__PupilYearGroupCypmdId: 19269588914066
+ZendeskTicketFields__AdditionalCommentsCypmdId: 28923073020818
 ZendeskTicketFields__PopulateDecisionReasonForAutoRejected: true

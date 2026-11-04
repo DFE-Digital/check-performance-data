@@ -3,6 +3,7 @@ using DfE.CheckPerformanceData.Application.Egress;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.WindowManagement;
+using DfE.CheckPerformanceData.Application.ZendeskClient;
 using DfE.CheckPerformanceData.Domain.Enums;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -32,6 +33,9 @@ public sealed class EgressRunServiceTests
     private static EgressCandidateRequest Candidate(string reference, string? crm) =>
         new(Guid.NewGuid(), reference, crm, 142313, "860/4070", new DateTime(2026, 6, 5, 9, 0, 0, DateTimeKind.Utc), RequestStatus.Submitted);
 
+    private static EgressTicket Ticket(string? decision, params (string Name, string Value)[] fields) =>
+        new(decision, fields.ToDictionary(f => f.Name, f => f.Value));
+
     private static RequestState Journey(string reason) => new()
     {
         SelectedWhatToChange = WhatToChange.Remove,
@@ -56,7 +60,7 @@ public sealed class EgressRunServiceTests
         var (type, who) = Assert.Single(refused.Blockers);
         Assert.Equal(EgressOutputType.RemoveLearners, type);
         Assert.Equal("Ops Two", who.StartedByName);
-        await _tickets.DidNotReceiveWithAnyArgs().GetDecisionStatusesAsync(default!, default);
+        await _tickets.DidNotReceiveWithAnyArgs().GetTicketsAsync(default!, default);
         await _repo.DidNotReceiveWithAnyArgs().CreateRunAsync(default!, default);
     }
 
@@ -66,8 +70,13 @@ public sealed class EgressRunServiceTests
         _windows.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(Window());
         _repo.GetCandidateRequestsAsync(WindowId, WhatToChange.Remove, Arg.Any<CancellationToken>())
             .Returns([Candidate("REF-1", "1001"), Candidate("REF-2", "1002"), Candidate("REF-3", null), Candidate("REF-4", "1004")]);
-        _tickets.GetDecisionStatusesAsync(Arg.Is<IReadOnlyCollection<long>>(ids => ids.SequenceEqual(new long[] { 1001, 1002, 1004 })), Arg.Any<CancellationToken>())
-            .Returns(new Dictionary<long, string> { [1001] = "auto_approved", [1002] = "rejected" });
+        _tickets.GetTicketsAsync(Arg.Is<IReadOnlyCollection<long>>(ids => ids.SequenceEqual(new long[] { 1001, 1002, 1004 })), Arg.Any<CancellationToken>())
+            .Returns(new Dictionary<long, EgressTicket>
+            {
+                [1001] = Ticket("auto_approved", (ZendeskTicketFieldConstants.CorrectionReason31Name, "4_31")),
+                [1002] = Ticket("rejected"),
+                [1004] = Ticket(null)
+            });
         _blobs.GetAsync(WindowId, Arg.Any<string>()).Returns(ci => Journey("pupil-died"));
         _blobs.GetAsync(WindowId, "REF-4").Returns((RequestState?)null);
         EgressRunCreate? created = null;
@@ -83,7 +92,9 @@ public sealed class EgressRunServiceTests
         Assert.Equal("auto_approved", byRef["REF-1"].Decision);
         Assert.Equal("rejected", byRef["REF-2"].Decision);
         Assert.Equal(EgressDecisions.NoTicket, byRef["REF-3"].Decision);
-        Assert.Equal(EgressDecisions.NotFound, byRef["REF-4"].Decision);
+        Assert.Equal(EgressDecisions.NotFound, byRef["REF-4"].Decision);   // a ticket with no decision
+        Assert.Equal("4_31", byRef["REF-1"].TicketField(ZendeskTicketFieldConstants.CorrectionReason31Name));
+        Assert.Empty(byRef["REF-3"].TicketFields);
         Assert.Equal(1001, byRef["REF-1"].TicketId);
         Assert.Equal("Smith", byRef["REF-1"].PupilSurname);
         Assert.Equal("8604070", byRef["REF-1"].PupilLaestab);
@@ -103,8 +114,8 @@ public sealed class EgressRunServiceTests
         _windows.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(Window());
         _repo.GetCandidateRequestsAsync(WindowId, WhatToChange.Remove, Arg.Any<CancellationToken>())
             .Returns([Candidate("REF-1", "1001")]);
-        _tickets.GetDecisionStatusesAsync(Arg.Any<IReadOnlyCollection<long>>(), Arg.Any<CancellationToken>())
-            .Returns(new Dictionary<long, string> { [1001] = "auto_approved" });
+        _tickets.GetTicketsAsync(Arg.Any<IReadOnlyCollection<long>>(), Arg.Any<CancellationToken>())
+            .Returns(new Dictionary<long, EgressTicket> { [1001] = Ticket("auto_approved") });
         _blobs.GetAsync(WindowId, "REF-1").Returns(Task.FromException<RequestState?>(new InvalidOperationException("blob storage unreachable")));
         EgressRunCreate? created = null;
         _repo.CreateRunAsync(Arg.Do<EgressRunCreate>(c => created = c), Arg.Any<CancellationToken>()).Returns(Guid.NewGuid());
@@ -122,7 +133,7 @@ public sealed class EgressRunServiceTests
     {
         _windows.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(Window());
         _repo.GetCandidateRequestsAsync(WindowId, WhatToChange.Add, Arg.Any<CancellationToken>()).Returns([]);
-        _tickets.GetDecisionStatusesAsync(Arg.Any<IReadOnlyCollection<long>>(), Arg.Any<CancellationToken>()).Returns(new Dictionary<long, string>());
+        _tickets.GetTicketsAsync(Arg.Any<IReadOnlyCollection<long>>(), Arg.Any<CancellationToken>()).Returns(new Dictionary<long, EgressTicket>());
         _repo.CreateRunAsync(Arg.Any<EgressRunCreate>(), Arg.Any<CancellationToken>())
             .Returns<Task<Guid>>(_ => throw new EgressRunConflictException("held"));
         var blocker = new EgressBlocker(Guid.NewGuid(), EgressRunStatus.Transferred, "Ops Two", DateTime.UtcNow, DateTime.UtcNow, "Ops Two");
@@ -139,8 +150,8 @@ public sealed class EgressRunServiceTests
     {
         _windows.GetByIdAsync(WindowId, Arg.Any<CancellationToken>()).Returns(Window());
         _repo.GetCandidateRequestsAsync(WindowId, WhatToChange.Remove, Arg.Any<CancellationToken>()).Returns([Candidate("REF-1", "1001")]);
-        _tickets.GetDecisionStatusesAsync(Arg.Any<IReadOnlyCollection<long>>(), Arg.Any<CancellationToken>())
-            .Returns<Task<IReadOnlyDictionary<long, string>>>(_ => throw new EgressTicketSourceException("field not configured"));
+        _tickets.GetTicketsAsync(Arg.Any<IReadOnlyCollection<long>>(), Arg.Any<CancellationToken>())
+            .Returns<Task<IReadOnlyDictionary<long, EgressTicket>>>(_ => throw new EgressTicketSourceException("field not configured"));
 
         var result = await Sut().StartAsync(WindowId, [EgressOutputType.RemoveLearners], Actor, CancellationToken.None);
 

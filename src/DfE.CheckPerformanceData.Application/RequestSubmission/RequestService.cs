@@ -409,6 +409,7 @@ public sealed class RequestService(
                 DisplayName = currentUserService.DisplayName
             },
             CheckingWindowId = context.WindowId,
+            CheckingWindowStartDate = context.CheckingWindow.StartDate,
             CheckingWindowType = context.CheckingWindow.CheckingWindowType.ToString(),
             RequestTypeCode = context.WhatToChange,
             School = new SchoolDetails

@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.ZendeskClient;
 using DfE.CheckPerformanceData.Infrastructure;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient;
 using Microsoft.Extensions.Configuration;
@@ -28,16 +29,31 @@ public class ZendeskApiClientConfigurationTests
     private const string Placeholder = "[PLACE THESE IN YOUR USER SECRETS]";
     private const string EnvExamplePlaceholder = "<zendesk-client-secret>";
 
+    // Every ticket field ID setting, so that a test sets all of them unless it says otherwise.
+    private static readonly string[] TicketFieldIdNames = new ZendeskTicketFieldSettings().UnsetFieldIdNames().ToArray();
+
     private static IConfiguration ConfigWith(
         string? subdomain = "dfe", string? domain = "zendesk",
-        string? clientId = "test-client-id", string? clientSecret = "test-client-secret")
-        => new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        string? clientId = "test-client-id", string? clientSecret = "test-client-secret",
+        IReadOnlyDictionary<string, string?>? ticketFieldIds = null)
+    {
+        var values = new Dictionary<string, string?>
         {
             ["ZendeskSettings:Subdomain"] = subdomain,
             ["ZendeskSettings:Domain"] = domain,
             ["ZendeskSettings:ClientId"] = clientId,
             ["ZendeskSettings:ClientSecret"] = clientSecret,
-        }).Build();
+        };
+        foreach (var name in TicketFieldIdNames)
+        {
+            values[$"ZendeskTicketFields:{name}"] = "123";
+        }
+        foreach (var (name, id) in ticketFieldIds ?? new Dictionary<string, string?>())
+        {
+            values[$"ZendeskTicketFields:{name}"] = id;
+        }
+        return new ConfigurationBuilder().AddInMemoryCollection(values).Build();
+    }
 
     private static ZendeskSettings SettingsWith(
         string subdomain = "dfe", string domain = "zendesk",
@@ -285,6 +301,35 @@ public class ZendeskApiClientConfigurationTests
     {
         var warnings = await WarningsAtStartup(
             ConfigWith(subdomain: "", domain: "", clientId: "", clientSecret: ""),
+            requireRealClient: false);
+
+        Assert.Empty(warnings);
+    }
+
+    // A field ID that is not set leaves the field out of each ticket with no error. Ticket 90848
+    // reached preprod Zendesk with no Age and no DCI ref this way, from a local worker.
+    [Fact]
+    public async Task UnsetTicketFieldIds_AreWarnedAboutAtStartup()
+    {
+        var warnings = await WarningsAtStartup(
+            ConfigWith(ticketFieldIds: new Dictionary<string, string?>
+            {
+                ["AgeCypmdId"] = null,
+                ["DciRefCypmdId"] = "0",
+            }),
+            requireRealClient: true);
+
+        var warning = Assert.Single(warnings);
+        Assert.Contains("ZendeskTicketFields__AgeCypmdId", warning);
+        Assert.Contains("ZendeskTicketFields__DciRefCypmdId", warning);
+        Assert.DoesNotContain("ZendeskTicketFields__UpnId", warning);
+    }
+
+    [Fact]
+    public async Task UnsetTicketFieldIds_WithTheFakeInUse_WarnAboutNothing()
+    {
+        var warnings = await WarningsAtStartup(
+            ConfigWith(ticketFieldIds: new Dictionary<string, string?> { ["AgeCypmdId"] = null }),
             requireRealClient: false);
 
         Assert.Empty(warnings);

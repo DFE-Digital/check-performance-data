@@ -92,25 +92,8 @@ services:
       - ZendeskSettings__ClientSecret=${ZendeskSettings_ClientSecret}
       - SchoolCheckingExercise__TargetViewTitle=${SchoolCheckingExercise_TargetViewTitle}
       - SchoolCheckingExercise__GroupId=${SchoolCheckingExercise_GroupId}
+      - SchoolCheckingExercise__ScrutinyGroupId=${SchoolCheckingExercise_ScrutinyGroupId}
       - SchoolCheckingExercise__BrandId=${SchoolCheckingExercise_BrandId}
-      - ZendeskTicketFields__UpnId=${ZendeskTicketFields_UpnId}
-      - ZendeskTicketFields__TypeOfOrganisationId=${ZendeskTicketFields_TypeOfOrganisationId}
-      - ZendeskTicketFields__SurnameCypmdId=${ZendeskTicketFields_SurnameCypmdId}
-      - ZendeskTicketFields__SexId=${ZendeskTicketFields_SexId}
-      - ZendeskTicketFields__SchoolUrnId=${ZendeskTicketFields_SchoolUrnId}
-      - ZendeskTicketFields__ReasonForRemovalId=${ZendeskTicketFields_ReasonForRemovalId}
-      - ZendeskTicketFields__LdsMatchedPupilIdId=${ZendeskTicketFields_LdsMatchedPupilIdId}
-      - ZendeskTicketFields__KeyStageId=${ZendeskTicketFields_KeyStageId}
-      - ZendeskTicketFields__ForenameCypmdId=${ZendeskTicketFields_ForenameCypmdId}
-      - ZendeskTicketFields__DfeEstablishmentNumberId=${ZendeskTicketFields_DfeEstablishmentNumberId}
-      - ZendeskTicketFields__DecisionStatusId=${ZendeskTicketFields_DecisionStatusId}
-      - ZendeskTicketFields__DateOfBirthCypmdId=${ZendeskTicketFields_DateOfBirthCypmdId}
-      - ZendeskTicketFields__CypmdId=${ZendeskTicketFields_CypmdId}
-      - ZendeskTicketFields__CycleYearId=${ZendeskTicketFields_CycleYearId}
-      - ZendeskTicketFields__CycleMonthId=${ZendeskTicketFields_CycleMonthId}
-      - ZendeskTicketFields__CorrectionTypeId=${ZendeskTicketFields_CorrectionTypeId}
-      - ZendeskTicketFields__CorrectionReason31Id=${ZendeskTicketFields_CorrectionReason31Id}
-      - ZendeskTicketFields__AdmissionDateId=${ZendeskTicketFields_AdmissionDateId}
     depends_on:
       db:
         condition: service_started

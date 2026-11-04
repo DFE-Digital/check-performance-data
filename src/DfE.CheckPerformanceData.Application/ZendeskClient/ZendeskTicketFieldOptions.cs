@@ -38,6 +38,9 @@ public static class ZendeskTicketFieldOptions
     /// </summary>
     public static class CorrectionType
     {
+        public const string Correction10 = "10_";
+        public const string Correction11 = "11_";
+        public const string Correction21 = "21_";
         public const string Correction31 = "31_";
     }
 
@@ -50,6 +53,7 @@ public static class ZendeskTicketFieldOptions
         public const string Ks2 = "ks2";
         public const string Ks3 = "ks3";
         public const string Ks4 = "ks4";
+        public const string Ks16To18 = "16-18";
     }
 
     /// <summary>
@@ -67,11 +71,16 @@ public static class ZendeskTicketFieldOptions
     public static class ReasonForRemoval
     {
         public const string AddBackRemoval = "add_back_removal";
+        public const string Addition = "addition";
         public const string AdmittedFollowingPermanentExclusion = "admitted_following_permanent_exclusion";
         public const string AdmittedFromAbroadWithEnglishNotFirstLanguage = "admitted_from_abroad_with_english_not_first_language";
         public const string Deceased = "deceased";
         public const string ElectiveHomeEducation = "elective_home_education";
+        public const string Inclusion = "inclusion";
+        public const string MergePupils = "merge_pupils";
         public const string MovedSchoolDualRegistration = "moved_school_dual_registration";
+        public const string KeyStageAssessmentsDeferred = "one_or_more_end_of_key_stage_assessments_deferred_by_a_year";
+        public const string AddedToRollAfterStartOfSummerTerm = "pupil_added_to_school_roll_after_start_of_summer_term";
         public const string NotAtEndOf16To18Study = "not_at_end_of_16_to_18_study";
         public const string NotOnRoll = "not_on_roll";
         public const string OtherEvidenceNotRequired = "other_-_evidence_not_required";
@@ -94,22 +103,40 @@ public static class ZendeskTicketFieldOptions
     }
 
     /// <summary>
+    /// Options for "Correction reason (21)" field (ID: 19058760113298). The field has one
+    /// option. The previous system sent it on every Merge ticket.
+    /// </summary>
+    public static class CorrectionReason21
+    {
+        public const string MergePupils = "5_21";
+    }
+
+    /// <summary>
     /// Options for "Correction reason (31)" field (ID: 19058912556690), keyed on the
     /// removal-reason option value (the suffix of <c>RequestTypeCode</c>, e.g.
     /// <c>pupil-died</c>). The option VALUE strings are the CYPMD correction codes
     /// confirmed by the business (2026-08-06) formatted as <c>{code}_31</c>, matching
-    /// the Zendesk field's option list exactly — not synthesised (FR-010). Only the
-    /// top-level removal reasons reachable from the KS4 Remove flow are keyed in the
-    /// helper map; the add-back reasons (<c>completed-ks4-elsewhere</c>, <c>other</c>)
-    /// and the sub-reasons below are intentionally left unmapped this phase.
+    /// the Zendesk field's option list exactly — not synthesised (FR-010). The helper map
+    /// keys the removal reasons that have one code. The add-back and "other" codes below
+    /// follow the resolved "Reason for removal" value instead (#778).
     /// </summary>
     public static class CorrectionReason31
     {
+        // #778: the codes that the previous system sent. UAT confirms them.
+        public const string AddBackRemoval = "8_31";
+        public const string OtherWithEvidence = "329_31";
+        public const string OtherEvidenceNotRequired = "330_31";
+        // 16-19 not on roll, by sub-reason (LDS spec v2.4 K11). A not-on-roll "other" sub-reason
+        // takes OtherWithEvidence or OtherEvidenceNotRequired.
+        public const string NotOnRollInternationalStudent = "326_31";
+        public const string NotOnRollExternal = "328_31";
+        public const string NotOnRollApprentice = "331_31";
         public const string AdmittedFollowingPermanentExclusion = "13_31";
         public const string AdmittedFromAbroadEal = "2_31";
         public const string PupilMissingInEducation = "501_31";
         public const string PupilDied = "4_31";
         public const string MovedSchoolDualRegistration = "332_31";
+        public const string NotAtEndOf16To18Study = "325_31";
         public const string ElectiveHomeEducation = "27_31";
         public const string NotOnRoll = "6_31";
         public const string PermanentlyExcludedFromCurrentSchool = "500_31";
@@ -117,6 +144,9 @@ public static class ZendeskTicketFieldOptions
         public const string SocialCareInvolvement = "502_31";
         public const string TerminalCriticalIllness = "503_31";
         public const string YearGroupChange = "17_31";
+        // KS2 codes from the LDS CYPMD data specification (Remove (No Addback), Correction_Reason).
+        public const string AssessmentsDeferred = "41_31";
+        public const string AddedToRollAfterStartOfSummerTerm = "109_31";
     }
 
     /// <summary>
@@ -267,6 +297,9 @@ public static class ZendeskTicketFieldOptions
     {
         private static readonly Dictionary<string, string> Map = new(StringComparer.OrdinalIgnoreCase)
         {
+            { "10_", CorrectionType.Correction10 },
+            { "11_", CorrectionType.Correction11 },
+            { "21_", CorrectionType.Correction21 },
             { "31_", CorrectionType.Correction31 },
             { "correction 31", CorrectionType.Correction31 }
         };
@@ -284,6 +317,7 @@ public static class ZendeskTicketFieldOptions
             { "ks4", KeyStage.Ks4 },
             { "KS4June", KeyStage.Ks4 },
             { "KS4Autumn", KeyStage.Ks4 },
+            { "Post16", KeyStage.Ks16To18 },
             { "key stage 1", KeyStage.Ks1 },
             { "key stage 2", KeyStage.Ks2 },
             { "key stage 3", KeyStage.Ks3 },
@@ -316,6 +350,8 @@ public static class ZendeskTicketFieldOptions
             // "other" and "not-on-roll" are answer-aware (evidence / Post16 sub-reason) and
             // are resolved by the worker, not these rows; unmapped reasons are omitted +
             // warning-logged (FR-014).
+            { "added-after-summer-term", ReasonForRemoval.AddedToRollAfterStartOfSummerTerm },
+            { "assessments-deferred", ReasonForRemoval.KeyStageAssessmentsDeferred },
             { "completed-ks4-elsewhere", ReasonForRemoval.AddBackRemoval },
             { "child-missing-education", ReasonForRemoval.PupilMissingInEducation },
             { "dual-registered-moved", ReasonForRemoval.MovedSchoolDualRegistration },
@@ -341,14 +377,17 @@ public static class ZendeskTicketFieldOptions
         // Keyed on the RequestTypeCode removal-reason suffix (e.g. "pupil-died").
         // Authoritative CYPMD correction codes (correction type 31) confirmed by the
         // business 2026-08-06; the value is the code suffixed with "_31". The add-back
-        // removal reasons ("completed-ks4-elsewhere", "other") carry a different
-        // correction type and are deliberately absent -> omitted + warning-logged (FR-014).
+        // removal reasons ("completed-ks4-elsewhere", "other") are absent: the worker sets
+        // their code from the resolved "Reason for removal" value (#778).
+        // The 16-19 codes are the ones the previous system sent on 16-18 tickets.
         private static readonly Dictionary<string, string> Map = new(StringComparer.OrdinalIgnoreCase)
         {
             { "permanent-exclusion", CorrectionReason31.AdmittedFollowingPermanentExclusion },
             { "english-not-first-language", CorrectionReason31.AdmittedFromAbroadEal },
             { "child-missing-education", CorrectionReason31.PupilMissingInEducation },
             { "pupil-died", CorrectionReason31.PupilDied },
+            { "student-died", CorrectionReason31.PupilDied },
+            { "not-at-end-of-16-19-study", CorrectionReason31.NotAtEndOf16To18Study },
             { "dual-registered-moved", CorrectionReason31.MovedSchoolDualRegistration },
             { "elective-home-education", CorrectionReason31.ElectiveHomeEducation },
             { "not-on-roll", CorrectionReason31.NotOnRoll },
@@ -356,7 +395,9 @@ public static class ZendeskTicketFieldOptions
             { "permanently-left-england", CorrectionReason31.PermanentlyLeftEngland },
             { "social-care-involvement", CorrectionReason31.SocialCareInvolvement },
             { "life-limiting-illness", CorrectionReason31.TerminalCriticalIllness },
-            { "year-group-change", CorrectionReason31.YearGroupChange }
+            { "year-group-change", CorrectionReason31.YearGroupChange },
+            { "assessments-deferred", CorrectionReason31.AssessmentsDeferred },
+            { "added-after-summer-term", CorrectionReason31.AddedToRollAfterStartOfSummerTerm }
         };
 
         public static string? GetOption(string name) => Map.TryGetValue(name, out var value) ? value : null;

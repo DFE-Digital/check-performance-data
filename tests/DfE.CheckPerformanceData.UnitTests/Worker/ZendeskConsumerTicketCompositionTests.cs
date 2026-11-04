@@ -1,5 +1,4 @@
 using System.Globalization;
-using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.RulesEngine;
@@ -28,6 +27,7 @@ public sealed class ZendeskConsumerTicketCompositionTests
         TargetViewTitle = "School Checking Exercise",
         BrandId = 1234,
         GroupId = 5678,
+        ScrutinyGroupId = 9012,
     };
 
     private ZendeskConsumer NewConsumer() =>
@@ -43,7 +43,7 @@ public sealed class ZendeskConsumerTicketCompositionTests
 
         Assert.Equal("task", ticket.Type);
         Assert.Equal("normal", ticket.Priority);
-        Assert.Equal("open", ticket.Status);
+        Assert.Equal("solved", ticket.Status);
         Assert.Contains("Auto-Approved", ticket.Subject);
         Assert.Contains("Deceased", ticket.Subject);
         Assert.Equal(1234, ticket.BrandId);
@@ -61,6 +61,8 @@ public sealed class ZendeskConsumerTicketCompositionTests
 
         Assert.Equal("task", ticket.Type);
         Assert.Equal("normal", ticket.Priority);
+        Assert.Equal("solved", ticket.Status);
+        Assert.Equal(5678, ticket.GroupId);
         Assert.Contains("Auto-Rejected", ticket.Subject);
         Assert.Contains("ElectiveHomeEducation", ticket.Subject);
     }
@@ -77,7 +79,21 @@ public sealed class ZendeskConsumerTicketCompositionTests
         Assert.Equal("question", ticket.Type);
         Assert.Equal("high", ticket.Priority);
         Assert.Equal("new", ticket.Status);
+        Assert.Equal(9012, ticket.GroupId);
         Assert.Contains("Requires Scrutiny", ticket.Subject);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData(0L)]
+    public void Scrutiny_WithNoScrutinyGroup_GoesToTheMainGroup(long? scrutinyGroupId)
+    {
+        _settings.ScrutinyGroupId = scrutinyGroupId;
+        var decision = new Decision(DecisionStatus.Scrutiny, "YearGroupChange", "YGC-DEF", Array.Empty<string>());
+
+        var ticket = NewConsumer().BuildTicket(NewMessage("Year group change"), decision).Ticket;
+
+        Assert.Equal(5678, ticket.GroupId);
     }
 
     [Fact]
@@ -223,8 +239,8 @@ public sealed class ZendeskConsumerTicketCompositionTests
 
         Assert.Contains(ticket.CustomFields!, f => f.Id == 20 && (string)f.Value! == "REF");
         Assert.Contains(ticket.CustomFields!, f => f.Id == 21 && (string)f.Value! == "14");
-        Assert.Contains(ticket.CustomFields!, f => f.Id == 22 && (string)f.Value! == msg.SubmittedAt.Year.ToString(CultureInfo.InvariantCulture));
-        Assert.Contains(ticket.CustomFields!, f => f.Id == 23 && (string)f.Value! == msg.SubmittedAt.Month.ToString(CultureInfo.InvariantCulture));
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 22 && (string)f.Value! == "2026");
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 23 && (string)f.Value! == "6");
         Assert.Contains(ticket.CustomFields!, f => f.Id == 24 && (string)f.Value! == "ks2");
         Assert.Contains(ticket.CustomFields!, f => f.Id == 25 && (string)f.Value! == "31_");
         Assert.Contains(ticket.CustomFields!, f => f.Id == 26 && (string)f.Value! == "4_31");
@@ -261,21 +277,176 @@ public sealed class ZendeskConsumerTicketCompositionTests
         Assert.Contains(ticket.CustomFields!, f => f.Id == 24 && (string)f.Value! == "ks4");
     }
 
-    [Fact]
-    public void IncludeTicket_PopulatesMessageDerivedFields_ButOmitsCorrectionFields()
+    [Theory]
+    [InlineData("Merge", "21_", "merge_pupils")]
+    [InlineData("Include", "11_", "inclusion")]
+    public void MergeAndIncludeTickets_SetCorrectionTypeAndReasonForRemoval_ButNoCorrectionReason(
+        string requestTypeCode, string correctionType, string reasonForRemoval)
     {
         _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CorrectionTypeName).Returns(25L);
         _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CorrectionReason31Name).Returns(26L);
         _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.ReasonForRemovalName).Returns(27L);
 
         var consumer = NewConsumer();
-        var decision = new Decision(DecisionStatus.AutoApproved, "Inclusion", "INC-1", Array.Empty<string>());
+        var decision = new Decision(DecisionStatus.Scrutiny, "Scrutiny", "SCR-1", Array.Empty<string>());
 
-        var ticket = consumer.BuildTicket(NewMessage("Include"), decision).Ticket;
+        var ticket = consumer.BuildTicket(NewMessage(requestTypeCode, "KS4June"), decision).Ticket;
 
-        Assert.DoesNotContain(ticket.CustomFields ?? new(), f => f.Id == 25);
-        Assert.DoesNotContain(ticket.CustomFields ?? new(), f => f.Id == 26);
-        Assert.DoesNotContain(ticket.CustomFields ?? new(), f => f.Id == 27);
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 25 && (string)f.Value! == correctionType);
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 27 && (string)f.Value! == reasonForRemoval);
+        Assert.DoesNotContain(ticket.CustomFields!, f => f.Id == 26);
+    }
+
+    // --- #781: the fields that the previous system sent ---
+
+    [Fact]
+    public void MergeTicket_SetsCorrectionReason21_AndTheLdsIdOfEachPupil()
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.LdsMatchedPupilIdName).Returns(30L);
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CorrectionReason21Name).Returns(60L);
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.LdsMatchedPupilId2Name).Returns(61L);
+
+        var message = WithMatchedPupil(NewMessage("Merge", "KS4June", matchRef: 10001), matchRef: 10002);
+        var decision = new Decision(DecisionStatus.Scrutiny, "Scrutiny", "SCR-1", Array.Empty<string>());
+
+        var ticket = NewConsumer().BuildTicket(message, decision).Ticket;
+
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 60 && (string)f.Value! == "5_21");
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 30 && (string)f.Value! == "10001");
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 61 && (string)f.Value! == "10002");
+    }
+
+    [Fact]
+    public void NonMergeTicket_HasNoMergeFields()
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CorrectionReason21Name).Returns(60L);
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.LdsMatchedPupilId2Name).Returns(61L);
+
+        var decision = new Decision(DecisionStatus.Scrutiny, "Scrutiny", "SCR-1", Array.Empty<string>());
+
+        var ticket = NewConsumer().BuildTicket(NewMessage("Include", "KS4June", matchRef: 10001), decision).Ticket;
+
+        Assert.DoesNotContain(ticket.CustomFields ?? new(), f => f.Id is 60 or 61);
+    }
+
+    [Theory]
+    [InlineData("higher", "12")]
+    [InlineData("lower", "9")]
+    public void YearGroupChange_SetsPupilYearGroup_FromTheChosenBranch(string higherLower, string expected)
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.PupilYearGroupCypmdName).Returns(62L);
+
+        // An answer from the branch that the school did not choose can stay in the answers.
+        var message = NewMessage("Remove - year-group-change", "KS4June", answers:
+        [
+            Answer("reason", "Year group change", rawValue: "year-group-change"),
+            Answer("higher-lower", higherLower),
+            Answer("year-group-higher-moved-to", "12"),
+            Answer("year-group-lower-moved-to", "9"),
+        ]);
+        var decision = new Decision(DecisionStatus.Scrutiny, "Scrutiny", "SCR-1", Array.Empty<string>());
+
+        var ticket = NewConsumer().BuildTicket(message, decision).Ticket;
+
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 62 && (string)f.Value! == expected);
+    }
+
+    [Fact]
+    public void PupilYearGroup_IsOmitted_ForOtherRemovalReasons()
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.PupilYearGroupCypmdName).Returns(62L);
+
+        var message = NewMessage("Remove - pupil-died", "KS4June", answers:
+        [
+            Answer("reason", "Pupil died", rawValue: "pupil-died"),
+            Answer("year-group-higher-moved-to", "12"),
+        ]);
+        var decision = new Decision(DecisionStatus.Scrutiny, "Scrutiny", "SCR-1", Array.Empty<string>());
+
+        var ticket = NewConsumer().BuildTicket(message, decision).Ticket;
+
+        Assert.DoesNotContain(ticket.CustomFields ?? new(), f => f.Id == 62);
+    }
+
+    [Fact]
+    public void AdditionalComments_JoinsEveryFreeTextAnswer()
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.AdditionalCommentsCypmdName).Returns(63L);
+
+        var message = NewMessage("Remove - dual-registered-moved", "KS4June", answers:
+        [
+            Answer("reason", "Moved school", rawValue: "dual-registered-moved"),
+            TextArea("how-evidence-supports", "The pupil moved."),
+            TextArea("additional-comments", "  "),
+            TextArea("other-comments", "Letter attached."),
+        ]);
+        var decision = new Decision(DecisionStatus.Scrutiny, "Scrutiny", "SCR-1", Array.Empty<string>());
+
+        var ticket = NewConsumer().BuildTicket(message, decision).Ticket;
+
+        var field = Assert.Single(ticket.CustomFields!, f => f.Id == 63);
+        Assert.Equal($"The pupil moved.{Environment.NewLine}{Environment.NewLine}Letter attached.", field.Value);
+    }
+
+    [Fact]
+    public void AdditionalComments_IsOmitted_WhenTheSchoolTypedNothing()
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.AdditionalCommentsCypmdName).Returns(63L);
+
+        var message = NewMessage("Remove - pupil-died", "KS4June", answers: [Answer("reason", "Pupil died", rawValue: "pupil-died")]);
+        var decision = new Decision(DecisionStatus.Scrutiny, "Scrutiny", "SCR-1", Array.Empty<string>());
+
+        var ticket = NewConsumer().BuildTicket(message, decision).Ticket;
+
+        Assert.DoesNotContain(ticket.CustomFields ?? new(), f => f.Id == 63);
+    }
+
+    [Fact]
+    public void PreviousSystemFields_AreOmitted_WhenTheirIdIsZero()
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CorrectionReason21Name).Returns(0L);
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.LdsMatchedPupilId2Name).Returns(0L);
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.PupilYearGroupCypmdName).Returns(0L);
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.AdditionalCommentsCypmdName).Returns(0L);
+
+        var message = WithMatchedPupil(
+            NewMessage("Merge", "KS4June", matchRef: 10001, answers: [TextArea("how-evidence-supports", "Same pupil.")]),
+            matchRef: 10002);
+        var decision = new Decision(DecisionStatus.Scrutiny, "Scrutiny", "SCR-1", Array.Empty<string>());
+
+        var ticket = NewConsumer().BuildTicket(message, decision).Ticket;
+
+        Assert.DoesNotContain(ticket.CustomFields ?? new(), f => f.Id == 0);
+    }
+
+    [Fact]
+    public void AddTicket_SetsCorrectionType10AndAdditionReason_ButNoCorrectionReason()
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CorrectionTypeName).Returns(25L);
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CorrectionReason31Name).Returns(26L);
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.ReasonForRemovalName).Returns(27L);
+
+        var consumer = NewConsumer();
+        var decision = new Decision(DecisionStatus.Scrutiny, "Addition", "ADD-1", Array.Empty<string>());
+
+        var ticket = consumer.BuildTicket(NewMessage("Add", "KS4June", age: 0), decision).Ticket;
+
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 25 && (string)f.Value! == "10_");
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 27 && (string)f.Value! == "addition");
+        Assert.DoesNotContain(ticket.CustomFields!, f => f.Id == 26);
+    }
+
+    [Fact]
+    public void AddTicket_OmitsAge_BecauseANewPupilHasNoPupilRecord()
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.AgeCypmdName).Returns(21L);
+
+        var consumer = NewConsumer();
+        var decision = new Decision(DecisionStatus.Scrutiny, "Addition", "ADD-1", Array.Empty<string>());
+
+        var ticket = consumer.BuildTicket(NewMessage("Add", "KS4June", age: 0), decision).Ticket;
+
+        Assert.DoesNotContain(ticket.CustomFields ?? new(), f => f.Id == 21);
     }
 
     [Fact]
@@ -284,19 +455,15 @@ public sealed class ZendeskConsumerTicketCompositionTests
         _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CorrectionTypeName).Returns(25L);
         _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CorrectionReason31Name).Returns(26L);
         _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.ReasonForRemovalName).Returns(27L);
-        // "Remove - other" maps to no correction-reason code (FR-014 edge case). Its
-        // reason-for-removal value is answer-aware (FR-004): this fixture sends no evidence
-        // answer at all, so the documented safe-triage default applies (FR-004: no evidence
-        // answer -> _with_evidence).
+        // A removal reason with no mapping gets no correction-reason code (FR-014 edge case).
 
         var consumer = NewConsumer();
         var decision = new Decision(DecisionStatus.AutoApproved, "Other", "OTH-1", Array.Empty<string>());
 
-        var ticket = consumer.BuildTicket(NewMessage("Remove - other"), decision).Ticket;
+        var ticket = consumer.BuildTicket(NewMessage("Remove - unknown-reason"), decision).Ticket;
 
         Assert.Contains(ticket.CustomFields!, f => f.Id == 25 && (string)f.Value! == "31_");
         Assert.DoesNotContain(ticket.CustomFields!, f => f.Id == 26);
-        Assert.Contains(ticket.CustomFields!, f => f.Id == 27 && (string)f.Value! == "other_-_with_evidence");
     }
 
     [Fact]
@@ -306,12 +473,12 @@ public sealed class ZendeskConsumerTicketCompositionTests
         _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CorrectionTypeName).Returns(25L);
         _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CorrectionReason31Name).Returns(26L);
         // KS4 window has no key-stage option (only ks1-ks3 confirmed) -> omitted (FR-006/FR-014).
-        // "Remove - other" has no correction-reason mapping -> omitted.
+        // A removal reason with no mapping has no correction-reason code -> omitted.
 
         var consumer = NewConsumer();
         var decision = new Decision(DecisionStatus.AutoApproved, "Other", "OTH-1", Array.Empty<string>());
 
-        var ticket = consumer.BuildTicket(NewMessage("Remove - other"), decision).Ticket;
+        var ticket = consumer.BuildTicket(NewMessage("Remove - unknown-reason"), decision).Ticket;
 
         Assert.DoesNotContain(ticket.CustomFields ?? new(), f => f.Id == 24);
         Assert.DoesNotContain(ticket.CustomFields ?? new(), f => f.Id == 26);
@@ -333,7 +500,36 @@ public sealed class ZendeskConsumerTicketCompositionTests
         var ticket = consumer.BuildTicket(msg, decision).Ticket;
 
         Assert.Contains(ticket.CustomFields!, f => f.Id == 30 && (string)f.Value! == "10042");
-        Assert.Contains(ticket.CustomFields!, f => f.Id == 31 && (string)f.Value! == "860/4070");
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 31 && (string)f.Value! == "8604070");
+    }
+
+    [Theory]
+    [InlineData("860/4070")]
+    [InlineData("8604070")]
+    [InlineData(" 860/4070 ")]
+    public void DfeEstablishmentNumber_IsSentAsDigitsOnly(string laestab)
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.DfeEstablishmentNumberName).Returns(31L);
+
+        var consumer = NewConsumer();
+        var decision = new Decision(DecisionStatus.AutoApproved, "Deceased", "DEC-1", Array.Empty<string>());
+
+        var ticket = consumer.BuildTicket(NewMessage("Remove - pupil-died", "KS4", laestab: laestab), decision).Ticket;
+
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 31 && (string)f.Value! == "8604070");
+    }
+
+    [Fact]
+    public void DfeEstablishmentNumber_IsOmittedWhenLaestabHasNoDigits()
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.DfeEstablishmentNumberName).Returns(31L);
+
+        var consumer = NewConsumer();
+        var decision = new Decision(DecisionStatus.AutoApproved, "Deceased", "DEC-1", Array.Empty<string>());
+
+        var ticket = consumer.BuildTicket(NewMessage("Remove - pupil-died", "KS4", laestab: "/"), decision).Ticket;
+
+        Assert.DoesNotContain(ticket.CustomFields ?? new(), f => f.Id == 31);
     }
 
     [Fact]
@@ -365,6 +561,22 @@ public sealed class ZendeskConsumerTicketCompositionTests
         var ticket = consumer.BuildTicket(msg, decision).Ticket;
 
         // dd/MM/yyyy from the pupil record is normalised to ISO yyyy-MM-dd.
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 40 && (string)f.Value! == "2024-09-01");
+    }
+
+    [Fact]
+    public void AdmissionDate_IsMappedFromTheAdmissionDateAnswer_ForAnAddRequest()
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.AdmissionDateName).Returns(40L);
+
+        var consumer = NewConsumer();
+        var decision = new Decision(DecisionStatus.Scrutiny, "Addition", "ADD-1", Array.Empty<string>());
+        // An Add request has no pupil record, so no ENTRYDAT. The school's answer is the source.
+        var admission = Answer("admission-date", "01/09/2024", rawValue: "2024-09-01");
+        var msg = NewMessage("Add", "KS4June", age: 0, answers: new[] { admission });
+
+        var ticket = consumer.BuildTicket(msg, decision).Ticket;
+
         Assert.Contains(ticket.CustomFields!, f => f.Id == 40 && (string)f.Value! == "2024-09-01");
     }
 
@@ -551,32 +763,23 @@ public sealed class ZendeskConsumerTicketCompositionTests
         Assert.Contains($"Matched rule: CKS4-DEF{Environment.NewLine}Pincl: 403", ticket.Description);
     }
 
-    public static IEnumerable<object[]> Ks4IncludedPinclCodes =>
-        PupilInclusion.Ks4IncludedPinclCodes.Select(code => new object[] { code });
-
+    // Only an add-back pupil (P_INCL 403) gets the line. Other included codes do not.
     [Theory]
-    [MemberData(nameof(Ks4IncludedPinclCodes))]
-    public void Description_IncludesPinclLine_ForEveryKs4IncludedCode(int pinclCode)
+    [InlineData(401)]
+    [InlineData(414)]
+    [InlineData(421)]
+    [InlineData(431)]
+    [InlineData(402)]
+    [InlineData(404)]
+    [InlineData(0)]
+    public void Description_ExcludesPinclLine_ForNonAddBackPincl(int pinclCode)
     {
         var consumer = NewConsumer();
         var decision = new Decision(DecisionStatus.AutoApproved, "Deceased", "DEC-1", Array.Empty<string>());
 
         var ticket = consumer.BuildTicket(NewMessage("Remove - pupil-died", "KS4", pincl: pinclCode), decision).Ticket;
 
-        Assert.Contains($"Pincl: {pinclCode}", ticket.Description);
-    }
-
-    [Fact]
-    public void Description_ExcludesPinclLine_ForNonIncludedPincl()
-    {
-        var consumer = NewConsumer();
-        var decision = new Decision(DecisionStatus.AutoApproved, "Deceased", "DEC-1", Array.Empty<string>());
-
-        foreach (var code in new[] { 402, 404, 0 })
-        {
-            var ticket = consumer.BuildTicket(NewMessage("Remove - pupil-died", "KS4", pincl: code), decision).Ticket;
-            Assert.DoesNotContain("Pincl:", ticket.Description);
-        }
+        Assert.DoesNotContain("Pincl:", ticket.Description);
     }
 
     [Fact]
@@ -600,7 +803,7 @@ public sealed class ZendeskConsumerTicketCompositionTests
 
         // A Post16 pupil cannot hold a KS4 included Pincl: Post16 inclusion is ingest-stamped
         // (Post16PupilRecord.Included) and its seeded codes are 501/502/505/506, so the
-        // IsKs4Included gate alone excludes Post16 - no window-type check is needed (FR-003).
+        // add-back test (P_INCL 403) alone excludes Post16 - no window-type check is needed (FR-003).
         foreach (var code in new[] { 501, 0 })
         {
             var ticket = consumer.BuildTicket(NewMessage("Remove - student-died", "Post16", pincl: code), decision).Ticket;
@@ -625,20 +828,39 @@ public sealed class ZendeskConsumerTicketCompositionTests
 
     // --- Feature 457: "Reason for removal" field for all mapped removal reasons (US1 / FR-001) ---
 
-    [Theory]
-    [MemberData(nameof(Ks4IncludedPinclCodes))]
-    public void ReasonForRemovalField_IsAddBackRemoval_ForEveryKs4IncludedCode(int pinclCode)
+    [Fact]
+    public void ReasonForRemovalField_IsAddBackRemoval_ForAddBackPupil()
     {
         _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.ReasonForRemovalName).Returns(27L);
+        _ticketFieldService.GetOptionValue(ZendeskTicketFieldConstants.ReasonForRemovalName, "pupil-died").Returns("deceased");
 
         var consumer = NewConsumer();
-        // year-group-change maps per-reason today -> proves Pincl wins over the reason (FR-001).
-        var decision = new Decision(DecisionStatus.AutoApproved, "YearGroupChange", "YGC-1", Array.Empty<string>());
+        // pupil-died maps to its own value -> proves Pincl wins over the reason (FR-001).
+        var decision = new Decision(DecisionStatus.AutoApproved, "Deceased", "DEC-1", Array.Empty<string>());
 
-        var ticket = consumer.BuildTicket(NewMessage("Remove - year-group-change", "KS4June", pincl: pinclCode), decision).Ticket;
+        var ticket = consumer.BuildTicket(NewMessage("Remove - pupil-died", "KS4June", pincl: 403), decision).Ticket;
 
         Assert.Contains(ticket.CustomFields!, f => f.Id == 27 && (string)f.Value! == "add_back_removal");
-        Assert.Contains($"Pincl: {pinclCode}", ticket.Description);
+        Assert.Contains("Pincl: 403", ticket.Description);
+    }
+
+    // An included pupil that is not an add-back gets the value for the school's removal reason.
+    [Theory]
+    [InlineData(401)]
+    [InlineData(414)]
+    [InlineData(421)]
+    [InlineData(431)]
+    public void ReasonForRemovalField_IsValueForRemovalReason_ForIncludedPupilThatIsNotAddBack(int pinclCode)
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.ReasonForRemovalName).Returns(27L);
+        _ticketFieldService.GetOptionValue(ZendeskTicketFieldConstants.ReasonForRemovalName, "pupil-died").Returns("deceased");
+
+        var consumer = NewConsumer();
+        var decision = new Decision(DecisionStatus.AutoApproved, "Deceased", "DEC-1", Array.Empty<string>());
+
+        var ticket = consumer.BuildTicket(NewMessage("Remove - pupil-died", "KS4June", pincl: pinclCode), decision).Ticket;
+
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 27 && (string)f.Value! == "deceased");
     }
 
     [Theory]
@@ -681,7 +903,7 @@ public sealed class ZendeskConsumerTicketCompositionTests
     public void ReasonForRemovalField_NotAddBack_ForPost16(int pinclCode)
     {
         // A Post16 pupil cannot hold a KS4-included Pincl: Post16 inclusion is ingest-stamped
-        // (seeded codes 501/502/505/506), so IsKs4Included alone excludes Post16 from US1.
+        // (seeded codes 501/502/505/506), so the add-back test (P_INCL 403) alone excludes Post16.
         _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.ReasonForRemovalName).Returns(27L);
 
         var consumer = NewConsumer();
@@ -740,6 +962,136 @@ public sealed class ZendeskConsumerTicketCompositionTests
         var ticket = consumer.BuildTicket(NewMessage("Remove - other", windowType, pincl: 0), decision).Ticket;
 
         Assert.Contains(ticket.CustomFields!, f => f.Id == 27 && (string)f.Value! == "other_-_with_evidence");
+    }
+
+    // --- #778: add-back and "other" correction reason codes ---
+
+    [Theory]
+    [InlineData("Remove - pupil-died")]
+    [InlineData("Remove - completed-ks4-elsewhere")]
+    [InlineData("Remove - other")]
+    public void CorrectionReason31_IsAddBackCode_ForEveryAddBackRemoval(string requestTypeCode)
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CorrectionReason31Name).Returns(26L);
+        _ticketFieldService.GetOptionValue(ZendeskTicketFieldConstants.CorrectionReason31Name, "pupil-died").Returns("4_31");
+
+        var decision = new Decision(DecisionStatus.Scrutiny, "Scrutiny", "SCR-1", Array.Empty<string>());
+
+        var ticket = NewConsumer().BuildTicket(NewMessage(requestTypeCode, "KS4June", pincl: 403), decision).Ticket;
+
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 26 && (string)f.Value! == "8_31");
+    }
+
+    [Fact]
+    public void CorrectionReason31_IsAddBackCode_ForCompletedKs4Elsewhere()
+    {
+        // The reason maps to add-back removal whatever the pupil's P_INCL.
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CorrectionReason31Name).Returns(26L);
+        _ticketFieldService.GetOptionValue(ZendeskTicketFieldConstants.ReasonForRemovalName, "completed-ks4-elsewhere")
+            .Returns("add_back_removal");
+
+        var decision = new Decision(DecisionStatus.Scrutiny, "Scrutiny", "SCR-1", Array.Empty<string>());
+
+        var ticket = NewConsumer().BuildTicket(NewMessage("Remove - completed-ks4-elsewhere", "KS4June", pincl: 0), decision).Ticket;
+
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 26 && (string)f.Value! == "8_31");
+    }
+
+    [Theory]
+    [InlineData("KS4June", true, "329_31")]
+    [InlineData("KS4June", false, "330_31")]
+    [InlineData("Post16", true, "329_31")]
+    [InlineData("Post16", false, "330_31")]
+    public void CorrectionReason31_ForOther_FollowsTheEvidence(string windowType, bool hasFiles, string expected)
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CorrectionReason31Name).Returns(26L);
+
+        var decision = new Decision(DecisionStatus.Scrutiny, "Scrutiny", "SCR-1", Array.Empty<string>());
+        var evidence = Answer("evidence", "", files: hasFiles ? AnEvidenceFile() : new List<FileRecord>());
+
+        var ticket = NewConsumer().BuildTicket(
+            NewMessage("Remove - other", windowType, pincl: 0, answers: new[] { evidence }), decision).Ticket;
+
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 26 && (string)f.Value! == expected);
+    }
+
+    // LDS wants the month that the exercise takes place. A request submitted after the window
+    // started keeps the window's month. Egress reads both fields from the ticket.
+    [Fact]
+    public void CycleFields_ComeFromTheWindowStart_NotTheSubmissionDate()
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CycleYearName).Returns(22L);
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CycleMonthName).Returns(23L);
+        var decision = new Decision(DecisionStatus.AutoApproved, "Deceased", "DEC-1", Array.Empty<string>());
+        var message = NewMessage("Remove - pupil-died", "KS4June");
+        message = new RequestDocument
+        {
+            ReferenceNumber = message.ReferenceNumber, CheckingWindowId = message.CheckingWindowId,
+            CheckingWindowStartDate = new DateTime(2025, 12, 1), CheckingWindowType = message.CheckingWindowType,
+            ChangeRequestId = message.ChangeRequestId, RequestTypeCode = message.RequestTypeCode,
+            SubmittedAt = new DateTime(2026, 1, 15, 9, 0, 0, DateTimeKind.Utc), SubmittedBy = message.SubmittedBy,
+            School = message.School, Pupil = message.Pupil, Answers = message.Answers,
+        };
+
+        var ticket = NewConsumer().BuildTicket(message, decision).Ticket;
+
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 22 && (string)f.Value! == "2025");
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 23 && (string)f.Value! == "12");
+    }
+
+    [Fact]
+    public void CycleFields_AreOmitted_WhenTheMessageHasNoWindowStart()
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CycleYearName).Returns(22L);
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CycleMonthName).Returns(23L);
+        var decision = new Decision(DecisionStatus.AutoApproved, "Deceased", "DEC-1", Array.Empty<string>());
+        var message = NewMessage("Remove - pupil-died", "KS4June");
+        message = new RequestDocument
+        {
+            ReferenceNumber = message.ReferenceNumber, CheckingWindowId = message.CheckingWindowId,
+            CheckingWindowType = message.CheckingWindowType, ChangeRequestId = message.ChangeRequestId,
+            RequestTypeCode = message.RequestTypeCode, SubmittedAt = message.SubmittedAt, SubmittedBy = message.SubmittedBy,
+            School = message.School, Pupil = message.Pupil, Answers = message.Answers,
+        };
+
+        var ticket = NewConsumer().BuildTicket(message, decision).Ticket;
+
+        Assert.DoesNotContain(ticket.CustomFields ?? [], f => f.Id is 22 or 23);
+    }
+
+    // LDS spec v2.4 K11: a 16-19 not-on-roll removal takes the code of its sub-reason. Egress
+    // reads the code from the ticket.
+    [Theory]
+    [InlineData("international-student", true, "326_31")]
+    [InlineData("external-candidate", true, "328_31")]
+    [InlineData("apprentice", true, "331_31")]
+    [InlineData("other", true, "329_31")]
+    [InlineData("other", false, "330_31")]
+    public void CorrectionReason31_ForPost16NotOnRoll_FollowsTheSubReason(string subReason, bool hasFiles, string expected)
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CorrectionReason31Name).Returns(26L);
+
+        var decision = new Decision(DecisionStatus.Scrutiny, "Scrutiny", "SCR-1", Array.Empty<string>());
+        var subAnswer = Answer("not-on-roll-reason", "A label", rawValue: subReason);
+        var evidence = Answer("evidence", "", files: hasFiles ? AnEvidenceFile() : new List<FileRecord>());
+
+        var ticket = NewConsumer().BuildTicket(
+            NewMessage("Remove - not-on-roll", "Post16", pincl: 0, answers: new[] { subAnswer, evidence }), decision).Ticket;
+
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 26 && (string)f.Value! == expected);
+    }
+
+    [Fact]
+    public void CorrectionReason31_ForKs4NotOnRoll_IsTheSingleCode()
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CorrectionReason31Name).Returns(26L);
+        _ticketFieldService.GetOptionValue(ZendeskTicketFieldConstants.CorrectionReason31Name, "not-on-roll").Returns("6_31");
+
+        var decision = new Decision(DecisionStatus.Scrutiny, "Scrutiny", "SCR-1", Array.Empty<string>());
+
+        var ticket = NewConsumer().BuildTicket(NewMessage("Remove - not-on-roll", "KS4June", pincl: 0), decision).Ticket;
+
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 26 && (string)f.Value! == "6_31");
     }
 
     // --- Feature 457: Post16 "not-on-roll" sub-options (US2c / FR-003) ---
@@ -833,13 +1185,16 @@ public sealed class ZendeskConsumerTicketCompositionTests
 
     // --- helpers ---
 
+    private static readonly DateTime WindowStart = new(2026, 6, 1);
+
     private static RequestDocument NewMessage(string whatToChange, params AnswerRecord[] answers) =>
         NewMessage(whatToChange, "KS4", laestab: null, matchRef: 0, entryDate: null, upn: "UPN1", cypmdId: "1001", answers: answers);
 
-    private static RequestDocument NewMessage(string whatToChange, string windowType, string? laestab = null, int matchRef = 0, string? entryDate = null, string? upn = "UPN1", string cypmdId = "1001", int pincl = 0, params AnswerRecord[] answers) => new()
+    private static RequestDocument NewMessage(string whatToChange, string windowType, string? laestab = null, int matchRef = 0, string? entryDate = null, string? upn = "UPN1", string cypmdId = "1001", int pincl = 0, int age = 14, params AnswerRecord[] answers) => new()
     {
         ReferenceNumber = "REF",
         CheckingWindowId = Guid.NewGuid(),
+        CheckingWindowStartDate = WindowStart,
         CheckingWindowType = windowType,
         ChangeRequestId = Guid.NewGuid(),
         RequestTypeCode = whatToChange,
@@ -849,7 +1204,7 @@ public sealed class ZendeskConsumerTicketCompositionTests
         Pupil = new PupilDetails
         {
             Id = "p1", CypmdId = cypmdId, Firstname = "Bob", Surname = "Smith",
-            DateOfBirth = "01/01/2010", Sex = "M", Age = 14, Upn = upn, MatchRef = matchRef,
+            DateOfBirth = "01/01/2010", Sex = "M", Age = age, Upn = upn, MatchRef = matchRef,
             EntryDate = entryDate ?? string.Empty, Pincl = pincl,
         },
         Answers = answers.ToList(),
@@ -864,6 +1219,30 @@ public sealed class ZendeskConsumerTicketCompositionTests
             Value = value,
             RawValue = rawValue ?? value,
             Files = files,
+        };
+
+    private static AnswerRecord TextArea(string questionId, string value) =>
+        new() { QuestionId = questionId, QuestionTitle = questionId, Type = "TextArea", Value = value, RawValue = value };
+
+    private static RequestDocument WithMatchedPupil(RequestDocument message, int matchRef) =>
+        new()
+        {
+            ReferenceNumber = message.ReferenceNumber,
+            CheckingWindowId = message.CheckingWindowId,
+            CheckingWindowStartDate = message.CheckingWindowStartDate,
+            CheckingWindowType = message.CheckingWindowType,
+            ChangeRequestId = message.ChangeRequestId,
+            RequestTypeCode = message.RequestTypeCode,
+            SubmittedAt = message.SubmittedAt,
+            SubmittedBy = message.SubmittedBy,
+            School = message.School,
+            Pupil = message.Pupil,
+            MatchedPupil = new PupilDetails
+            {
+                Id = "p2", CypmdId = "1002", Firstname = "Rob", Surname = "Smith",
+                DateOfBirth = "01/01/2010", Sex = "M", Age = 14, Upn = "UPN2", MatchRef = matchRef,
+            },
+            Answers = message.Answers,
         };
 
     private static List<FileRecord> AnEvidenceFile() =>

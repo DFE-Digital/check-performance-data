@@ -9,8 +9,9 @@ using Microsoft.Extensions.Options;
 namespace DfE.CheckPerformanceData.IntegrationTests.Egress;
 
 // The fake reads the worker's dev outbox: the decision custom field when the ticket carried one,
-// else the subject prefix the ticket builder always writes. Without this the dev/E2E stack, which
-// opts into Egress:UseDevOutbox, could never pull.
+// else the subject prefix the ticket builder always writes. It reads the egress fields as the
+// real source does. Without this the dev/E2E stack, which opts into Egress:UseDevOutbox, could
+// never pull.
 //
 // Deviation from the plan: the unit-test project has no in-memory-EF pattern and must not gain a
 // MockQueryable dependency, so — per the plan's own fallback — this class lives here against real
@@ -19,6 +20,19 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Egress;
 public sealed class DevOutboxEgressTicketSourceTests(PostgresFixture fixture)
 {
     private const long DecisionFieldId = 19056253670034;
+    private const long CycleMonthFieldId = 19058091622546;
+
+    // Every egress field gets an id, as the web app's settings give it.
+    private static ZendeskTicketFieldSettings Settings(long? decisionFieldId = DecisionFieldId)
+    {
+        var settings = new ZendeskTicketFieldSettings();
+        var next = 1000L;
+        foreach (var property in typeof(ZendeskTicketFieldSettings).GetProperties().Where(p => p.PropertyType == typeof(long?)))
+            property.SetValue(settings, next++);
+        settings.DecisionStatusId = decisionFieldId;
+        settings.CycleMonthId = CycleMonthFieldId;
+        return settings;
+    }
 
     private static DevZendeskTicket Ticket(long id, string subject, params (long FieldId, object? Value)[] fields) => new()
     {
@@ -42,18 +56,19 @@ public sealed class DevOutboxEgressTicketSourceTests(PostgresFixture fixture)
     public async Task Prefers_the_decision_field_and_falls_back_to_the_subject()
     {
         await SeedAsync(
-            Ticket(10, "CPMD Requires Scrutiny: NotOnRoll (REF-A)", (DecisionFieldId, "approved")),
+            Ticket(10, "CPMD Requires Scrutiny: NotOnRoll (REF-A)", (DecisionFieldId, "approved"), (CycleMonthFieldId, "6")),
             Ticket(11, "CPMD Auto-Approved: Deceased (REF-B)"),
             Ticket(12, "CPMD Auto-Rejected: Inclusion (REF-C)"),
             Ticket(13, "CPMD Requires Scrutiny: Other (REF-D)"));
-        var sut = new DevOutboxEgressTicketSource(fixture.CreateContext(), Options.Create(new ZendeskTicketFieldSettings { DecisionStatusId = DecisionFieldId }));
+        var sut = new DevOutboxEgressTicketSource(fixture.CreateContext(), Options.Create(Settings()));
 
-        var result = await sut.GetDecisionStatusesAsync([10, 11, 12, 13, 14], CancellationToken.None);
+        var result = await sut.GetTicketsAsync([10, 11, 12, 13, 14], CancellationToken.None);
 
-        Assert.Equal("approved", result[10]);
-        Assert.Equal("auto_approved", result[11]);
-        Assert.Equal("auto_rejected", result[12]);
-        Assert.Equal("scrutiny", result[13]);
+        Assert.Equal("approved", result[10].Decision);
+        Assert.Equal("6", result[10].Fields[ZendeskTicketFieldConstants.CycleMonthName]);
+        Assert.Equal("auto_approved", result[11].Decision);
+        Assert.Equal("auto_rejected", result[12].Decision);
+        Assert.Equal("scrutiny", result[13].Decision);
         Assert.False(result.ContainsKey(14));
     }
 
@@ -61,10 +76,10 @@ public sealed class DevOutboxEgressTicketSourceTests(PostgresFixture fixture)
     public async Task Uses_the_well_known_dev_field_id_when_none_is_configured()
     {
         await SeedAsync(Ticket(20, "CPMD Requires Scrutiny: NotOnRoll (REF-E)", (DecisionFieldId, "rejected")));
-        var sut = new DevOutboxEgressTicketSource(fixture.CreateContext(), Options.Create(new ZendeskTicketFieldSettings()));
+        var sut = new DevOutboxEgressTicketSource(fixture.CreateContext(), Options.Create(Settings(decisionFieldId: null)));
 
-        var result = await sut.GetDecisionStatusesAsync([20], CancellationToken.None);
+        var result = await sut.GetTicketsAsync([20], CancellationToken.None);
 
-        Assert.Equal("rejected", result[20]);
+        Assert.Equal("rejected", result[20].Decision);
     }
 }

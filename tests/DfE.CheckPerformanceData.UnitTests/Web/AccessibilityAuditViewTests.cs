@@ -171,6 +171,20 @@ public sealed class AccessibilityAuditViewTests
 		Assert.Equal(4, occurrences);
 	}
 
+	// ── #780 Zendesk ticket links on the admin requests page ─────────────────────────
+
+	[Fact]
+	public void AdminRequests_ZendeskLink_OpensSafelyInANewTab_AndNamesItsRequest()
+	{
+		// Every row has a link to a ticket, so each link names its request for screen readers.
+		var view = ReadView("Views", "AdminRequests", "Index.cshtml");
+
+		Assert.Contains("target=\"_blank\" rel=\"noopener noreferrer\"", view);
+		Assert.Contains(
+			"<span class=\"govuk-visually-hidden\">, Zendesk ticket for request @row.ReferenceNumber</span>",
+			view);
+	}
+
 	// ── #379 Repeated "Continue" buttons on the landing page ──────────────────────────
 
 	[Fact]

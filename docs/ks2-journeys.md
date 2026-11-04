@@ -29,7 +29,7 @@ KS2 has no Merge, Include or Add journey. The requirements say so.
    |---|---|---|
    | KS4 June | Add, Include, Merge, Remove | All four (no change) |
    | Post16 | Include, Merge, Remove | Include (since #711), Merge, Remove |
-   | KS4 Autumn | Add, Merge | Add and Merge (Merge since #747; the Add flow is a copy of the KS4 June one since #749). Before #706 it also showed Merge, Include and Remove, which then had no flow file and went nowhere. |
+    | KS4 Autumn | Add, Merge, Remove | Add (since #749, a copy of the KS4 June add flow), Merge (since #747) and Remove (since #748). Before #706 it also showed Merge, Include and Remove, which then had no flow file and went nowhere. |
    | KS2 | Remove | Remove only |
 
    To give a window type a journey, add its flow file. Note: the rules engine is keyed by

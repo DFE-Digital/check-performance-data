@@ -77,7 +77,6 @@ public sealed class SeedRulesValidationTests
     /// </summary>
     private static readonly string[] PendingJourneyOutcomeKeys =
     [
-        "PupilNotOnJuneList",
     ];
 
     [Fact]

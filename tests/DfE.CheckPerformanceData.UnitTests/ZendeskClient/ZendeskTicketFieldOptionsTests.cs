@@ -134,6 +134,7 @@ public sealed class ZendeskTicketFieldOptionsTests
     [InlineData("social-care-involvement", "502_31")]
     [InlineData("life-limiting-illness", "503_31")]
     [InlineData("year-group-change", "17_31")]
+    [InlineData("not-on-june-list", "120_31")]
     [InlineData("student-died", "4_31")]
     [InlineData("not-at-end-of-16-19-study", "325_31")]
     [InlineData("assessments-deferred", "41_31")]

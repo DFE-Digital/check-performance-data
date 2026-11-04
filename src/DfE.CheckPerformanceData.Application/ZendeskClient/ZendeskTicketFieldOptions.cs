@@ -119,6 +119,7 @@ public static class ZendeskTicketFieldOptions
         public const string PupilMissingInEducation = "501_31";
         public const string PupilDied = "4_31";
         public const string MovedSchoolDualRegistration = "332_31";
+        public const string NotAtEndOf16To18Study = "325_31";
         public const string ElectiveHomeEducation = "27_31";
         public const string NotOnRoll = "6_31";
         public const string PermanentlyExcludedFromCurrentSchool = "500_31";
@@ -358,12 +359,15 @@ public static class ZendeskTicketFieldOptions
         // business 2026-08-06; the value is the code suffixed with "_31". The add-back
         // removal reasons ("completed-ks4-elsewhere", "other") carry a different
         // correction type and are deliberately absent -> omitted + warning-logged (FR-014).
+        // The 16-19 codes are the ones the previous system sent on 16-18 tickets.
         private static readonly Dictionary<string, string> Map = new(StringComparer.OrdinalIgnoreCase)
         {
             { "permanent-exclusion", CorrectionReason31.AdmittedFollowingPermanentExclusion },
             { "english-not-first-language", CorrectionReason31.AdmittedFromAbroadEal },
             { "child-missing-education", CorrectionReason31.PupilMissingInEducation },
             { "pupil-died", CorrectionReason31.PupilDied },
+            { "student-died", CorrectionReason31.PupilDied },
+            { "not-at-end-of-16-19-study", CorrectionReason31.NotAtEndOf16To18Study },
             { "dual-registered-moved", CorrectionReason31.MovedSchoolDualRegistration },
             { "elective-home-education", CorrectionReason31.ElectiveHomeEducation },
             { "not-on-roll", CorrectionReason31.NotOnRoll },

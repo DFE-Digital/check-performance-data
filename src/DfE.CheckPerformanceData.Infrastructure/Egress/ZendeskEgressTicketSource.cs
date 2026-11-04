@@ -9,9 +9,10 @@ using Polly;
 namespace DfE.CheckPerformanceData.Infrastructure.Egress;
 
 /// <summary>
-/// Reads the "Decision status" custom field from real Zendesk tickets, by id, 100 at a time.
-/// The field id comes from configuration (ZendeskTicketFields:DecisionStatusId); production
-/// currently configures 0, and this refuses rather than treating every ticket as undecided.
+/// Reads the "Decision status" field and the fields in EgressTicketFields.All from real Zendesk
+/// tickets, by id, 100 at a time. The field ids come from configuration (ZendeskTicketFields).
+/// Production configures 0 until the ids are known. This refuses rather than treating every
+/// ticket as undecided or every value as missing.
 /// </summary>
 public sealed class ZendeskEgressTicketSource(
     IZendeskApi api,
@@ -22,14 +23,16 @@ public sealed class ZendeskEgressTicketSource(
     public const int BatchSize = 100;
     private readonly ResiliencePipeline _retry = ResiliencePipelineFactory.CreateRetryPipeline(pollySettings.Value, logger);
 
-    public async Task<IReadOnlyDictionary<long, string>> GetDecisionStatusesAsync(IReadOnlyCollection<long> ticketIds, CancellationToken ct)
+    public async Task<IReadOnlyDictionary<long, EgressTicket>> GetTicketsAsync(IReadOnlyCollection<long> ticketIds, CancellationToken ct)
     {
-        var fieldId = fieldSettings.Value.DecisionStatusId;
-        if (fieldId is null or <= 0)
+        var settings = fieldSettings.Value;
+        var decisionFieldId = settings.DecisionStatusId;
+        if (decisionFieldId is null or <= 0)
             throw new EgressTicketSourceException(
                 "The Zendesk \"Decision status\" field id is not configured for this environment (ZendeskTicketFields:DecisionStatusId), so decisions cannot be read.");
+        var fieldIds = EgressTicketFieldIds.Resolve(settings);
 
-        var result = new Dictionary<long, string>();
+        var result = new Dictionary<long, EgressTicket>();
         if (ticketIds.Count == 0) return result;
 
         foreach (var batch in ticketIds.Distinct().Chunk(BatchSize))
@@ -46,9 +49,10 @@ public sealed class ZendeskEgressTicketSource(
 
             foreach (var ticket in response.Tickets)
             {
-                var value = ticket.AllCustomFields.FirstOrDefault(f => f.Id == fieldId)?.Value?.ToString();
-                if (!string.IsNullOrWhiteSpace(value))
-                    result[ticket.Id] = value.Trim().ToLowerInvariant();
+                var values = ticket.AllCustomFields
+                    .GroupBy(f => f.Id)
+                    .ToDictionary(g => g.Key, g => g.First().Value?.ToString());
+                result[ticket.Id] = EgressTicketFieldIds.ToTicket(decisionFieldId.Value, fieldIds, values);
             }
         }
         return result;

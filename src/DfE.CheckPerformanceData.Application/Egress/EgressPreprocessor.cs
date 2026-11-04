@@ -82,23 +82,21 @@ public sealed class EgressPreprocessor(IEgressRunRepository repository, IWindowS
 
     private async IAsyncEnumerable<EgressProgress> StepsAsync(EgressRunDto run, [EnumeratorCancellation] CancellationToken ct)
     {
-        // The window drives the Key_Stage cell, Cycle_Year/Cycle_Month (spec: the exercise's month,
-        // not each record's submission month) and the file-name stage — load it once, up front.
+        // The window drives the file-name stage — load it once, up front. Key_Stage and
+        // Cycle_Year/Cycle_Month come from each record's Zendesk ticket.
         var window = await windows.GetByIdAsync(run.WindowId, ct)
             ?? throw new InvalidOperationException($"Checking window {run.WindowId} for egress run {run.Id} no longer exists.");
         var windowType = window.CheckingWindowType;
-        var cycleYear = window.StartDate.Year.ToString(CultureInfo.InvariantCulture);
-        var cycleMonth = window.StartDate.Month.ToString(CultureInfo.InvariantCulture);
         var all = run.Outputs.SelectMany(o => o.Records).ToList();
 
         // 1. Filter
         yield return Running(1, all.Count);
         ct.ThrowIfCancellationRequested();
-        var items = all.Where(r => EgressDecisions.IsApproved(r.Decision)).Select(r => new EgressWorkItem(r, cycleYear, cycleMonth)).ToList();
+        var items = all.Where(r => EgressDecisions.IsApproved(r.Decision)).Select(r => new EgressWorkItem(r)).ToList();
         yield return Done(1, all.Count, items.Count, 0, $"{items.Count} of {all.Count} records are approved or auto-approved; {all.Count - items.Count} discarded.");
 
         // 2-6. Per-record transforms
-        Action<EgressWorkItem>[] transforms = [EgressRecordBuilder.DeriveCodes, EgressRecordBuilder.SplitEstablishment, EgressRecordBuilder.StandardiseDates, EgressRecordBuilder.Build, EgressRecordBuilder.Trim];
+        Action<EgressWorkItem>[] transforms = [EgressRecordBuilder.ReadCodes, EgressRecordBuilder.SplitEstablishment, EgressRecordBuilder.StandardiseDates, EgressRecordBuilder.Build, EgressRecordBuilder.Trim];
         for (var i = 0; i < transforms.Length; i++)
         {
             var step = i + 2;

@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.Egress;
 using DfE.CheckPerformanceData.Application.WindowManagement;
+using DfE.CheckPerformanceData.Application.ZendeskClient;
 using DfE.CheckPerformanceData.Domain.Enums;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -24,13 +25,27 @@ public sealed class EgressPreprocessorTests
         StartDate = new DateTime(2026, 6, 1), EndDate = new DateTime(2026, 6, 30)
     };
 
-    private static EgressSourceRecord Remove(string reference, string decision, string reason = "pupil-died") => new()
+    private static EgressSourceRecord Remove(string reference, string decision, string? correctionReason = "4_31", string cycleYear = "2026", string cycleMonth = "6") => new()
     {
         ChangeRequestId = Guid.NewGuid(), ReferenceNumber = reference, TicketId = reference.GetHashCode() & 0xffff, Decision = decision,
         OutputType = EgressOutputType.RemoveLearners, WindowType = CheckingWindowType.KS4June,
         SubmittedAtUtc = new DateTime(2026, 6, 5, 9, 0, 0, DateTimeKind.Utc), OrganisationUrn = 142313, OrganisationLaestab = "860/4070",
         PupilFirstname = "Alice", PupilSurname = "Smith", PupilSex = "F", PupilDateOfBirth = "07/09/2010", PupilIdentifier = "A860407000011",
-        PupilMatchRef = 555, PupilLaestab = "8604070", JourneyFound = true, Answers = new Dictionary<string, string> { ["reason"] = reason }
+        PupilMatchRef = 555, PupilLaestab = "8604070", JourneyFound = true, Answers = new Dictionary<string, string> { ["reason"] = "pupil-died" },
+        TicketFields = new Dictionary<string, string?>
+        {
+            [ZendeskTicketFieldConstants.CorrectionTypeName] = "31_",
+            [ZendeskTicketFieldConstants.CorrectionReason31Name] = correctionReason,
+            [ZendeskTicketFieldConstants.KeyStageName] = "ks4",
+            [ZendeskTicketFieldConstants.DfeEstablishmentNumberName] = "8604070",
+            [ZendeskTicketFieldConstants.SurnameCypmdName] = "SMITH",
+            [ZendeskTicketFieldConstants.ForenameCypmdName] = "ALICE",
+            [ZendeskTicketFieldConstants.SexName] = "f",
+            [ZendeskTicketFieldConstants.DateOfBirthCypmdName] = "2010-09-07",
+            [ZendeskTicketFieldConstants.CycleYearName] = cycleYear,
+            [ZendeskTicketFieldConstants.CycleMonthName] = cycleMonth,
+            [ZendeskTicketFieldConstants.LdsMatchedPupilIdName] = "555"
+        }.Where(p => p.Value is not null).ToDictionary(p => p.Key, p => p.Value!)
     };
 
     private void RunIs(EgressRunStatus status, params EgressSourceRecord[] records)
@@ -78,10 +93,11 @@ public sealed class EgressPreprocessorTests
             Arg.Any<CancellationToken>());
     }
 
+    // The ticket is the truth: the saved row takes the ticket's cycle year and month, not the window's.
     [Fact]
-    public async Task Saved_rows_carry_the_windows_cycle_year_and_month()
+    public async Task Saved_rows_carry_the_tickets_cycle_year_and_month()
     {
-        RunIs(EgressRunStatus.Pulled, Remove("R1", "approved") with { SubmittedAtUtc = new DateTime(2026, 7, 5, 9, 0, 0, DateTimeKind.Utc) });
+        RunIs(EgressRunStatus.Pulled, Remove("R1", "approved", cycleYear: "2025", cycleMonth: "12"));
         _repo.TrySetStatusAsync(RunId, EgressRunStatus.Pulled, EgressRunStatus.Preprocessing, Arg.Any<CancellationToken>()).Returns(true);
         IReadOnlyList<RemoveLearnerRow>? saved = null;
         _repo.SavePreprocessedAsync(RunId, EgressRunStatus.Preprocessing, Arg.Any<IReadOnlyList<NewLearnerRow>>(),
@@ -90,14 +106,14 @@ public sealed class EgressPreprocessorTests
         await Collect();
 
         var row = Assert.Single(saved!);
-        Assert.Equal("2026", row.CycleYear);   // Window() starts 2026-06-01
-        Assert.Equal("6", row.CycleMonth);
+        Assert.Equal("2025", row.CycleYear);   // Window() starts 2026-06-01
+        Assert.Equal("12", row.CycleMonth);
     }
 
     [Fact]
     public async Task One_failing_record_fails_the_batch_and_saves_nothing()
     {
-        RunIs(EgressRunStatus.Pulled, Remove("R1", "approved"), Remove("R2", "approved", reason: "other"));
+        RunIs(EgressRunStatus.Pulled, Remove("R1", "approved"), Remove("R2", "approved", correctionReason: null));
         _repo.TrySetStatusAsync(RunId, EgressRunStatus.Pulled, EgressRunStatus.Preprocessing, Arg.Any<CancellationToken>()).Returns(true);
 
         var events = await Collect();
@@ -209,7 +225,7 @@ public sealed class EgressPreprocessorTests
     [Fact]
     public async Task Zero_rows_from_MarkPreprocessingFailed_reports_the_run_was_abandoned_not_failed()
     {
-        RunIs(EgressRunStatus.Pulled, Remove("R1", "approved"), Remove("R2", "approved", reason: "other"));
+        RunIs(EgressRunStatus.Pulled, Remove("R1", "approved"), Remove("R2", "approved", correctionReason: null));
         _repo.TrySetStatusAsync(RunId, EgressRunStatus.Pulled, EgressRunStatus.Preprocessing, Arg.Any<CancellationToken>()).Returns(true);
         _repo.MarkPreprocessingFailedAsync(Arg.Any<Guid>(), Arg.Any<EgressRunStatus>(), Arg.Any<IReadOnlyList<EgressRecordFailure>>(), Arg.Any<CancellationToken>()).Returns(0);
 

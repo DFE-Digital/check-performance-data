@@ -12,6 +12,12 @@ public class RequestDocument
     public DateTime SubmittedAt { get; init; }
     public required UserDetails SubmittedBy { get; init; }
     public Guid CheckingWindowId { get; init; }
+    /// <summary>
+    /// The checking window's start date. The Zendesk "Cycle year" and "Cycle month" fields come
+    /// from it: LDS wants the month that the exercise takes place, not the month of submission.
+    /// Null when not supplied: the worker then leaves the two fields out.
+    /// </summary>
+    public DateTime? CheckingWindowStartDate { get; init; }
     public required string CheckingWindowType { get; init; }
     /// <summary>
     /// Stable machine code for the requested change: the <c>WhatToChange</c> enum

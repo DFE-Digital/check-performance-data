@@ -2,6 +2,8 @@ using System.Globalization;
 using System.Text;
 using Azure.Storage.Blobs;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Application.Dashboard;
+using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.Observability;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
@@ -28,6 +30,10 @@ public sealed class ZendeskConsumer : ConsumerBase
 {
     // Matches the folder EvidenceBlobStorageService writes uploads to.
     private const string EvidenceFolder = "evidence-uploads";
+
+    // The Add flows' "Admission date" question (Add_KS4June.json, Add_KS4Autumn.json). Egress
+    // reads the same answer. Question roles (docs/journey-config-first.md, step 3) replace this.
+    private const string AdmissionDateQuestionId = "admission-date";
 
     // Scoped collaborators. In the hosting path they are rebound from the
     // per-message scope before each message is processed (the consumer loop is
@@ -298,8 +304,14 @@ public sealed class ZendeskConsumer : ConsumerBase
         };
 
         var priority = decision.Status == DecisionStatus.Scrutiny ? "high" : "normal";
-        var status = decision.Status == DecisionStatus.Scrutiny ? "new" : "open";
+        // An auto decision needs no agent action, so its ticket is created solved. The Zendesk
+        // "Decision made/solved" view shows only solved and closed tickets.
+        var status = decision.Status == DecisionStatus.Scrutiny ? "new" : "solved";
         var type = decision.Status == DecisionStatus.Scrutiny ? "question" : "task";
+        var groupId = decision.Status == DecisionStatus.Scrutiny
+                      && _checkingExerciseSettings?.ScrutinyGroupId is > 0
+            ? _checkingExerciseSettings.ScrutinyGroupId.Value
+            : _checkingExerciseSettings?.GroupId ?? 0;
 
         var dto = new CreateTicketRequestDto
         {
@@ -311,7 +323,7 @@ public sealed class ZendeskConsumer : ConsumerBase
                 Priority = priority,
                 Type = type,
                 BrandId = _checkingExerciseSettings?.BrandId ?? 0,
-                GroupId = _checkingExerciseSettings?.GroupId ?? 0,
+                GroupId = groupId,
             }
         };
 
@@ -322,10 +334,26 @@ public sealed class ZendeskConsumer : ConsumerBase
         MapKeyStageField(dto, message);
         AddCorrectionFields(dto, message);
         MapLdsMatchedPupilIdField(dto, message);
+        AddMergeFields(dto, message);
+        MapPupilYearGroupField(dto, message);
+        MapAdditionalCommentsField(dto, message);
         MapDfeEstablishmentNumberField(dto, message);
         MapAdmissionDateField(dto, message);
         AddDecisionReasonField(dto, decision);
         return dto;
+    }
+
+    // Adds a custom field when its ID is configured and the value is not empty.
+    private void AddConfiguredField(CreateTicketRequestDto dto, string fieldName, string? value)
+    {
+        var fieldId = GetConfiguredFieldId(fieldName);
+        if (!fieldId.HasValue || string.IsNullOrEmpty(value))
+        {
+            return;
+        }
+
+        dto.Ticket.CustomFields ??= new List<CustomFieldDto>();
+        dto.Ticket.CustomFields.Add(new CustomFieldDto { Id = fieldId.Value, Value = value });
     }
 
     // Returns the configured field ID, or null when it is unset or 0. production.yml sets
@@ -346,7 +374,7 @@ public sealed class ZendeskConsumer : ConsumerBase
         sb.AppendLine($"Decision: {decision.Status}");
         sb.AppendLine($"Matched rule: {decision.MatchedRuleId}");
         if (message.RequestTypeCode.StartsWith("Remove", StringComparison.OrdinalIgnoreCase)
-            && PupilInclusion.IsKs4Included(message.Pupil.Pincl))
+            && IsAddBackPupil(message))
         {
             sb.AppendLine($"Pincl: {message.Pupil.Pincl}");
         }
@@ -497,7 +525,8 @@ public sealed class ZendeskConsumer : ConsumerBase
     }
 
     // FR-002 / FR-003: DCI Ref (CYPMD) from the request reference number; Age (CYPMD) from
-    // the pupil's age. Omitted when the field ID is unset (FR-014).
+    // the pupil's age. Omitted when the field ID is unset (FR-014). Age 0 = not supplied: an Add
+    // request has no pupil record, so it has no age. The field is then omitted, not sent as 0.
     private void AddRequestFields(CreateTicketRequestDto dto, RequestDocument message)
     {
         if (_ticketFieldService is null)
@@ -518,7 +547,7 @@ public sealed class ZendeskConsumer : ConsumerBase
         }
 
         var ageId = GetConfiguredFieldId(ZendeskTicketFieldConstants.AgeCypmdName);
-        if (ageId.HasValue)
+        if (ageId.HasValue && message.Pupil.Age > 0)
         {
             dto.Ticket.CustomFields.Add(new CustomFieldDto
             {
@@ -528,7 +557,9 @@ public sealed class ZendeskConsumer : ConsumerBase
         }
     }
 
-    // FR-004 / FR-005: cycle year and month from the submission instant.
+    // FR-004 / FR-005: cycle year and month from the checking window's start date. LDS wants the
+    // month that the exercise takes place, so a late submission keeps the window's month. Egress
+    // reads both fields from the ticket. No start date on the message: both fields are left out.
     private void AddCycleFields(CreateTicketRequestDto dto, RequestDocument message)
     {
         if (_ticketFieldService is null)
@@ -536,27 +567,16 @@ public sealed class ZendeskConsumer : ConsumerBase
             return;
         }
 
-        dto.Ticket.CustomFields ??= new List<CustomFieldDto>();
-
-        var cycleYearId = GetConfiguredFieldId(ZendeskTicketFieldConstants.CycleYearName);
-        if (cycleYearId.HasValue)
+        if (message.CheckingWindowStartDate is not { } start)
         {
-            dto.Ticket.CustomFields.Add(new CustomFieldDto
-            {
-                Id = cycleYearId.Value,
-                Value = message.SubmittedAt.Year.ToString(CultureInfo.InvariantCulture),
-            });
+            _logger.LogWarning(
+                "No checking window start date for Reference={Reference}; omitting the cycle year and month fields.",
+                message.ReferenceNumber);
+            return;
         }
 
-        var cycleMonthId = GetConfiguredFieldId(ZendeskTicketFieldConstants.CycleMonthName);
-        if (cycleMonthId.HasValue)
-        {
-            dto.Ticket.CustomFields.Add(new CustomFieldDto
-            {
-                Id = cycleMonthId.Value,
-                Value = message.SubmittedAt.Month.ToString(CultureInfo.InvariantCulture),
-            });
-        }
+        AddConfiguredField(dto, ZendeskTicketFieldConstants.CycleYearName, start.Year.ToString(CultureInfo.InvariantCulture));
+        AddConfiguredField(dto, ZendeskTicketFieldConstants.CycleMonthName, start.Month.ToString(CultureInfo.InvariantCulture));
     }
 
     // FR-006: key stage from the checking window type via the field's option map. Omitted
@@ -588,9 +608,11 @@ public sealed class ZendeskConsumer : ConsumerBase
         }
     }
 
-    // FR-009 / FR-010 / FR-011: correction type (31_ for Remove requests), correction reason
-    // (via the removal-reason map) and reason for removal. Omitted for non-Remove requests and
-    // when a removal reason maps to no correction code (logged for review, FR-014 edge case).
+    // FR-009 / FR-010 / FR-011: correction type (10_ for Add, 31_ for Remove requests), correction
+    // reason (via the removal-reason map, Remove only) and reason for removal (an amendment
+    // category for Add, Merge and Include).
+    // Omitted for other requests and when a removal reason maps to no correction code (logged
+    // for review, FR-014 edge case).
     private void AddCorrectionFields(CreateTicketRequestDto dto, RequestDocument message)
     {
         if (_ticketFieldService is null)
@@ -598,7 +620,13 @@ public sealed class ZendeskConsumer : ConsumerBase
             return;
         }
 
-        // Only Remove requests carry correction type/reason and reason for removal this phase.
+        if (AmendmentCategoryFields.TryGetValue(message.RequestTypeCode, out var category))
+        {
+            AddAmendmentCategoryFields(dto, category.CorrectionType, category.ReasonForRemoval);
+            return;
+        }
+
+        // Only the requests above and Remove requests carry these fields this phase.
         if (!message.RequestTypeCode.StartsWith("Remove", StringComparison.OrdinalIgnoreCase))
         {
             return;
@@ -629,7 +657,7 @@ public sealed class ZendeskConsumer : ConsumerBase
         var correctionReasonId = GetConfiguredFieldId(ZendeskTicketFieldConstants.CorrectionReason31Name);
         if (correctionReasonId.HasValue)
         {
-            var correctionReasonValue = _ticketFieldService.GetOptionValue(ZendeskTicketFieldConstants.CorrectionReason31Name, removalReason);
+            var correctionReasonValue = ResolveCorrectionReason31Value(message, removalReason);
             if (!string.IsNullOrEmpty(correctionReasonValue))
             {
                 dto.Ticket.CustomFields.Add(new CustomFieldDto
@@ -663,16 +691,76 @@ public sealed class ZendeskConsumer : ConsumerBase
         }
     }
 
+    // #778: an add-back pupil, the "other" reason and the 16-19 not-on-roll sub-reasons take their
+    // code from the resolved "Reason for removal" value, so both fields use the same add-back and
+    // evidence rules. The 16-19 not-on-roll codes are LDS spec v2.4 K11. Egress reads this field
+    // from the ticket. Every other reason maps on the removal reason.
+    private string? ResolveCorrectionReason31Value(RequestDocument message, string removalReason) =>
+        ResolveReasonForRemovalValue(message, removalReason) switch
+        {
+            ZendeskTicketFieldOptions.ReasonForRemoval.AddBackRemoval => ZendeskTicketFieldOptions.CorrectionReason31.AddBackRemoval,
+            ZendeskTicketFieldOptions.ReasonForRemoval.OtherWithEvidence => ZendeskTicketFieldOptions.CorrectionReason31.OtherWithEvidence,
+            ZendeskTicketFieldOptions.ReasonForRemoval.OtherEvidenceNotRequired => ZendeskTicketFieldOptions.CorrectionReason31.OtherEvidenceNotRequired,
+            ZendeskTicketFieldOptions.ReasonForRemoval.Post16NotOnRoll.InternationalStudent => ZendeskTicketFieldOptions.CorrectionReason31.NotOnRollInternationalStudent,
+            ZendeskTicketFieldOptions.ReasonForRemoval.Post16NotOnRoll.ExternalCandidate => ZendeskTicketFieldOptions.CorrectionReason31.NotOnRollExternal,
+            ZendeskTicketFieldOptions.ReasonForRemoval.Post16NotOnRoll.Apprentice => ZendeskTicketFieldOptions.CorrectionReason31.NotOnRollApprentice,
+            ZendeskTicketFieldOptions.ReasonForRemoval.Post16NotOnRoll.OtherWithEvidence => ZendeskTicketFieldOptions.CorrectionReason31.OtherWithEvidence,
+            ZendeskTicketFieldOptions.ReasonForRemoval.Post16NotOnRoll.OtherEvidenceNotRequired => ZendeskTicketFieldOptions.CorrectionReason31.OtherEvidenceNotRequired,
+            _ => _ticketFieldService?.GetOptionValue(ZendeskTicketFieldConstants.CorrectionReason31Name, removalReason),
+        };
+
+    // Requests that are not removals still need a "Reason for removal": reports count cases by
+    // it, and Arvato gives cases to advisors by it. These requests have no correction reason.
+    // The correction types are the ones the previous system sent for each category: 10 for Add
+    // (a new learner), 21 for Merge and 11 for Include.
+    private static readonly Dictionary<string, (string CorrectionType, string ReasonForRemoval)> AmendmentCategoryFields =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            [nameof(WhatToChange.Add)] = (ZendeskTicketFieldOptions.CorrectionType.Correction10, ZendeskTicketFieldOptions.ReasonForRemoval.Addition),
+            [nameof(WhatToChange.Merge)] = (ZendeskTicketFieldOptions.CorrectionType.Correction21, ZendeskTicketFieldOptions.ReasonForRemoval.MergePupils),
+            [nameof(WhatToChange.Include)] = (ZendeskTicketFieldOptions.CorrectionType.Correction11, ZendeskTicketFieldOptions.ReasonForRemoval.Inclusion),
+        };
+
+    private void AddAmendmentCategoryFields(CreateTicketRequestDto dto, string correctionType, string reasonForRemoval)
+    {
+        dto.Ticket.CustomFields ??= new List<CustomFieldDto>();
+
+        var correctionTypeId = GetConfiguredFieldId(ZendeskTicketFieldConstants.CorrectionTypeName);
+        if (correctionTypeId.HasValue)
+        {
+            dto.Ticket.CustomFields.Add(new CustomFieldDto
+            {
+                Id = correctionTypeId.Value,
+                Value = correctionType,
+            });
+        }
+
+        var reasonForRemovalId = GetConfiguredFieldId(ZendeskTicketFieldConstants.ReasonForRemovalName);
+        if (reasonForRemovalId.HasValue)
+        {
+            dto.Ticket.CustomFields.Add(new CustomFieldDto
+            {
+                Id = reasonForRemovalId.Value,
+                Value = reasonForRemoval,
+            });
+        }
+    }
+
     // FR-001 (feature 457): the "Reason for removal" value for a Remove request.
-    // The KS4 add-back category is decided on Pincl BEFORE the per-reason map, so a KS4-included
-    // pupil never resolves by journey reason. "other" resolves from evidence (FR-004); Post16
+    // The add-back category is decided on Pincl BEFORE the per-reason map, so an add-back pupil
+    // (P_INCL 403) never resolves by journey reason. "other" resolves from evidence (FR-004); Post16
     // "not-on-roll" resolves from its sub-reason answer (FR-003, Phase 4c). Everything else falls
     // through to the static ReasonForRemovalHelpers map; unmapped -> null -> the caller omits the
     // field with a warning log (FR-014).
+    // An add-back pupil has P_INCL 403. The journey condition pupil.isAddBack and the rules engine
+    // fact isAddBack use the same code.
+    private static bool IsAddBackPupil(RequestDocument message) =>
+        message.Pupil.Pincl == AnswerFieldMap.AddBackPincl;
+
     private string? ResolveReasonForRemovalValue(RequestDocument message, string removalReason)
     {
-        // FR-001: KS4 add-back category decided on Pincl BEFORE the per-reason map.
-        if (PupilInclusion.IsKs4Included(message.Pupil.Pincl))
+        // FR-001: add-back category decided on Pincl BEFORE the per-reason map.
+        if (IsAddBackPupil(message))
         {
             return ZendeskTicketFieldOptions.ReasonForRemoval.AddBackRemoval;
         }
@@ -710,8 +798,9 @@ public sealed class ZendeskConsumer : ConsumerBase
         return _ticketFieldService?.GetOptionValue(ZendeskTicketFieldConstants.ReasonForRemovalName, removalReason);
     }
 
-    // FR-007: LDS matched pupil ID from the matched record, falling back to the submitted
-    // pupil. 0 = not supplied, so the field is omitted (FR-014).
+    // FR-007: LDS matched pupil ID from the selected pupil. On a Merge, the second pupil's id goes
+    // in "LDS matched pupil ID 2" (AddMergeFields), as the previous system sent it (#781).
+    // 0 = not supplied, so the field is omitted (FR-014).
     private void MapLdsMatchedPupilIdField(CreateTicketRequestDto dto, RequestDocument message)
     {
         if (_ticketFieldService is null)
@@ -719,21 +808,66 @@ public sealed class ZendeskConsumer : ConsumerBase
             return;
         }
 
-        var fieldId = GetConfiguredFieldId(ZendeskTicketFieldConstants.LdsMatchedPupilIdName);
-        var matchRef = (message.MatchedPupil ?? message.Pupil).MatchRef;
-        if (fieldId.HasValue && matchRef > 0)
+        AddConfiguredField(dto, ZendeskTicketFieldConstants.LdsMatchedPupilIdName, LdsId(message.Pupil));
+    }
+
+    // A Merge ticket also carries Correction reason (21) and the LDS id of the second pupil, as the
+    // previous system sent them (#781). Only a Merge request has a matched pupil.
+    private void AddMergeFields(CreateTicketRequestDto dto, RequestDocument message)
+    {
+        if (_ticketFieldService is null
+            || !string.Equals(message.RequestTypeCode, nameof(WhatToChange.Merge), StringComparison.OrdinalIgnoreCase))
         {
-            dto.Ticket.CustomFields ??= new List<CustomFieldDto>();
-            dto.Ticket.CustomFields.Add(new CustomFieldDto
-            {
-                Id = fieldId.Value,
-                Value = matchRef.ToString(CultureInfo.InvariantCulture),
-            });
+            return;
+        }
+
+        AddConfiguredField(dto, ZendeskTicketFieldConstants.CorrectionReason21Name,
+            ZendeskTicketFieldOptions.CorrectionReason21.MergePupils);
+        AddConfiguredField(dto, ZendeskTicketFieldConstants.LdsMatchedPupilId2Name,
+            message.MatchedPupil is { } matched ? LdsId(matched) : null);
+    }
+
+    private static string? LdsId(PupilDetails pupil) =>
+        pupil.MatchRef > 0 ? pupil.MatchRef.ToString(CultureInfo.InvariantCulture) : null;
+
+    // "Pupil year group (CYPMD)" is the year group that a year group change moves the pupil to,
+    // as the previous system sent it (#781). The field is an integer, so a value that is not a
+    // number is left out: Zendesk rejects the whole ticket for an invalid integer.
+    private void MapPupilYearGroupField(CreateTicketRequestDto dto, RequestDocument message)
+    {
+        if (_ticketFieldService is null)
+        {
+            return;
+        }
+
+        var yearGroup = YearGroupChange.MovedTo(id => message.Answers.FirstOrDefault(a => a.QuestionId == id)?.RawValue);
+        if (int.TryParse(yearGroup, NumberStyles.None, CultureInfo.InvariantCulture, out var year))
+        {
+            AddConfiguredField(dto, ZendeskTicketFieldConstants.PupilYearGroupCypmdName,
+                year.ToString(CultureInfo.InvariantCulture));
         }
     }
 
-    // FR-008: DfE Establishment Number from the requesting school's LAESTAB. Empty = not
-    // supplied, so the field is omitted (FR-014).
+    // "Additional comments (CYPMD)" holds the text that the school typed, as the previous system
+    // sent it (#781). This is every free-text (TextArea) answer, so no question id is named.
+    private void MapAdditionalCommentsField(CreateTicketRequestDto dto, RequestDocument message)
+    {
+        if (_ticketFieldService is null)
+        {
+            return;
+        }
+
+        var comments = message.Answers
+            .Where(a => string.Equals(a.Type, nameof(QuestionType.TextArea), StringComparison.Ordinal))
+            .Select(a => a.RawValue?.Trim())
+            .Where(v => !string.IsNullOrEmpty(v));
+        AddConfiguredField(dto, ZendeskTicketFieldConstants.AdditionalCommentsCypmdName,
+            string.Join(Environment.NewLine + Environment.NewLine, comments));
+    }
+
+    // FR-008: DfE Establishment Number from the requesting school's LAESTAB, as digits only.
+    // The LAESTAB comes from the pupil record (9334070) or the DfE Sign-in claim (933/4070),
+    // so normalise it here for every ticket. Empty = not supplied, so the field is omitted (FR-014).
     private void MapDfeEstablishmentNumberField(CreateTicketRequestDto dto, RequestDocument message)
     {
         if (_ticketFieldService is null)
@@ -742,20 +876,22 @@ public sealed class ZendeskConsumer : ConsumerBase
         }
 
         var fieldId = GetConfiguredFieldId(ZendeskTicketFieldConstants.DfeEstablishmentNumberName);
-        if (fieldId.HasValue && !string.IsNullOrEmpty(message.School.Laestab))
+        var laestab = LaestabNormaliser.Normalise(message.School.Laestab);
+        if (fieldId.HasValue && laestab.Length > 0)
         {
             dto.Ticket.CustomFields ??= new List<CustomFieldDto>();
             dto.Ticket.CustomFields.Add(new CustomFieldDto
             {
                 Id = fieldId.Value,
-                Value = message.School.Laestab,
+                Value = laestab,
             });
         }
     }
 
     // FR-012: admission date from the pupil record's ENTRYDAT (the same date the portal shows
     // as its "Admission date" column). ENTRYDAT is supplier-defined format, normalised to ISO
-    // yyyy-MM-dd. Omitted + logged when absent/unparseable (FR-014).
+    // yyyy-MM-dd. Omitted + logged when absent/unparseable (FR-014). An Add request has no pupil
+    // record, so the school's "Admission date" answer (RawValue yyyy-MM-dd) is the source.
     private void MapAdmissionDateField(CreateTicketRequestDto dto, RequestDocument message)
     {
         if (_ticketFieldService is null)
@@ -766,7 +902,10 @@ public sealed class ZendeskConsumer : ConsumerBase
         var fieldId = GetConfiguredFieldId(ZendeskTicketFieldConstants.AdmissionDateName);
         if (fieldId.HasValue)
         {
-            if (PupilDateFormatter.TryToIsoDate(message.Pupil.EntryDate, out var isoDate))
+            var answered = message.Answers
+                .FirstOrDefault(a => a.QuestionId == AdmissionDateQuestionId)?.RawValue;
+            var admissionDate = string.IsNullOrWhiteSpace(answered) ? message.Pupil.EntryDate : answered;
+            if (PupilDateFormatter.TryToIsoDate(admissionDate, out var isoDate))
             {
                 dto.Ticket.CustomFields ??= new List<CustomFieldDto>();
                 dto.Ticket.CustomFields.Add(new CustomFieldDto
@@ -779,7 +918,7 @@ public sealed class ZendeskConsumer : ConsumerBase
             {
                 _logger.LogWarning(
                     "Unable to parse admission date '{EntryDate}' for Reference={Reference}, skipping field.",
-                    message.Pupil.EntryDate, message.ReferenceNumber);
+                    admissionDate, message.ReferenceNumber);
             }
         }
     }

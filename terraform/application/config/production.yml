@@ -52,6 +52,7 @@ ZendeskSettings__Domain: zendesk
 # School Checking Exercise Zendesk settings
 SchoolCheckingExercise__TargetViewTitle: School Performance Checks
 SchoolCheckingExercise__GroupId: 0
+SchoolCheckingExercise__ScrutinyGroupId: 0
 SchoolCheckingExercise__BrandId: 0
  
 # Zendesk Ticket Field IDs
@@ -98,4 +99,8 @@ ZendeskTicketFields__AgeCypmdId: 0
  
 ZendeskTicketFields__DecisionReasonApprovedId: 0
 ZendeskTicketFields__DecisionReasonRejectedId: 0
+ZendeskTicketFields__CorrectionReason21Id: 0
+ZendeskTicketFields__LdsMatchedPupilId2Id: 0
+ZendeskTicketFields__PupilYearGroupCypmdId: 0
+ZendeskTicketFields__AdditionalCommentsCypmdId: 0
 ZendeskTicketFields__PopulateDecisionReasonForAutoRejected: true

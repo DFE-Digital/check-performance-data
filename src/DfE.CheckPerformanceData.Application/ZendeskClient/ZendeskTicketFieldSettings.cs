@@ -35,6 +35,10 @@ public sealed class ZendeskTicketFieldSettings
     public long? AgeCypmdId { get; set; }
     public long? DecisionReasonApprovedId { get; set; }
     public long? DecisionReasonRejectedId { get; set; }
+    public long? CorrectionReason21Id { get; set; }
+    public long? LdsMatchedPupilId2Id { get; set; }
+    public long? PupilYearGroupCypmdId { get; set; }
+    public long? AdditionalCommentsCypmdId { get; set; }
 
     /// <summary>
     /// When <c>true</c>, AutoRejected decisions populate the "Decision Reason - Rejected"
@@ -42,6 +46,17 @@ public sealed class ZendeskTicketFieldSettings
     /// when mapped). Scrutiny decisions are never tagged. Defaults to <c>false</c>.
     /// </summary>
     public bool PopulateDecisionReasonForAutoRejected { get; set; }
+
+    /// <summary>
+    /// The names of the field ID settings that are not set. A value of 0 counts as not set,
+    /// because the worker leaves out a field with ID 0 (production.yml uses 0 until the IDs are known).
+    /// </summary>
+    public IReadOnlyList<string> UnsetFieldIdNames() =>
+        typeof(ZendeskTicketFieldSettings).GetProperties()
+            .Where(p => p.PropertyType == typeof(long?))
+            .Where(p => p.GetValue(this) is not long id || id <= 0)
+            .Select(p => p.Name)
+            .ToList();
 
     /// <summary>
     /// Gets the field ID by field name.
@@ -72,6 +87,10 @@ public sealed class ZendeskTicketFieldSettings
             ZendeskTicketFieldConstants.AgeCypmdName => AgeCypmdId,
             ZendeskTicketFieldConstants.DecisionReasonApprovedName => DecisionReasonApprovedId,
             ZendeskTicketFieldConstants.DecisionReasonRejectedName => DecisionReasonRejectedId,
+            ZendeskTicketFieldConstants.CorrectionReason21Name => CorrectionReason21Id,
+            ZendeskTicketFieldConstants.LdsMatchedPupilId2Name => LdsMatchedPupilId2Id,
+            ZendeskTicketFieldConstants.PupilYearGroupCypmdName => PupilYearGroupCypmdId,
+            ZendeskTicketFieldConstants.AdditionalCommentsCypmdName => AdditionalCommentsCypmdId,
             _ => null
         };
     }
@@ -104,7 +123,11 @@ public sealed class ZendeskTicketFieldSettings
             (ZendeskTicketFieldConstants.DciRefCypmdName, DciRefCypmdId),
             (ZendeskTicketFieldConstants.AgeCypmdName, AgeCypmdId),
             (ZendeskTicketFieldConstants.DecisionReasonApprovedName, DecisionReasonApprovedId),
-            (ZendeskTicketFieldConstants.DecisionReasonRejectedName, DecisionReasonRejectedId)
+            (ZendeskTicketFieldConstants.DecisionReasonRejectedName, DecisionReasonRejectedId),
+            (ZendeskTicketFieldConstants.CorrectionReason21Name, CorrectionReason21Id),
+            (ZendeskTicketFieldConstants.LdsMatchedPupilId2Name, LdsMatchedPupilId2Id),
+            (ZendeskTicketFieldConstants.PupilYearGroupCypmdName, PupilYearGroupCypmdId),
+            (ZendeskTicketFieldConstants.AdditionalCommentsCypmdName, AdditionalCommentsCypmdId)
         };
     }
 }

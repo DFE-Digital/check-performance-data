@@ -9,8 +9,9 @@ namespace DfE.CheckPerformanceData.Application.Egress;
 /// <summary>
 /// The Pull step (AB#294553). Refuses first, pulls second: every candidate request for the window
 /// and output types is returned with the decision Zendesk holds for it — nothing is filtered here,
-/// so the ops user can see the pull worked before anything is discarded. Zendesk supplies ONLY the
-/// decision; every record value is CYPMD's own (design decision 1, 2026-09-14).
+/// so the ops user can see the pull worked before anything is discarded. The ticket's values are
+/// the truth: preprocessing reads each LDS column that has a Zendesk field from the ticket, and
+/// reads CYPMD's data only for the columns that have no field (docs/data-egress.md).
 /// </summary>
 public sealed class EgressRunService(
     IEgressRunRepository repository,
@@ -39,7 +40,7 @@ public sealed class EgressRunService(
         }
         catch (EgressTicketSourceException ex)
         {
-            logger.LogWarning(ex, "Egress pull for window {WindowId} could not read Zendesk decisions", windowId);
+            logger.LogWarning(ex, "Egress pull for window {WindowId} could not read Zendesk tickets", windowId);
             return new EgressStartResult.PullFailed(ex.Message);
         }
 
@@ -70,17 +71,17 @@ public sealed class EgressRunService(
     {
         var candidates = await repository.GetCandidateRequestsAsync(window.Id, EgressOutputTypes.WhatToChangeFor(type), ct);
         var ticketIds = candidates.Select(c => TicketId(c.CrmId)).OfType<long>().ToList();
-        var decisions = ticketIds.Count == 0
-            ? new Dictionary<long, string>()
-            : await tickets.GetDecisionStatusesAsync(ticketIds, ct);
+        var found = ticketIds.Count == 0
+            ? new Dictionary<long, EgressTicket>()
+            : await tickets.GetTicketsAsync(ticketIds, ct);
 
         var records = new List<EgressSourceRecord>(candidates.Count);
         foreach (var candidate in candidates)
         {
             var ticketId = TicketId(candidate.CrmId);
+            var ticket = ticketId is { } id && found.TryGetValue(id, out var t) ? t : null;
             var decision = ticketId is null ? EgressDecisions.NoTicket
-                : decisions.TryGetValue(ticketId.Value, out var d) ? d
-                : EgressDecisions.NotFound;
+                : ticket?.Decision ?? EgressDecisions.NotFound;
 
             RequestState? journey;
             try { journey = await journeys.GetAsync(window.Id, candidate.ReferenceNumber); }
@@ -112,7 +113,8 @@ public sealed class EgressRunService(
                 PupilLaestab = pupil?.Laestab,
                 PupilEntryDate = pupil?.EntryDate,
                 JourneyFound = journey is not null,
-                Answers = journey is null ? new Dictionary<string, string>() : EgressAnswers.Flatten(journey)
+                Answers = journey is null ? new Dictionary<string, string>() : EgressAnswers.Flatten(journey),
+                TicketFields = ticket?.Fields ?? new Dictionary<string, string>()
             });
         }
         return records;

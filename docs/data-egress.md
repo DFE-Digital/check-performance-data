@@ -45,13 +45,37 @@ run at any non-terminal point.
 
 ## 2. Where the data comes from
 
-Zendesk supplies **only the decision**: the "Decision status" custom field on the ticket id already
-stored on `ChangeRequests.CrmId`, read via `GET /api/v2/tickets/show_many.json` (100 ids per call).
-Every other value — pupil details, dates, the school's establishment number, the journey's answers
-— comes from CYPMD's own data: the `ChangeRequests` row and the persisted journey blob
-(`requests/{reference}.json`, `IRequestStateBlobClient`). Production configures no Zendesk custom
-fields at all, and an Add (new learner) request carries no establishment number, admission date,
-year group or SEN status in Zendesk — so the database has to be the source of truth regardless.
+**The Zendesk ticket is the truth.** An agent can change a value on a scrutiny ticket, so egress
+reads the values from the ticket and does not work them out again. The pull reads each ticket by
+the id on `ChangeRequests.CrmId`, through `GET /api/v2/tickets/show_many.json` (100 ids per call).
+It keeps the "Decision status" field and each field in `EgressTicketFields.All`.
+
+| LDS column | Zendesk field |
+|---|---|
+| Correction_ID | The ticket id |
+| Correction_Type | Correction type (`31_` → `31`, `10_` → `10`) |
+| Correction_Reason | Correction reason (31) (`8_31` → `8`) |
+| Key_Stage | Key stage (`ks2` → `KS2`, `ks4` → `KS4`, `16-18` → `16-19`) |
+| Local_Authority, Establishment_Number | DfE Establishment Number, split 3+4 |
+| Surname, Forename | Surname (CYPMD), Forename (CYPMD) |
+| Sex | Sex (`m`/`f` → `M`/`F`) |
+| Date_of_Birth | Date of birth (CYPMD) |
+| Admission_Date | Admission date |
+| Cycle_Year, Cycle_Month | Cycle year, Cycle month |
+| URN | School URN |
+| UPN | UPN |
+| Learner_ID | LDS matched pupil ID |
+| Year_Group (Remove learners, KS4) | Pupil year group (CYPMD) |
+
+These columns have no Zendesk field, so they come from CYPMD's data: ULN (16-19), Year_Group on
+New learners (the journey's `year-group` answer), Removal_Year_0..2 (16-19) and Post_Code (always
+blank). The Zendesk "Sex" field has only `m` and `f`. When the ticket has no sex and CYPMD holds
+`U`, egress writes `U`.
+
+A required ticket value that is missing fails the record. Egress never works the value out from
+CYPMD's data instead. A field whose id is not configured (null or 0) stops the pull, and the
+message names each field. Production sets each `ZendeskTicketFields__*Id` to 0 until the ids are
+known, so egress cannot pull in production until they are set.
 
 `ChangeRequests.OrganisationLaestab` is a new column, written at submit time from the DfE Sign-In
 `organisation_laestab` claim (`RequestService.OrganisationLaestabOrNull`). It exists because a new
@@ -61,8 +85,9 @@ the request row is the only source for that case.
 The pull's output, `EgressSourceRecord`, is the "as pulled" shape shown on Results and persisted as
 the run's raw JSON (so a resume never re-pulls): identifiers (`ChangeRequestId`, `ReferenceNumber`,
 `TicketId`), the `Decision` (a Zendesk value, or `EgressDecisions.NoTicket` / `NotFound`), the
-output type and window type, submission metadata, the school's URN/LAESTAB, every pupil field
-CYPMD holds, and the journey's answers flattened by question id (`EgressAnswers.Flatten`).
+ticket's field values (`TicketFields`, by field name), the output type and window type, submission
+metadata, the school's URN/LAESTAB, every pupil field CYPMD holds, and the journey's answers
+flattened by question id (`EgressAnswers.Flatten`).
 
 ## 3. Run lifecycle
 
@@ -113,13 +138,15 @@ Eight steps, reported one at a time over the same `IAsyncEnumerable<EgressProgre
 
 1. **Filter records** — keep `approved` and `auto_approved`; everything else is discarded here,
    not shown as a failure.
-2. **Derive correction codes** — Remove: the bare LDS code from the Zendesk "Correction reason
-   (31)" option for the journey's `reason` answer (plus two Post16 reasons mapped by hand); New:
-   the fixed code `10`.
-3. **Split DfE establishment number** — the pupil's LAESTAB first, then the request row's
-   `OrganisationLaestab`; 7 digits only, split 3+4.
-4. **Standardise dates** — date of birth (and, for New learners, admission date) to `yyyy-MM-dd`.
-5. **Build LDS records** — the typed `NewLearnerRow`/`RemoveLearnerRow`.
+2. **Read correction codes** — Correction_Type from the ticket's "Correction type", and for Remove
+   Correction_Reason from its "Correction reason (31)". Each is the LDS code before the `_`.
+3. **Split DfE establishment number** — the ticket's "DfE Establishment Number"; 7 digits only,
+   split 3+4.
+4. **Standardise dates** — the ticket's date of birth (and, for New learners, admission date) to
+   `yyyy-MM-dd`.
+5. **Build LDS records** — the typed `NewLearnerRow`/`RemoveLearnerRow`, with the other ticket
+   values (key stage, cycle year and month, names, sex, URN, UPN, Learner_ID, Year_Group). Each
+   missing required value is listed.
 6. **Trim values**.
 7. **Validate against LDS spec** — required fields, permitted values, digit widths, date shapes; Surname and Forename (the only free-text cells, typed by the school) must not begin with `=`, `+`, `-` or `@`, which a spreadsheet would evaluate as a formula (OWASP CSV injection) — refused here with a named reason rather than rewritten with an apostrophe the LDS spec never asked for
    (`LdsSpecValidator`).
@@ -128,7 +155,7 @@ Eight steps, reported one at a time over the same `IAsyncEnumerable<EgressProgre
    reason) is listed on the Failed screen; otherwise rows go to `new_learners`/`remove_learners`,
    file names are fixed for the run, and the run becomes `Preprocessed`. Every independent step
    (2–4) runs regardless of an earlier one's outcome, so a record with two unrelated problems (say
-   an unmapped correction reason and an invalid LAESTAB) lists both in one pass rather than the
+   a missing correction reason and an invalid LAESTAB) lists both in one pass rather than the
    second only surfacing on a later re-run.
 
 Leaving the page mid-run (closing the SSE connection, or the no-JS POST being interrupted) puts the
@@ -155,8 +182,8 @@ Correction_ID, Correction_Type, Correction_Reason, Key_Stage, Establishment_Numb
 Forename, Sex, Date_of_Birth, Cycle_Year, Cycle_Month, Local_Authority, Learner_ID
 ```
 
-then, KS4 only: `Year_Group` (populated for year-group-change removals from the journey's
-`year-group-higher/lower-moved-to` answer, blank otherwise); 16-19 only: `Removal_Year_0`,
+then, KS4 only: `Year_Group` (the ticket's "Pupil year group (CYPMD)", which the worker sets for
+year-group-change removals only; blank otherwise); 16-19 only: `Removal_Year_0`,
 `Removal_Year_1`, `Removal_Year_2` (`TRUE`/`FALSE` from the `years-to-remove` checkbox — Year_0 is
 the academic year ending in Cycle_Year; blank when the journey route did not ask).
 
@@ -173,11 +200,12 @@ then, 16-19 only: `Attendance_Year_0`, `Attendance_Year_1`, `Attendance_Year_2`,
 blank today because no Post16 Add journey exists.
 
 Values: `Key_Stage` is `KS2` / `KS4` / `16-19` (`EgressOutputTypes.KeyStageValue`; the *file name*
-still uses AB#292610's `KS5` token). `Cycle_Year` / `Cycle_Month` are the checking window's start
-year and month (the spec's "month in which the cycle takes place"), not each record's submission
-date. `Sex` is `F` / `M` / `U` on both files. 16-19 `Correction_Reason` codes are the spec's
-(`CorrectionCodes`): 4 deceased, 325 not at end of study, 326/328/331 not on roll (international /
-external / apprentice), 329 other with evidence.
+still uses AB#292610's `KS5` token). `Cycle_Year` / `Cycle_Month` come from the ticket. The worker
+writes the checking window's start year and month (the spec's "month in which the cycle takes
+place"), not each record's submission date. `Sex` is `F` / `M` / `U` on both files. The
+`Correction_Reason` codes are the ticket's. For 16-19, the worker writes the spec's codes: 4
+deceased, 325 not at end of study, 326/328/331 not on roll (international / external /
+apprentice), 329 other with evidence, 330 other with no evidence (see `docs/rules-engine.md`).
 
 File names are fixed when preprocessing completes: `CYPMD_LDS_{stage}_{type}_{yyyy_MM_dd}.csv`,
 where `{stage}` is `KS2`/`KS4`/`KS5` (`EgressOutputTypes.StageToken`) and the date is the **London**
@@ -284,7 +312,7 @@ Two rules keep a dev or review environment recoverable after a failed run:
   sheet from 16-18, the New Learner sheet was not updated); year-group-change removals go out as
   Correction_Type 31 / reason 17 (business-confirmed 2026-08-06) although the spec's hidden Addback
   sheet has them as type 30; `Removal_Year_0..2` are blank unless the 16-19 journey took the
-  "other" route; 16-19 "other" is always 329 (evidence is always collected, so 330 never occurs);
+  "other" route;
   Correction_Type 11 (Include learner) is in the spec but Include is not an egress output yet.
 - **16-19 gaps**: no Add journey exists, so the New learners file for a 16-19 window can only ever
   be header-only (and Transfer refuses a run whose outputs are all empty); 16-19 pupil records have

@@ -27,7 +27,7 @@ seed data, and 2 use the same text with a different meaning.
 
 | Group | Files | Example | Why it is there |
 |---|---|---|---|
-| Integration maps | `AnswerFieldMap`, `EgressRecordBuilder`, `ZendeskTicketFieldOptions`, `CorrectionCodes`, `ZendeskConsumer`, `EgressViewModels` | `["date-removed-from-roll"] = "dateOfRemoval"` | The rules engine, the egress file and Zendesk need to know what an answer means. |
+| Integration maps | `AnswerFieldMap`, `EgressRecordBuilder`, `ZendeskTicketFieldOptions`, `ZendeskConsumer`, `EgressViewModels` | `["date-removed-from-roll"] = "dateOfRemoval"` | The rules engine, the egress file and Zendesk need to know what an answer means. |
 | Single-journey conditions | `OriginCountryLanguageCapture` | `"country-originally-from"` | It reads the origin country answer, by id, to find the languages of that country. |
 | Journey code in the engine and Web | `JourneyViewModelBuilder`, `JourneyController`, `AddPupilJourney`, `ResultIssueController`, `EditAdviceService`, `EnquiryQuestionIds`, two views | `"q-cohort-scope"`, `"q-revised-grade"`, `"learner-details"` | The Web layer needs one answer for a summary, or must clear one answer when the selection changes. |
 
@@ -262,9 +262,9 @@ Steps 2 to 5 each make the baseline smaller.
 4. **Done. Date rules on the question (pattern 3).** One generic date rule evaluator, and
    `IJourneyDateFact` for dates from outside the journey. Removed 22 ids in 4 files.
 5. **Option meanings (pattern 5).** Add `meaning` to the reason options. Move the reason maps in
-   `ZendeskTicketFieldOptions`, `CorrectionCodes` and `ZendeskConsumer` to
-   `removal-reasons.json`. Build `RequestTypeCode` from the meaning, not the option value. Then
-   add option values to the guard. Removes 18 ids in 3 files.
+   `ZendeskTicketFieldOptions` and `ZendeskConsumer` to `removal-reasons.json`. Build
+   `RequestTypeCode` from the meaning, not the option value. Then add option values to the guard.
+   Removes 15 ids in 2 files.
 
 The 3 baseline ids that stay are not coupling: guidance anchors and a database column.
 

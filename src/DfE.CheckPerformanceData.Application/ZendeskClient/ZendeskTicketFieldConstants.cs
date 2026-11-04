@@ -33,6 +33,10 @@ public static class ZendeskTicketFieldConstants
     public const string AgeCypmdName = "Age (CYPMD)";
     public const string DecisionReasonApprovedName = "Decision Reason - Approved";
     public const string DecisionReasonRejectedName = "Decision Reason - Rejected";
+    public const string CorrectionReason21Name = "Correction reason (21)";
+    public const string LdsMatchedPupilId2Name = "LDS matched pupil ID 2";
+    public const string PupilYearGroupCypmdName = "Pupil year group (CYPMD)";
+    public const string AdditionalCommentsCypmdName = "Additional comments (CYPMD)";
 
 
     /// <summary>
@@ -63,7 +67,11 @@ public static class ZendeskTicketFieldConstants
             DciRefCypmdName,
             AgeCypmdName,
             DecisionReasonApprovedName,
-            DecisionReasonRejectedName
+            DecisionReasonRejectedName,
+            CorrectionReason21Name,
+            LdsMatchedPupilId2Name,
+            PupilYearGroupCypmdName,
+            AdditionalCommentsCypmdName
         };
     }
 }

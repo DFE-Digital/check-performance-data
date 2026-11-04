@@ -40,12 +40,10 @@ public sealed class EgressOutputTypesTests
     }
 
     [Fact]
-    public void New_learners_file_token_and_correction_type()
+    public void New_learners_file_token()
     {
         Assert.Equal("CYPMD_LDS_KS2_NewLearners_2026_10_07.csv",
             EgressOutputTypes.FileName(CheckingWindowType.KS2, EgressOutputType.NewLearners, new DateOnly(2026, 10, 7)));
-        Assert.Equal("10", EgressOutputTypes.CorrectionType(EgressOutputType.NewLearners));
-        Assert.Equal("31", EgressOutputTypes.CorrectionType(EgressOutputType.RemoveLearners));
     }
 
     [Theory]

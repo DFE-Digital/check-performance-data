@@ -3,10 +3,10 @@ using DfE.CheckPerformanceData.Domain.Enums;
 namespace DfE.CheckPerformanceData.Application.Egress;
 
 /// <summary>
-/// One request as pulled: the decision Zendesk holds for it plus every CYPMD-held value the LDS
-/// files can need. This is what the Results screen shows and what a saved run keeps (as JSON on
-/// EgressRunOutput), so resuming never re-pulls. Nothing here is transformed — raw dates, raw
-/// laestab, raw reason values — transformation is the preprocessing pipeline's job and is shown
+/// One request as pulled: the decision and the field values that its Zendesk ticket holds, plus the
+/// CYPMD values for the LDS columns that have no Zendesk field. This is what the Results screen
+/// shows and what a saved run keeps (as JSON on EgressRunOutput), so resuming never re-pulls.
+/// Nothing here is transformed. Transformation is the preprocessing pipeline's job and is shown
 /// to the user as it happens.
 /// </summary>
 public sealed record EgressSourceRecord
@@ -36,9 +36,15 @@ public sealed record EgressSourceRecord
     public bool JourneyFound { get; init; }
     /// <summary>The journey's answers flattened by question id (EgressAnswers.Flatten).</summary>
     public IReadOnlyDictionary<string, string> Answers { get; init; } = new Dictionary<string, string>();
+    /// <summary>The ticket's values for the fields in EgressTicketFields.All, keyed by field name. Empty when there is no ticket.</summary>
+    public IReadOnlyDictionary<string, string> TicketFields { get; init; } = new Dictionary<string, string>();
 
     public string? Answer(string questionId) =>
         Answers.TryGetValue(questionId, out var value) ? value : null;
+
+    /// <summary>The ticket's value for a field, or null when the ticket has no value.</summary>
+    public string? TicketField(string fieldName) =>
+        TicketFields.TryGetValue(fieldName, out var value) && !string.IsNullOrWhiteSpace(value) ? value : null;
 }
 
 /// <summary>One record's failure at one preprocessing step. Every failure is shown to the ops user; one failure fails the batch.</summary>

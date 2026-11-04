@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Egress;
@@ -104,12 +105,10 @@ public sealed class DevEgressController(
                     "auto_rejected" => $"CPMD Auto-Rejected: Seed ({reference})",
                     _ => $"CPMD Requires Scrutiny: Seed ({reference})"
                 };
-                var fieldId = configuration.GetValue<long?>("ZendeskTicketFields:DecisionStatusId") is > 0 and var configured
-                    ? configured : DevOutboxEgressTicketSource.WellKnownDecisionFieldId;
                 var raw = new CreateTicketRequestDto
                 {
                     Ticket = new CreateTicketDto { Subject = subject, Status = "open", Priority = "normal", Type = "task",
-                        CustomFields = [new CustomFieldDto { Id = fieldId, Value = decision }] }
+                        CustomFields = TicketFields(window, type, decision, reason, laestab, urn, forename, surname, matchRef: 555000 + i) }
                 };
                 dbContext.DevZendeskTickets.Add(new DevZendeskTicket
                 {
@@ -122,6 +121,46 @@ public sealed class DevEgressController(
         }
         await dbContext.SaveChangesAsync(cancellationToken);
         return Json(new { references, ticketIds });
+    }
+
+    // The fields that the worker writes and egress reads (EgressTicketFields.All), with the
+    // values that the journey above holds. A field whose id is not configured is left out.
+    private List<CustomFieldDto> TicketFields(
+        CheckingWindow window, EgressOutputType type, string decision, string? reason, string laestab, long urn,
+        string forename, string surname, int matchRef)
+    {
+        var ids = configuration.GetSection(ZendeskTicketFieldSettings.SectionName).Get<ZendeskTicketFieldSettings>()
+            ?? new ZendeskTicketFieldSettings();
+        var isNew = type == EgressOutputType.NewLearners;
+        var values = new Dictionary<string, string?>
+        {
+            [ZendeskTicketFieldConstants.CorrectionTypeName] = isNew
+                ? ZendeskTicketFieldOptions.CorrectionType.Correction10 : ZendeskTicketFieldOptions.CorrectionType.Correction31,
+            [ZendeskTicketFieldConstants.CorrectionReason31Name] = isNew
+                ? null : ZendeskTicketFieldOptions.GetOptionValue(ZendeskTicketFieldConstants.CorrectionReason31Name, reason ?? "pupil-died"),
+            [ZendeskTicketFieldConstants.KeyStageName] =
+                ZendeskTicketFieldOptions.GetOptionValue(ZendeskTicketFieldConstants.KeyStageName, window.CheckingWindowType.ToString()),
+            [ZendeskTicketFieldConstants.DfeEstablishmentNumberName] = laestab.Replace("/", ""),
+            [ZendeskTicketFieldConstants.SurnameCypmdName] = surname.ToUpperInvariant(),
+            [ZendeskTicketFieldConstants.ForenameCypmdName] = forename.ToUpperInvariant(),
+            [ZendeskTicketFieldConstants.SexName] = ZendeskTicketFieldOptions.Sex.Female,
+            [ZendeskTicketFieldConstants.DateOfBirthCypmdName] = "2010-09-07",
+            [ZendeskTicketFieldConstants.AdmissionDateName] = isNew ? "2018-09-04" : null,
+            [ZendeskTicketFieldConstants.CycleYearName] = window.StartDate.Year.ToString(CultureInfo.InvariantCulture),
+            [ZendeskTicketFieldConstants.CycleMonthName] = window.StartDate.Month.ToString(CultureInfo.InvariantCulture),
+            [ZendeskTicketFieldConstants.SchoolUrnName] = urn.ToString(CultureInfo.InvariantCulture),
+            [ZendeskTicketFieldConstants.UpnName] = "A860407000011",
+            [ZendeskTicketFieldConstants.LdsMatchedPupilIdName] = isNew ? null : matchRef.ToString(CultureInfo.InvariantCulture)
+        };
+
+        var decisionFieldId = ids.DecisionStatusId is > 0 and var configured ? configured : DevOutboxEgressTicketSource.WellKnownDecisionFieldId;
+        var fields = new List<CustomFieldDto> { new() { Id = decisionFieldId, Value = decision } };
+        foreach (var (name, value) in values)
+        {
+            if (value is not null && ids.GetFieldIdByName(name) is > 0 and var id)
+                fields.Add(new CustomFieldDto { Id = id, Value = value });
+        }
+        return fields;
     }
 
     [HttpPost("dev/egress/cleanup")]

@@ -38,7 +38,7 @@ scan clean.
 The console (`console.txt` in the artefact) prints one line per rule that fired: `IGNORE`, `INFO`,
 `WARN-NEW` or `FAIL-NEW`, the count and the custom message. It does not list passing rules or
 URLs. That is the `outputSummary` job's `Short` format. `Long` reads each alert's HTTP message to
-print its URLs, and an alert whose message cannot be loaded makes the job fail before it writes the
+print its URLs. An alert whose message cannot be loaded makes the job fail before it writes the
 summary (#784). The URLs are in the report instead.
 
 When the run page says "ZAP baseline scan produced no report", ZAP stopped before its summary job

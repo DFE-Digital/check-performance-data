@@ -149,9 +149,6 @@ public static class AnswerFieldMap
     /// changes cannot break routing; <c>QuestionFlowOutcomeKeyAlignmentTests</c> pins
     /// the flow configs to this map in CI. Lookup is case-insensitive and tolerant of
     /// trailing/leading whitespace.
-    ///
-    /// Outcomes with no journey flow yet (<c>PupilNotOnJuneList</c>) have no entry here; add one
-    /// when its flow is authored (see <c>SeedRulesValidationTests.PendingJourneyOutcomeKeys</c>).
     /// </summary>
     public static readonly IReadOnlyDictionary<string, string> WhatToChangeToOutcomeKey =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -179,6 +176,10 @@ public static class AnswerFieldMap
             ["Remove - social-care-involvement"]       = "SocialCareInvolvement",
             ["Remove - life-limiting-illness"]         = "TerminalCriticalIllness",
             ["Remove - year-group-change"]             = "YearGroupChange",
+
+            // #748: KS4 Autumn remove — single reason, seeded with a single Scrutiny
+            // otherwise-rule ("always sent for scrutiny"; no auto decision exists).
+            ["Remove - not-on-june-list"]              = "PupilNotOnJuneList",
 
             // KS2 only (KS2 September 2027).
             ["Remove - assessments-deferred"]          = "AssessmentsDeferred",

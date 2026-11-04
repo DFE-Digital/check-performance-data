@@ -71,7 +71,7 @@ Schools receive emails (via GOV.UK Notify) when they: submit a request, confirm 
 - Usage analytics feeding the Department's data platform (being switched on environment by environment).
 
 **Not yet built / known limitations**
-- Amendment journeys exist **only for Key Stage 4 June** so far. Key Stage 2, Post-16 and KS4 Autumn windows can be created but have no question journeys yet.
+- Amendment journeys exist for **Key Stage 4 June** (add, include, merge, remove), **KS4 Autumn** (add, remove), **Key Stage 2** (remove) and **16-19** (include, merge, remove, plus three results-enquiry journeys). New journeys are added by configuration, not code.
 - Releasing requests to caseworkers is a **manual admin action** — windows do not close and hand over automatically yet.
 - The **Contact us** page is a signpost only: it doesn't record or send anything yet, pending a decision on how enquiries should be routed.
 - Some site furniture is placeholder: the privacy notice, accessibility statement and feedback links don't go anywhere yet, and real guidance content still needs to be written into the content system.

@@ -1,0 +1,60 @@
+{
+  "firstPageId": "select-pupil",
+  "pages": [
+    {
+      "id": "select-pupil",
+      "type": "PupilSearch",
+      "title": "What is the name of the pupil to be removed?",
+      "subheading": "Start typing the first name, last name, CYPMD ID, UPN or date of birth (DOB)",
+      "pupilFilter": "Included",
+      "pupilKey": "primary",
+      "nextPageId": "reason"
+    },
+    {
+      "id": "reason",
+      "pageTitle": "Reason for removal",
+      "questions": [
+        {
+          "id": "reason",
+          "contentKey": true,
+          "type": "Radio",
+          "title": "Why are you asking to remove {pupilName} from the performance data?",
+          "summaryTitle": "Reason for removal",
+          "hint": "Select one option",
+          "useAsRequestType": true,
+          "validationFailure": "Select a reason for removing {pupilName} from the performance data",
+          "options": [
+            {
+              "value": "not-on-june-list",
+              "label": "Pupil not on June list",
+              "nextPageId": "evidence"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "evidence",
+      "type": "EvidenceUpload",
+      "title": "Provide evidence for the removal of {pupilName}",
+      "pageTitle": "Provide evidence for the removal",
+      "questions": [
+        {
+          "id": "evidence",
+          "type": "FileUpload",
+          "title": "Upload files",
+          "hint": "Evidence must be in a PDF format",
+          "optional": true
+        },
+        {
+          "id": "how-evidence-supports",
+          "type": "TextArea",
+          "title": "How does the evidence demonstrate why the pupil should be removed?",
+          "summaryTitle": "How evidence demonstrates removal",
+          "characterLimit": 500,
+          "optional": true
+        }
+      ]
+    }
+  ]
+}

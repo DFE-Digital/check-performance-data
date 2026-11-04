@@ -773,11 +773,11 @@ public class QuestionFlowServiceTests
     /// A change type appears for a window type only when its flow file ships (AGENTS.md, "Content
     /// and configuration"). This reads the real files through the real source, so adding, dropping
     /// or misnaming a file fails here unless the row below changes with it. #747 gave KS4 Autumn
-    /// Merge.
+    /// Merge; #748 gave it Remove.
     /// </summary>
     [Theory]
     [InlineData(CheckingWindowType.KS4June, new[] { WhatToChange.Merge, WhatToChange.Include, WhatToChange.Remove, WhatToChange.Add })]
-    [InlineData(CheckingWindowType.KS4Autumn, new[] { WhatToChange.Merge, WhatToChange.Add })]
+    [InlineData(CheckingWindowType.KS4Autumn, new[] { WhatToChange.Merge, WhatToChange.Remove, WhatToChange.Add })]
     [InlineData(CheckingWindowType.KS2, new[] { WhatToChange.Remove })]
     [InlineData(CheckingWindowType.Post16, new[] { WhatToChange.Merge, WhatToChange.Include, WhatToChange.Remove })]
     public async Task The_shipped_flow_files_give_each_window_type_its_changes(

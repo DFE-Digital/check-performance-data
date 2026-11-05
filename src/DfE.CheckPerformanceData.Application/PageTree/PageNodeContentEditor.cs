@@ -4,7 +4,7 @@ using DfE.CheckPerformanceData.Application.ContentPages;
 
 namespace DfE.CheckPerformanceData.Application.PageTree;
 
-// Applies a single editor action to a PageNode's working draft version: loads the draft's content
+// Applies a single editor action (an edit, or a save with no edit) to a PageNode's working draft version: loads the draft's content
 // tree via IPageNodeService, mutates it through the pure ContentTreeEditor, re-anchors heading
 // widgets, derives a plain-text body for FTS indexing, and autosaves via SaveWorkingContentAsync.
 // No version is created here — that happens only when the page is published.
@@ -44,6 +44,13 @@ public sealed class PageNodeContentEditor(
 
     public Task MoveToAsync(Guid nodeId, IReadOnlyList<TreeStep> fromPath, IReadOnlyList<TreeStep> toPath, string? userId) =>
         MutateAsync(nodeId, userId, tree => ContentTreeEditor.MoveTo(tree, fromPath, toPath));
+
+    // #475: the editor's Save button. A save with no edit runs the same path as an edit, so the
+    // draft gets the same heading anchors and the same plain-text body. Do not write the draft
+    // from a controller: the old action passed an empty body, and the published page then lost
+    // its body from site search.
+    public Task SaveDraftAsync(Guid nodeId, string? userId) =>
+        MutateAsync(nodeId, userId, _ => { });
 
     private async Task MutateAsync(Guid nodeId, string? userId, Action<List<ContentNode>> edit)
     {

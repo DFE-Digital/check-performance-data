@@ -21,4 +21,8 @@ public interface IPageNodeContentEditor
     Task UpdateWidgetAsync(Guid nodeId, IReadOnlyList<TreeStep> path, JsonObject props, string? userId);
 
     Task MoveToAsync(Guid nodeId, IReadOnlyList<TreeStep> fromPath, IReadOnlyList<TreeStep> toPath, string? userId);
+
+    // #475: saves the working draft with no edit. It writes the same content, heading anchors and
+    // plain-text search body as an edit. The editor's Save button calls it.
+    Task SaveDraftAsync(Guid nodeId, string? userId);
 }

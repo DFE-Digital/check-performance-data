@@ -239,28 +239,29 @@ public static class SeedCheckingWindows
         return window;
     }
 
-    /// <summary>The name of the KS2 summary share's exercise.</summary>
-    public const string Ks2SummaryExercise = "Summary";
+    /// <summary>The name of the KS2 and KS4 Autumn summary share's exercise.</summary>
+    public const string OneFileSummaryExercise = "Summary";
 
-    /// <summary>The name of the KS2 summary share's one dataset slot.</summary>
-    public const string Ks2SummaryDataset = "summary";
+    /// <summary>The name of the KS2 and KS4 Autumn summary share's one dataset slot.</summary>
+    public const string OneFileSummaryDataset = "summary";
 
-    // A display-only data share with no kind, in the KS2 window. Each school has one summary row,
-    // so it shows as label/value rows. The Web seed fills its one slot and validates it.
-    private static CheckingWindow WithKs2SummaryDataShare(CheckingWindow window)
+    // A display-only data share with no kind, in the KS2 and KS4 Autumn windows. Each school has
+    // one summary row, so it shows as label/value rows. The Web seed fills its one slot and
+    // validates it.
+    private static CheckingWindow WithOneFileSummaryDataShare(CheckingWindow window)
     {
         window.CheckingExercises.Add(new CheckingExercise
         {
             ExerciseType = null,
             DisplayOnly = true,
-            Name = Ks2SummaryExercise,
+            Name = OneFileSummaryExercise,
             TabName = "Summary",
             TabOrder = 100,
             IsEnabled = true,
             Layout = ExerciseLayout.Vertical,
             StartDate = window.StartDate,
             EndDate = window.EndDate,
-            Datasets = [new CheckingWindowDataset { Name = Ks2SummaryDataset, Included = null, FeedsJourney = false, SortOrder = 0 }]
+            Datasets = [new CheckingWindowDataset { Name = OneFileSummaryDataset, Included = null, FeedsJourney = false, SortOrder = 0 }]
         });
         return window;
     }
@@ -284,13 +285,23 @@ public static class SeedCheckingWindows
     // The KS4 Autumn window's pupil data exercise, set up as the KS4 June one is: one "pupils"
     // slot that feeds the journey, inclusion tabs, and enabled. The wizard gives KS4 Autumn no slot
     // and a table layout, so the seed sets both. The Web seed fills the slot and validates it
-    // (SeedExerciseFixtures).
+    // (SeedKs4AutumnSamples).
     private static CheckingWindow WithKs4AutumnPupilData(CheckingWindow window)
     {
         var pupils = window.CheckingExercises.Single(e => e.ExerciseType == CheckingExerciseType.PupilData);
         pupils.IsEnabled = true;
         pupils.Layout = ExerciseLayout.InclusionTabs;
         pupils.Datasets.Add(new CheckingWindowDataset { Name = WindowDatasets.Pupils, Included = null, FeedsJourney = true, SortOrder = 0 });
+        return window;
+    }
+
+    // The KS4 Autumn window's results enquiry, as the wizard creates it (a slot for every KS4
+    // results file, on the window dates), then enabled. Late results 2 has not arrived, so it
+    // shows the late results warning. The Web seed fills the main results and late results 1
+    // slots and validates it (SeedKs4AutumnSamples).
+    private static CheckingWindow WithKs4AutumnResultsEnquiry(CheckingWindow window)
+    {
+        window.CheckingExercises.Single(e => e.ExerciseType == CheckingExerciseType.ResultsEnquiry).IsEnabled = true;
         return window;
     }
 
@@ -454,12 +465,14 @@ public static class SeedCheckingWindows
             WithPupilCampusDataShare(WithSummaryDataShare(WithValueAddedSlots(WithPreviouslyPublishedSlots(post16NovemberWindow)))),
             WithPupilCampusDataShare(WithSummaryDataShare(WithValueAddedSlots(WithPreviouslyPublishedSlots(post16FebruaryWindow)))),
             WithAimsSlot(WithPupilCampusDataShare(WithSummaryDataShare(WithValueAddedSlots(WithPreviouslyPublishedSlots(post16MarchWindow))))),
-            // Key Stage 4 Autumn starts from the wizard's defaults, then gets a pupil data slot. The
-            // Web seed fills it with the KS4 pupils (SeedExerciseFixtures).
-            WithKs4AutumnPupilData(PlaceholderWindow(ks4AutumnWindowId, CheckingWindowType.KS4Autumn, "Key Stage 4 Autumn", today)),
+            // Key Stage 4 Autumn starts from the wizard's defaults, then gets a pupil data slot, a
+            // results enquiry and the summary share. The Web seed fills them with the KS4 Autumn
+            // samples (SeedKs4AutumnSamples).
+            WithOneFileSummaryDataShare(WithKs4AutumnResultsEnquiry(WithKs4AutumnPupilData(
+                PlaceholderWindow(ks4AutumnWindowId, CheckingWindowType.KS4Autumn, "Key Stage 4 Autumn", today)))),
             // Key Stage 2 starts from the wizard's defaults, then gets the summary share and a
             // pupil data slot. The Web seed fills both (SeedKs2Summary, SeedKs2PupilData).
-            WithKs2PupilData(WithKs2SummaryDataShare(PlaceholderWindow(ks2WindowId, CheckingWindowType.KS2, "Key Stage 2", today)))
+            WithKs2PupilData(WithOneFileSummaryDataShare(PlaceholderWindow(ks2WindowId, CheckingWindowType.KS2, "Key Stage 2", today)))
         );
 
 

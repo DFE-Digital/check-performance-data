@@ -1,0 +1,1699 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "summary_schema.json",
+  "title": "KS4 summary",
+  "description": "One row per school of the supplier's KS4 school summary file, transcribed from the LDS Data Spec tab 'KS4 Summary Data report'. The fields are the state schools report, in its order; the reports for independent schools, FE colleges and non-maintained special schools are subsets, and each field's description names the reports it is in. The EBacc indicators marked removed (2026) are left out. Field references (indicator names) are the CSV headers; the 'Summary Report CE website description' is the heading of the CSV a school downloads and the label schools see. Values are strings, because a suppressed value is sent as 'NA' or '+'.",
+  "type": "object",
+  "additionalProperties": false,
+  "x-ingress": {
+    "collection": "summary",
+    "pageTab": "summary",
+    "institutionKey": "LAESTAB"
+  },
+  "x-download": {
+    "fileName": "ks4summary.csv",
+    "label": "Summary"
+  },
+  "x-display": {
+    "tab": "summary",
+    "section": "Summary",
+    "selectorOrder": 0,
+    "layout": "vertical"
+  },
+  "properties": {
+    "LAESTAB": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "7-digit LA/establishment number",
+      "x-csv": {
+        "columns": {
+          "default": "A"
+        },
+        "heading": "DfE Establishment number"
+      },
+      "x-display": {
+        "label": "DfE Establishment number",
+        "visible": true,
+        "order": 1
+      }
+    },
+    "TPUP": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Cohort information for pupils at the end of key stage 4. Also in the report for independent schools, FE colleges, non-maintained special schools.",
+      "x-csv": {
+        "columns": {
+          "default": "B"
+        },
+        "heading": "Number of pupils at the end of Key Stage 4"
+      },
+      "x-display": {
+        "label": "Number of pupils at the end of Key Stage 4",
+        "visible": true,
+        "order": 2
+      }
+    },
+    "TNMOB": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Cohort information for pupils at the end of key stage 4.",
+      "x-csv": {
+        "columns": {
+          "default": "C"
+        },
+        "heading": "Number of key stage 4 pupils who are non-mobile"
+      },
+      "x-display": {
+        "label": "Number of key stage 4 pupils who are non-mobile",
+        "visible": true,
+        "order": 3
+      }
+    },
+    "PTNMOB": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Cohort information for pupils at the end of key stage 4.",
+      "x-csv": {
+        "columns": {
+          "default": "D"
+        },
+        "heading": "% of key stage 4 pupils who are non-mobile"
+      },
+      "x-display": {
+        "label": "% of key stage 4 pupils who are non-mobile",
+        "visible": true,
+        "order": 4
+      }
+    },
+    "TFSM6CLA1A": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Cohort information for pupils at the end of key stage 4. Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "E"
+        },
+        "heading": "Number of disadvantaged pupils"
+      },
+      "x-display": {
+        "label": "Number of disadvantaged pupils",
+        "visible": true,
+        "order": 5
+      }
+    },
+    "PTFSM6CLA1A": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Cohort information for pupils at the end of key stage 4. Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "F"
+        },
+        "heading": "% of disadvantaged pupils"
+      },
+      "x-display": {
+        "label": "% of disadvantaged pupils",
+        "visible": true,
+        "order": 6
+      }
+    },
+    "TPRIORLO": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Cohort information for pupils at the end of key stage 4. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "G"
+        },
+        "heading": "Low prior attainment band: number of pupils"
+      },
+      "x-display": {
+        "label": "Low prior attainment band: number of pupils",
+        "visible": true,
+        "order": 7
+      }
+    },
+    "PTPRIORLO": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Cohort information for pupils at the end of key stage 4. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "H"
+        },
+        "heading": "Low prior attainment band: % of pupils"
+      },
+      "x-display": {
+        "label": "Low prior attainment band: % of pupils",
+        "visible": true,
+        "order": 8
+      }
+    },
+    "TPRIORAV": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Cohort information for pupils at the end of key stage 4. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "I"
+        },
+        "heading": "Middle prior attainment band: number of pupils"
+      },
+      "x-display": {
+        "label": "Middle prior attainment band: number of pupils",
+        "visible": true,
+        "order": 9
+      }
+    },
+    "PTPRIORAV": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Cohort information for pupils at the end of key stage 4. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "J"
+        },
+        "heading": "Middle prior attainment band: % of pupils"
+      },
+      "x-display": {
+        "label": "Middle prior attainment band: % of pupils",
+        "visible": true,
+        "order": 10
+      }
+    },
+    "TPRIORHI": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Cohort information for pupils at the end of key stage 4. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "K"
+        },
+        "heading": "High prior attainment band: number of pupils"
+      },
+      "x-display": {
+        "label": "High prior attainment band: number of pupils",
+        "visible": true,
+        "order": 11
+      }
+    },
+    "PTPRIORHI": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Cohort information for pupils at the end of key stage 4. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "L"
+        },
+        "heading": "High prior attainment band: % of pupils"
+      },
+      "x-display": {
+        "label": "High prior attainment band: % of pupils",
+        "visible": true,
+        "order": 12
+      }
+    },
+    "TEALGRP2": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Cohort information for pupils at the end of key stage 4.",
+      "x-csv": {
+        "columns": {
+          "default": "M"
+        },
+        "heading": "Number of pupils with English as an additional language"
+      },
+      "x-display": {
+        "label": "Number of pupils with English as an additional language",
+        "visible": true,
+        "order": 13
+      }
+    },
+    "PTEALGRP2": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Cohort information for pupils at the end of key stage 4.",
+      "x-csv": {
+        "columns": {
+          "default": "N"
+        },
+        "heading": "% of pupils with English as an additional language"
+      },
+      "x-display": {
+        "label": "% of pupils with English as an additional language",
+        "visible": true,
+        "order": 14
+      }
+    },
+    "SENE4": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Cohort information for pupils at the end of key stage 4. Also in the report for non-maintained special schools. 'NA' for special schools (NFTYPE ACCS, ACS, CYS, FDS, FS, NMSS).",
+      "x-csv": {
+        "columns": {
+          "default": "O"
+        },
+        "heading": "Number of KS4 pupils who have SEN with an EHC plan"
+      },
+      "x-display": {
+        "label": "Number of KS4 pupils who have SEN with an EHC plan",
+        "visible": true,
+        "order": 15
+      }
+    },
+    "PSENE4": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Cohort information for pupils at the end of key stage 4. Also in the report for non-maintained special schools. 'NA' for special schools (NFTYPE ACCS, ACS, CYS, FDS, FS, NMSS).",
+      "x-csv": {
+        "columns": {
+          "default": "P"
+        },
+        "heading": "% of KS4 pupils who have SEN with an EHC plan"
+      },
+      "x-display": {
+        "label": "% of KS4 pupils who have SEN with an EHC plan",
+        "visible": true,
+        "order": 16
+      }
+    },
+    "SENK4": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Cohort information for pupils at the end of key stage 4. Also in the report for non-maintained special schools. 'NA' for special schools (NFTYPE ACCS, ACS, CYS, FDS, FS, NMSS).",
+      "x-csv": {
+        "columns": {
+          "default": "Q"
+        },
+        "heading": "Number of KS4 pupils who have SEN without an EHC plan"
+      },
+      "x-display": {
+        "label": "Number of KS4 pupils who have SEN without an EHC plan",
+        "visible": true,
+        "order": 17
+      }
+    },
+    "PSENK4": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Cohort information for pupils at the end of key stage 4. Also in the report for non-maintained special schools. 'NA' for special schools (NFTYPE ACCS, ACS, CYS, FDS, FS, NMSS).",
+      "x-csv": {
+        "columns": {
+          "default": "R"
+        },
+        "heading": "% of KS4 pupils who have SEN without an EHC plan"
+      },
+      "x-display": {
+        "label": "% of KS4 pupils who have SEN without an EHC plan",
+        "visible": true,
+        "order": 18
+      }
+    },
+    "P8MEA": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Headline measures. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "S"
+        },
+        "heading": "Progress 8 score after adjustment for extreme pupil scores"
+      },
+      "x-display": {
+        "label": "Progress 8 score after adjustment for extreme pupil scores",
+        "visible": true,
+        "order": 19
+      }
+    },
+    "P8CILOW": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Headline measures. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "T"
+        },
+        "heading": "Progress 8 lower confidence interval for adjusted score"
+      },
+      "x-display": {
+        "label": "Progress 8 lower confidence interval for adjusted score",
+        "visible": true,
+        "order": 20
+      }
+    },
+    "P8CIUPP": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Headline measures. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "U"
+        },
+        "heading": "Progress 8 upper confidence interval for adjusted score"
+      },
+      "x-display": {
+        "label": "Progress 8 upper confidence interval for adjusted score",
+        "visible": true,
+        "order": 21
+      }
+    },
+    "ATT8SCR": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Headline measures. Also in the report for independent schools, FE colleges, non-maintained special schools.",
+      "x-csv": {
+        "columns": {
+          "default": "V"
+        },
+        "heading": "Average attainment 8 score per pupil"
+      },
+      "x-display": {
+        "label": "Average attainment 8 score per pupil",
+        "visible": true,
+        "order": 22
+      }
+    },
+    "PTL2BASICS_95": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Headline measures. Also in the report for independent schools, FE colleges, non-maintained special schools.",
+      "x-csv": {
+        "columns": {
+          "default": "W"
+        },
+        "heading": "% achieving grade 5 or above in English and maths"
+      },
+      "x-display": {
+        "label": "% achieving grade 5 or above in English and maths",
+        "visible": true,
+        "order": 23
+      }
+    },
+    "PTL2BASICS_97": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Additional measures.",
+      "x-csv": {
+        "columns": {
+          "default": "X"
+        },
+        "heading": "% achieving grade 7 or above in English and maths"
+      },
+      "x-display": {
+        "label": "% achieving grade 7 or above in English and maths",
+        "visible": true,
+        "order": 24
+      }
+    },
+    "PTL2BASICS_94": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Additional measures. Also in the report for independent schools, FE colleges, non-maintained special schools.",
+      "x-csv": {
+        "columns": {
+          "default": "Y"
+        },
+        "heading": "% achieving grade 4 or above in English and maths"
+      },
+      "x-display": {
+        "label": "% achieving grade 4 or above in English and maths",
+        "visible": true,
+        "order": 25
+      }
+    },
+    "PTmultiLan_E": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Additional measures. Also in the report for independent schools, FE colleges, non-maintained special schools.",
+      "x-csv": {
+        "columns": {
+          "default": "Z"
+        },
+        "heading": "% entering more than one language"
+      },
+      "x-display": {
+        "label": "% entering more than one language",
+        "visible": true,
+        "order": 26
+      }
+    },
+    "PTtripleSci_E": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Additional measures. Also in the report for independent schools, FE colleges, non-maintained special schools.",
+      "x-csv": {
+        "columns": {
+          "default": "AA"
+        },
+        "heading": "% entering three single sciences"
+      },
+      "x-display": {
+        "label": "% entering three single sciences",
+        "visible": true,
+        "order": 27
+      }
+    },
+    "P8PUP": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Progress 8 metadata. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "AB"
+        },
+        "heading": "Number of pupils included in the Progress 8 score"
+      },
+      "x-display": {
+        "label": "Number of pupils included in the Progress 8 score",
+        "visible": true,
+        "order": 28
+      }
+    },
+    "P8MEACOV": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Progress 8 metadata. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "AC"
+        },
+        "heading": "% of pupils included in the Progress 8 score"
+      },
+      "x-display": {
+        "label": "% of pupils included in the Progress 8 score",
+        "visible": true,
+        "order": 29
+      }
+    },
+    "TP8ADJ": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Progress 8 metadata. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "AD"
+        },
+        "heading": "Number of pupils who have had P8 score adjusted in measure"
+      },
+      "x-display": {
+        "label": "Number of pupils who have had P8 score adjusted in measure",
+        "visible": true,
+        "order": 30
+      }
+    },
+    "P8MEA_ORIG": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Progress 8 metadata. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "AE"
+        },
+        "heading": "Unadjusted Progress 8 score"
+      },
+      "x-display": {
+        "label": "Unadjusted Progress 8 score",
+        "visible": true,
+        "order": 31
+      }
+    },
+    "P8CILOW_ORIG": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Progress 8 metadata. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "AF"
+        },
+        "heading": "Unadjusted Progress 8 lower 95% confidence interval"
+      },
+      "x-display": {
+        "label": "Unadjusted Progress 8 lower 95% confidence interval",
+        "visible": true,
+        "order": 32
+      }
+    },
+    "P8CIUPP_ORIG": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Progress 8 metadata. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "AG"
+        },
+        "heading": "Unadjusted Progress 8 upper 95% confidence interval"
+      },
+      "x-display": {
+        "label": "Unadjusted Progress 8 upper 95% confidence interval",
+        "visible": true,
+        "order": 33
+      }
+    },
+    "P8MEAENG": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Progress 8 metadata. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "AH"
+        },
+        "heading": "Progress 8 score for English element (all Progress 8 elements are unadjusted)"
+      },
+      "x-display": {
+        "label": "Progress 8 score for English element (all Progress 8 elements are unadjusted)",
+        "visible": true,
+        "order": 34
+      }
+    },
+    "P8MEAMAT": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Progress 8 metadata. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "AI"
+        },
+        "heading": "Progress 8 score for maths element (all Progress 8 elements are unadjusted)"
+      },
+      "x-display": {
+        "label": "Progress 8 score for maths element (all Progress 8 elements are unadjusted)",
+        "visible": true,
+        "order": 35
+      }
+    },
+    "P8MEAEBAC": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Progress 8 metadata. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "AJ"
+        },
+        "heading": "Progress 8 score for English Baccalaureate element (all Progress 8 elements are unadjusted)"
+      },
+      "x-display": {
+        "label": "Progress 8 score for English Baccalaureate element (all Progress 8 elements are unadjusted)",
+        "visible": true,
+        "order": 36
+      }
+    },
+    "P8MEAOPEN": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Progress 8 metadata. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "AK"
+        },
+        "heading": "Progress 8 score for Open element (all Progress 8 elements are unadjusted)"
+      },
+      "x-display": {
+        "label": "Progress 8 score for Open element (all Progress 8 elements are unadjusted)",
+        "visible": true,
+        "order": 37
+      }
+    },
+    "ATT8SCRENG": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Attainment 8 metadata. Also in the report for independent schools, FE colleges, non-maintained special schools.",
+      "x-csv": {
+        "columns": {
+          "default": "AL"
+        },
+        "heading": "Attainment 8 score for English element"
+      },
+      "x-display": {
+        "label": "Attainment 8 score for English element",
+        "visible": true,
+        "order": 38
+      }
+    },
+    "ATT8SCRMAT": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Attainment 8 metadata. Also in the report for independent schools, FE colleges, non-maintained special schools.",
+      "x-csv": {
+        "columns": {
+          "default": "AM"
+        },
+        "heading": "Attainment 8 score for maths element"
+      },
+      "x-display": {
+        "label": "Attainment 8 score for maths element",
+        "visible": true,
+        "order": 39
+      }
+    },
+    "ATT8SCREBAC": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Attainment 8 metadata. Also in the report for independent schools, FE colleges, non-maintained special schools.",
+      "x-csv": {
+        "columns": {
+          "default": "AN"
+        },
+        "heading": "Attainment 8 score for English Baccalaureate element"
+      },
+      "x-display": {
+        "label": "Attainment 8 score for English Baccalaureate element",
+        "visible": true,
+        "order": 40
+      }
+    },
+    "ATT8SCROPEN": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Attainment 8 metadata. Also in the report for independent schools, FE colleges, non-maintained special schools.",
+      "x-csv": {
+        "columns": {
+          "default": "AO"
+        },
+        "heading": "Attainment 8 score for Open element"
+      },
+      "x-display": {
+        "label": "Attainment 8 score for Open element",
+        "visible": true,
+        "order": 41
+      }
+    },
+    "ATT8SCROPENG": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Attainment 8 metadata. Also in the report for independent schools, FE colleges, non-maintained special schools.",
+      "x-csv": {
+        "columns": {
+          "default": "AP"
+        },
+        "heading": "Open element - GCSE only"
+      },
+      "x-display": {
+        "label": "Open element - GCSE only",
+        "visible": true,
+        "order": 42
+      }
+    },
+    "ATT8SCROPENNG": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Attainment 8 metadata. Also in the report for independent schools, FE colleges, non-maintained special schools.",
+      "x-csv": {
+        "columns": {
+          "default": "AQ"
+        },
+        "heading": "Open element – Non-GCSE only"
+      },
+      "x-display": {
+        "label": "Open element – Non-GCSE only",
+        "visible": true,
+        "order": 43
+      }
+    },
+    "P8PUP_LO": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Measures by pupil type - Low prior attainers. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "AR"
+        },
+        "heading": "Number of pupils with low prior attainment in the Progress 8 score"
+      },
+      "x-display": {
+        "label": "Number of pupils with low prior attainment in the Progress 8 score",
+        "visible": true,
+        "order": 44
+      }
+    },
+    "P8MEA_LO": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Measures by pupil type - Low prior attainers. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "AS"
+        },
+        "heading": "Progress 8 score for pupils with low prior attainment"
+      },
+      "x-display": {
+        "label": "Progress 8 score for pupils with low prior attainment",
+        "visible": true,
+        "order": 45
+      }
+    },
+    "P8CILOW_LO": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Measures by pupil type - Low prior attainers. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "AT"
+        },
+        "heading": "Progress 8 lower 95% confidence interval for pupils with low prior attainment"
+      },
+      "x-display": {
+        "label": "Progress 8 lower 95% confidence interval for pupils with low prior attainment",
+        "visible": true,
+        "order": 46
+      }
+    },
+    "P8CIUPP_LO": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Measures by pupil type - Low prior attainers. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "AU"
+        },
+        "heading": "Progress 8 upper 95% confidence interval for pupils with low prior attainment"
+      },
+      "x-display": {
+        "label": "Progress 8 upper 95% confidence interval for pupils with low prior attainment",
+        "visible": true,
+        "order": 47
+      }
+    },
+    "P8MEA_LO_ORIG": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Measures by pupil type - Low prior attainers. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "AV"
+        },
+        "heading": "Unadjusted Progress 8 score for pupils with low prior attainment"
+      },
+      "x-display": {
+        "label": "Unadjusted Progress 8 score for pupils with low prior attainment",
+        "visible": true,
+        "order": 48
+      }
+    },
+    "P8CILOW_LO_ORIG": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Measures by pupil type - Low prior attainers. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "AW"
+        },
+        "heading": "Unadjusted Progress 8 lower 95% confidence interval for pupils with low prior attainment"
+      },
+      "x-display": {
+        "label": "Unadjusted Progress 8 lower 95% confidence interval for pupils with low prior attainment",
+        "visible": true,
+        "order": 49
+      }
+    },
+    "P8CIUPP_LO_ORIG": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Measures by pupil type - Low prior attainers. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "AX"
+        },
+        "heading": "Unadjusted Progress 8 upper 95% confidence interval for pupils with low prior attainment"
+      },
+      "x-display": {
+        "label": "Unadjusted Progress 8 upper 95% confidence interval for pupils with low prior attainment",
+        "visible": true,
+        "order": 50
+      }
+    },
+    "ATT8SCR_LO": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Measures by pupil type - Low prior attainers. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "AY"
+        },
+        "heading": "Average Attainment 8 score per pupils with low prior attainment pupil"
+      },
+      "x-display": {
+        "label": "Average Attainment 8 score per pupils with low prior attainment pupil",
+        "visible": true,
+        "order": 51
+      }
+    },
+    "PTBASICSLO_97": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Measures by pupil type - Low prior attainers. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid).",
+      "x-csv": {
+        "columns": {
+          "default": "AZ"
+        },
+        "heading": "% of pupils with low prior attainment achieving grade 7 or above in English and maths"
+      },
+      "x-display": {
+        "label": "% of pupils with low prior attainment achieving grade 7 or above in English and maths",
+        "visible": true,
+        "order": 52
+      }
+    },
+    "PTBASICSLO_95": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Measures by pupil type - Low prior attainers. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "BA"
+        },
+        "heading": "% of pupils with low prior attainment achieving grade 5 or above in English and maths"
+      },
+      "x-display": {
+        "label": "% of pupils with low prior attainment achieving grade 5 or above in English and maths",
+        "visible": true,
+        "order": 53
+      }
+    },
+    "P8PUP_MID": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Measures by pupil type - Middle prior attainers. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "BB"
+        },
+        "heading": "Number of pupils with middle prior attainment in the Progress 8 score"
+      },
+      "x-display": {
+        "label": "Number of pupils with middle prior attainment in the Progress 8 score",
+        "visible": true,
+        "order": 54
+      }
+    },
+    "P8MEA_MID": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Measures by pupil type - Middle prior attainers. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "BC"
+        },
+        "heading": "Progress 8 score for pupils with middle prior attainment"
+      },
+      "x-display": {
+        "label": "Progress 8 score for pupils with middle prior attainment",
+        "visible": true,
+        "order": 55
+      }
+    },
+    "P8CILOW_MID": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Measures by pupil type - Middle prior attainers. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "BD"
+        },
+        "heading": "Progress 8 lower 95% confidence interval for pupils with middle prior attainment"
+      },
+      "x-display": {
+        "label": "Progress 8 lower 95% confidence interval for pupils with middle prior attainment",
+        "visible": true,
+        "order": 56
+      }
+    },
+    "P8CIUPP_MID": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Measures by pupil type - Middle prior attainers. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "BE"
+        },
+        "heading": "Progress 8 upper 95% confidence interval for pupils with middle prior attainment"
+      },
+      "x-display": {
+        "label": "Progress 8 upper 95% confidence interval for pupils with middle prior attainment",
+        "visible": true,
+        "order": 57
+      }
+    },
+    "P8MEA_MID_ORIG": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Measures by pupil type - Middle prior attainers. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "BF"
+        },
+        "heading": "Unadjusted Progress 8 score for pupils with middle prior attainment"
+      },
+      "x-display": {
+        "label": "Unadjusted Progress 8 score for pupils with middle prior attainment",
+        "visible": true,
+        "order": 58
+      }
+    },
+    "P8CILOW_MID_ORIG": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Measures by pupil type - Middle prior attainers. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "BG"
+        },
+        "heading": "Unadjusted Progress 8 lower 95% confidence interval for pupils with middle prior attainment"
+      },
+      "x-display": {
+        "label": "Unadjusted Progress 8 lower 95% confidence interval for pupils with middle prior attainment",
+        "visible": true,
+        "order": 59
+      }
+    },
+    "P8CIUPP_MID_ORIG": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Measures by pupil type - Middle prior attainers. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "BH"
+        },
+        "heading": "Unadjusted Progress 8 upper 95% confidence interval for pupils with middle prior attainment"
+      },
+      "x-display": {
+        "label": "Unadjusted Progress 8 upper 95% confidence interval for pupils with middle prior attainment",
+        "visible": true,
+        "order": 60
+      }
+    },
+    "ATT8SCR_MID": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Measures by pupil type - Middle prior attainers. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "BI"
+        },
+        "heading": "Average Attainment 8 score per pupils with middle prior attainment pupil"
+      },
+      "x-display": {
+        "label": "Average Attainment 8 score per pupils with middle prior attainment pupil",
+        "visible": true,
+        "order": 61
+      }
+    },
+    "PTBASICSAV_97": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Measures by pupil type - Middle prior attainers. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid).",
+      "x-csv": {
+        "columns": {
+          "default": "BJ"
+        },
+        "heading": "% of pupils with middle prior attainment achieving grade 7 or above in English and maths"
+      },
+      "x-display": {
+        "label": "% of pupils with middle prior attainment achieving grade 7 or above in English and maths",
+        "visible": true,
+        "order": 62
+      }
+    },
+    "PTBASICSAV_95": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Measures by pupil type - Middle prior attainers. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "BK"
+        },
+        "heading": "% of pupils with middle prior attainment achieving grade 5 or above in English and maths"
+      },
+      "x-display": {
+        "label": "% of pupils with middle prior attainment achieving grade 5 or above in English and maths",
+        "visible": true,
+        "order": 63
+      }
+    },
+    "P8PUP_HI": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Measures by pupil type - High prior attainers. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "BL"
+        },
+        "heading": "Number of pupils with high prior attainment in the Progress 8 score"
+      },
+      "x-display": {
+        "label": "Number of pupils with high prior attainment in the Progress 8 score",
+        "visible": true,
+        "order": 64
+      }
+    },
+    "P8MEA_HI": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Measures by pupil type - High prior attainers. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "BM"
+        },
+        "heading": "Progress 8 score for pupils with high prior attainment"
+      },
+      "x-display": {
+        "label": "Progress 8 score for pupils with high prior attainment",
+        "visible": true,
+        "order": 65
+      }
+    },
+    "P8CILOW_HI": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Measures by pupil type - High prior attainers. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "BN"
+        },
+        "heading": "Progress 8 lower 95% confidence interval for pupils with high prior attainment"
+      },
+      "x-display": {
+        "label": "Progress 8 lower 95% confidence interval for pupils with high prior attainment",
+        "visible": true,
+        "order": 66
+      }
+    },
+    "P8CIUPP_HI": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Measures by pupil type - High prior attainers. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "BO"
+        },
+        "heading": "Progress 8 upper 95% confidence interval for pupils with high prior attainment"
+      },
+      "x-display": {
+        "label": "Progress 8 upper 95% confidence interval for pupils with high prior attainment",
+        "visible": true,
+        "order": 67
+      }
+    },
+    "P8MEA_HI_ORIG": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Measures by pupil type - High prior attainers. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "BP"
+        },
+        "heading": "Unadjusted Progress 8 score for pupils with high prior attainment"
+      },
+      "x-display": {
+        "label": "Unadjusted Progress 8 score for pupils with high prior attainment",
+        "visible": true,
+        "order": 68
+      }
+    },
+    "P8CILOW_HI_ORIG": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Measures by pupil type - High prior attainers. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "BQ"
+        },
+        "heading": "Unadjusted Progress 8 lower 95% confidence interval for pupils with high prior attainment"
+      },
+      "x-display": {
+        "label": "Unadjusted Progress 8 lower 95% confidence interval for pupils with high prior attainment",
+        "visible": true,
+        "order": 69
+      }
+    },
+    "P8CIUPP_HI_ORIG": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Measures by pupil type - High prior attainers. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "BR"
+        },
+        "heading": "Unadjusted Progress 8 upper 95% confidence interval for pupils with high prior attainment"
+      },
+      "x-display": {
+        "label": "Unadjusted Progress 8 upper 95% confidence interval for pupils with high prior attainment",
+        "visible": true,
+        "order": 70
+      }
+    },
+    "ATT8SCR_HI": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Measures by pupil type - High prior attainers. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "BS"
+        },
+        "heading": "Average Attainment 8 score per pupils with high prior attainment pupil"
+      },
+      "x-display": {
+        "label": "Average Attainment 8 score per pupils with high prior attainment pupil",
+        "visible": true,
+        "order": 71
+      }
+    },
+    "PTBASICSHI_97": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Measures by pupil type - High prior attainers.",
+      "x-csv": {
+        "columns": {
+          "default": "BT"
+        },
+        "heading": "% of pupils with high prior attainment achieving grade 7 or above in English and maths"
+      },
+      "x-display": {
+        "label": "% of pupils with high prior attainment achieving grade 7 or above in English and maths",
+        "visible": true,
+        "order": 72
+      }
+    },
+    "PTBASICSHI_95": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Measures by pupil type - High prior attainers. Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "BU"
+        },
+        "heading": "% of pupils with high prior attainment achieving grade 5 or above in English and maths"
+      },
+      "x-display": {
+        "label": "% of pupils with high prior attainment achieving grade 5 or above in English and maths",
+        "visible": true,
+        "order": 73
+      }
+    },
+    "P8PUP_FSM6CLA1A": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Disadvantaged. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "BV"
+        },
+        "heading": "Number of disadvantaged pupils in the Progress 8 score"
+      },
+      "x-display": {
+        "label": "Number of disadvantaged pupils in the Progress 8 score",
+        "visible": true,
+        "order": 74
+      }
+    },
+    "P8MEA_FSM6CLA1A": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Disadvantaged. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "BW"
+        },
+        "heading": "Progress 8 score for disadvantaged pupils"
+      },
+      "x-display": {
+        "label": "Progress 8 score for disadvantaged pupils",
+        "visible": true,
+        "order": 75
+      }
+    },
+    "P8CILOW_FSM6CLA1A": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Disadvantaged. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "BX"
+        },
+        "heading": "Progress 8 lower 95% confidence interval for disadvantaged pupils"
+      },
+      "x-display": {
+        "label": "Progress 8 lower 95% confidence interval for disadvantaged pupils",
+        "visible": true,
+        "order": 76
+      }
+    },
+    "P8CIUPP_FSM6CLA1A": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Disadvantaged. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "BY"
+        },
+        "heading": "Progress 8 upper 95% confidence interval for disadvantaged pupils"
+      },
+      "x-display": {
+        "label": "Progress 8 upper 95% confidence interval for disadvantaged pupils",
+        "visible": true,
+        "order": 77
+      }
+    },
+    "P8MEA_FSM6CLA1A_ORIG": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Disadvantaged. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "BZ"
+        },
+        "heading": "Unadjusted Progress 8 score for disadvantaged pupils"
+      },
+      "x-display": {
+        "label": "Unadjusted Progress 8 score for disadvantaged pupils",
+        "visible": true,
+        "order": 78
+      }
+    },
+    "P8CILOW_FSM6CLA1A_ORIG": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Disadvantaged. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "CA"
+        },
+        "heading": "Unadjusted Progress 8 lower 95% confidence interval for disadvantaged pupils"
+      },
+      "x-display": {
+        "label": "Unadjusted Progress 8 lower 95% confidence interval for disadvantaged pupils",
+        "visible": true,
+        "order": 79
+      }
+    },
+    "P8CIUPP_FSM6CLA1A_ORIG": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Disadvantaged. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "CB"
+        },
+        "heading": "Unadjusted Progress 8 upper 95% confidence interval for disadvantaged pupils"
+      },
+      "x-display": {
+        "label": "Unadjusted Progress 8 upper 95% confidence interval for disadvantaged pupils",
+        "visible": true,
+        "order": 80
+      }
+    },
+    "P8MEAENG_FSM6CLA1A": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Disadvantaged. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "CC"
+        },
+        "heading": "Progress 8 score for disadvantaged - English element"
+      },
+      "x-display": {
+        "label": "Progress 8 score for disadvantaged - English element",
+        "visible": true,
+        "order": 81
+      }
+    },
+    "P8MEAMAT_FSM6CLA1A": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Disadvantaged. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "CD"
+        },
+        "heading": "Progress 8 score for disadvantaged - maths element"
+      },
+      "x-display": {
+        "label": "Progress 8 score for disadvantaged - maths element",
+        "visible": true,
+        "order": 82
+      }
+    },
+    "P8MEAEBAC_FSM6CLA1A": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Disadvantaged. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "CE"
+        },
+        "heading": "Progress 8 score for disadvantaged - Ebacc element"
+      },
+      "x-display": {
+        "label": "Progress 8 score for disadvantaged - Ebacc element",
+        "visible": true,
+        "order": 83
+      }
+    },
+    "P8MEAOPEN_FSM6CLA1A": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Disadvantaged. Null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid). Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "CF"
+        },
+        "heading": "Progress 8 score for disadvantaged - open element"
+      },
+      "x-display": {
+        "label": "Progress 8 score for disadvantaged - open element",
+        "visible": true,
+        "order": 84
+      }
+    },
+    "ATT8SCR_FSM6CLA1A": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Disadvantaged. Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "CG"
+        },
+        "heading": "Average Attainment 8 score per disadvantaged pupil"
+      },
+      "x-display": {
+        "label": "Average Attainment 8 score per disadvantaged pupil",
+        "visible": true,
+        "order": 85
+      }
+    },
+    "ATT8SCRENG_FSM6CLA1A": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Disadvantaged. Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "CH"
+        },
+        "heading": "Attainment 8 score for disadvantaged - English element"
+      },
+      "x-display": {
+        "label": "Attainment 8 score for disadvantaged - English element",
+        "visible": true,
+        "order": 86
+      }
+    },
+    "ATT8SCRMAT_FSM6CLA1A": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Disadvantaged. Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "CI"
+        },
+        "heading": "Attainment 8 score for disadvantaged - mathematics element"
+      },
+      "x-display": {
+        "label": "Attainment 8 score for disadvantaged - mathematics element",
+        "visible": true,
+        "order": 87
+      }
+    },
+    "ATT8SCREBAC_FSM6CLA1A": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Disadvantaged. Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "CJ"
+        },
+        "heading": "Attainment 8 score for disadvantaged - EBacc element"
+      },
+      "x-display": {
+        "label": "Attainment 8 score for disadvantaged - EBacc element",
+        "visible": true,
+        "order": 88
+      }
+    },
+    "ATT8SCROPEN_FSM6CLA1A": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Disadvantaged. Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "CK"
+        },
+        "heading": "Attainment 8 score for disadvantaged - Open element"
+      },
+      "x-display": {
+        "label": "Attainment 8 score for disadvantaged - Open element",
+        "visible": true,
+        "order": 89
+      }
+    },
+    "ATT8SCROPENG_FSM6CLA1A": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Disadvantaged. Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "CL"
+        },
+        "heading": "Open element - GCSE only - disadvantaged pupils"
+      },
+      "x-display": {
+        "label": "Open element - GCSE only - disadvantaged pupils",
+        "visible": true,
+        "order": 90
+      }
+    },
+    "ATT8SCROPENNG_FSM6CLA1A": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Disadvantaged. Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "CM"
+        },
+        "heading": "Open element - non-GCSE only - disadvantaged pupils"
+      },
+      "x-display": {
+        "label": "Open element - non-GCSE only - disadvantaged pupils",
+        "visible": true,
+        "order": 91
+      }
+    },
+    "PTFSM6CLA1ABASICS_97": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Disadvantaged.",
+      "x-csv": {
+        "columns": {
+          "default": "CN"
+        },
+        "heading": "% of disadvantaged pupils achieving grade 7 or above in English and maths"
+      },
+      "x-display": {
+        "label": "% of disadvantaged pupils achieving grade 7 or above in English and maths",
+        "visible": true,
+        "order": 92
+      }
+    },
+    "PTFSM6CLA1ABASICS_95": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Website heading: Disadvantaged. Also in the report for FE colleges.",
+      "x-csv": {
+        "columns": {
+          "default": "CO"
+        },
+        "heading": "% of disadvantaged pupils achieving grade 5 or above in English and maths"
+      },
+      "x-display": {
+        "label": "% of disadvantaged pupils achieving grade 5 or above in English and maths",
+        "visible": true,
+        "order": 93
+      }
+    }
+  }
+}

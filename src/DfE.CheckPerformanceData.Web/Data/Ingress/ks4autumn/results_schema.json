@@ -1,0 +1,783 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "results_schema.json",
+  "title": "Results",
+  "description": "One row of the supplier's (LDS) KS4 results file, transcribed from the LDS Data Spec tab 'KS4 Results Data (Restructured)'. Field references are the CSV headers; the 'Column heading provided on file' is the heading of the CSV a school downloads, in column order A-AM. MATCHREF, EXAMCAND and MATCHREG have no column and the EBacc fields marked removed (2026) are left out. QAN, QUAL_NAME, SYLLABUS and SESSION are not CSV columns: x-ingress.source fills them from GNUMBER, QUALIFICATION_DESCRIPTION, BRDSUBNO and SEASON_AND_YEAR. The slot stamps SOURCE. Like the other results schemas, it sets no maxLength.",
+  "type": "object",
+  "additionalProperties": false,
+  "x-ingress": {
+    "collection": "results",
+    "pageTab": "results",
+    "institutionKey": "LAESTAB"
+  },
+  "x-download": {
+    "fileName": "ks4results.csv",
+    "label": "Results"
+  },
+  "x-display": {
+    "tab": "results",
+    "section": "Results",
+    "selectorOrder": 0
+  },
+  "properties": {
+    "CANDNO": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "A number allocated to each pupil within each school",
+      "x-csv": {
+        "columns": {
+          "default": "A"
+        },
+        "heading": "Candidate number"
+      },
+      "x-display": {
+        "label": "Candidate number",
+        "visible": false
+      }
+    },
+    "CYPMD_ID": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "A unique pupil ID used in the Check Your Performance Measures Data service",
+      "x-csv": {
+        "columns": {
+          "default": "B"
+        },
+        "heading": "CYPMD ID"
+      },
+      "x-display": {
+        "label": "CYPMD ID",
+        "visible": false
+      }
+    },
+    "SURNAME": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Pupil surname",
+      "x-csv": {
+        "columns": {
+          "default": "C"
+        },
+        "heading": "Surname"
+      },
+      "x-display": {
+        "label": "Surname",
+        "visible": true,
+        "order": 1,
+        "searchable": true
+      }
+    },
+    "FORENAME": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Pupil forename",
+      "x-csv": {
+        "columns": {
+          "default": "D"
+        },
+        "heading": "Forename"
+      },
+      "x-display": {
+        "label": "Forename",
+        "visible": true,
+        "order": 2,
+        "searchable": true
+      }
+    },
+    "Sex": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Pupil sex (F = female, M = male, or blank)",
+      "x-csv": {
+        "columns": {
+          "default": "E"
+        },
+        "heading": "Sex"
+      },
+      "x-display": {
+        "label": "Sex",
+        "visible": false
+      }
+    },
+    "DOB": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Pupil date of birth in format DD/MM/YYYY",
+      "x-csv": {
+        "columns": {
+          "default": "F"
+        },
+        "heading": "Date of birth"
+      },
+      "x-display": {
+        "label": "Date of birth",
+        "visible": false
+      }
+    },
+    "AGE": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Pupil age at the start of the school year (31 August 2025)",
+      "x-csv": {
+        "columns": {
+          "default": "G"
+        },
+        "heading": "Age"
+      },
+      "x-display": {
+        "label": "Age",
+        "visible": false
+      }
+    },
+    "P_INCL": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Pupil Inclusion Status flag (see the pupil file's codes)",
+      "x-csv": {
+        "columns": {
+          "default": "H"
+        },
+        "heading": "Pupil Inclusion Status flag"
+      },
+      "x-display": {
+        "label": "Pupil Inclusion Status flag",
+        "visible": false
+      }
+    },
+    "LAESTAB": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "7-digit DfE number for school",
+      "x-csv": {
+        "columns": {
+          "default": "I"
+        },
+        "heading": "DfE Establishment Number"
+      },
+      "x-display": {
+        "label": "DfE Establishment Number",
+        "visible": false
+      }
+    },
+    "URN": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "School Unique Reference number",
+      "x-csv": {
+        "columns": {
+          "default": "J"
+        },
+        "heading": "School URN"
+      },
+      "x-display": {
+        "label": "School URN",
+        "visible": false
+      }
+    },
+    "UPN": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Unique Pupil Number. May be incorrect or missing: it is not yet used directly in the calculation of performance data.",
+      "x-csv": {
+        "columns": {
+          "default": "K"
+        },
+        "heading": "UPN"
+      },
+      "x-display": {
+        "label": "UPN",
+        "visible": false
+      }
+    },
+    "EXAMNO": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Exam/assessment serial number",
+      "x-csv": {
+        "columns": {
+          "default": "L"
+        },
+        "heading": "Exam number"
+      },
+      "x-display": {
+        "label": "Exam number",
+        "visible": false
+      }
+    },
+    "AB_CODE_NDAQ": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Awarding body short description",
+      "x-csv": {
+        "columns": {
+          "default": "M"
+        },
+        "heading": "Awarding Body"
+      },
+      "x-display": {
+        "label": "Awarding Body",
+        "visible": false
+      }
+    },
+    "QUALIFICATION_TYPE": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Short description of qualification type",
+      "x-csv": {
+        "columns": {
+          "default": "N"
+        },
+        "heading": "Qualification type"
+      },
+      "x-display": {
+        "label": "Qualification type",
+        "visible": true,
+        "order": 3
+      }
+    },
+    "PTQ_INCLUDE": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Key stage 4 result is in the list of qualifications that count in 2025 performance measures: N = No, Y = Yes, null = KS2 results.",
+      "x-csv": {
+        "columns": {
+          "default": "O"
+        },
+        "heading": "KS4 result included in current method"
+      },
+      "x-display": {
+        "label": "KS4 result included in current method",
+        "visible": false
+      }
+    },
+    "R_INCL": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Which discounting rules apply to the qualification: 41 = included in 2025 secondary school performance measures, 42 = discounted by an earlier or a better result, 43 = not counted as only three non-GCSEs can count, 45 = not included in secondary school performance measures, 49 = Covid impacted and cannot be amended.",
+      "x-csv": {
+        "columns": {
+          "default": "P"
+        },
+        "heading": "Result inclusion flag"
+      },
+      "x-display": {
+        "label": "Result inclusion flag",
+        "visible": false
+      }
+    },
+    "SEASON_AND_YEAR": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Exam/assessment season and year, for example S2025 or W2022 (S = summer, W = winter)",
+      "x-csv": {
+        "columns": {
+          "default": "Q"
+        },
+        "heading": "Exam/Assessment SEASON AND YEAR"
+      },
+      "x-display": {
+        "label": "Exam/Assessment SEASON AND YEAR",
+        "visible": true,
+        "order": 6
+      }
+    },
+    "FIRST_EXAM_DATE": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Result date, DDMMYYYY",
+      "x-csv": {
+        "columns": {
+          "default": "R"
+        },
+        "heading": "Exam date"
+      },
+      "x-display": {
+        "label": "Exam date",
+        "visible": false
+      }
+    },
+    "WOLF_DISC_CODE": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Discount code of qualifications counted in the performance measures",
+      "x-csv": {
+        "columns": {
+          "default": "S"
+        },
+        "heading": "Discount code"
+      },
+      "x-display": {
+        "label": "Discount code",
+        "visible": false
+      }
+    },
+    "WOLF_INCLUDED": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Qualification category: 0 = not included in the current methodology, 1 = technical awards, 2 = GCSE and established iGCSE, 3 = graded music examinations at grade 6 and above, 4 = other level 3 qualifications.",
+      "x-csv": {
+        "columns": {
+          "default": "T"
+        },
+        "heading": "Qualification inclusion category"
+      },
+      "x-display": {
+        "label": "Qualification inclusion category",
+        "visible": false
+      }
+    },
+    "QUALIFICATION_DESCRIPTION": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Description of qualification",
+      "x-csv": {
+        "columns": {
+          "default": "U"
+        },
+        "heading": "Qualification description"
+      },
+      "x-display": {
+        "label": "Qualification description",
+        "visible": true,
+        "order": 4
+      }
+    },
+    "GNUMBER": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Ofqual qualification number",
+      "x-csv": {
+        "columns": {
+          "default": "V"
+        },
+        "heading": "QAN number"
+      },
+      "x-display": {
+        "label": "QAN number",
+        "visible": true,
+        "order": 5
+      }
+    },
+    "BRDSUBNO": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Awarding body subject number (syllabus code)",
+      "x-csv": {
+        "columns": {
+          "default": "W"
+        },
+        "heading": "Syllabus code"
+      },
+      "x-display": {
+        "label": "Syllabus code",
+        "visible": false
+      }
+    },
+    "GRADE": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Grade; KS2 pre-2017 level; KS2 2017 onwards outcome",
+      "x-csv": {
+        "columns": {
+          "default": "X"
+        },
+        "heading": "Grade/Test/Outcome"
+      },
+      "x-display": {
+        "label": "Grade/Test/Outcome",
+        "visible": true,
+        "order": 7
+      }
+    },
+    "SCORE": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Scaled score (KS2 2017 onwards), 0-999 or N. Set to null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid).",
+      "x-csv": {
+        "columns": {
+          "default": "Y"
+        },
+        "heading": "Scaled Score"
+      },
+      "x-display": {
+        "label": "Scaled Score",
+        "visible": false
+      }
+    },
+    "KS2_SPECIAL_CONSIDERATION": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "KS2 special consideration: 0 = not approved, 1 = approved but test not sat or no mark data, 2 = approved, blank = none. Set to null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid).",
+      "x-csv": {
+        "columns": {
+          "default": "Z"
+        },
+        "heading": "KS2 special consideration"
+      },
+      "x-display": {
+        "label": "KS2 special consideration",
+        "visible": false
+      }
+    },
+    "A8POINTS": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Point score for qualification in Attainment 8/Progress 8. Blank for Covid impacted results.",
+      "x-csv": {
+        "columns": {
+          "default": "AA"
+        },
+        "heading": "Point score for qualification in Attainment 8/Progress 8"
+      },
+      "x-display": {
+        "label": "Point score for qualification in Attainment 8/Progress 8",
+        "visible": false
+      }
+    },
+    "ANCN": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Actual entry National Centre Number",
+      "x-csv": {
+        "columns": {
+          "default": "AB"
+        },
+        "heading": "National Centre Number"
+      },
+      "x-display": {
+        "label": "National Centre Number",
+        "visible": false
+      }
+    },
+    "SCHOOL_EXAM": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Exam taken at current school (maintained schools only, excluding FE colleges with 14-16 provision): blank = No, Y = Yes.",
+      "x-csv": {
+        "columns": {
+          "default": "AC"
+        },
+        "heading": "Exam taken at current school"
+      },
+      "x-display": {
+        "label": "Exam taken at current school",
+        "visible": false
+      }
+    },
+    "DISC3_EBACC_PTQ_EE": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Multi-year discount flag plus early entry rules, excluding level 3 qualifications not on the EBacc list: blank = No, Y = Yes.",
+      "x-csv": {
+        "columns": {
+          "default": "AD"
+        },
+        "heading": "Result discounted for EBacc subject rules?"
+      },
+      "x-display": {
+        "label": "Result discounted for EBacc subject rules?",
+        "visible": false
+      }
+    },
+    "A8DISC": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Multi-year discount flag, plus early entry rules and Attainment 8/Progress 8 rules: blank = No, Y = Yes.",
+      "x-csv": {
+        "columns": {
+          "default": "AE"
+        },
+        "heading": "Discounted qualifications under Attainment 8"
+      },
+      "x-display": {
+        "label": "Discounted qualifications under Attainment 8",
+        "visible": false
+      }
+    },
+    "ACADEMIC": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Qualification is counted as an academic qualification (GCSE or AS level only): blank = No, Y = Yes. The heading is spelt as the specification spells it.",
+      "x-csv": {
+        "columns": {
+          "default": "AF"
+        },
+        "heading": "Qualification is counted as academic qualifcation"
+      },
+      "x-display": {
+        "label": "Qualification is counted as academic qualifcation",
+        "visible": false
+      }
+    },
+    "EXAM_YR_7_8": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "KS4 result taken more than 3 years previously: blank = No, Y = Yes.",
+      "x-csv": {
+        "columns": {
+          "default": "AG"
+        },
+        "heading": "Exam taken before year 9?"
+      },
+      "x-display": {
+        "label": "Exam taken before year 9?",
+        "visible": false
+      }
+    },
+    "First_Entry_Rules": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "\"First entry\" discount rules apply to this result: blank = No, Y = Yes.",
+      "x-csv": {
+        "columns": {
+          "default": "AH"
+        },
+        "heading": "First Entry Rules apply?"
+      },
+      "x-display": {
+        "label": "First Entry Rules apply?",
+        "visible": false
+      }
+    },
+    "Best_Entry_Rules": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "\"Best entry\" discount rules apply to this result: blank = No, Y = Yes.",
+      "x-csv": {
+        "columns": {
+          "default": "AI"
+        },
+        "heading": "Best Entry Rules apply?"
+      },
+      "x-display": {
+        "label": "Best Entry Rules apply?",
+        "visible": false
+      }
+    },
+    "Prev_School_Rules": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "\"Previous school\" discount rules apply to this result: blank = No, Y = Yes.",
+      "x-csv": {
+        "columns": {
+          "default": "AJ"
+        },
+        "heading": "Prev School Rules apply?"
+      },
+      "x-display": {
+        "label": "Prev School Rules apply?",
+        "visible": false
+      }
+    },
+    "EngPath": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Result is on the English pathway: 1 = English, 2 = English literature and English language.",
+      "x-csv": {
+        "columns": {
+          "default": "AK"
+        },
+        "heading": "English Pathway"
+      },
+      "x-display": {
+        "label": "English Pathway",
+        "visible": false
+      }
+    },
+    "SciPath": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Result is on the science pathway: 1 = individual sciences, 2 = combined science.",
+      "x-csv": {
+        "columns": {
+          "default": "AL"
+        },
+        "heading": "Science Pathway"
+      },
+      "x-display": {
+        "label": "Science Pathway",
+        "visible": false
+      }
+    },
+    "FvB_Entry_Rules": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "A mix of \"first entry\" and \"best entry\" discount rules applies in the result's subject area: blank = No, 1 = Yes.",
+      "x-csv": {
+        "columns": {
+          "default": "AM"
+        },
+        "heading": "Mix of First and Best Entry Rules?"
+      },
+      "x-display": {
+        "label": "Mix of First and Best Entry Rules?",
+        "visible": false
+      }
+    },
+    "SOURCE": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The results file the row came in, stamped from the dataset slot (e.g. KS4_MAIN). Not a CSV column.",
+      "x-csv": {
+        "columns": {},
+        "heading": "Source file"
+      },
+      "x-display": {
+        "label": "Source file",
+        "visible": false
+      }
+    },
+    "QAN": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Qualification number for the journey, from GNUMBER. Not downloaded or shown.",
+      "x-ingress": {
+        "source": "GNUMBER"
+      },
+      "x-csv": {
+        "columns": {},
+        "heading": "QAN"
+      },
+      "x-display": {
+        "label": "QAN",
+        "visible": false
+      }
+    },
+    "QUAL_NAME": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Qualification name for the journey, from QUALIFICATION_DESCRIPTION. Not downloaded or shown.",
+      "x-ingress": {
+        "source": "QUALIFICATION_DESCRIPTION"
+      },
+      "x-csv": {
+        "columns": {},
+        "heading": "Qualification"
+      },
+      "x-display": {
+        "label": "Qualification",
+        "visible": false
+      }
+    },
+    "SYLLABUS": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Syllabus code for the journey, from BRDSUBNO. Not downloaded or shown.",
+      "x-ingress": {
+        "source": "BRDSUBNO"
+      },
+      "x-csv": {
+        "columns": {},
+        "heading": "Syllabus"
+      },
+      "x-display": {
+        "label": "Syllabus",
+        "visible": false
+      }
+    },
+    "SESSION": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Exam session for the journey, from SEASON_AND_YEAR (e.g. S2025). Not downloaded or shown.",
+      "x-ingress": {
+        "source": "SEASON_AND_YEAR"
+      },
+      "x-csv": {
+        "columns": {},
+        "heading": "Session"
+      },
+      "x-display": {
+        "label": "Session",
+        "visible": false
+      }
+    }
+  }
+}

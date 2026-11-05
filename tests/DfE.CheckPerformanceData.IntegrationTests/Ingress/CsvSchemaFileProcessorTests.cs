@@ -329,11 +329,15 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
     }
 
     // The shipped schemas carry the real codes. Each supplier file must land with the inclusion the
-    // spec gives it: KS4 401/403/414/421/431 included; KS2 201 included, 202 and 203 not.
+    // spec gives it: KS4 401/403/414/421/431 included (KS4 Autumn also names 412 and 425 not
+    // included); KS2 201 included, 202 and 203 not.
     [Theory]
     [InlineData("ks4june", "UPN,CYPMD_ID,SURNAME,FORENAME,P_INCL,LAESTAB\nA1,1,Smith,Al,401,8604070\n", true)]
     [InlineData("ks4june", "UPN,CYPMD_ID,SURNAME,FORENAME,P_INCL,LAESTAB\nA1,1,Smith,Al,431,8604070\n", true)]
     [InlineData("ks4june", "UPN,CYPMD_ID,SURNAME,FORENAME,P_INCL,LAESTAB\nA1,1,Smith,Al,402,8604070\n", false)]
+    [InlineData("ks4autumn", "UPN,CYPMD_ID,SURNAME,FORENAME,P_INCL,LAESTAB\nA1,1,Smith,Al,401,8604070\n", true)]
+    [InlineData("ks4autumn", "UPN,CYPMD_ID,SURNAME,FORENAME,P_INCL,LAESTAB\nA1,1,Smith,Al,431,8604070\n", true)]
+    [InlineData("ks4autumn", "UPN,CYPMD_ID,SURNAME,FORENAME,P_INCL,LAESTAB\nA1,1,Smith,Al,412,8604070\n", false)]
     [InlineData("ks2", "UPN,CYPMD_ID,MATCHREF,SURNAME,FORENAME,PINCL_Flag,LAESTAB\nA1,1,7,Smith,Al,201,8604070\n", true)]
     [InlineData("ks2", "UPN,CYPMD_ID,MATCHREF,SURNAME,FORENAME,PINCL_Flag,LAESTAB\nA1,1,7,Smith,Al,202,8604070\n", false)]
     [InlineData("ks2", "UPN,CYPMD_ID,MATCHREF,SURNAME,FORENAME,PINCL_Flag,LAESTAB\nA1,1,7,Smith,Al,203,8604070\n", false)]
@@ -495,6 +499,8 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
     [Theory]
     [InlineData("ks4june", "pupils_schema.json", "UPN,CYPMD_ID,SURNAME,FORENAME,P_INCL,LAESTAB\nA1,1,Smith,Al,401,8604070\n", null, false)]
     [InlineData("ks4june", "pupils_schema.json", "UPN,CYPMD_ID,SURNAME,FORENAME,P_INCL,LAESTAB\nA1,1,Smith,Al,402,8604070\n", null, true)]
+    [InlineData("ks4autumn", "pupils_schema.json", "UPN,CYPMD_ID,SURNAME,FORENAME,P_INCL,LAESTAB\nA1,1,Smith,Al,401,8604070\n", null, false)]
+    [InlineData("ks4autumn", "pupils_schema.json", "UPN,CYPMD_ID,SURNAME,FORENAME,P_INCL,LAESTAB\nA1,1,Smith,Al,425,8604070\n", null, true)]
     [InlineData("ks2", "pupils_schema.json", "UPN,CYPMD_ID,MATCHREF,SURNAME,FORENAME,PINCL_Flag,LAESTAB\nA1,1,7,Smith,Al,201,8604070\n", null, false)]
     [InlineData("ks2", "pupils-december_schema.json", "UPN,CYPMD_ID,MATCHREF,SURNAME,FORENAME,PINCL_Flag,LAESTAB\nA1,1,7,Smith,Al,202,8604070\n", null, true)]
     [InlineData("post16", "students-included_schema.json", "CYPMD_ID,SURNAME,FORENAMES,P_INCL,LAESTAB\n1,Smith,Al,501,8604070\n", true, false)]

@@ -5,20 +5,20 @@ using DfE.CheckPerformanceData.Domain.Enums;
 namespace DfE.CheckPerformanceData.Application.UnitTests.Admin.WindowAdmin;
 
 // #319: which exercises a window type starts ticked with. A starting point rather than a rule — the
-// admin may tick or untick any of them, which is how KS4 Autumn can be given a results enquiry
-// without a code change.
+// admin may tick or untick any of them.
 public class WindowExercisesDefaultsTests
 {
-    [Fact]
-    public void Post16_starts_with_both_exercises()
+    [Theory]
+    [InlineData(CheckingWindowType.Post16)]
+    [InlineData(CheckingWindowType.KS4Autumn)]
+    public void A_window_type_with_results_starts_with_both_exercises(CheckingWindowType type)
         => Assert.Equal(
             [CheckingExerciseType.PupilData, CheckingExerciseType.ResultsEnquiry],
-            WindowExercises.DefaultsFor(CheckingWindowType.Post16));
+            WindowExercises.DefaultsFor(type));
 
     [Theory]
     [InlineData(CheckingWindowType.KS4June)]
     [InlineData(CheckingWindowType.KS2)]
-    [InlineData(CheckingWindowType.KS4Autumn)]
     public void Every_other_type_starts_with_pupil_data_only(CheckingWindowType type)
         => Assert.Equal(CheckingExerciseType.PupilData, Assert.Single(WindowExercises.DefaultsFor(type)));
 

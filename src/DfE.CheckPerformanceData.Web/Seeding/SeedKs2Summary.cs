@@ -10,7 +10,7 @@ namespace DfE.CheckPerformanceData.Web.Seeding;
 
 /// <summary>
 /// Dev-only: the summary data share of the Key Stage 2 window
-/// (<see cref="SeedCheckingWindows.Ks2SummaryExercise"/>). Links <c>summary/summary.csv</c> to its
+/// (<see cref="SeedCheckingWindows.OneFileSummaryExercise"/>). Links <c>summary/summary.csv</c> to its
 /// one slot with <c>ks2/summary_schema.json</c> and validates the share, so it has one release.
 /// </summary>
 /// <remarks>
@@ -43,11 +43,11 @@ public static class SeedKs2Summary
     {
         var window = await SeedExerciseFixtures.LoadAsync(dbContext, DevDataSeeder.KeyStage2CheckingWindowId);
         var summary = window.CheckingExercises.Single(e =>
-            e.ExerciseType is null && e.Name == SeedCheckingWindows.Ks2SummaryExercise);
+            e.ExerciseType is null && e.Name == SeedCheckingWindows.OneFileSummaryExercise);
 
         var schema = await System.IO.File.ReadAllTextAsync(Path.Combine(contentRootPath, "Data", "Ingress", "ks2", Schema));
         await SeedExerciseFixtures.LinkAsync(blobs, summary,
-            summary.Datasets.Single(d => d.Name == SeedCheckingWindows.Ks2SummaryDataset), Path.GetFileName(File),
+            summary.Datasets.Single(d => d.Name == SeedCheckingWindows.OneFileSummaryDataset), Path.GetFileName(File),
             Csv(schema), Schema, schema);
         await dbContext.SaveChangesAsync();
         await SeedExerciseFixtures.IngestAsync(blobs, ingress, summary);

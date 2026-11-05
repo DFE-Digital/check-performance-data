@@ -34,8 +34,8 @@ public sealed class DevDataSeedingOrchestrator(
     {
         await devDataSeeder.SeedAsync();
 
-        // The KS4 fixture windows' pupils, ingested from generated CSVs so each has schemas and a
-        // release, and the 16-19 windows, one for each step of the results enquiry year. Each
+        // The KS4 June fixture window's pupils, ingested from generated CSVs so it has schemas and a
+        // release, the KS4 Autumn window's pupils, results and summary, and the 16-19 windows, one for each step of the results enquiry year. Each
         // 16-19 seed does the step before it, then its own: Oct imports and validates the October
         // files, Nov adds late results 2, Feb adds the revised files and retires the four they
         // replace, and Mar adds included revised with retention and retires included revised. Each
@@ -47,6 +47,11 @@ public sealed class DevDataSeedingOrchestrator(
         await Task.WhenAll(
             InOwnScopeAsync((db, ingress) =>
                 SeedExerciseFixtures.ExecuteSeedAsync(db, blobServiceClient, ingress, environment.ContentRootPath)),
+            InOwnScopeAsync(async (db, ingress) =>
+            {
+                await SeedKs4AutumnSamples.ExecuteSeedAsync(db, blobServiceClient, ingress, environment.ContentRootPath);
+                await SeedKs4AutumnSamples.WriteSamplesAsync(blobClients, environment.ContentRootPath, logger);
+            }),
             InOwnScopeAsync(async (db, ingress) =>
             {
                 await SeedPost16OctoberSamples.ExecuteSeedAsync(db, blobServiceClient, ingress, environment.ContentRootPath);

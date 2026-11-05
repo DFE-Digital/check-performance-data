@@ -1,0 +1,1267 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "pupils_schema.json",
+  "title": "Pupils",
+  "description": "One row of the supplier's (LDS) KS4 Autumn pupil file, transcribed from the LDS Data Spec tab 'KS4 Pupil Autumn Data (Restruc)' (reviewed 24/06/2026). Field references are the CSV headers; the 'Column heading provided on file' is the heading of the CSV a school downloads, in column order A-BM. The EBacc fields the specification marks removed (2026) have no column and are left out. MATCHREF is in the LDS ingress file but has no column in the school's download. Like the results schemas, it sets no maxLength.",
+  "type": "object",
+  "additionalProperties": false,
+  "x-ingress": {
+    "collection": "pupils",
+    "pageTab": "pupils",
+    "institutionKey": "LAESTAB",
+    "inclusion": {
+      "field": "P_INCL",
+      "included": [
+        "401",
+        "403",
+        "414",
+        "421",
+        "431"
+      ],
+      "descriptionField": "P_INCL_DESC",
+      "descriptions": {
+        "401": "Pupil on roll and included in key stage 4 (both NOR and results).",
+        "403": "Pupil added back. Included in key stage 4 (both NOR and results).",
+        "414": "Year group adjusted to 11. Pupil reported as Year 10 or below last year. Included in key stage 4 NOR and results.",
+        "421": "Pupil assumed to be on your roll. Included in key stage 4 data.",
+        "431": "Year group adjusted to 11. Pupil reported as Year 10 or below last year. Included in key stage 4 NOR and results.",
+        "402": "Pupil not on roll and omitted from all figures to be published.",
+        "404": "Pupil on roll. Pupil is not at the end of key stage 4 and is omitted from key stage 4 data.",
+        "407": "Pupil admitted following permanent exclusion from a maintained school. Omitted from NOR and results data.",
+        "408": "Pupil on roll. Pupil aged 15 admitted following permanent exclusion from a maintained school. Omitted from key stage 4.",
+        "410": "Pupil on roll but dual-registered with another school and is published elsewhere.",
+        "412": "Pupil on roll but removed on request from school. Omitted from all data.",
+        "413": "Year group adjusted to 12. Pupil previously reported as end of key stage 4. Omitted from all data.",
+        "422": "Pupil assumed to be on your roll. Pupil is estimated not to be in year 11. Omitted from key stage 4.",
+        "425": "Pupil not on roll and removed from all performance measures.",
+        "430": "Year group adjusted to 12. Pupil previously reported as end of key stage 4. Omitted from all data."
+      }
+    }
+  },
+  "x-download": {
+    "fileName": "ks4autumnpupils.csv",
+    "label": "Pupils"
+  },
+  "x-display": {
+    "tab": "pupils",
+    "section": "Pupils",
+    "selectorOrder": 0
+  },
+  "properties": {
+    "INCLUDED": {
+      "type": "boolean",
+      "description": "Stamped by ingress from x-ingress.inclusion: true when P_INCL is an included code. Not a supplier column, so not downloaded or shown.",
+      "x-csv": {
+        "columns": {},
+        "heading": "Included"
+      },
+      "x-display": {
+        "label": "Included",
+        "visible": false,
+        "order": 999
+      }
+    },
+    "INCLUDABLE": {
+      "type": "boolean",
+      "description": "Stamped by ingress: true when a school may ask to include this pupil, that is, the pupil is not included. Not a supplier column, so not downloaded or shown.",
+      "x-csv": {
+        "columns": {},
+        "heading": "Includable"
+      },
+      "x-display": {
+        "label": "Includable",
+        "visible": false,
+        "order": 999
+      }
+    },
+    "CANDNO": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "A number allocated to each pupil within each school",
+      "x-csv": {
+        "columns": {
+          "default": "A"
+        },
+        "heading": "Candidate number"
+      },
+      "x-display": {
+        "label": "Candidate number",
+        "visible": false,
+        "order": 6
+      }
+    },
+    "CYPMD_ID": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "A pupil reference number for use in the checking exercise",
+      "x-csv": {
+        "columns": {
+          "default": "B"
+        },
+        "heading": "CYPMD ID"
+      },
+      "x-display": {
+        "label": "CYPMD ID",
+        "visible": false,
+        "order": 7
+      }
+    },
+    "MATCHREF": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Unique pupil identifier for NPD assigned during matching (Learner_Matched_ID). In the LDS ingress file, but not in the CSV a school downloads.",
+      "x-csv": {
+        "columns": {},
+        "heading": "Match reference"
+      },
+      "x-display": {
+        "label": "Match reference",
+        "visible": false,
+        "order": 8
+      }
+    },
+    "SURNAME": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Pupil surname",
+      "x-csv": {
+        "columns": {
+          "default": "C"
+        },
+        "heading": "Surname"
+      },
+      "x-display": {
+        "label": "Last name",
+        "visible": true,
+        "order": 0,
+        "searchable": true
+      }
+    },
+    "FORENAME": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Pupil forename",
+      "x-csv": {
+        "columns": {
+          "default": "D"
+        },
+        "heading": "Forename"
+      },
+      "x-display": {
+        "label": "First name",
+        "visible": true,
+        "order": 1,
+        "searchable": true
+      }
+    },
+    "Sex": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Pupil sex (F = female, M = male)",
+      "x-csv": {
+        "columns": {
+          "default": "E"
+        },
+        "heading": "Sex"
+      },
+      "x-display": {
+        "label": "Sex",
+        "visible": true,
+        "order": 2
+      }
+    },
+    "DOB": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Pupil date of birth. The specification gives DD/MM/YYYY; YYYY-MM-DD is also read. Shown and downloaded as DD/MM/YYYY.",
+      "x-csv": {
+        "columns": {
+          "default": "F"
+        },
+        "heading": "Date of birth"
+      },
+      "x-display": {
+        "label": "Date of birth",
+        "visible": true,
+        "order": 3
+      }
+    },
+    "ENTRYDAT": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Pupil admission date to school. The specification gives DD/MM/YYYY; YYYY-MM-DD is also read. Shown and downloaded as DD/MM/YYYY.",
+      "x-csv": {
+        "columns": {
+          "default": "G"
+        },
+        "heading": "Admission date"
+      },
+      "x-display": {
+        "label": "Admission date",
+        "visible": false,
+        "order": 9
+      }
+    },
+    "AGE": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Pupil age at the start of the school year (31 August 2025)",
+      "x-csv": {
+        "columns": {
+          "default": "H"
+        },
+        "heading": "Age"
+      },
+      "x-display": {
+        "label": "Age",
+        "visible": true,
+        "order": 4
+      }
+    },
+    "ACTYRGRP": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Pupil year group",
+      "x-csv": {
+        "columns": {
+          "default": "I"
+        },
+        "heading": "Year group"
+      },
+      "x-display": {
+        "label": "Year group",
+        "visible": false,
+        "order": 10
+      }
+    },
+    "P_INCL": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Pupil Inclusion Status flag. See x-ingress.inclusion for the codes.",
+      "x-csv": {
+        "columns": {
+          "default": "J"
+        },
+        "heading": "Pupil Inclusion Status flag"
+      },
+      "x-display": {
+        "label": "Pupil Inclusion Status flag",
+        "visible": false,
+        "order": 11
+      }
+    },
+    "P_INCL_DESC": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Pupil Inclusion Status description. The specification gives no field reference; the name is the one the KS4 June file uses. Ingress stamps it from x-ingress.inclusion when the file leaves it blank.",
+      "x-csv": {
+        "columns": {
+          "default": "K"
+        },
+        "heading": "Pupil Inclusion description"
+      },
+      "x-display": {
+        "label": "Pupil Inclusion description",
+        "visible": false,
+        "order": 12
+      }
+    },
+    "INP8CALC": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Pupil included in progress 8 calculations. 1 = Yes, 0 = No. Set to null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid).",
+      "x-csv": {
+        "columns": {
+          "default": "L"
+        },
+        "heading": "Pupil included in progress 8 calculations"
+      },
+      "x-display": {
+        "label": "Pupil included in progress 8 calculations",
+        "visible": false,
+        "order": 13
+      }
+    },
+    "LAESTAB": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "7-digit DfE number for school",
+      "x-csv": {
+        "columns": {
+          "default": "M"
+        },
+        "heading": "DfE Establishment Number"
+      },
+      "x-display": {
+        "label": "DfE Establishment Number",
+        "visible": false,
+        "order": 14
+      }
+    },
+    "URN": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "School Unique Reference number",
+      "x-csv": {
+        "columns": {
+          "default": "N"
+        },
+        "heading": "School URN"
+      },
+      "x-display": {
+        "label": "School URN",
+        "visible": false,
+        "order": 15
+      }
+    },
+    "UPN": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Unique Pupil Number. May be incorrect or missing: it is not yet used directly in the calculation of performance data.",
+      "x-csv": {
+        "columns": {
+          "default": "O"
+        },
+        "heading": "UPN"
+      },
+      "x-display": {
+        "label": "UPN",
+        "visible": true,
+        "order": 5,
+        "searchable": true
+      }
+    },
+    "LANG1ST": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "First language: ENG = English, ENB = not known but believed English, OTH = other than English, OTB = not known but believed other than English, REF = refused, NOT = not known.",
+      "x-csv": {
+        "columns": {
+          "default": "P"
+        },
+        "heading": "Pupil's first language"
+      },
+      "x-display": {
+        "label": "Pupil's first language",
+        "visible": false,
+        "order": 16
+      }
+    },
+    "SENF": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Special Educational Needs status: K = SEN support, E = EHC plan, N = no recorded SEN.",
+      "x-csv": {
+        "columns": {
+          "default": "Q"
+        },
+        "heading": "SEN"
+      },
+      "x-display": {
+        "label": "SEN",
+        "visible": false,
+        "order": 17
+      }
+    },
+    "FSM6_P": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Pupil recorded as eligible for free school meals in any termly or annual census from the Summer census (May) 2020 up to and including the Spring census (January) 2026. 1 = Yes, 0 = No.",
+      "x-csv": {
+        "columns": {
+          "default": "R"
+        },
+        "heading": "Has the pupil been eligible for FSM in the last 6 years?"
+      },
+      "x-display": {
+        "label": "Has the pupil been eligible for FSM in the last 6 years?",
+        "visible": false,
+        "order": 18
+      }
+    },
+    "CLA_PP_1_DAY": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Pupil looked after for one day or more between 1/4/25 and 31/3/26, aged 4 to 15. 1 = Yes, 0 = No.",
+      "x-csv": {
+        "columns": {
+          "default": "S"
+        },
+        "heading": "Is the pupil looked after?"
+      },
+      "x-display": {
+        "label": "Is the pupil looked after?",
+        "visible": false,
+        "order": 19
+      }
+    },
+    "FSM6CLA1A": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Pupil is disadvantaged: eligible for free school meals (as FSM6_P), looked after (as CLA_PP_1_DAY), or adopted from care. 1 = Yes, 0 = No.",
+      "x-csv": {
+        "columns": {
+          "default": "T"
+        },
+        "heading": "Is the pupil disadvantaged?"
+      },
+      "x-display": {
+        "label": "Is the pupil disadvantaged?",
+        "visible": false,
+        "order": 20
+      }
+    },
+    "EALGRP": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "English as an additional language group: 1 = English as first language, 2 = EAL, 3 = unclassified, null = non-PLASC school.",
+      "x-csv": {
+        "columns": {
+          "default": "U"
+        },
+        "heading": "EAL Group"
+      },
+      "x-display": {
+        "label": "EAL Group",
+        "visible": false,
+        "order": 21
+      }
+    },
+    "PRIORBAND": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Prior attainment band at KS2: 1 = below expected, 2 = at expected, 3 = higher standard, 4 = PLASC school with no KS2, null = non-PLASC school. Set to null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid).",
+      "x-csv": {
+        "columns": {
+          "default": "V"
+        },
+        "heading": "KS2 Prior Band"
+      },
+      "x-display": {
+        "label": "KS2 Prior Band",
+        "visible": false,
+        "order": 22
+      }
+    },
+    "ETHNIC": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Pupil's ethnicity",
+      "x-csv": {
+        "columns": {
+          "default": "W"
+        },
+        "heading": "Pupil's ethnicity"
+      },
+      "x-display": {
+        "label": "Pupil's ethnicity",
+        "visible": false,
+        "order": 23
+      }
+    },
+    "NEWMOBILE": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Did the pupil join within the last 2 years (12/09/2024 or later)? 1 = Yes, 0 = No.",
+      "x-csv": {
+        "columns": {
+          "default": "X"
+        },
+        "heading": "Did the pupil join within the last 2 yrs?"
+      },
+      "x-display": {
+        "label": "Did the pupil join within the last 2 yrs?",
+        "visible": false,
+        "order": 24
+      }
+    },
+    "L2BASICS_94": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Has the pupil achieved standard 9-4 passes in both English and maths GCSEs? 1 = Yes, null = No.",
+      "x-csv": {
+        "columns": {
+          "default": "Y"
+        },
+        "heading": "English and maths GCSEs 9-4?"
+      },
+      "x-display": {
+        "label": "English and maths GCSEs 9-4?",
+        "visible": false,
+        "order": 25
+      }
+    },
+    "L2BASICS_95": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Has the pupil achieved strong 9-5 passes in both English and maths GCSEs? 1 = Yes, null = No.",
+      "x-csv": {
+        "columns": {
+          "default": "Z"
+        },
+        "heading": "English and maths GCSEs 9-5?"
+      },
+      "x-display": {
+        "label": "English and maths GCSEs 9-5?",
+        "visible": false,
+        "order": 26
+      }
+    },
+    "L2BASICS_97": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Has the pupil achieved 9-7 passes in both English and maths GCSEs? 1 = Yes, null = No.",
+      "x-csv": {
+        "columns": {
+          "default": "AA"
+        },
+        "heading": "English and maths GCSEs 9-7?"
+      },
+      "x-display": {
+        "label": "English and maths GCSEs 9-7?",
+        "visible": false,
+        "order": 27
+      }
+    },
+    "ENTRY_E_3NG_PTQ_EE": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Number of GCSE or equivalent entries in qualifications approved for use pre-16",
+      "x-csv": {
+        "columns": {
+          "default": "AB"
+        },
+        "heading": "Entries"
+      },
+      "x-display": {
+        "label": "Entries",
+        "visible": false,
+        "order": 28
+      }
+    },
+    "ENTRY_G_PTQ_EE": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Total number of GCSE only (including Applied) entries",
+      "x-csv": {
+        "columns": {
+          "default": "AC"
+        },
+        "heading": "GCSE Entries"
+      },
+      "x-display": {
+        "label": "GCSE Entries",
+        "visible": false,
+        "order": 29
+      }
+    },
+    "tripleSci_E": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Has the pupil been entered for triple science (biology, chemistry and physics)? 1 = Yes, 0 = No.",
+      "x-csv": {
+        "columns": {
+          "default": "AD"
+        },
+        "heading": "Entry triple science"
+      },
+      "x-display": {
+        "label": "Entry triple science",
+        "visible": false,
+        "order": 30
+      }
+    },
+    "multiLan_E": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Has the pupil been entered for multiple EBacc languages? 1 = Yes, 0 = No.",
+      "x-csv": {
+        "columns": {
+          "default": "AE"
+        },
+        "heading": "Entry multiple languages"
+      },
+      "x-display": {
+        "label": "Entry multiple languages",
+        "visible": false,
+        "order": 31
+      }
+    },
+    "KS2_reading_outcome": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Key stage 2 reading outcome. Set to null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid).",
+      "x-csv": {
+        "columns": {
+          "default": "AF"
+        },
+        "heading": "KS2 reading outcome"
+      },
+      "x-display": {
+        "label": "KS2 reading outcome",
+        "visible": false,
+        "order": 32
+      }
+    },
+    "KS2_mathematics_outcome": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Key stage 2 mathematics outcome. Set to null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid).",
+      "x-csv": {
+        "columns": {
+          "default": "AG"
+        },
+        "heading": "KS2 mathematics outcome"
+      },
+      "x-display": {
+        "label": "KS2 mathematics outcome",
+        "visible": false,
+        "order": 33
+      }
+    },
+    "KS2_reading_Scaled_Score": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Key stage 2 reading scaled score (0-999, N). Set to null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid).",
+      "x-csv": {
+        "columns": {
+          "default": "AH"
+        },
+        "heading": "KS2 reading Scaled Score"
+      },
+      "x-display": {
+        "label": "KS2 reading Scaled Score",
+        "visible": false,
+        "order": 34
+      }
+    },
+    "KS2_mathematics_Scaled_Score": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Key stage 2 mathematics scaled score (0-999, N). Set to null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid).",
+      "x-csv": {
+        "columns": {
+          "default": "AI"
+        },
+        "heading": "KS2 mathematics Scaled Score"
+      },
+      "x-display": {
+        "label": "KS2 mathematics Scaled Score",
+        "visible": false,
+        "order": 35
+      }
+    },
+    "KS2_reading_special_consideration": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Key stage 2 reading special consideration: 0 = not approved, 1 = approved but test not sat or no mark data, 2 = approved, blank = none. Set to null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid).",
+      "x-csv": {
+        "columns": {
+          "default": "AJ"
+        },
+        "heading": "KS2 reading Special Consideration"
+      },
+      "x-display": {
+        "label": "KS2 reading Special Consideration",
+        "visible": false,
+        "order": 36
+      }
+    },
+    "KS2_mathematics_special_consideration": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Key stage 2 mathematics special consideration: 0 = not approved, 1 = approved but test not sat or no mark data, 2 = approved, blank = none. Set to null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid).",
+      "x-csv": {
+        "columns": {
+          "default": "AK"
+        },
+        "heading": "KS2 mathematics special consideration"
+      },
+      "x-display": {
+        "label": "KS2 mathematics special consideration",
+        "visible": false,
+        "order": 37
+      }
+    },
+    "KS2_reading_TA": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Key stage 2 reading teacher assessment. Set to null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid).",
+      "x-csv": {
+        "columns": {
+          "default": "AL"
+        },
+        "heading": "KS2 reading TA"
+      },
+      "x-display": {
+        "label": "KS2 reading TA",
+        "visible": false,
+        "order": 38
+      }
+    },
+    "KS2_mathematics_TA": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Key stage 2 mathematics teacher assessment. Set to null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid).",
+      "x-csv": {
+        "columns": {
+          "default": "AM"
+        },
+        "heading": "KS2 mathematics TA"
+      },
+      "x-display": {
+        "label": "KS2 mathematics TA",
+        "visible": false,
+        "order": 39
+      }
+    },
+    "KS2EMSS_GRP": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Prior attainment in English and mathematics for use in progress 8 calculations. Set to null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid).",
+      "x-csv": {
+        "columns": {
+          "default": "AN"
+        },
+        "heading": "KS2 Prior attainment group calculated from average English reading and maths Scaled score"
+      },
+      "x-display": {
+        "label": "KS2 Prior attainment group calculated from average English reading and maths Scaled score",
+        "visible": false,
+        "order": 40
+      }
+    },
+    "SLOT1ENG": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Attainment 8 score achieved in English (2dp)",
+      "x-csv": {
+        "columns": {
+          "default": "AO"
+        },
+        "heading": "Score achieved in English"
+      },
+      "x-display": {
+        "label": "Score achieved in English",
+        "visible": false,
+        "order": 41
+      }
+    },
+    "SLOT2MAT": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Attainment 8 score achieved in mathematics (2dp)",
+      "x-csv": {
+        "columns": {
+          "default": "AP"
+        },
+        "heading": "Score achieved in mathematics"
+      },
+      "x-display": {
+        "label": "Score achieved in mathematics",
+        "visible": false,
+        "order": 42
+      }
+    },
+    "SLOT3EBAC": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Attainment 8 score achieved in first EBacc slot (2dp)",
+      "x-csv": {
+        "columns": {
+          "default": "AQ"
+        },
+        "heading": "Score achieved in 1st EBacc slot"
+      },
+      "x-display": {
+        "label": "Score achieved in 1st EBacc slot",
+        "visible": false,
+        "order": 43
+      }
+    },
+    "SLOT4EBAC": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Attainment 8 score achieved in second EBacc slot (2dp)",
+      "x-csv": {
+        "columns": {
+          "default": "AR"
+        },
+        "heading": "Score achieved in 2nd EBacc slot"
+      },
+      "x-display": {
+        "label": "Score achieved in 2nd EBacc slot",
+        "visible": false,
+        "order": 44
+      }
+    },
+    "SLOT5EBAC": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Attainment 8 score achieved in third EBacc slot (2dp)",
+      "x-csv": {
+        "columns": {
+          "default": "AS"
+        },
+        "heading": "Score achieved in 3rd EBacc slot"
+      },
+      "x-display": {
+        "label": "Score achieved in 3rd EBacc slot",
+        "visible": false,
+        "order": 45
+      }
+    },
+    "SLOT6OPEN": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Attainment 8 score achieved in first open slot (2dp)",
+      "x-csv": {
+        "columns": {
+          "default": "AT"
+        },
+        "heading": "Score achieved in 1st open slot"
+      },
+      "x-display": {
+        "label": "Score achieved in 1st open slot",
+        "visible": false,
+        "order": 46
+      }
+    },
+    "SLOT7OPEN": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Attainment 8 score achieved in second open slot (2dp)",
+      "x-csv": {
+        "columns": {
+          "default": "AU"
+        },
+        "heading": "Score achieved in 2nd open slot"
+      },
+      "x-display": {
+        "label": "Score achieved in 2nd open slot",
+        "visible": false,
+        "order": 47
+      }
+    },
+    "SLOT8OPEN": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Attainment 8 score achieved in third open slot (2dp)",
+      "x-csv": {
+        "columns": {
+          "default": "AV"
+        },
+        "heading": "Score achieved in 3rd open slot"
+      },
+      "x-display": {
+        "label": "Score achieved in 3rd open slot",
+        "visible": false,
+        "order": 48
+      }
+    },
+    "ATT8": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Attainment 8 total score (2dp)",
+      "x-csv": {
+        "columns": {
+          "default": "AW"
+        },
+        "heading": "Attainment 8 score"
+      },
+      "x-display": {
+        "label": "Attainment 8 score",
+        "visible": false,
+        "order": 49
+      }
+    },
+    "EBACFILL": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Number of EBacc slots filled",
+      "x-csv": {
+        "columns": {
+          "default": "AX"
+        },
+        "heading": "EBacc slots filled"
+      },
+      "x-display": {
+        "label": "EBacc slots filled",
+        "visible": false,
+        "order": 50
+      }
+    },
+    "OPENFILL": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Number of open slots filled",
+      "x-csv": {
+        "columns": {
+          "default": "AY"
+        },
+        "heading": "Open slots filled"
+      },
+      "x-display": {
+        "label": "Open slots filled",
+        "visible": false,
+        "order": 51
+      }
+    },
+    "P8SCORE": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Pupil's adjusted progress 8 score (3dp). Set to null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid).",
+      "x-csv": {
+        "columns": {
+          "default": "AZ"
+        },
+        "heading": "Pupil's adjusted progress 8 score"
+      },
+      "x-display": {
+        "label": "Pupil's adjusted progress 8 score",
+        "visible": false,
+        "order": 52
+      }
+    },
+    "P8SCORE_ORIG": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Pupil's unadjusted progress 8 score. Set to null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid).",
+      "x-csv": {
+        "columns": {
+          "default": "BA"
+        },
+        "heading": "Pupil's unadjusted progress 8 score"
+      },
+      "x-display": {
+        "label": "Pupil's unadjusted progress 8 score",
+        "visible": false,
+        "order": 53
+      }
+    },
+    "P8ADJ": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Pupil's progress 8 score has been adjusted due to an extreme negative score. 1 = Yes, 0 = No. Set to null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid).",
+      "x-csv": {
+        "columns": {
+          "default": "BB"
+        },
+        "heading": "Pupil's Progress 8 score has been adjusted due to extreme negative score"
+      },
+      "x-display": {
+        "label": "Pupil's Progress 8 score has been adjusted due to extreme negative score",
+        "visible": false,
+        "order": 54
+      }
+    },
+    "P8ENG": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Pupil's progress 8 score for English. Set to null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid).",
+      "x-csv": {
+        "columns": {
+          "default": "BC"
+        },
+        "heading": "Progress 8 score for English"
+      },
+      "x-display": {
+        "label": "Progress 8 score for English",
+        "visible": false,
+        "order": 55
+      }
+    },
+    "P8MAT": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Pupil's progress 8 score for mathematics. Set to null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid).",
+      "x-csv": {
+        "columns": {
+          "default": "BD"
+        },
+        "heading": "Progress 8 score for mathematics"
+      },
+      "x-display": {
+        "label": "Progress 8 score for mathematics",
+        "visible": false,
+        "order": 56
+      }
+    },
+    "EBACSCR": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Score achieved in EBacc slots",
+      "x-csv": {
+        "columns": {
+          "default": "BE"
+        },
+        "heading": "Score achieved in EBacc slots"
+      },
+      "x-display": {
+        "label": "Score achieved in EBacc slots",
+        "visible": false,
+        "order": 57
+      }
+    },
+    "P8EBAC": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Pupil's progress 8 score for EBacc slots. Set to null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid).",
+      "x-csv": {
+        "columns": {
+          "default": "BF"
+        },
+        "heading": "Progress 8 score for EBacc slots"
+      },
+      "x-display": {
+        "label": "Progress 8 score for EBacc slots",
+        "visible": false,
+        "order": 58
+      }
+    },
+    "OPENSCR": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Score achieved in open slots",
+      "x-csv": {
+        "columns": {
+          "default": "BG"
+        },
+        "heading": "Score achieved in open slots"
+      },
+      "x-display": {
+        "label": "Score achieved in open slots",
+        "visible": false,
+        "order": 59
+      }
+    },
+    "P8OPEN": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Pupil's progress 8 score for open slots. Set to null in 2025 and 2026: there is no KS2 prior attainment data from 2020 and 2021 (Covid).",
+      "x-csv": {
+        "columns": {
+          "default": "BH"
+        },
+        "heading": "Progress 8 score for open slots"
+      },
+      "x-display": {
+        "label": "Progress 8 score for open slots",
+        "visible": false,
+        "order": 60
+      }
+    },
+    "OPENGSCR": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Total score achieved in open slots, GCSEs only (2dp)",
+      "x-csv": {
+        "columns": {
+          "default": "BI"
+        },
+        "heading": "Total score achieved in open slots – GCSEs only"
+      },
+      "x-display": {
+        "label": "Total score achieved in open slots – GCSEs only",
+        "visible": false,
+        "order": 61
+      }
+    },
+    "OPENNGSCR": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Total score achieved in open slots, non-GCSEs only (2dp)",
+      "x-csv": {
+        "columns": {
+          "default": "BJ"
+        },
+        "heading": "Total score achieved in open slots – non-GCSEs only"
+      },
+      "x-display": {
+        "label": "Total score achieved in open slots – non-GCSEs only",
+        "visible": false,
+        "order": 62
+      }
+    },
+    "SCIPATHWAY3": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Science pathway: 1 = individual sciences, 2 = combined science, set only when a pupil has a mix of both; otherwise 0.",
+      "x-csv": {
+        "columns": {
+          "default": "BK"
+        },
+        "heading": "Pupil level Science pathway flag"
+      },
+      "x-display": {
+        "label": "Pupil level Science pathway flag",
+        "visible": false,
+        "order": 63
+      }
+    },
+    "SCI_EXCLUDE_PREVSCH3": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Science exclude previous school. 1 = Yes, 0 = No.",
+      "x-csv": {
+        "columns": {
+          "default": "BL"
+        },
+        "heading": "Science exclude previous school"
+      },
+      "x-display": {
+        "label": "Science exclude previous school",
+        "visible": false,
+        "order": 64
+      }
+    },
+    "YOUNGCARER": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Has the pupil been identified as a young carer? 1 = Yes, 0 = No.",
+      "x-csv": {
+        "columns": {
+          "default": "BM"
+        },
+        "heading": "Has pupil been identified as a young carer?"
+      },
+      "x-display": {
+        "label": "Has pupil been identified as a young carer?",
+        "visible": false,
+        "order": 65
+      }
+    }
+  }
+}

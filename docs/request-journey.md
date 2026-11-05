@@ -120,7 +120,7 @@ All flow configs begin with one or more `PupilSearch` pages. These are full-page
 
 | Field | Required | Values | Notes |
 |---|---|---|---|
-| `pupilFilter` | yes | `"Included"` / `"All"` / `"Includable"` / `"NotIncludable"` | `Included` limits results to pupils stamped `INCLUDED`; `All` returns every pupil for the school; `Includable` returns pupils stamped `INCLUDABLE` — the Include journey's search, which on 16-19 adds the included file's P_INCL 502 students to the non-included file (#711); `NotIncludable` is the rest, which the Include journey's "already included" guards look a name up in |
+| `pupilFilter` | yes | `"Included"` / `"All"` / `"Includable"` / `"NotIncludable"` | `Included` limits results to pupils stamped `INCLUDED`; `All` returns every pupil for the school; `Includable` returns pupils stamped `INCLUDABLE` — the Include journey's search, which on 16-19 adds the included file's P_INCL 502 students to the non-included file (#711), and on KS4 Autumn is only the not-included codes the schema names (#750); `NotIncludable` is the rest, which the Include journey's "already included" guards look a name up in |
 | `pupilKey` | yes | `"primary"` / `"match"` | Controls which session field is populated (see below) |
 | `requireResults` | no | `true` / `false` (default) | Limits the search to students the school holds a 16-19 result for. Independent of `pupilFilter`, which selects by inclusion status. Used by the results enquiry — there is no grade to correct for a student with no result. A page that sets it must say so in its `subheading`, because the restriction hides students silently |
 | `pupilSearchField` | no | `"All"` / `"CypmdId"` (default `All`) | Which field(s) the query is matched against. `All` (or absent) matches forename, surname, split names, UPN/ULN, CYPMD ID and date of birth. `CypmdId` matches **only** a trimmed, case-insensitive prefix of `Cypmd_Id` — a name, UPN or date of birth returns nothing. No shipped flow sets it. A page that sets it must say so in its `subheading`, because the narrowed search hides records silently |
@@ -164,7 +164,7 @@ POST → saves MatchedPupil
      → no nextPageId → redirects to Summary
 ```
 
-**Include** uses one `PupilSearch` page with `pupilFilter: "Includable"` (the `INCLUDABLE` stamp: not included, or a code the schema names — 16-19 P_INCL 502), then an evidence page; `Include_KS4June.json` and `Include_Post16.json` (#711).
+**Include** uses one `PupilSearch` page with `pupilFilter: "Includable"` (the `INCLUDABLE` stamp: a code the schema's `x-ingress.includable` rule names, or not included where there is no rule — 16-19 P_INCL 502, KS4 Autumn's 12 codes), then an evidence page; `Include_KS4June.json`, `Include_Post16.json` (#711) and `Include_KS4Autumn.json` (#750, a copy of the KS4 June file).
 
 **Session after primary PupilSearch page:**
 | Field | Value |
@@ -489,6 +489,7 @@ from `{ContentRootPath}/Data/QuestionFlows/` in every environment (see
 Data/QuestionFlows/
 ├── Add_KS4Autumn.json                              ← Add flow config (KS4 Autumn)
 ├── Add_KS4June.json                                ← Add flow config (KS4 June)
+├── Include_KS4Autumn.json                          ← Include flow config (KS4 Autumn, #750)
 ├── Include_KS4June.json                            ← Include flow config (KS4 June)
 ├── Include_Post16.json                             ← Include flow config (16-19)
 ├── IncorrectGrade_Post16.json                      ← Incorrect grade flow config (16-19)

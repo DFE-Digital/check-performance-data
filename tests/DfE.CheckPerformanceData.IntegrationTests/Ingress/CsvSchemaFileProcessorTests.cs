@@ -376,8 +376,9 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
     }
 
     // #711: who may be asked to be included. A schema names the codes in x-ingress.includable
-    // (16-19 P_INCL 502, a student in the included file who is not in the measures); a record that
-    // is not included is includable without a rule. Readers read INCLUDABLE, never a code.
+    // (16-19 P_INCL 502, a student in the included file who is not in the measures). The rule
+    // decides alone (#750); a record that is not included is includable only without a rule.
+    // Readers read INCLUDABLE, never a code.
     private const string SchemaWithIncludableRule = """
     {
       "type": "object",
@@ -400,8 +401,9 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
     [InlineData("SURNAME,LAESTAB,P_INCL\nSmith,8604070, 502 \n", true, true)]
     [InlineData("SURNAME,LAESTAB,P_INCL\nSmith,8604070,501\n", true, false)]
     [InlineData("SURNAME,LAESTAB,P_INCL\nSmith,8604070,\n", true, false)]
-    [InlineData("SURNAME,LAESTAB,P_INCL\nSmith,8604070,501\n", false, true)]
-    public async Task The_schemas_includable_rule_stamps_INCLUDABLE_from_the_code_or_from_not_included(
+    [InlineData("SURNAME,LAESTAB,P_INCL\nSmith,8604070,501\n", false, false)]
+    [InlineData("SURNAME,LAESTAB,P_INCL\nSmith,8604070,502\n", false, true)]
+    public async Task The_schemas_includable_rule_alone_stamps_INCLUDABLE(
         string csv, bool slotIncluded, bool includable)
     {
         var (last, pupil) = await RunInclusionRuleAsync(csv, SchemaWithIncludableRule, slotIncluded);
@@ -494,13 +496,17 @@ public sealed class CsvSchemaFileProcessorTests(AzuriteFixture fixture)
         Assert.Null(pupil);
     }
 
-    // The shipped schemas: KS4 and KS2 stamp INCLUDABLE as "not included"; the 16-19 included file
-    // names 502; the 16-19 non-included file has no rule and every row is includable.
+    // The shipped schemas: KS4 June and KS2 stamp INCLUDABLE as "not included"; KS4 Autumn names
+    // its includable codes (#750), so a not-included code outside them is not includable; the
+    // 16-19 included file names 502; the 16-19 non-included file has no rule and every row is
+    // includable.
     [Theory]
     [InlineData("ks4june", "pupils_schema.json", "UPN,CYPMD_ID,SURNAME,FORENAME,P_INCL,LAESTAB\nA1,1,Smith,Al,401,8604070\n", null, false)]
     [InlineData("ks4june", "pupils_schema.json", "UPN,CYPMD_ID,SURNAME,FORENAME,P_INCL,LAESTAB\nA1,1,Smith,Al,402,8604070\n", null, true)]
     [InlineData("ks4autumn", "pupils_schema.json", "UPN,CYPMD_ID,SURNAME,FORENAME,P_INCL,LAESTAB\nA1,1,Smith,Al,401,8604070\n", null, false)]
     [InlineData("ks4autumn", "pupils_schema.json", "UPN,CYPMD_ID,SURNAME,FORENAME,P_INCL,LAESTAB\nA1,1,Smith,Al,425,8604070\n", null, true)]
+    [InlineData("ks4autumn", "pupils_schema.json", "UPN,CYPMD_ID,SURNAME,FORENAME,P_INCL,LAESTAB\nA1,1,Smith,Al,427,8604070\n", null, true)]
+    [InlineData("ks4autumn", "pupils_schema.json", "UPN,CYPMD_ID,SURNAME,FORENAME,P_INCL,LAESTAB\nA1,1,Smith,Al,405,8604070\n", null, false)]
     [InlineData("ks2", "pupils_schema.json", "UPN,CYPMD_ID,MATCHREF,SURNAME,FORENAME,PINCL_Flag,LAESTAB\nA1,1,7,Smith,Al,201,8604070\n", null, false)]
     [InlineData("ks2", "pupils-december_schema.json", "UPN,CYPMD_ID,MATCHREF,SURNAME,FORENAME,PINCL_Flag,LAESTAB\nA1,1,7,Smith,Al,202,8604070\n", null, true)]
     [InlineData("post16", "students-included_schema.json", "CYPMD_ID,SURNAME,FORENAMES,P_INCL,LAESTAB\n1,Smith,Al,501,8604070\n", true, false)]

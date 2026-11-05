@@ -64,7 +64,8 @@ public sealed class PupilRecord : IPupilRecord
     public bool Included { get; init; }
 
     /// <summary>Stamped by ingress (#711): true when a school may ask to include this pupil. On
-    /// KS4 and KS2 that is "not included". Absent means not includable.</summary>
+    /// KS4 June and KS2 that is "not included"; on KS4 Autumn, a code the schema's
+    /// <c>x-ingress.includable</c> rule names (#750). Absent means not includable.</summary>
     [JsonPropertyName("INCLUDABLE")]
     public bool Includable { get; init; }
 

@@ -483,7 +483,7 @@ public class IncludeHandoffConflictTests
 
     // ── #749: the Include actions need an Include flow for the window type ──
     //
-    // KS4 Autumn has Add but no Include_KS4Autumn.json. The duplicate-check page reads the same
+    // A window type can have Add but no Include flow. The duplicate-check page reads the same
     // list What to change renders (GetPupilDataChangesAsync), so it offers "Include this pupil"
     // and "Switch to include" only where the hand-off can land. A post without the flow returns
     // to the duplicate-check page (fail closed), never to Check your pupil data.

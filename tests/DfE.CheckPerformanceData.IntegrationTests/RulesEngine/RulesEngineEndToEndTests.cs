@@ -241,6 +241,23 @@ public sealed class RulesEngineEndToEndTests
             DecisionStatus.AutoApproved, "INC-ACC",
             PupilPincl: 402); // inclusionFlag comes from the pupil record, not an answer
 
+        // #750: KS4 Autumn includes use the same Inclusion rules as KS4 June. INC-ACC, INC-REJ
+        // and INC-DEF have no window-type condition, so one code from each branch proves it.
+        yield return new("Inclusion-AutoApproved-KS4Autumn", "Include", "KS4Autumn",
+            Answers: [],
+            DecisionStatus.AutoApproved, "INC-ACC",
+            PupilPincl: 422);
+
+        yield return new("Inclusion-AutoRejected-KS4Autumn", "Include", "KS4Autumn",
+            Answers: [],
+            DecisionStatus.AutoRejected, "INC-REJ",
+            PupilPincl: 430);
+
+        yield return new("Inclusion-Scrutiny-KS4Autumn", "Include", "KS4Autumn",
+            Answers: [],
+            DecisionStatus.Scrutiny, "INC-DEF",
+            PupilPincl: 427);
+
         yield return new("AdmittedFollowingPermanentExclusion-PreCutoff", "Remove - permanent-exclusion", "KS4June",
             Answers: [("date-pupil-excluded", "2022-01-01")],
             DecisionStatus.AutoRejected, "AFE-PRE2023");

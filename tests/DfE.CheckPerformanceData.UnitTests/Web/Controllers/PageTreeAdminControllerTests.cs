@@ -1647,35 +1647,40 @@ public sealed class PageTreeAdminControllerTests
     // ── POST /admin/pages/{id}/content/save-draft ────────────────────────────
 
     [Fact]
-    public async Task ContentSaveDraft_KnownNode_CallsSaveWorkingContentAsync_AndRedirectsToEdit()
+    public async Task ContentSaveDraft_ContentPage_SavesTheDraftThroughTheEditor_AndRedirectsToEdit()
     {
         var id = Guid.NewGuid();
         _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
             { Id = id, Segment = "p", Path = "p", Title = "P", PageType = "content" });
-        _service.GetWorkingOrLatestContentAsync(id).Returns("[{\"kind\":\"widget\"}]");
 
         var result = await Sut().ContentSaveDraft(id);
 
-        await _service.Received(1).SaveWorkingContentAsync(
-            id, "[{\"kind\":\"widget\"}]", string.Empty, Arg.Any<string?>());
+        await _contentEditor.Received(1).SaveDraftAsync(id, Arg.Any<string?>());
+        // #475: the action must not write the draft itself. When it did, it passed an empty
+        // search body. The editor derives the body from the widget tree.
+        await _service.DidNotReceive().SaveWorkingContentAsync(
+            Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string?>());
         var redirect = Assert.IsType<RedirectResult>(result);
         Assert.Equal($"/admin/pages/{id}/edit", redirect.Url);
     }
 
-    [Fact]
-    public async Task ContentSaveDraft_NullContent_SavesEmptyArray_AndRedirectsToEdit()
+    [Theory]
+    [InlineData("wiki")]
+    [InlineData("folder")]
+    public async Task ContentSaveDraft_NodeThatIsNotAContentPage_ReturnsNotFound_AndSavesNothing(string pageType)
     {
+        // Only a content page holds a widget tree. A wiki page holds markdown, and a folder has
+        // no version at all.
         var id = Guid.NewGuid();
         _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
-            { Id = id, Segment = "p", Path = "p", Title = "P", PageType = "content" });
-        _service.GetWorkingOrLatestContentAsync(id).Returns((string?)null);
+            { Id = id, Segment = "p", Path = "p", Title = "P", PageType = pageType });
 
         var result = await Sut().ContentSaveDraft(id);
 
-        await _service.Received(1).SaveWorkingContentAsync(
-            id, "[]", string.Empty, Arg.Any<string?>());
-        var redirect = Assert.IsType<RedirectResult>(result);
-        Assert.Equal($"/admin/pages/{id}/edit", redirect.Url);
+        Assert.IsType<NotFoundResult>(result);
+        await _contentEditor.DidNotReceive().SaveDraftAsync(Arg.Any<Guid>(), Arg.Any<string?>());
+        await _service.DidNotReceive().SaveWorkingContentAsync(
+            Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string?>());
     }
 
     [Fact]
@@ -1687,6 +1692,7 @@ public sealed class PageTreeAdminControllerTests
         var result = await Sut().ContentSaveDraft(id);
 
         Assert.IsType<NotFoundResult>(result);
+        await _contentEditor.DidNotReceive().SaveDraftAsync(Arg.Any<Guid>(), Arg.Any<string?>());
         await _service.DidNotReceive().SaveWorkingContentAsync(
             Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string?>());
     }

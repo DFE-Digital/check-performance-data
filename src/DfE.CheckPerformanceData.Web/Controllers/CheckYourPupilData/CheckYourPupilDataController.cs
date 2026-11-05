@@ -284,7 +284,8 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         // derived from the window type and woven through this page's wording here, so no view has
         // to look it up.
         var noun = LearnerNoun.For(window.CheckingWindowType);
-        var laestab = currentUserService.OrganisationLaestab;
+        var laestab = viewContext?.OrganisationLaestab
+                      ?? currentUserService.OrganisationLaestab;
 
         // Stamp the nav's selected window here, where the type is already in hand: the main nav
         // labels its window-scoped link with this window's noun, so it needs the type as well as

@@ -631,8 +631,10 @@ function loadWorkload(): Workload {
         scenarios:
             expectedScenarios as unknown as NonNullable<Options["scenarios"]>,
 
-        thresholds:
-            thresholdsFor(undefined),
+        thresholds: {
+            ...thresholdsFor(undefined),
+            dropped_iterations: ["count==0"],
+        },
     };
 
     const addPupilShare =

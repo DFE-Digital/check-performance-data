@@ -1,0 +1,34 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+
+    "strict": true,
+    "noImplicitAny": true,
+    "noUncheckedIndexedAccess": false,
+    "exactOptionalPropertyTypes": true,
+
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+
+    "types": [
+      "k6"
+    ],
+
+    "skipLibCheck": true
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.d.ts",
+    "tests/**/*.ts",
+    "journeys/**/*.ts",
+    "lib/**/*.ts",
+    "types/**/*.ts",
+    "journey-config/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}

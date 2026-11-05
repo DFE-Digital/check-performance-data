@@ -122,8 +122,10 @@ public static class ZendeskTicketFieldOptions
     /// </summary>
     public static class CorrectionReason31
     {
-        // #778: the codes that the previous system sent. UAT confirms them.
+        // #778: the business confirmed these codes. Each add-back removal takes 8, whatever the
+        // reason. KS4 "other" is only for an add-back pupil, so it takes 8 too.
         public const string AddBackRemoval = "8_31";
+        // 16-19 only. They are not the KS4 "other" code.
         public const string OtherWithEvidence = "329_31";
         public const string OtherEvidenceNotRequired = "330_31";
         // 16-19 not on roll, by sub-reason (LDS spec v2.4 K11). A not-on-roll "other" sub-reason

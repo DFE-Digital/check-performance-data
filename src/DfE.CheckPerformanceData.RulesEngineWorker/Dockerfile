@@ -6,7 +6,7 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:de0ee358cdd672f7017a003bed21e9a
 # CI reuses this layer from its build cache, so the upgrade does not run at each build. To get
 # the current Ubuntu packages now, set OS_PACKAGES_DATE to today's date: a new value makes Docker
 # run the layer again (docs/dependabot.md#os-packages).
-ARG OS_PACKAGES_DATE=2026-10-29
+ARG OS_PACKAGES_DATE=2026-11-05
 RUN apt-get update \
     && apt-get upgrade -y --no-install-recommends \
     && apt-get install -y --no-install-recommends curl \

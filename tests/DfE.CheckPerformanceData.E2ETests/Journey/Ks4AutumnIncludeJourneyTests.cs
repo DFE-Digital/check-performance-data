@@ -79,14 +79,14 @@ public sealed class Ks4AutumnIncludeJourneyTests(PlaywrightFixture fixture) : Se
     }
 
     // Types the name, picks the suggestion that carries it, and continues. A suggestion reads
-    // "Firstname, Surname, (…)" (PupilSuggestionFormat.Label).
+    // "Surname, Firstname, (…)" (PupilSuggestionFormat.Label).
     private async Task SelectPupilAsync(string name)
     {
         var input = Page.Locator("#pupil-search").First;
         await Expect(input).ToBeVisibleAsync();
         await input.FillAsync(name);
         var parts = name.Split(' ');
-        var option = Page.Locator("li[role='option']").GetByText($"{parts[0]}, {parts[1]},");
+        var option = Page.Locator("li[role='option']").GetByText($"{parts[1]}, {parts[0]},");
         await Expect(option.First).ToBeVisibleAsync();
         await option.First.ClickAsync();
         await ContinueAsync();

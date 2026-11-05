@@ -4,10 +4,11 @@ using DfE.CheckPerformanceData.Application.ContentPages;
 
 namespace DfE.CheckPerformanceData.Application.PageTree;
 
-// Applies a single editor action (an edit, or a save with no edit) to a PageNode's working draft version: loads the draft's content
-// tree via IPageNodeService, mutates it through the pure ContentTreeEditor, re-anchors heading
-// widgets, derives a plain-text body for FTS indexing, and autosaves via SaveWorkingContentAsync.
-// No version is created here — that happens only when the page is published.
+// Applies a single editor action (an edit, or a save with no edit) to a PageNode's working draft
+// version: loads the draft's content tree via IPageNodeService, mutates it through the pure
+// ContentTreeEditor, re-anchors heading widgets, derives a plain-text body for FTS indexing, and
+// autosaves via SaveWorkingContentAsync. That call updates the working draft. When the page has
+// no draft, it adds one as a new version. Nothing is published here.
 public sealed class PageNodeContentEditor(
     IPageNodeService pageNodes,
     IHtmlRenderingService htmlRenderer) : IPageNodeContentEditor
@@ -71,7 +72,8 @@ public sealed class PageNodeContentEditor(
     // Derives a searchable plain-text body from the widget tree for FTS indexing.
     // No content-page → plain-text helper existed in the codebase; IHtmlRenderingService.StripTagsToPlainText
     // is reused for richtext HTML. Concatenates heading text, stripped richtext HTML, card title+body,
-    // and published callout text. Dividers and summary-lists contribute nothing (no prose content).
+    // and published callout text. Dividers contribute nothing. Summary-list rows hold text, and they are
+    // not indexed today.
     private string ExtractPlainText(IReadOnlyList<ContentNode> tree)
     {
         var parts = new List<string>();

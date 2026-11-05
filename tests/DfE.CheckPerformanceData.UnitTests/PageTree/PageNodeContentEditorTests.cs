@@ -249,6 +249,19 @@ public class PageNodeContentEditorTests
     }
 
     [Fact]
+    public async Task SaveDraft_IndexesNoTextForASummaryListThatHasRows()
+    {
+        // The default summary list has no rows, so the theory above cannot see this case. The rows
+        // hold text that a visitor reads, and today they are not in the search body. This test pins
+        // that. If rows become searchable, change this test and the docs in the same pull request.
+        SeedTree(_nodeId, Widget("summarylist", """{"rows":[{"key":"Deadline","value":"Friday"}]}"""));
+
+        await Sut().SaveDraftAsync(_nodeId, null);
+
+        Assert.Equal(string.Empty, _service.ReadBody(_nodeId));
+    }
+
+    [Fact]
     public void EveryRegisteredWidgetType_IsListedAsWithTextOrWithNoText()
     {
         // A new widget type must be added to one list above, with a case in its theory. This
